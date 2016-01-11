@@ -135,6 +135,14 @@
 */
 const int64_t SEQ_UNINIT= 0;
 
+/** We use 7 bytes, 1 bit being used as a flag. */
+#define MAX_COMMIT_TIMESTAMP_VALUE (1ULL << 55)
+/**
+  Used to determine whether the original_commit_timestamp is already known or if
+  it still needs to be determined when computing it.
+*/
+const int64_t UNDEFINED_COMMIT_TIMESTAMP= MAX_COMMIT_TIMESTAMP_VALUE;
+
 /** Setting this flag will mark an event as Ignorable */
 #define LOG_EVENT_IGNORABLE_F 0x80
 

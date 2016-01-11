@@ -2574,7 +2574,10 @@ void THD::set_currently_executing_gtid_for_slave_thread()
   */
   if (system_thread == SYSTEM_THREAD_SLAVE_SQL ||
       system_thread == SYSTEM_THREAD_SLAVE_WORKER)
+  {
     rli_slave->currently_executing_gtid= variables.gtid_next;
+    rli_slave->original_commit_timestamp= variables.original_commit_timestamp;
+  }
 }
 
 void THD::set_user_connect(USER_CONN *uc)

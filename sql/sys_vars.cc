@@ -5551,6 +5551,15 @@ static Sys_var_uint Sys_sync_masterinfo_period(
        GLOBAL_VAR(sync_masterinfo_period), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, UINT_MAX), DEFAULT(10000), BLOCK_SIZE(1));
 
+static Sys_var_ulonglong Sys_var_original_commit_timestamp(
+       "original_commit_timestamp",
+       "The time when the current transaction was committed on the originating "
+       "replication master, measured in microseconds since the epoch.",
+       SESSION_ONLY(original_commit_timestamp), NO_CMD_LINE,
+       VALID_RANGE(0, MAX_COMMIT_TIMESTAMP_VALUE),
+       DEFAULT(MAX_COMMIT_TIMESTAMP_VALUE), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+       IN_BINLOG, ON_CHECK(check_has_super));
+
 static Sys_var_ulong Sys_slave_trans_retries(
        "slave_transaction_retries", "Number of times the slave SQL "
        "thread will retry a transaction in case it failed with a deadlock "

@@ -831,6 +831,7 @@ void my_free_open_file_info(void);
 
 extern time_t my_time(myf flags);
 extern ulonglong my_micro_time();
+extern ulonglong my_micro_time_ntp();
 extern my_bool my_gethwaddr(uchar *to);
 
 #ifdef HAVE_SYS_MMAN_H

@@ -286,6 +286,8 @@ struct System_variables
     'COLUMN_TYPE' field.
   */
   my_bool show_old_temporals;
+  // Used for replication delay and lag monitoring
+  uint64 original_commit_timestamp;
 };
 
 

@@ -339,6 +339,7 @@ int Trans_delegate::before_commit(THD *thd, bool all,
   param.trx_cache_log= trx_cache_log;
   param.stmt_cache_log= stmt_cache_log;
   param.cache_log_max_size= cache_log_max_size;
+  param.original_commit_timestamp= &thd->variables.original_commit_timestamp;
 
   bool is_real_trans=
     (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));

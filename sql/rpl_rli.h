@@ -266,6 +266,13 @@ public:
    */
   bool error_on_rli_init_info;
 
+  /**
+    Variable is set to true as long as
+    original_commit_timestamp > immediate_commit_timestamp so that the
+    corresponding warning is only logged once.
+  */
+  bool gtid_timestamps_warning_logged;
+
   /*
     Let's call a group (of events) :
       - a transaction
@@ -538,6 +545,10 @@ public:
     The timestamp is set and reset in @c sql_slave_killed().
   */
   time_t last_event_start_time;
+
+  /* The original master commit timestamp in microseconds since epoch */
+  uint64 original_commit_timestamp;
+
   /*
     A container to hold on Intvar-, Rand-, Uservar- log-events in case
     the slave is configured with table filtering rules.

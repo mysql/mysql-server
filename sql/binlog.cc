@@ -1365,10 +1365,85 @@ bool MYSQL_BIN_LOG::write_gtid(THD *thd, binlog_cache_data *cache_data,
   trn_ctx->last_committed= SEQ_UNINIT;
 
   /*
+    For delayed replication and also for the purpose of lag monitoring,
+    we assume that the commit timestamp of the transaction is the time of
+    executing this code (the time of writing the Gtid_log_event to the binary
+    log).
+  */
+  uint64 immediate_commit_timestamp= my_micro_time_ntp();
+
+  /*
+    When the original_commit_timestamp session variable is set to a value
+    other than UNDEFINED_COMMIT_TIMESTAMP, it means that either the timestamp
+    is known ( > 0 ) or the timestamp is not known ( == 0 ).
+  */
+  uint64 original_commit_timestamp= thd->variables.original_commit_timestamp;
+  /*
+    When original_commit_timestamp == UNDEFINED_COMMIT_TIMESTAMP, we assume
+    that:
+    a) it is not known if this thread is a slave applier ( = 0 );
+    b) this is a new transaction ( = immediate_commit_timestamp);
+  */
+  if (original_commit_timestamp == UNDEFINED_COMMIT_TIMESTAMP)
+  {
+    /*
+      When applying a transaction using replication, assume that the
+      original commit timestamp is not known (the transaction wasn't
+      originated on the current server).
+    */
+    if (thd->slave_thread)
+    {
+      original_commit_timestamp= 0;
+    }
+    else
+    /* Assume that this transaction is original from this server */
+    {
+      DBUG_EXECUTE_IF("rpl_invalid_gtid_timestamp",
+                      //add one our to the commit timestamps
+                      immediate_commit_timestamp += 3600000000;);
+      original_commit_timestamp= immediate_commit_timestamp;
+    }
+  }
+  else
+  {
+    // Clear the session variable to have cleared states for next transaction.
+    thd->variables.original_commit_timestamp= UNDEFINED_COMMIT_TIMESTAMP;
+  }
+
+  if (thd->slave_thread)
+  {
+    // log warning if the replication timestamps are invalid
+    if (original_commit_timestamp > immediate_commit_timestamp &&
+        !thd->rli_slave->get_c_rli()->gtid_timestamps_warning_logged)
+    {
+      sql_print_warning("Invalid replication timestamps: original commit "
+                        "timestamp is more recent than the immediate commmit "
+                        "timestamp. This may be an issue if delayed "
+                        "replication is active. Make sure that servers have "
+                        "their clocks set to the correct time. No further "
+                        "message will be emitted until after timestamps become "
+                        "valid again.");
+      thd->rli_slave->get_c_rli()->gtid_timestamps_warning_logged= true;
+    }
+    else
+    {
+      if (thd->rli_slave->get_c_rli()->gtid_timestamps_warning_logged &&
+          original_commit_timestamp <= immediate_commit_timestamp)
+      {
+        sql_print_warning("The replication timestamps have returned to normal "
+                          "values.");
+        thd->rli_slave->get_c_rli()->gtid_timestamps_warning_logged= false;
+      }
+    }
+  }
+
+  /*
     Generate and write the Gtid_log_event.
   */
   Gtid_log_event gtid_event(thd, cache_data->is_trx_cache(),
-                            relative_last_committed, relative_sequence_number);
+                            relative_last_committed, relative_sequence_number,
+                            original_commit_timestamp,
+                            immediate_commit_timestamp);
   uchar buf[Gtid_log_event::MAX_EVENT_LENGTH];
   uint32 buf_len= gtid_event.write_to_memory(buf);
   bool ret= writer->write_full_event(buf, buf_len);

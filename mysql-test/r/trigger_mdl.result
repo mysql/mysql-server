@@ -31,14 +31,14 @@ disconnect con1;
 SHOW BINLOG EVENTS FROM 123;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	123	Previous_gtids	1	154	
-master-bin.000001	154	Anonymous_Gtid	1	219	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
-master-bin.000001	219	Query	1	328	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY)
-master-bin.000001	328	Anonymous_Gtid	1	393	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
-master-bin.000001	393	Query	1	502	use `test`; CREATE TABLE t2 (a INT PRIMARY KEY)
-master-bin.000001	502	Anonymous_Gtid	1	567	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
-master-bin.000001	567	Query	1	755	use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trigger_1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END
-master-bin.000001	755	Anonymous_Gtid	1	820	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
-master-bin.000001	820	Query	1	916	use `test`; DROP TRIGGER trigger_1
+master-bin.000001	154	Anonymous_Gtid	1	226	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+master-bin.000001	226	Query	1	335	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY)
+master-bin.000001	335	Anonymous_Gtid	1	407	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+master-bin.000001	407	Query	1	516	use `test`; CREATE TABLE t2 (a INT PRIMARY KEY)
+master-bin.000001	516	Anonymous_Gtid	1	588	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+master-bin.000001	588	Query	1	776	use `test`; CREATE DEFINER=`root`@`localhost` TRIGGER trigger_1 BEFORE INSERT ON t1 FOR EACH ROW BEGIN END
+master-bin.000001	776	Anonymous_Gtid	1	848	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+master-bin.000001	848	Query	1	944	use `test`; DROP TRIGGER trigger_1
 DROP TABLE t1,t2;
 # This test case tries to check that in case several connections contest for
 # mdl lock while trying to create a trigger with the same name then one of

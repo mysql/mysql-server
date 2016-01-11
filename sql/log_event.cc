@@ -4094,6 +4094,27 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
 
 #ifndef MYSQL_SERVER
 /**
+  Given a timestamp (microseconds since epoch), generate a string
+  of the form YYYY-MM-DD HH:MM:SS.UUUUUU and return the length.
+
+  @param timestamp timestamp to convert to string.
+  @param buf Buffer to which timestamp will be written as a string.
+  @return The length of the string containing the converted timestamp
+*/
+inline size_t microsecond_timestamp_to_str(ulonglong timestamp, char *buf)
+{
+  time_t seconds= (time_t)(timestamp / 1000000);
+  int useconds= (int)(timestamp % 1000000);
+  struct tm time_struct;
+  localtime_r(&seconds, &time_struct);
+  size_t length= strftime(buf, 255, "%F %T", &time_struct);
+  length+= sprintf(buf + length, ".%06d", useconds);
+  length+= strftime(buf + length, 255, " %Z", &time_struct);
+  return length;
+}
+
+
+/**
   Query_log_event::print().
 
   @todo
@@ -11754,8 +11775,12 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
 #ifdef MYSQL_SERVER
 Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
                                int64 last_committed_arg,
-                               int64 sequence_number_arg)
-: binary_log::Gtid_event(last_committed_arg, sequence_number_arg),
+                               int64 sequence_number_arg,
+                               uint64 original_commit_timestamp_arg,
+                               uint64 immediate_commit_timestamp_arg)
+: binary_log::Gtid_event(last_committed_arg, sequence_number_arg,
+                         original_commit_timestamp_arg,
+                         immediate_commit_timestamp_arg),
   Log_event(thd_arg, thd_arg->variables.gtid_next.type == ANONYMOUS_GROUP ?
             LOG_EVENT_IGNORABLE_F : 0,
             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
@@ -11793,13 +11818,18 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
 Gtid_log_event::Gtid_log_event(uint32 server_id_arg, bool using_trans,
                                int64 last_committed_arg,
                                int64 sequence_number_arg,
+                               uint64 original_commit_timestamp_arg,
+                               uint64 immediate_commit_timestamp_arg,
                                const Gtid_specification spec_arg)
- : binary_log::Gtid_event(last_committed_arg, sequence_number_arg),
+ : binary_log::Gtid_event(last_committed_arg, sequence_number_arg,
+                         original_commit_timestamp_arg,
+                         immediate_commit_timestamp_arg),
    Log_event(header(), footer(),
              using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
              Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING)
 {
-  DBUG_ENTER("Gtid_log_event::Gtid_log_event(uint32, bool, int64, int64, const Gtid_specification)");
+  DBUG_ENTER("Gtid_log_event::Gtid_log_event(uint32, bool, int64, int64, uint64,"
+             " uint64, const Gtid_specification)");
   server_id= server_id_arg;
   common_header->unmasked_server_id= server_id_arg;
 
@@ -11865,18 +11895,47 @@ Gtid_log_event::print(FILE *file, PRINT_EVENT_INFO *print_event_info)
   if (!print_event_info->short_form)
   {
     print_header(head, print_event_info, FALSE);
-    my_b_printf(head, "\t%s\tlast_committed=%llu\tsequence_number=%llu\n",
+    my_b_printf(head, "\t%s\tlast_committed=%llu\tsequence_number=%llu\t"
+                "original_committed_timestamp=%llu\t"
+                "immediate_commit_timestamp=%llu\n",
                 get_type_code() == binary_log::GTID_LOG_EVENT ?
                 "GTID" : "Anonymous_GTID",
-                last_committed, sequence_number);
+                last_committed, sequence_number,
+                original_commit_timestamp, immediate_commit_timestamp);
   }
+
+  /*
+    We always print the original commit timestamp in order to make
+    dumps from binary logs generated on servers without this info on
+    GTID events to print "0" (not known) as the session value.
+  */
+  char llbuf[22];
+
+  char immediate_commit_timestamp_str[256];
+  char original_commit_timestamp_str[256];
+
+  microsecond_timestamp_to_str(immediate_commit_timestamp,
+                               immediate_commit_timestamp_str);
+  microsecond_timestamp_to_str(original_commit_timestamp,
+                               original_commit_timestamp_str);
+
+  my_b_printf(head, "# original_commit_timestamp=%s (%s)\n",
+              llstr(original_commit_timestamp, llbuf),
+              original_commit_timestamp_str);
+  my_b_printf(head, "# immediate_commit_timestamp=%s (%s)\n",
+              llstr(immediate_commit_timestamp, llbuf),
+              immediate_commit_timestamp_str);
+  my_b_printf(head, "/*!80000 SET @@session.original_commit_timestamp=%s*/%s\n",
+              llstr(original_commit_timestamp, llbuf),
+              print_event_info->delimiter);
+
   to_string(buffer);
   my_b_printf(head, "%s%s\n", buffer, print_event_info->delimiter);
 }
 #endif
 
 #ifdef MYSQL_SERVER
-uint32 Gtid_log_event::write_data_header_to_memory(uchar *buffer)
+uint32 Gtid_log_event::write_post_header_to_memory(uchar *buffer)
 {
   DBUG_ENTER("Gtid_log_event::write_data_header_to_memory");
   uchar *ptr_buffer= buffer;
@@ -11918,15 +11977,55 @@ uint32 Gtid_log_event::write_data_header_to_memory(uchar *buffer)
   DBUG_RETURN(POST_HEADER_LENGTH);
 }
 
+#ifdef MYSQL_SERVER
 bool Gtid_log_event::write_data_header(IO_CACHE *file)
 {
   DBUG_ENTER("Gtid_log_event::write_data_header");
   uchar buffer[POST_HEADER_LENGTH];
-  write_data_header_to_memory(buffer);
+  write_post_header_to_memory(buffer);
   DBUG_RETURN(wrapper_my_b_safe_write(file, (uchar *) buffer,
                                       POST_HEADER_LENGTH));
 }
 
+uint32 Gtid_log_event::write_body_to_memory(uchar *buffer)
+{
+  DBUG_ENTER("Gtid_log_event::write_body_to_memory");
+  DBUG_EXECUTE_IF("do_not_write_rpl_timestamps", DBUG_RETURN(0););
+  uchar *ptr_buffer= buffer;
+
+  /*
+    We want to modify immediate_commit_timestamp with the flag written
+    in the highest bit(MSB). At the same time, we also want to have the original
+    value to be able to use in if() later, so we use a temporary variable here.
+  */
+  uint64 immediate_commit_timestamp_with_flag= immediate_commit_timestamp;
+
+  // Transaction did not originate at this server, set highest bit to hint this.
+  if (immediate_commit_timestamp != original_commit_timestamp)
+    immediate_commit_timestamp_with_flag |= (1ULL << ENCODED_COMMIT_TIMESTAMP_LENGTH);
+  else // Clear highest bit(MSB)
+    immediate_commit_timestamp_with_flag &= ~(1ULL << ENCODED_COMMIT_TIMESTAMP_LENGTH);
+
+  int7store(ptr_buffer, immediate_commit_timestamp_with_flag);
+  ptr_buffer+= IMMEDIATE_COMMIT_TIMESTAMP_LENGTH;
+
+  if (immediate_commit_timestamp != original_commit_timestamp)
+  {
+    int7store(ptr_buffer, original_commit_timestamp);
+    ptr_buffer+= ORIGINAL_COMMIT_TIMESTAMP_LENGTH;
+  }
+  DBUG_RETURN(ptr_buffer - buffer);
+}
+
+bool Gtid_log_event::write_data_body(IO_CACHE *file)
+{
+  DBUG_ENTER("Gtid_log_event::write_body_header");
+  uchar buffer[MAX_DATA_LENGTH];
+  uint32 len= write_body_to_memory(buffer);
+  DBUG_RETURN(wrapper_my_b_safe_write(file, (uchar *) buffer, len));
+}
+
+#endif // MYSQL_SERVER
 
 int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
 {
@@ -11987,6 +12086,11 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
     // This can happen e.g. if gtid_mode is incompatible with spec.
     DBUG_RETURN(1);
 
+  /*
+    Set the original_commit_timestamp.
+    0 will be used if this event does not contain such information.
+  */
+  thd->variables.original_commit_timestamp= original_commit_timestamp;
   thd->set_currently_executing_gtid_for_slave_thread();
 
   DBUG_RETURN(0);

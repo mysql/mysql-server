@@ -96,7 +96,10 @@ time_t my_time(myf flags)
 
   @remark This function is to be used to measure performance in
           micro seconds. Note that this value will be affected by NTP on Linux,
-          and is subject to drift of approx 1 second per day on Windows. 
+          and is subject to drift of approx 1 second per day on Windows.
+          It cannot be used for timestamps that may be compared in different
+          servers as Windows' QueryPerformanceCounter() generates timestamps
+          that are only accurately comparable when produced by the same process.
 
   @retval Number of microseconds since the Epoch, 1970-01-01 00:00:00 +0000 (UTC)
 */
@@ -107,8 +110,34 @@ ulonglong my_micro_time()
   LARGE_INTEGER t_cnt;
   QueryPerformanceCounter(&t_cnt);
   return ((t_cnt.QuadPart / query_performance_frequency * 1000000) +
-    ((t_cnt.QuadPart % query_performance_frequency) * 1000000 /
-      query_performance_frequency) + query_performance_offset_micros);
+          ((t_cnt.QuadPart % query_performance_frequency) * 1000000 /
+           query_performance_frequency) + query_performance_offset_micros);
+#else
+  return my_micro_time_ntp();
+#endif
+}
+
+
+#ifdef _WIN32
+#define OFFSET_TO_EPOCH 116444736000000000ULL
+#endif
+
+/**
+  Return time in microseconds. The timestamps returned by this function are
+  guaranteed to be comparable between different servers as they are synchronized
+  to an external time reference (NTP).
+  However, they may not be monotonic and, in Windows, their resolution may vary.
+
+  @retval Number of microseconds since the Epoch, 1970-01-01 00:00:00 +0000 (UTC)
+*/
+
+ulonglong my_micro_time_ntp()
+{
+#ifdef _WIN32
+  ulonglong newtime;
+  GetSystemTimeAsFileTime((FILETIME*)&newtime);
+  newtime-= OFFSET_TO_EPOCH;
+  return (newtime/10);
 #else
   ulonglong newtime;
   struct timeval t;

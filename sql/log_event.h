@@ -3727,7 +3727,9 @@ public:
     Create a new event using the GTID owned by the given thread.
   */
   Gtid_log_event(THD *thd_arg, bool using_trans,
-                 int64 last_committed_arg, int64 sequence_number_arg);
+                 int64 last_committed_arg, int64 sequence_number_arg,
+                 uint64 original_commit_timestamp_arg,
+                 uint64 immediate_commit_timestamp_arg);
 
   /**
     Create a new event using the GTID from the given Gtid_specification
@@ -3735,6 +3737,8 @@ public:
   */
   Gtid_log_event(uint32 server_id_arg, bool using_trans,
                  int64 last_committed_arg, int64 sequence_number_arg,
+                 uint64 original_commit_timestamp_arg,
+                 uint64 immediate_commit_timestamp_arg,
                  const Gtid_specification spec_arg);
 #endif
 
@@ -3746,7 +3750,11 @@ public:
 
   virtual ~Gtid_log_event() {}
 
-  size_t get_data_size() { return POST_HEADER_LENGTH; }
+  size_t get_data_size()
+  {
+    DBUG_EXECUTE_IF("do_not_write_rpl_timestamps", return POST_HEADER_LENGTH;);
+    return POST_HEADER_LENGTH + get_commit_timestamp_length();
+  }
 
 private:
   /// Used internally by both print() and pack_info().
@@ -3765,17 +3773,33 @@ private:
     @retval false Success.
   */
   bool write_data_header(IO_CACHE *file);
+  bool write_data_body(IO_CACHE* file);
   /**
     Writes the post-header to the given memory buffer.
 
     This is an auxiliary function used by write_to_memory.
 
-    @param buffer Buffer to which the post-header will be written.
+    @param[in,out] buffer Buffer to which the post-header will be written.
 
     @return The number of bytes written, i.e., always
     Gtid_log_event::POST_HEADER_LENGTH.
   */
-  uint32 write_data_header_to_memory(uchar *buffer);
+  uint32 write_post_header_to_memory(uchar *buffer);
+
+  /**
+    Writes the body to the given memory buffer.
+
+    This is an auxiliary function used by write_to_memory.
+
+    @param [in,out] buff Buffer to which the data will be written.
+
+    @return The number of bytes written, i.e.,
+            If the transaction did not originated on this server
+              Gtid_event::IMMEDIATE_COMMIT_TIMESTAMP_LENGTH.
+            else
+              FULL_COMMIT_TIMESTAMP_LENGTH.
+  */
+  uint32 write_body_to_memory(uchar* buff);
 #endif
 
 public:
@@ -3795,7 +3819,8 @@ public:
   {
     common_header->data_written= LOG_EVENT_HEADER_LEN + get_data_size();
     uint32 len= write_header_to_memory(buf);
-    len+= write_data_header_to_memory(buf + len);
+    len+= write_post_header_to_memory(buf + len);
+    len+= write_body_to_memory(buf + len);
     return len;
   }
 #endif

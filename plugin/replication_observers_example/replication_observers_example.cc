@@ -499,7 +499,8 @@ int validate_plugin_server_requirements(Trans_param *param)
 
   Gtid gtid= { fake_sidno, fake_gno };
   Gtid_specification gtid_spec= { GTID_GROUP, gtid };
-  Gtid_log_event *gle= new Gtid_log_event(param->server_id, true, 0, 1, gtid_spec);
+  Gtid_log_event *gle=
+    new Gtid_log_event(param->server_id, true, 0, 1, 0, 0, gtid_spec);
 
   if (gle->is_valid())
     success++;
@@ -515,7 +516,8 @@ int validate_plugin_server_requirements(Trans_param *param)
     Instantiate a anonymous Gtid_log_event without a THD parameter.
   */
   Gtid_specification anonymous_gtid_spec= { ANONYMOUS_GROUP, gtid };
-  gle= new Gtid_log_event(param->server_id, true, 0, 1, anonymous_gtid_spec);
+  gle=
+    new Gtid_log_event(param->server_id, true, 0, 1, 0, 0, anonymous_gtid_spec);
 
   if (gle->is_valid())
     success++;

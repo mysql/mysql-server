@@ -92,7 +92,7 @@ UPDATE t1 SET c1=2 WHERE c1=1;
 --let $grep_file= $dump_file
 --let $grep_pattern= last_committed
 --let $grep_output= print_each
---replace_regex /# at [0-9]*/# at #/ /#[0-9]+/#time#/ /[[:space:]]+[0-9]+:[0-9]+:[0-9]+/ ##:##:##/ /end_log_pos [0-9]+/end_log_pos ##/
+--replace_regex /# at [0-9]*/# at #/ /#[0-9]+/#time#/ /[[:space:]]+[0-9]+:[0-9]+:[0-9]+/ ##:##:##/ /end_log_pos [0-9]+/end_log_pos ##/ /original_committed_timestamp=[0-9]*/original_committed_timestamp=##:##:##/ /immediate_commit_timestamp=[0-9]*/immediate_commit_timestamp=##:##:##/
 --source include/grep_pattern.inc
 
 --let $binlog_file= server-relay-log-group_replication_applier.000002
@@ -160,7 +160,7 @@ UPDATE t1 SET c1=7 WHERE c1=6;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 --exec $MYSQL_BINLOG --force-if-open $server_2_datadir/server-relay-log-group_replication_applier.000003 > $dump_file
---replace_regex /# at [0-9]*/# at #/ /#[0-9]+/#time#/ /[[:space:]]+[0-9]+:[0-9]+:[0-9]+/ ##:##:##/ /end_log_pos [0-9]+/end_log_pos ##/
+--replace_regex /# at [0-9]*/# at #/ /#[0-9]+/#time#/ /[[:space:]]+[0-9]+:[0-9]+:[0-9]+/ ##:##:##/ /end_log_pos [0-9]+/end_log_pos ##/ /original_committed_timestamp=[0-9]*/original_committed_timestamp=##:##:##/ /immediate_commit_timestamp=[0-9]*/immediate_commit_timestamp=##:##:##/
 --source include/grep_pattern.inc
 
 --let $binlog_file= server-relay-log-group_replication_applier.000003
@@ -174,7 +174,7 @@ UPDATE t1 SET c1=7 WHERE c1=6;
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 --exec $MYSQL_BINLOG --force-if-open $server_1_datadir/server-relay-log-group_replication_applier.000003 > $dump_file
---replace_regex /# at [0-9]*/# at #/ /#[0-9]+/#time#/ /[[:space:]]+[0-9]+:[0-9]+:[0-9]+/ ##:##:##/ /end_log_pos [0-9]+/end_log_pos ##/
+--replace_regex /# at [0-9]*/# at #/ /#[0-9]+/#time#/ /[[:space:]]+[0-9]+:[0-9]+:[0-9]+/ ##:##:##/ /end_log_pos [0-9]+/end_log_pos ##/ /original_committed_timestamp=[0-9]*/original_committed_timestamp=##:##:##/ /immediate_commit_timestamp=[0-9]*/immediate_commit_timestamp=##:##:##/
 --source include/grep_pattern.inc
 
 --let $binlog_file= server-relay-log-group_replication_applier.000003
@@ -217,7 +217,7 @@ INSERT INTO t1 VALUES (9);
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 --exec $MYSQL_BINLOG --force-if-open $server_2_datadir/server-relay-log-group_replication_applier.000003 > $dump_file
---replace_regex /# at [0-9]*/# at #/ /#[0-9]+/#time#/ /[[:space:]]+[0-9]+:[0-9]+:[0-9]+/ ##:##:##/ /end_log_pos [0-9]+/end_log_pos ##/
+--replace_regex /# at [0-9]*/# at #/ /#[0-9]+/#time#/ /[[:space:]]+[0-9]+:[0-9]+:[0-9]+/ ##:##:##/ /end_log_pos [0-9]+/end_log_pos ##/ /original_committed_timestamp=[0-9]*/original_committed_timestamp=##:##:##/ /immediate_commit_timestamp=[0-9]*/immediate_commit_timestamp=##:##:##/
 --source include/grep_pattern.inc
 
 --let $binlog_file= server-relay-log-group_replication_applier.000003
@@ -231,7 +231,7 @@ INSERT INTO t1 VALUES (9);
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 --exec $MYSQL_BINLOG --force-if-open $server_1_datadir/server-relay-log-group_replication_applier.000003 > $dump_file
---replace_regex /# at [0-9]*/# at #/ /#[0-9]+/#time#/ /[[:space:]]+[0-9]+:[0-9]+:[0-9]+/ ##:##:##/ /end_log_pos [0-9]+/end_log_pos ##/
+--replace_regex /# at [0-9]*/# at #/ /#[0-9]+/#time#/ /[[:space:]]+[0-9]+:[0-9]+:[0-9]+/ ##:##:##/ /end_log_pos [0-9]+/end_log_pos ##/ /original_committed_timestamp=[0-9]*/original_committed_timestamp=##:##:##/ /immediate_commit_timestamp=[0-9]*/immediate_commit_timestamp=##:##:##/
 --source include/grep_pattern.inc
 
 --let $binlog_file= server-relay-log-group_replication_applier.000003
