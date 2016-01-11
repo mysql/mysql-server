@@ -62,7 +62,7 @@ my_bool init_keyring_locks()
 
 my_bool create_keyring_dir_if_does_not_exist(const char *keyring_file_path)
 {
-  if (strlen(keyring_file_path) == 0)
+  if (!keyring_file_path || strlen(keyring_file_path) == 0)
     return TRUE;
   char keyring_dir[FN_REFLEN];
   size_t keyring_dir_length;

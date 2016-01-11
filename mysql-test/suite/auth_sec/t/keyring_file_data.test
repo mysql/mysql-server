@@ -13,6 +13,8 @@ eval SET @@global.keyring_file_data= '$MYSQL_TMP_DIR/new_keyring_file_data';
 SELECT @@global.keyring_file_data;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.keyring_file_data= '../../../../../bad_dir/bad_keyring_file_data/';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.keyring_file_data=NULL;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT @@global.keyring_file_data;
 
