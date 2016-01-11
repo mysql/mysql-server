@@ -9,6 +9,8 @@ SELECT @@global.keyring_file_data;
 MYSQL_TMP_DIR/new_keyring_file_data
 SET @@global.keyring_file_data= '../../../../../bad_dir/bad_keyring_file_data/';
 ERROR 42000: Variable 'keyring_file_data' can't be set to the value of '../../../../../bad_dir/bad_keyring_file_data/'
+SET @@global.keyring_file_data=NULL;
+ERROR 42000: Variable 'keyring_file_data' can't be set to the value of 'NULL'
 SELECT @@global.keyring_file_data;
 @@global.keyring_file_data
 MYSQL_TMP_DIR/new_keyring_file_data
