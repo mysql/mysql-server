@@ -904,6 +904,7 @@ fsp_header_fill_encryption_info(
 		return(false);
 	}
 
+	memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
 	/* Use the new master key to encrypt the tablespace
 	key. */
 	ut_ad(encrypt_info != NULL);

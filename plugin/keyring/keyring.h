@@ -35,7 +35,7 @@ extern mysql_rwlock_t LOCK_keyring;
 extern unique_ptr<IKeys_container> keys;
 extern my_bool is_keys_container_initialized;
 extern unique_ptr<ILogger> logger;
-extern unique_ptr<char> keyring_file_data;
+extern unique_ptr<char[]> keyring_file_data;
 
 #ifdef HAVE_PSI_INTERFACE
 void keyring_init_psi_keys(void);
