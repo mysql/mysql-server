@@ -25,7 +25,7 @@ if ($openssl == 'Rsa_public_key'){
 --source include/wait_until_connected_again.inc
 
 --error 1
---exec $MYSQL --protocol=tcp --ssl-verify-server-cert -e "SHOW STATUS like 'Ssl_version'"
+--exec $MYSQL --protocol=tcp --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem --ssl-mode=VERIFY_IDENTITY -e "SHOW STATUS like 'Ssl_version'"
 
 --echo #T2: Host name (localhost) as common name in the server certificate, server certificate verification should pass.
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -37,7 +37,7 @@ if ($openssl == 'Rsa_public_key'){
 --source include/wait_until_connected_again.inc
 
 --replace_result $tls_default TLS_VERSION
---exec $MYSQL --protocol=tcp --ssl-verify-server-cert -e "SHOW STATUS like 'Ssl_version'"
+--exec $MYSQL --protocol=tcp --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem --ssl-mode=VERIFY_IDENTITY -e "SHOW STATUS like 'Ssl_version'"
 
 --echo # restart server using restart
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
