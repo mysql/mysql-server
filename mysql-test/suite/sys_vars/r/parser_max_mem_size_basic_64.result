@@ -1,0 +1,78 @@
+# Display the DEFAULT value of parser_max_mem_size
+SET @@session.parser_max_mem_size = DEFAULT;
+SELECT @@session.parser_max_mem_size;
+@@session.parser_max_mem_size
+18446744073709551615
+# Change the value of parser_max_mem_size to a valid
+# value for SESSION Scope
+SET @@session.parser_max_mem_size = 500 * 1000;
+SELECT @@session.parser_max_mem_size;
+@@session.parser_max_mem_size
+500000
+# Change the value of the parser_max_mem_size to a 
+# value greater than --maximum-parser-max-mem-size
+SET session parser_max_mem_size = 1000 * 1000;
+Warnings:
+Warning	1292	Truncated incorrect parser_max_mem_size value: '1000000'
+SELECT @@session.parser_max_mem_size;
+@@session.parser_max_mem_size
+500000
+# Change the value of parser_max_mem_size to an invalid value
+SET @@session.parser_max_mem_size= 'NOT_CHAR_TYPE';
+ERROR 42000: Incorrect argument type to variable 'parser_max_mem_size'
+SET @@session.parser_max_mem_size = -10;
+Warnings:
+Warning	1292	Truncated incorrect parser_max_mem_size value: '-10'
+SET @@session.parser_max_mem_size = 0.5;
+ERROR 42000: Incorrect argument type to variable 'parser_max_mem_size'
+# Check if the value in session Table matches value in variable
+SET @@session.parser_max_mem_size = DEFAULT;
+SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+WHERE VARIABLE_NAME='parser_max_mem_size';
+VARIABLE_NAME	VARIABLE_VALUE
+PARSER_MAX_MEM_SIZE	18446744073709551615
+# Check if TRUE and FALSE values can be used on variable
+SET @@session.parser_max_mem_size = TRUE;
+Warnings:
+Warning	1292	Truncated incorrect parser_max_mem_size value: '1'
+SELECT @@session.parser_max_mem_size;
+@@session.parser_max_mem_size
+400000
+SET @@session.parser_max_mem_size = FALSE;
+Warnings:
+Warning	1292	Truncated incorrect parser_max_mem_size value: '0'
+SELECT @@session.parser_max_mem_size;
+@@session.parser_max_mem_size
+400000
+# Restore initial value
+SET @@session.parser_max_mem_size = DEFAULT;
+SELECT @@session.parser_max_mem_size;
+@@session.parser_max_mem_size
+18446744073709551615
+# Creating a new user
+CREATE USER example;
+# example user sets 450000
+SET @@session.parser_max_mem_size = 450000;
+# default sets global 400000
+SET @@global.parser_max_mem_size = 400000;
+# example user sets 450000
+SET @@session.parser_max_mem_size = 450000;
+Warnings:
+Warning	1292	Truncated incorrect parser_max_mem_size value: '450000'
+SELECT @@session.parser_max_mem_size;
+@@session.parser_max_mem_size
+400000
+# example user sets DEFAULT, which is now 400000
+SET @@session.parser_max_mem_size = DEFAULT;
+SELECT @@session.parser_max_mem_size;
+@@session.parser_max_mem_size
+400000
+# default sets sesion 450000
+SET @@session.parser_max_mem_size = 450000;
+SELECT @@session.parser_max_mem_size;
+@@session.parser_max_mem_size
+450000
+# disconnect
+DROP USER example;
+SET @@global.parser_max_mem_size = DEFAULT;
+# END OF parser_max_mem_size TESTS
