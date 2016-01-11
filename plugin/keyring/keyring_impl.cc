@@ -27,7 +27,7 @@ mysql_rwlock_t LOCK_keyring;
 unique_ptr<IKeys_container> keys;
 my_bool is_keys_container_initialized= FALSE;
 unique_ptr<ILogger> logger;
-unique_ptr<char> keyring_file_data;
+unique_ptr<char[]> keyring_file_data;
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_rwlock_info all_keyring_rwlocks[]=

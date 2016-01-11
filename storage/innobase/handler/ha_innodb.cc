@@ -10036,6 +10036,7 @@ err_col:
 
 			my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
 			err = DB_UNSUPPORTED;
+			dict_mem_table_free(table);
 
 		} else if (!Encryption::is_none(encrypt)) {
 			/* Set the encryption flag. */
@@ -10050,6 +10051,7 @@ err_col:
 				my_error(ER_CANNOT_FIND_KEY_IN_KEYRING,
 					 MYF(0));
 				err = DB_UNSUPPORTED;
+				dict_mem_table_free(table);
 			} else {
 				my_free(master_key);
 				DICT_TF2_FLAG_SET(table,
