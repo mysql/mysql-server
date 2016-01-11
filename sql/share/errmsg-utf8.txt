@@ -7641,6 +7641,10 @@ ER_INVALID_ENCRYPTION_OPTION
 
 ER_CANNOT_FIND_KEY_IN_KEYRING
   eng "Can't find master key from keyring, please check keyring plugin is loaded."
+
+ER_CAPACITY_EXCEEDED_IN_PARSER
+  eng "Parser bailed out for this query."
+
 #
 #  End of 5.7 error messages.
 #
