@@ -17,9 +17,11 @@ IF(NOT WIN32)
   RETURN()
 ENDIF()
 
-FIND_PATH(WIX_DIR heat.exe
-  "$ENV{ProgramFiles}/WiX Toolset V3.10/bin"
-)
+# Installed directory layout
+FIND_PATH(WIX_DIR heat.exe "$ENV{ProgramFiles}/WiX Toolset V3.10/bin")
+
+# Unzipped directory layout
+FIND_PATH(WIX_DIR heat.exe "$ENV{ProgramFiles}/WiX Toolset V3.10")
 
 IF(NOT WIX_DIR)
   IF(NOT _WIX_DIR_CHECKED)
