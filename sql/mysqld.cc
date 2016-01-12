@@ -1256,6 +1256,7 @@ static void unireg_abort(int exit_code)
   mysqld_exit(exit_code);
 #else
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+  exit(exit_code);
   DBUG_VOID_RETURN;
 #endif
 }
