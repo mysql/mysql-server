@@ -14,11 +14,13 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#ifndef FLOGGER_SKIP_INCLUDES
 #include "my_global.h"
 #include <my_sys.h>
 #include <m_string.h>
 #include <mysql/service_logger.h>
 #include <my_pthread.h>
+#endif /*FLOGGER_SKIP_INCLUDES*/
 
 #ifndef flogger_mutex_init
 #define flogger_mutex_init(A,B,C) mysql_mutex_init(A,B,C)

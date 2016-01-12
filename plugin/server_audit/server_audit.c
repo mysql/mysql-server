@@ -1,4 +1,4 @@
-/* Copyright (C) 2013 Alexey Botchkov and SkySQL Ab
+/* Copyright (C) 2013, 2015, Alexey Botchkov and SkySQL Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,13 +14,16 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#define PLUGIN_VERSION 0x103
-#define PLUGIN_STR_VERSION "1.3.0"
+#define PLUGIN_VERSION 0x104
+#define PLUGIN_STR_VERSION "1.4.0"
+
+#define _my_thread_var loc_thread_var
 
 #include <my_config.h>
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
+#include <fcntl.h>
 
 #ifndef _WIN32
 #include <syslog.h>
@@ -80,8 +83,7 @@ static void closelog() {}
 #endif /*MARIADB_ONLY*/
 
 #include <my_base.h>
-//#include <hash.h>
-#include <my_dir.h>
+//#include <my_dir.h>
 #include <typelib.h>
 #include <mysql/plugin.h>
 #include <mysql/plugin_audit.h>
@@ -89,64 +91,134 @@ static void closelog() {}
 #define RTLD_DEFAULT NULL
 #endif
 
-#undef my_init_dynamic_array_ci
-#define init_dynamic_array2 loc_init_dynamic_array2
-#define my_init_dynamic_array_ci(A,B,C,D) loc_init_dynamic_array2(A,B,NULL,C,D)
-#define _my_hash_init loc_my_hash_init
-#define my_hash_search loc_my_hash_search
-#define my_hash_insert loc_my_hash_insert
-#define my_hash_delete loc_my_hash_delete
-#define my_hash_update loc_my_hash_update
-#define my_hash_free loc_my_hash_free
-#define my_hash_first loc_my_hash_first
-#define my_hash_reset loc_my_hash_reset
-#define my_hash_search_using_hash_value loc_my_hash_search_using_hash_value
-#define my_hash_first_from_hash_value loc_my_hash_first_from_hash_value
-#define my_calc_hash loc_my_calc_hash
-#undef my_hash_first_from_hash_value
-#define my_hash_first_from_hash_value loc_my_my_hash_first_from_hash_value
-#define my_hash_next loc_my_hash_next
-#define my_hash_element loc_my_hash_element
-#define my_hash_replace loc_my_hash_replace
-#define my_hash_iterate loc_my_hash_iterate
-
-#define alloc_dynamic loc_alloc_dynamic
-#define pop_dynamic loc_pop_dynamic
-#define delete_dynamic loc_delete_dynamic
-uchar *loc_alloc_dynamic(DYNAMIC_ARRAY *array);
-#ifdef my_strnncoll
-#undef my_strnncoll
-#define my_strnncoll(s, a, b, c, d) (my_strnncoll_binary((s), (a), (b), (c), (d), 0))
-#endif
-
-static int my_strnncoll_binary(CHARSET_INFO * cs __attribute__((unused)),
-    const uchar *s, size_t slen,
-    const uchar *t, size_t tlen,
-    my_bool t_is_prefix)
-{
-  size_t len=min(slen,tlen);
-  int cmp= memcmp(s,t,len);
-  return cmp ? cmp : (int)((t_is_prefix ? len : slen) - tlen);
-}
-
-#include "../../mysys/array.c"
-#include "../../mysys/hash.c"
-
 #ifndef MARIADB_ONLY
 #undef MYSQL_SERVICE_LOGGER_INCLUDED
 #undef MYSQL_DYNAMIC_PLUGIN
 #define FLOGGER_NO_PSI
-#define flogger_mutex_init(A,B,C) pthread_mutex_init(&(B)->m_mutex, C)
-#define flogger_mutex_destroy(A) pthread_mutex_destroy(&(A)->m_mutex)
-#define flogger_mutex_lock(A) pthread_mutex_lock(&(A)->m_mutex)
-#define flogger_mutex_unlock(A) pthread_mutex_unlock(&(A)->m_mutex)
+
+/* How to access the pthread_mutex in mysql_mutex_t */
+//#ifdef SAFE_MUTEX
+//#define mysql_mutex_real_mutex(A) &(A)->m_mutex.mutex
+//#elif defined(MY_PTHREAD_FASTMUTEX)
+//#define mysql_mutex_real_mutex(A) &(A)->m_mutex.mutex
+//#else
+#define mysql_mutex_real_mutex(A) &(A)->m_mutex
+//#endif
+
+#define flogger_mutex_init(A,B,C) do{}while(0)
+#define flogger_mutex_destroy(A) do{}while(0)
+#define flogger_mutex_lock(A) do{}while(0)
+#define flogger_mutex_unlock(A) do{}while(0)
 
 static char **int_mysql_data_home;
 static char *default_home= (char *)".";
 #define mysql_data_home (*int_mysql_data_home)
 
+#define FLOGGER_SKIP_INCLUDES
+#define my_open(A, B, C) loc_open(A, B)
+#define my_close(A, B) close(A)
+#define my_rename(A, B, C) loc_rename(A, B)
+#define my_tell(A, B) loc_tell(A)
+#define my_write(A, B, C, D) write(A, B, C)
+#define my_malloc(A, B) malloc(A)
+#define my_free(A) free(A)
+#ifdef my_vsnprintf
+  #undef my_vsnprintf
+#endif
+#define my_vsnprintf vsnprintf
+
+File loc_open(const char *FileName, int Flags)
+				/* Path-name of file */
+				/* Read | write .. */
+				/* Special flags */
+{
+  File fd;
+#if defined(_WIN32)
+  fd= my_win_open(FileName, Flags);
+#elif !defined(NO_OPEN_3)
+  fd = open(FileName, Flags, my_umask);     /* Normal unix */
+#else
+  fd = open((char *) FileName, Flags);
+#endif
+  return fd;
+} 
+
+static int loc_rename(const char *from, const char *to)
+{
+  int error = 0;
+
+#if defined(__WIN__)
+  if (!MoveFileEx(from, to, MOVEFILE_COPY_ALLOWED |
+                            MOVEFILE_REPLACE_EXISTING))
+  {
+    my_osmaperr(GetLastError());
+#elif defined(HAVE_RENAME)
+  if (rename(from,to))
+  {
+#else
+  if (link(from, to) || unlink(from))
+  {
+#endif
+    my_errno=errno;
+    error = -1;
+  }
+  return error;
+}
+
+
+static my_off_t loc_seek(File fd, my_off_t pos, int whence)
+{
+  os_off_t newpos= -1;
+#ifdef _WIN32
+  newpos= my_win_lseek(fd, pos, whence);
+#else
+  newpos= lseek(fd, pos, whence);
+#endif
+  if (newpos == (os_off_t) -1)
+  {
+    my_errno= errno;
+    return MY_FILEPOS_ERROR;
+  }
+
+  return (my_off_t) newpos;
+}
+
+
+static my_off_t loc_tell(File fd)
+{
+  os_off_t pos;
+#if defined (HAVE_TELL) && !defined (_WIN32)
+  pos= tell(fd);
+#else
+  pos= loc_seek(fd, 0L, MY_SEEK_CUR);
+#endif
+  if (pos == (os_off_t) -1)
+  {
+    my_errno= errno;
+  }
+  return (my_off_t) pos;
+}
+
+#ifdef HAVE_PSI_INTERFACE
+#undef HAVE_PSI_INTERFACE
+#include <mysql/service_logger.h>
 #include "../../mysys/file_logger.c"
+#define HAVE_PSI_INTERFACE
+#else
+#include <mysql/service_logger.h>
+#include "../../mysys/file_logger.c"
+#endif
 #endif /*!MARIADB_ONLY*/
+
+#undef flogger_mutex_init
+#undef flogger_mutex_destroy
+#undef flogger_mutex_lock
+#undef flogger_mutex_unlock
+
+#define flogger_mutex_init(A,B,C) pthread_mutex_init(mysql_mutex_real_mutex(B), C)
+#define flogger_mutex_destroy(A) pthread_mutex_destroy(mysql_mutex_real_mutex(A))
+#define flogger_mutex_lock(A) pthread_mutex_lock(mysql_mutex_real_mutex(A))
+#define flogger_mutex_unlock(A) pthread_mutex_unlock(mysql_mutex_real_mutex(A))
 
 #ifndef DBUG_OFF
 #define PLUGIN_DEBUG_VERSION "-debug"
@@ -168,7 +240,11 @@ static char *default_home= (char *)".";
 extern char server_version[];
 static const char *serv_ver= NULL;
 static int started_mysql= 0;
+static int mysql_57_started= 0;
+static int debug_server_started= 0;
+static int use_event_data_for_disconnect= 0;
 static int started_mariadb= 0;
+static int maria_55_started= 0;
 static int maria_above_5= 0;
 static char *incl_users, *excl_users,
             *file_path, *syslog_info;
@@ -193,6 +269,27 @@ static char servhost[256];
 static size_t servhost_len;
 static char *syslog_ident;
 static char syslog_ident_buffer[128]= "mysql-server_auditing";
+
+struct connection_info
+{
+  int header;
+  unsigned long thread_id;
+  unsigned long long query_id;
+  char db[256];
+  int db_length;
+  char user[64];
+  int user_length;
+  char host[64];
+  int host_length;
+  char ip[64];
+  int ip_length;
+  const char *query;
+  int query_length;
+  char query_buffer[1024];
+  time_t query_time;
+  int log_always;
+};
+
 #define DEFAULT_FILENAME_LEN 16
 static char default_file_name[DEFAULT_FILENAME_LEN+1]= "server_audit.log";
 
@@ -246,7 +343,8 @@ static TYPELIB events_typelib=
   array_elements(event_names) - 1, "", event_names, NULL
 };
 static MYSQL_SYSVAR_SET(events, events, PLUGIN_VAR_RQCMDARG,
-       "Specifies the set of events to monitor. Can be CONNECT, QUERY, TABLE, QUERY_DDL, QUERY_DML.",
+       "Specifies the set of events to monitor. Can be CONNECT, QUERY, TABLE,"
+           " QUERY_DDL, QUERY_DML, QUERY_DCL.",
        NULL, NULL, 0, &events_typelib);
 #define OUTPUT_SYSLOG 0
 #define OUTPUT_FILE 1
@@ -286,6 +384,13 @@ static MYSQL_SYSVAR_STR(syslog_info, syslog_info,
 static MYSQL_SYSVAR_UINT(query_log_limit, query_log_limit,
        PLUGIN_VAR_OPCMDARG, "Limit on the length of the query string in a record.",
        NULL, NULL, 1024, 0, 0x7FFFFFFF, 1);
+
+char locinfo_ini_value[sizeof(struct connection_info)+4];
+
+static MYSQL_THDVAR_STR(loc_info,
+                        PLUGIN_VAR_READONLY | PLUGIN_VAR_MEMALLOC,
+                        "Auxiliary info.", NULL, NULL,
+                        locinfo_ini_value);
 
 static const char *syslog_facility_names[]=
 {
@@ -366,6 +471,7 @@ static struct st_mysql_sys_var* vars[] = {
     MYSQL_SYSVAR(syslog_facility),
     MYSQL_SYSVAR(syslog_priority),
     MYSQL_SYSVAR(query_log_limit),
+    MYSQL_SYSVAR(loc_info),
     NULL
 };
 
@@ -375,6 +481,8 @@ static int is_active= 0;
 static long log_write_failures= 0;
 static char current_log_buf[FN_REFLEN]= "";
 static char last_error_buf[512]= "";
+
+extern void *mysql_v4_descriptor;
 
 static struct st_mysql_show_var audit_status[]=
 {
@@ -415,7 +523,7 @@ static uchar *getkey_user(const char *entry, size_t *length,
 }
 
 
-static void blank_user(uchar *user)
+static void blank_user(char *user)
 {
   for (; *user && *user != ','; user++)
     *user= ' ';
@@ -475,19 +583,98 @@ static void remove_blanks(char *user)
 }
 
 
-static int user_hash_fill(HASH *h, char *users,
-                          HASH *cmp_hash, int take_over_cmp)
+struct user_name
+{
+  int name_len;
+  char *name;
+};
+
+
+struct user_coll
+{
+  int n_users;
+  struct user_name *users;
+  int n_alloced;
+};
+
+
+static void coll_init(struct user_coll *c)
+{
+  c->n_users= 0;
+  c->users= 0;
+  c->n_alloced= 0;
+}
+
+
+static void coll_free(struct user_coll *c)
+{
+  if (c->users)
+  {
+    free(c->users);
+    coll_init(c);
+  }
+}
+
+
+static int cmp_users(const void *ia, const void *ib)
+{
+  const struct user_name *a= (const struct user_name *) ia;
+  const struct user_name *b= (const struct user_name *) ib;
+  int dl= a->name_len - b->name_len;
+  if (dl != 0)
+    return dl;
+
+  return strncmp(a->name, b->name, a->name_len);
+}
+
+
+static char *coll_search(struct user_coll *c, const char *n, int len)
+{
+  struct user_name un;
+  struct user_name *found;
+  un.name_len= len;
+  un.name= (char *) n;
+  found= (struct user_name*)  bsearch(&un, c->users, c->n_users,
+                                      sizeof(c->users[0]), cmp_users);
+  return found ? found->name : 0;
+}
+
+
+static int coll_insert(struct user_coll *c, char *n, int len)
+{
+  if (c->n_users >= c->n_alloced)
+  {
+    c->n_alloced+= 128;
+    if (c->users == NULL)
+      c->users= malloc(c->n_alloced * sizeof(c->users[0]));
+    else
+      c->users= realloc(c->users, c->n_alloced * sizeof(c->users[0]));
+
+    if (c->users == NULL)
+      return 1;
+  }
+  c->users[c->n_users].name= n;
+  c->users[c->n_users].name_len= len;
+  c->n_users++;
+  return 0;
+}
+
+
+static void coll_sort(struct user_coll *c)
+{
+  qsort(c->users, c->n_users, sizeof(c->users[0]), cmp_users);
+}
+
+
+static int user_coll_fill(struct user_coll *c, char *users,
+                          struct user_coll *cmp_c, int take_over_cmp)
 {
   char *orig_users= users;
-  uchar *cmp_user= 0;
+  char *cmp_user= 0;
   size_t cmp_length;
-  int refill_cmp_hash= 0;
+  int refill_cmp_coll= 0;
 
-  if (my_hash_inited(h))
-    my_hash_reset(h);
-  else
-    loc_my_hash_init(h, 0, &my_charset_bin, 0x100, 0, 0,
-                  (my_hash_get_key) getkey_user, 0, 0);
+  c->n_users= 0;
 
   while (*users)
   {
@@ -496,11 +683,10 @@ static int user_hash_fill(HASH *h, char *users,
     if (!*users)
       return 0;
 
-
-    if (cmp_hash)
+    (void) getkey_user(users, &cmp_length, FALSE);
+    if (cmp_c)
     {
-      (void) getkey_user(users, &cmp_length, FALSE);
-      cmp_user= my_hash_search(cmp_hash, (const uchar *) users, cmp_length);
+      cmp_user= coll_search(cmp_c, users, cmp_length);
 
       if (cmp_user && take_over_cmp)
       {
@@ -510,7 +696,7 @@ static int user_hash_fill(HASH *h, char *users,
             MYF(ME_JUST_WARNING), (int) cmp_length, users);
         internal_stop_logging= 0;
         blank_user(cmp_user);
-        refill_cmp_hash= 1;
+        refill_cmp_coll= 1;
       }
       else if (cmp_user)
       {
@@ -522,7 +708,7 @@ static int user_hash_fill(HASH *h, char *users,
         continue;
       }
     }
-    if (my_hash_insert(h, (const uchar *) users))
+    if (coll_insert(c, users, cmp_length))
       return 1;
     while (*users && *users != ',')
       users++;
@@ -531,14 +717,16 @@ static int user_hash_fill(HASH *h, char *users,
     users++;
   }
 
-  if (refill_cmp_hash)
+  if (refill_cmp_coll)
   {
     remove_blanks(excl_users);
-    return user_hash_fill(cmp_hash, excl_users, 0, 0);
+    return user_coll_fill(cmp_c, excl_users, 0, 0);
   }
 
   if (users > orig_users && users[-1] == ',')
     users[-1]= 0;
+
+  coll_sort(c);
 
   return 0;
 }
@@ -668,48 +856,19 @@ static void error_header()
 
 
 static LOGGER_HANDLE *logfile;
-static HASH incl_user_hash, excl_user_hash;
+static struct user_coll incl_user_coll, excl_user_coll;
 static unsigned long long query_counter= 1;
 
-struct connection_info
+
+static struct connection_info *get_loc_info(MYSQL_THD thd)
 {
-  unsigned long thread_id;
-  unsigned long long query_id;
-  char db[256];
-  int db_length;
-  char user[64];
-  int user_length;
-  char host[64];
-  int host_length;
-  char ip[64];
-  int ip_length;
-  const char *query;
-  int query_length;
-  char query_buffer[1024];
-  time_t query_time;
-  int log_always;
-};
-
-
-static HASH connection_hash;
-
-
-struct connection_info *alloc_connection()
-{
-  return malloc(ALIGN_SIZE(sizeof(struct connection_info)));
+  return (struct connection_info *) THDVAR(thd, loc_info);
 }
 
 
-void free_connection(void* pconn)
+static int ci_needs_setup(const struct connection_info *ci)
 {
-  (void) free(pconn);
-}
-
-
-static struct connection_info *find_connection(unsigned long id)
-{
-  return (struct connection_info *)
-    my_hash_search(&connection_hash, (const uchar *) &id, sizeof(id));
+  return ci->header != 0;
 }
 
 
@@ -873,15 +1032,24 @@ static int stop_logging()
   return 0;
 }
 
-static struct connection_info *
-  add_connection(const struct mysql_event_connection *event)
+
+static void setup_connection_simple(struct connection_info *ci)
 {
-  struct connection_info *cn= alloc_connection();
-  if (!cn)
-    return 0;
-  cn->thread_id= event->thread_id;
+  ci->db_length= 0;
+  ci->user_length= 0;
+  ci->host_length= 0;
+  ci->ip_length= 0;
+  ci->query_length= 0;
+  ci->header= 0;
+}
+
+
+static void setup_connection_connect(struct connection_info *cn,
+    const struct mysql_event_connection *event)
+{
   cn->query_id= 0;
   cn->log_always= 0;
+  cn->thread_id= event->thread_id;
   get_str_n(cn->db, &cn->db_length, sizeof(cn->db),
             event->database, event->database_length);
   get_str_n(cn->user, &cn->user_length, sizeof(cn->db),
@@ -890,11 +1058,7 @@ static struct connection_info *
             event->host, event->host_length);
   get_str_n(cn->ip, &cn->ip_length, sizeof(cn->ip),
             event->ip, event->ip_length);
-
-  if (my_hash_insert(&connection_hash, (const uchar *) cn))
-    return 0;
-
-  return cn;
+  cn->header= 0;
 }
 
 
@@ -917,46 +1081,43 @@ do { \
 
 
 
-static struct connection_info *
-  add_connection_initdb(const struct mysql_event_general *event)
+static void setup_connection_initdb(struct connection_info *cn,
+    const struct mysql_event_general *event)
 {
-  struct connection_info *cn;
   size_t user_len, host_len, ip_len;
   char uh_buffer[512];
-
-  if (get_user_host(event->general_user, event->general_user_length,
-                    uh_buffer, sizeof(uh_buffer),
-                    &user_len, &host_len, &ip_len) ||
-      (cn= alloc_connection()) == NULL)
-    return 0;
 
   cn->thread_id= event->general_thread_id;
   cn->query_id= 0;
   cn->log_always= 0;
   get_str_n(cn->db, &cn->db_length, sizeof(cn->db),
             event->general_query, event->general_query_length);
-  get_str_n(cn->user, &cn->user_length, sizeof(cn->db),
-            uh_buffer, user_len);
-  get_str_n(cn->host, &cn->host_length, sizeof(cn->host),
-            uh_buffer+user_len+1, host_len);
-  get_str_n(cn->ip, &cn->ip_length, sizeof(cn->ip),
-            uh_buffer+user_len+1+host_len+1, ip_len);
 
-  if (my_hash_insert(&connection_hash, (const uchar *) cn))
-    return 0;
-
-  return cn;
+  if (get_user_host(event->general_user, event->general_user_length,
+                    uh_buffer, sizeof(uh_buffer),
+                    &user_len, &host_len, &ip_len))
+  {
+    /* The user@host line is incorrect. */
+    cn->user_length= 0;
+    cn->host_length= 0;
+    cn->ip_length= 0;
+  }
+  else
+  {
+    get_str_n(cn->user, &cn->user_length, sizeof(cn->db),
+              uh_buffer, user_len);
+    get_str_n(cn->host, &cn->host_length, sizeof(cn->host),
+              uh_buffer+user_len+1, host_len);
+    get_str_n(cn->ip, &cn->ip_length, sizeof(cn->ip),
+              uh_buffer+user_len+1+host_len+1, ip_len);
+  }
+  cn->header= 0;
 }
 
 
-static struct connection_info *
-  add_connection_table(const struct mysql_event_table *event)
+static void setup_connection_table(struct connection_info *cn,
+    const struct mysql_event_table *event)
 {
-  struct connection_info *cn;
-
-  if ((cn= alloc_connection()) == NULL)
-    return 0;
-
   cn->thread_id= event->thread_id;
   cn->query_id= query_counter++;
   cn->log_always= 0;
@@ -968,42 +1129,40 @@ static struct connection_info *
             event->host, SAFE_STRLEN(event->host));
   get_str_n(cn->ip, &cn->ip_length, sizeof(cn->ip),
             event->ip, SAFE_STRLEN(event->ip));
-
-  if (my_hash_insert(&connection_hash, (const uchar *) cn))
-    return 0;
-
-  return cn;
+  cn->header= 0;
 }
 
 
-static struct connection_info *
-  add_connection_query(const struct mysql_event_general *event)
+static void setup_connection_query(struct connection_info *cn,
+    const struct mysql_event_general *event)
 {
-  struct connection_info *cn;
   size_t user_len, host_len, ip_len;
   char uh_buffer[512];
-
-  if (get_user_host(event->general_user, event->general_user_length,
-                    uh_buffer, sizeof(uh_buffer),
-                    &user_len, &host_len, &ip_len) ||
-      (cn= alloc_connection()) == NULL)
-    return 0;
 
   cn->thread_id= event->general_thread_id;
   cn->query_id= query_counter++;
   cn->log_always= 0;
   get_str_n(cn->db, &cn->db_length, sizeof(cn->db), "", 0);
-  get_str_n(cn->user, &cn->user_length, sizeof(cn->db),
-            uh_buffer, user_len);
-  get_str_n(cn->host, &cn->host_length, sizeof(cn->host),
-            uh_buffer+user_len+1, host_len);
-  get_str_n(cn->ip, &cn->ip_length, sizeof(cn->ip),
-            uh_buffer+user_len+1+host_len+1, ip_len);
 
-  if (my_hash_insert(&connection_hash, (const uchar *) cn))
-    return 0;
-
-  return cn;
+  if (get_user_host(event->general_user, event->general_user_length,
+                    uh_buffer, sizeof(uh_buffer),
+                    &user_len, &host_len, &ip_len))
+  {
+    /* The user@host line is incorrect. */
+    cn->user_length= 0;
+    cn->host_length= 0;
+    cn->ip_length= 0;
+  }
+  else
+  {
+    get_str_n(cn->user, &cn->user_length, sizeof(cn->db),
+              uh_buffer, user_len);
+    get_str_n(cn->host, &cn->host_length, sizeof(cn->host),
+              uh_buffer+user_len+1, host_len);
+    get_str_n(cn->ip, &cn->ip_length, sizeof(cn->ip),
+              uh_buffer+user_len+1+host_len+1, ip_len);
+  }
+  cn->header= 0;
 }
 
 
@@ -1090,6 +1249,27 @@ static int log_connection(const struct connection_info *cn,
                     event->thread_id, 0, type);
   csize+= my_snprintf(message+csize, sizeof(message) - 1 - csize,
     ",%.*s,,%d", cn->db_length, cn->db, event->status);
+  message[csize]= '\n';
+  return write_log(message, csize + 1);
+}
+
+
+static int log_connection_event(const struct mysql_event_connection *event,
+                                const char *type)
+{
+  time_t ctime;
+  size_t csize;
+  char message[1024];
+
+  (void) time(&ctime);
+  csize= log_header(message, sizeof(message)-1, &ctime,
+                    servhost, servhost_len,
+                    event->user, event->user_length,
+                    event->host, event->host_length,
+                    event->ip, event->ip_length,
+                    event->thread_id, 0, type);
+  csize+= my_snprintf(message+csize, sizeof(message) - 1 - csize,
+    ",%.*s,,%d", event->database_length, event->database, event->status);
   message[csize]= '\n';
   return write_log(message, csize + 1);
 }
@@ -1240,11 +1420,11 @@ static int do_log_user(const char *name)
     return 0;
   len= strlen(name);
 
-  if (incl_user_hash.records)
-    return my_hash_search(&incl_user_hash, (const uchar *) name, len) != 0;
+  if (incl_user_coll.n_users)
+    return coll_search(&incl_user_coll, name, len) != 0;
 
-  if (excl_user_hash.records)
-    return my_hash_search(&excl_user_hash, (const uchar *) name, len) == 0;
+  if (excl_user_coll.n_users)
+    return coll_search(&excl_user_coll, name, len) == 0;
 
   return 1;
 }
@@ -1582,14 +1762,14 @@ static void update_general_user(struct connection_info *cn,
 }
 
 
+static struct connection_info ci_disconnect_buffer;
+
 #define AA_FREE_CONNECTION 1
 #define AA_CHANGE_USER 2
 
-static struct connection_info *update_connection_hash(unsigned int event_class,
-                                                      const void *ev,
-                                                      int *after_action)
+static void update_connection_info(struct connection_info *cn,
+    unsigned int event_class, const void *ev, int *after_action)
 {
-  struct connection_info *cn= NULL;
   *after_action= 0;
 
   switch (event_class) {
@@ -1602,13 +1782,17 @@ static struct connection_info *update_connection_hash(unsigned int event_class,
       {
         int init_db_command= event->general_command_length == 7 &&
           strncmp(event->general_command, "Init DB", 7) == 0;
-        if ((cn= find_connection(event->general_thread_id)))
+        if (!ci_needs_setup(cn))
         {
           if (init_db_command)
           {
             /* Change DB */
-            get_str_n(cn->db, &cn->db_length, sizeof(cn->db),
-                event->general_query, event->general_query_length);
+            if (mysql_57_started)
+              get_str_n(cn->db, &cn->db_length, sizeof(cn->db),
+                  event->database, event->database_length);
+            else
+              get_str_n(cn->db, &cn->db_length, sizeof(cn->db),
+                  event->general_query, event->general_query_length);
           }
           cn->query_id= mode ? query_counter++ : event->query_id;
           cn->query= event->general_query;
@@ -1617,18 +1801,19 @@ static struct connection_info *update_connection_hash(unsigned int event_class,
           update_general_user(cn, event);
         }
         else if (init_db_command)
-          cn= add_connection_initdb(event);
+          setup_connection_initdb(cn, event);
         else if (event_query_command(event))
-          cn= add_connection_query(event);
+          setup_connection_query(cn, event);
+        else
+          setup_connection_simple(cn);
         break;
       }
 
       case MYSQL_AUDIT_GENERAL_STATUS:
         if (event_query_command(event))
         {
-          if (!(cn= find_connection(event->general_thread_id)) &&
-              !(cn= add_connection_query(event)))
-            return 0;
+          if (ci_needs_setup(cn))
+            setup_connection_query(cn, event);
 
           if (mode == 0 && cn->db_length == 0 && event->database_length > 0)
             get_str_n(cn->db, &cn->db_length, sizeof(cn->db),
@@ -1654,13 +1839,13 @@ static struct connection_info *update_connection_hash(unsigned int event_class,
         }
         break;
       case MYSQL_AUDIT_GENERAL_ERROR:
-        /* We need this because of a bug in the MariaDB */
-        /* that it returns NULL query field for the     */
-        /* MYSQL_AUDIT_GENERAL_STATUS in the mysqld_stmt_prepare. */
-        /* As a result we get empty QUERY field for errors. */
-        if (!(cn= find_connection(event->general_thread_id)) &&
-            !(cn= add_connection_query(event)))
-          return 0;
+        /*
+          We need this because the MariaDB returns NULL query field for the
+          MYSQL_AUDIT_GENERAL_STATUS in the mysqld_stmt_prepare.
+          As a result we get empty QUERY field for errors.
+        */
+        if (ci_needs_setup(cn))
+          setup_connection_query(cn, event);
         cn->query_id= mode ? query_counter++ : event->query_id;
         get_str_n(cn->query_buffer, &cn->query_length, sizeof(cn->query_buffer),
             event->general_query, event->general_query_length);
@@ -1675,9 +1860,9 @@ static struct connection_info *update_connection_hash(unsigned int event_class,
   {
     const struct mysql_event_table *event =
       (const struct mysql_event_table *) ev;
-    if (!(cn= find_connection(event->thread_id)) &&
-        !(cn= add_connection_table(event)))
-      return 0;
+    if (ci_needs_setup(cn))
+      setup_connection_table(cn, event);
+
     if (cn->user_length == 0 && cn->host_length == 0 && cn->ip_length == 0)
     {
       get_str_n(cn->user, &cn->user_length, sizeof(cn->user),
@@ -1703,17 +1888,10 @@ static struct connection_info *update_connection_hash(unsigned int event_class,
     switch (event->event_subclass)
     {
       case MYSQL_AUDIT_CONNECTION_CONNECT:
-        cn= add_connection(ev);
-        break;
-      case MYSQL_AUDIT_CONNECTION_DISCONNECT:
-        cn= find_connection(event->thread_id);
-        if (cn)
-          *after_action= AA_FREE_CONNECTION;
+        setup_connection_connect(cn, event);
         break;
       case MYSQL_AUDIT_CONNECTION_CHANGE_USER:
-        cn= find_connection(event->thread_id);
-        if (cn)
-          *after_action= AA_CHANGE_USER;
+        *after_action= AA_CHANGE_USER;
         break;
       default:;
     }
@@ -1722,17 +1900,17 @@ static struct connection_info *update_connection_hash(unsigned int event_class,
   default:
     break;
   }
-  return cn;
 }
 
 
+struct connection_info cn_error_buffer;
+
+
 #define FILTER(MASK) (events == 0 || (events & MASK))
-static void auditing(MYSQL_THD thd __attribute__((unused)),
-                     unsigned int event_class,
-                     const void *ev)
+void auditing(MYSQL_THD thd, unsigned int event_class, const void *ev)
 {
-  struct connection_info *cn;
-  int after_action;
+  struct connection_info *cn= 0;
+  int after_action= 0;
 
   /* That one is important as this function can be called with      */
   /* &lock_operations locked when the server logs an error reported */
@@ -1742,8 +1920,23 @@ static void auditing(MYSQL_THD thd __attribute__((unused)),
 
   flogger_mutex_lock(&lock_operations);
 
-  if (!(cn= update_connection_hash(event_class, ev, &after_action)))
-    goto exit_func;
+  cn= get_loc_info(thd);
+
+  if (ci_needs_setup(cn) && maria_55_started &&
+      (event_class == MYSQL_AUDIT_GENERAL_CLASS &&
+       *((int*)ev) == MYSQL_AUDIT_GENERAL_ERROR))
+  {
+    /*
+      There's a bug in MariaDB 5.5 that prevents using thread local
+      variables in some cases.
+      The 'select * from notexisting_table;' query produces such case.
+      So just use the static buffer in this case.
+    */
+    cn= &cn_error_buffer;
+    cn->header= 1;
+  }
+
+  update_connection_info(cn, event_class, ev, &after_action);
 
   if (!logging)
     goto exit_func;
@@ -1757,8 +1950,11 @@ static void auditing(MYSQL_THD thd __attribute__((unused)),
     /*
       Only one subclass is logged.
     */
-    if (event->event_subclass == MYSQL_AUDIT_GENERAL_STATUS)
+    if (event->event_subclass == MYSQL_AUDIT_GENERAL_STATUS &&
+        event_query_command(event))
+    {
       log_statement(cn, event, "QUERY");
+    }
   }
   else if (event_class == MYSQL_AUDIT_TABLE_CLASS && FILTER(EVENT_TABLE) && cn)
   {
@@ -1799,7 +1995,10 @@ static void auditing(MYSQL_THD thd __attribute__((unused)),
         log_connection(cn, event, event->status ? "FAILED_CONNECT": "CONNECT");
         break;
       case MYSQL_AUDIT_CONNECTION_DISCONNECT:
-        log_connection(cn, event, "DISCONNECT");
+        if (use_event_data_for_disconnect)
+          log_connection_event(event, "DISCONNECT");
+        else
+          log_connection(&ci_disconnect_buffer, event, "DISCONNECT");
         break;
       case MYSQL_AUDIT_CONNECTION_CHANGE_USER:
         log_connection(cn, event, "CHANGEUSER");
@@ -1814,10 +2013,6 @@ exit_func:
   if (after_action)
   {
     switch (after_action) {
-    case AA_FREE_CONNECTION:
-      my_hash_delete(&connection_hash, (uchar *) cn);
-      cn= 0;
-      break;
     case AA_CHANGE_USER:
     {
       const struct mysql_event_connection *event =
@@ -1834,28 +2029,6 @@ exit_func:
   flogger_mutex_unlock(&lock_operations);
 }
 
-
-#ifdef DBUG_OFF
-  #ifdef __x86_64__
-static const int cmd_off= 4200;
-static const int db_off= 120;
-static const int db_len_off= 128;
-  #else
-static const int cmd_off= 2668;
-static const int db_off= 60;
-static const int db_len_off= 64;
-  #endif /*x86_64*/
-#else
-  #ifdef __x86_64__
-static const int cmd_off= 4432;
-static const int db_off= 120;
-static const int db_len_off= 128;
-  #else
-static const int cmd_off= 2808;
-static const int db_off= 64;
-static const int db_len_off= 68;
-  #endif /*x86_64*/
-#endif /*DBUG_OFF*/
 
 struct mysql_event_general_v8
 {
@@ -1874,8 +2047,31 @@ struct mysql_event_general_v8
   unsigned long long general_rows;
 };
 
+
 static void auditing_v8(MYSQL_THD thd, struct mysql_event_general_v8 *ev_v8)
 {
+#ifdef DBUG_OFF
+  #ifdef __x86_64__
+  static const int cmd_off= 4200;
+  static const int db_off= 120;
+  static const int db_len_off= 128;
+  #else
+  static const int cmd_off= 2668;
+  static const int db_off= 60;
+  static const int db_len_off= 64;
+  #endif /*x86_64*/
+#else
+  #ifdef __x86_64__
+  static const int cmd_off= 4432;
+  static const int db_off= 120;
+  static const int db_len_off= 128;
+  #else
+  static const int cmd_off= 2808;
+  static const int db_off= 64;
+  static const int db_len_off= 68;
+  #endif /*x86_64*/
+#endif /*DBUG_OFF*/
+
   struct mysql_event_general event;
 
   if (ev_v8->event_class != MYSQL_AUDIT_GENERAL_CLASS)
@@ -1934,6 +2130,41 @@ static void auditing_v13(MYSQL_THD thd, unsigned int *ev_v0)
 }
 
 
+int get_db_mysql57(MYSQL_THD thd, char **name, int *len)
+{
+  int db_off;
+  int db_len_off;
+  if (debug_server_started)
+  {
+#ifdef __x86_64__
+    db_off= 608;
+    db_len_off= 616;
+#else
+    db_off= 0;
+    db_len_off= 0;
+#endif /*x86_64*/
+  }
+  else
+  {
+#ifdef __x86_64__
+    db_off= 536;
+    db_len_off= 544;
+#else
+    db_off= 0;
+    db_len_off= 0;
+#endif /*x86_64*/
+  }
+
+#ifdef __linux__
+  *name= *(char **) (((char *) thd) + db_off);
+  *len= *((int *) (((char*) thd) + db_len_off));
+  if (*name && (*name)[*len] != 0)
+    return 1;
+  return 0;
+#else
+  return 1;
+#endif
+}
 /*
    As it's just too difficult to #include "sql_class.h",
    let's just copy the necessary part of the system_variables
@@ -2060,8 +2291,8 @@ static int server_audit_init(void *p __attribute__((unused)))
   flogger_mutex_init(key_LOCK_operations, &lock_operations, MY_MUTEX_INIT_FAST);
   flogger_mutex_init(key_LOCK_operations, &lock_bigbuffer, MY_MUTEX_INIT_FAST);
 
-  my_hash_clear(&incl_user_hash);
-  my_hash_clear(&excl_user_hash);
+  coll_init(&incl_user_coll);
+  coll_init(&excl_user_coll);
 
   if (incl_users)
   {
@@ -2078,9 +2309,6 @@ static int server_audit_init(void *p __attribute__((unused)))
   {
     update_excl_users(NULL, NULL, NULL, &excl_users);
   }
-
-  loc_my_hash_init(&connection_hash, 0, &my_charset_bin, 0x100, 0,
-               sizeof(unsigned long), 0, free_connection, 0); 
 
   error_header();
   fprintf(stderr, "MariaDB Audit Plugin version %s%s STARTED.\n",
@@ -2105,6 +2333,16 @@ static int server_audit_init(void *p __attribute__((unused)))
     }
   }
 
+  ci_disconnect_buffer.header= 10;
+  ci_disconnect_buffer.thread_id= 0;
+  ci_disconnect_buffer.query_id= 0;
+  ci_disconnect_buffer.db_length= 0;
+  ci_disconnect_buffer.user_length= 0;
+  ci_disconnect_buffer.host_length= 0;
+  ci_disconnect_buffer.ip_length= 0;
+  ci_disconnect_buffer.query= empty_str;
+  ci_disconnect_buffer.query_length= 0;
+
   if (logging)
     start_logging();
 
@@ -2123,13 +2361,8 @@ static int server_audit_init_mysql(void *p)
 
 static int server_audit_deinit(void *p __attribute__((unused)))
 {
-  if (my_hash_inited(&incl_user_hash))
-    my_hash_free(&incl_user_hash);
-
-  if (my_hash_inited(&excl_user_hash))
-    my_hash_free(&excl_user_hash);
-
-  my_hash_free(&connection_hash);
+  coll_free(&incl_user_coll);
+  coll_free(&excl_user_coll);
 
   if (output_type == OUTPUT_FILE && logfile)
     logger_close(logfile);
@@ -2163,6 +2396,7 @@ static struct st_mysql_audit mysql_descriptor =
   auditing,
   { MYSQL_AUDIT_GENERAL_CLASSMASK | MYSQL_AUDIT_CONNECTION_CLASSMASK }
 };
+
 
 mysql_declare_plugin(server_audit)
 {
@@ -2206,7 +2440,7 @@ maria_declare_plugin(server_audit)
   audit_status,
   vars,
   PLUGIN_STR_VERSION,
-  MariaDB_PLUGIN_MATURITY_GAMMA
+  MariaDB_PLUGIN_MATURITY_STABLE
 }
 maria_declare_plugin_end;
 
@@ -2214,22 +2448,21 @@ maria_declare_plugin_end;
 static void mark_always_logged(MYSQL_THD thd)
 {
   struct connection_info *cn;
-  if (thd && (cn= find_connection(thd_get_thread_id(thd))))
+  if (thd && (cn= get_loc_info(thd)))
     cn->log_always= 1;
 }
 
 
 static void log_current_query(MYSQL_THD thd)
 {
-  unsigned long thd_id;
   struct connection_info *cn;
-  if (!thd ||
-      !(cn= find_connection((thd_id= thd_get_thread_id(thd)))))
+  if (!thd)
     return;
-  if (FILTER(EVENT_QUERY) && do_log_user(cn->user))
+  cn= get_loc_info(thd);
+  if (!ci_needs_setup(cn) && FILTER(EVENT_QUERY) && do_log_user(cn->user))
   {
-    log_statement_ex(cn, cn->query_time, thd_id, cn->query, cn->query_length,
-                     0, "QUERY");
+    log_statement_ex(cn, cn->query_time, thd_get_thread_id(thd),
+        cn->query, cn->query_length, 0, "QUERY");
     cn->log_always= 1;
   }
 }
@@ -2325,7 +2558,7 @@ static void update_incl_users(MYSQL_THD thd,
   mark_always_logged(thd);
   strncpy(incl_user_buffer, new_users, sizeof(incl_user_buffer));
   incl_users= incl_user_buffer;
-  user_hash_fill(&incl_user_hash, incl_users, &excl_user_hash, 1);
+  user_coll_fill(&incl_user_coll, incl_users, &excl_user_coll, 1);
   error_header();
   fprintf(stderr, "server_audit_incl_users set to '%s'.\n", incl_users);
   flogger_mutex_unlock(&lock_operations);
@@ -2341,7 +2574,7 @@ static void update_excl_users(MYSQL_THD thd  __attribute__((unused)),
   mark_always_logged(thd);
   strncpy(excl_user_buffer, new_users, sizeof(excl_user_buffer));
   excl_users= excl_user_buffer;
-  user_hash_fill(&excl_user_hash, excl_users, &incl_user_hash, 0);
+  user_coll_fill(&excl_user_coll, excl_users, &incl_user_coll, 0);
   error_header();
   fprintf(stderr, "server_audit_excl_users set to '%s'.\n", excl_users);
   flogger_mutex_unlock(&lock_operations);
@@ -2480,6 +2713,13 @@ static void update_syslog_ident(MYSQL_THD thd  __attribute__((unused)),
 }
 
 
+struct st_my_thread_var *loc_thread_var(void)
+{
+  return 0;
+}
+
+
+
 #ifdef _WIN32
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
@@ -2497,9 +2737,18 @@ void __attribute__ ((constructor)) audit_plugin_so_init(void)
     goto exit;
 
   started_mariadb= strstr(serv_ver, "MariaDB") != 0;
+  debug_server_started= strstr(serv_ver, "debug") != 0;
 
-  if (!started_mariadb)
+  if (started_mariadb)
   {
+    if (serv_ver[0] == '1')
+      use_event_data_for_disconnect= 1;
+    else
+      maria_55_started= 1;
+  }
+  else
+  {
+    /* Started MySQL. */
     if (serv_ver[0] == '5' && serv_ver[2] == '5')
     {
       int sc= serv_ver[4] - '0';
@@ -2516,7 +2765,25 @@ void __attribute__ ((constructor)) audit_plugin_so_init(void)
         mysql_descriptor.event_notify= (void *) auditing_v13;
       }
     }
+    else if (serv_ver[0] == '5' && serv_ver[2] == '6')
+    {
+      int sc= serv_ver[4] - '0';
+      if (serv_ver[5] >= '0' && serv_ver[5] <= '9')
+        sc= sc * 10 + serv_ver[5] - '0';
+      if (sc >= 24)
+        use_event_data_for_disconnect= 1;
+    }
+    else if (serv_ver[0] == '5' && serv_ver[2] == '7')
+    {
+      mysql_57_started= 1;
+      _mysql_plugin_declarations_[0].info= mysql_v4_descriptor;
+      use_event_data_for_disconnect= 1;
+    }
   }
+
+  memset(locinfo_ini_value, 'O', sizeof(locinfo_ini_value)-1);
+  locinfo_ini_value[sizeof(locinfo_ini_value)]= 0;
+
 exit:
 #ifdef _WIN32
   return 1;
