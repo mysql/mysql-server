@@ -3014,10 +3014,9 @@ case SQLCOM_PREPARE:
       goto end_with_restore_list;
 
     /* Fix names if symlinked or relocated tables */
-    if (append_file_to_dir(thd, &create_info.data_file_name,
-			   create_table->table_name) ||
-	append_file_to_dir(thd, &create_info.index_file_name,
-			   create_table->table_name))
+    if (prepare_index_and_data_dir_path(thd, &create_info.data_file_name,
+                                        &create_info.index_file_name,
+                                        create_table->table_name))
       goto end_with_restore_list;
 
     /*
@@ -6475,27 +6474,82 @@ void killall_non_super_threads(THD *thd)
   thd_manager->do_for_all_thd(&kill_non_super_conn);
 }
 
+
+/**
+  prepares the index and data directory path.
+
+  @param thd                    Thread handle
+  @param data_file_name         Pathname for data directory
+  @param index_file_name        Pathname for index directory
+  @param table_name             Table name to be appended to the pathname specified
+
+  @return false                 success
+  @return true                  An error occurred
+*/
+
+bool prepare_index_and_data_dir_path(THD *thd, const char **data_file_name,
+                                     const char **index_file_name,
+                                     const char *table_name)
+{
+  int ret_val;
+  const char *file_name;
+  const char *directory_type;
+
+  /*
+    If a data directory path is passed, check if the path exists and append
+    table_name to it.
+  */
+  if (data_file_name &&
+      (ret_val= append_file_to_dir(thd, data_file_name, table_name)))
+  {
+    file_name= *data_file_name;
+    directory_type= "DATA DIRECTORY";
+    goto err;
+  }
+
+  /*
+    If an index directory path is passed, check if the path exists and append
+    table_name to it.
+  */
+  if (index_file_name &&
+      (ret_val= append_file_to_dir(thd, index_file_name, table_name)))
+  {
+    file_name= *index_file_name;
+    directory_type= "INDEX DIRECTORY";
+    goto err;
+  }
+
+  return false;
+err:
+  if (ret_val == ER_PATH_LENGTH)
+    my_error(ER_PATH_LENGTH, MYF(0), directory_type);
+  if (ret_val == ER_WRONG_VALUE)
+    my_error(ER_WRONG_VALUE, MYF(0), "path", file_name);
+  return true;
+}
+
+
 /** If pointer is not a null pointer, append filename to it. */
 
-bool append_file_to_dir(THD *thd, const char **filename_ptr,
-                        const char *table_name)
+int append_file_to_dir(THD *thd, const char **filename_ptr,
+                       const char *table_name)
 {
   char buff[FN_REFLEN],*ptr, *end;
   if (!*filename_ptr)
     return 0;					// nothing to do
 
   /* Check that the filename is not too long and it's a hard path */
-  if (strlen(*filename_ptr)+strlen(table_name) >= FN_REFLEN-1 ||
-      !test_if_hard_path(*filename_ptr))
-  {
-    my_error(ER_WRONG_TABLE_NAME, MYF(0), *filename_ptr);
-    return 1;
-  }
+  if (strlen(*filename_ptr) + strlen(table_name) >= FN_REFLEN - 1)
+    return ER_PATH_LENGTH;
+
+  if (!test_if_hard_path(*filename_ptr))
+    return ER_WRONG_VALUE;
+
   /* Fix is using unix filename format on dos */
   my_stpcpy(buff,*filename_ptr);
   end=convert_dirname(buff, *filename_ptr, NullS);
   if (!(ptr= (char*) thd->alloc((size_t) (end-buff) + strlen(table_name)+1)))
-    return 1;					// End of memory
+    return ER_OUTOFMEMORY;                     // End of memory
   *filename_ptr=ptr;
   strxmov(ptr,buff,table_name,NullS);
   return 0;

@@ -2163,9 +2163,10 @@ error:
 bool check_partition_dirs(partition_info *part_info)
 {
   if (!part_info)
-    return 0;
+    return false;
 
   partition_element *part_elem;
+  const char *file_name;
   List_iterator<partition_element> part_it(part_info->partitions);
   while ((part_elem= part_it++))
   {
@@ -2176,28 +2177,36 @@ bool check_partition_dirs(partition_info *part_info)
       while ((subpart_elem= sub_it++))
       {
         if (test_if_data_home_dir(subpart_elem->data_file_name))
-          goto dd_err;
+	{
+	  file_name = subpart_elem->data_file_name;
+	  goto err;
+	}
         if (test_if_data_home_dir(subpart_elem->index_file_name))
-          goto id_err;
+	{
+	  file_name = subpart_elem->index_file_name;
+	  goto err;
+	}
       }
     }
     else
     {
       if (test_if_data_home_dir(part_elem->data_file_name))
-        goto dd_err;
+      {
+        file_name = part_elem->data_file_name;
+        goto err;
+      }
       if (test_if_data_home_dir(part_elem->index_file_name))
-        goto id_err;
+      {
+        file_name = part_elem->index_file_name;
+        goto err;
+      }
     }
   }
-  return 0;
+  return false;
 
-dd_err:
-  my_error(ER_WRONG_ARGUMENTS,MYF(0),"DATA DIRECTORY");
-  return 1;
-
-id_err:
-  my_error(ER_WRONG_ARGUMENTS,MYF(0),"INDEX DIRECTORY");
-  return 1;
+err:
+  my_error(ER_WRONG_VALUE, MYF(0), "path", file_name);
+  return true;
 }
 
 

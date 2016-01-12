@@ -248,15 +248,15 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 # or to be located in or under MYSQLD_DATADIR. 
 #
 CREATE TABLE t1 (a int KEY, b text) DATA DIRECTORY './';
-ERROR 42000: Incorrect table name './'
+ERROR HY000: Incorrect path value: './'
 SHOW WARNINGS;
 Level	Code	Message
-Error	1103	Incorrect table name './'
+Error	1525	Incorrect path value: './'
 CREATE TABLE t1 (a int KEY, b text) DATA DIRECTORY '../';
-ERROR 42000: Incorrect table name '../'
+ERROR HY000: Incorrect path value: '../'
 SHOW WARNINGS;
 Level	Code	Message
-Error	1103	Incorrect table name '../'
+Error	1525	Incorrect path value: '../'
 CREATE TABLE t1 (a int KEY, b text) DATA DIRECTORY 'MYSQLD_DATADIR';
 ERROR HY000: Incorrect arguments to DATA DIRECTORY
 SHOW WARNINGS;

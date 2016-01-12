@@ -486,20 +486,20 @@ DROP TABLE t4;
 
 --echo # An empty string in DATA DIRECTORY='' indicates the current directory,
 --echo # which is not allowed.
---error ER_WRONG_TABLE_NAME
+--error ER_WRONG_VALUE
 CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='';
 SHOW WARNINGS;
 
 SET GLOBAL innodb_file_per_table = ON;
 SET innodb_strict_mode = ON;
 
---error ER_WRONG_TABLE_NAME
+--error ER_WRONG_VALUE
 CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='';
 SHOW WARNINGS;
---error ER_WRONG_TABLE_NAME
+--error ER_WRONG_VALUE
 CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='.';
 SHOW WARNINGS;
---error ER_WRONG_TABLE_NAME
+--error ER_WRONG_VALUE
 CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='test';
 SHOW WARNINGS;
 

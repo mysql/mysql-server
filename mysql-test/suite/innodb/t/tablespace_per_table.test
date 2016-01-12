@@ -187,11 +187,11 @@ set @@sql_mode=@org_mode;
 --echo # or to be located in or under MYSQLD_DATADIR. 
 --echo #
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
---error ER_WRONG_TABLE_NAME
+--error ER_WRONG_VALUE
 eval CREATE TABLE t1 (a int KEY, b text) DATA DIRECTORY './';
 SHOW WARNINGS;
 
---error ER_WRONG_TABLE_NAME
+--error ER_WRONG_VALUE
 eval CREATE TABLE t1 (a int KEY, b text) DATA DIRECTORY '../';
 SHOW WARNINGS;
 

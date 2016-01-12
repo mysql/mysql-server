@@ -205,7 +205,8 @@ set @@sql_mode=@org_mode;
 # Bug 21350: Data Directory problems
 #
 # Added ER_WRONG_TABLE_NAME and reported bug#39045
--- error ER_WRONG_ARGUMENTS, ER_WRONG_TABLE_NAME
+# Changed the error 'ER_WRONG_TABLE_NAME' to a more appropriate error 'ER_WRONG_VALUE'
+-- error ER_WRONG_VALUE
 create table t1 (a int)
 ENGINE = MyISAM
 partition by key (a)
@@ -216,7 +217,8 @@ partition by key (a)
 # the second, ensure that we clean up afterwards in a proper manner.
 #
 # Added ER_WRONG_TABLE_NAME and reported bug#39045
---error ER_WRONG_ARGUMENTS, ER_WRONG_TABLE_NAME
+# Changed the error 'ER_WRONG_TABLE_NAME' to a more appropriate error 'ER_WRONG_VALUE'
+--error ER_WRONG_VALUE
 create table t1 (a int)
 ENGINE = MyISAM
 partition by key (a)
