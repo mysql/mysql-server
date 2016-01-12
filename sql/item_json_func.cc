@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -135,11 +135,13 @@ static bool parse_json(String *res,
 
   if (*dom == NULL && parse_err != NULL)
   {
-    // Report syntax error.
-    std::string value(safep, safe_length);
+    /*
+      Report syntax error. The last argument is no longer used, but kept to
+      avoid changing error message format.
+    */
     my_error(ER_INVALID_JSON_TEXT_IN_PARAM, MYF(0),
              arg_idx + 1, func_name, parse_err, err_offset,
-             value.c_str());
+             "");
     *parse_error= true;
   }
   return *dom == NULL;
@@ -436,7 +438,11 @@ static bool parse_path(Item * path_expression, String *value,
   size_t bad_idx= 0;
   if (parse_path(false, path_length, path_chars, json_path, &bad_idx))
   {
-    my_error(ER_INVALID_JSON_PATH, MYF(0), bad_idx, path_value->c_ptr_safe());
+    /*
+      Issue an error message. The last argument is no longer used, but kept to
+      avoid changing error message format.
+    */
+    my_error(ER_INVALID_JSON_PATH, MYF(0), bad_idx, "");
     return true;
   }
 
