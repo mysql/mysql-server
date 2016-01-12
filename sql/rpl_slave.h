@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -113,11 +113,6 @@ extern bool server_id_supplied;
   start till the end. This thus protects us against a handful of deadlocks
   (consider start_slave_thread() which, when starting the I/O thread, releases
   mi->run_lock, keeps rli->run_lock, and tries to re-acquire mi->run_lock).
-
-  Currently active_mi never moves (it's created at startup and deleted at
-  shutdown, and not changed: it always points to the same Master_info struct),
-  because we don't have multimaster. So for the moment, mi does not move, and
-  mi->rli does not either.
 
   In Master_info: run_lock, data_lock
   run_lock protects all information about the run state: slave_running, thd
@@ -414,7 +409,6 @@ extern "C" void *handle_slave_sql(void *arg);
 bool net_request_file(NET* net, const char* fname);
 
 extern bool volatile abort_loop;
-extern Master_info *active_mi;      /* active_mi  for multi-master */
 extern LIST master_list;
 extern my_bool replicate_same_server_id;
 
