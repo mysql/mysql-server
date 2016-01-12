@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -77,7 +77,6 @@ MY_BITMAP slave_error_mask;
 char slave_skip_error_names[SHOW_VAR_FUNC_BUFF_SIZE];
 
 char* slave_load_tmpdir = 0;
-Master_info *active_mi= 0;
 my_bool replicate_same_server_id;
 ulonglong relay_log_space_limit = 0;
 
@@ -409,13 +408,6 @@ int init_slave()
     error = 1;
     goto err;
   }
-
-  /*
-     for only ndb, create active_mi. we removed
-     active_mi from other part of the code except names and comments.
-   */
-
-  active_mi= channel_map.get_default_channel_mi();
 
 #ifndef DBUG_OFF
   /* @todo: Print it for all the channels */
