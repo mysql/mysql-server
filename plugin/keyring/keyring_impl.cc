@@ -97,8 +97,10 @@ int check_keyring_file_data(IKeyring_io* keyring_io, unique_ptr<IKeys_container>
 
   (*(const char **) save)= NULL;
   keyring_filename= value->val_str(value, buff, &len);
+  mysql_rwlock_wrlock(&LOCK_keyring);
   if (create_keyring_dir_if_does_not_exist(keyring_filename))
   {
+    mysql_rwlock_unlock(&LOCK_keyring);
     logger->log(MY_ERROR_LEVEL, "keyring_file_data cannot be set to new value"
       " as the keyring file cannot be created/accessed in the provided path");
     return 1;
@@ -106,12 +108,17 @@ int check_keyring_file_data(IKeyring_io* keyring_io, unique_ptr<IKeys_container>
   try
   {
     if (new_keys->init(keyring_io, keyring_filename))
+    {
+      mysql_rwlock_unlock(&LOCK_keyring);
       return 1;
+    }
     *reinterpret_cast<IKeys_container **>(save)= new_keys.get();
     new_keys.release();
+    mysql_rwlock_unlock(&LOCK_keyring);
   }
   catch (...)
   {
+    mysql_rwlock_unlock(&LOCK_keyring);
     return 1;
   }
   return(0);
