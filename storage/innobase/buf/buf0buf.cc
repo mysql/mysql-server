@@ -642,9 +642,10 @@ buf_page_is_checksum_valid_crc32(
 	    && curr_algo == SRV_CHECKSUM_ALGORITHM_STRICT_CRC32) {
 		fprintf(log_file, "page::%" PRIuMAX ";"
 			" crc32 calculated = %u;"
-			" recorded checksum field1 = %lu recorded"
-			" checksum field2 =%lu\n", page_no,
-			crc32, checksum_field1, checksum_field2);
+			" recorded checksum field1 = " ULINTPF
+			" recorded checksum field2 = " ULINTPF
+			"\n", page_no, crc32,
+			checksum_field1, checksum_field2);
 	}
 #endif /* UNIV_INNOCHECKSUM */
 
@@ -699,13 +700,13 @@ buf_page_is_checksum_valid_innodb(
 	if (is_log_enabled
 	    && curr_algo == SRV_CHECKSUM_ALGORITHM_INNODB) {
 		fprintf(log_file, "page::%" PRIuMAX ";"
-			" old style: calculated ="
-			" %lu; recorded = %lu\n",
+			" old style: calculated = " ULINTPF
+			"; recorded = " ULINTPF "\n",
 			page_no, old_checksum,
 			checksum_field2);
 		fprintf(log_file, "page::%" PRIuMAX ";"
-			" new style: calculated ="
-			" %lu; crc32 = %u; recorded = %lu\n",
+			" new style: calculated = " ULINTPF
+			"; crc32 = %u; recorded = " ULINTPF "\n",
 			page_no, new_checksum,
 			buf_calc_page_crc32(read_buf), checksum_field1);
 	}
@@ -713,13 +714,13 @@ buf_page_is_checksum_valid_innodb(
 	if (is_log_enabled
 	    && curr_algo == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB) {
 		fprintf(log_file, "page::%" PRIuMAX ";"
-			" old style: calculated ="
-			" %lu; recorded checksum = %lu\n",
+			" old style: calculated = " ULINTPF
+			"; recorded checksum = " ULINTPF "\n",
 			page_no, old_checksum,
 			checksum_field2);
 		fprintf(log_file, "page::%" PRIuMAX ";"
-			" new style: calculated ="
-			" %lu; recorded checksum  = %lu\n",
+			" new style: calculated = " ULINTPF
+			"; recorded checksum  = " ULINTPF "\n",
 			page_no, new_checksum,
 			checksum_field1);
 	}
@@ -770,9 +771,10 @@ buf_page_is_checksum_valid_none(
 	if (is_log_enabled
 	    && curr_algo == SRV_CHECKSUM_ALGORITHM_STRICT_NONE) {
 		fprintf(log_file,
-			"page::%" PRIuMAX "; none checksum: calculated"
-			" = %lu; recorded checksum_field1 = %lu"
-			" recorded checksum_field2 = %lu\n",
+			"page::%" PRIuMAX
+			"; none checksum: calculated = %lu;"
+			" recorded checksum_field1 = " ULINTPF
+			" recorded checksum_field2 = " ULINTPF "\n",
 			page_no, BUF_NO_CHECKSUM_MAGIC,
 			checksum_field1, checksum_field2);
 	}
@@ -964,13 +966,13 @@ buf_page_is_corrupted(
 			if (is_log_enabled) {
 
 				fprintf(log_file, "page::%" PRIuMAX ";"
-					" old style: calculated = %lu;"
-					" recorded = %lu\n", page_no,
+					" old style: calculated = " ULINTPF ";"
+					" recorded = " ULINTPF "\n", page_no,
 					buf_calc_page_old_checksum(read_buf),
 					checksum_field2);
 				fprintf(log_file, "page::%" PRIuMAX ";"
-					" new style: calculated = %lu;"
-					" crc32 = %u; recorded = %lu\n",
+					" new style: calculated = " ULINTPF ";"
+					" crc32 = %u; recorded = " ULINTPF "\n",
 					page_no,
 					buf_calc_page_new_checksum(read_buf),
 					buf_calc_page_crc32(read_buf),
@@ -1066,13 +1068,13 @@ buf_page_is_corrupted(
 #ifdef UNIV_INNOCHECKSUM
 			if (is_log_enabled) {
 				fprintf(log_file, "page::%" PRIuMAX ";"
-					" old style: calculated = %lu;"
-					" recorded = %lu\n", page_no,
+					" old style: calculated = " ULINTPF ";"
+					" recorded = " ULINTPF "\n", page_no,
 					buf_calc_page_old_checksum(read_buf),
 					checksum_field2);
 				fprintf(log_file, "page::%" PRIuMAX ";"
-					" new style: calculated = %lu;"
-					" crc32 = %u; recorded = %lu\n",
+					" new style: calculated = " ULINTPF ";"
+					" crc32 = %u; recorded = " ULINTPF "\n",
 					page_no,
 					buf_calc_page_new_checksum(read_buf),
 					buf_calc_page_crc32(read_buf),
@@ -3077,7 +3079,7 @@ DECLARE_THREAD(buf_resize_thread)(
 	srv_buf_resize_thread_active = false;
 
 	my_thread_end();
-	os_thread_exit(NULL);
+	os_thread_exit();
 
 	OS_THREAD_DUMMY_RETURN;
 }
@@ -3923,12 +3925,10 @@ retry:
 
 	buf_pool_chunk_map_t*	chunk_map = buf_chunk_map_ref;
 
-	if (ptr < reinterpret_cast<byte*>(srv_buf_pool_chunk_unit)) {
-		it = chunk_map->upper_bound(0);
-	} else {
-		it = chunk_map->upper_bound(
-			ptr - srv_buf_pool_chunk_unit);
-	}
+	const byte* bound = reinterpret_cast<uintptr_t>(ptr)
+			    > srv_buf_pool_chunk_unit
+			    ? ptr - srv_buf_pool_chunk_unit : 0;
+	it = chunk_map->upper_bound(bound);
 
 	ut_a(it != chunk_map->end());
 
@@ -6846,13 +6846,15 @@ buf_print_io_instance(
 	ut_ad(pool_info);
 
 	fprintf(file,
-		"Buffer pool size   %lu\n"
-		"Free buffers       %lu\n"
-		"Database pages     %lu\n"
-		"Old database pages %lu\n"
-		"Modified db pages  %lu\n"
-		"Pending reads %lu\n"
-		"Pending writes: LRU %lu, flush list %lu, single page %lu\n",
+		"Buffer pool size   " ULINTPF "\n"
+		"Free buffers       " ULINTPF "\n"
+		"Database pages     " ULINTPF "\n"
+		"Old database pages " ULINTPF "\n"
+		"Modified db pages  " ULINTPF "\n"
+		"Pending reads      " ULINTPF "\n"
+		"Pending writes: LRU " ULINTPF
+		", flush list " ULINTPF
+		", single page " ULINTPF "\n",
 		pool_info->pool_size,
 		pool_info->free_list_len,
 		pool_info->lru_len,
@@ -6864,9 +6866,12 @@ buf_print_io_instance(
 		pool_info->n_pending_flush_single_page);
 
 	fprintf(file,
-		"Pages made young %lu, not young %lu\n"
+		"Pages made young " ULINTPF
+		", not young " ULINTPF "\n"
 		"%.2f youngs/s, %.2f non-youngs/s\n"
-		"Pages read %lu, created %lu, written %lu\n"
+		"Pages read " ULINTPF
+		", created " ULINTPF
+		", written " ULINTPF "\n"
 		"%.2f reads/s, %.2f creates/s, %.2f writes/s\n",
 		pool_info->n_pages_made_young,
 		pool_info->n_pages_not_made_young,
@@ -6906,8 +6911,9 @@ buf_print_io_instance(
 	/* Print some values to help us with visualizing what is
 	happening with LRU eviction. */
 	fprintf(file,
-		"LRU len: %lu, unzip_LRU len: %lu\n"
-		"I/O sum[%lu]:cur[%lu], unzip sum[%lu]:cur[%lu]\n",
+		"LRU len: " ULINTPF ", unzip_LRU len: " ULINTPF "\n"
+		"I/O sum[" ULINTPF "]:cur[" ULINTPF "], "
+		"unzip sum[" ULINTPF "]:cur[" ULINTPF "]\n",
 		pool_info->lru_len, pool_info->unzip_lru_len,
 		pool_info->io_sum, pool_info->io_cur,
 		pool_info->unzip_sum, pool_info->unzip_cur);
@@ -6968,7 +6974,7 @@ buf_print_io(
 		"----------------------\n", file);
 
 		for (i = 0; i < srv_buf_pool_instances; i++) {
-			fprintf(file, "---BUFFER POOL %lu\n", i);
+			fprintf(file, "---BUFFER POOL " ULINTPF "\n", i);
 			buf_print_io_instance(&pool_info[i], file);
 		}
 	}

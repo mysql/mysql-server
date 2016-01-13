@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -1222,7 +1222,7 @@ rw_lock_list_print_info(
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 	}
 
-	fprintf(file, "Total number of rw-locks %ld\n", count);
+	fprintf(file, "Total number of rw-locks " ULINTPF "\n", count);
 	mutex_exit(&rw_lock_list_mutex);
 }
 
