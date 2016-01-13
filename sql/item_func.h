@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1324,7 +1324,7 @@ class Item_func_min_max :public Item_func
 {
   Item_result cmp_type;
   String tmp_value;
-  int cmp_sign;
+  const int cmp_sign;
   /* TRUE <=> arguments should be compared in the DATETIME context. */
   bool compare_as_dates;
   /* An item used for issuing warnings while string to DATETIME conversion. */

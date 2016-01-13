@@ -53,6 +53,7 @@
 
 #include <cfloat>                // DBL_DIG
 #include <exception>             // std::exception subclasses
+#include <functional>
 
 using std::min;
 using std::max;
@@ -3625,6 +3626,7 @@ double Item_func_units::val_real()
 void Item_func_min_max::fix_length_and_dec()
 {
   uint string_arg_count= 0;
+  uint unsigned_arg_count= 0;
   int max_int_part=0;
   bool datetime_found= FALSE;
   decimals=0;
@@ -3650,6 +3652,8 @@ void Item_func_min_max::fix_length_and_dec()
       if (!datetime_item || args[i]->field_type() == MYSQL_TYPE_DATETIME)
         datetime_item= args[i];
     }
+    if (args[i]->result_type() == INT_RESULT && args[i]->unsigned_flag)
+      ++unsigned_arg_count;
   }
   
   if (string_arg_count == arg_count)
@@ -3672,6 +3676,15 @@ void Item_func_min_max::fix_length_and_dec()
   else if ((cmp_type == DECIMAL_RESULT) || (cmp_type == INT_RESULT))
   {
     collation.set_numeric();
+    if (cmp_type == INT_RESULT)
+    {
+      // For greatest: one unsigned input means result must be >= 0
+      if (-1 == cmp_sign && unsigned_arg_count)
+        unsigned_flag= true;
+      // For least: all unsigned input means result must be >= 0
+      if (1 == cmp_sign && unsigned_arg_count == arg_count)
+        unsigned_flag= true;
+    }
     fix_char_length(my_decimal_precision_to_length_no_truncation(max_int_part +
                                                                  decimals,
                                                                  decimals,
@@ -4008,18 +4021,37 @@ mysql> select least('11', '2'), least('11', '2')+0, concat(least(11,2));
     Should not the second column return 11?
     I.e. compare as strings and return '11', then convert to number.
   */
-  for (uint i=0; i < arg_count ; i++)
+  value= args[0]->val_int();
+  if ((null_value= args[0]->null_value))
+    return value;
+  bool val_unsigned= args[0]->unsigned_flag;
+
+  for (uint i= 1; i < arg_count; i++)
   {
-    if (i == 0)
-      value=args[i]->val_int();
-    else
-    {
-      longlong tmp=args[i]->val_int();
-      if (!args[i]->null_value && (tmp < value ? cmp_sign : -cmp_sign) > 0)
-	value=tmp;
-    }
+    const longlong tmp= args[i]->val_int();
     if ((null_value= args[i]->null_value))
       break;
+
+    const bool tmp_unsigned= args[i]->unsigned_flag;
+    bool tmp_is_smaller;
+    // both are signed, compare as signed
+    if (!val_unsigned && !tmp_unsigned)
+      tmp_is_smaller= (tmp < value);
+    // both are unsigned, compare as unsigned
+    else if (val_unsigned && tmp_unsigned)
+      tmp_is_smaller= std::less<ulonglong>()(tmp, value);
+    // tmp is signed, check negative value first
+    else if (val_unsigned && !tmp_unsigned)
+      tmp_is_smaller= (tmp < 0) || std::less<ulonglong>()(tmp, value);
+    // value is signed, check negative value first
+    else // !val_unsigned && tmp_unsigned
+      tmp_is_smaller= (value > 0) && std::less<ulonglong>()(tmp, value);
+
+    if ((tmp_is_smaller ? cmp_sign : -cmp_sign) > 0)
+    {
+      value= tmp;
+      val_unsigned= tmp_unsigned;
+    }
   }
   return value;
 }
