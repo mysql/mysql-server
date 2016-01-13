@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -115,14 +115,11 @@ os_thread_create_func(
 	os_thread_id_t*		thread_id);	/*!< out: id of the created
 						thread, or NULL */
 
-/*****************************************************************//**
-Exits the current thread. */
+/** Exits the current thread. */
 void
-os_thread_exit(
-/*===========*/
-	void*	exit_value)	/*!< in: exit value; in Windows this void*
-				is cast as a DWORD */
+os_thread_exit()
 	UNIV_COLD __attribute__((noreturn));
+
 /*****************************************************************//**
 Returns the thread identifier of current thread.
 @return current thread identifier */

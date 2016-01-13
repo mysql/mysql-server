@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -653,12 +653,16 @@ srv_print_master_thread_info(
 /*=========================*/
 	FILE  *file)    /* in: output stream */
 {
-	fprintf(file, "srv_master_thread loops: %lu srv_active,"
-		" %lu srv_shutdown, %lu srv_idle\n",
+	fprintf(file,
+		"srv_master_thread loops: "
+		ULINTPF " srv_active, "
+		ULINTPF " srv_shutdown, "
+		ULINTPF " srv_idle\n",
 		srv_main_active_loops,
 		srv_main_shutdown_loops,
 		srv_main_idle_loops);
-	fprintf(file, "srv_master_thread log flush and writes: %lu\n",
+	fprintf(file,
+		"srv_master_thread log flush and writes: " ULINTPF "\n",
 		srv_log_writes_and_flush);
 }
 
@@ -1285,31 +1289,36 @@ srv_printf_innodb_monitor(
 	fputs("--------------\n"
 	      "ROW OPERATIONS\n"
 	      "--------------\n", file);
-	fprintf(file, "%ld queries inside InnoDB, %lu queries in queue\n",
-		(long) srv_conc_get_active_threads(),
+	fprintf(file,
+		ULINTPF " queries inside InnoDB, "
+		ULINTPF " queries in queue\n",
+		srv_conc_get_active_threads(),
 		srv_conc_get_waiting_threads());
 
 	/* This is a dirty read, without holding trx_sys->mutex. */
-	fprintf(file, "%lu read views open inside InnoDB\n",
+	fprintf(file,
+		ULINTPF " read views open inside InnoDB\n",
 		trx_sys->mvcc->size());
 
 	n_reserved = fil_space_get_n_reserved_extents(0);
 	if (n_reserved > 0) {
 		fprintf(file,
-			"%lu tablespace extents now reserved for"
+			ULINTPF " tablespace extents now reserved for"
 			" B-tree split operations\n",
-			(ulong) n_reserved);
+			n_reserved);
 	}
 
 	fprintf(file,
 		"Process ID=" ULINTPF
-		", Main thread ID=" ULINTPF ", state: %s\n",
+		", Main thread ID=" ULINTPF
+		", state: %s\n",
 		srv_main_thread_process_no,
 		srv_main_thread_id,
 		srv_main_thread_op_info);
 	fprintf(file,
 		"Number of rows inserted " ULINTPF
-		", updated " ULINTPF ", deleted " ULINTPF
+		", updated " ULINTPF
+		", deleted " ULINTPF
 		", read " ULINTPF "\n",
 		(ulint) srv_stats.n_rows_inserted,
 		(ulint) srv_stats.n_rows_updated,
@@ -1627,7 +1636,7 @@ exit_func:
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
 
-	os_thread_exit(NULL);
+	os_thread_exit();
 
 	OS_THREAD_DUMMY_RETURN;
 }
@@ -1737,7 +1746,7 @@ loop:
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
 
-	os_thread_exit(NULL);
+	os_thread_exit();
 
 	OS_THREAD_DUMMY_RETURN;
 }
@@ -2388,7 +2397,7 @@ suspend_thread:
 	}
 
 	my_thread_end();
-	os_thread_exit(NULL);
+	os_thread_exit();
 	DBUG_RETURN(0);
 }
 
@@ -2527,7 +2536,7 @@ DECLARE_THREAD(srv_worker_thread)(
         my_thread_end();
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
-	os_thread_exit(NULL);
+	os_thread_exit();
 
 	OS_THREAD_DUMMY_RETURN;	/* Not reached, avoid compiler warning */
 }
@@ -2847,7 +2856,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 	my_thread_end();
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */
-	os_thread_exit(NULL);
+	os_thread_exit();
 
 	OS_THREAD_DUMMY_RETURN;	/* Not reached, avoid compiler warning */
 }
