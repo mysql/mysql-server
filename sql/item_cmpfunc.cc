@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5666,7 +5666,7 @@ void Item::check_deprecated_bin_op(const Item *a, const Item *b)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_WARN_DEPRECATED_SYNTAX,
-                        "Bitwise operations on BINARY will change behaviour"
+                        "Bitwise operations on BINARY will change behavior"
                         " in a future version, check the 'Bit functions'"
                         " section in the manual.");
   }

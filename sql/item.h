@@ -895,7 +895,7 @@ protected:
   const bool is_parser_item; // true if allocated directly by the parser
 
   /*
-    Checks if the items provided as parameter offend the deprecated behaviour
+    Checks if the items provided as parameter offend the deprecated behavior
     on binary operations and if so, a warning will be sent.
 
     @param      a item to check
