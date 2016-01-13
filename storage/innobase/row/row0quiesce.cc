@@ -204,7 +204,7 @@ row_quiesce_write_indexes(
 		num_indexes += MAX_SDI_COPIES;
 	}
 
-	num_indexes += UT_LIST_GET_LEN(table->indexes);
+	num_indexes += static_cast<uint32_t>(UT_LIST_GET_LEN(table->indexes));
 	ut_ad(num_indexes != 0);
 
 	mach_write_to_4(row, num_indexes);

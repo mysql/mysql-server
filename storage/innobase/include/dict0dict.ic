@@ -2048,7 +2048,7 @@ dict_table_is_sdi(
 UNIV_INLINE
 space_index_t
 dict_sdi_get_index_id(
-	ulint	copy_num)
+	uint32_t	copy_num)
 {
 	ut_ad(copy_num < MAX_SDI_COPIES);
 	return(IB_UINT64_MAX - copy_num);
@@ -2058,7 +2058,7 @@ dict_sdi_get_index_id(
 @param[in]	table_id	InnoDB table id
 @return SDI copy number */
 UNIV_INLINE
-ulint
+uint32_t
 dict_sdi_get_copy_num(
 	table_id_t	table_id)
 {

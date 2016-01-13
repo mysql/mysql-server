@@ -819,7 +819,7 @@ page 1.
 ulint
 fsp_sdi_get_root_page_num(
 	ulint			space,
-	ulint			copy_num,
+	uint32_t		copy_num,
 	const page_size_t&	page_size,
 	mtr_t*			mtr);
 

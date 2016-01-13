@@ -3255,7 +3255,7 @@ ib_sdi_create_insert_tuple(
 	ib_tpl_t	tuple = ib_clust_read_tuple_create(ib_crsr);
 	ib_col_set_value(tuple, 0, &sdi_key->id, dd::SDI_KEY_LEN, false);
 	ib_col_set_value(tuple, 1, &sdi_key->type, dd::SDI_TYPE_LEN, false);
-	ib_col_set_value(tuple, 2, sdi, sdi_len, false);
+	ib_col_set_value(tuple, 2, sdi, static_cast<ib_ulint_t>(sdi_len), false);
 	return(tuple);
 }
 
@@ -3445,8 +3445,10 @@ ib_sdi_get(
 		if (err == DB_SUCCESS) {
 			uint64_t	actual_sdi_len = ib_col_get_len(
 				tuple, 2);
-			ib_col_copy_value(tuple, 2, sdi,
-					  std::min(*sdi_len, actual_sdi_len));
+			ib_col_copy_value(
+				tuple, 2, sdi,
+				static_cast<ib_ulint_t>(
+					std::min(*sdi_len, actual_sdi_len)));
 			/* If the passed memory is not sufficient, we
 			return failure and the actual length of SDI. */
 			if (*sdi_len < actual_sdi_len) {
@@ -3925,7 +3927,7 @@ ib_memc_sdi_get_keys(
 	ib_vector.sdi_vector = &sdi_vector;
 
 	ib_err_t	err = ib_sdi_get_keys(
-		tablespace_id, &ib_vector, static_cast<uint32_t>(copy_num),
+		tablespace_id, &ib_vector, copy_num,
 		trx);
 
 	char*		ptr = static_cast<char*>(sdi);

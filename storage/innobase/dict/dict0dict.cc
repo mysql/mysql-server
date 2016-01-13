@@ -1136,8 +1136,8 @@ dict_table_open_on_id(
 	} else if (dict_table_is_sdi(table_id)) {
 
 		/* The table is SDI table */
-		ulint	space_id = dict_sdi_get_space_id(table_id);
-		ulint	copy_num = dict_sdi_get_copy_num(table_id);
+		ulint	        space_id = dict_sdi_get_space_id(table_id);
+		uint32_t	copy_num = dict_sdi_get_copy_num(table_id);
 
 		/* Create in-memory table oject for SDI table */
 		dict_index_t*	sdi_index = dict_sdi_create_idx_in_mem(
@@ -8037,8 +8037,8 @@ use only in IMPORT/EXPORT as of now. */
 @return dict_index_t structure or NULL*/
 dict_index_t*
 dict_sdi_get_index(
-	ulint	tablespace_id,
-	ulint	copy_num)
+	ulint		tablespace_id,
+	uint32_t	copy_num)
 {
 	ut_ad(copy_num < MAX_SDI_COPIES);
 
@@ -8061,8 +8061,8 @@ dict_sdi_get_index(
 @return dict_table_t structure */
 dict_table_t*
 dict_sdi_get_table(
-	ulint	tablespace_id,
-	ulint	copy_num,
+	ulint		tablespace_id,
+	uint32_t	copy_num,
 	bool	dict_locked)
 {
 	ut_ad(copy_num < MAX_SDI_COPIES);

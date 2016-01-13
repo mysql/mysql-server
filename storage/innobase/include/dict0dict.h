@@ -2289,8 +2289,8 @@ dict_table_have_virtual_index(
 @return dict_index_t structure or NULL*/
 dict_index_t*
 dict_sdi_get_index(
-	ulint	tablespace_id,
-	ulint	copy_num);
+	ulint		tablespace_id,
+	uint32_t	copy_num);
 
 /** Retrieve in-memory table object for SDI table.
 @param[in]	tablespace_id	innodb tablespace id
@@ -2299,9 +2299,9 @@ dict_sdi_get_index(
 @return dict_table_t structure */
 dict_table_t*
 dict_sdi_get_table(
-	ulint	tablespace_id,
-	ulint	copy_num,
-	bool	dict_locked);
+	ulint		tablespace_id,
+	uint32_t	copy_num,
+	bool		dict_locked);
 
 /** Remove the SDI table from table cache.
 @param[in]	space_id	InnoDB tablesapce_id
@@ -2333,7 +2333,7 @@ dict_table_is_sdi(
 @param[in]	table_id	InnoDB table id
 @return SDI copy number */
 UNIV_INLINE
-ulint
+uint32_t
 dict_sdi_get_copy_num(
 	table_id_t	table_id);
 

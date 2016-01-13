@@ -273,22 +273,22 @@ Filename = a.ibd
 Innochecksum: checking pages in range # to #
 page::#; log sequence number:first = #; second = #
 page::#; old style: calculated = #; recorded checksum = #
-page::#; new style: calculated = #; recorded checksum  = #
+page::#; new style: calculated = #; recorded checksum = #
 page::#; log sequence number:first = #; second = #
 page::#; old style: calculated = #; recorded checksum = #
-page::#; new style: calculated = #; recorded checksum  = #
+page::#; new style: calculated = #; recorded checksum = #
 page::#; log sequence number:first = #; second = #
 page::#; old style: calculated = #; recorded checksum = #
-page::#; new style: calculated = #; recorded checksum  = #
+page::#; new style: calculated = #; recorded checksum = #
 page::#; log sequence number:first = #; second = #
 page::#; old style: calculated = #; recorded checksum = #
-page::#; new style: calculated = #; recorded checksum  = #
+page::#; new style: calculated = #; recorded checksum = #
 page::#; log sequence number:first = #; second = #
 page::#; old style: calculated = #; recorded checksum = #
-page::#; new style: calculated = #; recorded checksum  = #
+page::#; new style: calculated = #; recorded checksum = #
 page::#; log sequence number:first = #; second = #
 page::#; old style: calculated = #; recorded checksum = #
-page::#; new style: calculated = #; recorded checksum  = #
+page::#; new style: calculated = #; recorded checksum = #
 page::#; log sequence number:first = #; second = #
 Page::# is empty and uncorrupted
 page::#; log sequence number:first = #; second = #

@@ -8317,7 +8317,7 @@ Encryption::encrypt(
 				false);
 
 			if (elen == MY_AES_BAD_DATA) {
-				ulint	page_no =mach_read_from_4(
+				ulint	page_no = mach_read_from_4(
 					src + FIL_PAGE_OFFSET);
 				ulint	space_id = mach_read_from_4(
 					src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);

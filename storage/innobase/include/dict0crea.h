@@ -325,7 +325,7 @@ struct tab_node_t{
 dict_index_t*
 dict_sdi_create_idx_in_mem(
 	ulint		space,
-	ulint		copy_num,
+	uint32_t	copy_num,
 	bool		space_discarded,
 	ulint		in_flags);
 

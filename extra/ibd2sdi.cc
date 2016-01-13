@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015 Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016 Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -112,6 +112,7 @@ static const uint32_t	MAX_PAGES_TO_SCAN = 60;
 
 /** Indicates error. */
 static const uint64_t	IB_ERROR = SIZE_T_MAX;
+static const uint32_t	IB_ERROR_32 = (~((uint32) 0));
 
 /** SDI BLOB not expected before the following page number.
 0 (tablespace header), 1 (tabespace bitmap), 2 (ibuf bitmap)
@@ -205,7 +206,8 @@ ut_dbg_assertion_failed(
 	const char*	file,
 	ulint		line)
 {
-	fprintf(stderr, "ibd2sdi: Assertion failure in file %s line %lu\n",
+	fprintf(stderr,
+		"ibd2sdi: Assertion failure in file %s line " ULINTPF "\n",
 		file, line);
 
 	if (expr != NULL) {
@@ -463,7 +465,8 @@ read_page(
 		return(IB_ERROR);
 	}
 
-	uint64_t	physical_page_size = page_size.physical();
+	size_t	physical_page_size
+		= static_cast<size_t>(page_size.physical());
 
 	ut_ad(physical_page_size >= UNIV_ZIP_SIZE_MIN);
 	ut_ad(buf_len >= physical_page_size);
@@ -479,11 +482,11 @@ read_page(
 typedef struct ib_file {
 	/** 0 in fil_per_table tablespaces, else the first page number in
 	subsequent data file in multi-file tablespace. */
-	uint64_t	first_page_num;
+	uint32_t	first_page_num;
+	/** Total number of pages in a data file. */
+	uint32_t	tot_num_of_pages;
 	/** File handle of the data file. */
 	File		file_handle;
-	/** Total number of pages in a data file. */
-	uint64_t	tot_num_of_pages;
 } ib_file_t;
 
 /** Class to hold information about a single InnoDB tablespace. */
@@ -493,7 +496,7 @@ public:
 	@param[in]	space_id	tablespace id
 	@param[in]	page_size	tablespace page size */
 	ib_tablespace(
-		uint64_t		space_id,
+		uint32_t		space_id,
 		const page_size_t&	page_size) :
 		m_space_id(space_id),
 		m_page_size(page_size),
@@ -542,8 +545,10 @@ public:
 	{
 		m_file_vec.push_back(data_file);
 
-		m_page_num_recs.resize(m_page_num_recs.size()
-				       + data_file.tot_num_of_pages, 0);
+		m_page_num_recs.resize(
+			m_page_num_recs.size()
+			+ static_cast<size_t>(data_file.tot_num_of_pages),
+			0);
 
 		m_last_page_num = data_file.first_page_num
 			+ data_file.tot_num_of_pages - 1;
@@ -555,8 +560,8 @@ public:
 	inline
 	void
 	add_sdi(
-		uint64_t	copy_0,
-		uint64_t	copy_1)
+		uint32_t	copy_0,
+		uint32_t	copy_1)
 	{
 		m_sdi_copy_0 = copy_0;
 		m_sdi_copy_1 = copy_1;
@@ -566,7 +571,7 @@ public:
 	@param[in]	copy_num	SDI copy number
 	@return SDI root page number of a copy */
 	inline
-	uint64_t
+	uint32_t
 	get_sdi_copy(uint32_t copy_num) const
 	{
 		switch(copy_num) {
@@ -582,7 +587,7 @@ public:
 	/** Return space id of the tablespace.
 	@return	space id of the tablespace */
 	inline
-	uint64_t
+	uint32_t
 	get_space_id() const
 	{
 		return(m_space_id);
@@ -615,7 +620,7 @@ public:
 		uint64_t	df_num) const
 	{
 		ut_ad(df_num < m_file_vec.size());
-		return(m_file_vec[df_num]);
+		return(m_file_vec[static_cast<unsigned>(df_num)]);
 	}
 
 	/** Increment the number of records on a page. This counter is
@@ -626,12 +631,13 @@ public:
 	corruption detected), else return false. */
 	bool
 	inc_num_of_recs_on_page(
-		uint64_t	page_num)
+		uint32_t	page_num)
 	{
 		ut_ad(page_num < m_page_num_recs.size());
 		++m_page_num_recs[page_num];
 
-		if (m_page_num_recs[page_num] > get_max_recs_per_page()) {
+		if (m_page_num_recs[page_num]
+		    > get_max_recs_per_page()) {
 			ib::error() << "Record Corruption detected. Too many"
 				" records or infinite loop detected. Aborting";
 			ib::error() << "The current iteration num is "
@@ -659,7 +665,7 @@ public:
 	inline
 	uint64_t
 	get_cur_num_recs_on_page(
-		uint64_t	page_num) const
+		uint32_t	page_num) const
 	{
 		ut_ad(page_num < m_page_num_recs.size());
 		return(m_page_num_recs[page_num]);
@@ -706,13 +712,13 @@ public:
 	inline
 	bool
 	check_sdi(
-		uint64_t&	copy_0,
-		uint64_t&	copy_1);
+		uint32_t&	copy_0,
+		uint32_t&	copy_1);
 
 	/** Return the last page number of a tablespace
 	@return the last page number of tablespace. */
 	inline
-	uint64_t
+	uint32_t
 	get_last_page_num() const
 	{
 		return(m_last_page_num);
@@ -724,7 +730,7 @@ private:
 	@param[in]	copy_num	SDI copy num
 	@return SDI root page number */
 	inline
-	uint64_t
+	uint32_t
 	get_sdi_root_page_num(
 		byte*		buf,
 		uint16_t	copy_num);
@@ -737,15 +743,15 @@ private:
 	@param[in]	second_copy_num		root page number of second copy
 	@return best copy number if determined, else IB_ERROR on failure */
 	inline
-	uint64_t
+	uint32_t
 	determine_good_root_page_num(
 		uint32_t	buf_len,
 		byte*		buf,
-		uint64_t	first_copy_num,
-		uint64_t	second_copy_num);
+		uint32_t	first_copy_num,
+		uint32_t	second_copy_num);
 
 	/** Space id of tablespace. */
-	uint64_t		m_space_id;
+	uint32_t		m_space_id;
 
 	/** Page size of tablespace. */
 	page_size_t		m_page_size;
@@ -761,13 +767,13 @@ private:
 	uint64_t		m_max_recs_per_page;
 
 	/** Root page number of SDI copy 0. */
-	uint64_t		m_sdi_copy_0;
+	uint32_t		m_sdi_copy_0;
 
 	/** Root page number of SDI copy 1. */
-	uint64_t		m_sdi_copy_1;
+	uint32_t		m_sdi_copy_1;
 
 	/** Last page number of tablespace. */
-	uint64_t		m_last_page_num;
+	uint32_t		m_last_page_num;
 };
 
 /** Read page from file into memory. If page is compressed SDI page,
@@ -782,7 +788,7 @@ static
 size_t
 fetch_page(
 	ib_tablespace*	ts,
-	uint64_t	page_num,
+	uint32_t	page_num,
 	uint32_t	buf_len,
 	byte*		buf)
 {
@@ -831,11 +837,10 @@ fetch_page(
 		bool	corrupt_status = is_page_corrupted(buf, page_size);
 
 		if (corrupt_status) {
-			ib::error() << "Page "
-				<< page_id_t(ts->get_space_id(),
-					     page_num)
-				<< " is corrupted. Checksum"
-				<< " verification failed";
+			page_id_t page_id(ts->get_space_id(), page_num);
+
+			ib::error() << "Page " << page_id << " is corrupted."
+				" Checksum verification failed";
 			DBUG_RETURN(IB_ERROR);
 		}
 	}
@@ -862,20 +867,18 @@ fetch_page(
 			mach_write_to_2(buf + PAGE_HEADER + PAGE_N_HEAP,
 					10000););
 
+		page_id_t page_id(ts->get_space_id(), page_num);
 
 		if (!page_zip_decompress_low(
 			&page_zip, uncomp_page, true)) {
 			/* To indicate error */
 			n_bytes = IB_ERROR;
 			ib::error() << "Decompression failed for"
-				<< " compressed page "
-				<< page_id_t(ts->get_space_id(),
-					     page_num);
+				" compressed page " << page_id;
 		} else {
-			ib::dbug() << "Decompression Success"
-				" for compressed page "
-				<< page_id_t(ts->get_space_id(),
-					     page_num);
+			ib::dbug() << "Decompression Success for"
+				" compressed page " << page_id;
+
 			/* Page is decompressed. */
 			memset(buf, 0, UNIV_PAGE_SIZE_MAX);
 			ut_ad(buf_len >= page_size.logical());
@@ -1021,17 +1024,17 @@ tablespace_creator::create()
 		if (bytes != UNIV_ZIP_SIZE_MIN) {
 			ib::error() << " Unable to read the page header"
 				<< " of " <<  UNIV_ZIP_SIZE_MIN << " bytes";
-			if (bytes != -1UL) {
+			if (bytes !=IB_ERROR) {
 				ib::error() << " Bytes read was " << bytes;
 			}
 			my_close(file_in, MYF(0));
 			DBUG_RETURN(true);
 		}
 
-		const uint64_t	space_id = mach_read_from_4(
+		const uint32_t	space_id = mach_read_from_4(
 			buf + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
-		const uint64_t	first_page_num = mach_read_from_4(
+		const uint32_t	first_page_num = mach_read_from_4(
 			buf + FIL_PAGE_OFFSET);
 
 		ib::dbug() << "The space id of the file " << filename
@@ -1042,10 +1045,10 @@ tablespace_creator::create()
 			or single table tablespace */
 			ut_ad(first_page_num == 0);
 
-			const page_size_t	page_size = get_page_size(
-				buf, file_in);
-			uint64_t		pages =
-				size / page_size.physical();
+			const page_size_t	page_size =
+				get_page_size(buf, file_in);
+			uint32_t		pages = static_cast<uint32_t>(
+				size / page_size.physical());
 
 			DBUG_EXECUTE_IF("ib_partial_page", size++;);
 
@@ -1068,8 +1071,8 @@ tablespace_creator::create()
 				space_id, page_size);
 			m_tablespace->add_data_file(ibd_file);
 
-			uint64_t	copy_0;
-			uint64_t	copy_1;
+			uint32_t	copy_0;
+			uint32_t	copy_1;
 			if (m_tablespace->check_sdi(copy_0, copy_1)) {
 				ib::error() << "SDI doesn't exist for"
 					" this tablespace or the SDI"
@@ -1148,7 +1151,8 @@ tablespace_creator::create()
 			ib_file_t ibd_file;
 			ibd_file.first_page_num = first_page_num;
 			ibd_file.file_handle = file_in;
-			ibd_file.tot_num_of_pages = size / phys_page_size;
+			ibd_file.tot_num_of_pages = static_cast<uint32_t>(
+				size / phys_page_size);
 
 			/* Add the datafile to the file vector
 			of the tablespace */
@@ -1200,7 +1204,7 @@ tablespace_creator::get_page_size(
 
 		page_size_t	page_size = determine_page_size(file_in);
 
-		srv_page_size = page_size.logical();
+		srv_page_size = static_cast<ulong>(page_size.logical());
 		srv_page_size_shift = page_size_validate(srv_page_size);
 
 		ut_ad(srv_page_size_shift != 0);
@@ -1362,8 +1366,8 @@ are filled with IB_ERROR on failure. */
 inline
 bool
 ib_tablespace::check_sdi(
-	uint64_t&	copy_0,
-	uint64_t&	copy_1)
+	uint32_t&	copy_0,
+	uint32_t&	copy_1)
 {
 	DBUG_ENTER("ib_tablespace::check_sdi");
 
@@ -1401,9 +1405,9 @@ ib_tablespace::check_sdi(
 		ib::dbug() << "Read page number: 1";
 	}
 
-	uint64_t	copy_0_from_page_1 = get_sdi_root_page_num(
+	uint32_t	copy_0_from_page_1 = get_sdi_root_page_num(
 		buf, 0);
-	uint64_t	copy_1_from_page_1 = get_sdi_root_page_num(
+	uint32_t	copy_1_from_page_1 = get_sdi_root_page_num(
 		buf, 1);
 
 	ib::dbug() << "SDI copy 0 root page num from page 1 is "
@@ -1419,9 +1423,9 @@ ib_tablespace::check_sdi(
 		ib::dbug() << "Read page number: 2";
 	}
 
-	uint64_t	copy_0_from_page_2 =
+	uint32_t	copy_0_from_page_2 =
 		get_sdi_root_page_num(buf, 0);
-	uint64_t	copy_1_from_page_2 =
+	uint32_t	copy_1_from_page_2 =
 		get_sdi_root_page_num(buf, 1);
 
 	ib::dbug() << "copy 0 root page num from page 2 is "
@@ -1433,7 +1437,7 @@ ib_tablespace::check_sdi(
 		UNIV_PAGE_SIZE_MAX, buf, copy_0_from_page_1,
 		copy_0_from_page_2);
 
-	if (copy_0 == IB_ERROR) {
+	if (copy_0 == IB_ERROR_32) {
 		ib::error() << "Couldn't determine the best root"
 			" page numbers";
 		DBUG_RETURN(true);
@@ -1443,7 +1447,7 @@ ib_tablespace::check_sdi(
 		UNIV_PAGE_SIZE_MAX, buf, copy_1_from_page_1,
 		copy_1_from_page_2);
 
-	if (copy_1 == IB_ERROR) {
+	if (copy_1 == IB_ERROR_32) {
 		ib::error() << "Couldn't determine the best root"
 			" page numbers";
 		DBUG_RETURN(true);
@@ -1468,27 +1472,27 @@ FIL_PAGE_SDI
 @param[in]	second_copy_num		root page number of second copy
 @return best copy number if determined, else IB_ERROR on failure */
 inline
-uint64_t
+uint32_t
 ib_tablespace::determine_good_root_page_num(
 	uint32_t	buf_len,
 	byte*		buf,
-	uint64_t	first_copy_num,
-	uint64_t	second_copy_num)
+	uint32_t	first_copy_num,
+	uint32_t	second_copy_num)
 {
 	if (fetch_page(this, first_copy_num, buf_len, buf) == IB_ERROR) {
 		ib::error() << "Unable to read page " << first_copy_num;
-		return(IB_ERROR);
+		return(IB_ERROR_32);
 	}
 
 	ulint	page_type_from_1 = fil_page_get_type(buf);
 
 	if (fetch_page(this, second_copy_num, buf_len, buf) == IB_ERROR) {
 		ib::error() << "Unable to read page " << second_copy_num;
-		return(IB_ERROR);
+		return(IB_ERROR_32);
 	}
 
 	ulint		page_type_from_2 = fil_page_get_type(buf);
-	uint64_t	best_copy_num = IB_ERROR;
+	uint32_t	best_copy_num = IB_ERROR_32;
 
 	DBUG_EXECUTE_IF("ib_no_sdi",
 			page_type_from_1 = page_type_from_2 = 0;);
@@ -1507,7 +1511,7 @@ ib_tablespace::determine_good_root_page_num(
 		ib::error() << "Root page numbers and page types are"
 			" equal but they are of type: " << page_type_from_1
 			<< " expected page type is " <<  FIL_PAGE_SDI;
-			return(IB_ERROR);
+			return(IB_ERROR_32);
 	}
 
 	ib::error() << "From Page 1: root page number: "
@@ -1529,7 +1533,7 @@ ib_tablespace::determine_good_root_page_num(
 		best_copy_num = second_copy_num;
 	}
 
-	if (best_copy_num != IB_ERROR) {
+	if (best_copy_num != IB_ERROR_32) {
 		ib::info() << "Selected page no: " << best_copy_num;
 	}
 
@@ -1541,7 +1545,7 @@ ib_tablespace::determine_good_root_page_num(
 @param[in]	copy_num	SDI copy num
 @return SDI root page number */
 inline
-uint64_t
+uint32_t
 ib_tablespace::get_sdi_root_page_num(
 	byte*		buf,
 	uint16_t	copy_num)
@@ -1636,7 +1640,7 @@ private:
 	bool
 	dump_all_recs_in_leaf_level(
 		ib_tablespace*	ts,
-		uint64_t	root_page_num,
+		uint32_t	root_page_num,
 		FILE*		out_stream);
 
 	/** Reach to page level zero and then iterate over the records
@@ -1648,8 +1652,8 @@ private:
 	bool
 	dump_all_recs_in_leaf_level_compare(
 		ib_tablespace*	ts,
-		uint64_t	root_page_num_copy_0,
-		uint64_t	root_page_num_copy_1);
+		uint32_t	root_page_num_copy_0,
+		uint32_t	root_page_num_copy_1);
 
 	/** Read page from file into buffer passed and return the page level.
 	@param[in]	ts		tablespace structure
@@ -1662,7 +1666,7 @@ private:
 		ib_tablespace*	ts,
 		uint32_t	buf_len,
 		byte*		buf,
-		uint64_t	page_num);
+		uint32_t	page_num);
 
 	/** Read the uncompressed blob stored in off-pages to the buffer.
 	@param[in]	ts			tablespace structure
@@ -1677,7 +1681,7 @@ private:
 	uint64_t
 	copy_uncompressed_blob(
 		ib_tablespace*	ts,
-		uint64_t	first_blob_page_num,
+		uint32_t	first_blob_page_num,
 		uint64_t	total_off_page_length,
 		byte*		dest_buf);
 
@@ -1694,7 +1698,7 @@ private:
 	uint64_t
 	copy_compressed_blob(
 		ib_tablespace*	ts,
-		uint64_t	first_blob_page_num,
+		uint32_t	first_blob_page_num,
 		uint64_t	total_off_page_length,
 		byte*		dest_buf);
 
@@ -1713,7 +1717,7 @@ private:
 		ib_tablespace*	ts,
 		uint32_t	buf_len,
 		byte*		buf,
-		uint64_t	root_page_num);
+		uint32_t	root_page_num);
 
 	/** Extract SDI record fields
 	@param[in]	ts		tablespace structure
@@ -1837,7 +1841,7 @@ private:
 	void
 	dump_sdi_to_err_file(
 		ib_tablespace*	ts,
-		uint64_t	root_page_num,
+		uint32_t	root_page_num,
 		uint32_t	copy_num);
 
 	/** Number of ibd files. */
@@ -1893,7 +1897,7 @@ involved with the records in other copy
 bool
 ibd2sdi::dump_all_recs_in_leaf_level(
 	ib_tablespace*	ts,
-	uint64_t	root_page_num,
+	uint32_t	root_page_num,
 	FILE*		out_stream)
 {
 	DBUG_ENTER("dump_all_recs_in_leaf_level");
@@ -1956,7 +1960,7 @@ ibd2sdi::dump_all_recs_in_leaf_level(
 void
 ibd2sdi::dump_sdi_to_err_file(
 	ib_tablespace*	ts,
-	uint64_t	root_page_num,
+	uint32_t	root_page_num,
 	uint32_t	copy_num)
 {
 	/* Buffer to hold temporary file name. */
@@ -1991,8 +1995,8 @@ copies and compare them
 bool
 ibd2sdi::dump_all_recs_in_leaf_level_compare(
 	ib_tablespace*	ts,
-	uint64_t	root_page_num_copy_0,
-	uint64_t	root_page_num_copy_1)
+	uint32_t	root_page_num_copy_0,
+	uint32_t	root_page_num_copy_1)
 {
 	DBUG_ENTER("dump_all_recs_in_leaf_level_compare");
 
@@ -2073,7 +2077,7 @@ ibd2sdi::read_page_and_return_level(
 	ib_tablespace*	ts,
 	uint32_t	buf_len,
 	byte*		buf,
-	uint64_t	page_num)
+	uint32_t	page_num)
 {
 	/* 1. Read page */
 	DBUG_ENTER("read_page_and_return_level");
@@ -2110,7 +2114,7 @@ off-pages */
 uint64_t
 ibd2sdi::copy_uncompressed_blob(
 	ib_tablespace*	ts,
-	uint64_t	first_blob_page_num,
+	uint32_t	first_blob_page_num,
 	uint64_t	total_off_page_length,
 	byte*		dest_buf)
 {
@@ -2119,7 +2123,7 @@ ibd2sdi::copy_uncompressed_blob(
 	byte		page_buf[UNIV_PAGE_SIZE_MAX];
 	uint64_t	calc_length = 0;
 	uint64_t	part_len;
-	uint64_t	next_page_num = first_blob_page_num;
+	uint32_t	next_page_num = first_blob_page_num;
 	bool		error = false;
 
 	do {
@@ -2147,12 +2151,13 @@ ibd2sdi::copy_uncompressed_blob(
 
 		memcpy(dest_buf + calc_length,
 		       page_buf + FIL_PAGE_DATA + BTR_BLOB_HDR_SIZE,
-		       part_len);
+		       static_cast<size_t>(part_len));
 
 		calc_length += part_len;
 
-		next_page_num = mach_read_from_4(page_buf + FIL_PAGE_DATA
-						+ BTR_BLOB_HDR_NEXT_PAGE_NO);
+		next_page_num = mach_read_from_4(
+			page_buf + FIL_PAGE_DATA
+			+ BTR_BLOB_HDR_NEXT_PAGE_NO);
 
 		if (next_page_num <= SDI_BLOB_ALLOWED) {
 			ib::error() << "Unexpected next BLOB page number. "
@@ -2181,7 +2186,7 @@ off-pages */
 uint64_t
 ibd2sdi::copy_compressed_blob(
 	ib_tablespace*	ts,
-	uint64_t	first_blob_page_num,
+	uint32_t	first_blob_page_num,
 	uint64_t	total_off_page_length,
 	byte*		dest_buf)
 {
@@ -2190,14 +2195,14 @@ ibd2sdi::copy_compressed_blob(
 	byte		page_buf[UNIV_PAGE_SIZE_MAX];
 	uint64_t	calc_length = 0;
 	uint64_t	part_len;
-	uint64_t	page_num = first_blob_page_num;
+	uint32_t	page_num = first_blob_page_num;
 	z_stream	d_stream;
 	int		err;
 	bool		error = false;
 	page_size_t	page_size = ts->get_page_size();
 
 	d_stream.next_out = dest_buf;
-	d_stream.avail_out = total_off_page_length;
+	d_stream.avail_out = static_cast<uInt>(total_off_page_length);
 	d_stream.next_in = Z_NULL;
 	d_stream.avail_in = 0;
 
@@ -2232,9 +2237,9 @@ ibd2sdi::copy_compressed_blob(
 		part_len = mach_read_from_4(page_buf + FIL_PAGE_DATA
 					    + BTR_BLOB_HDR_PART_LEN);
 
-		uint64_t	next_page_num = mach_read_from_4(
+		uint32_t	next_page_num = mach_read_from_4(
 			page_buf + FIL_PAGE_NEXT);
-		uint64_t	space_id = mach_read_from_4(
+		uint32_t	space_id = mach_read_from_4(
 			page_buf + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
 		d_stream.next_in = page_buf + FIL_PAGE_DATA;
@@ -2255,10 +2260,12 @@ ibd2sdi::copy_compressed_blob(
 			/* fall through */
 		default:
 inflate_error:
-			ib::error() << "Inflate() of compressed BLOB"
-				<< " page " << page_id_t(space_id, page_num)
-				<< " returned " << err << " (" << d_stream.msg
-				<< ")";
+		{
+			page_id_t page_id(space_id, page_num);
+			ib::error() << "Inflate() of compressed BLOB page "
+				 << page_id << " returned " << err
+				 << " (" << d_stream.msg << ")";
+		}
 		case Z_BUF_ERROR:
 			goto func_exit;
 		}
@@ -2266,9 +2273,9 @@ inflate_error:
 		if (next_page_num == FIL_NULL
 		    || next_page_num <= SDI_BLOB_ALLOWED) {
 			if (!d_stream.avail_in) {
+				page_id_t page_id(space_id, page_num);
 				ib::error() << "Unexpected end of compressed"
-					<< " BLOB page "
-					<< page_id_t(space_id, page_num);
+					<< " BLOB page " << page_id;
 			} else {
 				err = inflate(&d_stream, Z_FINISH);
 				switch (err) {
@@ -2309,7 +2316,7 @@ ibd2sdi::reach_to_leftmost_leaf_level(
 	ib_tablespace*	ts,
 	uint32_t	buf_len,
 	byte*		buf,
-	uint64_t	root_page_num)
+	uint32_t	root_page_num)
 {
 	DBUG_ENTER("reach_to_leftmost_leaf_level");
 
@@ -2365,7 +2372,7 @@ ibd2sdi::reach_to_leftmost_leaf_level(
 
 		ib::dbug() << "Next record offset is " << next_rec_off_t;
 
-		uint64_t	child_page_num = mach_read_from_4(
+		uint32_t	child_page_num = mach_read_from_4(
 			buf + PAGE_NEW_INFIMUM + next_rec_off_t
 			+ REC_DATA_ID_LEN + REC_DATA_TYPE_LEN);
 
@@ -2456,7 +2463,8 @@ ibd2sdi::parse_fields_in_rec(
 	}
 
 	byte*	str = static_cast<byte*>(
-		calloc(rec_data_length + 1, sizeof(char)));
+		calloc(static_cast<size_t>(rec_data_length + 1),
+		       sizeof(char)));
 
 	byte*	rec_data_origin = rec + REC_OFF_DATA_VARCHAR;
 
@@ -2471,8 +2479,9 @@ ibd2sdi::parse_fields_in_rec(
 		}
 
 		/* Copy from off-page blob-pages */
-		uint64_t	first_blob_page_num = mach_read_from_4(
-			rec + REC_OFF_DATA_VARCHAR + rec_data_in_page_len
+		uint32_t	first_blob_page_num = mach_read_from_4(
+			rec + REC_OFF_DATA_VARCHAR
+			+ rec_data_in_page_len
 			+ BTR_EXTERN_PAGE_NO);
 
 		uint64_t	blob_len_retrieved;
@@ -2491,7 +2500,7 @@ ibd2sdi::parse_fields_in_rec(
 		}
 		*sdi_data_len = rec_data_in_page_len + blob_len_retrieved;
 	} else {
-		memcpy(str, rec_data_origin, rec_data_length);
+		memcpy(str, rec_data_origin, static_cast<size_t>(rec_data_length));
 		*sdi_data_len = rec_data_length;
 	}
 
@@ -2533,8 +2542,7 @@ ibd2sdi::get_next_rec(
 	DBUG_ENTER("get_next_rec");
 
 	byte*		next_rec;
-	uint64_t	page_num = mach_read_from_4(
-		buf + FIL_PAGE_OFFSET);
+	uint32_t	page_num = mach_read_from_4(buf + FIL_PAGE_OFFSET);
 	ulint		next_rec_off_t = mach_read_from_2(
 		current_rec - REC_OFF_NEXT);
 
@@ -2574,8 +2582,7 @@ ibd2sdi::get_next_rec(
 				<< page_num;
 		}
 
-		uint64_t	next_page_num = mach_read_from_4(
-			buf + FIL_PAGE_NEXT);
+		uint32_t next_page_num = mach_read_from_4(buf + FIL_PAGE_NEXT);
 
 		if (next_page_num == FIL_NULL) {
 			*corrupt = false;
@@ -2638,7 +2645,8 @@ ibd2sdi::dump_sdi_rec(
 	if (!m_skip_data) {
 		ut_ad(sdi_data != NULL);
 		fprintf(out_stream, " [");
-		fwrite(sdi_data, 1, sdi_data_len, out_stream);
+		fwrite(sdi_data, 1, static_cast<size_t>(sdi_data_len),
+		       out_stream);
 		fprintf(out_stream, "]\n");
 	}
 
@@ -2792,8 +2800,9 @@ ibd2sdi::compare_sdi_recs(
 	if ((sdi_id_0 == sdi_id_1)
 	    && (sdi_type_0 == sdi_type_1)
 	    && (sdi_data_len_0 == sdi_data_len_1)
-	    && (m_skip_data || memcmp(sdi_data_0, sdi_data_1,
-				      sdi_data_len_0) == 0)) {
+	    && (m_skip_data
+	        || memcmp(sdi_data_0, sdi_data_1,
+			  static_cast<size_t>(sdi_data_len_0)) == 0)) {
 		*sdi_id = sdi_id_0;
 		*sdi_type = sdi_type_0;
 		*sdi_data_len = sdi_data_len_0;
