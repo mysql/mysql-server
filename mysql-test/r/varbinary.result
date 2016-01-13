@@ -150,13 +150,13 @@ b & c	b & 0x31393838	b & NULL	b & 0b1011	0x31393838 & b	NULL & b	0b1011 & b
 1920	0	NULL	1	0	NULL	1
 960	0	NULL	2	0	NULL	2
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 SELECT
 b | c, b | 0x31393838, b | NULL, b | 0b1011,
 0x31393838 | b, NULL | b, 0b1011 | b
@@ -169,13 +169,13 @@ b | c	b | 0x31393838	b | NULL	b | 0b1011	0x31393838 | b	NULL | b	0b1011 | b
 2047	825835513	NULL	1995	825835513	NULL	1995
 2034	825835514	NULL	1995	825835514	NULL	1995
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 SELECT
 b ^ c, b ^ 0x31393838, b ^ NULL, b ^ 0b1011,
 0x31393838 ^ b, NULL ^ b, 0b1011 ^ b
@@ -188,13 +188,13 @@ b ^ c	b ^ 0x31393838	b ^ NULL	b ^ 0b1011	0x31393838 ^ b	NULL ^ b	0b1011 ^ b
 127	825835513	NULL	1994	825835513	NULL	1994
 1074	825835514	NULL	1993	825835514	NULL	1993
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 SELECT BIT_COUNT(b), ~b, b << 1, b >> 1 from t1;
 BIT_COUNT(b)	~b	b << 1	b >> 1
 9	18446744073709549634	3962	990
@@ -204,10 +204,10 @@ BIT_COUNT(b)	~b	b << 1	b >> 1
 6	18446744073709549630	3970	992
 6	18446744073709549629	3972	993
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1 GROUP BY a;
 BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
 1981	1981	1981
@@ -216,16 +216,16 @@ BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
 1985	1985	1985
 1986	1986	1986
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1;
 BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
 1920	2047	127
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 #
 # stored procedures with warnings
 #
@@ -248,31 +248,31 @@ b & c	b & 0x31393838	b & NULL	b & 0b1011	0x31393838 & b	NULL & b	0b1011 & b	b | 
 1920	0	NULL	1	0	NULL	1	2047	825835513	NULL	1995	825835513	NULL	1995	127	825835513	NULL	1994	825835513	NULL	1994	6	18446744073709549630	3970	992
 960	0	NULL	2	0	NULL	2	2034	825835514	NULL	1995	825835514	NULL	1995	1074	825835514	NULL	1993	825835514	NULL	1993	6	18446744073709549629	3972	993
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 RESET QUERY CACHE;
 CALL test_bin_op();
 b & c	b & 0x31393838	b & NULL	b & 0b1011	0x31393838 & b	NULL & b	0b1011 & b	b | c	b | 0x31393838	b | NULL	b | 0b1011	0x31393838 | b	NULL | b	0b1011 | b	b ^ c	b ^ 0x31393838	b ^ NULL	b ^ 0b1011	0x31393838 ^ b	NULL ^ b	0b1011 ^ b	BIT_COUNT(b)	~b	b << 1	b >> 1
@@ -283,31 +283,31 @@ b & c	b & 0x31393838	b & NULL	b & 0b1011	0x31393838 & b	NULL & b	0b1011 & b	b | 
 1920	0	NULL	1	0	NULL	1	2047	825835513	NULL	1995	825835513	NULL	1995	127	825835513	NULL	1994	825835513	NULL	1994	6	18446744073709549630	3970	992
 960	0	NULL	2	0	NULL	2	2034	825835514	NULL	1995	825835514	NULL	1995	1074	825835514	NULL	1993	825835514	NULL	1993	6	18446744073709549629	3972	993
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 DROP PROCEDURE test_bin_op;
 CREATE PROCEDURE test_bin_op()
 SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1 GROUP BY a;
@@ -319,9 +319,9 @@ BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
 1985	1985	1985
 1986	1986	1986
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 RESET QUERY CACHE;
 CALL test_bin_op();
 BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
@@ -331,9 +331,9 @@ BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
 1985	1985	1985
 1986	1986	1986
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 DROP PROCEDURE test_bin_op;
 CREATE PROCEDURE test_bin_op()
 SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1;
@@ -341,17 +341,17 @@ CALL test_bin_op();
 BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
 1920	2047	127
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 RESET QUERY CACHE;
 CALL test_bin_op();
 BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
 1920	2047	127
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 DROP PROCEDURE test_bin_op;
 #
 # prepared statements with warnings
@@ -367,31 +367,31 @@ b ^ c, b ^ 0x31393838, b ^ NULL, b ^ 0b1011,
 BIT_COUNT(b), ~b, b << 1, b >> 1
 FROM t1;";
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 EXECUTE s1;
 b & c	b & 0x31393838	b & NULL	b & 0b1011	0x31393838 & b	NULL & b	0b1011 & b	b | c	b | 0x31393838	b | NULL	b | 0b1011	0x31393838 | b	NULL | b	0b1011 | b	b ^ c	b ^ 0x31393838	b ^ NULL	b ^ 0b1011	0x31393838 ^ b	NULL ^ b	0b1011 ^ b	BIT_COUNT(b)	~b	b << 1	b >> 1
 941	56	NULL	9	56	NULL	9	2047	825835453	NULL	1983	825835453	NULL	1983	1106	825835397	NULL	1974	825835397	NULL	1974	9	18446744073709549634	3962	990
@@ -401,31 +401,31 @@ b & c	b & 0x31393838	b & NULL	b & 0b1011	0x31393838 & b	NULL & b	0b1011 & b	b | 
 1920	0	NULL	1	0	NULL	1	2047	825835513	NULL	1995	825835513	NULL	1995	127	825835513	NULL	1994	825835513	NULL	1994	6	18446744073709549630	3970	992
 960	0	NULL	2	0	NULL	2	2034	825835514	NULL	1995	825835514	NULL	1995	1074	825835514	NULL	1993	825835514	NULL	1993	6	18446744073709549629	3972	993
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 RESET QUERY CACHE;
 EXECUTE s1;
 b & c	b & 0x31393838	b & NULL	b & 0b1011	0x31393838 & b	NULL & b	0b1011 & b	b | c	b | 0x31393838	b | NULL	b | 0b1011	0x31393838 | b	NULL | b	0b1011 | b	b ^ c	b ^ 0x31393838	b ^ NULL	b ^ 0b1011	0x31393838 ^ b	NULL ^ b	0b1011 ^ b	BIT_COUNT(b)	~b	b << 1	b >> 1
@@ -436,36 +436,36 @@ b & c	b & 0x31393838	b & NULL	b & 0b1011	0x31393838 & b	NULL & b	0b1011 & b	b | 
 1920	0	NULL	1	0	NULL	1	2047	825835513	NULL	1995	825835513	NULL	1995	127	825835513	NULL	1994	825835513	NULL	1994	6	18446744073709549630	3970	992
 960	0	NULL	2	0	NULL	2	2034	825835514	NULL	1995	825835514	NULL	1995	1074	825835514	NULL	1993	825835514	NULL	1993	6	18446744073709549629	3972	993
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 PREPARE s2 from "SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1 GROUP BY a";
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 EXECUTE s2;
 BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
 1981	1981	1981
@@ -474,9 +474,9 @@ BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
 1985	1985	1985
 1986	1986	1986
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 RESET QUERY CACHE;
 EXECUTE s2;
 BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
@@ -486,29 +486,29 @@ BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
 1985	1985	1985
 1986	1986	1986
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 PREPARE s2 from "SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1";
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 EXECUTE s2;
 BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
 1920	2047	127
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 RESET QUERY CACHE;
 EXECUTE s2;
 BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
 1920	2047	127
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 #
 # views with warnings
 #
@@ -523,31 +523,31 @@ b ^ c, b ^ 0x31393838, b ^ NULL, b ^ 0b1011,
 BIT_COUNT(b), ~b, b << 1, b >> 1
 FROM t1;
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 SELECT * from v1;
 b & c	b & 0x31393838	b & NULL	b & 0b1011	0x31393838 & b	NULL & b	0b1011 & b	b | c	b | 0x31393838	b | NULL	b | 0b1011	0x31393838 | b	NULL | b	0b1011 | b	b ^ c	b ^ 0x31393838	b ^ NULL	b ^ 0b1011	0x31393838 ^ b	NULL ^ b	0b1011 ^ b	BIT_COUNT(b)	~b	b << 1	b >> 1
 941	56	NULL	9	56	NULL	9	2047	825835453	NULL	1983	825835453	NULL	1983	1106	825835397	NULL	1974	825835397	NULL	1974	9	18446744073709549634	3962	990
@@ -557,31 +557,31 @@ b & c	b & 0x31393838	b & NULL	b & 0b1011	0x31393838 & b	NULL & b	0b1011 & b	b | 
 1920	0	NULL	1	0	NULL	1	2047	825835513	NULL	1995	825835513	NULL	1995	127	825835513	NULL	1994	825835513	NULL	1994	6	18446744073709549630	3970	992
 960	0	NULL	2	0	NULL	2	2034	825835514	NULL	1995	825835514	NULL	1995	1074	825835514	NULL	1993	825835514	NULL	1993	6	18446744073709549629	3972	993
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 RESET QUERY CACHE;
 SELECT * from v1;
 b & c	b & 0x31393838	b & NULL	b & 0b1011	0x31393838 & b	NULL & b	0b1011 & b	b | c	b | 0x31393838	b | NULL	b | 0b1011	0x31393838 | b	NULL | b	0b1011 | b	b ^ c	b ^ 0x31393838	b ^ NULL	b ^ 0b1011	0x31393838 ^ b	NULL ^ b	0b1011 ^ b	BIT_COUNT(b)	~b	b << 1	b >> 1
@@ -592,37 +592,37 @@ b & c	b & 0x31393838	b & NULL	b & 0b1011	0x31393838 & b	NULL & b	0b1011 & b	b | 
 1920	0	NULL	1	0	NULL	1	2047	825835513	NULL	1995	825835513	NULL	1995	127	825835513	NULL	1994	825835513	NULL	1994	6	18446744073709549630	3970	992
 960	0	NULL	2	0	NULL	2	2034	825835514	NULL	1995	825835514	NULL	1995	1074	825835514	NULL	1993	825835514	NULL	1993	6	18446744073709549629	3972	993
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 CREATE VIEW v2 AS
 SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1 GROUP BY a;
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 SELECT * from v2;
 BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
 1981	1981	1981
@@ -631,9 +631,9 @@ BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
 1985	1985	1985
 1986	1986	1986
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 RESET QUERY CACHE;
 SELECT * from v2;
 BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
@@ -643,30 +643,30 @@ BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
 1985	1985	1985
 1986	1986	1986
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 CREATE VIEW v3 AS
 SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1;
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 SELECT * from v3;
 BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
 1920	2047	127
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 RESET QUERY CACHE;
 SELECT * from v3;
 BIT_AND(b)	BIT_OR(b)	BIT_XOR(b)
 1920	2047	127
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 DROP VIEW v1,v2,v3;
 #
 # working as before
@@ -732,12 +732,12 @@ SELECT _binary '12' | _binary '12';
 _binary '12' | _binary '12'
 12
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 SELECT _binary '12' | 0x01;
 _binary '12' | 0x01
 13
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 SELECT _binary '12' | 1;
 _binary '12' | 1
 13
@@ -748,12 +748,12 @@ SELECT binary '12' | binary '12';
 binary '12' | binary '12'
 12
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 SELECT binary '12' | 0x01;
 binary '12' | 0x01
 13
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 SELECT binary '12' | 1;
 binary '12' | 1
 13
@@ -767,7 +767,7 @@ SELECT CAST('12' AS binary) | 0x01;
 CAST('12' AS binary) | 0x01
 13
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 SELECT CAST('12' AS binary) | 1;
 CAST('12' AS binary) | 1
 13
@@ -787,12 +787,12 @@ SELECT _binary '12' << 1;
 _binary '12' << 1
 24
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 SELECT binary '12' << 1;
 binary '12' << 1
 24
 Warnings:
-Warning	1287	Bitwise operations on BINARY will change behaviour in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
 SELECT CAST('12' AS binary) | 1;
 CAST('12' AS binary) | 1
 13
