@@ -106,6 +106,8 @@ my_bool Buffered_file_io::load_keyring_into_input_buffer(File file)
   if (check_file_structure(file, file_size))
     return TRUE;
   size_t input_buffer_size= file_size - EOF_TAG_SIZE - file_version.length(); //result has to be positive
+  if (input_buffer_size % sizeof(size_t) != 0)
+    return TRUE; //buffer size in the keyring file must be multiplication of size_t
   mysql_file_seek(file, file_version.length(), MY_SEEK_SET, MYF(0)); //skip file version
   if (likely(input_buffer_size > 0))
   {
