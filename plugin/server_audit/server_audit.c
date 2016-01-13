@@ -1920,11 +1920,8 @@ void auditing(MYSQL_THD thd, unsigned int event_class, const void *ev)
 
   flogger_mutex_lock(&lock_operations);
 
-  cn= get_loc_info(thd);
-
-  if (ci_needs_setup(cn) && maria_55_started &&
-      (event_class == MYSQL_AUDIT_GENERAL_CLASS &&
-       *((int*)ev) == MYSQL_AUDIT_GENERAL_ERROR))
+  if (maria_55_started && debug_server_started &&
+      event_class == MYSQL_AUDIT_GENERAL_CLASS)
   {
     /*
       There's a bug in MariaDB 5.5 that prevents using thread local
@@ -1932,8 +1929,23 @@ void auditing(MYSQL_THD thd, unsigned int event_class, const void *ev)
       The 'select * from notexisting_table;' query produces such case.
       So just use the static buffer in this case.
     */
-    cn= &cn_error_buffer;
-    cn->header= 1;
+    const struct mysql_event_general *event =
+      (const struct mysql_event_general *) ev;
+
+    if (event->event_subclass == MYSQL_AUDIT_GENERAL_ERROR ||
+        (event->event_subclass == MYSQL_AUDIT_GENERAL_STATUS && 
+         event->general_query_length == 0 &&
+         cn_error_buffer.query_id == event->query_id))
+    {
+      cn= &cn_error_buffer;
+      cn->header= 1;
+    }
+    else
+      cn= get_loc_info(thd);
+  }
+  else
+  {
+    cn= get_loc_info(thd);
   }
 
   update_connection_info(cn, event_class, ev, &after_action);
@@ -2474,7 +2486,8 @@ static void update_file_path(MYSQL_THD thd,
 {
   char *new_name= (*(char **) save) ? *(char **) save : empty_str;
 
-  flogger_mutex_lock(&lock_operations);
+  if (!maria_55_started || !debug_server_started)
+    flogger_mutex_lock(&lock_operations);
   internal_stop_logging= 1;
   error_header();
   fprintf(stderr, "Log file name was changed to '%s'.\n", new_name);
@@ -2510,7 +2523,8 @@ static void update_file_path(MYSQL_THD thd,
   file_path= path_buffer;
 exit_func:
   internal_stop_logging= 0;
-  flogger_mutex_unlock(&lock_operations);
+  if (!maria_55_started || !debug_server_started)
+    flogger_mutex_unlock(&lock_operations);
 }
 
 
@@ -2554,14 +2568,16 @@ static void update_incl_users(MYSQL_THD thd,
               void *var_ptr  __attribute__((unused)), const void *save)
 {
   char *new_users= (*(char **) save) ? *(char **) save : empty_str;
-  flogger_mutex_lock(&lock_operations);
+  if (!maria_55_started || !debug_server_started)
+    flogger_mutex_lock(&lock_operations);
   mark_always_logged(thd);
   strncpy(incl_user_buffer, new_users, sizeof(incl_user_buffer));
   incl_users= incl_user_buffer;
   user_coll_fill(&incl_user_coll, incl_users, &excl_user_coll, 1);
   error_header();
   fprintf(stderr, "server_audit_incl_users set to '%s'.\n", incl_users);
-  flogger_mutex_unlock(&lock_operations);
+  if (!maria_55_started || !debug_server_started)
+    flogger_mutex_unlock(&lock_operations);
 }
 
 
@@ -2570,14 +2586,16 @@ static void update_excl_users(MYSQL_THD thd  __attribute__((unused)),
               void *var_ptr  __attribute__((unused)), const void *save)
 {
   char *new_users= (*(char **) save) ? *(char **) save : empty_str;
-  flogger_mutex_lock(&lock_operations);
+  if (!maria_55_started || !debug_server_started)
+    flogger_mutex_lock(&lock_operations);
   mark_always_logged(thd);
   strncpy(excl_user_buffer, new_users, sizeof(excl_user_buffer));
   excl_users= excl_user_buffer;
   user_coll_fill(&excl_user_coll, excl_users, &incl_user_coll, 0);
   error_header();
   fprintf(stderr, "server_audit_excl_users set to '%s'.\n", excl_users);
-  flogger_mutex_unlock(&lock_operations);
+  if (!maria_55_started || !debug_server_started)
+    flogger_mutex_unlock(&lock_operations);
 }
 
 
@@ -2653,7 +2671,8 @@ static void update_logging(MYSQL_THD thd,
   if (new_logging == logging)
     return;
 
-  flogger_mutex_lock(&lock_operations);
+  if (!maria_55_started || !debug_server_started)
+    flogger_mutex_lock(&lock_operations);
   internal_stop_logging= 1;
   if ((logging= new_logging))
   {
@@ -2670,7 +2689,8 @@ static void update_logging(MYSQL_THD thd,
   }
 
   internal_stop_logging= 0;
-  flogger_mutex_unlock(&lock_operations);
+  if (!maria_55_started || !debug_server_started)
+    flogger_mutex_unlock(&lock_operations);
 }
 
 
@@ -2682,14 +2702,16 @@ static void update_mode(MYSQL_THD thd  __attribute__((unused)),
   if (mode_readonly || new_mode == mode)
     return;
 
-  flogger_mutex_lock(&lock_operations);
+  if (!maria_55_started || !debug_server_started)
+    flogger_mutex_lock(&lock_operations);
   internal_stop_logging= 1;
   mark_always_logged(thd);
   error_header();
   fprintf(stderr, "Logging mode was changed from %d to %d.\n", mode, new_mode);
   mode= new_mode;
   internal_stop_logging= 0;
-  flogger_mutex_unlock(&lock_operations);
+  if (!maria_55_started || !debug_server_started)
+    flogger_mutex_unlock(&lock_operations);
 }
 
 
