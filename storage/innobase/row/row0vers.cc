@@ -954,6 +954,12 @@ row_vers_old_has_index_entry(
 					return(TRUE);
 				}
 #else
+				mem_heap_free(heap);
+
+				if (v_heap) {
+					mem_heap_free(v_heap);
+				}
+
 				return(TRUE);
 #endif /* INNODB_DD_VC_SUPPORT */
 			} else {
