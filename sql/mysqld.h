@@ -83,6 +83,8 @@ void refresh_status(THD *thd);
 bool is_secure_file_path(char *path);
 ulong sql_rnd_with_mutex();
 
+struct System_status_var* get_thd_status_var(THD *thd);
+
 // These are needed for unit testing.
 void set_remaining_args(int argc, char **argv);
 int init_common_variables();

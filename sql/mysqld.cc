@@ -816,6 +816,10 @@ ulong sql_rnd_with_mutex()
   return tmp;
 }
 
+struct System_status_var* get_thd_status_var(THD *thd)
+{
+  return & thd->status_var;
+}
 
 C_MODE_START
 

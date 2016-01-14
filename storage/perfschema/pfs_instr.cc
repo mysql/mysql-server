@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@
 #include "pfs_instr_class.h"
 #include "pfs_buffer_container.h"
 #include "pfs_builtin_memory.h"
-#include "sql_class.h"
+#include "mysqld.h" // get_thd_status_var
 
 ulong nested_statement_lost= 0;
 
@@ -1571,20 +1571,22 @@ void aggregate_thread_status(PFS_thread *thread,
   if (thd == NULL)
     return;
 
+  System_status_var *status_var= get_thd_status_var(thd);
+
   if (likely(safe_account != NULL))
   {
-    safe_account->aggregate_status_stats(&thd->status_var);
+    safe_account->aggregate_status_stats(status_var);
     return;
   }
 
   if (safe_user != NULL)
   {
-    safe_user->aggregate_status_stats(&thd->status_var);
+    safe_user->aggregate_status_stats(status_var);
   }
 
   if (safe_host != NULL)
   {
-    safe_host->aggregate_status_stats(&thd->status_var);
+    safe_host->aggregate_status_stats(status_var);
   }
 
   return;
