@@ -711,11 +711,11 @@ void Arg_comparator::cleanup()
     {
       comparators[i].cleanup();
     }
+    delete[] comparators;
+    comparators= NULL;
   }
-  delete[] comparators;
-  comparators= 0;
-  delete_json_scalar_holder(json_scalar);
-  json_scalar= 0;
+  delete json_scalar;
+  json_scalar= NULL;
 }
 
 
@@ -1561,7 +1561,7 @@ static bool get_json_arg(Item* arg, String *value, String *tmp,
     */
     if (*scalar && arg->const_item())
     {
-      Json_wrapper tmp(get_json_scalar_from_holder(*scalar));
+      Json_wrapper tmp((*scalar)->get());
       tmp.set_alias();
       result->steal(&tmp);
       return false;
@@ -1571,8 +1571,8 @@ static bool get_json_arg(Item* arg, String *value, String *tmp,
       Allocate memory to hold the scalar, if we haven't already done
       so. Otherwise, we reuse the previously allocated memory.
     */
-    if (!*scalar)
-      *scalar= create_json_scalar_holder();
+    if (*scalar == NULL)
+      *scalar= new Json_scalar_holder();
 
     holder= *scalar;
   }

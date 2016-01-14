@@ -13499,3 +13499,14 @@ FROM s WHERE a NOT IN (SELECT 1
 FROM s WHERE (SELECT c FROM t) = b);
 ERROR 21000: Subquery returns more than 1 row
 DROP TABLE s, t;
+#
+# Bug#22546013: REMOVE DEPENDENCY ON BOOST IN ITEM_JSON_FUNC.CC
+#
+CREATE TABLE t(j JSON, vc VARCHAR(99));
+INSERT INTO t VALUES ('"abc"', REPEAT('abc', 33)), ('"abc"', 'abc');
+INSERT INTO t SELECT * FROM t;
+SELECT * FROM t WHERE j = vc;
+j	vc
+"abc"	abc
+"abc"	abc
+DROP TABLE t;

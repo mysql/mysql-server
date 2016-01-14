@@ -24,13 +24,9 @@
 #include "json_path.h"
 #include "prealloced_array.h"   // Prealloced_array
 #include "psi_memory_key.h"     // key_memory_JSON
-#include "sql_alloc.h"          // Sql_alloc
 #include "sql_class.h"          // THD
 #include "sql_time.h"           // field_type_to_timestamp_type
 #include "template_utils.h"     // down_cast
-
-#include <boost/variant.hpp>                    // boost::variant
-#include <boost/variant/polymorphic_get.hpp>    // boost::polymorphic_get
 
 // Used by the Json_path_cache
 #define JPC_UNINITIALIZED -1
@@ -1253,25 +1249,6 @@ my_decimal *Item_json_func::val_decimal(my_decimal *decimal_value)
 
 
 /**
-  Type that is capable of holding objects of any sub-type of
-  Json_scalar. Used for pre-allocating space in query-duration memory
-  for JSON scalars that are to be returned by get_json_atom_wrapper().
-
-  Note: boost::blank is included in the variant to ensure that it
-  includes a type that is known to be nothrow default-constructible.
-  The presence of such a type avoids heap allocation when assigning a
-  new value to the variant. Look for the "never-empty" guarantee in
-  the Boost documentation for details.
-*/
-struct Json_scalar_holder : public Sql_alloc
-{
-  boost::variant<boost::blank, Json_string, Json_decimal, Json_int, Json_uint,
-                 Json_double, Json_boolean, Json_null, Json_datetime,
-                 Json_opaque> m_val;
-};
-
-
-/**
   Get a JSON value from a function, field or subselect scalar.
 
   @param[in]     arg         the function argument
@@ -1319,7 +1296,7 @@ static bool val_json_func_field_subselect(Item* arg,
       {
         if (scalar)
         {
-          scalar->m_val= Json_uint(i);
+          scalar->emplace<Json_uint>(i);
         }
         else
         {
@@ -1330,7 +1307,7 @@ static bool val_json_func_field_subselect(Item* arg,
       }
       else if (scalar)
       {
-        scalar->m_val= Json_int(i);
+        scalar->emplace<Json_int>(i);
       }
       else
       {
@@ -1356,7 +1333,7 @@ static bool val_json_func_field_subselect(Item* arg,
       t.time_type= field_type_to_timestamp_type(field_type);
       if (scalar)
       {
-        scalar->m_val= Json_datetime(t, field_type);
+        scalar->emplace<Json_datetime>(t, field_type);
       }
       else
       {
@@ -1382,7 +1359,7 @@ static bool val_json_func_field_subselect(Item* arg,
 
       if (scalar)
       {
-        scalar->m_val= Json_decimal(*r);
+        scalar->emplace<Json_decimal>(*r);
       }
       else
       {
@@ -1402,7 +1379,7 @@ static bool val_json_func_field_subselect(Item* arg,
 
       if (scalar)
       {
-        scalar->m_val= Json_double(d);
+        scalar->emplace<Json_double>(d);
       }
       else
       {
@@ -1462,7 +1439,7 @@ static bool val_json_func_field_subselect(Item* arg,
 
       if (scalar)
       {
-        scalar->m_val= Json_opaque(field_type, oo->ptr(), oo->length());
+        scalar->emplace<Json_opaque>(field_type, oo->ptr(), oo->length());
       }
       else
       {
@@ -1494,7 +1471,7 @@ static bool val_json_func_field_subselect(Item* arg,
         // BINARY or similar
         if (scalar)
         {
-          scalar->m_val= Json_opaque(field_type, res->ptr(), res->length());
+          scalar->emplace<Json_opaque>(field_type, res->ptr(), res->length());
         }
         else
         {
@@ -1517,7 +1494,7 @@ static bool val_json_func_field_subselect(Item* arg,
 
         if (scalar)
         {
-          scalar->m_val= Json_string(std::string(s, ss));
+          scalar->emplace<Json_string>(std::string(s, ss));
         }
         else
         {
@@ -1558,10 +1535,9 @@ static bool val_json_func_field_subselect(Item* arg,
 
   // Exactly one of scalar and dom should be used.
   DBUG_ASSERT((scalar == NULL) != (dom == NULL));
-  DBUG_ASSERT((scalar == NULL) ||
-              (get_json_scalar_from_holder(scalar) != NULL));
+  DBUG_ASSERT(scalar == NULL || scalar->get() != NULL);
 
-  Json_wrapper w(scalar ? get_json_scalar_from_holder(scalar) : dom);
+  Json_wrapper w(scalar ? scalar->get() : dom);
   if (scalar)
   {
     /*
@@ -1664,8 +1640,8 @@ bool get_json_atom_wrapper(Item **args,
       Json_dom *boolean_dom;
       if (scalar)
       {
-        scalar->m_val= Json_boolean(boolean_value);
-        boolean_dom= get_json_scalar_from_holder(scalar);
+        scalar->emplace<Json_boolean>(boolean_value);
+        boolean_dom= scalar->get();
       }
       else
       {
@@ -3565,22 +3541,4 @@ String *Item_func_json_unquote::val_str(String *str)
 
   null_value= false;
   return str;
-}
-
-
-Json_scalar_holder *create_json_scalar_holder()
-{
-  return new Json_scalar_holder();
-}
-
-
-void delete_json_scalar_holder(Json_scalar_holder *holder)
-{
-  delete holder;
-}
-
-
-Json_scalar *get_json_scalar_from_holder(Json_scalar_holder *holder)
-{
-  return boost::polymorphic_get<Json_scalar>(&holder->m_val);
 }

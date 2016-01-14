@@ -385,7 +385,6 @@ SET(SQL_BOOST_SOURCES
   item_geofunc_relchecks.cc
   item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
-  item_json_func.cc
   spatial.cc
 )
 
