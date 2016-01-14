@@ -98,7 +98,7 @@ SELECT @@innodb_file_per_table;
 1
 CREATE TABLE tde_db.t_encrypt(c1 INT, c2 char(20), c3 BLOB) ENCRYPTION="Y" ENGINE = InnoDB;
 CREATE TABLE tde_db.t_encrypt_1(c1 INT, c2 char(20)) ENCRYPTION="Yes" ENGINE = InnoDB;
-ERROR HY000: Invaild encyption option.
+ERROR HY000: Invalid encryption option.
 CREATE TABLE tde_db.t_encrypt_1(c1 INT, c2 char(20)) ENCRYPTION="y" ENGINE = InnoDB;
 DROP TABLE tde_db.t_encrypt_1;
 CREATE TABLE tde_db.t_encrypt_1(c1 INT, c2 char(20),c3 BLOB) ENGINE = InnoDB;
