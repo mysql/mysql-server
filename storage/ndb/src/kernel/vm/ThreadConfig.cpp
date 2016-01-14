@@ -68,6 +68,7 @@ ThreadConfig::scanTimeQueue()
 {
   unsigned int maxCounter = 0;
   const NDB_TICKS currTicks = NdbTick_getCurrentTicks();
+  globalScheduler.setHighResTimer(currTicks);
 
   if (NdbTick_Compare(currTicks, globalData.internalTicksCounter) < 0) {
 //--------------------------------------------------------------------
@@ -156,6 +157,7 @@ void ThreadConfig::ipControlLoop(NdbThread* pThis)
   globalEmulatorData.theWatchDog->registerWatchedThread(watchCounter, 0);
 
   start_ticks = NdbTick_getCurrentTicks();
+  globalScheduler.setHighResTimer(start_ticks);
   yield_ticks = statistics_start_ticks = end_ticks = start_ticks;
   while (1)
   {
@@ -206,7 +208,10 @@ void ThreadConfig::ipControlLoop(NdbThread* pThis)
         if (min_spin_time && !yield_flag)
         {
           if (spinning)
+          {
             end_ticks = NdbTick_getCurrentTicks();
+            globalScheduler.setHighResTimer(end_ticks);
+          }
 
           micros_passed = 
             (Uint32)NdbTick_Elapsed(start_ticks, end_ticks).microSec();
@@ -233,6 +238,7 @@ void ThreadConfig::ipControlLoop(NdbThread* pThis)
           poll_flag= globalTransporterRegistry.pollReceive(timeOutMillis);
           globalEmulatorData.theConfiguration->yield_main(thread_index, FALSE);
           yield_ticks = NdbTick_getCurrentTicks();
+          globalScheduler.setHighResTimer(yield_ticks);
         }
         else
           poll_flag= globalTransporterRegistry.pollReceive(timeOutMillis);
@@ -256,6 +262,7 @@ void ThreadConfig::ipControlLoop(NdbThread* pThis)
 // signals to receive.
 //--------------------------------------------------------------------
     start_ticks = NdbTick_getCurrentTicks();
+    globalScheduler.setHighResTimer(start_ticks);
     if ((NdbTick_Elapsed(yield_ticks, start_ticks).microSec() > 10000))
       yield_flag= TRUE;
     exec_again= 0;
@@ -281,6 +288,7 @@ void ThreadConfig::ipControlLoop(NdbThread* pThis)
         break;
 
       end_ticks = NdbTick_getCurrentTicks();
+      globalScheduler.setHighResTimer(end_ticks);
       micros_passed = (Uint32)NdbTick_Elapsed(start_ticks, end_ticks).microSec();
       tot_exec_time += micros_passed;
       if (no_exec_loops++ >= 8192)

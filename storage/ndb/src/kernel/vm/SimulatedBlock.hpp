@@ -594,6 +594,8 @@ protected:
   void getSendBufferLevel(NodeId node, SB_LevelType &level);
   Uint32 getSignalsInJBB();
 
+  NDB_TICKS getHighResTimer();
+
   /**********************************************************
    * Send signal - dialects
    */

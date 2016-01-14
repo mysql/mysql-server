@@ -1,0 +1,25 @@
+reset master;
+Disconnect mysqld from all datanodes
+Wait for binlog rotate to indicate disconnect
+Wait to get out of read-only mode
+
+Check that the binlog was rotated:
+There should be a 'LOST EVENT', then 'Rotate ... mysqld-bin.000002'
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+mysqld-bin.000001	#	Incident	1	#	#1 (LOST_EVENTS)
+mysqld-bin.000001	#	Rotate	1	#	mysqld-bin.000002;pos=4
+
+Testing for Bug#22204186: Stuck in Readonly if slow failure handling
+====================================================================
+reset master;
+Disconnect mysqld from all datanodes
+Wait for binlog rotate to indicate disconnect
+Wait to get out of read-only mode
+
+Check that the binlog was rotated:
+There should be a 'LOST EVENT', then 'Rotate ... mysqld-bin.000002'
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+mysqld-bin.000001	#	Incident	1	#	#1 (LOST_EVENTS)
+mysqld-bin.000001	#	Rotate	1	#	mysqld-bin.000002;pos=4

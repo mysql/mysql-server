@@ -2931,6 +2931,20 @@ NdbEventBuffer::find_sub_data_stream_number(Uint16 sub_data_stream)
   return num;
 }
 
+
+/**
+ * Initially we do not know the number of SUB_GCP_COMPLETE_REP 
+ * to expect from the datanodes before the epoch can be considered
+ * completed from all datanodes. Thus we init m_total_buckets
+ * to a high initial value, and later use ::set_total_buckets()
+ * to set the correct 'cnt' as recieved as part of SUB_START_CONF.
+ *
+ * As there is a possible race between SUB_START_CONF from SUMA and 
+ * GSN_SUB_TABLE_DATA & SUB_GCP_COMPLETE_REP arriving from the
+ * datanodes, we have to update any Gci_container's already
+ * containing data, and possibly complete them if all 
+ * SUB_GCP_COMPLETE_REP's had been received.
+ */
 void
 NdbEventBuffer::set_total_buckets(Uint32 cnt)
 {
@@ -2940,20 +2954,20 @@ NdbEventBuffer::set_total_buckets(Uint32 cnt)
   assert(m_total_buckets == TOTAL_BUCKETS_INIT);
   m_total_buckets = cnt;
 
-  Uint64 * array = m_known_gci.getBase();
-  Uint32 mask = m_known_gci.size() - 1;
-  Uint32 minpos = m_min_gci_index;
-  Uint32 maxpos = m_max_gci_index;
+  // The delta between initial 'unknown' and real #buckets
+  const Uint32 delta = TOTAL_BUCKETS_INIT - cnt;
 
-  bool found = false;
-  Uint32 pos = minpos;
-  for (; pos != maxpos; pos = (pos + 1) & mask)
+  const Uint64 * array = m_known_gci.getBase();
+  const Uint32 mask = m_known_gci.size() - 1;
+  const Uint32 minpos = m_min_gci_index;
+  const Uint32 maxpos = m_max_gci_index;
+
+  for (Uint32 pos = minpos; pos != maxpos; pos = (pos + 1) & mask)
   {
     const Uint64 gci = array[pos];
     Gci_container* tmp = find_bucket(gci);
-    if (TOTAL_BUCKETS_INIT >= tmp->m_gcp_complete_rep_count)
+    if (delta >= tmp->m_gcp_complete_rep_count)
     {
-      found = true;
       if (0)
         ndbout_c("set_total_buckets(%u) complete %u/%u",
                  cnt, Uint32(tmp->m_gci >> 32), Uint32(tmp->m_gci));
@@ -2963,8 +2977,8 @@ NdbEventBuffer::set_total_buckets(Uint32 cnt)
     }
     else
     {
-      assert(tmp->m_gcp_complete_rep_count > TOTAL_BUCKETS_INIT);
-      tmp->m_gcp_complete_rep_count -= TOTAL_BUCKETS_INIT;
+      assert(tmp->m_gcp_complete_rep_count > delta);
+      tmp->m_gcp_complete_rep_count -= delta;
     }
   }
 }

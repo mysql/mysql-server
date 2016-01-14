@@ -1,0 +1,4 @@
+!include suite/ndb_binlog/my.cnf
+
+[mysqld]
+ndb-cluster-connection-pool=1

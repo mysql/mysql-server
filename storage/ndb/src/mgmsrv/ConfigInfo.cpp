@@ -691,6 +691,30 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "500" },
 
   {
+    CFG_DB_SCHED_RESPONSIVENESS,
+    "SchedulerResponsiveness",
+    DB_TOKEN,
+    "Value between 0 and 10, high means very responsive, low means throughput-optimised",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "5",
+    "0",
+    "10" },
+
+  {
+    CFG_DB_SCHED_SCAN_PRIORITY,
+    "__sched_scan_priority",
+    DB_TOKEN,
+    "Number of rows scanned per real-time break, higher value gives higher prio to scans",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "6",
+    "1",
+    "6" },
+
+  {
     CFG_DB_WATCHDOG_INTERVAL_INITIAL,
     "TimeBetweenWatchDogCheckInitial",
     DB_TOKEN,

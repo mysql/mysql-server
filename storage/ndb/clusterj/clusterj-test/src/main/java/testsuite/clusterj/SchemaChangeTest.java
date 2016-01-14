@@ -86,7 +86,11 @@ public class SchemaChangeTest extends AbstractClusterJModelTest {
         executeSQL(createTableStatement);
         session.unloadSchema(Maldacena.class);
         session.makePersistent(session.newInstance(Maldacena.class, 0));
-        addTearDownClasses(Maldacena.class);
+    }
+
+    @Override
+    public void localTearDown() {
+        executeSQL(dropTableStatement);
     }
 
     public void test() {

@@ -1529,7 +1529,10 @@ NdbDictionaryImpl::getIndexGlobal(const char * index_name,
       break;
     }
   }
-  if(m_error.code == 0)
+  // Indexes are treated as tables while fetching them from the
+  // NdbDictionary. So if an index is not found, the error 723
+  // "table not found" is returned. Map 723 to 4243 "index not found"
+  if(m_error.code == 0 || m_error.code == 723)
     m_error.code= 4243;
   DBUG_RETURN(0);
 }
@@ -1576,7 +1579,10 @@ NdbDictionaryImpl::getIndex(const char * index_name,
   if (table_name == 0)
   {
     assert(0);
-    if(m_error.code == 0)
+    // Indexes are treated as tables while fetching them from the
+    // NdbDictionary. So if an index is not found, the error 723
+    // "table not found" is returned. Map 723 to 4243 "index not found"
+    if(m_error.code == 0 || m_error.code == 723)
       m_error.code= 4243;
     return 0;
   }
@@ -1585,7 +1591,10 @@ NdbDictionaryImpl::getIndex(const char * index_name,
   NdbTableImpl* prim = getTable(table_name);
   if (prim == 0)
   {
-    if(m_error.code == 0)
+    // Indexes are treated as tables while fetching them from the
+    // NdbDictionary. So if an index is not found, the error 723
+    // "table not found" is returned. Map 723 to 4243 "index not found"
+    if(m_error.code == 0 || m_error.code == 723)
       m_error.code= 4243;
     return 0;
   }
@@ -1647,7 +1656,10 @@ retry:
   return tab->m_index;
   
 err:
-  if(m_error.code == 0)
+  // Indexes are treated as tables while fetching them from the
+  // NdbDictionary. So if an index is not found, the error 723
+  // "table not found" is returned. Map 723 to 4243 "index not found"
+  if(m_error.code == 0 || m_error.code == 723)
     m_error.code= 4243;
   return 0;
 }
