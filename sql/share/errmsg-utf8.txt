@@ -7634,7 +7634,7 @@ ER_TABLESPACE_CANNOT_ENCRYPT
   eng "This tablespace can't be encrypted."
 
 ER_INVALID_ENCRYPTION_OPTION
-  eng "Invaild encyption option."
+  eng "Invalid encryption option."
 
 ER_CANNOT_FIND_KEY_IN_KEYRING
   eng "Can't find master key from keyring, please check keyring plugin is loaded."

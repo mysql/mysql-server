@@ -3413,6 +3413,11 @@ innobase_encryption_key_rotation()
 
 	my_free(master_key);
 
+	/* If rotation failure, return error */
+	if (ret) {
+		my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+	}
+
 	/* Release the mutex. */
 	mutex_exit(&master_key_id_mutex);
 

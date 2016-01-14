@@ -386,7 +386,7 @@ Datafile::free_first_page()
 space ID and flags.  The file should exist and be successfully opened
 in order for this function to validate it.
 @param[in]	space_id	The expected tablespace ID.
-@param[in]	flags	The expected tablespace flags.
+@param[in]	flags		The expected tablespace flags.
 @retval DB_SUCCESS if tablespace is valid, DB_ERROR if not.
 m_is_valid is also set true on success, else false. */
 dberr_t
@@ -540,7 +540,7 @@ m_is_valid is set true on success, else false.
 @retval DB_CORRUPTION if the datafile is not readable
 @retval DB_TABLESPACE_EXISTS if there is a duplicate space_id */
 dberr_t
-Datafile::validate_first_page(lsn_t* flush_lsn)
+Datafile::validate_first_page(lsn_t*	flush_lsn)
 {
 	char*		prev_name;
 	char*		prev_filepath;
@@ -634,9 +634,9 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 	can't be open. */
 	if (FSP_FLAGS_GET_ENCRYPTION(m_flags)) {
 		m_encryption_key = static_cast<byte*>(
-			ut_malloc_nokey(ENCRYPTION_KEY_LEN));
+			ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
 		m_encryption_iv = static_cast<byte*>(
-			ut_malloc_nokey(ENCRYPTION_KEY_LEN));
+			ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
 #ifdef	UNIV_ENCRYPT_DEBUG
                 fprintf(stderr, "Got from file %lu:", m_space_id);
 #endif
@@ -659,6 +659,16 @@ Datafile::validate_first_page(lsn_t* flush_lsn)
 			m_encryption_key = NULL;
 			m_encryption_iv = NULL;
 			return(DB_CORRUPTION);
+		}
+
+		if (recv_recovery_is_on()
+		    && memcmp(m_encryption_key,
+			      m_encryption_iv,
+			      ENCRYPTION_KEY_LEN) == 0) {
+			ut_free(m_encryption_key);
+			ut_free(m_encryption_iv);
+			m_encryption_key = NULL;
+			m_encryption_iv = NULL;
 		}
 	}
 

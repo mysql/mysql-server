@@ -310,9 +310,10 @@ static const char ENCRYPTION_KEY_MAGIC[ENCRYPTION_MAGIC_SIZE] = {
 /** Encryption master key prifix size */
 #define ENCRYPTION_MASTER_KEY_NAME_MAX_LEN	100
 
-/** Encryption information total size */
+/** Encryption information total size: magic number + master_key_id +
+key + iv + checksum */
 #define	ENCRYPTION_INFO_SIZE	(ENCRYPTION_MAGIC_SIZE \
-				+ (ENCRYPTION_KEY_LEN * 2) + sizeof(ulint))
+				+ (ENCRYPTION_KEY_LEN * 2) + 2 * sizeof(ulint))
 
 class IORequest;
 
