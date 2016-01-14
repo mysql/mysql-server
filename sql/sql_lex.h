@@ -1741,6 +1741,7 @@ union YYSTYPE {
   class PT_union_order_or_limit *union_order_or_limit;
   class PT_table_expression *table_expression;
   class PT_table_reference *table_reference;
+  class PT_table_factor *table_factor;
   class PT_joined_table *join_table;
   enum PT_joined_table_type join_type;
   class PT_select_paren_derived *select_paren_derived;

@@ -28,8 +28,8 @@
 PT_joined_table::~PT_joined_table() {}
 
 
-PT_table_reference *PT_table_factor::add_cross_join(PT_table_ref_joined_table
-                                                    *cj)
+PT_table_ref_joined_table
+*PT_table_factor::add_cross_join(PT_table_ref_joined_table *cj)
 {
   cj->add_rhs(this);
   return cj;
@@ -46,15 +46,15 @@ bool PT_table_ref_joined_table::contextualize(Parse_context *pc)
 }
 
 
-PT_table_reference
+PT_table_ref_joined_table
 *PT_table_ref_joined_table::add_cross_join(PT_table_ref_joined_table *cj)
 {
-  join_table->add_cross_join(cj);
+  join_table->add_cross_join_left(cj);
   return this;
 }
 
 
-void PT_table_ref_joined_table::add_rhs(PT_table_factor *table)
+void PT_table_ref_joined_table::add_rhs(PT_table_reference *table)
 {
   join_table->add_rhs(table);
 }
@@ -1095,11 +1095,11 @@ bool PT_table_factor_joined_table::contextualize(Parse_context *pc)
 }
 
 
-PT_table_reference
+PT_table_ref_joined_table
 *PT_table_factor_joined_table::add_cross_join(PT_table_ref_joined_table* cj)
 {
-  m_joined_table->add_cross_join(cj);
-  return this;
+  cj->add_rhs(this);
+  return cj;
 }
 
 

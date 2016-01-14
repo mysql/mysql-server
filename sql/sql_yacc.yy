@@ -1430,9 +1430,10 @@ END_OF_INPUT
 
 %type <table_expression> table_expression
 
-%type <table_reference> table_factor table_reference esc_table_reference
-          table_reference_list single_table table_reference_list_parens
-          single_table_parens
+%type <table_reference> table_reference esc_table_reference
+          table_reference_list table_reference_list_parens
+
+%type <table_factor> table_factor single_table single_table_parens
 
 %type <query_expression_body> query_expression_body
 
@@ -10499,7 +10500,7 @@ when_list:
         ;
 
 table_reference:
-          table_factor
+          table_factor { $$= $1; }
         | joined_table
           {
             $$= NEW_PTN PT_table_ref_joined_table($1);
@@ -10515,7 +10516,7 @@ table_reference:
   and are ignored.
 */
 esc_table_reference:
-          table_factor
+          table_factor { $$= $1; }
         | joined_table
           {
             $$= NEW_PTN PT_table_ref_joined_table($1);
@@ -10620,20 +10621,15 @@ joined_table:
         | table_reference inner_join_type table_reference
           %prec CONDITIONLESS_JOIN
           {
-            PT_joined_table *rhs_join= $3->get_joined_table();
-            if (rhs_join != NULL)
-            {
-              PT_table_ref_joined_table *this_join=
-                NEW_PTN PT_table_ref_joined_table
-                (NEW_PTN PT_cross_join($1, @2, $2, NULL));
+            auto this_cross_join= NEW_PTN PT_cross_join($1, @2, $2, NULL);
 
-              if ($3 == NULL)
-                MYSQL_YYABORT; // OOM
-              $3->add_cross_join(this_join);
-              $$= rhs_join;
-            }
-            else
-              $$= NEW_PTN PT_cross_join($1, @2, $2, $3);
+            PT_table_ref_joined_table *this_table_ref=
+              NEW_PTN PT_table_ref_joined_table(this_cross_join);
+
+            PT_table_ref_joined_table *new_root=
+              $3->add_cross_join(this_table_ref);
+
+            $$= new_root->get_joined_table();
           }
         | table_reference natural_join_type table_factor
           {

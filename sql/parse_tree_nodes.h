@@ -216,9 +216,9 @@ public:
 
     This function may only be called if this PT_table_reference is a join.
   */
-  virtual PT_table_reference *add_cross_join(PT_table_ref_joined_table *cj)
+  virtual PT_table_ref_joined_table *add_cross_join(PT_table_ref_joined_table *cj)
   {
-    DBUG_ASSERT(false);
+    DBUG_ASSERT(0);
     return NULL;
   }
 
@@ -233,7 +233,7 @@ public:
 class PT_table_factor : public PT_table_reference
 {
 public:
-  virtual PT_table_reference *add_cross_join(PT_table_ref_joined_table *cj);
+  virtual PT_table_ref_joined_table *add_cross_join(PT_table_ref_joined_table *cj);
 };
 
 
@@ -278,6 +278,7 @@ public:
 };
 
 
+/// @todo Merge into PT_table_reference_list.
 class PT_derived_table_list : public PT_table_factor
 {
   typedef PT_table_factor super;
@@ -349,7 +350,7 @@ private:
 };
 
 
-class PT_table_factor_joined_table : public PT_table_reference
+class PT_table_factor_joined_table : public PT_table_factor
 {
   typedef PT_table_reference super;
 
@@ -360,7 +361,7 @@ public:
 
   virtual bool contextualize(Parse_context *pc);
 
-  virtual PT_table_reference *add_cross_join(PT_table_ref_joined_table* cj);
+  virtual PT_table_ref_joined_table *add_cross_join(PT_table_ref_joined_table* cj);
 
 private:
   PT_joined_table *m_joined_table;
@@ -380,11 +381,11 @@ public:
 
   virtual bool contextualize(Parse_context *pc);
 
-  PT_table_reference *add_cross_join(PT_table_ref_joined_table *cj);
+  PT_table_ref_joined_table *add_cross_join(PT_table_ref_joined_table *cj);
 
   virtual PT_joined_table *get_joined_table() { return join_table; }
 
-  void add_rhs(PT_table_factor *table);
+  void add_rhs(PT_table_reference *table);
 };
 
 
@@ -461,14 +462,19 @@ public:
                 type == JTT_RIGHT);
   }
 
-  virtual PT_table_reference *add_cross_join(PT_table_ref_joined_table* cj)
+
+  /**
+    Adds the cross join to this join operation. The cross join is nested as
+    the table reference on the left-hand side.
+  */
+  void add_cross_join_left(PT_table_ref_joined_table* cj)
   {
     tab1_node= tab1_node->add_cross_join(cj);
-    return tab1_node;
   }
 
-  /// Adds the table as the right-hand side of this join.
-  void add_rhs(PT_table_factor *table)
+
+  /// Adds the table reference as the right-hand side of this join.
+  void add_rhs(PT_table_reference *table)
   {
     DBUG_ASSERT(tab2_node == NULL);
     tab2_node= table;
@@ -2205,9 +2211,7 @@ public:
     if (child == NULL)
       return true;
 
-    Parse_context inner_pc(pc->thd, child);
-    inner_pc.is_top_level= false;
-
+    Parse_context inner_pc(pc->thd, child, false);
 
     if (m_is_derived_table)
       child->linkage= DERIVED_TABLE_TYPE;

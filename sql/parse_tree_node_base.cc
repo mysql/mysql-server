@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,15 @@ Parse_context::Parse_context(THD *thd, SELECT_LEX *select)
   mem_root(thd->mem_root),
   select(select),
   is_top_level(true)
+{}
+
+
+Parse_context::Parse_context(THD *const thd_arg, SELECT_LEX *sl_arg,
+                             bool is_top_level_arg)
+  : thd(thd_arg),
+    mem_root(thd->mem_root),
+    select(sl_arg),
+    is_top_level(is_top_level_arg)
 {}
 
 
