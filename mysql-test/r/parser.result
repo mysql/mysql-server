@@ -1943,3 +1943,28 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` where (`test`.`t4`.`d` = `test`.`t3`.`c`)
 SET optimizer_switch = DEFAULT;
 DROP TABLE t1, t2, t3, t4, t5;
+# Testing correct nesting of natural joins.
+CREATE TABLE t1( a INT, b int );
+CREATE TABLE t2( a INT, c int );
+CREATE TABLE t3( a INT, d int );
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO t2 VALUES         (2, 2), (3, 3), (4, 4);
+INSERT INTO t3 VALUES                 (3, 3), (4, 4), (5, 5);
+# The two queries below should produce identical result sets.
+SELECT * FROM t1 NATURAL LEFT JOIN t2 NATURAL RIGHT JOIN t3;
+a	d	b	c
+3	3	3	3
+4	4	NULL	NULL
+5	5	NULL	NULL
+SELECT * FROM (t1 NATURAL LEFT JOIN t2) NATURAL RIGHT JOIN t3;
+a	d	b	c
+3	3	3	3
+4	4	NULL	NULL
+5	5	NULL	NULL
+# This result should differ from the result sets above.
+SELECT * FROM t1 NATURAL LEFT JOIN (t2 NATURAL RIGHT JOIN t3);
+a	b	d	c
+3	3	3	3
+1	1	NULL	NULL
+2	2	NULL	NULL
+DROP TABLE t1, t2, t3;
