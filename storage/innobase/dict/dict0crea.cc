@@ -435,9 +435,12 @@ dict_build_tablespace(
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO); */
 	ut_a(!FSP_FLAGS_GET_TEMPORARY(tablespace->flags()));
 
-	fsp_header_init(space, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
-
+	bool ret = fsp_header_init(space, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
 	mtr_commit(&mtr);
+
+	if (!ret) {
+		return(DB_ERROR);
+	}
 
 	return(err);
 }
@@ -539,9 +542,14 @@ dict_build_tablespace_for_table(
 		mtr.set_named_space(table->space);
 		dict_disable_redo_if_temporary(table, &mtr);
 
-		fsp_header_init(table->space, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
+		bool ret = fsp_header_init(table->space,
+					   FIL_IBD_FILE_INITIAL_SIZE,
+					   &mtr);
 
 		mtr_commit(&mtr);
+		if (!ret) {
+			return(DB_ERROR);
+		}
 	} else {
 		/* We do not need to build a tablespace for this table. It
 		is already built.  Just find the correct tablespace ID. */

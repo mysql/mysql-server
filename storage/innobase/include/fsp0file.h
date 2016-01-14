@@ -266,7 +266,7 @@ public:
 	@retval DB_SUCCESS on if the datafile is valid
 	@retval DB_CORRUPTION if the datafile is not readable
 	@retval DB_TABLESPACE_EXISTS if there is a duplicate space_id */
-	dberr_t validate_first_page(lsn_t* flush_lsn = 0)
+	dberr_t validate_first_page(lsn_t*	flush_lsn = 0)
 		__attribute__((warn_unused_result));
 
 	/** Get Datafile::m_name.

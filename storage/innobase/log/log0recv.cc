@@ -1059,10 +1059,22 @@ recv_sys_debug_free(void)
 	}
 
 	if (recv_sys->encryption_list != NULL) {
-		while (recv_sys->encryption_list
-		       && !recv_sys->encryption_list->empty()) {
-			recv_sys->encryption_list->pop_back();
+		encryption_list_t::iterator	it;
+
+		for (it = recv_sys->encryption_list->begin();
+		     it != recv_sys->encryption_list->end();
+		     it++) {
+			if (it->key != NULL) {
+				ut_free(it->key);
+				it->key = NULL;
+			}
+			if (it->iv != NULL) {
+				ut_free(it->iv);
+				it->iv = NULL;
+			}
 		}
+
+		recv_sys->encryption_list->swap(*recv_sys->encryption_list);
 
 		UT_DELETE(recv_sys->encryption_list);
 		recv_sys->encryption_list = NULL;

@@ -31,7 +31,7 @@ ERROR HY000: This tablespace can't be encrypted.
 CREATE TEMPORARY TABLE t1(c int) ENCRYPTION="N";
 DROP TABLE t1;
 CREATE TABLE t1(c int) ENCRYPTION="R" ENGINE = InnoDB;
-ERROR HY000: Invaild encyption option.
+ERROR HY000: Invalid encryption option.
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -108,7 +108,7 @@ c1	c2
 8	iiiii
 9	jjjjj
 ALTER TABLE t1 ENCRYPTION="N", algorithm=inplace;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Invaild encyption option.. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Invalid encryption option.. Try ALGORITHM=COPY.
 ALTER TABLE t1 TABLESPACE=`innodb_system`;
 ERROR HY000: This tablespace can't be encrypted.
 ALTER TABLE t1 ENCRYPTION="N", algorithm=copy;
