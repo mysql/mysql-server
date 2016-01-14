@@ -893,6 +893,8 @@ fsp_header_fill_encryption_info(
 	lint		elen;
 	ulint		master_key_id;
 	byte*		master_key;
+	byte		key_info[ENCRYPTION_KEY_LEN * 2];
+	ulint		crc;
 #ifdef	UNIV_ENCRYPT_DEBUG
 	const byte*	data;
 	ulint		i;
@@ -905,6 +907,8 @@ fsp_header_fill_encryption_info(
 	}
 
 	memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
+	memset(key_info, 0, ENCRYPTION_KEY_LEN * 2);
+
 	/* Use the new master key to encrypt the tablespace
 	key. */
 	ut_ad(encrypt_info != NULL);
@@ -916,6 +920,17 @@ fsp_header_fill_encryption_info(
 
 	/* Write master key id. */
 	mach_write_to_4(ptr, master_key_id);
+	ptr += sizeof(ulint);
+
+	/* Write tablespace key to temp space. */
+	memcpy(key_info,
+	       space->encryption_key,
+	       ENCRYPTION_KEY_LEN);
+
+	/* Write tablespace iv to temp space. */
+	memcpy(key_info + ENCRYPTION_KEY_LEN,
+	       space->encryption_iv,
+	       ENCRYPTION_KEY_LEN);
 
 #ifdef	UNIV_ENCRYPT_DEBUG
 	fprintf(stderr, "Set %lu:%lu ",space->id,
@@ -923,45 +938,20 @@ fsp_header_fill_encryption_info(
 	for (data = (const byte*) master_key, i = 0;
 	     i < ENCRYPTION_KEY_LEN; i++)
 		fprintf(stderr, "%02lx", (ulong)*data++);
-#endif
-	mach_write_to_4(ptr, master_key_id);
-
-	ptr += sizeof(ulint);
-
-	/* Encrypt tablespace key. */
-#ifdef	UNIV_ENCRYPT_DEBUG
 	fprintf(stderr, " ");
 	for (data = (const byte*) space->encryption_key,
 	     i = 0; i < ENCRYPTION_KEY_LEN; i++)
 		fprintf(stderr, "%02lx", (ulong)*data++);
-#endif
-	elen = my_aes_encrypt(
-		space->encryption_key,
-		ENCRYPTION_KEY_LEN,
-		ptr,
-		master_key,
-		ENCRYPTION_KEY_LEN,
-		my_aes_256_ecb,
-		NULL, false);
-
-	if (elen == MY_AES_BAD_DATA) {
-		my_free(master_key);
-		return(false);
-	}
-
-	ptr += ENCRYPTION_KEY_LEN;
-
-	/* Encrypt tablespace data iv. */
-#ifdef	UNIV_ENCRYPT_DEBUG
 	fprintf(stderr, " ");
 	for (data = (const byte*) space->encryption_iv,
 	     i = 0; i < ENCRYPTION_KEY_LEN; i++)
 		fprintf(stderr, "%02lx", (ulong)*data++);
 	fprintf(stderr, "\n");
 #endif
+	/* Encrypt tablespace key and iv. */
 	elen = my_aes_encrypt(
-		space->encryption_iv,
-		ENCRYPTION_KEY_LEN,
+		key_info,
+		ENCRYPTION_KEY_LEN * 2,
 		ptr,
 		master_key,
 		ENCRYPTION_KEY_LEN,
@@ -972,6 +962,12 @@ fsp_header_fill_encryption_info(
 		my_free(master_key);
 		return(false);
 	}
+
+	ptr += ENCRYPTION_KEY_LEN * 2;
+
+	/* Write checksum bytes. */
+	crc = ut_crc32(key_info, ENCRYPTION_KEY_LEN * 2);
+	mach_write_to_4(ptr, crc);
 
 	my_free(master_key);
 	return(true);
@@ -1098,7 +1094,7 @@ fsp_header_init(
 
 	/* For encryption tablespace, we need to save the encryption
 	info to the page 0. */
-	if (space->encryption_type != Encryption::NONE) {
+	if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
 		ulint	offset = fsp_header_get_encryption_offset(page_size);
 		byte	encryption_info[ENCRYPTION_INFO_SIZE];
 
@@ -1107,6 +1103,9 @@ fsp_header_init(
 
 		if (!fsp_header_fill_encryption_info(space,
 						     encryption_info)) {
+			space->encryption_type = Encryption::NONE;
+			memset(space->encryption_key, 0, ENCRYPTION_KEY_LEN);
+			memset(space->encryption_iv, 0, ENCRYPTION_KEY_LEN);
 			return(false);
 		}
 
@@ -1181,6 +1180,9 @@ fsp_header_decode_encryption_info(
 	ulint		master_key_id;
 	byte*		master_key = NULL;
 	lint		elen;
+	byte		key_info[ENCRYPTION_KEY_LEN * 2];
+	ulint		crc1;
+	ulint		crc2;
 #ifdef	UNIV_ENCRYPT_DEBUG
 	const byte*	data;
 	ulint		i;
@@ -1207,6 +1209,7 @@ fsp_header_decode_encryption_info(
 	ptr += sizeof(ulint);
 
 	/* Get master key by key id. */
+	memset(key_info, 0, ENCRYPTION_KEY_LEN * 2);
 	Encryption::get_master_key(master_key_id, &master_key);
         if (master_key == NULL) {
                 return(false);
@@ -1222,8 +1225,8 @@ fsp_header_decode_encryption_info(
 	/* Decrypt tablespace key and iv. */
 	elen = my_aes_decrypt(
 		ptr,
-		ENCRYPTION_KEY_LEN,
-		key,
+		ENCRYPTION_KEY_LEN * 2,
+		key_info,
 		master_key,
 		ENCRYPTION_KEY_LEN,
 		my_aes_256_ecb, NULL, false);
@@ -1232,28 +1235,30 @@ fsp_header_decode_encryption_info(
 		my_free(master_key);
 		return(NULL);
 	}
+
+	/* Check checksum bytes. */
+	ptr += ENCRYPTION_KEY_LEN * 2;
+
+	crc1 = mach_read_from_4(ptr);
+	crc2 = ut_crc32(key_info, ENCRYPTION_KEY_LEN * 2);
+	if (crc1 != crc2) {
+		ib::error() << "Failed to decrpt encryption information,"
+			<< " please check key file is not changed!";
+		return(false);
+	}
+
+	/* Get tablespace key */
+	memcpy(key, key_info, ENCRYPTION_KEY_LEN);
+
+	/* Get tablespace iv */
+	memcpy(iv, key_info + ENCRYPTION_KEY_LEN,
+	       ENCRYPTION_KEY_LEN);
+
 #ifdef	UNIV_ENCRYPT_DEBUG
 	fprintf(stderr, " ");
 	for (data = (const byte*) key,
 	     i = 0; i < ENCRYPTION_KEY_LEN; i++)
 		fprintf(stderr, "%02lx", (ulong)*data++);
-#endif
-
-	ptr += ENCRYPTION_KEY_LEN;
-
-	elen = my_aes_decrypt(
-		ptr,
-		ENCRYPTION_KEY_LEN,
-		iv,
-		master_key,
-		ENCRYPTION_KEY_LEN,
-		my_aes_256_ecb, NULL, false);
-
-	if (elen == MY_AES_BAD_DATA) {
-		my_free(master_key);
-		return(false);
-	}
-#ifdef	UNIV_ENCRYPT_DEBUG
 	fprintf(stderr, " ");
 	for (data = (const byte*) iv,
 	     i = 0; i < ENCRYPTION_KEY_LEN; i++)
