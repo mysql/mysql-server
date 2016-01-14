@@ -74,6 +74,7 @@ template <unsigned T> struct SignalT
     Uint32 theData[T];
     Uint64 dummyAlign;
   };
+  Uint32 m_extra_signals;
 };
 
 /**
@@ -121,6 +122,11 @@ public:
     Uint32 theData[8192];  // 8192 32-bit words -> 32K Bytes
     Uint64 dummyAlign;
   };
+  /**
+   * A counter used to count extra signals executed as direct signals to ensure we use
+   * proper means for how often to send and flush.
+   */
+  Uint32 m_extra_signals;
   void garbage_register();
 };
 

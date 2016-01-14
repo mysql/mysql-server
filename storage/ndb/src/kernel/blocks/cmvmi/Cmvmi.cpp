@@ -1379,6 +1379,34 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     {
       sendSignal(DBLQH_REF, GSN_DUMP_STATE_ORD, signal, signal->length(), JBB);
     }
+    else if (check_block(CMVMI, val))
+    {
+      /**
+       * Handle here since we are already in CMVMI, mostly used for
+       * online config changes.
+       */
+      DumpStateOrd * const & dumpState = (DumpStateOrd *)&signal->theData[0];
+      Uint32 arg = dumpState->args[0];
+      Uint32 first_val = dumpState->args[1];
+      if (signal->length() != 2)
+      {
+        ndbout_c("dump 103000 X, where X is between 0 and 10 to set"
+                 "transactional priority");
+      }
+      else if (arg == DumpStateOrd::SetSchedulerResponsiveness)
+      {
+        if (first_val > 10)
+        {
+          ndbout_c("Trying to set SchedulerResponsiveness outside 0-10");
+        }
+        else
+        {
+          ndbout_c("Setting SchedulerResponsiveness to %u", first_val);
+          Configuration *conf = globalEmulatorData.theConfiguration;
+          conf->setSchedulerResponsiveness(first_val);
+        }
+      }
+    }
     return;
   }
 

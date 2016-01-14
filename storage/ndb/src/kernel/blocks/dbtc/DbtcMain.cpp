@@ -707,7 +707,7 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
   const ndb_mgm_configuration_iterator * p = 
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
-  
+ 
   initData();
   
   UintR apiConnect;
@@ -760,6 +760,8 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
 
   c_fk_hash.setSize(16);
   c_fk_pool.init(RT_DBDICT_FILE, pc); // TODO
+
+  time_track_init_histogram_limits();
 }
 
 void Dbtc::execSTTOR(Signal* signal) 
@@ -2524,7 +2526,13 @@ void Dbtc::initApiConnectRec(Signal* signal,
               ApiConnectRecord::TF_INDEX_OP_RETURN);
   regApiPtr->noIndexOp = 0;
   if(releaseIndexOperations)
+  {
     releaseAllSeizedIndexOperations(regApiPtr);
+  }
+  else
+  {
+    regApiPtr->m_start_ticks = getHighResTimer();
+  }
   regApiPtr->immediateTriggerId = RNIL;
 
   tc_clearbit(regApiPtr->m_flags,
@@ -4022,6 +4030,7 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
   // Reset trigger count
   regTcPtr->numFiredTriggers = 0;
   regTcPtr->triggerExecutionCount = 0;
+  regTcPtr->m_start_ticks = getHighResTimer();
 
   if (regCachePtr->useLongLqhKeyReq)
   {
@@ -4888,6 +4897,9 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   {
     // We have fired triggers
     jam();
+    time_track_complete_key_operation(regTcPtr,
+                               refToNode(regApiPtr.p->ndbapiBlockref),
+                               regTcPtr->tcNodedata[0]);
     saveTriggeringOpState(signal, regTcPtr);
     if (regTcPtr->numReceivedTriggers == numFired)
     {
@@ -4902,6 +4914,9 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   {
     // This is a index-table read
     jam();
+    time_track_complete_index_key_operation(regTcPtr,
+                                  refToNode(regApiPtr.p->ndbapiBlockref),
+                                  regTcPtr->tcNodedata[0]);
     setupIndexOpReturn(regApiPtr.p, regTcPtr);
     lqhKeyConf_checkTransactionState(signal, regApiPtr);
   }
@@ -4909,6 +4924,9 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   {
     // This is "normal" path
     jam();
+    time_track_complete_key_operation(regTcPtr,
+                               refToNode(regApiPtr.p->ndbapiBlockref),
+                               regTcPtr->tcNodedata[0]);
     lqhKeyConf_checkTransactionState(signal, regApiPtr);
   }
   else
@@ -4925,6 +4943,9 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
      */
     TcConnectRecordPtr opPtr;
 
+    time_track_complete_index_key_operation(regTcPtr,
+                                  refToNode(regApiPtr.p->ndbapiBlockref),
+                                  regTcPtr->tcNodedata[0]);
     opPtr.i = regTcPtr->triggeringOperation;
     ptrCheckGuard(opPtr, ctcConnectFilesize, localTcConnectRecord);
     trigger_op_finished(signal, regApiPtr, regTcPtr->currentTriggerId,
@@ -5081,7 +5102,7 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
   }//switch
 }//Dbtc::lqhKeyConf_checkTransactionState()
 
-void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag) 
+void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
 {
   if(ERROR_INSERTED(8049)){
     CLEAR_ERROR_INSERT_VALUE;
@@ -5133,9 +5154,14 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
       return; // No queued TcKeyConf
     }//if
   }//if
-  if(TcommitFlag){
+  if(TcommitFlag)
+  {
     jam();
     tc_clearbit(regApiPtr->m_flags, ApiConnectRecord::TF_EXEC_FLAG);
+    if (TcommitFlag == 1)
+    {
+      time_track_complete_transaction(regApiPtr);
+    }
   }
   TcKeyConf::setNoOfOperations(confInfo, (TopWords >> 1));
   if ((TpacketLen + 1 /** gci_lo */ > 25) ||!is_api){
@@ -5962,6 +5988,7 @@ Dbtc::sendApiCommit(Signal* signal)
       sendSignal(regApiPtr.p->ndbapiBlockref, GSN_TC_COMMITCONF, signal,
                  TcCommitConf::SignalLength, JBB);
     }
+    time_track_complete_transaction(regApiPtr.p);
   }
   else if (regApiPtr.p->returnsignal == RS_NO_RETURN) 
   {
@@ -6792,6 +6819,10 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 
       const Uint32 triggeringOp = regTcPtr->triggeringOperation;
       ConnectionState TapiConnectstate = regApiPtr->apiConnectstate;
+
+      time_track_complete_key_operation_error(regTcPtr,
+                                    refToNode(regApiPtr->ndbapiBlockref),
+                                    regTcPtr->tcNodedata[0]);
 
       if (unlikely(TapiConnectstate == CS_ABORTING))
       {
@@ -11844,6 +11875,7 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   scanptr.p->batch_size_rows = noOprecPerFrag;
   scanptr.p->m_scan_block_no = DBLQH;
   scanptr.p->m_scan_dist_key_flag = 0;
+  scanptr.p->m_start_ticks = getHighResTimer();
 
   Uint32 tmp = 0;
   ScanFragReq::setLockMode(tmp, ScanTabReq::getLockMode(ri));
@@ -12176,6 +12208,7 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal)
       ndbassert(ptr.p->scanFragState == ScanFragRec::IDLE);
       ptr.p->lqhBlockref = 0;
       ptr.p->scanFragId = scanptr.p->scanNextFragId++;
+      NdbTick_Invalidate(&ptr.p->m_start_ticks);
     }//for
 
     /**
@@ -12340,6 +12373,8 @@ void Dbtc::execDIH_SCAN_TAB_REF(Signal* signal)
 void Dbtc::abortScanLab(Signal* signal, ScanRecordPtr scanptr, Uint32 errCode,
 			bool not_started) 
 {
+  time_track_complete_scan_error(scanptr.p,
+                                 refToNode(apiConnectptr.p->ndbapiBlockref));
   scanTabRefLab(signal, errCode);
   releaseScanResources(signal, scanptr, not_started);
 }//Dbtc::abortScanLab()
@@ -12677,6 +12712,7 @@ void Dbtc::startFragScanLab(Signal* signal, Uint32 tableId,
 
   scanFragptr.p->scanFragState = ScanFragRec::LQH_ACTIVE;
   scanFragptr.p->startFragTimer(ctcTimer);
+  scanFragptr.p->m_start_ticks = getHighResTimer();
   updateBuddyTimer(apiConnectptr);
   /*********************************************
    * WE HAVE NOW STARTED A FRAGMENT SCAN. NOW 
@@ -12790,6 +12826,7 @@ void Dbtc::execSCAN_FRAGREF(Signal* signal)
   ndbrequire(scanFragptr.p->scanFragState == ScanFragRec::LQH_ACTIVE);
   scanFragptr.p->scanFragState = ScanFragRec::COMPLETED;
   scanFragptr.p->stopFragTimer();
+  time_track_complete_scan_frag_error(scanFragptr.p);
   {
     ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
     run.release(scanFragptr);
@@ -12878,7 +12915,12 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
   }//if
   
   ndbrequire(scanFragptr.p->scanFragState == ScanFragRec::LQH_ACTIVE);
-  
+  if (refToMain(scanFragptr.p->lqhBlockref) == DBLQH)
+  {
+    jam();
+    time_track_complete_scan_frag(scanFragptr.p);
+  }
+
   if(scanptr.p->scanState == ScanRecord::CLOSING_SCAN){
     jam();
     if(status == 0){
@@ -13146,6 +13188,7 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
     {
       jam();
       scanFragptr.p->scanFragState = ScanFragRec::LQH_ACTIVE;
+      scanFragptr.p->m_start_ticks = getHighResTimer();
       ScanFragNextReq * req = (ScanFragNextReq*)signal->getDataPtrSend();
       * req = tmp;
       req->senderData = scanFragptr.i;
@@ -13221,6 +13264,7 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
       }
       
       curr.p->startFragTimer(ctcTimer);
+      curr.p->m_start_ticks = getHighResTimer();
       curr.p->scanFragState = ScanFragRec::LQH_ACTIVE;
       nextReq->senderData = curr.i;
       sendSignal(curr.p->lqhBlockref, GSN_SCAN_NEXTREQ, signal, 
@@ -13241,6 +13285,7 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
 	jam();
         running.addFirst(curr);
 	curr.p->scanFragState = ScanFragRec::LQH_ACTIVE;
+        curr.p->m_start_ticks = getHighResTimer();
 	curr.p->startFragTimer(ctcTimer);
 	nextReq->senderData = curr.i;
 	sendSignal(curr.p->lqhBlockref, GSN_SCAN_NEXTREQ, signal, 
@@ -13273,6 +13318,7 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
 	jam();
         running.addFirst(curr);
 	curr.p->scanFragState = ScanFragRec::LQH_ACTIVE;
+        curr.p->m_start_ticks = getHighResTimer();
 	curr.p->startFragTimer(ctcTimer);
 	nextReq->senderData = curr.i;
 	sendSignal(curr.p->lqhBlockref, GSN_SCAN_NEXTREQ, signal, 
@@ -13323,6 +13369,7 @@ Dbtc::close_scan_req_send_conf(Signal* signal, ScanRecordPtr scanPtr){
     conf->transId1 = apiConnectptr.p->transid[0];
     conf->transId2 = apiConnectptr.p->transid[1];
     sendSignal(ref, GSN_SCAN_TABCONF, signal, ScanTabConf::SignalLength, JBB);
+    time_track_complete_scan(scanPtr.p, refToNode(ref));
   }
   
   releaseScanResources(signal, scanPtr);
@@ -13379,6 +13426,7 @@ void Dbtc::sendScanFragReq(Signal* signal,
     scanP->scanAttrInfoPtr = RNIL;
   }
 
+  scanFragP->m_start_ticks = getHighResTimer();
   getSections(sections.m_cnt, sections.m_ptr);
 
   ScanFragReq * const req = (ScanFragReq *)&signal->theData[0];
@@ -13614,6 +13662,7 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
   if (release)
   {
     jam();
+    time_track_complete_scan(scanPtr.p, refToNode(ref));
     releaseScanResources(signal, scanPtr);
   }
 
@@ -14180,6 +14229,7 @@ void Dbtc::releaseAbortResources(Signal* signal)
   }
   setApiConTimer(apiConnectptr.i, 0, 
 		 100000+c_apiConTimer_line[apiConnectptr.i]);
+  time_track_complete_transaction_error(apiConnectptr.p);
   if (apiConnectptr.p->apiFailState == ZTRUE) {
     jam();
     handleApiFailState(signal, apiConnectptr.i);
@@ -15395,7 +15445,50 @@ void Dbtc::execDBINFO_SCANREQ(Signal *signal)
     }
     break;
   }
-
+  case Ndbinfo::TC_TIME_TRACK_STATS_TABLEID:
+  {
+    Uint32 restore = cursor->data[0];
+    HostRecordPtr hostPtr;
+    Uint32 first_index = restore & 0xFFFF;
+    hostPtr.i = restore >> 16;
+    if (hostPtr.i == 0)
+      hostPtr.i = 1;
+    for ( ; hostPtr.i < MAX_NODES; hostPtr.i++)
+    {
+      ptrCheckGuard(hostPtr, chostFilesize, hostRecord);
+      if (hostPtr.p->time_tracked == FALSE)
+        continue;
+      for (Uint32 i = first_index; i < TIME_TRACK_HISTOGRAM_RANGES; i++)
+      {
+        Ndbinfo::Row row(signal, req);
+        row.write_uint32(getOwnNodeId());
+        row.write_uint32(DBTC);
+        row.write_uint32(instance());
+        row.write_uint32(hostPtr.i);
+        row.write_uint64(c_time_track_histogram_boundary[i]);
+        row.write_uint64(hostPtr.p->time_track_scan_histogram[i]);
+        row.write_uint64(hostPtr.p->time_track_scan_error_histogram[i]);
+        row.write_uint64(hostPtr.p->time_track_scan_frag_histogram[i]);
+        row.write_uint64(hostPtr.p->time_track_scan_frag_error_histogram[i]);
+        row.write_uint64(hostPtr.p->time_track_transaction_histogram[i]);
+        row.write_uint64(hostPtr.p->time_track_transaction_error_histogram[i]);
+        row.write_uint64(hostPtr.p->time_track_read_key_histogram[i]);
+        row.write_uint64(hostPtr.p->time_track_write_key_histogram[i]);
+        row.write_uint64(hostPtr.p->time_track_index_key_histogram[i]);
+        row.write_uint64(hostPtr.p->time_track_key_error_histogram[i]);
+        ndbinfo_send_row(signal, req, row, rl);
+        if (rl.need_break(req))
+        {
+          Uint32 save = i + 1 + (hostPtr.i << 16);
+          jam();
+          ndbinfo_send_scan_break(signal, req, rl, save);
+          return;
+        }
+      }
+      first_index = 0;
+    }
+    break;
+  }
   case Ndbinfo::COUNTERS_TABLEID:
   {
     Ndbinfo::counter_entry counters[] = {
@@ -20045,4 +20138,286 @@ Dbtc::execROUTE_ORD(Signal* signal)
   warningEvent("Unable to route GSN: %d from %x to %x",
 	       gsn, srcRef, dstRef);
 
+}
+
+/**
+ * Time track stats module
+ * -----------------------
+ * This module tracks response times of transactions, key operations,
+ * scans, scans of fragments and errors of those operations.
+ *
+ * It tracks those times in a histogram with 32 ranges. This means that
+ * we can get fairly detailed statistics about response times in the
+ * system. We can also gather this information per API node or per
+ * DB node and per TC thread.
+ *
+ * All data for this is currently gathered in the DBTC block. We could also
+ * in the future make similar gathering for SPJ queries.
+ *
+ * The histogram ranges starts out at 50 microseconds and is incremented by
+ * 50% for each subsequent range. We constantly increase the numbers in each
+ * range, so in order to get the proper values for a time period one needs
+ * to make two subsequent queries towards this table.
+ *
+ * The granularity of the timer for those signals depends on the granularity
+ * of the scheduler.
+ */
+void
+Dbtc::time_track_init_histogram_limits(void)
+{
+  HostRecordPtr hostPtr;
+  /**
+   * Calculate the boundary values, the first one is 50 microseconds,
+   * after that we multiply by 1.5 consecutively.
+   */
+  Uint32 val = TIME_TRACK_INITIAL_RANGE_VALUE;
+  for (Uint32 i = 0; i < TIME_TRACK_HISTOGRAM_RANGES; i++)
+  {
+    c_time_track_histogram_boundary[i] = val;
+    ndbout_c("Histogram boundary index: %u, value: %u", i, val);
+    val *= 3;
+    val /= 2;
+  }
+  for (Uint32 node = 0; node < MAX_NODES; node++)
+  {
+    hostPtr.i = node;
+    ptrCheckGuard(hostPtr, chostFilesize, hostRecord);
+    hostPtr.p->time_tracked = FALSE;
+    for (Uint32 i = 0; i < TIME_TRACK_HISTOGRAM_RANGES; i++)
+    {
+      hostPtr.p->time_track_scan_histogram[i] = 0;
+      hostPtr.p->time_track_scan_error_histogram[i] = 0;
+      hostPtr.p->time_track_read_key_histogram[i] = 0;
+      hostPtr.p->time_track_write_key_histogram[i] = 0;
+      hostPtr.p->time_track_index_key_histogram[i] = 0;
+      hostPtr.p->time_track_key_error_histogram[i] = 0;
+      hostPtr.p->time_track_scan_frag_histogram[i] = 0;
+      hostPtr.p->time_track_scan_frag_error_histogram[i] = 0;
+      hostPtr.p->time_track_transaction_histogram[i] = 0;
+    }
+  }
+}
+
+Uint32
+Dbtc::time_track_calculate_histogram_position(NDB_TICKS & start_ticks)
+{
+  NDB_TICKS end_ticks = getHighResTimer();
+  Uint32 micros_passed =
+    (Uint32)NdbTick_Elapsed(start_ticks, end_ticks).microSec();
+
+  NdbTick_Invalidate(&start_ticks);
+
+  /* Perform a binary search for the correct histogram range */
+  Uint32 pos;
+  Uint32 upper_pos = TIME_TRACK_HISTOGRAM_RANGES - 1;
+  Uint32 lower_pos = 0;
+  /**
+   * We use a small variant to the standard binary search where we
+   * know that we will always end up with upper_pos == lower_pos
+   * after 5 or 6 loops with 32 ranges. This saves us from comparing
+   * lower_pos and upper_pos in each loop effectively halfing the
+   * number of needed compares almost, we will do one extra loop
+   * at times.
+   */
+  pos = (upper_pos + lower_pos) / 2;
+  while (true)
+  {
+    if (micros_passed > c_time_track_histogram_boundary[pos])
+    {
+      /* Move to upper half in histogram ranges */
+      lower_pos = pos + 1;
+    }
+    else
+    {
+      /* Move to lower half in histogram ranges */
+      upper_pos = pos;
+    }
+    pos = (upper_pos + lower_pos) / 2;
+    if (upper_pos == lower_pos)
+      break;
+  }
+  return pos;
+}
+
+void
+Dbtc::time_track_complete_scan(ScanRecord * const scanPtr,
+                               Uint32 apiNodeId)
+{
+  HostRecordPtr hostPtr;
+  /* Scans are recorded on the calling API node */
+  Uint32 pos = time_track_calculate_histogram_position(scanPtr->m_start_ticks);
+  hostPtr.i = apiNodeId;
+  ptrCheckGuard(hostPtr, chostFilesize, hostRecord);
+  hostPtr.p->time_track_scan_histogram[pos]++;
+  hostPtr.p->time_tracked = TRUE;
+}
+
+void
+Dbtc::time_track_complete_scan_error(ScanRecord * const scanPtr,
+                                     Uint32 apiNodeId)
+{
+  HostRecordPtr hostPtr;
+  /* Scans are recorded on the calling API node */
+  Uint32 pos = time_track_calculate_histogram_position(scanPtr->m_start_ticks);
+  hostPtr.i = apiNodeId;
+  ptrCheckGuard(hostPtr, chostFilesize, hostRecord);
+  hostPtr.p->time_track_scan_error_histogram[pos]++;
+  hostPtr.p->time_tracked = TRUE;
+}
+
+void
+Dbtc::time_track_complete_index_key_operation(
+  TcConnectRecord * const regTcPtr,
+  Uint32 apiNodeId,
+  Uint32 dbNodeId)
+{
+  HostRecordPtr apiHostPtr, dbHostPtr;
+  /* Key ops are recorded on the calling API node and the primary DB node */
+  if (!NdbTick_IsValid(regTcPtr->m_start_ticks))
+  {
+    /**
+     * We can come here after receiving a "false" LQHKEYCONF as part
+     * of trigger operations.
+     */
+    return;
+  }
+  Uint32 pos =
+    time_track_calculate_histogram_position(regTcPtr->m_start_ticks);
+
+  apiHostPtr.i = apiNodeId;
+  ptrCheckGuard(apiHostPtr, chostFilesize, hostRecord);
+  apiHostPtr.p->time_track_index_key_histogram[pos]++;
+  apiHostPtr.p->time_tracked = TRUE;
+
+  dbHostPtr.i = dbNodeId;
+  ptrCheckGuard(dbHostPtr, chostFilesize, hostRecord);
+  dbHostPtr.p->time_track_index_key_histogram[pos]++;
+  dbHostPtr.p->time_tracked = TRUE;
+}
+
+void
+Dbtc::time_track_complete_key_operation(
+  struct TcConnectRecord * const regTcPtr,
+  Uint32 apiNodeId,
+  Uint32 dbNodeId)
+{
+  HostRecordPtr apiHostPtr, dbHostPtr;
+  /* Key ops are recorded on the calling API node and the primary DB node */
+  if (!NdbTick_IsValid(regTcPtr->m_start_ticks))
+  {
+    /**
+     * We can come here after receiving a "false" LQHKEYCONF as part
+     * of trigger operations.
+     */
+    return;
+  }
+  Uint32 pos =
+    time_track_calculate_histogram_position(regTcPtr->m_start_ticks);
+  apiHostPtr.i = apiNodeId;
+  ptrCheckGuard(apiHostPtr, chostFilesize, hostRecord);
+  dbHostPtr.i = dbNodeId;
+  ptrCheckGuard(dbHostPtr, chostFilesize, hostRecord);
+
+  if (regTcPtr->operation == ZREAD ||
+      regTcPtr->operation == ZUNLOCK)
+  {
+    apiHostPtr.p->time_track_read_key_histogram[pos]++;
+    dbHostPtr.p->time_track_read_key_histogram[pos]++;
+  }
+  else
+  {
+    apiHostPtr.p->time_track_write_key_histogram[pos]++;
+    dbHostPtr.p->time_track_write_key_histogram[pos]++;
+  }
+  apiHostPtr.p->time_tracked = TRUE;
+  dbHostPtr.p->time_tracked = TRUE;
+}
+
+void
+Dbtc::time_track_complete_key_operation_error(
+  struct TcConnectRecord * const regTcPtr,
+  Uint32 apiNodeId,
+  Uint32 dbNodeId)
+{
+  HostRecordPtr apiHostPtr, dbHostPtr;
+  /* Scans are recorded on the calling API node and the primary DB node */
+  Uint32 pos =
+    time_track_calculate_histogram_position(regTcPtr->m_start_ticks);
+  apiHostPtr.i = apiNodeId;
+  ptrCheckGuard(apiHostPtr, chostFilesize, hostRecord);
+  dbHostPtr.i = dbNodeId;
+  ptrCheckGuard(dbHostPtr, chostFilesize, hostRecord);
+
+  apiHostPtr.p->time_track_key_error_histogram[pos]++;
+  dbHostPtr.p->time_track_key_error_histogram[pos]++;
+  apiHostPtr.p->time_tracked = TRUE;
+  dbHostPtr.p->time_tracked = TRUE;
+}
+
+void
+Dbtc::time_track_complete_scan_frag(
+  ScanFragRec * const scanFragPtr)
+{
+  HostRecordPtr hostPtr;
+  /* Scan frag operations are recorded on the DB node */
+  Uint32 pos =
+    time_track_calculate_histogram_position(scanFragPtr->m_start_ticks);
+  Uint32 dbNodeId = refToNode(scanFragPtr->lqhBlockref);
+  hostPtr.i = dbNodeId;
+  ptrCheckGuard(hostPtr, chostFilesize, hostRecord);
+  hostPtr.p->time_track_scan_frag_histogram[pos]++;
+  hostPtr.p->time_tracked = TRUE;
+}
+
+void
+Dbtc::time_track_complete_scan_frag_error(
+  ScanFragRec * const scanFragPtr)
+{
+  HostRecordPtr hostPtr;
+  /* Scan frag operations are recorded on the DB node */
+  Uint32 pos =
+    time_track_calculate_histogram_position(scanFragPtr->m_start_ticks);
+  Uint32 dbNodeId = refToNode(scanFragPtr->lqhBlockref);
+  hostPtr.i = dbNodeId;
+  ptrCheckGuard(hostPtr, chostFilesize, hostRecord);
+  hostPtr.p->time_track_scan_frag_error_histogram[pos]++;
+  hostPtr.p->time_tracked = TRUE;
+}
+
+void
+Dbtc::time_track_complete_transaction(
+  ApiConnectRecord * const apiConnectPtr)
+{
+  HostRecordPtr hostPtr;
+  /* Transactions are recorded on the API node */
+  Uint32 pos =
+    time_track_calculate_histogram_position(apiConnectPtr->m_start_ticks);
+  Uint32 apiNodeId = refToNode(apiConnectptr.p->ndbapiBlockref);
+  hostPtr.i = apiNodeId;
+  ptrCheckGuard(hostPtr, chostFilesize, hostRecord);
+  hostPtr.p->time_track_transaction_histogram[pos]++;
+  hostPtr.p->time_tracked = TRUE;
+}
+
+void
+Dbtc::time_track_complete_transaction_error(
+  ApiConnectRecord * const apiConnectPtr)
+{
+  HostRecordPtr hostPtr;
+  /* Transactions are recorded on the API node */
+  if (!NdbTick_IsValid(apiConnectPtr->m_start_ticks))
+  {
+    /**
+     * As part of handling API node failure we might abort transactions that
+     * haven't actually started.
+     */
+    return;
+  }
+  Uint32 pos =
+    time_track_calculate_histogram_position(apiConnectPtr->m_start_ticks);
+  Uint32 apiNodeId = refToNode(apiConnectptr.p->ndbapiBlockref);
+  hostPtr.i = apiNodeId;
+  ptrCheckGuard(hostPtr, chostFilesize, hostRecord);
+  hostPtr.p->time_track_transaction_error_histogram[pos]++;
+  hostPtr.p->time_tracked = TRUE;
 }
