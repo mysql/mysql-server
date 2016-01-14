@@ -2200,13 +2200,7 @@ public:
       return true;
     }
 
-    /*
-      We are making a "derived table" for the parenthesis
-      as we need to have a lex level to fit the union
-      after the parenthesis, e.g.
-      (SELECT .. ) UNION ...  becomes
-      SELECT * FROM ((SELECT ...) UNION ...)
-    */
+    // Making a new SELECT_LEX for the subquery's query expression.
     SELECT_LEX *child= lex->new_query(pc->select);
     if (child == NULL)
       return true;

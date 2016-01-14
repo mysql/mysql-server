@@ -1050,11 +1050,6 @@ bool PT_derived_table::contextualize(Parse_context *pc)
 
   outer_select->parsing_place= CTX_NONE;
 
-  /*
-    Handle case of derived table, alias may be NULL if there
-    are no outer parentheses, add_table_to_list() will throw
-    error in this case
-  */
   DBUG_ASSERT(pc->select->next_select() == NULL);
 
   SELECT_LEX_UNIT *unit= pc->select->first_inner_unit();
