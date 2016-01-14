@@ -4468,7 +4468,6 @@ void Item_char_typecast::print(String *str, enum_query_type query_type)
 String *Item_char_typecast::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *res;
   uint32 length;
 
   if (cast_length >= 0 &&
@@ -4484,25 +4483,21 @@ String *Item_char_typecast::val_str(String *str)
     return 0;
   }
 
-  if (!charset_conversion)
+  String *res= args[0]->val_str(str);
+  if (res == NULL)
   {
-    if (!(res= args[0]->val_str(str)))
-    {
-      null_value= 1;
-      return 0;
-    }
+    null_value= true;
+    return 0;
   }
-  else
+  /*
+    Convert character set if differ
+    If it is a literal string, we must also take a copy.
+  */
+  if (charset_conversion || res->alloced_length() == 0)
   {
-    // Convert character set if differ
-    uint dummy_errors;
-    if (!(res= args[0]->val_str(str)) ||
-        tmp_value.copy(res->ptr(), res->length(), from_cs,
-                       cast_cs, &dummy_errors))
-    {
-      null_value= 1;
-      return 0;
-    }
+    uint dummy_err;
+    if (tmp_value.copy(res->ptr(), res->length(), from_cs, cast_cs, &dummy_err))
+      return error_str();
     res= &tmp_value;
   }
 
