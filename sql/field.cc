@@ -8136,7 +8136,6 @@ Field_blob::store_to_mem(const char *from, size_t length,
                          size_t max_length,
                          Blob_mem_storage *blob_storage)
 {
-  DBUG_ASSERT(length > 0);
   /*
     We don't need to support escaping or character set conversions here,
     because store_to_mem() is currently called only when we process
@@ -8171,8 +8170,6 @@ Field_blob::store_internal(const char *from, size_t length,
   size_t new_length;
   char buff[STRING_BUFFER_USUAL_SIZE], *tmp;
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
-
-  DBUG_ASSERT(length > 0);
 
   /*
     If the 'from' address is in the range of the temporary 'value'-
@@ -8237,12 +8234,6 @@ type_conversion_status
 Field_blob::store(const char *from, size_t length, const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-
-  if (!length)
-  {
-    memset(ptr, 0, Field_blob::pack_length());
-    return TYPE_OK;
-  }
 
   if (table->blob_storage)    // GROUP_CONCAT with ORDER BY | DISTINCT
     return store_to_mem(from, length, cs,
