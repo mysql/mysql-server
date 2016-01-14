@@ -95,15 +95,11 @@ ENDIF()
 MYSQL_ADD_EXECUTABLE(replace replace.c)
 TARGET_LINK_LIBRARIES(replace mysys)
 
-IF (BUILD_BUNDLED_LZ4)
-  MYSQL_ADD_EXECUTABLE(lz4_decompress lz4_decompress.cc)
-  TARGET_LINK_LIBRARIES(lz4_decompress ${LZ4_LIBRARY})
-ENDIF()
+MYSQL_ADD_EXECUTABLE(lz4_decompress lz4_decompress.cc)
+TARGET_LINK_LIBRARIES(lz4_decompress ${LZ4_LIBRARY})
 
-IF (BUILD_BUNDLED_ZLIB)
-  MYSQL_ADD_EXECUTABLE(zlib_decompress zlib_decompress.cc)
-  TARGET_LINK_LIBRARIES(zlib_decompress ${ZLIB_LIBRARY})
-ENDIF()
+MYSQL_ADD_EXECUTABLE(zlib_decompress zlib_decompress.cc)
+TARGET_LINK_LIBRARIES(zlib_decompress ${ZLIB_LIBRARY})
 
 IF(WITH_INNOBASE_STORAGE_ENGINE)
 
