@@ -8886,8 +8886,7 @@ Field_json::store(const char *from, size_t length, const CHARSET_INFO *cs)
     if (parse_err != NULL)
     {
       // Syntax error.
-      my_error(ER_INVALID_JSON_TEXT, MYF(0),
-               parse_err, err_offset, v.c_ptr_safe());
+      invalid_text(parse_err, err_offset);
     }
     return TYPE_ERR_BAD_VALUE;
   }
@@ -8907,13 +8906,7 @@ Field_json::store(const char *from, size_t length, const CHARSET_INFO *cs)
 type_conversion_status Field_json::unsupported_conversion()
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  String s;
-  s.append("column ");
-  s.append(*table_name);
-  s.append('.');
-  s.append(field_name);
-  my_error(ER_INVALID_JSON_TEXT, MYF(0), "not a JSON text, may need CAST",
-           0, s.c_ptr_safe());
+  invalid_text("not a JSON text, may need CAST", 0);
   return TYPE_ERR_BAD_VALUE;
 }
 
