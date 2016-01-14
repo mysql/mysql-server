@@ -1043,8 +1043,7 @@ bool PT_derived_table::contextualize(Parse_context *pc)
   lex->derived_tables|= DERIVED_SUBQUERY;
 
   outer_select->parsing_place= CTX_DERIVED;
-  if (outer_select->linkage == GLOBAL_OPTIONS_TYPE)
-    return true; // TODO: error(pc, pos)?
+  DBUG_ASSERT(outer_select->linkage != GLOBAL_OPTIONS_TYPE);
 
   if (m_subquery->contextualize(pc))
     return true;
