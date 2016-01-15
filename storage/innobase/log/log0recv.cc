@@ -1651,6 +1651,7 @@ fil_write_encryption_parse(
 		ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
 
 		space->encryption_type = Encryption::AES;
+		space->encryption_klen = ENCRYPTION_KEY_LEN;
 	}
 
 	return(ptr);
