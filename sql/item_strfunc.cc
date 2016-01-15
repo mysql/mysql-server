@@ -1363,32 +1363,32 @@ String *Item_func_replace::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *res,*res2,*res3;
-  int offset;
+  int offset= 0;
   size_t from_length, to_length;
   bool alloced=0;
   const char *ptr,*end,*strend,*search,*search_end;
   uint32 l;
-  bool binary_cmp;
 
-  null_value=0;
   res=args[0]->val_str(str);
-  if (args[0]->null_value)
-    goto null;
+  if ((null_value= args[0]->null_value))
+    return nullptr;
   res2=args[1]->val_str(&tmp_value);
-  if (args[1]->null_value)
-    goto null;
+  if ((null_value= args[1]->null_value))
+    return nullptr;
+  res3=args[2]->val_str(&tmp_value2);
+  if ((null_value= args[2]->null_value))
+    return nullptr;
 
   res->set_charset(collation.collation);
-
-  binary_cmp = ((res->charset()->state & MY_CS_BINSORT) || !use_mb(res->charset()));
-
   if (res2->length() == 0)
     return res;
-  offset=0;
+
+  const bool binary_cmp= ((res->charset()->state & MY_CS_BINSORT) ||
+                          !use_mb(res->charset()));
+
   if (binary_cmp && (offset=res->strstr(*res2)) < 0)
     return res;
-  if (!(res3=args[2]->val_str(&tmp_value2)))
-    goto null;
+
   from_length= res2->length();
   to_length=   res3->length();
 

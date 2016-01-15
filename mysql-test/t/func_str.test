@@ -1888,3 +1888,21 @@ select hex(cast(9007199254740994 as decimal(30,0)));
 select hex(cast(0x20000000000000 as unsigned) + 1);
 select hex(cast(0x20000000000000 as decimal(30,0)) + 1);
 select hex(cast(0x20000000000000 as decimal(30,0)) + 2);
+
+--echo #
+--echo # Bug#22523836 FUNCTION REPLACE WITH BINARY OP DOESNT RETURN EXPECTED
+--echo #              NULL, WITH PARAM AS NULL
+--echo #
+
+SELECT REPLACE( 'a', binary 'b', NULL ) as xxx;
+SELECT REPLACE( 'a', binary '', NULL ) as xxx;
+
+SELECT REPLACE( 'a', 'b', NULL ) as xxx;
+SELECT REPLACE( 'a', '', NULL ) as xxx;
+
+SELECT REPLACE( NULL, 'b', 'bravo' ) as xxx;
+SELECT REPLACE( NULL, '', 'bravo' ) as xxx;
+
+SELECT REPLACE( 'a', NULL, 'bravo' ) as xxx;
+SELECT REPLACE( 'a', binary NULL, 'bravo' ) as xxx;
+

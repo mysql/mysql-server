@@ -4857,3 +4857,31 @@ hex(cast(0x20000000000000 as decimal(30,0)) + 1)
 select hex(cast(0x20000000000000 as decimal(30,0)) + 2);
 hex(cast(0x20000000000000 as decimal(30,0)) + 2)
 20000000000002
+#
+# Bug#22523836 FUNCTION REPLACE WITH BINARY OP DOESNT RETURN EXPECTED
+#              NULL, WITH PARAM AS NULL
+#
+SELECT REPLACE( 'a', binary 'b', NULL ) as xxx;
+xxx
+NULL
+SELECT REPLACE( 'a', binary '', NULL ) as xxx;
+xxx
+NULL
+SELECT REPLACE( 'a', 'b', NULL ) as xxx;
+xxx
+NULL
+SELECT REPLACE( 'a', '', NULL ) as xxx;
+xxx
+NULL
+SELECT REPLACE( NULL, 'b', 'bravo' ) as xxx;
+xxx
+NULL
+SELECT REPLACE( NULL, '', 'bravo' ) as xxx;
+xxx
+NULL
+SELECT REPLACE( 'a', NULL, 'bravo' ) as xxx;
+xxx
+NULL
+SELECT REPLACE( 'a', binary NULL, 'bravo' ) as xxx;
+xxx
+NULL
