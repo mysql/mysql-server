@@ -1,0 +1,20 @@
+--source include/have_plugin_auth.inc
+--source include/not_embedded.inc
+
+--echo #
+--echo # Bug #22551523: ALTER USER IDENTIFIED WITH AUTH_PAM DISABLES USER ACCOUNT
+--echo #
+
+CREATE USER b22551523@localhost;
+--echo # Must be N
+SELECT password_expired from mysql.user where user='b22551523' and host = 'localhost';
+
+ALTER USER b22551523@localhost IDENTIFIED with 'test_plugin_server';
+--echo # Must still be N
+SELECT password_expired from mysql.user where user='b22551523' and host = 'localhost';
+
+ALTER USER b22551523@localhost IDENTIFIED with 'mysql_native_password';
+--echo # Must be Y
+SELECT password_expired from mysql.user where user='b22551523' and host = 'localhost';
+
+DROP USER b22551523@localhost;
