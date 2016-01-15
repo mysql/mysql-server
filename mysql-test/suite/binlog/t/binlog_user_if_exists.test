@@ -16,6 +16,18 @@ ALTER USER IF EXISTS u1@localhost ACCOUNT LOCK;
 DROP USER u1@localhost;
 DROP USER IF EXISTS u2@localhost;
 
+--echo #
+--echo # Bug #21807286: "CREATE USER IF NOT EXISTS" REPORTS AN ERROR
+--echo #
+
+
+CREATE USER IF NOT EXISTS b21807286@localhost IDENTIFIED BY 'haha';
+CREATE USER IF NOT EXISTS b21807286@localhost IDENTIFIED BY 'haha2';
+ALTER USER IF EXISTS b21807286@localhost IDENTIFIED BY 'haha3';
+ALTER USER IF EXISTS b21807286_not_exists@localhost IDENTIFIED BY 'haha4';
+DROP USER b21807286@localhost;
+
+
 --source include/sync_slave_sql_with_master.inc
 --echo [On Slave]
 --source include/show_binlog_events.inc
