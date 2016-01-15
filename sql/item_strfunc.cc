@@ -3973,6 +3973,28 @@ String *Item_func_conv::val_str(String *str)
     else
       dec= (longlong) my_strntoull(res->charset(), res->ptr(), res->length(),
                                    from_base, &endptr, &err);
+    if (err)
+    {
+      /*
+        If we got an overflow from my_strntoull, and the input was negative,
+        then return 0 rather than ~0
+        This is in order to be consistent with
+          CAST(<large negative value>, unsigned)
+        which returns zero.
+       */
+      if (from_base > 0)
+      {
+        my_decimal res_as_dec;
+        my_decimal *decptr= args[0]->val_decimal(&res_as_dec);
+        if (decptr && decptr->sign())
+          dec= 0;
+      }
+      ErrConvString err(res);
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                          ER_TRUNCATED_WRONG_VALUE,
+                          ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
+                          "DECIMAL", err.ptr());
+    }
   }
 
   if (!(ptr= longlong2str(dec, ans, to_base)) ||

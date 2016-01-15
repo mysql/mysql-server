@@ -720,8 +720,6 @@ select hex(29223372036854775809) as hex_signed,
 select conv(29223372036854775809, -10, 16) as conv_signed,
        conv(29223372036854775809, 10, 16) as conv_unsigned;
 
-## decimal2ulonglong does *to=0ULL; return E_DEC_OVERFLOW;
-## hence the difference in output for hex_unsigned and conv_unsigned below
 select hex(-29223372036854775809) as hex_signed,
        hex(cast(-29223372036854775809 as unsigned)) as hex_unsigned;
 select conv(-29223372036854775809, -10, 16) as conv_signed,
