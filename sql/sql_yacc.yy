@@ -8924,7 +8924,6 @@ select_stmt:
           {
             if ($1 == NULL)
               MYSQL_YYABORT; // OOM
-            $1->set_parentheses();
             $$= NEW_PTN PT_select_stmt($1);
           }
         | select_stmt_with_into

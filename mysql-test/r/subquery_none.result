@@ -1340,7 +1340,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	(/* select#1 */ select 'tttt' AS `s1` from dual)
+Note	1003	/* select#1 */ select 'tttt' AS `s1` from dual
 (select * from t1);
 s1
 tttt
