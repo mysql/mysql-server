@@ -2862,9 +2862,8 @@ count_field_types(SELECT_LEX *select_lex, Temp_table_param *param,
     {
       if (! field->const_item())
       {
-	Item_sum *sum_item=(Item_sum*) field->real_item();
-        if (!sum_item->depended_from() ||
-            sum_item->depended_from() == select_lex)
+	Item_sum *sum_item=down_cast<Item_sum *>(field->real_item());
+        if (sum_item->aggr_select == select_lex)
         {
           if (!sum_item->quick_group)
             param->quick_group=0;			// UDF SUM function
@@ -3096,10 +3095,10 @@ bool JOIN::make_sum_func_list(List<Item> &field_list,
   func= sum_funcs;
   while ((item=it++))
   {
-    if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item() &&
-        (!((Item_sum*) item)->depended_from() ||
-         ((Item_sum *)item)->depended_from() == select_lex))
-      *func++= (Item_sum*) item;
+    if (item->type() == Item::SUM_FUNC_ITEM &&
+        !item->const_item() &&
+        down_cast<Item_sum *>(item)->aggr_select == select_lex)
+      *func++= down_cast<Item_sum *>(item);
   }
   if (before_group_by && rollup.state == ROLLUP::STATE_INITED)
   {
@@ -3267,10 +3266,9 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
         ref_array_ix= 0;
       }
 
-      if (item->type() == Item::SUM_FUNC_ITEM && !item->const_item() &&
-          (!((Item_sum*) item)->depended_from() ||
-           ((Item_sum *)item)->depended_from() == select_lex))
-          
+      if (item->type() == Item::SUM_FUNC_ITEM &&
+          !item->const_item() &&
+          down_cast<Item_sum *>(item)->aggr_select == select_lex)
       {
 	/*
 	  This is a top level summary function that must be replaced with

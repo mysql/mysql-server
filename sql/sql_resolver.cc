@@ -2870,6 +2870,7 @@ bool SELECT_LEX::fix_inner_refs(THD *thd)
     bool direct_ref= false;
     Item *item= ref->outer_ref;
     Item **item_ref= ref->ref;
+
     /*
       TODO: this field item already might be present in the select list.
       In this case instead of adding new field item we could use an
@@ -2888,15 +2889,16 @@ bool SELECT_LEX::fix_inner_refs(THD *thd)
 
     if (ref->in_sum_func)
     {
-      if (ref->in_sum_func->nest_level > nest_level)
+      if (ref->in_sum_func->base_select->nest_level > nest_level)
         direct_ref= true;
       else
       {
         for (Item_sum *sum_func= ref->in_sum_func;
-             sum_func && sum_func->aggr_level >= nest_level;
+             sum_func && sum_func->aggr_select &&
+                         sum_func->aggr_select->nest_level >= nest_level;
              sum_func= sum_func->in_sum_func)
         {
-          if (sum_func->aggr_level == nest_level)
+          if (sum_func->aggr_select->nest_level == nest_level)
           {
             direct_ref= true;
             break;

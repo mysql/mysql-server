@@ -2124,8 +2124,12 @@ class Item_aggregate_ref : public Item_ref
 {
 public:
   Item_aggregate_ref(Name_resolution_context *context_arg, Item **item,
-                  const char *table_name_arg, const char *field_name_arg)
-    :Item_ref(context_arg, item, table_name_arg, field_name_arg) {}
+                     const char *table_name_arg, const char *field_name_arg,
+                     SELECT_LEX *depended_from_arg)
+    :Item_ref(context_arg, item, table_name_arg, field_name_arg)
+  {
+    depended_from= depended_from_arg;
+  }
 
   virtual inline void print (String *str, enum_query_type query_type)
   {
@@ -2188,17 +2192,30 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
       Exception is Item_direct_view_ref which we need to convert to
       Item_ref to allow fields from view being stored in tmp table.
     */
-    Item_aggregate_ref *item_ref;
     uint el= fields.elements;
     Item *real_itm= real_item();
 
-    ref_item_array[el]= real_itm;
-    if (!(item_ref= new Item_aggregate_ref(&thd->lex->current_select()->context,
-                                           &ref_item_array[el], 0,
-                                           item_name.ptr())))
-      return;                                   // fatal_error is set
+    SELECT_LEX *base_select;
+    SELECT_LEX *depended_from= NULL;
     if (type() == SUM_FUNC_ITEM)
-      item_ref->depended_from= ((Item_sum *) this)->depended_from(); 
+    {
+      Item_sum *const item= down_cast<Item_sum *>(this);
+      DBUG_ASSERT(thd->lex->current_select() == item->aggr_select);
+      base_select= item->base_select;
+      if (item->aggr_select != base_select)
+        depended_from= item->aggr_select;
+    }
+    else
+    {
+      base_select= thd->lex->current_select();
+    }
+
+    ref_item_array[el]= real_itm;
+    Item_aggregate_ref *const item_ref=
+      new Item_aggregate_ref(&base_select->context, &ref_item_array[el], 0,
+                             item_name.ptr(), depended_from);
+    if (!item_ref)
+      return;                      /* purecov: inspected */
     fields.push_front(real_itm);
     thd->change_item_tree(ref, item_ref);
   }
@@ -5558,13 +5575,14 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
           /*
             A reference is resolved to a nest level that's outer or the same as
             the nest level of the enclosing set function : adjust the value of
-            max_arg_level for the function if it's needed.
+            max_aggr_level for the function if it's needed.
           */
           if (thd->lex->in_sum_func &&
-              thd->lex->in_sum_func->nest_level >= select->nest_level)
+              thd->lex->in_sum_func->base_select->nest_level >=
+              select->nest_level)
           {
             Item::Type ref_type= (*reference)->type();
-            set_if_bigger(thd->lex->in_sum_func->max_arg_level,
+            set_if_bigger(thd->lex->in_sum_func->max_aggr_level,
                           select->nest_level);
             set_field(*from_field);
             fixed= 1;
@@ -5587,8 +5605,9 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
           prev_subselect_item->const_item_cache&=
             (*reference)->const_item();
           if (thd->lex->in_sum_func &&
-              thd->lex->in_sum_func->nest_level >= select->nest_level)
-            set_if_bigger(thd->lex->in_sum_func->max_arg_level,
+              thd->lex->in_sum_func->base_select->nest_level >=
+              select->nest_level)
+            set_if_bigger(thd->lex->in_sum_func->max_aggr_level,
                           select->nest_level);
 
           mark_as_dependent(thd, last_checked_context->select_lex,
@@ -5930,8 +5949,9 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
                 context->select_lex ==
                 dynamic_cast<Item_ident *>(*reference)->context->select_lex);
     if (thd->lex->in_sum_func &&
-        thd->lex->in_sum_func->nest_level == context->select_lex->nest_level)
-      set_if_bigger(thd->lex->in_sum_func->max_arg_level,
+        thd->lex->in_sum_func->base_select->nest_level ==
+        context->select_lex->nest_level)
+      set_if_bigger(thd->lex->in_sum_func->max_aggr_level,
                     context->select_lex->nest_level);
 
     // If view column reference, Item in *reference is completely resolved:
@@ -8134,12 +8154,12 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
         /*
           A reference is resolved to a nest level that's outer or the same as
           the nest level of the enclosing set function : adjust the value of
-          max_arg_level for the function if it's needed.
+          max_aggr_level for the function if it's needed.
         */
         if (thd->lex->in_sum_func &&
-            thd->lex->in_sum_func->nest_level >= 
+            thd->lex->in_sum_func->base_select->nest_level >=
             last_checked_context->select_lex->nest_level)
-          set_if_bigger(thd->lex->in_sum_func->max_arg_level,
+          set_if_bigger(thd->lex->in_sum_func->max_aggr_level,
                         last_checked_context->select_lex->nest_level);
         return FALSE;
       }
@@ -8157,12 +8177,12 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
       /*
         A reference is resolved to a nest level that's outer or the same as
         the nest level of the enclosing set function : adjust the value of
-        max_arg_level for the function if it's needed.
+        max_aggr_level for the function if it's needed.
       */
       if (thd->lex->in_sum_func &&
-          thd->lex->in_sum_func->nest_level >= 
+          thd->lex->in_sum_func->base_select->nest_level >=
           last_checked_context->select_lex->nest_level)
-        set_if_bigger(thd->lex->in_sum_func->max_arg_level,
+        set_if_bigger(thd->lex->in_sum_func->max_aggr_level,
                       last_checked_context->select_lex->nest_level);
     }
   }

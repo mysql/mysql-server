@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2456,6 +2456,9 @@ void SELECT_LEX::make_active_options(ulonglong added_options,
 
 void SELECT_LEX::mark_as_dependent(SELECT_LEX *last)
 {
+  // The top level query block cannot be dependent, so do not go above this:
+  DBUG_ASSERT(last != NULL);
+
   /*
     Mark all selects from resolved to 1 before select where was
     found table as depended (of select where was found table)

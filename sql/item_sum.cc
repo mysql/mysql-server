@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -76,25 +76,22 @@ ulonglong Item_sum::ram_limitation(THD *thd)
 
 
 /**
-  Prepare an aggregate function item for checking context conditions.
+  Prepare an aggregate function for checking of context.
 
-    The function initializes the members of the Item_sum object created
-    for a set function that are used to check validity of the set function
-    occurrence.
-    If the set function is not allowed in any subquery where it occurs
-    an error is reported immediately.
+    The function initializes the members of the Item_sum object.
+    It also checks the general validity of the set function:
+    If none of the currently active query blocks allow evaluation of
+    set functions, an error is reported.
+
+  @note
+    This function must be called for all set functions when expressions are
+    resolved. It must be invoked in prefix order, ie at the descent of this
+    traversal. @see corresponding Item_sum::check_sum_func(), which should
+    be called on ascent.
 
   @param thd      reference to the thread context info
 
-  @note
-    This function is to be called for any item created for a set function
-    object when the traversal of trees built for expressions used in the query
-    is performed at the phase of context analysis. This function is to
-    be invoked at the descent of this traversal.
-  @retval
-    TRUE   if an error is reported
-  @retval
-    FALSE  otherwise
+  @returns false if success, true if error
 */
  
 bool Item_sum::init_sum_func_check(THD *thd)
@@ -102,232 +99,211 @@ bool Item_sum::init_sum_func_check(THD *thd)
   if (!thd->lex->allow_sum_func)
   {
     my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
-    return TRUE;
+    return true;
   }
-  /* Set a reference to the nesting set function if there is  any */
+  // Set a reference to the containing set function if there is one
   in_sum_func= thd->lex->in_sum_func;
-  /* Save a pointer to object to be used in items for nested set functions */
+  /*
+    Set this object as the current containing set function, used when
+    checking arguments of this set function.
+  */
   thd->lex->in_sum_func= this;
-  nest_level= thd->lex->current_select()->nest_level;
-  ref_by= 0;
-  aggr_level= -1;
-  aggr_sel= NULL;
-  max_arg_level= -1;
+  // @todo: When resolving once, move following code to constructor
+  base_select= thd->lex->current_select();
+  aggr_select= NULL;           // Aggregation query block is undetermined yet
+  ref_by= NULL;
+  max_aggr_level= -1;
   max_sum_func_level= -1;
-  return FALSE;
+  return false;
 }
 
-/**
-  Check constraints imposed on a usage of a set function.
 
-    The method verifies whether context conditions imposed on a usage
-    of any set function are met for this occurrence.
-    It checks whether the set function occurs in the position where it
-    can be aggregated and, when it happens to occur in argument of another
-    set function, the method checks that these two functions are aggregated in
-    different subqueries.
-    If the context conditions are not met the method reports an error.
-    If the set function is aggregated in some outer subquery the method
-    adds it to the chain of items for such set functions that is attached
-    to the the SELECT_LEX structure for this subquery.
+/**
+  Validate the semantic requirements of a set function.
+
+    Check whether the context of the set function allows it to be aggregated
+    and, when it is an argument of another set function, directly or indirectly,
+    the function makes sure that these two set functions are aggregated in
+    different query blocks.
+    If the context conditions are not met, an error is reported.
+    If the set function is aggregated in some outer query block, it is
+    added to the chain of items inner_sum_func_list attached to the
+    aggregating query block.
 
     A number of designated members of the object are used to check the
     conditions. They are specified in the comment before the Item_sum
     class declaration.
     Additionally a bitmap variable called allow_sum_func is employed.
-    It is included into the thd->lex structure.
-    The bitmap contains 1 at n-th position if the set function happens
-    to occur under a construct of the n-th level subquery where usage
-    of set functions are allowed (i.e either in the SELECT list or
-    in the HAVING clause of the corresponding subquery)
+    It is included into the LEX structure.
+    The bitmap contains 1 at n-th position if the query block at level "n"
+    allows a set function reference (i.e the current resolver context for
+    the query block is either in the SELECT list or in the HAVING or
+    ORDER BY clause).
+
     Consider the query:
     @code
        SELECT SUM(t1.b) FROM t1 GROUP BY t1.a
          HAVING t1.a IN (SELECT t2.c FROM t2 WHERE AVG(t1.b) > 20) AND
                 t1.a > (SELECT MIN(t2.d) FROM t2);
     @endcode
-    allow_sum_func will contain: 
-    - for SUM(t1.b) - 1 at the first position 
-    - for AVG(t1.b) - 1 at the first position, 0 at the second position
-    - for MIN(t2.d) - 1 at the first position, 1 at the second position.
-
-  @param thd  reference to the thread context info
-  @param ref  location of the pointer to this item in the embedding expression
+    when the set functions are resolved, allow_sum_func will contain:
+    - for SUM(t1.b) - 1 at position 0 (SUM is in SELECT list)
+    - for AVG(t1.b) - 1 at position 0 (subquery is in HAVING clause)
+                      0 at position 1 (AVG is in WHERE clause)
+    - for MIN(t2.d) - 1 at position 0 (subquery is in HAVING clause)
+                      1 at position 1 (MIN is in SELECT list)
 
   @note
-    This function is to be called for any item created for a set function
-    object when the traversal of trees built for expressions used in the query
-    is performed at the phase of context analysis. This function is to
-    be invoked at the ascent of this traversal.
+    This function must be called for all set functions when expressions are
+    resolved. It must be invoked in postfix order, ie at the ascent of this
+    traversal.
 
-  @retval
-    TRUE   if an error is reported
-  @retval
-    FALSE  otherwise
+  @param thd  reference to the thread context info
+  @param ref  location of the pointer to this item in the containing expression
+
+  @returns false if success, true if error
 */
  
 bool Item_sum::check_sum_func(THD *thd, Item **ref)
 {
-  bool invalid= FALSE;
-  nesting_map allow_sum_func= thd->lex->allow_sum_func;
-  /*  
-    The value of max_arg_level is updated if an argument of the set function
-    contains a column reference resolved  against a subquery whose level is
-    greater than the current value of max_arg_level.
-    max_arg_level cannot be greater than nest level.
-    nest level is always >= 0  
-  */
-  if (nest_level == max_arg_level)
-  {
-    /*
-      The function must be aggregated in the current subquery, 
-      If it is there under a construct where it is not allowed 
-      we report an error. 
-    */ 
-    invalid= !(allow_sum_func & ((nesting_map)1 << max_arg_level));
-  }
-  else if (max_arg_level >= 0 ||
-           !(allow_sum_func & ((nesting_map)1 << nest_level)))
-  {
-    /*
-      The set function can be aggregated only in outer subqueries.
-      Try to find a subquery where it can be aggregated;
-      If we fail to find such a subquery report an error.
-    */
-    if (register_sum_func(thd, ref))
-      return TRUE;
-    invalid= aggr_level < 0 &&
-             !(allow_sum_func & ((nesting_map)1 << nest_level));
-    if (!invalid && thd->variables.sql_mode & MODE_ANSI)
-      invalid= aggr_level < 0 && max_arg_level < nest_level;
-  }
-  if (!invalid && aggr_level < 0)
-  {
-    aggr_level= nest_level;
-    aggr_sel= thd->lex->current_select();
-  }
+  const nesting_map allow_sum_func= thd->lex->allow_sum_func;
+  const nesting_map nest_level_map= (nesting_map)1 << base_select->nest_level;
+
+  DBUG_ASSERT(thd->lex->current_select() == base_select);
+  DBUG_ASSERT(aggr_select == NULL);
+
   /*
-    By this moment we either found a subquery where the set function is
-    to be aggregated  and assigned a value that is  >= 0 to aggr_level,
-    or set the value of 'invalid' to TRUE to report later an error. 
+    max_aggr_level is the level of the innermost qualifying query block of
+    the column references of this set function. If the set function contains
+    no column references, max_aggr_level is -1.
+    max_aggr_level cannot be greater than nest level of the current query block.
   */
-  /* 
-    Additionally we have to check whether possible nested set functions
-    are acceptable here: they are not, if the level of aggregation of
-    some of them is less than aggr_level.
+  DBUG_ASSERT(max_aggr_level <= base_select->nest_level);
+
+  if (base_select->nest_level == max_aggr_level)
+  {
+    /*
+      The function must be aggregated in the current query block,
+      and it must be referred within a clause where it is valid
+      (ie. HAVING clause, ORDER BY clause or SELECT list)
+    */ 
+    if ((allow_sum_func & nest_level_map) != 0)
+      aggr_select= base_select;
+  }
+  else if (max_aggr_level >= 0 || !(allow_sum_func & nest_level_map))
+  {
+    /*
+      Look for an outer query block where the set function should be
+      aggregated. If it finds such a query block, then aggr_select is set
+      to this query block
+    */
+    for (SELECT_LEX *sl= base_select->outer_select();
+         sl && sl->nest_level >= max_aggr_level;
+         sl= sl->outer_select() )
+    {
+      if (allow_sum_func & ((nesting_map)1 << sl->nest_level))
+        aggr_select= sl;
+    }
+  }
+  else // max_aggr_level < 0
+  {
+    /*
+      Set function without column reference is aggregated in innermost query,
+      without any validation.
+    */
+    aggr_select= base_select;
+  }
+
+  if (aggr_select == NULL &&
+      (allow_sum_func & nest_level_map) != 0 &&
+      !(thd->variables.sql_mode & MODE_ANSI))
+    aggr_select= base_select;
+
+  /*
+    At this place a query block where the set function is to be aggregated
+    has been found and is assigned to aggr_select, or aggr_select is NULL to
+    indicate an invalid set function.
+
+    Additionally, check whether possible nested set functions are acceptable
+    here: their aggregation level must be greater than this set function's
+    aggregation level.
   */
-  if (!invalid) 
-    invalid= aggr_level <= max_sum_func_level;
-  if (invalid)  
+  if (aggr_select == NULL || aggr_select->nest_level <= max_sum_func_level)
   {
     my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
-    return TRUE;
+    return true;
+  }
+
+  if (aggr_select != base_select)
+  {
+    ref_by= ref;
+    /*
+      Add the set function to the list inner_sum_func_list for the
+      aggregating query block.
+
+      @note
+        Now we 'register' only set functions that are aggregated in outer
+        query blocks. Actually it makes sense to link all set functions for
+        a query block in one chain. It would simplify the process of 'splitting'
+        for set functions.
+    */
+    if (!aggr_select->inner_sum_func_list)
+      next= this;
+    else
+    {
+      next= aggr_select->inner_sum_func_list->next;
+      aggr_select->inner_sum_func_list->next= this;
+    }
+    aggr_select->inner_sum_func_list= this;
+    aggr_select->with_sum_func= true;
+
+    /* 
+      Mark subqueries as containing set function all the way up to the
+      set function's aggregation query block.
+      Note that we must not mark the Item of calculation context itself
+      because with_sum_func on the aggregation query block is already set above.
+
+      with_sum_func being set for an Item means that this Item refers 
+      (somewhere in it, e.g. one of its arguments if it's a function) directly
+      or indirectly to a set function that is calculated in a
+      context "outside" of the Item (e.g. in the current or outer query block).
+
+      with_sum_func being set for a query block means that this query block
+      has set functions directly referenced (i.e. not through a subquery).
+    */
+    for (SELECT_LEX *sl= base_select;
+         sl && sl != aggr_select && sl->master_unit()->item;
+         sl= sl->outer_select())
+      sl->master_unit()->item->with_sum_func= true;
+
+    base_select->mark_as_dependent(aggr_select);
   }
 
   if (in_sum_func)
   {
     /*
       If the set function is nested adjust the value of
-      max_sum_func_level for the nesting set function.
-      We take into account only enclosed set functions that are to be 
-      aggregated on the same level or above of the nest level of 
-      the enclosing set function.
+      max_sum_func_level for the containing set function.
+      We take into account only set functions that are to be aggregated on
+      the same level or outer compared to the nest level of the containing
+      set function.
       But we must always pass up the max_sum_func_level because it is
-      the maximum nested level of all directly and indirectly enclosed
+      the maximum nest level of all directly and indirectly contained
       set functions. We must do that even for set functions that are
-      aggregated inside of their enclosing set function's nest level
-      because the enclosing function may contain another enclosing
+      aggregated inside of their containing set function's nest level
+      because the containing function may contain another containing
       function that is to be aggregated outside or on the same level
       as its parent's nest level.
     */
-    if (in_sum_func->nest_level >= aggr_level)
-      set_if_bigger(in_sum_func->max_sum_func_level, aggr_level);
+    if (in_sum_func->base_select->nest_level >= aggr_select->nest_level)
+      set_if_bigger(in_sum_func->max_sum_func_level, aggr_select->nest_level);
     set_if_bigger(in_sum_func->max_sum_func_level, max_sum_func_level);
   }
 
-  aggr_sel->set_agg_func_used(true);
+  aggr_select->set_agg_func_used(true);
   update_used_tables();
   thd->lex->in_sum_func= in_sum_func;
-  return FALSE;
-}
 
-/**
-  Attach a set function to the subquery where it must be aggregated.
-
-    The function looks for an outer subquery where the set function must be
-    aggregated. If it finds such a subquery then aggr_level is set to
-    the nest level of this subquery and the item for the set function
-    is added to the list of set functions used in nested subqueries
-    inner_sum_func_list defined for each subquery. When the item is placed 
-    there the field 'ref_by' is set to ref.
-
-  @note
-    Now we 'register' only set functions that are aggregated in outer
-    subqueries. Actually it makes sense to link all set function for
-    a subquery in one chain. It would simplify the process of 'splitting'
-    for set functions.
-
-  @param thd  reference to the thread context info
-  @param ref  location of the pointer to this item in the embedding expression
-
-  @retval
-    FALSE  if the executes without failures (currently always)
-  @retval
-    TRUE   otherwise
-*/  
-
-bool Item_sum::register_sum_func(THD *thd, Item **ref)
-{
-  nesting_map allow_sum_func= thd->lex->allow_sum_func;
-
-  // Find the outer-most query block where this function can be aggregated.
-
-  for (SELECT_LEX *sl= thd->lex->current_select()->outer_select() ;
-       sl && sl->nest_level >= max_arg_level;
-       sl= sl->outer_select() )
-  {
-    if (allow_sum_func & ((nesting_map)1 << sl->nest_level))
-    {
-      aggr_level= sl->nest_level;
-      aggr_sel= sl;
-    }
-  }
-
-  if (aggr_level >= 0)
-  {
-    ref_by= ref;
-    /* Add the object to the list of registered objects assigned to aggr_sel */
-    if (!aggr_sel->inner_sum_func_list)
-      next= this;
-    else
-    {
-      next= aggr_sel->inner_sum_func_list->next;
-      aggr_sel->inner_sum_func_list->next= this;
-    }
-    aggr_sel->inner_sum_func_list= this;
-    aggr_sel->with_sum_func= true;
-
-    /* 
-      Mark Item_subselect(s) as containing aggregate function all the way up
-      to aggregate function's calculation context.
-      Note that we must not mark the Item of calculation context itself
-      because with_sum_func on the calculation context SELECT_LEX is
-      already set above.
-
-      with_sum_func being set for an Item means that this Item refers 
-      (somewhere in it, e.g. one of its arguments if it's a function) directly
-      or through intermediate items to an aggregate function that is calculated
-      in a context "outside" of the Item (e.g. in the current or outer select).
-
-      with_sum_func being set for an SELECT_LEX means that this query block
-      has aggregate functions directly referenced (i.e. not through a subquery).
-    */
-    for (SELECT_LEX *sl= thd->lex->current_select(); 
-         sl && sl != aggr_sel && sl->master_unit()->item;
-         sl= sl->outer_select())
-      sl->master_unit()->item->with_sum_func= true;
-  }
-  thd->lex->current_select()->mark_as_dependent(aggr_sel);
   return false;
 }
 
@@ -362,8 +338,8 @@ Item_sum::Item_sum(const POS &pos, PT_item_list *opt_list)
 Item_sum::Item_sum(THD *thd, Item_sum *item):
   Item_result_field(thd, item),
   next(NULL),
-  aggr_sel(item->aggr_sel),
-  nest_level(item->nest_level), aggr_level(item->aggr_level),
+  base_select(item->base_select),
+  aggr_select(item->aggr_select),
   quick_group(item->quick_group),
   arg_count(item->arg_count),
   used_tables_cache(item->used_tables_cache),
@@ -445,20 +421,19 @@ bool Item_sum::walk(Item_processor processor, enum_walk walk, uchar *argument)
 
 /**
   Remove the item from the list of inner aggregation functions in the
-  SELECT_LEX it was moved to by Item_sum::register_sum_func().
+  SELECT_LEX it was moved to by Item_sum::check_sum_func().
 
-  This is done to undo some of the effects of
-  Item_sum::register_sum_func() so that the item may be removed from
-  the query.
+  This is done to undo some of the effects of Item_sum::check_sum_func() so
+  that the item may be removed from the query.
 
-  @note This doesn't completely undo Item_sum::register_sum_func(), as
+  @note This doesn't completely undo Item_sum::check_sum_func(), as
   with_sum_func information is left untouched. This means that if this
-  item is removed, aggr_sel and all Item_subselects between aggr_sel
+  item is removed, aggr_select and all subquery items between aggr_select
   and this item may be left with with_sum_func set to true, even if
   there are no aggregation functions. To our knowledge, this has no
   impact on the query result.
 
-  @see Item_sum::register_sum_func()
+  @see Item_sum::check_sum_func()
   @see remove_redundant_subquery_clauses()
  */
 bool Item_sum::clean_up_after_removal(uchar *arg)
@@ -473,13 +448,13 @@ bool Item_sum::clean_up_after_removal(uchar *arg)
     2) there is no inner_sum_func_list, or
     3) the item is not an element in the inner_sum_func_list.
   */
-  if (!fixed ||                                                    // 1
-      aggr_sel == NULL || aggr_sel->inner_sum_func_list == NULL || // 2
-      next == NULL)                                                // 3
+  if (!fixed ||                                                          // 1
+      aggr_select == NULL || aggr_select->inner_sum_func_list == NULL || // 2
+      next == NULL)                                                      // 3
     return false;
 
   if (next == this)
-    aggr_sel->inner_sum_func_list= NULL;
+    aggr_select->inner_sum_func_list= NULL;
   else
   {
     Item_sum *prev;
@@ -488,8 +463,8 @@ bool Item_sum::clean_up_after_removal(uchar *arg)
     prev->next= next;
     next= NULL;
 
-    if (aggr_sel->inner_sum_func_list == this)
-      aggr_sel->inner_sum_func_list= prev;
+    if (aggr_select->inner_sum_func_list == this)
+      aggr_select->inner_sum_func_list= prev;
   }
 
   return false;
@@ -544,7 +519,7 @@ bool Item_sum::aggregate_check_distinct(uchar *arg)
     list. But in that case DISTINCT is redundant and we have removed it in
     SELECT_LEX::prepare().
   */
-  if (aggr_sel == dc->select)
+  if (aggr_select == dc->select)
     return true;
 
   return false;
@@ -559,10 +534,10 @@ bool Item_sum::aggregate_check_group(uchar *arg)
   if (gc->is_stopped(this))
     return false;
 
-  if (aggr_sel != gc->select)
+  if (aggr_select != gc->select)
   {
     /*
-      If aggr_sel is inner to gc's select_lex, this aggregate function might
+      If aggr_select is inner to gc's select_lex, this aggregate function might
       reference some columns of gc, so we need to analyze its arguments.
       If it is outer, analyzing its arguments should not cause a problem, we
       will meet outer references which we will ignore.
@@ -631,10 +606,9 @@ void Item_sum::update_used_tables ()
      outer tables, even if its arguments args[] do not explicitly
      reference an outer table, like COUNT (*) or COUNT(123).
     */
-    used_tables_cache|= aggr_level == nest_level ?
-      ((table_map)1 << aggr_sel->leaf_table_count) - 1 :
+    used_tables_cache|= aggr_select == base_select ?
+      ((table_map)1 << aggr_select->leaf_table_count) - 1 :
       OUTER_REF_TABLE_BIT;
-
   }
 }
 
@@ -823,13 +797,15 @@ bool Aggregator_distinct::setup(THD *thd)
   if (tree || table || tmp_table_param)
     return FALSE;
 
+  DBUG_ASSERT(thd->lex->current_select() == item_sum->aggr_select);
+
   if (item_sum->setup(thd))
     return TRUE;
   if (item_sum->sum_func() == Item_sum::COUNT_FUNC || 
       item_sum->sum_func() == Item_sum::COUNT_DISTINCT_FUNC)
   {
     List<Item> list;
-    SELECT_LEX *select_lex= thd->lex->current_select();
+    SELECT_LEX *select_lex= item_sum->aggr_select;
 
     if (!(tmp_table_param= new (thd->mem_root) Temp_table_param))
       return TRUE;
@@ -3617,10 +3593,12 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
 
 bool Item_func_group_concat::setup(THD *thd)
 {
-  List<Item> list;
-  SELECT_LEX *select_lex= thd->lex->current_select();
-  const bool order_or_distinct= MY_TEST(arg_count_order > 0 || distinct);
   DBUG_ENTER("Item_func_group_concat::setup");
+
+  List<Item> list;
+  DBUG_ASSERT(thd->lex->current_select() == aggr_select);
+
+  const bool order_or_distinct= MY_TEST(arg_count_order > 0 || distinct);
 
   /*
     Currently setup() can be called twice. Please add
@@ -3661,7 +3639,7 @@ bool Item_func_group_concat::setup(THD *thd)
                   context->table_list, list, all_fields, order_array.begin()))
     DBUG_RETURN(TRUE);
 
-  count_field_types(select_lex, tmp_table_param, all_fields, false, true);
+  count_field_types(aggr_select, tmp_table_param, all_fields, false, true);
   tmp_table_param->force_copy_fields= force_copy_fields;
   DBUG_ASSERT(table == 0);
   if (order_or_distinct)
@@ -3692,7 +3670,7 @@ bool Item_func_group_concat::setup(THD *thd)
   */
   if (!(table= create_tmp_table(thd, tmp_table_param, all_fields,
                                 NULL, false, true,
-                                select_lex->active_options(),
+                                aggr_select->active_options(),
                                 HA_POS_ERROR, (char*) "")))
     DBUG_RETURN(TRUE);
   table->file->extra(HA_EXTRA_NO_ROWS);
