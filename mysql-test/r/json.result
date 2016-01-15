@@ -13489,3 +13489,13 @@ DROP TABLE t1, t2;
 DROP FUNCTION f1;
 DROP FUNCTION f2;
 DROP FUNCTION f3;
+# Bug#22522073: Assertion failed: !thd->is_error() in optimize_cond()
+CREATE TABLE s(a INTEGER, b CHAR(1));
+INSERT INTO s VALUES (1,0), (1,0), (1,0);
+CREATE TABLE t(c JSON);
+INSERT INTO t VALUES (), (), ();
+SELECT 1
+FROM s WHERE a NOT IN (SELECT 1
+FROM s WHERE (SELECT c FROM t) = b);
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE s, t;

@@ -6206,6 +6206,20 @@ DROP FUNCTION f1;
 DROP FUNCTION f2;
 DROP FUNCTION f3;
 
+--echo # Bug#22522073: Assertion failed: !thd->is_error() in optimize_cond()
+
+CREATE TABLE s(a INTEGER, b CHAR(1));
+INSERT INTO s VALUES (1,0), (1,0), (1,0);
+
+CREATE TABLE t(c JSON);
+INSERT INTO t VALUES (), (), ();
+
+--error ER_SUBQUERY_NO_1_ROW
+SELECT 1
+FROM s WHERE a NOT IN (SELECT 1
+                       FROM s WHERE (SELECT c FROM t) = b);
+
+DROP TABLE s, t;
 
 # Local Variables:
 # mode: sql
