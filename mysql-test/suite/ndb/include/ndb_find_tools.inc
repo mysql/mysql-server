@@ -12,10 +12,10 @@ my $basedir = dirname($mysql_test_dir);
 # directory. And we install "usr/share/mysql-test". Moving up two
 # more directory relative to "mysql-test" gives us a usable base
 # directory for RPM installs.
-#if (! -d "$basedir/sql" and ! -d "$basedir/bin" )
-#{
-#  $basedir= dirname($basedir);
-#}
+if (! -d "$basedir/sql" and ! -d "$basedir/bin" )
+{
+  $basedir= dirname($basedir);
+}
 my $bindir = $ENV{MTR_BINDIR} || $basedir; # Out of source set MTR_BINDIR
 
 my $NDBINFO_SELECT_ALL =  my_find_bin($bindir,
