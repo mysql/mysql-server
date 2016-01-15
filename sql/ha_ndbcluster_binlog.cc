@@ -40,6 +40,8 @@
 #include <ndbapi/NdbDictionary.hpp>
 #include <ndbapi/ndb_cluster_connection.hpp>
 
+#include <my_pthread.h>
+
 extern my_bool opt_ndb_log_orig;
 extern my_bool opt_ndb_log_bin;
 extern my_bool opt_ndb_log_update_as_write;
@@ -6478,7 +6480,7 @@ restart_cluster_failure:
       if (is_stop_requested())
         goto err;
 
-      sched_yield();
+      pthread_yield();
       pthread_mutex_lock(&injector_mutex);
       schema_res= s_ndb->pollEvents(100, &schema_gci);
       pthread_mutex_unlock(&injector_mutex);
@@ -6492,7 +6494,7 @@ restart_cluster_failure:
         if (is_stop_requested())
           goto err;
 
-        sched_yield();
+        pthread_yield();
         pthread_mutex_lock(&injector_mutex);
         res= i_ndb->pollEvents(10, &gci);
         pthread_mutex_unlock(&injector_mutex);
@@ -6603,12 +6605,12 @@ restart_cluster_failure:
      * that another thread waiting for the mutex will immeditately
      * get the lock when unlocked by this thread. Thus this thread
      * may lock it again rather soon and starve the waiting thread.
-     * To avoid this, sched_yield() is used to give any waiting
+     * To avoid this, pthread_yield() is used to give any waiting
      * threads a chance to run and grab the injector_mutex when
      * it is available. The same pattern is used multiple places
      * in the BI-thread where there are wait-loops holding this mutex.
      */
-    sched_yield();
+    pthread_yield();
 
     /* Can't hold injector_mutex too long, so wait for events in 10ms steps */
     int tot_poll_wait= 10;
@@ -6675,7 +6677,7 @@ restart_cluster_failure:
                     (uint)(ndb_latest_received_binlog_epoch));
         thd->proc_info= buf;
 
-        sched_yield();
+        pthread_yield();
         pthread_mutex_lock(&injector_mutex);
         schema_res= s_ndb->pollEvents(10, &schema_epoch);
         pthread_mutex_unlock(&injector_mutex);
