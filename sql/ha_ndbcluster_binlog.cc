@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3841,9 +3841,9 @@ public:
        * Once restarted, a new schema_ndb is recreated and ndb_binlog_setup()
        * is allowed to do its tasks.
        */
-      pthread_mutex_lock(&injector_mutex);
+      native_mutex_lock(&injector_mutex);
       schema_ndb= NULL;
-      pthread_mutex_unlock(&injector_mutex);
+      native_mutex_unlock(&injector_mutex);
 
       /* release the ndb_schema_share */
       native_mutex_lock(&ndb_schema_share_mutex);
