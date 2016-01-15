@@ -9371,7 +9371,7 @@ bool resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     {
       Json_wrapper wr;
       if (item->val_json(&wr))
-        break;
+        return true;
       if (item->null_value)
         new_item= new Item_null(item->item_name);
       else

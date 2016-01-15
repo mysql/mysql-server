@@ -3353,6 +3353,20 @@ DELETE FROM t WHERE j IN (SELECT CAST('not json' AS JSON) FROM DUAL WHERE 1);
 SELECT * FROM t;
 DROP TABLE t;
 
+--echo # Bug#22522073: Assertion failed: !thd->is_error() in optimize_cond()
+
+CREATE TABLE s(a INTEGER, b CHAR(1));
+INSERT INTO s VALUES (1,0), (1,0), (1,0);
+
+CREATE TABLE t(c JSON);
+INSERT INTO t VALUES (), (), ();
+
+--error ER_SUBQUERY_NO_1_ROW
+SELECT 1
+FROM s WHERE a NOT IN (SELECT 1
+                       FROM s WHERE (SELECT c FROM t) = b);
+
+DROP TABLE s, t;
 
 --echo #
 --echo # WL#9191: JSON_PRETTY function

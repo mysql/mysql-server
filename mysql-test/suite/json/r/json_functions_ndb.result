@@ -9665,6 +9665,18 @@ j
 {"a": "b"}
 {"a": "b"}
 DROP TABLE t;
+# Bug#22522073: Assertion failed: !thd->is_error() in optimize_cond()
+CREATE TABLE s(a INTEGER, b CHAR(1));
+INSERT INTO s VALUES (1,0), (1,0), (1,0);
+CREATE TABLE t(c JSON);
+Warnings:
+Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+INSERT INTO t VALUES (), (), ();
+SELECT 1
+FROM s WHERE a NOT IN (SELECT 1
+FROM s WHERE (SELECT c FROM t) = b);
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE s, t;
 #
 # WL#9191: JSON_PRETTY function
 #
