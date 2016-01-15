@@ -1,7 +1,7 @@
 #ifndef AUTH_COMMON_INCLUDED
 #define AUTH_COMMON_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "sql_string.h"                         /* String */
 #include "table.h"                              /* TABLE_LIST */
 #include "field.h"
+#include <set>
 
 /* Forward Declarations */
 class LEX_COLUMN;
@@ -549,7 +550,8 @@ bool acl_check_host(const char *host, const char *ip);
 #define ACCOUNT_LOCK_ATTR       (1L << 6)    /* update account lock status */
 
 /* rewrite CREATE/ALTER/GRANT user */
-void mysql_rewrite_create_alter_user(THD *thd, String *rlb);
+void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
+                                     std::set<LEX_USER *> *users_not_to_log= NULL);
 void mysql_rewrite_grant(THD *thd, String *rlb);
 
 /* sql_user */

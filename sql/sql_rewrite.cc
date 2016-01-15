@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -344,7 +344,8 @@ static void mysql_rewrite_set(THD *thd, String *rlb)
   @param rlb      An empty String object to put the rewritten query in.
 */
 
-void mysql_rewrite_create_alter_user(THD *thd, String *rlb)
+void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
+                                     std::set<LEX_USER *> *users_not_to_log)
 {
   LEX                      *lex= thd->lex;
   LEX_USER                 *user_name, *tmp_user_name;
@@ -366,6 +367,9 @@ void mysql_rewrite_create_alter_user(THD *thd, String *rlb)
 
   while ((tmp_user_name= user_list++))
   {
+    if (users_not_to_log &&
+        users_not_to_log->find(tmp_user_name) != users_not_to_log->end())
+      continue;
     if ((user_name= get_current_user(thd, tmp_user_name)))
     {
       if (opt_log_builtin_as_identified_by_password &&
