@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,6 +39,8 @@
 #include "ha_ndbcluster_binlog.h"
 #include <ndbapi/NdbDictionary.hpp>
 #include <ndbapi/ndb_cluster_connection.hpp>
+
+#include <my_pthread.h>
 
 extern my_bool opt_ndb_log_orig;
 extern my_bool opt_ndb_log_bin;
@@ -6478,10 +6480,12 @@ restart_cluster_failure:
       if (is_stop_requested())
         goto err;
 
+      pthread_yield();
       pthread_mutex_lock(&injector_mutex);
       schema_res= s_ndb->pollEvents(100, &schema_gci);
       pthread_mutex_unlock(&injector_mutex);
     } while (schema_gci == 0 || ndb_latest_received_binlog_epoch == schema_gci);
+
     if (ndb_binlog_running)
     {
       Uint64 gci= i_ndb->getLatestGCI();
@@ -6489,6 +6493,8 @@ restart_cluster_failure:
       {
         if (is_stop_requested())
           goto err;
+
+        pthread_yield();
         pthread_mutex_lock(&injector_mutex);
         res= i_ndb->pollEvents(10, &gci);
         pthread_mutex_unlock(&injector_mutex);
@@ -6591,7 +6597,21 @@ restart_cluster_failure:
     */
     thd->proc_info= "Waiting for event from ndbcluster";
     thd->set_time();
-    
+
+    /**
+     * The binlog-thread holds the injector_mutex when waiting for
+     * pollEvents() - which is >99% of the elapsed time. As the
+     * pthread mutex guarantees no 'fairness', there is no guarantee
+     * that another thread waiting for the mutex will immeditately
+     * get the lock when unlocked by this thread. Thus this thread
+     * may lock it again rather soon and starve the waiting thread.
+     * To avoid this, pthread_yield() is used to give any waiting
+     * threads a chance to run and grab the injector_mutex when
+     * it is available. The same pattern is used multiple places
+     * in the BI-thread where there are wait-loops holding this mutex.
+     */
+    pthread_yield();
+
     /* Can't hold injector_mutex too long, so wait for events in 10ms steps */
     int tot_poll_wait= 10;
 
@@ -6656,6 +6676,8 @@ restart_cluster_failure:
                     (uint)(ndb_latest_received_binlog_epoch >> 32),
                     (uint)(ndb_latest_received_binlog_epoch));
         thd->proc_info= buf;
+
+        pthread_yield();
         pthread_mutex_lock(&injector_mutex);
         schema_res= s_ndb->pollEvents(10, &schema_epoch);
         pthread_mutex_unlock(&injector_mutex);
