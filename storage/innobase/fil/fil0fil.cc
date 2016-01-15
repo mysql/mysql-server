@@ -3785,6 +3785,7 @@ fil_ibd_open(
 	RemoteDatafile	df_remote;	/* remote location */
 	ulint		tablespaces_found = 0;
 	ulint		valid_tablespaces_found = 0;
+	bool		for_import = (purpose == FIL_TYPE_IMPORT);
 
 	ut_ad(!fix_dict || rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
@@ -3910,13 +3911,16 @@ fil_ibd_open(
 	/* Read and validate the first page of these three tablespace
 	locations, if found. */
 	valid_tablespaces_found +=
-		(df_remote.validate_to_dd(id, flags) == DB_SUCCESS) ? 1 : 0;
+		(df_remote.validate_to_dd(id, flags, for_import)
+			== DB_SUCCESS) ? 1 : 0;
 
 	valid_tablespaces_found +=
-		(df_default.validate_to_dd(id, flags) == DB_SUCCESS) ? 1 : 0;
+		(df_default.validate_to_dd(id, flags, for_import)
+			== DB_SUCCESS) ? 1 : 0;
 
 	valid_tablespaces_found +=
-		(df_dict.validate_to_dd(id, flags) == DB_SUCCESS) ? 1 : 0;
+		(df_dict.validate_to_dd(id, flags, for_import)
+			== DB_SUCCESS) ? 1 : 0;
 
 	/* Make sense of these three possible locations.
 	First, bail out if no tablespace files were found. */
@@ -4103,7 +4107,7 @@ skip_validate:
 
 		/* For encryption tablespace, initialize encryption
 		information.*/
-		if (err == DB_SUCCESS && is_encrypted) {
+		if (err == DB_SUCCESS && is_encrypted && !for_import) {
 			Datafile& df_current = df_remote.is_open() ?
 				df_remote: df_dict.is_open() ?
 				df_dict : df_default;

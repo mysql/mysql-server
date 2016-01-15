@@ -8859,6 +8859,8 @@ Encryption::encrypt(
 	case Encryption::AES: {
 		lint			elen;
 
+		ut_ad(m_klen == ENCRYPTION_KEY_LEN);
+
 		elen = my_aes_encrypt(
 			src + FIL_PAGE_DATA,
 			static_cast<uLong>(main_len),
@@ -9071,6 +9073,8 @@ Encryption::decrypt(
 		/* First decrypt the last 2 blocks data of data, since
 		data is no block aligned. */
 		if (remain_len != 0) {
+			ut_ad(m_klen == ENCRYPTION_KEY_LEN);
+
 			remain_len = MY_AES_BLOCK_SIZE * 2;
 
 			/* Copy the last 2 blocks. */

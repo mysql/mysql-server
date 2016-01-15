@@ -387,12 +387,14 @@ space ID and flags.  The file should exist and be successfully opened
 in order for this function to validate it.
 @param[in]	space_id	The expected tablespace ID.
 @param[in]	flags		The expected tablespace flags.
+@param[in]	for_import	if it is for importing
 @retval DB_SUCCESS if tablespace is valid, DB_ERROR if not.
 m_is_valid is also set true on success, else false. */
 dberr_t
 Datafile::validate_to_dd(
-	ulint	space_id,
-	ulint	flags)
+	ulint		space_id,
+	ulint		flags,
+	bool		for_import)
 {
 	dberr_t err;
 
@@ -403,7 +405,7 @@ Datafile::validate_to_dd(
 	/* Validate this single-table-tablespace with the data dictionary,
 	but do not compare the DATA_DIR flag, in case the tablespace was
 	remotely located. */
-	err = validate_first_page();
+	err = validate_first_page(0, for_import);
 	if (err != DB_SUCCESS) {
 		return(err);
 	}
@@ -447,7 +449,7 @@ Datafile::validate_for_recovery()
 	ut_ad(is_open());
 	ut_ad(!srv_read_only_mode);
 
-	err = validate_first_page();
+	err = validate_first_page(0, false);
 
 	switch (err) {
 	case DB_SUCCESS:
@@ -459,7 +461,7 @@ Datafile::validate_for_recovery()
 		}
 		/* Free the previously read first page and then re-validate. */
 		free_first_page();
-		err = validate_first_page();
+		err = validate_first_page(0, false);
 		if (err == DB_SUCCESS) {
 			std::string filepath = fil_space_get_first_path(
 				m_space_id);
@@ -520,7 +522,7 @@ Datafile::validate_for_recovery()
 
 		/* Free the previously read first page and then re-validate. */
 		free_first_page();
-		err = validate_first_page();
+		err = validate_first_page(0, false);
 	}
 
 	if (err == DB_SUCCESS) {
@@ -535,12 +537,14 @@ tablespace is opened.  This occurs before the fil_space_t is created
 so the Space ID found here must not already be open.
 m_is_valid is set true on success, else false.
 @param[out]	flush_lsn	contents of FIL_PAGE_FILE_FLUSH_LSN
+@param[in]	for_import	if it is for importing
 (only valid for the first file of the system tablespace)
 @retval DB_SUCCESS on if the datafile is valid
 @retval DB_CORRUPTION if the datafile is not readable
 @retval DB_TABLESPACE_EXISTS if there is a duplicate space_id */
 dberr_t
-Datafile::validate_first_page(lsn_t*	flush_lsn)
+Datafile::validate_first_page(lsn_t*	flush_lsn,
+			      bool	for_import)
 {
 	char*		prev_name;
 	char*		prev_filepath;
@@ -631,8 +635,8 @@ Datafile::validate_first_page(lsn_t*	flush_lsn)
 
 	/* For encrypted tablespace, check the encryption info in the
 	first page can be decrypt by master key, otherwise, this table
-	can't be open. */
-	if (FSP_FLAGS_GET_ENCRYPTION(m_flags)) {
+	can't be open. And for importing, we skip checking it. */
+	if (FSP_FLAGS_GET_ENCRYPTION(m_flags) && !for_import) {
 		m_encryption_key = static_cast<byte*>(
 			ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
 		m_encryption_iv = static_cast<byte*>(
