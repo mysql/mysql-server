@@ -2092,8 +2092,13 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       be useful to ensure the Retrieved_Gtid_Set behavior when auto
       positioning is disabled (we could have transactions spanning multiple
       relay log files in this case).
+      We will skip this initialization if relay_log_recovery is set in order
+      to save time, as neither the GTIDs nor the transaction_parser state
+      would be useful when the relay log will be cleaned up later when calling
+      init_recovery.
     */
-    if (!gtid_retrieved_initialized &&
+    if (!is_relay_log_recovery &&
+        !gtid_retrieved_initialized &&
         relay_log.init_gtid_sets(&gtid_set, NULL,
                                  opt_slave_sql_verify_checksum,
                                  true/*true=need lock*/,
