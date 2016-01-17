@@ -27,6 +27,7 @@
 #include "sql_class.h"                 // THD
 #include "sql_parse.h"                 // add_to_list
 #include "parse_tree_helpers.h"
+#include "prealloced_array.h"          // Prealloced_array
 #include "sql_hints.yy.h"
 #include "sql_lex_hints.h"
 #include "sql_yacc.h"
@@ -36,6 +37,8 @@
 #include "sql_table.h"                 // primary_key_name
 #include "sql_insert.h"                // Sql_cmd_insert_base
 #include "lex_token.h"
+
+#include <algorithm>                   // find_if, iter_swap, reverse
 
 
 extern int HINT_PARSER_parse(THD *thd,
@@ -2840,14 +2843,20 @@ Index_hint::print(THD *thd, String *str)
 }
 
 
-static void print_table_array(THD *thd, String *str, TABLE_LIST **table, 
-                              TABLE_LIST **end, enum_query_type query_type)
-{
-  (*table)->print(thd, str, query_type);
+typedef Prealloced_array<TABLE_LIST *, 8> Table_array;
 
-  for (TABLE_LIST **tbl= table + 1; tbl < end; tbl++)
+
+static void print_table_array(THD *thd, String *str, const Table_array &tables,
+                              enum_query_type query_type)
+{
+  DBUG_ASSERT(!tables.empty());
+
+  Table_array::const_iterator it= tables.begin();
+  (*it)->print(thd, str, query_type);
+
+  while (++it != tables.end())
   {
-    TABLE_LIST *curr= *tbl;
+    TABLE_LIST *curr= *it;
     // Print the join operator which relates this table to the previous one
     if (curr->outer_join)
     {
@@ -2892,52 +2901,52 @@ static void print_join(THD *thd,
 {
   /* List is reversed => we should reverse it before using */
   List_iterator_fast<TABLE_LIST> ti(*tables);
-  TABLE_LIST **table;
-  uint non_const_tables= 0;
+
+  /*
+    If the QT_NO_DATA_EXPANSION flag is specified, we print the
+    original table list, including constant tables that have been
+    optimized away, as the constant tables may be referenced in the
+    expression printed by Item_field::print() when this flag is given.
+    Otherwise, only non-const tables are printed.
+
+    Example:
+
+    Original SQL:
+    select * from (select 1) t
+
+    Printed without QT_NO_DATA_EXPANSION:
+    select '1' AS `1` from dual
+
+    Printed with QT_NO_DATA_EXPANSION:
+    select `t`.`1` from (select 1 AS `1`) `t`
+  */
+  const bool print_const_tables= (query_type & QT_NO_DATA_EXPANSION);
+  Table_array tables_to_print(PSI_NOT_INSTRUMENTED);
 
   for (TABLE_LIST *t= ti++; t ; t= ti++)
-    if (!t->optimized_away)
-      non_const_tables++;
-  if (!non_const_tables)
+    if (print_const_tables || !t->optimized_away)
+      if (tables_to_print.push_back(t))
+        return;                               /* purecov: inspected */
+
+  if (tables_to_print.empty())
   {
     str->append(STRING_WITH_LEN("dual"));
     return; // all tables were optimized away
   }
-  ti.rewind();
 
-  if (!(table= (TABLE_LIST **)thd->alloc(sizeof(TABLE_LIST*) *
-                                                non_const_tables)))
-    return;  // out of memory
-
-  TABLE_LIST *tmp, **t= table + (non_const_tables - 1);
-  while ((tmp= ti++))
-  {
-    if (tmp->optimized_away)
-      continue;
-    *t--= tmp;
-  }
+  std::reverse(tables_to_print.begin(), tables_to_print.end());
 
   /*
     If the first table is a semi-join nest, swap it with something that is
     not a semi-join nest. This is necessary because "A SEMIJOIN B" is not the
     same as "B SEMIJOIN A".
   */
-  if ((*table)->sj_cond())
-  {
-    TABLE_LIST **end= table + non_const_tables;
-    for (TABLE_LIST **t2= table; t2!=end; t2++)
-    {
-      if (!(*t2)->sj_cond())
-      {
-        TABLE_LIST *tmp= *t2;
-        *t2= *table;
-        *table= tmp;
-        break;
-      }
-    }
-  }
-  DBUG_ASSERT(non_const_tables >= 1);
-  print_table_array(thd, str, table, table + non_const_tables, query_type);
+  auto it= std::find_if(tables_to_print.begin(), tables_to_print.end(),
+                        [] (const TABLE_LIST *t) { return !t->sj_cond(); });
+  if (it != tables_to_print.end())
+    std::iter_swap(tables_to_print.begin(), it);
+
+  print_table_array(thd, str, tables_to_print, query_type);
 }
 
 

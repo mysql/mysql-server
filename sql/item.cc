@@ -4402,7 +4402,8 @@ Item_param::eq(const Item *arg, bool binary_cmp) const
 
 void Item_param::print(String *str, enum_query_type query_type)
 {
-  if (state == NO_VALUE || query_type & QT_NORMALIZED_FORMAT)
+  if (state == NO_VALUE ||
+      query_type & (QT_NORMALIZED_FORMAT | QT_NO_DATA_EXPANSION))
   {
     str->append('?');
   }
@@ -7828,7 +7829,8 @@ Item *Item_field::update_value_transformer(uchar *select_arg)
 
 void Item_field::print(String *str, enum_query_type query_type)
 {
-  if (field && field->table->const_table)
+  if (field && field->table->const_table &&
+      !(query_type & QT_NO_DATA_EXPANSION))
   {
     char buff[MAX_FIELD_WIDTH];
     String tmp(buff,sizeof(buff),str->charset());
