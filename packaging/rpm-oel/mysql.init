@@ -98,10 +98,12 @@ start(){
 	    chmod 0751 "$datadir"
 	    if [ -x /sbin/restorecon ] ; then
 		/sbin/restorecon "$datadir"
-		if [ -x /usr/sbin/semanage -a -d /var/lib/mysql -a -d /var/lib/mysql-files ] ; then
-		    /usr/sbin/semanage fcontext -a -e /var/lib/mysql /var/lib/mysql-files >/dev/null 2>&1
-		    /sbin/restorecon /var/lib/mysql-files
-		fi
+		for dir in /var/lib/mysql-files /var/lib/mysql-keyring ; do
+		    if [ -x /usr/sbin/semanage -a -d /var/lib/mysql -a -d $dir ] ; then
+			/usr/sbin/semanage fcontext -a -e /var/lib/mysql $dir >/dev/null 2>&1
+			/sbin/restorecon $dir
+		    fi
+		done
 	    fi
 	    # Now create the database
 	    action $"Initializing MySQL database: " /usr/sbin/mysqld --initialize --datadir="$datadir" --user=mysql
