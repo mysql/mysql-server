@@ -964,13 +964,6 @@ find_first_relay_log_with_rotate_from_master(Relay_log_info* rli)
   char master_log_file[FN_REFLEN];
   my_off_t master_log_pos= 0;
 
-  if (channel_map.is_group_replication_channel_name(rli->get_channel()))
-  {
-    sql_print_information("Relay log recovery skipped for group replication "
-                          "channel.");
-    goto err;
-  }
-
   for (pos= rli->relay_log.find_log_pos(&linfo, NULL, true);
        !pos;
        pos= rli->relay_log.find_next_log(&linfo, true))
@@ -1127,13 +1120,11 @@ int init_recovery(Master_info* mi, const char** errmsg)
   /*
     Clear the retrieved GTID set so that events that are written partially
     will be fetched again.
-  */
-  if (!channel_map.is_group_replication_channel_name(rli->get_channel()))
-  {
-    global_sid_lock->wrlock();
-    (const_cast<Gtid_set *>(rli->get_gtid_set()))->clear();
-    global_sid_lock->unlock();
-  }
+    */
+  global_sid_lock->wrlock();
+  (const_cast<Gtid_set *>(rli->get_gtid_set()))->clear();
+  global_sid_lock->unlock();
+  DBUG_RETURN(error);
 }
 
 int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
