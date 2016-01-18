@@ -174,10 +174,6 @@ static enum_field_types get_normalized_field_type(Item *arg)
       type will be MYSQL_TYPE_VARCHAR instead of the actual type of
       the parameter. The item type will have the info, so adjust
       field_type to match.
-
-      If arg is a bit-field literal (such as b'1010'), its field type
-      will be MYSQL_TYPE_VARCHAR. Adjust it to MYSQL_TYPE_BIT to match
-      the type of BIT fields.
     */
     switch (arg->type())
     {
@@ -189,8 +185,6 @@ static enum_field_types get_normalized_field_type(Item *arg)
       return MYSQL_TYPE_DOUBLE;
     case Item::DECIMAL_ITEM:
       return MYSQL_TYPE_NEWDECIMAL;
-    case Item::VARBIN_ITEM:
-      return MYSQL_TYPE_BIT;
     default:
       break;
     }
