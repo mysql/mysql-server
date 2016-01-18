@@ -3004,7 +3004,13 @@ err:
                                    is_drop_tmp_if_exists_with_no_defaultdb/*suppress_use*/,
                                    0/*errcode*/);
       }
-      if (non_tmp_table_deleted)
+      /*
+        When the DROP TABLE command is used to drop a single table and if that
+        command fails then the query cannot generate 'partial results'. In
+        that case the query will not be written to the binary log.
+      */
+      if (non_tmp_table_deleted &&
+          (thd->lex->select_lex->table_list.elements > 1 || !error))
       {
         /// @see comment for mysql_bin_log.commit above.
         if (non_trans_tmp_table_deleted || trans_tmp_table_deleted ||
