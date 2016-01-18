@@ -1891,17 +1891,16 @@ void Log_event::print_header(IO_CACHE* file,
   @param[in] file              IO cache
   @param[in] prt               Pointer to string
   @param[in] length            String length
-  @param[in] esc_all        Whether to escape all characters
 */
 
 static void
-my_b_write_quoted(IO_CACHE *file, const uchar *ptr, uint length, bool esc_all)
+my_b_write_quoted(IO_CACHE *file, const uchar *ptr, uint length)
 {
   const uchar *s;
   my_b_printf(file, "'");
   for (s= ptr; length > 0 ; s++, length--)
   {
-    if (*s > 0x1F && !esc_all)
+    if (*s > 0x1F && *s != '\'' && *s != '\\')
       my_b_write(file, s, 1);
     else
     {
@@ -1912,14 +1911,6 @@ my_b_write_quoted(IO_CACHE *file, const uchar *ptr, uint length, bool esc_all)
   }
   my_b_printf(file, "'");
 }
-
-
-static void
-my_b_write_quoted(IO_CACHE *file, const uchar *ptr, uint length)
-{
-  my_b_write_quoted(file, ptr, length, false);
-}
-
 
 /**
   Prints a bit string to io cache in format  b'1010'.
