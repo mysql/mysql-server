@@ -1357,9 +1357,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists)
         result= true;
         break;
       }
-      if (if_not_exists &&
-          (opt_general_log_raw
-           || !user_name->uses_identified_by_clause))
+      if (if_not_exists)
       {
         String warn_user;
         append_user(thd, &warn_user, user_name, FALSE, FALSE);
