@@ -5684,7 +5684,7 @@ void Item::check_deprecated_bin_op(const Item *a, const Item *b)
   {
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_WARN_DEPRECATED_SYNTAX,
-                        "Bitwise operations on BINARY will change behaviour"
+                        "Bitwise operations on BINARY will change behavior"
                         " in a future version, check the 'Bit functions'"
                         " section in the manual.");
   }
