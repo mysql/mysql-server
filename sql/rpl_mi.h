@@ -483,7 +483,7 @@ public:
     It mush be called before deleting a channel and protected by
     channel_map_lock.wrlock().
 
-    @param THD thd the THD object of current thread
+    @param thd the THD object of current thread
   */
   void wait_until_no_reference(THD *thd);
 };
