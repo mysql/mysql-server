@@ -448,12 +448,13 @@ bool set_and_validate_user_attributes(THD *thd,
       }
     }
     /*
-      if there is a plugin specified with no auth string, then set
-      the account as expired.
+      if there is a plugin specified with no auth string, and that
+      plugin supports password expiration then set the account as expired.
     */
     if (Str->uses_identified_with_clause &&
         !(Str->uses_identified_by_clause ||
-        Str->uses_authentication_string_clause))
+        Str->uses_authentication_string_clause) &&
+        auth_plugin_supports_expiration(Str->plugin.str))
     {
       Str->alter_status.update_password_expired_column= true;
       what_to_set|= PASSWORD_EXPIRE_ATTR;
@@ -1811,6 +1812,9 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
 
       continue;
     }
+
+    if (user_from && user_from->plugin.str)
+      optimize_plugin_compare_by_pointer(&user_from->plugin);
 
     /* copy password expire attributes to individual lex user */
     user_from->alter_status= thd->lex->alter_password;
