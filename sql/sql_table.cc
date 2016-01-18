@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2697,7 +2697,13 @@ err:
         if (gtid_mode > 0 && non_tmp_table_deleted)
           error |= mysql_bin_log.commit(thd, true);
       }
-      if (non_tmp_table_deleted)
+      /*
+        when the DROP TABLE command is used to DROP a single table and if that
+        command fails then the query cannot generate 'partial results'. In
+        that case the query will not be written to the binary log.
+      */
+      if (non_tmp_table_deleted &&
+          (thd->lex->select_lex.table_list.elements > 1 || !error))
       {
         /* Chop of the last comma */
         built_query.chop();
