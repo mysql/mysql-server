@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3563,8 +3563,13 @@ static ulong read_event(MYSQL* mysql, Master_info *mi, bool* suppress_warnings)
       *suppress_warnings= TRUE;
     }
     else
-      sql_print_error("Error reading packet from server: %s ( server_errno=%d)",
-                      mysql_error(mysql), mysql_errno(mysql));
+    {
+      if (!mi->abort_slave)
+      {
+        sql_print_error("Error reading packet from server: %s (server_errno=%d)",
+                        mysql_error(mysql), mysql_errno(mysql));
+      }
+    }
     DBUG_RETURN(packet_error);
   }
 
