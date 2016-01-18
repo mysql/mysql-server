@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -582,29 +582,31 @@ buf_page_is_zeroes(
 }
 
 /** Checks if the page is in crc32 checksum format.
-@param[in]	read_buf	database page
-@param[in]	checksum_field1	new checksum field
-@param[in]	checksum_field2	old checksum field
-@param[in]	page_no		page number of given read_buf
-@param[in]	is_log_enabled	true if log option is enabled
-@param[in]	log_file	file pointer to log_file
-@param[in]	curr_algo	current checksum algorithm
+@param[in]	read_buf		database page
+@param[in]	checksum_field1		new checksum field
+@param[in]	checksum_field2		old checksum field
+@param[in]	page_no			page number of given read_buf
+@param[in]	is_log_enabled		true if log option is enabled
+@param[in]	log_file		file pointer to log_file
+@param[in]	curr_algo		current checksum algorithm
+@param[in]	use_legacy_big_endian   use legacy big endian algorithm
 @return true if the page is in crc32 checksum format. */
 UNIV_INLINE
 bool
 buf_page_is_checksum_valid_crc32(
 	const byte*			read_buf,
 	ulint				checksum_field1,
-	ulint				checksum_field2
+	ulint				checksum_field2,
 #ifdef UNIV_INNOCHECKSUM
-	,uintmax_t			page_no,
+	uintmax_t			page_no,
 	bool				is_log_enabled,
 	FILE*				log_file,
-	const srv_checksum_algorithm_t	curr_algo
+	const srv_checksum_algorithm_t	curr_algo,
 #endif /* UNIV_INNOCHECKSUM */
-	)
+	bool				use_legacy_big_endian)
 {
-	const uint32_t	crc32 = buf_calc_page_crc32(read_buf);
+	const uint32_t	crc32 = buf_calc_page_crc32(read_buf,
+						    use_legacy_big_endian);
 
 #ifdef UNIV_INNOCHECKSUM
 	if (is_log_enabled
@@ -622,12 +624,6 @@ buf_page_is_checksum_valid_crc32(
 	}
 
 	if (checksum_field1 == crc32) {
-		return(true);
-	}
-
-	const uint32_t	crc32_legacy = buf_calc_page_crc32(read_buf, true);
-
-	if (checksum_field1 == crc32_legacy) {
 		return(true);
 	}
 
@@ -905,16 +901,18 @@ buf_page_is_corrupted(
 	const srv_checksum_algorithm_t	curr_algo =
 		static_cast<srv_checksum_algorithm_t>(srv_checksum_algorithm);
 
+	bool	legacy_checksum_checked = false;
+
 	switch (curr_algo) {
 	case SRV_CHECKSUM_ALGORITHM_CRC32:
 	case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
 
 		if (buf_page_is_checksum_valid_crc32(read_buf,
-			checksum_field1, checksum_field2
+			checksum_field1, checksum_field2,
 #ifdef UNIV_INNOCHECKSUM
-			, page_no, is_log_enabled, log_file, curr_algo
+			page_no, is_log_enabled, log_file, curr_algo,
 #endif /* UNIV_INNOCHECKSUM */
-			)) {
+			false)) {
 			return(FALSE);
 		}
 
@@ -953,6 +951,24 @@ buf_page_is_corrupted(
 			return(FALSE);
 		}
 
+		/* We need to check whether the stored checksum matches legacy
+		big endian checksum or Innodb checksum. We optimize the order
+		based on earlier results. if earlier we have found pages
+		matching legacy big endian checksum, we try to match it first.
+		Otherwise we check innodb checksum first. */
+		if (legacy_big_endian_checksum) {
+			if (buf_page_is_checksum_valid_crc32(read_buf,
+				checksum_field1, checksum_field2,
+#ifdef UNIV_INNOCHECKSUM
+				page_no, is_log_enabled, log_file, curr_algo,
+#endif /* UNIV_INNOCHECKSUM */
+				true)) {
+
+				return(FALSE);
+			}
+			legacy_checksum_checked = true;
+		}
+
 		if (buf_page_is_checksum_valid_innodb(read_buf,
 			checksum_field1, checksum_field2
 #ifdef UNIV_INNOCHECKSUM
@@ -968,6 +984,18 @@ buf_page_is_corrupted(
 			}
 #endif /* UNIV_INNOCHECKSUM */
 			return(FALSE);
+		}
+
+		/* If legacy checksum is not checked, do it now. */
+		if (!legacy_checksum_checked && buf_page_is_checksum_valid_crc32(
+			read_buf, checksum_field1, checksum_field2,
+#ifdef UNIV_INNOCHECKSUM
+			page_no, is_log_enabled, log_file, curr_algo,
+#endif /* UNIV_INNOCHECKSUM */
+			true)) {
+
+				legacy_big_endian_checksum = true;
+				return(FALSE);
 		}
 
 #ifdef UNIV_INNOCHECKSUM
@@ -1025,12 +1053,19 @@ buf_page_is_corrupted(
 			return(FALSE);
 		}
 
-		if (buf_page_is_checksum_valid_crc32(read_buf,
-			checksum_field1, checksum_field2
 #ifdef UNIV_INNOCHECKSUM
-			, page_no, is_log_enabled, log_file, curr_algo)) {
+		if (buf_page_is_checksum_valid_crc32(read_buf,
+			checksum_field1, checksum_field2,
+			page_no, is_log_enabled, log_file, curr_algo, false)
+		    || buf_page_is_checksum_valid_crc32(read_buf,
+			checksum_field1, checksum_field2,
+			page_no, is_log_enabled, log_file, curr_algo, true)) {
 #else /* UNIV_INNOCHECKSUM */
-		)) {
+		if (buf_page_is_checksum_valid_crc32(read_buf,
+			checksum_field1, checksum_field2, false)
+		    || buf_page_is_checksum_valid_crc32(read_buf,
+			checksum_field1, checksum_field2, true)) {
+
 			if (curr_algo
 			    == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB) {
 				page_warn_strict_checksum(
@@ -1063,12 +1098,19 @@ buf_page_is_corrupted(
 			return(false);
 		}
 
-		if (buf_page_is_checksum_valid_crc32(read_buf,
-			checksum_field1, checksum_field2
 #ifdef UNIV_INNOCHECKSUM
-			, page_no, is_log_enabled, log_file, curr_algo)) {
+		if (buf_page_is_checksum_valid_crc32(read_buf,
+			checksum_field1, checksum_field2,
+			page_no, is_log_enabled, log_file, curr_algo, false)
+		    || buf_page_is_checksum_valid_crc32(read_buf,
+			checksum_field1, checksum_field2,
+			page_no, is_log_enabled, log_file, curr_algo, true)) {
 #else /* UNIV_INNOCHECKSUM */
-		)) {
+		if (buf_page_is_checksum_valid_crc32(read_buf,
+			checksum_field1, checksum_field2, false)
+		    || buf_page_is_checksum_valid_crc32(read_buf,
+			checksum_field1, checksum_field2, true)) {
+
 			page_warn_strict_checksum(
 				curr_algo,
 				SRV_CHECKSUM_ALGORITHM_CRC32,
