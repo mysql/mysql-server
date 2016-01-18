@@ -2443,6 +2443,24 @@ UNHEX('G') IS NULL
 1
 Warnings:
 Warning	1411	Incorrect string value: 'G' for function unhex
+DO UNHEX(-1);
+Warnings:
+Warning	1411	Incorrect string value: '-1' for function unhex
+SHOW warnings;
+Level	Code	Message
+Warning	1411	Incorrect string value: '-1' for function unhex
+DO UNHEX(-182680438);
+Warnings:
+Warning	1411	Incorrect string value: '-182680438' for function unhex
+SHOW warnings;
+Level	Code	Message
+Warning	1411	Incorrect string value: '-182680438' for function unhex
+DO UNHEX(-2251799813685249);
+Warnings:
+Warning	1411	Incorrect string value: '-2251799813685249' for function unhex
+SHOW warnings;
+Level	Code	Message
+Warning	1411	Incorrect string value: '-2251799813685249' for function unhex
 SELECT INSERT('abc', 3, 3, '1234');
 INSERT('abc', 3, 3, '1234')
 ab1234
