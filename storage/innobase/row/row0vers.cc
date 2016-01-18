@@ -512,7 +512,7 @@ row_vers_build_clust_v_col(
 @param[in]	roll_ptr	the rollback pointer for the purging record
 @param[in]	trx_id		trx id for the purging record
 @param[in,out]	v_heap		heap used to build vrow
-@param[out]	v_row		dtuple holding the virtual rows
+@param[out]	vrow		dtuple holding the virtual rows
 @param[in,out]	mtr		mtr holding the latch on rec */
 static
 void

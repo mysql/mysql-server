@@ -181,7 +181,7 @@ class SELECT_LEX;
   The general rule to detect the query block Q where a set function will be
   aggregated (evaluated) can be formulated as follows.
 
-  Reference: SQL2011 <set function specification> syntax rules 6 and 7.
+  Reference: SQL2011 @<set function specification@> syntax rules 6 and 7.
 
   Consider a set function S(E) where E is an expression which contains
   column references C1, ..., Cn. Resolve all column references Ci against

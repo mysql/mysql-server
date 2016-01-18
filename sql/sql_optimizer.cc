@@ -7670,8 +7670,8 @@ add_ft_keys(Key_use_array *keyuse_array,
 /**
   Compares two keyuse elements.
 
-  @param a first Key_use element
-  @param b second Key_use element
+  @param a_arg first Key_use element
+  @param b_arg second Key_use element
 
   Compare Key_use elements so that they are sorted as follows:
     -# By table.
@@ -7680,9 +7680,9 @@ add_ft_keys(Key_use_array *keyuse_array,
     -# Const values.
     -# Ref_or_null.
 
-  @retval  0 If a = b.
-  @retval <0 If a < b.
-  @retval >0 If a > b.
+  @retval 0 If a = b.
+  @retval negative If a < b.
+  @retval positive If a > b.
 */
 static int sort_keyuse(const void *a_arg, const void *b_arg)
 {

@@ -235,7 +235,7 @@ static void rewrite_account_lock(LEX *lex, String *rlb)
   Rewrite a GRANT statement.
 
   @param thd          The THD to rewrite for.
-  @param rlb[in,out]  An empty String object to put the rewritten query in.
+  @param [in,out] rlb An empty String object to put the rewritten query in.
 */
 
 void mysql_rewrite_grant(THD *thd, String *rlb)
@@ -361,7 +361,7 @@ void mysql_rewrite_grant(THD *thd, String *rlb)
   Rewrite a SET statement.
 
   @param thd          The THD to rewrite for.
-  @param rlb[in,out]  An empty String object to put the rewritten query in.
+  @param [in,out] rlb An empty String object to put the rewritten query in.
 */
 
 static void mysql_rewrite_set(THD *thd, String *rlb)
@@ -460,7 +460,7 @@ void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
   Rewrite a CHANGE MASTER statement.
 
   @param thd          The THD to rewrite for.
-  @param rlb[in,out]  An empty String object to put the rewritten query in.
+  @param [in,out] rlb An empty String object to put the rewritten query in.
 */
 
 static void mysql_rewrite_change_master(THD *thd, String *rlb)
@@ -573,7 +573,7 @@ static void mysql_rewrite_change_master(THD *thd, String *rlb)
   Rewrite a START SLAVE statement.
 
   @param thd          The THD to rewrite for.
-  @param rlb[in,out]  An empty String object to put the rewritten query in.
+  @param [in,out] rlb An empty String object to put the rewritten query in.
 */
 
 static void mysql_rewrite_start_slave(THD *thd, String *rlb)
@@ -648,7 +648,7 @@ static void mysql_rewrite_start_slave(THD *thd, String *rlb)
   Rewrite a SERVER OPTIONS clause (for CREATE SERVER and ALTER SERVER).
 
   @param thd          The THD to rewrite for.
-  @param rlb[in,out]  An empty String object to put the rewritten query in.
+  @param [in,out] rlb An empty String object to put the rewritten query in.
 */
 
 static void mysql_rewrite_server_options(THD *thd, String *rlb)
@@ -675,7 +675,7 @@ static void mysql_rewrite_server_options(THD *thd, String *rlb)
   Rewrite a CREATE SERVER statement.
 
   @param thd          The THD to rewrite for.
-  @param rlb[in,out]  An empty String object to put the rewritten query in.
+  @param [in,out] rlb An empty String object to put the rewritten query in.
 */
 
 static void mysql_rewrite_create_server(THD *thd, String *rlb)
@@ -703,7 +703,7 @@ static void mysql_rewrite_create_server(THD *thd, String *rlb)
   Rewrite a ALTER SERVER statement.
 
   @param thd          The THD to rewrite for.
-  @param rlb[in,out]  An empty String object to put the rewritten query in.
+  @param [in,out] rlb An empty String object to put the rewritten query in.
 */
 
 static void mysql_rewrite_alter_server(THD *thd, String *rlb)
@@ -728,7 +728,7 @@ static void mysql_rewrite_alter_server(THD *thd, String *rlb)
   Rewrite a PREPARE statement.
 
   @param thd          The THD to rewrite for.
-  @param rlb[in,out]  An empty String object to put the rewritten query in.
+  @param [in,out] rlb An empty String object to put the rewritten query in.
 */
 
 static void mysql_rewrite_prepare(THD *thd, String *rlb)
