@@ -3839,6 +3839,9 @@ sub mysql_install_db {
   # ----------------------------------------------------------------------
   my $bootstrap_sql_file= "$opt_vardir/tmp/bootstrap.sql";
 
+  #Add the init-file to --initialize-insecure process
+  mtr_add_arg($args, "--init-file=$bootstrap_sql_file");
+
   if ($opt_boot_gdb) {
     gdb_arguments(\$args, \$exe_mysqld_bootstrap, $mysqld->name(),
 		  $bootstrap_sql_file);
@@ -3925,9 +3928,6 @@ sub mysql_install_db {
   mtr_tofile($path_bootstrap_log,
 	     "$exe_mysqld_bootstrap " . join(" ", @$args) . "\n");
 
-
-
-  mtr_add_arg($args, "--init-file=$bootstrap_sql_file");
 
   if ( My::SafeProcess->run
        (
