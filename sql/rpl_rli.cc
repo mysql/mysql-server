@@ -27,7 +27,7 @@
 #include "sql_base.h"              // close_thread_tables
 #include "strfunc.h"               // strconvert
 #include "transaction.h"           // trans_commit_stmt
-
+#include "debug_sync.h"
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
 
@@ -726,6 +726,8 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
   DBUG_PRINT("enter",("log_name: '%s'  log_pos: %lu  timeout: %lu",
                       log_name->c_ptr_safe(), (ulong) log_pos, (ulong) timeout));
 
+  DEBUG_SYNC(thd, "begin_master_pos_wait");
+
   set_timespec(&abstime, timeout);
   mysql_mutex_lock(&data_lock);
   thd->ENTER_COND(&data_cond, &data_lock,
@@ -944,6 +946,8 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, const Gtid_set* wait_gtid_set,
 
   if (!inited)
     DBUG_RETURN(-2);
+
+  DEBUG_SYNC(thd, "begin_wait_for_gtid_set");
 
   set_timespec(&abstime, timeout);
   mysql_mutex_lock(&data_lock);

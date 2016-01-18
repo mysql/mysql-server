@@ -5018,6 +5018,9 @@ longlong Item_master_pos_wait::val_int()
       mi= channel_map.get_default_channel_mi();
   }
 
+  if (mi != NULL)
+    mi->inc_reference();
+
   channel_map.unlock();
 
   if (mi == NULL ||
@@ -5026,6 +5029,9 @@ longlong Item_master_pos_wait::val_int()
     null_value = 1;
     event_count=0;
   }
+
+  if (mi != NULL)
+    mi->dec_reference();
 #endif
   return event_count;
 }
@@ -5183,6 +5189,9 @@ longlong Item_master_gtid_set_wait::val_int()
   }
   gtid_state->begin_gtid_wait(GTID_MODE_LOCK_CHANNEL_MAP);
 
+  if (mi)
+    mi->inc_reference();
+
   channel_map.unlock();
 
   if (mi && mi->rli)
@@ -5199,6 +5208,9 @@ longlong Item_master_gtid_set_wait::val_int()
       Replication has not been set up, we should return NULL;
      */
     null_value = 1;
+
+  if (mi != NULL)
+    mi->dec_reference();
 #endif
 
   gtid_state->end_gtid_wait();

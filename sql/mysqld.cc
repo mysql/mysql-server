@@ -8888,6 +8888,7 @@ PSI_stage_info stage_worker_waiting_for_its_turn_to_commit= { 0, "Waiting for pr
 PSI_stage_info stage_worker_waiting_for_commit_parent= { 0, "Waiting for dependent transaction to commit", 0};
 PSI_stage_info stage_suspending= { 0, "Suspending", 0};
 PSI_stage_info stage_starting= { 0, "starting", 0};
+PSI_stage_info stage_waiting_for_no_channel_reference= { 0, "Waiting for no channel reference.", 0};
 
 #ifdef HAVE_PSI_INTERFACE
 
@@ -8997,7 +8998,8 @@ PSI_stage_info *all_server_stages[]=
   & stage_worker_waiting_for_its_turn_to_commit,
   & stage_worker_waiting_for_commit_parent,
   & stage_suspending,
-  & stage_starting
+  & stage_starting,
+  & stage_waiting_for_no_channel_reference
 };
 
 PSI_socket_key key_socket_tcpip;

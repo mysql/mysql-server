@@ -742,10 +742,12 @@ int channel_wait_until_apply_queue_applied(char* channel, long long timeout)
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
+  mi->inc_reference();
   channel_map.unlock();
 
   int error = mi->rli->wait_for_gtid_set(current_thd, mi->rli->get_gtid_set(),
                                          timeout);
+  mi->dec_reference();
 
   if (error == -1)
     DBUG_RETURN(REPLICATION_THREAD_WAIT_TIMEOUT_ERROR);

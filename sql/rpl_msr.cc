@@ -13,6 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "current_thd.h"
 #include "rpl_msr.h"
 
 #include "rpl_rli.h"     // Relay_log_info
@@ -159,6 +160,8 @@ void Multisource_info::delete_mi(const char* channel_name)
   if (mi)
   {
     mi->channel_assert_some_wrlock();
+    mi->wait_until_no_reference(current_thd);
+
     if(mi->rli)
     {
       delete mi->rli;
