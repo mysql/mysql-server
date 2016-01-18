@@ -4339,7 +4339,7 @@ static ulong read_event(MYSQL* mysql, Master_info *mi, bool* suppress_warnings)
     }
     else
     {
-      if (!mi->rli->abort_slave) 
+      if (!mi->abort_slave)
       {
         sql_print_error("Error reading packet from server%s: %s (server_errno=%d)",
                         mi->get_for_channel_str(), mysql_error(mysql),
