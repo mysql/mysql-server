@@ -2512,7 +2512,8 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 #ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely(error == 0))
   {
-    my_bool temp_table= (my_bool)is_prefix(alias, tmp_file_prefix);
+    /* Table share not available, so check path for temp_table prefix. */
+    bool temp_table= (strstr(path, tmp_file_prefix) != NULL);
     PSI_TABLE_CALL(drop_table_share)
       (temp_table, db, strlen(db), alias, strlen(alias));
   }
@@ -4942,12 +4943,12 @@ int ha_create_table(THD *thd, const char *path,
   char name_buff[FN_REFLEN];
   const char *name;
   TABLE_SHARE share;
-  DBUG_ENTER("ha_create_table");
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  my_bool temp_table= (my_bool)is_temp_table ||
-               (my_bool)is_prefix(table_name, tmp_file_prefix) ||
-               (create_info->options & HA_LEX_CREATE_TMP_TABLE ? TRUE : FALSE);
+  bool temp_table = is_temp_table ||
+    (create_info->options & HA_LEX_CREATE_TMP_TABLE) ||
+    (strstr(path, tmp_file_prefix) != NULL);
 #endif
+  DBUG_ENTER("ha_create_table");
   
   init_tmp_table_share(thd, &share, db, 0, table_name, path);
   if (open_table_def(thd, &share, false, table_def))
