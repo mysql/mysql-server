@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -39,6 +39,9 @@ use srv_checksum_algorithm_t here then we get a compiler error:
 ha_innodb.cc:12251: error: cannot convert 'srv_checksum_algorithm_t*' to
   'long unsigned int*' in initialization */
 ulong	srv_checksum_algorithm = SRV_CHECKSUM_ALGORITHM_INNODB;
+
+/** set if we have found pages matching legacy big endian checksum */
+static bool	legacy_big_endian_checksum = false;
 
 /** Calculates the CRC32 checksum of a page. The value is stored to the page
 when it is written to a file and also checked for a match when reading from
@@ -256,29 +259,26 @@ BlockReporter::is_checksum_valid_none(
 }
 
 /** Checks if the page is in crc32 checksum format.
-@param[in]	checksum_field1	new checksum field
-@param[in]	checksum_field2	old checksum field
-@param[in]	algo		current checksum algorithm
+@param[in]	checksum_field1		new checksum field
+@param[in]	checksum_field2		old checksum field
+@param[in]	algo			current checksum algorithm
+@param[in]	use_legacy_big_endian	big endian algorithm
 @return true if the page is in crc32 checksum format. */
 bool
 BlockReporter::is_checksum_valid_crc32(
 	ulint				checksum_field1,
 	ulint				checksum_field2,
-	const srv_checksum_algorithm_t	algo) const
+	const srv_checksum_algorithm_t	algo,
+	bool				use_legacy_big_endian) const
 {
 	if (checksum_field1 != checksum_field2) {
 		return(false);
 	}
 
-	uint32_t	crc32 = buf_calc_page_crc32(m_read_buf);
+	uint32_t	crc32 = buf_calc_page_crc32(m_read_buf,
+						    use_legacy_big_endian);
 
 	print_strict_crc32(checksum_field1, checksum_field2, crc32, algo);
-
-	if (checksum_field1 == crc32) {
-		return(true);
-	}
-
-	crc32 = buf_calc_page_crc32(m_read_buf, true);
 
 	return(checksum_field1 == crc32);
 }
@@ -362,12 +362,14 @@ BlockReporter::is_corrupted() const
 	const srv_checksum_algorithm_t	curr_algo =
 		static_cast<srv_checksum_algorithm_t>(srv_checksum_algorithm);
 
+	bool	legacy_checksum_checked = false;
+
 	switch (curr_algo) {
 	case SRV_CHECKSUM_ALGORITHM_CRC32:
 	case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
 
 		if (is_checksum_valid_crc32(
-			checksum_field1, checksum_field2, curr_algo)) {
+			checksum_field1, checksum_field2, curr_algo, false)) {
 			return(false);
 		}
 
@@ -385,6 +387,21 @@ BlockReporter::is_corrupted() const
 			return(false);
 		}
 
+		/* We need to check whether the stored checksum matches legacy
+		big endian checksum or Innodb checksum. We optimize the order
+		based on earlier results. if earlier we have found pages
+		matching legacy big endian checksum, we try to match it first.
+		Otherwise we check innodb checksum first. */
+		if (legacy_big_endian_checksum) {
+			if (is_checksum_valid_crc32(
+				checksum_field1, checksum_field2, curr_algo,
+				true)) {
+
+				return(false);
+			}
+			legacy_checksum_checked = true;
+		}
+
 		if (is_checksum_valid_innodb(
 			checksum_field1, checksum_field2, curr_algo)) {
 			if (curr_algo
@@ -394,6 +411,14 @@ BlockReporter::is_corrupted() const
 					SRV_CHECKSUM_ALGORITHM_INNODB,
 					page_id);
 			}
+			return(false);
+		}
+
+		/* If legacy checksum is not checked, do it now. */
+		if (!legacy_checksum_checked && is_checksum_valid_crc32(
+			checksum_field1, checksum_field2, curr_algo, true)) {
+
+			legacy_big_endian_checksum = true;
 			return(false);
 		}
 
@@ -424,9 +449,10 @@ BlockReporter::is_corrupted() const
 			return(false);
 		}
 
-		if (is_checksum_valid_crc32(
-				checksum_field1, checksum_field2,
-				curr_algo)) {
+		if (is_checksum_valid_crc32(checksum_field1, checksum_field2,
+					    curr_algo, false)
+		    || is_checksum_valid_crc32(checksum_field1, checksum_field2,
+					       curr_algo, true)) {
 			if (curr_algo
 			    == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB) {
 				page_warn_strict_checksum(
@@ -449,9 +475,10 @@ BlockReporter::is_corrupted() const
 			return(false);
 		}
 
-		if (is_checksum_valid_crc32(
-			checksum_field1, checksum_field2,
-			curr_algo)) {
+		if (is_checksum_valid_crc32(checksum_field1, checksum_field2,
+					    curr_algo, false)
+		    || is_checksum_valid_crc32(checksum_field1, checksum_field2,
+					       curr_algo, true)) {
 			page_warn_strict_checksum(
 				curr_algo,
 				SRV_CHECKSUM_ALGORITHM_CRC32,
@@ -620,6 +647,8 @@ BlockReporter::verify_zip_checksum() const
 		return(true);
 	}
 
+	bool	legacy_checksum_checked = false;
+
 	switch (curr_algo) {
 	case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
 	case SRV_CHECKSUM_ALGORITHM_CRC32:
@@ -636,13 +665,18 @@ BlockReporter::verify_zip_checksum() const
 			return(true);
 		}
 
-		if (stored == calc_zip_checksum(
-			SRV_CHECKSUM_ALGORITHM_CRC32, true)) {
-			/* This page's checksum has been created by the
-			legacy software CRC32 implementation on big endian
-			CPUs which generates a different result than the
-			normal CRC32. */
-			return(true);
+		/* We need to check whether the stored checksum matches legacy
+		big endian checksum or Innodb checksum. We optimize the order
+		based on earlier results. if earlier we have found pages
+		matching legacy big endian checksum, we try to match it first.
+		Otherwise we check innodb checksum first. */
+		if (legacy_big_endian_checksum) {
+			if (stored == calc_zip_checksum(
+				SRV_CHECKSUM_ALGORITHM_CRC32, true)) {
+
+				return(true);
+			}
+			legacy_checksum_checked = true;
 		}
 
 		if (stored == calc_zip_checksum(
@@ -656,6 +690,17 @@ BlockReporter::verify_zip_checksum() const
 					page_id);
 			}
 
+			return(true);
+		}
+
+		/* If legacy checksum is not checked, do it now. */
+		if (!legacy_checksum_checked && stored == calc_zip_checksum(
+			SRV_CHECKSUM_ALGORITHM_CRC32, true)) {
+			/* This page's checksum has been created by the
+			legacy software CRC32 implementation on big endian
+			CPUs which generates a different result than the
+			normal CRC32. */
+			legacy_big_endian_checksum = true;
 			return(true);
 		}
 
