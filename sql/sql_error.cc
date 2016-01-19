@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -917,12 +917,12 @@ ErrConvString::ErrConvString(const struct st_mysql_time *ltime, uint dec)
 /**
    Convert value for dispatch to error message(see WL#751).
 
-   @param buff        buffer for converted string
+   @param buff        buffer for converted string, 0-terminated
    @param to_length   size of the buffer
    @param from        string which should be converted
    @param from_length string length
    @param from_cs     charset from convert
- 
+
    @retval
    number of bytes written to "to"
 */

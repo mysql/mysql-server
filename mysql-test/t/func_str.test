@@ -1186,6 +1186,15 @@ SELECT UNHEX('G');
 SELECT UNHEX('G') IS NULL;
 
 #
+# Bug #22358933: UNHEX WITH INVALID ARGUMENT LEAD TO VALGRIND ERROR
+#
+DO UNHEX(-1);
+SHOW warnings;
+DO UNHEX(-182680438);
+SHOW warnings;
+DO UNHEX(-2251799813685249);
+SHOW warnings;
+
 # Bug #26281: INSERT() function mishandles NUL on boundary condition
 #
 SELECT INSERT('abc', 3, 3, '1234');
