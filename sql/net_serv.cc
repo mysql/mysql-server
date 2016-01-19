@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1047,3 +1047,15 @@ void my_net_set_write_timeout(NET *net, uint timeout)
   DBUG_VOID_RETURN;
 }
 
+
+#ifndef MCP_BUG22389653
+void my_net_set_retry_count(NET *net, uint retry_count)
+{
+  DBUG_ENTER("my_net_set_retry_count");
+  DBUG_PRINT("enter", ("retry_count: %d", retry_count));
+  net->retry_count= retry_count;
+  if (net->vio)
+    net->vio->retry_count= retry_count;
+  DBUG_VOID_RETURN;
+}
+#endif
