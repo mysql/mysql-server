@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -735,6 +735,9 @@ static my_bool socket_peek_read(Vio *vio, uint *bytes)
 int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
 {
   int ret;
+#ifndef MCP_BUG22389653
+  int retry_count= 0;
+#endif
   short revents __attribute__((unused)) = 0;
   struct pollfd pfd;
   my_socket sd= mysql_socket_getfd(vio->mysql_socket);
@@ -768,7 +771,18 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
     Wait for the I/O event and return early in case of
     error or timeout.
   */
+#ifndef MCP_BUG22389653
+  do
+  {
+    ret= poll(&pfd, 1, timeout);
+  }
+  while (ret < 0 && vio_should_retry(vio)
+                 && (retry_count++ < vio->retry_count));
+
+  switch (ret)
+#else
   switch ((ret= poll(&pfd, 1, timeout)))
+#endif
   {
   case -1:
     /* On error, -1 is returned. */
@@ -795,6 +809,9 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
 int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
 {
   int ret;
+#ifndef MCP_BUG22389653
+  int retry_count= 0;
+#endif
   struct timeval tm;
   my_socket fd;
   fd_set readfds, writefds, exceptfds;
@@ -836,8 +853,18 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
   MYSQL_START_SOCKET_WAIT(locker, &state, vio->mysql_socket, PSI_SOCKET_SELECT, 0);
 
   /* The first argument is ignored on Windows. */
+#ifndef MCP_BUG22389653
+  do
+  {
+    ret= select((int)(fd + 1), &readfds, &writefds, &exceptfds,
+                (timeout >= 0) ? &tm : NULL);
+  }
+  while (ret < 0 && vio_should_retry(vio)
+                 && (retry_count++ < vio->retry_count));
+#else
   ret= select(fd + 1, &readfds, &writefds, &exceptfds, 
               (timeout >= 0) ? &tm : NULL);
+#endif
 
   MYSQL_END_SOCKET_WAIT(locker, 0);
 
@@ -896,6 +923,9 @@ my_bool
 vio_socket_connect(Vio *vio, struct sockaddr *addr, socklen_t len, int timeout)
 {
   int ret, wait;
+#ifndef MCP_BUG22389653
+  int retry_count= 0;
+#endif
   DBUG_ENTER("vio_socket_connect");
 
   /* Only for socket-based transport types. */
@@ -906,7 +936,16 @@ vio_socket_connect(Vio *vio, struct sockaddr *addr, socklen_t len, int timeout)
     DBUG_RETURN(TRUE);
 
   /* Initiate the connection. */
+#ifndef MCP_BUG22389653
+  do
+  {
+    ret= mysql_socket_connect(vio->mysql_socket, addr, len);
+  }
+  while (ret < 0 && vio_should_retry(vio)
+                 && (retry_count++ < vio->retry_count));
+#else
   ret= mysql_socket_connect(vio->mysql_socket, addr, len);
+#endif
 
 #ifdef _WIN32
   wait= (ret == SOCKET_ERROR) &&
