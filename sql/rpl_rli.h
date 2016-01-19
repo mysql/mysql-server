@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -848,6 +848,11 @@ public:
     with several warning messages.
   */
   bool reported_unsafe_warning;
+
+  /*
+    'sql_thread_kill_accepted is set to TRUE when killed status is recognized.
+  */
+  bool sql_thread_kill_accepted;
 
   time_t get_row_stmt_start_timestamp()
   {
