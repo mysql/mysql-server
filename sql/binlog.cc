@@ -5656,7 +5656,6 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
   {
     rli->set_group_relay_log_pos(BIN_LOG_HEADER_SIZE);
     rli->set_group_relay_log_name(rli->linfo.log_file_name);
-    rli->notify_group_relay_log_name_update();
   }
   /*
     Store where we are in the new file for the execution thread.

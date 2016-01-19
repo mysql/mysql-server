@@ -6979,8 +6979,6 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli)
   rli_ptr->set_group_relay_log_pos(rli_ptr->get_event_relay_log_pos());
   rli_ptr->set_group_relay_log_name(rli_ptr->get_event_relay_log_name());
 
-  rli_ptr->notify_group_relay_log_name_update();
-
   if (common_header->log_pos) // 3.23 binlogs don't have log_posx
     rli_ptr->set_group_master_log_pos(common_header->log_pos);
 
@@ -7036,10 +7034,9 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli)
     reset to their new values only on successful commit operation.
    */
   rli_ptr->set_group_master_log_name(saved_group_master_log_name);
-  rli_ptr->notify_group_master_log_name_update();
   rli_ptr->set_group_master_log_pos(saved_group_master_log_pos);
+  rli_ptr->notify_group_master_log_name_update();
   rli_ptr->set_group_relay_log_name(saved_group_relay_log_name);
-  rli_ptr->notify_group_relay_log_name_update();
   rli_ptr->set_group_relay_log_pos(saved_group_relay_log_pos);
 
   DBUG_PRINT("info", ("Rolling back to group master %s %llu  group relay %s"
@@ -7064,10 +7061,9 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli)
                     DBUG_SUICIDE(););
     /* Update positions on successful commit */
     rli_ptr->set_group_master_log_name(new_group_master_log_name);
-    rli_ptr->notify_group_master_log_name_update();
     rli_ptr->set_group_master_log_pos(new_group_master_log_pos);
+    rli_ptr->notify_group_master_log_name_update();
     rli_ptr->set_group_relay_log_name(new_group_relay_log_name);
-    rli_ptr->notify_group_relay_log_name_update();
     rli_ptr->set_group_relay_log_pos(new_group_relay_log_pos);
 
     DBUG_PRINT("info", ("Updating positions on succesful commit to group master"

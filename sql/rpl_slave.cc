@@ -50,6 +50,7 @@
 #include "rpl_rli.h"                           // Relay_log_info
 #include "rpl_rli_pdb.h"                       // Slave_worker
 #include "rpl_slave_commit_order_manager.h"    // Commit_order_manager
+#include "rpl_slave_until_options.h"
 #include "sql_class.h"                         // THD
 #include "sql_parse.h"                         // execute_init_command
 #include "sql_plugin.h"                        // opt_plugin_dir_ptr
@@ -1241,7 +1242,6 @@ int remove_info(Master_info* mi)
       mi->rli->get_worker(i)->clear_error();
     }
   }
-  mi->rli->clear_until_condition();
   mi->rli->clear_sql_delay();
 
   mi->end_info();
@@ -3555,8 +3555,8 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
     DBUG_ASSERT(0);
   }
   protocol->store(until_type, &my_charset_bin);
-  protocol->store(mi->rli->until_log_name, &my_charset_bin);
-  protocol->store((ulonglong) mi->rli->until_log_pos);
+  protocol->store(mi->rli->get_until_log_name(), &my_charset_bin);
+  protocol->store((ulonglong) mi->rli->get_until_log_pos());
 
 #ifdef HAVE_OPENSSL
   protocol->store(mi->ssl? "Yes":"No", &my_charset_bin);
@@ -4947,29 +4947,6 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
    */
   mysql_mutex_lock(&rli->data_lock);
 
-  /*
-    UNTIL_SQL_AFTER_GTIDS, UNTIL_MASTER_POS and UNTIL_RELAY_POS require
-    special handling since we have to check whether the until_condition is
-    satisfied *before* the SQL threads goes on a wait inside next_event()
-    for the relay log to grow.
-    This is required in the following case: We have already applied the last
-    event in the waiting set, but the relay log ends after this event. Then it
-    is not enough to check the condition in next_event; we also have to check
-    it here, before going to sleep. Otherwise, if no updates were coming from
-    the master, we would sleep forever despite having reached the required
-    position.
-  */
-  if ((rli->until_condition == Relay_log_info::UNTIL_SQL_AFTER_GTIDS ||
-       rli->until_condition == Relay_log_info::UNTIL_MASTER_POS ||
-       rli->until_condition == Relay_log_info::UNTIL_RELAY_POS ||
-       rli->until_condition == Relay_log_info::UNTIL_SQL_VIEW_ID) &&
-       rli->is_until_satisfied(thd, NULL))
-  {
-    rli->abort_slave= 1;
-    mysql_mutex_unlock(&rli->data_lock);
-    DBUG_RETURN(1);
-  }
-
   Log_event *ev = next_event(rli), **ptr_ev;
 
   DBUG_ASSERT(rli->info_thd==thd);
@@ -5005,17 +4982,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       DBUG_ASSERT(rli->last_master_timestamp >= 0);
     }
 
-    /*
-      This tests if the position of the beginning of the current event
-      hits the UNTIL barrier.
-      MTS: since the master and the relay-group coordinates change 
-      asynchronously logics of rli->is_until_satisfied() can't apply.
-      A special UNTIL_SQL_AFTER_MTS_GAPS is still deployed here
-      temporarily (see is_until_satisfied todo).
-    */
-    if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
-        rli->until_condition != Relay_log_info::UNTIL_SQL_AFTER_GTIDS &&
-        rli->is_until_satisfied(thd, ev))
+    if (rli->is_until_satisfied_before_dispatching_event(ev))
     {
       /*
         Setting abort_slave flag because we do not want additional message about
@@ -5212,6 +5179,13 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     }
     if (exec_res)
       delete ev;
+    else if (rli->is_until_satisfied_after_dispatching_event())
+    {
+      mysql_mutex_lock(&rli->data_lock);
+      rli->abort_slave= 1;
+      mysql_mutex_unlock(&rli->data_lock);
+      DBUG_RETURN(1);
+    }
     DBUG_RETURN(exec_res);
   }
   mysql_mutex_unlock(&rli->data_lock);
@@ -7144,8 +7118,7 @@ extern "C" void *handle_slave_sql(void *arg)
     saved_master_log_pos= rli->get_group_master_log_pos();
     saved_skip= rli->slave_skip_counter;
   }
-  if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
-      rli->is_until_satisfied(thd, NULL))
+  if (rli->is_until_satisfied_at_start_slave())
   {
     mysql_mutex_unlock(&rli->data_lock);
     goto err;
@@ -9692,131 +9665,12 @@ bool start_slave(THD* thd,
           mi->rli->checkpoint_group= opt_mts_checkpoint_group;
         }
 
-        mysql_mutex_lock(&mi->rli->data_lock);
-
-        if (master_param->pos)
+        int slave_errno= mi->rli->init_until_option(thd, master_param);
+        if (slave_errno)
         {
-          if (master_param->relay_log_pos)
-          {
-            is_error= true;
-            my_error(ER_BAD_SLAVE_UNTIL_COND, MYF(0));
-          }
-          mi->rli->until_condition= Relay_log_info::UNTIL_MASTER_POS;
-          mi->rli->until_log_pos= master_param->pos;
-          /*
-             We don't check thd->lex->mi.log_file_name for NULL here
-             since it is checked in sql_yacc.yy
-          */
-          strmake(mi->rli->until_log_name, master_param->log_file_name,
-                  sizeof(mi->rli->until_log_name)-1);
+          my_error(slave_errno, MYF(0));
+          is_error= true;
         }
-        else if (master_param->relay_log_pos)
-        {
-          if (master_param->pos)
-          {
-            is_error= true;
-            my_error(ER_BAD_SLAVE_UNTIL_COND, MYF(0));
-          }
-          mi->rli->until_condition= Relay_log_info::UNTIL_RELAY_POS;
-          mi->rli->until_log_pos= master_param->relay_log_pos;
-          strmake(mi->rli->until_log_name, master_param->relay_log_name,
-                  sizeof(mi->rli->until_log_name)-1);
-        }
-        else if (master_param->gtid)
-        {
-          global_sid_lock->wrlock();
-          mi->rli->clear_until_condition();
-          if (mi->rli->until_sql_gtids.add_gtid_text(master_param->gtid)
-              != RETURN_STATUS_OK)
-          {
-            is_error= true;
-            my_error(ER_BAD_SLAVE_UNTIL_COND, MYF(0));
-          }
-          else
-          {
-            mi->rli->until_condition=
-              LEX_MASTER_INFO::UNTIL_SQL_BEFORE_GTIDS == master_param->gtid_until_condition
-              ? Relay_log_info::UNTIL_SQL_BEFORE_GTIDS
-              : Relay_log_info::UNTIL_SQL_AFTER_GTIDS;
-            if ((mi->rli->until_condition ==
-               Relay_log_info::UNTIL_SQL_AFTER_GTIDS) &&
-               mi->rli->opt_slave_parallel_workers != 0)
-            {
-              mi->rli->opt_slave_parallel_workers= 0;
-              push_warning_printf(thd, Sql_condition::SL_NOTE,
-                                  ER_MTS_FEATURE_IS_NOT_SUPPORTED,
-                                  ER_THD(thd, ER_MTS_FEATURE_IS_NOT_SUPPORTED),
-                                  "UNTIL condtion",
-                                  "Slave is started in the sequential execution mode.");
-            }
-          }
-          global_sid_lock->unlock();
-        }
-        else if (master_param->until_after_gaps)
-        {
-            mi->rli->until_condition= Relay_log_info::UNTIL_SQL_AFTER_MTS_GAPS;
-            mi->rli->opt_slave_parallel_workers=
-              mi->rli->recovery_parallel_workers;
-        }
-        else if (master_param->view_id)
-        {
-          mi->rli->until_condition= Relay_log_info::UNTIL_SQL_VIEW_ID;
-          mi->rli->until_view_id.clear();
-          mi->rli->until_view_id.append(master_param->view_id);
-          mi->rli->until_view_id_found= false;
-          mi->rli->until_view_id_commit_found= false;
-        }
-        else
-          mi->rli->clear_until_condition();
-
-        if (mi->rli->until_condition == Relay_log_info::UNTIL_MASTER_POS ||
-            mi->rli->until_condition == Relay_log_info::UNTIL_RELAY_POS)
-        {
-          /* Preparing members for effective until condition checking */
-          const char *p= fn_ext(mi->rli->until_log_name);
-          char *p_end;
-          if (*p)
-          {
-            //p points to '.'
-            mi->rli->until_log_name_extension= strtoul(++p,&p_end, 10);
-            /*
-              p_end points to the first invalid character. If it equals
-              to p, no digits were found, error. If it contains '\0' it
-              means  conversion went ok.
-            */
-            if (p_end==p || *p_end)
-            {
-              is_error= true;
-              my_error(ER_BAD_SLAVE_UNTIL_COND, MYF(0));
-            }
-          }
-          else
-          {
-            is_error= true;
-            my_error(ER_BAD_SLAVE_UNTIL_COND, MYF(0));
-          }
-
-          /* mark the cached result of the UNTIL comparison as "undefined" */
-          mi->rli->until_log_names_cmp_result=
-            Relay_log_info::UNTIL_LOG_NAMES_CMP_UNKNOWN;
-
-          /* Issuing warning then started without --skip-slave-start */
-          if (!opt_skip_slave_start)
-            push_warning(thd, Sql_condition::SL_NOTE,
-                         ER_MISSING_SKIP_SLAVE,
-                         ER_THD(thd, ER_MISSING_SKIP_SLAVE));
-          if (mi->rli->opt_slave_parallel_workers != 0)
-          {
-            mi->rli->opt_slave_parallel_workers= 0;
-            push_warning_printf(thd, Sql_condition::SL_NOTE,
-                                ER_MTS_FEATURE_IS_NOT_SUPPORTED,
-                                ER_THD(thd, ER_MTS_FEATURE_IS_NOT_SUPPORTED),
-                                "UNTIL condtion",
-                                "Slave is started in the sequential execution mode.");
-          }
-        }
-
-        mysql_mutex_unlock(&mi->rli->data_lock);
 
         if (!is_error)
           is_error= check_slave_sql_config_conflict(mi->rli);
@@ -10962,8 +10816,6 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
         mi->rli->get_worker(i)->clear_error();
       }
     }
-
-    mi->rli->clear_until_condition();
 
     /*
       If we don't write new coordinates to disk now, then old will remain in

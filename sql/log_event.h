@@ -839,7 +839,7 @@ public:
   time_t get_time();
 
 #endif
-  Log_event_type get_type_code()
+  Log_event_type get_type_code() const
   {
     return common_header->type_code;
   }
