@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -504,6 +504,9 @@ unsigned long my_net_read(NET *net);
 #ifdef MY_GLOBAL_INCLUDED
 void my_net_set_write_timeout(NET *net, uint timeout);
 void my_net_set_read_timeout(NET *net, uint timeout);
+#ifndef MCP_BUG22389653
+void my_net_set_retry_count(NET *net, uint retry_count);
+#endif
 #endif
 
 struct rand_struct {

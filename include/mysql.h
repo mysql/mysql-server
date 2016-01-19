@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -166,6 +166,16 @@ enum mysql_option
   MYSQL_OPT_SSL_ENFORCE,
   MYSQL_OPT_MAX_ALLOWED_PACKET, MYSQL_OPT_NET_BUFFER_LENGTH,
   MYSQL_OPT_TLS_VERSION
+#ifndef MCP_BUG22389653
+/*
+  The mysql option, 'MYSQL_OPT_RETRY_COUNT' is added which allows
+  libmysql clients to configure the retry count using the C
+  API, mysql_options(). This new option is an MCP addition.
+  NOTE! The option should be added at the same place in the enum as
+  it's listed in the version from where it was backported.
+*/
+  ,MYSQL_OPT_RETRY_COUNT
+#endif
 };
 
 /**
