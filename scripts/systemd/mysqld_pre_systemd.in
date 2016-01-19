@@ -59,8 +59,9 @@ install_db () {
         /usr/sbin/restorecon $log
 	for dir in /var/lib/mysql-files /var/lib/mysql-keyring ; do
             if [ -x /usr/sbin/semanage -a -d /var/lib/mysql -a -d $dir ] ; then
-            /usr/sbin/semanage fcontext -a -e /var/lib/mysql $dir >/dev/null 2>&1
-            /sbin/restorecon $dir
+                /usr/sbin/semanage fcontext -a -e /var/lib/mysql $dir >/dev/null 2>&1
+                /sbin/restorecon $dir
+            fi
 	done
     fi
 
