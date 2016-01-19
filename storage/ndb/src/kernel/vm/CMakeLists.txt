@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -70,7 +70,7 @@ ADD_CONVENIENCE_LIBRARY(ndbtest
 
 NDB_ADD_TEST(mt_thr_config-t mt_thr_config.cpp LIBS ndbgeneral)
 
-FOREACH(testprog CountingPool DynArr256 IntrusiveList LHLevel)
+FOREACH(testprog CountingPool DynArr256 IntrusiveList LHLevel SegmentList)
   NDB_ADD_TEST("${testprog}-t" "${testprog}.cpp" LIBS ndbtest ndbkernel ndbsched ndberror ndbtransport ndbmgmcommon ndbmgmapi ndbportlib ndbgeneral)
 ENDFOREACH(testprog)
 
