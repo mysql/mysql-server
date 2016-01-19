@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -285,7 +285,10 @@ struct st_vio
   char                  *read_end;      /* end of unfetched data */
   int                   read_timeout;   /* Timeout value (ms) for read ops. */
   int                   write_timeout;  /* Timeout value (ms) for write ops. */
-  
+#ifndef MCP_BUG22389653
+  int                   retry_count;    /* Retry count */
+#endif
+
   /* 
      VIO vtable interface to be implemented by VIO's like SSL, Socket,
      Named Pipe, etc.

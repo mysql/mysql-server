@@ -1,7 +1,7 @@
 #ifndef SQL_COMMON_INCLUDED
 #define SQL_COMMON_INCLUDED
 
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -107,6 +107,9 @@ struct st_mysql_options_extention {
   my_bool ssl_enforce;
   char *tls_version; /* TLS version option */
   long ssl_ctx_flags; /* SSL ctx options flag */
+#ifndef MCP_BUG22389653
+  unsigned int retry_count;
+#endif
 };
 
 typedef struct st_mysql_methods

@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4255,6 +4255,11 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     UNIXaddr.sun_family= AF_UNIX;
     strmake(UNIXaddr.sun_path, unix_socket, sizeof(UNIXaddr.sun_path)-1);
 
+#ifndef MCP_BUG22389653
+    if (mysql->options.extension && mysql->options.extension->retry_count)
+      my_net_set_retry_count(net, mysql->options.extension->retry_count);
+#endif
+
     if (vio_socket_connect(net->vio, (struct sockaddr *) &UNIXaddr,
                            sizeof(UNIXaddr), get_vio_connect_timeout(mysql)))
     {
@@ -4457,6 +4462,12 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       }
 
       DBUG_PRINT("info", ("Connect socket"));
+
+#ifndef MCP_BUG22389653
+      if (mysql->options.extension && mysql->options.extension->retry_count)
+        my_net_set_retry_count(net, mysql->options.extension->retry_count);
+#endif
+
       status= vio_socket_connect(net->vio, t_res->ai_addr,
                                  (socklen_t)t_res->ai_addrlen,
                                  get_vio_connect_timeout(mysql));
@@ -4525,6 +4536,12 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   /* If user set write_timeout, let it override the default */
   if (mysql->options.write_timeout)
     my_net_set_write_timeout(net, mysql->options.write_timeout);
+
+#ifndef MCP_BUG22389653
+  /* If user set retry_count, let it override the default */
+  if (mysql->options.extension && mysql->options.extension->retry_count)
+    my_net_set_retry_count(net, mysql->options.extension->retry_count);
+#endif
 
   if (mysql->options.max_allowed_packet)
     net->max_packet_size= mysql->options.max_allowed_packet;
@@ -5516,6 +5533,13 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     mysql->options.extension->enable_cleartext_plugin= 
       (*(my_bool*) arg) ? TRUE : FALSE;
     break;
+#ifndef MCP_BUG22389653
+  case MYSQL_OPT_RETRY_COUNT:
+     ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+     mysql->options.extension->retry_count=
+       (*(uint*) arg);
+    break;
+#endif
   case MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS:
     if (*(my_bool*) arg)
       mysql->options.client_flag|= CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS;
