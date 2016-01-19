@@ -4351,23 +4351,24 @@ String *Item_func_unhex::val_str(String *str)
 
   from= res->ptr();
   tmp_value.length(length);
-  to= (char*) tmp_value.ptr();
+  to= const_cast<char*>(tmp_value.ptr());
   if (res->length() % 2)
   {
-    int hex_char;
-    *to++= hex_char= hexchar_to_int(*from++);
+    int hex_char= hexchar_to_int(*from++);
     if (hex_char == -1)
       goto err;
+    *to++= static_cast<char>(hex_char);
   }
-  for (end=res->ptr()+res->length(); from < end ; from+=2, to++)
+  for (end= res->ptr() + res->length(); from < end ; from+= 2, to++)
   {
     int hex_char= hexchar_to_int(from[0]);
     if (hex_char == -1)
       goto err;
-    *to= (hex_char) << 4;
-    *to|= hex_char= hexchar_to_int(from[1]);
+    *to= static_cast<char>(hex_char << 4);
+    hex_char= hexchar_to_int(from[1]);
     if (hex_char == -1)
       goto err;
+    *to|= hex_char;
   }
   null_value= false;
   return &tmp_value;

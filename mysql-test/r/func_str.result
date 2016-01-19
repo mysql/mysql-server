@@ -2461,6 +2461,11 @@ Warning	1411	Incorrect string value: '-2251799813685249' for function unhex
 SHOW warnings;
 Level	Code	Message
 Warning	1411	Incorrect string value: '-2251799813685249' for function unhex
+select unhex('5078-04-25');
+unhex('5078-04-25')
+NULL
+Warnings:
+Warning	1411	Incorrect string value: '5078-04-25' for function unhex
 SELECT INSERT('abc', 3, 3, '1234');
 INSERT('abc', 3, 3, '1234')
 ab1234

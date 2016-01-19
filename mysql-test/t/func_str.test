@@ -1195,6 +1195,12 @@ SHOW warnings;
 DO UNHEX(-2251799813685249);
 SHOW warnings;
 
+#
+# Bug #19642015 UNHEX() RUNTIME ERROR: LEFT SHIFT OF NEGATIVE VALUE -1
+#
+select unhex('5078-04-25');
+
+#
 # Bug #26281: INSERT() function mishandles NUL on boundary condition
 #
 SELECT INSERT('abc', 3, 3, '1234');
