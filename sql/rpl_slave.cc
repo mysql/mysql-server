@@ -2029,16 +2029,18 @@ static bool io_slave_killed(THD* thd, Master_info* mi)
 */
 bool sql_slave_killed(THD* thd, Relay_log_info* rli)
 {
-  bool ret= FALSE;
   bool is_parallel_warn= FALSE;
 
   DBUG_ENTER("sql_slave_killed");
 
   DBUG_ASSERT(rli->info_thd == thd);
   DBUG_ASSERT(rli->slave_running == 1);
+  if (rli->sql_thread_kill_accepted)
+    DBUG_RETURN(true);
   if (connection_events_loop_aborted() || thd->killed || rli->abort_slave)
   {
-    is_parallel_warn= (rli->is_parallel_exec() && 
+    rli->sql_thread_kill_accepted= true;
+    is_parallel_warn= (rli->is_parallel_exec() &&
                        (rli->is_mts_in_group() || thd->killed));
     /*
       Slave can execute stop being in one of two MTS or Single-Threaded mode.
@@ -2068,7 +2070,6 @@ bool sql_slave_killed(THD* thd, Relay_log_info* rli)
         "In such cases you have to examine your data (see documentation for "
         "details).";
 
-      ret= TRUE;
       if (rli->abort_slave)
       {
         DBUG_PRINT("info", ("Request to stop slave SQL Thread received while "
@@ -2088,14 +2089,16 @@ bool sql_slave_killed(THD* thd, Relay_log_info* rli)
 
         if (rli->last_event_start_time == 0)
           rli->last_event_start_time= my_time(0);
-        ret= difftime(my_time(0), rli->last_event_start_time) <=
-          SLAVE_WAIT_GROUP_DONE ? FALSE : TRUE;
+        rli->sql_thread_kill_accepted= difftime(my_time(0),
+                                               rli->last_event_start_time) <=
+                                               SLAVE_WAIT_GROUP_DONE ?
+                                               FALSE : TRUE;
 
-        DBUG_EXECUTE_IF("stop_slave_middle_group", 
+        DBUG_EXECUTE_IF("stop_slave_middle_group",
                         DBUG_EXECUTE_IF("incomplete_group_in_relay_log",
-                                        ret= TRUE;);); // time is over
+                                        rli->sql_thread_kill_accepted= TRUE;);); // time is over
 
-        if (!ret && !rli->reported_unsafe_warning)
+        if (!rli->sql_thread_kill_accepted && !rli->reported_unsafe_warning)
         {
           rli->report(WARNING_LEVEL, 0,
                       !is_parallel_warn ?
@@ -2109,8 +2112,13 @@ bool sql_slave_killed(THD* thd, Relay_log_info* rli)
           rli->reported_unsafe_warning= true;
         }
       }
-      if (ret)
+      if (rli->sql_thread_kill_accepted)
       {
+        rli->last_event_start_time= 0;
+        if (rli->mts_group_status == Relay_log_info::MTS_IN_GROUP)
+        {
+          rli->mts_group_status= Relay_log_info::MTS_KILLED_GROUP;
+        }
         if (is_parallel_warn)
           rli->report(!rli->is_error() ? ERROR_LEVEL :
                       WARNING_LEVEL,    // an error was reported by Worker
@@ -2122,21 +2130,8 @@ bool sql_slave_killed(THD* thd, Relay_log_info* rli)
                       ER_THD(thd, ER_SLAVE_FATAL_ERROR), msg_stopped);
       }
     }
-    else
-    {
-      ret= TRUE;
-    }
   }
-  if (ret)
-  {
-    rli->last_event_start_time= 0;
-    if (rli->mts_group_status == Relay_log_info::MTS_IN_GROUP)
-    {
-      rli->mts_group_status= Relay_log_info::MTS_KILLED_GROUP;
-    }
-  }
-  
-  DBUG_RETURN(ret);
+  DBUG_RETURN(rli->sql_thread_kill_accepted);
 }
 
 
@@ -6964,6 +6959,7 @@ extern "C" void *handle_slave_sql(void *arg)
   rli->slave_run_id++;
   rli->slave_running = 1;
   rli->reported_unsafe_warning= false;
+  rli->sql_thread_kill_accepted= false;
 
   if (init_slave_thread(thd, SLAVE_THD_SQL))
   {
