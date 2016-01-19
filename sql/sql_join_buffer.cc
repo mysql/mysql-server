@@ -1228,7 +1228,8 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
         /* First put down the length of the blob and then copy the data */ 
 	blob_field->get_image(cp, copy->length, 
 			      blob_field->charset());
-	memcpy(cp+copy->length, copy->str, copy->blob_length);               
+        if (copy->blob_length > 0)
+          memcpy(cp+copy->length, copy->str, copy->blob_length);               
 	cp+= copy->length+copy->blob_length;
       }
     }

@@ -537,7 +537,7 @@ static bool write_str_at_most_255_bytes(IO_CACHE *file, const char *str,
   uchar tmp[1];
   tmp[0]= (uchar) length;
   return (my_b_safe_write(file, tmp, sizeof(tmp)) ||
-	  my_b_safe_write(file, (uchar*) str, length));
+	  (length > 0 && my_b_safe_write(file, (uchar*) str, length)));
 }
 
 /**
@@ -8852,7 +8852,7 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, const Table_id& tid
     m_distinct_keys(Key_compare(&m_key_info)), m_distinct_key_spare_buf(NULL)
 #endif
 {
-  common_header->type_code= m_type;
+  common_header->type_code= event_type;
   m_row_count= 0;
   m_table_id= tid;
   m_width= tbl_arg ? tbl_arg->s->fields : 1;

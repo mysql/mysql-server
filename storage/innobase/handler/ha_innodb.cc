@@ -7950,7 +7950,7 @@ calc_row_difference(
 			}
 		}
 
-		if (o_len != n_len || (o_len != UNIV_SQL_NULL &&
+		if (o_len != n_len || (o_len != UNIV_SQL_NULL && o_len != 0 &&
 					0 != memcmp(o_ptr, n_ptr, o_len))) {
 			/* The field has changed */
 

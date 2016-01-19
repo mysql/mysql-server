@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -464,7 +464,7 @@ void PFS_table_context::set_item(ulong n)
     return;
   ulong word= n / m_word_size;
   ulong bit= n % m_word_size;
-  m_map[word] |= (1 << bit);
+  m_map[word] |= (1UL << bit);
   m_last_item= n;
 }
 
@@ -472,7 +472,7 @@ bool PFS_table_context::is_item_set(ulong n)
 {
   ulong word= n / m_word_size;
   ulong bit= n % m_word_size;
-  return (m_map[word] & (1 << bit));
+  return (m_map[word] & (1UL << bit));
 }
 
 

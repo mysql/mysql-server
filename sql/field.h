@@ -4396,7 +4396,8 @@ public:
       it is only used for MYSQL_TYPE_BIT. This avoids bogus
       valgrind warnings in optimized builds.
     */
-    treat_bit_as_char(false)
+    treat_bit_as_char(false),
+    stored_in_db(false)
   {}
   Create_field(Field *field, Field *orig_field);
   /* Used to make a clone of this object for ALTER/CREATE TABLE */

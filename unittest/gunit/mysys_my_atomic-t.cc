@@ -30,6 +30,9 @@ namespace mysys_my_atomic_unittest {
 volatile int32 b32;
 volatile int32  c32;
 
+// SUPPRESS_UBSAN: integer overflow when generating random data.
+extern "C" void *test_atomic_add(void *arg) SUPPRESS_UBSAN;
+
 /* add and sub a random number in a loop. Must get 0 at the end */
 extern "C" void *test_atomic_add(void *arg)
 {
@@ -49,6 +52,9 @@ extern "C" void *test_atomic_add(void *arg)
 }
 
 volatile int64 a64;
+// SUPPRESS_UBSAN: integer overflow when generating random data.
+extern "C" void *test_atomic_add64(void *arg) SUPPRESS_UBSAN;
+
 /* add and sub a random number in a loop. Must get 0 at the end */
 extern "C" void *test_atomic_add64(void *arg)
 {
@@ -106,6 +112,9 @@ extern "C" void *test_atomic_fas(void *arg)
   mysql_mutex_unlock(&mutex);
   return 0;
 }
+
+// SUPPRESS_UBSAN: integer overflow when generating random data.
+extern "C" void *test_atomic_cas(void *arg) SUPPRESS_UBSAN;
 
 /*
   same as test_atomic_add, but my_atomic_add32 is emulated with

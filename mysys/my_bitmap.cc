@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -337,8 +337,8 @@ my_bool bitmap_is_prefix(const MY_BITMAP *map, uint prefix_size)
   if (prefix_bits)
   {
     if (word_ptr == map->last_word_ptr)
-      return uint4korr((uchar*)&last_word) == (uint32)((1 << prefix_bits) - 1);
-    else if (uint4korr((uchar*)word_ptr) != (uint32)((1 << prefix_bits) - 1))
+      return uint4korr((uchar*)&last_word) == (uint32)((1 << prefix_bits) - 1U);
+    else if (uint4korr((uchar*)word_ptr) != (uint32)((1 << prefix_bits) - 1U))
       return FALSE;
     word_ptr++;
   }

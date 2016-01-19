@@ -553,7 +553,8 @@ bool set_and_validate_user_attributes(THD *thd,
     else
       password= const_cast<char*>("");
     /* erase in memory copy of plain text password */
-    memset((char*)(Str->auth.str), 0, Str->auth.length);
+    if (Str->auth.length > 0)
+      memset((char*)(Str->auth.str), 0, Str->auth.length);
     /* Use the authentication_string field as password */
     Str->auth.str= password;
     Str->auth.length= buflen;

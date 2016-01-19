@@ -8359,7 +8359,8 @@ int Field_blob::cmp_binary(const uchar *a_ptr, const uchar *b_ptr,
   b_length=get_length(b_ptr);
   if (b_length > max_length)
     b_length=max_length;
-  diff=memcmp(a,b,min(a_length,b_length));
+  const uint32 min_a_b= min(a_length, b_length);
+  diff= (min_a_b > 0) && memcmp(a, b, min_a_b); // memcmp(a, b, 0) == 0
   return diff ? diff : (int) (a_length - b_length);
 }
 
@@ -11249,6 +11250,9 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
   charset(old_field->charset()),		// May be NULL ptr
   geom_type(Field::GEOM_GEOMETRY),
   field(old_field),
+  maybe_null(old_field->maybe_null()),
+  is_zerofill(false),       // Init to avoid UBSAN warnings
+  is_unsigned(false),       // Init to avoid UBSAN warnings
   treat_bit_as_char(false),  // Init to avoid valgrind warnings in opt. build
   gcol_info(old_field->gcol_info),
   stored_in_db(old_field->stored_in_db)

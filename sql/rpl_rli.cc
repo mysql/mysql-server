@@ -101,6 +101,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    workers_array_initialized(false),
    curr_group_assigned_parts(PSI_NOT_INSTRUMENTED),
    curr_group_da(PSI_NOT_INSTRUMENTED),
+   mts_end_group_sets_max_dbs(false),
    slave_parallel_workers(0),
    exit_counter(0),
    max_updated_index(0),

@@ -78,6 +78,8 @@ typedef union {
   void *not_used;
 } TLA;
 
+// SUPPRESS_UBSAN: integer overflow when generating random data.
+extern "C" void *test_lf_alloc(void *arg) SUPPRESS_UBSAN;
 extern "C" void *test_lf_alloc(void *arg)
 {
   int    m= (*(int *)arg)/2;

@@ -239,6 +239,7 @@
 #cmakedefine ENABLE_MEMCACHED_SASL_PWDB 1
 #cmakedefine ENABLED_PROFILING 1
 #cmakedefine HAVE_ASAN
+#cmakedefine HAVE_UBSAN
 #cmakedefine ENABLED_LOCAL_INFILE 1
 #cmakedefine OPTIMIZER_TRACE 1
 #cmakedefine DEFAULT_MYSQL_HOME "@DEFAULT_MYSQL_HOME@"

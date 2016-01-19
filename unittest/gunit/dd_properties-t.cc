@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -446,6 +446,7 @@ typedef PropertiesTest PropertiesTestDeathTest;
 
 TEST_F(PropertiesTestDeathTest, FailingSetGetIntBool)
 {
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   int32  val_int32= 0;
   uint32 val_uint32= 0;
   int64  val_int64= 0;

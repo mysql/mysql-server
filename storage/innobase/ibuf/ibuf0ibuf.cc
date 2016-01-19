@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2813,7 +2813,7 @@ ibuf_get_volume_buffered_hash(
 
 	hash += (fold / (CHAR_BIT * sizeof *hash)) % size;
 	bitmask = static_cast<ulint>(
-		1 << (fold % (CHAR_BIT * sizeof(*hash))));
+		1UL << (fold % (CHAR_BIT * sizeof(*hash))));
 
 	if (*hash & bitmask) {
 

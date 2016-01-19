@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -296,7 +296,11 @@ TEST_F(CopyInfoTest, getFunctionDefaultColumns)
     << "Not supposed to allocate a new bitmap on second call.";
 }
 
-
+/*
+  HAVE_UBSAN: undefined behaviour in gmock.
+  runtime error: member call on null pointer of type 'const struct ResultHolder'
+ */
+#if !defined(HAVE_UBSAN)
 /*
   Here we test that calling COPY_INFO::set_function_defaults() indeed causes
   store_timestamp to be called on the columns that are not on the list of
@@ -339,5 +343,6 @@ TEST_F(CopyInfoTest, setFunctionDefaults)
   EXPECT_CALL(c, store_timestamp(_)).Times(0);
   insert.set_function_defaults(&table);
 }
+#endif // HAVE_UBSAN
 
 }

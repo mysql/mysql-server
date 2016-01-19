@@ -298,7 +298,7 @@ my $opt_strace_server;
 our $opt_user = "root";
 
 our $opt_valgrind= 0;
-my $opt_ubsan= 0;
+my $opt_sanitize= 0;
 my $opt_valgrind_mysqld= 0;
 my $opt_valgrind_clients= 0;
 my $opt_valgrind_mysqltest= 0;
@@ -552,11 +552,11 @@ sub main {
 
   push @$completed, run_ctest() if $opt_ctest;
 
-  if ($opt_valgrind_mysqld or $opt_ubsan) {
+  if ($opt_valgrind_mysqld or $opt_sanitize) {
     # Create minimalistic "test" for the reporting
     my $tinfo = My::Test->new
       (
-       name => $opt_valgrind_mysqld ? 'valgrind_report' : 'ubsan_report',
+       name => $opt_valgrind_mysqld ? 'valgrind_report' : 'sanitize_report',
       );
     # Set dummy worker id to align report with normal tests
     $tinfo->{worker} = 0 if $opt_parallel > 1;
@@ -565,7 +565,7 @@ sub main {
       if ($opt_valgrind_mysqld) {
 	$tinfo->{comment}= "Valgrind reported failures at shutdown, see above";
       } else {
-	$tinfo->{comment}= "UBSAN reported failures at shutdown, see above";
+	$tinfo->{comment}= "Sanitizer reported failures at shutdown, see above";
       }
       $tinfo->{failures}= 1;
     } else {
@@ -790,7 +790,7 @@ sub run_test_server ($$$) {
 	elsif ($line =~ /^SPENT/) {
 	  add_total_times($line);
 	}
-	elsif ($line eq 'VALGREP' && ($opt_valgrind or $opt_ubsan)) {
+	elsif ($line eq 'VALGREP' && ($opt_valgrind or $opt_sanitize)) {
 	  $valgrind_reports= 1;
 	}
 	else {
@@ -976,7 +976,7 @@ sub run_worker ($) {
       stop_all_servers($opt_shutdown_timeout);
       mark_time_used('restart');
       my $valgrind_reports= 0;
-      if ($opt_valgrind_mysqld or $opt_ubsan) {
+      if ($opt_valgrind_mysqld or $opt_sanitize) {
         $valgrind_reports= valgrind_exit_reports();
 	print $server "VALGREP\n" if $valgrind_reports;
       }
@@ -1043,7 +1043,7 @@ sub print_global_resfile {
   resfile_global("gcov", $opt_gcov ? 1 : 0);
   resfile_global("gprof", $opt_gprof ? 1 : 0);
   resfile_global("valgrind", $opt_valgrind ? 1 : 0);
-  resfile_global("ubsan", $opt_ubsan ? 1 : 0);
+  resfile_global("sanitize", $opt_sanitize ? 1 : 0);
   resfile_global("callgrind", $opt_callgrind ? 1 : 0);
   resfile_global("helgrind", $opt_helgrind ? 1 : 0);
   resfile_global("mem", $opt_mem ? 1 : 0);
@@ -1176,7 +1176,7 @@ sub command_line_setup {
              # Coverage, profiling etc
              'gcov'                     => \$opt_gcov,
              'gprof'                    => \$opt_gprof,
-             'ubsan'                    => \$opt_ubsan,
+             'sanitize'                 => \$opt_sanitize,
              'valgrind|valgrind-all'    => \$opt_valgrind,
 	     'valgrind-clients'         => \$opt_valgrind_clients,
              'valgrind-mysqltest'       => \$opt_valgrind_mysqltest,
@@ -2758,8 +2758,8 @@ sub environment_setup {
   # to detect that valgrind is being used from test cases
   $ENV{'VALGRIND_TEST'}= $opt_valgrind;
 
-  # Ask ubsan to print stack traces
-  $ENV{'UBSAN_OPTIONS'}= "print_stacktrace=1" if $opt_ubsan;
+  # Ask UBSAN to print stack traces
+  $ENV{'UBSAN_OPTIONS'}= "print_stacktrace=1" if $opt_sanitize;
 
   # Add dir of this perl to aid mysqltest in finding perl
   my $perldir= dirname($^X);
@@ -5812,7 +5812,7 @@ sub mysqld_start ($$) {
 
   my $output= $mysqld->value('#log-error');
   # Remember this log file for valgrind error report search
-  $mysqld_logs{$output}= 1 if $opt_valgrind or $opt_ubsan;
+  $mysqld_logs{$output}= 1 if $opt_valgrind or $opt_sanitize;
   # Remember data dir for gmon.out files if using gprof
   $gprof_dirs{$mysqld->value('datadir')}= 1 if $opt_gprof;
 
@@ -6905,7 +6905,7 @@ sub valgrind_arguments {
 
 #
 # Search server logs for valgrind reports printed at mysqld termination
-# Also search for ubsan reports. For now: only wrong downcasts.
+# Also search for sanitize reports.
 #
 
 sub valgrind_exit_reports() {
@@ -6918,7 +6918,7 @@ sub valgrind_exit_reports() {
     my $found_report= 0;
     my $err_in_report= 0;
     my $ignore_report= 0;
-    my $tool_name= $opt_ubsan ? "UBSAN" : "Valgrind";
+    my $tool_name= $opt_sanitize ? "Sanitizer" : "Valgrind";
 
     my $LOGF = IO::File->new($log_file)
       or mtr_error("Could not open file '$log_file' for reading: $!");
@@ -6952,9 +6952,10 @@ sub valgrind_exit_reports() {
       $ignore_report=1 if $line =~ /VALGRIND_DO_QUICK_LEAK_CHECK/;
       # This line marks the start of a valgrind report
       $found_report= 1 if $line =~ /^==\d+== .* SUMMARY:/;
-      $found_report= 1 if $line =~ /.*runtime error: downcast of address.*/;
-      $found_report= 1 if $line =~ /.*runtime error: left shift.*/;
-      $found_report= 1 if $line =~ /.*runtime error: negation of.*/;
+      # This line marks the start of UBSAN memory leaks
+      $found_report= 1 if $line =~ /^==\d+==ERROR:.*/;
+      # Various UBSAN runtime errors
+      $found_report= 1 if $line =~ /.*runtime error: .*/;
 
       if ($ignore_report && $found_report) {
         $ignore_report= 0;
@@ -6965,6 +6966,7 @@ sub valgrind_exit_reports() {
         $line=~ s/^==\d+== //;
         $valgrind_rep .= $line;
         $err_in_report= 1 if $line =~ /ERROR SUMMARY: [1-9]/;
+        $err_in_report= 1 if $line =~ /^==\d+==ERROR:.*/;
         $err_in_report= 1 if $line =~ /definitely lost: [1-9]/;
         $err_in_report= 1 if $line =~ /possibly lost: [1-9]/;
         $err_in_report= 1 if $line =~ /still reachable: [1-9]/;
@@ -7289,6 +7291,9 @@ Misc options
   warnings              Scan the log files for warnings. Use --nowarnings
                         to turn off.
 
+  sanitize              Scan server log files for warnings from various
+                        sanitizers. Assumes that you have built with
+                        -DWITH_ASAN or -DWITH_UBSAN
   sleep=SECONDS         Passed to mysqltest, will be used as fixed sleep time
   debug-sync-timeout=NUM Set default timeout for WAIT_FOR debug sync
                         actions. Disable facility with NUM=0.

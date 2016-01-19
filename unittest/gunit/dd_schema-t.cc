@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,12 @@
 #include "dd/impl/raw/raw_table.h"
 #include "dd/impl/raw/object_keys.h"
 
+
+/*
+  HAVE_UBSAN: undefined behaviour in gmock.
+  runtime error: member call on null pointer of type 'const struct ResultHolder'
+ */
+#if !defined(HAVE_UBSAN)
 
 namespace dd_schema_unittest {
 
@@ -492,3 +498,5 @@ TEST_F(SchemaTest, GetSchema)
   delete schema;
 }
 }  // namespace
+
+#endif // HAVE_UBSAN

@@ -1462,7 +1462,8 @@ public:
   {
     null_row= TRUE;
     status|= STATUS_NULL_ROW;
-    memset(null_flags, 255, s->null_bytes);
+    if (s->null_bytes > 0)
+      memset(null_flags, 255, s->null_bytes);
   }
 
   /// Clear "null row" status for the current row

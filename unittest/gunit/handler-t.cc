@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,12 @@
 #include "mock_field_datetime.h"
 
 #include "sql_executor.h"
+
+/*
+  HAVE_UBSAN: undefined behaviour in gmock.
+  runtime error: member call on null pointer of type 'const struct ResultHolder'
+ */
+#if !defined(HAVE_UBSAN)
 
 namespace {
 
@@ -223,3 +229,5 @@ TEST_F(HandlerTest, IndexInMemoryEstimate)
 }
 
 }
+
+#endif // HAVE_UBSAN
