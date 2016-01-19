@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2014 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,8 +31,6 @@
 #include <mach/mach_init.h>
 #include <mach/thread_act.h>
 #include <mach/mach_port.h>
-
-mach_port_t our_mach_task = MACH_PORT_NULL;
 #endif
 
 #ifndef _WIN32
@@ -47,31 +45,6 @@ micros(struct timeval val)
 #endif
 #endif
 
-/**
- * On Mac OS X we use the mach_task_self call to be able to
- * access thread info, this allocates memory, we only need
- * one global instance per process since a mach task is
- * representing the process, but we need to deallocate at end
- * of process, so we need an End call as well.
- */
-extern "C"
-void Ndb_GetRUsage_Init(void)
-{
-#ifdef HAVE_MAC_OS_X_THREAD_INFO
-  our_mach_task = mach_task_self();
-#endif
-}
-
-extern "C"
-void Ndb_GetRUsage_End(void)
-{
-#ifdef HAVE_MAC_OS_X_THREAD_INFO
-  if (our_mach_task != MACH_PORT_NULL)
-  {
-    mach_port_deallocate(our_mach_task, our_mach_task);
-  }
-#endif
-}
 
 extern "C"
 int
@@ -142,7 +115,7 @@ Ndb_GetRUsage(ndb_rusage* dst)
                            (thread_info_t) &basic_info,
                            &basic_info_count);
   
-    mach_port_deallocate(our_mach_task, thread_port);
+    mach_port_deallocate(mach_task_self(), thread_port);
 
     if (ret_code == KERN_SUCCESS)
     {

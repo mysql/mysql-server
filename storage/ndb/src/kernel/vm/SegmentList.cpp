@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -585,7 +585,7 @@ SegmentSubPool::checkInvariants()
   return true;
 }
 
-#ifdef TAP_TEST
+#ifdef TEST_SEGMENTLIST
 
 #undef JAM_FILE_ID
 
