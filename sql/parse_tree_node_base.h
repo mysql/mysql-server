@@ -92,7 +92,7 @@ struct Parse_context {
   */
   bool is_top_level;
 
-  Parse_context(THD *thd, SELECT_LEX *select);
+  Parse_context(THD *thd, SELECT_LEX *sl) : Parse_context(thd, sl, true) {}
 
   Parse_context(THD *const thd_arg, SELECT_LEX *sl_arg, bool is_top_level_arg);
 };
