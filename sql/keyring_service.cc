@@ -44,8 +44,8 @@ static my_bool key_fetch(THD *thd, plugin_ref plugin, void *arg)
   plugin= my_plugin_lock(NULL, &plugin);
   if (plugin)
   {
-    st_mysql_keyring_file *keyring=
-      (st_mysql_keyring_file *) plugin_decl(plugin)->info;
+    st_mysql_keyring *keyring=
+      (st_mysql_keyring *) plugin_decl(plugin)->info;
     key_data->result= keyring->mysql_key_fetch(key_data->key_id, key_data->key_type_to_fetch,
       key_data->user_id, key_data->key_to_fetch, key_data->key_len_to_fetch);
   }
@@ -61,8 +61,8 @@ static my_bool key_store(THD *thd, plugin_ref plugin, void *arg)
   plugin= my_plugin_lock(NULL, &plugin);
   if (plugin)
   {
-    st_mysql_keyring_file *keyring=
-      (st_mysql_keyring_file *) plugin_decl(plugin)->info;
+    st_mysql_keyring *keyring=
+      (st_mysql_keyring *) plugin_decl(plugin)->info;
     key_data->result= keyring->mysql_key_store(key_data->key_id, key_data->key_type_to_store,
       key_data->user_id, key_data->key_to_store, key_data->key_len_to_store);
   }
@@ -78,8 +78,8 @@ static my_bool key_remove(THD *thd, plugin_ref plugin, void *arg)
   plugin= my_plugin_lock(NULL, &plugin);
   if (plugin)
   {
-    st_mysql_keyring_file *keyring=
-      (st_mysql_keyring_file *) plugin_decl(plugin)->info;
+    st_mysql_keyring *keyring=
+      (st_mysql_keyring *) plugin_decl(plugin)->info;
     key_data->result= keyring->mysql_key_remove(key_data->key_id, key_data->user_id);
   }
   //this function should get executed only for the first plugin. This is why
@@ -94,8 +94,8 @@ static my_bool key_generate(THD *thd, plugin_ref plugin, void *arg)
   plugin= my_plugin_lock(NULL, &plugin);
   if (plugin)
   {
-    st_mysql_keyring_file *keyring=
-      (st_mysql_keyring_file *) plugin_decl(plugin)->info;
+    st_mysql_keyring *keyring=
+      (st_mysql_keyring *) plugin_decl(plugin)->info;
     key_data->result= keyring->mysql_key_generate(key_data->key_id,
       key_data->key_type_to_store, key_data->user_id, key_data->key_len_to_store);
   }
