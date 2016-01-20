@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,13 +71,13 @@ bool Table_partitions::get_partition_table_id(
 {
   DBUG_ENTER("Table_partitions::get_partition_table_id");
 
+  DBUG_ASSERT(oid);
+  *oid= INVALID_OBJECT_ID;
+
   Transaction_ro trx(thd);
   trx.otx.register_tables<dd::Table>();
   if (trx.otx.open_tables())
     return true;
-
-  DBUG_ASSERT(oid);
-  *oid= INVALID_OBJECT_ID;
 
   const std::unique_ptr<Object_key> k(
     create_se_private_key(engine, se_private_id));

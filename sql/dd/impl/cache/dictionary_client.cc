@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -754,6 +754,9 @@ bool Dictionary_client::acquire_uncached_table_by_se_private_id(
                                       Object_id se_private_id,
                                       const Table **table)
 {
+  DBUG_ASSERT(table);
+  *table= NULL;
+
   // Create se private key.
   Table::aux_key_type key;
   Table::update_aux_key(&key, engine, se_private_id);
@@ -761,41 +764,44 @@ bool Dictionary_client::acquire_uncached_table_by_se_private_id(
   const Table::cache_partition_type *stored_object= NULL;
 
   // Read the uncached dictionary object.
-  bool error= Shared_dictionary_cache::instance()->
-                get_uncached(m_thd, key, &stored_object);
-  if (!error)
+  if (Shared_dictionary_cache::instance()->
+        get_uncached(m_thd, key, &stored_object))
   {
-    // Dynamic cast may legitimately return NULL only if the stored object
-    // was NULL, i.e., the object did not exist.
-    DBUG_ASSERT(table);
-    *table= dynamic_cast<const Table*>(stored_object);
-
-    // Delete the object and report error if dynamic cast fails.
-    if (stored_object && !*table)
-    {
-      my_error(ER_INVALID_DD_OBJECT, MYF(0),
-               Table::OBJECT_TABLE().name().c_str(),
-               "Not a table object.");
-      delete stored_object;
-      return true;
-    }
-  }
-  else
     DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    return true;
+  }
 
-  return error;
+  // If object was not found.
+  if (stored_object == NULL)
+  {
+    my_error(ER_INVALID_DD_OBJECT_ID, MYF(0), se_private_id);
+    return true;
+  }
+
+  // Dynamic cast may legitimately return NULL only if the stored object
+  // was NULL, i.e., the object did not exist.
+  *table= dynamic_cast<const Table*>(stored_object);
+
+  // Delete the object and report error if dynamic cast fails.
+  if (!*table)
+  {
+    my_error(ER_INVALID_DD_OBJECT, MYF(0),
+             Table::OBJECT_TABLE().name().c_str(),
+             "Not a table object.");
+    delete stored_object;
+    return true;
+  }
+
+  return false;
 }
 
 // Retrieve a table object by its partition se private id.
 /* purecov: begin deadcode */
-bool Dictionary_client::acquire_table_by_partition_se_private_id(
-                                          const std::string &engine,
-                                          Object_id se_partition_id,
-                                          const Table **table)
+bool Dictionary_client::acquire_uncached_table_by_partition_se_private_id(
+                          const std::string &engine,
+                          Object_id se_partition_id,
+                          const Table **table)
 {
-  // We must make sure the objects are released correctly.
-  Auto_releaser releaser(this);
-
   DBUG_ASSERT(table);
   *table= NULL;
 
@@ -809,30 +815,43 @@ bool Dictionary_client::acquire_table_by_partition_se_private_id(
     return true;
   }
 
-  bool local= false;
-  const Table::id_key_type key(table_id);
-  const Table::cache_partition_type *cached_object= NULL;
-
-  bool error= acquire(key, &cached_object, &local);
-
-  if (!error)
+  if (table_id != INVALID_OBJECT_ID &&
+      acquire_uncached<Table>(table_id, table))
   {
-    // Dynamic cast may legitimately return NULL if we e.g. asked
-    // for a dd::Table and got a dd::View in return.
-    DBUG_ASSERT(table);
-    *table= dynamic_cast<const Table*>(cached_object);
-
-    // Don't auto release the object here if it is returned.
-    if (!local && *table)
-      releaser.transfer_release(cached_object);
-  }
-  else
     DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    return true;
+  }
 
-  return error;
+  if (*table == NULL)
+  {
+    my_error(ER_INVALID_DD_OBJECT_ID, MYF(0), table_id);
+    return true;
+  }
+
+  return false;
 }
 /* purecov: end */
 
+// Local RAII-based class to make sure the acquired objects are
+// deleted whenever the function returns and the instance goes out
+// of scope and is deleted.
+class Object_deleter
+{
+private:
+  const Table **m_table;
+  const Schema **m_schema;
+public:
+  Object_deleter(const Table **table, const Schema **schema):
+    m_table(table), m_schema(schema)
+  { }
+  ~Object_deleter()
+  {
+    if (m_table && *m_table)
+      delete *m_table;
+    if (m_schema && *m_schema)
+      delete *m_schema;
+  }
+};
 
 // Retrieve a schema- and table name by the se private id of the table.
 bool Dictionary_client::get_table_name_by_se_private_id(
@@ -841,27 +860,6 @@ bool Dictionary_client::get_table_name_by_se_private_id(
                                     std::string *schema_name,
                                     std::string *table_name)
 {
-  // Local RAII-based class to make sure the acquired objects are
-  // deleted whenever the function returns and the instance goes out
-  // of scope and is deleted.
-  class Object_deleter
-  {
-  private:
-    const Table **m_table;
-    const Schema **m_schema;
-  public:
-    Object_deleter(const Table **table, const Schema **schema):
-      m_table(table), m_schema(schema)
-    { }
-    ~Object_deleter()
-    {
-      if (m_table && *m_table)
-        delete *m_table;
-      if (m_schema && *m_schema)
-        delete *m_schema;
-    }
-  };
-
   // Objects to be acquired.
   const Table *tab_obj= NULL;
   const Schema *sch_obj= NULL;
@@ -877,11 +875,7 @@ bool Dictionary_client::get_table_name_by_se_private_id(
     return true;
   }
 
-  if (!tab_obj)
-  {
-    my_error(ER_BAD_TABLE_ERROR, MYF(0), table_name->c_str());
-    return true;
-  }
+  DBUG_ASSERT(tab_obj);
 
   // Acquire the schema uncached to get the schema name. Like above, we
   // cannot lock it in advance since we do not know its name.
@@ -900,6 +894,7 @@ bool Dictionary_client::get_table_name_by_se_private_id(
   // Now, we have both objects, and can assign the names.
   *schema_name= sch_obj->name();
   *table_name= tab_obj->name();
+
   return false;
 }
 
@@ -912,25 +907,23 @@ bool Dictionary_client::get_table_name_by_partition_se_private_id(
                                       std::string *schema_name,
                                       std::string *table_name)
 {
-  // We must make sure the objects are released correctly.
-  Auto_releaser releaser(this);
   const Table *tab_obj= NULL;
-  if (acquire_table_by_partition_se_private_id(engine,
-                                               se_partition_id, &tab_obj))
+  const Schema *sch_obj= NULL;
+
+  // Sign up for delete.
+  Object_deleter object_deleter(&tab_obj, &sch_obj);
+
+  if (acquire_uncached_table_by_partition_se_private_id(
+        engine, se_partition_id, &tab_obj))
   {
     DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
     return true;
   }
 
-  if (!tab_obj)
-  {
-    my_error(ER_BAD_TABLE_ERROR, MYF(0), schema_name->c_str());
-    return true;
-  }
+  DBUG_ASSERT(tab_obj);
 
   // Acquire the schema to get the schema name.
-  const Schema *sch_obj= NULL;
-  if (acquire<Schema>(tab_obj->schema_id(), &sch_obj))
+  if (acquire_uncached<Schema>(tab_obj->schema_id(), &sch_obj))
   {
     DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
     return true;
@@ -945,6 +938,7 @@ bool Dictionary_client::get_table_name_by_partition_se_private_id(
   // Now, we have both objects, and can assign the names.
   *schema_name= sch_obj->name();
   *table_name= tab_obj->name();
+
   return false;
 }
 /* purecov: end */
