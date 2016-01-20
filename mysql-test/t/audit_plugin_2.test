@@ -1531,8 +1531,8 @@ CREATE USER user2;
 SELECT USER(), CURRENT_USER();
 
 --echo # Try to change user for a given connection (user and database specified)
---error 1
---exec echo "--change_user user2,,mysql" | $MYSQL_TEST 2>&1
+--error ER_DBACCESS_DENIED_ERROR
+--change_user user2,,mysql
 SELECT USER(), CURRENT_USER();
 
 connection default;
@@ -1582,8 +1582,8 @@ connection default;
 SET @@GLOBAL.null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="17";ABORT_RET';
 connection user1_con;
 --echo # Try to change user for a given connection (user and database specified)
---error 1
---exec echo "--change_user user2,,mysql" | $MYSQL_TEST 2>&1
+--error ER_DBACCESS_DENIED_ERROR
+--change_user user2,,mysql
 
 
 connection default;

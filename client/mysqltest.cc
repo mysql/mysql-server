@@ -4268,7 +4268,12 @@ static void do_change_user(struct st_command *command)
                       cur_con->name, ds_user.str, ds_passwd.str, ds_db.str));
 
   if (mysql_change_user(mysql, ds_user.str, ds_passwd.str, ds_db.str))
-    die("change user failed: %s", mysql_error(mysql));
+  {
+    handle_error(curr_command, mysql_errno(mysql), mysql_error(mysql),
+                 mysql_sqlstate(mysql), &ds_res);
+    mysql->reconnect= 1;
+    mysql_reconnect(&cur_con->mysql);
+  }
 
   dynstr_free(&ds_user);
   dynstr_free(&ds_passwd);
