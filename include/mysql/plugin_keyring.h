@@ -28,7 +28,7 @@
   st_mysql_plugin.
 */
 
-struct st_mysql_keyring_file
+struct st_mysql_keyring
 {
   int interface_version;
   /*!

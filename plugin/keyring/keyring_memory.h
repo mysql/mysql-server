@@ -53,5 +53,5 @@ namespace keyring {
       }
   };
 } //namespace keyring
-
+ 
 #endif //MYSQL_KEYRING_MEMORY_H
