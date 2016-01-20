@@ -215,10 +215,15 @@ public:
     the <table_ref> cross join as the left-most leaf in this join tree.
 
     This function may only be called if this PT_table_reference is a join.
+
+    @param cj This <table ref> will be added if it represents a cross join.
+
+    @return The new top-level join.
   */
-  virtual PT_table_ref_joined_table *add_cross_join(PT_table_ref_joined_table *cj)
+  virtual PT_table_ref_joined_table *add_cross_join(PT_table_ref_joined_table
+                                                    *cj)
   {
-    DBUG_ASSERT(0);
+    DBUG_ASSERT(false);
     return NULL;
   }
 
@@ -2200,7 +2205,8 @@ public:
       return true;
     }
 
-    // Making a new SELECT_LEX for the subquery's query expression.
+    // Create a SELECT_LEX_UNIT and SELECT_LEX for the subquery's query
+    // expression.
     SELECT_LEX *child= lex->new_query(pc->select);
     if (child == NULL)
       return true;
