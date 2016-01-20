@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -106,7 +106,7 @@ bool Tablespace_impl::validate() const
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
              Tablespace_impl::OBJECT_TABLE().name().c_str(),
-             "No engine set.");
+             "Engine name is not set.");
     return true;
   }
 

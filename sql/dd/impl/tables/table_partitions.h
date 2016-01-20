@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -81,7 +81,7 @@ public:
                            "name VARCHAR(64) NOT NULL COLLATE utf8_tolower_ci");
     m_target_def.add_field(FIELD_ENGINE,
                            "FIELD_ENGINE",
-                           "engine VARCHAR(64)");
+                           "engine VARCHAR(64) NOT NULL");
     m_target_def.add_field(FIELD_COMMENT,
                            "FIELD_COMMENT",
                            "comment VARCHAR(2048) NOT NULL");

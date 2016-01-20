@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -78,7 +78,7 @@ public:
                            "comment VARCHAR(2048) NOT NULL");
     m_target_def.add_field(FIELD_ENGINE,
                            "FIELD_ENGINE",
-                           "engine VARCHAR(64)");
+                           "engine VARCHAR(64) NOT NULL");
 
     m_target_def.add_index("PRIMARY KEY(id)");
     m_target_def.add_index("UNIQUE KEY(name)");

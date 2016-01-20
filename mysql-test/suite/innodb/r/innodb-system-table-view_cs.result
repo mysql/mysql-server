@@ -77,7 +77,7 @@ table_id	pos	mtype	prtype	len	name
 20	2	5	5439740	11	options
 20	3	5	5439740	11	se_private_data
 20	4	12	5443855	6144	comment
-20	5	12	5439503	192	engine
+20	5	12	5439759	192	engine
 21	0	6	1800	8	tablespace_id
 21	1	6	1795	4	ordinal_position
 21	2	12	5443855	765	file_name
@@ -96,7 +96,7 @@ table_id	pos	mtype	prtype	len	name
 24	1	6	1800	8	schema_id
 24	2	12	5439759	192	name
 24	3	6	1022	1	type
-24	4	12	5439503	192	engine
+24	4	12	5439759	192	engine
 24	5	6	1795	4	mysql_version_id
 24	6	6	1544	8	collation_id
 24	7	12	5443855	6144	comment
@@ -164,7 +164,7 @@ table_id	pos	mtype	prtype	len	name
 27	10	5	5439740	11	options
 27	11	5	5439740	11	se_private_data
 27	12	6	1544	8	tablespace_id
-27	13	12	5439503	192	engine
+27	13	12	5439759	192	engine
 28	0	6	1800	8	index_id
 28	1	6	1795	4	ordinal_position
 28	2	6	1800	8	column_id
@@ -194,7 +194,7 @@ table_id	pos	mtype	prtype	len	name
 32	2	6	1793	1	level
 32	3	6	1794	2	number
 32	4	12	4981007	192	name
-32	5	12	5439503	192	engine
+32	5	12	5439759	192	engine
 32	6	12	5443855	6144	comment
 32	7	5	5439740	11	options
 32	8	5	5439740	11	se_private_data
