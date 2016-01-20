@@ -227,40 +227,30 @@ static bool
 fill_dd_columns_from_create_fields(THD *thd,
                                    dd::Table *tab_obj,
                                    const List<Create_field> &create_fields,
-                                   handler *file,
-                                   sql_mode_t user_trans_sql_mode)
+                                   handler *file)
 {
-  // Local class to handle the thd context, which must be manipulated since
-  // we may be in the middle of a DD transaction, which sets sql mode= 0.
-  // The user transaction may have a different sql mode, which must be used
-  // here to handle default values correctly, e.g. allowing invalid dates.
-  // When this function returns, the old (i.e., DD transaction's)  sql mode
-  // must be restored. This class also takes care of freeing the dynamically
-  // allocated buffer used to prepare default values.
+  // Helper class which takes care of restoration of THD::count_cuted_fields
+  // after it was temporarily changed to CHECK_FIELD_WARN in order to prepare
+  // default values and freeing buffer which is allocated for the same purpose.
   class Context_handler
   {
   private:
     THD *m_thd;
     uchar *m_buf;
     enum_check_fields m_count_cuted_fields;
-    sql_mode_t m_sql_mode;
   public:
-    Context_handler(THD *thd, uchar *buf, sql_mode_t user_trans_sql_mode):
+    Context_handler(THD *thd, uchar *buf):
                     m_thd(thd), m_buf(buf),
-                    m_count_cuted_fields(m_thd->count_cuted_fields),
-                    m_sql_mode(m_thd->variables.sql_mode)
+                    m_count_cuted_fields(m_thd->count_cuted_fields)
     {
       // Set to warn about wrong default values.
       m_thd->count_cuted_fields= CHECK_FIELD_WARN;
-      // Temporarily restore user SQL mode, as we are now in a DD transaction.
-      m_thd->variables.sql_mode= user_trans_sql_mode;
     }
     ~Context_handler()
     {
       // Delete buffer and restore context.
       my_free(m_buf);
       m_thd->count_cuted_fields= m_count_cuted_fields;
-      m_thd->variables.sql_mode= m_sql_mode;
     }
   };
 
@@ -279,7 +269,7 @@ fill_dd_columns_from_create_fields(THD *thd,
     return true; /* purecov: inspected */
 
   // Use RAII to save old context and restore at function return.
-  Context_handler save_and_restore_thd_context(thd, buf, user_trans_sql_mode);
+  Context_handler save_and_restore_thd_context(thd, buf);
 
   // We need a fake table and share to generate the default values.
   // We prepare these once, and reuse them for all fields.
@@ -1228,8 +1218,7 @@ static bool fill_dd_table_from_create_info(THD *thd,
                                            const List<Create_field> &create_fields,
                                            const KEY *keyinfo,
                                            uint keys,
-                                           handler *file,
-                                           sql_mode_t user_trans_sql_mode)
+                                           handler *file)
 {
   // Table name must be set with the correct case depending on l_c_t_n
   tab_obj->set_name(table_case_name(create_info, table_name.c_str()));
@@ -1384,8 +1373,7 @@ static bool fill_dd_table_from_create_info(THD *thd,
   // Add field definitions
   if (fill_dd_columns_from_create_fields(thd, tab_obj,
                                          create_fields,
-                                         file,
-                                         user_trans_sql_mode))
+                                         file))
     return true;
 
   // Add index definitions
@@ -1428,8 +1416,7 @@ static bool create_dd_system_table(THD *thd,
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,
-                                     keyinfo, keys, file,
-                                     thd->variables.sql_mode))
+                                     keyinfo, keys, file))
     return true;
 
   //
@@ -1459,13 +1446,6 @@ static bool create_dd_user_table(THD *thd,
                                  uint keys,
                                  handler *file)
 {
-  // Save SQL mode, needed temporarily while processing default values.
-  // The SQL mode must be saved here because starting the dictionary
-  // transaction, which is done below, will reset the SQL mode in the THD,
-  // but while preparing the default values, we need to obey the SQL mode
-  // of the user transaction, e.g. for correct error handling.
-  sql_mode_t user_trans_sql_mode= thd->variables.sql_mode;
-
   // Verify that this is not a dd table.
   // TODO-WL6394 Refactor.
   dd::Dictionary *dict __attribute__((unused));
@@ -1496,8 +1476,7 @@ static bool create_dd_user_table(THD *thd,
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,
-                                     keyinfo, keys, file,
-                                     user_trans_sql_mode))
+                                     keyinfo, keys, file))
     return true;
 
   Disable_gtid_state_update_guard disabler(thd);
@@ -1545,13 +1524,6 @@ dd::Table *create_tmp_table(THD *thd,
                             uint keys,
                             handler *file)
 {
-  // Save SQL mode, needed temporarily while processing default values.
-  // The SQL mode must be saved here because starting the dictionary
-  // transaction, which is done below, will reset the SQL mode in the THD,
-  // but while preparing the default values, we need to obey the SQL mode
-  // of the user transaction, e.g. for correct error handling.
-  sql_mode_t user_trans_sql_mode= thd->variables.sql_mode;
-
   // Check if the schema exists. We must make sure the schema is released
   // and unlocked in the right order.
   dd::Schema_MDL_locker mdl_locker(thd);
@@ -1576,8 +1548,7 @@ dd::Table *create_tmp_table(THD *thd,
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,
-                                     keyinfo, keys, file,
-                                     user_trans_sql_mode))
+                                     keyinfo, keys, file))
     return NULL;
 
   return tab_obj.release();
