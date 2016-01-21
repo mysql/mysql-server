@@ -10625,8 +10625,14 @@ joined_table:
             PT_table_ref_joined_table *this_table_ref=
               NEW_PTN PT_table_ref_joined_table(this_cross_join);
 
+            if ($3 == NULL)
+              MYSQL_YYABORT; // OOM
+
             PT_table_ref_joined_table *new_root=
               $3->add_cross_join(this_table_ref);
+
+            if (new_root == NULL)
+              MYSQL_YYABORT; // OOM
 
             $$= new_root->get_joined_table();
           }
