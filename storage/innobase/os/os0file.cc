@@ -3331,6 +3331,7 @@ os_file_create_simple_no_error_handling_func(
 {
 	os_file_t	file;
 	int		create_flag;
+	const char*	mode_str = NULL;
 
 	ut_a(!(create_mode & OS_FILE_ON_ERROR_SILENT));
 	ut_a(!(create_mode & OS_FILE_ON_ERROR_NO_EXIT));
@@ -3338,6 +3339,8 @@ os_file_create_simple_no_error_handling_func(
 	*success = false;
 
 	if (create_mode == OS_FILE_OPEN) {
+
+		mode_str = "OPEN";
 
 		if (access_type == OS_FILE_READ_ONLY) {
 
@@ -3357,9 +3360,13 @@ os_file_create_simple_no_error_handling_func(
 
 	} else if (read_only) {
 
+		mode_str = "OPEN";
+
 		create_flag = O_RDONLY;
 
 	} else if (create_mode == OS_FILE_CREATE) {
+
+		mode_str = "CREATE";
 
 		create_flag = O_RDWR | O_CREAT | O_EXCL;
 
@@ -3375,6 +3382,17 @@ os_file_create_simple_no_error_handling_func(
 	file = ::open(name, create_flag, os_innodb_umask);
 
 	*success = (file != -1);
+
+	/* This function is always called for data files, we should disable
+	OS caching (O_DIRECT) here as we do in os_file_create_func(). so
+	we open the same file in the same mode, see man page of open(2). */
+	if(!read_only
+	   && *success
+	   && (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT
+	       || srv_unix_file_flush_method == SRV_UNIX_O_DIRECT_NO_FSYNC)) {
+
+		os_file_set_nocache(file, name, mode_str);
+	}
 
 #ifdef USE_FILE_LOCK
 	if (!read_only
