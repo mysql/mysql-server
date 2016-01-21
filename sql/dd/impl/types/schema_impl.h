@@ -96,11 +96,11 @@ public:
   { m_last_altered= last_altered; }
 
 public:
-  virtual Table *create_table();
+  virtual Table *create_table(THD *thd) const;
 
-  virtual View *create_view();
+  virtual View *create_view(THD *thd) const;
 
-  virtual View *create_system_view();
+  virtual View *create_system_view(THD *thd) const;
 
 public:
   virtual void debug_print(std::string &outb) const

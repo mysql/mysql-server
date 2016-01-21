@@ -92,11 +92,11 @@ public:
   virtual void set_last_altered(ulonglong last_altered) = 0;
 
 public:
-  virtual Table *create_table() = 0;
+  virtual Table *create_table(THD *thd) const = 0;
 
-  virtual View *create_view() = 0;
+  virtual View *create_view(THD *thd) const = 0;
 
-  virtual View *create_system_view() = 0;
+  virtual View *create_system_view(THD *thd) const = 0;
 
   /**
     Allocate a new object and invoke the copy contructor.

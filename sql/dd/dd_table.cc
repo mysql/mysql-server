@@ -1412,7 +1412,7 @@ static bool create_dd_system_table(THD *thd,
   //
   // Create dd::Table object
   //
-  std::unique_ptr<dd::Table> tab_obj(sch_obj->create_table());
+  std::unique_ptr<dd::Table> tab_obj(sch_obj->create_table(thd));
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,
@@ -1471,8 +1471,7 @@ static bool create_dd_user_table(THD *thd,
   }
 
   // Create dd::Table object.
-  std::unique_ptr<dd::Table> tab_obj(
-    const_cast<dd::Schema *>(sch_obj)->create_table());
+  std::unique_ptr<dd::Table> tab_obj(sch_obj->create_table(thd));
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,
@@ -1543,8 +1542,7 @@ dd::Table *create_tmp_table(THD *thd,
   }
 
   // Create dd::Table object.
-  std::unique_ptr<dd::Table> tab_obj(
-    const_cast<dd::Schema *>(sch_obj)->create_table());
+  std::unique_ptr<dd::Table> tab_obj(sch_obj->create_table(thd));
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,

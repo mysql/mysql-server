@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -205,11 +205,11 @@ bool create_view(THD *thd,
   std::unique_ptr<dd::View> view_obj;
   if (dd::get_dictionary()->is_system_view_name(schema_name, view_name))
   {
-    view_obj.reset(const_cast<dd::Schema *>(sch_obj)->create_system_view());
+    view_obj.reset(sch_obj->create_system_view(thd));
   }
   else
   {
-    view_obj.reset(const_cast<dd::Schema *>(sch_obj)->create_view());
+    view_obj.reset(sch_obj->create_view(thd));
   }
 
   // View name.

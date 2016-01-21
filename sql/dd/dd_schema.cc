@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -165,9 +165,7 @@ bool drop_schema(THD *thd, const char *schema_name)
 
 bool Schema_MDL_locker::is_lock_required(const char* schema_name)
 {
-  return mysqld_server_started &&
-         my_strcasecmp(system_charset_info,
-                       MYSQL_SCHEMA_NAME.str, schema_name) != 0;
+  return mysqld_server_started;
 }
 
 

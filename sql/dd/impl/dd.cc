@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,6 +14,8 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "dd/dd.h"
+
+#include "table.h"                                  // MYSQL_SCHEMA_NAME
 
 #include "dd/impl/dictionary_impl.h"                // dd::Dictionary_impl
 #include "dd/impl/object_table_registry.h"          // dd::Object_table_registry
@@ -54,6 +56,7 @@ Schema *create_dd_schema()
       dd::create_object<Schema>());
 
   schema->set_id(1); // The DD schema ID.
+  schema->set_name(MYSQL_SCHEMA_NAME.str); // The DD schema name.
 
   return schema;
 }
