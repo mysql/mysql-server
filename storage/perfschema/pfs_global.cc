@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -217,7 +217,6 @@ uint pfs_get_socket_address(char *host,
     }
     break;
 
-#ifdef HAVE_IPV6
     case AF_INET6:
     {
       if (host_len < INET6_ADDRSTRLEN+1)
@@ -233,7 +232,6 @@ uint pfs_get_socket_address(char *host,
       *port= ntohs(sa6->sin6_port);
     }
     break;
-#endif
 
     default:
       break;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,14 +30,8 @@ protected:
  */
   void verify_timespec()
   {
-
-#ifdef HAVE_STRUCT_TIMESPEC
     EXPECT_GT(ts.tv_sec, 0);
     EXPECT_GE(ts.tv_nsec, 0);
-#else
-    EXPECT_GT(ts.tv.i64, 0);
-    EXPECT_GE(ts.max_timeout_msec, 0);
-#endif
   }
 
   struct timespec ts;

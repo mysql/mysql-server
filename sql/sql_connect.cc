@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -540,7 +540,6 @@ static int check_connection(THD *thd)
                     }
                     );
 
-#ifdef HAVE_IPV6
     DBUG_EXECUTE_IF("vio_peer_addr_fake_ipv6",
                     {
                       struct sockaddr_in6 *sa= (sockaddr_in6 *) &net->vio->remote;
@@ -569,7 +568,6 @@ static int check_connection(THD *thd)
                       peer_rc= 0;
                     }
                     );
-#endif /* HAVE_IPV6 */
 
     /*
     ===========================================================================

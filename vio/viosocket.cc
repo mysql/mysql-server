@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -493,7 +493,6 @@ static void vio_get_normalized_ip(const struct sockaddr *src,
     *dst_length= src_length;
     break;
 
-#ifdef HAVE_IPV6
   case AF_INET6:
   {
     const struct sockaddr_in6 *src_addr6= (const struct sockaddr_in6 *) src;
@@ -532,7 +531,6 @@ static void vio_get_normalized_ip(const struct sockaddr *src,
 
     break;
   }
-#endif /* HAVE_IPV6 */
   }
 }
 
@@ -1144,14 +1142,12 @@ int vio_getnameinfo(const struct sockaddr *sa,
 #endif /* HAVE_SOCKADDR_IN_SIN_LEN */
     break;
 
-#ifdef HAVE_IPV6
   case AF_INET6:
     sa_length= sizeof (struct sockaddr_in6);
 # ifdef HAVE_SOCKADDR_IN6_SIN6_LEN
     ((struct sockaddr_in6 *) sa)->sin6_len= sa_length;
 # endif /* HAVE_SOCKADDR_IN6_SIN6_LEN */
     break;
-#endif /* HAVE_IPV6 */
   }
 
   return getnameinfo(sa, sa_length,

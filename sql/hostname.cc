@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -351,14 +351,12 @@ static inline bool is_ip_loopback(const struct sockaddr *ip)
       return ntohl(ip4->s_addr) == INADDR_LOOPBACK;
     }
 
-#ifdef HAVE_IPV6
   case AF_INET6:
     {
       /* Check for IPv6 ::1. */
       struct in6_addr *ip6= &((struct sockaddr_in6 *) ip)->sin6_addr;
       return IN6_IS_ADDR_LOOPBACK(ip6);
     }
-#endif /* HAVE_IPV6 */
 
   default:
     return FALSE;
@@ -757,7 +755,6 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
                   }
                   );
 
-#ifdef HAVE_IPV6
   DBUG_EXECUTE_IF("getaddrinfo_fake_bad_ipv6",
                   {
                     if (free_addr_info_list)
@@ -898,7 +895,6 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
                     free_addr_info_list= false;
                   }
                   );
-#endif /* HAVE_IPV6 */
 
   /*
   ===========================================================================

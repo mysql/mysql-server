@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -318,6 +318,7 @@ CHECK_FUNCTION_EXISTS (backtrace HAVE_BACKTRACE)
 CHECK_FUNCTION_EXISTS (printstack HAVE_PRINTSTACK)
 CHECK_FUNCTION_EXISTS (index HAVE_INDEX)
 CHECK_FUNCTION_EXISTS (clock_gettime HAVE_CLOCK_GETTIME)
+CHECK_FUNCTION_EXISTS (chown HAVE_CHOWN)
 CHECK_FUNCTION_EXISTS (cuserid HAVE_CUSERID)
 CHECK_FUNCTION_EXISTS (directio HAVE_DIRECTIO)
 CHECK_FUNCTION_EXISTS (ftruncate HAVE_FTRUNCATE)
@@ -474,7 +475,6 @@ CHECK_TYPE_SIZE("int"       SIZEOF_INT)
 CHECK_TYPE_SIZE("long long" SIZEOF_LONG_LONG)
 CHECK_TYPE_SIZE("off_t"     SIZEOF_OFF_T)
 CHECK_TYPE_SIZE("time_t"    SIZEOF_TIME_T)
-CHECK_TYPE_SIZE("struct timespec" STRUCT_TIMESPEC)
 
 # If finds the size of a type, set SIZEOF_<type> and HAVE_<type>
 FUNCTION(MY_CHECK_TYPE_SIZE type defbase)
@@ -658,53 +658,52 @@ IF(WITH_VALGRIND)
   ENDIF()
 ENDIF()
 
-#--------------------------------------------------------------------
-# Check for IPv6 support
-#--------------------------------------------------------------------
-CHECK_INCLUDE_FILE(netinet/in6.h HAVE_NETINET_IN6_H) # Used by libevent
+# Check for SYS_thread_selfid system call
+CHECK_C_SOURCE_COMPILES("
+#include <sys/types.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+int main(int ac, char **av)
+{
+  unsigned long long tid = syscall(SYS_thread_selfid);
+  return (tid != 0 ? 0 : 1);
+}"
+HAVE_SYS_THREAD_SELFID)
 
-IF(UNIX)
-  SET(CMAKE_EXTRA_INCLUDE_FILES sys/types.h netinet/in.h sys/socket.h)
-  IF(HAVE_NETINET_IN6_H)
-    SET(CMAKE_EXTRA_INCLUDE_FILES ${CMAKE_EXTRA_INCLUDE_FILES} netinet/in6.h)
-  ENDIF()
-ELSEIF(WIN32)
-  SET(CMAKE_EXTRA_INCLUDE_FILES ${CMAKE_EXTRA_INCLUDE_FILES} winsock2.h ws2ipdef.h)
-ENDIF()
+# Check for gettid() system call
+CHECK_C_SOURCE_COMPILES("
+#include <sys/types.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+int main(int ac, char **av)
+{
+  unsigned long long tid = syscall(SYS_gettid);
+  return (tid != 0 ? 0 : 1);
+}"
+HAVE_SYS_GETTID)
 
-MY_CHECK_STRUCT_SIZE("sockaddr_in6" SOCKADDR_IN6)
-MY_CHECK_STRUCT_SIZE("in6_addr" IN6_ADDR)
+# Check for pthread_getthreadid_np()
+CHECK_C_SOURCE_COMPILES("
+#include <pthread_np.h>
+int main(int ac, char **av)
+{
+  unsigned long long tid = pthread_getthreadid_np();
+  return (tid != 0 ? 0 : 1);
+}"
+HAVE_PTHREAD_GETTHREADID_NP)
 
-IF(HAVE_STRUCT_SOCKADDR_IN6 OR HAVE_STRUCT_IN6_ADDR)
-  SET(HAVE_IPV6 TRUE CACHE INTERNAL "")
-ENDIF()
-
-
-# Check for sockaddr_storage.ss_family
-
-CHECK_STRUCT_HAS_MEMBER("struct sockaddr_storage"
- ss_family "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_SOCKADDR_STORAGE_SS_FAMILY)
-IF(NOT HAVE_SOCKADDR_STORAGE_SS_FAMILY)
-  CHECK_STRUCT_HAS_MEMBER("struct sockaddr_storage"
-  __ss_family "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_SOCKADDR_STORAGE___SS_FAMILY)
-  IF(HAVE_SOCKADDR_STORAGE___SS_FAMILY)
-    SET(ss_family __ss_family)
-  ENDIF()
-ENDIF()
-
-#
-# Check if struct sockaddr_in::sin_len is available.
-#
-
-CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in" sin_len
-  "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_SOCKADDR_IN_SIN_LEN)
-
-#
-# Check if struct sockaddr_in6::sin6_len is available.
-#
-
-CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in6" sin6_len
-  "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_SOCKADDR_IN6_SIN6_LEN)
+# Check for pthread_self() returning an integer type
+CHECK_C_SOURCE_COMPILES("
+#include <sys/types.h>
+#include <pthread.h>
+int main(int ac, char **av)
+{
+  unsigned long long tid = pthread_self();
+  return (tid != 0 ? 0 : 1);
+}"
+HAVE_INTEGER_PTHREAD_SELF
+FAIL_REGEX "warning: incompatible pointer to integer conversion"
+)
 
 CHECK_CXX_SOURCE_COMPILES(
   "
@@ -732,6 +731,45 @@ CHECK_CXX_SOURCE_COMPILES(
   }
   " HAVE_IMPLICIT_DEPENDENT_NAME_TYPING)
 
-SET(CMAKE_EXTRA_INCLUDE_FILES)
+#--------------------------------------------------------------------
+# Check for IPv6 support
+#--------------------------------------------------------------------
+CHECK_INCLUDE_FILE(netinet/in6.h HAVE_NETINET_IN6_H) # Used by libevent
+MY_CHECK_STRUCT_SIZE("in6_addr" IN6_ADDR) # Used by libevent
 
-CHECK_FUNCTION_EXISTS(chown HAVE_CHOWN)
+IF(UNIX)
+  SET(CMAKE_EXTRA_INCLUDE_FILES sys/types.h netinet/in.h sys/socket.h)
+  IF(HAVE_NETINET_IN6_H)
+    SET(CMAKE_EXTRA_INCLUDE_FILES ${CMAKE_EXTRA_INCLUDE_FILES} netinet/in6.h)
+  ENDIF()
+ELSEIF(WIN32)
+  SET(CMAKE_EXTRA_INCLUDE_FILES ${CMAKE_EXTRA_INCLUDE_FILES} winsock2.h ws2ipdef.h)
+ENDIF()
+
+# Check for sockaddr_storage.ss_family
+
+CHECK_STRUCT_HAS_MEMBER("struct sockaddr_storage"
+ ss_family "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_SOCKADDR_STORAGE_SS_FAMILY)
+IF(NOT HAVE_SOCKADDR_STORAGE_SS_FAMILY)
+  CHECK_STRUCT_HAS_MEMBER("struct sockaddr_storage"
+  __ss_family "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_SOCKADDR_STORAGE___SS_FAMILY)
+  IF(HAVE_SOCKADDR_STORAGE___SS_FAMILY)
+    SET(ss_family __ss_family)
+  ENDIF()
+ENDIF()
+
+#
+# Check if struct sockaddr_in::sin_len is available.
+#
+
+CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in" sin_len
+  "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_SOCKADDR_IN_SIN_LEN)
+
+#
+# Check if struct sockaddr_in6::sin6_len is available.
+#
+
+CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in6" sin6_len
+  "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_SOCKADDR_IN6_SIN6_LEN)
+
+SET(CMAKE_EXTRA_INCLUDE_FILES)
