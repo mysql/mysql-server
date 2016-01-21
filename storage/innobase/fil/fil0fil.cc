@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3216,8 +3216,6 @@ fil_create_link_file(
 	const char*	tablename,	/*!< in: tablename */
 	const char*	filepath)	/*!< in: pathname of tablespace */
 {
-	os_file_t	file;
-	ibool		success;
 	dberr_t		err = DB_SUCCESS;
 	char*		link_filepath;
 	char*		prev_filepath = fil_read_link_file(tablename);
@@ -3236,13 +3234,24 @@ fil_create_link_file(
 
 	link_filepath = fil_make_isl_name(tablename);
 
-	file = os_file_create_simple_no_error_handling(
-		innodb_file_data_key, link_filepath,
-		OS_FILE_CREATE, OS_FILE_READ_WRITE, &success);
+	/** Check if the file already exists. */
+	FILE*                   file = NULL;
+	ibool                   exists;
+	os_file_type_t          ftype;
 
-	if (!success) {
-		/* The following call will print an error message */
-		ulint	error = os_file_get_last_error(true);
+	bool success = os_file_status(link_filepath, &exists, &ftype);
+
+	ulint error = 0;
+	if (success && !exists) {
+		file = fopen(link_filepath, "w");
+		if (file == NULL) {
+			/* This call will print its own error message */
+			error = os_file_get_last_error(true);
+		}
+	} else {
+		error = OS_FILE_ALREADY_EXISTS;
+	}
+	if (error != 0) {
 
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Cannot create file ", stderr);
@@ -3267,13 +3276,17 @@ fil_create_link_file(
 		return(err);
 	}
 
-	if (!os_file_write(link_filepath, file, filepath, 0,
-			    strlen(filepath))) {
+	ulint rbytes = fwrite(filepath, 1, strlen(filepath), file);
+	if (rbytes != strlen(filepath)) {
+		os_file_get_last_error(true);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"cannot write link file "
+			 "%s",filepath);
 		err = DB_ERROR;
 	}
 
 	/* Close the file, we only need it at startup */
-	os_file_close(file);
+	fclose(file);
 
 	mem_free(link_filepath);
 
