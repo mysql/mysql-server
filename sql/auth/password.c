@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -205,10 +205,10 @@ void my_make_scrambled_password(char *to, const char *password,
     hash_stage1=sha1("password")
     hash_stage2=sha1(hash_stage1)
 
-  @param password    [IN]   Password string.
-  @param pass_len    [IN]   Length of the password.
-  @param hash_stage1 [OUT]  sha1(password)
-  @param hash_stage2 [OUT]  sha1(hash_stage1)
+  @param [in] password       Password string.
+  @param [in] pass_len       Length of the password.
+  @param [out] hash_stage1   sha1(password)
+  @param [out] hash_stage2   sha1(hash_stage1)
 */
 
 inline static

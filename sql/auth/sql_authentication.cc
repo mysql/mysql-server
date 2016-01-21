@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -123,9 +123,9 @@ Thd_charset_adapter::charset()
 /**
   @brief Set key file path
 
-  @param  key[in]            Points to either auth_rsa_private_key_path or
+  @param [in] key            Points to either auth_rsa_private_key_path or
                              auth_rsa_public_key_path.
-  @param  key_file_path[out] Stores value of actual key file path.
+  @param [out] key_file_path Stores value of actual key file path.
 
 */
 void
@@ -151,12 +151,12 @@ Rsa_authentication_keys::get_key_file_path(char *key, String *key_file_path)
 /**
   @brief Read a key file and store its value in RSA structure
 
-  @param  key_ptr[out]         Address of pointer to RSA. This is set to
+  @param [out] key_ptr         Address of pointer to RSA. This is set to
                                point to a non null value if key is correctly
                                read.
-  @param  is_priv_key[in]      Whether we are reading private key or public
+  @param [in] is_priv_key      Whether we are reading private key or public
                                key.
-  @param  key_text_buffer[out] To store key file content of public key.
+  @param [out] key_text_buffer To store key file content of public key.
 
   @return Error status
     @retval false              Success : Either both keys are read or none
@@ -2798,9 +2798,9 @@ void static inline auth_save_scramble(MYSQL_PLUGIN_VIO *vio, const char *scrambl
 /** 
  
  @param vio Virtual input-, output interface
- @param info[out] Connection information
+ @param [out] info Connection information
  
- Authenticate the user by recieving a RSA or TLS encrypted password and
+ Authenticate the user by receiving a RSA or TLS encrypted password and
  calculate a hash digest which should correspond to the user record digest
  
  RSA keys are assumed to be pre-generated and supplied when server starts. If
@@ -3027,16 +3027,15 @@ static struct st_mysql_sys_var* sha256_password_sysvars[]= {
 
 typedef std::string Sql_string_t;
 
-/*
+/**
   Exception free resize
 
-  @param content [in/out] : string handle
-  @param size [in] : New size
-
+  @param [in,out] content string handle
+  @param [in] size New size
 
   @returns
-    @retval false : Error
-    @retval true : Successfully resized
+    @retval false  Error
+    @retval true  Successfully resized
 */
 static
 bool resize_no_exception(Sql_string_t &content, size_t size)
@@ -3155,15 +3154,15 @@ private:
 };
 
 
-/*
+/**
   Read an open file.
 
-  @param op [in/out] : Handle to FILE_IO
-  @param s [out] : String buffer
+  @param [in,out] op  Handle to FILE_IO
+  @param [out] s String buffer
 
   Assumption : Caller will free string buffer
 
-  returns File_IO reference. Optionally sets error.
+  @returns File_IO reference. Optionally sets error.
 */
 File_IO &
 File_IO::operator>>(Sql_string_t &s)
@@ -3183,11 +3182,11 @@ File_IO::operator>>(Sql_string_t &s)
 }
 
 
-/*
+/**
   Write into an open file
 
-  @param op [in/out] : Handle to File_IO
-  @parma output_string[in] : content to be written
+  @param [in,out] op  Handle to File_IO
+  @param [in] output_string Content to be written
 
   Assumption : string must be non-empty.
 
@@ -3291,10 +3290,10 @@ static EVP_PKEY *evp_pkey_generate(RSA *rsa)
 }
 
 
-/*
+/**
   Write private key in a string buffer
 
-  @param rsa [in] : Handle to RSA structure where private key is stored
+  @param [in] rsa Handle to RSA structure where private key is stored
 
   @returns Sql_string_t object with private key stored in it.
 */
@@ -3319,10 +3318,10 @@ Sql_string_t rsa_priv_key_write(RSA *rsa)
 }
 
 
-/*
+/**
   Write public key in a string buffer
 
-  @param rsa [in] : Handle to RSA structure where public key is stored
+  @param [in] rsa Handle to RSA structure where public key is stored
 
   @returns Sql_string_t object with public key stored in it.
 */
@@ -3387,10 +3386,10 @@ public:
 };
 
 
-/*
+/**
   Read a X509 certificate into X509 format
 
-  @param input_string [in] : Content of X509 certificate file.
+  @param [in] input_string Content of X509 certificate file.
 
   @returns Handle to X509 structure.
 
@@ -3412,10 +3411,10 @@ X509 * x509_cert_read(const Sql_string_t &input_string)
 }
 
 
-/*
+/**
   Write X509 certificate into a string
 
-  @param cert [in] : Certificate information in X509 format.
+  @param [in] cert Certificate information in X509 format.
 
   @returns certificate information in string format.
 */
@@ -3439,10 +3438,10 @@ Sql_string_t x509_cert_write(X509 *cert)
 }
 
 
-/*
+/**
   Read Private key into EVP_PKEY structure
 
-  @param input_string [in] : Content of private key file.
+  @param [in] input_string Content of private key file.
 
   @returns Handle to EVP_PKEY structure.
 
@@ -3466,10 +3465,10 @@ EVP_PKEY * x509_key_read(const Sql_string_t &input_string)
 }
 
 
-/*
+/**
   Write X509 certificate into a string
 
-  @param pkey [in] : Private key information.
+  @param [in] pkey Private key information.
 
   @returns private key information in string format.
 */
@@ -3496,7 +3495,7 @@ Sql_string_t x509_key_write(EVP_PKEY *pkey)
 }
 
 
-/*
+/**
   Algorithm to create X509 certificate.
   Relies on:
   1> RSA key generator
@@ -3505,18 +3504,18 @@ Sql_string_t x509_key_write(EVP_PKEY *pkey)
 
   Overwrites key/certificate files if already present.
 
-  @param rsa_gen [in] : RSA generator
-  @param cn [in] : Common name field of X509 certificate.
-  @param serial [in] : Certificate serial number
-  @param cert_filename [in] : File name for X509 certificate
-  @param key_filename [in] : File name for private key
-  @param filecr [in] : File creator
-  @param ca_key_file [in] : CA private key file
-  @param ca_cert_file [in] : CA certificate file
+  @param [in] rsa_gen RSA generator
+  @param [in] cn Common name field of X509 certificate.
+  @param [in] serial Certificate serial number
+  @param [in] cert_filename File name for X509 certificate
+  @param [in] key_filename File name for private key
+  @param [in] filecr File creator
+  @param [in] ca_key_file CA private key file
+  @param [in] ca_cert_file CA certificate file
 
   @returns generation status
-    @retval false : Error in key/certificate generation.
-    @retval true : key/certificate files are generated successfully.
+    @retval false Error in key/certificate generation.
+    @retval true key/certificate files are generated successfully.
 */
 
 template <typename RSA_generator_func, typename File_creation_func>
@@ -3682,7 +3681,7 @@ end:
 }
 
 
-/*
+/**
   Algorithm to generate RSA key pair.
   Relies on:
   1> RSA generator
@@ -3690,10 +3689,10 @@ end:
 
   Overwrites existing Private/Public key file if any.
 
-  @param rsa_gen [in] : RSA key pair generator
-  @param priv_key_filename [in] : File name of private key
-  @param pub_key_filename [in] : File name of public key
-  @param filecr [in] : File creator
+  @param [in] rsa_gen RSA key pair generator
+  @param [in] priv_key_filename File name of private key
+  @param [in] pub_key_filename File name of public key
+  @param [in] filecr File creator
 
   @returns status of RSA key pair generation.
     @retval false Error in RSA key pair generation.
@@ -3781,7 +3780,7 @@ end:
 }
 
 
-/*
+/**
   Check auto_generate_certs option and generate
   SSL certificates if required.
 
@@ -3818,7 +3817,7 @@ end:
   Assumption : auto_detect_ssl() is called before control reaches to
   do_auto_cert_generation().
 
-  @param auto_detection_status [IN] Status of SSL artifacts detection process
+  @param [in] auto_detection_status Status of SSL artifacts detection process
 
   @returns
     @retval true i Generation is successful or skipped

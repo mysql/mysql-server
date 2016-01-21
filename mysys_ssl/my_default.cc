@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1147,9 +1147,9 @@ static char *remove_end_comment(char *ptr)
   of scrambled login file, the line read is first
   decrypted and then returned.
 
-  @param str  [out]       Buffer to store the read text.
-  @param size [in]        At max, size-1 bytes to be read.
-  @param file [in]        Source file.
+  @param [out] str        Buffer to store the read text.
+  @param [in] size        At max, size-1 bytes to be read.
+  @param [in] file        Source file.
 
   @return 1               Success
           0               Error
@@ -1430,8 +1430,8 @@ static const char **init_default_directories(MEM_ROOT *alloc)
 /**
   Place the login file name in the specified buffer.
 
-  @param file_name     [out]  Buffer to hold login file name
-  @param file_name_size [in]  Length of the buffer
+  @param [out] file_name       Buffer to hold login file name
+  @param [in] file_name_size   Length of the buffer
 
   @return 1 - Success
           0 - Failure
@@ -1468,7 +1468,7 @@ int my_default_get_login_file(char *file_name, size_t file_name_size)
 /**
   Check file permissions of the option file.
 
-  @param file_name [in]       Name of the option file.
+  @param [in] file_name        Name of the option file.
 
   @return  0 - Non-allowable file permissions.
            1 - Failed to stat.

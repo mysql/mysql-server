@@ -3202,7 +3202,7 @@ static void add_filtered_history(const char *string)
   Perform a check on the given string if it contains
   any of the histignore patterns.
 
-  @param string [IN]        String that needs to be checked.
+  @param [in] string         String that needs to be checked.
 
   @return Operation status
       @retval 0    No match found
@@ -4789,15 +4789,15 @@ com_use(String *buffer __attribute__((unused)), char *line)
 /**
   Normalize database name.
 
-  @param line [IN]          The command.
-  @param buff [OUT]         Normalized db name.
-  @param buff_size [IN]     Buffer size.
+  @param [in] line           The command.
+  @param [out] buff          Normalized db name.
+  @param [in] buff_size      Buffer size.
 
   @return Operation status
       @retval 0    Success
       @retval 1    Failure
 
-  @note Sometimes server normilizes the database names
+  @note Sometimes server normalizes the database names
         & APIs like mysql_select_db() expect normalized
         database names. Since it is difficult to perform
         the name conversion/normalization on the client

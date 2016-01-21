@@ -434,8 +434,8 @@ inline bool generate_table_access_event(TABLE_LIST *table)
   Function that allows to use AUDIT_EVENT macro for setting subclass
   and subclass name values.
 
-  @param out_subclass      [out] Subclass value pointer to be set.
-  @param out_subclass_name [out] Subclass name pointer to be set.
+  @param [out] out_subclass      Subclass value pointer to be set.
+  @param [out] out_subclass_name Subclass name pointer to be set.
   @param subclass                Subclass that sets out_subclass value.
   @param subclass_name           Subclass name that sets out_subclass_name.
 */

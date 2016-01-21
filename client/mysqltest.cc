@@ -7637,8 +7637,8 @@ static void append_info(DYNAMIC_STRING *ds, ulonglong affected_rows,
 /**
   @brief Append state change information (received through Ok packet) to the output.
 
-  @param ds    [INOUT]      Dynamic string to hold the content to be printed.
-  @param mysql [IN]         Connection handle.
+  @param [in,out] ds         Dynamic string to hold the content to be printed.
+  @param [in] mysql          Connection handle.
 */
 
 static void append_session_track_info(DYNAMIC_STRING *ds, MYSQL *mysql)

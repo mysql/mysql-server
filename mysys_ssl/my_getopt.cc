@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -88,10 +88,10 @@ void my_getopt_register_get_addr(my_getopt_value func_addr)
 /**
   Wrapper around my_handle_options() for interface compatibility.
 
-  @param argc [in, out]      Command line options (count)
-  @param argv [in, out]      Command line options (values)
-  @param longopts [in]       Descriptor of all valid options
-  @param get_one_option [in] Optional callback function to process each option,
+  @param [in,out] argc       Command line options (count)
+  @param [in,out] argv       Command line options (values)
+  @param [in] longopts       Descriptor of all valid options
+  @param [in] get_one_option Optional callback function to process each option,
                              can be NULL.
 
   @return Error in case of ambiguous or unknown options,

@@ -1,7 +1,7 @@
 #ifndef JSON_DOM_INCLUDED
 #define JSON_DOM_INCLUDED
 
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -423,7 +423,7 @@ public:
     object. The other object is deleted. If this object and the other
     object share a key, then the two values of the key are merged.
 
-    @param other [in]  a pointer to the object which will be consumed
+    @param [in] other    a pointer to the object which will be consumed
     @retval false on success
     @retval true on failure
   */
@@ -521,7 +521,7 @@ public:
     Moves all of the elements in the other array to the end of
     this array. The other array is deleted.
 
-    @param other [in]  a pointer to the array which will be consumed
+    @param [in] other     a pointer to the array which will be consumed
     @retval false on success
     @retval true on failure
   */
@@ -1041,8 +1041,8 @@ bool double_quote(const char *cptr, size_t length, String *buf);
  duplicates - When two objects are merged and they share a key,
  the values associated with the shared key are merged.
 
- @param left [inout] The recipient dom.
- @param right [inout] The dom to be consumed
+ @param [in,out] left  The recipient dom.
+ @param [in,out] right  The dom to be consumed
 
  @return A composite dom which subsumes the left and right doms, or NULL
  if a failure happened while merging

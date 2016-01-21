@@ -1252,7 +1252,7 @@ static int handle_grant_data(THD *thd, TABLE_LIST *tables, bool drop,
   @param query_len  Length of query string
   @param transactional_tables Set to true if one of grant tables is
                               transactional, false otherwise.
-  @param rollback_whole_statement [out]  Set to true if write to transaction
+  @param [out] rollback_whole_statement  Set to true if write to transaction
     has to be rolled back, else set to false.
 
   @return

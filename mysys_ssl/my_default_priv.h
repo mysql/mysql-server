@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -34,8 +34,8 @@ C_MODE_START
 /**
   Place the login file name in the specified buffer.
 
-  @param file_name     [out]  Buffer to hold login file name
-  @param file_name_size [in]  Length of the buffer
+  @param [out] file_name       Buffer to hold login file name
+  @param [in] file_name_size   Length of the buffer
 
   @return 1 - Success
           0 - Failure

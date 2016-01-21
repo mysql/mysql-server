@@ -181,7 +181,7 @@ bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
 /**
   Multi update query pre-check.
 
-  @param thd		Thread handler
+  @param thd    Thread handler
   @param tables	Global/local table list (have to be the same)
 
   @retval
@@ -248,8 +248,8 @@ bool Sql_cmd_update::multi_update_precheck(THD *thd, TABLE_LIST *tables)
 /**
   Multi delete query pre-check.
 
-  @param thd			Thread handler
-  @param tables		Global/local table list
+  @param thd            Thread handler
+  @param tables         Global/local table list
 
   @retval
     FALSE OK
@@ -4464,10 +4464,10 @@ bool check_global_access(THD *thd, ulong want_access)
 /**
   Checks foreign key's parent table access.
 
-  @param thd	       [in]	Thread handler
-  @param create_info   [in]     Create information (like MAX_ROWS, ENGINE or
+  @param [in] thd               Thread handler
+  @param [in] create_info       Create information (like MAX_ROWS, ENGINE or
                                 temporary table flag)
-  @param alter_info    [in]     Initial list of columns and indexes for the
+  @param [in] alter_info        Initial list of columns and indexes for the
                                 table to be created
 
   @retval

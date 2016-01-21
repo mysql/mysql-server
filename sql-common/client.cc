@@ -6017,10 +6017,10 @@ static int get_data_and_length(LIST *node, const char **data, size_t *length)
 /**
   Get the first state change information received from the server.
 
-  @param mysql  [IN]        mysql handle
-  @param type   [IN]        state change type
-  @param data   [OUT]       buffer to store the data
-  @param length [OUT]       length of the data
+  @param [in] mysql          mysql handle
+  @param [in] type           state change type
+  @param [out] data          buffer to store the data
+  @param [out] length        length of the data
 
   @return
     0 - Valid data stored
@@ -6047,10 +6047,10 @@ int STDCALL mysql_session_track_get_first(MYSQL *mysql,
 /**
   Get the subsequent state change information received from the server.
 
-  @param mysql  [IN]        mysql handle
-  @param type   [IN]        state change type
-  @param data   [OUT]       buffer to store the data
-  @param length [OUT]       length of the data
+  @param [in] mysql          mysql handle
+  @param [in] type           state change type
+  @param [out] data          buffer to store the data
+  @param [out] length        length of the data
 
   @return
     0 - Valid data stored

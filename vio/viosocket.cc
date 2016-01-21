@@ -476,11 +476,11 @@ my_socket vio_fd(Vio* vio)
 
   @note This function can be made public when it's needed.
 
-  @param src        [in] source IP address (AF_INET or AF_INET6).
-  @param src_length [in] length of the src.
-  @param dst        [out] a buffer to store normalized IP address
+  @param [in] src         source IP address (AF_INET or AF_INET6).
+  @param [in] src_length  length of the src.
+  @param [out] dst        a buffer to store normalized IP address
                           (sockaddr_storage).
-  @param dst_length [out] actual length of the normalized IP address.
+  @param [out] dst_length actual length of the normalized IP address.
 */
 static void vio_get_normalized_ip(const struct sockaddr *src,
                                   size_t src_length,
@@ -546,10 +546,10 @@ static void vio_get_normalized_ip(const struct sockaddr *src,
   The system constant INET6_ADDRSTRLEN can be used to reserve buffers of
   the right size.
 
-  @param addr           [in]  sockaddr object (AF_INET or AF_INET6).
-  @param addr_length    [in]  length of the addr.
-  @param ip_string      [out] buffer to write normalized IP address.
-  @param ip_string_size [in]  size of the ip_string.
+  @param [in] addr            sockaddr object (AF_INET or AF_INET6).
+  @param [in] addr_length     length of the addr.
+  @param [out] ip_string      buffer to write normalized IP address.
+  @param [in] ip_string_size  size of the ip_string.
 
   @return Error status.
   @retval TRUE in case of error (the ip_string buffer is not enough).
