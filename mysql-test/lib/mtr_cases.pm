@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2005, 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -381,9 +381,12 @@ sub collect_one_suite($)
   # Read suite.opt file
   my $suite_opt_file=  "$testdir/suite.opt";
   my $suite_opts= [];
-  if ( -f $suite_opt_file )
+  if ( $::opt_use_suite_opt )
   {
-    $suite_opts= opts_from_file($suite_opt_file);
+    if ( -f $suite_opt_file )
+    {
+      $suite_opts= opts_from_file($suite_opt_file);
+    }
   }
 
   if ( @$opt_cases )
