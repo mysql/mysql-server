@@ -1,6 +1,5 @@
 # Tests in this file are disabled for ASAN runs in pushbuild.
 # This is in addition to tests disabled by normal disabled.def files
-binlog.binlog_mysqlbinlog_start_stop         : Bug#21255763 2015-11-05 jhauglid
 innodb.alter_kill                            : Bug#19442959 2015-11-05 jhauglid
 innodb.innodb-multiple-tablespaces           : Bug#19442959 2015-11-05 jhauglid
 innodb.innodb_page_size_func                 : Bug#19442959 2015-11-05 jhauglid
