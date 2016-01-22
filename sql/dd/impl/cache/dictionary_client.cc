@@ -1315,12 +1315,12 @@ template void Dictionary_client::set_sticky(const Abstract_table*, bool);
 template bool Dictionary_client::is_sticky(const Abstract_table*) const;
 template void Dictionary_client::dump<Abstract_table>() const;
 
-#ifndef DBUG_OFF
 // These instantiations are currently only needed for unit testing
 template bool Dictionary_client::acquire(Object_id, dd::Charset const**);
 template bool Dictionary_client::acquire<dd::Charset>(std::string const&,
                                                       dd::Charset const**);
-#endif /* !DBUG_OFF */
+template bool Dictionary_client::acquire<dd::Schema>(Object_id,
+                                                     dd::Schema const**);
 
 template bool Dictionary_client::drop(Charset*);
 template bool Dictionary_client::store(Charset*);
