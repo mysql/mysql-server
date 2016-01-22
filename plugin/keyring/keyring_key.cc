@@ -189,9 +189,9 @@ my_bool Key::is_key_valid()
   return is_key_id_valid() || is_key_type_valid();
 }
 
-void Key::release_key_data()
+uchar* Key::release_key_data()
 {
-  key.release();
+  return key.release();
 }
 
 uchar* Key::get_key_data()

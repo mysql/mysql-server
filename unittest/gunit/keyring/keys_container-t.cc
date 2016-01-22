@@ -175,6 +175,7 @@ namespace keyring__keys_container_unittest
 
     keys_container->remove_key(&keyring_io, &key_id);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 0);
+    my_free(fetched_key->release_key_data());
   }
 
   TEST_F(Keys_container_test, FetchNotExisting)
@@ -260,7 +261,9 @@ namespace keyring__keys_container_unittest
     Key key3_id("Roberts_key3", "AES", "Robert",NULL,0);
     keys_container->remove_key(&keyring_io, &key3_id);
     ASSERT_TRUE(keys_container->get_number_of_keys() == 3);
-  }
+
+    my_free(fetched_key->release_key_data());
+}
 
   TEST_F(Keys_container_test, StoreTwiceTheSame)
   {
@@ -400,6 +403,7 @@ namespace keyring__keys_container_unittest
     remove(file_name.c_str());
     delete keys_container;
     delete logger;
+    my_free(fetchedKey->release_key_data());
   }
 
   TEST_F(Keys_container_test_dont_close, CheckIfCorrectBackupFileIsCreatedBeforeRemovingKey)
@@ -452,6 +456,7 @@ namespace keyring__keys_container_unittest
     remove(file_name.c_str());
     delete keys_container;
     delete logger;
+    my_free(fetchedKey->release_key_data());
   }
 
   TEST_F(Keys_container_test_dont_close, CheckIfBackupFileIsNotCreatedForFetching)
@@ -490,6 +495,7 @@ namespace keyring__keys_container_unittest
     remove(file_name.c_str());
     delete keys_container;
     delete logger;
+    my_free(fetchedKey->release_key_data());
   }
 
   TEST_F(Keys_container_test_dont_close, KeyringfileIsMalformedCheckIfBackupIsLoaded)
@@ -543,10 +549,10 @@ namespace keyring__keys_container_unittest
     ASSERT_TRUE(fetchedKey != NULL);
     ASSERT_TRUE(*fetchedKey->get_key_signature() == "Roberts_key2Robert");
     ASSERT_TRUE(memcmp(fetchedKey->get_key_data(), "xobi2", fetchedKey->get_key_data_size()) == 0);
-    fetchedKey= keys_container->fetch_key(&sample_key_id);
-    ASSERT_TRUE(fetchedKey != NULL);
-    ASSERT_TRUE(*fetchedKey->get_key_signature() == "Roberts_keyRobert");
-    ASSERT_TRUE(memcmp(fetchedKey->get_key_data(), "Robi", fetchedKey->get_key_data_size()) == 0);
+    IKey *fetchedKey2= keys_container->fetch_key(&sample_key_id);
+    ASSERT_TRUE(fetchedKey2 != NULL);
+    ASSERT_TRUE(*fetchedKey2->get_key_signature() == "Roberts_keyRobert");
+    ASSERT_TRUE(memcmp(fetchedKey2->get_key_data(), "Robi", fetchedKey2->get_key_data_size()) == 0);
 
     //check if the backup file was removed
     EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), FALSE);
@@ -556,6 +562,8 @@ namespace keyring__keys_container_unittest
     remove(file_name.c_str());
     delete keys_container;
     delete logger;
+    my_free(fetchedKey->release_key_data());
+    my_free(fetchedKey2->release_key_data());
   }
 
   TEST_F(Keys_container_test_dont_close, BackupfileIsMalformedCheckItIsIgnoredAndDeleted)
@@ -593,10 +601,10 @@ namespace keyring__keys_container_unittest
     ASSERT_TRUE(fetchedKey != NULL);
     ASSERT_TRUE(*fetchedKey->get_key_signature() == "Roberts_key2Robert");
     ASSERT_TRUE(memcmp(fetchedKey->get_key_data(), "xobi2", fetchedKey->get_key_data_size()) == 0);
-    fetchedKey= keys_container->fetch_key(&sample_key_id);
-    ASSERT_TRUE(fetchedKey != NULL);
-    ASSERT_TRUE(*fetchedKey->get_key_signature() == "Roberts_keyRobert");
-    ASSERT_TRUE(memcmp(fetchedKey->get_key_data(), "Robi", fetchedKey->get_key_data_size()) == 0);
+    IKey *fetchedKey2= keys_container->fetch_key(&sample_key_id);
+    ASSERT_TRUE(fetchedKey2 != NULL);
+    ASSERT_TRUE(*fetchedKey2->get_key_signature() == "Roberts_keyRobert");
+    ASSERT_TRUE(memcmp(fetchedKey2->get_key_data(), "Robi", fetchedKey2->get_key_data_size()) == 0);
 
     //check if the backup file was removed
     EXPECT_EQ(check_if_file_exists_and_TAG_is_correct("./keyring.backup"), FALSE);
@@ -604,6 +612,8 @@ namespace keyring__keys_container_unittest
 
     delete keys_container;
     delete logger;
+    my_free(fetchedKey->release_key_data());
+    my_free(fetchedKey2->release_key_data());
   }
 
   class Mock_keyring_io : public IKeyring_io
@@ -626,10 +636,10 @@ namespace keyring__keys_container_unittest
 
     ~Mock_keyring_io()
     {
-      delete buffer;
+      delete[] buffer;
     }
 
-    MOCK_METHOD1(init, my_bool(std::string *keyring_filename)); //TODO: change this to keyring_storage_url
+    MOCK_METHOD1(init, my_bool(std::string *keyring_filename));
     MOCK_METHOD1(open, my_bool(std::string *keyring_filename));
     MOCK_METHOD1(reserve_buffer, void(size_t memory_size));
     MOCK_METHOD0(flush_to_backup, my_bool());

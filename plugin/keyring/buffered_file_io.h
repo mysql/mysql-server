@@ -18,7 +18,6 @@
 
 #include <my_global.h>
 #include <mysql/plugin.h>
-#include <boost/core/noncopyable.hpp>
 #include "i_keyring_io.h"
 #include "logger.h"
 #include "keyring_memory.h"

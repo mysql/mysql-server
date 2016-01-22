@@ -16,10 +16,9 @@
 #ifndef MYSQL_BUFFER_H
 #define MYSQL_BUFFER_H
 
-#include <boost/core/noncopyable.hpp>
 #include "keyring_memory.h"
 
-struct Buffer : public boost::noncopyable
+struct Buffer
 {
   Buffer() : data(NULL)
   {
@@ -50,6 +49,9 @@ struct Buffer : public boost::noncopyable
   size_t size;
   size_t position;
 private:
+  Buffer(const Buffer&);
+  Buffer& operator=(const Buffer&);
+
   inline void mark_as_empty()
   {
     size= position= 0;
