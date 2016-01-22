@@ -71,10 +71,6 @@ ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 DAY
 DO INSERT INTO test.t1 VALUES (2);
 source include/kill_query.inc;
 include/rpl_diff.inc
-ALTER EVENT e1
-ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 2 DAY;
-source include/kill_query.inc;
-include/rpl_diff.inc
 DROP EVENT e1;
 source include/kill_query.inc;
 include/rpl_diff.inc
