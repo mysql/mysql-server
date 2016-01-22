@@ -1454,8 +1454,11 @@ int plugin_init(int *argc, char **argv, int flags)
     while (NULL != (item= iter++))
       plugin_load_list(&tmp_root, argc, argv, item->ptr);
 
-    if (plugin_init_initialize_and_reap())
-      goto err;
+    if (!(flags & PLUGIN_INIT_SKIP_INITIALIZATION))
+    {
+      if (plugin_init_initialize_and_reap())
+        goto err;
+    }
 
     free_root(&tmp_root, MYF(0));
     init_alloc_root(key_memory_plugin_init_tmp, &tmp_root, 4096, 4096);
