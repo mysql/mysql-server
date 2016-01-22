@@ -199,7 +199,7 @@ build_query(const POS &pos,
 
   PT_query_expression_body_primary *query_expression_body=
     new (thd->mem_root) PT_query_expression_body_primary(query_primary);
-  if (query_primary == NULL)
+  if (query_expression_body == NULL)
     return NULL;
 
    PT_query_expression *query_expression=
