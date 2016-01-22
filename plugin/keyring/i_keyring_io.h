@@ -21,7 +21,7 @@
 
 namespace keyring {
 
-class IKeyring_io
+class IKeyring_io : public Keyring_alloc
 {
 public:
   virtual my_bool init(std::string *keyring_storage_url)= 0;

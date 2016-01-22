@@ -32,10 +32,11 @@ namespace keyring
 }
 
 extern mysql_rwlock_t LOCK_keyring;
-extern unique_ptr<IKeys_container> keys;
+
+extern boost::movelib::unique_ptr<IKeys_container> keys;
 extern my_bool is_keys_container_initialized;
-extern unique_ptr<ILogger> logger;
-extern unique_ptr<char[]> keyring_file_data;
+extern boost::movelib::unique_ptr<ILogger> logger;
+extern boost::movelib::unique_ptr<char[]> keyring_file_data;
 
 #ifdef HAVE_PSI_INTERFACE
 void keyring_init_psi_keys(void);
@@ -45,7 +46,7 @@ my_bool init_keyring_locks();
 
 my_bool create_keyring_dir_if_does_not_exist(const char *keyring_file_path);
 
-int check_keyring_file_data(IKeyring_io* keyring_io, unique_ptr<IKeys_container> new_keys,
+int check_keyring_file_data(IKeyring_io* keyring_io, boost::movelib::unique_ptr<IKeys_container> new_keys,
                             MYSQL_THD thd  __attribute__((unused)),
                             struct st_mysql_sys_var *var  __attribute__((unused)),
                             void *save, st_mysql_value *value);
@@ -64,7 +65,7 @@ my_bool mysql_key_remove(IKeyring_io *keyring_io, const char *key_id,
                          const char *user_id);
 
 my_bool mysql_key_fetch(const char *key_id, char **key_type, const char *user_id,
-                      void **key, size_t *key_len);
+                        void **key, size_t *key_len);
 
 my_bool mysql_key_generate(IKeyring_io* keyring_io, const char *key_id,
                            const char *key_type, const char *user_id,
