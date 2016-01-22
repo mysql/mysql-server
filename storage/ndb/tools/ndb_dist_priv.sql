@@ -49,15 +49,15 @@ begin
  declare distributed_privileges bool default 0;
  declare first_backup bool default 1;
  declare first_distributed_backup bool default 1;
- select mysql.mysql_cluster_privileges_are_distributed()
-   into distributed_privileges;
 
  -- Ignore error 1292 ER_TRUNCATED_WRONG_VALUE when
- -- inserting rows into one of the backup tables.
- -- The source tables are known to hold invalid timestamp
+ -- copying rows into one of the backup tables. The
+ -- source tables are known to hold invalid timestamp
  -- values in the Timestamp column but should be copied anyway
- DECLARE CONTINUE HANDLER FOR 1292 BEGIN END;
+ declare continue handler for 1292 begin end;
 
+ select mysql.mysql_cluster_privileges_are_distributed()
+   into distributed_privileges;
  select 0 into first_backup
    from information_schema.tables
      where table_schema = "mysql" and table_name = "user_backup";
