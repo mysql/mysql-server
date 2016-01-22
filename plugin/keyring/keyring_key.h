@@ -19,6 +19,7 @@
 #include <my_global.h>
 #include "i_keyring_key.h"
 #include "keyring_memory.h"
+#include <boost/move/unique_ptr.hpp>
 
 namespace keyring {
 
@@ -38,7 +39,7 @@ struct Key : IKey
   uchar* get_key_data();
   size_t get_key_data_size();
   size_t get_key_pod_size() const;
-  void release_key_data();
+  uchar* release_key_data();
   void xor_data();
   void set_key_data(uchar *key_data, size_t key_data_size);
   void set_key_type(const std::string *key_type);
@@ -63,7 +64,7 @@ private:
   std::string key_id;
   std::string key_type;
   std::string user_id;
-  unique_ptr<uchar[]> key;
+  boost::movelib::unique_ptr<uchar[]> key;
   size_t key_len;
   mutable std::string key_signature;
 };

@@ -20,11 +20,7 @@
 #include <mysql/plugin_keyring.h>
 #include <limits>
 #include <memory>
-#include <boost/move/utility_core.hpp>
-#include <boost/move/unique_ptr.hpp>
 
-using boost::movelib::unique_ptr;
-using ::boost::move;
 namespace keyring {
 
   extern PSI_memory_key key_memory_KEYRING;
@@ -35,18 +31,27 @@ namespace keyring {
     void *allocated_memory= my_malloc(key_memory_KEYRING, size, MYF(MY_WME));
     return allocated_memory ? reinterpret_cast<T>(allocated_memory) : NULL;
   }
-} //namespace keyring
 
-#ifdef _WIN32
-void* operator new(size_t size);
-void operator delete(void* ptr);
-void* operator new[] (size_t size);
-void operator delete[] (void* ptr);
-#else
-void* operator new(size_t size) throw(std::bad_alloc);
-void operator delete(void* ptr) throw();
-void* operator new[] (size_t size) throw(std::bad_alloc);
-void operator delete[] (void* ptr) throw();
-#endif
+  class Keyring_alloc
+  {
+    public:
+      static void *operator new(size_t size) throw ()
+      {
+        return keyring_malloc<void*>(size);
+      }
+      static void *operator new[](size_t size) throw ()
+      {
+        return keyring_malloc<void*>(size);
+      }
+      static void operator delete(void* ptr, std::size_t sz)
+      {
+          my_free(ptr);
+      }
+      static void operator delete[](void* ptr, std::size_t sz)
+      {
+          my_free(ptr);
+      }
+  };
+} //namespace keyring
 
 #endif //MYSQL_KEYRING_MEMORY_H
