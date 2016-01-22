@@ -20,16 +20,9 @@ MYSQL_ADD_PLUGIN(keyring_file
                  keyring.cc
                  keys_container.cc
                  buffered_file_io.cc
-                 keyring_memory.cc
                  keyring_impl.cc
                  MODULE_ONLY
                  MODULE_OUTPUT_NAME "keyring_file")
-
-IF(NOT WIN32 AND NOT APPLE)
-GET_TARGET_PROPERTY(keyring_file_link_flags keyring_file LINK_FLAGS)
-SET_TARGET_PROPERTIES(keyring_file PROPERTIES LINK_FLAGS
-                      "-Wl,-Bsymbolic ${keyring_file_link_flags}")
-ENDIF()
 
 IF(SSL_DEFINES)
   ADD_DEFINITIONS(${SSL_DEFINES})

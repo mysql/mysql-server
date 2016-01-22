@@ -17,10 +17,11 @@
 #define MYSQL_I_KEY_H
 
 #include <string>
+#include "keyring_memory.h"
 
 namespace keyring {
 
-struct IKey
+struct IKey : public Keyring_alloc
 {
   //key_signature:= key_id || user_id
   virtual std::string* get_key_signature() const= 0;
@@ -28,7 +29,7 @@ struct IKey
   virtual uchar* get_key_data() = 0;
   virtual size_t get_key_data_size()= 0;
   virtual size_t get_key_pod_size() const = 0;
-  virtual void release_key_data()= 0;
+  virtual uchar* release_key_data()= 0;
   virtual void xor_data()= 0;
   virtual void set_key_data(uchar *key_data, size_t key_data_size)= 0;
   virtual void set_key_type(const std::string *key_type)= 0;

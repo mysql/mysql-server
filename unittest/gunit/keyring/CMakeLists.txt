@@ -51,8 +51,7 @@ IF (MERGE_UNITTESTS)
   LIST(APPEND SRC_FILES
        ${CMAKE_SOURCE_DIR}/plugin/keyring/keyring_key.cc
        ${CMAKE_SOURCE_DIR}/plugin/keyring/buffered_file_io.cc
-       ${CMAKE_SOURCE_DIR}/plugin/keyring/keys_container.cc
-       ${CMAKE_SOURCE_DIR}/plugin/keyring/keyring_memory.cc)
+       ${CMAKE_SOURCE_DIR}/plugin/keyring/keys_container.cc)
 
   IF(WIN32)
     LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
@@ -78,7 +77,6 @@ ELSE()
         ${CMAKE_SOURCE_DIR}/plugin/keyring/keyring_key.cc
         ${CMAKE_SOURCE_DIR}/plugin/keyring/buffered_file_io.cc
         ${CMAKE_SOURCE_DIR}/plugin/keyring/keys_container.cc
-        ${CMAKE_SOURCE_DIR}/plugin/keyring/keyring_memory.cc
         )
     IF(WIN32)
       LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)

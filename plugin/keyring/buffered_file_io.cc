@@ -76,7 +76,7 @@ my_bool Buffered_file_io::is_file_tag_correct(File file)
 
 my_bool Buffered_file_io::is_file_version_correct(File file)
 {
-  unique_ptr<uchar[]> version(new uchar[file_version.length()+1]);
+  boost::movelib::unique_ptr<uchar[]> version(new uchar[file_version.length()+1]);
   version.get()[file_version.length()]= '\0';
   mysql_file_seek(file, 0, MY_SEEK_SET, MYF(0));
   if (unlikely(mysql_file_read(file, version.get(), file_version.length(), MYF(0)) !=

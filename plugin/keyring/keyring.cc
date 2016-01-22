@@ -28,8 +28,9 @@ static int check_keyring_file_data(MYSQL_THD thd  __attribute__((unused)),
                     void *save, st_mysql_value *value)
 {
   Buffered_file_io keyring_io(logger.get());
-  unique_ptr<IKeys_container> new_keys(new Keys_container(logger.get()));
-  return check_keyring_file_data(&keyring_io, move(new_keys), thd, var, save, value);
+
+  boost::movelib::unique_ptr<IKeys_container> new_keys(new Keys_container(logger.get()));
+  return check_keyring_file_data(&keyring_io, ::boost::move(new_keys), thd, var, save, value);
 }
 
 static char *keyring_file_data_value= NULL;

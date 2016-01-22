@@ -116,7 +116,6 @@ namespace keyring__api_unittest
 
     Key key_id("Robert_key", NULL, "Robert",NULL,0);
     IKey* fetched_key= keys->fetch_key(&key_id);
-
     ASSERT_TRUE(fetched_key != NULL);
     std::string expected_key_signature= "Robert_keyRobert";
     EXPECT_STREQ(fetched_key->get_key_signature()->c_str(), expected_key_signature.c_str());
@@ -134,6 +133,7 @@ namespace keyring__api_unittest
     fetched_key->xor_data();
     EXPECT_STREQ(sample_key_data.c_str(), reinterpret_cast<const char*>(key_data_fetched));
     ASSERT_TRUE(sample_key_data.length()+1 == key_data_fetched_size);
+    my_free(fetched_key->release_key_data());
   }
 
   TEST_F(Keyring_api_test, FetchNotExisting)

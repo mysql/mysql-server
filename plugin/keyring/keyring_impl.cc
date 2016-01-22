@@ -24,10 +24,12 @@ namespace keyring
 }
 
 mysql_rwlock_t LOCK_keyring;
-unique_ptr<IKeys_container> keys;
+
+
+boost::movelib::unique_ptr<IKeys_container> keys(NULL);
 my_bool is_keys_container_initialized= FALSE;
-unique_ptr<ILogger> logger;
-unique_ptr<char[]> keyring_file_data;
+boost::movelib::unique_ptr<ILogger> logger(NULL);
+boost::movelib::unique_ptr<char[]> keyring_file_data(NULL);
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_rwlock_info all_keyring_rwlocks[]=
@@ -86,7 +88,7 @@ my_bool create_keyring_dir_if_does_not_exist(const char *keyring_file_path)
   return FALSE;
 }
 
-int check_keyring_file_data(IKeyring_io* keyring_io, unique_ptr<IKeys_container> new_keys,
+int check_keyring_file_data(IKeyring_io* keyring_io, boost::movelib::unique_ptr<IKeys_container> new_keys,
                             MYSQL_THD thd  __attribute__((unused)),
                             struct st_mysql_sys_var *var  __attribute__((unused)),
                             void *save, st_mysql_value *value)
@@ -146,7 +148,8 @@ my_bool mysql_key_store(IKeyring_io *keyring_io, const char *key_id,
 {
   if (is_keys_container_initialized == FALSE)
     return TRUE;
-  unique_ptr<Key> key_to_store(new Key(key_id, key_type, user_id, key, key_len));
+
+  boost::movelib::unique_ptr<Key> key_to_store(new Key(key_id, key_type, user_id, key, key_len));
   if (key_to_store->is_key_type_valid() == FALSE)
   {
     logger->log(MY_ERROR_LEVEL, "Error while storing key: invalid key_type");
@@ -211,8 +214,7 @@ my_bool mysql_key_fetch(const char *key_id, char **key_type, const char *user_id
   {
     *key_len = fetched_key->get_key_data_size();
     fetched_key->xor_data();
-    *reinterpret_cast<uchar **>(key)= fetched_key->get_key_data();
-    fetched_key->release_key_data();
+    *reinterpret_cast<uchar **>(key)=fetched_key->release_key_data();
     *key_type = my_strdup(key_memory_KEYRING,
                           fetched_key->get_key_type()->c_str(),
                           MYF(MY_WME));
@@ -241,7 +243,8 @@ my_bool mysql_key_generate(IKeyring_io* keyring_io, const char *key_id,
                 "Error while generating key: invalid key_type");
     return TRUE;
   }
-  unique_ptr<uchar[]> key(new uchar[key_len]);
+
+  boost::movelib::unique_ptr<uchar[]> key(new uchar[key_len]);
   if (my_rand_buffer(key.get(), key_len) == TRUE ||
       mysql_key_store(keyring_io, key_id, key_type, user_id, key.get(), key_len) == TRUE)
     return TRUE;
