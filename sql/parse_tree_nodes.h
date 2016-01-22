@@ -617,8 +617,11 @@ public:
                         const POS &join_pos_arg,
                         PT_joined_table_type type,
                         PT_table_reference *tab2_node_arg)
-    : PT_joined_table(tab1_node_arg, join_pos_arg, type, tab2_node_arg),
-      using_fields(NULL)
+    : PT_joined_table_using(tab1_node_arg,
+                            join_pos_arg,
+                            type,
+                            tab2_node_arg,
+                            NULL)
   {}
 
   virtual bool contextualize(Parse_context *pc)
@@ -2027,18 +2030,11 @@ public:
 
   PT_query_expression(PT_query_expression *qe,
                       PT_order *order,
-                      const POS &order_pos,
+                      const POS &pos,
                       PT_limit_clause *limit,
-                      PT_procedure_analyse *procedure_analyse,
-                      Select_lock_type &lock_type)
-    : contextualized(false),
-      m_body(qe->m_body),
-      m_order(order),
-      m_order_pos(order_pos),
-      m_limit(limit),
-      m_procedure_analyse(procedure_analyse),
-      m_lock_type(lock_type),
-      m_parentheses(false)
+                      PT_procedure_analyse *procedure,
+                      Select_lock_type &lock)
+    : PT_query_expression(qe->m_body, order, pos, limit, procedure, lock)
   {}
 
   PT_query_expression(PT_query_expression_body *body,
@@ -2259,8 +2255,7 @@ public:
   {}
 
   PT_query_specification(PT_select_part2 *select_part2_arg)
-    : m_hints(NULL),
-      m_select_part2(select_part2_arg)
+    : PT_query_specification(NULL, select_part2_arg)
   {}
 
   virtual bool contextualize(Parse_context *pc)
@@ -2506,11 +2501,7 @@ public:
       m_into(into)
   {}
 
-  PT_select_stmt(PT_query_expression *qe)
-    : m_sql_command(SQLCOM_SELECT),
-      m_qe(qe),
-      m_into(NULL)
-  {}
+  PT_select_stmt(PT_query_expression *qe) : PT_select_stmt(qe, NULL) {}
 
   virtual bool contextualize(Parse_context *pc)
   {
