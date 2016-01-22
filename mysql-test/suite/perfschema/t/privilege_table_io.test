@@ -25,6 +25,15 @@ optimize table mysql.servers;
 # Execute 'flush privileges' one time before recording so that
 # fetch from dictionary tables does not pollute the result.
 flush privileges;
+
+# Execute two show statements to make sure the corresponding
+# dd::Table objects are acquired and present in the dictionary
+# cache. This is necessary to avoid nondeterminism due to
+# the caching behavior.
+
+show global status;
+show global variables;
+
 --enable_result_log
 
 # Start recording events
