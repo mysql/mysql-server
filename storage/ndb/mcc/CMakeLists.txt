@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2013 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2016 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,6 +15,7 @@
 
 # Check if we are running cmake standalone, or as part of Cluster
 if(NOT DEFAULT_MYSQL_HOME)
+  MESSAGE(FATAL_ERROR "unused code path")
   PROJECT(mcc)
   cmake_minimum_required(VERSION 2.6)
   enable_testing()
@@ -23,17 +24,22 @@ endif()
 option(WITH_MCC "Include MySQL Cluster Configurator" ON)
 
 if(NOT WITH_MCC)
-  message(STATUS "Skipping mcc")
+  message(STATUS "Skipping MySQL Cluster Configurator")
   return()
-endif(NOT WITH_MCC)
+endif()
 
-# PB2 on win?
+INCLUDE(ndb_require_variable)
+
 set(PB2DRIVE $ENV{PB2DRIVE})
-if(WIN32 AND PB2DRIVE AND NOT MCC_PYTHON_TO_BUNDLE)
-	message(FATAL_ERROR "MCC_PYTHON_TO_BUNDLE not set when building in PB2 on Windows")
+if(WIN32 AND PB2DRIVE)
+  # Make sure that config variable pointing out the location of
+  # python is properly provided by release build system
+  # when building on Windows
+  ndb_require_variable(MCC_PYTHON_TO_BUNDLE)
 endif() 
 
 function(SETIFUNDEF_ var val)
+  MESSAGE(FATAL_ERROR "unused code path")
   if(NOT DEFINED ${var})
     set(${var} "${val}")
   endif(NOT DEFINED ${var})
@@ -46,6 +52,7 @@ set(MCC_SCRIPT_IN "${MCC_SCRIPT_BASE}.py.in")
 set(MCC_LAUNCH_BASE "setup")
 
 macro(SHOW_VAR_ var)
+  MESSAGE(FATAL_ERROR "unused code path")
   message("${var}=${${var}}")
 endmacro(SHOW_VAR_)
 
@@ -62,6 +69,7 @@ endif(NOT WIN32)
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/mcc_config.py.in" "${CMAKE_CURRENT_BINARY_DIR}/mcc_config.py")
 
 if(NOT DEFAULT_MYSQL_HOME)
+  MESSAGE(FATAL_ERROR "unused code path")
   # Don't have the MYSQL variables in this case
   set(MCC_INSTALL_BINDIR "bin")
   set(MCC_INSTALL_SUBDIR "share/mcc")
@@ -74,7 +82,10 @@ set(MCC_INSTALL_FRONTENDDIR "${MCC_INSTALL_SUBDIR}/frontend")
 add_subdirectory("host_info")
 add_subdirectory("frontend")
 
-if(WIN32 AND MCC_PYTHON_TO_BUNDLE AND NOT (MCC_LIGHT_INSTALL AND EXISTS "${CMAKE_INSTALL_PREFIX}/${MCC_INSTALL_SUBDIR}/Python"))
+if(WIN32 AND
+   MCC_PYTHON_TO_BUNDLE AND
+   NOT (MCC_LIGHT_INSTALL AND
+        EXISTS "${CMAKE_INSTALL_PREFIX}/${MCC_INSTALL_SUBDIR}/Python"))
   file(TO_CMAKE_PATH "${MCC_PYTHON_TO_BUNDLE}" MCC_PYTHON_TO_BUNDLE_CMP)
   set(MCC_PYTHON_TO_BUNDLE "${MCC_PYTHON_TO_BUNDLE_CMP}")
   message(STATUS "Checking ${MCC_PYTHON_TO_BUNDLE}...")
@@ -128,7 +139,7 @@ if(WIN32 AND MCC_PYTHON_TO_BUNDLE AND NOT (MCC_LIGHT_INSTALL AND EXISTS "${CMAKE
 	DESTINATION "." 
     COMPONENT ClusterTools)
 
-endif(WIN32 AND MCC_PYTHON_TO_BUNDLE AND NOT (MCC_LIGHT_INSTALL AND EXISTS "${CMAKE_INSTALL_PREFIX}/${MCC_INSTALL_SUBDIR}/Python"))
+endif()
 
 CONFIGURE_FILE("${CMAKE_CURRENT_SOURCE_DIR}/post-install.py.in"
         "${CMAKE_CURRENT_BINARY_DIR}/post-install.py")
@@ -151,7 +162,7 @@ install(DIRECTORY tst DESTINATION "${MCC_INSTALL_SUBDIR}"
   COMPONENT ClusterTools)
 
 if(WIN32 AND NOT CMAKE_INSTALL_CONFIG_NAME)
-	set(CMAKE_INSTALL_CONFIG_NAME $(Configuration))
+  set(CMAKE_INSTALL_CONFIG_NAME $(Configuration))
 endif()
 
 # Convenience target for mcc development which installs only the mcc files,
@@ -171,6 +182,7 @@ add_custom_target(run_mcc_in_source python "${MCC_SCRIPT_BASE}_in_source.py" -d 
 add_custom_target(punit python "${CMAKE_CURRENT_SOURCE_DIR}/tst/tst_main.py" VERBATIM)
 
 if(NOT DEFAULT_MYSQL_HOME)
+  MESSAGE(FATAL_ERROR "unused code path")
   if(WIN32)
     SETIFUNDEF_(MCC_CPACK_CMAKE_GENERATOR "Visual Studio 9 2008")
     set(CPACK_CMAKE_GENERATOR "${MCC_CPACK_CMAKE_GENERATOR}")
