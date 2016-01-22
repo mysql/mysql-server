@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -190,7 +190,6 @@ Collection_item *Index_element_impl::Factory_clone::create_item() const
 
 ///////////////////////////////////////////////////////////////////////////
 
-#ifndef DBUG_OFF
 Index_element_impl::Index_element_impl(const Index_element_impl &src,
                                        Index_impl *parent, Column *column)
   : Weak_object(src),
@@ -199,7 +198,6 @@ Index_element_impl::Index_element_impl(const Index_element_impl &src,
     m_index(parent),
     m_column(column)
 {}
-#endif /* !DBUG_OFF */
 
 ///////////////////////////////////////////////////////////////////////////
 //Index_element_type implementation.

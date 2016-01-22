@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -187,7 +187,6 @@ bool Foreign_key_element_impl::has_new_primary_key() const
 
 ///////////////////////////////////////////////////////////////////////////
 
-#ifndef DBUG_OFF
 Foreign_key_element_impl::
 Foreign_key_element_impl(const Foreign_key_element_impl &src,
                          Foreign_key_impl *parent, Column *column)
@@ -197,7 +196,6 @@ Foreign_key_element_impl(const Foreign_key_element_impl &src,
     m_ordinal_position(src.m_ordinal_position),
     m_referenced_column_name(src.m_referenced_column_name)
 {}
-#endif /* !DBUG_OFF */
 /* purecov: end */
 
 ///////////////////////////////////////////////////////////////////////////

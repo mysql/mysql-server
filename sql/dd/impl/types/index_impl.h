@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -284,7 +284,6 @@ private:
   */
   static const uint INVALID_USER_ELEMENTS_COUNT= static_cast<uint>(-1);
 
-#ifndef DBUG_OFF
   Index_impl(const Index_impl &src, Table_impl *parent);
 
 public:
@@ -292,7 +291,6 @@ public:
   {
     return new Index_impl(*this, parent);
   }
-#endif /* !DBUG_OFF */
 };
 
 ///////////////////////////////////////////////////////////////////////////

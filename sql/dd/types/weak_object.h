@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,24 +43,6 @@ public:
 
   virtual ~Weak_object()
   { }
-
-#ifndef DBUG_OFF
-  // In order to implement cloning for unit testing we must enable
-  // copy construcion from sub-classes
-protected:
-#else
-private:
-#endif
-  /**
-    In order to enable DD object copying, we need to implement
-    copy constructors and assignment operators for all the DD object
-    implementation.  However with current state, we do not have a
-    good reason to enable DD object copying in DD framework. Hence,
-    we hides copy constructor and assignment operator for Weak_object
-    class, which is base class for all the DD objects.
-  */
-  Weak_object(const Weak_object &weak_object) {}
-  Weak_object &operator=(const Weak_object &weak_object);
 
 private:
   virtual class Weak_object_impl *impl() = 0;

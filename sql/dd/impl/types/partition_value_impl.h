@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -191,7 +191,6 @@ private:
   // References to other objects
   Partition_impl *m_partition;
 
-#ifndef DBUG_OFF
   Partition_value_impl(const Partition_value_impl &src,
                        Partition_impl *parent);
 
@@ -200,7 +199,6 @@ public:
   {
     return new Partition_value_impl(*this, parent);
   }
-#endif /* !DBUG_OFF */
 };
 
 ///////////////////////////////////////////////////////////////////////////

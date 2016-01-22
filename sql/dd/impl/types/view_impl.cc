@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -286,7 +286,6 @@ void View_type::register_tables(Open_dictionary_tables_ctx *otx) const
 
 ///////////////////////////////////////////////////////////////////////////
 
-#ifndef DBUG_OFF
 View_impl::View_impl(const View_impl &src)
   : Weak_object(src), Entity_object_impl(src), Abstract_table_impl(src),
     m_type(src.m_type), m_is_updatable(src.m_is_updatable),
@@ -307,7 +306,6 @@ View_impl::View_impl(const View_impl &src)
                                clone(this));
   }
 }
-#endif /* !DBUG_OFF */
 
 ///////////////////////////////////////////////////////////////////////////
 

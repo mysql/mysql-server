@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,10 +26,7 @@
 #include "dd/impl/types/foreign_key_element_impl.h"  // Foreign_key_element_impl
 #include "dd/impl/types/table_impl.h"                // Table_impl
 #include "dd/types/index.h"                          // Index
-
-#ifndef DBUG_OFF
-#include "dd/types/column.h"                         // Column::id()
-#endif /* !DBUG_OFF */
+#include "dd/types/column.h"                         // Column::name()
 
 #include <sstream>
 
@@ -284,7 +281,6 @@ Collection_item *Foreign_key_impl::Factory::create_item() const
 
 ///////////////////////////////////////////////////////////////////////////
 
-#ifndef DBUG_OFF
 Foreign_key_impl::Foreign_key_impl(const Foreign_key_impl &src,
                                    Table_impl *parent,
                                    Index *unique_constraint)
@@ -304,10 +300,9 @@ Foreign_key_impl::Foreign_key_impl(const Foreign_key_impl &src,
   for (i_type i= src.m_elements->aref().begin(); i != end; ++i)
   {
     Foreign_key_element_impl &src_fke= *dynamic_cast<Foreign_key_element_impl*>(*i);
-    m_elements->aref().push_back(src_fke.clone(this, parent->get_column(src_fke.column().id())));
+    m_elements->aref().push_back(src_fke.clone(this, parent->get_column(src_fke.column().name())));
   }
 }
-#endif /* !DBUG_OFF */
 /* purecov: end */
 
 ///////////////////////////////////////////////////////////////////////////

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -229,7 +229,6 @@ private:
 
   std::unique_ptr<Element_collection> m_elements;
 
-#ifndef DBUG_OFF
   Foreign_key_impl(const Foreign_key_impl &src,
                    Table_impl *parent, Index *unique_constraint);
 
@@ -238,7 +237,6 @@ public:
   {
     return new Foreign_key_impl(*this, parent, unique_constraint);
   }
-#endif /* !DBUG_OFF */
 /* purecov: end */
 };
 

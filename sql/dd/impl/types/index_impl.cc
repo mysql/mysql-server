@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,10 +25,7 @@
 #include "dd/impl/tables/index_column_usage.h"  // Index_column_usage
 #include "dd/impl/types/index_element_impl.h"   // Index_element_impl
 #include "dd/impl/types/table_impl.h"           // Table_impl
-
-#ifndef DBUG_OFF
-#include "dd/types/column.h"                    // Column::id()
-#endif /* !DBUG_OFF */
+#include "dd/types/column.h"                    // Column::name()
 
 #include <sstream>
 
@@ -377,7 +374,6 @@ Collection_item *Index_impl::Factory::create_item() const
 
 ///////////////////////////////////////////////////////////////////////////
 
-#ifndef DBUG_OFF
 Index_impl::Index_impl(const Index_impl &src, Table_impl *parent)
   : Weak_object(src), Entity_object_impl(src), m_hidden(src.m_hidden),
     m_is_generated(src.m_is_generated),
@@ -400,12 +396,11 @@ Index_impl::Index_impl(const Index_impl &src, Table_impl *parent)
   {
     Column *dstcol= NULL;
     const Column &srccol= dynamic_cast<Index_element_impl*>(*i)->column();
-    dstcol= parent->get_column(srccol.id());
+    dstcol= parent->get_column(srccol.name());
     m_elements->aref().push_back(dynamic_cast<Index_element_impl*>(*i)->
                                  clone(this, dstcol));
   }
 }
-#endif /* !DBUG_OFF */
 
 ///////////////////////////////////////////////////////////////////////////
 // Index_type implementation.

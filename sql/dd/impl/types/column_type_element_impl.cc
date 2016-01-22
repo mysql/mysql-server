@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -148,7 +148,6 @@ Collection_item *Column_type_element_impl::Factory::create_item() const
 
 ///////////////////////////////////////////////////////////////////////////
 
-#ifndef DBUG_OFF
 Column_type_element_impl::
 Column_type_element_impl(const Column_type_element_impl &src,
                          Column_impl *parent, Collection<Column_type_element> *owner)
@@ -156,7 +155,6 @@ Column_type_element_impl(const Column_type_element_impl &src,
     m_name(src.m_name), m_index(src.m_index), m_column(parent),
     m_collection(owner)
 {}
-#endif /* !DBUG_OFF */
 
 ///////////////////////////////////////////////////////////////////////////
 // Column_type_element_type implementation.

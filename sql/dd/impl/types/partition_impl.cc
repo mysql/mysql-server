@@ -385,7 +385,6 @@ Collection_item *Partition_impl::Factory::create_item() const
 
 ///////////////////////////////////////////////////////////////////////////
 
-#ifndef DBUG_OFF
 Partition_impl::Partition_impl(const Partition_impl &src,
                                Table_impl *parent)
   : Weak_object(src), Entity_object_impl(src),
@@ -420,7 +419,6 @@ Partition_impl::Partition_impl(const Partition_impl &src,
                                 clone(this, dstix));
   }
 }
-#endif /* !DBUG_OFF */
 
 ///////////////////////////////////////////////////////////////////////////
 // Partition_type implementation.

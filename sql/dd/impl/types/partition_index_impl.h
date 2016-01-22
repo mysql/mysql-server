@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -184,7 +184,6 @@ private:
 
   Object_id m_tablespace_id;
 
-#ifndef DBUG_OFF
   Partition_index_impl(const Partition_index_impl &src,
                        Partition_impl *parent, Index *index);
 
@@ -193,7 +192,6 @@ public:
   {
     return new Partition_index_impl(*this, parent, index);
   }
-#endif /* !DBUG_OFF */
 };
 
 ///////////////////////////////////////////////////////////////////////////

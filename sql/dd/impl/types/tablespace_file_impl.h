@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -156,7 +156,6 @@ private:
   // References to other objects
   Tablespace_impl *m_tablespace;
 
-#ifndef DBUG_OFF
   Tablespace_file_impl(const Tablespace_file_impl &src,
                        Tablespace_impl *parent);
 
@@ -165,7 +164,6 @@ public:
   {
     return new Tablespace_file_impl(*this, parent);
   }
-#endif /* !DBUG_OFF */
 };
 
 ///////////////////////////////////////////////////////////////////////////

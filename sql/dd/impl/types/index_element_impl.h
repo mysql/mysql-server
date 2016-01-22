@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -232,7 +232,6 @@ private:
   Index_impl *m_index;
   Column *m_column;
 
-#ifndef DBUG_OFF
   Index_element_impl(const Index_element_impl &src, Index_impl *parent,
                      Column *column);
 
@@ -241,7 +240,6 @@ public:
   {
     return new Index_element_impl(*this, parent, column);
   }
-#endif /* !DBUG_OFF */
 };
 
 ///////////////////////////////////////////////////////////////////////////
