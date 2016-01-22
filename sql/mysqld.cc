@@ -19,7 +19,7 @@
 */
 
 /**
-  @mainpage MySQL main page
+  @mainpage MySQL Doxygen Main Page
 
   @section INTRO Introduction
 
@@ -28,9 +28,15 @@
 
   This present page is only an index, which lists the content available.
 
-  @section OPT Optimizer
+  @section Parser Parser
 
-  See @ref PAGE_OPT_TRACE
+  The parser processes SQL strings and builds a tree representation of them.
+
+  See @ref GROUP_PARSER.
+
+  @section OPT Query Optimizer
+
+  See @ref Optimizer
 
   @section PFS Performance Schema
 
@@ -43,6 +49,24 @@
   @section INTERNAL Internals manual
 
   For the internals manual, see https://dev.mysql.com/doc/internals/en/index.html
+
+  @page Optimizer The Optimizer
+
+  The task of query optimizer is to determine the most efficient means for
+  executing queries. The query optimizer consists of the following
+  sub-modules:
+
+  - @ref Query_Resolver
+  - @ref Query_Optimizer
+  - @ref Query_Planner
+  - @ref Query_Executor
+
+  They can all be found in the list on the left under @i Modules.
+
+  Additonal articles about the query optimizer:
+
+  - @ref PAGE_OPT_TRACE
+  - @ref AGGREGATE_CHECKS.
 */
 
 #include "mysqld.h"
