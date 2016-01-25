@@ -2882,11 +2882,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_CONNECTION_SERVER_PORT,
     "PortNumber",
     "TCP",
-    0, // No new parameter to use instead of deprecated
-    ConfigInfo::CI_DEPRECATED,
+    "PortNumber to be used by data nodes while connecting the transporters",
+    ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_INT,
-    MANDATORY,
+    "0",
     "0",
     STR_VALUE(MAX_PORT_NO) },
 
@@ -3051,11 +3051,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_CONNECTION_SERVER_PORT,
     "PortNumber",
     "SHM",
-    0, // No new parameter to use instead of deprecated
-    ConfigInfo::CI_DEPRECATED,
+    "PortNumber to be used by data nodes while connecting the transporters",
+    ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_INT,
-    MANDATORY,
+    "0",
     "0", 
     STR_VALUE(MAX_PORT_NO) },
 
@@ -3285,11 +3285,11 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     CFG_CONNECTION_SERVER_PORT,
     "PortNumber",
     "SCI",
-    0, // No new parameter to use instead of deprecated
-    ConfigInfo::CI_DEPRECATED,
+    "PortNumber to be used by data nodes while connecting the transporters",
+    ConfigInfo::CI_INTERNAL,
     false,
     ConfigInfo::CI_INT,
-    MANDATORY,
+    "0",
     "0", 
     STR_VALUE(MAX_PORT_NO) },
 
@@ -4938,16 +4938,8 @@ fixPortNumber(InitConfigFileParser::Context & ctx, const char * data){
     }
   }
 
-  if(ctx.m_currentSection->contains("PortNumber")) {
-    ndbout << "PortNumber should no longer be specificied "
-	   << "per connection, please remove from config. "
-	   << "Will be changed to " << port << endl;
-    ctx.m_currentSection->put("PortNumber", port, true);
-  } 
-  else
-  {
-    ctx.m_currentSection->put("PortNumber", port);
-  }
+  require(ctx.m_currentSection->contains("PortNumber") == false);
+  ctx.m_currentSection->put("PortNumber", port);
 
   DBUG_PRINT("info", ("connection %d-%d port %d host %s",
 		      id1, id2, port, hostname.c_str()));

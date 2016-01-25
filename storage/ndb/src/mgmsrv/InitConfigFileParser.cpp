@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -298,6 +298,10 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
     } else if (desc == 0){
       ctx.reportWarning("[%s] %s is deprecated", ctx.fname, fname);
     }
+  }
+  if( status == ConfigInfo::CI_INTERNAL) {
+    ctx.reportError("[%s] Parameter %s not configurable by user", ctx.fname, fname);
+    return false;
   }
 
   const ConfigInfo::Type type = m_info->getType(ctx.m_currentInfo, fname);
