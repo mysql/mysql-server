@@ -55,8 +55,12 @@ static DWORD get_milliseconds(const struct timespec *abstime)
     Convert timespec to millis and subtract current time.
     my_getsystime() returns time in 100 ns units.
   */
-  return (DWORD)(abstime->tv_sec * 1000 + abstime->tv_nsec / 1000000 -
-                 my_getsystime() / 10000);
+  ulonglong future= abstime->tv_sec * 1000 + abstime->tv_nsec / 1000000;
+  ulonglong now= my_getsystime() / 10000;
+  /* Don't allow the timeout to be negative. */
+  if (future < now)
+    return 0;
+  return (DWORD)(future - now);
 }
 #endif /* _WIN32 */
 
