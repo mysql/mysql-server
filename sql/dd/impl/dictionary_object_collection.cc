@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -129,10 +129,12 @@ bool Dictionary_object_collection<Object_type>::fetch(
 ///////////////////////////////////////////////////////////////////////////
 
 // Explicitly instantiate the type for the various usages.
-template class Dictionary_object_collection<const Schema>;
 template class Dictionary_object_collection<const Abstract_table>;
+template class Dictionary_object_collection<const Charset>;
+template class Dictionary_object_collection<const Collation>;
+template class Dictionary_object_collection<const Schema>;
 template class Dictionary_object_collection<const Table>;
-template class Dictionary_object_collection<const View>;
 template class Dictionary_object_collection<const Tablespace>;
+template class Dictionary_object_collection<const View>;
 
 }

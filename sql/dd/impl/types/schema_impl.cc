@@ -137,7 +137,7 @@ bool Schema::update_name_key(name_key_type *key,
 
 ///////////////////////////////////////////////////////////////////////////
 
-Table *Schema_impl::create_table(THD *thd) const
+Table *Schema_impl::create_table(THD *thd __attribute__((unused))) const
 {
   // Creating tables requires an IX meta data lock on the schema name.
 #ifndef DBUG_OFF
@@ -168,7 +168,7 @@ Table *Schema_impl::create_table(THD *thd) const
 
 ///////////////////////////////////////////////////////////////////////////
 
-View *Schema_impl::create_view(THD *thd) const
+View *Schema_impl::create_view(THD *thd __attribute__((unused))) const
 {
   // Creating views requires an IX meta data lock on the schema name.
 #ifndef DBUG_OFF
@@ -197,7 +197,7 @@ View *Schema_impl::create_view(THD *thd) const
 
 ///////////////////////////////////////////////////////////////////////////
 
-View *Schema_impl::create_system_view(THD *thd) const
+View *Schema_impl::create_system_view(THD *thd __attribute__((unused))) const
 {
   // Creating system views requires an IX meta data lock on the schema name.
 #ifndef DBUG_OFF

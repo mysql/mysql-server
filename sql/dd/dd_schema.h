@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -81,18 +81,14 @@ public:
   /**
     Check if we need a schema meta data lock in the current situation.
 
-    If we are trying to access the system schema, a meta data lock is
-    not required, because concurrent DDL on the system schema will not
-    be possible. Additionally, before the server is started, meta data
-    locks are not needed since we are in a single threaded context.
-
-    @param  schema_name   The name of the schema.
+    Before the server is started, meta data locks are not needed since
+    we are in a single threaded context.
 
     @retval true    We need an IX meta data lock on the schema name.
             false   We do not need any meta data lock on the schema name.
   */
 
-  static bool is_lock_required(const char* schema_name);
+  static bool is_lock_required();
 
 
   /**

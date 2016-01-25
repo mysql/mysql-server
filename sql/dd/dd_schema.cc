@@ -163,7 +163,7 @@ bool drop_schema(THD *thd, const char *schema_name)
 }
 
 
-bool Schema_MDL_locker::is_lock_required(const char* schema_name)
+bool Schema_MDL_locker::is_lock_required()
 {
   return mysqld_server_started;
 }
@@ -186,7 +186,7 @@ bool Schema_MDL_locker::ensure_locked(const char* schema_name)
   }
 
   // If a lock is required, and we do not already have one, acquire a new lock.
-  if (is_lock_required(converted_name) &&
+  if (is_lock_required() &&
       !m_thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::SCHEMA,
                                                       converted_name, "",
                                                       MDL_INTENTION_EXCLUSIVE))

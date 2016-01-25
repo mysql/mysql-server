@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -249,12 +249,10 @@ static bool repopulate_charsets_and_collations(THD *thd)
     return false;
   }
 
-  // Otherwise, turn off FK checks, delete contents, re-populate and commit.
+  // Otherwise, turn off FK checks, re-populate and commit.
+  // The FK checks must be turned off since the collations and
+  // character sets reference each other.
   bool error= execute_query(thd, "SET FOREIGN_KEY_CHECKS= 0") ||
-              execute_query(thd, std::string("DELETE FROM ") +
-                                 tables::Collations::table_name()) ||
-              execute_query(thd, std::string("DELETE FROM ") +
-                                 tables::Character_sets::table_name()) ||
               tables::Collations::instance().populate(thd) ||
               tables::Character_sets::instance().populate(thd);
 

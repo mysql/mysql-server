@@ -249,11 +249,7 @@ public:
   */
   static bool is_read_locked(THD *thd, const dd::Schema *schema)
   {
-    // We must take l_c_t_n into account when comparing the schema name.
-    char name_buf[NAME_LEN + 1];
-    return !dd::Schema_MDL_locker::is_lock_required(
-                dd::Object_table_definition_impl::
-                fs_name_case(schema->name(), name_buf)) ||
+    return !dd::Schema_MDL_locker::is_lock_required() ||
       is_locked(thd, schema, MDL_INTENTION_EXCLUSIVE);
   }
 
@@ -1297,6 +1293,12 @@ template bool Dictionary_client::fetch_catalog_components(
     std::unique_ptr<Schema_const_iterator>*) const;
 
 template bool Dictionary_client::fetch_global_components(
+    std::unique_ptr<Charset_const_iterator>*) const;
+
+template bool Dictionary_client::fetch_global_components(
+    std::unique_ptr<Collation_const_iterator>*) const;
+
+template bool Dictionary_client::fetch_global_components(
     std::unique_ptr<Tablespace_const_iterator>*) const;
 
 template bool Dictionary_client::acquire_uncached(Object_id,
@@ -1315,7 +1317,6 @@ template void Dictionary_client::set_sticky(const Abstract_table*, bool);
 template bool Dictionary_client::is_sticky(const Abstract_table*) const;
 template void Dictionary_client::dump<Abstract_table>() const;
 
-// These instantiations are currently only needed for unit testing
 template bool Dictionary_client::acquire(Object_id, dd::Charset const**);
 template bool Dictionary_client::acquire<dd::Charset>(std::string const&,
                                                       dd::Charset const**);
@@ -1331,11 +1332,11 @@ template bool Dictionary_client::is_sticky(const Charset*) const;
 template void Dictionary_client::dump<Charset>() const;
 
 
-#ifndef DBUG_OFF
-// These instantiations are currently only needed for unit testing
+template bool Dictionary_client::acquire_uncached(Object_id,
+                                                  const Charset**);
 template bool Dictionary_client::acquire(Object_id, dd::Collation const**);
-#endif /* !DBUG_OFF */
-
+template bool Dictionary_client::acquire_uncached(Object_id,
+                                                  const Collation**);
 template bool Dictionary_client::acquire(const std::string &,
                                          const Collation**);
 template bool Dictionary_client::drop(Collation*);
