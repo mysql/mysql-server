@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -379,6 +379,12 @@ int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
     const Uint64 waited_nano = NdbTick_Elapsed(start_ticks,curr_ticks).nanoSec();
     m_clnt->recordWaitTimeNanos(waited_nano);
     Uint32 state= m_waiter->get_state();
+
+    DBUG_EXECUTE_IF("ndb_simulate_nodefail", {
+      DBUG_PRINT("info", ("Simulating node failure while waiting for response"));
+      state = WAIT_NODE_FAILURE;;
+    });
+
     if (state == NO_WAIT)
     {
       return 0;
