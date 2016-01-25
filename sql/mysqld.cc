@@ -21,35 +21,145 @@
 /**
   @mainpage MySQL Doxygen Main Page
 
-  @section INTRO Introduction
+  @section intro Introduction
 
   Welcome to the MySQL source code documentation.
-  For the user manual, see http://dev.mysql.com/doc/refman/5.7/en/
 
-  This present page is only an index, which lists the content available.
+  The order chosen to present the content is to start with low level components,
+  and build upon previous sections, so that code is presented in a logical order.
 
-  @section Parser Parser
+  For some sections, a full article (Doxygen 'page') presents the component in detail.
+
+  For other sections, only links are provided, as a starting point into the component.
+
+  @section start Get started
+
+  @subsection start_source Build from source
+
+  See https://dev.mysql.com/doc/refman/5.8/en/source-installation.html
+
+  @subsection start_debug Debugging
+
+  The easiest way to install a server, and attach a debugger to it,
+  is to start the mysql-test-run (MTR) tool with debugging options
+
+  @verbatim
+  cd mysql-test
+  ./mtr --ddd main.parser
+  @endverbatim
+
+  The following functions are good candidates for breakpoints:
+  - #my_message_sql
+  - #dispatch_command
+
+  Replace 'main.parser' with another test script, or write your own, to debug a specific area.
+
+  @section infrastructure Infrastructure
+
+  @subsection infra_container Container
+
+  See #DYNAMIC_ARRAY, #LIST, #I_P_List, #HASH, #LF_HASH.
+
+  @subsection infra_syncho Synchonization
+
+  See #native_mutex_t, #native_rw_lock_t, #native_cond_t.
+
+  @subsection infra_fileio File IO
+
+  See #my_open, #my_dir.
+
+  @section server Server building blocs
+
+  @subsection server_vio Virtual Input Output
+
+  See #Vio, #vio_init.
+
+  @subsection server_protocol Protocol
+
+  See #Protocol.
+
+  @subsection server_parser Parser
 
   The parser processes SQL strings and builds a tree representation of them.
 
   See @ref GROUP_PARSER.
 
-  @section OPT Query Optimizer
+  @subsection server_optimizer Optimizer
 
   See @ref Optimizer
 
-  @section PFS Performance Schema
+  @subsection server_execution Execution
 
-  See @ref PAGE_PFS
+  See #dispatch_command.
 
-  @section RPL Replication
+  @section storage Storage
+
+  @subsection storage_innodb Innodb
+
+  See #ha_innobase.
+
+  @section functional Functional area
+
+  @subsection func_security Security
+
+  See #check_access.
+
+  @subsection func_stored_proc Stored procedures
+
+  See #sp_head, #sp_instr.
+
+  @subsection func_prepared_stmt Prepared statements
+
+  See #mysqld_stmt_prepare, #mysqld_stmt_execute, #mysqld_stmt_close, #Prepared_statement.
+
+  @subsection func_transactions Transactions
+
+  See #trans_begin, #trans_commit, #trans_rollback.
+
+  @subsection func_replication Replication
 
   See @ref PAGE_RPL_FIELD_METADATA
 
-  @section INTERNAL Internals manual
+  @subsection func_performance_schema Performance schema
+
+  See @ref PAGE_PFS
+
+  @section deployment Deployment
+
+  @subsection deploy_install Installation
+
+  See #opt_install_server, #bootstrap::run_bootstrap_thread.
+
+  @subsection deploy_startup Startup
+
+  See #mysqld_main.
+
+  @subsection deploy_shutdown Shutdown
+
+  See #handle_fatal_signal, #signal_hand.
+
+  @subsection deploy_upgrade Upgrade
+
+  See #Mysql::Tools::Upgrade::Program.
+
+  @section extending Extending MySQL
+
+  @subsection extending_plugin Plugins
+
+  See #Sql_cmd_install_plugin, #Sql_cmd_uninstall_plugin.
+
+  @subsection extending_udf User Defined Functions
+
+  See #add_udf, #del_udf.
+
+  @section references References
+
+  For the user manual, see http://dev.mysql.com/doc/refman/5.8/en/
 
   For the internals manual, see https://dev.mysql.com/doc/internals/en/index.html
+*/
 
+/**
   @page Optimizer The Optimizer
 
   The task of query optimizer is to determine the most efficient means for
@@ -61,12 +171,10 @@
   - @ref Query_Planner
   - @ref Query_Executor
 
-  They can all be found in the list on the left under @i Modules.
-
-  Additonal articles about the query optimizer:
+  Additional articles about the query optimizer:
 
   - @ref PAGE_OPT_TRACE
-  - @ref AGGREGATE_CHECKS.
+  - @ref AGGREGATE_CHECKS
 */
 
 #include "mysqld.h"
