@@ -204,7 +204,7 @@ alter table t2 algorithm=inplace, drop foreign key t2_fk;
 ERROR HY000: Got error 4008 'Receive from NDB failed' from NDBCLUSTER
 show warnings;
 Level	Code	Message
-Warning	1215	Failed to drop fk '10/12/t2_fk'
+Warning	1215	Failed to drop fk 'X/X/t2_fk'
 Warning	1215	Ndb error: 4008 'Receive from NDB failed'
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
 Error	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
@@ -251,5 +251,17 @@ Warning	1215	Ndb error: 4008 'Receive from NDB failed'
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDBCLUSTER
 Error	1051	Unknown table 'test.t1'
+SET SESSION debug=@save_debug;
+drop table t1;
+# mysqld gets timeout 4013 while opening index
+create table t1(id int primary key, val int unique) engine=ndb;
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_simulate_nodefail";
+show create table t1;
+ERROR HY000: Got temporary error 4013 'Request timed out in waiting for node failure' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1297	Got temporary error 4013 'Request timed out in waiting for node failure' from NDB
+Error	1297	Got temporary error 4013 'Request timed out in waiting for node failure' from NDBCLUSTER
 SET SESSION debug=@save_debug;
 drop table t1;

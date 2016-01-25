@@ -11,7 +11,7 @@ create table test.t1(i int primary key) engine=ndb;
 # Restarting all the nodes with 'no start'
 --source ndb_restart_nostart.inc
 
---error 1296
+--error 1296,1297
 show create table test.t1;
 --echo "show create table failed as expected. Now starting the nodes again"
 
