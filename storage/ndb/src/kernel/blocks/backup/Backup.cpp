@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -533,6 +533,12 @@ Backup::adjust_disk_write_speed_up(Uint64 max_speed, int adjust_speed)
 void
 Backup::calculate_disk_write_speed(Signal *signal)
 {
+  if (!m_our_node_started)
+  {
+    /* No adaptiveness while we're still starting. */
+    jam();
+    return;
+  }
   Uint64 max_disk_write_speed, min_disk_write_speed;
   calculate_current_speed_bounds(max_disk_write_speed,
                                  min_disk_write_speed);
@@ -584,12 +590,6 @@ Backup::calculate_disk_write_speed(Signal *signal)
      * The min == max which gives no room to adapt the LCP speed.
      * or the difference is too small to adapt it.
      */
-    return;
-  }
-  if (!m_our_node_started)
-  {
-    /* No adaptiveness while we're still starting. */
-    jam();
     return;
   }
   if (c_lqh->is_ldm_instance_io_lagging())
