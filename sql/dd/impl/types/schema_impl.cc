@@ -140,6 +140,7 @@ bool Schema::update_name_key(name_key_type *key,
 Table *Schema_impl::create_table(THD *thd) const
 {
   // Creating tables requires an IX meta data lock on the schema name.
+#ifndef DBUG_OFF
   char name_buf[NAME_LEN + 1];
   DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
                 MDL_key::SCHEMA,
@@ -147,6 +148,7 @@ Table *Schema_impl::create_table(THD *thd) const
                   fs_name_case(name(), name_buf),
                 "",
                 MDL_INTENTION_EXCLUSIVE));
+#endif
 
   std::unique_ptr<Table> t(dd::create_object<Table>());
   t->set_schema_id(this->id());
@@ -169,6 +171,7 @@ Table *Schema_impl::create_table(THD *thd) const
 View *Schema_impl::create_view(THD *thd) const
 {
   // Creating views requires an IX meta data lock on the schema name.
+#ifndef DBUG_OFF
   char name_buf[NAME_LEN + 1];
   DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
                 MDL_key::SCHEMA,
@@ -176,6 +179,7 @@ View *Schema_impl::create_view(THD *thd) const
                   fs_name_case(name(), name_buf),
                 "",
                 MDL_INTENTION_EXCLUSIVE));
+#endif
 
   std::unique_ptr<View> v(dd::create_object<View>());
   v->set_schema_id(this->id());
@@ -196,6 +200,7 @@ View *Schema_impl::create_view(THD *thd) const
 View *Schema_impl::create_system_view(THD *thd) const
 {
   // Creating system views requires an IX meta data lock on the schema name.
+#ifndef DBUG_OFF
   char name_buf[NAME_LEN + 1];
   DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
                 MDL_key::SCHEMA,
@@ -203,6 +208,7 @@ View *Schema_impl::create_system_view(THD *thd) const
                   fs_name_case(name(), name_buf),
                 "",
                 MDL_INTENTION_EXCLUSIVE));
+#endif
 
   std::unique_ptr<View> v(dd::create_object<View>());
   v->set_system_view(true);
