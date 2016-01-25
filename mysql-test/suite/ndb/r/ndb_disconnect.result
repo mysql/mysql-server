@@ -4,7 +4,7 @@ create table test.t1(i int primary key) engine=ndb;
 Restarting all nodes "no start"
 Waiting for not started
 show create table test.t1;
-ERROR HY000: Got error 4009 'Cluster Failure' from NDBCLUSTER
+Got one of the listed errors
 "show create table failed as expected. Now starting the nodes again"
 Starting all nodes
 Waiting for started
