@@ -50,6 +50,7 @@
 #include "sql_time.h"            // TIME_from_longlong_packed
 #include "strfunc.h"             // find_type
 #include "item_json_func.h"      // Item_func_json_quote
+#include "val_int_compare.h"
 
 #include <cfloat>                // DBL_DIG
 #include <exception>             // std::exception subclasses
@@ -4030,19 +4031,8 @@ mysql> select least('11', '2'), least('11', '2')+0, concat(least(11,2));
       break;
 
     const bool tmp_unsigned= args[i]->unsigned_flag;
-    bool tmp_is_smaller;
-    // both are signed, compare as signed
-    if (!val_unsigned && !tmp_unsigned)
-      tmp_is_smaller= (tmp < value);
-    // both are unsigned, compare as unsigned
-    else if (val_unsigned && tmp_unsigned)
-      tmp_is_smaller= std::less<ulonglong>()(tmp, value);
-    // tmp is signed, check negative value first
-    else if (val_unsigned && !tmp_unsigned)
-      tmp_is_smaller= (tmp < 0) || std::less<ulonglong>()(tmp, value);
-    // value is signed, check negative value first
-    else // !val_unsigned && tmp_unsigned
-      tmp_is_smaller= (value > 0) && std::less<ulonglong>()(tmp, value);
+    const bool tmp_is_smaller=
+      Integer_value(tmp, tmp_unsigned) < Integer_value(value, val_unsigned);
 
     if ((tmp_is_smaller ? cmp_sign : -cmp_sign) > 0)
     {

@@ -47,6 +47,7 @@
 #include "sql_class.h"               // THD
 #include "sql_locale.h"              // my_locale_by_name
 #include "strfunc.h"                 // hexchar_to_int
+#include "val_int_compare.h"
 
 C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
@@ -1683,14 +1684,15 @@ void Item_str_func::left_right_max_length()
   uint32 char_length= args[0]->max_char_length();
   if (args[1]->const_item())
   {
-    int length= (int) args[1]->val_int();
+    longlong length= args[1]->val_int();
     if (args[1]->null_value)
       goto end;
 
-    if (length <= 0)
-      char_length=0;
-    else
-      set_if_smaller(char_length, (uint) length);
+    Integer_value length_val(length, args[1]->unsigned_flag);
+    if (length_val.is_negative())
+      char_length= 0;
+    else if (length_val <= Integer_value(INT_MAX32, false))
+      char_length= std::min(char_length, static_cast<uint32>(length));
   }
 
 end:
@@ -1795,23 +1797,30 @@ void Item_func_substr::fix_length_and_dec()
   DBUG_ASSERT(collation.collation != NULL);
   if (args[1]->const_item())
   {
-    int32 start= (int32) args[1]->val_int();
+    longlong start= args[1]->val_int();
     if (args[1]->null_value)
       goto end;
-    if (start < 0)
-      max_length= ((uint)(-start) > max_length) ? 0 : (uint)(-start);
-    else
-      max_length-= min((uint)(start - 1), max_length);
+    Integer_value start_val(start, args[1]->unsigned_flag);
+    if (Integer_value(INT_MIN32, false) < start_val &&
+        start_val <= Integer_value(INT_MAX32, false))
+    {
+      if (start < 0)
+        max_length= (static_cast<uint32>(-start) > max_length) ? 0 :
+          static_cast<uint>(-start);
+      else
+        max_length-= min(static_cast<uint32>(start - 1), max_length);
+    }
   }
   if (arg_count == 3 && args[2]->const_item())
   {
-    int32 length= (int32) args[2]->val_int();
+    longlong length= args[2]->val_int();
     if (args[2]->null_value)
       goto end;
-    if (length <= 0)
-      max_length=0; /* purecov: inspected */
-    else
-      set_if_smaller(max_length,(uint) length);
+    Integer_value length_val(length, args[2]->unsigned_flag);
+    if (length_val.is_negative())
+      max_length= 0;
+    else if (length_val <= Integer_value(INT_MAX, false))
+      max_length= std::min(max_length, static_cast<uint32>(length));
   }
 
 end:
