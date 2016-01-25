@@ -220,6 +220,13 @@ IF(HAVE_MISSING_FIELD_INITIALIZERS)
     COMPILE_FLAGS "-Wno-missing-field-initializers")
 ENDIF()
 
+# Boost uses undefined macros in #if
+MY_CHECK_CXX_COMPILER_FLAG("-Wundef" HAVE_UNDEF)
+IF(HAVE_UNDEF)
+  ADD_COMPILE_FLAGS(${BOOST_LIB_SOURCES}
+    COMPILE_FLAGS "-Wno-undef")
+ENDIF()
+
 ADD_COMPILE_FLAGS(
   compression_writer.cc
   mysqldump_tool_chain_maker.cc
