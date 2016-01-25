@@ -917,9 +917,9 @@ master-bin.000001	#	Query	#	#	XA COMMIT X'7472785f37',X'',1
 master-bin.000001	#	Query	#	#	XA COMMIT X'7472785f38',X'',1
 master-bin.000001	#	Query	#	#	XA COMMIT X'7472785f39',X'',1
 master-bin.000001	#	Stop	#	#	
-include/assert.inc [committed gno 130]
+include/assert.inc [committed gno 131]
 RESET MASTER;
-include/assert.inc [committed gno 130]
+include/assert.inc [committed gno 131]
 All transactions must be completed, to empty-list the following:
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
