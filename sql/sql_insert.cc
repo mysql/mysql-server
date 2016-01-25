@@ -2544,7 +2544,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
   DBUG_ENTER("create_table_from_items");
 
-  tmp_table.alias= 0;
+  memset(&tmp_table, 0, sizeof(tmp_table));
   tmp_table.s= &share;
   init_tmp_table_share(thd, &share, "", 0, "", "");
 
