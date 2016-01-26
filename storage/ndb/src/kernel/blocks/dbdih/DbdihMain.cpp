@@ -1508,13 +1508,14 @@ void Dbdih::execDIH_RESTARTREQ(Signal* signal)
         {
           ndbrequire(ng < MAX_NDB_NODES);
           Uint32 gci = node_gcis[i];
-          if (gci < SYSFILE->lastCompletedGCI[i])
+          if (gci > 0 && gci + 1 == SYSFILE->lastCompletedGCI[i])
           {
             jam();
             /**
              * Handle case, where *I* know that node complete GCI
              *   but node does not...bug#29167
              *   i.e node died before it wrote own sysfile
+             *   and node it only one gci behind
              */
             gci = SYSFILE->lastCompletedGCI[i];
           }
@@ -16445,7 +16446,10 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
 	    else
 	    {
 	      jam();
-	      infoEvent("Forcing take-over of node %d due to unsufficient REDO"
+	      g_eventLogger->info("Forcing take-over of node %d due to insufficient REDO"
+			" for table %d fragment: %d",
+			nodePtr.i, tabPtr.i, i);
+	      infoEvent("Forcing take-over of node %d due to insufficient REDO"
 			" for table %d fragment: %d",
 			nodePtr.i, tabPtr.i, i);
 	      
@@ -16464,6 +16468,32 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
       }
       replicaPtr.i = nextReplicaPtrI;
     }//while
+    if (fragPtr.p->storedReplicas == RNIL)
+    {
+      // This should have been caught in Dbdih::execDIH_RESTARTREQ
+#ifdef ERROR_INSERT
+      // Extra printouts for debugging
+      g_eventLogger->info("newestRestorableGCI %u", newestRestorableGCI);
+      ReplicaRecordPtr replicaPtr;
+      replicaPtr.i = fragPtr.p->oldStoredReplicas;
+      while (replicaPtr.i != RNIL)
+      {
+        ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
+        g_eventLogger->info("frag %u, replica %u, node %u, lastCompletedGCI %u, replicaLastGci %u,%u",
+          fragPtr.i, replicaPtr.i, replicaPtr.p->procNode,
+          SYSFILE->lastCompletedGCI[replicaPtr.p->procNode],
+          replicaPtr.p->replicaLastGci[0], replicaPtr.p->replicaLastGci[1]);
+        replicaPtr.i = replicaPtr.p->nextPool;
+      }
+#endif
+      char buf[255];
+      BaseString::snprintf
+        (buf, sizeof(buf),
+         "Nodegroup %u has not enough data on disk for restart.", i);
+      progError(__LINE__,
+                NDBD_EXIT_INSUFFICENT_NODES,
+                buf);
+    }
     updateNodeInfo(fragPtr);
   }
 }
@@ -23770,7 +23800,8 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     ndbout_c("PACK_TABLE_PAGE_WORDS %u", PACK_TABLE_PAGE_WORDS);
     ndbout_c("PACK_TABLE_PAGES %u", PACK_TABLE_PAGES);
     ndbout_c("ZPAGEREC %u", ZPAGEREC);
-    ndbout_c("Total bytes : %lu", ZPAGEREC * sizeof(PageRecord));
+    ndbout_c("Total bytes : %lu",
+             (unsigned long) ZPAGEREC * sizeof(PageRecord));
     ndbout_c("LCP Tab def write ops inUse %u queued %u",
              c_lcpTabDefWritesControl.inUse,
              c_lcpTabDefWritesControl.queuedRequests);

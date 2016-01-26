@@ -148,6 +148,11 @@ set(NDB_MEMCACHE_SOURCE_FILES
     src/embedded_default_engine.c
 )
 
+# The sourced C files from storage/ndb/memcache/extra/memcached can't be built
+# with -Werror
+IF(CMAKE_C_FLAGS)
+  STRING(REGEX REPLACE "-Werror( |$)" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+ENDIF()
 
 # Set extra flags for the C compiler
 IF(${CMAKE_COMPILER_IS_GNUCC})
@@ -183,9 +188,10 @@ if(${HAVE_LIBDL})
     set(LIBDL "dl")
 endif()
 
-CHECK_CXX_SOURCE_RUNS("
-    main()  {
+CHECK_CXX_SOURCE_COMPILES("
+    int main()  {
       const char * f = __func__;
+      (void)f; // unused
       return 0;
     }"
     HAVE_FUNC_IN_CXX)

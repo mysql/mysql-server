@@ -60,10 +60,15 @@ char*
 Ndb_inet_ntop(int af,
               const void *src,
               char *dst,
-              socklen_t size)
+              size_t dst_size)
 {
+  // Function assume there is at least some space in "dst" since there
+  // are no way to return failure without writing into "dst". Check
+  // that noone seem to call function with too small "dst_size"
+  assert(dst);
+  assert(dst_size > 0);
+
   int ret;
-  const char *null_str = "null";
   switch (af)
   {
     case AF_INET:
@@ -75,7 +80,7 @@ Ndb_inet_ntop(int af,
       ret = getnameinfo(reinterpret_cast<sockaddr*>(&sa),
                         sizeof(sockaddr_in),
                         dst,
-                        size,
+                        (socklen_t)dst_size,
                         NULL,
                         0,
                         NI_NUMERICHOST);
@@ -94,7 +99,7 @@ Ndb_inet_ntop(int af,
       ret = getnameinfo(reinterpret_cast<sockaddr*>(&sa),
                         sizeof(sockaddr_in6),
                         dst,
-                        size,
+                        (socklen_t)dst_size,
                         NULL,
                         0,
                         NI_NUMERICHOST);
@@ -109,7 +114,13 @@ Ndb_inet_ntop(int af,
       break;
     }
   }
-  return (char*)null_str;
+
+  // Copy the string "null" into dst buffer
+  // and zero terminate for safety
+  strncpy(dst, "null", dst_size);
+  dst[dst_size-1] = 0;
+
+  return dst;
 }
 
 #ifdef TEST_NDBGETINADDR
@@ -146,11 +157,11 @@ CHECK(const char* address, int expected_res, bool is_numeric= false)
       addr_str1 = Ndb_inet_ntop(AF_INET,
                                 static_cast<void*>(&addr),
                                 buf1,
-                                (socklen_t)sizeof(buf1));
+                                sizeof(buf1));
       addr_str2 = Ndb_inet_ntop(AF_INET,
                                 static_cast<void*>(&none),
                                 buf2,
-                                (socklen_t)sizeof(buf2));
+                                sizeof(buf2));
       fprintf(stderr, "> didn't return INADDR_NONE after failure, "
              "got: '%s', expected; '%s'\n", addr_str1, addr_str2);
       abort();
@@ -162,7 +173,7 @@ CHECK(const char* address, int expected_res, bool is_numeric= false)
   addr_str1 = Ndb_inet_ntop(AF_INET,
                             static_cast<void*>(&addr),
                             buf1,
-                            (socklen_t)sizeof(buf1));
+                            sizeof(buf1));
   fprintf(stderr, "> '%s' -> '%s'\n", address, addr_str1);
 
   if (is_numeric)
@@ -175,7 +186,7 @@ CHECK(const char* address, int expected_res, bool is_numeric= false)
     addr_str2 = Ndb_inet_ntop(AF_INET,
                               static_cast<void*>(&addr2),
                               buf2,
-                              (socklen_t)sizeof(buf2));
+                              sizeof(buf2));
     fprintf(stderr, "> inet_addr(%s) -> '%s'\n", address, addr_str2);
 
     if (memcmp(&addr, &addr2, sizeof(struct in_addr)) != 0)
@@ -183,7 +194,7 @@ CHECK(const char* address, int expected_res, bool is_numeric= false)
       addr_str2 = Ndb_inet_ntop(AF_INET,
                                 static_cast<void*>(&addr2),
                                 buf2,
-                                (socklen_t)sizeof(buf2));
+                                sizeof(buf2));
       fprintf(stderr, "> numeric address '%s' didn't map to same value as "
               "inet_addr: '%s'", address, addr_str2);
       abort();
@@ -288,7 +299,7 @@ TAPTEST(NdbGetInAddr)
     CHECK(Ndb_inet_ntop(AF_INET,
                         static_cast<void*>(&addr),
                         addr_buf,
-                        (socklen_t)sizeof(addr_buf)),
+                        sizeof(addr_buf)),
                         0,
                         true);
   }
@@ -297,6 +308,19 @@ TAPTEST(NdbGetInAddr)
   CHECK("fe80:0:0:0:200:f8ff:fe21:67cf", -1);
   CHECK("fe80::200:f8ff:fe21:67cf", -1);
   CHECK("::1", -1); // the loopback, but still No IPv6
+
+  {
+    // Check with AF_UNSPEC to trigger Ndb_inet_ntop()
+    // to return the "null" error string
+    fprintf(stderr, "Testing Ndb_inet_ntop(AF_UNSPEC, ...)\n");
+
+    struct in_addr addr;
+    const char* addr_str = Ndb_inet_ntop(AF_UNSPEC,
+                                         static_cast<void*>(&addr),
+                                         addr_buf,
+                                         sizeof(addr_buf));
+    fprintf(stderr, "> AF_UNSPEC -> '%s'\n", addr_str);
+  }
 
   socket_library_end();
 

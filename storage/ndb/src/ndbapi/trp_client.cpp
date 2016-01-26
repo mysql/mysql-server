@@ -210,7 +210,7 @@ trp_client::getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
     m_send_nodes_cnt = cnt + 1;
   }
 
-  TFPage* page = m_facade->alloc_sb_page();
+  TFPage* page = m_facade->alloc_sb_page(node);
   if (likely(page != 0))
   {
     page->init();

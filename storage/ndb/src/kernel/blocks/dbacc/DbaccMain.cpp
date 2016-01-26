@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -840,31 +840,31 @@ void Dbacc::refaccConnectLab(Signal* signal)
 /*           INFORMATION WHICH IS RECIEVED BY ACCKEYREQ WILL BE SAVED                */
 /*           IN THE OPERATION RECORD.                                                */
 /* --------------------------------------------------------------------------------- */
-void Dbacc::initOpRec(Signal* signal) 
+void Dbacc::initOpRec(const AccKeyReq* signal, Uint32 siglen) 
 {
   register Uint32 Treqinfo;
 
-  Treqinfo = signal->theData[2];
+  Treqinfo = signal->requestInfo;
 
-  operationRecPtr.p->hashValue = LHBits32(signal->theData[3]);
-  operationRecPtr.p->tupkeylen = signal->theData[4];
-  operationRecPtr.p->xfrmtupkeylen = signal->theData[4];
-  operationRecPtr.p->transId1 = signal->theData[5];
-  operationRecPtr.p->transId2 = signal->theData[6];
+  operationRecPtr.p->hashValue = LHBits32(signal->hashValue);
+  operationRecPtr.p->tupkeylen = signal->keyLen;
+  operationRecPtr.p->xfrmtupkeylen = signal->keyLen;
+  operationRecPtr.p->transId1 = signal->transId1;
+  operationRecPtr.p->transId2 = signal->transId2;
 
-  Uint32 readFlag = (((Treqinfo >> 4) & 0x3) == 0);      // Only 1 if Read
-  Uint32 dirtyFlag = (((Treqinfo >> 6) & 0x1) == 1);     // Only 1 if Dirty
-  Uint32 dirtyReadFlag = readFlag & dirtyFlag;
-  Uint32 operation = Treqinfo & 0xf;
+  const bool readOp = AccKeyReq::getLockType(Treqinfo) == ZREAD;
+  const bool dirtyOp = AccKeyReq::getDirtyOp(Treqinfo);
+  const bool dirtyReadOp = readOp & dirtyOp;
+  Uint32 operation = AccKeyReq::getOperation(Treqinfo);
   if (operation == ZREFRESH)
     operation = ZWRITE; /* Insert if !exist, otherwise lock */
 
   Uint32 opbits = 0;
   opbits |= operation;
-  opbits |= ((Treqinfo >> 4) & 0x3) ? (Uint32) Operationrec::OP_LOCK_MODE : 0;
-  opbits |= ((Treqinfo >> 4) & 0x3) ? (Uint32) Operationrec::OP_ACC_LOCK_MODE : 0;
-  opbits |= (dirtyReadFlag) ? (Uint32) Operationrec::OP_DIRTY_READ : 0;
-  if ((Treqinfo >> 31) & 0x1)
+  opbits |= readOp ? 0 : (Uint32) Operationrec::OP_LOCK_MODE;
+  opbits |= readOp ? 0 : (Uint32) Operationrec::OP_ACC_LOCK_MODE;
+  opbits |= dirtyReadOp ? (Uint32) Operationrec::OP_DIRTY_READ : 0;
+  if (AccKeyReq::getLockReq(Treqinfo))
   {
     opbits |= Operationrec::OP_LOCK_REQ;            // TUX LOCK_REQ
 
@@ -881,7 +881,7 @@ void Dbacc::initOpRec(Signal* signal)
      */
   }
   
-  //operationRecPtr.p->nodeType = (Treqinfo >> 7) & 0x3;
+  //operationRecPtr.p->nodeType = AccKeyReq::getReplicaType(Treqinfo);
   operationRecPtr.p->fid = fragrecptr.p->myfid;
   operationRecPtr.p->fragptr = fragrecptr.i;
   operationRecPtr.p->nextParallelQue = RNIL;
@@ -897,7 +897,13 @@ void Dbacc::initOpRec(Signal* signal)
 
   if (operationRecPtr.p->tupkeylen == 0)
   {
-    ndbassert(signal->getLength() == 9);
+    NDB_STATIC_ASSERT(AccKeyReq::SignalLength_localKey == 10);
+    ndbassert(siglen == AccKeyReq::SignalLength_localKey);
+  }
+  else
+  {
+    NDB_STATIC_ASSERT(AccKeyReq::SignalLength_keyInfo == 8);
+    ndbassert(siglen == AccKeyReq::SignalLength_keyInfo + operationRecPtr.p->tupkeylen);
   }
 }//Dbacc::initOpRec()
 
@@ -959,8 +965,9 @@ Dbacc::ACCKEY_error(Uint32 fromWhere)
 void Dbacc::execACCKEYREQ(Signal* signal) 
 {
   jamEntry();
-  operationRecPtr.i = signal->theData[0];   /* CONNECTION PTR */
-  fragrecptr.i = signal->theData[1];        /* FRAGMENT RECORD POINTER         */
+  AccKeyReq* const req = reinterpret_cast<AccKeyReq*>(&signal->theData[0]);
+  operationRecPtr.i = req->connectPtr;   /* CONNECTION PTR */
+  fragrecptr.i = req->fragmentPtr;        /* FRAGMENT RECORD POINTER         */
   if (!((operationRecPtr.i < coprecsize) ||
 	(fragrecptr.i < cfragmentsize))) {
     ACCKEY_error(0);
@@ -971,10 +978,10 @@ void Dbacc::execACCKEYREQ(Signal* signal)
 
   ndbrequire(operationRecPtr.p->m_op_bits == Operationrec::OP_INITIAL);
 
-  initOpRec(signal);
+  initOpRec(req, signal->getLength());
   // normalize key if any char attr
   if (operationRecPtr.p->tupkeylen && fragrecptr.p->hasCharAttr)
-    xfrmKeyData(signal);
+    xfrmKeyData(req);
 
   /*---------------------------------------------------------------*/
   /*                                                               */
@@ -984,9 +991,40 @@ void Dbacc::execACCKEYREQ(Signal* signal)
   /*       THE ITEM AFTER NOT FINDING THE ITEM.                    */
   /*---------------------------------------------------------------*/
   OperationrecPtr lockOwnerPtr;
-  const Uint32 found = getElement(signal, lockOwnerPtr);
+  const Uint32 found = getElement(req, lockOwnerPtr);
 
   Uint32 opbits = operationRecPtr.p->m_op_bits;
+
+  if (AccKeyReq::getTakeOver(req->requestInfo))
+  {
+    /* Verify that lock taken over and operation are on same
+     * element by checking that lockOwner match.
+     */
+    OperationrecPtr lockOpPtr;
+    lockOpPtr.i = req->lockConnectPtr;
+    ptrAss(lockOpPtr, operationrec);
+    if (lockOwnerPtr.i == RNIL ||
+        !(lockOwnerPtr.i == lockOpPtr.i ||
+          lockOwnerPtr.i == lockOpPtr.p->m_lock_owner_ptr_i))
+    {
+      signal->theData[0] = cminusOne;
+      signal->theData[1] = ZTO_OP_STATE_ERROR;
+      operationRecPtr.p->m_op_bits = Operationrec::OP_INITIAL;
+      return; /* Take over failed */
+    }
+
+    signal->theData[1] = req->lockConnectPtr;
+    signal->theData[2] = operationRecPtr.p->transId1;
+    signal->theData[3] = operationRecPtr.p->transId2;
+    execACC_TO_REQ(signal);
+    if (signal->theData[0] == cminusOne)
+    {
+      operationRecPtr.p->m_op_bits = Operationrec::OP_INITIAL;
+      ndbassert(signal->theData[1] == ZTO_OP_STATE_ERROR);
+      return; /* Take over failed */
+    }
+  }
+
   Uint32 op = opbits & Operationrec::OP_MASK;
   if (found == ZTRUE) 
   {
@@ -1374,12 +1412,12 @@ Dbacc::execACCKEY_REP_REF(Signal* signal, Uint32 opPtrI)
 #endif
 
 void
-Dbacc::xfrmKeyData(Signal* signal)
+Dbacc::xfrmKeyData(AccKeyReq* signal)
 {
   Uint32 table = fragrecptr.p->myTableId;
   Uint32 dst[MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY];
   Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX];
-  Uint32* src = &signal->theData[7];
+  Uint32* const src = signal->keyInfo;
   Uint32 len = xfrm_key(table, src, dst, sizeof(dst) >> 2, keyPartLen);
   ndbrequire(len); // 0 means error
   memcpy(src, dst, len << 2);
@@ -2435,17 +2473,30 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
       // do read with lock via ACCKEYREQ
       Uint32 lockMode = (lockOp == AccLockReq::LockShared) ? 0 : 1;
       Uint32 opCode = ZSCAN_OP;
-      signal->theData[0] = operationRecPtr.i;
-      signal->theData[1] = fragrecptr.i;
-      signal->theData[2] = opCode | (lockMode << 4) | (1u << 31);
-      signal->theData[3] = req->hashValue;
-      signal->theData[4] = 0;   // search local key
-      signal->theData[5] = req->transId1;
-      signal->theData[6] = req->transId2;
-      // enter local key in place of PK
-      signal->theData[7] = req->page_id;
-      signal->theData[8] = req->page_idx;
-      EXECUTE_DIRECT(DBACC, GSN_ACCKEYREQ, signal, 9);
+      {
+        Uint32 accreq = 0;
+        accreq = AccKeyReq::setOperation(accreq, opCode);
+        accreq = AccKeyReq::setLockType(accreq, lockMode);
+        accreq = AccKeyReq::setDirtyOp(accreq, false);
+        accreq = AccKeyReq::setReplicaType(accreq, 0); // ?
+        accreq = AccKeyReq::setTakeOver(accreq, false);
+        accreq = AccKeyReq::setLockReq(accreq, true);
+        AccKeyReq* keyreq = reinterpret_cast<AccKeyReq*>(&signal->theData[0]);
+        keyreq->connectPtr = operationRecPtr.i;
+        keyreq->fragmentPtr = fragrecptr.i;
+        keyreq->requestInfo = accreq;
+        keyreq->hashValue = req->hashValue;
+        keyreq->keyLen = 0;   // search local key
+        keyreq->transId1 = req->transId1;
+        keyreq->transId2 = req->transId2;
+        keyreq->lockConnectPtr = RNIL;
+        // enter local key in place of PK
+        keyreq->localKey[0] = req->page_id;
+        keyreq->localKey[1] = req->page_idx;
+        NDB_STATIC_ASSERT(AccKeyReq::SignalLength_localKey == 10);
+      }
+        EXECUTE_DIRECT(DBACC, GSN_ACCKEYREQ, signal, AccKeyReq::SignalLength_localKey);
+        /* keyreq invalid, signal now contains return value */
       // translate the result
       if (signal->theData[0] < RNIL) {
         jam();
@@ -3058,7 +3109,7 @@ Uint32 Dbacc::unsetPagePtr(DynArr256::Head& directory, Uint32 index)
   return ptri;
 }
 
-void Dbacc::getdirindex(Signal* signal) 
+void Dbacc::getdirindex() 
 {
   Uint32 tgdiAddress;
 
@@ -3134,7 +3185,7 @@ void ndb_acc_ia64_icc810_dummy_func()
 #endif
 
 Uint32
-Dbacc::getElement(Signal* signal, OperationrecPtr& lockOwnerPtr) 
+Dbacc::getElement(const AccKeyReq* signal, OperationrecPtr& lockOwnerPtr) 
 {
   Uint32 errcode;
   Uint32 tgeElementHeader;
@@ -3143,11 +3194,11 @@ Dbacc::getElement(Signal* signal, OperationrecPtr& lockOwnerPtr)
   Uint32 tgeNextptrtype;
   register Uint32 tgeRemLen;
   register Uint32 TelemLen = fragrecptr.p->elementLength;
-  register Uint32* Tkeydata = (Uint32*)&signal->theData[7];
+  register const Uint32* Tkeydata = signal->keyInfo; /* or localKey if keyLen == 0 */
   const Uint32 localkeylen = fragrecptr.p->localkeylen;
   Uint32 bucket_number = fragrecptr.p->level.getBucketNumber(operationRecPtr.p->hashValue);
 
-  getdirindex(signal);
+  getdirindex();
   tgePageindex = tgdiPageindex;
   gePageptr = gdiPageptr;
   /*
@@ -3360,7 +3411,7 @@ void Dbacc::commitdelete(Signal* signal)
   jam();
   report_dealloc(signal, operationRecPtr.p);
   
-  getdirindex(signal);
+  getdirindex();
   tlastPageindex = tgdiPageindex;
   lastPageptr.i = gdiPageptr.i;
   lastPageptr.p = gdiPageptr.p;
@@ -6722,16 +6773,46 @@ void Dbacc::execACC_TO_REQ(Signal* signal)
   jamEntry();
   tatrOpPtr.i = signal->theData[1];     /*  OPER PTR OF ACC                */
   ptrCheckGuard(tatrOpPtr, coprecsize, operationrec);
-  if ((tatrOpPtr.p->m_op_bits & Operationrec::OP_MASK) == ZSCAN_OP) 
+
+  /* Only scan locks can be taken over */
+  if ((tatrOpPtr.p->m_op_bits & Operationrec::OP_MASK) == ZSCAN_OP)
   {
-    tatrOpPtr.p->transId1 = signal->theData[2];
-    tatrOpPtr.p->transId2 = signal->theData[3];
-    validate_lock_queue(tatrOpPtr);
-  } else {
-    jam();
-    signal->theData[0] = cminusOne;
-    signal->theData[1] = ZTO_OP_STATE_ERROR;
-  }//if
+    if (signal->theData[2] == tatrOpPtr.p->transId1 &&
+        signal->theData[3] == tatrOpPtr.p->transId2)
+    {
+      /* If lock is from same transaction as take over, lock can
+       * be taken over several times.
+       *
+       * This occurs for example in this scenario:
+       *
+       * create table t (x int primary key, y int);
+       * insert into t (x, y) values (1, 0);
+       * begin;
+       * # Scan and lock rows in t, update using take over operation.
+       * update t set y = 1;
+       * # The second update on same row, will take over the same lock as previous update
+       * update t set y = 2;
+       * commit;
+       */
+      return;
+    }
+    else if (tatrOpPtr.p->m_op_bits & Operationrec::OP_LOCK_OWNER &&
+             tatrOpPtr.p->nextParallelQue == RNIL)
+    {
+      /* If lock is taken over from other transaction it must be
+       * the only one in the parallel queue.  Otherwise one could
+       * end up with mixing operations from different transaction
+       * in a parallel queue.
+       */
+      tatrOpPtr.p->transId1 = signal->theData[2];
+      tatrOpPtr.p->transId2 = signal->theData[3];
+      validate_lock_queue(tatrOpPtr);
+      return;
+    }
+  }
+  jam();
+  signal->theData[0] = cminusOne;
+  signal->theData[1] = ZTO_OP_STATE_ERROR;
   return;
 }//Dbacc::execACC_TO_REQ()
 

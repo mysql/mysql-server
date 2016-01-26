@@ -2467,13 +2467,13 @@ public:
      */
     int alterTable(const Table & f, const Table & t);
 
+#endif
+
     /**
      * Invalidate cached table object
      * @param name  Name of table to invalidate
      */
     void invalidateTable(const char * name);
-#endif
-
     /**
      * Remove table from local cache
      */
@@ -2482,8 +2482,14 @@ public:
      * Remove index from local cache
      */
     void removeCachedIndex(const char * index, const char * table);
+    /**
+     * Invalidate cached index object
+     * @param indexName  Name of index to invalidate
+     * @param tableName  Name of table the index belongs to
+     */
+    void invalidateIndex(const char * indexName,
+                         const char * tableName);
 
-    
     /** @} *******************************************************************/
     /** 
      * @name Index creation
@@ -2539,11 +2545,6 @@ public:
     void removeCachedTable(const Table *table);
     void removeCachedIndex(const Index *index);
     void invalidateTable(const Table *table);
-    /**
-     * Invalidate cached index object
-     */
-    void invalidateIndex(const char * indexName,
-                         const char * tableName);
     void invalidateIndex(const Index *index);
     /**
      * Force gcp and wait for gcp complete

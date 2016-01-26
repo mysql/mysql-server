@@ -1523,6 +1523,8 @@ static int createAllShadows(NDBT_Context* ctx, NDBT_Step* step)
   DBUG_ENTER("createAllShadows");
   Ndb * ndb= GETNDB(step);
   NdbDictionary::Dictionary * dict = ndb->getDictionary();
+  pShadowTabs.clear();
+
   // create a "shadow" table for each table
   for (int i= 0; pTabs[i]; i++)
   {
@@ -1579,6 +1581,9 @@ static int start_transaction(Ndb *ndb, Vector<HugoOperations*> &ops)
   if (ops[0]->startTransaction(ndb) != NDBT_OK)
     return -1;
   NdbTransaction * t= ops[0]->getTransaction();
+  if (t == NULL)
+    return -1;
+
   for (int i= ops.size()-1; i > 0; i--)
   {
     ops[i]->setTransaction(t,true);
@@ -1590,10 +1595,6 @@ static int close_transaction(Ndb *ndb, Vector<HugoOperations*> &ops)
 {
   if (ops[0]->closeTransaction(ndb) != NDBT_OK)
     return -1;
-  for (int i= ops.size()-1; i > 0; i--)
-  {
-    ops[i]->setTransaction(NULL,true);
-  }
   return 0;
 }
 
@@ -1612,16 +1613,41 @@ static int copy_events(Ndb *ndb)
   int n_inserts= 0;
   int n_updates= 0;
   int n_deletes= 0;
+  int n_poll_retries = 300;
+
   while (1)
   {
     int res= ndb->pollEvents(1000); // wait for event or 1000 ms
     DBUG_PRINT("info", ("pollEvents res=%d", res));
-    if (res <= 0)
+
+    n_poll_retries--;
+    if (res <= 0 && r == 0)
     {
-      break;
+      if (n_poll_retries > 0)
+      {
+	NdbSleep_SecSleep(1);
+        continue;
+      }
+
+      g_err << "Copy_events: pollEvents could not find any epochs "
+            << "despite 300 poll retries" << endl;
+      DBUG_RETURN(-1);
     }
-    NdbEventOperation *pOp;
-    while ((pOp= ndb->nextEvent()))
+    
+    NdbEventOperation *pOp = ndb->nextEvent();
+    // (res==1 && pOp==NULL) means empty epochs
+    if (pOp == NULL)
+    {
+      if (r == 0)
+      {
+        // Empty epoch preceeding regular epochs. Continue consuming.
+        continue;
+      }
+      // Empty epoch after regular epochs. We are done.
+      DBUG_RETURN(r);
+    } 
+
+    while (pOp)
     {
       char buf[1024];
       sprintf(buf, "%s_SHADOW", pOp->getEvent()->getTable()->getName());
@@ -1638,13 +1664,19 @@ static int copy_events(Ndb *ndb)
 	g_err << "buffer overrun\n";
 	DBUG_RETURN(-1);
       }
-      r++;
       
       if (!pOp->isConsistent()) {
 	g_err << "A node failure has occured and events might be missing\n";
 	DBUG_RETURN(-1);
       }
 	
+      if (pOp->getEventType() == NdbDictionary::Event::TE_NODE_FAILURE)
+      {
+        pOp = ndb->nextEvent();
+        continue;
+      }
+      r++;
+
       int noRetries= 0;
       do
       {
@@ -1709,6 +1741,8 @@ static int copy_events(Ndb *ndb)
 	default:
 	  abort();
 	}
+        CHK((r == (n_inserts + n_deletes + n_updates)),
+            "Number of record event operations consumed is not equal to the sum of insert,delete and update records.");
 	
 	{
 	  for (const NdbRecAttr *pk= pOp->getFirstPkAttr();
@@ -1790,12 +1824,13 @@ static int copy_events(Ndb *ndb)
 	  DBUG_RETURN(-1);
 	}
 	trans->close();
-	NdbSleep_MilliSleep(100); // sleep before retying
+	NdbSleep_MilliSleep(100); // sleep before retrying
       } while(1);
+      pOp = ndb->nextEvent();
     } // for
     // No more event data on the event queue.
-    break; 
   } // while(1)
+
   g_info << "n_updates: " << n_updates << " "
 	 << "n_inserts: " << n_inserts << " "
 	 << "n_deletes: " << n_deletes << endl;
@@ -1901,7 +1936,6 @@ static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
 
   Ndb * ndb= GETNDB(step);
 
-  int no_error= 1;
   int i;
 
   if (createEventOperations(ndb, ctx))
@@ -1911,7 +1945,7 @@ static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
 
   // create a hugo operation per table
   Vector<HugoOperations *> hugo_ops;
-  for (i= 0; no_error && pTabs[i]; i++)
+  for (i= 0; pTabs[i]; i++)
   {
     hugo_ops.push_back(new HugoOperations(*pTabs[i]));
   }
@@ -1921,35 +1955,38 @@ static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
   do {
     if (start_transaction(ndb, hugo_ops))
     {
-      no_error= 0;
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
-    for (i= 0; no_error && pTabs[i]; i++)
+    for (i= 0; pTabs[i]; i++)
     {
       hugo_ops[i]->pkInsertRecord(ndb, 0, n_records);
     }
     if (execute_commit(ndb, hugo_ops))
     {
-      no_error= 0;
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
     if(close_transaction(ndb, hugo_ops))
     {
-      no_error= 0;
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
   } while(0);
 
   // copy events and verify
   do {
-    if (copy_events(ndb) < 0)
+    int ops_consumed = 0;
+    if ((ops_consumed=copy_events(ndb)) != i * n_records)
     {
-      no_error= 0;
+      g_err << "Not all records are consumed. Consumed " << ops_consumed
+            << ", inserted " << i * n_records << endl;
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
     if (verify_copy(ndb, pTabs, pShadowTabs))
     {
-      no_error= 0;
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
   } while (0);
@@ -1958,7 +1995,7 @@ static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
   do {
     if (start_transaction(ndb, hugo_ops))
     {
-      no_error= 0;
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
 
@@ -1966,26 +2003,27 @@ static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
 
     if (execute_commit(ndb, hugo_ops))
     {
-      no_error= 0;
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
     if(close_transaction(ndb, hugo_ops))
     {
-      no_error= 0;
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
   } while(0);
 
   // copy events and verify
   do {
-    if (copy_events(ndb) < 0)
+    if (copy_events(ndb) <= 0)
     {
-      no_error= 0;
+      g_err << "No update is consumed. " << endl;
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
     if (verify_copy(ndb, pTabs, pShadowTabs))
     {
-      no_error= 0;
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
   } while (0);
@@ -1995,9 +2033,7 @@ static int runMulti(NDBT_Context* ctx, NDBT_Step* step)
     DBUG_RETURN(NDBT_FAILED);
   }
 
-  if (no_error)
-    DBUG_RETURN(NDBT_OK);
-  DBUG_RETURN(NDBT_FAILED);
+  DBUG_RETURN(NDBT_OK);
 }
 
 static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
@@ -2020,17 +2056,23 @@ static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
     HugoTransactions hugo(*pTabs[i]);
     if (hugo.loadTable(ndb, records, 1, true, 1))
     {
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
     // copy events and verify
-    if (copy_events(ndb) < 0)
+    int ops_consumed = 0;
+    if ((ops_consumed=copy_events(ndb)) != records)
     {
+      g_err << "Not all records are consumed. Consumed " << ops_consumed
+            << ", inserted " << records << endl;
+      dropEventOperations(ndb);
       DBUG_RETURN(NDBT_FAILED);
     }
   }
 
   if (verify_copy(ndb, pTabs, pShadowTabs))
   {
+    dropEventOperations(ndb);
     DBUG_RETURN(NDBT_FAILED);
   }
 
@@ -2042,6 +2084,7 @@ static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
       int timeout = 240;
       if (restarts.executeRestart(ctx, "RestartRandomNodeAbort", timeout))
       {
+	dropEventOperations(ndb);
 	DBUG_RETURN(NDBT_FAILED);
       }
 
@@ -2052,10 +2095,15 @@ static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
 	HugoTransactions hugo(*pTabs[i]);
 	if (hugo.pkUpdateRecords(ndb, records, 1, 1))
 	{
+	  dropEventOperations(ndb);
 	  DBUG_RETURN(NDBT_FAILED);
 	}
-	if (copy_events(ndb) < 0)
+        int ops_consumed = 0;
+	if ((ops_consumed=copy_events(ndb)) != records)
 	{
+          g_err << "Not all updates are consumed. Consumed " << ops_consumed
+                << ", updated " << records << endl;
+	  dropEventOperations(ndb);
 	  DBUG_RETURN(NDBT_FAILED);
 	}
       }
@@ -2063,6 +2111,7 @@ static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
       // copy events and verify
       if (verify_copy(ndb, pTabs, pShadowTabs))
       {
+	dropEventOperations(ndb);
 	DBUG_RETURN(NDBT_FAILED);
       }
     }
@@ -2223,6 +2272,7 @@ runSubscribeUnsubscribe(NDBT_Context* ctx, NDBT_Step* step)
       g_err << "createEventOperation: "
 	    << ndb->getNdbError().code << " "
 	    << ndb->getNdbError().message << endl;
+      ctx->stopTest();
       return NDBT_FAILED;
     }
     
@@ -2240,6 +2290,7 @@ runSubscribeUnsubscribe(NDBT_Context* ctx, NDBT_Step* step)
       
       ndb->dropEventOperation(pOp);
       
+      ctx->stopTest();
       return NDBT_FAILED;
     }
     
@@ -2255,10 +2306,12 @@ runSubscribeUnsubscribe(NDBT_Context* ctx, NDBT_Step* step)
       g_err << "pOp->execute(): "
 	    << ndb->getNdbError().code << " "
 	    << ndb->getNdbError().message << endl;
+      ctx->stopTest();
       return NDBT_FAILED;
     }
   }
   
+  ctx->stopTest();
   return NDBT_OK;
 }
 
@@ -4088,21 +4141,29 @@ int runPollBCNoWaitConsumer(NDBT_Context* ctx, NDBT_Step* step)
   CHK(pOp != NULL, "Event operation creation failed");
   CHK(pOp->execute() == 0, "execute operation execution failed");
 
-  // Wait max 10 sec for event data to start flowing
-  Uint32 retries = 10;
+  // Signal load generator
+  ctx->setProperty("Listening", (Uint32)1);
+
+  // Wait max 120 sec for event data to start flowing
+  int retries = 120;
   Uint64 poll_gci = 0;
   while (retries-- > 0)
   {
     if (ndb->pollEvents(1000, &poll_gci) == 1)
-        break;
+      break;
+    NdbSleep_SecSleep(1);
   }
   CHK(retries > 0, "No epoch has received in 10 secs");
 
   // pollEvents with aMilliSeconds = 0 will poll only once (no wait),
   // and it should see the event data seen above
   Uint64 poll_gci2 = 0;
-  CHK((ndb->pollEvents(0, &poll_gci2) != 1),
+  CHK((ndb->pollEvents(0, &poll_gci2) == 1),
       "pollEvents(0) hasn't seen the event data");
+
+  if (poll_gci != poll_gci2)
+    g_err << " gci-s differ: gci at first poll " << poll_gci
+          << " gci at second poll " << poll_gci2 << endl;
   CHK(poll_gci == poll_gci2,
       "pollEvents(0) hasn't seen the same epoch");
 
@@ -4115,6 +4176,10 @@ int runPollBCNoWait(NDBT_Context* ctx, NDBT_Step* step)
   // Insert one record, to test pollEvents(0).
   HugoTransactions hugoTrans(*ctx->getTab());
   UtilTransactions utilTrans(*ctx->getTab());
+  while (ctx->getProperty("Listening", (Uint32)0) != 1)
+  {
+    NdbSleep_SecSleep(1);
+  }
   CHK((hugoTrans.loadTable(GETNDB(step), 1, 1) == 0), "Insert failed");
   return NDBT_OK;
 }
@@ -4364,7 +4429,6 @@ runCheckHQElatestGCI(NDBT_Context* ctx, NDBT_Step* step)
 
   NdbEventOperation* evOp = createEventOperation(pNdb, *pTab);
   CHK(evOp != NULL, "Event operation creation failed");
-  CHK(evOp->execute() == 0, "execute operation execution failed");
 
   Uint64 highestQueuedEpoch = 0;
   int pollRetries = 120;
@@ -4616,8 +4680,8 @@ runInjectClusterFailure(NDBT_Context* ctx, NDBT_Step* step)
   NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
   const NdbDictionary::Table tab(* ctx->getTab());
 
-  NdbEventOperation* evOp = createEventOperation(pNdb, tab);
-  CHK(evOp != NULL, "Event operation creation failed");
+  NdbEventOperation* evOp1 = createEventOperation(pNdb, tab);
+  CHK(evOp1 != NULL, "Event operation creation failed");
 
   // Generate some transaction load
   HugoTransactions hugoTrans(tab);
@@ -4637,6 +4701,7 @@ runInjectClusterFailure(NDBT_Context* ctx, NDBT_Step* step)
   const NdbDictionary::Table tab1(* ctx->getTab());
 
   bool initialRestart = ctx->getProperty("InitialRestart");
+  bool keepSomeEvOpOnClusterFailure = ctx->getProperty("KeepSomeEvOpOnClusterFailure");
   if (initialRestart)
   {
     CHK(dropEvent(pNdb, tab) == 0, pDict->getNdbError());
@@ -4658,9 +4723,14 @@ runInjectClusterFailure(NDBT_Context* ctx, NDBT_Step* step)
   restarter.startAll();
   g_err << "wait started" << endl;
   restarter.waitClusterStarted();
+  CHK(pNdb->waitUntilReady(300) == 0, "Cluster failed to start");
 
-  CHK(pNdb->dropEventOperation(evOp) == 0, "dropEventOperation failed");
-  NdbSleep_SecSleep(1);
+  if (!keepSomeEvOpOnClusterFailure)
+  {
+    CHK(pNdb->dropEventOperation(evOp1) == 0, "dropEventOperation failed");
+    NdbSleep_SecSleep(1);
+    evOp1 = NULL;
+  }
 
   if (initialRestart)
   {
@@ -4674,9 +4744,8 @@ runInjectClusterFailure(NDBT_Context* ctx, NDBT_Step* step)
   ctx->setProperty("ClusterRestarted", (Uint32)1);
 
   //Create event op
-  evOp = createEventOperation(pNdb, *tab_ptr_after_CR);
-  CHK(evOp != NULL, "Event operation creation failed");
-  CHK(evOp->execute() == 0, "Execute operation failed");
+  NdbEventOperation* evOp2 = createEventOperation(pNdb, *tab_ptr_after_CR);
+  CHK(evOp2 != NULL, "Event operation creation failed");
 
   // Consume 5 epochs to ensure that the event consumption
   // has started after recovery from cluster failure
@@ -4686,7 +4755,14 @@ runInjectClusterFailure(NDBT_Context* ctx, NDBT_Step* step)
   ctx->setProperty("ClusterRestarted", (Uint32)0);
   NdbSleep_SecSleep(1);
 
-  CHK(pNdb->dropEventOperation(evOp) == 0, "dropEventOperation failed");
+  CHK(pNdb->dropEventOperation(evOp2) == 0, "dropEventOperation failed");
+
+  if (keepSomeEvOpOnClusterFailure)
+  {
+    CHK(pNdb->dropEventOperation(evOp1) == 0, "dropEventOperation failed");
+    NdbSleep_SecSleep(1);
+    evOp1 = NULL;
+  }
   return NDBT_OK;
 }
 
@@ -4971,6 +5047,118 @@ end_test:
   return result;
 }
 
+/**
+ * Inject error to crash the coordinator dbdict while performing dropEvent
+ * after sumas have removed the subscriptions and returned execSUB_REMOVE_CONF
+ * but beore the coordinator deletes the event from the systable.
+ *
+ * Test whether the dropped event is dangling in the sysTable.
+ *
+ * The test will fail if the following create/drop events fail
+ * due to the dangling event.
+ */
+int runCreateDropEventOperation_NF(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb *pNdb=GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+  const NdbDictionary::Table& tab= *ctx->getTab();
+
+  char eventName[1024];
+  sprintf(eventName,"%s_EVENT",tab.getName());
+
+  NdbDictionary::Event myEvent(eventName);
+  myEvent.setTable(tab.getName());
+  myEvent.addTableEvent(NdbDictionary::Event::TE_ALL);
+
+  NdbEventOperation *pOp = pNdb->createEventOperation(eventName);
+  CHK(pOp != NULL, "Event operation creation failed");
+
+  CHK(pOp->execute() == 0, "Execute operation execution failed");
+
+  NdbRestarter restarter;
+  restarter.insertErrorInNode(restarter.getMasterNodeId(), 6125);
+
+  const int res = pDict->dropEvent(eventName);
+  if (res != 0)
+  {
+    g_err << "Failed to drop event: res "<< res <<" "
+          << pDict->getNdbError().code << " : "
+          << pDict->getNdbError().message << endl;
+  }
+  else
+    g_info << "Dropped event1" << endl;
+
+  g_info << "Waiting for the node to start" << endl;
+  if (restarter.waitClusterStarted(120) != 0)
+  {
+    g_err << "Cluster failed to start" << endl;
+    return NDBT_FAILED;
+  }
+  g_err << "Node started" << endl;
+
+// g_err << "Dropping ev op:"
+//       << " will remove the MARKED_DROPPED subscription at Suma" << endl;
+//  CHK(pNdb->dropEventOperation(pOp) == 0, "dropEventOperation failed");
+
+  int res1 = pDict->dropEvent(eventName);
+  if (res1 != 0)
+  {
+    if (pDict->getNdbError().code == 4710)
+    {
+      // "4710 : Event not found" is expected since it is dropped above.
+      res1 = 0;
+      g_info << "Dropped event2" << endl;
+    }
+    else
+    {
+      g_err << "Failed to drop event: res1 "<< res1 <<" "
+	    << pDict->getNdbError().code << " : "
+	    << pDict->getNdbError().message << endl;
+    }
+  }
+
+  const int res2 = pDict->createEvent(myEvent);
+  if (res2 != 0)
+    g_err << "Failed to cre event: res2 " << res2 << " "
+          << pDict->getNdbError().code << " : "
+          << pDict->getNdbError().message << endl;
+  else
+    g_info << "Event created1" << endl;
+
+  const int res3 = pDict->dropEvent(eventName, -1);
+  if (res3 != 0) {
+    g_err << "Failed to drop event: res3 "<< res3 << " "
+          << pDict->getNdbError().code << " : "
+          << pDict->getNdbError().message << endl;
+  }
+  else
+    g_info << "Dropped event3" << endl;
+
+  const int res4 = pDict->createEvent(myEvent);
+  if (res4)
+    g_err << "Failed to cre event: res4 " << res4 << " "
+          << pDict->getNdbError().code << " : "
+          << pDict->getNdbError().message << endl;
+  else
+    g_info << "Event created2" << endl;
+
+// clean up the newly created evnt and the eventops
+  const int res5 = pDict->dropEvent(eventName, -1);
+  if (res5 != 0) {
+    g_err << "Failed to drop event: res5 "<< res5 << " "
+          << pDict->getNdbError().code << " : "
+          << pDict->getNdbError().message << endl;
+  }
+  else
+    g_info << "Dropped event3" << endl;
+
+  CHK(pNdb->dropEventOperation(pOp) == 0, "dropEventOperation failed");
+
+  if (res || res1 || res2 || res3 || res4 || res5)
+    return NDBT_FAILED;
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -5104,6 +5292,15 @@ TESTCASE("SubscribeUnsubscribe",
 	 "NOTE! No errors are allowed!" ){
   INITIALIZER(runCreateEvent);
   STEPS(runSubscribeUnsubscribe, 16);
+  FINALIZER(runDropEvent);
+}
+TESTCASE("SubscribeUnsubscribeWithLoad", 
+	 "A bunch of threads doing subscribe/unsubscribe in loop"
+         " while another thread does insert and deletes"
+	 "NOTE! No errors from subscribe/unsubscribe are allowed!" ){
+  INITIALIZER(runCreateEvent);
+  STEPS(runSubscribeUnsubscribe, 16);
+  STEP(runInsertDeleteUntilStopped);
   FINALIZER(runDropEvent);
 }
 TESTCASE("Bug27169", ""){
@@ -5302,6 +5499,18 @@ TESTCASE("Apiv2-check_event_queue_cleared_initial",
   STEP(runInjectClusterFailure);
   STEP(runInsertDeleteAfterClusterFailure);
 }
+TESTCASE("Apiv2-check_event_received_after_restart",
+         "Check whether latestGCI is properly reset "
+         "after a cluster failure. Even if subcriptions are "
+         "dropped and recreated 'out of order', such that "
+         "'active_op_count == 0' is never reached.")
+{
+  TC_PROPERTY("InitialRestart", 1);
+  TC_PROPERTY("KeepSomeEvOpOnClusterFailure", 1);
+  INITIALIZER(runCreateEvent);
+  STEP(runInjectClusterFailure);
+  STEP(runInsertDeleteAfterClusterFailure);
+}
 TESTCASE("Apiv2EventBufferOverflow",
          "Check gap-resume works by: create a gap"
          "and consume to free free_percent of buffer; repeat")
@@ -5310,6 +5519,14 @@ TESTCASE("Apiv2EventBufferOverflow",
   STEP(runInsertDeleteUntilStopped);
   STEP(runTardyEventListener);
   FINALIZER(runDropEvent);
+}
+TESTCASE("createDropEvent_NF",
+         "Check cleanup works when Dbdict crashes before"
+         " the event is deleted from the dictionary"
+         " while performing dropEvent")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runCreateDropEventOperation_NF);
 }
 #if 0
 TESTCASE("BackwardCompatiblePollCOverflowEB",

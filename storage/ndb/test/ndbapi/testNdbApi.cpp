@@ -6263,6 +6263,61 @@ int testSchemaObjectOwnerCheck(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int 
+testMgmdSendBufferExhaust(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* 1 : Get MGMD node id
+   * 2 : Get a data node node id
+   * 3 : Consume most SB in MGMD
+   * 4 : Block sending from MGMD -> data node
+   * 5 : Observe whether MGMD is alive + well
+   * 6 : Unblock sending
+   * 7 : Release SB
+   * 8 : Completed
+   */
+  NdbRestarter restarter;
+  
+  int dataNodeId = restarter.getNode(NdbRestarter::NS_RANDOM);
+  int mgmdNodeId = ndb_mgm_get_mgmd_nodeid(restarter.handle);
+
+  ndbout << "MGMD node id : " << mgmdNodeId << endl;
+  ndbout << "Data node id : " << dataNodeId << endl;
+  
+  ndbout << "Reducing MGMD SB memory + blocking send to data node" << endl;
+  const int leftSbBytes = 96 * 1024;
+  const int dumpCodeConsumeSb [] = {9996, leftSbBytes};
+  const int dumpCodeBlockSend [] = {9994, dataNodeId};
+  CHECK(restarter.dumpStateOneNode(mgmdNodeId, dumpCodeConsumeSb, 2) == 0);
+  CHECK(restarter.dumpStateOneNode(mgmdNodeId, dumpCodeBlockSend, 2) == 0);
+
+  ndbout << "Checking ability of MGMD to respond to requests" << endl;
+  
+  Uint32 count = 30;
+
+  while (count--)
+  {
+    ndbout << "  - Getting node status " << count;
+    ndb_mgm_cluster_state* state = ndb_mgm_get_status(restarter.handle);
+
+    ndbout << " - ok." << endl;
+
+    if (state)
+      free(state);
+    
+    NdbSleep_MilliSleep(1000);
+  }
+
+  ndbout << "Cleaning up" << endl;
+  const int dumpCodeUnblockSend [] = {9995, dataNodeId};
+  const int dumpCodeReleaseSb [] = {9997};
+  CHECK(restarter.dumpStateOneNode(mgmdNodeId, dumpCodeUnblockSend, 2) == 0);
+  CHECK(restarter.dumpStateOneNode(mgmdNodeId, dumpCodeReleaseSb, 1) == 0);
+  CHECK(ndb_mgm_get_latest_error(restarter.handle) == 0);
+
+  return NDBT_OK;
+}
+
+
 NDBT_TESTSUITE(testNdbApi);
 TESTCASE("MaxNdb", 
 	 "Create Ndb objects until no more can be created\n"){ 
@@ -6562,6 +6617,12 @@ TESTCASE("SchemaObjectOwnerCheck",
          "Test use of schema objects with non-owning connections"){
   STEP(testSchemaObjectOwnerCheck);
 }
+TESTCASE("MgmdSendbufferExhaust",
+         "")
+{
+  INITIALIZER(testMgmdSendBufferExhaust);
+}
+
 NDBT_TESTSUITE_END(testNdbApi);
 
 int main(int argc, const char** argv){

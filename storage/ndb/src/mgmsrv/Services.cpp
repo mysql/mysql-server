@@ -344,7 +344,7 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 
     char *addr_str = Ndb_inet_ntop(AF_INET,
                                    static_cast<void*>(&addr.sin_addr),
                                    addr_buf,
-                                   (socklen_t)sizeof(addr_buf));
+                                   sizeof(addr_buf));
     m_name.assfmt("%s:%d", addr_str, ntohs(addr.sin_port));
   }
   DBUG_PRINT("info", ("new connection from: %s", m_name.c_str()));

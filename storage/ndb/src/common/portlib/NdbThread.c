@@ -906,6 +906,7 @@ NdbThread_Init()
   my_create_thread_local_key(&(tls_keys[NDB_THREAD_TLS_JAM]), NULL);
   my_create_thread_local_key(&(tls_keys[NDB_THREAD_TLS_THREAD]), NULL);
   my_create_thread_local_key(&(tls_keys[NDB_THREAD_TLS_NDB_THREAD]), NULL);
+  my_create_thread_local_key(&(tls_keys[NDB_THREAD_TLS_RES_OWNER]), NULL);
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
   my_create_thread_local_key(&(tls_keys[NDB_THREAD_TLS_MAX]), NULL);
 #endif

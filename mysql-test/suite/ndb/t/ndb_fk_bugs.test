@@ -955,3 +955,31 @@ alter table t2 add constraint foreign key fk (c1,c4) references t1 (c2,c5);
 insert into t2 (c1,c4) values (4,40);
 
 drop table t2, t1;
+
+--echo #
+--echo # BUG#21308928 :  CANNOT ADD UNIQUE CONSTRAINT ON SET OF FIELDS WITH EXISTING FOREIGN KEY
+--echo #
+
+--echo #Create the tables
+create table t1 (
+  a int not null primary key
+) engine ndb;
+
+create table t2 (
+  a int primary key,
+  b int not null,
+  c int,
+  foreign key fk1 (a) references t1(a),
+  foreign key fk2 (b) references t1(a),
+  foreign key fk3 (c) references t1(a)
+) engine ndb;
+
+--echo #Add a unique constraint to the foreign key column
+alter table t2 add constraint uniquet2a unique (a);
+alter table t2 add constraint uniquet2b unique (b);
+alter table t2 add constraint uniquet2c unique (c);
+
+show create table t2;
+
+--echo #Drop tables
+drop table t2, t1;

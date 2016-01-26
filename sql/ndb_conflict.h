@@ -121,7 +121,8 @@ enum enum_conflict_fn_flags
 {
   CF_TRANSACTIONAL    = 0x1,   /* Conflicts are handled per transaction */
   CF_REFLECT_SEC_OPS  = 0x2,   /* Secondary operations are reflected back */
-  CF_USE_ROLE_VAR     = 0x4    /* Functionality controlled by role variable */
+  CF_USE_ROLE_VAR     = 0x4,   /* Functionality controlled by role variable */
+  CF_DEL_DEL_CFT      = 0x8    /* Delete finding no row is a conflict */
 };
 
 struct st_conflict_fn_def

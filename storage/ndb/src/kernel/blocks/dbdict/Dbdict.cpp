@@ -18238,7 +18238,8 @@ Dbdict::execSUB_REMOVE_REF(Signal* signal)
     jam();
     OpSubEventPtr subbPtr;
     c_opSubEvent.getPtr(subbPtr, ref->senderData);
-    if (err == SubRemoveRef::NoSuchSubscription)
+    if (err == SubRemoveRef::NoSuchSubscription ||
+        err == SubRemoveRef::AlreadyDropped)
     {
       jam();
       // conf this since this may occur if a nodefailure has occured
@@ -18324,6 +18325,9 @@ Dbdict::execSUB_REMOVE_CONF(Signal* signal)
   OpDropEventPtr eventRecPtr;
   c_opDropEvent.getPtr(eventRecPtr, conf->senderData);
   eventRecPtr.p->m_reqTracker.reportConf(c_counterMgr, refToNode(senderRef));
+
+  CRASH_INSERTION2(6125, getOwnNodeId() == c_masterNodeId);
+
   completeSubRemoveReq(signal,eventRecPtr.i,0);
 }
 

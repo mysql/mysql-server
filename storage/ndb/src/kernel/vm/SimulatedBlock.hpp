@@ -1370,6 +1370,12 @@ public:
                               DbinfoScanReq& req,
                               const Ndbinfo::Ratelimit& rl) const;
 
+#ifdef NDB_DEBUG_RES_OWNERSHIP
+  /* Utils to lock and unlock the global section segment pool */
+  void lock_global_ssp();
+  void unlock_global_ssp();
+#endif
+
 
 protected:
   /**
@@ -1460,6 +1466,10 @@ SimulatedBlock::executeFunction(GlobalSignalNumber gsn,
                                 Signal* signal,
                                 ExecFunction f)
 {
+#ifdef NDB_DEBUG_RES_OWNERSHIP
+  /* Use block num + gsn composite as owner id by default */
+  setResOwner((Uint32(refToBlock(reference())) << 16) | gsn);
+#endif
   if (likely(f != 0))
   {
     (this->*f)(signal);
