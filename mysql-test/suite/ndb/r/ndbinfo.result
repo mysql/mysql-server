@@ -520,7 +520,7 @@ Field	Type	Null	Key	Default	Extra
 node_id	int(10) unsigned	YES		NULL	
 block_instance	int(10) unsigned	YES		NULL	
 transid	bigint(22) unsigned	YES		NULL	
-operation_type	varchar(9)	YES		NULL	
+operation_type	varchar(9)	NO			
 state	varchar(256)	YES		NULL	
 tableid	int(10) unsigned	YES		NULL	
 fragmentid	int(10) unsigned	YES		NULL	
@@ -535,7 +535,7 @@ mysql_connection_id	bigint(21) unsigned	NO		0
 node_id	int(10) unsigned	YES		NULL	
 block_instance	int(10) unsigned	YES		NULL	
 transid	bigint(22) unsigned	YES		NULL	
-operation_type	varchar(9)	YES		NULL	
+operation_type	varchar(9)	NO			
 state	varchar(256)	YES		NULL	
 tableid	int(10) unsigned	YES		NULL	
 fragmentid	int(10) unsigned	YES		NULL	
