@@ -138,7 +138,7 @@
 
   @section sql_query_exec_sql_functions SQL Functions
 
-  See @ref item_func.cc
+  See #Item_func
 
   @section sql_query_exec_error_handling Error handling
 
