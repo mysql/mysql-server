@@ -199,14 +199,6 @@ static void print_testcase_file_syntax();
 int
 main(int argc, char ** argv)
 {
-  // If program is called with --check-testcase-files as first option
-  // it is assumed that the rest of command line arguments are
-  // testcase-filenames and those files will be syntax checked.
-  if (argc >= 2 && strcmp(argv[1], "--check-testcase-files") == 0)
-  {
-    exit(check_testcase_file_main(argc, argv));
-  }
-
   ndb_init();
 
   bool restart = true;
@@ -218,6 +210,14 @@ main(int argc, char ** argv)
   g_logger.enable(Logger::LL_ALL);
   g_logger.createConsoleHandler();
   
+  // If program is called with --check-testcase-files as first option
+  // it is assumed that the rest of command line arguments are
+  // testcase-filenames and those files will be syntax checked.
+  if (argc >= 2 && strcmp(argv[1], "--check-testcase-files") == 0)
+  {
+    exit(check_testcase_file_main(argc, argv));
+  }
+
   if(!parse_args(argc, argv))
   {
     g_logger.critical("Failed to parse arguments");
@@ -428,9 +428,15 @@ main(int argc, char ** argv)
     
     // const int start_line = lineno;
     atrt_testcase test_case;
-    if(!read_test_case(g_test_case_file, test_case, lineno))
+    const int num_element_lines = read_test_case(g_test_case_file, test_case, lineno);
+    if (num_element_lines == 0)
     {
-      g_logger.critical("Corrupt testcase at line %d)", lineno);
+      // Should be at end of file.  Let while condition catch that.
+      continue;
+    }
+    if(num_element_lines < 0)
+    {
+      g_logger.critical("Corrupt testcase at line %d (error %d)", lineno, num_element_lines);
       goto end;
     
     }
@@ -1234,8 +1240,6 @@ int
 insert(const char * pair, Properties & p){
   BaseString tmp(pair);
   
-  tmp.trim(" \t\n\r");
-
   Vector<BaseString> split;
   tmp.split(split, ":=", 2);
 
@@ -1247,7 +1251,15 @@ insert(const char * pair, Properties & p){
   return 0;
 }
 
-bool
+/*
+ * read_test_case - extract one testcase from file
+ *
+ * On success return a positive number with actual lines describing
+ * the test case not counting blank lines and comments.
+ * On end of file it returns 0.
+ * On failure a nehative number is returned.
+ */
+int
 read_test_case(FILE * file, atrt_testcase& tc, int& line){
 
   Properties p;
@@ -1266,34 +1278,48 @@ read_test_case(FILE * file, atrt_testcase& tc, int& line){
     if(tmp.length() > 0 && tmp.c_str()[0] == '#')
       continue;
     
-    if(insert(tmp.c_str(), p) != 0)
-      break;
-    
+    tmp.trim(" \t\n\r");
+
+    if (tmp.length() == 0)
+    {
+      break; // End of test case definition
+    }
+
+    if (insert(tmp.c_str(), p) != 0)
+    {
+      // Element line had no : or =
+      if (elements == 0 && file == stdin)
+      {
+        // Assume a single line command with command and arguments
+        // separated with a space
+        Vector<BaseString> split;
+        tmp.split(split, " ", 2);
+        tc.m_cmd.m_exe = split[0];
+        if (split.size() == 2)
+          tc.m_cmd.m_args = split[1];
+        else
+          tc.m_cmd.m_args = "";
+        tc.m_max_time = 60000;
+        return 1;
+      }
+      g_logger.critical("Invalid test file: Corrupt line: %d: %s", line, buf);
+      return -1;
+    }
+
     elements++;
   }
   
-  if(elements == 0){
-    if(file == stdin){
-      BaseString tmp(buf); 
-      tmp.trim(" \t\n\r");
-      Vector<BaseString> split;
-      tmp.split(split, " ", 2);
-      tc.m_cmd.m_exe = split[0];
-      if(split.size() == 2)
-	tc.m_cmd.m_args = split[1];
-      else
-	tc.m_cmd.m_args = "";
-      tc.m_max_time = 60000;
-      return true;
-    }
-    return false;
+  if (elements == 0)
+  {
+    // End of file
+    return 0;
   }
 
   int used_elements = 0;
 
   if(!p.get("cmd", tc.m_cmd.m_exe)){
-    g_logger.critical("Invalid test file: cmd is missing near line: %d", line);
-    return false;
+    g_logger.critical("Invalid test file: cmd is missing in test case above line: %d", line);
+    return -2;
   }
   used_elements ++;
   
@@ -1360,11 +1386,11 @@ read_test_case(FILE * file, atrt_testcase& tc, int& line){
 
   if (used_elements != elements)
   {
-    g_logger.critical("Invalid test file: unknown properties near line: %d", line);
-    return false;
+    g_logger.critical("Invalid test file: unknown properties in test case above line: %d", line);
+    return -3;
   }
 
-  return true;
+  return elements;
 }
 
 bool
@@ -1735,7 +1761,7 @@ check_testcase_file_main(int argc, char ** argv)
   if (argi == argc)
   {
     ok = false;
-    fprintf(stderr, "Error: No files to check!\n");
+    g_logger.critical("Error: No files to check!\n");
   }
   else for (; argi < argc; argi ++)
   {
@@ -1743,27 +1769,26 @@ check_testcase_file_main(int argc, char ** argv)
     if (f == NULL)
     {
       ok = false;
-      perror(argv[argi]);
+      g_logger.critical("Unable to open file: %s (%d: %s)", argv[argi], errno, strerror(errno));
       continue;
     }
     atrt_testcase tc_dummy;
-    int prev_line_num = 0;
     int line_num = 0;
     int ntests = 0;
-    while (read_test_case(f, tc_dummy, line_num))
+    int num_element_lines;
+    while ((num_element_lines = read_test_case(f, tc_dummy, line_num)) > 0)
     {
-      prev_line_num = line_num;
       ntests ++;
     }
     // If line count does not change that indicates end of file.
-    if (line_num == prev_line_num)
+    if (num_element_lines >= 0)
     {
       printf("%s: Contains %d tests in %d lines.\n", argv[argi], ntests, line_num);
     }
     else
     {
       ok = false;
-      fprintf(stderr, "%s: Error at line %d\n", argv[argi], line_num);
+      g_logger.critical("%s: Error at line %d (error %d)\n", argv[argi], line_num, num_element_lines);
     }
     fclose(f);
   }
