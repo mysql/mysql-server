@@ -2011,7 +2011,7 @@ checkop:
      Delete-Read, Delete-Update and Delete-Delete are not an allowed
      combination and will result in tuple not found error.
   */
-  Uint32 lstate = lastbits & Operationrec::OP_STATE_MASK;
+  const Uint32 lstate = lastbits & Operationrec::OP_STATE_MASK;
 
   Uint32 retValue = ZSERIAL_QUEUE; // So that it gets blocked...
   if (lstate == Operationrec::OP_STATE_EXECUTED)
@@ -2022,8 +2022,8 @@ checkop:
      * Since last operation has executed...we can now check operation types
      *   if not, we have to wait until it has executed 
      */
-    Uint32 op = opbits & Operationrec::OP_MASK;
-    Uint32 lop = lastbits & Operationrec::OP_MASK;
+    const Uint32 op = opbits & Operationrec::OP_MASK;
+    const Uint32 lop = lastbits & Operationrec::OP_MASK;
     if (op == ZINSERT && lop != ZDELETE)
     {
       jam();
@@ -2034,19 +2034,6 @@ checkop:
      * NOTE. No checking op operation types, as one can read different save
      *       points...
      */
-#if 0
-    if (lop == ZDELETE && (op != ZINSERT && op != ZWRITE))
-    {
-      jam();
-      return ZREAD_ERROR;
-    }
-#else
-    if (lop == ZDELETE && (op == ZUPDATE && op == ZDELETE))
-    {
-      jam();
-      return ZREAD_ERROR;
-    }
-#endif
 
     if(op == ZWRITE)
     {
