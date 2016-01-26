@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3611,7 +3611,7 @@ Dbspj::lookup_build(Build_context& ctx,
       jam();
       Signal * signal = ctx.m_start_signal;
       const LqhKeyReq* src = (const LqhKeyReq*)signal->getDataPtr();
-#if NOT_YET
+#ifdef NOT_YET
       Uint32 instanceNo =
         blockToInstance(signal->header.theReceiversBlockNumber);
       treeNodePtr.p->m_send.m_ref = numberToRef(DBLQH,
@@ -3645,7 +3645,7 @@ Dbspj::lookup_build(Build_context& ctx,
       ndbassert(LqhKeyReq::getSameClientAndTcFlag(requestInfo) == 0);
 #endif
 
-#if TODO
+#ifdef TODO
       /**
        * Handle various lock-modes
        */
@@ -4896,7 +4896,7 @@ Dbspj::scanFrag_build(Build_context& ctx,
       Signal* signal = ctx.m_start_signal;
       const ScanFragReq* src = (const ScanFragReq*)(signal->getDataPtr());
 
-#if NOT_YET
+#ifdef NOT_YET
       Uint32 instanceNo =
         blockToInstance(signal->header.theReceiversBlockNumber);
       treeNodePtr.p->m_send.m_ref = numberToRef(DBLQH,

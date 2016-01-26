@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5401,7 +5401,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
     (c_tableDesc.RowChecksumFlag ? TableRecord::TR_RowChecksum : 0);
   tablePtr.p->m_bits |=
     (c_tableDesc.RowGCIFlag ? TableRecord::TR_RowGCI : 0);
-#if DOES_NOT_WORK_CURRENTLY
+#ifdef DOES_NOT_WORK_CURRENTLY
   tablePtr.p->m_bits |=
     (c_tableDesc.TableTemporaryFlag ? TableRecord::TR_Temporary : 0);
 #endif

@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3173,17 +3173,6 @@ Dbacc::readTablePk(Uint32 localkey1, Uint32 localkey2,
 /*                     BUCKET, AND SERCH FOR ELEMENT.THE PRIMARY KEYS WHICH IS SAVED */
 /*                     IN THE OPERATION REC ARE THE CHECK ITEMS IN THE SEARCHING.    */
 /* --------------------------------------------------------------------------------- */
-
-#if __ia64 == 1
-#if __INTEL_COMPILER == 810
-int ndb_acc_ia64_icc810_dummy_var = 0;
-void ndb_acc_ia64_icc810_dummy_func()
-{
-  ndb_acc_ia64_icc810_dummy_var++;
-}
-#endif
-#endif
-
 Uint32
 Dbacc::getElement(const AccKeyReq* signal, OperationrecPtr& lockOwnerPtr) 
 {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3270,9 +3270,6 @@ int NdbDictionaryImpl::alterTableGlobal(NdbTableImpl &old_impl,
   // Alter the table
   Uint32 changeMask = 0;
   int ret = m_receiver.alterTable(m_ndb, old_impl, impl, changeMask);
-#if ndb_bug41905
-  old_impl.m_status = NdbDictionary::Object::Invalid;
-#endif
   if(ret == 0){
     NdbDictInterface::Tx::Op op;
     op.m_gsn = GSN_ALTER_TABLE_REQ;

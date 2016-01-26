@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3870,7 +3870,7 @@ runBug36072(NDBT_Context* ctx, NDBT_Step* step)
   NdbRestarter res;
 
   int err[] = { 6016, 
-#if BUG_46856
+#ifdef BUG_46856
                 6017, 
 #endif
                 0 };
@@ -4712,7 +4712,7 @@ st_init_objects(ST_Con& c, NDBT_Context* ctx)
   int i;
   for (i = 0; i < numTables; i++) {
     const NdbDictionary::Table* pTab = 0;
-#if ndb_test_ALL_TABLES_is_fixed
+#ifdef ndb_test_ALL_TABLES_is_fixed
     const NdbDictionary::Table** tables = ctx->getTables();
     pTab = tables[i];
 #else

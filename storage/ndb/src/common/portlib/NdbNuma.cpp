@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -252,13 +252,6 @@ NdbNuma_setInterleaved()
 extern "C"
 int
 NdbNuma_setInterleaved()
-{
-  return -1;
-}
-
-extern "C"
-int
-NdbNuma_setInterleavedOnCpus(unsigned cpu[], unsigned len)
 {
   return -1;
 }

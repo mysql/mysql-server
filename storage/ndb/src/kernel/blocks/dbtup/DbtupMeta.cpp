@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -456,7 +456,7 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   }
 #endif
   
-#if SYNC_TABLE
+#ifdef SYNC_TABLE
   if (regTabPtr.p->m_no_of_disk_attributes)
   {
     jam();
@@ -2187,7 +2187,7 @@ Dbtup::drop_fragment_free_extent(Signal *signal,
         CallbackPtr cb;
 	cb.m_callbackData= fragPtr.i;
 	cb.m_callbackIndex = DROP_FRAGMENT_FREE_EXTENT_LOG_BUFFER_CALLBACK;
-#if NOT_YET_UNDO_FREE_EXTENT
+#ifdef NOT_YET_UNDO_FREE_EXTENT
 	Uint32 sz= sizeof(Disk_undo::FreeExtent) >> 2;
 	(void) c_lgman->alloc_log_space(fragPtr.p->m_logfile_group_id,
                                         sz,
@@ -2316,7 +2316,7 @@ Dbtup::drop_fragment_free_extent_log_buffer_callback(Signal* signal,
       Ptr<Extent_info> ext_ptr;
       list.first(ext_ptr);
 
-#if NOT_YET_UNDO_FREE_EXTENT
+#ifdef NOT_YET_UNDO_FREE_EXTENT
 #error "This code is complete"
 #error "but not needed until we do dealloc of empty extents"
       Disk_undo::FreeExtent free;

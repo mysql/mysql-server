@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11608,7 +11608,7 @@ void Dblqh::continueAfterReceivingAllAiLab(Signal* signal)
   }
   else
   {
-#if BUG_27776_FIXED
+#ifdef BUG_27776_FIXED
     AccScanReq::setNoDiskScanFlag(requestInfo,
                                   !regTcPtr->m_disk_table);
 #else
@@ -15638,18 +15638,6 @@ void Dblqh::sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId)
   
 }//Dblqh::sendCOMP_LCP_ROUND()
 
-#if NOT_YET
-void
-Dblqh::execLCP_COMPLETE_REP(Signal* signal)
-{
-  /**
-   * This is sent when last LCP is restorable
-   */
-  LcpCompleteRep * rep = (LcpCompleteRep*)signal->getDataPtr();
-  Uint32 keepGci = rep->keepGci;
-  setLogTail(signal, keepGci);
-}
-#endif
 
 /* ------------------------------------------------------------------------- */
 /* -------               SEND ACC_LCPREQ AND TUP_LCPREQ              ------- */
