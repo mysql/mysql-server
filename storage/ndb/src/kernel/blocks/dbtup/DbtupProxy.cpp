@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -298,12 +298,12 @@ DbtupProxy::disk_restart_undo(Signal* signal, Uint64 lsn,
     undo.m_actions |= Proxy_undo::SendUndoNext;
     break;
   }
-#if NOT_YET_UNDO_ALLOC_EXTENT
+#ifdef NOT_YET_UNDO_ALLOC_EXTENT
   case File_formats::Undofile::UNDO_TUP_ALLOC_EXTENT:
     ndbrequire(false);
     break;
 #endif
-#if NOT_YET_UNDO_FREE_EXTENT
+#ifdef NOT_YET_UNDO_FREE_EXTENT
   case File_formats::Undofile::UNDO_TUP_FREE_EXTENT:
     ndbrequire(false);
     break;

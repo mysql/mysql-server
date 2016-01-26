@@ -3150,16 +3150,6 @@ Dbacc::readTablePk(Uint32 localkey1, Uint32 localkey2,
  * @param[out]  elemptr        Pointer within page to found element.
  * @return                     Returns ZTRUE if element was found.
  * ------------------------------------------------------------------------- */
-#if __ia64 == 1
-#if __INTEL_COMPILER == 810
-int ndb_acc_ia64_icc810_dummy_var = 0;
-void ndb_acc_ia64_icc810_dummy_func()
-{
-  ndb_acc_ia64_icc810_dummy_var++;
-}
-#endif
-#endif
-
 Uint32
 Dbacc::getElement(const AccKeyReq* signal,
                   OperationrecPtr& lockOwnerPtr,

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -318,7 +318,7 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   tmpThread->cpu_set_key = NULL;
 #ifdef HAVE_LINUX_SCHEDULING
   tmpThread->orig_cpu_set = NULL;
-#elif HAVE_SOLARIS_AFFINITY
+#elif defined HAVE_SOLARIS_AFFINITY
   tmpThread->first_lock_call = TRUE;
 #endif
 

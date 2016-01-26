@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1686,16 +1686,6 @@ Pgman::fswritereq(Signal* signal, Ptr<Page_entry> ptr)
   FsReadWriteReq::setFormatFlag(req->operationFlag,
 				FsReadWriteReq::fsFormatGlobalPage);
   req->data.pageData[0] = ptr.p->m_real_page_i;
-
-#if ERROR_INSERT_CODE
-  if (ptr.p->m_state & Page_entry::LOCKED)
-  {
-    sendSignalWithDelay(NDBFS_REF, GSN_FSWRITEREQ, signal,
-			3000, FsReadWriteReq::FixedLength + 1);
-    ndbout_c("pageout locked (3s)");
-    return;
-  }
-#endif
   
   if (!ERROR_INSERTED(11008))
   {
