@@ -18,7 +18,11 @@
 #include <NdbNuma.h>
 #include <ndb_global.h>
 
+#ifdef TEST_NDBNUMA
 static int NDB_TRACE_NUMA = 0;
+#else
+#define NDB_TRACE_NUMA (false)
+#endif
 
 #if defined HAVE_DLFCN_H && defined HAVE_DLOPEN
 #include <dlfcn.h>
