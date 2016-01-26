@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1155,7 +1155,7 @@ NdbShutdown(int error_code,
      *   cause with ndbmtd, there are locks and nasty stuff
      *   and we don't know which we are holding...
      */
-#if NOT_YET
+#ifdef NOT_YET
 
     /**
      * Stop all transporter connection attempts and accepts
