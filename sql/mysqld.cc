@@ -19,9 +19,7 @@
 */
 
 /**
-  @mainpage MySQL Doxygen Main Page
-
-  @section intro Introduction
+  @mainpage Welcome
 
   Welcome to the MySQL source code documentation.
 
@@ -32,13 +30,23 @@
 
   For other sections, only links are provided, as a starting point into the component.
 
-  @section start Get started
+  For the user manual, see http://dev.mysql.com/doc/refman/5.8/en/
 
-  @subsection start_source Build from source
+  For the internals manual, see https://dev.mysql.com/doc/internals/en/index.html
+*/
+
+/**
+  @page PAGE_GET_STARTED Getting Started
+
+  @section start_source Build from source
 
   See https://dev.mysql.com/doc/refman/5.8/en/source-installation.html
 
-  @subsection start_debug Debugging
+  @section start_coding_guidelines Coding guidelines
+
+  See http://dev.mysql.com/doc/internals/en/coding-guidelines.html
+
+  @section start_debug Debugging
 
   The easiest way to install a server, and attach a debugger to it,
   is to start the mysql-test-run (MTR) tool with debugging options
@@ -53,76 +61,30 @@
   - #dispatch_command
 
   Replace 'main.parser' with another test script, or write your own, to debug a specific area.
+*/
 
-  @section infrastructure Infrastructure
+/**
+  @page PAGE_INFRASTRUCTURE Infrastructure
 
-  @subsection infra_container Container
+  @section infra_basic Basic classes and templates
+
+  @subsection infra_basic_container Container
 
   See #DYNAMIC_ARRAY, #LIST, #I_P_List, #HASH, #LF_HASH.
 
-  @subsection infra_syncho Synchonization
+  @subsection infra_basic_syncho Synchonization
 
   See #native_mutex_t, #native_rw_lock_t, #native_cond_t.
 
-  @subsection infra_fileio File IO
+  @subsection infra_basic_fileio File IO
 
   See #my_open, #my_dir.
 
-  @section server Server building blocs
+  @section infra_server_blocks Server building blocs
 
-  @subsection server_vio Virtual Input Output
+  @subsection infra_server_blocks_vio Virtual Input Output
 
   See #Vio, #vio_init.
-
-  @subsection server_protocol Protocol
-
-  See #Protocol.
-
-  @subsection server_parser Parser
-
-  The parser processes SQL strings and builds a tree representation of them.
-
-  See @ref GROUP_PARSER.
-
-  @subsection server_optimizer Optimizer
-
-  See @ref Optimizer
-
-  @subsection server_execution Execution
-
-  See #dispatch_command.
-
-  @section storage Storage
-
-  @subsection storage_innodb Innodb
-
-  See #ha_innobase.
-
-  @section functional Functional area
-
-  @subsection func_security Security
-
-  See #check_access.
-
-  @subsection func_stored_proc Stored procedures
-
-  See #sp_head, #sp_instr.
-
-  @subsection func_prepared_stmt Prepared statements
-
-  See #mysqld_stmt_prepare, #mysqld_stmt_execute, #mysqld_stmt_close, #Prepared_statement.
-
-  @subsection func_transactions Transactions
-
-  See #trans_begin, #trans_commit, #trans_rollback.
-
-  @subsection func_replication Replication
-
-  See @ref PAGE_RPL_FIELD_METADATA
-
-  @subsection func_performance_schema Performance schema
-
-  See @ref PAGE_PFS
 
   @section deployment Deployment
 
@@ -142,25 +104,107 @@
 
   See #Mysql::Tools::Upgrade::Program.
 
-  @section extending Extending MySQL
-
-  @subsection extending_plugin Plugins
-
-  See #Sql_cmd_install_plugin, #Sql_cmd_uninstall_plugin.
-
-  @subsection extending_udf User Defined Functions
-
-  See #add_udf, #del_udf.
-
-  @section references References
-
-  For the user manual, see http://dev.mysql.com/doc/refman/5.8/en/
-
-  For the internals manual, see https://dev.mysql.com/doc/internals/en/index.html
 */
 
 /**
-  @page Optimizer The Optimizer
+  @page PAGE_PROTOCOL Client/Server Protocol
+
+  See #Protocol.
+
+*/
+
+/**
+  @page PAGE_SQL_EXECUTION SQL Query Execution
+
+  @section sql_query_exec_parsing SQL Parsing
+
+  The parser processes SQL strings and builds a tree representation of them.
+
+  See @ref GROUP_PARSER.
+
+  @subpage PAGE_SQL_Optimizer
+
+  @section sql_query_exec_execution SQL Execution
+
+  See @ref Query_Executor.
+
+  @section sql_query_exec_prepared Prepared statements
+
+  See #mysql_stmt_prepare
+
+  @section func_stored_proc Stored procedures
+
+  See #sp_head, #sp_instr.
+
+  @section sql_query_exec_sql_functions SQL Functions
+
+  See @ref item_func.cc
+
+  @section sql_query_exec_error_handling Error handling
+
+  See #my_message, #my_error
+
+*/
+
+/**
+  @page PAGE_STORAGE Data Storage
+
+  @section storage_innodb Innodb
+
+  See #ha_innobase.
+
+*/
+
+
+/**
+  @page PAGE_REPLICATION Replication
+
+  @subpage PAGE_RPL_FIELD_METADATA
+
+*/
+
+/**
+  @page PAGE_TXN Transactions
+
+  See #trans_begin, #trans_commit, #trans_rollback.
+*/
+
+/**
+  @page PAGE_SECURITY Security
+
+  See #check_access.
+
+*/
+
+
+/**
+  @page PAGE_MONITORING Monitoring
+
+  @subpage PAGE_PFS
+*/
+
+/**
+  @page PAGE_EXTENDING Extending MySQL
+
+  @section extending_plugin Plugins
+
+  See #Sql_cmd_install_plugin, #Sql_cmd_uninstall_plugin.
+
+  @section extending_udf User Defined Functions
+
+  See #add_udf, #del_udf.
+*/
+
+
+/**
+  @page PAGE_CLIENT_TOOLS Client tools
+
+  See mysqldump.cc mysql.cc
+*/
+
+
+/**
+  @page PAGE_SQL_Optimizer SQL Optimizer
 
   The task of query optimizer is to determine the most efficient means for
   executing queries. The query optimizer consists of the following
@@ -170,6 +214,8 @@
   - @ref Query_Optimizer
   - @ref Query_Planner
   - @ref Query_Executor
+
+  @subpage PAGE_OPT_TRACE
 
   Additional articles about the query optimizer:
 
