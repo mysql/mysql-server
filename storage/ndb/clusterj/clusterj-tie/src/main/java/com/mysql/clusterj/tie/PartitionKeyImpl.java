@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -63,7 +63,8 @@ class PartitionKeyImpl implements PartitionKey {
     public void addIntKey(final Column storeColumn, final int key) {
         keyPartBuilders.add(new KeyPartBuilder() {
             public void addKeyPart(BufferManager bufferManager) {
-                ByteBuffer buffer = Utility.convertValue(storeColumn, key);
+                ByteBuffer buffer = bufferManager.borrowPartitionKeyPartBuffer(4);
+                Utility.convertValue(buffer, storeColumn, key);
                 KeyPart keyPart = new KeyPart(buffer, buffer.limit());
                 keyParts.add(keyPart);
             }
@@ -76,7 +77,8 @@ class PartitionKeyImpl implements PartitionKey {
     public void addShortKey(final Column storeColumn, final short key) {
         keyPartBuilders.add(new KeyPartBuilder() {
             public void addKeyPart(BufferManager bufferManager) {
-                ByteBuffer buffer = Utility.convertValue(storeColumn, key);
+                ByteBuffer buffer = bufferManager.borrowPartitionKeyPartBuffer(2);
+                Utility.convertValue(buffer, storeColumn, key);
                 KeyPart keyPart = new KeyPart(buffer, buffer.limit());
                 keyParts.add(keyPart);
             }
@@ -89,7 +91,8 @@ class PartitionKeyImpl implements PartitionKey {
     public void addByteKey(final Column storeColumn, final byte key) {
         keyPartBuilders.add(new KeyPartBuilder() {
             public void addKeyPart(BufferManager bufferManager) {
-                ByteBuffer buffer = Utility.convertValue(storeColumn, key);
+                ByteBuffer buffer = bufferManager.borrowPartitionKeyPartBuffer(1);
+                Utility.convertValue(buffer, storeColumn, key);
                 KeyPart keyPart = new KeyPart(buffer, buffer.limit());
                 keyParts.add(keyPart);
             }
@@ -102,7 +105,8 @@ class PartitionKeyImpl implements PartitionKey {
     public void addLongKey(final Column storeColumn, final long key) {
         keyPartBuilders.add(new KeyPartBuilder() {
             public void addKeyPart(BufferManager bufferManager) {
-                ByteBuffer buffer = Utility.convertValue(storeColumn, key);
+                ByteBuffer buffer = bufferManager.borrowPartitionKeyPartBuffer(8);
+                Utility.convertValue(buffer, storeColumn, key);
                 KeyPart keyPart = new KeyPart(buffer, buffer.limit());
                 keyParts.add(keyPart);
             }
@@ -120,7 +124,7 @@ class PartitionKeyImpl implements PartitionKey {
             public void addKeyPart(BufferManager bufferManager) {
                 ByteBuffer buffer = Utility.encode(string, storeColumn, bufferManager);
                 // allocate a new buffer because the shared buffer might be overwritten by another key field
-                ByteBuffer copy = ByteBuffer.allocateDirect(buffer.limit() - buffer.position());
+                ByteBuffer copy = bufferManager.borrowPartitionKeyPartBuffer(buffer.limit() - buffer.position());
                 copy.put(buffer);
                 copy.flip();
                 KeyPart keyPart = new KeyPart(copy, copy.limit());
@@ -135,7 +139,9 @@ class PartitionKeyImpl implements PartitionKey {
     public void addBytesKey(final Column storeColumn, final byte[] key) {
         keyPartBuilders.add(new KeyPartBuilder() {
             public void addKeyPart(BufferManager bufferManager) {
-                ByteBuffer buffer = Utility.convertValue(storeColumn, key);
+                // the length needs to include the length prefix up to three bytes
+                ByteBuffer buffer = bufferManager.borrowPartitionKeyPartBuffer(key.length + 3);
+                Utility.convertValue(buffer, storeColumn, key);
                 KeyPart keyPart = new KeyPart(buffer, buffer.limit());
                 keyParts.add(keyPart);
             }

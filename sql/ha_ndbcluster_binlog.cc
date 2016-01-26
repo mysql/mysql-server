@@ -1469,7 +1469,7 @@ int ndbcluster_find_all_files(THD *thd)
       else
       {
         /* set up replication for this table */
-        ndbcluster_create_binlog_setup(thd, ndb, key, (uint)(end-key),
+        ndbcluster_create_binlog_setup(thd, ndb, key,
                                        elmt.database, elmt.name,
                                        0);
       }
@@ -2109,6 +2109,21 @@ end:
 }
 
 
+/*
+  ndb_handle_schema_change
+
+  Used when an even has been receieved telling that the table has been
+  dropped or connection to cluster has failed. Function checks if the
+  table need to be removed from any of the many places where it's
+  referenced or cached, finally the EventOperation is dropped and
+  the event_data structure is released.
+
+  The function may be called either by Ndb_schema_event_handler which
+  listens to events only on mysql.ndb_schema or by the "injector" which
+  listen to events on all the other tables.
+
+*/
+
 static
 int
 ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
@@ -2122,6 +2137,8 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
               pOp->getEventType() == NDBEVENT::TE_CLUSTER_FAILURE);
 
   DBUG_ASSERT(event_data);
+  DBUG_ASSERT(pOp->getCustomData() == event_data);
+
 
   NDB_SHARE *share= event_data->share;
   dbug_print_share("changed share: ", share);
@@ -2191,8 +2208,7 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
     share= 0;
   native_mutex_unlock(&ndbcluster_mutex);
 
-  DBUG_PRINT("info", ("Deleting event_data"));
-  delete event_data;
+  // Remove pointer to event_data from the EventOperation
   pOp->setCustomData(NULL);
 
   DBUG_PRINT("info", ("Dropping event operation: %p", pOp));
@@ -2208,6 +2224,11 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
                              share->key_string(), share->use_count));
     free_share(&share);
   }
+
+  // Finally delete the event_data and thus it's mem_root, shadow_table etc.
+  DBUG_PRINT("info", ("Deleting event_data"));
+  delete event_data;
+
   DBUG_RETURN(0);
 }
 
@@ -4436,17 +4457,13 @@ ndbcluster_apply_binlog_replication_info(THD *thd,
                                          const st_conflict_fn_def* conflict_fn,
                                          const st_conflict_fn_arg* args,
                                          Uint32 num_args,
-                                         bool do_set_binlog_flags,
                                          Uint32 binlog_flags)
 {
   DBUG_ENTER("ndbcluster_apply_binlog_replication_info");
   char tmp_buf[FN_REFLEN];
 
-  if (do_set_binlog_flags)
-  {
-    DBUG_PRINT("info", ("Setting binlog flags to %u", binlog_flags));
-    set_binlog_flags(share, (enum Ndb_binlog_type)binlog_flags);
-  }
+  DBUG_PRINT("info", ("Setting binlog flags to %u", binlog_flags));
+  set_binlog_flags(share, (enum Ndb_binlog_type)binlog_flags);
 
   if (conflict_fn != NULL)
   {
@@ -4500,8 +4517,7 @@ int
 ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
                                    NDB_SHARE *share,
                                    const NDBTAB *ndbtab,
-                                   uint server_id,
-                                   bool do_set_binlog_flags)
+                                   uint server_id)
 {
   DBUG_ENTER("ndbcluster_read_binlog_replication");
   Uint32 binlog_flags;
@@ -4523,7 +4539,6 @@ ndbcluster_read_binlog_replication(THD *thd, Ndb *ndb,
                                                 conflict_fn,
                                                 args,
                                                 num_args,
-                                                do_set_binlog_flags,
                                                 binlog_flags) != 0))
   {
     DBUG_RETURN(-1);
@@ -4562,16 +4577,14 @@ ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
   create/discover.
 */
 int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
-                                   uint key_len,
                                    const char *db,
                                    const char *table_name,
                                    TABLE * table)
 {
   DBUG_ENTER("ndbcluster_create_binlog_setup");
-  DBUG_PRINT("enter",("key: %s  key_len: %d  %s.%s",
-                      key, key_len, db, table_name));
+  DBUG_PRINT("enter",("key: %s %s.%s",
+                      key, db, table_name));
   DBUG_ASSERT(! IS_NDB_BLOB_PREFIX(table_name));
-  DBUG_ASSERT(strlen(key) == key_len);
 
   NDB_SHARE* share= get_share(key, table, true, false);
   if (share == 0)
@@ -4624,7 +4637,7 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
     /*
      */
     ndbcluster_read_binlog_replication(thd, ndb, share, ndbtab,
-                                       ::server_id, TRUE);
+                                       ::server_id);
 #endif
     /*
       check if logging turned off for this table

@@ -1593,6 +1593,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "200M",
     "1M",
     "1024G" },
+
+  {
+    CFG_DB_BACKUP_DISK_WRITE_PCT,
+    "BackupDiskWriteSpeedPct",
+    DB_TOKEN,
+    "Percentage of MaxDiskWriteSpeed to reserve for Backup, including "
+    "the Backup log",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "50",
+    "0",
+    "90" },
   
   { 
     CFG_DB_CHECKPOINT_SPEED,

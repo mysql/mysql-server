@@ -44,8 +44,18 @@ class BlobImpl implements Blob {
 
     protected NdbBlob ndbBlob;
 
+    /** The data holder for this blob */
+    protected byte[] data;
+
+    /** The operation */
+    protected NdbRecordOperationImpl operation;
+
     /** The direct byte buffer pool */
     protected VariableByteBufferPoolImpl byteBufferPool;
+
+    /** The direct byte buffer used for setValue, which must be preserved until the operation completes */
+    protected ByteBuffer byteBufferForSetValue = null;
+    protected int byteBufferForSetValueSize = 0;
 
     public BlobImpl(VariableByteBufferPoolImpl byteBufferPool) {
         // this is only for NdbRecordBlobImpl constructor when there is no ndbBlob available yet
@@ -55,6 +65,19 @@ class BlobImpl implements Blob {
     public BlobImpl(NdbBlob blob, VariableByteBufferPoolImpl byteBufferPool) {
         this.ndbBlob = blob;
         this.byteBufferPool = byteBufferPool;
+    }
+
+    /** Release any resources associated with this object.
+     * This method is called by the owner of this object when it is being finalized by garbage collection.
+     */
+    public void release() {
+        if (logger.isDetailEnabled()) logger.detail("BlobImpl.release");
+        this.data = null;
+        this.operation = null;
+        // return buffer to pool
+        if (byteBufferForSetValue != null) {
+            this.byteBufferPool.returnBuffer(byteBufferForSetValueSize, byteBufferForSetValue);
+        }
     }
 
     public Long getLength() {
@@ -124,11 +147,17 @@ class BlobImpl implements Blob {
         }
         if (array.length == 0) return;
         ByteBuffer buffer = null;
-        if (array.length > 0) {
-            buffer = ByteBuffer.allocateDirect(array.length);
-            buffer.put(array);
-            buffer.flip();
+        buffer = this.byteBufferPool.borrowBuffer(array.length);
+        buffer.put(array);
+        buffer.flip();
+        if (byteBufferForSetValue != null) {
+            // free any existing buffer first (setValue was called again -- not likely)
+            byteBufferPool.returnBuffer(byteBufferForSetValueSize, byteBufferForSetValue);
         }
+        // the buffer will be returned to the pool when release is called
+        byteBufferForSetValueSize = array.length;
+        byteBufferForSetValue = buffer;
+        // the buffer must remain attached to this BlobImpl until the operation is completed
         int returnCode = ndbBlob.setValue(buffer, array.length);
         handleError(returnCode, ndbBlob);
     }
