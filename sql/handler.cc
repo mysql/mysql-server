@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2385,7 +2385,8 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 #ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely(error == 0))
   {
-    my_bool temp_table= (my_bool)is_prefix(alias, tmp_file_prefix);
+    /* Table share not available, so check path for temp table prefix. */
+    bool temp_table = (strstr(path, tmp_file_prefix) != NULL);
     PSI_TABLE_CALL(drop_table_share)
       (temp_table, db, strlen(db), alias, strlen(alias));
   }
@@ -4733,12 +4734,12 @@ int ha_create_table(THD *thd, const char *path,
   const char *name;
   TABLE_SHARE share;
   bool saved_abort_on_warning;
-  DBUG_ENTER("ha_create_table");
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  my_bool temp_table= (my_bool)is_temp_table ||
-               (my_bool)is_prefix(table_name, tmp_file_prefix) ||
-               (create_info->options & HA_LEX_CREATE_TMP_TABLE ? TRUE : FALSE);
+  bool temp_table = is_temp_table ||
+    (create_info->options & HA_LEX_CREATE_TMP_TABLE) ||
+    (strstr(path, tmp_file_prefix) != NULL);
 #endif
+  DBUG_ENTER("ha_create_table");
   
   init_tmp_table_share(thd, &share, db, 0, table_name, path);
   if (open_table_def(thd, &share, 0))
@@ -4750,7 +4751,13 @@ int ha_create_table(THD *thd, const char *path,
 
   if (open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
                             TRUE))
+  {
+#ifdef HAVE_PSI_TABLE_INTERFACE
+    PSI_TABLE_CALL(drop_table_share)
+      (temp_table, db, strlen(db), table_name, strlen(table_name));
+#endif
     goto err;
+  }
 
   if (update_create_info)
     update_create_info_from_table(create_info, &table);

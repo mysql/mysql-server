@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -498,7 +498,7 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
   if (my_hash_insert(&table_def_cache, (uchar*) share))
   {
     free_table_share(share);
-    DBUG_RETURN(0);				// return error
+    DBUG_RETURN(0);       // return error
   }
   if (open_table_def(thd, share, db_flags))
   {
@@ -506,10 +506,11 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
     (void) my_hash_delete(&table_def_cache, (uchar*) share);
     DBUG_RETURN(0);
   }
-  share->ref_count++;				// Mark in use
+  share->ref_count++;        // Mark in use
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  share->m_psi= PSI_TABLE_CALL(get_table_share)(false, share);
+  share->m_psi=
+     PSI_TABLE_CALL(get_table_share)((share->tmp_table != NO_TMP_TABLE), share);
 #else
   share->m_psi= NULL;
 #endif
