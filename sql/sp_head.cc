@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,6 +39,1635 @@
 #include <my_user.h>           // parse_user
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/mysql_sp.h"
+
+/**
+  @page stored_programs Stored Programs
+
+  @section sp_overview Overview
+
+  Stored Programs in general refers to:
+
+  - <tt>PROCEDURE</tt>
+  - <tt>FUNCTION</tt>
+  - <tt>%TABLE TRIGGER</tt>
+  - <tt>EVENT</tt>
+
+  When developing, there are a couple of tools available in the server itself that are helpful.
+  These tools are only available in builds compiled with debugging support:
+
+  - <tt>SHOW PROCEDURE CODE</tt>
+  - <tt>SHOW FUNCTION CODE</tt>
+
+  The equivalent for triggers or events is not available at this point.
+
+  The internal implementation of Stored Programs in the server
+  depends on several components:
+
+  - the storage layer, used to store in the database itself
+  a program (hence the name stored program)
+  - the internal memory representation of a Stored Program,
+  used within the server implementation
+  - the SQL parser, used to convert a Stored Program from
+  its persistent representation to its internal form
+  - a flow analyser, used to optimize the code representing a stored program
+  - various caches, used to improve performance by avoiding the need
+  to load and parse a stored program at every invocation
+  - the Stored Program runtime execution itself,
+  which interprets the code of the program and executes its statements
+
+  @section sp_storage Persistent Representation
+
+  Storage of Stored Programs is implemented using either
+  tables in the database (in the @c mysql schema), or physical files.
+
+  @subsection sp_storage_sp_sf Stored Procedure and Stored Function Storage
+
+  The table <tt>mysql.proc</tt> contains
+  one record per Stored Procedure or Stored Function.
+  Note that this table design is a mix of relational
+  and non relational (blob) content:
+
+  - Attributes that are part of the interface of a stored procedure
+  or function (like its name, return type, etc),
+  or that are global to the object (implementation language,
+  deterministic properties, security properties, sql mode, etc)
+  are stored with a dedicated column in table <tt>mysql.proc</tt>.
+
+  - The body of a stored procedure or function,
+  which consists of the original code expressed in SQL,
+  including user comments if any, is stored as-is preserving
+  the original indentation in blob column 'body'.
+
+  This design choice allows the various attributes to be
+  represented in a format that is easy to work with (relational model),
+  while allowing a lot of flexibility for the content of the body.
+
+  A minor exception to this is the storage of the parameters
+  of a stored procedure or function (which are part of its interface)
+  inside the blob column @c param_list (instead of using a child table @c proc_param).
+
+  Table <tt>mysql.procs_priv</tt> describes privileges granted
+  for a given Stored Procedure or Stored Function in table <tt>mysql.proc</tt>.
+
+  The code used to encapsulate database access is:
+
+  - #sp_create_routine()
+  - #db_load_routine()
+  - #sp_drop_routine()
+  - #mysql_routine_grant()
+  - #grant_load()
+  - #grant_reload()
+
+  @subsection sp_storage_trigger Table Trigger Storage
+
+  Information for a given trigger is stored in plain text files
+  in the database directory that contains the table associated with the trigger:
+
+  - There is one <tt>.TRN</tt> file per trigger.
+  It indicates the table associated with the trigger.
+  The design decision that every trigger has a dedicated
+  <tt>.TRN</tt> file is used to enforce the SQL standard
+  requirement that all triggers in a given schema must be unique.
+
+  - There is one <tt>.TRG</tt> per table that has triggers.
+  It contains information about all the triggers for the table.
+
+  Suppose that we create a table named account and associate with it
+  three triggers named ins_transaction, ins_sum, and upd_check:
+
+@verbatim
+mysql> CREATE TABLE account (acct_num INT, amount DECIMAL(10,2));
+Query OK, 0 rows affected (0.05 sec)
+
+mysql> CREATE TRIGGER ins_sum BEFORE INSERT ON account
+    -> FOR EACH ROW SET @sum = @sum + NEW.amount;
+Query OK, 0 rows affected (0.04 sec)
+
+mysql> CREATE TRIGGER ins_transaction BEFORE INSERT ON account
+    -> FOR EACH ROW PRECEDES ins_sum
+    -> SET
+    -> @deposits = @deposits + IF(NEW.amount>0,NEW.amount,0),
+    -> @withdrawals = @withdrawals + IF(NEW.amount<0,-NEW.amount,0);
+Query OK, 0 rows affected (0.02 sec)
+
+mysql> delimiter //
+mysql> CREATE TRIGGER upd_check BEFORE UPDATE ON account
+    -> FOR EACH ROW
+    -> BEGIN
+    ->     IF NEW.amount < 0 THEN
+    ->         SET NEW.amount = 0;
+    ->     ELSEIF NEW.amount > 100 THEN
+    ->         SET NEW.amount = 100;
+    ->     END IF;
+    -> END;//
+mysql> delimiter ;
+Query OK, 0 rows affected (0.03 sec)
+@endverbatim
+
+  In this case, there are three <tt>.TRN</tt> files named after
+  the triggers (<tt>ins_transaction.TRN</tt>,
+                <tt>ins_sum.TRN</tt>,
+                <tt>upd_check.TRN</tt>),
+  and a <tt>.TRG</tt> file named after the table (<tt>account.TRG</tt>).
+
+  A <tt>.TRN</tt> file is specific to a trigger and contains these fields:
+
+  - @c TYPE: Indicates what the file represents.
+  For a <tt>.TRN</tt> file, this value is always @c TRIGGERNAME,
+  which means that the file name corresponds to the trigger name.
+  For example, a <tt>.TRN</tt> file named <tt>ins_sum.TRN</tt>
+  corresponds to a trigger named @c ins_sum.
+
+  - @c trigger_table: The table associated with the trigger.
+
+  Example <tt>.TRN</tt> file:
+
+@verbatim
+TYPE=TRIGGERNAME
+trigger_table=account
+@endverbatim
+
+  A <tt>.TRG</tt> file is specific to a table and contains these fields:
+
+  - @c TYPE: Indicates what the file represents.
+  For a <tt>.TRN</tt> file, this value is always @c TRIGGERS,
+  which means that the file contains information about the triggers
+  associated with the table that corresponds to the file name.
+  For example, a file named <tt>account.TRG</tt> contains information
+  for the triggers associated with the table @c account.
+
+  - @c triggers: The <tt>CREATE TRIGGER</tt> statements for the
+  triggers associated with the table.
+  Triggers that have the same trigger event and action time
+  are listed in activation order.
+
+  - @c sql_modes: For each trigger, the @c sql_mode value under
+  which the trigger executes, as a numeric value.
+
+  - @c definers: For each trigger, the account of the user
+  who created it, in 'user_name'\@'host_name' format.
+
+  - @c client_cs_names: For each trigger, the session value
+  of the character_set_client system variable when the trigger was created.
+
+  - @c connection_cl_names: For each trigger, the session value
+  of the collation_connection system variable when the trigger was created.
+
+  - @c db_cl_names: For each trigger, the collation
+  of the database with which the trigger is associated.
+
+  - @c created: For each trigger, its creation time.
+  This field is present only if triggers have been created
+  or dropped for the table as of MySQL 5.7.2 or later.
+  A value of 0 means that the trigger was created before 5.7.2
+  and thus that no creation time is known.
+  (Creation time values are not maintained until 5.7.2.)
+
+  Example <tt>.TRG</tt> file:
+
+@verbatim
+TYPE=TRIGGERS
+triggers='CREATE DEFINER=`me`@`localhost` TRIGGER ins_transaction
+BEFORE INSERT ON account\nFOR EACH ROW SET\n@deposits = @deposits
++ IF(NEW.amount>0,NEW.amount,0),\n@withdrawals = @withdrawals +
+IF(NEW.amount<0,-NEW.amount,0)' 'CREATE DEFINER=`me`@`localhost`
+TRIGGER ins_sum BEFORE INSERT ON account\nFOR EACH ROW SET @sum =
+@sum + NEW.amount' 'CREATE DEFINER=`me`@`localhost` TRIGGER upd_check
+BEFORE UPDATE ON account\nFOR EACH ROW\nBEGIN\n    IF NEW.amount <
+0 THEN\n        SET NEW.amount = 0;\n    ELSEIF NEW.amount > 100
+THEN\n        SET NEW.amount = 100;\n    END IF;\nEND'
+sql_modes=1073741824 1073741824 1073741824
+definers='me@localhost' 'me@localhost' 'me@localhost'
+client_cs_names='utf8' 'utf8' 'utf8'
+connection_cl_names='utf8_general_ci' 'utf8_general_ci' 'utf8_general_ci'
+db_cl_names='latin1_swedish_ci' 'latin1_swedish_ci' 'latin1_swedish_ci'
+created=137339041018 137339026087 137339063431
+@endverbatim
+
+  To convert a value on the @c sql_modes line to more readable form, do this:
+
+@verbatim
+mysql> SET sql_mode = 1073741824;
+mysql> SELECT @@sql_mode;
++------------------------+
+| @@sql_mode             |
++------------------------+
+| NO_ENGINE_SUBSTITUTION |
++------------------------+
+@endverbatim
+
+  To break a value on the created line into integer
+  and fractional seconds parts and convert them
+  to an ISO-format date and time value, do this:
+
+@verbatim
+mysql> SET @ts_int = FLOOR(137339041018/100);
+Query OK, 0 rows affected (0.01 sec)
+
+mysql> SET @ts_frac = 137339041018 % 100;
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> SELECT CONCAT(FROM_UNIXTIME(@ts_int),'.',@ts_frac);
++---------------------------------------------+
+| CONCAT(FROM_UNIXTIME(@ts_int),'.',@ts_frac) |
++---------------------------------------------+
+| 2013-07-09 12:20:10.18                      |
++---------------------------------------------+
+1 row in set (0.00 sec)
+@endverbatim
+
+  The code used to encapsulate file access is:
+
+  - #Table_trigger_dispatcher::create_trigger()
+
+  - #Table_trigger_dispatcher::drop_trigger()
+
+  - #Table_trigger_dispatcher::check_n_load()
+
+  - #Trigger_loader::drop_all_triggers()
+
+  - #Trigger_loader::rename_subject_table()
+
+  See the C++ class #Table_trigger_dispatcher in general.
+
+  Using files for triggers is due to historical reasons,
+  and follows the same design as <tt>*.frm</tt> files for table meta data.
+  This approach has several drawbacks:
+
+  - Each file has yet another text file format,
+  which is necessary to print and parse back correctly.
+  Custom code has to be implemented, which is consuming in terms of resources,
+  and introduces technical risk or code duplication.
+
+  - Tables are replicated, values in columns are checked for data validity,
+  integrity constraints can be defined ...
+  where none of the above is available with a file based implementation.
+
+  - With tables, the default locking, transaction and isolation mechanism
+  used by the server in general can be leveraged,
+  but the same is not available with files.
+
+  - Cluster support for any new meta data operation that operates on files
+  will require a custom solution. E.g. to propagate
+  <tt>CREATE %TABLE</tt> statement across MySQL Cluster mysqld nodes
+  we use a so-called “.frm shipping” technique.
+  There is no similar solution implemented for triggers at this point,
+  and thus a trigger created in one mysqld node does not automatically
+  become visible on other nodes.
+  Potentially, if data is stored in tables,
+  cluster support may be added as simply as by issuing
+  <tt>ALTER %TABLE mysql.triggers ENGINE=NDB;</tt>
+
+  @note Various drawbacks of file system based solution are provided
+  in this chapter only for a sake of example.
+
+  @warning The current implementation of the storage layer for table triggers
+  is considered private to the server,
+  and might change without warnings in future releases.
+
+  @subsection sp_storage_event Event Storage
+
+  %Events storage is very similar to Stored Procedure
+  and Stored Function storage, and shares the same design.
+  Since more attributes are needed to represent an event,
+  a different table is used: table <tt>mysql.event</tt>.
+
+  The code used to encapsulate the database access is:
+
+  - #Event_db_repository::create_event()
+  - #Event_db_repository::update_event()
+  - #Event_db_repository::drop_event()
+
+  See the C++ class #Event_db_repository in general.
+
+  @subsection sp_storage_derived Derived Attributes Storage
+
+  Some critical attributes, such as @c SQL_MODE,
+  are explicitly part of the storage format.
+
+  Other attributes, that also impact significantly the behavior
+  in general of Stored Programs, can be implicitly derived
+  from other properties of the storage layer.
+  In particular:
+
+  - The <tt>USE @<database@></tt> in effect for a stored program
+  is the schema the stored object belongs to.
+
+  - The statement <tt>DECLARE v CHAR(10)</tt> does not intrinsically convey
+  any notion of character set or collation.
+  The character set and collation of this local variable,
+  in a stored program, derives from the character set and collation
+  of the schema the stored object belongs to.
+
+  @section sp_internal Internal Representation
+
+  A Stored Program is represented in memory by two major parts:
+
+  - The code of the stored program, including SQL statements
+  and control flow logic (IF, WHILE, ...),
+
+  - A symbol table that describes all the local variables,
+  cursors, labels, conditions ... declared in the code.
+
+  Individual instructions of various kind are implemented by all
+  the C++ classes that inherit from class #sp_instr.
+  The symbol table ('symbol table' is a term used in conjunction
+                    with compilers or interpreters,
+                    in MySQL the term 'Parsing Context' is used instead)
+  is implemented by the C++ class #sp_pcontext.
+  A Stored Program as a whole is represented by the C++ class #sp_head,
+  which contains the instructions (array #sp_head::m_instructions)
+  and the root parsing context (member #sp_head::m_root_parsing_ctx).
+
+  @attention Class #sp_head contains concepts from different areas.
+  It represents both what a stored program @em is,
+  which is the topic of this section,
+  and how a stored program logic <em> is used </em> during runtime interpretation,
+  which is the subject of other sections.
+
+  @subsection sp_internal_instr Instructions
+
+  Data Definition Language and Data Manipulation Language SQL statements
+  are represented as-is, by a single instruction.
+  For flow control statements and exception handlers,
+  several instructions are used to implement in the low level
+  #sp_instr language the semantic of the SQL construct.
+
+  Let's see an example with a stored procedure:
+
+@verbatim
+delimiter $$
+
+CREATE PROCEDURE proc_1(x int)
+BEGIN
+  IF x < 0 THEN
+   INSERT INTO t1 VALUES ("negative");
+  ELSEIF x = 0 THEN
+   INSERT INTO t1 VALUES ("zero");
+  ELSE
+   INSERT INTO t1 VALUES ("positive");
+  END IF;
+END$$
+@endverbatim
+
+  The resulting code, displayed by <tt>SHOW PROCEDURE CODE</tt>, is:
+
+@verbatim
+SHOW PROCEDURE CODE proc_1;
+Pos     Instruction
+0       jump_if_not 3(7) (x@0 < 0)
+1       stmt 5 "INSERT INTO t1 VALUES ("negative")"
+2       jump 7
+3       jump_if_not 6(7) (x@0 = 0)
+4       stmt 5 "INSERT INTO t1 VALUES ("zero")"
+5       jump 7
+6       stmt 5 "INSERT INTO t1 VALUES ("positive")"
+@endverbatim
+
+  Instructions are numbered sequentially.
+  Position 0 is the start of the code.
+  The position 7 that is one past the last instruction
+  in this example represents the end of the code.
+
+  Note that the instruction jump_if_not 3(7) at position 0
+  can actually jump to three locations:
+
+  - When the evaluation of the condition "x < 0" is true,
+  the next instruction will be position 1 (the "then" branch),
+
+  - When the evaluation of the condition "x < 0" is false,
+  the next instruction will be position 3 (the "else" branch),
+
+  - When the evaluation of the condition "x < 0" results in an error,
+  and when a continue handler exists for the error,
+  the next instruction will be position 7,
+  known as the "continuation" destination.
+
+  Now, let's see how exception handlers are represented.
+  The following code contains just a very basic handler,
+  protecting a BEGIN/END block in the SQL logic:
+
+@verbatim
+CREATE PROCEDURE proc_2(x int)
+BEGIN
+  SELECT "Start";
+
+  INSERT INTO t1 VALUES (1);
+
+  BEGIN
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+    BEGIN
+      SELECT "Oops";
+    END;
+
+    INSERT INTO t1 VALUES (2);
+    INSERT INTO t1 VALUES (2);
+  END;
+
+  INSERT INTO t1 VALUES (3);
+  SELECT "Finish";
+END$$
+@endverbatim
+
+  The internal instructions for this stored procedure are:
+
+@verbatim
+SHOW PROCEDURE CODE proc_2;
+Pos     Instruction
+0       stmt 0 "SELECT "Start""
+1       stmt 5 "INSERT INTO t1 VALUES (1)"
+2       hpush_jump 5 1 CONTINUE
+3       stmt 0 "SELECT "Oops""
+4       hreturn 1
+5       stmt 5 "INSERT INTO t1 VALUES (2)"
+6       stmt 5 "INSERT INTO t1 VALUES (2)"
+7       hpop 1
+8       stmt 5 "INSERT INTO t1 VALUES (3)"
+9       stmt 0 "SELECT "Finish""
+@endverbatim
+
+  Note the flow of control in the code: there is not a single if.
+  The couple of @c hpush_jump / @c hpop represent the installation
+  and the removal of the exception handler.
+  The body of the exception handler starts at position 3,
+  whereas the code protected by the handler starts at position 5.
+  @c hpush_jump 5 1 means: add a handler for "1" condition (sqlexception),
+  where "1" stands for the index of declared conditions in the parsing context,
+  and execute the code starting at position "5".
+
+  @subsection sp_internal_pcontext Parsing Context
+
+  A parsing context is a tree of nodes,
+  where each node contains symbols (variables, cursors, labels, ...)
+  declared locally in the same name visibility scope.
+
+  For example, with the following SQL code:
+
+@verbatim
+CREATE PROCEDURE proc_3(x int, y int)
+BEGIN
+  -- This is the root parsing context
+  DECLARE v1 INT;
+  DECLARE v2 INT;
+  DECLARE v3 INT;
+
+  IF (x > 0) THEN
+    BEGIN
+      -- This is the child context A
+      DECLARE v1 INT;
+      DECLARE v4 INT DEFAULT 100;
+
+      set v4:= 1;
+      set v1:= x;
+    END;
+  ELSE
+    BEGIN
+      -- This is the child context B
+      DECLARE v2 INT;
+      DECLARE v4 INT DEFAULT 200;
+
+      set v4:= 2;
+      set v2:= y;
+      set v3:= 3;
+    END;
+  END IF;
+
+  set v1 := 4;
+END$$
+@endverbatim
+
+  The parsing contexts match exactly the nesting of BEGIN/END blocks:
+
+  - The root parsing context contains parameters x, y,
+  and local variables v1, v2, v3,
+
+  - The BEGIN/END block in the THEN part defines a child parsing
+  context (let's call it 'A'), that contains local variables v1 and v4,
+
+  - Likewise, the ELSE block defines a parsing context
+  (let's call it 'B') which is a child of the root,
+  and contains local variables v2 and v4.
+
+  The total number of symbols is 9: 5 for the root + 2 for A + 2 for B.
+  All the symbols are numbered internally (starting at offset 0),
+  by walking the parsing context tree in a depth first manner,
+  resulting in the following:
+
+  - Root:x --> 0, Root:y --> 1, Root:v1 --> 2, Root:v2 --> 3, Root:v3 --> 4,
+
+  - A:v1 --> 5, A:v4 --> 6,
+
+  - B:v2 --> 7, B:v4 --> 8,
+
+  There is no tool to dump the parsing context tree explicitly.
+  However, the internal numbering of symbols is apparent when printing the code:
+
+@verbatim
+SHOW PROCEDURE CODE proc_3;
+Pos     Instruction
+0       set v1@2 NULL
+1       set v2@3 NULL
+2       set v3@4 NULL
+3       jump_if_not 9(14) (x@0 > 0)
+4       set v1@5 NULL
+5       set v4@6 100
+6       set v4@6 1
+7       set v1@5 x@0
+8       jump 14
+9       set v2@7 NULL
+10      set v4@8 200
+11      set v4@8 2
+12      set v2@7 y@1
+13      set v3@4 3
+14      set v1@2 4
+@endverbatim
+
+  The points of interest are that:
+
+  - There are two variables named v1,
+  where the variable v1 from block A (represented as v1@5)
+  eclipses the variable v1 from the root block (represented as v1@2).
+
+  - There are two variables named v4, which are independent.
+  The variable v4 from block A is represented as v4@6,
+  whereas the variable v4 from block B is represented as v4@8.
+
+  The parsing context C++ class, #sp_pcontext,
+  contains much more information related to each symbol,
+  notably data types of variables
+  (unfortunately not printable with SHOW PROCEDURE CODE).
+
+  @section sp_parser Stored Program Parser
+
+  There is no “Stored Program Parser” as such,
+  there is only one parser in the SQL layer in the server.
+  This parser is capable of understanding every SQL statement,
+  including statements related to Stored Programs.
+  The parser is implemented as an ascendant parser, using bison.
+  The source code is located in the file sql/sql_yacc.yy.
+
+  The parts of the parser dedicated more specially to
+  Stored Programs are starting at the following rules:
+
+  - <tt>CREATE PROCEDURE</tt> : see rule sp_tail,
+
+  - <tt>CREATE FUNCTION</tt> : see rule sp_tail,
+
+  - <tt>CREATE TRIGGER</tt> : see rule trigger_tail,
+
+  - <tt>CREATE EVENT</tt> : see rule event_tail.
+
+  In every case, the parser reads the SQL text stream that
+  represents the code as input, and creates an internal representation
+  of the Stored Program as output, with one C++ object of type #sp_head.
+  A limiting consequence of this approach is that a stored program
+  does not support nesting: it is impossible to embed one
+  <tt>CREATE PROCEDURE</tt> into another,
+  since the parser currently may only support
+  one #sp_head object at a time.
+
+  @subsection sp_parser_structure Parser Structure
+
+  Conceptually, there are many different layers involved during parsing:
+
+  - Lexical analysis (making words or tokens from a character stream),
+
+  - Syntactic analysis (making "sentences" or an abstract syntax tree from the tokens),
+
+  - Semantic analysis (making sure these sentences do make sense),
+
+  - Code generation (for compilers) or evaluation (for interpreters).
+
+  From the implementation point or view,
+  many different concepts from different layers actually collide
+  in the same code base, so that the actual code organization is as follows:
+
+  - The lexical analysis is implemented in sql/sql_lex.cc,
+  as when parsing regular statements.
+
+  - Syntactic analysis, semantic analysis,
+  and code generation -- all of them -- are done at once,
+  during parsing of the code.
+  From that perspective, the parser behaves as a single pass compiler.
+  In other words, both the code and the symbol table
+  for the final result are generated on the fly,
+  interleaved with syntactic analysis.
+
+  This is both very efficient from a performance point of view,
+  but difficult to understand, from a maintenance point of view.
+
+  Let's illustrate for example how the following SQL statement is parsed:
+
+@code
+ DECLARE my_cursor CURSOR FOR SELECT col1 FROM t1;
+@endcode
+
+  The corresponding part of the grammar in the parser
+  for DECLARE CURSOR statements is the following (with annotated line numbers):
+
+@verbatim
+[ 1] sp_decl:
+[ 2]   DECLARE_SYM ident CURSOR_SYM FOR_SYM sp_cursor_stmt
+[ 3]   {
+[ 4]     LEX *lex= Lex;
+[ 5]     sp_head *sp= lex->sphead;
+[ 6]     sp_pcontext *ctx= lex->spcont;
+[ 7]     uint offp;
+[ 8]     sp_instr_cpush *i;
+[ 9]
+[10]     if (ctx->find_cursor(&$2, &offp, TRUE))
+[11]     {
+[12]       my_error(ER_SP_DUP_CURS, MYF(0), $2.str);
+[13]       delete $5;
+[14]       MYSQL_YYABORT;
+[15]     }
+[16]     i= new sp_instr_cpush(sp->instructions(), ctx, $5,
+[17]                           ctx->current_cursor_count());
+[18]     sp->add_instr(i);
+[19]     ctx->push_cursor(&$2);
+[20]     $$.vars= $$.conds= $$.hndlrs= 0;
+[21]     $$.curs= 1;
+[22]   }
+[23] ;
+@endverbatim
+
+  The lines [1], [2] and [23] are bison code
+  that express the structure of the grammar.
+  These lines belong to the syntactic parsing realm.
+
+  The lines [3] and [22] are bison delimiters
+  for the associated action to execute,
+  when parsing of the syntax succeeds.
+  Everything between lines [3] and [22] is C++ code,
+  executed when the parser finds a syntactically
+  correct DECLARE %CURSOR statement.
+
+  The lines [4] to [8] could be considered syntactic parsing:
+  what the code does is find what is the current
+  Stored Program being parsed,
+  find the associated part of the syntax tree under construction (#sp_head),
+  and find the associated current context
+  in the symbol table (#sp_pcontext).
+
+  Note that there is some black magic here:
+  since we are still currently parsing the content
+  of a Stored Program (the DECLARE %CURSOR statement),
+  the final “syntax” tree for the Stored Program (#sp_head)
+  is not supposed to exist yet. The reason the #sp_head object
+  is already available is that the actions in the
+  <tt>CREATE PROCEDURE</tt>, <tt>CREATE FUNCTION</tt>, <tt>CREATE TRIGGER</tt>,
+  or <tt>CREATE EVENT</tt> are implemented as a descendant parser
+  (it created an empty #sp_head object first, filling the content later).
+  Mixing code that way (descendant actions with ascendant parsing)
+  is extremely sensitive to changes.
+
+  The line [10] is a semantic check.
+  The statement might be syntactically correct (it parsed),
+  but to be semantically correct,
+  the name or the cursor must be unique in the symbol table.
+
+  Line [12] is reporting a semantic error back to the client (duplicate cursor).
+  The code at line [14] forces the syntactic parser (bison) to abort.
+
+  By line [16], we have verified that the code is syntactically valid,
+  and semantically valid: it's now time for code generation,
+  implemented by creating a new #sp_instr_cpush to represent
+  the cursor in the compiled code.
+  Note that variable allocation is done on the fly,
+  by looking up the current cursor count in the symbol table
+  (#sp_pcontext::current_cursor_count()).
+
+  Line [18] adds the generated code to the object
+  representing the stored program (code generation).
+
+  Line [19] maintains the symbol table (semantic parsing)
+  by adding the new cursor in the current local context.
+
+  Lines [20] and [21] return to bison a fragment of
+  a fake syntax tree, indicating that one cursor was found.
+
+  By looking at the complete implementation of this action in bison,
+  one should note that the target code was generated,
+  the symbol table for the Stored Program was looked up and updated,
+  while at no point in time a syntax node was even created.
+  Note that the #sp_instr_cpush object should really be considered generated code:
+  the fact that there is a one-to-one correspondence with the syntax is incidental.
+
+  @subsection sp_parser_codegen Single-Pass Code Generation
+
+  All the code generated by the parser is emitted in a single pass.
+  For example, consider the following SQL logic:
+
+@verbatim
+CREATE FUNCTION func_4(i int)
+RETURNS CHAR(10)
+BEGIN
+  DECLARE str CHAR(10);
+
+  CASE i
+    WHEN 1 THEN SET str="1";
+    WHEN 2 THEN SET str="2";
+    WHEN 3 THEN SET str="3";
+    ELSE SET str="unknown";
+  END CASE;
+
+  RETURN str;
+END$$
+@endverbatim
+
+  The compiled program for this Stored Function is:
+
+@verbatim
+SHOW FUNCTION CODE func_4;
+Pos     Instruction
+0       set str@1 NULL
+1       set_case_expr (12) 0 i@0
+2       jump_if_not 5(12) (case_expr@0 = 1)
+3       set str@1 _latin1'1'
+4       jump 12
+5       jump_if_not 8(12) (case_expr@0 = 2)
+6       set str@1 _latin1'2'
+7       jump 12
+8       jump_if_not 11(12) (case_expr@0 = 3)
+9       set str@1 _latin1'3'
+10      jump 12
+11      set str@1 _latin1'unknown'
+12      freturn 254 str@1
+@endverbatim
+
+  Note the instruction at position 4: jump 12.
+  How can the compiler generate this instruction in a single pass,
+  when the destination (12) is not known yet ?
+  This instruction is a forward jump.
+  What happens during code generation is that,
+  by the time the compiler has generated the code
+  for positions [0] to [11], the generated code looks like this:
+
+@verbatim
+Pos     Instruction
+0       set str@1 NULL
+1       set_case_expr ( ?? ) 0 i@0
+2       jump_if_not 5( ?? ) (case_expr@0 = 1)
+3       set str@1 _latin1'1'
+4       jump ??
+5       jump_if_not 8( ?? ) (case_expr@0 = 2)
+6       set str@1 _latin1'2'
+7       jump ??
+8       jump_if_not 11( ?? ) (case_expr@0 = 3)
+9       set str@1 _latin1'3'
+10      jump ??
+11      set str@1 _latin1'unknown'
+...
+@endverbatim
+
+  The final destination of the label for the END CASE is not known yet,
+  and the list of all the instructions (1, 2, 4, 5, 7, 8 and 10)
+  that need to point to this unknown destination (represented as ??)
+  is maintained in a temporary structure used during code generation only.
+  This structure is called the context back patch list.
+
+  When the destination label is finally resolved to a destination (12),
+  all the instructions pointing to that label,
+  which have been already generated (but with a bogus destination)
+  are back patched to point to the correct location.
+  See the comments marked @c BACKPATCH in the code for more details.
+
+  As a side note, this generated code also shows that
+  some temporary variables can be generated implicitly,
+  such as the operand of the CASE expression, labeled case_expr@0.
+
+  @attention Numbering of case expressions in the symbol table
+  uses a different name space than variables,
+  so that case_expr@0 and i@0 are two different variables,
+  even when both internally numbered with offset zero.
+
+  @section sp_optimizer Flow Analysis Optimizations
+
+  After code is generated, the low level sp_instr instructions are optimized.
+  The optimization focuses on two areas:
+
+  - Dead code removal,
+
+  - Jump shortcut resolution.
+
+  These two optimizations are performed together,
+  as they both are a problem involving flow analysis
+  in the graph that represents the generated code.
+
+  The code that implements these optimizations is #sp_head::optimize().
+
+  @attention Do not confuse #sp_head::optimize()
+  with the component named the optimizer,
+  as they are very different.
+  The former is specific to Stored Programs,
+  and focuses on improving the flow of statements,
+  whereas the latter is general to queries,
+  and focuses on finding the best execution plan when executing a single statement.
+  For the optimizer, see Optimization.
+
+  The (Stored Program) optimizer is invoked from only one place,
+  in the following code:
+
+@code
+db_load_routine(..., sp_head **sphp, ...)
+{
+  ...
+  (*sphp)->optimize();
+  ...
+}
+@endcode
+
+  @note By disabling the call to #sp_head::optimize()
+  and recompiling the code,
+  SHOW PROCEDURE CODE will display the code before flow optimization.
+
+  @attention When investigating issues related to this area,
+  you may want to use a @c DBUG_EXECUTE_IF
+  to avoid recompiling the server with or without
+  flow optimization every time.
+  Be careful to shutdown and restart the server with or without
+  the call to #sp_head::optimize() for each test,
+  or you will find that caching of a Stored Program code does interfere.
+
+  @subsection sp_optimizer_dead Dead Code Removal
+
+  'Dead code' is also known as 'unreachable code':
+  code that cannot possibly be executed,
+  because no path in the logic leads to it.
+
+  For example, consider the following SQL code:
+
+@verbatim
+CREATE PROCEDURE proc_5()
+BEGIN
+  DECLARE i INT DEFAULT 0;
+
+  again:
+  WHILE TRUE DO
+    BEGIN
+      set i:= i+1;
+
+      SELECT "This code is alive";
+
+      IF (i = 100) THEN
+        LEAVE again;
+      END IF;
+
+      ITERATE again;
+
+      SELECT "This code is dead";
+    END;
+  END WHILE;
+END$$
+@endverbatim
+
+  Before flow optimization, the compiled code is:
+
+@verbatim
+SHOW PROCEDURE CODE proc_5;
+Pos     Instruction
+0       set i@0 0
+1       jump_if_not 10(10) 1
+2       set i@0 (i@0 + 1)
+3       stmt 0 "SELECT "This code is alive""
+4       jump_if_not 7(7) (i@0 = 100)
+5       jump 10
+6       jump 7
+7       jump 1
+8       stmt 0 "SELECT "This code is dead""
+9       jump 1
+@endverbatim
+
+  Note the instruction at position 8:
+  the previous instruction is an unconditional jump,
+  so the flow of control can never reach 8 by coming from 7.
+  Because there exists no jump in the entire code that leads to 8 either,
+  the instruction at 8 is unreachable.
+  By looking further in the flow,
+  because 8 is unreachable and there are no jumps to position 9,
+  the instruction at position 9 is also unreachable.
+
+  The instruction at position 6 is also unreachable,
+  for a similar reason: the THEN part of the if contains a jump,
+  due to the statement LEAVE again;,
+  so that the code never executes the jump generated by the compiler
+  to go from the end of the THEN block to the statement following the IF.
+
+  After detecting all the unreachable instructions,
+  and simplifying the code,
+  the result after flow optimization is:
+
+@verbatim
+SHOW PROCEDURE CODE proc_5;
+Pos     Instruction
+0       set i@0 0
+1       jump_if_not 10(10) 1
+2       set i@0 (i@0 + 1)
+3       stmt 0 "SELECT "This code is alive""
+4       jump_if_not 1(1) (i@0 = 100)
+5       jump 10
+@endverbatim
+
+  The flow optimizer is good at detecting most of the dead code,
+  but has limitations.
+  For example, coding in SQL IF FALSE THEN ... END IF;
+  leads to code that can never be executed,
+  but since the flow optimizer does neither propagate constants
+  nor consider impossible conditional jumps, this code will not be removed.
+
+  The goal of the flow optimizer is mostly to perform
+  simple local optimizations with a low cost.
+  It's not a fully featured code optimizer,
+  and does not guard against poor SQL.
+
+  @subsection sp_optimizer_jump Jump Shortcut Resolution
+
+  The term jump shortcut refers to the following optimization:
+  when instruction A is a jump (conditional or not)
+  that goes to position B,
+  and when B is an unconditional jump to position C,
+  the code can be changed so that A can jump to C directly,
+  taking a shortcut to avoid the unnecessary B.
+  Consider the following SQL code:
+
+@verbatim
+CREATE PROCEDURE proc_6(x int, y int, z int)
+BEGIN
+  SELECT "Start";
+
+  IF (x > 0)
+  THEN
+    BEGIN
+      SELECT "x looks ok";
+      IF (y > 0)
+      THEN
+        BEGIN
+          SELECT "so does y";
+          IF (z > 0)
+          THEN
+            SELECT "even z is fine";
+          ELSE
+            SELECT "bad z";
+          END IF;
+        END;
+      ELSE
+        SELECT "bad y";
+      END IF;
+    END;
+  ELSE
+    SELECT "bad x";
+  END IF;
+
+  SELECT "Finish";
+END$$
+@endverbatim
+
+  Before flow optimization, the compiled code is:
+
+@verbatim
+SHOW PROCEDURE CODE proc_6;
+Pos     Instruction
+0       stmt 0 "SELECT "Start""
+1       jump_if_not 12(13) (x@0 > 0)
+2       stmt 0 "SELECT "x looks ok""
+3       jump_if_not 10(11) (y@1 > 0)
+4       stmt 0 "SELECT "so does y""
+5       jump_if_not 8(9) (z@2 > 0)
+6       stmt 0 "SELECT "even z is fine""
+7       jump 9
+8       stmt 0 "SELECT "bad z""
+9       jump 11
+10      stmt 0 "SELECT "bad y""
+11      jump 13
+12      stmt 0 "SELECT "bad x""
+13      stmt 0 "SELECT "Finish""
+@endverbatim
+
+  Note the jump 9 at position 7:
+  since the instruction at position 9 is jump 11,
+  the code at position 7 can be simplified to jump 11.
+  The optimization is also recursive:
+  since the instruction 11 is jump 13,
+  the final jump destination for the instruction at position 7 is jump 13.
+  Conditional jumps are optimized also,
+  so that the instruction 5: jump_if_not 8(9) can be optimized to jump_if_not 8(13).
+
+  After flow optimization, the compiled code is:
+
+@verbatim
+SHOW PROCEDURE CODE proc_6;
+Pos     Instruction
+0       stmt 0 "SELECT "Start""
+1       jump_if_not 12(13) (x@0 > 0)
+2       stmt 0 "SELECT "x looks ok""
+3       jump_if_not 10(13) (y@1 > 0)
+4       stmt 0 "SELECT "so does y""
+5       jump_if_not 8(13) (z@2 > 0)
+6       stmt 0 "SELECT "even z is fine""
+7       jump 13
+8       stmt 0 "SELECT "bad z""
+9       jump 13
+10      stmt 0 "SELECT "bad y""
+11      jump 13
+12      stmt 0 "SELECT "bad x""
+13      stmt 0 "SELECT "Finish""
+@endverbatim
+
+  Note the differences with every jump instruction.
+
+  @attention For clarity, this example has been designed
+  to not involve dead code.
+  Note that in general, an instruction that was reachable
+  before taking a shortcut might become unreachable after the shortcut,
+  so that the optimizations for jump shortcuts
+  and dead code are tightly intertwined.
+
+  @section sp_cache Stored Program Caches
+
+  The goal of the Stored Program cache is to keep
+  a parsed sp_head in memory, for future reuse. Reuse means:
+
+  - To be able to execute concurrently the same
+  Stored Program in different THD threads,
+
+  - To be able to execute the same Stored Program
+  multiple times (for recursive calls) in the same THD thread.
+
+  To achieve this, the implementation of #sp_head must be
+  both thread-safe and stateless.
+  Unfortunately, it is neither:
+
+  - The class #sp_head is composed of #sp_instr instructions to represent the code,
+  and these instructions in turn depend on Item objects,
+  used to represent the internal structure of a statement.
+  The various C++ Item classes are not currently thread-safe,
+  since the evaluation of an Item at runtime involves methods like Item::fix_fields(),
+  which modify the internal state of items,
+  making them impossible to safely evaluate concurrently.
+
+  - The class #sp_head itself contains attributes that describe
+  the SQL logic of a Stored Program (which are safe to share),
+  mixed with attributes that relate to the evaluation
+  of this logic in a given instance to a Stored Program call
+  (mostly the MEM_ROOT memory pool used during execution),
+  which by definition cannot be shared.
+
+  The consequence of these restrictions is less than optimal code.
+  What is currently implemented in the server
+  is detailed in the following subsections, to help maintenance.
+
+  @attention Needless to say, the current implementation
+  of Stored Program caching is by no mean final,
+  and could be re factored in future releases.
+
+  @subsection sp_cache_sp Stored Procedure Cache
+
+  The PROCEDURE cache is maintained on a per thread basis,
+  in #THD::sp_proc_cache.
+
+  The function used to lookup the cache is #sp_find_routine.
+  It relies on the C++ class #sp_cache for the low level implementation.
+
+  There is a global mechanism to invalidate all the caches
+  of all the THD threads at once,
+  implemented with the variable #atomic_Cversion in file sp_cache.cc,
+  which is incremented by function #sp_cache_invalidate().
+  This global invalidation is used when the server executes
+  DROP PROCEDURE or ALTER PROCEDURE statements.
+
+  Each entry in the cache is keyed by name,
+  and consists of a linked list of stored procedure instances
+  which are all duplicates of the same object.
+  The reason for the list is recursion,
+  when the runtime needs to evaluate several calls
+  to the same procedure at once.
+
+  The runtime behavior of this caching mechanism
+  has some limitations, and in particular:
+
+  - Each #THD has its own cache, so each separate client connection
+  to the server uses its own cache.
+  Multiple client connections calling the same Stored Procedure
+  will cause the parser to be invoked multiple times,
+  and memory to be consumed multiple times.
+
+  - If a given client constantly opens and closes
+  a new connection to the server,
+  and invokes Stored Procedures,
+  the cache will be always empty,
+  causing excessive parsing of used stored procedures on every invocation.
+
+  - If a given client constantly keeps an existing connection
+  to the server for a long time, and invokes Stored Procedures,
+  the cache size will grow, consuming and retaining memory.
+  In other words, memory limits or expulsion of cold members
+  of the stored procedure cache is not implemented.
+
+  - Calling #sp_cache_invalidate() does not reclaim the cache memory.
+  This memory will be reclaimed only if a Stored Procedure
+  is looked up in the cache again, causing the cache to flush.
+
+  @subsection sp_cache_sf Stored Function Cache
+
+  The FUNCTION cache is implemented exactly
+  like the PROCEDURE cache,
+  in the thread member in #THD::sp_func_cache.
+
+  Note that because #THD::sp_proc_cache and #THD::sp_func_cache are
+  both invalidated based on the same #atomic_Cversion counter,
+  executing DROP PROCEDURE happens to invalidate the FUNCTION cache as well,
+  while DROP FUNCTION also invalidates the PROCEDURE cache.
+  In practice, this has no consequences since DDL statements
+  like this are not executed typically while an application is running,
+  only when it is deployed.
+
+  @subsection sp_cache_trg Table Trigger Cache
+
+  For table triggers, all the triggers that relate to
+  a given table are grouped in the C++ class #Table_trigger_dispatcher,
+  which in particular contains the member sp_head *bodies[TRG_EVENT_MAX][TRG_ACTION_MAX].
+
+  Note that at most one trigger per event (BEFORE, AFTER)
+  and per action (INSERT, UPDATE, DELETE) can be defined currently.
+
+  The #Table_trigger_dispatcher itself is a part of struct #TABLE.
+
+  As a result, each table trigger body is duplicated
+  in each table handle, which is necessary to properly evaluate them.
+  #TABLE handles are globally cached and reused across threads,
+  so the table triggers are effectively reused across different
+  clients connections manipulating the same physical table.
+
+  @subsection sp_cache_evt Events and Caching
+
+  For events, the #sp_head object that represents the body
+  of an EVENT is part of the C++ class #Event_parse_data.
+
+  There is no caching of #sp_head for multiple scheduling of an event.
+  The method #Event_job_data::execute() invokes the parser
+  every time an event is executed.
+
+  @section sp_execution Stored Program Execution
+
+  Executing a Stored Program consists of interpreting
+  the low level #sp_instr code.
+  The runtime interpreter itself is implemented
+  in the method #sp_head::execute().
+  Wrappers for different kinds of Stored Programs
+  are implemented in the following methods:
+
+  - @c PROCEDURE : see #sp_head::execute_procedure(),
+
+  - @c FUNCTION : see #sp_head::execute_function(),
+
+  - @c TRIGGER : see #sp_head::execute_trigger(),
+
+  - @c EVENT : see #Event_job_data::execute().
+
+  @subsection sp_exc_rcont Runtime Context
+
+  An interpretor needs to be able to represent the state
+  of the SQL program being executed:
+  this is the role of the C++ class #sp_rcontext, or runtime context.
+
+  @subsubsection sp_exec_rcont_var Local Variables
+
+  Values of local variables in an SQL Stored Program
+  are stored within the #sp_rcontext.
+  When the code enters a new scope,
+  the sp_instr contains explicit statements to initialize
+  the local variable DEFAULT value, if any.
+  Since initialization of values is done in the code,
+  and since no logic needs to be executed
+  when an SQL variable goes out of scope,
+  space allocation to represent the data does
+  not need to follow the nesting of BEGIN/END blocks during runtime.
+
+  Another important point regarding the representation
+  of local SQL variables is that, conceptually,
+  a local variable can be considered to be an SQL table
+  with a single column (of the variable type),
+  with a single row (to represent the value).
+
+  As a result, all the local variables of a Stored Program
+  are represented by a row in a table internally.
+  For example, consider the following SQL code:
+
+@verbatim
+CREATE PROCEDURE proc_7(x int)
+BEGIN
+  DECLARE v1 INT;
+  DECLARE v2 VARCHAR(10);
+  DECLARE v3 TEXT;
+
+  IF (x > 0) THEN
+    BEGIN
+      DECLARE v4 BLOB;
+      DECLARE v5 VARCHAR(20);
+    END;
+  ELSE
+    BEGIN
+      DECLARE v6 DECIMAL(10, 2);
+      DECLARE v7 BIGINT;
+    END;
+  END IF;
+END$$
+@endverbatim
+
+  Internally, a temporary table is created, with the following structure:
+
+@verbatim
+CREATE TEMPORARY TABLE `proc_7_vars` (
+  `v1` int(11) DEFAULT NULL,
+  `v2` varchar(10) DEFAULT NULL,
+  `v3` text,
+  `v4` blob,
+  `v5` varchar(20) DEFAULT NULL,
+  `v6` decimal(10,2) DEFAULT NULL,
+  `v7` bigint(20) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+@endverbatim
+
+  The real name of the table and the columns are purely internal,
+  and the table is not accessible to regular statements
+  for DDL or DML operations:
+  proc_7_vars and v1 ... v7 are just a notation used in this example.
+  The #TABLE handle that implements all the local variable storage
+  is the member #sp_rcontext::m_var_table
+
+  Inside a statement, local variables in a Stored Program
+  are represented by the dedicated C++ class #Item_splocal.
+  #Item_splocal really is a proxy exposing the interface needed to support #Item,
+  which delegates to the underlying #sp_rcontext for reading
+  or writing local variable values.
+  The coupling between #Item_splocal and #sp_rcontext
+  is based on #Item_splocal::m_var_idx,
+  which is the variable index in the symbol table
+  computed by the parser, and maintained in #sp_pcontext.
+
+  @subsubsection sp_exec_rcont_cursor Cursors
+
+  Unlike local variables,
+  some action is needed in the interpreter
+  when a CURSOR goes out of scope:
+  the cursor must be closed,
+  to prevent leaks of the underlying TABLE resources.
+
+  As a result, cursor allocation
+  (and really, deallocation so they can be properly closed)
+  needs to follow tightly the BEGIN-END block structure of the code,
+  so a stack is used,
+  implemented by #sp_rcontext::m_cstack and #sp_rcontext::m_ccount.
+
+  @subsubsection sp_exec_rcont_case Case Expressions
+
+  For CASE expressions,
+  temporary variables are generated automatically.
+  Like CURSOR, there are some constraints that prevent
+  treating these special local variables like regular local variables.
+
+  The difficulty with CASE is that the real type
+  of the expression is only known when the case statement is executed,
+  so that allocating space in a statically computed TABLE is not practical.
+  For example, CASE (SELECT col1 FROM t1 WHERE ...)
+  is a case expression that involves a single row subselect.
+  During parsing, the table might not even exists,
+  so evaluating the type of col1 is impossible.
+  Creation of the table can be delayed until execution,
+  with statements like CREATE TEMPORARY TABLE.
+
+  Instead, an array of Item * is used,
+  implemented by #sp_rcontext::m_case_expr_holders.
+  The size of the array is static (it's the total number of cases),
+  but the content of each element is dynamic
+  (to account for the type of the case expression).
+
+  @attention Note the wording used here:
+  “static” means something that can be evaluated when compiling the code,
+  in the parser,
+  whereas “dynamic” means something that can be evaluated
+  only when interpreting the code, during runtime.
+  Of course, from a C++ coding point of view, everything is dynamic.
+
+  Inside a CASE statement, temporary local variables
+  in a Stored Program are represented by the dedicated C++ class #Item_case_expr.
+  The class #Item_case_expr is also a proxy,
+  similar in nature to #Item_splocal,
+  and delegates to #sp_rcontext for accessing the underlying
+  case expression value.
+  The coupling between #Item_case_expr and #sp_rcontext
+  is based on #Item_case_expr::m_case_expr_id,
+  which is the case expression index in the symbol table (see #sp_pcontext).
+
+  @subsubsection sp_exec_rcont_handler Exception Handlers
+
+  @todo Update the exception handler doc for SIGNAL, RESIGNAL and GET DIAGNOSTICS.
+
+  When the code enters a block of logic guarded by an SQL exception handler,
+  the state or the runtime context in the interpreter changes,
+  to represent this fact.
+  The state change is not apparent immediately,
+  it will only become apparent if an exception is raised.
+  The internal runtime state of the engine also changes
+  when the code leaves a block that contains an exception handler.
+
+  How exception handlers work during runtime is the subject
+  of another section (“Exception Handling”).
+  What is described here is the state maintained internally,
+  to represent which HANDLER is currently “active”,
+  and what CONDITION is protected against.
+
+  The SQL precedence rules for HANDLER dictates that
+  the last installed (inner most) handler is always considered first,
+  so the natural structure to represent what handler is active is a stack,
+  implemented by #sp_rcontext::m_visible_handlers.
+
+  In addition, some extra information is required for
+  CONTINUE handlers: the “address” in the code,
+  or instruction pointer in the #sp_instr array,
+  of where to resume execution when the handler returns.
+  This data is maintained in #sp_rcontext::m_activated_handlers,
+  which again is a stack because exception handlers can be nested
+  (exceptions can be raised and trapped during the execution
+   of the body of an exception handler, too).
+
+  @subsection sp_exec_instr Executing One Instruction
+
+  Executing an instruction consists of calling
+  the virtual method #sp_instr::execute(),
+  which is implemented for each instruction.
+
+  For instructions that can be executed directly,
+  and don't depend on the evaluation of
+  a general SQL statement or expression,
+  the execution is very simple.
+  See for example #sp_instr_jump::execute(),
+  #sp_instr_hpush_jump::execute() or #sp_instr_hpop::execute().
+  In all cases, the implementation of the execute()
+  method is purely internal to the runtime interpreter.
+
+  For instructions that need to evaluate a general expression,
+  like #sp_instr_jump_if_not::execute(),
+  or general instructions that need to execute an SQL statement,
+  such as #sp_instr_stmt::execute(), things are more complex.
+  The implementation needs to leverage the existing code
+  that is already capable of evaluating an expression or executing a query,
+  and is implemented by the function #mysql_execute_command().
+
+  The function #mysql_execute_command(),
+  for historical reasons (it was implemented before Stored Programs),
+  is mostly designed to consume directly the result of the parser,
+  which is passed as input in #THD::lex.
+
+  To comply with this interface,
+  the runtime for stored program has to provide a THD::lex structure
+  before executing each instruction,
+  to prepare an execution environment which looks
+  as if the statement to execute was just parsed.
+  Dealing with the existing interface for re-entrant
+  execution of SQL statements is the role of the C++ class #sp_lex_instr.
+  The wrapper method to used to execute instructions
+  is #sp_lex_instr::reset_lex_and_exec_core(),
+  which ultimately invokes the #sp_lex_instr::exec_core() instructions implementation.
+
+  @subsection sp_exec_flow Flow Control
+
+  Instructions are numbered sequentially,
+  and the current position in the code is represented
+  by an “instruction pointer”, which is just an integer.
+  In the main execution loop in #sp_head::execute(),
+  this instruction pointer is represented by the local variable ip.
+
+  When executing each instruction,
+  the method #sp_head::execute() is also responsible to
+  return the address of the next instruction to execute.
+  Most of the time,
+  this corresponds to the “next” instruction (implemented by m_ip+1),
+  except for absolute jumps (see #sp_instr_jump::execute())
+  or conditional jumps (see #sp_instr_jump_if_not::execute()).
+
+  @subsection sp_exec_handler Exception Handling
+
+  When the code enters a block protected by a HANDLER,
+  the execution leads to #sp_instr_hpush_jump::execute(),
+  which installs the exception handler in the runtime handler stack,
+  by calling #sp_rcontext::push_handler().
+
+  In a similar way, when the code leaves a block protected by a HANDLER,
+  #sp_instr_hpop::execute() removes the handlers installed
+  by the matching #sp_instr_hpush_jump,
+  by calling #sp_rcontext::pop_handlers().
+
+  During the execution of any statement,
+  different CONDITION can be raised at runtime,
+  which are reported by the implementation of each statement
+  by calling push_warning(), my_error() or similar functions.
+  All these entry points ultimately leads
+  to the error handler hook callback function
+  implemented by error_handler_hook in mysys/my_error.c.
+  In case of the server itself, this hook points to the function #my_message_sql().
+
+  Under normal circumstances,
+  my_message_sql() just reports a warning or an error
+  to the client application, and for errors causes the query to abort.
+
+  When executing a stored program,
+  #THD::sp_runtime_ctx points to the runtime context
+  of the program currently executed.
+  When a HANDLER is active, the runtime context contains
+  in its handler stack the list of all the CONDITIONs currently trapped,
+  giving a chance to the call to #sp_rcontext::handle_sql_condition() to intercept error handling.
+
+  If the condition reported does not match
+  any of the conditions for which an exception handler is active,
+  #sp_rcontext::handle_sql_condition() returns false,
+  and #my_message_sql() raises the error or warning as usual.
+
+  When the condition reported does match an active HANDLER,
+  that handler is called, but the technical nature of this call is special:
+  the call is asynchronous.
+  Instead of invoking the exception handler directly,
+  #sp_rcontext::handle_sql_condition() marks which exception handler is to be called,
+  by saving the activation on #sp_rcontext::m_activated_handlers,
+  and then returns true,
+  so that #my_message_sql() returns without reporting anything:
+  at this point, the error condition has been totally masked,
+  except for the fact that #sp_rcontext::m_activated_handlers is set.
+
+  Once #my_message_sql() returns,
+  the implementation of a given statement continues,
+  either by proceeding if only a warning was reported,
+  or by aborting the current execution if an error was raised.
+  The execution of code in the server will eventually
+  return from the implementation of a statement,
+  and return from the call to #sp_instr::execute() for that statement,
+  returning control to the loop located in #sp_head::execute().
+  Note that during the execution of the code that follows a call to #my_message_sql(),
+  error conditions are propagated in the call stack
+  though the function's return value.
+  It is transparent to the implementation
+  of statements in general whether an exception was caught by an error handler.
+
+  After an instruction is executed in #sp_head::execute(),
+  the main interpreter loop checks for any pending exception handler code to call,
+  by checking the thd error status.
+  If an exception was caught,
+  #sp_rcontext::handle_sql_condition() is invoked.
+
+  In case of CONTINUE HANDLER,
+  the instruction to return to after the handler code is executed
+  needs to be saved in the runtime context.
+  Finding the continuation destination is accomplished
+  by the call to #sp_instr::get_cont_dest() for the current instruction,
+  whereas preserving this destination is done
+  with a push on #sp_rcontext::m_activated_handlers.
+  The matching call to #sp_rcontext::pop_handler_frame(),
+  which is executed when the exception handler is done,
+  is located in #sp_instr_hreturn::execute().
+
+  @attention To integrate properly with exception handling in general,
+  the code should avoid testing for thd->net.report_error,
+  or worse inspecting the content of the error stack (displayed by SHOW ERRORS),
+  because doing this actually assumes
+  not only that an error was raised,
+  but also that it was not caught.
+  Instead, the proper way to implement error handling in the server
+  is to return error status values and check for them.
+
+  @subsection sp_exec_nest Call Nesting
+
+  In the following example,
+  the Stored Procedure proc_1 makes a nested call to proc_2.
+
+@verbatim
+CREATE TABLE my_debug(
+  seq int NOT NULL AUTO_INCREMENT,
+  msg varchar(80),
+  PRIMARY KEY(seq)
+);
+
+delimiter $$
+    CREATE PROCEDURE proc_1()
+BEGIN
+  INSERT INTO my_debug(msg) VALUES ("entering p1");
+  CALL proc_2();
+  INSERT INTO my_debug(msg) VALUES ("leaving p1");
+END$$
+
+CREATE PROCEDURE proc_2()
+BEGIN
+  INSERT INTO my_debug(msg) VALUES ("inside p2");
+END$$
+
+delimiter ;
+    CALL proc_1();
+@endverbatim
+
+  @note We do not have a debugger,
+  so this is old school printf-like debugging into a table.
+
+  By setting a breakpoint in #Sql_cmd_insert::mysql_insert in the server,
+  the current thread stack at the first insert will look like this:
+
+  @todo Refresh the stack
+
+@verbatim
+#0  mysql_insert () at sql_insert.cc:351
+#1  in mysql_execute_command () at sql_parse.cc:2643
+#2  in sp_instr_stmt::exec_core () at sp_head.cc:2609
+#3  in sp_lex_keeper::reset_lex_and_exec_core () at sp_head.cc:2455
+#4  in sp_instr_stmt::execute () at sp_head.cc:2560
+#5  in sp_head::execute () at sp_head.cc:1077
+#6  in sp_head::execute_procedure () at sp_head.cc:1726
+#7  in mysql_execute_command () at sql_parse.cc:3807
+#8  in mysql_parse () at sql_parse.cc:5274
+#9  in dispatch_command () at sql_parse.cc:896
+#10 in do_command () at sql_parse.cc:662
+#11 in handle_one_connection () at sql_connect.cc:1089
+#12 in start_thread () from /lib/libpthread.so.0
+#13 in clone () from /lib/libc.so.6
+@endverbatim
+
+  By the time the second INSERT is executed, the stack will look like this:
+
+  @todo Refresh the stack
+
+@verbatim
+#0  mysql_insert () at sql_insert.cc:351
+#1  in mysql_execute_command () at sql_parse.cc:2643
+#2  in sp_instr_stmt::exec_core () at sp_head.cc:2609
+#3  in sp_lex_keeper::reset_lex_and_exec_core () at sp_head.cc:2455
+#4  in sp_instr_stmt::execute () at sp_head.cc:2560
+#5  in sp_head::execute () at sp_head.cc:1077
+#6  in sp_head::execute_procedure () at sp_head.cc:1726
+#7  in mysql_execute_command () at sql_parse.cc:3807
+#8  in sp_instr_stmt::exec_core () at sp_head.cc:2609
+#9  in sp_lex_keeper::reset_lex_and_exec_core () at sp_head.cc:2455
+#10 in sp_instr_stmt::execute () at sp_head.cc:2560
+#11 in sp_head::execute () at sp_head.cc:1077
+#12 in sp_head::execute_procedure () at sp_head.cc:1726
+#13 in mysql_execute_command () at sql_parse.cc:3807
+#14 in mysql_parse () at sql_parse.cc:5274
+#15 in dispatch_command () at sql_parse.cc:896
+#16 in do_command () at sql_parse.cc:662
+#17 in handle_one_connection () at sql_connect.cc:1089
+#18 in start_thread () from /lib/libpthread.so.0
+#19 in clone () from /lib/libc.so.6
+@endverbatim
+
+  In this stack trace,
+  #sp_head::execute_procedure() at #12 corresponds to CALL proc_1();,
+  whereas #sp_head::execute_procedure() at #6 corresponds to CALL proc_2();.
+  In other words,
+  recursive calls in the user SQL code are implemented
+  by performing matching recursive calls in the system C++ code (the server).
+
+  This is actually a severe limitation of the implementation,
+  which causes problems for the following reasons:
+
+  - User logic can be arbitrarily nested,
+  with a long chain of Stored Programs calling other Stored Programs.
+  The total depth of calls can be greater than one would expect,
+  especially considering that a VIEW can invoke a FUNCTION,
+  and that a TRIGGER can also invoke other PROCEDURE,
+  FUNCTION, or TRIGGER objects.
+
+  - The amount of memory that can be consumed in the stack
+  for a thread is not infinite.
+  In fact, it's quite limited because
+  {MAX NUMBER OF THREADS} * {MAX THREAD STACK} = {TOTAL STACK}.
+  Note the catch in the equation here: @em MAX thread stack,
+  which is dependent on the nesting of stored program in the user SQL code,
+  for the worst case.
+  When MySQL does not use a thread pool and uses a @em big number of threads,
+  this can be a problem affecting scalability.
+
+  - As a result,
+  the Stored Program interpreter has to protect itself against stack overflow.
+  This is implemented by #check_stack_overrun()
+
+  What should be implemented instead,
+  is representing the user SQL stack on the C++ heap,
+  and have the interpreter loop instead of making recursive calls.
+
+  There are also other good reasons to use the heap.
+  For example, for error reporting,
+  the current implementation has no way to tell
+  that proc_2 was called from proc_1,
+  since this data is not available to the code; it's hidden in the C++ stack.
+
+  Nesting calls also has some impact on SQL exception handlers.
+  The member #THD::sp_runtime_ctx for the current thread
+  is not pointing to a single #sp_rcontext,
+  but to a stack of runtime contexts.
+
+  With the example used,
+  when the code is executing proc_1,
+  #THD::sp_runtime_ctx points to the runtime context for proc_1.
+  When the code is inside proc_2,
+  the current thread #THD::sp_runtime_ctx points to #sp_rcontext{proc_2}.
+  This pointer is saved and restored during each stored program execution.
+*/
 
 #ifdef HAVE_PSI_INTERFACE
 void init_sp_psi_keys()
