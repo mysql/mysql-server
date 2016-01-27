@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4751,8 +4751,8 @@ bugtest_27370()
   g_ndb->closeTransaction(g_con);
   g_con= NULL;
 
-  pthread_t thread_handle;
-  CHK(pthread_create(&thread_handle, NULL, bugtest_27370_thread, &data) == 0);
+  my_thread_handle thread_handle;
+  CHK(my_thread_create(&thread_handle, NULL, bugtest_27370_thread, &data) == 0);
 
   DBG("bug test 27370 - PK blob reads");
   Uint32 seen_updates= 0;
@@ -4859,7 +4859,7 @@ bugtest_27370()
 
   data.m_thread_stop= true;
   void *thread_return;
-  CHK(pthread_join(thread_handle, &thread_return) == 0);
+  CHK(my_thread_join(&thread_handle, &thread_return) == 0);
   DBG("bug 27370 - thread return status: " <<
       (thread_return ? (char *)thread_return : "<null>"));
   CHK(thread_return == 0);
