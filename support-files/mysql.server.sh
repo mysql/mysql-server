@@ -102,7 +102,7 @@ datadir_set=
 #
 # Use LSB init script functions for printing messages, if possible
 #
-export SYSTEMD_NO_WRAP=1
+[ "x$(uname -s)" = "xLinux" ] && export SYSTEMD_NO_WRAP=1 
 lsb_functions="/lib/lsb/init-functions"
 if test -f $lsb_functions ; then
   . $lsb_functions
