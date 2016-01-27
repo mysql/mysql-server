@@ -351,8 +351,6 @@ my $opt_max_test_fail= env_or_val(MTR_MAX_TEST_FAIL => 10);
 
 my $opt_parallel= $ENV{MTR_PARALLEL};
 
-our $opt_use_suite_opt;
-
 our $opt_run_non_parallel_tests;
 
 select(STDOUT);
@@ -369,6 +367,7 @@ sub main {
   # in all cases where the calling tool does not log the commands
   # directly before it executes them, like "make test-force-pl" in RPM builds.
   mtr_report("Logging: $0 ", join(" ", @ARGV));
+
   command_line_setup();
 
   # --help will not reach here, so now it's safe to assume we have binaries
@@ -1035,7 +1034,6 @@ sub print_global_resfile {
   resfile_global("ssl", $opt_ssl ? 1 : 0);
   resfile_global("compress", $opt_compress ? 1 : 0);
   resfile_global("parallel", $opt_parallel);
-  resfile_global("not-use-suite-opt", $opt_use_suite_opt);
   resfile_global("check-testcases", $opt_check_testcases ? 1 : 0);
   resfile_global("mysqld", \@opt_extra_mysqld_opt);
   resfile_global("bootstrap", \@opt_extra_bootstrap_opt);
@@ -1097,9 +1095,6 @@ sub command_line_setup {
 
 	     # Max number of parallel threads to use
 	     'parallel=s'               => \$opt_parallel,
-
-	     # specify to use suite opt 
-	     'not-use-suite-opt'        => \$opt_use_suite_opt,
 
              # Option to run the tests having 'not_parallel.inc' file
              'run-non-parallel-tests'   => \$opt_run_non_parallel_tests,
@@ -7276,7 +7271,6 @@ Misc options
                         Use parallel=auto for auto-setting of N
   run-non-parallel-tests
                         Option to run the tests having 'not_parallel.inc' file
-  use-suite-opt         Option to apply the suite.opt file
   repeat=N              Run each test N number of times
   retry=N               Retry tests that fail N times, limit number of failures
                         to $opt_retry_failure
