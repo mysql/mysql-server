@@ -53,6 +53,7 @@
 #include "val_int_compare.h"
 
 #include <cfloat>                // DBL_DIG
+#include <cmath>                 // std::log2
 #include <exception>             // std::exception subclasses
 #include <functional>
 
@@ -2973,7 +2974,7 @@ double Item_func_log2::val_real()
     signal_invalid_argument_for_log();
     return 0.0;
   }
-  return log(value) / M_LN2;
+  return std::log2(value);
 }
 
 double Item_func_log10::val_real()

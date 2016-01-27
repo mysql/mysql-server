@@ -131,6 +131,8 @@
 #include "opt_hints.h"           // hint_key_state
 #include "mysys_err.h"           // EE_CAPACITY_EXCEEDED
 
+#include <cmath>                 // std::log2
+
 using std::min;
 using std::max;
 
@@ -4833,7 +4835,7 @@ skip_to_ror_scan:
     roru_total_cost += roru_index_cost;
     roru_total_cost.add_cpu(
       cost_model->key_compare_cost(rows2double(roru_total_records) *
-                                   log((double)n_child_scans) / M_LN2));
+                                   std::log2(n_child_scans)));
   }
 
   trace_best_disjunct.add("index_roworder_union_cost",

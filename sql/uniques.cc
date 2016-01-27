@@ -43,6 +43,7 @@
 #include "table.h"
 
 #include <algorithm>
+#include <cmath>
 
 int unique_write_to_file(uchar* key, element_count count, Unique *unique)
 {
@@ -93,9 +94,11 @@ Unique::Unique(qsort2_cmp comp_func, void * comp_func_fixed_arg,
 
   Derivation of formula used for calculations is as follows:
 
-    log2(n!) = log(n!)/log(2) = log(sqrt(2*M_PI*n)*(n/M_E)^n) / log(2) =
+    log2(n!) = log2(sqrt(2*M_PI*n)*(n/M_E)^n)
 
-      = (log(2*M_PI*n)/2 + n*log(n/M_E)) / log(2).
+      = log2(2*M_PI*n)/2 + n*log2(n/M_E)
+
+      = log2(2*M_PI)/2 + log2(n)/2 + n * (log2(n) - M_LOG2E);
 
   @param n the number to calculate log2(n!) for
 
@@ -114,7 +117,8 @@ static inline double log2_n_fact(ulong n)
   if (n <= 1)
     return 0.0;
 
-  return (log(2*M_PI*n)/2 + n*log(n/M_E)) / M_LN2;
+  const auto log2_n= std::log2(n);
+  return std::log2(2 * M_PI) / 2 + log2_n / 2 + n * (log2_n - M_LOG2E);
 }
 
 
@@ -163,10 +167,8 @@ static double get_merge_buffers_cost(Unique::Imerge_cost_buf_type buff_elems,
   const double io_ops= static_cast<double>(total_buf_elems * elem_size) /
                        IO_SIZE;
   const double io_cost= cost_model->io_block_read_cost(io_ops);
-  /* Using log2(n)=log(n)/log(2) formula */
   const double cpu_cost=
-    cost_model->key_compare_cost(total_buf_elems * log((double) n_buffers) /
-                                 M_LN2);
+    cost_model->key_compare_cost(total_buf_elems * std::log2(n_buffers));
  
   return 2 * io_cost + cpu_cost;
 }

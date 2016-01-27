@@ -413,8 +413,6 @@ CHECK_SYMBOL_EXISTS(FIONREAD "sys/filio.h" FIONREAD_IN_SYS_FILIO)
 CHECK_SYMBOL_EXISTS(SIGEV_THREAD_ID "signal.h;time.h" HAVE_SIGEV_THREAD_ID)
 CHECK_SYMBOL_EXISTS(SIGEV_PORT "signal.h;time.h;sys/siginfo.h" HAVE_SIGEV_PORT)
 
-CHECK_SYMBOL_EXISTS(log2  math.h HAVE_LOG2)
-
 # On Solaris, it is only visible in C99 mode
 CHECK_SYMBOL_EXISTS(isinf "math.h" HAVE_C_ISINF)
 
