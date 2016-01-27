@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -421,7 +421,8 @@ private:
   void statOpAbort(Signal*, StatOp&);
   void statOpRef(Signal*, StatOp&);
   void statOpRef(Signal*, const IndexStatImplReq*, Uint32 errorCode, Uint32 errorLine);
-  void statOpEvent(StatOp&, const char* level, const char* msg, ...);
+  void statOpEvent(StatOp&, const char* level, const char* msg, ...)
+    ATTRIBUTE_FORMAT(printf, 4, 5);
   // debug
   friend class NdbOut& operator<<(NdbOut&, const StatOp& stat);
 };

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -96,6 +96,11 @@ setup_directories(atrt_config& config, int setup)
   }
   return true;
 }
+
+static
+void
+printfile(FILE* out, Properties& props, const char * section, ...)
+  ATTRIBUTE_FORMAT(printf, 3, 4);
 
 static
 void
