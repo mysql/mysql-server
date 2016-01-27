@@ -4149,9 +4149,6 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
              active_index, sorted, descending, table->read_set->bitmap[0]));
   DBUG_PRINT("enter", ("Starting new ordered scan on %s", m_tabname));
 
-  // Check that sorted seems to be initialised
-  DBUG_ASSERT(sorted == 0 || sorted == 1);
-
   if (unlikely(!(trans= get_transaction(error))))
   {
     DBUG_RETURN(error);
