@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -744,7 +744,7 @@ void ndbapi_tuples(Ndb *ndb, char *str, bool *res)
 
 	const NdbDictionary::Table *table = dict->getTable(TABLE_NAME);
 	if (!table) 
-    ERR_EXIT(dict, "Can't get table"TABLE_NAME);
+    ERR_EXIT(dict, "Can't get table" TABLE_NAME);
 	
 	const NdbDictionary::Column *col[COL_LEN];
 
