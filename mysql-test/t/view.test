@@ -5810,6 +5810,13 @@ CREATE VIEW v4 AS
 --echo # Cleanup
 DROP VIEW v1, v2, v3;
 
+--echo #
+--echo # Bug #22108567 ASSERTION `TABLE != 0' FAILED
+--echo #
+
+PREPARE X FROM 'CREATE VIEW bug22108567_v1 AS SELECT 1 FROM (SELECT 1) AS D1';
+EXECUTE X;
+DROP VIEW bug22108567_v1;
 
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
