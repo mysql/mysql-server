@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -377,7 +377,7 @@ enum ha_base_keytype {
         but can be overriden by SE. E.g. MyISAM does this at handler::open()
         and hander::info() time.
 
-  Also used for similar bitmaps in MyISAM (MYISAM_SHARE/MI_ISAMINFO::options).
+  Also used for similar bitmaps in MyISAM (MYISAM_SHARE::options, MI_ISAMINFO::options).
 */
 
 /**
@@ -410,7 +410,7 @@ enum ha_base_keytype {
   MyISAM doesn't respect ROW_FORMAT=COMPRESSED clause and doesn't allow direct
   creation of compressed tables. Existing tables can be compressed by external
   tool. This tool marks such tables with HA_OPTION_COMPRESS_RECORD flag in
-  MYISAM_SHARE/MI_ISAMINFO::options. Then storage engine sets this flag in
+  MYISAM_SHARE::options, MI_ISAMINFO::options. Then storage engine sets this flag in
   TABLE_SHARE::db_options_in_use to let SQL-layer know about the fact. It is
   never set in HA_CREATE_INFO::table_options or TABLE_SHARE::db_create_options.
 */
@@ -423,7 +423,7 @@ enum ha_base_keytype {
 /**
   Storage engine (MyISAM) internal flag for marking temporary tables.
 
-  Used in MYISAM_SHARE/MI_ISAMINFO::options, not used by SQL-layer,
+  Used in MYISAM_SHARE::options, MI_ISAMINFO::options, not used by SQL-layer,
   in HA_CREATE_INFO::table_options or TABLE_SHARE::db_create_options.
 */
 #define HA_OPTION_TMP_TABLE		16
@@ -460,7 +460,7 @@ enum ha_base_keytype {
   Storage engine (MyISAM) internal flag for marking tables which
   rely on SQL-layer because they have keys using fulltext parser plugin.
 
-  Used in MYISAM_SHARE/MI_ISAMINFO::options, not used by SQL-layer,
+  Used in MYISAM_SHARE::options, MI_ISAMINFO::options, not used by SQL-layer,
   in HA_CREATE_INFO::table_options or TABLE_SHARE::db_create_options.
 */
 #define HA_OPTION_RELIES_ON_SQL_LAYER   512
