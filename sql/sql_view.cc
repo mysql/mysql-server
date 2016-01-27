@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -318,8 +318,11 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
         tbl->table_name will be correct name of table because VIEWs are
         not opened yet.
       */
-      fill_effective_table_privileges(thd, &tbl->grant, tbl->db,
-                                      tbl->table_name);
+      if (tbl->is_derived())
+        tbl->set_privileges(SELECT_ACL);
+      else
+        fill_effective_table_privileges(thd, &tbl->grant, tbl->db,
+                                        tbl->table_name);
     }
   }
 
@@ -629,9 +632,11 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   /*
     Compare/check grants on view with grants of underlying tables
   */
-
-  fill_effective_table_privileges(thd, &view->grant, view->db,
-                                  view->table_name);
+  if (view->is_derived())
+    view->set_privileges(SELECT_ACL);
+  else
+    fill_effective_table_privileges(thd, &view->grant, view->db,
+                                    view->table_name);
 
   /*
     Make sure that the current user does not have more column-level privileges
