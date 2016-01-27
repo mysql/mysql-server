@@ -1083,7 +1083,9 @@ public:
     explicit Query_plan(THD *thd_arg)
       : thd(thd_arg),
         sql_command(SQLCOM_END),
-        modification_plan(NULL)
+        lex(NULL),
+        modification_plan(NULL),
+        is_ps(false)
     {}
 
     /**

@@ -7620,6 +7620,30 @@ ER_LOCK_REFUSED_BY_ENGINE
 ER_UNSUPPORTED_ALTER_ONLINE_ON_VIRTUAL_COLUMN
   eng "ADD COLUMN col...VIRTUAL, ADD INDEX(col)"
 
+ER_MASTER_KEY_ROTATION_NOT_SUPPORTED_BY_SE
+  eng "Master key rotation is not supported by storage engine."
+
+ER_MASTER_KEY_ROTATION_ERROR_BY_SE
+  eng "Encryption key rotation error reported by SE: %s"
+
+ER_MASTER_KEY_ROTATION_BINLOG_FAILED
+  eng "Write to binlog failed. However, master key rotation has been completed successfully."
+
+ER_MASTER_KEY_ROTATION_SE_UNAVAILABLE
+  eng "Storage engine is not available."
+
+ER_TABLESPACE_CANNOT_ENCRYPT
+  eng "This tablespace can't be encrypted."
+
+ER_INVALID_ENCRYPTION_OPTION
+  eng "Invalid encryption option."
+
+ER_CANNOT_FIND_KEY_IN_KEYRING
+  eng "Can't find master key from keyring, please check keyring plugin is loaded."
+
+ER_CAPACITY_EXCEEDED_IN_PARSER
+  eng "Parser bailed out for this query."
+
 #
 #  End of 5.7 error messages.
 #

@@ -2679,6 +2679,48 @@ static Sys_var_ulong Sys_range_optimizer_max_mem_size(
       DEFAULT(1536000),
       BLOCK_SIZE(1));
 
+static bool
+limit_parser_max_mem_size(sys_var *self, THD *thd, set_var *var)
+{
+  if (var->type == OPT_GLOBAL)
+    return false;
+  ulonglong val= var->save_result.ulonglong_value;
+  if (val > global_system_variables.parser_max_mem_size)
+  {
+    if (thd->security_context()->check_access(SUPER_ACL))
+      return false;
+    var->save_result.ulonglong_value=
+      global_system_variables.parser_max_mem_size;
+    return throw_bounds_warning(thd, "parser_max_mem_size",
+                                true, // fixed
+                                true, // is_unsigned
+                                val);
+  }
+  return false;
+}
+
+// Similar to what we do for the intptr typedef.
+#if SIZEOF_CHARP == SIZEOF_INT
+static unsigned int max_mem_sz = ~0;
+#elif SIZEOF_CHARP == SIZEOF_LONG
+static unsigned long max_mem_sz = ~0;
+#elif SIZEOF_CHARP == SIZEOF_LONG_LONG
+static unsigned long long max_mem_sz = ~0;
+#endif
+
+// Need at least 400Kb to get through bootstrap.
+static Sys_var_ulonglong Sys_parser_max_mem_size(
+      "parser_max_mem_size",
+      "Maximum amount of memory available to the parser",
+      SESSION_VAR(parser_max_mem_size),
+      CMD_LINE(REQUIRED_ARG),
+      VALID_RANGE(400 * 1000, max_mem_sz),
+      DEFAULT(max_mem_sz),
+      BLOCK_SIZE(1),
+      NO_MUTEX_GUARD, NOT_IN_BINLOG,
+      ON_CHECK(limit_parser_max_mem_size),
+      ON_UPDATE(NULL));
+
 static const char *optimizer_switch_names[]=
 {
   "index_merge", "index_merge_union", "index_merge_sort_union",

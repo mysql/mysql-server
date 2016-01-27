@@ -486,6 +486,20 @@ bool Diagnostics_area::has_sql_condition(const char *message_text,
 }
 
 
+bool Diagnostics_area::has_sql_condition(uint sql_errno) const
+{
+  Sql_condition_iterator it(m_conditions_list);
+  const Sql_condition *err;
+
+  while ((err= it++))
+  {
+    if (err->mysql_errno() == sql_errno)
+      return true;
+  }
+  return false;
+}
+
+
 void Diagnostics_area::reset_condition_info(THD *thd)
 {
   /*

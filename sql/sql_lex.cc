@@ -1304,6 +1304,12 @@ int MYSQLlex(YYSTYPE *yylval, YYLTYPE *yylloc, THD *thd)
   Lex_input_stream *lip= & thd->m_parser_state->m_lip;
   int token;
 
+  if (thd->is_error())
+  {
+    if (thd->get_parser_da()->has_sql_condition(ER_CAPACITY_EXCEEDED))
+      return ABORT_SYM;
+  }
+
   if (lip->lookahead_token >= 0)
   {
     /*
