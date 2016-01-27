@@ -33,9 +33,9 @@ SET @@session.parser_max_mem_size = 0.5;
 --echo # Check if the value in session Table matches value in variable
 
 --disable_warnings
-SET @@session.parser_max_mem_size = DEFAULT;
-SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES
-WHERE VARIABLE_NAME='parser_max_mem_size';
+## SET @@session.parser_max_mem_size = DEFAULT;
+## SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+## WHERE VARIABLE_NAME='parser_max_mem_size';
 --enable_warnings
 
 --echo # Check if TRUE and FALSE values can be used on variable

@@ -26,11 +26,6 @@ Warning	1292	Truncated incorrect parser_max_mem_size value: '-10'
 SET @@session.parser_max_mem_size = 0.5;
 ERROR 42000: Incorrect argument type to variable 'parser_max_mem_size'
 # Check if the value in session Table matches value in variable
-SET @@session.parser_max_mem_size = DEFAULT;
-SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES
-WHERE VARIABLE_NAME='parser_max_mem_size';
-VARIABLE_NAME	VARIABLE_VALUE
-PARSER_MAX_MEM_SIZE	18446744073709551615
 # Check if TRUE and FALSE values can be used on variable
 SET @@session.parser_max_mem_size = TRUE;
 Warnings:
