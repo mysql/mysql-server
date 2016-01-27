@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -7603,7 +7603,7 @@ void ha_ndbcluster::position(const uchar *record)
 }
 
 int
-ha_ndbcluster::cmp_ref(const uchar * ref1, const uchar * ref2)
+ha_ndbcluster::cmp_ref(const uchar * ref1, const uchar * ref2) const
 {
   DBUG_ENTER("cmp_ref");
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -175,7 +175,7 @@ class ha_ndbcluster: public handler, public Partition_handler
   int rnd_next(uchar *buf);
   int rnd_pos(uchar *buf, uchar *pos);
   void position(const uchar *record);
-  virtual int cmp_ref(const uchar * ref1, const uchar * ref2);
+  virtual int cmp_ref(const uchar * ref1, const uchar * ref2) const;
   int read_range_first(const key_range *start_key,
                        const key_range *end_key,
                        bool eq_range, bool sorted);
