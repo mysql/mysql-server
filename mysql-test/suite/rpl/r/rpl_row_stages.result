@@ -1,0 +1,252 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=1;
+CREATE DATABASE db_wl7364;
+use db_wl7364;
+CREATE TABLE t1 (c1 INT);
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES (1);
+UPDATE t1 SET c1= 2;
+DELETE FROM t1 WHERE c1=2;
+COMMIT;
+[connection slave]
+# Adding debug point 'dbug.rpl_apply_sync_barrier' to @@GLOBAL.debug
+include/start_slave_sql.inc
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [PERFORMANCE_SCHEMA.threads reports: state=Applying batch of row changes (write), db=db_wl7364, info LIKE "INSERT INTO t1 VALUES (1)", Query]
+include/assert.inc [INFORMATION_SCHEMA.processlist reports: db=db_wl7364, info LIKE "INSERT INTO t1 VALUES (1)", command=Query]
+[SHOW PROCESSLIST reports: db=db_wl7364, info LIKE "INSERT INTO t1 VALUES (1)", command=Query]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [PERFORMANCE_SCHEMA.threads reports: state=Applying batch of row changes (update), db=db_wl7364, info LIKE "UPDATE t1 SET c1= 2", Query]
+include/assert.inc [INFORMATION_SCHEMA.processlist reports: db=db_wl7364, info LIKE "UPDATE t1 SET c1= 2", command=Query]
+[SHOW PROCESSLIST reports: db=db_wl7364, info LIKE "UPDATE t1 SET c1= 2", command=Query]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [PERFORMANCE_SCHEMA.threads reports: state=Applying batch of row changes (delete), db=db_wl7364, info LIKE "DELETE FROM t1 WHERE c1=2", Query]
+include/assert.inc [INFORMATION_SCHEMA.processlist reports: db=db_wl7364, info LIKE "DELETE FROM t1 WHERE c1=2", command=Query]
+[SHOW PROCESSLIST reports: db=db_wl7364, info LIKE "DELETE FROM t1 WHERE c1=2", command=Query]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+[connection master]
+SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=0;
+TRUNCATE t1;
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+# Removing debug point 'dbug.rpl_apply_sync_barrier' from @@GLOBAL.debug
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES (1);
+UPDATE t1 SET c1= 2;
+DELETE FROM t1 WHERE c1=2;
+COMMIT;
+[connection slave]
+# Adding debug point 'dbug.rpl_apply_sync_barrier' to @@GLOBAL.debug
+include/start_slave_sql.inc
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [PERFORMANCE_SCHEMA.threads reports: state=Applying batch of row changes (write), db=db_wl7364, info IS NULL, Query]
+include/assert.inc [INFORMATION_SCHEMA.processlist reports: db=db_wl7364, info IS NULL, command=Query]
+[SHOW PROCESSLIST reports: db=db_wl7364, info LIKE 'NULL', command=Query]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [PERFORMANCE_SCHEMA.threads reports: state=Applying batch of row changes (update), db=db_wl7364, info IS NULL, Query]
+include/assert.inc [INFORMATION_SCHEMA.processlist reports: db=db_wl7364, info IS NULL, command=Query]
+[SHOW PROCESSLIST reports: db=db_wl7364, info LIKE 'NULL', command=Query]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [PERFORMANCE_SCHEMA.threads reports: state=Applying batch of row changes (delete), db=db_wl7364, info IS NULL, Query]
+include/assert.inc [INFORMATION_SCHEMA.processlist reports: db=db_wl7364, info IS NULL, command=Query]
+[SHOW PROCESSLIST reports: db=db_wl7364, info LIKE 'NULL', command=Query]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+# Removing debug point 'dbug.rpl_apply_sync_barrier' from @@GLOBAL.debug
+[connection master]
+SET SESSION SQL_LOG_BIN=0;
+TRUNCATE t1;
+[connection master1]
+SET SESSION SQL_LOG_BIN=0;
+# Adding debug point 'dbug.rpl_apply_sync_barrier' to @@SESSION.debug
+BEGIN;
+BINLOG '
+mSKWVg8BAAAAdwAAAHsAAAAAAAQANS44LjAtbTE3LWRlYnVnLWxvZwAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAACZIpZWEzgNAAgAEgAEBAQEEgAAXwAEGggAAAAICAgCAAAACgoKKioAEjQA
+AYzz6oU=
+'/*!*/;
+BINLOG 'mSKWVhMBAAAAMgAAAOYCAAAAAPAAAAAAAAEACWRiX3dsNzM2NAACdDEAAQMAAfg9wnk=mSKWVh4BAAAAKAAAAA4DAAAAAPAAAAAAAAEAAgAB//4BAAAAnirPSw==';
+[connection master]
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [PERFORMANCE_SCHEMA.threads reports: state=Applying batch of row changes (write), db=db_wl7364, info LIKE "BINLOG %", Query]
+include/assert.inc [INFORMATION_SCHEMA.processlist reports: db=db_wl7364, info LIKE "BINLOG %", command=Query]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+[connection master1]
+BINLOG 'mSKWVhMBAAAAMgAAAGsDAAAAAPAAAAAAAAEACWRiX3dsNzM2NAACdDEAAQMAAWFoKHE=mSKWVh8BAAAALgAAAJkDAAAAAPAAAAAAAAEAAgAB///+AQAAAP4CAAAAuiHqhw==';
+[connection master]
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [PERFORMANCE_SCHEMA.threads reports: state=Applying batch of row changes (update), db=db_wl7364, info LIKE "BINLOG %", Query]
+include/assert.inc [INFORMATION_SCHEMA.processlist reports: db=db_wl7364, info LIKE "BINLOG %", command=Query]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+[connection master1]
+BINLOG 'mSKWVhMBAAAAMgAAAPwDAAAAAPAAAAAAAAEACWRiX3dsNzM2NAACdDEAAQMAAd+b01A=mSKWViABAAAAKAAAACQEAAAAAPAAAAAAAAEAAgAB//4CAAAAN7fZXg== ';
+[connection master]
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [PERFORMANCE_SCHEMA.threads reports: state=Applying batch of row changes (delete), db=db_wl7364, info LIKE "BINLOG %", Query]
+include/assert.inc [INFORMATION_SCHEMA.processlist reports: db=db_wl7364, info LIKE "BINLOG %", command=Query]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+[connection master1]
+COMMIT;
+# Removing debug point 'dbug.rpl_apply_sync_barrier' from @@SESSION.debug
+SET SESSION SQL_LOG_BIN=1;
+[connection master]
+SET SESSION SQL_LOG_BIN=1;
+[connection master]
+DROP DATABASE db_wl7364;
+[connection master]
+use test;
+CREATE TABLE t1 (c1 INT);
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+# Adding debug point 'dbug.rpl_apply_sync_barrier' to @@GLOBAL.debug
+include/start_slave_sql.inc
+[connection master]
+USE test;
+BEGIN;
+INSERT INTO t1 VALUES (1), (2), (3);
+UPDATE t1 SET c1= 1000;
+DELETE FROM t1 WHERE c1=1000;
+COMMIT;
+[connection slave]
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [Assert that progress reports 1 row processed]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [Assert that progress reports 2 row processed]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [Assert that progress reports 3 row processed]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [Assert that progress reports 1 row processed]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [Assert that progress reports 2 row processed]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [Assert that progress reports 3 row processed]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [Assert that progress reports 1 row processed]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [Assert that progress reports 2 row processed]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [Assert that progress reports 3 row processed]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+# Removing debug point 'dbug.rpl_apply_sync_barrier' from @@GLOBAL.debug
+[connection master]
+DROP TABLE t1;
+[connection master]
+use test;
+CREATE TABLE t1 (c1 INT);
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+UPDATE performance_schema.setup_instruments SET ENABLED = 'NO' WHERE NAME LIKE 'stage/sql/Applying batch of row changes%';
+# Adding debug point 'dbug.rpl_apply_sync_barrier' to @@GLOBAL.debug
+include/start_slave_sql.inc
+[connection master]
+USE test;
+BEGIN;
+INSERT INTO t1 VALUES (1), (2), (3);
+UPDATE t1 SET c1= 1000;
+DELETE FROM t1 WHERE c1=1000;
+COMMIT;
+[connection slave]
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [Assert that there is no progress report with the instrument disabled]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [Assert that there is no progress report with the instrument disabled]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [Assert that there is no progress report with the instrument disabled]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [Assert that there is no progress report with the instrument disabled]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [Assert that there is no progress report with the instrument disabled]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [Assert that there is no progress report with the instrument disabled]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [Assert that there is no progress report with the instrument disabled]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [Assert that there is no progress report with the instrument disabled]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [Assert that there is no progress report with the instrument disabled]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+UPDATE performance_schema.setup_instruments SET ENABLED = 'YES' WHERE NAME LIKE 'stage/sql/Applying batch of row changes%';
+# Removing debug point 'dbug.rpl_apply_sync_barrier' from @@GLOBAL.debug
+[connection slave]
+CREATE DATABASE db2;
+use db2;
+include/stop_slave_sql.inc
+CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=((db1,db2));
+include/start_slave_sql.inc
+[connection master]
+SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=1;
+set sql_log_bin=0;
+CREATE DATABASE db1;
+use db1;
+set sql_log_bin=1;
+CREATE TABLE t1 (c1 INT);
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES (1);
+UPDATE t1 SET c1= 2;
+DELETE FROM t1 WHERE c1=2;
+COMMIT;
+[connection slave]
+# Adding debug point 'dbug.rpl_apply_sync_barrier' to @@GLOBAL.debug
+include/start_slave_sql.inc
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [PERFORMANCE_SCHEMA.threads reports: state=Applying batch of row changes (write), db=db2, info LIKE "INSERT INTO t1 VALUES (1)", Query]
+include/assert.inc [INFORMATION_SCHEMA.processlist reports: db=db2, info LIKE "INSERT INTO t1 VALUES (1)", command=Query]
+[SHOW PROCESSLIST reports: db=db2, info LIKE "INSERT INTO t1 VALUES (1)", command=Query]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [PERFORMANCE_SCHEMA.threads reports: state=Applying batch of row changes (update), db=db2, info LIKE "UPDATE t1 SET c1= 2", Query]
+include/assert.inc [INFORMATION_SCHEMA.processlist reports: db=db2, info LIKE "UPDATE t1 SET c1= 2", command=Query]
+[SHOW PROCESSLIST reports: db=db2, info LIKE "UPDATE t1 SET c1= 2", command=Query]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+SET debug_sync= 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+include/assert.inc [PERFORMANCE_SCHEMA.threads reports: state=Applying batch of row changes (delete), db=db2, info LIKE "DELETE FROM t1 WHERE c1=2", Query]
+include/assert.inc [INFORMATION_SCHEMA.processlist reports: db=db2, info LIKE "DELETE FROM t1 WHERE c1=2", command=Query]
+[SHOW PROCESSLIST reports: db=db2, info LIKE "DELETE FROM t1 WHERE c1=2", command=Query]
+SET debug_sync= 'now SIGNAL signal.rpl_row_apply_process_next_row';
+[connection slave]
+# Removing debug point 'dbug.rpl_apply_sync_barrier' from @@GLOBAL.debug
+include/stop_slave_sql.inc
+CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=();
+include/start_slave_sql.inc
+DROP DATABASE db2;
+[connection master]
+set sql_log_bin=0;
+DROP DATABASE db1;
+set sql_log_bin=1;
+[connection master]
+USE test;
+DROP TABLE t1;
+SET @@SESSION.BINLOG_ROWS_QUERY_LOG_EVENTS=0;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

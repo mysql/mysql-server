@@ -9190,6 +9190,9 @@ PSI_stage_info stage_slave_waiting_worker_queue= { 0, "Waiting for Slave Worker 
 PSI_stage_info stage_slave_waiting_worker_to_free_events= { 0, "Waiting for Slave Workers to free pending events", 0};
 PSI_stage_info stage_slave_waiting_worker_to_release_partition= { 0, "Waiting for Slave Worker to release partition", 0};
 PSI_stage_info stage_slave_waiting_workers_to_exit= { 0, "Waiting for workers to exit", 0};
+PSI_stage_info stage_rpl_apply_row_evt_write= { 0, "Applying batch of row changes (write)", PSI_FLAG_STAGE_PROGRESS};
+PSI_stage_info stage_rpl_apply_row_evt_update= { 0, "Applying batch of row changes (update)", PSI_FLAG_STAGE_PROGRESS};
+PSI_stage_info stage_rpl_apply_row_evt_delete= { 0, "Applying batch of row changes (delete)", PSI_FLAG_STAGE_PROGRESS};
 PSI_stage_info stage_sorting_for_group= { 0, "Sorting for group", 0};
 PSI_stage_info stage_sorting_for_order= { 0, "Sorting for order", 0};
 PSI_stage_info stage_sorting_result= { 0, "Sorting result", 0};
@@ -9303,6 +9306,9 @@ PSI_stage_info *all_server_stages[]=
   & stage_slave_waiting_worker_to_free_events,
   & stage_slave_waiting_worker_to_release_partition,
   & stage_slave_waiting_workers_to_exit,
+  & stage_rpl_apply_row_evt_write,
+  & stage_rpl_apply_row_evt_update,
+  & stage_rpl_apply_row_evt_delete,
   & stage_sorting_for_group,
   & stage_sorting_for_order,
   & stage_sorting_result,

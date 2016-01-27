@@ -9749,6 +9749,54 @@ void Rows_log_event::do_post_row_operations(Relay_log_info const *rli, int error
     thd->get_transaction()->set_unsafe_rollback_flags(Transaction_ctx::STMT,
                                                       TRUE);
   }
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+  /*
+   Count the number of rows processed unconditionally. Needed instrumentation
+   may be toggled while a rows event is being processed.
+  */
+  m_psi_progress.inc_n_rows_applied(1);
+
+  if (m_curr_row > m_rows_buf)
+  {
+    /* Report progress. */
+    m_psi_progress.update_work_estimated_and_completed(m_curr_row,
+                                                       m_rows_buf,
+                                                       m_rows_end);
+  }
+  else if (m_curr_row == m_rows_buf)
+  {
+    /*
+      Master can generate an empty row, in the following situation:
+      mysql> SET SESSION binlog_row_image=MINIMAL;
+      mysql> CREATE TABLE t1 (c1 INT DEFAULT 100);
+      mysql> INSERT INTO t1 VALUES ();
+
+      Otherwise, m_curr_row must be ahead of m_rows_buf, since we
+      have processed the first row already.
+
+      No point in reporting progress, since this would show for a
+      very small fraction of time - thence no point in speding extra
+      CPU cycles for this.
+
+      Nevertheless assert that the event is a write event, otherwise,
+      this should not happen.
+    */
+    DBUG_ASSERT(get_general_type_code() == binary_log::WRITE_ROWS_EVENT);
+  }
+  else
+    /* Impossible */
+    DBUG_ASSERT(false);
+
+  DBUG_EXECUTE_IF("dbug.rpl_apply_sync_barrier",
+               {
+                 const char act[]= "now SIGNAL signal.rpl_row_apply_progress_updated "
+                                   "WAIT_FOR signal.rpl_row_apply_process_next_row";
+                 DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                 DBUG_ASSERT(!debug_sync_set_action(thd,
+                                                    STRING_WITH_LEN(act)));
+               };);
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 }
 
 int Rows_log_event::handle_idempotent_and_ignored_errors(Relay_log_info const *rli, int *err)
@@ -9802,7 +9850,6 @@ int Rows_log_event::do_apply_row(Relay_log_info const *rli)
     DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
     DBUG_ASSERT(error != HA_ERR_RECORD_DELETED);
   }
-
   m_table->in_use = old_thd;
 
   DBUG_RETURN(error);
@@ -10801,6 +10848,16 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       which tested replicate-* rules).
     */
 
+    bool no_columns_to_update= false;
+    // set the database
+    LEX_CSTRING thd_db;
+    LEX_CSTRING current_db_name_saved= thd->db();
+    thd_db.str= table->s->db.str;
+    thd_db.length= table->s->db.length;
+    thd->reset_db(thd_db);
+    thd->set_command(COM_QUERY);
+    PSI_stage_info *stage= NULL;
+
     /*
       It's not needed to set_time() but
       1) it continues the property that "Time" in SHOW PROCESSLIST shows how
@@ -10840,16 +10897,30 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     DBUG_PRINT_BITSET("debug", "Setting table's read_set from: %s", &m_cols);
 
     bitmap_set_all(table->read_set);
-    if (get_general_type_code() == binary_log::DELETE_ROWS_EVENT ||
-        get_general_type_code() == binary_log::UPDATE_ROWS_EVENT)
-        bitmap_intersect(table->read_set,&m_cols);
-
     bitmap_set_all(table->write_set);
 
-    /* WRITE ROWS EVENTS store the bitmap in m_cols instead of m_cols_ai */
-    MY_BITMAP *after_image= ((get_general_type_code() == binary_log::UPDATE_ROWS_EVENT) ?
-                             &m_cols_ai : &m_cols);
-    bitmap_intersect(table->write_set, after_image);
+    switch (get_general_type_code())
+    {
+      case binary_log::DELETE_ROWS_EVENT:
+        bitmap_intersect(table->read_set,  &m_cols);
+        stage= & stage_rpl_apply_row_evt_delete;
+        break;
+      case binary_log::UPDATE_ROWS_EVENT:
+        bitmap_intersect(table->read_set,  &m_cols);
+        bitmap_intersect(table->write_set, &m_cols_ai);
+        /* Skip update rows events that don't have data for this server's table. */
+        if (!is_any_column_signaled_for_table(table, &m_cols_ai))
+          no_columns_to_update= true;
+        stage= & stage_rpl_apply_row_evt_update;
+        break;
+      case binary_log::WRITE_ROWS_EVENT:
+        /* WRITE ROWS EVENTS store the bitmap in the m_cols bitmap */
+        bitmap_intersect(table->write_set, &m_cols);
+        stage= & stage_rpl_apply_row_evt_write;
+        break;
+      default:
+        DBUG_ASSERT(false);
+    }
 
     if (thd->slave_thread) // set the mode for slave
       this->rbr_exec_mode= slave_exec_mode_options;
@@ -10887,8 +10958,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
        Skip update rows events that don't have data for this slave's
        table.
      */
-    if ((get_general_type_code() == binary_log::UPDATE_ROWS_EVENT) &&
-        !is_any_column_signaled_for_table(table, &m_cols_ai))
+    if (no_columns_to_update)
       goto AFTER_MAIN_EXEC_ROW_LOOP;
 
     /**
@@ -10932,6 +11002,13 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         break;
     }
 
+    DBUG_ASSERT(stage != NULL);
+    THD_STAGE_INFO(thd, *stage);
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+    m_psi_progress.set_progress(mysql_set_stage(stage->m_key));
+#endif
+
     do {
 
       error= (this->*do_apply_row_ptr)(rli);
@@ -10943,6 +11020,10 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       do_post_row_operations(rli, error);
 
     } while (!error && (m_curr_row != m_rows_end));
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+    m_psi_progress.end_work();
+#endif
 
 AFTER_MAIN_EXEC_ROW_LOOP:
 
@@ -10996,6 +11077,9 @@ AFTER_MAIN_EXEC_ROW_LOOP:
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       error= 0;
     }
+
+    // reset back the db
+    thd->reset_db(current_db_name_saved);
   } // if (table)
 
   if (error)

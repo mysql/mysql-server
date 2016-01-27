@@ -4246,6 +4246,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   if (thd_type == SLAVE_THD_SQL)
   {
     THD_STAGE_INFO(thd, stage_waiting_for_the_next_event_in_relay_log);
+    thd->set_command(COM_QUERY); // the SQL thread does not use the server protocol
   }
   else
   {

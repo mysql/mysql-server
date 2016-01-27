@@ -577,7 +577,7 @@ bool THD::set_db(const LEX_CSTRING &new_db)
   mysql_mutex_unlock(&LOCK_thd_data);
   result= new_db.str && !m_db.str;
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  if (result)
+  if (!result)
     PSI_THREAD_CALL(set_thread_db)(new_db.str,
                                    static_cast<int>(new_db.length));
 #endif

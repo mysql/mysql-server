@@ -56,6 +56,10 @@
 #include <set>
 #include <string>
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
+#include <mysql/psi/mysql_stage.h>
+#endif
+
 #ifdef MYSQL_CLIENT
 class Format_description_log_event;
 typedef bool (*read_log_event_filter_function)(char** buf,
@@ -2788,6 +2792,112 @@ private:
 #endif
 };
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
+/*
+ Helper class for PSI context while applying a Rows_log_event.
+ */
+class Rows_applier_psi_stage
+{
+private:
+  Rows_applier_psi_stage(const Rows_applier_psi_stage& rhs);
+  Rows_applier_psi_stage& operator=(const Rows_applier_psi_stage& rhs);
+
+  /**
+   A cached pointer to this stage PSI_stage_progress.
+   */
+  PSI_stage_progress* m_progress;
+
+  /**
+   Counter that is unconditionally incremented on each row that is processed.
+   This is helpful in case estimation is needed after started processing
+   a Rows_log_event.
+   */
+  ulonglong m_n_rows_applied;
+
+
+public:
+  Rows_applier_psi_stage() :
+    m_progress(NULL), m_n_rows_applied(0)
+  { }
+
+  void set_progress(PSI_stage_progress *progress)
+  {
+    m_progress= progress;
+  }
+
+  /**
+   If instrumentation is enabled this member function SHALL return true.
+   @return true if instrumentation is enabled for the given stage, false otherwise.
+   */
+  bool is_enabled()
+  {
+
+    return m_progress != NULL;
+  }
+
+  /**
+   This member function shall update the progress and reestimate the remaining
+   work needed. This MUST be called after setting n_rows_applied correctly
+   by calling inc_n_rows_applied beforehand.
+
+   Cursor, begin and end are used in case estimation is needed.
+
+   @param cursor Pointer to where we are in the buffer of rows to be processed.
+   @param begin Pointer to the beginning of the rows buffer.
+   @param end Pointer to the end of the rows buffer.
+   */
+  void update_work_estimated_and_completed(const uchar* cursor,
+                                           const uchar* begin,
+                                           const uchar* end)
+  {
+    if (!is_enabled())
+      return;
+
+    ulonglong estimated= mysql_stage_get_work_estimated(m_progress);
+
+    /* Estimate if need be. */
+    if (estimated == 0)
+    {
+      DBUG_ASSERT(cursor > begin);
+      ulonglong avg_row_change_size= (cursor - begin) / m_n_rows_applied;
+      estimated= (end - begin) / avg_row_change_size;
+      mysql_stage_set_work_estimated(m_progress, estimated);
+    }
+
+    /* reset estimated if done more work than estimated */
+    if (m_n_rows_applied > estimated)
+      mysql_stage_set_work_estimated(m_progress, m_n_rows_applied);
+    mysql_stage_set_work_completed(m_progress, m_n_rows_applied);
+  }
+
+  /**
+   Resets this object.
+   */
+  void end_work()
+  {
+    m_progress= NULL;
+    m_n_rows_applied= 0;
+  }
+
+  /**
+   Updates the counter of processed rows.
+   @param delta the amount of increment to be done.
+   */
+  void inc_n_rows_applied(ulonglong delta)
+  {
+    m_n_rows_applied+= delta;
+  }
+
+  /**
+   Gets the value of the counter of rows that have been processed.
+   @return the value of the counter of rows processed so far.
+   */
+  ulonglong get_n_rows_applied()
+  {
+    return m_n_rows_applied;
+  }
+};
+#endif
 
 /**
   @class Rows_log_event
@@ -2824,6 +2934,11 @@ private:
 */
 class Rows_log_event : public virtual binary_log::Rows_event, public Log_event
 {
+#ifdef HAVE_PSI_STAGE_INTERFACE
+protected:
+    Rows_applier_psi_stage m_psi_progress;
+#endif
+
 public:
   typedef uint16 flag_set;
 
