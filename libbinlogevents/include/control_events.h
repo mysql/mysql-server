@@ -882,19 +882,63 @@ struct Uuid
   bool equals(const Uuid &other) const
   { return memcmp(bytes, other.bytes, BYTE_LENGTH) == 0; }
   /**
-    Return true if parse() would return succeed, but don't actually
-    store the result anywhere.
+    Returns true if parse() would succeed, but doesn't store the result.
+
+     @param string String that needs to be checked.
+     @param len    Length of that string.
+
+     @retval true  valid string.
+     @retval false invalid string.
   */
-  static bool is_valid(const char *string);
+  static bool is_valid(const char *string, size_t len);
 
   /**
-    Stores the UUID represented by a string on the form
-    XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX in this object.
+    Stores the UUID represented by a string of the form
+    XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX or
+    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX or
+    {XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}
+    in this object.
 
-     @return  0   success.
-             >0   failure
+     @param string String to be parsed and stored.
+     @param len    Length of that string.
+
+     @retval   0   success.
+     @retval  >0   failure.
   */
-  int parse(const char *string);
+  int parse(const char *string, size_t len);
+
+  /**
+    Parses the UUID passed as argument in in_string and functions and writes
+    the binary representation in out_binary_string.
+    Depends on UUID's read_section method and the constants for text length.
+
+     @param[in] in_string           String to be parsed.
+     @param[in] len                 Length of that string.
+     @param[out] out_binary_string  String where the binary UUID will be stored
+
+     @retval   0   success.
+     @retval  >0   failure.
+  */
+  static int parse(const char *in_string, size_t len,
+                   const unsigned char *out_binary_string);
+  /**
+    Helper method used to validate and parse one section of a uuid.
+    If the last parameter, out_binary_str, is NULL then the function will
+    just validate the section.
+
+     @param[in]      section_len      Length of the section to be parsed.
+     @param[in,out]  section_str      Pointer to a string containing the
+                                      section. It will be updated during the
+                                      execution as the string is parsed.
+     @param[out]     out_binary_str   String where the section will be stored
+                                      in binary format. If null, the function
+                                      will just validate the input string.
+
+     @retval  false   success.
+     @retval  true    failure.
+  */
+  static bool read_section(int section_len, const char **section_str,
+                           const unsigned char **out_binary_str);
   /** The number of bytes in the data of a Uuid. */
   static const size_t BYTE_LENGTH= 16;
   /** The data for this Uuid. */

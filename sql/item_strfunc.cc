@@ -3907,6 +3907,128 @@ end:
 }
 
 
+bool Item_func_uuid_to_bin::resolve_type(THD *thd)
+{
+  collation.set(&my_charset_bin);
+  max_length= binary_log::Uuid::BYTE_LENGTH;
+  maybe_null= true;
+  return false;
+}
+
+
+String* Item_func_uuid_to_bin::val_str(String *str)
+{
+  DBUG_ASSERT(fixed && (arg_count == 1 || arg_count == 2));
+  null_value= true;
+
+  String *res= args[0]->val_str(str);
+  if (!res || args[0]->null_value)
+    return NULL;
+
+  if (binary_log::Uuid::parse(res->ptr(), res->length(), m_bin_buf))
+    goto err;
+
+  /*
+    If there is a second argument which is true, it means
+    that the uuid is version 1 which has the time-low part at the beginning
+    of the uuid. So in order to make it index-friendly the time-low
+    will be swapped with the time-high and the time-mid groups.
+    Time-high has length 4, time-mid and time-low have length 2.
+    (time-low)-(time-mid)-(time-high) => (time-high)-(time-mid)-(time-low)
+  */
+  if (arg_count == 2 && args[1]->val_bool())
+  {
+    std::swap_ranges(&m_bin_buf[4], &m_bin_buf[4] + 2, &m_bin_buf[6]);
+    std::swap_ranges(&m_bin_buf[0], &m_bin_buf[0] + 4, &m_bin_buf[4]);
+  }
+
+  null_value= false;
+  str->set(reinterpret_cast<char *>(m_bin_buf), binary_log::Uuid::BYTE_LENGTH,
+            &my_charset_bin);
+  return str;
+
+err:
+  ErrConvString err(res);
+  my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "string", err.ptr(), func_name());
+
+  return NULL;
+}
+
+
+bool Item_func_bin_to_uuid::resolve_type(THD *thd)
+{
+  decimals= 0;
+  collation.set(default_charset());
+  fix_char_length(binary_log::Uuid::TEXT_LENGTH);
+  maybe_null= true;
+  return false;
+}
+
+
+String *Item_func_bin_to_uuid::val_str_ascii(String *str)
+{
+  DBUG_ASSERT(fixed && (arg_count == 1 || arg_count == 2));
+  null_value= true;
+
+  String *res= args[0]->val_str(str);
+  if (!res || args[0]->null_value)
+    return NULL;
+
+  if (res->length() != binary_log::Uuid::BYTE_LENGTH)
+    goto err;
+
+  /*
+    If there is a second argument which is true,
+    the time-mid and time-high parts of uuid needs to be replaced
+    by time-low as they were previously shuffled to become index-friendly.
+    Time-high has length 4, time-mid and time-low have length 2.
+    (time-high)-(time-mid)-(time-low) => (time-low)-(time-mid)-(time-high)
+  */
+  if (arg_count == 2 && args[1]->val_bool())
+  {
+    uchar rearranged[binary_log::Uuid::BYTE_LENGTH];
+    // The first 4 bytes are restored to "time-low".
+    std::copy_n(&res->ptr()[4], 4, &rearranged[0]);
+    // Bytes starting with 4th will be restored to "time-mid".
+    std::copy_n(&res->ptr()[2], 2, &rearranged[4]);
+    // Bytes starting with 6th will be restored to "time-high".
+    std::copy_n(&res->ptr()[0], 2, &rearranged[6]);
+    // The last 8 bytes were not changed so we just copy them.
+    std::copy_n(&res->ptr()[8], 8, &rearranged[8]);
+    binary_log::Uuid::to_string(rearranged, m_text_buf);
+  }
+  else
+    binary_log::Uuid::to_string(reinterpret_cast<const uchar *>(res->ptr()),
+                                m_text_buf);
+
+  null_value= false;
+  str->set(m_text_buf, binary_log::Uuid::TEXT_LENGTH, default_charset());
+  return str;
+
+err:
+  ErrConvString err(res);
+  my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "string", err.ptr(), func_name());
+
+  return NULL;
+}
+
+
+longlong Item_func_is_uuid::val_int()
+{
+  DBUG_ASSERT(fixed && arg_count == 1);
+  null_value= true;
+
+  String buffer;
+  String *arg_str= args[0]->val_str(&buffer);
+
+  if (!arg_str)
+    return 0;
+
+  null_value= false;
+  return binary_log::Uuid::is_valid(arg_str->ptr(), arg_str->length());
+}
+
+
 String *Item_func_lpad::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);

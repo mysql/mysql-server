@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -104,7 +104,7 @@ enum_return_status Gtid::parse(Sid_map *sid_map, const char *text)
   SKIP_WHITESPACE();
 
   // parse sid
-  if (sid.parse(s) == 0)
+  if (sid.parse(s, binary_log::Uuid::TEXT_LENGTH) == 0)
   {
     rpl_sidno sidno_var= sid_map->add_sid(sid);
     if (sidno_var <= 0)
@@ -206,7 +206,7 @@ bool Gtid::is_valid(const char *text)
   DBUG_ENTER("Gtid::is_valid");
   const char *s= text;
   SKIP_WHITESPACE();
-  if (!rpl_sid::is_valid(s))
+  if (!rpl_sid::is_valid(s, binary_log::Uuid::TEXT_LENGTH))
   {
     DBUG_PRINT("info", ("not a uuid at char %d in '%s'",
                         (int)(s - text), text));

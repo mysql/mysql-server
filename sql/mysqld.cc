@@ -3882,7 +3882,7 @@ int init_server_auto_options()
   DBUG_PRINT("info", ("uuid=%p=%s server_uuid=%s", uuid, uuid, server_uuid));
   if (uuid)
   {
-    if (!binary_log::Uuid::is_valid(uuid))
+    if (!binary_log::Uuid::is_valid(uuid, binary_log::Uuid::TEXT_LENGTH))
     {
       sql_print_error("The server_uuid stored in auto.cnf file is not a valid UUID.");
       goto err;
