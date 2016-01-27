@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,6 +39,10 @@ const char *load_default_groups[]= { "mysql_cluster",0 };
 
 static void
 fatal(char const* fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 1, 2);
+
+static void
+fatal(char const* fmt, ...)
 {
     va_list ap;
     char buf[500];
@@ -52,6 +56,10 @@ fatal(char const* fmt, ...)
     NDBT_ProgramExit(NDBT_FAILED);
     exit(1);
 }
+
+static void
+fatal_dict(char const* fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 1, 2);
 
 static void
 fatal_dict(char const* fmt, ...)

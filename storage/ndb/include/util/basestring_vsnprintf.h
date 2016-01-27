@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,7 +26,8 @@ extern "C"
 #endif
 int basestring_snprintf(char*, size_t, const char*, ...)
   ATTRIBUTE_FORMAT(printf, 3, 4);
-int basestring_vsnprintf(char*,size_t, const char*,va_list);
+int basestring_vsnprintf(char*,size_t, const char*,va_list)
+  ATTRIBUTE_FORMAT(printf, 3, 0);
 #if defined(__cplusplus)
 }
 #endif

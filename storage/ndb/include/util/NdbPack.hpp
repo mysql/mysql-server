@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -433,7 +433,8 @@ public:
     friend class BoundC;
     friend class Bound;
     Print(char* buf, Uint32 bufsz);
-    void print(const char* frm, ...);
+    void print(const char* frm, ...)
+      ATTRIBUTE_FORMAT(printf, 2, 3);
     char* m_buf;
     Uint32 m_bufsz;
     Uint32 m_sz;
