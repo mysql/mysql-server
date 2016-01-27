@@ -1074,13 +1074,34 @@ if applicable. */
 #define buf_block_get_page_zip(block) \
 	((block)->page.zip.data ? &(block)->page.zip : NULL)
 #ifndef UNIV_HOTBACKUP
-/*******************************************************************//**
-Gets the block to whose frame the pointer is pointing to.
+
+/** Gets the block to whose frame the pointer is pointing to.  This
+function does not return if the block is not identified.
+@param[in]	ptr	pointer to a frame (ptr can point anywhere
+			within the frame).
 @return pointer to block, never NULL */
 buf_block_t*
-buf_block_align(
-/*============*/
-	const byte*	ptr);	/*!< in: pointer to a frame */
+buf_block_align(const byte*	ptr);
+
+/********************************************************************//**
+Find out if a pointer belongs to a buf_block_t. It can be a pointer to
+the buf_block_t itself or a member of it
+@return TRUE if ptr belongs to a buf_block_t struct */
+ibool
+buf_pointer_is_block_field(
+/*=======================*/
+	const void*		ptr);	/*!< in: pointer not
+					dereferenced */
+/** Find out if a pointer corresponds to a buf_block_t::mutex.
+@param m in: mutex candidate
+@return TRUE if m is a buf_block_t::mutex */
+#define buf_pool_is_block_mutex(m)			\
+	buf_pointer_is_block_field((const void*)(m))
+/** Find out if a pointer corresponds to a buf_block_t::lock.
+@param l in: rw-lock candidate
+@return TRUE if l is a buf_block_t::lock */
+#define buf_pool_is_block_lock(l)			\
+	buf_pointer_is_block_field((const void*)(l))
 
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 /*********************************************************************//**

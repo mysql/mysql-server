@@ -349,6 +349,35 @@ static rw_lock_t*	buf_chunk_map_latch;
 
 /** Disable resizing buffer pool to make assertion code not expensive. */
 my_bool			buf_disable_resize_buffer_pool_debug = TRUE;
+
+/** A wrapper class to acquire and release the chunk map latch. */
+struct ChunkMapLatch
+{
+	/** Constructor. */
+	ChunkMapLatch()
+	: m_take_latch(!buf_disable_resize_buffer_pool_debug)
+	{}
+
+	/** Acquire the chunk map latch in shared mode. */
+	void s_lock()
+	{
+		if (m_take_latch) {
+			rw_lock_s_lock(buf_chunk_map_latch);
+		}
+	}
+
+	/** Release the shared lock on the chunk map latch. */
+	void s_unlock()
+	{
+		if (m_take_latch) {
+			rw_lock_s_unlock(buf_chunk_map_latch);
+		}
+	}
+
+private:
+	/** If false, don't acquire/release the chunk map latch. */
+	const bool m_take_latch;
+};
 #endif /* UNIV_DEBUG */
 
 /** Container for how many pages from each index are contained in the buffer
@@ -2133,7 +2162,9 @@ withdraw_retry:
 	}
 
 	/* Indicate critical path */
+	ut_d(rw_lock_x_lock(buf_chunk_map_latch));
 	buf_pool_resizing = true;
+	ut_d(rw_lock_x_unlock(buf_chunk_map_latch));
 
 	/* Acquire all buf_pool_mutex/hash_lock */
 	for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
@@ -3272,36 +3303,40 @@ buf_zip_decompress(
 }
 
 #ifndef UNIV_HOTBACKUP
-/*******************************************************************//**
-Gets the block to whose frame the pointer is pointing to.
+/** Gets the block to whose frame the pointer is pointing to.  This
+function does not return if the block is not identified.
+@param[in]	ptr	pointer to a frame
 @return pointer to block, never NULL */
 buf_block_t*
-buf_block_align(
-/*============*/
-	const byte*	ptr)	/*!< in: pointer to a frame */
+buf_block_align(const byte*	ptr)
 {
 	buf_pool_chunk_map_t::iterator it;
 
+#ifdef UNIV_DEBUG
+	ChunkMapLatch	chunk_map_latch;
 	ut_ad(srv_buf_pool_chunk_unit > 0);
 
-	/* TODO: This might be still optimistic treatment.
-	buf_pool_resize() needs all buf_pool_mutex and all
-	buf_pool->page_hash x-latched until actual modification.
-	It should block the other user threads and should take while
-	which is enough to done the buf_pool_chunk_map access. */
+retry:
+	/* TODO: This might be still optimistic treatment.  buf_pool_resize()
+	needs all buf_pool_mutex and all buf_pool->page_hash x-latched until
+	actual modification.  It should block the other user threads and
+	should take while which is enough to done the buf_pool_chunk_map
+	access. */
 	while (buf_pool_resizing) {
 		/* buf_pool_chunk_map is being modified */
 		os_thread_sleep(100000); /* 0.1 sec */
 	}
 
-	ulint	counter = 0;
-retry:
-#ifdef UNIV_DEBUG
-	bool resize_disabled = (buf_disable_resize_buffer_pool_debug != FALSE);
-	if (!resize_disabled) {
-		rw_lock_s_lock(buf_chunk_map_latch);
+	chunk_map_latch.s_lock();
+
+	if (buf_pool_resizing) {
+		/* AHI must have been disabled. */
+		ut_ad(!btr_search_enabled);
+		chunk_map_latch.s_unlock();
+		goto retry;
 	}
-#endif /* UNIV_DEBUG */
+#endif
+
 	buf_pool_chunk_map_t*	chunk_map = buf_chunk_map_ref;
 
 	if (ptr < reinterpret_cast<byte*>(srv_buf_pool_chunk_unit)) {
@@ -3311,111 +3346,78 @@ retry:
 			ptr - srv_buf_pool_chunk_unit);
 	}
 
-	if (it == chunk_map->end()) {
-#ifdef UNIV_DEBUG
-		if (!resize_disabled) {
-			rw_lock_s_unlock(buf_chunk_map_latch);
-		}
-#endif /* UNIV_DEBUG */
-		/* The block should always be found. */
-		++counter;
-		ut_a(counter < 10);
-		os_thread_sleep(100000); /* 0.1 sec */
-		goto retry;
-	}
+	ut_a(it != chunk_map->end());
 
 	buf_chunk_t*	chunk = it->second;
-#ifdef UNIV_DEBUG
-	if (!resize_disabled) {
-		rw_lock_s_unlock(buf_chunk_map_latch);
-	}
-#endif /* UNIV_DEBUG */
-
 	ulint		offs = ptr - chunk->blocks->frame;
 
 	offs >>= UNIV_PAGE_SIZE_SHIFT;
 
-	if (offs < chunk->size) {
-		buf_block_t*	block = &chunk->blocks[offs];
+	ut_a(offs < chunk->size);
 
-		/* The function buf_chunk_init() invokes
-		buf_block_init() so that block[n].frame ==
-		block->frame + n * UNIV_PAGE_SIZE.  Check it. */
-		ut_ad(block->frame == page_align(ptr));
+	buf_block_t*	block = &chunk->blocks[offs];
+
+	/* The function buf_chunk_init() invokes buf_block_init() so that
+	block[n].frame == block->frame + n * UNIV_PAGE_SIZE.  Check it. */
+	ut_ad(block->frame == page_align(ptr));
+
 #ifdef UNIV_DEBUG
-		/* A thread that updates these fields must
-		hold buf_pool->mutex and block->mutex.  Acquire
-		only the latter. */
-		buf_page_mutex_enter(block);
+	/* A thread that updates these fields must hold buf_pool->mutex and
+	block->mutex.  Acquire only the latter. */
+	buf_page_mutex_enter(block);
 
-		switch (buf_block_get_state(block)) {
-		case BUF_BLOCK_POOL_WATCH:
-		case BUF_BLOCK_ZIP_PAGE:
-		case BUF_BLOCK_ZIP_DIRTY:
-			/* These types should only be used in
-			the compressed buffer pool, whose
-			memory is allocated from
-			buf_pool->chunks, in UNIV_PAGE_SIZE
-			blocks flagged as BUF_BLOCK_MEMORY. */
-			ut_error;
-			break;
-		case BUF_BLOCK_NOT_USED:
-		case BUF_BLOCK_READY_FOR_USE:
-		case BUF_BLOCK_MEMORY:
-			/* Some data structures contain
-			"guess" pointers to file pages.  The
-			file pages may have been freed and
-			reused.  Do not complain. */
-			break;
-		case BUF_BLOCK_REMOVE_HASH:
-			/* buf_LRU_block_remove_hashed_page()
-			will overwrite the FIL_PAGE_OFFSET and
-			FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID with
-			0xff and set the state to
-			BUF_BLOCK_REMOVE_HASH. */
+	switch (buf_block_get_state(block)) {
+	case BUF_BLOCK_POOL_WATCH:
+	case BUF_BLOCK_ZIP_PAGE:
+	case BUF_BLOCK_ZIP_DIRTY:
+		/* These types should only be used in the compressed buffer
+		pool, whose memory is allocated from buf_pool->chunks,
+		in UNIV_PAGE_SIZE blocks flagged as BUF_BLOCK_MEMORY. */
+		ut_error;
+		break;
+	case BUF_BLOCK_NOT_USED:
+	case BUF_BLOCK_READY_FOR_USE:
+	case BUF_BLOCK_MEMORY:
+		/* Some data structures contain "guess" pointers to file
+		pages.  The file pages may have been freed and reused.
+		Do not complain. */
+		break;
+	case BUF_BLOCK_REMOVE_HASH:
+		/* buf_LRU_block_remove_hashed_page() will overwrite the
+		FIL_PAGE_OFFSET and FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID with
+		0xff and set the state to BUF_BLOCK_REMOVE_HASH. */
 # ifndef UNIV_DEBUG_VALGRIND
-			/* In buf_LRU_block_remove_hashed() we
-			explicitly set those values to 0xff and
-			declare them uninitialized with
-			UNIV_MEM_INVALID() after that. */
-			ut_ad(page_get_space_id(page_align(ptr))
-			      == 0xffffffff);
-			ut_ad(page_get_page_no(page_align(ptr))
-			      == 0xffffffff);
+		/* In buf_LRU_block_remove_hashed() we explicitly set those
+		values to 0xff and declare them uninitialized with
+		UNIV_MEM_INVALID() after that. */
+		ut_ad(page_get_space_id(page_align(ptr)) == 0xffffffff);
+		ut_ad(page_get_page_no(page_align(ptr)) == 0xffffffff);
 # endif /* UNIV_DEBUG_VALGRIND */
-			break;
-		case BUF_BLOCK_FILE_PAGE:
-			const ulint	space_id1 = block->page.id.space();
-			const ulint	page_no1 = block->page.id.page_no();
-			const ulint	space_id2 = page_get_space_id(
-							page_align(ptr));
-			const ulint	page_no2 = page_get_page_no(
-							page_align(ptr));
+		break;
+	case BUF_BLOCK_FILE_PAGE:
+		const ulint space_id1 = block->page.id.space();
+		const ulint page_no1 = block->page.id.page_no();
+		const ulint space_id2 = page_get_space_id(page_align(ptr));
+		const ulint page_no2 = page_get_page_no(page_align(ptr));
 
-			if (space_id1 != space_id2 || page_no1 != page_no2) {
+		if (space_id1 != space_id2 || page_no1 != page_no2) {
 
-				ib::error() << "Found a mismatch page,"
-					<< " expect page "
-					<< page_id_t(space_id1, page_no1)
-					<< " but found "
-					<< page_id_t(space_id2, page_no2);
+			ib::error() << "Found a mismatch page,"
+				<< " expect page "
+				<< page_id_t(space_id1, page_no1)
+				<< " but found "
+				<< page_id_t(space_id2, page_no2);
 
-				ut_ad(0);
-			}
-			break;
+			ut_ad(0);
 		}
-
-		buf_page_mutex_exit(block);
-#endif /* UNIV_DEBUG */
-
-		return(block);
+		break;
 	}
 
-	/* The block should always be found. */
-	++counter;
-	ut_a(counter < 10);
-	os_thread_sleep(100000); /* 0.1 sec */
-	goto retry;
+	buf_page_mutex_exit(block);
+	chunk_map_latch.s_unlock();
+#endif /* UNIV_DEBUG */
+
+	return(block);
 }
 
 /********************************************************************//**
