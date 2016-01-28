@@ -2,6 +2,7 @@
 # Basic test for parser_max_mem_size
 #
 
+--source include/not_embedded.inc
 --source include/load_sysvars.inc
 
 --echo # Display the DEFAULT value of parser_max_mem_size
