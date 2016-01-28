@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1692,11 +1692,15 @@ CommandInterpreter::executePrompt(char* parameters)
     m_prompt_copy.assign(parameters);
     m_prompt_copy.append(" ");
     m_prompt= m_prompt_copy.c_str();
+    ndbout << "Prompt set to " << m_prompt
+           << endl;
     return 0;
   }
 
   /* Restore prompt to default */
   m_prompt= m_default_prompt;
+  ndbout << "Returning to default prompt of "
+         << m_prompt << endl;
   return 0;
 }
 
