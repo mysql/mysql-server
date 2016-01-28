@@ -292,6 +292,8 @@ my $opt_retry_failure= env_or_val(MTR_RETRY_FAILURE => 2);
 my $opt_reorder= 1;
 my $opt_force_restart= 0;
 
+our $opt_suite_opt;
+
 my $opt_strace_client;
 my $opt_strace_server;
 
@@ -1050,6 +1052,7 @@ sub print_global_resfile {
   resfile_global("fast", $opt_fast ? 1 : 0);
   resfile_global("force-restart", $opt_force_restart ? 1 : 0);
   resfile_global("reorder", $opt_reorder ? 1 : 0);
+  resfile_global("suite-opt", $opt_suite_opt);
   resfile_global("sleep", $opt_sleep);
   resfile_global("repeat", $opt_repeat);
   resfile_global("user", $opt_user);
@@ -1235,6 +1238,7 @@ sub command_line_setup {
 	     'unit-tests!'              => \$opt_ctest,
 	     'unit-tests-report!'	=> \$opt_ctest_report,
 	     'stress=s'                 => \$opt_stress,
+             'suite-opt=s'              => \$opt_suite_opt,
 
              'help|h'                   => \$opt_usage,
 	     # list-options is internal, not listed in help
@@ -7312,6 +7316,7 @@ Misc options
   unit-tests-report     Include report of every test included in unit tests.
   stress=ARGS           Run stress test, providing options to
                         mysql-stress-test.pl. Options are separated by comma.
+  suite-opt             Run the particular file in the suite as the suite.opt.
 
 Some options that control enabling a feature for normal test runs,
 can be turned off by prepending 'no' to the option, e.g. --notimer.
