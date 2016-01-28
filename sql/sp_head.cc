@@ -310,13 +310,11 @@ mysql> SELECT CONCAT(FROM_UNIXTIME(@ts_int),'.',@ts_frac);
   - Cluster support for any new meta data operation that operates on files
   will require a custom solution. E.g. to propagate
   <tt>CREATE %TABLE</tt> statement across MySQL Cluster mysqld nodes
-  we use a so-called “.frm shipping” technique.
+  we use a so-called “.frm shipping” technique
+  (also named Schema distribution).
   There is no similar solution implemented for triggers at this point,
   and thus a trigger created in one mysqld node does not automatically
   become visible on other nodes.
-  Potentially, if data is stored in tables,
-  cluster support may be added as simply as by issuing
-  <tt>ALTER %TABLE mysql.triggers ENGINE=NDB;</tt>
 
   @note Various drawbacks of file system based solution are provided
   in this chapter only for a sake of example.
