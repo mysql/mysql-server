@@ -1,5 +1,0 @@
-# BUG #18421338
-"SUPPORT SETTING THE PROMPT IN NDB_MGM"
-"Changing the prompt through command line option"
-"and then interactive mode"
-test-prompt> ndb_mgm> test-prompt> "End of test"
