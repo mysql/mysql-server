@@ -193,7 +193,7 @@ bool Column_impl::store_children(Open_dictionary_tables_ctx *otx)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Column_impl::drop_children(Open_dictionary_tables_ctx *otx)
+bool Column_impl::drop_children(Open_dictionary_tables_ctx *otx) const
 {
   if (type() == TYPE_ENUM || type() == TYPE_SET)
     return m_enum_elements->drop_items(

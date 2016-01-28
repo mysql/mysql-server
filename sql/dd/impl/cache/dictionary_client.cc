@@ -1096,7 +1096,7 @@ size_t Dictionary_client::release()
 
 // Remove and delete an object from the cache and the dd tables.
 template <typename T>
-bool Dictionary_client::drop(T *object)
+bool Dictionary_client::drop(const T *object)
 {
   // Lookup in the local registry using the partition type.
   Cache_element<typename T::cache_partition_type> *element= NULL;
@@ -1145,41 +1145,57 @@ bool Dictionary_client::store(T* object)
 }
 
 
-// Update a modified dictionary object.
+// Replace a dictionary object by another and store it.
 template <typename T>
-bool Dictionary_client::update(T* object)
+bool Dictionary_client::update(const T** old_object, T* new_object)
 {
-  // Make sure the object is present.
+  DBUG_ASSERT(*old_object);
+  DBUG_ASSERT(new_object);
+
+  // Make sure the old object is present and the new object is absent.
   Cache_element<typename T::cache_partition_type> *element= NULL;
+
+#ifndef DBUG_OFF
   m_registry.get(
-    static_cast<const typename T::cache_partition_type*>(object),
+    static_cast<const typename T::cache_partition_type*>(new_object),
+    &element);
+  DBUG_ASSERT(!element);
+#endif
+
+  m_registry.get(
+    static_cast<const typename T::cache_partition_type*>(*old_object),
     &element);
   DBUG_ASSERT(element);
 
-  // Check proper MDL lock.
-  DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, object));
+  // Check proper MDL locks.
+  DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, *old_object));
+  DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, new_object));
 
-  // Remove the element from the chain of auto releasers.
+  // The object must maintain its id, otherwise, the update will not become
+  // an update, but instead, the new object will be added alongside the
+  // old one.
+  DBUG_ASSERT((*old_object)->id() == new_object->id());
+
+  // We first store the new object. If store() fails, there is not a
+  // lot to do except returning true. In this case, the shared cache will
+  // stay unchanged.
+  if (store(new_object))
+    return true;
+
+  // If we succeed in storing the new object, we must update the shared
+  // cache accordingly. First, we remove the element from the chain of auto
+  // releasers and from the local registry.
   Auto_releaser *actual_releaser= m_current_releaser->remove(element);
-
-  // Remove the element from the local registry.
   m_registry.remove(element);
 
-  // If we fail to store the new object, we must drop it from the shared
-  // cache. This is easiest since we do not know here which changes to revert.
-  // Dropping the object should be safe since this thread should be the only
-  // user of the object. The element is already removed from the local
-  // registry and the chain of auto releasers.
-  if (store(object))
-  {
-    Shared_dictionary_cache::instance()->drop(element);
-    return true;
-  }
-
-  // If the new object was successfully stored, we must replace the object
-  // in the shared cache and re-create the keys.
+  // Then, we must replace the object in the shared cache and re-create the
+  // keys. Note that we will take a clone of the new_object and add the clone
+  // to the cache. This is to ensure that the original new_object pointer
+  // remains owned by the caller of this function, while the clone is being
+  // owned by the cache.
+  T *new_object_clone= new_object->clone();
   Shared_dictionary_cache::instance()->replace(element,
-    static_cast<const typename T::cache_partition_type*>(object));
+    static_cast<const typename T::cache_partition_type*>(new_object_clone));
 
   // Put back the element, with its new keys, into the local registry.
   m_registry.put(element);
@@ -1187,6 +1203,11 @@ bool Dictionary_client::update(T* object)
   // Put back the element into the correct auto releaser.
   if (actual_releaser)
     actual_releaser->auto_release(element);
+
+  // And finally, we set *old_object to point to the new cached clone of
+  // new_object. The dynamic cast should never fail in this case.
+  *old_object= dynamic_cast<const T*>(element->object());
+  DBUG_ASSERT(*old_object == new_object_clone);
 
   return false;
 }
@@ -1309,9 +1330,9 @@ template bool Dictionary_client::acquire(const std::string&,
 template bool Dictionary_client::acquire_uncached(const std::string&,
                                                   const std::string&,
                                                   const Abstract_table**);
-template bool Dictionary_client::drop(Abstract_table*);
+template bool Dictionary_client::drop(const Abstract_table*);
 template bool Dictionary_client::store(Abstract_table*);
-template bool Dictionary_client::update(Abstract_table*);
+template bool Dictionary_client::update(const Abstract_table**, Abstract_table*);
 template void Dictionary_client::add(const Abstract_table*);
 template void Dictionary_client::set_sticky(const Abstract_table*, bool);
 template bool Dictionary_client::is_sticky(const Abstract_table*) const;
@@ -1323,9 +1344,9 @@ template bool Dictionary_client::acquire<dd::Charset>(std::string const&,
 template bool Dictionary_client::acquire<dd::Schema>(Object_id,
                                                      dd::Schema const**);
 
-template bool Dictionary_client::drop(Charset*);
+template bool Dictionary_client::drop(const Charset*);
 template bool Dictionary_client::store(Charset*);
-template bool Dictionary_client::update(Charset*);
+template bool Dictionary_client::update(const Charset**, Charset*);
 template void Dictionary_client::add(const Charset*);
 template void Dictionary_client::set_sticky(const Charset*, bool);
 template bool Dictionary_client::is_sticky(const Charset*) const;
@@ -1339,9 +1360,9 @@ template bool Dictionary_client::acquire_uncached(Object_id,
                                                   const Collation**);
 template bool Dictionary_client::acquire(const std::string &,
                                          const Collation**);
-template bool Dictionary_client::drop(Collation*);
+template bool Dictionary_client::drop(const Collation*);
 template bool Dictionary_client::store(Collation*);
-template bool Dictionary_client::update(Collation*);
+template bool Dictionary_client::update(const Collation**, Collation*);
 template void Dictionary_client::add(const Collation*);
 template void Dictionary_client::set_sticky(const Collation*, bool);
 template bool Dictionary_client::is_sticky(const Collation*) const;
@@ -1349,9 +1370,9 @@ template void Dictionary_client::dump<Collation>() const;
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   const Schema**);
-template bool Dictionary_client::drop(Schema*);
+template bool Dictionary_client::drop(const Schema*);
 template bool Dictionary_client::store(Schema*);
-template bool Dictionary_client::update(Schema*);
+template bool Dictionary_client::update(const Schema**, Schema*);
 template void Dictionary_client::add(const Schema*);
 template void Dictionary_client::set_sticky(const Schema*, bool);
 template bool Dictionary_client::is_sticky(const Schema*) const;
@@ -1367,9 +1388,9 @@ template bool Dictionary_client::acquire(const std::string&,
 template bool Dictionary_client::acquire_uncached(const std::string&,
                                                   const std::string&,
                                                   const Table**);
-template bool Dictionary_client::drop(Table*);
+template bool Dictionary_client::drop(const Table*);
 template bool Dictionary_client::store(Table*);
-template bool Dictionary_client::update(Table*);
+template bool Dictionary_client::update(const Table**, Table*);
 template void Dictionary_client::add(const Table*);
 template void Dictionary_client::set_sticky(const Table*, bool);
 template bool Dictionary_client::is_sticky(const Table*) const;
@@ -1380,9 +1401,9 @@ template bool Dictionary_client::acquire(const std::string&,
                                          const Tablespace**);
 template bool Dictionary_client::acquire(Object_id,
                                          const Tablespace**);
-template bool Dictionary_client::drop(Tablespace*);
+template bool Dictionary_client::drop(const Tablespace*);
 template bool Dictionary_client::store(Tablespace*);
-template bool Dictionary_client::update(Tablespace*);
+template bool Dictionary_client::update(const Tablespace**, Tablespace*);
 template void Dictionary_client::add(const Tablespace*);
 template void Dictionary_client::set_sticky(const Tablespace*, bool);
 template bool Dictionary_client::is_sticky(const Tablespace*) const;
@@ -1398,9 +1419,9 @@ template bool Dictionary_client::acquire(const std::string&,
 template bool Dictionary_client::acquire_uncached(const std::string&,
                                                   const std::string&,
                                                   const View**);
-template bool Dictionary_client::drop(View*);
+template bool Dictionary_client::drop(const View*);
 template bool Dictionary_client::store(View*);
-template bool Dictionary_client::update(View*);
+template bool Dictionary_client::update(const View**, View*);
 template void Dictionary_client::add(const View*);
 template void Dictionary_client::set_sticky(const View*, bool);
 template bool Dictionary_client::is_sticky(const View*) const;

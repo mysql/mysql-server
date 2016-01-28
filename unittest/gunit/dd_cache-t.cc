@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -150,7 +150,7 @@ protected:
       dd::cache::Dictionary_client::Auto_releaser releaser(thd()->dd_client());
       EXPECT_FALSE(thd()->dd_client()->acquire<dd::Schema>(mysql->id(), &acquired_mysql));
       EXPECT_NE(nullp<const dd::Schema>(), acquired_mysql);
-      EXPECT_FALSE(thd()->dd_client()->drop<dd::Schema>(const_cast<dd::Schema*>(acquired_mysql)));
+      EXPECT_FALSE(thd()->dd_client()->drop(acquired_mysql));
     }
     delete mysql;
     m_mdl_context.release_transactional_locks();
@@ -413,7 +413,7 @@ void test_basic_store_and_get(CacheStorageTest *tst, THD *thd)
   EXPECT_NE(nullp<Intrfc_type>(), name_acquired);
   EXPECT_EQ(acquired, name_acquired);
 
-  EXPECT_FALSE(dc->drop(const_cast<Intrfc_type*>(acquired)));
+  EXPECT_FALSE(dc->drop(acquired));
 }
 
 TEST_F(CacheStorageTest, BasicStoreAndGetCharset)
@@ -468,7 +468,7 @@ void test_basic_store_and_get_with_schema(CacheStorageTest *tst, THD *thd)
   EXPECT_NE(nullp<Intrfc_type>(), name_acquired);
   EXPECT_EQ(acquired, name_acquired);
 
-  EXPECT_FALSE(dc->drop(const_cast<Intrfc_type*>(acquired)));
+  EXPECT_FALSE(dc->drop(acquired));
 }
 
 
@@ -532,7 +532,7 @@ TEST_F(CacheStorageTest, GetTableBySePrivateId)
     EXPECT_NE(nullp<const dd::Table>(), tab);
     EXPECT_EQ(*obj, *obj2);
 
-    EXPECT_FALSE(dc->drop(const_cast<dd::Table*>(obj2)));
+    EXPECT_FALSE(dc->drop(obj2));
   }
 }
 
@@ -564,7 +564,7 @@ TEST_F(CacheStorageTest, TestRename)
     EXPECT_NE(nullp<const dd::Table>(), t);
     if (t)
     {
-      dd::Table *temp_table= const_cast<dd::Table*>(t);
+      std::unique_ptr<dd::Table> temp_table(t->clone());
 
       temp_table->set_name("updated_table_name");
 
@@ -586,7 +586,7 @@ TEST_F(CacheStorageTest, TestRename)
 
       // Store the object.
       lock_object(*temp_table);
-      dc.update(temp_table);
+      dc.update(&t, temp_table.get());
 
       // Enable foreign key checks
       thd()->variables.option_bits&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
@@ -599,7 +599,7 @@ TEST_F(CacheStorageTest, TestRename)
       EXPECT_NE(nullp<const dd::Table>(), temp_table);
       if (temp_table)
       {
-        EXPECT_FALSE(dc.drop(const_cast<dd::Table*>(temp_table)));
+        EXPECT_FALSE(dc.drop(temp_table));
       }
     }
     if (t)
@@ -607,7 +607,7 @@ TEST_F(CacheStorageTest, TestRename)
       const dd::Table *t= NULL;
       EXPECT_FALSE(dc.acquire<dd::Table>(sch->name(), "temp_table", &t));
       EXPECT_NE(nullp<const dd::Table>(), t);
-      EXPECT_FALSE(dc.drop(const_cast<dd::Table*>(t)));
+      EXPECT_FALSE(dc.drop(t));
     }
   }
 }
@@ -662,9 +662,9 @@ TEST_F(CacheStorageTest, TestSchema)
       EXPECT_TRUE(dc.acquire<dd::Table>("schema2", "table1", &s2_t1));
       EXPECT_EQ(nullp<const dd::Table>(), s2_t1);
 
-      EXPECT_FALSE(dc.drop(const_cast<dd::Table*>(s1_t1)));
-      EXPECT_FALSE(dc.drop(const_cast<dd::Schema*>(s2)));
-      EXPECT_FALSE(dc.drop(const_cast<dd::Schema*>(s1)));
+      EXPECT_FALSE(dc.drop(s1_t1));
+      EXPECT_FALSE(dc.drop(s2));
+      EXPECT_FALSE(dc.drop(s1));
     }
   }
 }
@@ -728,9 +728,9 @@ TEST_F(CacheStorageTest, TestTransactionMaxSePrivateId)
   EXPECT_FALSE(dc.acquire<dd::Table>("mysql", "table1", &tab1_new));
   EXPECT_FALSE(dc.acquire<dd::Table>("mysql", "table2", &tab2_new));
   EXPECT_FALSE(dc.acquire<dd::Table>("mysql", "table3", &tab3_new));
-  EXPECT_FALSE(dc.drop(const_cast<dd::Table*>(tab1_new)));
-  EXPECT_FALSE(dc.drop(const_cast<dd::Table*>(tab2_new)));
-  EXPECT_FALSE(dc.drop(const_cast<dd::Table*>(tab3_new)));
+  EXPECT_FALSE(dc.drop(tab1_new));
+  EXPECT_FALSE(dc.drop(tab2_new));
+  EXPECT_FALSE(dc.drop(tab3_new));
 }
 
 
@@ -894,7 +894,7 @@ TEST_F(CacheStorageTest, TestCacheLookup)
     const dd::Table *obj= NULL;
     EXPECT_FALSE(dc.acquire<dd::Table>(id, &obj));
     EXPECT_NE(nullp<const dd::Table>(), obj);
-    EXPECT_FALSE(dc.drop(const_cast<dd::Table*>(obj)));
+    EXPECT_FALSE(dc.drop(obj));
   }
 
   //

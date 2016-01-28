@@ -145,7 +145,7 @@ bool Foreign_key_impl::store_children(Open_dictionary_tables_ctx *otx)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Foreign_key_impl::drop_children(Open_dictionary_tables_ctx *otx)
+bool Foreign_key_impl::drop_children(Open_dictionary_tables_ctx *otx) const
 {
   return m_elements->drop_items(
     otx,

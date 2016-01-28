@@ -63,7 +63,7 @@ public:
 
   virtual bool store_children(Open_dictionary_tables_ctx *otx);
 
-  virtual bool drop_children(Open_dictionary_tables_ctx *otx);
+  virtual bool drop_children(Open_dictionary_tables_ctx *otx) const;
 
   virtual bool restore_attributes(const Raw_record &r);
 
@@ -81,7 +81,7 @@ public:
   { return Entity_object_impl::store(otx); }
 
   // Required by Collection_item.
-  virtual bool drop(Open_dictionary_tables_ctx *otx)
+  virtual bool drop(Open_dictionary_tables_ctx *otx) const
   { return Entity_object_impl::drop(otx); }
 
   // Required by Collection_item.

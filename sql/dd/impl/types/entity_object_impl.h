@@ -103,8 +103,12 @@ protected:
   // but by adding this we force derived classes which define
   // their own copy constructor to also invoke the Entity_object_impl
   // copy constructor in the initializer list.
+  // Note that we must copy the m_has_new_primary_key property to make sure
+  // the clone is handled correctly if storing it persistently as part of
+  // updating a DD object.
   Entity_object_impl(const Entity_object_impl &src)
-    : Weak_object(src), m_id(src.m_id), m_name(src.m_name)
+    : Weak_object(src), m_id(src.m_id), m_name(src.m_name),
+            m_has_new_primary_key(src.m_has_new_primary_key)
   {}
 };
 

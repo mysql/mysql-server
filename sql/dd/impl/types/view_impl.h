@@ -55,7 +55,7 @@ public:
 
   virtual bool store_children(Open_dictionary_tables_ctx *otx);
 
-  virtual bool drop_children(Open_dictionary_tables_ctx *otx);
+  virtual bool drop_children(Open_dictionary_tables_ctx *otx) const;
 
   virtual bool restore_attributes(const Raw_record &r);
 

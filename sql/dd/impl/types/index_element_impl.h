@@ -77,7 +77,7 @@ public:
   { return Weak_object_impl::store(otx); }
 
   // Required by Collection_item.
-  virtual bool drop(Open_dictionary_tables_ctx *otx)
+  virtual bool drop(Open_dictionary_tables_ctx *otx) const
   { return Weak_object_impl::drop(otx); }
 
   virtual void drop();
@@ -87,7 +87,7 @@ public:
   { return Weak_object_impl::restore_children(otx); }
 
   // Required by Collection_item.
-  virtual bool drop_children(Open_dictionary_tables_ctx *otx)
+  virtual bool drop_children(Open_dictionary_tables_ctx *otx) const
   { return Weak_object_impl::drop_children(otx); }
 
   // Required by Collection_item.

@@ -174,7 +174,7 @@ bool Table_impl::store_children(Open_dictionary_tables_ctx *otx)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Table_impl::drop_children(Open_dictionary_tables_ctx *otx)
+bool Table_impl::drop_children(Open_dictionary_tables_ctx *otx) const
 {
   // Note that partition collection has to be dropped first
   // as it has foreign key to indexes.

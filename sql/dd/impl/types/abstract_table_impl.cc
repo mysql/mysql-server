@@ -114,7 +114,7 @@ bool Abstract_table_impl::store_children(Open_dictionary_tables_ctx *otx)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Abstract_table_impl::drop_children(Open_dictionary_tables_ctx *otx)
+bool Abstract_table_impl::drop_children(Open_dictionary_tables_ctx *otx) const
 {
   return m_columns->drop_items(
     otx,

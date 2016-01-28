@@ -185,7 +185,7 @@ bool Partition_impl::store_children(Open_dictionary_tables_ctx *otx)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Partition_impl::drop_children(Open_dictionary_tables_ctx *otx)
+bool Partition_impl::drop_children(Open_dictionary_tables_ctx *otx) const
 {
   return m_values->drop_items(
            otx,

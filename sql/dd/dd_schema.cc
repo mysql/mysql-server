@@ -27,7 +27,7 @@
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/schema.h"                  // dd::Schema
 
-#include <memory> // unique_ptr
+#include <memory>                             // unique_ptr
 
 namespace dd {
 
@@ -85,8 +85,8 @@ bool alter_schema(THD *thd, const char *schema_name,
                   const HA_CREATE_INFO *create_info)
 {
   dd::cache::Dictionary_client *client= thd->dd_client();
-
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
   // Get dd::Schema object.
   const dd::Schema *sch_obj= NULL;
   if (client->acquire<dd::Schema>(schema_name, &sch_obj))
@@ -101,15 +101,19 @@ bool alter_schema(THD *thd, const char *schema_name,
     return true;
   }
 
-  // Collation ID
+  // Clone the schema object. The clone is owned here, and must be deleted
+  // eventually.
+  std::unique_ptr<dd::Schema> new_sch_obj(sch_obj->clone());
+
+  // Set new collation ID.
   DBUG_ASSERT(create_info->default_table_charset);
-  const_cast<dd::Schema*>(sch_obj)->set_default_collation_id(
+  new_sch_obj->set_default_collation_id(
     create_info->default_table_charset->number);
 
   Disable_gtid_state_update_guard disabler(thd);
 
   // Update schema.
-  if (client->update(const_cast<dd::Schema*>(sch_obj)))
+  if (client->update(&sch_obj, new_sch_obj.get()))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
@@ -150,7 +154,7 @@ bool drop_schema(THD *thd, const char *schema_name)
   Disable_gtid_state_update_guard disabler(thd);
 
   // Drop the schema.
-  if (client->drop(const_cast<dd::Schema*>(sch_obj)))
+  if (client->drop(sch_obj))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.

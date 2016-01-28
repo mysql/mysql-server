@@ -133,7 +133,7 @@ bool Tablespace_impl::store_children(Open_dictionary_tables_ctx *otx)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Tablespace_impl::drop_children(Open_dictionary_tables_ctx *otx)
+bool Tablespace_impl::drop_children(Open_dictionary_tables_ctx *otx) const
 {
   return m_files->drop_items(
     otx,

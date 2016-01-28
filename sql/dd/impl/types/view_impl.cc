@@ -119,7 +119,7 @@ bool View_impl::store_children(Open_dictionary_tables_ctx *otx)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool View_impl::drop_children(Open_dictionary_tables_ctx *otx)
+bool View_impl::drop_children(Open_dictionary_tables_ctx *otx) const
 {
   return m_tables->drop_items(
            otx,

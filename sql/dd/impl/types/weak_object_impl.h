@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@ public:
   // (object id is assigned using auto-increment).
   virtual bool store(Open_dictionary_tables_ctx *otx);
 
-  virtual bool drop(Open_dictionary_tables_ctx *otx);
+  virtual bool drop(Open_dictionary_tables_ctx *otx) const;
 
 public:
   virtual bool restore_attributes(const Raw_record &r) = 0;
@@ -94,7 +94,7 @@ public:
   virtual bool store_children(Open_dictionary_tables_ctx *otx)
   { return false; }
 
-  virtual bool drop_children(Open_dictionary_tables_ctx *otx)
+  virtual bool drop_children(Open_dictionary_tables_ctx *otx) const
   { return false; }
 
   /* purecov: begin deadcode */

@@ -585,6 +585,11 @@ public:
     corresponding entry in the appropriate dd table is deleted. The object may
     not be accessed after calling this function.
 
+    @note The object parameter is const since the contents of the object
+          is not really changed, the object is just deleted. The method
+          makes sure there is an exclusive meta data lock on the object
+          name.
+
     @tparam T       Dictionary object type.
     @param  object  Object to be dropped.
 
@@ -593,7 +598,7 @@ public:
   */
 
   template <typename T>
-  bool drop(T *object);
+  bool drop(const T *object);
 
 
   /**
@@ -615,21 +620,35 @@ public:
 
 
   /**
-    Update a modified dictionary object.
+    Replace a dictionary object by another and store the new one.
 
-    This function will regenerate the keys of the object and store it
-    to the dd tables. The element is still present in the local object
-    registry, and must be released eventually.
+    This function will replace one dictionary object by another. The new object
+    is also stored to the DD tables. The old object is deleted and may not be
+    accessed after calling this function. The element wrapper is still present
+    in the local object registry (and the shared cache), now with the new object
+    being wrapped, and must be released eventually as usual.
 
-    @tparam T       Dictionary object type.
-    @param  object  Object to be updated.
+    @note The new_object will be cloned, and the clone will be owned by the
+          shared cache. The new_object pointer submitted to this function must
+          be deleted explicitly by the caller.
 
-    @retval false   The operation was successful.
-    @retval true    There was an error.
-*/
+    @note The old_object pointer will be reset to point to the new_object clone
+          being owned by the cache.
+
+    @tparam          T          Dictionary object type.
+    @param  [in/out] old_object Old object, present in the cache, to be
+                                replaced. Will be set to point to the new
+                                cached object (upon success) or stay pointing
+                                to the old object (upon failure).
+    @param           new_object New object, not present in the cache, to replace
+                                the old one.
+
+    @retval false       The operation was successful.
+    @retval true        There was an error.
+  */
 
   template <typename T>
-  bool update(T* object);
+  bool update(const T** old_object, T* new_object);
 
 
   /**

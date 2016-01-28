@@ -1591,7 +1591,7 @@ bool drop_table(THD *thd, const char *schema_name, const char *name)
   Disable_gtid_state_update_guard disabler(thd);
 
   // Drop the table/view
-  if (client->drop(const_cast<T*>(at)))
+  if (client->drop(at))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
@@ -1718,7 +1718,7 @@ bool rename_table(THD *thd,
     is_sticky= thd->dd_client()->is_sticky(to_tab);
     if (is_sticky)
       thd->dd_client()->set_sticky(to_tab, false);
-    if (thd->dd_client()->drop(const_cast<T*>(to_tab)))
+    if (thd->dd_client()->drop(to_tab))
     {
       // Error is reported by the dictionary subsystem.
       trans_rollback_stmt(thd);
@@ -1728,17 +1728,21 @@ bool rename_table(THD *thd,
     }
   }
 
-  // Set schema id and table name.
-  const_cast<T*>(from_tab)->set_schema_id(to_sch->id());
-  const_cast<T*>(from_tab)->set_name(to_table_name);
-
   // Preserve stickiness by setting 'from_tab' to sticky if 'to_tab'
   // was sticky, and update the changes.
   if (is_sticky)
     thd->dd_client()->set_sticky(from_tab, true);
 
+  // Clone the object to be modified, and make sure the clone is deleted
+  // by wrapping it in a unique_ptr.
+  std::unique_ptr<T> new_tab(from_tab->clone());
+
+  // Set schema id and table name.
+  new_tab->set_schema_id(to_sch->id());
+  new_tab->set_name(to_table_name);
+
   // Do the update. Errors will be reported by the dictionary subsystem.
-  if (thd->dd_client()->update(const_cast<T*>(from_tab)))
+  if (thd->dd_client()->update(&from_tab, new_tab.get()))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -159,7 +159,7 @@ bool Weak_object_impl::store(Open_dictionary_tables_ctx *otx)
   @return true - on failure and error is reported.
   @return false - on success.
 */
-bool Weak_object_impl::drop(Open_dictionary_tables_ctx *otx)
+bool Weak_object_impl::drop(Open_dictionary_tables_ctx *otx) const
 {
   DBUG_ENTER("Weak_object_impl::drop");
 
