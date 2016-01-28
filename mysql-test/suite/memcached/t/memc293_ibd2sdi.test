@@ -122,7 +122,9 @@ let MEMCACHED_TABLE_MAPPING = desc_t3;
 --error 1
 --exec $IBD2SDI --debug=d,ib_tmp_file_fail $IBD_FILE -d $MYSQL_TMP_DIR/out.txt 2>&1
 
+## header contains version/platform information
 --replace_result $IBD2SDI IBD2SDI
+--replace_regex /; Ver 5.*$//
 --error 1
 --exec $IBD2SDI 2>&1
 

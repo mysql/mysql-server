@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -62,15 +62,21 @@ MACRO (MYSQL_CHECK_LIBEVENT)
       set(LIBEVENT_LIB_PATHS /usr/local/lib /opt/local/lib)
     ENDIF()
 
+    ## libevent.so is historical, use libevent_core.so if found.
+    find_library(LIBEVENT_CORE event_core PATHS ${LIBEVENT_LIB_PATHS})
     find_library(LIBEVENT_LIB event PATHS ${LIBEVENT_LIB_PATHS})
 
-    if (NOT LIBEVENT_LIB)
+    if (NOT LIBEVENT_LIB AND NOT LIBEVENT_CORE)
         MESSAGE(SEND_ERROR "Cannot find appropriate event lib in /usr/local/lib or /opt/local/lib. Use bundled libevent")
     endif() 
 
-    IF (LIBEVENT_LIB AND LIBEVENT_INCLUDE_DIR)
+    IF ((LIBEVENT_LIB OR LIBEVENT_CORE) AND LIBEVENT_INCLUDE_DIR)
       set(LIBEVENT_FOUND TRUE)
-      set(LIBEVENT_LIBS ${LIBEVENT_LIB})
+      IF (LIBEVENT_CORE)
+        set(LIBEVENT_LIBS ${LIBEVENT_CORE})
+      ELSE()
+        set(LIBEVENT_LIBS ${LIBEVENT_LIB})
+      ENDIF()
     ELSE()
       set(LIBEVENT_FOUND FALSE)
     ENDIF()

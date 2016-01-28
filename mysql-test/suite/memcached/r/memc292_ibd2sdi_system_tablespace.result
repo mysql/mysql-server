@@ -318,7 +318,7 @@ INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 IBD2SDI Extract Serialized Dictionary Info (SDI) from an InnoDB Datafile (IBD); Ver 5.8.0
 # 11. Print help
 IBD2SDI Extract Serialized Dictionary Info (SDI) from an InnoDB Datafile (IBD); Ver 5.8.0
-Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
 Oracle is a registered trademark of Oracle Corporation and/or its
 affiliates. Other names may be trademarks of their respective
@@ -1078,7 +1078,7 @@ SET GLOBAL innodb_limit_optimistic_insert_debug = default;
 IBD2SDI Extract Serialized Dictionary Info (SDI) from an InnoDB Datafile (IBD); Ver 5.8.0
 # 11. Print help
 IBD2SDI Extract Serialized Dictionary Info (SDI) from an InnoDB Datafile (IBD); Ver 5.8.0
-Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
 Oracle is a registered trademark of Oracle Corporation and/or its
 affiliates. Other names may be trademarks of their respective
