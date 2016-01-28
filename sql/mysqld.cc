@@ -124,9 +124,7 @@
 
   @subpage PAGE_SQL_Optimizer
 
-  @section sql_query_exec_execution SQL Execution
-
-  See @ref Query_Executor.
+  @subpage stored_programs
 
   @section sql_query_exec_prepared Prepared statements
 
