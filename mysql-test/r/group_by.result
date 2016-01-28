@@ -3412,3 +3412,263 @@ FROM t1 GROUP BY col_varchar HAVING (field1 >= 'i' OR field3 <= 9);
 field1	field3
 r	83
 DROP TABLE t1;
+#
+# Bug#21974346: GROUPING ON AGGREGATED RESULTS NOT ALWAYS REJECTED
+#
+CREATE TABLE t (a INT);
+INSERT INTO t VALUES (0), (1), (1), (2);
+# These queries did not raise the expected error before the fix.
+SELECT COUNT(*) AS c FROM t GROUP BY (SELECT 1 HAVING c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) + 1 AS c FROM t GROUP BY (SELECT 1 HAVING c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT SUM(a) AS s FROM t GROUP BY (SELECT 1 HAVING s);
+ERROR 42S22: Reference 's' not supported (reference to group function)
+SELECT SUM(a) + 1 AS s FROM t GROUP BY (SELECT 1 HAVING s);
+ERROR 42S22: Reference 's' not supported (reference to group function)
+SELECT (SELECT COUNT(*) AS c FROM t GROUP BY (SELECT 1 HAVING c));
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT (SELECT COUNT(*) AS c FROM t GROUP BY (SELECT 1 HAVING c) LIMIT 1);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT (SELECT COUNT(*) + 1 AS c FROM t GROUP BY (SELECT 1 HAVING c));
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c1, (SELECT 1 HAVING c1) AS c2
+FROM t GROUP BY (SELECT 1 WHERE c2);
+ERROR 42S22: Reference 'c2' not supported (reference to group function)
+SELECT COUNT(*) + 1 AS c1, (SELECT 1 HAVING c1) + 1 AS c2
+FROM t GROUP BY (SELECT 1 WHERE c2);
+ERROR 42S22: Reference 'c2' not supported (reference to group function)
+# These queries were accepted before the fix, and they still are.
+SELECT COUNT(*) AS c FROM t ORDER BY (SELECT 1 HAVING c);
+c
+4
+SELECT COUNT(*) AS c FROM t ORDER BY c;
+c
+4
+SELECT COUNT(*) AS c FROM t ORDER BY c+1;
+c
+4
+SELECT COUNT(*) AS c FROM t ORDER BY c+c;
+c
+4
+SELECT COUNT(*) AS c FROM t HAVING (SELECT 1 HAVING c);
+c
+4
+SELECT COUNT(*) AS c FROM t HAVING c;
+c
+4
+SELECT a, COUNT(*) AS c FROM t GROUP BY a WITH ROLLUP
+HAVING (SELECT 1 HAVING c);
+a	c
+0	1
+1	2
+2	1
+NULL	4
+SELECT a, COUNT(*) AS c FROM t GROUP BY a WITH ROLLUP HAVING c;
+a	c
+0	1
+1	2
+2	1
+NULL	4
+SELECT (SELECT COUNT(*) AS c FROM t HAVING c <> 0);
+(SELECT COUNT(*) AS c FROM t HAVING c <> 0)
+4
+SELECT (SELECT COUNT(*) FROM t HAVING COUNT(*) <> 0);
+(SELECT COUNT(*) FROM t HAVING COUNT(*) <> 0)
+4
+SELECT (SELECT COUNT(*) AS c FROM t ORDER BY c);
+(SELECT COUNT(*) AS c FROM t ORDER BY c)
+4
+SELECT (SELECT COUNT(*) FROM t ORDER BY COUNT(*));
+(SELECT COUNT(*) FROM t ORDER BY COUNT(*))
+4
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2
+GROUP BY (SELECT 1 HAVING s > 0)) > 0;
+1
+1
+SELECT (SELECT SUM(a)) FROM t;
+(SELECT SUM(a))
+4
+SELECT SUM(a) AS s, (SELECT SUM(a)) FROM t;
+s	(SELECT SUM(a))
+4	4
+SELECT a, (SELECT SUM(a)) s FROM t GROUP BY a;
+a	s
+0	0
+1	2
+2	2
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2 HAVING s > 5);
+1
+SELECT (SELECT SUM(t1.a) s FROM t t2 WHERE t2.a = 0 HAVING s > 3) FROM t t1;
+(SELECT SUM(t1.a) s FROM t t2 WHERE t2.a = 0 HAVING s > 3)
+4
+SELECT 1 FROM t HAVING (SELECT SUM(a)) > 0;
+1
+1
+SELECT (SELECT SUM(a)) FROM t;
+(SELECT SUM(a))
+4
+# These queries where accepted before the fix, and they still are,
+# but their results are wrong both before and after the fix
+# because of bug#22588319.
+# Returns (4, NULL), should have returned (4, 1):
+SELECT SUM(a) s, (SELECT 1 HAVING s > 0) s2 FROM t;
+s	s2
+4	NULL
+# Should have ordered ascending on -a, but comes out in random order
+# because the ORDER BY clause always evaluates to NULL. Have to use
+# the --sorted_result directive to produce stable test results.
+SELECT a, COUNT(*) c FROM t GROUP BY a ORDER BY (SELECT -a HAVING c > 0);
+a	c
+0	1
+1	2
+2	1
+# These queries were accepted in the default sql_mode before the fix,
+# and rejected in the ANSI sql_mode. Expect no change after the fix.
+SELECT * FROM t t1 WHERE (SELECT SUM(t1.a) s FROM t t2 HAVING s = 0);
+a
+SELECT 1 FROM t t1 GROUP BY (SELECT SUM(t1.a) s FROM t t2 ORDER BY s);
+1
+1
+1
+1
+SELECT 1 FROM t t1 GROUP BY (SELECT SUM(t1.a) s FROM t t2 ORDER BY s + 1);
+1
+1
+1
+1
+SELECT 1 FROM t t1 GROUP BY (SELECT SUM(t1.a) s);
+1
+1
+1
+1
+SELECT 1 FROM t WHERE (SELECT SUM(a)) > 0;
+1
+1
+1
+1
+SELECT 1 FROM t GROUP BY (SELECT SUM(a));
+1
+1
+1
+1
+SET sql_mode = ANSI;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SELECT * FROM t t1 WHERE (SELECT SUM(t1.a) s FROM t t2 HAVING s = 0);
+ERROR HY000: Invalid use of group function
+SELECT 1 FROM t t1 GROUP BY (SELECT SUM(t1.a) s FROM t t2 ORDER BY s);
+ERROR HY000: Invalid use of group function
+SELECT 1 FROM t t1 GROUP BY (SELECT SUM(t1.a) s FROM t t2 ORDER BY s + 1);
+ERROR HY000: Invalid use of group function
+SELECT 1 FROM t t1 GROUP BY (SELECT SUM(t1.a) s);
+ERROR HY000: Invalid use of group function
+SELECT 1 FROM t WHERE (SELECT SUM(a)) > 0;
+ERROR HY000: Invalid use of group function
+SELECT 1 FROM t GROUP BY (SELECT SUM(a));
+ERROR HY000: Invalid use of group function
+SET sql_mode = DEFAULT;
+# These queries were rejected before the fix, and they still are.
+SELECT COUNT(*) AS c FROM t GROUP BY (SELECT c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) + 1 AS c FROM t GROUP BY (SELECT c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t GROUP BY (SELECT 1 WHERE c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) + 1 AS c FROM t GROUP BY (SELECT 1 WHERE c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t GROUP BY (SELECT c HAVING c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) + 1 AS c FROM t GROUP BY (SELECT c HAVING c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t GROUP BY (SELECT c WHERE c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT c FROM (SELECT COUNT(*) AS c FROM t GROUP BY (SELECT 1 ORDER BY c)) tt;
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t
+GROUP BY (SELECT COUNT(*) FROM t HAVING (SELECT c));
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t
+GROUP BY (SELECT COUNT(*) FROM t ORDER BY (SELECT c));
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT (SELECT COUNT(*) AS c FROM t GROUP BY c);
+ERROR 42000: Can't group on 'c'
+SELECT (SELECT COUNT(*) FROM t GROUP BY COUNT(*));
+ERROR 42000: Can't group on 'COUNT(*)'
+SELECT 1 FROM t t1 WHERE (SELECT SUM(t1.a) s FROM t t2 GROUP BY s);
+ERROR 42000: Can't group on 's'
+SELECT 1 FROM t t1 WHERE (SELECT SUM(t1.a) s FROM t t2 GROUP BY s+1);
+ERROR 42000: Can't group on '???'
+SELECT 1 FROM t t1 ORDER BY (SELECT SUM(t1.a) s FROM t t2 GROUP BY s) > 0;
+ERROR 42000: Can't group on 's'
+SELECT 1 FROM t t1 ORDER BY (SELECT SUM(t1.a) s FROM t t2 GROUP BY s+1) > 0;
+ERROR 42000: Can't group on '???'
+SELECT 1 FROM t t1 ORDER BY (SELECT SUM(t1.a) s FROM t t2
+GROUP BY (SELECT s)) > 0;
+ERROR 42S22: Reference 's' not supported (reference to group function)
+SELECT 1 FROM t t1 ORDER BY (SELECT SUM(t1.a) s FROM t t2
+GROUP BY (SELECT s+1)) > 0;
+ERROR 42S22: Reference 's' not supported (reference to group function)
+SELECT 1 FROM t ORDER BY (SELECT SUM(a));
+ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to the result of a non-aggregated query
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2 WHERE s > 5);
+ERROR 42S22: Unknown column 's' in 'where clause'
+SELECT a, (SELECT SUM(a)) s FROM t GROUP BY a, s;
+ERROR 42000: Can't group on 's'
+SELECT EXISTS (SELECT SUM(t1.a) s FROM t t2 GROUP BY s) FROM t t1;
+ERROR 42000: Can't group on 's'
+SELECT SUM(a) s, s FROM t;
+ERROR 42S22: Unknown column 's' in 'field list'
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2 GROUP BY s) > 0;
+ERROR 42000: Can't group on 's'
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2 GROUP BY s+1) > 0;
+ERROR 42000: Can't group on '???'
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2
+HAVING (SELECT 1 GROUP BY s+1)) > 0;
+ERROR 42S22: Reference 's' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t ORDER BY (SELECT c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t ORDER BY (SELECT 1 ORDER BY c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t ORDER BY (SELECT c ORDER BY c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t HAVING (SELECT c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t HAVING (SELECT 1 ORDER BY c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t HAVING (SELECT c ORDER BY c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT a, COUNT(*) AS c FROM t GROUP BY a WITH ROLLUP
+HAVING (SELECT c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT a, COUNT(*) AS c FROM t GROUP BY a WITH ROLLUP
+HAVING (SELECT 1 ORDER BY c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT a, COUNT(*) AS c FROM t GROUP BY a WITH ROLLUP
+HAVING (SELECT c ORDER BY c);
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t ORDER BY (SELECT COUNT(*) FROM t HAVING (SELECT c));
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT c FROM (SELECT COUNT(*) AS c FROM t ORDER BY (SELECT 1 ORDER BY c)) tt;
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t
+ORDER BY (SELECT COUNT(*) FROM t GROUP BY (SELECT c));
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT COUNT(*) AS c FROM t
+HAVING (SELECT COUNT(*) FROM t GROUP BY (SELECT c));
+ERROR 42S22: Reference 'c' not supported (reference to group function)
+SELECT SUM(a) AS s, (SELECT s) FROM t;
+ERROR 42S22: Reference 's' not supported (reference to group function)
+SELECT EXISTS (SELECT SUM(t1.a) s FROM t t2 GROUP BY (SELECT s)) FROM t t1;
+ERROR 42S22: Reference 's' not supported (reference to group function)
+SELECT (SELECT SUM(t1.a) s FROM t t2 HAVING (SELECT s > 5)) FROM t t1;
+ERROR 42S22: Reference 's' not supported (reference to group function)
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2 HAVING (SELECT s) < 0);
+ERROR 42S22: Reference 's' not supported (reference to group function)
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2 GROUP BY (SELECT s));
+ERROR 42S22: Reference 's' not supported (reference to group function)
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2 HAVING (SELECT -s) > 0);
+ERROR 42S22: Reference 's' not supported (reference to group function)
+SELECT 1 FROM t t1 HAVING (SELECT SUM(t1.a) s FROM t t2 GROUP BY (SELECT -s));
+ERROR 42S22: Reference 's' not supported (reference to group function)
+DROP TABLE t;
