@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -240,6 +240,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   if (open_and_lock_tables(thd, table_list, 0))
     DBUG_RETURN(true);
 
+  THD_STAGE_INFO(thd, stage_executing);
   if (select->setup_tables(thd, table_list, false))
     DBUG_RETURN(true);
 
