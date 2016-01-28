@@ -2734,7 +2734,7 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_SELECT:
   {
     DBUG_EXECUTE_IF("use_attachable_trx",
-                    thd->begin_attachable_transaction(););
+                    thd->begin_attachable_ro_transaction(););
 
     thd->clear_current_query_costs();
 

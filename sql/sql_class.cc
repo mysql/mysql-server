@@ -78,68 +78,8 @@ LEX_CSTRING NULL_CSTR=  { NULL, 0 };
 
 const char * const THD::DEFAULT_WHERE= "field list";
 
-/****************************************************************************
-** Transaction_state definition.
-****************************************************************************/
 
-struct Transaction_state
-{
-  Transaction_state()
-    : m_ha_data(PSI_NOT_INSTRUMENTED, m_ha_data.initial_capacity)
-  {}
-
-  void backup(THD *thd);
-  void restore(THD *thd);
-
-  /// SQL-command.
-  enum_sql_command m_sql_command;
-
-  Query_tables_list m_query_tables_list;
-
-  /// Open-tables state.
-  Open_tables_backup m_open_tables_state;
-
-  /// SQL_MODE.
-  sql_mode_t m_sql_mode;
-
-  /// Transaction isolation level.
-  enum_tx_isolation m_tx_isolation;
-
-  /// Ha_data array.
-  Prealloced_array<Ha_data, PREALLOC_NUM_HA> m_ha_data;
-
-  /// Transaction_ctx instance.
-  Transaction_ctx *m_trx;
-
-  /// Transaction read-only state.
-  my_bool m_tx_read_only;
-
-  /// THD options.
-  ulonglong m_thd_option_bits;
-
-  /// Current transaction instrumentation.
-  PSI_transaction_locker *m_transaction_psi;
-
-  /// Server status flags.
-  uint m_server_status;
-
-  /// THD::in_lock_tables value.
-  bool m_in_lock_tables;
-
-  /**
-    Current time zone (i.e. @@session.time_zone) usage indicator.
-
-    Saving it allows data-dictionary code to read timestamp values
-    as datetimes from system tables without disturbing user's statement.
-
-    TODO: We need to change DD code not to use @@session.time_zone at all and
-          stick to UTC for internal storage of timestamps in DD objects.
-  */
-  bool m_time_zone_used;
-};
-
-
-void Transaction_state::backup(THD *thd)
+void THD::Transaction_state::backup(THD *thd)
 {
   this->m_sql_command= thd->lex->sql_command;
   this->m_trx= thd->get_transaction();
@@ -157,7 +97,7 @@ void Transaction_state::backup(THD *thd)
 }
 
 
-void Transaction_state::restore(THD *thd)
+void THD::Transaction_state::restore(THD *thd)
 {
   thd->set_transaction(this->m_trx);
 
@@ -174,37 +114,6 @@ void Transaction_state::restore(THD *thd)
   thd->in_lock_tables= this->m_in_lock_tables;
   thd->time_zone_used= this->m_time_zone_used;
 }
-
-/****************************************************************************
-** Attachable_trx definition.
-****************************************************************************/
-
-class THD::Attachable_trx
-{
-public:
-  Attachable_trx(THD *thd, Attachable_trx *prev_trx);
-  ~Attachable_trx();
-
-  Attachable_trx *get_prev_attachable_trx() const
-  { return m_prev_attachable_trx; };
-
-private:
-  /// THD instance.
-  THD *m_thd;
-
-  /**
-    Attachable_trx which was active for the THD before when this
-    transaction was started (NULL in most cases).
-  */
-  Attachable_trx *m_prev_attachable_trx;
-
-  /// Transaction state data.
-  Transaction_state m_trx_state;
-
-private:
-  Attachable_trx(const Attachable_trx &);
-  Attachable_trx &operator =(const Attachable_trx &);
-};
 
 
 THD::Attachable_trx::Attachable_trx(THD *thd, Attachable_trx *prev_trx)
@@ -263,6 +172,11 @@ THD::Attachable_trx::Attachable_trx(THD *thd, Attachable_trx *prev_trx)
   m_thd->variables.option_bits|= OPTION_AUTOCOMMIT;
   m_thd->variables.option_bits&= ~OPTION_NOT_AUTOCOMMIT;
   m_thd->variables.option_bits&= ~OPTION_BEGIN;
+
+  // Possible parent's involvement to multi-statement transaction is masked
+
+  m_thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+  m_thd->server_status&= ~SERVER_STATUS_IN_TRANS_READONLY;
 
   // Reset SQL_MODE during system operations.
 
@@ -629,7 +543,7 @@ THD::THD(bool enable_plugins)
 
 void THD::set_transaction(Transaction_ctx *transaction_ctx)
 {
-  DBUG_ASSERT(is_attachable_transaction_active());
+  DBUG_ASSERT(is_attachable_ro_transaction_active());
 
   delete m_transaction.release();
   m_transaction.reset(transaction_ctx);
@@ -2206,7 +2120,7 @@ void THD::restore_backup_open_tables_state(Open_tables_backup *backup)
 }
 
 
-void THD::begin_attachable_transaction()
+void THD::begin_attachable_ro_transaction()
 {
   m_attachable_trx= new Attachable_trx(this, m_attachable_trx);
 }

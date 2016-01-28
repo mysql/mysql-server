@@ -509,7 +509,7 @@ MYSQL_THD thd_tx_arbitrate(MYSQL_THD requestor, MYSQL_THD holder)
 extern "C"
 int thd_tx_is_dd_trx(const MYSQL_THD thd)
 {
-  return (int) thd->is_attachable_transaction_active();
+  return (int) thd->is_attachable_ro_transaction_active();
 }
 
 

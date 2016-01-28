@@ -6255,8 +6255,15 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables, uint flags,
   /*
     open_and_lock_tables() must not be used to open system tables. There must
     be no active attachable transaction when open_and_lock_tables() is called.
+    Exception is made to the read-write attachables with explicitly specified
+    in the assert table.
+    Callers in the read-write case must make sure no side effect to
+    the global transaction state is inflicted when the attachable one
+    will commmit.
   */
-  DBUG_ASSERT(!thd->is_attachable_transaction_active());
+  DBUG_ASSERT(!thd->is_attachable_ro_transaction_active() &&
+              (!thd->is_attachable_rw_transaction_active() ||
+               !strcmp(tables->table_name, "gtid_executed")));
 
   if (open_tables(thd, &tables, &counter, flags, prelocking_strategy))
     goto err;
@@ -9863,11 +9870,11 @@ bool open_trans_system_tables_for_read(THD *thd, TABLE_LIST *table_list)
 
   DBUG_ENTER("open_trans_system_tables_for_read");
 
-  DBUG_ASSERT(!thd->is_attachable_transaction_active());
+  DBUG_ASSERT(!thd->is_attachable_ro_transaction_active());
 
   // Begin attachable transaction.
 
-  thd->begin_attachable_transaction();
+  thd->begin_attachable_ro_transaction();
 
   // Open tables.
 

@@ -90,7 +90,7 @@ public:
      m_thd(thd),
      m_kill_immunizer(thd)
   {
-    thd->begin_attachable_transaction();
+    thd->begin_attachable_ro_transaction();
   }
 
   ~Transaction_ro()

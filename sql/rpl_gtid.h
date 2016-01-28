@@ -3377,6 +3377,30 @@ void gtid_set_performance_schema_values(const THD *thd);
 */
 bool gtid_reacquire_ownership_if_anonymous(THD *thd);
 
+
+/**
+  The function commits or rolls back the gtid state if it needs to.
+  It's supposed to be invoked at the end of transaction commit or
+  rollback, as well as as at the end of XA prepare.
+
+  @param thd       Thread context
+  @param needs_to  The actual work will be done when the parameter is true
+  @param do_commit When true the gtid state changes are committed, otherwise
+                   they are rolled back.
+*/
+
+inline void gtid_state_commit_or_rollback(THD *thd, bool needs_to,
+                                          bool do_commit)
+{
+  if (needs_to)
+  {
+    if (do_commit)
+      gtid_state->update_on_commit(thd);
+    else
+      gtid_state->update_on_rollback(thd);
+  }
+}
+
 #endif // ifndef MYSQL_CLIENT
 
 #endif /* RPL_GTID_H_INCLUDED */

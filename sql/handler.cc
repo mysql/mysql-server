@@ -1426,6 +1426,17 @@ int ha_prepare(THD *thd)
   {
     const Ha_trx_info *ha_info= trn_ctx->ha_trx_info(
       Transaction_ctx::SESSION);
+    bool gtid_error, need_clear_owned_gtid;
+
+    if ((gtid_error=
+         MY_TEST(commit_owned_gtids(thd, true, &need_clear_owned_gtid))))
+    {
+      DBUG_ASSERT(need_clear_owned_gtid);
+
+      ha_rollback_trans(thd, true);
+      error= 1;
+      goto err;
+    }
 
     while (ha_info)
     {
@@ -1452,6 +1463,12 @@ int ha_prepare(THD *thd)
       }
       ha_info= ha_info->next();
     }
+
+    DBUG_ASSERT(thd->get_transaction()->xid_state()->
+                has_state(XID_STATE::XA_IDLE));
+
+err:
+    gtid_state_commit_or_rollback(thd, need_clear_owned_gtid, !gtid_error);
   }
 
   DBUG_RETURN(error);
@@ -1519,6 +1536,47 @@ ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
 
 
 /**
+  The function computes condition to call gtid persistor wrapper,
+  and executes it.
+  It is invoked at committing a statement or transaction, including XA,
+  and also at XA prepare handling.
+
+  @param thd  Thread context.
+  @param all  The execution scope, true for the transaction one, false
+              for the statement one.
+  @param[out] need_clear_owned_gtid_ptr
+              A pointer to bool variable to return the computed decision
+              value.
+  @return zero as no error indication, non-zero otherwise
+*/
+
+int commit_owned_gtids(THD *thd, bool all, bool *need_clear_owned_gtid_ptr)
+{
+  int error= 0;
+
+  if ((!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates)) &&
+      (all || !thd->in_multi_stmt_transaction_mode()) &&
+      !thd->is_operating_gtid_table_implicitly &&
+      !thd->is_operating_substatement_implicitly)
+  {
+    if (thd->owned_gtid.sidno > 0)
+    {
+      error= gtid_state->save(thd);
+      *need_clear_owned_gtid_ptr= true;
+    }
+    else if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
+      *need_clear_owned_gtid_ptr= true;
+  }
+  else
+  {
+    *need_clear_owned_gtid_ptr= false;
+  }
+
+  return error;
+}
+
+
+/**
   @param[in] thd                       Thread handle.
   @param[in] all                       Session transaction if true, statement
                                        otherwise.
@@ -1550,15 +1608,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
     if binlog is disabled, or binlog is enabled and log_slave_updates
     is disabled with slave SQL thread or slave worker thread.
   */
-  if ((!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates)) &&
-      (all || !thd->in_multi_stmt_transaction_mode()) &&
-      thd->owned_gtid.sidno > 0 &&
-      !thd->is_operating_gtid_table_implicitly &&
-      !thd->is_operating_substatement_implicitly)
-  {
-    error= gtid_state->save(thd);
-    need_clear_owned_gtid= true;
-  }
+  error= commit_owned_gtids(thd, all, &need_clear_owned_gtid);
 
   /*
     'all' means that this is either an explicit commit issued by
@@ -1781,7 +1831,7 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
     if (thd->lex->sql_command == SQLCOM_XA_COMMIT &&
         thd->binlog_applier_has_detached_trx())
     {
-      DBUG_ASSERT(static_cast<Sql_cmd_xa_commit*>(thd->lex->m_sql_cmd)->
+      DBUG_ASSERT(all && static_cast<Sql_cmd_xa_commit*>(thd->lex->m_sql_cmd)->
                   get_xa_opt() == XA_ONE_PHASE);
       restore_backup_trx= true;
     }
@@ -2002,7 +2052,7 @@ int ha_commit_attachable(THD *thd)
   Ha_trx_info *ha_info_next;
 
   /* This function only handles attachable transactions. */
-  DBUG_ASSERT(thd->is_attachable_transaction_active());
+  DBUG_ASSERT(thd->is_attachable_ro_transaction_active());
   /*
     Since the attachable transaction is AUTOCOMMIT we only need
     to care about statement transaction.
