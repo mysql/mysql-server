@@ -20,4 +20,4 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/unittest/mytap)
 
 #
-MY_ADD_TESTS(my_decimal EXT "cc" LINK_LIBRARIES mysys)
+MY_ADD_TESTS(my_decimal EXT "cc" LINK_LIBRARIES strings dbug)
