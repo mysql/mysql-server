@@ -29,8 +29,15 @@ public:
   constexpr Integer_value(longlong val, bool unsigned_flag)
     : m_val(val), m_unsigned_flag(unsigned_flag)
   {}
+
   constexpr longlong val() const { return m_val; }
   constexpr bool is_unsigned() const { return m_unsigned_flag; }
+
+  ulonglong val_unsigned() const
+  {
+    DBUG_ASSERT(!is_negative());
+    return static_cast<ulonglong>(m_val);
+  }
 
   constexpr bool is_negative() const
   {

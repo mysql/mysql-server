@@ -4935,3 +4935,57 @@ right(c1, 2147483648)
 111
 222
 DROP TABLE t1;
+#
+# Bug#22545429 FUNC SUBSTRING_INDEX WORKS INCORRECTLY
+#              WHEN THE COUNT PARAM IS A BIGINT UNSIGNED
+#
+SELECT SUBSTRING_INDEX( 'xyz', 'abc', 9223372036854775807 );
+SUBSTRING_INDEX( 'xyz', 'abc', 9223372036854775807 )
+xyz
+SELECT SUBSTRING_INDEX( 'xyz', 'abc', 9223372036854775808 );
+SUBSTRING_INDEX( 'xyz', 'abc', 9223372036854775808 )
+xyz
+SELECT SUBSTRING_INDEX( 'xyz', 'abc', 18446744073709551615 );
+SUBSTRING_INDEX( 'xyz', 'abc', 18446744073709551615 )
+xyz
+set names utf8;
+SELECT SUBSTRING_INDEX( 'xyz', 'abc', 9223372036854775807 );
+SUBSTRING_INDEX( 'xyz', 'abc', 9223372036854775807 )
+xyz
+SELECT SUBSTRING_INDEX( 'xyz', 'abc', 9223372036854775808 );
+SUBSTRING_INDEX( 'xyz', 'abc', 9223372036854775808 )
+xyz
+SELECT SUBSTRING_INDEX( 'xyz', 'abc', 18446744073709551615 );
+SUBSTRING_INDEX( 'xyz', 'abc', 18446744073709551615 )
+xyz
+SELECT SUBSTRING_INDEX('www.mysql.com', '.', 1);
+SUBSTRING_INDEX('www.mysql.com', '.', 1)
+www
+SELECT SUBSTRING_INDEX('www.mysql.com', '.', -1);
+SUBSTRING_INDEX('www.mysql.com', '.', -1)
+com
+SELECT SUBSTRING_INDEX('www.mysql.com', '.', 100);
+SUBSTRING_INDEX('www.mysql.com', '.', 100)
+www.mysql.com
+SELECT SUBSTRING_INDEX('www.mysql.com', '.', -100);
+SUBSTRING_INDEX('www.mysql.com', '.', -100)
+www.mysql.com
+SELECT SUBSTRING_INDEX('www.mysql.com', '.', 2147483647);
+SUBSTRING_INDEX('www.mysql.com', '.', 2147483647)
+www.mysql.com
+SELECT SUBSTRING_INDEX('www.mysql.com', '.', -2147483647);
+SUBSTRING_INDEX('www.mysql.com', '.', -2147483647)
+www.mysql.com
+SELECT SUBSTRING_INDEX('www.mysql.com', '.', 2147483648);
+SUBSTRING_INDEX('www.mysql.com', '.', 2147483648)
+www.mysql.com
+SELECT SUBSTRING_INDEX('www.mysql.com', '.', -2147483648);
+SUBSTRING_INDEX('www.mysql.com', '.', -2147483648)
+www.mysql.com
+SELECT SUBSTRING_INDEX('www.mysql.com', '.', 2147483649);
+SUBSTRING_INDEX('www.mysql.com', '.', 2147483649)
+www.mysql.com
+SELECT SUBSTRING_INDEX('www.mysql.com', '.', -2147483649);
+SUBSTRING_INDEX('www.mysql.com', '.', -2147483649)
+www.mysql.com
+set names default;

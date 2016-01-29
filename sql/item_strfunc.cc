@@ -1843,7 +1843,7 @@ String *Item_func_substr_index::val_str(String *str)
   String tmp(buff,sizeof(buff),system_charset_info);
   String *res= args[0]->val_str(str);
   String *delimiter= args[1]->val_str(&tmp);
-  int32 count= (int32) args[2]->val_int();
+  const longlong count= args[2]->val_int();
   int offset;
 
   if (args[0]->null_value || args[1]->null_value || args[2]->null_value)
@@ -1858,6 +1858,13 @@ String *Item_func_substr_index::val_str(String *str)
 
   res->set_charset(collation.collation);
 
+  Integer_value count_val(count, args[2]->unsigned_flag);
+
+  // Assumes that the maximum length of a String < INT_MAX32
+  if (Integer_value(INT_MAX32, false) < count_val ||
+      count_val < Integer_value(INT_MIN32, false))
+    return res;
+
   if (use_mb(res->charset()))
   {
     const char *ptr= res->ptr();
@@ -1865,90 +1872,100 @@ String *Item_func_substr_index::val_str(String *str)
     const char *end= strend-delimiter_length+1;
     const char *search= delimiter->ptr();
     const char *search_end= search+delimiter_length;
-    int32 n=0,c=count,pass;
-    uint32 l;
-    for (pass=(count>0);pass<2;++pass)
+    longlong nnn= 0;
+    longlong ccc= count;
+    // A single pass for positive, two passes for negative count.
+    for (int pass= (count_val.is_negative() ? 0 : 1); pass < 2; ++pass)
     {
       while (ptr < end)
       {
         if (*ptr == *search)
         {
-	  char *i,*j;
-	  i=(char*) ptr+1; j=(char*) search+1;
-	  while (j != search_end)
-	    if (*i++ != *j++) goto skip;
-	  if (pass==0) ++n;
-	  else if (!--c) break;
-	  ptr+= delimiter_length;
-	  continue;
-	}
+          const char *i= ptr + 1;
+          const char *j= search + 1;
+          while (j != search_end)
+          {
+            if (*i++ != *j++)
+              goto skip;
+          }
+          if (pass == 0)
+            ++nnn;
+          else if (--ccc == 0)
+            break;
+          ptr+= delimiter_length;
+          continue;
+        }
     skip:
-        if ((l=my_ismbchar(res->charset(), ptr,strend))) ptr+=l;
-        else ++ptr;
+        ptr+= std::max(1U, my_ismbchar(res->charset(), ptr,strend));
       } /* either not found or got total number when count<0 */
-      if (pass == 0) /* count<0 */
+
+      if (pass == 0) /* count < 0 */
       {
-        c+=n+1;
-        if (c<=0) return res; /* not found, return original string */
-        ptr=res->ptr();
+        ccc+= nnn + 1;
+        if (ccc <= 0)
+          return res; /* not found, return original string */
+        ptr= res->ptr();
       }
       else
       {
-        if (c) return res; /* Not found, return original string */
-        if (count>0) /* return left part */
+        if (ccc != 0)
+          return res; /* Not found, return original string */
+        if (count_val.is_negative()) /* return right part */
         {
-	  tmp_value.set(*res,0,(ulong) (ptr-res->ptr()));
+          ptr+= delimiter_length;
+          tmp_value.set(*res, (ptr-res->ptr()), (strend-ptr));
         }
-        else /* return right part */
+        else /* return left part */
         {
-	  ptr+= delimiter_length;
-	  tmp_value.set(*res,(ulong) (ptr-res->ptr()), (ulong) (strend-ptr));
+          tmp_value.set(*res,0, (ptr-res->ptr()));
         }
       }
     }
   }
   else
   {
-    if (count > 0)
-    {					// start counting from the beginning
-      for (offset=0; ; offset+= delimiter_length)
-      {
-	if ((offset= res->strstr(*delimiter, offset)) < 0)
-	  return res;			// Didn't find, return org string
-	if (!--count)
-	{
-	  tmp_value.set(*res,0,offset);
-	  break;
-	}
-      }
-    }
-    else
+    if (count_val.is_negative())
     {
       /*
         Negative index, start counting at the end
       */
+      longlong count_ll= count;
       for (offset=res->length(); offset; )
       {
-        /* 
-          this call will result in finding the position pointing to one 
+        /*
+          this call will result in finding the position pointing to one
           address space less than where the found substring is located
           in res
         */
-	if ((offset= res->strrstr(*delimiter, offset)) < 0)
-	  return res;			// Didn't find, return org string
+        if ((offset= res->strrstr(*delimiter, offset)) < 0)
+          return res;			// Didn't find, return org string
         /*
           At this point, we've searched for the substring
           the number of times as supplied by the index value
         */
-	if (!++count)
-	{
-	  offset+= delimiter_length;
-	  tmp_value.set(*res,offset,res->length()- offset);
-	  break;
-	}
+        if (++count_ll == 0)
+        {
+          offset+= delimiter_length;
+          tmp_value.set(*res, offset, res->length()- offset);
+          break;
+        }
       }
-      if (count)
+      if (count_ll != 0)
         return res;			// Didn't find, return org string
+    }
+    else
+    {					// start counting from the beginning
+      ulonglong count_ull= count_val.val_unsigned();
+      for (offset=0; ; offset+= delimiter_length)
+      {
+        if ((offset= res->strstr(*delimiter, offset)) < 0)
+          return res;			// Didn't find, return org string
+        if (--count_ull == 0)
+        {
+          tmp_value.set(*res, 0, offset);
+          break;
+        }
+      }
     }
   }
   return (&tmp_value);
