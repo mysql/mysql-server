@@ -14291,8 +14291,7 @@ ha_innobase::info_low(
 				    || (key->flags & HA_SPATIAL)) {
 					/* The record per key does not apply to
 					FTS or Spatial indexes. */
-					key->rec_per_key[j] = 1;
-					key->set_records_per_key(j, 1.0);
+					key->set_records_per_key(j, 1.0f);
 					continue;
 				}
 
@@ -14332,28 +14331,6 @@ ha_innobase::info_low(
 						index->table->stat_n_rows);
 
 				key->set_records_per_key(j, rec_per_key);
-
-				/* The code below is legacy and should be
-				removed together with this comment once we
-				are sure the new floating point rec_per_key,
-				set via set_records_per_key(), works fine. */
-
-				ulong	rec_per_key_int = static_cast<ulong>(
-					innodb_rec_per_key(index, j,
-							   stats.records));
-
-				/* Since MySQL seems to favor table scans
-				too much over index searches, we pretend
-				index selectivity is 2 times better than
-				our estimate: */
-
-				rec_per_key_int = rec_per_key_int / 2;
-
-				if (rec_per_key_int == 0) {
-					rec_per_key_int = 1;
-				}
-
-				key->rec_per_key[j] = rec_per_key_int;
 			}
 		}
 	}

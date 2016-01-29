@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3834,7 +3834,7 @@ ha_innopart::info_low(
 				if ((key->flags & HA_FULLTEXT) != 0) {
 					/* The whole concept has no validity
 					for FTS indexes. */
-					key->rec_per_key[j] = 1;
+					key->set_records_per_key(j, 1.0f);
 					continue;
 				}
 
@@ -3873,28 +3873,6 @@ ha_innopart::info_low(
 						max_rows);
 
 				key->set_records_per_key(j, rec_per_key);
-
-				/* The code below is legacy and should be
-				removed together with this comment once we
-				are sure the new floating point rec_per_key,
-				set via set_records_per_key(), works fine. */
-
-				ulong	rec_per_key_int = static_cast<ulong>(
-					innodb_rec_per_key(index, j,
-							   max_rows));
-
-				/* Since MySQL seems to favor table scans
-				too much over index searches, we pretend
-				index selectivity is 2 times better than
-				our estimate: */
-
-				rec_per_key_int = rec_per_key_int / 2;
-
-				if (rec_per_key_int == 0) {
-					rec_per_key_int = 1;
-				}
-
-				key->rec_per_key[j] = rec_per_key_int;
 			}
 		}
 
