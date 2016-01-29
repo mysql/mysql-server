@@ -11163,9 +11163,9 @@ bool JOIN::optimize_rollup()
     static_cast<Item_null_result**>(thd->alloc(sizeof(Item*)*send_group_parts));
 
   rollup.null_items= Item_null_array(null_items, send_group_parts);
-  rollup.ref_pointer_arrays=
-    static_cast<Ref_ptr_array*>
-    (thd->alloc((sizeof(Ref_ptr_array) +
+  rollup.ref_item_arrays=
+    static_cast<Ref_item_array*>
+    (thd->alloc((sizeof(Ref_item_array) +
                  ref_array_size * sizeof(Item*)) * send_group_parts));
   rollup.fields=
     static_cast<List<Item>*>(thd->alloc(sizeof(List<Item>) * send_group_parts));
@@ -11189,13 +11189,8 @@ bool JOIN::optimize_rollup()
       return true;           /* purecov: inspected */
     List<Item> *rollup_fields= &rollup.fields[i];
     rollup_fields->empty();
-<<<<<<< HEAD
-    rollup.ref_item_arrays[i]= Ref_item_array(ref_array, all_fields.elements);
-    ref_array+= all_fields.elements;
-=======
-    rollup.ref_pointer_arrays[i]= Ref_ptr_array(ref_array, ref_array_size);
+    rollup.ref_item_arrays[i]= Ref_item_array(ref_array, ref_array_size);
     ref_array+= ref_array_size;
->>>>>>> mysql-5.7
   }
   for (uint i= 0; i < send_group_parts; i++)
   {
