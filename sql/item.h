@@ -3094,10 +3094,6 @@ class Item_param :public Item,
 {
   typedef Item super;
 
-  char cnvbuf[MAX_FIELD_WIDTH];
-  String cnvstr;
-  Item *cnvitem;
-
 protected:
   type_conversion_status save_in_field_inner(Field *field, bool no_conversions);
 
