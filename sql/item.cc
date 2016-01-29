@@ -1179,14 +1179,31 @@ Item *Item_param::safe_charset_converter(const CHARSET_INFO *tocs)
 {
   if (const_item())
   {
-    uint cnv_errors;
-    String *ostr= val_str(&cnvstr);
-    cnvitem->str_value.copy(ostr->ptr(), ostr->length(),
-                            ostr->charset(), tocs, &cnv_errors);
-    if (cnv_errors)
-       return NULL;
-    cnvitem->str_value.mark_as_const();
-    cnvitem->max_length= cnvitem->str_value.numchars() * tocs->mbmaxlen;
+    Item *cnvitem;
+    String tmp, cstr, *ostr= val_str(&tmp);
+
+    if (null_value)
+    {
+      cnvitem= new Item_null();
+      if (cnvitem == NULL)
+        return NULL;
+
+      cnvitem->collation.set(tocs);
+    }
+    else
+    {
+      uint conv_errors;
+      cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs,
+                &conv_errors);
+
+      if (conv_errors || !(cnvitem= new Item_string(cstr.ptr(), cstr.length(),
+                                                    cstr.charset(),
+                                                    collation.derivation)))
+        return NULL;
+
+      cnvitem->str_value.copy();
+      cnvitem->str_value.mark_as_const();
+    }
     return cnvitem;
   }
   return Item::safe_charset_converter(tocs);
@@ -3420,8 +3437,6 @@ Item_param::Item_param(uint pos_in_query_arg) :
     value is set.
   */
   maybe_null= 1;
-  cnvitem= new Item_string("", 0, &my_charset_bin, DERIVATION_COERCIBLE);
-  cnvstr.set(cnvbuf, sizeof(cnvbuf), &my_charset_bin);
 }
 
 
