@@ -630,7 +630,7 @@ public:
           being owned by the cache.
 
     @tparam          T          Dictionary object type.
-    @param  [in/out] old_object Old object, present in the cache, to be
+    @param  [in,out] old_object Old object, present in the cache, to be
                                 replaced. Will be set to point to the new
                                 cached object (upon success) or stay pointing
                                 to the old object (upon failure).
