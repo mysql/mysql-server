@@ -9,3 +9,5 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+binlog.binlog_mysqlbinlog_row @windows        : Bug#22608247 2016-02-01 Lalit Disabled on windows
+binlog.binlog_mysqlbinlog_row_myisam @windows : Bug#22608247 2016-02-01 Lalit Disabled on windows
