@@ -1670,7 +1670,10 @@ is_ref_or_null_optimized(const JOIN_TAB *tab, uint ref_key)
   Test if we can use one of the 'usable_keys' instead of 'ref' key
   for sorting.
 
+  @param order
+  @param tab
   @param ref			Number of key, used for WHERE clause
+  @param ref_key_parts
   @param usable_keys		Keys for testing
 
   @return
@@ -7061,6 +7064,7 @@ add_key_field(Key_field **key_fields, uint and_level, Item_func *cond,
     @param  eq_func        True if we used =, <=> or IS NULL
     @param  val            Value used for comparison with field
                            Is NULL for BETWEEN and IN    
+    @param  num_values
     @param  usable_tables  Tables which can be used for key optimization
     @param  sargables      IN/OUT Array of found sargable candidates
 
@@ -8033,6 +8037,7 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
   @param       tables         Number of tables in join
   @param       cond           WHERE condition (note that the function analyzes
                               join_tab[i]->join_cond() too)
+  @param       cond_equal
   @param       normal_tables  Tables not inner w.r.t some outer join (ones
                               for which we can make ref access based the WHERE
                               clause)
@@ -8222,6 +8227,7 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
   @param thd         THD pointer, for memory allocation
   @param table       Table object representing table
   @param keyparts    Number of key parts in the primary key
+  @param fields
   @param outer_exprs List of items used for key lookup
 
   @return Pointer to created keyuse array, or NULL if error
@@ -8383,6 +8389,7 @@ void JOIN::make_outerjoin_info()
   to root_tab, which is the first inner table of an outer join,
   or NULL if the condition being handled is the WHERE clause.
 
+  @param join
   @param idx       index of the first inner table for the inner-most outer join
   @param cond      the predicate to be guarded (must be set)
   @param root_idx  index of the inner table to stop at
@@ -10238,6 +10245,7 @@ bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
   @param tab                  The join table to operate on.
   @param find_func            function to iterate over the list and search
                               for a field
+  @param data
 
   @retval
     1                    found

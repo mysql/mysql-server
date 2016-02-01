@@ -3319,6 +3319,7 @@ uint Field_new_decimal::is_equal(Create_field *new_field)
    @param   to         Destination of the data
    @param   from       Source of the data
    @param   param_data Precision (upper) and decimal (lower) values
+   @param   low_byte_first
 
    @return  New pointer into memory based on from + length of the data
 */
@@ -7379,6 +7380,7 @@ uchar *Field_string::pack(uchar *to, const uchar *from,
    @param   to         Destination of the data
    @param   from       Source of the data
    @param   param_data Real type (upper) and length (lower) values
+   @param   low_byte_first
 
    @return  New pointer into memory based on from + length of the data
 */
@@ -7834,6 +7836,7 @@ uchar *Field_varstring::pack(uchar *to, const uchar *from,
    @param   to         Destination of the data
    @param   from       Source of the data
    @param   param_data Length bytes from the master's field data
+   @param   low_byte_first
 
    @return  New pointer into memory based on from + length of the data
 */

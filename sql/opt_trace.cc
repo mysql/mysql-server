@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -291,6 +291,11 @@ void Opt_trace_struct::do_destruct()
    enabled, we call do_add().
    In a 20-table plan search (as in BUG#50595), the execution time was
    decreased from 2.6 to 2.0 seconds thanks to this inlined-if trick.
+
+   @param key
+   @param val
+   @param val_length
+   @param escape
 */
 Opt_trace_struct& Opt_trace_struct::do_add(const char *key, const char *val,
                                            size_t val_length,

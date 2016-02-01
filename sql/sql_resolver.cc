@@ -3295,6 +3295,11 @@ find_order_in_list(THD *thd, Ref_item_array ref_item_array,
   the field list.
 
   @param thd  Thread handler
+  @param ref_item_array
+  @param tables
+  @param fields
+  @param all_fields
+  @param order
 
   @returns false if success, true if error
 */

@@ -3254,6 +3254,7 @@ int dump_leaf_key(void* key_arg, element_count count __attribute__((unused)),
 /**
   Constructor of Item_func_group_concat.
 
+  @param pos
   @param distinct_arg   distinct
   @param select_list    list of expression for show values
   @param opt_order_list list of sort columns
