@@ -1,0 +1,95 @@
+# Create t3 with MAX_ROWS set
+let $t3_table_options = MAX_ROWS=333333;
+--source setup.inc
+
+#
+# Test ALTER TABLE .. MAX_ROWS in combination with tables with
+# or without MAX_ROWS
+#
+
+
+#
+# Check that inplace ALTER TABLE ... MAX_ROWS on a table which does
+# not already have MAX_ROWS set is not allowed.
+#
+
+if (`select LOCATE("MAX_ROWS=", CREATE_OPTIONS)
+       from information_schema.tables where
+         TABLE_SCHEMA='ndb_ddl_test' and TABLE_NAME = 't1'`)
+{
+  die t1 has MAX_ROWS set;
+}
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1
+  algorithm=inplace,
+  max_rows=1111111;
+
+#
+# Check that copying ALTER TABLE ... MAX_ROWS on a table which does
+# not already have MAX_ROWS set is allowed.
+#
+ALTER TABLE t1
+  algorithm=copy,
+  max_rows=1111111;
+
+if (!`select LOCATE("MAX_ROWS=", CREATE_OPTIONS)
+       from information_schema.tables where
+         TABLE_SCHEMA='ndb_ddl_test' and TABLE_NAME = 't1'`)
+{
+  die t1 does not have MAX_ROWS set;
+}
+
+#
+# Check that inplace ALTER TABLE ... MAX_ROWS on a table which
+# already have MAX_ROWS set is allowed.
+#
+
+if (!`select LOCATE("MAX_ROWS=", CREATE_OPTIONS)
+       from information_schema.tables where
+         TABLE_SCHEMA='ndb_ddl_test' and TABLE_NAME = 't3'`)
+{
+  die t3 does not have MAX_ROWS set;
+}
+
+ALTER TABLE t3
+  algorithm=inplace,
+  max_rows=4444444;
+
+if (!`select LOCATE("MAX_ROWS=4444444", CREATE_OPTIONS)
+       from information_schema.tables where
+         TABLE_SCHEMA='ndb_ddl_test' and TABLE_NAME = 't3'`)
+{
+  die The value of MAX_ROWS for t3 did not change;
+}
+
+
+#
+# Check that copying ALTER TABLE ... MAX_ROWS on a table which
+# already have MAX_ROWS set is allowed.
+#
+
+if (!`select LOCATE("MAX_ROWS=", CREATE_OPTIONS)
+       from information_schema.tables where
+         TABLE_SCHEMA='ndb_ddl_test' and TABLE_NAME = 't3'`)
+{
+  die t3 does not have MAX_ROWS set;
+}
+
+ALTER TABLE t3
+  algorithm=copy,
+  max_rows=5555555;
+
+if (!`select LOCATE("MAX_ROWS=5555555", CREATE_OPTIONS)
+       from information_schema.tables where
+         TABLE_SCHEMA='ndb_ddl_test' and TABLE_NAME = 't3'`)
+{
+  die The value of MAX_ROWS for t3 did not change;
+}
+
+
+--source verify_mysql_dd.inc
+
+--source cleanup.inc
+
+

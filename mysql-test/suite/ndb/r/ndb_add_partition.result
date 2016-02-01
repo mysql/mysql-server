@@ -287,27 +287,17 @@ a	b	c
 select * from t4 where b = 50;
 a	b	c
 50	50	50
-alter online table t1 reorganize partition;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-alter online table t2 reorganize partition;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-Cannot use normal reorganize partition on t3 as it has explicit MAX_ROWS set
-alter online table t3 reorganize partition;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+alter table t1 algorithm=inplace, reorganize partition;
+alter table t2 algorithm=inplace, reorganize partition;
+Cannot use inplace reorganize partition on t3 as it has explicit MAX_ROWS set
+alter table t3 algorithm=inplace, reorganize partition;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: REORGANIZE of table with MAX_ROWS. Try ALGORITHM=COPY.
 show warnings;
 Level	Code	Message
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-Warning	1105	Cannot online REORGANIZE a table with Max_Rows set.  Use ALTER TABLE ... MAX_ROWS=<new_val> or offline REORGANIZE to redistribute this table.
-Error	1845	ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
-alter online table t3 max_rows=50000000;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-alter online table t4 reorganize partition;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-alter online table t5 partition by key() partitions 6;
+Error	1846	ALGORITHM=INPLACE is not supported. Reason: REORGANIZE of table with MAX_ROWS. Try ALGORITHM=COPY.
+alter table t3 algorithm=inplace, max_rows=50000000;
+alter table t4 algorithm=inplace, reorganize partition;
+alter table t5 algorithm=inplace partition by key() partitions 6;
 ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 Check partitions added, expect 0 in all cases
 partitions added to t1
@@ -322,17 +312,11 @@ t3_added
 partitions added to t4
 t4_added
 0
-alter online table t1 add partition partitions 1;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-alter online table t2 add partition partitions 4;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-alter online table t3 max_rows=100000000;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-alter online table t4 max_rows=100000000;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+alter table t1 algorithm=inplace, add partition partitions 1;
+alter table t2 algorithm=inplace, add partition partitions 4;
+alter table t3 algorithm=inplace, max_rows=100000000;
+alter table t4 algorithm=inplace, max_rows=100000000;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: setting MAX_ROWS on table without MAX_ROWS. Try ALGORITHM=COPY.
 partitions added to t1 (expect 1)
 t1_added
 1
@@ -345,18 +329,14 @@ t3_added
 partitions added to t4 (expect 0)
 t4_added
 0
-alter online table t1 reorganize partition;
+alter table t1 algorithm=inplace, reorganize partition;
 ERROR HY000: REORGANIZE PARTITION without parameters can only be used on auto-partitioned tables using HASH PARTITIONs
-alter online table t3 reorganize partition;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+alter table t3 algorithm=inplace, reorganize partition;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: REORGANIZE of table with MAX_ROWS. Try ALGORITHM=COPY.
 show warnings;
 Level	Code	Message
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-Warning	1105	Cannot online REORGANIZE a table with Max_Rows set.  Use ALTER TABLE ... MAX_ROWS=<new_val> or offline REORGANIZE to redistribute this table.
-Error	1845	ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
-alter online table t4 reorganize partition;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+Error	1846	ALGORITHM=INPLACE is not supported. Reason: REORGANIZE of table with MAX_ROWS. Try ALGORITHM=COPY.
+alter table t4 algorithm=inplace, reorganize partition;
 select count(*) from t1;
 count(*)
 100
@@ -548,15 +528,9 @@ FragmentCount: 2
 b$unique(b) - UniqueHashIndex
 FragmentCount: 2
 drop table t4;
-alter online table t1 add partition partitions 2;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-alter online table t2 add partition partitions 1;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
-alter online table t3 max_rows=150000000;
-Warnings:
-Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+alter table t1 algorithm=inplace, add partition partitions 2;
+alter table t2 algorithm=inplace, add partition partitions 1;
+alter table t3 algorithm=inplace, max_rows=150000000;
 partitions added to t1 (expect 3)
 t1_added
 3

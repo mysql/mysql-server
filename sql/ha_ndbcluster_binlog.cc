@@ -1455,7 +1455,7 @@ int ndbcluster_find_all_files(THD *thd)
           /* ndb_share reference temporary free */
           DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
                                    share->key_string(), share->use_count));
-          free_share(&share);
+          free_share(&share);  // temporary ref.
         }
       }
       my_free((char*) data, MYF(MY_ALLOW_ZERO_PTR));
@@ -2163,49 +2163,30 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
   native_mutex_lock(&share->mutex);
   DBUG_ASSERT(share->state == NSS_DROPPED || 
               share->op == pOp || share->new_op == pOp);
-  if (share->new_op)
-  {
-    share->new_op= 0;
-  }
-  if (share->op)
-  {
-    share->op= 0;
-  }
+  share->new_op= NULL;
+  share->op= NULL;
   native_mutex_unlock(&share->mutex);
 
   /* Signal ha_ndbcluster::delete/rename_table that drop is done */
   DBUG_PRINT("info", ("signal that drop is done"));
   (void) native_cond_signal(&injector_cond);
 
+  ndb_tdc_close_cached_table(thd, dbname, tabname);
+
   native_mutex_lock(&ndbcluster_mutex);
+  const bool is_remote_change= !ndb_has_node_id(pOp->getReqNodeId());
+  if (is_remote_change && share->state != NSS_DROPPED)
+  {
+    /* Mark share as DROPPED will free the ref from list of open_tables */
+    DBUG_PRINT("info", ("remote change"));
+    ndbcluster_mark_share_dropped(&share);
+    DBUG_ASSERT(share != NULL);
+  }
+
   /* ndb_share reference binlog free */
   DBUG_PRINT("NDB_SHARE", ("%s binlog free  use_count: %u",
                            share->key_string(), share->use_count));
   free_share(&share, TRUE);
-
-  bool do_close_cached_tables= FALSE;
-  bool is_remote_change= !ndb_has_node_id(pOp->getReqNodeId());
-  if (is_remote_change && share && share->state != NSS_DROPPED)
-  {
-    DBUG_PRINT("info", ("remote change"));
-    ndbcluster_mark_share_dropped(share);
-    if (share->use_count != 1)
-    {
-      /* open handler holding reference */
-      /* wait with freeing create ndb_share to below */
-      do_close_cached_tables= TRUE;
-    }
-    else
-    {
-      /* ndb_share reference create free */
-      DBUG_PRINT("NDB_SHARE", ("%s create free  use_count: %u",
-                               share->key_string(), share->use_count));
-      free_share(&share, TRUE);
-      share= 0;
-    }
-  }
-  else
-    share= 0;
   native_mutex_unlock(&ndbcluster_mutex);
 
   // Remove pointer to event_data from the EventOperation
@@ -2215,15 +2196,6 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
   native_mutex_lock(&injector_mutex);
   is_ndb->dropEventOperation(pOp);
   native_mutex_unlock(&injector_mutex);
-
-  if (do_close_cached_tables)
-  {
-    ndb_tdc_close_cached_table(thd, dbname, tabname);
-    /* ndb_share reference create free */
-    DBUG_PRINT("NDB_SHARE", ("%s create free  use_count: %u",
-                             share->key_string(), share->use_count));
-    free_share(&share);
-  }
 
   // Finally delete the event_data and thus it's mem_root, shadow_table etc.
   DBUG_PRINT("info", ("Deleting event_data"));
@@ -3121,11 +3093,16 @@ class Ndb_schema_event_handler {
      * Note about get_share() / free_share() referrences:
      *
      *  1) All shares have a ref count related to their 'discovery' by dictionary.
-     *     (Until they are 'dropped')
+     *     Referred from 'ndbcluster_open_tables' until they are 'unrefed'
+     *     with ndbcluster_mark_share_dropped().
      *  2) All shares are referred by the binlog thread if its DDL operations 
      *     should be replicated with schema events ('share->op != NULL')
+     *     Unref with free_share() when binlog repl for share is removed.
      *  3) All shares are ref counted when they are temporarily referred
-     *     inside a function. (as below)
+     *     inside a function. (as below). Unref with free_share() as last
+     *     share related operation when all above has been completed.
+     *  4) Each ha_ndbcluster instance may have a share reference (m_share)
+     *     until it ::close() the handle, which will unref it with free_share().
      */
     NDB_SHARE *share= get_share(schema);  // 3) Temporary pin 'share'
     if (share)
@@ -3147,18 +3124,16 @@ class Ndb_schema_event_handler {
         DBUG_ASSERT(share);   // Still ref'ed by 1) & 3)
       }
       native_mutex_unlock(&share->mutex);
-      free_share(&share);   // Free temporary ref, 3)
-      DBUG_ASSERT(share);   // Still ref'ed by dict, 1)
 
-      /**
-       * Finaly unref. from dictionary, 1). 
-       * If this was the last share ref, it will be deleted.
-       * If there are more (trailing) references, the share will remain as an
-       * unvisible instance in the share-hash until remaining references are dropped.
-       */
       native_mutex_lock(&ndbcluster_mutex);
-      handle_trailing_share(m_thd, share); // Unref my 'share', and make any pending refs 'trailing'
-      share= 0;                            // It's gone
+      ndbcluster_mark_share_dropped(&share); // Unref. from dictionary, 1)
+      DBUG_ASSERT(share);                    // Still ref'ed by temp, 3)
+      free_share(&share,TRUE);               // Free temporary ref, 3)
+      /**
+       * If this was the last share ref, it is now deleted.
+       * If there are more (trailing) references, the share will remain as an
+       * instance in the dropped_tables-hash until remaining references are dropped.
+       */
       native_mutex_unlock(&ndbcluster_mutex);
     } // if (share)
 
@@ -3274,7 +3249,7 @@ class Ndb_schema_event_handler {
       }
       native_mutex_unlock(&share->mutex);
 
-      free_share(&share);
+      free_share(&share);     // temporary ref.
     }
   }
 
@@ -3317,9 +3292,11 @@ class Ndb_schema_event_handler {
     }
     if (share)
     {
-      free_share(&share); // temporary ref.
-      DBUG_ASSERT(share); // Should still be ref'ed
-      free_share(&share); // server ref.
+      native_mutex_lock(&ndbcluster_mutex);
+      ndbcluster_mark_share_dropped(&share); // server ref.
+      DBUG_ASSERT(share);                    // Should still be ref'ed
+      free_share(&share, TRUE);              // temporary ref.
+      native_mutex_unlock(&ndbcluster_mutex);
     }
 
     ndbapi_invalidate_table(schema->db, schema->name);
@@ -3397,7 +3374,7 @@ class Ndb_schema_event_handler {
       mysqld_close_cached_table(schema->db, schema->name);
     }
     if (share)
-      free_share(&share);  // temporary ref.
+      free_share(&share);      // temporary ref.
 
     share= get_share(schema);  // temporary ref.
     if (!share)
@@ -3499,7 +3476,7 @@ class Ndb_schema_event_handler {
       mysqld_close_cached_table(schema->db, schema->name);
     }
     if (share)
-      free_share(&share);
+      free_share(&share); // temporary ref.
 
     if (is_local_table(schema->db, schema->name))
     {
@@ -4610,6 +4587,7 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
                       key, db, table_name));
   DBUG_ASSERT(! IS_NDB_BLOB_PREFIX(table_name));
 
+  // Get a temporary ref AND a ref from open_tables iff created.
   NDB_SHARE* share= get_share(key, table, true, false);
   if (share == 0)
   {
@@ -4623,14 +4601,15 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
   if (get_binlog_nologging(share) || share->op != 0 || share->new_op != 0)
   {
     native_mutex_unlock(&share->mutex);
-    free_share(&share);
-    DBUG_RETURN(0); // replication already setup, or should not
+    free_share(&share); // temporary ref.
+    DBUG_RETURN(0);     // replication already setup, or should not
   }
 
   if (!share->need_events(ndb_binlog_running))
   {
     set_binlog_nologging(share);
     native_mutex_unlock(&share->mutex);
+    free_share(&share); // temporary ref.
     DBUG_RETURN(0);
   }
 
@@ -4679,6 +4658,7 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
         sql_print_information("NDB Binlog: NOT logging %s",
                               share->key_string());
       native_mutex_unlock(&share->mutex);
+      free_share(&share); // temporary ref.
       DBUG_RETURN(0);
     }
 
@@ -4724,11 +4704,12 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
       break;
     }
     native_mutex_unlock(&share->mutex);
+    free_share(&share); // temporary ref.
     DBUG_RETURN(0);
   }
 
   native_mutex_unlock(&share->mutex);
-  free_share(&share);
+  free_share(&share); // temporary ref.
   DBUG_RETURN(-1);
 }
 
@@ -4977,6 +4958,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     DBUG_PRINT("NDB_SHARE", ("%s ToDo free  use_count: %u",
                              share->key_string(), share->use_count));
     free_share(&share); // old event op already has reference
+    assert(false);   //OJA, possibly ndbcluster_mark_share_dropped()?
     DBUG_RETURN(0);
   }
 
@@ -6250,6 +6232,10 @@ find_epoch_to_handle(const NdbEventOperation *s_pOp,
   }
   if (s_pOp != NULL)
   {
+    if (ndb_binlog_running)
+    {
+      return std::min(ndb_latest_received_binlog_epoch,s_pOp->getEpoch());
+    }
     return s_pOp->getEpoch();
   }
   // 'latest_received' is '0' if not binlogging
@@ -6655,6 +6641,7 @@ restart_cluster_failure:
       Uint64 latest_epoch= 0;
       const int poll_wait= (ndb_binlog_running) ? tot_poll_wait : 0;
       const int res= i_ndb->pollEvents(poll_wait, &latest_epoch);
+      (void)res; // Unused except DBUG_PRINT
       native_mutex_unlock(&injector_mutex);
       i_pOp = i_ndb->nextEvent();
       if (ndb_binlog_running)
@@ -7247,31 +7234,16 @@ restart_cluster_failure:
       sql_print_information("NDB Binlog: Release extra share references");
 
     native_mutex_lock(&ndbcluster_mutex);
-    for (uint i= 0; i < ndbcluster_open_tables.records;)
+    while (ndbcluster_open_tables.records)
     {
-      NDB_SHARE * share = (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables,
-                                                      i);
-      if (share->state != NSS_DROPPED)
-      {
-        /*
-          The share kept by the server has not been freed, free it
-        */
-        ndbcluster_mark_share_dropped(share);
-        /* ndb_share reference create free */
-        DBUG_PRINT("NDB_SHARE", ("%s create free  use_count: %u",
-                                 share->key_string(), share->use_count));
-        free_share(&share, TRUE);
-
-        /**
-         * This might have altered hash table...not sure if it's stable..
-         *   so we'll restart instead
-         */
-        i = 0;
-      }
-      else
-      {
-        i++;
-      }
+      NDB_SHARE * share = (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables,0);
+      /*
+        The share kept by the server has not been freed, free it
+        Will also take it out of _open_tables list
+      */
+      DBUG_ASSERT(share->use_count > 0);
+      DBUG_ASSERT(share->state != NSS_DROPPED);
+      ndbcluster_mark_share_dropped(&share);
     }
     native_mutex_unlock(&ndbcluster_mutex);
   }
@@ -7281,6 +7253,7 @@ restart_cluster_failure:
   if (opt_ndb_extra_logging > 15)
   {
     sql_print_information("NDB Binlog: remaining open tables: ");
+    native_mutex_lock(&ndbcluster_mutex);
     for (uint i= 0; i < ndbcluster_open_tables.records; i++)
     {
       NDB_SHARE* share = (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables,i);
@@ -7290,6 +7263,7 @@ restart_cluster_failure:
                             (uint)share->state,
                             share->use_count);
     }
+    native_mutex_unlock(&ndbcluster_mutex);
   }
 
   schema_dist_data.release();
