@@ -90,6 +90,7 @@ NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
       break;
     }
     native_mutex_init(&ndb_schema_object->mutex, MY_MUTEX_INIT_FAST);
+    native_cond_init(&ndb_schema_object->cond);
     bitmap_init(&ndb_schema_object->slock_bitmap, ndb_schema_object->slock,
                 sizeof(ndb_schema_object->slock)*8, FALSE);
     // Expect answer from all other nodes by default(those
@@ -119,6 +120,7 @@ ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object)
   {
     DBUG_PRINT("info", ("use_count: %d", (*ndb_schema_object)->use_count));
     my_hash_delete(&ndb_schema_objects.m_hash, (uchar*) *ndb_schema_object);
+    native_cond_destroy(&(*ndb_schema_object)->cond);
     native_mutex_destroy(&(*ndb_schema_object)->mutex);
     my_free(*ndb_schema_object);
     *ndb_schema_object= 0;
@@ -129,4 +131,28 @@ ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object)
   }
   native_mutex_unlock(&ndbcluster_mutex);
   DBUG_VOID_RETURN;
+}
+
+//static
+void NDB_SCHEMA_OBJECT::check_waiters(const MY_BITMAP &new_participants)
+{
+  native_mutex_lock(&ndbcluster_mutex);
+  for (ulong i = 0; i < ndb_schema_objects.m_hash.records; i++)
+  {
+    NDB_SCHEMA_OBJECT *schema_object =
+        (NDB_SCHEMA_OBJECT*)my_hash_element(&ndb_schema_objects.m_hash, i);
+    schema_object->check_waiter(new_participants);
+  }
+  native_mutex_unlock(&ndbcluster_mutex);
+}
+
+void
+NDB_SCHEMA_OBJECT::check_waiter(const MY_BITMAP &new_participants)
+{
+  native_mutex_lock(&mutex);
+  bitmap_intersect(&slock_bitmap, &new_participants);
+  native_mutex_unlock(&mutex);
+
+  // Wakeup waiting Client
+  native_cond_signal(&cond);
 }

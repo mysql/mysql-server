@@ -2027,21 +2027,18 @@ end:
   {
     int max_timeout= DEFAULT_SYNC_TIMEOUT;
     native_mutex_lock(&ndb_schema_object->mutex);
-    while (1)
+    while (true)
     {
       struct timespec abstime;
       set_timespec(&abstime, 1);
 
-      // Unlock the schema object and wait for injector to signal that
-      // something has happened. (NOTE! convoluted in order to
-      // only use injector_cond with injector_mutex)
-      native_mutex_unlock(&ndb_schema_object->mutex);
-      native_mutex_lock(&injector_mutex);
-      int ret= native_cond_timedwait(&injector_cond,
-                                      &injector_mutex,
-                                      &abstime);
-      native_mutex_unlock(&injector_mutex);
-      native_mutex_lock(&ndb_schema_object->mutex);
+      // Wait for operation on ndb_schema_object to complete.
+      // Condition for completion is that 'slock_bitmap' is cleared,
+      // which is signaled by ::handle_clear_slock() on
+      // 'ndb_schema_object->cond'
+      const int ret= native_cond_timedwait(&ndb_schema_object->cond,
+                                            &ndb_schema_object->mutex,
+                                            &abstime);
 
       if (thd->killed)
         break;
@@ -2057,7 +2054,7 @@ end:
       /* end protect ndb_schema_share */
 
       if (bitmap_is_clear_all(&ndb_schema_object->slock_bitmap))
-        break;
+        break; //Done, normal completion
 
       if (ret)
       {
@@ -2361,6 +2358,7 @@ public:
                             subscriber_bitmap[idx].bitmap[1],
                             subscriber_bitmap[idx].bitmap[0]);
     }
+    check_wakeup_clients();
   }
 
   void report_subscribe(unsigned data_node_id, unsigned subscriber_node_id)
@@ -2379,6 +2377,7 @@ public:
                             subscriber_bitmap[idx].bitmap[1],
                             subscriber_bitmap[idx].bitmap[0]);
     }
+    check_wakeup_clients();
   }
 
   void report_unsubscribe(unsigned data_node_id, unsigned subscriber_node_id)
@@ -2391,12 +2390,25 @@ public:
     if (opt_ndb_extra_logging)
     {
       sql_print_information("NDB Schema dist: Data node: %d reports "
-                            "subscribe from node %d, subscriber bitmask %x%x",
+                            "unsubscribe from node %d, subscriber bitmask %x%x",
                             data_node_id,
                             subscriber_node_id,
                             subscriber_bitmap[idx].bitmap[1],
                             subscriber_bitmap[idx].bitmap[0]);
     }
+    check_wakeup_clients();
+  }
+
+  void check_wakeup_clients()
+  {
+    // Build bitmask of current participants
+     uint32 participants_buf[256/32];
+     MY_BITMAP participants;
+     bitmap_init(&participants, participants_buf, 256, FALSE);
+     get_subscriber_bitmask(&participants);
+
+     // Check all Client's for wakeup
+     NDB_SCHEMA_OBJECT::check_waiters(participants);
   }
 
   void get_subscriber_bitmask(MY_BITMAP* servers)
@@ -3050,6 +3062,7 @@ class Ndb_schema_event_handler {
     bitmap_clear_all(&servers);
     bitmap_set_bit(&servers, own_nodeid()); // "we" are always alive
     m_schema_dist_data.get_subscriber_bitmask(&servers);
+    assert(bitmap_is_set(&servers, schema->node_id)); // From known subscriber?
 
     /*
       Copy the latest slock info into the ndb_schema_object so that
@@ -3079,13 +3092,12 @@ class Ndb_schema_event_handler {
     DBUG_DUMP("ndb_schema_object->slock_bitmap.bitmap",
               (uchar*)ndb_schema_object->slock_bitmap.bitmap,
               no_bytes_in_map(&ndb_schema_object->slock_bitmap));
-    native_mutex_unlock(&ndb_schema_object->mutex);
-
-    ndb_free_schema_object(&ndb_schema_object);
 
     /* Wake up the waiter */
-    native_cond_signal(&injector_cond);
+    native_mutex_unlock(&ndb_schema_object->mutex);
+    native_cond_signal(&ndb_schema_object->cond);
 
+    ndb_free_schema_object(&ndb_schema_object);
     DBUG_VOID_RETURN;
   }
 
@@ -4257,8 +4269,17 @@ int ndbcluster_binlog_start()
 **************************************************************/
 void
 ndb_rep_event_name(String *event_name,const char *db, const char *tbl,
-                   my_bool full)
+                   bool full, bool allow_hardcoded_name)
 {
+  if (allow_hardcoded_name &&
+      strcmp(db,  NDB_REP_DB) == 0 &&
+      strcmp(tbl, NDB_SCHEMA_TABLE) == 0)
+  {
+    // Always use REPL$ as prefix for the event on mysql.ndb_schema
+    // (unless when dropping events and allow_hardcoded_name is set to false)
+    full = false;
+  }
+ 
   if (full)
     event_name->set_ascii("REPLF$", 6);
   else
@@ -4379,7 +4400,7 @@ ndbcluster_get_binlog_replication_info(THD *thd, Ndb *ndb,
         WRITES.
       */
       DBUG_PRINT("info", ("ndb_apply_status defaulting to FULL, USE_WRITE"));
-      sql_print_information("NDB : ndb-log-apply-status forcing "
+      sql_print_information("NDB: ndb-log-apply-status forcing "
                             "%s.%s to FULL USE_WRITE",
                             NDB_REP_DB, NDB_APPLY_TABLE);
       *binlog_flags = NBT_FULL;
@@ -4962,13 +4983,13 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
   TABLE *table= event_data->shadow_table;
 
   int retries= 100;
-  /*
-    100 milliseconds, temporary error on schema operation can
-    take some time to be resolved
-  */
-  int retry_sleep= 100;
+  int retry_sleep= 0;
   while (1)
   {
+    if (retry_sleep > 0)
+    {
+      do_retry_sleep(retry_sleep);
+    }
     Mutex_guard injector_mutex_g(injector_mutex);
     Ndb *ndb= injector_ndb;
     if (do_ndb_schema_share)
@@ -5112,7 +5133,11 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
       ndb->dropEventOperation(op);
       if (retries && !thd->killed)
       {
-        do_retry_sleep(retry_sleep);
+        /*
+          100 milliseconds, temporary error on schema operation can
+          take some time to be resolved
+        */
+        retry_sleep = 100;
         continue;
       }
       DBUG_RETURN(-1);
@@ -5168,7 +5193,8 @@ ndbcluster_drop_event(THD *thd, Ndb *ndb, NDB_SHARE *share,
   {
     NDBDICT *dict= ndb->getDictionary();
     String event_name(INJECTOR_EVENT_LEN);
-    ndb_rep_event_name(&event_name, dbname, tabname, i);
+    ndb_rep_event_name(&event_name, dbname, tabname, i,
+                       false /* don't allow hardcoded event name */);
     
     if (!dict->dropEvent(event_name.c_ptr()))
       continue;
@@ -6469,7 +6495,9 @@ restart_cluster_failure:
       if (is_stop_requested())
         goto err;
 
+      native_mutex_lock(&injector_mutex);
       schema_res= s_ndb->pollEvents(100, &schema_gci);
+      native_mutex_unlock(&injector_mutex);
     } while (schema_gci == 0 || ndb_latest_received_binlog_epoch == schema_gci);
     if (ndb_binlog_running)
     {
@@ -6478,7 +6506,9 @@ restart_cluster_failure:
       {
         if (is_stop_requested())
           goto err;
+        native_mutex_lock(&injector_mutex);
         res= i_ndb->pollEvents(10, &gci);
+        native_mutex_unlock(&injector_mutex);
       }
       if (gci > schema_gci)
       {
@@ -6576,19 +6606,24 @@ restart_cluster_failure:
     thd->proc_info= "Waiting for event from ndbcluster";
     thd->set_time();
     
-    /* wait for event or 1000 ms */
-    Uint64 gci= 0, schema_gci;
-    int res= 0, tot_poll_wait= 1000;
+    /* Can't hold injector_mutex too long, so wait for events in 10ms steps */
+    int tot_poll_wait= 10;
+    Uint64 gci= 0, schema_gci= 0;
+    int res= 0;
 
     if (ndb_binlog_running)
     {
       // Capture any dynamic changes to max_alloc
       i_ndb->set_eventbuf_max_alloc(opt_ndb_eventbuffer_max_alloc);
 
+      native_mutex_lock(&injector_mutex);
       res= i_ndb->pollEvents(tot_poll_wait, &gci);
+      native_mutex_unlock(&injector_mutex);
       tot_poll_wait= 0;
     }
+    native_mutex_lock(&injector_mutex);
     int schema_res= s_ndb->pollEvents(tot_poll_wait, &schema_gci);
+    native_mutex_unlock(&injector_mutex);
     ndb_latest_received_binlog_epoch= gci;
 
     while (gci > schema_gci && schema_res >= 0)
@@ -6601,7 +6636,9 @@ restart_cluster_failure:
                   (uint)(gci >> 32),
                   (uint)(gci));
       thd->proc_info= buf;
+      native_mutex_lock(&injector_mutex);
       schema_res= s_ndb->pollEvents(10, &schema_gci);
+      native_mutex_unlock(&injector_mutex);
     }
 
     if ((is_stop_requested() ||
@@ -6697,7 +6734,10 @@ restart_cluster_failure:
         e.g. node failure events
       */
       Uint64 tmp_gci;
-      if (i_ndb->pollEvents(0, &tmp_gci))
+      native_mutex_lock(&injector_mutex);
+      res = i_ndb->pollEvents(0, &tmp_gci);
+      native_mutex_unlock(&injector_mutex);
+      if (res != 0)
       {
         NdbEventOperation *pOp;
         while ((pOp= i_ndb->nextEvent()))
@@ -6731,7 +6771,13 @@ restart_cluster_failure:
       injector::transaction trans;
       unsigned trans_row_count= 0;
       unsigned trans_slave_row_count= 0;
-      if (!pOp)
+
+      /* pollEvents returned > 0, nextEvent returns NULL means
+       * 1) an inconsistent epoch is found at the head of
+       * the event queue
+       * 2) or an empty epoch.
+       */
+      if (pOp == NULL && i_ndb->isConsistent(gci))
       {
         /*
           Must be an empty epoch since the condition
@@ -6792,21 +6838,6 @@ restart_cluster_failure:
           const NdbEventOperation *gci_op;
           Uint32 event_types;
 
-          if (!i_ndb->isConsistentGCI(gci))
-          {
-            char errmsg[64];
-            uint end= sprintf(&errmsg[0],
-                              "Detected missing data in GCI %llu, "
-                              "inserting GAP event", gci);
-            errmsg[end]= '\0';
-            DBUG_PRINT("info",
-                       ("Detected missing data in GCI %llu, "
-                        "inserting GAP event", gci));
-            LEX_STRING const msg= { C_STRING_WITH_LEN(errmsg) };
-            inj->record_incident(thd,
-                                 binary_log::Incident_event::INCIDENT_LOST_EVENTS,
-                                 msg);
-          }
           while ((gci_op= i_ndb->getGCIEventOperations(&iter, &event_types))
                  != NULL)
           {
@@ -7045,6 +7076,7 @@ restart_cluster_failure:
         ndb_latest_handled_binlog_epoch= gci;
       }
 
+      // pOp == NULL means an inconsistent epoch or the queue is empty.
       if(!i_ndb->isConsistent(gci))
       {
         char errmsg[64];

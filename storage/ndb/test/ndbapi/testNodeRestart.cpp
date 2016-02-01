@@ -1282,14 +1282,36 @@ runBug18612SR(NDBT_Context* ctx, NDBT_Step* step){
 	return NDBT_FAILED;
 
     g_err << "Waiting cluster/nodes no-start" << endl;
-    if (restarter.waitClusterNoStart(30))
-      if (restarter.waitNodesNoStart(partition0, cnt/2, 10))
-	if (restarter.waitNodesNoStart(partition1, cnt/2, 10))
-	  return NDBT_FAILED;
-    
-    g_err << "Starting all" << endl;
-    if (restarter.startAll())
+    if (restarter.waitClusterNoStart(30) == 0)
+    {
+      g_err << "Starting all" << endl;
+      if (restarter.startAll())
+        return NDBT_FAILED;
+    }
+    else if (restarter.waitNodesNoStart(partition0, cnt/2, 10) == 0)
+    {
+      g_err << "Clear errors in surviving partition1" << endl;
+      if (restarter.insertErrorInNodes(partition1, cnt/2, 0))
+        return NDBT_FAILED;
+
+      g_err << "Starting partition0" << endl;
+      if (restarter.startNodes(partition0, cnt/2))
+        return NDBT_FAILED;
+    }
+    else if (restarter.waitNodesNoStart(partition1, cnt/2, 10) == 0)
+    {
+      g_err << "Clear errors in surviving partition0" << endl;
+      if (restarter.insertErrorInNodes(partition0, cnt/2, 0))
+        return NDBT_FAILED;
+
+      g_err << "Starting partition1" << endl;
+      if (restarter.startNodes(partition1, cnt/2))
+        return NDBT_FAILED;
+    }
+    else
+    {
       return NDBT_FAILED;
+    }
     
     g_err << "Waiting for the cluster to start" << endl;
     if (restarter.waitClusterStarted())
