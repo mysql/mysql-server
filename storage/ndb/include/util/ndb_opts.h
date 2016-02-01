@@ -92,13 +92,13 @@ OPT_EXTERN(const char *,opt_debug,= 0);
      "Set connection time out." \
      " This is the number of seconds after which the tool tries" \
      " reconnecting to the cluster.", \
-     &opt_connect_retry_delay, &opt_connect_retry_delay, 0, GET_INT, \
-     REQUIRED_ARG, 5 ,0 ,INT_MAX , 0, 0, 0},\
+     (uchar**) &opt_connect_retry_delay, (uchar**) &opt_connect_retry_delay, 0, GET_INT, \
+     REQUIRED_ARG, 5, 1, INT_MAX, 0, 0, 0},\
   {"connect-retries", NDB_OPT_NOSHORT, \
      "Set connection retries." \
-     " This is the number of times the tool tries reconnecting" \
+     " This is the number of times the tool tries connecting" \
      " to the cluster.", \
-     &opt_connect_retries, &opt_connect_retries, 0, GET_INT, \
+     (uchar**) &opt_connect_retries, (uchar**) &opt_connect_retries, 0, GET_INT, \
      REQUIRED_ARG, 12, 0, INT_MAX, 0, 0, 0}
 
 #ifndef DBUG_OFF

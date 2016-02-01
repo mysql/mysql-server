@@ -71,7 +71,7 @@ main(int argc, char** argv)
 
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   con.set_name("ndbinfo_select_all");
-  if(con.connect(opt_connect_retries, opt_connect_retry_delay, 1) != 0)
+  if(con.connect(opt_connect_retries - 1, opt_connect_retry_delay, 1) != 0)
   {
     ndbout << "Unable to connect to management server." << endl;
     return 1;

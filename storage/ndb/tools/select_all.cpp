@@ -144,7 +144,7 @@ int main(int argc, char** argv){
   _tabname = argv[0];
   Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   con.set_name("ndb_select_all");
-  if(con.connect(opt_connect_retries, opt_connect_retry_delay, 1) != 0)
+  if(con.connect(opt_connect_retries - 1, opt_connect_retry_delay, 1) != 0)
   {
     ndbout << "Unable to connect to management server." << endl;
     return NDBT_ProgramExit(NDBT_FAILED);
