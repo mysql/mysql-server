@@ -13743,6 +13743,7 @@ ulonglong ha_ndbcluster::table_flags(void) const
     HA_BINLOG_ROW_CAPABLE |
     HA_HAS_RECORDS |
     HA_READ_BEFORE_WRITE_REMOVAL |
+    HA_GENERATED_COLUMNS |
     0;
 
   /*
@@ -17079,7 +17080,7 @@ enum_alter_inplace_result
     Alter_inplace_info::DROP_INDEX |
     Alter_inplace_info::ADD_UNIQUE_INDEX |
     Alter_inplace_info::DROP_UNIQUE_INDEX |
-    Alter_inplace_info::ADD_COLUMN |
+    Alter_inplace_info::ADD_STORED_BASE_COLUMN |
     Alter_inplace_info::ALTER_COLUMN_DEFAULT |
     Alter_inplace_info::ALTER_COLUMN_STORAGE_TYPE |
     Alter_inplace_info::ALTER_COLUMN_COLUMN_FORMAT |
