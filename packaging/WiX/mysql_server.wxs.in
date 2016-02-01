@@ -175,32 +175,12 @@
     </Directory>
 
     <!-- CPACK_WIX_FEATURES -->
-    <Feature Id="KEYRING" Title="keyring" ConfigurableDirectory="INSTALLDIR" Level="1" Display="hidden">
-      <ComponentRef Id='C.keyring'/>
-    </Feature>
     @CPACK_WIX_FEATURES@
     
     <!-- CPACK_WIX_DIRECTORIES -->
-    <DirectoryRef Id='INSTALLDIR'>
-      <Directory Id='D.keyring' Name='keyring'>
-      </Directory>
-    </DirectoryRef>
     @CPACK_WIX_DIRECTORIES@
     
     <!--CPACK_WIX_COMPONENTS-->
-    <DirectoryRef Id='INSTALLDIR'>
-    </DirectoryRef>
-    <DirectoryRef Id='D.keyring'>
-      <?if '@Platform@' = 'x64'?>
-      <Component Id='C.keyring' Guid='4238b270-c090-4dec-9224-9286aa48f04e' Win64='yes'>
-	   <CreateFolder/>
-	  </Component>
-      <?else?>
-      <Component Id='C.keyring' Guid='4238b270-c090-4dec-9224-9286aa48f04e' Win64='no'>
-        <CreateFolder/>	  
-      </Component>
-	  <?endif?>
-    </DirectoryRef>
     @CPACK_WIX_COMPONENTS@
     
     <!--CPACK_WIX_COMPONENTS_GROUPS -->
