@@ -3099,6 +3099,7 @@ runTestDeferredError(NDBT_Context* ctx, NDBT_Step* step)
           CHK_RET_FAILED(res.startAll() == 0);
           ndbout_c("  wait cluster started");
           CHK_RET_FAILED(res.waitClusterStarted() == 0);
+          CHK_NDB_READY(pNdb);
           ndbout_c("  cluster started");
         }
         CHK_RET_FAILED(res.insertErrorInAllNodes(0) == 0);

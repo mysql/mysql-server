@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -72,7 +72,6 @@
 #include <NdbTCP.h>
 
 static int g_verbose = 0;
-static int try_reconnect = 3;
 
 static int g_nodes, g_connections, g_system, g_section;
 static const char * g_query = 0;
@@ -588,7 +587,7 @@ fetch_configuration(int from_node)
     goto noconnect;
   }
 
-  if(ndb_mgm_connect(mgm, try_reconnect-1, 5, 1))
+  if(ndb_mgm_connect(mgm, opt_connect_retries, opt_connect_retry_delay, 1))
   {
     fprintf(stderr, "Connect failed");
     fprintf(stderr, " code: %d, msg: %s\n",

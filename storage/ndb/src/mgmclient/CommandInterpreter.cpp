@@ -34,9 +34,12 @@ class CommandInterpreter {
 public:
   /**
    *   Constructor
-   *   @param mgmtSrvr: Management server to use when executing commands
+   *   @param host: Management server to use when executing commands
    */
-  CommandInterpreter(const char *, const char*, int verbose);
+  CommandInterpreter(const char* host,
+                     const char* default_prompt,
+                     int verbose,
+                     int connect_retry_delay);
   ~CommandInterpreter();
   
   /**
@@ -158,9 +161,10 @@ private:
   bool m_connected;
   int m_verbose;
   int m_try_reconnect;
+  int m_error;
   struct NdbThread* m_event_thread;
   NdbMutex *m_print_mutex;
-  int m_error;
+  int m_connect_retry_delay;
   const char* m_default_prompt;
   const char* m_prompt;
   BaseString m_prompt_copy;
@@ -175,9 +179,10 @@ NdbMutex* print_mutex;
 #include "ndb_mgmclient.hpp"
 
 Ndb_mgmclient::Ndb_mgmclient(const char *host, const char* default_prompt,
-                             int verbose)
+                             int verbose, int connect_retry_delay)
 {
-  m_cmd= new CommandInterpreter(host,default_prompt,verbose);
+  m_cmd= new CommandInterpreter(host, default_prompt,
+                                verbose, connect_retry_delay);
 }
 Ndb_mgmclient::~Ndb_mgmclient()
 {
@@ -657,14 +662,16 @@ convert(const char* s, int& val) {
 /*
  * Constructor
  */
-CommandInterpreter::CommandInterpreter(const char *host, const char* default_prompt,
-                                       int verbose ) :
+CommandInterpreter::CommandInterpreter(const char *host,
+                                       const char* default_prompt,
+                                       int verbose, int connect_retry_delay) :
   m_constr(host),
   m_connected(false),
   m_verbose(verbose),
   m_try_reconnect(0),
-  m_event_thread(NULL),
   m_error(-1),
+  m_event_thread(NULL),
+  m_connect_retry_delay(connect_retry_delay),
   m_default_prompt(default_prompt),
   m_prompt(default_prompt)
 {
@@ -956,7 +963,7 @@ CommandInterpreter::connect(bool interactive)
     exit(-1);
   }
 
-  if(ndb_mgm_connect(m_mgmsrv, m_try_reconnect-1, 5, 1))
+  if(ndb_mgm_connect(m_mgmsrv, m_try_reconnect-1, m_connect_retry_delay, 1))
     DBUG_RETURN(m_connected); // couldn't connect, always false
 
   const char *host= ndb_mgm_get_connected_host(m_mgmsrv);
@@ -965,7 +972,7 @@ CommandInterpreter::connect(bool interactive)
     BaseString constr;
     constr.assfmt("%s:%d",host,port);
     if(!ndb_mgm_set_connectstring(m_mgmsrv2, constr.c_str()) &&
-       !ndb_mgm_connect(m_mgmsrv2, m_try_reconnect-1, 5, 1))
+       !ndb_mgm_connect(m_mgmsrv2, m_try_reconnect-1, m_connect_retry_delay, 1))
     {
       DBUG_PRINT("info",("2:ndb connected to Management Server ok at: %s:%d",
                          host, port));

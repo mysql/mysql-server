@@ -18,6 +18,7 @@ SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
     ${CMAKE_SOURCE_DIR}/cmake
     ${CMAKE_SOURCE_DIR}/storage/ndb/cmake)
 INCLUDE(ndb_add_target_property)
+INCLUDE(ndb_add_test)
 
 MESSAGE(STATUS "Using cmake version ${CMAKE_VERSION}")
 
@@ -410,6 +411,10 @@ IF(WITH_NDBAPI_EXAMPLES)
 ENDIF()
 
 ADD_SUBDIRECTORY(wix)
+
+IF(WITH_UNIT_TESTS)
+  FILE(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/unittest/ndb)
+ENDIF()
 
 # Show any MySQL Server patches
 #INCLUDE(ndb_show_patches)

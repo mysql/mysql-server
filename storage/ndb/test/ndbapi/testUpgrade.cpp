@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -635,6 +635,8 @@ runUpgrade_Half(NDBT_Context* ctx, NDBT_Step* step)
     if (restarter.waitClusterStarted())
       return NDBT_FAILED;
 
+    CHK_NDB_READY(GETNDB(step));
+
     if (event && createDropEvent(ctx, step))
     {
       return NDBT_FAILED;
@@ -689,6 +691,8 @@ runUpgrade_Half(NDBT_Context* ctx, NDBT_Step* step)
     
     if (restarter.waitClusterStarted())
       return NDBT_FAILED;
+
+    CHK_NDB_READY(GETNDB(step));
 
     if (event && createDropEvent(ctx, step))
     {
@@ -1310,7 +1314,9 @@ runPostUpgradeChecks(NDBT_Context* ctx, NDBT_Step* step)
       ndbout_c("waitClusterStarted() failed");
       return NDBT_FAILED;
     }
-    
+
+    CHK_NDB_READY(pNdb);
+
     if (pDict->getTable("I3") == 0)
     {
       ndbout_c("Table disappered");

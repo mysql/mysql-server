@@ -41,8 +41,6 @@ extern "C" int write_history(const char *command);
 
 const char *load_default_groups[]= { "mysql_cluster","ndb_mgm",0 };
 
-
-static unsigned opt_try_reconnect;
 static char *opt_execute_str= 0;
 static char *opt_prompt= 0;
 static unsigned opt_verbose = 1;
@@ -59,8 +57,8 @@ static struct my_option my_long_options[] =
     (uchar**) &opt_prompt, (uchar**) &opt_prompt, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "try-reconnect", 't',
-    "Specify number of tries for connecting to ndb_mgmd (0 = infinite)", 
-    (uchar**) &opt_try_reconnect, (uchar**) &opt_try_reconnect, 0,
+    "Same as --ndb-connect-retries",
+    (uchar**) &opt_connect_retries, (uchar**) &opt_connect_retries, 0,
     GET_UINT, REQUIRED_ARG, 3, 0, 0, 0, 0, 0 },
   { "verbose", 'v',
     "Control the amount of printout",
@@ -139,13 +137,14 @@ int main(int argc, char** argv){
 
   Ndb_mgmclient* com = new Ndb_mgmclient(connect_str.c_str(),
                                          "ndb_mgm> ",
-                                         opt_verbose);
+                                         opt_verbose,
+                                         opt_connect_retry_delay);
   if(opt_prompt)
   {
     /* Construct argument to be sent to execute function */
     BaseString prompt_args("prompt ");
     prompt_args.append(opt_prompt);
-    com->execute(prompt_args.c_str(), opt_try_reconnect, 0);
+    com->execute(prompt_args.c_str(), opt_connect_retries, 0);
   }
   int ret= 0;
   BaseString histfile;
@@ -165,7 +164,7 @@ int main(int argc, char** argv){
 #endif
 
     ndbout << "-- NDB Cluster -- Management Client --" << endl;
-    while(read_and_execute(com, opt_try_reconnect))
+    while(read_and_execute(com, opt_connect_retries))
       ;
 
 #ifdef HAVE_READLINE
@@ -181,7 +180,7 @@ int main(int argc, char** argv){
   }
   else
   {
-    com->execute(opt_execute_str, opt_try_reconnect, 0, &ret);
+    com->execute(opt_execute_str, opt_connect_retries, 0, &ret);
   }
   delete com;
   ndb_end(opt_ndb_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);

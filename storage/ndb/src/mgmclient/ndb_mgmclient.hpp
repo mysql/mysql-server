@@ -22,7 +22,10 @@ class CommandInterpreter;
 class Ndb_mgmclient
 {
 public:
-  Ndb_mgmclient(const char*, const char* default_prompt, int verbose=0);
+  Ndb_mgmclient(const char* host,
+                const char* default_prompt,
+                int verbose,
+                int connect_retry_delay);
   ~Ndb_mgmclient();
   bool execute(const char *line, int try_reconnect = -1,
                bool interactive = true, int *error = NULL);
