@@ -150,6 +150,7 @@ select *
 from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d procedure analyse();
 
+--replace_result p0,p1,p2,p3,p4,p5,p6,p7 pXYZ p0 pX p5 pX
 explain
 select *
 from t1
@@ -189,6 +190,7 @@ where t1.a = 2 and t1.b = 3;
 # ... and is a much simpler testcase..... 
 LOCK TABLES t1 read, t1 as t2 read;
 
+--replace_result p0,p1,p2,p3,p4,p5,p6,p7 pXYZ p0 pX p5 pX
 explain
 select *
 from t1
@@ -208,6 +210,7 @@ join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.a = 3 and t1.b = 3;
 UNLOCK TABLES;
 
+--replace_result p0,p1,p2,p3,p4,p5,p6,p7 pXYZ p0 pX p5 pX
 explain
 select *
 from t1
@@ -218,6 +221,7 @@ from t1
 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.a = 2 and t1.b = 3;
 
+--replace_result p0,p1,p2,p3,p4,p5,p6,p7 pXYZ p0 pX p5 pX
 explain
 select *
 from t1
@@ -231,6 +235,7 @@ where t1.a = 2 and t1.b = 3
 order by t1.c;
 
 set ndb_join_pushdown=false;
+--replace_result p0,p1,p2,p3,p4,p5,p6,p7 pXYZ p0 pX p5 pX
 explain
 select *
 from t1
@@ -241,6 +246,7 @@ from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.a = 2 and t1.b = 3;
 
+--replace_result p0,p1,p2,p3,p4,p5,p6,p7 pXYZ p0 pX p5 pX
 explain
 select *
 from t1
@@ -1097,6 +1103,7 @@ join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b
 group by t1.b;
 
+--replace_result p0,p1,p2,p3,p4,p5,p6,p7 pXYZ p1 pX p2 pX
 explain
 select t2.c, count(distinct t2.a)
 from t1
@@ -1123,6 +1130,7 @@ join t1 as t2 on t1.a = t2.c and t1.b = t2.d
 where t2.a = 4
 group by t2.c;
 
+--replace_result p0,p1,p2,p3,p4,p5,p6,p7 pXYZ p1 pX p2 pX
 explain
 select t2.c, count(distinct t2.a)
 from t1
@@ -2963,7 +2971,6 @@ connection ddl;
 create index i1 on t1(c,a);
 
 connection spj;
-explain select count(*) from t1 t1, t1 t2 where t1.c = 12 and t1.a = 11 and t2.a = t1.d and t2.b = t1.d;
 
 select count(*) from t1 t1, t1 t2 where t1.c = 12 and t1.a = 11 and t2.a = t1.d and t2.b = t1.d; 
 
@@ -2984,7 +2991,6 @@ connection ddl;
 create index i2 on t1(a,b);
 
 connection spj;
-explain select count(*) from t1 t1, t1 t2 where t1.a = 11 and t1.b<13 and t2.a = t1.c and t2.b = t1.c;
 select count(*) from t1 t1, t1 t2 where t1.a = 11 and t1.b<13 and t2.a = t1.c and t2.b = t1.c; 
 
 --disable_query_log
@@ -2994,7 +3000,6 @@ let $old_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_c
 --enable_query_log
 
 # Should give pruned scan. Upper and lower bounds for t1.a are the sane. 
-explain select count(*) from t1 t1, t1 t2 where t1.a >= 12 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c;
 select count(*) from t1 t1, t1 t2 where t1.a >= 12 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c; 
 
 --disable_query_log
@@ -3004,7 +3009,6 @@ let $old_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_c
 --enable_query_log
 
 # Should not give pruned scan. Upper and lower bounds for t1.a are different. 
-explain select count(*) from t1 t1, t1 t2 where t1.a >= 11 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c;
 select count(*) from t1 t1, t1 t2 where t1.a >= 11 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c; 
 
 --disable_query_log
@@ -3015,8 +3019,6 @@ let $old_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_c
 
 # Should not give pruned scan. There will be two sets of bounds that have
 # different distribution keys (t1.a=10 and t1.a=12). 
---replace_column 10 # 11 #
-explain select count(*) from t1 t1, t1 t2 where (t1.a = 10 or t1.a=12) and t1.b<13 and t2.a = t1.c and t2.b = t1.c;
 select count(*) from t1 t1, t1 t2 where (t1.a = 10 or t1.a=12) and t1.b<13 and t2.a = t1.c and t2.b = t1.c; 
 
 --disable_query_log
@@ -3028,7 +3030,6 @@ let $old_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_c
 # Should give pruned scan. There will be two sets of bounds, but they have the
 # same distribution key.
 
-explain select count(*) from t1 t1, t1 t2 where t1.a = 10 and (t1.b<11 or t1.b>11) and t2.a = t1.c and t2.b = t1.c;
 select count(*) from t1 t1, t1 t2 where t1.a = 10 and (t1.b<11 or t1.b>11) and t2.a = t1.c and t2.b = t1.c; 
 
 --disable_query_log
@@ -3064,14 +3065,11 @@ connection ddl;
 create index i2_1 on t2(d, a, b, e);
 
 connection spj;
+
 # Should give pruned scan. The index prefix containing the distribution key
 # has a single possible value.
-explain select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
-
-
 select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
 
-connection spj;
 --disable_query_log
 let $new_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_count', Value, 1);
 --eval select $new_pruned_scan_count - $old_pruned_scan_count as pruned_scan_count
@@ -3082,16 +3080,13 @@ connection ddl;
 drop index i2_1 on t2;
 create index i2_3 on t2(a, d, b, e);
 
+connection spj;
+
 # Should give pruned scan. The index prefix containing the distribution key
 # has a single possible value.
 
-connection spj;
-
 # Turn off condition_fanout_filter to keep "old" QEP
 set optimizer_switch='condition_fanout_filter=off';
-
-explain select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
-
 select count(*) from t2 x, t2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
 
 # Restore condition_fanout_filter to default value
@@ -4001,8 +3996,6 @@ create table t1 (
 
 connection spj;
 insert into t1  values ('aaa', 1, 'aaa', 1);
-explain
-select * from t1 as q1, t1 as q2 where q1.a = 'aaa' and q1.c=q2.a;
 select * from t1 as q1, t1 as q2 where q1.a = 'aaa' and q1.c=q2.a;
 
 connection ddl;
@@ -4306,6 +4299,12 @@ insert into t1 values (2, 2, 'Dole');
 insert into t1 values (3, 3, 'Doffen');
 insert into t1 values (4, 4, 'row# 999');
 
+# These queries with large IN clauses exceeds the default memory limit of the
+# range optimizer on 64 bit but not on 32 bit, thus cauing different result.
+# Fix by setting a fairly low value in order to get consistent behaviour
+set @save_range_opt_max = @@session.range_optimizer_max_mem_size;
+set range_optimizer_max_mem_size = 512*1024;
+
 # Build SPJ query with 2000 IN values
 # This used to result in buffer overflow, but will now
 # pass as buffer size is incresed from 32K -> 64K
@@ -4353,6 +4352,8 @@ let $query = $query );
 
 eval explain $query;
 eval $query;
+
+set range_optimizer_max_mem_size = @save_range_opt_max;
 
 drop table t1;
 
