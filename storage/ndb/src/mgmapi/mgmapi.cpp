@@ -168,41 +168,6 @@ bool check_version_new(Uint32 curr, ...)
   return false;
 }
 
-static inline void
-test_check_version_new(void)
-{
-  assert(check_version_new(NDB_MAKE_VERSION(7,0,19),
-                           NDB_MAKE_VERSION(7,0,20),
-                           0) == false);
-  assert(check_version_new(NDB_MAKE_VERSION(7,0,19),
-                           NDB_MAKE_VERSION(7,1,6),
-                           NDB_MAKE_VERSION(7,0,20),
-                           0) == false);
-  assert(check_version_new(NDB_MAKE_VERSION(7,0,19),
-                           NDB_MAKE_VERSION(7,1,6),
-                           NDB_MAKE_VERSION(7,0,18),
-                           0));
-  assert(check_version_new(NDB_MAKE_VERSION(7,1,5),
-                           NDB_MAKE_VERSION(7,1,6),
-                           NDB_MAKE_VERSION(7,0,20),
-                           0) == false);
-  assert(check_version_new(NDB_MAKE_VERSION(7,1,8),
-                           NDB_MAKE_VERSION(7,1,6),
-                           NDB_MAKE_VERSION(7,0,18),
-                           0));
-  assert(check_version_new(NDB_MAKE_VERSION(7,2,3),
-                           NDB_MAKE_VERSION(7,1,6),
-                           NDB_MAKE_VERSION(7,0,18),
-                           0));
-  assert(check_version_new(NDB_MAKE_VERSION(7,1,3),
-                           NDB_MAKE_VERSION(7,2,6),
-                           NDB_MAKE_VERSION(7,0,18),
-                           0) == false);
-  assert(check_version_new(NDB_MAKE_VERSION(5,5,6),
-                           NDB_MAKE_VERSION(7,1,6),
-                           NDB_MAKE_VERSION(7,0,18),
-                           0) == false);
-}
 
 static
 void

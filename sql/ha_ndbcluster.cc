@@ -2284,7 +2284,7 @@ int ha_ndbcluster::create_indexes(THD *thd, Ndb *ndb, TABLE *tab) const
 static void ndb_init_index(NDB_INDEX_DATA &data)
 {
   data.type= UNDEFINED_INDEX;
-  data.status= UNDEFINED;
+  data.status= NDB_INDEX_DATA::UNDEFINED;
   data.unique_index= NULL;
   data.index= NULL;
   data.unique_index_attrid_map= NULL;
@@ -2402,7 +2402,7 @@ int ha_ndbcluster::add_index_handle(THD *thd, NDBDICT *dict, KEY *key_info,
     error= add_index_ndb_record(dict, key_info, index_no);
 
   if (!error)
-    m_index[index_no].status= ACTIVE;
+    m_index[index_no].status= NDB_INDEX_DATA::ACTIVE;
   
   DBUG_RETURN(error);
 }
@@ -2704,14 +2704,14 @@ void ha_ndbcluster::renumber_indexes(Ndb *ndb, TABLE *tab)
     index_name= *key_name;
     NDB_INDEX_TYPE idx_type= get_index_type_from_table(i);
     m_index[i].type= idx_type;
-    if (m_index[i].status == TO_BE_DROPPED) 
+    if (m_index[i].status == NDB_INDEX_DATA::TO_BE_DROPPED)
     {
       DBUG_PRINT("info", ("Shifting index %s(%i) out of the list", 
                           index_name, i));
       NDB_INDEX_DATA tmp;
       uint j= i + 1;
       // Shift index out of list
-      while(j != MAX_KEY && m_index[j].status != UNDEFINED)
+      while(j != MAX_KEY && m_index[j].status != NDB_INDEX_DATA::UNDEFINED)
       {
         tmp=  m_index[j - 1];
         m_index[j - 1]= m_index[j];
@@ -2740,7 +2740,7 @@ int ha_ndbcluster::drop_indexes(Ndb *ndb, TABLE *tab)
   {
     NDB_INDEX_TYPE idx_type= get_index_type_from_table(i);
     m_index[i].type= idx_type;
-    if (m_index[i].status == TO_BE_DROPPED)
+    if (m_index[i].status == NDB_INDEX_DATA::TO_BE_DROPPED)
     {
       const NdbDictionary::Index *index= m_index[i].index;
       const NdbDictionary::Index *unique_index= m_index[i].unique_index;
@@ -2982,7 +2982,7 @@ ha_ndbcluster::primary_key_is_clustered() const
     (for which there is IO to read data when scanning index)
     but that will need to be handled later...
   */
-  const ndb_index_type idx_type =
+  const NDB_INDEX_TYPE idx_type =
     get_index_type_from_table(table->s->primary_key);
   return (idx_type == PRIMARY_KEY_ORDERED_INDEX ||
           idx_type == UNIQUE_ORDERED_INDEX ||
@@ -3870,7 +3870,7 @@ ha_ndbcluster::pk_unique_index_read_key(uint idx, const uchar *key, uchar *buf,
   NdbOperation::OperationOptions *poptions = NULL;
   options.optionsPresent= 0;
   NdbOperation::GetValueSpec gets[2];
-  ndb_index_type idx_type=
+  const NDB_INDEX_TYPE idx_type=
     (idx != MAX_KEY)?
     get_index_type(idx)
     : UNDEFINED_INDEX;
@@ -6269,7 +6269,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   if (m_ignore_dup_key && (thd->lex->sql_command == SQLCOM_UPDATE ||
                            thd->lex->sql_command == SQLCOM_UPDATE_MULTI))
   {
-    NDB_WRITE_OP write_op= (pk_update) ? NDB_PK_UPDATE : NDB_UPDATE;
+    const NDB_WRITE_OP write_op= (pk_update) ? NDB_PK_UPDATE : NDB_UPDATE;
     int peek_res= peek_indexed_rows(new_data, write_op);
     
     if (!peek_res) 
@@ -6287,7 +6287,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   {
     if (!cursor && m_read_before_write_removal_used)
     {
-      ndb_index_type type= get_index_type(active_index);
+      const NDB_INDEX_TYPE type= get_index_type(active_index);
       /*
         Ndb unique indexes are global so when
         m_read_before_write_removal_used is active
@@ -6676,7 +6676,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   {
     if (!cursor && m_read_before_write_removal_used)
     {
-      ndb_index_type type= get_index_type(active_index);
+      const NDB_INDEX_TYPE type= get_index_type(active_index);
       /*
         Ndb unique indexes are global so when
         m_read_before_write_removal_used is active
@@ -7238,7 +7238,7 @@ int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
                                            uchar* buf)
 {
   part_id_range part_spec;
-  ndb_index_type type= get_index_type(active_index);
+  const NDB_INDEX_TYPE type= get_index_type(active_index);
   const KEY* key_info= table->key_info+active_index;
   int error; 
   DBUG_ENTER("ha_ndbcluster::read_range_first_to_buf");
@@ -10726,7 +10726,7 @@ cleanup_failed:
 }
 
 
-int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info, 
+int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
                                 NDB_INDEX_TYPE idx_type, uint idx_no) const
 {
   int error= 0;
@@ -10941,7 +10941,7 @@ int ha_ndbcluster::prepare_drop_index(TABLE *table_arg,
   {
     DBUG_PRINT("info", ("ha_ndbcluster::prepare_drop_index %u", *key_num));
     uint i = *key_num++;
-    m_index[i].status= TO_BE_DROPPED;
+    m_index[i].status= NDB_INDEX_DATA::TO_BE_DROPPED;
     // Prepare delete of index stat entry
     if (m_index[i].type == PRIMARY_KEY_ORDERED_INDEX ||
         m_index[i].type == UNIQUE_ORDERED_INDEX ||
@@ -12119,7 +12119,7 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
   {
     if (thd->killed)
       DBUG_RETURN(-1);
-    if (m_index[i].status == ACTIVE)
+    if (m_index[i].status == NDB_INDEX_DATA::ACTIVE)
     {
       const NdbDictionary::Index *index= m_index[i].index;
       const NdbDictionary::Index *unique_index= m_index[i].unique_index;

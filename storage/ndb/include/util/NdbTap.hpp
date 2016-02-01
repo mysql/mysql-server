@@ -19,7 +19,6 @@
 #define NDB_TAP_HPP
 
 #include <../../../unittest/mytap/tap.h>
-#include <../../../unittest/mytap/tap.c>
 
 #ifdef VM_TRACE
 #define OK(b) assert(b);
@@ -35,24 +34,5 @@ int main(int argc, const char** argv){          \
   return exit_status();                         \
 }                                               \
 int name##_test()
-
-/* tap.c needs my_print_stacktrace */
-#ifdef DONT_DEFINE_VOID
-// stacktrace.c turns off VOID redefinition if needed
-#undef DONT_DEFINE_VOID
-#endif
-
-#ifdef HAVE_GCOV
-// __gcov_flush need C linkage
-extern "C" void __gcov_flush(void);
-#endif
-
-/* stacktrace.cc needs min unless MY_MIN is defined */
-#if !defined MY_MIN && !defined min
-#define min(a, b)    ((a) < (b) ? (a) : (b)) 
-#endif
-
-#include <../../../mysys/stacktrace.cc>
-
 
 #endif

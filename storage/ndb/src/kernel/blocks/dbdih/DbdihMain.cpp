@@ -6475,6 +6475,7 @@ bool Dbdih::check_stall_lcp_start(void)
     {
       jamLine(max_status);
       ndbrequire(false);
+      return false; // Never reached
     }
   }
 
@@ -6614,7 +6615,7 @@ Dbdih::get_status_str(NodeRecord::NodeRecoveryStatus status)
   default:
     jamLine(status);
     ndbrequire(false);
-    break;
+    return NULL; // Never reached
   }
   return status_str;
 }

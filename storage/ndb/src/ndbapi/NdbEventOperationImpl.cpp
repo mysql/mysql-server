@@ -1650,22 +1650,6 @@ NdbEventBuffer::flushIncompleteEvents(Uint64 gci)
   return 0;
 }
 
-void
-NdbEventBuffer::free_consumed_event_data()
-{
-  if (m_used_data.m_count > 1024)
-  {
-#ifdef VM_TRACE
-    m_latest_command= "NdbEventBuffer::free_consumed_event_data (lock)";
-#endif
-    NdbMutex_Lock(m_mutex);
-    // return m_used_data to m_free_data
-    free_list(m_used_data);
-
-    NdbMutex_Unlock(m_mutex);
-  }
-}
-
 bool
 NdbEventBuffer::is_exceptional_epoch(EventBufData *data)
 {
@@ -1689,6 +1673,30 @@ NdbEventBuffer::is_exceptional_epoch(EventBufData *data)
 }
 
 /**
+ * Current epoch has been completely consumed.
+ * Release any resources allocated to it and prepare to start
+ * consuming from next epoch.
+ */
+void NdbEventBuffer::remove_consumed_epoch()
+{
+#ifdef VM_TRACE
+  m_latest_command= "NdbEventBuffer::remove_consumed_epoch (lock)";
+#endif
+
+  const MonotonicEpoch consumedGci = m_available_data.first_gci_ops()->m_gci;
+  NdbMutex_Lock(m_mutex);
+  free_list(m_used_data);  //Recycle used_data while we already hold the mutex
+  deleteUsedEventOperations(consumedGci);
+  NdbMutex_Unlock(m_mutex);
+
+  // Advance to next Gci_ops and check in synch with EventData
+  m_available_data.delete_next_gci_ops();
+
+  assert((m_available_data.m_head==NULL && m_available_data.m_gci_ops_list==NULL) ||
+          m_available_data.m_head->getGCI() == m_available_data.m_gci_ops_list->m_gci.getGCI());
+}
+
+/**
  * Return the next EventData deliverable to the client.
  * Keeps the Gci_ops list in synch with the returned EventData
  * such that correct current Gci_ops is referred.
@@ -1698,6 +1706,23 @@ EventBufData *
 NdbEventBuffer::nextEventData(Uint32 & full_sz)
 {
   EventBufData *data = m_available_data.m_head;
+
+  /**
+   * 'current' is now consumed. If that completed an epoch,
+   * we do garbage collection of expired data.
+   */
+  if (m_current_data != NULL)
+  {
+    const Uint64 gci = m_current_data->getGCI();
+    m_current_data = NULL;
+ 
+    // Garbage collect when an epoch has been consumed
+    if (data == NULL || unlikely(data->getGCI() != gci))
+    {
+      remove_consumed_epoch();
+    }
+  }
+
   if (data != NULL)
   {
     // Move first available item to used queue prior to processing
@@ -1705,20 +1730,17 @@ NdbEventBuffer::nextEventData(Uint32 & full_sz)
     m_available_data.remove_first(full_count, full_sz);
     m_used_data.append_used_data(data, full_count, full_sz);
 
-    // Sync Gci_ops with EventData-gci
-    const Uint64 gci = data->getGCI();
-    EventBufData_list::Gci_ops *gci_ops = m_available_data.first_gci_ops();
-    while (gci_ops && gci_ops->m_gci.getGCI() != gci)
-    {
-      gci_ops = m_available_data.delete_next_gci_ops();
-    }
-
-    // There is a requirement that all EventData should have a Gci_ops
-    // with the same gci. Report if that fails.
-    if (gci_ops == NULL)
+    /**
+     * Check Gci_ops against EventData-gci:
+     * There is a requirement that all EventData should have a Gci_ops
+     * with the same gci. Report if that fails.
+     */
+    const EventBufData_list::Gci_ops *gci_ops = m_available_data.first_gci_ops();
+    if (gci_ops == NULL || gci_ops->m_gci.getGCI() != data->getGCI())
     {
       // NOTE: ::nextEventData() keep data and Gci_ops on same GCI,
       //       iff there are any Gci_ops at all.
+      const Uint64 gci = data->getGCI();
       ndbout << "nextEventData, no 'Gci_ops'"
              << " gci " << gci
              << " (" << Uint32(gci >> 32) << "/" << Uint32(gci) << ")";
@@ -1741,11 +1763,8 @@ NdbEventBuffer::nextEventData(Uint32 & full_sz)
   }
   else
   {
-    // No more EventData, delete remaining Gci_ops.
-    while (m_available_data.first_gci_ops())
-    {
-      m_available_data.delete_next_gci_ops();
-    }
+    // No more EventData, Gci_ops should also be empty
+    assert(m_available_data.first_gci_ops() == NULL);
   }
 
   m_current_data = data;
@@ -1758,11 +1777,6 @@ NdbEventBuffer::nextEvent2()
   DBUG_ENTER_EVENT("NdbEventBuffer::nextEvent2");
 #ifdef VM_TRACE
   const char *m_latest_command_save= m_latest_command;
-#endif
-
-  free_consumed_event_data();
-
-#ifdef VM_TRACE
   m_latest_command= "NdbEventBuffer::nextEvent2";
 #endif
 
@@ -1772,7 +1786,8 @@ NdbEventBuffer::nextEvent2()
     m_ndb->theImpl->incClientStat(Ndb::EventBytesRecvdCount, data_size);
 
     NdbEventOperationImpl *op= data->m_event_op;
-    assert(!(op && op->m_state == 0xDead)); //event_op destructed?
+    // Check event_op magic state to detect destructed
+    assert(!(op && op->m_state == (NdbEventOperation::State)0xDead));
 
     /*
      * Exceptional events are not yet associated with an event operation,
@@ -1929,6 +1944,11 @@ NdbEventBuffer::deleteUsedEventOperations(MonotonicEpoch last_consumed_gci)
   NdbEventOperationImpl *op= m_dropped_ev_op;
   while (op && op->m_stop_gci != NULL_EPOCH)
   {
+    /**
+     * NOTE: We likely could have deleted including 'last_consumed_gci'.
+     * However, as events can be resent after a node failure, we keep
+     * the dropped eventOp for an extra epoch as an extra precaution.
+     */
     if (last_consumed_gci > op->m_stop_gci)
     {
       while (op)
@@ -3935,9 +3955,6 @@ NdbEventBuffer::move_data()
     bzero(&m_complete_data, sizeof(m_complete_data));
   }
 
-  // return m_used_data to m_free_data
-  free_list(m_used_data);
-
   if (!m_available_data.is_empty())
   {
     DBUG_ENTER_EVENT("NdbEventBuffer::move_data");
@@ -3956,6 +3973,10 @@ NdbEventBuffer::free_list(EventBufData_list &list)
 {
   if (list.m_head != NULL)
   {
+    // Don't free EventBufData while it is 'current'
+    assert(m_current_data != list.m_head);
+    assert(m_current_data != list.m_tail);
+
 #ifdef NDB_EVENT_VERIFY_SIZE
     verify_size(list);
 #endif

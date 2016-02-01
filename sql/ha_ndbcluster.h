@@ -54,24 +54,22 @@ class NdbQueryOperationTypeWrapper;
 class NdbQueryParamValue;
 class ndb_pushed_join;
 
-typedef enum ndb_index_type {
+enum NDB_INDEX_TYPE {
   UNDEFINED_INDEX = 0,
   PRIMARY_KEY_INDEX = 1,
   PRIMARY_KEY_ORDERED_INDEX = 2,
   UNIQUE_INDEX = 3,
   UNIQUE_ORDERED_INDEX = 4,
   ORDERED_INDEX = 5
-} NDB_INDEX_TYPE;
+};
 
-typedef enum ndb_index_status {
-  UNDEFINED = 0,
-  ACTIVE = 1,
-  TO_BE_DROPPED = 2
-} NDB_INDEX_STATUS;
-
-typedef struct ndb_index_data {
+struct NDB_INDEX_DATA {
   NDB_INDEX_TYPE type;
-  NDB_INDEX_STATUS status;  
+  enum {
+    UNDEFINED = 0,
+    ACTIVE = 1,
+    TO_BE_DROPPED = 2
+  } status;
   const NdbDictionary::Index *index;
   const NdbDictionary::Index *unique_index;
   unsigned char *unique_index_attrid_map;
@@ -85,7 +83,7 @@ typedef struct ndb_index_data {
   NdbRecord *ndb_record_key;
   NdbRecord *ndb_unique_record_key;
   NdbRecord *ndb_unique_record_row;
-} NDB_INDEX_DATA;
+};
 
 // Wrapper class for list to hold NDBFKs
 class Ndb_fk_list :public List<NdbDictionary::ForeignKey>
@@ -97,11 +95,6 @@ public:
   }
 };
 
-typedef enum ndb_write_op {
-  NDB_INSERT = 0,
-  NDB_UPDATE = 1,
-  NDB_PK_UPDATE = 2
-} NDB_WRITE_OP;
 
 #include "ndb_ndbapi_util.h"
 #include "ndb_share.h"
@@ -492,6 +485,13 @@ private:
                                       const NdbOperation *first,
                                       const NdbOperation *last,
                                       uint errcode);
+
+  enum NDB_WRITE_OP {
+    NDB_INSERT = 0,
+    NDB_UPDATE = 1,
+    NDB_PK_UPDATE = 2
+  };
+
   int peek_indexed_rows(const uchar *record, NDB_WRITE_OP write_op);
   int scan_handle_lock_tuple(NdbScanOperation *scanOp, NdbTransaction *trans);
   int fetch_next(NdbScanOperation* op);

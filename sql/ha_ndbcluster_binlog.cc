@@ -2334,6 +2334,7 @@ public:
     // Release the prepared rename key, it's very unlikely
     // that the key is still around here, but just in case
     NDB_SHARE::free_key(m_prepared_rename_key);
+    m_prepared_rename_key = NULL;
   }
 
   // Map from nodeid to position in subscriber bitmaps array
@@ -3735,8 +3736,7 @@ class Ndb_schema_event_handler {
       if (opt_ndb_extra_logging > 9)
         sql_print_information("%s - %s.%s",
                               get_schema_type_name(schema_type),
-                              schema->db ? schema->db : "(null)",
-                              schema->name ? schema->name : "(null)");
+                              schema->db, schema->name);
 
       switch (schema_type)
       {

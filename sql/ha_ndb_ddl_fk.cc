@@ -226,43 +226,16 @@ private:
   char save_db[FN_REFLEN + 1];
 };
 
-/**
- * ndbapi want's c-strings (null terminated)
- * mysql frequently uses LEX-string...(ptr + len)
- *
- * also...they have changed between 5.1 and 5.5...
- * add a small compability-kit
- */
-static inline
+
+template <size_t buf_size>
 const char *
-lex2str(const LEX_STRING& str, char buf[], size_t len)
+lex2str(const LEX_STRING& str, char (&buf)[buf_size])
 {
-  my_snprintf(buf, len, "%.*s", (int)str.length, str.str);
+  my_snprintf(buf, buf_size, "%.*s", (int)str.length, str.str);
   return buf;
 }
 
-static inline
-const char *
-lex2str(const char * str, char buf[], size_t len)
-{
-  return str;
-}
 
-static inline
-bool
-isnull(const LEX_STRING& str)
-{
-  return str.str == 0 || str.length == 0;
-}
-
-static inline
-bool
-isnull(const char * str)
-{
-  return str == 0;
-}
-
-// copied from unused table_case_convert() in mysqld.h
 static void
 ndb_fk_casedn(char *name)
 {
@@ -770,7 +743,7 @@ public:
       while ((key= it1++))
       {
         char col_name_buf[FN_REFLEN];
-        const char* col_name = lex2str(key->field_name, col_name_buf, sizeof(col_name_buf));
+        const char* col_name = lex2str(key->field_name, col_name_buf);
         col_names[i++] = strdup(col_name);
       }
       col_names[i] = 0;
@@ -1232,7 +1205,7 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
       while ((col= it1++))
       {
         const NDBCOL * ndbcol= tab->getColumn(lex2str(col->field_name,
-                                                      tmpbuf, sizeof(tmpbuf)));
+                                                      tmpbuf));
         if (ndbcol == 0)
         {
           push_warning_printf(thd, Sql_condition::SL_WARNING,
@@ -1365,7 +1338,7 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
       while ((col= it1++))
       {
         const NDBCOL * ndbcol= tab->getColumn(lex2str(col->field_name,
-                                                      tmpbuf, sizeof(tmpbuf)));
+                                                      tmpbuf));
         if (ndbcol == 0)
         {
           push_warning_printf(thd, Sql_condition::SL_WARNING,
@@ -1418,13 +1391,14 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
 
     NdbDictionary::ForeignKey ndbfk;
     char fk_name[FN_REFLEN];
-    if (!isnull(fk->name))
+    if (fk->name.str && fk->name.length)
     {
-      my_snprintf(fk_name, sizeof(fk_name), "%s",
-                  lex2str(fk->name, tmpbuf, sizeof(tmpbuf)));
+      // The fk has a name, use it
+      lex2str(fk->name, fk_name);
     }
     else
     {
+      // The fk has no name, generate a name
       my_snprintf(fk_name, sizeof(fk_name), "FK_%u_%u",
                   parent_index ?
                   parent_index->getObjectId() :

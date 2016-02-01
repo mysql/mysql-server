@@ -50,4 +50,8 @@ MACRO(NDB_ADD_TEST)
   string (TOUPPER ${FLAG_NAME} TEST_UC)
   SET_TARGET_PROPERTIES(${EXEC}
                       PROPERTIES COMPILE_FLAGS "-DTEST_${TEST_UC}")
+  
+  # Link the unit test program with mytap(and thus implicitly mysys)
+  TARGET_LINK_LIBRARIES(${EXEC} mytap)
+
 ENDMACRO()
