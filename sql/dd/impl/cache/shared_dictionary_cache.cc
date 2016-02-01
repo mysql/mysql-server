@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,7 +51,7 @@ bool Shared_dictionary_cache::get_uncached(THD *thd, const K &key,
 {
   DBUG_ASSERT(object);
   bool error= Storage_adapter::get(thd, key, object);
-  DBUG_ASSERT(!error || thd->is_error() || thd->killed);
+  DBUG_ASSERT(!error || thd->is_system_thread() || thd->killed || thd->is_error());
 
   return error;
 }

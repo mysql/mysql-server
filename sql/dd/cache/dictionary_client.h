@@ -406,7 +406,7 @@ public:
           Thus, the returned table object is owned by the caller, who must
           make sure it is deleted.
 
-    @retval      false    No error.
+    @retval      false    No error or if object was not found.
     @retval      true     Error (e.g. from reading DD tables, or if an
                                  object of a wrong type was found).
   */
@@ -423,7 +423,7 @@ public:
     @param       se_partition_id  SE private id of the partition.
     @param [out] table            Table object, if present; otherwise NULL.
 
-    @retval      false    No error.
+    @retval      false    No error or if object was not found.
     @retval      true     Error (from handling a cache miss).
   */
 
@@ -434,20 +434,16 @@ public:
 
 
   /**
-    Retrieve a schema- and table name by the se private id of the table.
-
-    @note The function returns true and reports 'ER_BAD_TABLE_ERROR' if
-          the table does not exist. If the schema does not exist, it reports
-          'ER_BAD_DB_ERROR'. If an object exists with the required
-          'se_private_id', but is of a wrong type, we fail with
-          'ER_INVALID_DD_OBJECT'.
+    Retrieve schema and table name by the se private id of the table.
 
     @param        engine          Name of the engine storing the table.
     @param        se_private_id   SE private id of the table.
     @param  [out] schema_name     Name of the schema containing the table.
     @param  [out] table_name      Name of the table.
 
-    @retval      false    No error.
+    @retval      false    No error OR if object was not found.
+                          The OUT params will be set to empty
+                          string when object is not found.
     @retval      true     Error.
   */
 
@@ -458,18 +454,16 @@ public:
 
 
   /**
-    Retrieve a schema- and table name by the se private id of the partition.
-
-    @note The function returns true and reports 'ER_BAD_TABLE_ERROR' if
-          the table does not exist. If the schema does not exist, it reports
-          'ER_BAD_DB_ERROR'.
+    Retrieve schema and table name by the se private id of the partition.
 
     @param        engine           Name of the engine storing the table.
     @param        se_partition_id  SE private id of the table partition.
     @param  [out] schema_name      Name of the schema containing the table.
     @param  [out] table_name       Name of the table.
 
-    @retval      false    No error.
+    @retval      false    No error or if object was not found.
+                          The OUT params will be set to empty
+                          string when object is not found.
     @retval      true     Error.
   */
 

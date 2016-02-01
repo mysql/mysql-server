@@ -392,7 +392,7 @@ bool Dictionary_client::acquire(const K &key, const T **object, bool *local)
   // Get the object from the shared cache.
   if (Shared_dictionary_cache::instance()->get(m_thd, key, &element))
   {
-    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
     return true;
   }
 
@@ -550,7 +550,7 @@ bool Dictionary_client::acquire(Object_id id, const T** object)
       releaser.transfer_release(cached_object);
   }
   else
-    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
 
   return error;
 }
@@ -581,7 +581,7 @@ bool Dictionary_client::acquire_uncached(Object_id id, const T** object)
       delete stored_object;
   }
   else
-    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
 
   return error;
 }
@@ -620,7 +620,7 @@ bool Dictionary_client::acquire(const std::string &object_name,
       releaser.transfer_release(cached_object);
   }
   else
-    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
 
   return error;
 }
@@ -647,7 +647,7 @@ bool Dictionary_client::acquire(const std::string &schema_name,
   // If there was an error, or if we found no valid schema, return here.
   if (error)
   {
-    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
     return true;
   }
 
@@ -679,7 +679,7 @@ bool Dictionary_client::acquire(const std::string &schema_name,
       releaser.transfer_release(cached_object);
   }
   else
-    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
 
   return error;
 }
@@ -706,7 +706,7 @@ bool Dictionary_client::acquire_uncached(const std::string &schema_name,
   // If there was an error, or if we found no valid schema, return here.
   if (error)
   {
-    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
     return true;
   }
 
@@ -738,7 +738,7 @@ bool Dictionary_client::acquire_uncached(const std::string &schema_name,
       delete stored_object;
   }
   else
-    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
 
   return error;
 }
@@ -763,16 +763,13 @@ bool Dictionary_client::acquire_uncached_table_by_se_private_id(
   if (Shared_dictionary_cache::instance()->
         get_uncached(m_thd, key, &stored_object))
   {
-    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
     return true;
   }
 
   // If object was not found.
   if (stored_object == NULL)
-  {
-    my_error(ER_INVALID_DD_OBJECT_ID, MYF(0), se_private_id);
-    return true;
-  }
+    return false;
 
   // Dynamic cast may legitimately return NULL only if the stored object
   // was NULL, i.e., the object did not exist.
@@ -807,22 +804,21 @@ bool Dictionary_client::acquire_uncached_table_by_partition_se_private_id(
                                                        se_partition_id,
                                                        &table_id))
   {
-    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
     return true;
   }
 
-  if (table_id != INVALID_OBJECT_ID &&
-      acquire_uncached<Table>(table_id, table))
+  if (table_id == INVALID_OBJECT_ID)
+    return false;
+
+  if (acquire_uncached<Table>(table_id, table))
   {
-    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
     return true;
   }
 
   if (*table == NULL)
-  {
-    my_error(ER_INVALID_DD_OBJECT_ID, MYF(0), table_id);
-    return true;
-  }
+    return false;
 
   return false;
 }
@@ -860,6 +856,11 @@ bool Dictionary_client::get_table_name_by_se_private_id(
   const Table *tab_obj= NULL;
   const Schema *sch_obj= NULL;
 
+  // Store empty in OUT params.
+  DBUG_ASSERT(schema_name && table_name);
+  schema_name->clear();
+  table_name->clear();
+
   // Sign up for delete.
   Object_deleter object_deleter(&tab_obj, &sch_obj);
 
@@ -867,17 +868,19 @@ bool Dictionary_client::get_table_name_by_se_private_id(
   // lock since we do not know the table name.
   if (acquire_uncached_table_by_se_private_id(engine, se_private_id, &tab_obj))
   {
-    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
     return true;
   }
 
-  DBUG_ASSERT(tab_obj);
+  // Object not found.
+  if (!tab_obj)
+    return false;
 
   // Acquire the schema uncached to get the schema name. Like above, we
   // cannot lock it in advance since we do not know its name.
   if (acquire_uncached<Schema>(tab_obj->schema_id(), &sch_obj))
   {
-    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
     return true;
   }
 
@@ -906,22 +909,29 @@ bool Dictionary_client::get_table_name_by_partition_se_private_id(
   const Table *tab_obj= NULL;
   const Schema *sch_obj= NULL;
 
+  // Store empty in OUT params.
+  DBUG_ASSERT(schema_name && table_name);
+  schema_name->clear();
+  table_name->clear();
+
   // Sign up for delete.
   Object_deleter object_deleter(&tab_obj, &sch_obj);
 
   if (acquire_uncached_table_by_partition_se_private_id(
         engine, se_partition_id, &tab_obj))
   {
-    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
     return true;
   }
 
-  DBUG_ASSERT(tab_obj);
+  // Object not found.
+  if (!tab_obj)
+    return false;
 
   // Acquire the schema to get the schema name.
   if (acquire_uncached<Schema>(tab_obj->schema_id(), &sch_obj))
   {
-    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
     return true;
   }
 
@@ -952,7 +962,7 @@ bool Dictionary_client::get_tables_max_se_private_id(const std::string &engine,
 
   if (trx.otx.open_tables())
   {
-    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
     return true;
   }
 
@@ -982,14 +992,14 @@ bool Dictionary_client::fetch_schema_component_names(
 
   if (trx.otx.open_tables())
   {
-    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
     return true;
   }
 
   std::unique_ptr<Raw_record_set> rs;
   if (table->open_record_set(object_key.get(), rs))
   {
-    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
     return true;
   }
 
@@ -1001,7 +1011,7 @@ bool Dictionary_client::fetch_schema_component_names(
 
     if (rs->next(r))
     {
-      DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+      DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
       return true;
     }
   }
@@ -1027,7 +1037,7 @@ bool Dictionary_client::fetch_schema_components(
 
     if (c->fetch(k.get()))
     {
-      DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+      DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
       iter->reset(NULL);
       return true;
     }
@@ -1054,7 +1064,7 @@ bool Dictionary_client::fetch_catalog_components(
         create_key_by_catalog_id(1));
     if (c->fetch(k.get()))
     {
-      DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+      DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
       iter->reset(NULL);
       return true;
     }
@@ -1078,7 +1088,7 @@ bool Dictionary_client::fetch_global_components(
         <typename Iterator_type::Object_type>(m_thd));
   if (c->fetch(NULL))
   {
-    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
     iter->reset(NULL);
     return true;
   }
@@ -1122,7 +1132,7 @@ bool Dictionary_client::drop(const T *object)
     return false;
   }
 
-  DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+  DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
 
   return true;
 }

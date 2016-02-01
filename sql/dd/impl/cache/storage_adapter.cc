@@ -58,7 +58,7 @@ bool Storage_adapter::get(THD *thd, const K &key, const T **object)
 
   if (trx.otx.open_tables())
   {
-    DBUG_ASSERT(thd->is_error() || thd->killed);
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
@@ -70,7 +70,7 @@ bool Storage_adapter::get(THD *thd, const K &key, const T **object)
   std::unique_ptr<Raw_record> r;
   if (t->find_record(key, r))
   {
-    DBUG_ASSERT(thd->is_error() || thd->killed);
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
@@ -78,7 +78,7 @@ bool Storage_adapter::get(THD *thd, const K &key, const T **object)
   Dictionary_object *new_object= NULL;
   if (r.get() && table.restore_object_from_record(&trx.otx, *r.get(), &new_object))
   {
-    DBUG_ASSERT(thd->is_error() || thd->killed);
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
@@ -114,7 +114,7 @@ bool Storage_adapter::drop(THD *thd, const T *object)
 
   if (object->impl()->validate())
   {
-    DBUG_ASSERT(thd->is_error() || thd->killed);
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
@@ -125,7 +125,7 @@ bool Storage_adapter::drop(THD *thd, const T *object)
 
   if (ctx.otx.open_tables() || object->impl()->drop(&ctx.otx))
   {
-    DBUG_ASSERT(thd->is_error() || thd->killed);
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
@@ -144,7 +144,7 @@ bool Storage_adapter::store(THD *thd, T *object)
 
   if (object->impl()->validate())
   {
-    DBUG_ASSERT(thd->is_error() || thd->killed);
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
@@ -155,7 +155,7 @@ bool Storage_adapter::store(THD *thd, T *object)
 
   if (ctx.otx.open_tables() || object->impl()->store(&ctx.otx))
   {
-    DBUG_ASSERT(thd->is_error() || thd->killed);
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 

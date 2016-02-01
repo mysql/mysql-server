@@ -208,7 +208,7 @@ bool Schema_MDL_locker::ensure_locked(const char* schema_name)
     if (m_thd->mdl_context.acquire_lock(&mdl_request,
                                         m_thd->variables.lock_wait_timeout))
     {
-      DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+      DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
       return true;
     }
     m_ticket= mdl_request.ticket;

@@ -2000,6 +2000,11 @@ public:
   uint	     tmp_table;
   uint	     server_status,open_options;
   enum enum_thread_type system_thread;
+
+  // Check if this THD belongs to a system thread.
+  inline bool is_system_thread()
+  { return system_thread != NON_SYSTEM_THREAD; }
+
   /*
     Current or next transaction isolation level.
     When a connection is established, the value is taken from
