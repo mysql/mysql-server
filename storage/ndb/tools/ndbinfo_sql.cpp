@@ -383,8 +383,13 @@ struct view {
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>dict_obj_types`"
   },
   { "config_params",
-    "SELECT param_number, param_name "
+    "SELECT param_number, param_name, param_description, param_type, param_default, "
+    "param_min, param_max, param_mandatory, param_status "
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>config_params`"
+  },
+  { "config_values",
+    "SELECT node_id, config_param, config_value "
+    "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>config_values`"
   },
 };
 
@@ -407,7 +412,14 @@ struct lookup {
   },
   { "<TABLE_PREFIX>config_params",
     "param_number INT UNSIGNED, "
-    "param_name VARCHAR(512)",
+    "param_name VARCHAR(512), "
+    "param_description VARCHAR(512), "
+    "param_type VARCHAR(512), "
+    "param_default VARCHAR(512), "
+    "param_min VARCHAR(512), "
+    "param_max VARCHAR(512), "
+    "param_mandatory INT UNSIGNED, "
+    "param_status VARCHAR(512)"
   },
   {
     "<TABLE_PREFIX>dbtc_apiconnect_state",

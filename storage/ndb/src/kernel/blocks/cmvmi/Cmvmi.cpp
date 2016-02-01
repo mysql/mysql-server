@@ -22,6 +22,7 @@
 #include <NdbOut.hpp>
 #include <NdbMem.h>
 #include <NdbTick.h>
+#include <util/ConfigValues.hpp>
 
 #include <TransporterRegistry.hpp>
 #include <SignalLoggerManager.hpp>
@@ -2119,6 +2120,72 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
         return;
       }
     }
+    break;
+  }
+
+  case Ndbinfo::CONFIG_VALUES_TABLEID:
+  {
+    jam();
+    Uint32 index = cursor->data[0];
+
+    char buf[512];
+    const ConfigValues* const values = m_ctx.m_config.get_own_config_values();
+    ConfigValues::Entry entry;
+    while (true)
+    {
+      /*
+        Iterate own configuration by index and
+        return the configured values
+      */
+      index = values->getNextEntryByIndex(index, &entry);
+      if (index == 0)
+      {
+         // No more config values
+        break;
+      }
+
+      if (entry.m_key > PRIVATE_BASE)
+      {
+        // Skip private configuration values which are calculated
+        // and only to be known within one data node
+        index++;
+        continue;
+      }
+
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(getOwnNodeId()); // Node id
+      row.write_uint32(entry.m_key); // config_param
+
+      switch(entry.m_type)
+      {
+      case ConfigValues::IntType:
+        BaseString::snprintf(buf, sizeof(buf), "%u", entry.m_int);
+        break;
+
+      case ConfigValues::Int64Type:
+        BaseString::snprintf(buf, sizeof(buf), "%llu", entry.m_int64);
+        break;
+
+      case ConfigValues::StringType:
+        BaseString::snprintf(buf, sizeof(buf), "%s", entry.m_string);
+        break;
+
+      default:
+        assert(false);
+        break;
+      }
+      row.write_string(buf); // config_values
+
+      ndbinfo_send_row(signal, req, row, rl);
+
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, index);
+        return;
+      }
+    }
+    break;
   }
 
   default:

@@ -653,7 +653,14 @@ const ndb_mgm_configuration_iterator *
 Configuration::getOwnConfigIterator() const {
   return m_ownConfigIterator;
 }
-  
+
+const class ConfigValues*
+Configuration::get_own_config_values()
+{
+  return &m_ownConfig->m_config;
+}
+
+
 ndb_mgm_configuration_iterator * 
 Configuration::getClusterConfigIterator() const {
   return m_clusterConfigIter;
@@ -667,7 +674,7 @@ Configuration::get_config_generation() const {
   sys_iter.get(CFG_SYS_CONFIG_GENERATION, &generation);
   return generation;
 }
- 
+
 
 void
 Configuration::calcSizeAlt(ConfigValues * ownConfig){

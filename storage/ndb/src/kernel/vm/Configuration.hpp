@@ -161,6 +161,7 @@ private:
   NdbMutex *threadIdMutex;
 
   ndb_mgm_configuration * m_ownConfig;
+  const class ConfigValues* get_own_config_values();
   ndb_mgm_configuration * m_clusterConfig;
   UtilBuffer m_clusterConfigPacked;
 

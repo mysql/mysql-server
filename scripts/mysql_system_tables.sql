@@ -2874,6 +2874,11 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS `ndbinfo`.`config_values`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 # Drop any old lookup tables in ndbinfo
 SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$blocks`','SET @dummy = 0');
 PREPARE stmt FROM @str;
@@ -3202,6 +3207,17 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+# ndbinfo.ndb$config_values
+SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$config_values`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$config_values` (`node_id` INT UNSIGNED,`config_param` INT UNSIGNED COMMENT "Parameter number",`config_value` VARCHAR(512) COMMENT "Parameter value") COMMENT="Configuration parameter values" ENGINE=NDBINFO','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 # ndbinfo.ndb$blocks
 SET @str=IF(@have_ndbinfo,'DROP TABLE IF EXISTS `ndbinfo`.`ndb$blocks`','SET @dummy = 0');
 PREPARE stmt FROM @str;
@@ -3241,7 +3257,7 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$config_params` (param_number INT UNSIGNED, param_name VARCHAR(512)) ENGINE=NDBINFO','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE TABLE `ndbinfo`.`ndb$config_params` (param_number INT UNSIGNED, param_name VARCHAR(512), param_description VARCHAR(512), param_type VARCHAR(512), param_default VARCHAR(512), param_min VARCHAR(512), param_max VARCHAR(512), param_mandatory INT UNSIGNED, param_status VARCHAR(512)) ENGINE=NDBINFO','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
@@ -3455,7 +3471,13 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 # ndbinfo.config_params
-SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`config_params` AS SELECT param_number, param_name FROM `ndbinfo`.`ndb$config_params`','SET @dummy = 0');
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`config_params` AS SELECT param_number, param_name, param_description, param_type, param_default, param_min, param_max, param_mandatory, param_status FROM `ndbinfo`.`ndb$config_params`','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+# ndbinfo.config_values
+SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root`@`localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`config_values` AS SELECT node_id, config_param, config_value FROM `ndbinfo`.`ndb$config_values`','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;

@@ -42,7 +42,10 @@ SELECT COUNT(*) FROM ndb$tables;
 SELECT * FROM ndb$tables WHERE table_id = 2;
 SELECT * FROM ndb$tables WHERE table_id > 5;
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
-SELECT COUNT(*) FROM ndb$tables t1, ndb$tables t2 WHERE t1.table_id = t1.table_id;
+# Show a simple join is working
+SELECT COUNT(*) FROM ndb$tables t, ndb$columns c
+  WHERE t.table_id = c.table_id AND
+    t.table_id in (1,2,3,4,5,6);
 
 SELECT table_id, table_name, comment from ndb$tables
   WHERE table_id > 2 AND table_id <= 5 ORDER BY table_id;
@@ -686,7 +689,8 @@ drop table t2;
 
 ## Check that the new tables return data and exists.
 select count(*) > 10 from ndb$blocks;
-select param_number, param_name from ndb$config_params
+select param_number, param_name, param_description, param_default,
+       param_min, param_max from ndb$config_params
   where param_name = "DataMemory";
 select * from ndb$dict_obj_types where type_id < 3;
 --disable_result_log
@@ -736,4 +740,25 @@ UPDATE ndb$config_params SET param_number=1 WHERE param_name = "NoOfReplicas";
 # Checking the view
 --error ER_OPEN_AS_READONLY
 UPDATE config_params SET param_number=1 WHERE param_name = "NoOfReplicas";
+
+
+#
+# WL#8703 ndbinfo config parameter tables
+#
+select node_id, param_name, config_param, config_value
+  from ndbinfo.config_values cv, ndbinfo.config_params cp
+  where cv.config_param = cp.param_number and
+        cp.param_name = 'MaxNoOfConcurrentTransactions'
+  order by node_id;
+
+select node_id, param_name, config_value
+  from ndbinfo.config_values cv, ndbinfo.config_params cp
+  where cv.config_param = cp.param_number and
+        cp.param_name = 'NodeId'
+  order by node_id;
+
+select node_id, concat(config_value / 1024 / 1024, 'M') as DataMemory
+  from ndbinfo.config_values
+  where config_param = 112 /* DataMemory */
+  order by node_id;
 

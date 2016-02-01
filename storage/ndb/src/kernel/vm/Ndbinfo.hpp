@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,7 +60,8 @@ public:
     DISK_WRITE_SPEED_BASE_TABLEID = 18,
     DISK_WRITE_SPEED_AGGREGATE_TABLEID = 19,
     FRAG_OPERATIONS_TABLEID =    20,
-    RESTART_INFO_TABLEID =       21
+    RESTART_INFO_TABLEID =       21,
+    CONFIG_VALUES_TABLEID =      22
   };
 
   struct Table {
