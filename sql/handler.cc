@@ -1426,7 +1426,7 @@ int ha_prepare(THD *thd)
   {
     const Ha_trx_info *ha_info= trn_ctx->ha_trx_info(
       Transaction_ctx::SESSION);
-    bool gtid_error, need_clear_owned_gtid;
+    bool gtid_error= false, need_clear_owned_gtid= false;
 
     if ((gtid_error=
          MY_TEST(commit_owned_gtids(thd, true, &need_clear_owned_gtid))))
