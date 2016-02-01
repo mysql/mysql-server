@@ -4293,6 +4293,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
       stacksize= ASYNC_CONTEXT_DEFAULT_STACK_SIZE;
     if (my_context_init(&ctxt->async_context, stacksize))
     {
+      set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
       my_free(ctxt);
       DBUG_RETURN(1);
     }
