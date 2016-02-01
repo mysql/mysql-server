@@ -231,10 +231,6 @@ struct DeprecationTransform {
 
 static
 const DeprecationTransform f_deprecation[] = {
-  { DB_TOKEN, "Discless", "Diskless", 0, 1 },
-  { DB_TOKEN, "Id", "NodeId", 0, 1 },
-  { API_TOKEN, "Id", "NodeId", 0, 1 },
-  { MGM_TOKEN, "Id", "NodeId", 0, 1 },
   { 0, 0, 0, 0, 0}
 };
 
@@ -314,18 +310,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_STRING,
     MANDATORY,
     0, 0 },
-
-  {
-    KEY_INTERNAL,
-    "ByteOrder",
-    "COMPUTER",
-    0, // No new parameter to use instead of deprecated
-    ConfigInfo::CI_DEPRECATED,
-    false,
-    ConfigInfo::CI_STRING,
-    0,
-    0,
-    0 },
   
   /****************************************************************************
    * SYSTEM
@@ -466,18 +450,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0, 0 },
 
   {
-    KEY_INTERNAL,
-    "Id",
-    DB_TOKEN,
-    "NodeId", // Name of new parameter to use instead of deprecated
-    ConfigInfo::CI_DEPRECATED,
-    false,
-    ConfigInfo::CI_INT,
-    MANDATORY,
-    "1",
-    STR_VALUE(MAX_DATA_NODE_ID) },
-
-  {
     CFG_NODE_ID,
     "NodeId",
     DB_TOKEN,
@@ -558,19 +530,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     false,
     ConfigInfo::CI_INT,
     "64",
-    "0",
-    STR_VALUE(MAX_INT_RNIL) },
-
-  {
-    CFG_DB_NO_INDEXES,
-    "MaxNoOfIndexes",
-    DB_TOKEN,
-    // The name of new parameter to use instead of deprecated
-    "MaxNoOfOrderedIndexes or MaxNoOfUniqueHashIndexes",
-    ConfigInfo::CI_DEPRECATED,
-    false,
-    ConfigInfo::CI_INT,
-    "128",
     "0",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -1272,55 +1231,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
-    CFG_DB_LCP_DISC_PAGES_TUP_SR,
-    "NoOfDiskPagesToDiskDuringRestartTUP",
-    DB_TOKEN,
-    "DiskCheckpointSpeedSr", // The new parameter name to use
-    ConfigInfo::CI_DEPRECATED,
-    0,
-    ConfigInfo::CI_INT,
-    "40",
-    "1",
-    STR_VALUE(MAX_INT_RNIL) },
-
-  {
-    CFG_DB_LCP_DISC_PAGES_TUP,
-    "NoOfDiskPagesToDiskAfterRestartTUP",
-    DB_TOKEN,
-    "DiskCheckpointSpeed", // The new parameter name to use
-    ConfigInfo::CI_DEPRECATED,
-    0,
-    ConfigInfo::CI_INT,
-    "40",
-    "1",
-    STR_VALUE(MAX_INT_RNIL) },
-
-  {
-    CFG_DB_LCP_DISC_PAGES_ACC_SR,
-    "NoOfDiskPagesToDiskDuringRestartACC",
-    DB_TOKEN,
-    "DiskCheckpointSpeedSr", // The new parameter name to use
-    ConfigInfo::CI_DEPRECATED,
-    0,
-    ConfigInfo::CI_INT,
-    "20",
-    "1",
-    STR_VALUE(MAX_INT_RNIL) },
-
-  {
-    CFG_DB_LCP_DISC_PAGES_ACC,
-    "NoOfDiskPagesToDiskAfterRestartACC",
-    DB_TOKEN,
-    "DiskCheckpointSpeed",
-    ConfigInfo::CI_DEPRECATED, // The new parameter name to use
-    0,
-    ConfigInfo::CI_INT,
-    "20",
-    "1",
-    STR_VALUE(MAX_INT_RNIL) },
-  
-
-  {
     CFG_DB_DISCLESS,
     "Diskless",
     DB_TOKEN,
@@ -1332,20 +1242,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "false",
     "true"},
 
-  {
-    KEY_INTERNAL,
-    "Discless",
-    DB_TOKEN,
-    "Diskless", // The new parameter name to use
-    ConfigInfo::CI_DEPRECATED,
-    CI_RESTART_INITIAL | CI_RESTART_SYSTEM,
-    ConfigInfo::CI_BOOL,
-    "false",
-    "false",
-    "true"},
-  
-
-  
   {
     CFG_DB_ARBIT_TIMEOUT,
     "ArbitrationTimeout",
@@ -1608,31 +1504,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "90" },
   
   { 
-    CFG_DB_CHECKPOINT_SPEED,
-    "DiskCheckpointSpeed",
-    DB_TOKEN,
-    "Minimum bytes per second allowed to be written by checkpoint",
-    ConfigInfo::CI_DEPRECATED,
-    false,
-    ConfigInfo::CI_INT,
-    "10M",
-    "1M",
-    STR_VALUE(MAX_INT_RNIL) },
-  
-  { 
-    CFG_DB_CHECKPOINT_SPEED_RESTART,
-    "DiskCheckpointSpeedInRestart",
-    DB_TOKEN,
-    "Maximum bytes per second allowed to be written by checkpoints"
-    "during restarts",
-    ConfigInfo::CI_DEPRECATED,
-    false,
-    ConfigInfo::CI_INT,
-    "100M",
-    "1M",
-    STR_VALUE(MAX_INT_RNIL) },
-  
-  { 
     CFG_DB_BACKUP_MEM,
     "BackupMemory",
     DB_TOKEN,
@@ -1805,21 +1676,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     DB_TOKEN,
     "Total memory to use for send buffers in all transporters",
     ConfigInfo::CI_USED,
-    false,
-    ConfigInfo::CI_INT,
-    "0",
-    "256K",
-    STR_VALUE(MAX_INT_RNIL)
-  },
-
-  {
-    CFG_RESERVED_SEND_BUFFER_MEMORY,
-    "ReservedSendBufferMemory",
-    DB_TOKEN,
-    "Amount of bytes (out of TotalSendBufferMemory) to reserve for connection\n"
-    "between data nodes. This memory will not be available for connections to\n"
-    "management server or API nodes.",
-    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     "0",
@@ -2444,18 +2300,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0, 0 },
 
   {
-    KEY_INTERNAL,
-    "Id",
-    API_TOKEN,
-    "NodeId", // Name of new parameter to use instead of deprecated
-    ConfigInfo::CI_DEPRECATED,
-    false,
-    ConfigInfo::CI_INT,
-    MANDATORY,
-    "1",
-    STR_VALUE(MAX_NODES_ID) },
-
-  {
     CFG_NODE_ID,
     "NodeId",
     API_TOKEN,
@@ -2742,18 +2586,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0, 0 },
 
   {
-    KEY_INTERNAL,
-    "Id",
-    MGM_TOKEN,
-    "NodeId", // Name of new parameter to use instead of deprecated
-    ConfigInfo::CI_DEPRECATED,
-    false,
-    ConfigInfo::CI_INT,
-    MANDATORY,
-    "1",
-    STR_VALUE(MAX_NODES_ID) },
-  
-  {
     CFG_NODE_ID,
     "NodeId",
     MGM_TOKEN,
@@ -2786,18 +2618,6 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_STRING,
     0,
     0, 0 },
-
-  {
-    KEY_INTERNAL,
-    "MaxNoOfSavedEvents",
-    MGM_TOKEN,
-    0, // No new parameter to use instead of deprecated
-    ConfigInfo::CI_DEPRECATED,
-    false,
-    ConfigInfo::CI_INT,
-    "100",
-    "0",
-    STR_VALUE(MAX_INT_RNIL) },
 
   {
     CFG_MGM_PORT,
