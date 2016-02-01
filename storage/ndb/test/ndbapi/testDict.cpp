@@ -191,6 +191,45 @@ int runDropTheTable(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int runCreateTheIndex(NDBT_Context* ctx, NDBT_Step* step){
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  char idxname[20];
+  sprintf(idxname, "%s_idx", pTab->getName());
+  NdbDictionary::Index idx(idxname);
+  idx.setTable(pTab->getName());
+  idx.setType(NdbDictionary::Index::OrderedIndex);
+  idx.setLogging(false);
+  for (int c = 0; c< pTab->getNoOfColumns(); c++)
+  {
+    const NdbDictionary::Column * col = pTab->getColumn(c);
+    if (col->getPrimaryKey())
+      idx.addIndexColumn(col->getName());
+  }
+
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
+  if(pDict->createIndex(idx) != 0)
+  {
+    ndbout << "Failed to create index" << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+int runDropTheIndex(NDBT_Context* ctx, NDBT_Step* step){
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
+  char idxname[20];
+  sprintf(idxname, "%s_idx", pTab->getName());
+  if(pDict->dropIndex(idxname, pTab->getName()) != 0)
+  {
+    ndbout << "Failed to drop index" << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
 int runSetDropTableConcurrentLCP(NDBT_Context *ctx, NDBT_Step *step)
 {
   NdbRestarter restarter;
@@ -11202,6 +11241,102 @@ runDictTO_1(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runIndexStatTimeout(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  char idxname[20];
+  sprintf(idxname, "%s_idx", pTab->getName());
+  NdbRestarter restarter;
+
+  if(pTab == NULL)
+  {
+    ndbout << "Failed to get table " << endl;
+    return NDBT_FAILED;
+  }
+  const NdbDictionary::Index* pIdx = pDict->getIndex(idxname, pTab->getName());
+  if(pIdx == NULL)
+  {
+    ndbout << "Failed to get index" << idxname << " error " << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "Inserting error in ndbd to cause dictsignal timeout" << endl;
+  if(restarter.insertErrorInAllNodes(6221) != 0)
+  {
+    ndbout << "Failed to insert error 6221" << endl;
+    return NDBT_FAILED;
+  }
+
+  ndbout << "Do error injection in ndbapi to timeout quickly" << endl;
+  DBUG_SET_INITIAL("+d,ndb_dictsignal_timeout");
+
+  if(pDict->updateIndexStat(*pIdx, *pTab) == 0)
+  {
+    ndbout << "Error: updateIndexStat succeeded, should have failed" << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "Clear error injection from ndbapi" << endl;
+  DBUG_SET_INITIAL("-d,ndb_dictsignal_timeout");
+
+  ndbout << "Clear error insert in ndbd" << endl;
+  if(restarter.insertErrorInAllNodes(0) != 0)
+  {
+    ndbout << "Failed to clear error 6221" << endl;
+    return NDBT_FAILED;
+  }
+  int errorCode= pDict->getNdbError().code;
+  if(errorCode != 4008)
+  {
+    ndbout << "Error: updateIndexStat failed with wrong error " << errorCode << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "Success: updateIndexStat failed with expected error 4008" << endl;
+  return NDBT_OK;
+}
+
+int
+runForceGCPWait(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
+  NdbRestarter restarter;
+
+  ndbout << "Inserting error in ndbd to cause dictsignal timeout" << endl;
+  if(restarter.insertErrorInAllNodes(7247) != 0)
+  {
+    ndbout << "Failed to insert error 7247" << endl;
+    return NDBT_FAILED;
+  }
+
+  ndbout << "Do error injection in ndbapi to timeout quickly" << endl;
+  DBUG_SET_INITIAL("+d,ndb_dictsignal_timeout");
+
+  if(pDict->forceGCPWait(0) == 0)
+  {
+    ndbout << "Error: forceGCPWait succeeded, should have failed" << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "Clear error injection from ndbapi" << endl;
+  DBUG_SET_INITIAL("-d,ndb_dictsignal_timeout");
+
+  ndbout << "Clear error insert in ndbd" << endl;
+  if(restarter.insertErrorInAllNodes(0) != 0)
+  {
+    ndbout << "Failed to clear error 6222" << endl;
+    return NDBT_FAILED;
+  }
+  int errorCode= pDict->getNdbError().code;
+  if(errorCode != 4008)
+  {
+    ndbout << "Error: forceGCPWait failed with wrong error " << errorCode << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "Success: forceGCPWait failed with expected error 4008" << endl;
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testDict);
 TESTCASE("testDropDDObjects",
          "* 1. start cluster\n"
@@ -11589,6 +11724,18 @@ TESTCASE("CreateHashmaps",
 TESTCASE("DictTakeOver_1", "")
 {
   INITIALIZER(runDictTO_1);
+}
+TESTCASE("indexStat", "test dictsignal timeout in INDEX_STAT_REQ")
+{
+  INITIALIZER(runCreateTheTable);
+  INITIALIZER(runCreateTheIndex);
+  INITIALIZER(runIndexStatTimeout);
+  FINALIZER(runDropTheIndex);
+  FINALIZER(runDropTheTable);
+}
+TESTCASE("forceGCPWait", "test dictsignal timeout in FORCE_GCP_WAIT")
+{
+  INITIALIZER(runForceGCPWait);
 }
 NDBT_TESTSUITE_END(testDict);
 

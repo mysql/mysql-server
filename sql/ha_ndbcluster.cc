@@ -2682,7 +2682,7 @@ int ha_ndbcluster::open_indexes(THD *thd, Ndb *ndb, TABLE *tab,
     }
   }
 
-  DBUG_ASSERT(error == 0 || error == 4243);
+  DBUG_ASSERT(error == 0 || error == 4243 || error == 4008);
 
   DBUG_RETURN(error);
 }
@@ -2834,28 +2834,31 @@ void ha_ndbcluster::release_metadata(THD *thd, Ndb *ndb)
   DBUG_ENTER("release_metadata");
   DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
 
+  if(m_table == NULL) 
+  {
+    DBUG_VOID_RETURN;  // table already released
+  }
+
   NDBDICT *dict= ndb->getDictionary();
   int invalidate_indexes= 0;
   if (thd && thd->lex && thd->lex->sql_command == SQLCOM_FLUSH)
   {
     invalidate_indexes = 1;
   }
-  if (m_table != NULL)
+  if (m_ndb_record != NULL)
   {
-    if (m_ndb_record != NULL)
-    {
-      dict->releaseRecord(m_ndb_record);
-      m_ndb_record= NULL;
-    }
-    if (m_ndb_hidden_key_record != NULL)
-    {
-      dict->releaseRecord(m_ndb_hidden_key_record);
-      m_ndb_hidden_key_record= NULL;
-    }
-    if (m_table->getObjectStatus() == NdbDictionary::Object::Invalid)
-      invalidate_indexes= 1;
-    dict->removeTableGlobal(*m_table, invalidate_indexes);
+    dict->releaseRecord(m_ndb_record);
+    m_ndb_record= NULL;
   }
+  if (m_ndb_hidden_key_record != NULL)
+  {
+    dict->releaseRecord(m_ndb_hidden_key_record);
+    m_ndb_hidden_key_record= NULL;
+  }
+  if (m_table->getObjectStatus() == NdbDictionary::Object::Invalid)
+    invalidate_indexes= 1;
+  dict->removeTableGlobal(*m_table, invalidate_indexes);
+
   // TODO investigate
   DBUG_ASSERT(m_table_info == NULL);
   m_table_info= NULL;
@@ -10000,7 +10003,7 @@ int ha_ndbcluster::create(const char *name,
   bool use_disk= FALSE;
   NdbDictionary::Table::SingleUserMode single_user_mode= NdbDictionary::Table::SingleUserModeLocked;
   bool ndb_sys_table= FALSE;
-  int result= 0;
+  int result= 0, ret= 0;
   NdbDictionary::ObjectId objId;
   Ndb_fk_list fk_list_for_truncate;
 
@@ -10546,7 +10549,7 @@ int ha_ndbcluster::create(const char *name,
      */
     if (dict->endSchemaTrans() == -1)
       goto err_return;
-    set_my_errno(write_ndb_file(name));
+    ret = write_ndb_file(name);
   }
   else
   {
@@ -10588,7 +10591,7 @@ err_return:
   Ndb_table_guard ndbtab_g(dict, m_tabname);
   m_table= ndbtab_g.get_table();
 
-  if (my_errno())
+  if (ret || m_table == NULL)
   {
     /*
       Failed to create an index,
@@ -10598,7 +10601,7 @@ err_return:
     {
       if (dict->beginSchemaTrans() == -1)
         goto cleanup_failed;
-      if (dict->dropTableGlobal(*m_table))
+      if (m_table && dict->dropTableGlobal(*m_table))
       {
         switch (dict->getNdbError().status)
         {
@@ -12554,7 +12557,14 @@ int ndbcluster_drop_database_impl(THD *thd, const char *path)
   NDBDICT *dict= ndb->getDictionary();
   if (dict->listObjects(list, 
                         NdbDictionary::Object::UserTable) != 0)
-    DBUG_RETURN(-1);
+  {
+    const NdbError err= dict->getNdbError();
+    if (err.code == 4008 || err.code == 4012)
+    {
+      ret= ndb_to_mysql_error(&err);
+    }
+    DBUG_RETURN(ret);
+  }
   for (i= 0 ; i < list.count ; i++)
   {
     NdbDictionary::Dictionary::List::Element& elmt= list.elements[i];
@@ -12660,8 +12670,11 @@ static void ndbcluster_drop_database(handlerton *hton, char *path)
     DBUG_VOID_RETURN;
   }
 
-  ndbcluster_drop_database_impl(thd, path);
-
+  int res = ndbcluster_drop_database_impl(thd, path);
+  if(res != 0)
+  {
+    DBUG_VOID_RETURN;
+  }
   /*
     At this point the mysqld has looped over all the tables it knew
     about in the database and dropped them one by one. The above call
@@ -18189,6 +18202,13 @@ int ndbcluster_alter_tablespace(handlerton *hton,
     {
       NdbDictionary::Tablespace ts= dict->getTablespace(alter_info->tablespace_name);
       NdbDictionary::Datafile df= dict->getDatafile(0, alter_info->data_file_name);
+      const NdbError ndberr= dict->getNdbError();
+      if(ndberr.classification != NdbError::NoError)
+      {
+        errmsg = " NO SUCH FILE"; // mapping all errors to "NO SUCH FILE"
+        goto ndberror;
+      }
+
       NdbDictionary::ObjectId objid;
       df.getTablespaceId(&objid);
       table_id = df.getObjectId();

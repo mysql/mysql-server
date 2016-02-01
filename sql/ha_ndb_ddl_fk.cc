@@ -995,7 +995,6 @@ public:
     if (dict->dropForeignKey(fk) != 0)
     {
       error(dict, "Failed to drop fk '%s'", fk_name);
-      DBUG_ASSERT(false);
       DBUG_RETURN(false);
     }
     DBUG_RETURN(true);

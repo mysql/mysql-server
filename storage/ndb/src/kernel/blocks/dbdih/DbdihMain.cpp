@@ -24543,6 +24543,13 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
   const BlockReference senderRef = req->senderRef;
   const Uint32 requestType = req->requestType;
   Uint32 errorCode = 0;
+  if(ERROR_INSERTED(7247))
+  {
+    ndbout_c("Delaying WAIT_GCP_REQ");
+    sendSignalWithDelay(reference(), GSN_WAIT_GCP_REQ, signal, 1000,
+                        signal->getLength());
+    return;
+  }
 
   if(requestType == WaitGCPReq::CurrentGCI)
   {
