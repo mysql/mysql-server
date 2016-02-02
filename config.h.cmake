@@ -123,7 +123,6 @@
 #cmakedefine HAVE_STPCPY 1
 #cmakedefine HAVE_STPNCPY 1
 #cmakedefine HAVE_STRLCPY 1
-#cmakedefine HAVE_STRNLEN 1
 #cmakedefine HAVE_STRLCAT 1
 #cmakedefine HAVE_STRSIGNAL 1
 #cmakedefine HAVE_FGETLN 1
@@ -210,10 +209,6 @@
 #cmakedefine HAVE_NETINET_IN6_H 1
 #cmakedefine HAVE_STRUCT_IN6_ADDR 1
 
-#cmakedefine ss_family @ss_family@
-#cmakedefine HAVE_SOCKADDR_IN_SIN_LEN 1
-#cmakedefine HAVE_SOCKADDR_IN6_SIN6_LEN 1
-
 /*
  * Platform specific CMake files
  */
@@ -223,9 +218,6 @@
 #cmakedefine HAVE_SOLARIS_ATOMIC 1
 #cmakedefine HAVE_SOLARIS_STYLE_GETHOST 1
 #define SYSTEM_TYPE "@SYSTEM_TYPE@"
-/* Windows stuff, mostly functions, that have Posix analogs but named differently */
-#cmakedefine IPPROTO_IPV6 @IPPROTO_IPV6@
-#cmakedefine IPV6_V6ONLY @IPV6_V6ONLY@
 /* This should mean case insensitive file system */
 #cmakedefine FN_NO_CASE_SENSE 1
 

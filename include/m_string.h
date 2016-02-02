@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -160,10 +160,6 @@ static inline int native_strncasecmp(const char *s1, const char *s2, size_t n)
 }
 
 /* Prototypes of normal stringfunctions (with may ours) */
-#ifndef HAVE_STRNLEN
-extern size_t strnlen(const char *s, size_t n);
-#endif
-
 extern int is_prefix(const char *, const char *);
 
 /* Conversion routines */

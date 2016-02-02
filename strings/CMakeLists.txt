@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -62,10 +62,6 @@ SET(STRINGS_SOURCES
   xml.cc
 )
 
-IF(NOT HAVE_STRNLEN)
-  # OSX does not have strnlen
-  SET(STRINGS_SOURCES ${STRINGS_SOURCES} strnlen.cc)
-ENDIF()
 # Avoid dependencies on perschema data defined in mysys
 ADD_DEFINITIONS(-DDISABLE_MYSQL_THREAD_H)
 ADD_CONVENIENCE_LIBRARY(strings ${STRINGS_SOURCES})
