@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1888,9 +1888,15 @@ Ndb::externalizeTableName(const char * internalTableName, bool fullyQualifiedNam
     register const char *ptr = internalTableName;
    
     // Skip database name
-    while (*ptr && *ptr++ != table_name_separator);
+    while (*ptr && *ptr++ != table_name_separator)
+    {
+      ;
+    }
     // Skip schema name
-    while (*ptr && *ptr++ != table_name_separator);
+    while (*ptr && *ptr++ != table_name_separator)
+    {
+      ;
+    }
     return ptr;
   }
   else
