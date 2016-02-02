@@ -252,6 +252,12 @@ DROP TABLE table_does_not_exist;
 ERROR 42S02: Unknown table 'test.table_does_not_exist'
 DROP TABLE table_does_not_exist;
 ERROR 42S02: Unknown table 'test.table_does_not_exist'
+CREATE TABLE t1 (a INT);
+CREATE TABLE t1 (a INT);
+ERROR 42S01: Table 't1' already exists
+CREATE TABLE t1 (a INT);
+ERROR 42S01: Table 't1' already exists
+DROP TABLE t1;
 MySQL
 "MySQL"
 MySQL: The world''s most popular open source database
