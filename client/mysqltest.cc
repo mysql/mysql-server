@@ -8794,6 +8794,13 @@ static void get_command_type(struct st_command* command)
           "use # if you intended to write a comment");
     }
   }
+  DBUG_VOID_RETURN;
+}
+
+
+void update_expected_errors(struct st_command* command)
+{
+  DBUG_ENTER("update_expected_errors");
 
   /* Set expected error on command */
   memcpy(&command->expected_errors, &saved_expected_errors,
@@ -9176,6 +9183,9 @@ int main(int argc, char **argv)
     int current_line_inc = 1, processed = 0;
     if (command->type == Q_UNKNOWN || command->type == Q_COMMENT_WITH_COMMAND)
       get_command_type(command);
+
+    if(saved_expected_errors.count > 0)
+      update_expected_errors(command);
 
     if (parsing_disabled &&
         command->type != Q_ENABLE_PARSING &&
