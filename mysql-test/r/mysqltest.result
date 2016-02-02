@@ -244,6 +244,12 @@ mysqltest: At line 1: Unknown SQL error name 'E9999'
 mysqltest: At line 1: Invalid argument to error: '999e9' - the errno may only consist of digits[0-9]
 mysqltest: At line 1: Invalid argument to error: '9b' - the errno may only consist of digits[0-9]
 mysqltest: At line 1: Too many errorcodes specified
+CREATE TABLE t1 (a INT);
+CREATE TABLE t1 (a INT);
+ERROR 42S01: Table 't1' already exists
+CREATE TABLE t1 (a INT);
+ERROR 42S01: Table 't1' already exists
+DROP TABLE t1;
 MySQL
 "MySQL"
 MySQL: The world''s most popular open source database
