@@ -4597,7 +4597,9 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb,
     {
       if (opt_ndb_extra_logging)
         sql_print_information("NDB Binlog: Failed to get table %s from ndb: "
-                              "%s, %d", share->key, dict->getNdbError().message,
+                              "%s, %d",
+                              share->key_string(),
+                              dict->getNdbError().message,
                               dict->getNdbError().code);
       break; // error
     }
@@ -6059,7 +6061,7 @@ static void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb)
   {
     /* ndb_share reference binlog extra free */
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra free  use_count: %u",
-                             ndb_apply_status_share->key,
+                             ndb_apply_status_share->key_string(),
                              ndb_apply_status_share->use_count));
     free_share(&ndb_schema_share);
     ndb_schema_share= NULL;
@@ -6075,7 +6077,7 @@ static void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb)
   {
     /* ndb_share reference binlog extra free */
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra free  use_count: %u",
-                             ndb_apply_status_share->key,
+                             ndb_apply_status_share->key_string(),
                              ndb_apply_status_share->use_count));
     free_share(&ndb_apply_status_share);
     ndb_apply_status_share= NULL;
