@@ -5292,7 +5292,7 @@ Field_temporal::store(const char *str, size_t len, const CHARSET_INFO *cs)
   for details on this format.
 
   @param unsigned_val Unused.
-  @param ltime[out] A MYSQL_TIME struct where the result is stored.
+  @param [out] ltime A MYSQL_TIME struct where the result is stored.
   @param warnings Truncation warning code, see was_cut in number_to_datetime().
 
   @retval -1    Timestamp with wrong values.
