@@ -535,7 +535,7 @@ public:
   /**
      Like add_alnum() but supports any UTF8 characters in 'value'.
      Will "escape" 'value' to be JSON-compliant.
-     @param  key
+     @param  key         key
      @param  value       value
      @param  val_length  length of string 'value'
   */
@@ -792,9 +792,18 @@ private:
   void do_destruct();
   /**
      Really adds to the object. @sa add().
-     @param  escape  do JSON-compliant escaping of 'value'.
-     @details If 'escape' is false, 'value' should be ASCII. Otherwise, should
-     be UTF8.
+
+     @note add() has an up-front if(), hopefully inlined, so that in the
+     common case - tracing run-time disabled - we have no function call. If
+     tracing is enabled, we call do_add().
+     In a 20-table plan search (as in BUG#50595), the execution time was
+     decreased from 2.6 to 2.0 seconds thanks to this inlined-if trick.
+
+     @param key         key
+     @param value       value
+     @param val_length  length of string 'value'
+     @param escape      do JSON-compliant escaping of 'value'. If 'escape' is
+     false, 'value' should be ASCII. Otherwise, should be UTF8.
   */
   Opt_trace_struct& do_add(const char *key, const char *value,
                            size_t val_length, bool escape);

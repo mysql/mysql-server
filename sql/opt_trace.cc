@@ -285,18 +285,6 @@ void Opt_trace_struct::do_destruct()
 }
 
 
-/**
-   @note add() has an up-front if(), hopefully inlined, so that in the common
-   case - tracing run-time disabled - we have no function call. If tracing is
-   enabled, we call do_add().
-   In a 20-table plan search (as in BUG#50595), the execution time was
-   decreased from 2.6 to 2.0 seconds thanks to this inlined-if trick.
-
-   @param key
-   @param val
-   @param val_length
-   @param escape
-*/
 Opt_trace_struct& Opt_trace_struct::do_add(const char *key, const char *val,
                                            size_t val_length,
                                            bool escape)
