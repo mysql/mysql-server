@@ -2382,7 +2382,24 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
         }
         else
         {
-          fk.setParent(* dsttab.get_table(), 0, cols);
+          /*
+            The parent column was previously the primary key.
+            Make sure it still is a primary key as implicit pks
+            might change during the alter. If not, get a better
+            matching index.
+           */
+          bool parent_primary = FALSE;
+          const NDBINDEX * idx = find_matching_index(dict,
+                                                     dsttab.get_table(),
+                                                     cols,
+                                                     parent_primary);
+          if (!parent_primary && idx == 0)
+          {
+            my_error(ER_FK_NO_INDEX_PARENT, MYF(0), fk.getName(),
+                     dsttab.get_table()->getName());
+            DBUG_RETURN(HA_ERR_CANNOT_ADD_FOREIGN);
+          }
+          fk.setParent(*dsttab.get_table(), idx, cols);
         }
 
 

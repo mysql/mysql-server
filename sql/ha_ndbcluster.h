@@ -373,11 +373,7 @@ void notify_table_changed();
 
 private:
   void prepare_for_alter();
-  /*
-  int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys,
-		handler_add_index **add);
-  */
-  int prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys);
+  void prepare_drop_index(uint key_num);
   int final_drop_index(TABLE *table_arg);
   
   bool abort_inplace_alter_table(TABLE *altered_table,
@@ -418,7 +414,7 @@ private:
 // Index list management
   int create_indexes(THD *thd, Ndb *ndb, TABLE *tab) const;
   int open_indexes(THD *thd, Ndb *ndb, TABLE *tab, bool ignore_error);
-  void renumber_indexes(Ndb *ndb, TABLE *tab);
+  void renumber_indexes(uint dropped_index_num);
   int drop_indexes(Ndb *ndb, TABLE *tab);
   int add_index_handle(THD *thd, NdbDictionary::Dictionary *dict,
                        KEY *key_info, const char *key_name, uint index_no);

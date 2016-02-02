@@ -241,6 +241,9 @@ select count(*) from disk_write_speed_aggregate_node;
 desc restart_info;
 select * from restart_info;
 
+desc tc_time_track_stats;
+select distinct node_id from tc_time_track_stats;
+
 desc cluster_transactions;
 desc server_transactions;
 desc cluster_operations;

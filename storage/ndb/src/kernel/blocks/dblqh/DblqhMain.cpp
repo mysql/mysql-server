@@ -1314,6 +1314,10 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_REDO_BUFFER,  
 			    &log_page_size);
 
+  c_max_scan_direct_count = ZMAX_SCAN_DIRECT_COUNT;
+  ndb_mgm_get_int_parameter(p, CFG_DB_SCHED_SCAN_PRIORITY,
+			    &c_max_scan_direct_count);
+
   /**
    * Always set page size in half MBytes
    */
@@ -13360,6 +13364,10 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
 #define ZMAX_WORDS_PER_SCAN_BATCH_LOW_PRIO 500
 #define ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO 4000
 
+  Uint32 max_scan_direct_count = scanPtr->m_reserved == 1 ?
+                                 ZMAX_SCAN_DIRECT_COUNT :
+                                 c_max_scan_direct_count;
+
   Uint32 prioAFlag = scanPtr->prioAFlag;
   const Uint32 scan_direct_count = scanPtr->scan_direct_count;
   const Uint32 exec_direct_batch_size_words =
@@ -13368,12 +13376,12 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
                             ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO :
                             ZMAX_WORDS_PER_SCAN_BATCH_LOW_PRIO;
 
-  if (scan_direct_count >= ZMAX_SCAN_DIRECT_COUNT ||
+  if (scan_direct_count >= max_scan_direct_count ||
       exec_direct_batch_size_words > exec_direct_limit)
   {
     BlockReference blockRef = scanPtr->scanBlockref;
     BlockReference resultRef = scanPtr->scanApiBlockref;
-    scanPtr->scan_direct_count = 0;
+    scanPtr->scan_direct_count = 1;
 
     if (!is_prioritised_scan(resultRef))
     {
@@ -13409,6 +13417,12 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
   else
   {
     scanPtr->scan_direct_count = scan_direct_count + 1;
+    /**
+     * To ensure that the scheduler behave differently with more
+     * execute direct we report that an extra signal was executed
+     * as part of this signal execution.
+     */
+    signal->m_extra_signals++;
     jam();
     block->EXECUTE_DIRECT(f, signal);
     return;

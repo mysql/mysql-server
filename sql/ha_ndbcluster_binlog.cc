@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -145,8 +145,8 @@ extern THD * injector_thd; // Declared in ha_ndbcluster.cc
   Must therefore always be used with a surrounding
   native_mutex_lock(&injector_mutex), when doing create/dropEventOperation
 */
-static Ndb *injector_ndb= 0;
-static Ndb *schema_ndb= 0;
+static Ndb *injector_ndb= NULL;
+static Ndb *schema_ndb= NULL;
 
 static int ndbcluster_binlog_inited= 0;
 
@@ -3842,11 +3842,23 @@ public:
           ndb_binlog_tables_inited && ndb_binlog_running)
         sql_print_information("NDB Binlog: ndb tables initially "
                               "read only on reconnect.");
+      /**
+       * Removing the 'schema_ndb' reference prevents a race condition where
+       * ndb_binlog_setup() may recreate the dropped schema dist table
+       * and its eventOp before the binlog thread had handled all the
+       * failure events. Thus, BI-thread never reached 'all EventOp dropped'
+       * state required for it to restart.
+       * Once restarted, a new schema_ndb is recreated and ndb_binlog_setup()
+       * is allowed to do its tasks.
+       */
+      native_mutex_lock(&injector_mutex);
+      schema_ndb= NULL;
+      native_mutex_unlock(&injector_mutex);
 
       /* release the ndb_schema_share */
       native_mutex_lock(&ndb_schema_share_mutex);
       free_share(&ndb_schema_share);
-      ndb_schema_share= 0;
+      ndb_schema_share= NULL;
       ndb_binlog_tables_inited= FALSE;
       ndb_binlog_is_ready= FALSE;
       native_mutex_unlock(&ndb_schema_share_mutex);
@@ -4978,7 +4990,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     if (do_ndb_schema_share)
       ndb= schema_ndb;
 
-    if (ndb == 0)
+    if (ndb == NULL)
       DBUG_RETURN(-1);
 
     NdbEventOperation* op;
@@ -6247,14 +6259,14 @@ void
 Ndb_binlog_thread::do_run()
 {
   THD *thd; /* needs to be first for thread_stack */
-  Ndb *i_ndb= 0;
-  Ndb *s_ndb= 0;
-  Thd_ndb *thd_ndb=0;
+  Ndb *i_ndb= NULL;
+  Ndb *s_ndb= NULL;
+  Thd_ndb *thd_ndb=NULL;
   injector *inj= injector::instance();
   uint incident_id= 0;
   Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
 
-  enum { BCCC_running, BCCC_exit, BCCC_restart } binlog_thread_state;
+  enum { BCCC_starting, BCCC_running, BCCC_restart,  } binlog_thread_state;
 
   /**
    * If we get error after having reported incident
@@ -6317,7 +6329,7 @@ restart_cluster_failure:
   NdbEventOperation *i_pOp= NULL;
 
   int have_injector_mutex_lock= 0;
-  binlog_thread_state= BCCC_exit;
+  binlog_thread_state= BCCC_starting;
 
   log_verbose(1, "Setting up");
 
@@ -6369,7 +6381,6 @@ restart_cluster_failure:
 
     Used by both sql client thread and binlog thread to interact
     with the storage
-    native_mutex_lock(&injector_mutex);
   */
   injector_thd= thd;
   injector_ndb= i_ndb;
@@ -6602,22 +6613,25 @@ restart_cluster_failure:
   */
   do_incident = true; // If we get disconnected again...do incident report
   binlog_thread_state= BCCC_running;
-  for ( ; !((is_stop_requested() ||
-             binlog_thread_state) &&
-            ndb_latest_handled_binlog_epoch >= ndb_get_latest_trans_gci()) &&
-          binlog_thread_state != BCCC_restart; )
+
+  /**
+   * Injector loop runs until itself bring it out of 'BCCC_running' state,
+   * or we get a stop-request from outside. In the later case we ensure that
+   * all ongoing transaction epochs are completed first.
+   */
+  while (binlog_thread_state == BCCC_running &&
+          (!is_stop_requested() ||
+           ndb_latest_handled_binlog_epoch < ndb_get_latest_trans_gci()))
   {
 #ifndef DBUG_OFF
-    if (binlog_thread_state)
+    /**
+     * As the Binlog thread is not a client thread, the 'set debug' commands
+     * does not affect it. Update our thread-local debug settings from 'global'
+     */
     {
-      DBUG_PRINT("info", ("binlog_thread_state: %d, "
-                          "ndb_latest_handled_binlog_epoch: %u/%u, "
-                          "*get_latest_trans_gci(): %u/%u",
-                          binlog_thread_state,
-                          (uint)(ndb_latest_handled_binlog_epoch >> 32),
-                          (uint)(ndb_latest_handled_binlog_epoch),
-                          (uint)(ndb_get_latest_trans_gci() >> 32),
-                          (uint)(ndb_get_latest_trans_gci())));
+      char buf[256];
+      DBUG_EXPLAIN_INITIAL(buf, sizeof(buf));
+      DBUG_SET(buf);
     }
 #endif
 
@@ -6711,8 +6725,9 @@ restart_cluster_failure:
     const Uint64 current_epoch = find_epoch_to_handle(s_pOp,i_pOp);
     DBUG_ASSERT(current_epoch != 0 || !ndb_binlog_running);
 
-    if ((is_stop_requested() ||
-         binlog_thread_state) &&
+    // Did someone else request injector thread to stop?
+    DBUG_ASSERT(binlog_thread_state == BCCC_running);
+    if (is_stop_requested() &&
         (ndb_latest_handled_binlog_epoch >= ndb_get_latest_trans_gci() ||
          !ndb_binlog_running))
       break; /* Stopping thread */
@@ -6764,6 +6779,21 @@ restart_cluster_failure:
         if (!s_pOp->hasError())
         {
           schema_event_handler.handle_event(s_ndb, s_pOp);
+
+          DBUG_EXECUTE_IF("ndb_binlog_slow_failure_handling",
+          {
+            if (!ndb_binlog_is_ready)
+            {
+	      sql_print_information("NDB Binlog: Just lost schema connection, hanging around");
+              NdbSleep_SecSleep(10);
+              /* There could be a race where client side reconnect before we 
+               * are able to detect 's_ndb->getEventOperation() == NULL'.
+               * Thus, we never restart the binlog thread as supposed to.
+               * -> 'ndb_binlog_is_ready' remains false and we get stuck in RO-mode
+               */
+	      sql_print_information("NDB Binlog: ...and on our way");
+            }
+          });
 
           DBUG_PRINT("info", ("s_ndb first: %s", s_ndb->getEventOperation() ?
                               s_ndb->getEventOperation()->getEvent()->getTable()->getName() :
@@ -7169,9 +7199,9 @@ restart_cluster_failure:
   if (!have_injector_mutex_lock)
     native_mutex_lock(&injector_mutex);
   /* don't mess with the injector_ndb anymore from other threads */
-  injector_thd= 0;
-  injector_ndb= 0;
-  schema_ndb= 0;
+  injector_thd= NULL;
+  injector_ndb= NULL;
+  schema_ndb= NULL;
   native_mutex_unlock(&injector_mutex);
   thd->reset_db(NULL_CSTR); // as not to try to free memory
 
@@ -7210,13 +7240,13 @@ restart_cluster_failure:
   {
     remove_event_operations(s_ndb);
     delete s_ndb;
-    s_ndb= 0;
+    s_ndb= NULL;
   }
   if (i_ndb)
   {
     remove_event_operations(i_ndb);
     delete i_ndb;
-    i_ndb= 0;
+    i_ndb= NULL;
   }
 
   if (thd_ndb)

@@ -2701,36 +2701,19 @@ int ha_ndbcluster::open_indexes(THD *thd, Ndb *ndb, TABLE *tab,
 
 /*
   Renumber indexes in index list by shifting out
-  indexes that are to be dropped
+  the index that was dropped
  */
-void ha_ndbcluster::renumber_indexes(Ndb *ndb, TABLE *tab)
+void ha_ndbcluster::renumber_indexes(uint dropped_index_num)
 {
-  uint i;
-  const char *index_name;
-  KEY* key_info= tab->key_info;
-  const char **key_name= tab->s->keynames.type_names;
   DBUG_ENTER("ha_ndbcluster::renumber_indexes");
-  
-  for (i= 0; i < tab->s->keys; i++, key_info++, key_name++)
+
+  // Shift the dropped index out of list
+  for(uint i= dropped_index_num + 1;
+      i != MAX_KEY && m_index[i].status != NDB_INDEX_DATA::UNDEFINED; i++)
   {
-    index_name= *key_name;
-    NDB_INDEX_TYPE idx_type= get_index_type_from_table(i);
-    m_index[i].type= idx_type;
-    if (m_index[i].status == NDB_INDEX_DATA::TO_BE_DROPPED)
-    {
-      DBUG_PRINT("info", ("Shifting index %s(%i) out of the list", 
-                          index_name, i));
-      NDB_INDEX_DATA tmp;
-      uint j= i + 1;
-      // Shift index out of list
-      while(j != MAX_KEY && m_index[j].status != NDB_INDEX_DATA::UNDEFINED)
-      {
-        tmp=  m_index[j - 1];
-        m_index[j - 1]= m_index[j];
-        m_index[j]= tmp;
-        j++;
-      }
-    }
+    NDB_INDEX_DATA tmp=  m_index[i - 1];
+    m_index[i - 1]= m_index[i];
+    m_index[i]= tmp;
   }
 
   DBUG_VOID_RETURN;
@@ -2756,24 +2739,8 @@ int ha_ndbcluster::drop_indexes(Ndb *ndb, TABLE *tab)
     {
       const NdbDictionary::Index *index= m_index[i].index;
       const NdbDictionary::Index *unique_index= m_index[i].unique_index;
-      
-      if (index)
-      {
-        index_name= index->getName();
-        DBUG_PRINT("info", ("Dropping index %u: %s", i, index_name));  
-        // Drop ordered index from ndb
-        if (dict->dropIndexGlobal(*index) == 0)
-        {
-          dict->removeIndexGlobal(*index, 1);
-          m_index[i].index= NULL;
-        }
-        else
-        {
-          error= ndb_to_mysql_error(&dict->getNdbError());
-          m_dupkey= i; // for HA_ERR_DROP_INDEX_FK
-        }
-      }
-      if (!error && unique_index)
+
+      if (unique_index)
       {
         index_name= unique_index->getName();
         DBUG_PRINT("info", ("Dropping unique index %u: %s", i, index_name));
@@ -2785,14 +2752,36 @@ int ha_ndbcluster::drop_indexes(Ndb *ndb, TABLE *tab)
         }
         else
         {
+          error= ndb_to_mysql_error(&dict->getNdbError());
+          m_dupkey= i; // for HA_ERR_DROP_INDEX_FK
+        }
+      }
+      if (!error && index)
+      {
+        index_name= index->getName();
+        DBUG_PRINT("info", ("Dropping index %u: %s", i, index_name));
+        // Drop ordered index from ndb
+        if (dict->dropIndexGlobal(*index) == 0)
+        {
+          dict->removeIndexGlobal(*index, 1);
+          m_index[i].index= NULL;
+        }
+        else
+        {
           error=ndb_to_mysql_error(&dict->getNdbError());
           m_dupkey= i; // for HA_ERR_DROP_INDEX_FK
         }
       }
       if (error)
+      {
+        // Change the status back to active. since it was not dropped
+        m_index[i].status = NDB_INDEX_DATA::ACTIVE;
         DBUG_RETURN(error);
-      ndb_clear_index(dict, m_index[i]);
-      continue;
+      }
+      // Renumber the indexes by shifting out the dropped index
+      renumber_indexes(i);
+      // clear the dropped index at last now
+      ndb_clear_index(dict, m_index[tab->s->keys]);
     }
   }
   
@@ -10562,7 +10551,9 @@ int ha_ndbcluster::create(const char *name,
     set_my_errno(create_fks(thd, ndb));
   }
 
-  if (is_alter && my_errno() == 0)
+  if ((thd->lex->sql_command == SQLCOM_ALTER_TABLE ||
+       thd->lex->sql_command == SQLCOM_DROP_INDEX) &&
+      my_errno() == 0)
   {
     /**
      * mysql doesnt know/care about FK (buhhh)
@@ -10930,20 +10921,6 @@ void ha_ndbcluster::prepare_for_alter()
   set_ndb_share_state(m_share, NSS_ALTERED);
 }
 
-/*
-  Add an index on-line to a table
-*/
-/*
-int ha_ndbcluster::add_index(TABLE *table_arg, 
-                             KEY *key_info, uint num_of_keys,
-                             handler_add_index **add)
-{
-  // TODO: As we don't yet implement ::final_add_index(),
-  // we don't need a handler_add_index object either..?
-  *add= NULL; // new handler_add_index(table_arg, key_info, num_of_keys);
-  return add_index_impl(current_thd, table_arg, key_info, num_of_keys);
-}
-*/
 
 int ha_ndbcluster::add_index_impl(THD *thd, TABLE *table_arg, 
                                   KEY *key_info, uint num_of_keys)
@@ -10972,42 +10949,35 @@ int ha_ndbcluster::add_index_impl(THD *thd, TABLE *table_arg,
   DBUG_RETURN(error);  
 }
 
+
 /*
-  Mark one or several indexes for deletion. and
-  renumber the remaining indexes
+  Mark the index at m_index[key_num] as to be dropped
+
+  * key_num - position of index in m_index
 */
-int ha_ndbcluster::prepare_drop_index(TABLE *table_arg, 
-                                      uint *key_num, uint num_of_keys)
+
+void ha_ndbcluster::prepare_drop_index(uint key_num)
 {
   DBUG_ENTER("ha_ndbcluster::prepare_drop_index");
   DBUG_ASSERT(m_share->state == NSS_ALTERED);
   // Mark indexes for deletion
-  uint idx;
-  for (idx= 0; idx < num_of_keys; idx++)
+  DBUG_PRINT("info", ("marking index as dropped: %u", key_num));
+  m_index[key_num].status= NDB_INDEX_DATA::TO_BE_DROPPED;
+
+  // Prepare delete of index stat entry
+  if (m_index[key_num].type == PRIMARY_KEY_ORDERED_INDEX ||
+      m_index[key_num].type == UNIQUE_ORDERED_INDEX ||
+      m_index[key_num].type == ORDERED_INDEX)
   {
-    DBUG_PRINT("info", ("ha_ndbcluster::prepare_drop_index %u", *key_num));
-    uint i = *key_num++;
-    m_index[i].status= NDB_INDEX_DATA::TO_BE_DROPPED;
-    // Prepare delete of index stat entry
-    if (m_index[i].type == PRIMARY_KEY_ORDERED_INDEX ||
-        m_index[i].type == UNIQUE_ORDERED_INDEX ||
-        m_index[i].type == ORDERED_INDEX)
+    const NdbDictionary::Index *index= m_index[key_num].index;
+    if (index) // safety
     {
-      const NdbDictionary::Index *index= m_index[i].index;
-      if (index) // safety
-      {
-        int index_id= index->getObjectId();
-        int index_version= index->getObjectVersion();
-        ndb_index_stat_free(m_share, index_id, index_version);
-      }
+      int index_id= index->getObjectId();
+      int index_version= index->getObjectVersion();
+      ndb_index_stat_free(m_share, index_id, index_version);
     }
   }
-  // Renumber indexes
-  THD *thd= current_thd;
-  Thd_ndb *thd_ndb= get_thd_ndb(thd);
-  Ndb *ndb= thd_ndb->ndb;
-  renumber_indexes(ndb, table_arg);
-  DBUG_RETURN(0);
+  DBUG_VOID_RETURN;
 }
  
 /*
@@ -11614,7 +11584,8 @@ ha_ndbcluster::drop_table_impl(THD *thd, ha_ndbcluster *h, Ndb *ndb,
   bool skip_related= false;
   int drop_flags = 0;
   /* Copying alter can leave #sql table which is parent of old FKs */
-  if (thd->lex->sql_command == SQLCOM_ALTER_TABLE &&
+  if ((thd->lex->sql_command == SQLCOM_ALTER_TABLE ||
+       thd->lex->sql_command == SQLCOM_DROP_INDEX) &&
       strncmp(table_name, "#sql", 4) == 0)
   {
     DBUG_PRINT("info", ("Using cascade constraints for ALTER of temp table"));
@@ -17678,40 +17649,21 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
 
   if (alter_flags & dropping)
   {
-    uint          *key_numbers;
-    uint          *keyno_p;
-    KEY           **idx_p;
-    KEY           **idx_end_p;
-    DBUG_PRINT("info", ("Renumbering indexes"));
-    /* The prepare_drop_index() method takes an array of key numbers. */
-    key_numbers= (uint*) thd->alloc(sizeof(uint) * ha_alter_info->index_drop_count);
-    keyno_p= key_numbers;
-    /* Get the number of each key. */
-    for (idx_p= ha_alter_info->index_drop_buffer,
-	 idx_end_p= idx_p + ha_alter_info->index_drop_count;
-	 idx_p < idx_end_p;
-	 idx_p++, keyno_p++)
+    for (uint i =0; i < ha_alter_info->index_drop_count; i++)
     {
-      // Find the key number matching the key to be dropped
-      KEY *keyp= *idx_p;
-      uint i;
-      for(i=0; i < table->s->keys; i++)
+      const KEY* key_ptr = ha_alter_info->index_drop_buffer[i];
+      for(uint key_num=0; key_num < table->s->keys; key_num++)
       {
-	if (keyp == table->key_info + i)
-	  break;
+        /*
+           Find the key_num of the key to be dropped and
+           mark it as dropped
+        */
+        if (key_ptr == table->key_info + key_num)
+        {
+          prepare_drop_index(key_num);
+          break;
+        }
       }
-      DBUG_PRINT("info", ("Dropping index %u", i)); 
-      *keyno_p= i;
-    }
-    /*
-      Tell the handler to prepare for drop indexes.
-      This re-numbers the indexes to get rid of gaps.
-    */
-    if ((error= prepare_drop_index(table, key_numbers,
-				   ha_alter_info->index_drop_count)))
-    {
-      table->file->print_error(error, MYF(0));
-      goto abort;
     }
   }
 

@@ -18,6 +18,7 @@
 
 #include <kernel_types.h>
 #include <TransporterDefinitions.hpp>
+#include <portlib/NdbTick.h>
 
 #define JAM_FILE_ID 275
 
@@ -38,6 +39,7 @@ void mt_execSTOP_FOR_CRASH();
 
 void mt_getSendBufferLevel(Uint32 self, NodeId node, SB_LevelType &level);
 Uint32 mt_getSignalsInJBB(Uint32 self);
+NDB_TICKS mt_getHighResTimer(Uint32 self);
 
 SendStatus mt_send_remote(Uint32 self, const SignalHeader *sh, Uint8 prio,
                           const Uint32 *data, NodeId nodeId,

@@ -85,35 +85,43 @@ int main() {
 
   /* Note! Note! For TAP, tests are numbered 1 to 7 */
   printf("1..7\n");
+  fflush(stdout);
 
   /* Test 0: no-sleep with 1 consumer */
   status = run_test(& test0) ? "ok" : "not ok";
   printf("%s 1 No-sleep test with 1 consumer\n", status);
+  fflush(stdout);
 
   /* Test 1: the no-sleep test */
   status = run_test(& test1) ? "ok" : "not ok";
   printf("%s 2 No-sleep wham!bam! test with %d iterations\n", status,
          test1.iterations);
+  fflush(stdout);
   
   /* Test 2: fast producer, slow consumer */
   status = run_test(& test2) ? "ok" : "not ok";
   printf("%s 3 Fast producer / slow consumer test\n", status);
+  fflush(stdout);
 
   /* Test 3: slow producer, fast consumer */
   status = run_test(& test3) ? "ok" : "not ok";
   printf("%s 4 Slow producer / fast consumer test\n", status);
+  fflush(stdout);
 
   /* Test 4: very slow consumer */  
   status = run_test(& test4) ? "ok" : "not ok";
   printf("%s 5 very slow consumer test\n", status);
+  fflush(stdout);
 
   /* Test 5: whambam! consumer */  
   status = run_test(& test5) ? "ok" : "not ok";
   printf("%s 6 Sluggish producer, whambam! consumer test\n", status);
+  fflush(stdout);
 
   /* Test 6: simulation */
   status = run_test(& test6) ? "ok" : "not ok";
   printf("%s 7 Memcached simluation test\n", status);
+  fflush(stdout);
 }
 
 int run_test(struct threadinfo *params) {
