@@ -436,7 +436,7 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #endif
 
 #ifndef STDERR_FILENO
-#define STDERR_FILENO 2
+#define STDERR_FILENO fileno(stderr)
 #endif
 
 /*
