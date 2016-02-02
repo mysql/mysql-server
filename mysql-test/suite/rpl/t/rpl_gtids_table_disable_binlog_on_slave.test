@@ -83,13 +83,9 @@ call mtr.add_suppression("You need to use --log-bin to make --binlog-format work
 call mtr.add_suppression("Slave SQL for channel '': Error in Xid_log_event: Commit could not "
                          "be completed, 'Got error -1 - 'Unknown error -1' from storage engine', "
                          "Error_code: 1030");
-<<<<<<< HEAD
 call mtr.add_suppression("Slave: Got error -1 - 'Unknown error -1' from storage engine Error_code: 1030");
-=======
-call mtr.add_suppression("Slave: Got error -1 from storage engine Error_code: 1030");
 call mtr.add_suppression("Slave: An error occured at storing the GTID value");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped");
->>>>>>> bug21618727_no_gtid_in_log_bin_off
 
 --let $assert_text= committed gtids MASTER_UUID:$gno_root:$gno_1-$gno_2
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$expected_gtid"
