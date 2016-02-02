@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,8 +38,6 @@ extern "C" {
    * Get resource usage for calling thread
    */
   int Ndb_GetRUsage(ndb_rusage * dst);
-  void Ndb_GetRUsage_Init(void);
-  void Ndb_GetRUsage_End(void);
 
 #ifdef	__cplusplus
 }

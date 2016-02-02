@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2224,7 +2224,17 @@ BackupRestore::table_compatible_check(TableS & tableS)
     return true;
 
   const NdbTableImpl & tmptab = NdbTableImpl::getImpl(* tableS.m_dictTable);
-  if ((int) tmptab.m_indexType != (int) NdbDictionary::Index::Undefined){
+  if ((int) tmptab.m_indexType != (int) NdbDictionary::Index::Undefined)
+  {
+    if((int) tmptab.m_indexType == (int) NdbDictionary::Index::UniqueHashIndex)
+    {
+      BaseString dummy1, dummy2, indexname;
+      dissect_index_name(tablename, dummy1, dummy2, indexname);
+      ndbout << "WARNING: Table " << tmptab.m_primaryTable.c_str() << " contains unique index " << indexname.c_str() << ". ";
+      ndbout << "This can cause ndb_restore failures with duplicate key errors while restoring data. ";
+      ndbout << "To avoid duplicate key errors, use --disable-indexes before restoring data ";
+      ndbout << "and --rebuild-indexes after data is restored." << endl;
+    }
     return true;
   }
 

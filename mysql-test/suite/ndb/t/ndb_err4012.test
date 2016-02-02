@@ -218,6 +218,7 @@ create table t2(id int primary key, id2 int, constraint t2_fk foreign key(id2) r
 SET SESSION debug="+d,ndb_dictsignal_timeout";
 --error 1296
 alter table t2 algorithm=inplace, drop foreign key t2_fk;
+--replace_regex /fk '[0-9]+\/[0-9]+/fk 'X\/X/
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
 SET SESSION debug=@save_debug;
@@ -260,5 +261,15 @@ SET SESSION debug="+d,ndb_dictsignal_timeout";
 drop table if exists t1;
 show warnings;
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+SET SESSION debug=@save_debug;
+drop table t1;
+
+--echo # mysqld gets timeout 4013 while opening index
+create table t1(id int primary key, val int unique) engine=ndb;
+set @save_debug = @@session.debug;
+SET SESSION debug="+d,ndb_simulate_nodefail";
+--error 1297
+show create table t1;
+show warnings;
 SET SESSION debug=@save_debug;
 drop table t1;

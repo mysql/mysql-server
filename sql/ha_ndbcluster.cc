@@ -2694,8 +2694,6 @@ int ha_ndbcluster::open_indexes(THD *thd, Ndb *ndb, TABLE *tab,
     }
   }
 
-  DBUG_ASSERT(error == 0 || error == 4243 || error == 4008);
-
   DBUG_RETURN(error);
 }
 
