@@ -3319,7 +3319,7 @@ uint Field_new_decimal::is_equal(Create_field *new_field)
    @param   to         Destination of the data
    @param   from       Source of the data
    @param   param_data Precision (upper) and decimal (lower) values
-   @param   low_byte_first
+   @param   low_byte_first See Field::unpack.
 
    @return  New pointer into memory based on from + length of the data
 */
@@ -5288,13 +5288,15 @@ Field_temporal::store(const char *str, size_t len, const CHARSET_INFO *cs)
 
 /**
 
-  @param nr
-  @param unsigned_val
-  @param ltime
-  @param warnings
+  @param nr The datetime value specified as "number", see number_to_datetime()
+  for details on this format.
 
-  @retval -1              Timestamp with wrong values
-  @retval anything else   DATETIME as integer in YYYYMMDDHHMMSS format
+  @param unsigned_val Unused.
+  @param ltime[out] A MYSQL_TIME struct where the result is stored.
+  @param warnings Truncation warning code, see was_cut in number_to_datetime().
+
+  @retval -1    Timestamp with wrong values.
+  @retval other DATETIME as integer in YYYYMMDDHHMMSS format.
 */
 longlong
 Field_temporal::convert_number_to_datetime(longlong nr, bool unsigned_val,
@@ -7380,7 +7382,7 @@ uchar *Field_string::pack(uchar *to, const uchar *from,
    @param   to         Destination of the data
    @param   from       Source of the data
    @param   param_data Real type (upper) and length (lower) values
-   @param   low_byte_first
+   @param   low_byte_first Unused.
 
    @return  New pointer into memory based on from + length of the data
 */
@@ -7836,7 +7838,7 @@ uchar *Field_varstring::pack(uchar *to, const uchar *from,
    @param   to         Destination of the data
    @param   from       Source of the data
    @param   param_data Length bytes from the master's field data
-   @param   low_byte_first
+   @param   low_byte_first Unused.
 
    @return  New pointer into memory based on from + length of the data
 */
@@ -8584,7 +8586,8 @@ uchar *Field_blob::pack(uchar *to, const uchar *from,
    @param   param_data @c TRUE if base types should be stored in little-
                        endian format, @c FALSE if native format should
                        be used.
-   @param low_byte_first
+   @param low_byte_first If true, the length should be unpacked in
+   little-endian format, otherwise in the machine's native order.
 
    @return  New pointer into memory based on from + length of the data
 */

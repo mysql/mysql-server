@@ -105,7 +105,9 @@ bool Query_result_union::flush()
   @param options            create options
   @param table_alias        name of the temporary table
   @param bit_fields_as_long convert bit fields to ulonglong
-  @param create_table
+
+  @param create_table If false, a table handler will not be created when
+                      creating the result table.
 
   @details
     Create a temporary table that is used to store the result of a UNION,

@@ -3294,14 +3294,14 @@ find_order_in_list(THD *thd, Ref_item_array ref_item_array,
   If item isn't a number and doesn't exists in the select list, add it to the
   the field list.
 
-  @param thd  Thread handler
-  @param ref_item_array
-  @param tables
-  @param fields
-  @param all_fields
-  @param order
+  @param thd            Current session.
+  @param ref_item_array The Ref_item_array for this query block.
+  @param tables         From clause of the query.
+  @param fields         Selected columns.
+  @param all_fields     All columns, including hidden ones.
+  @param order          The query block's order clause.
 
-  @returns false if success, true if error
+  @returns false if success, true if error.
 */
 
 bool setup_order(THD *thd, Ref_item_array ref_item_array, TABLE_LIST *tables,

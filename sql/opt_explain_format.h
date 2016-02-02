@@ -559,7 +559,7 @@ public:
 
     @param context      context type
     @param subquery     for CTX_WHERE: unit of the subquery
-    @param flags
+    @param flags        Format flags, see Explain_format_flags.
   */
   virtual bool begin_context(enum_parsing_context context,
                              SELECT_LEX_UNIT *subquery = 0,

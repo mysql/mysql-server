@@ -1670,10 +1670,10 @@ is_ref_or_null_optimized(const JOIN_TAB *tab, uint ref_key)
   Test if we can use one of the 'usable_keys' instead of 'ref' key
   for sorting.
 
-  @param order
-  @param tab
+  @param order The query block's order clause.
+  @param tab   Current JOIN_TAB.
   @param ref			Number of key, used for WHERE clause
-  @param ref_key_parts
+  @param ref_key_parts Index columns used for ref lookup.
   @param usable_keys		Keys for testing
 
   @return

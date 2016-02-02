@@ -1290,7 +1290,7 @@ bool Arg_comparator::try_year_cmp_func(Item_result type)
 /**
   Convert and cache a constant.
 
-  @param thd_arg
+  @param thd_arg The current session.
   @param value       An item to cache
   @param [out] cache_item Placeholder for the cache item
   @param type        Comparison type
