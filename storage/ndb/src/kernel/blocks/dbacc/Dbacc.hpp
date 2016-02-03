@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -209,13 +209,13 @@ public:
 inline 
 bool
 ElementHeader::getLocked(Uint32 data){
-  return (data & 1) == 0;
+  return (data & 1) == 1;
 }
 
 inline 
 bool
 ElementHeader::getUnlocked(Uint32 data){
-  return (data & 1) == 1;
+  return (data & 1) == 0;
 }
 
 inline 
@@ -243,14 +243,14 @@ inline
 Uint32 
 ElementHeader::setLocked(Uint32 opPtrI){
   assert(opPtrI < 0x8000000);
-  return (opPtrI << 1) + 0;
+  return (opPtrI << 1) + 1;
 }
 inline
 Uint32 
 ElementHeader::setUnlocked(Uint32 scanBits, LHBits16 const& reducedHashValue)
 {
   assert(scanBits < (1 << MAX_PARALLEL_SCANS_PER_FRAG));
-  return (Uint32(reducedHashValue.pack()) << 16) | (scanBits << 1) | 1;
+  return (Uint32(reducedHashValue.pack()) << 16) | (scanBits << 1) | 0;
 }
 
 inline
