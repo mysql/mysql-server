@@ -27,6 +27,7 @@
 #include <list>
 #include "atomic_class.h"
 #include "typelib.h"
+#include "mysql/psi/mysql_rwlock.h" // mysql_rwlock_t
 #include "template_utils.h"
 
 struct TABLE_LIST;

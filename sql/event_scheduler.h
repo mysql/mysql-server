@@ -1,6 +1,6 @@
 #ifndef _EVENT_SCHEDULER_H_
 #define _EVENT_SCHEDULER_H_
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,7 +31,8 @@
 */
 
 #include "my_global.h"
-#include "mysql/psi/mysql_thread.h"  // mysql_cond_t
+#include "mysql/psi/mysql_cond.h"  // mysql_cond_t
+#include "mysql/psi/psi_stage.h"   // PSI_stage_info
 
 class Event_queue;
 class Event_job_data;

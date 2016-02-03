@@ -1,6 +1,6 @@
 #ifndef MDL_H
 #define MDL_H
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@ class MDL_context;
 class MDL_lock;
 class MDL_ticket;
 typedef struct st_lf_pins LF_PINS;
+struct PSI_metadata_lock;
 
 /**
   @def ENTER_COND(C, M, S, O)

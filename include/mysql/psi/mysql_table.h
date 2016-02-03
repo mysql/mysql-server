@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,15 +21,15 @@
   Instrumentation helpers for table io.
 */
 
-#include "mysql/psi/psi.h"
+#include "mysql/psi/psi_table.h"
 
 #ifndef PSI_TABLE_CALL
-#define PSI_TABLE_CALL(M) PSI_DYNAMIC_CALL(M)
+#define PSI_TABLE_CALL(M) psi_table_service->M
 #endif
 
 /**
-  @defgroup Table_instrumentation Table Instrumentation
-  @ingroup Instrumentation_interface
+  @defgroup psi_api_table Table Instrumentation (API)
+  @ingroup psi_api
   @{
 */
 
@@ -136,7 +136,7 @@ inline_mysql_unlock_table(struct PSI_table *table)
 }
 #endif
 
-/** @} (end of group Table_instrumentation) */
+/** @} (end of group psi_api_table) */
 
 #endif
 

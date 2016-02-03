@@ -33,7 +33,7 @@
 #include "sql_plugin_ref.h"    // plugin_ref
 #include "system_variables.h"  // System_status_var
 
-#include "mysql/psi/psi.h"
+#include "mysql/psi/psi_table.h"
 
 #include <algorithm>
 #include <string>
@@ -56,6 +56,7 @@ typedef struct st_key_cache KEY_CACHE;
 typedef struct st_key_create_information KEY_CREATE_INFO;
 typedef struct st_savepoint SAVEPOINT;
 typedef struct xid_t XID;
+struct MDL_key;
 
 namespace dd {
   class  Table;

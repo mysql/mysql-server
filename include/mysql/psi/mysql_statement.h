@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,22 +21,22 @@
   Instrumentation helpers for statements.
 */
 
-#include "mysql/psi/psi.h"
+#include "mysql/psi/psi_statement.h"
 
 class Diagnostics_area;
 typedef struct charset_info_st CHARSET_INFO;
 
 #ifndef PSI_STATEMENT_CALL
-#define PSI_STATEMENT_CALL(M) PSI_DYNAMIC_CALL(M)
+#define PSI_STATEMENT_CALL(M) psi_statement_service->M
 #endif
 
 #ifndef PSI_DIGEST_CALL
-#define PSI_DIGEST_CALL(M) PSI_DYNAMIC_CALL(M)
+#define PSI_DIGEST_CALL(M) psi_statement_service->M
 #endif
 
 /**
-  @defgroup Statement_instrumentation Statement Instrumentation
-  @ingroup Instrumentation_interface
+  @defgroup psi_api_statement Statement Instrumentation (API)
+  @ingroup psi_api
   @{
 */
 
@@ -229,7 +229,7 @@ inline_mysql_end_statement(struct PSI_statement_locker *locker,
 }
 #endif
 
-/** @} (end of group Statement_instrumentation) */
+/** @} (end of group psi_api_statement) */
 
 #endif
 

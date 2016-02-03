@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -20,6 +20,22 @@
   @file storage/perfschema/pfs_server.h
   Private interface for the server (declarations).
 */
+
+#include "mysql/psi/psi_thread.h"
+#include "mysql/psi/psi_mutex.h"
+#include "mysql/psi/psi_rwlock.h"
+#include "mysql/psi/psi_cond.h"
+#include "mysql/psi/psi_file.h"
+#include "mysql/psi/psi_socket.h"
+#include "mysql/psi/psi_table.h"
+#include "mysql/psi/psi_mdl.h"
+#include "mysql/psi/psi_idle.h"
+#include "mysql/psi/psi_stage.h"
+#include "mysql/psi/psi_statement.h"
+#include "mysql/psi/psi_transaction.h"
+#include "mysql/psi/psi_memory.h"
+
+#ifdef HAVE_PSI_INTERFACE
 
 #define PFS_AUTOSCALE_VALUE (-1)
 #define PFS_AUTOSIZE_VALUE (-1)
@@ -259,11 +275,41 @@ void pre_initialize_performance_schema();
 
 /**
   Initialize the performance schema.
+  The performance schema implement several instrumentation services.
+  Each instrumentation service is versioned, and accessible through
+  a bootstrap structure, returned as output parameter.
   @param param Size parameters to use.
-  @return A bootstrap handle, or NULL.
+  @param [out] thread_bootstrap Thread instrumentation service bootstrap
+  @param [out] mutex_bootstrap Mutex instrumentation service bootstrap
+  @param [out] rwlock_bootstrap Rwlock instrumentation service bootstrap
+  @param [out] cond_bootstrap Condition instrumentation service bootstrap
+  @param [out] file_bootstrap File instrumentation service bootstrap
+  @param [out] socket_bootstrap Socket instrumentation service bootstrap
+  @param [out] table_bootstrap Table instrumentation service bootstrap
+  @param [out] mdl_bootstrap Metadata Lock instrumentation service bootstrap
+  @param [out] idle_bootstrap Idle instrumentation service bootstrap
+  @param [out] stage_bootstrap Stage instrumentation service bootstrap
+  @param [out] statement_bootstrap Statement instrumentation service bootstrap
+  @param [out] transaction_bootstrap Transaction instrumentation service bootstrap
+  @param [out] memory_bootstrap Memory instrumentation service bootstrap
+  @returns
+    @retval 0 success
 */
-struct PSI_bootstrap*
-initialize_performance_schema(PFS_global_param *param);
+int
+initialize_performance_schema(PFS_global_param *param,
+  PSI_thread_bootstrap ** thread_bootstrap,
+  PSI_mutex_bootstrap ** mutex_bootstrap,
+  PSI_rwlock_bootstrap ** rwlock_bootstrap,
+  PSI_cond_bootstrap ** cond_bootstrap,
+  PSI_file_bootstrap ** file_bootstrap,
+  PSI_socket_bootstrap ** socket_bootstrap,
+  PSI_table_bootstrap ** table_bootstrap,
+  PSI_mdl_bootstrap ** mdl_bootstrap,
+  PSI_idle_bootstrap ** idle_bootstrap,
+  PSI_stage_bootstrap ** stage_bootstrap,
+  PSI_statement_bootstrap ** statement_bootstrap,
+  PSI_transaction_bootstrap ** transaction_bootstrap,
+  PSI_memory_bootstrap ** memory_bootstrap);
 
 void pfs_automated_sizing(PFS_global_param *param);
 
@@ -301,4 +347,6 @@ int add_pfs_instr_to_array(const char* name, const char* value);
 */
 void shutdown_performance_schema();
 
-#endif
+#endif /* HAVE_PSI_INTERFACE */
+
+#endif /* PFS_SERVER_H */

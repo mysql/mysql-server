@@ -18,6 +18,7 @@
 
 #include "my_global.h"
 #include "my_thread.h"                     // my_start_routine
+#include "mysql/psi/mysql_cond.h"          // mysql_cond_t
 #include "mysql/psi/mysql_thread.h"        // mysql_mutex_t
 #include "rpl_channel_service_interface.h" // enum_channel_type
 

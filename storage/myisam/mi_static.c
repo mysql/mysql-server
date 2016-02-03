@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -92,7 +92,7 @@ PSI_memory_key mi_key_memory_preload_buffer;
 PSI_memory_key mi_key_memory_stPageList_pages;
 PSI_memory_key mi_key_memory_keycache_thread_var;
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_MUTEX_INTERFACE
 PSI_mutex_key mi_key_mutex_MYISAM_SHARE_intern_lock,
   mi_key_mutex_MI_SORT_INFO_mutex, mi_key_mutex_MI_CHECK_print_msg;
 
@@ -102,7 +102,9 @@ static PSI_mutex_info all_myisam_mutexes[]=
   { &mi_key_mutex_MYISAM_SHARE_intern_lock, "MYISAM_SHARE::intern_lock", 0},
   { &mi_key_mutex_MI_CHECK_print_msg, "MI_CHECK::print_msg", 0}
 };
+#endif /* HAVE_PSI_MUTEX_INTERFACE */
 
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
 PSI_rwlock_key mi_key_rwlock_MYISAM_SHARE_key_root_lock,
   mi_key_rwlock_MYISAM_SHARE_mmap_lock;
 
@@ -111,7 +113,9 @@ static PSI_rwlock_info all_myisam_rwlocks[]=
   { &mi_key_rwlock_MYISAM_SHARE_key_root_lock, "MYISAM_SHARE::key_root_lock", 0},
   { &mi_key_rwlock_MYISAM_SHARE_mmap_lock, "MYISAM_SHARE::mmap_lock", 0}
 };
+#endif /* HAVE_PSI_RWLOCK_INTERFACE */
 
+#ifdef HAVE_PSI_COND_INTERFACE
 PSI_cond_key mi_key_cond_MI_SORT_INFO_cond;
 PSI_cond_key mi_keycache_thread_var_suspend;
 
@@ -120,7 +124,9 @@ static PSI_cond_info all_myisam_conds[]=
   { &mi_key_cond_MI_SORT_INFO_cond, "MI_SORT_INFO::cond", 0},
   { &mi_keycache_thread_var_suspend, "keycache_thread_var::suspend", 0}
 };
+#endif /* HAVE_PSI_COND_INTERFACE */
 
+#ifdef HAVE_PSI_FILE_INTERFACE
 PSI_file_key mi_key_file_datatmp, mi_key_file_dfile, mi_key_file_kfile,
   mi_key_file_log;
 
@@ -131,14 +137,18 @@ static PSI_file_info all_myisam_files[]=
   { & mi_key_file_kfile, "kfile", 0},
   { & mi_key_file_log, "log", 0}
 };
+#endif /* HAVE_PSI_FILE_INTERFACE */
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
 PSI_thread_key mi_key_thread_find_all_keys;
 
 static PSI_thread_info all_myisam_threads[]=
 {
   { &mi_key_thread_find_all_keys, "find_all_keys", 0}
 };
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
+#ifdef HAVE_PSI_MEMORY_INTERFACE
 static PSI_memory_info all_myisam_memory[]=
 {
   { &mi_key_memory_MYISAM_SHARE, "MYISAM_SHARE", 0},
@@ -163,29 +173,43 @@ static PSI_memory_info all_myisam_memory[]=
   { &mi_key_memory_stPageList_pages, "stPageList::pages", 0},
   { &mi_key_memory_keycache_thread_var, "keycache_thread_var", 0}
 };
+#endif /* HAVE_PSI_MEMORY_INTERFACE */
 
+#ifdef HAVE_PSI_INTERFACE
 void init_myisam_psi_keys()
 {
-  const char* category= "myisam";
-  int count;
+  const char* category __attribute__((unused)) = "myisam";
+  int count __attribute__((unused));
 
+#ifdef HAVE_PSI_MUTEX_INTERFACE
   count= array_elements(all_myisam_mutexes);
   mysql_mutex_register(category, all_myisam_mutexes, count);
+#endif /* HAVE_PSI_MUTEX_INTERFACE */
 
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
   count= array_elements(all_myisam_rwlocks);
   mysql_rwlock_register(category, all_myisam_rwlocks, count);
+#endif /* HAVE_PSI_RWLOCK_INTERFACE */
 
+#ifdef HAVE_PSI_COND_INTERFACE
   count= array_elements(all_myisam_conds);
   mysql_cond_register(category, all_myisam_conds, count);
+#endif /* HAVE_PSI_COND_INTERFACE */
 
+#ifdef HAVE_PSI_FILE_INTERFACE
   count= array_elements(all_myisam_files);
   mysql_file_register(category, all_myisam_files, count);
+#endif /* HAVE_PSI_FILE_INTERFACE */
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
   count= array_elements(all_myisam_threads);
   mysql_thread_register(category, all_myisam_threads, count);
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 
+#ifdef HAVE_PSI_MEMORY_INTERFACE
   count= array_elements(all_myisam_memory);
   mysql_memory_register(category, all_myisam_memory, count);
+#endif /* HAVE_PSI_MEMORY_INTERFACE */
 }
 #endif /* HAVE_PSI_INTERFACE */
 

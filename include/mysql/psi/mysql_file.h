@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -42,15 +42,15 @@
   the dependency on my_sys already exists.
 */
 
-#include "mysql/psi/psi.h"
+#include "mysql/psi/psi_file.h"
 
 #ifndef PSI_FILE_CALL
-#define PSI_FILE_CALL(M) PSI_DYNAMIC_CALL(M)
+#define PSI_FILE_CALL(M) psi_file_service->M
 #endif
 
 /**
-  @defgroup File_instrumentation File Instrumentation
-  @ingroup Instrumentation_interface
+  @defgroup psi_api_file File Instrumentation (API)
+  @ingroup psi_api
   @{
 */
 
@@ -1444,7 +1444,7 @@ inline_mysql_file_sync(
   return result;
 }
 
-/** @} (end of group File_instrumentation) */
+/** @} (end of group psi_api_file) */
 
 #endif
 

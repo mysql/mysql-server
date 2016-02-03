@@ -44,7 +44,6 @@ Created 2/16/1996 Heikki Tuuri
 
 #include "mysqld.h"
 #include "mysql/psi/mysql_stage.h"
-#include "mysql/psi/psi.h"
 
 #include "row0ftsort.h"
 #include "ut0mem.h"
@@ -178,6 +177,9 @@ static char*	srv_monitor_file_name;
 /** */
 #define SRV_MAX_N_PENDING_SYNC_IOS	100
 
+mysql_pfs_key_t	srv_purge_thread_key;
+mysql_pfs_key_t	srv_worker_thread_key;
+
 #ifdef UNIV_PFS_THREAD
 /* Keys to register InnoDB threads with performance schema */
 mysql_pfs_key_t	buf_dump_thread_key;
@@ -191,9 +193,7 @@ mysql_pfs_key_t	srv_error_monitor_thread_key;
 mysql_pfs_key_t	srv_lock_timeout_thread_key;
 mysql_pfs_key_t	srv_master_thread_key;
 mysql_pfs_key_t	srv_monitor_thread_key;
-mysql_pfs_key_t	srv_purge_thread_key;
 mysql_pfs_key_t	trx_rollback_clean_thread_key;
-mysql_pfs_key_t	srv_worker_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
 #ifdef HAVE_PSI_STAGE_INTERFACE

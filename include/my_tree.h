@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,13 +20,13 @@
   @file include/my_tree.h
 */
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
 #include "my_base.h"		/* get 'enum ha_rkey_function' */
 #include "my_alloc.h"           /* MEM_ROOT */
 #include "my_sys.h"             /* qsort2_cmp */
+
+#ifdef	__cplusplus
+extern "C" {
+#endif
 
 /* Worst case tree is half full. This gives use 2^(MAX_TREE_HEIGHT/2) leafs */
 #define MAX_TREE_HEIGHT	64

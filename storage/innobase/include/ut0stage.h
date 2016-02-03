@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -32,7 +32,6 @@ Created Nov 12, 2014 Vasil Dimov
 #include "my_global.h" /* needed for headers from mysql/psi/ */
 
 #include "mysql/psi/mysql_stage.h" /* mysql_stage_inc_work_completed */
-#include "mysql/psi/psi.h" /* HAVE_PSI_STAGE_INTERFACE, PSI_stage_progress */
 
 #include "univ.i"
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -44,7 +44,6 @@ Created 10/10/1995 Heikki Tuuri
 #include "my_global.h"
 
 #include "mysql/psi/mysql_stage.h"
-#include "mysql/psi/psi.h"
 
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
@@ -447,6 +446,9 @@ extern struct export_var_t export_vars;
 /** Global counters */
 extern srv_stats_t	srv_stats;
 
+extern mysql_pfs_key_t	srv_worker_thread_key;
+extern mysql_pfs_key_t	srv_purge_thread_key;
+
 # ifdef UNIV_PFS_THREAD
 /* Keys to register InnoDB threads with performance schema */
 extern mysql_pfs_key_t	buf_dump_thread_key;
@@ -462,8 +464,6 @@ extern mysql_pfs_key_t	srv_error_monitor_thread_key;
 extern mysql_pfs_key_t	srv_lock_timeout_thread_key;
 extern mysql_pfs_key_t	srv_master_thread_key;
 extern mysql_pfs_key_t	srv_monitor_thread_key;
-extern mysql_pfs_key_t	srv_purge_thread_key;
-extern mysql_pfs_key_t	srv_worker_thread_key;
 extern mysql_pfs_key_t	trx_rollback_clean_thread_key;
 
 /* This macro register the current thread and its key with performance

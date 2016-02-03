@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@
 */
 
 #include "my_global.h"    /* C_MODE_START, C_MODE_END */
-#include "mysql/psi/psi.h" /* PSI_thread_key, PSI_mutex_key, PSI_memory_key */
 
 /* POSIX timers API. */
 #ifdef HAVE_POSIX_TIMERS
@@ -51,10 +50,6 @@ struct st_my_timer
 };
 
 C_MODE_START
-
-#ifdef HAVE_PSI_INTERFACE
-extern PSI_thread_key key_thread_timer_notifier;
-#endif
 
 /* Initialize internal components. */
 int my_timer_initialize(void);

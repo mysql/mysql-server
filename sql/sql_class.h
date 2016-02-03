@@ -49,9 +49,19 @@
 #include <pfs_statement_provider.h>
 #include <mysql/psi/mysql_statement.h>
 
+#include <pfs_transaction_provider.h>
+#include <mysql/psi/mysql_transaction.h>
+
+#include <pfs_idle_provider.h>
+#include <mysql/psi/mysql_idle.h>
+
 #include <atomic>
 #include <memory>
 #include "mysql/thread_type.h"
+
+struct PSI_statement_locker;
+struct PSI_transaction_locker;
+struct PSI_idle_locker;
 
 namespace dd {
   namespace cache {

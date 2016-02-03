@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -30,9 +30,22 @@ extern struct PSI_bootstrap PFS_bootstrap;
 
 static void test_oom()
 {
-  PSI *psi;
+  int rc;
   PFS_global_param param;
-  PSI_bootstrap *boot;
+  PSI_thread_service_t *thread_service;
+  PSI_thread_bootstrap *thread_boot;
+  PSI_mutex_bootstrap *mutex_boot;
+  PSI_rwlock_bootstrap *rwlock_boot;
+  PSI_cond_bootstrap *cond_boot;
+  PSI_file_bootstrap *file_boot;
+  PSI_socket_bootstrap *socket_boot;
+  PSI_table_bootstrap *table_boot;
+  PSI_mdl_bootstrap *mdl_boot;
+  PSI_idle_bootstrap *idle_boot;
+  PSI_stage_bootstrap *stage_boot;
+  PSI_statement_bootstrap *statement_boot;
+  PSI_transaction_bootstrap *transaction_boot;
+  PSI_memory_bootstrap *memory_boot;
 
   memset(& param, 0xFF, sizeof(param));
   param.m_enabled= true;
@@ -81,44 +94,50 @@ static void test_oom()
   stub_alloc_fails_after_count= 1000;
 
   pre_initialize_performance_schema();
-  boot= initialize_performance_schema(&param);
-  psi= (PSI *)boot->get_interface(PSI_VERSION_1);
+  rc= initialize_performance_schema(& param, & thread_boot,
+                                    & mutex_boot, & rwlock_boot,
+                                    & cond_boot, & file_boot, & socket_boot,
+                                    & table_boot, & mdl_boot, & idle_boot,
+                                    & stage_boot, & statement_boot, & transaction_boot,
+                                    & memory_boot);
+  ok(rc == 0, "init ok");
+  thread_service= (PSI_thread_service_t *)thread_boot->get_interface(PSI_THREAD_VERSION_1);
 
   PSI_thread_key thread_key_1;
   PSI_thread_info all_thread[]=
   {
     {&thread_key_1, "T-1", 0}
   };
-  psi->register_thread("test", all_thread, 1);
+  thread_service->register_thread("test", all_thread, 1);
 
-  PSI_thread *thread_1= psi->new_thread(thread_key_1, NULL, 0);
-  psi->set_thread(thread_1);
+  PSI_thread *thread_1= thread_service->new_thread(thread_key_1, NULL, 0);
+  thread_service->set_thread(thread_1);
 
   /* Tests */
 
   int first_fail= 1;
   stub_alloc_fails_after_count= first_fail;
-  psi->set_thread_account("", 0, "host1", 5);
+  thread_service->set_thread_account("", 0, "host1", 5);
   ok(global_host_container.m_lost == 1, "oom (host)");
 
   stub_alloc_fails_after_count= first_fail + 1;
-  psi->set_thread_account("", 0, "host2", 5);
+  thread_service->set_thread_account("", 0, "host2", 5);
   ok(global_host_container.m_lost == 2, "oom (host waits)");
 
   stub_alloc_fails_after_count= first_fail + 2;
-  psi->set_thread_account("", 0, "host3", 5);
+  thread_service->set_thread_account("", 0, "host3", 5);
   ok(global_host_container.m_lost == 3, "oom (host stages)");
 
   stub_alloc_fails_after_count= first_fail + 3;
-  psi->set_thread_account("", 0, "host4", 5);
+  thread_service->set_thread_account("", 0, "host4", 5);
   ok(global_host_container.m_lost == 4, "oom (host statements)");
 
   stub_alloc_fails_after_count= first_fail + 4;
-  psi->set_thread_account("", 0, "host5", 5);
+  thread_service->set_thread_account("", 0, "host5", 5);
   ok(global_host_container.m_lost == 5, "oom (host transactions)");
 
   stub_alloc_fails_after_count= first_fail + 5;
-  psi->set_thread_account("", 0, "host6", 5);
+  thread_service->set_thread_account("", 0, "host6", 5);
   ok(global_host_container.m_lost == 6, "oom (host memory)");
 
   shutdown_performance_schema();

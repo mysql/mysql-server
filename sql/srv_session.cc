@@ -29,7 +29,6 @@
 #include "sql_parse.h"           // dispatch_command()
 #include "sql_thd_internal_api.h" // thd_set_thread_stack
 #include "mutex_lock.h"
-#include "mysql/psi/psi.h"
 #include "conn_handler/connection_handler_manager.h"
 #include "sql_plugin.h"
 #include "current_thd.h"

@@ -72,6 +72,7 @@ class Query_result_interceptor;
 class Item_func;
 class Sql_cmd;
 struct sql_digest_state;
+struct PSI_digest_locker;
 class SELECT_LEX;
 
 const size_t INITIAL_LEX_PLUGIN_LIST_SIZE = 16;

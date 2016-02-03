@@ -25,6 +25,7 @@
 #include "my_byteorder.h"    /* uint8korr */
 
 #include <string.h>
+#include <mysql/mysql_lex_string.h>
 
 #define bfill please_use_memset_rather_than_bfill
 #define bzero please_use_memset_rather_than_bzero
@@ -230,7 +231,6 @@ extern char *longlong10_to_str(longlong val,char *dst,int radix);
   Ditto LEX_CSTRING/MYSQL_LEX_CSTRING.
 */
 
-#include <mysql/mysql_lex_string.h>
 typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
 

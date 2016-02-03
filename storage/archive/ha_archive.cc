@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -125,9 +125,7 @@
 #define DATA_BUFFER_SIZE 2       // Size of the data used in the data file
 #define ARCHIVE_CHECK_HEADER 254 // The number we use to determine corruption
 
-#ifdef HAVE_PSI_INTERFACE
 extern "C" PSI_file_key arch_key_file_data;
-#endif
 
 /* Static declarations for handerton */
 static handler *archive_create_handler(handlerton *hton, 
@@ -154,46 +152,55 @@ static handler *archive_create_handler(handlerton *hton,
 PSI_memory_key az_key_memory_frm;
 PSI_memory_key az_key_memory_record_buffer;
 
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_MUTEX_INTERFACE
 PSI_mutex_key az_key_mutex_Archive_share_mutex;
 
 static PSI_mutex_info all_archive_mutexes[]=
 {
   { &az_key_mutex_Archive_share_mutex, "Archive_share::mutex", 0}
 };
+#endif /* HAVE_PSI_MUTEX_INTERFACE */
 
-PSI_file_key arch_key_file_metadata, arch_key_file_data, arch_key_file_frm;
+PSI_file_key arch_key_file_data;
+
+#ifdef HAVE_PSI_FILE_INTERFACE
+PSI_file_key arch_key_file_metadata, arch_key_file_frm;
 static PSI_file_info all_archive_files[]=
 {
   { &arch_key_file_metadata, "metadata", 0},
   { &arch_key_file_data, "data", 0},
   { &arch_key_file_frm, "FRM", 0}
 };
+#endif /* HAVE_PSI_FILE_INTERFACE */
 
+#ifdef HAVE_PSI_MEMORY_INTERFACE
 static PSI_memory_info all_archive_memory[]=
 {
   { &az_key_memory_frm, "FRM", 0},
   { &az_key_memory_record_buffer, "record_buffer", 0},
 };
-
+#endif /* HAVE_PSI_MEMORY_INTERFACE */
 
 static void init_archive_psi_keys(void)
 {
-  const char* category= "archive";
-  int count;
+  const char* category __attribute__((unused)) = "archive";
+  int count __attribute__((unused));
 
+#ifdef HAVE_PSI_MUTEX_INTERFACE
   count= array_elements(all_archive_mutexes);
   mysql_mutex_register(category, all_archive_mutexes, count);
+#endif /* HAVE_PSI_MUTEX_INTERFACE */
 
+#ifdef HAVE_PSI_FILE_INTERFACE
   count= array_elements(all_archive_files);
   mysql_file_register(category, all_archive_files, count);
+#endif /* HAVE_PSI_FILE_INTERFACE */
 
+#ifdef HAVE_PSI_MEMORY_INTERFACE
   count= array_elements(all_archive_memory);
   mysql_memory_register(category, all_archive_memory, count);
+#endif /* HAVE_PSI_MEMORY_INTERFACE */
 }
-
-
-#endif /* HAVE_PSI_INTERFACE */
 
 
 /*

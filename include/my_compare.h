@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,12 +21,12 @@
 */
 
 #include "myisampack.h"
+#include "m_ctype.h"                            /* CHARSET_INFO */
+#include "my_icp.h"                             /* ICP_RESULT */
+
 #ifdef	__cplusplus
 extern "C" {
 #endif
-
-#include "m_ctype.h"                            /* CHARSET_INFO */
-#include "my_icp.h"                             /* ICP_RESULT */
 
 /*
   There is a hard limit for the maximum number of keys as there are only

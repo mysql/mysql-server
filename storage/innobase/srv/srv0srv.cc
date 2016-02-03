@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -42,7 +42,6 @@ Created 10/8/1995 Heikki Tuuri
 #include "my_thread.h"
 
 #include "mysql/psi/mysql_stage.h"
-#include "mysql/psi/psi.h"
 #include "sql_thd_internal_api.h"
 
 #include "ha_prototypes.h"

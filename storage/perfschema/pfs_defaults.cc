@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -31,9 +31,9 @@ static PSI_thread_info thread_info= { &thread_key, "setup", PSI_FLAG_GLOBAL };
 
 const char* pfs_category= "performance_schema";
 
-void install_default_setup(PSI_bootstrap *boot)
+void install_default_setup(PSI_thread_bootstrap *thread_boot)
 {
-  PSI *psi= (PSI*) boot->get_interface(PSI_CURRENT_VERSION);
+  PSI_thread_service_t *psi= (PSI_thread_service_t*) thread_boot->get_interface(PSI_CURRENT_THREAD_VERSION);
   if (psi == NULL)
     return;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,8 +23,8 @@
   @file storage/perfschema/ha_perfschema.h
   Performance schema storage engine (declarations).
 
-  @defgroup Performance_schema_engine Performance Schema Engine
-  @ingroup Performance_schema_implementation
+  @defgroup performance_schema_engine Performance Schema Engine
+  @ingroup performance_schema_implementation
   @{
 */
 struct PFS_engine_table_share;
@@ -231,6 +231,6 @@ private:
   PFS_engine_table *m_table;
 };
 
-/** @} */
+/** @} (end of group performance_schema_engine) */
 #endif
 

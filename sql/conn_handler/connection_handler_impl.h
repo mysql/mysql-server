@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,8 @@
 #define CONNECTION_HANDLER_IMPL_INCLUDED
 
 #include "my_global.h"
-#include "mysql/psi/mysql_thread.h" // mysql_mutex_t
+#include "mysql/psi/mysql_mutex.h"  // mysql_mutex_t
+#include "mysql/psi/mysql_cond.h"   // mysql_cond_t
 #include "connection_handler.h"     // Connection_handler
 
 #include <list>

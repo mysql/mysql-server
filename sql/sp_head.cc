@@ -1672,22 +1672,22 @@ void init_sp_psi_keys()
 {
   const char *category= "sp";
 
-  PSI_server->register_statement(category, & sp_instr_stmt::psi_info, 1);
-  PSI_server->register_statement(category, & sp_instr_set::psi_info, 1);
-  PSI_server->register_statement(category, & sp_instr_set_trigger_field::psi_info, 1);
-  PSI_server->register_statement(category, & sp_instr_jump::psi_info, 1);
-  PSI_server->register_statement(category, & sp_instr_jump_if_not::psi_info, 1);
-  PSI_server->register_statement(category, & sp_instr_freturn::psi_info, 1);
-  PSI_server->register_statement(category, & sp_instr_hpush_jump::psi_info, 1);
-  PSI_server->register_statement(category, & sp_instr_hpop::psi_info, 1);
-  PSI_server->register_statement(category, & sp_instr_hreturn::psi_info, 1);
-  PSI_server->register_statement(category, & sp_instr_cpush::psi_info, 1);
-  PSI_server->register_statement(category, & sp_instr_cpop::psi_info, 1);
-  PSI_server->register_statement(category, & sp_instr_copen::psi_info, 1);
-  PSI_server->register_statement(category, & sp_instr_cclose::psi_info, 1);
-  PSI_server->register_statement(category, & sp_instr_cfetch::psi_info, 1);
-  PSI_server->register_statement(category, & sp_instr_error::psi_info, 1);
-  PSI_server->register_statement(category, & sp_instr_set_case_expr::psi_info, 1);
+  mysql_statement_register(category, & sp_instr_stmt::psi_info, 1);
+  mysql_statement_register(category, & sp_instr_set::psi_info, 1);
+  mysql_statement_register(category, & sp_instr_set_trigger_field::psi_info, 1);
+  mysql_statement_register(category, & sp_instr_jump::psi_info, 1);
+  mysql_statement_register(category, & sp_instr_jump_if_not::psi_info, 1);
+  mysql_statement_register(category, & sp_instr_freturn::psi_info, 1);
+  mysql_statement_register(category, & sp_instr_hpush_jump::psi_info, 1);
+  mysql_statement_register(category, & sp_instr_hpop::psi_info, 1);
+  mysql_statement_register(category, & sp_instr_hreturn::psi_info, 1);
+  mysql_statement_register(category, & sp_instr_cpush::psi_info, 1);
+  mysql_statement_register(category, & sp_instr_cpop::psi_info, 1);
+  mysql_statement_register(category, & sp_instr_copen::psi_info, 1);
+  mysql_statement_register(category, & sp_instr_cclose::psi_info, 1);
+  mysql_statement_register(category, & sp_instr_cfetch::psi_info, 1);
+  mysql_statement_register(category, & sp_instr_error::psi_info, 1);
+  mysql_statement_register(category, & sp_instr_set_case_expr::psi_info, 1);
 }
 #endif
 

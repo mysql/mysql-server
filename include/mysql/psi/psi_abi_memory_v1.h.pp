@@ -1,0 +1,52 @@
+#include "mysql/psi/psi_memory.h"
+#include "my_global.h"
+#include "psi_base.h"
+typedef unsigned int PSI_mutex_key;
+typedef unsigned int PSI_rwlock_key;
+typedef unsigned int PSI_cond_key;
+typedef unsigned int PSI_thread_key;
+typedef unsigned int PSI_file_key;
+typedef unsigned int PSI_stage_key;
+typedef unsigned int PSI_statement_key;
+typedef unsigned int PSI_socket_key;
+typedef unsigned int PSI_memory_key;
+struct PSI_placeholder
+{
+  int m_placeholder;
+};
+C_MODE_START
+struct PSI_thread;
+struct PSI_memory_bootstrap
+{
+  void* (*get_interface)(int version);
+};
+typedef struct PSI_memory_bootstrap PSI_memory_bootstrap;
+struct PSI_memory_info_v1
+{
+  PSI_memory_key *m_key;
+  const char *m_name;
+  int m_flags;
+};
+typedef struct PSI_memory_info_v1 PSI_memory_info_v1;
+typedef void (*register_memory_v1_t)
+  (const char *category, struct PSI_memory_info_v1 *info, int count);
+typedef PSI_memory_key (*memory_alloc_v1_t)
+  (PSI_memory_key key, size_t size, struct PSI_thread ** owner);
+typedef PSI_memory_key (*memory_realloc_v1_t)
+  (PSI_memory_key key, size_t old_size, size_t new_size, struct PSI_thread ** owner);
+typedef PSI_memory_key (*memory_claim_v1_t)
+  (PSI_memory_key key, size_t size, struct PSI_thread ** owner);
+typedef void (*memory_free_v1_t)
+  (PSI_memory_key key, size_t size, struct PSI_thread * owner);
+struct PSI_memory_service_v1
+{
+  register_memory_v1_t register_memory;
+  memory_alloc_v1_t memory_alloc;
+  memory_realloc_v1_t memory_realloc;
+  memory_claim_v1_t memory_claim;
+  memory_free_v1_t memory_free;
+};
+typedef struct PSI_memory_service_v1 PSI_memory_service_t;
+typedef struct PSI_memory_info_v1 PSI_memory_info;
+extern MYSQL_PLUGIN_IMPORT PSI_memory_service_t *psi_memory_service;
+C_MODE_END

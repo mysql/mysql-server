@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License as
@@ -18,6 +18,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 
 #ifndef MYSQL_SOCKET_H
 #define MYSQL_SOCKET_H
+
+#include "mysql/psi/psi_socket.h"
 
 /* For strlen() */
 #include <string.h>
@@ -39,15 +41,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
   @file include/mysql/psi/mysql_socket.h
 */
 
-#include "mysql/psi/psi.h"
-
 #ifndef PSI_SOCKET_CALL
-#define PSI_SOCKET_CALL(M) PSI_DYNAMIC_CALL(M)
+#define PSI_SOCKET_CALL(M) psi_socket_service->M
 #endif
 
 /**
-  @defgroup Socket_instrumentation Socket Instrumentation
-  @ingroup Instrumentation_interface
+  @defgroup psi_api_socket Socket Instrumentation (API)
+  @ingroup psi_api
   @{
 */
 
@@ -1248,7 +1248,7 @@ inline_mysql_socket_shutdown
   return result;
 }
 
-/** @} (end of group Socket_instrumentation) */
+/** @} (end of group psi_api_socket) */
 
 #endif
 

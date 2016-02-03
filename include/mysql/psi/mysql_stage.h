@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,15 +21,15 @@
   Instrumentation helpers for stages.
 */
 
-#include "mysql/psi/psi.h"
+#include "mysql/psi/psi_stage.h"
 
 #ifndef PSI_STAGE_CALL
-#define PSI_STAGE_CALL(M) PSI_DYNAMIC_CALL(M)
+#define PSI_STAGE_CALL(M) psi_stage_service->M
 #endif
 
 /**
-  @defgroup Stage_instrumentation Stage Instrumentation
-  @ingroup Instrumentation_interface
+  @defgroup psi_api_stage Stage Instrumentation (API)
+  @ingroup psi_api
   @{
 */
 
@@ -192,7 +192,7 @@ inline_mysql_stage_get_work_estimated(PSI_stage_progress *progress)
 }
 #endif
 
-/** @} (end of group Stage_instrumentation) */
+/** @} (end of group psi_api_stage) */
 
 #endif
 

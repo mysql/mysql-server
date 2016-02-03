@@ -57,7 +57,6 @@ extern mysql_pfs_key_t	buf_pool_mutex_key;
 extern mysql_pfs_key_t	buf_pool_zip_mutex_key;
 extern mysql_pfs_key_t	cache_last_read_mutex_key;
 extern mysql_pfs_key_t	dict_foreign_err_mutex_key;
-extern mysql_pfs_key_t	dict_persist_checkpoint_key;
 extern mysql_pfs_key_t  dict_persist_dirty_tables_mutex_key;
 extern mysql_pfs_key_t	dict_sys_mutex_key;
 extern mysql_pfs_key_t	fil_system_mutex_key;
@@ -127,6 +126,7 @@ extern	mysql_pfs_key_t	buf_block_lock_key;
 extern	mysql_pfs_key_t	buf_block_debug_latch_key;
 # endif /* UNIV_DEBUG */
 extern	mysql_pfs_key_t	dict_operation_lock_key;
+extern  mysql_pfs_key_t	dict_persist_checkpoint_key;
 extern	mysql_pfs_key_t	checkpoint_lock_key;
 extern	mysql_pfs_key_t	fil_space_latch_key;
 extern	mysql_pfs_key_t	fts_cache_rw_lock_key;

@@ -432,6 +432,9 @@ arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
  {&Arg_comparator::compare_row,        &Arg_comparator::compare_e_row},
  {&Arg_comparator::compare_decimal,    &Arg_comparator::compare_e_decimal}};
 
+PSI_file_key key_file_binlog_cache;
+PSI_file_key key_file_binlog_index_cache;
+
 #ifdef HAVE_PSI_INTERFACE
 #ifndef EMBEDDED_LIBRARY
 static PSI_mutex_key key_LOCK_status;
@@ -4715,6 +4718,7 @@ int mysqld_main(int argc, char **argv)
   {
     if (!opt_help && !(opt_bootstrap || opt_install_server))
     {
+      int pfs_rc;
       /* Add sizing hints from the server sizing parameters. */
       pfs_param.m_hints.m_table_definition_cache= table_def_size;
       pfs_param.m_hints.m_table_open_cache= table_cache_size;
@@ -4722,8 +4726,21 @@ int mysqld_main(int argc, char **argv)
       pfs_param.m_hints.m_open_files_limit= requested_open_files;
       pfs_param.m_hints.m_max_prepared_stmt_count= max_prepared_stmt_count;
 
-      PSI_hook= initialize_performance_schema(&pfs_param);
-      if (PSI_hook == NULL && pfs_param.m_enabled)
+      pfs_rc= initialize_performance_schema(& pfs_param,
+                                            & psi_thread_hook,
+                                            & psi_mutex_hook,
+                                            & psi_rwlock_hook,
+                                            & psi_cond_hook,
+                                            & psi_file_hook,
+                                            & psi_socket_hook,
+                                            & psi_table_hook,
+                                            & psi_mdl_hook,
+                                            & psi_idle_hook,
+                                            & psi_stage_hook,
+                                            & psi_statement_hook,
+                                            & psi_transaction_hook,
+                                            & psi_memory_hook);
+      if ((pfs_rc != 0) && pfs_param.m_enabled)
       {
         pfs_param.m_enabled= false;
         sql_print_warning("Performance schema disabled (reason: init failed).");
@@ -4747,32 +4764,154 @@ int mysqld_main(int argc, char **argv)
     Obtain the current performance schema instrumentation interface,
     if available.
   */
-  if (PSI_hook)
+
+  if (psi_thread_hook != NULL)
   {
-    PSI *psi_server= (PSI*) PSI_hook->get_interface(PSI_CURRENT_VERSION);
-    if (likely(psi_server != NULL))
+    PSI_thread_service_t *service;
+    service= (PSI_thread_service_t*) psi_thread_hook->get_interface(PSI_CURRENT_THREAD_VERSION);
+    if (service != NULL)
     {
-      set_psi_server(psi_server);
-
-      /*
-        Now that we have parsed the command line arguments, and have initialized
-        the performance schema itself, the next step is to register all the
-        server instruments.
-      */
-      init_server_psi_keys();
-      /* Instrument the main thread */
-      PSI_thread *psi= PSI_THREAD_CALL(new_thread)(key_thread_main, NULL, 0);
-      PSI_THREAD_CALL(set_thread_os_id)(psi);
-      PSI_THREAD_CALL(set_thread)(psi);
-
-      /*
-        Now that some instrumentation is in place,
-        recreate objects which were initialised early,
-        so that they are instrumented as well.
-      */
-      my_thread_global_reinit();
+      set_psi_thread_service(service);
     }
   }
+
+  if (psi_mutex_hook != NULL)
+  {
+    PSI_mutex_service_t *service;
+    service= (PSI_mutex_service_t*) psi_mutex_hook->get_interface(PSI_CURRENT_MUTEX_VERSION);
+    if (service != NULL)
+    {
+      set_psi_mutex_service(service);
+    }
+  }
+
+  if (psi_rwlock_hook != NULL)
+  {
+    PSI_rwlock_service_t *service;
+    service= (PSI_rwlock_service_t*) psi_rwlock_hook->get_interface(PSI_CURRENT_RWLOCK_VERSION);
+    if (service != NULL)
+    {
+      set_psi_rwlock_service(service);
+    }
+  }
+
+  if (psi_cond_hook != NULL)
+  {
+    PSI_cond_service_t *service;
+    service= (PSI_cond_service_t*) psi_cond_hook->get_interface(PSI_CURRENT_COND_VERSION);
+    if (service != NULL)
+    {
+      set_psi_cond_service(service);
+    }
+  }
+
+  if (psi_file_hook != NULL)
+  {
+    PSI_file_service_t *service;
+    service= (PSI_file_service_t*) psi_file_hook->get_interface(PSI_CURRENT_FILE_VERSION);
+    if (service != NULL)
+    {
+      set_psi_file_service(service);
+    }
+  }
+
+  if (psi_socket_hook != NULL)
+  {
+    PSI_socket_service_t *service;
+    service= (PSI_socket_service_t*) psi_socket_hook->get_interface(PSI_CURRENT_SOCKET_VERSION);
+    if (service != NULL)
+    {
+      set_psi_socket_service(service);
+    }
+  }
+
+  if (psi_table_hook != NULL)
+  {
+    PSI_table_service_t *service;
+    service= (PSI_table_service_t*) psi_table_hook->get_interface(PSI_CURRENT_TABLE_VERSION);
+    if (service != NULL)
+    {
+      set_psi_table_service(service);
+    }
+  }
+
+  if (psi_mdl_hook != NULL)
+  {
+    PSI_mdl_service_t *service;
+    service= (PSI_mdl_service_t*) psi_mdl_hook->get_interface(PSI_CURRENT_MDL_VERSION);
+    if (service != NULL)
+    {
+      set_psi_mdl_service(service);
+    }
+  }
+
+  if (psi_idle_hook != NULL)
+  {
+    PSI_idle_service_t *service;
+    service= (PSI_idle_service_t*) psi_idle_hook->get_interface(PSI_CURRENT_IDLE_VERSION);
+    if (service != NULL)
+    {
+      set_psi_idle_service(service);
+    }
+  }
+
+  if (psi_stage_hook != NULL)
+  {
+    PSI_stage_service_t *service;
+    service= (PSI_stage_service_t*) psi_stage_hook->get_interface(PSI_CURRENT_STAGE_VERSION);
+    if (service != NULL)
+    {
+      set_psi_stage_service(service);
+    }
+  }
+
+  if (psi_statement_hook != NULL)
+  {
+    PSI_statement_service_t *service;
+    service= (PSI_statement_service_t*) psi_statement_hook->get_interface(PSI_CURRENT_STATEMENT_VERSION);
+    if (service != NULL)
+    {
+      set_psi_statement_service(service);
+    }
+  }
+
+  if (psi_transaction_hook != NULL)
+  {
+    PSI_transaction_service_t *service;
+    service= (PSI_transaction_service_t*) psi_transaction_hook->get_interface(PSI_CURRENT_TRANSACTION_VERSION);
+    if (service != NULL)
+    {
+      set_psi_transaction_service(service);
+    }
+  }
+
+  if (psi_memory_hook != NULL)
+  {
+    PSI_memory_service_t *service;
+    service= (PSI_memory_service_t*) psi_memory_hook->get_interface(PSI_CURRENT_MEMORY_VERSION);
+    if (service != NULL)
+    {
+      set_psi_memory_service(service);
+    }
+  }
+
+  /*
+    Now that we have parsed the command line arguments, and have initialized
+    the performance schema itself, the next step is to register all the
+    server instruments.
+  */
+  init_server_psi_keys();
+  /* Instrument the main thread */
+  PSI_thread *psi= PSI_THREAD_CALL(new_thread)(key_thread_main, NULL, 0);
+  PSI_THREAD_CALL(set_thread_os_id)(psi);
+  PSI_THREAD_CALL(set_thread)(psi);
+
+  /*
+    Now that some instrumentation is in place,
+    recreate objects which were initialised early,
+    so that they are instrumented as well.
+  */
+  my_thread_global_reinit();
 #endif /* HAVE_PSI_INTERFACE */
 
   init_error_log();
@@ -8902,7 +9041,6 @@ PSI_thread_key key_thread_one_connection;
 PSI_thread_key key_thread_compress_gtid_table;
 PSI_thread_key key_thread_parser_service;
 PSI_thread_key key_thread_daemon_plugin;
-PSI_thread_key key_thread_timer_notifier;
 
 #ifndef EMBEDDED_LIBRARY
 static PSI_thread_info all_server_threads[]=
@@ -8913,7 +9051,6 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_handle_con_sockets, "con_sockets", PSI_FLAG_GLOBAL},
   { &key_thread_handle_shutdown, "shutdown", PSI_FLAG_GLOBAL},
 #endif /* _WIN32 && !EMBEDDED_LIBRARY */
-  { &key_thread_timer_notifier, "thread_timer_notifier", PSI_FLAG_GLOBAL},
   { &key_thread_bootstrap, "bootstrap", PSI_FLAG_GLOBAL},
   { &key_thread_handle_manager, "manager", PSI_FLAG_GLOBAL},
   { &key_thread_main, "main", PSI_FLAG_GLOBAL},
@@ -8926,9 +9063,7 @@ static PSI_thread_info all_server_threads[]=
 #endif // !EMBEDDED_LIBRARY
 
 PSI_file_key key_file_binlog;
-PSI_file_key key_file_binlog_cache;
 PSI_file_key key_file_binlog_index;
-PSI_file_key key_file_binlog_index_cache;
 PSI_file_key key_file_dbopt;
 PSI_file_key key_file_des_key_file;
 PSI_file_key key_file_ERRMSG;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -38,8 +38,8 @@
 #include <string.h>
 
 /**
-  @defgroup Performance_schema_buffers Performance Schema Buffers
-  @ingroup Performance_schema_implementation
+  @defgroup performance_schema_buffers Performance Schema Buffers
+  @ingroup performance_schema_implementation
   @{
 */
 
@@ -2049,5 +2049,5 @@ void update_program_share_derived_flags(PFS_thread *thread)
   global_program_container.apply(proc);
 }
 
-/** @} */
+/** @} (end of group performance_schema_buffers) */
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@
 #include "my_global.h"
 #include "m_ctype.h"                    /* CHARSET_INFO */
 #include "my_alloc.h"                   /* USED_MEM */
-#include "mysql/psi/mysql_thread.h"     /* mysql_mutex_t */
 
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
@@ -35,6 +34,27 @@
 #include <unistd.h>
 #endif
 #include <string.h>
+
+#include "pfs_thread_provider.h"        /* build time optimization for mysql_thread_t */
+#include "mysql/psi/mysql_thread.h"     /* mysql_thread_t */
+
+#include "pfs_mutex_provider.h"         /* build time optimization for mysql_mutex_t */
+#include "mysql/psi/mysql_mutex.h"      /* mysql_mutex_t */
+
+#include "pfs_rwlock_provider.h"        /* build time optimization for mysql_rwlock_t */
+#include "mysql/psi/mysql_rwlock.h"     /* mysql_rwlock_t */
+
+#include "pfs_cond_provider.h"          /* build time optimization for mysql_cond_t */
+#include "mysql/psi/mysql_cond.h"       /* mysql_cond_t */
+
+#include "mysql/psi/psi_file.h"         /* PSI_file_service_t */
+#include "mysql/psi/psi_socket.h"       /* PSI_socket_service_t */
+#include "mysql/psi/psi_stage.h"        /* PSI_stage_info */
+#include "mysql/psi/psi_statement.h"    /* PSI_statement_service_t */
+#include "mysql/psi/psi_transaction.h"  /* PSI_transaction_service_t */
+#include "mysql/psi/psi_table.h"        /* PSI_table_service_t */
+#include "mysql/psi/psi_mdl.h"          /* PSI_mdl_service_t */
+#include "mysql/psi/psi_idle.h"         /* PSI_idle_service_t */
 
 C_MODE_START
 
@@ -296,12 +316,6 @@ struct st_my_file_info
 };
 
 extern struct st_my_file_info *my_file_info;
-
-/* needed for client-only build */
-#ifndef PSI_FILE_KEY_DEFINED
-typedef unsigned int PSI_file_key;
-#define PSI_FILE_KEY_DEFINED
-#endif
 
 typedef struct st_dynamic_array
 {
@@ -970,10 +984,37 @@ int my_win_translate_command_line_args(const CHARSET_INFO *cs, int *ac, char ***
 #endif /* _WIN32 */
 
 #ifdef HAVE_PSI_INTERFACE
-extern MYSQL_PLUGIN_IMPORT struct PSI_bootstrap *PSI_hook;
-extern void set_psi_server(PSI *psi);
 void my_init_mysys_psi_keys(void);
-#endif
+#endif /* HAVE_PSI_INTERFACE */
+
+#ifdef HAVE_PSI_INTERFACE
+extern MYSQL_PLUGIN_IMPORT struct PSI_thread_bootstrap *psi_thread_hook;
+extern void set_psi_thread_service(PSI_thread_service_t *psi);
+extern MYSQL_PLUGIN_IMPORT struct PSI_mutex_bootstrap *psi_mutex_hook;
+extern void set_psi_mutex_service(PSI_mutex_service_t *psi);
+extern MYSQL_PLUGIN_IMPORT struct PSI_rwlock_bootstrap *psi_rwlock_hook;
+extern void set_psi_rwlock_service(PSI_rwlock_service_t *psi);
+extern MYSQL_PLUGIN_IMPORT struct PSI_cond_bootstrap *psi_cond_hook;
+extern void set_psi_cond_service(PSI_cond_service_t *psi);
+extern MYSQL_PLUGIN_IMPORT struct PSI_file_bootstrap *psi_file_hook;
+extern void set_psi_file_service(PSI_file_service_t *psi);
+extern MYSQL_PLUGIN_IMPORT struct PSI_socket_bootstrap *psi_socket_hook;
+extern void set_psi_socket_service(PSI_socket_service_t *psi);
+extern MYSQL_PLUGIN_IMPORT struct PSI_table_bootstrap *psi_table_hook;
+extern void set_psi_table_service(PSI_table_service_t *psi);
+extern MYSQL_PLUGIN_IMPORT struct PSI_mdl_bootstrap *psi_mdl_hook;
+extern void set_psi_mdl_service(PSI_mdl_service_t *psi);
+extern MYSQL_PLUGIN_IMPORT struct PSI_idle_bootstrap *psi_idle_hook;
+extern void set_psi_idle_service(PSI_idle_service_t *psi);
+extern MYSQL_PLUGIN_IMPORT struct PSI_stage_bootstrap *psi_stage_hook;
+extern void set_psi_stage_service(PSI_stage_service_t *psi);
+extern MYSQL_PLUGIN_IMPORT struct PSI_statement_bootstrap *psi_statement_hook;
+extern void set_psi_statement_service(PSI_statement_service_t *psi);
+extern MYSQL_PLUGIN_IMPORT struct PSI_transaction_bootstrap *psi_transaction_hook;
+extern void set_psi_transaction_service(PSI_transaction_service_t *psi);
+extern MYSQL_PLUGIN_IMPORT struct PSI_memory_bootstrap *psi_memory_hook;
+extern void set_psi_memory_service(PSI_memory_service_t *psi);
+#endif /* HAVE_PSI_INTERFACE */
 
 struct st_mysql_file;
 extern struct st_mysql_file *mysql_stdin;

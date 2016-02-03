@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,7 +17,7 @@
 #include <pfs.h>
 #include <pfs_defaults.h>
 
-void install_default_setup(PSI_bootstrap *)
+void install_default_setup(PSI_thread_bootstrap *)
 {
 }
 

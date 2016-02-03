@@ -370,7 +370,7 @@ class MYSQL_BIN_LOG: public TC_LOG
   bool write_error, inited;
   IO_CACHE log_file;
   const enum cache_type io_cache_type;
-#ifdef HAVE_PSI_INTERFACE
+
   /** Instrumentation key to use for file io in @c log_file */
   PSI_file_key m_log_file_key;
   /** The instrumentation key to use for @ LOCK_log. */
@@ -404,7 +404,7 @@ class MYSQL_BIN_LOG: public TC_LOG
   PSI_file_key m_key_file_log_cache;
   /** The instrumentation key to use for opening a log index cache file. */
   PSI_file_key m_key_file_log_index_cache;
-#endif
+
   /* POSIX thread objects are inited by init_pthread_objects() */
   mysql_mutex_t LOCK_index;
   mysql_mutex_t LOCK_commit;

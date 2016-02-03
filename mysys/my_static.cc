@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,6 +42,8 @@ PSI_memory_key key_memory_MY_TMPDIR_full_list;
 PSI_memory_key key_memory_QUEUE;
 PSI_memory_key key_memory_DYNAMIC_STRING;
 PSI_memory_key key_memory_TREE;
+
+PSI_thread_key key_thread_timer_notifier;
 
 #ifdef _WIN32
 PSI_memory_key key_memory_win_SECURITY_ATTRIBUTES;
