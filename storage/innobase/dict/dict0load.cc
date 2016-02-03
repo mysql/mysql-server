@@ -732,7 +732,6 @@ err_len:
 @param[in]	space_id	Tablespace ID
 @return First filepath (caller must invoke ut_free() on it)
 @retval NULL if no SYS_DATAFILES entry was found. */
-static
 char*
 dict_get_first_path(
 	ulint	space_id)
