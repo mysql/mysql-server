@@ -3443,7 +3443,7 @@ Normalizes a table name string. A normalized name consists of the
 database name catenated to '/' and table name. An example:
 test/mytable. On Windows normalization puts both the database name and the
 table name always to lower case if "set_lower_case" is set to TRUE. */
-static
+extern "C" UNIV_INTERN
 void
 normalize_table_name_low(
 /*=====================*/
