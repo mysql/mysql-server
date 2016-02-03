@@ -3791,7 +3791,7 @@ SET DEBUG_SYNC= 'now SIGNAL blocked';
 # Reaping: DROP DATABASE db1
 # Connection con2
 # Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
-Got one of the listed errors
+ERROR 42Y07: Database 'db1' doesn't exist
 # Test 4:
 # Locked database name prevents CREATE of tables in that database.
 # Tests X vs IX lock.
@@ -3832,7 +3832,7 @@ SET DEBUG_SYNC= 'now SIGNAL blocked';
 # Reaping: DROP DATABASE db1
 # Connection con2
 # Reaping: RENAME TABLE db1.t1 TO test.t1
-Got one of the listed errors
+ERROR 42S02: Table 'db1.t1' doesn't exist
 # Connection default
 CREATE DATABASE db1;
 CREATE TABLE test.t2 (a INT);
@@ -3849,7 +3849,7 @@ SET DEBUG_SYNC= 'now SIGNAL blocked';
 # Reaping: DROP DATABASE db1
 # Connection con2
 # Reaping: RENAME TABLE test.t2 TO db1.t2
-Got one of the listed errors
+ERROR 42000: Unknown database 'db1'
 DROP TABLE test.t2;
 # Test 6:
 # Locked database name prevents DROP of tables in that database.
