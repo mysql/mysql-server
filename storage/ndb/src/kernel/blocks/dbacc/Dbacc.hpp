@@ -393,6 +393,7 @@ typedef LocalDLCFifoListImpl<Dbacc,Page8,Page8,ContainerPageLinkMethods> LocalCo
 /* --------------------------------------------------------------------------------- */
 struct Fragmentrec {
   Uint32 scan[MAX_PARALLEL_SCANS_PER_FRAG];
+  Uint16 activeScanMask;
   union {
     Uint32 mytabptr;
     Uint32 myTableId;
