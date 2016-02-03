@@ -1060,6 +1060,13 @@ private:
   index_clause_map current_index_hint_clause;
   /* a list of USE/FORCE/IGNORE INDEX */
   List<Index_hint> *index_hints;
+
+public:
+  inline void add_where_field(st_select_lex *sel)
+  {
+    DBUG_ASSERT(this != sel);
+    select_n_where_fields+= sel->select_n_where_fields;
+  }
 };
 typedef class st_select_lex SELECT_LEX;
 
