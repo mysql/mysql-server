@@ -815,9 +815,14 @@ private:
   void putActiveScanOp() const;
   void putOpScanLockQue() const;
   void putReadyScanQueue(Uint32 scanRecIndex) const;
-  void releaseScanBucket(Page8Ptr pageptr, Uint32 conidx) const;
-  void releaseScanContainer(Page8Ptr pageptr, Uint32 conptr,
-      bool isforward, Uint32 conlen) const;
+  void releaseScanBucket(Page8Ptr pageptr,
+                         Uint32 conidx,
+                         Uint16 scanMask) const;
+  void releaseScanContainer(Page8Ptr pageptr,
+                            Uint32 conptr,
+                            bool isforward,
+                            Uint32 conlen,
+                            Uint16 scanMask) const;
   void releaseScanRec();
   bool searchScanContainer(Page8Ptr pageptr,
                            Uint32 conptr,
