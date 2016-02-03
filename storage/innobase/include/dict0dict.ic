@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1657,6 +1657,18 @@ dict_table_is_temporary(
 	const dict_table_t*	table)	/*!< in: table to check */
 {
 	return(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY));
+}
+
+/********************************************************************//**
+Check if it is a encrypted table.
+@return true if table encrypted flag is set. */
+UNIV_INLINE
+bool
+dict_table_is_encrypted(
+/*====================*/
+	const dict_table_t*	table)	/*!< in: table to check */
+{
+	return(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_ENCRYPTION));
 }
 
 /** Check whether the table is intrinsic.

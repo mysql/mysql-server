@@ -556,6 +556,7 @@ MBD=$RPM_BUILD_DIR/%{src_dir}
 install -d -m 0751 %{buildroot}/var/lib/mysql
 install -d -m 0755 %{buildroot}/var/run/mysqld
 install -d -m 0750 %{buildroot}/var/lib/mysql-files
+install -d -m 0750 %{buildroot}/var/lib/mysql-keyring
 
 # Install all binaries
 cd $MBD/release
@@ -728,6 +729,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libmemcached.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/locking_service.so
@@ -743,6 +745,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libmemcached.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/locking_service.so
@@ -795,6 +798,7 @@ fi
 %dir %attr(751, mysql, mysql) /var/lib/mysql
 %dir %attr(755, mysql, mysql) /var/run/mysqld
 %dir %attr(750, mysql, mysql) /var/lib/mysql-files
+%dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %files common
 %defattr(-, root, root, -)
@@ -989,6 +993,10 @@ fi
 * Fri Jan 08 2016 Bjorn Munch <bjorn.munch@oracle.com> - 5.8.0-1
 - Purge man page for mysql_install_db in preparation for its removal
 
+* Mon Jan 4 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.11-1
+- Include mysql-keyring directory
+- Provide keyring_file.so plugin
+
 * Tue Nov 24 2015 Bjorn Munch <bjorn.munch@oracle.com> - 5.7.10-1
 - Included man pages for lz4_decompress and zlib_decompress
 
@@ -996,6 +1004,10 @@ fi
 - Added lines to remove man pages we are not ready to include yet
 - Added lz4_decompress and zlib_decompress binaries to client subpackage
 - Drop support for el5, use scl to build on el6
+
+* Mon Oct 19 2015 Bharathy Satish <bharathy.x.satish@oracle.com> - 5.7.10-1
+- Added new decompression utilities lz4_decompress and zlib_decompress binaries to
+  client subpackage.
 
 * Tue Sep 29 2015 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.9-1
 - Updated for 5.7.9

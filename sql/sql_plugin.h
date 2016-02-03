@@ -147,10 +147,12 @@ private:
 typedef int (*plugin_type_init)(struct st_plugin_int *);
 
 extern I_List<i_string> *opt_plugin_load_list_ptr;
+extern I_List<i_string> *opt_early_plugin_load_list_ptr;
 extern char *opt_plugin_dir_ptr;
 extern char opt_plugin_dir[FN_REFLEN];
 extern const LEX_STRING plugin_type_names[];
 
+extern bool plugin_register_early_plugins(int *argc, char **argv, int flags);
 extern bool plugin_register_builtin_and_init_core_se(int *argc, char **argv);
 extern bool plugin_register_dynamic_and_init_all(int *argc,
                                                  char **argv, int init_flags);

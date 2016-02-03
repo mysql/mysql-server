@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -638,6 +638,10 @@ ut_strerr(
 		return("Punch hole not supported by the file system");
 	case DB_IO_NO_PUNCH_HOLE_TABLESPACE:
 		return("Punch hole not supported by the tablespace");
+	case DB_IO_NO_ENCRYPT_TABLESPACE:
+		return("Page encryption not supported by the tablespace");
+	case DB_IO_DECRYPT_FAIL:
+		return("Page decryption failed after reading from disk");
 	case DB_IO_PARTIAL_FAILED:
 		return("Partial IO failed");
 	case DB_FORCED_ABORT:

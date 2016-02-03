@@ -697,6 +697,10 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share, const dd::Table *ta
   if (table_options->exists("compress"))
     table_options->get("compress", share->compress, &share->mem_root);
 
+  // Read Encrypt string
+  if (table_options->exists("encrypt_type"))
+    table_options->get("encrypt_type", share->encrypt_type, &share->mem_root);
+
   return false;
 }
 

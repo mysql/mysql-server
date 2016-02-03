@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1033,10 +1033,12 @@ dict_table_t::flags |     0     |    1    |     1      |    1
 fil_space_t::flags  |     0     |    0    |     1      |    1
 ==================================================================
 @param[in]	table_flags	dict_table_t::flags
+@param[in]	is_encrypted	if it's an encrypted table
 @return tablespace flags (fil_space_t::flags) */
 ulint
 dict_tf_to_fsp_flags(
-	ulint	table_flags)
+	ulint	table_flags,
+	bool	is_encrypted = false)
 	__attribute__((const));
 
 /** Extract the page size from table flags.
@@ -2081,6 +2083,16 @@ Check if it is a temporary table.
 UNIV_INLINE
 bool
 dict_table_is_temporary(
+/*====================*/
+	const dict_table_t*	table)	/*!< in: table to check */
+	__attribute__((warn_unused_result));
+
+/********************************************************************//**
+Check if it is a encrypted table.
+@return true if table encryption flag is set. */
+UNIV_INLINE
+bool
+dict_table_is_encrypted(
 /*====================*/
 	const dict_table_t*	table)	/*!< in: table to check */
 	__attribute__((warn_unused_result));

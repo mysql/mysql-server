@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -2200,6 +2200,15 @@ files_checked:
 	}
 	srv_sys_tablespaces_open = true;
 
+	/* Rotate the encryption key for recovery. It's because
+	server could crash in middle of key rotation. Some tablespace
+	didn't complete key rotation. Here, we will resume the
+	rotation. */
+	if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
+		fil_encryption_rotate();
+	}
+
+
 	/* Create the SYS_VIRTUAL system table */
 	err = dict_create_or_check_sys_virtual();
 	if (err != DB_SUCCESS) {
@@ -2740,6 +2749,41 @@ srv_get_meta_data_filename(
 			table->data_dir_path, table->name.m_name, CFG, true);
 	} else {
 		path = fil_make_filepath(NULL, table->name.m_name, CFG, false);
+	}
+
+	ut_a(path);
+	len = ut_strlen(path);
+	ut_a(max_len >= len);
+
+	strcpy(filename, path);
+
+	ut_free(path);
+}
+
+/** Get the encryption-data filename from the table name for a
+single-table tablespace.
+@param[in]	table		table object
+@param[out]	filename	filename
+@param[in]	max_len		filename max length */
+void
+srv_get_encryption_data_filename(
+	dict_table_t*	table,
+	char*		filename,
+	ulint		max_len)
+{
+	ulint		len;
+	char*		path;
+
+	/* Make sure the data_dir_path is set. */
+	dict_get_and_save_data_dir_path(table, false);
+
+	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
+		ut_a(table->data_dir_path);
+
+		path = fil_make_filepath(
+			table->data_dir_path, table->name.m_name, CFP, true);
+	} else {
+		path = fil_make_filepath(NULL, table->name.m_name, CFP, false);
 	}
 
 	ut_a(path);

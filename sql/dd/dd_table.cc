@@ -1350,6 +1350,9 @@ static bool fill_dd_table_from_create_info(THD *thd,
   if (create_info->compress.str)
     table_options->set("compress", create_info->compress.str);
 
+  if (create_info->encrypt_type.str)
+    table_options->set("encrypt_type", create_info->encrypt_type.str);
+
   // Storage media
   if (create_info->storage_media > HA_SM_DEFAULT)
     table_options->set_uint32("storage", create_info->storage_media);

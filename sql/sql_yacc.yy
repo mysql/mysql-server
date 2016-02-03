@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -527,6 +527,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  COMPLETION_SYM
 %token  COMPRESSED_SYM
 %token  COMPRESSION_SYM
+%token  ENCRYPTION_SYM
 %token  CONCURRENT
 %token  CONDITION_SYM                 /* SQL-2003-R, SQL-2008-R */
 %token  CONNECTION_SYM
@@ -685,6 +686,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  INSENSITIVE_SYM               /* SQL-2003-R */
 %token  INSERT                        /* SQL-2003-R */
 %token  INSERT_METHOD
+%token  INSTANCE_SYM
 %token  INSTALL_SYM
 %token  INTERVAL_SYM                  /* SQL-2003-R */
 %token  INTO                          /* SQL-2003-R */
@@ -921,6 +923,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  RIGHT                         /* SQL-2003-R */
 %token  ROLLBACK_SYM                  /* SQL-2003-R */
 %token  ROLLUP_SYM                    /* SQL-2003-R */
+%token  ROTATE_SYM
 %token  ROUTINE_SYM                   /* SQL-2003-N */
 %token  ROWS_SYM                      /* SQL-2003-R */
 %token  ROW_FORMAT_SYM
@@ -1498,6 +1501,7 @@ END_OF_INPUT
         insert_stmt
         replace_stmt
         shutdown_stmt
+	alter_instance_stmt
 
 %type <table_ident> table_ident_opt_wild
 
@@ -1525,6 +1529,9 @@ END_OF_INPUT
 %type <column_row_value_list_pair> insert_from_constructor
 
 %type <optimizer_hints> SELECT_SYM INSERT REPLACE UPDATE_SYM DELETE_SYM
+
+%type <alter_instance_action> alter_instance_action
+
 
 %%
 
@@ -5882,6 +5889,11 @@ create_table_option:
             Lex->create_info.used_fields|= HA_CREATE_USED_COMPRESS;
             Lex->create_info.compress= $3;
 	  }
+        | ENCRYPTION_SYM opt_equal TEXT_STRING_sys
+	  {
+            Lex->create_info.used_fields|= HA_CREATE_USED_ENCRYPT;
+            Lex->create_info.encrypt_type= $3;
+	  }
         | AUTO_INC opt_equal ulonglong_num
           {
             Lex->create_info.auto_increment_value=$3;
@@ -7610,6 +7622,7 @@ alter:
             $2->uses_identified_by_clause= true;
             Lex->contains_plaintext_password= true;
           }
+        | alter_instance_stmt { MAKE_CMD($1); }
         ;
 
 alter_user_command:
@@ -13295,6 +13308,7 @@ keyword_sp:
         | COMPLETION_SYM           {}
         | COMPRESSED_SYM           {}
         | COMPRESSION_SYM          {}
+        | ENCRYPTION_SYM           {}
         | CONCURRENT               {}
         | CONNECTION_SYM           {}
         | CONSISTENT_SYM           {}
@@ -13373,6 +13387,7 @@ keyword_sp:
         | ISOLATION                {}
         | ISSUER_SYM               {}
         | INSERT_METHOD            {}
+        | INSTANCE_SYM             {}
         | JSON_SYM                 {}
         | KEY_BLOCK_SIZE           {}
         | LAST_SYM                 {}
@@ -13496,6 +13511,7 @@ keyword_sp:
         | RETURNS_SYM              {}
         | REVERSE_SYM              {}
         | ROLLUP_SYM               {}
+        | ROTATE_SYM               {}
         | ROUTINE_SYM              {}
         | ROWS_SYM                 {}
         | ROW_COUNT_SYM            {}
@@ -13917,6 +13933,28 @@ shutdown_stmt:
           {
             Lex->sql_command= SQLCOM_SHUTDOWN;
             $$= NEW_PTN PT_shutdown();
+          }
+        ;
+
+alter_instance_stmt:
+          ALTER INSTANCE_SYM alter_instance_action
+          {
+            Lex->sql_command= SQLCOM_ALTER_INSTANCE;
+            $$= NEW_PTN PT_alter_instance($3);
+          }
+
+alter_instance_action:
+          ROTATE_SYM ident_or_text MASTER_SYM KEY_SYM
+          {
+            if (!my_strcasecmp(system_charset_info, $2.str, "INNODB"))
+            {
+              $$= ROTATE_INNODB_MASTER_KEY;
+            }
+            else
+            {
+              YYTHD->parse_error_at(@2, ER_THD(YYTHD, ER_SYNTAX_ERROR));
+              MYSQL_YYABORT;
+            }
           }
         ;
 

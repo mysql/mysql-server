@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2025,7 +2025,10 @@ dict_check_sys_tables(
 		char*	filepath = dict_get_first_path(space_id);
 
 		/* Check that the .ibd file exists. */
-		ulint	fsp_flags = dict_tf_to_fsp_flags(flags);
+		bool	is_encrypted = flags2 & DICT_TF2_ENCRYPTION;
+		ulint	fsp_flags = dict_tf_to_fsp_flags(flags,
+							 is_encrypted);
+
 		dberr_t	err = fil_ibd_open(
 			validate,
 			FIL_TYPE_TABLESPACE,
@@ -2870,7 +2873,10 @@ dict_load_tablespace(
 
 	/* Try to open the tablespace.  We set the 2nd param (fix_dict) to
 	false because we do not have an x-lock on dict_operation_lock */
-	ulint fsp_flags = dict_tf_to_fsp_flags(table->flags);
+	bool is_encrypted = dict_table_is_encrypted(table);
+	ulint fsp_flags = dict_tf_to_fsp_flags(table->flags,
+					       is_encrypted);
+
 	dberr_t err = fil_ibd_open(
 		true, FIL_TYPE_TABLESPACE, table->space,
 		fsp_flags, space_name, filepath);

@@ -601,6 +601,7 @@ struct TABLE_SHARE
   uchar	*default_values;		/* row with default values */
   LEX_STRING comment;			/* Comment about table */
   LEX_STRING compress;			/* Compression algorithm */
+  LEX_STRING encrypt_type;		/* encryption algorithm */
   const CHARSET_INFO *table_charset;	/* Default charset of string fields */
 
   MY_BITMAP all_set;

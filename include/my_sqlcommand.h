@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -175,6 +175,7 @@ enum enum_sql_command {
   SQLCOM_SHOW_CREATE_USER,
   SQLCOM_SHUTDOWN,
   SQLCOM_SET_PASSWORD,
+  SQLCOM_ALTER_INSTANCE,
   /* This should be the last !!! */
   SQLCOM_END
 };

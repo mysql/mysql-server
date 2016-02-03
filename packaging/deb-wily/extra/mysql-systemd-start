@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -37,6 +37,7 @@ sanity () {
 	MYSQLRUN=/var/run/mysqld
 	MYSQLDATA=$(get_path datadir)
 	MYSQLFILES=/var/lib/mysql-files
+	MYSQLKEYRING=/var/lib/mysql-keyring
 	MYSQLLOG=/var/log/mysql
 
 	if [ ! -d ${MYSQLDATA} -a ! -L ${MYSQLDATA} ];
@@ -51,6 +52,13 @@ sanity () {
 		mkdir ${MYSQLFILES}
 		chown mysql:mysql ${MYSQLFILES}
 		chmod 770 ${MYSQLFILES}
+	fi
+
+	if [ ! -d ${MYSQLKEYRING} -a ! -L ${MYSQLKEYRING} ];
+	then
+		mkdir ${MYSQLKEYRING}
+		chown mysql:mysql ${MYSQLKEYRING}
+		chmod 750 ${MYSQLKEYRING}
 	fi
 
 	if [ ! -d "${MYSQLDATA}/mysql" -a ! -L "${MYSQLDATA}/mysql" ];
@@ -91,8 +99,6 @@ sanity () {
 		chown mysql:mysql ${MYSQLRUN}
 		chmod 755 ${MYSQLRUN}
 	fi
-
-	/lib/init/apparmor-profile-load usr.sbin.mysqld
 
 	if [ ! -r /etc/mysql/my.cnf ]; then
 		echo "MySQL configuration not found at /etc/mysql/my.cnf. Please install one using update-alternatives."

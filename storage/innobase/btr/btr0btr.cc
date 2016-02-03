@@ -313,9 +313,10 @@ btr_root_adjust_on_import(
 		if (page_is_compact_format != dict_table_is_comp(table)) {
 			err = DB_CORRUPTION;
 		} else {
-			/* Check that the table flags and the tablespace flags
-			match. */
-			ulint	flags = dict_tf_to_fsp_flags(table->flags);
+			/* Check that the table flags and the tablespace
+			flags match. */
+			ulint	flags = dict_tf_to_fsp_flags(
+				table->flags, dict_table_is_encrypted(table));
 			ulint	fsp_flags = fil_space_get_flags(table->space);
 
 			/* We remove SDI flag from space flags temporarily for

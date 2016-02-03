@@ -227,6 +227,11 @@ The following options may be given as the first argument:
  --div-precision-increment=# 
  Precision of the result of '/' operator will be increased
  on that value
+ --early-plugin-load=name 
+ Optional semicolon-separated list of plugins to load
+ before storage engine initialization, where each plugin
+ is identified as name=library, where name is the plugin
+ name and library is the plugin library in plugin_dir.
  --end-markers-in-json 
  In JSON output ("EXPLAIN FORMAT=JSON" and optimizer
  trace), if variable is set to 1, repeats the structure's
@@ -1463,7 +1468,7 @@ performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-sql-text-length 1024
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 192
+performance-schema-max-statement-classes 193
 performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1

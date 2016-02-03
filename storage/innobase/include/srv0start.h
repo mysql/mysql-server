@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -121,6 +121,17 @@ single-table tablespace.
 @param[in]	max_len		filename max length */
 void
 srv_get_meta_data_filename(
+	dict_table_t*	table,
+	char*		filename,
+	ulint		max_len);
+
+/** Get the encryption-data filename from the table name for a
+single-table tablespace.
+@param[in]	table		table object
+@param[out]	filename	filename
+@param[in]	max_len		filename max length */
+void
+srv_get_encryption_data_filename(
 	dict_table_t*	table,
 	char*		filename,
 	ulint		max_len);

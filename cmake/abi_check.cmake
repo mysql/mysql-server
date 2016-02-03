@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -45,6 +45,7 @@ IF(CMAKE_COMPILER_IS_GNUCC AND RUN_ABI_CHECK)
     ${CMAKE_SOURCE_DIR}/include/mysql/client_plugin.h
     ${CMAKE_SOURCE_DIR}/include/mysql/plugin_auth.h
     ${CMAKE_SOURCE_DIR}/include/mysql/services.h
+    ${CMAKE_SOURCE_DIR}/include/mysql/plugin_keyring.h
   )
 
   ADD_CUSTOM_TARGET(abi_check ALL

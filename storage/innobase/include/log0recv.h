@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -327,6 +327,16 @@ private:
 	PersistentTables	m_tables;
 };
 
+/* Recovery encryption information */
+typedef	struct recv_encryption {
+	ulint		space_id;	/*!< the page number */
+	byte*		key;		/*!< encryption key */
+	byte*		iv;		/*!< encryption iv */
+} recv_encryption_t;
+
+typedef std::vector<recv_encryption_t, ut_allocator<recv_encryption_t> >
+		encryption_list_t;
+
 /** Recovery system data structure */
 struct recv_sys_t{
 #ifndef UNIV_HOTBACKUP
@@ -399,6 +409,9 @@ struct recv_sys_t{
 	MetadataRecover*	metadata_recover;
 				/*!< We store and merge all table persistent
 				data here during scanning redo logs */
+
+	encryption_list_t*	/*!< Encryption information list */
+			encryption_list;
 };
 
 /** The recovery system */

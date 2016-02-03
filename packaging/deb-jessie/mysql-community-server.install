@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -71,6 +71,7 @@ usr/lib/mysql/plugin/semisync_slave.so
 usr/lib/mysql/plugin/test_security_context.so
 usr/lib/mysql/plugin/validate_password.so
 usr/lib/mysql/plugin/version_token.so
+usr/lib/mysql/plugin/keyring_file.so
 usr/lib/mysql/plugin/debug/adt_null.so
 usr/lib/mysql/plugin/debug/auth_socket.so
 usr/lib/mysql/plugin/debug/innodb_engine.so
@@ -85,6 +86,7 @@ usr/lib/mysql/plugin/debug/semisync_slave.so
 usr/lib/mysql/plugin/debug/test_security_context.so
 usr/lib/mysql/plugin/debug/validate_password.so
 usr/lib/mysql/plugin/debug/version_token.so
+usr/lib/mysql/plugin/debug/keyring_file.so
 # support files
 usr/share/mysql/dictionary.txt
 usr/share/mysql/magic

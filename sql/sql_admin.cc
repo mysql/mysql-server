@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,6 +37,7 @@
 #include "sql_cache.h"                       // query_cache
 
 #include "dd/dd_table.h"                     // dd::recreate_table
+#include "sql_alter_instance.h"              // Alter_instance
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -1228,6 +1229,42 @@ bool Sql_cmd_shutdown::execute(THD *thd)
 #else
   my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
 #endif
+
+  DBUG_RETURN(res);
+}
+
+
+bool Sql_cmd_alter_instance::execute(THD *thd)
+{
+  bool res= true;
+  DBUG_ENTER("Sql_cmd_alter_instance::execute");
+  switch (alter_instance_action)
+  {
+    case ROTATE_INNODB_MASTER_KEY:
+      alter_instance= new Rotate_innodb_master_key(thd);
+      break;
+    default:
+      DBUG_ASSERT(false);
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER INSTANCE");
+      DBUG_RETURN(true);
+  }
+
+  /*
+    If we reach here, the only case when alter_instance
+    is NULL is if we got out of memory error.
+    In case of unsupported option, we should have returned
+    from default case in switch() statement above.
+  */
+  if (!alter_instance)
+  {
+    my_error(ER_OUT_OF_RESOURCES, MYF(0));
+  }
+  else
+  {
+    res= alter_instance->execute();
+    delete alter_instance;
+    alter_instance= NULL;
+  }
 
   DBUG_RETURN(res);
 }

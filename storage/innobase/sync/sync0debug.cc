@@ -1588,6 +1588,8 @@ sync_latch_meta_init()
 
 	LATCH_ADD(SYNC_DEBUG_MUTEX, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
 
+	LATCH_ADD(MASTER_KEY_ID_MUTEX, SYNC_NO_ORDER_CHECK, master_key_id_mutex_key);
+
 	latch_id_t	id = LATCH_ID_NONE;
 
 	/* The array should be ordered on latch ID.We need to

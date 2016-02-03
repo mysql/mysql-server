@@ -1985,6 +1985,11 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" COMPRESSION="));
       append_unescaped(packet, share->compress.str, share->compress.length);
     }
+    if (table->s->encrypt_type.length)
+    {
+      packet->append(STRING_WITH_LEN(" ENCRYPTION="));
+      append_unescaped(packet, share->encrypt_type.str, share->encrypt_type.length);
+    }
     table->file->append_create_info(packet);
     if (share->comment.length)
     {
@@ -5105,6 +5110,16 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
       are (ZLIB | LZ4 | NONE). */
       ptr= my_stpcpy(ptr, " COMPRESSION=\"");
       ptr= strxnmov(ptr, 7, share->compress.str, NullS);
+      ptr= my_stpcpy(ptr, "\"");
+    }
+
+    if (share->encrypt_type.length > 0)
+    {
+      /* In the .frm file this option has a max length of 2K. Currently,
+      InnoDB uses only the first 1 bytes and the only supported values
+      are (Y | N). */
+      ptr= my_stpcpy(ptr, " ENCRYPTION=\"");
+      ptr= strxnmov(ptr, 3, share->encrypt_type.str, NullS);
       ptr= my_stpcpy(ptr, "\"");
     }
 
