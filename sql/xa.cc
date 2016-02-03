@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -510,7 +510,7 @@ bool Sql_cmd_xa_commit::execute(THD *thd)
 bool Sql_cmd_xa_rollback::trans_xa_rollback(THD *thd)
 {
   XID_STATE *xid_state= thd->get_transaction()->xid_state();
-  bool need_clear_owned_gtid;
+  bool need_clear_owned_gtid= false;
 
   DBUG_ENTER("trans_xa_rollback");
 
@@ -529,7 +529,7 @@ bool Sql_cmd_xa_rollback::trans_xa_rollback(THD *thd)
       my_error(ER_XAER_NOTA, MYF(0));
     else
     {
-      bool gtid_error;
+      bool gtid_error= false;
 
       DBUG_ASSERT(xs->is_in_recovery());
       /*
