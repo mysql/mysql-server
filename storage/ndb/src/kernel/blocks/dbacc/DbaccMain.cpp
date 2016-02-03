@@ -396,6 +396,7 @@ void Dbacc::initialiseScanRec()
     ptrAss(scanPtr, scanRec);
     scanPtr.p->scanNextfreerec = scanPtr.i + 1;
     scanPtr.p->scanState = ScanRec::SCAN_DISCONNECT;
+    scanPtr.p->activeLocalFrag = RNIL;
   }//for
   scanPtr.i = cscanRecSize - 1;
   ptrAss(scanPtr, scanRec);
@@ -6240,6 +6241,7 @@ void Dbacc::initFragGeneral(FragmentrecPtr regFragPtr)const
   regFragPtr.p->sparsepages.init();
   regFragPtr.p->fullpages.init();
   regFragPtr.p->m_noOfAllocatedPages = 0;
+  regFragPtr.p->activeScanMask = 0;
 }//Dbacc::initFragGeneral()
 
 
@@ -6371,6 +6373,7 @@ void Dbacc::execNEXT_SCANREQ(Signal* signal)
     jam();
     fragrecptr.i = scanPtr.p->activeLocalFrag;
     ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
+    ndbassert(fragrecptr.p->activeScanMask & scanPtr.p->scanMask);
     /* ---------------------------------------------------------------------
      * THE SCAN PROCESS IS FINISHED. RELOCK ALL LOCKED EL. 
      * RELESE ALL INVOLVED REC.
@@ -6601,6 +6604,7 @@ void Dbacc::initScanFragmentPart()
   //    larger than.
   // Reset the scan indicator on the first bucket.
   /* ----------------------------------------------------------------------- */
+  ndbassert(scanPtr.p->activeLocalFrag == RNIL);
   scanPtr.p->activeLocalFrag = fragrecptr.i;
   scanPtr.p->nextBucketIndex = 0;	/* INDEX OF SCAN BUCKET */
   scanPtr.p->scanBucketState = ScanRec::FIRST_LAP;
@@ -6610,7 +6614,9 @@ void Dbacc::initScanFragmentPart()
   cnfPageidptr.i = getPagePtr(fragrecptr.p->directory, 0);
   ptrCheckGuard(cnfPageidptr, cpagesize, page8);
   const Uint32 conidx = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
+  ndbassert(!(fragrecptr.p->activeScanMask & scanPtr.p->scanMask));
   releaseScanBucket(cnfPageidptr, conidx);
+  fragrecptr.p->activeScanMask |= scanPtr.p->scanMask;
 }//Dbacc::initScanFragmentPart()
 
 /* -------------------------------------------------------------------------
@@ -6626,6 +6632,7 @@ void Dbacc::releaseScanLab(Signal* signal)
 
   fragrecptr.i = scanPtr.p->activeLocalFrag;
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
+  ndbassert(fragrecptr.p->activeScanMask & scanPtr.p->scanMask);
   for (tmp = 0; tmp < MAX_PARALLEL_SCANS_PER_FRAG; tmp++) {
     jam();
     if (fragrecptr.p->scan[tmp] == scanPtr.i) {
@@ -6638,6 +6645,8 @@ void Dbacc::releaseScanLab(Signal* signal)
   signal->theData[0] = scanPtr.p->scanUserptr;
   signal->theData[1] = RNIL;
   signal->theData[2] = RNIL;
+  fragrecptr.p->activeScanMask &= ~scanPtr.p->scanMask;
+  scanPtr.p->activeLocalFrag = RNIL;
   releaseScanRec();
   EXECUTE_DIRECT(blockNo,
                  GSN_NEXT_SCANCONF,
@@ -6833,6 +6842,7 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
 
   fragrecptr.i = scanPtr.p->activeLocalFrag;
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
+  ndbassert(fragrecptr.p->activeScanMask & scanPtr.p->scanMask);
   checkNextBucketLab(signal);
   return;
 }//Dbacc::execACC_CHECK_SCAN()
