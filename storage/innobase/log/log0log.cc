@@ -2040,12 +2040,6 @@ logs_empty_and_mark_files_at_shutdown(void)
 
 	ib::info() << "Starting shutdown...";
 
-	while (srv_fast_shutdown == 0 && trx_rollback_or_clean_is_active) {
-		/* we should wait until rollback after recovery end
-		for slow shutdown */
-		os_thread_sleep(100000);
-	}
-
 	/* Wait until the master thread and all other operations are idle: our
 	algorithm only works if the server is idle at shutdown */
 

@@ -2494,6 +2494,15 @@ srv_pre_dd_shutdown()
 		dict_stats_shutdown();
 	}
 
+	/* On slow shutdown, we have to wait for background thread
+	doing the rollback to finish first because it can add undo to
+	purge. So exit this thread before initiating purge shutdown. */
+	while (srv_fast_shutdown == 0 && trx_rollback_or_clean_is_active) {
+		/* we should wait until rollback after recovery end
+		for slow shutdown */
+		os_thread_sleep(100000);
+	}
+
 	/* Here, we will only shut down the tasks that may be looking up
 	tables or other objects in the Global Data Dictionary.
 	The following background tasks will not be affected:
