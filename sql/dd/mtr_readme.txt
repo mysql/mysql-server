@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,7 +51,6 @@ sysschema.mysqldump                    WL6378_UPGRADE
   NOTE: we must block DDL to these tables. Revisit after
   WL6391.
 */
-main.mysqldump                         WL6378_DDL_ON_DD_TABLE
 main.system_mysql_db_fix50030          WL6378_DDL_ON_DD_TABLE
 main.system_mysql_db_fix40123          WL6378_DDL_ON_DD_TABLE
 main.system_mysql_db_fix50117          WL6378_DDL_ON_DD_TABLE
@@ -106,6 +105,13 @@ innodb.partition                       WL6378_ALTER_PARTITION_TABLESPACE
   Revisit after WL6391
 */
 i_main.plugin_auth                     WL6378_MODIFIES_SYSTEM_TABLE
+
+/*
+  Allow dump/restore of innodb_index_stats and innodb_table_stats.
+  See Bug#22655287
+*/
+main.mysqldump                         WL6378_DDL_ON_DD_TABLE
+
 
 /*
   WL#6599
