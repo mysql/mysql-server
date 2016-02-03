@@ -21,7 +21,4 @@ explain_for_connection_rqg_trad : Bug#20697533 2015-03-20 erlend Fails several t
 lock_sync                 : WL#6378 2015-11-06 jhauglid WL6378_DEBUG_SYNC
 mdl_sync                  : WL#6378 2015-11-06 jhauglid WL6378_DEBUG_SYNC
 main.mysql_upgrade        : WL#6378 2015-11-06 jhauglid WL6378_UPGRADE
-system_mysql_db_fix40123  : WL#6378 2015-11-06 jhauglid WL6378_DDL_ON_DD_TABLE
-system_mysql_db_fix50030  : WL#6378 2015-11-06 jhauglid WL6378_DDL_ON_DD_TABLE
-system_mysql_db_fix50117  : WL#6378 2015-11-06 jhauglid WL6378_DDL_ON_DD_TABLE
 main.status               : Bug#14286343 2015-12-22 Mohit Legacy Bug leading to sporadic failures on PB2 occuring since 2012.

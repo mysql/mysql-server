@@ -38,23 +38,6 @@ main.lock_sync                         WL6378_DEBUG_SYNC
 */
 i_main.mysql_upgrade                   WL6378_UPGRADE
 main.mysql_upgrade                     WL6378_UPGRADE
-sysschema.mysqldump                    WL6378_UPGRADE
-
-
-/** LOW
-  Test deals with CREATE/DROP/ALTER on innodb_index_stats
-  innodb_table_stats DD tables. As DD tables structures
-  should not be changed, this should be avoided.
-
-  Can we re-write the test to avoid this ?
-
-  NOTE: we must block DDL to these tables. Revisit after
-  WL6391.
-*/
-main.system_mysql_db_fix50030          WL6378_DDL_ON_DD_TABLE
-main.system_mysql_db_fix40123          WL6378_DDL_ON_DD_TABLE
-main.system_mysql_db_fix50117          WL6378_DDL_ON_DD_TABLE
-
 
 ///////////////////////////////////////////////////////////////////
 // RELATED TO INNODB SE
