@@ -458,7 +458,7 @@ redo:
   if ((plugin= ha_resolve_by_name_raw(thd, cstring_name)))
   {
     handlerton *hton= plugin_data<handlerton*>(plugin);
-    if (!(hton->flags & HTON_NOT_USER_SELECTABLE))
+    if (hton && !(hton->flags & HTON_NOT_USER_SELECTABLE))
       return plugin;
       
     /*
