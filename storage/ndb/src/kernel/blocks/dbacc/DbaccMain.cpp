@@ -4851,17 +4851,14 @@ Uint32 Dbacc::checkScanExpand(Uint32 splitBucket)
   Uint32 TPageIndex;
   Uint32 TDirInd;
   Uint32 TSplit;
-  Uint32 TreleaseInd = 0;
   Uint32 TreleaseScanBucket;
-  enum Actions { ClearScanBit };
-  Bitmask<1> actions[MAX_PARALLEL_SCANS_PER_FRAG];
   Page8Ptr TPageptr;
   ScanRecPtr TscanPtr;
+  Uint16 releaseScanMask = 0;
 
   TSplit = splitBucket;
   for (Ti = 0; Ti < MAX_PARALLEL_SCANS_PER_FRAG; Ti++)
   {
-    actions[Ti].clear();
     if (fragrecptr.p->scan[Ti] != RNIL)
     {
       //-------------------------------------------------------------
@@ -4885,12 +4882,15 @@ Uint32 Dbacc::checkScanExpand(Uint32 splitBucket)
           else if (TSplit > TscanPtr.p->nextBucketIndex)
           {
             jam();
-	    //-------------------------------------------------------------
-	    // This bucket has not yet been scanned. We must reset the scanned
-	    // bit indicator for this scan on this bucket.
-	    //-------------------------------------------------------------
-            actions[Ti].set(ClearScanBit);
-            TreleaseInd = 1;
+            ndbassert(TSplit <= TscanPtr.p->startNoOfBuckets);
+            if (TSplit <= TscanPtr.p->startNoOfBuckets)
+            {
+	      //-------------------------------------------------------------
+	      // This bucket has not yet been scanned. We must reset the scanned
+	      // bit indicator for this scan on this bucket.
+	      //-------------------------------------------------------------
+              releaseScanMask |= TscanPtr.p->scanMask;
+            }
           }
           else
           {
@@ -4916,22 +4916,12 @@ Uint32 Dbacc::checkScanExpand(Uint32 splitBucket)
       }//if
     }//if
   }//for
-  if (TreleaseInd == 1) {
-    TreleaseScanBucket = TSplit;
-    TPageIndex = fragrecptr.p->getPageIndex(TreleaseScanBucket);
-    TDirInd = fragrecptr.p->getPageNumber(TreleaseScanBucket);
-    TPageptr.i = getPagePtr(fragrecptr.p->directory, TDirInd);
-    ptrCheckGuard(TPageptr, cpagesize, page8);
-    for (Ti = 0; Ti < MAX_PARALLEL_SCANS_PER_FRAG; Ti++) {
-      if (actions[Ti].get(ClearScanBit))
-      {
-        jam();
-        scanPtr.i = fragrecptr.p->scan[Ti];
-        ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
-        releaseScanBucket(TPageptr, TPageIndex);
-      }//if
-    }//for
-  }//if
+  TreleaseScanBucket = TSplit;
+  TPageIndex = fragrecptr.p->getPageIndex(TreleaseScanBucket);
+  TDirInd = fragrecptr.p->getPageNumber(TreleaseScanBucket);
+  TPageptr.i = getPagePtr(fragrecptr.p->directory, TDirInd);
+  ptrCheckGuard(TPageptr, cpagesize, page8);
+  releaseScanBucket(TPageptr, TPageIndex, releaseScanMask);
   return TreturnCode;
 }//Dbacc::checkScanExpand()
 
@@ -5524,8 +5514,10 @@ Uint32 Dbacc::checkScanShrink(Uint32 sourceBucket, Uint32 destBucket)
   Uint32 TmergeSource;
   Uint32 TreleaseScanBucket;
   Uint32 TreleaseInd = 0;
-  enum Actions { ClearScanBit, ExtendRescan, ShortenUndefined };
+  enum Actions { ExtendRescan, ReduceUndefined };
   Bitmask<1> actions[MAX_PARALLEL_SCANS_PER_FRAG];
+  Uint16 releaseDestScanMask = 0;
+  Uint16 releaseSourceScanMask = 0;
   Page8Ptr TPageptr;
   ScanRecPtr TscanPtr;
 
@@ -5568,8 +5560,8 @@ Uint32 Dbacc::checkScanShrink(Uint32 sourceBucket, Uint32 destBucket)
                * Merge unscanned bucket with undefined scan bits into scanned
                * bucket.  Source buckets scan bits must be cleared.
                */
-              actions[Ti].set(ShortenUndefined);
-              actions[Ti].set(ClearScanBit);
+              actions[Ti].set(ReduceUndefined);
+              releaseSourceScanMask |= TscanPtr.p->scanMask;
             }
             TreleaseInd = 1;
           }//if
@@ -5581,8 +5573,15 @@ Uint32 Dbacc::checkScanShrink(Uint32 sourceBucket, Uint32 destBucket)
              */
             if (TmergeSource == scanPtr.p->startNoOfBuckets)
             {
-              actions[Ti].set(ShortenUndefined);
+              actions[Ti].set(ReduceUndefined);
+              releaseSourceScanMask |= TscanPtr.p->scanMask;
               TreleaseInd = 1;
+            }
+            if (TmergeDest <= TscanPtr.p->startNoOfBuckets)
+            {
+              jam();
+              // Destination bucket is not scanned by scan
+              releaseDestScanMask |= TscanPtr.p->scanMask;
             }
           }
         }
@@ -5602,6 +5601,8 @@ Uint32 Dbacc::checkScanShrink(Uint32 sourceBucket, Uint32 destBucket)
 	  // The scan is completed and we can thus go ahead and perform
 	  // the split.
 	  //-------------------------------------------------------------
+          releaseDestScanMask |= TscanPtr.p->scanMask;
+          releaseSourceScanMask |= TscanPtr.p->scanMask;
         } else {
           jam();
           sendSystemerror(__LINE__);
@@ -5610,24 +5611,30 @@ Uint32 Dbacc::checkScanShrink(Uint32 sourceBucket, Uint32 destBucket)
       }//if
     }//if
   }//for
+
+  TreleaseScanBucket = TmergeSource;
+  TPageIndex = fragrecptr.p->getPageIndex(TreleaseScanBucket);
+  TDirInd = fragrecptr.p->getPageNumber(TreleaseScanBucket);
+  TPageptr.i = getPagePtr(fragrecptr.p->directory, TDirInd);
+  ptrCheckGuard(TPageptr, cpagesize, page8);
+  releaseScanBucket(TPageptr, TPageIndex, releaseSourceScanMask);
+
+  TreleaseScanBucket = TmergeDest;
+  TPageIndex = fragrecptr.p->getPageIndex(TreleaseScanBucket);
+  TDirInd = fragrecptr.p->getPageNumber(TreleaseScanBucket);
+  TPageptr.i = getPagePtr(fragrecptr.p->directory, TDirInd);
+  ptrCheckGuard(TPageptr, cpagesize, page8);
+  releaseScanBucket(TPageptr, TPageIndex, releaseDestScanMask);
+
   if (TreleaseInd == 1) {
     jam();
-    TreleaseScanBucket = TmergeSource;
-    TPageIndex = fragrecptr.p->getPageIndex(TreleaseScanBucket);
-    TDirInd = fragrecptr.p->getPageNumber(TreleaseScanBucket);
-    TPageptr.i = getPagePtr(fragrecptr.p->directory, TDirInd);
-    ptrCheckGuard(TPageptr, cpagesize, page8);
     for (Ti = 0; Ti < MAX_PARALLEL_SCANS_PER_FRAG; Ti++) {
       if (!actions[Ti].isclear())
       {
         jam();
         scanPtr.i = fragrecptr.p->scan[Ti];
         ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
-        if (actions[Ti].get(ClearScanBit))
-        {
-          releaseScanBucket(TPageptr, TPageIndex);
-        }
-        if (actions[Ti].get(ShortenUndefined))
+        if (actions[Ti].get(ReduceUndefined))
         {
           scanPtr.p->startNoOfBuckets --;
         }
@@ -6481,7 +6488,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
         gnsPageidptr.i = getPagePtr(fragrecptr.p->directory, pagei);
         ptrCheckGuard(gnsPageidptr, cpagesize, page8);
       }//if
-      releaseScanBucket(gnsPageidptr, conidx);
+      releaseScanBucket(gnsPageidptr, conidx, scanPtr.p->scanMask);
     }//if
     signal->theData[0] = scanPtr.i;
     signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
@@ -6615,7 +6622,7 @@ void Dbacc::initScanFragmentPart()
   ptrCheckGuard(cnfPageidptr, cpagesize, page8);
   const Uint32 conidx = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
   ndbassert(!(fragrecptr.p->activeScanMask & scanPtr.p->scanMask));
-  releaseScanBucket(cnfPageidptr, conidx);
+  releaseScanBucket(cnfPageidptr, conidx, scanPtr.p->scanMask);
   fragrecptr.p->activeScanMask |= scanPtr.p->scanMask;
 }//Dbacc::initScanFragmentPart()
 
@@ -7140,15 +7147,20 @@ void Dbacc::putReadyScanQueue(Uint32 scanRecIndex) const
  *
  * @param[in]  pageptr  Page of first container of bucket
  * @param[in]  conidx   Index within page to first container of bucket
+ * @param[in]  scanMask Scan bit mask for scan bits that should be cleared
  * ------------------------------------------------------------------------- */
-void Dbacc::releaseScanBucket(Page8Ptr pageptr, Uint32 conidx) const
+void Dbacc::releaseScanBucket(Page8Ptr pageptr,
+                              Uint32 conidx,
+                              Uint16 scanMask) const
 {
+  scanMask |= (~fragrecptr.p->activeScanMask &
+               ((1 << MAX_PARALLEL_SCANS_PER_FRAG) - 1));
   bool isforward = true;
  NEXTRELEASESCANLOOP:
   Uint32 conptr = getContainerPtr(conidx, isforward);
   ContainerHeader containerhead(pageptr.p->word32[conptr]);
   Uint32 conlen = containerhead.getLength();
-  releaseScanContainer(pageptr, conptr, isforward, conlen);
+  releaseScanContainer(pageptr, conptr, isforward, conlen, scanMask);
   if (containerhead.getNextEnd() != 0) {
     jam();
     nextcontainerinfo(pageptr, conptr, containerhead, conidx, isforward);
@@ -7164,9 +7176,13 @@ void Dbacc::releaseScanBucket(Page8Ptr pageptr, Uint32 conidx) const
  * @param[in]  conptr   Pointer within page to container.
  * @param[in]  forward  Container growing direction.
  * @param[in]  conlen   Containers current size.
+ * @param[in]  scanMask   Scan bits that should be cleared if set
  * ------------------------------------------------------------------------- */
-void Dbacc::releaseScanContainer(Page8Ptr pageptr, Uint32 conptr,
-    bool isforward, Uint32 conlen) const
+void Dbacc::releaseScanContainer(const Page8Ptr pageptr,
+                                 const Uint32 conptr,
+                                 const bool isforward,
+                                 const Uint32 conlen,
+                                 const Uint16 scanMask) const
 {
   OperationrecPtr rscOperPtr;
   Uint32 trscElemStep;
@@ -7198,7 +7214,6 @@ void Dbacc::releaseScanContainer(Page8Ptr pageptr, Uint32 conptr,
   do {
     arrGuard(trscElementptr, 2048);
     const Uint32 eh = pageptr.p->word32[trscElementptr];
-    const Uint32 scanMask = scanPtr.p->scanMask;
     if (ElementHeader::getUnlocked(eh)) {
       jam();
       const Uint32 tmp = ElementHeader::clearScanBit(eh, scanMask);
