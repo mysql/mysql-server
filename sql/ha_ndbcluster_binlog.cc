@@ -101,6 +101,22 @@ enum Ndb_binlog_index_cols
   ,NBICOL_NEXT_FILE                = 11
 };
 
+class Mutex_guard
+{
+public:
+  Mutex_guard(native_mutex_t &mutex) : m_mutex(mutex)
+  {
+    native_mutex_lock(&m_mutex);
+  }
+  ~Mutex_guard()
+  {
+    native_mutex_unlock(&m_mutex);
+  }
+private:
+  native_mutex_t &m_mutex;
+};
+
+
 /*
   Flag showing if the ndb binlog should be created, if so == TRUE
   FALSE if not
@@ -172,6 +188,18 @@ extern my_bool opt_log_slave_updates;
 static my_bool g_ndb_log_slave_updates;
 
 static bool g_injector_v1_warning_emitted = false;
+
+static void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb);
+
+bool ndb_schema_dist_is_ready(void)
+{
+  Mutex_guard schema_share_g(ndb_schema_share_mutex);
+  if (ndb_schema_share)
+    return true;
+
+  DBUG_PRINT("info", ("ndb schema dist not ready"));
+  return false;
+}
 
 #ifndef DBUG_OFF
 static void print_records(TABLE *table, const uchar *record)
@@ -921,80 +949,12 @@ void ndbcluster_binlog_init(handlerton* h)
 }
 
 
-/*
-  Convert db and table name into a key to use for searching
-  the ndbcluster_open_tables hash
-*/
-static size_t
-ndb_open_tables__create_key(char* key_buf, size_t key_buf_length,
-                            const char* db, size_t db_length,
-                            const char* table, size_t table_length)
-{
-  size_t key_length =  my_snprintf(key_buf, key_buf_length,
-                                   "./%*s/%*s", db_length, db,
-                                   table_length, table) - 1;
-  assert(key_length > 0);
-  assert(key_length < key_buf_length);
-
-  return key_length;
-}
-
-
-/*
-  Check if table with given name is open, ie. is
-  in ndbcluster_open_tables hash
-*/
-static bool
-ndb_open_tables__is_table_open(const char* db, size_t db_length,
-                               const char* table, size_t table_length)
-{
-  char key[FN_REFLEN + 1];
-  size_t key_length = ndb_open_tables__create_key(key, sizeof(key),
-                                                  db, db_length,
-                                                  table, table_length);
-  DBUG_ENTER("ndb_open_tables__is_table_open");
-  DBUG_PRINT("enter", ("db: '%s', table: '%s', key: '%s'",
-                       db, table, key));
-
-  native_mutex_lock(&ndbcluster_mutex);
-  bool result = my_hash_search(&ndbcluster_open_tables,
-                               (const uchar*)key,
-                               key_length) != NULL;
-  native_mutex_unlock(&ndbcluster_mutex);
-
-  DBUG_PRINT("exit", ("result: %d", result));
-  DBUG_RETURN(result);
-}
-
-
-static bool
-ndbcluster_check_ndb_schema_share()
-{
-  return ndb_open_tables__is_table_open(STRING_WITH_LEN("mysql"),
-                                        STRING_WITH_LEN("ndb_schema"));
-}
-
-
-static bool
-ndbcluster_check_ndb_apply_status_share()
-{
-  return ndb_open_tables__is_table_open(STRING_WITH_LEN("mysql"),
-                                        STRING_WITH_LEN("ndb_apply_status"));
-}
-
-
 static bool
 create_cluster_sys_table(THD *thd, const char* db, size_t db_length,
                          const char* table, size_t table_length,
                          const char* create_definitions,
                          const char* create_options)
 {
-  if (ndb_open_tables__is_table_open(db, db_length, table, table_length))
-    return false;
-
-  if (g_ndb_cluster_connection->get_no_ready() <= 0)
-    return false;
-
   if (opt_ndb_extra_logging)
     sql_print_information("NDB: Creating %s.%s", db, table);
 
@@ -1178,8 +1138,6 @@ void clean_away_stray_files(THD *thd)
   while a mysqld was disconnected.  This function tries to recover
   the correct state w.r.t created databases using the information in
   that table.
-
-
 */
 static int ndbcluster_find_all_databases(THD *thd)
 {
@@ -1474,9 +1432,12 @@ int ndbcluster_find_all_files(THD *thd)
       else
       {
         /* set up replication for this table */
-        ndbcluster_create_binlog_setup(thd, ndb, key,
-                                       elmt.database, elmt.name,
-                                       0);
+        if (ndbcluster_create_binlog_setup(thd, ndb, key,
+                                           elmt.database, elmt.name, NULL))
+        {
+          unhandled++;
+          continue;
+        }
       }
     }
   }
@@ -1497,79 +1458,113 @@ ndb_binlog_setup(THD *thd)
     the schema_ndb pointer(since that pointer is used for
     creating the event operations owned by ndb_schema_share)
   */
-  native_mutex_lock(&injector_mutex);
-  if (!schema_ndb)
   {
-    native_mutex_unlock(&injector_mutex);
-    return false;
+    Mutex_guard injector_mutex_g(injector_mutex);
+    if (!schema_ndb)
+      return false;
   }
-  native_mutex_unlock(&injector_mutex);
 
-  /*
-    Take the global schema lock to make sure that
-    the schema is not changed in the cluster while
-    running setup.
-  */
-  Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
-  if (global_schema_lock_guard.lock(false, false))
-    return false;
-
-  if (!ndb_schema_share &&
-      ndbcluster_check_ndb_schema_share() == 0)
+  /* Test binlog_setup on this mysqld being slower (than other mysqld) */
+  DBUG_EXECUTE_IF("ndb_binlog_setup_slow",
   {
-    ndb_create_table_from_engine(thd, NDB_REP_DB, NDB_SCHEMA_TABLE);
-    if (!ndb_schema_share)
+    sql_print_information("ndb_binlog_setup: 'ndb_binlog_setup_slow' -> sleep");
+    NdbSleep_SecSleep(10);
+    sql_print_information("ndb_binlog_setup <- sleep");
+  });
+
+  while (true) //To allow 'break' out to error handling
+  {
+    DBUG_ASSERT(ndb_schema_share == NULL);
+    DBUG_ASSERT(ndb_apply_status_share == NULL);
+
+    /**
+     * The Global Schema Lock (GSL) protects the discovery of the tables,
+     * and creation of the schema change distribution event (ndb_schema_share)
+     * to be atomic. This make sure that the schema does not change without 
+     * being distributed to other mysqld's.
+     */
+    Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
+    if (global_schema_lock_guard.lock(false, false))
     {
-      ndb_schema_table__create(thd);
-      // always make sure we create the 'schema' first
-      if (!ndb_schema_share)
-        return false;
+      break;
     }
-  }
-  if (!ndb_apply_status_share &&
-      ndbcluster_check_ndb_apply_status_share() == 0)
-  {
-    ndb_create_table_from_engine(thd, NDB_REP_DB, NDB_APPLY_TABLE);
-    if (!ndb_apply_status_share)
+
+    /* Give additional 'binlog_setup rights' to this Thd_ndb */
+    Thd_ndb_options_guard thd_ndb_options(get_thd_ndb(thd));
+    thd_ndb_options.set(TNO_ALLOW_BINLOG_SETUP);
+
+    if (ndb_create_table_from_engine(thd, NDB_REP_DB, NDB_SCHEMA_TABLE))
     {
-      ndb_apply_table__create(thd);
-      if (!ndb_apply_status_share)
-        return false;
+      if (ndb_schema_table__create(thd))
+        break;
     }
-  }
+    if (ndb_schema_share == NULL)  //Needed for 'ndb_schema_dist_is_ready()'
+      break;  
 
-  clean_away_stray_files(thd);
+    /**
+     * NOTE: At this point the creation of 'ndb_schema_share' has set
+     * ndb_schema_dist_is_ready(), which also announced our subscription
+     * (and handling) of schema change events.
+     * We are excpected to act on any such changes (SLOCK) by all other mysqld.
+     * However, this is not possible yet until setup has succesfully
+     * completed, and our binlog-thread started to handle events.
+     * Thus, if we fail to complete the setup below, the schema changes *must*
+     * be unsubscribed as part of error handling. Any other mysqld's waiting
+     * for us to reply, will then get an unsibscribe-event instead, which breaks
+     * the wait.
+     */
+    assert(ndb_schema_dist_is_ready());
 
-  if (ndbcluster_find_all_databases(thd))
-  {
-    return false;
-  }
+    /* Test handling of binlog_setup failing to complete *after* created 'ndb_schema' */
+    DBUG_EXECUTE_IF("ndb_binlog_setup_incomplete",
+    {
+      sql_print_information("ndb_binlog_setup: 'ndb_binlog_setup_incomplete' -> return");
+      break;
+    });
 
-  if (ndbcluster_find_all_files(thd))
-  {
-    return false;
-  }
-
-  ndb_binlog_tables_inited= TRUE;
-
-  if (ndb_binlog_running && ndb_binlog_is_ready)
-  {
-    if (opt_ndb_extra_logging)
-      sql_print_information("NDB Binlog: ndb tables writable");
-
-    ndb_tdc_close_cached_tables();
-
-    /*
-       Signal any waiting thread that ndb table setup is
-       now complete
+    if (ndb_create_table_from_engine(thd, NDB_REP_DB, NDB_APPLY_TABLE))
+    {
+      if (ndb_apply_table__create(thd))
+        break;
+    }
+    /* Note: Failure of creating APPLY_TABLE eventOp is retried
+       by find_all_files(), and eventually failed.
     */
-    ndb_notify_tables_writable();
+
+    clean_away_stray_files(thd);
+
+    if (ndbcluster_find_all_databases(thd))
+      break;
+
+    if (ndbcluster_find_all_files(thd))
+      break;
+
+    /* Shares w/ eventOp subscr. for NDB_SCHEMA_TABLE and NDB_APPLY_TABLE created? */
+    DBUG_ASSERT(ndb_schema_share);
+    DBUG_ASSERT(!ndb_binlog_running || ndb_apply_status_share);
+
+    /* Signal injector thread that all is setup */
+    ndb_binlog_tables_inited= TRUE;
+    native_cond_signal(&injector_cond);
+
+    DBUG_ASSERT(ndb_schema_dist_is_ready());
+    return true;     // Setup completed -> OK
+  } //end global schema lock
+
+  /**
+   * Error handling:
+   * Failed to complete ndb_binlog_setup.
+   * Remove all existing event operations from a possible partial setup
+   */
+  if (ndb_schema_dist_is_ready()) //Can't leave failed setup with 'dist_is_ready'
+  {
+    sql_print_information("ndb_binlog_setup: Clean up leftovers");
+    remove_all_event_operations(schema_ndb, injector_ndb);
   }
 
-  /* Signal injector thread that all is setup */
-  native_cond_signal(&injector_cond);
-
-  return true; // Setup completed -> OK
+  /* There should not be a partial setup left behind */
+  DBUG_ASSERT(!ndb_schema_dist_is_ready());
+  return false;
 }
 
 /*
@@ -2205,22 +2200,6 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
 
   DBUG_RETURN(0);
 }
-
-
-class Mutex_guard
-{
-public:
-  Mutex_guard(native_mutex_t &mutex) : m_mutex(mutex)
-  {
-    native_mutex_lock(&m_mutex);
-  };
-  ~Mutex_guard()
-  {
-    native_mutex_unlock(&m_mutex);
-  };
-private:
-  native_mutex_t &m_mutex;
-};
 
 
 /*
@@ -4591,43 +4570,25 @@ ndbcluster_check_if_local_table(const char *dbname, const char *tabname)
   Common function for setting up everything for logging a table at
   create/discover.
 */
-int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
-                                   const char *db,
-                                   const char *table_name,
-                                   TABLE * table)
+static
+int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb,
+                                   NDB_SHARE *share)
 {
   DBUG_ENTER("ndbcluster_create_binlog_setup");
-  DBUG_PRINT("enter",("key: %s %s.%s",
-                      key, db, table_name));
-  DBUG_ASSERT(! IS_NDB_BLOB_PREFIX(table_name));
 
-  // Get a temporary ref AND a ref from open_tables iff created.
-  NDB_SHARE* share= get_share(key, table, true, false);
-  if (share == 0)
-  {
-    /**
-     * Failed to create share
-     */
-    DBUG_RETURN(-1);
-  }
-
-  native_mutex_lock(&share->mutex);
+  Mutex_guard share_g(share->mutex);
   if (get_binlog_nologging(share) || share->op != 0 || share->new_op != 0)
   {
-    native_mutex_unlock(&share->mutex);
-    free_share(&share); // temporary ref.
     DBUG_RETURN(0);     // replication already setup, or should not
   }
 
   if (!share->need_events(ndb_binlog_running))
   {
     set_binlog_nologging(share);
-    native_mutex_unlock(&share->mutex);
-    free_share(&share); // temporary ref.
     DBUG_RETURN(0);
   }
 
-  while (share && !IS_TMP_PREFIX(table_name))
+  while (share && !IS_TMP_PREFIX(share->table_name))
   {
     /*
       ToDo make sanity check of share so that the table is actually the same
@@ -4637,16 +4598,18 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
     */
 
     /* Create the event in NDB */
-    ndb->setDatabaseName(db);
+    ndb->setDatabaseName(share->db);
 
     NDBDICT *dict= ndb->getDictionary();
-    Ndb_table_guard ndbtab_g(dict, table_name);
+    Ndb_table_guard ndbtab_g(dict, share->table_name);
     const NDBTAB *ndbtab= ndbtab_g.get_table();
     if (ndbtab == 0)
     {
       if (opt_ndb_extra_logging)
         sql_print_information("NDB Binlog: Failed to get table %s from ndb: "
-                              "%s, %d", key, dict->getNdbError().message,
+                              "%s, %d",
+                              share->key_string(),
+                              dict->getNdbError().message,
                               dict->getNdbError().code);
       break; // error
     }
@@ -4671,13 +4634,11 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
       if (opt_ndb_extra_logging)
         sql_print_information("NDB Binlog: NOT logging %s",
                               share->key_string());
-      native_mutex_unlock(&share->mutex);
-      free_share(&share); // temporary ref.
       DBUG_RETURN(0);
     }
 
     String event_name(INJECTOR_EVENT_LEN);
-    ndb_rep_event_name(&event_name, db, table_name, get_binlog_full(share));
+    ndb_rep_event_name(&event_name, share->db, share->table_name, get_binlog_full(share));
     /*
       event should have been created by someone else,
       but let's make sure, and create if it doesn't exist
@@ -4717,14 +4678,40 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
       /* a warning has been issued to the client */
       break;
     }
-    native_mutex_unlock(&share->mutex);
-    free_share(&share); // temporary ref.
     DBUG_RETURN(0);
   }
-
-  native_mutex_unlock(&share->mutex);
-  free_share(&share); // temporary ref.
   DBUG_RETURN(-1);
+}
+
+int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
+                                   const char *db,
+                                   const char *table_name,
+                                   TABLE * table)
+{
+  DBUG_ENTER("ndbcluster_create_binlog_setup");
+  DBUG_PRINT("enter",("key: %s %s.%s",
+                      key, db, table_name));
+  DBUG_ASSERT(! IS_NDB_BLOB_PREFIX(table_name));
+
+  // Get a temporary ref AND a ref from open_tables iff created.
+  NDB_SHARE* share= get_share(key, table, true, false);
+  if (share == NULL)
+  {
+    /**
+     * Failed to create share
+     */
+    DBUG_RETURN(-1);
+  }
+
+  // Before 'schema_dist_is_ready', TNO_ALLOW_BINLOG_SETUP is required
+  int ret= 0;
+  if (ndb_schema_dist_is_ready() ||
+      get_thd_ndb(thd)->options & TNO_ALLOW_BINLOG_SETUP)
+  {
+    ret= ndbcluster_create_binlog_setup(thd, ndb, share);
+  }
+  free_share(&share); // temporary ref.
+  DBUG_RETURN(ret);
 }
 
 int
@@ -4773,7 +4760,7 @@ ndbcluster_create_event(THD *thd, Ndb *ndb, const NDBTAB *ndbtab,
                             ndbcluster_hton_name,
                             "Binlog of table with BLOB attribute and no PK");
 
-      share->flags|= NSF_NO_BINLOG;
+      set_binlog_nologging(share);
       DBUG_RETURN(-1);
     }
     /* No primary key, subscribe for all attributes */
@@ -4952,7 +4939,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
         is_exceptions_table(share->table_name))
 #endif
   {
-    share->flags|= NSF_NO_BINLOG;
+    set_binlog_nologging(share);
     DBUG_RETURN(0);
   }
 
@@ -5153,6 +5140,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra  use_count: %u",
                              share->key_string(), share->use_count));
     (void) native_cond_signal(&injector_cond);
+    DBUG_ASSERT(get_thd_ndb(thd)->options & TNO_ALLOW_BINLOG_SETUP);
   }
   else if (do_ndb_schema_share)
   {
@@ -5161,6 +5149,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra  use_count: %u",
                              share->key_string(), share->use_count));
     (void) native_cond_signal(&injector_cond);
+    DBUG_ASSERT(get_thd_ndb(thd)->options & TNO_ALLOW_BINLOG_SETUP);
   }
 
   DBUG_PRINT("info",("%s share->op: 0x%lx  share->use_count: %u",
@@ -6054,8 +6043,8 @@ remove_event_operations(Ndb* ndb)
     NDB_SHARE *share= event_data->share;
     DBUG_ASSERT(share != NULL);
     DBUG_ASSERT(share->op == op || share->new_op == op);
-
-    delete event_data;
+    DBUG_ASSERT(share->event_data == NULL);
+    share->event_data= event_data; // Give back event_data ownership
     op->setCustomData(NULL);
 
     native_mutex_lock(&share->mutex);
@@ -6068,6 +6057,64 @@ remove_event_operations(Ndb* ndb)
     free_share(&share);
 
     ndb->dropEventOperation(op);
+  }
+  DBUG_VOID_RETURN;
+}
+
+static void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb)
+{
+  DBUG_ENTER("remove_all_event_operations");
+
+  /* protect ndb_schema_share */
+  native_mutex_lock(&ndb_schema_share_mutex);
+  if (ndb_schema_share)
+  {
+    /* ndb_share reference binlog extra free */
+    DBUG_PRINT("NDB_SHARE", ("%s binlog extra free  use_count: %u",
+                             ndb_apply_status_share->key_string(),
+                             ndb_apply_status_share->use_count));
+    free_share(&ndb_schema_share);
+    ndb_schema_share= NULL;
+  }
+  native_mutex_unlock(&ndb_schema_share_mutex);
+  /* end protect ndb_schema_share */
+
+  /**
+   * '!ndb_schema_dist_is_ready()' allows us relax the concurrency control
+   * below as 'not ready' guarantees that no event subscribtion will be created.
+   */
+  if (ndb_apply_status_share)
+  {
+    /* ndb_share reference binlog extra free */
+    DBUG_PRINT("NDB_SHARE", ("%s binlog extra free  use_count: %u",
+                             ndb_apply_status_share->key_string(),
+                             ndb_apply_status_share->use_count));
+    free_share(&ndb_apply_status_share);
+    ndb_apply_status_share= NULL;
+  }
+
+  if (s_ndb)
+    remove_event_operations(s_ndb);
+
+  if (i_ndb)
+    remove_event_operations(i_ndb);
+
+  if (opt_ndb_extra_logging > 15)
+  {
+    native_mutex_lock(&ndbcluster_mutex);
+    if (ndbcluster_open_tables.records)
+    {
+      sql_print_information("remove_all_event_operations: Remaining open tables: ");
+      for (uint i= 0; i < ndbcluster_open_tables.records; i++)
+      {
+        NDB_SHARE* share = (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables,i);
+        sql_print_information("  %s.%s, use_count: %u",
+                              share->db,
+                              share->table_name,
+                              share->use_count);
+      }
+    }
+    native_mutex_unlock(&ndbcluster_mutex);
   }
   DBUG_VOID_RETURN;
 }
@@ -6467,9 +6514,7 @@ restart_cluster_failure:
     thd->proc_info= "Waiting for ndbcluster to start";
 
     native_mutex_lock(&injector_mutex);
-    while (!ndb_schema_share ||
-           (ndb_binlog_running && !ndb_apply_status_share) ||
-           !ndb_binlog_tables_inited)
+    while (!ndb_binlog_tables_inited)
     {
       if (!thd_ndb->valid_ndb())
       {
@@ -6505,7 +6550,9 @@ restart_cluster_failure:
         native_mutex_unlock(&injector_mutex);
         goto err;
       }
-    }
+    } //while (!ndb_binlog_tables_inited)
+    DBUG_ASSERT(ndb_schema_dist_is_ready());
+    DBUG_ASSERT(!ndb_binlog_running || ndb_apply_status_share);
     native_mutex_unlock(&injector_mutex);
 
     DBUG_ASSERT(ndbcluster_hton->slot != ~(uint)0);
@@ -6553,7 +6600,7 @@ restart_cluster_failure:
         schema_gci= gci;
       }
     }
-    // now check that we have epochs consistant with what we had before the restart
+    // now check that we have epochs consistent with what we had before the restart
     DBUG_PRINT("info", ("schema_res: %d  schema_gci: %u/%u", schema_res,
                         (uint)(schema_gci >> 32),
                         (uint)(schema_gci)));
@@ -7234,42 +7281,13 @@ restart_cluster_failure:
   */
   ndb_binlog_tables_inited= FALSE;
 
-  if (ndb_apply_status_share)
-  {
-    /* ndb_share reference binlog extra free */
-    DBUG_PRINT("NDB_SHARE", ("%s binlog extra free  use_count: %u",
-                             ndb_apply_status_share->key_string(),
-                             ndb_apply_status_share->use_count));
-    free_share(&ndb_apply_status_share);
-    ndb_apply_status_share= 0;
-  }
-  if (ndb_schema_share)
-  {
-    /* begin protect ndb_schema_share */
-    native_mutex_lock(&ndb_schema_share_mutex);
-    /* ndb_share reference binlog extra free */
-    DBUG_PRINT("NDB_SHARE", ("%s binlog extra free  use_count: %u",
-                             ndb_schema_share->key_string(),
-                             ndb_schema_share->use_count));
-    free_share(&ndb_schema_share);
-    ndb_schema_share= 0;
-    native_mutex_unlock(&ndb_schema_share_mutex);
-    /* end protect ndb_schema_share */
-  }
+  remove_all_event_operations(s_ndb, i_ndb);
 
-  /* remove all event operations */
-  if (s_ndb)
-  {
-    remove_event_operations(s_ndb);
-    delete s_ndb;
-    s_ndb= NULL;
-  }
-  if (i_ndb)
-  {
-    remove_event_operations(i_ndb);
-    delete i_ndb;
-    i_ndb= NULL;
-  }
+  delete s_ndb;
+  s_ndb= NULL;
+
+  delete i_ndb;
+  i_ndb= NULL;
 
   if (thd_ndb)
   {

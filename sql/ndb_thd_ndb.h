@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,7 +38,12 @@ enum THD_NDB_OPTIONS
     In participating mysqld, do not try to acquire global schema
     lock, as one other mysqld already has the lock.
   */
-  TNO_NO_LOCK_SCHEMA_OP= 1 << 1
+  TNO_NO_LOCK_SCHEMA_OP= 1 << 1,
+  /*
+    Gives special priorites to this Thd_ndb, allowing it to create
+    schema distribution event ops before ndb_schema_dist_is_ready()
+   */
+  TNO_ALLOW_BINLOG_SETUP= 1 << 2
 };
 
 enum THD_NDB_TRANS_OPTIONS
@@ -50,7 +55,7 @@ enum THD_NDB_TRANS_OPTIONS
 
 class Thd_ndb 
 {
-  THD* m_thd;
+  THD* const m_thd;
 
   Thd_ndb(THD*);
   ~Thd_ndb();
