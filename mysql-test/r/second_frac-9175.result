@@ -1,0 +1,13 @@
+select timestampdiff(microsecond,'2000-01-01 00:00:00','2001-01-01 00:00:00.123456');
+timestampdiff(microsecond,'2000-01-01 00:00:00','2001-01-01 00:00:00.123456')
+31622400123456
+explain extended select timestampdiff(microsecond,'2000-01-01 00:00:00','2001-01-01 00:00:00.123456');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	select timestampdiff(MICROSECOND,'2000-01-01 00:00:00','2001-01-01 00:00:00.123456') AS `timestampdiff(microsecond,'2000-01-01 00:00:00','2001-01-01 00:00:00.123456')`
+create view v1 as select timestampdiff(microsecond,'2000-01-01 00:00:00','2001-01-01 00:00:00.123456');
+select * from v1;
+Name_exp_1
+31622400123456
+drop view v1;

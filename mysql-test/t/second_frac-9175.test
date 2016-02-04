@@ -1,0 +1,9 @@
+#
+# MDEV-9175 Query parser tansforms MICROSECOND into SECOND_FRAC, which does not work
+#
+
+select timestampdiff(microsecond,'2000-01-01 00:00:00','2001-01-01 00:00:00.123456');
+explain extended select timestampdiff(microsecond,'2000-01-01 00:00:00','2001-01-01 00:00:00.123456');
+create view v1 as select timestampdiff(microsecond,'2000-01-01 00:00:00','2001-01-01 00:00:00.123456');
+select * from v1;
+drop view v1;
