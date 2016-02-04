@@ -8427,7 +8427,7 @@ i_s_dict_fill_sys_tablespaces(
 		ut_free(filepath);
 	}
 
-	if (file.m_total_size == ~0) {
+	if (file.m_total_size == static_cast<os_offset_t>(~0)) {
 		stat.block_size = 0;
 		file.m_total_size = 0;
 		file.m_alloc_size = 0;
