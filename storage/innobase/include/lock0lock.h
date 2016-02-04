@@ -43,6 +43,16 @@ Created 5/7/1996 Heikki Tuuri
 // Forward declaration
 class ReadView;
 
+/** Alternatives for innodb_lock_schedule_algorithm, which can be changed by
+ setting innodb_lock_schedule_algorithm */
+enum innodb_lock_schedule_algorithm_t {
+    INNODB_LOCK_SCHEDULE_ALGORITHM_FCFS,		/*!< First Come First Served */
+    INNODB_LOCK_SCHEDULE_ALGORITHM_VATS         /*!< Variance-Aware-Transaction-Scheduling */
+};
+
+extern ulong innodb_lock_schedule_algorithm;
+extern double innodb_vats_wait_lock_pct;
+
 /*********************************************************************//**
 Gets the size of a lock struct.
 @return size in bytes */
