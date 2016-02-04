@@ -2659,7 +2659,7 @@ lock_rec_dequeue_from_page(
   --total_rec_locks;
   
   bool ETF = innodb_lock_schedule_algorithm == INNODB_LOCK_SCHEDULE_ALGORITHM_VATS &&
-             total_rec_wait_locks / total_rec_locks >= innodb_vats_wait_lock_pct;
+             (total_rec_wait_locks / total_rec_locks) * 100 >= innodb_vats_wait_lock_pct;
   
   if (!ETF) {
     
