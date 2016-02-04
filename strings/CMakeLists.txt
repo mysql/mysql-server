@@ -16,7 +16,6 @@
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
 
 SET(STRINGS_SOURCES
-  bchange.cc
   ctype-big5.cc
   ctype-bin.cc
   ctype.cc
@@ -41,21 +40,13 @@ SET(STRINGS_SOURCES
   decimal.cc
   dtoa.cc
   int2str.cc
-  is_prefix.cc
-  llstr.cc
   longlong2str.cc
-  my_stpmov.cc
-  my_stpnmov.cc
   my_strchr.cc
   my_strtoll10.cc
   my_vsnprintf.cc
   str2int.cc
   str_alloc.cc
-  strappend.cc
-  strcend.cc
   strcont.cc
-  strend.cc
-  strfill.cc
   strmake.cc
   strxmov.cc
   strxnmov.cc
