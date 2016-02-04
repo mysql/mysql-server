@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2753,37 +2753,33 @@ int runAlterTableAndOptimize(NDBT_Context* ctx, NDBT_Step* step)
   DbUtil sql("TEST_DB");
   {
     BaseString query;
-    int numOfTables = ctx->getNumTables();
+    SqlResultSet resultSet;
+    const char* table_name = ctx->getTableName(0);
 
     /* ALTER ONLINE TABLE <tbl_name> REORGANIZE PARTITION */
-    for(int i= 0; i < numOfTables; i++ )
-    {
-      SqlResultSet resultSet;
-      query.assfmt("ALTER ONLINE TABLE %s REORGANIZE PARTITION",
-                   ctx->getTableName(i));
-      g_info << "Executing query : "<< query.c_str() << endl;
+    query.assfmt("ALTER ONLINE TABLE %s REORGANIZE PARTITION",
+                 table_name);
 
-      if(!sql.doQuery(query.c_str(), resultSet)){
-        if(nodesKilledDuringStep &&
-           sql.getErrorNumber() == 0)
-        {
-          /* query failed probably because of a node kill in another step.
-             wait for the nodes to get into start phase before retrying */
-          if(restarter.waitClusterStarted() != 0){
-            g_err << "Cluster went down during reorganize partition" << endl;
-            return NDBT_FAILED;
-          }
-          CHK_NDB_READY(GETNDB(step));
-          /* retry the query for same table */
-          i--;
-          nodesKilledDuringStep= false;
-          continue;
-        } else {
-          /* either the query failed due to returning error code from server
-           or cluster crash */
-          g_err << "QUERY : "<< query.c_str() << "; failed" << endl;
+    reorganize_table :
+    g_info << "Executing query : "<< query.c_str() << endl;
+    if(!sql.doQuery(query.c_str(), resultSet)){
+      if(nodesKilledDuringStep &&
+          sql.getErrorNumber() == 0)
+      {
+        /* query failed probably because of a node kill in another step.
+           wait for the nodes to get into start phase before retrying */
+        if(restarter.waitClusterStarted() != 0){
+          g_err << "Cluster went down during reorganize partition" << endl;
           return NDBT_FAILED;
         }
+        /* retry the query for same table */
+        nodesKilledDuringStep= false;
+        goto reorganize_table;
+      } else {
+        /* either the query failed due to returning error code from server
+           or cluster crash */
+        g_err << "QUERY : "<< query.c_str() << "; failed" << endl;
+        return NDBT_FAILED;
       }
     }
 
@@ -2796,16 +2792,11 @@ int runAlterTableAndOptimize(NDBT_Context* ctx, NDBT_Step* step)
     }
 
     /* Reclaim freed space by running optimize table */
-    for(int i= 0; i < numOfTables; i++ )
-    {
-      SqlResultSet result;
-      BaseString query;
-      query.assfmt("OPTIMIZE TABLE %s", ctx->getTableName(i));
-      g_info << "Executing query : "<< query.c_str() << endl;
-      if (!sql.doQuery(query.c_str(), result)){
-        g_err << "Failed executing optimize table" << endl;
-        return NDBT_FAILED;
-      }
+    query.assfmt("OPTIMIZE TABLE %s", table_name);
+    g_info << "Executing query : "<< query.c_str() << endl;
+    if (!sql.doQuery(query.c_str(), resultSet)){
+      g_err << "Failed executing optimize table" << endl;
+      return NDBT_FAILED;
     }
   }
   return NDBT_OK;
@@ -3523,7 +3514,7 @@ TESTCASE("MTR_AddNodesAndRestart1",
          "3. Reorganize partition and optimize table"
          "Should be run only once")
 {
-  ALL_TABLES();
+  TABLE("T1")
   INITIALIZER(runWaitStarted);
   INITIALIZER(runFillTable);
   INITIALIZER(runAddNodes);
@@ -3537,7 +3528,7 @@ TESTCASE("MTR_AddNodesAndRestart2",
          "4. Kill 2 nodes during reorganization"
          "Should be run only once")
 {
-  ALL_TABLES();
+  TABLE("T1")
   TC_PROPERTY("NodesKilledDuringStep", true);
   INITIALIZER(runWaitStarted);
   INITIALIZER(runFillTable);
