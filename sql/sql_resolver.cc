@@ -1499,8 +1499,19 @@ SELECT_LEX::simplify_joins(THD *thd,
         /* Add join condition to the WHERE or upper-level join condition. */
         if (*cond)
         {
+          Item *i1= *cond, *i2= table->join_cond();
+          /*
+            User supplied stored procedures in the query can violate row-level
+            filter enforced by a view. So make sure view's filter conditions
+            precede any other conditions.
+          */
+          if (table->is_view() && i1->has_stored_program())
+          {
+            std::swap(i1, i2);
+          }
+
           Item_cond_and *new_cond=
-            static_cast<Item_cond_and*>(and_conds(*cond, table->join_cond()));
+            down_cast<Item_cond_and*>(and_conds(i1, i2));
           if (!new_cond)
             DBUG_RETURN(true);
           new_cond->top_level_item();
