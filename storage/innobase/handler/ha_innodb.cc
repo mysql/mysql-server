@@ -3897,6 +3897,13 @@ innobase_change_buffering_inited_ok:
 			innobase_open_files = table_cache_size;
 		}
 	}
+
+	if (innobase_open_files > (long) table_cache_size) {
+		innobase_open_files = table_cache_size;
+		ib::warn() << "innodb_open_files should not be greater"
+                       " than the open_files_limit.\n";
+       }
+
 	srv_max_n_open_files = (ulint) innobase_open_files;
 	srv_innodb_status = (ibool) innobase_create_status_file;
 
