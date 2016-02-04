@@ -129,6 +129,7 @@ namespace keyring__keys_container_unittest
     Buffered_file_io keyring_io(logger);
     EXPECT_EQ(keys_container->init(&keyring_io, keyring_correct_struct), 0);
     remove(keyring_correct_struct);
+    delete sample_key; //unused in this test
   }
 
   TEST_F(Keys_container_test, InitWithFileWithIncorrectKeyringVersion)
@@ -141,6 +142,7 @@ namespace keyring__keys_container_unittest
                 log(MY_ERROR_LEVEL, StrEq("Incorrect Keyring file version")));
     EXPECT_EQ(keys_container->init(&keyring_io, keyring_incorrect_version), 1);
     remove(keyring_incorrect_version);
+    delete sample_key; //unused in this test
   }
 
   TEST_F(Keys_container_test, InitWithFileWithIncorrectTAG)
@@ -151,6 +153,7 @@ namespace keyring__keys_container_unittest
     Buffered_file_io keyring_io(logger);
     EXPECT_EQ(keys_container->init(&keyring_io, keyring_incorrect_tag), 1);
     remove(keyring_incorrect_tag);
+    delete sample_key; //unused in this test
   }
 
   TEST_F(Keys_container_test, StoreFetchRemove)
