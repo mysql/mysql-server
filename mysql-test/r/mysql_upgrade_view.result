@@ -266,4 +266,19 @@ master-bin.000001	#	Query	#	#	use `test`; REPAIR VIEW `v3`  FROM MYSQL
 master-bin.000001	#	Query	#	#	use `test`; REPAIR VIEW `v4`  FROM MYSQL
 drop table if exists kv;
 drop view v1,v2,v3,v4;
+rename table mysql.event to mysql.ev_bk;
+flush tables;
+The --upgrade-system-tables option was used, user tables won't be touched.
+MySQL upgrade detected
+Phase 1/4: Fixing views from mysql
+test.v1                                            OK
+test.v2                                            OK
+test.v3                                            OK
+Phase 2/4: Fixing table and database names ... Skipped
+Phase 3/4: Checking and upgrading tables... Skipped
+Phase 4/4: Running 'mysql_fix_privilege_tables'
+OK
+drop table mysql.event;
+rename table mysql.ev_bk to mysql.event;
+drop view v1,v2,v3;
 drop table t1;

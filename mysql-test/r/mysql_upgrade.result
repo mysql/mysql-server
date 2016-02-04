@@ -250,7 +250,7 @@ GRANT USAGE ON *.* TO 'user3'@'%'
 GRANT ALL PRIVILEGES ON `roelt`.`test2` TO 'user3'@'%'
 DROP USER 'user3'@'%';
 End of 5.1 tests
-The --upgrade-system-tables option was used, databases won't be touched.
+The --upgrade-system-tables option was used, user tables won't be touched.
 Phase 1/4: Fixing views... Skipped
 Phase 2/4: Fixing table and database names ... Skipped
 Phase 3/4: Checking and upgrading tables... Skipped

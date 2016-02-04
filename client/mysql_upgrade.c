@@ -1051,16 +1051,11 @@ int main(int argc, char **argv)
   /* Find mysql */
   find_tool(mysql_path, IF_WIN("mysql.exe", "mysql"), self_name);
 
-  if (!opt_systables_only)
-  {
-    /* Find mysqlcheck */
-    find_tool(mysqlcheck_path, IF_WIN("mysqlcheck.exe", "mysqlcheck"), self_name);
-  }
-  else
-  {
-    if (!opt_silent)
-      printf("The --upgrade-system-tables option was used, databases won't be touched.\n");
-  }
+  /* Find mysqlcheck */
+  find_tool(mysqlcheck_path, IF_WIN("mysqlcheck.exe", "mysqlcheck"), self_name);
+
+  if (opt_systables_only && !opt_silent)
+    printf("The --upgrade-system-tables option was used, user tables won't be touched.\n");
 
   /*
     Read the mysql_upgrade_info file to check if mysql_upgrade
