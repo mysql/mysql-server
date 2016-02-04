@@ -4620,6 +4620,16 @@ static void test_lc_time_sz()
 }
 #endif//DBUG_OFF
 
+/*
+  @brief : Set opt_super_readonly to user supplied value before
+           enabling communication channels to accept user connections
+*/
+
+static void set_super_read_only_post_init()
+{
+  opt_super_readonly= super_read_only;
+}
+
 #ifdef _WIN32
 int win_main(int argc, char **argv)
 #else
@@ -5382,6 +5392,13 @@ int mysqld_main(int argc, char **argv)
                       opt_ndb_wait_setup);
   }
 #endif
+
+  /*
+    Set opt_super_readonly here because if opt_super_readonly is set
+    in get_option, it will create problem while setting up event scheduler.
+  */
+  set_super_read_only_post_init();
+
   (void) RUN_HOOK(server_state, before_handle_connection, (NULL));
 
   DBUG_PRINT("info", ("Block, listening for incoming connections"));
@@ -8183,6 +8200,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
     return 1;
   }
 
+  /* If --super-read-only was specified, set read_only to 1 */
+  read_only= super_read_only ? super_read_only : read_only;
   opt_readonly= read_only;
 
   return 0;
