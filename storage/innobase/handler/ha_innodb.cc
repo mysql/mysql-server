@@ -282,6 +282,22 @@ static TYPELIB innodb_checksum_algorithm_typelib = {
 	NULL
 };
 
+/** Possible values of the parameter innodb_lock_schedule_algorithm */
+static const char* innodb_lock_schedule_algorithm_names[] = {
+	"fcfs",
+	"vats",
+	NullS
+};
+
+/** Used to define an enumerate type of the system variable
+innodb_lock_schedule_algorithm. */
+static TYPELIB innodb_lock_schedule_algorithm_typelib = {
+	array_elements(innodb_lock_schedule_algorithm_names) - 1,
+	"innodb_lock_schedule_algorithm_typelib",
+	innodb_lock_schedule_algorithm_names,
+	NULL
+};
+
 /** Possible values for system variable "innodb_default_row_format". */
 static const char* innodb_default_row_format_names[] = {
 	"redundant",
@@ -18492,6 +18508,24 @@ static MYSQL_SYSVAR_ENUM(checksum_algorithm, srv_checksum_algorithm,
   NULL, NULL, SRV_CHECKSUM_ALGORITHM_CRC32,
   &innodb_checksum_algorithm_typelib);
 
+static MYSQL_SYSVAR_ENUM(lock_schedule_algorithm, innodb_lock_schedule_algorithm,
+  PLUGIN_VAR_RQCMDARG,
+  "The algorithm Innodb uses for deciding which locks to grant next when"
+  " a lock is released. Possible values are"
+  " FCFS"
+    " grant the locks in First-Come-First-Served order;"
+  " VATS"
+    " use the Variance-Aware-Transaction-Scheduling algorithm, which"
+    " chooses between First-Come-First-Served and Eldest-Transaction-First.",
+  NULL, NULL, INNODB_LOCK_SCHEDULE_ALGORITHM_FCFS,
+  &innodb_lock_schedule_algorithm_typelib);
+
+
+static MYSQL_SYSVAR_DOUBLE(vats_wait_lock_pct, innodb_vats_wait_lock_pct,
+  PLUGIN_VAR_RQCMDARG,
+  "Percentage of wait locks to trigger Eldest-Transaction-First.",
+  NULL, NULL, 0.0, 0, 99.999, 0);
+
 static MYSQL_SYSVAR_BOOL(log_checksums, innodb_log_checksums,
   PLUGIN_VAR_RQCMDARG,
   "Whether to compute and require checksums for InnoDB redo log blocks",
@@ -19457,6 +19491,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(ft_sort_pll_degree),
   MYSQL_SYSVAR(large_prefix),
   MYSQL_SYSVAR(force_load_corrupted),
+  MYSQL_SYSVAR(lock_schedule_algorithm),
+  MYSQL_SYSVAR(vats_wait_lock_pct),
   MYSQL_SYSVAR(locks_unsafe_for_binlog),
   MYSQL_SYSVAR(lock_wait_timeout),
   MYSQL_SYSVAR(page_size),
