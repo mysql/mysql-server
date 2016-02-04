@@ -2760,6 +2760,10 @@ int runAlterTableAndOptimize(NDBT_Context* ctx, NDBT_Step* step)
     query.assfmt("ALTER ONLINE TABLE %s REORGANIZE PARTITION",
                  table_name);
 
+    /* wait until the killing step is about to begin */
+    while(nodesKilledDuringStep && ctx->getProperty("WaitForNodeKillStart"))
+      NdbSleep_MilliSleep(200);
+
     reorganize_table :
     g_info << "Executing query : "<< query.c_str() << endl;
     if(!sql.doQuery(query.c_str(), resultSet)){
@@ -2815,6 +2819,7 @@ int runKillTwoNodes(NDBT_Context* ctx, NDBT_Step* step)
   nodes.push_back(restarter.getDbNodeId(rand() % restarter.getNumDbNodes()));
   /* select a node from different group as next victim */
   nodes.push_back(restarter.getRandomNodeOtherNodeGroup(nodes[0], rand()));
+  ctx->setProperty("WaitForNodeKillStart", (uint)false);
   for(int i = 0; i < 2; i++){
     g_info << "Killing node " << nodes[i] << "..." << endl;
     CHECK(restarter.dumpStateOneNode(nodes[i], val, 2) == 0);
@@ -3529,6 +3534,7 @@ TESTCASE("MTR_AddNodesAndRestart2",
          "Should be run only once")
 {
   TABLE("T1")
+  TC_PROPERTY("WaitForNodeKillStart", true);
   TC_PROPERTY("NodesKilledDuringStep", true);
   INITIALIZER(runWaitStarted);
   INITIALIZER(runFillTable);
