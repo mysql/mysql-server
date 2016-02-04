@@ -100,3 +100,6 @@ echo == 24 == Bug 21280428;
 --exec $NDB_CONFIG --no-defaults --query=MaxNoOfSavedEvents 2>&1
 --exec $NDB_CONFIG --no-defaults --query=Id 2>&1
 --exec $NDB_CONFIG --no-defaults --query=Discless 2>&1
+--replace_regex /.*\[ndb_config\]//
+--error 255
+--exec $NDB_CONFIG --no-defaults --config-file=$MYSQL_TEST_DIR/suite/ndb/bug21280456.ini 2>&1
