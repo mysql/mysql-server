@@ -981,7 +981,6 @@ recv_sys_debug_free(void)
 		os_event_set(recv_sys->flush_start);
 	}
 
-	recv_sys->encryption_list = NULL;
 	if (recv_sys->encryption_list != NULL) {
 
 		encryption_list_t::iterator	it;
@@ -997,8 +996,8 @@ recv_sys_debug_free(void)
 				ut_free(it->iv);
 				it->iv = NULL;
 			}
- 		}
- 
+		}
+
 		recv_sys->encryption_list->swap(*recv_sys->encryption_list);
 
 		UT_DELETE(recv_sys->encryption_list);
