@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -196,14 +196,14 @@ static int add_collation(CHARSET_INFO *cs)
       
       if (!strcmp(cs->csname,"ucs2") )
       {
-#if defined(HAVE_CHARSET_ucs2) && defined(HAVE_UCA_COLLATIONS)
+#if defined(HAVE_CHARSET_ucs2)
         copy_uca_collation(newcs, &my_charset_ucs2_unicode_ci);
         newcs->state|= MY_CS_AVAILABLE | MY_CS_LOADED | MY_CS_NONASCII;
 #endif        
       }
       else if (!strcmp(cs->csname, "utf8") || !strcmp(cs->csname, "utf8mb3"))
       {
-#if defined (HAVE_CHARSET_utf8) && defined(HAVE_UCA_COLLATIONS)
+#if defined (HAVE_CHARSET_utf8)
         copy_uca_collation(newcs, &my_charset_utf8_unicode_ci);
         newcs->ctype= my_charset_utf8_unicode_ci.ctype;
         if (init_state_maps(newcs))
@@ -212,7 +212,7 @@ static int add_collation(CHARSET_INFO *cs)
       }
       else if (!strcmp(cs->csname, "utf8mb4"))
       {
-#if defined (HAVE_CHARSET_utf8mb4) && defined(HAVE_UCA_COLLATIONS)
+#if defined (HAVE_CHARSET_utf8mb4)
         copy_uca_collation(newcs, &my_charset_utf8mb4_unicode_ci);
         newcs->ctype= my_charset_utf8mb4_unicode_ci.ctype;
         newcs->state|= MY_CS_AVAILABLE | MY_CS_LOADED;
@@ -220,14 +220,14 @@ static int add_collation(CHARSET_INFO *cs)
       }
       else if (!strcmp(cs->csname, "utf16"))
       {
-#if defined (HAVE_CHARSET_utf16) && defined(HAVE_UCA_COLLATIONS)
+#if defined (HAVE_CHARSET_utf16)
         copy_uca_collation(newcs, &my_charset_utf16_unicode_ci);
         newcs->state|= MY_CS_AVAILABLE | MY_CS_LOADED | MY_CS_NONASCII;
 #endif
       }
       else if (!strcmp(cs->csname, "utf32"))
       {
-#if defined (HAVE_CHARSET_utf32) && defined(HAVE_UCA_COLLATIONS)
+#if defined (HAVE_CHARSET_utf32)
         copy_uca_collation(newcs, &my_charset_utf32_unicode_ci);
         newcs->state|= MY_CS_AVAILABLE | MY_CS_LOADED | MY_CS_NONASCII;
 #endif
