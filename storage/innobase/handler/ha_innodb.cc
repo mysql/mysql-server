@@ -2547,7 +2547,7 @@ Encryption::is_none(const char* algorithm)
 
 /** Check the encryption option and set it
 @param[in]	option		encryption option
-@param[in/out]	encryption	The encryption algorithm
+@param[in,out]	encryption	The encryption algorithm
 @return DB_SUCCESS or DB_UNSUPPORTED */
 dberr_t
 Encryption::set_algorithm(
@@ -2571,7 +2571,6 @@ Encryption::set_algorithm(
 
 /** Check for supported ENCRYPT := (Y | N) supported values
 @param[in]	option		Encryption option
-@param[out]	encryption	The encryption algorithm
 @return DB_SUCCESS or DB_UNSUPPORTED */
 dberr_t
 Encryption::validate(const char* option)

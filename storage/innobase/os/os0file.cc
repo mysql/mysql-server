@@ -890,7 +890,7 @@ os_alloc_block()
 }
 
 /** Free a page after sync IO
-@param[in,own]	block		The block to free/release */
+@param[in,out]	block		The block to free/release */
 static
 void
 os_free_block(Block* block)

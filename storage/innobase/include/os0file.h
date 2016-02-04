@@ -232,15 +232,15 @@ struct Encryption {
 
 	/** Check the encryption option and set it
 	@param[in]	option		encryption option
-	@param[in/out]	encryption	The encryption type
+	@param[in,out]	encryption	The encryption type
 	@return DB_SUCCESS or DB_UNSUPPORTED */
 	dberr_t set_algorithm(const char* option, Encryption* type)
 		__attribute__((warn_unused_result));
 
         /** Validate the algorithm string.
-        @param[in]      algorithm       Encryption algorithm to check
+	@param[in]	option		Encryption option
         @return DB_SUCCESS or error code */
-	static dberr_t validate(const char* algorithm)
+	static dberr_t validate(const char* option)
 		__attribute__((warn_unused_result));
 
         /** Convert to a "string".

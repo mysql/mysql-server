@@ -97,7 +97,6 @@ rtree non-leaf node.
 @param[in] dtuple data tuple
 @param[in] rec R-tree record
 @param[in] offsets rec_get_offsets(rec)
-@param[in] mode compare mode
 @retval negative if dtuple is less than rec */
 int
 cmp_dtuple_rec_with_gis_internal(

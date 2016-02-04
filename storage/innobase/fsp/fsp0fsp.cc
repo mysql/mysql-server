@@ -1256,10 +1256,9 @@ fsp_header_get_page_size(
 	return(page_size_t(fsp_header_get_flags(page)));
 }
 
-/** Decoding the encryption info
-from the first page of a tablespace.
-@param[in/out]	key		key
-@param[in/out]	iv		iv
+/** Decoding the encryption info from the first page of a tablespace.
+@param[in,out]	key		key
+@param[in,out]	iv		iv
 @param[in]	encryption_info	encrytion info.
 @return true if success */
 bool
@@ -1370,8 +1369,8 @@ fsp_header_decode_encryption_info(
 
 /** Reads the encryption key from the first page of a tablespace.
 @param[in]	fsp_flags	tablespace flags
-@param[in/out]	key		tablespace key
-@param[in/out]	iv		tablespace iv
+@param[in,out]	key		tablespace key
+@param[in,out]	iv		tablespace iv
 @param[in]	page	first page of a tablespace
 @return true if success */
 bool

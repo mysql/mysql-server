@@ -1412,7 +1412,7 @@ fil_get_compression(
 	__attribute__((warn_unused_result));
 
 /** Set the encryption type for the tablespace
-@param[in] space		Space ID of tablespace for which to set
+@param[in] space_id		Space ID of tablespace for which to set
 @param[in] algorithm		Encryption algorithm
 @param[in] key			Encryption key
 @param[in] iv			Encryption iv

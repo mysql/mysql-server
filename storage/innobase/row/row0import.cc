@@ -3327,11 +3327,11 @@ row_import_read_cfg(
 	return(err);
 }
 
-/** Read the contents of the <tablespace>.cfp file.
+/** Read the contents of the .cfp file.
 @param[in]	table		table
 @param[in]	file		file to read from
 @param[in]	thd		session
-@param[in]	cfp		contents of the .cfp file
+@param[in,out]	import		meta data
 @return DB_SUCCESS or error code. */
 static
 dberr_t
@@ -3445,10 +3445,10 @@ row_import_read_encryption_data(
 	return(DB_SUCCESS);
 }
 
-/** Read the contents of the <tablename>.cfp file.
+/** Read the contents of the .cfp file.
 @param[in]	table		table
 @param[in]	thd		session
-@param[in]	cfp		contents of the .cfp file
+@param[in,out]	import		meta data
 @return DB_SUCCESS or error code. */
 static
 dberr_t
