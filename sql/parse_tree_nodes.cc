@@ -1107,7 +1107,7 @@ Sql_cmd *PT_insert::make_cmd(THD *thd)
   make_cmd for PT_alter_instance.
   Contextualize parse tree node and return sql_cmd handle.
 
-  @params thd [in] Thread handle
+  @param [in] thd Thread handle
 
   @returns
     sql_cmd Success
@@ -1126,7 +1126,7 @@ Sql_cmd *PT_alter_instance::make_cmd(THD *thd)
   @brief
   Prepare parse tree node and set required information
 
-  @params pc [in] Parser context
+  @param [in] pc Parser context
 
   @returns
     false Success
