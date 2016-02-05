@@ -5123,7 +5123,7 @@ buf_read_page_handle_error(
 	mutex_exit(buf_page_get_mutex(bpage));
 
 	/* remove the block from LRU list */
-	buf_LRU_free_one_page(bpage);
+	buf_LRU_free_one_page(bpage, true);
 
 	ut_ad(buf_pool->n_pend_reads > 0);
 	buf_pool->n_pend_reads--;
