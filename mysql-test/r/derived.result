@@ -580,3 +580,28 @@ select x.id, message from (select id from t1) x left join
 where coalesce(message,0) <> 0;
 id	message
 drop table t1,t2;
+#
+# MDEV-7827: Assertion `!table || (!table->read_set ||
+# bitmap_is_set(table->read_set, field_index))' failed
+# in Field_long::val_str on EXPLAIN EXTENDED
+#
+CREATE TABLE t1 (f1 INT, f2 INT, KEY(f2)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (6,9);
+CREATE TABLE t2 (f3 INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (2),(0);
+EXPLAIN EXTENDED
+SELECT f1 FROM ( SELECT * FROM t1 ) AS sq
+WHERE f1 IN (
+SELECT f3 FROM t2 WHERE f2 IN (
+SELECT f3 FROM t2 HAVING f3 >= 8
+)
+);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	<subquery4>	eq_ref	distinct_key	distinct_key	4	test.t1.f2	1	100.00	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(<subquery4>); Using join buffer (flat, BNL join)
+4	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
+Warnings:
+Note	1276	Field or reference 'f2' of SELECT #3 was resolved in SELECT #1
+Note	1003	select 6 AS `f1` from  <materialize> (select `test`.`t2`.`f3` from `test`.`t2` having (`test`.`t2`.`f3` >= 8)) semi join (`test`.`t2`) where ((`test`.`t2`.`f3` = 6) and (9 = `<subquery4>`.`f3`))
+DROP TABLE t2,t1;
