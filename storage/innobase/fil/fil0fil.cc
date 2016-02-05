@@ -837,9 +837,7 @@ retry:
 		encrytion key and iv(initial vector) is readed. */
 		if (FSP_FLAGS_GET_ENCRYPTION(flags)
 		    && !recv_recovery_is_on()) {
-			if (space->encryption_key == NULL
-			    || space->encryption_iv == NULL
-			    || space->encryption_type != Encryption::AES) {
+			if (space->encryption_type != Encryption::AES) {
 				ib::error()
 					<< "Can't read encryption"
 					<< " key from file "
