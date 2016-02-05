@@ -24,7 +24,7 @@
 #include "mysql/psi/psi_mdl.h"
 
 #ifndef PSI_METADATA_CALL
-#define PSI_METADATA_CALL(M) PSI_DYNAMIC_CALL(M)
+#define PSI_METADATA_CALL(M) psi_mdl_service->M
 #endif
 
 /**

@@ -2421,7 +2421,7 @@ void THD::set_command(enum enum_server_command command)
 {
   m_command= command;
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  PSI_STATEMENT_CALL(set_thread_command)(m_command);
+  PSI_THREAD_CALL(set_thread_command)(m_command);
 #endif
 }
 

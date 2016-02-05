@@ -471,7 +471,10 @@ public:
                     uchar *packet_arg, uchar *packet_end_arg);
   bool execute_server_runnable(Server_runnable *server_runnable);
 #ifdef HAVE_PSI_PS_INTERFACE
-  PSI_prepared_stmt* get_PS_prepared_stmt();
+  PSI_prepared_stmt* get_PS_prepared_stmt()
+  {
+    return m_prepared_stmt;
+  }
 #endif
   /* Destroy this statement */
   void deallocate();
