@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1491,11 +1491,12 @@ private:
   void execCOMPLETED(Signal* signal);
   void execCOMMITTED(Signal* signal);
   void execDIGETNODESREF(Signal* signal);
-  void execDIH_SCAN_GET_NODES_REF(Signal* signal);
-  void execDIH_SCAN_GET_NODES_CONF(Signal* signal);
   void execDIVERIFYCONF(Signal* signal);
-  void execDIH_SCAN_TAB_REF(Signal* signal);
-  void execDIH_SCAN_TAB_CONF(Signal* signal);
+  void execDIH_SCAN_TAB_REF(Signal* signal,
+                            ScanRecordPtr scanptr);
+  void execDIH_SCAN_TAB_CONF(Signal* signal,
+                             ScanRecordPtr scanptr,
+                             TableRecordPtr tabPtr);
   void execGCP_NOMORETRANS(Signal* signal);
   void execLQHKEYCONF(Signal* signal);
   void execNDB_STTOR(Signal* signal);
@@ -1670,13 +1671,10 @@ private:
   void initScanfragrec(Signal* signal);
   void releaseScanResources(Signal*, ScanRecordPtr, bool not_started = false);
   ScanRecordPtr seizeScanrec(Signal* signal);
-  void startFragScansLab(Signal*, Uint32 tableId,
-                        SectionHandle&, Uint32 secOffs);
-  void startFragScanLab(Signal*, Uint32 tableId,
-                        const DihScanGetNodesConf::FragItem& fragConf);
+  bool startFragScanLab(Signal*, ScanFragRecPtr, ScanRecordPtr, bool &local);
 
   void sendDihGetNodesReq(Signal*, ScanRecordPtr);
-  void sendScanFragReq(Signal*, ScanRecord*, ScanFragRec*, bool);
+  void sendScanFragReq(Signal*, ScanRecord*, ScanFragRecPtr, bool);
   void sendScanTabConf(Signal* signal, ScanRecordPtr);
   void close_scan_req(Signal*, ScanRecordPtr, bool received_req);
   void close_scan_req_send_conf(Signal*, ScanRecordPtr);

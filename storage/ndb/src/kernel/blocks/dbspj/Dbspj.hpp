@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,6 +43,8 @@ public:
   Dbspj(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Dbspj();
 
+  struct Request;
+  struct TreeNode;
 private:
   BLOCK_DEFINES(Dbspj);
 
@@ -64,8 +66,6 @@ private:
 
   void execDIH_SCAN_TAB_REF(Signal*);
   void execDIH_SCAN_TAB_CONF(Signal*);
-  void execDIH_SCAN_GET_NODES_REF(Signal*);
-  void execDIH_SCAN_GET_NODES_CONF(Signal*);
 
   void execSIGNAL_DROPPED_REP(Signal*);
 
@@ -98,8 +98,6 @@ protected:
   //virtual bool getParam(const char* name, Uint32* count);
 
 public:
-  struct Request;
-  struct TreeNode;
   struct ScanFragHandle;
   typedef DataBuffer2<14, LocalArenaPoolImpl> Correlation_list;
   typedef LocalDataBuffer2<14, LocalArenaPoolImpl> Local_correlation_list;

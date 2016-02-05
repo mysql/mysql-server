@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1416,6 +1416,12 @@ TESTCASE("ScanJoin", ""){
 }
 TESTCASE("MixedJoin", ""){
   INITIALIZER(runLoadTable);
+  STEPS(runJoin, 6);
+  FINALIZER(runClearTable);
+}
+TESTCASE("MixedJoin17131", "Simulate CONTINUEB for DIGETNODESREQ"){
+  INITIALIZER(runLoadTable);
+  TC_PROPERTY("ErrorCode", 17131);
   STEPS(runJoin, 6);
   FINALIZER(runClearTable);
 }

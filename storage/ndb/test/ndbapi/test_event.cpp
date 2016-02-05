@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3784,14 +3784,20 @@ runBug44915(NDBT_Context* ctx, NDBT_Step* step)
   int result = NDBT_OK;
   
   NdbRestarter res;
-  int error[] = { 13031, 13044, 13045, 0 };
+  int error[] = { 13031, 13044, 13045, 13031, 0 };
+  int error2[] = { 13049, 13050, 13049, 13050, 0 };
+  /**
+   * error2 is used to test CONTINUEB handling when reading table
+   * fragmentation, it is not expected to give any faults.
+   */
   for (int i = 0; error[i] && result == NDBT_OK; i++)
   {
+    Uint32 nodeId = res.getDbNodeId(rand() % res.getNumDbNodes());
     ndbout_c("error: %d", error[i]);
-    res.insertErrorInNode(res.getDbNodeId(rand() % res.getNumDbNodes()),
-                          error[i]);
+    res.insertErrorInNode(nodeId, error[i]);
     
     result = runCreateEvent(ctx, step); // should fail due to error insert
+    res.insertErrorInNode(nodeId, error2[i]);
     result = runCreateEvent(ctx, step); // should pass
     result = runDropEvent(ctx, step);
   }

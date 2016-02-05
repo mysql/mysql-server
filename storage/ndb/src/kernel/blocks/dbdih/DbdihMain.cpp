@@ -1446,8 +1446,21 @@ void Dbdih::execTAB_COMMITREQ(Signal* signal)
   ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
 
   ndbrequire(tabPtr.p->tabStatus == TabRecord::TS_CREATING);
+
+  /**
+   * Normally this signal arrives as part of CREATE TABLE and then
+   * DBTC haven't been informed of the table being available yet
+   * and no protection is needed. It is however also used for
+   * Table reorganisation and in that case the table is fully
+   * available to DBTC and we need to protect the change here
+   * to ensure that DIH_SCAN_TAB_REQ sees a correct view of
+   * these variables.
+   */
+  NdbMutex_Lock(&tabPtr.p->theMutex);
   tabPtr.p->tabStatus = TabRecord::TS_ACTIVE;
   tabPtr.p->schemaTransId = 0;
+  NdbMutex_Unlock(&tabPtr.p->theMutex);
+
   signal->theData[0] = tdictPtr;
   signal->theData[1] = cownNodeId;
   signal->theData[2] = tabPtr.i;
@@ -4345,12 +4358,14 @@ void Dbdih::execINCL_NODEREQ(Signal* signal)
   Sysfile::ActiveStatus TsaveState = nodePtr.p->activeStatus;
   Uint32 TnodeGroup = nodePtr.p->nodeGroup;
 
+  m_node_view_lock.write_lock();
   initNodeRecord(nodePtr);
   nodePtr.p->nodeGroup = TnodeGroup;
   nodePtr.p->activeStatus = TsaveState;
   nodePtr.p->nodeStatus = NodeRecord::ALIVE;
   nodePtr.p->useInTransactions = true;
   nodePtr.p->m_inclDihLcp = true;
+  m_node_view_lock.write_unlock();
 
   removeDeadNode(nodePtr);
   insertAlive(nodePtr);
@@ -6475,7 +6490,7 @@ bool Dbdih::check_stall_lcp_start(void)
     {
       jamLine(max_status);
       ndbrequire(false);
-      return false; // Never reached
+      return true; /* Will never reach here, silence compiler warnings */
     }
   }
 
@@ -6615,7 +6630,7 @@ Dbdih::get_status_str(NodeRecord::NodeRecoveryStatus status)
   default:
     jamLine(status);
     ndbrequire(false);
-    return NULL; // Never reached
+    return NULL; /* Will never reach here, silence compiler warnings */
   }
   return status_str;
 }
@@ -9090,6 +9105,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   // We also set certain state variables ensuring that the node no longer is 
   // used in transactions and also mark that we received this signal.
   /*-------------------------------------------------------------------------*/
+  m_node_view_lock.write_lock();
   for (i = 0; i < noOfFailedNodes; i++) {
     jam();
     NodeRecordPtr TNodePtr;
@@ -9107,6 +9123,7 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
       insertDeadNode(TNodePtr);
     }//if
   }//for
+  m_node_view_lock.write_unlock();
 
   /*-------------------------------------------------------------------------*/
   // Verify that we can continue to operate the cluster. If we cannot we will
@@ -12240,6 +12257,9 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
   TabRecordPtr tabPtr;
   tabPtr.i = req->tableId;
   ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+
+  NdbMutex_Lock(&tabPtr.p->theMutex);
+
   tabPtr.p->connectrec = connectPtr.i;
   tabPtr.p->tableType = req->tableType;
   fragType= req->fragType;
@@ -12252,12 +12272,26 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
 
   if (tabPtr.p->tabStatus == TabRecord::TS_ACTIVE)
   {
+    /**
+     * This is the only code segment in DBDIH where we can change tabStatus
+     * while DBTC also has access to the table. It can conflict with the
+     * call to execDIH_SCAN_TAB_REQ from DBTC. So we need to protect this
+     * particular segment of the this call.
+     */
     jam();
     tabPtr.p->tabStatus = TabRecord::TS_CREATING;
+    NdbMutex_Unlock(&tabPtr.p->theMutex);
     connectPtr.p->m_alter.m_totalfragments = tabPtr.p->totalfragments;
-    sendAddFragreq(signal, connectPtr, tabPtr, 0);
+    sendAddFragreq(signal, connectPtr, tabPtr, 0, false);
     return;
   }
+  NdbMutex_Unlock(&tabPtr.p->theMutex);
+
+  /**
+   * When we get here the table is under definition and DBTC can still not
+   * use the table. So there is no possibility for conflict with DBTC.
+   * Thus no need for mutexes and RCU lock calls.
+   */
 
   if (getNodeState().getSystemRestartInProgress() &&
      tabPtr.p->tabStatus == TabRecord::TS_IDLE)
@@ -12433,13 +12467,17 @@ Dbdih::addTable_closeConf(Signal * signal, Uint32 tabPtrI){
   connectPtr.i = tabPtr.p->connectrec;
   ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
   connectPtr.p->m_alter.m_totalfragments = tabPtr.p->totalfragments;
-  
-  sendAddFragreq(signal, connectPtr, tabPtr, 0);
+
+  sendAddFragreq(signal, connectPtr, tabPtr, 0, false);
 }
 
 void
-Dbdih::sendAddFragreq(Signal* signal, ConnectRecordPtr connectPtr, 
-		      TabRecordPtr tabPtr, Uint32 fragId){
+Dbdih::sendAddFragreq(Signal* signal,
+                      ConnectRecordPtr connectPtr, 
+                      TabRecordPtr tabPtr,
+                      Uint32 fragId,
+                      bool rcu_lock_held)
+{
   jam();
   const Uint32 fragCount = connectPtr.p->m_alter.m_totalfragments;
   ReplicaRecordPtr replicaPtr;
@@ -12526,9 +12564,15 @@ Dbdih::sendAddFragreq(Signal* signal, ConnectRecordPtr connectPtr,
     if (AlterTableReq::getReorgFragFlag(connectPtr.p->m_alter.m_changeMask))
     {
       jam();
-      DIH_TAB_WRITE_LOCK(tabPtr.p);
+      if (!rcu_lock_held)
+      {
+        DIH_TAB_WRITE_LOCK(tabPtr.p);
+      }
       tabPtr.p->m_new_map_ptr_i = connectPtr.p->m_alter.m_new_map_ptr_i;
-      DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+      if (!rcu_lock_held)
+      {
+        DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+      }
     }
 
     if (AlterTableReq::getAddFragFlag(connectPtr.p->m_alter.m_changeMask))
@@ -12546,6 +12590,15 @@ Dbdih::sendAddFragreq(Signal* signal, ConnectRecordPtr connectPtr,
   else
   {
     // Done
+
+    /**
+     * This code is only executed as part of CREATE TABLE, so at this point
+     * in time DBTC hasn't been made aware of the table's usability yet, so
+     * we rely on signal ordering to protect the data from DBTC here.
+     * Naturally it could be executed as part of a CREATE INDEX as well, but
+     * the principle is still the same.
+     */
+
     DiAddTabConf * const conf = (DiAddTabConf*)signal->getDataPtr();
     conf->senderData = connectPtr.p->userpointer;
     sendSignal(connectPtr.p->userblockref, GSN_DIADDTABCONF, signal,
@@ -12615,7 +12668,7 @@ Dbdih::execADD_FRAGCONF(Signal* signal){
   tabPtr.i = connectPtr.p->table;
   ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
 
-  sendAddFragreq(signal, connectPtr, tabPtr, conf->fragId + 1);
+  sendAddFragreq(signal, connectPtr, tabPtr, conf->fragId + 1, false);
 }
 
 void
@@ -12850,6 +12903,10 @@ void Dbdih::tableDeleteLab(Signal* signal, FileRecordPtr filePtr)
   releaseFile(tabPtr.p->tabFile[1]);
   tabPtr.p->tabFile[0] = tabPtr.p->tabFile[1] = RNIL;
 
+  /**
+   * Table has already been dropped from DBTC's view a long time
+   * ago, we need not protect this change.
+   */
   tabPtr.p->tabStatus = TabRecord::TS_IDLE;
   
   DropTabConf * const dropConf = (DropTabConf *)signal->getDataPtrSend();
@@ -13030,11 +13087,20 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     connectPtr.p->userblockref = senderRef;
     ndbrequire(connectPtr.p->connectState == ConnectRecord::ALTER_TABLE);
 
+    /**
+     * Here we need to protect both using the table mutex and the RCU
+     * mechanism. We want DIH_SCAN_TAB_REQ to see a correct combination
+     * of those variables as protected by the mutex and we want
+     * DIGETNODESREQ to see a protected and consistent view of its variables.
+     */
+
+    NdbMutex_Lock(&tabPtr.p->theMutex);
+    DIH_TAB_WRITE_LOCK(tabPtr.p);
+
     tabPtr.p->totalfragments = connectPtr.p->m_alter.m_totalfragments;
     if (AlterTableReq::getReorgFragFlag(connectPtr.p->m_alter.m_changeMask))
     {
       jam();
-      DIH_TAB_WRITE_LOCK(tabPtr.p);
       Uint32 save = tabPtr.p->m_map_ptr_i;
       tabPtr.p->m_map_ptr_i = tabPtr.p->m_new_map_ptr_i;
       tabPtr.p->m_new_map_ptr_i = save;
@@ -13048,15 +13114,19 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
       }
       DIH_TAB_WRITE_UNLOCK(tabPtr.p);
 
+      /* These variables are only protected by mutex. */
       ndbassert(tabPtr.p->m_scan_count[1] == 0);
       tabPtr.p->m_scan_count[1] = tabPtr.p->m_scan_count[0];
       tabPtr.p->m_scan_count[0] = 0;
       tabPtr.p->m_scan_reorg_flag = 1;
+      NdbMutex_Unlock(&tabPtr.p->theMutex);
 
       send_alter_tab_conf(signal, connectPtr);
       return;
     }
 
+    DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+    NdbMutex_Unlock(&tabPtr.p->theMutex);
     send_alter_tab_conf(signal, connectPtr);
     ndbrequire(tabPtr.p->connectrec == connectPtr.i);
     tabPtr.p->connectrec = RNIL;
@@ -13071,10 +13141,20 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
 
     send_alter_tab_conf(signal, connectPtr);
 
+    /**
+     * We need to ensure that all scans after this signal sees
+     * the new m_scan_reorg_flag to ensure that we don't have
+     * races where scans use this flag in an incorrect manner.
+     * It is protected by mutex, so requires a mutex protecting
+     * it, m_new_map_ptr_i is only protected by the RCU mechanism
+     * and not by the mutex.
+     */
+    NdbMutex_Lock(&tabPtr.p->theMutex);
     DIH_TAB_WRITE_LOCK(tabPtr.p);
     tabPtr.p->m_new_map_ptr_i = RNIL;
     tabPtr.p->m_scan_reorg_flag = 0;
     DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+    NdbMutex_Unlock(&tabPtr.p->theMutex);
 
     ndbrequire(tabPtr.p->connectrec == connectPtr.i);
     tabPtr.p->connectrec = RNIL;
@@ -13112,10 +13192,21 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
     copy(_align, ptr);
     releaseSections(handle);
     Uint32 err;
+    /**
+     * We need to protect these changes to the node and fragment view of
+     * the table since DBTC can see the table through these changes
+     * and thus both the mutex and the RCU mechanism is required here to
+     * ensure that DBTC sees a consistent view of the data.
+     */
+    NdbMutex_Lock(&tabPtr.p->theMutex);
+    DIH_TAB_WRITE_LOCK(tabPtr.p);
+
     Uint32 save = tabPtr.p->totalfragments;
     if ((err = add_fragments_to_table(tabPtr, buf)))
     {
       jam();
+      DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+      NdbMutex_Unlock(&tabPtr.p->theMutex);
       ndbrequire(tabPtr.p->totalfragments == save);
       ndbrequire(connectPtr.p->m_alter.m_org_totalfragments == save);
       send_alter_tab_ref(signal, tabPtr, connectPtr, err);
@@ -13128,9 +13219,17 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
 
     tabPtr.p->tabCopyStatus = TabRecord::CS_ALTER_TABLE;
     connectPtr.p->m_alter.m_totalfragments = tabPtr.p->totalfragments;
-    tabPtr.p->totalfragments = save; // Dont make the available yet...
-    sendAddFragreq(signal, connectPtr, tabPtr,
-                   connectPtr.p->m_alter.m_org_totalfragments);
+    /* Don't make the new fragments available just yet. */
+    tabPtr.p->totalfragments = save;
+    NdbMutex_Unlock(&tabPtr.p->theMutex);
+
+    sendAddFragreq(signal,
+                   connectPtr,
+                   tabPtr,
+                   connectPtr.p->m_alter.m_org_totalfragments,
+                   true);
+
+    DIH_TAB_WRITE_UNLOCK(tabPtr.p);
     return;
   }
 
@@ -13309,6 +13408,10 @@ Dbdih::add_fragment_to_table(Ptr<TabRecord> tabPtr,
   return 0;
 }
 
+/**
+ * Both table mutex and table RCU lock need be held when calling
+ * this function.
+ */
 void
 Dbdih::release_fragment_from_table(Ptr<TabRecord> tabPtr, Uint32 fragId)
 {
@@ -13441,12 +13544,25 @@ Dbdih::drop_fragments(Signal* signal, Ptr<ConnectRecord> connectPtr,
 
     Uint32 new_frags = connectPtr.p->m_alter.m_totalfragments;
     Uint32 org_frags = connectPtr.p->m_alter.m_org_totalfragments;
+
+    /**
+     * We need to manipulate the table distribution and we want to ensure
+     * DBTC sees a consistent view of these changes. We affect both data
+     * used by DIGETNODES and DIH_SCAN_TAB_REQ, so both mutex and RCU lock
+     * need to be held.
+     */
+    NdbMutex_Lock(&tabPtr.p->theMutex);
+    DIH_TAB_WRITE_LOCK(tabPtr.p);
+
     tabPtr.p->totalfragments = new_frags;
     for (Uint32 i = new_frags - 1; i >= org_frags; i--)
     {
       jam();
       release_fragment_from_table(tabPtr, i);
     }
+    NdbMutex_Unlock(&tabPtr.p->theMutex);
+    DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+
     connectPtr.p->m_alter.m_totalfragments = org_frags;
 
     switch(connectPtr.p->connectState){
@@ -13525,14 +13641,30 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
   tabPtr.i = req->tableId;
   Uint32 hashValue = req->hashValue;
   Uint32 distr_key_indicator = req->distr_key_indicator;
+  Uint32 scan_indicator = req->scan_indicator;
   Uint32 ttabFileSize = ctabFileSize;
-  Uint32 fragId, newFragId = RNIL;
+  Uint32 fragId;
+  Uint32 newFragId = RNIL;
+  Uint32 nodeCount;
+  Uint32 sig2;
   DiGetNodesConf * const conf = (DiGetNodesConf *)&signal->theData[0];
   TabRecord* regTabDesc = tabRecord;
   EmulatedJamBuffer * jambuf = (EmulatedJamBuffer*)req->jamBufferPtr;
   thrjamEntry(jambuf);
   ptrCheckGuard(tabPtr, ttabFileSize, regTabDesc);
 
+  /**
+   * This check will be valid for the following reasons:
+   * 1) If it is primary key operation we will have checked that the table
+   *    is existing in DBTC before coming here and DBDIH is informed of new
+   *    tables BEFORE DBTC and informed of dropping tables AFTER DBTC. So
+   *    it is safe that if DBTC knows that a table exist then for sure we
+   *    we will as well.
+   *
+   * 2) For ordered index scans we keep track of the number of scans working
+   *    on the ordered index, so we won't be able to drop the index until
+   *    all scans on the index has completed.
+   */
   if (DictTabInfo::isOrderedIndex(tabPtr.p->tableType))
   {
     thrjam(jambuf);
@@ -13541,7 +13673,16 @@ void Dbdih::execDIGETNODESREQ(Signal* signal)
   }
 
 loop:
-  Uint32 val = tabPtr.p->m_lock.read_lock();
+  /**
+   * To ensure we operate on a correct view of both table distribution and
+   * alive nodes, we use an RCU mechanism to protect this call to
+   * DIGETNODESREQ, this means that any changes in DBDIH will be reflected
+   * in external DBTCs reading this data as well. These are variables
+   * updated very seldomly and we only need to read them, thus a RCU is a
+   * very powerful mechanism to achieve this.
+   */
+  Uint32 tab_val = tabPtr.p->m_lock.read_lock();
+  Uint32 node_val = m_node_view_lock.read_lock();
   Uint32 map_ptr_i = tabPtr.p->m_map_ptr_i;
   Uint32 new_map_ptr_i = tabPtr.p->m_new_map_ptr_i;
 
@@ -13552,12 +13693,21 @@ loop:
   if (distr_key_indicator)
   {
     fragId = hashValue;
-    if (unlikely(fragId >= tabPtr.p->totalfragments))
+    /**
+     * This check isn't valid for scans, if we ever implement the possibility
+     * to decrease the number of fragments then this can be true and still
+     * be ok since we are using the old meta data and thus getFragstore
+     * is still working even if we are reading a fragId out of range. We
+     * keep track of such long-running scans to ensure we know when we
+     * can remove the fragments completely.
+     */
+    if (unlikely((!scan_indicator) &&
+                 fragId >= tabPtr.p->totalfragments))
     {
       thrjam(jambuf);
       conf->zero= 1; //Indicate error;
       signal->theData[1]= ZUNDEFINED_FRAGMENT_ERROR;
-      return;
+      goto error;
     }
   }
   else if (tabPtr.p->method == TabRecord::HASH_MAP)
@@ -13601,18 +13751,27 @@ loop:
     /* User defined partitioning, but no distribution key passed */
     conf->zero= 1; //Indicate error;
     signal->theData[1]= ZUNDEFINED_FRAGMENT_ERROR;
-    return;
+    goto error;
   }
   if (ERROR_INSERTED_CLEAR(7240))
   {
+    /* Error inject bypass the RCU lock */
     thrjam(jambuf);
     conf->zero= 1; //Indicate error;
     signal->theData[1]= ZUNDEFINED_FRAGMENT_ERROR;
     return;
   }
+  if (ERROR_INSERTED_CLEAR(7234))
+  {
+    /* Error inject bypass the RCU lock */
+    thrjam(jambuf);
+    conf->zero= 1; //Indicate error;
+    signal->theData[1]= ZLONG_MESSAGE_ERROR;
+    return;
+  }
   getFragstore(tabPtr.p, fragId, fragPtr);
-  Uint32 nodeCount = extractNodeInfo(jambuf, fragPtr.p, conf->nodes);
-  Uint32 sig2 = (nodeCount - 1) + 
+  nodeCount = extractNodeInfo(jambuf, fragPtr.p, conf->nodes);
+  sig2 = (nodeCount - 1) + 
     (fragPtr.p->distributionKey << 16) + 
     (dihGetInstanceKey(fragPtr) << 24);
   conf->zero = 0;
@@ -13633,8 +13792,20 @@ loop:
       (dihGetInstanceKey(fragPtr) << 24);
   }
 
-  if (unlikely(!tabPtr.p->m_lock.read_unlock(val)))
+  if (unlikely(!tabPtr.p->m_lock.read_unlock(tab_val)))
     goto loop;
+  if (unlikely(!m_node_view_lock.read_unlock(node_val)))
+    goto loop;
+
+error:
+  /**
+   * Ensure that also error conditions are based on a consistent view of
+   * the data. In this no need to check node view since it wasn't used.
+   */
+  if (unlikely(!tabPtr.p->m_lock.read_unlock(tab_val)))
+    goto loop;
+  return;
+
 }//Dbdih::execDIGETNODESREQ()
 
 Uint32 Dbdih::extractNodeInfo(EmulatedJamBuffer *jambuf,
@@ -13678,6 +13849,10 @@ Dbdih::getFragstore(TabRecord * tab,        //In parameter
   ndbrequire(false);
 }//Dbdih::getFragstore()
 
+/**
+ * When this is called DBTC isn't made aware of the table just yet, so no
+ * need to protect anything here from DBTC's view.
+ */
 void Dbdih::allocFragments(Uint32 noOfFragments, TabRecordPtr tabPtr)
 {
   FragmentstorePtr fragPtr;
@@ -13702,6 +13877,11 @@ void Dbdih::allocFragments(Uint32 noOfFragments, TabRecordPtr tabPtr)
   tabPtr.p->noOfFragChunks = noOfChunks;
 }//Dbdih::allocFragments()
 
+/**
+ * No need to protect anything from DBTC here, table is in last part
+ * of being dropped and has been removed from DBTC's view long time
+ * ago.
+ */
 void Dbdih::releaseFragments(TabRecordPtr tabPtr)
 {
   FragmentstorePtr fragPtr;
@@ -13864,201 +14044,95 @@ void Dbdih::execDIH_SCAN_TAB_REQ(Signal* signal)
 {
   DihScanTabReq * req = (DihScanTabReq*)signal->getDataPtr();
   TabRecordPtr tabPtr;
-  const Uint32 senderData = req->senderData;
-  const Uint32 senderRef = req->senderRef;
   const Uint32 schemaTransId = req->schemaTransId;
+  EmulatedJamBuffer * jambuf = (EmulatedJamBuffer*)req->jamBufferPtr;
 
-  jamEntry();
+  thrjamEntry(jambuf);
 
   tabPtr.i = req->tableId;
   ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+
+  /**
+   * This method is called from start of scans in TC threads. We need to
+   * protect against calls from multiple threads. The state and the
+   * m_scan_count is protected by the mutex.
+   *
+   * To avoid having to protect this code with both mutex and RCU code
+   * we ensure that the mutex is also held anytime we update the
+   * m_map_ptr_i, totalfragments, noOfBackups and m_scan_reorg_flag.
+   */
+  NdbMutex_Lock(&tabPtr.p->theMutex);
 
   if (tabPtr.p->tabStatus != TabRecord::TS_ACTIVE)
   {
     if (! (tabPtr.p->tabStatus == TabRecord::TS_CREATING &&
            tabPtr.p->schemaTransId == schemaTransId))
     {
-      jam();
+      thrjam(jambuf);
       goto error;
     }
   }
 
   tabPtr.p->m_scan_count[0]++;
-  ndbassert(tabPtr.p->m_map_ptr_i != DihScanTabConf::InvalidCookie);
+  ndbrequire(tabPtr.p->m_map_ptr_i != DihScanTabConf::InvalidCookie);
   {
     DihScanTabConf* conf = (DihScanTabConf*)signal->getDataPtrSend();
     conf->tableId = tabPtr.i;
-    conf->senderData = senderData;
+    conf->senderData = 0; /* 0 indicates success */
     conf->fragmentCount = tabPtr.p->totalfragments;
     conf->noOfBackups = tabPtr.p->noOfBackups;
     conf->scanCookie = tabPtr.p->m_map_ptr_i;
     conf->reorgFlag = tabPtr.p->m_scan_reorg_flag;
-    sendSignal(senderRef, GSN_DIH_SCAN_TAB_CONF, signal,
-               DihScanTabConf::SignalLength, JBB);
+    NdbMutex_Unlock(&tabPtr.p->theMutex);
+    return;
   }
   return;
 
 error:
   DihScanTabRef* ref = (DihScanTabRef*)signal->getDataPtrSend();
   ref->tableId = tabPtr.i;
-  ref->senderData = senderData;
+  ref->senderData = 1; /* 1 indicates failure */
   ref->error = DihScanTabRef::ErroneousTableState;
   ref->tableStatus = tabPtr.p->tabStatus;
   ref->schemaTransId = schemaTransId;
-  sendSignal(senderRef, GSN_DIH_SCAN_TAB_REF, signal,
-             DihScanTabRef::SignalLength, JBB);
+  NdbMutex_Unlock(&tabPtr.p->theMutex);
   return;
 
 }//Dbdih::execDIH_SCAN_TAB_REQ()
 
-void Dbdih::execDIH_SCAN_GET_NODES_REQ(Signal* signal)
-{
-  jamEntry();
-
-  DihScanGetNodesReq* req = (DihScanGetNodesReq*)signal->getDataPtrSend();
-  const Uint32 tableId = req->tableId;
-  const Uint32 senderRef = req->senderRef;
-  const Uint32 fragCnt = req->fragCnt;
-
-  SectionHandle reqHandle(this, signal);
-  const bool useLongSignal = (reqHandle.m_cnt > 0);
-
-  DihScanGetNodesReq::FragItem fragReq[DihScanGetNodesReq::MAX_DIH_FRAG_REQS];
-  if (useLongSignal)
-  {
-    // Long signal: Fetch into fragReq[]
-    jam();
-    SegmentedSectionPtr fragReqSection;
-    ndbrequire(reqHandle.getSection(fragReqSection,0));
-    ndbassert(fragReqSection.p->m_sz == (fragCnt*DihScanGetNodesReq::FragItem::Length));
-    ndbassert(fragCnt <= DihScanGetNodesReq::MAX_DIH_FRAG_REQS);
-    copy((Uint32*)fragReq, fragReqSection);
-  }
-  else // Short signal, with single FragItem
-  {
-    jam();
-    ndbassert(fragCnt == 1);
-    ndbassert(signal->getLength() 
-              == DihScanGetNodesReq::FixedSignalLength + DihScanGetNodesReq::FragItem::Length);
-    memcpy(fragReq, req->fragItem, 4 * DihScanGetNodesReq::FragItem::Length);
-  }
-
-  TabRecordPtr tabPtr;
-  tabPtr.i = tableId;
-  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
-  if (DictTabInfo::isOrderedIndex(tabPtr.p->tableType)) {
-    jam();
-    tabPtr.i = tabPtr.p->primaryTableId;
-    ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
-  }
-
-  DihScanGetNodesConf* conf = (DihScanGetNodesConf*)signal->getDataPtrSend();
-  conf->tableId = tableId;
-  conf->fragCnt = fragCnt;
-
-  for (Uint32 i=0; i < fragCnt; i++)
-  {
-    jam();
-    FragmentstorePtr fragPtr;
-    Uint32 nodes[MAX_REPLICAS];
-
-    getFragstore(tabPtr.p, fragReq[i].fragId, fragPtr);
-    Uint32 count = extractNodeInfo(jamBuffer(), fragPtr.p, nodes);
-
-    conf->fragItem[i].senderData  = fragReq[i].senderData;
-    conf->fragItem[i].fragId      = fragReq[i].fragId;
-    conf->fragItem[i].instanceKey = dihGetInstanceKey(fragPtr);
-    conf->fragItem[i].count       = count;
-    conf->fragItem[i].nodes[0]    = nodes[0];
-    conf->fragItem[i].nodes[1]    = nodes[1];
-    conf->fragItem[i].nodes[2]    = nodes[2];
-    conf->fragItem[i].nodes[3]    = nodes[3];
-  }
-
-  if (useLongSignal)
-  {
-    jam();
-    Ptr<SectionSegment> fragConf;
-    const Uint32 len = fragCnt*DihScanGetNodesConf::FragItem::Length;
-
-    if (ERROR_INSERTED_CLEAR(7234) ||
-        unlikely(!import(fragConf, (Uint32*)conf->fragItem, len)))
-    {
-      jam();
-      DihScanGetNodesRef* ref = (DihScanGetNodesRef*)signal->getDataPtrSend();
-
-      ref->tableId = tableId;
-      ref->fragCnt = fragCnt;
-      ref->errCode = ZLONG_MESSAGE_ERROR;
-
-      /**
-       *  NOTE: DihScanGetNodesRef return the same FragItem list
-       *        received as part of the REQuest to avoid possible
-       *        malloc failure handling in the REF.
-       */
-      sendSignal(senderRef, GSN_DIH_SCAN_GET_NODES_REF, signal,
-                 DihScanGetNodesRef::FixedSignalLength,
-                 JBB, &reqHandle);
-      return;
-    }
-    releaseSections(reqHandle);
-
-    SectionHandle confHandle(this, fragConf.i);
-    sendSignal(senderRef, GSN_DIH_SCAN_GET_NODES_CONF, signal,
-               DihScanGetNodesConf::FixedSignalLength,
-               JBB, &confHandle);
-  }
-  else
-  {
-    // A short signal is sufficient.
-    jam();
-    ndbassert(fragCnt == 1);
-
-    if (ERROR_INSERTED_CLEAR(7234))
-    {
-      jam();
-      DihScanGetNodesRef* ref = (DihScanGetNodesRef*)signal->getDataPtrSend();
-
-      ref->tableId = tableId;
-      ref->fragCnt = fragCnt;
-      ref->errCode = ZLONG_MESSAGE_ERROR;
-      ref->fragItem[0] = fragReq[0];
-
-      sendSignal(senderRef, GSN_DIH_SCAN_GET_NODES_REF, signal,
-                 DihScanGetNodesRef::FixedSignalLength
-                 + DihScanGetNodesRef::FragItem::Length,
-                 JBB);
-      return;
-    }
-    sendSignal(senderRef, GSN_DIH_SCAN_GET_NODES_CONF, signal,
-               DihScanGetNodesConf::FixedSignalLength 
-               + DihScanGetNodesConf::FragItem::Length,
-               JBB);
-  }
-}//Dbdih::execDIH_SCAN_GET_NODES_REQ
-
 void
 Dbdih::execDIH_SCAN_TAB_COMPLETE_REP(Signal* signal)
 {
-  jamEntry();
   DihScanTabCompleteRep* rep = (DihScanTabCompleteRep*)signal->getDataPtr();
   TabRecordPtr tabPtr;
   tabPtr.i = rep->tableId;
   Uint32 map_ptr_i = rep->scanCookie;
-  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+  EmulatedJamBuffer * jambuf = (EmulatedJamBuffer*)rep->jamBufferPtr;
 
+  thrjamEntry(jambuf);
+  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+  /**
+   * This method is called from other TC threads to signal that a
+   * scan is completed. We keep track of number of outstanding scans
+   * in two variables for old and new metadata (normally there is
+   * only new metadata, but during changes we need this to ensure
+   * that scans can continue also during schema changes).
+   */
+
+  NdbMutex_Lock(&tabPtr.p->theMutex);
   if (map_ptr_i == tabPtr.p->m_map_ptr_i)
   {
-    jam();
+    thrjam(jambuf);
     ndbassert(tabPtr.p->m_scan_count[0]);
     tabPtr.p->m_scan_count[0]--;
   }
   else
   {
-    jam();
+    thrjam(jambuf);
     ndbassert(tabPtr.p->m_scan_count[1]);
     tabPtr.p->m_scan_count[1]--;
   }
+  NdbMutex_Unlock(&tabPtr.p->theMutex);
 }
 
 
@@ -16727,6 +16801,11 @@ Dbdih::copyTabReq_complete(Signal* signal, TabRecordPtr tabPtr){
     // node.
     //----------------------------------------------------------------------------
     releaseTabPages(tabPtr.i);
+
+    /**
+     * No need to protect these changes as they occur while recovery is ongoing
+     * and DBTC hasn't started using these tables yet.
+     */
     tabPtr.p->tabStatus = TabRecord::TS_ACTIVE;
     for (Uint32 fragId = 0; fragId < tabPtr.p->totalfragments; fragId++) {
       jam();
@@ -16748,6 +16827,10 @@ Dbdih::copyTabReq_complete(Signal* signal, TabRecordPtr tabPtr){
 /*****************************************************************************/
 void Dbdih::readPagesIntoTableLab(Signal* signal, Uint32 tableId) 
 {
+  /**
+   * No need to protect these changes, they are only occuring during
+   * recovery when DBTC hasn't accessibility to the table yet.
+   */
   RWFragment rf;
   rf.wordIndex = 35;
   rf.pageIndex = 0;
@@ -17683,9 +17766,14 @@ void Dbdih::execCOPY_TABCONF(Signal* signal)
     ConnectRecordPtr connectPtr;
     connectPtr.i = tabPtr.p->connectrec;
     ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord); 
-    
+
+    /**
+     * No need to protect this as it happens during recovery when DBTC isn't
+     * acting on the tables yet. Also given that fragId is 0 we are sure that
+     * this will only result in ADD_FRAGREQ being sent.
+     */
     connectPtr.p->m_alter.m_totalfragments = tabPtr.p->totalfragments;
-    sendAddFragreq(signal, connectPtr, tabPtr, 0);
+    sendAddFragreq(signal, connectPtr, tabPtr, 0, false);
     return;
   }//if
 }//Dbdih::execCOPY_TABCONF()
@@ -21075,6 +21163,7 @@ void Dbdih::initFragstore(FragmentstorePtr fragPtr)
 {
   fragPtr.p->storedReplicas = RNIL;
   fragPtr.p->oldStoredReplicas = RNIL;
+  fragPtr.p->m_log_part_id = RNIL; /* To ensure not used uninited */
   
   fragPtr.p->noStoredReplicas = 0;
   fragPtr.p->noOldStoredReplicas = 0;
@@ -21215,6 +21304,7 @@ void Dbdih::initRestorableGciFiles()
 void Dbdih::initTable(TabRecordPtr tabPtr)
 {
   new (tabPtr.p) TabRecord();
+  NdbMutex_Init(&tabPtr.p->theMutex);
   tabPtr.p->noOfFragChunks = 0;
   tabPtr.p->method = TabRecord::NOTDEFINED;
   tabPtr.p->tabStatus = TabRecord::TS_IDLE;
@@ -21487,6 +21577,10 @@ void Dbdih::insertAlive(NodeRecordPtr newNodePtr)
   newNodePtr.p->nextNode = RNIL;
 }//Dbdih::insertAlive()
 
+/**
+ * RCU lock must be held on table while calling this method when
+ * not in recovery.
+ */
 void Dbdih::insertBackup(FragmentstorePtr fragPtr, Uint32 nodeId)
 {
   for (Uint32 i = fragPtr.p->fragReplicas; i > 1; i--) {
@@ -21872,7 +21966,7 @@ void Dbdih::execCHECKNODEGROUPSREQ(Signal* signal)
 }//Dbdih::execCHECKNODEGROUPSREQ()
 
 void
-  Dbdih::makePrnList(ReadNodesConf * readNodes, Uint32 nodeArray[])
+Dbdih::makePrnList(ReadNodesConf * readNodes, Uint32 nodeArray[])
 {
   cfirstAliveNode = RNIL;
   ndbrequire(con_lineNodes > 0);
@@ -23052,6 +23146,11 @@ Dbdih::startGcpMonitor(Signal* signal)
   sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 1);
 }
 
+/**
+ * This changes the table distribution and this can be seen by
+ * DIGETNODES, so if this is called when we are not in recovery
+ * we need to hold the table RCU lock.
+ */
 void Dbdih::updateNodeInfo(FragmentstorePtr fragPtr)
 {
   ReplicaRecordPtr replicatePtr;
@@ -24055,7 +24154,14 @@ Dbdih::execPREP_DROP_TAB_REQ(Signal* signal){
     return;
   }
 
+  /**
+   * When we come here DBTC is already aware of the table being dropped,
+   * so no requests for the table will arrive after this from DBTC, so
+   * no need to protect this variable here, it is protected by the
+   * signalling order of drop table signals instead.
+   */
   tabPtr.p->tabStatus = TabRecord::TS_DROPPING;
+
   PrepDropTabConf* conf = (PrepDropTabConf*)signal->getDataPtrSend();
   conf->tableId = tabPtr.i;
   conf->senderRef = reference();
@@ -24467,7 +24573,9 @@ void Dbdih::execSTOP_ME_REQ(Signal* signal)
     NodeRecordPtr nodePtr;
     nodePtr.i = nodeId;
     ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
+    m_node_view_lock.write_lock();
     nodePtr.p->useInTransactions = false;
+    m_node_view_lock.write_unlock();
   }
   if (nodeId != getOwnNodeId()) {
     jam();

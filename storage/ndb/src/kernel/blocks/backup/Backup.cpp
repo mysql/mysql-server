@@ -27,6 +27,7 @@
 #include <signaldata/ReadNodesConf.hpp>
 
 #include <signaldata/DihScanTab.hpp>
+#include <signaldata/DiGetNodes.hpp>
 #include <signaldata/ScanFrag.hpp>
 
 #include <signaldata/GetTabInfo.hpp>
@@ -876,7 +877,6 @@ Backup::execCONTINUEB(Signal* signal)
     checkFile(signal, filePtr);
     return;
   }
-  break;
   case BackupContinueB::BUFFER_FULL_SCAN:
   {
     jam();
@@ -953,6 +953,7 @@ Backup::execCONTINUEB(Signal* signal)
     return;
   }
   case BackupContinueB::ZDELAY_SCAN_NEXT:
+  {
     if (ERROR_INSERTED(10039))
     {
       jam();
@@ -972,7 +973,7 @@ Backup::execCONTINUEB(Signal* signal)
       BackupRecordPtr ptr;
       c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
       TablePtr tabPtr;
-      findTable(ptr, tabPtr, filePtr.p->tableId);
+      ndbrequire(findTable(ptr, tabPtr, filePtr.p->tableId));
       FragmentPtr fragPtr;
       tabPtr.p->fragments.getPtr(fragPtr, filePtr.p->fragmentNo);
 
@@ -992,6 +993,17 @@ Backup::execCONTINUEB(Signal* signal)
 		 ScanFragNextReq::SignalLength, JBB);
       return ;
     }
+  }
+  case BackupContinueB::ZGET_NEXT_FRAGMENT:
+  {
+    BackupRecordPtr backupPtr;
+    TablePtr tabPtr;
+    Uint32 fragNo = signal->theData[3];
+    c_backupPool.getPtr(backupPtr, signal->theData[1]);
+    ndbrequire(findTable(backupPtr, tabPtr, signal->theData[2]));
+    getFragmentInfo(signal, backupPtr, tabPtr, fragNo);
+    return;
+  }
   default:
     ndbrequire(0);
   }//switch
@@ -1874,22 +1886,79 @@ void Backup::execDBINFO_SCANREQ(Signal *signal)
   ndbinfo_send_scan_conf(signal, req, rl);
 }
 
+static const Uint32 MAX_TABLE_MAPS = 2;
 bool
 Backup::findTable(const BackupRecordPtr & ptr, 
-		  TablePtr & tabPtr, Uint32 tableId) const
+		  TablePtr & tabPtr, Uint32 tableId)
 {
-  for(ptr.p->tables.first(tabPtr); 
-      tabPtr.i != RNIL; 
-      ptr.p->tables.next(tabPtr)) {
-    jam();
-    if(tabPtr.p->tableId == tableId){
+  Uint32 loopCount = 0;
+  tabPtr.i = c_tableMap[tableId];
+  while (loopCount++ < MAX_TABLE_MAPS)
+  {
+    ndbrequire(tabPtr.i != RNIL);
+    c_tablePool.getPtr(tabPtr);
+    if (tabPtr.p->backupPtrI == ptr.i)
+    {
       jam();
       return true;
-    }//if
-  }//for
-  tabPtr.i = RNIL;
-  tabPtr.p = 0;
+    }
+    jam();
+    tabPtr.i = tabPtr.p->nextMapTable;
+  }
   return false;
+}
+
+void
+Backup::insertTableMap(TablePtr & tabPtr,
+                       Uint32 backupPtrI,
+                       Uint32 tableId)
+{
+  tabPtr.p->backupPtrI = backupPtrI;
+  tabPtr.p->tableId = tableId;
+  tabPtr.p->nextMapTable = c_tableMap[tableId];
+  c_tableMap[tableId] = tabPtr.i;
+} 
+
+void
+Backup::removeTableMap(TablePtr &tabPtr,
+                       Uint32 backupPtr,
+                       Uint32 tableId)
+{
+  TablePtr prevTabPtr;
+  TablePtr locTabPtr;
+  Uint32 loopCount = 0;
+
+  prevTabPtr.i = RNIL;
+  prevTabPtr.p = 0;
+  locTabPtr.i = c_tableMap[tableId];
+
+  while (loopCount++ < MAX_TABLE_MAPS)
+  {
+    jam();
+    c_tablePool.getPtr(locTabPtr);
+    ndbrequire(locTabPtr.p->tableId == tableId);
+    if (locTabPtr.p->backupPtrI == backupPtr)
+    {
+      ndbrequire(tabPtr.i == locTabPtr.i);
+      if (prevTabPtr.i == RNIL)
+      {
+        jam();
+        c_tableMap[tableId] = locTabPtr.p->nextMapTable;
+      }
+      else
+      {
+        jam();
+        prevTabPtr.p->nextMapTable = locTabPtr.p->nextMapTable;
+      }
+      locTabPtr.p->nextMapTable = RNIL;
+      locTabPtr.p->tableId = RNIL;
+      locTabPtr.p->backupPtrI = RNIL;
+      return;
+    }
+    prevTabPtr = locTabPtr;
+    locTabPtr.i = locTabPtr.p->nextMapTable;
+  }
+  ndbrequire(false);
 }
 
 static Uint32 xps(Uint64 x, Uint64 ms)
@@ -4300,6 +4369,7 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
       Uint32 tableId = ltd.getTableId();
       Uint32 tableType = ltd.getTableType();
       Uint32 state= ltd.getTableState();
+      jamLine(tableId);
 
       if (! (DictTabInfo::isTable(tableType) ||
              DictTabInfo::isIndex(tableType) ||
@@ -4327,9 +4397,25 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
         releaseSections(handle);
         return;
       }//if
-      tabPtr.p->tableId = tableId;
       tabPtr.p->tableType = tableType;
+      tabPtr.p->tableId = tableId;
     }//for
+  }
+  {
+    TablePtr tabPtr;
+    jam();
+    for (ptr.p->tables.first(tabPtr);
+         tabPtr.i !=RNIL;
+         ptr.p->tables.next(tabPtr))
+    {
+      /**
+       * Insert into table map after completing loop to avoid
+       * complex error handling.
+       */
+      jamLine(tabPtr.p->tableId);
+      insertTableMap(tabPtr, ptr.i, tabPtr.p->tableId);
+    }
+    jam();
   }
 
   releaseSections(handle);
@@ -4340,6 +4426,7 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
    */
   if ((fragInfo == 1) || (fragInfo == 2))
   {
+    jam();
     return;
   }
   openFiles(signal, ptr);
@@ -4727,8 +4814,10 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
     jam();
 
     TablePtr tmp = tabPtr;
+    removeTableMap(tmp, ptr.i, tmp.p->tableId);
     ptr.p->tables.next(tabPtr);
     ptr.p->tables.release(tmp);
+    jamLine(tmp.p->tableId);
     afterGetTabinfoLockTab(signal, ptr, tabPtr);
     return;
   }
@@ -4787,15 +4876,19 @@ Backup::afterGetTabinfoLockTab(Signal *signal,
       lcp_open_file_done(signal, ptr);
       return;
     }
-    
     ndbrequire(ptr.p->tables.first(tabPtr));
     DihScanTabReq * req = (DihScanTabReq*)signal->getDataPtrSend();
     req->senderRef = reference();
     req->senderData = ptr.i;
     req->tableId = tabPtr.p->tableId;
     req->schemaTransId = 0;
-    sendSignal(DBDIH_REF, GSN_DIH_SCAN_TAB_REQ, signal,
+    req->jamBufferPtr = jamBuffer();
+    EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
                DihScanTabReq::SignalLength, JBB);
+    DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
+    ndbrequire(conf->senderData == 0);
+    conf->senderData = ptr.i;
+    execDIH_SCAN_TAB_CONF(signal);
     return;
   }//if
 
@@ -4956,15 +5049,25 @@ Backup::execDIH_SCAN_TAB_CONF(Signal* signal)
   /**
    * Next table
    */
-  if(ptr.p->tables.next(tabPtr)) {
+  if(ptr.p->tables.next(tabPtr))
+  {
     jam();
     DihScanTabReq * req = (DihScanTabReq*)signal->getDataPtrSend();
     req->senderRef = reference();
     req->senderData = ptr.i;
     req->tableId = tabPtr.p->tableId;
     req->schemaTransId = 0;
-    sendSignal(DBDIH_REF, GSN_DIH_SCAN_TAB_REQ, signal,
-               DihScanTabReq::SignalLength, JBB);
+    req->jamBufferPtr = jamBuffer();
+    EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
+                   DihScanTabReq::SignalLength, JBB);
+    jamEntry();
+    DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
+    ndbrequire(conf->senderData == 0);
+    conf->senderData = ptr.i;
+    /* conf is already set up properly to be sent as signal */
+    /* Real-time break to ensure we don't run for too long in one signal. */
+    sendSignal(reference(), GSN_DIH_SCAN_TAB_CONF, signal,
+               DihScanTabConf::SignalLength, JBB);
     return;
   }//if
   
@@ -4976,6 +5079,7 @@ void
 Backup::getFragmentInfo(Signal* signal, 
 			BackupRecordPtr ptr, TablePtr tabPtr, Uint32 fragNo)
 {
+  Uint32 loopCount = 0;
   jam();
   
   for(; tabPtr.i != RNIL; ptr.p->tables.next(tabPtr)) {
@@ -4988,70 +5092,53 @@ Backup::getFragmentInfo(Signal* signal,
       
       if(fragPtr.p->scanned == 0 && fragPtr.p->scanning == 0) {
         jam();
-        DihScanGetNodesReq* req = (DihScanGetNodesReq*)signal->getDataPtrSend();
-        req->senderRef = reference();
+        DiGetNodesReq * const req = (DiGetNodesReq *)&signal->theData[0];
         req->tableId = tabPtr.p->tableId;
-        req->scanCookie = tabPtr.p->m_scan_cookie;
-        req->fragCnt = 1;
-        req->fragItem[0].senderData = ptr.i;
-        req->fragItem[0].fragId = fragNo;
-        sendSignal(DBDIH_REF, GSN_DIH_SCAN_GET_NODES_REQ, signal,
-                   DihScanGetNodesReq::FixedSignalLength
-                   + DihScanGetNodesReq::FragItem::Length,
-                   JBB);
-	return;
+        req->hashValue = fragNo;
+        req->distr_key_indicator = ZTRUE;
+        req->scan_indicator = ZTRUE;
+        req->jamBufferPtr = jamBuffer();
+        EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
+                       DiGetNodesReq::SignalLength, 0);
+        jamEntry();
+        DiGetNodesConf * conf = (DiGetNodesConf *)&signal->theData[0];
+        Uint32 reqinfo = conf->reqinfo;
+        Uint32 nodeId = conf->nodes[0];
+        /* Require successful read of table fragmentation */
+        ndbrequire(conf->zero == 0);
+        Uint32 instanceKey = (reqinfo >> 24) & 127;
+        fragPtr.p->lqhInstanceKey = instanceKey;
+        fragPtr.p->node = nodeId;
+        if (++loopCount >= DiGetNodesReq::MAX_DIGETNODESREQS ||
+            ERROR_INSERTED(10046))
+        {
+          jam();
+          if (ERROR_INSERTED(10046))
+          {
+            CLEAR_ERROR_INSERT_VALUE;
+          }
+          signal->theData[0] = BackupContinueB::ZGET_NEXT_FRAGMENT;
+          signal->theData[1] = ptr.i;
+          signal->theData[2] = tabPtr.p->tableId;
+          signal->theData[3] = fragNo + 1;
+          sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
+          return;
+        }
       }//if
     }//for
 
     DihScanTabCompleteRep*rep= (DihScanTabCompleteRep*)signal->getDataPtrSend();
     rep->tableId = tabPtr.p->tableId;
     rep->scanCookie = tabPtr.p->m_scan_cookie;
-    sendSignal(DBDIH_REF, GSN_DIH_SCAN_TAB_COMPLETE_REP, signal,
-               DihScanTabCompleteRep::SignalLength, JBB);
+    rep->jamBufferPtr = jamBuffer();
+    EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_COMPLETE_REP, signal,
+                   DihScanTabCompleteRep::SignalLength, JBB);
 
     fragNo = 0;
   }//for
   
 
   getFragmentInfoDone(signal, ptr);
-}
-
-void
-Backup::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
-{
-  jamEntry();
-  
-  /**
-   * Assume only short CONFs with a single FragItem as we only do single
-   * fragment requests in DIH_SCAN_GET_NODES_REQ from Backup::getFragmentInfo.
-   */
-  ndbrequire(signal->getNoOfSections() == 0);
-  ndbassert(signal->getLength() ==
-            DihScanGetNodesConf::FixedSignalLength
-            + DihScanGetNodesConf::FragItem::Length);
-
-  DihScanGetNodesConf* conf = (DihScanGetNodesConf*)signal->getDataPtrSend();
-  const Uint32 tableId = conf->tableId;
-  const Uint32 senderData = conf->fragItem[0].senderData;
-  const Uint32 nodeCount = conf->fragItem[0].count;
-  const Uint32 fragNo = conf->fragItem[0].fragId;
-  const Uint32 instanceKey = conf->fragItem[0].instanceKey; 
-
-  ndbrequire(nodeCount > 0 && nodeCount <= MAX_REPLICAS);
-  
-  BackupRecordPtr ptr;
-  c_backupPool.getPtr(ptr, senderData);
-
-  TablePtr tabPtr;
-  ndbrequire(findTable(ptr, tabPtr, tableId));
-
-  FragmentPtr fragPtr;
-  tabPtr.p->fragments.getPtr(fragPtr, fragNo);
-  fragPtr.p->lqhInstanceKey = instanceKey;
-  
-  fragPtr.p->node = conf->fragItem[0].nodes[0];
-
-  getFragmentInfo(signal, ptr, tabPtr, fragNo + 1);
 }
 
 void
@@ -7283,6 +7370,15 @@ Backup::cleanupNextTable(Signal *signal, BackupRecordPtr ptr, TablePtr tabPtr)
   }//for
 
   while (ptr.p->files.releaseFirst());
+  /* Clear backupPtr before releasing */
+  for (ptr.p->tables.first(tabPtr);
+       tabPtr.i != RNIL;
+       ptr.p->tables.next(tabPtr))
+  {
+    jam();
+    jamLine(tabPtr.p->tableId);
+    removeTableMap(tabPtr, ptr.i, tabPtr.p->tableId);
+  }
   while (ptr.p->tables.releaseFirst());
   while (ptr.p->triggers.releaseFirst());
   ptr.p->backupId = ~0;
@@ -7560,6 +7656,14 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
     {
       jam();
       tabPtr.p->fragments.release();
+      /* Clear backupPtr before releasing */
+      for (ptr.p->tables.first(tabPtr);
+           tabPtr.i != RNIL;
+           ptr.p->tables.next(tabPtr))
+      {
+        jam();
+        removeTableMap(tabPtr, ptr.i, tabPtr.p->tableId);
+      }
       while (ptr.p->tables.releaseFirst());
       ptr.p->errorCode = 0;
       // fall-through
@@ -7572,7 +7676,9 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
       while (ptr.p->tables.releaseFirst());
     ndbrequire(false); // TODO
   }
-  tabPtr.p->tableId = req.tableId;
+  jam();
+  jamLine(req.tableId);
+  insertTableMap(tabPtr, ptr.i, req.tableId);
   tabPtr.p->fragments.getPtr(fragPtr, 0);
   tabPtr.p->tableType = DictTabInfo::UserTable;
   fragPtr.p->fragmentId = req.fragmentId;
