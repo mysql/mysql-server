@@ -3,11 +3,6 @@
 # Test cases for bugs related to changing the setting of optimizer_switch,
 # should go here.
 
---source include/have_semijoin.inc
---source include/have_materialization.inc
---source include/have_firstmatch.inc
---source include/have_loosescan.inc
-
 --echo
 --echo BUG#37120 optimizer_switch allowable values not according to specification
 --echo

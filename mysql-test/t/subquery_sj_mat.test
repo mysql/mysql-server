@@ -7,8 +7,6 @@
 # Run subquery_sj.inc with semijoin and turn off all strategies, but Materialization
 #
 
---source include/have_semijoin.inc
---source include/have_materialization.inc
 set optimizer_switch='semijoin=on,materialization=on';
 
 --disable_query_log

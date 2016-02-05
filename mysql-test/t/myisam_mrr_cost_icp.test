@@ -11,9 +11,6 @@
 # (Turns off all other 6.0 optimizer switches than cost-based MRR and ICP)
 #
 
---source include/have_mrr.inc
---source include/have_index_condition_pushdown.inc
-
 set optimizer_switch='index_condition_pushdown=on,mrr=on,mrr_cost_based=on';
 
 --disable_query_log

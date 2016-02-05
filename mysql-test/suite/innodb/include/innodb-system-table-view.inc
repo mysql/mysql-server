@@ -3,7 +3,7 @@
 # information schema tables.
 
 --source include/have_innodb.inc
---source include/have_innodb_zip.inc
+--source include/have_innodb_max_16k.inc
 --source include/have_no_undo_tablespaces.inc
 
 --disable_query_log

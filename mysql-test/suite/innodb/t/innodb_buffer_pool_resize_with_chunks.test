@@ -7,7 +7,7 @@
 -- source include/not_embedded.inc
 
 --source include/have_innodb.inc
---source include/have_innodb_zip.inc
+--source include/have_innodb_max_16k.inc
 --source include/big_test.inc
 
 let $wait_timeout = 180;

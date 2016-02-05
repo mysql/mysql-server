@@ -8,8 +8,6 @@
 # it resort to duplicate weedout strategy.
 #
 
---source include/have_semijoin.inc
-
 --disable_query_log
 if (`select locate('materialization', @@optimizer_switch) > 0`) 
 {
