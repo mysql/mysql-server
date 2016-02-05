@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
-#ifdef HAVE_CHARSET_cp932
 
 
 /*
@@ -34880,5 +34879,3 @@ CHARSET_INFO my_charset_cp932_bin=
     &my_charset_handler,
     &my_collation_mb_bin_handler
 };
-
-#endif

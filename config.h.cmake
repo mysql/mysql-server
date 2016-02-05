@@ -288,46 +288,6 @@
  */
 #cmakedefine MYSQL_DEFAULT_CHARSET_NAME "@MYSQL_DEFAULT_CHARSET_NAME@"
 #cmakedefine MYSQL_DEFAULT_COLLATION_NAME "@MYSQL_DEFAULT_COLLATION_NAME@"
-#cmakedefine HAVE_CHARSET_armscii8 1
-#cmakedefine HAVE_CHARSET_ascii 1
-#cmakedefine HAVE_CHARSET_big5 1
-#cmakedefine HAVE_CHARSET_cp1250 1
-#cmakedefine HAVE_CHARSET_cp1251 1
-#cmakedefine HAVE_CHARSET_cp1256 1
-#cmakedefine HAVE_CHARSET_cp1257 1
-#cmakedefine HAVE_CHARSET_cp850 1
-#cmakedefine HAVE_CHARSET_cp852 1 
-#cmakedefine HAVE_CHARSET_cp866 1
-#cmakedefine HAVE_CHARSET_cp932 1
-#cmakedefine HAVE_CHARSET_dec8 1
-#cmakedefine HAVE_CHARSET_eucjpms 1
-#cmakedefine HAVE_CHARSET_euckr 1
-#cmakedefine HAVE_CHARSET_gb2312 1
-#cmakedefine HAVE_CHARSET_gbk 1
-#cmakedefine HAVE_CHARSET_gb18030 1
-#cmakedefine HAVE_CHARSET_geostd8 1
-#cmakedefine HAVE_CHARSET_greek 1
-#cmakedefine HAVE_CHARSET_hebrew 1
-#cmakedefine HAVE_CHARSET_hp8 1
-#cmakedefine HAVE_CHARSET_keybcs2 1
-#cmakedefine HAVE_CHARSET_koi8r 1
-#cmakedefine HAVE_CHARSET_koi8u 1
-#cmakedefine HAVE_CHARSET_latin1 1
-#cmakedefine HAVE_CHARSET_latin2 1
-#cmakedefine HAVE_CHARSET_latin5 1
-#cmakedefine HAVE_CHARSET_latin7 1
-#cmakedefine HAVE_CHARSET_macce 1
-#cmakedefine HAVE_CHARSET_macroman 1
-#cmakedefine HAVE_CHARSET_sjis 1
-#cmakedefine HAVE_CHARSET_swe7 1
-#cmakedefine HAVE_CHARSET_tis620 1
-#cmakedefine HAVE_CHARSET_ucs2 1
-#cmakedefine HAVE_CHARSET_ujis 1
-#cmakedefine HAVE_CHARSET_utf8mb4 1
-#cmakedefine HAVE_CHARSET_utf8mb3 1
-#cmakedefine HAVE_CHARSET_utf8 1
-#cmakedefine HAVE_CHARSET_utf16 1
-#cmakedefine HAVE_CHARSET_utf32 1
 
 /*
  * Feature set

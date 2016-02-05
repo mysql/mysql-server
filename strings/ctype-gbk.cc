@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,7 +30,6 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
-#ifdef HAVE_CHARSET_gbk
 
 
 /* Support for Chinese(GBK) characters, by hewei@mail.ied.ac.cn */
@@ -10883,6 +10882,3 @@ CHARSET_INFO my_charset_gbk_bin=
     &my_charset_handler,
     &my_collation_mb_bin_handler
 };
-
-
-#endif

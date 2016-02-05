@@ -13133,7 +13133,7 @@ from t2);");
 
 static void test_bug8378()
 {
-#if defined(HAVE_CHARSET_gbk) && !defined(EMBEDDED_LIBRARY)
+#if !defined(EMBEDDED_LIBRARY)
   MYSQL *lmysql;
   char out[9]; /* strlen(TEST_BUG8378)*2+1 */
   char buf[256];

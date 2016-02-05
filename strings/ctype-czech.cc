@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,7 +63,6 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
-#ifdef HAVE_CHARSET_latin2
 
 /*
 	These are four tables for four passes of the algorithm. Please see
@@ -634,6 +633,3 @@ CHARSET_INFO my_charset_latin2_czech_ci =
     &my_charset_8bit_handler,
     &my_collation_latin2_czech_ci_handler
 };
-
-
-#endif

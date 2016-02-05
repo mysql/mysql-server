@@ -3,10 +3,10 @@
   edit the XML definitions in sql/share/charsets/ instead.
 
   To re-generate, run the following in the strings/ directory:
-    ./conf_to_src {CMAKE_SOURCE_DIR}/sql/share/charsets/ > ctype-extra.c
+    ./conf_to_src {CMAKE_SOURCE_DIR}/sql/share/charsets/ > ctype-extra.cc
 */
 
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@
 #include <my_global.h>
 #include <m_ctype.h>
 
-#ifdef HAVE_CHARSET_dec8
 static const uchar ctype_dec8_swedish_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -137,9 +136,7 @@ static const uint16 to_uni_dec8_swedish_ci[] = {
 0x00F8,0x00F9,0x00FA,0x00FB,0x00FC,0x00FF,0x0000,0x0000
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_cp850
 static const uchar ctype_cp850_general_ci[] = {
 0x00,
 0x20,0x30,0x30,0x30,0x30,0x30,0x30,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x30,0x30,
@@ -252,9 +249,7 @@ static const uint16 to_uni_cp850_general_ci[] = {
 0x00B0,0x00A8,0x00B7,0x00B9,0x00B3,0x00B2,0x25A0,0x00A0
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_latin1
 static const uchar ctype_latin1_german1_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -367,9 +362,7 @@ static const uint16 to_uni_latin1_german1_ci[] = {
 0x00F8,0x00F9,0x00FA,0x00FB,0x00FC,0x00FD,0x00FE,0x00FF
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_hp8
 static const uchar ctype_hp8_english_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -482,9 +475,7 @@ static const uint16 to_uni_hp8_english_ci[] = {
 0x00BD,0x00AA,0x00BA,0x00AB,0x25A0,0x00BB,0x00B1,0x0000
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_koi8r
 static const uchar ctype_koi8r_general_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -597,9 +588,7 @@ static const uint16 to_uni_koi8r_general_ci[] = {
 0x042C,0x042B,0x0417,0x0428,0x042D,0x0429,0x0427,0x042A
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_latin2
 static const uchar ctype_latin2_general_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -712,9 +701,7 @@ static const uint16 to_uni_latin2_general_ci[] = {
 0x0159,0x016F,0x00FA,0x0171,0x00FC,0x00FD,0x0163,0x02D9
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_swe7
 static const uchar ctype_swe7_swedish_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -827,9 +814,7 @@ static const uint16 to_uni_swe7_swedish_ci[] = {
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_ascii
 static const uchar ctype_ascii_general_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -942,9 +927,7 @@ static const uint16 to_uni_ascii_general_ci[] = {
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_cp1251
 static const uchar ctype_cp1251_bulgarian_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -1057,9 +1040,7 @@ static const uint16 to_uni_cp1251_bulgarian_ci[] = {
 0x0448,0x0449,0x044A,0x044B,0x044C,0x044D,0x044E,0x044F
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_latin1
 static const uchar ctype_latin1_danish_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -1172,9 +1153,7 @@ static const uint16 to_uni_latin1_danish_ci[] = {
 0x00F8,0x00F9,0x00FA,0x00FB,0x00FC,0x00FD,0x00FE,0x00FF
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_hebrew
 static const uchar ctype_hebrew_general_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -1287,9 +1266,7 @@ static const uint16 to_uni_hebrew_general_ci[] = {
 0x05E8,0x05E9,0x05EA,0x0000,0x0000,0x200E,0x200F,0x0000
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_latin7
 static const uchar ctype_latin7_estonian_cs[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -1402,9 +1379,7 @@ static const uint16 to_uni_latin7_estonian_cs[] = {
 0x0173,0x0142,0x015B,0x016B,0x00FC,0x017C,0x017E,0x2019
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_latin2
 static const uchar ctype_latin2_hungarian_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -1517,9 +1492,7 @@ static const uint16 to_uni_latin2_hungarian_ci[] = {
 0x0159,0x016F,0x00FA,0x0171,0x00FC,0x00FD,0x0163,0x02D9
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_koi8u
 static const uchar ctype_koi8u_general_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -1632,9 +1605,7 @@ static const uint16 to_uni_koi8u_general_ci[] = {
 0x042C,0x042B,0x0417,0x0428,0x042D,0x0429,0x0427,0x042A
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_cp1251
 static const uchar ctype_cp1251_ukrainian_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -1747,9 +1718,7 @@ static const uint16 to_uni_cp1251_ukrainian_ci[] = {
 0x0448,0x0449,0x044A,0x044B,0x044C,0x044D,0x044E,0x044F
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_greek
 static const uchar ctype_greek_general_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -1862,9 +1831,7 @@ static const uint16 to_uni_greek_general_ci[] = {
 0x03C8,0x03C9,0x03CA,0x03CB,0x03CC,0x03CD,0x03CE,0x0000
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_cp1250
 static const uchar ctype_cp1250_general_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -1977,9 +1944,7 @@ static const uint16 to_uni_cp1250_general_ci[] = {
 0x0159,0x016F,0x00FA,0x0171,0x00FC,0x00FD,0x0163,0x02D9
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_latin2
 static const uchar ctype_latin2_croatian_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -2092,9 +2057,7 @@ static const uint16 to_uni_latin2_croatian_ci[] = {
 0x0159,0x016F,0x00FA,0x0171,0x00FC,0x00FD,0x0163,0x02D9
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_cp1257
 static const uchar ctype_cp1257_lithuanian_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -2207,9 +2170,7 @@ static const uint16 to_uni_cp1257_lithuanian_ci[] = {
 0x0173,0x0142,0x015B,0x016B,0x00FC,0x017C,0x017E,0x02D9
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_latin5
 static const uchar ctype_latin5_turkish_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -2322,9 +2283,7 @@ static const uint16 to_uni_latin5_turkish_ci[] = {
 0x00F8,0x00F9,0x00FA,0x00FB,0x00FC,0x0131,0x015F,0x00FF
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_armscii8
 static const uchar ctype_armscii8_general_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -2437,9 +2396,7 @@ static const uint16 to_uni_armscii8_general_ci[] = {
 0x0554,0x0584,0x0555,0x0585,0x0556,0x0586,0x2019,0x0027
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_cp866
 static const uchar ctype_cp866_general_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -2552,9 +2509,7 @@ static const uint16 to_uni_cp866_general_ci[] = {
 0x00B0,0x2219,0x00B7,0x221A,0x207F,0x00B2,0x25A0,0x00A0
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_keybcs2
 static const uchar ctype_keybcs2_general_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -2667,9 +2622,7 @@ static const uint16 to_uni_keybcs2_general_ci[] = {
 0x00B0,0x2219,0x00B7,0x221A,0x207F,0x00B2,0x25A0,0x00A0
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_macce
 static const uchar ctype_macce_general_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -2782,9 +2735,7 @@ static const uint16 to_uni_macce_general_ci[] = {
 0x00DD,0x00FD,0x0137,0x017B,0x0141,0x017C,0x0122,0x02C7
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_macroman
 static const uchar ctype_macroman_general_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -2897,9 +2848,7 @@ static const uint16 to_uni_macroman_general_ci[] = {
 0x00AF,0x02D8,0x02D9,0x02DA,0x00B8,0x02DD,0x02DB,0x02C7
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_cp852
 static const uchar ctype_cp852_general_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -3012,9 +2961,7 @@ static const uint16 to_uni_cp852_general_ci[] = {
 0x00B0,0x00A8,0x02D9,0x0171,0x0158,0x0159,0x25A0,0x00A0
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_latin7
 static const uchar ctype_latin7_general_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -3127,9 +3074,7 @@ static const uint16 to_uni_latin7_general_ci[] = {
 0x0173,0x0142,0x015B,0x016B,0x00FC,0x017C,0x017E,0x2019
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_latin7
 static const uchar ctype_latin7_general_cs[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -3242,9 +3187,7 @@ static const uint16 to_uni_latin7_general_cs[] = {
 0x0173,0x0142,0x015B,0x016B,0x00FC,0x017C,0x017E,0x2019
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_macce
 static const uchar ctype_macce_bin[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -3338,9 +3281,7 @@ static const uint16 to_uni_macce_bin[] = {
 0x00DD,0x00FD,0x0137,0x017B,0x0141,0x017C,0x0122,0x02C7
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_cp1250
 static const uchar ctype_cp1250_croatian_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -3453,9 +3394,7 @@ static const uint16 to_uni_cp1250_croatian_ci[] = {
 0x0159,0x016F,0x00FA,0x0171,0x00FC,0x00FD,0x0163,0x02D9
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_latin1
 static const uchar ctype_latin1_general_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -3568,9 +3507,7 @@ static const uint16 to_uni_latin1_general_ci[] = {
 0x00F8,0x00F9,0x00FA,0x00FB,0x00FC,0x00FD,0x00FE,0x00FF
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_latin1
 static const uchar ctype_latin1_general_cs[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -3683,9 +3620,7 @@ static const uint16 to_uni_latin1_general_cs[] = {
 0x00F8,0x00F9,0x00FA,0x00FB,0x00FC,0x00FD,0x00FE,0x00FF
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_cp1251
 static const uchar ctype_cp1251_bin[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -3779,9 +3714,7 @@ static const uint16 to_uni_cp1251_bin[] = {
 0x0448,0x0449,0x044A,0x044B,0x044C,0x044D,0x044E,0x044F
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_cp1251
 static const uchar ctype_cp1251_general_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -3894,9 +3827,7 @@ static const uint16 to_uni_cp1251_general_ci[] = {
 0x0448,0x0449,0x044A,0x044B,0x044C,0x044D,0x044E,0x044F
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_cp1251
 static const uchar ctype_cp1251_general_cs[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -4009,9 +3940,7 @@ static const uint16 to_uni_cp1251_general_cs[] = {
 0x0448,0x0449,0x044A,0x044B,0x044C,0x044D,0x044E,0x044F
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_macroman
 static const uchar ctype_macroman_bin[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -4105,9 +4034,7 @@ static const uint16 to_uni_macroman_bin[] = {
 0x00AF,0x02D8,0x02D9,0x02DA,0x00B8,0x02DD,0x02DB,0x02C7
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_cp1256
 static const uchar ctype_cp1256_general_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -4220,9 +4147,7 @@ static const uint16 to_uni_cp1256_general_ci[] = {
 0x0651,0x00F9,0x0652,0x00FB,0x00FC,0x200E,0x200F,0x0000
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_cp1257
 static const uchar ctype_cp1257_bin[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -4316,9 +4241,7 @@ static const uint16 to_uni_cp1257_bin[] = {
 0x0173,0x0142,0x015B,0x016B,0x00FC,0x017C,0x017E,0x02D9
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_cp1257
 static const uchar ctype_cp1257_general_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -4431,9 +4354,7 @@ static const uint16 to_uni_cp1257_general_ci[] = {
 0x0173,0x0142,0x015B,0x016B,0x00FC,0x017C,0x017E,0x02D9
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_armscii8
 static const uchar ctype_armscii8_bin[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -4527,9 +4448,7 @@ static const uint16 to_uni_armscii8_bin[] = {
 0x0554,0x0584,0x0555,0x0585,0x0556,0x0586,0x2019,0x0027
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_ascii
 static const uchar ctype_ascii_bin[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -4623,9 +4542,7 @@ static const uint16 to_uni_ascii_bin[] = {
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_cp1250
 static const uchar ctype_cp1250_bin[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -4719,9 +4636,7 @@ static const uint16 to_uni_cp1250_bin[] = {
 0x0159,0x016F,0x00FA,0x0171,0x00FC,0x00FD,0x0163,0x02D9
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_cp1256
 static const uchar ctype_cp1256_bin[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -4815,9 +4730,7 @@ static const uint16 to_uni_cp1256_bin[] = {
 0x0651,0x00F9,0x0652,0x00FB,0x00FC,0x200E,0x200F,0x0000
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_cp866
 static const uchar ctype_cp866_bin[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -4911,9 +4824,7 @@ static const uint16 to_uni_cp866_bin[] = {
 0x00B0,0x2219,0x00B7,0x221A,0x207F,0x00B2,0x25A0,0x00A0
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_dec8
 static const uchar ctype_dec8_bin[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -5007,9 +4918,7 @@ static const uint16 to_uni_dec8_bin[] = {
 0x00F8,0x00F9,0x00FA,0x00FB,0x00FC,0x00FF,0x0000,0x0000
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_greek
 static const uchar ctype_greek_bin[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -5103,9 +5012,7 @@ static const uint16 to_uni_greek_bin[] = {
 0x03C8,0x03C9,0x03CA,0x03CB,0x03CC,0x03CD,0x03CE,0x0000
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_hebrew
 static const uchar ctype_hebrew_bin[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -5199,9 +5106,7 @@ static const uint16 to_uni_hebrew_bin[] = {
 0x05E8,0x05E9,0x05EA,0x0000,0x0000,0x200E,0x200F,0x0000
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_hp8
 static const uchar ctype_hp8_bin[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -5295,9 +5200,7 @@ static const uint16 to_uni_hp8_bin[] = {
 0x00BD,0x00AA,0x00BA,0x00AB,0x25A0,0x00BB,0x00B1,0x0000
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_keybcs2
 static const uchar ctype_keybcs2_bin[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -5391,9 +5294,7 @@ static const uint16 to_uni_keybcs2_bin[] = {
 0x00B0,0x2219,0x00B7,0x221A,0x207F,0x00B2,0x25A0,0x00A0
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_koi8r
 static const uchar ctype_koi8r_bin[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -5487,9 +5388,7 @@ static const uint16 to_uni_koi8r_bin[] = {
 0x042C,0x042B,0x0417,0x0428,0x042D,0x0429,0x0427,0x042A
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_koi8u
 static const uchar ctype_koi8u_bin[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -5583,9 +5482,7 @@ static const uint16 to_uni_koi8u_bin[] = {
 0x042C,0x042B,0x0417,0x0428,0x042D,0x0429,0x0427,0x042A
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_latin2
 static const uchar ctype_latin2_bin[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -5679,9 +5576,7 @@ static const uint16 to_uni_latin2_bin[] = {
 0x0159,0x016F,0x00FA,0x0171,0x00FC,0x00FD,0x0163,0x02D9
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_latin5
 static const uchar ctype_latin5_bin[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -5775,9 +5670,7 @@ static const uint16 to_uni_latin5_bin[] = {
 0x00F8,0x00F9,0x00FA,0x00FB,0x00FC,0x0131,0x015F,0x00FF
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_latin7
 static const uchar ctype_latin7_bin[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -5871,9 +5764,7 @@ static const uint16 to_uni_latin7_bin[] = {
 0x0173,0x0142,0x015B,0x016B,0x00FC,0x017C,0x017E,0x2019
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_cp850
 static const uchar ctype_cp850_bin[] = {
 0x00,
 0x20,0x30,0x30,0x30,0x30,0x30,0x30,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x30,0x30,
@@ -5967,9 +5858,7 @@ static const uint16 to_uni_cp850_bin[] = {
 0x00B0,0x00A8,0x00B7,0x00B9,0x00B3,0x00B2,0x25A0,0x00A0
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_cp852
 static const uchar ctype_cp852_bin[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -6063,9 +5952,7 @@ static const uint16 to_uni_cp852_bin[] = {
 0x00B0,0x00A8,0x02D9,0x0171,0x0158,0x0159,0x25A0,0x00A0
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_swe7
 static const uchar ctype_swe7_bin[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -6159,9 +6046,7 @@ static const uint16 to_uni_swe7_bin[] = {
 0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_geostd8
 static const uchar ctype_geostd8_general_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -6274,9 +6159,7 @@ static const uint16 to_uni_geostd8_general_ci[] = {
 0x0000,0x0000,0x0000,0x0000,0x0000,0x2116,0x0000,0x0000
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_geostd8
 static const uchar ctype_geostd8_bin[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -6370,9 +6253,7 @@ static const uint16 to_uni_geostd8_bin[] = {
 0x0000,0x0000,0x0000,0x0000,0x0000,0x2116,0x0000,0x0000
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_latin1
 static const uchar ctype_latin1_spanish_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -6485,9 +6366,7 @@ static const uint16 to_uni_latin1_spanish_ci[] = {
 0x00F8,0x00F9,0x00FA,0x00FB,0x00FC,0x00FD,0x00FE,0x00FF
 };
 
-#endif
 
-#ifdef HAVE_CHARSET_cp1250
 static const uchar ctype_cp1250_polish_ci[] = {
 0x00,
 0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x20,0x28,0x28,0x28,0x28,0x28,0x20,0x20,
@@ -6600,11 +6479,9 @@ static const uint16 to_uni_cp1250_polish_ci[] = {
 0x0159,0x016F,0x00FA,0x0171,0x00FC,0x00FD,0x0163,0x02D9
 };
 
-#endif
 
 extern "C" {
 CHARSET_INFO compiled_charsets[] = {
-#ifdef HAVE_CHARSET_dec8
 {
   3,0,0,
   MY_CS_COMPILED|MY_CS_PRIMARY,
@@ -6638,8 +6515,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_cp850
 {
   4,0,0,
   MY_CS_COMPILED|MY_CS_PRIMARY,
@@ -6673,8 +6548,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_latin1
 {
   5,0,0,
   MY_CS_COMPILED,
@@ -6708,8 +6581,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_hp8
 {
   6,0,0,
   MY_CS_COMPILED|MY_CS_PRIMARY,
@@ -6743,8 +6614,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_koi8r
 {
   7,0,0,
   MY_CS_COMPILED|MY_CS_PRIMARY,
@@ -6778,8 +6647,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_latin2
 {
   9,0,0,
   MY_CS_COMPILED|MY_CS_PRIMARY,
@@ -6813,8 +6680,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_swe7
 {
   10,0,0,
   MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_NONASCII,
@@ -6848,8 +6713,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_ascii
 {
   11,0,0,
   MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_PUREASCII,
@@ -6883,8 +6746,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_cp1251
 {
   14,0,0,
   MY_CS_COMPILED,
@@ -6918,8 +6779,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_latin1
 {
   15,0,0,
   MY_CS_COMPILED,
@@ -6953,8 +6812,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_hebrew
 {
   16,0,0,
   MY_CS_COMPILED|MY_CS_PRIMARY,
@@ -6988,8 +6845,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_latin7
 {
   20,0,0,
   MY_CS_COMPILED|MY_CS_CSSORT,
@@ -7023,8 +6878,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_latin2
 {
   21,0,0,
   MY_CS_COMPILED,
@@ -7058,8 +6911,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_koi8u
 {
   22,0,0,
   MY_CS_COMPILED|MY_CS_PRIMARY,
@@ -7093,8 +6944,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_cp1251
 {
   23,0,0,
   MY_CS_COMPILED,
@@ -7128,8 +6977,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_greek
 {
   25,0,0,
   MY_CS_COMPILED|MY_CS_PRIMARY,
@@ -7163,8 +7010,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_cp1250
 {
   26,0,0,
   MY_CS_COMPILED|MY_CS_PRIMARY,
@@ -7198,8 +7043,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_latin2
 {
   27,0,0,
   MY_CS_COMPILED,
@@ -7233,8 +7076,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_cp1257
 {
   29,0,0,
   MY_CS_COMPILED,
@@ -7268,8 +7109,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_latin5
 {
   30,0,0,
   MY_CS_COMPILED|MY_CS_PRIMARY,
@@ -7303,8 +7142,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_armscii8
 {
   32,0,0,
   MY_CS_COMPILED|MY_CS_PRIMARY,
@@ -7338,8 +7175,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_cp866
 {
   36,0,0,
   MY_CS_COMPILED|MY_CS_PRIMARY,
@@ -7373,8 +7208,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_keybcs2
 {
   37,0,0,
   MY_CS_COMPILED|MY_CS_PRIMARY,
@@ -7408,8 +7241,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_macce
 {
   38,0,0,
   MY_CS_COMPILED|MY_CS_PRIMARY,
@@ -7443,8 +7274,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_macroman
 {
   39,0,0,
   MY_CS_COMPILED|MY_CS_PRIMARY,
@@ -7478,8 +7307,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_cp852
 {
   40,0,0,
   MY_CS_COMPILED|MY_CS_PRIMARY,
@@ -7513,8 +7340,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_latin7
 {
   41,0,0,
   MY_CS_COMPILED|MY_CS_PRIMARY,
@@ -7548,8 +7373,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_latin7
 {
   42,0,0,
   MY_CS_COMPILED|MY_CS_CSSORT,
@@ -7583,8 +7406,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_macce
 {
   43,0,0,
   MY_CS_COMPILED|MY_CS_BINSORT,
@@ -7618,8 +7439,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_bin_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_cp1250
 {
   44,0,0,
   MY_CS_COMPILED,
@@ -7653,8 +7472,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_latin1
 {
   48,0,0,
   MY_CS_COMPILED,
@@ -7688,8 +7505,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_latin1
 {
   49,0,0,
   MY_CS_COMPILED|MY_CS_CSSORT,
@@ -7723,8 +7538,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_cp1251
 {
   50,0,0,
   MY_CS_COMPILED|MY_CS_BINSORT,
@@ -7758,8 +7571,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_bin_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_cp1251
 {
   51,0,0,
   MY_CS_COMPILED|MY_CS_PRIMARY,
@@ -7793,8 +7604,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_cp1251
 {
   52,0,0,
   MY_CS_COMPILED|MY_CS_CSSORT,
@@ -7828,8 +7637,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_macroman
 {
   53,0,0,
   MY_CS_COMPILED|MY_CS_BINSORT,
@@ -7863,8 +7670,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_bin_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_cp1256
 {
   57,0,0,
   MY_CS_COMPILED|MY_CS_PRIMARY,
@@ -7898,8 +7703,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_cp1257
 {
   58,0,0,
   MY_CS_COMPILED|MY_CS_BINSORT,
@@ -7933,8 +7736,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_bin_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_cp1257
 {
   59,0,0,
   MY_CS_COMPILED|MY_CS_PRIMARY,
@@ -7968,8 +7769,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_armscii8
 {
   64,0,0,
   MY_CS_COMPILED|MY_CS_BINSORT,
@@ -8003,8 +7802,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_bin_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_ascii
 {
   65,0,0,
   MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_PUREASCII,
@@ -8038,8 +7835,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_bin_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_cp1250
 {
   66,0,0,
   MY_CS_COMPILED|MY_CS_BINSORT,
@@ -8073,8 +7868,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_bin_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_cp1256
 {
   67,0,0,
   MY_CS_COMPILED|MY_CS_BINSORT,
@@ -8108,8 +7901,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_bin_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_cp866
 {
   68,0,0,
   MY_CS_COMPILED|MY_CS_BINSORT,
@@ -8143,8 +7934,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_bin_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_dec8
 {
   69,0,0,
   MY_CS_COMPILED|MY_CS_BINSORT,
@@ -8178,8 +7967,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_bin_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_greek
 {
   70,0,0,
   MY_CS_COMPILED|MY_CS_BINSORT,
@@ -8213,8 +8000,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_bin_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_hebrew
 {
   71,0,0,
   MY_CS_COMPILED|MY_CS_BINSORT,
@@ -8248,8 +8033,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_bin_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_hp8
 {
   72,0,0,
   MY_CS_COMPILED|MY_CS_BINSORT,
@@ -8283,8 +8066,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_bin_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_keybcs2
 {
   73,0,0,
   MY_CS_COMPILED|MY_CS_BINSORT,
@@ -8318,8 +8099,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_bin_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_koi8r
 {
   74,0,0,
   MY_CS_COMPILED|MY_CS_BINSORT,
@@ -8353,8 +8132,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_bin_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_koi8u
 {
   75,0,0,
   MY_CS_COMPILED|MY_CS_BINSORT,
@@ -8388,8 +8165,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_bin_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_latin2
 {
   77,0,0,
   MY_CS_COMPILED|MY_CS_BINSORT,
@@ -8423,8 +8198,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_bin_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_latin5
 {
   78,0,0,
   MY_CS_COMPILED|MY_CS_BINSORT,
@@ -8458,8 +8231,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_bin_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_latin7
 {
   79,0,0,
   MY_CS_COMPILED|MY_CS_BINSORT,
@@ -8493,8 +8264,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_bin_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_cp850
 {
   80,0,0,
   MY_CS_COMPILED|MY_CS_BINSORT,
@@ -8528,8 +8297,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_bin_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_cp852
 {
   81,0,0,
   MY_CS_COMPILED|MY_CS_BINSORT,
@@ -8563,8 +8330,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_bin_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_swe7
 {
   82,0,0,
   MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_NONASCII,
@@ -8598,8 +8363,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_bin_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_geostd8
 {
   92,0,0,
   MY_CS_COMPILED|MY_CS_PRIMARY,
@@ -8633,8 +8396,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_geostd8
 {
   93,0,0,
   MY_CS_COMPILED|MY_CS_BINSORT,
@@ -8668,8 +8429,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_bin_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_latin1
 {
   94,0,0,
   MY_CS_COMPILED,
@@ -8703,8 +8462,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
-#ifdef HAVE_CHARSET_cp1250
 {
   99,0,0,
   MY_CS_COMPILED,
@@ -8738,7 +8495,6 @@ CHARSET_INFO compiled_charsets[] = {
   &my_collation_8bit_simple_ci_handler,
 }
 ,
-#endif
 {
   0,0,0,
   MY_CS_COMPILED,

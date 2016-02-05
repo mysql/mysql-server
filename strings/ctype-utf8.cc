@@ -34,9 +34,6 @@
 
 
 
-#ifndef HAVE_CHARSET_utf8
-#define HAVE_CHARSET_utf8
-#endif
 
 
 static inline
@@ -5219,7 +5216,6 @@ my_strnxfrmlen_unicode_full_bin(const CHARSET_INFO *cs, size_t len)
 }
 
 
-#ifdef HAVE_CHARSET_utf8
 
 /*
   We consider bytes with code more than 127 as a letter.
@@ -7539,11 +7535,9 @@ int main()
 
 #endif
 
-#endif /* HAVE_CHARSET_UTF8 */
 
 
 
-#ifdef HAVE_CHARSET_utf8mb4
 
 /*
   We consider bytes with code more than 127 as a letter.
@@ -8500,5 +8494,3 @@ CHARSET_INFO my_charset_utf8mb4_bin=
   &my_charset_utf8mb4_handler,
   &my_collation_utf8mb4_bin_handler
 };
-
-#endif /* HAVE_CHARSET_utf8mb4 */

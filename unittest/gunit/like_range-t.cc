@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,47 +54,36 @@ test_like_range_for_charset(CHARSET_INFO *cs, const char *src, size_t src_len)
 
 static CHARSET_INFO *charset_list[]=
 {
-#ifdef HAVE_CHARSET_big5
   &my_charset_big5_chinese_ci,
   &my_charset_big5_bin,
-#endif
-#ifdef HAVE_CHARSET_euckr
+
   &my_charset_euckr_korean_ci,
   &my_charset_euckr_bin,
-#endif
-#ifdef HAVE_CHARSET_gb2312
+
   &my_charset_gb2312_chinese_ci,
   &my_charset_gb2312_bin,
-#endif
-#ifdef HAVE_CHARSET_gbk
+
   &my_charset_gbk_chinese_ci,
   &my_charset_gbk_bin,
-#endif
-#ifdef HAVE_CHARSET_gb18030
+
   &my_charset_gb18030_chinese_ci,
   &my_charset_gb18030_bin,
-#endif
-#ifdef HAVE_CHARSET_latin1
+
   &my_charset_latin1,
   &my_charset_latin1_bin,
-#endif
-#ifdef HAVE_CHARSET_sjis
+
   &my_charset_sjis_japanese_ci,
   &my_charset_sjis_bin,
-#endif
-#ifdef HAVE_CHARSET_tis620
+
   &my_charset_tis620_thai_ci,
   &my_charset_tis620_bin,
-#endif
-#ifdef HAVE_CHARSET_ujis
+
   &my_charset_ujis_japanese_ci,
   &my_charset_ujis_bin,
-#endif
-#ifdef HAVE_CHARSET_utf8
+
   &my_charset_utf8_general_ci,
   &my_charset_utf8_unicode_ci,
   &my_charset_utf8_bin,
-#endif
 };
 
 #if defined(GTEST_HAS_PARAM_TEST)

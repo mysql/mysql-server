@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -24,15 +24,6 @@
 #include <stdarg.h>
 
 
-#if defined(HAVE_CHARSET_utf16) || defined(HAVE_CHARSET_ucs2)
-#define HAVE_CHARSET_mb2
-#endif
-
-
-#if defined(HAVE_CHARSET_mb2) || defined(HAVE_CHARSET_utf32)
-#define HAVE_CHARSET_mb2_or_mb4
-#endif
-
 
 #ifndef EILSEQ
 #define EILSEQ ENOENT
@@ -45,7 +36,6 @@
 #define LFACTOR1  10000000000ULL
 #define LFACTOR2  100000000000ULL
 
-#ifdef HAVE_CHARSET_mb2_or_mb4
 static unsigned long lfactor[9]=
 { 1L, 10L, 100L, 1000L, 10000L, 100000L, 1000000L, 10000000L, 100000000L };
 
@@ -704,10 +694,8 @@ cnv:
 }
 } // extern "C"
 
-#endif /* HAVE_CHARSET_mb2_or_mb4 */
 
 
-#ifdef HAVE_CHARSET_mb2
 extern "C" {
 static longlong
 my_strtoll10_mb2(const CHARSET_INFO *cs,
@@ -1074,12 +1062,10 @@ my_lengthsp_mb2(const CHARSET_INFO *cs __attribute__((unused)),
 }
 } // extern "C"
 
-#endif /* HAVE_CHARSET_mb2*/
 
 
 
 
-#ifdef HAVE_CHARSET_utf16
 
 /*
   D800..DB7F - Non-provate surrogate high (896 pages)
@@ -1947,10 +1933,8 @@ CHARSET_INFO my_charset_utf16le_bin=
 };
 
 
-#endif /* HAVE_CHARSET_utf16 */
 
 
-#ifdef HAVE_CHARSET_utf32
 
 extern "C" {
 static int
@@ -2903,10 +2887,8 @@ CHARSET_INFO my_charset_utf32_bin=
 };
 
 
-#endif /* HAVE_CHARSET_utf32 */
 
 
-#ifdef HAVE_CHARSET_ucs2
 
 static const uchar ctype_ucs2[] = {
     0,
@@ -3566,6 +3548,3 @@ CHARSET_INFO my_charset_ucs2_bin=
     &my_charset_ucs2_handler,
     &my_collation_ucs2_bin_handler
 };
-
-
-#endif /* HAVE_CHARSET_ucs2 */

@@ -22129,7 +22129,6 @@ static size_t my_strnxfrm_any_uca(const CHARSET_INFO *cs,
 } // extern "C"
 
 
-#ifdef HAVE_CHARSET_ucs2
 /*
   UCS2 optimized CHARSET_INFO compatible wrappers.
 */
@@ -23011,10 +23010,8 @@ CHARSET_INFO my_charset_ucs2_vietnamese_ci=
 };
 
 
-#endif
 
 
-#ifdef HAVE_CHARSET_utf8
 MY_COLLATION_HANDLER my_collation_any_uca_handler =
 {
     my_coll_init_uca,	/* init */
@@ -23883,10 +23880,8 @@ CHARSET_INFO my_charset_utf8_vietnamese_ci=
 };
 
 
-#endif /* HAVE_CHARSET_utf8 */
 
 
-#ifdef HAVE_CHARSET_utf8mb4
 
 extern MY_CHARSET_HANDLER my_charset_utf8mb4_handler;
 
@@ -24712,10 +24707,8 @@ CHARSET_INFO my_charset_utf8mb4_vietnamese_ci=
 };
 
 
-#endif /* HAVE_CHARSET_utf8mb4 */
 
 
-#ifdef HAVE_CHARSET_utf32
 
 MY_COLLATION_HANDLER my_collation_utf32_uca_handler =
 {
@@ -25556,10 +25549,8 @@ CHARSET_INFO my_charset_utf32_vietnamese_ci=
 };
 
 
-#endif /* HAVE_CHARSET_utf32 */
 
 
-#ifdef HAVE_CHARSET_utf16
 
 
 MY_COLLATION_HANDLER my_collation_utf16_uca_handler =
@@ -26403,9 +26394,7 @@ CHARSET_INFO my_charset_utf16_vietnamese_ci=
 };
 
 
-#endif /* HAVE_CHARSET_utf16 */
 
-#ifdef HAVE_CHARSET_gb18030
 
 MY_COLLATION_HANDLER my_collation_gb18030_uca_handler =
 {
@@ -26483,5 +26472,3 @@ CHARSET_INFO my_charset_gb18030_unicode_520_ci=
     &my_charset_gb18030_uca_handler,
     &my_collation_gb18030_uca_handler
 };
-
-#endif /* HAVE_CHARSET_gb18030 */
