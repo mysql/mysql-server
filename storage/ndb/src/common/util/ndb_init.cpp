@@ -33,6 +33,8 @@ extern "C" void NdbMutex_SysEnd();
 extern "C" void NdbCondition_initialize();
 extern "C" int NdbThread_Init();
 extern "C" void NdbThread_End();
+extern "C" void NdbGetRUsage_Init();
+extern "C" void NdbGetRUsage_End();
 extern "C" int NdbLockCpu_Init();
 extern "C" void NdbLockCpu_End();
 
@@ -63,6 +65,7 @@ ndb_init_internal()
   NdbTick_Init();
   NdbCondition_initialize();
   NdbThread_Init();
+  NdbGetRUsage_Init();
   NdbLockCpu_Init();
 }
 
@@ -103,6 +106,7 @@ ndb_end_internal()
   if (g_eventLogger)
     destroy_event_logger(&g_eventLogger);
 
+  NdbGetRUsage_End();
   NdbLockCpu_End();
   NdbThread_End();
   NdbMutex_SysEnd();
