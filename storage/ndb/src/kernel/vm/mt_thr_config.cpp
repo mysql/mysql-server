@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1216,7 +1216,7 @@ THRConfigApplier::do_get_spintime(const unsigned short list[],
                                   unsigned cnt) const
 {
   const T_Thread* thr = find_thread(list, cnt);
-  return (bool)thr->m_spintime;
+  return thr->m_spintime;
 }
 
 bool
