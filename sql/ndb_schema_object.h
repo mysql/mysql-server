@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 
 /*
   Used for communication between the SQL thread performing
-  a schema operation and the schema disctribution thread.
+  a schema operation and the schema distribution thread.
 
   The SQL thread creates one NDB_SCHEMA_OBJECT in the hash and
   when the schema distribution thread has received new events it will
@@ -30,9 +30,9 @@
   the entry.
 */
 
-
-#include <my_thread.h> // my_bitmap.h
 #include <my_bitmap.h>
+#include <thr_mutex.h>
+#include <thr_cond.h>
 
 struct NDB_SCHEMA_OBJECT {
   native_mutex_t mutex; //Protects NDB_SCHEMA_OBJ and 'cond'
