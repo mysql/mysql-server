@@ -17,6 +17,10 @@
 #include "vio_priv.h"
 
 #ifdef HAVE_OPENSSL
+#ifndef HAVE_YASSL
+#include <openssl/dh.h>
+#include <openssl/bn.h>
+#endif
 
 static my_bool     ssl_algorithms_added    = FALSE;
 static my_bool     ssl_error_strings_loaded= FALSE;
