@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,6 +44,7 @@
 #include <signaldata/AlterTable.hpp>
 #include <signaldata/AlterTab.hpp>
 #include <signaldata/DihScanTab.hpp>
+#include <signaldata/DiGetNodes.hpp>
 #include <signaldata/SystemError.hpp>
 #include <signaldata/GCP.hpp>
 #include <signaldata/StopMe.hpp>
@@ -1088,6 +1089,25 @@ Suma::execCONTINUEB(Signal* signal){
     jam();
     check_wait_handover_timeout(signal);
     return;
+  case SumaContinueB::WAIT_SCAN_TAB_REQ:
+    jam();
+    sendDIH_SCAN_TAB_REQ(signal,
+                         signal->theData[1],
+                         signal->theData[2],
+                         signal->theData[3]);
+    return;
+  case SumaContinueB::WAIT_GET_FRAGMENT:
+  {
+    sendDIGETNODESREQ(signal,
+                      signal->theData[1],
+                      signal->theData[2],
+                      signal->theData[3]);
+    return;
+  }
+  default:
+  {
+    ndbrequire(false);
+  }
   }
 }
 
@@ -2570,8 +2590,12 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
   }
 
   Ptr<SyncRecord> syncPtr;
-  LocalDLList<SyncRecord> list(c_syncPool, subPtr.p->m_syncRecords);
-  if (!list.seizeFirst(syncPtr))
+  bool seize_ret;
+  {
+    LocalDLList<SyncRecord> list(c_syncPool, subPtr.p->m_syncRecords);
+    seize_ret = list.seizeFirst(syncPtr);
+  }
+  if (!seize_ret)
   {
     jam();
     releaseSections(handle);
@@ -2619,14 +2643,48 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
    */
   {
     jam();
-    DihScanTabReq* req = (DihScanTabReq*)signal->getDataPtrSend();
-    req->senderRef = reference();
-    req->senderData = syncPtr.i;
-    req->tableId = subPtr.p->m_tableId;
-    req->schemaTransId = subPtr.p->m_schemaTransId;
-    sendSignal(DBDIH_REF, GSN_DIH_SCAN_TAB_REQ, signal,
-               DihScanTabReq::SignalLength, JBB);
+    sendDIH_SCAN_TAB_REQ(signal,
+                         syncPtr.i,
+                         subPtr.p->m_tableId,
+                         subPtr.p->m_schemaTransId);
+    return;
   }
+}
+
+void
+Suma::sendDIH_SCAN_TAB_REQ(Signal *signal,
+                           Uint32 synPtrI,
+                           Uint32 tableId,
+                           Uint32 schemaTransId)
+{
+  DihScanTabReq* req = (DihScanTabReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->senderData = synPtrI;
+  req->tableId = tableId;
+  req->schemaTransId = schemaTransId;
+  req->jamBufferPtr = jamBuffer();
+  EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
+                 DihScanTabReq::SignalLength, JBB);
+  DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
+  Uint32 retCode = conf->senderData;
+  conf->senderData = synPtrI;
+  if (retCode == 0)
+  {
+    sendSignal(reference(),
+               GSN_DIH_SCAN_TAB_CONF,
+               signal,
+               DihScanTabConf::SignalLength,
+               JBB);
+  }
+  else
+  {
+    sendSignal(reference(),
+               GSN_DIH_SCAN_TAB_REF,
+               signal,
+               DihScanTabRef::SignalLength,
+               JBB);
+  }
+  return;
 }
 
 void
@@ -2646,7 +2704,7 @@ void
 Suma::execDIH_SCAN_TAB_REF(Signal* signal)
 {
   jamEntry();
-  DBUG_ENTER("Suma::execDI_FCOUNTREF");
+  DBUG_ENTER("Suma::execDIH_SCAN_TAB_REF");
   DihScanTabRef * ref = (DihScanTabRef*)signal->getDataPtr();
   switch ((DihScanTabRef::ErrorCode) ref->error)
   {
@@ -2663,9 +2721,15 @@ Suma::execDIH_SCAN_TAB_REF(Signal* signal)
       req->senderRef = reference();
       req->tableId = tableId;
       req->schemaTransId = schemaTransId;
-      sendSignalWithDelay(DBDIH_REF, GSN_DIH_SCAN_TAB_REQ, signal,
-                          DihScanTabReq::SignalLength,
-                          DihScanTabReq::RetryInterval);
+      signal->theData[0] = SumaContinueB::WAIT_SCAN_TAB_REQ;
+      signal->theData[1] = synPtrI;
+      signal->theData[2] = tableId;
+      signal->theData[3] = schemaTransId;
+      sendSignalWithDelay(reference(),
+                          GSN_CONTINUEB,
+                          signal,
+                          DihScanTabReq::RetryInterval,
+                          4);
       DBUG_VOID_RETURN;
     }
     ndbrequire(false);
@@ -2680,8 +2744,7 @@ void
 Suma::execDIH_SCAN_TAB_CONF(Signal* signal)
 {
   jamEntry();
-  DBUG_ENTER("Suma::execDI_FCOUNTCONF");
-  ndbassert(signal->getNoOfSections() == 0);
+  DBUG_ENTER("Suma::execDIH_SCAN_TAB_CONF");
   DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
   const Uint32 tableId = conf->tableId;
   const Uint32 fragCount = conf->fragmentCount;
@@ -2690,9 +2753,10 @@ Suma::execDIH_SCAN_TAB_CONF(Signal* signal)
   Ptr<SyncRecord> ptr;
   c_syncPool.getPtr(ptr, conf->senderData);
 
-  LocalDataBuffer<15> fragBuf(c_dataBufferPool, ptr.p->m_fragments);
-  ndbrequire(fragBuf.getSize() == 0);
-
+  {
+    LocalDataBuffer<15> fragBuf(c_dataBufferPool, ptr.p->m_fragments);
+    ndbrequire(fragBuf.getSize() == 0);
+  }
   ndbassert(fragCount >= ptr.p->m_frag_cnt);
   if (ptr.p->m_frag_cnt == 0)
   {
@@ -2700,107 +2764,107 @@ Suma::execDIH_SCAN_TAB_CONF(Signal* signal)
     ptr.p->m_frag_cnt = fragCount;
   }
   ptr.p->m_scan_cookie = scanCookie;
-
-  DihScanGetNodesReq* req = (DihScanGetNodesReq*)signal->getDataPtrSend();
-  req->senderRef = reference();
-  req->tableId = tableId;
-  req->scanCookie = scanCookie;
-  req->fragCnt = 1;
-  req->fragItem[0].senderData = ptr.i;
-  req->fragItem[0].fragId = 0;
-
-  sendSignal(DBDIH_REF, GSN_DIH_SCAN_GET_NODES_REQ, signal,
-             DihScanGetNodesReq::FixedSignalLength
-             + DihScanGetNodesReq::FragItem::Length,
-             JBB);
-
-  DBUG_VOID_RETURN;
+  sendDIGETNODESREQ(signal, ptr.i, tableId, 0);
+  return;
 }
 
 void
-Suma::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
+Suma::sendDIGETNODESREQ(Signal *signal,
+                        Uint32 synPtrI,
+                        Uint32 tableId,
+                        Uint32 fragNo)
 {
-  jamEntry();
-  DBUG_ENTER("Suma::execDIH_SCAN_GET_NODES_CONF");
-
-  /**
-   * Assume a short signal, with a single FragItem being returned
-   * as we do only single fragment requests in
-   * DIH_SCAN_GET_NODES_REQs sent from SUMA.
-   */
-  ndbassert(signal->getNoOfSections() == 0);
-  ndbassert(signal->getLength() ==
-            DihScanGetNodesConf::FixedSignalLength
-            + DihScanGetNodesConf::FragItem::Length);
-
-  DihScanGetNodesConf* conf = (DihScanGetNodesConf*)signal->getDataPtr();
-  const Uint32 tableId = conf->tableId;
-  const Uint32 fragNo = conf->fragItem[0].fragId;
-  const Uint32 nodeCount = conf->fragItem[0].count;
-  ndbrequire(nodeCount > 0 && nodeCount <= MAX_REPLICAS);
-
   Ptr<SyncRecord> ptr;
-  c_syncPool.getPtr(ptr, conf->fragItem[0].senderData);
+  c_syncPool.getPtr(ptr, synPtrI);
 
+  Uint32 loopCount = 0;
+  for ( ; fragNo < ptr.p->m_frag_cnt; fragNo++)
   {
-    LocalDataBuffer<15> fragBuf(c_dataBufferPool, ptr.p->m_fragments);
+    loopCount++;
+    DiGetNodesReq * const req = (DiGetNodesReq *)signal->getDataPtrSend();
+    req->tableId = tableId;
+    req->hashValue = fragNo;
+    req->distr_key_indicator = ZTRUE;
+    req->scan_indicator = ZTRUE;
+    req->jamBufferPtr = jamBuffer();
+    EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
+                   DiGetNodesReq::SignalLength, 0);
 
-    /**
-     * Add primary node for fragment to list
-     */
-    FragmentDescriptor fd;
-    fd.m_fragDesc.m_nodeId = conf->fragItem[0].nodes[0];
-    fd.m_fragDesc.m_fragmentNo = fragNo;
-    fd.m_fragDesc.m_lqhInstanceKey = conf->fragItem[0].instanceKey;
-    if (ptr.p->m_frag_id == ZNIL)
+    jamEntry();
+    DiGetNodesConf * conf = (DiGetNodesConf *)&signal->theData[0];
+    Uint32 errCode = conf->zero;
+    Uint32 instanceKey = (conf->reqinfo >> 24) & 127;
+    Uint32 nodeId = conf->nodes[0];
+    Uint32 nodeCount = (conf->reqinfo & 0xFF) + 1;
+    ndbrequire(errCode == 0);
+
     {
-      signal->theData[2] = fd.m_dummy;
-      fragBuf.append(&signal->theData[2], 1);
-    }
-    else if (ptr.p->m_frag_id == fragNo)
-    {
-      /*
-       * Given fragment must have a replica on this node.
+      LocalDataBuffer<15> fragBuf(c_dataBufferPool, ptr.p->m_fragments);
+
+      /**
+       * Add primary node for fragment to list
        */
-      const Uint32 ownNodeId = getOwnNodeId();
-      Uint32 i = 0;
-      for (i = 0; i < nodeCount; i++)
-        if (conf->fragItem[0].nodes[i] == ownNodeId)
-          break;
-      if (i == nodeCount)
+      FragmentDescriptor fd;
+      fd.m_fragDesc.m_nodeId = nodeId;
+      fd.m_fragDesc.m_fragmentNo = fragNo;
+      fd.m_fragDesc.m_lqhInstanceKey = instanceKey;
+      if (ptr.p->m_frag_id == ZNIL)
       {
-        sendSubSyncRef(signal, 1428);
-        return;
+        signal->theData[2] = fd.m_dummy;
+        fragBuf.append(&signal->theData[2], 1);
       }
-      fd.m_fragDesc.m_nodeId = ownNodeId;
-      signal->theData[2] = fd.m_dummy;
-      fragBuf.append(&signal->theData[2], 1);
+      else if (ptr.p->m_frag_id == fragNo)
+      {
+        /*
+         * Given fragment must have a replica on this node.
+         */
+        const Uint32 ownNodeId = getOwnNodeId();
+        Uint32 i = 0;
+        for (i = 0; i < nodeCount; i++)
+          if (conf->nodes[i] == ownNodeId)
+            break;
+        if (i == nodeCount)
+        {
+          sendSubSyncRef(signal, 1428);
+          return;
+        }
+        fd.m_fragDesc.m_nodeId = ownNodeId;
+        signal->theData[2] = fd.m_dummy;
+        fragBuf.append(&signal->theData[2], 1);
+      }
+    }
+    if (loopCount >= DiGetNodesReq::MAX_DIGETNODESREQS ||
+        ERROR_INSERTED(13050))
+    {
+      jam();
+      if (ERROR_INSERTED(13050))
+      {
+        CLEAR_ERROR_INSERT_VALUE;
+      }
+      signal->theData[0] = SumaContinueB::WAIT_GET_FRAGMENT;
+      signal->theData[1] = ptr.i;
+      signal->theData[2] = tableId;
+      signal->theData[3] = fragNo + 1;
+      sendSignal(reference(), GSN_CONTINUEB, signal,
+                 4, JBB);
+      return;
+    }
+    if  (ERROR_INSERTED(13049) &&
+         ((fragNo + 1) == ptr.p->m_frag_cnt))
+    {
+      jam();
+      CLEAR_ERROR_INSERT_VALUE;
+      signal->theData[0] = SumaContinueB::WAIT_GET_FRAGMENT;
+      signal->theData[1] = ptr.i;
+      signal->theData[2] = tableId;
+      signal->theData[3] = fragNo + 1;
+      sendSignal(reference(), GSN_CONTINUEB, signal,
+                 4, JBB);
     }
   }
-
-  const Uint32 nextFrag = fragNo + 1;
-  if(nextFrag == ptr.p->m_frag_cnt)
-  {
-    jam();
-
-    ptr.p->startScan(signal);
-    return;
-  }
-
-  DihScanGetNodesReq* req = (DihScanGetNodesReq*)signal->getDataPtrSend();
-  req->senderRef = reference();
-  req->tableId = tableId;
-  req->scanCookie = ptr.p->m_scan_cookie;
-  req->fragCnt = 1;
-  req->fragItem[0].senderData = ptr.i;
-  req->fragItem[0].fragId = nextFrag;
-
-  sendSignal(DBDIH_REF, GSN_DIH_SCAN_GET_NODES_REQ, signal,
-             DihScanGetNodesReq::FixedSignalLength
-             + DihScanGetNodesReq::FragItem::Length,
-             JBB);
-
-  DBUG_VOID_RETURN;
+  jam();
+  ptr.p->startScan(signal);
+  return;
 }
 
 /**********************************************************
@@ -3254,8 +3318,9 @@ Suma::SyncRecord::completeScan(Signal* signal, int error)
   DihScanTabCompleteRep* rep = (DihScanTabCompleteRep*)signal->getDataPtr();
   rep->tableId = subPtr.p->m_tableId;
   rep->scanCookie = m_scan_cookie;
-  suma.sendSignal(DBDIH_REF, GSN_DIH_SCAN_TAB_COMPLETE_REP, signal,
-                  DihScanTabCompleteRep::SignalLength, JBB);
+  rep->jamBufferPtr = jamBuffer();
+  suma.EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_COMPLETE_REP, signal,
+                      DihScanTabCompleteRep::SignalLength, JBB);
 
 #if PRINT_ONLY
   ndbout_c("GSN_SUB_SYNC_CONF (data)");
@@ -3279,11 +3344,13 @@ Suma::SyncRecord::completeScan(Signal* signal, int error)
 #endif
 
   release();
-  LocalDLList<SyncRecord> list(suma.c_syncPool, subPtr.p->m_syncRecords);
-  Ptr<SyncRecord> tmp;
-  tmp.i = ptrI;
-  tmp.p = this;
-  list.release(tmp);
+  {
+    LocalDLList<SyncRecord> list(suma.c_syncPool, subPtr.p->m_syncRecords);
+    Ptr<SyncRecord> tmp;
+    tmp.i = ptrI;
+    tmp.p = this;
+    list.release(tmp);
+  }
   
   DBUG_VOID_RETURN;
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -308,9 +308,11 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DIGETNODESCONF              210
 #define GSN_DIGETNODESREF               211
 #define GSN_DIGETNODESREQ               212
-#define GSN_DIH_SCAN_GET_NODES_REQ      213
-#define GSN_DIH_SCAN_GET_NODES_REF      215
-#define GSN_DIH_SCAN_GET_NODES_CONF     214
+
+/*
+ Signal 213, 214, 215 no longer used, was
+ DIH_SCAN_GET_NODES_REQ/CONF/REF
+*/
 
 #define GSN_DIH_RESTARTCONF             217
 #define GSN_DIH_RESTARTREF              218

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -94,10 +94,16 @@ public:
   /**
    * DIH signals
    */
+  void sendDIH_SCAN_TAB_REQ(Signal *signal,
+                            Uint32 synPtrI,
+                            Uint32 tableId,
+                            Uint32 schemaTransId);
+  void sendDIGETNODESREQ(Signal *signal,
+                         Uint32 synPtrI,
+                         Uint32 tableId,
+                         Uint32 fragNo);
   void execDIH_SCAN_TAB_REF(Signal* signal);
   void execDIH_SCAN_TAB_CONF(Signal* signal);
-  void execDIH_SCAN_GET_NODES_REF(Signal* signal);
-  void execDIH_SCAN_GET_NODES_CONF(Signal* signal);
   void execCHECKNODEGROUPSCONF(Signal *signal);
   void execGCP_PREPARE(Signal *signal);
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -251,7 +251,6 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_DIGETNODESREQ, &Dbdih::execDIGETNODESREQ);
   addRecSignal(GSN_STTOR, &Dbdih::execSTTOR);
   addRecSignal(GSN_DIH_SCAN_TAB_REQ, &Dbdih::execDIH_SCAN_TAB_REQ);
-  addRecSignal(GSN_DIH_SCAN_GET_NODES_REQ, &Dbdih::execDIH_SCAN_GET_NODES_REQ);
   addRecSignal(GSN_DIH_SCAN_TAB_COMPLETE_REP,
                &Dbdih::execDIH_SCAN_TAB_COMPLETE_REP);
   addRecSignal(GSN_GCP_TCFINISHED, &Dbdih::execGCP_TCFINISHED);
