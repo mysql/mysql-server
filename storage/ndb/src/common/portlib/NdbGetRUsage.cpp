@@ -32,6 +32,8 @@
 #include <mach/mach_init.h>
 #include <mach/thread_act.h>
 #include <mach/mach_port.h>
+
+mach_port_t our_mach_task = MACH_PORT_NULL;
 #endif
 
 #ifndef _WIN32
@@ -46,6 +48,24 @@ micros(struct timeval val)
 #endif
 #endif
 
+extern "C"
+void NdbGetRUsage_Init(void)
+{
+#ifdef HAVE_MAC_OS_X_THREAD_INFO
+  our_mach_task = mach_task_self();
+#endif
+}
+
+extern "C"
+void NdbGetRUsage_End(void)
+{
+#ifdef HAVE_MAC_OS_X_THREAD_INFO
+  if (our_mach_task != MACH_PORT_NULL)
+  {
+    mach_port_deallocate(our_mach_task, our_mach_task);
+  }
+#endif
+}
 
 extern "C"
 int
@@ -117,7 +137,7 @@ Ndb_GetRUsage(ndb_rusage* dst)
                            (thread_info_t) &basic_info,
                            &basic_info_count);
   
-    mach_port_deallocate(mach_task_self(), thread_port);
+    mach_port_deallocate(our_mach_task, thread_port);
 
     if (ret_code == KERN_SUCCESS)
     {
