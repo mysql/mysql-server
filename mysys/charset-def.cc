@@ -132,9 +132,6 @@ extern CHARSET_INFO my_charset_utf8_croatian_uca_ci;
 extern CHARSET_INFO my_charset_utf8_sinhala_uca_ci;
 extern CHARSET_INFO my_charset_utf8_unicode_520_ci;
 extern CHARSET_INFO my_charset_utf8_vietnamese_ci;
-#  ifdef HAVE_UTF8_GENERAL_CS
-extern CHARSET_INFO my_charset_utf8_general_cs;
-#  endif
 # endif
 
 # ifdef HAVE_CHARSET_utf8mb4
@@ -272,9 +269,6 @@ my_bool init_compiled_charsets(myf flags __attribute__((unused)))
   add_compiled_collation(&my_charset_utf8_tolower_ci);
   add_compiled_collation(&my_charset_utf8_bin);
   add_compiled_collation(&my_charset_utf8_general_mysql500_ci);
-#ifdef HAVE_UTF8_GENERAL_CS
-  add_compiled_collation(&my_charset_utf8_general_cs);
-#endif
   add_compiled_collation(&my_charset_utf8_unicode_ci);
   add_compiled_collation(&my_charset_utf8_german2_uca_ci);
   add_compiled_collation(&my_charset_utf8_icelandic_uca_ci);
