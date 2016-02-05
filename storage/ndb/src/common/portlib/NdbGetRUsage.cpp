@@ -14,6 +14,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <NdbGetRUsage.h>
+#include <NdbMutex.h>
 
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -99,7 +100,7 @@ Ndb_GetRUsage(ndb_rusage* dst)
 #elif defined(HAVE_MAC_OS_X_THREAD_INFO)
   mach_port_t thread_port;
   kern_return_t ret_code;
-  mach_msg_type_number_t basic_info_count;
+  mach_msg_type_number_t basic_info_count = THREAD_BASIC_INFO_COUNT;
   thread_basic_info_data_t basic_info;
 
   /**
@@ -108,7 +109,8 @@ Ndb_GetRUsage(ndb_rusage* dst)
    * the code with keeping track of this value.
    */
   thread_port = mach_thread_self();
-  if (thread_port != MACH_PORT_NULL)
+  if (thread_port != MACH_PORT_NULL &&
+      thread_port != MACH_PORT_DEAD)
   {
     ret_code = thread_info(thread_port,
                            THREAD_BASIC_INFO,
@@ -139,6 +141,11 @@ Ndb_GetRUsage(ndb_rusage* dst)
     {
       res = -1;
     }
+  }
+  else if (thread_port == MACH_PORT_DEAD)
+  {
+    mach_port_deallocate(our_mach_task, thread_port);
+    res = -3;
   }
   else
   {
