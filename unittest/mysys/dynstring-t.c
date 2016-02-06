@@ -47,25 +47,25 @@ int main(void)
   check("'space inside'");
 
   ok(dynstr_append_os_quoted(&str1, "single'quote", NULL) == 0, "append");
-  check("'single\\'quote'");
+  check("'single'\"'\"'quote'");
 
   ok(dynstr_append_os_quoted(&str1, "many'single'quotes", NULL) == 0, "append");
-  check("'many\\'single\\'quotes'");
+  check("'many'\"'\"'single'\"'\"'quotes'");
 
   ok(dynstr_append_os_quoted(&str1, "'single quoted'", NULL) == 0, "append");
-  check("'\\'single quoted\\''");
+  check("''\"'\"'single quoted'\"'\"''");
 
   ok(dynstr_append_os_quoted(&str1, "double\"quote", NULL) == 0, "append");
   check("'double\"quote'");
 
   ok(dynstr_append_os_quoted(&str1, "mixed\"single'and\"double'quotes", NULL) == 0, "append");
-  check("'mixed\"single\\'and\"double\\'quotes'");
+  check("'mixed\"single'\"'\"'and\"double'\"'\"'quotes'");
 
   ok(dynstr_append_os_quoted(&str1, "back\\space", NULL) == 0, "append");
   check("'back\\space'");
 
   ok(dynstr_append_os_quoted(&str1, "backspace\\'and\\\"quote", NULL) == 0, "append");
-  check("'backspace\\\\'and\\\"quote'");
+  check("'backspace\\'\"'\"'and\\\"quote'");
 
   dynstr_free(&str1);
 

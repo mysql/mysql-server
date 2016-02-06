@@ -143,8 +143,10 @@ my_bool dynstr_append_os_quoted(DYNAMIC_STRING *str, const char *append, ...)
 {
 #ifdef __WIN__
   LEX_CSTRING quote= { C_STRING_WITH_LEN("\"") };
+  LEX_CSTRING replace= { C_STRING_WITH_LEN("\\\"") };
 #else
   LEX_CSTRING quote= { C_STRING_WITH_LEN("\'") };
+  LEX_CSTRING replace= { C_STRING_WITH_LEN("'\"'\"'") };
 #endif /* __WIN__ */
   my_bool ret= TRUE;
   va_list dirty_text;
@@ -160,8 +162,7 @@ my_bool dynstr_append_os_quoted(DYNAMIC_STRING *str, const char *append, ...)
     while(*(next_pos= strcend(cur_pos, quote.str[0])) != '\0')
     {
       ret&= dynstr_append_mem(str, cur_pos, (uint) (next_pos - cur_pos));
-      ret&= dynstr_append_mem(str, STRING_WITH_LEN("\\"));
-      ret&= dynstr_append_mem(str, quote.str, quote.length);
+      ret&= dynstr_append_mem(str, replace.str, replace.length);
       cur_pos= next_pos + 1;
     }
     ret&= dynstr_append_mem(str, cur_pos, (uint) (next_pos - cur_pos));
