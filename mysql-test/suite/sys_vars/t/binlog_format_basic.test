@@ -27,6 +27,7 @@
 # We just verify that the default binlog_format is STATEMENT in 5.1.
 # In 6.0, it should be MIXED.
 ###################################################################
+--replace_column 1 #
 SELECT @@GLOBAL.binlog_format;
 
 --echo '#---------------------BS_STVARS_002_01----------------------#'

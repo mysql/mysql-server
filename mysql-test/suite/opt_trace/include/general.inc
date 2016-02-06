@@ -455,6 +455,10 @@ set @old_opt_switch=@@optimizer_switch;
 set optimizer_switch="materialization=off";
 set optimizer_trace_offset=0, optimizer_trace_limit=100;
 call p1("c")|
+# Regex to replace 'NAME_CONST(var_name,value)' with 'var_name'
+# in the opt trace when the variables used are declared within
+# procedures or passed as arguments and log-bin is enabled.
+--replace_regex /[ ]NAME_CONST[(][\'](.*)[\'][,][^)]*[)]/\1/
 select * from information_schema.OPTIMIZER_TRACE|
 set @@optimizer_switch=@old_opt_switch;
 
@@ -502,6 +506,10 @@ begin
   select d+1 into res from t6 where d=res+1;
 end|
 call  p1("c")|
+# Regex to replace 'NAME_CONST(var_name,value)' with 'var_name'
+# in the opt trace when the variables used are declared within
+# procedures or passed as arguments and log-bin is enabled.
+--replace_regex /[ ]NAME_CONST[(][\'](.*)[\'][,][^)]*[)]/\1/
 select * from optt|
 select @@optimizer_trace|
 delimiter ;|

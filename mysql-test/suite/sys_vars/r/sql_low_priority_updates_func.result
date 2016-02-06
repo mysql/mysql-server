@@ -63,7 +63,7 @@ UPDATE t1 SET a = CONCAT(a,"-updated");|
 ** Connection con0 **
 ** Asynchronous Execution **
 LOCK TABLE t1 READ;
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY a ASC;
 UNLOCK TABLES;|
 ** Connection default **
 UNLOCK TABLES;

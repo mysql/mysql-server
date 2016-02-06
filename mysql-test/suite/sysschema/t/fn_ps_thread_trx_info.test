@@ -6,6 +6,8 @@
 # yet have a summary view that we can use for this view.
 # Until then, we disable this test with --ps-protocol
 -- source include/no_protocol.inc
+# Skipping the test when log-bin is enabled due to Bug#22636699
+-- source include/not_log_bin.inc
 
 # Passing unknown connection id should return NULL
 SELECT sys.ps_thread_trx_info(234623462376);

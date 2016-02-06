@@ -249,11 +249,11 @@ update t1 set a=6 where c between -1 and 0
 order by c;
 select * from t1;
 a	b	c
-6	-6	-6
 2	-2	-2
 3	-3	-3
 4	-4	-4
 5	-5	-5
+6	-6	-6
 delete from t1 where c between -6 and 0;
 select * from t1;
 a	b	c
@@ -272,11 +272,11 @@ update t1 set a=6 where c between -1 and 0
 order by c limit 2;
 select * from t1;
 a	b	c
-6	-6	-6
 2	-2	-2
 3	-3	-3
 4	-4	-4
 5	-5	-5
+6	-6	-6
 delete from t1 where c between -2 and 0 order by c;
 select * from t1;
 a	b	c
@@ -299,11 +299,11 @@ a	b	c
 update t1 set a=6 where (c between -2 and 0) and (b=-1);
 select * from t1;
 a	b	c
-6	-6	-6
 2	-2	-2
 3	-3	-3
 4	-4	-4
 5	-5	-5
+6	-6	-6
 delete from t1;
 # INDEX created on gcol 
 # UPDATE tbl_name SET non-gcol=expr
@@ -320,11 +320,11 @@ a	b	c
 update t1 set a=6 where (c between -2 and 0) and (b=-1) order by c;
 select * from t1;
 a	b	c
-6	-6	-6
 2	-2	-2
 3	-3	-3
 4	-4	-4
 5	-5	-5
+6	-6	-6
 delete from t1;
 drop table t1;
 #
