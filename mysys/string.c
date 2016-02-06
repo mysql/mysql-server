@@ -142,16 +142,14 @@ my_bool dynstr_trunc(DYNAMIC_STRING *str, size_t n)
 my_bool dynstr_append_os_quoted(DYNAMIC_STRING *str, const char *append, ...)
 {
 #ifdef __WIN__
-  const char *quote_str= "\"";
-  const uint  quote_len= 1;
+  LEX_CSTRING quote= { C_STRING_WITH_LEN("\"") };
 #else
-  const char *quote_str= "\'";
-  const uint  quote_len= 1;
+  LEX_CSTRING quote= { C_STRING_WITH_LEN("\'") };
 #endif /* __WIN__ */
   my_bool ret= TRUE;
   va_list dirty_text;
 
-  ret&= dynstr_append_mem(str, quote_str, quote_len); /* Leading quote */
+  ret&= dynstr_append_mem(str, quote.str, quote.length); /* Leading quote */
   va_start(dirty_text, append);
   while (append != NullS)
   {
@@ -159,18 +157,18 @@ my_bool dynstr_append_os_quoted(DYNAMIC_STRING *str, const char *append, ...)
     const char *next_pos= cur_pos;
 
     /* Search for quote in each string and replace with escaped quote */
-    while(*(next_pos= strcend(cur_pos, quote_str[0])) != '\0')
+    while(*(next_pos= strcend(cur_pos, quote.str[0])) != '\0')
     {
       ret&= dynstr_append_mem(str, cur_pos, (uint) (next_pos - cur_pos));
-      ret&= dynstr_append_mem(str ,"\\", 1);
-      ret&= dynstr_append_mem(str, quote_str, quote_len);
+      ret&= dynstr_append_mem(str, STRING_WITH_LEN("\\"));
+      ret&= dynstr_append_mem(str, quote.str, quote.length);
       cur_pos= next_pos + 1;
     }
     ret&= dynstr_append_mem(str, cur_pos, (uint) (next_pos - cur_pos));
     append= va_arg(dirty_text, char *);
   }
   va_end(dirty_text);
-  ret&= dynstr_append_mem(str, quote_str, quote_len); /* Trailing quote */
+  ret&= dynstr_append_mem(str, quote.str, quote.length); /* Trailing quote */
 
   return ret;
 }
