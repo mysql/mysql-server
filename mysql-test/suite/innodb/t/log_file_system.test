@@ -1,6 +1,9 @@
 # WL#7806 InnoDB: Log-based discovery of built-in tablespaces
 # Test the detection of innodb_data_file_path mismatch.
 
+# Temporarily skipping the test when log-bin is enabled due to Bug#22269500
+--source include/not_log_bin.inc
+
 --source include/have_innodb.inc
 # Embedded server does not support restarting
 --source include/not_embedded.inc

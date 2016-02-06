@@ -1,6 +1,9 @@
 # Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
 -- source include/not_embedded.inc
 
+# Temporarily skipping the test when log-bin is enabled due to Bug#22508362
+--source include/not_log_bin.inc
+
 # *********************************************************
 # Test Multiple Spatial Indexes on compression table
 # Test spatial index with table having primary key column

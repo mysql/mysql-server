@@ -35,6 +35,9 @@ drop table t1, t2;
 # This bug is triggered when the binlog format is STATEMENT and the
 # binary log is turned off. In this case, no error should be shown for
 # the statement since there are no replication issues.
+SET @save_log_bin= @@sql_log_bin;
+SET @save_binlog_format=@@binlog_format;
+SET @@sql_log_bin = 0;
 
 SET SESSION BINLOG_FORMAT=STATEMENT;
 SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
@@ -42,6 +45,9 @@ query_vertical select @@session.sql_log_bin, @@session.binlog_format, @@session.
 CREATE TABLE t1 ( a INT ) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(1);
 DROP TABLE t1;
+
+SET @@sql_log_bin=@save_log_bin;
+SET @@binlog_format=@save_binlog_format;
 
 --echo #
 --echo # Bug#37284 Crash in Field_string::type()
