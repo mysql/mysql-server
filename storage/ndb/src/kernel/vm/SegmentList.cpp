@@ -1013,7 +1013,7 @@ TAPTEST(SegmentList)
    * 
    * Will print "OK" in success case and return 0
    */
-
+  ndb_init();
   g_sectionSegmentPool.setSize(NUM_SEGMENTS);
 
   printf("g_sectionSegmentPool size is %u\n",
@@ -1040,10 +1040,12 @@ TAPTEST(SegmentList)
 
     printf("\nOK\n");
 
+    ndb_end(0);
     return 1;
   } while(0);
 
   printf("\nFAILED\n");
+  ndb_end(0);
   return 0;
 }
 
