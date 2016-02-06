@@ -5211,7 +5211,7 @@ static st_error global_error_names[] =
 #include <my_base.h>
 static st_error handler_error_names[] =
 {
-  { "<No error>", -1U, "" },
+  { "<No error>", UINT_MAX, "" },
 #include <handler_ername.h>
   { 0, 0, 0 }
 };

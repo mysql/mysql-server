@@ -88,7 +88,7 @@ const char *client_errors[]=
   ""
 };
 
-const char** get_client_errmsgs()
+const char** get_client_errmsgs(void)
 {
   return client_errors;
 }

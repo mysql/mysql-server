@@ -86,10 +86,12 @@ typedef volatile LONG my_pthread_once_t;
 #define MY_PTHREAD_ONCE_INPROGRESS 1
 #define MY_PTHREAD_ONCE_DONE 2
 
+#if !STRUCT_TIMESPEC_HAS_TV_SEC  || !STRUCT_TIMESPEC_HAS_TV_NSEC
 struct timespec {
   time_t tv_sec;
   long tv_nsec;
 };
+#endif
 
 int win_pthread_mutex_trylock(pthread_mutex_t *mutex);
 int pthread_create(pthread_t *, const pthread_attr_t *, pthread_handler, void *);
