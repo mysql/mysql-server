@@ -3519,7 +3519,6 @@ TESTCASE("MTR_AddNodesAndRestart1",
          "3. Reorganize partition and optimize table"
          "Should be run only once")
 {
-  TABLE("T1")
   INITIALIZER(runWaitStarted);
   INITIALIZER(runFillTable);
   INITIALIZER(runAddNodes);
@@ -3533,7 +3532,6 @@ TESTCASE("MTR_AddNodesAndRestart2",
          "4. Kill 2 nodes during reorganization"
          "Should be run only once")
 {
-  TABLE("T1")
   TC_PROPERTY("WaitForNodeKillStart", true);
   TC_PROPERTY("NodesKilledDuringStep", true);
   INITIALIZER(runWaitStarted);
