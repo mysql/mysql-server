@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -80,7 +80,6 @@ MY_BITMAP slave_error_mask;
 char slave_skip_error_names[SHOW_VAR_FUNC_BUFF_SIZE];
 
 char* slave_load_tmpdir = 0;
-Master_info *active_mi= 0;
 my_bool replicate_same_server_id;
 ulonglong relay_log_space_limit = 0;
 
@@ -222,7 +221,7 @@ static int terminate_slave_thread(THD *thd,
 static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info);
 static int mts_event_coord_cmp(LOG_POS_COORD *id1, LOG_POS_COORD *id2);
 
-static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli);
+static int check_slave_sql_config_conflict(const Relay_log_info *rli);
 
 /*
   Applier thread InnoDB priority.
@@ -411,13 +410,6 @@ int init_slave()
     goto err;
   }
 
-  /*
-     for only ndb, create active_mi. we removed
-     active_mi from other part of the code except names and comments.
-   */
-
-  active_mi= channel_map.get_default_channel_mi();
-
 #ifndef DBUG_OFF
   /* @todo: Print it for all the channels */
   {
@@ -454,6 +446,12 @@ int init_slave()
                           mi->get_channel(), mi->get_channel());
       }
     }
+  }
+
+  if (check_slave_sql_config_conflict(NULL))
+  {
+    error= 1;
+    goto err;
   }
 
   /*
@@ -958,6 +956,13 @@ find_first_relay_log_with_rotate_from_master(Relay_log_info* rli)
   char master_log_file[FN_REFLEN];
   my_off_t master_log_pos= 0;
 
+  if (channel_map.is_group_replication_channel_name(rli->get_channel()))
+  {
+    sql_print_information("Relay log recovery skipped for group replication "
+                          "channel.");
+    goto err;
+  }
+
   for (pos= rli->relay_log.find_log_pos(&linfo, NULL, true);
        !pos;
        pos= rli->relay_log.find_next_log(&linfo, true))
@@ -1114,10 +1119,14 @@ int init_recovery(Master_info* mi, const char** errmsg)
   /*
     Clear the retrieved GTID set so that events that are written partially
     will be fetched again.
-    */
-  global_sid_lock->wrlock();
-  (const_cast<Gtid_set *>(rli->get_gtid_set()))->clear();
-  global_sid_lock->unlock();
+  */
+  if (!channel_map.is_group_replication_channel_name(rli->get_channel()))
+  {
+    global_sid_lock->wrlock();
+    (const_cast<Gtid_set *>(rli->get_gtid_set()))->clear();
+    global_sid_lock->unlock();
+  }
+
   DBUG_RETURN(error);
 }
 
@@ -1595,6 +1604,8 @@ int terminate_slave_threads(Master_info* mi, int thread_mask,
    owned by the caller of this function and will remain acquired after
    return from the function.
 
+   @param thd
+          Current session.
    @param term_lock
           Associated lock to use when waiting for @c term_cond
 
@@ -1973,7 +1984,7 @@ void delete_slave_info_objects()
    Check if multi-statement transaction mode and master and slave info
    repositories are set to table.
 
-   @param THD    THD object
+   @param thd    THD object
 
    @retval true  Success
    @retval false Failure
@@ -2018,16 +2029,18 @@ static bool io_slave_killed(THD* thd, Master_info* mi)
 */
 bool sql_slave_killed(THD* thd, Relay_log_info* rli)
 {
-  bool ret= FALSE;
   bool is_parallel_warn= FALSE;
 
   DBUG_ENTER("sql_slave_killed");
 
   DBUG_ASSERT(rli->info_thd == thd);
   DBUG_ASSERT(rli->slave_running == 1);
+  if (rli->sql_thread_kill_accepted)
+    DBUG_RETURN(true);
   if (connection_events_loop_aborted() || thd->killed || rli->abort_slave)
   {
-    is_parallel_warn= (rli->is_parallel_exec() && 
+    rli->sql_thread_kill_accepted= true;
+    is_parallel_warn= (rli->is_parallel_exec() &&
                        (rli->is_mts_in_group() || thd->killed));
     /*
       Slave can execute stop being in one of two MTS or Single-Threaded mode.
@@ -2057,7 +2070,6 @@ bool sql_slave_killed(THD* thd, Relay_log_info* rli)
         "In such cases you have to examine your data (see documentation for "
         "details).";
 
-      ret= TRUE;
       if (rli->abort_slave)
       {
         DBUG_PRINT("info", ("Request to stop slave SQL Thread received while "
@@ -2077,14 +2089,16 @@ bool sql_slave_killed(THD* thd, Relay_log_info* rli)
 
         if (rli->last_event_start_time == 0)
           rli->last_event_start_time= my_time(0);
-        ret= difftime(my_time(0), rli->last_event_start_time) <=
-          SLAVE_WAIT_GROUP_DONE ? FALSE : TRUE;
+        rli->sql_thread_kill_accepted= difftime(my_time(0),
+                                               rli->last_event_start_time) <=
+                                               SLAVE_WAIT_GROUP_DONE ?
+                                               FALSE : TRUE;
 
-        DBUG_EXECUTE_IF("stop_slave_middle_group", 
+        DBUG_EXECUTE_IF("stop_slave_middle_group",
                         DBUG_EXECUTE_IF("incomplete_group_in_relay_log",
-                                        ret= TRUE;);); // time is over
+                                        rli->sql_thread_kill_accepted= TRUE;);); // time is over
 
-        if (!ret && !rli->reported_unsafe_warning)
+        if (!rli->sql_thread_kill_accepted && !rli->reported_unsafe_warning)
         {
           rli->report(WARNING_LEVEL, 0,
                       !is_parallel_warn ?
@@ -2098,8 +2112,13 @@ bool sql_slave_killed(THD* thd, Relay_log_info* rli)
           rli->reported_unsafe_warning= true;
         }
       }
-      if (ret)
+      if (rli->sql_thread_kill_accepted)
       {
+        rli->last_event_start_time= 0;
+        if (rli->mts_group_status == Relay_log_info::MTS_IN_GROUP)
+        {
+          rli->mts_group_status= Relay_log_info::MTS_KILLED_GROUP;
+        }
         if (is_parallel_warn)
           rli->report(!rli->is_error() ? ERROR_LEVEL :
                       WARNING_LEVEL,    // an error was reported by Worker
@@ -2111,21 +2130,8 @@ bool sql_slave_killed(THD* thd, Relay_log_info* rli)
                       ER_THD(thd, ER_SLAVE_FATAL_ERROR), msg_stopped);
       }
     }
-    else
-    {
-      ret= TRUE;
-    }
   }
-  if (ret)
-  {
-    rli->last_event_start_time= 0;
-    if (rli->mts_group_status == Relay_log_info::MTS_IN_GROUP)
-    {
-      rli->mts_group_status= Relay_log_info::MTS_KILLED_GROUP;
-    }
-  }
-  
-  DBUG_RETURN(ret);
+  DBUG_RETURN(rli->sql_thread_kill_accepted);
 }
 
 
@@ -4320,7 +4326,7 @@ static ulong read_event(MYSQL* mysql, Master_info *mi, bool* suppress_warnings)
     }
     else
     {
-      if (!mi->rli->abort_slave) 
+      if (!mi->abort_slave)
       {
         sql_print_error("Error reading packet from server%s: %s (server_errno=%d)",
                         mi->get_for_channel_str(), mysql_error(mysql),
@@ -6632,7 +6638,9 @@ err:
    communication channels such as Assigned Partition Hash (APH),
    and starting the Worker pool.
 
-   @param  n   Number of configured Workers in the upcoming session.
+   @param rli             Pointer to Coordinator's Relay_log_info instance.
+   @param n               Number of configured Workers in the upcoming session.
+   @param[out] mts_inited If the initialization processed was started.
 
    @return 0         success
            non-zero  as failure
@@ -6951,6 +6959,7 @@ extern "C" void *handle_slave_sql(void *arg)
   rli->slave_run_id++;
   rli->slave_running = 1;
   rli->reported_unsafe_warning= false;
+  rli->sql_thread_kill_accepted= false;
 
   if (init_slave_thread(thd, SLAVE_THD_SQL))
   {
@@ -8495,7 +8504,6 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
 #ifdef HAVE_OPENSSL
   if (mi->ssl)
   {
-    const static my_bool ssl_enforce_true= TRUE;
     mysql_ssl_set(mysql,
                   mi->ssl_key[0]?mi->ssl_key:0,
                   mi->ssl_cert[0]?mi->ssl_cert:0,
@@ -8512,10 +8520,14 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                   mi->tls_version[0] ? mi->tls_version : 0);
     mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH,
                   mi->ssl_crlpath[0] ? mi->ssl_crlpath : 0);
-    mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
-                  &mi->ssl_verify_server_cert);
-    /* we always enforce SSL if SSL is turned on */
-    mysql_options(mysql, MYSQL_OPT_SSL_ENFORCE, &ssl_enforce_true);
+    enum mysql_ssl_mode ssl_mode;
+    if (mi->ssl_verify_server_cert)
+      ssl_mode= SSL_MODE_VERIFY_IDENTITY;
+    else if (mi->ssl_ca[0] || mi->ssl_capath[0])
+      ssl_mode= SSL_MODE_VERIFY_CA;
+    else
+      ssl_mode= SSL_MODE_REQUIRED;
+    mysql_options(mysql, MYSQL_OPT_SSL_MODE, &ssl_mode);
   }
 #endif
 
@@ -9807,7 +9819,7 @@ bool start_slave(THD* thd,
         mysql_mutex_unlock(&mi->rli->data_lock);
 
         if (!is_error)
-          is_error= check_slave_sql_config_conflict(thd, mi->rli);
+          is_error= check_slave_sql_config_conflict(mi->rli);
       }
       else if (master_param->pos || master_param->relay_log_pos || master_param->gtid)
         push_warning(thd, Sql_condition::SL_NOTE, ER_UNTIL_COND_IGNORED,
@@ -10296,6 +10308,8 @@ static bool have_change_master_execute_option(const LEX_MASTER_INFO* lex_mi,
 
   @param mi     Pointer to Master_info object belonging to the slave's IO
                 thread.
+
+  @param need_relay_log_purge If the slave need to purge the current relay log
 
   @retval 0    no error i.e., success.
   @retval !=0  error.
@@ -11156,16 +11170,32 @@ err:
 /**
   Check if there is any slave SQL config conflict.
 
-  @param[in] thd The THD object of current session.
   @param[in] rli The slave's rli object.
 
   @return 0 is returned if there is no conflict, otherwise 1 is returned.
  */
-static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli)
+static int check_slave_sql_config_conflict(const Relay_log_info *rli)
 {
-  if (opt_slave_preserve_commit_order && rli->opt_slave_parallel_workers > 0)
+  int channel_mts_submode, slave_parallel_workers;
+
+  if (rli)
   {
-    if (rli->channel_mts_submode == MTS_PARALLEL_TYPE_DB_NAME)
+    channel_mts_submode= rli->channel_mts_submode;
+    slave_parallel_workers= rli->opt_slave_parallel_workers;
+  }
+  else
+  {
+    /*
+      When the slave is first initialized, we collect the values from the
+      command line options
+    */
+    channel_mts_submode= mts_parallel_option;
+    slave_parallel_workers= opt_mts_slave_parallel_workers;
+  }
+
+  if (opt_slave_preserve_commit_order && slave_parallel_workers > 0)
+  {
+    if (channel_mts_submode == MTS_PARALLEL_TYPE_DB_NAME)
     {
       my_error(ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER, MYF(0),
                "when slave_parallel_type is DATABASE");
@@ -11173,7 +11203,7 @@ static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli)
     }
 
     if ((!opt_bin_log || !opt_log_slave_updates) &&
-        rli->channel_mts_submode == MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
+        channel_mts_submode == MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
     {
       my_error(ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER, MYF(0),
                "unless the binlog and log_slave update options are "
@@ -11182,15 +11212,18 @@ static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli)
     }
   }
 
-  const char* channel= const_cast<Relay_log_info*>(rli)->get_channel();
-  if (rli->opt_slave_parallel_workers > 0 &&
-      rli->channel_mts_submode != MTS_PARALLEL_TYPE_LOGICAL_CLOCK &&
-      channel_map.is_group_replication_channel_name(channel, true))
+  if (rli)
   {
-      my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
-               "START SLAVE SQL_THREAD when SLAVE_PARALLEL_WORKERS > 0 "
-               "and SLAVE_PARALLEL_TYPE != LOGICAL_CLOCK", channel);
-      return ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED;
+    const char* channel= const_cast<Relay_log_info*>(rli)->get_channel();
+    if (slave_parallel_workers > 0 &&
+        channel_mts_submode != MTS_PARALLEL_TYPE_LOGICAL_CLOCK &&
+        channel_map.is_group_replication_channel_name(channel, true))
+    {
+        my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
+                 "START SLAVE SQL_THREAD when SLAVE_PARALLEL_WORKERS > 0 "
+                 "and SLAVE_PARALLEL_TYPE != LOGICAL_CLOCK", channel);
+        return ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED;
+    }
   }
 
   return 0;

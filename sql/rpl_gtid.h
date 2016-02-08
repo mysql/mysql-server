@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -27,6 +27,7 @@
 #include <list>
 #include "atomic_class.h"
 #include "typelib.h"
+#include "template_utils.h"
 
 struct TABLE_LIST;
 
@@ -719,6 +720,13 @@ private:
     rpl_sid sid;
   };
 
+  static const uchar *sid_map_get_key(const uchar *ptr, size_t *length)
+  {
+    const Node *node= pointer_cast<const Node*>(ptr);
+    *length= binary_log::Uuid::BYTE_LENGTH;
+    return node->sid.bytes;
+  }
+
   /**
     Create a Node from the given SIDNO and SID and add it to
     _sidno_to_sid, _sid_to_sidno, and _sorted.
@@ -1008,6 +1016,7 @@ struct Gtid
   /**
     Parses the given string and stores in this Gtid.
 
+    @param sid_map sid_map to use when converting SID to a sidno.
     @param text The text to parse
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
@@ -2192,6 +2201,12 @@ private:
     /// Owner of the group.
     my_thread_id owner;
   };
+  static const uchar* node_get_key(const uchar *ptr, size_t *size)
+  {
+    const Node *node= pointer_cast<const Node*>(ptr);
+    *size= sizeof(rpl_gno);
+    return pointer_cast<const uchar*>(&node->gno);
+  }
   /// Read-write lock that protects updates to the number of SIDs.
   mutable Checkable_rwlock *sid_lock;
   /// Returns the HASH for the given SIDNO.
@@ -2929,7 +2944,8 @@ public:
     - Send a broadcast on the condition variable for every sidno for
       which we released ownership.
 
-    @param[in] thd - Thread for which owned groups are updated.
+    @param[in] thd Thread for which owned groups are updated.
+    @param[in] is_commit If true, the update is for a commit (not a rollback).
   */
   void update_gtids_impl(THD *thd, bool is_commit);
 
@@ -3160,6 +3176,7 @@ struct Gtid_specification
   /**
     Parses the given string and stores in this Gtid_specification.
 
+    @param sid_map sid_map to use when converting SID to a sidno.
     @param text The text to parse
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */

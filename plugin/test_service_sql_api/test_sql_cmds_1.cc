@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -417,7 +417,7 @@ static void test_com_query(void *p)
   WRITE_STR("-----------------------------------------------------------------\n");
   memset(&sql_str_value, 0, 64 * 64 * 256 * sizeof(char));
   memset(&sql_str_len, 0, 64 * 64 * sizeof(size_t));
-  cmd.com_query.query= "SELECT * FROM information_schema.global_variables WHERE variable_name LIKE 'INNODB_READ_IO_THREADS'";
+  cmd.com_query.query= "SELECT * FROM performance_schema.global_variables WHERE variable_name LIKE 'INNODB_READ_IO_THREADS'";
   cmd.com_query.length= strlen(cmd.com_query.query);
   WRITE_VAL("%s\n", cmd.com_query.query);
   cbd.reset();
@@ -653,9 +653,7 @@ static int test_query_kill(void *p)
     my_thread_attr_t attr;
 
     my_thread_attr_init(&attr);
-#ifndef _WIN32
-    (void) pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-#endif
+    (void) my_thread_attr_setdetachstate(&attr, MY_THREAD_CREATE_JOINABLE);
 
     if (my_thread_create(&thread_handle, &attr, (void *(*)(void *))test_session_thread, &tdata) != 0)
     {

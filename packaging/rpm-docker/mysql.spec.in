@@ -178,10 +178,10 @@ done
 rm -rf %{buildroot}%{_libdir}/mysql/libmysql*
 
 # Removing some tools
-for f in innochecksum myisamchk myisam_ftdump myisamlog myisampack mysqladmin \
+for f in innochecksum ibd2sdi myisamchk myisam_ftdump myisamlog myisampack mysqladmin \
          mysqlbinlog mysqlcheck mysql_client_test mysql_config_editor \
          mysqld_multi mysqld_safe mysqldumpslow mysql_embedded mysqlimport \
-         mysql_plugin mysql_secure_installation mysqlshow mysqlslap  mysqltest \
+         mysql_secure_installation mysqlshow mysqlslap  mysqltest \
          perror replace  resolveip  resolve_stack_dump lz4_decompress \
          zlib_decompress; do
     rm -f %{buildroot}%{_bindir}/$f

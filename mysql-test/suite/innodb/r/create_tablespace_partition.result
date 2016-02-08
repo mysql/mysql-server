@@ -35,14 +35,17 @@ SUBPARTITION subpart22 TABLESPACE=`s``1`),
 PARTITION thousands VALUES LESS THAN (10000)
 (SUBPARTITION subpart31 DATA DIRECTORY 'MYSQL_TMP_DIR',
 SUBPARTITION subpart32 DATA DIRECTORY 'MYSQL_TMP_DIR' TABLESPACE `innodb_file_per_table`));
-ALTER TABLE t1 ADD PARTITION
+ALTER TABLE t1 ALGORITHM=COPY, ADD PARTITION
+(PARTITION tenthousands VALUES LESS THAN (20000));
+ERROR 0A000: ALGORITHM=COPY/INPLACE is not supported. Reason: Partition specific operations do not yet support LOCK/ALGORITHM. Try ALGORITHM=DEFAULT.
+ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
 (PARTITION tenthousands VALUES LESS THAN (20000));
 # Only allow tablespace name as ident, not text. I.e. no 'single' quotes.
-ALTER TABLE t1 ADD PARTITION
+ALTER TABLE t1 ALGORITHM=COPY, ADD PARTITION
 (PARTITION twentythousands VALUES LESS THAN (30000)
 TABLESPACE = 'innodb_system');
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''innodb_system')' at line 3
-ALTER TABLE t1 ADD PARTITION
+ALTER TABLE t1 ALGORITHM=COPY, ADD PARTITION
 (PARTITION twentythousands VALUES LESS THAN (30000)
 TABLESPACE = "innodb_system");
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"innodb_system")' at line 3
@@ -50,20 +53,20 @@ SET @old_sql_mode = @@sql_mode;
 SET @@sql_mode = 'ANSI_QUOTES';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-ALTER TABLE t1 ADD PARTITION
+ALTER TABLE t1 ALGORITHM=COPY, ADD PARTITION
 (PARTITION twentythousands VALUES LESS THAN (30000)
 TABLESPACE = 'innodb_system');
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''innodb_system')' at line 3
-ALTER TABLE t1 ADD PARTITION
+ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
 (PARTITION twentythousands VALUES LESS THAN (30000)
 TABLESPACE = "innodb_system");
-ALTER TABLE t1 ADD PARTITION
+ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
 (PARTITION thirtythousands VALUES LESS THAN (40000)
 TABLESPACE = `innodb_file_per_table`);
 SET @@sql_mode = @old_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-ALTER TABLE t1 ADD PARTITION
+ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
 (PARTITION fortythousands VALUES LESS THAN (50000)
 (SUBPARTITION p40k_1 TABLESPACE = innodb_system DATA DIRECTORY = 'MYSQL_TMP_DIR',
 SUBPARTITION p40k_2 DATA DIRECTORY = 'MYSQL_TMP_DIR'));
@@ -89,20 +92,20 @@ t3	CREATE TABLE `t3` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/'
 DROP TABLE t3;
-ALTER TABLE t1 ADD PARTITION
+ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
 (PARTITION fortythousands VALUES LESS THAN (50000)
 (SUBPARTITION p40k_1 DATA DIRECTORY = 'MYSQL_TMP_DIR',
 SUBPARTITION p40k_2 TABLESPACE = innodb_file_per_table DATA DIRECTORY = 'MYSQL_TMP_DIR'));
 SET GLOBAL innodb_file_per_table = OFF;
-ALTER TABLE t1 ADD PARTITION
+ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
 (PARTITION fiftythousands VALUES LESS THAN (60000));
-ALTER TABLE t1 ADD PARTITION
+ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
 (PARTITION sixtythousands VALUES LESS THAN (70000)
 TABLESPACE = `innodb_system`);
-ALTER TABLE t1 ADD PARTITION
+ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
 (PARTITION seventythousands VALUES LESS THAN (80000)
 TABLESPACE = `innodb_file_per_table`);
-ALTER TABLE t1 ADD PARTITION
+ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
 (PARTITION eightythousands VALUES LESS THAN (90000)
 (SUBPARTITION p80k_1 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR',
 SUBPARTITION p80k_2 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR'));
@@ -114,7 +117,7 @@ CREATE TABLE t4 (a int)
 ENGINE = InnoDB
 TABLESPACE = innodb_system DATA DIRECTORY = 'MYSQL_TMP_DIR';
 ERROR HY000: InnoDB: DATA DIRECTORY cannot be used with a TABLESPACE assignment.
-ALTER TABLE t1 ADD PARTITION
+ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
 (PARTITION ninetythousands VALUES LESS THAN (100000)
 (SUBPARTITION p90k_1 TABLESPACE = `innodb_file_per_table`,
 SUBPARTITION p90k_2 TABLESPACE = `innodb_system`));
@@ -330,7 +333,9 @@ SUBPARTITION BY KEY (b)
  (SUBPARTITION subpart31 DATA DIRECTORY = 'MYSQL_TMP_DIR/' ENGINE = InnoDB,
   SUBPARTITION subpart32 TABLESPACE = "innodb_file_per_table" DATA DIRECTORY = 'MYSQL_TMP_DIR/' ENGINE = InnoDB)) */
 # DISCARD will only work on the first partitions that use file_per_table
-ALTER TABLE t1 DISCARD TABLESPACE;
+ALTER TABLE t1 ALGORITHM=INPLACE, DISCARD TABLESPACE;
+ERROR 0A000: ALGORITHM=COPY/INPLACE is not supported for this operation. Try ALGORITHM=DEFAULT.
+ALTER TABLE t1 ALGORITHM=DEFAULT, DISCARD TABLESPACE;
 ERROR 42000: InnoDB: Cannot discard table `test/t1#p#hundreds#sp#subpart21` because it is in a general tablespace. It must be file-per-table.
 SET @@sql_mode = @old_sql_mode;
 Warnings:
@@ -515,6 +520,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` int(11) DEFAULT NULL
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/'
+ALTER TABLE t3 DISCARD TABLESPACE;
 DROP TABLE t1, t2, t3;
 DROP TABLESPACE s1;
 DROP TABLESPACE `s``1`;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -290,6 +290,8 @@ existing order
 ALTER TABLE. stage->begin_phase_read_pk() will be called at the beginning of
 this function and it will be passed to other functions for further accounting.
 @param[in]	add_v		new virtual columns added along with indexes
+@param[in]	eval_table	mysql table used to evaluate virtual column
+				value, see innobase_get_computed_value().
 @return DB_SUCCESS or error code */
 dberr_t
 row_merge_build_indexes(
@@ -307,17 +309,20 @@ row_merge_build_indexes(
 	ib_sequence_t&		sequence,
 	bool			skip_pk_sort,
 	ut_stage_alter_t*	stage,
-	const dict_add_v_col_t*	add_v)
+	const dict_add_v_col_t*	add_v,
+	struct TABLE*		eval_table)
 __attribute__((warn_unused_result));
 
-/********************************************************************//**
-Write a buffer to a block. */
+/** Write a buffer to a block.
+@param[in]	buf	sorted buffer
+@param[in]	of	output file
+@param[out]	block	buffer for writing to file */
 void
 row_merge_buf_write(
-/*================*/
-	const row_merge_buf_t*	buf,	/*!< in: sorted buffer */
-	const merge_file_t*	of,	/*!< in: output file */
-	row_merge_block_t*	block);	/*!< out: buffer for writing to file */
+	const row_merge_buf_t*	buf,
+	const merge_file_t*	of,
+	row_merge_block_t*	block);
+
 /********************************************************************//**
 Sort a buffer. */
 void

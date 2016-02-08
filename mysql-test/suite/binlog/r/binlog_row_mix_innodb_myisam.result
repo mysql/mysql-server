@@ -260,6 +260,8 @@ insert into t0 select GET_LOCK("lock1",null);
 set autocommit=0;
 create table t2 (n int) engine=innodb;
 insert into t2 values (3);
+include/save_binlog_position.inc
+include/assert_binlog_events.inc [(Anonymous_)?Gtid # !Q(DROP.*TEMPORARY.*) # (Anonymous_)?Gtid # !Q(DROP.*TEMPORARY.*)]
 select get_lock("lock1",60);
 get_lock("lock1",60)
 1

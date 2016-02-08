@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -78,6 +78,8 @@ private:
 
     @param[in]  nparam              Number of fields in the file.
     @param[in]  param_pattern_fname File's name.
+    @param[in]  indexed             indicates whether the file is indexed and
+                                    if so there is a range to count in.
     @param[out] counter             Number of files found.
 
     @retval false Success
@@ -85,7 +87,7 @@ private:
   */
   static bool do_count_info(const int nparam,
                             const char* param_pattern_fname,
-                            bool name_indexed,
+                            bool indexed,
                             uint* counter);
   static int do_reset_info(int const nparam,
                            const char* param_pattern_fname,

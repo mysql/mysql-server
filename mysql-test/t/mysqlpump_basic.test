@@ -405,7 +405,14 @@ SELECT * FROM t5 ORDER BY 1;
 --echo # compress using lz4
 --exec $MYSQL_PUMP --databases bug21644479 --compress-output=lz4 --result-file=$MYSQLTEST_VARDIR/tmp/bug21644479.lz4
 --echo # uncompress using lz4_decompress
+if ($LZ4_DECOMPRESS)
+{
 --exec $LZ4_DECOMPRESS $MYSQLTEST_VARDIR/tmp/bug21644479.lz4 $MYSQLTEST_VARDIR/tmp/bug21644479_lz4.sql
+}
+if (!$LZ4_DECOMPRESS)
+{
+--exec lz4 -d $MYSQLTEST_VARDIR/tmp/bug21644479.lz4 $MYSQLTEST_VARDIR/tmp/bug21644479_lz4.sql 
+}
 DROP DATABASE bug21644479;
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug21644479_lz4.sql
 
@@ -420,7 +427,14 @@ SELECT * FROM t5 ORDER BY 1;
 --echo # compress using zlib
 --exec $MYSQL_PUMP --databases bug21644479 --compress-output=zlib --result-file=$MYSQLTEST_VARDIR/tmp/bug21644479.zlib
 --echo # uncompress using zlib_decompress
+if ($ZLIB_DECOMPRESS)
+{
 --exec $ZLIB_DECOMPRESS $MYSQLTEST_VARDIR/tmp/bug21644479.zlib $MYSQLTEST_VARDIR/tmp/bug21644479_zlib.sql
+}
+if (!$ZLIB_DECOMPRESS)
+{
+--exec openssl zlib -d < $MYSQLTEST_VARDIR/tmp/bug21644479.zlib > $MYSQLTEST_VARDIR/tmp/bug21644479_zlib.sql
+}
 DROP DATABASE bug21644479;
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug21644479_zlib.sql
 
@@ -477,3 +491,22 @@ SELECT * FROM t1;
 SELECT * FROM t2;
 SELECT * FROM t3;
 DROP DATABASE bug21650559;
+
+#echo
+#echo Bug #22505474 MYSQLPUMP FAILS WHEN IS DUMPING ALL DATABASES
+#echo
+
+CREATE DATABASE bug22505474;
+USE bug22505474;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+CREATE VIEW `v 1` AS SELECT * FROM t1;
+SELECT * FROM `v 1`;
+--exec $MYSQL_PUMP --databases bug22505474 > $MYSQLTEST_VARDIR/tmp/bug22505474.sql
+DROP DATABASE bug22505474;
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug22505474.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/bug22505474.sql
+USE bug22505474;
+SELECT * FROM t1;
+SELECT * FROM `v 1`;
+DROP DATABASE bug22505474;

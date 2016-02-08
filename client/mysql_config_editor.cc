@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -848,12 +848,9 @@ error:
   option is used, print all the optins stored in the login
   file.
 
-  @param file_buf  [in]   Buffer storing the unscrambled login
+  @param [in] file_buf    Buffer storing the unscrambled login
                           file contents.
-  @param path_name [in]   Path name.
-
-  @return                 void
-
+  @param [in] path_name   Path name.
 */
 
 static void print_login_path(DYNAMIC_STRING *file_buf, const char *path_name)
@@ -900,7 +897,7 @@ done:
   Print the specified buffer by masking the actual
   password string.
 
-  @param buf [in]         Buffer to be printed.
+  @param [in] buf          Buffer to be printed.
 */
 
 static void mask_password_and_print(char *buf)
@@ -1033,12 +1030,9 @@ done:
 /**
   Remove the specified login path from the login file.
 
-  @param file_buf  [in]   Buffer storing the unscrambled login
+  @param [in] file_buf    Buffer storing the unscrambled login
                           file contents.
-  @param path_name [in]   Path name.
-
-  @return                 void
-
+  @param [in] path_name   Path name.
 */
 
 static void remove_login_path(DYNAMIC_STRING *file_buf, const char *path_name)
@@ -1080,7 +1074,7 @@ done:
 /**
   Remove all the contents from the login file.
 
-  @param gen_key [in]     Flag to control the generation of
+  @param [in] gen_key     Flag to control the generation of
                           a new key.
 
   @return -1              Error
@@ -1118,9 +1112,9 @@ error:
   Find the specified login path in the login file buffer
   and return the starting address.
 
-  @param file_buf  [in]   Buffer storing the unscrambled login
+  @param [in] file_buf    Buffer storing the unscrambled login
                           file contents.
-  @param path_name [in]   Path name.
+  @param [in] path_name   Path name.
 
   @return                 If found, the starting address of the
                           login path, NULL otherwise.
@@ -1158,7 +1152,7 @@ static char* locate_login_path(DYNAMIC_STRING *file_buf, const char *path_name)
 /**
   Encrypt the file buffer and write it to the login file.
 
-  @param file_buf  [in]   Buffer storing the unscrambled login
+  @param [in] file_buf    Buffer storing the unscrambled login
                           file contents.
 
   @return -1 Error
@@ -1247,7 +1241,7 @@ error:
   Read the login file, unscramble its contents and store
   them into the file buffer.
 
-  @param file_buf  [in]   Buffer for storing the unscrambled login
+  @param [in] file_buf    Buffer for storing the unscrambled login
                           file contents.
 
   @return -1 Error
@@ -1326,9 +1320,9 @@ static int encrypt_buffer(const char *plain, int plain_len, char cipher[], const
 /**
   Decrypt the given cipher text.
 
-  @param cipher     [in]  Cipher text to be decrypted.
-  @param cipher_len [in]  Length of the cipher text.
-  @param plain      [out] Decrypted plain text.
+  @param [in] cipher      Cipher text to be decrypted.
+  @param [in] cipher_len  Length of the cipher text.
+  @param [out] plain      Decrypted plain text.
 
   @return                 -1 if error encountered,
                           length decrypted, otherwise.

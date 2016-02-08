@@ -864,8 +864,8 @@ rec_convert_dtuple_to_rec_comp(
 				*lens-- = (byte) len;
 			}
 		}
-
-		memcpy(end, dfield_get_data(field), len);
+		if (len > 0)
+			memcpy(end, dfield_get_data(field), len);
 		end += len;
 	}
 

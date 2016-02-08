@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,9 +22,7 @@
 #define SQL_OPT_EXEC_SHARED_INCLUDED
 
 #include "my_base.h"
-#include "item.h"               // Item
 #include "sql_alloc.h"          // Sql_alloc
-#include "temp_table_param.h"   // Temp_table_param
 
 class JOIN;
 class Item_func_match;
@@ -84,7 +82,7 @@ typedef struct st_table_ref : public Sql_alloc
   */
   bool          **cond_guards;
   /**
-    (null_rejecting & (1<<i)) means the condition is '=' and no matching
+    @code (null_rejecting & (1<<i)) @endcode means the condition is '=' and no matching
     rows will be produced if items[i] IS NULL (see add_not_null_conds())
   */
   key_part_map  null_rejecting;
@@ -305,9 +303,9 @@ public:
   /**
     Set available tables for a table in a join plan.
 
-    @param prefix_tables_arg: Set of tables available for this plan
-    @param prev_tables_arg: Set of tables available for previous table, used to
-                            calculate set of tables added for this table.
+    @param prefix_tables_arg Set of tables available for this plan
+    @param prev_tables_arg   Set of tables available for previous table, used to
+                             calculate set of tables added for this table.
   */
   void set_prefix_tables(table_map prefix_tables_arg, table_map prev_tables_arg)
   {
@@ -318,7 +316,7 @@ public:
   /**
     Add an available set of tables for a table in a join plan.
 
-    @param tables: Set of tables added for this table in plan.
+    @param tables Set of tables added for this table in plan.
   */
   void add_prefix_tables(table_map tables)
   { prefix_tables_map|= tables; added_tables_map|= tables; }

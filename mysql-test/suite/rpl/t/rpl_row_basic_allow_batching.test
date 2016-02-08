@@ -18,7 +18,7 @@ let $extra_index= ;
 --connection slave
 stop slave;
 set global slave_allow_batching=OFF;
-start slave;
+--source include/start_slave.inc
 
 --source include/rpl_end.inc
 

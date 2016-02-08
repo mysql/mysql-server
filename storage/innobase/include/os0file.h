@@ -857,6 +857,7 @@ Add instrumentation to monitor file creation/open.
 				and srv_.. variables whether we really use
 				async I/O or unbuffered I/O: look in the
 				function source code for the exact rules
+@param[in]	type		OS_DATA_FILE or OS_LOG_FILE
 @param[in]	read_only	if true read only mode checks are enforced
 @param[out]	success		true if succeeded
 @param[in]	src_file	file name where func invoked
@@ -1258,6 +1259,8 @@ os_file_read_no_error_handling_func(
 function!
 Requests a synchronous write operation.
 @param[in,out]	type		IO request context
+@param[in]	name		name of the file or path as a null-terminated
+				string
 @param[in]	file		Open file handle
 @param[out]	buf		buffer where to read
 @param[in]	offset		file offset where to read

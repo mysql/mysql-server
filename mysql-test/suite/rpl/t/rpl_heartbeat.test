@@ -15,6 +15,8 @@
 --source include/master-slave.inc
 
 connection slave;
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
 set @restore_slave_net_timeout= @@global.slave_net_timeout;
 set @@global.slave_net_timeout= 10;
 
@@ -326,7 +328,7 @@ RESET SLAVE ALL;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
 --eval change master to master_host= '127.0.0.1', master_port= $MASTER_MYPORT, master_user= 'root'
-
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 # The table might have replicated again after RESET SLAVE.
 --source include/start_slave.inc
 --connection master

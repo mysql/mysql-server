@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -110,7 +110,7 @@ bool Table_impl::validate() const
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
              Table_impl::OBJECT_TABLE().name().c_str(),
-             "Engine not set.");
+             "Engine name is not set.");
     return true;
   }
 
@@ -238,7 +238,7 @@ bool Table_impl::restore_attributes(const Raw_record &r)
 
   set_se_private_data_raw(r.read_str(Tables::FIELD_SE_PRIVATE_DATA, ""));
 
-  m_engine= r.read_str(Tables::FIELD_ENGINE, "");
+  m_engine= r.read_str(Tables::FIELD_ENGINE);
 
   m_partition_expression= r.read_str(Tables::FIELD_PARTITION_EXPRESSION, "");
   m_subpartition_expression= r.read_str(Tables::FIELD_SUBPARTITION_EXPRESSION, "");
@@ -262,7 +262,6 @@ bool Table_impl::store_attributes(Raw_record *r)
   //     Eg: A non-innodb table may not have tablespace
   //   - Store NULL in options if there are no key=value pairs
   //   - Store NULL in se_private_data if there are no key=value pairs
-  //   - Store NULL in engine if it is not set.
   //   - Store NULL in partition type if not set.
   //   - Store NULL in partition expression if not set.
   //   - Store NULL in default partitioning if not set.
@@ -274,7 +273,7 @@ bool Table_impl::store_attributes(Raw_record *r)
   // Store field values
   return
     Abstract_table_impl::store_attributes(r) ||
-    r->store(Tables::FIELD_ENGINE, m_engine, m_engine.empty()) ||
+    r->store(Tables::FIELD_ENGINE, m_engine) ||
     r->store_ref_id(Tables::FIELD_COLLATION_ID, m_collation_id) ||
     r->store(Tables::FIELD_COMMENT, m_comment) ||
     r->store(Tables::FIELD_HIDDEN, m_hidden) ||

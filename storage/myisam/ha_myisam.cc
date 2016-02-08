@@ -612,8 +612,6 @@ void mi_check_print_warning(MI_CHECK *param, const char *fmt,...)
   @param[in] message   Optional error message.
   @param[in] sfile     Name of source file.
   @param[in] sline     Line number in source file.
-
-  @return void
 */
 
 void _mi_report_crashed(MI_INFO *file, const char *message,

@@ -49,15 +49,16 @@ typedef std::deque<upd_node_t*, mem_heap_allocator<upd_node_t*> >
 operations */
 typedef deque_mem_heap_t upd_cascade_t;
 
-/*********************************************************************//**
-Creates an update vector object.
+/** Creates an update vector object.
+@param[in]	n	number of fields
+@param[in]	heap	heap from which memory allocated
 @return own: update vector object */
 UNIV_INLINE
 upd_t*
 upd_create(
-/*=======*/
-	ulint		n,	/*!< in: number of fields */
-	mem_heap_t*	heap);	/*!< in: heap from which memory allocated */
+	ulint		n,
+	mem_heap_t*	heap);
+
 /*********************************************************************//**
 Returns the number of fields in the update vector == number of columns
 to be updated by an update vector.
@@ -67,31 +68,33 @@ ulint
 upd_get_n_fields(
 /*=============*/
 	const upd_t*	update);	/*!< in: update vector */
+
 #ifdef UNIV_DEBUG
-/*********************************************************************//**
-Returns the nth field of an update vector.
+/** Returns the nth field of an update vector.
+@param[in]	update	update vector
+@param[in]	n	field position in update vector
 @return update vector field */
 UNIV_INLINE
 upd_field_t*
 upd_get_nth_field(
-/*==============*/
-	const upd_t*	update,	/*!< in: update vector */
-	ulint		n);	/*!< in: field position in update vector */
+	const upd_t*	update,
+	ulint		n);
 #else
 # define upd_get_nth_field(update, n) ((update)->fields + (n))
 #endif
 #ifndef UNIV_HOTBACKUP
-/*********************************************************************//**
-Sets an index field number to be updated by an update vector field. */
+/** Sets an index field number to be updated by an update vector field.
+@param[in]	upd_field	update vector field
+@param[in]	field_no	field number in a clustered index
+@param[in]	index		index
+@param[in]	trx		transaction */
 UNIV_INLINE
 void
 upd_field_set_field_no(
-/*===================*/
-	upd_field_t*	upd_field,	/*!< in: update vector field */
-	ulint		field_no,	/*!< in: field number in a clustered
-					index */
-	dict_index_t*	index,		/*!< in: index */
-	trx_t*		trx);		/*!< in: transaction */
+	upd_field_t*	upd_field,
+	ulint		field_no,
+	dict_index_t*	index,
+	trx_t*		trx);
 
 /** set field number to a update vector field, marks this field is updated
 @param[in,out]	upd_field	update vector field
@@ -127,21 +130,27 @@ row_upd_write_sys_vals_to_log(
 	byte*		log_ptr,/*!< pointer to a buffer of size > 20 opened
 				in mlog */
 	mtr_t*		mtr);	/*!< in: mtr */
-/*********************************************************************//**
-Updates the trx id and roll ptr field in a clustered index record when
-a row is updated or marked deleted. */
+
+/** Updates the trx id and roll ptr field in a clustered index record when a
+row is updated or marked deleted.
+@param[in,out]	rec		record
+@param[in,out]	page_zip	compressed page whose uncompressed part will
+				be updated, or NULL
+@param[in]	index		clustered index
+@param[in]	offsets		rec_get_offsets(rec, index)
+@param[in]	trx		transaction
+@param[in]	roll_ptr	roll ptr of the undo log record, can be 0
+				during IMPORT */
 UNIV_INLINE
 void
 row_upd_rec_sys_fields(
-/*===================*/
-	rec_t*		rec,	/*!< in/out: record */
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page whose
-				uncompressed part will be updated, or NULL */
-	dict_index_t*	index,	/*!< in: clustered index */
-	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
-	const trx_t*	trx,	/*!< in: transaction */
-	roll_ptr_t	roll_ptr);/*!< in: roll ptr of the undo log record,
-				  can be 0 during IMPORT */
+	rec_t*		rec,
+	page_zip_des_t*	page_zip,
+	dict_index_t*	index,
+	const ulint*	offsets,
+	const trx_t*	trx,
+	roll_ptr_t	roll_ptr);
+
 /*********************************************************************//**
 Sets the trx id or roll ptr field of a clustered index entry. */
 void
@@ -222,24 +231,32 @@ row_upd_build_sec_rec_difference_binary(
 	const dtuple_t*	entry,	/*!< in: entry to insert */
 	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
 	__attribute__((warn_unused_result));
-/***************************************************************//**
-Builds an update vector from those fields, excluding the roll ptr and
+/** Builds an update vector from those fields, excluding the roll ptr and
 trx id fields, which in an index entry differ from a record that has
 the equal ordering fields. NOTE: we compare the fields as binary strings!
+@param[in]	index		clustered index
+@param[in]	entry		clustered index entry to insert
+@param[in]	rec		clustered index record
+@param[in]	offsets		rec_get_offsets(rec,index), or NULL
+@param[in]	no_sys		skip the system columns
+				DB_TRX_ID and DB_ROLL_PTR
+@param[in]	trx		transaction (for diagnostics),
+				or NULL
+@param[in]	heap		memory heap from which allocated
+@param[in]	mysql_table	NULL, or mysql table object when
+				user thread invokes dml
 @return own: update vector of differing fields, excluding roll ptr and
 trx id */
 upd_t*
 row_upd_build_difference_binary(
-/*============================*/
-	dict_index_t*	index,	/*!< in: clustered index */
-	const dtuple_t*	entry,	/*!< in: entry to insert */
-	const rec_t*	rec,	/*!< in: clustered index record */
-	const ulint*	offsets,/*!< in: rec_get_offsets(rec,index), or NULL */
-	bool		no_sys,	/*!< in: skip the system columns
-				DB_TRX_ID and DB_ROLL_PTR */
-	trx_t*		trx,	/*!< in: transaction (for diagnostics),
-				or NULL */
-	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
+	dict_index_t*	index,
+	const dtuple_t*	entry,
+	const rec_t*	rec,
+	const ulint*	offsets,
+	bool		no_sys,
+	trx_t*		trx,
+	mem_heap_t*	heap,
+	TABLE*		mysql_table)
 	__attribute__((warn_unused_result));
 /***********************************************************//**
 Replaces the new column values stored in the update vector to the index entry
@@ -375,12 +392,16 @@ row_upd_changes_some_index_ord_field_binary(
 /*========================================*/
 	const dict_table_t*	table,	/*!< in: table */
 	const upd_t*		update);/*!< in: update vector for the row */
-/***********************************************************//**
-Stores to the heap the row on which the node->pcur is positioned. */
+/** Stores to the heap the row on which the node->pcur is positioned.
+@param[in]	node		row update node
+@param[in]	thd		mysql thread handle
+@param[in,out]	mysql_table	NULL, or mysql table object when
+				user thread invokes dml */
 void
 row_upd_store_row(
-/*==============*/
-	upd_node_t*	node);	/*!< in: row update node */
+	upd_node_t*	node,
+	THD*		thd,
+	TABLE*		mysql_table);
 /***********************************************************//**
 Updates a row in a table. This is a high-level function used
 in SQL execution graphs.

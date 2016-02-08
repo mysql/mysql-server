@@ -49,6 +49,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "fsp0space.h"
 #include "fsp0sysspace.h"
 #include "srv0start.h"
+#include "dict0stats.h"
 
 /*****************************************************************//**
 Based on a table object, this function builds the entry to be inserted
@@ -529,8 +530,11 @@ dict_build_tablespace_for_table(
 		mtr.set_named_space(table->space);
 
 		fsp_header_init(table->space, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
-
 		mtr_commit(&mtr);
+
+		err = btr_sdi_create_indexes(table->space, true);
+		return(err);
+
 	} else {
 		/* We do not need to build a tablespace for this table. It
 		is already built.  Just find the correct tablespace ID. */
@@ -2468,4 +2472,125 @@ dict_table_assign_new_id(
 	}
 
 	trx->table_id = table->id;
+}
+
+/** Create in-memory tablespace dictionary index & table
+@param[in]	space		tablespace id
+@param[in]	copy_num	copy of sdi table
+@param[in]	space_discarded	true if space is discarded
+@param[in]	in_flags	space flags to use when space_discarded is true
+@return in-memory index structure for tablespace dictionary or NULL */
+dict_index_t*
+dict_sdi_create_idx_in_mem(
+	ulint	space,
+	ulint	copy_num,
+	bool	space_discarded,
+	ulint	in_flags)
+{
+	ulint	flags = space_discarded
+		? in_flags
+		: fil_space_get_flags(space);
+
+	/* This means the tablespace is evicted from cache */
+	if (flags == ULINT_UNDEFINED) {
+		return(NULL);
+	}
+
+	ut_ad(fsp_flags_is_valid(flags));
+
+	rec_format_t rec_format;
+
+	ulint	zip_ssize = FSP_FLAGS_GET_ZIP_SSIZE(flags);
+	ulint	atomic_blobs = FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
+	bool	has_data_dir =  FSP_FLAGS_HAS_DATA_DIR(flags);
+	bool	has_shared_space = FSP_FLAGS_GET_SHARED(flags);
+
+	/* TODO: Use only REC_FORMAT_DYNAMIC after WL#7704 */
+	if (zip_ssize > 0) {
+		rec_format = REC_FORMAT_COMPRESSED;
+	} else if (atomic_blobs){
+		rec_format = REC_FORMAT_DYNAMIC;
+	} else {
+		rec_format = REC_FORMAT_COMPACT;
+	}
+
+	ulint	table_flags;
+	dict_tf_set(&table_flags, rec_format, zip_ssize, has_data_dir,
+		    has_shared_space);
+
+	/* 28 = strlen(SDI) + Max digits of 4 byte spaceid (10) + Max
+	digits of copy_num (10) + 1 */
+	char		table_name[28];
+	mem_heap_t*	heap = mem_heap_create(DICT_HEAP_SIZE);
+	ut_snprintf(table_name, sizeof(table_name), "SDI_" ULINTPF "_" ULINTPF,
+		    space, copy_num);
+
+	dict_table_t*	table = dict_mem_table_create(
+		table_name, space, 3, 0, table_flags, 0);
+
+	dict_mem_table_add_col(table, heap, "id", DATA_INT,
+			       DATA_NOT_NULL|DATA_UNSIGNED, 8);
+	dict_mem_table_add_col(table, heap, "type", DATA_INT,
+			       DATA_NOT_NULL|DATA_UNSIGNED, 4);
+	dict_mem_table_add_col(table, heap, "data", DATA_BLOB, DATA_NOT_NULL,
+			       0);
+
+	table->id = dict_sdi_get_table_id(space, copy_num);
+
+	/* Disable persistent statistics on the table */
+	dict_stats_set_persistent(table, false, true);
+
+	dict_table_add_to_cache(table, TRUE, heap);
+
+	/* TODO: After WL#7412, we can use a common name for both
+	SDI Indexes. */
+
+	/* 16 =	14(CLUST_IND_SDI_) + 1 (copy_num 0 or 1) + 1 */
+	char	index_name[16];
+	ut_snprintf(index_name, sizeof(index_name), "CLUST_IND_SDI_" ULINTPF,
+		    copy_num);
+
+	dict_index_t*	temp_index = dict_mem_index_create(
+		table_name, index_name, space,
+		DICT_CLUSTERED |DICT_UNIQUE | DICT_SDI, 2);
+	ut_ad(temp_index);
+
+	dict_mem_index_add_field(temp_index, "id", 0);
+	dict_mem_index_add_field(temp_index, "type", 0);
+
+	temp_index->table = table;
+
+	/* Disable AHI on SDI tables */
+	temp_index->disable_ahi = true;
+
+	ulint	index_root_page_num;
+
+	/* TODO: Remove space_discarded parameter after WL#7412 */
+	/* When we do DISCARD TABLESPACE, there will be no fil_space_t
+	for the tablespace. In this case, we should not use fil_space_*()
+	methods */
+	if (!space_discarded) {
+
+		mtr_t	mtr;
+		mtr.start();
+
+		index_root_page_num = fsp_sdi_get_root_page_num(
+			space, copy_num, page_size_t(flags), &mtr);
+
+		mtr_commit(&mtr);
+
+	} else {
+		index_root_page_num = ULINT_UNDEFINED;
+	}
+
+	temp_index->id = dict_sdi_get_index_id(copy_num);
+
+	/* TODO: WL#7141: Do not add the SDI pseudo-tables to the cache */
+	dberr_t	error = dict_index_add_to_cache(table, temp_index,
+						index_root_page_num, false);
+
+	ut_a(error == DB_SUCCESS);
+
+	mem_heap_free(heap);
+	return(dict_table_get_first_index(table));
 }

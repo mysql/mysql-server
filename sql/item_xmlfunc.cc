@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -747,7 +747,8 @@ String *Item_nodeset_func_attributebyname::val_nodeset(String *nodeset)
 String *Item_nodeset_func_predicate::val_nodeset(String *str)
 {
   Item_nodeset_func *nodeset_func= (Item_nodeset_func*) args[0];
-  Item_func *comp_func= (Item_func*)args[1];
+  // comp_func may actually be Item_bool rather than Item_func
+  Item *comp_func= args[1];
   uint pos= 0;
   size_t size;
   prepare(str);

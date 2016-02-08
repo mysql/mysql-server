@@ -176,6 +176,8 @@ row_undo_search_clust_to_pcur(
 	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
 
+	ut_ad(!node->table->skip_alter_undo);
+
 	mtr_start(&mtr);
 	dict_disable_redo_if_temporary(node->table, &mtr);
 

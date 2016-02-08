@@ -320,9 +320,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       Let us also prepare SET clause, altough it is probably empty
       in this case.
     */
-    if (setup_fields(thd, Ref_ptr_array(), set_fields, INSERT_ACL, NULL,
+    if (setup_fields(thd, Ref_item_array(), set_fields, INSERT_ACL, NULL,
                      false, true) ||
-        setup_fields(thd, Ref_ptr_array(), set_values, SELECT_ACL, NULL,
+        setup_fields(thd, Ref_item_array(), set_values, SELECT_ACL, NULL,
                      false, false))
       DBUG_RETURN(TRUE);
   }
@@ -332,9 +332,9 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       Because fields_vars may contain user variables,
       pass false for column_update in first call below.
     */
-    if (setup_fields(thd, Ref_ptr_array(), fields_vars, INSERT_ACL, NULL,
+    if (setup_fields(thd, Ref_item_array(), fields_vars, INSERT_ACL, NULL,
                      false, false) ||
-        setup_fields(thd, Ref_ptr_array(), set_fields, INSERT_ACL, NULL,
+        setup_fields(thd, Ref_item_array(), set_fields, INSERT_ACL, NULL,
                      false, true))
       DBUG_RETURN(TRUE);
 
@@ -357,7 +357,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     /* We explicitly ignore the return value */
     (void)check_that_all_fields_are_given_values(thd, table, table_list);
     /* Fix the expressions in SET clause */
-    if (setup_fields(thd, Ref_ptr_array(), set_values, SELECT_ACL, NULL,
+    if (setup_fields(thd, Ref_item_array(), set_values, SELECT_ACL, NULL,
                      false, false))
       DBUG_RETURN(TRUE);
   }

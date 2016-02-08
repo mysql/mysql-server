@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +17,7 @@
 /* Written by Sergei A. Golubchik, who has a shared copyright to this code */
 
 #include "ftdefs.h"
+#include "ctype.h"
 
 typedef struct st_ft_docstat {
   FT_WORD *list;
@@ -29,8 +31,11 @@ typedef struct st_my_ft_parser_param
   MEM_ROOT *mem_root;
 } MY_FT_PARSER_PARAM;
 
-static int FT_WORD_cmp(CHARSET_INFO* cs, FT_WORD *w1, FT_WORD *w2)
+static int FT_WORD_cmp(const void* a, const void* b, const void *c)
 {
+  CHARSET_INFO *cs= (CHARSET_INFO*)a;
+  FT_WORD *w1= (FT_WORD*)b;
+  FT_WORD *w2= (FT_WORD*)c;
   return ha_compare_text(cs, (uchar*) w1->pos, w1->len,
                          (uchar*) w2->pos, w2->len, 0, 0);
 }
@@ -89,7 +94,7 @@ my_bool ft_boolean_check_syntax_string(const uchar *str)
   for (i=0; i<sizeof(DEFAULT_FTB_SYNTAX); i++)
   {
     /* limiting to 7-bit ascii only */
-    if ((unsigned char)(str[i]) > 127 || my_isalnum(default_charset_info, str[i]))
+    if ((unsigned char)(str[i]) > 127 || isalnum(str[i]))
       return 1;
     for (j=0; j<i; j++)
       if (str[i] == str[j] && (i != 11 || j != 10))
@@ -250,7 +255,7 @@ void ft_parse_init(TREE *wtree, const CHARSET_INFO *cs)
 {
   DBUG_ENTER("ft_parse_init");
   if (!is_tree_inited(wtree))
-    init_tree(wtree,0,0,sizeof(FT_WORD),(qsort_cmp2)&FT_WORD_cmp,0,NULL, cs);
+    init_tree(wtree,0,0,sizeof(FT_WORD),&FT_WORD_cmp,0,NULL, cs);
   DBUG_VOID_RETURN;
 }
 

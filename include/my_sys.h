@@ -462,6 +462,7 @@ typedef struct st_io_cache		/* Used when cacheing files */
   my_bool alloced_buffer;
 } IO_CACHE;
 
+typedef int (*qsort_cmp)(const void *,const void *);
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);
 
 typedef void (*my_error_reporter)(enum loglevel level, const char *format, ...)
@@ -809,7 +810,7 @@ extern uchar *my_compress_alloc(const uchar *packet, size_t *len,
   @param[in] meta_data_length             The size of the meta data blob
   @param[out] compressed_meta_data        The compressed serialized
                                           meta data
-  @param[out] compressed:meta_data_length The size of the compressed
+  @param[out] compressed_meta_data_length The size of the compressed
                                           meta data blob
 
   @retval 0 Success
@@ -828,7 +829,7 @@ extern my_bool compress_serialized_meta_data(uchar *meta_data,
 
   @param[in] compressed_meta_data         The compressed serialized
                                           meta data
-  @param[in] compressed:meta_data_length  The size of the compressed
+  @param[in] compressed_meta_data_length  The size of the compressed
                                           meta data blob
   @param[out] meta_data                   The uncompressed serialized
                                           meta data

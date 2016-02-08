@@ -118,13 +118,13 @@ size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
     if the system doesn't support pwrite()
 
   if (MyFlags & (MY_NABP | MY_FNABP))
-  @returns
+  returns
     0  if Count == 0
     On succes, 0
     On failure, (size_t)-1 == MY_FILE_ERROR
 
   otherwise
-  @returns
+  returns
     0  if Count == 0
     On success, the number of bytes written.
     On partial success (if less than Count bytes could be written),

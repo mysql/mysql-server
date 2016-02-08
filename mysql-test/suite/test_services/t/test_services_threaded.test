@@ -11,9 +11,9 @@ eval INSTALL PLUGIN test_services_threaded SONAME '$TESTSERVICESTHREADED';
 --echo ------ Wait until test execution in plugin is ready --------------
 --echo let wait_timeout= 60
 let $wait_timeout= 60;
---echo let wait_condition=SELECT variable_value= 1 FROM information_schema.global_status
+--echo let wait_condition=SELECT variable_value= 1 FROM performance_schema.global_status
 --echo                     WHERE variable_name LIKE 'test_services_status';
-let $wait_condition=SELECT variable_value= 1 FROM information_schema.global_status
+let $wait_condition=SELECT variable_value= 1 FROM performance_schema.global_status
                    WHERE variable_name LIKE 'test_services_status';
 --echo source include/wait_condition.inc;
 source include/wait_condition.inc;

@@ -4,5 +4,7 @@
 # Wrapper for 64 bit machines                                                  #
 ################################################################################
 
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 --source include/have_64bit.inc
 --source suite/sys_vars/inc/query_cache_size_basic.inc

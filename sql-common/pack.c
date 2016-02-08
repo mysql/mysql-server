@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -123,7 +123,7 @@ uchar *net_store_length(uchar *packet, ulonglong length)
   dynamically allocate the buffer for a given number to be stored as length-
   encoded integer.
 
-  @param num [IN]   the input number
+  @param [in] num   the input number
 
   @return length of buffer needed to store this number [1, 3, 4, 9].
 */

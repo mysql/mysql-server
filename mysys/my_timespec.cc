@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@
 
 extern "C" void set_timespec_nsec(struct timespec *abstime, ulonglong nsec)
 {
-#ifdef HAVE_STRUCT_TIMESPEC
   ulonglong now= my_getsystime() + (nsec / 100);
   ulonglong tv_sec= now / 10000000ULL;
 #if SIZEOF_TIME_T < SIZEOF_LONG_LONG
@@ -30,17 +29,6 @@ extern "C" void set_timespec_nsec(struct timespec *abstime, ulonglong nsec)
 #endif
   abstime->tv_sec=  (time_t)tv_sec;
   abstime->tv_nsec= (now % 10000000ULL) * 100 + (nsec % 100);
-#else /* !HAVE_STRUCT_TIMESPEC */
-  ulonglong max_timeout_msec= (nsec / 1000000);
-  union ft64 tv;
-  GetSystemTimeAsFileTime(&tv.ft);
-  abstime->tv.i64= tv.i64 + (__int64)(nsec / 100);
-#if SIZEOF_LONG < SIZEOF_LONG_LONG
-  /* Ensure that the msec value doesn't overflow. */
-  max_timeout_msec= MY_MIN(max_timeout_msec, ((ulonglong)INT_MAX32));
-#endif
-  abstime->max_timeout_msec= (long)max_timeout_msec;
-#endif /* !HAVE_STRUCT_TIMESPEC */
 }
 
 

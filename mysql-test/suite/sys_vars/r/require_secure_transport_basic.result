@@ -82,12 +82,12 @@ SELECT @@require_secure_transport;
 0
 '#----------------------FN_DYNVARS_139_06------------------------#'
 SELECT IF(@@global.require_secure_transport, "ON", "OFF") = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='require_secure_transport';
 IF(@@global.require_secure_transport, "ON", "OFF") = VARIABLE_VALUE
 1
 SELECT IF(@@require_secure_transport, "ON", "OFF") = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='require_secure_transport';
 IF(@@require_secure_transport, "ON", "OFF") = VARIABLE_VALUE
 1

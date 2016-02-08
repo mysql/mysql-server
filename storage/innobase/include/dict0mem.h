@@ -77,7 +77,10 @@ combination of types */
 				other flags */
 #define	DICT_VIRTUAL	128	/* Index on Virtual column */
 
-#define	DICT_IT_BITS	8	/*!< number of bits used for
+#define DICT_SDI	256	/* Tablespace dictionary Index. Set only in
+				in-memory index structure. */
+
+#define	DICT_IT_BITS	9	/*!< number of bits used for
 				SYS_INDEXES.TYPE */
 /* @} */
 
@@ -326,23 +329,29 @@ dict_mem_table_col_rename(
 	const char*	to,	/*!< in: new column name */
 	bool		is_virtual);
 				/*!< in: if this is a virtual column */
-/**********************************************************************//**
-This function poplulates a dict_index_t index memory structure with
-supplied information. */
+
+/** This function poplulates a dict_index_t index memory structure with
+supplied information.
+@param[out]	index		index to be filled
+@param[in]	heap		memory heap
+@param[in]	table_name	table name
+@param[in]	index_name	index name
+@param[in]	space		space where the index tree is placed, the
+				clustered type ignored if the index is of the
+				clustered type
+@param[in]	type		DICT_UNIQUE, DICT_CLUSTERED, ... ORed
+@param[in]	n_fields	number of fields */
 UNIV_INLINE
 void
 dict_mem_fill_index_struct(
-/*=======================*/
-	dict_index_t*	index,		/*!< out: index to be filled */
-	mem_heap_t*	heap,		/*!< in: memory heap */
-	const char*	table_name,	/*!< in: table name */
-	const char*	index_name,	/*!< in: index name */
-	ulint		space,		/*!< in: space where the index tree is
-					placed, ignored if the index is of
-					the clustered type */
-	ulint		type,		/*!< in: DICT_UNIQUE,
-					DICT_CLUSTERED, ... ORed */
-	ulint		n_fields);	/*!< in: number of fields */
+	dict_index_t*	index,
+	mem_heap_t*	heap,
+	const char*	table_name,
+	const char*	index_name,
+	ulint		space,
+	ulint		type,
+	ulint		n_fields);
+
 /**********************************************************************//**
 Frees an index memory object. */
 void
@@ -378,7 +387,7 @@ dict_mem_referenced_table_name_lookup_set(
 	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
 	ibool		do_alloc);	/*!< in: is an alloc needed */
 
-/** Create a temporary tablename like "#sql-ibtid-inc where
+/** Create a temporary tablename like "#sql-ibtid-inc" where
   tid = the Table ID
   inc = a randomly initialized number that is incremented for each file
 The table ID is a 64 bit integer, can use up to 20 digits, and is
@@ -784,11 +793,11 @@ struct dict_index_t{
 	unsigned	nulls_equal:1;
 				/*!< if true, SQL NULL == SQL NULL */
 	unsigned	disable_ahi:1;
-				/*!< in true, then disable AHI.
-				Currently limited to intrinsic
-				temporary table as index id is not
-				unqiue for such table which is one of the
-				validation criterion for ahi. */
+				/*!< if true, then disable AHI. Currently
+				limited to intrinsic temporary table and SDI
+				table as index id is not unique for such table
+				which is one of the validation criterion for
+				ahi. */
 	unsigned	n_uniq:10;/*!< number of fields from the beginning
 				which are enough to determine an index
 				entry uniquely */
@@ -822,6 +831,9 @@ struct dict_index_t{
 			parser;	/*!< fulltext parser plugin */
 	bool		is_ngram;
 				/*!< true if it's ngram parser */
+	bool		has_new_v_col;
+				/*!< whether it has a newly added virtual
+				column in ALTER */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/*!< list of indexes of the table */
@@ -1269,6 +1281,11 @@ struct dict_table_t {
 	Use DICT_TF2_FLAG_IS_SET() to parse this flag. */
 	unsigned				flags2:DICT_TF2_BITS;
 
+	/** TRUE if the table is a intermediate table during copy alter
+	operation and skip the undo log for insertion of row in the table.
+	This variable will be set and unset during extra(). */
+	unsigned				skip_alter_undo:1;
+
 	/** TRUE if this is in a single-table tablespace and the .ibd file is
 	missing. Then we must return in ha_innodb.cc an error if the user
 	tries to query such an orphaned table. */
@@ -1410,14 +1427,14 @@ struct dict_table_t {
 	volatile os_once::state_t		stats_latch_created;
 
 	/** This latch protects:
-	dict_table_t::stat_initialized,
-	dict_table_t::stat_n_rows (*),
-	dict_table_t::stat_clustered_index_size,
-	dict_table_t::stat_sum_of_other_index_sizes,
-	dict_table_t::stat_modified_counter (*),
-	dict_table_t::indexes*::stat_n_diff_key_vals[],
-	dict_table_t::indexes*::stat_index_size,
-	dict_table_t::indexes*::stat_n_leaf_pages.
+	"dict_table_t::stat_initialized",
+	"dict_table_t::stat_n_rows (*)",
+	"dict_table_t::stat_clustered_index_size",
+	"dict_table_t::stat_sum_of_other_index_sizes",
+	"dict_table_t::stat_modified_counter (*)",
+	"dict_table_t::indexes*::stat_n_diff_key_vals[]",
+	"dict_table_t::indexes*::stat_index_size",
+	"dict_table_t::indexes*::stat_n_leaf_pages".
 	(*) Those are not always protected for
 	performance reasons. */
 	rw_lock_t*				stats_latch;

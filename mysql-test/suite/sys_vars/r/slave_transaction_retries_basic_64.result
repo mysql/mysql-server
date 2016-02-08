@@ -35,14 +35,14 @@ SET @@global.slave_transaction_retries = 2147483648*2-1;
 SELECT @@global.slave_transaction_retries;
 @@global.slave_transaction_retries
 4294967295
-SET @@global.slave_transaction_retries = 2147483649*2;
-SELECT @@global.slave_transaction_retries;
-@@global.slave_transaction_retries
-4294967298
 SET @@global.slave_transaction_retries = 4294967295;
 SELECT @@global.slave_transaction_retries;
 @@global.slave_transaction_retries
 4294967295
+SET @@global.slave_transaction_retries = 18446744073709551615;
+SELECT @@global.slave_transaction_retries;
+@@global.slave_transaction_retries
+18446744073709551615
 '#--------------------FN_DYNVARS_149_04-------------------------#'
 SET @@slave_transaction_retries = 2;
 ERROR HY000: Variable 'slave_transaction_retries' is a GLOBAL variable and should be set with SET GLOBAL
@@ -57,10 +57,6 @@ Warning	1292	Truncated incorrect slave_transaction_retries value: '-1'
 SELECT @@global.slave_transaction_retries;
 @@global.slave_transaction_retries
 0
-SET @@global.slave_transaction_retries = 2147483649*2147483649;
-SELECT @@global.slave_transaction_retries;
-@@global.slave_transaction_retries
-4611686022722355201
 SET @@global.slave_transaction_retries = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'slave_transaction_retries'
 SET @@global.slave_transaction_retries = '100';
@@ -71,16 +67,21 @@ SET @@global.slave_transaction_retries = ON;
 ERROR 42000: Incorrect argument type to variable 'slave_transaction_retries'
 SET @@global.slave_transaction_retries = OFF;
 ERROR 42000: Incorrect argument type to variable 'slave_transaction_retries'
+SET @@global.slave_transaction_retries = 18446744073709551616;
+ERROR 42000: Incorrect argument type to variable 'slave_transaction_retries'
+SELECT @@global.slave_transaction_retries;
+@@global.slave_transaction_retries
+0
 '#------------------FN_DYNVARS_149_06-----------------------#'
 SET @@global.slave_transaction_retries = 3000;
 SELECT @@global.slave_transaction_retries = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='slave_transaction_retries';
 @@global.slave_transaction_retries = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_149_07-----------------------#'
 SELECT count(VARIABLE_VALUE) 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='slave_transaction_retries';
 count(VARIABLE_VALUE)
 1

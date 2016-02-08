@@ -715,8 +715,8 @@ void push_warning_printf(THD *thd, Sql_condition::enum_severity_level severity,
   @param thd         Thread context. If NULL, warning is written
                      to the error log, otherwise the warning is
                      sent to the client.
-  @param old_syntax
-  @param new_syntax
+  @param old_syntax  Deprecated syntax.
+  @param new_syntax  Replacement syntax.
 */
 void push_deprecated_warn(THD *thd, const char *old_syntax,
                           const char *new_syntax);
@@ -733,7 +733,7 @@ void push_deprecated_warn(THD *thd, const char *old_syntax,
   @param thd         Thread context. If NULL, warning is written
                      to the error log, otherwise the warning is
                      sent to the client.
-  @param old_syntax
+  @param old_syntax  Deprecated syntax.
 */
 void push_deprecated_warn_no_replacement(THD *thd, const char *old_syntax);
 

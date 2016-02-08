@@ -207,8 +207,8 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share)
   {
     Field **field_ptr= share->field;
     use_hash= !my_hash_init(&share->name_hash,
-                            system_charset_info, share->fields,0,0,
-                            get_field_name,0,0,
+                            system_charset_info, share->fields, 0,
+                            get_field_name, nullptr, 0,
                             PSI_INSTRUMENT_ME);
 
     for (uint i=0 ; i < share->fields; i++, field_ptr++)

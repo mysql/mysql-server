@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 #include "my_tree.h"            // TREE
 #include "prealloced_array.h"   // Prealloced_array
 #include "sql_alloc.h"          // Sql_alloc
-#include "sql_sort.h"
+#include "sql_sort.h"           // Merge_chunk
 
 class Cost_model_table;
 
@@ -45,7 +45,7 @@ class Unique :public Sql_alloc
 
 public:
   ulong elements;
-  Unique(qsort_cmp2 comp_func, void *comp_func_fixed_arg,
+  Unique(qsort2_cmp comp_func, void *comp_func_fixed_arg,
 	 uint size_arg, ulonglong max_in_memory_size_arg);
   ~Unique();
   ulong elements_in_tree() { return tree.elements_in_tree; }

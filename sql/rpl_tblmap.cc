@@ -47,8 +47,7 @@ table_mapping::table_mapping()
     constructor is called at startup only.
   */
   (void) my_hash_init(&m_table_ids,&my_charset_bin,TABLE_ID_HASH_SIZE,
-		   offsetof(entry,table_id),sizeof(ulonglong),
-                   0, 0, 0, psi_key);
+                      0, table_id_get_key, nullptr, 0, psi_key);
   /* We don't preallocate any block, this is consistent with m_free=0 above */
   init_alloc_root(psi_key,
                   &m_mem_root, TABLE_ID_HASH_SIZE*sizeof(entry), 0);

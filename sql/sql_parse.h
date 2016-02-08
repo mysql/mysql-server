@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -89,8 +89,11 @@ int mysql_execute_command(THD *thd, bool first_level= false);
 bool do_command(THD *thd);
 bool dispatch_command(THD *thd, const COM_DATA *com_data,
                       enum enum_server_command command);
-bool append_file_to_dir(THD *thd, const char **filename_ptr,
-                        const char *table_name);
+bool prepare_index_and_data_dir_path(THD *thd, const char **data_file_name,
+                                     const char **index_file_name,
+                                     const char *table_name);
+int append_file_to_dir(THD *thd, const char **filename_ptr,
+                       const char *table_name);
 void execute_init_command(THD *thd, LEX_STRING *init_command,
                           mysql_rwlock_t *var_lock);
 bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum enum_field_types type,
@@ -112,7 +115,7 @@ bool push_new_name_resolution_context(Parse_context *pc,
 void store_position_for_column(const char *name);
 void init_update_queries(void);
 Item *negate_expression(Parse_context *pc, Item *expr);
-bool check_stack_overrun(THD *thd, long margin, uchar *dummy);
+bool check_stack_overrun(const THD *thd, long margin, uchar *dummy);
 void killall_non_super_threads(THD *thd);
 bool shutdown(THD *thd, enum mysql_enum_shutdown_level level, enum enum_server_command command);
 

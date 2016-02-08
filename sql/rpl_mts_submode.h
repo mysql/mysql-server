@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -158,8 +158,7 @@ public:
   int wait_for_workers_to_finish(Relay_log_info  *rli,
                                  Slave_worker *ignore= NULL);
   bool wait_for_last_committed_trx(Relay_log_info* rli,
-                                   longlong last_committed_arg,
-                                   longlong lwm_estimate_arg);
+                                   longlong last_committed_arg);
   /*
     LEQ comparison of two logical timestamps follows regular rules for
     integers. SEQ_UNINIT is regarded as the least value in the clock domain.

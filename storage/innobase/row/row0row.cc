@@ -243,6 +243,7 @@ row_build_index_entry_low(
 						&dlen, dptr,
 						page_size,
 						flen,
+						false,
 						temp_heap);
 				} else {
 					dptr = static_cast<uchar*>(
@@ -546,7 +547,7 @@ row_build_low(
 
 	} else if (j) {
 		*ext = row_ext_create(j, ext_cols, index->table->flags, row,
-				      heap);
+				      dict_index_is_sdi(index), heap);
 	} else {
 		*ext = NULL;
 	}

@@ -1129,7 +1129,8 @@ row_log_table_get_pk_col(
 			mem_heap_alloc(heap, field_len));
 
 		len = btr_copy_externally_stored_field_prefix(
-			blob_field, field_len, page_size, field, len);
+			blob_field, field_len, page_size, field, false, len);
+
 		if (len >= max_len + 1) {
 			return(DB_TOO_BIG_INDEX_COL);
 		}
@@ -1164,6 +1165,7 @@ row_log_table_get_pk(
 
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(dict_index_is_online_ddl(index));
+	ut_ad(!dict_index_is_sdi(index));
 	ut_ad(!offsets || rec_offs_validate(rec, index, offsets));
 	ut_ad(rw_lock_own_flagged(
 			&index->lock,
@@ -1524,7 +1526,8 @@ row_log_table_apply_convert_mrec(
 			data = btr_rec_copy_externally_stored_field(
 				mrec, offsets,
 				dict_table_page_size(index->table),
-				i, &len, heap);
+				i, &len, false, heap);
+
 			ut_a(data);
 			dfield_set_data(dfield, data, len);
 blob_done:
@@ -2182,7 +2185,7 @@ func_exit_committed:
 		row, NULL, index, heap);
 	upd_t*		update	= row_upd_build_difference_binary(
 		index, entry, btr_pcur_get_rec(&pcur), cur_offsets,
-		false, NULL, heap);
+		false, NULL, heap, dup->table);
 
 	if (!update->n_fields) {
 		/* Nothing to do. */

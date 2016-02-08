@@ -316,6 +316,7 @@ end:
   the statement table list.
 
   @param[in] thd       Thread context.
+  @param[in] db_name   Schema name.
   @param[in] trigger_name  Trigger name.
   @param[in] continue_if_not_exist TRUE if SQL statement contains "IF EXISTS" clause.
                        That means a warning instead of error should be

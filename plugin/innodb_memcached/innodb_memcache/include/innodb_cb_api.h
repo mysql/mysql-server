@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -42,10 +42,13 @@ typedef
 ib_err_t
 (*cb_read_row_t)(
 /*=============*/
-        ib_crsr_t	ib_crsr,
-        ib_tpl_t	ib_tpl,
+	ib_crsr_t	ib_crsr,
+	ib_tpl_t	ib_tpl,
+	ib_tpl_t	cmp_tpl,
+	int		mode,
 	void**		row_buf,
-	ib_ulint_t*	row_buf_len);
+	ib_ulint_t*	row_buf_len,
+	ib_ulint_t*	row_buf_used);
 
 typedef
 ib_err_t
@@ -74,7 +77,8 @@ ib_err_t
 /*==================*/
 	ib_crsr_t	ib_crsr,
 	ib_tpl_t	ib_tpl,
-	ib_srch_mode_t	ib_srch_mode);
+	ib_srch_mode_t	ib_srch_mode,
+	unsigned int	direction);
 
 typedef
 ib_tpl_t
@@ -366,6 +370,55 @@ ib_u32_t
 /*==================*/
 	ib_trx_t	ib_trx);
 
+#ifdef UNIV_MEMCACHED_SDI
+typedef
+ib_err_t
+(*cb_sdi_get)(
+	ib_crsr_t	ib_crsr,
+	const char*	key,
+	void*		sdi,
+	uint64_t*	sdi_len,
+	ib_trx_t	trx);
+
+typedef
+ib_err_t
+(*cb_sdi_delete)(
+	ib_crsr_t	ib_crsr,
+	const char*	key,
+	ib_trx_t	trx);
+
+typedef
+ib_err_t
+(*cb_sdi_set)(
+	ib_crsr_t	ib_crsr,
+	const char*	key,
+	const void*	sdi,
+	uint64_t*	sdi_len,
+	ib_trx_t	trx);
+
+typedef
+ib_err_t
+(*cb_sdi_create_copies)(
+	ib_crsr_t	ib_crsr);
+
+typedef
+ib_err_t
+(*cb_sdi_drop_copies)(
+	ib_crsr_t	ib_crsr);
+
+typedef
+ib_err_t
+(*cb_sdi_get_keys)(
+	ib_crsr_t	ib_crsr,
+	const char*	key,
+	void*		sdi,
+	uint64_t	list_buf_len);
+#endif /* UNIV_MEMCACHED_SDI */
+
+typedef
+ib_u32_t
+(*cb_is_virtual_table)(
+	ib_crsr_t	ib_crsr);
 
 cb_open_table_t			ib_cb_open_table;
 cb_read_row_t			ib_cb_read_row;
@@ -414,6 +467,15 @@ cb_trx_get_start_time		ib_cb_trx_get_start_time;
 cb_bk_commit_interval		ib_cb_cfg_bk_commit_interval;
 cb_ut_strerr			ib_cb_ut_strerr;
 cb_cursor_stmt_begin		ib_cb_cursor_stmt_begin;
+#ifdef UNIV_MEMCACHED_SDI
+cb_sdi_get			ib_cb_sdi_get;
+cb_sdi_delete			ib_cb_sdi_delete;
+cb_sdi_set			ib_cb_sdi_set;
+cb_sdi_create_copies		ib_cb_sdi_create_copies;
+cb_sdi_drop_copies		ib_cb_sdi_drop_copies;
+cb_sdi_get_keys			ib_cb_sdi_get_keys;
+#endif /* UNIV_MEMCACHED_SDI */
 cb_trx_read_only_t		ib_cb_trx_read_only;
+cb_is_virtual_table		ib_cb_is_virtual_table;
 
 #endif /* innodb_cb_api_h */

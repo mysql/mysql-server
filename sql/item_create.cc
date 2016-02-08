@@ -6766,9 +6766,8 @@ int item_create_init()
                    system_charset_info,
                    array_elements(func_array),
                    0,
-                   0,
                    get_native_fct_hash_key,
-                   NULL,                          /* Nothing to free */
+                   nullptr,                          /* Nothing to free */
                    MYF(0),
                    key_memory_native_functions))
     DBUG_RETURN(1);

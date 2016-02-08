@@ -253,7 +253,10 @@ static bool reconstruct_create_trigger_statement(THD *thd,
                                           writing into the binlog. It should
                                           have DEFINER clause and should not
                                           have FOLLOWS/PRECEDES clause.
+
+  @return Pointer to a new Trigger instance, NULL in case of error.
 */
+
 Trigger *Trigger::create_from_parser(THD *thd,
                                      TABLE *subject_table,
                                      String *binlog_create_trigger_stmt)
@@ -376,7 +379,21 @@ Trigger *Trigger::create_from_parser(THD *thd,
   should be called.
 
   @see also Trigger::create_from_parser()
+
+  @param [in] mem_root             MEM_ROOT for memory allocation.
+  @param [in] db_name              name of schema.
+  @param [in] subject_table_name   subject table name.
+  @param [in] definition           CREATE TRIGGER statement.
+  @param [in] sql_mode             sql_mode value.
+  @param [in] definer              'definer' value.
+  @param [in] client_cs_name       client character set name.
+  @param [in] connection_cl_name   connection collation name.
+  @param [in] db_cl_name  database collation name.
+  @param [in] created_timestamp    trigger creation time stamp.
+
+  @return Pointer to a new Trigger instance.
 */
+
 Trigger *Trigger::create_from_dd(MEM_ROOT *mem_root,
                                  const LEX_CSTRING &db_name,
                                  const LEX_CSTRING &subject_table_name,
@@ -448,7 +465,7 @@ Trigger::Trigger(MEM_ROOT *mem_root,
 */
 Trigger::~Trigger()
 {
-  delete m_sp;
+  sp_head::destroy(m_sp);
 }
 
 
@@ -737,7 +754,10 @@ void Trigger::add_tables_and_routines(THD *thd,
 
 /**
   Print upgrade warnings (if any).
+
+  @param [in]  thd        Thread handle.
 */
+
 void Trigger::print_upgrade_warning(THD *thd)
 {
   if (m_created_timestamp)
@@ -764,6 +784,7 @@ void Trigger::print_upgrade_warning(THD *thd)
                           the way to properly escape identifiers
   @param new_table_name   New subject table name
 */
+
 void Trigger::rename_subject_table(THD *thd, const LEX_STRING &new_table_name)
 {
   /*

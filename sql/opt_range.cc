@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -112,6 +112,7 @@
 
 #include "current_thd.h"
 #include "derror.h"              // ER_THD
+#include "error_handler.h"       // Internal_error_handler
 #include "filesort.h"            // filesort_free_buffers
 #include "item_sum.h"            // Item_sum
 #include "key.h"                 // is_key_used
@@ -2876,7 +2877,6 @@ int test_quick_select(THD *thd, Key_map keys_to_use,
       param.index_merge_allowed &&
       thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT);
 
-    thd->no_errors=1;				// Don't warn about NULL
     init_sql_alloc(key_memory_test_quick_select_exec,
                    &alloc, thd->variables.range_alloc_block_size, 0);
     set_memroot_max_capacity(&alloc,
@@ -2888,7 +2888,6 @@ int test_quick_select(THD *thd, Key_map keys_to_use,
                                                   head->s->key_parts)) ||
         fill_used_fields_bitmap(&param))
     {
-      thd->no_errors=0;
       thd->pop_internal_handler();
       free_root(&alloc,MYF(0));			// Return memory & allocator
       DBUG_RETURN(0);				// Can't use range
@@ -3158,7 +3157,6 @@ free_mem:
 
     free_root(&alloc,MYF(0));			// Return memory & allocator
     thd->mem_root= param.old_root;
-    thd->no_errors=0;
 
     DBUG_EXECUTE("info", print_quick(*quick, needed_reg););
   }
@@ -3438,7 +3436,6 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   range_par->remove_jump_scans= FALSE;
   range_par->real_keynr[0]= 0;
 
-  thd->no_errors=1;				// Don't warn about NULL
   thd->mem_root=&alloc;
 
   bitmap_clear_all(&part_info->read_partitions);
@@ -3526,7 +3523,7 @@ all_used:
 end:
   thd->pop_internal_handler();
   dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
-  thd->no_errors=0;
+
   thd->mem_root= range_par->old_root;
   free_root(&alloc,MYF(0));			// Return memory & allocator
   /* If an error occurred we can return failure after freeing the memroot. */
@@ -7534,7 +7531,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       value->result_type() == INT_RESULT &&
       ((field->type() == FIELD_TYPE_BIT || 
        ((Field_num *) field)->unsigned_flag) && 
-       !((Item_int*) value)->unsigned_flag))
+       !(value)->unsigned_flag))
   {
     longlong item_val= value->val_int();
     if (item_val < 0)

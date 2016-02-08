@@ -234,10 +234,6 @@ void vio_ssl_end();
 void ssl_start(void);
 void vio_end(void);
 
-#ifdef  __cplusplus
-}
-#endif
-
 #if !defined(DONT_MAP_VIO)
 #define vio_delete(vio)                         (vio)->viodelete(vio)
 #define vio_errno(vio)                          (vio)->vioerrno(vio)
@@ -286,7 +282,8 @@ struct st_vio
   char                  *read_end;      /* end of unfetched data */
   int                   read_timeout;   /* Timeout value (ms) for read ops. */
   int                   write_timeout;  /* Timeout value (ms) for write ops. */
-  
+  int                   retry_count;    /* Retry count */
+
   /* 
      VIO vtable interface to be implemented by VIO's like SSL, Socket,
      Named Pipe, etc.
@@ -336,4 +333,9 @@ struct st_vio
   char    *shared_memory_pos;
 #endif /* _WIN32 && !EMBEDDED_LIBRARY */
 };
+
+#ifdef  __cplusplus
+}
+#endif
+
 #endif /* vio_violite_h_ */

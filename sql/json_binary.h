@@ -1,7 +1,7 @@
 #ifndef JSON_BINARY_INCLUDED
 #define JSON_BINARY_INCLUDED
 
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -134,10 +134,10 @@
 */
 
 #include "my_global.h"
-#include "sql_string.h"                         // String
 #include "binary_log_types.h"                   // enum_field_types
 
 class Json_dom;
+class String;
 
 namespace json_binary
 {
@@ -166,7 +166,7 @@ class Value
 {
 public:
   static Value parse(const char *data, size_t len);
-  enum enum_type
+  enum enum_type : uint8
   {
     OBJECT, ARRAY, STRING, INT, UINT, DOUBLE,
     LITERAL_NULL, LITERAL_TRUE, LITERAL_FALSE,
@@ -181,11 +181,11 @@ public:
   bool is_valid() const;
   enum_type type() const { return m_type; }
   const char *get_data() const;
-  size_t get_data_length() const;
+  uint32 get_data_length() const;
   int64 get_int64() const;
   uint64 get_uint64() const;
   double get_double() const;
-  size_t element_count() const;
+  uint32 element_count() const;
   Value element(size_t pos) const;
   Value key(size_t pos) const;
   enum_field_types field_type() const;
@@ -199,7 +199,7 @@ public:
   /** Constructor for values that represent doubles. */
   explicit Value(double val);
   /** Constructor for values that represent strings. */
-  Value(const char *data, size_t len);
+  Value(const char *data, uint32 len);
   /**
     Constructor for values that represent arrays or objects.
 
@@ -210,25 +210,13 @@ public:
     @param large true if the value should be stored in the large
     storage format with 4 byte offsets instead of 2 byte offsets
   */
-  Value(enum_type t, const char *data, size_t element_count, size_t bytes,
+  Value(enum_type t, const char *data, uint32 element_count, uint32 bytes,
         bool large);
   /** Constructor for values that represent opaque data. */
-  Value(enum_field_types ft, const char *data, size_t len);
-
-  /** Copy constructor. */
-  Value(const Value &old)
-    : m_type(old.m_type), m_field_type(old.m_field_type), m_data(old.m_data),
-      m_element_count(old.m_element_count), m_length(old.m_length),
-      m_int_value(old.m_int_value), m_double_value(old.m_double_value),
-      m_large(old.m_large)
-  {}
+  Value(enum_field_types ft, const char *data, uint32 len);
 
   /** Empty constructor. Produces a value that represents an error condition. */
-  Value()
-    : m_type(ERROR), m_field_type(MYSQL_TYPE_NULL), m_data(NULL),
-      m_element_count(-1), m_length(-1), m_int_value(-1),
-      m_double_value(0.0), m_large(false)
-  {}
+  Value() : Value(ERROR) {}
 
   /** Assignment operator. */
   Value &operator=(const Value &from)
@@ -242,35 +230,42 @@ public:
   }
 
 private:
-  /** The type of the value. */
-  const enum_type m_type;
-  /**
-    The MySQL field type of the value, in case the type of the value is
-    OPAQUE. Otherwise, it is unused.
+  /*
+    Instances use only one of m_data, m_int_value and m_double_value,
+    so keep them in a union to save space in memory.
   */
-  const enum_field_types m_field_type ;
-  /**
-    Pointer to the start of the binary representation of the value. Only
-    used by STRING, OBJECT and ARRAY.
+  union
+  {
+    /**
+      Pointer to the start of the binary representation of the value. Only
+      used by STRING, OPAQUE, OBJECT and ARRAY.
 
-    The memory pointed to by this member is not owned by this Value
-    object. Callers that create Value objects must make sure that the
-    memory is not freed as long as the Value object is alive.
-  */
-  const char *m_data;
+      The memory pointed to by this member is not owned by this Value
+      object. Callers that create Value objects must make sure that the
+      memory is not freed as long as the Value object is alive.
+    */
+    const char *m_data;
+    /** The value if the type is INT or UINT. */
+    const int64 m_int_value;
+    /** The value if the type is DOUBLE. */
+    const double m_double_value;
+  };
   /**
     Element count for arrays and objects. Unused for other types.
   */
-  const size_t m_element_count;
+  const uint32 m_element_count;
   /**
     The full length (in bytes) of the binary representation of an array or
     object, or the length of a string or opaque value. Unused for other types.
   */
-  const size_t m_length;
-  /** The value if the type is INT or UINT. */
-  const int64 m_int_value;
-  /** The value if the type is DOUBLE. */
-  const double m_double_value;
+  const uint32 m_length;
+  /**
+    The MySQL field type of the value, in case the type of the value is
+    OPAQUE. Otherwise, it is unused.
+  */
+  const enum_field_types m_field_type;
+  /** The JSON type of the value. */
+  const enum_type m_type;
   /**
     True if an array or an object uses the large storage format with 4
     byte offsets instead of 2 byte offsets.

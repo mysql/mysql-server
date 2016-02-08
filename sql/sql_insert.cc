@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include "auth_common.h"              // check_grant_all_columns
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "derror.h"                   // ER_THD
+#include "error_handler.h"            // Strict_error_handler
 #include "item.h"                     // Item
 #include "lock.h"                     // mysql_unlock_tables
 #include "mysqld.h"                   // stage_init
@@ -175,7 +176,7 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
     */
     table_list->next_local= NULL;
     context->resolve_in_table_list_only(table_list);
-    res= setup_fields(thd, Ref_ptr_array(), fields, INSERT_ACL, NULL,
+    res= setup_fields(thd, Ref_item_array(), fields, INSERT_ACL, NULL,
                       false, true);
 
     /* Restore the current context. */
@@ -350,6 +351,9 @@ void prepare_triggers_for_insert_stmt(THD *thd, TABLE *table)
   @param [in] fields
     List of fields representing LHS_FIELD of all expressions
     in 'UPDATE' clause.
+
+  @param [in] mem_root
+    MEM_ROOT for blob copy.
 
   @return - Can fail only when we are out of memory.
     @retval false   Success
@@ -561,7 +565,7 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
       my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
       goto exit_without_my_ok;
     }
-    if (setup_fields(thd, Ref_ptr_array(), *values, SELECT_ACL, NULL,
+    if (setup_fields(thd, Ref_item_array(), *values, SELECT_ACL, NULL,
                      false, false))
       goto exit_without_my_ok;
 
@@ -1293,14 +1297,14 @@ bool Sql_cmd_insert_base::mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       map= lex->insert_table_leaf->map();
 
     if (!res)
-      res= setup_fields(thd, Ref_ptr_array(),
+      res= setup_fields(thd, Ref_item_array(),
                         *values, SELECT_ACL, NULL, false, false);
     if (!res)
       res= check_valid_table_refs(table_list, *values, map);
 
     thd->lex->in_update_value_clause= true;
     if (!res)
-      res= setup_fields(thd, Ref_ptr_array(),
+      res= setup_fields(thd, Ref_item_array(),
                         insert_value_list, SELECT_ACL, NULL, false, false);
     if (!res)
       res= check_valid_table_refs(table_list, insert_value_list, map);
@@ -1315,7 +1319,7 @@ bool Sql_cmd_insert_base::mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       table_list->set_want_privilege(UPDATE_ACL);
 #endif
       // Setup the columns to be updated
-      res= setup_fields(thd, Ref_ptr_array(),
+      res= setup_fields(thd, Ref_item_array(),
                         insert_update_list, UPDATE_ACL, NULL, false, true);
       if (!res)
         res= check_valid_table_refs(table_list, insert_update_list, map);
@@ -1363,7 +1367,7 @@ bool Sql_cmd_insert_base::mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       table_list->set_want_privilege(UPDATE_ACL);
 #endif
       // Setup the columns to be modified
-      res= setup_fields(thd, Ref_ptr_array(),
+      res= setup_fields(thd, Ref_item_array(),
                         insert_update_list, UPDATE_ACL, NULL, false, true);
       if (!res)
         res= check_valid_table_refs(table_list, insert_update_list, map);
@@ -1385,7 +1389,7 @@ bool Sql_cmd_insert_base::mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       }
       thd->lex->in_update_value_clause= true;
       if (!res)
-        res= setup_fields(thd, Ref_ptr_array(), insert_value_list,
+        res= setup_fields(thd, Ref_item_array(), insert_value_list,
                           SELECT_ACL, NULL, false, false);
       thd->lex->in_update_value_clause= false;
 
@@ -1474,8 +1478,6 @@ static int last_uniq_key(TABLE *table,uint keynr)
               and deleted.
       update - COPY_INFO structure describing the UPDATE part (only used for
                INSERT ON DUPLICATE KEY UPDATE)
-
-  @note
 
   Once this record is written to the table buffer, any AFTER INSERT trigger
   will be invoked. If instead of inserting a new record we end up updating an
@@ -1945,6 +1947,7 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
       err= 1;
     }
   }
+  bitmap_clear_all(write_set);
   return (!thd->lex->is_ignore() && thd->is_strict_mode()) ? err : 0;
 }
 
@@ -2016,7 +2019,7 @@ int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   res= check_insert_fields(thd, table_list, *fields, values.elements, true,
                            !insert_into_view);
   if (!res)
-    res= setup_fields(thd, Ref_ptr_array(), values, SELECT_ACL, NULL,
+    res= setup_fields(thd, Ref_item_array(), values, SELECT_ACL, NULL,
                       false, false);
 
   if (!res && lex->insert_table_leaf->table->has_gcol())
@@ -2039,7 +2042,7 @@ int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     table_list->set_want_privilege(UPDATE_ACL);
 #endif
     if (!res)
-      res= setup_fields(thd, Ref_ptr_array(), *update.get_changed_columns(),
+      res= setup_fields(thd, Ref_item_array(), *update.get_changed_columns(),
                         UPDATE_ACL, NULL, false, true);
 
     if (!res && lex->insert_table_leaf->table->has_gcol())
@@ -2068,7 +2071,7 @@ int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     }
     lex->in_update_value_clause= true;
     if (!res)
-      res= setup_fields(thd, Ref_ptr_array(), *update.update_values,
+      res= setup_fields(thd, Ref_item_array(), *update.update_values,
                         SELECT_ACL, NULL, false, false);
     lex->in_update_value_clause= false;
     if (!res)
@@ -2549,7 +2552,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   tmp_table.s->db_low_byte_first= 
         MY_TEST(create_info->db_type == myisam_hton ||
                 create_info->db_type == heap_hton);
-  tmp_table.null_row= 0;
+  tmp_table.reset_null_row();
 
   if (!thd->variables.explicit_defaults_for_timestamp)
     promote_first_timestamp_column(&alter_info->create_list);

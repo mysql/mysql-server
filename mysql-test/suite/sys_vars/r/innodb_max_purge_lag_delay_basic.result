@@ -8,7 +8,7 @@ COUNT(@@GLOBAL.innodb_max_purge_lag_delay)
 1
 1 Expected
 SELECT VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_max_purge_lag_delay';
 VARIABLE_VALUE
 1

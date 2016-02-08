@@ -37,7 +37,7 @@ at a time. */
 
 /*******************************************************************//**
 The two way list node.
-@param TYPE the list node type name */
+@tparam Type the list node type name */
 template <typename Type>
 struct ut_list_node {
 	Type*		prev;			/*!< pointer to the previous
@@ -61,8 +61,8 @@ The two-way list base node. The base node contains pointers to both ends
 of the list and a count of nodes in the list (excluding the base node
 from the count). We also store a pointer to the member field so that it
 doesn't have to be specified when doing list operations.
-@param Type the type of the list element
-@param NodePtr field member pointer that points to the list node */
+@tparam Type the type of the list element
+@tparam NodePtr field member pointer that points to the list node */
 template <typename Type, typename NodePtr>
 struct ut_list_base {
 	typedef Type elem_type;

@@ -165,10 +165,10 @@ create table t1 (a int)
 ENGINE = MyISAM
 partition by key (a)
 (partition p0 DATA DIRECTORY 'part-data' INDEX DIRECTORY 'part-data');
-Got one of the listed errors
+ERROR HY000: Incorrect path value: 'part-data'
 create table t1 (a int)
 ENGINE = MyISAM
 partition by key (a)
 (partition p0,
 partition p1 DATA DIRECTORY 'part-data' INDEX DIRECTORY 'part-data');
-Got one of the listed errors
+ERROR HY000: Incorrect path value: 'part-data'

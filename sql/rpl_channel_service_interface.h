@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -193,6 +193,7 @@ int channel_stop(const char* channel,
 /**
   Purges the channel logs
 
+  @param channel    The channel name
   @param reset_all  If true, the method will purge logs and remove the channel
                     If false, only the channel information will be reset.
 
@@ -248,6 +249,7 @@ long long channel_get_last_delivered_gno(const char* channel, int sidno);
 /**
   Queues a event packet into the current active channel.
 
+  @param channel     the channel name
   @param buf         the event buffer
   @param len         the event buffer length
 
@@ -264,6 +266,7 @@ int channel_queue_packet(const char* channel, const char* buf, unsigned long len
         If it is still receiving, then the method should wait for execution of
         transactions that were present when this method was invoked.
 
+  @param channel  the channel name
   @param timeout  the time (seconds) after which the method returns if the
                   above condition was not satisfied
 

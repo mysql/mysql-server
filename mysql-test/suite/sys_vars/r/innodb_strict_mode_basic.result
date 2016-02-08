@@ -21,12 +21,12 @@ innodb_strict_mode	ON
 show session variables like 'innodb_strict_mode';
 Variable_name	Value
 innodb_strict_mode	ON
-select * from information_schema.global_variables where variable_name='innodb_strict_mode';
+select * from performance_schema.global_variables where variable_name='innodb_strict_mode';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STRICT_MODE	ON
-select * from information_schema.session_variables where variable_name='innodb_strict_mode';
+innodb_strict_mode	ON
+select * from performance_schema.session_variables where variable_name='innodb_strict_mode';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STRICT_MODE	ON
+innodb_strict_mode	ON
 set global innodb_strict_mode='OFF';
 set session innodb_strict_mode='OFF';
 select @@global.innodb_strict_mode;
@@ -35,12 +35,12 @@ select @@global.innodb_strict_mode;
 select @@session.innodb_strict_mode;
 @@session.innodb_strict_mode
 0
-select * from information_schema.global_variables where variable_name='innodb_strict_mode';
+select * from performance_schema.global_variables where variable_name='innodb_strict_mode';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STRICT_MODE	OFF
-select * from information_schema.session_variables where variable_name='innodb_strict_mode';
+innodb_strict_mode	OFF
+select * from performance_schema.session_variables where variable_name='innodb_strict_mode';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STRICT_MODE	OFF
+innodb_strict_mode	OFF
 set @@global.innodb_strict_mode=1;
 set @@session.innodb_strict_mode=1;
 select @@global.innodb_strict_mode;
@@ -49,12 +49,12 @@ select @@global.innodb_strict_mode;
 select @@session.innodb_strict_mode;
 @@session.innodb_strict_mode
 1
-select * from information_schema.global_variables where variable_name='innodb_strict_mode';
+select * from performance_schema.global_variables where variable_name='innodb_strict_mode';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STRICT_MODE	ON
-select * from information_schema.session_variables where variable_name='innodb_strict_mode';
+innodb_strict_mode	ON
+select * from performance_schema.session_variables where variable_name='innodb_strict_mode';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STRICT_MODE	ON
+innodb_strict_mode	ON
 set global innodb_strict_mode=0;
 set session innodb_strict_mode=0;
 select @@global.innodb_strict_mode;
@@ -63,12 +63,12 @@ select @@global.innodb_strict_mode;
 select @@session.innodb_strict_mode;
 @@session.innodb_strict_mode
 0
-select * from information_schema.global_variables where variable_name='innodb_strict_mode';
+select * from performance_schema.global_variables where variable_name='innodb_strict_mode';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STRICT_MODE	OFF
-select * from information_schema.session_variables where variable_name='innodb_strict_mode';
+innodb_strict_mode	OFF
+select * from performance_schema.session_variables where variable_name='innodb_strict_mode';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STRICT_MODE	OFF
+innodb_strict_mode	OFF
 set @@global.innodb_strict_mode='ON';
 set @@session.innodb_strict_mode='ON';
 select @@global.innodb_strict_mode;
@@ -77,12 +77,12 @@ select @@global.innodb_strict_mode;
 select @@session.innodb_strict_mode;
 @@session.innodb_strict_mode
 1
-select * from information_schema.global_variables where variable_name='innodb_strict_mode';
+select * from performance_schema.global_variables where variable_name='innodb_strict_mode';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STRICT_MODE	ON
-select * from information_schema.session_variables where variable_name='innodb_strict_mode';
+innodb_strict_mode	ON
+select * from performance_schema.session_variables where variable_name='innodb_strict_mode';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STRICT_MODE	ON
+innodb_strict_mode	ON
 set global innodb_strict_mode=1.1;
 ERROR 42000: Incorrect argument type to variable 'innodb_strict_mode'
 set session innodb_strict_mode=1.1;
@@ -108,12 +108,12 @@ select @@global.innodb_strict_mode;
 select @@session.innodb_strict_mode;
 @@session.innodb_strict_mode
 1
-select * from information_schema.global_variables where variable_name='innodb_strict_mode';
+select * from performance_schema.global_variables where variable_name='innodb_strict_mode';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STRICT_MODE	ON
-select * from information_schema.session_variables where variable_name='innodb_strict_mode';
+innodb_strict_mode	ON
+select * from performance_schema.session_variables where variable_name='innodb_strict_mode';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STRICT_MODE	ON
+innodb_strict_mode	ON
 SET @@global.innodb_strict_mode = @start_global_value;
 SELECT @@global.innodb_strict_mode;
 @@global.innodb_strict_mode

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #include "prealloced_array.h"         // Prealloced_array
 #include "auth_common.h"              // check_table_access
 #include "binlog.h"                   // mysql_bin_log
+#include "error_handler.h"            // Strict_error_handler
 #include "item.h"                     // Item_splocal
 #include "item_cmpfunc.h"             // Item_func_eq
 #include "log.h"                      // Query_logger

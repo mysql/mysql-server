@@ -40,6 +40,8 @@ Created 9/17/2000 Heikki Tuuri
 #include "dict0crea.h"
 #include <sql_const.h>
 #include "dict0dict.h"
+#include "dict0priv.h"
+#include "dict0crea.h"
 #include "dict0load.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
@@ -1150,7 +1152,7 @@ row_get_prebuilt_insert_row(
 		que_node_get_parent(
 			pars_complete_graph_for_exec(
 				node,
-				prebuilt->trx, prebuilt->heap)));
+				prebuilt->trx, prebuilt->heap, prebuilt)));
 
 	prebuilt->ins_graph->state = QUE_FORK_ACTIVE;
 
@@ -1280,20 +1282,12 @@ run_again:
 	return(err);
 }
 
-/*********************************************************************//**
-Sets a table lock on the table mentioned in prebuilt.
+/** Sets a table lock on the table mentioned in prebuilt.
+@param[in]	prebuilt	table handle
 @return error code or DB_SUCCESS */
 dberr_t
-row_lock_table_for_mysql(
-/*=====================*/
-	row_prebuilt_t*	prebuilt,	/*!< in: prebuilt struct in the MySQL
-					table handle */
-	dict_table_t*	table,		/*!< in: table to lock, or NULL
-					if prebuilt->table should be
-					locked as
-					prebuilt->select_lock_type */
-	ulint		mode)		/*!< in: lock mode of table
-					(ignored if table==NULL) */
+row_lock_table(
+	row_prebuilt_t*	prebuilt)
 {
 	trx_t*		trx		= prebuilt->trx;
 	que_thr_t*	thr;
@@ -1323,17 +1317,11 @@ run_again:
 
 	trx_start_if_not_started_xa(trx, false);
 
-	if (table) {
-		err = lock_table(
-			0, table,
-			static_cast<enum lock_mode>(mode), thr);
-	} else {
-		err = lock_table(
-			0, prebuilt->table,
-			static_cast<enum lock_mode>(
-				prebuilt->select_lock_type),
-			thr);
-	}
+	err = lock_table(
+		0, prebuilt->table,
+		static_cast<enum lock_mode>(
+			prebuilt->select_lock_type),
+		thr);
 
 	trx->error_state = err;
 
@@ -1637,14 +1625,13 @@ row_insert_for_mysql_using_ins_graph(
 	const byte*	mysql_rec,
 	row_prebuilt_t*	prebuilt)
 {
-	trx_savept_t	savept;
-	que_thr_t*	thr;
-	dberr_t		err;
-	ibool		was_lock_wait;
-	trx_t*		trx		= prebuilt->trx;
-	ins_node_t*	node		= prebuilt->ins_node;
-	dict_table_t*	table		= prebuilt->table;
-
+	trx_savept_t		savept;
+	que_thr_t*		thr;
+	dberr_t			err;
+	ibool			was_lock_wait;
+	trx_t*			trx	= prebuilt->trx;
+	ins_node_t*		node	= prebuilt->ins_node;
+	dict_table_t*		table	= prebuilt->table;
 	/* FIX_ME: This blob heap is used to compensate an issue in server
 	for virtual column blob handling */
 	mem_heap_t*	blob_heap = NULL;
@@ -1794,9 +1781,23 @@ error_exit:
 			}
 		}
 
-		/* Pass NULL for the columns affected, since an INSERT affects
-		all FTS indexes. */
-		fts_trx_add_op(trx, table, doc_id, FTS_INSERT, NULL);
+		if (table->skip_alter_undo) {
+
+			if (trx->fts_trx == NULL) {
+				trx->fts_trx = fts_trx_create(trx);
+			}
+
+			fts_trx_table_t	ftt;
+			ftt.table = table;
+			ftt.fts_trx = trx->fts_trx;
+
+			fts_add_doc_from_tuple(&ftt, doc_id, node->row);
+
+		} else {
+			/* Pass NULL for the columns affected, since an INSERT
+			affects all FTS indexes. */
+			fts_trx_add_op(trx, table, doc_id, FTS_INSERT, NULL);
+		}
 	}
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
@@ -1859,7 +1860,8 @@ row_prebuild_sel_graph(
 			que_node_get_parent(
 				pars_complete_graph_for_exec(
 					static_cast<sel_node_t*>(node),
-					prebuilt->trx, prebuilt->heap)));
+					prebuilt->trx, prebuilt->heap,
+					prebuilt)));
 
 		prebuilt->sel_graph->state = QUE_FORK_ACTIVE;
 	}
@@ -1938,7 +1940,8 @@ row_get_prebuilt_update_vector(
 			que_node_get_parent(
 				pars_complete_graph_for_exec(
 					static_cast<upd_node_t*>(node),
-					prebuilt->trx, prebuilt->heap)));
+					prebuilt->trx, prebuilt->heap,
+					prebuilt)));
 
 		prebuilt->upd_graph->state = QUE_FORK_ACTIVE;
 	}
@@ -2319,7 +2322,13 @@ row_del_upd_for_mysql_using_cursor(
 		btr_pcur_copy_stored_position(node->pcur,
 					      prebuilt->clust_pcur);
 	}
-	row_upd_store_row(node);
+
+	ut_ad(dict_table_is_intrinsic(prebuilt->table));
+	ut_ad(!prebuilt->table->n_v_cols);
+
+	/* Internal table is created by optimiser. So there
+	should not be any virtual columns. */
+	row_upd_store_row(node, NULL, NULL);
 
 	/* Step-2: Execute DELETE operation. */
 	err = row_delete_for_mysql_using_cursor(node, delete_entries, false);
@@ -3004,7 +3013,7 @@ row_create_table_for_mysql(
 
 	node = tab_create_graph_create(table, heap);
 
-	thr = pars_complete_graph_for_exec(node, trx, heap);
+	thr = pars_complete_graph_for_exec(node, trx, heap, NULL);
 
 	ut_a(thr == que_fork_start_command(
 			static_cast<que_fork_t*>(que_node_get_parent(thr))));
@@ -3211,7 +3220,7 @@ row_create_index_for_mysql(
 
 		node = ind_create_graph_create(index, heap, NULL);
 
-		thr = pars_complete_graph_for_exec(node, trx, heap);
+		thr = pars_complete_graph_for_exec(node, trx, heap, NULL);
 
 		ut_a(thr == que_fork_start_command(
 				static_cast<que_fork_t*>(
@@ -3945,7 +3954,7 @@ row_mysql_lock_table(
 	trx->op_info = op_info;
 
 	node = sel_node_create(heap);
-	thr = pars_complete_graph_for_exec(node, trx, heap);
+	thr = pars_complete_graph_for_exec(node, trx, heap, NULL);
 	thr->graph->state = QUE_FORK_ACTIVE;
 
 	/* We use the select query graph as the dummy graph needed
@@ -4067,7 +4076,9 @@ row_drop_table_from_cache(
 	is going to be destroyed below. */
 	trx->mod_tables.erase(table);
 
+	/* Remove SDI tables of the tablespace from cache */
 	if (!dict_table_is_intrinsic(table)) {
+		dict_sdi_remove_from_cache(table->space, NULL, true);
 		dict_table_remove_from_cache(table);
 	} else {
 		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);

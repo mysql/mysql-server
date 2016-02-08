@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -64,8 +64,8 @@ private:
     {
       variables_list= NULL;
       my_hash_init(&m_registered_sysvars,
-		   const_cast<CHARSET_INFO *>(char_set),
-		   4, 0, 0, sysvars_get_key,
+		   char_set,
+		   4, 0, sysvars_get_key,
 		   my_free, HASH_UNIQUE,
                    key_memory_THD_Session_tracker);
     }
@@ -755,7 +755,6 @@ void Session_sysvars_tracker::mark_as_changed(THD *thd, LEX_CSTRING *tracked_ite
 
   @param entry         A single entry.
   @param [out] length  Length of the key.
-  @param not_used           Unused.
 
   @return                   Pointer to the key buffer.
 */
@@ -771,9 +770,7 @@ const uchar *Session_sysvars_tracker::sysvars_get_key(const uchar *entry,
 
 
 /**
-  @brief Prepare/reset the m_registered_sysvars hash for next statement.
-
-  @return                   void
+  Prepare/reset the m_registered_sysvars hash for next statement.
 */
 
 void Session_sysvars_tracker::reset()
@@ -1211,9 +1208,7 @@ bool Transaction_state_tracker::store(THD *thd, String &buf)
 
 
 /**
-  @brief Mark the tracker as changed.
-
-  @return void
+  Mark the tracker as changed.
 */
 
 void Transaction_state_tracker::mark_as_changed(THD *thd,
@@ -1225,9 +1220,7 @@ void Transaction_state_tracker::mark_as_changed(THD *thd,
 
 
 /**
-  @brief Reset the m_changed flag for next statement.
-
-  @return                   void
+  Reset the m_changed flag for next statement.
 */
 
 void Transaction_state_tracker::reset()
@@ -1492,8 +1485,6 @@ void Session_state_change_tracker::mark_as_changed(THD *thd,
 
 /**
   @brief Reset the m_changed flag for next statement.
-
-  @return                   void
 */
 
 void Session_state_change_tracker::reset()
@@ -1504,9 +1495,9 @@ void Session_state_change_tracker::reset()
 /**
   @brief find if there is a session state change
 
-  @return
-  true  - if there is a session state change
-  false - if there is no session state change
+  @return A session state change flag.
+  @retval true  There is a session state change
+  @retval false There is no session state change
 **/
 
 bool Session_state_change_tracker::is_state_changed(THD* thd)

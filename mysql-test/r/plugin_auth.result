@@ -73,6 +73,7 @@ GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user
 IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+GRANT ALL PRIVILEGES ON test_grant_db.* TO plug_dest;
 GRANT PROXY ON plug_dest TO new_grant_user;
 select USER(),CURRENT_USER();
 USER()	CURRENT_USER()

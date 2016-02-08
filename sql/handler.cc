@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include "dd_table_share.h"           // open_table_def
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "derror.h"                   // ER_DEFAULT
+#include "error_handler.h"            // Internal_error_handler
 #include "lock.h"                     // MYSQL_LOCK
 #include "log.h"                      // sql_print_error
 #include "log_event.h"                // Write_rows_log_event
@@ -1528,6 +1529,9 @@ ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
 
 
 /**
+  @param[in] thd                       Thread handle.
+  @param[in] all                       Session transaction if true, statement
+                                       otherwise.
   @param[in] ignore_global_read_lock   Allow commit to complete even if a
                                        global read lock is active. This can be
                                        used to allow changes to internal tables
@@ -1755,6 +1759,7 @@ end:
   @note This function does not care about global read lock; the caller
   should.
 
+  @param[in]  thd  Thread handle.
   @param[in]  all  Is set in case of explicit commit
                    (COMMIT statement), or implicit commit
                    issued by DDL. Is not set when called
@@ -1783,8 +1788,8 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
       have to restore its local thread native transaction
       context, previously saved at XA START.
     */
-    if (thd->variables.pseudo_slave_mode &&
-        thd->lex->sql_command == SQLCOM_XA_COMMIT)
+    if (thd->lex->sql_command == SQLCOM_XA_COMMIT &&
+        thd->binlog_applier_has_detached_trx())
     {
       DBUG_ASSERT(static_cast<Sql_cmd_xa_commit*>(thd->lex->m_sql_cmd)->
                   get_xa_opt() == XA_ONE_PHASE);
@@ -1797,7 +1802,9 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
       handlerton *ht= ha_info->ht();
       if ((err= ht->commit(ht, thd, all)))
       {
-        my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
+        char errbuf[MYSQL_ERRMSG_SIZE];
+        my_error(ER_ERROR_DURING_COMMIT, MYF(0), err,
+                 my_strerror(errbuf, MYSQL_ERRMSG_SIZE, err));
         error=1;
       }
       thd->status_var.ha_commit_count++;
@@ -1862,7 +1869,9 @@ int ha_rollback_low(THD *thd, bool all)
       handlerton *ht= ha_info->ht();
       if ((err= ht->rollback(ht, thd, all)))
       { // cannot happen
-        my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
+        char errbuf[MYSQL_ERRMSG_SIZE];
+        my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err,
+                 my_strerror(errbuf, MYSQL_ERRMSG_SIZE, err));
         error= 1;
       }
       thd->status_var.ha_rollback_count++;
@@ -2158,7 +2167,9 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
     if ((err= ht->savepoint_rollback(ht, thd,
                                      (uchar *)(sv+1)+ht->savepoint_offset)))
     { // cannot happen
-      my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
+      char errbuf[MYSQL_ERRMSG_SIZE];
+      my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err,
+               my_strerror(errbuf, MYSQL_ERRMSG_SIZE, err));
       error=1;
     }
     thd->status_var.ha_savepoint_rollback_count++;
@@ -2177,7 +2188,9 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
     handlerton *ht= ha_info->ht();
     if ((err= ht->rollback(ht, thd, !thd->in_sub_stmt)))
     { // cannot happen
-      my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
+      char errbuf[MYSQL_ERRMSG_SIZE];
+      my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err,
+               my_strerror(errbuf, MYSQL_ERRMSG_SIZE, err));
       error=1;
     }
     thd->status_var.ha_rollback_count++;
@@ -2218,7 +2231,9 @@ int ha_prepare_low(THD *thd, bool all)
         continue;
       if ((err= ht->prepare(ht, thd, all)))
       {
-        my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
+        char errbuf[MYSQL_ERRMSG_SIZE];
+        my_error(ER_ERROR_DURING_COMMIT, MYF(0), err,
+                 my_strerror(errbuf, MYSQL_ERRMSG_SIZE, err));
         error= 1;
       }
       thd->status_var.ha_prepare_count++;
@@ -2258,7 +2273,9 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv)
     }
     if ((err= ht->savepoint_set(ht, thd, (uchar *)(sv+1)+ht->savepoint_offset)))
     { // cannot happen
-      my_error(ER_GET_ERRNO, MYF(0), err);
+      char errbuf[MYSQL_ERRMSG_SIZE];
+      my_error(ER_GET_ERRNO, MYF(0), err,
+               my_strerror(errbuf, MYSQL_ERRMSG_SIZE, err));
       error=1;
     }
     thd->status_var.ha_savepoint_count++;
@@ -2294,7 +2311,9 @@ int ha_release_savepoint(THD *thd, SAVEPOINT *sv)
     if ((err= ht->savepoint_release(ht, thd,
                                     (uchar *)(sv+1) + ht->savepoint_offset)))
     { // cannot happen
-      my_error(ER_GET_ERRNO, MYF(0), err);
+      char errbuf[MYSQL_ERRMSG_SIZE];
+      my_error(ER_GET_ERRNO, MYF(0), err,
+               my_strerror(errbuf, MYSQL_ERRMSG_SIZE, err));
       error=1;
     }
   }
@@ -4076,7 +4095,11 @@ void handler::print_error(int error, myf errflag)
 	  my_error(ER_GET_ERRMSG, errflag, error, str.ptr(), engine);
       }
       else
-	my_error(ER_GET_ERRNO,errflag,error);
+      {
+        char errbuf[MYSQL_ERRMSG_SIZE];
+        my_error(ER_GET_ERRNO, errflag, error,
+                 my_strerror(errbuf, MYSQL_ERRMSG_SIZE, error));
+      }
       DBUG_VOID_RETURN;
     }
   }
@@ -4989,7 +5012,6 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   DBUG_ENTER("ha_create_table_from_engine");
   DBUG_PRINT("enter", ("name '%s'.'%s'", db, name));
 
-  memset(&create_info, 0, sizeof(create_info));
   if ((error= ha_discover(thd, db, name, &sdi_blob, &sdi_len)))
   {
     /* Table could not be discovered and thus not created */
@@ -5040,8 +5062,9 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
 
 
 /**
-  Try to find a table in a storage engine. 
+  Try to find a table in a storage engine.
 
+  @param thd  Thread handle
   @param db   Normalized table schema name
   @param name Normalized table name.
   @param[out] exists Only valid if the function succeeded.
@@ -5351,7 +5374,7 @@ static my_bool rm_tmp_tables_handlerton(THD *thd, plugin_ref plugin,
   previous server run. Used on server start-up.
 
   @param[in]      thd    Thread context.
-  @param[in/out]  files  List of files in directories for temporary files
+  @param[in,out]  files  List of files in directories for temporary files
                          which match tmp_file_prefix and thus can belong to
                          temporary tables. If any SE recognizes some file as
                          belonging to temporary table in this SE and deletes
@@ -6015,6 +6038,7 @@ Cost_estimate handler::read_cost(uint index, double ranges, double rows)
   (we'll have their prefixes from the index) and will not be able to check
   if we've reached the end the range.
 
+  @param table  Table to check keys for
   @param keyno  Key to check
 
   @todo
@@ -6625,9 +6649,11 @@ void DsMrr_impl::reset()
 }
 
 
-static int rowid_cmp(void *h, uchar *a, uchar *b)
+static int rowid_cmp(const void *h, const void *a, const void *b)
 {
-  return ((handler*)h)->cmp_ref(a, b);
+  return
+    pointer_cast<const handler*>(h)->cmp_ref(pointer_cast<const uchar*>(a),
+                                             pointer_cast<const uchar*>(b));
 }
 
 
@@ -6697,7 +6723,7 @@ int DsMrr_impl::dsmrr_fill_buffer()
   uint elem_size= h->ref_length + (int)is_mrr_assoc * sizeof(void*);
   size_t n_rowids= (rowids_buf_cur - rowids_buf) / elem_size;
   
-  my_qsort2(rowids_buf, n_rowids, elem_size, (qsort2_cmp)rowid_cmp,
+  my_qsort2(rowids_buf, n_rowids, elem_size, rowid_cmp,
             (void*)h);
   rowids_buf_last= rowids_buf_cur;
   rowids_buf_cur=  rowids_buf;
@@ -8171,7 +8197,7 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
   repoint_field_to_record(table, old_buf, record);
 
   blob_len_ptr blob_len_ptr_array[MAX_FIELDS];
-  
+
   /*
     If it's purge thread, we need get the space allocated by storage engine
     for blob.
@@ -8207,7 +8233,20 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
    /*
      Evaluate all requested columns and all base columns these depends
      on that are virtual.
+
+     This function is called by the storage engine, which may request to
+     evaluate more generated columns than read_set/write_set says.
+     For example, InnoDB's row_sel_sec_rec_is_for_clust_rec() reads the full
+     record from the clustered index and asks us to compute generated columns
+     that match key fields in the used secondary index. So we trust that the
+     engine has filled all base columns necessary to requested computations,
+     and we ignore read_set/write_set.
   */
+
+  my_bitmap_map *old_maps[2];
+  dbug_tmp_use_all_columns(table, old_maps,
+                           table->read_set, table->write_set);
+
   for (Field **vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
   {
     Field *field= *vfield_ptr;
@@ -8217,16 +8256,6 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
         field->is_virtual_gcol())
     {
       DBUG_ASSERT(field->gcol_info && field->gcol_info->expr_item->fixed);
-      if (in_purge)
-      {
-        /*
-          Adding to read_set/write_set is normally done up-front by high-level
-          layers before calling any handler's read/delete/etc functions.
-          But, for the specific case of the purge thread, it has no high-level
-          layer to manage read_set/write_set.
-        */
-        table->mark_column_used(thd, field, MARK_COLUMNS_WRITE);
-      }
 
       const type_conversion_status save_in_field_status=
         field->gcol_info->expr_item->save_in_field(field, 0);
@@ -8246,6 +8275,8 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
       }
     }
   }
+
+  dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_maps);
 
   /*
     If it's a purge thread, we need copy the blob data into specified place
@@ -8320,23 +8351,23 @@ bool handler::my_prepare_gcolumn_template(THD *thd,
 
 
 /**
-   Callback for generated columns processing. Will open the table, in the
-   server *only*, and call my_eval_gcolumn_expr_helper() to do the actual
-   processing. This function is a variant of the other
-   handler::my_eval_gcolumn_expr() but is intended for use when no TABLE
-   object already exists - e.g. from purge threads.
+  Callback for generated columns processing. Will open the table, in the
+  server *only*, and call my_eval_gcolumn_expr_helper() to do the actual
+  processing. This function is a variant of the other
+  handler::my_eval_gcolumn_expr() but is intended for use when no TABLE
+  object already exists - e.g. from purge threads.
 
-   Note! The call to open_table_uncached() must be made with the last
-   argument (open_in_engine) set to false. Failing to do so will cause
-   deadlocks and incorrect behavior.
+  Note! The call to open_table_uncached() must be made with the last
+  argument (open_in_engine) set to false. Failing to do so will cause
+  deadlocks and incorrect behavior.
 
-   @param thd             Thread handle
-   @param db_name         Database containing the table to open
-   @param table_name      Name of table to open
-   @param fields          Bitmap of field index of evaluated generated column
-   @param record          Record buffer
+  @param thd         thread handle
+  @param db_name     database containing the table to open
+  @param table_name  name of table to open
+  @param fields      bitmap of field index of evaluated generated column
+  @param record      record buffer
 
-   @return true in case of error, false otherwise.
+  @return true in case of error, false otherwise.
 */
 
 bool handler::my_eval_gcolumn_expr_with_open(THD *thd,
@@ -8376,42 +8407,159 @@ bool handler::my_eval_gcolumn_expr_with_open(THD *thd,
 }
 
 
-/*
-  Evaluate generated Column's value. If the engine has to write an index entry
-  to its UNDO log (in a DELETE or UPDATE), and the index is on a virtual
-  generated column, engine needs to calculate the column's value. This variant
-  of handler::my_eval_gcolumn_expr() is used by client threads which have a
-  TABLE.
-
-  @param thd        Thread handle
-  @param db_name    name of database
-  @param table_name name of the opened table
-  @param fields     bitmap of field index of evaluated generated column
-  @param[in,out]    record buff of base columns generated column depends.
-                    After calling this function, it will be used to return
-                    the value of generated column.
-
-  @return true in case of error, false otherwise.
-*/
-
-bool handler::my_eval_gcolumn_expr(THD *thd,
-                                   const char *db_name,
-                                   const char *table_name,
-                                   const MY_BITMAP *const fields,
+bool handler::my_eval_gcolumn_expr(THD *thd, TABLE *table,
+				   const MY_BITMAP *const fields,
                                    uchar *record)
 {
   DBUG_ENTER("my_eval_gcolumn_expr");
 
-  TABLE *table= find_locked_table(thd->open_tables, db_name, table_name);
-  if (!table)
-  {
-    if (!(table= find_temporary_table(thd, db_name, table_name)))
-    {
-      my_error(ER_TABLE_NOT_LOCKED, MYF(0), table_name);
-      DBUG_RETURN(true);
-    }
-  }
-  const bool res= my_eval_gcolumn_expr_helper(thd, table, fields, record, false);
+  const bool res=
+    my_eval_gcolumn_expr_helper(thd, table, fields, record, false);
   DBUG_RETURN(res);
 }
 
+
+/**
+  Auxiliary structure for passing information to notify_*_helper()
+  functions.
+*/
+
+struct HTON_NOTIFY_PARAMS
+{
+  const MDL_key *key;
+  const ha_notification_type notification_type;
+  bool some_htons_were_notified;
+};
+
+
+static my_bool
+notify_exclusive_mdl_helper(THD *thd, plugin_ref plugin, void *arg)
+{
+  handlerton *hton= plugin_data<handlerton*>(plugin);
+  if (hton->state == SHOW_OPTION_YES && hton->notify_exclusive_mdl)
+  {
+    HTON_NOTIFY_PARAMS *params= reinterpret_cast<HTON_NOTIFY_PARAMS*>(arg);
+
+    if (hton->notify_exclusive_mdl(thd, params->key,
+                                   params->notification_type))
+    {
+      // Ignore failures from post event notification.
+      if (params->notification_type == HA_NOTIFY_PRE_EVENT)
+        return TRUE;
+    }
+    else
+      params->some_htons_were_notified= true;
+  }
+  return FALSE;
+}
+
+
+/**
+  Notify/get permission from all interested storage engines before
+  acquisition or after release of exclusive metadata lock on object
+  represented by key.
+
+  @param thd                Thread context.
+  @param mdl_key            MDL key identifying object on which exclusive
+                            lock is to be acquired/was released.
+  @param notification_type  Indicates whether this is pre-acquire or
+                            post-release notification.
+
+  See @sa handlerton::notify_exclusive_mdl for details about
+  calling convention and error reporting.
+
+  @return False - if notification was successful/lock can be acquired,
+          True - if it has failed/lock should not be acquired.
+*/
+
+bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
+                             ha_notification_type notification_type)
+{
+  HTON_NOTIFY_PARAMS params = {mdl_key, notification_type, false};
+  if (plugin_foreach(thd, notify_exclusive_mdl_helper,
+                     MYSQL_STORAGE_ENGINE_PLUGIN, &params))
+  {
+    /*
+      If some SE hasn't given its permission to acquire lock and some SEs
+      has given their permissions, we need to notify the latter group about
+      failed lock acquisition. We do this by calling post-release notification
+      for all interested SEs unconditionally.
+    */
+    if (notification_type == HA_NOTIFY_PRE_EVENT &&
+        params.some_htons_were_notified)
+    {
+      HTON_NOTIFY_PARAMS rollback_params = {mdl_key, HA_NOTIFY_POST_EVENT,
+                                            false};
+      (void) plugin_foreach(thd, notify_exclusive_mdl_helper,
+                            MYSQL_STORAGE_ENGINE_PLUGIN, &rollback_params);
+    }
+    return true;
+  }
+  return false;
+}
+
+
+static my_bool
+notify_alter_table_helper(THD *thd, plugin_ref plugin, void *arg)
+{
+  handlerton *hton= plugin_data<handlerton*>(plugin);
+  if (hton->state == SHOW_OPTION_YES && hton->notify_alter_table)
+  {
+    HTON_NOTIFY_PARAMS *params= reinterpret_cast<HTON_NOTIFY_PARAMS*>(arg);
+
+    if (hton->notify_alter_table(thd, params->key, params->notification_type))
+    {
+      // Ignore failures from post event notification.
+      if (params->notification_type == HA_NOTIFY_PRE_EVENT)
+        return TRUE;
+    }
+    else
+      params->some_htons_were_notified= true;
+  }
+  return FALSE;
+}
+
+
+/**
+  Notify/get permission from all interested storage engines before
+  or after executed ALTER TABLE on the table identified by key.
+
+  @param thd                Thread context.
+  @param mdl_key            MDL key identifying table.
+  @param notification_type  Indicates whether this is pre-ALTER or
+                            post-ALTER notification.
+
+  See @sa handlerton::notify_alter_table for rationale,
+  details about calling convention and error reporting.
+
+  @return False - if notification was successful/ALTER TABLE can
+                  proceed.
+          True -  if it has failed/ALTER TABLE should fail.
+*/
+
+bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
+                           ha_notification_type notification_type)
+{
+  HTON_NOTIFY_PARAMS params = {mdl_key, notification_type, false};
+
+  if (plugin_foreach(thd, notify_alter_table_helper,
+                     MYSQL_STORAGE_ENGINE_PLUGIN, &params))
+  {
+    /*
+      If some SE hasn't given its permission to do ALTER TABLE and some SEs
+      has given their permissions, we need to notify the latter group about
+      failed attemopt. We do this by calling post-ALTER TABLE notification
+      for all interested SEs unconditionally.
+    */
+    if (notification_type == HA_NOTIFY_PRE_EVENT &&
+        params.some_htons_were_notified)
+    {
+      HTON_NOTIFY_PARAMS rollback_params = {mdl_key, HA_NOTIFY_POST_EVENT,
+                                            false};
+      (void) plugin_foreach(thd, notify_alter_table_helper,
+                            MYSQL_STORAGE_ENGINE_PLUGIN, &rollback_params);
+    }
+    return true;
+  }
+  return false;
+}

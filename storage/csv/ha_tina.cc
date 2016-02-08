@@ -97,8 +97,10 @@ static handler *tina_create_handler(handlerton *hton,
 /*
   Used for sorting chains with qsort().
 */
-static int sort_set (tina_set *a, tina_set *b)
+static int sort_set(const void *a_arg, const void *b_arg)
 {
+  const tina_set *a= pointer_cast<const tina_set*>(a_arg);
+  const tina_set *b= pointer_cast<const tina_set*>(b_arg);
   /*
     We assume that intervals do not intersect. So, it is enought to compare
     any two points. Here we take start of intervals for comparison.
@@ -185,8 +187,8 @@ static int tina_init_func(void *p)
 
   tina_hton= (handlerton *)p;
   mysql_mutex_init(csv_key_mutex_tina, &tina_mutex, MY_MUTEX_INIT_FAST);
-  (void) my_hash_init(&tina_open_tables,system_charset_info,32,0,0,
-                      tina_get_key,0,0,
+  (void) my_hash_init(&tina_open_tables,system_charset_info,32,0,
+                      tina_get_key, nullptr, 0,
                       csv_key_memory_tina_share);
   tina_hton->state= SHOW_OPTION_YES;
   tina_hton->db_type= DB_TYPE_CSV_DB;
@@ -1372,7 +1374,7 @@ int ha_tina::rnd_end()
       It sorts so that we move the firts blocks to the beginning.
     */
     my_qsort(chain, (size_t)(chain_ptr - chain), sizeof(tina_set),
-             (qsort_cmp)sort_set);
+             sort_set);
 
     my_off_t write_begin= 0, write_end;
 

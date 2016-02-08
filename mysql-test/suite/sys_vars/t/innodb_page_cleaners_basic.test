@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 # Variable name: innodb_page_cleaners
 # Scope: Global
 # Access type: Static
@@ -21,14 +23,14 @@ SELECT innodb_page_cleaners = @@SESSION.innodb_page_cleaners;
 
 --disable_warnings
 SELECT @@GLOBAL.innodb_page_cleaners = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_page_cleaners';
 --enable_warnings
 --echo 1 Expected
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_page_cleaners';
 --enable_warnings
 --echo 1 Expected
@@ -47,7 +49,7 @@ SELECT COUNT(@@SESSION.innodb_page_cleaners);
 # Check the default value
 --disable_warnings
 SELECT VARIABLE_NAME, VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME = 'innodb_page_cleaners';
 --enable_warnings
 

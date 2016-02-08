@@ -5,12 +5,12 @@ SET GLOBAL LOG_OUTPUT = 'FILE';
 flush status;
 show status like 'Table_lock%';
 Variable_name	Value
-Table_locks_immediate	0
+Table_locks_immediate	1
 Table_locks_waited	0
-select * from information_schema.session_status where variable_name like 'Table_lock%';
+select * from performance_schema.session_status where variable_name like 'Table_lock%';
 VARIABLE_NAME	VARIABLE_VALUE
-TABLE_LOCKS_IMMEDIATE	0
-TABLE_LOCKS_WAITED	0
+Table_locks_immediate	2
+Table_locks_waited	0
 set sql_log_bin=0;
 set @old_general_log = @@global.general_log;
 set global general_log = 'OFF';
@@ -83,36 +83,36 @@ FLUSH STATUS;
 SHOW STATUS LIKE 'max_used_connections';
 Variable_name	Value
 Max_used_connections	1
-SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+SELECT * FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE 'max_used_connections';
 VARIABLE_NAME	VARIABLE_VALUE
-MAX_USED_CONNECTIONS	1
+Max_used_connections	1
 SET @save_thread_cache_size=@@thread_cache_size;
 SET GLOBAL thread_cache_size=3;
 SHOW STATUS LIKE 'max_used_connections';
 Variable_name	Value
 Max_used_connections	3
-SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+SELECT * FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE 'max_used_connections';
 VARIABLE_NAME	VARIABLE_VALUE
-MAX_USED_CONNECTIONS	3
+Max_used_connections	3
 FLUSH STATUS;
 SHOW STATUS LIKE 'max_used_connections';
 Variable_name	Value
 Max_used_connections	2
-SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+SELECT * FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE 'max_used_connections';
 VARIABLE_NAME	VARIABLE_VALUE
-MAX_USED_CONNECTIONS	2
+Max_used_connections	2
 SHOW STATUS LIKE 'max_used_connections';
 Variable_name	Value
 Max_used_connections	3
-SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+SELECT * FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE 'max_used_connections';
 VARIABLE_NAME	VARIABLE_VALUE
-MAX_USED_CONNECTIONS	3
+Max_used_connections	3
 SHOW STATUS LIKE 'max_used_connections';
 Variable_name	Value
 Max_used_connections	4
-SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections';
+SELECT * FROM performance_schema.session_status WHERE VARIABLE_NAME LIKE 'max_used_connections';
 VARIABLE_NAME	VARIABLE_VALUE
-MAX_USED_CONNECTIONS	4
+Max_used_connections	4
 SET GLOBAL thread_cache_size=@save_thread_cache_size;
 CREATE TABLE t1 ( a INT );
 INSERT INTO t1 VALUES (1), (2);
@@ -192,7 +192,7 @@ show status like 'com_show_status';
 Variable_name	Value
 Com_show_status	8
 rnd_diff	tmp_table_diff
-20	8
+2898	0
 flush status;
 show status like 'Com%function';
 Variable_name	Value
@@ -341,16 +341,16 @@ show status like 'table_open_cache_%';
 Variable_name	Value
 Table_open_cache_hits	5
 Table_open_cache_misses	6
-Table_open_cache_overflows	2
+Table_open_cache_overflows	14
 # This statement should result in 4 cache hits, 2 cache misses/
 # overflows.
 select * from t1 as a, t2 as b, t1 as c, t2 as d, t1 as e, t2 as f;
 i	j	i	j	i	j
 show status like 'table_open_cache_%';
 Variable_name	Value
-Table_open_cache_hits	9
-Table_open_cache_misses	8
-Table_open_cache_overflows	4
+Table_open_cache_hits	8
+Table_open_cache_misses	9
+Table_open_cache_overflows	17
 # Finally, the below statement should result in 1 cache miss
 # and 1 overflow since it accesses table which is not yet in
 # cache and table cache is full.
@@ -358,9 +358,9 @@ select * from t3;
 k
 show status like 'table_open_cache_%';
 Variable_name	Value
-Table_open_cache_hits	9
-Table_open_cache_misses	9
-Table_open_cache_overflows	5
+Table_open_cache_hits	8
+Table_open_cache_misses	10
+Table_open_cache_overflows	18
 # Cleanup
 set @@global.table_open_cache= @old_table_open_cache;
 drop tables t1, t2, t3;

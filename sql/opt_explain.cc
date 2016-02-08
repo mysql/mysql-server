@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1543,7 +1543,7 @@ bool Explain_join::explain_extra()
       return true;                              /* purecov: inspected */
   }
   else if (tab->type() == JT_CONST && tab->position()->rows_fetched == 1.0 &&
-           tab->table()->null_row)
+           tab->table()->has_null_row())
   {
     if (push_extra(ET_IMPOSSIBLE_ON_CONDITION))
       return true;                              /* purecov: inspected */

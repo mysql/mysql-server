@@ -1,3 +1,6 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
+
 # The include statement below is a temp one for tests that are yet to
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
@@ -453,7 +456,7 @@ SELECT X.I FROM t100 AS X, t100 AS Y;
 
 --disable_warnings
 let $total_handler_reads=
-select sum(variable_value) from information_schema.session_status
+select sum(variable_value) from performance_schema.session_status
  where VARIABLE_NAME like 'Handler_read%';
 --enable_warnings
 

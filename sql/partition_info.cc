@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #include "derror.h"                           // ER_THD
 #include "sql_tablespace.h"                   // check_tablespace_name
 #include "template_utils.h"
+#include "error_handler.h"
 
 
 // TODO: Create ::get_copy() for getting a deep copy.
@@ -289,7 +290,7 @@ bool partition_info::set_partition_bitmaps(TABLE_LIST *table_list)
   @param[out] prune_needs_default_values  Set on return if copying of default
                                           values is needed
   @param[out] can_prune_partitions        Enum showing if possible to prune
-  @param[inout] used_partitions           If possible to prune the bitmap
+  @param[in,out] used_partitions          If possible to prune the bitmap
                                           is initialized and cleared
 
   @return Operation status
@@ -1029,8 +1030,8 @@ char *partition_info::find_duplicate_name()
   max_names= num_parts;
   if (is_sub_partitioned())
     max_names+= num_parts * num_subparts;
-  if (my_hash_init(&partition_names, system_charset_info, max_names, 0, 0,
-                   get_part_name_from_elem, 0, HASH_UNIQUE,
+  if (my_hash_init(&partition_names, system_charset_info, max_names, 0,
+                   get_part_name_from_elem, nullptr, HASH_UNIQUE,
                    PSI_INSTRUMENT_ME))
   {
     DBUG_ASSERT(0);
@@ -2162,9 +2163,10 @@ error:
 bool check_partition_dirs(partition_info *part_info)
 {
   if (!part_info)
-    return 0;
+    return false;
 
   partition_element *part_elem;
+  const char *file_name;
   List_iterator<partition_element> part_it(part_info->partitions);
   while ((part_elem= part_it++))
   {
@@ -2175,28 +2177,36 @@ bool check_partition_dirs(partition_info *part_info)
       while ((subpart_elem= sub_it++))
       {
         if (test_if_data_home_dir(subpart_elem->data_file_name))
-          goto dd_err;
+	{
+	  file_name = subpart_elem->data_file_name;
+	  goto err;
+	}
         if (test_if_data_home_dir(subpart_elem->index_file_name))
-          goto id_err;
+	{
+	  file_name = subpart_elem->index_file_name;
+	  goto err;
+	}
       }
     }
     else
     {
       if (test_if_data_home_dir(part_elem->data_file_name))
-        goto dd_err;
+      {
+        file_name = part_elem->data_file_name;
+        goto err;
+      }
       if (test_if_data_home_dir(part_elem->index_file_name))
-        goto id_err;
+      {
+        file_name = part_elem->index_file_name;
+        goto err;
+      }
     }
   }
-  return 0;
+  return false;
 
-dd_err:
-  my_error(ER_WRONG_ARGUMENTS,MYF(0),"DATA DIRECTORY");
-  return 1;
-
-id_err:
-  my_error(ER_WRONG_ARGUMENTS,MYF(0),"INDEX DIRECTORY");
-  return 1;
+err:
+  my_error(ER_WRONG_VALUE, MYF(0), "path", file_name);
+  return true;
 }
 
 
@@ -2393,10 +2403,6 @@ part_column_list_val *partition_info::add_column_value()
 
   @param col_val  Column value object to be initialised
   @param item     Item object representing column value
-
-  @return Operation status
-    @retval TRUE   Failure
-    @retval FALSE  Success
 
   @note Helper functions to functions called by parser.
 */

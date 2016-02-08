@@ -46,14 +46,15 @@ typedef	byte	flst_node_t;
 #define	FLST_NODE_SIZE		(2 * FIL_ADDR_SIZE)
 
 #if !defined UNIV_HOTBACKUP
-/********************************************************************//**
-Initializes a list base node. */
+/** Initializes a list base node.
+@param[in]	base	pointer to base node
+@param[in]	mtr	mini-transaction handle */
 UNIV_INLINE
 void
 flst_init(
-/*======*/
-	flst_base_node_t*	base,	/*!< in: pointer to base node */
-	mtr_t*			mtr);	/*!< in: mini-transaction handle */
+	flst_base_node_t*	base,
+	mtr_t*			mtr);
+
 /********************************************************************//**
 Adds a node as the last node in a list. */
 void
@@ -108,60 +109,68 @@ UNIV_INLINE
 ulint
 flst_get_len(
 	const flst_base_node_t*	base);
-/********************************************************************//**
-Gets list first node address.
+
+/** Gets list first node address.
+@param[in]	base	pointer to base node
+@param[in]	mtr	mini-transaction handle
 @return file address */
 UNIV_INLINE
 fil_addr_t
 flst_get_first(
-/*===========*/
-	const flst_base_node_t*	base,	/*!< in: pointer to base node */
-	mtr_t*			mtr);	/*!< in: mini-transaction handle */
-/********************************************************************//**
-Gets list last node address.
+	const flst_base_node_t*	base,
+	mtr_t*			mtr);
+
+/** Gets list last node address.
+@param[in]	base	pointer to base node
+@param[in]	mtr	mini-transaction handle
 @return file address */
 UNIV_INLINE
 fil_addr_t
 flst_get_last(
-/*==========*/
-	const flst_base_node_t*	base,	/*!< in: pointer to base node */
-	mtr_t*			mtr);	/*!< in: mini-transaction handle */
-/********************************************************************//**
-Gets list next node address.
+	const flst_base_node_t*	base,
+	mtr_t*			mtr);
+
+/** Gets list next node address.
+@param[in]	node	pointer to node
+@param[in]	mtr	mini-transaction handle
 @return file address */
 UNIV_INLINE
 fil_addr_t
 flst_get_next_addr(
-/*===============*/
-	const flst_node_t*	node,	/*!< in: pointer to node */
-	mtr_t*			mtr);	/*!< in: mini-transaction handle */
-/********************************************************************//**
-Gets list prev node address.
+	const flst_node_t*	node,
+	mtr_t*			mtr);
+
+/** Gets list prev node address.
+@param[in]	node	pointer to node
+@param[in]	mtr	mini-transaction handle
 @return file address */
 UNIV_INLINE
 fil_addr_t
 flst_get_prev_addr(
-/*===============*/
-	const flst_node_t*	node,	/*!< in: pointer to node */
-	mtr_t*			mtr);	/*!< in: mini-transaction handle */
-/********************************************************************//**
-Writes a file address. */
+	const flst_node_t*	node,
+	mtr_t*			mtr);
+
+/** Writes a file address.
+@param[in]	faddr	pointer to file faddress
+@param[in]	addr	file address
+@param[in]	mtr	mini-transaction handle */
 UNIV_INLINE
 void
 flst_write_addr(
-/*============*/
-	fil_faddr_t*	faddr,	/*!< in: pointer to file faddress */
-	fil_addr_t	addr,	/*!< in: file address */
-	mtr_t*		mtr);	/*!< in: mini-transaction handle */
-/********************************************************************//**
-Reads a file address.
+	fil_faddr_t*	faddr,
+	fil_addr_t	addr,
+	mtr_t*		mtr);
+
+/** Reads a file address.
+@param[in]	faddr	pointer to file faddress
+@param[in]	mtr	mini-transaction handle
 @return file address */
 UNIV_INLINE
 fil_addr_t
 flst_read_addr(
-/*===========*/
-	const fil_faddr_t*	faddr,	/*!< in: pointer to file faddress */
-	mtr_t*			mtr);	/*!< in: mini-transaction handle */
+	const fil_faddr_t*	faddr,
+	mtr_t*			mtr);
+
 /********************************************************************//**
 Validates a file-based list.
 @return TRUE if ok */

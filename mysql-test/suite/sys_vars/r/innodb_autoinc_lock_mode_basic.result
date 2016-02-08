@@ -21,7 +21,7 @@ SELECT @@global.innodb_autoinc_lock_mode;
 1
 '#----------------------FN_DYNVARS_046_03------------------------#'
 SELECT @@global.innodb_autoinc_lock_mode = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='innodb_autoinc_lock_mode';
 @@global.innodb_autoinc_lock_mode = VARIABLE_VALUE
 1
@@ -29,7 +29,7 @@ SELECT @@global.innodb_autoinc_lock_mode;
 @@global.innodb_autoinc_lock_mode
 1
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='innodb_autoinc_lock_mode';
 VARIABLE_VALUE
 1

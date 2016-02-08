@@ -182,7 +182,7 @@ struct page_cleaner_t {
 
 #ifdef UNIV_DEBUG
 	ulint			n_disabled_debug;
-						/*<! how many of pc threads
+						/*!< how many of pc threads
 						have been disabled */
 #endif /* UNIV_DEBUG */
 };
@@ -707,7 +707,7 @@ Note that it is assumed that the contents of bpage have already been
 copied to dpage.
 IMPORTANT: When this function is called bpage and dpage are not
 exact copies of each other. For example, they both will have different
-::state. Also the ::list pointers in dpage may be stale. We need to
+"::state". Also the "::list" pointers in dpage may be stale. We need to
 use the current list node (bpage) to do the list manipulation because
 the list pointers could have changed between the time that we copied
 the contents of bpage to the dpage and the flush list manipulation
@@ -872,7 +872,9 @@ buf_flush_init_for_writing(
 			/* fall through */
 		case FIL_PAGE_TYPE_ZBLOB:
 		case FIL_PAGE_TYPE_ZBLOB2:
+		case FIL_PAGE_SDI_ZBLOB:
 		case FIL_PAGE_INDEX:
+		case FIL_PAGE_SDI:
 		case FIL_PAGE_RTREE:
 
 			buf_flush_update_zip_checksum(
@@ -919,6 +921,7 @@ buf_flush_init_for_writing(
 				switch (page_type) {
 				case FIL_PAGE_INDEX:
 				case FIL_PAGE_RTREE:
+				case FIL_PAGE_SDI:
 				case FIL_PAGE_UNDO_LOG:
 				case FIL_PAGE_INODE:
 				case FIL_PAGE_IBUF_FREE_LIST:
@@ -928,6 +931,8 @@ buf_flush_init_for_writing(
 				case FIL_PAGE_TYPE_BLOB:
 				case FIL_PAGE_TYPE_ZBLOB:
 				case FIL_PAGE_TYPE_ZBLOB2:
+				case FIL_PAGE_SDI_BLOB:
+				case FIL_PAGE_SDI_ZBLOB:
 					break;
 				case FIL_PAGE_TYPE_FSP_HDR:
 				case FIL_PAGE_TYPE_XDES:

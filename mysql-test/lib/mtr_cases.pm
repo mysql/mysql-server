@@ -970,6 +970,13 @@ sub collect_one_test_case {
 
   }
 
+  if ( ! $tinfo->{'not_parallel'} and $::opt_run_non_parallel_tests )
+  {
+    $tinfo->{'skip'}= 1;
+    $tinfo->{'comment'}= "Test needs 'include/not_parallel.inc' include file when 'run-non-parallel-tests' option is set";
+    return $tinfo
+  }
+
   if ( $tinfo->{'big_test'} and ! $::opt_big_test )
   {
     $tinfo->{'skip'}= 1;
@@ -1175,6 +1182,7 @@ my @tags=
  ["include/have_ssl.inc", "need_ssl", 1],
  ["include/have_ssl_communication.inc", "need_ssl", 1],
  ["include/not_windows.inc", "not_windows", 1],
+ ["include/not_parallel.inc", "not_parallel", 1]
 );
 
 

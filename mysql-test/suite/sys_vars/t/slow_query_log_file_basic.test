@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 ################### mysql-test\t\slow_query_log_file_basic.test ################
 #                                                                              #
 # Variable Name: slow_query_log_file                                           #
@@ -64,7 +66,7 @@ SET @@global.slow_query_log_file = 12;
 
 --disable_warnings
 SELECT @@global.slow_query_log_file = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='slow_query_log_file';
 --enable_warnings
 

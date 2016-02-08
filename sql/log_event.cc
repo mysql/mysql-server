@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include "mysql.h"             // MYSQL_OPT_MAX_ALLOWED_PACKET
 #include "my_decimal.h"        // my_decimal
 #include "my_time.h"           // MAX_DATE_STRING_REP_LENGTH
+#include "derror.h"            // ER_THD
 
 #ifdef MYSQL_CLIENT
 #include "mysqlbinlog.h"
@@ -48,7 +49,7 @@
 #include "rpl_rli_pdb.h"       // Slave_job_group
 #include "rpl_slave.h"         // use_slave_mask
 #include "sql_base.h"          // close_thread_tables
-#include "sql_cache.h"         // QUERY_CACHE_FLAGS_SIZE
+#include "sql_cache.h"         // query_cache
 #include "sql_db.h"            // load_db_opt_by_name
 #include "sql_load.h"          // mysql_load
 #include "sql_locale.h"        // my_locale_by_number
@@ -1890,17 +1891,16 @@ void Log_event::print_header(IO_CACHE* file,
   @param[in] file              IO cache
   @param[in] prt               Pointer to string
   @param[in] length            String length
-  @param[in] esc_all        Whether to escape all characters
 */
 
 static void
-my_b_write_quoted(IO_CACHE *file, const uchar *ptr, uint length, bool esc_all)
+my_b_write_quoted(IO_CACHE *file, const uchar *ptr, uint length)
 {
   const uchar *s;
   my_b_printf(file, "'");
   for (s= ptr; length > 0 ; s++, length--)
   {
-    if (*s > 0x1F && !esc_all)
+    if (*s > 0x1F && *s != '\'' && *s != '\\')
       my_b_write(file, s, 1);
     else
     {
@@ -1911,14 +1911,6 @@ my_b_write_quoted(IO_CACHE *file, const uchar *ptr, uint length, bool esc_all)
   }
   my_b_printf(file, "'");
 }
-
-
-static void
-my_b_write_quoted(IO_CACHE *file, const uchar *ptr, uint length)
-{
-  my_b_write_quoted(file, ptr, length, false);
-}
-
 
 /**
   Prints a bit string to io cache in format  b'1010'.
@@ -4066,9 +4058,6 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
                   user_len + 1 +
                   host_len + 1 +
                   data_len + 1;
-#if !defined(MYSQL_CLIENT)
-  buf_len+= sizeof(size_t)/*for db_len */ + db_len + 1 + QUERY_CACHE_FLAGS_SIZE;
-#endif
 
   if (!(data_buf = (Log_event_header::Byte*) my_malloc(key_memory_log_event,
                                                        buf_len, MYF(MY_WME))))
@@ -4085,28 +4074,6 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   if(query != 0)
     is_valid_param= true;
 
-  /**
-    The buffer contains the following:
-    +--------+-----------+------+------+---------+----+-------+
-    | catlog | time_zone | user | host | db name | \0 | Query |
-    +--------+-----------+------+------+---------+----+-------+
-
-    To support the query cache we append the following buffer to the above
-    +-------+----------------------------------------+-------+
-    |db len | uninitiatlized space of size of db len | FLAGS |
-    +-------+----------------------------------------+-------+
-
-    The area of buffer starting from Query field all the way to the end belongs
-    to the Query buffer and its structure is described in alloc_query() in
-    sql_parse.cc
-
-    We append the db length at the end of the buffer. This will be used by
-    Query_cache::send_result_to_client() in case the query cache is On.
-   */
-#if !defined(MYSQL_CLIENT)
-  size_t db_length= db_len;
-  memcpy(data_buf + query_data_written, &db_length, sizeof(size_t));
-#endif
   DBUG_VOID_RETURN;
 }
 
@@ -11832,7 +11799,9 @@ Write_rows_log_event::Write_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
                                            const Table_id& tid_arg,
                                            bool is_transactional,
                                            const uchar* extra_row_info)
-: binary_log::Rows_event(m_type),
+  : binary_log::Rows_event(log_bin_use_v1_row_events ?
+                           binary_log::WRITE_ROWS_EVENT_V1 :
+                           binary_log::WRITE_ROWS_EVENT),
   Rows_log_event(thd_arg, tbl_arg, tid_arg, tbl_arg->write_set, is_transactional,
                    log_bin_use_v1_row_events?
                    binary_log::WRITE_ROWS_EVENT_V1:
@@ -12339,7 +12308,9 @@ Delete_rows_log_event::Delete_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
                                              const Table_id& tid,
                                              bool is_transactional,
                                              const uchar* extra_row_info)
-: binary_log::Rows_event(m_type),
+: binary_log::Rows_event(log_bin_use_v1_row_events ?
+                         binary_log::DELETE_ROWS_EVENT_V1 :
+                         binary_log::DELETE_ROWS_EVENT),
   Rows_log_event(thd_arg, tbl_arg, tid, tbl_arg->read_set, is_transactional,
                  log_bin_use_v1_row_events?
                  binary_log::DELETE_ROWS_EVENT_V1:
@@ -12426,7 +12397,9 @@ Update_rows_log_event::Update_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
                                              const Table_id& tid,
                                              bool is_transactional,
                                              const uchar* extra_row_info)
-: binary_log::Rows_event(m_type),
+: binary_log::Rows_event(log_bin_use_v1_row_events ?
+                         binary_log::UPDATE_ROWS_EVENT_V1 :
+                         binary_log::UPDATE_ROWS_EVENT),
   Rows_log_event(thd_arg, tbl_arg, tid, tbl_arg->read_set, is_transactional,
                  log_bin_use_v1_row_events?
                  binary_log::UPDATE_ROWS_EVENT_V1:

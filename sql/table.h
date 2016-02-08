@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,6 +65,7 @@ typedef int64 query_id_t;
 #define cmp_record(A,B) memcmp((A)->record[0],(A)->B,(size_t) (A)->s->reclength)
 #define empty_record(A) { \
                           restore_record((A),s->default_values); \
+                          if ((A)->s->null_bytes > 0) \
                           memset((A)->null_flags, 255, (A)->s->null_bytes);\
                         }
 
@@ -1219,10 +1220,12 @@ private:
     are nullable (in the query), and null_row may be true.
   */
   my_bool nullable;
+
 public:
   /*
     If true, the current table row is considered to have all columns set to 
     NULL, including columns declared as "not null" (see nullable).
+    @todo make it private, currently join buffering changes it through a pointer
   */
   my_bool null_row;
 
@@ -1453,6 +1456,24 @@ public:
 
   /// @return true if table contains one or more virtual generated columns
   bool has_virtual_gcol() const;
+
+  /// Set current row as "null row", for use in null-complemented outer join
+  void set_null_row()
+  {
+    null_row= TRUE;
+    status|= STATUS_NULL_ROW;
+    memset(null_flags, 255, s->null_bytes);
+  }
+
+  /// Clear "null row" status for the current row
+  void reset_null_row()
+  {
+    null_row= FALSE;
+    status&= ~STATUS_NULL_ROW;
+  }
+
+  /// @return true if current row is null-extended
+  bool has_null_row() const { return null_row; }
 
   /**
     Initialize the optimizer cost model.
@@ -2990,13 +3011,6 @@ inline bool is_user_table(TABLE * table)
 {
   const char *name= table->s->table_name.str;
   return strncmp(name, tmp_file_prefix, tmp_file_prefix_length);
-}
-
-inline void mark_as_null_row(TABLE *table)
-{
-  table->null_row=1;
-  table->status|=STATUS_NULL_ROW;
-  memset(table->null_flags, 255, table->s->null_bytes);
 }
 
 bool is_simple_order(ORDER *order);

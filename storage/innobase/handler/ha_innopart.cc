@@ -833,7 +833,7 @@ ha_innopart::innobase_initialize_autoinc()
 /** Set the autoinc column max value.
 This should only be called once from ha_innobase::open().
 Therefore there's no need for a covering lock.
-@param[in]	no_lock	Ignored!
+@param[in]	-	If locking should be skipped. Not used!
 @return	0 for success or error code. */
 inline
 int
@@ -1139,6 +1139,9 @@ share_error:
 
 	m_prebuilt->default_rec = table->s->default_values;
 	ut_ad(m_prebuilt->default_rec);
+
+	DBUG_ASSERT(table != NULL);
+	m_prebuilt->m_mysql_table = table;
 
 	if (ib_table->n_v_cols > 0) {
 		mutex_enter(&dict_sys->mutex);
@@ -3041,6 +3044,26 @@ ha_innopart::extra(
 		}
 		return(0);
 	}
+
+	/* In case of alter copy operation, set/unset the skip_undo_flag
+	for all partitions depends on the operation. */
+	if (operation == HA_EXTRA_BEGIN_ALTER_COPY
+	    || operation == HA_EXTRA_END_ALTER_COPY) {
+
+		for (uint i = m_part_info->get_first_used_partition();
+		     i < m_tot_parts;
+		     i = m_part_info->get_next_used_partition(i)) {
+
+			dict_table_t*   table_part =
+				m_part_share->get_table_part(i);
+
+			table_part->skip_alter_undo =
+				(operation == HA_EXTRA_BEGIN_ALTER_COPY);
+		}
+
+		return(0);
+	}
+
 	return(ha_innobase::extra(operation));
 }
 
@@ -3454,7 +3477,7 @@ ha_innopart::scan_time()
 
 /** Updates the statistics for one partition (table).
 @param[in]	table		Table to update the statistics for.
-@param[in]	is_analyze	True if called from ::analyze().
+@param[in]	is_analyze	True if called from "::analyze()".
 @return	error code. */
 static
 int
@@ -3490,7 +3513,7 @@ update_table_stats(
 Returns statistics information of the table to the MySQL interpreter,
 in various fields of the handle object.
 @param[in]	flag		Flags for what to update and return.
-@param[in]	is_analyze	True if called from ::analyze().
+@param[in]	is_analyze	True if called from "::analyze()".
 @return	HA_ERR_* error code or 0. */
 int
 ha_innopart::info_low(
@@ -4121,7 +4144,7 @@ ha_innopart::referenced_by_foreign_key()
 
 /** Start statement.
 MySQL calls this function at the start of each SQL statement inside LOCK
-TABLES. Inside LOCK TABLES the ::external_lock method does not work to
+TABLES. Inside LOCK TABLES the "::external_lock" method does not work to
 mark SQL statement borders. Note also a special case: if a temporary table
 is created inside LOCK TABLES, MySQL has not called external_lock() at all
 on that table.
@@ -4322,7 +4345,7 @@ format.
 int
 ha_innopart::cmp_ref(
 	const uchar*	ref1,
-	const uchar*	ref2)
+	const uchar*	ref2) const
 {
 	int	cmp;
 

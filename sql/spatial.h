@@ -936,6 +936,7 @@ public:
     @param type Expected type of geometry, or
            Geoemtry::wkb_invalid_type if any type is allowed
 
+    @param bo
     @return True if the string is a well-formed GEOMETRY string,
             false otherwise
    */
@@ -2258,7 +2259,7 @@ public:
   }
 
 
-  Gis_wkb_vector(const void *ptr, size_t nbytes, const Flags_t &flags,
+  Gis_wkb_vector(const void *ptr, size_t nbytes, const Geometry::Flags_t &flags,
                  srid_t srid, bool is_bg_adapter= true);
   Gis_wkb_vector(const self &v);
 

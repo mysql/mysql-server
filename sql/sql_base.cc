@@ -17,7 +17,6 @@
 
 #include "sql_base.h"
 
-#include "my_atomic.h"                // my_atomic_add32
 #include "auth_common.h"              // check_table_access
 #include "binlog.h"                   // mysql_bin_log
 #include "dd_table_share.h"           // open_table_def
@@ -48,8 +47,10 @@
 #include "table.h"                    // TABLE_LIST
 #include "table_cache.h"              // table_cache_manager
 #include "table_trigger_dispatcher.h" // Table_trigger_dispatcher
+#include "template_utils.h"
 #include "transaction.h"              // trans_rollback_stmt
 #include "trigger_loader.h"           // Trigger_loader
+#include "sql_audit.h"                // mysql_audit_table_access_notify
 
 #ifdef HAVE_REPLICATION
 #include "rpl_rli.h"                  //Relay_log_information
@@ -333,9 +334,10 @@ static const uchar *table_def_key(const uchar *record, size_t *length)
 }
 
 
-static void table_def_free_entry(TABLE_SHARE *share)
+static void table_def_free_entry(void *arg)
 {
   DBUG_ENTER("table_def_free_entry");
+  TABLE_SHARE *share= pointer_cast<TABLE_SHARE*>(arg);
   mysql_mutex_assert_owner(&LOCK_open);
   if (share->prev)
   {
@@ -372,8 +374,8 @@ bool table_def_init(void)
   table_def_inited= true;
 
   return my_hash_init(&table_def_cache, &my_charset_bin, table_def_size,
-                      0, 0, table_def_key,
-                      (my_hash_free_key) table_def_free_entry, 0,
+                      0, table_def_key,
+                      table_def_free_entry, 0,
                       key_memory_table_share) != 0;
 }
 
@@ -455,6 +457,7 @@ uint cached_table_definitions(void)
   @param key         table cache key
   @param key_length  length of key
   @param open_view   allow open of view
+  @param hash_value  hash value to use for lookup in THD
 
   @return Pointer to the new TABLE_SHARE, or NULL if there was an error
 */
@@ -2679,6 +2682,8 @@ open_table_get_mdl_lock(THD *thd, Open_table_context *ot_ctx,
   cache and, if yes, wait until the flush is complete.
 
   @param thd             Thread context.
+  @param db              Database name.
+  @param table_name      Table name.
   @param wait_timeout    Timeout for waiting.
   @param deadlock_weight Weight of this wait for deadlock detector.
 
@@ -5408,7 +5413,9 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   bool some_routine_modifies_data= FALSE;
   bool has_prelocking_list;
   DBUG_ENTER("open_tables");
-
+#ifndef EMBEDDED_LIBRARY
+  bool audit_notified= false;
+#endif /* !EMBEDDED_LIBRARY */
 
 restart:
   /*
@@ -5539,6 +5546,25 @@ restart:
 
       DEBUG_SYNC(thd, "open_tables_after_open_and_process_table");
     }
+
+    /*
+      Iterate through set of tables and generate table access audit events.
+    */
+#ifndef EMBEDDED_LIBRARY
+    if (!audit_notified && mysql_audit_table_access_notify(thd, *start))
+    {
+      error= true;
+      goto err;
+    }
+
+    /*
+      Event is not generated in the next loop. It may contain duplicated
+      table entries as well as new tables discovered for stored procedures.
+      Events for these tables will be generated during the queries of these
+      stored procedures.
+    */
+    audit_notified= true;
+#endif /* !EMBEDDED_LIBRARY */
 
     /*
       If we are not already in prelocked mode and extended table list is
@@ -7330,7 +7356,7 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
       {
         DBUG_ASSERT(ref && *ref && (*ref)->fixed);
         DBUG_ASSERT(*actual_table ==
-                    ((Item_direct_view_ref *)(*ref))->cached_table);
+                    (down_cast<Item_ident*>(*ref))->cached_table);
 
         Column_privilege_tracker tracker(thd, want_privilege);
         if ((*ref)->walk(&Item::check_column_privileges, Item::WALK_PREFIX,
@@ -8587,7 +8613,11 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
 
   1) the list of field items has same order as in the query, and the
      Item_func_get_user_var item may go before the Item_func_set_user_var:
+
+     @verbatim
         SELECT @a, @a := 10 FROM t;
+     @endverbatim
+
   2) The entry->update_query_id value controls constantness of
      Item_func_get_user_var items, so in presence of Item_func_set_user_var
      items we have to refresh their entries before fixing of
@@ -8612,7 +8642,7 @@ bool resolve_var_assignments(THD *thd, LEX *lex)
   Resolve a list of expressions and setup appropriate data
 
   @param thd                    thread handler
-  @param[out] ref_pointer_array filled in with reference pointers.
+  @param[out] ref_item_array    filled in with references to items.
   @param[in,out] fields         list of expressions, populated with resolved
                                 data about expressions.
   @param want_privilege         privilege representing desired operation.
@@ -8627,7 +8657,7 @@ bool resolve_var_assignments(THD *thd, LEX *lex)
   @returns false if success, true if error
 */
 
-bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
+bool setup_fields(THD *thd, Ref_item_array ref_item_array,
                   List<Item> &fields, ulong want_privilege,
                   List<Item> *sum_func_list,
                   bool allow_sum_func, bool column_update)
@@ -8667,16 +8697,15 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
     There is other way to solve problem: fill array with pointers to list,
     but it will be slower.
 
-    TODO: remove it when (if) we made one list for allfields and
-    ref_pointer_array
+    TODO: remove it when (if) we made one list for allfields and ref_item_array
   */
-  if (!ref_pointer_array.is_null())
+  if (!ref_item_array.is_null())
   {
-    DBUG_ASSERT(ref_pointer_array.size() >= fields.elements);
-    memset(ref_pointer_array.array(), 0, sizeof(Item *) * fields.elements);
+    DBUG_ASSERT(ref_item_array.size() >= fields.elements);
+    memset(ref_item_array.array(), 0, sizeof(Item *) * fields.elements);
   }
 
-  Ref_ptr_array ref= ref_pointer_array;
+  Ref_item_array ref= ref_item_array;
 
   Item *item;
   List_iterator<Item> it(fields);
@@ -8701,7 +8730,7 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
     }
     if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM &&
 	sum_func_list)
-      item->split_sum_func(thd, ref_pointer_array, *sum_func_list);
+      item->split_sum_func(thd, ref_item_array, *sum_func_list);
     select->select_list_tables|= item->used_tables();
     thd->lex->used_tables|= item->used_tables();
   }
@@ -9076,12 +9105,39 @@ bool check_record(THD *thd, Field **ptr)
 
 
 /**
+  Check the NOT NULL constraint on all the fields explicitly set
+  in INSERT INTO statement or implicitly set in BEFORE trigger.
+
+  @param thd  Thread context.
+  @param ptr  Fields.
+
+  @return Error status.
+*/
+
+static bool check_inserting_record(THD *thd, Field **ptr)
+{
+  Field *field;
+
+  while ((field = *ptr++) && !thd->is_error())
+  {
+    if (bitmap_is_set(field->table->fields_set_during_insert,
+                      field->field_index) &&
+        field->check_constraints(ER_BAD_NULL_ERROR) != TYPE_OK)
+      return true;
+  }
+
+  return thd->is_error();
+}
+
+
+/**
   Check if SQL-statement is INSERT/INSERT SELECT/REPLACE/REPLACE SELECT
   and trigger event is ON INSERT. When this condition is true that means
   that the statement basically can invoke BEFORE INSERT trigger if it
   was created before.
 
   @param event         event type for triggers to be invoked
+  @param sql_command   Type of SQL statement
 
   @return Test result
     @retval true    SQL-statement is
@@ -9210,7 +9266,7 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
 
     table->triggers->disable_fields_temporary_nullability();
 
-    return rc || check_record(thd, table->field);
+    return rc || check_inserting_record(thd, table->field);
   }
   else
   {
@@ -9365,7 +9421,7 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
   if (rc)
     return true;
 
-  return check_record(thd, ptr);
+  return check_inserting_record(thd, ptr);
 }
 
 

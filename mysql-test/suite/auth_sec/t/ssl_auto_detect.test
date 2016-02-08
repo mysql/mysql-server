@@ -62,7 +62,7 @@ disconnect ssl_root_1;
 
 --echo # Connect using mysql client : This must succeed.
 --replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
---exec $MYSQL -uroot --ssl -e "show status like 'Ssl_cipher';"
+--exec $MYSQL -uroot --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher';"
 
 
 #------------------------------------------------------------------------------
@@ -95,7 +95,7 @@ disconnect root_2;
 
 --echo # Try creating SSL connection using mysql connection. It should fail.
 --error 1
---exec $MYSQL -uroot --ssl -e "show status like 'Ssl_cipher';"
+--exec $MYSQL -uroot --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher';"
 
 
 #------------------------------------------------------------------------------
@@ -127,7 +127,7 @@ let SEARCH_PATTERN= CA certificate .* is self signed.;
 
 --echo # Try creating SSL connection
 --replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
---exec $MYSQL -uroot --ssl -e "show status like 'Ssl_cipher';"
+--exec $MYSQL -uroot --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher';"
 
 
 #------------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -157,9 +157,7 @@ static int test_services_plugin_init(void *p)
 	    my_malloc(PSI_INSTRUMENT_ME,
                       sizeof(struct test_services_context), MYF(0));
   my_thread_attr_init(&attr);
-#ifndef _WIN32
-  (void) pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-#endif
+  (void) my_thread_attr_setdetachstate(&attr, MY_THREAD_CREATE_JOINABLE);
 
 /* now create the thread and call test_services within the thread. */
   if (my_thread_create(&con->test_services_thread, &attr, test_services, p) != 0)

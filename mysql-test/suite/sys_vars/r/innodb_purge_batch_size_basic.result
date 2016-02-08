@@ -75,7 +75,7 @@ SELECT @@global.innodb_purge_batch_size;
 5000
 '#----------------------FN_DYNVARS_046_05------------------------#'
 SELECT @@global.innodb_purge_batch_size =
-VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_purge_batch_size';
 @@global.innodb_purge_batch_size =
 VARIABLE_VALUE
@@ -83,7 +83,7 @@ VARIABLE_VALUE
 SELECT @@global.innodb_purge_batch_size;
 @@global.innodb_purge_batch_size
 5000
-SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_purge_batch_size';
 VARIABLE_VALUE
 5000

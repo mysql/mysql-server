@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -255,10 +255,9 @@ Mts_submode_database::detach_temp_tables(THD *thd, const Relay_log_info* rli,
 
 /**
   Logic to get least occupied worker when the sql mts_submode= database
-  @param
-    rli relay log info of coordinator
-    ws arrayy of worker threads
-    ev event for which we are searching for a worker.
+  @param rli relay log info of coordinator
+  @param ws  array of worker threads
+  @param ev  event for which we are searching for a worker.
   @return slave worker thread
  */
 Slave_worker *
@@ -439,6 +438,7 @@ longlong Mts_submode_logical_clock::get_lwm_timestamp(Relay_log_info *rli,
          for itself. That is the method should not be caller by a Worker
          whose group assignment is in the GAQ front item.
 
+   @param rli relay log info of coordinator
    @param last_committed_arg  logical timestamp of a parent transaction
    @return false as success,
            true  when the error flag is raised or
@@ -446,8 +446,7 @@ longlong Mts_submode_logical_clock::get_lwm_timestamp(Relay_log_info *rli,
 */
 bool Mts_submode_logical_clock::
 wait_for_last_committed_trx(Relay_log_info* rli,
-                            longlong last_committed_arg,
-                            longlong lwm_estimate_arg)
+                            longlong last_committed_arg)
 {
   THD* thd= rli->info_thd;
 
@@ -651,7 +650,7 @@ Mts_submode_logical_clock::schedule_next_event(Relay_log_info* rli,
         At awakening set min_waited_timestamp to commit_parent in the
         subsequent GAQ index (could be NIL).
       */
-      if (wait_for_last_committed_trx(rli, last_committed, lwm_estimate))
+      if (wait_for_last_committed_trx(rli, last_committed))
       {
         DBUG_RETURN(-1);
       }
@@ -804,10 +803,9 @@ Mts_submode_logical_clock::detach_temp_tables( THD *thd, const Relay_log_info* r
 
 /**
   Logic to get least occupied worker when the sql mts_submode= master_parallel
-  @param
-    rli relay log info of coordinator
-    ws arrayy of worker threads
-    ev event for which we are searching for a worker.
+  @param rli relay log info of coordinator
+  @param ws  array of worker threads
+  @param ev  event for which we are searching for a worker.
   @return slave worker thread or NULL when coordinator is killed by any worker.
  */
 

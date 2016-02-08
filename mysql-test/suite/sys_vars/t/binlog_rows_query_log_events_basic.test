@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 ######### mysql-test\t\binlog_rows_query_log_events.test ########### 
 #                                                                             #
 # Variable Name: binlog_rows_query_log_events                      #
@@ -48,7 +50,7 @@ SELECT @@SESSION.binlog_rows_query_log_events;
 --disable_warnings
 SELECT
 IF(@@GLOBAL.binlog_rows_query_log_events, "ON", "OFF") = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='binlog_rows_query_log_events';
 --enable_warnings
 --echo 1 Expected
@@ -58,7 +60,7 @@ SELECT COUNT(@@GLOBAL.binlog_rows_query_log_events);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='binlog_rows_query_log_events';
 --enable_warnings
 --echo 1 Expected
@@ -72,7 +74,7 @@ WHERE VARIABLE_NAME='binlog_rows_query_log_events';
 --disable_warnings
 SELECT
 IF(@@SESSION.binlog_rows_query_log_events, "ON", "OFF") = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='binlog_rows_query_log_events';
 --enable_warnings
 --echo 1 Expected
@@ -82,7 +84,7 @@ SELECT COUNT(@@SESSION.binlog_rows_query_log_events);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+FROM performance_schema.session_variables
 WHERE VARIABLE_NAME='binlog_rows_query_log_events';
 --enable_warnings
 --echo 1 Expected

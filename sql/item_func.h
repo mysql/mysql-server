@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -226,7 +226,7 @@ public:
   void set_arguments(List<Item> &list, bool context_free);
   inline uint argument_count() const { return arg_count; }
   inline void remove_arguments() { arg_count=0; }
-  void split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
+  void split_sum_func(THD *thd, Ref_item_array ref_item_array,
                       List<Item> &fields);
   virtual void print(String *str, enum_query_type query_type);
   void print_op(String *str, enum_query_type query_type);
@@ -260,9 +260,23 @@ public:
   my_decimal *val_decimal(my_decimal *);
 
   /**
-    Same as save_in_field except that special logic is added
-    to handle JSON values. If the target field has JSON type,
-    then do NOT first serialize the JSON value into a string form.
+    Same as save_in_field() except that special logic is added to
+    avoid serialization to string followed by parsing of the string
+    when saving a JSON value in a JSON column.
+
+    Unless both the return type of the function and the type of the
+    target column are JSON, this function works exactly as
+    save_in_field(). For the JSON type, this means:
+
+    - JSON values saved in non-JSON columns: The JSON value is
+      serialized to a character string and then attempted saved in the
+      target column. The usual conversions are performed if the target
+      column is not a character string column.
+
+    - Non-JSON values saved in JSON columns: Strings are parsed as
+      JSON text, converted to JSON binary representation and saved in
+      the target column. Non-strings cause a conversion error to be
+      raised.
 
     A better solution might be to put this logic into
     Item_func::save_in_field_inner() or even Item::save_in_field_inner().
@@ -270,9 +284,11 @@ public:
     more Item subclasses. And that feels like pulling on a
     ball of yarn late in the release cycle for 5.7. FIXME.
 
-    @param[out] field  The field to set the value to.
-    @retval 0         On success.
-    @retval > 0       On error.
+    @param[out] field          The field to set the value to.
+    @param      no_conversions Passed to save_in_field_inner().
+
+    @retval 0  On success.
+    @retval >0 On error.
   */
   virtual type_conversion_status save_possibly_as_json(Field *field,
                                                        bool no_conversions);
@@ -339,7 +355,7 @@ public:
     char buf[256];
     String str(buf, sizeof(buf), system_charset_info);
     str.length(0);
-    print(&str, QT_ORDINARY);
+    print(&str, QT_NO_DATA_EXPANSION);
     my_error(ER_DATA_OUT_OF_RANGE, MYF(0), type_name, str.c_ptr_safe());
   }
   inline double raise_float_overflow()
@@ -502,6 +518,8 @@ protected:
                              rely on values from these tables can be part of
                              the filter effect.
     @param filter_for_table  The table we are calculating filter effect for
+    @param fields_to_ignore Columns that should be ignored.
+
 
     @return Item_field that participates in the predicate if none of the
             requirements are broken, NULL otherwise
@@ -1320,7 +1338,7 @@ class Item_func_min_max :public Item_func
 {
   Item_result cmp_type;
   String tmp_value;
-  int cmp_sign;
+  const int cmp_sign;
   /* TRUE <=> arguments should be compared in the DATETIME context. */
   bool compare_as_dates;
   /* An item used for issuing warnings while string to DATETIME conversion. */
@@ -1561,6 +1579,9 @@ public:
 
 class Item_func_bit: public Item_int_func
 {
+protected:
+  /// @returns Second arg which check_deprecated_bin_op() should check.
+  virtual Item* check_deprecated_second_arg() const= 0;
 public:
   Item_func_bit(Item *a, Item *b) :Item_int_func(a, b) {}
   Item_func_bit(const POS &pos, Item *a, Item *b) :Item_int_func(pos, a, b) {}
@@ -1568,7 +1589,11 @@ public:
   Item_func_bit(Item *a) :Item_int_func(a) {}
   Item_func_bit(const POS &pos, Item *a) :Item_int_func(pos, a) {}
 
-  void fix_length_and_dec() { unsigned_flag= 1; }
+  void fix_length_and_dec()
+  {
+    unsigned_flag= 1;
+    check_deprecated_bin_op(args[0], check_deprecated_second_arg());
+  }
 
   virtual inline void print(String *str, enum_query_type query_type)
   {
@@ -1578,6 +1603,7 @@ public:
 
 class Item_func_bit_or :public Item_func_bit
 {
+  Item *check_deprecated_second_arg() const { return args[1]; }
 public:
   Item_func_bit_or(const POS &pos, Item *a, Item *b) :Item_func_bit(pos, a, b)
   {}
@@ -1587,6 +1613,7 @@ public:
 
 class Item_func_bit_and :public Item_func_bit
 {
+  Item *check_deprecated_second_arg() const { return args[1]; }
 public:
   Item_func_bit_and(const POS &pos, Item *a, Item *b) :Item_func_bit(pos, a, b)
   {}
@@ -1600,11 +1627,16 @@ public:
   Item_func_bit_count(const POS &pos, Item *a) :Item_int_func(pos, a) {}
   longlong val_int();
   const char *func_name() const { return "bit_count"; }
-  void fix_length_and_dec() { max_length=2; }
+  void fix_length_and_dec()
+  {
+    max_length=2;
+    check_deprecated_bin_op(args[0], NULL);
+  }
 };
 
 class Item_func_shift_left :public Item_func_bit
 {
+  Item *check_deprecated_second_arg() const { return NULL; }
 public:
   Item_func_shift_left(const POS &pos, Item *a, Item *b)
     :Item_func_bit(pos, a, b)
@@ -1615,6 +1647,7 @@ public:
 
 class Item_func_shift_right :public Item_func_bit
 {
+  Item *check_deprecated_second_arg() const { return NULL; }
 public:
   Item_func_shift_right(const POS &pos, Item *a, Item *b)
     :Item_func_bit(pos, a, b)
@@ -1625,6 +1658,7 @@ public:
 
 class Item_func_bit_neg :public Item_func_bit
 {
+  Item *check_deprecated_second_arg() const { return NULL; }
 public:
   Item_func_bit_neg(const POS &pos, Item *a) :Item_func_bit(pos, a) {}
   longlong val_int();
@@ -2144,6 +2178,8 @@ class user_var_entry
 
   /**
     Initialize all members
+
+    @param thd    Current session.
     @param name    Name of the user_var_entry instance.
     @param cs      charset information of the user_var_entry instance.
   */
@@ -2222,12 +2258,14 @@ public:
   }
 
   /**
-    Allocate and initialize a user variable instance.
+    Allocates and initializes a user variable instance.
+
+    @param thd    Current session.
     @param name   Name of the variable.
     @param cs     Charset of the variable.
-    @return
-    @retval  Address of the allocated and initialized user_var_entry instance.
-    @retval  NULL on allocation error.
+
+    @return Address of the allocated and initialized user_var_entry instance.
+    @retval NULL On allocation error.
   */
   static user_var_entry *create(THD *thd,
                                 const Name_string &name,
@@ -2516,10 +2554,12 @@ public:
   String search_value;       // key_item()'s value converted to cmp_collation
 
   /**
-     Constructor for Item_func_match class.
+    Constructor for Item_func_match class.
 
-     @param a  List of arguments.
-     @param b  FT Flags.
+    @param pos         Position of token in the parser.
+    @param a           List of arguments.
+    @param against_arg Expression to match against.
+    @param b           FT Flags.
   */
   Item_func_match(const POS &pos, PT_item_list *a, Item *against_arg, uint b):
     Item_real_func(pos, a), against(against_arg), key(0), flags(b),
@@ -2542,6 +2582,7 @@ public:
     ft_handler= NULL;
     concat_ws= NULL;
     table_ref= NULL;           // required by Item_func_match::eq()
+    master= NULL;
     DBUG_VOID_RETURN;
   }
   virtual Item *key_item() const { return against; }
@@ -2765,6 +2806,7 @@ private:
 
 class Item_func_bit_xor : public Item_func_bit
 {
+  Item *check_deprecated_second_arg() const { return args[1]; }
 public:
   Item_func_bit_xor(const POS &pos, Item *a, Item *b) :Item_func_bit(pos, a, b)
   {}

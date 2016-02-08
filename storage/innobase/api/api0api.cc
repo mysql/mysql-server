@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -44,6 +44,9 @@ InnoDB Native API
 #include "rem0cmp.h"
 #include "dict0priv.h"
 #include "trx0roll.h"
+#include "fsp0fsp.h"
+#include <dd/types/tablespace.h>
+#include <dd/properties.h>
 
 /** configure variable for binlog option with InnoDB APIs */
 my_bool ib_binlog_enabled = FALSE;
@@ -277,14 +280,19 @@ ib_wake_master_thread(void)
 /*****************************************************************//**
 Read the columns from a rec into a tuple. */
 static
-void
+ib_err_t
 ib_read_tuple(
 /*==========*/
 	const rec_t*	rec,		/*!< in: Record to read */
 	ib_bool_t	page_format,	/*!< in: IB_TRUE if compressed format */
 	ib_tuple_t*	tuple,		/*!< in: tuple to read into */
-	void**		rec_buf,        /*!< in/out: row buffer */
-        ulint*          len)            /*!< in/out: buffer len */
+	ib_tuple_t*	cmp_tuple,	/*!< in: tuple to compare and stop
+					reading  */
+	int		mode,		/*!< in: mode determine when to
+					stop read */
+	void**		rec_buf_list,	/*!< in/out: row buffer */
+	ulint*		cur_slot,	/*!< in/out: buffer slot being used */
+	ulint*		used_len)	/*!< in/out: used buf len */
 {
 	ulint		i;
 	void*		ptr;
@@ -296,6 +304,9 @@ ib_read_tuple(
 	dtuple_t*	dtuple = tuple->ptr;
 	const dict_index_t* index = tuple->index;
 	ulint		offset_size;
+	byte*		next_ptr;
+	int		cmp;
+	ulint		match = 0;
 
 	rec_offs_init(offsets_);
 
@@ -307,13 +318,48 @@ ib_read_tuple(
 
 	offset_size = rec_offs_size(offsets);
 
-	if (rec_buf && *rec_buf) {
-		if (*len < offset_size) {
-			free(*rec_buf);
-			*rec_buf = malloc(offset_size);
-			*len = offset_size;
+	if (cmp_tuple && mode) {
+		/* This is a case of "read upto" certain value. Used for
+		index scan for "<" or "<=" case */
+		cmp = cmp_dtuple_rec_with_match(
+			cmp_tuple->ptr, rec, offsets, &match);
+
+		if ((mode == IB_CUR_LE && cmp < 0)
+		    || (mode == IB_CUR_L && cmp <= 0)) {
+			return(DB_END_OF_INDEX);
 		}
-		ptr = *rec_buf;
+	}
+
+	if (rec_buf_list && *rec_buf_list) {
+		void*	rec_buf = rec_buf_list[*cur_slot];
+
+		if ((16384  - *used_len) < offset_size + 8) {
+			(*cur_slot) += 1;
+
+			/* Limit the record buffer size to 16 MB */
+			if (*cur_slot >= 1024) {
+				return(DB_END_OF_INDEX);
+			}
+
+			if (rec_buf_list[*cur_slot] == NULL) {
+				rec_buf_list[*cur_slot] = malloc(16384);
+			}
+
+			rec_buf = rec_buf_list[*cur_slot];
+
+			if (rec_buf == NULL) {
+				return(DB_END_OF_INDEX);
+			}
+			*used_len = 0;
+		}
+
+		ptr = ((byte*)rec_buf + *used_len);
+
+		next_ptr = static_cast<byte*>(
+			ut_align((byte*)(rec_buf) + *used_len
+			+ offset_size + 8, 8));
+
+		*used_len = next_ptr - (byte*)(rec_buf);
 	} else {
 		/* Make a copy of the rec. */
 		ptr = mem_heap_alloc(tuple->heap, offset_size);
@@ -353,6 +399,7 @@ ib_read_tuple(
 
 			data = btr_rec_copy_externally_stored_field(
 				copy, offsets, page_size, i, &len,
+				dict_index_is_sdi(index),
 				tuple->heap);
 
 			ut_a(len != UNIV_SQL_NULL);
@@ -360,6 +407,8 @@ ib_read_tuple(
 
 		dfield_set_data(dfield, data, len);
 	}
+
+	return(DB_SUCCESS);
 }
 
 /*****************************************************************//**
@@ -934,6 +983,16 @@ ib_cursor_open_table(
 	return(err);
 }
 
+/** Check the table whether it contains virtual columns.
+@param[in]	crsr	InnoDB Cursor
+@return true if the table contains virtual column else failure. */
+ib_bool_t
+ib_is_virtual_table(
+	ib_crsr_t	crsr)
+{
+	return(crsr->prebuilt->table->n_v_cols > 0);
+}
+
 /********************************************************************//**
 Free a context struct for a table handle. */
 static
@@ -1169,12 +1228,14 @@ ib_insert_query_graph_create(
 		row = dtuple_create(heap, dict_table_get_n_cols(table));
 		dict_table_copy_types(row, table);
 
+		ut_ad(!dict_table_have_virtual_index(table));
+
 		ins_node_set_new_row(node->ins, row);
 
 		grph->ins = static_cast<que_fork_t*>(
 			que_node_get_parent(
 				pars_complete_graph_for_exec(node->ins, trx,
-							     heap)));
+							     heap, NULL)));
 
 		grph->ins->state = QUE_FORK_ACTIVE;
 	}
@@ -1283,9 +1344,12 @@ ib_update_vector_create(
 			row_create_update_node_for_mysql(table, heap));
 	}
 
+	ut_ad(!dict_table_have_virtual_index(table));
+
 	grph->upd = static_cast<que_fork_t*>(
 		que_node_get_parent(
-			pars_complete_graph_for_exec(node->upd, trx, heap)));
+			pars_complete_graph_for_exec(node->upd, trx,
+						     heap, NULL)));
 
 	grph->upd->state = QUE_FORK_ACTIVE;
 
@@ -1580,7 +1644,8 @@ ib_delete_row(
 
 	page_format = static_cast<ib_bool_t>(
 		dict_table_is_comp(index->table));
-	ib_read_tuple(rec, page_format, tuple, NULL, NULL);
+
+	ib_read_tuple(rec, page_format, tuple, NULL, 0, NULL, NULL, NULL);
 
 	upd->n_fields = ib_tuple_get_n_cols(ib_tpl);
 
@@ -1694,11 +1759,17 @@ ib_cursor_read_row(
 /*===============*/
 	ib_crsr_t	ib_crsr,	/*!< in: InnoDB cursor instance */
 	ib_tpl_t	ib_tpl,		/*!< out: read cols into this tuple */
-	void**		row_buf,        /*!< in/out: row buffer */
-	ib_ulint_t*	row_len)        /*!< in/out: row buffer len */
+	ib_tpl_t	cmp_tpl,	/*!< in: tuple to compare and stop
+					reading */
+	int		mode,		/*!< in: mode determine when to
+					stop read */
+	void**		row_buf,	/*!< in/out: row buffer */
+	ib_ulint_t*	slot,		/*!< in/out: slot being used */
+	ib_ulint_t*	used_len)	/*!< in/out: buffer len used */
 {
 	ib_err_t	err;
 	ib_tuple_t*	tuple = (ib_tuple_t*) ib_tpl;
+	ib_tuple_t*	cmp_tuple = (ib_tuple_t*) cmp_tpl;
 	ib_cursor_t*	cursor = (ib_cursor_t*) ib_crsr;
 
 	ut_a(trx_is_started(cursor->prebuilt->trx));
@@ -1740,9 +1811,10 @@ ib_cursor_read_row(
 			}
 
 			if (!rec_get_deleted_flag(rec, page_format)) {
-				ib_read_tuple(rec, page_format, tuple,
-					      row_buf, (ulint*) row_len);
-				err = DB_SUCCESS;
+				err = ib_read_tuple(
+					rec, page_format, tuple, cmp_tuple,
+					mode, row_buf, (ulint*) slot,
+					(ulint*) used_len);
 			} else{
 				err = DB_RECORD_NOT_FOUND;
 			}
@@ -1772,10 +1844,10 @@ ib_cursor_position(
 	unsigned char*	buf;
 
 	buf = static_cast<unsigned char*>(ut_malloc_nokey(UNIV_PAGE_SIZE));
+	dtuple_set_n_fields(prebuilt->search_tuple, 0);
 
 	/* We want to position at one of the ends, row_search_for_mysql()
 	uses the search_tuple fields to work out what to do. */
-	dtuple_set_n_fields(prebuilt->search_tuple, 0);
 
 	err = static_cast<ib_err_t>(row_search_for_mysql(
 		buf, static_cast<page_cur_mode_t>(mode), prebuilt, 0, 0));
@@ -1828,7 +1900,8 @@ ib_cursor_moveto(
 /*=============*/
 	ib_crsr_t	ib_crsr,	/*!< in: InnoDB cursor instance */
 	ib_tpl_t	ib_tpl,		/*!< in: Key to search for */
-	ib_srch_mode_t	ib_srch_mode)	/*!< in: search mode */
+	ib_srch_mode_t	ib_srch_mode,	/*!< in: search mode */
+	ib_ulint_t	direction)	/*!< in: search direction */
 {
 	ulint		i;
 	ulint		n_fields;
@@ -1864,7 +1937,7 @@ ib_cursor_moveto(
 
 	err = static_cast<ib_err_t>(row_search_for_mysql(
 		buf, static_cast<page_cur_mode_t>(ib_srch_mode), prebuilt,
-		cursor->match_mode, 0));
+		cursor->match_mode, direction));
 
 	ut_free(buf);
 
@@ -3074,3 +3147,801 @@ ib_ut_strerr(
 {
 	return(ut_strerr(num));
 }
+
+/********************************************************************//**
+Open a table using the table id, if found then increment table ref count.
+@return table instance if found */
+static
+dict_table_t*
+ib_open_table_by_id(
+/*================*/
+	ib_id_u64_t	tid,		/*!< in: table id to lookup */
+	ib_bool_t	locked)		/*!< in: TRUE if own dict mutex */
+{
+	dict_table_t*	table;
+	table_id_t	table_id;
+
+	table_id = tid;
+
+	if (!locked) {
+		dict_mutex_enter_for_mysql();
+	}
+
+	table = dict_table_open_on_id(table_id, TRUE, DICT_TABLE_OP_NORMAL);
+
+	if (table != NULL && table->ibd_file_missing) {
+		table = NULL;
+	}
+
+	if (!locked) {
+		dict_mutex_exit_for_mysql();
+	}
+
+	return(table);
+}
+
+/*****************************************************************//**
+Open an InnoDB table and return a cursor handle to it.
+@return DB_SUCCESS or err code */
+static
+ib_err_t
+ib_cursor_open_table_using_id(
+/*==========================*/
+	ib_id_u64_t	table_id,	/*!< in: table id of table to open */
+	ib_trx_t	ib_trx,		/*!< in: Current transaction handle
+					can be NULL */
+	ib_crsr_t*	ib_crsr)	/*!< out,own: InnoDB cursor */
+{
+	ib_err_t	err;
+	dict_table_t*	table;
+	const ib_bool_t	locked
+		= ib_trx && ib_schema_lock_is_exclusive(ib_trx);
+
+	table = ib_open_table_by_id(table_id, locked);
+
+	if (table == NULL) {
+
+		return(DB_TABLE_NOT_FOUND);
+	}
+
+	err = ib_create_cursor_with_clust_index(ib_crsr, table,
+						(trx_t*) ib_trx);
+
+	return(err);
+}
+
+/** Create a tuple to search from SDI table
+@param[in,out]	ib_crsr		Memcached cursor
+@param[in,out]	sdi_key		SDI Key
+@return search tuple */
+static
+ib_tpl_t
+ib_sdi_create_search_tuple(
+	ib_crsr_t		ib_crsr,
+	const dd::sdi_key_t*	sdi_key)
+{
+	ut_ad(dict_index_get_nth_field(ib_crsr->prebuilt->index, 0)->fixed_len
+	      == dd::SDI_KEY_LEN);
+	ut_ad(dict_index_get_nth_field(ib_crsr->prebuilt->index, 1)->fixed_len
+	      == dd::SDI_TYPE_LEN);
+
+	ib_tpl_t	key_tpl = ib_clust_search_tuple_create(ib_crsr);
+	ib_col_set_value(key_tpl, 0, &sdi_key->id, dd::SDI_KEY_LEN, false);
+	ib_col_set_value(key_tpl, 1, &sdi_key->type, dd::SDI_TYPE_LEN, false);
+
+	return(key_tpl);
+}
+
+/** Create a tuple to insert into  SDI table
+@param[in,out]	ib_crsr		Memcached cursor
+@param[in]	sdi_key		SDI Key
+@param[in]	sdi		SDI data
+@param[in]	sdi_len		SDI length
+@return insert tuple */
+static
+ib_tpl_t
+ib_sdi_create_insert_tuple(
+	ib_crsr_t		ib_crsr,
+	const dd::sdi_key_t*	sdi_key,
+	const void*		sdi,
+	uint64_t		sdi_len)
+{
+	ut_ad(dict_index_get_nth_field(ib_crsr->prebuilt->index, 0)->fixed_len
+	      == dd::SDI_KEY_LEN);
+	ut_ad(dict_index_get_nth_field(ib_crsr->prebuilt->index, 1)->fixed_len
+	      == dd::SDI_TYPE_LEN);
+
+	ib_tpl_t	tuple = ib_clust_read_tuple_create(ib_crsr);
+	ib_col_set_value(tuple, 0, &sdi_key->id, dd::SDI_KEY_LEN, false);
+	ib_col_set_value(tuple, 1, &sdi_key->type, dd::SDI_TYPE_LEN, false);
+	ib_col_set_value(tuple, 2, sdi, sdi_len, false);
+	return(tuple);
+}
+
+/** Open SDI table
+@param[in]	tablespace_id	tablespace id
+@param[in]	copy_num	SDI copy number to operate on. Should be 0 or 1
+@param[in,out]	trx		innodb transaction
+@param[in,out]	ib_crsr		memcached cursor
+@return DB_SUCCESS if SDI table is opened, else error */
+static
+ib_err_t
+ib_sdi_open_table(
+	uint32_t	tablespace_id,
+	uint32_t	copy_num,
+	trx_t*		trx,
+	ib_crsr_t*	ib_crsr)
+{
+	if (ib_sdi_get_num_copies(tablespace_id) != MAX_SDI_COPIES) {
+		return(DB_ERROR);
+	}
+
+	ib_err_t	err = ib_cursor_open_table_using_id(
+		dict_sdi_get_table_id(tablespace_id, copy_num), trx, ib_crsr);
+
+	return(err);
+}
+/** Insert/Update SDI in tablespace
+@param[in]	tablespace_id	tablespace id
+@param[in]	ib_sdi_key	SDI key to uniquely identify the tablespace
+object
+@param[in]	sdi		SDI to be stored in tablespace
+@param[in]	sdi_len		SDI length
+@param[in]	copy_num	SDI copy number to operate on. Should be 0 or 1
+@param[in,out]	trx		innodb transaction
+@return DB_SUCCESS if SDI Insert/Update is successful, else error */
+dberr_t
+ib_sdi_set(
+	uint32_t		tablespace_id,
+	const ib_sdi_key_t*	ib_sdi_key,
+	const void*		sdi,
+	uint64_t		sdi_len,
+	uint32_t		copy_num,
+	trx_t*			trx)
+{
+	ut_ad(ib_sdi_key != NULL);
+	ut_ad(sdi != NULL);
+
+	ib_crsr_t	ib_crsr = NULL;
+	ib_err_t	err = ib_sdi_open_table(
+		tablespace_id, copy_num, trx, &ib_crsr);
+
+	if (err != DB_SUCCESS) {
+		return(err);
+	}
+
+	ib_tpl_t	key_tpl = ib_sdi_create_search_tuple(
+		ib_crsr, ib_sdi_key->sdi_key);
+	ib_tpl_t	new_tuple = ib_sdi_create_insert_tuple(
+		ib_crsr, ib_sdi_key->sdi_key, sdi, sdi_len);
+
+	ib_cursor_set_match_mode(ib_crsr, IB_EXACT_MATCH);
+	ib_cursor_set_lock_mode(ib_crsr, IB_LOCK_X);
+	err = ib_cursor_moveto(ib_crsr, key_tpl, IB_CUR_LE, 0);
+
+	if (err == DB_SUCCESS) {
+		/* Existing row found. We should update it. */
+		ib_tpl_t	old_tuple = ib_clust_read_tuple_create(ib_crsr);
+		ib_cursor_stmt_begin(ib_crsr);
+		ib_cursor_read_row(ib_crsr, old_tuple, NULL, 0,
+				   NULL, NULL, NULL);
+		err = ib_cursor_update_row(ib_crsr, old_tuple, new_tuple);
+		ib_tuple_delete(old_tuple);
+	} else {
+		/* Row not found. This is fresh insert */
+		err = ib_cursor_insert_row(ib_crsr, new_tuple);
+	}
+
+	ib_tuple_delete(key_tpl);
+	ib_tuple_delete(new_tuple);
+	ib_cursor_close(ib_crsr);
+	return(err);
+}
+
+/** Get the SDI keys in a tablespace into vector.
+@param[in]	tablespace_id	tablespace id
+@param[in,out]	ib_sdi_vector	vector to hold objects with tablespace types
+and ids
+@param[in]	copy_num	SDI copy number to operate on. Should be 0 or 1
+@param[in,out]	trx		data dictionary transaction
+@return DB_SUCCESS if retrieval of SDI kyes is successful, else error */
+dberr_t
+ib_sdi_get_keys(
+	uint32_t		tablespace_id,
+	ib_sdi_vector_t*	ib_sdi_vector,
+	uint32_t		copy_num,
+	trx_t*			trx)
+{
+	ut_ad(ib_sdi_vector != NULL);
+	ut_ad(ib_sdi_vector->sdi_vector->m_vec.empty());
+	ut_ad(copy_num < MAX_SDI_COPIES);
+
+	ib_crsr_t	ib_crsr = NULL;
+	ib_err_t	err = ib_sdi_open_table(
+		tablespace_id, copy_num, trx, &ib_crsr);
+
+	if (err != DB_SUCCESS) {
+		return(err);
+	}
+
+	ib_cursor_stmt_begin(ib_crsr);
+	err = ib_cursor_first(ib_crsr);
+	if (err != DB_SUCCESS) {
+		ib_cursor_close(ib_crsr);
+		return(err);
+	}
+
+	ib_tpl_t	tuple = ib_clust_read_tuple_create(ib_crsr);
+	do {
+		/* Read the current row from cursor position */
+		err = ib_cursor_read_row(ib_crsr, tuple, NULL, 0,
+					 NULL, NULL, NULL);
+		if (err != DB_SUCCESS) {
+			break;
+		}
+
+		dd::sdi_key_t	ts;
+		ib_tuple_read_u64(tuple, 0,
+			reinterpret_cast<uint64_t*>(&ts.id));
+		ib_tuple_read_u32(tuple, 1, &ts.type);
+		ib_sdi_vector->sdi_vector->m_vec.push_back(ts);
+
+	} while (ib_cursor_next(ib_crsr) != DB_END_OF_INDEX);
+
+	ib_tuple_delete(tuple);
+	ib_cursor_close(ib_crsr);
+	return(err);
+}
+
+/** Retrieve SDI from tablespace
+@param[in]	tablespace_id	tablespace id
+@param[in]	ib_sdi_key	SDI key
+@param[in,out]	sdi		in: buffer to hold the SDI BLOB
+				out: SDI retrieved from tablespace
+@param[in,out]	sdi_len		in:  Size of memory allocated
+				out: Actual length of SDI
+@param[in]	copy_num	the copy from which SDI has to retrieved
+@param[in,out]	trx		innodb transaction
+@return DB_SUCCESS if SDI retrieval is successful, else error */
+dberr_t
+ib_sdi_get(
+	uint32_t		tablespace_id,
+	const ib_sdi_key_t*	ib_sdi_key,
+	void*			sdi,
+	uint64_t*		sdi_len,
+	uint32_t		copy_num,
+	trx_t*			trx)
+{
+	ut_ad(ib_sdi_key != NULL);
+	ut_ad(sdi != NULL);
+	ut_ad(sdi_len != NULL);
+
+	if (sdi_len == NULL || sdi == NULL) {
+		return(DB_ERROR);
+	}
+
+	ib_crsr_t	ib_crsr = NULL;
+	ib_err_t	err = ib_sdi_open_table(
+		tablespace_id, copy_num, trx, &ib_crsr);
+
+	if (err != DB_SUCCESS) {
+		*sdi_len = UINT64_MAX;
+		return(err);
+	}
+
+	ib_tpl_t	key_tpl = ib_sdi_create_search_tuple(
+		ib_crsr, ib_sdi_key->sdi_key);
+
+	ib_cursor_set_match_mode(ib_crsr, IB_EXACT_MATCH);
+
+	err = ib_cursor_moveto(ib_crsr, key_tpl, IB_CUR_GE, 0);
+	if (err == DB_SUCCESS) {
+		/* Read the current row from cursor position */
+		ib_tpl_t	tuple = ib_clust_read_tuple_create(ib_crsr);
+		ib_cursor_stmt_begin(ib_crsr);
+		err = ib_cursor_read_row(ib_crsr, tuple, NULL, 0,
+					 NULL, NULL, NULL);
+		if (err == DB_SUCCESS) {
+			uint64_t	actual_sdi_len = ib_col_get_len(
+				tuple, 2);
+			ib_col_copy_value(tuple, 2, sdi,
+					  std::min(*sdi_len, actual_sdi_len));
+			/* If the passed memory is not sufficient, we
+			return failure and the actual length of SDI. */
+			if (*sdi_len < actual_sdi_len) {
+				*sdi_len = actual_sdi_len;
+				ib_tuple_delete(tuple);
+				ib_tuple_delete(key_tpl);
+				ib_cursor_close(ib_crsr);
+				return(DB_ERROR);
+			}
+			*sdi_len = actual_sdi_len;
+		}
+
+		ib_tuple_delete(tuple);
+	}
+
+	ib_tuple_delete(key_tpl);
+	ib_cursor_close(ib_crsr);
+
+	if (err != DB_SUCCESS) {
+		/* Return sdi_len as UINT64_MAX incase of any other failure
+		like searching for non-existent row */
+		*sdi_len = UINT64_MAX;
+	}
+	return(err);
+}
+
+/** Delete SDI from tablespace
+@param[in]	tablespace_id	tablespace id
+@param[in]	ib_sdi_key	SDI key to uniquely identify the tablespace
+object
+@param[in]	copy_num	the copy from which SDI has to be deleted
+@param[in,out]	trx		innodb transaction
+@return DB_SUCCESS if SDI deletion is successful, else error */
+ib_err_t
+ib_sdi_delete(
+	uint32_t		tablespace_id,
+	const ib_sdi_key_t*	ib_sdi_key,
+	uint32_t		copy_num,
+	trx_t*			trx)
+{
+	ut_ad(ib_sdi_key != NULL);
+
+	ib_crsr_t	ib_crsr = NULL;
+	ib_err_t	err = ib_sdi_open_table(
+		tablespace_id, copy_num, trx, &ib_crsr);
+
+	if (err != DB_SUCCESS) {
+		return(err);
+	}
+
+	ib_tpl_t	key_tpl = ib_sdi_create_search_tuple(ib_crsr,
+		ib_sdi_key->sdi_key);
+
+	ib_cursor_set_match_mode(ib_crsr, IB_EXACT_MATCH);
+	ib_cursor_set_lock_mode(ib_crsr, IB_LOCK_X);
+	err = ib_cursor_moveto(ib_crsr, key_tpl, IB_CUR_LE, 0);
+	if (err == DB_SUCCESS) {
+		ib_cursor_stmt_begin(ib_crsr);
+		err = ib_cursor_delete_row(ib_crsr);
+	}
+
+	ib_tuple_delete(key_tpl);
+	ib_cursor_close(ib_crsr);
+	return(err);
+}
+
+/** Return the number of SDI copies stored in tablespace.
+@param[in]	tablespace_id	Tablespace id
+@retval		0		if there are no SDI copies
+@retval		MAX_SDI_COPIES	if the SDI is present
+@retval		UINT32_MAX	in case of failure */
+uint32_t
+ib_sdi_get_num_copies(
+	uint32_t	tablespace_id)
+{
+	fil_space_t*	space = fil_space_acquire(tablespace_id);
+	if (space == NULL) {
+		return(UINT32_MAX);
+	}
+
+#ifdef UNIV_DEBUG
+	for (uint32_t	copy_num = 0; copy_num < MAX_SDI_COPIES; ++copy_num) {
+		mtr_t	mtr;
+		mtr.start();
+		ut_ad(fsp_sdi_get_root_page_num(
+			tablespace_id, copy_num, page_size_t(space->flags),
+			&mtr) != 0);
+		mtr.commit();
+	}
+#endif /* UNIV_DEBUG */
+
+	fil_space_release(space);
+	return(FSP_FLAGS_HAS_SDI(space->flags) ? MAX_SDI_COPIES : 0);
+}
+
+/** Create SDI Copies in a tablespace. The number of allowed copies is always
+two for InnoDB.
+@param[in]	tablespace_id	InnoDB tablespace id
+@param[in]	num_of_copies	number of SDI copies to create
+@return DB_SUCCESS if SDI index creation is successful, else error */
+ib_err_t
+ib_sdi_create_copies(
+	uint32_t	tablespace_id,
+	uint32_t	num_of_copies)
+{
+	if (num_of_copies != MAX_SDI_COPIES) {
+		return(DB_ERROR);
+	}
+
+	/* Check if the FSP_FLAG_SDI has already been set. If it
+	is set, then we assume SDI indexes are already created and
+	we don't re-create SDI indexes */
+	fil_space_t*	space = fil_space_acquire(tablespace_id);
+	if (space == NULL) {
+		return(DB_ERROR);
+	}
+
+	bool	has_sdi = FSP_FLAGS_HAS_SDI(space->flags);
+#ifdef UNIV_DEBUG
+	/* Read page 0 to confirm the SDI flag presence */
+	const page_size_t	page_size(space->flags);
+	mtr_t			mtr;
+
+	mtr.start();
+	const fsp_header_t*	header =  fsp_get_space_header(
+		tablespace_id, page_size, &mtr);
+	mtr.commit();
+	ut_ad(mach_read_from_4(FSP_SPACE_FLAGS + header) == space->flags);
+#endif /* UNIV_DEBUG */
+
+	if (has_sdi) {
+		fil_space_release(space);
+		return(DB_ERROR);
+	}
+
+	ib_err_t	err = btr_sdi_create_indexes(tablespace_id, false);
+
+	fil_space_release(space);
+	return(err);
+}
+
+/** Drop SDI Indexes from tablespace. This should be used only when SDI
+is corrupted.
+@param[in]	tablespace_id	InnoDB tablespace id
+@return DB_SUCCESS if dropping of SDI indexes  is successful, else error */
+ib_err_t
+ib_sdi_drop_copies(
+	uint32_t	tablespace_id)
+{
+	uint32_t	num_of_copies = ib_sdi_get_num_copies(tablespace_id);
+	if (num_of_copies == 0) {
+		return(DB_ERROR);
+	}
+
+	fil_space_t*	space = fil_space_acquire(tablespace_id);
+	if (space == NULL) {
+		return(DB_ERROR);
+	}
+
+	rw_lock_x_lock(&space->latch);
+
+	page_size_t	page_size(space->flags);
+
+	for (uint32_t	copy_num = 0; copy_num < MAX_SDI_COPIES; ++copy_num) {
+		mtr_t	mtr;
+
+		/* We use separate mtrs because latching IBUF BITMAP Page and
+		a B-Tree Index page in same mtr will cause latch violation */
+		/* WL#7016 TODO: write DROP_TREE record */
+		mtr.start();
+		ulint	root_page_num = fsp_sdi_get_root_page_num(
+			tablespace_id, copy_num, page_size, &mtr);
+
+		mtr.commit();
+
+		mtr.start();
+		btr_free_if_exists(page_id_t(tablespace_id, root_page_num),
+				   page_size,
+				   dict_sdi_get_index_id(copy_num), &mtr);
+		mtr.commit();
+	}
+
+	/* Remove SDI Flag presence from Page 0 */
+	mtr_t	mtr;
+	mtr.start();
+	mtr.set_named_space(tablespace_id);
+
+	ulint flags = space->flags & ~FSP_FLAGS_MASK_SDI;
+
+	buf_block_t*	block = buf_page_get(
+		page_id_t(space->id, 0), page_size,
+		RW_SX_LATCH, &mtr);
+
+	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
+	page_t*	page = buf_block_get_frame(block);
+
+	mlog_write_ulint(
+		FSP_HEADER_OFFSET + FSP_SPACE_FLAGS + page,
+		flags,
+		MLOG_4BYTES, &mtr);
+
+	fil_space_set_flags(space, flags);
+
+	mtr.commit();
+	rw_lock_x_unlock(&space->latch);
+	fil_space_release(space);
+
+	return(DB_SUCCESS);
+}
+
+/** Flush SDI copy in a tablespace. The pages of a SDI copy modified by the
+transaction will be flushed to disk.
+@param[in]	space_id	tablespace id
+@return DB_SUCCESS always */
+ib_err_t
+ib_sdi_flush(
+	uint32_t	space_id)
+{
+	/* TODO: We should flush only the relevant buffer pool of the
+	modified tablespace. */
+	buf_flush_sync_all_buf_pools();
+	return(DB_SUCCESS);
+}
+
+#ifdef UNIV_MEMCACHED_SDI
+/** Parse string a unsigned long number
+@param[in]	num_str		input string which has number
+@param[out]	dest_num	Number converted from input string
+@return DB_SUCCESS on successful converstion, else DB_ERROR */
+static
+ib_err_t
+parse_string_to_number(
+	const char*	num_str,
+	uint64_t* 	dest_num)
+{
+	char*	endptr;
+	errno = 0;
+	unsigned long	result = strtoul(num_str, &endptr, 10);
+	if (endptr == num_str || *endptr != 0) {
+		/* nothing parsed from the string, return error */
+		return(DB_ERROR);
+	}
+	if (result == ULONG_MAX && errno == ERANGE) {
+		/* out of range */
+		return(DB_ERROR);
+	}
+
+	*dest_num = static_cast<uint64_t>(result);
+	return(DB_SUCCESS);
+}
+
+/** Extracts SDI key from the memcached key. For example if the key is
+"sdi_3:4:0", it parses as id:3, type:4, copy_num:0. If there is no copy_num
+passed, copy number 0 is assumed.
+@param[in]	key_str		Memached key
+@param[in,out]	sk		SDI key
+@param[in,out]	copy_num	SDI copy number
+@return DB_SUCCESS if SDI key extraction is successful, else error */
+static
+ib_err_t
+parse_mem_key_to_sdi_key(
+	const char*	key_str,
+	dd::sdi_key_t*	sk,
+	uint32_t*	copy_num)
+{
+	/* 25 is sufficient here, the prefix will be
+	sdi_number:number:number */
+	char	key[25];
+	char	*saveptr1;
+
+	strncpy(key, key_str + strlen("sdi_"), sizeof(key));
+
+	char*	id_str = strtok_r(key, ":", &saveptr1);
+	char*	type_str = strtok_r(NULL, ":", &saveptr1);
+	char*	copy_num_str = strtok_r(NULL, ":", &saveptr1);
+
+	if (id_str == NULL || type_str == NULL) {
+		return(DB_ERROR);
+	}
+
+	if (copy_num_str != NULL) {
+		uint64_t	copy_num_64;
+		if (parse_string_to_number(copy_num_str, &copy_num_64)
+		    != DB_SUCCESS){
+			return(DB_ERROR);
+		}
+		*copy_num = static_cast<uint32_t>(copy_num_64);
+	} else {
+		*copy_num = 0;
+	}
+
+	uint64_t number;
+	if (parse_string_to_number(id_str, &number) == DB_SUCCESS) {
+		sk->id = number;
+	} else {
+		return(DB_ERROR);
+	}
+
+	if (parse_string_to_number(type_str, &number) == DB_SUCCESS) {
+		sk->type = static_cast<uint32_t>(number);
+	} else {
+		return(DB_ERROR);
+	}
+
+	return(DB_SUCCESS);
+}
+
+/** Wrapper function to retrieve SDI from tablespace
+@param[in,out]	crsr		Memcached cursor
+@param[in]	key_str		Memcached key
+@param[in,out]	sdi		SDI data retrieved
+@param[in,out]	sdi_len		Length of SDI data
+@return DB_SUCCESS if SDI retrieval is successful, else error */
+ib_err_t
+ib_memc_sdi_get(
+	ib_crsr_t	crsr,
+	const char*	key_str,
+	void*		sdi,
+	uint64_t*	sdi_len)
+{
+	uint32_t	tablespace_id = crsr->prebuilt->table->space;
+	ib_trx_t	trx = crsr->prebuilt->trx;
+	uint32_t	copy_num;
+	ib_err_t	err;
+	ib_sdi_key_t	sk;
+	dd::sdi_key_t	sdi_key;
+	ut_ad(trx != NULL);
+
+	sk.sdi_key = &sdi_key;
+	err = parse_mem_key_to_sdi_key(key_str, &sdi_key, &copy_num);
+	if (err != DB_SUCCESS) {
+		return(err);
+	}
+
+	err = ib_sdi_get(tablespace_id, &sk, sdi, sdi_len, copy_num, trx);
+	return(err);
+}
+
+/** Wrapper function to delete SDI from tablespace
+@param[in,out]	crsr		Memcached cursor
+@param[in]	key_str		Memcached key
+@return DB_SUCCESS if SDI deletion is successful, else error */
+ib_err_t
+ib_memc_sdi_delete(
+	ib_crsr_t	crsr,
+	const char*	key_str)
+{
+	uint32_t	tablespace_id = crsr->prebuilt->table->space;
+	ib_trx_t	trx = crsr->prebuilt->trx;
+	uint32_t	copy_num;
+	ib_sdi_key_t	sk;
+	dd::sdi_key_t	sdi_key;
+	ib_err_t	err;
+	ut_ad(trx != NULL);
+
+	sk.sdi_key = &sdi_key;
+	/* We only need sk, ignore copy_num after parsing */
+	err = parse_mem_key_to_sdi_key(key_str, &sdi_key, &copy_num);
+	if (err != DB_SUCCESS) {
+		return(err);
+	}
+
+	err = ib_sdi_delete(tablespace_id, &sk, 0, trx);
+
+	DBUG_EXECUTE_IF("ib_sdi_delete_crash", DBUG_SUICIDE(););
+
+	if (err == DB_SUCCESS) {
+		err = ib_sdi_delete(tablespace_id, &sk, 1, trx);
+	}
+
+	return(err);
+}
+
+/** Wrapper function to insert SDI into tablespace
+@param[in,out]	crsr		Memcached cursor
+@param[in]	key_str		Memcached key
+@param[in]	sdi		SDI to be stored in tablespace
+@param[in]	sdi_len		SDI length
+@return DB_SUCCESS if SDI insertion is successful, else error */
+ib_err_t
+ib_memc_sdi_set(
+	ib_crsr_t	crsr,
+	const char*	key_str,
+	const void*	sdi,
+	uint64_t*	sdi_len)
+{
+	uint32_t	tablespace_id = crsr->prebuilt->table->space;
+	ib_trx_t	trx = crsr->prebuilt->trx;
+	uint32_t	copy_num;
+	ib_sdi_key_t	sk;
+	dd::sdi_key_t	sdi_key;
+	ib_err_t	err;
+	ut_ad(trx != NULL);
+
+	sk.sdi_key = &sdi_key;
+	/* We only need sk, ignore copy_num after parsing */
+	err = parse_mem_key_to_sdi_key(key_str, &sdi_key, &copy_num);
+	if (err != DB_SUCCESS) {
+		return(err);
+	}
+
+	err = ib_sdi_set(tablespace_id, &sk, sdi, *sdi_len, 0, trx);
+
+	DBUG_EXECUTE_IF("ib_sdi_set_crash", DBUG_SUICIDE(););
+
+	if (err == DB_SUCCESS) {
+		err = ib_sdi_set(tablespace_id, &sk, sdi,
+			         *sdi_len, 1, trx);
+	}
+
+	return(err);
+}
+
+/** Wrapper function to create SDI copies in a tablespace
+@param[in,out]	crsr		Memcached cursor
+@return DB_SUCCESS if SDI creation is successful, else error */
+ib_err_t
+ib_memc_sdi_create_copies(
+	ib_crsr_t	crsr)
+{
+	uint32_t	tablespace_id = crsr->prebuilt->table->space;
+	return(ib_sdi_create_copies(tablespace_id, MAX_SDI_COPIES));
+}
+
+/** Wrapper function to drop SDI copies in a tablespace
+@param[in,out]	crsr		Memcached cursor
+@return DB_SUCCESS if dropping of SDI copies is successful, else error */
+ib_err_t
+ib_memc_sdi_drop_copies(
+	ib_crsr_t	crsr)
+{
+	uint32_t	tablespace_id = crsr->prebuilt->table->space;
+	return(ib_sdi_drop_copies(tablespace_id));
+}
+
+/** Wrapper function to retreive list of SDI keys into the buffer
+The SDI keys are copied in the from x:y and separated by '|'
+@param[in,out]	crsr		Memcached cursor
+@param[in]	key_str		Memcached key
+@param[in,out]	sdi		The keys are copies into this buffer
+@return DB_SUCCESS if SDI keys retrieval is successful, else error */
+ib_err_t
+ib_memc_sdi_get_keys(
+	ib_crsr_t	crsr,
+	const char*	key_str,
+	void*		sdi,
+	uint64_t	list_buf_len)
+{
+	uint32_t	tablespace_id = crsr->prebuilt->table->space;
+	ib_trx_t	trx = crsr->prebuilt->trx;
+	uint32_t	copy_num = 0;
+	ut_ad(trx != NULL);
+
+	uint32_t	pattern_len = strlen("sdi_list_");
+	int		diff_len = key_str != NULL
+		? strlen(key_str) - pattern_len
+		: -1;
+	if (diff_len >= 0 && strncmp(key_str, "sdi_list_", pattern_len) == 0) {
+		if (diff_len == 0 ) {
+			/* Pattern matched exactly with "sdi_list_", We
+			will default to copy 0 */
+			copy_num = 0;
+		} else {
+			uint64_t	copy_num_64;
+			ib_err_t	err = parse_string_to_number(
+				key_str + pattern_len, &copy_num_64);
+			if (err != DB_SUCCESS) {
+				return(err);
+			}
+			copy_num = static_cast<uint32_t>(copy_num_64);
+		}
+	}
+
+	dd::sdi_vector		sdi_vector;
+	ib_sdi_vector		ib_vector;
+	ib_vector.sdi_vector = &sdi_vector;
+
+	ib_err_t	err = ib_sdi_get_keys(
+		tablespace_id, &ib_vector, static_cast<uint32_t>(copy_num),
+		trx);
+
+	char*		ptr = static_cast<char*>(sdi);
+	uint64_t	cur_len = 0;
+	uint64_t	bytes_printed;
+	for (dd::sdi_container::iterator it =
+		ib_vector.sdi_vector->m_vec.begin();
+		it != ib_vector.sdi_vector->m_vec.end(); it++) {
+		bytes_printed = ut_snprintf(
+			ptr,
+			list_buf_len - cur_len,
+			"%llu:%u|", it->id, it->type);
+		ptr += bytes_printed;
+		cur_len += bytes_printed;
+	}
+	*ptr = 0;
+
+	return(err);
+}
+#endif /* UNIV_MEMCACHED_SDI */

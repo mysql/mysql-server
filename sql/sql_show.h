@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 #include "my_global.h"
 #include "handler.h"                            // enum_schema_tables
-#include "sql_string.h"
+#include "sql_string.h"                         // Simple_cstring
 #include "table.h"                              // enum_schema_table_state
 #include "set_var.h"                            // enum_var_type
 
@@ -118,6 +118,28 @@ void view_store_options(THD *thd, TABLE_LIST *table, String *buff);
 
 void init_fill_schema_files_row(TABLE* table);
 bool schema_table_store_record(THD *thd, TABLE *table);
+
+/**
+  Store record to I_S table, convert HEAP table to InnoDB table if necessary.
+
+  @param[in]  thd            thread handler
+  @param[in]  table          Information schema table to be updated
+  @param[in]  make_ondisk    if true, convert heap table to on disk table.
+                             default value is true.
+  @return 0 on success
+  @return error code on failure.
+*/
+int schema_table_store_record2(THD *thd, TABLE *table, bool make_ondisk);
+
+/**
+  Convert HEAP table to InnoDB table if necessary
+
+  @param[in] thd     thread handler
+  @param[in] table   Information schema table to be converted.
+  @param[in] error   the error code returned previously.
+  @return false on success, true on error.
+*/
+bool convert_heap_table_to_ondisk(THD *thd, TABLE *table, int error);
 void initialize_information_schema_acl();
 
 ST_SCHEMA_TABLE *find_schema_table(THD *thd, const char* table_name);

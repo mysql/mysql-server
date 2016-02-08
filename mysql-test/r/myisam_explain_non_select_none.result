@@ -1,3 +1,5 @@
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
 set @save_storage_engine= @@session.default_storage_engine;
 set session default_storage_engine = MyISAM;
 set end_markers_in_json=on;
@@ -3041,6 +3043,7 @@ JOIN t1 AS a12 ON a12.c1 = a11.c1
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t3	NULL	ALL	NULL	NULL	NULL	NULL	0	100.00	NULL
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+3	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 DROP TABLE t1, t2, t3;
@@ -3214,3 +3217,4 @@ DROP TABLE t1, t2;
 #
 set default_storage_engine= @save_storage_engine;
 set optimizer_switch=default;
+set @@global.show_compatibility_56=@show_compatibility_56_save;

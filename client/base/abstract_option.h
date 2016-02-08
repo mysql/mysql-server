@@ -47,7 +47,7 @@ public:
     I_Callable can be replaced with std::Function<void(char*)> once we get
     one.
    */
-  T_type* add_callback(Mysql::I_callable<void, char*>* callback);
+  void add_callback(Mysql::I_callable<void, char*>* callback);
 
   /**
     Sets optid to given character to make possible usage of short option
@@ -107,11 +107,10 @@ template<typename T_type> Abstract_option<T_type>::~Abstract_option()
   }
 }
 
-template<typename T_type> T_type* Abstract_option<T_type>::add_callback(
+template<typename T_type> void Abstract_option<T_type>::add_callback(
   Mysql::I_callable<void, char*>* callback)
 {
   this->m_callbacks.push_back(callback);
-  return (T_type*)this;
 }
 
 template<typename T_type> T_type* Abstract_option<T_type>::set_short_character(

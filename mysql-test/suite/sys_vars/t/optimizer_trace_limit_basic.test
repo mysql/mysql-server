@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 --source include/have_optimizer_trace.inc
 
 # Basic read/write test.
@@ -8,13 +10,13 @@ SELECT @@global.optimizer_trace_limit;
 SET @@global.optimizer_trace_limit=5;
 show global variables like 'optimizer_trace_limit';
 --disable_warnings
-select * from information_schema.global_variables where variable_name='optimizer_trace_limit';
+select * from performance_schema.global_variables where variable_name='optimizer_trace_limit';
 --enable_warnings
 
 select @@session.optimizer_trace_limit;
 show session variables like 'optimizer_trace_limit';
 --disable_warnings
-select * from information_schema.session_variables where variable_name='optimizer_trace_limit';
+select * from performance_schema.session_variables where variable_name='optimizer_trace_limit';
 --enable_warnings
 
 #

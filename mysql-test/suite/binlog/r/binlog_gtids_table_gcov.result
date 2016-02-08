@@ -26,7 +26,7 @@ call mtr.add_suppression(".* Turning logging off for the whole duration of the "
 INSERT INTO t1 VALUES(1);
 SET SESSION debug="+d,simulate_err_on_write_gtid_into_table";
 FLUSH LOGS;
-ERROR HY000: Got error -1 from storage engine
+ERROR HY000: Got error -1 - 'Unknown error -1' from storage engine
 SET SESSION debug="-d,simulate_err_on_write_gtid_into_table";
 #
 # Verify that GTIDs are not saved into gtid_executed table if we

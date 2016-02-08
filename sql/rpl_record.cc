@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -465,15 +465,17 @@ unpack_row(Relay_log_info const *rli,
   Fills @c table->record[0] with default values.
 
   First @c restore_record() is called to restore the default values for
-  record concerning the given table. Then, if @c check is true, 
-  a check is performed to see if fields are have default value or can 
-  be NULL. Otherwise error is reported.
+  the record concerning the given table. Then, if @c check is true,
+  a check is performed to see if fields have the default value or can
+  be NULL. Otherwise an error is reported.
  
-  @param table  Table whose record[0] buffer is prepared. 
+  @param table  Table whose record[0] buffer is prepared.
+  @param cols   bitmap with a set bit for each column that should be stored
+                in a row.
   @param check  Specifies if lack of default error needs checking.
 
   @returns 0 on success or a handler level error code
- */ 
+ */
 int prepare_record(TABLE *const table, const MY_BITMAP *cols, const bool check)
 {
   DBUG_ENTER("prepare_record");

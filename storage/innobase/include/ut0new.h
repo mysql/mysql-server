@@ -310,10 +310,11 @@ public:
 	to ut_allocator::deallocate() when no longer needed.
 	@param[in]	n_elements	number of elements
 	@param[in]	hint		pointer to a nearby memory location,
-	unused by this implementation
+					unused by this implementation
 	@param[in]	file		file name of the caller
 	@param[in]	set_to_zero	if true, then the returned memory is
-	initialized with 0x0 bytes.
+					initialized with 0x0 bytes.
+	@param[in]	throw_on_error	error
 	@return pointer to the allocated memory */
 	pointer
 	allocate(

@@ -1,7 +1,10 @@
-
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 # 
 # Run explain_json.inc with all of the so-called 6.0 features.
-#
+# Test is temporarily run with show_compatibility_56=ON until Bug#21783883 is fixed.
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
 
 --source include/have_semijoin.inc
 --source include/have_materialization.inc
@@ -16,4 +19,5 @@ set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,
 --source include/explain_json.inc
 
 set optimizer_switch=default;
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 

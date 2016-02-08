@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -192,7 +192,8 @@ public:
     Returns either user's password in the master.info repository or
     user's password used in START SLAVE.
 
-    @param password_arg is user's password.
+    @param[out] password_arg is user's password.
+    @param[out] password_arg_size is user's password size.
 
     @return false if there is no error, otherwise true is returned.
   */
@@ -434,6 +435,8 @@ private:
   */
   Checkable_rwlock *m_channel_lock;
 
+  /* References of the channel, the channel can only be deleted when it is 0. */
+  Atomic_int32 references;
 public:
   /**
     Acquire the channel read lock.
@@ -462,6 +465,27 @@ public:
   */
   inline void channel_assert_some_wrlock() const
   { m_channel_lock->assert_some_wrlock(); }
+
+  /**
+    Increase the references to prohibit deleting a channel. This function
+    must be protected by channel_map.rdlock(). dec_reference have to be
+    called with inc_reference() together.
+  */
+  void inc_reference() { references.atomic_add(1); }
+
+  /**
+    Decrease the references. It doesn't need the protection of
+    channel_map.rdlock.
+  */
+  void dec_reference() { references.atomic_add(-1); }
+
+  /**
+    It mush be called before deleting a channel and protected by
+    channel_map_lock.wrlock().
+
+    @param thd the THD object of current thread
+  */
+  void wait_until_no_reference(THD *thd);
 };
 int change_master_server_id_cmp(ulong *id1, ulong *id2);
 

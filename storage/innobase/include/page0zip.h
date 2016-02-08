@@ -75,14 +75,14 @@ extern uint	page_zip_level;
 compression algorithm changes in zlib. */
 extern my_bool	page_zip_log_pages;
 
-/**********************************************************************//**
-Set the size of a compressed page in bytes. */
+/** Set the size of a compressed page in bytes.
+@param[in,out]	page_zip	compressed page
+@param[in]	size		size in bytes */
 UNIV_INLINE
 void
 page_zip_set_size(
-/*==============*/
-	page_zip_des_t*	page_zip,	/*!< in/out: compressed page */
-	ulint		size);		/*!< in: size in bytes */
+	page_zip_des_t*	page_zip,
+	ulint		size);
 
 #ifndef UNIV_HOTBACKUP
 /** Determine if a record is so big that it needs to be stored externally.
@@ -225,17 +225,19 @@ page_zip_available(
 					the heap */
 	__attribute__((warn_unused_result));
 
-/**********************************************************************//**
-Write data to the uncompressed header portion of a page.  The data must
-already have been written to the uncompressed page. */
+/** Write data to the uncompressed header portion of a page. The data must
+already have been written to the uncompressed page.
+@param[in,out]	page_zip	compressed page
+@param[in]	str		address on the uncompressed page
+@param[in]	length		length of the data
+@param[in]	mtr		mini-transaction, or NULL */
 UNIV_INLINE
 void
 page_zip_write_header(
-/*==================*/
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
-	const byte*	str,	/*!< in: address on the uncompressed page */
-	ulint		length,	/*!< in: length of the data */
-	mtr_t*		mtr);	/*!< in: mini-transaction, or NULL */
+	page_zip_des_t*	page_zip,
+	const byte*	str,
+	ulint		length,
+	mtr_t*		mtr);
 
 /**********************************************************************//**
 Write an entire record on the compressed page.  The data must already
@@ -340,18 +342,20 @@ page_zip_dir_insert(
 				allocated, or NULL */
 	byte*		rec);	/*!< in: record to insert */
 
-/**********************************************************************//**
-Shift the dense page directory and the array of BLOB pointers
-when a record is deleted. */
+/** Shift the dense page directory and the array of BLOB pointers when a record
+is deleted.
+@param[in,out]	page_zip	compressed page
+@param[in]	rec		deleted record
+@param[in]	index		index of rec
+@param[in]	offsets		rec_get_offsets(rec)
+@param[in]	free		previous start of the free list */
 void
 page_zip_dir_delete(
-/*================*/
-	page_zip_des_t*		page_zip,	/*!< in/out: compressed page */
-	byte*			rec,		/*!< in: deleted record */
-	const dict_index_t*	index,		/*!< in: index of rec */
-	const ulint*		offsets,	/*!< in: rec_get_offsets(rec) */
-	const byte*		free);		/*!< in: previous start of
-						the free list */
+	page_zip_des_t*		page_zip,
+	byte*			rec,
+	const dict_index_t*	index,
+	const ulint*		offsets,
+	const byte*		free);
 
 /**********************************************************************//**
 Add a slot to the dense page directory. */
@@ -373,20 +377,21 @@ page_zip_parse_write_header(
 	page_t*		page,	/*!< in/out: uncompressed page */
 	page_zip_des_t*	page_zip);/*!< in/out: compressed page */
 
-/**********************************************************************//**
-Write data to the uncompressed header portion of a page.  The data must
+/** Write data to the uncompressed header portion of a page.  The data must
 already have been written to the uncompressed page.
-However, the data portion of the uncompressed page may differ from
-the compressed page when a record is being inserted in
-page_cur_insert_rec_low(). */
+However, the data portion of the uncompressed page may differ from the
+compressed page when a record is being inserted in page_cur_insert_rec_low().
+@param[in,out]  page_zip        compressed page
+@param[in]      str             address on the uncompressed page
+@param[in]      length          length of the data
+@param[in]      mtr             mini-transaction, or NULL */
 UNIV_INLINE
 void
 page_zip_write_header(
-/*==================*/
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
-	const byte*	str,	/*!< in: address on the uncompressed page */
-	ulint		length,	/*!< in: length of the data */
-	mtr_t*		mtr);	/*!< in: mini-transaction, or NULL */
+	page_zip_des_t*	page_zip,
+	const byte*	str,
+	ulint		length,
+	mtr_t*		mtr);
 
 /**********************************************************************//**
 Reorganize and compress a page.  This is a low-level operation for
@@ -438,28 +443,35 @@ page_zip_parse_compress(
 	page_t*		page,		/*!< out: uncompressed page */
 	page_zip_des_t*	page_zip);	/*!< out: compressed page */
 
-/**********************************************************************//**
-Write a log record of compressing an index page without the data on the page. */
+/** Write a log record of compressing an index page without the data on the
+page.
+@param[in]	level	compression level
+@param[in]	page	page that is compressed
+@param[in]	index	index
+@param[in]	mtr	mtr */
 UNIV_INLINE
 void
 page_zip_compress_write_log_no_data(
-/*================================*/
-	ulint		level,	/*!< in: compression level */
-	const page_t*	page,	/*!< in: page that is compressed */
-	dict_index_t*	index,	/*!< in: index */
-	mtr_t*		mtr);	/*!< in: mtr */
-/**********************************************************************//**
-Parses a log record of compressing an index page without the data.
+	ulint		level,
+	const page_t*	page,
+	dict_index_t*	index,
+	mtr_t*		mtr);
+
+/** Parses a log record of compressing an index page without the data.
+@param[in]	ptr		buffer
+@param[in]	end_ptr		buffer end
+@param[in]	page		uncompressed page
+@param[out]	page_zip	compressed page
+@param[in]	index		index
 @return end of log record or NULL */
 UNIV_INLINE
 byte*
 page_zip_parse_compress_no_data(
-/*============================*/
-	byte*		ptr,		/*!< in: buffer */
-	byte*		end_ptr,	/*!< in: buffer end */
-	page_t*		page,		/*!< in: uncompressed page */
-	page_zip_des_t*	page_zip,	/*!< out: compressed page */
-	dict_index_t*	index);		/*!< in: index */
+	byte*		ptr,
+	byte*		end_ptr,
+	page_t*		page,
+	page_zip_des_t*	page_zip,
+	dict_index_t*	index);
 
 /**********************************************************************//**
 Reset the counters used for filling

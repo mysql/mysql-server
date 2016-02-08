@@ -32,7 +32,15 @@
 #include "types.hpp"
 #include "type_traits.hpp"
 
+#ifndef __has_attribute
+# define __has_attribute(x) 0
+#endif
 
+#if __has_attribute(no_sanitize_undefined)
+# define SUPPRESS_UBSAN __attribute__((no_sanitize_undefined))
+#else
+# define SUPPRESS_UBSAN
+#endif
 
 namespace TaoCrypt {
 

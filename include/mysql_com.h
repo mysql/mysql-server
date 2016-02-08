@@ -501,6 +501,7 @@ unsigned long my_net_read(NET *net);
 #ifdef MY_GLOBAL_INCLUDED
 void my_net_set_write_timeout(NET *net, uint timeout);
 void my_net_set_read_timeout(NET *net, uint timeout);
+void my_net_set_retry_count(NET *net, uint retry_count);
 #endif
 
 struct rand_struct {
@@ -514,7 +515,8 @@ struct rand_struct {
 
   /* The following is for user defined functions */
 
-enum Item_result {STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT,
+enum Item_result {INVALID_RESULT=-1,
+                  STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT,
                   DECIMAL_RESULT};
 
 typedef struct st_udf_args

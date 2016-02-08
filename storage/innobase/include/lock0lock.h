@@ -277,31 +277,31 @@ lock_rec_insert_check_and_lock(
 				record */
 	__attribute__((warn_unused_result));
 
-/*********************************************************************//**
-Enqueues a waiting request for a lock which cannot be granted immediately.
+/** Enqueues a waiting request for a lock which cannot be granted immediately.
 Checks for deadlocks.
+@param[in]	type_mode	lock mode this transaction is requesting:
+				LOCK_S or LOCK_X, possibly ORed with LOCK_GAP
+				or LOCK_REC_NOT_GAP, ORed with
+				LOCK_INSERT_INTENTION if this waiting lock
+				request is set when performing an insert of an
+				index record
+@param[in]	block		buffer block containing the record
+@param[in]	heap_no		heap number of the record
+@param[in]	index		index of record
+@param[in]	thr		query thread
+@param[in]	prdt		Minimum Bounding Box
 @return DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED, or
-DB_SUCCESS_LOCKED_REC; DB_SUCCESS_LOCKED_REC means that
-there was a deadlock, but another transaction was chosen as a victim,
-and we got the lock immediately: no need to wait then */
+DB_SUCCESS_LOCKED_REC; DB_SUCCESS_LOCKED_REC means that there was a deadlock,
+but another transaction was chosen as a victim, and we got the lock
+immediately: no need to wait then */
 dberr_t
 lock_rec_enqueue_waiting(
-/*=====================*/
-	ulint			type_mode,/*!< in: lock mode this
-					transaction is requesting:
-					LOCK_S or LOCK_X, possibly
-					ORed with LOCK_GAP or
-					LOCK_REC_NOT_GAP, ORed with
-					LOCK_INSERT_INTENTION if this
-					waiting lock request is set
-					when performing an insert of
-					an index record */
-	const buf_block_t*	block,	/*!< in: buffer block containing
-					the record */
-	ulint			heap_no,/*!< in: heap number of the record */
-	dict_index_t*		index,	/*!< in: index of record */
-	que_thr_t*		thr,	/*!< in: query thread */
-	lock_prdt_t*		prdt);	/*!< in: Minimum Bounding Box */
+	ulint			type_mode,
+	const buf_block_t*	block,
+	ulint			heap_no,
+	dict_index_t*		index,
+	que_thr_t*		thr,
+	lock_prdt_t*		prdt);
 
 /*********************************************************************//**
 Checks if locks of other transactions prevent an immediate modify (update,
@@ -479,6 +479,19 @@ lock_table_ix_resurrect(
 /*====================*/
 	dict_table_t*	table,	/*!< in/out: table */
 	trx_t*		trx);	/*!< in/out: transaction */
+
+/** Sets a lock on a table based on the given mode.
+@param[in]	table	table to lock
+@param[in,out]	trx	transaction
+@param[in]	mode	LOCK_X or LOCK_S
+@return error code or DB_SUCCESS. */
+dberr_t
+lock_table_for_trx(
+	dict_table_t*	table,
+	trx_t*		trx,
+	enum lock_mode	mode)
+	__attribute__((nonnull, warn_unused_result));
+
 /*************************************************************//**
 Removes a granted record lock of a transaction from the queue and grants
 locks to other transactions waiting in the queue if they now are entitled
@@ -523,16 +536,17 @@ lock_rec_fold(
 	ulint	space,	/*!< in: space */
 	ulint	page_no)/*!< in: page number */
 	__attribute__((const));
-/*********************************************************************//**
-Calculates the hash value of a page file address: used in inserting or
+
+/** Calculates the hash value of a page file address: used in inserting or
 searching for a lock in the hash table.
+@param[in]	space	space
+@param[in]	page_no	page number
 @return hashed value */
 UNIV_INLINE
 ulint
 lock_rec_hash(
-/*==========*/
-	ulint	space,	/*!< in: space */
-	ulint	page_no);/*!< in: page number */
+	ulint	space,
+	ulint	page_no);
 
 /*************************************************************//**
 Get the lock hash table */
@@ -553,30 +567,6 @@ lock_rec_find_set_bit(
 	const lock_t*	lock);	/*!< in: record lock with at least one
 				bit set */
 
-/*********************************************************************//**
-Gets the source table of an ALTER TABLE transaction.  The table must be
-covered by an IX or IS table lock.
-@return the source table of transaction, if it is covered by an IX or
-IS table lock; dest if there is no source table, and NULL if the
-transaction is locking more than two tables or an inconsistency is
-found */
-dict_table_t*
-lock_get_src_table(
-/*===============*/
-	trx_t*		trx,	/*!< in: transaction */
-	dict_table_t*	dest,	/*!< in: destination of ALTER TABLE */
-	lock_mode*	mode);	/*!< out: lock mode of the source table */
-/*********************************************************************//**
-Determine if the given table is exclusively "owned" by the given
-transaction, i.e., transaction holds LOCK_IX and possibly LOCK_AUTO_INC
-on the table.
-@return TRUE if table is only locked by trx, with LOCK_IX, and
-possibly LOCK_AUTO_INC */
-ibool
-lock_is_table_exclusive(
-/*====================*/
-	const dict_table_t*	table,	/*!< in: table */
-	const trx_t*		trx);	/*!< in: transaction */
 /*********************************************************************//**
 Checks if a lock request lock1 has to wait for request lock2.
 @return TRUE if lock1 has to wait for lock2 to be removed */

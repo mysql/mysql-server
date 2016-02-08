@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -166,7 +166,7 @@ struct LatchDebug {
 	@param[in]	level		to lookup
 	@return	latch if found or 0 */
 	const latch_t* find(
-		const Latches*	Latches,
+		const Latches*	latches,
 		latch_level_t	level) const
 		UNIV_NOTHROW;
 
@@ -327,9 +327,7 @@ struct LatchDebug {
 
 	/** Removes a latch from the thread level array if it is found there.
 	@param[in]	latch		The latch that was released
-	@return true if found in the array; it is not an error if the latch is
-	not found, as we presently are not able to determine the level for
-	every latch reservation the program does */
+	*/
 	void unlock(const latch_t* latch) UNIV_NOTHROW;
 
 	/** Get the level name

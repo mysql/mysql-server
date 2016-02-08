@@ -95,13 +95,13 @@ SET @@global.rpl_recovery_rank = 3000;
 Warnings:
 Warning	1287	'@@rpl_recovery_rank' is deprecated and will be removed in a future release.
 SELECT @@global.rpl_recovery_rank = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='rpl_recovery_rank';
 @@global.rpl_recovery_rank = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_142_06-----------------------#'
 SELECT count(VARIABLE_VALUE) 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='rpl_recovery_rank';
 count(VARIABLE_VALUE)
 1

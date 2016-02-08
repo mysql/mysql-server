@@ -288,6 +288,7 @@ private:
       Uses RAII.
 
       @param sess Session to backup
+      @param is_close_session
     */
     Session_backup_and_attach(Srv_session *sess, bool is_close_session);
 

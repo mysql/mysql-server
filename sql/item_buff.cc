@@ -22,6 +22,7 @@
 */
 
 #include "sql_class.h"          // THD
+#include "current_thd.h"        // current_thd
 #include "item.h"               // Cached_item, Cached_item_field, ...
 #include "json_dom.h"           // Json_wrapper
 
@@ -45,12 +46,12 @@ Cached_item *new_Cached_item(THD *thd, Item *item, bool use_result_field)
   switch (item->result_type()) {
   case STRING_RESULT:
     if (item->is_temporal())
-      return new Cached_item_temporal((Item_field *) item);
+      return new Cached_item_temporal(item);
     if (item->field_type() == MYSQL_TYPE_JSON)
       return new Cached_item_json(item);
-    return new Cached_item_str(thd, (Item_field *) item);
+    return new Cached_item_str(thd, item);
   case INT_RESULT:
-    return new Cached_item_int((Item_field *) item);
+    return new Cached_item_int(item);
   case REAL_RESULT:
     return new Cached_item_real(item);
   case DECIMAL_RESULT:
@@ -161,7 +162,7 @@ bool Cached_item_json::cmp()
     representation pointed to by m_value. Convert to DOM so that we
     own the copy.
   */
-  m_value->to_dom();
+  m_value->to_dom(current_thd);
 
   return true;
 }

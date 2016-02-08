@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -115,9 +115,9 @@ struct os_event {
 	/**
 	Waits for an event object until it is in the signaled state or
 	a timeout is exceeded.
-	@param time_in_usec - timeout in microseconds,
+	@param time_in_usec timeout in microseconds,
 			or OS_SYNC_INFINITE_TIME
-	@param reset_sig_count- zero or the value returned by
+	@param reset_sig_count zero or the value returned by
 			previous call of os_event_reset().
 	@return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
 	ulint wait_time_low(
@@ -205,14 +205,12 @@ private:
 
 	/**
 	Do a timed wait on condition variable.
-	@param	abstime		timeout
-	@param	time_in_ms	timeout in milliseconds.
 	@return true if timed out, false otherwise */
 	bool timed_wait(
 #ifndef _WIN32
-		const timespec*	abstime
+		const timespec*	abstime		/*!< Timeout. */
 #else
-		DWORD		time_in_ms
+		DWORD		time_in_ms	/*!< Timeout in milliseconds. */
 #endif /* !_WIN32 */
 	);
 
@@ -241,11 +239,6 @@ protected:
 	os_event& operator=(const os_event&);
 };
 
-/**
-Do a timed wait on condition variable.
-@param	abstime		absolute time to wait
-@param	time_in_ms	timeout in milliseconds
-@return true if timed out */
 bool
 os_event::timed_wait(
 #ifndef _WIN32

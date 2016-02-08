@@ -175,6 +175,9 @@ public:
     std::vector::resize except that no element copy construction or
     reassignment is ever caused by this operation.
 
+    @param new_size New size of vector. If smaller than current size,
+               objects at the tail are removed and destroyed. If greater,
+               new objects are added with default value.
     @param val default value assigned to extended slots in the vector. Unused
                if the vector is shrinked. We have to define a const reference
                instead of passing by value because MSVC on 32bit Windows

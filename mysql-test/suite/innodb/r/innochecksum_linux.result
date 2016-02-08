@@ -23,6 +23,12 @@ page::#; log sequence number:first = #; second = #
 page::#; old style: calculated = #; recorded = #
 page::#; new style: calculated = #; crc32 = #; recorded = #
 page::#; log sequence number:first = #; second = #
+page::#; old style: calculated = #; recorded = #
+page::#; new style: calculated = #; crc32 = #; recorded = #
+page::#; log sequence number:first = #; second = #
+page::#; old style: calculated = #; recorded = #
+page::#; new style: calculated = #; crc32 = #; recorded = #
+page::#; log sequence number:first = #; second = #
 Page::# is empty and uncorrupted
 page::#; log sequence number:first = #; second = #
 Page::# is empty and uncorrupted
@@ -34,9 +40,11 @@ page::#; log sequence number:first = #; second = #
 page::#; old style: calculated = #; recorded = #
 page::#; new style: calculated = #; crc32 = #; recorded = #
 page::#; log sequence number:first = #; second = #
-Page::# is empty and uncorrupted
+page::#; old style: calculated = #; recorded = #
+page::#; new style: calculated = #; crc32 = #; recorded = #
 page::#; log sequence number:first = #; second = #
-Page::# is empty and uncorrupted
+page::#; old style: calculated = #; recorded = #
+page::#; new style: calculated = #; crc32 = #; recorded = #
 # Test[1] End
 # Test [2] for read from standard input for innochecksum tool with rewrite of crc32 checksum.
 # Backup the t1.ibd before any rewrite of checksum, so used for further testing.
@@ -65,6 +73,16 @@ page::#; new style: calculated = #; crc32 = #; recorded = #
 page::#; Updated checksum field# = #
 page::#; Updated checksum field# = #
 page::#; log sequence number:first = #; second = #
+page::#; old style: calculated = #; recorded = #
+page::#; new style: calculated = #; crc32 = #; recorded = #
+page::#; Updated checksum field# = #
+page::#; Updated checksum field# = #
+page::#; log sequence number:first = #; second = #
+page::#; old style: calculated = #; recorded = #
+page::#; new style: calculated = #; crc32 = #; recorded = #
+page::#; Updated checksum field# = #
+page::#; Updated checksum field# = #
+page::#; log sequence number:first = #; second = #
 Page::# is empty and uncorrupted
 page::#; log sequence number:first = #; second = #
 Page::# is empty and uncorrupted
@@ -72,6 +90,10 @@ Page::# is empty and uncorrupted
 InnoDB File Checksum Utility.
 Filename = a.ibd
 Innochecksum: checking pages in range # to #
+page::#; log sequence number:first = #; second = #
+page::#; crc32 calculated = #; recorded checksum field# = # recorded checksum field# =#
+page::#; log sequence number:first = #; second = #
+page::#; crc32 calculated = #; recorded checksum field# = # recorded checksum field# =#
 page::#; log sequence number:first = #; second = #
 page::#; crc32 calculated = #; recorded checksum field# = # recorded checksum field# =#
 page::#; log sequence number:first = #; second = #
@@ -119,6 +141,7 @@ log                               mtrchecksum.log
 #PAGE_COUNT	PAGE_TYPE
 ===============================================
        #	Index page
+       #	SDI Index page
        #	Undo log page
        #	Inode page
        #	Insert buffer free list page
@@ -130,6 +153,9 @@ log                               mtrchecksum.log
        #	Extent descriptor page
        #	BLOB page
        #	Compressed BLOB page
+       #	Subsequent Compressed BLOB page
+       #	SDI BLOB page
+       #	Compressed SDI BLOB page
        #	Other type of page
 ===============================================
 Additional information:
@@ -160,6 +186,16 @@ page::#; new style: calculated = #; crc32 = #; recorded = #
 page::#; Updated checksum field# = #
 page::#; Updated checksum field# = #
 page::#; log sequence number:first = #; second = #
+page::#; old style: calculated = #; recorded = #
+page::#; new style: calculated = #; crc32 = #; recorded = #
+page::#; Updated checksum field# = #
+page::#; Updated checksum field# = #
+page::#; log sequence number:first = #; second = #
+page::#; old style: calculated = #; recorded = #
+page::#; new style: calculated = #; crc32 = #; recorded = #
+page::#; Updated checksum field# = #
+page::#; Updated checksum field# = #
+page::#; log sequence number:first = #; second = #
 Page::# is empty and uncorrupted
 page::#; log sequence number:first = #; second = #
 Page::# is empty and uncorrupted
@@ -167,6 +203,10 @@ Page::# is empty and uncorrupted
 InnoDB File Checksum Utility.
 Filename = a.ibd
 Innochecksum: checking pages in range # to #
+page::#; log sequence number:first = #; second = #
+page::#; none checksum: calculated = #; recorded checksum_field# = # recorded checksum_field# = #
+page::#; log sequence number:first = #; second = #
+page::#; none checksum: calculated = #; recorded checksum_field# = # recorded checksum_field# = #
 page::#; log sequence number:first = #; second = #
 page::#; none checksum: calculated = #; recorded checksum_field# = # recorded checksum_field# = #
 page::#; log sequence number:first = #; second = #
@@ -214,6 +254,16 @@ page::#; new style: calculated = #; crc32 = #; recorded = #
 page::#; Updated checksum field# = #
 page::#; Updated checksum field# = #
 page::#; log sequence number:first = #; second = #
+page::#; old style: calculated = #; recorded = #
+page::#; new style: calculated = #; crc32 = #; recorded = #
+page::#; Updated checksum field# = #
+page::#; Updated checksum field# = #
+page::#; log sequence number:first = #; second = #
+page::#; old style: calculated = #; recorded = #
+page::#; new style: calculated = #; crc32 = #; recorded = #
+page::#; Updated checksum field# = #
+page::#; Updated checksum field# = #
+page::#; log sequence number:first = #; second = #
 Page::# is empty and uncorrupted
 page::#; log sequence number:first = #; second = #
 Page::# is empty and uncorrupted
@@ -221,6 +271,12 @@ Page::# is empty and uncorrupted
 InnoDB File Checksum Utility.
 Filename = a.ibd
 Innochecksum: checking pages in range # to #
+page::#; log sequence number:first = #; second = #
+page::#; old style: calculated = #; recorded checksum = #
+page::#; new style: calculated = #; recorded checksum  = #
+page::#; log sequence number:first = #; second = #
+page::#; old style: calculated = #; recorded checksum = #
+page::#; new style: calculated = #; recorded checksum  = #
 page::#; log sequence number:first = #; second = #
 page::#; old style: calculated = #; recorded checksum = #
 page::#; new style: calculated = #; recorded checksum  = #

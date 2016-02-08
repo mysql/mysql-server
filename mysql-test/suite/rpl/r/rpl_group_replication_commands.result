@@ -1,3 +1,4 @@
+call mtr.add_suppression("Group Replication plugin is not installed.");
 START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
 STOP GROUP_REPLICATION;

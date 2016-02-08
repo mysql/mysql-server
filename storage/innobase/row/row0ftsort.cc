@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -793,7 +793,8 @@ loop:
 				doc.text.f_str =
 					btr_copy_externally_stored_field(
 						&doc.text.f_len, data,
-						page_size, data_len, blob_heap);
+						page_size, data_len, false,
+						blob_heap);
 			} else {
 				doc.text.f_str = data;
 				doc.text.f_len = data_len;
@@ -1181,7 +1182,7 @@ row_merge_write_fts_word(
 
 /*********************************************************************//**
 Read sorted FTS data files and insert data tuples to auxillary tables.
-@return DB_SUCCESS or error number */
+*/
 static
 void
 row_fts_insert_tuple(
@@ -1315,11 +1316,11 @@ static
 int
 row_fts_sel_tree_propagate(
 /*=======================*/
-	int		propogated,	/*<! in: tree node propagated */
-	int*		sel_tree,	/*<! in: selection tree */
-	const mrec_t**	mrec,		/*<! in: sort record */
-	ulint**		offsets,	/*<! in: record offsets */
-	dict_index_t*	index)		/*<! in/out: FTS index */
+	int		propogated,	/*!< in: tree node propagated */
+	int*		sel_tree,	/*!< in: selection tree */
+	const mrec_t**	mrec,		/*!< in: sort record */
+	ulint**		offsets,	/*!< in: record offsets */
+	dict_index_t*	index)		/*!< in/out: FTS index */
 {
 	ulint	parent;
 	int	child_left;
@@ -1364,12 +1365,12 @@ static
 int
 row_fts_sel_tree_update(
 /*====================*/
-	int*		sel_tree,	/*<! in/out: selection tree */
-	ulint		propagated,	/*<! in: node to propagate up */
-	ulint		height,		/*<! in: tree height */
-	const mrec_t**	mrec,		/*<! in: sort record */
-	ulint**		offsets,	/*<! in: record offsets */
-	dict_index_t*	index)		/*<! in: index dictionary */
+	int*		sel_tree,	/*!< in/out: selection tree */
+	ulint		propagated,	/*!< in: node to propagate up */
+	ulint		height,		/*!< in: tree height */
+	const mrec_t**	mrec,		/*!< in: sort record */
+	ulint**		offsets,	/*!< in: record offsets */
+	dict_index_t*	index)		/*!< in: index dictionary */
 {
 	ulint	i;
 
@@ -1387,11 +1388,11 @@ static
 void
 row_fts_build_sel_tree_level(
 /*=========================*/
-	int*		sel_tree,	/*<! in/out: selection tree */
-	ulint		level,		/*<! in: selection tree level */
-	const mrec_t**	mrec,		/*<! in: sort record */
-	ulint**		offsets,	/*<! in: record offsets */
-	dict_index_t*	index)		/*<! in: index dictionary */
+	int*		sel_tree,	/*!< in/out: selection tree */
+	ulint		level,		/*!< in: selection tree level */
+	const mrec_t**	mrec,		/*!< in: sort record */
+	ulint**		offsets,	/*!< in: record offsets */
+	dict_index_t*	index)		/*!< in: index dictionary */
 {
 	ulint	start;
 	int	child_left;
@@ -1449,10 +1450,10 @@ static
 ulint
 row_fts_build_sel_tree(
 /*===================*/
-	int*		sel_tree,	/*<! in/out: selection tree */
-	const mrec_t**	mrec,		/*<! in: sort record */
-	ulint**		offsets,	/*<! in: record offsets */
-	dict_index_t*	index)		/*<! in: index dictionary */
+	int*		sel_tree,	/*!< in/out: selection tree */
+	const mrec_t**	mrec,		/*!< in: sort record */
+	ulint**		offsets,	/*!< in: record offsets */
+	dict_index_t*	index)		/*!< in: index dictionary */
 {
 	ulint	treelevel = 1;
 	ulint	num = 2;
@@ -1483,18 +1484,19 @@ row_fts_build_sel_tree(
 	return(treelevel);
 }
 
-/*********************************************************************//**
-Read sorted file containing index data tuples and insert these data
+/** Read sorted file containing index data tuples and insert these data
 tuples to the index
+@param[in]	index		index
+@param[in]	table		new table
+@param[in]	psort_info	parallel sort info
+@param[in]	id		which auxiliary table's data to insert to
 @return DB_SUCCESS or error number */
 dberr_t
 row_fts_merge_insert(
-/*=================*/
-	dict_index_t*		index,	/*!< in: index */
-	dict_table_t*		table,	/*!< in: new table */
-	fts_psort_t*		psort_info, /*!< parallel sort info */
-	ulint			id)	/* !< in: which auxiliary table's data
-					to insert to */
+	dict_index_t*		index,
+	dict_table_t*		table,
+	fts_psort_t*		psort_info,
+	ulint			id)
 {
 	const byte**		b;
 	mem_heap_t*		tuple_heap;

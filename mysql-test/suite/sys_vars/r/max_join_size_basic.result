@@ -14,12 +14,12 @@ max_join_size	18446744073709551615
 show session variables like 'max_join_size';
 Variable_name	Value
 max_join_size	18446744073709551615
-select * from information_schema.global_variables where variable_name='max_join_size';
+select * from performance_schema.global_variables where variable_name='max_join_size';
 VARIABLE_NAME	VARIABLE_VALUE
-MAX_JOIN_SIZE	18446744073709551615
-select * from information_schema.session_variables where variable_name='max_join_size';
+max_join_size	18446744073709551615
+select * from performance_schema.session_variables where variable_name='max_join_size';
 VARIABLE_NAME	VARIABLE_VALUE
-MAX_JOIN_SIZE	18446744073709551615
+max_join_size	18446744073709551615
 set global max_join_size=10;
 set session max_join_size=20;
 select @@global.max_join_size;
@@ -28,18 +28,20 @@ select @@global.max_join_size;
 select @@session.max_join_size;
 @@session.max_join_size
 20
+SET SQL_BIG_SELECTS=1;
 show global variables like 'max_join_size';
 Variable_name	Value
 max_join_size	10
 show session variables like 'max_join_size';
 Variable_name	Value
 max_join_size	20
-select * from information_schema.global_variables where variable_name='max_join_size';
+SET SQL_BIG_SELECTS=1;
+select * from performance_schema.global_variables where variable_name='max_join_size';
 VARIABLE_NAME	VARIABLE_VALUE
-MAX_JOIN_SIZE	10
-select * from information_schema.session_variables where variable_name='max_join_size';
+max_join_size	10
+select * from performance_schema.session_variables where variable_name='max_join_size';
 VARIABLE_NAME	VARIABLE_VALUE
-MAX_JOIN_SIZE	20
+max_join_size	20
 SET @@global.max_join_size = 1000;
 SET @@global.max_join_size = DEFAULT;
 SELECT @@global.max_join_size;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -41,17 +41,17 @@ constant per ha_storage's lifetime. */
 /** Hash storage */
 struct ha_storage_t;
 
-/*******************************************************************//**
-Creates a hash storage. If any of the parameters is 0, then a default
-value is used.
+/** Creates a hash storage. If any of the parameters is 0, then a default value
+is used.
+@param[in]	initial_hash_cells	initial number of cells in the hash
+					table
+@param[in]	initial_heap_bytes	initial heap's size
 @return own: hash storage */
 UNIV_INLINE
 ha_storage_t*
 ha_storage_create(
-/*==============*/
-	ulint	initial_heap_bytes,	/*!< in: initial heap's size */
-	ulint	initial_hash_cells);	/*!< in: initial number of cells
-					in the hash table */
+	ulint	initial_heap_bytes,
+	ulint	initial_hash_cells);
 
 /*******************************************************************//**
 Copies data into the storage and returns a pointer to the copy. If the

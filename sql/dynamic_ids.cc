@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,9 @@
 */
 
 #include "dynamic_ids.h"
+
+#include "m_string.h"        // my_strtok_r
+#include "sql_string.h"      // String
 
 Server_ids::Server_ids()
   : dynamic_ids(PSI_NOT_INSTRUMENTED)

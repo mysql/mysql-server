@@ -198,8 +198,8 @@ enum command {
          list with the input or checks the input against the global according
 	 to which function the caller is.
 
-  @param input          [IN]   List of semicolon separated token name/value pairs
-  @param enum command   [IN]   Helps determining the caller function.
+  @param [in] input  List of semicolon separated token name/value pairs
+  @param [in] type   Helps determining the caller function.
 
   @return (error)    -1 in case of error.
   @return (success)  Number of tokens updated/set on EDIT_VTOKEN and SET_VTOKEN.
@@ -503,7 +503,7 @@ static int version_tokens_init(void *arg __attribute__((unused)))
   // Initialize hash.
   my_hash_init(&version_tokens_hash,
 	       &my_charset_bin,
-               4, 0, 0, version_token_get_key,
+               4, 0, version_token_get_key,
                my_free, HASH_UNIQUE,
                key_memory_vtoken);
 

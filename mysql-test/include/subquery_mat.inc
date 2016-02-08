@@ -1592,5 +1592,91 @@ SELECT
 FROM t1;
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Bug#22089623 ASSERTION IN ITEM_FUNC_TRIG_COND::VAL_INT()
+--echo #              WITH SUBQUERY ON LEFT SIDE OF IN
+--echo #
+
+--let $query= SELECT (SELECT NULL, NULL) IN (SELECT 1, 2)
+--eval EXPLAIN $query
+--eval $query
+--let $query= SELECT (SELECT 1, 1) IN (SELECT 1, 2)
+--eval EXPLAIN $query
+--eval $query
+--let $query= SELECT (SELECT 1, 2) IN (SELECT 1, 2)
+--eval EXPLAIN $query
+--eval $query
+--let $query= SELECT (SELECT NULL, 2) IN (SELECT 1, 2)
+--eval EXPLAIN $query
+--eval $query
+--let $query= SELECT (SELECT 1, NULL) IN (SELECT 1, 2)
+--eval EXPLAIN $query
+--eval $query
+--let $query= SELECT (SELECT NULL, 1) IN (SELECT 1, 2)
+--eval EXPLAIN $query
+--eval $query
+--let $query= SELECT (SELECT 2, NULL) IN (SELECT 1, 2)
+--eval EXPLAIN $query
+--eval $query
+--let $query= SELECT (SELECT 1, 2 UNION SELECT 1, 2) IN (SELECT 1, 2)
+--eval EXPLAIN $query
+--eval $query
+--let $query= SELECT (SELECT 1, 1 UNION SELECT 1, 1) IN (SELECT 1, 2)
+--eval EXPLAIN $query
+--eval $query
+--let $query= SELECT (SELECT NULL, NULL UNION SELECT NULL, NULL) IN (SELECT 1, 2)
+--eval EXPLAIN $query
+--eval $query
+--let $query= SELECT (SELECT 1, 1 UNION SELECT 2, 2) IN (SELECT 1, 2)
+--eval EXPLAIN $query
+--error ER_SUBQUERY_NO_1_ROW
+--eval $query
+--let $query= SELECT (SELECT 1, 2 WHERE FALSE UNION SELECT 1, 2 WHERE FALSE) IN (SELECT 1, 2)
+--eval EXPLAIN $query
+--eval $query
+--let $query= SELECT (SELECT 1, 2 UNION ALL SELECT 1, 2) IN (SELECT 1, 2)
+--eval EXPLAIN $query
+--error ER_SUBQUERY_NO_1_ROW
+--eval $query
+--let $query= SELECT (SELECT 1, 1 UNION ALL SELECT 1, 1) IN (SELECT 1, 2)
+--eval EXPLAIN $query
+--error ER_SUBQUERY_NO_1_ROW
+--eval $query
+--let $query= SELECT (SELECT NULL, NULL UNION ALL SELECT NULL, NULL) IN (SELECT 1, 2)
+--eval EXPLAIN $query
+--error ER_SUBQUERY_NO_1_ROW
+--eval $query
+--let $query= SELECT (SELECT 1, 1 UNION ALL SELECT 2, 2) IN (SELECT 1, 2)
+--eval EXPLAIN $query
+--error ER_SUBQUERY_NO_1_ROW
+--eval $query
+--let $query= SELECT (SELECT 1, 2 WHERE FALSE UNION ALL SELECT 1, 2 WHERE FALSE) IN (SELECT 1, 2)
+--eval EXPLAIN $query
+--eval $query
+
+--echo #
+--echo # Bug#20536077: WRONG RESULT FOR SELECT NULL,NULL IN (SUBQUERY)
+--echo #
+
+--echo # The following queries correctly returned NULL.
+CREATE TABLE s (s INT) ENGINE=InnoDB;
+INSERT INTO s VALUES(1);
+SELECT NULL IN (SELECT 1);
+SELECT NULL = (SELECT 1);
+SELECT NULL = (SELECT 1 FROM s);
+SELECT (NULL, NULL) IN (SELECT 1, 2);
+
+--echo # The following queries returned 0 instead of NULL.
+SELECT NULL IN (SELECT 1 FROM s);
+SELECT (SELECT NULL, NULL FROM DUAL) IN (SELECT 1, 2 FROM s) FROM s;
+SELECT (SELECT NULL,NULL) IN (SELECT 1, 2);
+CREATE TABLE u(a INT, b INT) ENGINE=MyISAM;
+INSERT INTO u VALUES (NULL, NULL);
+SELECT (SELECT * FROM u) IN (SELECT 1, 2 FROM s) FROM s;
+SELECT (SELECT * FROM u) IN (SELECT 1, 2);
+
+DROP TABLE s, u;
+
+
 set @@optimizer_switch=@old_opt_switch;
 SET sql_mode = default;

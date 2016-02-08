@@ -61,12 +61,6 @@ SELECT @@session.bulk_insert_buffer_size;
 @@session.bulk_insert_buffer_size
 429496
 '#------------------FN_DYNVARS_007_05-----------------------#'
-SET @@global.bulk_insert_buffer_size = 42949672950;
-Warnings:
-Warning	1292	Truncated incorrect bulk_insert_buffer_size value: '42949672950'
-SELECT @@global.bulk_insert_buffer_size;
-@@global.bulk_insert_buffer_size
-4294967295
 SET @@global.bulk_insert_buffer_size = -1024;
 Warnings:
 Warning	1292	Truncated incorrect bulk_insert_buffer_size value: '-1024'
@@ -79,11 +73,17 @@ SET @@global.bulk_insert_buffer_size = ON;
 ERROR 42000: Incorrect argument type to variable 'bulk_insert_buffer_size'
 SET @@global.bulk_insert_buffer_size = 429496.10;
 ERROR 42000: Incorrect argument type to variable 'bulk_insert_buffer_size'
-SET @@session.bulk_insert_buffer_size = 42949672950;
+SET @@global.bulk_insert_buffer_size = 4294967296;
+Warnings:
+Warning	1292	Truncated incorrect bulk_insert_buffer_size value: '4294967296'
+SELECT @@global.bulk_insert_buffer_size;
+@@global.bulk_insert_buffer_size
+4294967295
+SET @@global.bulk_insert_buffer_size = 42949672950;
 Warnings:
 Warning	1292	Truncated incorrect bulk_insert_buffer_size value: '42949672950'
-SELECT @@session.bulk_insert_buffer_size;
-@@session.bulk_insert_buffer_size
+SELECT @@global.bulk_insert_buffer_size;
+@@global.bulk_insert_buffer_size
 4294967295
 SET @@session.bulk_insert_buffer_size = -2;
 Warnings:
@@ -95,15 +95,27 @@ SET @@session.bulk_insert_buffer_size = test;
 ERROR 42000: Incorrect argument type to variable 'bulk_insert_buffer_size'
 SET @@session.bulk_insert_buffer_size = 429496.10;
 ERROR 42000: Incorrect argument type to variable 'bulk_insert_buffer_size'
+SET @@session.bulk_insert_buffer_size = 4294967296;
+Warnings:
+Warning	1292	Truncated incorrect bulk_insert_buffer_size value: '4294967296'
+SELECT @@session.bulk_insert_buffer_size;
+@@session.bulk_insert_buffer_size
+4294967295
+SET @@session.bulk_insert_buffer_size = 42949672950;
+Warnings:
+Warning	1292	Truncated incorrect bulk_insert_buffer_size value: '42949672950'
+SELECT @@session.bulk_insert_buffer_size;
+@@session.bulk_insert_buffer_size
+4294967295
 '#------------------FN_DYNVARS_007_06-----------------------#'
 SELECT @@global.bulk_insert_buffer_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='bulk_insert_buffer_size';
 @@global.bulk_insert_buffer_size = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_007_07-----------------------#'
 SELECT @@session.bulk_insert_buffer_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='bulk_insert_buffer_size';
 @@session.bulk_insert_buffer_size = VARIABLE_VALUE
 1

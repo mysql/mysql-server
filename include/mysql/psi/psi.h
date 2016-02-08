@@ -279,8 +279,6 @@ struct PSI_bootstrap
     ABI interface finder.
     Calling this method with an interface version number returns either
     an instance of the ABI for this version, or NULL.
-    @param version the interface version number to find
-    @return a versioned interface (PSI_v1, PSI_v2 or PSI)
     @sa PSI_VERSION_1
     @sa PSI_v1
     @sa PSI_VERSION_2
@@ -1467,7 +1465,7 @@ typedef void (*destroy_cond_v1_t)(struct PSI_cond *cond);
 /**
   Socket instrumentation initialisation API.
   @param key the registered mutex key
-  @param socket descriptor
+  @param fd socket file descriptor
   @param addr the socket ip address
   @param addr_len length of socket ip address
   @return an instrumented socket
@@ -1493,7 +1491,7 @@ typedef struct PSI_table_share* (*get_table_share_v1_t)
 
 /**
   Release a table share.
-  @param info the table share to release
+  @param share the table share to release
 */
 typedef void (*release_table_share_v1_t)(struct PSI_table_share *share);
 
@@ -1580,7 +1578,7 @@ typedef struct PSI_thread* (*new_thread_v1_t)
 /**
   Assign a THD to an instrumented thread.
   @param thread the instrumented thread
-  @param THD the sql layer THD to assign
+  @param thd the sql layer THD to assign
 */
 typedef void (*set_thread_THD_v1_t)(struct PSI_thread *thread,
                                     THD *thd);
@@ -1711,7 +1709,6 @@ typedef struct PSI_file_locker* (*get_thread_file_stream_locker_v1_t)
   Get a file instrumentation locker.
   @param state data storage for the locker
   @param file the file descriptor to access
-  @param op the operation to perform
   @return a file locker, or NULL
 */
 typedef struct PSI_file_locker* (*get_thread_file_descriptor_locker_v1_t)
@@ -1749,8 +1746,8 @@ typedef void (*broadcast_cond_v1_t)
 /**
   Record an idle instrumentation wait start event.
   @param state data storage for the locker
-  @param file the source file name
-  @param line the source line number
+  @param src_file the source file name
+  @param src_line the source line number
   @return an idle locker, or NULL
 */
 typedef struct PSI_idle_locker* (*start_idle_wait_v1_t)
@@ -1768,8 +1765,8 @@ typedef void (*end_idle_wait_v1_t)
   @param state data storage for the locker
   @param mutex the instrumented mutex to lock
   @param op the operation to perform
-  @param file the source file name
-  @param line the source line number
+  @param src_file the source file name
+  @param src_line the source line number
   @return a mutex locker, or NULL
 */
 typedef struct PSI_mutex_locker* (*start_mutex_wait_v1_t)
@@ -1788,8 +1785,12 @@ typedef void (*end_mutex_wait_v1_t)
 
 /**
   Record a rwlock instrumentation read wait start event.
-  @param locker a thread locker for the running thread
-  @param must must block: 1 for lock, 0 for trylock
+  @param state data storage for the locker
+  @param rwlock the instrumented rwlock to lock
+  @param op the operation to perform
+  @param src_file the source file name
+  @param src_line the source line number
+  @return a rwlock locker, or NULL
 */
 typedef struct PSI_rwlock_locker* (*start_rwlock_rdwait_v1_t)
   (struct PSI_rwlock_locker_state_v1 *state,
@@ -1807,8 +1808,12 @@ typedef void (*end_rwlock_rdwait_v1_t)
 
 /**
   Record a rwlock instrumentation write wait start event.
-  @param locker a thread locker for the running thread
-  @param must must block: 1 for lock, 0 for trylock
+  @param state data storage for the locker
+  @param rwlock the instrumented rwlock to lock
+  @param op the operation to perform
+  @param src_file the source file name
+  @param src_line the source line number
+  @return a rwlock locker, or NULL
 */
 typedef struct PSI_rwlock_locker* (*start_rwlock_wrwait_v1_t)
   (struct PSI_rwlock_locker_state_v1 *state,
@@ -1826,8 +1831,12 @@ typedef void (*end_rwlock_wrwait_v1_t)
 
 /**
   Record a condition instrumentation wait start event.
-  @param locker a thread locker for the running thread
-  @param must must block: 1 for wait, 0 for timedwait
+  @param state data storage for the locker
+  @param cond the instrumented cond to lock
+  @param op the operation to perform
+  @param src_file the source file name
+  @param src_line the source line number
+  @return a cond locker, or NULL
 */
 typedef struct PSI_cond_locker* (*start_cond_wait_v1_t)
   (struct PSI_cond_locker_state_v1 *state,
@@ -1846,9 +1855,12 @@ typedef void (*end_cond_wait_v1_t)
 
 /**
   Record a table instrumentation io wait start event.
-  @param locker a table locker for the running thread
-  @param file the source file name
-  @param line the source line number
+  @param state data storage for the locker
+  @param table the instrumented table
+  @param op the operation to perform
+  @param index the operation index
+  @param src_file the source file name
+  @param src_line the source line number
 */
 typedef struct PSI_table_locker* (*start_table_io_wait_v1_t)
   (struct PSI_table_locker_state *state,
@@ -1868,9 +1880,12 @@ typedef void (*end_table_io_wait_v1_t)
 
 /**
   Record a table instrumentation lock wait start event.
-  @param locker a table locker for the running thread
-  @param file the source file name
-  @param line the source line number
+  @param state data storage for the locker
+  @param table the instrumented table
+  @param op the operation to perform
+  @param flags the operation flags
+  @param src_file the source file name
+  @param src_line the source line number
 */
 typedef struct PSI_table_locker* (*start_table_lock_wait_v1_t)
   (struct PSI_table_locker_state *state,
@@ -1890,7 +1905,6 @@ typedef void (*unlock_table_v1_t)(struct PSI_table *table);
 /**
   Start a file instrumentation open operation.
   @param locker the file locker
-  @param op the operation to perform
   @param src_file the source file name
   @param src_line the source line number
 */
@@ -1926,7 +1940,6 @@ typedef void (*end_temp_file_open_wait_and_bind_to_descriptor_v1_t)
 /**
   Record a file instrumentation start event.
   @param locker a file locker for the running thread
-  @param op file operation to be performed
   @param count the number of bytes requested, or 0 if not applicable
   @param src_file the source file name
   @param src_line the source line number
@@ -1953,7 +1966,6 @@ typedef void (*end_file_wait_v1_t)
 /**
   Start a file instrumentation close operation.
   @param locker the file locker
-  @param op the operation to perform
   @param src_file the source file name
   @param src_line the source line number
 */
@@ -1964,7 +1976,6 @@ typedef void (*start_file_close_wait_v1_t)
   End a file instrumentation close operation.
   @param locker the file locker.
   @param rc the close operation return code (0 for success).
-  @return an instrumented file handle
 */
 typedef void (*end_file_close_wait_v1_t)
   (struct PSI_file_locker *locker, int rc);
@@ -1998,7 +2009,7 @@ typedef struct PSI_statement_locker* (*get_thread_statement_locker_v1_t)
 /**
   Refine a statement locker to a more specific key.
   Note that only events declared mutable can be refined.
-  @param the statement locker for the current event
+  @param locker the statement locker for the current event
   @param key the new key for the event
   @sa PSI_FLAG_MUTABLE
 */
@@ -2144,7 +2155,6 @@ typedef void (*inc_statement_sort_scan_t)
 /**
   Set a statement event "no index used" metric.
   @param locker the statement locker
-  @param count the metric value
 */
 typedef void (*set_statement_no_index_used_t)
   (struct PSI_statement_locker *locker);
@@ -2152,7 +2162,6 @@ typedef void (*set_statement_no_index_used_t)
 /**
   Set a statement event "no good index used" metric.
   @param locker the statement locker
-  @param count the metric value
 */
 typedef void (*set_statement_no_good_index_used_t)
   (struct PSI_statement_locker *locker);
@@ -2171,7 +2180,7 @@ typedef void (*end_statement_v1_t)
   @param state data storage for the locker
   @param xid the xid for this transaction
   @param trxid the InnoDB transaction id
-  @param iso_level isolation level for this transaction
+  @param isolation_level isolation level for this transaction
   @param read_only true if transaction access mode is read-only
   @param autocommit true if transaction is autocommit
   @return a transaction locker, or NULL
@@ -2264,11 +2273,13 @@ typedef void (*end_transaction_v1_t)
 
 /**
   Record a socket instrumentation start event.
-  @param locker a socket locker for the running thread
+  @param state data storage for the locker
+  @param socket the instrumented socket
   @param op socket operation to be performed
   @param count the number of bytes requested, or 0 if not applicable
   @param src_file the source file name
   @param src_line the source line number
+  @return a socket locker, or NULL
 */
 typedef struct PSI_socket_locker* (*start_socket_wait_v1_t)
   (struct PSI_socket_locker_state_v1 *state,
@@ -2304,7 +2315,6 @@ typedef void (*set_socket_state_v1_t)(struct PSI_socket *socket,
   @param fd the socket descriptor
   @param addr the socket ip address
   @param addr_len length of socket ip address
-  @param thread_id associated thread id
 */
 typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
                                      const my_socket *fd,
@@ -2356,10 +2366,9 @@ typedef struct PSI_digest_locker * (*digest_start_v1_t)
   (struct PSI_statement_locker *locker);
 
 /**
-  Add a token to the current digest instrumentation.
+  Add a computed digest to the current digest instrumentation.
   @param locker a digest locker for the current statement
-  @param token the lexical token to add
-  @param yylval the lexical token attributes
+  @param digest the computed digest
 */
 typedef void (*digest_end_v1_t)
   (struct PSI_digest_locker *locker, const struct sql_digest_storage *digest);
@@ -2377,9 +2386,11 @@ typedef void (*drop_sp_v1_t)
 
 /**
   Acquire a sp share instrumentation.
-  @param type of stored program
-  @param schema name of stored program
-  @param name of stored program
+  @param object_type type of stored program
+  @param schema_name schema name of stored program
+  @param schema_name_length length of schema_name
+  @param object_name object name of stored program
+  @param object_name_length length of object_name
   @return a stored program share instrumentation, or NULL
 */
 typedef struct PSI_sp_share* (*get_sp_share_v1_t)
@@ -2389,7 +2400,7 @@ typedef struct PSI_sp_share* (*get_sp_share_v1_t)
 
 /**
   Release a stored program share.
-  @param info the stored program share to release
+  @param share the stored program share to release
 */
 typedef void (*release_sp_share_v1_t)(struct PSI_sp_share *share);
 

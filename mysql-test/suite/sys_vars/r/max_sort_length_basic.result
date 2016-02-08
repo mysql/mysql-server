@@ -164,13 +164,13 @@ SELECT @@session.max_sort_length;
 8388608
 '#------------------FN_DYNVARS_084_06-----------------------#'
 SELECT @@global.max_sort_length = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='max_sort_length';
 @@global.max_sort_length = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_084_07-----------------------#'
 SELECT @@session.max_sort_length = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='max_sort_length';
 @@session.max_sort_length = VARIABLE_VALUE
 1

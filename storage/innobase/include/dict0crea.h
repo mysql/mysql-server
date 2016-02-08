@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -95,8 +95,7 @@ dict_create_index_step(
 	que_thr_t*	thr);		/*!< in: query thread */
 
 /***************************************************************//**
-Builds an index definition but doesn't update sys_table.
-@return DB_SUCCESS or error code */
+Builds an index definition but doesn't update sys_table. */
 void
 dict_build_index_def(
 /*=================*/
@@ -104,15 +103,15 @@ dict_build_index_def(
 	dict_index_t*		index,	/*!< in/out: index */
 	trx_t*			trx);	/*!< in/out: InnoDB transaction
 					handle */
-/***************************************************************//**
-Creates an index tree for the index if it is not a member of a cluster.
+/** Creates an index tree for the index if it is not a member of a cluster.
 Don't update SYSTEM TABLES.
+@param[in,out]	index	index
+@param[in]	trx	InnoDB transaction handle
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 dberr_t
 dict_create_index_tree(
-/*===================*/
-	dict_index_t*	index,	/*!< in/out: index */
-	const trx_t*	trx);	/*!< in: InnoDB transaction handle */
+	dict_index_t*	index,
+	const trx_t*	trx);
 
 /** Drop the index tree associated with a row in SYS_INDEXES table.
 @param[in,out]	rec	SYS_INDEXES record
@@ -152,19 +151,19 @@ dberr_t
 dict_create_or_check_foreign_constraint_tables(void);
 /*================================================*/
 
-/********************************************************************//**
-Generate a foreign key constraint name when it was not named by the user.
+/** Generate a foreign key constraint name when it was not named by the user.
 A generated constraint has a name of the format dbname/tablename_ibfk_NUMBER,
 where the numbers start from 1, and are given locally for this table, that is,
-the number is not global, as it used to be before MySQL 4.0.18.  */
+the number is not global, as it used to be before MySQL 4.0.18.
+@param[in,out]	id_nr	number to use in id generation; incremented if used
+@param[in]	name	table name
+@param[in,out]	foreign	foreign key */
 UNIV_INLINE
 dberr_t
 dict_create_add_foreign_id(
-/*=======================*/
-	ulint*		id_nr,		/*!< in/out: number to use in id
-					generation; incremented if used */
-	const char*	name,		/*!< in: table name */
-	dict_foreign_t*	foreign);	/*!< in/out: foreign key */
+	ulint*		id_nr,
+	const char*	name,
+	dict_foreign_t*	foreign);
 
 /** Adds the given set of foreign key objects to the dictionary tables
 in the database. This function does not modify the dictionary cache. The
@@ -316,6 +315,19 @@ struct tab_node_t{
 	mem_heap_t*	heap;		/*!< memory heap used as auxiliary
 					storage */
 };
+
+/** Create in-memory tablespace dictionary index & table
+@param[in]	space		tablespace id
+@param[in]	copy_num	copy of sdi table
+@param[in]	space_discarded	true if space is discarded
+@param[in]	in_flags	space flags to use when space_discarded is true
+@return in-memory index structure for tablespace dictionary or NULL */
+dict_index_t*
+dict_sdi_create_idx_in_mem(
+	ulint		space,
+	ulint		copy_num,
+	bool		space_discarded,
+	ulint		in_flags);
 
 /* Table create node states */
 #define	TABLE_BUILD_TABLE_DEF	1

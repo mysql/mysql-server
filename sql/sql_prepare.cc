@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1075,8 +1075,6 @@ bool Prepared_statement::emb_insert_params(String *query)
   @param[in]   param_count      total number of parameters. Is the
                                 same in src and dst arrays, since
                                 the statement query is the same
-
-  @return this function never fails
 */
 
 static void
@@ -1171,6 +1169,7 @@ error:
 /**
   Validate INSERT statement.
 
+  @param thd                    thread handle
   @param table_list             global/local table list
 
   @retval
@@ -1225,7 +1224,7 @@ bool Sql_cmd_insert::mysql_test_insert(THD *thd, TABLE_LIST *table_list)
         my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), counter);
         goto error;
       }
-      if (setup_fields(thd, Ref_ptr_array(), *values, 0, NULL, false, false))
+      if (setup_fields(thd, Ref_item_array(), *values, 0, NULL, false, false))
         goto error;
     }
   }
@@ -2078,6 +2077,9 @@ static bool init_param_array(Prepared_statement *stmt)
     that a fast and direct retrieval can be made without going through all
     field items.
 
+    In case of success a new statement id and metadata is sent
+    to the client, otherwise an error message is set in THD.
+
   @param thd                thread handle
   @param query              query to be prepared
   @param length             query string length, including ignored
@@ -2088,10 +2090,6 @@ static bool init_param_array(Prepared_statement *stmt)
     and resultset metadata information back to client (if any), without
     executing the query i.e. without any log/disk writes. This allows the
     queries to be re-executed without re-parsing during execute.
-
-  @return
-    none: in case of success a new statement id and metadata is sent
-    to the client, otherwise an error message is set in THD.
 */
 
 void mysqld_stmt_prepare(THD *thd, const char *query, uint length)
@@ -2254,11 +2252,10 @@ end:
     mysql_execute_command and should therefore behave like an
     ordinary query (e.g. should not reset any global THD data).
 
-  @param thd     thread handle
+    In case of success, OK packet is sent to the client,
+    otherwise an error message is set in THD.
 
-  @return
-    none: in case of success, OK packet is sent to the client,
-    otherwise an error message is set in THD
+  @param thd     thread handle
 */
 
 void mysql_sql_stmt_prepare(THD *thd)
@@ -2513,15 +2510,14 @@ static void reset_stmt_params(Prepared_statement *stmt)
     This function uses binary protocol to send a possible result set
     to the client.
 
+    In case of success OK packet or a result set is sent to the
+    client, otherwise an error message is set in THD.
+
   @param thd                current thread
   @param stmt_id            statement id
   @param flags              flags mask
   @param params             parameter types and data, if any
   @param params_length      packet length, including the terminator character.
-
-  @return
-    none: in case of success OK packet or a result set is sent to the
-    client, otherwise an error message is set in THD.
 */
 
 void mysqld_stmt_execute(THD *thd, ulong stmt_id, ulong flags, uchar *params,
@@ -2586,11 +2582,10 @@ void mysqld_stmt_execute(THD *thd, ulong stmt_id, ulong flags, uchar *params,
     global THD data, such as warning count, server status, etc).
     This function uses text protocol to send a possible result set.
 
-  @param thd                thread handle
+    In case of success, OK (or result set) packet is sent to the
+    client, otherwise an error is set in THD.
 
-  @return
-    none: in case of success, OK (or result set) packet is sent to the
-    client, otherwise an error is set in THD
+  @param thd                thread handle
 */
 
 void mysql_sql_stmt_execute(THD *thd)
@@ -2765,9 +2760,8 @@ void mysqld_stmt_close(THD *thd, ulong stmt_id)
     SQL, we should be careful to not close a statement that is currently
     being executed.
 
-  @return
-    none: OK packet is sent in case of success, otherwise an error
-    message is set in THD
+    OK packet is sent in case of success, otherwise an error
+    message is set in THD.
 */
 
 void mysql_sql_stmt_close(THD *thd)
@@ -3713,9 +3707,7 @@ bool Prepared_statement::validate_metadata(Prepared_statement *copy)
   Replace the original prepared statement with a prepared copy.
 
   This is a private helper that is used as part of statement
-  reprepare
-
-  @return This function does not return any errors.
+  reprepare.
 */
 
 void

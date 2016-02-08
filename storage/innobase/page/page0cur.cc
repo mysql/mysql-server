@@ -1844,7 +1844,7 @@ page_cur_insert_rec_zip(
 			get rid of the modification log. */
 			page_create_zip(page_cur_get_block(cursor), index,
 					page_header_get_field(page, PAGE_LEVEL),
-					0, mtr);
+					0, mtr, fil_page_get_type(page));
 			ut_ad(!page_header_get_ptr(page, PAGE_FREE));
 
 			if (page_zip_available(

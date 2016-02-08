@@ -1,3 +1,5 @@
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
 #
 # BUG#21463167 - GTIDS: LOCK_OPEN DEADLOCK WITH REVOKE INCIDENT +
 #                SHOW TABLE STATUS CONCURRENTLY
@@ -30,3 +32,4 @@ DROP USER u1;
 DROP VIEW v1;
 DROP TABLE t1;
 SET debug='';
+set @@global.show_compatibility_56=@show_compatibility_56_save;

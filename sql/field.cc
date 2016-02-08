@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1561,6 +1561,7 @@ Field::Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
    m_null_ptr(null_ptr_arg),
    m_is_tmp_nullable(false),
    m_is_tmp_null(false),
+   m_count_cuted_fields_saved(CHECK_FIELD_IGNORE),
    table(0), orig_table(0), table_name(0),
    field_name(field_name_arg),
    field_length(length_arg), null_bit(null_bit_arg), 
@@ -1626,12 +1627,12 @@ type_conversion_status Field::check_constraints(int mysql_errno)
   case CHECK_FIELD_IGNORE:
     return TYPE_OK;
   case CHECK_FIELD_ERROR_FOR_NULL:
-    if (!table->in_use->no_errors)
-      my_error(ER_BAD_NULL_ERROR, MYF(0), field_name);
+    my_error(ER_BAD_NULL_ERROR, MYF(0), field_name);
     return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }
 
   DBUG_ASSERT(0); // impossible
+  my_error(ER_BAD_NULL_ERROR, MYF(0), field_name);
   return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
 }
 
@@ -1751,8 +1752,6 @@ bool Field::send_binary(Protocol *protocol)
    decoded and compared to the size of this field (the slave or
    destination).
 
-   @note
-
    The comparison is made so that if the source data (from the master)
    is less than the target data (on the slave), -1 is returned in @c
    <code>*order_var</code>. This implies that a conversion is
@@ -1768,7 +1767,6 @@ bool Field::send_binary(Protocol *protocol)
    type, 0 is returned in <code>*order_var</code>.
 
    @param   field_metadata   Encoded size in field metadata
-   @param   mflags           Flags from the table map event for the table.
    @param   order_var        Pointer to variable where the order
                              between the source field and this field
                              will be returned.
@@ -1777,8 +1775,8 @@ bool Field::send_binary(Protocol *protocol)
    master's field size, @c false otherwise.
 */
 bool Field::compatible_field_size(uint field_metadata,
-                                  Relay_log_info *rli_arg __attribute__((unused)),
-                                  uint16 mflags __attribute__((unused)),
+                                  Relay_log_info *,
+                                  uint16,
                                   int *order_var)
 {
   uint const source_size= pack_length_from_metadata(field_metadata);
@@ -3288,8 +3286,8 @@ uint Field_new_decimal::pack_length_from_metadata(uint field_metadata)
    @return @c true
 */
 bool Field_new_decimal::compatible_field_size(uint field_metadata,
-                                              Relay_log_info * __attribute__((unused)),
-                                              uint16 mflags __attribute__((unused)),
+                                              Relay_log_info *,
+                                              uint16,
                                               int *order_var)
 {
   uint const source_precision= (field_metadata >> 8U) & 0x00ff;
@@ -5288,6 +5286,12 @@ Field_temporal::store(const char *str, size_t len, const CHARSET_INFO *cs)
 
 
 /**
+
+  @param nr
+  @param unsigned_val
+  @param ltime
+  @param warnings
+
   @retval -1              Timestamp with wrong values
   @retval anything else   DATETIME as integer in YYYYMMDDHHMMSS format
 */
@@ -6333,21 +6337,21 @@ Field_year::store(const char *from, size_t len,const CHARSET_INFO *cs)
     set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return TYPE_WARN_OUT_OF_RANGE;
   }
-  else if (conv_error)
+
+  if (conv_error)
     ret= TYPE_ERR_BAD_VALUE;
 
   if (table->in_use->count_cuted_fields)
-  {
     ret= check_int(cs, from, len, end, conv_error);
-    if (ret != TYPE_OK)
+
+  if (ret != TYPE_OK)
+  {
+    if (ret == TYPE_ERR_BAD_VALUE)  /* empty or incorrect string */
     {
-      if (ret == TYPE_ERR_BAD_VALUE)  /* empty or incorrect string */
-      {
-        *ptr= 0;
-        return TYPE_WARN_OUT_OF_RANGE;
-      }
-      ret= TYPE_WARN_OUT_OF_RANGE;
+      *ptr= 0; // Invalid date
+      return ret;
     }
+    ret= TYPE_WARN_OUT_OF_RANGE;
   }
 
   if (nr != 0 || len != 4)
@@ -7158,8 +7162,7 @@ double Field_string::val_real(void)
   double result;
   
   result=  my_strntod(cs,(char*) ptr,field_length,&end,&error);
-  if (!table->in_use->no_errors &&
-      (error || (field_length != (uint32)(end - (char*) ptr) && 
+  if ((error || (field_length != (uint32)(end - (char*) ptr) && 
                  !check_if_only_end_space(cs, end,
                                           (char*) ptr + field_length))))
   {
@@ -7182,8 +7185,7 @@ longlong Field_string::val_int(void)
   longlong result;
 
   result= my_strntoll(cs, (char*) ptr,field_length,10,&end,&error);
-  if (!table->in_use->no_errors &&
-      (error || (field_length != (uint32)(end - (char*) ptr) && 
+  if ((error || (field_length != (uint32)(end - (char*) ptr) && 
                  !check_if_only_end_space(cs, end,
                                           (char*) ptr + field_length))))
   {
@@ -7221,7 +7223,7 @@ my_decimal *Field_string::val_decimal(my_decimal *decimal_value)
   ASSERT_COLUMN_MARKED_FOR_READ;
   int err= str2my_decimal(E_DEC_FATAL_ERROR, (char*) ptr, field_length,
                           charset(), decimal_value);
-  if (!table->in_use->no_errors && err)
+  if (err)
   {
     ErrConvString errmsg((char*) ptr, field_length, charset());
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
@@ -7606,8 +7608,7 @@ double Field_varstring::val_real(void)
   uint length= length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
   result= my_strntod(cs, (char*)ptr+length_bytes, length, &end, &error);
   
-  if (!table->in_use->no_errors && 
-       (error || (length != (uint)(end - (char*)ptr+length_bytes) && 
+  if ((error || (length != (uint)(end - (char*)ptr+length_bytes) && 
          !check_if_only_end_space(cs, end, (char*)ptr+length_bytes+length)))) 
   {
     push_numerical_conversion_warning(current_thd, (char*)ptr+length_bytes, 
@@ -7629,8 +7630,7 @@ longlong Field_varstring::val_int(void)
   longlong result= my_strntoll(cs, (char*) ptr+length_bytes, length, 10,
                      &end, &error);
 		     
-  if (!table->in_use->no_errors && 
-       (error || (length != (uint)(end - (char*)ptr+length_bytes) && 
+  if ((error || (length != (uint)(end - (char*)ptr+length_bytes) && 
          !check_if_only_end_space(cs, end, (char*)ptr+length_bytes+length)))) 
   {
     push_numerical_conversion_warning(current_thd, (char*)ptr+length_bytes, 
@@ -7658,7 +7658,7 @@ my_decimal *Field_varstring::val_decimal(my_decimal *decimal_value)
   int error= str2my_decimal(E_DEC_FATAL_ERROR, (char*) ptr+length_bytes, length,
                  cs, decimal_value);
 
-  if (!table->in_use->no_errors && error)
+  if (error)
   {
     push_numerical_conversion_warning(current_thd, (char*)ptr+length_bytes, 
                                       length, cs, "DECIMAL", 
@@ -8136,7 +8136,6 @@ Field_blob::store_to_mem(const char *from, size_t length,
                          size_t max_length,
                          Blob_mem_storage *blob_storage)
 {
-  DBUG_ASSERT(length > 0);
   /*
     We don't need to support escaping or character set conversions here,
     because store_to_mem() is currently called only when we process
@@ -8171,8 +8170,6 @@ Field_blob::store_internal(const char *from, size_t length,
   size_t new_length;
   char buff[STRING_BUFFER_USUAL_SIZE], *tmp;
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
-
-  DBUG_ASSERT(length > 0);
 
   /*
     If the 'from' address is in the range of the temporary 'value'-
@@ -8237,12 +8234,6 @@ type_conversion_status
 Field_blob::store(const char *from, size_t length, const CHARSET_INFO *cs)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-
-  if (!length)
-  {
-    memset(ptr, 0, Field_blob::pack_length());
-    return TYPE_OK;
-  }
 
   if (table->blob_storage)    // GROUP_CONCAT with ORDER BY | DISTINCT
     return store_to_mem(from, length, cs,
@@ -8589,6 +8580,7 @@ uchar *Field_blob::pack(uchar *to, const uchar *from,
    @param   param_data @c TRUE if base types should be stored in little-
                        endian format, @c FALSE if native format should
                        be used.
+   @param low_byte_first
 
    @return  New pointer into memory based on from + length of the data
 */
@@ -8894,8 +8886,7 @@ Field_json::store(const char *from, size_t length, const CHARSET_INFO *cs)
     if (parse_err != NULL)
     {
       // Syntax error.
-      my_error(ER_INVALID_JSON_TEXT, MYF(0),
-               parse_err, err_offset, v.c_ptr_safe());
+      invalid_text(parse_err, err_offset);
     }
     return TYPE_ERR_BAD_VALUE;
   }
@@ -8915,13 +8906,7 @@ Field_json::store(const char *from, size_t length, const CHARSET_INFO *cs)
 type_conversion_status Field_json::unsupported_conversion()
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  String s;
-  s.append("column ");
-  s.append(*table_name);
-  s.append('.');
-  s.append(field_name);
-  my_error(ER_INVALID_JSON_TEXT, MYF(0), "not a JSON text, may need CAST",
-           0, s.c_ptr_safe());
+  invalid_text("not a JSON text, may need CAST", 0);
   return TYPE_ERR_BAD_VALUE;
 }
 
@@ -9002,9 +8987,7 @@ type_conversion_status Field_json::store_json(Json_wrapper *json)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
 
-  json_binary::Value json_val= json->to_value();
-  if (json_val.type() == json_binary::Value::ERROR ||
-      json_val.raw_binary(&value))
+  if (json->to_binary(&value))
     return TYPE_ERR_BAD_VALUE;
 
   return store_binary(value.ptr(), value.length());
@@ -10151,6 +10134,7 @@ uint Field_bit::pack_length_from_metadata(uint field_metadata)
    to the size of this field (the slave or destination). 
 
    @param   field_metadata   Encoded size in field metadata
+   @param   mflags           Flags from the table map event for the table.
    @param   order_var        Pointer to variable where the order
                              between the source field and this field
                              will be returned.
@@ -10247,7 +10231,7 @@ Field_bit::pack(uchar *to, const uchar *from, uint max_length,
 */
 const uchar *
 Field_bit::unpack(uchar *to, const uchar *from, uint param_data,
-                  bool low_byte_first __attribute__((unused)))
+                  bool __attribute__((unused)))
 {
   DBUG_ENTER("Field_bit::unpack");
   DBUG_PRINT("enter", ("to: %p, from: %p, param_data: 0x%x",
@@ -11263,6 +11247,7 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
   key_length(old_field->key_length()),
   auto_flags(old_field->auto_flags),
   charset(old_field->charset()),		// May be NULL ptr
+  geom_type(Field::GEOM_GEOMETRY),
   field(old_field),
   treat_bit_as_char(false),  // Init to avoid valgrind warnings in opt. build
   gcol_info(old_field->gcol_info),
@@ -11271,12 +11256,7 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
 
   switch (sql_type) {
   case MYSQL_TYPE_BLOB:
-    switch (pack_length - portable_sizeof_char_ptr) {
-    case  1: sql_type= MYSQL_TYPE_TINY_BLOB; break;
-    case  2: sql_type= MYSQL_TYPE_BLOB; break;
-    case  3: sql_type= MYSQL_TYPE_MEDIUM_BLOB; break;
-    default: sql_type= MYSQL_TYPE_LONG_BLOB; break;
-    }
+    sql_type= blob_type_from_pack_length(pack_length - portable_sizeof_char_ptr);
     length/= charset->mbmaxlen;
     key_length/= charset->mbmaxlen;
     break;

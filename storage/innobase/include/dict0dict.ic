@@ -1959,4 +1959,98 @@ dict_free_vc_templ(
 	}
 }
 
+/** Check whether the table have virtual index.
+@param[in]	table	InnoDB table
+@return true if the table have virtual index, false otherwise. */
+UNIV_INLINE
+bool
+dict_table_have_virtual_index(
+	dict_table_t*	table)
+{
+	for (ulint col_no = 0; col_no < dict_table_get_n_v_cols(table);
+	     col_no++) {
+		const dict_v_col_t*	col
+			= dict_table_get_nth_v_col(table, col_no);
+
+		if (col->m_col.ord_part) {
+			return(true);
+		}
+	}
+
+	return(false);
+}
+
+/** Generate a table_id from space id for SDI Index.
+@param[in]	space_id	InnoDB tablespace id
+@param[in]	copy_num	SDI table copy number
+@return table_id */
+UNIV_INLINE
+uint64_t
+dict_sdi_get_table_id(
+	ulint		space_id,
+	uint64_t	copy_num)
+{
+	ut_ad(copy_num < MAX_SDI_COPIES);
+	return((~copy_num << 32) | space_id);
+}
+
+/** Extract space_id from table_id for SDI Index.
+@param[in]	table_id	InnoDB table id
+@return space_id */
+UNIV_INLINE
+ulint
+dict_sdi_get_space_id(
+	table_id_t	table_id)
+{
+	return(static_cast<uint32_t>(table_id));
+}
+
+/** Check if the index is SDI index
+@param[in]	index	in-memory index structure
+@return true if index is SDI index else false */
+UNIV_INLINE
+bool
+dict_index_is_sdi(
+	const dict_index_t*	index)
+{
+	return(index->type & DICT_SDI);
+}
+
+/** Check if an table id belongs SDI table
+@param[in]	table_id	dict_table_t id
+@return true if table_id is SDI table_id else false */
+UNIV_INLINE
+bool
+dict_table_is_sdi(
+	table_id_t	table_id)
+{
+	/* The lowest possible SDI table_id is for space 0.
+	So any table id greater than system tablespace
+	table id is SDI table id. */
+	return(table_id >= dict_sdi_get_table_id(SYSTEM_TABLE_SPACE, 1));
+}
+
+/** Return a SDI Index id for given SDI copy
+@param[in]	copy_num	SDI Index copy number
+@return index_id for SDI copy */
+UNIV_INLINE
+space_index_t
+dict_sdi_get_index_id(
+	ulint	copy_num)
+{
+	ut_ad(copy_num < MAX_SDI_COPIES);
+	return(IB_UINT64_MAX - copy_num);
+}
+
+/** Extract SDI copy number from table id
+@param[in]	table_id	InnoDB table id
+@return SDI copy number */
+UNIV_INLINE
+ulint
+dict_sdi_get_copy_num(
+	table_id_t	table_id)
+{
+	ut_ad(dict_table_is_sdi(table_id));
+	return(~static_cast<uint32_t>(table_id >> 32));
+}
 #endif /* !UNIV_HOTBACKUP */

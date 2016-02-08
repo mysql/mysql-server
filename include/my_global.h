@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -184,10 +184,6 @@ typedef char	pbool;		/* Mixed prototypes can take char */
 typedef int	pchar;		/* Mixed prototypes can't take char */
 typedef int	pbool;		/* Mixed prototypes can't take char */
 #endif
-C_MODE_START
-typedef int	(*qsort_cmp)(const void *,const void *);
-typedef int	(*qsort_cmp2)(const void*, const void *,const void *);
-C_MODE_END
 #ifdef _WIN32
 typedef int       socket_len_t;
 typedef int       sigset_t;
@@ -586,25 +582,6 @@ static inline struct tm *gmtime_r(const time_t *clock, struct tm *res)
 }
 #endif /* _WIN32 */
 
-#ifndef HAVE_STRUCT_TIMESPEC /* Windows before VS2015 */
-/*
-  Declare a union to make sure FILETIME is properly aligned
-  so it can be used directly as a 64 bit value. The value
-  stored is in 100ns units.
-*/
-union ft64 {
-  FILETIME ft;
-  __int64 i64;
- };
-
-struct timespec {
-  union ft64 tv;
-  /* The max timeout value in millisecond for native_cond_timedwait */
-  long max_timeout_msec;
-};
-
-#endif /* !HAVE_STRUCT_TIMESPEC */
-
 C_MODE_START
 ulonglong my_getsystime(void);
 
@@ -622,30 +599,19 @@ C_MODE_END
 */
 static inline int cmp_timespec(struct timespec *ts1, struct timespec *ts2)
 {
-#ifdef HAVE_STRUCT_TIMESPEC
   if (ts1->tv_sec > ts2->tv_sec ||
       (ts1->tv_sec == ts2->tv_sec && ts1->tv_nsec > ts2->tv_nsec))
     return 1;
   if (ts1->tv_sec < ts2->tv_sec ||
       (ts1->tv_sec == ts2->tv_sec && ts1->tv_nsec < ts2->tv_nsec))
     return -1;
-#else
-  if (ts1->tv.i64 > ts2->tv.i64)
-    return 1;
-  if (ts1->tv.i64 < ts2->tv.i64)
-    return -1;
-#endif
   return 0;
 }
 
 static inline ulonglong diff_timespec(struct timespec *ts1, struct timespec *ts2)
 {
-#ifdef HAVE_STRUCT_TIMESPEC
   return (ts1->tv_sec - ts2->tv_sec) * 1000000000ULL +
     ts1->tv_nsec - ts2->tv_nsec;
-#else
-  return (ts1->tv.i64 - ts2->tv.i64) * 100;
-#endif
 }
 
 #ifdef _WIN32

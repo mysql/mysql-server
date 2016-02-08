@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -155,12 +155,12 @@ type_conversion_status set_field_to_null(Field *field)
   case CHECK_FIELD_IGNORE:
     return TYPE_OK;
   case CHECK_FIELD_ERROR_FOR_NULL:
-    if (!field->table->in_use->no_errors)
-      my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
+    my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
     return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }
   DBUG_ASSERT(false); // impossible
 
+  my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
   return TYPE_ERR_NULL_CONSTRAINT_VIOLATION; // to avoid compiler's warning
 }
 
@@ -237,11 +237,11 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
   case CHECK_FIELD_IGNORE:
     return TYPE_OK;
   case CHECK_FIELD_ERROR_FOR_NULL:
-    if (!field->table->in_use->no_errors)
-      my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
+    my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
     return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }
   DBUG_ASSERT(false); // impossible
+  my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
   return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
 }
 
@@ -950,7 +950,12 @@ type_conversion_status field_conv(Field *to,Field *from)
     Field_blob *blob=(Field_blob*) to;
     from->val_str(&blob->value);
 
-    if (!blob->value.is_alloced() && from->is_updatable())
+    /*
+      Copy value if copy_blobs is set, or source is part of the table's
+      writeset.
+    */
+    if (to->table->copy_blobs ||
+        (!blob->value.is_alloced() && from->is_updatable()))
       blob->value.copy();
 
     return blob->store(blob->value.ptr(),blob->value.length(),from->charset());

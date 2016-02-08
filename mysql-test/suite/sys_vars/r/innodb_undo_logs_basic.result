@@ -8,7 +8,7 @@ COUNT(@@GLOBAL.innodb_undo_logs)
 1
 1 Expected
 SELECT VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_undo_logs';
 VARIABLE_VALUE
 128

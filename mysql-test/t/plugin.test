@@ -1,4 +1,6 @@
-#
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
+
 --source include/not_windows_embedded.inc
 --source include/have_example_plugin.inc
 --source include/have_debug_sync.inc
@@ -54,7 +56,7 @@ DROP TABLE t1;
 set global example_ulong_var=500;
 set global example_enum_var= e1;
 --disable_warnings
-select * from information_schema.global_status where variable_name like 'example%' order by variable_name;
+select * from performance_schema.global_status where variable_name like 'example%' order by variable_name;
 --enable_warnings
 --replace_regex /^Last creation.*t1'$/Last creation 't1'/
 show variables like 'example%';
@@ -185,7 +187,7 @@ END
 
 CREATE PROCEDURE p_show_vars()
 BEGIN
-  SELECT COUNT(*) FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES;
+  SELECT COUNT(*) FROM performance_schema.global_variables;
 END|
 
 delimiter ;|

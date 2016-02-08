@@ -56,6 +56,8 @@ CREATE VIEW v_processlist  as SELECT * FROM performance_schema.threads where typ
 
 --inc $not_xa_trans_committed
 --eval call mtr.add_suppression("Found $prepared_at_server_restart prepared XA transactions")
+# Caused by bug#79416 fixes, see below.
+call mtr.add_suppression("Found 1 prepared XA transactions");
 
 --inc $not_xa_trans_committed
 CREATE TABLE t (a INT) ENGINE=innodb;
@@ -151,6 +153,31 @@ if (`SELECT @@global.log_bin = 1`)
 --echo All transactions must be completed, to empty-list the following:
 XA RECOVER;
 
+
+# bug#79416 INNODB: FAILING ASSERTION: TOTAL_TRX >= TRX_SYS->N_PREPARED_TRX
+# Fixes' prove in that there must be no innodb assert at the server shutdown
+--connect (conn_bug79146, 127.0.0.1,root,,test,$MASTER_MYPORT,)
+CREATE TABLE t(a INT);
+XA START 'xa1';
+INSERT INTO t SET a = 1;
+XA END 'xa1';
+SET @@SESSION.pseudo_slave_mode=1;
+XA PREPARE 'xa1';
+
+--connection default
 --source include/restart_mysqld.inc
+
+XA ROLLBACK 'xa1';
+
+# bug78695 ASSERTION `STATIC_CAST<SQL_CMD_XA_COMMIT*>(THD->LEX->M_SQL_CMD)-> GET_XA_OPT()
+# Fixes' prove in that there must be no assert at the xa commit
+XA START 'xa1';
+INSERT INTO t SET a = 1;
+XA END 'xa1';
+XA PREPARE 'xa1';
+SET @@SESSION.pseudo_slave_mode=1;
+XA COMMIT 'xa1';
+
+DROP TABLE t;
 
 --source include/gtid_utils_end.inc

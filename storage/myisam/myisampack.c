@@ -123,8 +123,8 @@ static void free_counts_and_tree_and_queue(HUFF_TREE *huff_trees,
 					   uint trees,
 					   HUFF_COUNTS *huff_counts,
 					   uint fields);
-static int compare_tree(void* cmp_arg __attribute__((unused)),
-			const uchar *s,const uchar *t);
+static int compare_tree(const void* cmp_arg __attribute__((unused)),
+			const void *a, const void *b);
 static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts);
 static void check_counts(HUFF_COUNTS *huff_counts,uint trees,
 			 my_off_t records);
@@ -168,7 +168,7 @@ static int mrg_rrnd(PACK_MRG_INFO *info,uchar *buf);
 static void mrg_reset(PACK_MRG_INFO *mrg);
 #if !defined(DBUG_OFF)
 static void fakebigcodes(HUFF_COUNTS *huff_counts, HUFF_COUNTS *end_count);
-static int fakecmp(my_off_t **count1, my_off_t **count2);
+static int fakecmp(const void *a, const void *b);
 #endif
 
 
@@ -825,7 +825,7 @@ static HUFF_COUNTS *init_huff_count(MI_INFO *info,my_off_t records)
         'tree_pos'. It's keys are implemented by pointers into 'tree_buff'.
         This is accomplished by '-1' as the element size.
       */
-      init_tree(&count[i].int_tree,0,0,-1,(qsort_cmp2) compare_tree,0, NULL,
+      init_tree(&count[i].int_tree,0,0,-1, compare_tree,0, NULL,
 		NULL);
       if (records && type != FIELD_BLOB && type != FIELD_VARCHAR)
 	count[i].tree_pos=count[i].tree_buff =
@@ -1704,10 +1704,12 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts)
   return 0;
 }
 
-static int compare_tree(void* cmp_arg __attribute__((unused)),
-			const uchar *s, const uchar *t)
+static int compare_tree(const void* cmp_arg __attribute__((unused)),
+			const void *a, const void *b)
 {
   uint length;
+  const uchar *s= (const uchar*)a;
+  const uchar *t= (const uchar*)b;
   for (length=global_count->field_length; length-- ;)
     if (*s++ != *t++)
       return (int) s[-1] - (int) t[-1];
@@ -3190,7 +3192,7 @@ static void fakebigcodes(HUFF_COUNTS *huff_counts, HUFF_COUNTS *end_count)
     cur_sort_p= sort_counts;
     while (cur_count_p < end_count_p)
       *(cur_sort_p++)= cur_count_p++;
-    (void) my_qsort(sort_counts, 256, sizeof(my_off_t*), (qsort_cmp) fakecmp);
+    (void) my_qsort(sort_counts, 256, sizeof(my_off_t*), fakecmp);
 
     /*
       Assign faked counts.
@@ -3236,8 +3238,10 @@ static void fakebigcodes(HUFF_COUNTS *huff_counts, HUFF_COUNTS *end_count)
     -1                  count1 >  count2
 */
 
-static int fakecmp(my_off_t **count1, my_off_t **count2)
+static int fakecmp(const void *a, const void *b)
 {
+  my_off_t **count1= (my_off_t**)a;
+  my_off_t **count2= (my_off_t**)b;
   return ((**count1 < **count2) ? 1 :
           (**count1 > **count2) ? -1 : 0);
 }

@@ -54,7 +54,7 @@ SELECT 'hello' INTO OUTFILE 'fake_file.FAKE_FILE';
 # 'DROP DATABASE' will fail if there is any other file in the the
 # database directory
 DROP DATABASE testing_1;
-ERROR HY000: Error dropping database (can't rmdir './testing_1/', errno: 17)
+ERROR HY000: Error dropping database (can't rmdir './testing_1/', errno: ## - ...)
 
 # Remove the fake file.
 # Now we can drop the database.
@@ -138,7 +138,7 @@ SELECT 'hello' INTO OUTFILE 'fake_file.FAKE_FILE';
 # 'DROP DATABASE' will fail if there is any other file in the the
 # database directory
 DROP DATABASE testing_1;
-ERROR HY000: Error dropping database (can't rmdir './testing_1/', errno: 17)
+ERROR HY000: Error dropping database (can't rmdir './testing_1/', errno: ## - ...)
 
 # Remove the fake file.
 # Now we can drop the database.
@@ -223,7 +223,7 @@ SELECT 'hello' INTO OUTFILE 'fake_file.FAKE_FILE';
 # 'DROP DATABASE' will fail if there is any other file in the the
 # database directory
 DROP DATABASE testing_1;
-ERROR HY000: Error dropping database (can't rmdir './testing_1/', errno: 17)
+ERROR HY000: Error dropping database (can't rmdir './testing_1/', errno: ## - ...)
 
 # Remove the fake file.
 # Now we can drop the database.

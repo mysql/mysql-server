@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18605,14 +18605,14 @@ static void test_bug47485()
 static void test_bug58036()
 {
   MYSQL *conn;
-  my_bool con_ssl= FALSE;
+  enum mysql_ssl_mode ssl_mode= SSL_MODE_DISABLED;
   DBUG_ENTER("test_bug47485");
   myheader("test_bug58036");
 
   /* Part1: try to connect with ucs2 client character set */
   conn= mysql_client_init(NULL);
   mysql_options(conn, MYSQL_SET_CHARSET_NAME, "ucs2");
-  mysql_options(conn, MYSQL_OPT_SSL_ENFORCE, &con_ssl);
+  mysql_options(conn, MYSQL_OPT_SSL_MODE, &ssl_mode);
   if (mysql_real_connect(conn, opt_host, opt_user,
                          opt_password,  opt_db ? opt_db : "test",
                          opt_port, opt_unix_socket, 0))
@@ -18972,7 +18972,7 @@ static void test_bug54790()
   int rc;
   MYSQL *lmysql;
   uint timeout= 2;
-  my_bool con_ssl= FALSE;
+  enum mysql_ssl_mode ssl_mode= SSL_MODE_DISABLED;
 
   DBUG_ENTER("test_bug54790");
   myheader("test_bug54790");
@@ -18983,7 +18983,7 @@ static void test_bug54790()
   rc= mysql_options(lmysql, MYSQL_OPT_READ_TIMEOUT, &timeout);
   DIE_UNLESS(!rc);
 
-  mysql_options(lmysql, MYSQL_OPT_SSL_ENFORCE, &con_ssl);
+  mysql_options(lmysql, MYSQL_OPT_SSL_MODE, &ssl_mode);
   if (!mysql_real_connect(lmysql, opt_host, opt_user, opt_password,
                           opt_db ? opt_db : "test", opt_port,
                           opt_unix_socket, 0))
@@ -19588,7 +19588,7 @@ static void test_wl6791()
   enum mysql_option
   uint_opts[] = {
     MYSQL_OPT_CONNECT_TIMEOUT, MYSQL_OPT_READ_TIMEOUT, MYSQL_OPT_WRITE_TIMEOUT,
-    MYSQL_OPT_PROTOCOL, MYSQL_OPT_LOCAL_INFILE
+    MYSQL_OPT_PROTOCOL, MYSQL_OPT_LOCAL_INFILE, MYSQL_OPT_SSL_MODE
   },
   my_bool_opts[] = {
     MYSQL_OPT_COMPRESS, MYSQL_OPT_USE_REMOTE_CONNECTION,
@@ -20689,7 +20689,7 @@ static void test_wl8754()
   BUG#17883203: MYSQL EMBEDDED MYSQL_STMT_EXECUTE RETURN
                 "MALFORMED COMMUNICATION PACKET" ERROR
 */
-#define BUG17883203_STRING_SIZE 50
+#define BUG17883203_STRING_SIZE 100
 
 static void test_bug17883203()
 {
@@ -20729,6 +20729,35 @@ static void test_bug17883203()
     fprintf(stdout, "\n Version: %s", str_data);
   }
   mysql_stmt_close(stmt);
+}
+
+/**
+  BUG#22336527: MYSQL_REAL_CONNECT CAN FAIL WITH SYSTEM ERROR: 4
+*/
+
+static void test_bug22336527()
+{
+  int        rc;
+  MYSQL      *l_mysql;
+  uint       opt_before= 10;
+  uint       opt_after= 0;
+
+  myheader("test_bug22336527");
+
+  /* prepare the connection */
+  l_mysql = mysql_client_init(NULL);
+  DIE_UNLESS(l_mysql != NULL);
+
+  rc= mysql_options(l_mysql, MYSQL_OPT_RETRY_COUNT, &opt_before);
+  DIE_UNLESS(rc == 0);
+
+  rc = mysql_get_option(l_mysql, MYSQL_OPT_RETRY_COUNT, &opt_after);
+  DIE_UNLESS(rc == 0);
+
+  DIE_UNLESS(opt_before == opt_after);
+
+  /* clean up */
+  mysql_close(l_mysql);
 }
 
 static struct my_tests_st my_tests[]= {
@@ -21019,6 +21048,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug20821550", test_bug20821550 },
   { "test_wl8754", test_wl8754 },
   { "test_bug17883203", test_bug17883203 },
+  { "test_bug22336527", test_bug22336527 },
   { 0, 0 }
 };
 

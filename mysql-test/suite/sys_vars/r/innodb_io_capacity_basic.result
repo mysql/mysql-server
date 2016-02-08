@@ -21,22 +21,22 @@ innodb_io_capacity	200
 show session variables like 'innodb_io_capacity';
 Variable_name	Value
 innodb_io_capacity	200
-select * from information_schema.global_variables where variable_name='innodb_io_capacity';
+select * from performance_schema.global_variables where variable_name='innodb_io_capacity';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_IO_CAPACITY	200
-select * from information_schema.session_variables where variable_name='innodb_io_capacity';
+innodb_io_capacity	200
+select * from performance_schema.session_variables where variable_name='innodb_io_capacity';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_IO_CAPACITY	200
+innodb_io_capacity	200
 set global innodb_io_capacity=123;
 select @@global.innodb_io_capacity;
 @@global.innodb_io_capacity
 123
-select * from information_schema.global_variables where variable_name='innodb_io_capacity';
+select * from performance_schema.global_variables where variable_name='innodb_io_capacity';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_IO_CAPACITY	123
-select * from information_schema.session_variables where variable_name='innodb_io_capacity';
+innodb_io_capacity	123
+select * from performance_schema.session_variables where variable_name='innodb_io_capacity';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_IO_CAPACITY	123
+innodb_io_capacity	123
 set session innodb_io_capacity=233;
 ERROR HY000: Variable 'innodb_io_capacity' is a GLOBAL variable and should be set with SET GLOBAL
 set @@global.innodb_io_capacity=100;
@@ -56,18 +56,18 @@ Warning	1292	Truncated incorrect innodb_io_capacity value: '7'
 select @@global.innodb_io_capacity;
 @@global.innodb_io_capacity
 100
-select * from information_schema.global_variables where variable_name='innodb_io_capacity';
+select * from performance_schema.global_variables where variable_name='innodb_io_capacity';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_IO_CAPACITY	100
+innodb_io_capacity	100
 set global innodb_io_capacity=-7;
 Warnings:
 Warning	1292	Truncated incorrect innodb_io_capacity value: '-7'
 select @@global.innodb_io_capacity;
 @@global.innodb_io_capacity
 100
-select * from information_schema.global_variables where variable_name='innodb_io_capacity';
+select * from performance_schema.global_variables where variable_name='innodb_io_capacity';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_IO_CAPACITY	100
+innodb_io_capacity	100
 set global innodb_io_capacity=100;
 select @@global.innodb_io_capacity;
 @@global.innodb_io_capacity

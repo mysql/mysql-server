@@ -1420,3 +1420,170 @@ OR(c9 BETWEEN 'hwstqua' AND 'wstquadcji' OR (c9k=0))
 AND(c3 IS NULL OR c3 IN (0,0,0));
 c1	c2	c3	c3k	c4	c5	c5k	c5time_gckey	c6	c5time	c7	c5timek	c7k	c8	c9	c9k
 drop table t;
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), d INT
+GENERATED ALWAYS AS(a+b+b), e INT  GENERATED ALWAYS AS(a), h VARCHAR(10));
+INSERT INTO t VALUES (11, 3, DEFAULT, DEFAULT, DEFAULT, 'mm');
+INSERT INTO t VALUES (18, 1, DEFAULT, DEFAULT, DEFAULT, 'mm');
+INSERT INTO t VALUES (28, 1, DEFAULT, DEFAULT, DEFAULT, 'mm');
+INSERT INTO t VALUES (null, null, DEFAULT, DEFAULT, DEFAULT, 'mm');
+CREATE INDEX idx ON t(c, d);
+CREATE INDEX idx1 ON t(c);
+CREATE INDEX idx2 ON t(e, c, d);
+ALTER TABLE t DROP COLUMN c, ALGORITHM=INPLACE;
+SELECT d FROM t;
+d
+NULL
+17
+20
+30
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `d` int(11) GENERATED ALWAYS AS (((`a` + `b`) + `b`)) VIRTUAL,
+  `e` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL,
+  `h` varchar(10) DEFAULT NULL,
+  KEY `idx` (`d`),
+  KEY `idx2` (`e`,`d`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+ALTER TABLE t DROP COLUMN d, ADD COLUMN c INT GENERATED ALWAYS AS(a+b), ADD INDEX idx (c), ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: INPLACE ADD or DROP of virtual columns cannot be combined with other ALTER TABLE actions. Try ALGORITHM=COPY.
+ALTER TABLE t DROP COLUMN d, ADD COLUMN c INT GENERATED ALWAYS AS(a+b), ADD INDEX idx (e), ALGORITHM=INPLACE, LOCK=NONE;
+Warnings:
+Warning	1831	Duplicate index 'idx2' defined on the table 'test.t'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'idx' defined on the table 'test.t'. This is deprecated and will be disallowed in a future release.
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `e` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL,
+  `h` varchar(10) DEFAULT NULL,
+  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  KEY `idx2` (`e`),
+  KEY `idx` (`e`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+ALTER TABLE t ADD INDEX idx4(c, e), ADD COLUMN x VARCHAR(10) GENERATED ALWAYS AS(h), DROP INDEX idx, ALGORITHM=INPLACE, LOCK=NONE;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `e` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL,
+  `h` varchar(10) DEFAULT NULL,
+  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `x` varchar(10) GENERATED ALWAYS AS (`h`) VIRTUAL,
+  KEY `idx2` (`e`),
+  KEY `idx4` (`c`,`e`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+ALTER TABLE t ADD COLUMN i INT GENERATED ALWAYS AS(a+a+b), ADD COLUMN j INT, ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: INPLACE ADD or DROP of virtual columns cannot be combined with other ALTER TABLE actions. Try ALGORITHM=COPY.
+ALTER TABLE t ADD INDEX (x), ADD COLUMN j INT, ALGORITHM=INPLACE, LOCK=NONE;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `e` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL,
+  `h` varchar(10) DEFAULT NULL,
+  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `x` varchar(10) GENERATED ALWAYS AS (`h`) VIRTUAL,
+  `j` int(11) DEFAULT NULL,
+  KEY `idx2` (`e`),
+  KEY `idx4` (`c`,`e`),
+  KEY `x` (`x`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+ALTER TABLE t ADD COLUMN i INT GENERATED ALWAYS AS(a+a+b), ADD INDEX (i), ALGORITHM=INPLACE, LOCK=NONE;
+ERROR 0A000: LOCK=NONE is not supported. Reason: ADD COLUMN col...VIRTUAL, ADD INDEX(col). Try LOCK=SHARED.
+ALTER TABLE t ADD COLUMN i INT GENERATED ALWAYS AS(a+a+b), ADD INDEX (i), ALGORITHM=INPLACE, LOCK=SHARED;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `e` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL,
+  `h` varchar(10) DEFAULT NULL,
+  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `x` varchar(10) GENERATED ALWAYS AS (`h`) VIRTUAL,
+  `j` int(11) DEFAULT NULL,
+  `i` int(11) GENERATED ALWAYS AS (((`a` + `a`) + `b`)) VIRTUAL,
+  KEY `idx2` (`e`),
+  KEY `idx4` (`c`,`e`),
+  KEY `x` (`x`),
+  KEY `i` (`i`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT i FROM t;
+i
+NULL
+25
+37
+57
+SELECT * FROM t;
+a	b	e	h	c	x	j	i
+11	3	11	mm	14	mm	NULL	25
+18	1	18	mm	19	mm	NULL	37
+28	1	28	mm	29	mm	NULL	57
+NULL	NULL	NULL	mm	NULL	mm	NULL	NULL
+DROP TABLE t;
+CREATE TABLE t (
+a INT,
+b INT,
+c INT GENERATED ALWAYS AS(a+b),
+d INT GENERATED ALWAYS AS(a+b+b),
+KEY vidx (c, d)
+)ENGINE=INNODB;
+INSERT INTO t (a,b) VALUES (0, 0), (1, NULL), (NULL, 2), (NULL, NULL);
+SELECT c, d FROM t;
+c	d
+NULL	NULL
+NULL	NULL
+NULL	NULL
+0	0
+SELECT * FROM t;
+a	b	c	d
+0	0	0	0
+1	NULL	NULL	NULL
+NULL	2	NULL	NULL
+NULL	NULL	NULL	NULL
+ALTER TABLE t DROP COLUMN c, ALGORITHM=INPLACE;
+SELECT d FROM t;
+d
+NULL
+NULL
+NULL
+0
+SELECT * FROM t;
+a	b	d
+0	0	0
+1	NULL	NULL
+NULL	2	NULL
+NULL	NULL	NULL
+DROP TABLE t;
+CREATE TABLE t (
+a INT,
+b INT,
+c INT GENERATED ALWAYS AS(a+b),
+d INT GENERATED ALWAYS AS(a+b+b)
+)ENGINE=INNODB;
+INSERT INTO t (a,b) VALUES (0, 0), (1, NULL), (NULL, 2), (NULL, NULL);
+SELECT * FROM t;
+a	b	c	d
+0	0	0	0
+1	NULL	NULL	NULL
+NULL	2	NULL	NULL
+NULL	NULL	NULL	NULL
+ALTER TABLE t DROP COLUMN c, ADD INDEX vidx(d), ALGORITHM=INPLACE;
+SELECT d FROM t;
+d
+NULL
+NULL
+NULL
+0
+SELECT * FROM t;
+a	b	d
+0	0	0
+1	NULL	NULL
+NULL	2	NULL
+NULL	NULL	NULL
+DROP TABLE t;

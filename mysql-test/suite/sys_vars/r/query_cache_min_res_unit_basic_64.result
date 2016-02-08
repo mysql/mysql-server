@@ -14,14 +14,6 @@ SELECT @@global.query_cache_min_res_unit = 4096;
 @@global.query_cache_min_res_unit = 4096
 1
 '#--------------------FN_DYNVARS_132_03------------------------#'
-SET @@global.query_cache_min_res_unit = 0;
-SELECT @@global.query_cache_min_res_unit;
-@@global.query_cache_min_res_unit
-512
-SET @@global.query_cache_min_res_unit = 1;
-SELECT @@global.query_cache_min_res_unit;
-@@global.query_cache_min_res_unit
-512
 SET @@global.query_cache_min_res_unit = 512;
 SELECT @@global.query_cache_min_res_unit;
 @@global.query_cache_min_res_unit
@@ -38,6 +30,14 @@ SET @@global.query_cache_min_res_unit = 1048575;
 SELECT @@global.query_cache_min_res_unit;
 @@global.query_cache_min_res_unit
 1048576
+SET @@global.query_cache_min_res_unit = 4294967295;
+SELECT @@global.query_cache_min_res_unit;
+@@global.query_cache_min_res_unit
+4294967296
+SET @@global.query_cache_min_res_unit = 18446744073709551615;
+SELECT @@global.query_cache_min_res_unit;
+@@global.query_cache_min_res_unit
+18446744073709551608
 '#--------------------FN_DYNVARS_132_04-------------------------#'
 SET @@global.query_cache_min_res_unit = -1;
 Warnings:
@@ -45,10 +45,6 @@ Warning	1292	Truncated incorrect query_cache_min_res_unit value: '-1'
 SELECT @@global.query_cache_min_res_unit;
 @@global.query_cache_min_res_unit
 512
-SET @@global.query_cache_min_res_unit = 4294967296;
-SELECT @@global.query_cache_min_res_unit;
-@@global.query_cache_min_res_unit
-4294967296
 SET @@global.query_cache_min_res_unit = 511;
 SELECT @@global.query_cache_min_res_unit;
 @@global.query_cache_min_res_unit
@@ -64,34 +60,35 @@ Warning	1292	Truncated incorrect query_cache_min_res_unit value: '-1024'
 SELECT @@global.query_cache_min_res_unit;
 @@global.query_cache_min_res_unit
 512
-SET @@global.query_cache_min_res_unit = 42949672950;
-SELECT @@global.query_cache_min_res_unit;
-@@global.query_cache_min_res_unit
-42949672952
 SET @@global.query_cache_min_res_unit = ON;
 ERROR 42000: Incorrect argument type to variable 'query_cache_min_res_unit'
 SELECT @@global.query_cache_min_res_unit;
 @@global.query_cache_min_res_unit
-42949672952
+512
 SET @@global.query_cache_min_res_unit = 'test';
 ERROR 42000: Incorrect argument type to variable 'query_cache_min_res_unit'
 SELECT @@global.query_cache_min_res_unit;
 @@global.query_cache_min_res_unit
-42949672952
+512
+SET @@global.query_cache_min_res_unit = 18446744073709551616;
+ERROR 42000: Incorrect argument type to variable 'query_cache_min_res_unit'
+SELECT @@global.query_cache_min_res_unit;
+@@global.query_cache_min_res_unit
+512
 '#-------------------FN_DYNVARS_132_05----------------------------#'
 SET @@session.query_cache_min_res_unit = 0;
 ERROR HY000: Variable 'query_cache_min_res_unit' is a GLOBAL variable and should be set with SET GLOBAL
 SELECT @@query_cache_min_res_unit;
 @@query_cache_min_res_unit
-42949672952
+512
 '#----------------------FN_DYNVARS_132_06------------------------#'
 SELECT @@global.query_cache_min_res_unit = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='query_cache_min_res_unit';
 @@global.query_cache_min_res_unit = VARIABLE_VALUE
 1
 SELECT @@query_cache_min_res_unit = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='query_cache_min_res_unit';
 @@query_cache_min_res_unit = VARIABLE_VALUE
 1

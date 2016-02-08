@@ -354,7 +354,7 @@ row_ins_clust_index_entry_by_modify(
 	upd_t*		update;
 	dberr_t		err;
 	btr_cur_t*	cursor	= btr_pcur_get_btr_cur(pcur);
-
+	TABLE*		mysql_table = NULL;
 	ut_ad(dict_index_is_clust(cursor->index));
 
 	rec = btr_cur_get_rec(cursor);
@@ -365,10 +365,14 @@ row_ins_clust_index_entry_by_modify(
 	/* Build an update vector containing all the fields to be modified;
 	NOTE that this vector may NOT contain system columns trx_id or
 	roll_ptr */
+	if (thr->prebuilt != NULL) {
+		mysql_table = thr->prebuilt->m_mysql_table;
+		ut_ad(thr->prebuilt->trx == thr_get_trx(thr));
+	}
 
 	update = row_upd_build_difference_binary(
 		cursor->index, entry, rec, NULL, true,
-		thr_get_trx(thr), heap);
+		thr_get_trx(thr), heap, mysql_table);
 	if (mode != BTR_MODIFY_TREE) {
 		ut_ad((mode & ~BTR_ALREADY_S_LATCHED) == BTR_MODIFY_LEAF);
 
@@ -2623,17 +2627,16 @@ func_exit:
 	DBUG_RETURN(err);
 }
 
-/** This is a specialized function meant for direct insertion to
-auto-generated clustered index based on cached position from
-last successful insert. To be used when data is sorted.
-
+/** This is a specialized function meant for direct insertion to auto-generated
+clustered index based on cached position from last successful insert. To be
+used when data is sorted.
 @param[in]	mode	BTR_MODIFY_LEAF or BTR_MODIFY_TREE.
-			depending on whether we wish optimistic or
-			pessimistic descent down the index tree
+			depending on whether we wish optimistic or pessimistic
+			descent down the index tree
 @param[in,out]	index	clustered index
 @param[in,out]	entry	index entry to insert
+@param[in]	n_ext	number of externally stored columns
 @param[in]	thr	query thread
-
 @return error code */
 static
 dberr_t
@@ -2812,32 +2815,38 @@ row_ins_sec_mtr_start_and_check_if_aborted(
 	return(true);
 }
 
-/***************************************************************//**
-Tries to insert an entry into a secondary index. If a record with exactly the
-same fields is found, the other record is necessarily marked deleted.
+/** Tries to insert an entry into a secondary index. If a record with exactly
+the same fields is found, the other record is necessarily marked deleted.
 It is then unmarked. Otherwise, the entry is just inserted to the index.
+@param[in]	flags		undo logging and locking flags
+@param[in]	mode		BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
+				depending on whether we wish optimistic or
+				pessimistic descent down the index tree
+@param[in]	index		secondary index
+@param[in,out]	offsets_heap	memory heap that can be emptied
+@param[in,out]	heap		memory heap
+@param[in,out]	entry		index entry to insert
+@param[in]	trx_id		PAGE_MAX_TRX_ID during row_log_table_apply(),
+				or trx_id when undo log is disabled during
+				alter copy operation or 0
+@param[in]	thr		query thread
+@param[in]	dup_chk_only	TRUE, just do duplicate check and return.
+				don't execute actual insert
 @retval DB_SUCCESS on success
 @retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
 @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
 @return error code */
 dberr_t
 row_ins_sec_index_entry_low(
-/*========================*/
-	ulint		flags,	/*!< in: undo logging and locking flags */
-	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
-				depending on whether we wish optimistic or
-				pessimistic descent down the index tree */
-	dict_index_t*	index,	/*!< in: secondary index */
+	ulint		flags,
+	ulint		mode,
+	dict_index_t*	index,
 	mem_heap_t*	offsets_heap,
-				/*!< in/out: memory heap that can be emptied */
-	mem_heap_t*	heap,	/*!< in/out: memory heap */
-	dtuple_t*	entry,	/*!< in/out: index entry to insert */
-	trx_id_t	trx_id,	/*!< in: PAGE_MAX_TRX_ID during
-				row_log_table_apply(), or 0 */
-	que_thr_t*	thr,	/*!< in: query thread */
+	mem_heap_t*	heap,
+	dtuple_t*	entry,
+	trx_id_t	trx_id,
+	que_thr_t*	thr,
 	bool		dup_chk_only)
-				/*!< in: if true, just do duplicate check
-				and return. don't execute actual insert. */
 {
 	DBUG_ENTER("row_ins_sec_index_entry_low");
 
@@ -3208,6 +3217,15 @@ row_ins_clust_index_entry(
 		flags = dict_table_is_temporary(index->table)
 			? BTR_NO_LOCKING_FLAG
 			: 0;
+
+		/* For intermediate table of copy alter operation,
+		skip undo logging and record lock checking for
+		insertion operation. */
+		if (index->table->skip_alter_undo) {
+			flags |= BTR_NO_UNDO_LOG_FLAG
+				 | BTR_NO_LOCKING_FLAG;
+		}
+
 	} else {
 		flags = BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG;
 	}
@@ -3270,6 +3288,7 @@ row_ins_sec_index_entry(
 	dberr_t		err;
 	mem_heap_t*	offsets_heap;
 	mem_heap_t*	heap;
+	trx_id_t	trx_id  = 0;
 
 	DBUG_EXECUTE_IF("row_ins_sec_index_entry_timeout", {
 			DBUG_SET("-d,row_ins_sec_index_entry_timeout");
@@ -3284,9 +3303,6 @@ row_ins_sec_index_entry(
 		}
 	}
 
-	ut_ad(thr_get_trx(thr)->id != 0
-	      || dict_table_is_intrinsic(index->table));
-
 	offsets_heap = mem_heap_create(1024);
 	heap = mem_heap_create(1024);
 
@@ -3296,16 +3312,27 @@ row_ins_sec_index_entry(
 
 	if (!dict_table_is_intrinsic(index->table)) {
 		log_free_check();
+		ut_ad(thr_get_trx(thr)->id != 0);
+
 		flags = dict_table_is_temporary(index->table)
-			? BTR_NO_LOCKING_FLAG
-			: 0;
+                        ? BTR_NO_LOCKING_FLAG
+                        : 0;
+		/* For intermediate table during copy alter table,
+		skip the undo log and record lock checking for
+		insertion operation. */
+		if (index->table->skip_alter_undo) {
+			trx_id = thr_get_trx(thr)->id;
+			flags |= BTR_NO_UNDO_LOG_FLAG
+				 | BTR_NO_LOCKING_FLAG;
+		}
+
 	} else {
 		flags = BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG;
 	}
 
 	err = row_ins_sec_index_entry_low(
 		flags, BTR_MODIFY_LEAF, index, offsets_heap, heap, entry,
-		0, thr, dup_chk_only);
+		trx_id, thr, dup_chk_only);
 	if (err == DB_FAIL) {
 		mem_heap_empty(heap);
 

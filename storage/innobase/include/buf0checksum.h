@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -112,7 +112,8 @@ public:
 	/** Print crc32 checksum and the checksum fields in page.
 	@param[in]	checksum_field1	Checksum in page header
 	@param[in]	checksum_field2	Checksum in page trailer
-	@param[in]	crc32		Calculated crc32 checksum */
+	@param[in]	crc32		Calculated crc32 checksum
+	@param[in]	algo		Current checksum algorithm */
 	virtual inline
 	void
 	print_strict_crc32(
@@ -132,7 +133,8 @@ public:
 
 	/** Print none checksum and the checksum fields in page.
 	@param[in]	checksum_field1	Checksum in page header
-	@param[in]	checksum_field2	Checksum in page trailer */
+	@param[in]	checksum_field2	Checksum in page trailer
+	@param[in]	algo		Current checksum algorithm */
 	virtual inline
 	void
 	print_strict_none(
@@ -253,15 +255,18 @@ private:
 		const srv_checksum_algorithm_t	algo) const;
 
 	/** Checks if the page is in crc32 checksum format.
-	@param[in]	checksum_field1	new checksum field
-	@param[in]	checksum_field2	old checksum field
-	@param[in]	algo		current checksum algorithm
+	@param[in]	checksum_field1		new checksum field
+	@param[in]	checksum_field2		old checksum field
+	@param[in]	algo			current checksum algorithm
+	@param[in]	use_legacy_big_endian	big endian algorithm
 	@return true if the page is in crc32 checksum format. */
 	bool
 	is_checksum_valid_crc32(
 		ulint				checksum_field1,
 		ulint				checksum_field2,
-		const srv_checksum_algorithm_t	algo) const;
+		const srv_checksum_algorithm_t	algo,
+		bool				use_legacy_big_endian)
+		const;
 
 	/** Issue a warning when the checksum that is stored in the page is
 	valid, but different than the global setting innodb_checksum_algorithm.

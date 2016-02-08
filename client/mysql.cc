@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1432,12 +1432,17 @@ int main(int argc,char *argv[])
 	  "Type 'help;' or '\\h' for help. Type '\\c' to clear the current input "
     "statement.\n");
   put_info(buff,INFO_INFO);
-  if (mysql.options.protocol == MYSQL_PROTOCOL_SOCKET &&
-      mysql.options.extension->ssl_enforce == TRUE)
-  put_info("You are enforcing ssl conection via unix socket. Please consider\n"
-           "switching ssl off as it does not make connection via unix socket\n"
-           "any more secure.", INFO_INFO);
 
+  uint protocol, ssl_mode;
+  if (!mysql_get_option(&mysql, MYSQL_OPT_PROTOCOL, &protocol) &&
+      !mysql_get_option(&mysql, MYSQL_OPT_SSL_MODE, &ssl_mode))
+  {
+    if (protocol == MYSQL_PROTOCOL_SOCKET &&
+        ssl_mode >= SSL_MODE_REQUIRED)
+      put_info("You are enforcing ssl conection via unix socket. Please consider\n"
+               "switching ssl off as it does not make connection via unix socket\n"
+               "any more secure.", INFO_INFO);
+  }
   status.exit_status= read_and_execute(!status.batch);
   if (opt_outfile)
     end_tee();
@@ -3197,7 +3202,7 @@ static void add_filtered_history(const char *string)
   Perform a check on the given string if it contains
   any of the histignore patterns.
 
-  @param string [IN]        String that needs to be checked.
+  @param [in] string         String that needs to be checked.
 
   @return Operation status
       @retval 0    No match found
@@ -4784,15 +4789,15 @@ com_use(String *buffer __attribute__((unused)), char *line)
 /**
   Normalize database name.
 
-  @param line [IN]          The command.
-  @param buff [OUT]         Normalized db name.
-  @param buff_size [IN]     Buffer size.
+  @param [in] line           The command.
+  @param [out] buff          Normalized db name.
+  @param [in] buff_size      Buffer size.
 
   @return Operation status
       @retval 0    Success
       @retval 1    Failure
 
-  @note Sometimes server normilizes the database names
+  @note Sometimes server normalizes the database names
         & APIs like mysql_select_db() expect normalized
         database names. Since it is difficult to perform
         the name conversion/normalization on the client

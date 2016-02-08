@@ -2253,8 +2253,6 @@ static bool create_innodb_tmp_table(TABLE *table, KEY *keyinfo)
 
   HA_CREATE_INFO create_info;
 
-  memset(&create_info, 0, sizeof(create_info));
-
   create_info.db_type= table->s->db_type();
   create_info.row_type= table->s->row_type;
   create_info.options|= HA_LEX_CREATE_TMP_TABLE |

@@ -414,15 +414,15 @@ trx_get_dict_operation(
 /*===================*/
 	const trx_t*	trx)	/*!< in: transaction */
 	__attribute__((warn_unused_result));
-/**********************************************************************//**
-Flag a transaction a dictionary operation. */
+
+/** Flag a transaction a dictionary operation.
+@param[in,out]	trx	transaction
+@param[in]	op	operation, not TRX_DICT_OP_NONE */
 UNIV_INLINE
 void
 trx_set_dict_operation(
-/*===================*/
-	trx_t*			trx,	/*!< in/out: transaction */
-	enum trx_dict_op_t	op);	/*!< in: operation, not
-					TRX_DICT_OP_NONE */
+	trx_t*			trx,
+	enum trx_dict_op_t	op);
 
 #ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
@@ -1445,9 +1445,9 @@ public:
 	}
 
 private:
-	/**
-	Note that we have crossed into InnoDB code.
-	@param[in] disable	true if called from COMMIT/ROLLBACK method */
+	/** Note that we have crossed into InnoDB code.
+	@param[in]	trx	transaction
+	@param[in]	disable	true if called from COMMIT/ROLLBACK method */
 	static void enter(trx_t* trx, bool disable)
 	{
 		if (srv_read_only_mode) {

@@ -143,6 +143,16 @@ row_purge_remove_clust_if_poss_low(
 
 	index = dict_table_get_first_index(node->table);
 
+	fil_space_t*	space = fil_space_acquire_silent(index->space);
+	if (space == NULL) {
+		/* This can happen only for SDI in General Tablespaces.
+		*/
+		ut_ad(dict_table_is_sdi(node->table->id));
+		return(true);
+	} else {
+		fil_space_release(space);
+	}
+
 	log_free_check();
 	mtr_start(&mtr);
 	mtr.set_named_space(index->space);
@@ -599,6 +609,25 @@ retry:
 	ut_a(success);
 }
 
+/** Skip uncommitted virtual indexes on newly added virtual column.
+@param[in,out]	index	dict index object */
+static
+inline
+void
+row_purge_skip_uncommitted_virtual_index(
+	dict_index_t*&	index)
+{
+	/* We need to skip virtual indexes which is not
+	committed yet. It's safe because these indexes are
+	newly created by alter table, and because we do
+	not support LOCK=NONE when adding an index on newly
+	added virtual column.*/
+	while (index != NULL && dict_index_has_virtual(index)
+	       && !index->is_committed() && index->has_new_v_col) {
+		index = dict_table_get_next_index(index);
+	}
+}
+
 /***********************************************************//**
 Purges a delete marking of a record.
 @retval true if the row was not found, or it was successfully removed
@@ -617,6 +646,8 @@ row_purge_del_mark(
 	while (node->index != NULL) {
 		/* skip corrupted secondary index */
 		dict_table_skip_corrupt_index(node->index);
+
+		row_purge_skip_uncommitted_virtual_index(node->index);
 
 		if (!node->index) {
 			break;
@@ -654,6 +685,7 @@ row_purge_upd_exist_or_extern_func(
 	mem_heap_t*	heap;
 
 	ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_S));
+	ut_ad(!node->table->skip_alter_undo);
 
 	if (node->rec_type == TRX_UNDO_UPD_DEL_REC
 	    || (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
@@ -665,6 +697,8 @@ row_purge_upd_exist_or_extern_func(
 
 	while (node->index != NULL) {
 		dict_table_skip_corrupt_index(node->index);
+
+		row_purge_skip_uncommitted_virtual_index(node->index);
 
 		if (!node->index) {
 			break;
@@ -940,6 +974,7 @@ row_purge_record_func(
 	bool		purged		= true;
 
 	ut_ad(!node->found_clust);
+	ut_ad(!node->table->skip_alter_undo);
 
 	clust_index = dict_table_get_first_index(node->table);
 
@@ -968,6 +1003,12 @@ row_purge_record_func(
 	if (node->found_clust) {
 		btr_pcur_close(&node->pcur);
 		node->found_clust = FALSE;
+	}
+
+	/* If table is SDI table, we will try to flush as early
+	as possible. */
+	if (dict_table_is_sdi(node->table->id)) {
+		buf_flush_sync_all_buf_pools();
 	}
 
 	if (node->table != NULL) {

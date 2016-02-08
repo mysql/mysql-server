@@ -36,31 +36,31 @@ template <typename T> class I_P_List_no_push_back;
    Unlike List is doubly-linked list and thus supports efficient deletion
    of element without iterator.
 
-   @param T  Type of elements which will belong to list.
-   @param B  Class which via its methods specifies which members
-             of T should be used for participating in this list.
-             Here is typical layout of such class:
+   @tparam T  Type of elements which will belong to list.
+   @tparam B  Class which via its methods specifies which members
+              of T should be used for participating in this list.
+              Here is typical layout of such class:
 
-             struct B
-             {
-               static inline T **next_ptr(T *el)
-               {
-                 return &el->next;
-               }
-               static inline T ***prev_ptr(T *el)
-               {
-                 return &el->prev;
-               }
-             };
-   @param C  Policy class specifying how counting of elements in the list
-             should be done. Instance of this class is also used as a place
-             where information about number of list elements is stored.
-             @sa I_P_List_null_counter, I_P_List_counter
-   @param I  Policy class specifying whether I_P_List should support
-             efficient push_back() operation. Instance of this class
-             is used as place where we store information to support
-             this operation.
-             @sa I_P_List_no_push_back, I_P_List_fast_push_back.
+              struct B
+              {
+                static inline T **next_ptr(T *el)
+                {
+                  return &el->next;
+                }
+                static inline T ***prev_ptr(T *el)
+                {
+                  return &el->prev;
+                }
+              };
+   @tparam C  Policy class specifying how counting of elements in the list
+              should be done. Instance of this class is also used as a place
+              where information about number of list elements is stored.
+              @sa I_P_List_null_counter, I_P_List_counter
+   @tparam I  Policy class specifying whether I_P_List should support
+              efficient push_back() operation. Instance of this class
+              is used as place where we store information to support
+              this operation.
+              @sa I_P_List_no_push_back, I_P_List_fast_push_back.
 */
 
 template <typename T, typename B,

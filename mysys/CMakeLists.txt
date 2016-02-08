@@ -97,6 +97,7 @@ SET(MYSYS_SOURCES
   psi_noop.cc
   ptr_cmp.cc
   queues.cc
+  sql_chars.c
   stacktrace.cc
   thr_cond.cc
   thr_lock.cc

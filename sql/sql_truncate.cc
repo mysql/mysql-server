@@ -25,6 +25,7 @@
 #include "sql_show.h"       // append_identifier()
 #include "sql_table.h"      // write_bin_log
 #include "table.h"          // TABLE, FOREIGN_KEY_INFO
+#include "sql_audit.h"      // mysql_audit_table_access_notify
 
 #include "dd/dd_table.h"    // dd::recreate_table
 
@@ -283,8 +284,6 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
   handlerton *table_type= table->s->db_type();
   DBUG_ENTER("recreate_temporary_table");
 
-  memset(&create_info, 0, sizeof(create_info));
-
   table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
 
   /*
@@ -482,6 +481,12 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
 
     if (hton_can_recreate)
     {
+#ifndef EMBEDDED_LIBRARY
+      if (mysql_audit_table_access_notify(thd, table_ref))
+      {
+        DBUG_RETURN(true);
+      }
+#endif /* !EMBEDDED_LIBRARY */
      /*
         The storage engine can truncate the table by creating an
         empty table with the same structure.
@@ -499,6 +504,8 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
       /*
         The engine does not support truncate-by-recreate.
         Attempt to use the handler truncate method.
+        MYSQL_AUDIT_TABLE_ACCESS_READ audit event is generated when opening
+        tables using open_tables function.
       */
       error= handler_truncate(thd, table_ref, FALSE);
 

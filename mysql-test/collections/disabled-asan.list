@@ -13,15 +13,10 @@ innodb.log_file_size                         : Bug#19442959 2015-11-05 jhauglid
 innodb.log_file_size_1                       : Bug#19442959 2015-11-05 jhauglid
 innodb.log_file_system                       : Bug#19442959 2015-11-05 jhauglid
 innodb.temporary_table                       : Bug#19442959 2015-11-05 jhauglid
-main.mysqlbinlog                             : Bug#21255763 2015-11-05 jhauglid
-main.mysqlbinlog_debug                       : Bug#21255763 2015-11-05 jhauglid
-main.mysqlbinlog_raw_mode                    : Bug#21255763 2015-11-05 jhauglid
 main.mysqlpump_basic                         : Bug#21697494 2015-11-05 jhauglid
 main.mysqlpump_charset                       : Bug#21697494 2015-11-05 jhauglid
 main.mysqlpump_concurrency                   : Bug#21697494 2015-11-05 jhauglid
 main.mysqlpump_extended                      : Bug#21697494 2015-11-05 jhauglid
-rpl.rpl_row_mysqlbinlog                      : Bug#21255763 2015-11-30 jhauglid
 main.mysqlpump                               : Bug#21697494 2015-11-30 jhauglid
 main.mysqlpump_filters                       : Bug#21697494 2015-11-30 jhauglid
 main.mysqlpump_multi_thread                  : Bug#21697494 2015-11-30 jhauglid
-

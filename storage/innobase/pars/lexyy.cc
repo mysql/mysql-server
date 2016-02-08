@@ -1,4 +1,5 @@
 #include "univ.i"
+static char *yytext;
 #line 2 "lexyy.cc"
 
 #line 4 "lexyy.cc"
@@ -169,6 +170,8 @@ typedef size_t yy_size_t;
 #endif
 
 extern yy_size_t yyleng;
+
+static FILE *yyin, *yyout;
 
 #define EOB_ACT_CONTINUE_SCAN 0
 #define EOB_ACT_END_OF_FILE 1
@@ -346,11 +349,14 @@ static void yyfree (void *  );
 
 typedef unsigned char YY_CHAR;
 
-static FILE *yyin = (FILE *) 0, *yyout = (FILE *) 0;
+
 
 typedef int yy_state_type;
 
+
+
 static int yylineno = 1;
+
 
 #define yytext_ptr yytext
 
@@ -838,6 +844,7 @@ static yyconst flex_int16_t yy_chk[1231] =
 static yy_state_type yy_last_accepting_state;
 static char *yy_last_accepting_cpos;
 
+
 static int yy_flex_debug = 0;
 
 /* The intent behind this definition is that it'll catch
@@ -847,7 +854,7 @@ static int yy_flex_debug = 0;
 #define yymore() yymore_used_but_not_detected
 #define YY_MORE_ADJ 0
 #define YY_RESTORE_YY_MORE_OFFSET
-static char *yytext;
+
 #line 1 "pars0lex.l"
 /*****************************************************************************
 
@@ -901,7 +908,7 @@ Created 12/14/1997 Heikki Tuuri
 #define realloc(P, A)	ut_realloc(P, A)
 #define exit(A) 	ut_error
 
-/* Note: We cast result from int to yysize_t */
+/* Note: We cast result from int to yy_size_t */
 #define YY_INPUT(buf, result, max_size) \
 	((result) = pars_get_lex_chars(buf, max_size))
 
@@ -969,6 +976,8 @@ __attribute__((unused)) static int yyget_debug (void );
 __attribute__((unused)) static void yyset_debug (int debug_flag  );
 
 YY_EXTRA_TYPE yyget_extra (void );
+
+
 
 __attribute__((unused)) static FILE *yyget_in (void );
 
@@ -1120,9 +1129,9 @@ extern int yylex (void);
  */
 YY_DECL
 {
-	register yy_state_type yy_current_state;
-	register char *yy_cp, *yy_bp;
-	register int yy_act;
+	yy_state_type yy_current_state;
+	char *yy_cp, *yy_bp;
+	int yy_act;
     
 	if ( !(yy_init) )
 		{
@@ -1172,7 +1181,7 @@ YY_DECL
 yy_match:
 		do
 			{
-			register YY_CHAR yy_c = yy_ec[YY_SC_TO_UI(*yy_cp)] ;
+			YY_CHAR yy_c = yy_ec[YY_SC_TO_UI(*yy_cp)] ;
 			if ( yy_accept[yy_current_state] )
 				{
 				(yy_last_accepting_state) = yy_current_state;
@@ -2245,9 +2254,9 @@ case YY_STATE_EOF(id):
  */
 static int yy_get_next_buffer (void)
 {
-    	register char *dest = YY_CURRENT_BUFFER_LVALUE->yy_ch_buf;
-	register char *source = (yytext_ptr);
-	register int number_to_move, i;
+    	char *dest = YY_CURRENT_BUFFER_LVALUE->yy_ch_buf;
+	char *source = (yytext_ptr);
+	int number_to_move, i;
 	int ret_val;
 
 	if ( (yy_c_buf_p) > &YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[(yy_n_chars) + 1] )
@@ -2379,14 +2388,14 @@ static int yy_get_next_buffer (void)
 
     static yy_state_type yy_get_previous_state (void)
 {
-	register yy_state_type yy_current_state;
-	register char *yy_cp;
+	yy_state_type yy_current_state;
+	char *yy_cp;
     
 	yy_current_state = (yy_start);
 
 	for ( yy_cp = (yytext_ptr) + YY_MORE_ADJ; yy_cp < (yy_c_buf_p); ++yy_cp )
 		{
-		register YY_CHAR yy_c = (*yy_cp ? yy_ec[YY_SC_TO_UI(*yy_cp)] : 1);
+		YY_CHAR yy_c = (*yy_cp ? yy_ec[YY_SC_TO_UI(*yy_cp)] : 1);
 		if ( yy_accept[yy_current_state] )
 			{
 			(yy_last_accepting_state) = yy_current_state;
@@ -2411,10 +2420,10 @@ static int yy_get_next_buffer (void)
  */
     static yy_state_type yy_try_NUL_trans  (yy_state_type yy_current_state )
 {
-	register int yy_is_jam;
-    	register char *yy_cp = (yy_c_buf_p);
+	int yy_is_jam;
+    	char *yy_cp = (yy_c_buf_p);
 
-	register YY_CHAR yy_c = 1;
+	YY_CHAR yy_c = 1;
 	if ( yy_accept[yy_current_state] )
 		{
 		(yy_last_accepting_state) = yy_current_state;
@@ -2933,7 +2942,7 @@ __attribute__((unused)) static int yylex_destroy  (void)
 #ifndef yytext_ptr
 static void yy_flex_strncpy (char* s1, yyconst char * s2, int n )
 {
-	register int i;
+	int i;
 	for ( i = 0; i < n; ++i )
 		s1[i] = s2[i];
 }
@@ -2942,7 +2951,7 @@ static void yy_flex_strncpy (char* s1, yyconst char * s2, int n )
 #ifdef YY_NEED_STRLEN
 static int yy_flex_strlen (yyconst char * s )
 {
-	register int n;
+	int n;
 	for ( n = 0; s[n]; ++n )
 		;
 

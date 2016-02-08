@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,17 +34,19 @@
 
 #include "my_aes.h"                      // my_aes_opmode_names
 #include "myisam.h"                      // myisam_flush
+
 #include "auth_common.h"                 // validate_user_plugins
 #include "binlog.h"                      // mysql_bin_log
 #include "connection_handler_impl.h"     // Per_thread_connection_handler
 #include "connection_handler_manager.h"  // Connection_handler_manager
-#include "debug_sync.h"                  // DEBUG_SYNC
 #include "derror.h"                      // read_texts
 #include "events.h"                      // Events
 #include "hostname.h"                    // host_cache_resize
 #include "item_timefunc.h"               // ISO_FORMAT
+#include "log.h"                         // sql_print_warning
 #include "log_event.h"                   // MAX_MAX_ALLOWED_PACKET
 #include "psi_memory_key.h"
+#include "rpl_group_replication.h"       // is_group_replication_running
 #include "rpl_info_factory.h"            // Rpl_info_factory
 #include "rpl_info_handler.h"            // INFO_REPOSITORY_FILE
 #include "rpl_mi.h"                      // Master_info
@@ -694,7 +696,7 @@ static Sys_var_uint Sys_default_password_lifetime(
        "default_password_lifetime", "The number of days after which the "
        "password will expire.",
        GLOBAL_VAR(default_password_lifetime), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, UINT_MAX16), DEFAULT(360), BLOCK_SIZE(1),
+       VALID_RANGE(0, UINT_MAX16), DEFAULT(0), BLOCK_SIZE(1),
        &Plock_default_password_lifetime);
 
 #ifndef EMBEDDED_LIBRARY
@@ -2043,6 +2045,12 @@ static Sys_var_enum Sys_log_timestamps(
        timestamp_type_names, DEFAULT(0),
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
+static Sys_var_mybool Sys_log_statements_unsafe_for_binlog(
+       "log_statements_unsafe_for_binlog",
+       "Log statements considered unsafe when using statement based binary logging.",
+       GLOBAL_VAR(opt_log_unsafe_statements),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE));
+
 /* logging to host OS's syslog */
 
 static bool fix_syslog(sys_var *self, THD *thd, enum_var_type type)
@@ -2052,24 +2060,8 @@ static bool fix_syslog(sys_var *self, THD *thd, enum_var_type type)
 
 static bool check_syslog_tag(sys_var *self, THD *THD, set_var *var)
 {
-  bool ret;
-  char *old= opt_log_syslog_tag;
-  opt_log_syslog_tag= (var->value) ? var->save_result.string_value.str : NULL;
-  ret= log_syslog_update_settings();
-  opt_log_syslog_tag= old;
-  return ret;
-}
-
-static bool check_syslog_enable(sys_var *self, THD *THD, set_var *var)
-{
-  my_bool save= opt_log_syslog_enable;
-  opt_log_syslog_enable= var->save_result.ulonglong_value;
-  if (log_syslog_update_settings())
-  {
-    opt_log_syslog_enable= save;
-    return true;
-  }
-  return false;
+  return ((var->value != NULL) &&
+          (strchr(var->save_result.string_value.str, FN_LIBCHAR) != NULL));
 }
 
 static Sys_var_mybool Sys_log_syslog_enable(
@@ -2086,7 +2078,7 @@ static Sys_var_mybool Sys_log_syslog_enable(
        DEFAULT(TRUE),
 #endif
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_syslog_enable), ON_UPDATE(0));
+       ON_CHECK(0), ON_UPDATE(fix_syslog));
 
 
 static Sys_var_charptr Sys_log_syslog_tag(
@@ -4046,9 +4038,6 @@ static const char *sql_mode_names[]=
 export bool sql_mode_string_representation(THD *thd, sql_mode_t sql_mode,
                                            LEX_STRING *ls)
 {
-  sql_mode&= ~(MODE_ERROR_FOR_DIVISION_BY_ZERO | MODE_NO_ZERO_DATE |
-               MODE_NO_ZERO_IN_DATE);
-
   set_to_string(thd, ls, sql_mode, sql_mode_names);
   return ls->str == 0;
 }

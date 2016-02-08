@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by the
@@ -34,6 +34,7 @@
 #include "template_utils.h"
 #include "current_thd.h"
 #include "mysqld.h"                             // my_localhost
+#include "error_handler.h"
 
 /**
   This class implements the parse tree visiting service.

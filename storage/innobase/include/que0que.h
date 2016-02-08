@@ -66,22 +66,26 @@ que_node_t*
 que_fork_get_child(
 /*===============*/
 	que_fork_t*	fork);	/*!< in: query fork */
-/***********************************************************************//**
-Sets the parent of a graph node. */
+
+/** Sets the parent of a graph node.
+@param[in]	node	graph node
+@param[in]	parent	parent */
 UNIV_INLINE
 void
 que_node_set_parent(
-/*================*/
-	que_node_t*	node,	/*!< in: graph node */
-	que_node_t*	parent);/*!< in: parent */
-/***********************************************************************//**
-Creates a query graph thread node.
+	que_node_t*	node,
+	que_node_t*	parent);
+
+/** Creates a query graph thread node.
+@param[in]	parent		parent node, i.e., a fork node
+@param[in]	heap		memory heap where created
+@param[in]	prebuilt	row prebuilt structure
 @return own: query thread node */
 que_thr_t*
 que_thr_create(
-/*===========*/
-	que_fork_t*	parent,	/*!< in: parent node, i.e., a fork node */
-	mem_heap_t*	heap);	/*!< in: memory heap where created */
+	que_fork_t*	parent,
+	mem_heap_t*	heap,
+	row_prebuilt_t*	prebuilt);
 /**********************************************************************//**
 Frees a query graph, but not the heap where it was created. Does not free
 explicit cursor declarations, they are freed in que_graph_free. */
@@ -208,14 +212,16 @@ ulint
 que_node_get_val_buf_size(
 /*======================*/
 	que_node_t*	node);	/*!< in: graph node */
-/***********************************************************************//**
-Sets the value buffer size of a graph node. */
+
+/** Sets the value buffer size of a graph node.
+@param[in]	node	graph node
+@param[in]	size	size */
 UNIV_INLINE
 void
 que_node_set_val_buf_size(
-/*======================*/
-	que_node_t*	node,	/*!< in: graph node */
-	ulint		size);	/*!< in: size */
+	que_node_t*	node,
+	ulint		size);
+
 /*********************************************************************//**
 Gets the next list node in a list of query graph nodes. */
 UNIV_INLINE
@@ -239,15 +245,17 @@ que_node_t*
 que_node_get_containing_loop_node(
 /*==============================*/
 	que_node_t*	node);	/*!< in: node */
-/*********************************************************************//**
-Catenates a query graph node to a list of them, possible empty list.
+
+/** Catenates a query graph node to a list of them, possible empty list.
+@param[in]	node_list	node list, or NULL
+@param[in]	node		node
 @return one-way list of nodes */
 UNIV_INLINE
 que_node_t*
 que_node_list_add_last(
-/*===================*/
-	que_node_t*	node_list,	/*!< in: node list, or NULL */
-	que_node_t*	node);		/*!< in: node */
+	que_node_t*	node_list,
+	que_node_t*	node);
+
 /*************************************************************************
 Get the last node from the list.*/
 UNIV_INLINE
@@ -398,6 +406,8 @@ struct que_thr_t{
 	ulint		fk_cascade_depth; /*!< maximum cascading call depth
 					supported for foreign key constraint
 					related delete/updates */
+	row_prebuilt_t*	prebuilt;	/*!< prebuilt structure processed by
+					the query thread */
 };
 
 #define QUE_THR_MAGIC_N		8476583

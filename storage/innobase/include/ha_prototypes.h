@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -148,7 +148,7 @@ at least ENUM and SET, and unsigned integer types are 'unsigned types'
 ulint
 get_innobase_type_from_mysql_type(
 	ulint*			unsigned_flag,
-	const void*		field);
+	const void*		f);
 
 /******************************************************************//**
 Get the variable length bounds of the given character set. */
@@ -161,7 +161,7 @@ innobase_get_cset_width(
 
 /******************************************************************//**
 Compares NUL-terminated UTF-8 strings case insensitively.
-@return 0 if a=b, <0 if a<b, >1 if a>b */
+@return 0 if a=b, < 0 if a < b, > 1 if a > b */
 int
 innobase_strcasecmp(
 /*================*/
@@ -352,8 +352,7 @@ thd_start_time_in_secs(
 
 /*****************************************************************//**
 A wrapper function of innobase_convert_name(), convert a table name
-to the MySQL system_charset_info (UTF-8) and quote it if needed.
-@return pointer to the end of buf */
+to the MySQL system_charset_info (UTF-8) and quote it if needed. */
 void
 innobase_format_name(
 /*==================*/

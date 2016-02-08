@@ -124,7 +124,8 @@ struct fil_space_t {
 				/*!< contents of FSP_FREE_LIMIT */
 	ulint		flags;	/*!< tablespace flags; see
 				fsp_flags_is_valid(),
-				page_size_t(ulint) (constructor) */
+				page_size_t(ulint) (constructor). This is
+				protected by space->latch and tablespace MDL */
 	ulint		n_reserved_extents;
 				/*!< number of reserved free extents for
 				ongoing operations like B-tree page split */
@@ -247,6 +248,13 @@ extern const char* dot_ext[];
 #define DOT_IBD dot_ext[IBD]
 #define DOT_CFG dot_ext[CFG]
 
+#ifdef _WIN32
+/* Initialization of m_abs_path() produces warning C4351:
+"new behavior: elements of array '...' will be default initialized."
+See https://msdn.microsoft.com/en-us/library/1ywe7hcy.aspx */
+#pragma warning(disable:4351)
+#endif /* _WIN32 */
+
 /** Wrapper for a path to a directory that may or may not exist. */
 class Folder
 {
@@ -341,10 +349,10 @@ private:
 but in the MySQL Embedded Server Library and mysqlbackup it is not the default
 directory, and we must set the base file path explicitly */
 extern const char*	fil_path_to_mysql_datadir;
-extern Folder   	folder_mysql_datadir;
+extern Folder		folder_mysql_datadir;
 
 /** Initial size of a single-table tablespace in pages */
-#define FIL_IBD_FILE_INITIAL_SIZE	4
+#define FIL_IBD_FILE_INITIAL_SIZE	6
 
 /** 'null' (undefined) page offset in the context of file spaces */
 #define	FIL_NULL	ULINT32_UNDEFINED
@@ -381,10 +389,12 @@ operator<<(std::ostream& out, const fil_addr_t&	obj)
 
 /** The null file address */
 extern fil_addr_t	fil_addr_null;
+typedef	uint16_t	page_type_t;
 
 /** File page types (values of FIL_PAGE_TYPE) @{ */
 #define FIL_PAGE_INDEX		17855	/*!< B-tree node */
-#define FIL_PAGE_RTREE		17854	/*!< B-tree node */
+#define FIL_PAGE_RTREE		17854	/*!< R-tree node */
+#define FIL_PAGE_SDI		17853	/*!< Tablespace SDI Index page */
 #define FIL_PAGE_UNDO_LOG	2	/*!< Undo log page */
 #define FIL_PAGE_INODE		3	/*!< Index node */
 #define FIL_PAGE_IBUF_FREE_LIST	4	/*!< Insert buffer free list */
@@ -402,15 +412,18 @@ extern fil_addr_t	fil_addr_null;
 					in FIL_PAGE_TYPE is replaced with this
 					value when flushing pages. */
 #define FIL_PAGE_COMPRESSED	14	/*!< Compressed page */
+#define FIL_PAGE_SDI_BLOB	15	/*!< Uncompressed SDI BLOB page */
+#define FIL_PAGE_SDI_ZBLOB	16	/*!< Commpressed SDI BLOB page */
 
 /** Used by i_s.cc to index into the text description. */
-#define FIL_PAGE_TYPE_LAST	FIL_PAGE_TYPE_UNKNOWN
+#define FIL_PAGE_TYPE_LAST	FIL_PAGE_SDI_ZBLOB
 					/*!< Last page type */
 /* @} */
 
-/** macro to check whether the page type is index (Btree or Rtree) type */
+/** Check whether the page type is index (Btree or Rtree or SDI) type */
 #define fil_page_type_is_index(page_type)                          \
-        (page_type == FIL_PAGE_INDEX || page_type == FIL_PAGE_RTREE)
+	(page_type == FIL_PAGE_INDEX || page_type == FIL_PAGE_SDI  \
+	 || page_type == FIL_PAGE_RTREE)
 
 /** Check whether the page is index page (either regular Btree index or Rtree
 index */
@@ -564,6 +577,15 @@ ulint
 fil_space_get_flags(
 /*================*/
 	ulint	id);	/*!< in: space id */
+
+/** Sets the flags of the tablespace. The tablespace must be locked
+in MDL_EXCLUSIVE MODE.
+@param[in]	space	tablespace in-memory struct
+@param[in]	flags	tablespace flags */
+void
+fil_space_set_flags(
+	fil_space_t*	space,
+	ulint		flags);
 
 /** Open each file of a tablespace if not already open.
 @param[in]	space_id	tablespace identifier
@@ -872,7 +894,7 @@ char*
 fil_make_filepath(
 	const char*	path,
 	const char*	name,
-	ib_extention	suffix,
+	ib_extention	ext,
 	bool		trim);
 
 /** Create a tablespace file.
@@ -946,26 +968,27 @@ fil_ibd_load(
 	fil_space_t*&	space)
 	__attribute__((warn_unused_result));
 
-/*******************************************************************//**
-Returns true if a matching tablespace exists in the InnoDB tablespace memory
-cache. Note that if we have not done a crash recovery at the database startup,
-there may be many tablespaces which are not yet in the memory cache.
+/** Returns true if a matching tablespace exists in the InnoDB tablespace
+memory cache. Note that if we have not done a crash recovery at the database
+startup, there may be many tablespaces which are not yet in the memory cache.
+@param[in]	id			Tablespace ID
+@param[in]	name			Tablespace name used in
+					fil_space_create().
+@param[in]	print_err_if_not_exist	Print detailed error information to the
+					error log if a matching tablespace is
+					not found from memory.
+@param[in]	adjust_space		Whether to adjust spaceid on mismatch
+@param[in]	heap			Heap memory
+@param[in]	table_id		table id
 @return true if a matching tablespace exists in the memory cache */
 bool
 fil_space_for_table_exists_in_mem(
-/*==============================*/
-	ulint		id,		/*!< in: space id */
-	const char*	name,		/*!< in: table name used in
-					fil_space_create() */
-	bool		print_error_if_does_not_exist,
-					/*!< in: print detailed error
-					information to the .err log if a
-					matching tablespace is not found from
-					memory */
-	bool		adjust_space,	/*!< in: whether to adjust space id
-					when find table space mismatch */
-	mem_heap_t*	heap,		/*!< in: heap memory */
-	table_id_t	table_id);	/*!< in: table id */
+	ulint		id,
+	const char*	name,
+	bool		print_err_if_not_exist,
+	bool		adjust_space,
+	mem_heap_t*	heap,
+	table_id_t	table_id);
 #else /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 Extends all tablespaces to the size stored in the space header. During the
@@ -1110,11 +1133,12 @@ fil_page_reset_type(
 @param[in]	page	file page
 @return page type */
 inline
-ulint
+page_type_t
 fil_page_get_type(
 	const byte*	page)
 {
-	return(mach_read_from_2(page + FIL_PAGE_TYPE));
+	return(static_cast<page_type_t>(
+			mach_read_from_2(page + FIL_PAGE_TYPE)));
 }
 /** Check (and if needed, reset) the page type.
 Data files created before MySQL 5.1 may contain

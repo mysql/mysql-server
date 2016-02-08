@@ -87,7 +87,7 @@ static int test_rb_tree(TREE_ELEMENT *element);
 #endif
 
 void init_tree(TREE *tree, ulong default_alloc_size, ulong memory_limit,
-               int size, qsort_cmp2 compare, my_bool with_delete,
+               int size, qsort2_cmp compare, my_bool with_delete,
 	       tree_element_free free_element, const void *custom_arg)
 {
   DBUG_ENTER("init_tree");

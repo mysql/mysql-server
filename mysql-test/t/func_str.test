@@ -715,7 +715,15 @@ drop table t1;
 #
 # Bug #9854  hex() and out of range handling
 #
-select hex(29223372036854775809), hex(-29223372036854775809);
+select hex(29223372036854775809) as hex_signed,
+       hex(cast(29223372036854775809 as unsigned)) as hex_unsigned;
+select conv(29223372036854775809, -10, 16) as conv_signed,
+       conv(29223372036854775809, 10, 16) as conv_unsigned;
+
+select hex(-29223372036854775809) as hex_signed,
+       hex(cast(-29223372036854775809 as unsigned)) as hex_unsigned;
+select conv(-29223372036854775809, -10, 16) as conv_signed,
+       conv(-29223372036854775809, 10, 16) as conv_unsigned;
 
 #
 # Bug #11311: Incorrect length returned from LPAD() and RPAD()
@@ -1184,6 +1192,21 @@ DROP TABLE t1;
 #
 SELECT UNHEX('G');
 SELECT UNHEX('G') IS NULL;
+
+#
+# Bug #22358933: UNHEX WITH INVALID ARGUMENT LEAD TO VALGRIND ERROR
+#
+DO UNHEX(-1);
+SHOW warnings;
+DO UNHEX(-182680438);
+SHOW warnings;
+DO UNHEX(-2251799813685249);
+SHOW warnings;
+
+#
+# Bug #19642015 UNHEX() RUNTIME ERROR: LEFT SHIFT OF NEGATIVE VALUE -1
+#
+select unhex('5078-04-25');
 
 #
 # Bug #26281: INSERT() function mishandles NUL on boundary condition
@@ -1835,3 +1858,51 @@ WHERE trim(leading  'A' FROM COUNTRY) = 'ustralia'
   AND trim(trailing 'a' FROM COUNTRY) = 'Australi';
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#22391186 TRUE WHERE CLAUSE DOESN'T RETURN EXPECTED ROW, 
+--echo #              BUT EMPTY SET
+--echo #
+
+CREATE DATABASE testt CHARACTER SET utf8mb4;
+USE testt;
+SET NAMES 'utf8mb4';
+CREATE TABLE t1(c1 CHAR(20));
+INSERT INTO t1 VALUES('11');
+SELECT c1 <=  REPEAT( SUBSTR( UPPER('Rdlpikti') , 1 , 2 ), 8 ) FROM t1;
+SELECT * FROM t1 WHERE c1 <=  REPEAT( SUBSTR( UPPER('Rdlpikti') , 1 , 2 ), 8);
+SELECT * FROM t1 WHERE c1 <=  REPEAT( SUBSTR( UPPER('Rdlpikti') , 1 , 2 ), 8);
+DROP TABLE t1;
+DROP DATABASE testt;
+SET NAMES DEFAULT;
+
+--echo #
+--echo # Bug#22297983 HEX() FUNCTION CONVERTS DECIMAL TO DOUBLE AND
+--echo #              THUS RETURNS WRONG RESULT
+--echo #
+
+select hex(cast(9007199254740992 as decimal(30,0)));
+select hex(cast(9007199254740993 as decimal(30,0)));
+select hex(cast(9007199254740994 as decimal(30,0)));
+
+select hex(cast(0x20000000000000 as unsigned) + 1);
+select hex(cast(0x20000000000000 as decimal(30,0)) + 1);
+select hex(cast(0x20000000000000 as decimal(30,0)) + 2);
+
+--echo #
+--echo # Bug#22523836 FUNCTION REPLACE WITH BINARY OP DOESNT RETURN EXPECTED
+--echo #              NULL, WITH PARAM AS NULL
+--echo #
+
+SELECT REPLACE( 'a', binary 'b', NULL ) as xxx;
+SELECT REPLACE( 'a', binary '', NULL ) as xxx;
+
+SELECT REPLACE( 'a', 'b', NULL ) as xxx;
+SELECT REPLACE( 'a', '', NULL ) as xxx;
+
+SELECT REPLACE( NULL, 'b', 'bravo' ) as xxx;
+SELECT REPLACE( NULL, '', 'bravo' ) as xxx;
+
+SELECT REPLACE( 'a', NULL, 'bravo' ) as xxx;
+SELECT REPLACE( 'a', binary NULL, 'bravo' ) as xxx;
+

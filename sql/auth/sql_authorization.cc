@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #include "derror.h"
 #include "mysqld.h"
 
+#include "error_handler.h"
 #include "sql_update.h"
 #include "auth_internal.h"
 #include "sql_auth_cache.h"
@@ -180,7 +181,7 @@ bool select_precheck(THD *thd, LEX *lex, TABLE_LIST *tables,
 /**
   Multi update query pre-check.
 
-  @param thd		Thread handler
+  @param thd    Thread handler
   @param tables	Global/local table list (have to be the same)
 
   @retval
@@ -247,8 +248,8 @@ bool Sql_cmd_update::multi_update_precheck(THD *thd, TABLE_LIST *tables)
 /**
   Multi delete query pre-check.
 
-  @param thd			Thread handler
-  @param tables		Global/local table list
+  @param thd            Thread handler
+  @param tables         Global/local table list
 
   @retval
     FALSE OK
@@ -527,6 +528,16 @@ bool check_readonly(THD *thd, bool err_if_readonly)
   if (thd->slave_thread)
     DBUG_RETURN(FALSE);
 
+  /* Permit replication operations. */
+  enum enum_sql_command sql_command= thd->lex->sql_command;
+  if (sql_command == SQLCOM_SLAVE_START ||
+      sql_command == SQLCOM_SLAVE_STOP ||
+      sql_command == SQLCOM_CHANGE_MASTER ||
+      sql_command == SQLCOM_START_GROUP_REPLICATION ||
+      sql_command == SQLCOM_STOP_GROUP_REPLICATION ||
+      sql_command == SQLCOM_CHANGE_REPLICATION_FILTER)
+    DBUG_RETURN(FALSE);
+
   bool is_super = thd->security_context()->check_access(SUPER_ACL);
 
   /* super_read_only=OFF and user has SUPER privilege,
@@ -708,7 +719,7 @@ check_routine_access(THD *thd, ulong want_access, const char *db, char *name,
 
   @param thd		 Thread handler
   @param want_access	 Bitmap of possible privileges to check for
-
+  @param table The table for which access needs to be validated
   @retval
     0  ok
   @retval
@@ -744,7 +755,7 @@ bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
   @param thd	       Thread handler
   @param db           Database name
   @param name         Routine name
-
+  @param is_proc     True if this is a SP rather than a function
   @retval
     0            ok
   @retval
@@ -1565,6 +1576,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   @param user_list List of users to give grant
   @param rights Table level grant
   @param revoke_grant Is this is a REVOKE command?
+  @param write_to_binlog True if this statement should be written to binlog
 
   @return
     @retval FALSE Success.
@@ -3651,7 +3663,8 @@ private:
   @param thd       The current thread.
   @param sp_db     DB of the stored procedure
   @param sp_name   Name of the stored procedure
-
+  @param is_proc   True if this is a SP rather than a function.
+  
   @retval
     0           OK.
   @retval
@@ -4451,10 +4464,10 @@ bool check_global_access(THD *thd, ulong want_access)
 /**
   Checks foreign key's parent table access.
 
-  @param thd	       [in]	Thread handler
-  @param create_info   [in]     Create information (like MAX_ROWS, ENGINE or
+  @param [in] thd               Thread handler
+  @param [in] create_info       Create information (like MAX_ROWS, ENGINE or
                                 temporary table flag)
-  @param alter_info    [in]     Initial list of columns and indexes for the
+  @param [in] alter_info        Initial list of columns and indexes for the
                                 table to be created
 
   @retval

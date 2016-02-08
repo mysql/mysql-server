@@ -1,5 +1,5 @@
 #ifndef RPL_MASTER_H_INCLUDED
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,6 +97,8 @@ bool com_binlog_dump(THD *thd, char *packet, size_t packet_length);
 
   @param gtid_set The gtid_set that the slave sent, or NULL if the
   protocol is COM_BINLOG_DUMP.
+
+  @param flags flags in COM_BINLOG_DUMP[_GTID] packets.
 
   @note This function will start reading at the given (filename,
   offset), or from the oldest log if filename[0]==0.  It will send all

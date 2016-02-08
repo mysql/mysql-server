@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,7 +57,12 @@ C_MODE_START
 typedef volatile LONG    my_thread_once_t;
 typedef DWORD            my_thread_t;
 typedef struct thread_attr
-  { DWORD dwStackSize; } my_thread_attr_t;
+{
+  DWORD dwStackSize;
+  int detachstate;
+} my_thread_attr_t;
+#define MY_THREAD_CREATE_JOINABLE 0
+#define MY_THREAD_CREATE_DETACHED 1
 typedef void * (__cdecl *my_start_routine)(void *);
 #define MY_THREAD_ONCE_INIT       0
 #define MY_THREAD_ONCE_INPROGRESS 1
@@ -66,6 +71,8 @@ typedef void * (__cdecl *my_start_routine)(void *);
 typedef pthread_once_t   my_thread_once_t;
 typedef pthread_t        my_thread_t;
 typedef pthread_attr_t   my_thread_attr_t;
+#define MY_THREAD_CREATE_JOINABLE PTHREAD_CREATE_JOINABLE
+#define MY_THREAD_CREATE_DETACHED PTHREAD_CREATE_DETACHED
 typedef void *(* my_start_routine)(void *);
 #define MY_THREAD_ONCE_INIT       PTHREAD_ONCE_INIT
 #endif
@@ -102,6 +109,8 @@ static inline int my_thread_attr_init(my_thread_attr_t *attr)
 {
 #ifdef _WIN32
   attr->dwStackSize= 0;
+  /* Set to joinable by default to match Linux */
+  attr->detachstate= MY_THREAD_CREATE_JOINABLE;
   return 0;
 #else
   return pthread_attr_init(attr);
@@ -111,7 +120,9 @@ static inline int my_thread_attr_init(my_thread_attr_t *attr)
 static inline int my_thread_attr_destroy(my_thread_attr_t *attr)
 {
 #ifdef _WIN32
-  memset(attr, 0, sizeof(*attr));
+  attr->dwStackSize= 0;
+  /* Set to joinable by default to match Linux */
+  attr->detachstate= MY_THREAD_CREATE_JOINABLE;
   return 0;
 #else
   return pthread_attr_destroy(attr);
@@ -126,6 +137,17 @@ static inline int my_thread_attr_setstacksize(my_thread_attr_t *attr,
   return 0;
 #else
   return pthread_attr_setstacksize(attr, stacksize);
+#endif
+}
+
+static inline int my_thread_attr_setdetachstate(my_thread_attr_t *attr,
+                                                int detachstate)
+{
+#ifdef _WIN32
+  attr->detachstate= detachstate;
+  return 0;
+#else
+  return pthread_attr_setdetachstate(attr, detachstate);
 #endif
 }
 

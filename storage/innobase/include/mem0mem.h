@@ -209,64 +209,74 @@ mem_heap_is_top(
 	ulint		buf_sz)
 	__attribute__((warn_unused_result));
 
-/*****************************************************************//**
-Allocate a new chunk of memory from a memory heap, possibly discarding
-the topmost element. If the memory chunk specified with (top, top_sz)
-is the topmost element, then it will be discarded, otherwise it will
-be left untouched and this function will be equivallent to
-mem_heap_alloc().
+/** Allocate a new chunk of memory from a memory heap, possibly discarding the
+topmost element. If the memory chunk specified with (top, top_sz) is the
+topmost element, then it will be discarded, otherwise it will be left untouched
+and this function will be equivallent to mem_heap_alloc().
+@param[in,out]	heap	memory heap
+@param[in]	top	chunk to discard if possible
+@param[in]	top_sz	size of top in bytes
+@param[in]	new_sz	desired size of the new chunk
 @return allocated storage, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
 UNIV_INLINE
 void*
 mem_heap_replace(
-/*=============*/
-	mem_heap_t*	heap,	/*!< in/out: memory heap */
-	const void*	top,	/*!< in: chunk to discard if possible */
-	ulint		top_sz,	/*!< in: size of top in bytes */
-	ulint		new_sz);/*!< in: desired size of the new chunk */
-/*****************************************************************//**
-Allocate a new chunk of memory from a memory heap, possibly discarding
-the topmost element and then copy the specified data to it. If the memory
-chunk specified with (top, top_sz) is the topmost element, then it will be
-discarded, otherwise it will be left untouched and this function will be
-equivallent to mem_heap_dup().
+	mem_heap_t*	heap,
+	const void*	top,
+	ulint		top_sz,
+	ulint		new_sz);
+
+/** Allocate a new chunk of memory from a memory heap, possibly discarding the
+topmost element and then copy the specified data to it. If the memory chunk
+specified with (top, top_sz) is the topmost element, then it will be discarded,
+otherwise it will be left untouched and this function will be equivallent to
+mem_heap_dup().
+@param[in,out]	heap	memory heap
+@param[in]	top	chunk to discard if possible
+@param[in]	top_sz	size of top in bytes
+@param[in]	data	new data to duplicate
+@param[in]	data_sz	size of data in bytes
 @return allocated storage, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
 UNIV_INLINE
 void*
 mem_heap_dup_replace(
-/*=================*/
-	mem_heap_t*	heap,	/*!< in/out: memory heap */
-	const void*	top,	/*!< in: chunk to discard if possible */
-	ulint		top_sz,	/*!< in: size of top in bytes */
-	const void*	data,	/*!< in: new data to duplicate */
-	ulint		data_sz);/*!< in: size of data in bytes */
-/*****************************************************************//**
-Allocate a new chunk of memory from a memory heap, possibly discarding
-the topmost element and then copy the specified string to it. If the memory
-chunk specified with (top, top_sz) is the topmost element, then it will be
-discarded, otherwise it will be left untouched and this function will be
-equivallent to mem_heap_strdup().
+	mem_heap_t*	heap,
+	const void*	top,
+	ulint		top_sz,
+	const void*	data,
+	ulint		data_sz);
+
+/** Allocate a new chunk of memory from a memory heap, possibly discarding the
+topmost element and then copy the specified string to it. If the memory chunk
+specified with (top, top_sz) is the topmost element, then it will be discarded,
+otherwise it will be left untouched and this function will be equivallent to
+mem_heap_strdup().
+@param[in,out]	heap	memory heap
+@param[in]	top	chunk to discard if possible
+@param[in]	top_sz	size of top in bytes
+@param[in]	str	new data to duplicate
 @return allocated string, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
 UNIV_INLINE
 char*
 mem_heap_strdup_replace(
-/*====================*/
-	mem_heap_t*	heap,	/*!< in/out: memory heap */
-	const void*	top,	/*!< in: chunk to discard if possible */
-	ulint		top_sz,	/*!< in: size of top in bytes */
-	const char*	str);	/*!< in: new data to duplicate */
-/*****************************************************************//**
-Frees the topmost element in a memory heap.
+	mem_heap_t*	heap,
+	const void*	top,
+	ulint		top_sz,
+	const char*	str);
+
+/** Frees the topmost element in a memory heap.
+@param[in]	heap	memory heap
+@param[in]	n	size of the topmost element
 The size of the element must be given. */
 UNIV_INLINE
 void
 mem_heap_free_top(
-/*==============*/
-	mem_heap_t*	heap,	/*!< in: memory heap */
-	ulint		n);	/*!< in: size of the topmost element */
+	mem_heap_t*	heap,
+	ulint		n);
+
 /*****************************************************************//**
 Returns the space in bytes occupied by a memory heap. */
 UNIV_INLINE
@@ -275,23 +285,23 @@ mem_heap_get_size(
 /*==============*/
 	mem_heap_t*	heap);		/*!< in: heap */
 
-/**********************************************************************//**
-Duplicates a NUL-terminated string.
+/** Duplicates a NUL-terminated string.
+@param[in]	str	string to be copied
 @return own: a copy of the string, must be deallocated with ut_free */
 UNIV_INLINE
 char*
 mem_strdup(
-/*=======*/
-	const char*	str);	/*!< in: string to be copied */
-/**********************************************************************//**
-Makes a NUL-terminated copy of a nonterminated string.
+	const char*	str);
+
+/** Makes a NUL-terminated copy of a nonterminated string.
+@param[in]	str	string to be copied
+@param[in]	len	length of str, in bytes
 @return own: a copy of the string, must be deallocated with ut_free */
 UNIV_INLINE
 char*
 mem_strdupl(
-/*========*/
-	const char*	str,	/*!< in: string to be copied */
-	ulint		len);	/*!< in: length of str, in bytes */
+	const char*	str,
+	ulint		len);
 
 /** Duplicates a NUL-terminated string, allocated from a memory heap.
 @param[in]	heap	memory heap where string is allocated
@@ -302,17 +312,18 @@ mem_heap_strdup(
 	mem_heap_t*	heap,
 	const char*	str);
 
-/**********************************************************************//**
-Makes a NUL-terminated copy of a nonterminated string,
-allocated from a memory heap.
+/** Makes a NUL-terminated copy of a nonterminated string, allocated from a
+memory heap.
+@param[in]	heap	memory heap where string is allocated
+@param[in]	str	string to be copied
+@param[in]	len	length of str, in bytes
 @return own: a copy of the string */
 UNIV_INLINE
 char*
 mem_heap_strdupl(
-/*=============*/
-	mem_heap_t*	heap,	/*!< in: memory heap where string is allocated */
-	const char*	str,	/*!< in: string to be copied */
-	ulint		len);	/*!< in: length of str, in bytes */
+	mem_heap_t*	heap,
+	const char*	str,
+	ulint		len);
 
 /**********************************************************************//**
 Concatenate two strings and return the result, using a memory heap.

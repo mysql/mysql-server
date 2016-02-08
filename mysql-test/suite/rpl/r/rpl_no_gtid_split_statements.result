@@ -212,19 +212,19 @@ include/rpl_sync.inc
 include/save_binlog_position.inc
 SET GTID_NEXT = 'AUTOMATIC';
 DROP DATABASE db1;
-ERROR HY000: Error dropping database (can't rmdir './db1/', errno: 17)
+ERROR HY000: Error dropping database (can't rmdir './db1/', errno: ## - ...)
 include/assert_binlog_events.inc
 # db4: one table.
 include/save_binlog_position.inc
 SET GTID_NEXT = 'AUTOMATIC';
 DROP DATABASE db4;
-ERROR HY000: Error dropping database (can't rmdir './db4/', errno: 17)
+ERROR HY000: Error dropping database (can't rmdir './db4/', errno: ## - ...)
 include/assert_binlog_events.inc
 # db7: many tables with long names.
 include/save_binlog_position.inc
 SET GTID_NEXT = 'AUTOMATIC';
 DROP DATABASE db7;
-ERROR HY000: Error dropping database (can't rmdir './db7/', errno: 17)
+ERROR HY000: Error dropping database (can't rmdir './db7/', errno: ## - ...)
 include/assert_binlog_events.inc
 # db10: not a database, but directory exists.
 include/save_binlog_position.inc
@@ -243,21 +243,21 @@ include/assert_binlog_events.inc
 include/save_binlog_position.inc
 SET GTID_NEXT = '#';
 DROP DATABASE db2;
-ERROR HY000: Error dropping database (can't rmdir './db2/', errno: 17)
+ERROR HY000: Error dropping database (can't rmdir './db2/', errno: ## - ...)
 include/assert_binlog_events.inc
 SET GTID_NEXT = 'AUTOMATIC';
 # db5: one table.
 include/save_binlog_position.inc
 SET GTID_NEXT = '#';
 DROP DATABASE db5;
-ERROR HY000: Error dropping database (can't rmdir './db5/', errno: 17)
+ERROR HY000: Error dropping database (can't rmdir './db5/', errno: ## - ...)
 include/assert_binlog_events.inc
 SET GTID_NEXT = 'AUTOMATIC';
 # db8: many tables with long names.
 include/save_binlog_position.inc
 SET GTID_NEXT = '#';
 DROP DATABASE db8;
-ERROR HY000: Error dropping database (can't rmdir './db8/', errno: 17)
+ERROR HY000: Error dropping database (can't rmdir './db8/', errno: ## - ...)
 include/assert_binlog_events.inc
 SET GTID_NEXT = 'AUTOMATIC';
 # db11: not a database, but directory exists.

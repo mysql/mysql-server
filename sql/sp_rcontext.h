@@ -124,6 +124,7 @@ public:
 
     /// The constructor.
     ///
+    /// @param _handler       SQL-handler
     /// @param _sql_condition SQL-condition, triggered handler activation.
     /// @param _continue_ip   Continue instruction pointer.
     Handler_call_frame(const sp_handler *_handler,

@@ -1840,21 +1840,23 @@ fts_query_match_phrase_terms_by_parser(
 	return(phrase_param->phrase->found);
 }
 
-/*****************************************************************//**
-Callback function to fetch and search the document.
+/** Callback function to fetch and search the document.
+@param[in]	phrase		phrase to match
+@param[in]	start		text to search, we can't make this const becase
+				we need to first convert the string to
+				lowercase
+@param[in]	cur_len		length of text
+@param[in]	prev_len	total length for searched doc fields
+@param[in]	heap		heap
 @return TRUE if matched else FALSE */
 static
 ibool
 fts_query_match_phrase(
-/*===================*/
-	fts_phrase_t*	phrase,		/*!< in: phrase to match */
-	byte*		start,		/*!< in: text to search, we can't make
-					this const becase we need to first
-					convert the string to lowercase */
-	ulint		cur_len,	/*!< in: length of text */
-	ulint		prev_len,	/*!< in: total length for searched
-					doc fields*/
-	mem_heap_t*	heap)		/* heap */
+	fts_phrase_t*	phrase,
+	byte*		start,
+	ulint		cur_len,
+	ulint		prev_len,
+	mem_heap_t*	heap)
 {
 	ulint			i;
 	const fts_string_t*	first;
@@ -2021,7 +2023,7 @@ fts_query_fetch_document(
 		if (dfield_is_ext(dfield)) {
 			data = btr_copy_externally_stored_field(
 				&cur_len, data, phrase->page_size,
-				dfield_get_len(dfield), phrase->heap);
+				dfield_get_len(dfield), false, phrase->heap);
 		} else {
 			cur_len = dfield_get_len(dfield);
 		}

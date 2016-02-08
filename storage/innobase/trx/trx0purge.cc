@@ -199,7 +199,7 @@ trx_purge_graph_build(
 	for (i = 0; i < n_purge_threads; ++i) {
 		que_thr_t*	thr;
 
-		thr = que_thr_create(fork, heap);
+		thr = que_thr_create(fork, heap, NULL);
 
 		thr->child = row_purge_node_create(thr, heap);
 	}
@@ -632,6 +632,7 @@ namespace undo {
 
 	/** Populate log file name based on space_id
 	@param[in]	space_id	id of the undo tablespace.
+	@param[in]	log_file_name	name of the log file
 	@return DB_SUCCESS or error code */
 	dberr_t populate_log_file_name(
 		ulint	space_id,

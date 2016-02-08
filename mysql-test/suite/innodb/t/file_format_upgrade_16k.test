@@ -49,10 +49,10 @@ use warnings;
 my $file = $ENV{IBD_FILE};
 my $size = $ENV{IBD_PAGE_SIZE};
 open(FILE, "<$file") || die "Unable to open $file: $!";
-die "Unable to read $file: $!" unless read(FILE, $_, $size*4) == $size*4;
+die "Unable to read $file: $!" unless read(FILE, $_, $size*7) == $size*7;
 my $payload = $size-26;
 s/.{24}(..).{$payload}/$1/ges;
-print "# Page types: ", unpack("H*", substr($_, 0, 8)), "(", length($_), ")\n";
+print "# Page types: ", unpack("H*", $_), "\n";
 close(FILE);
 EOF
 --source include/start_mysqld.inc

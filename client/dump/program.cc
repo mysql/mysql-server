@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -195,7 +195,6 @@ int Program::execute(std::vector<std::string> positional_options)
   crawler->enumerate_objects();
 
   delete crawler;
-  delete chain_maker;
   if (progress_watcher != NULL)
     delete progress_watcher;
   delete id_generator;

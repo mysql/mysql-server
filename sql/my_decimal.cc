@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -90,7 +90,7 @@ int my_decimal::check_result(uint mask, int result) const
   @param[in]   fixed_prec  overall number of digits if ZEROFILL, 0 otherwise
   @param[in]   fixed_dec   number of decimal places (if fixed_prec != 0)
   @param[in]   filler      what char to pad with (ZEROFILL et al.)
-  @param[out]  *str        where to store the resulting string
+  @param[out]  str         where to store the resulting string
 
   @return error coce
     @retval E_DEC_OK
@@ -140,10 +140,10 @@ int my_decimal2string(uint mask, const my_decimal *d,
   @param[in]   fixed_prec  overall number of digits if ZEROFILL, 0 otherwise
   @param[in]   fixed_dec   number of decimal places (if fixed_prec != 0)
   @param[in]   filler      what char to pad with (ZEROFILL et al.)
-  @param[out]  *str        where to store the resulting string
+  @param[out]  str         where to store the resulting string
   @param[in]   cs          character set
 
-  @return error coce
+  @return error code
     @retval E_DEC_OK
     @retval E_DEC_TRUNCATED
     @retval E_DEC_OVERFLOW

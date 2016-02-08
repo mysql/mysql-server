@@ -81,7 +81,7 @@ inline_mysql_mdl_create(void *identity,
                         const MDL_key *mdl_key,
                         enum_mdl_type mdl_type,
                         enum_mdl_duration mdl_duration,
-                        MDL_wait::enum_wait_status mdl_status,
+                        MDL_ticket::enum_psi_status mdl_status,
                         const char *src_file, uint src_line)
 {
   PSI_metadata_lock *result;
@@ -100,7 +100,7 @@ inline_mysql_mdl_create(void *identity,
 
 static inline void inline_mysql_mdl_set_status(
   PSI_metadata_lock *psi,
-  MDL_wait::enum_wait_status mdl_status)
+  MDL_ticket::enum_psi_status mdl_status)
 {
   if (psi != NULL)
     PSI_METADATA_CALL(set_metadata_lock_status)(psi, mdl_status);

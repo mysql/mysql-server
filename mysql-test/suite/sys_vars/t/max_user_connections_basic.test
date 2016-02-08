@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 ############## mysql-test\t\max_user_connections_basic.test ###############
 #                                                                             #
 # Variable Name: max_user_connections                                         #
@@ -117,7 +119,7 @@ SELECT @@global.max_user_connections;
 
 --disable_warnings
 SELECT @@global.max_user_connections = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='max_user_connections';
 --enable_warnings
 

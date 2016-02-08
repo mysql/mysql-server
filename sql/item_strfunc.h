@@ -823,7 +823,7 @@ public:
     maybe_null|= item->maybe_null;
     return res;
   }
-  void split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
+  void split_sum_func(THD *thd, Ref_item_array ref_item_array,
                       List<Item> &fields);
   void fix_length_and_dec();
   void update_used_tables();

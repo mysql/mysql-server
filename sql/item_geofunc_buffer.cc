@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -421,12 +421,6 @@ String *Item_func_buffer::val_str(String *str_value_arg)
       my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
       DBUG_RETURN(error_str());
     }
-  }
-
-  if (geom->get_srid() != 0)
-  {
-    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-    DBUG_RETURN(error_str());
   }
 
   /*

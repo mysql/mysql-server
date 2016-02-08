@@ -1,6 +1,6 @@
 #ifndef INCLUDES_MYSQL_SQL_LIST_H
 #define INCLUDES_MYSQL_SQL_LIST_H
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,17 +15,13 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#include "sql_alloc.h"
 #include "my_global.h"
-#include "my_sys.h"
-#include "m_string.h" /* for TRASH */
 
-#include "my_sys.h"                    /* alloc_root, TRASH, MY_WME,
-                                          MY_FAE, MY_ALLOW_ZERO_PTR */
-#include "m_string.h"
-#include "thr_malloc.h"                         /* sql_alloc */
+#include "sql_alloc.h"         // Sql_alloc
 
 #include <algorithm>
+#include <type_traits>
+
 
 /**
   Simple intrusive linked list.
@@ -627,8 +623,8 @@ template <typename T> class base_ilist;
 template <typename T> class base_ilist_iterator;
 
 /*
-  A simple intrusive list which automaticly removes element from list
-  on delete (for THD element)
+  A simple intrusive list.
+
   NOTE: this inherently unsafe, since we rely on <T> to have
   the same layout as ilink<T> (see base_ilist::sentinel).
   Please consider using a different strategy for linking objects.
@@ -649,8 +645,6 @@ public:
     prev= NULL;
     next= NULL;
   }
-
-  virtual ~ilink() { unlink(); }		/*lint -e1740 */
 
   friend class base_ilist<T>;
   friend class base_ilist_iterator<T>;
@@ -687,13 +681,21 @@ class base_ilist
 {
   T *first;
   ilink<T> sentinel;
+
+  static_assert(! std::is_polymorphic<T>::value,
+                "Do not use this for classes with virtual members");
+
 public:
-  void empty() {
+  // The sentinel is not a T, but at least it is a POD
+  void empty() SUPPRESS_UBSAN {
     first= static_cast<T*>(&sentinel);
     sentinel.prev= &first;
   }
   base_ilist() { empty(); }
-  bool is_empty() const { return first == static_cast<const T*>(&sentinel); }
+
+  // The sentinel is not a T, but at least it is a POD
+  bool is_empty() const SUPPRESS_UBSAN
+  { return first == static_cast<const T*>(&sentinel); }
 
   /// Pushes new element in front of list.
   void push_front(T *a)
@@ -764,7 +766,8 @@ public:
     current(NULL)
   {}
 
-  T *next(void)
+  // The sentinel is not a T, but at least it is a POD
+  T *next(void) SUPPRESS_UBSAN
   {
     /* This is coded to allow push_back() while iterating */
     current= *el;
@@ -812,7 +815,7 @@ public:
   Evidently not all template arguments have clone() method with
   the right signature.
 
-  @return You must query the error state in THD for out-of-memory
+  You must query the error state in THD for out-of-memory
   situation after calling this function.
 */
 

@@ -28,13 +28,13 @@
   Write a chunk of bytes to a file
 
   if (MyFlags & (MY_NABP | MY_FNABP))
-  @returns
+  returns
     0  if Count == 0
     On succes, 0
     On failure, (size_t)-1 == MY_FILE_ERROR
 
   otherwise
-  @returns
+  returns
     0  if Count == 0
     On success, the number of bytes written.
     On partial success (if less than Count bytes could be written),

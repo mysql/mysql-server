@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #include "item_sum.h"           // Item_sum_hybrid
 #include "item_json_func.h"     // json_value, get_json_atom_wrapper
 #include "mysqld.h"             // log_10
+#include "opt_trace.h"          // Opt_trace_object
 #include "parse_tree_helpers.h" // PT_item_list
 #include "sql_class.h"          // THD
 #include "sql_optimizer.h"      // JOIN
@@ -36,6 +37,8 @@
 #include "sql_time.h"           // str_to_datetime
 
 #include <algorithm>
+#include <type_traits>
+
 using std::min;
 using std::max;
 
@@ -595,7 +598,7 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
                                      (*item)->val_date_temporal(),
                                      *item) :
 #endif
-          new Item_int_with_ref(field->val_int(), *item,
+          new Item_int_with_ref(field->type(), field->val_int(), *item,
                                 MY_TEST(field->flags & UNSIGNED_FLAG));
         if (tmp)
           thd->change_item_tree(item, tmp);
@@ -708,11 +711,11 @@ void Arg_comparator::cleanup()
     {
       comparators[i].cleanup();
     }
+    delete[] comparators;
+    comparators= NULL;
   }
-  delete[] comparators;
-  comparators= 0;
-  delete_json_scalar_holder(json_scalar);
-  json_scalar= 0;
+  delete json_scalar;
+  json_scalar= NULL;
 }
 
 
@@ -1558,7 +1561,7 @@ static bool get_json_arg(Item* arg, String *value, String *tmp,
     */
     if (*scalar && arg->const_item())
     {
-      Json_wrapper tmp(get_json_scalar_from_holder(*scalar));
+      Json_wrapper tmp((*scalar)->get());
       tmp.set_alias();
       result->steal(&tmp);
       return false;
@@ -1568,8 +1571,8 @@ static bool get_json_arg(Item* arg, String *value, String *tmp,
       Allocate memory to hold the scalar, if we haven't already done
       so. Otherwise, we reuse the previously allocated memory.
     */
-    if (!*scalar)
-      *scalar= create_json_scalar_holder();
+    if (*scalar == NULL)
+      *scalar= new Json_scalar_holder();
 
     holder= *scalar;
   }
@@ -2697,8 +2700,8 @@ Item_row *Item_func_interval::alloc_row(const POS &pos, MEM_ROOT *mem_root,
   if (list == NULL)
     return NULL;
   list->push_front(expr2);
-  row= new (mem_root) Item_row(pos, expr1, *list);
-  return row;
+  Item_row *tmprow= new (mem_root) Item_row(pos, expr1, *list);
+  return tmprow;
 }
 
 
@@ -3144,7 +3147,7 @@ longlong compare_between_int_result(bool compare_as_temporal_dates,
       b= args[2]->val_int();
     }
 
-    if (args[0]->unsigned_flag)
+    if (std::is_unsigned<LLorULL>::value)
     {
       /*
         Comparing as unsigned.
@@ -3152,8 +3155,19 @@ longlong compare_between_int_result(bool compare_as_temporal_dates,
         rewritten to
         value BETWEEN 0 AND <some number>
       */
-      if (!args[1]->unsigned_flag && (longlong) a < 0)
+      if (!args[1]->unsigned_flag && static_cast<longlong>(a) < 0)
         a = 0;
+      /*
+        Comparing as unsigned.
+        value BETWEEN <some number> AND <some negative number>
+        rewritten to
+        1 BETWEEN <some number> AND 0
+      */
+      if (!args[2]->unsigned_flag && static_cast<longlong>(b) < 0)
+      {
+        b= 0;
+        value= 1;
+      }
     }
     else
     {
@@ -5264,8 +5278,12 @@ void Item_func_in::fix_after_pullout(SELECT_LEX *parent_select,
 }
 
 
-static int srtcmp_in(CHARSET_INFO *cs, const String *x,const String *y)
+static int srtcmp_in(const void *cmp_arg, const void *a, const void *b)
 {
+  CHARSET_INFO *cs=
+    const_cast<CHARSET_INFO*>(pointer_cast<const CHARSET_INFO*>(cmp_arg));
+  const String *x= pointer_cast<const String*>(a);
+  const String *y= pointer_cast<const String*>(b);
   return cs->coll->strnncollsp(cs,
                                (uchar *) x->ptr(),x->length(),
                                (uchar *) y->ptr(),y->length(), 0);
@@ -5468,7 +5486,7 @@ void Item_func_in::fix_length_and_dec()
       }
       switch (cmp_type) {
       case STRING_RESULT:
-        array=new in_string(thd, arg_count-1, (qsort2_cmp) srtcmp_in, 
+        array=new in_string(thd, arg_count-1, srtcmp_in,
                             cmp_collation.collation);
         break;
       case INT_RESULT:
@@ -5641,6 +5659,36 @@ longlong Item_func_in::val_int()
   return (longlong) (!null_value && negated);
 }
 
+
+void Item::check_deprecated_bin_op(const Item *a, const Item *b)
+{
+  /*
+     We want to warn about cases which will likely change behaviour in future
+     versions. The conditions to emit a warning are:
+
+     1. If there's only one argument, the item should be a [VAR]BINARY
+     argument (1) and it should be different from the hex/bit/NULL literal (2).
+
+     2. If there are two arguments, both should be [VAR]BINARY (3) and at least
+     one of them should be different from the hex/bit/NULL literal (4)
+  */
+  if (a->result_type() == STRING_RESULT &&
+      a->collation.collation == &my_charset_bin &&         // (1), (3)
+      (!b ||
+       (b->result_type() == STRING_RESULT &&
+        b->collation.collation == &my_charset_bin)) &&     // (3)
+      ((a->type() != Item::VARBIN_ITEM &&
+        a->type() != Item::NULL_ITEM) ||                   // (2), (4)
+        (b && b->type() != Item::VARBIN_ITEM &&
+          b->type() != Item::NULL_ITEM)))                  // (4)
+  {
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_SYNTAX,
+                        "Bitwise operations on BINARY will change behavior"
+                        " in a future version, check the 'Bit functions'"
+                        " section in the manual.");
+  }
+}
 
 longlong Item_func_bit_or::val_int()
 {
@@ -5993,22 +6041,22 @@ void Item_cond::traverse_cond(Cond_traverser traverser,
   (Calculation done by update_sum_func() and copy_sum_funcs() in
   sql_select.cc)
 
-  @param thd			Thread handler
-  @param ref_pointer_array	Pointer to array of reference fields
-  @param fields		All fields in select
+  @param thd            Thread handler
+  @param ref_item_array Pointer to array of pointers to items
+  @param fields         All fields in select
 
   @note
     This function is run on all expression (SELECT list, WHERE, HAVING etc)
     that have or refer (HAVING) to a SUM expression.
 */
 
-void Item_cond::split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
+void Item_cond::split_sum_func(THD *thd, Ref_item_array ref_item_array,
                                List<Item> &fields)
 {
   List_iterator<Item> li(list);
   Item *item;
   while ((item= li++))
-    item->split_sum_func2(thd, ref_pointer_array, fields, li.ref(), TRUE);
+    item->split_sum_func2(thd, ref_item_array, fields, li.ref(), TRUE);
 }
 
 

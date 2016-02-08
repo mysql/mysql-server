@@ -452,34 +452,7 @@ private:
   } *in2exists_info;
 
   Item *remove_in2exists_conds(Item* conds);
-
-
-  /**
-    Decide whether to mark the left expression "outer" relative to the subquery
-    if the left expression is not constant, or if the left expression could be
-    a constant NULL and we care about the difference between UNKNOWN and
-    FALSE.
-
-    In the latter case, JOIN::optimize() for the subquery must be prevented
-    from evaluating any triggered condition, as the triggers for such
-    conditions have not yet been properly set by
-    Item_in_optimizer::val_int(). By marking the left expression as outer, a
-    triggered condition using it will not be considered constant, will not be
-    evaluated by JOIN::optimize(); it will only be evaluated by JOIN::exec()
-    which is called from Item_in_optimizer::val_int()
-
-    @param[in] leftexpr The expression to possiby mark as dependant of
-                        outer select
-
-    @returns true if we should mark the left expression "outer" relative to the
-                  subquery
-  */
-  bool mark_as_outer(const Item *leftexpr)
-  {
-    return !leftexpr->const_item() ||
-           (!abort_on_null && leftexpr->maybe_null);
-  }
-
+  bool mark_as_outer(Item *left_row, size_t col);
 public:
   /* Used to trigger on/off conditions that were pushed down to subselect */
   bool *pushed_cond_guards;
@@ -607,7 +580,11 @@ protected:
   Item_subselect *item; /* item, that use this engine */
   enum Item_result res_type; /* type of results */
   enum_field_types res_field_type; /* column type of the results */
-  bool maybe_null; /* may be null (first item in select) */
+  /**
+    True if at least one of the columns returned by the subquery may
+    be null, or if a single-row subquery may return zero rows.
+  */
+  bool maybe_null;
 public:
 
   enum enum_engine_type {ABSTRACT_ENGINE, SINGLE_SELECT_ENGINE,
@@ -650,13 +627,12 @@ public:
   virtual enum Item_result type() const { return res_type; }
   virtual enum_field_types field_type() const { return res_field_type; }
   virtual void exclude()= 0;
-  virtual bool may_be_null() const { return maybe_null; };
+  bool may_be_null() const { return maybe_null; }
   virtual table_map upper_select_const_tables() const = 0;
   static table_map calc_const_tables(TABLE_LIST *);
   virtual void print(String *str, enum_query_type query_type)= 0;
   virtual bool change_query_result(Item_subselect *si,
                                    Query_result_subquery *result)= 0;
-  virtual bool no_tables() const = 0;
   virtual enum_engine_type engine_type() const { return ABSTRACT_ENGINE; }
 #ifndef DBUG_OFF
   /**
@@ -667,7 +643,7 @@ public:
 #endif
 
 protected:
-  void set_row(List<Item> &item_list, Item_cache **row);
+  void set_row(List<Item> &item_list, Item_cache **row, bool never_empty);
 };
 
 
@@ -690,8 +666,6 @@ public:
   virtual void print (String *str, enum_query_type query_type);
   virtual bool change_query_result(Item_subselect *si,
                                    Query_result_subquery *result);
-  virtual bool no_tables() const;
-  virtual bool may_be_null() const;
   virtual enum_engine_type engine_type() const { return SINGLE_SELECT_ENGINE; }
 
   friend class subselect_hash_sj_engine;
@@ -716,7 +690,6 @@ public:
   virtual void print (String *str, enum_query_type query_type);
   virtual bool change_query_result(Item_subselect *si,
                                    Query_result_subquery *result);
-  virtual bool no_tables() const;
   virtual enum_engine_type engine_type() const { return UNION_ENGINE; }
 
 private:
@@ -787,7 +760,6 @@ public:
   virtual table_map upper_select_const_tables() const { return 0; }
   virtual bool change_query_result(Item_subselect *si,
                                    Query_result_subquery *result);
-  virtual bool no_tables() const;
   bool scan_table();
   void copy_ref_key(bool *require_scan, bool *convert_error);
 };

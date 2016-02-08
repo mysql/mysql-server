@@ -181,6 +181,25 @@ buf_load_status(
 	va_end(ap);
 }
 
+/** Returns the directory path where the buffer pool dump file will be created.
+@return directory path */
+static
+const char*
+get_buf_dump_dir()
+{
+	const char*	dump_dir;
+
+	/* The dump file should be created in the default data directory if
+	innodb_data_home_dir is set as an empty string. */
+	if (strcmp(srv_data_home, "") == 0) {
+		dump_dir = fil_path_to_mysql_datadir;
+	} else {
+		dump_dir = srv_data_home;
+	}
+
+	return(dump_dir);
+}
+
 /** Generate the path to the buffer pool dump/load file.
 @param[out]	path		generated path
 @param[in]	path_size	size of 'path', used as in snprintf(3). */
@@ -192,7 +211,7 @@ buf_dump_generate_path(
 {
 	char	buf[FN_REFLEN];
 
-	ut_snprintf(buf, sizeof(buf), "%s%c%s", srv_data_home,
+	ut_snprintf(buf, sizeof(buf), "%s%c%s", get_buf_dump_dir(),
 		    OS_PATH_SEPARATOR, srv_buf_dump_filename);
 
 	os_file_type_t	type;
@@ -214,7 +233,7 @@ buf_dump_generate_path(
 		and append srv_buf_dump_filename to it. */
 		char	srv_data_home_full[FN_REFLEN];
 
-		my_realpath(srv_data_home_full, srv_data_home, 0);
+		my_realpath(srv_data_home_full, get_buf_dump_dir(), 0);
 
 		if (srv_data_home_full[strlen(srv_data_home_full) - 1]
 		    == OS_PATH_SEPARATOR) {
@@ -396,21 +415,22 @@ buf_dump(
 			"Buffer pool(s) dump completed at %s", now);
 }
 
-/*****************************************************************//**
-Artificially delay the buffer pool loading if necessary. The idea of
-this function is to prevent hogging the server with IO and slowing down
-too much normal client queries. */
+/** Artificially delay the buffer pool loading if necessary. The idea of this
+function is to prevent hogging the server with IO and slowing down too much
+normal client queries.
+@param[in,out]	last_check_time		milliseconds since epoch of the last
+					time we did check if throttling is
+					needed, we do the check every
+					srv_io_capacity IO ops.
+@param[in]	last_activity_count	activity count
+@param[in]	n_io			number of IO ops done since buffer
+					pool load has started */
 UNIV_INLINE
 void
 buf_load_throttle_if_needed(
-/*========================*/
-	ulint*	last_check_time,	/*!< in/out: milliseconds since epoch
-					of the last time we did check if
-					throttling is needed, we do the check
-					every srv_io_capacity IO ops. */
+	ulint*	last_check_time,
 	ulint*	last_activity_count,
-	ulint	n_io)			/*!< in: number of IO ops done since
-					buffer pool load has started */
+	ulint	n_io)
 {
 	if (n_io % srv_io_capacity < srv_io_capacity - 1) {
 		return;

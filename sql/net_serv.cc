@@ -73,13 +73,12 @@ using std::max;
 */
 
 #ifdef MYSQL_SERVER
+#include "sql_cache.h" // query_cache_insert
 /*
   The following variables/functions should really not be declared
   extern, but as it's hard to include sql_class.h here, we have to
   live with this for a while.
 */
-extern void query_cache_insert(const char *packet, ulong length,
-                               unsigned pkt_nr);
 extern void thd_increment_bytes_sent(size_t length);
 extern void thd_increment_bytes_received(size_t length);
 
@@ -469,7 +468,8 @@ net_write_buff(NET *net, const uchar *packet, size_t len)
       return net_write_packet(net, packet, len);
     /* Send out rest of the blocks as full sized blocks */
   }
-  memcpy(net->write_pos, packet, len);
+  if (len > 0)
+    memcpy(net->write_pos, packet, len);
   net->write_pos+= len;
   return 0;
 }
@@ -603,7 +603,7 @@ net_write_packet(NET *net, const uchar *packet, size_t length)
   DBUG_ENTER("net_write_packet");
 
 #if defined(MYSQL_SERVER)
-  query_cache_insert((char*) packet, length, net->pkt_nr);
+  query_cache_insert(packet, length, net->pkt_nr);
 #endif
 
   /* Socket can't be used */
@@ -1042,3 +1042,13 @@ void my_net_set_write_timeout(NET *net, uint timeout)
   DBUG_VOID_RETURN;
 }
 
+
+void my_net_set_retry_count(NET *net, uint retry_count)
+{
+  DBUG_ENTER("my_net_set_retry_count");
+  DBUG_PRINT("enter", ("retry_count: %d", retry_count));
+  net->retry_count= retry_count;
+  if (net->vio)
+    net->vio->retry_count= retry_count;
+  DBUG_VOID_RETURN;
+}

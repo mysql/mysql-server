@@ -748,9 +748,10 @@ struct DiffieHellman::DHImpl {
     byte* publicKey_;
     byte* privateKey_;
     byte* agreedKey_;
+    uint  pubKeyLength_;
 
     DHImpl(TaoCrypt::RandomNumberGenerator& r) : ranPool_(r), publicKey_(0),
-                                               privateKey_(0), agreedKey_(0) {}
+                              privateKey_(0), agreedKey_(0), pubKeyLength_(0) {}
     ~DHImpl() 
     {   
         ysArrayDelete(agreedKey_); 
@@ -759,7 +760,7 @@ struct DiffieHellman::DHImpl {
     }
 
     DHImpl(const DHImpl& that) : dh_(that.dh_), ranPool_(that.ranPool_),
-                                 publicKey_(0), privateKey_(0), agreedKey_(0)
+                  publicKey_(0), privateKey_(0), agreedKey_(0), pubKeyLength_(0)
     {
         uint length = dh_.GetByteLength();
         AllocKeys(length, length, length);
@@ -807,7 +808,7 @@ DiffieHellman::DiffieHellman(const byte* p, unsigned int pSz, const byte* g,
     using TaoCrypt::Integer;
 
     pimpl_->dh_.Initialize(Integer(p, pSz).Ref(), Integer(g, gSz).Ref());
-    pimpl_->publicKey_ = NEW_YS opaque[pubSz];
+    pimpl_->publicKey_ = NEW_YS opaque[pimpl_->pubKeyLength_ = pubSz];
     memcpy(pimpl_->publicKey_, pub, pubSz);
 }
 
@@ -866,6 +867,10 @@ const byte* DiffieHellman::get_agreedKey() const
     return pimpl_->agreedKey_;
 }
 
+uint DiffieHellman::get_publicKeyLength() const
+{
+    return pimpl_->pubKeyLength_;
+}
 
 const byte* DiffieHellman::get_publicKey() const
 {

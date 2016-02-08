@@ -1,0 +1,58 @@
+# ==== Purpose ====
+#
+# Verify that Bug#22110284 has been fixed, i.e. that replication from a smaller
+# type to a larger type performs the correct conversion and does not truncate
+# the columns on the slave.
+#
+# ==== Implementation ====
+#
+# 1. Set @@global.SLAVE_TYPE_CONVERSIONS to ALL_NON_LOSSY to allow conversions.
+# 2. Create a table on the master, wait until it has been replicated, drop table
+#    on slave and recreate with a column with greater size.
+# 3. Insert values that would have be truncated on the master and wait for
+#    them to be replicated.
+# 4. Verify that the columns have the same length on the master and slave.
+#
+# ==== References ====
+#
+# Bug#22110284 RBR CONVERSION FROM SMALLER MASTER TYPE TO BIGGER SLAVE TYPE IS BROKEN
+
+source include/have_binlog_format_row.inc;
+source include/master-slave.inc;
+
+--echo # Bug#22110284: RBR CONVERSION FROM SMALLER MASTER TYPE TO BIGGER SLAVE
+--echo # TYPE IS BROKEN
+--echo # Verify that 100kb string is not truncated when replicated to LONGTEXT
+--echo #
+
+--source include/rpl_connection_slave.inc
+SET @saved_global_slave_type_conversions = @@global.SLAVE_TYPE_CONVERSIONS;
+SET @@global.SLAVE_TYPE_CONVERSIONS='ALL_NON_LOSSY';
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (col MEDIUMTEXT);
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+--echo # Drop table on slave and recreate with LONGTEXT
+DROP TABLE t1;
+CREATE TABLE t1 (col LONGTEXT);
+
+--source include/rpl_connection_master.inc
+INSERT INTO t1(col) VALUES (REPEAT('a',65534)), (REPEAT('b',65535)), (REPEAT('c',65536)), (REPEAT('d',100000));
+--let $master_lengths=`SELECT LENGTH(col) FROM t1`
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_connection_slave.inc
+--let $slave_lengths=`SELECT LENGTH(col) FROM t1`
+--let $assert_text= Verify that the column has the same lengths on the slave as on the master
+--let $assert_cond= "$slave_lengths" = "$master_lengths"
+--source include/assert.inc
+
+SET @@global.SLAVE_TYPE_CONVERSIONS = @saved_global_slave_type_conversions;
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+
+source include/rpl_end.inc;
+

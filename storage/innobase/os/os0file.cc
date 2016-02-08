@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -766,19 +766,20 @@ os_file_handle_error_no_exit(
 @param[in,out]	buf		Buffer to transform
 @param[in,out]	scratch		Scratch area for read decompression
 @param[in]	src_len		Length of the buffer before compression
+@param[in]	offset		file offset from the start where to read
 @param[in]	len		Compressed buffer length for write and size
 				of buf len for read
 @return DB_SUCCESS or error code */
 static
 dberr_t
 os_file_io_complete(
-	const IORequest&type,
-	os_file_t	fh,
-	byte*		buf,
-	byte*		scratch,
-	ulint		src_len,
-	ulint		offset,
-	ulint		len);
+	const IORequest&	type,
+	os_file_t		fh,
+	byte*			buf,
+	byte*			scratch,
+	ulint			src_len,
+	ulint			offset,
+	ulint			len);
 
 /** Does simulated AIO. This function should be called by an i/o-handler
 thread.
@@ -918,7 +919,7 @@ private:
 
 /** Helper class for doing synchronous file IO. Currently, the objective
 is to hide the OS specific code, so that the higher level functions aren't
-peppered with #ifdef. Makes the code flow difficult to follow.  */
+peppered with "#ifdef". Makes the code flow difficult to follow.  */
 class SyncFileIO {
 public:
 	/** Constructor
@@ -1153,7 +1154,8 @@ AIO::pending_io_count() const
 }
 
 /** Compress a data page
-#param[in]	block_size	File system block size
+@param[in]	compression	Compression algorithm
+@param[in]	block_size	File system block size
 @param[in]	src		Source contents to compress
 @param[in]	src_len		Length in bytes of the source
 @param[out]	dst		Compressed page contents
@@ -1701,8 +1703,8 @@ os_file_make_data_dir_path(
 
 /** Check if the path refers to the root of a drive using a pointer
 to the last directory separator that the caller has fixed.
-@param[in]	path	path name
-@param[in]	path	last directory separator in the path
+@param[in]	path		path name
+@param[in]	last_slash	last directory separator in the path
 @return true if this path is a drive root, false if not */
 UNIV_INLINE
 bool
@@ -2487,7 +2489,7 @@ into segments. The thread specifies which segment or slot it wants to wait
 for. NOTE: this function will also take care of freeing the aio slot,
 therefore no other thread is allowed to do the freeing!
 
-@param[in]	global_seg	segment number in the aio array
+@param[in]	global_segment	segment number in the aio array
 				to wait for; segment 0 is the ibuf
 				i/o thread, segment 1 is log i/o thread,
 				then follow the non-ibuf read threads,
@@ -2498,7 +2500,7 @@ therefore no other thread is allowed to do the freeing!
 				AIO operation failed, these output
 				parameters are valid and can be used to
 				restart the operation.
-@param[out]xi	 request	IO context
+@param[out]	request		IO context
 @return DB_SUCCESS if the IO was successful */
 static
 dberr_t
@@ -3329,6 +3331,7 @@ os_file_create_simple_no_error_handling_func(
 {
 	os_file_t	file;
 	int		create_flag;
+	const char*	mode_str = NULL;
 
 	ut_a(!(create_mode & OS_FILE_ON_ERROR_SILENT));
 	ut_a(!(create_mode & OS_FILE_ON_ERROR_NO_EXIT));
@@ -3336,6 +3339,8 @@ os_file_create_simple_no_error_handling_func(
 	*success = false;
 
 	if (create_mode == OS_FILE_OPEN) {
+
+		mode_str = "OPEN";
 
 		if (access_type == OS_FILE_READ_ONLY) {
 
@@ -3355,9 +3360,13 @@ os_file_create_simple_no_error_handling_func(
 
 	} else if (read_only) {
 
+		mode_str = "OPEN";
+
 		create_flag = O_RDONLY;
 
 	} else if (create_mode == OS_FILE_CREATE) {
+
+		mode_str = "CREATE";
 
 		create_flag = O_RDWR | O_CREAT | O_EXCL;
 
@@ -3373,6 +3382,17 @@ os_file_create_simple_no_error_handling_func(
 	file = ::open(name, create_flag, os_innodb_umask);
 
 	*success = (file != -1);
+
+	/* This function is always called for data files, we should disable
+	OS caching (O_DIRECT) here as we do in os_file_create_func(). so
+	we open the same file in the same mode, see man page of open(2). */
+	if(!read_only
+	   && *success
+	   && (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT
+	       || srv_unix_file_flush_method == SRV_UNIX_O_DIRECT_NO_FSYNC)) {
+
+		os_file_set_nocache(file, name, mode_str);
+	}
 
 #ifdef USE_FILE_LOCK
 	if (!read_only
@@ -5024,6 +5044,8 @@ os_file_pwrite(
 
 /** Requests a synchronous write operation.
 @param[in]	type		IO flags
+@param[in]	name		name of the file or path as a null-terminated
+				string
 @param[in]	file		handle to an open file
 @param[out]	buf		buffer from which to write
 @param[in]	offset		file offset from the start where to read
@@ -5560,6 +5582,8 @@ os_file_read_no_error_handling_func(
 /** NOTE! Use the corresponding macro os_file_write(), not directly
 Requests a synchronous write operation.
 @param[in]	type		IO flags
+@param[in]	name		name of the file or path as a null-terminated
+				string
 @param[in]	file		handle to an open file
 @param[out]	buf		buffer from which to write
 @param[in]	offset		file offset from the start where to read

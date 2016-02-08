@@ -15,6 +15,7 @@
 
 #include "table_cache.h"
 #include "sql_test.h" // lock_descriptions[]
+#include "template_utils.h"
 
 
 /**
@@ -40,8 +41,9 @@ static const uchar *table_cache_key(const uchar *record,
 }
 
 
-static void table_cache_free_entry(Table_cache_element *element)
+static void table_cache_free_entry(void *arg)
 {
+  Table_cache_element *element= pointer_cast<Table_cache_element*>(arg);
   delete element;
 }
 
@@ -60,8 +62,8 @@ bool Table_cache::init()
   m_table_count= 0;
 
   if (my_hash_init(&m_cache, &my_charset_bin,
-                   table_cache_size_per_instance, 0, 0,
-                   table_cache_key, (my_hash_free_key) table_cache_free_entry,
+                   table_cache_size_per_instance, 0,
+                   table_cache_key, table_cache_free_entry,
                    0,
                    PSI_INSTRUMENT_ME))
   {

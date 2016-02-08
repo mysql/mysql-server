@@ -1,30 +1,31 @@
-############## mysql-test\t\max_tmp_tables_basic.test ###############
-#                                                                             #
-# Variable Name: max_tmp_tables                                               #
-# Scope: GLOBAL | SESSION                                                     #
-# Access Type: Dynamic                                                        #
-# Data Type: numeric                                                          #
-# Default Value: 32                                                           #
-# Range: 1-4294967295                                                         #
-#                                                                             # 
-#                                                                             #
-#                                                                             #
-#                                                                             #
-#                                                                             #
-# Creation Date: 2008-02-07                                                   #
-# Author:  Salman                                                             #
-#                                                                             #
-# Description: Test Cases of Dynamic System Variable max_tmp_tables           #
-#              that checks the behavior of this variable in the following ways#
-#              * Default Value                                                #
-#              * Valid & Invalid values                                       #
-#              * Scope & Access method                                        #
-#              * Data Integrity                                               #
-#                                                                             #
-# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
-#  server-system-variables.html                                               #
-#                                                                             #
-###############################################################################
+##################### mysql-test\t\max_tmp_tables_basic.test ####################
+#                                                                               #
+# Variable Name: max_tmp_tables                                                 #
+# Scope: GLOBAL | SESSION                                                       #
+# Access Type: Dynamic                                                          #
+# Data Type: numeric                                                            #
+# Default Value: 32                                                             #
+# Range: 1 - 4294967295/18446744073709551615                                    #
+#                                                                               #
+#                                                                               #
+# Creation Date: 2008-02-07                                                     #
+# Author:  Salman                                                               #
+#                                                                               #
+# Description: Test Cases of Dynamic System Variable max_tmp_tables             #
+#              that checks the behavior of this variable in the following ways  #
+#              * Default Value                                                  #
+#              * Valid & Invalid values                                         #
+#              * Scope & Access method                                          #
+#              * Data Integrity                                                 #
+#                                                                               #
+# Modified:    Pavan Naik, 2015-11-24                                           #
+#              Added boundary value test cases according to the type of the     #
+#              server binary.                                                   #
+#                                                                               #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                            #
+#            server-system-variables.html                                       #
+#                                                                               #
+#################################################################################
 
 --source include/load_sysvars.inc
 
@@ -87,6 +88,23 @@ SELECT @@global.max_tmp_tables;
 SET @@global.max_tmp_tables = 4294967294;
 SELECT @@global.max_tmp_tables;
 
+# Test cases for 64-bit machines
+if($mach64)
+{
+  --disable_warnings
+  SET @@global.max_tmp_tables = 18446744073709551615;
+  --enable_warnings
+
+  # Bug#11752618 - 64-BIT WINDOWS VARIABLES LIMITED TO DIFFERENT VALUES THAN 64-BIT LINUX/SO
+  let $machine_name = `SELECT CONVERT(@@version_compile_os using latin1) IN ("Win64", "Windows")`;
+
+  if($machine_name)
+  {
+    --replace_result 4294967295 18446744073709551615
+  }
+  SELECT @@global.max_tmp_tables;
+}
+
 --echo '#--------------------FN_DYNVARS_086_04-------------------------#'
 #########################################################################
 # Change the value of max_tmp_tables to a valid value for SESSION Scope #
@@ -107,6 +125,20 @@ SELECT @@session.max_tmp_tables;
 SET @@session.max_tmp_tables = 4294967294;
 SELECT @@session.max_tmp_tables;
 
+# Test cases for 64-bit machines
+if($mach64)
+{
+  --disable_warnings
+  SET @@session.max_tmp_tables = 18446744073709551615;
+  --enable_warnings
+
+  # Bug#11752618 - 64-BIT WINDOWS VARIABLES LIMITED TO DIFFERENT VALUES THAN 64-BIT LINUX/SO
+  if($machine_name)
+  {
+    --replace_result 4294967295 18446744073709551615
+  }
+  SELECT @@session.max_tmp_tables;
+}
 
 --echo '#------------------FN_DYNVARS_086_05-----------------------#'
 ##########################################################
@@ -115,11 +147,7 @@ SELECT @@session.max_tmp_tables;
 
 SET @@global.max_tmp_tables = -1024;
 SELECT @@global.max_tmp_tables;
-SET @@global.max_tmp_tables = 4294967296;
-SELECT @@global.max_tmp_tables;
 SET @@global.max_tmp_tables = -1;
-SELECT @@global.max_tmp_tables;
-SET @@global.max_tmp_tables = 429496729500;
 SELECT @@global.max_tmp_tables;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.max_tmp_tables = 65530.34;
@@ -128,22 +156,47 @@ SELECT @@global.max_tmp_tables;
 SET @@global.max_tmp_tables = test;
 SELECT @@global.max_tmp_tables;
 
-SET @@session.max_tmp_tables = 4294967296;
-SELECT @@session.max_tmp_tables;
+if($mach32)
+{
+  SET @@global.max_tmp_tables = 4294967296;
+  SELECT @@global.max_tmp_tables;
+
+  SET @@global.max_tmp_tables = 42949672950;
+  SELECT @@global.max_tmp_tables;
+}
+
+if($mach64)
+{
+  --error ER_WRONG_TYPE_FOR_VAR
+  SET @@global.max_tmp_tables = 18446744073709551616;
+  SELECT @@global.max_tmp_tables;
+}
+
 SET @@session.max_tmp_tables = -1;
-SELECT @@session.max_tmp_tables;
-SET @@session.max_tmp_tables = 429496729500;
 SELECT @@session.max_tmp_tables;
 SET @@session.max_tmp_tables = -001;
 SELECT @@session.max_tmp_tables;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.max_tmp_tables = 65530.34;
-SET @@session.max_tmp_tables = 10737418241;
-SELECT @@session.max_tmp_tables;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.max_tmp_tables = test;
 SELECT @@session.max_tmp_tables;
 
+if($mach32)
+{
+  SET @@session.max_tmp_tables = 4294967296;
+  SELECT @@session.max_tmp_tables;
+
+  SET @@session.max_tmp_tables = 42949672950;
+  SELECT @@session.max_tmp_tables;
+}
+
+if($mach64)
+{
+  --error ER_WRONG_TYPE_FOR_VAR
+  SET @@session.max_tmp_tables = 18446744073709551616;
+  SELECT @@session.max_tmp_tables;
+}
 
 --echo '#------------------FN_DYNVARS_086_06-----------------------#'
 ####################################################################
@@ -152,7 +205,7 @@ SELECT @@session.max_tmp_tables;
 
 --disable_warnings
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='max_tmp_tables'
 into @tmp;
 --enable_warnings
@@ -166,7 +219,7 @@ SELECT @@global.max_tmp_tables = @tmp;
 
 --disable_warnings
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='max_tmp_tables'
 into @tmp;
 --enable_warnings

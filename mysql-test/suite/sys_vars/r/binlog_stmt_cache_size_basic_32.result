@@ -40,6 +40,12 @@ SELECT @@global.binlog_stmt_cache_size;
 21217280
 'Bug: Invalid values are coming in variable on assigning valid values'
 '#--------------------FN_DYNVARS_006_04-------------------------#'
+SET @@global.binlog_stmt_cache_size = 4095;
+Warnings:
+Warning	1292	Truncated incorrect binlog_stmt_cache_size value: '4095'
+SELECT @@global.binlog_stmt_cache_size;
+@@global.binlog_stmt_cache_size
+4096
 SET @@global.binlog_stmt_cache_size = 1024;
 Warnings:
 Warning	1292	Truncated incorrect binlog_stmt_cache_size value: '1024'
@@ -48,28 +54,43 @@ SELECT @@global.binlog_stmt_cache_size;
 4096
 SET @@global.binlog_stmt_cache_size = 10000.01;
 ERROR 42000: Incorrect argument type to variable 'binlog_stmt_cache_size'
+SET @@global.binlog_stmt_cache_size = 0;
+Warnings:
+Warning	1292	Truncated incorrect binlog_stmt_cache_size value: '0'
+SELECT @@global.binlog_stmt_cache_size;
+@@global.binlog_stmt_cache_size
+4096
 SET @@global.binlog_stmt_cache_size = -1024;
 Warnings:
 Warning	1292	Truncated incorrect binlog_stmt_cache_size value: '-1024'
 SELECT @@global.binlog_stmt_cache_size;
 @@global.binlog_stmt_cache_size
 4096
+'Bug: Errors are not coming on assigning invalid values to variable'
+SET @@global.binlog_stmt_cache_size = ON;
+ERROR 42000: Incorrect argument type to variable 'binlog_stmt_cache_size'
+SET @@global.binlog_stmt_cache_size = 'test';
+ERROR 42000: Incorrect argument type to variable 'binlog_stmt_cache_size'
+SET @@global.binlog_stmt_cache_size = 4294967296;
+Warnings:
+Warning	1292	Truncated incorrect binlog_stmt_cache_size value: '4294967296'
+SELECT @@global.binlog_stmt_cache_size;
+@@global.binlog_stmt_cache_size
+4294963200
 SET @@global.binlog_stmt_cache_size = 42949672950;
 Warnings:
 Warning	1292	Truncated incorrect binlog_stmt_cache_size value: '42949672950'
 SELECT @@global.binlog_stmt_cache_size;
 @@global.binlog_stmt_cache_size
 4294963200
-'Bug: Errors are not coming on assigning invalid values to variable'
-SET @@global.binlog_stmt_cache_size = ON;
-ERROR 42000: Incorrect argument type to variable 'binlog_stmt_cache_size'
-SET @@global.binlog_stmt_cache_size = 'test';
-ERROR 42000: Incorrect argument type to variable 'binlog_stmt_cache_size'
 '#-------------------FN_DYNVARS_006_05----------------------------#'
 SET @@session.binlog_stmt_cache_size = 0;
 ERROR HY000: Variable 'binlog_stmt_cache_size' is a GLOBAL variable and should be set with SET GLOBAL
 '#----------------------FN_DYNVARS_006_06------------------------#'
-SELECT @@global.binlog_stmt_cache_size = VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='binlog_stmt_cache_size';
+SET @@global.binlog_stmt_cache_size = 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect binlog_stmt_cache_size value: '4294967295'
+SELECT @@global.binlog_stmt_cache_size = VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME='binlog_stmt_cache_size';
 @@global.binlog_stmt_cache_size = VARIABLE_VALUE
 1
 '#---------------------FN_DYNVARS_006_07----------------------#'

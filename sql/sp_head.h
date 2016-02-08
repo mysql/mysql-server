@@ -587,10 +587,7 @@ public:
   class Table_trigger_dispatcher *m_trg_list;
 
 public:
-  static void *operator new(size_t size) throw ();
-  static void operator delete(void *ptr, size_t size) throw ();
-
-  ~sp_head();
+  static void destroy(sp_head *sp);
 
   /// Is this routine being executed?
   bool is_invoked() const
@@ -956,7 +953,10 @@ public:
 
 private:
   /// Use sp_start_parsing() to create instances of sp_head.
-  sp_head(enum_sp_type type);
+  sp_head(MEM_ROOT mem_root, enum_sp_type type);
+
+  /// Use destroy() to destoy instances of sp_head.
+  ~sp_head();
 
   /// SP-persistent memory root (for instructions and expressions).
   MEM_ROOT main_mem_root;

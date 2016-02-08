@@ -26,6 +26,7 @@
 #include "myisam.h"
 #include "queues.h"
 #include "typelib.h"
+#include "my_list.h"
 
 C_MODE_START
 

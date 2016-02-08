@@ -32,8 +32,8 @@ Sid_map::Sid_map(Checkable_rwlock *_sid_lock)
     _sidno_to_sid(key_memory_Sid_map_Node), _sorted(key_memory_Sid_map_Node)
 {
   DBUG_ENTER("Sid_map::Sid_map");
-  my_hash_init(&_sid_to_sidno, &my_charset_bin, 20,
-               offsetof(Node, sid.bytes), binary_log::Uuid::BYTE_LENGTH, NULL,
+  my_hash_init(&_sid_to_sidno, &my_charset_bin, 20, 0,
+               sid_map_get_key,
                my_free, 0,
                key_memory_Sid_map_Node);
   DBUG_VOID_RETURN;
@@ -59,9 +59,9 @@ enum_return_status Sid_map::clear()
 {
   DBUG_ENTER("Sid_map::clear");
   my_hash_free(&_sid_to_sidno);
-  my_hash_init(&_sid_to_sidno, &my_charset_bin, 20,
-               offsetof(Node, sid.bytes), binary_log::Uuid::BYTE_LENGTH, NULL,
-               my_free, 0);
+  my_hash_init(&_sid_to_sidno, &my_charset_bin, 20, 0,
+               sid_map_get_key,
+               my_free, 0, PSI_INSTRUMENT_ME);
   _sidno_to_sid.clear();
   _sorted.clear();
   RETURN_OK;

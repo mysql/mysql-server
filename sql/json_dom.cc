@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include "psi_memory_key.h"     // key_memory_JSON
 #include "sql_class.h"          // THD
 #include "sql_const.h"
+#include "sql_parse.h"          // check_stack_overrun
 #include "sql_time.h"
 #include "template_utils.h"     // down_cast, pointer_cast
 
@@ -36,6 +37,14 @@
 #include <memory>               // std::unique_ptr
 
 using namespace rapidjson;
+
+static Json_dom *json_binary_to_dom_template(const json_binary::Value &v);
+static bool populate_object_or_array(const THD *thd, Json_dom *dom,
+                                     const json_binary::Value &v);
+static bool populate_object(const THD *thd, Json_object *jo,
+                            const json_binary::Value &v);
+static bool populate_array(const THD *thd, Json_array *ja,
+                           const json_binary::Value &v);
 
 const char * Json_dom::json_type_string_map[]= {
   "NULL",
@@ -999,72 +1008,56 @@ bjson2json(const json_binary::Value::enum_type bintype)
 }
 
 
-Json_dom *Json_dom::parse(const json_binary::Value &v)
+Json_dom *Json_dom::parse(const THD* thd, const json_binary::Value &v)
 {
-  Json_dom *result= NULL;
+  std::unique_ptr<Json_dom> dom(json_binary_to_dom_template(v));
+  if (dom.get() == NULL || populate_object_or_array(thd, dom.get(), v))
+    return NULL;                              /* purecov: inspected */
+  return dom.release();
+}
 
+
+/// Get string data as std::string from a json_binary::Value.
+static std::string get_string_data(const json_binary::Value &v)
+{
+  return std::string(v.get_data(), v.get_data_length());
+}
+
+
+/**
+  Create a DOM template for the provided json_binary::Value.
+
+  If the binary value represents a scalar, create a Json_dom object
+  that represents the scalar and return a pointer to it.
+
+  If the binary value represents an object or an array, create an
+  empty Json_object or Json_array object and return a pointer to it.
+
+  @param v  the binary value to convert to DOM
+
+  @return a DOM template for the top-level the binary value, or NULL
+  if an error is detected.
+*/
+static Json_dom *json_binary_to_dom_template(const json_binary::Value &v)
+{
   switch (v.type())
   {
   case json_binary::Value::OBJECT:
-    {
-      std::unique_ptr<Json_object> jo(new (std::nothrow) Json_object());
-      if (jo.get() == NULL)
-        return NULL;                            /* purecov: inspected */
-      for (uint32 i= 0; i < v.element_count(); ++i)
-      {
-        /*
-          Add the key/value pair. Json_object::add_alias() guarantees
-          that the value is deallocated if it cannot be added.
-        */
-        if (jo->add_alias(std::string(v.key(i).get_data(),
-                                      v.key(i).get_data_length()),
-                          parse(v.element(i))))
-        {
-          return NULL;                        /* purecov: inspected */
-        }
-      }
-      result= jo.release();
-      break;
-    }
+    return new (std::nothrow) Json_object();
   case json_binary::Value::ARRAY:
-    {
-      std::unique_ptr<Json_array> jarr(new (std::nothrow) Json_array());
-      if (jarr.get() == NULL)
-        return NULL;                          /* purecov: inspected */
-      for (uint32 i= 0; i < v.element_count(); ++i)
-      {
-        /*
-          Add the element to the array. We need to make sure it is
-          deallocated if it cannot be added. std::unique_ptr does that
-          for us.
-        */
-        std::unique_ptr<Json_dom> elt(parse(v.element(i)));
-        if (jarr->append_alias(elt.get()))
-          return NULL;                        /* purecov: inspected */
-        // The array owns the element now. Release it.
-        elt.release();
-      }
-      result= jarr.release();
-      break;
-    }
+    return new (std::nothrow) Json_array();
   case json_binary::Value::DOUBLE:
-    result= new (std::nothrow) Json_double(v.get_double());
-    break;
+    return new (std::nothrow) Json_double(v.get_double());
   case json_binary::Value::INT:
-    result= new (std::nothrow) Json_int(v.get_int64());
-    break;
+    return new (std::nothrow) Json_int(v.get_int64());
   case json_binary::Value::UINT:
-    result= new (std::nothrow) Json_uint(v.get_uint64());
-    break;
+    return new (std::nothrow) Json_uint(v.get_uint64());
   case json_binary::Value::LITERAL_FALSE:
-    result= new (std::nothrow) Json_boolean(false);
-    break;
+    return new (std::nothrow) Json_boolean(false);
   case json_binary::Value::LITERAL_TRUE:
-    result= new (std::nothrow) Json_boolean(true);
-    break;
+    return new (std::nothrow) Json_boolean(true);
   case json_binary::Value::LITERAL_NULL:
-    result= new (std::nothrow) Json_null();
-    break;
+    return new (std::nothrow) Json_null();
   case json_binary::Value::OPAQUE:
     {
       const enum_field_types ftyp= v.field_type();
@@ -1076,41 +1069,126 @@ Json_dom *Json_dom::parse(const json_binary::Value &v)
                                               v.get_data_length(),
                                               &m))
           return NULL;                        /* purecov: inspected */
-        result= new (std::nothrow) Json_decimal(m);
+        return new (std::nothrow) Json_decimal(m);
       }
-      else if (ftyp == MYSQL_TYPE_DATE ||
-               ftyp == MYSQL_TYPE_TIME ||
-               ftyp == MYSQL_TYPE_DATETIME ||
-               ftyp == MYSQL_TYPE_TIMESTAMP)
+
+      if (ftyp == MYSQL_TYPE_DATE ||
+          ftyp == MYSQL_TYPE_TIME ||
+          ftyp == MYSQL_TYPE_DATETIME ||
+          ftyp == MYSQL_TYPE_TIMESTAMP)
       {
         MYSQL_TIME t;
         Json_datetime::from_packed(v.get_data(), ftyp, &t);
-        result= new (std::nothrow) Json_datetime(t, ftyp);
+        return new (std::nothrow) Json_datetime(t, ftyp);
       }
-      else
-      {
-        result= new (std::nothrow) Json_opaque(v.field_type(),
-                                               v.get_data(),
-                                               v.get_data_length());
-      }
-      break;
+
+      return new (std::nothrow) Json_opaque(v.field_type(),
+                                            v.get_data(),
+                                            v.get_data_length());
     }
   case json_binary::Value::STRING:
-    result= new (std::nothrow) Json_string(std::string(v.get_data(),
-                                                       v.get_data_length()));
-    break;
-
+    return new (std::nothrow) Json_string(get_string_data(v));
   case json_binary::Value::ERROR:
-    {
-      /* purecov: begin inspected */
-      DBUG_ABORT();
-      my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
-      break;
-      /* purecov: end inspected */
-    }
+    break;                                    /* purecov: inspected */
   }
 
-  return result;
+  /* purecov: begin inspected */
+  my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
+  return NULL;
+  /* purecov: end */
+}
+
+
+/**
+  Populate the DOM representation of a JSON object or array with the
+  elements found in a binary JSON object or array. If the supplied
+  value does not represent an object or an array, do nothing.
+
+  @param[in]     thd    THD handle
+  @param[in,out] dom    the Json_dom object to populate
+  @param[in]     v      the binary JSON value to read from
+
+  @retval true on error
+  @retval false on success
+*/
+static bool populate_object_or_array(const THD *thd, Json_dom *dom,
+                                     const json_binary::Value &v)
+{
+  switch (v.type())
+  {
+  case json_binary::Value::OBJECT:
+    // Check that we haven't run out of stack before we dive into the object.
+    return check_stack_overrun(thd, STACK_MIN_SIZE, nullptr) ||
+      populate_object(thd, down_cast<Json_object *>(dom), v);
+  case json_binary::Value::ARRAY:
+    // Check that we haven't run out of stack before we dive into the array.
+    return check_stack_overrun(thd, STACK_MIN_SIZE, nullptr) ||
+      populate_array(thd, down_cast<Json_array *>(dom), v);
+  default:
+    return false;
+  }
+}
+
+
+/**
+  Populate the DOM representation of a JSON object with the key/value
+  pairs found in a binary JSON object.
+
+  @param[in]     thd    THD handle
+  @param[in,out] jo     the JSON object to populate
+  @param[in]     v      the binary JSON object to read from
+
+  @retval true on error
+  @retval false on success
+*/
+static bool populate_object(const THD *thd, Json_object *jo,
+                            const json_binary::Value &v)
+{
+  for (uint32 i= 0; i < v.element_count(); i++)
+  {
+    auto key= get_string_data(v.key(i));
+    auto val= v.element(i);
+    auto dom= json_binary_to_dom_template(val);
+    if (jo->add_alias(key, dom) || populate_object_or_array(thd, dom, val))
+    {
+      // No need to delete dom on error, as Json_object does that for us.
+      return true;                            /* purecov: inspected */
+    }
+  }
+  return false;
+}
+
+
+/**
+  Populate the DOM representation of a JSON array with the elements
+  found in a binary JSON array.
+
+  @param[in]     thd    THD handle
+  @param[in,out] ja     the JSON array to populate
+  @param[in]     v      the binary JSON array to read from
+
+  @retval true on error
+  @retval false on success
+*/
+static bool populate_array(const THD *thd, Json_array *ja,
+                           const json_binary::Value &v)
+{
+  for (uint32 i= 0; i < v.element_count(); i++)
+  {
+    auto elt= v.element(i);
+    auto dom= json_binary_to_dom_template(elt);
+    if (ja->append_alias(dom))
+    {
+      // Need to delete dom on error. append_alias() doesn't do it for us.
+      /* purecov: begin inspected */
+      delete dom;
+      return true;
+      /* purecov: end */
+    }
+    if (populate_object_or_array(thd, dom, elt))
+      return true;                            /* purecov: inspected */
+  }
+  return false;
 }
 
 
@@ -1488,21 +1566,6 @@ void Json_array::clear()
 
 
 /**
-  Reserve space in a buffer. In order to avoid frequent reallocations,
-  allocate a new buffer at least as twice as large as the current
-  buffer if there is not enough space.
-
-  @param[in, out] buffer  the buffer in which to reserve space
-  @param[in]      needed  the number of bytes to reserve
-  @return false if successful, true if memory could not be allocated
-*/
-static bool reserve(String *buffer, size_t needed)
-{
-  return buffer->reserve(needed, buffer->alloced_length());
-}
-
-
-/**
   Perform quoting on a JSON string to make an external representation
   of it. it wraps double quotes (text quotes) around the string (cptr)
   an also performs escaping according to the following table:
@@ -1538,7 +1601,7 @@ static bool reserve(String *buffer, size_t needed)
 */
 bool double_quote(const char *cptr, size_t length, String *buf)
 {
-  if (reserve(buf, 2 + length) || buf->append('"'))
+  if (buf->append('"'))
     return true;                              /* purecov: inspected */
 
   for (size_t i= 0; i < length; i++)
@@ -1571,7 +1634,7 @@ bool double_quote(const char *cptr, size_t length, String *buf)
 
     if (done)
     {
-      if (reserve(buf, 2) || buf->append(esc[0]) || buf->append(esc[1]))
+      if (buf->append(esc[0]) || buf->append(esc[1]))
         return true;                          /* purecov: inspected */
     }
     else if (((cptr[i] & ~0x7f) == 0) && // bit 8 not set
@@ -1581,17 +1644,17 @@ bool double_quote(const char *cptr, size_t length, String *buf)
         Unprintable control character, use hex a hexadecimal number.
         The meaning of such a number determined by ISO/IEC 10646.
       */
-      if (reserve(buf, 5) || buf->append("\\u00") ||
+      if (buf->append("\\u00") ||
           buf->append(_dig_vec_lower[(cptr[i] & 0xf0) >> 4]) ||
           buf->append(_dig_vec_lower[(cptr[i] & 0x0f)]))
         return true;                          /* purecov: inspected */
     }
-    else if (reserve(buf, 1) || buf->append(cptr[i]))
+    else if (buf->append(cptr[i]))
     {
       return true;                            /* purecov: inspected */
     }
   }
-  return reserve(buf, 1) || buf->append('"');
+  return buf->append('"');
 }
 
 
@@ -1758,9 +1821,8 @@ Json_wrapper_object_iterator::elt() const
 }
 
 
-Json_wrapper::Json_wrapper(Json_dom *dom_value) :
-  m_is_dom(true), m_dom_alias(false), m_value(),
-  m_id(NULL), m_dom_value(dom_value)
+Json_wrapper::Json_wrapper(Json_dom *dom_value)
+  : m_dom_value(dom_value), m_dom_alias(false), m_is_dom(true)
 {
   if (!dom_value)
   {
@@ -1786,28 +1848,24 @@ void Json_wrapper::steal(Json_wrapper *old)
   }
 }
 
-Json_wrapper::Json_wrapper(const json_binary::Value &value) :
-  m_is_dom(false), m_dom_alias(false), m_value(value),
-  m_id(NULL), m_dom_value(NULL)
+Json_wrapper::Json_wrapper(const json_binary::Value &value)
+  : m_value(value), m_is_dom(false)
 {}
 
 
-Json_wrapper::Json_wrapper(const json_binary::Value &value, const char *id) :
-  m_is_dom(false), m_dom_alias(false), m_value(value),
-  m_id(id), m_dom_value(NULL)
-{}
-
-
-Json_wrapper::Json_wrapper(const Json_wrapper &old) :
-  m_is_dom(old.m_is_dom),
-  m_dom_alias(old.m_dom_alias),
-  m_value(old.m_value),
-  m_id(old.m_id),
-  m_dom_value(old.m_is_dom ?
-              (m_dom_alias? old.m_dom_value : old.m_dom_value->clone()) :
-              NULL),
-  m_tmp(old.m_tmp)
-{}
+Json_wrapper::Json_wrapper(const Json_wrapper &old)
+  : m_is_dom(old.m_is_dom)
+{
+  if (m_is_dom)
+  {
+    m_dom_alias= old.m_dom_alias;
+    m_dom_value= m_dom_alias ? old.m_dom_value : old.m_dom_value->clone();
+  }
+  else
+  {
+    m_value= old.m_value;
+  }
+}
 
 
 Json_wrapper::~Json_wrapper()
@@ -1833,40 +1891,20 @@ Json_wrapper &Json_wrapper::operator=(const Json_wrapper& from)
     delete m_dom_value;
   }
 
-  m_is_dom= from.m_is_dom;
+  // Copy the value into this.
+  new (this) Json_wrapper(from);
 
-  if (from.m_is_dom)
-  {
-    if (from.m_dom_alias)
-    {
-      m_dom_value= from.m_dom_value;
-    }
-    else
-    {
-      m_dom_value= from.m_dom_value->clone();
-    }
-
-    m_dom_alias= from.m_dom_alias;
-  }
-  else
-  {
-    m_dom_value= NULL;
-    m_value= from.m_value;
-    m_id= from.m_id;
-  }
-
-  m_tmp= from.m_tmp;
   return *this;
 }
 
 
-Json_dom *Json_wrapper::to_dom()
+Json_dom *Json_wrapper::to_dom(const THD *thd)
 {
   if (!m_is_dom)
   {
     // Build a DOM from the binary JSON value and
     // convert this wrapper to hold the DOM instead
-    m_dom_value= Json_dom::parse(m_value);
+    m_dom_value= Json_dom::parse(thd, m_value);
     m_is_dom= true;
     m_dom_alias= false;
   }
@@ -1875,33 +1913,31 @@ Json_dom *Json_wrapper::to_dom()
 }
 
 
-Json_dom *Json_wrapper::clone_dom()
+Json_dom *Json_wrapper::clone_dom(const THD *thd)
 {
   // If we already have a DOM, return a clone of it.
   if (m_is_dom)
     return m_dom_value ? m_dom_value->clone() : NULL;
 
   // Otherwise, produce a new DOM tree from the binary representation.
-  return Json_dom::parse(m_value);
+  return Json_dom::parse(thd, m_value);
 }
 
 
-json_binary::Value Json_wrapper::to_value()
+bool Json_wrapper::to_binary(String *str) const
 {
   if (empty())
   {
-    return json_binary::Value();
+    /* purecov: begin inspected */
+    my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
+    return true;
+    /* purecov: end */
   }
 
   if (m_is_dom)
-  {
-    if (json_binary::serialize(m_dom_value, &m_tmp))
-      return json_binary::Value(json_binary::Value::ERROR);
+    return json_binary::serialize(m_dom_value, str);
 
-    return json_binary::parse_binary(m_tmp.ptr(), m_tmp.length());
-  }
-
-  return m_value;
+  return m_value.raw_binary(str);
 }
 
 
@@ -1931,7 +1967,7 @@ static int print_string(String *buffer, bool json_quoted,
 {
   return json_quoted ?
     double_quote(data, length, buffer) :
-    (reserve(buffer, length) || buffer->append(data, length));
+    buffer->append(data, length);
 }
 
 
@@ -1957,7 +1993,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
   case Json_dom::J_TIMESTAMP:
     {
       // Make sure the buffer has space for the datetime and the quotes.
-      if (reserve(buffer, MAX_DATE_STRING_REP_LENGTH + 2))
+      if (buffer->reserve(MAX_DATE_STRING_REP_LENGTH + 2))
         return true;                           /* purecov: inspected */
       MYSQL_TIME t;
       wr.get_datetime(&t);
@@ -1972,39 +2008,29 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     }
   case Json_dom::J_ARRAY:
     {
-      /*
-        Reserve some space up front. We know we need at least 3 bytes
-        per array element (at least one byte for the element, one byte
-        for the comma, and one byte for the space).
-      */
-      size_t array_len= wr.length();
-      if (reserve(buffer, 3 * array_len) || buffer->append('['))
+      if (buffer->append('['))
         return true;                           /* purecov: inspected */
-
+      size_t array_len= wr.length();
       for (uint32 i= 0; i < array_len; ++i)
       {
-        if (i > 0 && (reserve(buffer, 2) || buffer->append(", ")))
+        if (i > 0 && buffer->append(", "))
           return true;                         /* purecov: inspected */
 
         if (wrapper_to_string(wr[i], buffer, true, func_name, depth))
           return true;                         /* purecov: inspected */
       }
-      if (reserve(buffer, 1) || buffer->append(']'))
+      if (buffer->append(']'))
         return true;                           /* purecov: inspected */
       break;
     }
   case Json_dom::J_BOOLEAN:
-    {
-      const char *str= wr.get_boolean() ? "true" : "false";
-      size_t str_len= std::strlen(str);
-      if (reserve(buffer, str_len) || buffer->append(str, str_len))
-        return true;                          /* purecov: inspected */
-      break;
-    }
+    if (buffer->append(wr.get_boolean() ? "true" : "false"))
+      return true;                             /* purecov: inspected */
+    break;
   case Json_dom::J_DECIMAL:
     {
       int length= DECIMAL_MAX_STR_LENGTH + 1;
-      if (reserve(buffer, length))
+      if (buffer->reserve(length))
         return true;                           /* purecov: inspected */
       char *ptr= const_cast<char *>(buffer->ptr()) + buffer->length();
       my_decimal m;
@@ -2016,7 +2042,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     }
   case Json_dom::J_DOUBLE:
     {
-      if (reserve(buffer, MY_GCVT_MAX_FIELD_WIDTH + 1))
+      if (buffer->reserve(MY_GCVT_MAX_FIELD_WIDTH + 1))
         return true;                           /* purecov: inspected */
       double d= wr.get_double();
       size_t len= my_gcvt(d, MY_GCVT_ARG_DOUBLE, MY_GCVT_MAX_FIELD_WIDTH,
@@ -2027,47 +2053,35 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     }
   case Json_dom::J_INT:
     {
-      if (reserve(buffer, MAX_BIGINT_WIDTH + 1) ||
-          buffer->append_longlong(wr.get_int()))
+      if (buffer->append_longlong(wr.get_int()))
         return true;                           /* purecov: inspected */
       break;
     }
   case Json_dom::J_NULL:
-    if (reserve(buffer, 4) || buffer->append("null"))
+    if (buffer->append("null"))
       return true;                             /* purecov: inspected */
     break;
   case Json_dom::J_OBJECT:
     {
-      /*
-        Reserve some space up front to reduce the number of
-        reallocations needed. We know we need at least seven bytes per
-        member in the object. Two bytes for the quotes around the key
-        name, two bytes for the colon and space between the key and
-        the value, one byte for the value, and two bytes for the comma
-        and space between members. We're generous and assume at least
-        one byte in the key name as well, so we reserve eight bytes per
-        member.
-      */
-      if (reserve(buffer, 2 + 8 * wr.length()) || buffer->append('{'))
+      if (buffer->append('{'))
         return true;                           /* purecov: inspected */
       uint32 i= 0;
       for (Json_wrapper_object_iterator iter= wr.object_iterator();
            !iter.empty(); iter.next())
       {
-        if (i++ > 0 && (reserve(buffer, 2) || buffer->append(", ")))
+        if (i++ > 0 && buffer->append(", "))
           return true;                         /* purecov: inspected */
 
         const std::string &key= iter.elt().first;
         const char *key_data= key.c_str();
         size_t key_length= key.length();
-        if (reserve(buffer, key_length + 4) ||
-            print_string(buffer, true, key_data, key_length) ||
-            reserve(buffer, 2) || buffer->append(": ") ||
+        if (print_string(buffer, true, key_data, key_length) ||
+            buffer->append(": ") ||
             wrapper_to_string(iter.elt().second, buffer, true, func_name,
                               depth))
           return true;                         /* purecov: inspected */
       }
-      if (reserve(buffer, 1) || buffer->append('}'))
+      if (buffer->append('}'))
         return true;                           /* purecov: inspected */
       break;
     }
@@ -2086,18 +2100,15 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       const size_t needed=
         static_cast<size_t>(base64_needed_encoded_length(wr.get_data_length()));
 
-      const char *prefix= "base64:type";
-      const size_t prefix_len= std::strlen(prefix);
-      if (reserve(buffer, prefix_len + MAX_INT_WIDTH + 3 + needed) ||
-          single_quote(buffer, json_quoted) ||
-          buffer->append(prefix, prefix_len) ||
+      if (single_quote(buffer, json_quoted) ||
+          buffer->append("base64:type") ||
           buffer->append_ulonglong(wr.field_type()) ||
           buffer->append(':'))
         return true;                           /* purecov: inspected */
 
       // "base64:typeXX:<binary data>"
       size_t pos= buffer->length();
-      if (reserve(buffer, needed) ||
+      if (buffer->reserve(needed) ||
           base64_encode(wr.get_data(), wr.get_data_length(),
                         const_cast<char*>(buffer->ptr() + pos)))
         return true;                           /* purecov: inspected */
@@ -2117,8 +2128,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     }
   case Json_dom::J_UINT:
     {
-      if (reserve(buffer, MAX_BIGINT_WIDTH) ||
-          buffer->append_ulonglong(wr.get_uint()))
+      if (buffer->append_ulonglong(wr.get_uint()))
         return true;                           /* purecov: inspected */
       break;
     }
@@ -2623,7 +2633,7 @@ bool Json_wrapper::seek(const Json_seekable_path &path,
     Materialize the dom if the path contains ellipses. Duplicate
     detection is difficult on binary values.
    */
-  to_dom();
+  to_dom(current_thd);
 
   Json_dom_vector dhits(key_memory_JSON);
   if (m_dom_value->seek(path, &dhits, auto_wrap, only_need_one))
@@ -2671,7 +2681,7 @@ size_t Json_wrapper::length() const
 }
 
 
-size_t Json_wrapper::depth() const
+size_t Json_wrapper::depth(const THD *thd) const
 {
   if (empty())
   {
@@ -2683,7 +2693,7 @@ size_t Json_wrapper::depth() const
     return m_dom_value->depth();
   }
 
-  Json_dom *d= Json_dom::parse(m_value);
+  Json_dom *d= Json_dom::parse(thd, m_value);
   size_t result= d->depth();
   delete d;
   return result;
@@ -3196,28 +3206,24 @@ int Json_wrapper::compare(const Json_wrapper &other) const
   Push a warning about a problem encountered when coercing a JSON
   value to some other data type.
 
-  @param[in] wrapper      the JSON value begin coerced
   @param[in] target_type  the name of the target type of the coercion
   @param[in] error_code   the error code to use for the warning
   @param[in] msgnam       the name of the field/expression being coerced
 */
-static void push_json_coercion_warning(const Json_wrapper *wrapper,
-                                       const char *target_type,
+static void push_json_coercion_warning(const char *target_type,
                                        int error_code,
                                        const char *msgnam)
 {
-  char offending_value_buff[MAX_FIELD_WIDTH];
-  String ov_str(offending_value_buff, sizeof(offending_value_buff),
-                &my_charset_utf8mb4_bin);
-  ov_str.length(0);
-  wrapper->to_string(&ov_str, true, msgnam);
-  ErrConvString err(ov_str.ptr(), ov_str.length());
+  /*
+    One argument is no longer used (the empty string), but kept to avoid
+    changing error message format.
+  */
   push_warning_printf(current_thd,
                       Sql_condition::SL_WARNING,
                       error_code,
                       ER_THD(current_thd, error_code),
                       target_type,
-                      err.ptr(),
+                      "",
                       msgnam,
                       current_thd->get_stmt_da()->current_row_for_condition());
 }
@@ -3250,7 +3256,7 @@ longlong Json_wrapper::coerce_int(const char *msgnam) const
         int code= (error == MY_ERRNO_ERANGE ?
                    ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE :
                    ER_INVALID_JSON_VALUE_FOR_CAST);
-        push_json_coercion_warning(this, "INTEGER", code, msgnam);
+        push_json_coercion_warning("INTEGER", code, msgnam);
       }
 
       return value;
@@ -3289,14 +3295,14 @@ longlong Json_wrapper::coerce_int(const char *msgnam) const
         return (longlong) rint(j);
       }
 
-      push_json_coercion_warning(this, "INTEGER",
+      push_json_coercion_warning("INTEGER",
                                  ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
       return res;
     }
   default:;
   }
 
-  push_json_coercion_warning(this, "INTEGER", ER_INVALID_JSON_VALUE_FOR_CAST,
+  push_json_coercion_warning("INTEGER", ER_INVALID_JSON_VALUE_FOR_CAST,
                              msgnam);
   return 0;
 }
@@ -3334,7 +3340,7 @@ double Json_wrapper::coerce_real(const char *msgnam) const
         int code= (error == EOVERFLOW ?
                    ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE :
                    ER_INVALID_JSON_VALUE_FOR_CAST);
-        push_json_coercion_warning(this, "DOUBLE", code, msgnam);
+        push_json_coercion_warning("DOUBLE", code, msgnam);
       }
       return value;
     }
@@ -3349,7 +3355,7 @@ double Json_wrapper::coerce_real(const char *msgnam) const
   default:;
   }
 
-  push_json_coercion_warning(this, "DOUBLE", ER_INVALID_JSON_VALUE_FOR_CAST,
+  push_json_coercion_warning("DOUBLE", ER_INVALID_JSON_VALUE_FOR_CAST,
                              msgnam);
   return 0.0;
 }
@@ -3377,28 +3383,28 @@ my_decimal
         int code= (err == E_DEC_OVERFLOW ?
                    ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE :
                    ER_INVALID_JSON_VALUE_FOR_CAST);
-        push_json_coercion_warning(this, "DECIMAL", code, msgnam);
+        push_json_coercion_warning("DECIMAL", code, msgnam);
       }
       return decimal_value;
     }
   case Json_dom::J_DOUBLE:
     if (double2my_decimal(E_DEC_FATAL_ERROR, get_double(), decimal_value))
     {
-      push_json_coercion_warning(this, "DECIMAL",
+      push_json_coercion_warning("DECIMAL",
                                  ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
     }
     return decimal_value;
   case Json_dom::J_INT:
     if (longlong2decimal(get_int(), decimal_value))
     {
-      push_json_coercion_warning(this, "DECIMAL",
+      push_json_coercion_warning("DECIMAL",
                                  ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
     }
     return decimal_value;
   case Json_dom::J_UINT:
     if (longlong2decimal(get_uint(), decimal_value))
     {
-      push_json_coercion_warning(this, "DECIMAL",
+      push_json_coercion_warning("DECIMAL",
                                  ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
     }
     return decimal_value;
@@ -3410,7 +3416,7 @@ my_decimal
   default:;
   }
 
-  push_json_coercion_warning(this, "DECIMAL", ER_INVALID_JSON_VALUE_FOR_CAST,
+  push_json_coercion_warning("DECIMAL", ER_INVALID_JSON_VALUE_FOR_CAST,
                              msgnam);
 
   my_decimal_set_zero(decimal_value);
@@ -3447,7 +3453,7 @@ bool Json_wrapper::coerce_time(MYSQL_TIME *ltime,
     get_datetime(ltime);
     return false;
   default:
-    push_json_coercion_warning(this, "DATE/TIME/DATETIME/TIMESTAMP",
+    push_json_coercion_warning("DATE/TIME/DATETIME/TIMESTAMP",
                                ER_INVALID_JSON_VALUE_FOR_CAST, msgnam);
     return true;
   }

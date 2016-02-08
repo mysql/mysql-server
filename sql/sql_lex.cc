@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include "sql_class.h"                 // THD
 #include "sql_parse.h"                 // add_to_list
 #include "parse_tree_helpers.h"
+#include "prealloced_array.h"          // Prealloced_array
 #include "sql_hints.yy.h"
 #include "sql_lex_hints.h"
 #include "sql_yacc.h"
@@ -36,6 +37,8 @@
 #include "sql_table.h"                 // primary_key_name
 #include "sql_insert.h"                // Sql_cmd_insert_base
 #include "lex_token.h"
+
+#include <algorithm>                   // find_if, iter_swap, reverse
 
 
 extern int HINT_PARSER_parse(THD *thd,
@@ -115,75 +118,6 @@ const char *SELECT_LEX::type_str[SLT_total]=
   "UNION RESULT",
   "MATERIALIZED"
 };
-
-
-static bool init_state_maps(CHARSET_INFO *cs)
-{
-  uint i;
-  uchar *ident_map;
-
-  lex_state_maps_st *lex_state_maps=
-    (lex_state_maps_st *) my_once_alloc(sizeof(lex_state_maps_st), MYF(MY_WME));
-
-  if (lex_state_maps == NULL)
-    return true; // OOM
-
-  cs->state_maps= lex_state_maps;
-  my_lex_states *state_map= lex_state_maps->main_map;
-
-  if (!(cs->ident_map= ident_map= (uchar*) my_once_alloc(256, MYF(MY_WME))))
-    return true; // OOM
-
-  hint_lex_init_maps(cs, lex_state_maps->hint_map);
-
-  /* Fill state_map with states to get a faster parser */
-  for (i=0; i < 256 ; i++)
-  {
-    if (my_isalpha(cs,i))
-      state_map[i]= MY_LEX_IDENT;
-    else if (my_isdigit(cs,i))
-      state_map[i]= MY_LEX_NUMBER_IDENT;
-    else if (my_ismb1st(cs, i))
-      /* To get whether it's a possible leading byte for a charset. */
-      state_map[i]= MY_LEX_IDENT;
-    else if (my_isspace(cs,i))
-      state_map[i]= MY_LEX_SKIP;
-    else
-      state_map[i]= MY_LEX_CHAR;
-  }
-  state_map[(uchar)'_']=state_map[(uchar)'$']= MY_LEX_IDENT;
-  state_map[(uchar)'\'']= MY_LEX_STRING;
-  state_map[(uchar)'.']= MY_LEX_REAL_OR_POINT;
-  state_map[(uchar)'>']=state_map[(uchar)'=']=state_map[(uchar)'!']= MY_LEX_CMP_OP;
-  state_map[(uchar)'<']= MY_LEX_LONG_CMP_OP;
-  state_map[(uchar)'&']=state_map[(uchar)'|']= MY_LEX_BOOL;
-  state_map[(uchar)'#']= MY_LEX_COMMENT;
-  state_map[(uchar)';']= MY_LEX_SEMICOLON;
-  state_map[(uchar)':']= MY_LEX_SET_VAR;
-  state_map[0]= MY_LEX_EOL;
-  state_map[(uchar)'\\']= MY_LEX_ESCAPE;
-  state_map[(uchar)'/']= MY_LEX_LONG_COMMENT;
-  state_map[(uchar)'*']= MY_LEX_END_LONG_COMMENT;
-  state_map[(uchar)'@']= MY_LEX_USER_END;
-  state_map[(uchar) '`']= MY_LEX_USER_VARIABLE_DELIMITER;
-  state_map[(uchar)'"']= MY_LEX_STRING_OR_DELIMITER;
-
-  /*
-    Create a second map to make it faster to find identifiers
-  */
-  for (i=0; i < 256 ; i++)
-  {
-    ident_map[i]= (uchar) (state_map[i] == MY_LEX_IDENT ||
-			   state_map[i] == MY_LEX_NUMBER_IDENT);
-  }
-
-  /* Special handling of hex and binary strings */
-  state_map[(uchar)'x']= state_map[(uchar)'X']= MY_LEX_IDENT_OR_HEX;
-  state_map[(uchar)'b']= state_map[(uchar)'B']= MY_LEX_IDENT_OR_BIN;
-  state_map[(uchar)'n']= state_map[(uchar)'N']= MY_LEX_IDENT_OR_NCHAR;
-
-  return false;
-}
 
 
 Table_ident::Table_ident(Protocol *protocol, const LEX_CSTRING &db_arg,
@@ -545,6 +479,7 @@ void LEX::reset()
   name.length= 0;
   event_parse_data= NULL;
   profile_options= PROFILE_NONE;
+  uint_geom_type= 0;
   select_number= 0;
   allow_sum_func= 0;
   in_sum_func= NULL;
@@ -610,7 +545,7 @@ void lex_end(LEX *lex)
   }
   lex->plugins.clear();
 
-  delete lex->sphead;
+  sp_head::destroy(lex->sphead);
   lex->sphead= NULL;
   lex->clear_values_map();
 
@@ -2327,7 +2262,6 @@ SELECT_LEX::SELECT_LEX
   order_list_ptrs(NULL),
   select_limit(NULL),
   offset_limit(NULL),
-  ref_pointer_array(),
   select_n_having_items(0),
   cond_count(0),
   between_count(0),
@@ -2351,6 +2285,7 @@ SELECT_LEX::SELECT_LEX
   first_execution(true),
   sj_pullout_done(false),
   exclude_from_table_unique_test(false),
+  allow_merge_derived(true),
   prev_join_using(NULL),
   select_list_tables(0),
   outer_join(0),
@@ -2535,6 +2470,9 @@ void SELECT_LEX::make_active_options(ulonglong added_options,
 
 void SELECT_LEX::mark_as_dependent(SELECT_LEX *last)
 {
+  // The top level query block cannot be dependent, so do not go above this:
+  DBUG_ASSERT(last != NULL);
+
   /*
     Mark all selects from resolved to 1 before select where was
     found table as depended (of select where was found table)
@@ -2716,7 +2654,7 @@ bool SELECT_LEX::set_braces(bool value)
 }
 
 
-bool SELECT_LEX::setup_ref_array(THD *thd)
+bool SELECT_LEX::setup_base_ref_items(THD *thd)
 {
   uint order_group_num= order_list.elements + group_list.elements;
 
@@ -2733,7 +2671,7 @@ bool SELECT_LEX::setup_ref_array(THD *thd)
     {
       /*
         Same test as in create_distinct_group, when it pushes new items to the
-        end of ref_pointer_array. An extra test for 'fixed' which, at this
+        end of base_ref_items. An extra test for 'fixed' which, at this
         stage, will be true only for columns inserted for a '*' wildcard.
       */
       if (item->fixed &&
@@ -2754,7 +2692,7 @@ bool SELECT_LEX::setup_ref_array(THD *thd)
                        item_list.elements +
                        select_n_having_items +
                        select_n_where_fields +
-                       order_group_num) * 5;
+                       order_group_num);
   DBUG_PRINT("info", ("setup_ref_array this %p %4u : %4u %4u %4u %4u %4u %4u",
                       this,
                       n_elems, // :
@@ -2764,7 +2702,7 @@ bool SELECT_LEX::setup_ref_array(THD *thd)
                       select_n_having_items,
                       select_n_where_fields,
                       order_group_num));
-  if (!ref_pointer_array.is_null())
+  if (!base_ref_items.is_null())
   {
     /*
       We need to take 'n_sum_items' into account when allocating the array,
@@ -2773,20 +2711,20 @@ bool SELECT_LEX::setup_ref_array(THD *thd)
       In the usual case we can reuse the array from the prepare phase.
       If we need a bigger array, we must allocate a new one.
      */
-    if (ref_pointer_array.size() >= n_elems)
+    if (base_ref_items.size() >= n_elems)
       return false;
   }
   /*
-    ref_pointer_array could become bigger when a subquery gets transformed
+    base_ref_items could become bigger when a subquery gets transformed
     into a MIN/MAX subquery. Reallocate array in this case.
   */
   Item **array= static_cast<Item**>(arena->alloc(sizeof(Item*) * n_elems));
-  if (array != NULL)
-  {
-    ref_pointer_array= Ref_ptr_array(array, n_elems);
-    ref_ptrs= ref_ptr_array_slice(0);
-  }
-  return array == NULL;
+  if (array == NULL)
+    return true;
+
+  base_ref_items= Ref_item_array(array, n_elems);
+
+  return false;
 }
 
 
@@ -2916,14 +2854,20 @@ Index_hint::print(THD *thd, String *str)
 }
 
 
-static void print_table_array(THD *thd, String *str, TABLE_LIST **table, 
-                              TABLE_LIST **end, enum_query_type query_type)
-{
-  (*table)->print(thd, str, query_type);
+typedef Prealloced_array<TABLE_LIST *, 8> Table_array;
 
-  for (TABLE_LIST **tbl= table + 1; tbl < end; tbl++)
+
+static void print_table_array(THD *thd, String *str, const Table_array &tables,
+                              enum_query_type query_type)
+{
+  DBUG_ASSERT(!tables.empty());
+
+  Table_array::const_iterator it= tables.begin();
+  (*it)->print(thd, str, query_type);
+
+  while (++it != tables.end())
   {
-    TABLE_LIST *curr= *tbl;
+    TABLE_LIST *curr= *it;
     // Print the join operator which relates this table to the previous one
     if (curr->outer_join)
     {
@@ -2968,52 +2912,52 @@ static void print_join(THD *thd,
 {
   /* List is reversed => we should reverse it before using */
   List_iterator_fast<TABLE_LIST> ti(*tables);
-  TABLE_LIST **table;
-  uint non_const_tables= 0;
+
+  /*
+    If the QT_NO_DATA_EXPANSION flag is specified, we print the
+    original table list, including constant tables that have been
+    optimized away, as the constant tables may be referenced in the
+    expression printed by Item_field::print() when this flag is given.
+    Otherwise, only non-const tables are printed.
+
+    Example:
+
+    Original SQL:
+    select * from (select 1) t
+
+    Printed without QT_NO_DATA_EXPANSION:
+    select '1' AS `1` from dual
+
+    Printed with QT_NO_DATA_EXPANSION:
+    select `t`.`1` from (select 1 AS `1`) `t`
+  */
+  const bool print_const_tables= (query_type & QT_NO_DATA_EXPANSION);
+  Table_array tables_to_print(PSI_NOT_INSTRUMENTED);
 
   for (TABLE_LIST *t= ti++; t ; t= ti++)
-    if (!t->optimized_away)
-      non_const_tables++;
-  if (!non_const_tables)
+    if (print_const_tables || !t->optimized_away)
+      if (tables_to_print.push_back(t))
+        return;                               /* purecov: inspected */
+
+  if (tables_to_print.empty())
   {
     str->append(STRING_WITH_LEN("dual"));
     return; // all tables were optimized away
   }
-  ti.rewind();
 
-  if (!(table= (TABLE_LIST **)thd->alloc(sizeof(TABLE_LIST*) *
-                                                non_const_tables)))
-    return;  // out of memory
-
-  TABLE_LIST *tmp, **t= table + (non_const_tables - 1);
-  while ((tmp= ti++))
-  {
-    if (tmp->optimized_away)
-      continue;
-    *t--= tmp;
-  }
+  std::reverse(tables_to_print.begin(), tables_to_print.end());
 
   /*
     If the first table is a semi-join nest, swap it with something that is
     not a semi-join nest. This is necessary because "A SEMIJOIN B" is not the
     same as "B SEMIJOIN A".
   */
-  if ((*table)->sj_cond())
-  {
-    TABLE_LIST **end= table + non_const_tables;
-    for (TABLE_LIST **t2= table; t2!=end; t2++)
-    {
-      if (!(*t2)->sj_cond())
-      {
-        TABLE_LIST *tmp= *t2;
-        *t2= *table;
-        *table= tmp;
-        break;
-      }
-    }
-  }
-  DBUG_ASSERT(non_const_tables >= 1);
-  print_table_array(thd, str, table, table + non_const_tables, query_type);
+  auto it= std::find_if(tables_to_print.begin(), tables_to_print.end(),
+                        [] (const TABLE_LIST *t) { return !t->sj_cond(); });
+  if (it != tables_to_print.end())
+    std::iter_swap(tables_to_print.begin(), it);
+
+  print_table_array(thd, str, tables_to_print, query_type);
 }
 
 
@@ -3455,7 +3399,7 @@ void LEX::cleanup_lex_after_parse_error(THD *thd)
     //  Do not delete sp_head if is invoked in the context of sp execution.
     if (thd->sp_runtime_ctx == NULL)
     {
-      delete sp;
+      sp_head::destroy(sp);
       thd->lex->sphead= NULL;
     }
   }
@@ -3811,6 +3755,21 @@ void SELECT_LEX_UNIT::include_chain(LEX *lex, SELECT_LEX *outer)
    - A query that modifies variables (When variables are modified, try to
      preserve the original structure of the query. This is less likely to cause
      changes in variable assignment order).
+
+  A view/derived table will also not be merged if it contains subqueries
+  in the SELECT list that depend on columns from itself.
+  Merging such objects is possible, but we assume they are made derived
+  tables because the user wants them to be materialized, for performance
+  reasons.
+
+  One possible case is a derived table with dependent subqueries in the select
+  list, used as the inner table of a left outer join. Such tables will always
+  be read as many times as there are qualifying rows in the outer table,
+  and the select list subqueries are evaluated for each row combination.
+  The select list subqueries are evaluated the same number of times also with
+  join buffering enabled, even though the table then only will be read once.
+
+  When materialization hints are implemented, this decision may be reconsidered.
 */
 
 bool SELECT_LEX_UNIT::is_mergeable() const
@@ -3818,11 +3777,19 @@ bool SELECT_LEX_UNIT::is_mergeable() const
   if (is_union())
     return false;
 
-  return !first_select()->is_grouped() &&
-         !first_select()->having_cond() &&
-         !first_select()->is_distinct() &&
-         first_select()->table_list.elements > 0 &&
-         !first_select()->has_limit() &&
+  SELECT_LEX *const select= first_select();
+  Item *item;
+  List_iterator<Item> it(select->fields_list);
+  while ((item= it++))
+  {
+    if (item->has_subquery() && item->used_tables())
+      return false;
+  }
+  return !select->is_grouped() &&
+         !select->having_cond() &&
+         !select->is_distinct() &&
+         select->table_list.elements > 0 &&
+         !select->has_limit() &&
          thd->lex->set_var_list.elements == 0;
 }
 

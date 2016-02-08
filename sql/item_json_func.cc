@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,19 +17,16 @@
 /* JSON Function items used by mysql */
 
 #include "item_json_func.h"
+#include "current_thd.h"        // current_thd
 #include "derror.h"             // ER_THD
 #include "item_cmpfunc.h"       // Item_func_like
 #include "json_dom.h"
 #include "json_path.h"
 #include "prealloced_array.h"   // Prealloced_array
 #include "psi_memory_key.h"     // key_memory_JSON
-#include "sql_alloc.h"          // Sql_alloc
 #include "sql_class.h"          // THD
 #include "sql_time.h"           // field_type_to_timestamp_type
 #include "template_utils.h"     // down_cast
-
-#include <boost/variant.hpp>                    // boost::variant
-#include <boost/variant/polymorphic_get.hpp>    // boost::polymorphic_get
 
 // Used by the Json_path_cache
 #define JPC_UNINITIALIZED -1
@@ -135,11 +132,13 @@ static bool parse_json(String *res,
 
   if (*dom == NULL && parse_err != NULL)
   {
-    // Report syntax error.
-    std::string value(safep, safe_length);
+    /*
+      Report syntax error. The last argument is no longer used, but kept to
+      avoid changing error message format.
+    */
     my_error(ER_INVALID_JSON_TEXT_IN_PARAM, MYF(0),
              arg_idx + 1, func_name, parse_err, err_offset,
-             value.c_str());
+             "");
     *parse_error= true;
   }
   return *dom == NULL;
@@ -175,10 +174,6 @@ static enum_field_types get_normalized_field_type(Item *arg)
       type will be MYSQL_TYPE_VARCHAR instead of the actual type of
       the parameter. The item type will have the info, so adjust
       field_type to match.
-
-      If arg is a bit-field literal (such as b'1010'), its field type
-      will be MYSQL_TYPE_VARCHAR. Adjust it to MYSQL_TYPE_BIT to match
-      the type of BIT fields.
     */
     switch (arg->type())
     {
@@ -190,8 +185,6 @@ static enum_field_types get_normalized_field_type(Item *arg)
       return MYSQL_TYPE_DOUBLE;
     case Item::DECIMAL_ITEM:
       return MYSQL_TYPE_NEWDECIMAL;
-    case Item::VARBIN_ITEM:
-      return MYSQL_TYPE_BIT;
     default:
       break;
     }
@@ -373,7 +366,11 @@ static bool parse_path(Item * path_expression, String *value,
   size_t bad_idx= 0;
   if (parse_path(false, path_length, path_chars, json_path, &bad_idx))
   {
-    my_error(ER_INVALID_JSON_PATH, MYF(0), bad_idx, path_value->c_ptr_safe());
+    /*
+      Issue an error message. The last argument is no longer used, but kept to
+      avoid changing error message format.
+    */
+    my_error(ER_INVALID_JSON_PATH, MYF(0), bad_idx, "");
     return true;
   }
 
@@ -649,6 +646,7 @@ static bool sort_array(const Json_wrapper &orig, Sorted_index_array *v)
   Check if one Json_wrapper contains all the elements of another
   Json_wrapper.
 
+  @param[in]  thd           THD handle
   @param[in]  doc_wrapper   the containing document
   @param[in]  containee_wr  the possibly contained document
   @param[out] result        true if doc_wrapper contains containee_wr,
@@ -656,7 +654,8 @@ static bool sort_array(const Json_wrapper &orig, Sorted_index_array *v)
   @retval false on success
   @retval true on failure
 */
-static bool contains_wr(const Json_wrapper &doc_wrapper,
+static bool contains_wr(const THD *thd,
+                        const Json_wrapper &doc_wrapper,
                         const Json_wrapper &containee_wr,
                         bool *result)
 {
@@ -684,7 +683,7 @@ static bool contains_wr(const Json_wrapper &doc_wrapper,
       }
 
       // key is the same, now compare values
-      if (contains_wr(d_oi.elt().second, c_oi.elt().second, result))
+      if (contains_wr(thd, d_oi.elt().second, c_oi.elt().second, result))
         return true;                          /* purecov: inspected */
       if (!*result)
       {
@@ -707,7 +706,7 @@ static bool contains_wr(const Json_wrapper &doc_wrapper,
       // auto-wrap scalar or object in an array for uniform treatment later
       Json_wrapper scalar= containee_wr;
       Json_array *array_dom= new (std::nothrow) Json_array();
-      if (!array_dom || array_dom->append_clone(scalar.to_dom()))
+      if (!array_dom || array_dom->append_clone(scalar.to_dom(thd)))
       {
         delete array_dom;                       /* purecov: inspected */
         return true;                            /* purecov: inspected */
@@ -748,7 +747,7 @@ static bool contains_wr(const Json_wrapper &doc_wrapper,
              tmp < d.size() && doc_wrapper[d[tmp]].type() == Json_dom::J_ARRAY;
              tmp++)
         {
-          if (contains_wr(doc_wrapper[d[tmp]], (*wr)[c[c_i]], result))
+          if (contains_wr(thd, doc_wrapper[d[tmp]], (*wr)[c[c_i]], result))
             return true;                      /* purecov: inspected */
           if (*result)
           {
@@ -773,7 +772,7 @@ static bool contains_wr(const Json_wrapper &doc_wrapper,
           if (doc_wrapper[d[tmp]].type() == Json_dom::J_ARRAY ||
               doc_wrapper[d[tmp]].type() == Json_dom::J_OBJECT)
           {
-            if (contains_wr(doc_wrapper[d[tmp]], (*wr)[c[c_i]], result))
+            if (contains_wr(thd, doc_wrapper[d[tmp]], (*wr)[c[c_i]], result))
               return true;                    /* purecov: inspected */
             if (*result)
             {
@@ -861,7 +860,7 @@ longlong Item_func_json_contains::val_int()
       }
 
       bool ret;
-      if (contains_wr(v[0], containee_wr, &ret))
+      if (contains_wr(current_thd, v[0], containee_wr, &ret))
         return error_int();                /* purecov: inspected */
       null_value= false;
       return ret;
@@ -869,7 +868,7 @@ longlong Item_func_json_contains::val_int()
     else
     {
       bool ret;
-      if (contains_wr(doc_wrapper, containee_wr, &ret))
+      if (contains_wr(current_thd, doc_wrapper, containee_wr, &ret))
         return error_int();                /* purecov: inspected */
       null_value= false;
       return ret;
@@ -1244,25 +1243,6 @@ my_decimal *Item_json_func::val_decimal(my_decimal *decimal_value)
 
 
 /**
-  Type that is capable of holding objects of any sub-type of
-  Json_scalar. Used for pre-allocating space in query-duration memory
-  for JSON scalars that are to be returned by get_json_atom_wrapper().
-
-  Note: boost::blank is included in the variant to ensure that it
-  includes a type that is known to be nothrow default-constructible.
-  The presence of such a type avoids heap allocation when assigning a
-  new value to the variant. Look for the "never-empty" guarantee in
-  the Boost documentation for details.
-*/
-struct Json_scalar_holder : public Sql_alloc
-{
-  boost::variant<boost::blank, Json_string, Json_decimal, Json_int, Json_uint,
-                 Json_double, Json_boolean, Json_null, Json_datetime,
-                 Json_opaque> m_val;
-};
-
-
-/**
   Get a JSON value from a function, field or subselect scalar.
 
   @param[in]     arg         the function argument
@@ -1310,7 +1290,7 @@ static bool val_json_func_field_subselect(Item* arg,
       {
         if (scalar)
         {
-          scalar->m_val= Json_uint(i);
+          scalar->emplace<Json_uint>(i);
         }
         else
         {
@@ -1321,7 +1301,7 @@ static bool val_json_func_field_subselect(Item* arg,
       }
       else if (scalar)
       {
-        scalar->m_val= Json_int(i);
+        scalar->emplace<Json_int>(i);
       }
       else
       {
@@ -1347,7 +1327,7 @@ static bool val_json_func_field_subselect(Item* arg,
       t.time_type= field_type_to_timestamp_type(field_type);
       if (scalar)
       {
-        scalar->m_val= Json_datetime(t, field_type);
+        scalar->emplace<Json_datetime>(t, field_type);
       }
       else
       {
@@ -1373,7 +1353,7 @@ static bool val_json_func_field_subselect(Item* arg,
 
       if (scalar)
       {
-        scalar->m_val= Json_decimal(*r);
+        scalar->emplace<Json_decimal>(*r);
       }
       else
       {
@@ -1393,7 +1373,7 @@ static bool val_json_func_field_subselect(Item* arg,
 
       if (scalar)
       {
-        scalar->m_val= Json_double(d);
+        scalar->emplace<Json_double>(d);
       }
       else
       {
@@ -1453,7 +1433,7 @@ static bool val_json_func_field_subselect(Item* arg,
 
       if (scalar)
       {
-        scalar->m_val= Json_opaque(field_type, oo->ptr(), oo->length());
+        scalar->emplace<Json_opaque>(field_type, oo->ptr(), oo->length());
       }
       else
       {
@@ -1485,7 +1465,7 @@ static bool val_json_func_field_subselect(Item* arg,
         // BINARY or similar
         if (scalar)
         {
-          scalar->m_val= Json_opaque(field_type, res->ptr(), res->length());
+          scalar->emplace<Json_opaque>(field_type, res->ptr(), res->length());
         }
         else
         {
@@ -1508,7 +1488,7 @@ static bool val_json_func_field_subselect(Item* arg,
 
         if (scalar)
         {
-          scalar->m_val= Json_string(std::string(s, ss));
+          scalar->emplace<Json_string>(std::string(s, ss));
         }
         else
         {
@@ -1549,10 +1529,9 @@ static bool val_json_func_field_subselect(Item* arg,
 
   // Exactly one of scalar and dom should be used.
   DBUG_ASSERT((scalar == NULL) != (dom == NULL));
-  DBUG_ASSERT((scalar == NULL) ||
-              (get_json_scalar_from_holder(scalar) != NULL));
+  DBUG_ASSERT(scalar == NULL || scalar->get() != NULL);
 
-  Json_wrapper w(scalar ? get_json_scalar_from_holder(scalar) : dom);
+  Json_wrapper w(scalar ? scalar->get() : dom);
   if (scalar)
   {
     /*
@@ -1655,8 +1634,8 @@ bool get_json_atom_wrapper(Item **args,
       Json_dom *boolean_dom;
       if (scalar)
       {
-        scalar->m_val= Json_boolean(boolean_value);
-        boolean_dom= get_json_scalar_from_holder(scalar);
+        scalar->emplace<Json_boolean>(boolean_value);
+        boolean_dom= scalar->get();
       }
       else
       {
@@ -1886,7 +1865,7 @@ longlong Item_func_json_depth::val_int()
     /* purecov: end */
   }
 
-  result= wrapper.depth();
+  result= wrapper.depth(current_thd);
 
   null_value= false;
   return result;
@@ -2019,9 +1998,10 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr)
       Json_array *a= new (std::nothrow) Json_array();
       if (!a)
         return error_json();              /* purecov: inspected */
-      for (Json_wrapper_vector::iterator it= v.begin(); it != v.end(); ++it)
+      const THD *thd= current_thd;
+      for (Json_wrapper &w : v)
       {
-        if (a->append_clone(it->to_dom()))
+        if (a->append_clone(w.to_dom(thd)))
         {
           delete a;                             /* purecov: inspected */
           return error_json();            /* purecov: inspected */
@@ -2093,10 +2073,11 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr)
       return false;
     }
 
+    const THD *thd= current_thd;
     for (uint32 i= 1; i < arg_count; i += 2)
     {
       // Need a DOM to be able to manipulate arrays
-      Json_dom *doc= docw.to_dom();
+      Json_dom *doc= docw.to_dom(thd);
       if (!doc)
         return error_json();              /* purecov: inspected */
 
@@ -2138,7 +2119,7 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr)
         if ((*it)->json_type() == Json_dom::J_ARRAY)
         {
           Json_array *arr= down_cast<Json_array *>(*it);
-          if (arr->append_alias(valuew.to_dom()))
+          if (arr->append_alias(valuew.to_dom(thd)))
             return error_json();   /* purecov: inspected */
           valuew.set_alias(); // we have taken over the DOM
         }
@@ -2147,7 +2128,7 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr)
           Json_array *arr= new (std::nothrow) Json_array();
           if (!arr ||
               arr->append_clone(*it) ||
-              arr->append_alias(valuew.to_dom()))
+              arr->append_alias(valuew.to_dom(thd)))
           {
             delete arr;                         /* purecov: inspected */
             return error_json();          /* purecov: inspected */
@@ -2206,10 +2187,11 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
       return false;
     }
 
+    const THD *thd= current_thd;
     for (uint32 i= 1; i < arg_count; i += 2)
     {
       // Need a DOM to be able to manipulate arrays and objects
-      Json_dom *doc= docw.to_dom();
+      Json_dom *doc= docw.to_dom(thd);
       if (!doc)
         return error_json();              /* purecov: inspected */
 
@@ -2287,7 +2269,8 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
           {
             Json_array *arr= down_cast<Json_array *>(*it);
             DBUG_ASSERT(leg->get_type() == jpl_array_cell);
-            if (arr->insert_clone(leg->get_array_cell_index(), valuew.to_dom()))
+            if (arr->insert_clone(leg->get_array_cell_index(),
+                                  valuew.to_dom(thd)))
               return error_json();        /* purecov: inspected */
           }
           else if (leg->get_array_cell_index() > 0)
@@ -2301,7 +2284,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
             if (!newarr ||
                 newarr->append_clone(a) /* auto-wrap this */ ||
                 newarr->insert_clone(leg->get_array_cell_index(),
-                                     valuew.to_dom()))
+                                     valuew.to_dom(thd)))
             {
               delete newarr;                    /* purecov: inspected */
               return error_json();        /* purecov: inspected */
@@ -2332,7 +2315,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
           Json_object *o= down_cast<Json_object *>(*it);
           const char *ename= leg->get_member_name();
           size_t enames= leg->get_member_name_length();
-          if (o->add_clone(std::string(ename, enames), valuew.to_dom()))
+          if (o->add_clone(std::string(ename, enames), valuew.to_dom(thd)))
             return error_json();          /* purecov: inspected */
         }
       }
@@ -2371,10 +2354,11 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
       return false;
     }
 
+    const THD *thd= current_thd;
     for (uint32 i= 1; i < arg_count; i+= 2)
     {
       // Need a DOM to be able to manipulate arrays and objects
-      Json_dom *doc= docw.to_dom();
+      Json_dom *doc= docw.to_dom(thd);
       if (!doc)
         return error_json();              /* purecov: inspected */
 
@@ -2446,7 +2430,8 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
           // Excellent. Insert the value at that location.
           Json_array *arr= down_cast<Json_array *>(*it);
           DBUG_ASSERT(leg->get_type() == jpl_array_cell);
-          if (arr->insert_clone(leg->get_array_cell_index(), valuew.to_dom()))
+          if (arr->insert_clone(leg->get_array_cell_index(),
+                                valuew.to_dom(thd)))
             return error_json();        /* purecov: inspected */
         }
       }
@@ -2550,10 +2535,11 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
       return false;
     }
 
+    const THD *thd= current_thd;
     for (uint32 i= 1; i < arg_count; i += 2)
     {
       // Need a DOM to be able to manipulate arrays and objects
-      Json_dom *doc= docw.to_dom();
+      Json_dom *doc= docw.to_dom(thd);
       if (!doc)
         return error_json();                    /* purecov: inspected */
 
@@ -2622,7 +2608,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
               Json_array *arr= down_cast<Json_array *>(*it);
               DBUG_ASSERT(leg->get_type() == jpl_array_cell);
               if (arr->insert_clone(leg->get_array_cell_index(),
-                                    valuew.to_dom()))
+                                    valuew.to_dom(thd)))
                 return error_json();            /* purecov: inspected */
             }
             else
@@ -2637,7 +2623,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
 
               if (leg->get_array_cell_index() == 0)
               {
-                res= valuew.clone_dom();
+                res= valuew.clone_dom(thd);
                 if (!res)
                   return error_json();          /* purecov: inspected */
               }
@@ -2651,7 +2637,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
                 if (!newarr ||
                     newarr->append_clone(a) ||
                     newarr->insert_clone(leg->get_array_cell_index(),
-                                         valuew.to_dom()))
+                                         valuew.to_dom(thd)))
                 {
                   delete newarr;                /* purecov: inspected */
                   return error_json();          /* purecov: inspected */
@@ -2687,7 +2673,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
             Json_object *o= down_cast<Json_object *>(*it);
             const char *ename= leg->get_member_name();
             size_t enames= leg->get_member_name_length();
-            if (o->add_clone(std::string(ename, enames), valuew.to_dom()))
+            if (o->add_clone(std::string(ename, enames), valuew.to_dom(thd)))
               return error_json();              /* purecov: inspected */
           }
         } // end of loop through hits
@@ -2703,7 +2689,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
           Json_dom *parent= child->parent();
           if (!parent)
           {
-            Json_dom *dom= valuew.clone_dom();
+            Json_dom *dom= valuew.clone_dom(thd);
             if (!dom)
               return error_json();              /* purecov: inspected */
             Json_wrapper w(dom);
@@ -2711,7 +2697,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
           }
           else
           {
-            Json_dom *dom= valuew.clone_dom();
+            Json_dom *dom= valuew.clone_dom(thd);
             if (!dom)
               return error_json();              /* purecov: inspected */
             parent->replace_dom_in_container(child, dom);
@@ -2748,6 +2734,7 @@ bool Item_func_json_array::val_json(Json_wrapper *wr)
       return error_json();                /* purecov: inspected */
     Json_wrapper docw(arr);
 
+    const THD *thd= current_thd;
     for (uint32 i= 0; i < arg_count; ++i)
     {
       Json_wrapper valuew;
@@ -2758,7 +2745,7 @@ bool Item_func_json_array::val_json(Json_wrapper *wr)
         return error_json();
       }
 
-      if (arr->append_alias(valuew.to_dom()))
+      if (arr->append_alias(valuew.to_dom(thd)))
         return error_json();              /* purecov: inspected */
       valuew.set_alias(); // release the DOM
     }
@@ -2790,6 +2777,7 @@ bool Item_func_json_row_object::val_json(Json_wrapper *wr)
       return error_json();                /* purecov: inspected */
     Json_wrapper docw(object);
 
+    const THD *thd= current_thd;
     for (uint32 i= 0; i < arg_count; ++i)
     {
       /*
@@ -2823,7 +2811,7 @@ bool Item_func_json_row_object::val_json(Json_wrapper *wr)
         return error_json();
       }
 
-      if (object->add_alias(key, valuew.to_dom()))
+      if (object->add_alias(key, valuew.to_dom(thd)))
         return error_json();              /* purecov: inspected */
       valuew.set_alias(); // release the DOM
     }
@@ -3128,7 +3116,7 @@ bool Item_func_json_search::val_json(Json_wrapper *wr)
         */
         if (path->contains_wildcard_or_ellipsis())
         {
-          Json_dom *dom= docw.to_dom();
+          Json_dom *dom= docw.to_dom(current_thd);
           if (!dom)
             return error_json();          /* purecov: inspected */
           Json_dom_vector dom_hits(key_memory_JSON);
@@ -3277,7 +3265,7 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr)
   // good document, good paths. do some work
 
   // no binary support for removal. must convert to a dom.
-  Json_dom *dom= wrapper.to_dom();
+  Json_dom *dom= wrapper.to_dom(current_thd);
 
   // remove elements identified by the paths, one after the other
   Json_dom_vector hits(key_memory_JSON);
@@ -3335,6 +3323,7 @@ bool Item_func_json_merge::val_json(Json_wrapper *wr)
 
   try
   {
+    const THD *thd= current_thd;
     for (uint idx= 0; idx < arg_count; idx++)
     {
       Json_wrapper next_wrapper;
@@ -3354,7 +3343,7 @@ bool Item_func_json_merge::val_json(Json_wrapper *wr)
         Grab the next DOM, release it from its wrapper, and merge it
         into the previous DOM.
       */
-      Json_dom *next_dom= next_wrapper.to_dom();
+      Json_dom *next_dom= next_wrapper.to_dom(thd);
       if (!next_dom)
       {
         delete result_dom;
@@ -3546,22 +3535,4 @@ String *Item_func_json_unquote::val_str(String *str)
 
   null_value= false;
   return str;
-}
-
-
-Json_scalar_holder *create_json_scalar_holder()
-{
-  return new Json_scalar_holder();
-}
-
-
-void delete_json_scalar_holder(Json_scalar_holder *holder)
-{
-  delete holder;
-}
-
-
-Json_scalar *get_json_scalar_from_holder(Json_scalar_holder *holder)
-{
-  return boost::polymorphic_get<Json_scalar>(&holder->m_val);
 }

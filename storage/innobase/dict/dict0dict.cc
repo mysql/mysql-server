@@ -1133,6 +1133,27 @@ dict_table_open_on_id(
 		table->acquire();
 
 		MONITOR_INC(MONITOR_TABLE_REFERENCE);
+	} else if (dict_table_is_sdi(table_id)) {
+
+		/* The table is SDI table */
+		ulint	space_id = dict_sdi_get_space_id(table_id);
+		ulint	copy_num = dict_sdi_get_copy_num(table_id);
+
+		/* Create in-memory table oject for SDI table */
+		dict_index_t*	sdi_index = dict_sdi_create_idx_in_mem(
+			space_id, copy_num, false, 0);
+
+		if (sdi_index == NULL) {
+			if (!dict_locked) {
+				mutex_exit(&dict_sys->mutex);
+			}
+			return(NULL);
+		}
+
+		table = sdi_index->table;
+
+		ut_ad(table != NULL);
+		table->acquire();
 	}
 
 	if (!dict_locked) {
@@ -3130,8 +3151,8 @@ calling this. */
 void
 dict_table_wait_for_bg_threads_to_exit(
 /*===================================*/
-	dict_table_t*	table,	/*< in: table */
-	ulint		delay)	/*< in: time in microseconds to wait between
+	dict_table_t*	table,	/*!< in: table */
+	ulint		delay)	/*!< in: time in microseconds to wait between
 				checks of bg_threads. */
 {
 	fts_t*		fts = table->fts;
@@ -6145,7 +6166,8 @@ dict_index_set_merge_threshold(
 
 #ifdef UNIV_DEBUG
 /** Sets merge_threshold for all indexes in the list of tables
-@param[in]	list	pointer to the list of tables */
+@param[in]	list			pointer to the list of tables
+@param[in]	merge_threshold_all	value to set for all indexes */
 inline
 void
 dict_set_merge_threshold_list_debug(
@@ -6560,20 +6582,23 @@ dict_table_schema_check(
 }
 /* @} */
 
-/*********************************************************************//**
-Converts a database and table name from filesystem encoding
-(e.g. @code d@i1b/a@q1b@1Kc @endcode, same format as used in dict_table_t::name) in two
-strings in UTF8 encoding (e.g. dцb and aюbØc). The output buffers must be
-at least MAX_DB_UTF8_LEN and MAX_TABLE_UTF8_LEN bytes. */
+/** Converts a database and table name from filesystem encoding (e.g.
+"@code d@i1b/a@q1b@1Kc @endcode", same format as used in  dict_table_t::name)
+in two strings in UTF8 encoding (e.g. dцb and aюbØc). The output buffers must
+be at least MAX_DB_UTF8_LEN and MAX_TABLE_UTF8_LEN bytes.
+@param[in]	db_and_table	database and table names,
+				e.g. "@code d@i1b/a@q1b@1Kc @endcode"
+@param[out]	db_utf8		database name, e.g. dцb
+@param[in]	db_utf8_size	dbname_utf8 size
+@param[out]	table_utf8	table name, e.g. aюbØc
+@param[in]	table_utf8_size	table_utf8 size */
 void
 dict_fs2utf8(
-/*=========*/
-	const char*	db_and_table,	/*!< in: database and table names,
-					e.g. @code d@i1b/a@q1b@1Kc @endcode */
-	char*		db_utf8,	/*!< out: database name, e.g. dцb */
-	size_t		db_utf8_size,	/*!< in: dbname_utf8 size */
-	char*		table_utf8,	/*!< out: table name, e.g. aюbØc */
-	size_t		table_utf8_size)/*!< in: table_utf8 size */
+	const char*	db_and_table,
+	char*		db_utf8,
+	size_t		db_utf8_size,
+	char*		table_utf8,
+	size_t		table_utf8_size)
 {
 	char	db[MAX_DATABASE_NAME_LEN + 1];
 	ulint	db_len;
@@ -6897,8 +6922,8 @@ static
 void
 dict_index_zip_pad_update(
 /*======================*/
-	zip_pad_info_t*	info,	/*<! in/out: info to be updated */
-	ulint	zip_threshold)	/*<! in: zip threshold value */
+	zip_pad_info_t*	info,	/*!< in/out: info to be updated */
+	ulint	zip_threshold)	/*!< in: zip threshold value */
 {
 	ulint	total;
 	ulint	fail_pct;
@@ -7714,9 +7739,8 @@ CorruptedIndexPersister::read(
 		return(0);
 	}
 
-	type = mach_read_from_1(buffer);
+	type = *buffer++;
 	++consumed;
-	++buffer;
 
 	if (type != PM_INDEX_CORRUPTED) {
 		*corrupt = true;
@@ -7805,9 +7829,8 @@ AutoIncPersister::read(
 		return(0);
 	}
 
-	type = mach_read_from_1(buffer);
+	type = *buffer++;
 	++consumed;
-	++buffer;
 
 	if (type != PM_TABLE_AUTO_INC) {
 		*corrupt = true;
@@ -7988,5 +8011,101 @@ Persisters::remove(
 	if (iter != m_persisters.end()) {
 		UT_DELETE(iter->second);
 		m_persisters.erase(iter);
+	}
+}
+
+/** Close SDI table.
+@param[in]	table		the in-meory SDI table object */
+UNIV_INLINE
+void
+dict_sdi_close_table(
+	dict_table_t*	table)
+{
+	ut_ad(dict_table_is_sdi(table->id));
+	dict_table_close(table, true, false);
+}
+
+/* TODO: Remove this function after WL#7412. This function is
+use only in IMPORT/EXPORT as of now. */
+
+/** Retrieve in-memory index for SDI table.
+@param[in]	tablespace_id	innodb tablespace id
+@param[in]	copy_num	SDI table copy
+@return dict_index_t structure or NULL*/
+dict_index_t*
+dict_sdi_get_index(
+	ulint	tablespace_id,
+	ulint	copy_num)
+{
+	ut_ad(copy_num < MAX_SDI_COPIES);
+
+	dict_table_t*	table = dict_table_open_on_id(
+		dict_sdi_get_table_id(tablespace_id, copy_num),
+		true,
+		DICT_TABLE_OP_NORMAL);
+
+	if (table != NULL) {
+		dict_sdi_close_table(table);
+		return(dict_table_get_first_index(table));
+	}
+	return(NULL);
+}
+
+/** Retrieve in-memory table object for SDI table.
+@param[in]	tablespace_id	innodb tablespace id
+@param[in]	copy_num	SDI table copy
+@param[in]	dict_locked	true if dict_sys mutex is acquired
+@return dict_table_t structure */
+dict_table_t*
+dict_sdi_get_table(
+	ulint	tablespace_id,
+	ulint	copy_num,
+	bool	dict_locked)
+{
+	ut_ad(copy_num < MAX_SDI_COPIES);
+
+	dict_table_t*	table = dict_table_open_on_id(
+		dict_sdi_get_table_id(tablespace_id, copy_num),
+		dict_locked,
+		DICT_TABLE_OP_NORMAL);
+	return(table);
+}
+
+/* TODO: WL#7141 Check if we can disable the locking on the SDI tables
+altogether. If purge or rollback needs to access the SDI table, it can create
+the SDI table object for the table_id on demand. */
+
+/** Remove the SDI table from table cache.
+@param[in]	space_id	InnoDB tablesapce_id
+@param[in,out]	sdi_tables	Array of sdi table
+@param[in]	dict_locked	true if dict_sys mutex acquired */
+void
+dict_sdi_remove_from_cache(
+	ulint		space_id,
+	dict_table_t**	sdi_tables,
+	bool		dict_locked)
+{
+	if (space_id == SYSTEM_TABLE_SPACE) {
+		return;
+	}
+
+	for (uint32_t	copy_num = 0; copy_num < MAX_SDI_COPIES; ++copy_num) {
+
+		dict_table_t*	sdi_table;
+
+		if (sdi_tables == NULL || sdi_tables[copy_num] ==  NULL) {
+			/* Remove SDI table from table cache for copy 0. */
+			sdi_table = dict_table_open_on_id_low(
+				dict_sdi_get_table_id(space_id, copy_num),
+				DICT_ERR_IGNORE_NONE);
+		} else {
+			dict_table_close(sdi_tables[copy_num], dict_locked,
+					 false);
+			sdi_table = sdi_tables[copy_num];
+		}
+
+		if (sdi_table) {
+			dict_table_remove_from_cache(sdi_table);
+		}
 	}
 }

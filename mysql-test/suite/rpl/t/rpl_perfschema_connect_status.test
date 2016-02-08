@@ -42,6 +42,8 @@ source include/have_binlog_format_mixed.inc;
 --source include/assert.inc
 
 --connection slave
+# Running with show_compatibility_56=ON until WL#9001 is pushed.
+set @@global.show_compatibility_56=ON;
 
 --let $Group_Name= query_get_value(select Group_Name from performance_schema.replication_connection_status, Group_Name, 1)
 --let $assert_text= On slave, the group_name should be set NULL
@@ -377,6 +379,7 @@ source include/assert.inc;
 --echo # after RESET SLAVE.
 --echo
 
+set @@global.show_compatibility_56=OFF;
 RESET SLAVE;
 --let $assert_cond= Received_Transaction_Set = "" FROM performance_schema.replication_connection_status
 --let $assert_text= Received_Transaction_Set should be empty after RESET SLAVE

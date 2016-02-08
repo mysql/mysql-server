@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -56,8 +56,15 @@ typedef struct st_key_cache KEY_CACHE;
 typedef struct st_key_create_information KEY_CREATE_INFO;
 typedef struct st_savepoint SAVEPOINT;
 typedef struct xid_t XID;
-namespace dd { class Table; }
-typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
+
+namespace dd {
+  class  Table;
+  class  Tablespace;
+  typedef struct sdi_key sdi_key_t;
+  typedef struct sdi_vector sdi_vector_t;
+};
+
+typedef my_bool (*qc_engine_callback)(THD *thd, const char *table_key,
                                       uint key_length,
                                       ulonglong *engine_data);
 typedef bool (stat_print_fn)(THD *thd, const char *type, size_t type_len,
@@ -678,12 +685,411 @@ enum enum_schema_tables
 };
 
 enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
+enum ha_notification_type { HA_NOTIFY_PRE_EVENT, HA_NOTIFY_POST_EVENT };
+
+/* handlerton methods */
+
+/**
+  close_connection is only called if
+  thd->ha_data[xxx_hton.slot] is non-zero, so even if you don't need
+  this storage area - set it to something, so that MySQL would know
+  this storage engine was accessed in this connection
+*/
+typedef int  (*close_connection_t)(handlerton *hton, THD *thd);
+
+/** Terminate connection/statement notification. */
+typedef void (*kill_connection_t)(handlerton *hton, THD *thd);
+
+/**
+  Shut down all storage engine background tasks that might access
+  the data dictionary, before the main shutdown.
+*/
+typedef void (*pre_dd_shutdown_t)(handlerton *hton);
+
+/**
+  sv points to a storage area, that was earlier passed
+  to the savepoint_set call
+*/
+typedef int (*savepoint_rollback_t)(handlerton *hton, THD *thd, void *sv);
+
+/**
+  sv points to an uninitialized storage area of requested size
+  (see savepoint_offset description)
+*/
+typedef int (*savepoint_set_t)(handlerton *hton, THD *thd, void *sv);
+
+/**
+  Check if storage engine allows to release metadata locks which were
+  acquired after the savepoint if rollback to savepoint is done.
+  @return true  - If it is safe to release MDL locks.
+          false - If it is not.
+*/
+typedef bool (*savepoint_rollback_can_release_mdl_t)(handlerton *hton, THD *thd);
+
+typedef int (*savepoint_release_t)(handlerton *hton, THD *thd, void *sv);
+
+/**
+  'all' is true if it's a real commit, that makes persistent changes
+  'all' is false if it's not in fact a commit but an end of the
+  statement that is part of the transaction.
+  NOTE 'all' is also false in auto-commit mode where 'end of statement'
+  and 'real commit' mean the same event.
+*/
+typedef int (*commit_t)(handlerton *hton, THD *thd, bool all);
+
+typedef int (*rollback_t)(handlerton *hton, THD *thd, bool all);
+
+typedef int (*prepare_t)(handlerton *hton, THD *thd, bool all);
+
+typedef int (*recover_t)(handlerton *hton, XID *xid_list, uint len);
+
+typedef int (*commit_by_xid_t)(handlerton *hton, XID *xid);
+
+typedef int (*rollback_by_xid_t)(handlerton *hton, XID *xid);
+
+typedef handler *(*create_t)(handlerton *hton, TABLE_SHARE *table, MEM_ROOT *mem_root);
+
+typedef void (*drop_database_t)(handlerton *hton, char* path);
+
+typedef int (*panic_t)(handlerton *hton, enum ha_panic_function flag);
+
+typedef int (*start_consistent_snapshot_t)(handlerton *hton, THD *thd);
+
+/**
+  Flush the log(s) of storage engine(s).
+
+  @param hton Handlerton of storage engine.
+  @param binlog_group_flush true if we got invoked by binlog group
+    commit during flush stage, false in other cases.
+  @retval false Succeed
+  @retval true Error
+*/
+typedef bool (*flush_logs_t)(handlerton *hton, bool binlog_group_flush);
+
+typedef bool (*show_status_t)(handlerton *hton, THD *thd, stat_print_fn *print, enum ha_stat_type stat);
+
+/**
+  The flag values are defined in sql_partition.h.
+  If this function is set, then it implies that the handler supports
+  partitioned tables.
+  If this function exists, then handler::get_partition_handler must also be
+  implemented.
+*/
+typedef uint (*partition_flags_t)();
+
+/**
+  Get the tablespace name from the SE for the given schema and table.
+
+  @param       thd              Thread context.
+  @param       db_name          Name of the relevant schema.
+  @param       table_name       Name of the relevant table.
+  @param [out] tablespace_name  Name of the tablespace containing the table.
+
+  @return Operation status.
+    @retval == 0  Success.
+    @retval != 0  Error (handler error code returned).
+*/
+typedef int (*get_tablespace_t)(THD* thd, LEX_CSTRING db_name, LEX_CSTRING table_name,
+                                LEX_CSTRING *tablespace_name);
+
+typedef int (*alter_tablespace_t)(handlerton *hton, THD *thd, st_alter_tablespace *ts_info);
+
+typedef int (*fill_is_table_t)(handlerton *hton, THD *thd, TABLE_LIST *tables,
+                               class Item *cond,
+                               enum enum_schema_tables);
+
+typedef int (*binlog_func_t)(handlerton *hton, THD *thd, enum_binlog_func fn, void *arg);
+
+typedef void (*binlog_log_query_t)(handlerton *hton, THD *thd,
+                                   enum_binlog_command binlog_command,
+                                   const char *query, uint query_length,
+                                   const char *db, const char *table_name);
+
+typedef int (*release_temporary_latches_t)(handlerton *hton, THD *thd);
+
+typedef int (*discover_t)(handlerton *hton, THD* thd, const char *db,
+                          const char *name,
+                          uchar **frmblob,
+                          size_t *frmlen);
+
+typedef int (*find_files_t)(handlerton *hton, THD *thd,
+                            const char *db,
+                            const char *path,
+                            const char *wild, bool dir, List<LEX_STRING> *files);
+
+typedef int (*table_exists_in_engine_t)(handlerton *hton, THD* thd, const char *db,
+                                        const char *name);
+
+typedef int (*make_pushed_join_t)(handlerton *hton, THD* thd,
+                                  const AQP::Join_plan* plan);
+
+/**
+  List of all system tables specific to the SE.
+  Array element would look like below,
+   { "<database_name>", "<system table name>" },
+  The last element MUST be,
+   { (const char*)NULL, (const char*)NULL }
+
+  @see ha_example_system_tables in ha_example.cc
+
+  This interface is optional, so every SE need not implement it.
+*/
+typedef const char* (*system_database_t)();
+
+/**
+  Check if the given db.tablename is a system table for this SE.
+
+  @param db                         Database name to check.
+  @param table_name                 table name to check.
+  @param is_sql_layer_system_table  if the supplied db.table_name is a SQL
+                                    layer system table.
+
+  @see example_is_supported_system_table in ha_example.cc
+
+  is_sql_layer_system_table is supplied to make more efficient
+  checks possible for SEs that support all SQL layer tables.
+
+  This interface is optional, so every SE need not implement it.
+*/
+typedef bool (*is_supported_system_table_t)(const char *db,
+                                            const char *table_name,
+                                            bool is_sql_layer_system_table);
+
+/**
+  Create SDI in a tablespace. This API should be used when upgrading
+  a tablespace with no SDI or after invoking sdi_drop().
+  @param[in]  tablespace     tablespace object
+  @param[in]  num_of_copies  number of SDI copies
+  @retval     false          success
+  @retval     true           failure
+*/
+typedef bool (*sdi_create_t)(const dd::Tablespace &tablespace,
+                             uint32 num_of_copies);
+
+/**
+  Drop SDI in a tablespace. This API should be used only when
+  SDI is corrupted.
+  @param[in]  tablespace  tablespace object
+  @retval     false       success
+  @retval     true        failure
+*/
+typedef bool (*sdi_drop_t)(const dd::Tablespace &tablespace);
+
+/**
+  Get the SDI keys in a tablespace into vector.
+  @param[in]      tablespace  tablespace object
+  @param[in,out]  vector      vector of SDI Keys
+  @param[in]      copy_num    SDI copy to operate on
+  @retval         false       success
+  @retval         true        failure
+*/
+typedef bool (*sdi_get_keys_t)(const dd::Tablespace &tablespace,
+                               dd::sdi_vector_t &vector,
+                               uint32 copy_num);
+
+/**
+  Retrieve SDI for a given SDI key.
+
+  Since the caller of this api will not know the SDI length, SDI retrieval
+  should be done in the following way.
+
+  i.   Allocate initial memory of some size (Lets say 64KB)
+  ii.  Pass the allocated memory to the below api.
+  iii. If passed buffer is sufficient, sdi_get_by_id() copies the sdi
+       to the buffer passed and returns success, else sdi_len is modified
+       with the actual length of the SDI (and returns false on failure).
+       For genuine errors, sdi_len is returned as UINT64_MAX
+  iv.  If sdi_len != UINT64_MAX, retry the call after allocating the memory
+       of sdi_len
+  v.   Free the memory after using SDI (responsibility of caller)
+
+  @param[in]      tablespace  tablespace object
+  @param[in]      sdi_key     SDI key to uniquely identify SDI obj
+  @param[in,out]  sdi         SDI retrieved from tablespace
+                              A non-null pointer must be passed in
+  @param[in,out]  sdi_len     in: length of the memory allocated
+                              out: actual length of SDI
+  @param[in]      copy_num    SDI copy to operate on
+  @retval         false       success
+  @retval         true        failure
+*/
+typedef bool (*sdi_get_t)(const dd::Tablespace &tablespace,
+                          const dd::sdi_key_t *sdi_key,
+                          void *sdi, uint64 *sdi_len, uint32 copy_num);
+
+/**
+  Insert/Update SDI for a given SDI key.
+  @param[in]  tablespace  tablespace object
+  @param[in]  sdi_key     SDI key to uniquely identify SDI obj
+  @param[in]  sdi         SDI to write into the tablespace
+  @param[in]  sdi_len     length of SDI BLOB returned
+  @retval     false       success
+  @retval     true        failure
+*/
+typedef bool (*sdi_set_t)(const dd::Tablespace &tablespace,
+                          const dd::sdi_key_t *sdi_key,
+                          const void *sdi, uint64 sdi_len);
+
+/**
+  Delete SDI for a given SDI key.
+  @param[in]  tablespace  tablespace object
+  @param[in]  sdi_key     SDI key to uniquely identify SDI obj
+  @retval     false       success
+  @retval     true        failure
+*/
+typedef bool (*sdi_delete_t)(const dd::Tablespace &tablespace,
+                             const dd::sdi_key_t *sdi_key);
+
+/**
+  Flush the SDI copies.
+  @param[in]  tablespace  tablespace object
+  @retval     false       success
+  @retval     true        failure
+*/
+typedef bool (*sdi_flush_t)(const dd::Tablespace &tablespace);
+
+/**
+  Return the number of SDI copies stored in tablespace.
+  @param[in]  tablespace     tablespace object
+  @retval     0              if there are no SDI copies
+  @retval     MAX_SDI_COPIES if the SDI is present
+  @retval     UINT32_MAX     in case of failure
+*/
+typedef uint32 (*sdi_get_num_copies_t)(const dd::Tablespace &tablespace);
+
+/**
+  Check if the DDSE is started in a way that leaves thd DD being read only.
+
+  @retval true    The data dictionary can only be read.
+  @retval false   The data dictionary can be read and written.
+ */
+typedef bool (*is_dict_readonly_t)();
+
+/**
+  Drop all temporary tables which have been left from previous server
+  run belonging to this SE. Used on server start-up.
+
+  @param[in]      hton   Handlerton for storage engine.
+  @param[in]      thd    Thread context.
+  @param[in,out]  files  List of files in directories for temporary files
+                         which match tmp_file_prefix and thus can belong to
+                         temporary tables (but not necessarily in this SE).
+                         It is recommended to remove file from the list if
+                         SE recognizes it as belonging to temporary table
+                         in this SE and deletes it.
+*/
+typedef bool (*rm_tmp_tables_t)(handlerton *hton, THD *thd, List<LEX_STRING> *files);
+
+/**
+  Retrieve cost constants to be used for this storage engine.
+
+  A storage engine that wants to provide its own cost constants to
+  be used in the optimizer cost model, should implement this function.
+  The server will call this function to get a cost constant object
+  that will be used for tables stored in this storage engine instead
+  of using the default cost constants.
+
+  Life cycle for the cost constant object: The storage engine must
+  allocate the cost constant object on the heap. After the function
+  returns, the server takes over the ownership of this object.
+  The server will eventually delete the object by calling delete.
+
+  @note In the initial version the storage_category parameter will
+  not be used. The only valid value this will have is DEFAULT_STORAGE_CLASS
+  (see declaration in opt_costconstants.h).
+
+  @param storage_category the storage type that the cost constants will
+                          be used for
+
+  @return a pointer to the cost constant object, if NULL is returned
+          the default cost constants will be used
+*/
+typedef SE_cost_constants *(*get_cost_constants_t)(uint storage_category);
+
+/**
+  @param[in,out]  thd          pointer to THD
+  @param[in]      new_trx_arg  pointer to replacement transaction
+  @param[out]     ptr_trx_arg  double pointer to being replaced transaction
+
+  Associated with THD engine's native transaction is replaced
+  with @c new_trx_arg. The old value is returned through a buffer if non-null
+  pointer is provided with @c ptr_trx_arg.
+  The method is adapted by XA start and XA prepare handlers to
+  handle XA transaction that is logged as two parts by slave applier.
+
+  This interface concerns engines that are aware of XA transaction.
+*/
+typedef void (*replace_native_transaction_in_thd_t)(THD *thd, void *new_trx_arg,
+                                                    void **ptr_trx_arg);
+
+/**
+  Notify/get permission from storage engine before acquisition or after
+  release of exclusive metadata lock on object represented by key.
+
+  @param thd                Thread context.
+  @param mdl_key            MDL key identifying object on which exclusive
+                            lock is to be acquired/was released.
+  @param notification_type  Indicates whether this is pre-acquire or
+                            post-release notification.
+
+  @note Notification is done only for objects from TABLESPACE, SCHEMA,
+        TABLE, FUNCTION, PROCEDURE, TRIGGER and EVENT namespaces.
+
+  @note Problems during notification are to be reported as warnings, MDL
+        subsystem will report generic error if pre-acquire notification
+        fails/SE refuses lock acquisition.
+  @note Return value is ignored/error is not reported in case of
+        post-release notification.
+
+  @note In some cases post-release notification might happen even if
+        there were no prior pre-acquire notification. For example,
+        when SE was loaded after exclusive lock acquisition, or when
+        we need notify SEs which permitted lock acquisition that it
+        didn't happen because one of SEs didn't allow it (in such case
+        we will do post-release notification for all SEs for simplicity).
+
+  @return False - if notification was successful/lock can be acquired,
+          True - if it has failed/lock should not be acquired.
+*/
+typedef bool (*notify_exclusive_mdl_t)(THD *thd, const MDL_key *mdl_key,
+                                       ha_notification_type notification_type);
+
+/**
+  Notify/get permission from storage engine before or after execution of
+  ALTER TABLE operation on the table identified by the MDL key.
+
+  @param thd                Thread context.
+  @param mdl_key            MDL key identifying table which is going to be
+                            or was ALTERed.
+  @param notification_type  Indicates whether this is pre-ALTER TABLE or
+                            post-ALTER TABLE notification.
+
+  @note This hook is necessary because for ALTER TABLE upgrade to X
+        metadata lock happens fairly late during the execution process,
+        so it can be expensive to abort ALTER TABLE operation at this
+        stage by returning failure from notify_exclusive_mdl() hook.
+
+  @note This hook follows the same error reporting convention as
+        @see notify_exclusive_mdl().
+
+  @note Similarly to notify_exclusive_mdl() in some cases post-ALTER
+        notification might happen even if there were no prior pre-ALTER
+        notification.
+
+  @note Post-ALTER notification can happen before post-release notification
+        for exclusive metadata lock acquired by this ALTER TABLE.
+
+  @return False - if notification was successful/ALTER TABLE can proceed.
+          True - if it has failed/ALTER TABLE should be aborted.
+*/
+typedef bool (*notify_alter_table_t)(THD *thd, const MDL_key *mdl_key,
+                                     ha_notification_type notification_type);
 
 
-/*
+/**
   handlerton is a singleton structure - one instance per storage engine -
   to provide access to storage engine functionality that works on the
-  "global" level (unlike handler class that works on a per-table basis)
+  "global" level (unlike handler class that works on a per-table basis).
 
   usually handlerton instance is defined statically in ha_xxx.cc as
 
@@ -693,182 +1099,93 @@ enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
 */
 struct handlerton
 {
-  /*
-    Historical marker for if the engine is available of not
+  /**
+    Historical marker for if the engine is available or not.
   */
   SHOW_COMP_OPTION state;
 
-  /*
+  /**
     Historical number used for frm file to determine the correct storage engine.
     This is going away and new engines will just use "name" for this.
   */
   enum legacy_db_type db_type;
-  /*
-    each storage engine has it's own memory area (actually a pointer)
+  /**
+    Each storage engine has it's own memory area (actually a pointer)
     in the thd, for storing per-connection information.
     It is accessed as
 
       thd->ha_data[xxx_hton.slot]
 
-   slot number is initialized by MySQL after xxx_init() is called.
+     slot number is initialized by MySQL after xxx_init() is called.
    */
-   uint slot;
-   /*
-     to store per-savepoint data storage engine is provided with an area
-     of a requested size (0 is ok here).
-     savepoint_offset must be initialized statically to the size of
-     the needed memory to store per-savepoint information.
-     After xxx_init it is changed to be an offset to savepoint storage
-     area and need not be used by storage engine.
-     see binlog_hton and binlog_savepoint_set/rollback for an example.
-   */
-   uint savepoint_offset;
-   /*
-     handlerton methods:
-
-     close_connection is only called if
-     thd->ha_data[xxx_hton.slot] is non-zero, so even if you don't need
-     this storage area - set it to something, so that MySQL would know
-     this storage engine was accessed in this connection
-   */
-   int  (*close_connection)(handlerton *hton, THD *thd);
-   /* Terminate connection/statement notification. */
-   void (*kill_connection)(handlerton *hton, THD *thd);
-   /** Shut down all storage engine background tasks that might access
-   the data dictionary, before the main shutdown. */
-   void (*pre_dd_shutdown)(handlerton *hton);
-   /*
-     sv points to an uninitialized storage area of requested size
-     (see savepoint_offset description)
-   */
-   int  (*savepoint_set)(handlerton *hton, THD *thd, void *sv);
-   /*
-     sv points to a storage area, that was earlier passed
-     to the savepoint_set call
-   */
-   int  (*savepoint_rollback)(handlerton *hton, THD *thd, void *sv);
-   /**
-     Check if storage engine allows to release metadata locks which were
-     acquired after the savepoint if rollback to savepoint is done.
-     @return true  - If it is safe to release MDL locks.
-             false - If it is not.
-   */
-   bool (*savepoint_rollback_can_release_mdl)(handlerton *hton, THD *thd);
-   int  (*savepoint_release)(handlerton *hton, THD *thd, void *sv);
-   /*
-     'all' is true if it's a real commit, that makes persistent changes
-     'all' is false if it's not in fact a commit but an end of the
-     statement that is part of the transaction.
-     NOTE 'all' is also false in auto-commit mode where 'end of statement'
-     and 'real commit' mean the same event.
-   */
-   int  (*commit)(handlerton *hton, THD *thd, bool all);
-   int  (*rollback)(handlerton *hton, THD *thd, bool all);
-   int  (*prepare)(handlerton *hton, THD *thd, bool all);
-   int  (*recover)(handlerton *hton, XID *xid_list, uint len);
-   int  (*commit_by_xid)(handlerton *hton, XID *xid);
-   int  (*rollback_by_xid)(handlerton *hton, XID *xid);
-   handler *(*create)(handlerton *hton, TABLE_SHARE *table, MEM_ROOT *mem_root);
-   void (*drop_database)(handlerton *hton, char* path);
-   int (*panic)(handlerton *hton, enum ha_panic_function flag);
-   int (*start_consistent_snapshot)(handlerton *hton, THD *thd);
-   /**
-     Flush the log(s) of storage engine(s).
-
-     @param hton Handlerton of storage engine.
-     @param binlog_group_flush true if we got invoked by binlog group
-     commit during flush stage, false in other cases.
-     @retval false Succeed
-     @retval true Error
-   */
-   bool (*flush_logs)(handlerton *hton, bool binlog_group_flush);
-   bool (*show_status)(handlerton *hton, THD *thd, stat_print_fn *print, enum ha_stat_type stat);
-   /*
-     The flag values are defined in sql_partition.h.
-     If this function is set, then it implies that the handler supports
-     partitioned tables.
-     If this function exists, then handler::get_partition_handler must also be
-     implemented.
-   */
-   uint (*partition_flags)();
-
-
+  uint slot;
   /**
-    Get the tablespace name from the SE for the given schema and table.
-
-    @param       thd              Thread context.
-    @param       db_name          Name of the relevant schema.
-    @param       table_name       Name of the relevant table.
-    @param [out] tablespace_name  Name of the tablespace containing the table.
-
-    @return Operation status.
-      @retval == 0  Success.
-      @retval != 0  Error (handler error code returned).
+    To store per-savepoint data storage engine is provided with an area
+    of a requested size (0 is ok here).
+    savepoint_offset must be initialized statically to the size of
+    the needed memory to store per-savepoint information.
+    After xxx_init it is changed to be an offset to savepoint storage
+    area and need not be used by storage engine.
+    see binlog_hton and binlog_savepoint_set/rollback for an example.
    */
+  uint savepoint_offset;
 
-  int (*get_tablespace)(THD* thd, LEX_CSTRING db_name, LEX_CSTRING table_name,
-                        LEX_CSTRING *tablespace_name);
+  /* handlerton methods */
 
-   int (*alter_tablespace)(handlerton *hton, THD *thd, st_alter_tablespace *ts_info);
-   int (*fill_is_table)(handlerton *hton, THD *thd, TABLE_LIST *tables, 
-                        class Item *cond, 
-                        enum enum_schema_tables);
-   uint32 flags;                                /* global handler flags */
-   /*
-      Those handlerton functions below are properly initialized at handler
-      init.
-   */
-   int (*binlog_func)(handlerton *hton, THD *thd, enum_binlog_func fn, void *arg);
-   void (*binlog_log_query)(handlerton *hton, THD *thd, 
-                            enum_binlog_command binlog_command,
-                            const char *query, uint query_length,
-                            const char *db, const char *table_name);
-   int (*release_temporary_latches)(handlerton *hton, THD *thd);
+  close_connection_t close_connection;
+  kill_connection_t kill_connection;
+  pre_dd_shutdown_t pre_dd_shutdown;
+  savepoint_set_t savepoint_set;
+  savepoint_rollback_t savepoint_rollback;
+  savepoint_rollback_can_release_mdl_t savepoint_rollback_can_release_mdl;
+  savepoint_release_t savepoint_release;
+  commit_t commit;
+  rollback_t rollback;
+  prepare_t prepare;
+  recover_t recover;
+  commit_by_xid_t commit_by_xid;
+  rollback_by_xid_t rollback_by_xid;
+  create_t create;
+  drop_database_t drop_database;
+  panic_t panic;
+  start_consistent_snapshot_t start_consistent_snapshot;
+  flush_logs_t flush_logs;
+  show_status_t show_status;
+  partition_flags_t partition_flags;
+  get_tablespace_t get_tablespace;
+  alter_tablespace_t alter_tablespace;
+  fill_is_table_t fill_is_table;
 
-   int (*discover)(handlerton *hton, THD* thd, const char *db, 
-                   const char *name,
-                   uchar **frmblob, 
-                   size_t *frmlen);
-   int (*find_files)(handlerton *hton, THD *thd,
-                     const char *db,
-                     const char *path,
-                     const char *wild, bool dir, List<LEX_STRING> *files);
-   int (*table_exists_in_engine)(handlerton *hton, THD* thd, const char *db,
-                                 const char *name);
-   int (*make_pushed_join)(handlerton *hton, THD* thd, 
-                           const AQP::Join_plan* plan);
+  /** Global handler flags. */
+  uint32 flags;
 
-  /**
-    List of all system tables specific to the SE.
-    Array element would look like below,
-     { "<database_name>", "<system table name>" },
-    The last element MUST be,
-     { (const char*)NULL, (const char*)NULL }
-
-    @see ha_example_system_tables in ha_example.cc
-
-    This interface is optional, so every SE need not implement it.
+  /*
+    Those handlerton functions below are properly initialized at handler
+    init.
   */
-  const char* (*system_database)();
 
-  /**
-    Check if the given db.tablename is a system table for this SE.
+  binlog_func_t binlog_func;
+  binlog_log_query_t binlog_log_query;
+  release_temporary_latches_t release_temporary_latches;
+  discover_t discover;
+  find_files_t find_files;
+  table_exists_in_engine_t table_exists_in_engine;
+  make_pushed_join_t make_pushed_join;
+  system_database_t system_database;
+  is_supported_system_table_t is_supported_system_table;
 
-    @param db                         Database name to check.
-    @param table_name                 table name to check.
-    @param is_sql_layer_system_table  if the supplied db.table_name is a SQL
-                                      layer system table.
-
-    @see example_is_supported_system_table in ha_example.cc
-
-    is_sql_layer_system_table is supplied to make more efficient
-    checks possible for SEs that support all SQL layer tables.
-
-    This interface is optional, so every SE need not implement it.
+  /*
+    APIs for retrieving Serialized Dictionary Information by tablespace id
   */
-  bool (*is_supported_system_table)(const char *db,
-                                    const char *table_name,
-                                    bool is_sql_layer_system_table);
+
+  sdi_create_t sdi_create;
+  sdi_drop_t sdi_drop;
+  sdi_get_keys_t sdi_get_keys;
+  sdi_get_t sdi_get;
+  sdi_set_t sdi_set;
+  sdi_delete_t sdi_delete;
+  sdi_flush_t sdi_flush;
+  sdi_get_num_copies_t sdi_get_num_copies;
 
   /**
     Null-ended array of file extentions that exist for the storage engine.
@@ -891,74 +1208,17 @@ struct handlerton
   */
   const char **file_extensions;
 
-  /**
-    Check if the DDSE is started in a way that leaves thd DD being read only.
+  is_dict_readonly_t is_dict_readonly;
+  rm_tmp_tables_t rm_tmp_tables;
+  get_cost_constants_t get_cost_constants;
+  replace_native_transaction_in_thd_t replace_native_transaction_in_thd;
+  notify_exclusive_mdl_t notify_exclusive_mdl;
+  notify_alter_table_t notify_alter_table;
 
-    @retval true    The data dictionary can only be read.
-    @retval false   The data dictionary can be read and written.
-   */
-  bool (*is_dict_readonly)();
-
-  /**
-    Drop all temporary tables which have been left from previous server
-    run belonging to this SE. Used on server start-up.
-
-    @param[in]      hton   Handlerton for storage engine.
-    @param[in]      thd    Thread context.
-    @param[in/out]  files  List of files in directories for temporary files
-                           which match tmp_file_prefix and thus can belong to
-                           temporary tables (but not necessarily in this SE).
-                           It is recommended to remove file from the list if
-                           SE recognizes it as belonging to temporary table
-                           in this SE and deletes it.
-  */
-  bool (*rm_tmp_tables)(handlerton *hton, THD *thd, List<LEX_STRING> *files);
-
-  /**
-    Retrieve cost constants to be used for this storage engine.
-
-    A storage engine that wants to provide its own cost constants to
-    be used in the optimizer cost model, should implement this function.
-    The server will call this function to get a cost constant object
-    that will be used for tables stored in this storage engine instead
-    of using the default cost constants.
-
-    Life cycle for the cost constant object: The storage engine must
-    allocate the cost constant object on the heap. After the function
-    returns, the server takes over the ownership of this object.
-    The server will eventually delete the object by calling delete.
-
-    @note In the initial version the storage_category parameter will
-    not be used. The only valid value this will have is DEFAULT_STORAGE_CLASS
-    (see declartion in opt_costconstants.h).
-
-    @param storage_category the storage type that the cost constants will
-                            be used for
-
-    @return a pointer to the cost constant object, if NULL is returned
-            the default cost constants will be used
-  */
-
-  SE_cost_constants *(*get_cost_constants)(uint storage_category);
-
-  /**
-    @param[in,out]  thd          pointer to THD
-    @param[in]      new_trx_arg  pointer to replacement transaction
-    @param[out]     ptr_trx_arg  double pointer to being replaced transaction
-
-    Associated with THD engine's native transaction is replaced
-    with @c new_trx_arg. The old value is returned through a buffer if non-null
-    pointer is provided with @c ptr_trx_arg.
-    The method is adapted by XA start and XA prepare handlers to
-    handle XA transaction that is logged as two parts by slave applier.
-
-    This interface concerns engines that are aware of XA transaction.
-  */
-  void (*replace_native_transaction_in_thd)(THD *thd, void *new_trx_arg,
-                                            void **ptr_trx_arg);
-
-   uint32 license; /* Flag for Engine License */
-   void *data; /* Location for engines to keep personal structures */
+  /** Flag for Engine License. */
+  uint32 license;
+  /** Location for engines to keep personal structures. */
+  void *data;
 };
 
 
@@ -1012,6 +1272,10 @@ enum enum_stats_auto_recalc { HA_STATS_AUTO_RECALC_DEFAULT= 0,
 /* struct to hold information about the table that should be created */
 typedef struct st_ha_create_information
 {
+  st_ha_create_information()
+  {
+    memset(this, 0, sizeof(*this));
+  }
   const CHARSET_INFO *table_charset, *default_table_charset;
   LEX_STRING connect_string;
   const char *password, *tablespace;
@@ -2698,34 +2962,32 @@ protected:
     return  index_read(buf, key, key_len, find_flag);
   }
   /**
-     @brief
-     Positions an index cursor to the index specified in argument. Fetches
-     the row if available. If the key value is null, begin at the first key of
-     the index.
-     @returns @see index_read_map().
+    Positions an index cursor to the index specified in argument. Fetches
+    the row if available. If the key value is null, begin at the first key of
+    the index.
+    @sa index_read_map()
   */
   virtual int index_read_idx_map(uchar * buf, uint index, const uchar * key,
                                  key_part_map keypart_map,
                                  enum ha_rkey_function find_flag);
-  /// @returns @see index_read_map().
+  /// @see index_read_map().
   virtual int index_next(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
-  /// @returns @see index_read_map().
+  /// @see index_read_map().
   virtual int index_prev(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
-  /// @returns @see index_read_map().
+  /// @see index_read_map().
   virtual int index_first(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
-  /// @returns @see index_read_map().
+  /// @see index_read_map().
   virtual int index_last(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
-  /// @returns @see index_read_map().
+  /// @see index_read_map().
   virtual int index_next_same(uchar *buf, const uchar *key, uint keylen);
   /**
-     @brief
-     The following functions works like index_read, but it find the last
-     row with the current key value or prefix.
-     @returns @see index_read_map().
+    The following functions works like index_read, but it find the last
+    row with the current key value or prefix.
+    @see index_read_map().
   */
   virtual int index_read_last_map(uchar * buf, const uchar * key,
                                   key_part_map keypart_map)
@@ -2762,9 +3024,9 @@ public:
   }
   virtual int ft_read(uchar *buf) { return HA_ERR_WRONG_COMMAND; }
 protected:
-  /// @returns @see index_read_map().
+  /// @see index_read_map().
   virtual int rnd_next(uchar *buf)=0;
-  /// @returns @see index_read_map().
+  /// @see index_read_map().
   virtual int rnd_pos(uchar * buf, uchar *pos)=0;
 public:
   /**
@@ -3062,7 +3324,7 @@ public:
  */
 
  virtual bool primary_key_is_clustered() const { return false; }
- virtual int cmp_ref(const uchar *ref1, const uchar *ref2)
+ virtual int cmp_ref(const uchar *ref1, const uchar *ref2) const
  {
    return memcmp(ref1, ref2, ref_length);
  }
@@ -3692,10 +3954,29 @@ public:
                                              const char *table_name,
                                              const MY_BITMAP *const fields,
                                              uchar *record);
-  static bool my_eval_gcolumn_expr(THD *thd,
-                                   const char *db_name,
-                                   const char *table_name,
-                                   const MY_BITMAP *const fields,
+
+  /**
+    Callback for computing generated column values.
+
+    Storage engines that need to have virtual column values for a row
+    can use this function to get the values computed. The storage
+    engine must have filled in the values for the base columns that
+    the virtual columns depend on.
+
+    @param         thd    thread handle
+    @param         table  table object
+    @param         fields bitmap of field index of evaluated generated
+                          column
+    @param[in,out] record buff of base columns generated column depends.
+                          After calling this function, it will be
+                          used to return the value of the generated
+                          columns.
+
+    @retval true in case of error
+    @retval false on success
+  */
+  static bool my_eval_gcolumn_expr(THD *thd, TABLE *table,
+				   const MY_BITMAP *const fields,
                                    uchar *record);
 
   /* This must be implemented if the handlerton's partition_flags() is set. */
@@ -3999,4 +4280,10 @@ void print_keydup_error(TABLE *table, KEY *key, myf errflag);
 
 void ha_set_normalized_disabled_se_str(const std::string &disabled_se_str);
 bool ha_is_storage_engine_disabled(handlerton *se_engine);
+
+bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
+                             ha_notification_type notification_type);
+bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
+                           ha_notification_type notification_type);
+
 #endif /* HANDLER_INCLUDED */

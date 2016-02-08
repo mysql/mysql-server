@@ -654,9 +654,9 @@ GRANT_TABLE::GRANT_TABLE(const char *h, const char *d,const char *u,
                          const char *t, ulong p, ulong c)
   :GRANT_NAME(h,d,u,t,p, FALSE), cols(c)
 {
-  (void) _my_hash_init(&hash_columns,4,system_charset_info,
-                       0,0,0, get_key_column,0,0,
-                       key_memory_acl_memex);
+  (void) my_hash_init(&hash_columns,system_charset_info,
+                      0, 0, get_key_column, nullptr, 0,
+                      key_memory_acl_memex);
 }
 
 
@@ -702,9 +702,9 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form)
   cols= (ulong) form->field[7]->val_int();
   cols =  fix_rights_for_column(cols);
 
-  (void) _my_hash_init(&hash_columns,4,system_charset_info,
-                       0,0,0, get_key_column,0,0,
-                       key_memory_acl_memex);
+  (void) my_hash_init(&hash_columns,system_charset_info,
+                      0, 0, get_key_column, nullptr, 0,
+                      key_memory_acl_memex);
 }
 
 
@@ -890,8 +890,11 @@ bool is_acl_user(const char *host, const char *user)
   Validate if a user can proxy as another user
 
   @param user              the logged in user (proxy user)
+  @param host              the hostname part of the logged in userid
+  @param ip                the ip of the logged in userid
   @param authenticated_as  the effective user a plugin is trying to 
                            impersonate as (proxied user)
+  @param [out] proxy_used  True if a proxy is found
   @return                  proxy user definition
     @retval NULL           proxy user definition not found or not applicable
     @retval non-null       the proxy user data
@@ -1087,8 +1090,8 @@ static void init_check_host(void)
   size_t acl_users_size= acl_users ? acl_users->size() : 0;
 
   (void) my_hash_init(&acl_check_hosts,system_charset_info,
-                      acl_users_size, 0, 0,
-                      check_get_key, 0, 0,
+                      acl_users_size, 0,
+                      check_get_key, nullptr, 0,
                       key_memory_acl_mem);
   if (acl_users_size && !allow_all_hosts)
   {
@@ -1380,9 +1383,9 @@ my_bool acl_init(bool dont_read_acl_tables)
   DBUG_ENTER("acl_init");
 
   acl_cache= new hash_filo(key_memory_acl_cache,
-                           ACL_CACHE_SIZE, 0, 0,
+                           ACL_CACHE_SIZE, 0,
                            acl_entry_get_key,
-                           (my_hash_free_key) my_free,
+                           my_free,
                            &my_charset_utf8_bin);
 
   LOCK_grant.init(LOCK_GRANT_PARTITIONS
@@ -2212,8 +2215,9 @@ void acl_insert_proxy_user(ACL_PROXY_USER *new_value)
 }
 
 
-static void free_grant_table(GRANT_TABLE *grant_table)
+static void free_grant_table(void *arg)
 {
+  GRANT_TABLE *grant_table= pointer_cast<GRANT_TABLE*>(arg);
   my_hash_free(&grant_table->hash_columns);
 }
 
@@ -2337,11 +2341,11 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
   MEM_ROOT **save_mem_root_ptr= my_thread_get_THR_MALLOC();
   DBUG_ENTER("grant_load_procs_priv");
   (void) my_hash_init(&proc_priv_hash, &my_charset_utf8_bin,
-                      0,0,0, get_grant_table,
-                      0, 0, key_memory_acl_memex);
+                      0, 0, get_grant_table,
+                      nullptr, 0, key_memory_acl_memex);
   (void) my_hash_init(&func_priv_hash, &my_charset_utf8_bin,
-                      0,0,0, get_grant_table,
-                      0, 0, key_memory_acl_memex);
+                      0, 0, get_grant_table,
+                      nullptr, 0, key_memory_acl_memex);
   error= p_table->file->ha_index_init(0, 1);
   DBUG_EXECUTE_IF("wl7158_grant_load_proc_1",
                   p_table->file->ha_index_end();
@@ -2473,8 +2477,9 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
   thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
 
   (void) my_hash_init(&column_priv_hash, &my_charset_utf8_bin,
-                      0,0,0, get_grant_table,
-                      (my_hash_free_key) free_grant_table,0,
+                      0, 0,
+                      get_grant_table,
+                      free_grant_table, 0,
                       key_memory_acl_memex);
 
   t_table = tables[0].table;

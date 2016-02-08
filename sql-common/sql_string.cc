@@ -119,7 +119,8 @@ bool String::mem_realloc(size_t alloc_length, bool force_on_heap)
     {
       if (m_length > len - 1)
         m_length= 0;
-      memcpy(new_ptr, m_ptr, m_length);
+      if (m_length > 0)
+        memcpy(new_ptr, m_ptr, m_length);
       new_ptr[m_length]= 0;
       m_is_alloced= true;
     }
@@ -887,7 +888,7 @@ int stringcmp(const String *s,const String *t)
   size_t s_len= s->length();
   size_t t_len= t->length();
   size_t len= min(s_len, t_len);
-  int cmp= memcmp(s->ptr(), t->ptr(), len);
+  int cmp= (len == 0) ? 0 : memcmp(s->ptr(), t->ptr(), len);
   return (cmp) ? cmp : static_cast<int>(s_len) - static_cast<int>(t_len);
 }
 

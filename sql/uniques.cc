@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -62,7 +62,7 @@ int unique_write_to_ptrs(uchar* key, element_count count, Unique *unique)
   return 0;
 }
 
-Unique::Unique(qsort_cmp2 comp_func, void * comp_func_fixed_arg,
+Unique::Unique(qsort2_cmp comp_func, void * comp_func_fixed_arg,
 	       uint size_arg, ulonglong max_in_memory_size_arg)
   :file_ptrs(PSI_INSTRUMENT_ME),
    max_in_memory_size(max_in_memory_size_arg),
@@ -421,7 +421,8 @@ struct Merge_chunk_less
   {}
   bool operator()(Merge_chunk *a, Merge_chunk *b)
   {
-    return m_context.key_compare(m_context.key_compare_arg, a, b) > 0; 
+    return m_context.key_compare(m_context.key_compare_arg,
+                                 a->current_key(), b->current_key()) > 0; 
   }
   Merge_chunk_compare_context  m_context;
 };
@@ -465,7 +466,7 @@ struct Merge_chunk_less
 static bool merge_walk(uchar *merge_buffer, size_t merge_buffer_size,
                        size_t key_length, Merge_chunk *begin, Merge_chunk *end,
                        tree_walk_action walk_action, void *walk_action_arg,
-                       qsort_cmp2 compare, const void *compare_arg,
+                       qsort2_cmp compare, const void *compare_arg,
                        IO_CACHE *file)
 {
   if (end <= begin ||

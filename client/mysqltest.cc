@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4268,7 +4268,12 @@ static void do_change_user(struct st_command *command)
                       cur_con->name, ds_user.str, ds_passwd.str, ds_db.str));
 
   if (mysql_change_user(mysql, ds_user.str, ds_passwd.str, ds_db.str))
-    die("change user failed: %s", mysql_error(mysql));
+  {
+    handle_error(curr_command, mysql_errno(mysql), mysql_error(mysql),
+                 mysql_sqlstate(mysql), &ds_res);
+    mysql->reconnect= 1;
+    mysql_reconnect(&cur_con->mysql);
+  }
 
   dynstr_free(&ds_user);
   dynstr_free(&ds_passwd);
@@ -5779,8 +5784,7 @@ static void do_connect(struct st_command *command)
   my_bool con_pipe= 0, con_shm= 0, con_cleartext_enable= 0;
   struct st_connection* con_slot;
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-  my_bool save_opt_use_ssl= opt_use_ssl;
-  my_bool save_opt_ssl_enforce= opt_ssl_enforce;
+  uint save_opt_ssl_mode= opt_ssl_mode;
 #endif
 
   static DYNAMIC_STRING ds_connection_name;
@@ -5912,16 +5916,18 @@ static void do_connect(struct st_command *command)
                   opt_charsets_dir);
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-  if (opt_use_ssl)
-    con_ssl= 1;
+  /*
+    If mysqltest --ssl-mode option is set to DISABLED
+    and connect(.., SSL) command used, set proper opt_ssl_mode.
 
-  opt_use_ssl= con_ssl;
-
-  if (opt_use_ssl)
+    So, SSL connection is used either:
+    a) mysqltest --ssl-mode option is NOT set to DISABLED or
+    b) connect(.., SSL) command used.
+  */
+  if (opt_ssl_mode == SSL_MODE_DISABLED && con_ssl)
   {
-    /* Turn on ssl_verify_server_cert only if host is "localhost" */
-    opt_ssl_verify_server_cert= !strcmp(ds_host.str, "localhost");
-    opt_ssl_enforce= 1;
+    opt_ssl_mode= (opt_ssl_ca || opt_ssl_capath) ?
+      SSL_MODE_VERIFY_CA : SSL_MODE_REQUIRED;
   }
 #else
   /* keep the compiler happy about con_ssl */
@@ -5929,10 +5935,7 @@ static void do_connect(struct st_command *command)
 #endif
   SSL_SET_OPTIONS(&con_slot->mysql);
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-  /* Setting default as not ssl for mysqltest because of performance implications.*/
-  mysql_options(&con_slot->mysql, MYSQL_OPT_SSL_ENFORCE, &con_ssl);
-  opt_use_ssl= save_opt_use_ssl;
-  opt_ssl_enforce= save_opt_ssl_enforce;
+  opt_ssl_mode= save_opt_ssl_mode;
 #endif
 
   if (con_pipe && !con_ssl)
@@ -7634,8 +7637,8 @@ static void append_info(DYNAMIC_STRING *ds, ulonglong affected_rows,
 /**
   @brief Append state change information (received through Ok packet) to the output.
 
-  @param ds    [INOUT]      Dynamic string to hold the content to be printed.
-  @param mysql [IN]         Connection handle.
+  @param [in,out] ds         Dynamic string to hold the content to be printed.
+  @param [in] mysql          Connection handle.
 */
 
 static void append_session_track_info(DYNAMIC_STRING *ds, MYSQL *mysql)
@@ -9002,7 +9005,7 @@ int main(int argc, char **argv)
   q_lines= new Q_lines(PSI_NOT_INSTRUMENTED);
 
   if (my_hash_init(&var_hash, charset_info,
-                   1024, 0, 0, get_var_key, var_free, MYF(0),
+                   1024, 0, get_var_key, var_free, 0,
                    PSI_NOT_INSTRUMENTED))
     die("Variable hash initialization failed");
 
@@ -9125,10 +9128,11 @@ int main(int argc, char **argv)
 
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-  if (opt_use_ssl)
+  /* Turn on VERIFY_IDENTITY mode only if host=="localhost". */
+  if (opt_ssl_mode == SSL_MODE_VERIFY_IDENTITY)
   {
-    /* Turn on ssl_verify_server_cert only if host is "localhost" */
-    opt_ssl_verify_server_cert= opt_host && !strcmp(opt_host, "localhost");
+    if (!opt_host || strcmp(opt_host, "localhost"))
+      opt_ssl_mode = SSL_MODE_VERIFY_CA;
   }
 #endif
   SSL_SET_OPTIONS(&con->mysql);
@@ -9138,7 +9142,7 @@ int main(int argc, char **argv)
   if (shared_memory_base_name)
     mysql_options(&con->mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
 
-  if (!opt_use_ssl)
+  if (opt_ssl_mode == SSL_MODE_DISABLED)
     mysql_options(&con->mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol_for_default_connection);
 #endif
 
@@ -9590,7 +9594,9 @@ int main(int argc, char **argv)
       check_eol_junk(command->last_argument);
 
     if (command->type != Q_ERROR &&
-        command->type != Q_COMMENT)
+        command->type != Q_COMMENT &&
+        command->type != Q_IF &&
+        command->type != Q_END_BLOCK)
     {
       /*
         As soon as any non "error" command or comment has been executed,
@@ -10812,7 +10818,7 @@ int get_next_bit(REP_SET *set,uint lastpos)
 
   start=set->bits+ ((lastpos+1) / WORD_BIT);
   end=set->bits + set->size_of_bits;
-  bits=start[0] & ~((1 << ((lastpos+1) % WORD_BIT)) -1);
+  bits=start[0] & ~((1 << ((lastpos+1) % WORD_BIT)) -1U);
 
   while (! bits && ++start < end)
     bits=start[0];

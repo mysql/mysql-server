@@ -317,12 +317,12 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl);
 int test_if_item_cache_changed(List<Cached_item> &list);
 
 // Create list for using with tempory table
-bool change_to_use_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
+bool change_to_use_tmp_fields(THD *thd, Ref_item_array ref_item_array,
 				     List<Item> &new_list1,
 				     List<Item> &new_list2,
 				     uint elements, List<Item> &items);
 // Create list for using with tempory table
-bool change_refs_to_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
+bool change_refs_to_tmp_fields(THD *thd, Ref_item_array ref_item_array,
 				      List<Item> &new_list1,
 				      List<Item> &new_list2,
 				      uint elements, List<Item> &items);
@@ -330,7 +330,7 @@ bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct);
 bool setup_sum_funcs(THD *thd, Item_sum **func_ptr);
 bool make_group_fields(JOIN *main_join, JOIN *curr_join);
 bool setup_copy_fields(THD *thd, Temp_table_param *param,
-		  Ref_ptr_array ref_pointer_array,
+		  Ref_item_array ref_item_array,
 		  List<Item> &res_selected_fields, List<Item> &res_all_fields,
 		  uint elements, List<Item> &all_fields);
 bool check_unique_constraint(TABLE *table);
@@ -374,7 +374,7 @@ public:
     filesort(NULL),
     fields(NULL),
     all_fields(NULL),
-    ref_array(NULL),
+    ref_item_slice(0),
     send_records(0),
     quick_traced_before(false),
     m_condition_optim(NULL),
@@ -609,11 +609,11 @@ public:
   List<Item> *fields;
   /** List of all expressions in the select list */
   List<Item> *all_fields;
-  /*
-    Pointer to the ref array slice which to switch to before sending
-    records. Valid only for tmp tables.
+  /**
+    Slice number of the ref items array to switch to before sending rows.
+    Valid only for tmp tables.
   */
-  Ref_ptr_array *ref_array;
+  uint ref_item_slice;
 
   /** Number of records saved in tmp table */
   ha_rows send_records;

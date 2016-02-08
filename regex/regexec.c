@@ -19,8 +19,8 @@
 #define nope 0
 
 /* macros for manipulating states, small version */
-#define	states	long
-#define	states1	long		/* for later use in regexec() decision. Ensure Win64 definition is correct.*/
+#define	states	unsigned long long
+#define	states1	unsigned long long /* for later use in regexec() decision. Ensure Win64 definition is correct.*/
 #define	CLEAR(v)	((v) = 0)
 #define	SET0(v, n)	((v) &= ~((states) 1 << (n)))
 #define	SET1(v, n)	((v) |= (states) 1 << (n))
@@ -31,15 +31,15 @@
 #define	STATESETUP(m, n)	/* nothing */
 #define	STATETEARDOWN(m)	/* nothing */
 #define	SETUP(v)	((v) = 0)
-#define	onestate	long			/* Changed from int by Monty */
-#define	INIT(o, n)	((o) = (unsigned states)1 << (n))
+#define	onestate	unsigned long long
+#define	INIT(o, n)	((o) = (states)1 << (n))
 #define	INC(o)	((o) <<= 1)
 #define	ISSTATEIN(v, o)	((v) & (o))
 /* some abbreviations; note that some of these know variable names! */
 /* do "if I'm here, I can also be there" etc without branches */
-#define	FWD(dst, src, n)	((dst) |= ((unsigned states)(src)&(here)) << (n))
-#define	BACK(dst, src, n)	((dst) |= ((unsigned states)(src)&(here)) >> (n))
-#define	ISSETBACK(v, n)	((v) & ((unsigned states)here >> (n)))
+#define	FWD(dst, src, n)	((dst) |= ((states)(src)&(here)) << (n))
+#define	BACK(dst, src, n)	((dst) |= ((states)(src)&(here)) >> (n))
+#define	ISSETBACK(v, n)	((v) & ((states)here >> (n)))
 /* function names */
 #define SNAMES			/* engine.c looks after details */
 
@@ -80,7 +80,7 @@
 				(m)->vn = 0; }
 #define	STATETEARDOWN(m)	{ free((m)->space); }
 #define	SETUP(v)	((v) = &m->space[m->vn++ * m->g->nstates])
-#define	onestate	int
+#define	onestate	unsigned long long
 #define	INIT(o, n)	((o) = (n))
 #define	INC(o)	((o)++)
 #define	ISSTATEIN(v, o)	((v)[o])

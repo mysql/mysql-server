@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 --source include/have_innodb.inc
 
 SET @start_global_value = @@global.innodb_log_compressed_pages;
@@ -36,7 +38,7 @@ SELECT @@global.innodb_log_compressed_pages;
 
 --disable_warnings
 SELECT IF(@@GLOBAL.innodb_log_compressed_pages,'ON','OFF') = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_log_compressed_pages';
 --enable_warnings
 --echo 1 Expected
@@ -46,7 +48,7 @@ SELECT COUNT(@@GLOBAL.innodb_log_compressed_pages);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_log_compressed_pages';
 --enable_warnings
 --echo 1 Expected

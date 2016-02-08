@@ -1282,9 +1282,34 @@ abc	abc	c	bc	abc
 abcd	abcd	d	cd	bcd	abcd	
 abcde	abcde	e	de	cde	bcde	abcde
 drop table t1;
-select hex(29223372036854775809), hex(-29223372036854775809);
-hex(29223372036854775809)	hex(-29223372036854775809)
-FFFFFFFFFFFFFFFF	FFFFFFFFFFFFFFFF
+select hex(29223372036854775809) as hex_signed,
+hex(cast(29223372036854775809 as unsigned)) as hex_unsigned;
+hex_signed	hex_unsigned
+7FFFFFFFFFFFFFFF	FFFFFFFFFFFFFFFF
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '29223372036854775809'
+Warning	1292	Truncated incorrect DECIMAL value: '29223372036854775809'
+select conv(29223372036854775809, -10, 16) as conv_signed,
+conv(29223372036854775809, 10, 16) as conv_unsigned;
+conv_signed	conv_unsigned
+7FFFFFFFFFFFFFFF	FFFFFFFFFFFFFFFF
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '29223372036854775809'
+Warning	1292	Truncated incorrect DECIMAL value: '29223372036854775809'
+select hex(-29223372036854775809) as hex_signed,
+hex(cast(-29223372036854775809 as unsigned)) as hex_unsigned;
+hex_signed	hex_unsigned
+8000000000000000	0
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '-29223372036854775809'
+Warning	1292	Truncated incorrect DECIMAL value: '-29223372036854775809'
+select conv(-29223372036854775809, -10, 16) as conv_signed,
+conv(-29223372036854775809, 10, 16) as conv_unsigned;
+conv_signed	conv_unsigned
+8000000000000000	0
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '-29223372036854775809'
+Warning	1292	Truncated incorrect DECIMAL value: '-29223372036854775809'
 create table t1 (i int);
 insert into t1 values (1000000000),(1);
 select lpad(i, 7, ' ') as t from t1;
@@ -2443,6 +2468,29 @@ UNHEX('G') IS NULL
 1
 Warnings:
 Warning	1411	Incorrect string value: 'G' for function unhex
+DO UNHEX(-1);
+Warnings:
+Warning	1411	Incorrect string value: '-1' for function unhex
+SHOW warnings;
+Level	Code	Message
+Warning	1411	Incorrect string value: '-1' for function unhex
+DO UNHEX(-182680438);
+Warnings:
+Warning	1411	Incorrect string value: '-182680438' for function unhex
+SHOW warnings;
+Level	Code	Message
+Warning	1411	Incorrect string value: '-182680438' for function unhex
+DO UNHEX(-2251799813685249);
+Warnings:
+Warning	1411	Incorrect string value: '-2251799813685249' for function unhex
+SHOW warnings;
+Level	Code	Message
+Warning	1411	Incorrect string value: '-2251799813685249' for function unhex
+select unhex('5078-04-25');
+unhex('5078-04-25')
+NULL
+Warnings:
+Warning	1411	Incorrect string value: '5078-04-25' for function unhex
 SELECT INSERT('abc', 3, 3, '1234');
 INSERT('abc', 3, 3, '1234')
 ab1234
@@ -4766,3 +4814,74 @@ AND trim(trailing 'a' FROM COUNTRY) = 'Australi';
 COUNTRY
 Australia
 DROP TABLE t1;
+#
+# Bug#22391186 TRUE WHERE CLAUSE DOESN'T RETURN EXPECTED ROW, 
+#              BUT EMPTY SET
+#
+CREATE DATABASE testt CHARACTER SET utf8mb4;
+USE testt;
+SET NAMES 'utf8mb4';
+CREATE TABLE t1(c1 CHAR(20));
+INSERT INTO t1 VALUES('11');
+SELECT c1 <=  REPEAT( SUBSTR( UPPER('Rdlpikti') , 1 , 2 ), 8 ) FROM t1;
+c1 <=  REPEAT( SUBSTR( UPPER('Rdlpikti') , 1 , 2 ), 8 )
+1
+SELECT * FROM t1 WHERE c1 <=  REPEAT( SUBSTR( UPPER('Rdlpikti') , 1 , 2 ), 8);
+c1
+11
+SELECT * FROM t1 WHERE c1 <=  REPEAT( SUBSTR( UPPER('Rdlpikti') , 1 , 2 ), 8);
+c1
+11
+DROP TABLE t1;
+DROP DATABASE testt;
+SET NAMES DEFAULT;
+#
+# Bug#22297983 HEX() FUNCTION CONVERTS DECIMAL TO DOUBLE AND
+#              THUS RETURNS WRONG RESULT
+#
+select hex(cast(9007199254740992 as decimal(30,0)));
+hex(cast(9007199254740992 as decimal(30,0)))
+20000000000000
+select hex(cast(9007199254740993 as decimal(30,0)));
+hex(cast(9007199254740993 as decimal(30,0)))
+20000000000001
+select hex(cast(9007199254740994 as decimal(30,0)));
+hex(cast(9007199254740994 as decimal(30,0)))
+20000000000002
+select hex(cast(0x20000000000000 as unsigned) + 1);
+hex(cast(0x20000000000000 as unsigned) + 1)
+20000000000001
+select hex(cast(0x20000000000000 as decimal(30,0)) + 1);
+hex(cast(0x20000000000000 as decimal(30,0)) + 1)
+20000000000001
+select hex(cast(0x20000000000000 as decimal(30,0)) + 2);
+hex(cast(0x20000000000000 as decimal(30,0)) + 2)
+20000000000002
+#
+# Bug#22523836 FUNCTION REPLACE WITH BINARY OP DOESNT RETURN EXPECTED
+#              NULL, WITH PARAM AS NULL
+#
+SELECT REPLACE( 'a', binary 'b', NULL ) as xxx;
+xxx
+NULL
+SELECT REPLACE( 'a', binary '', NULL ) as xxx;
+xxx
+NULL
+SELECT REPLACE( 'a', 'b', NULL ) as xxx;
+xxx
+NULL
+SELECT REPLACE( 'a', '', NULL ) as xxx;
+xxx
+NULL
+SELECT REPLACE( NULL, 'b', 'bravo' ) as xxx;
+xxx
+NULL
+SELECT REPLACE( NULL, '', 'bravo' ) as xxx;
+xxx
+NULL
+SELECT REPLACE( 'a', NULL, 'bravo' ) as xxx;
+xxx
+NULL
+SELECT REPLACE( 'a', binary NULL, 'bravo' ) as xxx;
+xxx
+NULL

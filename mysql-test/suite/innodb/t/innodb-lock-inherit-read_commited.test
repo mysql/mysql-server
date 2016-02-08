@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 --echo #
 --echo # Bug #21025880	DUPLICATE UK VALUES IN READ-COMMITTED(AGAIN)
 --echo #
@@ -75,7 +77,7 @@ SET GLOBAL innodb_purge_run_now=ON;
 
 # Wait for purge to delete the delete-marked record
 let $wait_condition=
-    SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+    SELECT COUNT(*) = 1 FROM performance_schema.global_status
     WHERE VARIABLE_NAME='INNODB_PURGE_TRX_ID_AGE' AND VARIABLE_VALUE=2;
 --source include/wait_condition.inc
 

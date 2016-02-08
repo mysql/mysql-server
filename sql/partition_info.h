@@ -1,7 +1,7 @@
 #ifndef PARTITION_INFO_INCLUDED
 #define PARTITION_INFO_INCLUDED
 
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -131,7 +131,7 @@ typedef int (*get_subpart_id_func)(partition_info *part_info,
      - get_part_iter_for_interval_via_mapping
 
   @param part_info           Partitioning info
-  @param is_subpart
+  @param is_subpart          When true, act for sub partitions. When false, act for partitions.
   @param store_length_array  Length of fields packed in opt_range_key format
   @param min_val             Left edge,  field value in opt_range_key format
   @param max_val             Right edge, field value in opt_range_key format

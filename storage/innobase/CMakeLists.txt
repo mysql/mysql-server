@@ -19,6 +19,7 @@ INCLUDE(innodb.cmake)
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 SET(INNOBASE_ZIP_DECOMPRESS_SOURCES
+	buf/buf.cc
 	buf/checksum.cc
 	dict/dict.cc
 	dict/mem.cc

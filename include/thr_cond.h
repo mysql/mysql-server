@@ -1,7 +1,7 @@
 #ifndef THR_COND_INCLUDED
 #define THR_COND_INCLUDED
 
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,45 +51,12 @@ typedef pthread_cond_t native_cond_t;
 
 static DWORD get_milliseconds(const struct timespec *abstime)
 {
-#ifndef HAVE_STRUCT_TIMESPEC
-  long long millis;
-  union ft64 now;
-
-  if (abstime == NULL)
-   return INFINITE;
-
-  GetSystemTimeAsFileTime(&now.ft);
-
-  /*
-    Calculate time left to abstime
-    - subtract start time from current time(values are in 100ns units)
-    - convert to millisec by dividing with 10000
-  */
-  millis= (abstime->tv.i64 - now.i64) / 10000;
-
-  /* Don't allow the timeout to be negative */
-  if (millis < 0)
-    return 0;
-
-  /*
-    Make sure the calculated timeout does not exceed original timeout
-    value which could cause "wait for ever" if system time changes
-  */
-  if (millis > abstime->max_timeout_msec)
-    millis= abstime->max_timeout_msec;
-
-  if (millis > UINT_MAX)
-    millis= UINT_MAX;
-
-  return (DWORD)millis;
-#else
   /*
     Convert timespec to millis and subtract current time.
     my_getsystime() returns time in 100 ns units.
   */
   return (DWORD)(abstime->tv_sec * 1000 + abstime->tv_nsec / 1000000 -
                  my_getsystime() / 10000);
-#endif
 }
 #endif /* _WIN32 */
 

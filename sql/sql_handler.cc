@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,9 +60,11 @@
 #include "psi_memory_key.h"
 #include "sql_base.h"                           // insert_fields
 #include "sql_select.h"
+#include "sql_audit.h"                          // mysql_audit_table_access_notify
 #include "transaction.h"
 #include "log.h"
 #include "template_utils.h"
+#include "error_handler.h"
 
 #define HANDLER_TABLES_HASH_SIZE 120
 
@@ -113,8 +115,9 @@ static const uchar *mysql_ha_hash_get_key(const uchar *arg,
     Nothing
 */
 
-static void mysql_ha_hash_free(TABLE_LIST *tables)
+static void mysql_ha_hash_free(void *arg)
 {
+  TABLE_LIST *tables= pointer_cast<TABLE_LIST*>(arg);
   my_free(tables);
 }
 
@@ -195,9 +198,9 @@ bool Sql_cmd_handler_open::execute(THD *thd)
       HASH entries are of type TABLE_LIST.
     */
     if (my_hash_init(&thd->handler_tables_hash, &my_charset_latin1,
-                     HANDLER_TABLES_HASH_SIZE, 0, 0,
+                     HANDLER_TABLES_HASH_SIZE, 0,
                      mysql_ha_hash_get_key,
-                     (my_hash_free_key) mysql_ha_hash_free, 0,
+                     mysql_ha_hash_free, 0,
                      key_memory_THD_handler_tables_hash))
     {
       DBUG_PRINT("exit",("ERROR"));
@@ -674,6 +677,11 @@ retry:
   if (res)
     goto err;
 
+#ifndef EMBEDDED_LIBRARY
+  if (mysql_audit_table_access_notify(thd, hash_tables))
+    goto err;
+#endif /* !EMBEDDED_LIBRARY */
+
   /*
     In ::external_lock InnoDB resets the fields which tell it that
     the handle is used in the HANDLER interface. Tell it again that
@@ -778,13 +786,19 @@ retry:
           item->save_in_field(key_part->field, true);
         dbug_tmp_restore_column_map(table->write_set, old_map);
         /*
-          If conversion status is TYPE_ERR_BAD_VALUE, the target index value
+          If conversion status is TYPE_ERR_BAD_VALUE or
+          TYPE_ERR_NULL_CONSTRAINT_VIOLATION, the target index value
           is not stored into record buffer, so we can't proceed with the
           index search.
         */
         if (conv_status == TYPE_ERR_BAD_VALUE)
         {
           my_error(ER_WRONG_ARGUMENTS, MYF(0), "HANDLER ... READ");
+          goto err;
+        }
+        if (conv_status == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
+        {
+          my_error(ER_BAD_NULL_ERROR, MYF(0), m_key_name);
           goto err;
         }
 

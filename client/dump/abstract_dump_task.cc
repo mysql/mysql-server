@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ void Abstract_dump_task::check_execution_availability()
 {
   if (m_availability_callbacks.size() > 0 && this->can_be_executed())
   {
-    my_boost::mutex::scoped_lock lock(m_availability_callbacks_mutex);
+    my_boost::mutex::scoped_lock lock(m_task_mutex);
 
     for (std::vector<Mysql::I_callable<void, const Abstract_dump_task*>*>
       ::const_iterator it = m_availability_callbacks.begin();
@@ -50,13 +50,14 @@ void Abstract_dump_task::check_execution_availability()
 void Abstract_dump_task::register_execution_availability_callback(
   Mysql::I_callable<void, const Abstract_dump_task*>* availability_callback)
 {
-  my_boost::mutex::scoped_lock lock(m_availability_callbacks_mutex);
+  my_boost::mutex::scoped_lock lock(m_task_mutex);
   m_availability_callbacks.push_back(availability_callback);
 }
 
 void Abstract_dump_task::set_completed()
 {
   Abstract_simple_dump_task::set_completed();
+  my_boost::mutex::scoped_lock lock(m_task_mutex);
   for (std::vector<Abstract_dump_task*>::iterator
     it= m_dependents.begin(); it != m_dependents.end(); ++it)
   {
@@ -79,6 +80,7 @@ bool Abstract_dump_task::can_be_executed() const
 void Abstract_dump_task::add_dependency(Abstract_dump_task* dependency)
 {
   m_dependencies.push_back(dependency);
+  my_boost::mutex::scoped_lock lock(dependency->m_task_mutex);
   dependency->m_dependents.push_back(this);
 }
 

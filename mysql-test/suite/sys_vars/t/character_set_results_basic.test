@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 ############## mysql-test\t\character_set_results_basic.test ##################
 #                                                                             #
 # Variable Name: character_set_results                                        #
@@ -240,14 +242,14 @@ SET @@global.character_set_results = ON;
 ##############################################################################
 --disable_warnings
 SELECT @@global.character_set_results =
- (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+ (SELECT VARIABLE_VALUE FROM performance_schema.global_variables
   WHERE VARIABLE_NAME='character_set_results') AS res;
 --enable_warnings
 SET @@global.character_set_results = 1;
 SELECT @@global.character_set_results;
 --disable_warnings
 SELECT @@global.character_set_results =
- (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+ (SELECT VARIABLE_VALUE FROM performance_schema.global_variables
   WHERE VARIABLE_NAME='character_set_results') AS res;
 --enable_warnings
 
@@ -257,13 +259,13 @@ SELECT @@global.character_set_results =
 ##############################################################################
 --disable_warnings
 SELECT @@character_set_results =
- (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+ (SELECT VARIABLE_VALUE FROM performance_schema.session_variables
   WHERE VARIABLE_NAME='character_set_results') AS res;
 SELECT @@local.character_set_results =
- (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+ (SELECT VARIABLE_VALUE FROM performance_schema.session_variables
   WHERE VARIABLE_NAME='character_set_results') AS res;
 SELECT @@session.character_set_results =
- (SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_VARIABLES
+ (SELECT VARIABLE_VALUE FROM performance_schema.session_variables
   WHERE VARIABLE_NAME='character_set_results') AS res;
 --enable_warnings
 

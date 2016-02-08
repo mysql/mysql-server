@@ -1,5 +1,5 @@
 /**
- Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -16,9 +16,6 @@
 
 #ifndef BAPI_CONFIG_INCLUDED
 #define BAPI_CONFIG_INCLUDED
-/* Headers we may use */
-#cmakedefine HAVE_STDINT_H @HAVE_STDINT_H@
-#cmakedefine HAVE_ENDIAN_H @HAVE_ENDIAN_H@
 /* Symbols we may use */
 #cmakedefine IS_BIG_ENDIAN @IS_BIG_ENDIAN@
 #cmakedefine HAVE_LE64TOH @HAVE_LE64TOH@

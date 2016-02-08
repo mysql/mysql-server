@@ -29,6 +29,7 @@
 #include "procedure.h"       // Item_proc
 #include "sql_class.h"       // THD
 #include "sql_yacc.h"        // DECIMAL_NUM
+#include "template_utils.h"  // pointer_cast
 
 #include <algorithm>
 using std::min;
@@ -38,33 +39,41 @@ static int compare_double(const double *s, const double *t);
 static int compare_longlong(const longlong *s, const longlong *t);
 static  int compare_ulonglong(const ulonglong *s, const ulonglong *t);
 
-int sortcmp2(void* cmp_arg __attribute__((unused)),
-	     const String *a,const String *b)
+int sortcmp2(const void* cmp_arg __attribute__((unused)),
+	     const void *a, const void *b)
 {
-  return sortcmp(a,b,a->charset());
+  const String *a_str= pointer_cast<const String*>(a);
+  const String *b_str= pointer_cast<const String*>(b);
+  return sortcmp(a_str, b_str, a_str->charset());
 }
 
-int compare_double2(void* cmp_arg __attribute__((unused)),
-		    const double *s, const double *t)
+int compare_double2(const void* cmp_arg __attribute__((unused)),
+		    const void *s, const void *t)
 {
-  return compare_double(s,t);
+  const double *s_dbl= pointer_cast<const double*>(s);
+  const double *t_dbl= pointer_cast<const double*>(t);
+  return compare_double(s_dbl, t_dbl);
 }
 
-int compare_longlong2(void* cmp_arg __attribute__((unused)),
-		      const longlong *s, const longlong *t)
+int compare_longlong2(const void* cmp_arg __attribute__((unused)),
+		      const void *s, const void *t)
 {
-  return compare_longlong(s,t);
+  const longlong *s_ll= pointer_cast<const longlong*>(s);
+  const longlong *t_ll= pointer_cast<const longlong*>(t);
+  return compare_longlong(s_ll, t_ll);
 }
 
-int compare_ulonglong2(void* cmp_arg __attribute__((unused)),
-		       const ulonglong *s, const ulonglong *t)
+int compare_ulonglong2(const void* cmp_arg __attribute__((unused)),
+		       const void *s, const void *t)
 {
-  return compare_ulonglong(s,t);
+  const ulonglong *s_ull= pointer_cast<const ulonglong*>(s);
+  const ulonglong *t_ull= pointer_cast<const ulonglong*>(t);
+  return compare_ulonglong(s_ull, t_ull);
 }
 
-int compare_decimal2(int* len, const char *s, const char *t)
+int compare_decimal2(const void *len, const void *s, const void *t)
 {
-  return memcmp(s, t, *len);
+  return memcmp(s, t, *(pointer_cast<const int*>(len)));
 }
 
 /**

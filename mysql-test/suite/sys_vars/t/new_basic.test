@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 ############## mysql-test\t\new_basic.test ####################################
 #                                                                             #
 # Variable Name: new                                                          #
@@ -152,7 +154,7 @@ SET @@session.new = test;
 
 --disable_warnings
 SELECT IF(@@global.new, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='new';
 --enable_warnings
 
@@ -163,7 +165,7 @@ WHERE VARIABLE_NAME='new';
 
 --disable_warnings
 SELECT IF(@@session.new, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='new';
 --enable_warnings
 

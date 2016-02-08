@@ -14,12 +14,12 @@ old_alter_table	OFF
 show session variables like 'old_alter_table';
 Variable_name	Value
 old_alter_table	OFF
-select * from information_schema.global_variables where variable_name='old_alter_table';
+select * from performance_schema.global_variables where variable_name='old_alter_table';
 VARIABLE_NAME	VARIABLE_VALUE
-OLD_ALTER_TABLE	OFF
-select * from information_schema.session_variables where variable_name='old_alter_table';
+old_alter_table	OFF
+select * from performance_schema.session_variables where variable_name='old_alter_table';
 VARIABLE_NAME	VARIABLE_VALUE
-OLD_ALTER_TABLE	OFF
+old_alter_table	OFF
 set global old_alter_table=1;
 set session old_alter_table=ON;
 select @@global.old_alter_table;
@@ -34,12 +34,12 @@ old_alter_table	ON
 show session variables like 'old_alter_table';
 Variable_name	Value
 old_alter_table	ON
-select * from information_schema.global_variables where variable_name='old_alter_table';
+select * from performance_schema.global_variables where variable_name='old_alter_table';
 VARIABLE_NAME	VARIABLE_VALUE
-OLD_ALTER_TABLE	ON
-select * from information_schema.session_variables where variable_name='old_alter_table';
+old_alter_table	ON
+select * from performance_schema.session_variables where variable_name='old_alter_table';
 VARIABLE_NAME	VARIABLE_VALUE
-OLD_ALTER_TABLE	ON
+old_alter_table	ON
 SET @@global.old_alter_table=DEFAULT;
 SELECT @@global.old_alter_table;
 @@global.old_alter_table

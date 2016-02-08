@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,15 +17,11 @@ IF(NOT WIN32)
   RETURN()
 ENDIF()
 
-FIND_PATH(WIX_DIR heat.exe
-  "$ENV{ProgramFiles}/WiX Toolset V3.8/bin"
-)
+# Installed directory layout
+FIND_PATH(WIX_DIR heat.exe "$ENV{ProgramFiles}/WiX Toolset V3.10/bin")
 
-IF(NOT WIX_DIR)
-  FIND_PATH(WIX_DIR heat.exe
-    "$ENV{ProgramFiles}/WiX Toolset V3.10/bin"
-  )
-ENDIF()
+# Unzipped directory layout
+FIND_PATH(WIX_DIR heat.exe "$ENV{ProgramFiles}/WiX Toolset V3.10")
 
 IF(NOT WIX_DIR)
   IF(NOT _WIX_DIR_CHECKED)

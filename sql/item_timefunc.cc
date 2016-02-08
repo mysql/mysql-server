@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,11 +28,13 @@
 #include "item_timefunc.h"
 
 #include "current_thd.h"
+#include "derror.h"          // ER_THD
 #include "sql_class.h"       // THD
 #include "sql_locale.h"      // my_locale_en_US
 #include "sql_time.h"        // make_truncated_value_warning
 #include "strfunc.h"         // check_word
 #include "tztime.h"          // Time_zone
+#include "template_utils.h"
 
 #include <time.h>
 
@@ -144,6 +146,7 @@ static Date_time_format time_24hrs_format= {{0}, '\0', 0,
                             %r) and this parameter is pointer to place where
                             pointer to end of string matching this specifier
                             should be stored.
+  @param date_time_type
 
   @note
     Possibility to parse strings matching to patterns equivalent to compound
@@ -751,9 +754,9 @@ bool make_date_time(Date_time_format *format, MYSQL_TIME *l_time,
   @param args            item expression which we convert to an ASCII string
   @param str_value       string buffer
   @param is_negative     set to true if interval is prefixed by '-'
-  @param count:          count of elements in result array
-  @param values:         array of results
-  @param transform_msec: if value is true we suppose
+  @param count           count of elements in result array
+  @param values          array of results
+  @param transform_msec  if value is true we suppose
                          that the last part of string value is microseconds
                          and we should transform value to six digit value.
                          For example, '1.1' -> '1.100000'
@@ -2477,9 +2480,10 @@ bool Item_date_add_interval::val_datetime(MYSQL_TIME *ltime,
 
 bool Item_date_add_interval::eq(const Item *item, bool binary_cmp) const
 {
-  Item_date_add_interval *other= (Item_date_add_interval*) item;
   if (!Item_func::eq(item, binary_cmp))
     return 0;
+  const Item_date_add_interval *other=
+    down_cast<const Item_date_add_interval*>(item);
   return ((int_type == other->int_type) &&
           (date_sub_interval == other->date_sub_interval));
 }

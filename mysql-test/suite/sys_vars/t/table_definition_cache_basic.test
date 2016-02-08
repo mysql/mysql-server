@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 ############## mysql-test\t\table_definition_cache_basic.test ##################
 #                                                                              #
 # Variable Name: table_definition_cache                                        #
@@ -108,7 +110,7 @@ SELECT @@session.table_definition_cache;
 
 --disable_warnings
 SELECT @@global.table_definition_cache = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='table_definition_cache';
 --enable_warnings
 

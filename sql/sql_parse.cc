@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include "current_thd.h"
 #include "debug_sync.h"       // DEBUG_SYNC
 #include "derror.h"           // ER_THD
+#include "error_handler.h"    // Strict_error_handler
 #include "events.h"           // Events
 #include "item_timefunc.h"    // Item_func_unix_timestamp
 #include "key_spec.h"         // Key_spec
@@ -2368,6 +2369,7 @@ static inline void binlog_gtid_end_transaction(THD *thd)
   Execute command saved in thd and lex->sql_command.
 
   @param thd                       Thread handle
+  @param first_level
 
   @todo
     - Invalidate the table in the query cache if something changed
@@ -3012,10 +3014,9 @@ case SQLCOM_PREPARE:
       goto end_with_restore_list;
 
     /* Fix names if symlinked or relocated tables */
-    if (append_file_to_dir(thd, &create_info.data_file_name,
-			   create_table->table_name) ||
-	append_file_to_dir(thd, &create_info.index_file_name,
-			   create_table->table_name))
+    if (prepare_index_and_data_dir_path(thd, &create_info.data_file_name,
+                                        &create_info.index_file_name,
+                                        create_table->table_name))
       goto end_with_restore_list;
 
     /*
@@ -3258,7 +3259,6 @@ end_with_restore_list:
     */
     thd->enable_slow_log= opt_log_slow_admin_statements;
 
-    memset(&create_info, 0, sizeof(create_info));
     create_info.db_type= 0;
     create_info.row_type= ROW_TYPE_NOT_USED;
     create_info.default_table_charset= thd->variables.collation_database;
@@ -3886,7 +3886,7 @@ end_with_restore_list:
   /* Don't do it, if we are inside a SP */
   if (!thd->sp_runtime_ctx)
   {
-    delete lex->sphead;
+    sp_head::destroy(lex->sphead);
     lex->sphead= NULL;
   }
   /* lex->unit->cleanup() is called outside, no need to call it here */
@@ -4877,7 +4877,7 @@ end_with_restore_list:
       }
 
       if (update_password_only &&
-          !opt_bootstrap &&
+          likely((get_server_state() == SERVER_OPERATING)) &&
           !strcmp(thd->security_context()->priv_user().str,""))
       {
         my_error(ER_PASSWORD_ANONYMOUS_USER, MYF(0));
@@ -5138,7 +5138,7 @@ long max_stack_used;
     corresponding exec. (Thus we only have to check in fix_fields.)
   - Passing to check_stack_overrun() prevents the compiler from removing it.
 */
-bool check_stack_overrun(THD *thd, long margin,
+bool check_stack_overrun(const THD *thd, long margin,
 			 uchar *buf __attribute__((unused)))
 {
   long stack_used;
@@ -5361,7 +5361,8 @@ void mysql_init_multi_delete(LEX *lex)
 /**
   Parse a query.
 
-  @param       thd     Current thread
+  @param thd          Current session.
+  @param parser_state Parser state.
 */
 
 void mysql_parse(THD *thd, Parser_state *parser_state)
@@ -5522,7 +5523,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
       DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
 			 thd->is_fatal_error));
 
-      query_cache.abort(thd, &thd->query_cache_tls);
+      query_cache.abort(thd);
     }
 
     THD_STAGE_INFO(thd, stage_freeing_items);
@@ -5740,6 +5741,7 @@ void add_to_list(SQL_I_List<ORDER> &list, ORDER *order)
 /**
   Add a table to list of used tables.
 
+  @param thd      Current session.
   @param table		Table to add
   @param alias		alias for table (or null if no alias)
   @param table_options	A set of the following bits:
@@ -5748,6 +5750,9 @@ void add_to_list(SQL_I_List<ORDER> &list, ORDER *order)
                          - TL_OPTION_ALIAS : an alias in multi table DELETE
   @param lock_type	How table should be locked
   @param mdl_type       Type of metadata lock to acquire on the table.
+  @param index_hints_arg
+  @param partition_names
+  @param option
 
   @return Pointer to TABLE_LIST element added to the total table list
   @retval
@@ -6068,9 +6073,6 @@ TABLE_LIST *SELECT_LEX::nest_last_join(THD *thd)
     (the most outer join operation follows first).
 
   @param table       the table to add
-
-  @return
-    None
 */
 
 void SELECT_LEX::add_joined_table(TABLE_LIST *table)
@@ -6317,9 +6319,10 @@ void add_join_on(TABLE_LIST *b, Item *expr)
     SELECT * FROM t1, t2 WHERE (t1.j=t2.j and <some_cond>)
    @endverbatim
 
-  @param a		  Left join argument
-  @param b		  Right join argument
-  @param using_fields    Field names from USING clause
+  @param a            Left join argument.
+  @param b            Right join argument.
+  @param using_fields Column names from USING clause.
+  @param lex          Current lex.
 */
 
 void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields,
@@ -6471,27 +6474,82 @@ void killall_non_super_threads(THD *thd)
   thd_manager->do_for_all_thd(&kill_non_super_conn);
 }
 
+
+/**
+  prepares the index and data directory path.
+
+  @param thd                    Thread handle
+  @param data_file_name         Pathname for data directory
+  @param index_file_name        Pathname for index directory
+  @param table_name             Table name to be appended to the pathname specified
+
+  @return false                 success
+  @return true                  An error occurred
+*/
+
+bool prepare_index_and_data_dir_path(THD *thd, const char **data_file_name,
+                                     const char **index_file_name,
+                                     const char *table_name)
+{
+  int ret_val;
+  const char *file_name;
+  const char *directory_type;
+
+  /*
+    If a data directory path is passed, check if the path exists and append
+    table_name to it.
+  */
+  if (data_file_name &&
+      (ret_val= append_file_to_dir(thd, data_file_name, table_name)))
+  {
+    file_name= *data_file_name;
+    directory_type= "DATA DIRECTORY";
+    goto err;
+  }
+
+  /*
+    If an index directory path is passed, check if the path exists and append
+    table_name to it.
+  */
+  if (index_file_name &&
+      (ret_val= append_file_to_dir(thd, index_file_name, table_name)))
+  {
+    file_name= *index_file_name;
+    directory_type= "INDEX DIRECTORY";
+    goto err;
+  }
+
+  return false;
+err:
+  if (ret_val == ER_PATH_LENGTH)
+    my_error(ER_PATH_LENGTH, MYF(0), directory_type);
+  if (ret_val == ER_WRONG_VALUE)
+    my_error(ER_WRONG_VALUE, MYF(0), "path", file_name);
+  return true;
+}
+
+
 /** If pointer is not a null pointer, append filename to it. */
 
-bool append_file_to_dir(THD *thd, const char **filename_ptr,
-                        const char *table_name)
+int append_file_to_dir(THD *thd, const char **filename_ptr,
+                       const char *table_name)
 {
   char buff[FN_REFLEN],*ptr, *end;
   if (!*filename_ptr)
     return 0;					// nothing to do
 
   /* Check that the filename is not too long and it's a hard path */
-  if (strlen(*filename_ptr)+strlen(table_name) >= FN_REFLEN-1 ||
-      !test_if_hard_path(*filename_ptr))
-  {
-    my_error(ER_WRONG_TABLE_NAME, MYF(0), *filename_ptr);
-    return 1;
-  }
+  if (strlen(*filename_ptr) + strlen(table_name) >= FN_REFLEN - 1)
+    return ER_PATH_LENGTH;
+
+  if (!test_if_hard_path(*filename_ptr))
+    return ER_WRONG_VALUE;
+
   /* Fix is using unix filename format on dos */
   my_stpcpy(buff,*filename_ptr);
   end=convert_dirname(buff, *filename_ptr, NullS);
   if (!(ptr= (char*) thd->alloc((size_t) (end-buff) + strlen(table_name)+1)))
-    return 1;					// End of memory
+    return ER_OUTOFMEMORY;                     // End of memory
   *filename_ptr=ptr;
   strxmov(ptr,buff,table_name,NullS);
   return 0;
@@ -7020,7 +7078,7 @@ bool parse_sql(THD *thd,
     /*
       We need to put any errors in the DA as well as the condition list.
     */
-    if (parser_da->is_error())
+    if (parser_da->is_error() && !da->is_error())
     {
       da->set_error_status(parser_da->mysql_errno(),
                            parser_da->message_text(),

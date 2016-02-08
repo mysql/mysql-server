@@ -133,8 +133,6 @@ public:
     Sends DECIMAL value
 
     @param d    value
-    @param prec field's precision, unused
-    @param dec  field's decimals, unused
 
     @return
       false  success
@@ -156,6 +154,7 @@ public:
     Sends FLOAT value
 
     @param from      value
+    @param decimals
     @param buffer    auxiliary buffer
 
     @return

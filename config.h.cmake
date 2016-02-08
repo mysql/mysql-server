@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -74,6 +74,7 @@
 #cmakedefine HAVE_PRINTSTACK 1
 #cmakedefine HAVE_INDEX 1
 #cmakedefine HAVE_CLOCK_GETTIME 1
+#cmakedefine HAVE_CHOWN 1
 #cmakedefine HAVE_CUSERID 1
 #cmakedefine HAVE_DIRECTIO 1
 #cmakedefine HAVE_FTRUNCATE 1
@@ -177,7 +178,6 @@
 #cmakedefine HAVE_UINT 1
 #cmakedefine HAVE_ULONG 1
 #cmakedefine HAVE_U_INT32_T 1
-#cmakedefine HAVE_STRUCT_TIMESPEC
 
 /* Code tests*/
 #cmakedefine STACK_DIRECTION @STACK_DIRECTION@
@@ -193,12 +193,23 @@
 #cmakedefine HAVE_BUILTIN_STPCPY 1
 #cmakedefine HAVE_GCC_ATOMIC_BUILTINS 1
 #cmakedefine HAVE_VALGRIND
+#cmakedefine HAVE_SYS_THREAD_SELFID 1
+#cmakedefine HAVE_SYS_GETTID 1
+#cmakedefine HAVE_PTHREAD_GETTHREADID_NP 1
+#cmakedefine HAVE_INTEGER_PTHREAD_SELF 1
+/*
+  This macro defines whether the compiler in use needs a 'typename' keyword
+  to access the types defined inside a class template, such types are called
+  dependent types. Some compilers require it, some others forbid it, and some
+  others may work with or without it. For example, GCC requires the 'typename'
+  keyword whenever needing to access a type inside a template, but msvc
+  forbids it.
+ */
+#cmakedefine HAVE_IMPLICIT_DEPENDENT_NAME_TYPING 1
 
 /* IPV6 */
 #cmakedefine HAVE_NETINET_IN6_H 1
-#cmakedefine HAVE_STRUCT_SOCKADDR_IN6 1
 #cmakedefine HAVE_STRUCT_IN6_ADDR 1
-#cmakedefine HAVE_IPV6 1
 
 #cmakedefine ss_family @ss_family@
 #cmakedefine HAVE_SOCKADDR_IN_SIN_LEN 1
@@ -352,27 +363,6 @@
 #cmakedefine DISABLE_PSI_TRANSACTION 1
 
 /*
- * syscall
-*/
-#cmakedefine HAVE_SYS_THREAD_SELFID 1
-#cmakedefine HAVE_SYS_GETTID 1
-#cmakedefine HAVE_PTHREAD_GETTHREADID_NP 1
-#cmakedefine HAVE_INTEGER_PTHREAD_SELF 1
-
-/* Platform-specific C++ compiler behaviors we rely upon */
-
-/*
-  This macro defines whether the compiler in use needs a 'typename' keyword
-  to access the types defined inside a class template, such types are called
-  dependent types. Some compilers require it, some others forbid it, and some
-  others may work with or without it. For example, GCC requires the 'typename'
-  keyword whenever needing to access a type inside a template, but msvc
-  forbids it.
- */
-#cmakedefine HAVE_IMPLICIT_DEPENDENT_NAME_TYPING 1
-
-
-/*
  * MySQL version
  */
 #define MYSQL_VERSION_MAJOR @MAJOR_VERSION@
@@ -403,7 +393,6 @@
  * Other
  */
 #cmakedefine EXTRA_DEBUG 1
-#cmakedefine HAVE_CHOWN 1
 
 /*
  * Hardcoded values needed by libevent/NDB/memcached

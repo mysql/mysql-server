@@ -1,0 +1,1934 @@
+CREATE TABLE t(id int, vbin1 varbinary(32), vbin2 varbinary(32));
+INSERT INTO t VALUES
+(1, x'59', x'6a'),
+(2, x'5939', x'6ac3'),
+(3, x'5939a998', x'6ac35d2a'),
+(4, x'5939a99861154f35', x'6ac35d2a3ab34bda'),
+(5, x'5939a99861154f3587d5440618e9b28b', x'6ac35d2a3ab34bda8ac412ea0141852c'),
+(6, x'5939a99861154f3587d5440618e9b28b166181c5ca514ab1b8e9c970ae5e421a', x'6ac35d2a3ab34bda8ac412ea0141852c3c8e38bb19934a7092a40bb19db13a80'),
+(7, x'5939a99861154f3587d5440618e9b28b', x'8ac412ea0141852c'),
+(8, x'5939a99861154f35', x'6ac35d2a3ab34bda8ac412ea0141852c');
+#
+# bitwise operations with varbinary args with different sizes
+#
+SELECT HEX(vbin1 & vbin2), HEX(vbin1 | vbin2), HEX(vbin1 ^ vbin2),
+HEX(~vbin1), HEX(vbin1 << 3), HEX(vbin2 >> 3), BIT_COUNT(vbin1)
+FROM t
+WHERE id in(1,2,3,4,5,6);
+HEX(vbin1 & vbin2)	HEX(vbin1 | vbin2)	HEX(vbin1 ^ vbin2)	HEX(~vbin1)	HEX(vbin1 << 3)	HEX(vbin2 >> 3)	BIT_COUNT(vbin1)
+0	0	0	FFFFFFFFFFFFFFFF	0	0	0
+0	0	0	FFFFFFFFFFFFFFFF	0	0	0
+0	0	0	FFFFFFFFFFFFFFFF	0	0	0
+0	0	0	FFFFFFFFFFFFFFFF	0	0	0
+0	0	0	FFFFFFFFFFFFFFFF	0	0	0
+0	0	0	FFFFFFFFFFFFFFFF	0	0	0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: 'Y'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y'
+Warning	1292	Truncated incorrect INTEGER value: 'Y'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+SELECT HEX(vbin1 & vbin2) FROM t WHERE id=7;
+HEX(vbin1 & vbin2)
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT HEX(vbin1 | vbin2) FROM t WHERE id=7;
+HEX(vbin1 | vbin2)
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT HEX(vbin1 ^ vbin2) FROM t WHERE id=7;
+HEX(vbin1 ^ vbin2)
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT HEX(vbin1 << 3), HEX(vbin2 << 3) FROM t WHERE id=7;
+HEX(vbin1 << 3)	HEX(vbin2 << 3)
+0	0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT HEX(vbin1 >> 3), HEX(vbin2 >> 3) FROM t WHERE id=7;
+HEX(vbin1 >> 3)	HEX(vbin2 >> 3)
+0	0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT HEX(~vbin1), HEX(~vbin2) FROM t WHERE id=7;
+HEX(~vbin1)	HEX(~vbin2)
+FFFFFFFFFFFFFFFF	FFFFFFFFFFFFFFFF
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT HEX(vbin1 & vbin2) FROM t WHERE id=8;
+HEX(vbin1 & vbin2)
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+SELECT HEX(vbin1 | vbin2) FROM t WHERE id=8;
+HEX(vbin1 | vbin2)
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+SELECT HEX(vbin1 ^ vbin2) FROM t WHERE id=8;
+HEX(vbin1 ^ vbin2)
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+SELECT HEX(vbin1 << 3), HEX(vbin2 << 3) FROM t WHERE id=8;
+HEX(vbin1 << 3)	HEX(vbin2 << 3)
+0	0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+SELECT HEX(vbin1 >> 3), HEX(vbin2 >> 3) FROM t WHERE id=8;
+HEX(vbin1 >> 3)	HEX(vbin2 >> 3)
+0	0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+SELECT HEX(~vbin1), HEX(~vbin2) FROM t WHERE id=8;
+HEX(~vbin1)	HEX(~vbin2)
+FFFFFFFFFFFFFFFF	FFFFFFFFFFFFFFFF
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+#
+# bitwise operations with varbinary args in prepared statement
+#
+PREPARE s1 FROM
+"SELECT HEX(vbin1 & vbin2), HEX(vbin1 | vbin2), HEX(vbin1 ^ vbin2),
+  HEX(~vbin1), HEX(vbin1 << 3), HEX(vbin2 >> 3), BIT_COUNT(vbin1)
+FROM t
+WHERE id in(1, 2, 3, 4, 5, 6)";
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+EXECUTE s1;
+HEX(vbin1 & vbin2)	HEX(vbin1 | vbin2)	HEX(vbin1 ^ vbin2)	HEX(~vbin1)	HEX(vbin1 << 3)	HEX(vbin2 >> 3)	BIT_COUNT(vbin1)
+0	0	0	FFFFFFFFFFFFFFFF	0	0	0
+0	0	0	FFFFFFFFFFFFFFFF	0	0	0
+0	0	0	FFFFFFFFFFFFFFFF	0	0	0
+0	0	0	FFFFFFFFFFFFFFFF	0	0	0
+0	0	0	FFFFFFFFFFFFFFFF	0	0	0
+0	0	0	FFFFFFFFFFFFFFFF	0	0	0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: 'Y'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y'
+Warning	1292	Truncated incorrect INTEGER value: 'Y'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+EXECUTE s1;
+HEX(vbin1 & vbin2)	HEX(vbin1 | vbin2)	HEX(vbin1 ^ vbin2)	HEX(~vbin1)	HEX(vbin1 << 3)	HEX(vbin2 >> 3)	BIT_COUNT(vbin1)
+0	0	0	FFFFFFFFFFFFFFFF	0	0	0
+0	0	0	FFFFFFFFFFFFFFFF	0	0	0
+0	0	0	FFFFFFFFFFFFFFFF	0	0	0
+0	0	0	FFFFFFFFFFFFFFFF	0	0	0
+0	0	0	FFFFFFFFFFFFFFFF	0	0	0
+0	0	0	FFFFFFFFFFFFFFFF	0	0	0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: 'Y'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y'
+Warning	1292	Truncated incorrect INTEGER value: 'Y'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'j'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+PREPARE s2 FROM
+"SELECT HEX(vbin1 & vbin2), HEX(vbin1 | vbin2), HEX(vbin1 ^ vbin2),
+  HEX(~vbin1), HEX(vbin1 << 3), HEX(vbin2 >> 3), BIT_COUNT(vbin1)
+FROM t
+WHERE id in(7)";
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+EXECUTE s2;
+HEX(vbin1 & vbin2)	HEX(vbin1 | vbin2)	HEX(vbin1 ^ vbin2)	HEX(~vbin1)	HEX(vbin1 << 3)	HEX(vbin2 >> 3)	BIT_COUNT(vbin1)
+0	0	0	FFFFFFFFFFFFFFFF	0	0	0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+EXECUTE s2;
+HEX(vbin1 & vbin2)	HEX(vbin1 | vbin2)	HEX(vbin1 ^ vbin2)	HEX(~vbin1)	HEX(vbin1 << 3)	HEX(vbin2 >> 3)	BIT_COUNT(vbin1)
+0	0	0	FFFFFFFFFFFFFFFF	0	0	0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: 'Y9'
+DROP TABLE t;
+CREATE TABLE networks (
+id int(10) unsigned NOT NULL AUTO_INCREMENT,
+start varbinary(16) NOT NULL,
+end varbinary(16) NOT NULL,
+country_code varchar(2) NOT NULL,
+country varchar(255) NOT NULL,
+PRIMARY KEY (id),
+KEY start (start),
+KEY end (end)
+);
+#
+# Testing bitiwise operations on a real-life test case
+#
+INSERT INTO networks(start, end, country_code, country) VALUES
+(INET6_ATON('2c0f:fff0::'),INET6_ATON('2c0f:fff0:ffff:ffff:ffff:ffff:ffff:ffff'),'NG','Nigeria'),
+(INET6_ATON('2405:1d00::'),INET6_ATON('2405:1d00:ffff:ffff:ffff:ffff:ffff:ffff'),'GR','Greenland'),
+(INET6_ATON('2c0f:ffe8::'),INET6_ATON('2c0f:ffe8:ffff:ffff:ffff:ffff:ffff:ffff'),'NG','Nigeria');
+SELECT id, HEX(start), HEX(end), country_code, country
+FROM networks
+WHERE INET6_ATON('2c0f:fff0:1234:5678:9101:1123::') & start = INET6_ATON('2c0f:fff0::');
+id	HEX(start)	HEX(end)	country_code	country
+1	2C0FFFF0000000000000000000000000	2C0FFFF0FFFFFFFFFFFFFFFFFFFFFFFF	NG	Nigeria
+2	24051D00000000000000000000000000	24051D00FFFFFFFFFFFFFFFFFFFFFFFF	GR	Greenland
+3	2C0FFFE8000000000000000000000000	2C0FFFE8FFFFFFFFFFFFFFFFFFFFFFFF	NG	Nigeria
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ','
+Warning	1292	Truncated incorrect INTEGER value: '$'
+Warning	1292	Truncated incorrect INTEGER value: ','
+SELECT id, HEX(start), HEX(end), country_code, country
+FROM networks
+WHERE INET6_ATON('2c0f:ffe8:1234:5678:9101:1123::') & start = INET6_ATON('2c0f:ffe8::');
+id	HEX(start)	HEX(end)	country_code	country
+1	2C0FFFF0000000000000000000000000	2C0FFFF0FFFFFFFFFFFFFFFFFFFFFFFF	NG	Nigeria
+2	24051D00000000000000000000000000	24051D00FFFFFFFFFFFFFFFFFFFFFFFF	GR	Greenland
+3	2C0FFFE8000000000000000000000000	2C0FFFE8FFFFFFFFFFFFFFFFFFFFFFFF	NG	Nigeria
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ','
+Warning	1292	Truncated incorrect INTEGER value: '$'
+Warning	1292	Truncated incorrect INTEGER value: ','
+SELECT id, HEX(start), HEX(end), country_code, country
+FROM networks
+WHERE INET6_ATON('2c0f:fff0::') | start = INET6_ATON('2c0f:fff0::');
+id	HEX(start)	HEX(end)	country_code	country
+1	2C0FFFF0000000000000000000000000	2C0FFFF0FFFFFFFFFFFFFFFFFFFFFFFF	NG	Nigeria
+2	24051D00000000000000000000000000	24051D00FFFFFFFFFFFFFFFFFFFFFFFF	GR	Greenland
+3	2C0FFFE8000000000000000000000000	2C0FFFE8FFFFFFFFFFFFFFFFFFFFFFFF	NG	Nigeria
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ','
+Warning	1292	Truncated incorrect INTEGER value: '$'
+Warning	1292	Truncated incorrect INTEGER value: ','
+SELECT id, HEX(start), HEX(end), country_code, country
+FROM  networks
+WHERE INET6_ATON('2c0f:ffe8::') | start = INET6_ATON('2c0f:ffe8::');
+id	HEX(start)	HEX(end)	country_code	country
+1	2C0FFFF0000000000000000000000000	2C0FFFF0FFFFFFFFFFFFFFFFFFFFFFFF	NG	Nigeria
+2	24051D00000000000000000000000000	24051D00FFFFFFFFFFFFFFFFFFFFFFFF	GR	Greenland
+3	2C0FFFE8000000000000000000000000	2C0FFFE8FFFFFFFFFFFFFFFFFFFFFFFF	NG	Nigeria
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ','
+Warning	1292	Truncated incorrect INTEGER value: '$'
+Warning	1292	Truncated incorrect INTEGER value: ','
+SELECT id, HEX(start), HEX(end), country_code, country
+FROM networks
+WHERE INET6_ATON('2c0f:fff0::') ^ start = INET6_ATON('::');
+id	HEX(start)	HEX(end)	country_code	country
+1	2C0FFFF0000000000000000000000000	2C0FFFF0FFFFFFFFFFFFFFFFFFFFFFFF	NG	Nigeria
+2	24051D00000000000000000000000000	24051D00FFFFFFFFFFFFFFFFFFFFFFFF	GR	Greenland
+3	2C0FFFE8000000000000000000000000	2C0FFFE8FFFFFFFFFFFFFFFFFFFFFFFF	NG	Nigeria
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ','
+Warning	1292	Truncated incorrect INTEGER value: '$'
+Warning	1292	Truncated incorrect INTEGER value: ','
+SELECT id, HEX(start), HEX(end), country_code, country
+FROM networks
+WHERE INET6_ATON('2c0f:ffe8::') ^ start = INET6_ATON('::');
+id	HEX(start)	HEX(end)	country_code	country
+1	2C0FFFF0000000000000000000000000	2C0FFFF0FFFFFFFFFFFFFFFFFFFFFFFF	NG	Nigeria
+2	24051D00000000000000000000000000	24051D00FFFFFFFFFFFFFFFFFFFFFFFF	GR	Greenland
+3	2C0FFFE8000000000000000000000000	2C0FFFE8FFFFFFFFFFFFFFFFFFFFFFFF	NG	Nigeria
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ','
+Warning	1292	Truncated incorrect INTEGER value: '$'
+Warning	1292	Truncated incorrect INTEGER value: ','
+DROP TABLE networks;
+#
+# Table containing columns of MySQL types
+#
+CREATE TABLE at(_bit bit(64),
+_tin tinyint(8),
+_boo bool,
+_sms smallint signed,
+_smu smallint unsigned,
+_mes mediumint signed,
+_meu mediumint unsigned,
+_ins int signed,
+_inu int unsigned,
+_bis bigint signed,
+_biu bigint unsigned,
+_dec decimal (5,2),
+_flo float,
+_dou double,
+_yea year,
+_jsn json,
+_chr char(12),
+_vch varchar(12),
+_bin binary(255),
+_vbn varbinary(255),
+_tbl tinyblob,
+_ttx tinytext,
+_blb blob,
+_txt text,
+_mbb mediumblob,
+_mtx mediumtext,
+_lbb longblob,
+_ltx longtext,
+_pnt point,
+_dat date default '1988-12-15',
+_dtt datetime default '2015-10-24 12:00:00',
+_smp timestamp default '2015-10-24 14:00:00',
+_tim time default' 07:08:09',
+_enu enum('a', 'b', 'c'),
+_set set('a', 'b', 'c')
+);
+INSERT INTO at (
+_bit,
+_tin,
+_boo,
+_sms,
+_smu,
+_mes,
+_meu,
+_ins,
+_inu,
+_bis,
+_biu,
+_dec,
+_flo,
+_dou,
+_yea,
+_jsn,
+_chr,
+_vch,
+_bin,
+_vbn,
+_tbl,
+_ttx,
+_blb,
+_txt,
+_mbb,
+_mtx,
+_lbb,
+_ltx,
+_pnt,
+_enu,
+_set
+) VALUES (
+64,
+64,
+true,
+64,
+64,
+64,
+64,
+64,
+64,
+64,
+64,
+64,
+64,
+64,
+2005,
+cast('{"a": 3}' as json),
+"abcdefghijkl",
+"abcdefghijkl",
+x'CAFEBABE000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000CAFEBABE11111111',
+x'CAFEBABE00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000011111111CAFEBABE',
+x'CAFEBABE000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000CAFE1111CAFE1111',
+"abcdefg",
+x'cafebabe',
+"abcdefg",
+x'cafebabe',
+"abcdefg",
+x'cafebabe',
+"abcdefg",
+st_geomfromtext('point(1 1)'),
+1,
+1
+);
+SELECT * FROM at;
+_bit	_tin	_boo	_sms	_smu	_mes	_meu	_ins	_inu	_bis	_biu	_dec	_flo	_dou	_yea	_jsn	_chr	_vch	_bin	_vbn	_tbl	_ttx	_blb	_txt	_mbb	_mtx	_lbb	_ltx	_pnt	_dat	_dtt	_smp	_tim	_enu	_set
+       @	64	1	64	64	64	64	64	64	64	64	64.00	64	64	2005	{"a": 3}	abcdefghijkl	abcdefghijkl	Êþº¾                                                                                                                                                                                                                                                   Êþº¾	Êþº¾                                                                                                                                                                                                                                                   Êþº¾	Êþº¾                                                                                                                                                                                                                                                   ÊþÊþ	abcdefg	Êþº¾	abcdefg	Êþº¾	abcdefg	Êþº¾	abcdefg	             ð?      ð?	1988-12-15	2015-10-24 12:00:00	2015-10-24 14:00:00	07:08:09	a	a
+#
+# bitwise operations with an integer argument and mysql data-types
+#
+SELECT _bit | 2147483647 FROM at;
+_bit | 2147483647
+2147483647
+SELECT _tin | 2147483647 FROM at;
+_tin | 2147483647
+2147483647
+SELECT _boo | 2147483647 FROM at;
+_boo | 2147483647
+2147483647
+SELECT _sms | 2147483647 FROM at;
+_sms | 2147483647
+2147483647
+SELECT _smu | 2147483647 FROM at;
+_smu | 2147483647
+2147483647
+SELECT _mes | 2147483647 FROM at;
+_mes | 2147483647
+2147483647
+SELECT _meu | 2147483647 FROM at;
+_meu | 2147483647
+2147483647
+SELECT _ins | 2147483647 FROM at;
+_ins | 2147483647
+2147483647
+SELECT _inu | 2147483647 FROM at;
+_inu | 2147483647
+2147483647
+SELECT _bis | 2147483647 FROM at;
+_bis | 2147483647
+2147483647
+SELECT _biu | 2147483647 FROM at;
+_biu | 2147483647
+2147483647
+SELECT _dec | 2147483647 FROM at;
+_dec | 2147483647
+2147483647
+SELECT _flo | 2147483647 FROM at;
+_flo | 2147483647
+2147483647
+SELECT _dou | 2147483647 FROM at;
+_dou | 2147483647
+2147483647
+SELECT _yea | 2147483647 FROM at;
+_yea | 2147483647
+2147483647
+SELECT _jsn | 2147483647 FROM at;
+_jsn | 2147483647
+2147483647
+Warnings:
+Warning	3156	Invalid JSON value for CAST to INTEGER from column _jsn at row 1
+SELECT _chr | 2147483647 FROM at;
+_chr | 2147483647
+2147483647
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'abcdefghijkl'
+SELECT _vch | 2147483647 FROM at;
+_vch | 2147483647
+2147483647
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'abcdefghijkl'
+SELECT _bin | 2147483647 FROM at;
+_bin | 2147483647
+2147483647
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '\xCA\xFE\xBA\xBE\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+SELECT _vbn | 2147483647 FROM at;
+_vbn | 2147483647
+2147483647
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT _tbl | 2147483647 FROM at;
+_tbl | 2147483647
+2147483647
+SELECT _ttx | 2147483647 FROM at;
+_ttx | 2147483647
+2147483647
+SELECT _blb | 2147483647 FROM at;
+_blb | 2147483647
+2147483647
+SELECT _txt | 2147483647 FROM at;
+_txt | 2147483647
+2147483647
+SELECT _mbb | 2147483647 FROM at;
+_mbb | 2147483647
+2147483647
+SELECT _mtx | 2147483647 FROM at;
+_mtx | 2147483647
+2147483647
+SELECT _lbb | 2147483647 FROM at;
+_lbb | 2147483647
+2147483647
+SELECT _ltx | 2147483647 FROM at;
+_ltx | 2147483647
+2147483647
+SELECT _pnt | 2147483647 FROM at;
+_pnt | 2147483647
+2147483647
+SELECT _dat | 2147483647 FROM at;
+_dat | 2147483647
+2147483647
+SELECT _dtt | 2147483647 FROM at;
+_dtt | 2147483647
+20151986552831
+SELECT _smp | 2147483647 FROM at;
+_smp | 2147483647
+20151986552831
+SELECT _tim | 2147483647 FROM at;
+_tim | 2147483647
+2147483647
+SELECT _enu | 2147483647 FROM at;
+_enu | 2147483647
+2147483647
+SELECT _set | 2147483647 FROM at;
+_set | 2147483647
+2147483647
+SELECT _bit & 2147483647 FROM at;
+_bit & 2147483647
+64
+SELECT _tin & 2147483647 FROM at;
+_tin & 2147483647
+64
+SELECT _boo & 2147483647 FROM at;
+_boo & 2147483647
+1
+SELECT _sms & 2147483647 FROM at;
+_sms & 2147483647
+64
+SELECT _smu & 2147483647 FROM at;
+_smu & 2147483647
+64
+SELECT _mes & 2147483647 FROM at;
+_mes & 2147483647
+64
+SELECT _meu & 2147483647 FROM at;
+_meu & 2147483647
+64
+SELECT _ins & 2147483647 FROM at;
+_ins & 2147483647
+64
+SELECT _inu & 2147483647 FROM at;
+_inu & 2147483647
+64
+SELECT _bis & 2147483647 FROM at;
+_bis & 2147483647
+64
+SELECT _biu & 2147483647 FROM at;
+_biu & 2147483647
+64
+SELECT _dec & 2147483647 FROM at;
+_dec & 2147483647
+64
+SELECT _flo & 2147483647 FROM at;
+_flo & 2147483647
+64
+SELECT _dou & 2147483647 FROM at;
+_dou & 2147483647
+64
+SELECT _yea & 2147483647 FROM at;
+_yea & 2147483647
+2005
+SELECT _jsn & 2147483647 FROM at;
+_jsn & 2147483647
+0
+Warnings:
+Warning	3156	Invalid JSON value for CAST to INTEGER from column _jsn at row 1
+SELECT _chr & 2147483647 FROM at;
+_chr & 2147483647
+0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'abcdefghijkl'
+SELECT _vch & 2147483647 FROM at;
+_vch & 2147483647
+0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'abcdefghijkl'
+SELECT _bin & 2147483647 FROM at;
+_bin & 2147483647
+0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '\xCA\xFE\xBA\xBE\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+SELECT _vbn & 2147483647 FROM at;
+_vbn & 2147483647
+0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT _tbl & 2147483647 FROM at;
+_tbl & 2147483647
+0
+SELECT _ttx & 2147483647 FROM at;
+_ttx & 2147483647
+0
+SELECT _blb & 2147483647 FROM at;
+_blb & 2147483647
+0
+SELECT _txt & 2147483647 FROM at;
+_txt & 2147483647
+0
+SELECT _mbb & 2147483647 FROM at;
+_mbb & 2147483647
+0
+SELECT _mtx & 2147483647 FROM at;
+_mtx & 2147483647
+0
+SELECT _lbb & 2147483647 FROM at;
+_lbb & 2147483647
+0
+SELECT _ltx & 2147483647 FROM at;
+_ltx & 2147483647
+0
+SELECT _pnt & 2147483647 FROM at;
+_pnt & 2147483647
+0
+SELECT _dat & 2147483647 FROM at;
+_dat & 2147483647
+19881215
+SELECT _dtt & 2147483647 FROM at;
+_dtt & 2147483647
+1185050816
+SELECT _smp & 2147483647 FROM at;
+_smp & 2147483647
+1185070816
+SELECT _tim & 2147483647 FROM at;
+_tim & 2147483647
+70809
+SELECT _enu & 2147483647 FROM at;
+_enu & 2147483647
+1
+SELECT _set & 2147483647 FROM at;
+_set & 2147483647
+1
+SELECT _bit ^ 2147483647 FROM at;
+_bit ^ 2147483647
+2147483583
+SELECT _tin ^ 2147483647 FROM at;
+_tin ^ 2147483647
+2147483583
+SELECT _boo ^ 2147483647 FROM at;
+_boo ^ 2147483647
+2147483646
+SELECT _sms ^ 2147483647 FROM at;
+_sms ^ 2147483647
+2147483583
+SELECT _smu ^ 2147483647 FROM at;
+_smu ^ 2147483647
+2147483583
+SELECT _mes ^ 2147483647 FROM at;
+_mes ^ 2147483647
+2147483583
+SELECT _meu ^ 2147483647 FROM at;
+_meu ^ 2147483647
+2147483583
+SELECT _ins ^ 2147483647 FROM at;
+_ins ^ 2147483647
+2147483583
+SELECT _inu ^ 2147483647 FROM at;
+_inu ^ 2147483647
+2147483583
+SELECT _bis ^ 2147483647 FROM at;
+_bis ^ 2147483647
+2147483583
+SELECT _biu ^ 2147483647 FROM at;
+_biu ^ 2147483647
+2147483583
+SELECT _dec ^ 2147483647 FROM at;
+_dec ^ 2147483647
+2147483583
+SELECT _flo ^ 2147483647 FROM at;
+_flo ^ 2147483647
+2147483583
+SELECT _dou ^ 2147483647 FROM at;
+_dou ^ 2147483647
+2147483583
+SELECT _yea ^ 2147483647 FROM at;
+_yea ^ 2147483647
+2147481642
+SELECT _jsn ^ 2147483647 FROM at;
+_jsn ^ 2147483647
+2147483647
+Warnings:
+Warning	3156	Invalid JSON value for CAST to INTEGER from column _jsn at row 1
+SELECT _chr ^ 2147483647 FROM at;
+_chr ^ 2147483647
+2147483647
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'abcdefghijkl'
+SELECT _vch ^ 2147483647 FROM at;
+_vch ^ 2147483647
+2147483647
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'abcdefghijkl'
+SELECT _bin ^ 2147483647 FROM at;
+_bin ^ 2147483647
+2147483647
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '\xCA\xFE\xBA\xBE\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+SELECT _vbn ^ 2147483647 FROM at;
+_vbn ^ 2147483647
+2147483647
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT _tbl ^ 2147483647 FROM at;
+_tbl ^ 2147483647
+2147483647
+SELECT _ttx ^ 2147483647 FROM at;
+_ttx ^ 2147483647
+2147483647
+SELECT _blb ^ 2147483647 FROM at;
+_blb ^ 2147483647
+2147483647
+SELECT _txt ^ 2147483647 FROM at;
+_txt ^ 2147483647
+2147483647
+SELECT _mbb ^ 2147483647 FROM at;
+_mbb ^ 2147483647
+2147483647
+SELECT _mtx ^ 2147483647 FROM at;
+_mtx ^ 2147483647
+2147483647
+SELECT _lbb ^ 2147483647 FROM at;
+_lbb ^ 2147483647
+2147483647
+SELECT _ltx ^ 2147483647 FROM at;
+_ltx ^ 2147483647
+2147483647
+SELECT _pnt ^ 2147483647 FROM at;
+_pnt ^ 2147483647
+2147483647
+SELECT _dat ^ 2147483647 FROM at;
+_dat ^ 2147483647
+2127602432
+SELECT _dtt ^ 2147483647 FROM at;
+_dtt ^ 2147483647
+20150801502015
+SELECT _smp ^ 2147483647 FROM at;
+_smp ^ 2147483647
+20150801482015
+SELECT _tim ^ 2147483647 FROM at;
+_tim ^ 2147483647
+2147412838
+SELECT _enu ^ 2147483647 FROM at;
+_enu ^ 2147483647
+2147483646
+SELECT _set ^ 2147483647 FROM at;
+_set ^ 2147483647
+2147483646
+#
+# bitwise operations with a hex literal argument and mysql data-types
+#
+SELECT _bit | x'cafebabe' FROM at;
+_bit | x'cafebabe'
+3405691646
+SELECT _tin | x'cafebabe' FROM at;
+_tin | x'cafebabe'
+3405691646
+SELECT _boo | x'cafebabe' FROM at;
+_boo | x'cafebabe'
+3405691583
+SELECT _sms | x'cafebabe' FROM at;
+_sms | x'cafebabe'
+3405691646
+SELECT _smu | x'cafebabe' FROM at;
+_smu | x'cafebabe'
+3405691646
+SELECT _mes | x'cafebabe' FROM at;
+_mes | x'cafebabe'
+3405691646
+SELECT _meu | x'cafebabe' FROM at;
+_meu | x'cafebabe'
+3405691646
+SELECT _ins | x'cafebabe' FROM at;
+_ins | x'cafebabe'
+3405691646
+SELECT _inu | x'cafebabe' FROM at;
+_inu | x'cafebabe'
+3405691646
+SELECT _bis | x'cafebabe' FROM at;
+_bis | x'cafebabe'
+3405691646
+SELECT _biu | x'cafebabe' FROM at;
+_biu | x'cafebabe'
+3405691646
+SELECT _dec | x'cafebabe' FROM at;
+_dec | x'cafebabe'
+3405691646
+SELECT _flo | x'cafebabe' FROM at;
+_flo | x'cafebabe'
+3405691646
+SELECT _dou | x'cafebabe' FROM at;
+_dou | x'cafebabe'
+3405691646
+SELECT _yea | x'cafebabe' FROM at;
+_yea | x'cafebabe'
+3405692927
+SELECT _jsn | x'cafebabe' FROM at;
+_jsn | x'cafebabe'
+3405691582
+Warnings:
+Warning	3156	Invalid JSON value for CAST to INTEGER from column _jsn at row 1
+SELECT _chr | x'cafebabe' FROM at;
+_chr | x'cafebabe'
+3405691582
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'abcdefghijkl'
+SELECT _vch | x'cafebabe' FROM at;
+_vch | x'cafebabe'
+3405691582
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'abcdefghijkl'
+SELECT _bin | x'cafebabe' FROM at;
+_bin | x'cafebabe'
+3405691582
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: '\xCA\xFE\xBA\xBE\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+SELECT _vbn | x'cafebabe' FROM at;
+_vbn | x'cafebabe'
+3405691582
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT _tbl | x'cafebabe' FROM at;
+_tbl | x'cafebabe'
+3405691582
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+SELECT _ttx | x'cafebabe' FROM at;
+_ttx | x'cafebabe'
+3405691582
+SELECT _blb | x'cafebabe' FROM at;
+_blb | x'cafebabe'
+3405691582
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+SELECT _txt | x'cafebabe' FROM at;
+_txt | x'cafebabe'
+3405691582
+SELECT _mbb | x'cafebabe' FROM at;
+_mbb | x'cafebabe'
+3405691582
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+SELECT _mtx | x'cafebabe' FROM at;
+_mtx | x'cafebabe'
+3405691582
+SELECT _lbb | x'cafebabe' FROM at;
+_lbb | x'cafebabe'
+3405691582
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+SELECT _ltx | x'cafebabe' FROM at;
+_ltx | x'cafebabe'
+3405691582
+SELECT _pnt | x'cafebabe' FROM at;
+_pnt | x'cafebabe'
+3405691582
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+SELECT _dat | x'cafebabe' FROM at;
+_dat | x'cafebabe'
+3422551807
+SELECT _dtt | x'cafebabe' FROM at;
+_dtt | x'cafebabe'
+20151164402430
+SELECT _smp | x'cafebabe' FROM at;
+_smp | x'cafebabe'
+20151164387070
+SELECT _tim | x'cafebabe' FROM at;
+_tim | x'cafebabe'
+3405758143
+SELECT _enu | x'cafebabe' FROM at;
+_enu | x'cafebabe'
+3405691583
+SELECT _set | x'cafebabe' FROM at;
+_set | x'cafebabe'
+3405691583
+SELECT _bit & x'cafebabe' FROM at;
+_bit & x'cafebabe'
+0
+SELECT _tin & x'cafebabe' FROM at;
+_tin & x'cafebabe'
+0
+SELECT _boo & x'cafebabe' FROM at;
+_boo & x'cafebabe'
+0
+SELECT _sms & x'cafebabe' FROM at;
+_sms & x'cafebabe'
+0
+SELECT _smu & x'cafebabe' FROM at;
+_smu & x'cafebabe'
+0
+SELECT _mes & x'cafebabe' FROM at;
+_mes & x'cafebabe'
+0
+SELECT _meu & x'cafebabe' FROM at;
+_meu & x'cafebabe'
+0
+SELECT _ins & x'cafebabe' FROM at;
+_ins & x'cafebabe'
+0
+SELECT _inu & x'cafebabe' FROM at;
+_inu & x'cafebabe'
+0
+SELECT _bis & x'cafebabe' FROM at;
+_bis & x'cafebabe'
+0
+SELECT _biu & x'cafebabe' FROM at;
+_biu & x'cafebabe'
+0
+SELECT _dec & x'cafebabe' FROM at;
+_dec & x'cafebabe'
+0
+SELECT _flo & x'cafebabe' FROM at;
+_flo & x'cafebabe'
+0
+SELECT _dou & x'cafebabe' FROM at;
+_dou & x'cafebabe'
+0
+SELECT _yea & x'cafebabe' FROM at;
+_yea & x'cafebabe'
+660
+SELECT _jsn & x'cafebabe' FROM at;
+_jsn & x'cafebabe'
+0
+Warnings:
+Warning	3156	Invalid JSON value for CAST to INTEGER from column _jsn at row 1
+SELECT _chr & x'cafebabe' FROM at;
+_chr & x'cafebabe'
+0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'abcdefghijkl'
+SELECT _vch & x'cafebabe' FROM at;
+_vch & x'cafebabe'
+0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'abcdefghijkl'
+SELECT _bin & x'cafebabe' FROM at;
+_bin & x'cafebabe'
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: '\xCA\xFE\xBA\xBE\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+SELECT _vbn & x'cafebabe' FROM at;
+_vbn & x'cafebabe'
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT _tbl & x'cafebabe' FROM at;
+_tbl & x'cafebabe'
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+SELECT _ttx & x'cafebabe' FROM at;
+_ttx & x'cafebabe'
+0
+SELECT _blb & x'cafebabe' FROM at;
+_blb & x'cafebabe'
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+SELECT _txt & x'cafebabe' FROM at;
+_txt & x'cafebabe'
+0
+SELECT _mbb & x'cafebabe' FROM at;
+_mbb & x'cafebabe'
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+SELECT _mtx & x'cafebabe' FROM at;
+_mtx & x'cafebabe'
+0
+SELECT _lbb & x'cafebabe' FROM at;
+_lbb & x'cafebabe'
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+SELECT _ltx & x'cafebabe' FROM at;
+_ltx & x'cafebabe'
+0
+SELECT _pnt & x'cafebabe' FROM at;
+_pnt & x'cafebabe'
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+SELECT _dat & x'cafebabe' FROM at;
+_dat & x'cafebabe'
+3020990
+SELECT _dtt & x'cafebabe' FROM at;
+_dtt & x'cafebabe'
+3265409152
+SELECT _smp & x'cafebabe' FROM at;
+_smp & x'cafebabe'
+3265444512
+SELECT _tim & x'cafebabe' FROM at;
+_tim & x'cafebabe'
+4248
+SELECT _enu & x'cafebabe' FROM at;
+_enu & x'cafebabe'
+0
+SELECT _set & x'cafebabe' FROM at;
+_set & x'cafebabe'
+0
+SELECT _bit ^ x'cafebabe' FROM at;
+_bit ^ x'cafebabe'
+3405691646
+SELECT _tin ^ x'cafebabe' FROM at;
+_tin ^ x'cafebabe'
+3405691646
+SELECT _boo ^ x'cafebabe' FROM at;
+_boo ^ x'cafebabe'
+3405691583
+SELECT _sms ^ x'cafebabe' FROM at;
+_sms ^ x'cafebabe'
+3405691646
+SELECT _smu ^ x'cafebabe' FROM at;
+_smu ^ x'cafebabe'
+3405691646
+SELECT _mes ^ x'cafebabe' FROM at;
+_mes ^ x'cafebabe'
+3405691646
+SELECT _meu ^ x'cafebabe' FROM at;
+_meu ^ x'cafebabe'
+3405691646
+SELECT _ins ^ x'cafebabe' FROM at;
+_ins ^ x'cafebabe'
+3405691646
+SELECT _inu ^ x'cafebabe' FROM at;
+_inu ^ x'cafebabe'
+3405691646
+SELECT _bis ^ x'cafebabe' FROM at;
+_bis ^ x'cafebabe'
+3405691646
+SELECT _biu ^ x'cafebabe' FROM at;
+_biu ^ x'cafebabe'
+3405691646
+SELECT _dec ^ x'cafebabe' FROM at;
+_dec ^ x'cafebabe'
+3405691646
+SELECT _flo ^ x'cafebabe' FROM at;
+_flo ^ x'cafebabe'
+3405691646
+SELECT _dou ^ x'cafebabe' FROM at;
+_dou ^ x'cafebabe'
+3405691646
+SELECT _yea ^ x'cafebabe' FROM at;
+_yea ^ x'cafebabe'
+3405692267
+SELECT _jsn ^ x'cafebabe' FROM at;
+_jsn ^ x'cafebabe'
+3405691582
+Warnings:
+Warning	3156	Invalid JSON value for CAST to INTEGER from column _jsn at row 1
+SELECT _chr ^ x'cafebabe' FROM at;
+_chr ^ x'cafebabe'
+3405691582
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'abcdefghijkl'
+SELECT _vch ^ x'cafebabe' FROM at;
+_vch ^ x'cafebabe'
+3405691582
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'abcdefghijkl'
+SELECT _bin ^ x'cafebabe' FROM at;
+_bin ^ x'cafebabe'
+3405691582
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: '\xCA\xFE\xBA\xBE\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+SELECT _vbn ^ x'cafebabe' FROM at;
+_vbn ^ x'cafebabe'
+3405691582
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT _tbl ^ x'cafebabe' FROM at;
+_tbl ^ x'cafebabe'
+3405691582
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+SELECT _ttx ^ x'cafebabe' FROM at;
+_ttx ^ x'cafebabe'
+3405691582
+SELECT _blb ^ x'cafebabe' FROM at;
+_blb ^ x'cafebabe'
+3405691582
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+SELECT _txt ^ x'cafebabe' FROM at;
+_txt ^ x'cafebabe'
+3405691582
+SELECT _mbb ^ x'cafebabe' FROM at;
+_mbb ^ x'cafebabe'
+3405691582
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+SELECT _mtx ^ x'cafebabe' FROM at;
+_mtx ^ x'cafebabe'
+3405691582
+SELECT _lbb ^ x'cafebabe' FROM at;
+_lbb ^ x'cafebabe'
+3405691582
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+SELECT _ltx ^ x'cafebabe' FROM at;
+_ltx ^ x'cafebabe'
+3405691582
+SELECT _pnt ^ x'cafebabe' FROM at;
+_pnt ^ x'cafebabe'
+3405691582
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+SELECT _dat ^ x'cafebabe' FROM at;
+_dat ^ x'cafebabe'
+3419530817
+SELECT _dtt ^ x'cafebabe' FROM at;
+_dtt ^ x'cafebabe'
+20147898993278
+SELECT _smp ^ x'cafebabe' FROM at;
+_smp ^ x'cafebabe'
+20147898942558
+SELECT _tim ^ x'cafebabe' FROM at;
+_tim ^ x'cafebabe'
+3405753895
+SELECT _enu ^ x'cafebabe' FROM at;
+_enu ^ x'cafebabe'
+3405691583
+SELECT _set ^ x'cafebabe' FROM at;
+_set ^ x'cafebabe'
+3405691583
+#
+# bitwise operations with binary and varbinary arguments
+#
+SELECT HEX(_bin & _bin), HEX(_bin & _vbn), HEX(_vbn & _bin), HEX(_vbn & _vbn) FROM at;
+HEX(_bin & _bin)	HEX(_bin & _vbn)	HEX(_vbn & _bin)	HEX(_vbn & _vbn)
+0	0	0	0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: '\xCA\xFE\xBA\xBE\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect INTEGER value: '\xCA\xFE\xBA\xBE\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect INTEGER value: '\xCA\xFE\xBA\xBE\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: '\xCA\xFE\xBA\xBE\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT HEX(_bin | _bin), HEX(_bin | _vbn), HEX(_vbn | _bin), HEX(_vbn | _vbn) FROM at;
+HEX(_bin | _bin)	HEX(_bin | _vbn)	HEX(_vbn | _bin)	HEX(_vbn | _vbn)
+0	0	0	0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: '\xCA\xFE\xBA\xBE\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect INTEGER value: '\xCA\xFE\xBA\xBE\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect INTEGER value: '\xCA\xFE\xBA\xBE\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: '\xCA\xFE\xBA\xBE\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT HEX(_bin ^ _bin), HEX(_bin ^ _vbn), HEX(_vbn ^ _bin), HEX(_vbn ^ _vbn) FROM at;
+HEX(_bin ^ _bin)	HEX(_bin ^ _vbn)	HEX(_vbn ^ _bin)	HEX(_vbn ^ _vbn)
+0	0	0	0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: '\xCA\xFE\xBA\xBE\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect INTEGER value: '\xCA\xFE\xBA\xBE\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect INTEGER value: '\xCA\xFE\xBA\xBE\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: '\xCA\xFE\xBA\xBE\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+DROP TABLE at;
+#
+# Test of bitwise aggregate functions on BINARY
+#
+CREATE TABLE t(a varbinary(10));
+INSERT INTO t VALUES(0xFF00F0F0), (0xF0F0FF00);
+SELECT BIT_AND(a) FROM t;
+BIT_AND(a)
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT BIT_OR(a) FROM t;
+BIT_OR(a)
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT BIT_XOR(a) FROM t;
+BIT_XOR(a)
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT HEX(BIT_AND(a)) FROM t;
+HEX(BIT_AND(a))
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT HEX(BIT_OR(a)) FROM t;
+HEX(BIT_OR(a))
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT HEX(BIT_XOR(a)) FROM t;
+HEX(BIT_XOR(a))
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+truncate table t;
+INSERT INTO t VALUES(NULL);
+SELECT HEX(BIT_AND(a)) FROM t;
+HEX(BIT_AND(a))
+FFFFFFFFFFFFFFFF
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+SELECT HEX(BIT_OR(a)) FROM t;
+HEX(BIT_OR(a))
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+SELECT HEX(BIT_XOR(a)) FROM t;
+HEX(BIT_XOR(a))
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+truncate table t;
+INSERT INTO t VALUES(NULL), (0xFF00F0F0), (0xF0F0FF00);
+SELECT HEX(BIT_AND(a)) FROM t;
+HEX(BIT_AND(a))
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT HEX(BIT_OR(a)) FROM t;
+HEX(BIT_OR(a))
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT HEX(BIT_XOR(a)) FROM t;
+HEX(BIT_XOR(a))
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+truncate table t;
+INSERT INTO t VALUES(0xFF00F0F0), (0xF0F0FF00), (NULL);
+SELECT HEX(BIT_AND(a)) FROM t;
+HEX(BIT_AND(a))
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT HEX(BIT_OR(a)) FROM t;
+HEX(BIT_OR(a))
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT HEX(BIT_XOR(a)) FROM t;
+HEX(BIT_XOR(a))
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+truncate table t;
+INSERT INTO t VALUES(0xFF00F0F0), (NULL), (0xF0F0FF00);
+SELECT HEX(BIT_AND(a)) FROM t;
+HEX(BIT_AND(a))
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT HEX(BIT_OR(a)) FROM t;
+HEX(BIT_OR(a))
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT HEX(BIT_XOR(a)) FROM t;
+HEX(BIT_XOR(a))
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+DROP TABLE t;
+#
+# bitwise aggregate functions having arguments with different sizes
+#
+CREATE TABLE t(group_id int, a varbinary(10));
+INSERT INTO t VALUES(1, 0xFF00F0F0), (1, 0xFF00);
+SELECT HEX(BIT_AND(lpad(a, 10, 0x00))) FROM t;
+HEX(BIT_AND(lpad(a, 10, 0x00)))
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+SELECT BIT_AND(a) FROM t;
+BIT_AND(a)
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT BIT_OR(a) FROM t;
+BIT_OR(a)
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT BIT_XOR(a) FROM t;
+BIT_XOR(a)
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+PREPARE s1 FROM "SELECT group_id, HEX(BIT_AND(a)) FROM t GROUP BY group_id";
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+EXECUTE s1;
+group_id	HEX(BIT_AND(a))
+1	0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+PREPARE s2 FROM "SELECT group_id, HEX(BIT_OR(a)) FROM t GROUP BY group_id";
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+EXECUTE s2;
+group_id	HEX(BIT_OR(a))
+1	0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+PREPARE s3 FROM "SELECT group_id, HEX(BIT_XOR(a)) FROM t GROUP BY group_id";
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+EXECUTE s3;
+group_id	HEX(BIT_XOR(a))
+1	0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+PREPARE s4 FROM "SELECT HEX(BIT_AND(a)) FROM t";
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+EXECUTE s4;
+HEX(BIT_AND(a))
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+PREPARE s5 FROM "SELECT HEX(BIT_OR(a)) FROM t";
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+EXECUTE s5;
+HEX(BIT_OR(a))
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+PREPARE s6 FROM "SELECT HEX(BIT_XOR(a)) FROM t";
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+EXECUTE s6;
+HEX(BIT_XOR(a))
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+truncate table t;
+INSERT INTO t VALUES(1, 0xFF00), (1, 0xFF00F0F0);
+SELECT BIT_AND(a) FROM t;
+BIT_AND(a)
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT BIT_OR(a) FROM t;
+BIT_OR(a)
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+SELECT BIT_XOR(a) FROM t;
+BIT_XOR(a)
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+PREPARE s1 FROM "SELECT group_id, HEX(BIT_AND(a)) FROM t GROUP BY group_id";
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+EXECUTE s1;
+group_id	HEX(BIT_AND(a))
+1	0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+PREPARE s2 FROM "SELECT group_id, HEX(BIT_OR(a)) FROM t GROUP BY group_id";
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+EXECUTE s2;
+group_id	HEX(BIT_OR(a))
+1	0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+PREPARE s3 FROM "SELECT group_id, HEX(BIT_XOR(a)) FROM t GROUP BY group_id";
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+EXECUTE s3;
+group_id	HEX(BIT_XOR(a))
+1	0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+PREPARE s4 FROM "SELECT HEX(BIT_AND(a)) FROM t";
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+EXECUTE s4;
+HEX(BIT_AND(a))
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+PREPARE s5 FROM "SELECT HEX(BIT_OR(a)) FROM t";
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+EXECUTE s5;
+HEX(BIT_OR(a))
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+PREPARE s6 FROM "SELECT HEX(BIT_XOR(a)) FROM t";
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+EXECUTE s6;
+HEX(BIT_XOR(a))
+0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+truncate table t;
+# check group 5 results with hex literals
+SELECT
+HEX(0xABCDEF & 0x123456 & 0x789123),
+HEX(0xABCDEF | 0x123456 | 0x789123),
+HEX(0xABCDEF ^ 0x123456 ^ 0x789123);
+HEX(0xABCDEF & 0x123456 & 0x789123)	HEX(0xABCDEF | 0x123456 | 0x789123)	HEX(0xABCDEF ^ 0x123456 ^ 0x789123)
+2	FBFDFF	C1689A
+INSERT INTO t(group_id, a) VALUES
+(1, 0x34567101ABFF00F0F0),
+(1, 0x34567102ABF0F0F0F0),
+(1, 0x34567103ABFF00F0F0),
+(1, 0x34567104ABF0F0F0F0),
+(2, NULL),
+(3, 0x34567104ABF0F0F0F0),
+(4, 0x34567100ABF0F0F0F0),
+(4, NULL),
+(4, 0x34567101ABFF00F0F0),
+(5, 0xABCDEF),
+(5, 0x123456),
+(5, 0x789123);
+#
+# aggregate functions
+#
+SELECT group_id, HEX(BIT_AND(a)), HEX(BIT_OR(a)), HEX(BIT_XOR(a))
+FROM t
+GROUP BY group_id;
+group_id	HEX(BIT_AND(a))	HEX(BIT_OR(a))	HEX(BIT_XOR(a))
+1	4	4	0
+2	FFFFFFFFFFFFFFFF	0	0
+3	4	4	4
+4	4	4	0
+5	0	0	0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: '4V'
+Warning	1292	Truncated incorrect INTEGER value: '4V'
+Warning	1292	Truncated incorrect INTEGER value: '4V'
+Warning	1292	Truncated incorrect INTEGER value: 'x'
+Warning	1292	Truncated incorrect INTEGER value: 'x'
+Warning	1292	Truncated incorrect INTEGER value: 'x'
+SELECT group_id, HEX(BIT_AND(a)), BIT_AND(192), BIT_AND(0x303233), BIT_AND(binary "foo")
+FROM t
+GROUP BY group_id;
+group_id	HEX(BIT_AND(a))	BIT_AND(192)	BIT_AND(0x303233)	BIT_AND(binary "foo")
+1	4	192	3158579	0
+2	FFFFFFFFFFFFFFFF	192	3158579	0
+3	4	192	3158579	0
+4	4	192	3158579	0
+5	0	192	3158579	0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: '4V'
+Warning	1292	Truncated incorrect INTEGER value: 'x'
+SELECT BIT_COUNT(group_id), BIT_COUNT(a), BIT_COUNT(192), BIT_COUNT(0x303233),
+BIT_COUNT(binary "foo"), BIT_COUNT(NULL)
+FROM t;
+BIT_COUNT(group_id)	BIT_COUNT(a)	BIT_COUNT(192)	BIT_COUNT(0x303233)	BIT_COUNT(binary "foo")	BIT_COUNT(NULL)
+1	1	2	9	0	NULL
+1	1	2	9	0	NULL
+1	1	2	9	0	NULL
+1	1	2	9	0	NULL
+1	NULL	2	9	0	NULL
+2	1	2	9	0	NULL
+1	1	2	9	0	NULL
+1	NULL	2	9	0	NULL
+1	1	2	9	0	NULL
+2	0	2	9	0	NULL
+2	0	2	9	0	NULL
+2	0	2	9	0	NULL
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: '4V'
+Warning	1292	Truncated incorrect INTEGER value: 'x'
+#
+# aggregate functions in prepared statements
+#
+PREPARE s1
+FROM "SELECT HEX(BIT_AND(a)),HEX(BIT_OR(a)),HEX(BIT_XOR(a)) FROM t WHERE group_id = 5";
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+EXECUTE s1;
+HEX(BIT_AND(a))	HEX(BIT_OR(a))	HEX(BIT_XOR(a))
+0	0	0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: '4V'
+Warning	1292	Truncated incorrect INTEGER value: '4V'
+Warning	1292	Truncated incorrect INTEGER value: '4V'
+Warning	1292	Truncated incorrect INTEGER value: 'x'
+Warning	1292	Truncated incorrect INTEGER value: 'x'
+Warning	1292	Truncated incorrect INTEGER value: 'x'
+EXECUTE s1;
+HEX(BIT_AND(a))	HEX(BIT_OR(a))	HEX(BIT_XOR(a))
+0	0	0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: '4V'
+Warning	1292	Truncated incorrect INTEGER value: '4V'
+Warning	1292	Truncated incorrect INTEGER value: '4V'
+Warning	1292	Truncated incorrect INTEGER value: 'x'
+Warning	1292	Truncated incorrect INTEGER value: 'x'
+Warning	1292	Truncated incorrect INTEGER value: 'x'
+PREPARE s2
+FROM "SELECT group_id, HEX(BIT_AND(a)), HEX(BIT_OR(a)), HEX (BIT_XOR(a)) FROM t GROUP BY group_id";
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+EXECUTE s2;
+group_id	HEX(BIT_AND(a))	HEX(BIT_OR(a))	HEX (BIT_XOR(a))
+1	4	4	0
+2	FFFFFFFFFFFFFFFF	0	0
+3	4	4	4
+4	4	4	0
+5	0	0	0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: '4V'
+Warning	1292	Truncated incorrect INTEGER value: '4V'
+Warning	1292	Truncated incorrect INTEGER value: '4V'
+Warning	1292	Truncated incorrect INTEGER value: 'x'
+Warning	1292	Truncated incorrect INTEGER value: 'x'
+Warning	1292	Truncated incorrect INTEGER value: 'x'
+EXECUTE s2;
+group_id	HEX(BIT_AND(a))	HEX(BIT_OR(a))	HEX (BIT_XOR(a))
+1	4	4	0
+2	FFFFFFFFFFFFFFFF	0	0
+3	4	4	4
+4	4	4	0
+5	0	0	0
+Warnings:
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1287	Bitwise operations on BINARY will change behavior in a future version, check the 'Bit functions' section in the manual.
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: '4Vq'
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect INTEGER value: '4V'
+Warning	1292	Truncated incorrect INTEGER value: '4V'
+Warning	1292	Truncated incorrect INTEGER value: '4V'
+Warning	1292	Truncated incorrect INTEGER value: 'x'
+Warning	1292	Truncated incorrect INTEGER value: 'x'
+Warning	1292	Truncated incorrect INTEGER value: 'x'
+DROP TABLE t;

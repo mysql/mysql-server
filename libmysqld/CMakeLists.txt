@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -112,7 +112,6 @@ SET(LIBMYSQLD_BOOST_SOURCES
   ../sql/item_geofunc_relchecks.cc
   ../sql/item_geofunc_relchecks_bgwrap.cc
   ../sql/item_geofunc_setops.cc
-  ../sql/item_json_func.cc
   ../sql/spatial.cc
 )  
 

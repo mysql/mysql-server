@@ -15,7 +15,7 @@ ERROR HY000: Failed to create TABLESPACE s7_def
 SHOW WARNINGS;
 Level	Code	Message
 Error	1528	Failed to create TABLESPACE s7_def
-Error	1030	Got error 168 from storage engine
+Error	1030	Got error 168 - 'Unknown (generic) error from engine' from storage engine
 #
 # Try a series of invalid relative ADD DATAFILE entries.
 # General tablespace files can be in the datadir but they cannot be under the datadir.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -59,10 +59,12 @@ static bool list_contains_unique_index(JOIN_TAB *tab,
                           bool (*find_func) (Field *, void *), void *data);
 static bool find_field_in_item_list (Field *field, void *data);
 static bool find_field_in_order_list (Field *field, void *data);
-static ORDER *create_distinct_group(THD *thd, Ref_ptr_array ref_pointer_array,
-                                    ORDER *order, List<Item> &fields,
+static ORDER *create_distinct_group(THD *thd,
+                                    Ref_item_array ref_item_array,
+                                    ORDER *order,
+                                    List<Item> &fields,
                                     List<Item> &all_fields,
-				    bool *all_order_by_fields_used);
+                                    bool *all_order_by_fields_used);
 static TABLE *get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables);
 static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab);
 static Item *remove_additional_cond(Item* conds);
@@ -193,6 +195,9 @@ JOIN::optimize()
   set_optimized();
 
   tables_list= select_lex->get_table_list();
+
+  // The base ref items from query block are assigned as JOIN's ref items
+  ref_items[REF_SLICE_BASE]= select_lex->base_ref_items;
 
   /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */
   /*
@@ -631,9 +636,10 @@ JOIN::optimize()
     creation for the DISTINCT clause just because there are only const tables.
   */
   need_tmp= ((!plan_is_const() &&
-	     ((select_distinct || (order && !simple_order) ||
+             ((select_distinct ||
+               (order && !simple_order) ||
                (group_list && !simple_group)) ||
-	      (group_list && order) ||
+              (group_list && order) ||
               (select_lex->active_options() & OPTION_BUFFER_RESULT))) ||
              (rollup.state != ROLLUP::STATE_NONE && select_distinct));
 
@@ -1218,7 +1224,7 @@ bool JOIN::optimize_distinct_group_order()
     }
     ORDER *o;
     bool all_order_fields_used;
-    if ((o= create_distinct_group(thd, ref_ptrs,
+    if ((o= create_distinct_group(thd, ref_items[REF_SLICE_BASE],
                                   order, fields_list, all_fields,
 				  &all_order_fields_used)))
     {
@@ -4403,7 +4409,7 @@ Item* substitute_for_best_equal_field(Item *cond,
 
   }
   else if (cond->type() == Item::FUNC_ITEM && 
-           ((Item_cond*) cond)->functype() == Item_func::MULT_EQUAL_FUNC)
+           (down_cast<Item_func*>(cond))->functype() == Item_func::MULT_EQUAL_FUNC)
   {
     item_equal= (Item_equal *) cond;
     item_equal->sort(&compare_fields_by_table_order, table_join_idx);
@@ -5429,7 +5435,7 @@ bool JOIN::extract_func_dependent_tables()
           if (!(keyuse->val->used_tables() & ~const_table_map) &&
               keyuse->val->is_null() && keyuse->null_rejecting)
           {
-            mark_as_null_row(table);
+            table->set_null_row();
             found_const_table_map|= tl->map();
             mark_const_table(tab, keyuse);
             goto more_const_tables_found;
@@ -5589,7 +5595,7 @@ bool JOIN::estimate_rowcount()
     {
       trace_table.add("rows", 1).add("cost", 1)
         .add_alnum("table_type", (tab->type() == JT_SYSTEM) ? "system": "const")
-        .add("empty", static_cast<bool>(tab->table()->null_row));
+        .add("empty", tab->table()->has_null_row());
 
       // Only one matching row and one block to read
       tab->set_records(tab->found_records= 1);
@@ -5664,7 +5670,7 @@ bool JOIN::estimate_rowcount()
           trace_table.add("returning_empty_null_row", true).
             add_alnum("cause", "impossible_on_condition");
           found_const_table_map|= tl->map();
-          mark_as_null_row(tab->table());  // All fields are NULL
+          tab->table()->set_null_row();  // All fields are NULL
         }
         else
         {
@@ -7664,8 +7670,8 @@ add_ft_keys(Key_use_array *keyuse_array,
 /**
   Compares two keyuse elements.
 
-  @param a first Key_use element
-  @param b second Key_use element
+  @param a_arg first Key_use element
+  @param b_arg second Key_use element
 
   Compare Key_use elements so that they are sorted as follows:
     -# By table.
@@ -7674,12 +7680,14 @@ add_ft_keys(Key_use_array *keyuse_array,
     -# Const values.
     -# Ref_or_null.
 
-  @retval  0 If a = b.
-  @retval <0 If a < b.
-  @retval >0 If a > b.
+  @retval 0 If a = b.
+  @retval negative If a < b.
+  @retval positive If a > b.
 */
-static int sort_keyuse(Key_use *a, Key_use *b)
+static int sort_keyuse(const void *a_arg, const void *b_arg)
 {
+  const Key_use *a= pointer_cast<const Key_use*>(a_arg);
+  const Key_use *b= pointer_cast<const Key_use*>(b_arg);
   int res;
   if (a->table_ref->tableno() != b->table_ref->tableno())
     return (int) (a->table_ref->tableno() - b->table_ref->tableno());
@@ -8162,7 +8170,7 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
     Key_use *save_pos, *use;
 
     my_qsort(keyuse->begin(), keyuse->size(), keyuse->element_size(),
-             reinterpret_cast<qsort_cmp>(sort_keyuse));
+             sort_keyuse);
 
     const Key_use key_end(NULL, NULL, 0, 0, 0, 0, 0, 0, false, NULL, 0);
     if (keyuse->push_back(key_end)) // added for easy testing
@@ -8837,6 +8845,7 @@ bool JOIN::cache_const_exprs()
 /**
   Extract a condition that can be checked after reading given table
   
+  @param thd        Current session.
   @param cond       Condition to analyze
   @param tables     Tables for which "current field values" are available
   @param used_table Table(s) that we are extracting the condition for (may 
@@ -10175,7 +10184,7 @@ bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
 	  (thd->first_successful_insert_id_in_prev_stmt > 0 &&
            thd->substitute_null_with_insert_id))
       {
-	query_cache.abort(thd, &thd->query_cache_tls);
+	query_cache.abort(thd);
 
         cond= new Item_func_eq(
                 args[0],
@@ -10349,10 +10358,12 @@ find_field_in_item_list (Field *field, void *data)
 */
 
 static ORDER *
-create_distinct_group(THD *thd, Ref_ptr_array ref_pointer_array,
-                      ORDER *order_list, List<Item> &fields,
+create_distinct_group(THD *thd,
+                      Ref_item_array ref_item_array,
+                      ORDER *order_list,
+                      List<Item> &fields,
                       List<Item> &all_fields,
-		      bool *all_order_by_fields_used)
+                      bool *all_order_by_fields_used)
 {
   List_iterator<Item> li(fields);
   Item *item;
@@ -10413,17 +10424,17 @@ create_distinct_group(THD *thd, Ref_ptr_array ref_pointer_array,
       {
         /*
           We have here only field_list (not all_field_list), so we can use
-          simple indexing of ref_pointer_array (order in the array and in the
+          simple indexing of ref_item_array (order in the array and in the
           list are same)
         */
-        ord->item= &ref_pointer_array[0];
+        ord->item= &ref_item_array[0];
       }
       ord->direction= ORDER::ORDER_ASC;
       *prev=ord;
       prev= &ord->next;
     }
 next_item:
-    ref_pointer_array.pop_front();
+    ref_item_array.pop_front();
   }
   *prev=0;
   return group;
@@ -11145,17 +11156,17 @@ bool JOIN::optimize_rollup()
     static_cast<Item_null_result**>(thd->alloc(sizeof(Item*)*send_group_parts));
 
   rollup.null_items= Item_null_array(null_items, send_group_parts);
-  rollup.ref_pointer_arrays=
-    static_cast<Ref_ptr_array*>
-    (thd->alloc((sizeof(Ref_ptr_array) +
+  rollup.ref_item_arrays=
+    static_cast<Ref_item_array *>
+    (thd->alloc((sizeof(Ref_item_array) +
                  all_fields.elements * sizeof(Item*)) * send_group_parts));
   rollup.fields=
     static_cast<List<Item>*>(thd->alloc(sizeof(List<Item>) * send_group_parts));
 
-  if (!null_items || !rollup.ref_pointer_arrays || !rollup.fields)
+  if (!null_items || !rollup.ref_item_arrays || !rollup.fields)
     return true;
 
-  Item **ref_array= (Item**) (rollup.ref_pointer_arrays+send_group_parts);
+  Item **ref_array= (Item**) (rollup.ref_item_arrays+send_group_parts);
 
   /*
     Prepare space for field list for the different levels
@@ -11171,7 +11182,7 @@ bool JOIN::optimize_rollup()
       return true;           /* purecov: inspected */
     List<Item> *rollup_fields= &rollup.fields[i];
     rollup_fields->empty();
-    rollup.ref_pointer_arrays[i]= Ref_ptr_array(ref_array, all_fields.elements);
+    rollup.ref_item_arrays[i]= Ref_item_array(ref_array, all_fields.elements);
     ref_array+= all_fields.elements;
   }
   for (uint i= 0; i < send_group_parts; i++)

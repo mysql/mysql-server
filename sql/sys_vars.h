@@ -1,6 +1,6 @@
 #ifndef SYS_VARS_H_INCLUDED
 #define SYS_VARS_H_INCLUDED
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,24 +24,20 @@
 */
 
 #include "my_global.h"
-#include "keycaches.h"            // dflt_key_cache
+
+#include "keycache.h"             // dflt_key_cache
 #include "my_bit.h"               // my_count_bits
-#include "my_getopt.h"            // get_opt_arg_type
-#include "mysql/plugin.h"         // enum_mysql_show_type
+
 #include "debug_sync.h"           // debug_sync_update
 #include "item.h"                 // Item
-#include "log.h"                  // sql_print_information
-#include "set_var.h"              // sys_var
+#include "keycaches.h"            // default_key_cache_base
+#include "mysqld.h"               // max_system_variables
+#include "set_var.h"              // sys_var_chain
 #include "sql_class.h"            // THD
 #include "sql_plugin.h"           // my_plugin_lock_by_name
 #include "strfunc.h"              // find_type
 #include "sys_vars_shared.h"      // throw_bounds_warning
 #include "tztime.h"               // Time_zone
-#include "binlog.h"               // mysql_bin_log
-#include "rpl_rli.h"              // sql_slave_skip_counter
-#include "rpl_msr.h"              // channel_map
-#include "rpl_group_replication.h"// is_group_replication_running
-#include "mysqld.h"               // max_system_variables test_flags ...
 
 
 /*

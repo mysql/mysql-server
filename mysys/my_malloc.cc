@@ -154,7 +154,7 @@ extern "C" void *my_realloc(PSI_memory_key key __attribute__((unused)),
   return my_raw_realloc(ptr, size, flags);
 }
 
-extern "C" void my_claim(void *ptr __attribute__((unused)))
+extern "C" void my_claim(const void *ptr __attribute__((unused)))
 {
   /* Empty */
 }

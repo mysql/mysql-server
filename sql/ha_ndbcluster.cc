@@ -1237,8 +1237,8 @@ Thd_ndb::Thd_ndb(THD* thd) :
   m_handler= NULL;
   m_error= FALSE;
   options= 0;
-  (void) my_hash_init(&open_tables, table_alias_charset, 5, 0, 0,
-                      thd_ndb_share_get_key, 0, 0,
+  (void) my_hash_init(&open_tables, table_alias_charset, 5, 0,
+                      thd_ndb_share_get_key, nullptr, 0,
                       PSI_INSTRUMENT_ME);
   m_unsent_bytes= 0;
   m_execute_count= 0;
@@ -12717,16 +12717,16 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
                         NdbDictionary::Object::UserTable) != 0)
     ERR_RETURN(dict->getNdbError());
 
-  if (my_hash_init(&ndb_tables, table_alias_charset,list.count,0,0,
-                   tables_get_key,0,0,
+  if (my_hash_init(&ndb_tables, table_alias_charset,list.count,0,
+                   tables_get_key, nullptr, 0,
                    PSI_INSTRUMENT_ME))
   {
     DBUG_PRINT("error", ("Failed to init HASH ndb_tables"));
     DBUG_RETURN(-1);
   }
 
-  if (my_hash_init(&ok_tables, system_charset_info,32,0,0,
-                   tables_get_key,0,0,
+  if (my_hash_init(&ok_tables, system_charset_info,32,0,
+                   tables_get_key, nullptr, 0,
                    PSI_INSTRUMENT_ME))
   {
     DBUG_PRINT("error", ("Failed to init HASH ok_tables"));
@@ -13238,11 +13238,11 @@ int ndbcluster_init(void* p)
     }
   }
 
-  (void) my_hash_init(&ndbcluster_open_tables,table_alias_charset,32,0,0,
-                      ndbcluster_get_key,0,0,
+  (void) my_hash_init(&ndbcluster_open_tables,table_alias_charset,32,0,
+                      ndbcluster_get_key, nullptr, 0,
                       PSI_INSTRUMENT_ME);
-  (void) my_hash_init(&ndbcluster_dropped_tables,table_alias_charset,32,0,0,
-                      ndbcluster_get_key,0,0,
+  (void) my_hash_init(&ndbcluster_dropped_tables,table_alias_charset,32,0,
+                      ndbcluster_get_key, nullptr, 0,
                       PSI_INSTRUMENT_ME);
   /* start the ndb injector thread */
   if (ndbcluster_binlog_start())
@@ -13772,7 +13772,7 @@ uint8 ha_ndbcluster::table_cache_type()
    @return 1 if an error occured.
 */
 
-uint ndb_get_commitcount(THD *thd, char *norm_name,
+uint ndb_get_commitcount(THD *thd, const char *norm_name,
                          Uint64 *commit_count)
 {
   char dbname[NAME_LEN + 1];
@@ -13896,7 +13896,7 @@ uint ndb_get_commitcount(THD *thd, char *norm_name,
 
 static my_bool
 ndbcluster_cache_retrieval_allowed(THD *thd,
-                                   char *full_name, uint full_name_len,
+                                   const char *full_name, uint full_name_len,
                                    ulonglong *engine_data)
 {
   Uint64 commit_count;

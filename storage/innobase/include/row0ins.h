@@ -102,33 +102,41 @@ row_ins_clust_index_entry_low(
 				and return. don't execute actual insert. */
 	__attribute__((warn_unused_result));
 
-/***************************************************************//**
-Tries to insert an entry into a secondary index. If a record with exactly the
-same fields is found, the other record is necessarily marked deleted.
+
+/** Tries to insert an entry into a secondary index. If a record with exactly
+the same fields is found, the other record is necessarily marked deleted.
 It is then unmarked. Otherwise, the entry is just inserted to the index.
+@param[in]	flags		undo logging and locking flags
+@param[in]	mode		BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
+				depending on whether we wish optimistic or
+				pessimistic descent down the index tree
+@param[in]	index		secondary index
+@param[in,out]	offsets_heap	memory heap that can be emptied
+@param[in,out]	heap		memory heap
+@param[in,out]	entry		index entry to insert
+@param[in]	trx_id		PAGE_MAX_TRX_ID during row_log_table_apply(),
+				or trx_id when undo log is disabled during
+				alter copy operation or 0
+@param[in]	thr		query thread
+@param[in]	dup_chk_only	TRUE, just do duplicate check and return.
+				don't execute actual insert
 @retval DB_SUCCESS on success
 @retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
 @retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
 @return error code */
 dberr_t
 row_ins_sec_index_entry_low(
-/*========================*/
-	ulint		flags,	/*!< in: undo logging and locking flags */
-	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
-				depending on whether we wish optimistic or
-				pessimistic descent down the index tree */
-	dict_index_t*	index,	/*!< in: secondary index */
+	ulint		flags,
+	ulint		mode,
+	dict_index_t*	index,
 	mem_heap_t*	offsets_heap,
-				/*!< in/out: memory heap that can be emptied */
-	mem_heap_t*	heap,	/*!< in/out: memory heap */
-	dtuple_t*	entry,	/*!< in/out: index entry to insert */
-	trx_id_t	trx_id,	/*!< in: PAGE_MAX_TRX_ID during
-				row_log_table_apply(), or 0 */
-	que_thr_t*	thr,	/*!< in: query thread */
+	mem_heap_t*	heap,
+	dtuple_t*	entry,
+	trx_id_t	trx_id,
+	que_thr_t*	thr,
 	bool		dup_chk_only)
-				/*!< in: if true, just do duplicate check
-				and return. don't execute actual insert. */
 	__attribute__((warn_unused_result));
+
 /** Sets the values of the dtuple fields in entry from the values of appropriate
 columns in row.
 @param[in]	index	index handler

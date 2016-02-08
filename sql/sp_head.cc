@@ -16,8 +16,7 @@
 
 #include "sp_head.h"
 
-#include "sql_cache.h"         // query_cache_*
-#include "mysqld.h"            // global_query_id
+#include "mysqld.h"            // atomic_global_query_id
 #include "probes_mysql.h"
 #include "psi_memory_key.h"
 #include "sql_show.h"          // append_identifier
@@ -212,38 +211,21 @@ void sp_name::init_qname(THD *thd)
 // sp_head implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-void *sp_head::operator new(size_t size) throw()
+void sp_head::destroy(sp_head *sp)
 {
-  MEM_ROOT own_root;
-
-  init_sql_alloc(key_memory_sp_head_main_root,
-                 &own_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
-
-  sp_head *sp= (sp_head *) alloc_root(&own_root, size);
   if (!sp)
-    return NULL;
-
-  sp->main_mem_root= own_root;
-  DBUG_PRINT("info", ("mem_root 0x%lx", (ulong) &sp->mem_root));
-  return sp;
-}
-
-void sp_head::operator delete(void *ptr, size_t size) throw()
-{
-  if (!ptr)
     return;
-
-  sp_head *sp= (sp_head *) ptr;
 
   /* Make a copy of main_mem_root as free_root will free the sp */
   MEM_ROOT own_root= sp->main_mem_root;
-  DBUG_PRINT("info", ("mem_root 0x%lx moved to 0x%lx",
-                      (ulong) &sp->mem_root, (ulong) &own_root));
+
+  sp->~sp_head();
+
   free_root(&own_root, MYF(0));
 }
 
 
-sp_head::sp_head(enum_sp_type type)
+sp_head::sp_head(MEM_ROOT mem_root, enum_sp_type type)
  :Query_arena(&main_mem_root, STMT_INITIALIZED_FOR_SP),
   m_type(type),
   m_flags(0),
@@ -258,6 +240,7 @@ sp_head::sp_head(enum_sp_type type)
   m_first_free_instance(NULL),
   m_last_cached_sp(NULL),
   m_trg_list(NULL),
+  main_mem_root(mem_root),
   m_root_parsing_ctx(NULL),
   m_instructions(&main_mem_root),
   m_sp_cache_version(0),
@@ -288,10 +271,10 @@ sp_head::sp_head(enum_sp_type type)
   m_body= NULL_STR;
   m_body_utf8= NULL_STR;
 
-  my_hash_init(&m_sptabs, system_charset_info, 0, 0, 0, sp_table_key, 0, 0,
+  my_hash_init(&m_sptabs, system_charset_info, 0, 0, sp_table_key, nullptr, 0,
                key_memory_sp_head_main_root);
-  my_hash_init(&m_sroutines, system_charset_info, 0, 0, 0, sp_sroutine_key,
-               0, 0,
+  my_hash_init(&m_sroutines, system_charset_info, 0, 0, sp_sroutine_key,
+               nullptr, 0,
                key_memory_sp_head_main_root);
 
   m_trg_chistics.ordering_clause= TRG_ORDER_NONE;
@@ -502,7 +485,7 @@ sp_head::~sp_head()
   my_hash_free(&m_sptabs);
   my_hash_free(&m_sroutines);
 
-  delete m_next_cached_sp;
+  sp_head::destroy(m_next_cached_sp);
 }
 
 
@@ -1259,7 +1242,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
       as one select and not resetting THD::user_var_events before
       each invocation.
     */
-    q= my_atomic_load64(&global_query_id); 
+    q= atomic_global_query_id;
     mysql_bin_log.start_union_events(thd, q + 1);
     binlog_save_options= thd->variables.option_bits;
     thd->variables.option_bits&= ~OPTION_BIN_LOG;

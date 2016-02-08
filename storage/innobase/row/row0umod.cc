@@ -383,6 +383,12 @@ row_undo_mod_clust(
 		btr_pcur_commit_specify_mtr(pcur, &mtr);
 	}
 
+	/* If table is SDI table, we will try to flush as early
+	as possible. */
+	if (dict_table_is_sdi(node->table->id)) {
+		buf_flush_sync_all_buf_pools();
+	}
+
 	node->state = UNDO_NODE_FETCH_NEXT;
 
 	if (offsets_heap) {
@@ -1137,6 +1143,8 @@ row_undo_mod_parse_undo_rec(
 
 		return;
 	}
+
+	ut_ad(!node->table->skip_alter_undo);
 
 	clust_index = dict_table_get_first_index(node->table);
 

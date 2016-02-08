@@ -65,8 +65,8 @@ cmp_data_data(
 	__attribute__((warn_unused_result));
 
 /** Compare two data fields.
-@param[in] dfield1 data field; must have type field set
-@param[in] dfield2 data field
+@param[in]	dfield1	data field; must have type field set
+@param[in]	dfield2	data field
 @return the comparison result of dfield1 and dfield2
 @retval 0 if dfield1 is equal to dfield2
 @retval negative if dfield1 is less than dfield2
@@ -74,10 +74,8 @@ cmp_data_data(
 UNIV_INLINE
 int
 cmp_dfield_dfield(
-/*==============*/
-	const dfield_t*	dfield1,/*!< in: data field; must have type field set */
-	const dfield_t*	dfield2);/*!< in: data field */
-
+	const dfield_t*	dfield1,
+	const dfield_t*	dfield2);
 
 /** Compare a GIS data tuple to a physical record.
 @param[in] dtuple data tuple
@@ -206,6 +204,7 @@ are treated as equal.
 @param[in]	rec2		B-tree record
 @param[in]	offsets1	rec_get_offsets(rec1, index)
 @param[in]	offsets2	rec_get_offsets(rec2, index)
+@param[in]	index		B-tree index
 @param[out]	matched_fields	number of completely matched fields
 				within the first field not completely matched
 @return positive, 0, negative if rec1 is greater, equal, less, than rec2,

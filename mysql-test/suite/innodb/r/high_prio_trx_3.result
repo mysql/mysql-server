@@ -17,7 +17,7 @@ COMMIT;
 
 # On connection 1
 COMMIT;
-ERROR HY000: Got error 149 during COMMIT
+ERROR HY000: Got error 149 - 'Lock deadlock; Retry transaction' during COMMIT
 
 # On connection 2
 COMMIT;

@@ -13,7 +13,7 @@ COMMIT;
 
 # On connection 1
 COMMIT;
-ERROR HY000: Got error 149 during COMMIT
+ERROR HY000: Got error 149 - 'Lock deadlock; Retry transaction' during COMMIT
 include/assert.inc ['There is a 2 in t1']
 include/assert.inc ['There is no 1 in t1']
 include/assert.inc ['There is no 0 in t1']

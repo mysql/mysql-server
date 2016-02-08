@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,16 +17,17 @@
 #define FILESORT_UTILS_INCLUDED
 
 #include "my_global.h"
-#include "my_base.h"
-#include "sql_array.h"
-#include "my_sys.h"
-#include "mysql/service_mysql_alloc.h"
 
-#include <algorithm>
+#include "my_base.h"                   // ha_rows
+#include "mysql/service_mysql_alloc.h" // my_free
+#include "sql_array.h"                 // Bounds_checked_array
+
 #include <utility>
 
 class Cost_model_table;
 class Sort_param;
+
+
 /*
   Calculate cost of merge sort
 

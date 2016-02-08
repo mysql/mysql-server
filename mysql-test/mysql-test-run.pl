@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -172,7 +172,6 @@ my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
 our $exe_mysql;
-our $exe_mysql_plugin;
 our $exe_mysqladmin;
 our $exe_mysqltest;
 our $exe_libtool;
@@ -299,6 +298,7 @@ my $opt_strace_server;
 our $opt_user = "root";
 
 our $opt_valgrind= 0;
+my $opt_ubsan= 0;
 my $opt_valgrind_mysqld= 0;
 my $opt_valgrind_clients= 0;
 my $opt_valgrind_mysqltest= 0;
@@ -349,7 +349,9 @@ my $opt_max_save_core= env_or_val(MTR_MAX_SAVE_CORE => 5);
 my $opt_max_save_datadir= env_or_val(MTR_MAX_SAVE_DATADIR => 20);
 my $opt_max_test_fail= env_or_val(MTR_MAX_TEST_FAIL => 10);
 
-my $opt_parallel= $ENV{MTR_PARALLEL} || 1;
+my $opt_parallel= $ENV{MTR_PARALLEL};
+
+our $opt_run_non_parallel_tests;
 
 select(STDOUT);
 $| = 1; # Automatically flush STDOUT
@@ -549,17 +551,21 @@ sub main {
 
   push @$completed, run_ctest() if $opt_ctest;
 
-  if ($opt_valgrind_mysqld) {
+  if ($opt_valgrind_mysqld or $opt_ubsan) {
     # Create minimalistic "test" for the reporting
     my $tinfo = My::Test->new
       (
-       name           => 'valgrind_report',
+       name => $opt_valgrind_mysqld ? 'valgrind_report' : 'ubsan_report',
       );
     # Set dummy worker id to align report with normal tests
     $tinfo->{worker} = 0 if $opt_parallel > 1;
     if ($valgrind_reports) {
       $tinfo->{result}= 'MTR_RES_FAILED';
-      $tinfo->{comment}= "Valgrind reported failures at shutdown, see above";
+      if ($opt_valgrind_mysqld) {
+	$tinfo->{comment}= "Valgrind reported failures at shutdown, see above";
+      } else {
+	$tinfo->{comment}= "UBSAN reported failures at shutdown, see above";
+      }
       $tinfo->{failures}= 1;
     } else {
       $tinfo->{result}= 'MTR_RES_PASSED';
@@ -783,7 +789,7 @@ sub run_test_server ($$$) {
 	elsif ($line =~ /^SPENT/) {
 	  add_total_times($line);
 	}
-	elsif ($line eq 'VALGREP' && $opt_valgrind) {
+	elsif ($line eq 'VALGREP' && ($opt_valgrind or $opt_ubsan)) {
 	  $valgrind_reports= 1;
 	}
 	else {
@@ -969,7 +975,7 @@ sub run_worker ($) {
       stop_all_servers($opt_shutdown_timeout);
       mark_time_used('restart');
       my $valgrind_reports= 0;
-      if ($opt_valgrind_mysqld) {
+      if ($opt_valgrind_mysqld or $opt_ubsan) {
         $valgrind_reports= valgrind_exit_reports();
 	print $server "VALGREP\n" if $valgrind_reports;
       }
@@ -1035,6 +1041,7 @@ sub print_global_resfile {
   resfile_global("gcov", $opt_gcov ? 1 : 0);
   resfile_global("gprof", $opt_gprof ? 1 : 0);
   resfile_global("valgrind", $opt_valgrind ? 1 : 0);
+  resfile_global("ubsan", $opt_ubsan ? 1 : 0);
   resfile_global("callgrind", $opt_callgrind ? 1 : 0);
   resfile_global("helgrind", $opt_helgrind ? 1 : 0);
   resfile_global("mem", $opt_mem ? 1 : 0);
@@ -1088,6 +1095,9 @@ sub command_line_setup {
 
 	     # Max number of parallel threads to use
 	     'parallel=s'               => \$opt_parallel,
+
+             # Option to run the tests having 'not_parallel.inc' file
+             'run-non-parallel-tests'   => \$opt_run_non_parallel_tests,
 
              # Config file to use as template for all tests
 	     'defaults-file=s'          => \&collect_option,
@@ -1161,6 +1171,7 @@ sub command_line_setup {
              # Coverage, profiling etc
              'gcov'                     => \$opt_gcov,
              'gprof'                    => \$opt_gprof,
+             'ubsan'                    => \$opt_ubsan,
              'valgrind|valgrind-all'    => \$opt_valgrind,
 	     'valgrind-clients'         => \$opt_valgrind_clients,
              'valgrind-mysqltest'       => \$opt_valgrind_mysqltest,
@@ -1496,6 +1507,19 @@ sub command_line_setup {
   }
 
   set_vardir($opt_vardir);
+
+  # Check if both "parallel" and "run-non-parallel-tests" options are set
+  if ( $opt_parallel )
+  {
+    if ( $opt_run_non_parallel_tests )
+    {
+      mtr_error("Can't use --parallel with --run-non-parallel-tests");
+    }
+  }
+  else
+  {
+    $opt_parallel= 1;
+  }
 
   # --------------------------------------------------------------------------
   # Set the "tmp" directory
@@ -2086,7 +2110,6 @@ sub executable_setup () {
   # Look for the client binaries
   $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
   $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
-  $exe_mysql_plugin=   mtr_exe_exists("$path_client_bindir/mysql_plugin");
   $exe_mysql_ssl_rsa_setup= mtr_exe_exists("$path_client_bindir/mysql_ssl_rsa_setup");
 
   $exe_mysql_embedded=
@@ -2577,7 +2600,6 @@ sub environment_setup {
   $ENV{'MYSQLADMIN'}=                  native_path($exe_mysqladmin);
   $ENV{'MYSQL_CLIENT_TEST'}=           mysql_client_test_arguments();
   $ENV{'EXE_MYSQL'}=                   $exe_mysql;
-  $ENV{'MYSQL_PLUGIN'}=                $exe_mysql_plugin;
   $ENV{'MYSQL_EMBEDDED'}=              $exe_mysql_embedded;
   $ENV{'PATH_CONFIG_FILE'}=            $path_config_file;
   $ENV{'MYSQL_SSL_RSA_SETUP'}=         $exe_mysql_ssl_rsa_setup;
@@ -2639,6 +2661,22 @@ sub environment_setup {
     $ENV{'INNOCHECKSUM'}= mtr_args2str($exe_innochecksum, @$args);
   }
 
+ # ----------------------------------------------------
+  # Setup env so childs can execute ibd2sdi
+  # ----------------------------------------------------
+  my $exe_ibd2sdi=
+    mtr_exe_exists(vs_config_dirs('extra', 'ibd2sdi'),
+                   "$path_client_bindir/ibd2sdi",
+                   "$basedir/extra/ibd2sdi");
+  $ENV{'IBD2SDI'}= native_path($exe_ibd2sdi);
+
+  if ( $opt_valgrind_clients )
+  {
+    my $args;
+    mtr_init_args(\$args);
+    valgrind_client_arguments($args, \$exe_ibd2sdi);
+    $ENV{'IBD2SDI'}= mtr_args2str($exe_ibd2sdi, @$args);
+   }
   # ----------------------------------------------------
   # Setup env so childs can execute myisampack and myisamchk
   # ----------------------------------------------------
@@ -2698,7 +2736,7 @@ sub environment_setup {
   # ----------------------------------------------------
   # lz4_decompress
   # ----------------------------------------------------
-  my $exe_lz4_decompress= mtr_exe_exists(vs_config_dirs('extra', 'lz4_decompress'),
+  my $exe_lz4_decompress= mtr_exe_maybe_exists(vs_config_dirs('extra', 'lz4_decompress'),
                                  "$basedir/extra/lz4_decompress",
                                  "$path_client_bindir/lz4_decompress");
   $ENV{'LZ4_DECOMPRESS'}= native_path($exe_lz4_decompress);
@@ -2706,7 +2744,7 @@ sub environment_setup {
   # ----------------------------------------------------
   # zlib_decompress
   # ----------------------------------------------------
-  my $exe_zlib_decompress= mtr_exe_exists(vs_config_dirs('extra', 'zlib_decompress'),
+  my $exe_zlib_decompress= mtr_exe_maybe_exists(vs_config_dirs('extra', 'zlib_decompress'),
                                  "$basedir/extra/zlib_decompress",
                                  "$path_client_bindir/zlib_decompress");
   $ENV{'ZLIB_DECOMPRESS'}= native_path($exe_zlib_decompress);
@@ -2714,6 +2752,9 @@ sub environment_setup {
   # Create an environment variable to make it possible
   # to detect that valgrind is being used from test cases
   $ENV{'VALGRIND_TEST'}= $opt_valgrind;
+
+  # Ask ubsan to print stack traces
+  $ENV{'UBSAN_OPTIONS'}= "print_stacktrace=1" if $opt_ubsan;
 
   # Add dir of this perl to aid mysqltest in finding perl
   my $perldir= dirname($^X);
@@ -3633,7 +3674,7 @@ sub initialize_servers {
       remove_stale_vardir();
       setup_vardir();
 
-      mysql_install_db(default_mysqld(), "$opt_vardir/install.db");
+      mysql_install_db(default_mysqld(), "$opt_vardir/data/");
     }
   }
 }
@@ -3725,6 +3766,7 @@ sub mysql_install_db {
   mtr_add_arg($args, "--log-syslog=0");
   mtr_add_arg($args, "--basedir=%s", $install_basedir);
   mtr_add_arg($args, "--datadir=%s", $install_datadir);
+  mtr_add_arg($args, "--initialize-insecure");
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=%s", "$opt_vardir/tmp/");
   mtr_add_arg($args, "--secure-file-priv=%s", "$opt_vardir");
@@ -3784,9 +3826,8 @@ sub mysql_install_db {
   # ----------------------------------------------------------------------
   # export MYSQLD_BOOTSTRAP_CMD variable containing <path>/mysqld <args>
   # ----------------------------------------------------------------------
-  $ENV{'MYSQLD_BOOTSTRAP_CMD'}= "$exe_mysqld_bootstrap " . join(" --bootstrap ", @$args);
+  $ENV{'MYSQLD_BOOTSTRAP_CMD'}= "$exe_mysqld_bootstrap " . join(" ", @$args);
 
-  mtr_add_arg($args, "--install-server");
 
   # ----------------------------------------------------------------------
   # export MYSQLD_INSTALL_CMD variable containing <path>/mysqld <args>
@@ -3797,6 +3838,9 @@ sub mysql_install_db {
   # Create the bootstrap.sql file
   # ----------------------------------------------------------------------
   my $bootstrap_sql_file= "$opt_vardir/tmp/bootstrap.sql";
+
+  #Add the init-file to --initialize-insecure process
+  mtr_add_arg($args, "--init-file=$bootstrap_sql_file");
 
   if ($opt_boot_gdb) {
     gdb_arguments(\$args, \$exe_mysqld_bootstrap, $mysqld->name(),
@@ -3817,8 +3861,7 @@ sub mysql_install_db {
 			      "mysql_system_tables.sql",
 			     NOT_REQUIRED);
 
-  if (-f $path_sql && -f "include/mtr_system_tables_data.sql" &&
-      -f "include/mtr_test_data_timezone.sql")
+  if (-f $path_sql && -f "include/mtr_test_data_timezone.sql")
   {
     # Add the offical mysql system tables
     # for a production system
@@ -3826,14 +3869,6 @@ sub mysql_install_db {
     mtr_appendfile_to_file($path_sql,
 	                         $bootstrap_sql_file);
 
-
-
-    # Add the mysql system tables initial data
-    # for the test system. This should in most cases be the same as the
-    # for the production system, but will for historial reasons contain 
-    # more inital root accounts.
-    mtr_appendfile_to_file("include/mtr_system_tables_data.sql",
-		                       $bootstrap_sql_file);
 
     # Add test data for timezone - this is just a subset, on a real
     # system these tables will be populated either by mysql_tzinfo_to_sql
@@ -3843,30 +3878,15 @@ sub mysql_install_db {
   }
   else
   {
-    mtr_error("Error: The system table definition '".
-              "include/mtr_system_tables_data.sql' could not be found".
+    mtr_error("Error: The test_data_timezone.sql not found".
               "in working directory.");
   }
 
-  # Only load the full sys schema if enabled and not running embedded tests,
-  # otherwise create an empty schema
-  if ( ! $opt_skip_sys_schema && ! $opt_embedded_server )
+  if ( $opt_skip_sys_schema || $opt_embedded_server )
   {
-    # Add the sys schema, but only in non-embedded installs
-    my $path_sys_schema= my_find_file($install_basedir,
-            ["mysql", "sql/share", "share/mysql",
-             "share", "scripts"],
-            "mysql_sys_schema.sql",
-             NOT_REQUIRED);
-
-    if (-f $path_sys_schema)
-    {
-      mtr_appendfile_to_file($path_sys_schema, $bootstrap_sql_file);
-    }
-  }
-  else
-  {
-      mtr_tofile($bootstrap_sql_file, "CREATE DATABASE sys;\n");
+    # initialize creates sys schema in embedded mode
+    # which it should not, hence dropping it.
+    mtr_tofile($bootstrap_sql_file, "DROP DATABASE sys;\n");
   }
 
   # Make sure no anonymous accounts exists as a safety precaution
@@ -3881,6 +3901,20 @@ sub mysql_install_db {
   mtr_tofile($bootstrap_sql_file,
 	     "CREATE DATABASE mtr;\n");
 
+  mtr_tofile($bootstrap_sql_file,
+            "insert into mysql.db values('%','test','','Y','Y','Y','Y','Y',
+            'Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y','Y'); \n");
+ 
+  ##########################################################################
+  #  inserting in acl table generates a timestamp and conventional way 
+  #  generates a null timestamp
+  ##########################################################################
+  mtr_tofile($bootstrap_sql_file,
+	     "DELETE FROM mysql.proxies_priv where user='root';\n");
+  mtr_tofile($bootstrap_sql_file,
+	     "INSERT INTO mysql.proxies_priv VALUES ('localhost', 'root', 
+              '', '', TRUE, '', now());\n");
+
   # Add help tables and data for warning detection and supression
   mtr_tofile($bootstrap_sql_file,
              sql_to_bootstrap(mtr_grab_file("include/mtr_warnings.sql")));
@@ -3894,13 +3928,11 @@ sub mysql_install_db {
   mtr_tofile($path_bootstrap_log,
 	     "$exe_mysqld_bootstrap " . join(" ", @$args) . "\n");
 
-  # Create data directory
-  mkpath("$install_datadir");
 
   if ( My::SafeProcess->run
        (
-	name          => "bootstrap",
-	path          => $exe_mysqld_bootstrap,
+        name          => "initialize",
+        path          => $exe_mysqld_bootstrap,
 	args          => \$args,
 	input         => $bootstrap_sql_file,
 	output        => $path_bootstrap_log,
@@ -3909,9 +3941,9 @@ sub mysql_install_db {
 	verbose       => $opt_verbose,
        ) != 0)
   {
-    mtr_error("Error executing mysqld --install-server\n" .
+    mtr_error("Error executing mysqld --initialize\n" .
               "Could not install system database from $bootstrap_sql_file\n" .
-	      "see $path_bootstrap_log for errors");
+              "see $path_bootstrap_log for errors");
   }
 
   # Remove the auto.cnf so that a new auto.cnf is generated
@@ -5775,7 +5807,7 @@ sub mysqld_start ($$) {
 
   my $output= $mysqld->value('#log-error');
   # Remember this log file for valgrind error report search
-  $mysqld_logs{$output}= 1 if $opt_valgrind;
+  $mysqld_logs{$output}= 1 if $opt_valgrind or $opt_ubsan;
   # Remember data dir for gmon.out files if using gprof
   $gprof_dirs{$mysqld->value('datadir')}= 1 if $opt_gprof;
 
@@ -6200,10 +6232,11 @@ sub start_servers($) {
     {
       if (! $opt_start_dirty)	# If dirty, keep possibly grown system db
       {
+        my $install_db;
 	# Copy datadir from installed system db
 	for my $path ( "$opt_vardir", "$opt_vardir/..") {
-	  my $install_db= "$path/install.db";
-	  copytree($install_db, $datadir)
+         $install_db= "$path/data/";
+         copytree($install_db, $datadir)
 	    if -d $install_db;
 	}
 	mtr_error("Failed to copy system db to '$datadir'")
@@ -6460,7 +6493,7 @@ sub start_mysqltest ($) {
   if ( $opt_ssl )
   {
     # Turn on SSL for _all_ test cases if option --ssl was used
-    mtr_add_arg($args, "--ssl");
+    mtr_add_arg($args, "--ssl-mode=REQUIRED");
   }
 
   if ( $opt_max_connections ) {
@@ -6867,6 +6900,7 @@ sub valgrind_arguments {
 
 #
 # Search server logs for valgrind reports printed at mysqld termination
+# Also search for ubsan reports. For now: only wrong downcasts.
 #
 
 sub valgrind_exit_reports() {
@@ -6879,6 +6913,7 @@ sub valgrind_exit_reports() {
     my $found_report= 0;
     my $err_in_report= 0;
     my $ignore_report= 0;
+    my $tool_name= $opt_ubsan ? "UBSAN" : "Valgrind";
 
     my $LOGF = IO::File->new($log_file)
       or mtr_error("Could not open file '$log_file' for reading: $!");
@@ -6893,7 +6928,7 @@ sub valgrind_exit_reports() {
         {
           if ($err_in_report)
           {
-            mtr_print ("Valgrind report from $log_file after tests:\n",
+            mtr_print ("$tool_name report from $log_file after tests:\n",
                         @culprits);
             mtr_print_line();
             print ("$valgrind_rep\n");
@@ -6912,6 +6947,9 @@ sub valgrind_exit_reports() {
       $ignore_report=1 if $line =~ /VALGRIND_DO_QUICK_LEAK_CHECK/;
       # This line marks the start of a valgrind report
       $found_report= 1 if $line =~ /^==\d+== .* SUMMARY:/;
+      $found_report= 1 if $line =~ /.*runtime error: downcast of address.*/;
+      $found_report= 1 if $line =~ /.*runtime error: left shift.*/;
+      $found_report= 1 if $line =~ /.*runtime error: negation of.*/;
 
       if ($ignore_report && $found_report) {
         $ignore_report= 0;
@@ -6925,13 +6963,14 @@ sub valgrind_exit_reports() {
         $err_in_report= 1 if $line =~ /definitely lost: [1-9]/;
         $err_in_report= 1 if $line =~ /possibly lost: [1-9]/;
         $err_in_report= 1 if $line =~ /still reachable: [1-9]/;
+	$err_in_report= 1 if $line =~ /.*runtime error: .*/;
       }
     }
 
     $LOGF= undef;
 
     if ($err_in_report) {
-      mtr_print ("Valgrind report from $log_file after tests:\n", @culprits);
+      mtr_print ("$tool_name report from $log_file after tests:\n", @culprits);
       mtr_print_line();
       print ("$valgrind_rep\n");
       $found_err= 1;
@@ -7228,6 +7267,8 @@ Misc options
   force-restart         Always restart servers between tests
   parallel=N            Run tests in N parallel threads (default=1)
                         Use parallel=auto for auto-setting of N
+  run-non-parallel-tests
+                        Option to run the tests having 'not_parallel.inc' file
   repeat=N              Run each test N number of times
   retry=N               Retry tests that fail N times, limit number of failures
                         to $opt_retry_failure

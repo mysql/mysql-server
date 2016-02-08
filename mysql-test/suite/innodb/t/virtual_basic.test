@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 --source include/have_innodb.inc
 --source include/have_innodb_max_16k.inc
 --source include/count_sessions.inc
@@ -1380,5 +1382,108 @@ OR(c9 BETWEEN 'hwstqua' AND 'wstquadcji' OR (c9k=0))
 AND(c3 IS NULL OR c3 IN (0,0,0));
 
 drop table t;
+
+#
+# BUG#22082762 RE-ENABLE SUPPORT FOR ADDING VIRTUAL INDEX WHILE DROPPING VIRTUAL COLUMN
+#
+
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), d INT
+GENERATED ALWAYS AS(a+b+b), e INT  GENERATED ALWAYS AS(a), h VARCHAR(10));
+
+INSERT INTO t VALUES (11, 3, DEFAULT, DEFAULT, DEFAULT, 'mm');
+INSERT INTO t VALUES (18, 1, DEFAULT, DEFAULT, DEFAULT, 'mm');
+INSERT INTO t VALUES (28, 1, DEFAULT, DEFAULT, DEFAULT, 'mm');
+INSERT INTO t VALUES (null, null, DEFAULT, DEFAULT, DEFAULT, 'mm');
+CREATE INDEX idx ON t(c, d);
+CREATE INDEX idx1 ON t(c);
+CREATE INDEX idx2 ON t(e, c, d);
+
+# This will drop column c, drop index idx1 on column c, and build index
+# idx and idx2, so they become idx(d) and idx2(e, d) respectively.
+ALTER TABLE t DROP COLUMN c, ALGORITHM=INPLACE;
+
+SELECT d FROM t;
+
+SHOW CREATE TABLE t;
+
+# Drop a column, adding a new column and also adding a index on this new column
+# is not allowed for INPLACE algorithm
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t DROP COLUMN d, ADD COLUMN c INT GENERATED ALWAYS AS(a+b), ADD INDEX idx (c), ALGORITHM=INPLACE;
+
+# Add an index on existing column along with dropping a column is allowed
+ALTER TABLE t DROP COLUMN d, ADD COLUMN c INT GENERATED ALWAYS AS(a+b), ADD INDEX idx (e), ALGORITHM=INPLACE, LOCK=NONE;
+SHOW CREATE TABLE t;
+
+# Add an index on existing column along with adding a virtual column and droping a virtual index
+ALTER TABLE t ADD INDEX idx4(c, e), ADD COLUMN x VARCHAR(10) GENERATED ALWAYS AS(h), DROP INDEX idx, ALGORITHM=INPLACE, LOCK=NONE;
+SHOW CREATE TABLE t;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t ADD COLUMN i INT GENERATED ALWAYS AS(a+a+b), ADD COLUMN j INT, ALGORITHM=INPLACE;
+
+# Add an index along with adding a regular column is allowed.
+ALTER TABLE t ADD INDEX (x), ADD COLUMN j INT, ALGORITHM=INPLACE, LOCK=NONE;
+SHOW CREATE TABLE t;
+
+# Online add an index on newly added virtual column is not allowed.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t ADD COLUMN i INT GENERATED ALWAYS AS(a+a+b), ADD INDEX (i), ALGORITHM=INPLACE, LOCK=NONE;
+
+ALTER TABLE t ADD COLUMN i INT GENERATED ALWAYS AS(a+a+b), ADD INDEX (i), ALGORITHM=INPLACE, LOCK=SHARED;
+SHOW CREATE TABLE t;
+
+SELECT i FROM t;
+
+SELECT * FROM t;
+
+DROP TABLE t;
+
+#
+# BUG#22469459 WRONG VALUES IN ADDED INDEX WHILE DROPPING VIRTUAL COLUMN
+#
+
+# Drop column with existing index on it.
+CREATE TABLE t (
+  a INT,
+  b INT,
+  c INT GENERATED ALWAYS AS(a+b),
+  d INT GENERATED ALWAYS AS(a+b+b),
+  KEY vidx (c, d)
+)ENGINE=INNODB;
+
+INSERT INTO t (a,b) VALUES (0, 0), (1, NULL), (NULL, 2), (NULL, NULL);
+
+SELECT c, d FROM t;
+
+SELECT * FROM t;
+
+ALTER TABLE t DROP COLUMN c, ALGORITHM=INPLACE;
+
+SELECT d FROM t;
+
+SELECT * FROM t;
+
+DROP TABLE t;
+
+# Drop column with a new index.
+CREATE TABLE t (
+  a INT,
+  b INT,
+  c INT GENERATED ALWAYS AS(a+b),
+  d INT GENERATED ALWAYS AS(a+b+b)
+)ENGINE=INNODB;
+
+INSERT INTO t (a,b) VALUES (0, 0), (1, NULL), (NULL, 2), (NULL, NULL);
+
+SELECT * FROM t;
+
+ALTER TABLE t DROP COLUMN c, ADD INDEX vidx(d), ALGORITHM=INPLACE;
+
+SELECT d FROM t;
+
+SELECT * FROM t;
+
+DROP TABLE t;
 
 --source include/wait_until_count_sessions.inc

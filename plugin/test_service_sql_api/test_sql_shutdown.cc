@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -716,9 +716,7 @@ static int test_sql_service_plugin_init(void *p)
   struct test_services_context *context;
   my_thread_attr_t attr;          /* Thread attributes */
   my_thread_attr_init(&attr);
-#ifndef _WIN32
-  (void) pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-#endif
+  (void) my_thread_attr_setdetachstate(&attr, MY_THREAD_CREATE_JOINABLE);
 
   context= (struct test_services_context *)
         my_malloc(PSI_INSTRUMENT_ME,

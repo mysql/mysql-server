@@ -55,3 +55,72 @@ sleep(3)
 0
 SET global debug="-d,ib_purge_virtual_index_callback";
 DROP TABLE t1;
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1(a, b) VALUES (1, 1), (2, 2), (3, 3);
+# disable purge
+CREATE TABLE t0 (a INT) ENGINE=InnoDB;
+BEGIN;
+SELECT * FROM t0;
+a
+DELETE FROM t1 WHERE a = 1;
+UPDATE t1 SET a = 4, b = 4 WHERE a = 3;
+INSERT INTO t1(a, b) VALUES (5, 5);
+SET DEBUG_SYNC= 'inplace_after_index_build SIGNAL uncommitted WAIT_FOR purged';
+ALTER TABLE t1 ADD COLUMN c INT GENERATED ALWAYS AS(a+b), ADD INDEX idx (c), ALGORITHM=INPLACE, LOCK=NONE;
+ERROR 0A000: LOCK=NONE is not supported. Reason: ADD COLUMN col...VIRTUAL, ADD INDEX(col). Try LOCK=SHARED.
+ALTER TABLE t1 ADD COLUMN c INT GENERATED ALWAYS AS(a+b), ADD INDEX idx (c), ALGORITHM=INPLACE, LOCK=SHARED;
+SET DEBUG_SYNC= 'now WAIT_FOR uncommitted';
+# enable purge
+COMMIT;
+# wait for purge to process the deleted records.
+SET DEBUG_SYNC= 'now SIGNAL purged';
+/* connection default */ ALTER TABLE t1 ADD COLUMN c INT GENERATED ALWAYS AS(a+b), ADD INDEX idx (c), ALGORITHM=INPLACE, LOCK=SHARED;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  KEY `idx` (`c`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT * FROM t1;
+a	b	c
+2	2	4
+4	4	8
+5	5	10
+DROP TABLE t1;
+CREATE TABLE t1 (a INT, b INT, c INT GENERATED ALWAYS AS(a+b));
+INSERT INTO t1(a, b) VALUES (1, 1), (2, 2), (3, 3), (4, 4);
+# disable purge
+BEGIN;
+SELECT * FROM t0;
+a
+DELETE FROM t1 WHERE a = 1;
+UPDATE t1 SET a = 2, b = 2 WHERE a = 5;
+INSERT INTO t1(a, b) VALUES (6, 6);
+SET DEBUG_SYNC= 'inplace_after_index_build SIGNAL uncommitted WAIT_FOR purged';
+ALTER TABLE t1 ADD INDEX idx (c), ALGORITHM=INPLACE, LOCK=NONE;
+SET DEBUG_SYNC= 'now WAIT_FOR uncommitted';
+DELETE FROM t1 WHERE a = 3;
+UPDATE t1 SET a = 7, b = 7 WHERE a = 4;
+INSERT INTO t1(a, b) VALUES (8, 8);
+# enable purge
+COMMIT;
+# wait for purge to process the deleted/updated records.
+SET DEBUG_SYNC= 'now SIGNAL purged';
+/* connection default */ ALTER TABLE t1 ADD INDEX idx (c), ALGORITHM=INPLACE, LOCK=NONE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  KEY `idx` (`c`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT * FROM t1;
+a	b	c
+2	2	4
+7	7	14
+6	6	12
+8	8	16
+DROP TABLE t0, t1;

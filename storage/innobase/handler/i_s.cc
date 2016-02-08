@@ -76,9 +76,12 @@ in i_s_page_type[] array */
 /** Change buffer B-tree page */
 #define	I_S_PAGE_TYPE_IBUF		(FIL_PAGE_TYPE_LAST + 2)
 
-#define I_S_PAGE_TYPE_LAST		I_S_PAGE_TYPE_IBUF
+/** SDI B-tree page */
+#define	I_S_PAGE_TYPE_SDI		(FIL_PAGE_TYPE_LAST + 3)
 
-#define I_S_PAGE_TYPE_BITS		4
+#define I_S_PAGE_TYPE_LAST		I_S_PAGE_TYPE_SDI
+
+#define I_S_PAGE_TYPE_BITS		5
 
 /* Check if we can hold all page types */
 #if I_S_PAGE_TYPE_LAST >= 1 << I_S_PAGE_TYPE_BITS
@@ -101,8 +104,12 @@ static buf_page_desc_t	i_s_page_type[] = {
 	{"COMPRESSED_BLOB", FIL_PAGE_TYPE_ZBLOB},
 	{"COMPRESSED_BLOB2", FIL_PAGE_TYPE_ZBLOB2},
 	{"UNKNOWN", I_S_PAGE_TYPE_UNKNOWN},
+	{"PAGE_IO_COMPRESSED", FIL_PAGE_COMPRESSED},
+	{"SDI_BLOB", FIL_PAGE_SDI_BLOB},
+	{"SDI_COMPRESSED_BLOB", FIL_PAGE_SDI_ZBLOB},
 	{"RTREE_INDEX", I_S_PAGE_TYPE_RTREE},
 	{"IBUF_INDEX", I_S_PAGE_TYPE_IBUF},
+	{"SDI_INDEX", I_S_PAGE_TYPE_SDI}
 };
 
 /** This structure defines information we will fetch from pages
@@ -316,7 +323,7 @@ field_store_index_name(
 
 /*******************************************************************//**
 Auxiliary function to store ulint value in MYSQL_TYPE_LONGLONG field.
-If the value is ULINT_UNDEFINED then the field it set to NULL.
+If the value is ULINT_UNDEFINED then the field is set to NULL.
 @return 0 on success */
 static
 int
@@ -329,7 +336,7 @@ field_store_ulint(
 
 	if (n != ULINT_UNDEFINED) {
 
-		ret = field->store(static_cast<double>(n));
+		ret = field->store(n, true);
 		field->set_notnull();
 	} else {
 
@@ -630,12 +637,11 @@ fill_innodb_trx_from_cache(
 		}
 
 		/* trx_weight */
-		OK(fields[IDX_TRX_WEIGHT]->store((longlong) row->trx_weight,
-						 true));
+		OK(fields[IDX_TRX_WEIGHT]->store(row->trx_weight, true));
 
 		/* trx_mysql_thread_id */
 		OK(fields[IDX_TRX_MYSQL_THREAD_ID]->store(
-			   static_cast<double>(row->trx_mysql_thread_id)));
+			   row->trx_mysql_thread_id, true));
 
 		/* trx_query */
 		if (row->trx_query) {
@@ -656,31 +662,31 @@ fill_innodb_trx_from_cache(
 
 		/* trx_tables_in_use */
 		OK(fields[IDX_TRX_TABLES_IN_USE]->store(
-			   (longlong) row->trx_tables_in_use, true));
+			   row->trx_tables_in_use, true));
 
 		/* trx_tables_locked */
 		OK(fields[IDX_TRX_TABLES_LOCKED]->store(
-			   (longlong) row->trx_tables_locked, true));
+			   row->trx_tables_locked, true));
 
 		/* trx_lock_structs */
 		OK(fields[IDX_TRX_LOCK_STRUCTS]->store(
-			   (longlong) row->trx_lock_structs, true));
+			   row->trx_lock_structs, true));
 
 		/* trx_lock_memory_bytes */
 		OK(fields[IDX_TRX_LOCK_MEMORY_BYTES]->store(
-			   (longlong) row->trx_lock_memory_bytes, true));
+			   row->trx_lock_memory_bytes, true));
 
 		/* trx_rows_locked */
 		OK(fields[IDX_TRX_ROWS_LOCKED]->store(
-			   (longlong) row->trx_rows_locked, true));
+			   row->trx_rows_locked, true));
 
 		/* trx_rows_modified */
 		OK(fields[IDX_TRX_ROWS_MODIFIED]->store(
-			   (longlong) row->trx_rows_modified, true));
+			   row->trx_rows_modified, true));
 
 		/* trx_concurrency_tickets */
 		OK(fields[IDX_TRX_CONNCURRENCY_TICKETS]->store(
-			   (longlong) row->trx_concurrency_tickets, true));
+			   row->trx_concurrency_tickets, true));
 
 		/* trx_isolation_level */
 		OK(field_store_string(fields[IDX_TRX_ISOLATION_LEVEL],
@@ -688,11 +694,11 @@ fill_innodb_trx_from_cache(
 
 		/* trx_unique_checks */
 		OK(fields[IDX_TRX_UNIQUE_CHECKS]->store(
-			   static_cast<double>(row->trx_unique_checks)));
+			   row->trx_unique_checks, true));
 
 		/* trx_foreign_key_checks */
 		OK(fields[IDX_TRX_FOREIGN_KEY_CHECKS]->store(
-			   static_cast<double>(row->trx_foreign_key_checks)));
+			   row->trx_foreign_key_checks, true));
 
 		/* trx_last_foreign_key_error */
 		OK(field_store_string(fields[IDX_TRX_LAST_FOREIGN_KEY_ERROR],
@@ -700,16 +706,16 @@ fill_innodb_trx_from_cache(
 
 		/* trx_adaptive_hash_latched */
 		OK(fields[IDX_TRX_ADAPTIVE_HASH_LATCHED]->store(
-			   static_cast<double>(row->trx_has_search_latch)));
+			   row->trx_has_search_latch, true));
 
 		/* trx_is_read_only*/
 		OK(fields[IDX_TRX_READ_ONLY]->store(
-				(longlong) row->trx_is_read_only, true));
+			   row->trx_is_read_only, true));
 
 		/* trx_is_autocommit_non_locking */
 		OK(fields[IDX_TRX_AUTOCOMMIT_NON_LOCKING]->store(
-				(longlong) row->trx_is_autocommit_non_locking,
-				true));
+			   (longlong) row->trx_is_autocommit_non_locking,
+			   true));
 
 		OK(schema_table_store_record(thd, table));
 	}
@@ -953,7 +959,7 @@ fill_innodb_locks_from_cache(
 					       strlen(row->lock_table),
 					       thd);
 		OK(fields[IDX_LOCK_TABLE]->store(
-			buf, static_cast<uint>(bufend - buf),
+			buf, static_cast<size_t>(bufend - buf),
 			system_charset_info));
 
 		/* lock_index */
@@ -1437,16 +1443,11 @@ i_s_cmp_fill_low(
 		clear it.  We could introduce mutex protection, but it
 		could cause a measureable performance hit in
 		page0zip.cc. */
-		table->field[1]->store(
-			static_cast<double>(zip_stat->compressed));
-		table->field[2]->store(
-			static_cast<double>(zip_stat->compressed_ok));
-		table->field[3]->store(
-			static_cast<double>(zip_stat->compressed_usec / 1000000));
-		table->field[4]->store(
-			static_cast<double>(zip_stat->decompressed));
-		table->field[5]->store(
-			static_cast<double>(zip_stat->decompressed_usec / 1000000));
+		table->field[1]->store(zip_stat->compressed, true);
+		table->field[2]->store(zip_stat->compressed_ok, true);
+		table->field[3]->store(zip_stat->compressed_usec / 1000000, true);
+		table->field[4]->store(zip_stat->decompressed, true);
+		table->field[5]->store(zip_stat->decompressed_usec / 1000000, true);
 
 		if (reset) {
 			memset(zip_stat, 0, sizeof *zip_stat);
@@ -1729,6 +1730,7 @@ i_s_cmp_per_index_fill_low(
 	TABLE*	table = tables->table;
 	Field**	fields = table->field;
 	int	status = 0;
+	int	error;
 
 	DBUG_ENTER("i_s_cmp_per_index_fill_low");
 
@@ -1755,6 +1757,9 @@ i_s_cmp_per_index_fill_low(
 		const dict_index_t*	index = dict_index_find(iter->first);
 
 		if (index != NULL) {
+			if (dict_index_is_sdi(index)) {
+				continue;
+			}
 			char	db_utf8[MAX_DB_UTF8_LEN];
 			char	table_utf8[MAX_TABLE_UTF8_LEN];
 
@@ -1780,23 +1785,27 @@ i_s_cmp_per_index_fill_low(
 		}
 
 		fields[IDX_COMPRESS_OPS]->store(
-			static_cast<double>(iter->second.compressed));
+			   iter->second.compressed, true);
 
 		fields[IDX_COMPRESS_OPS_OK]->store(
-			static_cast<double>(iter->second.compressed_ok));
+			   iter->second.compressed_ok, true);
 
 		fields[IDX_COMPRESS_TIME]->store(
-			static_cast<double>(iter->second.compressed_usec / 1000000));
+			   iter->second.compressed_usec / 1000000, true);
 
 		fields[IDX_UNCOMPRESS_OPS]->store(
-			static_cast<double>(iter->second.decompressed));
+			   iter->second.decompressed, true);
 
 		fields[IDX_UNCOMPRESS_TIME]->store(
-			static_cast<double>(iter->second.decompressed_usec / 1000000));
+			   iter->second.decompressed_usec / 1000000, true);
 
-		if (schema_table_store_record(thd, table)) {
-			status = 1;
-			break;
+		if ((error = schema_table_store_record2(thd, table, false))) {
+			mutex_exit(&dict_sys->mutex);
+			if (convert_heap_table_to_ondisk(thd, table, error) != 0) {
+				status = 1;
+				goto err;
+			}
+			mutex_enter(&dict_sys->mutex);
 		}
 
 		/* Release and reacquire the dict mutex to allow other
@@ -1810,6 +1819,7 @@ i_s_cmp_per_index_fill_low(
 	}
 
 	mutex_exit(&dict_sys->mutex);
+err:
 
 	if (reset) {
 		page_zip_reset_stat_per_index();
@@ -2100,15 +2110,12 @@ i_s_cmpmem_fill_low(
 			buddy_stat = &buddy_stat_local[x];
 
 			table->field[0]->store(BUF_BUDDY_LOW << x);
-			table->field[1]->store(static_cast<double>(i));
-			table->field[2]->store(static_cast<double>(
-				buddy_stat->used));
-			table->field[3]->store(static_cast<double>(
-				zip_free_len_local[x]));
-			table->field[4]->store(
-				(longlong) buddy_stat->relocated, true);
+			table->field[1]->store(i, true);
+			table->field[2]->store(buddy_stat->used, true);
+			table->field[3]->store(zip_free_len_local[x], true);
+			table->field[4]->store(buddy_stat->relocated, true);
 			table->field[5]->store(
-				static_cast<double>(buddy_stat->relocated_usec / 1000000));
+				buddy_stat->relocated_usec / 1000000, true);
 
 			if (schema_table_store_record(thd, table)) {
 				status = 1;
@@ -3011,7 +3018,7 @@ i_s_fts_deleted_generic_fill(
 
 		doc_id = *(doc_id_t*) ib_vector_get_const(deleted->doc_ids, j);
 
-		OK(fields[I_S_FTS_DOC_ID]->store((longlong) doc_id, true));
+		OK(fields[I_S_FTS_DOC_ID]->store(doc_id, true));
 
 		OK(schema_table_store_record(thd, table));
 	}
@@ -3336,28 +3343,28 @@ i_s_fts_index_cache_fill_one_index(
 					pos = fts_decode_vlc(&ptr);
 
 					OK(field_store_string(
-						fields[I_S_FTS_WORD],
-						word_str));
+						   fields[I_S_FTS_WORD],
+						   word_str));
 
 					OK(fields[I_S_FTS_FIRST_DOC_ID]->store(
-						(longlong) node->first_doc_id,
-						true));
+						   node->first_doc_id,
+						   true));
 
 					OK(fields[I_S_FTS_LAST_DOC_ID]->store(
-						(longlong) node->last_doc_id,
-						true));
+						   node->last_doc_id,
+						   true));
 
 					OK(fields[I_S_FTS_DOC_COUNT]->store(
-						static_cast<double>(node->doc_count)));
+						   node->doc_count, true));
 
 					OK(fields[I_S_FTS_ILIST_DOC_ID]->store(
-						(longlong) doc_id, true));
+						   doc_id, true));
 
 					OK(fields[I_S_FTS_ILIST_DOC_POS]->store(
-						static_cast<double>(pos)));
+						   pos, true));
 
 					OK(schema_table_store_record(
-						thd, table));
+						   thd, table));
 				}
 
 				++ptr;
@@ -3695,26 +3702,26 @@ i_s_fts_index_table_fill_one_fetch(
 					pos = fts_decode_vlc(&ptr);
 
 					OK(field_store_string(
-						fields[I_S_FTS_WORD],
-						word_str));
+						   fields[I_S_FTS_WORD],
+						   word_str));
 
 					OK(fields[I_S_FTS_FIRST_DOC_ID]->store(
-						longlong(node->first_doc_id), true));
+						   node->first_doc_id, true));
 
 					OK(fields[I_S_FTS_LAST_DOC_ID]->store(
-						longlong(node->last_doc_id), true));
+						   node->last_doc_id, true));
 
 					OK(fields[I_S_FTS_DOC_COUNT]->store(
-						static_cast<double>(node->doc_count)));
+						   node->doc_count, true));
 
 					OK(fields[I_S_FTS_ILIST_DOC_ID]->store(
-						longlong(doc_id), true));
+						   doc_id, true));
 
 					OK(fields[I_S_FTS_ILIST_DOC_POS]->store(
-						static_cast<double>(pos)));
+						   pos, true));
 
 					OK(schema_table_store_record(
-						thd, table));
+						   thd, table));
 				}
 
 				++ptr;
@@ -4204,9 +4211,10 @@ i_s_innodb_temp_table_info_fill(
 
 	fields = table->field;
 
-	OK(fields[IDX_TEMP_TABLE_ID]->store((longlong) info->m_table_id));
+	OK(fields[IDX_TEMP_TABLE_ID]->store(info->m_table_id, true));
 
-	OK(field_store_string(fields[IDX_TEMP_TABLE_NAME], info->m_table_name));
+	OK(field_store_string(
+		   fields[IDX_TEMP_TABLE_NAME], info->m_table_name));
 
 	OK(fields[IDX_TEMP_TABLE_N_COLS]->store(info->m_n_cols));
 
@@ -4215,15 +4223,14 @@ i_s_innodb_temp_table_info_fill(
 	DBUG_RETURN(schema_table_store_record(thd, table));
 }
 
-/*******************************************************************//**
-Populate current table information to cache */
+/** Populate current table information to cache
+@param[in]	table	table
+@param[in,out]	cache	populate data in this cache */
 static
 void
 innodb_temp_table_populate_cache(
-/*=============================*/
-	const dict_table_t*	table,  /*! in: table */
-	temp_table_info_t*	cache)  /*! in/out: populate data in this
-					cache */
+	const dict_table_t*	table,
+	temp_table_info_t*	cache)
 {
 	cache->m_table_id = table->id;
 
@@ -4694,112 +4701,109 @@ i_s_innodb_stats_fill(
 	fields = table->field;
 
 	OK(fields[IDX_BUF_STATS_POOL_ID]->store(
-		static_cast<double>(info->pool_unique_id)));
+		   info->pool_unique_id, true));
 
 	OK(fields[IDX_BUF_STATS_POOL_SIZE]->store(
-		static_cast<double>(info->pool_size)));
+		   info->pool_size, true));
 
 	OK(fields[IDX_BUF_STATS_LRU_LEN]->store(
-		static_cast<double>(info->lru_len)));
+		   info->lru_len, true));
 
 	OK(fields[IDX_BUF_STATS_OLD_LRU_LEN]->store(
-		static_cast<double>(info->old_lru_len)));
+		   info->old_lru_len, true));
 
 	OK(fields[IDX_BUF_STATS_FREE_BUFFERS]->store(
-		static_cast<double>(info->free_list_len)));
+		   info->free_list_len, true));
 
 	OK(fields[IDX_BUF_STATS_FLUSH_LIST_LEN]->store(
-		static_cast<double>(info->flush_list_len)));
+		   info->flush_list_len, true));
 
 	OK(fields[IDX_BUF_STATS_PENDING_ZIP]->store(
-		static_cast<double>(info->n_pend_unzip)));
+		   info->n_pend_unzip, true));
 
 	OK(fields[IDX_BUF_STATS_PENDING_READ]->store(
-		static_cast<double>(info->n_pend_reads)));
+		   info->n_pend_reads, true));
 
 	OK(fields[IDX_BUF_STATS_FLUSH_LRU]->store(
-		static_cast<double>(info->n_pending_flush_lru)));
+		   info->n_pending_flush_lru, true));
 
 	OK(fields[IDX_BUF_STATS_FLUSH_LIST]->store(
-		static_cast<double>(info->n_pending_flush_list)));
+		   info->n_pending_flush_list, true));
 
 	OK(fields[IDX_BUF_STATS_PAGE_YOUNG]->store(
-		static_cast<double>(info->n_pages_made_young)));
+		   info->n_pages_made_young, true));
 
 	OK(fields[IDX_BUF_STATS_PAGE_NOT_YOUNG]->store(
-		static_cast<double>(info->n_pages_not_made_young)));
+		   info->n_pages_not_made_young, true));
 
 	OK(fields[IDX_BUF_STATS_PAGE_YOUNG_RATE]->store(
-		info->page_made_young_rate));
+		   info->page_made_young_rate));
 
 	OK(fields[IDX_BUF_STATS_PAGE_NOT_YOUNG_RATE]->store(
-		info->page_not_made_young_rate));
+		   info->page_not_made_young_rate));
 
 	OK(fields[IDX_BUF_STATS_PAGE_READ]->store(
-		static_cast<double>(info->n_pages_read)));
+		   info->n_pages_read, true));
 
 	OK(fields[IDX_BUF_STATS_PAGE_CREATED]->store(
-		static_cast<double>(info->n_pages_created)));
+		   info->n_pages_created, true));
 
 	OK(fields[IDX_BUF_STATS_PAGE_WRITTEN]->store(
-		static_cast<double>(info->n_pages_written)));
+		   info->n_pages_written, true));
 
 	OK(fields[IDX_BUF_STATS_GET]->store(
-		static_cast<double>(info->n_page_gets)));
+		   info->n_page_gets, true));
 
 	OK(fields[IDX_BUF_STATS_PAGE_READ_RATE]->store(
-		info->pages_read_rate));
+		   info->pages_read_rate));
 
 	OK(fields[IDX_BUF_STATS_PAGE_CREATE_RATE]->store(
-		info->pages_created_rate));
+		   info->pages_created_rate));
 
 	OK(fields[IDX_BUF_STATS_PAGE_WRITTEN_RATE]->store(
-		info->pages_written_rate));
+		   info->pages_written_rate));
 
 	if (info->n_page_get_delta) {
 		OK(fields[IDX_BUF_STATS_HIT_RATE]->store(
-			static_cast<double>(
-				1000 - (1000 * info->page_read_delta
-				/ info->n_page_get_delta))));
+			   1000 - (1000 * info->page_read_delta
+				   / info->n_page_get_delta), true));
 
 		OK(fields[IDX_BUF_STATS_MADE_YOUNG_PCT]->store(
-			static_cast<double>(
-				1000 * info->young_making_delta
-				/ info->n_page_get_delta)));
+			   1000 * info->young_making_delta
+			   / info->n_page_get_delta, true));
 
 		OK(fields[IDX_BUF_STATS_NOT_MADE_YOUNG_PCT]->store(
-			static_cast<double>(
-				1000 * info->not_young_making_delta
-				/ info->n_page_get_delta)));
+			   1000 * info->not_young_making_delta
+			   / info->n_page_get_delta, true));
 	} else {
-		OK(fields[IDX_BUF_STATS_HIT_RATE]->store(0));
-		OK(fields[IDX_BUF_STATS_MADE_YOUNG_PCT]->store(0));
-		OK(fields[IDX_BUF_STATS_NOT_MADE_YOUNG_PCT]->store(0));
+		OK(fields[IDX_BUF_STATS_HIT_RATE]->store(0, true));
+		OK(fields[IDX_BUF_STATS_MADE_YOUNG_PCT]->store(0, true));
+		OK(fields[IDX_BUF_STATS_NOT_MADE_YOUNG_PCT]->store(0, true));
 	}
 
 	OK(fields[IDX_BUF_STATS_READ_AHREAD]->store(
-		static_cast<double>(info->n_ra_pages_read)));
+		   info->n_ra_pages_read, true));
 
 	OK(fields[IDX_BUF_STATS_READ_AHEAD_EVICTED]->store(
-		static_cast<double>(info->n_ra_pages_evicted)));
+		   info->n_ra_pages_evicted, true));
 
 	OK(fields[IDX_BUF_STATS_READ_AHEAD_RATE]->store(
-		info->pages_readahead_rate));
+		   info->pages_readahead_rate));
 
 	OK(fields[IDX_BUF_STATS_READ_AHEAD_EVICT_RATE]->store(
-		info->pages_evicted_rate));
+		   info->pages_evicted_rate));
 
 	OK(fields[IDX_BUF_STATS_LRU_IO_SUM]->store(
-		static_cast<double>(info->io_sum)));
+		   info->io_sum, true));
 
 	OK(fields[IDX_BUF_STATS_LRU_IO_CUR]->store(
-		static_cast<double>(info->io_cur)));
+		   info->io_cur, true));
 
 	OK(fields[IDX_BUF_STATS_UNZIP_SUM]->store(
-		static_cast<double>(info->unzip_sum)));
+		   info->unzip_sum, true));
 
 	OK(fields[IDX_BUF_STATS_UNZIP_CUR]->store(
-		static_cast<double>(info->unzip_cur)));
+		   info->unzip_cur, true));
 
 	DBUG_RETURN(schema_table_store_record(thd, table));
 }
@@ -5148,43 +5152,43 @@ i_s_innodb_buffer_page_fill(
 		state_str = NULL;
 
 		OK(fields[IDX_BUFFER_POOL_ID]->store(
-			static_cast<double>(page_info->pool_id)));
+			   page_info->pool_id, true));
 
 		OK(fields[IDX_BUFFER_BLOCK_ID]->store(
-			static_cast<double>(page_info->block_id)));
+			   page_info->block_id, true));
 
 		OK(fields[IDX_BUFFER_PAGE_SPACE]->store(
-			static_cast<double>(page_info->space_id)));
+			   page_info->space_id, true));
 
 		OK(fields[IDX_BUFFER_PAGE_NUM]->store(
-			static_cast<double>(page_info->page_num)));
+			   page_info->page_num, true));
 
 		OK(field_store_string(
-			fields[IDX_BUFFER_PAGE_TYPE],
-			i_s_page_type[page_info->page_type].type_str));
+			   fields[IDX_BUFFER_PAGE_TYPE],
+			   i_s_page_type[page_info->page_type].type_str));
 
 		OK(fields[IDX_BUFFER_PAGE_FLUSH_TYPE]->store(
-			page_info->flush_type));
+			   page_info->flush_type));
 
 		OK(fields[IDX_BUFFER_PAGE_FIX_COUNT]->store(
-			page_info->fix_count));
+			   page_info->fix_count));
 
 		if (page_info->hashed) {
 			OK(field_store_string(
-				fields[IDX_BUFFER_PAGE_HASHED], "YES"));
+				   fields[IDX_BUFFER_PAGE_HASHED], "YES"));
 		} else {
 			OK(field_store_string(
-				fields[IDX_BUFFER_PAGE_HASHED], "NO"));
+				   fields[IDX_BUFFER_PAGE_HASHED], "NO"));
 		}
 
 		OK(fields[IDX_BUFFER_PAGE_NEWEST_MOD]->store(
-			(longlong) page_info->newest_mod, true));
+			   page_info->newest_mod, true));
 
 		OK(fields[IDX_BUFFER_PAGE_OLDEST_MOD]->store(
-			(longlong) page_info->oldest_mod, true));
+			   page_info->oldest_mod, true));
 
 		OK(fields[IDX_BUFFER_PAGE_ACCESS_TIME]->store(
-			page_info->access_time));
+			   page_info->access_time));
 
 		fields[IDX_BUFFER_PAGE_TABLE_NAME]->set_null();
 
@@ -5192,13 +5196,19 @@ i_s_innodb_buffer_page_fill(
 
 		/* If this is an index page, fetch the index name
 		and table name */
-		if (page_info->page_type == I_S_PAGE_TYPE_INDEX) {
-			index_id_t		id(page_info->space_id,
-						   page_info->index_id);
+		switch (page_info->page_type) {
 			const dict_index_t*	index;
 
-			mutex_enter(&dict_sys->mutex);
-			index = dict_index_find(id);
+		case I_S_PAGE_TYPE_INDEX:
+		case I_S_PAGE_TYPE_RTREE:
+		case I_S_PAGE_TYPE_SDI:
+			{
+				index_id_t	id(page_info->space_id,
+						   page_info->index_id);
+
+				mutex_enter(&dict_sys->mutex);
+				index = dict_index_find(id);
+			}
 
 			if (index) {
 
@@ -5210,7 +5220,7 @@ i_s_innodb_buffer_page_fill(
 
 				OK(fields[IDX_BUFFER_PAGE_TABLE_NAME]->store(
 					table_name,
-					static_cast<uint>(table_name_end - table_name),
+					static_cast<size_t>(table_name_end - table_name),
 					system_charset_info));
 				fields[IDX_BUFFER_PAGE_TABLE_NAME]->set_notnull();
 
@@ -5223,15 +5233,15 @@ i_s_innodb_buffer_page_fill(
 		}
 
 		OK(fields[IDX_BUFFER_PAGE_NUM_RECS]->store(
-			page_info->num_recs));
+			   page_info->num_recs, true));
 
 		OK(fields[IDX_BUFFER_PAGE_DATA_SIZE]->store(
-			page_info->data_size));
+			   page_info->data_size, true));
 
 		OK(fields[IDX_BUFFER_PAGE_ZIP_SIZE]->store(
-			page_info->zip_ssize
-			? (UNIV_ZIP_SIZE_MIN >> 1) << page_info->zip_ssize
-			: 0));
+			   page_info->zip_ssize
+			   ? (UNIV_ZIP_SIZE_MIN >> 1) << page_info->zip_ssize
+			   : 0, true));
 
 #if BUF_PAGE_STATE_BITS > 3
 # error "BUF_PAGE_STATE_BITS > 3, please ensure that all 1<<BUF_PAGE_STATE_BITS values are checked for"
@@ -5290,7 +5300,7 @@ i_s_innodb_buffer_page_fill(
 				      (page_info->is_old) ? "YES" : "NO"));
 
 		OK(fields[IDX_BUFFER_PAGE_FREE_CLOCK]->store(
-			page_info->freed_page_clock));
+			   page_info->freed_page_clock, true));
 
 		if (schema_table_store_record(thd, table)) {
 			DBUG_RETURN(1);
@@ -5328,6 +5338,8 @@ i_s_innodb_set_page_type(
 			page_info->page_type = I_S_PAGE_TYPE_IBUF;
 		} else if (page_type == FIL_PAGE_RTREE) {
 			page_info->page_type = I_S_PAGE_TYPE_RTREE;
+		} else if (page_type == FIL_PAGE_SDI) {
+			page_info->page_type = I_S_PAGE_TYPE_SDI;
 		} else {
 			page_info->page_type = I_S_PAGE_TYPE_INDEX;
 		}
@@ -5350,8 +5362,10 @@ i_s_innodb_set_page_type(
 		page_info->page_type = page_type;
 	}
 
-	if (page_info->page_type == FIL_PAGE_TYPE_ZBLOB
-	    || page_info->page_type == FIL_PAGE_TYPE_ZBLOB2) {
+	switch (page_info->page_type) {
+	case FIL_PAGE_TYPE_ZBLOB:
+	case FIL_PAGE_TYPE_ZBLOB2:
+	case FIL_PAGE_SDI_ZBLOB:
 		page_info->page_num = mach_read_from_4(
 			frame + FIL_PAGE_OFFSET);
 		page_info->space_id = mach_read_from_4(
@@ -5869,43 +5883,43 @@ i_s_innodb_buf_page_lru_fill(
 		page_info = info_array + i;
 
 		OK(fields[IDX_BUF_LRU_POOL_ID]->store(
-			static_cast<double>(page_info->pool_id)));
+			   page_info->pool_id, true));
 
 		OK(fields[IDX_BUF_LRU_POS]->store(
-			static_cast<double>(page_info->block_id)));
+			   page_info->block_id, true));
 
 		OK(fields[IDX_BUF_LRU_PAGE_SPACE]->store(
-			static_cast<double>(page_info->space_id)));
+			   page_info->space_id, true));
 
 		OK(fields[IDX_BUF_LRU_PAGE_NUM]->store(
-			static_cast<double>(page_info->page_num)));
+			   page_info->page_num, true));
 
 		OK(field_store_string(
-			fields[IDX_BUF_LRU_PAGE_TYPE],
-			i_s_page_type[page_info->page_type].type_str));
+			   fields[IDX_BUF_LRU_PAGE_TYPE],
+			   i_s_page_type[page_info->page_type].type_str));
 
 		OK(fields[IDX_BUF_LRU_PAGE_FLUSH_TYPE]->store(
-			static_cast<double>(page_info->flush_type)));
+			   page_info->flush_type, true));
 
 		OK(fields[IDX_BUF_LRU_PAGE_FIX_COUNT]->store(
-			static_cast<double>(page_info->fix_count)));
+			   page_info->fix_count, true));
 
 		if (page_info->hashed) {
 			OK(field_store_string(
-				fields[IDX_BUF_LRU_PAGE_HASHED], "YES"));
+				   fields[IDX_BUF_LRU_PAGE_HASHED], "YES"));
 		} else {
 			OK(field_store_string(
-				fields[IDX_BUF_LRU_PAGE_HASHED], "NO"));
+				   fields[IDX_BUF_LRU_PAGE_HASHED], "NO"));
 		}
 
 		OK(fields[IDX_BUF_LRU_PAGE_NEWEST_MOD]->store(
-			page_info->newest_mod, true));
+			   page_info->newest_mod, true));
 
 		OK(fields[IDX_BUF_LRU_PAGE_OLDEST_MOD]->store(
-			page_info->oldest_mod, true));
+			   page_info->oldest_mod, true));
 
 		OK(fields[IDX_BUF_LRU_PAGE_ACCESS_TIME]->store(
-			page_info->access_time));
+			   page_info->access_time, true));
 
 		fields[IDX_BUF_LRU_PAGE_TABLE_NAME]->set_null();
 
@@ -5931,7 +5945,7 @@ i_s_innodb_buf_page_lru_fill(
 
 				OK(fields[IDX_BUF_LRU_PAGE_TABLE_NAME]->store(
 					table_name,
-					static_cast<uint>(table_name_end - table_name),
+					static_cast<size_t>(table_name_end - table_name),
 					system_charset_info));
 				fields[IDX_BUF_LRU_PAGE_TABLE_NAME]->set_notnull();
 
@@ -5944,14 +5958,14 @@ i_s_innodb_buf_page_lru_fill(
 		}
 
 		OK(fields[IDX_BUF_LRU_PAGE_NUM_RECS]->store(
-			page_info->num_recs));
+			   page_info->num_recs, true));
 
 		OK(fields[IDX_BUF_LRU_PAGE_DATA_SIZE]->store(
-			page_info->data_size));
+			   page_info->data_size, true));
 
 		OK(fields[IDX_BUF_LRU_PAGE_ZIP_SIZE]->store(
-			page_info->zip_ssize ?
-				 512 << page_info->zip_ssize : 0));
+			   page_info->zip_ssize ?
+			   512 << page_info->zip_ssize : 0, true));
 
 		state = static_cast<enum buf_page_state>(page_info->page_state);
 
@@ -5997,7 +6011,7 @@ i_s_innodb_buf_page_lru_fill(
 				      (page_info->is_old) ? "YES" : "NO"));
 
 		OK(fields[IDX_BUF_LRU_PAGE_FREE_CLOCK]->store(
-			page_info->freed_page_clock));
+			   page_info->freed_page_clock, true));
 
 		if (schema_table_store_record(thd, table)) {
 			mem_heap_free(heap);
@@ -6344,10 +6358,9 @@ i_s_dict_fill_sys_tables(
 
 	OK(field_store_string(fields[SYS_TABLES_ROW_FORMAT], row_format));
 
-	OK(fields[SYS_TABLES_ZIP_PAGE_SIZE]->store(static_cast<double>(
-				page_size.is_compressed()
-				? page_size.physical()
-				: 0)));
+	OK(fields[SYS_TABLES_ZIP_PAGE_SIZE]->store(page_size.is_compressed()
+						   ? page_size.physical()
+						   : 0, true));
 
 	OK(field_store_string(fields[SYS_TABLES_SPACE_TYPE], space_type));
 
@@ -6623,35 +6636,34 @@ i_s_dict_fill_sys_tablestats(
 				      "Initialized"));
 
 		OK(fields[SYS_TABLESTATS_NROW]->store(table->stat_n_rows,
-						      TRUE));
+						      true));
 
 		OK(fields[SYS_TABLESTATS_CLUST_SIZE]->store(
-			static_cast<double>(table->stat_clustered_index_size)));
+			   table->stat_clustered_index_size, true));
 
 		OK(fields[SYS_TABLESTATS_INDEX_SIZE]->store(
-			static_cast<double>(table->stat_sum_of_other_index_sizes)));
+			   table->stat_sum_of_other_index_sizes, true));
 
 		OK(fields[SYS_TABLESTATS_MODIFIED]->store(
-			static_cast<double>(table->stat_modified_counter)));
+			   table->stat_modified_counter, true));
 	} else {
 		OK(field_store_string(fields[SYS_TABLESTATS_INIT],
 				      "Uninitialized"));
 
-		OK(fields[SYS_TABLESTATS_NROW]->store(0, TRUE));
+		OK(fields[SYS_TABLESTATS_NROW]->store(0, true));
 
-		OK(fields[SYS_TABLESTATS_CLUST_SIZE]->store(0));
+		OK(fields[SYS_TABLESTATS_CLUST_SIZE]->store(0, true));
 
-		OK(fields[SYS_TABLESTATS_INDEX_SIZE]->store(0));
+		OK(fields[SYS_TABLESTATS_INDEX_SIZE]->store(0, true));
 
-		OK(fields[SYS_TABLESTATS_MODIFIED]->store(0));
+		OK(fields[SYS_TABLESTATS_MODIFIED]->store(0, true));
 	}
 
 	dict_table_stats_unlock(table, RW_S_LATCH);
 
-	OK(fields[SYS_TABLESTATS_AUTONINC]->store(table->autoinc, TRUE));
+	OK(fields[SYS_TABLESTATS_AUTONINC]->store(table->autoinc, true));
 
-	OK(fields[SYS_TABLESTATS_TABLE_REF_COUNT]->store(
-		static_cast<double>(ref_count)));
+	OK(fields[SYS_TABLESTATS_TABLE_REF_COUNT]->store(ref_count, true));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
@@ -6921,9 +6933,9 @@ i_s_dict_fill_sys_indexes(
 
 	OK(field_store_index_name(fields[SYS_INDEX_NAME], index->name));
 
-	OK(fields[SYS_INDEX_ID]->store(longlong(index->id), TRUE));
+	OK(fields[SYS_INDEX_ID]->store(longlong(index->id), true));
 
-	OK(fields[SYS_INDEX_TABLE_ID]->store(longlong(table_id), TRUE));
+	OK(fields[SYS_INDEX_TABLE_ID]->store(longlong(table_id), true));
 
 	OK(fields[SYS_INDEX_TYPE]->store(index->type));
 
@@ -7170,16 +7182,15 @@ i_s_dict_fill_sys_columns(
 
 	fields = table_to_fill->field;
 
-	OK(fields[SYS_COLUMN_TABLE_ID]->store((longlong) table_id, TRUE));
+	OK(fields[SYS_COLUMN_TABLE_ID]->store((longlong)table_id, true));
 
 	OK(field_store_string(fields[SYS_COLUMN_NAME], col_name));
 
 	if (dict_col_is_virtual(column)) {
 		ulint	pos = dict_create_v_col_pos(nth_v_col, column->ind);
-		OK(fields[SYS_COLUMN_POSITION]->store(
-			static_cast<double>(pos)));
+		OK(fields[SYS_COLUMN_POSITION]->store(pos, true));
 	} else {
-		OK(fields[SYS_COLUMN_POSITION]->store(column->ind));
+		OK(fields[SYS_COLUMN_POSITION]->store(column->ind, true));
 	}
 
 	OK(fields[SYS_COLUMN_MTYPE]->store(column->mtype));
@@ -7393,13 +7404,11 @@ i_s_dict_fill_sys_virtual(
 
 	fields = table_to_fill->field;
 
-	OK(fields[SYS_VIRTUAL_TABLE_ID]->store((longlong) table_id, TRUE));
+	OK(fields[SYS_VIRTUAL_TABLE_ID]->store(table_id, true));
 
-	OK(fields[SYS_VIRTUAL_POS]->store(
-		static_cast<double>(pos)));
+	OK(fields[SYS_VIRTUAL_POS]->store(pos, true));
 
-	OK(fields[SYS_VIRTUAL_BASE_POS]->store(
-		static_cast<double>(base_pos)));
+	OK(fields[SYS_VIRTUAL_BASE_POS]->store(base_pos, true));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
@@ -7602,11 +7611,11 @@ i_s_dict_fill_sys_fields(
 
 	fields = table_to_fill->field;
 
-	OK(fields[SYS_FIELD_INDEX_ID]->store((longlong) index_id, TRUE));
+	OK(fields[SYS_FIELD_INDEX_ID]->store(index_id, true));
 
 	OK(field_store_string(fields[SYS_FIELD_NAME], field->name));
 
-	OK(fields[SYS_FIELD_POS]->store(static_cast<double>(pos)));
+	OK(fields[SYS_FIELD_POS]->store(pos, true));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
@@ -8060,7 +8069,7 @@ i_s_dict_fill_sys_foreign_cols(
 
 	OK(field_store_string(fields[SYS_FOREIGN_COL_REF_NAME], ref_col_name));
 
-	OK(fields[SYS_FOREIGN_COL_POS]->store(static_cast<double>(pos)));
+	OK(fields[SYS_FOREIGN_COL_POS]->store(pos, true));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
@@ -8956,13 +8965,12 @@ i_s_fill_innodb_cached_indexes_row(
 	Field**	fields = table_to_fill->field;
 
 	OK(fields[CACHED_INDEXES_SPACE_ID]->store(
-			static_cast<long>(index_id.m_space_id), true));
+		   index_id.m_space_id, true));
 
 	OK(fields[CACHED_INDEXES_INDEX_ID]->store(
-			static_cast<longlong>(index_id.m_index_id), true));
+		   index_id.m_index_id, true));
 
-	OK(fields[CACHED_INDEXES_N_CACHED_PAGES]->store(
-			static_cast<longlong>(n), true));
+	OK(fields[CACHED_INDEXES_N_CACHED_PAGES]->store(n, true));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 

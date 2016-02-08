@@ -12,30 +12,30 @@ performance_schema_max_statement_stack	10
 show session variables like 'performance_schema_max_statement_stack';
 Variable_name	Value
 performance_schema_max_statement_stack	10
-select * from information_schema.global_variables
+select * from performance_schema.global_variables
 where variable_name='performance_schema_max_statement_stack';
 VARIABLE_NAME	VARIABLE_VALUE
-PERFORMANCE_SCHEMA_MAX_STATEMENT_STACK	10
-select * from information_schema.session_variables
+performance_schema_max_statement_stack	10
+select * from performance_schema.session_variables
 where variable_name='performance_schema_max_statement_stack';
 VARIABLE_NAME	VARIABLE_VALUE
-PERFORMANCE_SCHEMA_MAX_STATEMENT_STACK	10
+performance_schema_max_statement_stack	10
 set global performance_schema_max_statement_stack=1;
 ERROR HY000: Variable 'performance_schema_max_statement_stack' is a read only variable
 set session performance_schema_max_statement_stack=1;
 ERROR HY000: Variable 'performance_schema_max_statement_stack' is a read only variable
 SELECT @@GLOBAL.performance_schema_max_statement_stack = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='performance_schema_max_statement_stack';
 @@GLOBAL.performance_schema_max_statement_stack = VARIABLE_VALUE
 1
 select @@global.performance_schema_max_statement_stack;
 @@global.performance_schema_max_statement_stack
 10
-select * from information_schema.global_variables
+select * from performance_schema.global_variables
 where variable_name='performance_schema_max_statement_stack';
 VARIABLE_NAME	VARIABLE_VALUE
-PERFORMANCE_SCHEMA_MAX_STATEMENT_STACK	10
+performance_schema_max_statement_stack	10
 SELECT @@performance_schema_max_statement_stack = @@GLOBAL.performance_schema_max_statement_stack;
 @@performance_schema_max_statement_stack = @@GLOBAL.performance_schema_max_statement_stack
 1

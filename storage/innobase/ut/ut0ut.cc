@@ -46,9 +46,6 @@ Created 5/11/1994 Heikki Tuuri
 
 #include "log.h"
 
-/** A constant to prevent the compiler from optimizing ut_delay() away. */
-ibool	ut_always_false	= FALSE;
-
 #ifdef _WIN32
 /*****************************************************************//**
 NOTE: The Windows epoch starts from 1601/01/01 whereas the Unix
@@ -295,10 +292,6 @@ ut_delay(
 	for (i = 0; i < delay * 50; i++) {
 		j += i;
 		UT_RELAX_CPU();
-	}
-
-	if (ut_always_false) {
-		ut_always_false = (ibool) j;
 	}
 
 	UT_RESUME_PRIORITY_CPU();

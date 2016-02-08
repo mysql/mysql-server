@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -241,7 +241,8 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 		}
 #endif /* UNIV_DEBUG */
 
-		thr = pars_complete_graph_for_exec(NULL, prebuilt->trx, heap);
+		thr = pars_complete_graph_for_exec(NULL, prebuilt->trx, heap,
+						   prebuilt);
 	}
 
 	~ha_innobase_inplace_ctx()
@@ -337,7 +338,7 @@ my_error_innodb(
 		ut_error;
 #endif /* UNIV_DEBUG */
 	default:
-		my_error(ER_GET_ERRNO, MYF(0), error);
+		my_error(ER_GET_ERRNO, MYF(0), error, "InnoDB error");
 		break;
 	}
 }
@@ -668,19 +669,6 @@ ha_innobase::check_if_supported_inplace_alter(
 				ER_UNSUPPORTED_ALTER_INPLACE_ON_VIRTUAL_COLUMN);
 			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 		}
-
-		/* Do not support inplace alter table drop virtual
-		columns and add index together yet */
-		if ((ha_alter_info->handler_flags
-		     & Alter_inplace_info::ADD_INDEX)
-		    && (ha_alter_info->handler_flags
-			& Alter_inplace_info::DROP_VIRTUAL_COLUMN)) {
-
-			ha_alter_info->unsupported_reason =
-				innobase_get_err_msg(
-				ER_UNSUPPORTED_ALTER_INPLACE_ON_VIRTUAL_COLUMN);
-			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
-		}
 	}
 
 	/* We should be able to do the operation in-place.
@@ -759,7 +747,22 @@ ha_innobase::check_if_supported_inplace_alter(
 				online = false;
 			}
 
-			if (innobase_is_v_fld(key_part->field)) {
+			if (key_part->field->is_virtual_gcol()) {
+				/* Do not support adding index on newly added
+				virtual column, while there is also a drop
+				virtual column in the same clause */
+				if (ha_alter_info->handler_flags
+				    & Alter_inplace_info::DROP_VIRTUAL_COLUMN) {
+					ha_alter_info->unsupported_reason =
+						innobase_get_err_msg(
+							ER_UNSUPPORTED_ALTER_INPLACE_ON_VIRTUAL_COLUMN);
+
+					DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+				}
+
+				ha_alter_info->unsupported_reason =
+					innobase_get_err_msg(
+						ER_UNSUPPORTED_ALTER_ONLINE_ON_VIRTUAL_COLUMN);
 				online = false;
 			}
 		}
@@ -772,13 +775,8 @@ ha_innobase::check_if_supported_inplace_alter(
 
 	if (ha_alter_info->handler_flags
 	    & Alter_inplace_info::ADD_SPATIAL_INDEX) {
-		online = false;
-	}
-
-	if ((ha_alter_info->handler_flags
-	     & Alter_inplace_info::ADD_VIRTUAL_COLUMN)
-	    && (ha_alter_info->handler_flags
-	        & Alter_inplace_info::ADD_INDEX)) {
+		ha_alter_info->unsupported_reason = innobase_get_err_msg(
+			ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_GIS);
 		online = false;
 	}
 
@@ -4035,6 +4033,89 @@ innobase_drop_virtual_try(
 	return(false);
 }
 
+/** Adjust the create index column number from "New table" to
+"old InnoDB table" while we are doing dropping virtual column. Since we do
+not create separate new table for the dropping/adding virtual columns.
+To correctly find the indexed column, we will need to find its col_no
+in the "Old Table", not the "New table".
+@param[in]	ha_alter_info	Data used during in-place alter
+@param[in]	old_table	MySQL table as it is before the ALTER operation
+@param[in]	num_v_dropped	number of virtual column dropped
+@param[in,out]	index_def	index definition */
+static
+void
+innodb_v_adjust_idx_col(
+	const Alter_inplace_info*	ha_alter_info,
+	const TABLE*			old_table,
+	ulint				num_v_dropped,
+	index_def_t*			index_def)
+{
+	List_iterator_fast<Create_field> cf_it(
+		ha_alter_info->alter_info->create_list);
+	for (ulint i = 0; i < index_def->n_fields; i++) {
+#ifdef UNIV_DEBUG
+		bool	col_found = false;
+#endif /* UNIV_DEBUG */
+		ulint	num_v = 0;
+
+		index_field_t*	index_field = &index_def->fields[i];
+
+		/* Only adjust virtual column col_no, since non-virtual
+		column position (in non-vcol list) won't change unless
+		table rebuild */
+		if (!index_field->is_v_col) {
+			continue;
+		}
+
+		const Field*	field = NULL;
+
+		cf_it.rewind();
+
+		/* Found the field in the new table */
+		while (const Create_field* new_field = cf_it++) {
+			if (!new_field->is_virtual_gcol()) {
+				continue;
+			}
+
+			field = new_field->field;
+
+			if (num_v == index_field->col_no) {
+				break;
+			}
+			num_v++;
+		}
+
+		if (!field) {
+			/* this means the field is a newly added field, this
+			should have been blocked when we drop virtual column
+			at the same time */
+			ut_ad(num_v_dropped > 0);
+			ut_a(0);
+		}
+
+		ut_ad(field->is_virtual_gcol());
+
+		num_v = 0;
+
+		/* Look for its position in old table */
+		for (uint old_i = 0; old_table->field[old_i]; old_i++) {
+			if (old_table->field[old_i] == field) {
+				/* Found it, adjust its col_no to its position
+				in old table */
+				index_def->fields[i].col_no = num_v;
+				ut_d(col_found = true);
+				break;
+			}
+
+			if (old_table->field[old_i]->is_virtual_gcol()) {
+				num_v++;
+			}
+		}
+
+		ut_ad(col_found);
+	}
+}
+
 /** Update internal structures with concurrent writes blocked,
 while preparing ALTER TABLE.
 
@@ -4560,6 +4641,13 @@ new_clustered_failed:
 	/* Create the indexes in SYS_INDEXES and load into dictionary. */
 
 	for (ulint a = 0; a < ctx->num_to_add_index; a++) {
+
+		if (index_defs[a].ind_type & DICT_VIRTUAL
+		    && ctx->num_to_drop_vcol > 0 && !new_clustered) {
+			innodb_v_adjust_idx_col(ha_alter_info, old_table,
+						ctx->num_to_drop_vcol,
+						&index_defs[a]);
+		}
 
 		ctx->add_index[a] = row_merge_create_index(
 			ctx->trx, ctx->new_table,
@@ -5856,6 +5944,7 @@ ha_innobase::inplace_alter_table(
 	dict_add_v_col_t*	add_v = NULL;
 	dict_vcol_templ_t*	s_templ = NULL;
 	dict_vcol_templ_t*	old_templ = NULL;
+	struct TABLE*		eval_table = altered_table;
 
 
 	DBUG_ENTER("inplace_alter_table");
@@ -5915,8 +6004,12 @@ ok_exit:
 			NULL, false, NULL);
 
 		ctx->new_table->vc_templ = s_templ;
-	} else if (ctx->num_to_add_vcol > 0) {
-		ut_ad(!ctx->online);
+	} else if (ctx->num_to_add_vcol > 0 && ctx->num_to_drop_vcol == 0) {
+		/* if there is ongoing drop virtual column, then we disallow
+		inplace add index on newly added virtual column, so it does
+		not need to come in here to rebuild template with add_v.
+		Please also see the assertion in innodb_v_adjust_idx_col() */
+
 		s_templ = UT_NEW_NOKEY(dict_vcol_templ_t());
 
 		add_v = static_cast<dict_add_v_col_t*>(
@@ -5934,6 +6027,13 @@ ok_exit:
 		ctx->new_table->vc_templ = s_templ;
 	}
 
+	/* Drop virtual column without rebuild will keep dict table
+	unchanged, we use old table to evaluate virtual column value
+	in innobase_get_computed_value(). */
+	if (!ctx->need_rebuild() && ctx->num_to_drop_vcol > 0) {
+		eval_table = table;
+	}
+
 	/* Read the clustered index of the table and build
 	indexes based on this information using temporary
 	files and merge sort. */
@@ -5946,7 +6046,7 @@ ok_exit:
 		ctx->add_index, ctx->add_key_numbers, ctx->num_to_add_index,
 		altered_table, ctx->add_cols, ctx->col_map,
 		ctx->add_autoinc, ctx->sequence, ctx->skip_pk_sort,
-		ctx->m_stage, add_v);
+		ctx->m_stage, add_v, eval_table);
 
 	if (s_templ) {
 		ut_ad(ctx->need_rebuild() || ctx->num_to_add_vcol > 0);
@@ -7361,21 +7461,20 @@ get_col_list_to_be_dropped(
 	}
 }
 
-/** Commit the changes made during prepare_inplace_alter_table()
-and inplace_alter_table() inside the data dictionary tables,
-when not rebuilding the table.
-@param ha_alter_info Data used during in-place alter
-@param ctx In-place ALTER TABLE context
-@param old_table MySQL table as it is before the ALTER operation
-@param trx Data dictionary transaction
-@param table_name Table name in MySQL
+/** Commit the changes made during prepare_inplace_alter_table() and
+inplace_alter_table() inside the data dictionary tables, when not rebuilding
+the table.
+@param[in]	ha_alter_info	Data used during in-place alter
+@param[in]	ctx		In-place ALTER TABLE context
+@param[in]	altered_table	MySQL table that is being altered
+@param[in]	old_table	MySQL table as it is before the ALTER operation
+@param[in]	trx		Data dictionary transaction
+@param[in]	table_name	Table name in MySQL
 @retval true Failure
-@retval false Success
-*/
+@retval false Success */
 inline __attribute__((warn_unused_result))
 bool
 commit_try_norebuild(
-/*=================*/
 	Alter_inplace_info*	ha_alter_info,
 	ha_innobase_inplace_ctx*ctx,
 	TABLE*			altered_table,
@@ -8328,11 +8427,30 @@ foreign_fail:
 		dict_table_remove_from_cache(m_prebuilt->table);
 		m_prebuilt->table = dict_table_open_on_name(
 			tb_name, TRUE, TRUE, DICT_ERR_IGNORE_NONE);
+
+		/* Drop outdated table stats. */
+		char	errstr[1024];
+		if (dict_stats_drop_table(
+			    m_prebuilt->table->name.m_name,
+			    errstr, sizeof(errstr))
+		    != DB_SUCCESS) {
+			push_warning_printf(
+				m_user_thd,
+				Sql_condition::SL_WARNING,
+				ER_ALTER_INFO,
+				"Deleting persistent statistics"
+				" for table '%s' in"
+				" InnoDB failed: %s",
+				table->s->table_name.str,
+				errstr);
+		}
+
 		row_mysql_unlock_data_dictionary(trx);
 		trx_free_for_mysql(trx);
 		MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
 		DBUG_RETURN(false);
 	}
+
 	/* Release the table locks. */
 	trx_commit_for_mysql(m_prebuilt->trx);
 
@@ -8715,18 +8833,25 @@ ha_innopart::prepare_inplace_alter_table(
 	const char*	save_tablespace =
 		ha_alter_info->create_info->tablespace;
 
+	const char*     save_data_file_name =
+		ha_alter_info->create_info->data_file_name;
+
 	for (uint i = 0; i < m_tot_parts; i++) {
 		m_prebuilt = ctx_parts->prebuilt_array[i];
 		ha_alter_info->handler_ctx = ctx_parts->ctx_array[i];
 		set_partition(i);
 
-		/* Set the tablespace value of the alter_info to the tablespace
-		value that was existing for the partition originally, so that
-		for ALTER TABLE the tablespace clause in create option is
-		ignored for existing partitions, and later set it back to its
-		old value */
+		/* Set the tablespace and data_file_name value of the
+		alter_info to the tablespace and data_file_name value
+		that was existing for the partition originally, so that
+		for ALTER TABLE the tablespace clause in create option
+		is ignored for existing partitions, and later set it
+		back to its old value */
+
 		ha_alter_info->create_info->tablespace =
 			m_prebuilt->table->tablespace;
+		ha_alter_info->create_info->data_file_name =
+			m_prebuilt->table->data_dir_path;
 
 		res = ha_innobase::prepare_inplace_alter_table(altered_table,
 							ha_alter_info);
@@ -8740,6 +8865,7 @@ ha_innopart::prepare_inplace_alter_table(
 	ha_alter_info->handler_ctx = ctx_parts;
 	ha_alter_info->group_commit_ctx = ctx_parts->ctx_array;
 	ha_alter_info->create_info->tablespace = save_tablespace;
+	ha_alter_info->create_info->data_file_name = save_data_file_name;
 
 	DBUG_RETURN(res);
 }

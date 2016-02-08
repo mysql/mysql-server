@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "auth_common.h"     // get_column_grant
 #include "current_thd.h"
 #include "derror.h"          // ER_THD
+#include "error_handler.h"   // Internal_error_handler
 #include "item_cmpfunc.h"    // COND_EQUAL
 #include "item_create.h"     // create_temporal_literal
 #include "item_func.h"       // item_func_sleep_init
@@ -45,15 +46,17 @@ using std::max;
 const String my_null_string("NULL", 4, default_charset_info);
 
 /**
-  Alias from select list can be referenced only from ORDER
-  BY (SQL Standard) or from HAVING and GROUP BY (MySQL
-  extension).
+  Alias from select list can be referenced only from ORDER BY (SQL Standard) or
+  from HAVING, GROUP BY and a subquery in the select list (MySQL extension).
+
+  We don't allow it be referenced from the SELECT list, with one exception:
+  it's accepted if nested in a subquery, which is inconsistent but necessary
+  as our users have shown to rely on this workaround.
 */
-static inline bool
-select_alias_referencable(enum_parsing_context place)
+static inline bool select_alias_referencable(enum_parsing_context place)
 {
-  return (place == CTX_HAVING || place == CTX_GROUP_BY ||
-          place == CTX_ORDER_BY);
+  return (place == CTX_SELECT_LIST || place == CTX_GROUP_BY ||
+          place == CTX_HAVING || place == CTX_ORDER_BY);
 }
 
 /****************************************************************************/
@@ -207,7 +210,7 @@ Item::Item():
   item_name(), orig_name(),
   max_length(0),
   marker(0),
-  cmp_context((Item_result)-1),
+  cmp_context(INVALID_RESULT),
   is_parser_item(false),
   runtime_item(false),
   is_expensive_cache(-1),
@@ -273,7 +276,7 @@ Item::Item(const POS &):
   item_name(), orig_name(),
   max_length(0),
   marker(0),
-  cmp_context((Item_result)-1),
+  cmp_context(INVALID_RESULT),
   is_parser_item(true),
   runtime_item(false),
   is_expensive_cache(-1),
@@ -501,11 +504,12 @@ longlong Item::val_time_temporal()
 longlong Item::val_date_temporal()
 {
   MYSQL_TIME ltime;
-  my_time_flags_t flags= TIME_FUZZY_DATE | TIME_INVALID_DATES;
-  if (current_thd->variables.sql_mode & MODE_NO_ZERO_IN_DATE)
-    flags|= TIME_NO_ZERO_IN_DATE;
-  if (current_thd->variables.sql_mode & MODE_NO_ZERO_DATE)
-    flags|= TIME_NO_ZERO_DATE;
+  const sql_mode_t mode= current_thd->variables.sql_mode;
+  const my_time_flags_t flags=
+    TIME_FUZZY_DATE |
+    (mode & MODE_INVALID_DATES ? TIME_INVALID_DATES : 0) |
+    (mode & MODE_NO_ZERO_IN_DATE ? TIME_NO_ZERO_IN_DATE : 0) |
+    (mode & MODE_NO_ZERO_DATE ? TIME_NO_ZERO_DATE : 0);
   if ((null_value= get_date(&ltime, flags)))
     return 0;
   return TIME_to_longlong_datetime_packed(&ltime);
@@ -1067,7 +1071,7 @@ bool Item_field::check_column_privileges(uchar *arg)
   Internal_error_handler_holder<View_error_handler, TABLE_LIST>
     view_handler(thd, context->view_error_handler,
                  context->view_error_handler_arg);
-  if (check_column_grant_in_table_ref(thd, cached_table,
+  if (check_column_grant_in_table_ref(thd, table_ref,
                                       field_name, strlen(field_name),
                                       thd->want_privilege))
   {
@@ -1446,6 +1450,7 @@ bool Item::get_date_from_numeric(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
     return get_date_from_int(ltime, fuzzydate);
   case STRING_RESULT:
   case ROW_RESULT:
+  case INVALID_RESULT:
     DBUG_ASSERT(0);
   }
   return (null_value= true);  // Impossible result_type
@@ -1472,6 +1477,7 @@ bool Item::get_date_from_non_temporal(MYSQL_TIME *ltime,
   case INT_RESULT:
     return get_date_from_int(ltime, fuzzydate);
   case ROW_RESULT:
+  case INVALID_RESULT:
     DBUG_ASSERT(0);
   }
   return (null_value= true);  // Impossible result_type
@@ -1561,6 +1567,7 @@ bool Item::get_time_from_numeric(MYSQL_TIME *ltime)
     return get_time_from_int(ltime);
   case STRING_RESULT:
   case ROW_RESULT:
+  case INVALID_RESULT:
     DBUG_ASSERT(0);
   }
   return (null_value= true); // Impossible result type
@@ -1589,6 +1596,7 @@ bool Item::get_time_from_non_temporal(MYSQL_TIME *ltime)
   case INT_RESULT:
     return get_time_from_int(ltime);
   case ROW_RESULT:
+  case INVALID_RESULT:
     DBUG_ASSERT(0);
   }
   return (null_value= true); // Impossible result type
@@ -2116,8 +2124,12 @@ class Item_aggregate_ref : public Item_ref
 {
 public:
   Item_aggregate_ref(Name_resolution_context *context_arg, Item **item,
-                  const char *table_name_arg, const char *field_name_arg)
-    :Item_ref(context_arg, item, table_name_arg, field_name_arg) {}
+                     const char *table_name_arg, const char *field_name_arg,
+                     SELECT_LEX *depended_from_arg)
+    :Item_ref(context_arg, item, table_name_arg, field_name_arg)
+  {
+    depended_from= depended_from_arg;
+  }
 
   virtual inline void print (String *str, enum_query_type query_type)
   {
@@ -2133,12 +2145,11 @@ public:
 /**
   Move SUM items out from item tree and replace with reference.
 
-  @param thd			Thread handler
-  @param ref_pointer_array	Pointer to array of reference fields
-  @param fields		All fields in select
-  @param ref			Pointer to item
-  @param skip_registered       <=> function be must skipped for registered
-                               SUM items
+  @param thd             Current session
+  @param ref_item_array  Pointer to array of reference fields
+  @param fields          All fields in select
+  @param ref             Pointer to item
+  @param skip_registered <=> function be must skipped for registered SUM items
 
   @note
     This is from split_sum_func2() for items that should be split
@@ -2149,7 +2160,7 @@ public:
     thd->fatal_error() may be called if we are out of memory
 */
 
-void Item::split_sum_func2(THD *thd, Ref_ptr_array ref_pointer_array,
+void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
                            List<Item> &fields, Item **ref, 
                            bool skip_registered)
 {
@@ -2164,7 +2175,7 @@ void Item::split_sum_func2(THD *thd, Ref_ptr_array ref_pointer_array,
       type() == ROW_ITEM)
   {
     /* Will split complicated items and ignore simple ones */
-    split_sum_func(thd, ref_pointer_array, fields);
+    split_sum_func(thd, ref_item_array, fields);
   }
   else if ((type() == SUM_FUNC_ITEM || (used_tables() & ~PARAM_TABLE_BIT)) &&
            type() != SUBSELECT_ITEM &&
@@ -2181,17 +2192,30 @@ void Item::split_sum_func2(THD *thd, Ref_ptr_array ref_pointer_array,
       Exception is Item_direct_view_ref which we need to convert to
       Item_ref to allow fields from view being stored in tmp table.
     */
-    Item_aggregate_ref *item_ref;
     uint el= fields.elements;
     Item *real_itm= real_item();
 
-    ref_pointer_array[el]= real_itm;
-    if (!(item_ref= new Item_aggregate_ref(&thd->lex->current_select()->context,
-                                           &ref_pointer_array[el], 0,
-                                           item_name.ptr())))
-      return;                                   // fatal_error is set
+    SELECT_LEX *base_select;
+    SELECT_LEX *depended_from= NULL;
     if (type() == SUM_FUNC_ITEM)
-      item_ref->depended_from= ((Item_sum *) this)->depended_from(); 
+    {
+      Item_sum *const item= down_cast<Item_sum *>(this);
+      DBUG_ASSERT(thd->lex->current_select() == item->aggr_select);
+      base_select= item->base_select;
+      if (item->aggr_select != base_select)
+        depended_from= item->aggr_select;
+    }
+    else
+    {
+      base_select= thd->lex->current_select();
+    }
+
+    ref_item_array[el]= real_itm;
+    Item_aggregate_ref *const item_ref=
+      new Item_aggregate_ref(&base_select->context, &ref_item_array[el], 0,
+                             item_name.ptr(), depended_from);
+    if (!item_ref)
+      return;                      /* purecov: inspected */
     fields.push_front(real_itm);
     thd->change_item_tree(ref, item_ref);
   }
@@ -3572,8 +3596,7 @@ longlong_from_string_with_check (const CHARSET_INFO *cs,
     TODO: Give error if we wanted a signed integer and we got an unsigned
     one
   */
-  if (!current_thd->no_errors &&
-      (err > 0 ||
+  if ((err > 0 ||
        (end != org_end && !check_if_only_end_space(cs, end, org_end))))
   {
     ErrConvString err(cptr, cs);
@@ -4379,7 +4402,8 @@ Item_param::eq(const Item *arg, bool binary_cmp) const
 
 void Item_param::print(String *str, enum_query_type query_type)
 {
-  if (state == NO_VALUE || query_type & QT_NORMALIZED_FORMAT)
+  if (state == NO_VALUE ||
+      query_type & (QT_NORMALIZED_FORMAT | QT_NO_DATA_EXPANSION))
   {
     str->append('?');
   }
@@ -4706,7 +4730,8 @@ bool Item_copy_json::copy(const THD *thd)
 
   if (!null_value)
   {
-    m_value->to_dom(); // need own copy, cf. also Item_cache_json::cache_value
+    // need own copy, cf. also Item_cache_json::cache_value
+    m_value->to_dom(thd);
   }
 
   return false;
@@ -5073,7 +5098,7 @@ bool Item_ref_null_helper::get_date(MYSQL_TIME *ltime,
   Mark item and SELECT_LEXs as dependent if item was resolved in
   outer SELECT.
 
-  @param thd             thread handler
+  @param thd             Current session.
   @param last            select from which current item depend
   @param current         current select
   @param resolved_item   item which was resolved in outer SELECT
@@ -5125,7 +5150,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
   Mark range of selects and resolved identifier (field/reference)
   item as dependent.
 
-  @param thd             thread handler
+  @param thd             Current session.
   @param last_select     select where resolved_item was resolved
   @param current_sel     current select (select where resolved_item was placed)
   @param found_field     field which was found during resolving
@@ -5398,7 +5423,7 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
     if (select_ref != not_found_item && !ambiguous_fields)
     {
       DBUG_ASSERT(*select_ref != 0);
-      if (!select->ref_pointer_array[counter])
+      if (!select->base_ref_items[counter])
       {
         my_error(ER_ILLEGAL_REFERENCE, MYF(0),
                  ref->item_name.ptr(), "forward reference in item list");
@@ -5410,7 +5435,7 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
       */
       DBUG_ASSERT(is_fixed_or_outer_ref(*select_ref));
 
-      return &select->ref_pointer_array[counter];
+      return &select->base_ref_items[counter];
     }
     if (group_by_ref)
       return group_by_ref;
@@ -5551,13 +5576,14 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
           /*
             A reference is resolved to a nest level that's outer or the same as
             the nest level of the enclosing set function : adjust the value of
-            max_arg_level for the function if it's needed.
+            max_aggr_level for the function if it's needed.
           */
           if (thd->lex->in_sum_func &&
-              thd->lex->in_sum_func->nest_level >= select->nest_level)
+              thd->lex->in_sum_func->base_select->nest_level >=
+              select->nest_level)
           {
             Item::Type ref_type= (*reference)->type();
-            set_if_bigger(thd->lex->in_sum_func->max_arg_level,
+            set_if_bigger(thd->lex->in_sum_func->max_aggr_level,
                           select->nest_level);
             set_field(*from_field);
             fixed= 1;
@@ -5580,8 +5606,9 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
           prev_subselect_item->const_item_cache&=
             (*reference)->const_item();
           if (thd->lex->in_sum_func &&
-              thd->lex->in_sum_func->nest_level >= select->nest_level)
-            set_if_bigger(thd->lex->in_sum_func->max_arg_level,
+              thd->lex->in_sum_func->base_select->nest_level >=
+              select->nest_level)
+            set_if_bigger(thd->lex->in_sum_func->max_aggr_level,
                           select->nest_level);
 
           mark_as_dependent(thd, last_checked_context->select_lex,
@@ -5923,8 +5950,9 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
                 context->select_lex ==
                 dynamic_cast<Item_ident *>(*reference)->context->select_lex);
     if (thd->lex->in_sum_func &&
-        thd->lex->in_sum_func->nest_level == context->select_lex->nest_level)
-      set_if_bigger(thd->lex->in_sum_func->max_arg_level,
+        thd->lex->in_sum_func->base_select->nest_level ==
+        context->select_lex->nest_level)
+      set_if_bigger(thd->lex->in_sum_func->max_aggr_level,
                     context->select_lex->nest_level);
 
     // If view column reference, Item in *reference is completely resolved:
@@ -6298,6 +6326,7 @@ enum_field_types Item::field_type() const
 
 /**
   Verifies that the input string is well-formed according to its character set.
+  @param str
   @param send_error   If true, call my_error if string is not well-formed.
   @param truncate     If true, set to null/truncate if not well-formed.
 
@@ -6658,6 +6687,11 @@ Item_field::save_in_field_inner(Field *to, bool no_conversions)
   Allow NULL to be inserted in timestamp and auto_increment values.
 
   @param field		Field where we want to store NULL
+  @param no_conversions  Set to 1 if we should return 1 if field can't
+                         take null values.
+                         If set to 0 we will do store the 'default value'
+                         if the field is a special field. If not we will
+                         give an error.
 
   @retval
     0   ok
@@ -7269,13 +7303,13 @@ void Item_hex_string::print(String *str, enum_query_type query_type)
     str->append("?");
     return;
   }
-  char *end= (char*) str_value.ptr() + str_value.length(),
-       *ptr= end - min<size_t>(str_value.length(), sizeof(longlong));
+  const uchar *ptr= pointer_cast<const uchar*>(str_value.ptr());
+  const uchar *end= ptr + str_value.length();
   str->append("0x");
   for (; ptr != end ; ptr++)
   {
-    str->append(_dig_vec_lower[((uchar) *ptr) >> 4]);
-    str->append(_dig_vec_lower[((uchar) *ptr) & 0x0F]);
+    str->append(_dig_vec_lower[*ptr >> 4]);
+    str->append(_dig_vec_lower[*ptr & 0x0F]);
   }
 }
 
@@ -7423,7 +7457,7 @@ public:
   }
   Item *clone_item()
   {
-    Json_wrapper wr(m_value.clone_dom());
+    Json_wrapper wr(m_value.clone_dom(current_thd));
     return new Item_json(&wr, item_name, collation);
   }
   /* purecov: end */
@@ -7766,7 +7800,7 @@ bool Item_field::send(Protocol *protocol, String *buffer)
 
   DESCRIPTION
     If the field doesn't belong to the table being inserted into then it is
-    added to the select list, pointer to it is stored in the ref_pointer_array
+    added to the select list, pointer to it is stored in the ref_item_array
     of the select and the field itself is substituted for the Item_ref object.
     This is done in order to get correct values from update fields that
     belongs to the SELECT part in the INSERT .. SELECT .. ON DUPLICATE KEY
@@ -7795,7 +7829,8 @@ Item *Item_field::update_value_transformer(uchar *select_arg)
 
 void Item_field::print(String *str, enum_query_type query_type)
 {
-  if (field && field->table->const_table)
+  if (field && field->table->const_table &&
+      !(query_type & QT_NO_DATA_EXPANSION))
   {
     char buff[MAX_FIELD_WIDTH];
     String tmp(buff,sizeof(buff),str->charset());
@@ -8121,12 +8156,12 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
         /*
           A reference is resolved to a nest level that's outer or the same as
           the nest level of the enclosing set function : adjust the value of
-          max_arg_level for the function if it's needed.
+          max_aggr_level for the function if it's needed.
         */
         if (thd->lex->in_sum_func &&
-            thd->lex->in_sum_func->nest_level >= 
+            thd->lex->in_sum_func->base_select->nest_level >=
             last_checked_context->select_lex->nest_level)
-          set_if_bigger(thd->lex->in_sum_func->max_arg_level,
+          set_if_bigger(thd->lex->in_sum_func->max_aggr_level,
                         last_checked_context->select_lex->nest_level);
         return FALSE;
       }
@@ -8144,12 +8179,12 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
       /*
         A reference is resolved to a nest level that's outer or the same as
         the nest level of the enclosing set function : adjust the value of
-        max_arg_level for the function if it's needed.
+        max_aggr_level for the function if it's needed.
       */
       if (thd->lex->in_sum_func &&
-          thd->lex->in_sum_func->nest_level >= 
+          thd->lex->in_sum_func->base_select->nest_level >=
           last_checked_context->select_lex->nest_level)
-        set_if_bigger(thd->lex->in_sum_func->max_arg_level,
+        set_if_bigger(thd->lex->in_sum_func->max_aggr_level,
                       last_checked_context->select_lex->nest_level);
     }
   }
@@ -8646,7 +8681,7 @@ bool Item_direct_ref::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 /**
   Prepare referenced field then call usual Item_direct_ref::fix_fields .
 
-  @param thd         thread handler
+  @param thd         Current session.
   @param reference   reference on reference where this item stored
 
   @retval
@@ -9282,7 +9317,7 @@ Item_result item_cmp_type(Item_result a,Item_result b)
 /**
   Substitute a const item with a simpler const item, if possible.
 
-  @param thd         Thread handler
+  @param thd         Current session.
   @param[in,out] ref Const item to be processed, contains simplest possible
                      item on return.
   @param comp_item   Item that provides result type for generated const item
@@ -9307,7 +9342,7 @@ bool resolve_const_item(THD *thd, Item **ref, Item *comp_item)
     {
       Json_wrapper wr;
       if (item->val_json(&wr))
-        break;
+        return true;
       if (item->null_value)
         new_item= new Item_null(item->item_name);
       else
@@ -9414,6 +9449,7 @@ bool resolve_const_item(THD *thd, Item **ref, Item *comp_item)
 /**
   Compare the value stored in field with the expression from the query.
 
+  @param thd     Current session.
   @param field   Field which the Item is stored in after conversion
   @param item    Original expression from query
 
@@ -9556,7 +9592,10 @@ void Item_cache::store(Item *item)
 {
   example= item;
   if (!item)
+  {
+    DBUG_ASSERT(maybe_null);
     null_value= TRUE;
+  }
   value_cached= FALSE;
 }
 
@@ -9576,6 +9615,22 @@ bool Item_cache::walk(Item_processor processor, enum_walk walk, uchar *arg)
          (example && example->walk(processor, walk, arg)) ||
          ((walk & WALK_POSTFIX) && (this->*processor)(arg));
 }
+
+
+bool Item_cache::has_value()
+{
+  if (value_cached || cache_value())
+  {
+    /*
+      Only expect NULL if the cache is nullable, or if an error was
+      raised when reading the value into the cache.
+    */
+    DBUG_ASSERT(!null_value || maybe_null || current_thd->is_error());
+    return !null_value;
+  }
+  return false;
+}
+
 
 bool  Item_cache_int::cache_value()
 {
@@ -9882,18 +9937,16 @@ bool Item_cache_json::cache_value()
   if (!example || !m_value)
     return false;
 
-  if (json_value(&example, 0, m_value))
-    return false;
-
+  value_cached= !json_value(&example, 0, m_value);
   null_value= example->null_value;
-  value_cached= true;
 
-  if (!null_value)
+  if (value_cached && !null_value)
   {
-    m_value->to_dom(); // the row buffer might change, so need own copy
+    // the row buffer might change, so need own copy
+    m_value->to_dom(current_thd);
   }
 
-  return true;
+  return value_cached;
 }
 
 
@@ -10222,6 +10275,7 @@ void Item_cache_row::store(Item * item)
   example= item;
   if (!item)
   {
+    DBUG_ASSERT(maybe_null);
     null_value= TRUE;
     return;
   }
@@ -10417,7 +10471,7 @@ enum_field_types Item_type_holder::get_real_type(Item *item)
   Find field type which can carry current Item_type_holder type and
   type of given Item.
 
-  @param thd     thread handler
+  @param thd     Current session.
   @param item    given item to join its parameters with this item ones
 
   @retval

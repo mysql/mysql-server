@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include "auth_common.h"                    // check_grant_db
 #include "debug_sync.h"                     // DEBUG_SYNC
 #include "derror.h"                         // ER_THD
+#include "error_handler.h"                  // Internal_error_handler
 #include "field.h"                          // Field
 #include "filesort.h"                       // filesort_free_buffers
 #include "item.h"                           // Item_empty_string
@@ -602,7 +603,7 @@ ignore_db_dirs_process_additions()
   if (my_hash_init(&ignore_db_dirs_hash, 
                    lower_case_table_names ?
                      character_set_filesystem : &my_charset_bin,
-                   0, 0, 0, db_dirs_hash_get_key,
+                   0, 0, db_dirs_hash_get_key,
                    my_free,
                    HASH_UNIQUE,
                    key_memory_ignored_db))
@@ -1755,7 +1756,6 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   }
 
   key_info= table->key_info;
-  memset(&create_info, 0, sizeof(create_info));
   /* Allow update_create_info to update row type */
   create_info.row_type= share->row_type;
   file->update_create_info(&create_info);
@@ -3198,7 +3198,6 @@ typedef struct st_lookup_field_values
   bool wild_table_value;
 } LOOKUP_FIELD_VALUES;
 
-
 /*
   Store record to I_S table, convert HEAP table
   to MyISAM if necessary
@@ -3225,6 +3224,46 @@ bool schema_table_store_record(THD *thd, TABLE *table)
       return 1;
   }
   return 0;
+}
+
+/**
+  Store record to I_S table, convert HEAP table to InnoDB table if necessary.
+
+  @param[in]  thd            thread handler
+  @param[in]  table          Information schema table to be updated
+  @param[in]  make_ondisk    if true, convert heap table to on disk table.
+                             default value is true.
+  @return 0 on success
+  @return error code on failure.
+*/
+int schema_table_store_record2(THD *thd, TABLE *table, bool make_ondisk)
+{
+  int error;
+  if ((error= table->file->ha_write_row(table->record[0])))
+  {
+    if (!make_ondisk)
+        return error;
+
+    if (convert_heap_table_to_ondisk(thd, table, error))
+        return 1;
+  }
+  return 0;
+}
+
+/**
+  Convert HEAP table to InnoDB table if necessary
+
+  @param[in] thd     thread handler
+  @param[in] table   Information schema table to be converted.
+  @param[in] error   the error code returned previously.
+  @return false on success, true on error.
+*/
+bool convert_heap_table_to_ondisk(THD *thd, TABLE *table, int error)
+{
+  Temp_table_param *param= table->pos_in_table_list->schema_table_param;
+
+  return (create_ondisk_from_heap(thd, table, param->start_recinfo,
+                              &param->recinfo, error, FALSE, NULL));
 }
 
 
@@ -5208,8 +5247,6 @@ err:
   @param[in]      field             processed field
   @param[in]      cs                I_S table charset
   @param[in]      offset            offset from beginning of table
-                                    to DATE_TYPE column in I_S table
-  @return         void
 */
 
 static void store_column_type(THD *thd, TABLE *table, Field *field,
@@ -5785,7 +5822,7 @@ static bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
       {
         free_table_share(&share);
         if (free_sp_head)
-          delete sp;
+          sp_head::destroy(sp);
         DBUG_RETURN(1);
       }
     }
@@ -5851,12 +5888,12 @@ static bool store_schema_params(THD *thd, TABLE *table, TABLE *proc_table,
       {
         free_table_share(&share);
         if (free_sp_head)
-          delete sp;
+          sp_head::destroy(sp);
         DBUG_RETURN(1);
       }
     }
     if (free_sp_head)
-      delete sp;
+      sp_head::destroy(sp);
   }
   free_table_share(&share);
   DBUG_RETURN(0);
@@ -5956,7 +5993,7 @@ static bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
           store_column_type(thd, table, field, cs, IS_ROUTINES_DATA_TYPE);
           free_table_share(&share);
           if (free_sp_head)
-            delete sp;
+            sp_head::destroy(sp);
         }
       }
 
@@ -8312,7 +8349,7 @@ bool get_schema_tables_result(JOIN *join,
         table_list->table->file->ha_delete_all_rows();
         free_io_cache(table_list->table);
         filesort_free_buffers(table_list->table,1);
-        table_list->table->null_row= 0;
+        table_list->table->reset_null_row();
       }
       else
         table_list->table->file->stats.records= 0;

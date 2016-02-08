@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1082,6 +1082,11 @@ public:
   */
   bool reported_unsafe_warning;
 
+  /*
+    'sql_thread_kill_accepted is set to TRUE when killed status is recognized.
+  */
+  bool sql_thread_kill_accepted;
+
   time_t get_row_stmt_start_timestamp()
   {
     return row_stmt_start_timestamp;
@@ -1272,6 +1277,16 @@ private:
   int thd_tx_priority;
 
 public:
+  /*
+    The boolean is set to true when the binlog applier (rli_fake) thread
+    detaches any "native" engine transactions it has dealt with
+    at time of XA START processing.
+    The boolean is reset to false at the end of XA PREPARE
+    and XA COMMIT ONE PHASE, at the same time with the native transactions
+    re-attachment.
+  */
+  bool is_native_trx_detached;
+
   void set_thd_tx_priority(int priority)
   {
     thd_tx_priority= priority;

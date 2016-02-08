@@ -663,11 +663,9 @@ SET DEBUG_SYNC="before_lock_tables_takes_lock SIGNAL drop WAIT_FOR query";
 DROP EVENT e1;;
 # Connection default
 SET DEBUG_SYNC="now WAIT_FOR drop";
-SELECT name FROM mysql.event, INFORMATION_SCHEMA.GLOBAL_VARIABLES
+SELECT name FROM mysql.event, performance_schema.global_variables
 WHERE definer = VARIABLE_VALUE;
 name
-Warnings:
-Warning	1287	'INFORMATION_SCHEMA.GLOBAL_VARIABLES' is deprecated and will be removed in a future release. Please use performance_schema.global_variables instead
 SET DEBUG_SYNC="now SIGNAL query";
 # Connection con1
 # Reaping: DROP EVENT t1

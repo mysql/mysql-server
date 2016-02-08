@@ -16,7 +16,6 @@
 #include "my_global.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/service_rules_table.h"
-#include "sql_cache.h"
 #include "sql_error.h"
 #include "sql_parse.h"
 #include "sql_plugin.h"

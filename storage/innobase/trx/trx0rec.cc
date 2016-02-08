@@ -700,27 +700,58 @@ trx_undo_rec_skip_row_ref(
 	return(ptr);
 }
 
+#ifdef UNIV_DEBUG
+# define trx_undo_page_fetch_ext(					\
+		ext_buf, prefix_len, page_size, field, is_sdi, len)	\
+	trx_undo_page_fetch_ext_func(					\
+		ext_buf, prefix_len, page_size, field, is_sdi, len)
+
+# define trx_undo_page_report_modify_ext(				\
+		ptr, ext_buf, prefix_len, page_size, field, len,	\
+		is_sdi, spatial_status)					\
+	trx_undo_page_report_modify_ext_func(				\
+		ptr, ext_buf, prefix_len, page_size, field, len,	\
+		is_sdi, spatial_status)
+#else /* UNIV_DEBUG */
+# define trx_undo_page_fetch_ext(					\
+		ext_buf, prefix_len, page_size, field, is_sdi, len)	\
+	trx_undo_page_fetch_ext_func(					\
+		ext_buf, prefix_len, page_size, field, len)
+
+# define trx_undo_page_report_modify_ext(				\
+		ptr, ext_buf, prefix_len, page_size, field, len,	\
+		is_sdi, spatial_status)					\
+	trx_undo_page_report_modify_ext_func(				\
+		ptr, ext_buf, prefix_len, page_size, field, len,	\
+		spatial_status)
+#endif /* UNIV_DEBUG */
+
 /** Fetch a prefix of an externally stored column, for writing to the undo
 log of an update or delete marking of a clustered index record.
 @param[out]	ext_buf		buffer to hold the prefix data and BLOB pointer
 @param[in]	prefix_len	prefix size to store in the undo log
 @param[in]	page_size	page size
 @param[in]	field		an externally stored column
+@param[in]	is_sdi		true for SDI indexes
 @param[in,out]	len		input: length of field; output: used length of
 ext_buf
 @return ext_buf */
 static
 byte*
-trx_undo_page_fetch_ext(
+trx_undo_page_fetch_ext_func(
 	byte*			ext_buf,
 	ulint			prefix_len,
 	const page_size_t&	page_size,
 	const byte*		field,
+#ifdef UNIV_DEBUG
+	bool			is_sdi,
+#endif /* UNIV_DEBUG */
 	ulint*			len)
 {
 	/* Fetch the BLOB. */
 	ulint	ext_len = btr_copy_externally_stored_field_prefix(
-		ext_buf, prefix_len, page_size, field, *len);
+		ext_buf, prefix_len, page_size, field, is_sdi, *len);
+
 	/* BLOBs should always be nonempty. */
 	ut_a(ext_len);
 	/* Append the BLOB pointer to the prefix. */
@@ -742,18 +773,22 @@ available
 @param[in,out]	field		the locally stored part of the externally
 stored column
 @param[in,out]	len		length of field, in bytes
+@param[in]	is_sdi		true for SDI indexes
 @param[in]	spatial_status	whether the column is used by spatial index or
 				regular index
 @return undo log position */
 static
 byte*
-trx_undo_page_report_modify_ext(
+trx_undo_page_report_modify_ext_func(
 	byte*			ptr,
 	byte*			ext_buf,
 	ulint			prefix_len,
 	const page_size_t&	page_size,
 	const byte**		field,
 	ulint*			len,
+#ifdef UNIV_DEBUG
+	bool			is_sdi,
+#endif /* UNIV_DEBUG */
 	spatial_status_t	spatial_status)
 {
 	ulint	spatial_len= 0;
@@ -793,7 +828,8 @@ trx_undo_page_report_modify_ext(
 		ptr += mach_write_compressed(ptr, *len);
 
 		*field = trx_undo_page_fetch_ext(ext_buf, prefix_len,
-						 page_size, *field, len);
+						 page_size, *field, is_sdi,
+						 len);
 
 		ptr += mach_write_compressed(ptr, *len + spatial_len);
 	} else {
@@ -824,7 +860,7 @@ trx_undo_get_mbr_from_ext(
 	mem_heap_t*	heap = mem_heap_create(100);
 
 	dptr = btr_copy_externally_stored_field(
-		&dlen, field, page_size, *len, heap);
+		&dlen, field, page_size, *len, false, heap);
 
 	if (dlen <= GEO_DATA_HEADER_SIZE) {
 		for (uint i = 0; i < SPDIMS; ++i) {
@@ -1078,7 +1114,9 @@ trx_undo_page_report_modify(
 					&& flen < REC_ANTELOPE_MAX_INDEX_COL_LEN
 					? ext_buf : NULL, prefix_len,
 					dict_table_page_size(table),
-					&field, &flen, SPATIAL_UNKNOWN);
+					&field, &flen,
+					dict_table_is_sdi(table->id),
+					SPATIAL_UNKNOWN);
 
 				/* Notify purge that it eventually has to
 				free the old externally stored field */
@@ -1225,6 +1263,7 @@ trx_undo_page_report_modify(
 						? ext_buf : NULL, prefix_len,
 						dict_table_page_size(table),
 						&field, &flen,
+						dict_table_is_sdi(table->id),
 						spatial_status);
 				} else {
 					ptr += mach_write_compressed(
@@ -2155,43 +2194,43 @@ trx_undo_get_undo_rec(
 #define ATTRIB_USED_ONLY_IN_DEBUG	__attribute__((unused))
 #endif /* UNIV_DEBUG */
 
-/*******************************************************************//**
-Build a previous version of a clustered index record. The caller must
-hold a latch on the index page of the clustered index record.
-@retval true if previous version was built, or if it was an insert
-or the table has been rebuilt
-@retval false if the previous version is earlier than purge_view,
-or being purged, which means that it may have been removed */
+/** Build a previous version of a clustered index record. The caller must hold
+a latch on the index page of the clustered index record.
+@param[in]	index_rec	clustered index record in the index tree
+@param[in]	index_mtr	mtr which contains the latch to index_rec page
+				and purge_view
+@param[in]	rec		version of a clustered index record
+@param[in]	index		clustered index
+@param[in,out]	offsets		rec_get_offsets(rec, index)
+@param[in]	heap		memory heap from which the memory needed is
+				allocated
+@param[out]	old_vers	previous version, or NULL if rec is the first
+				inserted version, or if history data has been
+				deleted
+@param[in]	v_heap		memory heap used to create vrow dtuple if it is
+				not yet created. This heap diffs from "heap"
+				above in that it could be
+				prebuilt->old_vers_heap for selection
+@param[out]	vrow		virtual column info, if any
+@param[in]	v_status	status determine if it is going into this
+				function by purge thread or not. And if we read
+				"after image" of undo log has been rebuilt
+@retval true if previous version was built, or if it was an insert or the table
+has been rebuilt
+@retval false if the previous version is earlier than purge_view, or being
+purged, which means that it may have been removed */
 bool
 trx_undo_prev_version_build(
-/*========================*/
 	const rec_t*	index_rec ATTRIB_USED_ONLY_IN_DEBUG,
-				/*!< in: clustered index record in the
-				index tree */
 	mtr_t*		index_mtr ATTRIB_USED_ONLY_IN_DEBUG,
-				/*!< in: mtr which contains the latch to
-				index_rec page and purge_view */
-	const rec_t*	rec,	/*!< in: version of a clustered index record */
-	dict_index_t*	index,	/*!< in: clustered index */
-	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
-	mem_heap_t*	heap,	/*!< in: memory heap from which the memory
-				needed is allocated */
-	rec_t**		old_vers,/*!< out, own: previous version, or NULL if
-				rec is the first inserted version, or if
-				history data has been deleted (an error),
-				or if the purge COULD have removed the version
-				though it has not yet done so */
-	mem_heap_t*	v_heap,	/* !< in: memory heap used to create vrow
-				dtuple if it is not yet created. This heap
-				diffs from "heap" above in that it could be
-				prebuilt->old_vers_heap for selection */
-	const dtuple_t**vrow,	/*!< out: virtual column info, if any */
+	const rec_t*	rec,
+	dict_index_t*	index,
+	ulint*		offsets,
+	mem_heap_t*	heap,
+	rec_t**		old_vers,
+	mem_heap_t*	v_heap,
+	const dtuple_t**vrow,
 	ulint		v_status)
-				/*!< in: status determine if it is going
-				into this function by purge thread or not.
-				And if we read "after image" of undo log */
-
-
 {
 	trx_undo_rec_t*	undo_rec	= NULL;
 	dtuple_t*	entry;
@@ -2230,6 +2269,9 @@ trx_undo_prev_version_build(
 	For temporary objects NON-REDO rollback segments are used. */
 	bool is_redo_rseg =
 		dict_table_is_temporary(index->table) ? false : true;
+
+	ut_ad(!index->table->skip_alter_undo);
+
 	if (trx_undo_get_undo_rec(
 		roll_ptr, rec_trx_id, heap, is_redo_rseg,
 		index->table->name, &undo_rec)) {

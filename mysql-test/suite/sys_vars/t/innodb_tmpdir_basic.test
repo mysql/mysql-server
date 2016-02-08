@@ -1,3 +1,6 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
+
 --source include/have_innodb.inc
 
 SET @start_global_value = @@global.innodb_tmpdir;
@@ -12,8 +15,8 @@ show global variables like 'innodb_tmpdir';
 show session variables like 'innodb_tmpdir';
 
 --disable_warnings
-select * from information_schema.global_variables where variable_name='innodb_tmpdir';
-select * from information_schema.session_variables where variable_name='innodb_tmpdir';
+select * from performance_schema.global_variables where variable_name='innodb_tmpdir';
+select * from performance_schema.session_variables where variable_name='innodb_tmpdir';
 --enable_warnings
 #
 # Show that it is writable

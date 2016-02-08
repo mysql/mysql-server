@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <my_atomic.h>
+#include <atomic>
 
 
 namespace mysys_my_atomic_unittest {
@@ -165,15 +166,45 @@ TEST(Mysys, Atomic)
   mysql_mutex_init(0, &mutex, 0);
   mysql_cond_init(0, &cond);
   my_thread_attr_init(&thr_attr);
-#ifndef _WIN32
-  pthread_attr_setdetachstate(&thr_attr, PTHREAD_CREATE_DETACHED);
-#endif
+  my_thread_attr_setdetachstate(&thr_attr, MY_THREAD_CREATE_DETACHED);
 
   do_tests();
 
   mysql_mutex_destroy(&mutex);
   mysql_cond_destroy(&cond);
   my_thread_attr_destroy(&thr_attr);
+}
+
+
+// A very simple perf test of load/store.
+
+#ifndef DBUG_OFF
+static const int num_iterations= 1; // No point in debug mode
+#else
+static const int num_iterations= 10000; // Should be increased for testing.
+#endif
+
+TEST(Mysys, AtomicPerfMy)
+{
+  volatile int64 a= 0;
+  for (int64 i = 0; i < num_iterations; i++)
+  {
+    int64 v= my_atomic_load64(&a);
+    EXPECT_EQ(v, i);
+    my_atomic_add64(&a, 1);
+  }
+}
+
+
+TEST(Mysys, AtomicPerfStd)
+{
+  std::atomic<int64> a { 0 };
+  for (int64 i = 0; i < num_iterations; i++)
+  {
+    int64 v= a;
+    EXPECT_EQ(v, i);
+    a++;
+  }
 }
 
 }

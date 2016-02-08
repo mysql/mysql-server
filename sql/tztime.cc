@@ -1632,14 +1632,14 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
 
   /* Init all memory structures that require explicit destruction */
   if (my_hash_init(&tz_names, &my_charset_latin1, 20,
-                   0, 0, my_tz_names_get_key, 0, 0,
+                   0, my_tz_names_get_key, nullptr, 0,
                    key_memory_tz_storage))
   {
     sql_print_error("Fatal error: OOM while initializing time zones");
     goto end;
   }
-  if (my_hash_init(&offset_tzs, &my_charset_latin1, 26, 0, 0,
-                   my_offset_tzs_get_key, 0, 0,
+  if (my_hash_init(&offset_tzs, &my_charset_latin1, 26, 0,
+                   my_offset_tzs_get_key, nullptr, 0,
                    key_memory_tz_storage))
   {
     sql_print_error("Fatal error: OOM while initializing time zones");

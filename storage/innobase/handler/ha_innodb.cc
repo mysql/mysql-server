@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -56,6 +56,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <my_bitmap.h>
 #include <mysql/service_thd_alloc.h>
 #include <mysql/service_thd_wait.h>
+#include <dd/types/tablespace.h>
+#include <dd/properties.h>
 
 /* Include necessary InnoDB headers */
 #include "api0api.h"
@@ -637,7 +639,16 @@ static ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_cfg_bk_commit_interval,
 	(ib_cb_t) ib_ut_strerr,
 	(ib_cb_t) ib_cursor_stmt_begin,
-	(ib_cb_t) ib_trx_read_only
+#ifdef UNIV_MEMCACHED_SDI
+	(ib_cb_t) ib_memc_sdi_get,
+	(ib_cb_t) ib_memc_sdi_delete,
+	(ib_cb_t) ib_memc_sdi_set,
+	(ib_cb_t) ib_memc_sdi_create_copies,
+	(ib_cb_t) ib_memc_sdi_drop_copies,
+	(ib_cb_t) ib_memc_sdi_get_keys,
+#endif /* UNIV_MEMCACHED_SDI */
+	(ib_cb_t) ib_trx_read_only,
+	(ib_cb_t) ib_is_virtual_table
 };
 
 /*************************************************************//**
@@ -1049,15 +1060,119 @@ innobase_release_savepoint(
 					savepoint should be released */
 	void*		savepoint);	/*!< in: savepoint data */
 
-/************************************************************************//**
-Function for constructing an InnoDB table handler instance. */
+/** Function for constructing an InnoDB table handler instance.
+@param[in,out]	hton		handlerton for InnoDB
+@param[in]	table		MySQL table
+@param[in]	mem_root	memory context */
 static
 handler*
 innobase_create_handler(
-/*====================*/
-	handlerton*	hton,		/*!< in/out: handlerton for InnoDB */
+	handlerton*	hton,
 	TABLE_SHARE*	table,
 	MEM_ROOT*	mem_root);
+
+/** Create SDI in a tablespace. This API should be used when
+upgrading a tablespace with no SDI.
+@param[in]	tablespace	tablespace object
+@param[in]	num_of_copies	Number of SDI copies
+@retval		false		success
+@retval		true		failure */
+static
+bool
+innobase_sdi_create(
+	const dd::Tablespace&	tablespace,
+	uint32			num_of_copies);
+
+/** Drop SDI in a tablespace. This API should be used only
+when SDI is corrupted.
+@param[in]	tablespace	tablespace object
+@retval		false		success
+@retval		true		failure */
+static
+bool
+innobase_sdi_drop(
+	const dd::Tablespace&	tablespace);
+
+/** Get the SDI keys in a tablespace into vector.
+@param[in]	tablespace	tablespace object
+@param[in,out]	vector		vector to hold SDI keys
+@param[in]	copy_num	the SDI copy to operate on
+@retval		false		success
+@retval		true		failure */
+static
+bool
+innobase_sdi_get_keys(
+	const dd::Tablespace&	tablespace,
+	dd::sdi_vector_t&	vector,
+	uint32			copy_num);
+
+/** Retrieve SDI from tablespace.
+@param[in]	tablespace	tablespace object
+@param[in]	sdi_key		SDI key
+@param[in,out]	sdi		SDI retrieved from tablespace
+@param[in,out]	sdi_len		in:  size of memory allocated
+				out: actual length of SDI
+@param[in]	copy_num	the copy from which SDI has to retrieved
+@retval		false		success
+@retval		true		incase of failures like record not found,
+				sdi_len is UINT64MAX_T, else sdi_len is
+				actual length of SDI */
+static
+bool
+innobase_sdi_get(
+	const dd::Tablespace&	tablespace,
+	const dd::sdi_key_t*	sdi_key,
+	void*			sdi,
+	uint64*			sdi_len,
+	uint32			copy_num);
+
+/** Insert/Update SDI in tablespace.
+@param[in]	tablespace	tablespace object
+@param[in]	sdi_key		SDI key to uniquely identify the tablespace
+object
+@param[in]	sdi		SDI to be stored in tablespace
+@param[in]	sdi_len		SDI length
+@retval		false		success
+@retval		true		failure */
+static
+bool
+innobase_sdi_set(
+	const dd::Tablespace&	tablespace,
+	const dd::sdi_key_t*	sdi_key,
+	const void*		sdi,
+	uint64			sdi_len);
+
+/** Delete SDI from tablespace.
+@param[in]	tablespace	tablespace object
+@param[in]	sdi_key		SDI key to uniquely identify the tablespace
+object
+@retval		false		success
+@retval		true		failure */
+static
+bool
+innobase_sdi_delete(
+	const dd::Tablespace&	tablespace,
+	const dd::sdi_key_t*	sdi_key);
+
+/** Flush SDI copy in a tablespace. This will guarantee the data for the copy
+will be flushed before transaction commit.
+@param[in]	tablespace	tablespace object
+@retval		false		success
+@retval		true		failure */
+static
+bool
+innobase_sdi_flush(
+	const dd::Tablespace&	tablespace);
+
+/** Return the number of SDI copies stored in a tablespace.
+@param[in]	tablespace	tablespace object
+@retval		0		if there are no SDI copies
+@retval		MAX_SDI_COPIES	if the SDI is present
+@retval		UINT32_MAX	in case of failure */
+static
+uint32
+innobase_sdi_get_num_copies(
+	const dd::Tablespace&	tablespace);
 
 /** @brief Initialize the default value of innodb_commit_concurrency.
 
@@ -1237,28 +1352,30 @@ innobase_flush_logs(
 	handlerton*	hton,
 	bool		binlog_group_flush);
 
-/************************************************************************//**
-Implements the SHOW ENGINE INNODB STATUS command. Sends the output of the
+/** Implements the SHOW ENGINE INNODB STATUS command. Sends the output of the
 InnoDB Monitor to the client.
+@param[in]	hton		the innodb handlerton
+@param[in]	thd		the MySQL query thread of the caller
+@param[in]	stat_print	print function
 @return 0 on success */
 static
 int
 innodb_show_status(
-/*===============*/
-	handlerton*	hton,		/*!< in: the innodb handlerton */
-	THD*		thd,		/*!< in: the MySQL query thread of
-					the caller */
+	handlerton*	hton,
+	THD*		thd,
 	stat_print_fn*	stat_print);
-/************************************************************************//**
-Return 0 on success and non-zero on failure. Note: the bool return type
-seems to be abused here, should be an int. */
+
+/** Return 0 on success and non-zero on failure. Note: the bool return type
+seems to be abused here, should be an int.
+@param[in]	hton		the innodb handlerton
+@param[in]	thd		the MySQL query thread of the caller
+@param[in]	stat_print	print function
+@param[in]	stat_type	status to show */
 static
 bool
 innobase_show_status(
-/*=================*/
-	handlerton*		hton,	/*!< in: the innodb handlerton */
-	THD*			thd,	/*!< in: the MySQL query thread of
-					the caller */
+	handlerton*		hton,
+	THD*			thd,
 	stat_print_fn*		stat_print,
 	enum ha_stat_type	stat_type);
 
@@ -1274,10 +1391,10 @@ innodb_enable_monitor_at_startup(
 	char*	str);	/*!< in: monitor counter enable list */
 
 /** Fill handlerton based INFORMATION_SCHEMA tables.
-@param[in]		(unused) Handle to the handlerton structure
+@param[in]	-	(unused) Handle to the handlerton structure
 @param[in]	thd	Thread/connection descriptor
 @param[in,out]	tables	Information Schema tables to fill
-@param[in]		(unused) Intended for conditional pushdown
+@param[in]	-	(unused) Intended for conditional pushdown
 @param[in]	idx	Table id that indicates which I_S table to fill
 @return Operation status */
 static
@@ -1347,13 +1464,14 @@ innobase_commit_concurrency_validate(
 	DBUG_RETURN(!(!commit_concurrency == !innobase_commit_concurrency));
 }
 
-/*******************************************************************//**
-Function for constructing an InnoDB table handler instance. */
+/** Function for constructing an InnoDB table handler instance.
+@param[in,out]	hton		handlerton for InnoDB
+@param[in]	table		MySQL table
+@param[in]	mem_root	memory context */
 static
 handler*
 innobase_create_handler(
-/*====================*/
-	handlerton*	hton,	/*!< in: InnoDB handlerton */
+	handlerton*	hton,
 	TABLE_SHARE*	table,
 	MEM_ROOT*	mem_root)
 {
@@ -1379,31 +1497,6 @@ innobase_create_handler(
 }
 
 /* General functions */
-
-/** Check that a page_size is correct for InnoDB.
-If correct, set the associated page_size_shift which is the power of 2
-for this page size.
-@param[in]	page_size	Page Size to evaluate
-@return an associated page_size_shift if valid, 0 if invalid. */
-inline
-ulong
-innodb_page_size_validate(
-	ulong	page_size)
-{
-	ulong		n;
-
-	DBUG_ENTER("innodb_page_size_validate");
-
-	for (n = UNIV_PAGE_SIZE_SHIFT_MIN;
-	     n <= UNIV_PAGE_SIZE_SHIFT_MAX;
-	     n++) {
-		if (page_size == static_cast<ulong>(1 << n)) {
-			DBUG_RETURN(n);
-		}
-	}
-
-	DBUG_RETURN(0);
-}
 
 /******************************************************************//**
 Returns true if the thread is the replication thread on the slave
@@ -2772,7 +2865,6 @@ ha_innobase::ha_innobase(
 			  | HA_CAN_INDEX_VIRTUAL_GENERATED_COLUMN
 		  ),
 	m_start_of_scan(),
-	m_num_write_row(),
 	m_stored_select_lock_type(LOCK_NONE_UNSET),
 	m_mysql_has_locked()
 {}
@@ -2939,7 +3031,7 @@ innobase_query_caching_of_table_permitted(
 	THD*	thd,		/*!< in: thd of the user who is trying to
 				store a result to the query cache or
 				retrieve it */
-	char*	full_name,	/*!< in: normalized path to the table */
+	const char*	full_name,	/*!< in: normalized path to the table */
 	uint	full_name_len,	/*!< in: length of the normalized path
 				to the table */
 	ulonglong *unused)	/*!< unused for this engine */
@@ -3514,7 +3606,7 @@ innodb_init_params()
 	/* Check that the value of system variable innodb_page_size was
 	set correctly.  Its value was put into srv_page_size. If valid,
 	return the associated srv_page_size_shift. */
-	srv_page_size_shift = innodb_page_size_validate(srv_page_size);
+	srv_page_size_shift = page_size_validate(srv_page_size);
 	if (!srv_page_size_shift) {
 		sql_print_error("InnoDB: Invalid page size=%lu.\n",
 				srv_page_size);
@@ -3856,6 +3948,15 @@ innodb_init(
 
 	innobase_hton->is_dict_readonly=
 		innobase_is_dict_readonly;
+
+	innobase_hton->sdi_create = innobase_sdi_create;
+	innobase_hton->sdi_drop = innobase_sdi_drop;
+	innobase_hton->sdi_get_keys = innobase_sdi_get_keys;
+	innobase_hton->sdi_get = innobase_sdi_get;
+	innobase_hton->sdi_set = innobase_sdi_set;
+	innobase_hton->sdi_delete = innobase_sdi_delete;
+	innobase_hton->sdi_flush = innobase_sdi_flush;
+	innobase_hton->sdi_get_num_copies = innobase_sdi_get_num_copies;
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
@@ -4648,6 +4749,262 @@ innobase_kill_connection(
 	}
 
 	DBUG_VOID_RETURN;
+}
+
+/** Check for existence of SDI copies in a tablespace
+@param[in]	tablespace	tablespace object
+@param[in,out]	space_id	space_id from tablespace object
+@return DB_SUCESS if number of SDI copies is MAX_SDI_COPIES,
+else return DB_ERROR */
+static
+dberr_t
+innobase_sdi_check_existence(
+	const dd::Tablespace&	tablespace,
+	uint32*			space_id)
+{
+	if (tablespace.se_private_data().get_uint32("id", space_id)) {
+		/* error, attribute not found */
+		ut_ad(0);
+		return(DB_ERROR);
+	}
+
+	ut_ad(check_trx_exists(current_thd) != NULL);
+
+	uint32_t	num_of_sdi = innobase_sdi_get_num_copies(tablespace);
+	return(num_of_sdi != MAX_SDI_COPIES ? DB_ERROR : DB_SUCCESS);
+}
+
+/** Create SDI in a tablespace. This API should be used when
+upgrading a tablespace with no SDI. InnoDB will always create
+MAX_SDI_COPIES only.
+@param[in]	tablespace	tablespace object
+@param[in]	num_of_copies	Number of SDI copies
+@retval		false		success
+@retval		true		failure */
+static
+bool
+innobase_sdi_create(
+	const dd::Tablespace&	tablespace,
+	uint32			num_of_copies)
+{
+	if (num_of_copies != MAX_SDI_COPIES) {
+		return(true);
+	}
+
+	uint32	space_id;
+	if (tablespace.se_private_data().get_uint32("id", &space_id)) {
+		/* error, attribute not found */
+		ut_ad(0);
+		return(true);
+	}
+
+	dberr_t	err = ib_sdi_create_copies(space_id, num_of_copies);
+
+	return(err != DB_SUCCESS);
+}
+
+/** Drop SDI in a tablespace. This API should be used only
+when SDI is corrupted.
+@param[in]	tablespace	tablespace object
+@retval		false		success
+@retval		true		failure */
+static
+bool
+innobase_sdi_drop(
+	const dd::Tablespace&	tablespace)
+{
+	uint32	space_id;
+	if (innobase_sdi_check_existence(tablespace, &space_id)
+	    != DB_SUCCESS) {
+		return(true);
+	}
+
+	dberr_t	err = ib_sdi_drop_copies(space_id);
+	return(err != DB_SUCCESS);
+}
+
+/** Get the SDI keys in a tablespace into vector.
+@param[in]	tablespace	tablespace object
+@param[in,out]	vector		vector to hold SDI keys
+@param[in]	copy_num	the SDI copy to operate on
+@retval		false		success
+@retval		true		failure */
+static
+bool
+innobase_sdi_get_keys(
+	const dd::Tablespace&	tablespace,
+	dd::sdi_vector_t&	vector,
+	uint32			copy_num)
+{
+	uint32	space_id;
+	if (innobase_sdi_check_existence(tablespace, &space_id)
+	    != DB_SUCCESS) {
+		return(true);
+	}
+
+	ib_sdi_vector	ib_vector;
+	ib_vector.sdi_vector = &vector;
+
+	trx_t*	trx = check_trx_exists(current_thd);
+
+	dberr_t	err = ib_sdi_get_keys(space_id, &ib_vector,
+				      copy_num, trx);
+
+	return(err != DB_SUCCESS);
+}
+
+/** Retrieve SDI from tablespace
+@param[in]	tablespace	tablespace object
+@param[in]	sdi_key		SDI key
+@param[in,out]	sdi		SDI retrieved from tablespace
+@param[in,out]	sdi_len		in:  size of memory allocated
+				out: actual length of SDI
+@param[in]	copy_num	the copy from which SDI has to retrieved
+@retval		false		success
+@retval		true		failure */
+static
+bool
+innobase_sdi_get(
+	const dd::Tablespace&	tablespace,
+	const dd::sdi_key_t*	sdi_key,
+	void*			sdi,
+	uint64*			sdi_len,
+	uint32			copy_num)
+{
+	uint32	space_id;
+	if (innobase_sdi_check_existence(tablespace, &space_id)
+	    != DB_SUCCESS) {
+		return(true);
+	}
+
+	trx_t*		trx = check_trx_exists(current_thd);
+	ib_sdi_key_t	ib_sdi_key;
+	ib_sdi_key.sdi_key = sdi_key;
+
+	dberr_t	err = ib_sdi_get(
+		space_id, &ib_sdi_key,
+		sdi, reinterpret_cast<uint64_t*>(sdi_len),
+		copy_num, trx);
+	return(err != DB_SUCCESS);
+}
+
+/** Insert/Update SDI in tablespace
+@param[in]	tablespace	tablespace object
+@param[in]	sdi_key		SDI key to uniquely identify the tablespace
+object
+@param[in]	sdi		SDI to be stored in tablespace
+@param[in]	sdi_len		SDI length
+@retval		false		success
+@retval		true		failure */
+static
+bool
+innobase_sdi_set(
+	const dd::Tablespace&	tablespace,
+	const dd::sdi_key_t*	sdi_key,
+	const void*		sdi,
+	uint64			sdi_len)
+{
+	uint32	space_id;
+	if (innobase_sdi_check_existence(tablespace, &space_id)
+	    != DB_SUCCESS) {
+		return(true);
+	}
+
+	trx_t*		trx = check_trx_exists(current_thd);
+	ib_sdi_key_t	ib_sdi_key;
+	ib_sdi_key.sdi_key = sdi_key;
+	/* TODO: To be determined if the rollback to savepoint is needed around
+	SDI modification. */
+	trx_savept_t	savept = trx_savept_take(trx);
+
+	dberr_t	err = ib_sdi_set(space_id, &ib_sdi_key, sdi, sdi_len, 0, trx);
+	if (err == DB_SUCCESS) {
+		err = ib_sdi_set(space_id, &ib_sdi_key, sdi, sdi_len, 1, trx);
+	}
+
+	if (err != DB_SUCCESS) {
+		trx_rollback_to_savepoint(trx, &savept);
+		return(true);
+	} else {
+		return(false);
+	}
+}
+
+/** Delete SDI from tablespace
+@param[in]	tablespace	tablespace object
+@param[in]	sdi_key		SDI key to uniquely identify the tablespace
+object
+@retval		false		success
+@retval		true		failure */
+static
+bool
+innobase_sdi_delete(
+	const dd::Tablespace&	tablespace,
+	const dd::sdi_key_t*	sdi_key)
+{
+	uint32	space_id;
+	if (innobase_sdi_check_existence(tablespace, &space_id)
+	    != DB_SUCCESS) {
+		return(true);
+	}
+
+	trx_t*		trx = check_trx_exists(current_thd);
+	ib_sdi_key_t	ib_sdi_key;
+	ib_sdi_key.sdi_key = sdi_key;
+	/* TODO: To be determined if the rollback to savepoint is needed around
+	SDI modification. */
+	trx_savept_t	savept = trx_savept_take(trx);
+
+	dberr_t	err = ib_sdi_delete(space_id, &ib_sdi_key, 0, trx);
+	if (err == DB_SUCCESS) {
+		err = ib_sdi_delete(space_id, &ib_sdi_key, 1, trx);
+	}
+
+	if (err != DB_SUCCESS) {
+		trx_rollback_to_savepoint(trx, &savept);
+		return(true);
+	} else {
+		return(false);
+	}
+}
+
+/** Flush SDI copy in a tablespace. This will guarantee the data for the copy
+will be flushed before transaction commit.
+@param[in]	tablespace	tablespace object
+@retval		false		success
+@retval		true		failure */
+static
+bool
+innobase_sdi_flush(
+	const dd::Tablespace&	tablespace)
+{
+	uint32	space_id;
+	if (innobase_sdi_check_existence(tablespace, &space_id)
+	    != DB_SUCCESS) {
+		return(true);
+	}
+
+	ib_sdi_flush(space_id);
+	return(false);
+}
+
+/** Return the number of SDI copies stored in a tablespace.
+@param[in]	tablespace	tablespace object
+@retval		0		if there are no SDI copies
+@retval		MAX_SDI_COPIES	if the SDI is present
+@retval		UINT32_MAX	in case of failure */
+static
+uint32
+innobase_sdi_get_num_copies(
+	const dd::Tablespace&	tablespace)
+{
+	uint32	space_id;
+	if (tablespace.se_private_data().get_uint32("id", &space_id)) {
+		ut_ad(0);
+		return(UINT32_MAX);
+	}
+
+	return(ib_sdi_get_num_copies(space_id));
 }
 
 /*************************************************************************//**
@@ -5763,6 +6120,8 @@ ha_innobase::open(const char* name, int, uint)
 
 	m_prebuilt->default_rec = table->s->default_values;
 	ut_ad(m_prebuilt->default_rec);
+
+	m_prebuilt->m_mysql_table = table;
 
 	key_used_on_scan = table_share->primary_key;
 
@@ -7180,7 +7539,6 @@ ha_innobase::write_row(
 	uchar*	record)	/*!< in: a row in MySQL format */
 {
 	dberr_t		error;
-	ulint		sql_command;
 	int		error_result = 0;
 	bool		auto_inc_used = false;
 
@@ -7199,7 +7557,7 @@ ha_innobase::write_row(
 		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
 	}
 
-	/* Step-1: Validation checks before we commence write_row operation. */
+	/* Validation checks before we commence write_row operation. */
 	if (high_level_read_only) {
 		ib_senderrf(ha_thd(), IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
@@ -7222,75 +7580,7 @@ ha_innobase::write_row(
 
 	ha_statistic_increment(&System_status_var::ha_write_count);
 
-	/* Step-2: Intermediate commit if original operation involves ALTER
-	table with algorithm = copy. Intermediate commit ease pressure on
-	recovery if server crashes while ALTER is active. */
-	sql_command = thd_sql_command(m_user_thd);
-
-	if ((sql_command == SQLCOM_ALTER_TABLE
-	     || sql_command == SQLCOM_OPTIMIZE
-	     || sql_command == SQLCOM_CREATE_INDEX
-	     || sql_command == SQLCOM_DROP_INDEX)
-	    && m_num_write_row >= 10000) {
-		/* ALTER TABLE is COMMITted at every 10000 copied rows.
-		The IX table lock for the original table has to be re-issued.
-		As this method will be called on a temporary table where the
-		contents of the original table is being copied to, it is
-		a bit tricky to determine the source table.  The cursor
-		position in the source table need not be adjusted after the
-		intermediate COMMIT, since writes by other transactions are
-		being blocked by a MySQL table lock TL_WRITE_ALLOW_READ. */
-
-		dict_table_t*	src_table;
-		enum lock_mode	mode;
-
-		m_num_write_row = 0;
-
-		/* Commit the transaction.  This will release the table
-		locks, so they have to be acquired again. */
-
-		/* Altering an InnoDB table */
-		/* Get the source table. */
-		src_table = lock_get_src_table(
-				m_prebuilt->trx, m_prebuilt->table, &mode);
-		if (!src_table) {
-no_commit:
-			/* Unknown situation: do not commit */
-			;
-		} else if (src_table == m_prebuilt->table) {
-			/* Source table is not in InnoDB format:
-			no need to re-acquire locks on it. */
-
-			/* Altering to InnoDB format */
-			innobase_commit(ht, m_user_thd, 1);
-			/* Note that this transaction is still active. */
-			trx_register_for_2pc(m_prebuilt->trx);
-			/* We will need an IX lock on the destination table. */
-			m_prebuilt->sql_stat_start = TRUE;
-		} else {
-			/* Ensure that there are no other table locks than
-			LOCK_IX and LOCK_AUTO_INC on the destination table. */
-
-			if (!lock_is_table_exclusive(m_prebuilt->table,
-							m_prebuilt->trx)) {
-				goto no_commit;
-			}
-
-			/* Commit the transaction.  This will release the table
-			locks, so they have to be acquired again. */
-			innobase_commit(ht, m_user_thd, 1);
-			/* Note that this transaction is still active. */
-			trx_register_for_2pc(m_prebuilt->trx);
-			/* Re-acquire the table lock on the source table. */
-			row_lock_table_for_mysql(m_prebuilt, src_table, mode);
-			/* We will need an IX lock on the destination table. */
-			m_prebuilt->sql_stat_start = TRUE;
-		}
-	}
-
-	m_num_write_row++;
-
-	/* Step-3: Handling of Auto-Increment Columns. */
+	/* Handling of Auto-Increment Columns. */
 	if (table->next_number_field && record == table->record[0]) {
 
 		/* Reset the error code before calling
@@ -7319,7 +7609,7 @@ no_commit:
 		auto_inc_used = true;
 	}
 
-	/* Step-4: Prepare INSERT graph that will be executed for actual INSERT
+	/* Prepare INSERT graph that will be executed for actual INSERT
 	(This is a one time operation) */
 	if (m_prebuilt->mysql_template == NULL
 	    || m_prebuilt->template_type != ROW_MYSQL_WHOLE_ROW) {
@@ -7332,12 +7622,12 @@ no_commit:
 
 	innobase_srv_conc_enter_innodb(m_prebuilt);
 
-	/* Step-5: Execute insert graph that will result in actual insert. */
+	/* Execute insert graph that will result in actual insert. */
 	error = row_insert_for_mysql((byte*) record, m_prebuilt);
 
 	DEBUG_SYNC(m_user_thd, "ib_after_row_insert");
 
-	/* Step-6: Handling of errors related to auto-increment. */
+	/* Handling of errors related to auto-increment. */
 	if (auto_inc_used) {
 		ulonglong	auto_inc;
 		ulonglong	col_max_value;
@@ -7366,13 +7656,11 @@ no_commit:
 			must update the autoinc counter if we are performing
 			those statements. */
 
-			switch (sql_command) {
+			switch (thd_sql_command(m_user_thd)) {
 			case SQLCOM_LOAD:
-				if (trx->duplicates) {
-
-					goto set_max_autoinc;
+				if (!trx->duplicates) {
+					break;
 				}
-				break;
 
 			case SQLCOM_REPLACE:
 			case SQLCOM_INSERT_SELECT:
@@ -7427,7 +7715,7 @@ set_max_autoinc:
 	innobase_srv_conc_exit_innodb(m_prebuilt);
 
 report_error:
-	/* Step-7: Cleanup and exit. */
+	/* Cleanup and exit. */
 	if (error == DB_TABLESPACE_DELETED) {
 		ib_senderrf(
 			trx->mysql_thd, IB_LOG_LEVEL_ERROR,
@@ -7443,6 +7731,7 @@ report_error:
 	}
 
 func_exit:
+
 	innobase_active_small();
 
 	DBUG_RETURN(error_result);
@@ -9581,12 +9870,13 @@ create_table_info_t::create_table_def()
 		}
 	}
 
+	ut_ad(trx_state_eq(m_trx, TRX_STATE_NOT_STARTED));
+
 	/* Check whether there already exists a FTS_DOC_ID column */
 	if (create_table_check_doc_id_col(m_trx, m_form, &doc_id_col)){
 
 		/* Raise error if the Doc ID column is of wrong type or name */
 		if (doc_id_col == ULINT_UNDEFINED) {
-			trx_commit_for_mysql(m_trx);
 
 			err = DB_ERROR;
 			goto error_ret;
@@ -9686,6 +9976,10 @@ create_table_info_t::create_table_def()
 
 			charset_no = (ulint) field->charset()->number;
 
+			DBUG_EXECUTE_IF("simulate_max_char_col",
+					charset_no = MAX_CHAR_COLL_NUM + 1;
+					);
+
 			if (charset_no > MAX_CHAR_COLL_NUM) {
 				/* in data0type.h we assume that the
 				number fits in one byte in prtype */
@@ -9697,6 +9991,11 @@ create_table_info_t::create_table_def()
 					" Unsupported code %lu.",
 					(ulong) charset_no);
 				mem_heap_free(heap);
+				dict_mem_table_free(table);
+
+				ut_ad(trx_state_eq(
+					m_trx, TRX_STATE_NOT_STARTED));
+
 				DBUG_RETURN(ER_CANT_CREATE_TABLE);
 			}
 		}
@@ -9732,7 +10031,7 @@ create_table_info_t::create_table_def()
 err_col:
 			dict_mem_table_free(table);
 			mem_heap_free(heap);
-			trx_commit_for_mysql(m_trx);
+			ut_ad(trx_state_eq(m_trx, TRX_STATE_NOT_STARTED));
 
 			err = DB_ERROR;
 			goto error_ret;
@@ -9784,6 +10083,8 @@ err_col:
 		fts_add_doc_id_column(table, heap);
 	}
 
+	ut_ad(trx_state_eq(m_trx, TRX_STATE_NOT_STARTED));
+
 	/* If temp table, then we avoid creation of entries in SYSTEM TABLES.
 	Given that temp table lifetime is limited to connection/server lifetime
 	on re-start we don't need to restore temp-table and so no entry is
@@ -9800,7 +10101,7 @@ err_col:
 				"temporary tables");
 
 			err = DB_UNSUPPORTED;
-
+			dict_mem_table_free(table);
 		} else {
 
 			/* Get a new table ID */
@@ -9856,6 +10157,7 @@ err_col:
 			algorithm = NULL;
 
 			err = DB_UNSUPPORTED;
+			dict_mem_table_free(table);
 
 		} else if (Compression::validate(algorithm) != DB_SUCCESS
 			   || m_form->s->row_type == ROW_TYPE_COMPRESSED
@@ -12024,7 +12326,6 @@ ha_innobase::truncate()
 
 /** Drop a table.
 @param[in]	name	table name
-@param[in]	sqlcom	type of operation that the DROP is part of
 @return error number */
 
 int
@@ -12441,6 +12742,13 @@ innobase_create_tablespace(
 	tablespace.set_flags(fsp_flags);
 
 	err = dict_build_tablespace(&tablespace);
+	if (err != DB_SUCCESS) {
+		error = convert_error_code_to_mysql(err, 0, NULL);
+		trx_rollback_for_mysql(trx);
+		goto cleanup;
+	}
+
+	err = btr_sdi_create_indexes(tablespace.space_id(), true);
 	if (err != DB_SUCCESS) {
 		error = convert_error_code_to_mysql(err, 0, NULL);
 		trx_rollback_for_mysql(trx);
@@ -13485,15 +13793,14 @@ index_pct_cached(
 	return(std::max(std::min(ratio, 1.0), 0.0));
 }
 
-/*********************************************************************//**
-Returns statistics information of the table to the MySQL interpreter,
-in various fields of the handle object.
+/** Returns statistics information of the table to the MySQL interpreter, in
+various fields of the handle object.
+@param[in]	flag		what information is requested
+@param[in]	is_analyze	True if called from "::analyze()".
 @return HA_ERR_* error code or 0 */
-
 int
 ha_innobase::info_low(
-/*==================*/
-	uint	flag,	/*!< in: what information is requested */
+	uint	flag,
 	bool	is_analyze)
 {
 	dict_table_t*	ib_table;
@@ -14818,7 +15125,12 @@ ha_innobase::extra(
 	case HA_EXTRA_SKIP_SERIALIZABLE_DD_VIEW:
 		m_prebuilt->skip_serializable_dd_view = true;
 		break;
-
+	case HA_EXTRA_BEGIN_ALTER_COPY:
+		m_prebuilt->table->skip_alter_undo = 1;
+		break;
+	case HA_EXTRA_END_ALTER_COPY:
+		m_prebuilt->table->skip_alter_undo = 0;
+		break;
 	default:/* Do nothing */
 		;
 	}
@@ -14871,23 +15183,21 @@ ha_innobase::reset()
 	return(end_stmt());
 }
 
-/******************************************************************//**
-MySQL calls this function at the start of each SQL statement inside LOCK
-TABLES. Inside LOCK TABLES the ::external_lock method does not work to
-mark SQL statement borders. Note also a special case: if a temporary table
-is created inside LOCK TABLES, MySQL has not called external_lock() at all
-on that table.
+/** MySQL calls this function at the start of each SQL statement inside LOCK
+TABLES. Inside LOCK TABLES the "::external_lock" method does not work to mark
+SQL statement borders. Note also a special case: if a temporary table is
+created inside LOCK TABLES, MySQL has not called external_lock() at all on
+that table.
 MySQL-5.0 also calls this before each statement in an execution of a stored
 procedure. To make the execution more deterministic for binlogging, MySQL-5.0
-locks all tables involved in a stored procedure with full explicit table
-locks (thd_in_lock_tables(thd) holds in store_lock()) before executing the
-procedure.
+locks all tables involved in a stored procedure with full explicit table locks
+(thd_in_lock_tables(thd) holds in store_lock()) before executing the procedure.
+@param[in]	thd		handle to the user thread
+@param[in]	lock_type	lock type
 @return 0 or error code */
-
 int
 ha_innobase::start_stmt(
-/*====================*/
-	THD*		thd,	/*!< in: handle to the user thread */
+	THD*		thd,
 	thr_lock_type	lock_type)
 {
 	trx_t*		trx = m_prebuilt->trx;
@@ -14933,7 +15243,7 @@ ha_innobase::start_stmt(
 			init_table_handle_for_HANDLER();
 			m_prebuilt->select_lock_type = LOCK_X;
 			m_stored_select_lock_type = LOCK_X;
-			error = row_lock_table_for_mysql(m_prebuilt, NULL, 1);
+			error = row_lock_table(m_prebuilt);
 
 			if (error != DB_SUCCESS) {
 				int	st = convert_error_code_to_mysql(
@@ -15034,13 +15344,16 @@ ha_innobase::external_lock(
 
 	update_thd(thd);
 
-	trx_t*		trx = m_prebuilt->trx;
+	trx_t*			trx = m_prebuilt->trx;
+
+	enum_sql_command	sql_command =
+		(enum_sql_command) thd_sql_command(thd);
 
 	ut_ad(m_prebuilt->table);
 
 	if (dict_table_is_intrinsic(m_prebuilt->table)) {
 
-		if (thd_sql_command(thd) == SQLCOM_ALTER_TABLE) {
+		if (sql_command == SQLCOM_ALTER_TABLE) {
 
 			DBUG_RETURN(HA_ERR_WRONG_COMMAND);
 		}
@@ -15081,19 +15394,19 @@ ha_innobase::external_lock(
 
 	/* Check for UPDATEs in read-only mode. */
 	if (srv_read_only_mode
-	    && (thd_sql_command(thd) == SQLCOM_UPDATE
-		|| thd_sql_command(thd) == SQLCOM_INSERT
-		|| thd_sql_command(thd) == SQLCOM_REPLACE
-		|| thd_sql_command(thd) == SQLCOM_DROP_TABLE
-		|| thd_sql_command(thd) == SQLCOM_ALTER_TABLE
-		|| thd_sql_command(thd) == SQLCOM_OPTIMIZE
-		|| (thd_sql_command(thd) == SQLCOM_CREATE_TABLE
+	    && (sql_command == SQLCOM_UPDATE
+		|| sql_command == SQLCOM_INSERT
+		|| sql_command == SQLCOM_REPLACE
+		|| sql_command == SQLCOM_DROP_TABLE
+		|| sql_command == SQLCOM_ALTER_TABLE
+		|| sql_command == SQLCOM_OPTIMIZE
+		|| (sql_command == SQLCOM_CREATE_TABLE
 		    && lock_type == F_WRLCK)
-		|| thd_sql_command(thd) == SQLCOM_CREATE_INDEX
-		|| thd_sql_command(thd) == SQLCOM_DROP_INDEX
-		|| thd_sql_command(thd) == SQLCOM_DELETE)) {
+		|| sql_command == SQLCOM_CREATE_INDEX
+		|| sql_command == SQLCOM_DROP_INDEX
+		|| sql_command == SQLCOM_DELETE)) {
 
-		if (thd_sql_command(thd) == SQLCOM_CREATE_TABLE) {
+		if (sql_command == SQLCOM_CREATE_TABLE) {
 			ib_senderrf(thd, IB_LOG_LEVEL_WARN,
 				    ER_INNODB_READ_ONLY);
 			DBUG_RETURN(HA_ERR_INNODB_READ_ONLY);
@@ -15113,7 +15426,7 @@ ha_innobase::external_lock(
 	case QUIESCE_START:
 		/* Check for FLUSH TABLE t WITH READ LOCK; */
 		if (!srv_read_only_mode
-		    && thd_sql_command(thd) == SQLCOM_FLUSH
+		    && sql_command == SQLCOM_FLUSH
 		    && lock_type == F_RDLCK) {
 
 			row_quiesce_table_start(m_prebuilt->table, trx);
@@ -15193,13 +15506,12 @@ ha_innobase::external_lock(
 
 		if (m_prebuilt->select_lock_type != LOCK_NONE) {
 
-			if (thd_sql_command(thd) == SQLCOM_LOCK_TABLES
+			if (sql_command == SQLCOM_LOCK_TABLES
 			    && THDVAR(thd, table_locks)
 			    && thd_test_options(thd, OPTION_NOT_AUTOCOMMIT)
 			    && thd_in_lock_tables(thd)) {
 
-				dberr_t	error = row_lock_table_for_mysql(
-					m_prebuilt, NULL, 0);
+				dberr_t	error = row_lock_table(m_prebuilt);
 
 				if (error != DB_SUCCESS) {
 
@@ -15299,16 +15611,17 @@ innodb_export_status()
 	}
 }
 
-/************************************************************************//**
-Implements the SHOW ENGINE INNODB STATUS command. Sends the output of the
+/** Implements the SHOW ENGINE INNODB STATUS command. Sends the output of the
 InnoDB Monitor to the client.
+@param[in]	hton		the innodb handlerton
+@param[in]	thd		the MySQL query thread of the caller
+@param[in]	stat_print	print function
 @return 0 on success */
 static
 int
 innodb_show_status(
-/*===============*/
-	handlerton*	hton,	/*!< in: the innodb handlerton */
-	THD*		thd,	/*!< in: the MySQL query thread of the caller */
+	handlerton*	hton,
+	THD*		thd,
 	stat_print_fn*	stat_print)
 {
 	static const char	truncated_msg[] = "... truncated...\n";
@@ -15741,16 +16054,17 @@ innodb_show_latch_status(
 	return(innodb_show_rwlock_status(hton, thd, stat_print));
 }
 
-/************************************************************************//**
-Return 0 on success and non-zero on failure. Note: the bool return type
-seems to be abused here, should be an int. */
+/** Return 0 on success and non-zero on failure. Note: the bool return type
+seems to be abused here, should be an int.
+@param[in]	hton		the innodb handlerton
+@param[in]	thd		the MySQL query thread of the caller
+@param[in]	stat_print	print function
+@param[in]	stat_type	status to show */
 static
 bool
 innobase_show_status(
-/*=================*/
-	handlerton*		hton,	/*!< in: the innodb handlerton */
-	THD*			thd,	/*!< in: the MySQL query thread
-					of the caller */
+	handlerton*		hton,
+	THD*			thd,
 	stat_print_fn*		stat_print,
 	enum ha_stat_type	stat_type)
 {
@@ -15872,7 +16186,7 @@ InnoDB no longer relies on THR_LOCK locks so 0 value is returned.
 Instead of THR_LOCK locks InnoDB relies on combination of metadata locks
 (e.g. for LOCK TABLES and DDL) and its own locking subsystem.
 Note that even though this method returns 0, SQL-layer still calls
-::store_lock(), ::start_stmt() and ::external_lock() methods for InnoDB
+"::store_lock()", "::start_stmt()" and "::external_lock()" methods for InnoDB
 tables. */
 
 uint
@@ -16353,6 +16667,7 @@ ha_innobase::cmp_ref(
 				MySQL key value format */
 	const uchar*	ref2)	/*!< in: an (internal) primary key value in the
 				MySQL key value format */
+        const
 {
 	enum_field_types mysql_type;
 	Field*		field;
@@ -17103,6 +17418,11 @@ innodb_make_page_dirty(
 	fil_space_t*	space = fil_space_acquire_silent(space_id);
 
 	if (space == NULL) {
+		return;
+	}
+
+	if (srv_saved_page_number_debug > space->size) {
+		fil_space_release(space);
 		return;
 	}
 
@@ -18770,7 +19090,7 @@ static MYSQL_SYSVAR_ULONG(log_buffer_size, innodb_log_buffer_size,
 static MYSQL_SYSVAR_ULONGLONG(log_file_size, innodb_log_file_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Size of each log file in a log group.",
-  NULL, NULL, 48*1024*1024L, 1*1024*1024L, ULLONG_MAX, 1024*1024L);
+  NULL, NULL, 48*1024*1024L, 4*1024*1024L, ULLONG_MAX, 1024*1024L);
 
 static MYSQL_SYSVAR_ULONG(log_files_in_group, srv_n_log_files,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -19530,11 +19850,11 @@ innobase_init_vc_templ(
 @param[in,out]	row		the data row
 @param[in]	col		virtual column
 @param[in]	index		index
-@param[in,out]	my_rec		mysql record to store the data
 @param[in,out]	local_heap	heap memory for processing large data etc.
 @param[in,out]	heap		memory heap that copies the actual index row
 @param[in]	ifield		index field
-@param[in]	in_purge	whether this is called by purge
+@param[in]	thd		MySQL thread handle
+@param[in,out]	mysql_table	mysql table object
 @return the field filled with computed value, or NULL if just want
 to store the value in passed in "my_rec" */
 dfield_t*
@@ -19542,11 +19862,11 @@ innobase_get_computed_value(
 	const dtuple_t*		row,
 	const dict_v_col_t*	col,
 	const dict_index_t*	index,
-	byte*			my_rec,
 	mem_heap_t**		local_heap,
 	mem_heap_t*		heap,
 	const dict_field_t*	ifield,
-	bool			in_purge)
+	THD*			thd,
+	TABLE*			mysql_table)
 {
 	byte		rec_buf1[REC_VERSION_56_MAX_INDEX_COL_LEN];
 	byte		rec_buf2[REC_VERSION_56_MAX_INDEX_COL_LEN];
@@ -19558,6 +19878,7 @@ innobase_get_computed_value(
 	ulint		ret = 0;
 
 	ut_ad(index->table->vc_templ);
+	ut_ad(thd != NULL);
 
 	const mysql_row_templ_t*
 			vctempl =  index->table->vc_templ->vtempl[
@@ -19569,22 +19890,12 @@ innobase_get_computed_value(
 			*local_heap = mem_heap_create(UNIV_PAGE_SIZE);
 		}
 
-		if (!my_rec) {
-			mysql_rec = static_cast<byte*>(mem_heap_alloc(
-				*local_heap, index->table->vc_templ->rec_len));
-		} else {
-			mysql_rec = my_rec;
-		}
-
+		mysql_rec = static_cast<byte*>(mem_heap_alloc(
+			    *local_heap, index->table->vc_templ->rec_len));
 		buf = static_cast<byte*>(mem_heap_alloc(
 				*local_heap, index->table->vc_templ->rec_len));
 	} else {
-		if (!my_rec) {
-			mysql_rec = rec_buf1;
-		} else {
-			mysql_rec = my_rec;
-		}
-
+		mysql_rec = rec_buf1;
 		buf = rec_buf2;
 	}
 
@@ -19608,7 +19919,7 @@ innobase_get_computed_value(
 
 			data = btr_copy_externally_stored_field(
 				&len, data, page_size,
-				dfield_get_len(row_field), *local_heap);
+				dfield_get_len(row_field), false, *local_heap);
 		}
 
 		if (len == UNIV_SQL_NULL) {
@@ -19639,14 +19950,15 @@ innobase_get_computed_value(
 
 	/* Bitmap for specifying which virtual columns the server
 	should evaluate */
-	MY_BITMAP column_map;
-	my_bitmap_map col_map_storage[bitmap_buffer_size(REC_MAX_N_FIELDS)];
+	MY_BITMAP	column_map;
+	my_bitmap_map	col_map_storage[bitmap_buffer_size(REC_MAX_N_FIELDS)];
+
 	bitmap_init(&column_map, col_map_storage, REC_MAX_N_FIELDS, false);
 
 	/* Specify the column the server should evaluate */
 	bitmap_set_bit(&column_map, col->m_col.ind);
 
-	if (in_purge) {
+	if (mysql_table == NULL) {
 		if (vctempl->type == DATA_BLOB) {
 			ulint	max_len;
 
@@ -19668,13 +19980,12 @@ innobase_get_computed_value(
                 }
 
 		ret = handler::my_eval_gcolumn_expr_with_open(
-			current_thd, index->table->vc_templ->db_name.c_str(),
+			thd, index->table->vc_templ->db_name.c_str(),
 			index->table->vc_templ->tb_name.c_str(), &column_map,
 			(uchar *)mysql_rec);
         } else {
 		ret = handler::my_eval_gcolumn_expr(
-			current_thd, index->table->vc_templ->db_name.c_str(),
-			index->table->vc_templ->tb_name.c_str(), &column_map,
+			thd, mysql_table, &column_map,
 			(uchar *)mysql_rec);
 	}
 
@@ -19689,7 +20000,7 @@ innobase_get_computed_value(
 	}
 
 	/* we just want to store the data in passed in MySQL record */
-	if (my_rec || ret != 0) {
+	if (ret != 0) {
 		return(NULL);
 	}
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -479,6 +479,7 @@ my_bool binlog_gtid_simple_recovery;
 ulong binlog_error_action;
 const char *binlog_error_action_list[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
 uint32 gtid_executed_compression_period= 0;
+my_bool opt_log_unsafe_statements;
 
 #ifdef HAVE_INITGROUPS
 volatile sig_atomic_t calling_initgroups= 0; /**< Used in SIGSEGV handler. */
@@ -529,7 +530,7 @@ ulong opt_binlog_group_commit_sync_no_delay_count= 0;
 ulonglong  max_binlog_stmt_cache_size=0;
 ulong query_cache_size=0;
 ulong refresh_version;  /* Increments on each reload */
-query_id_t global_query_id;
+std::atomic<query_id_t> atomic_global_query_id { 1 };
 ulong aborted_threads;
 ulong delayed_insert_timeout, delayed_insert_limit, delayed_queue_size;
 ulong delayed_insert_threads, delayed_insert_writes, delayed_rows_in_use;
@@ -815,6 +816,10 @@ ulong sql_rnd_with_mutex()
   return tmp;
 }
 
+struct System_status_var* get_thd_status_var(THD *thd)
+{
+  return & thd->status_var;
+}
 
 C_MODE_START
 
@@ -1251,6 +1256,7 @@ static void unireg_abort(int exit_code)
   mysqld_exit(exit_code);
 #else
   my_end(opt_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+  exit(exit_code);
   DBUG_VOID_RETURN;
 #endif
 }
@@ -1426,7 +1432,7 @@ void clean_up(bool print_message)
   transaction_cache_free();
   table_def_free();
   mdl_destroy();
-  key_caches.delete_elements((void (*)(const char*, uchar*)) free_key_cache);
+  key_caches.delete_elements();
   multi_keycache_free();
   free_status_vars();
   query_logger.cleanup();
@@ -2138,7 +2144,7 @@ static void start_signal_handler()
 
   (void) my_thread_attr_init(&thr_attr);
   (void) pthread_attr_setscope(&thr_attr, PTHREAD_SCOPE_SYSTEM);
-  (void) pthread_attr_setdetachstate(&thr_attr, PTHREAD_CREATE_JOINABLE);
+  (void) my_thread_attr_setdetachstate(&thr_attr, MY_THREAD_CREATE_JOINABLE);
 
   size_t guardize= 0;
   (void) pthread_attr_getguardsize(&thr_attr, &guardize);
@@ -3282,8 +3288,8 @@ static int init_thread_environment()
 #endif // !EMBEDDED_LIBRARY
   /* Parameter for threads created for connections */
   (void) my_thread_attr_init(&connection_attrib);
+  my_thread_attr_setdetachstate(&connection_attrib, MY_THREAD_CREATE_DETACHED);
 #ifndef _WIN32
-  pthread_attr_setdetachstate(&connection_attrib, PTHREAD_CREATE_DETACHED);
   pthread_attr_setscope(&connection_attrib, PTHREAD_SCOPE_SYSTEM);
 #endif
 
@@ -7037,7 +7043,6 @@ static int mysql_init_variables(void)
   protocol_version= PROTOCOL_VERSION;
   what_to_log= ~ (1L << (uint) COM_TIME);
   refresh_version= 1L;  /* Increments on each reload */
-  global_query_id= 1L;
   my_stpcpy(server_version, MYSQL_SERVER_VERSION);
   key_caches.empty();
   if (!(dflt_key_cache= get_or_create_key_cache(default_key_cache_base.str,
@@ -7189,7 +7194,27 @@ mysqld_get_one_option(int optid,
   case OPT_BINLOG_MAX_FLUSH_QUEUE_TIME:
     push_deprecated_warn_no_replacement(NULL, "--binlog_max_flush_queue_time");
     break;
-#include <sslopt-case.h>
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+  case OPT_SSL_KEY:
+  case OPT_SSL_CERT:
+  case OPT_SSL_CA:  
+  case OPT_SSL_CAPATH:
+  case OPT_SSL_CIPHER:
+  case OPT_SSL_CRL:   
+  case OPT_SSL_CRLPATH:
+  case OPT_TLS_VERSION:
+    /*
+      Enable use of SSL if we are using any ssl option.
+      One can disable SSL later by using --skip-ssl or --ssl=0.
+    */
+    opt_use_ssl= true;
+#ifdef HAVE_YASSL
+    /* crl has no effect in yaSSL. */
+    opt_ssl_crl= NULL;
+    opt_ssl_crlpath= NULL;
+#endif /* HAVE_YASSL */   
+    break;
+#endif /* HAVE_OPENSSL */
 #ifndef EMBEDDED_LIBRARY
   case 'V':
     print_version();
@@ -8864,6 +8889,7 @@ PSI_stage_info stage_worker_waiting_for_its_turn_to_commit= { 0, "Waiting for pr
 PSI_stage_info stage_worker_waiting_for_commit_parent= { 0, "Waiting for dependent transaction to commit", 0};
 PSI_stage_info stage_suspending= { 0, "Suspending", 0};
 PSI_stage_info stage_starting= { 0, "starting", 0};
+PSI_stage_info stage_waiting_for_no_channel_reference= { 0, "Waiting for no channel reference.", 0};
 
 #ifdef HAVE_PSI_INTERFACE
 
@@ -8973,7 +8999,8 @@ PSI_stage_info *all_server_stages[]=
   & stage_worker_waiting_for_its_turn_to_commit,
   & stage_worker_waiting_for_commit_parent,
   & stage_suspending,
-  & stage_starting
+  & stage_starting,
+  & stage_waiting_for_no_channel_reference
 };
 
 PSI_socket_key key_socket_tcpip;

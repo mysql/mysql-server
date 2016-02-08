@@ -84,10 +84,10 @@
 #include "sql_class.h"
 #include "mysqld.h"                        // opt_readonly
 #include "session_tracker.h"
-#include "my_atomic.h"
 #include "template_utils.h"
 
 #include <algorithm>
+#include <atomic>
 
 /**
   @defgroup Locking Locking
@@ -667,9 +667,10 @@ static int unlock_external(THD *thd, TABLE **table,uint count)
 /**
   Get lock structures from table structs and initialize locks.
 
-  @param thd		    Thread handler
-  @param table_ptr	    Pointer to tables that should be locks
-  @param flags		    One of:
+  @param thd                Thread handler
+  @param table_ptr          Pointer to tables that should be locks
+  @param count              Number of tables
+  @param flags              One of:
            - GET_LOCK_UNLOCK      : If we should send TL_IGNORE to store lock
            - GET_LOCK_STORE_LOCKS : Store lock info in TABLE
 */
@@ -1012,7 +1013,7 @@ static void print_lock_error(int error, const char *table)
   DBUG_VOID_RETURN;
 }
 
-volatile int32 Global_read_lock::m_active_requests;
+std::atomic<int32> Global_read_lock::m_atomic_active_requests;
 
 /****************************************************************************
   Handling of global read locks
@@ -1097,11 +1098,11 @@ bool Global_read_lock::lock_global_read_lock(THD *thd)
 
     /* Increment static variable first to signal innodb memcached server
        to release mdl locks held by it */
-    my_atomic_add32(&Global_read_lock::m_active_requests, 1);
+    Global_read_lock::m_atomic_active_requests++;
     if (thd->mdl_context.acquire_lock(&mdl_request,
                                       thd->variables.lock_wait_timeout))
     {
-      my_atomic_add32(&Global_read_lock::m_active_requests, -1);
+      Global_read_lock::m_atomic_active_requests--;
       DBUG_RETURN(1);
     }
 
@@ -1142,7 +1143,7 @@ void Global_read_lock::unlock_global_read_lock(THD *thd)
     m_mdl_blocks_commits_lock= NULL;
   }
   thd->mdl_context.release_lock(m_mdl_global_shared_lock);
-  my_atomic_add32(&Global_read_lock::m_active_requests, -1);
+  Global_read_lock::m_atomic_active_requests--;
   m_mdl_global_shared_lock= NULL;
   m_state= GRL_NONE;
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,8 +14,8 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 IF(WIN32)
-  # CMake 2.8.12 is needed for Visual Studio 2013
-  CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
+  # CMake 3.2.3 is needed for Visual Studio 2015 due to CMake bug 15552.
+  CMAKE_MINIMUM_REQUIRED(VERSION 3.2.3)
 ELSE()
   # There's a bug in unzipping prior to 2.8.2
   CMAKE_MINIMUM_REQUIRED(VERSION 2.8.2)
@@ -109,6 +109,54 @@ ELSEIF(NOT HAVE_CMAKE_BUILD_TYPE OR OLD_WITH_DEBUG)
        ${BUILDTYPE_DOCSTRING} FORCE)
   ENDIF()
   SET(OLD_WITH_DEBUG 0 CACHE INTERNAL "" FORCE)
+ENDIF()
+
+# On Linux el6/el7 the default gcc is too old, see if devtoolset is installed.
+# We need to look for gcc before calling PROJECT below.
+OPTION(FORCE_UNSUPPORTED_COMPILER "Disable compiler version checks" OFF)
+MARK_AS_ADVANCED(WITHOUT_SERVER DISABLE_SHARED FORCE_UNSUPPORTED_COMPILER)
+IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
+    AND NOT CMAKE_C_COMPILER AND NOT CMAKE_CXX_COMPILER)
+  # Cannot INCLUDE(CMakeDetermineSystem) prior to PROJECT initialization below.
+  SET (ENV_CC "$ENV{CC}")
+  SET (ENV_CXX "$ENV{CXX}")
+  IF (ENV_CC STREQUAL "" AND ENV_CXX STREQUAL "")
+    FIND_PROGRAM(MY_UNAME uname /bin /usr/bin /usr/local/bin )
+    IF(MY_UNAME)
+      EXEC_PROGRAM(uname ARGS -s OUTPUT_VARIABLE MY_HOST_SYSTEM_NAME)
+      EXEC_PROGRAM(uname ARGS -r OUTPUT_VARIABLE MY_HOST_SYSTEM_VERSION)
+      IF(MY_HOST_SYSTEM_NAME MATCHES "Linux" AND
+          MY_HOST_SYSTEM_VERSION MATCHES "\\.el[67](uek)?\\.")
+        MESSAGE(STATUS
+          "This is ${MY_HOST_SYSTEM_NAME} version ${MY_HOST_SYSTEM_VERSION}")
+        FIND_PROGRAM(MY_GCC_COMPILER gcc)
+        IF (MY_GCC_COMPILER)
+          MESSAGE(STATUS "gcc is ${MY_GCC_COMPILER}")
+          MESSAGE(STATUS
+            "We probably need /opt/rh/devtoolset-3/root/usr/bin/gcc")
+          EXECUTE_PROCESS(COMMAND ${MY_GCC_COMPILER} -dumpversion
+            OUTPUT_VARIABLE MY_GCC_VERSION)
+          IF(MY_GCC_VERSION VERSION_LESS 4.8)
+            MESSAGE(STATUS "${MY_GCC_COMPILER} is version ${MY_GCC_VERSION}")
+            FIND_PROGRAM(ALTERNATIVE_GCC gcc
+              NO_DEFAULT_PATH
+              PATHS "/opt/rh/devtoolset-3/root/usr/bin")
+            FIND_PROGRAM(ALTERNATIVE_GPP g++
+              NO_DEFAULT_PATH
+              PATHS "/opt/rh/devtoolset-3/root/usr/bin")
+            IF(ALTERNATIVE_GCC AND ALTERNATIVE_GPP)
+              SET(CMAKE_C_COMPILER ${ALTERNATIVE_GCC})
+              SET(CMAKE_CXX_COMPILER ${ALTERNATIVE_GPP})
+              MESSAGE(STATUS "Using ${ALTERNATIVE_GCC}")
+              MESSAGE(STATUS "Using ${ALTERNATIVE_GPP}")
+            ELSE()
+              MESSAGE(WARNING "Could not find devtoolset gcc")
+            ENDIF()
+          ENDIF()
+        ENDIF()
+      ENDIF()
+    ENDIF()
+  ENDIF()
 ENDIF()
 
 # Optionally set project name, e.g.
@@ -222,8 +270,6 @@ ENDIF()
 IF(NOT WITHOUT_SERVER)
   OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
 ENDIF()
-OPTION(FORCE_UNSUPPORTED_COMPILER "Disable compiler version checks" OFF)
-MARK_AS_ADVANCED(WITHOUT_SERVER DISABLE_SHARED FORCE_UNSUPPORTED_COMPILER)
 
 
 include(CheckCSourceCompiles)
@@ -258,18 +304,21 @@ MACRO (MY_CHECK_CXX_COMPILER_FLAG FLAG RESULT)
   SET(CMAKE_REQUIRED_FLAGS "${SAVE_CMAKE_REQUIRED_FLAGS}")
 ENDMACRO()
 
-MACRO(MY_SANITIZER_CHECK SAN_OPT RESULT)
+MACRO(MY_SANITIZER_CHECK SAN_OPT ADD_OPTIMIZATION RESULT)
   MY_CHECK_C_COMPILER_FLAG("${SAN_OPT}" C_RESULT)
   MY_CHECK_CXX_COMPILER_FLAG("${SAN_OPT}" CXX_RESULT)
-  IF(C_RESULT AND CXX_RESULT)
+  IF(C_RESULT AND CXX_RESULT AND ${ADD_OPTIMIZATION})
     # We switch on basic optimization also for debug builds.
     # With optimization we may get some warnings, so we switch off -Werror
+    SET(OPT_FLAG " -O1 ")
+  ENDIF()
+  IF(C_RESULT AND CXX_RESULT)
     SET(CMAKE_C_FLAGS_DEBUG
-      "${CMAKE_C_FLAGS_DEBUG} ${SAN_OPT} -O1 -Wno-error -fPIC")
+      "${CMAKE_C_FLAGS_DEBUG} ${SAN_OPT} ${OPT_FLAG} -Wno-error -fPIC")
     SET(CMAKE_C_FLAGS_RELWITHDEBINFO
       "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${SAN_OPT} -fPIC")
     SET(CMAKE_CXX_FLAGS_DEBUG
-      "${CMAKE_CXX_FLAGS_DEBUG} ${SAN_OPT} -O1 -Wno-error -fPIC")
+      "${CMAKE_CXX_FLAGS_DEBUG} ${SAN_OPT} ${OPT_FLAG} -Wno-error -fPIC")
     SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
       "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} ${SAN_OPT} -fPIC")
     SET(${RESULT} 1)
@@ -280,7 +329,7 @@ ENDMACRO()
 
 OPTION(WITH_ASAN "Enable address sanitizer" OFF)
 IF(WITH_ASAN)
-  MY_SANITIZER_CHECK("-fsanitize=address" WITH_ASAN_OK)
+  MY_SANITIZER_CHECK("-fsanitize=address" TRUE WITH_ASAN_OK)
   IF(WITH_ASAN_OK)
     SET(HAVE_ASAN 1)
   ELSE()
@@ -291,7 +340,7 @@ ENDIF()
 OPTION(WITH_MSAN "Enable memory sanitizer" OFF)
 IF(WITH_MSAN)
   MY_SANITIZER_CHECK("-fsanitize=memory -fsanitize-memory-track-origins"
-                     WITH_MSAN_OK)
+    TRUE WITH_MSAN_OK)
   IF(NOT WITH_MSAN_OK)
     MESSAGE(FATAL_ERROR "Do not know how to enable memory sanitizer")
   ENDIF()
@@ -299,7 +348,7 @@ ENDIF()
 
 OPTION(WITH_UBSAN "Enable undefined behavior sanitizer" OFF)
 IF(WITH_UBSAN)
-  MY_SANITIZER_CHECK("-fsanitize=undefined" WITH_UBSAN_OK)
+  MY_SANITIZER_CHECK("-fsanitize=undefined" FALSE WITH_UBSAN_OK)
   IF(NOT WITH_UBSAN_OK)
     MESSAGE(FATAL_ERROR
             "Do not know how to enable undefined behavior sanitizer")
@@ -468,53 +517,6 @@ MYSQL_CHECK_EDITLINE()
 MYSQL_CHECK_LIBEVENT()
 # Add lz4 library
 MYSQL_CHECK_LZ4()
-
-# Check for SYS_thread_selfid system call
-CHECK_C_SOURCE_COMPILES("
-#include <sys/types.h>
-#include <sys/syscall.h>
-#include <unistd.h>
-int main(int ac, char **av)
-{
-  unsigned long long tid = syscall(SYS_thread_selfid);
-  return (tid != 0 ? 0 : 1);
-}"
-HAVE_SYS_THREAD_SELFID)
-
-# Check for gettid() system call
-CHECK_C_SOURCE_COMPILES("
-#include <sys/types.h>
-#include <sys/syscall.h>
-#include <unistd.h>
-int main(int ac, char **av)
-{
-  unsigned long long tid = syscall(SYS_gettid);
-  return (tid != 0 ? 0 : 1);
-}"
-HAVE_SYS_GETTID)
-
-# Check for pthread_getthreadid_np()
-CHECK_C_SOURCE_COMPILES("
-#include <pthread_np.h>
-int main(int ac, char **av)
-{
-  unsigned long long tid = pthread_getthreadid_np();
-  return (tid != 0 ? 0 : 1);
-}"
-HAVE_PTHREAD_GETTHREADID_NP)
-
-# Check for pthread_self() returning an integer type
-CHECK_C_SOURCE_COMPILES("
-#include <sys/types.h>
-#include <pthread.h>
-int main(int ac, char **av)
-{
-  unsigned long long tid = pthread_self();
-  return (tid != 0 ? 0 : 1);
-}"
-HAVE_INTEGER_PTHREAD_SELF
-FAIL_REGEX "warning: incompatible pointer to integer conversion"
-)
 
 #
 # Setup maintainer mode options by the end. Platform checks are

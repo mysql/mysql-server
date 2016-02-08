@@ -1,7 +1,7 @@
 #ifndef SQL_SORT_INCLUDED
 #define SQL_SORT_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,15 +16,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_global.h"                          /* uchar */
-#include "my_base.h"                            /* ha_rows */
-#include "my_byteorder.h"
-#include "sql_array.h"
-#include "mysql_com.h"
-#include "filesort_utils.h"
-#include "sql_alloc.h"
-#include <string.h>                             /* memset */
-#include <vector>
+#include "my_global.h"
+
+#include "my_base.h"          // ha_rows
+#include "my_byteorder.h"     // uint2korr
+#include "mysql_com.h"        // Item_result
+#include "binary_log_types.h" // enum_field_types
+#include "filesort_utils.h"   // Filesort_buffer
+#include "sql_array.h"        // Bounds_checked_arary
+#include "thr_malloc.h"       // sql_alloc
 
 class Field;
 class Item;
@@ -73,7 +73,7 @@ struct Sort_addon_field {/* Sort addon packed field */
 
 struct Merge_chunk_compare_context
 {
-  qsort_cmp2 key_compare;
+  qsort2_cmp key_compare;
   const void *key_compare_arg;
 };
 
@@ -331,7 +331,7 @@ public:
     @param table     Table to be sorted.
     @param max_length_for_sort_data From thd->variables.
     @param maxrows   HA_POS_ERROR or possible LIMIT value.
-    @param sort_positions @see documentation for the filesort() function.
+    @param sort_positions see documentation for the filesort() function.
   */
   void init_for_filesort(Filesort *file_sort,
                          uint sortlen, TABLE *table,

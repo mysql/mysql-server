@@ -70,7 +70,7 @@ SELECT @@session.relay_log_purge;
 ERROR HY000: Variable 'relay_log_purge' is a GLOBAL variable
 '#----------------------FN_DYNVARS_141_06------------------------#'
 SELECT IF(@@global.relay_log_purge, "ON", "OFF") = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='relay_log_purge';
 IF(@@global.relay_log_purge, "ON", "OFF") = VARIABLE_VALUE
 1

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,12 +18,15 @@
 
 #include "my_global.h"
 #include "mysql_com.h"                     // SERVER_VERSION_LENGTH
-#include "my_atomic.h"                     // my_atomic_add64
+#include "my_atomic.h"                     // my_atomic_load32
+#include "my_sqlcommand.h"                 // SQLCOM_END
+#include "my_sys.h"                        // MY_TMPDIR
 #include "my_thread.h"                     // my_thread_attr_t
 #include "my_thread_local.h"               // my_get_thread_local
-#include "sql_cmd.h"                       // SQLCOM_END
 #include "sql_const.h"                     // UUID_LENGTH
 #include "atomic_class.h"                  /* Atomic_int32 */
+
+#include <atomic>
 
 class my_decimal;
 class THD;
@@ -80,6 +83,8 @@ void refresh_status(THD *thd);
 bool is_secure_file_path(char *path);
 ulong sql_rnd_with_mutex();
 
+struct System_status_var* get_thd_status_var(THD *thd);
+
 // These are needed for unit testing.
 void set_remaining_args(int argc, char **argv);
 int init_common_variables();
@@ -105,6 +110,7 @@ extern MY_BITMAP temp_pool;
 extern bool opt_large_files, server_id_supplied;
 extern bool opt_bin_log;
 extern my_bool opt_log_slave_updates;
+extern my_bool opt_log_unsafe_statements;
 extern bool opt_general_log, opt_slow_log, opt_general_log_raw;
 extern ulonglong log_output_options;
 extern my_bool opt_log_queries_not_using_indexes;
@@ -554,6 +560,7 @@ extern PSI_stage_info stage_worker_waiting_for_its_turn_to_commit;
 extern PSI_stage_info stage_worker_waiting_for_commit_parent;
 extern PSI_stage_info stage_suspending;
 extern PSI_stage_info stage_starting;
+extern PSI_stage_info stage_waiting_for_no_channel_reference;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 /**
   Statement instrumentation keys (sql).
@@ -643,13 +650,12 @@ extern char *opt_disabled_storage_engines;
 
 /* query_id */
 typedef int64 query_id_t;
-extern query_id_t global_query_id;
+extern std::atomic<query_id_t> atomic_global_query_id;
 
 /* increment query_id and return it.  */
 inline __attribute__((warn_unused_result)) query_id_t next_query_id()
 {
-  query_id_t id= my_atomic_add64(&global_query_id, 1);
-  return (id+1);
+  return ++atomic_global_query_id;
 }
 
 #define ER(X) please_use_ER_THD_or_ER_DEFAULT_instead(X)

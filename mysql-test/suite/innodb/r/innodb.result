@@ -1808,34 +1808,34 @@ select count(*) from t1 where x = 18446744073709551601;
 count(*)
 1
 drop table t1;
-SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
+SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 variable_value
 {checked_valid}
-SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
+SELECT variable_value FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
 variable_value
 {checked_valid}
-SELECT variable_value - @innodb_rows_deleted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted';
+SELECT variable_value - @innodb_rows_deleted_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted';
 variable_value - @innodb_rows_deleted_orig
 1062
-SELECT variable_value - @innodb_rows_inserted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
+SELECT variable_value - @innodb_rows_inserted_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
 variable_value - @innodb_rows_inserted_orig
 1962
-SELECT variable_value - @innodb_rows_updated_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
+SELECT variable_value - @innodb_rows_updated_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
 variable_value - @innodb_rows_updated_orig
 987
-SELECT variable_value - @innodb_row_lock_waits_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_waits';
+SELECT variable_value - @innodb_row_lock_waits_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_waits';
 variable_value - @innodb_row_lock_waits_orig
 0
-SELECT variable_value - @innodb_row_lock_current_waits_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_current_waits';
+SELECT variable_value - @innodb_row_lock_current_waits_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_current_waits';
 variable_value - @innodb_row_lock_current_waits_orig
 0
-SELECT variable_value - @innodb_row_lock_time_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time';
+SELECT variable_value - @innodb_row_lock_time_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time';
 variable_value - @innodb_row_lock_time_orig
 0
-SELECT variable_value - @innodb_row_lock_time_max_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_max';
+SELECT variable_value - @innodb_row_lock_time_max_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_max';
 variable_value - @innodb_row_lock_time_max_orig
 0
-SELECT variable_value - @innodb_row_lock_time_avg_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg';
+SELECT variable_value - @innodb_row_lock_time_avg_orig FROM performance_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg';
 variable_value - @innodb_row_lock_time_avg_orig
 0
 SET @innodb_sync_spin_loops_orig = @@innodb_sync_spin_loops;

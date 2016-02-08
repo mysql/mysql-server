@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include <opt_trace.h>
 #include <mysys_err.h>                          // for testing of OOM
 #include "mysqld.h"                             // system_charset_info
+#include "m_string.h"                           // llstr
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>                           // for WEXITSTATUS
 #endif

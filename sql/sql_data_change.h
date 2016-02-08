@@ -191,7 +191,6 @@ public:
      @param inserted_columns2 A second list like inserted_columns
      @param manage_defaults   Whether this object should manage function
                               defaults.
-     @param ignore_duplicates   Whether duplicate rows are ignored.
      @param duplicates_handling How to handle duplicates.
      @param escape_character    The escape character.
   */
@@ -219,6 +218,7 @@ public:
      Initializes this data change operation as an SQL @c UPDATE (multi- or
      not).
 
+     @param optype  The data change operation type.
      @param fields  The column objects that are to be updated.
      @param values  The values to be assigned to the fields.
      @note that UPDATE always lists columns, so non-listed columns may need a

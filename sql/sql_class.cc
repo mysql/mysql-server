@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "current_thd.h"
 #include "debug_sync.h"                      // DEBUG_SYNC
 #include "derror.h"                          // ER_THD
+#include "error_handler.h"                   // Internal_error_handler
 #include "item_func.h"                       // user_var_entry
 #include "lock.h"                            // mysql_lock_abort_for_thread
 #include "locking_service.h"                 // release_all_locking_service_locks
@@ -332,8 +333,9 @@ static const uchar *get_var_key(const uchar *arg, size_t *length)
   return (uchar*) entry->entry_name.ptr();
 }
 
-static void free_user_var(user_var_entry *entry)
+static void free_user_var(void *arg)
 {
+  user_var_entry *entry= pointer_cast<user_var_entry*>(arg);
   entry->destroy();
 }
 
@@ -435,6 +437,7 @@ THD::THD(bool enable_plugins)
 #ifdef EMBEDDED_LIBRARY
    mysql(NULL),
 #endif
+   first_query_cache_block(NULL),
    initial_status_var(NULL),
    status_var_aggregated(false),
    query_plan(this),
@@ -499,6 +502,7 @@ THD::THD(bool enable_plugins)
    duplicate_slave_uuid(false),
    is_a_srv_session_thd(false)
 {
+  main_lex.reset();
   set_psi(NULL);
   mdl_context.init(this);
   init_sql_alloc(key_memory_thd_main_mem_root,
@@ -510,7 +514,6 @@ THD::THD(bool enable_plugins)
   m_catalog.str= "std";
   m_catalog.length= 3;
   m_security_ctx= &m_main_security_ctx;
-  no_errors= 0;
   password= 0;
   query_start_usec_used= 0;
   count_cuted_fields= CHECK_FIELD_IGNORE;
@@ -581,9 +584,9 @@ THD::THD(bool enable_plugins)
   profiling.set_thd(this);
 #endif
   m_user_connect= NULL;
-  my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
+  my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0,
                get_var_key,
-               (my_hash_free_key) free_user_var, 0,
+               free_user_var, 0,
                key_memory_user_var_entry);
 
   sp_proc_cache= NULL;
@@ -836,7 +839,7 @@ Sql_condition* THD::raise_condition(uint sql_errno,
   if (level == Sql_condition::SL_NOTE || level == Sql_condition::SL_WARNING)
     got_warning= true;
 
-  query_cache.abort(this, &query_cache_tls);
+  query_cache.abort(this);
 
   Diagnostics_area *da= get_stmt_da();
   if (level == Sql_condition::SL_ERROR)
@@ -894,7 +897,7 @@ void THD::init(void)
   {
     ulong tmp;
     tmp= sql_rnd_with_mutex();
-    randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::global_query_id);
+    randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::atomic_global_query_id);
   }
 
   server_status= SERVER_STATUS_AUTOCOMMIT;
@@ -1005,9 +1008,9 @@ void THD::cleanup_connection(void)
   cleanup_done= 0;
   init();
   stmt_map.reset();
-  my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
+  my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0,
                get_var_key,
-               (my_hash_free_key) free_user_var, 0,
+               free_user_var, 0,
                key_memory_user_var_entry);
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
@@ -1771,28 +1774,6 @@ void THD::update_charset()
 }
 
 
-/* add table to list of changed in transaction tables */
-
-void THD::add_changed_table(TABLE *table)
-{
-  DBUG_ENTER("THD::add_changed_table(table)");
-
-  DBUG_ASSERT(in_multi_stmt_transaction_mode() && table->file->has_transactions());
-  add_changed_table(table->s->table_cache_key.str,
-                    (long) table->s->table_cache_key.length);
-  DBUG_VOID_RETURN;
-}
-
-
-void THD::add_changed_table(const char *key, long key_length)
-{
-  DBUG_ENTER("THD::add_changed_table(key)");
-  if (get_transaction()->add_changed_table(key, key_length))
-    killed= KILL_CONNECTION;
-  DBUG_VOID_RETURN;
-}
-
-
 int THD::send_explain_fields(Query_result *result)
 {
   List<Item> field_list;
@@ -2023,13 +2004,13 @@ Prepared_statement_map::Prepared_statement_map()
     START_STMT_HASH_SIZE = 16,
     START_NAME_HASH_SIZE = 16
   };
-  my_hash_init(&st_hash, &my_charset_bin, START_STMT_HASH_SIZE, 0, 0,
+  my_hash_init(&st_hash, &my_charset_bin, START_STMT_HASH_SIZE, 0,
                get_statement_id_as_hash_key,
-               delete_statement_as_hash_key, MYF(0),
+               delete_statement_as_hash_key, 0,
                key_memory_prepared_statement_map);
-  my_hash_init(&names_hash, system_charset_info, START_NAME_HASH_SIZE, 0, 0,
+  my_hash_init(&names_hash, system_charset_info, START_NAME_HASH_SIZE, 0,
                get_stmt_name_hash_key,
-               NULL, MYF(0),
+               nullptr, 0,
                key_memory_prepared_statement_map);
 }
 
@@ -2966,3 +2947,26 @@ void THD::claim_memory_ownership()
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 }
 
+
+bool THD::binlog_applier_need_detach_trx()
+{
+#ifdef HAVE_REPLICATION
+  return is_binlog_applier() ? rli_fake->is_native_trx_detached= true : false;
+#else
+  return false;
+#endif
+};
+
+
+bool THD::binlog_applier_has_detached_trx()
+{
+#ifdef HAVE_REPLICATION
+  bool rc= is_binlog_applier() && rli_fake->is_native_trx_detached;
+
+  if (rc)
+    rli_fake->is_native_trx_detached= false;
+  return rc;
+#else
+  return false;
+#endif
+}

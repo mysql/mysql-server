@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -471,8 +471,10 @@ rm -f %{buildroot}%{_datadir}/mysql/win_install_firewall.sql
 # Remove upcoming man pages, to avoid breakage when they materialize
 # Keep this comment as a placeholder for future cases
 # rm -f %{buildroot}%{_mandir}/man1/<manpage>.1
-rm -f %{buildroot}%{_mandir}/man1/lz4_decompress.1
-rm -f %{buildroot}%{_mandir}/man1/zlib_decompress.1
+
+# Remove removed manpages here until they are removed from the docs repo
+rm -f  %{buildroot}%{_mandir}/man1/mysql_plugin.1
+rm -f  %{buildroot}%{_mandir}/man1/mysql_install_db.1
 
 # rcmysql symlink
 install -d %{buildroot}%{_sbindir}
@@ -505,7 +507,7 @@ rm -r $(readlink var) var
 %endif
 
 %post server
-datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p')
+datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p | tail -n 1')
 /bin/chmod 0751 "$datadir"
 /bin/touch /var/log/mysql/mysqld.log
 %if 0%{?systemd}
@@ -565,8 +567,6 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysqld_multi.1*
 %attr(644, root, root) %{_mandir}/man1/mysqld_safe.1*
 %attr(644, root, root) %{_mandir}/man1/mysqldumpslow.1*
-%attr(644, root, root) %{_mandir}/man1/mysql_install_db.1*
-%attr(644, root, root) %{_mandir}/man1/mysql_plugin.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_secure_installation.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_upgrade.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlman.1*
@@ -577,18 +577,20 @@ fi
 %attr(644, root, root) %{_mandir}/man1/resolve_stack_dump.1*
 %attr(644, root, root) %{_mandir}/man1/resolveip.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_ssl_rsa_setup.1*
+%attr(644, root, root) %{_mandir}/man1/lz4_decompress.1*
+%attr(644, root, root) %{_mandir}/man1/zlib_decompress.1*
 
 %config(noreplace) %{_sysconfdir}/my.cnf
 %dir %{_sysconfdir}/my.cnf.d
 
 %attr(755, root, root) %{_bindir}/innochecksum
+%attr(755, root, root) %{_bindir}/ibd2sdi
 %attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/myisam_ftdump
 %attr(755, root, root) %{_bindir}/myisamchk
 %attr(755, root, root) %{_bindir}/myisamlog
 %attr(755, root, root) %{_bindir}/myisampack
 %attr(755, root, root) %{_bindir}/mysql_install_db
-%attr(755, root, root) %{_bindir}/mysql_plugin
 %attr(755, root, root) %{_bindir}/mysql_secure_installation
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/mysql_upgrade
@@ -862,7 +864,13 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
-* Thu Nov 12 2015 Bjorn Munch <bjorn.munch@oracle.com> - 5.8.0-0.1.m17
+* Fri Jan 08 2016 Bjorn Munch <bjorn.munch@oracle.com> - 5.8.0-1
+- Purge man page for mysql_install_db in preparation for its removal
+
+* Tue Nov 24 2015 Bjorn Munch <bjorn.munch@oracle.com> - 5.7.10-1
+- Included man pages for lz4_decompress and zlib_decompress
+
+* Thu Nov 12 2015 Bjorn Munch <bjorn.munch@oracle.com> - 5.7.10-1
 - Added lines to remove man pages we are not ready to include yet
 - Added new decompression utilities lz4_decompress and zlib_decompress binaries to
   client subpackage.

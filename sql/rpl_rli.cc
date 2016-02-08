@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 #include "sql_base.h"              // close_thread_tables
 #include "strfunc.h"               // strconvert
 #include "transaction.h"           // trans_commit_stmt
-
+#include "debug_sync.h"
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
 
@@ -116,7 +116,8 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    commit_order_mngr(NULL),
    sql_delay(0), sql_delay_end(0), m_flags(0), row_stmt_start_timestamp(0),
    long_find_row_note_printed(false), error_on_rli_init_info(false),
-   thd_tx_priority(0)
+   thd_tx_priority(0),
+   is_native_trx_detached(false)
 {
   DBUG_ENTER("Relay_log_info::Relay_log_info");
 
@@ -725,6 +726,8 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
   DBUG_PRINT("enter",("log_name: '%s'  log_pos: %lu  timeout: %lu",
                       log_name->c_ptr_safe(), (ulong) log_pos, (ulong) timeout));
 
+  DEBUG_SYNC(thd, "begin_master_pos_wait");
+
   set_timespec(&abstime, timeout);
   mysql_mutex_lock(&data_lock);
   thd->ENTER_COND(&data_cond, &data_lock,
@@ -943,6 +946,8 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, const Gtid_set* wait_gtid_set,
 
   if (!inited)
     DBUG_RETURN(-2);
+
+  DEBUG_SYNC(thd, "begin_wait_for_gtid_set");
 
   set_timespec(&abstime, timeout);
   mysql_mutex_lock(&data_lock);
@@ -1171,7 +1176,8 @@ void Relay_log_info::close_temporary_tables()
   @param[in]   thd         connection,
   @param[in]   just_reset  if false, it tells that logs should be purged
                            and @c init_relay_log_pos() should be called,
-  @param[out] errmsg      store pointer to an error message.
+  @param[out]  errmsg      store pointer to an error message.
+  @param[in]   delete_only If true, do not start writing to a new log file.
 
   @retval 0 successfully executed,
   @retval 1 otherwise error, where errmsg is set to point to the error message.
@@ -2091,8 +2097,13 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       be useful to ensure the Retrieved_Gtid_Set behavior when auto
       positioning is disabled (we could have transactions spanning multiple
       relay log files in this case).
+      We will skip this initialization if relay_log_recovery is set in order
+      to save time, as neither the GTIDs nor the transaction_parser state
+      would be useful when the relay log will be cleaned up later when calling
+      init_recovery.
     */
-    if (!gtid_retrieved_initialized &&
+    if (!is_relay_log_recovery &&
+        !gtid_retrieved_initialized &&
         relay_log.init_gtid_sets(&gtid_set, NULL,
                                  opt_slave_sql_verify_checksum,
                                  true/*true=need lock*/,

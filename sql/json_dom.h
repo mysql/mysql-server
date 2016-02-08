@@ -1,7 +1,7 @@
 #ifndef JSON_DOM_INCLUDED
 #define JSON_DOM_INCLUDED
 
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -275,8 +275,12 @@ public:
   /**
     Construct a DOM object based on a binary JSON value. The ownership
     of the returned object is henceforth with the caller.
+
+    @param thd  current session
+    @param v    the binary value to parse
+    @return a DOM representation of the binary value, or NULL on error
   */
-  static Json_dom* parse(const json_binary::Value &v);
+  static Json_dom* parse(const THD *thd, const json_binary::Value &v);
 
   /**
     Replace oldv contained inside this container array or object) with
@@ -419,7 +423,7 @@ public:
     object. The other object is deleted. If this object and the other
     object share a key, then the two values of the key are merged.
 
-    @param other [in]  a pointer to the object which will be consumed
+    @param [in] other    a pointer to the object which will be consumed
     @retval false on success
     @retval true on failure
   */
@@ -517,7 +521,7 @@ public:
     Moves all of the elements in the other array to the end of
     this array. The other array is deleted.
 
-    @param other [in]  a pointer to the array which will be consumed
+    @param [in] other     a pointer to the array which will be consumed
     @retval false on success
     @retval true on failure
   */
@@ -607,7 +611,6 @@ public:
      Ownership of the dom belongs to this array.
 
      @param [in] innards The dom to autowrap.
-     @return the auto-wrapped dom.
   */
   explicit Json_array(Json_dom *innards);
 
@@ -1038,8 +1041,8 @@ bool double_quote(const char *cptr, size_t length, String *buf);
  duplicates - When two objects are merged and they share a key,
  the values associated with the shared key are merged.
 
- @param left [inout] The recipient dom.
- @param right [inout] The dom to be consumed
+ @param [in,out] left  The recipient dom.
+ @param [in,out] right  The dom to be consumed
 
  @return A composite dom which subsumes the left and right doms, or NULL
  if a failure happened while merging
@@ -1104,12 +1107,22 @@ typedef bool *warning_method(Sql_condition::enum_severity_level,
 class Json_wrapper : Sql_alloc
 {
 private:
+  /*
+    A Json_wrapper wraps either a Json_dom or a json_binary::Value,
+    never both at the same time.
+  */
+  union
+  {
+    /// The DOM representation, only used if m_is_dom is true.
+    struct {
+      Json_dom *m_dom_value;
+      /// If true, don't deallocate m_dom_value in destructor.
+      bool m_dom_alias;
+    };
+    /// The binary representation, only used if m_is_dom is false.
+    json_binary::Value m_value;
+  };
   bool m_is_dom;      //!< Wraps a DOM iff true
-  bool m_dom_alias;   //!< If true, don't deallocate in destructor
-  json_binary::Value m_value;
-  const char *m_id;   //!< Unused for now
-  Json_dom *m_dom_value;
-  String m_tmp;       //!< Area for building binary value from DOM
 
   /**
     Get the wrapped datetime value in the packed format.
@@ -1125,9 +1138,7 @@ public:
   /**
     Create an empty wrapper. Cf #empty().
   */
-  Json_wrapper() : m_is_dom(true), m_dom_alias(true), m_value(),
-                   m_id(NULL), m_dom_value(NULL)
-  {}
+  Json_wrapper() : m_dom_value(nullptr), m_dom_alias(true), m_is_dom(true) {}
 
   using Sql_alloc::operator new;
   using Sql_alloc::operator delete;
@@ -1186,13 +1197,6 @@ public:
   */
   Json_wrapper &operator=(const Json_wrapper &old);
 
-  /**
-    @param[in] value  the binary JSON value to wrap
-    @param[in] id     the pointer into the original field containing the
-                      binary JSON value.  This allows caching any DOMs
-                      built for the query, to avoid rebuilding it.
-  */
-  Json_wrapper(const json_binary::Value &value, const char *id);
   ~Json_wrapper();
 
   /**
@@ -1208,27 +1212,27 @@ public:
     wrapper. If this wrapper originally held a value, it is now converted
     to hold (and eventually release) the DOM version.
 
+    @param thd current session
     @return pointer to a DOM object, or NULL if the DOM could not be allocated
   */
-  Json_dom *to_dom();
+  Json_dom *to_dom(const THD *thd);
 
   /**
     Get the wrapped contents in DOM form. Same as to_dom(), except it returns
     a clone of the original DOM instead of the actual, internal DOM tree.
 
+    @param thd current session
     @return pointer to a DOM object, or NULL if the DOM could not be allocated
   */
-  Json_dom *clone_dom();
+  Json_dom *clone_dom(const THD *thd);
 
   /**
     Get the wrapped contents in binary value form.
-    The lifetime is same as that of the wrapped value iff the wrapper
-    wraps a binary value. If it is a DOM, the lifetime is the
-    same as that of the wrapper.
-
-    @return the binary value.
+    @param[in,out] str  a string that will be filled with the binary value
+    @retval false on success
+    @retval true  on error
   */
-  json_binary::Value to_value();
+  bool to_binary(String *str) const;
 
   /**
     Format the JSON value to an external JSON string in buffer in
@@ -1459,8 +1463,11 @@ public:
     For example:
     "abc", [] and {} have depth 1.
     ["abc", [3]] and {"a": "abc", "b": [3]} have depth 3.
+
+    @param thd current session
+    @return the depth of the document
   */
-  size_t depth() const;
+  size_t depth(const THD *thd) const;
 
   /**
     Compare this JSON value to another JSON value.
@@ -1502,6 +1509,7 @@ public:
 
     @param[in,out] ltime a value buffer
     @param[in]     fuzzydate
+    @param msgnam
     @returns json value coerced to date
    */
   bool coerce_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate,
@@ -1511,6 +1519,8 @@ public:
     Extract a time value from the JSON if possible, coercing if need be.
 
     @param[in,out] ltime a value buffer
+    @param msgnam
+
     @returns json value coerced to time
   */
   bool coerce_time(MYSQL_TIME *ltime, const char *msgnam) const;

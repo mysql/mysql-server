@@ -55,7 +55,9 @@ INSERT INTO `t1`(`f1`) VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 --source include/sync_slave_sql_with_master.inc
 
 eval select count(*) from `$db`.`t1` /* must be 1 */;
-
+# Running with show_compatibility_56=ON until WL#9001 is pushed.
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
 SHOW STATUS LIKE 'Slave_running';
 --disable_warnings
 select * from information_schema.session_status where variable_name= 'SLAVE_RUNNING';
@@ -296,8 +298,9 @@ connection slave;
 eval SET @@global.max_allowed_packet= $old_slave_max_allowed_packet;
 DROP TABLE t1;
 
+# Restoring the value of show_compatibility_56
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 # Clear Last_IO_Error
-
 --source include/stop_slave_sql.inc
 RESET SLAVE;
 

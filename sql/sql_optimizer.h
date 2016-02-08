@@ -56,7 +56,7 @@ typedef struct st_rollup
   enum State { STATE_NONE, STATE_INITED, STATE_READY };
   State state;
   Item_null_array null_items;
-  Ref_ptr_array *ref_pointer_arrays;
+  Ref_item_array *ref_item_arrays;
   List<Item> *fields;
 } ROLLUP;
 
@@ -123,13 +123,9 @@ public:
       need_tmp(false),
       keyuse_array(thd->mem_root),
       all_fields(select->all_fields),
-      tmp_all_fields1(),
-      tmp_all_fields2(),
-      tmp_all_fields3(),
-      tmp_fields_list1(),
-      tmp_fields_list2(),
-      tmp_fields_list3(),
       fields_list(select->fields_list),
+      tmp_all_fields(),
+      tmp_fields_list(),
       error(0),
       order(select->order_list.first, ESC_ORDER_BY),
       group_list(select->group_list.first, ESC_GROUP_BY),
@@ -144,7 +140,8 @@ public:
       tables_list((TABLE_LIST*)1),
       cond_equal(NULL),
       return_tab(0),
-      ref_ptrs(select->ref_ptr_array_slice(0)),
+      ref_items(),
+      current_ref_item_slice(REF_SLICE_SAVE),
       zero_result_cause(NULL),
       child_subquery_can_materialize(false),
       allow_outer_refs(false),
@@ -345,15 +342,21 @@ public:
 
   bool need_tmp;
 
-  // Used and updated by JOIN::make_join_plan() and optimize_keyuse()
+  /// Used and updated by JOIN::make_join_plan() and optimize_keyuse()
   Key_use_array keyuse_array;
 
-  List<Item> &all_fields; ///< to store all expressions used in query
-  ///Above list changed to use temporary table
-  List<Item> tmp_all_fields1, tmp_all_fields2, tmp_all_fields3;
-  ///Part, shared with list above, emulate following list
-  List<Item> tmp_fields_list1, tmp_fields_list2, tmp_fields_list3;
-  List<Item> &fields_list; ///< hold field list
+  /// List storing all expressions used in query block
+  List<Item> &all_fields;
+
+  /// List storing all expressions of select list
+  List<Item> &fields_list;
+
+  /// "all_fields" changed to use temporary table (uses slice 1-3)
+  List<Item> tmp_all_fields[4];
+
+  /// "fields_list" changed to use temporary table (uses slice 1-3)
+  List<Item> tmp_fields_list[4];
+
   int error; ///< set in optimize(), exec(), prepare_result()
 
   /**
@@ -379,11 +382,11 @@ public:
     struct null {};
 
   public:
-    ORDER *order;  //< ORDER expression that we are wrapping with this class
-    Explain_sort_clause src; //< origin of order list
+    ORDER *order;  ///< ORDER expression that we are wrapping with this class
+    Explain_sort_clause src; ///< origin of order list
 
   private:
-    int flags; //< bitmap of Explain_sort_property
+    int flags; ///< bitmap of Explain_sort_property
 
   public:
     ORDER_with_src() { clean(); }
@@ -500,17 +503,41 @@ public:
   */
   plan_idx return_tab;
 
-  /*
-    Used pointer reference for this select.
-    select_lex->ref_pointer_array contains five "slices" of the same length:
-    |========|========|========|========|========|
-     ref_ptrs items0   items1   items2   items3
+  /**
+    ref_items is an array of 5 slices, each containing an array of Item
+    pointers. ref_items is used in different phases of query execution.
+    - slice 0 is initially the same as SELECT_LEX::base_ref_items, ie it is
+      the set of items referencing fields from base tables. During optimization
+      and execution it may be temporarily overwritten by slice 1-3.
+    - slice 1 is a representation of the used items when being read from
+      the first temporary table.
+    - slice 2 is a representation of the used items when being read from
+      the second temporary table.
+    - slice 3 is a representation of the used items when used in
+      aggregation but no actual temporary table is needed.
+    - slice 4 is a copy of the original slice 0. It is created if
+      slice overwriting is necessary, and it is used to restore
+      original values in slice 0 after having been overwritten.
+
+    Slice 0 is allocated for the lifetime of a statement, whereas slices 1-4
+    are associated with a single optimization. The size of slice 0 determines
+    the slice size used when allocating the other slices.
    */
-  const Ref_ptr_array ref_ptrs;
-  // Copy of the initial slice above, to be used with different lists
-  Ref_ptr_array items0, items1, items2, items3;
-  // Used by rollup, to restore ref_ptrs after overwriting it.
-  Ref_ptr_array current_ref_ptrs;
+  Ref_item_array ref_items[5];
+
+  /// Symbolic slice numbers into ref_items, tmp_fields and tmp_all_fields
+  static const uint REF_SLICE_BASE = 0;
+  static const uint REF_SLICE_TMP1 = 1;
+  static const uint REF_SLICE_TMP2 = 2;
+  static const uint REF_SLICE_TMP3 = 3;
+  static const uint REF_SLICE_SAVE = 4;
+
+  /**
+    The slice currently stored in ref_items[0].
+    Used to restore the base ref_items slice from the "save" slice after it
+    has been overwritten by another slice (1-3).
+  */
+  uint current_ref_item_slice;
 
   const char *zero_result_cause; ///< not 0 if exec must return zero result
 
@@ -533,7 +560,7 @@ public:
   List<Semijoin_mat_exec> sjm_exec_list;
   /* end of allocation caching storage */
 
-  /** TRUE <=> ref_pointer_array is set to items3. */
+  /** TRUE <=> current ref_item slice is set to REF_SLICE_TMP3 */
   bool set_group_rpa;
   /** Exec time only: TRUE <=> current group has been sent */
   bool group_sent;
@@ -561,39 +588,60 @@ public:
                           bool before_group_by, bool recompute= FALSE);
 
   /**
-     Overwrites one slice with the contents of another slice.
+     Overwrites one slice of ref_items with the contents of another slice.
      In the normal case, dst and src have the same size().
      However: the rollup slices may have smaller size than slice_sz.
    */
-  void copy_ref_ptr_array(Ref_ptr_array dst_arr, Ref_ptr_array src_arr)
+  void copy_ref_item_slice(uint dst_slice, uint src_slice)
+  {
+    copy_ref_item_slice(ref_items[dst_slice], ref_items[src_slice]);
+  }
+  void copy_ref_item_slice(Ref_item_array dst_arr, Ref_item_array src_arr)
   {
     DBUG_ASSERT(dst_arr.size() >= src_arr.size());
     void *dest= dst_arr.array();
     const void *src= src_arr.array();
-    memcpy(dest, src, src_arr.size() * src_arr.element_size());
+    if (!src_arr.is_null())
+      memcpy(dest, src, src_arr.size() * src_arr.element_size());
   }
 
-  /// Overwrites 'ref_ptrs' and remembers the the source as 'current'.
-  void set_items_ref_array(Ref_ptr_array src_arr)
-  {
-    copy_ref_ptr_array(ref_ptrs, src_arr);
-    current_ref_ptrs= src_arr;
-  }
+  /**
+    Allocate a ref_item slice, assume that slice size is in ref_items[0]
 
-  /// Initializes 'items0' and remembers that it is 'current'.
-  void init_items_ref_array()
+    @param thd      thread handler
+    @param sliceno  The slice number to allocate in JOIN::ref_items
+
+    @returns false if success, true if error
+  */
+  bool alloc_ref_item_slice(THD *thd, uint sliceno)
   {
-    items0= select_lex->ref_ptr_array_slice(1);
-    copy_ref_ptr_array(items0, ref_ptrs);
-    current_ref_ptrs= items0;
+    DBUG_ASSERT(sliceno > 0 && sliceno < 5 &&
+                ref_items[sliceno].is_null());
+    uint count= ref_items[0].size();
+    Item **slice= pointer_cast<Item **>(thd->alloc(sizeof(Item *) * count));
+    if (slice == NULL)
+      return true;
+    ref_items[sliceno]= Ref_item_array(slice, count);
+    return false;
+  }
+  /**
+    Overwrite the base slice of ref_items with the slice supplied as argument.
+
+    @param sliceno number to overwrite the base slice with, must be 1-4.
+  */
+  void set_ref_item_slice(uint sliceno)
+  {
+    DBUG_ASSERT(sliceno > 0 && sliceno < 5);
+    copy_ref_item_slice(REF_SLICE_BASE, sliceno);
+    current_ref_item_slice= sliceno;
   }
 
   bool optimize_rollup();
   bool rollup_process_const_fields();
   bool rollup_make_fields(List<Item> &all_fields, List<Item> &fields,
 			  Item_sum ***func);
-  int rollup_send_data(uint idx);
-  int rollup_write_data(uint idx, TABLE *table);
+  bool rollup_send_data(uint idx);
+  bool rollup_write_data(uint idx, TABLE *table);
   void remove_subq_pushed_predicates();
   /**
     Release memory and, if possible, the open tables held by this execution

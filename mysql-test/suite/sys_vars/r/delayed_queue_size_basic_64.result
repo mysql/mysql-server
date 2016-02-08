@@ -26,6 +26,14 @@ SELECT @@global.delayed_queue_size = 1000;
 Warnings:
 Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
 '#--------------------FN_DYNVARS_026_03------------------------#'
+SET @@global.delayed_queue_size = 1;
+Warnings:
+Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
+SELECT @@global.delayed_queue_size;
+@@global.delayed_queue_size
+1
+Warnings:
+Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
 SET @@global.delayed_queue_size = 10000;
 Warnings:
 Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
@@ -50,6 +58,12 @@ SELECT @@global.delayed_queue_size;
 1
 Warnings:
 Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
+SET @@global.delayed_queue_size = 18446744073709551615;
+SELECT @@global.delayed_queue_size;
+@@global.delayed_queue_size
+18446744073709551615
+Warnings:
+Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
 '#--------------------FN_DYNVARS_026_04-------------------------#'
 SET @@global.delayed_queue_size = 0;
 Warnings:
@@ -69,26 +83,25 @@ SELECT @@global.delayed_queue_size;
 1
 Warnings:
 Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
-SET @@global.delayed_queue_size = 42949672950;
-Warnings:
-Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
-SELECT @@global.delayed_queue_size;
-@@global.delayed_queue_size
-42949672950
-Warnings:
-Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
 SET @@global.delayed_queue_size = 429496729.5;
 ERROR 42000: Incorrect argument type to variable 'delayed_queue_size'
 SELECT @@global.delayed_queue_size;
 @@global.delayed_queue_size
-42949672950
+1
 Warnings:
 Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
 SET @@global.delayed_queue_size = ON;
 ERROR 42000: Incorrect argument type to variable 'delayed_queue_size'
 SELECT @@delayed_queue_size;
 @@delayed_queue_size
-42949672950
+1
+Warnings:
+Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
+SET @@global.delayed_queue_size = 18446744073709551616;
+ERROR 42000: Incorrect argument type to variable 'delayed_queue_size'
+SELECT @@global.delayed_queue_size;
+@@global.delayed_queue_size
+1
 Warnings:
 Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
 '#-------------------FN_DYNVARS_026_05----------------------------#'
@@ -98,7 +111,7 @@ SELECT @@session.delayed_queue_size;
 ERROR HY000: Variable 'delayed_queue_size' is a GLOBAL variable
 '#----------------------FN_DYNVARS_026_06------------------------#'
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='delayed_queue_size'
 into @tmp;
 SELECT @@global.delayed_queue_size = @tmp;
@@ -107,7 +120,7 @@ SELECT @@global.delayed_queue_size = @tmp;
 Warnings:
 Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='delayed_queue_size'
 into @tmp;
 SELECT @@delayed_queue_size = @tmp;

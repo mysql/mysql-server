@@ -161,9 +161,8 @@ Partition_share::release_auto_inc_if_possible(THD *thd, TABLE_SHARE *table_share
 /**
   Get the partition name.
 
-  @param       part   Struct containing name and length
+  @param       arg    Struct containing name and length
   @param[out]  length Length of the name
-  @param       not_used Not used
 
   @return Partition name
 */
@@ -222,7 +221,7 @@ bool Partition_share::populate_partition_name_hash(partition_info *part_info)
     DBUG_RETURN(true);
   }
   if (my_hash_init(&partition_name_hash,
-                   system_charset_info, tot_names, 0, 0,
+                   system_charset_info, tot_names, 0,
                    get_part_name_from_def,
                    my_free, HASH_UNIQUE,
                    key_memory_Partition_share))

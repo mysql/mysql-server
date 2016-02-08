@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights
  * reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -932,17 +932,17 @@ my_charset_is_ascii_compatible(const CHARSET_INFO *cs)
 }
 
 
-/*
+/**
   Convert a string between two character sets.
   'to' must be large enough to store (form_length * to_cs->mbmaxlen) bytes.
 
-  @param  to[OUT]       Store result here
+  @param [out] to       Store result here
   @param  to_length     Size of "to" buffer
   @param  to_cs         Character set of result string
   @param  from          Copy from here
   @param  from_length   Length of the "from" string
   @param  from_cs       Character set of the "from" string
-  @param  errors[OUT]   Number of conversion errors
+  @param [out] errors   Number of conversion errors
 
   @return Number of bytes copied to 'to' string
 */
@@ -1002,18 +1002,18 @@ outp:
 }
 
 
-/*
+/**
   Convert a string between two character sets.
    Optimized for quick copying of ASCII characters in the range 0x00..0x7F.
   'to' must be large enough to store (form_length * to_cs->mbmaxlen) bytes.
 
-  @param  to[OUT]       Store result here
+  @param [out] to       Store result here
   @param  to_length     Size of "to" buffer
   @param  to_cs         Character set of result string
   @param  from          Copy from here
   @param  from_length   Length of the "from" string
   @param  from_cs       Character set of the "from" string
-  @param  errors[OUT]   Number of conversion errors
+  @param [out] errors   Number of conversion errors
 
   @return Number of bytes copied to 'to' string
 */

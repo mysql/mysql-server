@@ -122,7 +122,7 @@ SELECT @@session.dalayed_insert_timeout;
 ERROR HY000: Unknown system variable 'dalayed_insert_timeout'
 '#----------------------FN_DYNVARS_025_06------------------------#'
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='delayed_insert_timeout'
 into @tmp;
 SELECT @@global.delayed_insert_timeout = @tmp;
@@ -131,7 +131,7 @@ SELECT @@global.delayed_insert_timeout = @tmp;
 Warnings:
 Warning	1287	'@@delayed_insert_timeout' is deprecated and will be removed in a future release.
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='delayed_insert_timeout'
 into @tmp;
 SELECT @@delayed_insert_timeout = @tmp;

@@ -9,9 +9,9 @@ tablespace_definition_cache	256
 show session variables like 'tablespace_definition_cache';
 Variable_name	Value
 tablespace_definition_cache	256
-select * from information_schema.global_variables where variable_name='tablespace_definition_cache';
+select * from performance_schema.global_variables where variable_name='tablespace_definition_cache';
 VARIABLE_NAME	VARIABLE_VALUE
-TABLESPACE_DEFINITION_CACHE	256
-select * from information_schema.session_variables where variable_name='tablespace_definition_cache';
+tablespace_definition_cache	256
+select * from performance_schema.session_variables where variable_name='tablespace_definition_cache';
 VARIABLE_NAME	VARIABLE_VALUE
-TABLESPACE_DEFINITION_CACHE	256
+tablespace_definition_cache	256

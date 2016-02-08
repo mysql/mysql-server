@@ -142,15 +142,6 @@ SELECT @@global.multi_range_count;
 1
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
-SET @@global.multi_range_count = 4294967296;
-Warnings:
-Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
-Warning	1292	Truncated incorrect multi_range_count value: '4294967296'
-SELECT @@global.multi_range_count;
-@@global.multi_range_count
-4294967295
-Warnings:
-Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@global.multi_range_count = -1024;
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
@@ -160,24 +151,33 @@ SELECT @@global.multi_range_count;
 1
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
-SET @@global.multi_range_count = 429496729500;
-Warnings:
-Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
-Warning	1292	Truncated incorrect multi_range_count value: '429496729500'
-SELECT @@global.multi_range_count;
-@@global.multi_range_count
-4294967295
-Warnings:
-Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@global.multi_range_count = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'multi_range_count'
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
-4294967295
+1
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@global.multi_range_count = test;
 ERROR 42000: Incorrect argument type to variable 'multi_range_count'
+SELECT @@global.multi_range_count;
+@@global.multi_range_count
+1
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
+SET @@global.multi_range_count = 4294967296;
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
+Warning	1292	Truncated incorrect multi_range_count value: '4294967296'
+SELECT @@global.multi_range_count;
+@@global.multi_range_count
+4294967295
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
+SET @@global.multi_range_count = 42949672950;
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
+Warning	1292	Truncated incorrect multi_range_count value: '42949672950'
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 4294967295
@@ -192,15 +192,6 @@ SELECT @@session.multi_range_count;
 1
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
-SET @@session.multi_range_count = 4294967296;
-Warnings:
-Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
-Warning	1292	Truncated incorrect multi_range_count value: '4294967296'
-SELECT @@session.multi_range_count;
-@@session.multi_range_count
-4294967295
-Warnings:
-Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@session.multi_range_count = -1;
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
@@ -212,18 +203,27 @@ Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@session.multi_range_count = 65530.34.;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
-SET @@session.multi_range_count = 4294967295021;
+'Bug # 34837: Errors are not coming on assigning invalid values to variable';
+SET @@session.multi_range_count = test;
+ERROR 42000: Incorrect argument type to variable 'multi_range_count'
+SELECT @@session.multi_range_count;
+@@session.multi_range_count
+1
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
-Warning	1292	Truncated incorrect multi_range_count value: '4294967295021'
+SET @@session.multi_range_count = 4294967296;
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
+Warning	1292	Truncated incorrect multi_range_count value: '4294967296'
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 4294967295
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
-SET @@session.multi_range_count = test;
-ERROR 42000: Incorrect argument type to variable 'multi_range_count'
+SET @@session.multi_range_count = 42949672950;
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
+Warning	1292	Truncated incorrect multi_range_count value: '42949672950'
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 4294967295
@@ -231,7 +231,7 @@ Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 '#------------------FN_DYNVARS_090_06-----------------------#'
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='multi_range_count'
 into @tmp;
 SELECT @@global.multi_range_count = @tmp;
@@ -241,7 +241,7 @@ Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 '#------------------FN_DYNVARS_090_07-----------------------#'
 SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='multi_range_count'
 into @tmp;
 SELECT @@session.multi_range_count = @tmp;

@@ -192,13 +192,14 @@ btr_height_get(
 	__attribute__((warn_unused_result));
 
 /** Gets a buffer page and declares its latching order level.
-@param[in]	page_id	page id
-@param[in]	mode	latch mode
-@param[in]	file	file name
-@param[in]	line	line where called
-@param[in]	index	index tree, may be NULL if it is not an insert buffer
-tree
-@param[in,out]	mtr	mini-transaction
+@param[in]	page_id		page id
+@param[in]	page_size	page size
+@param[in]	mode		latch mode
+@param[in]	file		file name
+@param[in]	line		line where called
+@param[in]	index		index tree, may be NULL if it is not an insert
+				buffer tree
+@param[in,out]	mtr		mini-transaction
 @return block */
 UNIV_INLINE
 buf_block_t*
@@ -286,16 +287,18 @@ btr_page_get_prev(
 	const page_t*	page,	/*!< in: index page */
 	mtr_t*		mtr)	/*!< in: mini-transaction handle */
 	__attribute__((warn_unused_result));
-/**************************************************************//**
-Releases the latch on a leaf page and bufferunfixes it. */
+
+/** Releases the latch on a leaf page and bufferunfixes it.
+@param[in]	block		buffer block
+@param[in]	latch_mode	BTR_SEARCH_LEAF or BTR_MODIFY_LEAF
+@param[in]	mtr		mtr */
 UNIV_INLINE
 void
 btr_leaf_page_release(
-/*==================*/
-	buf_block_t*	block,		/*!< in: buffer block */
-	ulint		latch_mode,	/*!< in: BTR_SEARCH_LEAF or
-					BTR_MODIFY_LEAF */
-	mtr_t*		mtr);		/*!< in: mtr */
+	buf_block_t*	block,
+	ulint		latch_mode,
+	mtr_t*		mtr);
+
 /**************************************************************//**
 Gets the child node file address in a node pointer.
 NOTE: the offsets array must contain all offsets for the record since
@@ -692,6 +695,15 @@ btr_validate_index(
 	const trx_t*	trx,	/*!< in: transaction or 0 */
 	bool		lockout)/*!< in: true if X-latch index is intended */
 	__attribute__((warn_unused_result));
+
+/** Creates SDI indexes and stores the root page numbers in page 1 & 2
+@param[in]	space_id	tablespace id
+@param[in]	dict_locked	true if dict_sys mutex is acquired
+@return DB_SUCCESS on success, else DB_ERROR on failure */
+dberr_t
+btr_sdi_create_indexes(
+	ulint	space_id,
+	bool	dict_locked);
 
 #define BTR_N_LEAF_PAGES	1
 #define BTR_TOTAL_SIZE		2

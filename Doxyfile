@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -874,9 +874,7 @@ EXCLUDE                = cmd-line-utils \
                          client/mysqlbinlog.cc \
                          extra \
                          generated \
-                         include/mysql/psi/psi_abi_v0.h \
-                         include/mysql/psi/psi_abi_v1.h \
-                         include/mysql/psi/psi_abi_v2.h \
+                         include/mysqld_error.h \
                          include/mysqld_ername.h \
                          include/sql_state.h \
                          internal \
@@ -888,6 +886,9 @@ EXCLUDE                = cmd-line-utils \
                          plugin \
                          source_downloads \
                          sql/sql_hints.cc \
+                         sql/sql_yacc.cc \
+                         storage/innobase/include/fts0blex.h \
+                         storage/innobase/include/fts0tlex.h \
                          storage/innobase/fts/fts0blex.cc \
                          storage/innobase/fts/fts0tlex.cc \
                          storage/ndb \
@@ -910,10 +911,11 @@ EXCLUDE_SYMLINKS       = NO
 # exclude all test directories for example use the pattern */test/*
 
 EXCLUDE_PATTERNS       = */include/boost*/* \
+                         */include/mysql/psi/psi_abi*.h \
                          */sql/*ndb*.h \
                          */sql/*ndb*.cc \
                          */unittest/* \
-                         */sql_yacc.cc
+                         */build-*/*
 
 
 # The EXCLUDE_SYMBOLS tag can be used to specify one or more symbol names
@@ -2123,7 +2125,9 @@ PREDEFINED             = WITH_PERFSCHEMA_STORAGE_ENGINE \
 # definition found in the source code.
 # This tag requires that the tag ENABLE_PREPROCESSING is set to YES.
 
-EXPAND_AS_DEFINED      =
+EXPAND_AS_DEFINED      = C_MODE_START \
+                         C_MODE_END \
+                         ATTRIB_USED_ONLY_IN_DEBUG
 
 # If the SKIP_FUNCTION_MACROS tag is set to YES then doxygen's preprocessor will
 # remove all references to function-like macros that are alone on a line, have

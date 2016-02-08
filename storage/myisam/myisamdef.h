@@ -355,7 +355,7 @@ typedef struct st_mi_sort_param
   MEM_ROOT wordroot;
   uchar *record;
   MY_TMPDIR *tmpdir;
-  int (*key_cmp)(struct st_mi_sort_param *, const void *, const void *);
+  int (*key_cmp)(const void *, const void *, const void *);
   int (*key_read)(struct st_mi_sort_param *,void *);
   int (*key_write)(struct st_mi_sort_param *, const void *);
   int (*write_keys)(struct st_mi_sort_param *, uchar **,

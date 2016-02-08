@@ -1,3 +1,7 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 --source include/have_innodb.inc
 
 ####################################################################
@@ -27,7 +31,7 @@ SELECT COUNT(@@GLOBAL.innodb_buffer_pool_chunk_size);
 
 --disable_warnings
 SELECT @@GLOBAL.innodb_buffer_pool_chunk_size = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_buffer_pool_chunk_size';
 --echo 1 Expected
 
@@ -35,7 +39,7 @@ SELECT COUNT(@@GLOBAL.innodb_buffer_pool_chunk_size);
 --echo 1 Expected
 
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='innodb_buffer_pool_chunk_size';
 --echo 1 Expected
 --enable_warnings

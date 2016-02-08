@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1084,7 +1084,7 @@ void my_net_local_init(NET *net)
   net->max_packet=   (uint) local_net_buffer_length;
   my_net_set_read_timeout(net, CLIENT_NET_READ_TIMEOUT);
   my_net_set_write_timeout(net, CLIENT_NET_WRITE_TIMEOUT);
-  net->retry_count=  1;
+  my_net_set_retry_count(net, CLIENT_NET_RETRY_COUNT);
   net->max_packet_size= MY_MAX(local_net_buffer_length, local_max_allowed_packet);
 }
 
@@ -1151,10 +1151,10 @@ mysql_escape_string(char *to,const char *from,ulong length)
 
   @see mysql_real_escape_string_quote
 
-  @param mysql  [in]  MySQL connection structure.
-  @param to     [out] Escaped string output buffer.
-  @param from   [in]  String to escape.
-  @param length [in]  String to escape length.
+  @param [in] mysql   MySQL connection structure.
+  @param [out] to     Escaped string output buffer.
+  @param [in] from    String to escape.
+  @param [in] length  String to escape length.
 
   @return Result value.
     @retval != (ulong)-1 Succeeded. Number of bytes written to the output
@@ -1191,11 +1191,11 @@ mysql_real_escape_string(MYSQL *mysql, char *to,const char *from,
 
   This function should be used for escaping identifiers and string parameters.
 
-  @param mysql  [in]  MySQL connection structure.
-  @param to     [out] Escaped string output buffer.
-  @param from   [in]  String to escape.
-  @param length [in]  String to escape length.
-  @param quote  [in]  String quoting character used in an SQL statement. This
+  @param [in] mysql   MySQL connection structure.
+  @param [out] to     Escaped string output buffer.
+  @param [in] from    String to escape.
+  @param [in] length  String to escape length.
+  @param [in] quote   String quoting character used in an SQL statement. This
                       should be one of '\'', '"' or '`' depending on the
                       parameter quoting applied in the SQL statement.
 

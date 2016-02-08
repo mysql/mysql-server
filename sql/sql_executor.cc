@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -343,30 +343,26 @@ err:
                         - 1 = First group changed  (a)
                         - 2 = Second group changed (a,b)
 
-  @retval
-    0   ok
-  @retval
-    1   If send_data_failed()
+  @returns false if success, true if error
 */
 
-int JOIN::rollup_send_data(uint idx)
+bool JOIN::rollup_send_data(uint idx)
 {
-  uint i;
-  for (i= send_group_parts ; i-- > idx ; )
+  for (uint i= send_group_parts; i-- > idx; )
   {
-    /* Get reference pointers to sum functions in place */
-    copy_ref_ptr_array(ref_ptrs, rollup.ref_pointer_arrays[i]);
+    // Get references to sum functions in place
+    copy_ref_item_slice(ref_items[REF_SLICE_BASE], rollup.ref_item_arrays[i]);
     if ((!having_cond || having_cond->val_int()))
     {
       if (send_records < unit->select_limit_cnt && do_send_rows &&
 	  select_lex->query_result()->send_data(rollup.fields[i]))
-	return 1;
+	return true;
       send_records++;
     }
   }
-  /* Restore ref_pointer_array */
-  set_items_ref_array(current_ref_ptrs);
-  return 0;
+  // Restore ref_items array
+  set_ref_item_slice(current_ref_item_slice);
+  return false;
 }
 
 
@@ -384,19 +380,15 @@ int JOIN::rollup_send_data(uint idx)
                                - 2 = Second group changed (a,b)
   @param table_arg           Reference to temp table
 
-  @retval
-    0   ok
-  @retval
-    1   if write_data_failed()
+  @returns false if success, true if error
 */
 
-int JOIN::rollup_write_data(uint idx, TABLE *table_arg)
+bool JOIN::rollup_write_data(uint idx, TABLE *table_arg)
 {
-  uint i;
-  for (i= send_group_parts ; i-- > idx ; )
+  for (uint i= send_group_parts; i-- > idx; )
   {
-    /* Get reference pointers to sum functions in place */
-    copy_ref_ptr_array(ref_ptrs, rollup.ref_pointer_arrays[i]);
+    // Get references to sum functions in place
+    copy_ref_item_slice(ref_items[REF_SLICE_BASE], rollup.ref_item_arrays[i]);
     if ((!having_cond || having_cond->val_int()))
     {
       int write_error;
@@ -410,17 +402,17 @@ int JOIN::rollup_write_data(uint idx, TABLE *table_arg)
       copy_sum_funcs(sum_funcs_end[i+1], sum_funcs_end[i]);
       if ((write_error= table_arg->file->ha_write_row(table_arg->record[0])))
       {
-  if (create_ondisk_from_heap(thd, table_arg, 
+        if (create_ondisk_from_heap(thd, table_arg,
                                     tmp_table_param.start_recinfo,
                                     &tmp_table_param.recinfo,
                                     write_error, FALSE, NULL))
-	  return 1;		     
+          return true;
       }
     }
   }
-  /* Restore ref_pointer_array */
-  set_items_ref_array(current_ref_ptrs);
-  return 0;
+  // Restore ref_items array
+  set_ref_item_slice(current_ref_item_slice);
+  return false;
 }
 
 
@@ -682,7 +674,7 @@ static bool update_const_equal_items(THD *thd, Item *cond, JOIN_TAB *tab)
     }
   }
   else if (cond->type() == Item::FUNC_ITEM && 
-           ((Item_cond*) cond)->functype() == Item_func::MULT_EQUAL_FUNC)
+           down_cast<Item_func*>(cond)->functype() == Item_func::MULT_EQUAL_FUNC)
   {
     Item_equal *item_equal= (Item_equal *) cond;
     bool contained_const= item_equal->get_const() != NULL;
@@ -765,7 +757,7 @@ return_zero_rows(JOIN *join, List<Item> &fields)
       // Mark tables as containing only NULL values
       for (TABLE_LIST *table= select->leaf_tables; table;
            table= table->next_leaf)
-        mark_as_null_row(table->table);
+        table->table->set_null_row();
 
       // Calculate aggregate functions for no rows
 
@@ -1220,7 +1212,7 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
 {
   DBUG_ENTER("sub_select");
 
-  qep_tab->table()->null_row=0;
+  qep_tab->table()->reset_null_row();
 
   if (end_of_records)
   {
@@ -1409,7 +1401,7 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
   {
     handler *h= tab->qep_tab->table()->file;
     if (tab->qep_tab->table()->is_nullable() &&
-        tab->qep_tab->table()->null_row)
+        tab->qep_tab->table()->has_null_row())
     {
       /* It's a NULL-complemented row */
       *(nulls_ptr + tab->null_byte) |= tab->null_bit;
@@ -1739,7 +1731,7 @@ evaluate_null_complemented_join_record(JOIN *join, QEP_TAB *qep_tab)
     qep_tab->not_null_compl= false;
     /* The outer row is complemented by nulls for each inner tables */
     restore_record(qep_tab->table(),s->default_values);  // Make empty record
-    mark_as_null_row(qep_tab->table());       // For group by without error
+    qep_tab->table()->set_null_row();       // For group by without error
     if (qep_tab->starts_weedout() && qep_tab > first_inner_tab)
     {
       // sub_select() has not performed a reset for this table.
@@ -1782,6 +1774,10 @@ evaluate_null_complemented_join_record(JOIN *join, QEP_TAB *qep_tab)
     have a significant performance impact.
   */
   const enum_nested_loop_state rc= evaluate_join_record(join, qep_tab);
+
+  for (QEP_TAB *tab= first_inner_tab; tab <= last_inner_tab; tab++)
+    tab->table()->reset_null_row();
+
   DBUG_RETURN(rc);
 }
 
@@ -1845,7 +1841,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   DBUG_ENTER("join_read_const_table");
   TABLE *table=tab->table();
   table->const_table=1;
-  table->null_row=0;
+  table->reset_null_row();
   table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
 
   if (table->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE)
@@ -1905,12 +1901,12 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       DBUG_RETURN(error);
   }
 
-  if (tab->join_cond() && !table->null_row)
+  if (tab->join_cond() && !table->has_null_row())
   {
     // We cannot handle outer-joined tables with expensive join conditions here:
     DBUG_ASSERT(!tab->join_cond()->is_expensive());
-    if ((table->null_row= (tab->join_cond()->val_int() == 0)))
-      mark_as_null_row(table);  
+    if (tab->join_cond()->val_int() == 0)
+      table->set_null_row();
   }
 
   /* Check appearance of new constant items in Item_equal objects */
@@ -1960,7 +1956,7 @@ static int read_system(TABLE *table)
     {
       if (error != HA_ERR_END_OF_FILE)
 	return report_handler_error(table, error);
-      mark_as_null_row(table);
+      table->set_null_row();
       empty_record(table);			// Make empty record
       return -1;
     }
@@ -1968,7 +1964,7 @@ static int read_system(TABLE *table)
   }
   else if (!table->status)			// Only happens with left join
     restore_record(table,record[1]);			// restore old record
-  table->null_row=0;
+  table->reset_null_row();
   return table->status ? -1 : 0;
 }
 
@@ -2010,7 +2006,7 @@ static int read_const(TABLE *table, TABLE_REF *ref)
     if (error)
     {
       table->status= STATUS_NOT_FOUND;
-      mark_as_null_row(table);
+      table->set_null_row();
       empty_record(table);
       if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       {
@@ -2026,7 +2022,7 @@ static int read_const(TABLE *table, TABLE_REF *ref)
     table->status=0;
     restore_record(table,record[1]);			// restore old record
   }
-  table->null_row=0;
+  table->reset_null_row();
   DBUG_RETURN(table->status ? -1 : 0);
 }
 
@@ -2102,7 +2098,7 @@ join_read_key(QEP_TAB *tab)
     DBUG_ASSERT(table_ref->has_record);
     table_ref->use_count++;
   }
-  table->null_row=0;
+  table->reset_null_row();
   return table->status ? -1 : 0;
 }
 
@@ -2183,7 +2179,7 @@ join_read_linked_first(QEP_TAB *tab)
   if (unlikely(error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE))
     DBUG_RETURN(report_handler_error(table, error));
 
-  table->null_row=0;
+  table->reset_null_row();
   int rc= table->status ? -1 : 0;
   DBUG_RETURN(rc);
 }
@@ -2984,10 +2980,10 @@ end_send_group(JOIN *join, QEP_TAB *qep_tab, bool end_of_records)
   DBUG_ENTER("end_send_group");
 
 
-  if (!join->items3.is_null() && !join->set_group_rpa)
+  if (!join->ref_items[JOIN::REF_SLICE_TMP3].is_null() && !join->set_group_rpa)
   {
     join->set_group_rpa= true;
-    join->set_items_ref_array(join->items3);
+    join->set_ref_item_slice(JOIN::REF_SLICE_TMP3);
   }
 
   if (!join->first_record || end_of_records ||
@@ -3904,8 +3900,8 @@ static bool remove_dup_with_hash_index(THD *thd, TABLE *table,
     extra_length= ALIGN_SIZE(key_length)-key_length;
   }
 
-  if (my_hash_init(&hash, &my_charset_bin, (uint) file->stats.records, 0, 
-                   key_length, NULL, 0, 0,
+  if (my_hash_init(&hash, &my_charset_bin, (uint) file->stats.records,
+                   key_length, nullptr, nullptr, 0,
                    key_memory_hash_index_key_buffer))
   {
     my_free(key_buffer);
@@ -4147,7 +4143,7 @@ int test_if_item_cache_changed(List<Cached_item> &list)
 
   @param thd                   THD pointer
   @param param                 temporary table parameters
-  @param ref_pointer_array     array of pointers to top elements of filed list
+  @param ref_item_array        array of pointers to top elements of filed list
   @param res_selected_fields   new list of items of select item list
   @param res_all_fields        new list of all items
   @param elements              number of elements in select item list
@@ -4159,15 +4155,12 @@ int test_if_item_cache_changed(List<Cached_item> &list)
     on how the value is to be used: In some cases this may be an
     argument in a group function, like: IF(ISNULL(col),0,COUNT(*))
 
-  @retval
-    0     ok
-  @retval
-    !=0   error
+  @returns false if success, true if error
 */
 
 bool
 setup_copy_fields(THD *thd, Temp_table_param *param,
-		  Ref_ptr_array ref_pointer_array,
+		  Ref_item_array ref_item_array,
 		  List<Item> &res_selected_fields, List<Item> &res_all_fields,
 		  uint elements, List<Item> &all_fields)
 {
@@ -4275,8 +4268,7 @@ setup_copy_fields(THD *thd, Temp_table_param *param,
 	goto err;
     }
     res_all_fields.push_back(pos);
-    ref_pointer_array[((i < border)? all_fields.elements-i-1 : i-border)]=
-      pos;
+    ref_item_array[((i < border) ? all_fields.elements-i-1 : i-border)]= pos;
   }
   param->copy_field_end= copy;
 
@@ -4334,20 +4326,17 @@ copy_fields(Temp_table_param *param, const THD *thd)
   new list of all items.
 
   @param thd                   THD pointer
-  @param ref_pointer_array     array of pointers to top elements of filed list
+  @param ref_item_array        array of pointers to top elements of filed list
   @param res_selected_fields   new list of items of select item list
   @param res_all_fields        new list of all items
   @param elements              number of elements in select item list
   @param all_fields            all fields list
 
-  @retval
-    0     ok
-  @retval
-    !=0   error
+  @returns false if success, true if error
 */
 
 bool
-change_to_use_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
+change_to_use_tmp_fields(THD *thd, Ref_item_array ref_item_array,
 			 List<Item> &res_selected_fields,
 			 List<Item> &res_all_fields,
 			 uint elements, List<Item> &all_fields)
@@ -4425,7 +4414,7 @@ change_to_use_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
       item_field= item;
 
     res_all_fields.push_back(item_field);
-    ref_pointer_array[((i < border)? all_fields.elements-i-1 : i-border)]=
+    ref_item_array[((i < border) ? all_fields.elements-i-1 : i-border)]=
       item_field;
   }
 
@@ -4442,20 +4431,17 @@ change_to_use_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
   Change all funcs to be fields in tmp table.
 
   @param thd                   THD pointer
-  @param ref_pointer_array     array of pointers to top elements of filed list
+  @param ref_item_array        array of pointers to top elements of filed list
   @param res_selected_fields   new list of items of select item list
   @param res_all_fields        new list of all items
   @param elements              number of elements in select item list
   @param all_fields            all fields list
 
-  @retval
-    0	ok
-  @retval
-    1	error
+  @returns false if success, true if error
 */
 
 bool
-change_refs_to_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
+change_refs_to_tmp_fields(THD *thd, Ref_item_array ref_item_array,
 			  List<Item> &res_selected_fields,
 			  List<Item> &res_all_fields, uint elements,
 			  List<Item> &all_fields)
@@ -4465,16 +4451,16 @@ change_refs_to_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
   res_selected_fields.empty();
   res_all_fields.empty();
 
-  uint i, border= all_fields.elements - elements;
-  for (i= 0; (item= it++); i++)
+  uint border= all_fields.elements - elements;
+  for (uint i= 0; (item= it++); i++)
   {
     res_all_fields.push_back(new_item= item->get_tmp_table_item(thd));
-    ref_pointer_array[((i < border)? all_fields.elements-i-1 : i-border)]=
+    ref_item_array[((i < border) ? all_fields.elements-i-1 : i-border)]=
       new_item;
   }
 
   List_iterator_fast<Item> itr(res_all_fields);
-  for (i= 0; i < border; i++)
+  for (uint i= 0; i < border; i++)
     itr++;
   itr.sublist(res_selected_fields, elements);
 
@@ -4496,7 +4482,7 @@ change_refs_to_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
                             table_map so that the value can be
                             restored by restore_const_null_info()
 
-  @see mark_as_null_row
+  @see TABLE::set_null_row
   @see restore_const_null_info
 */
 static void save_const_null_info(JOIN *join, table_map *save_nullinfo)
@@ -4512,10 +4498,10 @@ static void save_const_null_info(JOIN *join, table_map *save_nullinfo)
       or none set. Otherwise, an additional table_map parameter is
       needed to save/restore_const_null_info() these separately
     */
-    DBUG_ASSERT(table->null_row ? (table->status & STATUS_NULL_ROW) :
-                                 !(table->status & STATUS_NULL_ROW));
+    DBUG_ASSERT(table->has_null_row() ? (table->status & STATUS_NULL_ROW) :
+                                        !(table->status & STATUS_NULL_ROW));
 
-    if (!table->null_row)
+    if (!table->has_null_row())
       *save_nullinfo|= tab->table_ref->map();
   }
 }
@@ -4533,7 +4519,7 @@ static void save_const_null_info(JOIN *join, table_map *save_nullinfo)
                          STATUS_NULL_ROW set when
                          save_const_null_info() was called
 
-  @see mark_as_null_row
+  @see TABLE::set_null_row
   @see save_const_null_info
 */
 static void restore_const_null_info(JOIN *join, table_map save_nullinfo)
@@ -4549,8 +4535,7 @@ static void restore_const_null_info(JOIN *join, table_map save_nullinfo)
         The table had null_row=false and STATUS_NULL_ROW set when
         save_const_null_info was called
       */
-      tab->table()->null_row= false;
-      tab->table()->status&= ~STATUS_NULL_ROW;
+      tab->table()->reset_null_row();
     }
   }
 }
@@ -4665,7 +4650,7 @@ QEP_tmp_table::end_send()
     return NESTED_LOOP_ERROR;
   }
   // Update ref array
-  join->set_items_ref_array(*qep_tab->ref_array);
+  join->set_ref_item_slice(qep_tab->ref_item_slice);
   table->reginfo.lock_type= TL_UNLOCK;
 
   bool in_first_read= true;

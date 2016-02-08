@@ -64,7 +64,7 @@ Created 12/14/1997 Heikki Tuuri
 #define realloc(P, A)	ut_realloc(P, A)
 #define exit(A) 	ut_error
 
-/* Note: We cast result from int to yysize_t */
+/* Note: We cast result from int to yy_size_t */
 #define YY_INPUT(buf, result, max_size) \
 	((result) = pars_get_lex_chars(buf, max_size))
 

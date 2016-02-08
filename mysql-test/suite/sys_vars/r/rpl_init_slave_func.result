@@ -6,6 +6,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 connection slave
 SET @start_max_connections= @@global.max_connections;
 SET @start_init_slave= @@global.init_slave;
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+SET @@global.show_compatibility_56=ON;
 SET NAMES utf8;
 SET @@global.init_slave = 'SET @@global.max_connections = @@global.max_connections + 1 -- комментарий';
 DROP TABLE IF EXISTS t1;
@@ -43,4 +45,5 @@ NULL
 Expect NULL
 SET @@global.max_connections= @start_max_connections;
 SET @@global.init_slave= @start_init_slave;
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 include/rpl_end.inc

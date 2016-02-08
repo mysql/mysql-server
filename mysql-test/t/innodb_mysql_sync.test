@@ -37,6 +37,7 @@ SET DEBUG_SYNC='now SIGNAL table_altered';
 --echo # Connection 1
 --echo # Complete optimization
 connection default;
+--replace_regex /'Unknown error.*'/'Unknown error'/
 --reap
 
 disconnect con2;

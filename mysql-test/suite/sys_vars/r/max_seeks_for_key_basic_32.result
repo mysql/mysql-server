@@ -81,19 +81,25 @@ Warning	1292	Truncated incorrect max_seeks_for_key value: '-1024'
 SELECT @@global.max_seeks_for_key;
 @@global.max_seeks_for_key
 1
+SET @@global.max_seeks_for_key = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'max_seeks_for_key'
+SELECT @@global.max_seeks_for_key;
+@@global.max_seeks_for_key
+1
+SET @@global.max_seeks_for_key = test;
+ERROR 42000: Incorrect argument type to variable 'max_seeks_for_key'
+SELECT @@global.max_seeks_for_key;
+@@global.max_seeks_for_key
+1
 SET @@global.max_seeks_for_key = 4294967296;
 Warnings:
 Warning	1292	Truncated incorrect max_seeks_for_key value: '4294967296'
 SELECT @@global.max_seeks_for_key;
 @@global.max_seeks_for_key
 4294967295
-SET @@global.max_seeks_for_key = 65530.34;
-ERROR 42000: Incorrect argument type to variable 'max_seeks_for_key'
-SELECT @@global.max_seeks_for_key;
-@@global.max_seeks_for_key
-4294967295
-SET @@global.max_seeks_for_key = test;
-ERROR 42000: Incorrect argument type to variable 'max_seeks_for_key'
+SET @@global.max_seeks_for_key = 42949672950;
+Warnings:
+Warning	1292	Truncated incorrect max_seeks_for_key value: '42949672950'
 SELECT @@global.max_seeks_for_key;
 @@global.max_seeks_for_key
 4294967295
@@ -111,26 +117,32 @@ SELECT @@session.max_seeks_for_key;
 1
 SET @@session.max_seeks_for_key = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'max_seeks_for_key'
+SET @@session.max_seeks_for_key = test;
+ERROR 42000: Incorrect argument type to variable 'max_seeks_for_key'
+SELECT @@session.max_seeks_for_key;
+@@session.max_seeks_for_key
+1
 SET @@session.max_seeks_for_key = 4294967296;
 Warnings:
 Warning	1292	Truncated incorrect max_seeks_for_key value: '4294967296'
 SELECT @@session.max_seeks_for_key;
 @@session.max_seeks_for_key
 4294967295
-SET @@session.max_seeks_for_key = test;
-ERROR 42000: Incorrect argument type to variable 'max_seeks_for_key'
+SET @@session.max_seeks_for_key = 42949672950;
+Warnings:
+Warning	1292	Truncated incorrect max_seeks_for_key value: '42949672950'
 SELECT @@session.max_seeks_for_key;
 @@session.max_seeks_for_key
 4294967295
 '#------------------FN_DYNVARS_083_06-----------------------#'
 SELECT @@global.max_seeks_for_key = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='max_seeks_for_key';
 @@global.max_seeks_for_key = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_083_07-----------------------#'
 SELECT @@session.max_seeks_for_key = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='max_seeks_for_key';
 @@session.max_seeks_for_key = VARIABLE_VALUE
 1

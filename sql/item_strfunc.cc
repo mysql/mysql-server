@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@
 #include "mysqld.h"                  // LOCK_des_key_file
 #include "sha1.h"                    // SHA1_HASH_SIZE
 #include "auth_common.h"             // check_password_policy
+#include "derror.h"                  // ER_THD
 #include "des_key_file.h"            // st_des_keyblock
 #include "password.h"                // my_make_scrambled_password
 #include "spatial.h"                 // Geometry
@@ -1362,32 +1363,32 @@ String *Item_func_replace::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *res,*res2,*res3;
-  int offset;
+  int offset= 0;
   size_t from_length, to_length;
   bool alloced=0;
   const char *ptr,*end,*strend,*search,*search_end;
   uint32 l;
-  bool binary_cmp;
 
-  null_value=0;
   res=args[0]->val_str(str);
-  if (args[0]->null_value)
-    goto null;
+  if ((null_value= args[0]->null_value))
+    return nullptr;
   res2=args[1]->val_str(&tmp_value);
-  if (args[1]->null_value)
-    goto null;
+  if ((null_value= args[1]->null_value))
+    return nullptr;
+  res3=args[2]->val_str(&tmp_value2);
+  if ((null_value= args[2]->null_value))
+    return nullptr;
 
   res->set_charset(collation.collation);
-
-  binary_cmp = ((res->charset()->state & MY_CS_BINSORT) || !use_mb(res->charset()));
-
   if (res2->length() == 0)
     return res;
-  offset=0;
+
+  const bool binary_cmp= ((res->charset()->state & MY_CS_BINSORT) ||
+                          !use_mb(res->charset()));
+
   if (binary_cmp && (offset=res->strstr(*res2)) < 0)
     return res;
-  if (!(res3=args[2]->val_str(&tmp_value2)))
-    goto null;
+
   from_length= res2->length();
   to_length=   res3->length();
 
@@ -3334,11 +3335,11 @@ bool Item_func_make_set::itemize(Parse_context *pc, Item **res)
 
 
 void Item_func_make_set::split_sum_func(THD *thd,
-                                        Ref_ptr_array ref_pointer_array,
+                                        Ref_item_array ref_item_array,
 					List<Item> &fields)
 {
-  item->split_sum_func2(thd, ref_pointer_array, fields, &item, TRUE);
-  Item_str_func::split_sum_func(thd, ref_pointer_array, fields);
+  item->split_sum_func2(thd, ref_item_array, fields, &item, true);
+  Item_str_func::split_sum_func(thd, ref_item_array, fields);
 }
 
 
@@ -3590,7 +3591,14 @@ String *Item_func_repeat::val_str(String *str)
     goto err;
   }
   tot_length= length*(uint) count;
-  if (!(res= alloc_buffer(res,str,&tmp_value,tot_length)))
+  if (res->uses_buffer_owned_by(str))
+  {
+    if (tmp_value.alloc(tot_length) || tmp_value.copy(*res))
+      goto err;
+    tmp_value.length(tot_length);
+    res= &tmp_value;
+  }
+  else if (!(res= alloc_buffer(res,str,&tmp_value,tot_length)))
     goto err;
 
   to=(char*) res->ptr()+length;
@@ -3965,6 +3973,28 @@ String *Item_func_conv::val_str(String *str)
     else
       dec= (longlong) my_strntoull(res->charset(), res->ptr(), res->length(),
                                    from_base, &endptr, &err);
+    if (err)
+    {
+      /*
+        If we got an overflow from my_strntoull, and the input was negative,
+        then return 0 rather than ~0
+        This is in order to be consistent with
+          CAST(<large negative value>, unsigned)
+        which returns zero.
+       */
+      if (from_base > 0)
+      {
+        my_decimal res_as_dec;
+        my_decimal *decptr= args[0]->val_decimal(&res_as_dec);
+        if (decptr && decptr->sign())
+          dec= 0;
+      }
+      ErrConvString err(res);
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                          ER_TRUNCATED_WRONG_VALUE,
+                          ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
+                          "DECIMAL", err.ptr());
+    }
   }
 
   if (!(ptr= longlong2str(dec, ans, to_base)) ||
@@ -4282,28 +4312,16 @@ String *Item_func_hex::val_str_ascii(String *str)
   DBUG_ASSERT(fixed == 1);
   if (args[0]->result_type() != STRING_RESULT)
   {
-    ulonglong dec;
-    char ans[65],*ptr;
-    /* Return hex of unsigned longlong value */
-    if (args[0]->result_type() == REAL_RESULT ||
-        args[0]->result_type() == DECIMAL_RESULT)
-    {
-      double val= args[0]->val_real();
-      if ((val <= (double) LLONG_MIN) || 
-          (val >= (double) (ulonglong) ULLONG_MAX))
-        dec=  ~(longlong) 0;
-      else
-        dec= (ulonglong) (val + (val > 0 ? 0.5 : -0.5));
-    }
-    else
-      dec= (ulonglong) args[0]->val_int();
+    /* Return hex of signed longlong value */
+    longlong dec= args[0]->val_int();
 
     if ((null_value= args[0]->null_value))
       return 0;
     
+    char ans[65],*ptr;
     if (!(ptr= longlong2str(dec, ans, 16)) ||
         str->copy(ans,(uint32) (ptr - ans),
-        &my_charset_numeric))
+                  &my_charset_numeric))
       return make_empty_result();		// End of memory
     return str;
   }
@@ -4343,23 +4361,24 @@ String *Item_func_unhex::val_str(String *str)
 
   from= res->ptr();
   tmp_value.length(length);
-  to= (char*) tmp_value.ptr();
+  to= const_cast<char*>(tmp_value.ptr());
   if (res->length() % 2)
   {
-    int hex_char;
-    *to++= hex_char= hexchar_to_int(*from++);
+    int hex_char= hexchar_to_int(*from++);
     if (hex_char == -1)
       goto err;
+    *to++= static_cast<char>(hex_char);
   }
-  for (end=res->ptr()+res->length(); from < end ; from+=2, to++)
+  for (end= res->ptr() + res->length(); from < end ; from+= 2, to++)
   {
-    int hex_char;
-    *to= (hex_char= hexchar_to_int(from[0])) << 4;
+    int hex_char= hexchar_to_int(from[0]);
     if (hex_char == -1)
       goto err;
-    *to|= hex_char= hexchar_to_int(from[1]);
+    *to= static_cast<char>(hex_char << 4);
+    hex_char= hexchar_to_int(from[1]);
     if (hex_char == -1)
       goto err;
+    *to|= hex_char;
   }
   null_value= false;
   return &tmp_value;
@@ -4369,7 +4388,7 @@ err:
   push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                       ER_WRONG_VALUE_FOR_TYPE,
                       ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE),
-                      "string", res->ptr(), func_name());
+                      "string", err.ptr(), func_name());
 
   return NULL;
 }
@@ -4449,7 +4468,6 @@ void Item_char_typecast::print(String *str, enum_query_type query_type)
 String *Item_char_typecast::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *res;
   uint32 length;
 
   if (cast_length >= 0 &&
@@ -4465,25 +4483,21 @@ String *Item_char_typecast::val_str(String *str)
     return 0;
   }
 
-  if (!charset_conversion)
+  String *res= args[0]->val_str(str);
+  if (res == NULL)
   {
-    if (!(res= args[0]->val_str(str)))
-    {
-      null_value= 1;
-      return 0;
-    }
+    null_value= true;
+    return 0;
   }
-  else
+  /*
+    Convert character set if differ
+    If it is a literal string, we must also take a copy.
+  */
+  if (charset_conversion || res->alloced_length() == 0)
   {
-    // Convert character set if differ
-    uint dummy_errors;
-    if (!(res= args[0]->val_str(str)) ||
-        tmp_value.copy(res->ptr(), res->length(), from_cs,
-                       cast_cs, &dummy_errors))
-    {
-      null_value= 1;
-      return 0;
-    }
+    uint dummy_err;
+    if (tmp_value.copy(res->ptr(), res->length(), from_cs, cast_cs, &dummy_err))
+      return error_str();
     res= &tmp_value;
   }
 
@@ -5170,7 +5184,7 @@ String *Item_func_uuid::val_str(String *str)
         with a clock_seq value (initialized random below), we use a separate
         randominit() here
       */
-      randominit(&uuid_rand, tmp + (ulong) thd, tmp + (ulong)global_query_id);
+      randominit(&uuid_rand, tmp + (ulong) thd, tmp + (ulong)atomic_global_query_id);
       for (i=0; i < (int)sizeof(mac); i++)
         mac[i]=(uchar)(my_rnd(&uuid_rand)*255);
       /* purecov: end */    

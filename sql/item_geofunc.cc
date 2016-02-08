@@ -375,7 +375,8 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
     my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
     return error_str();
   }
-  const Json_object *root_obj= down_cast<const Json_object*>(wr.to_dom());
+  const Json_object *root_obj=
+    down_cast<const Json_object*>(wr.to_dom(current_thd));
 
   /*
     Set the default SRID to 4326. This will be overwritten if a valid CRS is
@@ -721,6 +722,8 @@ get_positions(const Json_array *coordinates, Gis_point *point)
   @param rollback Pointer to a boolean indicating if parsed data should
          be reverted/rolled back.
   @param buffer A String buffer to be used by GeometryCollection.
+  @param is_parent_featurecollection Indicating if the current geometry is a
+         child of a FeatureCollection.
   @param[out] geometry A pointer to the parsed Geometry.
 
   @return true on failure, false otherwise.
@@ -2219,7 +2222,7 @@ String *Item_func_geometry_type::val_str_ascii(String *str)
   /* String will not move */
   str->copy(geom->get_class_info()->m_name.str,
 	    geom->get_class_info()->m_name.length,
-	    default_charset());
+	    &my_charset_latin1);
   return str;
 }
 

@@ -1,27 +1,31 @@
-############## mysql-test\t\max_connect_errors_basic.test ###############
-#                                                                             #
-# Variable Name: max_connect_errors                                           #
-# Scope: GLOBAL                                                               #
-# Access Type: Dynamic                                                        #
-# Data Type: numeric                                                          #
-# Default Value:  100                                                         #
-# Range:    1-4294967295                                                      #
-#                                                                             #
-#                                                                             #
-# Creation Date: 2008-02-07                                                   #
-# Author:  Salman                                                             #
-#                                                                             #
-# Description: Test Cases of Dynamic System Variable max_connect_errors       #
-#              that checks the behavior of this variable in the following ways#
-#              * Default Value                                                #
-#              * Valid & Invalid values                                       #
-#              * Scope & Access method                                        #
-#              * Data Integrity                                               #
-#                                                                             #
-# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
-#  server-system-variables.html                                               #
-#                                                                             #
-###############################################################################
+################## mysql-test\t\max_connect_errors_basic.test ###################
+#                                                                               #
+# Variable Name: max_connect_errors                                             #
+# Scope: GLOBAL                                                                 #
+# Access Type: Dynamic                                                          #
+# Data Type: numeric                                                            #
+# Default Value: 100                                                            #
+# Range: 1 - 4294967295/18446744073709551615                                    #
+#                                                                               #
+#                                                                               #
+# Creation Date: 2008-02-07                                                     #
+# Author:  Salman                                                               #
+#                                                                               #
+# Description: Test Cases of Dynamic System Variable max_connect_errors         #
+#              that checks the behavior of this variable in the following ways  #
+#              * Default Value                                                  #
+#              * Valid & Invalid values                                         #
+#              * Scope & Access method                                          #
+#              * Data Integrity                                                 #
+#                                                                               #
+# Modified:    Pavan Naik, 2015-11-24                                           #
+#              Added boundary value test cases according to the type of the     #
+#              server binary.                                                   #
+#                                                                               #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                            #
+#            server-system-variables.html                                       #
+#                                                                               #
+#################################################################################
 
 --source include/load_sysvars.inc
 
@@ -71,6 +75,22 @@ SELECT @@global.max_connect_errors;
 SET @@global.max_connect_errors = 2;
 SELECT @@global.max_connect_errors;
 
+# Test cases for 64-bit machines
+if($mach64)
+{
+  --disable_warnings
+  SET @@global.max_connect_errors = 18446744073709551615;
+  --enable_warnings
+
+  # Bug#11752618 - 64-BIT WINDOWS VARIABLES LIMITED TO DIFFERENT VALUES THAN 64-BIT LINUX/SO
+  let $machine_name = `SELECT CONVERT(@@version_compile_os using latin1) IN ("Win64", "Windows")`;
+
+  if($machine_name)
+  {
+    --replace_result 4294967295 18446744073709551615
+  }
+  SELECT @@global.max_connect_errors;
+}
 
 --echo '#--------------------FN_DYNVARS_073_04-------------------------#'
 #####################################################################
@@ -79,16 +99,12 @@ SELECT @@global.max_connect_errors;
 
 SET @@global.max_connect_errors = -1;
 SELECT @@global.max_connect_errors;
-SET @@global.max_connect_errors = 100000000000;
-SELECT @@global.max_connect_errors;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.max_connect_errors = 10000.01;
 SELECT @@global.max_connect_errors;
 SET @@global.max_connect_errors = -1024;
 SELECT @@global.max_connect_errors;
 SET @@global.max_connect_errors = 0;
-SELECT @@global.max_connect_errors;
-SET @@global.max_connect_errors = 4294967296;
 SELECT @@global.max_connect_errors;
 
 --Error ER_WRONG_TYPE_FOR_VAR
@@ -98,6 +114,21 @@ SELECT @@global.max_connect_errors;
 SET @@global.max_connect_errors = 'test';
 SELECT @@global.max_connect_errors;
 
+if($mach32)
+{
+  SET @@global.max_connect_errors = 4294967296;
+  SELECT @@global.max_connect_errors;
+
+  SET @@global.max_connect_errors = 42949672950;
+  SELECT @@global.max_connect_errors;
+}
+
+if($mach64)
+{
+  --error ER_WRONG_TYPE_FOR_VAR
+  SET @@global.max_connect_errors = 18446744073709551616;
+  SELECT @@global.max_connect_errors;
+}
 
 --echo '#-------------------FN_DYNVARS_073_05----------------------------#'
 ##################################################################### 
@@ -117,11 +148,11 @@ SELECT @@session.max_connect_errors;
 
 --disable_warnings
 SELECT @@global.max_connect_errors = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='max_connect_errors';
 
 SELECT @@max_connect_errors = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='max_connect_errors';
 --enable_warnings
 

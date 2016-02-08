@@ -1,7 +1,7 @@
 #ifndef ITEM_CMPFUNC_INCLUDED
 #define ITEM_CMPFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
 
 class Arg_comparator;
 class Item_sum_hybrid;
-struct Json_scalar_holder;
+class Json_scalar_holder;
 
 typedef int (Arg_comparator::*arg_cmp_func)();
 
@@ -962,6 +962,7 @@ public:
   Item_func_interval(const POS &pos, MEM_ROOT *mem_root, Item *expr1,
                      Item *expr2, class PT_item_list *opt_expr_list= NULL)
     :super(pos, alloc_row(pos, mem_root, expr1, expr2, opt_expr_list)),
+     row(down_cast<Item_row*>(args[0])),
      intervals(0)
   {
     allowed_arg_cols= 0;    // Fetch this value from first argument
@@ -975,8 +976,9 @@ public:
   void print(String *str, enum_query_type query_type);
 
 private:
-  Item_row *alloc_row(const POS &pos, MEM_ROOT *mem_root, Item *expr1,
-                      Item *expr2, class PT_item_list *opt_expr_list);
+  // Runs in CTOR init list, cannot access *this as Item_func_interval
+  static Item_row *alloc_row(const POS &pos, MEM_ROOT *mem_root, Item *expr1,
+                             Item *expr2, class PT_item_list *opt_expr_list);
 };
 
 
@@ -2038,7 +2040,7 @@ public:
   table_map used_tables() const { return used_tables_cache; }
   void update_used_tables();
   virtual void print(String *str, enum_query_type query_type);
-  void split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
+  void split_sum_func(THD *thd, Ref_item_array ref_item_array,
                       List<Item> &fields);
   void top_level_item() { abort_on_null=1; }
   void copy_andor_arguments(THD *thd, Item_cond *item);

@@ -73,10 +73,7 @@ typedef time_t	ib_time_t;
    independent way by using YieldProcessor. */
 #  define UT_RELAX_CPU() YieldProcessor()
 # else
-#  define UT_RELAX_CPU() do { \
-     volatile lint	volatile_var; \
-     os_compare_and_swap_lint(&volatile_var, 0, 1); \
-   } while (0)
+#  define UT_RELAX_CPU() __asm__ __volatile__ ("":::"memory")
 # endif
 
 # if defined(HAVE_HMT_PRIORITY_INSTRUCTION)
@@ -123,15 +120,17 @@ ut_pair_min(
 	ulint	a_lo,
 	ulint	b_hi,
 	ulint	b_lo);
-/******************************************************//**
-Compares two ulints.
+
+/** Compares two ulints.
+@param[in]	a	ulint
+@param[in]	b	ulint
 @return 1 if a > b, 0 if a == b, -1 if a < b */
 UNIV_INLINE
 int
 ut_ulint_cmp(
-/*=========*/
-	ulint	a,	/*!< in: ulint */
-	ulint	b);	/*!< in: ulint */
+	ulint	a,
+	ulint	b);
+
 /** Compare two pairs of integers.
 @param[in]	a_h	more significant part of first pair
 @param[in]	a_l	less significant part of first pair

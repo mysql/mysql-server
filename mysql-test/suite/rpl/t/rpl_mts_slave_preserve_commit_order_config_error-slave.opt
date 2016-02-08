@@ -1,0 +1,2 @@
+--slave-parallel-workers=2 --slave-parallel-type='logical_clock'
+--log-slave-updates=OFF  --log-bin --slave-preserve-commit-order=ON

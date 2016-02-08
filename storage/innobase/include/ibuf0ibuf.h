@@ -141,34 +141,34 @@ ibuf_reset_free_bits(
 	buf_block_t*	block);	/*!< in: index page; free bits are set to 0
 				if the index is a non-clustered
 				non-unique, and page level is 0 */
-/************************************************************************//**
-Updates the free bits of an uncompressed page in the ibuf bitmap if
-there is not enough free on the page any more.  This is done in a
-separate mini-transaction, hence this operation does not restrict
-further work to only ibuf bitmap operations, which would result if the
-latch to the bitmap page were kept.  NOTE: The free bits in the insert
-buffer bitmap must never exceed the free space on a page.  It is
-unsafe to increment the bits in a separately committed
-mini-transaction, because in crash recovery, the free bits could
+
+/** Updates the free bits of an uncompressed page in the ibuf bitmap if there
+is not enough free on the page any more.  This is done in a separate
+mini-transaction, hence this operation does not restrict further work to only
+ibuf bitmap operations, which would result if the latch to the bitmap page were
+kept.  NOTE: The free bits in the insert buffer bitmap must never exceed the
+free space on a page.  It is unsafe to increment the bits in a separately
+committed mini-transaction, because in crash recovery, the free bits could
 momentarily be set too high.  It is only safe to use this function for
-decrementing the free bits.  Should more free space become available,
-we must not update the free bits here, because that would break crash
-recovery. */
+decrementing the free bits.  Should more free space become available, we must
+not update the free bits here, because that would break crash recovery.
+@param[in]	block		index page to which we have added new records;
+				the free bits are updated if the index is
+				non-clustered and non-unique and the page level
+				is 0, and the page becomes fuller
+@param[in]	max_ins_size	value of maximum insert size with reorganize
+				before the latest operation performed to the
+				page
+@param[in]	increase	upper limit for the additional space used in
+				the latest operation, if known, or
+				ULINT_UNDEFINED */
 UNIV_INLINE
 void
 ibuf_update_free_bits_if_full(
-/*==========================*/
-	buf_block_t*	block,	/*!< in: index page to which we have added new
-				records; the free bits are updated if the
-				index is non-clustered and non-unique and
-				the page level is 0, and the page becomes
-				fuller */
-	ulint		max_ins_size,/*!< in: value of maximum insert size with
-				reorganize before the latest operation
-				performed to the page */
-	ulint		increase);/*!< in: upper limit for the additional space
-				used in the latest operation, if known, or
-				ULINT_UNDEFINED */
+	buf_block_t*	block,
+	ulint		max_ins_size,
+	ulint		increase);
+
 /**********************************************************************//**
 Updates the free bits for an uncompressed page to reflect the present
 state.  Does this in the mtr given, which means that the latching
@@ -213,18 +213,19 @@ ibuf_update_free_bits_for_two_pages_low(
 	buf_block_t*	block1,	/*!< in: index page */
 	buf_block_t*	block2,	/*!< in: index page */
 	mtr_t*		mtr);	/*!< in: mtr */
-/**********************************************************************//**
-A basic partial test if an insert to the insert buffer could be possible and
-recommended. */
+
+/** A basic partial test if an insert to the insert buffer could be possible
+and recommended.
+@param[in]	index			index where to insert
+@param[in]	ignore_sec_unique	if != 0, we should ignore UNIQUE
+					constraint on a secondary index when
+					we decide*/
 UNIV_INLINE
 ibool
 ibuf_should_try(
-/*============*/
-	dict_index_t*	index,			/*!< in: index where to insert */
-	ulint		ignore_sec_unique);	/*!< in: if != 0, we should
-						ignore UNIQUE constraint on
-						a secondary index when we
-						decide */
+	dict_index_t*	index,
+	ulint		ignore_sec_unique);
+
 /******************************************************************//**
 Returns TRUE if the current OS thread is performing an insert buffer
 routine.

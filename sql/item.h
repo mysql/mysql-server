@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 class user_var_entry;
 class Json_wrapper;
 
-typedef Bounds_checked_array<Item*> Ref_ptr_array;
+typedef Bounds_checked_array<Item*> Ref_item_array;
 
 void item_init(void);			/* Init item functions */
 
@@ -855,6 +855,14 @@ protected:
     return !is_parser_item;
   }
 
+  /*
+    Checks if the items provided as parameter offend the deprecated behaviour
+    on binary operations and if so, a warning will be sent.
+
+    @param      a item to check
+    @param      b item to check, may be NULL
+   */
+  static void check_deprecated_bin_op(const Item *a, const Item *b);
 public:
   /**
     The same as contextualize()/contextualize_() but with additional parameter
@@ -1582,10 +1590,10 @@ public:
 
   virtual void update_used_tables() {}
 
-  virtual void split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
+  virtual void split_sum_func(THD *thd, Ref_item_array ref_item_array,
                               List<Item> &fields) {}
   /* Called for items that really have to be split */
-  void split_sum_func2(THD *thd, Ref_ptr_array ref_pointer_array,
+  void split_sum_func2(THD *thd, Ref_item_array ref_item_array,
                        List<Item> &fields,
                        Item **ref, bool skip_registered);
   virtual bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)= 0;
@@ -2008,7 +2016,7 @@ public:
   inline bool has_compatible_context(Item *item) const
   {
     /* Same context. */
-    if (cmp_context == (Item_result)-1 || item->cmp_context == cmp_context)
+    if (cmp_context == INVALID_RESULT || item->cmp_context == cmp_context)
       return TRUE;
     /* DATETIME comparison context. */
     if (is_temporal_with_date())
@@ -2181,7 +2189,17 @@ private:
 public:
   bool fixed;                      ///< True if item has been resolved
   uint8 decimals;
-  bool maybe_null;                 ///< True if item is nullable
+  /**
+    True if this item may be null.
+
+    For items that represent rows, it is true if one of the columns
+    may be null.
+
+    For items that represent scalar or row subqueries, it is true if
+    one of the returned columns could be null, or if the subquery
+    could return zero rows.
+  */
+  bool maybe_null;
   my_bool null_value;              ///< True if item is null
   bool unsigned_flag;
   bool with_sum_func;              ///< True if item is aggregated
@@ -4284,7 +4302,7 @@ private:
   /// @return true if item is from a null-extended row from an outer join
   bool has_null_row() const
   {
-    return first_inner_table && first_inner_table->table->null_row;
+    return first_inner_table && first_inner_table->table->has_null_row();
   }
 
   /**
@@ -4406,6 +4424,7 @@ public:
 
 class Item_int_with_ref :public Item_int
 {
+  enum_field_types cached_field_type;
 protected:
   Item *ref;
   type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
@@ -4413,13 +4432,15 @@ protected:
     return ref->save_in_field(field, no_conversions);
   }
 public:
-  Item_int_with_ref(longlong i, Item *ref_arg, my_bool unsigned_arg) :
-    Item_int(i), ref(ref_arg)
+  Item_int_with_ref(enum_field_types field_type, longlong i, Item *ref_arg,
+                    my_bool unsigned_arg)
+    : Item_int(i), cached_field_type(field_type), ref(ref_arg)
   {
     unsigned_flag= unsigned_arg;
   }
   Item *clone_item();
   virtual Item *real_item() { return ref; }
+  enum_field_types field_type() const { return cached_field_type; }
 };
 
 
@@ -4428,18 +4449,14 @@ public:
 */
 class Item_temporal_with_ref :public Item_int_with_ref
 {
-private:
-  enum_field_types cached_field_type;
 public:
   Item_temporal_with_ref(enum_field_types field_type_arg,
                          uint8 decimals_arg, longlong i, Item *ref_arg,
-                         bool unsigned_flag):
-    Item_int_with_ref(i, ref_arg, unsigned_flag),
-    cached_field_type(field_type_arg)
+                         bool unsigned_flag)
+    : Item_int_with_ref(field_type_arg, i, ref_arg, unsigned_flag)
   {
     decimals= decimals_arg;
   }
-  enum_field_types field_type() const { return cached_field_type; }
   void print(String *str, enum_query_type query_type);
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
@@ -5154,10 +5171,7 @@ public:
      Will cache value of saved item if not already done. 
      @return TRUE if cached value is non-NULL.
    */
-  bool has_value()
-  {
-    return (value_cached || cache_value()) && !null_value;
-  }
+  bool has_value();
 
   /** 
     If this item caches a field value, return pointer to underlying field.
@@ -5166,6 +5180,10 @@ public:
   */
   Field* field() { return cached_field; }
 
+  /**
+    Assigns to the cache the expression to be cached. Does not evaluate it.
+    @param item  the expression to be cached
+  */
   virtual void store(Item *item);
 
   /**

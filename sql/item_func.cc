@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include "current_thd.h"
 #include "debug_sync.h"          // DEBUG_SYNC
 #include "derror.h"              // ER_THD
+#include "error_handler.h"       // Internal_error_handler
 #include "item_cmpfunc.h"        // get_datetime_value
 #include "item_strfunc.h"        // Item_func_geohash
 #include <mysql/service_thd_wait.h>
@@ -52,6 +53,7 @@
 
 #include <cfloat>                // DBL_DIG
 #include <exception>             // std::exception subclasses
+#include <functional>
 
 using std::min;
 using std::max;
@@ -461,12 +463,12 @@ Item *Item_func::compile(Item_analyzer analyzer, uchar **arg_p,
   See comments in Item_cmp_func::split_sum_func()
 */
 
-void Item_func::split_sum_func(THD *thd, Ref_ptr_array ref_pointer_array,
+void Item_func::split_sum_func(THD *thd, Ref_item_array ref_item_array,
                                List<Item> &fields)
 {
   Item **arg, **arg_end;
   for (arg= args, arg_end= args+arg_count; arg != arg_end ; arg++)
-    (*arg)->split_sum_func2(thd, ref_pointer_array, fields, arg, TRUE);
+    (*arg)->split_sum_func2(thd, ref_item_array, fields, arg, TRUE);
 }
 
 
@@ -606,7 +608,7 @@ my_decimal *Item_func::val_decimal(my_decimal *decimal_value)
 type_conversion_status Item_func::save_possibly_as_json(Field *field,
                                                         bool no_conversions)
 {
-  if (field->type() == MYSQL_TYPE_JSON)
+  if (field_type() == MYSQL_TYPE_JSON && field->type() == MYSQL_TYPE_JSON)
   {
     // Store the value in the JSON binary format.
     Field_json *f= down_cast<Field_json *>(field);
@@ -619,11 +621,8 @@ type_conversion_status Item_func::save_possibly_as_json(Field *field,
     field->set_notnull();
     return f->store_json(&wr);
   }
-  else
-  {
-    // TODO Convert the JSON value to text.
-    return Item_func::save_in_field_inner(field, no_conversions);
-  }
+
+  return Item_func::save_in_field_inner(field, no_conversions);
 }
 
 String *Item_real_func::val_str(String *str)
@@ -2360,8 +2359,8 @@ longlong Item_func_int_div::val_int()
   val0_negative= !args[0]->unsigned_flag && val0 < 0;
   val1_negative= !args[1]->unsigned_flag && val1 < 0;
   res_negative= val0_negative != val1_negative;
-  uval0= (ulonglong) (val0_negative ? -val0 : val0);
-  uval1= (ulonglong) (val1_negative ? -val1 : val1);
+  uval0= (ulonglong) (val0_negative && val0 != LLONG_MIN ? -val0 : val0);
+  uval1= (ulonglong) (val1_negative && val1 != LLONG_MIN ? -val1 : val1);
   res= uval0 / uval1;
   if (res_negative)
   {
@@ -2412,8 +2411,8 @@ longlong Item_func_mod::int_op()
   */
   val0_negative= !args[0]->unsigned_flag && val0 < 0;
   val1_negative= !args[1]->unsigned_flag && val1 < 0;
-  uval0= (ulonglong) (val0_negative ? -val0 : val0);
-  uval1= (ulonglong) (val1_negative ? -val1 : val1);
+  uval0= (ulonglong) (val0_negative && val0 != LLONG_MIN ? -val0 : val0);
+  uval1= (ulonglong) (val1_negative && val1 != LLONG_MIN ? -val1 : val1);
   res= uval0 % uval1;
   return check_integer_overflow(val0_negative ? -(longlong) res : res,
                                 !val0_negative);
@@ -2504,6 +2503,11 @@ longlong Item_func_neg::int_op()
       !args[0]->unsigned_flag &&
       !unsigned_flag)
     return raise_integer_overflow();
+  // Avoid doing '-value' below, it is undefined.
+  if (value == LLONG_MIN &&
+      args[0]->unsigned_flag &&
+      !unsigned_flag)
+    return LLONG_MIN;
   return check_integer_overflow(-value, !args[0]->unsigned_flag && value < 0);
 }
 
@@ -2675,9 +2679,9 @@ Item_func_latlongfromgeohash::check_geohash_argument_valid_type(Item *item)
 
   @param geohash The geohash to decode.
   @param upper_latitude Upper limit of returned latitude (normally 90.0).
-  @param upper_latitude Lower limit of returned latitude (normally -90.0).
-  @param upper_latitude Upper limit of returned longitude (normally 180.0).
-  @param upper_latitude Lower limit of returned longitude (normally -180.0).
+  @param lower_latitude Lower limit of returned latitude (normally -90.0).
+  @param upper_longitude Upper limit of returned longitude (normally 180.0).
+  @param lower_longitude Lower limit of returned longitude (normally -180.0).
   @param[out] result_latitude Calculated latitude.
   @param[out] result_longitude Calculated longitude.
 
@@ -3619,6 +3623,7 @@ double Item_func_units::val_real()
 void Item_func_min_max::fix_length_and_dec()
 {
   uint string_arg_count= 0;
+  uint unsigned_arg_count= 0;
   int max_int_part=0;
   bool datetime_found= FALSE;
   decimals=0;
@@ -3644,6 +3649,8 @@ void Item_func_min_max::fix_length_and_dec()
       if (!datetime_item || args[i]->field_type() == MYSQL_TYPE_DATETIME)
         datetime_item= args[i];
     }
+    if (args[i]->result_type() == INT_RESULT && args[i]->unsigned_flag)
+      ++unsigned_arg_count;
   }
   
   if (string_arg_count == arg_count)
@@ -3666,6 +3673,15 @@ void Item_func_min_max::fix_length_and_dec()
   else if ((cmp_type == DECIMAL_RESULT) || (cmp_type == INT_RESULT))
   {
     collation.set_numeric();
+    if (cmp_type == INT_RESULT)
+    {
+      // For greatest: one unsigned input means result must be >= 0
+      if (-1 == cmp_sign && unsigned_arg_count)
+        unsigned_flag= true;
+      // For least: all unsigned input means result must be >= 0
+      if (1 == cmp_sign && unsigned_arg_count == arg_count)
+        unsigned_flag= true;
+    }
     fix_char_length(my_decimal_precision_to_length_no_truncation(max_int_part +
                                                                  decimals,
                                                                  decimals,
@@ -4002,18 +4018,37 @@ mysql> select least('11', '2'), least('11', '2')+0, concat(least(11,2));
     Should not the second column return 11?
     I.e. compare as strings and return '11', then convert to number.
   */
-  for (uint i=0; i < arg_count ; i++)
+  value= args[0]->val_int();
+  if ((null_value= args[0]->null_value))
+    return value;
+  bool val_unsigned= args[0]->unsigned_flag;
+
+  for (uint i= 1; i < arg_count; i++)
   {
-    if (i == 0)
-      value=args[i]->val_int();
-    else
-    {
-      longlong tmp=args[i]->val_int();
-      if (!args[i]->null_value && (tmp < value ? cmp_sign : -cmp_sign) > 0)
-	value=tmp;
-    }
+    const longlong tmp= args[i]->val_int();
     if ((null_value= args[i]->null_value))
       break;
+
+    const bool tmp_unsigned= args[i]->unsigned_flag;
+    bool tmp_is_smaller;
+    // both are signed, compare as signed
+    if (!val_unsigned && !tmp_unsigned)
+      tmp_is_smaller= (tmp < value);
+    // both are unsigned, compare as unsigned
+    else if (val_unsigned && tmp_unsigned)
+      tmp_is_smaller= std::less<ulonglong>()(tmp, value);
+    // tmp is signed, check negative value first
+    else if (val_unsigned && !tmp_unsigned)
+      tmp_is_smaller= (tmp < 0) || std::less<ulonglong>()(tmp, value);
+    // value is signed, check negative value first
+    else // !val_unsigned && tmp_unsigned
+      tmp_is_smaller= (value > 0) && std::less<ulonglong>()(tmp, value);
+
+    if ((tmp_is_smaller ? cmp_sign : -cmp_sign) > 0)
+    {
+      value= tmp;
+      val_unsigned= tmp_unsigned;
+    }
   }
   return value;
 }
@@ -4983,6 +5018,9 @@ longlong Item_master_pos_wait::val_int()
       mi= channel_map.get_default_channel_mi();
   }
 
+  if (mi != NULL)
+    mi->inc_reference();
+
   channel_map.unlock();
 
   if (mi == NULL ||
@@ -4991,6 +5029,9 @@ longlong Item_master_pos_wait::val_int()
     null_value = 1;
     event_count=0;
   }
+
+  if (mi != NULL)
+    mi->dec_reference();
 #endif
   return event_count;
 }
@@ -5148,6 +5189,9 @@ longlong Item_master_gtid_set_wait::val_int()
   }
   gtid_state->begin_gtid_wait(GTID_MODE_LOCK_CHANNEL_MAP);
 
+  if (mi)
+    mi->inc_reference();
+
   channel_map.unlock();
 
   if (mi && mi->rli)
@@ -5164,6 +5208,9 @@ longlong Item_master_gtid_set_wait::val_int()
       Replication has not been set up, we should return NULL;
      */
     null_value = 1;
+
+  if (mi != NULL)
+    mi->dec_reference();
 #endif
 
   gtid_state->end_gtid_wait();
@@ -5557,7 +5604,7 @@ longlong Item_func_get_lock::val_int()
   /* HASH entries are of type User_level_lock. */
   if (! my_hash_inited(&thd->ull_hash) &&
       my_hash_init(&thd->ull_hash, &my_charset_bin,
-                   16 /* small hash */, 0, 0, ull_get_key, NULL, 0,
+                   16 /* small hash */, 0, ull_get_key, nullptr, 0,
                    key_memory_User_level_lock))
   {
     DBUG_RETURN(0);
@@ -6432,6 +6479,7 @@ double user_var_entry::val_real(my_bool *null_value) const
   case STRING_RESULT:
     return my_atof(m_ptr);                    // This is null terminated
   case ROW_RESULT:
+  case INVALID_RESULT:
     DBUG_ASSERT(false);                         // Impossible
     break;
   }
@@ -6463,6 +6511,7 @@ longlong user_var_entry::val_int(my_bool *null_value) const
     return my_strtoll10(m_ptr, (char**) 0, &error);// String is null terminated
   }
   case ROW_RESULT:
+  case INVALID_RESULT:
     DBUG_ASSERT(false);                         // Impossible
     break;
   }
@@ -6496,6 +6545,7 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
       str= 0;					// EOM error
     break;
   case ROW_RESULT:
+  case INVALID_RESULT:
     DBUG_ASSERT(false);                         // Impossible
     break;
   }
@@ -6524,6 +6574,7 @@ my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val) co
                    collation.collation, val);
     break;
   case ROW_RESULT:
+  case INVALID_RESULT:
     DBUG_ASSERT(false);                         // Impossible
     break;
   }
@@ -6982,8 +7033,9 @@ longlong Item_func_get_user_var::val_int()
   written to the binlog (will be written just before the query is written, see
   log.cc).
 
-  @param      thd        Current thread
-  @param      name       Variable name
+  @param      thd         Current session.
+  @param      sql_command The command the variable participates in.
+  @param      name        Variable name
   @param[out] out_entry  variable structure or NULL. The pointer is set
                          regardless of whether function succeeded or not.
 
@@ -8033,6 +8085,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
 
   if (!master)
   {
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
     hints= new Ft_hints(flags);
     if (!hints)
     {
@@ -8169,7 +8222,7 @@ double Item_func_match::val_real()
     DBUG_RETURN(-1.0);
 
   TABLE *const table= table_ref->table;
-  if (key != NO_SUCH_KEY && table->null_row) /* NULL row from an outer join */
+  if (key != NO_SUCH_KEY && table->has_null_row()) // NULL row from outer join
     DBUG_RETURN(0.0);
 
   if (get_master()->join_key)

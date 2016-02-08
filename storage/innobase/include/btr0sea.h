@@ -81,14 +81,14 @@ btr_search_info_get_ref_count(
 	btr_search_t*	info,
 	dict_index_t*	index);
 
-/*********************************************************************//**
-Updates the search info. */
+/** Updates the search info.
+@param[in]	index	index of the cursor
+@param[in]	cursor	cursor which was just positioned */
 UNIV_INLINE
 void
 btr_search_info_update(
-/*===================*/
-	dict_index_t*	index,	/*!< in: index of the cursor */
-	btr_cur_t*	cursor);/*!< in: cursor which was just positioned */
+	dict_index_t*	index,
+	btr_cur_t*	cursor);
 
 /** Tries to guess the right search position based on the hash search info
 of the index. Note that if mode is PAGE_CUR_LE, which is used in inserts,

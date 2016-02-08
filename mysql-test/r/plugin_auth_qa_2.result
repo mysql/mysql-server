@@ -7,8 +7,10 @@ GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_1_dest identified by 'dest_pas
 Warnings:
 Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 GRANT PROXY ON qa_test_1_dest TO qa_test_1_user;
-SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys');
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_1_user;
+SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string
+mysql.sys	mysql_native_password	*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE
 qa_test_1_dest	mysql_native_password	*DFCACE76914AD7BD801FC1A1ECF6562272621A22
 qa_test_1_user	qa_auth_interface	qa_test_1_dest
 SELECT @@proxy_user;
@@ -34,6 +36,7 @@ CREATE USER authenticated_as IDENTIFIED BY 'dest_passwd';
 GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_2_dest identified by 'dest_passwd';
 Warnings:
 Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+GRANT ALL PRIVILEGES ON test_user_db.* TO authenticated_as;
 GRANT PROXY ON qa_test_2_dest TO qa_test_2_user;
 GRANT PROXY ON authenticated_as TO qa_test_2_user;
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys');

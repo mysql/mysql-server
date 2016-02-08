@@ -175,6 +175,12 @@ retry:
 func_exit:
 	btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
 
+	/* If table is SDI table, we will try to flush as early
+	as possible. */
+	if (dict_table_is_sdi(node->table->id)) {
+		buf_flush_sync_all_buf_pools();
+	}
+
 	return(err);
 }
 
@@ -356,6 +362,8 @@ close_table:
 		dict_table_close(node->table, dict_locked, FALSE);
 		node->table = NULL;
 	} else {
+		ut_ad(!node->table->skip_alter_undo);
+
 		clust_index = dict_table_get_first_index(node->table);
 
 		if (clust_index != NULL) {

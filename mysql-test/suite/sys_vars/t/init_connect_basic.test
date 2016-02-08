@@ -1,3 +1,5 @@
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 ############## mysql-test\t\init_connect_basic.test ###########################
 #                                                                             #
 # Variable Name: init_connect                                                 #
@@ -143,7 +145,7 @@ SELECT @@global.init_connect;
 
 --disable_warnings
 SELECT @@global.init_connect = (SELECT VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='init_connect') AS res;
 --enable_warnings
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,12 +21,14 @@
 #include "mysql/psi/mysql_sp.h"
 #include "binlog.h"         // mysql_bin_log
 #include "derror.h"         // ER_THD
+#include "error_handler.h"  // Internal_error_handler
 #include "item_timefunc.h"  // Item_func_now_local
 #include "key.h"            // key_copy
 #include "lock.h"           // lock_object_name
 #include "log.h"            // sql_print_warning
 #include "log_event.h"      // append_query_string
 #include "mysqld.h"         // trust_function_creators
+#include "psi_memory_key.h" // key_memory_sp_head_main_root
 #include "sp_cache.h"       // sp_cache_invalidate
 #include "sp_head.h"        // Stored_program_creation_ctx
 #include "sp_pcontext.h"    // sp_pcontext
@@ -783,7 +785,7 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   if (parse_sql(thd, & parser_state, creation_ctx) || thd->lex == NULL)
   {
     sp= thd->lex->sphead;
-    delete sp;
+    sp_head::destroy(sp);
     sp= 0;
   }
   else
@@ -923,7 +925,7 @@ db_load_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp,
     if (cur_db_changed &&
         mysql_change_db(thd, to_lex_cstring(saved_cur_db_name), true))
     {
-      delete *sphp;
+      sp_head::destroy(*sphp);
       *sphp= NULL;
       ret= SP_INTERNAL_ERROR;
       goto end;
@@ -1927,10 +1929,11 @@ const uchar* sp_sroutine_key(const uchar *ptr, size_t *plen)
 bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
                          const MDL_key *key, TABLE_LIST *belong_to_view)
 {
-  my_hash_init_opt(&prelocking_ctx->sroutines, system_charset_info,
-                   Query_tables_list::START_SROUTINES_HASH_SIZE,
-                   0, 0, sp_sroutine_key, 0, 0,
-                   PSI_INSTRUMENT_ME);
+  if (!my_hash_inited(&prelocking_ctx->sroutines))
+    my_hash_init(&prelocking_ctx->sroutines, system_charset_info,
+                 Query_tables_list::START_SROUTINES_HASH_SIZE, 0,
+                 sp_sroutine_key, nullptr, 0,
+                 PSI_INSTRUMENT_ME);
 
   if (!my_hash_search(&prelocking_ctx->sroutines, key->ptr(), key->length()))
   {
@@ -2356,11 +2359,16 @@ sp_head *sp_start_parsing(THD *thd,
 {
   // The order is important:
   // 1. new sp_head()
+  MEM_ROOT own_root;
 
-  sp_head *sp= new sp_head(sp_type);
+  init_sql_alloc(key_memory_sp_head_main_root,
+                 &own_root, MEM_ROOT_BLOCK_SIZE, MEM_ROOT_PREALLOC);
 
-  if (!sp)
+  void *rawmem= alloc_root(&own_root, sizeof(sp_head));
+  if (!rawmem)
     return NULL;
+
+  sp_head *sp= new (rawmem) sp_head(own_root, sp_type);
 
   // 2. start_parsing_sp_body()
 

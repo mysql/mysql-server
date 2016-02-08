@@ -1,7 +1,7 @@
 #ifndef ITEM_JSON_FUNC_INCLUDED
 #define ITEM_JSON_FUNC_INCLUDED
 
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,9 +22,11 @@
 #include "item_strfunc.h"       // Item_str_func
 #include "mem_root_array.h"     // Mem_root_array
 #include "prealloced_array.h"   // Prealloced_array
+#include "sql_alloc.h"          // Sql_alloc
+#include <type_traits>          // is_base_of
 
 class Item_func_like;
-struct Json_scalar_holder;
+class Json_scalar_holder;
 
 /** For use by JSON_CONTAINS_PATH() and JSON_SEARCH() */
 enum enum_one_or_all_type
@@ -240,23 +242,6 @@ bool ensure_utf8mb4(String *val,
                     const char **resptr,
                     size_t *reslength,
                     bool require_string);
-
-/**
-  Create a new Json_scalar_holder instance.
-*/
-Json_scalar_holder *create_json_scalar_holder();
-
-/**
-  Destroy a Json_scalar_holder instance.
-*/
-void delete_json_scalar_holder(Json_scalar_holder *holder);
-
-/**
-  Get a pointer to the Json_scalar object contained in a Json_scalar_holder.
-  @param[in] holder  the holder object
-  @return a pointer to a Json_scalar, or NULL if the holder is empty
-*/
-Json_scalar *get_json_scalar_from_holder(Json_scalar_holder *holder);
 
 /**
   Represents the JSON function JSON_VALID( <value> )
@@ -670,8 +655,9 @@ public:
   /**
    Construct a JSON_SEARCH() node.
 
+   @param     thd Current session.
    @param[in] pos Parser position
-   @param[in] a Nodes which must be fixed (i.e. bound/resolved)
+   @param[in] a   Nodes which must be fixed (i.e. bound/resolved)
 
    @returns a JSON_SEARCH() node.
   */
@@ -811,5 +797,73 @@ bool geometry_to_json(Json_wrapper *wr, Item *geometry_arg,
                       bool add_short_crs_urn,
                       bool add_long_crs_urn,
                       uint32 *geometry_srid);
+
+/**
+  A class that is capable of holding objects of any sub-type of
+  Json_scalar. Used for pre-allocating space in query-duration memory
+  for JSON scalars that are to be returned by get_json_atom_wrapper().
+*/
+class Json_scalar_holder : public Sql_alloc
+{
+  /**
+    Union of all concrete subclasses of Json_scalar. The union is
+    never instantiated. It is only used for finding how much space
+    needs to be allocated for #m_buffer.
+  */
+  union Any_json_scalar
+  {
+    Json_string m_string;
+    Json_decimal m_decimal;
+    Json_int m_int;
+    Json_uint m_uint;
+    Json_double m_double;
+    Json_boolean m_boolean;
+    Json_null m_null;
+    Json_datetime m_datetime;
+    Json_opaque m_opaque;
+    // Need explicitly deleted destructor to silence warning on MSVC.
+    ~Any_json_scalar() = delete;
+  };
+
+  /// The buffer in which the Json_scalar value is stored.
+  char m_buffer[sizeof(Any_json_scalar)];
+
+  /// True if and only if a value has been assigned to the holder.
+  bool m_assigned= false;
+
+  /// Clear the holder, and destroy the held value if there is one.
+  void clear()
+  {
+    if (m_assigned)
+    {
+      get()->~Json_scalar();
+      m_assigned= false;
+    }
+  }
+public:
+  /// Destructor. The held value is destroyed, if there is one.
+  ~Json_scalar_holder() { clear(); }
+
+  /// Get a pointer to the held object, or nullptr if there is none.
+  Json_scalar *get()
+  {
+    return m_assigned ? pointer_cast<Json_scalar *>(&m_buffer) : nullptr;
+  }
+
+  /**
+    Construct a new Json_scalar value in this Json_scalar_holder.
+    If a value is already held, the old value is destroyed and replaced.
+    @tparam T which type of Json_scalar to create
+    @param args the arguments to T's constructor
+  */
+  template <typename T, typename... Args> void emplace(Args&&... args)
+  {
+    static_assert(std::is_base_of<Json_scalar, T>::value, "Not a Json_scalar");
+    static_assert(sizeof(T) <= sizeof(m_buffer), "Buffer is too small");
+    clear();
+    new (&m_buffer) T(std::forward<Args>(args)...);
+    m_assigned= true;
+  }
+};
 
 #endif /* ITEM_JSON_FUNC_INCLUDED */

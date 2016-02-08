@@ -20,12 +20,12 @@ profiling_history_size	15
 show session variables like 'profiling_history_size';
 Variable_name	Value
 profiling_history_size	15
-select * from information_schema.global_variables where variable_name='profiling_history_size';
+select * from performance_schema.global_variables where variable_name='profiling_history_size';
 VARIABLE_NAME	VARIABLE_VALUE
-PROFILING_HISTORY_SIZE	15
-select * from information_schema.session_variables where variable_name='profiling_history_size';
+profiling_history_size	15
+select * from performance_schema.session_variables where variable_name='profiling_history_size';
 VARIABLE_NAME	VARIABLE_VALUE
-PROFILING_HISTORY_SIZE	15
+profiling_history_size	15
 set global profiling_history_size=10;
 Warnings:
 Warning	1287	'@@profiling_history_size' is deprecated and will be removed in a future release.
@@ -48,12 +48,12 @@ profiling_history_size	10
 show session variables like 'profiling_history_size';
 Variable_name	Value
 profiling_history_size	20
-select * from information_schema.global_variables where variable_name='profiling_history_size';
+select * from performance_schema.global_variables where variable_name='profiling_history_size';
 VARIABLE_NAME	VARIABLE_VALUE
-PROFILING_HISTORY_SIZE	10
-select * from information_schema.session_variables where variable_name='profiling_history_size';
+profiling_history_size	10
+select * from performance_schema.session_variables where variable_name='profiling_history_size';
 VARIABLE_NAME	VARIABLE_VALUE
-PROFILING_HISTORY_SIZE	20
+profiling_history_size	20
 set global profiling_history_size=1.1;
 ERROR 42000: Incorrect argument type to variable 'profiling_history_size'
 set global profiling_history_size=1e1;

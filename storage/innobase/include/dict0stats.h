@@ -53,17 +53,18 @@ enum dict_stats_upd_option_t {
 				otherwise do nothing */
 };
 
-/*********************************************************************//**
-Set the persistent statistics flag for a given table. This is set only
-in the in-memory table object and is not saved on disk. It will be read
-from the .frm file upon first open from MySQL after a server restart. */
+/** Set the persistent statistics flag for a given table. This is set only in
+the in-memory table object and is not saved on disk. It will be read from the
+.frm file upon first open from MySQL after a server restart.
+@param[in,out]	table	table
+@param[in]	ps_on	persistent stats explicitly enabled
+@param[in]	ps_off	persistent stats explicitly disabled */
 UNIV_INLINE
 void
 dict_stats_set_persistent(
-/*======================*/
-	dict_table_t*	table,	/*!< in/out: table */
-	ibool		ps_on,	/*!< in: persistent stats explicitly enabled */
-	ibool		ps_off);	/*!< in: persistent stats explicitly disabled */
+	dict_table_t*	table,
+	ibool		ps_on,
+	ibool		ps_off);
 
 /*********************************************************************//**
 Check whether persistent statistics is enabled for a given table.
@@ -75,18 +76,19 @@ dict_stats_is_persistent_enabled(
 	const dict_table_t*	table)	/*!< in: table */
 	__attribute__((warn_unused_result));
 
-/*********************************************************************//**
-Set the auto recalc flag for a given table (only honored for a persistent
-stats enabled table). The flag is set only in the in-memory table object
-and is not saved in InnoDB files. It will be read from the .frm file upon
-first open from MySQL after a server restart. */
+/** Set the auto recalc flag for a given table (only honored for a persistent
+stats enabled table). The flag is set only in the in-memory table object and is
+not saved in InnoDB files. It will be read from the .frm file upon first open
+from MySQL after a server restart.
+@param[in,out]	table		table
+@param[in]	auto_recalc_on	explicitly enabled
+@param[in]	auto_recalc_off	explicitly disabled */
 UNIV_INLINE
 void
 dict_stats_auto_recalc_set(
-/*=======================*/
-	dict_table_t*	table,			/*!< in/out: table */
-	ibool		auto_recalc_on,		/*!< in: explicitly enabled */
-	ibool		auto_recalc_off);	/*!< in: explicitly disabled */
+	dict_table_t*	table,
+	ibool		auto_recalc_on,
+	ibool		auto_recalc_off);
 
 /*********************************************************************//**
 Check whether auto recalc is enabled for a given table.

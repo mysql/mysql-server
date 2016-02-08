@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2010, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it
@@ -797,9 +797,7 @@ srv_mon_get_name(
 
 /****************************************************************//**
 Turn on/off/reset monitor counters in a module. If module_value
-is NUM_MONITOR then turn on all monitor counters.
-@return 0 if successful, or the first monitor that cannot be
-turned on because it is already turned on. */
+is NUM_MONITOR then turn on all monitor counters. */
 void
 srv_mon_set_module_control(
 /*=======================*/

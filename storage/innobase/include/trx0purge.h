@@ -163,6 +163,7 @@ namespace undo {
 
 	/** Populate log file name based on space_id
 	@param[in]	space_id	id of the undo tablespace.
+	@param[in]	log_file_name	name of the log file
 	@return DB_SUCCESS or error code */
 	dberr_t populate_log_file_name(
 		ulint	space_id,

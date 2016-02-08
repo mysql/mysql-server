@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -239,6 +239,7 @@ public:
     @param field_metadata Array of extra information about fields
     @param metadata_size Size of the field_metadata array
     @param null_bitmap The bitmap of fields that can be null
+    @param flags Table flags
    */
   table_def(unsigned char *types, ulong size, uchar *field_metadata,
             int metadata_size, uchar *null_bitmap, uint16 flags);
@@ -365,7 +366,7 @@ public:
         converted according to the current settings of @c
         SLAVE_TYPE_CONVERSIONS.
 
-    @param thd
+    @param thd   Current thread
     @param rli   Pointer to relay log info
     @param table Pointer to table to compare with.
 

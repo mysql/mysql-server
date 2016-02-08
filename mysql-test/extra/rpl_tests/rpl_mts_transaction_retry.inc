@@ -66,6 +66,9 @@ SET GLOBAL max_relay_log_size = 4096;
 eval SET GLOBAL slave_parallel_type = $mts_parallel_type;
 
 --source include/start_slave_sql.inc
+# Running the test case with show_compatibility_56=ON until WL#9001 is pushed
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
 
 --echo #
 --echo # Case 1: slave will stop if slave_transaction_retries is 0
@@ -226,7 +229,8 @@ SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
 SET GLOBAL slave_parallel_workers = @saved_slave_parallel_workers;
 SET GLOBAL max_relay_log_size = @saved_max_relay_log_size;
 SET GLOBAL slave_transaction_retries = @saved_slave_transaction_retries;
-
+# Restoring the value of show_compatibility_56.
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 --source include/stop_slave_sql.inc
 SET GLOBAL slave_parallel_type= @saved_slave_parallel_type;
 --source include/start_slave_sql.inc

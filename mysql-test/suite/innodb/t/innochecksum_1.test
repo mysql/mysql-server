@@ -206,8 +206,25 @@ cat_file $MYSQLTEST_VARDIR/tmp/ver_output;
 --echo [4]: Test for --allow-mismatches =99
 
 --echo # Expect the fails for checksum mismatches. Print the error message.
---replace_regex /page id: space=[0-9]+, page number=[0-9]+/page id: space=X, page number=Y/
---exec $INNOCHECKSUM --allow-mismatches=99 --strict-check=none $MYSQLD_DATADIR/test/tab1.ibd 2>&1
+--exec $INNOCHECKSUM --allow-mismatches=99 --strict-check=none $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/log/my_restart.err
+# Remove extra line which will cause result-content mismatch on 4k page
+# size.
+perl;
+use strict;
+use warnings;
+my $file = $ENV{'SEARCH_FILE'};
+open IN_FILE,"<", $file or die $!;
+while(<IN_FILE>)
+{
+  if (!m/page number=7/)
+  {
+    s/space=\d+, page number=\d+/space=X, page number=Y/;
+    print;
+  }
+}
+close(IN_FILE);
+EOF
+
 
 --echo [5]: Test checksum check for page: 2 to page:5
 --exec $INNOCHECKSUM  -s 2 -e 5 $MYSQLD_DATADIR/test/tab1.ibd

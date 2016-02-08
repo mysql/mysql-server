@@ -17,52 +17,52 @@ innodb_disable_sort_file_cache	OFF
 show session variables like 'innodb_disable_sort_file_cache';
 Variable_name	Value
 innodb_disable_sort_file_cache	OFF
-select * from information_schema.global_variables where variable_name='innodb_disable_sort_file_cache';
+select * from performance_schema.global_variables where variable_name='innodb_disable_sort_file_cache';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_DISABLE_SORT_FILE_CACHE	OFF
-select * from information_schema.session_variables where variable_name='innodb_disable_sort_file_cache';
+innodb_disable_sort_file_cache	OFF
+select * from performance_schema.session_variables where variable_name='innodb_disable_sort_file_cache';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_DISABLE_SORT_FILE_CACHE	OFF
+innodb_disable_sort_file_cache	OFF
 set global innodb_disable_sort_file_cache='OFF';
 select @@global.innodb_disable_sort_file_cache;
 @@global.innodb_disable_sort_file_cache
 0
-select * from information_schema.global_variables where variable_name='innodb_disable_sort_file_cache';
+select * from performance_schema.global_variables where variable_name='innodb_disable_sort_file_cache';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_DISABLE_SORT_FILE_CACHE	OFF
-select * from information_schema.session_variables where variable_name='innodb_disable_sort_file_cache';
+innodb_disable_sort_file_cache	OFF
+select * from performance_schema.session_variables where variable_name='innodb_disable_sort_file_cache';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_DISABLE_SORT_FILE_CACHE	OFF
+innodb_disable_sort_file_cache	OFF
 set @@global.innodb_disable_sort_file_cache=1;
 select @@global.innodb_disable_sort_file_cache;
 @@global.innodb_disable_sort_file_cache
 1
-select * from information_schema.global_variables where variable_name='innodb_disable_sort_file_cache';
+select * from performance_schema.global_variables where variable_name='innodb_disable_sort_file_cache';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_DISABLE_SORT_FILE_CACHE	ON
-select * from information_schema.session_variables where variable_name='innodb_disable_sort_file_cache';
+innodb_disable_sort_file_cache	ON
+select * from performance_schema.session_variables where variable_name='innodb_disable_sort_file_cache';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_DISABLE_SORT_FILE_CACHE	ON
+innodb_disable_sort_file_cache	ON
 set global innodb_disable_sort_file_cache=0;
 select @@global.innodb_disable_sort_file_cache;
 @@global.innodb_disable_sort_file_cache
 0
-select * from information_schema.global_variables where variable_name='innodb_disable_sort_file_cache';
+select * from performance_schema.global_variables where variable_name='innodb_disable_sort_file_cache';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_DISABLE_SORT_FILE_CACHE	OFF
-select * from information_schema.session_variables where variable_name='innodb_disable_sort_file_cache';
+innodb_disable_sort_file_cache	OFF
+select * from performance_schema.session_variables where variable_name='innodb_disable_sort_file_cache';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_DISABLE_SORT_FILE_CACHE	OFF
+innodb_disable_sort_file_cache	OFF
 set @@global.innodb_disable_sort_file_cache='ON';
 select @@global.innodb_disable_sort_file_cache;
 @@global.innodb_disable_sort_file_cache
 1
-select * from information_schema.global_variables where variable_name='innodb_disable_sort_file_cache';
+select * from performance_schema.global_variables where variable_name='innodb_disable_sort_file_cache';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_DISABLE_SORT_FILE_CACHE	ON
-select * from information_schema.session_variables where variable_name='innodb_disable_sort_file_cache';
+innodb_disable_sort_file_cache	ON
+select * from performance_schema.session_variables where variable_name='innodb_disable_sort_file_cache';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_DISABLE_SORT_FILE_CACHE	ON
+innodb_disable_sort_file_cache	ON
 set session innodb_disable_sort_file_cache='OFF';
 ERROR HY000: Variable 'innodb_disable_sort_file_cache' is a GLOBAL variable and should be set with SET GLOBAL
 set @@session.innodb_disable_sort_file_cache='ON';
@@ -78,12 +78,12 @@ set global innodb_disable_sort_file_cache=-3;
 select @@global.innodb_disable_sort_file_cache;
 @@global.innodb_disable_sort_file_cache
 1
-select * from information_schema.global_variables where variable_name='innodb_disable_sort_file_cache';
+select * from performance_schema.global_variables where variable_name='innodb_disable_sort_file_cache';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_DISABLE_SORT_FILE_CACHE	ON
-select * from information_schema.session_variables where variable_name='innodb_disable_sort_file_cache';
+innodb_disable_sort_file_cache	ON
+select * from performance_schema.session_variables where variable_name='innodb_disable_sort_file_cache';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_DISABLE_SORT_FILE_CACHE	ON
+innodb_disable_sort_file_cache	ON
 set global innodb_disable_sort_file_cache='AUTO';
 ERROR 42000: Variable 'innodb_disable_sort_file_cache' can't be set to the value of 'AUTO'
 SET @@global.innodb_disable_sort_file_cache = @start_global_value;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 
 #include "binlog.h"                   // mysql_bin_log
 #include "debug_sync.h"               // DEBUG_SYNC
+#include "error_handler.h"            // Ignore_error_handler
 #include "filesort.h"                 // Filesort
 #include "opt_explain.h"              // Modification_plan
 #include "opt_range.h"                // prune_partitions
@@ -669,9 +670,9 @@ bool Sql_cmd_delete::mysql_prepare_delete(THD *thd)
     tables.alias = table_list->alias;
 
     DBUG_ASSERT(!select->group_list.elements);
-    if (select->setup_ref_array(thd))
+    if (select->setup_base_ref_items(thd))
       DBUG_RETURN(true);                     /* purecov: inspected */
-    if (setup_order(thd, select->ref_pointer_array, &tables,
+    if (setup_order(thd, select->base_ref_items, &tables,
                     fields, all_fields, select->order_list.first))
       DBUG_RETURN(true);
   }

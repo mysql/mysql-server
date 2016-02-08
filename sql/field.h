@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,6 @@
 #include "sql_error.h"                          // Sql_condition
 #include "sql_string.h"                         // String
 #include "table.h"                              // TABLE
-#include "mysql_version.h"                      // FRM_VER
 
 class Create_field;
 class Json_dom;
@@ -429,6 +428,32 @@ inline enum_field_types real_type_to_type(enum_field_types real_type)
 
 
 /**
+  Return the appropriate MYSQL_TYPE_X_BLOB value based on the
+  pack_length.
+
+  @param  pack_length pack_length for BLOB
+  @retval MYSQL_TYPE_X_BLOB corresponding to pack_length.
+*/
+inline enum_field_types blob_type_from_pack_length(uint pack_length)
+{
+  DBUG_ENTER("blob_type_from_pack_length");
+  switch (pack_length)
+  {
+  case 1:
+    DBUG_RETURN(MYSQL_TYPE_TINY_BLOB);
+  case 2:
+    DBUG_RETURN(MYSQL_TYPE_BLOB);
+  case 3:
+    DBUG_RETURN(MYSQL_TYPE_MEDIUM_BLOB);
+  case 4:
+    DBUG_RETURN(MYSQL_TYPE_LONG_BLOB);
+  default:
+    DBUG_ASSERT(false);
+    DBUG_RETURN(MYSQL_TYPE_LONG_BLOB);
+  }
+}
+
+/**
    Copies an integer value to a format comparable with memcmp(). The
    format is characterized by the following:
 
@@ -641,7 +666,7 @@ public:
   Key_map part_of_sortkey;          /* ^ but only keys usable for sorting */
 
   /**
-    Flags for Field/Create_field::auto_flags bitmap.
+    Flags for Proto_field::auto_flags / Create_field::auto_flags bitmaps.
 
     @note NEXT_NUMBER and DEFAULT_NOW/ON_UPDATE_NOW flags are
           never set at the same time.
@@ -917,8 +942,8 @@ public:
     table, which is located on disk).
   */
   virtual uint32 pack_length_in_rec() const { return pack_length(); }
-  virtual bool compatible_field_size(uint metadata, Relay_log_info *rli,
-                                     uint16 mflags, int *order);
+  virtual bool compatible_field_size(uint metadata, Relay_log_info *,
+                                     uint16, int *order);
   virtual uint pack_length_from_metadata(uint field_metadata)
   {
     DBUG_ENTER("Field::pack_length_from_metadata");
@@ -1103,20 +1128,20 @@ public:
     /*
       if the field is NULLable, it returns NULLity based
       on m_null_ptr[row_offset] value. Otherwise it returns
-      NULL flag depending on TABLE::null_row value.
+      NULL flag depending on TABLE::has_null_row() value.
 
       The table may have been marked as containing only NULL values
       for all fields if it is a NULL-complemented row of an OUTER JOIN
       or if the query is an implicitly grouped query (has aggregate
       functions but no GROUP BY clause) with no qualifying rows. If
-      this is the case (in which TABLE::null_row is true) and the
+      this is the case (in which TABLE::has_null_row() is true) and the
       field is not nullable, the field is considered to be NULL.
 
       Do not change the order of testing. Fields may be associated
       with a TABLE object without being part of the current row.
       For NULL value check to work for these fields, they must
       have a valid m_null_ptr, and this pointer must be checked before
-      TABLE::null_row. 
+      TABLE::has_null_row().
     */
     if (real_maybe_null())
       return MY_TEST(m_null_ptr[row_offset] & null_bit);
@@ -1124,7 +1149,7 @@ public:
     if (is_tmp_nullable())
       return m_is_tmp_null;
 
-    return table->null_row;
+    return table->has_null_row();
   }
 
   /**
@@ -1989,8 +2014,8 @@ public:
   uint32 pack_length() const { return (uint32) bin_size; }
   uint pack_length_from_metadata(uint field_metadata);
   uint row_pack_length() const { return pack_length(); }
-  bool compatible_field_size(uint field_metadata, Relay_log_info *rli,
-                             uint16 mflags, int *order_var);
+  bool compatible_field_size(uint field_metadata, Relay_log_info *,
+                             uint16, int *order_var);
   uint is_equal(Create_field *new_field);
   Field_new_decimal *clone(MEM_ROOT *mem_root) const { 
     DBUG_ASSERT(type() == MYSQL_TYPE_NEWDECIMAL);
@@ -2500,7 +2525,7 @@ protected:
   /**
     Adjust number of decimal digits from NOT_FIXED_DEC to DATETIME_MAX_DECIMALS
   */
-  uint8 normalize_dec(uint8 dec_arg)
+  static uint8 normalize_dec(uint8 dec_arg)
   { return dec_arg == NOT_FIXED_DEC ? DATETIME_MAX_DECIMALS : dec_arg; }
 
   /**
@@ -2563,6 +2588,8 @@ protected:
     @param[in]  unsigned_val  SIGNED/UNSIGNED flag
     @param[in]  nanoseconds   Fractional part in nanoseconds
     @param[out] ltime         The value is stored here
+    @param[in,out] warning    Warnings found during execution
+
     @return Conversion status
     @retval     false         On success
     @retval     true          On error
@@ -2579,11 +2606,13 @@ protected:
     @param[in]  nr            Number
     @param[in]  unsigned_val  SIGNED/UNSIGNED flag
     @param[out] ltime         The value is stored here
+    @param[in,out] warnings   Warnings found during execution
+
     @retval     false         On success
     @retval     true          On error
   */
   longlong convert_number_to_datetime(longlong nr, bool unsigned_val,
-                                      MYSQL_TIME *ltime, int *warning);
+                                      MYSQL_TIME *ltime, int *warnings);
 
   /**
     Set a warning according to warning bit flag vector.
@@ -2648,10 +2677,10 @@ public:
                  uchar auto_flags_arg, const char *field_name_arg,
                  uint32 len_arg, uint8 dec_arg)
     :Field(ptr_arg,
-           len_arg + ((dec= normalize_dec(dec_arg)) ? normalize_dec(dec_arg) + 1 : 0),
+           len_arg + ((normalize_dec(dec_arg)) ? normalize_dec(dec_arg) + 1 : 0),
            null_ptr_arg, null_bit_arg,
            auto_flags_arg, field_name_arg)
-    { flags|= BINARY_FLAG; }
+  { flags|= BINARY_FLAG; dec= normalize_dec(dec_arg); }
   /**
     Constructor for Field_temporal
     @param maybe_null_arg    See Field definition
@@ -3901,6 +3930,21 @@ class Field_json :public Field_blob
 {
   type_conversion_status unsupported_conversion();
   type_conversion_status store_binary(const char *ptr, size_t length);
+
+  /**
+    Diagnostics utility for ER_INVALID_JSON_TEXT.
+
+    @param err        error message argument for ER_INVALID_JSON_TEXT
+    @param err_offset location in text at which there is an error
+  */
+  void invalid_text(const char *err, size_t err_offset) const
+  {
+    String s;
+    s.append(*table_name);
+    s.append('.');
+    s.append(field_name);
+    my_error(ER_INVALID_JSON_TEXT, MYF(0), err, err_offset, s.c_ptr_safe());
+  }
 public:
   Field_json(uchar *ptr_arg, uchar *null_ptr_arg, uint null_bit_arg,
              uchar auto_flags_arg, const char *field_name_arg,
@@ -4173,13 +4217,13 @@ public:
   uint pack_length_from_metadata(uint field_metadata);
   uint row_pack_length() const
   { return (bytes_in_rec + ((bit_len > 0) ? 1 : 0)); }
-  bool compatible_field_size(uint metadata, Relay_log_info *rli,
+  bool compatible_field_size(uint metadata, Relay_log_info *,
                              uint16 mflags, int *order_var);
   void sql_type(String &str) const;
   virtual uchar *pack(uchar *to, const uchar *from,
-                      uint max_length, bool low_byte_first);
+                      uint max_length, bool);
   virtual const uchar *unpack(uchar *to, const uchar *from,
-                              uint param_data, bool low_byte_first);
+                              uint param_data, bool);
   virtual void set_default();
 
   Field *new_key_field(MEM_ROOT *root, TABLE *new_table,
@@ -4343,6 +4387,10 @@ public:
 
   Create_field()
    :after(NULL),
+    geom_type(Field::GEOM_GEOMETRY),
+    maybe_null(false),
+    is_zerofill(false),
+    is_unsigned(false),
     /*
       Initialize treat_bit_as_char for all field types even if
       it is only used for MYSQL_TYPE_BIT. This avoids bogus

@@ -214,15 +214,16 @@ btr_blob_op_is_update(
 	return(FALSE);
 }
 
-/******************************************************//**
-The following function is used to set the deleted bit of a record. */
+/** The following function is used to set the deleted bit of a record.
+@param[in,out]	rec		physical record
+@param[in,out]	page_zip	compressed page (or NULL)
+@param[in]	flag		nonzero if delete marked */
 UNIV_INLINE
 void
 btr_rec_set_deleted_flag(
-/*=====================*/
-	rec_t*		rec,	/*!< in/out: physical record */
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page (or NULL) */
-	ulint		flag)	/*!< in: nonzero if delete marked */
+	rec_t*		rec,
+	page_zip_des_t*	page_zip,
+	ulint		flag)
 {
 	if (page_rec_is_comp(rec)) {
 		rec_set_deleted_flag_new(rec, page_zip, flag);

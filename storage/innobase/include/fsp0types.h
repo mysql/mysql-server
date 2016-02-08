@@ -173,7 +173,7 @@ every XDES_DESCRIBED_PER_PAGE pages in every tablespace. */
 #define FSP_DICT_HDR_PAGE_NO		7	/*!< data dictionary header
 						page, in tablespace 0 */
 #define FSP_TBL_BUFFER_TREE_ROOT_PAGE_NO	\
-					8	/*< DDTableBuffer table's
+					8	/*!< DDTableBuffer table's
 						B-tree root page in tablespace
 						0 */
 
@@ -247,6 +247,10 @@ was created with CREATE TABLESPACE and can be shared by multiple tables. */
 is a temporary tablespace and everything in it is temporary, meaning that
 it is for a single client and should be deleted upon startup if it exists. */
 #define FSP_FLAGS_WIDTH_TEMPORARY	1
+/** Width of the SDI flag.  This flag indicates the presence of
+tablespace dictionary.*/
+#define FSP_FLAGS_WIDTH_SDI		1
+
 /** Width of all the currently known tablespace flags */
 #define FSP_FLAGS_WIDTH		(FSP_FLAGS_WIDTH_POST_ANTELOPE	\
 				+ FSP_FLAGS_WIDTH_ZIP_SSIZE	\
@@ -254,7 +258,8 @@ it is for a single client and should be deleted upon startup if it exists. */
 				+ FSP_FLAGS_WIDTH_PAGE_SSIZE	\
 				+ FSP_FLAGS_WIDTH_DATA_DIR	\
 				+ FSP_FLAGS_WIDTH_SHARED	\
-				+ FSP_FLAGS_WIDTH_TEMPORARY)
+				+ FSP_FLAGS_WIDTH_TEMPORARY	\
+				+ FSP_FLAGS_WIDTH_SDI)
 
 /** A mask of all the known/used bits in tablespace flags */
 #define FSP_FLAGS_MASK		(~(~0 << FSP_FLAGS_WIDTH))
@@ -279,9 +284,12 @@ it is for a single client and should be deleted upon startup if it exists. */
 /** Zero relative shift position of the start of the TEMPORARY bit */
 #define FSP_FLAGS_POS_TEMPORARY		(FSP_FLAGS_POS_SHARED		\
 					+ FSP_FLAGS_WIDTH_SHARED)
-/** Zero relative shift position of the start of the UNUSED bits */
-#define FSP_FLAGS_POS_UNUSED		(FSP_FLAGS_POS_TEMPORARY	\
+/** Zero relative shift position of the start of the SDI bits */
+#define FSP_FLAGS_POS_SDI		(FSP_FLAGS_POS_TEMPORARY	\
 					+ FSP_FLAGS_WIDTH_TEMPORARY)
+/** Zero relative shift position of the start of the UNUSED bits */
+#define FSP_FLAGS_POS_UNUSED		(FSP_FLAGS_POS_SDI	\
+					+ FSP_FLAGS_WIDTH_SDI)
 
 /** Bit mask of the POST_ANTELOPE field */
 #define FSP_FLAGS_MASK_POST_ANTELOPE				\
@@ -311,6 +319,10 @@ it is for a single client and should be deleted upon startup if it exists. */
 #define FSP_FLAGS_MASK_TEMPORARY				\
 		((~(~0U << FSP_FLAGS_WIDTH_TEMPORARY))		\
 		<< FSP_FLAGS_POS_TEMPORARY)
+/** Bit mask of the SDI field */
+#define FSP_FLAGS_MASK_SDI					\
+		((~(~0 << FSP_FLAGS_WIDTH_SDI))			\
+		<< FSP_FLAGS_POS_SDI)
 
 /** Return the value of the POST_ANTELOPE field */
 #define FSP_FLAGS_GET_POST_ANTELOPE(flags)			\
@@ -340,9 +352,18 @@ it is for a single client and should be deleted upon startup if it exists. */
 #define FSP_FLAGS_GET_TEMPORARY(flags)				\
 		((flags & FSP_FLAGS_MASK_TEMPORARY)		\
 		>> FSP_FLAGS_POS_TEMPORARY)
+/** Return the value of the SDI field */
+#define FSP_FLAGS_HAS_SDI(flags)				\
+		((flags & FSP_FLAGS_MASK_SDI)			\
+		>> FSP_FLAGS_POS_SDI)
+
 /** Return the contents of the UNUSED bits */
 #define FSP_FLAGS_GET_UNUSED(flags)				\
 		(flags >> FSP_FLAGS_POS_UNUSED)
+
+/** Set SDI Index bit in tablespace flags */
+#define FSP_FLAGS_SET_SDI(flags)				\
+		(flags | (1 << FSP_FLAGS_POS_SDI))
 
 /** Use an alias in the code for FSP_FLAGS_GET_SHARED() */
 #define fsp_is_shared_tablespace FSP_FLAGS_GET_SHARED

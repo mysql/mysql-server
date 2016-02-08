@@ -638,27 +638,27 @@ DROP TABLE t4;
 # An empty string in DATA DIRECTORY='' indicates the current directory,
 # which is not allowed.
 CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='';
-ERROR 42000: Incorrect table name ''
+ERROR HY000: Incorrect path value: ''
 SHOW WARNINGS;
 Level	Code	Message
-Error	1103	Incorrect table name ''
+Error	1525	Incorrect path value: ''
 SET GLOBAL innodb_file_per_table = ON;
 SET innodb_strict_mode = ON;
 CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='';
-ERROR 42000: Incorrect table name ''
+ERROR HY000: Incorrect path value: ''
 SHOW WARNINGS;
 Level	Code	Message
-Error	1103	Incorrect table name ''
+Error	1525	Incorrect path value: ''
 CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='.';
-ERROR 42000: Incorrect table name '.'
+ERROR HY000: Incorrect path value: '.'
 SHOW WARNINGS;
 Level	Code	Message
-Error	1103	Incorrect table name '.'
+Error	1525	Incorrect path value: '.'
 CREATE TABLE t4 (a int, b text) TABLESPACE=innodb_file_per_table DATA DIRECTORY='test';
-ERROR 42000: Incorrect table name 'test'
+ERROR HY000: Incorrect path value: 'test'
 SHOW WARNINGS;
 Level	Code	Message
-Error	1103	Incorrect table name 'test'
+Error	1525	Incorrect path value: 'test'
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===
 Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
 s_def	General	DEFAULT	0	Any	MYSQLD_DATADIR/s_def.ibd

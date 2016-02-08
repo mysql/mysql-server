@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -46,12 +46,6 @@ MY_ADD_CXX_WARNING_FLAG("Wmissing-format-attribute")
 MY_ADD_CXX_WARNING_FLAG("Wlogical-op")
 MY_ADD_C_WARNING_FLAG("Wundef")
 MY_ADD_CXX_WARNING_FLAG("Wundef")
-
-# Temporarily convert C++11 related errors to warnings
-MY_CHECK_CXX_COMPILER_FLAG("-Wdeprecated-register" HAVE_DEPRECATED_REGISTER)
-IF(HAVE_DEPRECATED_REGISTER)
-  SET(MY_CXX_WARNING_FLAGS "${MY_CXX_WARNING_FLAGS} -Wno-error=deprecated-register")
-ENDIF()
 
 # Turn on extra Clang warnings in maintainer mode
 IF(CMAKE_C_COMPILER_ID MATCHES "Clang" AND MYSQL_MAINTAINER_MODE)

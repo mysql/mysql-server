@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -216,7 +216,9 @@ static int windows_eventlog_create_registry_entry(const char *key)
   be invoked from the main thread or some extra thread
   safety measures need to be taken.
 
-  @param name    Name of the event source / syslog ident
+  @param name     Name of the event source / syslog ident.
+  @param option   MY_SYSLOG_PIDS to log PID with each message.
+  @param facility Type of program. Passed to openlog().
 
   @return
      0 Success
@@ -250,7 +252,7 @@ int my_openlog(const char *name, int option, int facility)
   }
   else
   {
-    if (hEventLog)
+    if (hEventLog != NULL)
       DeregisterEventSource(hEventLog);
     hEventLog= hEL_new;
   }
@@ -277,13 +279,14 @@ int my_closelog(void)
   closelog();
   DBUG_RETURN(0);
 #else
-  if (hEventLog && (! DeregisterEventSource(hEventLog)))
+  if ((hEventLog != NULL) && (! DeregisterEventSource(hEventLog)))
     goto err;
 
   hEventLog= NULL;
   DBUG_RETURN(0);
 
 err:
+  hEventLog= NULL;
   // map error appropriately
   my_osmaperr(GetLastError());
   DBUG_RETURN(-1);

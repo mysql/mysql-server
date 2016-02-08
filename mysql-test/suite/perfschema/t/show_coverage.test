@@ -36,7 +36,7 @@ SHOW SESSION VARIABLES WHERE VARIABLE_NAME LIKE "foo";
 --echo # CREATE..SELECT -- Expect correct ER_WARN_DEPRECATED_SYNTAX
 --echo #
 USE test;
-CREATE TABLE t0 SELECT * FROM information_schema.global_status WHERE variable_name = 'COM_SELECT';
+CREATE TABLE t0 SELECT * FROM performance_schema.global_status WHERE variable_name = 'COM_SELECT';
 DROP TABLE t0;
 
 --echo

@@ -139,15 +139,19 @@ typedef struct st_mysql_server_auth_info
   const char *host_or_ip;
   unsigned int host_or_ip_length;
 } MYSQL_SERVER_AUTH_INFO;
+typedef int (*authenticate_user_t)(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info);
+typedef int (*generate_authentication_string_t)(char *outbuf,
+      unsigned int *outbuflen, const char *inbuf, unsigned int inbuflen);
+typedef int (*validate_authentication_string_t)(char* const inbuf, unsigned int buflen);
+typedef int (*set_salt_t)(const char *password, unsigned int password_len,
+                          unsigned char* salt, unsigned char *salt_len);
 struct st_mysql_auth
 {
   int interface_version;
   const char *client_auth_plugin;
-  int (*authenticate_user)(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info);
-  int (*generate_authentication_string)(char *outbuf,
-      unsigned int *outbuflen, const char *inbuf, unsigned int inbuflen);
-  int (*validate_authentication_string)(char* const inbuf, unsigned int buflen);
-  int (*set_salt)(const char *password, unsigned int password_len,
-                  unsigned char* salt, unsigned char *salt_len);
+  authenticate_user_t authenticate_user;
+  generate_authentication_string_t generate_authentication_string;
+  validate_authentication_string_t validate_authentication_string;
+  set_salt_t set_salt;
   const unsigned long authentication_flags;
 };

@@ -18,6 +18,7 @@
 
 #include "my_global.h"
 #include "hash.h"        // HASH
+#include "template_utils.h"
 
 /* Forward declarations */
 #ifndef MYSQL_CLIENT
@@ -79,10 +80,7 @@ public:
   ulong     count() const { return m_table_ids.records; }
 
 private:
-  /*
-    This is a POD (Plain Old Data).  Keep it that way (we apply offsetof() to
-    it, which only works for PODs)
-  */
+
   struct entry { 
     ulonglong table_id;
     union {
@@ -90,6 +88,13 @@ private:
       entry *next;
     };
   };
+
+  static const uchar *table_id_get_key(const uchar *ptr, size_t *length)
+  {
+    const entry *ent= pointer_cast<const entry*>(ptr);
+    *length= sizeof(ent->table_id);
+    return pointer_cast<const uchar*>(&ent->table_id);
+  }
 
   entry *find_entry(ulonglong table_id)
   {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -90,11 +90,11 @@ page_dir_find_owner_slot(
 /*=====================*/
 	const rec_t*	rec)	/*!< in: the physical record */
 {
-	const page_t*			page;
-	register uint16			rec_offs_bytes;
-	register const page_dir_slot_t*	slot;
-	register const page_dir_slot_t*	first_slot;
-	register const rec_t*		r = rec;
+	const page_t*		page;
+	uint16			rec_offs_bytes;
+	const page_dir_slot_t*	slot;
+	const page_dir_slot_t*	first_slot;
+	const rec_t*		r = rec;
 
 	ut_ad(page_rec_check(rec));
 
@@ -265,31 +265,40 @@ page_mem_alloc_heap(
 }
 
 #ifndef UNIV_HOTBACKUP
-/**********************************************************//**
-Writes a log record of page creation. */
+/** Writes a log record of page creation
+@param[in]	frame		a buffer frame where the page is created
+@param[in]	mtr		mini-transaction handle
+@param[in]	comp		TRUE=compact page format
+@param[in]	page_type	page type */
 UNIV_INLINE
 void
 page_create_write_log(
-/*==================*/
-	buf_frame_t*	frame,	/*!< in: a buffer frame where the page is
-				created */
-	mtr_t*		mtr,	/*!< in: mini-transaction handle */
-	ibool		comp,	/*!< in: TRUE=compact page format */
-	bool		is_rtree) /*!< in: whether it is R-tree */
+	buf_frame_t*	frame,
+	mtr_t*		mtr,
+	ibool		comp,
+	page_type_t	page_type)
 {
 	mlog_id_t	type;
 
-	if (is_rtree) {
+	switch (page_type) {
+	case FIL_PAGE_INDEX:
+		type = comp ? MLOG_COMP_PAGE_CREATE : MLOG_PAGE_CREATE;
+		break;
+	case FIL_PAGE_RTREE:
 		type = comp ? MLOG_COMP_PAGE_CREATE_RTREE
 			    : MLOG_PAGE_CREATE_RTREE;
-	} else {
-		type = comp ? MLOG_COMP_PAGE_CREATE : MLOG_PAGE_CREATE;
+		break;
+	case FIL_PAGE_SDI:
+		type = comp ? MLOG_COMP_PAGE_CREATE_SDI : MLOG_PAGE_CREATE_SDI;
+		break;
+	default:
+		ut_error;
 	}
 
 	mlog_write_initial_log_record(frame, type, mtr);
 }
 #else /* !UNIV_HOTBACKUP */
-# define page_create_write_log(frame,mtr,comp,is_rtree) ((void) 0)
+# define page_create_write_log(frame, mtr, comp, type) ((void) 0)
 #endif /* !UNIV_HOTBACKUP */
 
 /** The page infimum and supremum of an empty page in ROW_FORMAT=REDUNDANT */
@@ -324,17 +333,17 @@ static const byte infimum_supremum_compact[] = {
 	's', 'u', 'p', 'r', 'e', 'm', 'u', 'm'
 };
 
-/**********************************************************//**
-The index page creation function.
+/** The index page creation function.
+@param[in,out]	block		a buffer block where the page is created
+@param[in]	comp		nonzero=compact page format
+@param[in]	page_type	page type
 @return pointer to the page */
 static
 page_t*
 page_create_low(
-/*============*/
-	buf_block_t*	block,		/*!< in: a buffer block where the
-					page is created */
-	ulint		comp,		/*!< in: nonzero=compact page format */
-	bool		is_rtree)	/*!< in: if it is an R-Tree page */
+	buf_block_t*	block,
+	ulint		comp,
+	page_type_t	page_type)
 {
 	page_t*		page;
 
@@ -349,11 +358,10 @@ page_create_low(
 
 	page = buf_block_get_frame(block);
 
-	if (is_rtree) {
-		fil_page_set_type(page, FIL_PAGE_RTREE);
-	} else {
-		fil_page_set_type(page, FIL_PAGE_INDEX);
-	}
+	ut_ad(page_type == FIL_PAGE_INDEX || page_type == FIL_PAGE_RTREE
+	      || page_type == FIL_PAGE_SDI);
+
+	fil_page_set_type(page, page_type);
 
 	memset(page + PAGE_HEADER, 0, PAGE_HEADER_PRIV_END);
 	page[PAGE_HEADER + PAGE_N_DIR_SLOTS + 1] = 2;
@@ -390,51 +398,57 @@ page_create_low(
 }
 
 /** Parses a redo log record of creating a page.
-@param[in,out]	block	buffer block, or NULL
-@param[in]	comp	nonzero=compact page format
-@param[in]	is_rtree whether it is rtree page */
+@param[in,out]	block		buffer block, or NULL
+@param[in]	comp		nonzero=compact page format
+@param[in]	page_type	page type (FIL_PAGE_INDEX, FIL_PAGE_RTREE
+				or FIL_PAGE_SDI) */
 void
 page_parse_create(
 	buf_block_t*	block,
 	ulint		comp,
-	bool		is_rtree)
+	page_type_t	page_type)
 {
 	if (block != NULL) {
-		page_create_low(block, comp, is_rtree);
+		page_create_low(block, comp, page_type);
 	}
 }
 
-/**********************************************************//**
-Create an uncompressed B-tree or R-tree index page.
+/** Create an uncompressed B-tree or R-tree or SDI index page.
+@param[in]	block		a buffer block where the page is created
+@param[in]	mtr		mini-transaction handle
+@param[in]	comp		nonzero=compact page format
+@param[in]	page_type	page type
 @return pointer to the page */
 page_t*
 page_create(
-/*========*/
-	buf_block_t*	block,		/*!< in: a buffer block where the
-					page is created */
-	mtr_t*		mtr,		/*!< in: mini-transaction handle */
-	ulint		comp,		/*!< in: nonzero=compact page format */
-	bool		is_rtree)	/*!< in: whether it is a R-Tree page */
+	buf_block_t*	block,
+	mtr_t*		mtr,
+	ulint		comp,
+	page_type_t	page_type)
 {
 	ut_ad(mtr->is_named_space(block->page.id.space()));
-	page_create_write_log(buf_block_get_frame(block), mtr, comp, is_rtree);
-	return(page_create_low(block, comp, is_rtree));
+	page_create_write_log(buf_block_get_frame(block), mtr, comp, page_type);
+	return(page_create_low(block, comp, page_type));
 }
 
-/**********************************************************//**
-Create a compressed B-tree index page.
+/** Create a compressed B-tree index page.
+@param[in,out]	block		buffer frame where the page is created
+@param[in]	index		index of the page, or NULL when applying
+				TRUNCATE log record during recovery
+@param[in]	level		the B-tree level of the page
+@param[in]	max_trx_id	PAGE_MAX_TRX_ID
+@param[in]	mtr		mini-transaction handle
+@param[in]	page_type	page_type to be created. Only FIL_PAGE_INDEX,
+				FIL_PAGE_RTREE, FIL_PAGE_SDI allowed
 @return pointer to the page */
 page_t*
 page_create_zip(
-/*============*/
-	buf_block_t*		block,		/*!< in/out: a buffer frame
-						where the page is created */
-	dict_index_t*		index,		/*!< in: index tree */
-	ulint			level,		/*!< in: the B-tree level
-						of the page */
-	trx_id_t		max_trx_id,	/*!< in: PAGE_MAX_TRX_ID */
-	mtr_t*			mtr)		/*!< in/out: mini-transaction
-						handle */
+	buf_block_t*			block,
+	dict_index_t*			index,
+	ulint				level,
+	trx_id_t			max_trx_id,
+	mtr_t*				mtr,
+	page_type_t			page_type)
 {
 	page_t*			page;
 	page_zip_des_t*		page_zip = buf_block_get_page_zip(block);
@@ -443,7 +457,19 @@ page_create_zip(
 	ut_ad(page_zip);
 	ut_ad(dict_table_is_comp(index->table));
 
-	page = page_create_low(block, TRUE, dict_index_is_spatial(index));
+#ifdef UNIV_DEBUG
+	switch (page_type) {
+	case FIL_PAGE_INDEX:
+	case FIL_PAGE_RTREE:
+	case FIL_PAGE_SDI:
+		break;
+	default:
+		ut_ad(0);
+	}
+#endif /* UNIV_DEBUG */
+
+	page = page_create_low(block, TRUE, page_type);
+
 	mach_write_to_2(PAGE_HEADER + PAGE_LEVEL + page, level);
 	mach_write_to_8(PAGE_HEADER + PAGE_MAX_TRX_ID + page, max_trx_id);
 
@@ -466,7 +492,7 @@ page_create_empty(
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
 	trx_id_t	max_trx_id = 0;
-	const page_t*	page	= buf_block_get_frame(block);
+	page_t*	page	= buf_block_get_frame(block);
 	page_zip_des_t*	page_zip= buf_block_get_page_zip(block);
 
 	ut_ad(fil_page_index_page_check(page));
@@ -486,10 +512,11 @@ page_create_empty(
 		ut_ad(!dict_table_is_temporary(index->table));
 		page_create_zip(block, index,
 				page_header_get_field(page, PAGE_LEVEL),
-				max_trx_id, mtr);
+				max_trx_id, mtr,
+				fil_page_get_type(page));
 	} else {
 		page_create(block, mtr, page_is_comp(page),
-			    dict_index_is_spatial(index));
+			    fil_page_get_type(page));
 
 		if (max_trx_id) {
 			page_update_max_trx_id(

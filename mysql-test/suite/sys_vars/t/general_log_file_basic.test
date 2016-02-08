@@ -25,6 +25,8 @@
 ################################################################################
 
 --source include/load_sysvars.inc
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 
 ###########################################################
 #           START OF general_log_file TESTS               #
@@ -67,7 +69,7 @@ SET @@global.general_log_file = 12;
 
 --disable_warnings
 SELECT @@global.general_log_file = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='general_log_file';
 --enable_warnings
 

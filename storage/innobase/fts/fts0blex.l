@@ -1,6 +1,7 @@
+%top{
 /*****************************************************************************
 
-Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,8 +24,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
  * Created 2007/5/9 Sunny Bains
  */
 
-%{
+#include "univ.i"
+}
 
+%{
 #include "fts0ast.h"
 #include "fts0pars.h"
 

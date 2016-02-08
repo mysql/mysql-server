@@ -499,7 +499,8 @@ char *strmake_root(MEM_ROOT *root, const char *str, size_t len)
   char *pos;
   if ((pos= static_cast<char*>(alloc_root(root,len+1))))
   {
-    memcpy(pos,str,len);
+    if (len > 0)
+      memcpy(pos,str,len);
     pos[len]=0;
   }
   return pos;

@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -133,13 +133,16 @@ Position a row accord to key, and fetch value if needed
 ib_err_t
 innodb_api_search(
 /*==============*/
-	innodb_conn_data_t*	cursor_data,/*!< in/out: cursor info */
-	ib_crsr_t*		crsr,	/*!< in/out: cursor used to seacrh */
-	const char*		key,	/*!< in: key to search */
-	int			len,	/*!< in: key length */
-	mci_item_t*		item,	/*!< in: result */
-	ib_tpl_t*		r_tpl,	/*!< in: tpl for other DML operations */
-	bool			sel_only); /*!< in: for select only */
+	innodb_conn_data_t*	cursor_data,	/*!< in/out: cursor info */
+	ib_crsr_t*		crsr,		/*!< in/out: cursor used
+						to seacrh */
+	const char*		key,		/*!< in: key to search */
+	int			len,		/*!< in: key length */
+	mci_item_t*		item,		/*!< in: result */
+	ib_tpl_t*		r_tpl,		/*!< in: tpl for other DML
+						operations */
+	bool			sel_only,	/*!< in: for select only */
+	innodb_range_key_t*	range_key);	/*!< in: range search keys */
 
 /*************************************************************//**
 Insert a row

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -123,6 +123,15 @@ bool Partition_impl::validate() const
     return true;
   }
 
+  if (m_engine.empty())
+  {
+    my_error(ER_INVALID_DD_OBJECT,
+             MYF(0),
+             Partition_impl::OBJECT_TABLE().name().c_str(),
+             "Engine name is not set.");
+    return true;
+  }
+
   // Partition values only relevant for LIST and RANGE partitioning,
   // not for KEY and HASH, so no validation on m_values.
 
@@ -202,7 +211,7 @@ bool Partition_impl::restore_attributes(const Raw_record &r)
   m_level=           r.read_uint(Table_partitions::FIELD_LEVEL);
   m_number=          r.read_uint(Table_partitions::FIELD_NUMBER);
 
-  m_engine=          r.read_str(Table_partitions::FIELD_ENGINE, "");
+  m_engine=          r.read_str(Table_partitions::FIELD_ENGINE);
   m_comment=         r.read_str(Table_partitions::FIELD_COMMENT);
 
   m_tablespace_id= r.read_ref_id(Table_partitions::FIELD_TABLESPACE_ID);
@@ -224,7 +233,7 @@ bool Partition_impl::store_attributes(Raw_record *r)
          r->store(Table_partitions::FIELD_TABLE_ID, m_table->id()) ||
          r->store(Table_partitions::FIELD_LEVEL, m_level) ||
          r->store(Table_partitions::FIELD_NUMBER, m_number) ||
-         r->store(Table_partitions::FIELD_ENGINE, m_engine, m_engine.empty()) ||
+         r->store(Table_partitions::FIELD_ENGINE, m_engine) ||
          r->store(Table_partitions::FIELD_COMMENT, m_comment) ||
          r->store(Table_partitions::FIELD_OPTIONS, *m_options) ||
          r->store(Table_partitions::FIELD_SE_PRIVATE_DATA, *m_se_private_data) ||

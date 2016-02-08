@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -306,9 +306,18 @@ void Sql_formatter::format_plain_sql_object(
      dynamic_cast<View*>(plain_sql_dump_task);
   if (new_view_task != NULL)
   {
-    this->append_output("DROP VIEW IF EXISTS "
-       + this->get_quoted_object_full_name(new_view_task) + ";\n");
+     /*
+      DROP VIEW statement followed by CREATE VIEW must be written to output
+      as an atomic operation, else there is a possibility of bug#21399236.
+      It happens when we DROP VIEW v1, and it uses column from view v2, which
+      might get dropped before creation of real v1 view, and thus result in
+      error during restore.
+    */
     format_sql_objects_definer(plain_sql_dump_task, "VIEW");
+    this->append_output("DROP VIEW IF EXISTS "
+       + this->get_quoted_object_full_name(new_view_task) + ";\n"
+       + plain_sql_dump_task->get_sql_formatted_definition() + ";\n");
+    return;
   }
 
   Mysql_function* new_func_task=

@@ -1,4 +1,5 @@
-
+# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
 
 ################## mysql-test\t\basedir_basic.test ############################
 #                                                                             #
@@ -52,7 +53,7 @@ SELECT COUNT(@@GLOBAL.basedir);
 
 --disable_warnings
 SELECT @@GLOBAL.basedir = VARIABLE_VALUE
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+FROM performance_schema.global_variables
 WHERE VARIABLE_NAME='basedir';
 --enable_warnings
 --echo 1 Expected
@@ -62,7 +63,7 @@ SELECT COUNT(@@GLOBAL.basedir);
 
 --disable_warnings
 SELECT COUNT(VARIABLE_VALUE)
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='basedir';
 --enable_warnings
 --echo 1 Expected

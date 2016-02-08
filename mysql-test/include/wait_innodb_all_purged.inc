@@ -33,7 +33,7 @@ let $age_log=0;
 while ($wait_counter)
 {
 --disable_warnings
-    let $trx_age = `SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+    let $trx_age = `SELECT VARIABLE_VALUE FROM performance_schema.global_status
 WHERE VARIABLE_NAME = 'INNODB_PURGE_TRX_ID_AGE';`;
 --enable_warnings
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include "dd_table_share.h"           // open_table_def
 #include "debug_sync.h"               // DEBUG_SYNC
 #include "derror.h"                   // ER_THD
+#include "error_handler.h"            // Drop_table_error_handler
 #include "filesort.h"                 // Filesort
 #include "item_timefunc.h"            // Item_func_now_local
 #include "key.h"                      // KEY
@@ -3003,7 +3004,13 @@ err:
                                    is_drop_tmp_if_exists_with_no_defaultdb/*suppress_use*/,
                                    0/*errcode*/);
       }
-      if (non_tmp_table_deleted)
+      /*
+        When the DROP TABLE command is used to drop a single table and if that
+        command fails then the query cannot generate 'partial results'. In
+        that case the query will not be written to the binary log.
+      */
+      if (non_tmp_table_deleted &&
+          (thd->lex->select_lex->table_list.elements > 1 || !error))
       {
         /// @see comment for mysql_bin_log.commit above.
         if (non_trans_tmp_table_deleted || trans_tmp_table_deleted ||
@@ -3157,10 +3164,12 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
    that PK has number 0).
 */
 
-static int sort_keys(KEY *a, KEY *b)
+static int sort_keys(const void *a_arg, const void *b_arg)
 {
+  const KEY *a= pointer_cast<const KEY*>(a_arg);
+  const KEY *b= pointer_cast<const KEY*>(b_arg);
   ulong a_flags= a->flags, b_flags= b->flags;
-  
+
   if (a_flags & HA_NOSAME)
   {
     if (!(b_flags & HA_NOSAME))
@@ -4912,7 +4921,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
   }
   /* Sort keys in optimized order */
   my_qsort((uchar*) *key_info_buffer, *key_count, sizeof(KEY),
-	   (qsort_cmp) sort_keys);
+	   sort_keys);
   create_info->null_bits= null_fields;
 
   /* Check fields. */
@@ -5189,6 +5198,8 @@ static void sp_prepare_create_field(THD *thd, Create_field *sql_field)
   @param[out] key_info       Array of KEY objects describing keys in table
                              which was created.
   @param[out] key_count      Number of keys in table which was created.
+  @param[in] is_sql_layer_system_table
+                             We skip certain index checks for system tables.
   @param[out] tmp_table_def  Data-dictionary object for temporary table
                              which was created, but was not open because
                              of "no_ha_table" flag. NULL otherwise (if
@@ -6382,6 +6393,26 @@ int mysql_discard_or_import_tablespace(THD *thd,
     ALTER TABLE
   */
 
+   /*
+     DISCARD/IMPORT TABLESPACE do not respect ALGORITHM and LOCK clauses.
+   */
+  if (thd->lex->alter_info.requested_lock !=
+      Alter_info::ALTER_TABLE_LOCK_DEFAULT)
+  {
+    my_error(ER_ALTER_OPERATION_NOT_SUPPORTED, MYF(0),
+             "LOCK=NONE/SHARED/EXCLUSIVE",
+             "LOCK=DEFAULT");
+    DBUG_RETURN(true);
+  }
+  else if (thd->lex->alter_info.requested_algorithm !=
+           Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT)
+  {
+    my_error(ER_ALTER_OPERATION_NOT_SUPPORTED, MYF(0),
+             "ALGORITHM=COPY/INPLACE",
+             "ALGORITHM=DEFAULT");
+    DBUG_RETURN(true);
+  }
+
   THD_STAGE_INFO(thd, stage_discard_or_import_tablespace);
 
   /*
@@ -6699,8 +6730,10 @@ static bool has_index_def_changed(Alter_inplace_info *ha_alter_info,
 }
 
 
-static int compare_uint(const uint *s, const uint *t)
+static int compare_uint(const void *a, const void *b)
 {
+  const uint *s= pointer_cast<const uint*>(a);
+  const uint *t= pointer_cast<const uint*>(b);
   return (*s < *t) ? -1 : ((*s > *t) ? 1 : 0);
 }
 
@@ -6755,8 +6788,6 @@ static bool lock_fk_dependent_tables(THD *thd, TABLE *table)
 
    @param          thd                Thread
    @param          table              The original table.
-   @param          varchar            Indicates that new definition has new
-                                      VARCHAR column.
    @param[in,out]  ha_alter_info      Data structure which already contains
                                       basic information about create options,
                                       field and keys for the new version of
@@ -7191,7 +7222,7 @@ static bool fill_alter_inplace_info(THD *thd,
   */
   my_qsort(ha_alter_info->index_add_buffer,
            ha_alter_info->index_add_count,
-           sizeof(uint), (qsort_cmp) compare_uint);
+           sizeof(uint), compare_uint);
 
   /* Now let us calculate flags for storage engine API. */
 
@@ -9212,6 +9243,44 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
 
 
 /**
+  Auxiliary class implementing RAII principle for getting permission for/
+  notification about finished ALTER TABLE from interested storage engines.
+
+  @see handlerton::notify_alter_table for details.
+*/
+
+class Alter_table_hton_notification_guard
+{
+public:
+  Alter_table_hton_notification_guard(THD *thd, const MDL_key *key)
+    : m_hton_notified(false), m_thd(thd), m_key(key)
+  {
+  }
+
+  bool notify()
+  {
+    if (!ha_notify_alter_table(m_thd, &m_key, HA_NOTIFY_PRE_EVENT))
+    {
+      m_hton_notified= true;
+      return false;
+    }
+    my_error(ER_LOCK_REFUSED_BY_ENGINE, MYF(0));
+    return true;
+  }
+
+  ~Alter_table_hton_notification_guard()
+  {
+    if (m_hton_notified)
+      (void) ha_notify_alter_table(m_thd, &m_key, HA_NOTIFY_POST_EVENT);
+  }
+private:
+  bool m_hton_notified;
+  THD *m_thd;
+  const MDL_key m_key;
+};
+
+
+/**
   Alter table
 
   @param thd              Thread handle
@@ -9332,6 +9401,16 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     has been already processed.
   */
   table_list->required_type= dd::Abstract_table::TT_BASE_TABLE;
+
+  /*
+    If we are about to ALTER non-temporary table we need to get permission
+    from/notify interested storage engines.
+  */
+  Alter_table_hton_notification_guard notification_guard(thd,
+                                        &table_list->mdl_request.key);
+
+  if (!is_temporary_table(table_list) && notification_guard.notify())
+    DBUG_RETURN(true);
 
   Alter_table_prelocking_strategy alter_prelocking_strategy;
 
@@ -10560,9 +10639,9 @@ copy_data_between_tables(THD * thd,
 
       Column_privilege_tracker column_privilege(thd, SELECT_ACL);
 
-      if (select_lex->setup_ref_array(thd))
+      if (select_lex->setup_base_ref_items(thd))
         goto err;            /* purecov: inspected */
-      if (setup_order(thd, select_lex->ref_pointer_array,
+      if (setup_order(thd, select_lex->base_ref_items,
                       &tables, fields, all_fields, order))
         goto err;
       qep_tab.set_table(from);
@@ -10585,6 +10664,8 @@ copy_data_between_tables(THD * thd,
   thd->get_stmt_da()->reset_current_row_for_condition();
 
   set_column_defaults(to, create);
+
+  to->file->extra(HA_EXTRA_BEGIN_ALTER_COPY);
 
   while (!(error=info.read_record(&info)))
   {
@@ -10667,6 +10748,9 @@ copy_data_between_tables(THD * thd,
     error= 1;
   }
 
+  to->file->extra(HA_EXTRA_END_ALTER_COPY);
+
+  DBUG_EXECUTE_IF("crash_copy_before_commit", DBUG_SUICIDE(););
   if (mysql_trans_commit_alter_copy_data(thd))
     error= 1;
 
@@ -10709,7 +10793,6 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list, bool table_copy)
   /* Same applies to MDL request. */
   table_list->mdl_request.set_type(MDL_SHARED_NO_WRITE);
 
-  memset(&create_info, 0, sizeof(create_info));
   create_info.row_type=ROW_TYPE_NOT_USED;
   create_info.default_table_charset=default_charset_info;
   /* Force alter table to recreate table */

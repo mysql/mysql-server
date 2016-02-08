@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -264,6 +264,7 @@ public:
     </pre>
 
     @param buf                Contains the serialized event.
+    @param event_len          Length of the serialized event.
     @param description_event  An FDE event, used to get the
                               following information
                               -binlog_version
@@ -641,7 +642,7 @@ public:
                               The content of this object
                               depends on the binlog-version currently in use.
   */
-  Xid_event(const char *buf, const Format_description_event *fde);
+  Xid_event(const char *buf, const Format_description_event *description_event);
   uint64_t xid;
 #ifndef HAVE_MYSYS
   void print_event_info(std::ostream& info);
@@ -854,11 +855,12 @@ struct gtid_info
     <th>Description</th>
   </tr>
   <tr>
-    <td>byte</th>
-    <td>unsigned char array</th>
+    <td>byte</td>
+    <td>unsigned char array</td>
     <td>This stores the Uuid of the server on which transaction
-        is originated</th>
+        is originated</td>
   </tr>
+  </table>
 */
 
 struct Uuid
@@ -937,8 +939,6 @@ struct Uuid
         (file, offset)
 
   @section Gtid_event_binary_format Binary Format
-
-  @todo
 */
 class Gtid_event: public Binary_log_event
 {

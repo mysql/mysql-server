@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -414,23 +414,39 @@ row_merge_buf_free(
 	mem_heap_free(buf->heap);
 }
 
+#ifdef UNIV_DEBUG
+# define row_merge_buf_redundant_convert(row_field, field, len,			\
+	page_size, is_sdi, heap)						\
+	row_merge_buf_redundant_convert_func(row_field, field, len,		\
+	page_size, is_sdi, heap)
+# else /* UNIV_DEBUG */
+# define row_merge_buf_redundant_convert(row_field, field, len,			\
+	page_size, is_sdi, heap)						\
+	row_merge_buf_redundant_convert_func(row_field, field, len, 		\
+	page_size, heap)
+# endif /* UNIV_DEBUG */
+
 /** Convert the field data from compact to redundant format.
 @param[in]	row_field	field to copy from
 @param[out]	field		field to copy to
 @param[in]	len		length of the field data
 @param[in]	page_size	compressed BLOB page size,
 				zero for uncompressed BLOBs
+@param[in]	is_sdi		true for SDI indexes
 @param[in,out]	heap		memory heap where to allocate data when
 				converting to ROW_FORMAT=REDUNDANT, or NULL
 				when not to invoke
 				row_merge_buf_redundant_convert(). */
 static
 void
-row_merge_buf_redundant_convert(
+row_merge_buf_redundant_convert_func(
 	const dfield_t*		row_field,
 	dfield_t*		field,
 	ulint			len,
 	const page_size_t&	page_size,
+#ifdef UNIV_DEBUG
+	bool			is_sdi,
+#endif /* UNIV_DEBUG */
 	mem_heap_t*		heap)
 {
 	ut_ad(DATA_MBMINLEN(field->type.mbminmaxlen) == 1);
@@ -450,7 +466,8 @@ row_merge_buf_redundant_convert(
 			    field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE));
 
 		byte*	data = btr_copy_externally_stored_field(
-			&ext_len, field_data, page_size, field_len, heap);
+			&ext_len, field_data, page_size, field_len, is_sdi,
+			heap);
 
 		ut_ad(ext_len < len);
 
@@ -482,6 +499,8 @@ row_merge_buf_redundant_convert(
 				row_merge_buf_redundant_convert()
 @param[in,out]	err		set if error occurs
 @param[in,out]	v_heap		heap memory to process data for virtual column
+@param[in,out]	my_table	mysql table object
+@param[in]	trx		transaction object
 @return number of rows added, 0 if out of space */
 static
 ulint
@@ -496,7 +515,9 @@ row_merge_buf_add(
 	doc_id_t*		doc_id,
 	mem_heap_t*		conv_heap,
 	dberr_t*		err,
-	mem_heap_t**		v_heap)
+	mem_heap_t**		v_heap,
+	TABLE*			my_table,
+	trx_t*			trx)
 {
 	ulint			i;
 	const dict_index_t*	index;
@@ -581,8 +602,9 @@ row_merge_buf_add(
 					= dict_table_get_first_index(new_table);
 
 				row_field = innobase_get_computed_value(
-					row, v_col, clust_index, NULL,
-					v_heap, NULL, ifield, false);
+					row, v_col, clust_index,
+					v_heap, NULL, ifield, trx->mysql_thd,
+					my_table);
 
 				if (row_field == NULL) {
 					*err = DB_COMPUTE_VALUE_FAILED;
@@ -678,6 +700,7 @@ row_merge_buf_add(
 					row_merge_buf_redundant_convert(
 						row_field, field, col->len,
 						dict_table_page_size(old_table),
+						dict_table_is_sdi(old_table->id),
 						conv_heap);
 				} else {
 					/* Field length mismatch should not
@@ -1455,6 +1478,7 @@ row_merge_tmpfile_if_needed(
 
 /** Create a temporary file for merge sort if it was not created already.
 @param[in,out]	file	merge file structure
+@param[in]	tmpfd	temporary file handle
 @param[in]	nrec	number of records in the file
 @param[in]	path	location for creating temporary file
 @return file descriptor, or -1 on failure */
@@ -1625,6 +1649,8 @@ existing order
 @param[in,out]	stage		performance schema accounting object, used by
 ALTER TABLE. stage->n_pk_recs_inc() will be called for each record read and
 stage->inc() will be called for each page read.
+@param[in]	eval_table	mysql table used to evaluate virtual column
+				value, see innobase_get_computed_value().
 @return DB_SUCCESS or error */
 static __attribute__((warn_unused_result))
 dberr_t
@@ -1648,7 +1674,8 @@ row_merge_read_clustered_index(
 	row_merge_block_t*	block,
 	bool			skip_pk_sort,
 	int*			tmpfd,
-	ut_stage_alter_t*	stage)
+	ut_stage_alter_t*	stage,
+	struct TABLE*		eval_table)
 {
 	dict_index_t*		clust_index;	/* Clustered index */
 	mem_heap_t*		row_heap;	/* Heap memory to create
@@ -2157,7 +2184,7 @@ write_buffers:
 					buf, fts_index, old_table, new_table,
 					psort_info, row, ext, &doc_id,
 					conv_heap, &err,
-					&v_heap)))) {
+					&v_heap, eval_table, trx)))) {
 
 				/* If we are creating FTS index,
 				a single row can generate more
@@ -2471,7 +2498,7 @@ write_buffers:
 						buf, fts_index, old_table,
 						new_table, psort_info, row, ext,
 						&doc_id, conv_heap,
-						&err, &v_heap)))) {
+						&err, &v_heap, table, trx)))) {
 					/* An empty buffer should have enough
 					room for at least one record. */
 					ut_error;
@@ -3057,20 +3084,36 @@ row_merge_sort(
 	DBUG_RETURN(error);
 }
 
+#ifdef UNIV_DEBUG
+# define row_merge_copy_blobs(					\
+		mrec, offsets, page_size, tuple, is_sdi, heap)	\
+	row_merge_copy_blobs_func(				\
+		mrec, offsets, page_size, tuple, is_sdi, heap)
+#else /* UNIV_DEBUG */
+# define row_merge_copy_blobs(					\
+		mrec, offsets, page_size, tuple, is_sdi, heap)	\
+	row_merge_copy_blobs_func(				\
+		mrec, offsets, page_size, tuple, heap)
+#endif /* UNIV_DEBUG */
+
 /** Copy externally stored columns to the data tuple.
 @param[in]	mrec		record containing BLOB pointers,
 				or NULL to use tuple instead
 @param[in]	offsets		offsets of mrec
 @param[in]	page_size	compressed page size in bytes, or 0
 @param[in,out]	tuple		data tuple
+@param[in]	is_sdi		true for SDI Indexes
 @param[in,out]	heap		memory heap */
 static
 void
-row_merge_copy_blobs(
+row_merge_copy_blobs_func(
 	const mrec_t*		mrec,
 	const ulint*		offsets,
 	const page_size_t&	page_size,
 	dtuple_t*		tuple,
+#ifdef UNIV_DEBUG
+	bool			is_sdi,
+#endif /* UNIV_DEBUG */
 	mem_heap_t*		heap)
 {
 	ut_ad(mrec == NULL || rec_offs_any_extern(offsets));
@@ -3107,10 +3150,12 @@ row_merge_copy_blobs(
 				     BTR_EXTERN_FIELD_REF_SIZE));
 
 			data = btr_copy_externally_stored_field(
-				&len, field_data, page_size, field_len, heap);
+				&len, field_data, page_size, field_len, is_sdi,
+				heap);
 		} else {
 			data = btr_rec_copy_externally_stored_field(
-				mrec, offsets, page_size, i, &len, heap);
+				mrec, offsets, page_size, i, &len,
+				is_sdi, heap);
 		}
 
 		/* Because we have locked the table, any records
@@ -3300,7 +3345,7 @@ row_merge_insert_index_tuples(
 			row_merge_copy_blobs(
 				mrec, offsets,
 				dict_table_page_size(old_table),
-				dtuple, tuple_heap);
+				dtuple, dict_index_is_sdi(index), tuple_heap);
 		}
 
 		ut_ad(dtuple_validate(dtuple));
@@ -3331,79 +3376,15 @@ row_merge_lock_table(
 	dict_table_t*	table,		/*!< in: table to lock */
 	enum lock_mode	mode)		/*!< in: LOCK_X or LOCK_S */
 {
-	mem_heap_t*	heap;
-	que_thr_t*	thr;
-	dberr_t		err;
-	sel_node_t*	node;
-
 	ut_ad(!srv_read_only_mode);
 	ut_ad(mode == LOCK_X || mode == LOCK_S);
-
-	heap = mem_heap_create(512);
 
 	trx->op_info = "setting table lock for creating or dropping index";
 	trx->ddl = true;
 	/* Trx for DDL should not be forced to rollback for now */
 	trx->in_innodb |= TRX_FORCE_ROLLBACK_DISABLE;
 
-	node = sel_node_create(heap);
-	thr = pars_complete_graph_for_exec(node, trx, heap);
-	thr->graph->state = QUE_FORK_ACTIVE;
-
-	/* We use the select query graph as the dummy graph needed
-	in the lock module call */
-
-	thr = static_cast<que_thr_t*>(
-		que_fork_get_first_thr(
-			static_cast<que_fork_t*>(que_node_get_parent(thr))));
-
-	que_thr_move_to_run_state_for_mysql(thr, trx);
-
-run_again:
-	thr->run_node = thr;
-	thr->prev_node = thr->common.parent;
-
-	err = lock_table(0, table, mode, thr);
-
-	trx->error_state = err;
-
-	if (UNIV_LIKELY(err == DB_SUCCESS)) {
-		que_thr_stop_for_mysql_no_error(thr, trx);
-	} else {
-		que_thr_stop_for_mysql(thr);
-
-		if (err != DB_QUE_THR_SUSPENDED) {
-			bool	was_lock_wait;
-
-			was_lock_wait = row_mysql_handle_errors(
-				&err, trx, thr, NULL);
-
-			if (was_lock_wait) {
-				goto run_again;
-			}
-		} else {
-			que_thr_t*	run_thr;
-			que_node_t*	parent;
-
-			parent = que_node_get_parent(thr);
-
-			run_thr = que_fork_start_command(
-				static_cast<que_fork_t*>(parent));
-
-			ut_a(run_thr == thr);
-
-			/* There was a lock wait but the thread was not
-			in a ready to run or running state. */
-			trx->error_state = DB_LOCK_WAIT;
-
-			goto run_again;
-		}
-	}
-
-	que_graph_free(thr->graph);
-	trx->op_info = "";
-
-	return(err);
+	return(lock_table_for_trx(table, trx, mode));
 }
 
 /*********************************************************************//**
@@ -4140,7 +4121,7 @@ row_merge_create_index_graph(
 
 	index->table = table;
 	node = ind_create_graph_create(index, heap, add_v);
-	thr = pars_complete_graph_for_exec(node, trx, heap);
+	thr = pars_complete_graph_for_exec(node, trx, heap, NULL);
 
 	ut_a(thr == que_fork_start_command(
 			static_cast<que_fork_t*>(que_node_get_parent(thr))));
@@ -4172,6 +4153,7 @@ row_merge_create_index(
 	dberr_t		err;
 	ulint		n_fields = index_def->n_fields;
 	ulint		i;
+	bool		has_new_v_col = false;
 
 	DBUG_ENTER("row_merge_create_index");
 
@@ -4199,6 +4181,8 @@ row_merge_create_index(
 				ut_ad(ifield->col_no >= table->n_v_def);
 				name = add_v->v_col_name[
 					ifield->col_no - table->n_v_def];
+
+				has_new_v_col = true;
 			} else {
 				name = dict_table_get_v_col_name(
 					table, ifield->col_no);
@@ -4243,6 +4227,7 @@ row_merge_create_index(
 
 		index->parser = index_def->parser;
 		index->is_ngram = index_def->is_ngram;
+		index->has_new_v_col = has_new_v_col;
 
 		/* Note the id of the transaction that created this
 		index, we use it to restrict readers from accessing
@@ -4347,6 +4332,8 @@ existing order
 ALTER TABLE. stage->begin_phase_read_pk() will be called at the beginning of
 this function and it will be passed to other functions for further accounting.
 @param[in]	add_v		new virtual columns added along with indexes
+@param[in]	eval_table	mysql table used to evaluate virtual column
+				value, see innobase_get_computed_value().
 @return DB_SUCCESS or error code */
 dberr_t
 row_merge_build_indexes(
@@ -4364,7 +4351,8 @@ row_merge_build_indexes(
 	ib_sequence_t&		sequence,
 	bool			skip_pk_sort,
 	ut_stage_alter_t*	stage,
-	const dict_add_v_col_t*	add_v)
+	const dict_add_v_col_t*	add_v,
+	struct TABLE*		eval_table)
 {
 	merge_file_t*		merge_files;
 	row_merge_block_t*	block;
@@ -4479,7 +4467,7 @@ row_merge_build_indexes(
 		trx, table, old_table, new_table, online, indexes,
 		fts_sort_idx, psort_info, merge_files, key_numbers,
 		n_indexes, add_cols, add_v, col_map, add_autoinc,
-		sequence, block, skip_pk_sort, &tmpfd, stage);
+		sequence, block, skip_pk_sort, &tmpfd, stage, eval_table);
 
 	stage->end_phase_read_pk();
 

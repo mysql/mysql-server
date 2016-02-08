@@ -17,10 +17,6 @@
   @file mysys/hash.cc
 */
 
-/* The hash functions used for saveing keys */
-/* One of key_length or key_length_offset must be given */
-/* Key length of 0 isn't allowed */
-
 #include "mysys_priv.h"
 #include <m_string.h>
 #include <m_ctype.h>
@@ -53,10 +49,8 @@ static my_hash_value_type calc_hash(const HASH *hash,
 }
 
 /**
-  @brief Initialize the hash
+  Initialize the hash.
   
-  @details
-
   Initialize the hash, by defining and giving valid values for
   its elements. The failure to allocate memory for the
   hash->array element will not result in a fatal failure. The
@@ -64,10 +58,8 @@ static my_hash_value_type calc_hash(const HASH *hash,
   as required during insertion.
 
   @param[in,out] hash         The hash that is initialized
-  @param[in]     growth_size  Growth size for the underlying array
   @param[in]     charset      The character set information
-  @param[in]     size         The hash size
-  @param[in]     key_offset   The key offset for the hash
+  @param[in]     reserve_size The hash size
   @param[in]     key_length   The length of the key used in
                               the hash
   @param[in]     get_key      get the key for the hash
@@ -79,24 +71,26 @@ static my_hash_value_type calc_hash(const HASH *hash,
     @retval 0 success
     @retval 1 failure
 */
-my_bool
-_my_hash_init(HASH *hash, uint growth_size, CHARSET_INFO *charset,
-              ulong size, size_t key_offset, size_t key_length,
-              hash_get_key_function get_key,
-              void (*free_element)(void*), uint flags,
-              PSI_memory_key psi_key)
+bool
+my_hash_init(HASH *hash,
+             const CHARSET_INFO *charset,
+             ulong reserve_size,
+             size_t key_length,
+             hash_get_key_function get_key,
+             hash_free_element_function free_element,
+             uint flags,
+             PSI_memory_key psi_key)
 {
-  my_bool retval;
+  bool retval;
 
   DBUG_ENTER("my_hash_init");
-  DBUG_PRINT("enter",("hash: 0x%lx  size: %u", (long) hash, (uint) size));
+  DBUG_PRINT("enter",("hash: %p  size: %u", hash, (uint) reserve_size));
 
   hash->records=0;
-  hash->key_offset=key_offset;
-  hash->key_length=key_length;
-  hash->blength=1;
+  hash->key_length= key_length;
+  hash->blength= 1;
   hash->get_key=get_key;
-  hash->free=free_element;
+  hash->free_element= free_element;
   hash->flags=flags;
   hash->charset=charset;
   hash->m_psi_key= psi_key;
@@ -104,7 +98,7 @@ _my_hash_init(HASH *hash, uint growth_size, CHARSET_INFO *charset,
                                 psi_key,
                                 sizeof(HASH_LINK),
                                 NULL,  /* init_buffer */
-                                size, growth_size);
+                                reserve_size, 0);
   DBUG_RETURN(retval);
 }
 
@@ -130,12 +124,12 @@ static inline void my_hash_claim_elements(HASH *hash)
 
 static inline void my_hash_free_elements(HASH *hash)
 {
-  if (hash->free)
+  if (hash->free_element)
   {
     HASH_LINK *data=dynamic_element(&hash->array,0,HASH_LINK*);
     HASH_LINK *end= data + hash->records;
     while (data < end)
-      (*hash->free)((data++)->data);
+      (*hash->free_element)((data++)->data);
   }
   hash->records=0;
 }
@@ -167,7 +161,7 @@ void my_hash_free(HASH *hash)
   DBUG_PRINT("enter",("hash: 0x%lx", (long) hash));
 
   my_hash_free_elements(hash);
-  hash->free= 0;
+  hash->free_element= nullptr;
   delete_dynamic(&hash->array);
   hash->blength= 0;
   DBUG_VOID_RETURN;
@@ -202,7 +196,7 @@ my_hash_key(const HASH *hash, const uchar *record, size_t *length)
   if (hash->get_key)
     return (*hash->get_key)(record,length);
   *length=hash->key_length;
-  return record+hash->key_offset;
+  return record;
 }
 
 	/* Calculate pos according to keys */
@@ -603,8 +597,8 @@ my_bool my_hash_delete(HASH *hash, uchar *record)
 
 exit:
   (void) pop_dynamic(&hash->array);
-  if (hash->free)
-    (*hash->free)(record);
+  if (hash->free_element)
+    (*hash->free_element)(record);
   DBUG_RETURN(0);
 }
 

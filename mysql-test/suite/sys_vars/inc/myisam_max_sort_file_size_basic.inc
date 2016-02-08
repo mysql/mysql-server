@@ -1,28 +1,30 @@
-
-############## mysql-test\t\myisam_max_sort_file_size_basic.test ################
-#                                                                              #
-# Variable Name: myisam_max_sort_file_size                                      #
-# Scope: GLOBAL & SESSION                                                      #
-# Access Type: Dynamic                                                         #
-# Data Type: Numeric                                                           #
-# Default Value: 1                                                             #
-# Range: 1 - 65536                                                             #
-#                                                                              #
-#                                                                              #
-# Creation Date: 2008-02-07                                                    #
-# Author:  Rizwan Maredia                                                      #
-#                                                                              #
-# Description: Test Cases of Dynamic System Variable myisam_max_sort_file_size  #
-#              that checks the behavior of this variable in the following ways #
-#              * Default Value                                                 #
-#              * Valid & Invalid values                                        #
-#              * Scope & Access method                                         #
-#              * Data Integrity                                                #
-#                                                                              #
-# Reference: http://dev.mysql.com/doc/refman/5.1/en/                           #
-#  server-system-variables.html                                                #
-#                                                                              #
-################################################################################
+############## mysql-test\t\myisam_max_sort_file_size_basic.test #################
+#                                                                                #
+# Variable Name: myisam_max_sort_file_size                                       #
+# Scope: GLOBAL                                                                  #
+# Access Type: Dynamic                                                           #
+# Data Type: Numeric                                                             #
+# Default Value: 2147483648/9223372036854775807                                  #
+#                                                                                #
+#                                                                                #
+# Creation Date: 2008-02-07                                                      #
+# Author:  Rizwan Maredia                                                        #
+#                                                                                #
+# Description: Test Cases of Dynamic System Variable myisam_max_sort_file_size   #
+#              that checks the behavior of this variable in the following ways   #
+#              * Default Value                                                   #
+#              * Valid & Invalid values                                          #
+#              * Scope & Access method                                           #
+#              * Data Integrity                                                  #
+#                                                                                #
+# Modified:    Pavan Naik, 2015-11-24                                            #
+#              Added boundary value test cases according to the type of the      #
+#              server binary.                                                    #
+#                                                                                #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                             #
+#            server-system-variables.html                                        #
+#                                                                                #
+##################################################################################
 
 --source include/load_sysvars.inc
 
@@ -36,6 +38,17 @@
 #############################################################
 
 SET @start_global_value = @@global.myisam_max_sort_file_size;
+
+if($mach64)
+{
+  # Bug#11752618 - 64-BIT WINDOWS VARIABLES LIMITED TO DIFFERENT VALUES THAN 64-BIT LINUX/SO
+  let $machine_name = `SELECT CONVERT(@@version_compile_os using latin1) IN ("Win64", "Windows")`;
+
+  if($machine_name)
+  {
+    --replace_result 2146435072 9223372036853727232
+  }
+}
 SELECT @start_global_value;
 
 --echo '#--------------------FN_DYNVARS_094_01-------------------------#'
@@ -45,6 +58,15 @@ SELECT @start_global_value;
 
 SET @@global.myisam_max_sort_file_size = 500000;
 SET @@global.myisam_max_sort_file_size = DEFAULT;
+
+if($mach64)
+{
+  # Bug#11752618 - 64-BIT WINDOWS VARIABLES LIMITED TO DIFFERENT VALUES THAN 64-BIT LINUX/SO
+  if($machine_name)
+  {
+    --replace_result 2146435072 9223372036853727232
+  }
+}
 SELECT @@global.myisam_max_sort_file_size;
 
 --echo '#--------------------FN_DYNVARS_094_02-------------------------#'
@@ -70,8 +92,10 @@ SET @@global.myisam_max_sort_file_size = 2147483648*2;
 SELECT @@global.myisam_max_sort_file_size;
 SET @@global.myisam_max_sort_file_size = 2147483648*1024;
 SELECT @@global.myisam_max_sort_file_size;
-SELECT @@global.myisam_max_sort_file_size;
 SET @@global.myisam_max_sort_file_size = 2147483648*2147483648;
+SELECT @@global.myisam_max_sort_file_size;
+SET @@global.myisam_max_sort_file_size = 9223372036853727232;
+SELECT @@global.myisam_max_sort_file_size;
 
 --echo '#--------------------FN_DYNVARS_094_04-------------------------#'
 #################################################################################
@@ -117,19 +141,19 @@ SET @@global.myisam_max_sort_file_size = 1G;
 SET @@global.myisam_max_sort_file_size = 3000;
 --disable_warnings
 SELECT @@global.myisam_max_sort_file_size = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='myisam_max_sort_file_size';
 --enable_warnings
 
 
 --echo '#------------------FN_DYNVARS_094_07-----------------------#'
 ###########################################################################
-#  Check if the value is present in INFORMATION_SCHEMA.SESSION_VARIABLES  #
+#  Check if the value is present in performance_schema.session_variables  #
 ###########################################################################
 
 --disable_warnings
 SELECT count(VARIABLE_VALUE) 
-FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+FROM performance_schema.session_variables 
 WHERE VARIABLE_NAME='myisam_max_sort_file_size';
 --enable_warnings
 
@@ -175,6 +199,15 @@ SET global myisam_max_sort_file_size = 64;
 ####################################
 
 SET @@global.myisam_max_sort_file_size = @start_global_value;
+
+if($mach64)
+{
+  # Bug#11752618 - 64-BIT WINDOWS VARIABLES LIMITED TO DIFFERENT VALUES THAN 64-BIT LINUX/SO
+  if($machine_name)
+  {
+    --replace_result 2146435072 9223372036853727232
+  }
+}
 SELECT @@global.myisam_max_sort_file_size;
 
 ########################################################

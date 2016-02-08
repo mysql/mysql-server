@@ -313,12 +313,18 @@ btr_root_adjust_on_import(
 		if (page_is_compact_format != dict_table_is_comp(table)) {
 			err = DB_CORRUPTION;
 		} else {
-			/* Check that the table flags and the tablespace
-			flags match. */
+			/* Check that the table flags and the tablespace flags
+			match. */
 			ulint	flags = dict_tf_to_fsp_flags(table->flags);
 			ulint	fsp_flags = fil_space_get_flags(table->space);
+
+			/* We remove SDI flag from space flags temporarily for
+			comparison because the space flags derived from table
+			flags will not have SDI flag */
+			fsp_flags &= ~FSP_FLAGS_MASK_SDI;
+
 			err = fsp_flags_are_equal(flags, fsp_flags)
-			      ? DB_SUCCESS : DB_CORRUPTION;
+				? DB_SUCCESS : DB_CORRUPTION;
 		}
 	} else {
 		err = DB_SUCCESS;
@@ -357,11 +363,21 @@ btr_page_create(
 
 	ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
 
+	uint16_t	page_create_type;
+	if (dict_index_is_spatial(index)) {
+		page_create_type = FIL_PAGE_RTREE;
+	} else if (dict_index_is_sdi(index)) {
+		page_create_type = FIL_PAGE_SDI;
+	} else {
+		page_create_type = FIL_PAGE_INDEX;
+	}
+
 	if (page_zip) {
-		page_create_zip(block, index, level, 0, mtr);
+		page_create_zip(block, index, level, 0, mtr,
+				page_create_type);
 	} else {
 		page_create(block, mtr, dict_table_is_comp(index->table),
-			    dict_index_is_spatial(index));
+			    page_create_type);
 		/* Set the level of the new index page */
 		btr_page_set_level(page, NULL, level, mtr);
 	}
@@ -1050,15 +1066,25 @@ btr_create(
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE_NEW);
 	}
 
+	uint16_t	page_create_type;
+	if (dict_index_is_spatial(index)) {
+		page_create_type = FIL_PAGE_RTREE;
+	} else if (dict_index_is_sdi(index)) {
+		page_create_type = FIL_PAGE_SDI;
+	} else {
+		page_create_type = FIL_PAGE_INDEX;
+	}
+
 	/* Create a new index page on the allocated segment page */
 	page_zip = buf_block_get_page_zip(block);
 
 	if (page_zip) {
-		page = page_create_zip(block, index, 0, 0, mtr);
+		page = page_create_zip(block, index, 0, 0, mtr,
+				       page_create_type);
 	} else {
 		page = page_create(block, mtr,
 				   dict_table_is_comp(index->table),
-				   dict_index_is_spatial(index));
+				   page_create_type);
 		/* Set the level of the new index page */
 		btr_page_set_level(page, NULL, 0, mtr);
 	}
@@ -1241,7 +1267,8 @@ btr_truncate(
 	/* Mark that we are going to truncate the index tree
 	We use PAGE_MAX_TRX_ID as it should be always 0 for clustered
 	index. */
-	mlog_write_ull(page + (PAGE_HEADER + PAGE_MAX_TRX_ID), -1ULL, &mtr);
+	mlog_write_ull(page + (PAGE_HEADER + PAGE_MAX_TRX_ID),
+		       IB_ID_MAX, &mtr);
 
 	mtr.commit();
 
@@ -1296,13 +1323,13 @@ btr_truncate_recover(
 	page_t*			page = buf_block_get_frame(block);
 
 	trx_id_t		trx_id = page_get_max_trx_id(page);
-	ut_ad(trx_id == 0 || trx_id == -1ULL);
+	ut_ad(trx_id == 0 || trx_id == IB_ID_MAX);
 
 	mtr.commit();
 
 	fil_space_release(space);
 
-	if (trx_id == -1ULL) {
+	if (trx_id == IB_ID_MAX) {
 		/* -1 means there is a half-done btr_truncate,
 		we can simple redo it again. */
 		btr_truncate(index);
@@ -1350,7 +1377,6 @@ btr_page_reorganize_low(
 	bool		success		= false;
 	ulint		pos;
 	bool		log_compressed;
-	bool		is_spatial;
 
 	ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
 	btr_assert_not_corrupted(block, index);
@@ -1373,11 +1399,6 @@ btr_page_reorganize_low(
 
 	MONITOR_INC(MONITOR_INDEX_REORG_ATTEMPTS);
 
-	/* This function can be called by log redo with a "dummy" index.
-	So we would trust more on the original page's type */
-	is_spatial = (fil_page_get_type(page) == FIL_PAGE_RTREE
-		      || dict_index_is_spatial(index));
-
 	/* Copy the old page to temporary space */
 	buf_frame_copy(temp_page, page);
 
@@ -1393,7 +1414,8 @@ btr_page_reorganize_low(
 	/* Recreate the page: note that global data on page (possible
 	segment headers, next page-field, etc.) is preserved intact */
 
-	page_create(block, mtr, dict_table_is_comp(index->table), is_spatial);
+	page_create(block, mtr, dict_table_is_comp(index->table),
+		    fil_page_get_type(page));
 
 	/* Copy the records from the temporary space to the recreated page;
 	do not copy the lock bits yet */
@@ -1650,14 +1672,23 @@ btr_page_empty(
 
 	btr_search_drop_page_hash_index(block);
 
+	uint16_t	page_type;
+	if (dict_index_is_spatial(index)) {
+		page_type = FIL_PAGE_RTREE;
+	} else if (dict_index_is_sdi(index)) {
+		page_type = FIL_PAGE_SDI;
+	} else {
+		page_type = FIL_PAGE_INDEX;
+	}
+
 	/* Recreate the page: note that global data on page (possible
 	segment headers, next page-field, etc.) is preserved intact */
 
 	if (page_zip) {
-		page_create_zip(block, index, level, 0, mtr);
+		page_create_zip(block, index, level, 0, mtr, page_type);
 	} else {
 		page_create(block, mtr, dict_table_is_comp(index->table),
-			    dict_index_is_spatial(index));
+			    page_type);
 		btr_page_set_level(page, NULL, level, mtr);
 	}
 }
@@ -5181,4 +5212,115 @@ error:
 	DBUG_RETURN(false);
 }
 
+/** Create an SDI Index
+@param[in]	space_id	tablespace id
+@param[in]	page_size	size of page
+@param[in,out]	mtr		mini transaction
+@param[in,out]	table		SDI table
+@return root page number of the SDI index created or FIL_NULL on failure */
+static
+ulint
+btr_sdi_create(
+	ulint			space_id,
+	const page_size_t&	page_size,
+	mtr_t*			mtr,
+	dict_table_t*		table)
+{
+	dict_index_t*	index = dict_table_get_first_index(table);
+	ut_ad(index != NULL);
+	ut_ad(UT_LIST_GET_LEN(table->indexes) == 1);
+
+	index->page = btr_create(
+		DICT_CLUSTERED | DICT_UNIQUE | DICT_SDI, space_id, page_size,
+		index->id, index, mtr);
+
+	return(index->page);
+}
+
+/** Creates SDI indexes and stores the root page numbers in page 1 & 2
+@param[in]	space_id	tablespace id
+@param[in]	dict_locked	true if dict_sys mutex is acquired
+@return DB_SUCCESS on success, else DB_ERROR on failure */
+dberr_t
+btr_sdi_create_indexes(
+	ulint	space_id,
+	bool	dict_locked)
+{
+	fil_space_t*	space = fil_space_acquire(space_id);
+	if (space == NULL) {
+		ut_ad(0);
+		return(DB_ERROR);
+	}
+
+	dict_table_t*	sdi_tables[MAX_SDI_COPIES];
+	ulint		sdi_root_page_num[MAX_SDI_COPIES];
+
+	for (uint32_t	copy_num = 0; copy_num < MAX_SDI_COPIES; ++copy_num) {
+		sdi_tables[copy_num] =  dict_sdi_get_table(
+			space_id, copy_num, dict_locked);
+	        ut_ad(sdi_tables[copy_num] != NULL);
+	}
+
+	mtr_t	mtr;
+	mtr.start();
+	mtr.set_named_space(space_id);
+
+	const page_size_t	page_size = page_size_t(space->flags);
+
+	/* Create B-Tree root page for SDI Indexes */
+
+	for (uint32_t	copy_num = 0; copy_num < MAX_SDI_COPIES; ++copy_num) {
+		sdi_root_page_num[copy_num] = btr_sdi_create(
+			space_id, page_size, &mtr, sdi_tables[copy_num]);
+
+		if (sdi_root_page_num[copy_num] == FIL_NULL) {
+			ib::error() <<  "Unable to create root index page"
+				" for SDI table Copy " << copy_num
+				<< " in tablespace " << space_id;
+			mtr.commit();
+			dict_sdi_remove_from_cache(
+				space_id, sdi_tables, dict_locked);
+			fil_space_release(space);
+			return(DB_ERROR);
+		} else {
+			dict_index_t*	index = dict_table_get_first_index(
+				sdi_tables[copy_num]);
+			index->page = sdi_root_page_num[copy_num];
+		}
+	}
+
+	/* Write SDI Index root page numbers to Page 1 & 2 */
+	fsp_sdi_write_root_to_page(space_id, 1, page_size, sdi_root_page_num[0],
+				   sdi_root_page_num[1], &mtr);
+	fsp_sdi_write_root_to_page(space_id, 2, page_size, sdi_root_page_num[0],
+				   sdi_root_page_num[1], &mtr);
+
+	buf_block_t*	block = buf_page_get(page_id_t(space_id, 0), page_size,
+					     RW_SX_LATCH, &mtr);
+
+	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
+
+	page_t*	page = buf_block_get_frame(block);
+
+	/* Space flags from memory */
+	ulint	fsp_flags = space->flags;
+
+	ut_ad(mach_read_from_4(page + FSP_HEADER_OFFSET + FSP_SPACE_FLAGS)
+	      == fsp_flags);
+
+	fsp_flags = FSP_FLAGS_SET_SDI(fsp_flags);
+	mlog_write_ulint(FSP_HEADER_OFFSET + FSP_SPACE_FLAGS + page, fsp_flags,
+			 MLOG_4BYTES, &mtr);
+
+	mtr.commit();
+
+	fil_space_set_flags(space, fsp_flags);
+
+	for (uint32_t	copy_num = 0; copy_num < MAX_SDI_COPIES; ++copy_num) {
+		dict_table_close(sdi_tables[copy_num], dict_locked, false);
+	}
+
+	fil_space_release(space);
+	return(DB_SUCCESS);
+}
 #endif /* !UNIV_HOTBACKUP */

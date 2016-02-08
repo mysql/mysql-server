@@ -41,37 +41,37 @@ Warning	1292	Truncated incorrect max_write_lock_count value: '-1024'
 SELECT @@global.max_write_lock_count;
 @@global.max_write_lock_count
 1
-SET @@global.max_write_lock_count = 4294967296;
-Warnings:
-Warning	1292	Truncated incorrect max_write_lock_count value: '4294967296'
-SELECT @@global.max_write_lock_count;
-@@global.max_write_lock_count
-4294967295
 SET @@global.max_write_lock_count = -1;
 Warnings:
 Warning	1292	Truncated incorrect max_write_lock_count value: '-1'
 SELECT @@global.max_write_lock_count;
 @@global.max_write_lock_count
 1
-SET @@global.max_write_lock_count = 429496729500;
-Warnings:
-Warning	1292	Truncated incorrect max_write_lock_count value: '429496729500'
-SELECT @@global.max_write_lock_count;
-@@global.max_write_lock_count
-4294967295
 SET @@global.max_write_lock_count = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'max_write_lock_count'
 SELECT @@global.max_write_lock_count;
 @@global.max_write_lock_count
-4294967295
+1
 SET @@global.max_write_lock_count = test;
 ERROR 42000: Incorrect argument type to variable 'max_write_lock_count'
+SELECT @@global.max_write_lock_count;
+@@global.max_write_lock_count
+1
+SET @@global.max_write_lock_count = 4294967296;
+Warnings:
+Warning	1292	Truncated incorrect max_write_lock_count value: '4294967296'
+SELECT @@global.max_write_lock_count;
+@@global.max_write_lock_count
+4294967295
+SET @@global.max_write_lock_count = 42949672950;
+Warnings:
+Warning	1292	Truncated incorrect max_write_lock_count value: '42949672950'
 SELECT @@global.max_write_lock_count;
 @@global.max_write_lock_count
 4294967295
 '#------------------FN_DYNVARS_088_05-----------------------#'
 SELECT @@global.max_write_lock_count = VARIABLE_VALUE 
-FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+FROM performance_schema.global_variables 
 WHERE VARIABLE_NAME='max_write_lock_count';
 @@global.max_write_lock_count = VARIABLE_VALUE
 1

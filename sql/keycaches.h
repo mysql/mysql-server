@@ -1,7 +1,7 @@
 #ifndef KEYCACHES_INCLUDED
 #define KEYCACHES_INCLUDED
 
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,15 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "my_global.h"
+
 #include "sql_list.h"
-#include <keycache.h>
+#include "keycache.h"
+#include "mysql/mysql_lex_string.h"
 #include "mysql/service_mysql_alloc.h"
+
+typedef struct st_mysql_lex_string LEX_STRING;
+
 
 extern "C"
 {
@@ -59,7 +65,7 @@ public:
 class NAMED_ILIST: public I_List<NAMED_ILINK>
 {
   public:
-  void delete_elements(void (*free_element)(const char*, uchar*));
+  void delete_elements();
 };
 
 extern LEX_STRING default_key_cache_base;
@@ -69,7 +75,6 @@ extern NAMED_ILIST key_caches;
 KEY_CACHE *create_key_cache(const char *name, size_t length);
 KEY_CACHE *get_key_cache(LEX_STRING *cache_name);
 KEY_CACHE *get_or_create_key_cache(const char *name, size_t length);
-void free_key_cache(const char *name, KEY_CACHE *key_cache);
 bool process_key_caches(process_key_cache_t func);
 
 #endif /* KEYCACHES_INCLUDED */

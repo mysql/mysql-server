@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2118,7 +2118,7 @@ static int add_keyword_path(File fptr, const char *keyword,
 
   if (strlen(path) >= FN_REFLEN)
   {
-    my_error(ER_PATH_LENGTH, MYF(0), "data/index directory (>=512 bytes)");
+    my_error(ER_PATH_LENGTH, MYF(0), keyword);
     return 1;
   }
 
@@ -8353,14 +8353,10 @@ bool set_up_table_before_create(THD *thd,
   share->max_rows= part_elem->part_max_rows;
   share->min_rows= part_elem->part_min_rows;
   partition_name= strrchr(partition_name_with_path, FN_LIBCHAR);
-  if ((part_elem->index_file_name &&
-      (error= append_file_to_dir(thd,
-                                 &part_elem->index_file_name,
-                                 partition_name+1))) ||
-      (part_elem->data_file_name &&
-      (error= append_file_to_dir(thd,
-                                 &part_elem->data_file_name,
-                                 partition_name+1))))
+  if ((error= prepare_index_and_data_dir_path(thd,
+                                              &part_elem->data_file_name,
+                                              &part_elem->index_file_name,
+                                              partition_name+1)))
   {
     DBUG_RETURN(error);
   }

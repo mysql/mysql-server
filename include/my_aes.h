@@ -1,7 +1,7 @@
 #ifndef MY_AES_INCLUDED
 #define MY_AES_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -69,13 +69,13 @@ extern const char *my_aes_opmode_names[];
 /**
   Encrypt a buffer using AES
 
-  @param source         [in]  Pointer to data for encryption
-  @param source_length  [in]  Size of encryption data
-  @param dest           [out] Buffer to place encrypted data (must be large enough)
-  @param key            [in]  Key to be used for encryption
-  @param key_length     [in]  Length of the key. Will handle keys of any length
-  @param mode           [in]  encryption mode
-  @param iv             [in]  16 bytes initialization vector if needed. Otherwise NULL
+  @param [in] source           Pointer to data for encryption
+  @param [in] source_length    Size of encryption data
+  @param [out] dest            Buffer to place encrypted data (must be large enough)
+  @param [in] key              Key to be used for encryption
+  @param [in] key_length       Length of the key. Will handle keys of any length
+  @param [in] mode             encryption mode
+  @param [in] iv               16 bytes initialization vector if needed. Otherwise NULL
   @return              size of encrypted data, or negative in case of error
 */
 
