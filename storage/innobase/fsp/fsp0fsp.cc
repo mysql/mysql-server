@@ -1167,7 +1167,7 @@ fsp_header_init(
 	mlog_write_ulint(header + FSP_SPACE_ID, space_id, MLOG_4BYTES, mtr);
 	mlog_write_ulint(header + FSP_NOT_USED, 0, MLOG_4BYTES, mtr);
 
-	mlog_write_ulint(header + FSP_SIZE, size, MLOG_4BYTES, mtr);
+	fsp_header_size_update(header, size, mtr);
 	mlog_write_ulint(header + FSP_FREE_LIMIT, 0, MLOG_4BYTES, mtr);
 	mlog_write_ulint(header + FSP_SPACE_FLAGS, space->flags,
 			 MLOG_4BYTES, mtr);
@@ -1417,7 +1417,7 @@ fsp_header_inc_size(
 
 	size += size_inc;
 
-	mlog_write_ulint(header + FSP_SIZE, size, MLOG_4BYTES, mtr);
+	fsp_header_size_update(header, size, mtr);
 	space->size_in_header = size;
 }
 
@@ -1469,6 +1469,7 @@ fsp_try_extend_data_file_with_pages(
 {
 	bool	success;
 	ulint	size;
+	DBUG_ENTER("fsp_try_extend_data_file_with_pages");
 
 	ut_a(!is_system_tablespace(space->id));
 	ut_d(fsp_space_modify_check(space->id, mtr));
@@ -1480,10 +1481,10 @@ fsp_try_extend_data_file_with_pages(
 
 	success = fil_space_extend(space, page_no + 1);
 	/* The size may be less than we wanted if we ran out of disk space. */
-	mlog_write_ulint(header + FSP_SIZE, space->size, MLOG_4BYTES, mtr);
+	fsp_header_size_update(header, space->size, mtr);
 	space->size_in_header = space->size;
 
-	return(success);
+	DBUG_RETURN(success);
 }
 
 /** Try to extend the last data file of a tablespace if it is auto-extending.
@@ -1503,6 +1504,7 @@ fsp_try_extend_data_file(
 	const char* OUT_OF_SPACE_MSG =
 		"ran out of space. Please add another file or use"
 		" 'autoextend' for the last file in setting";
+	DBUG_ENTER("fsp_try_extend_data_file");
 
 	ut_d(fsp_space_modify_check(space->id, mtr));
 
@@ -1519,7 +1521,7 @@ fsp_try_extend_data_file(
 				<< " innodb_data_file_path.";
 			srv_sys_space.set_tablespace_full_status(true);
 		}
-		return(false);
+		DBUG_RETURN(false);
 	} else if (fsp_is_system_temporary(space->id)
 		   && !srv_tmp_space.can_auto_extend_last_file()) {
 
@@ -1533,7 +1535,7 @@ fsp_try_extend_data_file(
 				<< " innodb_temp_data_file_path.";
 			srv_tmp_space.set_tablespace_full_status(true);
 		}
-		return(false);
+		DBUG_RETURN(false);
 	}
 
 	size = mach_read_from_4(header + FSP_SIZE);
@@ -1557,7 +1559,7 @@ fsp_try_extend_data_file(
 			/* Let us first extend the file to extent_size */
 			if (!fsp_try_extend_data_file_with_pages(
 				    space, extent_pages - 1, header, mtr)) {
-				return(false);
+				DBUG_RETURN(false);
 			}
 
 			size = extent_pages;
@@ -1568,11 +1570,11 @@ fsp_try_extend_data_file(
 
 	if (size_increase == 0) {
 
-		return(false);
+		DBUG_RETURN(false);
 	}
 
 	if (!fil_space_extend(space, size + size_increase)) {
-		return(false);
+		DBUG_RETURN(false);
 	}
 
 	/* We ignore any fragments of a full megabyte when storing the size
@@ -1581,10 +1583,9 @@ fsp_try_extend_data_file(
 	space->size_in_header = ut_calc_align_down(
 		space->size, (1024 * 1024) / page_size.physical());
 
-	mlog_write_ulint(
-		header + FSP_SIZE, space->size_in_header, MLOG_4BYTES, mtr);
+	fsp_header_size_update(header, space->size_in_header, mtr);
 
-	return(true);
+	DBUG_RETURN(true);
 }
 
 /** Calculate the number of pages to extend a datafile.
@@ -3499,6 +3500,7 @@ fsp_reserve_free_pages(
 {
 	xdes_t*	descr;
 	ulint	n_used;
+	DBUG_ENTER("fsp_reserve_free_pages");
 
 	ut_a(!is_system_tablespace(space->id));
 	ut_a(size < FSP_EXTENT_SIZE);
@@ -3507,11 +3509,12 @@ fsp_reserve_free_pages(
 		space_header, space->id, 0, mtr);
 	n_used = xdes_get_n_used(descr, mtr);
 
+	DBUG_LOG("xdes", xdes_mem_t(descr));
 	ut_a(n_used <= size);
 
-	return(size >= n_used + n_pages
-	       || fsp_try_extend_data_file_with_pages(
-		       space, n_used + n_pages - 1, space_header, mtr));
+	DBUG_RETURN(size >= n_used + n_pages
+		    || fsp_try_extend_data_file_with_pages(
+		            space, n_used + n_pages - 1, space_header, mtr));
 }
 
 /** Reserves free pages from a tablespace. All mini-transactions which may
@@ -3568,6 +3571,7 @@ fsp_reserve_free_extents(
 	ulint		n_free;
 	ulint		n_free_up;
 	ulint		reserve;
+	DBUG_ENTER("fsp_reserve_free_extents");
 
 	ut_ad(mtr);
 	*n_reserved = n_ext;
@@ -3583,8 +3587,8 @@ try_again:
 	if (size < FSP_EXTENT_SIZE && n_pages < FSP_EXTENT_SIZE / 2) {
 		/* Use different rules for small single-table tablespaces */
 		*n_reserved = 0;
-		return(fsp_reserve_free_pages(space, space_header, size,
-					      mtr, n_pages));
+		DBUG_RETURN(fsp_reserve_free_pages(
+				space, space_header, size, mtr, n_pages));
 	}
 
 	n_free_list_ext = flst_get_len(space_header + FSP_FREE);
@@ -3644,14 +3648,14 @@ try_again:
 	}
 
 	if (fil_space_reserve_free_extents(space_id, n_free, n_ext)) {
-		return(true);
+		DBUG_RETURN(true);
 	}
 try_to_extend:
 	if (fsp_try_extend_data_file(space, space_header, mtr)) {
 		goto try_again;
 	}
 
-	return(false);
+	DBUG_RETURN(false);
 }
 
 /** Calculate how many KiB of new data we will be able to insert to the
@@ -3794,6 +3798,7 @@ fseg_free_page_low(
 	ib_id_t	descr_id;
 	ib_id_t	seg_id;
 	ulint	i;
+	DBUG_ENTER("fseg_free_page_low");
 
 	ut_ad(seg_inode != NULL);
 	ut_ad(mtr != NULL);
@@ -3850,7 +3855,7 @@ crash:
 
 		fsp_free_page(page_id, page_size, mtr);
 
-		return;
+		DBUG_VOID_RETURN;
 	case XDES_FREE:
 	case XDES_NOT_INITED:
 		ut_error;
@@ -3917,6 +3922,8 @@ crash:
 			    descr + XDES_FLST_NODE, mtr);
 		fsp_free_extent(page_id, page_size, mtr);
 	}
+
+	DBUG_VOID_RETURN;
 }
 
 /**********************************************************************//**
@@ -3931,10 +3938,14 @@ fseg_free_page(
 				the adaptive hash index */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
+	DBUG_ENTER("fseg_free_page");
 	fseg_inode_t*		seg_inode;
 	buf_block_t*		iblock;
 	const fil_space_t*	space = mtr_x_lock_space(space_id, mtr);
 	const page_size_t	page_size(space->flags);
+
+	DBUG_LOG("fseg_free_page", "space_id: " << space_id
+		 << ", page_no: " << page);
 
 	seg_inode = fseg_inode_get(seg_header, space_id, page_size, mtr,
 				   &iblock);
@@ -3945,6 +3956,8 @@ fseg_free_page(
 	fseg_free_page_low(seg_inode, page_id, page_size, ahi, mtr);
 
 	ut_d(buf_page_set_file_page_was_freed(page_id));
+
+	DBUG_VOID_RETURN;
 }
 
 /**********************************************************************//**
@@ -4553,5 +4566,37 @@ xdes_mem_t::print(std::ostream&	out) const
 	}
 	out << "]]";
 	return(out);
+}
+
+/** Check if the tablespace size information is valid.
+@param[in]	space_id	the tablespace identifier
+@return true if valid, false if invalid. */
+bool
+fsp_check_tablespace_size(ulint space_id)
+{
+	mtr_t	mtr;
+
+	mtr_start(&mtr);
+
+	fil_space_t* space = mtr_x_lock_space(space_id, &mtr);
+        const page_size_t       page_size(space->flags);
+
+	fsp_header_t* space_header = fsp_get_space_header(
+		space_id, page_size, &mtr);
+
+	xdes_t* descr = xdes_get_descriptor_with_space_hdr(
+		space_header, space->id, 0, &mtr);
+
+        ulint	n_used = xdes_get_n_used(descr, &mtr);
+        ulint	size = mach_read_from_4(space_header + FSP_SIZE);
+
+        xdes_mem_t      descr_mem(descr);
+
+        ib::info() << descr_mem;
+        ut_a(n_used <= size);
+
+	mtr_commit(&mtr);
+
+	return(true);
 }
 #endif /* !DBUG_OFF */

@@ -654,4 +654,7 @@ static const size_t UNIV_SECTOR_SIZE = 512;
 myisam/sp_defs.h. We only support 2 dimension data */
 #define SPDIMS          2
 
+typedef ulint page_no_t;
+typedef ulint space_id_t;
+
 #endif

@@ -1544,6 +1544,8 @@ recv_parse_or_apply_log_rec_body(
 	buf_block_t*	block,
 	mtr_t*		mtr)
 {
+	DBUG_ENTER("recv_parse_or_apply_log_rec_body");
+
 	ut_ad(!block == !mtr);
 	ut_ad(!apply || recv_sys->mlog_checkpoint_lsn != 0);
 
@@ -1555,13 +1557,13 @@ recv_parse_or_apply_log_rec_body(
 		ut_ad(block == NULL);
 		/* Collect the file names when parsing the log,
 		before applying any log records. */
-		return(fil_name_parse(ptr, end_ptr, space_id, page_no, type,
+		DBUG_RETURN(fil_name_parse(ptr, end_ptr, space_id, page_no, type,
 				      apply));
 	case MLOG_INDEX_LOAD:
 		if (end_ptr < ptr + 8) {
-			return(NULL);
+			DBUG_RETURN(NULL);
 		}
-		return(ptr + 8);
+		DBUG_RETURN(ptr + 8);
 	case MLOG_WRITE_STRING:
 		/* For encrypted tablespace, we need to get the
 		encryption key information before the page 0 is recovered.
@@ -1569,12 +1571,11 @@ recv_parse_or_apply_log_rec_body(
 		the data pages. */
 		if (page_no == 0 && !is_system_tablespace(space_id)
 		    && !apply) {
-			return(fil_write_encryption_parse(ptr,
+			DBUG_RETURN(fil_write_encryption_parse(ptr,
 							  end_ptr,
 							  space_id));
 		}
 		break;
-
 	default:
 		break;
 	}
@@ -1622,7 +1623,7 @@ recv_parse_or_apply_log_rec_body(
 					<< space_id << ":" << page_no
 					<< ") at "
 					<< recv_sys->recovered_lsn << ".";
-				return(NULL);
+				DBUG_RETURN(NULL);
 			}
 		}
 	}
@@ -2000,7 +2001,7 @@ recv_parse_or_apply_log_rec_body(
 		dict_mem_table_free(table);
 	}
 
-	return(ptr);
+	DBUG_RETURN(ptr);
 }
 
 /*********************************************************************//**
@@ -2212,6 +2213,8 @@ recv_recover_page_func(
 	ibool		modification_to_page;
 	mtr_t		mtr;
 
+	DBUG_ENTER("recv_recover_page_func");
+
 	mutex_enter(&(recv_sys->mutex));
 
 	if (recv_sys->apply_log_recs == FALSE) {
@@ -2220,7 +2223,7 @@ recv_recover_page_func(
 
 		mutex_exit(&(recv_sys->mutex));
 
-		return;
+		DBUG_VOID_RETURN;
 	}
 
 	recv_addr = recv_get_fil_addr_struct(block->page.id.space(),
@@ -2233,7 +2236,7 @@ recv_recover_page_func(
 
 		mutex_exit(&(recv_sys->mutex));
 
-		return;
+		DBUG_VOID_RETURN;
 	}
 
 	ut_ad(recv_needed_recovery);
@@ -2410,7 +2413,7 @@ recv_recover_page_func(
 	recv_sys->n_addrs--;
 
 	mutex_exit(&(recv_sys->mutex));
-
+	DBUG_VOID_RETURN;
 }
 
 #ifndef UNIV_HOTBACKUP

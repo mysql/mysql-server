@@ -55,6 +55,7 @@ Created 12/27/1996 Heikki Tuuri
 #include "trx0rec.h"
 #include "fts0fts.h"
 #include "fts0types.h"
+#include "lob.h"
 #include <algorithm>
 #include "current_thd.h"
 

@@ -47,6 +47,7 @@ InnoDB Native API
 #include "fsp0fsp.h"
 #include <dd/types/tablespace.h>
 #include <dd/properties.h>
+#include "lob.h"
 
 /** configure variable for binlog option with InnoDB APIs */
 my_bool ib_binlog_enabled = FALSE;

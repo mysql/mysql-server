@@ -276,6 +276,8 @@ DECLARE_THREAD(io_handler_thread)(
 {
 	ulint	segment;
 
+        my_thread_init();
+
 	segment = *((ulint*) arg);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
@@ -320,6 +322,7 @@ DECLARE_THREAD(io_handler_thread)(
 	The thread actually never comes here because it is exited in an
 	os_event_wait(). */
 
+        my_thread_end();
 	os_thread_exit(NULL);
 
 	OS_THREAD_DUMMY_RETURN;

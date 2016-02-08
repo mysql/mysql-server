@@ -45,6 +45,7 @@ Completed by Sunny Bains and Marko Makela
 #include "fsp0sysspace.h"
 #include "ut0new.h"
 #include "ut0stage.h"
+#include "lob.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
 #if defined _WIN32

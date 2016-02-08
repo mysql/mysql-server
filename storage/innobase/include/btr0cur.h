@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -683,59 +683,6 @@ btr_cur_disown_inherited_fields(
 	const upd_t*	update,	/*!< in: update vector */
 	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 
-/** Operation code for btr_store_big_rec_extern_fields(). */
-enum blob_op {
-	/** Store off-page columns for a freshly inserted record */
-	BTR_STORE_INSERT = 0,
-	/** Store off-page columns for an insert by update */
-	BTR_STORE_INSERT_UPDATE,
-	/** Store off-page columns for an update */
-	BTR_STORE_UPDATE,
-	/** Store off-page columns for a freshly inserted record by bulk */
-	BTR_STORE_INSERT_BULK
-};
-
-/*******************************************************************//**
-Determine if an operation on off-page columns is an update.
-@return TRUE if op != BTR_STORE_INSERT */
-UNIV_INLINE
-ibool
-btr_blob_op_is_update(
-/*==================*/
-	enum blob_op	op)	/*!< in: operation */
-	__attribute__((warn_unused_result));
-
-/** Stores the fields in big_rec_vec to the tablespace and puts pointers to
-them in rec. The extern flags in rec will have to be set beforehand. The fields
-are stored on pages allocated from leaf node file segment of the index tree.
-
-TODO: If the allocation extends the tablespace, it will not be redo logged, in
-any mini-transaction.  Tablespace extension should be redo-logged, so that
-recovery will not fail when the big_rec was written to the extended portion of
-the file, in case the file was somehow truncated in the crash.
-
-@param[in,out]	pcur		a persistent cursor. if btr_mtr is restarted,
-				then this can be repositioned.
-@param[in]	upd		update vector
-@param[in,out]	offsets		rec_get_offsets() on pcur. the "external in
-				offsets will correctly correspond storage"
-				flagsin offsets will correctly correspond to
-				rec when this function returns
-@param[in]	big_rec_vec	vector containing fields to be stored externally
-@param[in,out]	btr_mtr		mtr containing the latches to the clustered
-				index. can be committed and restarted.
-@param[in]	op		operation code
-@return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-dberr_t
-btr_store_big_rec_extern_fields(
-	btr_pcur_t*	pcur,
-	const upd_t*	upd,
-	ulint*		offsets,
-	const big_rec_t*big_rec_vec,
-	mtr_t*		btr_mtr,
-	enum blob_op	op)
-	__attribute__((warn_unused_result));
-
 /*******************************************************************//**
 Frees the space in an externally stored field to the file space
 management if the field in data is owned the externally stored field,
@@ -775,10 +722,6 @@ btr_free_externally_stored_field(
 	btr_copy_externally_stored_field_func(			\
 		len, data, page_size, local_len, is_sdi, heap)
 
-# define btr_rec_copy_externally_stored_field(			\
-	rec, offsets, page_size, no, len, is_sdi, heap)		\
-	btr_rec_copy_externally_stored_field_func(		\
-	rec, offsets, page_size, no, len, is_sdi, heap)
 #else /* UNIV_DEBUG */
 # define btr_copy_externally_stored_field_prefix(		\
 		buf, len, page_size, data, is_sdi, local_len)	\
@@ -789,11 +732,6 @@ btr_free_externally_stored_field(
 		len, data, page_size, local_len, is_sdi, heap)	\
 	btr_copy_externally_stored_field_func(			\
 		len, data, page_size, local_len, heap)
-
-# define btr_rec_copy_externally_stored_field(			\
-	rec, offsets, page_size, no, len, is_sdi, heap)		\
-	btr_rec_copy_externally_stored_field_func(		\
-	rec, offsets, page_size, no, len, heap)
 #endif /* UNIV_DEBUG */
 
 /** Copies the prefix of an externally stored field of a record.
@@ -1260,14 +1198,33 @@ struct blobref_t {
 	void set_length(const ulint len, mtr_t* mtr = NULL)
 	{
 		ut_ad(len <= MAX_BLOB_SIZE);
+		mlog_write_ulint(m_ref + BTR_EXTERN_LEN,
+				 0, MLOG_4BYTES, mtr);
 		mlog_write_ulint(m_ref + BTR_EXTERN_LEN + 4,
 				 len, MLOG_4BYTES, mtr);
 	}
+
+#ifdef UNIV_DEBUG
+	/** Get the start of a page containing this blob reference.
+	@return start of the page */
+	page_t*	page_align() const
+	{
+		return(::page_align(m_ref));
+	}
+#endif /* UNIV_DEBUG */
 
 private:
 	/** Pointing to a memory of size BTR_EXTERN_FIELD_REF_SIZE */
 	byte	*m_ref;
 };
+
+inline
+std::ostream& operator<<(std::ostream& out, const blobref_t& blobref)
+{
+	out << "[blobref_t: space_id=" << blobref.space_id() << ", page_no="
+		<< blobref.page_no() << ", offset=" << blobref.offset() << "]";
+	return(out);
+}
 
 /** Number of searches down the B-tree in btr_cur_search_to_nth_level(). */
 extern ulint	btr_cur_n_non_sea;

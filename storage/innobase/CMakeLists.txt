@@ -36,6 +36,7 @@ SET(INNOBASE_SOURCES
 	api/api0misc.cc
 	btr/btr0btr.cc
 	btr/btr0cur.cc
+	btr/lob.cc
 	btr/btr0pcur.cc
 	btr/btr0sea.cc
 	btr/btr0bulk.cc

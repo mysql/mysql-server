@@ -427,6 +427,11 @@ fsp_header_check_encryption_key(
 	ulint			fsp_flags,
 	page_t*			page);
 
+/** Check if the tablespace size information is valid.
+@param[in]	space_id	the tablespace identifier
+@return true if valid, false if invalid. */
+bool fsp_check_tablespace_size(ulint space_id);
+
 /**********************************************************************//**
 Writes the space id and flags to a tablespace header.  The flags contain
 row type, physical/compressed page size, and logical/uncompressed page
@@ -905,4 +910,26 @@ const char* xdes_mem_t::state_name() const
 }
 
 #endif /* !DBUG_OFF */
+
+/** Update the tablespace size information and generate redo log for it.
+@param[in]	header	tablespace header.
+@param[in]	size	the new tablespace size in pages.
+@param[in]	mtr	the mini-transaction context. */
+inline
+void
+fsp_header_size_update(
+	fsp_header_t*	header,
+	ulint		size,
+	mtr_t*		mtr)
+{
+	DBUG_ENTER("fsp_header_size_update");
+
+	DBUG_LOG("ib_log", "old_size=" << mach_read_from_4(header + FSP_SIZE)
+		 << ", new_size=" << size);
+
+	mlog_write_ulint(header + FSP_SIZE, size, MLOG_4BYTES, mtr);
+
+	DBUG_VOID_RETURN;
+}
+
 #endif
