@@ -734,6 +734,7 @@ public:
   void backupFragmentRef(Signal * signal, BackupFilePtr filePtr);
 
   void nextFragment(Signal*, BackupRecordPtr);
+  void release_tables(BackupRecordPtr);
   
   void sendCreateTrig(Signal*, BackupRecordPtr ptr, TablePtr tabPtr);
   void createAttributeMask(TablePtr tab, Bitmask<MAXNROFATTRIBUTESINWORDS>&);

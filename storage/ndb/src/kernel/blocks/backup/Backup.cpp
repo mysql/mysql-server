@@ -1895,7 +1895,11 @@ Backup::findTable(const BackupRecordPtr & ptr,
   tabPtr.i = c_tableMap[tableId];
   while (loopCount++ < MAX_TABLE_MAPS)
   {
-    ndbrequire(tabPtr.i != RNIL);
+    if (tabPtr.i == RNIL)
+    {
+      jam();
+      return false;
+    }
     c_tablePool.getPtr(tabPtr);
     if (tabPtr.p->backupPtrI == ptr.i)
     {
@@ -3357,13 +3361,15 @@ Backup::nextFragment(Signal* signal, BackupRecordPtr ptr)
 
   TablePtr tabPtr;
   ptr.p->tables.first(tabPtr);
-  for(; tabPtr.i != RNIL && idleNodes > 0; ptr.p->tables.next(tabPtr)) {
+  for(; tabPtr.i != RNIL && idleNodes > 0; ptr.p->tables.next(tabPtr))
+  {
     jam();
     FragmentPtr fragPtr;
     Array<Fragment> & frags = tabPtr.p->fragments;
     const Uint32 fragCount = frags.getSize();
     
-    for(Uint32 i = 0; i<fragCount && idleNodes > 0; i++) {
+    for(Uint32 i = 0; i<fragCount && idleNodes > 0; i++)
+    {
       jam();
       tabPtr.p->fragments.getPtr(fragPtr, i);
       const Uint32 nodeId = fragPtr.p->node;
@@ -3460,6 +3466,7 @@ Backup::execBACKUP_FRAGMENT_CONF(Signal* signal)
 
   if(ptr.p->checkError()) 
   {
+    jam();
     if(ptr.p->masterData.sendCounter.done())
     {
       jam();
@@ -3469,10 +3476,12 @@ Backup::execBACKUP_FRAGMENT_CONF(Signal* signal)
   }
   else
   {
+    jam();
     NdbNodeBitmask nodes = ptr.p->nodes;
     nodes.clear(getOwnNodeId());
     if (!nodes.isclear())
     {
+      jam();
       BackupFragmentCompleteRep *rep =
         (BackupFragmentCompleteRep*)signal->getDataPtrSend();
       rep->backupId = ptr.p->backupId;
@@ -4413,6 +4422,10 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
        * complex error handling.
        */
       jamLine(tabPtr.p->tableId);
+#ifdef VM_TRACE
+      TablePtr locTabPtr;
+      ndbassert(findTable(ptr, locTabPtr, tabPtr.p->tableId) == false);
+#endif
       insertTableMap(tabPtr, ptr.i, tabPtr.p->tableId);
     }
     jam();
@@ -7330,6 +7343,23 @@ Backup::cleanup(Signal* signal, BackupRecordPtr ptr)
 }
 
 void
+Backup::release_tables(BackupRecordPtr ptr)
+{
+  TablePtr tabPtr;
+  /* Clear backupPtr before releasing */
+  for (ptr.p->tables.first(tabPtr);
+       tabPtr.i != RNIL;
+       ptr.p->tables.next(tabPtr))
+  {
+    jam();
+    tabPtr.p->fragments.release();
+    jamLine(tabPtr.p->tableId);
+    removeTableMap(tabPtr, ptr.i, tabPtr.p->tableId);
+  }
+  while (ptr.p->tables.releaseFirst());
+}
+
+void
 Backup::cleanupNextTable(Signal *signal, BackupRecordPtr ptr, TablePtr tabPtr)
 {
   if (tabPtr.i != RNIL)
@@ -7370,16 +7400,7 @@ Backup::cleanupNextTable(Signal *signal, BackupRecordPtr ptr, TablePtr tabPtr)
   }//for
 
   while (ptr.p->files.releaseFirst());
-  /* Clear backupPtr before releasing */
-  for (ptr.p->tables.first(tabPtr);
-       tabPtr.i != RNIL;
-       ptr.p->tables.next(tabPtr))
-  {
-    jam();
-    jamLine(tabPtr.p->tableId);
-    removeTableMap(tabPtr, ptr.i, tabPtr.p->tableId);
-  }
-  while (ptr.p->tables.releaseFirst());
+  release_tables(ptr);
   while (ptr.p->triggers.releaseFirst());
   ptr.p->backupId = ~0;
   
@@ -7655,16 +7676,7 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
     else
     {
       jam();
-      tabPtr.p->fragments.release();
-      /* Clear backupPtr before releasing */
-      for (ptr.p->tables.first(tabPtr);
-           tabPtr.i != RNIL;
-           ptr.p->tables.next(tabPtr))
-      {
-        jam();
-        removeTableMap(tabPtr, ptr.i, tabPtr.p->tableId);
-      }
-      while (ptr.p->tables.releaseFirst());
+      release_tables(ptr);
       ptr.p->errorCode = 0;
       // fall-through
     }
@@ -7672,12 +7684,14 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
   
   if (!ptr.p->tables.seizeLast(tabPtr) || !tabPtr.p->fragments.seize(1))
   {
-    if(!tabPtr.isNull())
-      while (ptr.p->tables.releaseFirst());
     ndbrequire(false); // TODO
   }
   jam();
   jamLine(req.tableId);
+#ifdef VM_TRACE
+  TablePtr locTabPtr;
+  ndbassert(findTable(ptr, locTabPtr, req.tableId) == false);
+#endif
   insertTableMap(tabPtr, ptr.i, req.tableId);
   tabPtr.p->fragments.getPtr(fragPtr, 0);
   tabPtr.p->tableType = DictTabInfo::UserTable;
@@ -7721,9 +7735,8 @@ Backup::lcp_close_file_conf(Signal* signal, BackupRecordPtr ptr)
   FragmentPtr fragPtr;
   tabPtr.p->fragments.getPtr(fragPtr, 0);
   Uint32 fragmentId = fragPtr.p->fragmentId;
-  
-  tabPtr.p->fragments.release();
-  while (ptr.p->tables.releaseFirst());
+
+  release_tables(ptr);
 
   if (ptr.p->errorCode != 0)
   {
@@ -7862,10 +7875,7 @@ Backup::execEND_LCPREQ(Signal* signal)
   {
     jam();
     ndbrequire(ptr.p->errorCode);
-    TablePtr tabPtr;
-    ptr.p->tables.first(tabPtr);
-    tabPtr.p->fragments.release();
-    while (ptr.p->tables.releaseFirst());
+    release_tables(ptr);
     ptr.p->errorCode = 0;
   }
 
