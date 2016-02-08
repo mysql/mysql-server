@@ -587,7 +587,8 @@ struct Operationrec {
   Uint16 tupkeylen;
   Uint32 xfrmtupkeylen;
   Uint32 userblockref;
-  Uint16 scanBits;
+  Uint16 scanBits; // scanBits may only be ANY_SCANBITS while executing ACCKEYREQ insert.
+  enum { ANY_SCANBITS = Uint16(0xffff) };
   LHBits16 reducedHashValue;
 
   enum OpBits {
