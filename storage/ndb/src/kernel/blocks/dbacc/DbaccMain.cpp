@@ -6640,6 +6640,25 @@ void Dbacc::releaseScanLab(Signal* signal)
   fragrecptr.i = scanPtr.p->activeLocalFrag;
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
   ndbassert(fragrecptr.p->activeScanMask & scanPtr.p->scanMask);
+
+  /**
+   * Dont leave partial scanned bucket as partial scanned.
+   * Elements scanbits must match containers scanbits.
+   */
+  if ((scanPtr.p->scanBucketState ==  ScanRec::FIRST_LAP &&
+       scanPtr.p->nextBucketIndex <= fragrecptr.p->level.getTop()) ||
+      (scanPtr.p->scanBucketState ==  ScanRec::SECOND_LAP &&
+       scanPtr.p->nextBucketIndex <= scanPtr.p->maxBucketIndexToRescan))
+  {
+    jam();
+    Uint32 conidx = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
+    Uint32 pagei = fragrecptr.p->getPageNumber(scanPtr.p->nextBucketIndex);
+    Page8Ptr pageptr;
+    pageptr.i = getPagePtr(fragrecptr.p->directory, pagei);
+    ptrCheckGuard(pageptr, cpagesize, page8);
+    releaseScanBucket(pageptr, conidx, scanPtr.p->scanMask);
+  }
+
   for (tmp = 0; tmp < MAX_PARALLEL_SCANS_PER_FRAG; tmp++) {
     jam();
     if (fragrecptr.p->scan[tmp] == scanPtr.i) {
