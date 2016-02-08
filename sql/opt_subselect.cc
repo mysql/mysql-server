@@ -830,12 +830,14 @@ bool subquery_types_allow_materialization(Item_in_subselect *in_subs)
   in_subs->sjm_scan_allowed= FALSE;
   
   bool all_are_fields= TRUE;
+  uint32 total_key_length = 0;
   for (uint i= 0; i < elements; i++)
   {
     Item *outer= in_subs->left_expr->element_index(i);
     Item *inner= it++;
     all_are_fields &= (outer->real_item()->type() == Item::FIELD_ITEM && 
                        inner->real_item()->type() == Item::FIELD_ITEM);
+    total_key_length += inner->max_length;
     if (outer->cmp_type() != inner->cmp_type())
       DBUG_RETURN(FALSE);
     switch (outer->cmp_type()) {
@@ -865,6 +867,14 @@ bool subquery_types_allow_materialization(Item_in_subselect *in_subs)
       break;
     }
   }
+
+  /*
+     Make sure that create_tmp_table will not fail due to too long keys.
+     See MDEV-7122. This check is performed inside create_tmp_table also and
+     we must do it so that we know the table has keys created.
+  */
+  if (total_key_length > HA_MAX_KEY_LENGTH || elements > HA_MAX_KEY_SEG)
+    DBUG_RETURN(FALSE);
 
   in_subs->types_allow_materialization= TRUE;
   in_subs->sjm_scan_allowed= all_are_fields;

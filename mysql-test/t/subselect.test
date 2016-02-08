@@ -5964,3 +5964,13 @@ EXECUTE stmt;
 
 deallocate prepare stmt;
 drop table t1,t2,t3,t4;
+
+--echo # MDEV-7122
+--echo # Assertion `0' failed in subselect_hash_sj_engine::init
+--echo #
+SET SESSION big_tables=1;
+CREATE TABLE t1(a char(255) DEFAULT '', KEY(a(10))) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+INSERT INTO t1 VALUES(0),(0),(0);
+SELECT * FROM t1 WHERE a IN(SELECT MIN(a) FROM t1);
+DROP TABLE t1;
+SET SESSION big_tables=0;
