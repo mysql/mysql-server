@@ -6870,6 +6870,8 @@ bool Xid_log_event::do_commit(THD *thd_arg)
 int Xid_apply_log_event::do_apply_event_worker(Slave_worker *w)
 {
   int error= 0;
+  bool skipped_commit_pos= true;
+
   lex_start(thd);
   mysql_reset_thd_for_next_command(thd);
   Slave_committed_queue *coordinator_gaq= w->c_rli->gaq;
@@ -6893,9 +6895,21 @@ int Xid_apply_log_event::do_apply_event_worker(Slave_worker *w)
   ulong gaq_idx= mts_group_idx;
   Slave_job_group *ptr_group= coordinator_gaq->get_job_group(gaq_idx);
 
-  if ((error= w->commit_positions(this, ptr_group,
-                                  w->c_rli->is_transactional())))
-    goto err;
+  if (!thd->get_transaction()->xid_state()->check_in_xa(false) &&
+      w->is_transactional())
+  {
+    /*
+      Regular (not XA) transaction updates the transactional info table
+      along with the main transaction. Otherwise, the local flag turned
+      and given its value the info table is updated after do_commit.
+      todo: the flag won't be need upon the full xa crash-safety bug76233
+            gets fixed.
+    */
+    skipped_commit_pos= false;
+    if ((error= w->commit_positions(this, ptr_group,
+                                    w->is_transactional())))
+      goto err;
+  }
 
   DBUG_PRINT("mts", ("do_apply group master %s %llu  group relay %s %llu event %s %llu.",
                      w->get_group_master_log_name(),
@@ -6911,7 +6925,13 @@ int Xid_apply_log_event::do_apply_event_worker(Slave_worker *w)
 
   error= do_commit(thd);
   if (error)
-    w->rollback_positions(ptr_group);
+  {
+    if (!skipped_commit_pos)
+      w->rollback_positions(ptr_group);
+  }
+  else if (skipped_commit_pos)
+    error= w->commit_positions(this, ptr_group,
+                               w->is_transactional());
 err:
   return error;
 }
