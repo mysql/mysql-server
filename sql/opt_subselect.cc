@@ -5463,7 +5463,8 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
           outer join has not been optimized yet).
     */
     if (outer_join && outer_join->table_count > 0 && // (1)
-        outer_join->join_tab)                        // (2)
+        outer_join->join_tab &&                      // (2)
+        !in_subs->const_item())
     {
       /*
         TODO:

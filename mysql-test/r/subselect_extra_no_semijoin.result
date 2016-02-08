@@ -349,9 +349,9 @@ WHERE t.a IN (SELECT b FROM t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-3	MATERIALIZED	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+3	DEPENDENT SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
-Note	1003	select `test`.`t2`.`a` AS `a`,0 AS `a`,0 AS `b` from `test`.`t2` where <expr_cache><0>(<in_optimizer>(0,0 in ( <materialize> (select 0 from dual ), <primary_index_lookup>(0 in <temporary table> on distinct_key where ((0 = `<subquery3>`.`b`))))))
+Note	1003	select `test`.`t2`.`a` AS `a`,0 AS `a`,0 AS `b` from `test`.`t2` where <expr_cache><0>(<in_optimizer>(0,<exists>(select 0 from dual where (<cache>(0) = 0))))
 SELECT * FROM t2 RIGHT JOIN v1 AS t ON t.a != 0
 WHERE t.a IN (SELECT b FROM t1);
 a	a	b
@@ -362,9 +362,9 @@ WHERE t.a IN (SELECT b FROM t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	MATERIALIZED	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+2	DEPENDENT SUBQUERY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
 Warnings:
-Note	1003	select `test`.`t2`.`a` AS `a`,0 AS `a`,0 AS `b` from `test`.`t2` where <expr_cache><0>(<in_optimizer>(0,0 in ( <materialize> (select 0 from dual ), <primary_index_lookup>(0 in <temporary table> on distinct_key where ((0 = `<subquery2>`.`b`))))))
+Note	1003	select `test`.`t2`.`a` AS `a`,0 AS `a`,0 AS `b` from `test`.`t2` where <expr_cache><0>(<in_optimizer>(0,<exists>(select 0 from dual where (<cache>(0) = 0))))
 DROP VIEW v1;
 DROP TABLE t1,t2;
 #
