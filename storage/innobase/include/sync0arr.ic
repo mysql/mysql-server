@@ -43,7 +43,7 @@ sync_array_get()
 		return(sync_wait_array[0]);
 	}
 
-	return(sync_wait_array[default_indexer_t<>::get_rnd_index()
+	return(sync_wait_array[counter_indexer_t<>::get_rnd_index()
 			       % sync_array_size]);
 }
 
