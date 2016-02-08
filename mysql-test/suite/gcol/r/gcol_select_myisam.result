@@ -751,6 +751,12 @@ c1 VARCHAR(1) NOT NULL
 );
 INSERT INTO t4 
 VALUES (1, 'j'), (2, 'c'), (0, 'a');
+ANALYZE TABLE t1, t2, t3, t4;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
 EXPLAIN SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
 FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
 WHERE ( t3.pk IN 

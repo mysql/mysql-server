@@ -1067,6 +1067,8 @@ CREATE TABLE t4 (
 INSERT INTO t4 
 VALUES (1, 'j'), (2, 'c'), (0, 'a');
 
+ANALYZE TABLE t1, t2, t3, t4;
+
 # Hint is added to avoid materialization of the subquery
 let query=
 SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
