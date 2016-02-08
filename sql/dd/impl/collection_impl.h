@@ -56,7 +56,7 @@ public:
   void remove(Collection_item *item); /* purecov: deadcode */
 
   bool is_empty() const
-  { return m_items.empty(); }
+  { return m_items.empty() && m_removed_items.empty(); }
 
   size_t size() const
   { return m_items.size(); }
