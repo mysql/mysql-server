@@ -3021,4 +3021,43 @@ f1	f2	f3
 1	0	2
 drop table t1,t2,t3,t4;
 set optimizer_switch= @tmp_mdev7823;
+#
+# MDEV-6859: scalar subqueries in a comparison produced unexpected result
+#
+set @tmp_mdev6859=@@optimizer_switch;
+set optimizer_switch=default;
+CREATE TABLE t1 (
+project_number varchar(50) NOT NULL,
+PRIMARY KEY (project_number)
+) ENGINE=MyISAM;
+INSERT INTO t1 (project_number) VALUES ('aaa'),('bbb');
+CREATE TABLE t2 (
+id int(10) unsigned NOT NULL AUTO_INCREMENT,
+project_number varchar(50) NOT NULL,
+history_date date NOT NULL,
+country varchar(50) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=MyISAM;
+INSERT INTO t2 (id, project_number, history_date, country) VALUES
+(1, 'aaa', '2014-08-09', 'france'),(2, 'aaa', '2014-09-09', 'singapore');
+CREATE TABLE t3 (
+region varchar(50) NOT NULL,
+country varchar(50) NOT NULL
+) ENGINE=MyISAM;
+INSERT INTO t3 (region, country) VALUES ('apac', 'singapore'),('eame', 'france');
+SELECT SQL_NO_CACHE a.project_number 
+FROM t1 a 
+WHERE ( SELECT z.country 
+FROM t2 z 
+WHERE z.project_number = a.project_number AND z.history_date <= '2014-09-01' 
+ORDER BY z.id DESC LIMIT 1 
+) IN ( 
+SELECT r.country 
+FROM t3 r 
+WHERE r.region = 'eame'
+      );
+project_number
+aaa
+drop table t1, t2, t3;
+set optimizer_switch= @tmp_mdev6859;
 set optimizer_switch=@subselect_sj_tmp;
