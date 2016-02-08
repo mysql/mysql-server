@@ -2988,7 +2988,7 @@ sub check_ssl_support ($) {
     return;
   }
 
-  if ( ! $mysqld_variables->{'ssl'} )
+  if ( ! ($mysqld_variables->{'ssl'} || $mysqld_variables->{'have_ssl'} ))
   {
     if ( $opt_ssl)
     {
