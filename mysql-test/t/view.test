@@ -5480,6 +5480,16 @@ deallocate prepare stmt;
 
 drop view v1,v2;
 drop table `t1`;
+
+#
+# Bug#19817021
+#
+create table t1 (a int, b int);
+create view v1 as select a+b from t1;
+alter table v1 check partition p1;
+drop view v1;
+drop table t1;
+
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.5 tests.
 --echo # -----------------------------------------------------------------
