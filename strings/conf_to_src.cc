@@ -199,8 +199,10 @@ static int
 is_case_sensitive(CHARSET_INFO *cs)
 {
  return (cs->sort_order &&
-         cs->sort_order['A'] < cs->sort_order['a'] &&
-         cs->sort_order['a'] < cs->sort_order['B']) ? 1 : 0;
+         cs->sort_order[static_cast<int>('A')] <
+           cs->sort_order[static_cast<int>('a')] &&
+         cs->sort_order[static_cast<int>('a')] <
+           cs->sort_order[static_cast<int>('B')]) ? 1 : 0;
 }
 
 
