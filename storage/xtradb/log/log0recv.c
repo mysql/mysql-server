@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -766,6 +766,10 @@ not_consistent:
 
 		fprintf(stderr,
 			"InnoDB: No valid checkpoint found.\n"
+			"InnoDB: If you are attempting downgrade"
+			" from MySQL 5.7.9 or later,\n"
+			"InnoDB: please refer to " REFMAN
+			"upgrading-downgrading.html\n"
 			"InnoDB: If this error appears when you are"
 			" creating an InnoDB database,\n"
 			"InnoDB: the problem may be that during"
