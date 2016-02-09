@@ -1,4 +1,5 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -293,7 +294,8 @@ static inline bool table_not_corrupt_error(uint sql_errno)
           sql_errno == ER_LOCK_WAIT_TIMEOUT ||
           sql_errno == ER_LOCK_DEADLOCK ||
           sql_errno == ER_CANT_LOCK_LOG_TABLE ||
-          sql_errno == ER_OPEN_AS_READONLY);
+          sql_errno == ER_OPEN_AS_READONLY ||
+          sql_errno == ER_WRONG_OBJECT);
 }
 
 
@@ -380,7 +382,13 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       lex->query_tables_last= &table->next_global;
       lex->query_tables_own_last= 0;
 
-      if (view_operator_func == NULL)
+      /*
+        CHECK TABLE command is allowed for views as well. Check on alter flags
+        to differentiate from ALTER TABLE...CHECK PARTITION on which view is not
+        allowed.
+      */
+      if (lex->alter_info.flags & ALTER_ADMIN_PARTITION ||
+          view_operator_func == NULL)
       {
         table->required_type=FRMTYPE_TABLE;
         DBUG_ASSERT(!lex->only_view);

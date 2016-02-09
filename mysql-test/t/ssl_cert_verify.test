@@ -1,0 +1,43 @@
+# Want to skip this test from Valgrind execution
+--source include/no_valgrind_without_big.inc
+# This test should work in embedded server after we fix mysqltest
+-- source include/not_embedded.inc
+-- source include/have_ssl_communication.inc
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+let $ssl_verify_fail_path = --ssl --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem --ssl-key=$MYSQL_TEST_DIR/std_data/server-key-verify-fail.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert-verify-fail.pem;
+let $ssl_verify_pass_path = --ssl --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem --ssl-key=$MYSQL_TEST_DIR/std_data/server-key-verify-pass.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert-verify-pass.pem;
+
+--echo #T1: Host name (/CN=localhost/) as OU name in the server certificate, server certificate verification should fail.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--exec echo "restart:" $ssl_verify_fail_path  > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--error 1
+--exec $MYSQL --protocol=tcp --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem --ssl-verify-server-cert -e "SHOW STATUS like 'Ssl_version'"
+
+--echo #T2: Host name (localhost) as common name in the server certificate, server certificate verification should pass.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--exec echo "restart:" $ssl_verify_pass_path  > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--replace_result TLSv1.2 TLS_VERSION TLSv1.1 TLS_VERSION TLSv1 TLS_VERSION
+--exec $MYSQL --protocol=tcp --ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem --ssl-verify-server-cert -e "SHOW STATUS like 'Ssl_version'"
+
+--echo # restart server using restart
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--exec echo "restart: " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc

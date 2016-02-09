@@ -1720,6 +1720,41 @@ insert into t1 values ('00:00:00'),('00:01:00');
 select 1 from t1 where 1 < some (select cast(a as datetime) from t1);
 1
 drop table t1;
+#
+# Bug #21564557: INCONSISTENT OUTPUT FROM 5.5 AND 5.6
+#                UNIX_TIMESTAMP(STR_TO_DATE('201506', "%Y%M"
+#
+SELECT UNIX_TIMESTAMP(STR_TO_DATE('201506', "%Y%m"));
+UNIX_TIMESTAMP(STR_TO_DATE('201506', "%Y%m"))
+NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '201506' for function str_to_date
+SELECT UNIX_TIMESTAMP('2015-06-00');
+UNIX_TIMESTAMP('2015-06-00')
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '2015-06-00'
+SELECT UNIX_TIMESTAMP(STR_TO_DATE('0000-00-00 10:30:30', '%Y-%m-%d %h:%i:%s'));
+UNIX_TIMESTAMP(STR_TO_DATE('0000-00-00 10:30:30', '%Y-%m-%d %h:%i:%s'))
+NULL
+set sql_mode= 'TRADITIONAL';
+SELECT @@sql_mode;
+@@sql_mode
+STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+SELECT UNIX_TIMESTAMP(STR_TO_DATE('201506', "%Y%m"));
+UNIX_TIMESTAMP(STR_TO_DATE('201506', "%Y%m"))
+NULL
+Warnings:
+Warning	1411	Incorrect datetime value: '201506' for function str_to_date
+SELECT UNIX_TIMESTAMP('2015-06-00');
+UNIX_TIMESTAMP('2015-06-00')
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '2015-06-00'
+SELECT UNIX_TIMESTAMP(STR_TO_DATE('0000-00-00 10:30:30', '%Y-%m-%d %h:%i:%s'));
+UNIX_TIMESTAMP(STR_TO_DATE('0000-00-00 10:30:30', '%Y-%m-%d %h:%i:%s'))
+NULL
+set sql_mode= default;
 select time('10:10:10') > 10;
 time('10:10:10') > 10
 1
