@@ -265,6 +265,7 @@ applications.
 Summary:        Shared compat libraries for MySQL %{compatver} database client applications
 Group:          Applications/Databases
 Obsoletes:      mysql-libs-compat < %{version}-%{release}
+Obsoletes:      mariadb-libs
 Provides:       mysql-libs-compat = %{version}-%{release}
 Provides:       mysql-libs-compat%{?_isa} = %{version}-%{release}
 %if 0%{?commercial}
