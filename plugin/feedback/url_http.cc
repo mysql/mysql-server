@@ -38,20 +38,39 @@ class Url_http: public Url {
   protected:
   const LEX_STRING host, port, path;
   bool ssl;
+  LEX_STRING proxy_host, proxy_port;
+
+  int use_proxy()
+  {
+    return proxy_host.length;
+  }
 
   Url_http(LEX_STRING &url_arg, LEX_STRING &host_arg,
           LEX_STRING &port_arg, LEX_STRING &path_arg, bool ssl_arg) :
     Url(url_arg), host(host_arg), port(port_arg), path(path_arg), ssl(ssl_arg)
-    {}
+    {
+      proxy_host.length= 0;
+    }
   ~Url_http()
   {
     my_free(host.str);
     my_free(port.str);
     my_free(path.str);
+    set_proxy(0,0);
   }
 
   public:
   int send(const char* data, size_t data_length);
+  int set_proxy(const char *proxy, size_t proxy_len)
+  {
+    if (use_proxy())
+    {
+      my_free(proxy_host.str);
+      my_free(proxy_port.str);
+    }
+
+    return parse_proxy_server(proxy, proxy_len, &proxy_host, &proxy_port);
+  }
 
   friend Url* http_create(const char *url, size_t url_length);
 };
@@ -150,7 +169,9 @@ int Url_http::send(const char* data, size_t data_length)
   uint len= 0;
 
   addrinfo *addrs, *addr, filter= {0, AF_UNSPEC, SOCK_STREAM, 6, 0, 0, 0, 0};
-  int res= getaddrinfo(host.str, port.str, &filter, &addrs);
+  int res= use_proxy() ?
+    getaddrinfo(proxy_host.str, proxy_port.str, &filter, &addrs) :
+    getaddrinfo(host.str, port.str, &filter, &addrs);
 
   if (res)
   {
@@ -228,16 +249,20 @@ int Url_http::send(const char* data, size_t data_length)
   };
 
   len= my_snprintf(buf, sizeof(buf),
-                   "POST %s HTTP/1.0\r\n"
-                   "User-Agent: MariaDB User Feedback Plugin\r\n"
-                   "Host: %s:%s\r\n"
-                   "Accept: */*\r\n"
-                   "Content-Length: %u\r\n"
-                   "Content-Type: multipart/form-data; boundary=%s\r\n"
-                   "\r\n",
-                   path.str, host.str, port.str,
-                   (uint)(2*boundary.length + header.length + data_length + 4),
-                   boundary.str + 2);
+                   use_proxy() ? "POST http://%s:%s/" : "POST ",
+                   host.str, port.str);
+
+  len+= my_snprintf(buf+len, sizeof(buf)-len,
+                    "%s HTTP/1.0\r\n"
+                    "User-Agent: MariaDB User Feedback Plugin\r\n"
+                    "Host: %s:%s\r\n"
+                    "Accept: */*\r\n"
+                    "Content-Length: %u\r\n"
+                    "Content-Type: multipart/form-data; boundary=%s\r\n"
+                    "\r\n",
+                    path.str, host.str, port.str,
+                    (uint)(2*boundary.length + header.length + data_length + 4),
+                    boundary.str + 2);
 
   vio_timeout(vio, FOR_READING, send_timeout);
   vio_timeout(vio, FOR_WRITING, send_timeout);

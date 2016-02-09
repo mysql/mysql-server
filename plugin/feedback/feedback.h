@@ -51,8 +51,14 @@ class Url {
   const char *url()   { return full_url.str; }
   size_t url_length() { return full_url.length; }
   virtual int send(const char* data, size_t data_length) =  0;
+  virtual int set_proxy(const char *proxy, size_t proxy_len)
+  {
+    return 0;
+  }
 
   static Url* create(const char *url, size_t url_length);
+  static int parse_proxy_server(const char *proxy_server, size_t proxy_length,
+                                LEX_STRING *host, LEX_STRING *port);
 };
 
 extern Url **urls;

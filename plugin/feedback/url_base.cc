@@ -48,4 +48,49 @@ Url* Url::create(const char *url, size_t url_length)
   return self;
 }
 
+int Url::parse_proxy_server(const char *proxy_server, size_t proxy_length,
+                            LEX_STRING *host, LEX_STRING *port)
+{
+  const char *s;
+
+  host->length= 0;
+  if (proxy_server == NULL)
+    return 0;
+
+  for (; proxy_length > 0 && my_isspace(system_charset_info, *proxy_server);
+         proxy_server++, proxy_length--) /* no-op */;
+
+  if (proxy_length == 0)
+    return 0;
+
+  for (s=proxy_server; *s && *s != ':'; s++) /* no-op */;
+
+  host->str= const_cast<char*>(proxy_server);
+  if ((host->length= s-proxy_server) == 0)
+    return 0;
+
+  port->length= 0;
+
+  if (*s == ':')
+  {
+    s++;
+    port->str= const_cast<char*>(s);
+    while (*s >= '0' && *s <= '9')
+    {
+      s++;
+      port->length++;
+    }
+  }
+
+  if (port->length == 0)
+  {
+    port->str= const_cast<char*>("80");
+    port->length= 2;
+  }
+
+  host->str= my_strndup(host->str, host->length, MYF(MY_WME));
+  port->str= my_strndup(port->str, port->length, MYF(MY_WME));
+  return 0;
+}
+
 } // namespace feedback
