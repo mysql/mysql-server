@@ -2061,3 +2061,24 @@ set @@session.collation_server=filename;
 create table t1(a enum('',''));
 drop table t1;
 set @@session.collation_server=default;
+
+--echo #
+--echo # MDEV-7765: Crash (Assertion `!table || (!table->write_set ||
+--echo # bitmap_is_set(table->write_set, field_index) ||
+--echo # bitmap_is_set(table->vcol_set, field_index))' fails)
+--echo # on using function over not created table
+--echo #
+
+DELIMITER |;
+CREATE function f1() returns int
+BEGIN
+  declare n int;
+  set n:= (select count(*) from t1);
+  return n;
+end|
+DELIMITER ;|
+-- error ER_NO_SUCH_TABLE
+create table t1 as select f1();
+drop function f1;
+
+--echo End of 5.5 tests

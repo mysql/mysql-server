@@ -2483,3 +2483,19 @@ Warnings:
 Note	1291	Column 'a' has duplicated value '' in ENUM
 drop table t1;
 set @@session.collation_server=default;
+#
+# MDEV-7765: Crash (Assertion `!table || (!table->write_set ||
+# bitmap_is_set(table->write_set, field_index) ||
+# bitmap_is_set(table->vcol_set, field_index))' fails)
+# on using function over not created table
+#
+CREATE function f1() returns int
+BEGIN
+declare n int;
+set n:= (select count(*) from t1);
+return n;
+end|
+create table t1 as select f1();
+ERROR 42S02: Table 'test.t1' doesn't exist
+drop function f1;
+End of 5.5 tests

@@ -4151,6 +4151,8 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     DBUG_RETURN(1);
   table->mark_columns_needed_for_insert();
   table->file->extra(HA_EXTRA_WRITE_CACHE);
+  // Mark table as used
+  table->query_id= thd->query_id;
   DBUG_RETURN(0);
 }
 
