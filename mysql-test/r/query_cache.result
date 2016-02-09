@@ -283,10 +283,6 @@ insert into t2 select * from t1;
 insert into t1 select * from t2;
 insert into t2 select * from t1;
 insert into t1 select * from t2;
-insert into t2 select * from t1;
-insert into t1 select * from t2;
-insert into t2 select * from t1;
-insert into t1 select * from t2;
 select * from t1;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
