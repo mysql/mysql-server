@@ -1,0 +1,39 @@
+# ==== Purpose ====
+#
+# This test case will query replication_applier_status_by_worker performance
+# schema table before starting a slave applier.
+#
+# Running this test case with valgrind should not fail because of the use of
+# uninitialized variables.
+#
+# ==== Related Bugs and Worklogs ====
+#
+# BUG#21953132 RELAY LOG INFO CURRENTLY_EXECUTING_GTID IS NOT PROPERLY
+#              INITIALIZED OR PROTECTED
+#
+
+--source include/not_group_replication_plugin.inc
+# This test case is binary log format agnostic
+--source include/have_binlog_format_row.inc
+--source include/have_gtid.inc
+--source include/have_perfschema.inc
+--let $rpl_skip_start_slave= 1
+--source include/master-slave.inc
+
+# Cleanup the slave information
+--source include/rpl_connection_slave.inc
+RESET SLAVE ALL;
+
+# Setup the default replication channel again
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root'
+
+# Assert that the last_seen_transaction is empty
+--let $last_seen_trx= `SELECT last_seen_transaction FROM performance_schema.replication_applier_status_by_worker`
+--let $assert_text= last_seen_transaction should be empty
+--let $assert_cond= "$last_seen_trx" = ""
+--source include/assert.inc
+
+--let $rpl_only_running_threads= 1
+--let $rpl_skip_sync= 1
+--source include/rpl_end.inc
