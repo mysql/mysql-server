@@ -1,6 +1,5 @@
-/*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates.
-   Copyright (c) 2010, 2015, MariaDB
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -856,7 +855,12 @@ int field_conv(Field *to,Field *from)
     Field_blob *blob=(Field_blob*) to;
     from->val_str(&blob->value);
 
-    if (!blob->value.is_alloced() && from->is_updatable())
+    /*
+      Copy value if copy_blobs is set, or source is part of the table's
+      writeset.
+    */
+    if (to->table->copy_blobs ||
+        (!blob->value.is_alloced() && from->is_updatable()))
       blob->value.copy();
 
     return blob->store(blob->value.ptr(),blob->value.length(),from->charset());

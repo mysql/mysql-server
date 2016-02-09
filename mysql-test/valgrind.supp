@@ -1,5 +1,5 @@
-# Copyright (c) 2005, 2011, Oracle and/or its affiliates.
-# Copyright (c) 2008-2011, Monty Program Ab
+# Copyright (c) 2005, 2015, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2016, MariaDB
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -1057,8 +1057,8 @@
 # write_keys() and find_all_keys().
 # They both return ha_rows, which is platform dependent.
 #
-# The '...' wildcards are for 'fun:inline_mysql_file_write' which *may*
-# be inlined.
+# The '...' wildcards are for 'fun:inline_mysql_file_write' and
+# 'fun:find_all_keys' which *may* be inlined.
 {
    Bug#12856915 VALGRIND FAILURE IN FILESORT/CREATE_SORT_INDEX / one
    Memcheck:Param
@@ -1069,7 +1069,7 @@
    fun:my_b_flush_io_cache
    fun:_my_b_write
    fun:_Z*10write_keysP13st_sort_paramPPhjP11st_io_cacheS4_
-   fun:_Z*13find_all_keysP13st_sort_paramP10SQL_SELECTPPhP11st_io_cacheS6_
+   ...
    fun:_Z8filesortP3THDP5TABLEP13st_sort_fieldjP10SQL_SELECTybPy
 }
 

@@ -1039,6 +1039,24 @@ insert into t1 values ('00:00:00'),('00:01:00');
 select 1 from t1 where 1 < some (select cast(a as datetime) from t1);
 drop table t1;
 
+--echo #
+--echo # Bug #21564557: INCONSISTENT OUTPUT FROM 5.5 AND 5.6
+--echo #                UNIX_TIMESTAMP(STR_TO_DATE('201506', "%Y%M"
+--echo #
+
+SELECT UNIX_TIMESTAMP(STR_TO_DATE('201506', "%Y%m"));
+SELECT UNIX_TIMESTAMP('2015-06-00');
+SELECT UNIX_TIMESTAMP(STR_TO_DATE('0000-00-00 10:30:30', '%Y-%m-%d %h:%i:%s'));
+
+set sql_mode= 'TRADITIONAL';
+SELECT @@sql_mode;
+
+SELECT UNIX_TIMESTAMP(STR_TO_DATE('201506', "%Y%m"));
+SELECT UNIX_TIMESTAMP('2015-06-00');
+SELECT UNIX_TIMESTAMP(STR_TO_DATE('0000-00-00 10:30:30', '%Y-%m-%d %h:%i:%s'));
+
+set sql_mode= default;
+
 select time('10:10:10') > 10;
 select time('10:10:10') > 1010;
 select time('10:10:09') > 101010;

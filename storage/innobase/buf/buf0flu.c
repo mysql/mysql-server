@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2103,12 +2103,7 @@ buf_flush_stat_update(void)
 	ib_uint64_t		lsn;
 	ulint			n_flushed;
 
-	lsn = log_get_lsn_nowait();
-
-	/* log_get_lsn_nowait tries to get log_sys->mutex with
-	mutex_enter_nowait, if this does not succeed function
-	returns 0, do not use that value to update stats. */
-	if (lsn == 0) {
+	if (!log_peek_lsn(&lsn)) {
 		return;
 	}
 

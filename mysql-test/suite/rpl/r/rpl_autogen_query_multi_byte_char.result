@@ -1,0 +1,29 @@
+include/master-slave.inc
+[connection master]
+Test case 1:- table name with one character latin name.
+SET @s:=CONCAT("CREATE TABLE `",REPEAT(CHAR(131),1),"` (a INT)");
+PREPARE STMT FROM @s;
+EXECUTE stmt;
+SET @s:=CONCAT("INSERT INTO `",REPEAT(CHAR(131),1),"` VALUES (1)");
+PREPARE STMT FROM @s;
+EXECUTE stmt;
+SET @s:=CONCAT("DROP TABLE `",REPEAT(CHAR(131),1), "`");
+PREPARE STMT FROM @s;
+EXECUTE stmt;
+Test case 2:- table name and database names with one character latin name.
+SET @s:=CONCAT("CREATE DATABASE `",REPEAT(CHAR(131),1),"`");
+PREPARE STMT FROM @s;
+EXECUTE stmt;
+SET @s:=CONCAT("CREATE TABLE `",REPEAT(CHAR(131),1),"`.`",REPEAT(CHAR(131),1),"` (a INT)");
+PREPARE STMT FROM @s;
+EXECUTE stmt;
+SET @s:=CONCAT("INSERT INTO `",REPEAT(CHAR(131),1),"`.`",REPEAT(CHAR(131),1),"` VALUES (1)");
+PREPARE STMT FROM @s;
+EXECUTE stmt;
+SET @s:=CONCAT("DROP TABLE `",REPEAT(CHAR(131),1),"`.`",REPEAT(CHAR(131),1), "`");
+PREPARE STMT FROM @s;
+EXECUTE stmt;
+SET @s:=CONCAT("DROP DATABASE `",REPEAT(CHAR(131),1),"`");
+PREPARE STMT FROM @s;
+EXECUTE stmt;
+include/rpl_end.inc
