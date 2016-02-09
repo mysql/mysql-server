@@ -9692,8 +9692,8 @@ bool Table_map_log_event::write_data_body(IO_CACHE *file)
   DBUG_ASSERT(m_dbnam != NULL);
   DBUG_ASSERT(m_tblnam != NULL);
   /* We use only one byte per length for storage in event: */
-  DBUG_ASSERT(m_dblen <= NAME_LEN);
-  DBUG_ASSERT(m_tbllen <= NAME_LEN);
+  DBUG_ASSERT(m_dblen <= min(NAME_LEN, 255));
+  DBUG_ASSERT(m_tbllen <= min(NAME_LEN, 255));
 
   uchar const dbuf[]= { (uchar) m_dblen };
   uchar const tbuf[]= { (uchar) m_tbllen };
