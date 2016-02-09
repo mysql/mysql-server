@@ -2377,6 +2377,7 @@ innobase_create_key_defs(
 			index->name = innobase_index_reserve_name;
 			index->rebuild = true;
 			index->key_number = ~0;
+			index->is_ngram = false;
 			primary_key_number = ULINT_UNDEFINED;
 			goto created_clustered;
 		} else {
@@ -2471,6 +2472,7 @@ created_clustered:
 		      || fts_doc_id_col <= altered_table->s->fields);
 
 		index->name = FTS_DOC_ID_INDEX_NAME;
+		index->is_ngram = false;
 		index->rebuild = rebuild;
 
 		/* TODO: assign a real MySQL key number for this */

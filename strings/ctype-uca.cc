@@ -21775,9 +21775,10 @@ my_uca_copy_page(MY_CHARSET_LOADER *loader,
   memset(dst->weights[page], 0, size);
   for (chc=0 ; chc < 256; chc++)
   {
-    memcpy(dst->weights[page] + chc * dst->lengths[page],
-           src->weights[page] + chc * src->lengths[page],
-           src->lengths[page] * sizeof(uint16));
+    if (src->lengths[page] > 0)
+      memcpy(dst->weights[page] + chc * dst->lengths[page],
+             src->weights[page] + chc * src->lengths[page],
+             src->lengths[page] * sizeof(uint16));
   }
   return FALSE;
 }

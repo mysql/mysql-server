@@ -7312,7 +7312,8 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     sch_table->field[ISE_LAST_EXECUTED]->store_time(&time);
   }
 
-  sch_table->field[ISE_EVENT_COMMENT]->
+  if (et.comment.length > 0)
+    sch_table->field[ISE_EVENT_COMMENT]->
                       store(et.comment.str, et.comment.length, scs);
 
   sch_table->field[ISE_CLIENT_CS]->set_notnull();

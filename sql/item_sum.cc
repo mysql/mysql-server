@@ -3273,6 +3273,7 @@ Item_func_group_concat::Item_func_group_concat(const POS &pos,
    row_count(0),
    distinct(distinct_arg),
    warning_for_row(FALSE),
+   always_null(false),
    force_copy_fields(0), original(0)
 {
   Item *item_select;

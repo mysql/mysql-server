@@ -3103,31 +3103,31 @@ double Item_func_cot::val_real()
 longlong Item_func_shift_left::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  uint shift;
-  ulonglong res= ((ulonglong) args[0]->val_int() <<
-		  (shift=(uint) args[1]->val_int()));
+  ulonglong res= args[0]->val_uint();
+  longlong shift= args[1]->val_int();
   if (args[0]->null_value || args[1]->null_value)
   {
     null_value=1;
     return 0;
   }
   null_value=0;
-  return (shift < sizeof(longlong)*8 ? (longlong) res : 0LL);
+  return (shift >= 0 && shift < static_cast<longlong>(sizeof(longlong)*8) ?
+          static_cast<longlong>(res << shift) : 0LL);
 }
 
 longlong Item_func_shift_right::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  uint shift;
-  ulonglong res= (ulonglong) args[0]->val_int() >>
-    (shift=(uint) args[1]->val_int());
+  ulonglong res= args[0]->val_uint();
+  longlong shift= args[1]->val_int();
   if (args[0]->null_value || args[1]->null_value)
   {
     null_value=1;
     return 0;
   }
   null_value=0;
-  return (shift < sizeof(longlong)*8 ? (longlong) res : 0LL);
+  return (shift >= 0 && shift < static_cast<longlong>(sizeof(longlong)*8) ?
+          static_cast<longlong>(res >> shift) : 0LL);
 }
 
 
@@ -4201,9 +4201,12 @@ longlong Item_func_locate::val_int()
 
   if (arg_count == 3)
   {
-    start0= start= args[2]->val_int() - 1;
+    const longlong tmp= args[2]->val_int();
+    if (tmp <= 0)
+      return 0;
+    start0= start= tmp - 1;
 
-    if ((start < 0) || (start > static_cast<longlong>(a->length())))
+    if (start > static_cast<longlong>(a->length()))
       return 0;
 
     /* start is now sufficiently valid to pass to charpos function */

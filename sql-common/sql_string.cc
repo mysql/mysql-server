@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1044,7 +1044,8 @@ size_t well_formed_copy_nchars(const CHARSET_INFO *to_cs,
       set_if_smaller(from_length, to_length);
       res= to_cs->cset->well_formed_len(to_cs, from, from + from_length,
                                         nchars, &well_formed_error);
-      memmove(to, from, res);
+      if (res > 0)
+        memmove(to, from, res);
       *from_end_pos= from + res;
       *well_formed_error_pos= well_formed_error ? from + res : NULL;
       *cannot_convert_error_pos= NULL;

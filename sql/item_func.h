@@ -868,7 +868,10 @@ public:
   {}
 
   const char *func_name() const { return "+"; }
-  longlong int_op();
+
+  // SUPPRESS_UBSAN: signed integer overflow
+  longlong int_op() SUPPRESS_UBSAN;
+
   double real_op();
   my_decimal *decimal_op(my_decimal *);
 };
@@ -882,7 +885,10 @@ public:
   {}
 
   const char *func_name() const { return "-"; }
-  longlong int_op();
+
+  // SUPPRESS_UBSAN: signed integer overflow
+  longlong int_op() SUPPRESS_UBSAN;
+
   double real_op();
   my_decimal *decimal_op(my_decimal *);
   void fix_length_and_dec();

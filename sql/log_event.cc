@@ -3674,7 +3674,8 @@ bool Query_log_event::write(IO_CACHE* file)
       enough to store the host's length.
      */
     *start++= (uchar)invoker_host.length;
-    memcpy(start, invoker_host.str, invoker_host.length);
+    if (invoker_host.length > 0)
+      memcpy(start, invoker_host.str, invoker_host.length);
     start+= invoker_host.length;
   }
 

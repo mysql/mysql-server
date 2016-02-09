@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -83,8 +83,9 @@ ulonglong find_set(TYPELIB *lib, const char *str, size_t length,
         *err_len= var_len;
         *set_warning= 1;
       }
-      else
+      else if (find) // avoid 1ULL << 4294967295
         found|= 1ULL << (find - 1);
+
       if (pos >= end)
         break;
       start= pos + mblen;
