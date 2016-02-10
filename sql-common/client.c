@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1834,35 +1834,39 @@ mysql_get_ssl_cipher(MYSQL *mysql __attribute__((unused)))
 static int ssl_verify_server_cert(Vio *vio, const char* server_hostname, const char **errptr)
 {
   SSL *ssl;
-  X509 *server_cert;
-  char *cp1, *cp2;
-  char buf[256];
+  X509 *server_cert= NULL;
+  char *cn= NULL;
+  int cn_loc= -1;
+  ASN1_STRING *cn_asn1= NULL;
+  X509_NAME_ENTRY *cn_entry= NULL;
+  X509_NAME *subject= NULL;
+  int ret_validation= 1;
+
   DBUG_ENTER("ssl_verify_server_cert");
   DBUG_PRINT("enter", ("server_hostname: %s", server_hostname));
 
   if (!(ssl= (SSL*)vio->ssl_arg))
   {
     *errptr= "No SSL pointer found";
-    DBUG_RETURN(1);
+    goto error;
   }
 
   if (!server_hostname)
   {
     *errptr= "No server hostname supplied";
-    DBUG_RETURN(1);
+    goto error;
   }
 
   if (!(server_cert= SSL_get_peer_certificate(ssl)))
   {
     *errptr= "Could not get server certificate";
-    DBUG_RETURN(1);
+    goto error;
   }
 
   if (X509_V_OK != SSL_get_verify_result(ssl))
   {
     *errptr= "Failed to verify the server certificate";
-    X509_free(server_cert);
-    DBUG_RETURN(1);
+    goto error;
   }
   /*
     We already know that the certificate exchanged was valid; the SSL library
@@ -1870,27 +1874,61 @@ static int ssl_verify_server_cert(Vio *vio, const char* server_hostname, const c
     are what we expect.
   */
 
-  X509_NAME_oneline(X509_get_subject_name(server_cert), buf, sizeof(buf));
-  X509_free (server_cert);
+  /*
+   Some notes for future development
+   We should check host name in alternative name first and then if needed check in common name.
+   Currently yssl doesn't support alternative name.
+   openssl 1.0.2 support X509_check_host method for host name validation, we may need to start using
+   X509_check_host in the future.
+  */
 
-  DBUG_PRINT("info", ("hostname in cert: %s", buf));
-  cp1= strstr(buf, "/CN=");
-  if (cp1)
+  subject= X509_get_subject_name((X509 *) server_cert);
+  // Find the CN location in the subject
+  cn_loc= X509_NAME_get_index_by_NID(subject, NID_commonName, -1);
+  if (cn_loc < 0)
   {
-    cp1+= 4; /* Skip the "/CN=" that we found */
-    /* Search for next / which might be the delimiter for email */
-    cp2= strchr(cp1, '/');
-    if (cp2)
-      *cp2= '\0';
-    DBUG_PRINT("info", ("Server hostname in cert: %s", cp1));
-    if (!strcmp(cp1, server_hostname))
-    {
-      /* Success */
-      DBUG_RETURN(0);
-    }
+    *errptr= "Failed to get CN location in the certificate subject";
+    goto error;
   }
+
+  // Get the CN entry for given location
+  cn_entry= X509_NAME_get_entry(subject, cn_loc);
+  if (cn_entry == NULL)
+  {
+    *errptr= "Failed to get CN entry using CN location";
+    goto error;
+  }
+
+  // Get CN from common name entry
+  cn_asn1 = X509_NAME_ENTRY_get_data(cn_entry);
+  if (cn_asn1 == NULL)
+  {
+    *errptr= "Failed to get CN from CN entry";
+    goto error;
+  }
+
+  cn= (char *) ASN1_STRING_data(cn_asn1);
+
+  // There should not be any NULL embedded in the CN
+  if ((size_t)ASN1_STRING_length(cn_asn1) != strlen(cn))
+  {
+    *errptr= "NULL embedded in the certificate CN";
+    goto error;
+  }
+
+  DBUG_PRINT("info", ("Server hostname in cert: %s", cn));
+  if (!strcmp(cn, server_hostname))
+  {
+    /* Success */
+    ret_validation= 0;
+  }
+
   *errptr= "SSL certificate validation failure";
-  DBUG_RETURN(1);
+
+error:
+  if (server_cert != NULL)
+    X509_free (server_cert);
+  DBUG_RETURN(ret_validation);
 }
 
 #endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */

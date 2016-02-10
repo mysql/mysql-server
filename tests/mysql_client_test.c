@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19441,6 +19441,53 @@ static void test_bug20810928()
 }
 
 
+/*
+  BUG#17883203: MYSQL EMBEDDED MYSQL_STMT_EXECUTE RETURN
+                "MALFORMED COMMUNICATION PACKET" ERROR
+*/
+#define BUG17883203_STRING_SIZE 100
+
+static void test_bug17883203()
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND bind;
+  char str_data[BUG17883203_STRING_SIZE];
+  my_bool is_null;
+  my_bool error;
+  unsigned long length;
+  const char stmt_text[] ="SELECT VERSION()";
+  int rc;
+
+  myheader("test_bug17883203");
+
+  stmt = mysql_stmt_init(mysql);
+  check_stmt(stmt);
+  rc= mysql_stmt_prepare(stmt, stmt_text, strlen(stmt_text));
+  check_execute(stmt, rc);
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  memset(&bind, 0, sizeof(bind));
+
+  bind.buffer_type= MYSQL_TYPE_STRING;
+  bind.buffer= (char *)str_data;
+  bind.buffer_length= BUG17883203_STRING_SIZE;
+  bind.is_null= &is_null;
+  bind.length= &length;
+  bind.error= &error;
+
+  rc= mysql_stmt_bind_result(stmt, &bind);
+  check_execute(stmt, rc);
+  rc= mysql_stmt_fetch(stmt);
+  check_execute(stmt, rc);
+
+  if (!opt_silent)
+  {
+    fprintf(stdout, "\n Version: %s", str_data);
+  }
+  mysql_stmt_close(stmt);
+}
+
+
 static struct my_tests_st my_tests[]= {
   { "disable_query_logs", disable_query_logs },
   { "test_view_sp_list_fields", test_view_sp_list_fields },
@@ -19717,6 +19764,7 @@ static struct my_tests_st my_tests[]= {
 #endif
   { "test_bug17512527", test_bug17512527},
   { "test_bug20810928", test_bug20810928 },
+  { "test_bug17883203", test_bug17883203 },
   { 0, 0 }
 };
 

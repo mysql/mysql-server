@@ -1,0 +1,21 @@
+include/rpl_init.inc [topology=1->2->3]
+Server 1
+CREATE TABLE `t1` (
+`id` bigint unsigned NOT NULL auto_increment,
+`val` varchar(255),
+PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+INSERT INTO t1 (val) VALUES (REPEAT('a', 255));
+INSERT INTO t1 (val) SELECT val FROM t1;
+INSERT INTO t1 (val) SELECT val FROM t1;
+INSERT INTO t1 (val) SELECT val FROM t1;
+INSERT INTO t1 (val) SELECT val FROM t1;
+INSERT INTO t1 (val) SELECT val FROM t1;
+INSERT INTO t1 (val) SELECT val FROM t1;
+Syncing all three servers
+include/rpl_sync.inc
+Verifying 't1' table contents on all three servers through diff tables.
+include/diff_tables.inc [server_1:t1, server_2:t1, server_3:t1]
+DROP TABLE t1;
+include/rpl_sync.inc
+include/rpl_end.inc

@@ -223,8 +223,10 @@ JOIN::optimize()
       st_select_lex::fix_prepare_information(), and remove this second copy
       below.
     */
-    select_lex->prep_where=
-      conds ? conds->copy_andor_structure(thd, true) : NULL;
+      select_lex->prep_where=
+        conds ? conds->copy_andor_structure(thd, true): NULL;
+      if (conds)
+        thd->change_item_tree_place(&conds, &select_lex->prep_where);
   }
 
   /*

@@ -37,3 +37,32 @@ DROP TABLE bug13861218;
 set global innodb_file_per_table=1;
 set global innodb_file_format=Antelope;
 set global innodb_file_format_max=Antelope;
+#
+# Bug #21762319	ADDING INDEXES ON EMPTY TABLE IS SLOW
+#	WITH LARGE INNODB_SORT_BUFFER_SIZE.
+call mtr.add_suppression("InnoDB: Cannot create temporary merge file");
+create table t480(a serial)engine=innodb;
+insert into t480
+values(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),
+(),(),(),(),(),(),(),();
+insert into t480 select 0 from t480;
+insert into t480 select 0 from t480;
+insert into t480 select 0 from t480;
+insert into t480 select 0 from t480;
+create table t1(f1 int auto_increment not null,
+f2 char(200) not null, f3 char(200) not null,
+f4 char(200) not null,primary key(f1))engine=innodb;
+insert into t1 select NULL,'aaa','bbb','ccc' from t480;
+insert into t1 select NULL,'aaaa','bbbb','cccc' from t480;
+insert into t1 select NULL,'aaaaa','bbbbb','ccccc' from t480;
+insert into t1 select NULL,'aaaaaa','bbbbbb','cccccc' from t480;
+insert into t1 select NULL,'aaaaaaa','bbbbbbb','ccccccc' from t480;
+insert into t1 select NULL,'aaaaaaaa','bbbbbbbb','cccccccc' from t480;
+select count(*) from t1;
+count(*)
+2880
+SET DEBUG = '+d,innobase_tmpfile_creation_failure';
+alter table t1 force, algorithm=inplace;
+ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
+SET DEBUG = '-d,innobase_tmpfile_creation_failure';
+drop table t1, t480;

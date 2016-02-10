@@ -10,7 +10,7 @@
 
 install_db () {    
     # Note: something different than datadir=/var/lib/mysql requires SELinux policy changes (in enforcing mode)
-    datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p')
+    datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p' | tail -n 1)
     
     # Restore log, dir, perms and SELinux contexts
     [ -d "$datadir" ] || install -d -m 0755 -omysql -gmysql "$datadir" || exit 1

@@ -194,8 +194,25 @@ struct row_log_t {
 				or by index->lock X-latch only */
 	row_log_buf_t	head;	/*!< reader context; protected by MDL only;
 				modifiable by row_log_apply_ops() */
+	const char*	path;	/*!< where to create temporary file during
+				log operation */
 };
 
+/** Create the file or online log if it does not exist.
+@param[in,out]	log	online rebuild log
+@return file descriptor. */
+static __attribute__((warn_unused_result))
+int
+row_log_tmpfile(
+	row_log_t*	log)
+{
+	DBUG_ENTER("row_log_tmpfile");
+	if (log->fd < 0) {
+		log->fd = row_merge_file_create_low(log->path);
+	}
+
+	DBUG_RETURN(log->fd);
+}
 
 /** Allocate the memory for the log buffer.
 @param[in,out]	log_buf	Buffer used for log operation
@@ -340,6 +357,12 @@ row_log_online_op(
 			       log->tail.buf, avail_size);
 		}
 		UNIV_MEM_ASSERT_RW(log->tail.block, srv_sort_buf_size);
+
+		if (row_log_tmpfile(log) < 0) {
+			log->error = DB_OUT_OF_MEMORY;
+			goto err_exit;
+		}
+
 		ret = os_file_write(
 			"(modification log)",
 			OS_FILE_FROM_FD(log->fd),
@@ -450,6 +473,12 @@ row_log_table_close_func(
 			       log->tail.buf, avail);
 		}
 		UNIV_MEM_ASSERT_RW(log->tail.block, srv_sort_buf_size);
+
+		if (row_log_tmpfile(log) < 0) {
+			log->error = DB_OUT_OF_MEMORY;
+			goto err_exit;
+		}
+
 		ret = os_file_write(
 			"(modification log)",
 			OS_FILE_FROM_FD(log->fd),
@@ -469,6 +498,7 @@ write_failed:
 
 	log->tail.total += size;
 	UNIV_MEM_INVALID(log->tail.buf, sizeof log->tail.buf);
+err_exit:
 	mutex_exit(&log->mutex);
 }
 
@@ -2536,7 +2566,8 @@ corruption:
 		if (index->online_log->head.blocks) {
 #ifdef HAVE_FTRUNCATE
 			/* Truncate the file in order to save space. */
-			if (ftruncate(index->online_log->fd, 0) == -1) {
+			if (index->online_log->fd != -1
+			    && ftruncate(index->online_log->fd, 0) == -1) {
 				perror("ftruncate");
 			}
 #endif /* HAVE_FTRUNCATE */
@@ -2852,8 +2883,9 @@ row_log_allocate(
 	const dtuple_t*	add_cols,
 				/*!< in: default values of
 				added columns, or NULL */
-	const ulint*	col_map)/*!< in: mapping of old column
+	const ulint*	col_map,/*!< in: mapping of old column
 				numbers to new ones, or NULL if !table */
+	const char*	path)	/*!< in: where to create temporary file */
 {
 	row_log_t*	log;
 	DBUG_ENTER("row_log_allocate");
@@ -2872,11 +2904,7 @@ row_log_allocate(
 		DBUG_RETURN(false);
 	}
 
-	log->fd = row_merge_file_create_low();
-	if (log->fd < 0) {
-		ut_free(log);
-		DBUG_RETURN(false);
-	}
+	log->fd = -1;
 	mutex_create(index_online_log_key, &log->mutex,
 		     SYNC_INDEX_ONLINE_LOG);
 	log->blobs = NULL;
@@ -2891,6 +2919,7 @@ row_log_allocate(
 	log->tail.block = log->head.block = NULL;
 	log->head.blocks = log->head.bytes = 0;
 	log->head.total = 0;
+	log->path = path;
 	dict_index_set_online_status(index, ONLINE_INDEX_CREATION);
 	index->online_log = log;
 
@@ -3368,7 +3397,8 @@ corruption:
 		if (index->online_log->head.blocks) {
 #ifdef HAVE_FTRUNCATE
 			/* Truncate the file in order to save space. */
-			if (ftruncate(index->online_log->fd, 0) == -1) {
+			if (index->online_log->fd != -1
+			    && ftruncate(index->online_log->fd, 0) == -1) {
 				perror("ftruncate");
 			}
 #endif /* HAVE_FTRUNCATE */
