@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1378,7 +1378,7 @@ longlong Item_func_year::val_int_endpoint(bool left_endp, bool *incl_endp)
 longlong Item_func_unix_timestamp::val_int()
 {
   MYSQL_TIME ltime;
-  my_bool not_used;
+  my_bool not_used= 0;
   
   DBUG_ASSERT(fixed == 1);
   if (arg_count == 0)
@@ -1390,7 +1390,7 @@ longlong Item_func_unix_timestamp::val_int()
       return ((Field_timestamp*) field)->get_timestamp(&null_value);
   }
   
-  if (get_arg0_date(&ltime, 0))
+  if (get_arg0_date(&ltime, TIME_FUZZY_DATE))
   {
     /*
       We have to set null_value again because get_arg0_date will also set it
@@ -1400,7 +1400,11 @@ longlong Item_func_unix_timestamp::val_int()
     null_value= args[0]->null_value;
     return 0;
   }
-  
+
+  int dummy= 0;
+  if (check_date(&ltime, non_zero_date(&ltime), TIME_NO_ZERO_IN_DATE, &dummy))
+    return 0;
+
   return (longlong) TIME_to_timestamp(current_thd, &ltime, &not_used);
 }
 
@@ -3482,6 +3486,7 @@ bool Item_func_str_to_date::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   String val_string(val_buff, sizeof(val_buff), &my_charset_bin), *val;
   String format_str(format_buff, sizeof(format_buff), &my_charset_bin), *format;
 
+  fuzzy_date|= sql_mode;
   val=    args[0]->val_str(&val_string);
   format= args[1]->val_str(&format_str);
   if (args[0]->null_value || args[1]->null_value)
