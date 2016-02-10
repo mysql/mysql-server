@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,8 +25,8 @@
 extern "C" {
 #endif
 
-#define HA_FT_MAXBYTELEN 254
-#define HA_FT_MAXCHARLEN (HA_FT_MAXBYTELEN/3)
+#define HA_FT_MAXBYTELEN 336
+#define HA_FT_MAXCHARLEN (HA_FT_MAXBYTELEN/4)
 
 #define DEFAULT_FTB_SYNTAX "+ -><()~*:\"\"&|"
 
