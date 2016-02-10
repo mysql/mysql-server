@@ -8180,6 +8180,7 @@ bool ha_partition::prepare_inplace_alter_table(TABLE *altered_table,
   for (index= 0; index < m_tot_parts && !error; index++)
   {
     ha_alter_info->handler_ctx= part_inplace_ctx->handler_ctx_array[index];
+    m_file[index]->update_create_info(ha_alter_info->create_info);
     if (m_file[index]->ha_prepare_inplace_alter_table(altered_table,
                                                       ha_alter_info))
       error= true;

@@ -769,3 +769,109 @@ CREATE_TIME IS NOT NULL AND TABLE_NAME='t1';
 COUNT(*)
 1
 DROP TABLE t1;
+#
+# Bug#20160327 OPTIMIZE TABLE REMOVES THE DATA DIRECTORY IN PARTITIONS
+#
+CREATE TABLE `t1` (
+`f1` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+`f2` MEDIUMTEXT NOT NULL,
+`f3` CHAR(100) NOT NULL,
+`f4` TINYINT(1) unsigned NOT NULL,
+PRIMARY KEY (`f1`,`f4`)
+) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=latin1
+PARTITION BY LIST (`f4`)
+(PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
+PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir' ENGINE = InnoDB);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `f2` mediumtext NOT NULL,
+  `f3` char(100) NOT NULL,
+  `f4` tinyint(1) unsigned NOT NULL,
+  PRIMARY KEY (`f1`,`f4`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (`f4`)
+(PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
+ PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir' ENGINE = InnoDB) */
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `f2` mediumtext NOT NULL,
+  `f3` char(100) NOT NULL,
+  `f4` tinyint(1) unsigned NOT NULL,
+  PRIMARY KEY (`f1`,`f4`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (`f4`)
+(PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
+ PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir' ENGINE = InnoDB) */
+t1#p#p1.ibd
+ALTER TABLE t1 OPTIMIZE PARTITION p0;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
+test.t1	optimize	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `f2` mediumtext NOT NULL,
+  `f3` char(100) NOT NULL,
+  `f4` tinyint(1) unsigned NOT NULL,
+  PRIMARY KEY (`f1`,`f4`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (`f4`)
+(PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
+ PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir' ENGINE = InnoDB) */
+t1#p#p1.ibd
+ALTER TABLE t1 OPTIMIZE PARTITION p1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize on partitions. All partitions will be rebuilt and analyzed.
+test.t1	optimize	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `f2` mediumtext NOT NULL,
+  `f3` char(100) NOT NULL,
+  `f4` tinyint(1) unsigned NOT NULL,
+  PRIMARY KEY (`f1`,`f4`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (`f4`)
+(PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
+ PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir' ENGINE = InnoDB) */
+t1#p#p1.ibd
+ALTER TABLE t1 REBUILD PARTITION ALL;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `f2` mediumtext NOT NULL,
+  `f3` char(100) NOT NULL,
+  `f4` tinyint(1) unsigned NOT NULL,
+  PRIMARY KEY (`f1`,`f4`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (`f4`)
+(PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
+ PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir' ENGINE = InnoDB) */
+t1#p#p1.ibd
+ALTER TABLE t1 ADD extracol VARCHAR(32) NULL;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `f2` mediumtext NOT NULL,
+  `f3` char(100) NOT NULL,
+  `f4` tinyint(1) unsigned NOT NULL,
+  `extracol` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`f1`,`f4`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (`f4`)
+(PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
+ PARTITION p1 VALUES IN (1) DATA DIRECTORY = 'MYSQL_TMP_DIR/temp_dir' ENGINE = InnoDB) */
+t1#p#p1.ibd
+DROP TABLE t1;

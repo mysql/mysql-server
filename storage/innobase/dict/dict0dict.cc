@@ -1066,7 +1066,7 @@ dict_init(void)
 		       &dict_operation_lock, SYNC_DICT_OPERATION);
 
 	if (!srv_read_only_mode) {
-		dict_foreign_err_file = os_file_create_tmpfile();
+		dict_foreign_err_file = os_file_create_tmpfile(NULL);
 		ut_a(dict_foreign_err_file);
 
 		mutex_create(dict_foreign_err_mutex_key,

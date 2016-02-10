@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,9 +42,6 @@ static bool write_eof_packet(THD *, NET *, uint, uint);
 
 #ifndef EMBEDDED_LIBRARY
 bool Protocol::net_store_data(const uchar *from, size_t length)
-#else
-bool Protocol_binary::net_store_data(const uchar *from, size_t length)
-#endif
 {
   ulong packet_length=packet->length();
   /* 
@@ -59,7 +56,7 @@ bool Protocol_binary::net_store_data(const uchar *from, size_t length)
   packet->length((uint) (to+length-(uchar*) packet->ptr()));
   return 0;
 }
-
+#endif
 
 
 
@@ -1244,12 +1241,14 @@ bool Protocol_binary::prepare_for_send(uint num_columns)
 }
 
 
+#ifndef EMBEDDED_LIBRARY
 void Protocol_binary::prepare_for_resend()
 {
   packet->length(bit_fields+1);
   memset(const_cast<char*>(packet->ptr()), 0, 1+bit_fields);
   field_pos=0;
 }
+#endif
 
 
 bool Protocol_binary::store(const char *from, size_t length,

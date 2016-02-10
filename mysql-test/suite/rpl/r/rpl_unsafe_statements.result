@@ -1,0 +1,56 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1(id INT AUTO_INCREMENT, i INT, PRIMARY KEY (id)) ENGINE=INNODB;
+CREATE TABLE t2(id INT AUTO_INCREMENT, i INT, PRIMARY KEY (id)) ENGINE=INNODB;
+CREATE TRIGGER trig1 AFTER INSERT ON t1
+FOR EACH ROW
+INSERT INTO t2(i) VALUES(new.i);
+START TRANSACTION;
+INSERT INTO t2(i) VALUES (1);
+ROLLBACK;
+INSERT INTO t1(i) VALUES(2);
+START TRANSACTION;
+LOCK TABLES t1 WRITE, t2 WRITE;
+INSERT INTO t1(i) VALUES(3);
+UNLOCK TABLES;
+COMMIT;
+include/diff_tables.inc [master:t1, slave:t1]
+include/diff_tables.inc [master:t2, slave:t2]
+DROP TABLE t1,t2;
+CREATE TABLE t1(i INT) ENGINE=INNODB;
+CREATE TABLE t2(id INT AUTO_INCREMENT, i INT, PRIMARY KEY (id)) ENGINE=INNODB;
+INSERT INTO t1 values (1), (2), (3);
+START TRANSACTION;
+INSERT INTO t2(i) VALUES (1);
+ROLLBACK;
+INSERT INTO t2(i) SELECT i FROM t1;
+START TRANSACTION;
+LOCK TABLES t2 WRITE, t1 READ;
+INSERT INTO t2(i) SELECT i FROM t1;
+UNLOCK TABLES;
+COMMIT;
+include/diff_tables.inc [master:t1, slave:t1]
+include/diff_tables.inc [master:t2, slave:t2]
+DROP TABLE t1,t2;
+CREATE TABLE t1(i int, id INT AUTO_INCREMENT, PRIMARY KEY (i, id)) ENGINE=MYISAM;
+INSERT INTO t1 (i) values (1);
+START TRANSACTION;
+LOCK TABLES t1 WRITE;
+INSERT INTO t1 (i) values (2);
+UNLOCK TABLES;
+COMMIT;
+include/diff_tables.inc [master:t1, slave:t1]
+DROP TABLE t1;
+CREATE TABLE t1(i INT, j INT, UNIQUE KEY(i), UNIQUE KEY(j)) ENGINE=INNODB;
+INSERT INTO t1 (i,j) VALUES (1,2) ON DUPLICATE KEY UPDATE j=j+1;
+START TRANSACTION;
+LOCK TABLES t1 WRITE;
+INSERT INTO t1 (i,j) VALUES (1,2) ON DUPLICATE KEY UPDATE j=j+1;
+UNLOCK TABLES;
+COMMIT;
+include/diff_tables.inc [master:t1, slave:t1]
+DROP TABLE t1;
+include/rpl_end.inc

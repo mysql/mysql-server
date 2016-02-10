@@ -1121,29 +1121,44 @@ static const char *require_quotes(const char *name, uint name_length)
 }
 
 
-/*
-  Quote the given identifier if needed and append it to the target string.
-  If the given identifier is empty, it will be quoted.
-
-  SYNOPSIS
-  append_identifier()
-  thd                   thread handler
-  packet                target string
-  name                  the identifier to be appended
-  name_length           length of the appending identifier
+/**
+  Convert and quote the given identifier if needed and append it to the
+  target string. If the given identifier is empty, it will be quoted.
+  @thd                         thread handler
+  @packet                      target string
+  @name                        the identifier to be appended
+  @length                      length of the appending identifier
+  @param from_cs               Charset information about the input string
+  @param to_cs                 Charset information about the target string
 */
 
 void
-append_identifier(THD *thd, String *packet, const char *name, uint length)
+append_identifier(THD *thd, String *packet, const char *name, uint length,
+                  const CHARSET_INFO *from_cs, const CHARSET_INFO *to_cs)
 {
   const char *name_end;
   char quote_char;
   int q;
-  q= thd ? get_quote_char_for_identifier(thd, name, length) : '`';
 
+  const CHARSET_INFO *cs_info= system_charset_info;
+  const char *to_name= name;
+  size_t to_length= length;
+  String to_string(name,length, from_cs);
+
+  if (from_cs != NULL && to_cs != NULL && from_cs != to_cs)
+    thd->convert_string(&to_string, from_cs, to_cs);
+
+  if (to_cs != NULL)
+  {
+    to_name= to_string.c_ptr();
+    to_length= to_string.length();
+    cs_info= to_cs;
+  }
+
+  q= thd ? get_quote_char_for_identifier(thd, to_name, to_length) : '`';
   if (q == EOF)
   {
-    packet->append(name, length, packet->charset());
+    packet->append(to_name, to_length, packet->charset());
     return;
   }
 
@@ -1152,14 +1167,14 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
    it's a keyword
   */
 
-  (void) packet->reserve(length*2 + 2);
+  (void) packet->reserve(to_length*2 + 2);
   quote_char= (char) q;
   packet->append(&quote_char, 1, system_charset_info);
 
-  for (name_end= name+length ; name < name_end ; name+= length)
+  for (name_end= to_name+to_length ; to_name < name_end ; to_name+= to_length)
   {
-    uchar chr= (uchar) *name;
-    length= my_mbcharlen(system_charset_info, chr);
+    uchar chr= (uchar) *to_name;
+    to_length= my_mbcharlen(cs_info, chr);
     /*
       my_mbcharlen can return 0 on a wrong multibyte
       sequence. It is possible when upgrading from 4.0,
@@ -1167,11 +1182,11 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
       The manual says it does not work. So we'll just
       change length to 1 not to hang in the endless loop.
     */
-    if (!length)
-      length= 1;
-    if (length == 1 && chr == (uchar) quote_char)
+    if (!to_length)
+      to_length= 1;
+    if (to_length == 1 && chr == (uchar) quote_char)
       packet->append(&quote_char, 1, system_charset_info);
-    packet->append(name, length, system_charset_info);
+    packet->append(to_name, to_length, system_charset_info);
   }
   packet->append(&quote_char, 1, system_charset_info);
 }
@@ -2221,6 +2236,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
      */
     mysql_mutex_lock(&LOCK_thd_remove);
     copy_global_thread_list(&global_thread_list_copy);
+
+    DEBUG_SYNC(thd,"fill_schema_processlist_after_copying_threads");
 
     Thread_iterator it= global_thread_list_copy.begin();
     Thread_iterator end= global_thread_list_copy.end();

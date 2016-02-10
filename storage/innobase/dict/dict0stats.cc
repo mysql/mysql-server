@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1434,7 +1434,6 @@ on the leaf page.
 when comparing records
 @param[out]	n_diff			number of distinct records
 @param[out]	n_external_pages	number of external pages
-@param[in,out]	mtr			mini-transaction
 @return number of distinct records on the leaf page */
 static
 void
@@ -1442,8 +1441,7 @@ dict_stats_analyze_index_below_cur(
 	const btr_cur_t*	cur,
 	ulint			n_prefix,
 	ib_uint64_t*		n_diff,
-	ib_uint64_t*		n_external_pages,
-	mtr_t*			mtr)
+	ib_uint64_t*		n_external_pages)
 {
 	dict_index_t*	index;
 	ulint		space;
@@ -1457,6 +1455,7 @@ dict_stats_analyze_index_below_cur(
 	ulint*		offsets2;
 	ulint*		offsets_rec;
 	ulint		size;
+	mtr_t		mtr;
 
 	index = btr_cur_get_index(cur);
 
@@ -1495,12 +1494,14 @@ dict_stats_analyze_index_below_cur(
 	function without analyzing any leaf pages */
 	*n_external_pages = 0;
 
+	mtr_start(&mtr);
+
 	/* descend to the leaf level on the B-tree */
 	for (;;) {
 
 		block = buf_page_get_gen(space, zip_size, page_no, RW_S_LATCH,
 					 NULL /* no guessed block */,
-					 BUF_GET, __FILE__, __LINE__, mtr);
+					 BUF_GET, __FILE__, __LINE__, &mtr);
 
 		page = buf_block_get_frame(block);
 
@@ -1522,6 +1523,8 @@ dict_stats_analyze_index_below_cur(
 		ut_a(*n_diff > 0);
 
 		if (*n_diff == 1) {
+			mtr_commit(&mtr);
+
 			/* page has all keys equal and the end of the page
 			was reached by dict_stats_scan_page(), no need to
 			descend to the leaf level */
@@ -1546,7 +1549,7 @@ dict_stats_analyze_index_below_cur(
 	}
 
 	/* make sure we got a leaf page as a result from the above loop */
-	ut_ad(btr_page_get_level(page, mtr) == 0);
+	ut_ad(btr_page_get_level(page, &mtr) == 0);
 
 	/* scan the leaf page and find the number of distinct keys,
 	when looking only at the first n_prefix columns; also estimate
@@ -1563,6 +1566,7 @@ dict_stats_analyze_index_below_cur(
 		     __func__, page_no, n_diff);
 #endif
 
+	mtr_commit(&mtr);
 	mem_heap_free(heap);
 }
 
@@ -1772,8 +1776,7 @@ dict_stats_analyze_index_for_n_prefix(
 		dict_stats_analyze_index_below_cur(btr_pcur_get_btr_cur(&pcur),
 						   n_prefix,
 						   &n_diff_on_leaf_page,
-						   &n_external_pages,
-						   mtr);
+						   &n_external_pages);
 
 		/* We adjust n_diff_on_leaf_page here to avoid counting
 		one record twice - once as the last on some page and once
