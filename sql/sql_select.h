@@ -40,8 +40,21 @@
 #endif
 #if defined(USE_ARIA_FOR_TMP_TABLES)
 #define TMP_ENGINE_HTON maria_hton
+inline uint tmp_table_max_key_length() {
+  return maria_max_key_length();
+}
+
+inline uint tmp_table_max_key_parts() {
+  return maria_max_key_segments();
+}
 #else
 #define TMP_ENGINE_HTON myisam_hton
+inline uint tmp_table_max_key_length() {
+  return MI_MAX_KEY_LENGTH;
+}
+inline uint tmp_table_max_key_parts() {
+  return MI_MAX_KEY_SEG;
+}
 #endif
 /* Values in optimize */
 #define KEY_OPTIMIZE_EXISTS		1

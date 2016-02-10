@@ -15307,13 +15307,6 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
   if (!table->file)
     goto err;
 
-  /*
-    Temporary table storage engines must allow keys of at least
-    HA_MAX_KEY_LENGT and at least HA_MAX_KEY_SEG key parts.
-  */
-  DBUG_ASSERT(table->file->max_key_length() >= HA_MAX_KEY_LENGTH &&
-              table->file->max_key_parts() >= HA_MAX_KEY_SEG);
-
   if (!using_unique_constraint)
     reclength+= group_null_items;	// null flag is stored separately
 
@@ -16305,12 +16298,6 @@ create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
   if (!(new_table.file= get_new_handler(&share, &new_table.mem_root,
                                         new_table.s->db_type())))
     DBUG_RETURN(1);				// End of memory
-  /*
-    Temporary table storage engines must allow keys of at least
-    HA_MAX_KEY_LENGTH and at least HA_MAX_KEY_SEG key parts.
-  */
-  DBUG_ASSERT(new_table.file->max_key_length() >= HA_MAX_KEY_LENGTH &&
-              new_table.file->max_key_parts() >= HA_MAX_KEY_SEG);
 
   save_proc_info=thd->proc_info;
   thd_proc_info(thd, proc_info);

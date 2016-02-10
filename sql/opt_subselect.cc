@@ -873,7 +873,8 @@ bool subquery_types_allow_materialization(Item_in_subselect *in_subs)
      See MDEV-7122. This check is performed inside create_tmp_table also and
      we must do it so that we know the table has keys created.
   */
-  if (total_key_length > HA_MAX_KEY_LENGTH || elements > HA_MAX_KEY_SEG)
+  if (total_key_length > tmp_table_max_key_length() ||
+      elements > tmp_table_max_key_parts())
     DBUG_RETURN(FALSE);
 
   in_subs->types_allow_materialization= TRUE;
