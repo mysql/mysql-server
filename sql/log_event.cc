@@ -13239,22 +13239,39 @@ Transaction_context_log_event(const char *server_uuid_arg,
               Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING)
 {
   DBUG_ENTER("Transaction_context_log_event::Transaction_context_log_event(THD *, const char *, ulonglong)");
+  server_uuid= NULL;
   sid_map= new Sid_map(NULL);
   snapshot_version= new Gtid_set(sid_map);
+
   global_sid_lock->wrlock();
-  if (snapshot_version->add_gtid_set(gtid_state->get_executed_gtids()) != RETURN_STATUS_OK)
-    server_uuid= NULL;
-  else
-    server_uuid= my_strdup(key_memory_log_event, server_uuid_arg, MYF(MY_WME));
+  /*
+    Copy global_sid_map to a local copy to avoid that all
+    certification operations on top of this snapshot version do
+    require that global_sid_lock is acquired.
+  */
+  enum_return_status return_status= global_sid_map->copy(sid_map);
+  if (return_status != RETURN_STATUS_OK)
+  {
+    global_sid_lock->unlock();
+    goto err;
+  }
+
+  return_status= snapshot_version->add_gtid_set(gtid_state->get_executed_gtids());
+  if (return_status != RETURN_STATUS_OK)
+  {
+    global_sid_lock->unlock();
+    goto err;
+  }
   global_sid_lock->unlock();
+
+  server_uuid= my_strdup(key_memory_log_event, server_uuid_arg, MYF(MY_WME));
+  if (server_uuid == NULL)
+    goto err;
 
   // These two fields are only populated on event decoding.
   // Encoding is done directly from snapshot_version field.
   encoded_snapshot_version= NULL;
   encoded_snapshot_version_length= 0;
-
-  if (server_uuid != NULL)
-    is_valid_param= true;
 
   // Debug sync point for SQL threads.
   DBUG_EXECUTE_IF("debug.wait_after_set_snapshot_version_on_transaction_context_log_event",
@@ -13267,6 +13284,11 @@ Transaction_context_log_event(const char *server_uuid_arg,
                                                        STRING_WITH_LEN(act)));
                   };);
 
+  is_valid_param= true;
+  DBUG_VOID_RETURN;
+
+err:
+  is_valid_param= false;
   DBUG_VOID_RETURN;
 }
 #endif
@@ -13283,9 +13305,6 @@ Transaction_context_log_event(const char *buffer, uint event_len,
   snapshot_version= new Gtid_set(sid_map);
 
   if (server_uuid == NULL || encoded_snapshot_version == NULL)
-    goto err;
-
-  if (read_snapshot_version())
     goto err;
 
   is_valid_param= true;
@@ -13445,6 +13464,13 @@ bool Transaction_context_log_event::read_snapshot_version()
 {
   DBUG_ENTER("Transaction_context_log_event::read_snapshot_version");
   DBUG_ASSERT(snapshot_version->is_empty());
+
+  global_sid_lock->wrlock();
+  enum_return_status return_status= global_sid_map->copy(sid_map);
+  global_sid_lock->unlock();
+  if (return_status != RETURN_STATUS_OK)
+    DBUG_RETURN(true);
+
   DBUG_RETURN(snapshot_version->add_gtid_encoding(encoded_snapshot_version,
                                                   encoded_snapshot_version_length)
                   != RETURN_STATUS_OK);

@@ -713,6 +713,20 @@ public:
   /// Return the sid_lock.
   Checkable_rwlock *get_sid_lock() const { return sid_lock; }
 
+  /**
+    Deep copy this Sid_map to dest.
+
+    The caller must hold:
+     * the read lock on this sid_lock
+     * the write lock on the dest sid_lock
+    before invoking this function.
+
+    @param[out] dest The Sid_map to which the sids and sidnos will
+                     be copied.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status copy(Sid_map *dest);
+
 private:
   /// Node pointed to by both the hash and the array.
   struct Node
