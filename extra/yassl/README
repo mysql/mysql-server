@@ -12,6 +12,17 @@ before calling SSL_new();
 
 *** end Note ***
 
+yaSSL Release notes, version 2.3.9 (12/01/2015)
+    This release of yaSSL fixes two client side Diffie-Hellman problems.
+    yaSSL was only handling the cases of zero or one leading zeros for the key
+    agreement instead of potentially any number.  This caused about 1 in 50,000
+    connections to fail when using DHE cipher suites.  The second problem was
+    the case where a server would send a public value shorter than the prime
+    value, causing about 1 in 128 client connections to fail, and also
+    caused the yaSSL client to read off the end of memory.  All client side
+    DHE cipher suite users should update.
+    Thanks to Adam Langely (agl@imperialviolet.org) for the detailed report!
+
 yaSSL Release notes, version 2.3.8 (9/17/2015)
     This release of yaSSL fixes a high security vulnerability.  All users
     SHOULD update.  If using yaSSL for TLS on the server side with private

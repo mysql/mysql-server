@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -376,6 +376,7 @@
 #cmakedefine HAVE_UINT64 1
 #cmakedefine SIZEOF_BOOL @SIZEOF_BOOL@
 #cmakedefine HAVE_BOOL 1
+#cmakedefine HAVE_STRUCT_TIMESPEC
 
 #cmakedefine SOCKET_SIZE_TYPE @SOCKET_SIZE_TYPE@
 
@@ -497,6 +498,7 @@
 #cmakedefine strtok_r @strtok_r@
 #cmakedefine strtoll @strtoll@
 #cmakedefine strtoull @strtoull@
+#cmakedefine tzname @tzname@
 #cmakedefine vsnprintf @vsnprintf@
 #if (_MSC_VER > 1310)
 # define HAVE_SETENV

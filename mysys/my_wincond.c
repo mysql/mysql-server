@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -88,6 +88,7 @@ static void check_native_cond_availability(void)
 
 static DWORD get_milliseconds(const struct timespec *abstime)
 {
+#ifndef HAVE_STRUCT_TIMESPEC
   long long millis; 
   union ft64 now;
 
@@ -118,6 +119,17 @@ static DWORD get_milliseconds(const struct timespec *abstime)
     millis= UINT_MAX;
 
   return (DWORD)millis;
+#else
+  /*
+    Convert timespec to millis and subtract current time.
+    my_getsystime() returns time in 100 ns units.
+  */
+  if (abstime == NULL)
+   return INFINITE;
+
+  return (DWORD)(abstime->tv_sec * 1000 + abstime->tv_nsec / 1000000 -
+                    my_getsystime() / 10000);
+#endif
 }
 
 
