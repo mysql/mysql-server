@@ -1682,9 +1682,10 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     {
       packet->append(STRING_WITH_LEN(" GENERATED ALWAYS"));
       packet->append(STRING_WITH_LEN(" AS ("));
-      packet->append(field->gcol_info->expr_str.str,
-                     field->gcol_info->expr_str.length,
-                     system_charset_info);
+      char buffer[128];
+      String s(buffer, sizeof(buffer), system_charset_info);
+      field->gcol_info->print_expr(thd, &s);
+      packet->append(s);
       packet->append(STRING_WITH_LEN(")"));
       if (field->stored_in_db)
         packet->append(STRING_WITH_LEN(" STORED"));
@@ -5516,9 +5517,11 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
       else
         table->field[IS_COLUMNS_EXTRA]->
           store(STRING_WITH_LEN("VIRTUAL GENERATED"), cs);
+      char buffer[128];
+      String s(buffer, sizeof(buffer), system_charset_info);
+      field->gcol_info->print_expr(thd, &s);
       table->field[IS_COLUMNS_GENERATION_EXPRESSION]->
-        store(field->gcol_info->expr_str.str,field->gcol_info->expr_str.length,
-              cs);
+        store(s.ptr(), s.length(), cs);
     }
     else
       table->field[IS_COLUMNS_GENERATION_EXPRESSION]->set_null();

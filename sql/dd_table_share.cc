@@ -907,6 +907,13 @@ static bool fill_column_from_dd(TABLE_SHARE *share,
 
     // Read generation expression.
     std::string gc_expr= col_obj->generation_expression();
+
+    /*
+      Place the expression's text into the TABLE_SHARE. Field objects of
+      TABLE_SHARE only have that. They don't have a corresponding Item,
+      which will be later created for the Field in TABLE, by
+      fill_dd_columns_from_create_fields().
+    */
     gcol_info->dup_expr_str(&share->mem_root,
                             gc_expr.c_str(),
                             gc_expr.length());

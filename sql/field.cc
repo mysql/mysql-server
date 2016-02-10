@@ -7088,22 +7088,6 @@ type_conversion_status Field_str::store(double nr)
 /**
   Check whether generated columns' expressions are the same.
 
-  @param field  An existing field to compare against
-
-  @return true means the same, otherwise not.
-*/
-
-bool Field::gcol_expr_is_equal(const Field *field) const
-{
-  DBUG_ASSERT(is_gcol() && field->is_gcol());
-
-  return gcol_info->expr_item->eq(field->gcol_info->expr_item, true);
-}
-
-
-/**
-  Check whether generated columns' expressions are the same.
-
   @param field  A new field to compare against
 
   @return true means the same, otherwise not.
@@ -7112,8 +7096,7 @@ bool Field::gcol_expr_is_equal(const Field *field) const
 bool Field::gcol_expr_is_equal(const Create_field *field) const
 {
   DBUG_ASSERT(is_gcol() && field->is_gcol());
-
-  return ::is_equal(&gcol_info->expr_str, &field->gcol_info->expr_str);
+  return gcol_info->expr_item->eq(field->gcol_info->expr_item, true);
 }
 
 

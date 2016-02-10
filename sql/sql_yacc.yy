@@ -6386,8 +6386,6 @@ generated_column_func:
               MYSQL_YYABORT;
             }
             ITEMIZE($1, &$1);
-            uint expr_len= (uint)@1.cpp.length();
-            Lex->gcol_info->dup_expr_str(YYTHD->mem_root, @1.cpp.start, expr_len);
             Lex->gcol_info->expr_item= $1;
             /*
               @todo: problems:

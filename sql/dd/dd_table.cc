@@ -323,36 +323,20 @@ fill_dd_columns_from_create_fields(THD *thd,
     if (field->gcol_info)
     {
       col_obj->set_virtual(!field->stored_in_db);
-      sql_mode_t sql_mode= thd->variables.sql_mode;
-      thd->variables.sql_mode&= ~MODE_ANSI_QUOTES;
-
       /*
-        It is important to normalize the expression's text into the FRM, to
+        It is important to normalize the expression's text into the DD, to
         make it independent from sql_mode. For example, 'a||b' means 'a OR b'
         or 'CONCAT(a,b)', depending on if PIPES_AS_CONCAT is on. Using
         Item::print(), we get self-sufficient text containing 'OR' or
         'CONCAT'. If sql_mode later changes, it will not affect the column.
        */
-      String s;
-      // Printing db and table name is useless
-      field->gcol_info->expr_item->
-        print(&s, enum_query_type(QT_NO_DB | QT_NO_TABLE));
-
-      thd->variables.sql_mode= sql_mode;
-      /*
-        The new text must have exactly the same lifetime as the old text, it's
-        a replacement for it. So the same MEM_ROOT must be used: pass NULL.
-      */
-      field->gcol_info->dup_expr_str(NULL, s.ptr(), s.length());
-
-      col_obj->set_generation_expression(
-                 std::string(field->gcol_info->expr_str.str,
-                             field->gcol_info->expr_str.length));
+      char buffer[128];
+      String gc_expr(buffer, sizeof(buffer), &my_charset_bin);
+      field->gcol_info->print_expr(thd, &gc_expr);
+      col_obj->set_generation_expression(std::string(gc_expr.ptr(),
+                                                     gc_expr.length()));
 
       // Prepare UTF expression for IS.
-      String gc_expr(field->gcol_info->expr_str.str,
-                     field->gcol_info->expr_str.length,
-                     thd->charset());
       String gc_expr_for_IS;
       convert_and_print(&gc_expr, &gc_expr_for_IS, system_charset_info);
 
