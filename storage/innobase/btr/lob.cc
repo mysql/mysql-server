@@ -544,7 +544,7 @@ zblob_reader_t::setup_zstream()
 dberr_t
 zblob_reader_t::fetch()
 {
-	dberr_t	err;
+	dberr_t	err = DB_SUCCESS;
 	DBUG_ENTER("zblob_reader_t::fetch");
 
 	ut_ad(is_valid_blob());
