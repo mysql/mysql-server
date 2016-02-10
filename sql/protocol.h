@@ -1,7 +1,7 @@
 #ifndef PROTOCOL_INCLUDED
 #define PROTOCOL_INCLUDED
 
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,8 +45,9 @@ protected:
   MYSQL_FIELD *next_mysql_field;
   MEM_ROOT *alloc;
 #endif
-  bool net_store_data(const uchar *from, size_t length,
-                      const CHARSET_INFO *fromcs, const CHARSET_INFO *tocs);
+  virtual bool net_store_data(const uchar *from, size_t length,
+                              const CHARSET_INFO *fromcs,
+                              const CHARSET_INFO *tocs);
   bool store_string_aux(const char *from, size_t length,
                         const CHARSET_INFO *fromcs, const CHARSET_INFO *tocs);
 
@@ -178,6 +179,9 @@ public:
 #ifdef EMBEDDED_LIBRARY
   virtual bool write();
   bool net_store_data(const uchar *from, size_t length);
+  bool net_store_data(const uchar *from, size_t length,
+                      const CHARSET_INFO *fromcs,
+                      const CHARSET_INFO *tocs);
 #endif
   virtual bool store_null();
   virtual bool store_tiny(longlong from);

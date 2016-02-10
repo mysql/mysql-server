@@ -1884,7 +1884,7 @@ innobase_start_or_create_for_mysql(void)
 			}
 		} else {
 			srv_monitor_file_name = NULL;
-			srv_monitor_file = os_file_create_tmpfile();
+			srv_monitor_file = os_file_create_tmpfile(NULL);
 
 			if (!srv_monitor_file) {
 				return(DB_ERROR);
@@ -1894,7 +1894,7 @@ innobase_start_or_create_for_mysql(void)
 		mutex_create(srv_dict_tmpfile_mutex_key,
 			     &srv_dict_tmpfile_mutex, SYNC_DICT_OPERATION);
 
-		srv_dict_tmpfile = os_file_create_tmpfile();
+		srv_dict_tmpfile = os_file_create_tmpfile(NULL);
 
 		if (!srv_dict_tmpfile) {
 			return(DB_ERROR);
@@ -1903,7 +1903,7 @@ innobase_start_or_create_for_mysql(void)
 		mutex_create(srv_misc_tmpfile_mutex_key,
 			     &srv_misc_tmpfile_mutex, SYNC_ANY_LATCH);
 
-		srv_misc_tmpfile = os_file_create_tmpfile();
+		srv_misc_tmpfile = os_file_create_tmpfile(NULL);
 
 		if (!srv_misc_tmpfile) {
 			return(DB_ERROR);

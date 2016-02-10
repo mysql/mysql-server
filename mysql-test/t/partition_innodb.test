@@ -885,3 +885,57 @@ SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE
 CREATE_TIME IS NOT NULL AND TABLE_NAME='t1';
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#20160327 OPTIMIZE TABLE REMOVES THE DATA DIRECTORY IN PARTITIONS
+--echo #
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE `t1` (
+       `f1` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+       `f2` MEDIUMTEXT NOT NULL,
+       `f3` CHAR(100) NOT NULL,
+       `f4` TINYINT(1) unsigned NOT NULL,
+       PRIMARY KEY (`f1`,`f4`)
+     ) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=latin1
+     PARTITION BY LIST (`f4`)
+     (PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
+      PARTITION p1 VALUES IN (1) DATA DIRECTORY = '$MYSQL_TMP_DIR/temp_dir' ENGINE = InnoDB);
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+
+OPTIMIZE TABLE t1;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQL_TMP_DIR/temp_dir/test
+
+ALTER TABLE t1 OPTIMIZE PARTITION p0;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQL_TMP_DIR/temp_dir/test
+
+ALTER TABLE t1 OPTIMIZE PARTITION p1;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQL_TMP_DIR/temp_dir/test
+
+ALTER TABLE t1 REBUILD PARTITION ALL;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQL_TMP_DIR/temp_dir/test
+
+ALTER TABLE t1 ADD extracol VARCHAR(32) NULL;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQL_TMP_DIR/temp_dir/test
+
+DROP TABLE t1;
+
+--rmdir $MYSQL_TMP_DIR/temp_dir/test
+--rmdir $MYSQL_TMP_DIR/temp_dir

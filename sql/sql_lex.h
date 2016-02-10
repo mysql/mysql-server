@@ -1410,6 +1410,11 @@ public:
     return get_stmt_unsafe_flags() != 0;
   }
 
+  inline bool is_stmt_unsafe(enum_binlog_stmt_unsafe unsafe)
+  {
+    return binlog_stmt_flags & (1 << unsafe);
+  }
+
   /**
     Flag the current (top-level) statement as unsafe.
     The flag will be reset after the statement has finished.
