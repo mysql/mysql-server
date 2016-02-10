@@ -1,0 +1,17 @@
+--source include/have_innodb.inc
+--source include/have_debug.inc
+
+--echo #
+--echo # Bug #22306581	VALGRIND FAILURE IN INNODB.TEMPORARY_TABLE
+--echo #
+
+--error ER_UNSUPPORTED_EXTENSION
+create temporary table t (i int) COMPRESSION = "ZLIB" ENGINE = InnoDB;
+
+--error ER_UNSUPPORTED_EXTENSION
+create table t1(i INT) COMPRESSION="ZLIB" ENGINE=InnoDB TABLESPACE=innodb_system;
+
+SET DEBUG ='+d, simulate_max_char_col';
+--error 1030
+create table t1(f1 varchar(1000))engine=innodb;
+SET DEBUG ='-d, simulate_max_char_col';

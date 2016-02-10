@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -657,9 +657,7 @@ int main(int argc, char **argv)
     my_thread_handle mainthread;            /* Thread descriptor */
     my_thread_attr_t attr;          /* Thread attributes */
     my_thread_attr_init(&attr);
-#ifndef _WIN32
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-#endif
+    my_thread_attr_setdetachstate(&attr, MY_THREAD_CREATE_DETACHED);
 
     native_mutex_init(&counter_mutex, NULL);
     native_cond_init(&count_threshold);

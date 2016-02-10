@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -74,14 +74,16 @@ que_node_set_parent(
 /*================*/
 	que_node_t*	node,	/*!< in: graph node */
 	que_node_t*	parent);/*!< in: parent */
-/***********************************************************************//**
-Creates a query graph thread node.
+/** Creates a query graph thread node.
+@param[in]	parent		parent node, i.e., a fork node
+@param[in]	heap		memory heap where created
+@param[in]	prebuilt	row prebuilt structure
 @return own: query thread node */
 que_thr_t*
 que_thr_create(
-/*===========*/
-	que_fork_t*	parent,	/*!< in: parent node, i.e., a fork node */
-	mem_heap_t*	heap);	/*!< in: memory heap where created */
+	que_fork_t*	parent,
+	mem_heap_t*	heap,
+	row_prebuilt_t*	prebuilt);
 /**********************************************************************//**
 Frees a query graph, but not the heap where it was created. Does not free
 explicit cursor declarations, they are freed in que_graph_free. */
@@ -398,6 +400,8 @@ struct que_thr_t{
 	ulint		fk_cascade_depth; /*!< maximum cascading call depth
 					supported for foreign key constraint
 					related delete/updates */
+	row_prebuilt_t*	prebuilt;	/*!< prebuilt structure processed by
+					the query thread */
 };
 
 #define QUE_THR_MAGIC_N		8476583

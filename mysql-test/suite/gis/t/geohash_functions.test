@@ -1453,3 +1453,13 @@ SELECT ST_POINTFROMGEOHASH(a, 1) FROM t1;
 DROP TABLE geohashes;
 
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#22165582 ST_*FROMGEOHASH ROUNDS INCORRECTLY
+--echo #
+SELECT ST_GeoHash(ST_PointFromGeoHash('xkcd', 0), 4);
+SELECT ST_LongFromGeoHash('xkcd');
+SELECT ST_LatFromGeoHash('xkcd');
+SELECT ST_GeoHash(ST_PointFromGeoHash('ebrb', 0), 4);
+SELECT ST_LatFromGeoHash('m7s9pyctu9bbwqkgbw5x6vutzkztd9szjh86gmz9w9nsz6792d');

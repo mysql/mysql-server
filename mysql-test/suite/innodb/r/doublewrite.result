@@ -253,3 +253,10 @@ drop table t1;
 # BUG#20511314 - INNODB: FAILING ASSERTION: FOUND IN BUF0BUF.CC LINE 3856
 #
 SET GLOBAL innodb_fil_make_page_dirty_debug=38098908;
+#
+# Bug#22311319 - SERVER CRASHES ON INVALID VALUE FOR VARIABLE
+#		INNODB_SAVED_PAGE_NUMBER_DEBUG
+#
+set global innodb_saved_page_number_debug=461461461;
+set global innodb_fil_make_page_dirty_debug=0;
+set global innodb_saved_page_number_debug=default;

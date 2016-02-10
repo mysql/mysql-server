@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -224,7 +224,7 @@ ROW_FORMAT=REDUNDANT.  InnoDB engines do not check these flags
 for unknown bits in order to protect backward incompatibility. */
 /* @{ */
 /** Total number of bits in table->flags2. */
-#define DICT_TF2_BITS			8
+#define DICT_TF2_BITS			9
 #define DICT_TF2_UNUSED_BIT_MASK	(~0U << DICT_TF2_BITS)
 #define DICT_TF2_BIT_MASK		~DICT_TF2_UNUSED_BIT_MASK
 
@@ -257,6 +257,9 @@ Intrinsic table is table created internally by MySQL modules viz. Optimizer,
 FTS, etc.... Intrinsic table has all the properties of the normal table except
 it is not created by user and so not visible to end-user. */
 #define DICT_TF2_INTRINSIC		128
+
+/** Encryption table bit. */
+#define DICT_TF2_ENCRYPTION		256
 
 /* @} */
 
@@ -348,7 +351,7 @@ void
 dict_mem_table_col_rename(
 /*======================*/
 	dict_table_t*	table,	/*!< in/out: table */
-	unsigned	nth_col,/*!< in: column index */
+	ulint		nth_col,/*!< in: column index */
 	const char*	from,	/*!< in: old column name */
 	const char*	to,	/*!< in: new column name */
 	bool		is_virtual);
@@ -886,6 +889,9 @@ struct dict_index_t{
 			parser;	/*!< fulltext parser plugin */
 	bool		is_ngram;
 				/*!< true if it's ngram parser */
+	bool		has_new_v_col;
+				/*!< whether it has a newly added virtual
+				column in ALTER */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/*!< list of indexes of the table */
@@ -1317,6 +1323,8 @@ struct dict_table_t {
 	5 whether the table is being created its own tablespace,
 	6 whether the table has been DISCARDed,
 	7 whether the aux FTS tables names are in hex.
+	8 whether the table is instinc table.
+	9 whether the table has encryption setting.
 	Use DICT_TF2_FLAG_IS_SET() to parse this flag. */
 	unsigned				flags2:DICT_TF2_BITS;
 
@@ -1647,6 +1655,12 @@ public:
 
 	/** whether above vc_templ comes from purge allocation */
 	bool					vc_templ_purge;
+
+	/** encryption key, it's only for export/import */
+	byte*					encryption_key;
+
+	/** encryption iv, it's only for export/import */
+	byte*					encryption_iv;
 };
 
 /*******************************************************************//**

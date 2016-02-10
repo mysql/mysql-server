@@ -161,7 +161,7 @@ fts_ast_create_node_term_for_parser(
 
 	/* '%' as first char is forbidden for LIKE in internal SQL parser;
 	'%' as last char is reserved for wildcard search;*/
-	if (len == 0 || len > fts_max_token_size
+	if (len == 0 || len > FTS_MAX_WORD_LEN
 	    || ptr[0] == '%' || ptr[len - 1] == '%') {
 		return(NULL);
 	}

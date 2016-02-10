@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -70,7 +70,7 @@ Created 2013/03/27 Jimmy Yang and Allen Lai
 
 /* Define it for rtree search mode checking. */
 #define RTREE_SEARCH_MODE(mode)					\
-	(((mode) >= PAGE_CUR_CONTAIN) && ((mode <= PAGE_CUR_RTREE_LOCATE)))
+	(((mode) >= PAGE_CUR_CONTAIN) && ((mode <= PAGE_CUR_RTREE_GET_FATHER)))
 
 /* Geometry data header */
 #define	GEO_DATA_HEADER_SIZE	4
@@ -319,6 +319,23 @@ rtr_get_mbr_from_tuple(
 
 #define rtr_page_get_father_node_ptr(of,heap,sea,cur,mtr)		\
 	rtr_page_get_father_node_ptr_func(of,heap,sea,cur,__FILE__,__LINE__,mtr)
+
+/* Get the rtree page father.
+@param[in]	offsets		work area for the return value
+@param[in]	index		rtree index
+@param[in]	block		child page in the index
+@param[in]	mtr		mtr
+@param[in]	sea_cur		search cursor, contains information
+				about parent nodes in search
+@param[in]	cursor		cursor on node pointer record,
+				its page x-latched */
+void
+rtr_page_get_father(
+	dict_index_t*	index,
+	buf_block_t*	block,
+	mtr_t*		mtr,
+	btr_cur_t*	sea_cur,
+	btr_cur_t*	cursor);
 
 /************************************************************//**
 Returns the upper level node pointer to a R-Tree page. It is assumed

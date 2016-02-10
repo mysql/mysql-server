@@ -65,6 +65,7 @@ trx_undo_rec_t	trx_purge_dummy_rec;
 
 #ifdef UNIV_DEBUG
 my_bool		srv_purge_view_update_only_debug;
+bool		trx_commit_disallowed = false;
 #endif /* UNIV_DEBUG */
 
 /** Sentinel value */
@@ -198,7 +199,7 @@ trx_purge_graph_build(
 	for (i = 0; i < n_purge_threads; ++i) {
 		que_thr_t*	thr;
 
-		thr = que_thr_create(fork, heap);
+		thr = que_thr_create(fork, heap, NULL);
 
 		thr->child = row_purge_node_create(thr, heap);
 	}
@@ -363,6 +364,8 @@ trx_purge_add_update_undo_to_history(
 			rseg_header + TRX_RSEG_HISTORY_SIZE,
 			hist_size + undo->size, MLOG_4BYTES, mtr);
 	}
+
+	ut_ad(!trx_commit_disallowed);
 
 	/* Add the log as the first in the history list */
 	flst_add_first(rseg_header + TRX_RSEG_HISTORY,
@@ -551,7 +554,11 @@ loop:
 
 	if (undo_trx_no >= limit->trx_no) {
 
-		if (undo_trx_no == limit->trx_no) {
+		/* limit space_id should match the rollback segment
+		space id to avoid freeing of the page belongs to
+		different rollback segment for the same trx_no. */
+		if (undo_trx_no == limit->trx_no
+		    && rseg->space == limit->undo_rseg_space) {
 
 			trx_undo_truncate_start(
 				rseg, hdr_addr.page,

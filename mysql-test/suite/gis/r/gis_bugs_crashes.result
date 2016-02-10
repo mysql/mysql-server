@@ -6764,3 +6764,73 @@ ST_TOUCHES(
 ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0),(0 6,6 6,6 3,0 6))'),
 ST_GEOMFROMTEXT('POLYGON((0 6,-6 6,-6 3,0 6))'))
 1
+#####################################################################################################
+# Bug#21783889 ASSERT GEOMETRY::EQUALS(CURRENT_ROBUST_RING.FRONT(),CURRENT_ROBUST_RING.BACK())
+#####################################################################################################
+do st_buffer(linestring(point(1,1),point(2,-1), point(1.765258e+308,4),point(-1,1),point(10,4)),'1');
+do st_buffer( linestring( point(2199023255556,16777218), point(32770,8194), point(1.417733e+308,7.823620e+307), point(-8,-9), point(2147483649,20)),( 1099511627778 ) );
+do st_buffer( linestring( point(-5,-8), point(2,8), point(2.160023e+307,1.937208e+307), point(-4,-3), point(-5,-4), point(8796093022208,281474976710653)), 0xbe );
+do st_buffer( multilinestring( linestring( point(7,-4), point(-3,-5)), linestring( point(72057594037927936,15), point(72057594037927940,70368744177660), point(32771,36028797018963964), point(8589934589,2305843009213693953), point(7,2), point(9.300367e+307,9.649737e+307), point(-4092,-274877906946), point(5,10), point(-3,4))) , ( 4051744443 ) );
+do st_buffer(
+multilinestring(
+linestring( point(-9,-10), point(0,-1), point(5,-10), point(-6,7), point(-7,7), point(5.041061e+307,9.926906e+307), point(6.870356e+307,1.064454e+307), point(35184372088830,288230376151711743), point(183673728842483250000000000000000000000.000000, 244323751784861950000000000000000000000.000000) ),
+linestring( point(-23530,-7131), point(-6,1), point(1,1), point(2,-6), point(32766,-4194302), point(-4,-6)),
+linestring( point(134217725,0), point(50336782742294697000000000000000000000.000000, 36696596077212901000000000000000000000.000000 ), point(7434,16486), point(3.025467e+307,8.926790e+307) ),
+linestring( point(2147483646,67108868), point(71328904281592545000000000000000000000.000000, 225041650340452780000000000000000000000.000000 ), point(-7,4), point(1.667154e+307,3.990414e+307 ) ) ) , ( 2061380362 ) );
+#####################################################################################################
+# Bug#21965285 ST_DIFFERENCE(POLYGON, [MULTI]POLYGON) RETURNS INCORRECT RESULT
+#####################################################################################################
+SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT('POLYGON((7 3,0 10,0
+-6,9 -5,7 7,7 3),(0 8,2 3,2 -2,0 8))'), ST_GEOMFROMTEXT('POLYGON((0 6,0 8,-14
+13,0 6))'))) AS result;
+result
+POLYGON((0 8,0 6,0 -6,9 -5,7 7,7 3,0 10,0 8),(0 8,2 3,2 -2,0 8))
+#####################################################################################################
+# Bug#21964079 ST_UNION(POLYGON, POLYGON) RETURNS INCORRECT RESULT
+#####################################################################################################
+SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((7 3,0 10,0 -6,9
+-5,7 7,7 3),(0 8,2 3,2 -2,0 8))'), ST_GEOMFROMTEXT('POLYGON((0 8,-8 14,-11
+18,-19 11,-3 1,0 8))')));
+ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((7 3,0 10,0 -6,9
+-5,7 7,7 3),(0 8,2 3,2 -2,0 8))'), ST_GEOMFROMTEXT('POLYGON((0 8,-8 14,-11
+18,-19 11,-3 1,0 8))')))
+MULTIPOLYGON(((7 3,0 10,0 8,0 -6,9 -5,7 7,7 3),(0 8,2 3,2 -2,0 8)),((0 8,-8 14,-11 18,-19 11,-3 1,0 8)))
+SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10
+0,0 0),(0 8,4 4,4 6,0 8))'), ST_GEOMFROMTEXT('POLYGON((0 8,-8 8,-10 4,0
+8))')));
+ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10
+0,0 0),(0 8,4 4,4 6,0 8))'), ST_GEOMFROMTEXT('POLYGON((0 8,-8 8,-10 4,0
+8))')))
+MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 8,0 0),(0 8,4 6,4 4,0 8)),((0 8,-8 8,-10 4,0 8)))
+SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((5 0,15 18,-14 11,5
+0),(0 3,-1 4,5 0,0 3))'), ST_GEOMFROMTEXT('POLYGON((6 0,-5 0,-1 -12,6 0))')));
+ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((5 0,15 18,-14 11,5
+0),(0 3,-1 4,5 0,0 3))'), ST_GEOMFROMTEXT('POLYGON((6 0,-5 0,-1 -12,6 0))')))
+MULTIPOLYGON(((5 0,15 18,-14 11,5 0),(0 3,-1 4,5 0,0 3)),((6 0,-5 0,-1 -12,6 0)))
+#####################################################################################################
+# Bug#21964049 ST_UNION() RETURNS ERROR WITH VALID GEOMETRY INPUT
+#####################################################################################################
+SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((7 0,10 -3,7 1,7
+0))'), ST_GEOMFROMTEXT('POLYGON((7 4,-14 10,7 -17,7 4),(7 1,0 3,-2 4,7
+1))')));
+ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('POLYGON((7 0,10 -3,7 1,7
+0))'), ST_GEOMFROMTEXT('POLYGON((7 4,-14 10,7 -17,7 4),(7 1,0 3,-2 4,7
+1))')))
+POLYGON((7 1,7 4,-14 10,7 -17,7 0,10 -3,7 1),(7 1,0 3,-2 4,7 1))
+SELECT ST_ISVALID(ST_UNION(ST_GEOMFROMTEXT('POLYGON((7 0,10 -3,7 1,7
+0))'), ST_GEOMFROMTEXT('POLYGON((7 4,-14 10,7 -17,7 4),(7 1,0 3,-2 4,7
+1))')));
+ST_ISVALID(ST_UNION(ST_GEOMFROMTEXT('POLYGON((7 0,10 -3,7 1,7
+0))'), ST_GEOMFROMTEXT('POLYGON((7 4,-14 10,7 -17,7 4),(7 1,0 3,-2 4,7
+1))')))
+1
+#####################################################################################################
+# Bug#21964465 ST_INTERSECTION(POLYGON, POLYGON) RETURNS INCORRECT RESULT
+#####################################################################################################
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10
+10,10 0,0 0 ),(0 8,4 4,4 6,0 8))'), ST_GEOMFROMTEXT('POLYGON((0 8,-8 8,-2 2,0
+8))')));
+ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10
+10,10 0,0 0 ),(0 8,4 4,4 6,0 8))'), ST_GEOMFROMTEXT('POLYGON((0 8,-8 8,-2 2,0
+8))')))
+POINT(0 8)

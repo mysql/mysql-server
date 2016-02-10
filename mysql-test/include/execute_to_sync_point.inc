@@ -70,6 +70,10 @@ if ($quiet != 2)
 eval $statement;
 
 # On auxiliary connection, begin waiting for statement to reach the sync point.
+if ($rpl_debug)
+{
+  --echo waiting for debug sync point _esp_parked_$sync_point$underscore$statement_connection $_esp_timeout
+}
 --connection $_esp_auxiliary_connection
 eval SET @@SESSION.DEBUG_SYNC = 'now WAIT_FOR _esp_parked_$sync_point$underscore$statement_connection $_esp_timeout';
 

@@ -583,7 +583,7 @@ fts_zip_read_word(
 #ifdef UNIV_DEBUG
 	ulint		i;
 #endif
-	byte		len = 0;
+	short		len = 0;
 	void*		null = NULL;
 	byte*		ptr = word->f_str;
 	int		flush = Z_NO_FLUSH;
@@ -593,7 +593,7 @@ fts_zip_read_word(
 		return(NULL);
 	}
 
-	zip->zp->next_out = &len;
+	zip->zp->next_out = reinterpret_cast<byte*>(&len);
 	zip->zp->avail_out = sizeof(len);
 
 	while (zip->status == Z_OK && zip->zp->avail_out > 0) {
@@ -692,11 +692,12 @@ fts_fetch_index_words(
 	fts_zip_t*	zip = static_cast<fts_zip_t*>(user_arg);
 	que_node_t*	exp = sel_node->select_list;
 	dfield_t*	dfield = que_node_get_val(exp);
-	byte		len = (byte) dfield_get_len(dfield);
+	short		len =  static_cast<short>(dfield_get_len(dfield));
 	void*		data = dfield_get_data(dfield);
 
 	/* Skip the duplicate words. */
-	if (zip->word.f_len == len && !memcmp(zip->word.f_str, data, len)) {
+	if (zip->word.f_len == static_cast<ulint>(len)
+	    && !memcmp(zip->word.f_str, data, len)) {
 
 		return(TRUE);
 	}
@@ -710,7 +711,7 @@ fts_fetch_index_words(
 	ut_a(zip->zp->next_in == NULL);
 
 	/* The string is prefixed by len. */
-	zip->zp->next_in = &len;
+	zip->zp->next_in = reinterpret_cast<byte*>(&len);
 	zip->zp->avail_in = sizeof(len);
 
 	/* Compress the word, create output blocks as necessary. */
@@ -3121,11 +3122,9 @@ fts_optimize_is_init(void)
 	return(fts_optimize_wq != NULL);
 }
 
-/**********************************************************************//**
-Signal the optimize thread to prepare for shutdown. */
+/** Shutdown fts optimize thread. */
 void
-fts_optimize_start_shutdown(void)
-/*=============================*/
+fts_optimize_shutdown()
 {
 	ut_ad(!srv_read_only_mode);
 
@@ -3154,17 +3153,5 @@ fts_optimize_start_shutdown(void)
 	os_event_destroy(fts_opt_shutdown_event);
 
 	ib_wqueue_free(fts_optimize_wq);
-}
-
-/**********************************************************************//**
-Reset the work queue. */
-void
-fts_optimize_end(void)
-/*==================*/
-{
-	ut_ad(!srv_read_only_mode);
-
-	// FIXME: Potential race condition here: We should wait for
-	// the optimize thread to confirm shutdown.
 	fts_optimize_wq = NULL;
 }

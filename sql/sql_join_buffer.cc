@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -458,6 +458,13 @@ bool JOIN_CACHE::alloc_buffer()
                    DBUG_SET("-d,jb_alloc_fail");
                    return true;
                   );
+
+  DBUG_EXECUTE_IF("jb_alloc_100MB",
+                  buff= (uchar*) my_malloc(key_memory_JOIN_CACHE,
+                                           100*1024*1024, MYF(0));
+                  return buff == NULL;
+                 );
+
   buff= (uchar*) my_malloc(key_memory_JOIN_CACHE,
                            buff_size, MYF(0));
   return buff == NULL;
@@ -1945,7 +1952,7 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
   int error;
   enum_nested_loop_state rc= NESTED_LOOP_OK;
 
-  qep_tab->table()->null_row= 0;
+  qep_tab->table()->reset_null_row();
 
   /* Return at once if there are no records in the join buffer */
   if (!records)     
@@ -2286,8 +2293,9 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
       get_record();
       /* The outer row is complemented by nulls for each inner table */
       restore_record(qep_tab->table(), s->default_values);
-      mark_as_null_row(qep_tab->table());  
+      qep_tab->table()->set_null_row();
       rc= generate_full_extensions(get_curr_rec());
+      qep_tab->table()->set_null_row();
       if (rc != NESTED_LOOP_OK)
         goto finish;
     }
@@ -2545,7 +2553,7 @@ JOIN_CACHE_BKA::init_join_matching_records(RANGE_SEQ_IF *seq_funcs, uint ranges)
 {
   handler *file= qep_tab->table()->file;
 
-  qep_tab->table()->null_row= 0;
+  qep_tab->table()->reset_null_row();
 
   /* Dynamic range access is never used with BKA */
   DBUG_ASSERT(!qep_tab->dynamic_range());

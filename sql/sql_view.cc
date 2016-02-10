@@ -1099,7 +1099,7 @@ err:
 }
 
 
-/// RAII class to ease error handling in mysql_make_view()
+/// RAII class to ease error handling in parse_view_definition()
 class Make_view_tracker
 {
 public:
@@ -1127,31 +1127,25 @@ private:
   bool *const result;
 };
 
+
 /**
-  read VIEW .frm and create structures
+  Open and read a view definition.
 
   @param[in]  thd                 Thread handler
   @param[in]  share               Share object of view
   @param[in,out] view_ref         TABLE_LIST structure for view reference
-  @param[in]  open_view_no_parse  Flag to indicate open view but
-                                  do not parse.
 
   @return false-in case of success, true-in case of error.
+
+  @note In case true value returned an error has been already set in DA.
 */
-bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
-                     bool open_view_no_parse)
+
+bool open_and_read_view(THD *thd, TABLE_SHARE *share,
+                        TABLE_LIST *view_ref)
 {
-  DBUG_ENTER("mysql_make_view");
-  DBUG_PRINT("info", ("table: 0x%lx (%s)", (ulong) view_ref,
-                                           view_ref->table_name));
+  DBUG_ENTER("open_and_read_view");
 
   TABLE_LIST *const top_view= view_ref->top_table();
-
-  bool result= false;
-
-  Make_view_tracker view_tracker(thd, view_ref, &result);
-
-  Prepared_stmt_arena_holder ps_arena_holder(thd);
 
   if (view_ref->required_type == FRMTYPE_TABLE)
   {
@@ -1159,6 +1153,8 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
              "BASE TABLE");
     DBUG_RETURN(true); 
   }
+
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
 
   if (view_ref->is_view())
   {
@@ -1179,7 +1175,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
       prepare_security() below.
     */
     if (!view_ref->prelocking_placeholder &&
-        (result= view_ref->prepare_security(thd)))
+        view_ref->prepare_security(thd))
       DBUG_RETURN(true);
 
     DBUG_PRINT("info",
@@ -1223,9 +1219,9 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
   view_ref->definer.user.length= view_ref->definer.host.length= 0;
 
   DBUG_ASSERT(share->view_def != NULL);
-  if ((result= share->view_def->parse((uchar*)view_ref, thd->mem_root,
-                                      view_parameters, required_view_parameters,
-                                      &file_parser_dummy_hook)))
+  if (share->view_def->parse((uchar*)view_ref, thd->mem_root,
+                             view_parameters, required_view_parameters,
+                             &file_parser_dummy_hook))
     DBUG_RETURN(true);
 
   // Check old format view .frm file
@@ -1247,7 +1243,32 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
   */
   view_ref->view_creation_ctx= View_creation_ctx::create(thd, view_ref);
 
-  if (open_view_no_parse)
+  DBUG_RETURN(false);
+}
+
+
+/**
+  Parse a view definition.
+
+  @param[in]  thd                 Thread handler
+  @param[in,out] view_ref         TABLE_LIST structure for view reference
+
+  @return false-in case of success, true-in case of error.
+
+  @note In case true value returned an error has been already set in DA.
+*/
+
+bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
+{
+  DBUG_ENTER("parse_view_definition");
+
+  TABLE_LIST *const top_view= view_ref->top_table();
+
+  if (view_ref->is_view())
+    /*
+      It's an execution of a PS/SP and the view has already been unfolded
+      into a list of used tables.
+    */
     DBUG_RETURN(false);
 
   // Save VIEW parameters, which will be wiped out by derived table processing
@@ -1270,14 +1291,16 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
   */
   view_ref->open_type= OT_BASE_ONLY;
 
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
+
   // A parsed view requires its own LEX object
   LEX *const old_lex= thd->lex;
   LEX *const view_lex= (LEX *) new(thd->mem_root) st_lex_local;
   if (!view_lex)
-  {
-    result= true;
     DBUG_RETURN(true);
-  }
+
+  bool result= false;
+  Make_view_tracker view_tracker(thd, view_ref, &result);
 
   thd->lex= view_lex;
 
@@ -1671,7 +1694,8 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref,
 
   DBUG_ASSERT(view_lex == thd->lex);
   thd->lex= old_lex;                            // Needed for prepare_security
-  result= !view_ref->prelocking_placeholder && view_ref->prepare_security(thd);
+  result= !view_ref->prelocking_placeholder &&
+          view_ref->prepare_security(thd);
 
   lex_end(view_lex);
 

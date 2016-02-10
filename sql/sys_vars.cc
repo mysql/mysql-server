@@ -691,7 +691,7 @@ static Sys_var_uint Sys_default_password_lifetime(
        "default_password_lifetime", "The number of days after which the "
        "password will expire.",
        GLOBAL_VAR(default_password_lifetime), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, UINT_MAX16), DEFAULT(360), BLOCK_SIZE(1),
+       VALID_RANGE(0, UINT_MAX16), DEFAULT(0), BLOCK_SIZE(1),
        &Plock_default_password_lifetime);
 
 #ifndef EMBEDDED_LIBRARY
@@ -2039,6 +2039,12 @@ static Sys_var_enum Sys_log_timestamps(
        CMD_LINE(REQUIRED_ARG),
        timestamp_type_names, DEFAULT(0),
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
+static Sys_var_mybool Sys_log_statements_unsafe_for_binlog(
+       "log_statements_unsafe_for_binlog",
+       "Log statements considered unsafe when using statement based binary logging.",
+       GLOBAL_VAR(opt_log_unsafe_statements),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE));
 
 /* logging to host OS's syslog */
 
@@ -3657,9 +3663,6 @@ static const char *sql_mode_names[]=
 export bool sql_mode_string_representation(THD *thd, sql_mode_t sql_mode,
                                            LEX_STRING *ls)
 {
-  sql_mode&= ~(MODE_ERROR_FOR_DIVISION_BY_ZERO | MODE_NO_ZERO_DATE |
-               MODE_NO_ZERO_IN_DATE);
-
   set_to_string(thd, ls, sql_mode, sql_mode_names);
   return ls->str == 0;
 }
@@ -5320,6 +5323,13 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
   bool error= false;
 
   global_sid_lock->wrlock();
+
+  /*
+    ensures the commit of the transaction started when saving the
+    purged gtid set in the table
+  */
+  thd->lex->autocommit= true;
+
   char *previous_gtid_executed= NULL, *previous_gtid_purged= NULL,
     *current_gtid_executed= NULL, *current_gtid_purged= NULL;
   gtid_state->get_executed_gtids()->to_string(&previous_gtid_executed);

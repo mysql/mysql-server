@@ -969,7 +969,7 @@ connection default;
 disconnect con1;
 
 # With ssl connection
---exec $MYSQLADMIN -S $MASTER_MYSOCK -P $MASTER_MYPORT -uuser4 --password=new_auth password new_auth_ssl --ssl 2>&1
+--exec $MYSQLADMIN -S $MASTER_MYSOCK -P $MASTER_MYPORT -uuser4 --password=new_auth password new_auth_ssl --ssl-mode=REQUIRED 2>&1
 
 # Testing connection
 --connect(con1, localhost, user4, new_auth_ssl)

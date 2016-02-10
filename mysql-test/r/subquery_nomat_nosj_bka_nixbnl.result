@@ -44,14 +44,14 @@ Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1249	Select 2 was reduced during optimization
 Note	1003	/* select#1 */ select (/* select#3 */ select 0 union /* select#4 */ select 0) AS `(SELECT (SELECT 0 UNION SELECT 0))`
 SELECT (SELECT 1 FROM (SELECT 1) as b HAVING a=1) as a;
-ERROR 42S22: Unknown column 'a' in 'having clause'
+ERROR 42S22: Reference 'a' not supported (forward reference in item list)
 SELECT (SELECT 1 FROM (SELECT 1) as b HAVING b=1) as a,(SELECT 1 FROM (SELECT 1) as c HAVING a=1) as b;
-ERROR 42S22: Unknown column 'b' in 'having clause'
+ERROR 42S22: Reference 'b' not supported (forward reference in item list)
 SELECT (SELECT 1),MAX(1) FROM (SELECT 1) as a;
 (SELECT 1)	MAX(1)
 1	1
 SELECT (SELECT a) as a;
-ERROR 42S22: Unknown column 'a' in 'field list'
+ERROR 42S22: Reference 'a' not supported (forward reference in item list)
 EXPLAIN EXTENDED SELECT 1 FROM (SELECT 1 as a) as b  HAVING (SELECT a)=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	<derived2>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
@@ -144,7 +144,8 @@ SELECT (SELECT 1.5,'c','a') = ROW(1.5,2,'a');
 SELECT (SELECT * FROM (SELECT 'test' a,'test' b) a);
 ERROR 21000: Operand should contain 1 column(s)
 SELECT 1 as a,(SELECT a+a) b,(SELECT b);
-ERROR 42S22: Unknown column 'a' in 'field list'
+a	b	(SELECT b)
+1	2	2
 create table t1 (a int);
 create table t2 (a int, b int);
 create table t3 (a int);
@@ -153,7 +154,7 @@ insert into t1 values (2);
 insert into t2 values (1,7),(2,7);
 insert into t4 values (4,8),(3,8),(5,9);
 select (select a from t1 where t1.a = a1) as a2, (select b from t2 where t2.b=a2) as a1;
-ERROR 42S22: Unknown column 'a1' in 'where clause'
+ERROR 42S22: Reference 'a1' not supported (forward reference in item list)
 select (select a from t1 where t1.a=t2.a), a from t2;
 (select a from t1 where t1.a=t2.a)	a
 NULL	1
@@ -547,7 +548,7 @@ UNIQUE KEY `numreponse` (`numreponse`),
 KEY `pseudo` (`pseudo`,`numeropost`)
 ) ENGINE=MyISAM;
 SELECT (SELECT numeropost FROM t1 HAVING numreponse=a),numreponse FROM (SELECT * FROM t1) as a;
-ERROR 42S22: Unknown column 'a' in 'having clause'
+ERROR 42S22: Reference 'numreponse' not supported (forward reference in item list)
 SELECT numreponse, (SELECT numeropost FROM t1 HAVING numreponse=a) FROM (SELECT * FROM t1) as a;
 ERROR 42S22: Unknown column 'a' in 'having clause'
 SELECT numreponse, (SELECT numeropost FROM t1 HAVING numreponse=1) FROM (SELECT * FROM t1) as a;
@@ -1095,7 +1096,8 @@ mot	topic	date	pseudo
 joce	1	0000-00-00	joce
 drop table t1, t2, t3;
 SELECT * FROM (SELECT 1 as a,(SELECT a)) a;
-ERROR 42S22: Unknown column 'a' in 'field list'
+a	(SELECT a)
+1	1
 CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT 1)) a;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1105,9 +1107,21 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT a)) a;
-ERROR 42S22: Unknown column 'a' in 'field list'
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(1) NOT NULL DEFAULT '0',
+  `(SELECT a)` int(1) NOT NULL DEFAULT '0'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;
 CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT a+0)) a;
-ERROR 42S22: Unknown column 'a' in 'field list'
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(1) NOT NULL DEFAULT '0',
+  `(SELECT a+0)` int(3) NOT NULL DEFAULT '0'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;
 CREATE TABLE t1 SELECT (SELECT 1 as a UNION SELECT 1+1 limit 1,1) as a;
 select * from t1;
 a
@@ -2493,15 +2507,16 @@ drop table t1;
 create  table t1 (a integer);
 insert into t1 values (1);
 select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx ;
-ERROR 42S22: Unknown column 'xx' in 'where clause'
+ERROR 42S22: Reference 'xx' not supported (forward reference in item list)
 select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx;
-ERROR 42S22: Unknown column 'xx' in 'where clause'
+ERROR 42S22: Reference 'xx' not supported (forward reference in item list)
 select 1 as xx, 1 = ALL (  select 1 from t1 where 1 = xx );
-ERROR 42S22: Unknown column 'xx' in 'where clause'
+xx	1 = ALL (  select 1 from t1 where 1 = xx )
+1	1
 select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx;
-ERROR 42S22: Unknown column 'xx' in 'where clause'
+ERROR 42S22: Reference 'xx' not supported (forward reference in item list)
 select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx from DUAL;
-ERROR 42S22: Unknown column 'xx' in 'where clause'
+ERROR 42S22: Reference 'xx' not supported (forward reference in item list)
 drop table t1;
 CREATE TABLE t1 (
 categoryId int(11) NOT NULL,
@@ -5111,6 +5126,16 @@ a	ROW(11, 12) = (SELECT a, 22)	ROW(11, 12) IN (SELECT a, 22)
 11	0	0
 SELECT a, ROW(11, 12) = (SELECT a, 12), ROW(11, 12) IN (SELECT a, 12) FROM t1;
 a	ROW(11, 12) = (SELECT a, 12)	ROW(11, 12) IN (SELECT a, 12)
+1	0	0
+2	0	0
+11	1	1
+SELECT a AS x, ROW(11, 12) = (SELECT MAX(x), 22), ROW(11, 12) IN (SELECT MAX(x), 22) FROM t1;
+x	ROW(11, 12) = (SELECT MAX(x), 22)	ROW(11, 12) IN (SELECT MAX(x), 22)
+1	0	0
+2	0	0
+11	0	0
+SELECT a AS x, ROW(11, 12) = (SELECT MAX(x), 12), ROW(11, 12) IN (SELECT MAX(x), 12) FROM t1;
+x	ROW(11, 12) = (SELECT MAX(x), 12)	ROW(11, 12) IN (SELECT MAX(x), 12)
 1	0	0
 2	0	0
 11	1	1
@@ -8068,5 +8093,54 @@ FROM t3 AS outr;
 pk	x
 4	NULL
 DROP TABLE t1, t2, t3;
+#
+# Bug#22090717 WRONG RESULT FOR SELECT NULL IN (<SUBQUERY>)
+#
+CREATE TABLE t1(a MEDIUMTEXT CHARSET UTF8) ENGINE=INNODB;
+INSERT INTO t1 VALUES(0x6F76786E7875);
+SELECT NULL IN (SELECT 1 FROM t1);
+NULL IN (SELECT 1 FROM t1)
+NULL
+SELECT (NULL AND 1) IN (SELECT 1 FROM t1);
+(NULL AND 1) IN (SELECT 1 FROM t1)
+NULL
+SELECT (NULL, 1) IN (SELECT 1,1 FROM t1);
+(NULL, 1) IN (SELECT 1,1 FROM t1)
+NULL
+SELECT (NULL, NULL) IN (SELECT 1,1 FROM t1);
+(NULL, NULL) IN (SELECT 1,1 FROM t1)
+NULL
+SELECT (NULL OR 1) IN (SELECT 1 FROM t1);
+(NULL OR 1) IN (SELECT 1 FROM t1)
+1
+SELECT ISNULL(NULL) IN  (SELECT 1 FROM t1);
+ISNULL(NULL) IN  (SELECT 1 FROM t1)
+1
+SELECT (NULL IS NULL) IN  (SELECT 1 FROM t1);
+(NULL IS NULL) IN  (SELECT 1 FROM t1)
+1
+DELETE FROM t1;
+SELECT NULL IN (SELECT 1 FROM t1);
+NULL IN (SELECT 1 FROM t1)
+0
+SELECT (NULL AND 1) IN (SELECT 1 FROM t1);
+(NULL AND 1) IN (SELECT 1 FROM t1)
+0
+SELECT (NULL, 1) IN (SELECT 1,1 FROM t1);
+(NULL, 1) IN (SELECT 1,1 FROM t1)
+0
+SELECT (NULL, NULL) IN (SELECT 1,1 FROM t1);
+(NULL, NULL) IN (SELECT 1,1 FROM t1)
+0
+SELECT (NULL OR 1) IN (SELECT 1 FROM t1);
+(NULL OR 1) IN (SELECT 1 FROM t1)
+0
+SELECT ISNULL(NULL) IN  (SELECT 1 FROM t1);
+ISNULL(NULL) IN  (SELECT 1 FROM t1)
+0
+SELECT (NULL IS NULL) IN  (SELECT 1 FROM t1);
+(NULL IS NULL) IN  (SELECT 1 FROM t1)
+0
+DROP TABLE t1;
 set optimizer_switch=default;
 set optimizer_switch=default;

@@ -101,6 +101,7 @@ void embedded_get_error(MYSQL *mysql, MYSQL_DATA *data)
   strmake(net->last_error, ei->info, sizeof(net->last_error)-1);
   memcpy(net->sqlstate, ei->sqlstate, sizeof(net->sqlstate));
   mysql->server_status= ei->server_status;
+  free_root(&data->alloc, MYF(0));
   my_free(data);
 }
 
@@ -327,15 +328,26 @@ static my_bool emb_read_query_result(MYSQL *mysql)
   return 0;
 }
 
+#define HEADER_SIZE 9
 static int emb_stmt_execute(MYSQL_STMT *stmt)
 {
   DBUG_ENTER("emb_stmt_execute");
-  uchar header[5];
+  /*
+    Header size is made similar to non-embedded library.
+    It should be consistent across embedded and non-embedded
+    libraries.
+  */
+  uchar header[HEADER_SIZE];
   THD *thd;
   my_bool res;
 
   int4store(header, stmt->stmt_id);
   header[4]= (uchar) stmt->flags;
+  /*
+    Dummy value is stored in the last 4 bytes of the header
+    to make it consistent with non-embedded library.
+  */
+  int4store(header + 5, 1);
   thd= (THD*)stmt->mysql->thd;
   thd->client_param_count= stmt->param_count;
   thd->client_params= stmt->params;
@@ -624,13 +636,6 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   if (!opt_bootstrap)
     servers_init(0);
-
-#ifdef HAVE_DLOPEN
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  if (!opt_noacl)
-#endif
-    udf_init();
-#endif
 
   start_handle_manager();
 
@@ -1276,6 +1281,16 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
 }
 
 
+void Protocol_binary::start_row()
+{
+  MYSQL_DATA *data= m_thd->cur_data;
+  next_mysql_field= data->embedded_info->fields_list;
+  packet->length(bit_fields + 1);
+  memset(const_cast<char*>(packet->ptr()), 0, 1 + bit_fields);
+  field_pos= 0;
+}
+
+
 void Protocol_text::start_row()
 {
   MYSQL_ROWS *cur;
@@ -1313,6 +1328,78 @@ bool Protocol_text::store_null()
   *(next_field++)= NULL;
   ++next_mysql_field;
   return false;
+}
+
+
+bool Protocol_binary::net_store_data(const uchar *from, size_t length)
+{
+  if (!m_thd->mysql)            // bootstrap file handling
+    return 0;
+
+  size_t packet_length= packet->length();
+  /*
+     The +9 comes from that strings of length longer than 16M require
+     9 bytes to be stored (see net_store_length).
+  */
+  if (packet_length + 9 + length > packet->alloced_length() &&
+      packet->mem_realloc(packet_length + 9 + length))
+    return 1;
+  uchar *to= net_store_length((uchar*)packet->ptr() + packet_length, length);
+  memcpy(to, from, length);
+  packet->length((uint)(to + length - (uchar*)packet->ptr()));
+  if (next_mysql_field->max_length < length)
+    next_mysql_field->max_length= length;
+  ++next_mysql_field;
+  return 0;
+}
+
+bool Protocol_binary::net_store_data(const uchar *from, size_t length,
+                                     const CHARSET_INFO *from_cs,
+                                     const CHARSET_INFO *to_cs)
+{
+  uint dummy_errors;
+  /* Calculate maxumum possible result length */
+  size_t conv_length= to_cs->mbmaxlen * length / from_cs->mbminlen;
+
+  if (!m_thd->mysql)            // bootstrap file handling
+    return 0;
+
+  if (conv_length > 250)
+  {
+    /*
+      For strings with conv_length greater than 250 bytes
+      we don't know how many bytes we will need to store length: one or two,
+      because we don't know result length until conversion is done.
+      For example, when converting from utf8 (mbmaxlen=3) to latin1,
+      conv_length=300 means that the result length can vary between 100 to 300.
+      length=100 needs one byte, length=300 needs to bytes.
+
+      Thus conversion directly to "packet" is not worthy.
+      Let's use "convert" as a temporary buffer.
+    */
+    return (convert->copy((const char*)from, length, from_cs,
+                          to_cs, &dummy_errors) ||
+            net_store_data((const uchar*)convert->ptr(), convert->length()));
+  }
+  size_t packet_length= packet->length();
+  size_t new_length= packet_length + conv_length + 1;
+
+  if (new_length > packet->alloced_length() && packet->mem_realloc(new_length))
+    return 1;
+
+  char *length_pos= (char*) packet->ptr() + packet_length;
+  char *to= length_pos + 1;
+
+  to+= length= copy_and_convert(to, conv_length, to_cs,
+                                (const char*)from, length, from_cs,
+                                &dummy_errors);
+
+  net_store_length((uchar*)length_pos, to - length_pos - 1);
+  packet->length((uint)(to - packet->ptr()));
+  if (next_mysql_field->max_length < length)
+    next_mysql_field->max_length= length;
+  ++next_mysql_field;
+  return 0;
 }
 
 

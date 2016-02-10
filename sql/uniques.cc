@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -417,7 +417,8 @@ struct Merge_chunk_less
   {}
   bool operator()(Merge_chunk *a, Merge_chunk *b)
   {
-    return m_context.key_compare(m_context.key_compare_arg, a, b) > 0; 
+    return m_context.key_compare(m_context.key_compare_arg,
+                                 a->current_key(), b->current_key()) > 0; 
   }
   Merge_chunk_compare_context  m_context;
 };

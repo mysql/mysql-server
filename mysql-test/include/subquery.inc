@@ -24,12 +24,12 @@ SELECT (SELECT 1) UNION SELECT (SELECT 2);
 explain extended SELECT (SELECT 1) UNION SELECT (SELECT 2);
 SELECT (SELECT (SELECT 0 UNION SELECT 0));
 explain extended SELECT (SELECT (SELECT 0 UNION SELECT 0));
--- error ER_BAD_FIELD_ERROR
+-- error ER_ILLEGAL_REFERENCE
 SELECT (SELECT 1 FROM (SELECT 1) as b HAVING a=1) as a;
--- error ER_BAD_FIELD_ERROR
+-- error ER_ILLEGAL_REFERENCE
 SELECT (SELECT 1 FROM (SELECT 1) as b HAVING b=1) as a,(SELECT 1 FROM (SELECT 1) as c HAVING a=1) as b;
 SELECT (SELECT 1),MAX(1) FROM (SELECT 1) as a;
--- error ER_BAD_FIELD_ERROR
+-- error ER_ILLEGAL_REFERENCE
 SELECT (SELECT a) as a;
 EXPLAIN EXTENDED SELECT 1 FROM (SELECT 1 as a) as b  HAVING (SELECT a)=1;
 SELECT 1 FROM (SELECT 1 as a) as b HAVING (SELECT a)=1;
@@ -71,7 +71,6 @@ SELECT (SELECT 1.5,'c','a') = ROW(1.5,2,'a');
 -- error ER_OPERAND_COLUMNS
 SELECT (SELECT * FROM (SELECT 'test' a,'test' b) a);
 
--- error ER_BAD_FIELD_ERROR
 SELECT 1 as a,(SELECT a+a) b,(SELECT b);
 
 create table t1 (a int);
@@ -81,7 +80,7 @@ create table t4 (a int not null, b int not null);
 insert into t1 values (2);
 insert into t2 values (1,7),(2,7);
 insert into t4 values (4,8),(3,8),(5,9);
--- error ER_BAD_FIELD_ERROR
+-- error ER_ILLEGAL_REFERENCE
 select (select a from t1 where t1.a = a1) as a2, (select b from t2 where t2.b=a2) as a1;
 select (select a from t1 where t1.a=t2.a), a from t2;
 select (select a from t1 where t1.a=t2.b), a from t2;
@@ -295,7 +294,7 @@ CREATE TABLE `t1` (
   UNIQUE KEY `numreponse` (`numreponse`),
   KEY `pseudo` (`pseudo`,`numeropost`)
 ) ENGINE=MyISAM;
--- error ER_BAD_FIELD_ERROR
+-- error ER_ILLEGAL_REFERENCE
 SELECT (SELECT numeropost FROM t1 HAVING numreponse=a),numreponse FROM (SELECT * FROM t1) as a;
 -- error ER_BAD_FIELD_ERROR
 SELECT numreponse, (SELECT numeropost FROM t1 HAVING numreponse=a) FROM (SELECT * FROM t1) as a;
@@ -615,15 +614,18 @@ select * from t1;
 
 drop table t1, t2, t3;
 
---error ER_BAD_FIELD_ERROR
 SELECT * FROM (SELECT 1 as a,(SELECT a)) a;
 CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT 1)) a;
 SHOW CREATE TABLE t1;
 drop table t1;
---error ER_BAD_FIELD_ERROR
 CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT a)) a;
---error ER_BAD_FIELD_ERROR
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
 CREATE TABLE t1 SELECT * FROM (SELECT 1 as a,(SELECT a+0)) a;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
 CREATE TABLE t1 SELECT (SELECT 1 as a UNION SELECT 1+1 limit 1,1) as a;
 select * from t1;
 SHOW CREATE TABLE t1;
@@ -1574,15 +1576,14 @@ drop table t1;
 #
 create  table t1 (a integer);
 insert into t1 values (1);
--- error ER_BAD_FIELD_ERROR
+-- error ER_ILLEGAL_REFERENCE
 select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx ;
--- error ER_BAD_FIELD_ERROR
+-- error ER_ILLEGAL_REFERENCE
 select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx;
--- error ER_BAD_FIELD_ERROR
 select 1 as xx, 1 = ALL (  select 1 from t1 where 1 = xx );
--- error ER_BAD_FIELD_ERROR
+-- error ER_ILLEGAL_REFERENCE
 select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx;
--- error ER_BAD_FIELD_ERROR
+-- error ER_ILLEGAL_REFERENCE
 select 1 = ALL (select 1 from t1 where 1 = xx ), 1 as xx from DUAL;
 drop table t1;
 
@@ -3915,6 +3916,11 @@ SELECT a, ROW(11, 12) = (SELECT a, 22), ROW(11, 12) IN (SELECT a, 22) FROM t1 GR
 SELECT a, ROW(11, 12) = (SELECT a, 12), ROW(11, 12) IN (SELECT a, 12) FROM t1 GROUP BY t1.a;
 SELECT a, ROW(11, 12) = (SELECT a, 22), ROW(11, 12) IN (SELECT a, 22) FROM t1;
 SELECT a, ROW(11, 12) = (SELECT a, 12), ROW(11, 12) IN (SELECT a, 12) FROM t1;
+
+# The x alias is used below to workaround bug #40674.  Regression tests for
+# sum function on outer column in subselect from dual:
+SELECT a AS x, ROW(11, 12) = (SELECT MAX(x), 22), ROW(11, 12) IN (SELECT MAX(x), 22) FROM t1;
+SELECT a AS x, ROW(11, 12) = (SELECT MAX(x), 12), ROW(11, 12) IN (SELECT MAX(x), 12) FROM t1;
 
 DROP TABLE t1;
 
@@ -6583,3 +6589,30 @@ FROM t3 AS outr;
 eval $query;
 
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#22090717 WRONG RESULT FOR SELECT NULL IN (<SUBQUERY>)
+--echo #
+CREATE TABLE t1(a MEDIUMTEXT CHARSET UTF8) ENGINE=INNODB;
+INSERT INTO t1 VALUES(0x6F76786E7875);
+SELECT NULL IN (SELECT 1 FROM t1);
+SELECT (NULL AND 1) IN (SELECT 1 FROM t1);
+SELECT (NULL, 1) IN (SELECT 1,1 FROM t1);
+SELECT (NULL, NULL) IN (SELECT 1,1 FROM t1);
+
+SELECT (NULL OR 1) IN (SELECT 1 FROM t1);
+SELECT ISNULL(NULL) IN  (SELECT 1 FROM t1);
+SELECT (NULL IS NULL) IN  (SELECT 1 FROM t1);
+
+DELETE FROM t1;
+SELECT NULL IN (SELECT 1 FROM t1);
+SELECT (NULL AND 1) IN (SELECT 1 FROM t1);
+SELECT (NULL, 1) IN (SELECT 1,1 FROM t1);
+SELECT (NULL, NULL) IN (SELECT 1,1 FROM t1);
+
+SELECT (NULL OR 1) IN (SELECT 1 FROM t1);
+SELECT ISNULL(NULL) IN  (SELECT 1 FROM t1);
+SELECT (NULL IS NULL) IN  (SELECT 1 FROM t1);
+
+
+DROP TABLE t1;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@
 #include "opt_trace.h"                // Opt_trace_object
 #include "records.h"                  // READ_RECORD
 #include "sql_base.h"                 // open_tables_for_query
-#include "sql_optimizer.h"            // build_equal_items
+#include "sql_optimizer.h"            // build_equal_items, substitute_gc
 #include "sql_resolver.h"             // setup_order
 #include "sql_select.h"               // free_underlaid_joins
 #include "sql_tmp_table.h"            // create_tmp_table
@@ -302,6 +302,17 @@ bool mysql_update(THD *thd,
     DBUG_RETURN(1);
 
   ORDER *order= select_lex->order_list.first;
+
+  /*
+    See if we can substitute expressions with equivalent generated
+    columns in the WHERE and ORDER BY clauses of the UPDATE statement.
+    It is unclear if this is best to do before or after the other
+    substitutions performed by substitute_for_best_equal_field(). Do
+    it here for now, to keep it consistent with how multi-table
+    updates are optimized in JOIN::optimize().
+  */
+  if (conds || order)
+    static_cast<void>(substitute_gc(thd, select_lex, conds, NULL, order));
 
   if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) != 0 &&
       update.function_defaults_apply(table))
@@ -1132,15 +1143,6 @@ bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,
   // Return covering keys derived from conditions and ORDER BY clause:
   *covering_keys_for_cond= update_table_ref->table->covering_keys;
 
-  // Check that table to be updated is not used in a subquery
-  TABLE_LIST *const duplicate= unique_table(thd, update_table_ref,
-                                            table_list->next_global, 0);
-  if (duplicate)
-  {
-    update_non_unique_table_error(table_list, "UPDATE", duplicate);
-    DBUG_RETURN(true);
-  }
-
   // Check the fields we are going to modify
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   table_list->set_want_privilege(UPDATE_ACL);
@@ -1167,6 +1169,15 @@ bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref,
     DBUG_RETURN(true);                          /* purecov: inspected */
 
   thd->mark_used_columns= mark_used_columns_saved;
+
+  // Check that table to be updated is not used in a subquery
+  TABLE_LIST *const duplicate= unique_table(thd, update_table_ref,
+                                            table_list->next_global, 0);
+  if (duplicate)
+  {
+    update_non_unique_table_error(table_list, "UPDATE", duplicate);
+    DBUG_RETURN(true);
+  }
 
   if (setup_ftfuncs(select))
     DBUG_RETURN(true);                          /* purecov: inspected */
@@ -1558,12 +1569,33 @@ int Sql_cmd_update::mysql_multi_update_prepare(THD *thd)
     2) This validation is done by Query_result_update::prepare() but it is
     not called by PREPARE.
     3) So we do it below.
+    @todo Remove this code duplication as part of WL#6570
   */
   if (thd->stmt_arena->is_stmt_prepare())
   {
     if (setup_fields(thd, Ref_ptr_array(), update_value_list, SELECT_ACL,
                      NULL, false, false))
       DBUG_RETURN(true);
+
+    /*
+      Check that table being updated is not being used in a subquery, but
+      skip all tables of the UPDATE query block itself
+    */
+    select->exclude_from_table_unique_test= true;
+    for (TABLE_LIST *tr= select->leaf_tables; tr; tr= tr->next_leaf)
+    {
+      if (tr->lock_type != TL_READ &&
+          tr->lock_type != TL_READ_NO_INSERT)
+      {
+        TABLE_LIST *duplicate= unique_table(thd, tr, select->leaf_tables, 0);
+        if (duplicate != NULL)
+        {
+          update_non_unique_table_error(select->leaf_tables, "UPDATE",
+                                        duplicate);
+          DBUG_RETURN(true);
+        }
+      }
+    }
   }
 
   /* check single table update for view compound from several tables */
@@ -1591,29 +1623,6 @@ int Sql_cmd_update::mysql_multi_update_prepare(THD *thd)
 
   /* @todo: downgrade the metadata locks here. */
 
-  /*
-    Check that we are not using table that we are updating, but we should
-    skip all tables of UPDATE SELECT itself
-  */
-  select->exclude_from_table_unique_test= true;
-  for (TABLE_LIST *tl= select->leaf_tables; tl; tl= tl->next_leaf)
-  {
-    if (tl->lock_type != TL_READ &&
-        tl->lock_type != TL_READ_NO_INSERT)
-    {
-      TABLE_LIST *duplicate;
-      if ((duplicate= unique_table(thd, tl, table_list, 0)))
-      {
-        update_non_unique_table_error(table_list, "UPDATE", duplicate);
-        DBUG_RETURN(true);
-      }
-    }
-  }
-  /*
-    Set exclude_from_table_unique_test value back to FALSE. It is needed for
-    further check in Query_result_update::prepare whether to use record cache.
-  */
-  select->exclude_from_table_unique_test= false;
   /*
     Syntax rule for multi-table update prevents these constructs.
     But they are possible for single-table UPDATE against multi-table view.
@@ -1694,21 +1703,18 @@ Query_result_update::Query_result_update(TABLE_LIST *table_list,
 int Query_result_update::prepare(List<Item> &not_used_values,
                                  SELECT_LEX_UNIT *lex_unit)
 {
-  TABLE_LIST *table_ref;
   SQL_I_List<TABLE_LIST> update;
-  table_map tables_to_update;
-  Item_field *item;
   List_iterator_fast<Item> field_it(*fields);
   List_iterator_fast<Item> value_it(*values);
-  uint i, max_fields;
-  uint leaf_table_count= 0;
   DBUG_ENTER("Query_result_update::prepare");
+
+  SELECT_LEX *const select= lex_unit->first_select();
 
   thd->count_cuted_fields= CHECK_FIELD_WARN;
   thd->cuted_fields=0L;
   THD_STAGE_INFO(thd, stage_updating_main_table);
 
-  tables_to_update= get_table_map(fields);
+  const table_map tables_to_update= get_table_map(fields);
 
   if (!tables_to_update)
   {
@@ -1721,18 +1727,18 @@ int Query_result_update::prepare(List<Item> &not_used_values,
     TABLE::tmp_set by pointing TABLE::read_set to it and then restore it after
     setup_fields().
   */
-  for (table_ref= leaves; table_ref; table_ref= table_ref->next_leaf)
+  for (TABLE_LIST *tr= leaves; tr; tr= tr->next_leaf)
   {
-    if (tables_to_update & table_ref->map())
+    if (tables_to_update & tr->map())
     {
-      TABLE *const table= table_ref->table;
+      TABLE *const table= tr->table;
       DBUG_ASSERT(table->read_set == &table->def_read_set);
       table->read_set= &table->tmp_set;
       bitmap_clear_all(table->read_set);
     }
     // Resolving may be needed for subsequent executions
-    if (table_ref->check_option && !table_ref->check_option->fixed &&
-        table_ref->check_option->fix_fields(thd, NULL))
+    if (tr->check_option && !tr->check_option->fixed &&
+        tr->check_option->fix_fields(thd, NULL))
       DBUG_RETURN(1);        /* purecov: inspected */
   }
 
@@ -1744,11 +1750,11 @@ int Query_result_update::prepare(List<Item> &not_used_values,
   int error= setup_fields(thd, Ref_ptr_array(), *values, SELECT_ACL, NULL,
                           false, false);
 
-  for (table_ref= leaves; table_ref; table_ref= table_ref->next_leaf)
+  for (TABLE_LIST *tr= leaves; tr; tr= tr->next_leaf)
   {
-    if (tables_to_update & table_ref->map())
+    if (tables_to_update & tr->map())
     {
-      TABLE *const table= table_ref->table;
+      TABLE *const table= tr->table;
       table->read_set= &table->def_read_set;
       bitmap_union(table->read_set, &table->tmp_set);
       bitmap_clear_all(&table->tmp_set);
@@ -1759,30 +1765,53 @@ int Query_result_update::prepare(List<Item> &not_used_values,
     DBUG_RETURN(1);    
 
   /*
+    Check that table being updated is not being used in a subquery, but
+    skip all tables of the UPDATE query block itself
+  */
+  select->exclude_from_table_unique_test= true;
+  for (TABLE_LIST *tr= select->leaf_tables; tr; tr= tr->next_leaf)
+  {
+    if (tr->lock_type != TL_READ &&
+        tr->lock_type != TL_READ_NO_INSERT)
+    {
+      TABLE_LIST *duplicate= unique_table(thd, tr, all_tables, 0);
+      if (duplicate != NULL)
+      {
+        update_non_unique_table_error(all_tables, "UPDATE", duplicate);
+        DBUG_RETURN(true);
+      }
+    }
+  }
+  /*
+    Set exclude_from_table_unique_test value back to FALSE. It is needed for
+    further check whether to use record cache.
+  */
+  select->exclude_from_table_unique_test= false;
+  /*
     Save tables beeing updated in update_tables
     update_table->shared is position for table
     Don't use key read on tables that are updated
   */
 
   update.empty();
-  for (table_ref= leaves; table_ref; table_ref= table_ref->next_leaf)
+  uint leaf_table_count= 0;
+  for (TABLE_LIST *tr= leaves; tr; tr= tr->next_leaf)
   {
     /* TODO: add support of view of join support */
     leaf_table_count++;
-    if (tables_to_update & table_ref->map())
+    if (tables_to_update & tr->map())
     {
-      TABLE_LIST *tl= (TABLE_LIST*) thd->memdup(table_ref,
-						sizeof(*tl));
-      if (!tl)
+      TABLE_LIST *dup= (TABLE_LIST*) thd->memdup(tr, sizeof(*dup));
+      if (dup == NULL)
 	DBUG_RETURN(1);
 
-      TABLE *const table= table_ref->table;
+      TABLE *const table= tr->table;
 
-      update.link_in_list(tl, &tl->next_local);
-      table_ref->shared= tl->shared= table_count++;
+      update.link_in_list(dup, &dup->next_local);
+      tr->shared= dup->shared= table_count++;
       table->no_keyread=1;
       table->covering_keys.clear_all();
-      table->pos_in_table_list= tl;
+      table->pos_in_table_list= dup;
       if (table->triggers &&
           table->triggers->has_triggers(TRG_EVENT_UPDATE,
                                         TRG_ACTION_AFTER))
@@ -1812,31 +1841,33 @@ int Query_result_update::prepare(List<Item> &not_used_values,
   update_operations= (COPY_INFO**) thd->mem_calloc(sizeof(COPY_INFO*) *
                                                table_count);
 
-  if (thd->is_fatal_error)
+  if (thd->is_error())
     DBUG_RETURN(1);
-  for (i=0 ; i < table_count ; i++)
+  for (uint i= 0; i < table_count; i++)
   {
     fields_for_table[i]= new List_item;
     values_for_table[i]= new List_item;
   }
-  if (thd->is_fatal_error)
+  if (thd->is_error())
     DBUG_RETURN(1);
 
   /* Split fields into fields_for_table[] and values_by_table[] */
 
-  while ((item= (Item_field *) field_it++))
+  Item *item;
+  while ((item= field_it++))
   {
-    Item *value= value_it++;
-    uint offset= item->table_ref->shared;
-    fields_for_table[offset]->push_back(item);
+    Item_field *const field= down_cast<Item_field *>(item);
+    Item *const value= value_it++;
+    uint offset= field->table_ref->shared;
+    fields_for_table[offset]->push_back(field);
     values_for_table[offset]->push_back(value);
   }
   if (thd->is_fatal_error)
     DBUG_RETURN(1);
 
   /* Allocate copy fields */
-  max_fields=0;
-  for (i=0 ; i < table_count ; i++)
+  uint max_fields= 0;
+  for (uint i= 0; i < table_count; i++)
     set_if_bigger(max_fields, fields_for_table[i]->elements + leaf_table_count);
   copy_field= new Copy_field[max_fields];
 

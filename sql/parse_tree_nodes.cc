@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -970,4 +970,46 @@ Sql_cmd *PT_insert::make_cmd(THD *thd)
   }
 
   return sql_cmd;
+}
+
+
+/**
+  @brief
+  make_cmd for PT_alter_instance.
+  Contextualize parse tree node and return sql_cmd handle.
+
+  @params thd [in] Thread handle
+
+  @returns
+    sql_cmd Success
+    NULL    Failure
+*/
+
+Sql_cmd *PT_alter_instance::make_cmd(THD *thd)
+{
+  Parse_context pc(thd, thd->lex->current_select());
+  if (contextualize(&pc))
+    return NULL;
+  return &sql_cmd;
+}
+
+/**
+  @brief
+  Prepare parse tree node and set required information
+
+  @params pc [in] Parser context
+
+  @returns
+    false Success
+    true Error
+*/
+
+bool PT_alter_instance::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;
+
+  LEX *lex= pc->thd->lex;
+  lex->no_write_to_binlog= false;
+  return false;
 }

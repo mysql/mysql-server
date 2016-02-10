@@ -711,6 +711,37 @@ remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 --error 1
 --exec echo "--error 1,2,3,4,5,6,7,8,9,10,11" | $MYSQL_TEST 2>&1
 
+# Bug#22135383 MYSQLTEST FAILS TO PROPERLY GROUP AN EXPECTED ERROR
+#              CLAUSE AND ITS QUERY
+if (1)
+{
+  --error ER_BAD_TABLE_ERROR
+}
+DROP TABLE table_does_not_exist;
+
+--error ER_BAD_TABLE_ERROR
+if (1)
+{
+  DROP TABLE table_does_not_exist;
+}
+
+if (1)
+{
+  if(1)
+  {
+    --error ER_BAD_TABLE_ERROR
+  }
+}
+DROP TABLE table_does_not_exist;
+
+--error ER_BAD_TABLE_ERROR
+if (1)
+{
+  if(1)
+  {
+    DROP TABLE table_does_not_exist;
+  }
+}
 
 # ----------------------------------------------------------------------------
 # Test echo command

@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -842,7 +842,17 @@ public:
   */
   int marker;
   uint8 decimals;
-  my_bool maybe_null;			/* If item may be null */
+  /**
+    True if this item may be null.
+
+    For items that represent rows, it is true if one of the columns
+    may be null.
+
+    For items that represent scalar or row subqueries, it is true if
+    one of the returned columns could be null, or if the subquery
+    could return zero rows.
+  */
+  my_bool maybe_null;
   my_bool null_value;			/* if item is null */
   my_bool unsigned_flag;
   my_bool with_sum_func;
@@ -883,6 +893,15 @@ protected:
   */
   bool tables_locked_cache;
   const bool is_parser_item; // true if allocated directly by the parser
+
+  /*
+    Checks if the items provided as parameter offend the deprecated behavior
+    on binary operations and if so, a warning will be sent.
+
+    @param      a item to check
+    @param      b item to check, may be NULL
+   */
+  static void check_deprecated_bin_op(const Item *a, const Item *b);
  public:
   // alloc & destruct is done as start of select using sql_alloc
   Item();
@@ -2215,17 +2234,17 @@ public:
   }
 
   /**
-    Analyzer function for GC substitution. @see JOIN::substitute_gc()
+    Analyzer function for GC substitution. @see substitute_gc()
   */
   virtual bool gc_subst_analyzer(uchar **arg) { return false; }
   /**
-    Transformer function for GC substitution. @see JOIN::substitute_gc()
+    Transformer function for GC substitution. @see substitute_gc()
   */
   virtual Item *gc_subst_transformer(uchar *arg) { return this; }
   /**
     Check if this item is of a type that is eligible for GC
     substitution. All items that belong to subclasses of Item_func are
-    eligible for substitution. @see JOIN::substitute_gc()
+    eligible for substitution. @see substitute_gc()
   */
   bool can_be_substituted_for_gc() const
   {
@@ -4269,7 +4288,7 @@ private:
   /// @return true if item is from a null-extended row from an outer join
   bool has_null_row() const
   {
-    return first_inner_table && first_inner_table->table->null_row;
+    return first_inner_table && first_inner_table->table->has_null_row();
   }
 
   /**
@@ -5136,10 +5155,7 @@ public:
      Will cache value of saved item if not already done. 
      @return TRUE if cached value is non-NULL.
    */
-  bool has_value()
-  {
-    return (value_cached || cache_value()) && !null_value;
-  }
+  bool has_value();
 
   /** 
     If this item caches a field value, return pointer to underlying field.
@@ -5148,7 +5164,24 @@ public:
   */
   Field* field() { return cached_field; }
 
+  /**
+    Assigns to the cache the expression to be cached. Does not evaluate it.
+    @param item  the expression to be cached
+  */
   virtual void store(Item *item);
+
+  /**
+    Force an item to be null. Used for empty subqueries to avoid attempts to
+    evaluate expressions which could have uninitialized columns due to
+    bypassing the subquery exec.
+  */
+  void store_null()
+  {
+    DBUG_ASSERT(maybe_null);
+    value_cached= true;
+    null_value= true;
+  }
+
   virtual bool cache_value()= 0;
   bool basic_const_item() const
   { return MY_TEST(example && example->basic_const_item());}

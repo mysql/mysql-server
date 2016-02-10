@@ -14,7 +14,7 @@
 ### END INIT INFO
 #
 
-# Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -108,6 +108,7 @@ case "$1" in
 		MYSQLRUN=/var/run/mysqld
 		MYSQLDATA=$(get_mysql_option mysqld datadir "/var/lib/mysql")
 		MYSQLFILES=/var/lib/mysql-files
+		MYSQLKEYRING=/var/lib/mysql-keyring
 		MYSQLLOG=/var/log/mysql
 
 		if [ ! -d ${MYSQLDATA} -a ! -L ${MYSQLDATA} ];
@@ -124,7 +125,14 @@ case "$1" in
 			chmod 770 ${MYSQLFILES}
 		fi
 
-		if [ ! "$(ls -A ${MYSQLDATA})" ] && [ -d ${MYSQLFILES} ];
+		if [ ! -d ${MYSQLKEYRING} -a ! -L ${MYSQLKEYRING} ];
+		then
+			mkdir ${MYSQLKEYRING}
+			chown mysql:mysql ${MYSQLKEYRING}
+			chmod 750 ${MYSQLKEYRING}
+		fi
+
+		if [ ! "$(ls -A ${MYSQLDATA})" ] && [ -d ${MYSQLFILES} ] && [ -d ${MYSQLFILES} ];
 		then
 			su - mysql -s /bin/bash -c "/usr/sbin/mysqld --initialize-insecure=on 2>&1 > /dev/null"
 			su - mysql -s /bin/bash -c "/usr/sbin/mysqld --log_error_verbosity=2 2>&1 > /dev/null &"

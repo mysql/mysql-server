@@ -1440,7 +1440,6 @@ WHERE lakes.name = 'Blue Lake'
 AND named_places.name = 'Ashton'; 
 
 --echo # Conformance Item T51 
---error ER_WRONG_ARGUMENTS
 SELECT count(*) 
 FROM buildings, bridges 
 WHERE ST_Contains(ST_Buffer(bridges.position, 15.0), buildings.footprint) = 1; 
@@ -2868,3 +2867,11 @@ INNER JOIN r ON d.r_id = r.id
 ORDER BY d.i);
 
 DROP TABLE d, dp, r;
+
+--echo #
+--echo # Bug #22340858 CRASH AT GET_INTERVAL_VALUEITEMINTERVAL_TYPE
+--echo #
+
+SET collation_connection='utf32_bin';
+SELECT '2010-10-10 10:10:10' + INTERVAL
+  ST_GeometryType(ST_GeomFromText('POINT(1 1)')) HOUR_SECOND;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -419,6 +419,7 @@ my_bool binlog_gtid_simple_recovery;
 ulong binlog_error_action;
 const char *binlog_error_action_list[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
 uint32 gtid_executed_compression_period= 0;
+my_bool opt_log_unsafe_statements;
 
 #ifdef HAVE_INITGROUPS
 volatile sig_atomic_t calling_initgroups= 0; /**< Used in SIGSEGV handler. */
@@ -1056,6 +1057,12 @@ static void close_connections(void)
                      thd_manager->get_thd_count()));
   thd_manager->wait_till_no_thd();
 
+  /*
+    Connection threads might take a little while to go down after removing from
+    global thread list. Give it some time.
+  */
+  Connection_handler_manager::wait_till_no_connection();
+
   delete_slave_info_objects();
   DBUG_PRINT("quit",("close_connections thread"));
 
@@ -1133,7 +1140,6 @@ static void mysqld_exit(int exit_code)
 {
   DBUG_ASSERT(exit_code >= MYSQLD_SUCCESS_EXIT
               && exit_code <= MYSQLD_FAILURE_EXIT);
-  log_syslog_exit();
   mysql_audit_finalize();
 #ifndef EMBEDDED_LIBRARY
   Srv_session::module_deinit();
@@ -1352,6 +1358,7 @@ void clean_up(bool print_message)
   my_free(const_cast<char*>(relay_log_basename));
   my_free(const_cast<char*>(relay_log_index));
 #endif
+  free_list(opt_early_plugin_load_list_ptr);
   free_list(opt_plugin_load_list_ptr);
 
   if (THR_THD_initialized)
@@ -1370,6 +1377,8 @@ void clean_up(bool print_message)
     my_timer_deinitialize();
 
   have_statement_timeout= SHOW_OPTION_DISABLED;
+
+  log_syslog_exit();
 
   /*
     The following lines may never be executed as the main thread may have
@@ -2010,7 +2019,7 @@ static void start_signal_handler()
 
   (void) my_thread_attr_init(&thr_attr);
   (void) pthread_attr_setscope(&thr_attr, PTHREAD_SCOPE_SYSTEM);
-  (void) pthread_attr_setdetachstate(&thr_attr, PTHREAD_CREATE_JOINABLE);
+  (void) my_thread_attr_setdetachstate(&thr_attr, MY_THREAD_CREATE_JOINABLE);
 
   size_t guardize= 0;
   (void) pthread_attr_getguardsize(&thr_attr, &guardize);
@@ -2324,6 +2333,7 @@ SHOW_VAR com_status_vars[]= {
   {"alter_db_upgrade",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_DB_UPGRADE]),           SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_event",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_EVENT]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_function",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_FUNCTION]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"alter_instance",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_INSTANCE]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_procedure",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_PROCEDURE]),            SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_server",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_SERVER]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_table",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_TABLE]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -2752,6 +2762,16 @@ int init_common_variables()
                      SQLCOM_END + 7);
 #endif
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
+  if (strlen(DEFAULT_EARLY_PLUGIN_LOAD))
+  {
+    i_string *default_early_plugin= new i_string(DEFAULT_EARLY_PLUGIN_LOAD);
+    opt_early_plugin_load_list_ptr->push_back(default_early_plugin);
+  }
+
+#endif /* NO_EMBEDDED_ACCESS_CHECKS */
+
   if (get_options(&remaining_argc, &remaining_argv))
     return 1;
 
@@ -3029,6 +3049,12 @@ int init_common_variables()
   if (my_dboptions_cache_init())
     return 1;
 
+  if (ignore_db_dirs_process_additions())
+  {
+    sql_print_error("An error occurred while storing ignore_db_dirs to a hash.");
+    return 1;
+  }
+
   /* create the data directory if requested */
   if (unlikely(opt_initialize) &&
       initialize_create_data_directory(mysql_real_data_home))
@@ -3091,12 +3117,6 @@ int init_common_variables()
   {
     sql_print_error("An error occurred while building do_table"
                     "and ignore_table rules to hush.");
-    return 1;
-  }
-
-  if (ignore_db_dirs_process_additions())
-  {
-    sql_print_error("An error occurred while storing ignore_db_dirs to a hash.");
     return 1;
   }
 
@@ -3168,8 +3188,8 @@ static int init_thread_environment()
 #endif // !EMBEDDED_LIBRARY
   /* Parameter for threads created for connections */
   (void) my_thread_attr_init(&connection_attrib);
+  my_thread_attr_setdetachstate(&connection_attrib, MY_THREAD_CREATE_DETACHED);
 #ifndef _WIN32
-  pthread_attr_setdetachstate(&connection_attrib, PTHREAD_CREATE_DETACHED);
   pthread_attr_setscope(&connection_attrib, PTHREAD_SCOPE_SYSTEM);
 #endif
 
@@ -5777,6 +5797,12 @@ struct my_option my_long_options[]=
    GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "Run mysqld daemon as user.", 0, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
+  {"early-plugin-load", OPT_EARLY_PLUGIN_LOAD,
+   "Optional semicolon-separated list of plugins to load before storage engine "
+   "initialization, where each plugin is identified as name=library, where "
+   "name is the plugin name and library is the plugin library in plugin_dir.",
+   0, 0, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"plugin-load", OPT_PLUGIN_LOAD,
    "Optional semicolon-separated list of plugins to load, where each plugin is "
    "identified as name=library, where name is the plugin name and library "
@@ -7051,7 +7077,27 @@ mysqld_get_one_option(int optid,
   case OPT_BINLOG_MAX_FLUSH_QUEUE_TIME:
     push_deprecated_warn_no_replacement(NULL, "--binlog_max_flush_queue_time");
     break;
-#include <sslopt-case.h>
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+  case OPT_SSL_KEY:
+  case OPT_SSL_CERT:
+  case OPT_SSL_CA:  
+  case OPT_SSL_CAPATH:
+  case OPT_SSL_CIPHER:
+  case OPT_SSL_CRL:   
+  case OPT_SSL_CRLPATH:
+  case OPT_TLS_VERSION:
+    /*
+      Enable use of SSL if we are using any ssl option.
+      One can disable SSL later by using --skip-ssl or --ssl=0.
+    */
+    opt_use_ssl= true;
+#ifdef HAVE_YASSL
+    /* crl has no effect in yaSSL. */
+    opt_ssl_crl= NULL;
+    opt_ssl_crlpath= NULL;
+#endif /* HAVE_YASSL */   
+    break;
+#endif /* HAVE_OPENSSL */
 #ifndef EMBEDDED_LIBRARY
   case 'V':
     print_version();
@@ -7246,7 +7292,10 @@ mysqld_get_one_option(int optid,
     }
     break;
 
-
+  case OPT_EARLY_PLUGIN_LOAD:
+    free_list(opt_early_plugin_load_list_ptr);
+    opt_early_plugin_load_list_ptr->push_back(new i_string(argument));
+    break;
   case OPT_PLUGIN_LOAD:
     free_list(opt_plugin_load_list_ptr);
     /* fall through */

@@ -45,6 +45,9 @@ Created 5/7/1996 Heikki Tuuri
 #include "btr0btr.h"
 #include "dict0boot.h"
 #include "ut0new.h"
+#include "row0sel.h"
+#include "row0mysql.h"
+#include "pars0pars.h"
 
 #include <set>
 
@@ -448,7 +451,7 @@ lock_sys_create(
 	lock_sys->prdt_page_hash = hash_create(n_cells);
 
 	if (!srv_read_only_mode) {
-		lock_latest_err_file = os_file_create_tmpfile();
+		lock_latest_err_file = os_file_create_tmpfile(NULL);
 		ut_a(lock_latest_err_file);
 	}
 }
@@ -4195,6 +4198,84 @@ lock_table_dequeue(
 			lock_grant(lock);
 		}
 	}
+}
+
+/** Sets a lock on a table based on the given mode.
+@param[in]	table	table to lock
+@param[in,out]	trx	transaction
+@param[in]	mode	LOCK_X or LOCK_S
+@return error code or DB_SUCCESS. */
+dberr_t
+lock_table_for_trx(
+	dict_table_t*	table,
+	trx_t*		trx,
+	enum lock_mode	mode)
+{
+	mem_heap_t*	heap;
+	que_thr_t*	thr;
+	dberr_t		err;
+	sel_node_t*	node;
+	heap = mem_heap_create(512);
+
+	node = sel_node_create(heap);
+	thr = pars_complete_graph_for_exec(node, trx, heap, NULL);
+	thr->graph->state = QUE_FORK_ACTIVE;
+
+	/* We use the select query graph as the dummy graph needed
+	in the lock module call */
+
+	thr = static_cast<que_thr_t*>(
+		que_fork_get_first_thr(
+			static_cast<que_fork_t*>(que_node_get_parent(thr))));
+
+	que_thr_move_to_run_state_for_mysql(thr, trx);
+
+run_again:
+	thr->run_node = thr;
+	thr->prev_node = thr->common.parent;
+
+	err = lock_table(0, table, mode, thr);
+
+	trx->error_state = err;
+
+	if (UNIV_LIKELY(err == DB_SUCCESS)) {
+		que_thr_stop_for_mysql_no_error(thr, trx);
+	} else {
+		que_thr_stop_for_mysql(thr);
+
+		if (err != DB_QUE_THR_SUSPENDED) {
+			bool	was_lock_wait;
+
+			was_lock_wait = row_mysql_handle_errors(
+				&err, trx, thr, NULL);
+
+			if (was_lock_wait) {
+				goto run_again;
+			}
+		} else {
+			que_thr_t*	run_thr;
+			que_node_t*	parent;
+
+			parent = que_node_get_parent(thr);
+
+			run_thr = que_fork_start_command(
+				static_cast<que_fork_t*>(parent));
+
+			ut_a(run_thr == thr);
+
+			/* There was a lock wait but the thread was not
+			in a ready to run or running state. */
+			trx->error_state = DB_LOCK_WAIT;
+
+			goto run_again;
+
+		}
+	}
+
+	que_graph_free(thr->graph);
+	trx->op_info = "";
+
+	return(err);
 }
 
 /*=========================== LOCK RELEASE ==============================*/

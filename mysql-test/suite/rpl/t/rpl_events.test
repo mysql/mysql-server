@@ -103,4 +103,59 @@ DROP EVENT event44331_2;
 DROP EVENT event44331_3;
 DROP EVENT event44331_4;
 --source include/sync_slave_sql_with_master.inc
+
+# Bug#21229951 VARIABLES IN ALTER EVENT NOT REPLICATED PROPERLY
+connection master;
+DELIMITER \\;
+CREATE EVENT event1 ON SCHEDULE EVERY 100 SECOND STARTS '2000-01-01 00:00:00'
+ON COMPLETION PRESERVE ENABLE DO
+BEGIN
+   SET @dummy = 100;
+END\\
+
+# A procedure that has alter event which uses sp local variable in it
+CREATE PROCEDURE proc1()
+BEGIN
+  DECLARE dummy INT UNSIGNED;
+  SET dummy = 100;
+  ALTER EVENT EVENT1 ON SCHEDULE EVERY dummy SECOND
+  STARTS '2000-01-01 00:00:00' ENABLE;
+END \\
+
+DELIMITER ;\\
+
+CALL proc1();
+--source include/sync_slave_sql_with_master.inc
+
+# Cleanup
+connection master;
+DROP EVENT event1;
+DROP PROCEDURE proc1;
+
+#
+# Bug #19286708 REPLICATION BROKEN AFTER CREATION OF SCHEDULED EVENTS
+# Testing create/alter event that has sysdate() (which makes statement unsafe)
+# Testing create/alter event that has local variables
+#
+connection master;
+call mtr.add_suppression("Unsafe statement written to the binary log");
+--disable_warnings
+set @secs=100;
+DELIMITER |;
+CREATE EVENT EVENT_WITH_SYSDATE_AND_VARIABLES
+ON SCHEDULE EVERY @secs MINUTE STARTS sysdate()
+ON COMPLETION PRESERVE
+DO BEGIN
+DECLARE EXIT HANDLER FOR SQLEXCEPTION
+SELECT CONCAT('SAMPLE MSG');
+END |
+
+ALTER EVENT EVENT_WITH_SYSDATE_AND_VARIABLES
+ON SCHEDULE
+EVERY @secs HOUR
+STARTS sysdate() |
+
+DROP EVENT EVENT_WITH_SYSDATE_AND_VARIABLES |
+--enable_warnings
+DELIMITER ;|
 --source include/rpl_end.inc

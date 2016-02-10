@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -146,6 +146,44 @@ void Item_singlerow_subselect::cleanup()
   value= 0; row= 0;
   Item_subselect::cleanup();
   DBUG_VOID_RETURN;
+}
+
+
+/**
+  Decide whether to mark the injected left expression "outer" relative to
+  the subquery. It should be marked as outer in the following cases:
+
+  1) If the left expression is not constant.
+
+  2) If the left expression could be a constant NULL and we care about the
+  difference between UNKNOWN and FALSE. In this case, JOIN::optimize() for
+  the subquery must be prevented from evaluating any triggered condition, as
+  the triggers for such conditions have not yet been properly set by
+  Item_in_optimizer::val_int(). By marking the left expression as outer, a
+  triggered condition using it will not be considered constant, will not be
+  evaluated by JOIN::optimize(); it will only be evaluated by JOIN::exec()
+  which is called from Item_in_optimizer::val_int()
+
+  3) If the left expression comes from a subquery and is not a basic
+  constant. In this case, the value cannot be read until after the subquery
+  has been evaluated. By marking it as outer, we prevent it from being read
+  when JOIN::optimize() attempts to evaluate constant conditions.
+
+  @param[in] left_row The item that represents the left operand of the IN
+                      operator
+
+  @param[in] col      The column number of the expression in the left operand
+                      to possibly mark as dependant of the outer select
+
+  @returns true if we should mark the injected left expression "outer"
+                relative to the subquery
+*/
+bool Item_in_subselect::mark_as_outer(Item *left_row, size_t col)
+{
+  const Item *left_col= left_row->element_index(col);
+  return !left_col->const_item() ||
+    (!abort_on_null && left_col->maybe_null) ||
+    (left_row->type() == SUBSELECT_ITEM && !left_col->basic_const_item());
 }
 
 
@@ -1158,12 +1196,11 @@ void Item_singlerow_subselect::fix_length_and_dec()
   }
   unsigned_flag= value->unsigned_flag;
   /*
-    If there are not tables in subquery then ability to have NULL value
-    depends on SELECT list (if single row subquery have tables then it
-    always can be NULL if there are not records fetched).
+    Check if NULL values may be returned by the subquery. Either
+    because one or more of the columns could be NULL, or because the
+    subquery could return an empty result.
   */
-  if (engine->no_tables())
-    maybe_null= engine->may_be_null();
+  maybe_null= engine->may_be_null();
 }
 
 void Item_singlerow_subselect::no_rows_in_result()
@@ -1880,8 +1917,7 @@ Item_in_subselect::single_value_transformer(SELECT_LEX *select,
     if (left == NULL)
       DBUG_RETURN(RES_ERROR);
 
-    // Make the left expression "outer" relative to the subquery
-    if (!left_expr->const_item())
+    if (mark_as_outer(left_expr, 0))
       left->depended_from= select->outer_select();
 
     m_injected_left_expr= left;
@@ -2310,9 +2346,9 @@ Item_in_subselect::row_value_in_to_exists_transformer(SELECT_LEX *select)
       if (left == NULL)
         DBUG_RETURN(RES_ERROR);              /* purecov: inspected */
 
-      // Make the left expression "outer" relative to the subquery
-      if (!left_expr->element_index(i)->const_item())
+      if (mark_as_outer(left_expr, i))
         left->depended_from= select->outer_select();
+
       Item_bool_func *item_eq=
         new Item_func_eq(left,
                          new
@@ -2401,8 +2437,7 @@ Item_in_subselect::row_value_in_to_exists_transformer(SELECT_LEX *select)
       if (left == NULL)
         DBUG_RETURN(RES_ERROR);
 
-      // Make the left expression "outer" relative to the subquery
-      if (!left_expr->element_index(i)->const_item())
+      if (mark_as_outer(left_expr, i))
         left->depended_from= select->outer_select();
 
       Item_bool_func *item=
@@ -2672,6 +2707,16 @@ void Item_in_subselect::fix_after_pullout(st_select_lex *parent_select,
 
 bool Item_in_subselect::init_left_expr_cache()
 {
+  /*
+    Check if the left operand is a subquery that yields an empty set of rows.
+    If so, skip initializing a cache; for an empty set the subquery
+    exec won't read any rows and so lead to uninitalized reads if attempted.
+  */
+  if (left_expr->type() == SUBSELECT_ITEM && left_expr->null_value)
+  {
+    return false;
+  }
+
   JOIN *outer_join;
   bool use_result_field= FALSE;
 
@@ -2936,12 +2981,28 @@ bool subselect_indexsubquery_engine::prepare()
 }
 
 
-/* 
- makes storage for the output values for the subquery and calcuates 
- their data and column types and their nullability.
-*/ 
-void subselect_engine::set_row(List<Item> &item_list, Item_cache **row)
+/**
+  Makes storage for the output values for a scalar or row subquery and
+  calculates their data and column types and their nullability. Only
+  to be called on engines that represent scalar or row subqueries
+  (that is, subselect_single_select_engine and subselect_union_engine).
+
+  @param item_list       list of items in the select list of the subquery
+  @param row             cache objects to hold the result row of the subquery
+  @param possibly_empty  true if the subquery could return empty result
+*/
+void subselect_engine::set_row(List<Item> &item_list, Item_cache **row,
+                               bool possibly_empty)
 {
+  DBUG_ASSERT(engine_type() == SINGLE_SELECT_ENGINE ||
+              engine_type() == UNION_ENGINE);
+
+  /*
+    Empty scalar or row subqueries evaluate to NULL, so if it is
+    possibly empty, it is also possibly NULL.
+  */
+  maybe_null= possibly_empty;
+
   Item *sel_item;
   List_iterator_fast<Item> li(item_list);
   res_type= STRING_RESULT;
@@ -2953,40 +3014,62 @@ void subselect_engine::set_row(List<Item> &item_list, Item_cache **row)
     res_field_type= sel_item->field_type();
     item->decimals= sel_item->decimals;
     item->unsigned_flag= sel_item->unsigned_flag;
-    maybe_null= sel_item->maybe_null;
+    maybe_null|= sel_item->maybe_null;
     if (!(row[i]= Item_cache::get_cache(sel_item)))
       return;
     row[i]->setup(sel_item);
     row[i]->store(sel_item);
+    row[i]->maybe_null= possibly_empty || sel_item->maybe_null;
   }
   if (item_list.elements > 1)
     res_type= ROW_RESULT;
 }
 
+
+/**
+  Check if a query block is guaranteed to return one row. We know that
+  this is the case if it has no tables and is not filtered with WHERE,
+  HAVING or LIMIT clauses.
+
+  @param select_lex  the SELECT_LEX of the query block to check
+
+  @return true if we are certain that the query block always returns
+  one row, false otherwise
+*/
+static bool guaranteed_one_row(const SELECT_LEX *select_lex)
+{
+  return select_lex->table_list.elements == 0 &&
+    !select_lex->where_cond() &&
+    !select_lex->having_cond() &&
+    !select_lex->select_limit;
+}
+
+
 void subselect_single_select_engine::fix_length_and_dec(Item_cache **row)
 {
   DBUG_ASSERT(row || select_lex->item_list.elements==1);
-  set_row(select_lex->item_list, row);
+  set_row(select_lex->item_list, row, !guaranteed_one_row(select_lex));
   item->collation.set(row[0]->collation);
-  if (cols() != 1)
-    maybe_null= 0;
 }
 
 void subselect_union_engine::fix_length_and_dec(Item_cache **row)
 {
   DBUG_ASSERT(row || unit->first_select()->item_list.elements==1);
 
+  // A UNION is possibly empty only if all of its SELECTs are possibly empty.
+  bool possibly_empty= true;
+  for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
+  {
+    if (guaranteed_one_row(sl))
+    {
+      possibly_empty= false;
+      break;
+    }
+  }
+
+  set_row(unit->item_list, row, possibly_empty);
   if (unit->first_select()->item_list.elements == 1)
-  {
-    set_row(unit->item_list, row);
     item->collation.set(row[0]->collation);
-  }
-  else
-  {
-    bool maybe_null_saved= maybe_null;
-    set_row(unit->item_list, row);
-    maybe_null= maybe_null_saved;
-  }
 }
 
 void subselect_indexsubquery_engine::fix_length_and_dec(Item_cache **row)
@@ -3135,7 +3218,7 @@ bool subselect_indexsubquery_engine::scan_table()
 
   table->file->extra_opt(HA_EXTRA_CACHE,
                          item->unit->thd->variables.read_buff_size);
-  table->null_row= 0;
+  table->reset_null_row();
   for (;;)
   {
     error=table->file->ha_rnd_next(table->record[0]);
@@ -3415,7 +3498,7 @@ bool subselect_indexsubquery_engine::exec()
     for (;;)
     {
       error= 0;
-      table->null_row= 0;
+      table->reset_null_row();
       if (!table->status)
       {
         if ((!cond || cond->val_int()) && (!having || having->val_int()))
@@ -3676,74 +3759,6 @@ bool subselect_indexsubquery_engine::change_query_result(Item_subselect *si,
 {
   DBUG_ASSERT(0);
   return TRUE;
-}
-
-
-/**
-  Report about presence of tables in subquery.
-
-  @retval
-    TRUE  there are not tables used in subquery
-  @retval
-    FALSE there are some tables in subquery
-*/
-bool subselect_single_select_engine::no_tables() const
-{
-  return(select_lex->table_list.elements == 0);
-}
-
-
-/*
-  Check statically whether the subquery can return NULL
-
-  SINOPSYS
-    subselect_single_select_engine::may_be_null()
-
-  RETURN
-    FALSE  can guarantee that the subquery never return NULL
-    TRUE   otherwise
-*/
-bool subselect_single_select_engine::may_be_null() const
-{
-  return ((no_tables() &&
-           !select_lex->where_cond() &&
-           !select_lex->having_cond() &&
-           !select_lex->select_limit) ? maybe_null : true);
-}
-
-
-/**
-  Report about presence of tables in subquery.
-
-  @retval
-    TRUE  there are not tables used in subquery
-  @retval
-    FALSE there are some tables in subquery
-*/
-bool subselect_union_engine::no_tables() const
-{
-  for (SELECT_LEX *sl= unit->first_select(); sl; sl= sl->next_select())
-  {
-    if (sl->table_list.elements)
-      return FALSE;
-  }
-  return TRUE;
-}
-
-
-/**
-  Report about presence of tables in subquery.
-
-  @retval
-    TRUE  there are not tables used in subquery
-  @retval
-    FALSE there are some tables in subquery
-*/
-
-bool subselect_indexsubquery_engine::no_tables() const
-{
-  /* returning value is correct, but this method should never be called */
-  return 0;
 }
 
 

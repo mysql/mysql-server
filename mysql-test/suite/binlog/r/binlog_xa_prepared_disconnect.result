@@ -2,6 +2,7 @@ include/gtid_utils.inc
 RESET MASTER;
 CREATE VIEW v_processlist  as SELECT * FROM performance_schema.threads where type = 'FOREGROUND';
 call mtr.add_suppression("Found 10 prepared XA transactions");
+call mtr.add_suppression("Found 1 prepared XA transactions");
 CREATE TABLE t (a INT) ENGINE=innodb;
 SET @@sql_log_bin = OFF;
 CREATE TEMPORARY TABLE tmp1 (a int) ENGINE=innodb;
@@ -811,6 +812,9 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE ALGORITHM=UNDEFINED DEFINER=`ro
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `mtr`; INSERT INTO test_suppressions (pattern) VALUES ( NAME_CONST('pattern',_latin1'Found 10 prepared XA transactions' COLLATE 'latin1_swedish_ci'))
 master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `mtr`; INSERT INTO test_suppressions (pattern) VALUES ( NAME_CONST('pattern',_latin1'Found 1 prepared XA transactions' COLLATE 'latin1_swedish_ci'))
+master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t (a INT) ENGINE=innodb
 master-bin.000001	#	Query	#	#	XA START X'7472785f30',X'',1
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t SET a=0
@@ -919,5 +923,19 @@ include/assert.inc [committed gno 130]
 All transactions must be completed, to empty-list the following:
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
+CREATE TABLE t(a INT);
+XA START 'xa1';
+INSERT INTO t SET a = 1;
+XA END 'xa1';
+SET @@SESSION.pseudo_slave_mode=1;
+XA PREPARE 'xa1';
 # restart
+XA ROLLBACK 'xa1';
+XA START 'xa1';
+INSERT INTO t SET a = 1;
+XA END 'xa1';
+XA PREPARE 'xa1';
+SET @@SESSION.pseudo_slave_mode=1;
+XA COMMIT 'xa1';
+DROP TABLE t;
 include/gtid_utils_end.inc

@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -77,6 +77,11 @@ Created 10/21/1995 Heikki Tuuri
 bool	innodb_calling_exit;
 #endif /* UNIV_DEBUG */
 
+#include <my_aes.h>
+#include <my_rnd.h>
+#include <mysqld.h>
+#include <mysql/service_mysql_keyring.h>
+
 /** Insert buffer segment id */
 static const ulint IO_IBUF_SEGMENT = 0;
 
@@ -85,6 +90,26 @@ static const ulint IO_LOG_SEGMENT = 1;
 
 /** Number of retries for partial I/O's */
 static const ulint NUM_RETRIES_ON_PARTIAL_IO = 10;
+
+/** Blocks for doing IO, used in the transparent compression code. */
+struct Block {
+	/** Default constructor */
+	Block() : m_ptr(), m_in_use() { }
+
+	byte*		m_ptr;
+
+	byte		pad[CACHE_LINE_SIZE - sizeof(ulint)];
+	lock_word_t	m_in_use;
+};
+
+/** For storing the allocated blocks */
+typedef std::vector<Block> Blocks;
+
+/** Block collection */
+static Blocks*	block_cache;
+
+/** Number of blocks to allocate for sync read/writes */
+static const size_t	MAX_BLOCKS = 128;
 
 /* This specifies the file permissions InnoDB uses when it creates files in
 Unix; the value of os_innodb_umask is initialized in ha_innodb.cc to
@@ -843,6 +868,41 @@ os_aio_windows_handler(
 	IORequest*	type);
 #endif /* WIN_ASYNC_IO */
 
+/** Allocate a page for sync IO
+@return pointer to page */
+static
+Block*
+os_alloc_block()
+{
+	size_t		pos;
+	Blocks&		blocks = *block_cache;
+	size_t		i = my_timer_cycles();
+	const size_t	size = blocks.size();
+
+	for (;;) {
+
+		pos = i++ % size;
+
+		if (TAS(&blocks[pos].m_in_use, 1) == 0) {
+			break;
+		}
+	}
+
+	ut_a(blocks[pos].m_in_use == 1);
+
+	return(&blocks[pos]);
+}
+
+/** Free a page after sync IO
+@param[in,own]	block		The block to free/release */
+static
+void
+os_free_block(Block* block)
+{
+	ut_ad(block->m_in_use == 1);
+	TAS(&block->m_in_use, 0);
+}
+
 /** Generic AIO Handler methods. Currently handles IO post processing. */
 class AIOHandler {
 public:
@@ -865,6 +925,14 @@ public:
 	}
 
 private:
+	/** Check whether the page was encrypted.
+	@param[in]	slot		The slot that contains the IO request
+	@return true if it was an encyrpted page */
+	static bool is_encrypted_page(const Slot* slot)
+	{
+		return(Encryption::is_encrypted_page(slot->buf));
+	}
+
 	/** Check whether the page was compressed.
 	@param[in]	slot		The slot that contains the IO request
 	@return true if it was a compressed page */
@@ -939,14 +1007,6 @@ public:
 		m_offset(offset)
 	{
 		ut_ad(m_n > 0);
-
-		/* If off_t is > 4 bytes in size, then we assume we can pass a
-		64-bit address */
-		off_t	offs = static_cast<off_t>(m_offset);
-
-		if (sizeof(off_t) <= 4 && m_offset != (os_offset_t) offs) {
-			ib::error() << "file write at offset > 4 GB.";
-		}
 	}
 
 	/** Destructor */
@@ -1064,6 +1124,18 @@ AIOHandler::check_read(Slot* slot, ulint n_bytes)
 
 			err = DB_FAIL;
 		}
+	} else if (is_encrypted_page(slot)) {
+			ut_a(slot->offset > 0);
+
+			slot->len = slot->original_len;
+#ifdef _WIN32
+			slot->n_bytes = static_cast<DWORD>(n_bytes);
+#else
+			slot->n_bytes = static_cast<ulint>(n_bytes);
+#endif /* _WIN32 */
+
+			err = io_complete(slot);
+			ut_a(err == DB_SUCCESS);
 	} else {
 		err = DB_FAIL;
 	}
@@ -1090,7 +1162,9 @@ AIOHandler::post_io_processing(Slot* slot)
 		&& slot->type.is_compressed()
 		&& slot->len == static_cast<ulint>(slot->n_bytes))) {
 
-		if (!slot->type.is_log() && is_compressed_page(slot)) {
+		if (!slot->type.is_log()
+		    && (is_compressed_page(slot)
+			|| is_encrypted_page(slot))) {
 
 			ut_a(slot->offset > 0);
 
@@ -1490,13 +1564,17 @@ AIO::release_with_mutex(Slot* slot)
 }
 
 /** Creates a temporary file.  This function is like tmpfile(3), but
-the temporary file is created in the MySQL temporary directory.
+the temporary file is created in the given parameter path. If the path
+is NULL then it will create the file in the MySQL server configuration
+parameter (--tmpdir).
+@param[in]	path	location for creating temporary file
 @return temporary file handle, or NULL on error */
 FILE*
-os_file_create_tmpfile()
+os_file_create_tmpfile(
+	const char*	path)
 {
 	FILE*	file	= NULL;
-	int	fd	= innobase_mysql_tmpfile();
+	int	fd	= innobase_mysql_tmpfile(path);
 
 	if (fd >= 0) {
 		file = fdopen(fd, "w+b");
@@ -1566,11 +1644,19 @@ os_file_io_complete(
 		return(DB_SUCCESS);
 
 	} else if (type.is_read()) {
+		dberr_t		ret;
+		Encryption	encryption(type.encryption_algorithm());
 
 		ut_ad(!type.is_log());
 
-		return(os_file_decompress_page(
-			type.is_dblwr_recover(), buf, scratch, len));
+		ret = encryption.decrypt(type, buf, src_len, scratch, len);
+		if (ret == DB_SUCCESS) {
+			return(os_file_decompress_page(
+					type.is_dblwr_recover(),
+					buf, scratch, len));
+		} else {
+			return(ret);
+		}
 
 	} else if (type.punch_hole()) {
 
@@ -1913,7 +1999,7 @@ os_file_create_subdirs_if_needed(
 @return pointer to allocated page, compressed data is written to the offset
 	that is aligned on UNIV_SECTOR_SIZE of Block.m_ptr */
 static
-byte*
+Block*
 os_file_compress_page(
 	IORequest&	type,
 	void*&		buf,
@@ -1929,11 +2015,7 @@ os_file_compress_page(
 	ut_a(type.compression_algorithm().m_type != Compression::LZ4
 	     || static_cast<ulint>(LZ4_COMPRESSBOUND(*n)) < n_alloc);
 
-	byte*	ptr = reinterpret_cast<byte*>(ut_malloc_nokey(n_alloc));
-
-	if (ptr == NULL) {
-		return(NULL);
-	}
+	Block*  block = os_alloc_block();
 
 	ulint	old_compressed_len;
 	ulint	compressed_len = *n;
@@ -1951,7 +2033,7 @@ os_file_compress_page(
 	byte*	compressed_page;
 
 	compressed_page = static_cast<byte*>(
-		ut_align(ptr, UNIV_SECTOR_SIZE));
+		ut_align(block->m_ptr, UNIV_SECTOR_SIZE));
 
 	byte*	buf_ptr;
 
@@ -1979,7 +2061,54 @@ os_file_compress_page(
 		}
 	}
 
-	return(ptr);
+	return(block);
+}
+
+/** Encrypt a page content when write it to disk.
+@param[in]	type		IO flags
+@param[out]	buf		buffer to read or write
+@param[in,out]	n		number of bytes to read/write, starting from
+				offset
+@param[out]	err		DB_SUCCESS or error code
+@return pointer to the encrypted page */
+static
+Block*
+os_file_encrypt_page(
+	const IORequest&	type,
+	void*&			buf,
+	ulint*			n,
+	dberr_t*		err)
+{
+
+	byte*		encrypted_page;
+	ulint		encrypted_len = *n;
+	byte*		buf_ptr;
+	Encryption	encryption(type.encryption_algorithm());
+
+	ut_ad(!type.is_log());
+	ut_ad(type.is_write());
+	ut_ad(type.is_encrypted());
+
+	Block*  block = os_alloc_block();
+
+	encrypted_page = static_cast<byte*>(
+		ut_align(block->m_ptr, UNIV_SECTOR_SIZE));
+
+	buf_ptr = encryption.encrypt(type,
+				     reinterpret_cast<byte*>(buf), *n,
+				     encrypted_page, &encrypted_len);
+
+	bool	encrypted = buf_ptr != buf;
+
+	if (encrypted) {
+
+		buf = buf_ptr;
+		*n = encrypted_len;
+	}
+
+	*err = DB_SUCCESS;
+
+	return(block);
 }
 
 #ifndef _WIN32
@@ -2664,7 +2793,7 @@ AIO::is_linux_native_aio_supported()
 	} else if (!srv_read_only_mode) {
 
 		/* Now check if tmpdir supports native aio ops. */
-		fd = innobase_mysql_tmpfile();
+		fd = innobase_mysql_tmpfile(NULL);
 
 		if (fd < 0) {
 			ib::warn()
@@ -5191,28 +5320,6 @@ AIO::simulated_put_read_threads_to_sleep()
 
 #endif /* !_WIN32*/
 
-/** Validate the type, offset and number of bytes to read *
-@param[in]	type		IO flags
-@param[in]	offset		Offset from start of the file
-@param[in]	n		Number of bytes to read from offset */
-static
-void
-os_file_check_args(const IORequest& type, os_offset_t offset, ulint n)
-{
-	ut_ad(type.validate());
-
-	ut_ad(n > 0);
-
-	/* If off_t is > 4 bytes in size, then we assume we can pass a
-	64-bit address */
-	off_t		offs = static_cast<off_t>(offset);
-
-	if (sizeof(off_t) <= 4 && offset != (os_offset_t) offs) {
-
-		ib::error() << "file write at offset > 4 GB.";
-	}
-}
-
 /** Does a syncronous read or write depending upon the type specified
 In case of partial reads/writes the function tries
 NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
@@ -5233,7 +5340,7 @@ os_file_io(
 	os_offset_t	offset,
 	dberr_t*	err)
 {
-	byte*		ptr;
+	Block*		block;
 	ulint		original_n = n;
 	IORequest	type = in_type;
 	byte*		compressed_page;
@@ -5244,15 +5351,35 @@ os_file_io(
 		/* We don't compress the first page of any file. */
 		ut_ad(offset > 0);
 
-		ptr  = os_file_compress_page(type, buf, &n);
+		block = os_file_compress_page(type, buf, &n);
 
 		compressed_page = static_cast<byte*>(
-			ut_align(ptr, UNIV_SECTOR_SIZE));
-
+			ut_align(block->m_ptr, UNIV_SECTOR_SIZE));
 	} else {
-		ptr = NULL;
+		block = NULL;
 		compressed_page = NULL;
 	}
+
+	/* We do encryption after compression, since if we do encryption
+	before compression, the encrypted data will cause compression fail
+	or low compression rate. */
+        if (type.is_encrypted() && type.is_write()) {
+		/* We don't encrypt the first page of any file. */
+		Block*	compressed_block = block;
+		ut_ad(offset > 0);
+
+		block = os_file_encrypt_page(type, buf, &n, err);
+
+		if (*err != DB_SUCCESS) {
+			ut_ad(block == NULL);
+
+			return(-1);
+		}
+
+		if (compressed_block != NULL) {
+			os_free_block(compressed_block);
+		}
+        }
 
 	SyncFileIO	sync_file_io(file, buf, n, offset);
 
@@ -5277,14 +5404,13 @@ os_file_io(
 					reinterpret_cast<byte*>(buf),
 					compressed_page, original_n,
 					static_cast<ulint>(offset), n);
-
-				if (ptr != NULL) {
-					ut_free(ptr);
-				}
-
 			} else {
 
 				*err = DB_SUCCESS;
+			}
+
+			if (block != NULL) {
+				os_free_block(block);
 			}
 
 			return(original_n);
@@ -5313,8 +5439,8 @@ os_file_io(
 		sync_file_io.advance(n_bytes);
 	}
 
-	if (ptr != NULL) {
-		ut_free(ptr);
+	if (block != NULL) {
+		os_free_block(block);
 	}
 
 	*err = DB_IO_ERROR;
@@ -5381,7 +5507,8 @@ os_file_write_page(
 {
 	dberr_t		err;
 
-	os_file_check_args(type, offset, n);
+	ut_ad(type.validate());
+	ut_ad(n > 0);
 
 	ssize_t	n_bytes = os_file_pwrite(type, file, buf, n, offset, &err);
 
@@ -5469,7 +5596,8 @@ os_file_read_page(
 
 	os_bytes_read_since_printout += n;
 
-	os_file_check_args(type, offset, n);
+	ut_ad(type.validate());
+	ut_ad(n > 0);
 
 	for (;;) {
 		ssize_t	n_bytes;
@@ -6152,8 +6280,10 @@ AIO::init_slots()
 
 #endif /* WIN_ASYNC_IO */
 
+		/* We need 2 max page size for comprssion, and
+		another 2 max page size for encryption. */
 		slot.compressed_ptr = reinterpret_cast<byte*>(
-			ut_zalloc_nokey(UNIV_PAGE_SIZE_MAX * 2));
+			ut_zalloc_nokey(UNIV_PAGE_SIZE_MAX * 4));
 
 		if (slot.compressed_ptr == NULL) {
 			return(DB_OUT_OF_MEMORY);
@@ -6466,6 +6596,26 @@ os_aio_init(
 	}
 #endif /* _WIN32 */
 
+	ut_a(block_cache == NULL);
+
+	block_cache = new(std::nothrow) Blocks(MAX_BLOCKS);
+
+	for (Blocks::iterator it = block_cache->begin();
+	     it != block_cache->end();
+	     ++it) {
+
+		ut_a(it->m_in_use == 0);
+		ut_a(it->m_ptr == NULL);
+
+		/* Allocate double of max page size memory, since
+		compress could generate more bytes than orgininal
+		data. */
+		it->m_ptr = static_cast<byte*>(
+			ut_malloc_nokey(UNIV_PAGE_SIZE_MAX * 2));
+
+		ut_a(it->m_ptr != NULL);
+	}
+
 	return(AIO::start(limit, n_readers, n_writers, n_slots_sync));
 }
 
@@ -6482,6 +6632,18 @@ os_aio_free()
 	ut_free(os_aio_segment_wait_events);
 	os_aio_segment_wait_events = 0;
 	os_aio_n_segments = 0;
+
+	for (Blocks::iterator it = block_cache->begin();
+	     it != block_cache->end();
+	     ++it) {
+
+		ut_a(it->m_in_use == 0);
+		ut_free(it->m_ptr);
+	}
+
+	delete block_cache;
+
+	block_cache = NULL;
 }
 
 /** Wakes up all async i/o threads so that they know to exit themselves in
@@ -6743,6 +6905,38 @@ AIO::reserve_slot(
 
 		acquire();
 	}
+
+	/* We do encryption after compression, since if we do encryption
+	before compression, the encrypted data will cause compression fail
+	or low compression rate. */
+	if (srv_use_native_aio
+	    && offset > 0
+	    && type.is_write()
+	    && type.is_encrypted()) {
+		ulint		encrypted_len = len;
+		byte*		encrypted_page;
+		Encryption	encryption(type.encryption_algorithm());
+
+		ut_ad(!type.is_log());
+
+		/* We use the second 2 max page size memory of comopress
+		buffer for avoiding overwrite the compressed data. */
+		encrypted_page = static_cast<byte *>(
+			ut_align(slot->compressed_ptr + 2 * UNIV_PAGE_SIZE_MAX,
+				 UNIV_PAGE_SIZE));
+
+		release();
+
+		slot->buf = encryption.encrypt(type,
+					       slot->buf,
+					       slot->len,
+					       encrypted_page,
+					       &encrypted_len);
+
+		slot->ptr = encrypted_page;
+
+		acquire();
+        }
 
 #ifdef WIN_ASYNC_IO
 	{
@@ -8147,6 +8341,31 @@ os_file_set_umask(ulint umask)
 #include <lz4.h>
 #include <zlib.h>
 
+#include <my_aes.h>
+#include <my_rnd.h>
+#include <mysqld.h>
+#include <mysql/service_mysql_keyring.h>
+
+typedef byte	Block;
+
+/** Allocate a page for sync IO
+@return pointer to page */
+static
+Block*
+os_alloc_block()
+{
+	return(reinterpret_cast<byte*>(malloc(UNIV_PAGE_SIZE_MAX * 2)));
+}
+
+/** Free a page after sync IO
+@param[in,own]	block		The block to free/release */
+static
+void
+os_free_block(Block* block)
+{
+	ut_free(block);
+}
+
 #endif /* !UNIV_INNOCHECKSUM */
 
 /**
@@ -8258,30 +8477,21 @@ Compression::deserialize(
 		return(DB_CORRUPTION);
 	}
 
-	// FIXME: We should use TLS for this and reduce the malloc/free
-	bool	allocated;
+	Block*	block;
 
 	/* The caller doesn't know what to expect */
 	if (dst == NULL) {
 
-		/* Add a safety margin of an additional 50% */
-		ulint	n_bytes = header.m_original_size
-				+ (header.m_original_size / 2);
+		block = os_alloc_block();
 
-#ifndef UNIV_INNOCHECKSUM
-		dst = reinterpret_cast<byte*>(ut_malloc_nokey(n_bytes));
+#ifdef UNIV_INNOCHECKSUM
+		dst = block;
 #else
-		dst = reinterpret_cast<byte*>(malloc(n_bytes));
-#endif /* !UNIV_INNOCHECKSUM */
+		dst = block->m_ptr;
+#endif /* UNIV_INNOCHECKSUM */
 
-		if (dst == NULL) {
-
-			return(DB_OUT_OF_MEMORY);
-		}
-
-		allocated = true;
 	} else {
-		allocated = false;
+		block = NULL;
 	}
 
 	int		ret;
@@ -8298,8 +8508,8 @@ Compression::deserialize(
 		if (uncompress(dst, &zlen, ptr, header.m_compressed_size)
 		    != Z_OK) {
 
-			if (allocated) {
-				ut_free(dst);
+			if (block != NULL) {
+				os_free_block(block);
 			}
 
 			return(DB_IO_DECOMPRESS_FAIL);
@@ -8337,8 +8547,8 @@ Compression::deserialize(
 
 		if (ret < 0) {
 
-			if (allocated) {
-				ut_free(dst);
+			if (block != NULL) {
+				os_free_block(block);
 			}
 
 			return(DB_IO_DECOMPRESS_FAIL);
@@ -8356,8 +8566,8 @@ Compression::deserialize(
 			Compression::to_string(compression.m_type));
 #endif /* !UNIV_INNOCHECKSUM */
 
-		if (allocated) {
-			ut_free(dst);
+		if (block != NULL) {
+			os_free_block(block);
 		}
 
 		return(DB_UNSUPPORTED);
@@ -8373,8 +8583,8 @@ Compression::deserialize(
 			src + (header.m_original_size + FIL_PAGE_DATA)
 			- FIL_PAGE_END_LSN_OLD_CHKSUM + 4, 4) == 0);
 
-	if (allocated) {
-		ut_free(dst);
+	if (block != NULL) {
+		os_free_block(block);
 	}
 
 	return(DB_SUCCESS);
@@ -8396,6 +8606,574 @@ os_file_decompress_page(
 	ulint		dst_len)
 {
 	return(Compression::deserialize(dblwr_recover, src, dst, dst_len));
+}
+
+/**
+@param[in]      type            The encryption type
+@return the string representation */
+const char*
+Encryption::to_string(Type type)
+{
+        switch(type) {
+        case NONE:
+                return("N");
+        case AES:
+                return("Y");
+        }
+
+        ut_ad(0);
+
+        return("<UNKNOWN>");
+}
+
+/** Generate random encryption value for key and iv.
+@param[in,out]	value	Encryption value */
+void Encryption::random_value(byte* value)
+{
+	ut_ad(value != NULL);
+
+	my_rand_buffer(value, ENCRYPTION_KEY_LEN);
+}
+
+/** Create new master key
+@param[in,out]	master_key	master key */
+void
+Encryption::create_master_key(byte** master_key)
+{
+#ifndef UNIV_INNOCHECKSUM
+	char*	key_type = NULL;
+	size_t	key_len;
+	char	key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
+	int	ret;
+
+	memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
+
+	/* Generate new master key */
+	sprintf(key_name, "%s-%lu-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
+		server_id, master_key_id + 1);
+
+	/* We call key ring API to generate master key here. */
+	ret = my_key_generate(key_name, "AES",
+			      NULL, ENCRYPTION_KEY_LEN);
+
+	/* We call key ring API to get master key here. */
+	ret = my_key_fetch(key_name, &key_type, NULL,
+			   reinterpret_cast<void**>(master_key),
+			   &key_len);
+
+	if (ret) {
+		ib::error() << "Encryption can't find master key, please check"
+				" the keyring plugin is loaded.";
+		*master_key = NULL;
+	}
+
+	master_key_id++;
+
+	if (key_type) {
+		my_free(key_type);
+	}
+#endif
+}
+
+/** Get master key by key id.
+@param[in]	master_key_id	master key id
+@param[in,out]	master_key	master key */
+void
+Encryption::get_master_key(ulint master_key_id,
+			   byte** master_key)
+{
+#ifndef UNIV_INNOCHECKSUM
+	char*	key_type = NULL;
+	size_t	key_len;
+	char	key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
+	int	ret;
+
+	memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
+	sprintf(key_name, "%s-%lu-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
+		server_id, master_key_id);
+
+	/* We call key ring API to get master key here. */
+	ret = my_key_fetch(key_name, &key_type, NULL,
+			   reinterpret_cast<void**>(master_key), &key_len);
+
+	if (ret) {
+		*master_key = NULL;
+		ib::error() << "Encryption can't find master key, please check"
+				" the keyring plugin is loaded.";
+	}
+
+	if (key_type) {
+		my_free(key_type);
+	}
+
+#ifdef UNIV_ENCRYPT_DEBUG
+	if (!ret && *master_key) {
+		fprintf(stderr, "Fetched master key:%lu ", master_key_id);
+		ut_print_buf(stderr, *master_key, key_len);
+		fprintf(stderr, "\n");
+	}
+#endif /* DEBUG_TDE */
+
+#endif
+}
+
+ulint	Encryption::master_key_id = 0;
+
+/** Get current master key and master key id
+@param[in,out]	master_key_id	master key id
+@param[in,out]	master_key	master key */
+void
+Encryption::get_master_key(ulint* master_key_id, byte** master_key)
+{
+#ifndef UNIV_INNOCHECKSUM
+	char*	key_type = NULL;
+	size_t	key_len;
+	char	key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
+	int	ret;
+
+	memset(key_name, 0, ENCRYPTION_KEY_LEN);
+
+	if (Encryption::master_key_id == 0) {
+		/* If m_master_key is 0, means there's no encrypted
+		tablespace, we need to generate the first master key,
+		and store it to key ring. */
+		sprintf(key_name, "%s-%lu-1", ENCRYPTION_MASTER_KEY_PRIFIX,
+			server_id);
+
+		/* We call key ring API to generate master key here. */
+		ret = my_key_generate(key_name, "AES",
+				      NULL, ENCRYPTION_KEY_LEN);
+
+		/* We call key ring API to get master key here. */
+		ret = my_key_fetch(key_name, &key_type, NULL,
+				   reinterpret_cast<void**>(master_key),
+				   &key_len);
+
+		if (!ret && *master_key != NULL) {
+			Encryption::master_key_id++;
+			*master_key_id = Encryption::master_key_id;
+		}
+#ifdef UNIV_ENCRYPT_DEBUG
+		if (!ret && *master_key) {
+			fprintf(stderr, "Generated new master key:");
+			ut_print_buf(stderr, *master_key, key_len);
+			fprintf(stderr, "\n");
+		}
+#endif
+	} else {
+		*master_key_id = Encryption::master_key_id;
+
+		sprintf(key_name, "%s-%lu-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
+			server_id, *master_key_id);
+
+		/* We call key ring API to get master key here. */
+		ret = my_key_fetch(key_name, &key_type, NULL,
+				   reinterpret_cast<void**>(master_key),
+				   &key_len);
+#ifdef UNIV_ENCRYPT_DEBUG
+		if (!ret && *master_key) {
+			fprintf(stderr, "Fetched master key:%lu ",
+				*master_key_id);
+			ut_print_buf(stderr, *master_key, key_len);
+			fprintf(stderr, "\n");
+		}
+#endif
+	}
+
+	if (ret) {
+		*master_key = NULL;
+		ib::error() << "Encryption can't find master key, please check"
+				" the keyring plugin is loaded.";
+	}
+
+	if (key_type) {
+		my_free(key_type);
+	}
+#endif
+}
+
+/** Check if page is encrypted page or not
+@param[in]	page	page which need to check
+@return true if it is a encrypted page */
+bool
+Encryption::is_encrypted_page(const byte* page)
+{
+	ulint	page_type = mach_read_from_2(page + FIL_PAGE_TYPE);
+
+	return(page_type == FIL_PAGE_ENCRYPTED
+	       || page_type == FIL_PAGE_COMPRESSED_AND_ENCRYPTED
+	       || page_type == FIL_PAGE_ENCRYPTED_RTREE);
+}
+
+/** Encrypt the page data contents. Page type can't be
+FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,
+FIL_PAGE_ENCRYPTED_RTREE.
+@param[in]	type		IORequest
+@param[in,out]	src		page data which need to encrypt
+@param[in]	src_len		Size of the source in bytes
+@param[in,out]	dst		destination area
+@param[in,out]	dst_len		Size of the destination in bytes
+@return buffer data, dst_len will have the length of the data */
+byte*
+Encryption::encrypt(
+	const IORequest&	type,
+	byte*			src,
+	ulint			src_len,
+	byte*			dst,
+	ulint*			dst_len)
+{
+	ulint		len = 0;
+	ulint		page_type = mach_read_from_2(src + FIL_PAGE_TYPE);
+	ulint		data_len;
+	ulint		main_len;
+	ulint		remain_len;
+	byte		remain_buf[MY_AES_BLOCK_SIZE * 2];
+
+#ifdef UNIV_ENCRYPT_DEBUG
+	ulint space_id =
+		mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+	ulint page_no = mach_read_from_4(src + FIL_PAGE_OFFSET);
+
+	fprintf(stderr, "Encrypting page:%lu.%lu len:%lu\n",
+		space_id, page_no, src_len);
+#endif
+
+	/* Shouldn't encrypte an already encrypted page. */
+	ut_ad(page_type != FIL_PAGE_ENCRYPTED
+	      && page_type != FIL_PAGE_COMPRESSED_AND_ENCRYPTED
+	      && page_type != FIL_PAGE_ENCRYPTED_RTREE);
+
+	ut_ad(m_type != Encryption::NONE);
+
+	/* This is data size which need to encrypt. */
+	data_len = src_len - FIL_PAGE_DATA;
+	main_len = (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;
+	remain_len = data_len - main_len;
+
+	/* Only encrypt the data + trailer, leave the header alone */
+
+	switch (m_type) {
+	case Encryption::NONE:
+		ut_error;
+
+	case Encryption::AES: {
+		lint			elen;
+
+		ut_ad(m_klen == ENCRYPTION_KEY_LEN);
+
+		elen = my_aes_encrypt(
+			src + FIL_PAGE_DATA,
+			static_cast<uLong>(main_len),
+			dst + FIL_PAGE_DATA,
+			reinterpret_cast<unsigned char*>(m_key),
+			m_klen,
+			my_aes_256_cbc,
+			reinterpret_cast<unsigned char*>(m_iv),
+			false);
+
+		if (elen == MY_AES_BAD_DATA) {
+			ulint	page_no =mach_read_from_4(
+				src + FIL_PAGE_OFFSET);
+			ulint	space_id = mach_read_from_4(
+				src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+			*dst_len = src_len;
+#ifndef UNIV_INNOCHECKSUM
+				ib::warn()
+					<< " Can't encrypt data of page,"
+					<< " page no:" << page_no
+					<< " space id:" << space_id;
+#else
+				fprintf(stderr, " Can't encrypt data of page,"
+					" page no:%lu space id:%lu",
+					page_no, space_id);
+#endif /* !UNIV_INNOCHECKSUM */
+			return(src);
+		}
+
+		len = static_cast<ulint>(elen);
+		ut_ad(len == main_len);
+
+		/* Copy remain bytes and page tailer. */
+		memcpy(dst + FIL_PAGE_DATA + len,
+		       src + FIL_PAGE_DATA + len,
+		       src_len - FIL_PAGE_DATA - len);
+
+		/* Encrypt the remain bytes. */
+		if (remain_len != 0) {
+			remain_len = MY_AES_BLOCK_SIZE * 2;
+
+			elen = my_aes_encrypt(
+				dst + FIL_PAGE_DATA + data_len - remain_len,
+				remain_len,
+				remain_buf,
+				reinterpret_cast<unsigned char*>(m_key),
+				m_klen,
+				my_aes_256_cbc,
+				reinterpret_cast<unsigned char*>(m_iv),
+				false);
+
+			if (elen == MY_AES_BAD_DATA) {
+				ulint	page_no =mach_read_from_4(
+					src + FIL_PAGE_OFFSET);
+				ulint	space_id = mach_read_from_4(
+					src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+#ifndef UNIV_INNOCHECKSUM
+				ib::warn()
+					<< " Can't encrypt data of page,"
+					<< " page no:" << page_no
+					<< " space id:" << space_id;
+#else
+				fprintf(stderr, " Can't encrypt data of page,"
+					" page no:%lu space id:%lu",
+					page_no, space_id);
+#endif /* !UNIV_INNOCHECKSUM */
+				*dst_len = src_len;
+				return(src);
+			}
+
+			memcpy(dst + FIL_PAGE_DATA + data_len - remain_len,
+			       remain_buf, remain_len);
+		}
+
+
+		break;
+	}
+
+	default:
+		ut_error;
+	}
+
+	/* Copy the header as is. */
+	memmove(dst, src, FIL_PAGE_DATA);
+	ut_ad(memcmp(src, dst, FIL_PAGE_DATA) == 0);
+
+	/* Add encryption control information. Required for decrypting. */
+	if (page_type == FIL_PAGE_COMPRESSED) {
+		/* If the page is compressed, we don't need to save the
+		original type, since it is done in compression already. */
+		mach_write_to_2(dst + FIL_PAGE_TYPE,
+				FIL_PAGE_COMPRESSED_AND_ENCRYPTED);
+		ut_ad(memcmp(src+FIL_PAGE_TYPE+2,
+			     dst+FIL_PAGE_TYPE+2,
+			     FIL_PAGE_DATA-FIL_PAGE_TYPE-2) == 0);
+	} else if (page_type == FIL_PAGE_RTREE) {
+		/* If the page is R-tree page, we need to save original
+		type. */
+		mach_write_to_2(dst + FIL_PAGE_TYPE, FIL_PAGE_ENCRYPTED_RTREE);
+	} else{
+		mach_write_to_2(dst + FIL_PAGE_TYPE, FIL_PAGE_ENCRYPTED);
+		mach_write_to_2(dst + FIL_PAGE_ORIGINAL_TYPE_V1, page_type);
+	}
+
+#ifdef UNIV_ENCRYPT_DEBUG
+#ifndef UNIV_INNOCHECKSUM
+#if 0
+	byte*	check_buf = static_cast<byte*>(ut_malloc_nokey(src_len));
+	byte*	buf2 = static_cast<byte*>(ut_malloc_nokey(src_len));
+
+	memcpy(check_buf, dst, src_len);
+
+	dberr_t err = decrypt(type, check_buf, src_len, buf2, src_len);
+	if (err != DB_SUCCESS || memcmp(src + FIL_PAGE_DATA,
+					check_buf + FIL_PAGE_DATA,
+					src_len - FIL_PAGE_DATA) != 0) {
+		ut_print_buf(stderr, src, src_len);
+		ut_print_buf(stderr, check_buf, src_len);
+		ut_ad(0);
+	}
+	ut_free(buf2);
+	ut_free(check_buf);
+#endif
+	fprintf(stderr, "Encrypted page:%lu.%lu\n", space_id, page_no);
+#endif
+#endif
+	*dst_len = src_len;
+
+
+	return(dst);
+}
+
+/** Decrypt the page data contents. Page type must be FIL_PAGE_ENCRYPTED,
+if not then the source contents are left unchanged and DB_SUCCESS is returned.
+@param[in]	type		IORequest
+@param[in,out]	src		Data read from disk, decrypted data will be
+				copied to this page
+@param[in]	src_len		source data length
+@param[in,out]	dst		Scratch area to use for decryption
+@param[in]	dst_len		Size of the scratch area in bytes
+@return DB_SUCCESS or error code */
+dberr_t
+Encryption::decrypt(
+	const IORequest&	type,
+	byte*			src,
+	ulint			src_len,
+	byte*			dst,
+	ulint			dst_len)
+{
+	ulint		data_len;
+	ulint		main_len;
+	ulint		remain_len;
+	ulint		original_type;
+	ulint		page_type;
+	byte		remain_buf[MY_AES_BLOCK_SIZE * 2];
+	Block*		block;
+
+	/* Do nothing if it's not an encrypted table. */
+	if (!is_encrypted_page(src)) {
+		return(DB_SUCCESS);
+	}
+
+	/* For compressed page, we need to get the compressed size
+	for decryption */
+	page_type = mach_read_from_2(src + FIL_PAGE_TYPE);
+	if (page_type == FIL_PAGE_COMPRESSED_AND_ENCRYPTED) {
+		src_len = static_cast<uint16_t>(
+			mach_read_from_2(src + FIL_PAGE_COMPRESS_SIZE_V1))
+			+ FIL_PAGE_DATA;
+#ifndef UNIV_INNOCHECKSUM
+		src_len = ut_calc_align(src_len, type.block_size());
+#endif
+	}
+#ifdef UNIV_ENCRYPT_DEBUG
+	ulint space_id =
+		mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+	ulint page_no = mach_read_from_4(src + FIL_PAGE_OFFSET);
+
+	fprintf(stderr, "Decrypting page:%lu.%lu len:%lu\n",
+		space_id, page_no, src_len);
+#endif
+
+	original_type = static_cast<uint16_t>(
+		mach_read_from_2(src + FIL_PAGE_ORIGINAL_TYPE_V1));
+
+	byte*	ptr = src + FIL_PAGE_DATA;
+
+	/* The caller doesn't know what to expect */
+	if (dst == NULL) {
+
+		block = os_alloc_block();
+#ifdef UNIV_INNOCHECKSUM
+		dst = block;
+#else
+		dst = block->m_ptr;
+#endif /* UNIV_INNOCHECKSUM */
+
+	} else {
+		block = NULL;
+	}
+
+	data_len = src_len - FIL_PAGE_DATA;
+	main_len = (data_len / MY_AES_BLOCK_SIZE) * MY_AES_BLOCK_SIZE;
+	remain_len = data_len - main_len;
+
+	switch(m_type) {
+	case Encryption::AES: {
+		lint			elen;
+
+		/* First decrypt the last 2 blocks data of data, since
+		data is no block aligned. */
+		if (remain_len != 0) {
+			ut_ad(m_klen == ENCRYPTION_KEY_LEN);
+
+			remain_len = MY_AES_BLOCK_SIZE * 2;
+
+			/* Copy the last 2 blocks. */
+			memcpy(remain_buf,
+			       ptr + data_len - remain_len,
+			       remain_len);
+
+			elen = my_aes_decrypt(
+				remain_buf,
+				remain_len, dst + data_len - remain_len,
+				reinterpret_cast<unsigned char*>(m_key),
+				m_klen, my_aes_256_cbc,
+				reinterpret_cast<unsigned char*>(m_iv),
+				false);
+			if (elen == MY_AES_BAD_DATA) {
+				if (block != NULL) {
+					os_free_block(block);
+				}
+
+				return(DB_IO_DECRYPT_FAIL);
+			}
+
+			/* Copy the other data bytes to temp area. */
+			memcpy(dst, ptr, data_len - remain_len);
+		} else {
+			ut_ad(data_len == main_len);
+
+			/* Copy the data bytes to temp area. */
+			memcpy(dst, ptr, data_len);
+		}
+
+		/* Then decrypt the main data */
+		elen = my_aes_decrypt(
+				dst, main_len,
+				ptr,
+				reinterpret_cast<unsigned char*>(m_key),
+				m_klen,
+				my_aes_256_cbc,
+				reinterpret_cast<unsigned char*>(m_iv),
+				false);
+		if (elen == MY_AES_BAD_DATA) {
+
+			if (block != NULL) {
+				os_free_block(block);
+			}
+
+			return(DB_IO_DECRYPT_FAIL);
+		}
+
+		ut_ad(static_cast<ulint>(elen) == main_len);
+
+		/* Copy the remain bytes. */
+		memcpy(ptr + main_len, dst + main_len, data_len - main_len);
+
+		break;
+	}
+
+	default:
+#if !defined(UNIV_INNOCHECKSUM)
+		ib::error()
+			<< "Encryption algorithm support missing: "
+			<< Encryption::to_string(m_type);
+#else
+		fprintf(stderr, "Encryption algorithm support missing: %s\n",
+			Encryption::to_string(m_type));
+#endif /* !UNIV_INNOCHECKSUM */
+
+		if (block != NULL) {
+			os_free_block(block);
+		}
+
+		return(DB_UNSUPPORTED);
+	}
+
+	/* Restore the original page type. If it's a compressed and
+	encrypted page, just reset it as compressed page type, since
+	we will do uncompress later. */
+
+	if (page_type == FIL_PAGE_ENCRYPTED) {
+		mach_write_to_2(src + FIL_PAGE_TYPE, original_type);
+		mach_write_to_2(src + FIL_PAGE_ORIGINAL_TYPE_V1, 0);
+	} else if (page_type == FIL_PAGE_ENCRYPTED_RTREE) {
+		mach_write_to_2(src + FIL_PAGE_TYPE, FIL_PAGE_RTREE);
+	} else {
+		ut_ad(page_type == FIL_PAGE_COMPRESSED_AND_ENCRYPTED);
+		mach_write_to_2(src + FIL_PAGE_TYPE, FIL_PAGE_COMPRESSED);
+	}
+
+	if (block != NULL) {
+		os_free_block(block);
+	}
+
+#ifdef UNIV_ENCRYPT_DEBUG
+	fprintf(stderr, "Decrypted page:%lu.%lu\n", space_id, page_no);
+#endif
+
+	DBUG_EXECUTE_IF("ib_crash_during_decrypt_page", DBUG_SUICIDE(););
+
+	return(DB_SUCCESS);
 }
 
 /** Normalizes a directory path for the current OS:

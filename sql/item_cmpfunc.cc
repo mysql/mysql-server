@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5641,6 +5641,36 @@ longlong Item_func_in::val_int()
   return (longlong) (!null_value && negated);
 }
 
+
+void Item::check_deprecated_bin_op(const Item *a, const Item *b)
+{
+  /*
+     We want to warn about cases which will likely change behaviour in future
+     versions. The conditions to emit a warning are:
+
+     1. If there's only one argument, the item should be a [VAR]BINARY
+     argument (1) and it should be different from the hex/bit/NULL literal (2).
+
+     2. If there are two arguments, both should be [VAR]BINARY (3) and at least
+     one of them should be different from the hex/bit/NULL literal (4)
+  */
+  if (a->result_type() == STRING_RESULT &&
+      a->collation.collation == &my_charset_bin &&         // (1), (3)
+      (!b ||
+       (b->result_type() == STRING_RESULT &&
+        b->collation.collation == &my_charset_bin)) &&     // (3)
+      ((a->type() != Item::VARBIN_ITEM &&
+        a->type() != Item::NULL_ITEM) ||                   // (2), (4)
+        (b && b->type() != Item::VARBIN_ITEM &&
+          b->type() != Item::NULL_ITEM)))                  // (4)
+  {
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                        ER_WARN_DEPRECATED_SYNTAX,
+                        "Bitwise operations on BINARY will change behavior"
+                        " in a future version, check the 'Bit functions'"
+                        " section in the manual.");
+  }
+}
 
 longlong Item_func_bit_or::val_int()
 {

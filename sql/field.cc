@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6358,21 +6358,21 @@ Field_year::store(const char *from, size_t len,const CHARSET_INFO *cs)
     set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
     return TYPE_WARN_OUT_OF_RANGE;
   }
-  else if (conv_error)
+
+  if (conv_error)
     ret= TYPE_ERR_BAD_VALUE;
 
   if (table->in_use->count_cuted_fields)
-  {
     ret= check_int(cs, from, len, end, conv_error);
-    if (ret != TYPE_OK)
+
+  if (ret != TYPE_OK)
+  {
+    if (ret == TYPE_ERR_BAD_VALUE)  /* empty or incorrect string */
     {
-      if (ret == TYPE_ERR_BAD_VALUE)  /* empty or incorrect string */
-      {
-        *ptr= 0;
-        return TYPE_WARN_OUT_OF_RANGE;
-      }
-      ret= TYPE_WARN_OUT_OF_RANGE;
+      *ptr= 0; // Invalid date
+      return ret;
     }
+    ret= TYPE_WARN_OUT_OF_RANGE;
   }
 
   if (nr != 0 || len != 4)

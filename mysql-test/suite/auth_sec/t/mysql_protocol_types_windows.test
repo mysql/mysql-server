@@ -65,12 +65,12 @@ disconnect memory_con;
 --echo # Connection type testing for TCP/IP  protocol 
 --echo
 --exec $MYSQL --host=localhost --user=root --protocol=TCP -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
---exec $MYSQL --host=127.0.0.1 --user=user_tcp --skip-ssl --protocol=TCP -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
+--exec $MYSQL --host=127.0.0.1 --user=user_tcp --ssl-mode=DISABLED --protocol=TCP -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
 #
 --echo # Testing TCP/IP connections over SSL/TLS
 #
---exec $MYSQL --host=localhost --user=root --protocol=TCP --ssl -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
---exec $MYSQL --host=127.0.0.1 --user=user_ssl --protocol=TCP --ssl -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
+--exec $MYSQL --host=localhost --user=root --protocol=TCP --ssl-mode=REQUIRED -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
+--exec $MYSQL --host=127.0.0.1 --user=user_ssl --protocol=TCP --ssl-mode=REQUIRED -e "select CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'"
 --echo
 CREATE TABLE test_log (argument TEXT);
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR

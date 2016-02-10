@@ -105,7 +105,7 @@ if ($openssl != 'Rsa_public_key'){
 --source include/wait_until_connected_again.inc
 
 --error 1
---exec $MYSQL --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.1 -e "SHOW STATUS like 'Ssl_version'"
+--exec $MYSQL --ssl-mode=REQUIRED --host=127.0.0.1 -P $MASTER_MYPORT --tls-version=TLSv1.1 -e "SHOW STATUS like 'Ssl_version'"
 
 --echo # restart server using restart
 --echo Restart server and provide ssl-cipher at server startup

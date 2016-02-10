@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,6 +46,7 @@ void setup_server_for_unit_tests()
   static char *my_name= strdup(my_progname);
   char *argv[] = { my_name,
                    const_cast<char*>("--secure-file-priv=NULL"),
+                   const_cast<char*>("--early_plugin_load=\"\""),
                    const_cast<char*>("--log_syslog=0"),
                    const_cast<char*>("--explicit_defaults_for_timestamp"),
                    const_cast<char*>("--datadir=" DATA_DIR),

@@ -1816,38 +1816,39 @@ DROP TABLE t2;
 CREATE TABLE t1 ( a INT, b INT );
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1;
-ERROR 42S22: Unknown column 'c' in 'where clause'
+c	(SELECT a FROM t1 WHERE b = c)
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1 
 HAVING b = 10;
-ERROR 42S22: Unknown column 'c' in 'where clause'
+c	(SELECT a FROM t1 WHERE b = c)
 SELECT MAX(b) c, (SELECT a FROM t1 WHERE b = c)
 FROM t1 
 HAVING b = 10;
-ERROR 42S22: Unknown column 'c' in 'where clause'
+ERROR 42S22: Reference 'c' not supported (reference to group function)
 SET @old_sql_mode = @@sql_mode;
 SET @@sql_mode='ONLY_FULL_GROUP_BY';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1;
-ERROR 42S22: Unknown column 'c' in 'where clause'
+c	(SELECT a FROM t1 WHERE b = c)
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1 
 HAVING b = 10;
-ERROR 42S22: Unknown column 'c' in 'where clause'
+c	(SELECT a FROM t1 WHERE b = c)
 SELECT MAX(b) c, (SELECT a FROM t1 WHERE b = c)
 FROM t1 
 HAVING b = 10;
-ERROR 42S22: Unknown column 'c' in 'where clause'
+ERROR 42S22: Reference 'c' not supported (reference to group function)
 INSERT INTO t1 VALUES (1, 1);
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1;
-ERROR 42S22: Unknown column 'c' in 'where clause'
+c	(SELECT a FROM t1 WHERE b = c)
+1	1
 INSERT INTO t1 VALUES (2, 1);
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1;
-ERROR 42S22: Unknown column 'c' in 'where clause'
+ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t1;
 SET @@sql_mode = @old_sql_mode;
 Warnings:
@@ -3230,3 +3231,45 @@ PRIMARY KEY (pk, i), KEY c_key(c)) ENGINE=InnoDB;
 SELECT c, i, pk FROM cc WHERE (cc.pk = 1)  GROUP BY c, i, pk;
 c	i	pk
 DROP TABLE cc;
+#
+# Bug#22132822 CRASH IN GROUP_CHECK::IS_FD_ON_SOURCE
+#
+CREATE TABLE t1
+(
+a INT GENERATED ALWAYS AS (1) VIRTUAL,
+b INT GENERATED ALWAYS AS (a) VIRTUAL,
+c INT GENERATED ALWAYS AS (1) VIRTUAL
+);
+SELECT a.b FROM t1 AS a
+RIGHT JOIN t1 AS b ON 1
+INNER JOIN t1 AS c ON 1
+WHERE b.b = c.b
+GROUP BY c.c;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.a.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+DROP TABLE t1;
+#
+# Bug #22186926 CONVERT_CONSTANT_ITEM(THD*, ITEM_FIELD*, ITEM**): ASSERTION `!RESULT' FAILED.
+#
+CREATE TABLE t1
+(
+f1 INTEGER NOT NULL,
+f2 DATETIME NOT NULL,
+f3 VARCHAR(1) NOT NULL,
+KEY (f3)
+);
+INSERT INTO t1(f1, f2, f3) VALUES
+(5, '2001-07-25 08:40:24.058646', 'j'),
+(2, '1900-01-01 00:00:00', 's'),
+(4, '2001-01-20 12:47:23.022022', 'x');
+CREATE TABLE t2 (f1 VARCHAR(1) NOT NULL);
+FLUSH TABLES;
+EXPLAIN SELECT MIN(t1.f3 ) FROM t1
+WHERE t1.f3 IN (SELECT t2.f1 FROM t2 WHERE NOT t1.f2 IS NOT NULL) AND t1.f1 IS NULL OR
+NOT t1 . f3 < 'q';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1276	Field or reference 'test.t1.f2' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select min(`test`.`t1`.`f3`) AS `MIN(t1.f3 )` from `test`.`t1` where (`test`.`t1`.`f3` >= 'q')
+DROP TABLE t1,t2;

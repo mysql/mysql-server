@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -197,16 +197,23 @@ sub ssl_supported {
   return $self->{ARGS}->{ssl};
 }
 
-sub fix_skip_ssl {
+sub fix_ssl_disabled {
   return if !ssl_supported(@_);
-  # Add skip-ssl if ssl is supported to avoid
+  return if $::opt_ssl;
+  # Add ssl-mode=DISABLED to avoid
   # that mysqltest connects with SSL by default
-  return 1;
+  return "DISABLED";
 }
 
 sub fix_ssl_ca {
   return if !ssl_supported(@_);
   my $std_data= fix_std_data(@_);
+  return "$std_data/cacert.pem"
+}
+
+sub fix_client_ssl_ca {
+  return if !$::opt_ssl;
+  my $std_data= fix_std_data(@_); 
   return "$std_data/cacert.pem"
 }
 
@@ -264,6 +271,7 @@ my @mysqld_rules=
  { 'ssl-cert' => \&fix_ssl_server_cert },
  { 'ssl-key' => \&fix_ssl_server_key },
  { 'loose-sha256_password_auto_generate_rsa_keys' => "0"},
+ { 'early_plugin_load' => "" },
   );
 
 if (IS_WINDOWS)
@@ -357,10 +365,10 @@ my @client_rules=
 #
 my @mysqltest_rules=
 (
- { 'ssl-ca' => \&fix_ssl_ca },
+ { 'ssl-ca' => \&fix_client_ssl_ca },
  { 'ssl-cert' => \&fix_ssl_client_cert },
  { 'ssl-key' => \&fix_ssl_client_key },
- { 'skip-ssl' => \&fix_skip_ssl },
+ { 'ssl-mode' => \&fix_ssl_disabled },
 );
 
 

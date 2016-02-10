@@ -2439,28 +2439,28 @@ CREATE VIEW v1 AS SELECT id FROM t1;
 OPTIMIZE TABLE v1;
 Table	Op	Msg_type	Msg_text
 test.v1	optimize	Error	'test.v1' is not BASE TABLE
-test.v1	optimize	error	Corrupt
+test.v1	optimize	status	Operation failed
 ANALYZE TABLE v1;
 Table	Op	Msg_type	Msg_text
 test.v1	analyze	Error	'test.v1' is not BASE TABLE
-test.v1	analyze	error	Corrupt
+test.v1	analyze	status	Operation failed
 REPAIR TABLE v1;
 Table	Op	Msg_type	Msg_text
 test.v1	repair	Error	'test.v1' is not BASE TABLE
-test.v1	repair	error	Corrupt
+test.v1	repair	status	Operation failed
 DROP TABLE t1;
 OPTIMIZE TABLE v1;
 Table	Op	Msg_type	Msg_text
 test.v1	optimize	Error	'test.v1' is not BASE TABLE
-test.v1	optimize	error	Corrupt
+test.v1	optimize	status	Operation failed
 ANALYZE TABLE v1;
 Table	Op	Msg_type	Msg_text
 test.v1	analyze	Error	'test.v1' is not BASE TABLE
-test.v1	analyze	error	Corrupt
+test.v1	analyze	status	Operation failed
 REPAIR TABLE v1;
 Table	Op	Msg_type	Msg_text
 test.v1	repair	Error	'test.v1' is not BASE TABLE
-test.v1	repair	error	Corrupt
+test.v1	repair	status	Operation failed
 DROP VIEW v1;
 create definer = current_user() sql security invoker view v1 as select 1;
 show create view v1;
@@ -4707,12 +4707,13 @@ a	b	a	b
 explain SELECT *
 FROM t1 JOIN vx AS dt ON t1.a=dt.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	NULL
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.t2.b' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,(/* select#3 */ select `test`.`t2`.`b`) AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a`,`dt`.`b` AS `b` from `test`.`t1` join `test`.`vx` `dt` where (`dt`.`a` = `test`.`t1`.`a`)
 SET @optimizer_switch_saved= @@optimizer_switch;
 SET @@optimizer_switch="derived_merge=off";
 SELECT *
@@ -5008,21 +5009,23 @@ a	(SELECT a FROM t2 WHERE a=t1.a)
 4	4
 explain SELECT * FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Start temporary
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	11.11	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Start temporary
+3	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	11.11	Using where; End temporary; Using join buffer (Block Nested Loop)
 5	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #5 was resolved in SELECT #3
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,(/* select#5 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`)) AS `(SELECT a FROM t2 WHERE a=t1.a)` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`b` = (`test`.`t2`.`a` * 10))
+Note	1003	/* select#1 */ select `dt`.`a` AS `a`,`dt`.`(SELECT a FROM t2 WHERE a=t1.a)` AS `(SELECT a FROM t2 WHERE a=t1.a)` from (/* select#3 */ select `test`.`t1`.`a` AS `a`,(/* select#5 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`)) AS `(SELECT a FROM t2 WHERE a=t1.a)` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`b` = (`test`.`t2`.`a` * 10))) `dt`
 explain SELECT * FROM (SELECT a, (SELECT a FROM t2 WHERE a=t1.a)
 FROM t1 WHERE b IN (SELECT a*10 FROM t2)) AS dt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Start temporary
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	11.11	Using where; End temporary; Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Start temporary
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	11.11	Using where; End temporary; Using join buffer (Block Nested Loop)
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,(/* select#3 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`)) AS `(SELECT a FROM t2 WHERE a=t1.a)` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`b` = (`test`.`t2`.`a` * 10))
+Note	1003	/* select#1 */ select `dt`.`a` AS `a`,`dt`.`(SELECT a FROM t2 WHERE a=t1.a)` AS `(SELECT a FROM t2 WHERE a=t1.a)` from (/* select#2 */ select `test`.`t1`.`a` AS `a`,(/* select#3 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`)) AS `(SELECT a FROM t2 WHERE a=t1.a)` from `test`.`t1` semi join (`test`.`t2`) where (`test`.`t1`.`b` = (`test`.`t2`.`a` * 10))) `dt`
 DROP VIEW v1;
 CREATE VIEW v1 AS
 SELECT * FROM (SELECT a, (SELECT a FROM t2) FROM t1 WHERE b=a*10) AS dt;
@@ -5239,15 +5242,18 @@ a	b	s
 4	44	0
 explain SELECT * FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
 3	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#3 */ select 1 from `test`.`t2` where (`test`.`t2`.`a` = 6) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`1`))))) AS `s` from `test`.`t1`
+Note	1003	/* select#1 */ select `v1`.`a` AS `a`,`v1`.`b` AS `b`,`v1`.`s` AS `s` from `test`.`v1`
 explain SELECT a FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+3	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
+Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
 explain SELECT a, b, a IN (SELECT 1 FROM t2 WHERE a=6) AS s
 FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5349,15 +5355,18 @@ a	b	c
 4	44	0
 explain SELECT * FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
 3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#3 */ select count(0) from `test`.`t2` having <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`a`) = <ref_null_helper>(count(0))), true))) AS `c` from `test`.`t1`
+Note	1003	/* select#1 */ select `v1`.`a` AS `a`,`v1`.`b` AS `b`,`v1`.`c` AS `c` from `test`.`v1`
 explain SELECT a FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
+Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
 explain SELECT a, b, a IN (SELECT COUNT(*) FROM t2) AS c
 FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5404,17 +5413,20 @@ a	b	s
 4	44	8
 explain SELECT * FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,(/* select#3 */ select (`test`.`t2`.`a` * 2) from `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`)) AS `s` from `test`.`t1`
+Note	1003	/* select#1 */ select `v1`.`a` AS `a`,`v1`.`b` AS `b`,`v1`.`s` AS `s` from `test`.`v1`
 explain SELECT a FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
+Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
 explain SELECT a, b, (SELECT a*2 FROM t2 WHERE a=t1.a) AS s
 FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5462,17 +5474,20 @@ a	b	s
 4	44	1
 explain SELECT * FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,exists(/* select#3 */ select (`test`.`t2`.`a` * 2) from `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`)) AS `s` from `test`.`t1`
+Note	1003	/* select#1 */ select `v1`.`a` AS `a`,`v1`.`b` AS `b`,`v1`.`s` AS `s` from `test`.`v1`
 explain SELECT a FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
+Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
 explain SELECT a, b, EXISTS (SELECT a*2 FROM t2 WHERE a=t1.a) AS s
 FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5520,17 +5535,20 @@ a	b	s
 4	44	5
 explain SELECT * FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	9	11.11	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `t1`.`a` AS `a`,`t1`.`b` AS `b`,(/* select#3 */ select count(0) from `test`.`t1` `t2` where (`test`.`t2`.`a` = `t1`.`a`)) AS `s` from `test`.`t1`
+Note	1003	/* select#1 */ select `v1`.`a` AS `a`,`v1`.`b` AS `b`,`v1`.`s` AS `s` from `test`.`v1`
 explain SELECT a FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	9	11.11	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `t1`.`a` AS `a` from `test`.`t1`
+Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
 explain SELECT a, b, (SELECT COUNT(*) FROM t1 AS t2 WHERE a=t1.a) AS s
 FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5578,17 +5596,20 @@ a	b	s
 4	44	1
 explain SELECT * FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
 3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	9	11.11	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `t1`.`a` AS `a`,`t1`.`b` AS `b`,exists(/* select#3 */ select count(0) from `test`.`t1` `t2` where (`test`.`t2`.`a` = `t1`.`a`)) AS `s` from `test`.`t1`
+Note	1003	/* select#1 */ select `v1`.`a` AS `a`,`v1`.`b` AS `b`,`v1`.`s` AS `s` from `test`.`v1`
 explain SELECT a FROM v1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	NULL
+3	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	9	11.11	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `t1`.`a` AS `a` from `test`.`t1`
+Note	1003	/* select#1 */ select `v1`.`a` AS `a` from `test`.`v1`
 explain SELECT a, b, EXISTS (SELECT COUNT(*) FROM t1 AS t2 WHERE a=t1.a) AS s
 FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

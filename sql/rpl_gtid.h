@@ -2907,18 +2907,17 @@ public:
   int compress(THD *thd);
 #ifdef MYSQL_SERVER
   /**
-    Push a waring to client if user is modifying
-    the gtid_executed table explicitly.
+    Push a warning to client if user is modifying the gtid_executed
+    table explicitly by a non-XA transaction. Push an error to client
+    if user is modifying it explicitly by a XA transaction.
 
-    @param  thd Thread requesting to access the table
-    @param  table the table is being accessed.
+    @param thd Thread requesting to access the table
+    @param table The table is being accessed.
 
-    @retval
-      true    Push a warning to client.
-    @retval
-      false   Do not push a warning.
+    @retval true Push a warning or an error to client.
+    @retval false No warning or error was pushed to the client.
   */
-  bool warn_on_modify_gtid_table(THD *thd, TABLE_LIST *table);
+  bool warn_or_err_on_modify_gtid_table(THD *thd, TABLE_LIST *table);
 #endif
   /**
     Remove the GTID owned by thread from owned GTIDs.

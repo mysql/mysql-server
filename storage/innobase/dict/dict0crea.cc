@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -435,9 +435,12 @@ dict_build_tablespace(
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO); */
 	ut_a(!FSP_FLAGS_GET_TEMPORARY(tablespace->flags()));
 
-	fsp_header_init(space, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
-
+	bool ret = fsp_header_init(space, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
 	mtr_commit(&mtr);
+
+	if (!ret) {
+		return(DB_ERROR);
+	}
 
 	return(err);
 }
@@ -488,8 +491,11 @@ dict_build_tablespace_for_table(
 
 		/* Determine the tablespace flags. */
 		bool	is_temp = dict_table_is_temporary(table);
+		bool	is_encrypted = dict_table_is_encrypted(table);
 		bool	has_data_dir = DICT_TF_HAS_DATA_DIR(table->flags);
-		ulint	fsp_flags = dict_tf_to_fsp_flags(table->flags, is_temp);
+		ulint	fsp_flags = dict_tf_to_fsp_flags(table->flags,
+							 is_temp,
+							 is_encrypted);
 
 		/* Determine the full filepath */
 		if (is_temp) {
@@ -536,9 +542,14 @@ dict_build_tablespace_for_table(
 		mtr.set_named_space(table->space);
 		dict_disable_redo_if_temporary(table, &mtr);
 
-		fsp_header_init(table->space, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
+		bool ret = fsp_header_init(table->space,
+					   FIL_IBD_FILE_INITIAL_SIZE,
+					   &mtr);
 
 		mtr_commit(&mtr);
+		if (!ret) {
+			return(DB_ERROR);
+		}
 	} else {
 		/* We do not need to build a tablespace for this table. It
 		is already built.  Just find the correct tablespace ID. */

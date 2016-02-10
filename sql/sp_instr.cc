@@ -52,7 +52,8 @@ public:
 /*
   StoredRoutinesBinlogging
   This paragraph applies only to statement-based binlogging. Row-based
-  binlogging does not need anything special like this.
+  binlogging does not need anything special like this except for a special
+  case that is mentioned below in section 2.1
 
   Top-down overview:
 
@@ -78,6 +79,14 @@ public:
     in #1, with the exception that we modify query string: we replace uses
     of SP local variables with NAME_CONST('spvar_name', <spvar-value>) calls.
     This substitution is done in subst_spvars().
+
+  2.1 Miscellaneous case: DDLs (Eg: ALTER EVENT) in StoredProcedure(SP) uses
+      its local variables
+
+  * Irrespective of binlog format, DDLs are always binlogged in statement mode.
+    Hence if there are any DDLs, in stored procedure, that uses SP local
+    variables,  those should be replaced with NAME_CONST('spvar_name', <spvar-value>)
+    even if binlog format is 'row'.
 
   3. FUNCTION calls
 
@@ -801,7 +810,13 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
 
     - general log is off
 
-    - binary logging is off, or not in statement mode
+    - binary logging is off
+
+    - if the query generates row events in binlog row format mode
+    (DDLs are always written in statement format irrespective of binlog_format
+    and they can have SP variables in it. For example, 'ALTER EVENT' is allowed
+    inside a procedure and can contain SP variables in it. Those too need to be
+    substituted with NAME_CONST(...))
 
     We don't have to substitute on behalf of the query cache as
     queries with SP vars are not cached, anyway.
@@ -818,10 +833,11 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
     substitution immediately before writing to the log.
   */
 
-  need_subst= ((thd->variables.option_bits & OPTION_LOG_OFF) &&
+  need_subst= !((thd->variables.option_bits & OPTION_LOG_OFF) &&
                (!(thd->variables.option_bits & OPTION_BIN_LOG) ||
                 !mysql_bin_log.is_open() ||
-                thd->is_current_stmt_binlog_format_row())) ? FALSE : TRUE;
+                (thd->is_current_stmt_binlog_format_row() &&
+                 sqlcom_can_generate_row_events(m_lex->sql_command))));
 
   /*
     If we need to do a substitution but can't (OOM), give up.

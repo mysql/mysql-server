@@ -222,24 +222,32 @@ row_upd_build_sec_rec_difference_binary(
 	const dtuple_t*	entry,	/*!< in: entry to insert */
 	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
 	__attribute__((warn_unused_result, nonnull));
-/***************************************************************//**
-Builds an update vector from those fields, excluding the roll ptr and
+/** Builds an update vector from those fields, excluding the roll ptr and
 trx id fields, which in an index entry differ from a record that has
 the equal ordering fields. NOTE: we compare the fields as binary strings!
+@param[in]	index		clustered index
+@param[in]	entry		clustered index entry to insert
+@param[in]	rec		clustered index record
+@param[in]	offsets		rec_get_offsets(rec,index), or NULL
+@param[in]	no_sys		skip the system columns
+				DB_TRX_ID and DB_ROLL_PTR
+@param[in]	trx		transaction (for diagnostics),
+				or NULL
+@param[in]	heap		memory heap from which allocated
+@param[in,out]	mysql_table	NULL, or mysql table object when
+				user thread invokes dml
 @return own: update vector of differing fields, excluding roll ptr and
 trx id */
 upd_t*
 row_upd_build_difference_binary(
-/*============================*/
-	dict_index_t*	index,	/*!< in: clustered index */
-	const dtuple_t*	entry,	/*!< in: entry to insert */
-	const rec_t*	rec,	/*!< in: clustered index record */
-	const ulint*	offsets,/*!< in: rec_get_offsets(rec,index), or NULL */
-	bool		no_sys,	/*!< in: skip the system columns
-				DB_TRX_ID and DB_ROLL_PTR */
-	trx_t*		trx,	/*!< in: transaction (for diagnostics),
-				or NULL */
-	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
+	dict_index_t*	index,
+	const dtuple_t*	entry,
+	const rec_t*	rec,
+	const ulint*	offsets,
+	bool		no_sys,
+	trx_t*		trx,
+	mem_heap_t*	heap,
+	TABLE*		mysql_table)
 	__attribute__((nonnull(1,2,3,7), warn_unused_result));
 /***********************************************************//**
 Replaces the new column values stored in the update vector to the index entry
@@ -377,12 +385,16 @@ row_upd_changes_some_index_ord_field_binary(
 /*========================================*/
 	const dict_table_t*	table,	/*!< in: table */
 	const upd_t*		update);/*!< in: update vector for the row */
-/***********************************************************//**
-Stores to the heap the row on which the node->pcur is positioned. */
+/** Stores to the heap the row on which the node->pcur is positioned.
+@param[in]	node		row update node
+@param[in]	thd		mysql thread handle
+@param[in,out]	mysql_table	NULL, or mysql table object when
+				user thread invokes dml */
 void
 row_upd_store_row(
-/*==============*/
-	upd_node_t*	node);	/*!< in: row update node */
+	upd_node_t*	node,
+	THD*		thd,
+	TABLE*		mysql_table);
 /***********************************************************//**
 Updates a row in a table. This is a high-level function used
 in SQL execution graphs.

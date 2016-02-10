@@ -453,7 +453,6 @@ purge_pq_t*
 trx_sys_init_at_db_start(void)
 /*==========================*/
 {
-	mtr_t		mtr;
 	purge_pq_t*	purge_queue;
 	trx_sysf_t*	sys_header;
 	ib_uint64_t	rows_to_undo	= 0;
@@ -465,12 +464,8 @@ trx_sys_init_at_db_start(void)
 	purge_queue = UT_NEW_NOKEY(purge_pq_t());
 	ut_a(purge_queue != NULL);
 
-	mtr_start(&mtr);
-
-	sys_header = trx_sysf_get(&mtr);
-
 	if (srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
-		trx_rseg_array_init(sys_header, purge_queue, &mtr);
+		trx_rseg_array_init(purge_queue);
 	}
 
 	/* VERY important: after the database is started, max_trx_id value is
@@ -480,11 +475,17 @@ trx_sys_init_at_db_start(void)
 	to the disk-based header! Thus trx id values will not overlap when
 	the database is repeatedly started! */
 
+	mtr_t	mtr;
+	mtr.start();
+
+	sys_header = trx_sysf_get(&mtr);
+
 	trx_sys->max_trx_id = 2 * TRX_SYS_TRX_ID_WRITE_MARGIN
 		+ ut_uint64_align_up(mach_read_from_8(sys_header
 						   + TRX_SYS_TRX_ID_STORE),
 				     TRX_SYS_TRX_ID_WRITE_MARGIN);
 
+	mtr.commit();
 	ut_d(trx_sys->rw_max_trx_id = trx_sys->max_trx_id);
 
 	trx_dummy_sess = sess_open();
@@ -526,8 +527,6 @@ trx_sys_init_at_db_start(void)
 	}
 
 	trx_sys_mutex_exit();
-
-	mtr_commit(&mtr);
 
 	return(purge_queue);
 }

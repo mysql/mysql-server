@@ -1,10 +1,11 @@
 --source include/not_embedded.inc
 
-# Clear gtid_executed to make variable settable.
+# Clear gtid_purged to make variable settable.
 RESET MASTER;
 
 SET @start_global_value = @@global.gtid_purged;
 SELECT @start_global_value;
+SET @sql_log_bin_start_value = @@session.sql_log_bin;
 
 #
 # exists as global only
@@ -38,12 +39,17 @@ SELECT @@global.gtid_purged;
 SET @@global.gtid_purged= '11111111-1111-1111-1111-111111111111:3';
 SELECT @@global.gtid_purged;
 
+RESET MASTER;
+# Does not initiate a transaction when autocommit is off
+SET AUTOCOMMIT= OFF;
+SET @@global.gtid_purged= '11111111-1111-1111-1111-111111111111:4-5';
+SET @@session.sql_log_bin= @sql_log_bin_start_value;
+SET AUTOCOMMIT= ON;
 #
 # Cleared by RESET MASTER.
 #
 RESET MASTER;
 SELECT @@global.gtid_purged;
-
 #
 # See rpl_gtid_purged_maintained.test for a comprehensive test case.
 #

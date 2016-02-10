@@ -2542,6 +2542,21 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`) order by `test`.`t1`.`b`
 SELECT *
+FROM t1 JOIN (SELECT a, (SELECT COUNT(*) FROM t1) AS b FROM t2) AS dt
+ON t1.a=dt.a;
+a	b	a	b
+1	10	1	2
+2	20	2	2
+explain SELECT *
+FROM t1 JOIN (SELECT a, (SELECT COUNT(*) FROM t1) AS b FROM t2) AS dt
+ON t1.a=dt.a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
+3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,(/* select#3 */ select count(0) from `test`.`t1`) AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`)
+SELECT *
 FROM t1 JOIN (SELECT a, (SELECT b) AS b FROM t2) AS dt ON t1.a=dt.a;
 a	b	a	b
 1	10	1	100
@@ -2549,12 +2564,13 @@ a	b	a	b
 explain SELECT *
 FROM t1 JOIN (SELECT a, (SELECT b) AS b FROM t2) AS dt ON t1.a=dt.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	PRIMARY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	100.00	NULL
+2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.t2.b' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,(/* select#3 */ select `test`.`t2`.`b`) AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`a`)
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`dt`.`a` AS `a`,`dt`.`b` AS `b` from `test`.`t1` join (/* select#2 */ select `test`.`t2`.`a` AS `a`,(/* select#3 */ select `test`.`t2`.`b`) AS `b` from `test`.`t2`) `dt` where (`dt`.`a` = `test`.`t1`.`a`)
 SET @optimizer_switch_saved= @@optimizer_switch;
 SET @@optimizer_switch="derived_merge=off";
 SELECT *
@@ -3703,3 +3719,158 @@ rr
 kk
 DROP VIEW vl, vr;
 DROP TABLE t1, t2, empty;
+# Bug#22239474: Unexpected error 1093 on nested subquery for update
+CREATE TABLE t1 (id INTEGER PRIMARY KEY, d INTEGER);
+INSERT INTO t1 VALUES(1, 10), (2, 20);
+explain DELETE FROM t1
+WHERE id IN (SELECT * FROM (SELECT id FROM t1) AS dt);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	<derived3>	NULL	index_subquery	<auto_key0>	<auto_key0>	4	func	2	100.00	Using index
+3	DERIVED	t1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+DELETE FROM t1
+WHERE id IN (SELECT * FROM (SELECT id FROM t1) AS dt);
+INSERT INTO t1 VALUES(1, 10), (2, 20);
+explain UPDATE t1 SET d= NULL
+WHERE id IN (SELECT * FROM (SELECT id FROM t1) AS dt);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	<derived3>	NULL	index_subquery	<auto_key0>	<auto_key0>	4	func	2	100.00	Using index
+3	DERIVED	t1	NULL	index	NULL	PRIMARY	4	NULL	2	100.00	Using index
+UPDATE t1 SET d= NULL
+WHERE id IN (SELECT * FROM (SELECT id FROM t1) AS dt);
+explain INSERT INTO t1 SELECT id+10, d FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary
+INSERT INTO t1 SELECT id+10, d FROM t1;
+explain INSERT INTO t1 SELECT id+20, d FROM (SELECT * FROM t1) AS dt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary
+INSERT INTO t1 SELECT id+20, d FROM (SELECT * FROM t1) AS dt;
+DROP TABLE t1;
+# Bug#22223202: Query with double nested subquery much slower in 5.7
+CREATE TABLE t1 (
+t1_rowid bigint unsigned NOT NULL,
+t1_co varchar(1) NOT NULL,
+t1_inv_date char(3) NOT NULL,
+UNIQUE KEY rowid (t1_rowid),
+KEY invdate (t1_co, t1_inv_date)
+);
+INSERT INTO t1 VALUES (505975,'D','s:1'),(505981,'D','s:1'),(505869,'D','s:3');
+CREATE TABLE t2 (
+t2_rowid bigint unsigned NOT NULL,
+t2_end_date char(3) NOT NULL,
+UNIQUE KEY rowid (t2_rowid),
+KEY end_date (t2_end_date)
+);
+INSERT INTO t2 VALUES (9,'_:L'), (10,'_<2'), (11,'_<N');
+explain SELECT t1_inv_date
+FROM t1 LEFT JOIN
+(SELECT curr.t2_end_date As end_date,
+(SELECT prev.t2_end_date
+FROM t2 AS prev
+WHERE prev.t2_end_date < curr.t2_end_date
+ORDER BY prev.t2_end_date DESC LIMIT 1) AS prev_end_date
+FROM t2 AS curr
+WHERE curr.t2_end_date >= 's:1'
+     ) AS periods
+ON periods.prev_end_date < t1_inv_date AND
+periods.end_date >= t1_inv_date;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	index	NULL	invdate	6	NULL	3	100.00	Using index
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (Block Nested Loop)
+2	DERIVED	curr	NULL	index	end_date	end_date	3	NULL	3	100.00	Using where; Using index
+3	DEPENDENT SUBQUERY	prev	NULL	index	end_date	end_date	3	NULL	1	33.33	Using where; Using index
+Warnings:
+Note	1276	Field or reference 'test.curr.t2_end_date' of SELECT #3 was resolved in SELECT #2
+Note	1003	/* select#1 */ select `test`.`t1`.`t1_inv_date` AS `t1_inv_date` from `test`.`t1` left join (/* select#2 */ select `test`.`curr`.`t2_end_date` AS `end_date`,(/* select#3 */ select `test`.`prev`.`t2_end_date` from `test`.`t2` `prev` where (`test`.`prev`.`t2_end_date` < `test`.`curr`.`t2_end_date`) order by `test`.`prev`.`t2_end_date` desc limit 1) AS `prev_end_date` from `test`.`t2` `curr` where (`test`.`curr`.`t2_end_date` >= 's:1')) `periods` on(((`periods`.`prev_end_date` < `test`.`t1`.`t1_inv_date`) and (`periods`.`end_date` >= `test`.`t1`.`t1_inv_date`))) where 1
+SELECT t1_inv_date
+FROM t1 LEFT JOIN
+(SELECT curr.t2_end_date As end_date,
+(SELECT prev.t2_end_date
+FROM t2 AS prev
+WHERE prev.t2_end_date < curr.t2_end_date
+ORDER BY prev.t2_end_date DESC LIMIT 1) AS prev_end_date
+FROM t2 AS curr
+WHERE curr.t2_end_date >= 's:1'
+     ) AS periods
+ON periods.prev_end_date < t1_inv_date AND
+periods.end_date >= t1_inv_date;
+t1_inv_date
+s:1
+s:1
+s:3
+DROP TABLE t1, t2;
+# Bug#22176604: Wrong result on outer join with uncorrelated subquery
+CREATE TABLE t1 (a INT, KEY(a));
+INSERT INTO t1 VALUES  (1), (NULL);
+CREATE TABLE t2 (b INT, KEY(b));
+INSERT INTO t2 VALUES (7), (NULL), (1), (5), (8), (6), (4), (0), (3), (NULL);
+CREATE TABLE t3 (c INT);
+INSERT INTO t3 VALUES (NULL), (1), (5);
+explain SELECT * FROM t1 LEFT JOIN (
+SELECT t3.* FROM t2 INNER JOIN t3 ON b = c
+) AS sq ON a <= sq.c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	a	5	NULL	2	100.00	Using index
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t2	NULL	ref	b	b	5	test.t3.c	2	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t3`.`c` AS `c` from `test`.`t1` left join (`test`.`t2` join `test`.`t3`) on(((`test`.`t2`.`b` = `test`.`t3`.`c`) and (`test`.`t1`.`a` <= `test`.`t3`.`c`))) where 1
+SELECT * FROM t1 LEFT JOIN (
+SELECT t3.* FROM t2 INNER JOIN t3 ON b = c
+) AS sq ON a <= sq.c;
+a	c
+NULL	NULL
+1	1
+1	5
+DROP TABLE t1, t2, t3;
+# Bug#22343301: Error 1093 (HY000): You can't specify target table'.'
+#               for update in FROM clause
+CREATE TABLE users (
+id int unsigned AUTO_INCREMENT,
+name varchar(255),
+position int DEFAULT NULL,
+PRIMARY KEY (id));
+INSERT INTO users (name, position) VALUES
+('user1','1'), ('user2','2'), ('user3','3'), ('user4','4'), ('user5','5');
+# Single-table update with non-mergeable derived table
+UPDATE users
+SET position = (SELECT COUNT(pos) + 1
+FROM (SELECT DISTINCT position AS pos FROM users) AS t2
+WHERE t2.pos < users.position)
+WHERE id = 3;
+# Single-table update with mergeable derived table
+# (but not merged due to being used in a subquery of an UPDATE statement)
+UPDATE users
+SET position = (SELECT COUNT(pos) + 1
+FROM (SELECT position AS pos FROM users) AS t2
+WHERE t2.pos < users.position)
+WHERE id = 3;
+# Multi-table update with non-mergeable derived table
+UPDATE users, (SELECT 1) AS dummy
+SET position = (SELECT COUNT(pos) + 1
+FROM (SELECT DISTINCT position AS pos FROM users) AS t2
+WHERE t2.pos < users.position)
+WHERE id = 3;
+# Multi-table update with mergeable derived table
+UPDATE users, (SELECT 1) AS dummy
+SET position = (SELECT COUNT(pos) + 1
+FROM (SELECT position AS pos FROM users) AS t2
+WHERE t2.pos < users.position)
+WHERE id = 3;
+UPDATE users
+SET position = (SELECT COUNT(t2.position) + 1
+FROM users AS t2
+WHERE t2.position < users.position)
+WHERE id = 3;
+ERROR HY000: You can't specify target table 'users' for update in FROM clause
+UPDATE users, (SELECT 1) AS dummy
+SET position = (SELECT COUNT(t2.position) + 1
+FROM users AS t2
+WHERE t2.position < users.position)
+WHERE id = 3;
+ERROR HY000: You can't specify target table 'users' for update in FROM clause
+DROP TABLE users;

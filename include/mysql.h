@@ -176,6 +176,7 @@ enum mysql_option
 */
   ,MYSQL_OPT_RETRY_COUNT
 #endif
+  ,MYSQL_OPT_SSL_MODE
 };
 
 /**
@@ -198,7 +199,7 @@ struct st_mysql_options {
   char *ssl_cipher;				/* cipher to use */
   char *shared_memory_base_name;
   unsigned long max_allowed_packet;
-  my_bool use_ssl;				/* if to use SSL or not */
+  my_bool use_ssl;                              /* Deprecated ! Former use_ssl */
   my_bool compress,named_pipe;
   my_bool unused1;
   my_bool unused2;
@@ -242,6 +243,12 @@ enum mysql_protocol_type
 {
   MYSQL_PROTOCOL_DEFAULT, MYSQL_PROTOCOL_TCP, MYSQL_PROTOCOL_SOCKET,
   MYSQL_PROTOCOL_PIPE, MYSQL_PROTOCOL_MEMORY
+};
+
+enum mysql_ssl_mode
+{
+  SSL_MODE_DISABLED= 1, SSL_MODE_PREFERRED, SSL_MODE_REQUIRED,
+  SSL_MODE_VERIFY_CA, SSL_MODE_VERIFY_IDENTITY
 };
 
 typedef struct character_set

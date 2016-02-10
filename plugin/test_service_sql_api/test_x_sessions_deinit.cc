@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,6 +47,35 @@ static struct st_mysql_sys_var *test_services_sysvars[]= {
 };
 
 static File outfile;
+
+
+static void test_session_open(void *p)
+{
+  char buffer[STRING_BUFFER_SIZE];
+  DBUG_ENTER("test_session_open");
+
+  MYSQL_SESSION sessions[MAX_SESSIONS];
+  void *plugin_ctx= NULL;
+
+  WRITE_VAL("nb_sessions = %d\n", nb_sessions);
+  /* Open sessions: Must pass */
+  for (int i= 0; i < nb_sessions; i++)
+  {
+    WRITE_VAL("srv_session_open %d - ", i+1);
+    sessions[i]= srv_session_open(NULL, plugin_ctx);
+    if (!sessions[i])
+    {
+      WRITE_STR("Failed\n");
+    }
+    else
+    {
+      WRITE_STR("Success\n");
+    }
+  }
+
+  DBUG_VOID_RETURN;
+}
+
 
 static void test_session(void *p)
 {
@@ -151,9 +180,7 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *))
 {
   my_thread_attr_t attr;          /* Thread attributes */
   my_thread_attr_init(&attr);
-#ifndef _WIN32
-  (void) pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-#endif
+  (void) my_thread_attr_setdetachstate(&attr, MY_THREAD_CREATE_JOINABLE);
 
   struct test_thread_context context;
 
@@ -192,6 +219,22 @@ static int test_session_service_plugin_deinit(void *p)
   /* Test in a new thread */
   WRITE_STR("Follows threaded run\n");
   test_in_spawned_thread(p, test_session);
+
+  WRITE_STR("Follows threaded run and leaves open session (Bug#21966621)\n");
+  // Bug#21966621 - Leave session open at srv thread exit which is doing the release in following way:
+  //                1) Lock LOCK_collection while doing release callback for every session
+  //                2) Second attempt of LOCK_collection fails while removing session by the callback.
+  //                While exiting both function LOCK_collection is left in invalid state because
+  //                it was released 2 times, lock 1 time
+  //                3) at next attempt of LOCK_collection usage causes deadlock
+  test_in_spawned_thread(p, test_session_open); // step 1, 2
+  test_in_spawned_thread(p, test_session);      // step 3
+
+  WRITE_STR("Follows threaded run and leaves open session (Bug#21983102)\n");
+  // Bug#21983102 - iterates through sessions list in which elements are removed
+  //                thus the iterator becomes invalid causing random crashes and
+  //                hangings
+  test_in_spawned_thread(p, test_session_open);
 
   my_close(outfile, MYF(0));
 

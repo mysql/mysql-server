@@ -42,6 +42,7 @@ ha_federated       storage/federated  FEDERATED_PLUGIN
 ha_partition       storage/partition  PARTITION_PLUGIN  partition
 mypluglib          plugin/fulltext    SIMPLE_PARSER
 libpluginmecab     plugin/fulltext    MECAB
+keyring_file       plugin/keyring     KEYRING_PLUGIN keyring_file
 adt_null           plugin/audit_null  AUDIT_NULL
 test_security_context  plugin/audit_null  TEST_SECURITY_CONTEXT  test_security_context
 libdaemon_example  plugin/daemon_example DAEMONEXAMPLE

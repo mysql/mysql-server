@@ -1,7 +1,5 @@
-
-
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,15 +42,17 @@ using std::max;
 const String my_null_string("NULL", 4, default_charset_info);
 
 /**
-  Alias from select list can be referenced only from ORDER
-  BY (SQL Standard) or from HAVING and GROUP BY (MySQL
-  extension).
+  Alias from select list can be referenced only from ORDER BY (SQL Standard) or
+  from HAVING, GROUP BY and a subquery in the select list (MySQL extension).
+
+  We don't allow it be referenced from the SELECT list, with one exception:
+  it's accepted if nested in a subquery, which is inconsistent but necessary
+  as our users have shown to rely on this workaround.
 */
-static inline bool
-select_alias_referencable(enum_parsing_context place)
+static inline bool select_alias_referencable(enum_parsing_context place)
 {
-  return (place == CTX_HAVING ||  place == CTX_GROUP_BY ||
-          place == CTX_ORDER_BY);
+  return (place == CTX_SELECT_LIST || place == CTX_GROUP_BY ||
+          place == CTX_HAVING || place == CTX_ORDER_BY);
 }
 
 /****************************************************************************/
@@ -1099,7 +1099,7 @@ bool Item_field::check_column_privileges(uchar *arg)
   Internal_error_handler_holder<View_error_handler, TABLE_LIST>
     view_handler(thd, context->view_error_handler,
                  context->view_error_handler_arg);
-  if (check_column_grant_in_table_ref(thd, cached_table,
+  if (check_column_grant_in_table_ref(thd, table_ref,
                                       field_name, strlen(field_name),
                                       thd->want_privilege))
   {
@@ -7297,13 +7297,13 @@ void Item_hex_string::print(String *str, enum_query_type query_type)
     str->append("?");
     return;
   }
-  char *end= (char*) str_value.ptr() + str_value.length(),
-       *ptr= end - min<size_t>(str_value.length(), sizeof(longlong));
+  const uchar *ptr= pointer_cast<const uchar*>(str_value.ptr());
+  const uchar *end= ptr + str_value.length();
   str->append("0x");
   for (; ptr != end ; ptr++)
   {
-    str->append(_dig_vec_lower[((uchar) *ptr) >> 4]);
-    str->append(_dig_vec_lower[((uchar) *ptr) & 0x0F]);
+    str->append(_dig_vec_lower[*ptr >> 4]);
+    str->append(_dig_vec_lower[*ptr & 0x0F]);
   }
 }
 
@@ -9591,7 +9591,10 @@ void Item_cache::store(Item *item)
 {
   example= item;
   if (!item)
+  {
+    DBUG_ASSERT(maybe_null);
     null_value= TRUE;
+  }
   value_cached= FALSE;
 }
 
@@ -9611,6 +9614,22 @@ bool Item_cache::walk(Item_processor processor, enum_walk walk, uchar *arg)
          (example && example->walk(processor, walk, arg)) ||
          ((walk & WALK_POSTFIX) && (this->*processor)(arg));
 }
+
+
+bool Item_cache::has_value()
+{
+  if (value_cached || cache_value())
+  {
+    /*
+      Only expect NULL if the cache is nullable, or if an error was
+      raised when reading the value into the cache.
+    */
+    DBUG_ASSERT(!null_value || maybe_null || current_thd->is_error());
+    return !null_value;
+  }
+  return false;
+}
+
 
 bool  Item_cache_int::cache_value()
 {
@@ -10257,6 +10276,7 @@ void Item_cache_row::store(Item * item)
   example= item;
   if (!item)
   {
+    DBUG_ASSERT(maybe_null);
     null_value= TRUE;
     return;
   }
@@ -10270,11 +10290,25 @@ bool Item_cache_row::cache_value()
   if (!example)
     return FALSE;
   value_cached= TRUE;
-  null_value= 0;
   example->bring_value();
+  null_value= example->null_value;
+
+  const bool cached_item_is_assigned=
+    example->type() != SUBSELECT_ITEM ||
+    down_cast<Item_subselect *>(example)->assigned();
+
   for (uint i= 0; i < item_count; i++)
   {
-    values[i]->cache_value();
+    if (!cached_item_is_assigned)
+    {
+      // Subquery with zero rows, so make cached item null also.
+      values[i]->store_null();
+    }
+    else
+    {
+      values[i]->cache_value();
+    }
+
     null_value|= values[i]->null_value;
   }
   return TRUE;

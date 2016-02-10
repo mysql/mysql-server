@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -434,6 +434,7 @@ install -d -m 0751 %{buildroot}/var/lib/mysql
 install -d -m 0755 %{buildroot}/var/run/mysql
 install -d -m 0750 %{buildroot}/var/log/mysql
 install -d -m 0750 %{buildroot}/var/lib/mysql-files
+install -d -m 0750 %{buildroot}/var/lib/mysql-keyring
 
 
 # Install all binaries
@@ -502,7 +503,7 @@ rm -r $(readlink var) var
 %endif
 
 %post server
-datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p')
+datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n 's/--datadir=//p | tail -n 1')
 /bin/chmod 0751 "$datadir"
 /bin/touch /var/log/mysql/mysqld.log
 %if 0%{?systemd}
@@ -613,6 +614,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libmemcached.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/locking_service.so
@@ -628,6 +630,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libmemcached.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/locking_service.so
@@ -681,6 +684,7 @@ fi
 %dir %attr(755, mysql, mysql) /var/run/mysql
 %dir %attr(750, mysql, mysql) /var/log/mysql
 %dir %attr(750, mysql, mysql) /var/lib/mysql-files
+%dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %files common
 %defattr(-, root, root, -)
@@ -861,6 +865,10 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
+* Mon Jan 4 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.11-1
+- Include mysql-keyring directory
+- Provide keyring_file.so plugin
+
 * Tue Nov 24 2015 Bjorn Munch <bjorn.munch@oracle.com> - 5.7.10-1
 - Included man pages for lz4_decompress and zlib_decompress
 
@@ -873,7 +881,7 @@ fi
 
 * Tue Sep 29 2015 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.9-1
 - Updated for 5.7.9
-- Added libtest_* plugins to test package subpackage
+- Added libtest_* plugins to test subpackage
 - Add mysqlpump man page
 - Obsolete mysql-connector-c-shared dependencies
 

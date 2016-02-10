@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -152,7 +152,9 @@ rtr_index_build_node_ptr(
 
 	tuple = dtuple_create(heap, n_unique + 1);
 
-	dtuple_set_n_fields_cmp(tuple, n_unique);
+	/* For rtree internal node, we need to compare page number
+	fields. */
+	dtuple_set_n_fields_cmp(tuple, n_unique + 1);
 
 	dict_index_copy_types(tuple, index, n_unique);
 
@@ -1411,19 +1413,19 @@ rtr_page_copy_rec_list_end_no_locks(
 	page_cur_t	page_cur;
 	page_cur_t	cur1;
 	rec_t*		cur_rec;
-	dtuple_t*	tuple;
-	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*		offsets		= offsets_;
-	ulint		n_fields = 0;
+	ulint		offsets_1[REC_OFFS_NORMAL_SIZE];
+	ulint*		offsets1 = offsets_1;
+	ulint		offsets_2[REC_OFFS_NORMAL_SIZE];
+	ulint*		offsets2 = offsets_2;
 	ulint		moved = 0;
 	bool		is_leaf = page_is_leaf(new_page);
 
-	rec_offs_init(offsets_);
+	rec_offs_init(offsets_1);
+	rec_offs_init(offsets_2);
 
 	page_cur_position(rec, block, &cur1);
 
 	if (page_cur_is_before_first(&cur1)) {
-
 		page_cur_move_to_next(&cur1);
 	}
 
@@ -1436,30 +1438,27 @@ rtr_page_copy_rec_list_end_no_locks(
 		page_get_infimum_rec(buf_block_get_frame(new_block)));
 	page_cur_position(cur_rec, new_block, &page_cur);
 
-	n_fields = dict_index_get_n_fields(index);
-
 	/* Copy records from the original page to the new page */
 	while (!page_cur_is_after_last(&cur1)) {
 		rec_t*	cur1_rec = page_cur_get_rec(&cur1);
 		rec_t*	ins_rec;
 
-		/* Find the place to insert. */
-		tuple = dict_index_build_data_tuple(index, cur1_rec,
-						    n_fields, heap);
-
 		if (page_rec_is_infimum(cur_rec)) {
 			cur_rec = page_rec_get_next(cur_rec);
 		}
 
+		offsets1 = rec_get_offsets(cur1_rec, index, offsets1,
+					   ULINT_UNDEFINED, &heap);
 		while (!page_rec_is_supremum(cur_rec)) {
 			ulint		cur_matched_fields = 0;
 			int		cmp;
 
-			offsets = rec_get_offsets(
-					cur_rec, index, offsets,
-					dtuple_get_n_fields_cmp(tuple), &heap);
-			cmp = cmp_dtuple_rec_with_match(tuple, cur_rec, offsets,
-							&cur_matched_fields);
+			offsets2 = rec_get_offsets(cur_rec, index, offsets2,
+						   ULINT_UNDEFINED, &heap);
+			cmp = cmp_rec_rec_with_match(cur1_rec, cur_rec,
+						     offsets1, offsets2,
+						     index, FALSE,
+						     &cur_matched_fields);
 			if (cmp < 0) {
 				page_cur_move_to_prev(&page_cur);
 				break;
@@ -1490,11 +1489,11 @@ rtr_page_copy_rec_list_end_no_locks(
 
 		cur_rec = page_cur_get_rec(&page_cur);
 
-		offsets = rec_get_offsets(cur1_rec, index, offsets,
-					  ULINT_UNDEFINED, &heap);
+		offsets1 = rec_get_offsets(cur1_rec, index, offsets1,
+					   ULINT_UNDEFINED, &heap);
 
 		ins_rec = page_cur_insert_rec_low(cur_rec, index,
-						  cur1_rec, offsets, mtr);
+						  cur1_rec, offsets1, mtr);
 		if (UNIV_UNLIKELY(!ins_rec)) {
 			fprintf(stderr, "page number %ld and %ld\n",
 				(long)new_block->page.id.page_no(),
@@ -1540,17 +1539,16 @@ rtr_page_copy_rec_list_start_no_locks(
 {
 	page_cur_t	cur1;
 	rec_t*		cur_rec;
-	dtuple_t*	tuple;
-	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*		offsets	= offsets_;
-	ulint		n_fields = 0;
+	ulint		offsets_1[REC_OFFS_NORMAL_SIZE];
+	ulint*		offsets1 = offsets_1;
+	ulint		offsets_2[REC_OFFS_NORMAL_SIZE];
+	ulint*		offsets2 = offsets_2;
 	page_cur_t	page_cur;
 	ulint		moved = 0;
 	bool		is_leaf = page_is_leaf(buf_block_get_frame(block));
 
-	rec_offs_init(offsets_);
-
-	n_fields = dict_index_get_n_fields(index);
+	rec_offs_init(offsets_1);
+	rec_offs_init(offsets_2);
 
 	page_cur_set_before_first(block, &cur1);
 	page_cur_move_to_next(&cur1);
@@ -1563,23 +1561,23 @@ rtr_page_copy_rec_list_start_no_locks(
 		rec_t*	cur1_rec = page_cur_get_rec(&cur1);
 		rec_t*	ins_rec;
 
-		/* Find the place to insert. */
-		tuple = dict_index_build_data_tuple(index, cur1_rec,
-						    n_fields, heap);
-
 		if (page_rec_is_infimum(cur_rec)) {
 			cur_rec = page_rec_get_next(cur_rec);
 		}
+
+		offsets1 = rec_get_offsets(cur1_rec, index, offsets1,
+					   ULINT_UNDEFINED, &heap);
 
 		while (!page_rec_is_supremum(cur_rec)) {
 			ulint		cur_matched_fields = 0;
 			int		cmp;
 
-			offsets = rec_get_offsets(cur_rec, index, offsets,
-						  dtuple_get_n_fields_cmp(tuple),
-						  &heap);
-			cmp = cmp_dtuple_rec_with_match(tuple, cur_rec, offsets,
-							&cur_matched_fields);
+			offsets2 = rec_get_offsets(cur_rec, index, offsets2,
+						   ULINT_UNDEFINED, &heap);
+			cmp = cmp_rec_rec_with_match(cur1_rec, cur_rec,
+						     offsets1, offsets2,
+						     index, FALSE,
+						     &cur_matched_fields);
 			if (cmp < 0) {
 				page_cur_move_to_prev(&page_cur);
 				cur_rec = page_cur_get_rec(&page_cur);
@@ -1612,11 +1610,11 @@ rtr_page_copy_rec_list_start_no_locks(
 
 		cur_rec = page_cur_get_rec(&page_cur);
 
-		offsets = rec_get_offsets(cur1_rec, index, offsets,
-					  ULINT_UNDEFINED, &heap);
+		offsets1 = rec_get_offsets(cur1_rec, index, offsets1,
+					   ULINT_UNDEFINED, &heap);
 
 		ins_rec = page_cur_insert_rec_low(cur_rec, index,
-						  cur1_rec, offsets, mtr);
+						  cur1_rec, offsets1, mtr);
 		if (UNIV_UNLIKELY(!ins_rec)) {
 			fprintf(stderr, "page number %ld and %ld\n",
 				(long)new_block->page.id.page_no(),

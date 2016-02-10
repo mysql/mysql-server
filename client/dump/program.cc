@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -92,24 +92,17 @@ void Program::create_options()
     "connection should use the following statements: ALTER TABLE, DROP "
     "TABLE, RENAME TABLE, TRUNCATE TABLE, as consistent snapshot is not "
     "isolated from them. This option is mutually exclusive with "
-    "--add-locks option. This will not work properly when using "
-    "parallelism, i.e. will create multiple transactions, one for each "
-    "processing thread.");
+    "--add-locks option.");
 }
 
 void  Program::check_mutually_exclusive_options()
 {
   /*
-    In case of --single-transactions or --add-locks we dont allow parallelism
+    In case of --add-locks we dont allow parallelism
   */
   if (m_mysqldump_tool_chain_maker_options->m_default_parallelism ||
      m_mysqldump_tool_chain_maker_options->get_parallel_schemas_thread_count())
   {
-    if (m_single_transaction)
-      m_mysql_chain_element_options->get_program()->error(
-        Mysql::Tools::Base::Message_data(1, "Usage of --single-transaction "
-        "is mutually exclusive with parallelism.",
-        Mysql::Tools::Base::Message_type_error));
     if (m_mysqldump_tool_chain_maker_options->m_formatter_options->m_add_locks)
       m_mysql_chain_element_options->get_program()->error(
         Mysql::Tools::Base::Message_data(1, "Usage of --add-locks "
@@ -118,14 +111,38 @@ void  Program::check_mutually_exclusive_options()
   }
 }
 
+int Program::get_total_connections()
+{
+  /*
+    total thread count for mysqlpump would be as below:
+     1 main thread +
+     default queues thread (specified by default parallelism) +
+     total parallel-schemas without threads specified * dp +
+     total threads mentioned in parallel-schemas
+  */
+ 
+   int dp= m_mysqldump_tool_chain_maker_options->m_default_parallelism;
+  return (1 + dp +
+    m_mysqldump_tool_chain_maker_options->get_parallel_schemas_thread_count() +
+    (m_mysqldump_tool_chain_maker_options->
+     get_parallel_schemas_with_default_thread_count() * dp));
+}
+
 int Program::execute(std::vector<std::string> positional_options)
 {
   I_connection_provider* connection_provider= NULL;
+  int num_connections= get_total_connections();
+
+  Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
+    message_handler= new Mysql::Instance_callback
+    <bool, const Mysql::Tools::Base::Message_data&, Program>(
+    this, &Program::message_handler);
 
   try
   {
     connection_provider=
-      m_single_transaction ? new Single_transaction_connection_provider(this)
+      m_single_transaction ?
+      new Single_transaction_connection_provider(this, num_connections, message_handler)
       : new Thread_specific_connection_provider(this);
   }
   catch (std::exception e)
@@ -134,11 +151,6 @@ int Program::execute(std::vector<std::string> positional_options)
       0, "Error during creating connection.",
       Mysql::Tools::Base::Message_type_error));
   }
-
-  Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
-    message_handler= new Mysql::Instance_callback
-    <bool, const Mysql::Tools::Base::Message_data&, Program>(
-    this, &Program::message_handler);
 
   Mysql::Tools::Base::Mysql_query_runner* runner= connection_provider
          ->get_runner(message_handler);
@@ -183,7 +195,6 @@ int Program::execute(std::vector<std::string> positional_options)
   crawler->enumerate_objects();
 
   delete crawler;
-  delete chain_maker;
   if (progress_watcher != NULL)
     delete progress_watcher;
   delete id_generator;

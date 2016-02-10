@@ -1,11 +1,11 @@
-# restart: --innodb-fast-shutdown=2 --innodb-log-file-size=1M
+# restart: --innodb-fast-shutdown=2 --innodb-log-file-size=4M
 call mtr.add_suppression("InnoDB: Resizing redo log");
 call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files");
 call mtr.add_suppression("InnoDB: New log files created");
 call mtr.add_suppression("InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles");
 SELECT @@innodb_log_file_size;
 @@innodb_log_file_size
-1048576
+4194304
 SELECT @@innodb_log_files_in_group;
 @@innodb_log_files_in_group
 2
@@ -43,11 +43,11 @@ id	LEFT(bfield,20)
 11	aaaaaaaaaaaaaaaaaaaa
 12	bbbbbbbbbbbbbbbbbbbb
 13	cccccccccccccccccccc
-The size of the ib_logfile0 file: 2 
-The size of the ib_logfile1 file: 2 
-The size of the ib_logfile2 file: 2 
-The size of the ib_logfile3 file: 2 
-The size of the ib_logfile4 file: 2 
+The size of the ib_logfile0 file: 4
+The size of the ib_logfile1 file: 4
+The size of the ib_logfile2 file: 4
+The size of the ib_logfile3 file: 4
+The size of the ib_logfile4 file: 4
 USE db_wl6494;
 SELECT id,LEFT(bfield,20) FROM t1;
 id	LEFT(bfield,20)
@@ -75,10 +75,10 @@ id	LEFT(bfield,20)
 23	cccccccccccccccccccc
 DROP TABLE t1;
 DROP DATABASE db_wl6494;
-# restart: --innodb-fast-shutdown=2 --innodb-log-file-size=3M --innodb_log_files_in_group=3
+# restart: --innodb-fast-shutdown=2 --innodb-log-file-size=6M --innodb_log_files_in_group=3
 SELECT @@innodb_log_file_size;
 @@innodb_log_file_size
-3145728
+6291456
 SELECT @@innodb_log_files_in_group;
 @@innodb_log_files_in_group
 3
@@ -118,7 +118,7 @@ id	LEFT(bfield,20)
 13	cccccccccccccccccccc
 SELECT @@innodb_log_file_size;
 @@innodb_log_file_size
-2097152
+4194304
 SELECT @@innodb_log_files_in_group;
 @@innodb_log_files_in_group
 2

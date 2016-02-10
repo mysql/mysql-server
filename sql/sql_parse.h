@@ -127,7 +127,7 @@ inline bool is_supported_parser_charset(const CHARSET_INFO *cs)
   return (cs->mbminlen == 1);
 }
 
-bool sqlcom_can_generate_row_events(const THD *thd);
+bool sqlcom_can_generate_row_events(enum enum_sql_command command);
 
 /**
   Callback function used by kill_one_thread and timer_notify functions

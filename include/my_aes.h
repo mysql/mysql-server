@@ -1,7 +1,7 @@
 #ifndef MY_AES_INCLUDED
 #define MY_AES_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -24,6 +24,9 @@ C_MODE_START
 
 /** AES IV size is 16 bytes for all supported ciphers except ECB */
 #define MY_AES_IV_SIZE 16
+
+/** AES block size is fixed to be 128 bits for CBC and ECB */
+#define MY_AES_BLOCK_SIZE 16
 
 
 /** Supported AES cipher/block mode combos */
@@ -74,13 +77,15 @@ extern const char *my_aes_opmode_names[];
   @param key_length     [in]  Length of the key. Will handle keys of any length
   @param mode           [in]  encryption mode
   @param iv             [in]  16 bytes initialization vector if needed. Otherwise NULL
+  @param padding        [in]  if padding needed.
   @return              size of encrypted data, or negative in case of error
 */
 
 int my_aes_encrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest,
 		   const unsigned char *key, uint32 key_length,
-                   enum my_aes_opmode mode, const unsigned char *iv);
+                   enum my_aes_opmode mode, const unsigned char *iv,
+                   bool padding = true);
 
 /**
   Decrypt an AES encrypted buffer
@@ -92,14 +97,16 @@ int my_aes_encrypt(const unsigned char *source, uint32 source_length,
   @param key_length     Length of the key. Will handle keys of any length
   @param mode           encryption mode
   @param iv             16 bytes initialization vector if needed. Otherwise NULL
+  @param padding        if padding needed.
   @return size of original data.
 */
 
 
 int my_aes_decrypt(const unsigned char *source, uint32 source_length,
                    unsigned char *dest,
- 		   const unsigned char *key, uint32 key_length,
-                   enum my_aes_opmode mode, const unsigned char *iv);
+                   const unsigned char *key, uint32 key_length,
+                   enum my_aes_opmode mode, const unsigned char *iv,
+                   bool padding = true);
 
 /**
   Calculate the size of a buffer large enough for encrypted data

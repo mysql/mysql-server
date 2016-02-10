@@ -98,6 +98,8 @@ a	b	c
 # INSERT INTO new_table SELECT * from old_table
 create table t2 like t1;
 insert into t2 select * from t1;
+ERROR HY000: The value specified for generated column 'b' in table 't2' is not allowed.
+insert into t2(a) select a from t1;
 select * from t1;
 a	b	c
 2	-2	-2
@@ -111,6 +113,8 @@ a	b	c
 1	-1	-1
 create table t2 like t1;
 insert into t2 (a,b) select a,b from t1;
+ERROR HY000: The value specified for generated column 'b' in table 't2' is not allowed.
+insert into t2 (a) select a from t1;
 select * from t2;
 a	b	c
 2	-2	-2
@@ -632,6 +636,33 @@ Warning	1292	Incorrect datetime value: '' for column 'b' at row 1
 Warning	1292	Incorrect datetime value: '' for column 'b' at row 1
 Warning	1292	Incorrect datetime value: '' for column 'b' at row 1
 DROP TABLE t;
+#
+# Bug#22195458:GCOLS: ASSERTION 0 AND CORRUPTION...
+#
+CREATE TABLE t (
+a INT,
+b YEAR GENERATED ALWAYS AS ('a') VIRTUAL,
+c YEAR GENERATED ALWAYS AS ('aaaa') VIRTUAL,
+b1 YEAR GENERATED ALWAYS AS ('a') STORED,
+c1 YEAR GENERATED ALWAYS AS ('aaaa') STORED,
+UNIQUE(b),
+UNIQUE(b1)
+);
+INSERT INTO t VALUES();
+SELECT b from t;
+b
+0000
+SELECT b1 from t;
+b1
+0000
+SELECT * from t;
+a	b	c	b1	c1
+NULL	0000	0000	0000	0000
+DELETE FROM t;
+CHECK TABLE t EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+DROP TABLE t;
 #Bug#21929967:GCOLS:GCOL VALUE CHANGES WHEN SESSION CHANGES SQL_MODE
 CREATE TABLE t(c1 INT GENERATED ALWAYS AS (1) VIRTUAL NOT NULL,
 c2 INT GENERATED ALWAYS AS(2) STORED NOT NULL);
@@ -650,6 +681,65 @@ SELECT * FROM t2;
 c1	c2
 1	2
 DROP TABLE t, t1, t2;
+# Bug#22179637: INSERT INTO TABLE FROM SELECT ACCEPTS TO INSERT INTO
+#              GENERATED COLUMNS
+CREATE TABLE t1 (
+i1 INTEGER,
+i2 INTEGER GENERATED ALWAYS AS (i1 + i1)
+);
+INSERT INTO t1 (i1, i2) SELECT 5, 6;
+ERROR HY000: The value specified for generated column 'i2' in table 't1' is not allowed.
+INSERT INTO t1 (i1) SELECT 5;
+INSERT INTO t1 (i1) SELECT 5 ON DUPLICATE KEY UPDATE i2= 4;
+ERROR HY000: The value specified for generated column 'i2' in table 't1' is not allowed.
+INSERT INTO t1 (i1) SELECT 5 ON DUPLICATE KEY UPDATE i2= DEFAULT;
+SELECT * FROM t1;
+i1	i2
+5	10
+5	10
+CREATE TABLE t2 (
+i1 INTEGER,
+i2 INTEGER GENERATED ALWAYS AS (i1 + i1) STORED
+);
+INSERT INTO t2 (i1, i2) SELECT 5, 6;
+ERROR HY000: The value specified for generated column 'i2' in table 't2' is not allowed.
+INSERT INTO t2 (i1, i2) SELECT * FROM t1;
+ERROR HY000: The value specified for generated column 'i2' in table 't2' is not allowed.
+INSERT INTO t2 (i1) SELECT 5;
+INSERT INTO t2 (i1) SELECT 5 ON DUPLICATE KEY UPDATE i2= 4;
+ERROR HY000: The value specified for generated column 'i2' in table 't2' is not allowed.
+INSERT INTO t2 (i1) SELECT 5 ON DUPLICATE KEY UPDATE i2= DEFAULT;
+SELECT * FROM t2;
+i1	i2
+5	10
+5	10
+DROP TABLE t1,t2;
+#
+# Bug#22070021 GCOL:ASSERTION `!TABLE || (!TABLE->WRITE_SET ||
+#              BITMAP_IS_SET(TABLE->WRITE_SET,
+#
+CREATE TABLE t1(
+c1 INT,
+c2 INT GENERATED ALWAYS AS (c1 + c1) VIRTUAL,
+KEY(c2)
+);
+INSERT INTO t1(c1) VALUES(0);
+DELETE O1.* FROM t1 AS O1, t1 AS O2;
+SELECT * FROM t1;
+c1	c2
+DROP TABLE t1;
+#
+# Bug#21944199 SIMPLE DELETE QUERY CAUSES INNODB: FAILING ASSERTION: 0
+#              & DATA CORRUPTION
+#
+CREATE TEMPORARY TABLE t1 (
+a INTEGER NOT NULL,
+b INTEGER GENERATED ALWAYS AS (a+1) VIRTUAL
+);
+INSERT INTO t1 (a) VALUES (0), (0), (0);
+ALTER TABLE t1 ADD INDEX idx (b);
+DELETE FROM t1;
+DROP TEMPORARY TABLE t1;
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
 DROP PROCEDURE IF EXISTS p1;

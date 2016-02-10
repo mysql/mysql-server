@@ -182,6 +182,9 @@ ulong	srv_debug_compress;
 my_bool	srv_master_thread_disabled_debug;
 /** Event used to inform that master thread is disabled. */
 static os_event_t	srv_master_thread_disabled_event;
+/** Debug variable to find if any background threads are adding
+to purge during slow shutdown. */
+extern bool		trx_commit_disallowed;
 #endif /* UNIV_DEBUG */
 
 /*------------------------- LOG FILES ------------------------ */
@@ -2047,7 +2050,7 @@ srv_master_thread_disabled_debug_update(
 
 	const bool disable = *static_cast<const my_bool*>(save);
 
-	const int sig_count = os_event_reset(
+	const int64_t sig_count = os_event_reset(
 		srv_master_thread_disabled_event);
 
 	srv_master_thread_disabled_debug = disable;
@@ -2791,6 +2794,12 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 	while (srv_fast_shutdown == 0 && n_pages_purged > 0) {
 		n_pages_purged = trx_purge(1, srv_purge_batch_size, false);
 	}
+
+#ifdef UNIV_DEBUG
+	if (srv_fast_shutdown == 0) {
+		trx_commit_disallowed = true;
+	}
+#endif /* UNIV_DEBUG */
 
 	/* This trx_purge is called to remove any undo records (added by
 	background threads) after completion of the above loop. When

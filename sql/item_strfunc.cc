@@ -4124,6 +4124,48 @@ bool Item_func_weight_string::itemize(Parse_context *pc, Item **res)
   return super::itemize(pc, res);
 }
 
+void Item_func_weight_string::print(String *str, enum_query_type query_type)
+{
+  str->append(func_name());
+  str->append('(');
+  args[0]->print(str, query_type);
+  if (nweights && !as_binary)
+  {
+    str->append(" as char");
+    str->append_parenthesized(nweights);
+  }
+  // The flags is already normalized
+  uint flag_lev = flags & MY_STRXFRM_LEVEL_ALL;
+  uint flag_dsc = (flags >> MY_STRXFRM_DESC_SHIFT) & MY_STRXFRM_LEVEL_ALL;
+  uint flag_rev = (flags >> MY_STRXFRM_REVERSE_SHIFT) & MY_STRXFRM_LEVEL_ALL;
+  if (flag_lev)
+  {
+    str->append(" level ");
+    uint level= 1;
+    while (flag_lev)
+    {
+      if (flag_lev & 1)
+      {
+        str->append_longlong(level);
+        if (flag_lev >> 1)
+          str->append(',');
+      }
+      flag_lev>>= 1;
+      level++;
+    }
+  }
+  if (flag_dsc)
+  {
+    // ASC is default
+    str->append(" desc");
+  }
+  if (flag_rev)
+  {
+    str->append(" reverse");
+  }
+
+  str->append(')');
+}
 
 void Item_func_weight_string::fix_length_and_dec()
 {

@@ -199,6 +199,28 @@ void view_store_options(THD *thd, TABLE_LIST *table, String *buff);
 
 void init_fill_schema_files_row(TABLE* table);
 bool schema_table_store_record(THD *thd, TABLE *table);
+
+/**
+  Store record to I_S table, convert HEAP table to InnoDB table if necessary.
+
+  @param[in]  thd            thread handler
+  @param[in]  table          Information schema table to be updated
+  @param[in]  make_ondisk    if true, convert heap table to on disk table.
+                             default value is true.
+  @return 0 on success
+  @return error code on failure.
+*/
+int schema_table_store_record2(THD *thd, TABLE *table, bool make_ondisk);
+
+/**
+  Convert HEAP table to InnoDB table if necessary
+
+  @param[in] thd     thread handler
+  @param[in] table   Information schema table to be converted.
+  @param[in] error   the error code returned previously.
+  @return false on success, true on error.
+*/
+bool convert_heap_table_to_ondisk(THD *thd, TABLE *table, int error);
 void initialize_information_schema_acl();
 
 ST_SCHEMA_TABLE *find_schema_table(THD *thd, const char* table_name);
@@ -226,12 +248,13 @@ const char* get_one_variable_ext(THD *running_thd, THD *target_thd,
 /* These functions were under INNODB_COMPATIBILITY_HOOKS */
 int get_quote_char_for_identifier(THD *thd, const char *name, size_t length);
 
-/* Handle the ignored database directories list for SHOW/I_S. */
+/* Handle the ignored database directories list for SHOW/I_S/initialize. */
 void ignore_db_dirs_init();
 void ignore_db_dirs_free();
 void ignore_db_dirs_reset();
 bool ignore_db_dirs_process_additions();
 bool push_ignored_db_dir(char *path);
 extern char *opt_ignore_db_dirs;
+bool is_in_ignore_db_dirs_list(const char *directory);
 
 #endif /* SQL_SHOW_H */

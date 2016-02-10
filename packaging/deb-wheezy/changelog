@@ -1,3 +1,10 @@
+mysql-community (5.7.11-1debian7) wheezy; urgency=low
+
+  * new upstream release
+  * Added /var/lib/mysql-keyring directory
+
+ -- Lars Tangvald <lars.tangvald@oracle.com>  Wed, 16 Dec 2015 10:48:32 +0100
+
 mysql-community (5.7.10-1debian7) wheezy; urgency=low
 
   * new upstream release

@@ -762,5 +762,50 @@ ANALYZE TABLE employees;
 --eval EXPLAIN $query
 --eval $query
 DROP TABLE employees;
+--echo #
+--echo # Bug#22077611 UPDATE .. WHERE JSON_EXTRACT(..) = '..' NOT USING
+--echo #              VIRTUAL COL INDEX
+--echo #
+CREATE TABLE t(a INT, b INT, gc INT GENERATED ALWAYS AS (a+1) STORED, KEY(gc));
+INSERT INTO t(a) VALUES (1), (2), (3), (4), (5), (1), (2), (3), (4), (5);
+ANALYZE TABLE t;
+--let $query= UPDATE t SET b = 10 WHERE (a+1) = 3
+--eval EXPLAIN $query
+--eval $query
+SELECT * FROM t ORDER BY a, b;
+ANALYZE TABLE t;
+--let $query= UPDATE t SET b = 9 ORDER BY (a+1) LIMIT 1
+--eval EXPLAIN $query
+--eval $query
+SELECT * FROM t ORDER BY a, b;
+ANALYZE TABLE t;
+--let $query= DELETE FROM t WHERE (a+1) = 2
+--eval EXPLAIN $query
+--eval $query
+SELECT * FROM t ORDER BY a, b;
+ANALYZE TABLE t;
+--let $query= DELETE FROM t ORDER BY (a+1) LIMIT 1
+--eval EXPLAIN $query
+--eval $query
+SELECT * FROM t ORDER BY a, b;
+DROP TABLE t;
 
+if($support_virtual_index)
+{
+--echo #
+--echo # Bug#22095783: ALTER TABLE ADD COLUMN FAILS WITH OUT
+--echo #               OF RANGE VALUE ERROR
+CREATE TABLE c1(doc JSON,_id VARCHAR(32) GENERATED ALWAYS
+AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED NOT NULL UNIQUE);
+INSERT INTO c1(doc) VALUES('{"X":10,"_id":9}');
+--error ER_WARN_DATA_OUT_OF_RANGE
+ALTER TABLE c1 ADD COLUMN vc1 DOUBLE(4, 3) GENERATED
+ALWAYS AS (JSON_EXTRACT(doc, '$.X')) VIRTUAL , ADD INDEX IX1 (vc1);
+ALTER TABLE c1 ADD vc2 INT(11);
+ALTER TABLE c1 ADD COLUMN vc3 INT(11) GENERATED ALWAYS AS
+(JSON_EXTRACT(doc, '$.X')) VIRTUAL , ADD UNIQUE INDEX IX2 (vc3);
+ALTER TABLE c1 drop vc2;
+ALTER TABLE c1 ADD vc4 INT(11);
+DROP TABLE c1;
+} 
 --echo #

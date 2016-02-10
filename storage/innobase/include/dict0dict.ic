@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1577,9 +1577,11 @@ dict_max_v_field_len_store_undo(
 	for UNIV_FORMAT_B, upto col->max_prefix or
 	2) REC_VERSION_56_MAX_INDEX_COL_LEN, whichever is less */
 	if (dict_table_get_format(table) >= UNIV_FORMAT_B) {
-		max_log_len = (col->max_prefix > 0)
-			? col->max_prefix
-			: DICT_MAX_FIELD_LEN_BY_FORMAT(table);
+		if (DATA_BIG_COL(col) && col->max_prefix > 0) {
+			max_log_len = col->max_prefix;
+		} else {
+			max_log_len = DICT_MAX_FIELD_LEN_BY_FORMAT(table);
+		}
 	} else {
 		max_log_len = REC_ANTELOPE_MAX_INDEX_COL_LEN;
 	}
@@ -1655,6 +1657,18 @@ dict_table_is_temporary(
 	const dict_table_t*	table)	/*!< in: table to check */
 {
 	return(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY));
+}
+
+/********************************************************************//**
+Check if it is a encrypted table.
+@return true if table encrypted flag is set. */
+UNIV_INLINE
+bool
+dict_table_is_encrypted(
+/*====================*/
+	const dict_table_t*	table)	/*!< in: table to check */
+{
+	return(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_ENCRYPTION));
 }
 
 /** Check whether the table is intrinsic.
@@ -1891,6 +1905,27 @@ dict_free_vc_templ(
 		ut_free(vc_templ->vtempl);
 		vc_templ->vtempl = NULL;
 	}
+}
+
+/** Check whether the table have virtual index.
+@param[in]	table	InnoDB table
+@return true if the table have virtual index, false otherwise. */
+UNIV_INLINE
+bool
+dict_table_have_virtual_index(
+	dict_table_t*	table)
+{
+	for (ulint col_no = 0; col_no < dict_table_get_n_v_cols(table);
+	     col_no++) {
+		const dict_v_col_t*	col
+			= dict_table_get_nth_v_col(table, col_no);
+
+		if (col->m_col.ord_part) {
+			return(true);
+		}
+	}
+
+	return(false);
 }
 
 #endif /* !UNIV_HOTBACKUP */

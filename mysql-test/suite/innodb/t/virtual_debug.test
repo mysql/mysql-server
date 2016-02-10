@@ -1,0 +1,213 @@
+--source include/have_innodb.inc
+--source include/have_debug_sync.inc
+--source include/have_debug.inc
+--source include/count_sessions.inc
+
+CREATE TABLE `t` (
+  `a` VARCHAR(100),
+  `b` VARCHAR(100),
+  `c` VARCHAR(200) GENERATED ALWAYS AS (CONCAT(a,b)) VIRTUAL,
+  `h` VARCHAR(10) DEFAULT NULL,
+  `i` int
+) ENGINE=InnoDB;
+
+INSERT INTO t VALUES (REPEAT('g', 100), REPEAT('x', 10), DEFAULT, "kk", 1);
+INSERT INTO t VALUES (REPEAT('a', 100), REPEAT('b', 100), DEFAULT, "mm", 2);
+
+CREATE INDEX idx ON t(c(100));
+
+SET session debug="+d,ib_alter_add_virtual_fail";
+--error ER_WRONG_KEY_COLUMN
+ALTER TABLE t ADD COLUMN x VARCHAR(200) GENERATED ALWAYS AS (a) VIRTUAL,
+ALGORITHM = INPLACE;
+--error ER_WRONG_KEY_COLUMN
+ALTER TABLE t DROP COLUMN c, ALGORITHM = INPLACE;
+SET session debug="-d,ib_alter_add_virtual_fail";
+DROP TABLE t;
+
+#online test
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10));
+
+INSERT INTO t VALUES (11, 3, DEFAULT, 'mm');
+INSERT INTO t VALUES (18, 1, DEFAULT, 'mm');
+INSERT INTO t VALUES (28, 1, DEFAULT, 'mm');
+INSERT INTO t VALUES (null, null, DEFAULT, "mx");
+
+SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create WAIT_FOR go_ahead';
+--send CREATE INDEX idx ON t(c);
+
+connect (con1,localhost,root,,);
+connection con1;
+
+SET DEBUG_SYNC = 'now WAIT_FOR start_create';
+update t set a=0 where a = 11;
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+
+connection default;
+reap;
+
+SELECT c FROM t;
+SHOW CREATE TABLE t;
+SELECT * FROM t;
+
+SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create WAIT_FOR go_ahead';
+--send ALTER TABLE t ADD COLUMN x INT;
+
+connection con1;
+
+SET DEBUG_SYNC = 'now WAIT_FOR start_create';
+start transaction;
+update t set a=1 where a = 0;
+ROLLBACK;
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+
+connection default;
+reap;
+
+SELECT c FROM t;
+
+SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create WAIT_FOR go_ahead';
+--send ALTER TABLE t ADD COLUMN x2 INT;
+
+connection con1;
+
+SET DEBUG_SYNC = 'now WAIT_FOR start_create';
+start transaction;
+DELETE FROM t WHERE a = 0;
+ROLLBACK;
+DELETE FROM t WHERE a = 0;
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+
+connection default;
+reap;
+
+SELECT c FROM t;
+
+disconnect con1;
+DROP TABLE t;
+
+SET DEBUG_SYNC = 'RESET';
+
+
+# Test add virtual column and add index at the same time
+# introduce some error
+
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10));
+
+INSERT INTO t VALUES (11, 3, DEFAULT, 'mm');
+
+INSERT INTO t VALUES (18, 1, DEFAULT, 'mm');
+
+INSERT INTO t VALUES (28, 1, DEFAULT, 'mm');
+
+INSERT INTO t VALUES (null, null, DEFAULT, 'mm');
+
+CREATE INDEX idx_1 on t(c);
+
+SET SESSION debug="+d,create_index_fail";
+
+--enable_info
+--error ER_DUP_ENTRY
+ALTER TABLE t ADD COLUMN x INT GENERATED ALWAYS AS(a+b), ADD INDEX idx (x);
+SET SESSION debug="-d,create_index_fail";
+--disable_info
+
+SHOW CREATE TABLE t;
+
+SELECT c FROM t;
+
+DROP TABLE t;
+
+
+--echo #
+--echo # Bug#22018532 ASSERTION WHEN ONLINE REAPPLY REBUILD LOG ON
+--echo # MULTIPLE INDEXED VIRTUAL COLUMNS
+--echo #
+
+create table t (
+  a int as (1) virtual,
+  b int,
+  c int as (1) virtual,
+  unique(b),
+  unique(c),
+  key(a)
+) engine=innodb;
+
+insert ignore into t values();
+
+SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create WAIT_FOR go_ahead';
+--send optimize table t
+
+connect (con1,localhost,root,,);
+
+SET DEBUG_SYNC = 'now WAIT_FOR start_create';
+insert ignore into t values();
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+
+connection default;
+--echo /* connection default */ optimize table t;
+reap;
+SELECT c FROM t;
+SHOW CREATE TABLE t;
+SELECT * FROM t;
+DROP TABLE t;
+
+# Do another test without duplicate error
+
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10));
+
+INSERT INTO t VALUES (11, 3, DEFAULT, 'mm');
+INSERT INTO t VALUES (18, 1, DEFAULT, 'mm');
+INSERT INTO t VALUES (28, 1, DEFAULT, 'mm');
+INSERT INTO t VALUES (null, null, DEFAULT, 'mm');
+
+CREATE INDEX idx ON t(c);
+
+SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_rebuild WAIT_FOR go_ahead';
+--send optimize table t
+
+connection con1;
+SET DEBUG_SYNC = 'now WAIT_FOR start_rebuild';
+INSERT INTO t VALUES (48, 2, DEFAULT, 'xx');
+INSERT INTO t VALUES (68, 3, DEFAULT, 'sx');
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+
+connection default;
+--echo /* connection default */ optimize table t;
+reap;
+
+SELECT c FROM t;
+
+disconnect con1;
+
+DROP TABLE t;
+--echo #
+--echo #  Bug#22140944    WL#8149: ADD TEST FOR THE ROW0LOG.CC FIX THAT
+--echo #                  WAS UNRELATED TO Bug#21894654
+--echo #
+
+CREATE TABLE t1 ( id INT ,a VARCHAR(20), b VARCHAR(20) ,c VARCHAR(40)
+GENERATED ALWAYS AS (CONCAT(a,b)),key(c));
+INSERT INTO t1 (id,a,b) VALUES (10,'aditya','hello');
+
+connect (con1,localhost,root);
+connection con1;
+
+SET DEBUG_SYNC= 'row_merge_after_scan SIGNAL opened WAIT_FOR go_ddl';
+send ALTER TABLE t1 ADD CONSTRAINT  pk1 PRIMARY KEY (id);
+
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
+UPDATE t1 SET a = 'fg', id = 20 WHERE id = 10;
+SET DEBUG_SYNC= 'now SIGNAL go_ddl';
+
+connection con1;
+reap;
+disconnect con1;
+
+connection default;
+SELECT * from t1;
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';
+
+--source include/wait_until_count_sessions.inc

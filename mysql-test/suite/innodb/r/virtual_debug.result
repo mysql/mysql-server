@@ -1,0 +1,190 @@
+CREATE TABLE `t` (
+`a` VARCHAR(100),
+`b` VARCHAR(100),
+`c` VARCHAR(200) GENERATED ALWAYS AS (CONCAT(a,b)) VIRTUAL,
+`h` VARCHAR(10) DEFAULT NULL,
+`i` int
+) ENGINE=InnoDB;
+INSERT INTO t VALUES (REPEAT('g', 100), REPEAT('x', 10), DEFAULT, "kk", 1);
+INSERT INTO t VALUES (REPEAT('a', 100), REPEAT('b', 100), DEFAULT, "mm", 2);
+CREATE INDEX idx ON t(c(100));
+SET session debug="+d,ib_alter_add_virtual_fail";
+ALTER TABLE t ADD COLUMN x VARCHAR(200) GENERATED ALWAYS AS (a) VIRTUAL,
+ALGORITHM = INPLACE;
+ERROR 42000: The used storage engine can't index column 'x'
+ALTER TABLE t DROP COLUMN c, ALGORITHM = INPLACE;
+ERROR 42000: The used storage engine can't index column 'c'
+SET session debug="-d,ib_alter_add_virtual_fail";
+DROP TABLE t;
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10));
+INSERT INTO t VALUES (11, 3, DEFAULT, 'mm');
+INSERT INTO t VALUES (18, 1, DEFAULT, 'mm');
+INSERT INTO t VALUES (28, 1, DEFAULT, 'mm');
+INSERT INTO t VALUES (null, null, DEFAULT, "mx");
+SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create WAIT_FOR go_ahead';
+CREATE INDEX idx ON t(c);;
+SET DEBUG_SYNC = 'now WAIT_FOR start_create';
+update t set a=0 where a = 11;
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+SELECT c FROM t;
+c
+NULL
+3
+19
+29
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `h` varchar(10) DEFAULT NULL,
+  KEY `idx` (`c`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT * FROM t;
+a	b	c	h
+0	3	3	mm
+18	1	19	mm
+28	1	29	mm
+NULL	NULL	NULL	mx
+SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create WAIT_FOR go_ahead';
+ALTER TABLE t ADD COLUMN x INT;;
+SET DEBUG_SYNC = 'now WAIT_FOR start_create';
+start transaction;
+update t set a=1 where a = 0;
+ROLLBACK;
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+SELECT c FROM t;
+c
+NULL
+3
+19
+29
+SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create WAIT_FOR go_ahead';
+ALTER TABLE t ADD COLUMN x2 INT;;
+SET DEBUG_SYNC = 'now WAIT_FOR start_create';
+start transaction;
+DELETE FROM t WHERE a = 0;
+ROLLBACK;
+DELETE FROM t WHERE a = 0;
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+SELECT c FROM t;
+c
+NULL
+19
+29
+DROP TABLE t;
+SET DEBUG_SYNC = 'RESET';
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10));
+INSERT INTO t VALUES (11, 3, DEFAULT, 'mm');
+INSERT INTO t VALUES (18, 1, DEFAULT, 'mm');
+INSERT INTO t VALUES (28, 1, DEFAULT, 'mm');
+INSERT INTO t VALUES (null, null, DEFAULT, 'mm');
+CREATE INDEX idx_1 on t(c);
+SET SESSION debug="+d,create_index_fail";
+ALTER TABLE t ADD COLUMN x INT GENERATED ALWAYS AS(a+b), ADD INDEX idx (x);
+ERROR 23000: Duplicate entry '' for key '*UNKNOWN*'
+SET SESSION debug="-d,create_index_fail";
+affected rows: 0
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `h` varchar(10) DEFAULT NULL,
+  KEY `idx_1` (`c`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT c FROM t;
+c
+NULL
+14
+19
+29
+DROP TABLE t;
+#
+# Bug#22018532 ASSERTION WHEN ONLINE REAPPLY REBUILD LOG ON
+# MULTIPLE INDEXED VIRTUAL COLUMNS
+#
+create table t (
+a int as (1) virtual,
+b int,
+c int as (1) virtual,
+unique(b),
+unique(c),
+key(a)
+) engine=innodb;
+insert ignore into t values();
+SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create WAIT_FOR go_ahead';
+optimize table t;
+SET DEBUG_SYNC = 'now WAIT_FOR start_create';
+insert ignore into t values();
+Warnings:
+Warning	1062	Duplicate entry '1' for key 'c'
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+/* connection default */ optimize table t;
+Table	Op	Msg_type	Msg_text
+test.t	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t	optimize	error	Duplicate entry 'NULL' for key 'b'
+test.t	optimize	status	Operation failed
+Warnings:
+Error	1062	Duplicate entry 'NULL' for key 'b'
+SELECT c FROM t;
+c
+1
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) GENERATED ALWAYS AS (1) VIRTUAL,
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) GENERATED ALWAYS AS (1) VIRTUAL,
+  UNIQUE KEY `b` (`b`),
+  UNIQUE KEY `c` (`c`),
+  KEY `a` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT * FROM t;
+a	b	c
+1	NULL	1
+DROP TABLE t;
+CREATE TABLE t (a INT, b INT, c INT GENERATED ALWAYS AS(a+b), h VARCHAR(10));
+INSERT INTO t VALUES (11, 3, DEFAULT, 'mm');
+INSERT INTO t VALUES (18, 1, DEFAULT, 'mm');
+INSERT INTO t VALUES (28, 1, DEFAULT, 'mm');
+INSERT INTO t VALUES (null, null, DEFAULT, 'mm');
+CREATE INDEX idx ON t(c);
+SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_rebuild WAIT_FOR go_ahead';
+optimize table t;
+SET DEBUG_SYNC = 'now WAIT_FOR start_rebuild';
+INSERT INTO t VALUES (48, 2, DEFAULT, 'xx');
+INSERT INTO t VALUES (68, 3, DEFAULT, 'sx');
+SET DEBUG_SYNC = 'now SIGNAL go_ahead';
+/* connection default */ optimize table t;
+Table	Op	Msg_type	Msg_text
+test.t	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t	optimize	status	OK
+SELECT c FROM t;
+c
+NULL
+14
+19
+29
+50
+71
+DROP TABLE t;
+#
+#  Bug#22140944    WL#8149: ADD TEST FOR THE ROW0LOG.CC FIX THAT
+#                  WAS UNRELATED TO Bug#21894654
+#
+CREATE TABLE t1 ( id INT ,a VARCHAR(20), b VARCHAR(20) ,c VARCHAR(40)
+GENERATED ALWAYS AS (CONCAT(a,b)),key(c));
+INSERT INTO t1 (id,a,b) VALUES (10,'aditya','hello');
+SET DEBUG_SYNC= 'row_merge_after_scan SIGNAL opened WAIT_FOR go_ddl';
+ALTER TABLE t1 ADD CONSTRAINT  pk1 PRIMARY KEY (id);
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
+UPDATE t1 SET a = 'fg', id = 20 WHERE id = 10;
+SET DEBUG_SYNC= 'now SIGNAL go_ddl';
+SELECT * from t1;
+id	a	b	c
+20	fg	hello	fghello
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';

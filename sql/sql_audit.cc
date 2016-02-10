@@ -395,18 +395,82 @@ int mysql_audit_notify(THD *thd, mysql_event_parse_subclass_t subclass,
                                     subclass_name, &event);
 }
 
-/*
-  Function commented out. No Audit API calls yet.
+/**
+  Check whether the table access event for a specified table will
+  be generated.
 
+  Events for Views, table catogories other than 'SYSTEM' or 'USER' and
+  temporary tables are not generated.
+
+  @param table Table that is to be check.
+
+  @retval true - generate event, otherwise not.
+*/
+inline bool generate_table_access_event(TABLE_LIST *table)
+{
+  /* Discard views. */
+  if (table->is_view())
+    return false;
+
+  /* TRUNCATE query on Storage Engine supporting HTON_CAN_RECREATE flag. */
+  if (!table->table)
+    return true;
+
+  /* Do not generate events, which come from PS preparation. */
+  if (table->table->in_use->lex->is_ps_or_view_context_analysis())
+    return false;
+
+  /* Generate event for SYSTEM and USER tables, which are not temp tables. */
+  if ((table->table->s->table_category == TABLE_CATEGORY_SYSTEM ||
+      table->table->s->table_category == TABLE_CATEGORY_USER) &&
+      table->table->s->tmp_table == NO_TMP_TABLE)
+    return true;
+
+  return false;
+}
+
+/**
+  Function that allows to use AUDIT_EVENT macro for setting subclass
+  and subclass name values.
+
+  @param out_subclass      [out] Subclass value pointer to be set.
+  @param out_subclass_name [out] Subclass name pointer to be set.
+  @param subclass                Subclass that sets out_subclass value.
+  @param subclass_name           Subclass name that sets out_subclass_name.
+*/
+inline static void set_table_access_subclass(
+                            mysql_event_table_access_subclass_t *out_subclass,
+                            const char **out_subclass_name,
+                            mysql_event_table_access_subclass_t subclass,
+                            const char *subclass_name)
+{
+  *out_subclass= subclass;
+  *out_subclass_name= subclass_name;
+}
+
+/**
+  Generate table access event for a specified table. Table is being
+  verified, whether the event for this table is to be generated.
+
+  @see generate_event
+
+  @param thd           Current thread data.
+  @param subclass      Subclass value.
+  @param subclass_name Subclass name.
+  @param table         Table, for which table access event is to be generated.
+
+  @retval Abort execution on 'true', otherwise continue execution.
+*/
 int mysql_audit_notify(THD *thd, mysql_event_table_access_subclass_t subclass,
-                       const char *subclass_name,
-                       const char *database, const char *table)
+                       const char *subclass_name, TABLE_LIST *table)
 {
   LEX_CSTRING str;
   mysql_event_table_access event;
 
-  mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_TABLE_ACCESS_CLASS,
-                              static_cast<unsigned long>(subclass));
+  if (!generate_table_access_event(table) ||
+      mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_TABLE_ACCESS_CLASS,
+                                  static_cast<unsigned long>(subclass)))
+    return 0;
 
   event.event_subclass= subclass;
   event.connection_id= thd->thread_id();
@@ -414,18 +478,99 @@ int mysql_audit_notify(THD *thd, mysql_event_table_access_subclass_t subclass,
 
   thd_get_audit_query(thd, &event.query, &event.query_charset);
 
-  lex_cstring_set(&str, database);
+  lex_cstring_set(&str, table->db);
   event.table_database.str= str.str;
   event.table_database.length= str.length;
 
-  lex_cstring_set(&str, table);
+  lex_cstring_set(&str, table->table_name);
   event.table_name.str= str.str;
   event.table_name.length= str.length;
 
   return event_class_dispatch_error(thd, MYSQL_AUDIT_TABLE_ACCESS_CLASS,
                                     subclass_name, &event);
 }
-*/
+
+int mysql_audit_table_access_notify(THD *thd, TABLE_LIST *table)
+{
+  mysql_event_table_access_subclass_t subclass;
+  const char *subclass_name;
+  int ret;
+
+  /* Do not generate events for non query table access. */
+  if (!thd->lex->query_tables)
+    return 0;
+
+  switch (thd->lex->sql_command)
+  {
+    case SQLCOM_REPLACE_SELECT:
+    case SQLCOM_INSERT_SELECT:
+    {
+      /*
+        INSERT/REPLACE SELECT generates Insert event for the first table in the
+        list and Read for remaining tables.
+      */
+      set_table_access_subclass(&subclass, &subclass_name,
+                                AUDIT_EVENT(MYSQL_AUDIT_TABLE_ACCESS_INSERT));
+
+      if ((ret= mysql_audit_notify(thd, subclass, subclass_name, table)))
+        return ret;
+
+      /* Skip this table (event already generated). */
+      table= table->next_global;
+
+      set_table_access_subclass(&subclass, &subclass_name,
+                                AUDIT_EVENT(MYSQL_AUDIT_TABLE_ACCESS_READ));
+      break;
+    }
+    case SQLCOM_INSERT:
+    case SQLCOM_REPLACE:
+    case SQLCOM_LOAD:
+      set_table_access_subclass(&subclass, &subclass_name,
+                                AUDIT_EVENT(MYSQL_AUDIT_TABLE_ACCESS_INSERT));
+      break;
+    case SQLCOM_DELETE:
+    case SQLCOM_DELETE_MULTI:
+    case SQLCOM_TRUNCATE:
+      set_table_access_subclass(&subclass, &subclass_name,
+                                AUDIT_EVENT(MYSQL_AUDIT_TABLE_ACCESS_DELETE));
+      break;
+    case SQLCOM_UPDATE:
+    case SQLCOM_UPDATE_MULTI:
+      /* Update state is taken from the table instance in the
+         mysql_audit_notify function. */
+      set_table_access_subclass(&subclass, &subclass_name,
+                                AUDIT_EVENT(MYSQL_AUDIT_TABLE_ACCESS_UPDATE));
+      break;
+    case SQLCOM_SELECT:
+    case SQLCOM_HA_READ:
+      set_table_access_subclass(&subclass, &subclass_name,
+                                AUDIT_EVENT(MYSQL_AUDIT_TABLE_ACCESS_READ));
+      break;
+    default:
+      /* Do not generate event for not supported command. */
+      return 0;
+  }
+
+  for (; table; table= table->next_global)
+  {
+    /*
+      Update-Multi query can have several updatable tables as well as readable
+      tables. This is taken from table->updating field, which holds info,
+      whether table is being updated or not. table->updating holds invalid
+      info, when the updatable table is referenced by a view. View status is
+      taken into account in that case.
+    */
+    if (subclass == MYSQL_AUDIT_TABLE_ACCESS_UPDATE &&
+        !table->referencing_view && !table->updating)
+      set_table_access_subclass(&subclass, &subclass_name,
+                                AUDIT_EVENT(MYSQL_AUDIT_TABLE_ACCESS_READ));
+
+    if ((ret= mysql_audit_notify(thd, subclass, subclass_name, table)))
+      return ret;
+  }
+
+  return 0;
+}
 
 int mysql_audit_notify(THD *thd, mysql_event_global_variable_subclass_t subclass,
                        const char* subclass_name, const char *name,
@@ -906,14 +1051,6 @@ int initialize_audit_plugin(st_plugin_int *plugin)
     sql_print_error("Plugin '%s' cannot subscribe to "
                  "MYSQL_AUDIT_AUTHORIZATION events. Currently not supported.",
                  plugin->name.str);
-    return 1;
-  }
-
-  if (data->class_mask[MYSQL_AUDIT_TABLE_ACCESS_CLASS])
-  {
-    sql_print_error("Plugin '%s' cannot subscribe to "
-                  "MYSQL_AUDIT_TABLE_ACCESS events. Currently not supported.",
-                  plugin->name.str);
     return 1;
   }
 

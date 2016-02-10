@@ -60,6 +60,7 @@
 #include "sql_base.h"                           // insert_fields
 #include "sql_select.h"
 #include "sql_resolver.h"                       // Column_privilege_tracker
+#include "sql_audit.h"                          // mysql_audit_table_access_notify
 #include "transaction.h"
 #include "log.h"
 
@@ -665,6 +666,10 @@ retry:
 
   thd->send_result_metadata(&list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF);
+#ifndef EMBEDDED_LIBRARY
+  if (mysql_audit_table_access_notify(thd, hash_tables))
+    goto err;
+#endif /* !EMBEDDED_LIBRARY */
 
   /*
     In ::external_lock InnoDB resets the fields which tell it that

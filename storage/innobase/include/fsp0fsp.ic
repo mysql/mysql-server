@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -180,6 +180,7 @@ fsp_flags_set_page_size(
 @param[in]	has_data_dir	This tablespace is in a remote location.
 @param[in]	is_shared	This tablespace can be shared by many tables.
 @param[in]	is_temporary	This tablespace is temporary.
+@param[in]	is_encrypted	This tablespace is encrypted.
 @return tablespace flags after initialization */
 UNIV_INLINE
 ulint
@@ -188,7 +189,8 @@ fsp_flags_init(
 	bool			atomic_blobs,
 	bool			has_data_dir,
 	bool			is_shared,
-	bool			is_temporary)
+	bool			is_temporary,
+	bool			is_encrypted)
 {
 	ut_ad(page_size.physical() <= page_size.logical());
 	ut_ad(!page_size.is_compressed() || atomic_blobs);
@@ -220,6 +222,10 @@ fsp_flags_init(
 	if (is_temporary) {
 		ut_ad(!has_data_dir);
 		flags |= FSP_FLAGS_MASK_TEMPORARY;
+	}
+
+	if (is_encrypted) {
+		flags |= FSP_FLAGS_MASK_ENCRYPTION;
 	}
 
 	return(flags);
@@ -303,5 +309,16 @@ xdes_calc_descriptor_page(
 #endif /* UNIV_DEBUG */
 
 	return(ut_2pow_round(offset, page_size.physical()));
+}
+
+/** Calculates the descriptor array size.
+@param[in]	page_size	page size
+@return size of descriptor array */
+UNIV_INLINE
+ulint
+xdes_arr_size(
+	const page_size_t&	page_size)
+{
+	return(page_size.physical()/FSP_EXTENT_SIZE);
 }
 #endif /* !UNIV_INNOCHECKSUM */

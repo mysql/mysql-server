@@ -1024,6 +1024,9 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
   uint i= 0;
   Security_context *sctx= thd->security_context();
   Security_context *backup_ctx= thd->security_context();
+
+  DBUG_EXECUTE_IF("force_check_table_access_return_ok",
+                  return false;);
   /*
     The check that first_not_own_table is not reached is for the case when
     the given table list refers to the list for prelocking (contains tables
@@ -3445,6 +3448,12 @@ user_end:
 
   mysql_mutex_unlock(&acl_cache->lock);
 
+  DBUG_EXECUTE_IF("force_mysql_revoke_all_fail", {
+    result= 1;
+    is_partial_execution= true;
+    rollback_whole_statement= false;
+  });
+
   if (result && !rollback_whole_statement)
     my_message(ER_REVOKE_GRANTS, ER(ER_REVOKE_GRANTS), MYF(0));
 
@@ -3462,6 +3471,7 @@ user_end:
       {
         const char* err_msg= "REVOKE failed while revoking all_privileges "
                              "from a list of users.";
+        DEBUG_SYNC(thd, "revoke_all_before_write_incident_to_binlog");
         mysql_bin_log.write_incident(thd, true /* need_lock_log=true */,
                                      err_msg);
       }
@@ -3804,6 +3814,7 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
   grant->privilege|= acl_get(sctx->host().str, sctx->ip().str,
                              priv_user.str, db, 0);
 
+  DEBUG_SYNC(thd, "fill_effective_table_privileges");
   /* table privileges */
   LOCK_grant_read_guard lock(thd);
 

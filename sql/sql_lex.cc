@@ -118,75 +118,6 @@ const char *st_select_lex::type_str[SLT_total]=
 };
 
 
-static bool init_state_maps(CHARSET_INFO *cs)
-{
-  uint i;
-  uchar *ident_map;
-
-  lex_state_maps_st *lex_state_maps=
-    (lex_state_maps_st *) my_once_alloc(sizeof(lex_state_maps_st), MYF(MY_WME));
-
-  if (lex_state_maps == NULL)
-    return true; // OOM
-
-  cs->state_maps= lex_state_maps;
-  my_lex_states *state_map= lex_state_maps->main_map;
-
-  if (!(cs->ident_map= ident_map= (uchar*) my_once_alloc(256, MYF(MY_WME))))
-    return true; // OOM
-
-  hint_lex_init_maps(cs, lex_state_maps->hint_map);
-
-  /* Fill state_map with states to get a faster parser */
-  for (i=0; i < 256 ; i++)
-  {
-    if (my_isalpha(cs,i))
-      state_map[i]= MY_LEX_IDENT;
-    else if (my_isdigit(cs,i))
-      state_map[i]= MY_LEX_NUMBER_IDENT;
-    else if (my_ismb1st(cs, i))
-      /* To get whether it's a possible leading byte for a charset. */
-      state_map[i]= MY_LEX_IDENT;
-    else if (my_isspace(cs,i))
-      state_map[i]= MY_LEX_SKIP;
-    else
-      state_map[i]= MY_LEX_CHAR;
-  }
-  state_map[(uchar)'_']=state_map[(uchar)'$']= MY_LEX_IDENT;
-  state_map[(uchar)'\'']= MY_LEX_STRING;
-  state_map[(uchar)'.']= MY_LEX_REAL_OR_POINT;
-  state_map[(uchar)'>']=state_map[(uchar)'=']=state_map[(uchar)'!']= MY_LEX_CMP_OP;
-  state_map[(uchar)'<']= MY_LEX_LONG_CMP_OP;
-  state_map[(uchar)'&']=state_map[(uchar)'|']= MY_LEX_BOOL;
-  state_map[(uchar)'#']= MY_LEX_COMMENT;
-  state_map[(uchar)';']= MY_LEX_SEMICOLON;
-  state_map[(uchar)':']= MY_LEX_SET_VAR;
-  state_map[0]= MY_LEX_EOL;
-  state_map[(uchar)'\\']= MY_LEX_ESCAPE;
-  state_map[(uchar)'/']= MY_LEX_LONG_COMMENT;
-  state_map[(uchar)'*']= MY_LEX_END_LONG_COMMENT;
-  state_map[(uchar)'@']= MY_LEX_USER_END;
-  state_map[(uchar) '`']= MY_LEX_USER_VARIABLE_DELIMITER;
-  state_map[(uchar)'"']= MY_LEX_STRING_OR_DELIMITER;
-
-  /*
-    Create a second map to make it faster to find identifiers
-  */
-  for (i=0; i < 256 ; i++)
-  {
-    ident_map[i]= (uchar) (state_map[i] == MY_LEX_IDENT ||
-			   state_map[i] == MY_LEX_NUMBER_IDENT);
-  }
-
-  /* Special handling of hex and binary strings */
-  state_map[(uchar)'x']= state_map[(uchar)'X']= MY_LEX_IDENT_OR_HEX;
-  state_map[(uchar)'b']= state_map[(uchar)'B']= MY_LEX_IDENT_OR_BIN;
-  state_map[(uchar)'n']= state_map[(uchar)'N']= MY_LEX_IDENT_OR_NCHAR;
-
-  return false;
-}
-
-
 bool lex_init(void)
 {
   DBUG_ENTER("lex_init");
@@ -2322,6 +2253,7 @@ st_select_lex::st_select_lex
   first_execution(true),
   sj_pullout_done(false),
   exclude_from_table_unique_test(false),
+  allow_merge_derived(true),
   prev_join_using(NULL),
   select_list_tables(0),
   outer_join(0),
@@ -3787,6 +3719,21 @@ void st_select_lex_unit::include_chain(LEX *lex, st_select_lex *outer)
    - A query that modifies variables (When variables are modified, try to
      preserve the original structure of the query. This is less likely to cause
      changes in variable assignment order).
+
+  A view/derived table will also not be merged if it contains subqueries
+  in the SELECT list that depend on columns from itself.
+  Merging such objects is possible, but we assume they are made derived
+  tables because the user wants them to be materialized, for performance
+  reasons.
+
+  One possible case is a derived table with dependent subqueries in the select
+  list, used as the inner table of a left outer join. Such tables will always
+  be read as many times as there are qualifying rows in the outer table,
+  and the select list subqueries are evaluated for each row combination.
+  The select list subqueries are evaluated the same number of times also with
+  join buffering enabled, even though the table then only will be read once.
+
+  When materialization hints are implemented, this decision may be reconsidered.
 */
 
 bool st_select_lex_unit::is_mergeable() const
@@ -3794,11 +3741,19 @@ bool st_select_lex_unit::is_mergeable() const
   if (is_union())
     return false;
 
-  return !first_select()->is_grouped() &&
-         !first_select()->having_cond() &&
-         !first_select()->is_distinct() &&
-         first_select()->table_list.elements > 0 &&
-         !first_select()->has_limit() &&
+  SELECT_LEX *const select= first_select();
+  Item *item;
+  List_iterator<Item> it(select->fields_list);
+  while ((item= it++))
+  {
+    if (item->has_subquery() && item->used_tables())
+      return false;
+  }
+  return !select->is_grouped() &&
+         !select->having_cond() &&
+         !select->is_distinct() &&
+         select->table_list.elements > 0 &&
+         !select->has_limit() &&
          thd->lex->set_var_list.elements == 0;
 }
 

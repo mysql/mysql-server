@@ -1814,3 +1814,22 @@ SHOW WARNINGS;
 SET sql_mode = @sql_mode_saved;
 DROP TABLE t1;
 
+#
+# BUG#22202665 - ADDING A TRIGGER TO A TABLE CHANGES THE BEHAVIOUR OF NULL DETECTION
+#
+
+--disable_warnings
+SET @sql_mode_saved = @@sql_mode;
+SET sql_mode='';
+--enable_warnings
+CREATE TABLE t1(a INT NOT NULL, b INT NOT NULL);
+INSERT INTO t1(a) VALUES (1);
+SHOW WARNINGS;
+CREATE TRIGGER t1_trg_before_ins BEFORE INSERT ON t1 FOR EACH ROW SET NEW.a=2;
+INSERT INTO t1(a) VALUES (1);
+SHOW WARNINGS;
+
+--disable_warnings
+SET sql_mode = @sql_mode_saved;
+--enable_warnings
+DROP TABLE t1;

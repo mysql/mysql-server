@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -237,6 +237,7 @@
 #cmakedefine SHAREDIR "@SHAREDIR@"
 #cmakedefine DEFAULT_BASEDIR "@DEFAULT_BASEDIR@"
 #cmakedefine MYSQL_DATADIR "@MYSQL_DATADIR@"
+#cmakedefine MYSQL_KEYRINGDIR "@MYSQL_KEYRINGDIR@"
 #cmakedefine DEFAULT_CHARSET_HOME "@DEFAULT_CHARSET_HOME@"
 #cmakedefine PLUGINDIR "@PLUGINDIR@"
 #cmakedefine DEFAULT_SYSCONFDIR "@DEFAULT_SYSCONFDIR@"
@@ -249,6 +250,7 @@
 #cmakedefine INSTALL_INCLUDEDIR "@default_prefix@/@INSTALL_INCLUDEDIR@"
 #cmakedefine INSTALL_SCRIPTDIR "@default_prefix@/@INSTALL_SCRIPTDIR@"
 #cmakedefine INSTALL_MYSQLDATADIR "@default_prefix@/@INSTALL_MYSQLDATADIR@"
+#cmakedefine INSTALL_MYSQLKEYRINGDIR "@default_prefix@/@INSTALL_MYSQLKEYRINGDIR@"
 #cmakedefine INSTALL_PLUGINTESTDIR "@INSTALL_PLUGINTESTDIR@"
 #cmakedefine INSTALL_INFODIR "@default_prefix@/@INSTALL_INFODIR@"
 #cmakedefine INSTALL_MYSQLTESTDIR "@default_prefix@/@INSTALL_MYSQLTESTDIR@"
@@ -431,5 +433,8 @@
 #cmakedefine DEFAULT_SECURE_FILE_PRIV_DIR @DEFAULT_SECURE_FILE_PRIV_DIR@
 #cmakedefine DEFAULT_SECURE_FILE_PRIV_EMBEDDED_DIR @DEFAULT_SECURE_FILE_PRIV_EMBEDDED_DIR@
 #cmakedefine HAVE_LIBNUMA 1
+
+/* For default value of --early_plugin_load */
+#cmakedefine DEFAULT_EARLY_PLUGIN_LOAD @DEFAULT_EARLY_PLUGIN_LOAD@
 
 #endif
