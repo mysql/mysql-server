@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4186,8 +4186,6 @@ private:
   bool write_data_set(IO_CACHE* file, std::list<const char*> *set);
 #endif
 
-  bool read_snapshot_version();
-
   size_t get_snapshot_version_size();
 
   static int get_data_set_size(std::list<const char*> *set);
@@ -4248,6 +4246,14 @@ public:
     Return a pointer to read-set list.
    */
   std::list<const char*> *get_read_set() { return &read_set; }
+
+  /**
+    Read snapshot version from encoded buffers.
+    Cannot be executed during data read from file (event constructor),
+    since its required locks will collide with the server gtid state
+    initialization procedure.
+   */
+  bool read_snapshot_version();
 
   /**
     Return the transaction snapshot timestamp.
