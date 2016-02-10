@@ -203,7 +203,7 @@ CONCAT('"',CONCAT_WS('";"',repeat('a',60),repeat('b',60),repeat('c',60),repeat('
 "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
 select insert('txs',2,1,'hi'),insert('is ',4,0,'a'),insert('txxxxt',2,4,'es');
 insert('txs',2,1,'hi')	insert('is ',4,0,'a')	insert('txxxxt',2,4,'es')
-this	is a	test
+this	is 	test
 select replace('aaaa','a','b'),replace('aaaa','aa','b'),replace('aaaa','a','bb'),replace('aaaa','','b'),replace('bbbb','a','c');
 replace('aaaa','a','b')	replace('aaaa','aa','b')	replace('aaaa','a','bb')	replace('aaaa','','b')	replace('bbbb','a','c')
 bbbb	bb	bbbbbbbb	aaaa	bbbb
@@ -2335,7 +2335,7 @@ INSERT('abc', 3, 3, '1234')
 ab1234
 SELECT INSERT('abc', 4, 3, '1234');
 INSERT('abc', 4, 3, '1234')
-abc1234
+abc
 SELECT INSERT('abc', 5, 3, '1234');
 INSERT('abc', 5, 3, '1234')
 abc
@@ -2625,7 +2625,7 @@ CREATE TABLE t1 ( a TEXT );
 SELECT 'aaaaaaaaaaaaaa' INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/bug58165.txt';;
 SELECT insert( substring_index( 'a', 'a', 'b' ), 1, 0, 'x' );
 insert( substring_index( 'a', 'a', 'b' ), 1, 0, 'x' )
-x
+
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: 'b'
 LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/bug58165.txt' INTO TABLE t1;;

@@ -1212,7 +1212,7 @@ String *Item_func_insert::val_str(String *str)
    length= res->charpos((int) length, (uint32) start);
 
   /* Re-testing with corrected params */
-  if (start > res->length())
+  if (start + 1 > res->length()) // remember, start = args[1].val_int() - 1
     return res; /* purecov: inspected */        // Wrong param; skip insert
   if (length > res->length() - start)
     length= res->length() - start;
