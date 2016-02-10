@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -106,6 +106,7 @@ enum options_client
   OPT_ENABLE_CLEARTEXT_PLUGIN,
   OPT_CONNECTION_SERVER_ID,
   OPT_TLS_VERSION,
+  OPT_SSL_MODE,
   /* Add new option above this */
   OPT_MAX_CLIENT_OPTION
 };
@@ -146,5 +147,10 @@ enum options_client
 #define CLIENT_WARN_DEPRECATED_NO_REPLACEMENT(opt) \
   printf("WARNING: " opt \
          " is deprecated and will be removed in a future version\n")
+
+#define CLIENT_WARN_DEPRECATED(opt, new_opt) \
+  printf("WARNING: " opt \
+         " is deprecated and will be removed in a future version. " \
+         "Use " new_opt " instead.\n")
 
 #endif

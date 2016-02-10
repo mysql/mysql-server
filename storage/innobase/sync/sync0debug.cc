@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -1543,6 +1543,8 @@ sync_latch_meta_init()
 #endif /* UNIV_DEBUG */
 
 	LATCH_ADD(SYNC_DEBUG_MUTEX, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
+
+	LATCH_ADD(MASTER_KEY_ID_MUTEX, SYNC_NO_ORDER_CHECK, master_key_id_mutex_key);
 
 	latch_id_t	id = LATCH_ID_NONE;
 

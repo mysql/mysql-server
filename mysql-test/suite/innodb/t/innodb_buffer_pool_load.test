@@ -152,3 +152,83 @@ WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 
 DROP TABLE ib_bp_test;
 SET GLOBAL innodb_buffer_pool_dump_pct=default;
+
+--echo #
+--echo # Bug#22016556 INNODB LOOKS FOR BUFFER POOL FILE NAME IN '/' IF
+--echo # INNODB_DATA_HOME_DIR IS EMPTY
+--echo #
+
+# Set different paths for --datadir
+let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/datadir1/data;
+
+let $MYSQLD_BASEDIR= `select @@basedir`;
+
+# Create custom datadir path
+--mkdir $MYSQL_TMP_DIR/datadir1
+
+let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/boot.sql;
+let $start_page_size=`SELECT variable_value FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE LOWER(variable_name) = 'innodb_page_size'`;
+# Create bootstrap file
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test;
+EOF
+
+let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR --innodb-data-home-dir= --innodb_data_file_path=$MYSQL_TMP_DIR/datadir1/ibdata:16M:autoextend --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL</dev/null>>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1 --innodb_undo_tablespaces=0 --innodb-page-size=$start_page_size;
+
+# Run the bootstrap command
+--exec $NEW_CMD
+
+# Start the DB server
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--let $restart_parameters="restart: --innodb-data-home-dir= --innodb_data_file_path=$MYSQL_TMP_DIR/datadir1/ibdata:16M:autoextend --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --innodb_undo_tablespaces=0"
+--source include/restart_mysqld.inc
+
+CREATE TABLE t1 (a int) ENGINE=innodb;
+INSERT INTO t1 VALUES (1), (2), (3);
+
+SET GLOBAL innodb_buffer_pool_dump_now=ON;
+
+# Wait for the dump to complete
+--disable_warnings
+let $wait_condition =
+  SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) dump completed at '
+  FROM information_schema.global_status
+  WHERE LOWER(variable_name) = 'innodb_buffer_pool_dump_status';
+--enable_warnings
+--source include/wait_condition.inc
+
+--disable_warnings
+--replace_regex /[0-9]{6}[[:space:]]+[0-9]{1,2}:[0-9]{2}:[0-9]{2}/TIMESTAMP_NOW/
+SELECT variable_value
+FROM information_schema.global_status
+WHERE LOWER(variable_name) = 'innodb_buffer_pool_dump_status';
+--enable_warnings
+
+SET GLOBAL innodb_buffer_pool_load_now = ON;
+
+# Wait for the load to complete
+--disable_warnings
+let $wait_condition =
+  SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) load completed at '
+  FROM information_schema.global_status
+  WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
+--enable_warnings
+--source include/wait_condition.inc
+
+--disable_warnings
+--replace_regex /[0-9]{6}[[:space:]]+[0-9]{1,2}:[0-9]{2}:[0-9]{2}/TIMESTAMP_NOW/
+SELECT variable_value
+FROM information_schema.global_status
+WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
+--enable_warnings
+
+DROP TABLE t1;
+DROP DATABASE test;
+
+let $restart_parameters=;
+--source include/restart_mysqld.inc
+
+# Remove residue files and data folder
+let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1/;
+--source ../include/cleanup_folder.inc
+--remove_file $BOOTSTRAP_SQL

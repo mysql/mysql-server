@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@ SET(HEADERS_ABI
   mysql/plugin_audit.h
   mysql/plugin_ftparser.h
   mysql/plugin_validate_password.h
+  mysql/plugin_keyring.h
   mysql/plugin_group_replication.h
 )
 
@@ -68,7 +69,10 @@ SET(HEADERS
   ${HEADERS_GEN_CONFIGURE}
 )
 
-INSTALL(FILES ../libbinlogevents/export/binary_log_types.h DESTINATION ${INSTALL_INCLUDEDIR})
+INSTALL(FILES
+  ../libbinlogevents/export/binary_log_types.h
+  DESTINATION ${INSTALL_INCLUDEDIR}
+  COMPONENT Development)
 INSTALL(FILES ${HEADERS} DESTINATION ${INSTALL_INCLUDEDIR} COMPONENT Development)
 INSTALL(DIRECTORY mysql/ DESTINATION ${INSTALL_INCLUDEDIR}/mysql COMPONENT Development 
  PATTERN "*.h"

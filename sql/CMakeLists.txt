@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -72,6 +72,7 @@ SET(SQL_SHARED_SOURCES
   auth/password_policy_service.cc
   auth/sql_security_ctx.cc
   auth/service_security_context.cc
+  keyring_service.cc
   bootstrap.cc
   conn_handler/connection_handler_manager.cc 
   datadict.cc
@@ -83,6 +84,7 @@ SET(SQL_SHARED_SOURCES
   filesort.cc
   filesort_utils.cc
   aggregate_check.cc
+  geometry_rtree.cc
   gstream.cc
   handler.cc
   hostname.cc
@@ -94,6 +96,7 @@ SET(SQL_SHARED_SOURCES
   item_func.cc
   item_geofunc.cc
   item_geofunc_buffer.cc
+  item_geofunc_internal.cc
   item_geofunc_relchecks.cc
   item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
@@ -160,6 +163,7 @@ SET(SQL_SHARED_SOURCES
   sql_admin.cc
   sql_alloc_error_handler.cc
   sql_alter.cc
+  sql_alter_instance.cc
   sql_analyse.cc
   sql_base.cc 
   sql_bootstrap.cc
@@ -294,14 +298,17 @@ ENDIF()
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 ADD_COMPILE_FLAGS(
+  debug_sync.cc
   handler.cc
+  geometry_rtree.cc
   item_geofunc.cc
   item_geofunc_buffer.cc
+  item_geofunc_internal.cc
   item_geofunc_relchecks.cc
   item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
   item_json_func.cc
-  debug_sync.cc
+  spatial.cc
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
 
@@ -309,14 +316,17 @@ ADD_COMPILE_FLAGS(
 MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
 IF(HAVE_NO_UNUSED_TYPEDEFS)
   ADD_COMPILE_FLAGS(
+    debug_sync.cc
     handler.cc
+    geometry_rtree.cc
     item_geofunc.cc
     item_geofunc_buffer.cc
+    item_geofunc_internal.cc
     item_geofunc_relchecks.cc
     item_geofunc_relchecks_bgwrap.cc
     item_geofunc_setops.cc
     item_json_func.cc
-    debug_sync.cc
+    spatial.cc
     COMPILE_FLAGS "-Wno-unused-local-typedefs"
   )
 ENDIF()
@@ -617,4 +627,3 @@ ADD_CUSTOM_TARGET(distclean
 ADD_CUSTOM_TARGET(show-dist-name
   COMMAND ${CMAKE_COMMAND} -E echo "${CPACK_PACKAGE_FILE_NAME}"
 )
-

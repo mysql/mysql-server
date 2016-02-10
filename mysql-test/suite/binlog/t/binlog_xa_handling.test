@@ -11,6 +11,7 @@
 --source include/have_log_bin.inc
 
 CREATE TABLE t1(f1 int);
+
 XA START'','';
 INSERT INTO t1 VALUES(10);
 BINLOG '
@@ -19,6 +20,29 @@ AAAAAAAAAAAAAAAAAABI6BZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAAAVAYI8=';
 XA END'';
 XA PREPARE'';
 XA COMMIT'';
+
+#
+# Bug#21942487 ASSERTION
+# `STATIC_CAST<SQL_CMD_XA_COMMIT*>(THD->LEX->M_SQL_CMDQL_CMD)->
+# GET_XA_OPT()
+# The following block checks safety of processing of load masquaraded
+# as it's out of mysqlbing. The XA transaction must complete.
+#
+SET @sav.pseudo_slave_mode= @@session.pseudo_slave_mode;
+SELECT  @@session.pseudo_slave_mode;
+# A warning out of the following query is improper and caused by a combination
+# of the above BINLOG processing and side effect of BUG#15891524.
+SET @@session.pseudo_slave_mode=1;
+XA START 'xa';
+INSERT INTO t1 VALUES(10);
+BINLOG '
+SOgWTg8BAAAAbgAAAHIAAAAAAAQANS42LjMtbTUtZGVidWctbG9nAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAABI6BZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAAAVAYI8=';
+XA END 'xa';
+XA PREPARE 'xa';
+XA COMMIT 'xa';
+SET @@session.pseudo_slave_mode= @sav.pseudo_slave_mode;
+
 DROP TABLE t1;
 
 #

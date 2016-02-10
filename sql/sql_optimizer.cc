@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -355,8 +355,13 @@ JOIN::optimize()
   error= -1;					// Error is sent to client
   sort_by_table= get_sort_by_table(order, group_list, select_lex->leaf_tables);
 
-  if (where_cond || group_list || order)
-    substitute_gc();
+  if ((where_cond || group_list || order) &&
+      substitute_gc(thd, select_lex, where_cond, group_list, order))
+  {
+    // We added hidden fields to the all_fields list, count them.
+    count_field_types(select_lex, &tmp_table_param, select_lex->all_fields,
+                      false, false);
+  }
 
   // Set up join order and initial access paths
   THD_STAGE_INFO(thd, stage_statistics);
@@ -743,9 +748,9 @@ setup_subq_exit:
 }
 
 
-/*
+/**
   Substitute all expressions in the WHERE condition and ORDER/GROUP lists
-  that matches generated columns (GC) expressions with GC fields, if any.
+  that match generated columns (GC) expressions with GC fields, if any.
 
   @details This function does 3 things:
   1) Creates list of all GC fields that are a part of a key and the GC
@@ -761,9 +766,19 @@ setup_subq_exit:
     list. When a match is found, the expression is replaced with a new
     Item_field for the matched GC field. Also, this new field is added to
     the hidden part of all_fields list.
+
+  @param thd         thread handle
+  @param select_lex  the current select
+  @param where_cond  the WHERE condition, possibly NULL
+  @param group_list  the GROUP BY clause, possibly NULL
+  @param order       the ORDER BY clause, possibly NULL
+
+  @return true if the GROUP BY clause or the ORDER BY clause was
+          changed, false otherwise
 */
 
-void JOIN::substitute_gc()
+bool substitute_gc(THD *thd, SELECT_LEX *select_lex, Item *where_cond,
+                   ORDER *group_list, ORDER *order)
 {
   List<Field> indexed_gc;
   Opt_trace_context * const trace= &thd->opt_trace;
@@ -791,7 +806,7 @@ void JOIN::substitute_gc()
   }
   // No GC in the tables used in the query
   if (indexed_gc.elements == 0)
-    return;
+    return false;
 
   if (where_cond)
   {
@@ -803,7 +818,7 @@ void JOIN::substitute_gc()
   }
 
   if (!(group_list || order))
-    return;
+    return false;
   // Filter out GCs that do not have index usable for GROUP/ORDER
   Field *gc;
   List_iterator<Field> li(indexed_gc);
@@ -817,7 +832,7 @@ void JOIN::substitute_gc()
       li.remove();
   }
   if (!indexed_gc.elements)
-    return;
+    return false;
 
   // Index could be used for ORDER only if there is no GROUP
   ORDER *list= group_list ? group_list : order;
@@ -841,24 +856,18 @@ void JOIN::substitute_gc()
       }
     }
   }
-  if (changed)
+  if (changed && trace->is_started())
   {
-    // We added hidden fields to the all_fields list, count them.
-    count_field_types(select_lex, &tmp_table_param, select_lex->all_fields,
-                      false, false);
-    if (trace->is_started())
-    {
-      String str;
-      st_select_lex::print_order(&str, list,
-                                 enum_query_type(QT_TO_SYSTEM_CHARSET |
-                                                 QT_SHOW_SELECT_NUMBER |
-                                                 QT_NO_DEFAULT_DB));
-      subst_gc.add_utf8(group_list ? "resulting_GROUP_BY" :
-                          "resulting_ORDER_BY",
-                        str.ptr(), str.length());
-    }
+    String str;
+    st_select_lex::print_order(&str, list,
+                               enum_query_type(QT_TO_SYSTEM_CHARSET |
+                                               QT_SHOW_SELECT_NUMBER |
+                                               QT_NO_DEFAULT_DB));
+    subst_gc.add_utf8(group_list ? "resulting_GROUP_BY" :
+                      "resulting_ORDER_BY",
+                      str.ptr(), str.length());
   }
-  return;
+  return changed;
 }
 
 
@@ -5428,7 +5437,7 @@ bool JOIN::extract_func_dependent_tables()
           if (!(keyuse->val->used_tables() & ~const_table_map) &&
               keyuse->val->is_null() && keyuse->null_rejecting)
           {
-            mark_as_null_row(table);
+            table->set_null_row();
             found_const_table_map|= tl->map();
             mark_const_table(tab, keyuse);
             goto more_const_tables_found;
@@ -5588,7 +5597,7 @@ bool JOIN::estimate_rowcount()
     {
       trace_table.add("rows", 1).add("cost", 1)
         .add_alnum("table_type", (tab->type() == JT_SYSTEM) ? "system": "const")
-        .add("empty", static_cast<bool>(tab->table()->null_row));
+        .add("empty", tab->table()->has_null_row());
 
       // Only one matching row and one block to read
       tab->set_records(tab->found_records= 1);
@@ -5663,7 +5672,7 @@ bool JOIN::estimate_rowcount()
           trace_table.add("returning_empty_null_row", true).
             add_alnum("cause", "impossible_on_condition");
           found_const_table_map|= tl->map();
-          mark_as_null_row(tab->table());  // All fields are NULL
+          tab->table()->set_null_row();  // All fields are NULL
         }
         else
         {

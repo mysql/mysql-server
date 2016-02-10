@@ -7,6 +7,22 @@ AAAAAAAAAAAAAAAAAABI6BZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAAAVAYI8=';
 XA END'';
 XA PREPARE'';
 XA COMMIT'';
+SET @sav.pseudo_slave_mode= @@session.pseudo_slave_mode;
+SELECT  @@session.pseudo_slave_mode;
+@@session.pseudo_slave_mode
+0
+SET @@session.pseudo_slave_mode=1;
+Warnings:
+Warning	1231	'pseudo_slave_mode' is already ON.
+XA START 'xa';
+INSERT INTO t1 VALUES(10);
+BINLOG '
+SOgWTg8BAAAAbgAAAHIAAAAAAAQANS42LjMtbTUtZGVidWctbG9nAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAABI6BZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAAAVAYI8=';
+XA END 'xa';
+XA PREPARE 'xa';
+XA COMMIT 'xa';
+SET @@session.pseudo_slave_mode= @sav.pseudo_slave_mode;
 DROP TABLE t1;
 RESET MASTER;
 CREATE TABLE t1 (c1 INT);

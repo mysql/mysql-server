@@ -103,13 +103,13 @@ struct st_mysql_options_extention {
   char *server_public_key_path;
   size_t connection_attributes_length;
   my_bool enable_cleartext_plugin;
-  /** false if it is possible to fall back on unencrypted connections */
-  my_bool ssl_enforce;
+  my_bool unused0;                              /* Former ssl_enforce */
   char *tls_version; /* TLS version option */
   long ssl_ctx_flags; /* SSL ctx options flag */
 #ifndef MCP_BUG22389653
   unsigned int retry_count;
 #endif
+  unsigned int ssl_mode;
 };
 
 typedef struct st_mysql_methods

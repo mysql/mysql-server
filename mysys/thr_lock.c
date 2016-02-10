@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1460,18 +1460,16 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
     my_message_stderr(0, "Got error %d from pthread_attr_init",errno);
     exit(1);
   }
-#ifndef _WIN32
-  if ((error=pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED)))
+  if ((error= my_thread_attr_setdetachstate(&thr_attr, MY_THREAD_CREATE_DETACHED)))
   {
     my_message_stderr(0, "Got error %d from "
-                      "pthread_attr_setdetachstate", errno);
+                      "my_thread_attr_setdetachstate", errno);
     exit(1);
   }
-#endif
   if ((error= my_thread_attr_setstacksize(&thr_attr,65536L)))
   {
     my_message_stderr(0, "Got error %d from "
-                      "pthread_attr_setstacksize", error);
+                      "my_thread_attr_setstacksize", error);
     exit(1);
   }
   for (i=0 ; i < (int) array_elements(lock_counts) ; i++)

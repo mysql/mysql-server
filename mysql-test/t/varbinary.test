@@ -138,3 +138,193 @@ select 0x;
 --error ER_BAD_FIELD_ERROR
 select 0b;
 
+
+create TABLE t1(a INT, b VARBINARY(10), c VARBINARY(10));
+INSERT INTO t1 VALUES
+(1, 0x31393831, 0x31303037),
+(2, 0x31393832, 0x31303038),
+(3, 0x31393833, 0x31303039),
+(3, 0x31393834, 0x31393831),
+(4, 0x31393835, 0x31393832),
+(5, 0x31393836, 0x31303038);
+
+--echo #
+--echo # deprecation warnings
+--echo #
+
+SELECT
+b & c, b & 0x31393838, b & NULL, b & 0b1011,
+0x31393838 & b, NULL & b, 0b1011 & b
+FROM t1;
+
+SELECT
+b | c, b | 0x31393838, b | NULL, b | 0b1011,
+0x31393838 | b, NULL | b, 0b1011 | b
+FROM t1;
+
+SELECT
+b ^ c, b ^ 0x31393838, b ^ NULL, b ^ 0b1011,
+0x31393838 ^ b, NULL ^ b, 0b1011 ^ b
+FROM t1;
+
+SELECT BIT_COUNT(b), ~b, b << 1, b >> 1 from t1;
+SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1 GROUP BY a;
+SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1;
+
+--echo #
+--echo # stored procedures with warnings
+--echo #
+
+CREATE PROCEDURE test_bin_op()
+SELECT
+b & c, b & 0x31393838, b & NULL, b & 0b1011,
+0x31393838 & b, NULL & b, 0b1011 & b,
+b | c, b | 0x31393838, b | NULL, b | 0b1011,
+0x31393838 | b, NULL | b, 0b1011 | b,
+b ^ c, b ^ 0x31393838, b ^ NULL, b ^ 0b1011,
+0x31393838 ^ b, NULL ^ b, 0b1011 ^ b,
+BIT_COUNT(b), ~b, b << 1, b >> 1
+FROM t1;
+
+CALL test_bin_op();
+RESET QUERY CACHE;
+CALL test_bin_op();
+DROP PROCEDURE test_bin_op;
+
+CREATE PROCEDURE test_bin_op()
+SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1 GROUP BY a;
+
+CALL test_bin_op();
+RESET QUERY CACHE;
+CALL test_bin_op();
+DROP PROCEDURE test_bin_op;
+
+CREATE PROCEDURE test_bin_op()
+SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1;
+
+CALL test_bin_op();
+RESET QUERY CACHE;
+CALL test_bin_op();
+DROP PROCEDURE test_bin_op;
+
+--echo #
+--echo # prepared statements with warnings
+--echo #
+
+PREPARE s1 FROM
+"SELECT
+b & c, b & 0x31393838, b & NULL, b & 0b1011,
+0x31393838 & b, NULL & b, 0b1011 & b,
+b | c, b | 0x31393838, b | NULL, b | 0b1011,
+0x31393838 | b, NULL | b, 0b1011 | b,
+b ^ c, b ^ 0x31393838, b ^ NULL, b ^ 0b1011,
+0x31393838 ^ b, NULL ^ b, 0b1011 ^ b,
+BIT_COUNT(b), ~b, b << 1, b >> 1
+FROM t1;";
+
+EXECUTE s1;
+RESET QUERY CACHE;
+EXECUTE s1;
+
+PREPARE s2 from "SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1 GROUP BY a";
+EXECUTE s2;
+RESET QUERY CACHE;
+EXECUTE s2;
+
+PREPARE s2 from "SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1";
+EXECUTE s2;
+RESET QUERY CACHE;
+EXECUTE s2;
+
+--echo #
+--echo # views with warnings
+--echo #
+
+CREATE VIEW v1 AS
+SELECT
+b & c, b & 0x31393838, b & NULL, b & 0b1011,
+0x31393838 & b, NULL & b, 0b1011 & b,
+b | c, b | 0x31393838, b | NULL, b | 0b1011,
+0x31393838 | b, NULL | b, 0b1011 | b,
+b ^ c, b ^ 0x31393838, b ^ NULL, b ^ 0b1011,
+0x31393838 ^ b, NULL ^ b, 0b1011 ^ b,
+BIT_COUNT(b), ~b, b << 1, b >> 1
+FROM t1;
+SELECT * from v1;
+RESET QUERY CACHE;
+SELECT * from v1;
+
+CREATE VIEW v2 AS
+SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1 GROUP BY a;
+SELECT * from v2;
+RESET QUERY CACHE;
+SELECT * from v2;
+
+CREATE VIEW v3 AS
+SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1;
+SELECT * from v3;
+RESET QUERY CACHE;
+SELECT * from v3;
+
+DROP VIEW v1,v2,v3;
+
+--echo #
+--echo # working as before
+--echo #
+
+SELECT
+a & 0x31393838, 0x31393838 & a, 0x31393838 & 0x31393838, 0x31393838 & NULL,
+0x31393838 & 0b1011, NULL & 0x31393838, 0b1011 & 0x31393838, NULL & NULL,
+NULL & 0b1011, 0b1011 & NULL, 0b1011 & 0b1011, BIT_COUNT(a)
+FROM t1;
+
+SELECT
+a | 0x31393838, 0x31393838 | a, 0x31393838 | 0x31393838, 0x31393838 | NULL,
+0x31393838 | 0b1011, NULL | 0x31393838, 0b1011 | 0x31393838, NULL | NULL,
+NULL | 0b1011, 0b1011 | NULL, 0b1011 | 0b1011
+FROM t1;
+
+SELECT
+a ^ 0x31393838, 0x31393838 ^ a, 0x31393838 ^ 0x31393838, 0x31393838 ^ NULL,
+0x31393838 ^ 0b1011, NULL ^ 0x31393838, 0b1011 ^ 0x31393838, NULL ^ NULL,
+NULL ^ 0b1011, 0b1011 ^ NULL, 0b1011 ^ 0b1011
+FROM t1;
+
+SELECT a, BIT_AND(a), BIT_OR(a), BIT_XOR(a),
+~NULL, NULL << 1, NULL >> 1,
+~0x31393838, 0x31393838 << 1, 0x31393838 >> 1,
+~0b1011, 0b1011 << 1, 0b1011 >> 1
+FROM t1
+GROUP BY a;
+
+--echo #
+--echo # binary/varbinary vs char/varchar
+--echo #
+
+SELECT '12' | '12';
+SELECT _binary '12' | '12';
+SELECT _binary '12' | _binary '12';
+SELECT _binary '12' | 0x01;
+SELECT _binary '12' | 1;
+SELECT binary '12' | '12';
+SELECT binary '12' | binary '12';
+SELECT binary '12' | 0x01;
+SELECT binary '12' | 1;
+SELECT '12' | 0x01;
+SELECT '12' | 1;
+SELECT CAST('12' AS binary) | 0x01;
+SELECT CAST('12' AS binary) | 1;
+SELECT CAST(b AS char) | 0x31393838 FROM t1 LIMIT 1;
+SELECT (b + 0) | 0x31393838 FROM t1 LIMIT 1;
+SELECT CAST(0x01 AS char) | 0x31393838 FROM t1 LIMIT 1;
+SELECT 0x01 << 1;
+SELECT _binary '12' << 1;
+SELECT binary '12' << 1;
+SELECT CAST('12' AS binary) | 1;
+SELECT CAST(b AS char) << 1 FROM t1 LIMIT 1;
+SELECT CAST(b AS unsigned) << 1 FROM t1 LIMIT 1;
+SELECT (b + 0) << 1 FROM t1 LIMIT 1;
+SELECT CAST(b AS unsigned) | 0x31393838 FROM t1 LIMIT 1;
+SELECT CAST(b AS unsigned) | CAST(c AS unsigned) FROM t1 LIMIT 1;
+
+DROP TABLE t1;

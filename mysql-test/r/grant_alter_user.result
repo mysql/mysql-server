@@ -1071,3 +1071,18 @@ SELECT CURRENT_USER();
 CURRENT_USER()
 bug20634154@localhost
 DROP USER bug20634154@localhost;
+
+Bug #22205360 ALTER USER/SET PASSWORD DO NOT WORK FOR --INIT-FILE EXECUTION
+
+CREATE USER bug22205360@localhost;
+# shutdown the server
+# Restart server with init-file option
+SELECT 1;
+1
+1
+# shutdown the server
+# Restart server with init-file option
+SELECT 1;
+1
+1
+DROP USER bug22205360@localhost;

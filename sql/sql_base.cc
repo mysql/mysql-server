@@ -23,7 +23,7 @@
                          // mysql_lock_have_duplicate
 #include "sql_show.h"    // append_identifier
 #include "strfunc.h"     // find_type
-#include "sql_view.h"    // mysql_make_view, VIEW_ANY_ACL
+#include "sql_view.h"    // open_and_read_view, VIEW_ANY_ACL
 #include "sql_parse.h"   // check_table_access
 #include "auth_common.h" // *_ACL, check_grant_all_columns,
                          // check_column_grant_in_table_ref,
@@ -52,7 +52,11 @@
 #include "table_cache.h" // Table_cache_manager, Table_cache
 #include "log.h"
 #include "binlog.h"
+#include "sql_audit.h"  // mysql_audit_table_access_notify
+
+#ifdef HAVE_REPLICATION
 #include "rpl_rli.h"    //Relay_log_information
+#endif
 
 #include "pfs_table_provider.h"
 #include "mysql/psi/mysql_table.h"
@@ -406,12 +410,6 @@ static bool check_and_update_table_version(THD *thd, TABLE_LIST *tables,
                                            TABLE_SHARE *table_share);
 static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry);
 static bool auto_repair_table(THD *thd, TABLE_LIST *table_list);
-static bool
-has_write_table_with_auto_increment(TABLE_LIST *tables);
-static bool
-has_write_table_with_auto_increment_and_select(TABLE_LIST *tables);
-static bool has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables);
-
 
 /**
   Create a table cache/table definition cache key
@@ -1788,11 +1786,13 @@ bool close_temporary_tables(THD *thd)
     }
 
     thd->temporary_tables= 0;
+#ifdef HAVE_REPLICATION
     if (thd->slave_thread)
     {
       slave_open_temp_tables.atomic_add(-slave_closed_temp_tables);
       thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(-slave_closed_temp_tables);
     }
+#endif
 
     DBUG_RETURN(FALSE);
   }
@@ -2007,11 +2007,13 @@ bool close_temporary_tables(THD *thd)
     thd->variables.option_bits&= ~OPTION_QUOTE_SHOW_CREATE; /* restore option */
 
   thd->temporary_tables=0;
+#ifdef HAVE_REPLICATION
   if (thd->slave_thread)
   {
     slave_open_temp_tables.atomic_add(-slave_closed_temp_tables);
     thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(-slave_closed_temp_tables);
   }
+#endif
 
   DBUG_RETURN(error);
 }
@@ -2422,6 +2424,7 @@ void close_temporary_table(THD *thd, TABLE *table,
     if (thd->temporary_tables)
       table->next->prev= 0;
   }
+#ifdef HAVE_REPLICATION
   if (thd->slave_thread)
   {
     /* natural invariant of temporary_tables */
@@ -2429,6 +2432,7 @@ void close_temporary_table(THD *thd, TABLE *table,
     slave_open_temp_tables.atomic_add(-1);
     thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(-1);
   }
+#endif
   close_temporary(table, free_share, delete_table);
   DBUG_VOID_RETURN;
 }
@@ -3060,6 +3064,16 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
       */
       if (dd_frm_type(thd, path, &not_used) == FRMTYPE_VIEW)
       {
+        /*
+          If parent_l of the table_list is non null then a merge table
+          has this view as child table, which is not supported.
+        */
+        if (table_list->parent_l)
+        {
+          my_error(ER_WRONG_MRG_TABLE, MYF(0));
+          DBUG_RETURN(true);
+        }
+
         if (!tdc_open_view(thd, table_list, alias, key, key_length,
                            CHECK_METADATA_VERSION))
         {
@@ -3346,16 +3360,21 @@ retry_share:
     }
 
     /* Open view */
-    if (mysql_make_view(thd, share, table_list, false))
-      goto err_unlock;
+    bool view_open_result= open_and_read_view(thd, share, table_list);
 
     /* TODO: Don't free this */
     release_table_share(share);
+    mysql_mutex_unlock(&LOCK_open);
+
+    if (view_open_result)
+      DBUG_RETURN(true);
+
+    if (parse_view_definition(thd, table_list))
+      DBUG_RETURN(true);
 
     DBUG_ASSERT(table_list->is_view());
 
-    mysql_mutex_unlock(&LOCK_open);
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   }
 
   /*
@@ -4215,12 +4234,21 @@ bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
     }
   }
 
-  if (share->is_view &&
-      !mysql_make_view(thd, share, table_list, (flags & OPEN_VIEW_NO_PARSE)))
+  if (share->is_view)
   {
+    bool view_open_result= open_and_read_view(thd, share, table_list);
+
     release_table_share(share);
     mysql_mutex_unlock(&LOCK_open);
-    return FALSE;
+
+    if (view_open_result)
+      return true;
+
+    bool view_parse_result= false;
+    if (!(flags & OPEN_VIEW_NO_PARSE))
+      view_parse_result= parse_view_definition(thd, table_list);
+
+    return view_parse_result;
   }
 
   my_error(ER_WRONG_OBJECT, MYF(0), share->db.str, share->table_name.str, "VIEW");
@@ -5542,7 +5570,9 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   bool some_routine_modifies_data= FALSE;
   bool has_prelocking_list;
   DBUG_ENTER("open_tables");
-
+#ifndef EMBEDDED_LIBRARY
+  bool audit_notified= false;
+#endif /* !EMBEDDED_LIBRARY */
 
 restart:
   /*
@@ -5673,6 +5703,25 @@ restart:
 
       DEBUG_SYNC(thd, "open_tables_after_open_and_process_table");
     }
+
+    /*
+      Iterate through set of tables and generate table access audit events.
+    */
+#ifndef EMBEDDED_LIBRARY
+    if (!audit_notified && mysql_audit_table_access_notify(thd, *start))
+    {
+      error= true;
+      goto err;
+    }
+
+    /*
+      Event is not generated in the next loop. It may contain duplicated
+      table entries as well as new tables discovered for stored procedures.
+      Events for these tables will be generated during the queries of these
+      stored procedures.
+    */
+    audit_notified= true;
+#endif /* !EMBEDDED_LIBRARY */
 
     /*
       If we are not already in prelocked mode and extended table list is
@@ -6504,62 +6553,6 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
 	*(ptr++)= table->table;
     }
 
-    /*
-    DML statements that modify a table with an auto_increment column based on
-    rows selected from a table are unsafe as the order in which the rows are
-    fetched fron the select tables cannot be determined and may differ on
-    master and slave.
-    */
-    if (thd->variables.binlog_format != BINLOG_FORMAT_ROW && tables &&
-        has_write_table_with_auto_increment_and_select(tables))
-      thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_WRITE_AUTOINC_SELECT);
-    /* Todo: merge all has_write_table_auto_inc with decide_logging_format */
-    if (thd->variables.binlog_format != BINLOG_FORMAT_ROW && tables)
-    {
-      if (has_write_table_auto_increment_not_first_in_pk(tables))
-        thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_AUTOINC_NOT_FIRST);
-    }
-
-    /* 
-     INSERT...ON DUPLICATE KEY UPDATE on a table with more than one unique keys
-     can be unsafe.
-     */
-    uint unique_keys= 0;
-    for (TABLE_LIST *query_table= tables; query_table && unique_keys <= 1;
-         query_table= query_table->next_global)
-      if(query_table->table)
-      {
-        uint keys= query_table->table->s->keys, i= 0;
-        unique_keys= 0;
-        for (KEY* keyinfo= query_table->table->s->key_info;
-             i < keys && unique_keys <= 1; i++, keyinfo++)
-        {
-          if (keyinfo->flags & HA_NOSAME)
-            unique_keys++;
-        }
-        if (!query_table->is_placeholder() &&
-            query_table->lock_type >= TL_WRITE_ALLOW_WRITE &&
-            unique_keys > 1 && thd->lex->sql_command == SQLCOM_INSERT &&
-            thd->lex->duplicates == DUP_UPDATE)
-          thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_TWO_KEYS);
-      }
- 
- 
-    /* We have to emulate LOCK TABLES if we are statement needs prelocking. */
-    if (thd->lex->requires_prelocking())
-    {
-
-      /*
-        A query that modifies autoinc column in sub-statement can make the 
-        master and slave inconsistent.
-        We can solve these problems in mixed mode by switching to binlogging 
-        if at least one updated table is used by sub-statement
-      */
-      if (thd->variables.binlog_format != BINLOG_FORMAT_ROW && tables && 
-          has_write_table_with_auto_increment(thd->lex->first_not_own_table()))
-        thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_AUTOINC_COLUMNS);
-    }
-
     DEBUG_SYNC(thd, "before_lock_tables_takes_lock");
 
     if (! (thd->lock= mysql_lock_tables(thd, start, (uint) (ptr - start),
@@ -6853,11 +6846,13 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
       tmp_table->next->prev= tmp_table;
     thd->temporary_tables= tmp_table;
     thd->temporary_tables->prev= 0;
+#ifdef HAVE_REPLICATION
     if (thd->slave_thread)
     {
       slave_open_temp_tables.atomic_add(1);
       thd->rli_slave->get_c_rli()->channel_open_temp_tables.atomic_add(1);
     }
+#endif
   }
   tmp_table->pos_in_table_list= NULL;
 
@@ -9251,6 +9246,32 @@ bool check_record(THD *thd, Field **ptr)
 
 
 /**
+  Check the NOT NULL constraint on all the fields explicitly set
+  in INSERT INTO statement or implicitly set in BEFORE trigger.
+
+  @param thd  Thread context.
+  @param ptr  Fields.
+
+  @return Error status.
+*/
+
+static bool check_inserting_record(THD *thd, Field **ptr)
+{
+  Field *field;
+
+  while ((field = *ptr++) && !thd->is_error())
+  {
+    if (bitmap_is_set(field->table->fields_set_during_insert,
+                      field->field_index) &&
+        field->check_constraints(ER_BAD_NULL_ERROR) != TYPE_OK)
+      return true;
+  }
+
+  return thd->is_error();
+}
+
+
+/**
   Check if SQL-statement is INSERT/INSERT SELECT/REPLACE/REPLACE SELECT
   and trigger event is ON INSERT. When this condition is true that means
   that the statement basically can invoke BEFORE INSERT trigger if it
@@ -9385,7 +9406,7 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
 
     table->triggers->disable_fields_temporary_nullability();
 
-    return rc || check_record(thd, table->field);
+    return rc || check_inserting_record(thd, table->field);
   }
   else
   {
@@ -9540,7 +9561,7 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
   if (rc)
     return true;
 
-  return check_record(thd, ptr);
+  return check_inserting_record(thd, ptr);
 }
 
 
@@ -9787,98 +9808,6 @@ bool is_equal(const LEX_STRING *a, const LEX_STRING *b)
 {
   return a->length == b->length && !strncmp(a->str, b->str, a->length);
 }
-
-
-/*
-  Tells if two (or more) tables have auto_increment columns and we want to
-  lock those tables with a write lock.
-
-  SYNOPSIS
-    has_two_write_locked_tables_with_auto_increment
-      tables        Table list
-
-  NOTES:
-    Call this function only when you have established the list of all tables
-    which you'll want to update (including stored functions, triggers, views
-    inside your statement).
-*/
-
-static bool
-has_write_table_with_auto_increment(TABLE_LIST *tables)
-{
-  for (TABLE_LIST *table= tables; table; table= table->next_global)
-  {
-    /* we must do preliminary checks as table->table may be NULL */
-    if (!table->is_placeholder() &&
-        table->table->found_next_number_field &&
-        (table->lock_type >= TL_WRITE_ALLOW_WRITE))
-      return 1;
-  }
-
-  return 0;
-}
-
-/*
-   checks if we have select tables in the table list and write tables
-   with auto-increment column.
-
-  SYNOPSIS
-   has_two_write_locked_tables_with_auto_increment_and_select
-      tables        Table list
-
-  RETURN VALUES
-
-   -true if the table list has atleast one table with auto-increment column
-
-
-         and atleast one table to select from.
-   -false otherwise
-*/
-
-static bool
-has_write_table_with_auto_increment_and_select(TABLE_LIST *tables)
-{
-  bool has_select= false;
-  bool has_auto_increment_tables = has_write_table_with_auto_increment(tables);
-  for(TABLE_LIST *table= tables; table; table= table->next_global)
-  {
-     if (!table->is_placeholder() &&
-        (table->lock_type <= TL_READ_NO_INSERT))
-      {
-        has_select= true;
-        break;
-      }
-  }
-  return(has_select && has_auto_increment_tables);
-}
-
-/*
-  Tells if there is a table whose auto_increment column is a part
-  of a compound primary key while is not the first column in
-  the table definition.
-
-  @param tables Table list
-
-  @return true if the table exists, fais if does not.
-*/
-
-static bool
-has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables)
-{
-  for (TABLE_LIST *table= tables; table; table= table->next_global)
-  {
-    /* we must do preliminary checks as table->table may be NULL */
-    if (!table->is_placeholder() &&
-        table->table->found_next_number_field &&
-        (table->lock_type >= TL_WRITE_ALLOW_WRITE)
-        && table->table->s->next_number_keypart != 0)
-      return 1;
-  }
-
-  return 0;
-}
-
-
 
 /**
   Open and lock non-transactional system tables for read.

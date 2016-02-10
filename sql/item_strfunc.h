@@ -1249,6 +1249,7 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   String *val_str(String *);
   void fix_length_and_dec();
+  virtual void print(String *str, enum_query_type query_type);
 };
 
 class Item_func_crc32 :public Item_int_func

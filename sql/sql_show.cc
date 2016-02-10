@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@
 #include "sql_table.h"                      // filename_to_tablename
 #include "sql_time.h"                       // interval_type_to_name
 #include "sql_tmp_table.h"                  // create_tmp_table
-#include "sql_view.h"                       // mysql_make_view
+#include "sql_view.h"                       // open_and_read_view
 #include "table_trigger_dispatcher.h"       // Table_trigger_dispatcher
 #include "trigger.h"                        // Trigger
 #include "trigger_chain.h"                  // Trigger_chain
@@ -574,7 +574,7 @@ ignore_db_dirs_process_additions()
   @retval FALSE not found
 */
 
-static inline bool
+bool
 is_in_ignore_db_dirs_list(const char *directory)
 {
   return ignore_db_dirs_hash.records &&
@@ -1859,6 +1859,11 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" COMPRESSION="));
       append_unescaped(packet, share->compress.str, share->compress.length);
     }
+    if (table->s->encrypt_type.length)
+    {
+      packet->append(STRING_WITH_LEN(" ENCRYPTION="));
+      append_unescaped(packet, share->encrypt_type.str, share->encrypt_type.length);
+    }
     table->file->append_create_info(packet);
     if (share->comment.length)
     {
@@ -3071,7 +3076,6 @@ typedef struct st_lookup_field_values
   bool wild_table_value;
 } LOOKUP_FIELD_VALUES;
 
-
 /*
   Store record to I_S table, convert HEAP table
   to MyISAM if necessary
@@ -3098,6 +3102,46 @@ bool schema_table_store_record(THD *thd, TABLE *table)
       return 1;
   }
   return 0;
+}
+
+/**
+  Store record to I_S table, convert HEAP table to InnoDB table if necessary.
+
+  @param[in]  thd            thread handler
+  @param[in]  table          Information schema table to be updated
+  @param[in]  make_ondisk    if true, convert heap table to on disk table.
+                             default value is true.
+  @return 0 on success
+  @return error code on failure.
+*/
+int schema_table_store_record2(THD *thd, TABLE *table, bool make_ondisk)
+{
+  int error;
+  if ((error= table->file->ha_write_row(table->record[0])))
+  {
+    if (!make_ondisk)
+        return error;
+
+    if (convert_heap_table_to_ondisk(thd, table, error))
+        return 1;
+  }
+  return 0;
+}
+
+/**
+  Convert HEAP table to InnoDB table if necessary
+
+  @param[in] thd     thread handler
+  @param[in] table   Information schema table to be converted.
+  @param[in] error   the error code returned previously.
+  @return false on success, true on error.
+*/
+bool convert_heap_table_to_ondisk(THD *thd, TABLE *table, int error)
+{
+  Temp_table_param *param= table->pos_in_table_list->schema_table_param;
+
+  return (create_ondisk_from_heap(thd, table, param->start_recinfo,
+                              &param->recinfo, error, FALSE, NULL));
 }
 
 
@@ -4229,13 +4273,19 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
 
   if (share->is_view)
   {
-    if (mysql_make_view(thd, share, &table_list, true))
-      goto end_share;
-    // Actual view query is not needed, just indicate that this is a view:
-    table_list.set_view_query((LEX *) 1);
-    res= schema_table->process_table(thd, &table_list, table,
-                                     res, db_name, table_name);
-    goto end_share;
+    bool view_open_result= open_and_read_view(thd, share, &table_list);
+
+    release_table_share(share);
+    mysql_mutex_unlock(&LOCK_open);
+
+    if (!view_open_result)
+    {
+      // Actual view query is not needed, just indicate that this is a view:
+      table_list.set_view_query((LEX *) 1);
+      res= schema_table->process_table(thd, &table_list, table,
+                                       res, db_name, table_name);
+    }
+    goto end;
   }
 
   {
@@ -4859,6 +4909,16 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
       are (ZLIB | LZ4 | NONE). */
       ptr= my_stpcpy(ptr, " COMPRESSION=\"");
       ptr= strxnmov(ptr, 7, share->compress.str, NullS);
+      ptr= my_stpcpy(ptr, "\"");
+    }
+
+    if (share->encrypt_type.length > 0)
+    {
+      /* In the .frm file this option has a max length of 2K. Currently,
+      InnoDB uses only the first 1 bytes and the only supported values
+      are (Y | N). */
+      ptr= my_stpcpy(ptr, " ENCRYPTION=\"");
+      ptr= strxnmov(ptr, 3, share->encrypt_type.str, NullS);
       ptr= my_stpcpy(ptr, "\"");
     }
 
@@ -8064,7 +8124,7 @@ bool get_schema_tables_result(JOIN *join,
         table_list->table->file->ha_delete_all_rows();
         free_io_cache(table_list->table);
         filesort_free_buffers(table_list->table,1);
-        table_list->table->null_row= 0;
+        table_list->table->reset_null_row();
       }
       else
         table_list->table->file->stats.records= 0;

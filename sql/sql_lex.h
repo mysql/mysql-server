@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,6 +43,7 @@
 #include "xa.h"                       // xa_option_words
 #include "select_lex_visitor.h"
 #include "parse_tree_hints.h"
+#include "sql_admin.h"
 #include <map>
 
 #ifdef MYSQL_SERVER
@@ -709,9 +710,7 @@ public:
     An exception: this is the only function that needs to adjust
     explain_marker.
   */
-  friend bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
-                     bool open_view_no_parse);
-
+  friend bool parse_view_definition(THD *thd, TABLE_LIST *view_ref);
 };
 
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
@@ -1072,6 +1071,8 @@ public:
   bool sj_pullout_done;
   /// exclude this query block from unique_table() check
   bool exclude_from_table_unique_test;
+  /// Allow merge of immediate unnamed derived tables
+  bool allow_merge_derived;
   /**
     This is a copy of the original JOIN USING list that comes from
     the parser. The parser :
@@ -1732,6 +1733,7 @@ union YYSTYPE {
   Mem_root_array_YY<Table_ident *> table_ident_list;
   delete_option_enum opt_delete_option;
   class PT_hint_list *optimizer_hints;
+  enum alter_instance_action_enum alter_instance_action;
 };
 
 #endif

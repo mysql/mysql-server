@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2263,7 +2263,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
   bool trans_tmp_table_deleted= 0, non_trans_tmp_table_deleted= 0;
   bool non_tmp_table_deleted= 0;
   bool have_nonexistent_tmp_table= 0;
-  bool is_drop_tmp_if_exists_added= 0;
+  bool is_drop_tmp_if_exists_with_no_defaultdb= 0;
   String built_query;
   String built_trans_tmp_query, built_non_trans_tmp_query;
   String nonexistent_tmp_tables;
@@ -2294,14 +2294,13 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     transaction and changes to non-transactional tables must be written
     ahead of the transaction in some circumstances.
 
-    6- Slave SQL thread ignores all replicate-* filter rules
-    for temporary tables with 'IF EXISTS' clause. (See sql/sql_parse.cc:
-    mysql_execute_command() for details). These commands will be binlogged
-    as they are, even if the default database (from USE `db`) is not present
-    on the Slave. This can cause point in time recovery failures later
-    when user uses the slave's binlog to re-apply. Hence at the time of binary
-    logging, these commands will be written with fully qualified table names
-    and use `db` will be suppressed.
+    6 - At the time of writing 'DROP TEMPORARY TABLE IF EXISTS'
+    statements into the binary log if the default database specified in
+    thd->db is present then they are binlogged as
+    'USE `default_db`; DROP TEMPORARY TABLE IF EXISTS `t1`;'
+    otherwise they will be binlogged with the actual database name to
+    which the table belongs to.
+    'DROP TEMPORARY TABLE IF EXISTS `actual_db`.`t1`
   */
   if (!dont_log_query)
   {
@@ -2316,7 +2315,14 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 
     if (thd->is_current_stmt_binlog_format_row() || if_exists)
     {
-      is_drop_tmp_if_exists_added= true;
+      /*
+        If default database doesnot exist in those cases set
+        'is_drop_tmp_if_exists_with_no_defaultdb flag to 'true' so that the
+        'DROP TEMPORARY TABLE IF EXISTS' command is logged with a qualified
+        table name.
+      */
+      if (thd->db().str != NULL && check_db_dir_existence(thd->db().str))
+        is_drop_tmp_if_exists_with_no_defaultdb= true;
       built_trans_tmp_query.set_charset(system_charset_info);
       built_trans_tmp_query.append("DROP TEMPORARY TABLE IF EXISTS ");
       built_non_trans_tmp_query.set_charset(system_charset_info);
@@ -2404,7 +2410,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           query.
         */
         if (thd->db().str == NULL || strcmp(db, thd->db().str) != 0
-            || is_drop_tmp_if_exists_added )
+            || is_drop_tmp_if_exists_with_no_defaultdb )
         {
           append_identifier(thd, built_ptr_query, db, db_len,
                             system_charset_info, thd->charset());
@@ -2664,7 +2670,7 @@ err:
                                    built_non_trans_tmp_query.ptr(),
                                    built_non_trans_tmp_query.length(),
                                    false/*is_trans*/, false/*direct*/,
-                                   is_drop_tmp_if_exists_added/*suppress_use*/,
+                                   is_drop_tmp_if_exists_with_no_defaultdb/*suppress_use*/,
                                    0)/*errcode*/;
       }
       if (trans_tmp_table_deleted ||
@@ -2726,7 +2732,7 @@ err:
                                    built_trans_tmp_query.ptr(),
                                    built_trans_tmp_query.length(),
                                    true/*is_trans*/, false/*direct*/,
-                                   is_drop_tmp_if_exists_added/*suppress_use*/,
+                                   is_drop_tmp_if_exists_with_no_defaultdb/*suppress_use*/,
                                    0/*errcode*/);
       }
       if (non_tmp_table_deleted)
@@ -3707,8 +3713,31 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	else
 	{
 	  /* Field redefined */
+
+          /*
+            If we are replacing a BIT field, revert the increment
+            of total_uneven_bit_length that was done above.
+          */
+          if (sql_field->sql_type == MYSQL_TYPE_BIT &&
+              file->ha_table_flags() & HA_CAN_BIT_FIELD)
+            total_uneven_bit_length-= sql_field->length & 7;
+
 	  sql_field->def=		dup_field->def;
 	  sql_field->sql_type=		dup_field->sql_type;
+
+          /*
+            If we are replacing a field with a BIT field, we need
+            to initialize pack_flag. Note that we do not need to
+            increment total_uneven_bit_length here as this dup_field
+            has already been processed.
+          */
+          if (sql_field->sql_type == MYSQL_TYPE_BIT)
+          {
+            sql_field->pack_flag= FIELDFLAG_NUMBER;
+            if (!(file->ha_table_flags() & HA_CAN_BIT_FIELD))
+              sql_field->pack_flag|= FIELDFLAG_TREAT_BIT_AS_CHAR;
+          }
+
 	  sql_field->charset=		(dup_field->charset ?
 					 dup_field->charset :
 					 create_info->default_table_charset);
@@ -4511,6 +4540,24 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     {
       my_error(ER_WRONG_STRING_LENGTH, MYF(0),
 	       compress->str, "COMPRESSION", TABLE_COMMENT_MAXLEN);
+      DBUG_RETURN(TRUE);
+    }
+  }
+
+  {
+    LEX_STRING*	encrypt_type = &create_info->encrypt_type;
+
+    if (encrypt_type->length != 0 &&
+	encrypt_type->length > TABLE_COMMENT_MAXLEN &&
+	system_charset_info->cset->charpos(system_charset_info,
+					   encrypt_type->str,
+					   encrypt_type->str
+					   + encrypt_type->length,
+					   TABLE_COMMENT_MAXLEN)
+	< encrypt_type->length)
+    {
+      my_error(ER_WRONG_STRING_LENGTH, MYF(0),
+	       encrypt_type->str, "ENCRYPTION", TABLE_COMMENT_MAXLEN);
       DBUG_RETURN(TRUE);
     }
   }
@@ -8245,6 +8292,12 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     create_info->compress.length= table->s->compress.length;
   }
 
+  if (!create_info->encrypt_type.str)
+  {
+    create_info->encrypt_type.str= table->s->encrypt_type.str;
+    create_info->encrypt_type.length= table->s->encrypt_type.length;
+  }
+
   /* Do not pass the update_create_info through to each partition. */
   if (table->file->ht->db_type == DB_TYPE_PARTITION_DB)
 	  create_info->data_file_name = (char*) -1;
@@ -8703,6 +8756,44 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
 
 
 /**
+  Auxiliary class implementing RAII principle for getting permission for/
+  notification about finished ALTER TABLE from interested storage engines.
+
+  @see handlerton::notify_alter_table for details.
+*/
+
+class Alter_table_hton_notification_guard
+{
+public:
+  Alter_table_hton_notification_guard(THD *thd, const MDL_key *key)
+    : m_hton_notified(false), m_thd(thd), m_key(key)
+  {
+  }
+
+  bool notify()
+  {
+    if (!ha_notify_alter_table(m_thd, &m_key, HA_NOTIFY_PRE_EVENT))
+    {
+      m_hton_notified= true;
+      return false;
+    }
+    my_error(ER_LOCK_REFUSED_BY_ENGINE, MYF(0));
+    return true;
+  }
+
+  ~Alter_table_hton_notification_guard()
+  {
+    if (m_hton_notified)
+      (void) ha_notify_alter_table(m_thd, &m_key, HA_NOTIFY_POST_EVENT);
+  }
+private:
+  bool m_hton_notified;
+  THD *m_thd;
+  const MDL_key m_key;
+};
+
+
+/**
   Alter table
 
   @param thd              Thread handle
@@ -8823,6 +8914,16 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     has been already processed.
   */
   table_list->required_type= FRMTYPE_TABLE;
+
+  /*
+    If we are about to ALTER non-temporary table we need to get permission
+    from/notify interested storage engines.
+  */
+  Alter_table_hton_notification_guard notification_guard(thd,
+                                        &table_list->mdl_request.key);
+
+  if (!is_temporary_table(table_list) && notification_guard.notify())
+    DBUG_RETURN(true);
 
   Alter_table_prelocking_strategy alter_prelocking_strategy;
 
@@ -9301,6 +9402,14 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   if (error)
     DBUG_RETURN(true);
 
+  /*
+    We want warnings/errors about data truncation emitted when new
+    version of table is created in COPY algorithm or when values of
+    virtual columns are evaluated in INPLACE algorithm.
+  */
+  thd->count_cuted_fields= CHECK_FIELD_WARN;
+  thd->cuted_fields= 0L;
+
   /* Remember that we have not created table in storage engine yet. */
   bool no_ha_table= true;
 
@@ -9455,6 +9564,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                     inplace_supported, &target_mdl_request,
                                     &alter_ctx))
       {
+        thd->count_cuted_fields= CHECK_FIELD_IGNORE;
         DBUG_RETURN(true);
       }
 
@@ -9553,10 +9663,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     copy data for MERGE tables. Only the children have data.
   */
 
-  /* Copy the data if necessary. */
-  thd->count_cuted_fields= CHECK_FIELD_WARN;	// calc cuted fields
-  thd->cuted_fields=0L;
-
   /*
     We do not copy data for MERGE tables. Only the children have data.
     MERGE tables have HA_NO_COPY_ON_ALTER set.
@@ -9611,7 +9717,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto err_new_table_cleanup;
   }
-  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 
   if (table->s->tmp_table != NO_TMP_TABLE)
   {
@@ -9642,7 +9747,10 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     /* We don't replicate alter table statement on temporary tables */
     if (!thd->is_current_stmt_binlog_format_row() &&
         write_bin_log(thd, true, thd->query().str, thd->query().length))
+    {
+      thd->count_cuted_fields= CHECK_FIELD_IGNORE;
       DBUG_RETURN(true);
+    }
     goto end_temporary;
   }
 
@@ -9749,6 +9857,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
 end_inplace:
 
+  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+
   if (thd->locked_tables_list.reopen_tables(thd))
     goto err_with_mdl;
 
@@ -9798,6 +9908,8 @@ end_inplace:
   }
 
 end_temporary:
+  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+
   my_snprintf(alter_ctx.tmp_name, sizeof(alter_ctx.tmp_name),
               ER(ER_INSERT_INFO),
 	      (long) (copied + deleted), (long) deleted,
@@ -9806,6 +9918,8 @@ end_temporary:
   DBUG_RETURN(false);
 
 err_new_table_cleanup:
+  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+
   if (new_table)
   {
     /* close_temporary_table() frees the new_table pointer. */
@@ -9858,6 +9972,8 @@ err_new_table_cleanup:
   DBUG_RETURN(true);
 
 err_with_mdl:
+  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+
   /*
     An error happened while we were holding exclusive name metadata lock
     on table being altered. To be safe under LOCK TABLES we should

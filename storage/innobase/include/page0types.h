@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -75,13 +75,14 @@ enum page_cur_mode_t {
 				 which extend it */
 
 /* These search mode is for search R-tree index. */
-	PAGE_CUR_CONTAIN	= 7,
-	PAGE_CUR_INTERSECT	= 8,
-	PAGE_CUR_WITHIN		= 9,
-	PAGE_CUR_DISJOINT	= 10,
-	PAGE_CUR_MBR_EQUAL	= 11,
-	PAGE_CUR_RTREE_INSERT	= 12,
-	PAGE_CUR_RTREE_LOCATE	= 13
+	PAGE_CUR_CONTAIN		= 7,
+	PAGE_CUR_INTERSECT		= 8,
+	PAGE_CUR_WITHIN			= 9,
+	PAGE_CUR_DISJOINT		= 10,
+	PAGE_CUR_MBR_EQUAL		= 11,
+	PAGE_CUR_RTREE_INSERT		= 12,
+	PAGE_CUR_RTREE_LOCATE		= 13,
+	PAGE_CUR_RTREE_GET_FATHER	= 14
 };
 
 

@@ -1675,8 +1675,15 @@ rec_copy_prefix_to_buf(
 		ut_ad(n_fields <= dict_index_get_n_fields(index));
 		break;
 	case REC_STATUS_NODE_PTR:
-		/* it doesn't make sense to copy the child page number field */
-		ut_ad(n_fields <= dict_index_get_n_unique_in_tree_nonleaf(index));
+		/* For R-tree, we need to copy the child page number field. */
+		if (dict_index_is_spatial(index)) {
+			ut_ad(n_fields == DICT_INDEX_SPATIAL_NODEPTR_SIZE + 1);
+		} else {
+			/* it doesn't make sense to copy the child page number
+			field */
+			ut_ad(n_fields <=
+			      dict_index_get_n_unique_in_tree_nonleaf(index));
+		}
 		break;
 	case REC_STATUS_INFIMUM:
 	case REC_STATUS_SUPREMUM:

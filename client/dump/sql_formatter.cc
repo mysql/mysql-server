@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -42,14 +42,13 @@ void Sql_formatter::format_row_group(Row_group_dump_task* row_group)
       row_data_length+= row->m_row_data.size_of_element(column) * 2 + 3;
     }
   }
-  if (m_options->m_dump_column_names)
+  if (m_options->m_dump_column_names || row_group->m_has_generated_columns)
   {
     row_data_length+= 3; // Space for enclosing parentheses and space.
-    const std::vector<Field>& fields=
-      row_group->m_source_table->get_fields();
-    for (std::vector<Field>::const_iterator field_iterator= fields.begin();
-      field_iterator != fields.end();
-      ++field_iterator)
+    const std::vector<Mysql_field>& fields= row_group->m_fields;
+    for (std::vector<Mysql_field>::const_iterator
+       field_iterator= fields.begin(); field_iterator != fields.end();
+       ++field_iterator)
     {
       row_data_length+= field_iterator->get_name().size() * 2 + 3;
     }
@@ -73,13 +72,12 @@ void Sql_formatter::format_row_group(Row_group_dump_task* row_group)
   else
     row_string+= "INSERT INTO ";
   row_string+= this->get_quoted_object_full_name(row_group->m_source_table);
-  if (m_options->m_dump_column_names)
+  if (m_options->m_dump_column_names || row_group->m_has_generated_columns)
   {
     row_string+= " (";
-    const std::vector<Field>& fields=
-      row_group->m_source_table->get_fields();
-    for (std::vector<Field>::const_iterator field_iterator= fields.begin();
-      field_iterator != fields.end();
+    const std::vector<Mysql_field>& fields= row_group->m_fields;
+    for (std::vector<Mysql_field>::const_iterator
+      field_iterator= fields.begin(); field_iterator != fields.end();
       ++field_iterator)
     {
       if (field_iterator != fields.begin())
@@ -143,8 +141,7 @@ void Sql_formatter::format_row_group(Row_group_dump_task* row_group)
         {
           row_string+= "NULL";
         }
-        else if (row_group->m_fields[column].get_type()
-          == MYSQL_TYPE_DECIMAL)
+        else if (row_group->m_fields[column].get_type() == MYSQL_TYPE_DECIMAL)
         {
           row_string+= '\'';
           row_string.append(column_data, column_length);
@@ -309,9 +306,18 @@ void Sql_formatter::format_plain_sql_object(
      dynamic_cast<View*>(plain_sql_dump_task);
   if (new_view_task != NULL)
   {
-    this->append_output("DROP VIEW IF EXISTS "
-       + this->get_quoted_object_full_name(new_view_task) + ";\n");
+     /*
+      DROP VIEW statement followed by CREATE VIEW must be written to output
+      as an atomic operation, else there is a possibility of bug#21399236.
+      It happens when we DROP VIEW v1, and it uses column from view v2, which
+      might get dropped before creation of real v1 view, and thus result in
+      error during restore.
+    */
     format_sql_objects_definer(plain_sql_dump_task, "VIEW");
+    this->append_output("DROP VIEW IF EXISTS "
+       + this->get_quoted_object_full_name(new_view_task) + ";\n"
+       + plain_sql_dump_task->get_sql_formatted_definition() + ";\n");
+    return;
   }
 
   Mysql_function* new_func_task=

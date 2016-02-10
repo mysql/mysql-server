@@ -972,6 +972,7 @@ DROP TABLE t1;
 --echo #                WRONG FOR PARTITIONED TABLES
 --echo #
 
+
 CREATE TABLE t1 (a int, PRIMARY KEY (a)) ENGINE=InnoDB
 PARTITION BY HASH (a) PARTITIONS 2;
 
@@ -987,3 +988,169 @@ CREATE_TIME IS NOT NULL AND UPDATE_TIME IS NOT NULL
 AND TABLE_NAME='t1';
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#20160327 OPTIMIZE TABLE REMOVES THE DATA DIRECTORY IN PARTITIONS
+--echo #
+
+# Create one partition in default in data directory and other in
+# different path
+
+LET $MYSQL_DATA_DIR = `select @@datadir`;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE `t1` (
+       `f1` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+       `f2` MEDIUMTEXT NOT NULL,
+       `f3` CHAR(100) NOT NULL,
+       `f4` TINYINT(1) unsigned NOT NULL,
+       PRIMARY KEY (`f1`,`f4`)
+     ) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=latin1
+     PARTITION BY LIST (`f4`)
+     (PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
+      PARTITION p1 VALUES IN (1) DATA DIRECTORY = '$MYSQL_TMP_DIR/temp_dir' ENGINE = InnoDB);
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+
+OPTIMIZE TABLE t1;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQL_TMP_DIR/temp_dir/test
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQL_DATA_DIR/test
+
+
+ALTER TABLE t1 OPTIMIZE PARTITION p0;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQL_TMP_DIR/temp_dir/test
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQL_DATA_DIR/test
+
+ALTER TABLE t1 OPTIMIZE PARTITION p1;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQL_TMP_DIR/temp_dir/test
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQL_DATA_DIR/test
+
+
+ALTER TABLE t1 REBUILD PARTITION ALL;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQL_TMP_DIR/temp_dir/test
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQL_DATA_DIR/test
+
+
+ALTER TABLE t1 ADD extracol VARCHAR(32) NULL;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQL_TMP_DIR/temp_dir/test
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQL_DATA_DIR/test
+
+DROP TABLE t1;
+
+--rmdir $MYSQL_TMP_DIR/temp_dir/test
+--rmdir $MYSQL_TMP_DIR/temp_dir
+
+
+#Create one partition in general tablespace and other in different path
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLESPACE ts1 ADD DATAFILE '$MYSQL_TMP_DIR/ts1.ibd' ENGINE=Innodb;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE `t1` (
+       `f1` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+       `f2` MEDIUMTEXT NOT NULL,
+       `f3` CHAR(100) NOT NULL,
+       `f4` TINYINT(1) unsigned NOT NULL,
+       PRIMARY KEY (`f1`,`f4`)
+     ) TABLESPACE ts1 ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=latin1
+     PARTITION BY LIST (`f4`)
+     (PARTITION p0 VALUES IN (0) ENGINE = InnoDB,
+      PARTITION p1 VALUES IN (1) DATA DIRECTORY = '$MYSQL_TMP_DIR/temp_tblspc' ENGINE = InnoDB);
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+
+OPTIMIZE TABLE t1;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1 OPTIMIZE PARTITION p0;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1 OPTIMIZE PARTITION p1;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+
+--rmdir $MYSQL_TMP_DIR/temp_tblspc/test
+--rmdir $MYSQL_TMP_DIR/temp_tblspc
+
+#Create partitions in two different tablespaces
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLESPACE ts1 ADD DATAFILE '$MYSQL_TMP_DIR/ts1.ibd' ENGINE=Innodb;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLESPACE ts2 ADD DATAFILE '$MYSQL_TMP_DIR/ts2.ibd' ENGINE=Innodb;
+
+eval CREATE TABLE `t1` (
+       `f1` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+       `f4` TINYINT(1) unsigned NOT NULL,
+       PRIMARY KEY (`f1`,`f4`)
+     )  ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=latin1
+     PARTITION BY LIST (`f4`)
+     (PARTITION p0 VALUES IN (0) TABLESPACE ts1 ENGINE = InnoDB,
+      PARTITION p1 VALUES IN (1) TABLESPACE ts2 ENGINE = InnoDB);
+
+SHOW CREATE TABLE t1;
+OPTIMIZE TABLE t1;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts2;
+
+#Create partitions to use differeent avaliable tablespace options
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLESPACE ts1 ADD DATAFILE '$MYSQL_TMP_DIR/ts1.ibd' ENGINE=Innodb;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE `t1` (
+       `f1` INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+       `f4` TINYINT(1) unsigned NOT NULL,
+       PRIMARY KEY (`f1`,`f4`)
+     )  ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=latin1
+     PARTITION BY LIST (`f4`)
+     (PARTITION p0 VALUES IN (0) TABLESPACE ts1 ENGINE = InnoDB,
+      PARTITION p1 VALUES IN (1) TABLESPACE innodb_file_per_table DATA DIRECTORY='$MYSQL_TMP_DIR/temp_dir' ENGINE = InnoDB,
+      PARTITION p2 VALUES IN (2) TABLESPACE innodb_file_per_table ENGINE = InnoDB,
+      PARTITION p3 VALUES IN (3) TABLESPACE innodb_system ENGINE = InnoDB);
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+
+OPTIMIZE TABLE t1;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+DROP TABLESPACE ts1;
+
+--rmdir $MYSQL_TMP_DIR/temp_dir/test
+--rmdir $MYSQL_TMP_DIR/temp_dir
+

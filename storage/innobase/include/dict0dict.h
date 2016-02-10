@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1007,11 +1007,13 @@ fil_space_t::flags  |     0     |    0    |     1      |    1
 ==================================================================
 @param[in]	table_flags	dict_table_t::flags
 @param[in]	is_temp		whether the tablespace is temporary
+@param[in]	is_encrypted	whether the tablespace is encrypted
 @return tablespace flags (fil_space_t::flags) */
 ulint
 dict_tf_to_fsp_flags(
 	ulint	table_flags,
-	bool	is_temp)
+	bool	is_temp,
+	bool	is_encrypted = false)
 	__attribute__((const));
 
 /** Extract the page size from table flags.
@@ -1938,6 +1940,16 @@ dict_table_is_temporary(
 	const dict_table_t*	table)	/*!< in: table to check */
 	__attribute__((warn_unused_result));
 
+/********************************************************************//**
+Check if it is a encrypted table.
+@return true if table encryption flag is set. */
+UNIV_INLINE
+bool
+dict_table_is_encrypted(
+/*====================*/
+	const dict_table_t*	table)	/*!< in: table to check */
+	__attribute__((warn_unused_result));
+
 /** Check whether the table is intrinsic.
 An intrinsic table is a special kind of temporary table that
 is invisible to the end user.  It is created internally by the MySQL server
@@ -2097,6 +2109,14 @@ UNIV_INLINE
 void
 dict_free_vc_templ(
 	dict_vcol_templ_t*	vc_templ);
+
+/** Check whether the table have virtual index.
+@param[in]	table	InnoDB table
+@return true if the table have virtual index, false otherwise. */
+UNIV_INLINE
+bool
+dict_table_have_virtual_index(
+	dict_table_t*	table);
 
 #endif /* !UNIV_HOTBACKUP */
 

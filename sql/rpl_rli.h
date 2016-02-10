@@ -1277,6 +1277,16 @@ private:
   int thd_tx_priority;
 
 public:
+  /*
+    The boolean is set to true when the binlog applier (rli_fake) thread
+    detaches any "native" engine transactions it has dealt with
+    at time of XA START processing.
+    The boolean is reset to false at the end of XA PREPARE
+    and XA COMMIT ONE PHASE, at the same time with the native transactions
+    re-attachment.
+  */
+  bool is_native_trx_detached;
+
   void set_thd_tx_priority(int priority)
   {
     thd_tx_priority= priority;

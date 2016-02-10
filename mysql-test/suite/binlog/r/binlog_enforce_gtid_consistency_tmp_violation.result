@@ -15,7 +15,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -33,7 +33,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -51,7 +51,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -70,7 +70,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -90,7 +90,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -108,7 +108,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -126,7 +126,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -145,7 +145,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -307,7 +307,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -325,7 +325,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -343,7 +343,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -362,7 +362,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -382,7 +382,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -400,7 +400,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -418,7 +418,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -437,7 +437,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -744,7 +744,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -762,7 +762,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -780,7 +780,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -799,7 +799,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -819,7 +819,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -837,7 +837,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -855,7 +855,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -874,7 +874,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1186,7 +1186,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1204,7 +1204,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1222,7 +1222,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1241,7 +1241,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1261,7 +1261,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1279,7 +1279,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1297,7 +1297,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1316,7 +1316,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1334,7 +1334,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1352,7 +1352,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1370,7 +1370,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1389,7 +1389,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1409,7 +1409,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1427,7 +1427,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1445,7 +1445,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1464,7 +1464,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1483,7 +1483,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1501,7 +1501,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1519,7 +1519,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1538,7 +1538,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1558,7 +1558,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1576,7 +1576,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1594,7 +1594,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1613,7 +1613,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1631,7 +1631,7 @@ SET GTID_NEXT = 'ANONYMOUS';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1649,7 +1649,7 @@ SET GTID_NEXT = 'ANONYMOUS';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1667,7 +1667,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1686,7 +1686,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1706,7 +1706,7 @@ SET GTID_NEXT = 'ANONYMOUS';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1724,7 +1724,7 @@ SET GTID_NEXT = 'ANONYMOUS';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1742,7 +1742,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1761,7 +1761,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1779,7 +1779,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1797,7 +1797,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1815,7 +1815,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1834,7 +1834,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1854,7 +1854,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1872,7 +1872,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1890,7 +1890,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1909,7 +1909,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1928,7 +1928,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1946,7 +1946,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1964,7 +1964,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -1983,7 +1983,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2003,7 +2003,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2021,7 +2021,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2039,7 +2039,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2058,7 +2058,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2076,7 +2076,7 @@ SET GTID_NEXT = 'ANONYMOUS';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2094,7 +2094,7 @@ SET GTID_NEXT = 'ANONYMOUS';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2112,7 +2112,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2131,7 +2131,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2151,7 +2151,7 @@ SET GTID_NEXT = 'ANONYMOUS';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2169,7 +2169,7 @@ SET GTID_NEXT = 'ANONYMOUS';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2187,7 +2187,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2206,7 +2206,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2224,7 +2224,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2242,7 +2242,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2260,7 +2260,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2279,7 +2279,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2299,7 +2299,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2317,7 +2317,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2335,7 +2335,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2354,7 +2354,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2373,7 +2373,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2391,7 +2391,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2409,7 +2409,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2428,7 +2428,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2448,7 +2448,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2466,7 +2466,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2484,7 +2484,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2503,7 +2503,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2521,7 +2521,7 @@ SET GTID_NEXT = 'ANONYMOUS';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2539,7 +2539,7 @@ SET GTID_NEXT = 'ANONYMOUS';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2557,7 +2557,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2576,7 +2576,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2596,7 +2596,7 @@ SET GTID_NEXT = 'ANONYMOUS';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2614,7 +2614,7 @@ SET GTID_NEXT = 'ANONYMOUS';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2632,7 +2632,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2651,7 +2651,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'ANONYMOUS';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2673,7 +2673,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2691,7 +2691,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2709,7 +2709,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2728,7 +2728,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2748,7 +2748,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2766,7 +2766,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2784,7 +2784,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2803,7 +2803,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'AUTOMATIC';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2824,7 +2824,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2845,7 +2845,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2866,7 +2866,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2888,7 +2888,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2911,7 +2911,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] DROP TEMPORARY TABLE t1;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2932,7 +2932,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] DROP TEMPORARY TABLE t1;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2953,7 +2953,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] DROP TEMPORARY TABLE t1;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2975,7 +2975,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] DROP TEMPORARY TABLE t1;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -2997,7 +2997,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3015,7 +3015,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3033,7 +3033,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3052,7 +3052,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3072,7 +3072,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3090,7 +3090,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3108,7 +3108,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3127,7 +3127,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3149,7 +3149,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3170,7 +3170,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3191,7 +3191,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3213,7 +3213,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3236,7 +3236,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] DROP TEMPORARY TABLE t1;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3257,7 +3257,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] DROP TEMPORARY TABLE t1;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3278,7 +3278,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] DROP TEMPORARY TABLE t1;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3300,7 +3300,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] DROP TEMPORARY TABLE t1;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3325,7 +3325,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3346,7 +3346,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3367,7 +3367,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3389,7 +3389,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3412,7 +3412,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] DROP TEMPORARY TABLE t1;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3433,7 +3433,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] DROP TEMPORARY TABLE t1;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3454,7 +3454,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] DROP TEMPORARY TABLE t1;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3476,7 +3476,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] DROP TEMPORARY TABLE t1;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3498,7 +3498,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3516,7 +3516,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3534,7 +3534,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3553,7 +3553,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3573,7 +3573,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3591,7 +3591,7 @@ SET GTID_NEXT = 'GTID';
 BEGIN;
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3609,7 +3609,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3628,7 +3628,7 @@ SET AUTOCOMMIT = 0;
 SET GTID_NEXT = 'GTID';
 error ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
 DROP TEMPORARY TABLE t1;
-ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3650,7 +3650,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3671,7 +3671,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3692,7 +3692,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3714,7 +3714,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3737,7 +3737,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] DROP TEMPORARY TABLE t1;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3758,7 +3758,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] DROP TEMPORARY TABLE t1;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3779,7 +3779,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] DROP TEMPORARY TABLE t1;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3801,7 +3801,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] DROP TEMPORARY TABLE t1;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3826,7 +3826,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3847,7 +3847,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3868,7 +3868,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = InnoDB;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3890,7 +3890,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3913,7 +3913,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] DROP TEMPORARY TABLE t1;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3934,7 +3934,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] DROP TEMPORARY TABLE t1;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3955,7 +3955,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] DROP TEMPORARY TABLE t1;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
@@ -3977,7 +3977,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1]
 [END] DROP TEMPORARY TABLE t1;
 Warnings:
-Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.
+Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions.
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]

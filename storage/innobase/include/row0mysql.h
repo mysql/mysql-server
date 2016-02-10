@@ -228,6 +228,7 @@ row_lock_table_autoinc_for_mysql(
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in the MySQL
 					table handle */
 	__attribute__((nonnull, warn_unused_result));
+
 /*********************************************************************//**
 Sets a table lock on the table mentioned in prebuilt.
 @return error code or DB_SUCCESS */
@@ -898,6 +899,9 @@ struct row_prebuilt_t {
 
 	/** Return materialized key for secondary index scan */
 	bool		m_read_virtual_key;
+
+	/** The MySQL table object */
+	TABLE*		m_mysql_table;
 };
 
 /** Callback for row_mysql_sys_index_iterate() */
@@ -914,22 +918,22 @@ struct SysIndexCallback {
 @param[in,out]	row		the data row
 @param[in]	col		virtual column
 @param[in]	index		index on the virtual column
-@param[in,out]	my_rec		MySQL record to store the rows
 @param[in,out]	local_heap	heap memory for processing large data etc.
 @param[in,out]	heap		memory heap that copies the actual index row
 @param[in]	ifield		index field
-@param[in]	in_purge	whether this is called by purge
+@param[in]	thd		MySQL thread handle
+@param[in,out]	mysql_table	mysql table object
 @return the field filled with computed value */
 dfield_t*
 innobase_get_computed_value(
 	const dtuple_t*		row,
 	const dict_v_col_t*	col,
 	const dict_index_t*	index,
-	byte*			my_rec,
 	mem_heap_t**		local_heap,
 	mem_heap_t*		heap,
 	const dict_field_t*	ifield,
-	bool			in_purge);
+	THD*			thd,
+	TABLE*			mysql_table);
 
 #define ROW_PREBUILT_FETCH_MAGIC_N	465765687
 

@@ -107,7 +107,7 @@ let SEARCH_PATTERN= Skipping generation of RSA key pair as --sha256_password_aut
 
 --echo # Ensure that server is not ssl enabled
 --error 1
---exec $MYSQL -uroot --ssl -e "show variables like '%ssl%'"
+--exec $MYSQL -uroot --ssl-mode=REQUIRED -e "show variables like '%ssl%'"
 
 --echo # Ensure that sha connection is not possible in absence of certificates and keys
 connect (test_root_2,localhost,root,,,,,);
@@ -160,7 +160,7 @@ let SEARCH_PATTERN= Auto generated SSL certificates are placed in data directory
 
 --echo # Ensure that server is ssl enabled
 --replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
---exec $MYSQL -uroot --ssl -e "show status like 'Ssl_cipher'"
+--exec $MYSQL -uroot --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 #-----------------------------------------------------------------------------
 
 
@@ -200,7 +200,7 @@ let SEARCH_PATTERN= Auto generated RSA key files are placed in data directory.;
 
 --echo # Ensure that server is not ssl enabled
 --error 1
---exec $MYSQL -uroot --ssl -e "show status like 'Ssl_cipher'"
+--exec $MYSQL -uroot --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 #-----------------------------------------------------------------------------
 
 
@@ -246,7 +246,7 @@ grant usage on *.* to wl7699_sha256 identified by 'abcd';
 # Using SSL certificates
 --echo # Should be able to connect to server using generated SSL certificates.
 --replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
---exec $MYSQL -uwl7699_sha256 -pabcd --ssl -e "show status like 'Ssl_cipher'"
+--exec $MYSQL -uwl7699_sha256 -pabcd --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 # Using RSA key pair
 --echo # Should be able to connect to server using RSA key pair.
 --exec $MYSQL -uwl7699_sha256 -pabcd -e "select current_user()"
@@ -305,7 +305,7 @@ show variables like 'sha256%';
 --echo # 6.3 : SSL connection
 --echo # Should be able to connect to server using generated SSL certificates.
 --replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
---exec $MYSQL -uroot --ssl -e "show status like 'Ssl_cipher'"
+--exec $MYSQL -uroot --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 
 
 --echo # 6.4 : SHA256_password user
@@ -316,7 +316,7 @@ grant usage on *.* to wl7699_sha256 identified by 'abcd';
 # Using SSL certificates
 --echo # Should be able to connect to server using generated SSL certificates.
 --replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
---exec $MYSQL -uwl7699_sha256 -pabcd --ssl -e "show status like 'Ssl_cipher'"
+--exec $MYSQL -uwl7699_sha256 -pabcd --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 # Using RSA key pair
 --echo # Should be able to connect to server using RSA key pair.
 --exec $MYSQL -uwl7699_sha256 -pabcd -e "select current_user()"
@@ -388,7 +388,7 @@ show variables like 'sha256%';
 --echo # 7.3 : SSL connection
 --echo # Should not be able to connect to server using generated SSL certificates.
 --error 1
---exec $MYSQL -uroot --ssl -e "show status like 'Ssl_cipher'"
+--exec $MYSQL -uroot --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 
 --echo # 7.4 : SHA256_password user
 connection test_root_7;
@@ -398,7 +398,7 @@ grant usage on *.* to wl7699_sha256 identified by 'abcd';
 # Using SSL certificates
 --echo # Should not be able to connect to server using generated SSL certificates.
 --error 1
---exec $MYSQL -uwl7699_sha256 -pabcd --ssl -e "show status like 'Ssl_cipher'"
+--exec $MYSQL -uwl7699_sha256 -pabcd --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher'"
 # Using RSA key pair
 --echo # Should be able to connect to server using RSA key pair.
 --exec $MYSQL -uwl7699_sha256 -pabcd -e "select current_user()"
@@ -437,7 +437,7 @@ let SEARCH_PATTERN= Auto generated SSL certificates are placed in data directory
 --echo # Search completed.
 
 # Using SSL Certificates
---exec $MYSQL -uroot --ssl -e "SHOW STATUS LIKE 'Ssl_cipher'"
+--exec $MYSQL -uroot --ssl-mode=REQUIRED -e "SHOW STATUS LIKE 'Ssl_cipher'"
 
 
 #-----------------------------------------------------------------------------

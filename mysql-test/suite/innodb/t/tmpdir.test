@@ -1,0 +1,63 @@
+--source include/have_innodb.inc
+--source include/count_sessions.inc
+
+--echo #
+--echo # Bug #19183565 CREATE DYNAMIC INNODB_TMPDIR VARIABLE TO CONTROL
+--echo #		WHERE INNODB WRITES TEMP FILES
+--echo #
+
+--echo # If innodb_tmpdir is NULL or "", temporary file will be created in
+--echo # server configuration variable location(--tmpdir)
+
+create table t1(a int primary key)engine=innodb;
+show session variables like 'innodb_tmpdir';
+alter table t1 add column b int not null;
+set global innodb_tmpdir=NULL;
+--echo # Connection con1
+connect (con1,localhost,root);
+show session variables like 'innodb_tmpdir';
+alter table t1 add key(b);
+connection default;
+disconnect con1;
+drop table t1;
+
+--echo # innodb_tmpdir with invalid path.
+
+create table t1(a int primary key)engine=innodb;
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_tmpdir='wrong_value';
+show warnings;
+drop table t1;
+
+
+--echo # innodb_tmpdir with mysql data directory path.
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+create table t1(a text, b text, fulltext(a,b))engine=innodb;
+insert into t1 values('test1', 'test2');
+insert into t1 values('text1', 'text2');
+--replace_result $MYSQLD_DATADIR MYSQL_DATADIR
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_tmpdir = @@global.datadir;
+--replace_regex /.*mysqld.1*/DATADIR/
+show warnings;
+drop table t1;
+
+--echo # innodb_tmpdir with valid location.
+let $MYSQL_TMP_DIR= `select @@tmpdir`;
+create table t1(a text, b text, fulltext(a,b))engine=innodb;
+insert into t1 values('test1', 'test2');
+insert into t1 values('text1', 'text2');
+set @tmpdir = @@global.tmpdir;
+set global innodb_tmpdir = @tmpdir;
+show session variables like 'innodb_tmpdir';
+--echo # Connection con3
+connect (con3,localhost,root);
+# Following alter uses innodb_tmpdir as a path to create temporary files
+alter table t1 add fulltext(b);
+disconnect con3;
+connection default;
+set global innodb_tmpdir=NULL;
+drop table t1;
+
+--source include/wait_until_count_sessions.inc

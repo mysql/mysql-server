@@ -1,0 +1,33 @@
+set global innodb_purge_stop_now = 1;
+create table t1(f1 int not null, f2 blob not null, f3 blob not null,
+vchar char(2) as (substr(f3,2,2)) virtual,
+primary key(f1, f3(5)), index(vchar))engine=innodb;
+insert into t1(f1,f2,f3) values(1, repeat('a',8000), repeat('b', 9000));
+update t1 set f1=5 where f1=1;
+delete from t1 where f1=5;
+set global innodb_purge_run_now=1;
+set global innodb_fast_shutdown=0;
+# restart
+set global innodb_purge_stop_now = 1;
+drop table t1;
+create table t1(f1 int not null, f2 blob not null, f3 blob not null,
+vchar char(2) as (substr(f3,2,2)) virtual,
+primary key(f1, f3(5)), index(vchar, f3(2)))engine=innodb;
+insert into t1(f1,f2,f3) values(1, repeat('a',8000), repeat('b', 9000));
+update t1 set f1=5 where f1=1;
+delete from t1 where f1=5;
+set global innodb_purge_run_now=1;
+set global innodb_fast_shutdown=0;
+# restart
+set global innodb_purge_stop_now = 1;
+drop table t1;
+create table t1(f1 int not null, f2 blob not null, f3 blob not null,
+vchar blob as (f3) virtual,
+primary key(f1, f3(5)), index(vchar(3)))engine=innodb;
+insert into t1(f1,f2,f3) values(1, repeat('a',8000), repeat('b', 9000));
+update t1 set f1=5 where f1=1;
+delete from t1 where f1=5;
+set global innodb_purge_run_now=1;
+set global innodb_fast_shutdown=0;
+# restart
+drop table t1;

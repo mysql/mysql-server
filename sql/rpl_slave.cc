@@ -220,7 +220,7 @@ static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info);
 int slave_worker_exec_job_group(Slave_worker *w, Relay_log_info *rli);
 static int mts_event_coord_cmp(LOG_POS_COORD *id1, LOG_POS_COORD *id2);
 
-static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli);
+static int check_slave_sql_config_conflict(const Relay_log_info *rli);
 
 /*
   Applier thread InnoDB priority.
@@ -445,6 +445,12 @@ int init_slave()
                           mi->get_channel(), mi->get_channel());
       }
     }
+  }
+
+  if (check_slave_sql_config_conflict(NULL))
+  {
+    error= 1;
+    goto err;
   }
 
   /*
@@ -8474,7 +8480,6 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
 #ifdef HAVE_OPENSSL
   if (mi->ssl)
   {
-    const static my_bool ssl_enforce_true= TRUE;
     mysql_ssl_set(mysql,
                   mi->ssl_key[0]?mi->ssl_key:0,
                   mi->ssl_cert[0]?mi->ssl_cert:0,
@@ -8491,10 +8496,14 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                   mi->tls_version[0] ? mi->tls_version : 0);
     mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH,
                   mi->ssl_crlpath[0] ? mi->ssl_crlpath : 0);
-    mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
-                  &mi->ssl_verify_server_cert);
-    /* we always enforce SSL if SSL is turned on */
-    mysql_options(mysql, MYSQL_OPT_SSL_ENFORCE, &ssl_enforce_true);
+    enum mysql_ssl_mode ssl_mode;
+    if (mi->ssl_verify_server_cert)
+      ssl_mode= SSL_MODE_VERIFY_IDENTITY;
+    else if (mi->ssl_ca[0] || mi->ssl_capath[0])
+      ssl_mode= SSL_MODE_VERIFY_CA;
+    else
+      ssl_mode= SSL_MODE_REQUIRED;
+    mysql_options(mysql, MYSQL_OPT_SSL_MODE, &ssl_mode);
   }
 #endif
 
@@ -9786,7 +9795,7 @@ bool start_slave(THD* thd,
         mysql_mutex_unlock(&mi->rli->data_lock);
 
         if (!is_error)
-          is_error= check_slave_sql_config_conflict(thd, mi->rli);
+          is_error= check_slave_sql_config_conflict(mi->rli);
       }
       else if (master_param->pos || master_param->relay_log_pos || master_param->gtid)
         push_warning(thd, Sql_condition::SL_NOTE, ER_UNTIL_COND_IGNORED,
@@ -11138,16 +11147,32 @@ err:
 /**
   Check if there is any slave SQL config conflict.
 
-  @param[in] thd The THD object of current session.
   @param[in] rli The slave's rli object.
 
   @return 0 is returned if there is no conflict, otherwise 1 is returned.
  */
-static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli)
+static int check_slave_sql_config_conflict(const Relay_log_info *rli)
 {
-  if (opt_slave_preserve_commit_order && rli->opt_slave_parallel_workers > 0)
+  int channel_mts_submode, slave_parallel_workers;
+
+  if (rli)
   {
-    if (rli->channel_mts_submode == MTS_PARALLEL_TYPE_DB_NAME)
+    channel_mts_submode= rli->channel_mts_submode;
+    slave_parallel_workers= rli->opt_slave_parallel_workers;
+  }
+  else
+  {
+    /*
+      When the slave is first initialized, we collect the values from the
+      command line options
+    */
+    channel_mts_submode= mts_parallel_option;
+    slave_parallel_workers= opt_mts_slave_parallel_workers;
+  }
+
+  if (opt_slave_preserve_commit_order && slave_parallel_workers > 0)
+  {
+    if (channel_mts_submode == MTS_PARALLEL_TYPE_DB_NAME)
     {
       my_error(ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER, MYF(0),
                "when slave_parallel_type is DATABASE");
@@ -11155,7 +11180,7 @@ static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli)
     }
 
     if ((!opt_bin_log || !opt_log_slave_updates) &&
-        rli->channel_mts_submode == MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
+        channel_mts_submode == MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
     {
       my_error(ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER, MYF(0),
                "unless the binlog and log_slave update options are "
@@ -11164,15 +11189,18 @@ static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli)
     }
   }
 
-  const char* channel= const_cast<Relay_log_info*>(rli)->get_channel();
-  if (rli->opt_slave_parallel_workers > 0 &&
-      rli->channel_mts_submode != MTS_PARALLEL_TYPE_LOGICAL_CLOCK &&
-      channel_map.is_group_replication_channel_name(channel, true))
+  if (rli)
   {
-      my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
-               "START SLAVE SQL_THREAD when SLAVE_PARALLEL_WORKERS > 0 "
-               "and SLAVE_PARALLEL_TYPE != LOGICAL_CLOCK", channel);
-      return ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED;
+    const char* channel= const_cast<Relay_log_info*>(rli)->get_channel();
+    if (slave_parallel_workers > 0 &&
+        channel_mts_submode != MTS_PARALLEL_TYPE_LOGICAL_CLOCK &&
+        channel_map.is_group_replication_channel_name(channel, true))
+    {
+        my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
+                 "START SLAVE SQL_THREAD when SLAVE_PARALLEL_WORKERS > 0 "
+                 "and SLAVE_PARALLEL_TYPE != LOGICAL_CLOCK", channel);
+        return ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED;
+    }
   }
 
   return 0;

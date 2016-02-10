@@ -45,6 +45,7 @@
 #include "sql_prepare.h"                     // Prepared_statement
 #include "sql_time.h"                        // my_timeval_trunc
 #include "sql_timer.h"                       // thd_timer_destroy
+#include "sql_thd_internal_api.h"
 #include "transaction.h"                     // trans_rollback
 #ifdef HAVE_REPLICATION
 #include "rpl_rli_pdb.h"                     // Slave_worker
@@ -728,26 +729,7 @@ ulong get_max_connections(void)
 
 extern "C" int mysql_tmpfile(const char *prefix)
 {
-  char filename[FN_REFLEN];
-  File fd = create_temp_file(filename, mysql_tmpdir, prefix,
-#ifdef _WIN32
-                             O_BINARY | O_TRUNC | O_SEQUENTIAL |
-                             O_SHORT_LIVED |
-#endif /* _WIN32 */
-                             O_CREAT | O_EXCL | O_RDWR | O_TEMPORARY,
-                             MYF(MY_WME));
-  if (fd >= 0) {
-#ifndef _WIN32
-    /*
-      This can be removed once the following bug is fixed:
-      Bug #28903  create_temp_file() doesn't honor O_TEMPORARY option
-                  (file not removed) (Unix)
-    */
-    unlink(filename);
-#endif /* !_WIN32 */
-  }
-
-  return fd;
+  return mysql_tmpfile_path(mysql_tmpdir, prefix);
 }
 
 
@@ -1197,6 +1179,7 @@ THD::THD(bool enable_plugins)
    duplicate_slave_uuid(false),
    is_a_srv_session_thd(false)
 {
+  main_lex.reset();
   set_psi(NULL);
   mdl_context.init(this);
   init_sql_alloc(key_memory_thd_main_mem_root,
@@ -3968,7 +3951,7 @@ extern "C" bool thd_binlog_filter_ok(const MYSQL_THD thd)
 
 extern "C" bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd)
 {
-  return sqlcom_can_generate_row_events(thd);
+  return sqlcom_can_generate_row_events(thd->lex->sql_command);
 }
 
 extern "C" enum durability_properties thd_get_durability_property(const MYSQL_THD thd)
@@ -4808,3 +4791,18 @@ void THD::claim_memory_ownership()
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 }
 
+
+bool THD::binlog_applier_need_detach_trx()
+{
+  return is_binlog_applier() ? rli_fake->is_native_trx_detached= true : false;
+};
+
+
+bool THD::binlog_applier_has_detached_trx()
+{
+  bool rc= is_binlog_applier() && rli_fake->is_native_trx_detached;
+
+  if (rc)
+    rli_fake->is_native_trx_detached= false;
+  return rc;
+}

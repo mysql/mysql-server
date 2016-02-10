@@ -105,7 +105,9 @@ select a,b,c from t1;
 --echo # CREATE new_table ... LIKE old_table
 --echo # INSERT INTO new_table SELECT * from old_table
 create table t2 like t1;
+--error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
 insert into t2 select * from t1;
+insert into t2(a) select a from t1;
 select * from t1;
 drop table t2;
 
@@ -114,7 +116,9 @@ drop table t2;
 insert into t1 values (1,default,default);
 select * from t1;
 create table t2 like t1;
+--error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
 insert into t2 (a,b) select a,b from t1;
+insert into t2 (a) select a from t1;
 select * from t2;
 drop table t2;
 drop table t1;
@@ -511,7 +515,31 @@ DELETE IGNORE FROM t;
 DROP TABLE t;
 
 --source include/restore_strict_mode.inc
-} 
+
+--echo #
+--echo # Bug#22195458:GCOLS: ASSERTION 0 AND CORRUPTION...
+--echo #
+--disable_warnings
+--source include/turn_off_strict_mode.inc
+CREATE TABLE t (
+  a INT,
+  b YEAR GENERATED ALWAYS AS ('a') VIRTUAL,
+  c YEAR GENERATED ALWAYS AS ('aaaa') VIRTUAL,
+  b1 YEAR GENERATED ALWAYS AS ('a') STORED,
+  c1 YEAR GENERATED ALWAYS AS ('aaaa') STORED,
+  UNIQUE(b),
+  UNIQUE(b1)
+);
+INSERT INTO t VALUES();
+SELECT b from t;
+SELECT b1 from t;
+SELECT * from t;
+DELETE FROM t;
+CHECK TABLE t EXTENDED;
+DROP TABLE t;
+--source include/restore_strict_mode.inc
+--enable_warnings
+}
 
 --echo #Bug#21929967:GCOLS:GCOL VALUE CHANGES WHEN SESSION CHANGES SQL_MODE
 CREATE TABLE t(c1 INT GENERATED ALWAYS AS (1) VIRTUAL NOT NULL,
@@ -526,3 +554,71 @@ INSERT INTO t2(c2) VALUES(DEFAULT);
 SELECT * FROM t2;
 DROP TABLE t, t1, t2;
 
+--echo # Bug#22179637: INSERT INTO TABLE FROM SELECT ACCEPTS TO INSERT INTO
+--echo #              GENERATED COLUMNS
+CREATE TABLE t1 (
+  i1 INTEGER,
+  i2 INTEGER GENERATED ALWAYS AS (i1 + i1)
+);
+--error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
+INSERT INTO t1 (i1, i2) SELECT 5, 6;
+INSERT INTO t1 (i1) SELECT 5;
+--error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
+INSERT INTO t1 (i1) SELECT 5 ON DUPLICATE KEY UPDATE i2= 4;
+INSERT INTO t1 (i1) SELECT 5 ON DUPLICATE KEY UPDATE i2= DEFAULT;
+SELECT * FROM t1;
+
+CREATE TABLE t2 (
+  i1 INTEGER,
+  i2 INTEGER GENERATED ALWAYS AS (i1 + i1) STORED
+);
+--error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
+INSERT INTO t2 (i1, i2) SELECT 5, 6;
+--error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
+INSERT INTO t2 (i1, i2) SELECT * FROM t1;
+INSERT INTO t2 (i1) SELECT 5;
+--error ER_NON_DEFAULT_VALUE_FOR_GENERATED_COLUMN
+INSERT INTO t2 (i1) SELECT 5 ON DUPLICATE KEY UPDATE i2= 4;
+INSERT INTO t2 (i1) SELECT 5 ON DUPLICATE KEY UPDATE i2= DEFAULT;
+SELECT * FROM t2;
+
+DROP TABLE t1,t2;
+
+if ($support_virtual_index)
+{
+
+--echo #
+--echo # Bug#22070021 GCOL:ASSERTION `!TABLE || (!TABLE->WRITE_SET ||
+--echo #              BITMAP_IS_SET(TABLE->WRITE_SET,
+--echo #
+
+CREATE TABLE t1(
+c1 INT,
+c2 INT GENERATED ALWAYS AS (c1 + c1) VIRTUAL,
+KEY(c2)
+);
+
+INSERT INTO t1(c1) VALUES(0);
+DELETE O1.* FROM t1 AS O1, t1 AS O2;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#21944199 SIMPLE DELETE QUERY CAUSES INNODB: FAILING ASSERTION: 0
+--echo #              & DATA CORRUPTION
+--echo #
+
+CREATE TEMPORARY TABLE t1 (
+  a INTEGER NOT NULL,
+  b INTEGER GENERATED ALWAYS AS (a+1) VIRTUAL
+);
+
+INSERT INTO t1 (a) VALUES (0), (0), (0);
+
+ALTER TABLE t1 ADD INDEX idx (b);
+
+DELETE FROM t1;
+
+DROP TEMPORARY TABLE t1;
+
+}

@@ -244,6 +244,14 @@ mysqltest: At line 1: Unknown SQL error name 'E9999'
 mysqltest: At line 1: Invalid argument to error: '999e9' - the errno may only consist of digits[0-9]
 mysqltest: At line 1: Invalid argument to error: '9b' - the errno may only consist of digits[0-9]
 mysqltest: At line 1: Too many errorcodes specified
+DROP TABLE table_does_not_exist;
+ERROR 42S02: Unknown table 'test.table_does_not_exist'
+DROP TABLE table_does_not_exist;
+ERROR 42S02: Unknown table 'test.table_does_not_exist'
+DROP TABLE table_does_not_exist;
+ERROR 42S02: Unknown table 'test.table_does_not_exist'
+DROP TABLE table_does_not_exist;
+ERROR 42S02: Unknown table 'test.table_does_not_exist'
 MySQL
 "MySQL"
 MySQL: The world''s most popular open source database

@@ -1,0 +1,169 @@
+--source include/have_innodb.inc
+--source include/have_debug_sync.inc
+--source include/have_debug.inc
+
+
+CREATE TABLE `t` (
+  `a` BLOB,
+  `b` BLOB,
+  `c` BLOB GENERATED ALWAYS AS (CONCAT(a,b)) VIRTUAL,
+  `h` VARCHAR(10) DEFAULT NULL,
+  `i` int
+) ENGINE=InnoDB;
+
+INSERT INTO t VALUES (REPEAT('g', 16000), REPEAT('x', 16000), DEFAULT, "kk", 1);
+INSERT INTO t VALUES (REPEAT('a', 16000), REPEAT('b', 16000), DEFAULT, "mm", 2);
+
+CREATE INDEX idx ON t(c(100));
+
+SET global debug="+d,ib_purge_virtual_index_callback";
+UPDATE t SET a = REPEAT('m', 16000) WHERE a like "aaa%";
+select sleep(3);
+SET global debug="-d,ib_purge_virtual_index_callback";
+DROP TABLE t;
+
+
+CREATE TABLE t (
+  a TINYBLOB,
+  b TINYBLOB,
+  c TINYBLOB GENERATED ALWAYS AS (CONCAT(a,b)) VIRTUAL,
+  h VARCHAR(10) DEFAULT NULL,
+  i INT
+) ROW_FORMAT=COMPACT ENGINE=InnoDB;
+
+INSERT INTO t VALUES (REPEAT('g', 100), REPEAT('x', 100), DEFAULT, "kk", 1);
+INSERT INTO t VALUES (REPEAT('a', 100), REPEAT('b', 100), DEFAULT, "mm", 2);
+
+CREATE INDEX idx ON t(c(100));
+
+SET global debug="+d,ib_purge_virtual_index_callback";
+UPDATE t SET a = REPEAT('m', 100) WHERE a like "aaa%";
+select sleep(3);
+SET global debug="-d,ib_purge_virtual_index_callback";
+DROP TABLE t;
+
+
+CREATE TABLE t1 (
+    id INT NOT NULL,
+    store_id INT NOT NULL,
+    x INT GENERATED ALWAYS AS (id + store_id)
+)
+PARTITION BY RANGE (store_id) (
+    PARTITION p0 VALUES LESS THAN (6),
+    PARTITION p1 VALUES LESS THAN (11),
+    PARTITION p2 VALUES LESS THAN (16),
+    PARTITION p3 VALUES LESS THAN (21)
+);
+
+insert into t1 values(1, 2, default);
+insert into t1 values(3, 4, default);
+
+insert into t1 values(3, 12, default);
+insert into t1 values(4, 18, default);
+
+CREATE INDEX idx ON t1(x);
+
+SET global debug="+d,ib_purge_virtual_index_callback";
+UPDATE t1 SET id = 10 WHERE id = 1;
+select sleep(3);
+SET global debug="-d,ib_purge_virtual_index_callback";
+DROP TABLE t1;
+
+#
+# BUG#22082762 RE-ENABLE SUPPORT FOR ADDING VIRTUAL INDEX WHILE DROPPING VIRTUAL COLUMN
+#
+--source include/count_sessions.inc
+
+connect (con1,localhost,root,,);
+connection default;
+
+# Test adding virtual index on newly added virtual column
+CREATE TABLE t1 (a INT, b INT);
+
+INSERT INTO t1(a, b) VALUES (1, 1), (2, 2), (3, 3);
+
+connection con1;
+--echo # disable purge
+CREATE TABLE t0 (a INT) ENGINE=InnoDB;
+BEGIN; SELECT * FROM t0;
+
+connection default;
+DELETE FROM t1 WHERE a = 1;
+
+UPDATE t1 SET a = 4, b = 4 WHERE a = 3;
+
+INSERT INTO t1(a, b) VALUES (5, 5);
+
+SET DEBUG_SYNC= 'inplace_after_index_build SIGNAL uncommitted WAIT_FOR purged';
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ADD COLUMN c INT GENERATED ALWAYS AS(a+b), ADD INDEX idx (c), ALGORITHM=INPLACE, LOCK=NONE;
+send ALTER TABLE t1 ADD COLUMN c INT GENERATED ALWAYS AS(a+b), ADD INDEX idx (c), ALGORITHM=INPLACE, LOCK=SHARED;
+
+connection con1;
+SET DEBUG_SYNC= 'now WAIT_FOR uncommitted';
+
+--echo # enable purge
+COMMIT;
+
+--echo # wait for purge to process the deleted records.
+--source include/wait_innodb_all_purged.inc
+
+SET DEBUG_SYNC= 'now SIGNAL purged';
+
+connection default;
+--echo /* connection default */ ALTER TABLE t1 ADD COLUMN c INT GENERATED ALWAYS AS(a+b), ADD INDEX idx (c), ALGORITHM=INPLACE, LOCK=SHARED;
+--reap
+SHOW CREATE TABLE t1;
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+# Test adding virutal index on existing virtual column
+CREATE TABLE t1 (a INT, b INT, c INT GENERATED ALWAYS AS(a+b));
+
+INSERT INTO t1(a, b) VALUES (1, 1), (2, 2), (3, 3), (4, 4);
+
+connection con1;
+--echo # disable purge
+BEGIN; SELECT * FROM t0;
+
+connection default;
+DELETE FROM t1 WHERE a = 1;
+
+UPDATE t1 SET a = 2, b = 2 WHERE a = 5;
+
+INSERT INTO t1(a, b) VALUES (6, 6);
+
+SET DEBUG_SYNC= 'inplace_after_index_build SIGNAL uncommitted WAIT_FOR purged';
+send ALTER TABLE t1 ADD INDEX idx (c), ALGORITHM=INPLACE, LOCK=NONE;
+
+connection con1;
+SET DEBUG_SYNC= 'now WAIT_FOR uncommitted';
+
+DELETE FROM t1 WHERE a = 3;
+
+UPDATE t1 SET a = 7, b = 7 WHERE a = 4;
+
+INSERT INTO t1(a, b) VALUES (8, 8);
+
+--echo # enable purge
+COMMIT;
+
+--echo # wait for purge to process the deleted/updated records.
+--source include/wait_innodb_all_purged.inc
+
+SET DEBUG_SYNC= 'now SIGNAL purged';
+
+disconnect con1;
+
+connection default;
+--echo /* connection default */ ALTER TABLE t1 ADD INDEX idx (c), ALGORITHM=INPLACE, LOCK=NONE;
+--reap
+SHOW CREATE TABLE t1;
+
+SELECT * FROM t1;
+
+DROP TABLE t0, t1;
+
+--source include/wait_until_count_sessions.inc

@@ -1779,8 +1779,8 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
       have to restore its local thread native transaction
       context, previously saved at XA START.
     */
-    if (thd->variables.pseudo_slave_mode &&
-        thd->lex->sql_command == SQLCOM_XA_COMMIT)
+    if (thd->lex->sql_command == SQLCOM_XA_COMMIT &&
+        thd->binlog_applier_has_detached_trx())
     {
       DBUG_ASSERT(static_cast<Sql_cmd_xa_commit*>(thd->lex->m_sql_cmd)->
                   get_xa_opt() == XA_ONE_PHASE);
@@ -6640,6 +6640,18 @@ int DsMrr_impl::dsmrr_fill_buffer()
   DBUG_ENTER("DsMrr_impl::dsmrr_fill_buffer");
   DBUG_ASSERT(rowids_buf < rowids_buf_end);
 
+  /*
+    Set key_read to TRUE since we only read fields from the index.
+    This ensures that any virtual columns are read from index and are not
+    attempted to be evaluated from base columns.
+    (Do not use TABLE::set_keyread() since the MRR implementation operates
+    with two handler objects, and set_keyread() would manipulate the keyread
+    property of the wrong handler. MRR sets the handlers' keyread properties
+    when initializing the MRR operation, independent of this call).
+  */
+  DBUG_ASSERT(table->key_read == FALSE);
+  table->key_read= TRUE;
+
   rowids_buf_cur= rowids_buf;
   while ((rowids_buf_cur < rowids_buf_end) && 
          !(res= h2->handler::multi_range_read_next(&range_info)))
@@ -6660,6 +6672,9 @@ int DsMrr_impl::dsmrr_fill_buffer()
       rowids_buf_cur += sizeof(void*);
     }
   }
+
+  // Restore key_read since the next read operation will read complete rows
+  table->key_read= FALSE;
 
   if (res && res != HA_ERR_END_OF_FILE)
     DBUG_RETURN(res); 
@@ -8060,7 +8075,8 @@ static void extract_blob_space_and_length_from_record_buff(const TABLE *table,
     {
       blob_len_ptr_array[num].length= (*vfield)->data_length();
       // TODO: The following check is only for Innodb.
-      DBUG_ASSERT(blob_len_ptr_array[num].length == 768 ||
+      DBUG_ASSERT(blob_len_ptr_array[num].length == 255 ||
+                  blob_len_ptr_array[num].length == 768 ||
                   blob_len_ptr_array[num].length == 3073);
 
       uchar *ptr;
@@ -8156,7 +8172,7 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
   repoint_field_to_record(table, old_buf, record);
 
   blob_len_ptr blob_len_ptr_array[MAX_FIELDS];
-  
+
   /*
     If it's purge thread, we need get the space allocated by storage engine
     for blob.
@@ -8192,7 +8208,20 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
    /*
      Evaluate all requested columns and all base columns these depends
      on that are virtual.
+
+     This function is called by the storage engine, which may request to
+     evaluate more generated columns than read_set/write_set says.
+     For example, InnoDB's row_sel_sec_rec_is_for_clust_rec() reads the full
+     record from the clustered index and asks us to compute generated columns
+     that match key fields in the used secondary index. So we trust that the
+     engine has filled all base columns necessary to requested computations,
+     and we ignore read_set/write_set.
   */
+
+  my_bitmap_map *old_maps[2];
+  dbug_tmp_use_all_columns(table, old_maps,
+                           table->read_set, table->write_set);
+
   for (Field **vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
   {
     Field *field= *vfield_ptr;
@@ -8202,16 +8231,6 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
         field->is_virtual_gcol())
     {
       DBUG_ASSERT(field->gcol_info && field->gcol_info->expr_item->fixed);
-      if (in_purge)
-      {
-        /*
-          Adding to read_set/write_set is normally done up-front by high-level
-          layers before calling any handler's read/delete/etc functions.
-          But, for the specific case of the purge thread, it has no high-level
-          layer to manage read_set/write_set.
-        */
-        table->mark_column_used(thd, field, MARK_COLUMNS_WRITE);
-      }
 
       const type_conversion_status save_in_field_status=
         field->gcol_info->expr_item->save_in_field(field, 0);
@@ -8231,6 +8250,8 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
       }
     }
   }
+
+  dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_maps);
 
   /*
     If it's a purge thread, we need copy the blob data into specified place
@@ -8345,7 +8366,7 @@ bool handler::my_eval_gcolumn_expr_with_open(THD *thd,
 }
 
 
-/*
+/**
   Evaluate generated Column's value. If the engine has to write an index entry
   to its UNDO log (in a DELETE or UPDATE), and the index is on a virtual
   generated column, engine needs to calculate the column's value. This variant
@@ -8353,34 +8374,170 @@ bool handler::my_eval_gcolumn_expr_with_open(THD *thd,
   TABLE.
 
   @param thd        Thread handle
-  @param db_name    name of database
-  @param table_name name of the opened table
-  @param fields     bitmap of field index of evaluated generated column
-  @param[in,out]    record buff of base columns generated column depends.
-                    After calling this function, it will be used to return
-                    the value of generated column.
+  @param table      mysql table object
+  @param fields     bitmap of field index of evaluated
+	            generated column
+  @param record     buff of base columns generated column depends.
+                    After calling this function, it will be used to
+                    return the value of generated column.
 
-  @return true in case of error, false otherwise.
+  @retval true in case of error
+  @retval false on success.
 */
 
-bool handler::my_eval_gcolumn_expr(THD *thd,
-                                   const char *db_name,
-                                   const char *table_name,
-                                   const MY_BITMAP *const fields,
+bool handler::my_eval_gcolumn_expr(THD *thd, TABLE *table,
+				   const MY_BITMAP *const fields,
                                    uchar *record)
 {
   DBUG_ENTER("my_eval_gcolumn_expr");
 
-  TABLE *table= find_locked_table(thd->open_tables, db_name, table_name);
-  if (!table)
-  {
-    if (!(table= find_temporary_table(thd, db_name, table_name)))
-    {
-      my_error(ER_TABLE_NOT_LOCKED, MYF(0), table_name);
-      DBUG_RETURN(true);
-    }
-  }
-  const bool res= my_eval_gcolumn_expr_helper(thd, table, fields, record, false);
+  const bool res=
+     my_eval_gcolumn_expr_helper(thd, table, fields, record, false);
   DBUG_RETURN(res);
 }
 
+
+/**
+  Auxiliary structure for passing information to notify_*_helper()
+  functions.
+*/
+
+struct HTON_NOTIFY_PARAMS
+{
+  const MDL_key *key;
+  const ha_notification_type notification_type;
+  bool some_htons_were_notified;
+};
+
+
+static my_bool
+notify_exclusive_mdl_helper(THD *thd, plugin_ref plugin, void *arg)
+{
+  handlerton *hton= plugin_data<handlerton*>(plugin);
+  if (hton->state == SHOW_OPTION_YES && hton->notify_exclusive_mdl)
+  {
+    HTON_NOTIFY_PARAMS *params= reinterpret_cast<HTON_NOTIFY_PARAMS*>(arg);
+
+    if (hton->notify_exclusive_mdl(thd, params->key,
+                                   params->notification_type))
+    {
+      // Ignore failures from post event notification.
+      if (params->notification_type == HA_NOTIFY_PRE_EVENT)
+        return TRUE;
+    }
+    else
+      params->some_htons_were_notified= true;
+  }
+  return FALSE;
+}
+
+
+/**
+  Notify/get permission from all interested storage engines before
+  acquisition or after release of exclusive metadata lock on object
+  represented by key.
+
+  @param thd                Thread context.
+  @param mdl_key            MDL key identifying object on which exclusive
+                            lock is to be acquired/was released.
+  @param notification_type  Indicates whether this is pre-acquire or
+                            post-release notification.
+
+  @note @see handlerton::notify_exclusive_mdl for details about
+        calling convention and error reporting.
+
+  @return False - if notification was successful/lock can be acquired,
+          True - if it has failed/lock should not be acquired.
+*/
+
+bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
+                             ha_notification_type notification_type)
+{
+  HTON_NOTIFY_PARAMS params = {mdl_key, notification_type, false};
+  if (plugin_foreach(thd, notify_exclusive_mdl_helper,
+                     MYSQL_STORAGE_ENGINE_PLUGIN, &params))
+  {
+    /*
+      If some SE hasn't given its permission to acquire lock and some SEs
+      has given their permissions, we need to notify the latter group about
+      failed lock acquisition. We do this by calling post-release notification
+      for all interested SEs unconditionally.
+    */
+    if (notification_type == HA_NOTIFY_PRE_EVENT &&
+        params.some_htons_were_notified)
+    {
+      HTON_NOTIFY_PARAMS rollback_params = {mdl_key, HA_NOTIFY_POST_EVENT,
+                                            false};
+      (void) plugin_foreach(thd, notify_exclusive_mdl_helper,
+                            MYSQL_STORAGE_ENGINE_PLUGIN, &rollback_params);
+    }
+    return true;
+  }
+  return false;
+}
+
+
+static my_bool
+notify_alter_table_helper(THD *thd, plugin_ref plugin, void *arg)
+{
+  handlerton *hton= plugin_data<handlerton*>(plugin);
+  if (hton->state == SHOW_OPTION_YES && hton->notify_alter_table)
+  {
+    HTON_NOTIFY_PARAMS *params= reinterpret_cast<HTON_NOTIFY_PARAMS*>(arg);
+
+    if (hton->notify_alter_table(thd, params->key, params->notification_type))
+    {
+      // Ignore failures from post event notification.
+      if (params->notification_type == HA_NOTIFY_PRE_EVENT)
+        return TRUE;
+    }
+    else
+      params->some_htons_were_notified= true;
+  }
+  return FALSE;
+}
+
+
+/**
+  Notify/get permission from all interested storage engines before
+  or after executed ALTER TABLE on the table identified by key.
+
+  @param thd                Thread context.
+  @param mdl_key            MDL key identifying table.
+  @param notification_type  Indicates whether this is pre-ALTER or
+                            post-ALTER notification.
+
+  @note @see handlerton::notify_alter_table for rationale,
+        details about calling convention and error reporting.
+
+  @return False - if notification was successful/ALTER TABLE can
+                  proceed.
+          True -  if it has failed/ALTER TABLE should fail.
+*/
+
+bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
+                           ha_notification_type notification_type)
+{
+  HTON_NOTIFY_PARAMS params = {mdl_key, notification_type, false};
+
+  if (plugin_foreach(thd, notify_alter_table_helper,
+                     MYSQL_STORAGE_ENGINE_PLUGIN, &params))
+  {
+    /*
+      If some SE hasn't given its permission to do ALTER TABLE and some SEs
+      has given their permissions, we need to notify the latter group about
+      failed attemopt. We do this by calling post-ALTER TABLE notification
+      for all interested SEs unconditionally.
+    */
+    if (notification_type == HA_NOTIFY_PRE_EVENT &&
+        params.some_htons_were_notified)
+    {
+      HTON_NOTIFY_PARAMS rollback_params = {mdl_key, HA_NOTIFY_POST_EVENT,
+                                            false};
+      (void) plugin_foreach(thd, notify_alter_table_helper,
+                            MYSQL_STORAGE_ENGINE_PLUGIN, &rollback_params);
+    }
+    return true;
+  }
+  return false;
+}

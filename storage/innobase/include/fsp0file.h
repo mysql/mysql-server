@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -66,7 +66,9 @@ public:
 		m_first_page(),
 		m_atomic_write(),
 		m_last_os_error(),
-		m_file_info()
+		m_file_info(),
+		m_encryption_key(NULL),
+		m_encryption_iv(NULL)
 	{
 		/* No op */
 	}
@@ -89,7 +91,9 @@ public:
 		m_first_page(),
 		m_atomic_write(),
 		m_last_os_error(),
-		m_file_info()
+		m_file_info(),
+		m_encryption_key(NULL),
+		m_encryption_iv(NULL)
 	{
 		ut_ad(m_name != NULL);
 		/* No op */
@@ -110,7 +114,9 @@ public:
 		m_first_page(),
 		m_atomic_write(file.m_atomic_write),
 		m_last_os_error(),
-		m_file_info()
+		m_file_info(),
+		m_encryption_key(NULL),
+		m_encryption_iv(NULL)
 	{
 		m_name = mem_strdup(file.m_name);
 		ut_ad(m_name != NULL);
@@ -168,6 +174,8 @@ public:
 		it should be reread if needed */
 		m_first_page_buf = NULL;
 		m_first_page = NULL;
+		m_encryption_key = NULL;
+		m_encryption_iv = NULL;
 
 		m_atomic_write = file.m_atomic_write;
 
@@ -231,11 +239,13 @@ public:
 	successfully opened in order for this function to validate it.
 	@param[in]	space_id	The expected tablespace ID.
 	@param[in]	flags		The expected tablespace flags.
+	@param[in]	for_import	is it for importing
 	@retval DB_SUCCESS if tablespace is valid, DB_ERROR if not.
 	m_is_valid is also set true on success, else false. */
 	dberr_t validate_to_dd(
-		ulint	space_id,
-		ulint	flags)
+		ulint		space_id,
+		ulint		flags,
+		bool		for_import)
 		__attribute__((warn_unused_result));
 
 	/** Validates this datafile for the purpose of recovery.
@@ -254,11 +264,13 @@ public:
 	so the Space ID found here must not already be open.
 	m_is_valid is set true on success, else false.
 	@param[out]	flush_lsn	contents of FIL_PAGE_FILE_FLUSH_LSN
+	@param[in]	for_import	if it is for importing
 	(only valid for the first file of the system tablespace)
 	@retval DB_SUCCESS on if the datafile is valid
 	@retval DB_CORRUPTION if the datafile is not readable
 	@retval DB_TABLESPACE_EXISTS if there is a duplicate space_id */
-	dberr_t validate_first_page(lsn_t* flush_lsn = 0)
+	dberr_t validate_first_page(lsn_t*	flush_lsn,
+				    bool	for_import)
 		__attribute__((warn_unused_result));
 
 	/** Get Datafile::m_name.
@@ -468,6 +480,13 @@ public:
 	/* Use field st_ino. */
 	struct stat			m_file_info;
 #endif	/* WIN32 */
+
+	/** Encryption key read from first page */
+	byte*			m_encryption_key;
+
+	/** Encryption iv read from first page */
+	byte*			m_encryption_iv;
+
 };
 
 

@@ -488,3 +488,19 @@ int mysql_acquire_locking_service_locks(void* opaque_thd,
                                         unsigned long lock_timeout);
 int mysql_release_locking_service_locks(void* opaque_thd,
                                         const char* lock_namespace);
+#include <mysql/service_mysql_keyring.h>
+extern struct mysql_keyring_file_service_st
+{
+  int (*my_key_store_func)(const char *, const char *, const char *,
+                           const void *, size_t);
+  int (*my_key_fetch_func)(const char *, char **, const char *, void **,
+                               size_t *);
+  int (*my_key_remove_func)(const char *, const char *);
+  int (*my_key_generate_func)(const char *, const char *, const char *,
+                                  size_t);
+} *mysql_keyring_file_service;
+int my_key_store(const char *, const char *, const char *, const void *, size_t);
+int my_key_fetch(const char *, char **, const char *, void **,
+                     size_t *);
+int my_key_remove(const char *, const char *);
+int my_key_generate(const char *, const char *, const char *, size_t);

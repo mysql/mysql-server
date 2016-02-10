@@ -679,6 +679,50 @@ col1	col2	col3	col4	vgc1	sgc1
 1	10	100	111	1000	1000
 2	20	200	222	4000	4000
 DROP TABLE t1;
+#
+# bug#22018979: RECORD NOT FOUND ON UPDATE,
+#                VIRTUAL COLUMN, ASSERTION 0
+SET @sql_mode_save= @@sql_mode;
+SET sql_mode= 'ANSI';
+CREATE TABLE t1 (
+a INT,
+b VARCHAR(10),
+c CHAR(3) GENERATED ALWAYS AS (substr(b,1,3)) VIRTUAL,
+PRIMARY KEY (a),
+KEY c(c)
+);
+INSERT INTO t1(a, b) values(1, 'bbbb'), (2, 'cc');
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE "t1" (
+  "a" int(11) NOT NULL,
+  "b" varchar(10) DEFAULT NULL,
+  "c" char(3) GENERATED ALWAYS AS (substr(`b`,1,3)) VIRTUAL,
+  PRIMARY KEY ("a"),
+  KEY "c" ("c")
+)
+SELECT * FROM t1;
+a	b	c
+1	bbbb	bbb
+2	cc	cc
+SET sql_mode= '';
+FLUSH TABLE t1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` varchar(10) DEFAULT NULL,
+  `c` char(3) GENERATED ALWAYS AS (substr(`b`,1,3)) VIRTUAL,
+  PRIMARY KEY (`a`),
+  KEY `c` (`c`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT * FROM t1;
+a	b	c
+1	bbbb	bbb
+2	cc	cc
+DELETE FROM t1 where a= 2;
+SET sql_mode= @sql_mode_save;
+DROP TABLE t1;
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
 DROP PROCEDURE IF EXISTS p1;

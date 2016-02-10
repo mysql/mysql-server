@@ -58,10 +58,10 @@ static bool srv_session_THRs_initialized= false;
 class Auto_rw_lock_read
 {
 public:
-  explicit Auto_rw_lock_read(mysql_rwlock_t *lock) : rw_lock(lock)
+  explicit Auto_rw_lock_read(mysql_rwlock_t *lock) : rw_lock(NULL)
   {
-    if (rw_lock)
-      mysql_rwlock_rdlock(rw_lock);
+    if (lock && 0 == mysql_rwlock_rdlock(lock))
+      rw_lock = lock;
   }
 
   ~Auto_rw_lock_read()
@@ -80,10 +80,10 @@ private:
 class Auto_rw_lock_write
 {
 public:
-  explicit Auto_rw_lock_write(mysql_rwlock_t *lock) : rw_lock(lock)
+  explicit Auto_rw_lock_write(mysql_rwlock_t *lock) : rw_lock(NULL)
   {
-    if (rw_lock)
-      mysql_rwlock_wrlock(rw_lock);
+    if (lock && 0 == mysql_rwlock_wrlock(lock))
+      rw_lock = lock;
   }
 
   ~Auto_rw_lock_write()
@@ -450,38 +450,37 @@ public:
     Removes all elements which have been added with plugin as plugin name.
 
     @param plugin key
-    @param functor Functor to apply to every element matching "key"
     @param removed OUT Number of removed elements
-    @param found   OUT Number of matching elements
   */
-  void do_for_all_matching(const void *plugin,
-                           Mutexed_map_thd_srv_session::Do_Impl *functor,
-                           unsigned int &removed, unsigned int &found)
+  void remove_all_of_plugin(const void *plugin, unsigned int &removed)
   {
-    std::list<const THD*> to_remove;
+    std::list<Srv_session *> to_close;
     removed= 0;
-    found= 0;
 
-    Auto_rw_lock_write lock(&LOCK_collection);
+    {
+      Auto_rw_lock_write lock(&LOCK_collection);
 
-    for (std::map<const THD*, map_value_t>::iterator it= collection.begin();
-         it != collection.end();
-         ++it)
-    {
-      if (it->second.first == plugin)
-      {
-        ++found;
-        if (functor->operator()(it->second.second))
-          to_remove.push_back(it->first);
-      }
-    }
-    if ((removed= to_remove.size()))
-    {
-      for (std::list<const THD *>::iterator it= to_remove.begin();
-           it != to_remove.end();
+      for (std::map<const THD*, map_value_t>::iterator it= collection.begin();
+           it != collection.end();
            ++it)
       {
-        collection.erase(*it);
+        if (it->second.first == plugin)
+          to_close.push_back(it->second.second);
+      }
+    }
+
+    /* Outside of the lock as Srv_session::close() will try to
+      remove itself from the list*/
+    if ((removed= to_close.size()))
+    {
+      for (std::list<Srv_session *>::iterator it= to_close.begin();
+           it != to_close.end();
+           ++it)
+      {
+        Srv_session *session= *it;
+        session->detach();
+        session->close();
+        delete session;
       }
     }
   }
@@ -509,7 +508,6 @@ public:
     return collection.size();
   }
 };
-
 
 static Mutexed_map_thd_srv_session server_session_list;
 static Thread_to_plugin_map server_session_threads;
@@ -751,26 +749,6 @@ bool Srv_session::init_thread(const void *plugin)
 }
 
 
-class Remove_all_plugin_sessions : public Mutexed_map_thd_srv_session::Do_Impl
-{
-public:
-  Remove_all_plugin_sessions() {}
-
-  /**
-    Close the sessions. Returns true which means that the session should be
-    removed from the map of the sessions.
-  */
-  virtual bool operator()(Srv_session *session)
-  {
-    session->detach();
-    session->close();
-    delete session;
-
-    return true;
-  }
-};
-
-
 /**
   Looks if there is currently attached session and detaches it.
 
@@ -803,11 +781,9 @@ static void close_currently_attached_session_if_any(const st_plugin_int *plugin)
 */
 static void close_all_sessions_of_plugin_if_any(const st_plugin_int *plugin)
 {
-  Remove_all_plugin_sessions remover;
-  unsigned int found_count, removed_count;
+  unsigned int removed_count;
 
-  server_session_list.do_for_all_matching(plugin, &remover,
-                                          removed_count, found_count);
+  server_session_list.remove_all_of_plugin(plugin, removed_count);
 
   if (removed_count)
      sql_print_error("Closed forcefully %u session%s left opened by plugin %s",
@@ -828,7 +804,7 @@ void Srv_session::deinit_thread()
 
   if (server_session_threads.remove(my_thread_self()))
     sql_print_error("Failed to decrement the number of threads");
-  
+
   if (!server_session_threads.count(plugin))
     close_all_sessions_of_plugin_if_any(plugin);
 

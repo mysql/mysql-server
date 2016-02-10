@@ -114,3 +114,17 @@ FROM g
 GROUP BY b, a);
 1
 DROP TABLE t, g;
+#
+# Bug #22200984 ASSERTION IN FILESORT::MAKE_SORTORDER()
+#
+SET sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TABLE t1(a_t1 INT, c INT, d INT) ENGINE=INNODB;
+CREATE TABLE t2(a_t2 INT NOT NULL, UNIQUE KEY (a_t2)) ENGINE=INNODB;
+INSERT INTO t1 VALUES();
+SELECT (SELECT 1 FROM t2 GROUP BY d, a_t2 HAVING c) FROM t1 GROUP BY (1=2);
+(SELECT 1 FROM t2 GROUP BY d, a_t2 HAVING c)
+NULL
+DROP TABLE t1, t2;
+SET sql_mode=default;

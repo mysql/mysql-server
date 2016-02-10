@@ -3968,7 +3968,8 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
         cmd_can_generate_row_events= cmd_must_go_to_trx_cache= TRUE;
         break;
       default:
-        cmd_can_generate_row_events= sqlcom_can_generate_row_events(thd);
+        cmd_can_generate_row_events=
+          sqlcom_can_generate_row_events(thd->lex->sql_command);
         break;
     }
   }
@@ -4917,7 +4918,7 @@ size_t Query_log_event::get_query(const char *buf, size_t length,
   if (fd_event->common_footer->checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF)
     checksum_size= 4;
 
-  db_len= (uint)buf[Q_DB_LEN_OFFSET];
+  db_len= (uchar)buf[Q_DB_LEN_OFFSET];
 
   /* Error if the event content is too small */
   if (length < (common_header_len + query_header_len +
@@ -13028,7 +13029,7 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
       the partial transaction being logged with the GTID on the slave,
       causing data corruption on replication.
     */
-    if (thd->get_transaction()->is_active(Transaction_ctx::SESSION))
+    if (thd->server_status & SERVER_STATUS_IN_TRANS)
     {
       /* This is not an error (XA is safe), just an information */
       rli->report(INFORMATION_LEVEL, 0,

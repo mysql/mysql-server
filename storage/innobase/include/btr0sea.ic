@@ -200,7 +200,8 @@ btr_get_search_latch(const dict_index_t* index)
 {
 	ut_ad(index != NULL);
 
-	ulint	ifold = ut_fold_ulint_pair(index->id, index->space);
+	ulint	ifold = ut_fold_ulint_pair(static_cast<ulint>(index->id),
+					   static_cast<ulint>(index->space));
 
 	return(btr_search_latches[ifold % btr_ahi_parts]);
 }
@@ -215,7 +216,8 @@ btr_get_search_table(const dict_index_t* index)
 {
 	ut_ad(index != NULL);
 
-	ulint	ifold = ut_fold_ulint_pair(index->id, index->space);
+	ulint	ifold = ut_fold_ulint_pair(static_cast<ulint>(index->id),
+					   static_cast<ulint>(index->space));
 
 	return(btr_search_sys->hash_tables[ifold % btr_ahi_parts]);
 }

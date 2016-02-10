@@ -219,7 +219,8 @@ int check_change_password(THD *thd, const char *host, const char *user,
     if (check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 0))
       return(1);
   }
-  if (!thd->slave_thread && !opt_bootstrap &&
+  if (!thd->slave_thread &&
+      likely((get_server_state() == SERVER_OPERATING)) &&
       !strcmp(thd->security_context()->priv_user().str,""))
   {
     my_message(ER_PASSWORD_ANONYMOUS_USER, ER(ER_PASSWORD_ANONYMOUS_USER),

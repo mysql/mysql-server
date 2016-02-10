@@ -930,5 +930,80 @@ if ($innodb_engine)
     ALGORITHM=INPLACE, LOCK=EXCLUSIVE;
 }
 DROP TABLE t1;
---echo #
 
+--echo #
+--echo # Bug#21980430 GCOLS: CRASHING
+--echo #
+CREATE TABLE t (
+  a INT,
+  b BLOB,
+  c BLOB GENERATED ALWAYS AS (a+b) VIRTUAL,
+  UNIQUE KEY i0008 (a)
+);
+
+INSERT INTO t(a,b) VALUES(1,'cccc');
+let $query=
+SELECT /*+ bka() */ 1 AS c FROM t AS b RIGHT JOIN t AS c ON b.a > c.c
+WHERE b.b>c.a;
+eval EXPLAIN $query;
+eval $query;
+DROP TABLE t;
+
+# Force DS-MRR to be used
+set @optimizer_switch_save = @@optimizer_switch;
+set optimizer_switch='mrr_cost_based=off';
+
+# Reduce the size of the DS-MRR sort buffer to force multiple rounds
+set @read_rnd_buffer_size_save= @@read_rnd_buffer_size;
+set read_rnd_buffer_size=32;
+
+CREATE TABLE t0 (
+  i1 INTEGER NOT NULL
+);
+
+INSERT INTO t0 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+CREATE TABLE t1 (
+  pk INTEGER NOT NULL,
+  i1 INTEGER NOT NULL,
+  i2 INTEGER NOT NULL,
+  v1 INTEGER GENERATED ALWAYS AS (i2 + 1) VIRTUAL,
+  v2 INTEGER GENERATED ALWAYS AS (i1 / (i1 - i2 + 57)) VIRTUAL,
+  PRIMARY KEY (pk),
+  INDEX idx(i1)
+);
+
+INSERT INTO t1 (pk, i1, i2)
+SELECT a0.i1 + a1.i1*10 + a2.i1*100,
+       a0.i1 + a1.i1*10,
+       a0.i1 + a1.i1*10
+FROM t0 AS a0, t0 AS a1, t0 AS a2;
+
+# Do a DS-MRR scan on an index on a non-generated column
+# (this caused Division by 0 errors to be reported).
+let query1=
+SELECT * FROM t1
+WHERE i1 > 41 AND i1 <= 43;
+
+eval EXPLAIN $query1;
+eval $query1;
+
+if ($support_virtual_index)
+{
+ALTER TABLE t1 ADD INDEX idx2(v1);
+}
+
+# Do a DS-MRR scan on an index on a virtual column
+# (this query returned too few records).
+let query2=
+SELECT * FROM t1
+WHERE v1 > 41 AND v1 <= 43;
+
+eval EXPLAIN $query2;
+eval $query2;
+
+DROP TABLE t0, t1;
+
+# Restore defaults
+set optimizer_switch= @optimizer_switch_save;
+set @@read_rnd_buffer_size= @read_rnd_buffer_size_save;

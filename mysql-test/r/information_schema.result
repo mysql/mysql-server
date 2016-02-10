@@ -370,13 +370,13 @@ sub1	NULL
 sub2	return i+1
 show create procedure sel2;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-sel2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
+sel2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
 show create function sub1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-sub1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
+sub1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
 show create function sub2;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-sub2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`mysqltest_1`@`localhost` FUNCTION `sub2`(i int) RETURNS int(11)
+sub2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`mysqltest_1`@`localhost` FUNCTION `sub2`(i int) RETURNS int(11)
 return i+1	latin1	latin1_swedish_ci	latin1_swedish_ci
 show function status like "sub2";
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
@@ -384,7 +384,7 @@ test	sub2	FUNCTION	mysqltest_1@localhost	#	#	DEFINER		latin1	latin1_swedish_ci	l
 drop function sub2;
 show create procedure sel2;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-sel2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `sel2`()
+sel2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `sel2`()
 begin
 select * from t1;
 select * from t2;
@@ -949,34 +949,34 @@ trg1	INSERT	t1	begin
 if new.j > 10 then
 set new.j := 10;
 end if;
-end	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 trg2	UPDATE	t1	begin
 if old.i % 2 = 0 then
 set new.j := -1;
 end if;
-end	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	BEFORE	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 trg3	UPDATE	t1	begin
 if new.j = -1 then
 set @fired:= "Yes";
 end if;
-end	AFTER	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	AFTER	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 select * from information_schema.triggers where trigger_schema in ('mysql', 'information_schema', 'test', 'mysqltest');
 TRIGGER_CATALOG	TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_MANIPULATION	EVENT_OBJECT_CATALOG	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_ORDER	ACTION_CONDITION	ACTION_STATEMENT	ACTION_ORIENTATION	ACTION_TIMING	ACTION_REFERENCE_OLD_TABLE	ACTION_REFERENCE_NEW_TABLE	ACTION_REFERENCE_OLD_ROW	ACTION_REFERENCE_NEW_ROW	CREATED	SQL_MODE	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 def	test	trg1	INSERT	def	test	t1	1	NULL	begin
 if new.j > 10 then
 set new.j := 10;
 end if;
-end	ROW	BEFORE	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	ROW	BEFORE	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 def	test	trg2	UPDATE	def	test	t1	1	NULL	begin
 if old.i % 2 = 0 then
 set new.j := -1;
 end if;
-end	ROW	BEFORE	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	ROW	BEFORE	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 def	test	trg3	UPDATE	def	test	t1	1	NULL	begin
 if new.j = -1 then
 set @fired:= "Yes";
 end if;
-end	ROW	AFTER	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+end	ROW	AFTER	NULL	NULL	OLD	NEW	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 drop trigger trg1;
 drop trigger trg2;
 drop trigger trg3;
@@ -1281,11 +1281,11 @@ f1	RETURN @a + 1
 p1	SET @a= 1
 SHOW CREATE PROCEDURE p1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
 SET @a= 1	latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
+f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
 RETURN @a + 1	latin1	latin1_swedish_ci	latin1_swedish_ci
 SELECT ROUTINE_NAME, ROUTINE_DEFINITION FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA='test';
 ROUTINE_NAME	ROUTINE_DEFINITION
@@ -1293,10 +1293,10 @@ f1	NULL
 p1	NULL
 SHOW CREATE PROCEDURE p1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
+f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
 CALL p1();
 SELECT f1();
 f1()
@@ -1435,7 +1435,7 @@ trigger_name
 t1_ai
 show triggers from mysqltest;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-t1_ai	INSERT	t1	set @a = new.a + new.b + new.c	AFTER	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+t1_ai	INSERT	t1	set @a = new.a + new.b + new.c	AFTER	#	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 b	int(11)	YES		NULL	

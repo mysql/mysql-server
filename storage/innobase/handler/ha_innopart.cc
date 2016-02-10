@@ -1120,6 +1120,9 @@ share_error:
 	m_prebuilt->default_rec = table->s->default_values;
 	ut_ad(m_prebuilt->default_rec);
 
+	DBUG_ASSERT(table != NULL);
+	m_prebuilt->m_mysql_table = table;
+
 	if (ib_table->n_v_cols > 0) {
 		mutex_enter(&dict_sys->mutex);
 		m_part_share->set_v_templ(table, ib_table, name);
@@ -2550,6 +2553,19 @@ ha_innopart::update_part_elem(
 					ib_table->tablespace);
 		}
 	}
+	else {
+		ut_ad(part_elem->tablespace_name == NULL
+		      || 0 == strcmp(part_elem->tablespace_name,
+				     "innodb_file_per_table"));
+		if (part_elem->tablespace_name != NULL
+		    && 0 != strcmp(part_elem->tablespace_name,
+				   "innodb_file_per_table")) {
+
+			/* Update part_elem tablespace to NULL same as in
+			innodb data dictionary ib_table. */
+			part_elem->tablespace_name = NULL;
+		}
+	}
 }
 
 /** Update create_info.
@@ -3557,7 +3573,8 @@ ha_innopart::info_low(
 							m_prebuilt->trx,
 							table_name).c_str());
 				} else {
-					avail_space += space;
+					avail_space +=
+						static_cast<ulint>(space);
 				}
 			}
 		}

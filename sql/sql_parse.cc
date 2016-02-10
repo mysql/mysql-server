@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -248,6 +248,7 @@ bool stmt_causes_implicit_commit(const THD *thd, uint mask)
     skip= (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE);
     break;
   case SQLCOM_SET_OPTION:
+    /* Implicitly commit a transaction started by a SET statement */
     skip= lex->autocommit ? FALSE : TRUE;
     break;
   default:
@@ -445,6 +446,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_REVOKE]=            CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE_ALL]=        CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_OPTIMIZE]=          CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_ALTER_INSTANCE]=    CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_FUNCTION]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_PROCEDURE]=  CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_SPFUNCTION]= CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
@@ -486,6 +488,7 @@ void init_update_queries(void)
 
   sql_command_flags[SQLCOM_ASSIGN_TO_KEYCACHE]= CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_PRELOAD_KEYS]=       CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ALTER_INSTANCE]|=    CF_AUTO_COMMIT_TRANS;
 
   sql_command_flags[SQLCOM_FLUSH]=              CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_RESET]=              CF_AUTO_COMMIT_TRANS;
@@ -598,6 +601,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_REVOKE_ALL]|=       CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_INSTALL_PLUGIN]|=   CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_UNINSTALL_PLUGIN]|= CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_ALTER_INSTANCE]|=   CF_DISALLOW_IN_RO_TRANS;
 
   /*
     Mark statements that are allowed to be executed by the plugins.
@@ -741,12 +745,11 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_END]|=                     CF_ALLOW_PROTOCOL_PLUGIN;
 }
 
-bool sqlcom_can_generate_row_events(const THD *thd)
+bool sqlcom_can_generate_row_events(enum enum_sql_command command)
 {
-  return (sql_command_flags[thd->lex->sql_command] &
-          CF_CAN_GENERATE_ROW_EVENTS);
+  return (sql_command_flags[command] & CF_CAN_GENERATE_ROW_EVENTS);
 }
- 
+
 bool is_update_query(enum enum_sql_command command)
 {
   DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
@@ -1520,6 +1523,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     TABLE_LIST table_list;
     LEX_STRING table_name;
     LEX_STRING db;
+    push_deprecated_warn(thd, "COM_FIELD_LIST",
+                         "SHOW COLUMNS FROM statement");
     /*
       SHOW statements should not add the used tables to the list of tables
       used in a transaction.
@@ -1647,7 +1652,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
   case COM_REFRESH:
   {
     int not_used;
-
+    push_deprecated_warn(thd, "COM_REFRESH", "FLUSH statement");
     /*
       Initialize thd->lex since it's used in many base functions, such as
       open_tables(). Otherwise, it remains uninitialized and may cause crash
@@ -1763,6 +1768,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     break;
   case COM_PROCESS_INFO:
     thd->status_var.com_stat[SQLCOM_SHOW_PROCESSLIST]++;
+    push_deprecated_warn(thd, "COM_PROCESS_INFO",
+                         "SHOW PROCESSLIST statement");
     if (!thd->security_context()->priv_user().str[0] &&
         check_global_access(thd, PROCESS_ACL))
       break;
@@ -1774,6 +1781,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     break;
   case COM_PROCESS_KILL:
   {
+    push_deprecated_warn(thd, "COM_PROCESS_KILL",
+                         "KILL CONNECTION/QUERY statement");
     if (thd_manager->get_thread_id() & (~0xfffffffful))
       my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "thread_id", "mysql_kill()");
     else
@@ -4798,6 +4807,7 @@ end_with_restore_list:
   case SQLCOM_INSTALL_PLUGIN:
   case SQLCOM_UNINSTALL_PLUGIN:
   case SQLCOM_SHUTDOWN:
+  case SQLCOM_ALTER_INSTANCE:
     DBUG_ASSERT(lex->m_sql_cmd != NULL);
     res= lex->m_sql_cmd->execute(thd);
     break;
@@ -4876,7 +4886,7 @@ end_with_restore_list:
       }
 
       if (update_password_only &&
-          !opt_bootstrap &&
+          likely((get_server_state() == SERVER_OPERATING)) &&
           !strcmp(thd->security_context()->priv_user().str,""))
       {
         my_message(ER_PASSWORD_ANONYMOUS_USER, ER(ER_PASSWORD_ANONYMOUS_USER),
@@ -7031,7 +7041,7 @@ bool parse_sql(THD *thd,
     /*
       We need to put any errors in the DA as well as the condition list.
     */
-    if (parser_da->is_error())
+    if (parser_da->is_error() && !da->is_error())
     {
       da->set_error_status(parser_da->mysql_errno(),
                            parser_da->message_text(),

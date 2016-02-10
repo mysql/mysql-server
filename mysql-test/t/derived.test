@@ -1667,7 +1667,16 @@ ORDER BY t1.b;
 eval $query;
 eval explain $query;
 
-# Disallowed: Subquery in SELECT list:
+# Non-dependent subquery in SELECT list:
+
+let $query=
+SELECT *
+FROM t1 JOIN (SELECT a, (SELECT COUNT(*) FROM t1) AS b FROM t2) AS dt
+     ON t1.a=dt.a;
+eval $query;
+eval explain $query;
+
+# Disallowed: Dependent subquery in SELECT list:
 
 let $query=
 SELECT *
@@ -2526,3 +2535,157 @@ FROM (SELECT t2.c2n AS dt_field
 
 DROP VIEW vl, vr;
 DROP TABLE t1, t2, empty;
+
+--echo # Bug#22239474: Unexpected error 1093 on nested subquery for update
+
+CREATE TABLE t1 (id INTEGER PRIMARY KEY, d INTEGER);
+
+INSERT INTO t1 VALUES(1, 10), (2, 20);
+
+let $query=
+DELETE FROM t1
+WHERE id IN (SELECT * FROM (SELECT id FROM t1) AS dt);
+
+eval explain $query;
+eval $query;
+
+INSERT INTO t1 VALUES(1, 10), (2, 20);
+
+let $query=
+UPDATE t1 SET d= NULL
+WHERE id IN (SELECT * FROM (SELECT id FROM t1) AS dt);
+
+eval explain $query;
+eval $query;
+
+let $query=
+INSERT INTO t1 SELECT id+10, d FROM t1;
+
+eval explain $query;
+eval $query;
+
+let $query=
+INSERT INTO t1 SELECT id+20, d FROM (SELECT * FROM t1) AS dt;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1;
+
+--echo # Bug#22223202: Query with double nested subquery much slower in 5.7
+
+CREATE TABLE t1 (
+  t1_rowid bigint unsigned NOT NULL,
+  t1_co varchar(1) NOT NULL,
+  t1_inv_date char(3) NOT NULL,
+  UNIQUE KEY rowid (t1_rowid),
+  KEY invdate (t1_co, t1_inv_date)
+);
+
+INSERT INTO t1 VALUES (505975,'D','s:1'),(505981,'D','s:1'),(505869,'D','s:3');
+
+CREATE TABLE t2 (
+  t2_rowid bigint unsigned NOT NULL,
+  t2_end_date char(3) NOT NULL,
+  UNIQUE KEY rowid (t2_rowid),
+  KEY end_date (t2_end_date)
+);
+
+INSERT INTO t2 VALUES (9,'_:L'), (10,'_<2'), (11,'_<N');
+
+let $query=
+SELECT t1_inv_date
+FROM t1 LEFT JOIN
+     (SELECT curr.t2_end_date As end_date,
+             (SELECT prev.t2_end_date
+              FROM t2 AS prev
+              WHERE prev.t2_end_date < curr.t2_end_date
+              ORDER BY prev.t2_end_date DESC LIMIT 1) AS prev_end_date
+      FROM t2 AS curr
+      WHERE curr.t2_end_date >= 's:1'
+     ) AS periods
+     ON periods.prev_end_date < t1_inv_date AND
+        periods.end_date >= t1_inv_date;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2;
+
+--echo # Bug#22176604: Wrong result on outer join with uncorrelated subquery
+
+CREATE TABLE t1 (a INT, KEY(a));
+INSERT INTO t1 VALUES  (1), (NULL);
+
+CREATE TABLE t2 (b INT, KEY(b));
+INSERT INTO t2 VALUES (7), (NULL), (1), (5), (8), (6), (4), (0), (3), (NULL);
+
+CREATE TABLE t3 (c INT);
+INSERT INTO t3 VALUES (NULL), (1), (5);
+
+let $query=
+SELECT * FROM t1 LEFT JOIN (
+  SELECT t3.* FROM t2 INNER JOIN t3 ON b = c
+) AS sq ON a <= sq.c;
+
+eval explain $query;
+eval $query;
+
+DROP TABLE t1, t2, t3;
+
+--echo # Bug#22343301: Error 1093 (HY000): You can't specify target table'.'
+--echo #               for update in FROM clause
+
+CREATE TABLE users (
+ id int unsigned AUTO_INCREMENT,
+ name varchar(255),
+ position int DEFAULT NULL,
+ PRIMARY KEY (id));
+
+INSERT INTO users (name, position) VALUES
+ ('user1','1'), ('user2','2'), ('user3','3'), ('user4','4'), ('user5','5');
+
+--echo # Single-table update with non-mergeable derived table
+UPDATE users
+SET position = (SELECT COUNT(pos) + 1
+                FROM (SELECT DISTINCT position AS pos FROM users) AS t2
+                WHERE t2.pos < users.position)
+WHERE id = 3;
+
+--echo # Single-table update with mergeable derived table
+--echo # (but not merged due to being used in a subquery of an UPDATE statement)
+UPDATE users
+SET position = (SELECT COUNT(pos) + 1
+                FROM (SELECT position AS pos FROM users) AS t2
+                WHERE t2.pos < users.position)
+WHERE id = 3;
+
+--echo # Multi-table update with non-mergeable derived table
+UPDATE users, (SELECT 1) AS dummy
+SET position = (SELECT COUNT(pos) + 1
+                FROM (SELECT DISTINCT position AS pos FROM users) AS t2
+                WHERE t2.pos < users.position)
+WHERE id = 3;
+
+--echo # Multi-table update with mergeable derived table
+UPDATE users, (SELECT 1) AS dummy
+SET position = (SELECT COUNT(pos) + 1
+                FROM (SELECT position AS pos FROM users) AS t2
+                WHERE t2.pos < users.position)
+WHERE id = 3;
+
+--error ER_UPDATE_TABLE_USED
+UPDATE users
+SET position = (SELECT COUNT(t2.position) + 1
+                FROM users AS t2
+                WHERE t2.position < users.position)
+WHERE id = 3;
+
+--error ER_UPDATE_TABLE_USED
+UPDATE users, (SELECT 1) AS dummy
+SET position = (SELECT COUNT(t2.position) + 1
+                FROM users AS t2
+                WHERE t2.position < users.position)
+WHERE id = 3;
+
+DROP TABLE users;

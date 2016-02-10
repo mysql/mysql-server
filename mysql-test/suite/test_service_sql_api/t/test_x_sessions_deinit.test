@@ -1,5 +1,7 @@
 --source include/not_embedded.inc
 
+call mtr.add_suppression("Closed forcefully .* session.* left opened by plugin test_x_sessions_deinit");
+
 --echo ##########################################
 --echo # Run plugin
 --echo ##########################################

@@ -3,7 +3,7 @@
 # mysqld	This shell script takes care of starting and stopping
 #		the MySQL subsystem (mysqld).
 #
-# chkconfig: - 64 36
+# chkconfig: 345 64 36
 # description:	MySQL database server.
 # processname: mysqld
 # config: /etc/my.cnf
@@ -37,7 +37,7 @@ extra_opts="$@"
 # We use my_print_defaults which prints all options from multiple files,
 # with the more specific ones later; hence take the last match.
 get_mysql_option(){
-	result=`/usr/bin/my_print_defaults "$1" | sed -n "s/^--$2=//p" | tail -n 1`
+	result=$(/usr/bin/my_print_defaults "$1" | sed -n "s/^--$2=//p" | tail -n 1)
 	if [ -z "$result" ]; then
 	    # not found, use default
 	    result="$3"
@@ -61,15 +61,12 @@ esac
 install_validate_password_sql_file () {
     local dir
     local initfile
-    if [ -d /var/lib/mysql-files ]; then
-        dir=/var/lib/mysql-files
-    else
-        dir=/tmp
-    fi
+    dir=/var/lib/mysql
     initfile="$(mktemp $dir/install-validate-password-plugin.XXXXXX.sql)"
     chown mysql:mysql "$initfile"
-    echo "INSERT INTO mysql.plugin (name, dl) VALUES ('validate_password', 'validate_password.so');" > $initfile
-    echo $initfile
+    echo "INSERT INTO mysql.plugin (name, dl) VALUES ('validate_password', 'validate_password.so');" > "$initfile"
+    echo "SHUTDOWN;" >> "$initfile"
+    echo "$initfile"
 }
 
 start(){
@@ -86,9 +83,9 @@ start(){
 	action $"Starting $prog: " /bin/true
 	ret=0
     else
-    	# prepare for start
+	# prepare for start
 	touch "$errlogfile"
-	chown mysql:mysql "$errlogfile" 
+	chown mysql:mysql "$errlogfile"
 	chmod 0640 "$errlogfile"
 	[ -x /sbin/restorecon ] && /sbin/restorecon "$errlogfile"
 	if [ ! -d "$datadir/mysql" ] ; then
@@ -99,19 +96,28 @@ start(){
 	    fi
 	    chown mysql:mysql "$datadir"
 	    chmod 0751 "$datadir"
-	    [ -x /sbin/restorecon ] && /sbin/restorecon "$datadir"
+	    if [ -x /sbin/restorecon ] ; then
+		/sbin/restorecon "$datadir"
+		for dir in /var/lib/mysql-files /var/lib/mysql-keyring ; do
+		    if [ -x /usr/sbin/semanage -a -d /var/lib/mysql -a -d $dir ] ; then
+			/usr/sbin/semanage fcontext -a -e /var/lib/mysql $dir >/dev/null 2>&1
+			/sbin/restorecon $dir
+		    fi
+		done
+	    fi
 	    # Now create the database
-            initfile="$(install_validate_password_sql_file)"
-	    action $"Initializing MySQL database: " /usr/sbin/mysqld --initialize --datadir="$datadir" --user=mysql --init-file="$initfile"
+	    action $"Initializing MySQL database: " /usr/sbin/mysqld --initialize --datadir="$datadir" --user=mysql
 	    ret=$?
-            rm -f "$initfile"
+	    [ $ret -ne 0 ] && return $ret
+	    initfile="$(install_validate_password_sql_file)"
+	    action $"Installing validate password plugin: " /usr/sbin/mysqld --datadir="$datadir" --user=mysql --init-file="$initfile"
+	    ret=$?
+	    rm -f "$initfile"
 	    chown -R mysql:mysql "$datadir"
-            # Generate certs if needed
-            if [ -x /usr/bin/mysql_ssl_rsa_setup -a ! -e "${datadir}/server-key.pem" ] ; then
-                /usr/bin/mysql_ssl_rsa_setup --datadir="$datadir" --uid=mysql >/dev/null 2>&1
-            fi
-	    if [ $ret -ne 0 ] ; then
-		return $ret
+	    [ $ret -ne 0 ] && return $ret
+	    # Generate certs if needed
+	    if [ -x /usr/bin/mysql_ssl_rsa_setup -a ! -e "${datadir}/server-key.pem" ] ; then
+		/usr/bin/mysql_ssl_rsa_setup --datadir="$datadir" --uid=mysql >/dev/null 2>&1
 	    fi
 	fi
 	chown mysql:mysql "$datadir"
@@ -164,7 +170,7 @@ stop(){
 	    action $"Stopping $prog: " /bin/true
 	    return 0
 	fi
-	MYSQLPID=`cat "$mypidfile"`
+	MYSQLPID=$(cat "$mypidfile")
 	if [ -n "$MYSQLPID" ]; then
 	    /bin/kill "$MYSQLPID" >/dev/null 2>&1
 	    ret=$?
@@ -194,7 +200,7 @@ stop(){
 	fi
 	return $ret
 }
- 
+
 restart(){
     stop
     start

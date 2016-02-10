@@ -35,7 +35,8 @@ class Row_group_dump_task : public Abstract_simple_dump_task
 {
 public:
   Row_group_dump_task(
-      Table* source_table, const std::vector<Mysql_field>& fields);
+      Table* source_table, const std::vector<Mysql_field>& fields,
+      const bool has_generated_column);
 
   virtual I_data_object* get_related_db_object() const;
 
@@ -46,7 +47,7 @@ public:
   /**
     Returns a table the rows are contained in.
    */
-  Table* m_source_table;
+  const Table* m_source_table;
   /**
     Contains all fields information.
    */
@@ -55,6 +56,10 @@ public:
     Returns all rows.
    */
   std::vector<Row*> m_rows;
+  /**
+    Contains generated/virtual fields.
+  */
+  const bool m_has_generated_columns;
 };
 
 }

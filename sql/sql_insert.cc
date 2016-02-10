@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1304,7 +1304,7 @@ bool Sql_cmd_insert_base::mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                         insert_value_list, SELECT_ACL, NULL, false, false);
     if (!res)
       res= check_valid_table_refs(table_list, insert_value_list, map);
-    if (!res && lex->insert_table_leaf->table->vfield)
+    if (!res && lex->insert_table_leaf->table->has_gcol())
       res= validate_gc_assignment(thd, &insert_field_list, values,
                                   lex->insert_table_leaf->table);
     thd->lex->in_update_value_clause= false;
@@ -1319,7 +1319,7 @@ bool Sql_cmd_insert_base::mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                         insert_update_list, UPDATE_ACL, NULL, false, true);
       if (!res)
         res= check_valid_table_refs(table_list, insert_update_list, map);
-      if (!res && lex->insert_table_leaf->table->vfield)
+      if (!res && lex->insert_table_leaf->table->has_gcol())
         res= validate_gc_assignment(thd, &insert_update_list,
                                     &insert_value_list,
                                     lex->insert_table_leaf->table);
@@ -1945,6 +1945,7 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
       err= 1;
     }
   }
+  bitmap_clear_all(write_set);
   return (!thd->lex->is_ignore() && thd->is_strict_mode()) ? err : 0;
 }
 
@@ -2019,6 +2020,10 @@ int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     res= setup_fields(thd, Ref_ptr_array(), values, SELECT_ACL, NULL,
                       false, false);
 
+  if (!res && lex->insert_table_leaf->table->has_gcol())
+    res= validate_gc_assignment(thd, fields, &values,
+                                lex->insert_table_leaf->table);
+
   if (duplicate_handling == DUP_UPDATE && !res)
   {
     Name_resolution_context *const context= &lex->select_lex->context;
@@ -2037,6 +2042,11 @@ int Query_result_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     if (!res)
       res= setup_fields(thd, Ref_ptr_array(), *update.get_changed_columns(),
                         UPDATE_ACL, NULL, false, true);
+
+    if (!res && lex->insert_table_leaf->table->has_gcol())
+      res= validate_gc_assignment(thd, update.get_changed_columns(),
+                                  update.update_values,
+                                  lex->insert_table_leaf->table);
     /*
       When we are not using GROUP BY and there are no ungrouped aggregate
       functions 
@@ -2547,7 +2557,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   tmp_table.s->db_low_byte_first= 
         MY_TEST(create_info->db_type == myisam_hton ||
                 create_info->db_type == heap_hton);
-  tmp_table.null_row= 0;
+  tmp_table.reset_null_row();
 
   if (!thd->variables.explicit_defaults_for_timestamp)
     promote_first_timestamp_column(&alter_info->create_list);

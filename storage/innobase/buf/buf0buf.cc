@@ -70,14 +70,52 @@ Created 11/5/1995 Heikki Tuuri
 #include "sync0sync.h"
 #include "buf0dump.h"
 #include "ut0new.h"
-
 #include <new>
 #include <map>
 #include <sstream>
-#ifdef HAVE_LIBNUMA
+
+#if defined(HAVE_LIBNUMA) && defined(WITH_NUMA)
 #include <numa.h>
 #include <numaif.h>
-#endif // HAVE_LIBNUMA
+
+struct set_numa_interleave_t
+{
+	set_numa_interleave_t()
+	{
+		if (srv_numa_interleave) {
+
+			ib::info() << "Setting NUMA memory policy to"
+				" MPOL_INTERLEAVE";
+			if (set_mempolicy(MPOL_INTERLEAVE,
+					  numa_all_nodes_ptr->maskp,
+					  numa_all_nodes_ptr->size) != 0) {
+
+				ib::warn() << "Failed to set NUMA memory"
+					" policy to MPOL_INTERLEAVE: "
+					<< strerror(errno);
+			}
+		}
+	}
+
+	~set_numa_interleave_t()
+	{
+		if (srv_numa_interleave) {
+
+			ib::info() << "Setting NUMA memory policy to"
+				" MPOL_DEFAULT";
+			if (set_mempolicy(MPOL_DEFAULT, NULL, 0) != 0) {
+				ib::warn() << "Failed to set NUMA memory"
+					" policy to MPOL_DEFAULT: "
+					<< strerror(errno);
+			}
+		}
+	}
+};
+
+#define NUMA_MEMPOLICY_INTERLEAVE_IN_SCOPE set_numa_interleave_t scoped_numa
+#else
+#define NUMA_MEMPOLICY_INTERLEAVE_IN_SCOPE
+#endif /* HAVE_LIBNUMA && WITH_NUMA */
 
 /*
 		IMPLEMENTATION OF THE BUFFER POOL
@@ -1429,9 +1467,9 @@ buf_chunk_init(
 		return(NULL);
 	}
 
-#ifdef HAVE_LIBNUMA
+#if defined(HAVE_LIBNUMA) && defined(WITH_NUMA)
 	if (srv_numa_interleave) {
-		int	st = mbind(chunk->mem, mem_size,
+		int	st = mbind(chunk->mem, chunk->mem_size(),
 				   MPOL_INTERLEAVE,
 				   numa_all_nodes_ptr->maskp,
 				   numa_all_nodes_ptr->size,
@@ -1442,7 +1480,8 @@ buf_chunk_init(
 				" (error: " << strerror(errno) << ").";
 		}
 	}
-#endif // HAVE_LIBNUMA
+#endif /* HAVE_LIBNUMA && WITH_NUMA */
+
 
 	/* Allocate the block descriptors from
 	the start of the memory block. */
@@ -1859,21 +1898,11 @@ buf_pool_init(
 	ut_ad(n_instances <= MAX_BUFFER_POOLS);
 	ut_ad(n_instances == srv_buf_pool_instances);
 
+	NUMA_MEMPOLICY_INTERLEAVE_IN_SCOPE;
+
 	buf_pool_resizing = false;
 	buf_pool_withdrawing = false;
 	buf_withdraw_clock = 0;
-
-#ifdef HAVE_LIBNUMA
-	if (srv_numa_interleave) {
-		ib::info() << "Setting NUMA memory policy to MPOL_INTERLEAVE";
-		if (set_mempolicy(MPOL_INTERLEAVE,
-				  numa_all_nodes_ptr->maskp,
-				  numa_all_nodes_ptr->size) != 0) {
-			ib::warn() << "Failed to set NUMA memory policy to"
-				" MPOL_INTERLEAVE: " << strerror(errno);
-		}
-	}
-#endif // HAVE_LIBNUMA
 
 	buf_pool_ptr = (buf_pool_t*) ut_zalloc_nokey(
 		n_instances * sizeof *buf_pool_ptr);
@@ -1904,16 +1933,6 @@ buf_pool_init(
 	buf_LRU_old_ratio_update(100 * 3/ 8, FALSE);
 
 	btr_search_sys_create(buf_pool_get_curr_size() / sizeof(void*) / 64);
-
-#ifdef HAVE_LIBNUMA
-	if (srv_numa_interleave) {
-		ib::info() << "Setting NUMA memory policy to MPOL_DEFAULT";
-		if (set_mempolicy(MPOL_DEFAULT, NULL, 0) != 0) {
-			ib::warn() << "Failed to set NUMA memory policy to"
-				" MPOL_DEFAULT: " << strerror(errno);
-		}
-	}
-#endif // HAVE_LIBNUMA
 
 	return(DB_SUCCESS);
 }
@@ -2483,6 +2502,8 @@ buf_pool_resize()
 	ulint		new_instance_size;
 	bool		warning = false;
 
+	NUMA_MEMPOLICY_INTERLEAVE_IN_SCOPE;
+
 	ut_ad(!buf_pool_resizing);
 	ut_ad(!buf_pool_withdrawing);
 	ut_ad(srv_buf_pool_chunk_unit > 0);
@@ -2955,8 +2976,6 @@ DECLARE_THREAD(buf_resize_thread)(
 	my_thread_init();
 
 	srv_buf_resize_thread_active = true;
-
-	buf_resize_status("not started");
 
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 		os_event_wait(srv_buf_resize_event);

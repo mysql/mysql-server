@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1184,7 +1184,7 @@ dict_init(void)
 		       dict_operation_lock, SYNC_DICT_OPERATION);
 
 	if (!srv_read_only_mode) {
-		dict_foreign_err_file = os_file_create_tmpfile();
+		dict_foreign_err_file = os_file_create_tmpfile(NULL);
 		ut_a(dict_foreign_err_file);
 	}
 
@@ -5397,6 +5397,12 @@ dict_index_copy_rec_order_prefix(
 			n = dict_index_get_n_unique_in_tree(index);
 		} else {
 			n = dict_index_get_n_unique_in_tree_nonleaf(index);
+			/* For internal node of R-tree, since we need to
+			compare the page no field, so, we need to copy this
+			field as well. */
+			if (dict_index_is_spatial(index)) {
+				n++;
+			}
 		}
 	}
 
@@ -6844,11 +6850,13 @@ dict_table_t::flags |     0     |    1    |     1      |    1
 fil_space_t::flags  |     0     |    0    |     1      |    1
 @param[in]	table_flags	dict_table_t::flags
 @param[in]	is_temp		whether the tablespace is temporary
+@param[in]	is_encrypted	whether the tablespace is encrypted
 @return tablespace flags (fil_space_t::flags) */
 ulint
 dict_tf_to_fsp_flags(
 	ulint	table_flags,
-	bool	is_temp)
+	bool	is_temp,
+	bool	is_encrypted)
 {
 	DBUG_EXECUTE_IF("dict_tf_to_fsp_flags_failure",
 			return(ULINT_UNDEFINED););
@@ -6871,7 +6879,8 @@ dict_tf_to_fsp_flags(
 						   has_atomic_blobs,
 						   has_data_dir,
 						   is_shared,
-						   is_temp);
+						   is_temp,
+						   is_encrypted);
 
 	return(fsp_flags);
 }

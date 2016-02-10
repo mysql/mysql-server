@@ -72,34 +72,6 @@ Tablespace::shutdown()
 	m_space_id = ULINT_UNDEFINED;
 }
 
-/** Get the sum of the file sizes of each Datafile in a tablespace
-@return ULINT_UNDEFINED if the size is invalid else the sum of sizes */
-ulint
-Tablespace::get_sum_of_sizes() const
-{
-	ulint	sum = 0;
-
-	files_t::const_iterator	end = m_files.end();
-
-	for (files_t::const_iterator it = m_files.begin(); it != end; ++it) {
-
-#ifndef _WIN32
-		if (sizeof(off_t) < 5
-		    && it->m_size >= (1UL << (32UL - UNIV_PAGE_SIZE_SHIFT))) {
-
-			ib::error() << "File size must be < 4 GB with this"
-				" MySQL binary-operating system combination."
-				" In some OS's < 2 GB";
-
-			return(ULINT_UNDEFINED);
-		}
-#endif /* _WIN32 */
-		sum += it->m_size;
-	}
-
-	return(sum);
-}
-
 /** Note that the data file was found.
 @param[in,out] file	Data file object to set */
 void

@@ -23,6 +23,7 @@
 #include "sql_authentication.h"
 #include "log.h"
 #include "sql_class.h"
+#include "sql_show.h"
 
 #include "../scripts/sql_commands_system_tables.h"
 #include "../scripts/sql_commands_system_data.h"
@@ -251,6 +252,8 @@ void Compiled_in_command_iterator::end(void)
   If it exists, is empty and the process can write into it
   no action is taken and the directory is accepted.
   Otherwise an error is thrown.
+  "Empty" means no files other than the ones starting with "."
+  or in the --ignore-db list.
 
   @param  data_home  the normalized path to the data directory
   @return status
@@ -270,11 +273,25 @@ bool initialize_create_data_directory(const char *data_home)
 
   if (NULL != (dir= my_dir(data_home, MYF(MY_DONT_SORT))))
   {
-    bool no_files;
+    bool no_files= true;
     char path[FN_REFLEN];
     File fd;
 
-    no_files= dir->number_off_files == 2; /* "." and ".." */
+    /*
+      Ignore files starting with . and in the --ignore-db list.
+      This is exactly how find_files() in sql_show.cc operates.
+    */
+    for (uint i=0; i < dir->number_off_files; i++)
+    {
+      FILEINFO *file= dir->dir_entry + i;
+      if (file->name[0] != '.' &&
+          !is_in_ignore_db_dirs_list(file->name))
+      {
+        no_files= false;
+        break;
+      }
+    }
+
     my_dirend(dir);
 
     if (!no_files)

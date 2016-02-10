@@ -1023,7 +1023,8 @@ public:
                              double lower_latitude, double upper_longitude,
                              double lower_longitude, double *result_latitude,
                              double *result_longitude);
-  static double round_latlongitude(double latlongitude, double error_range);
+  static double round_latlongitude(double latlongitude, double error_range,
+                                   double lower_limit, double upper_limit);
   static bool check_geohash_argument_valid_type(Item *item);
 };
 
@@ -1558,6 +1559,9 @@ public:
 
 class Item_func_bit: public Item_int_func
 {
+protected:
+  /// @returns Second arg which check_deprecated_bin_op() should check.
+  virtual Item* check_deprecated_second_arg() const= 0;
 public:
   Item_func_bit(Item *a, Item *b) :Item_int_func(a, b) {}
   Item_func_bit(const POS &pos, Item *a, Item *b) :Item_int_func(pos, a, b) {}
@@ -1565,7 +1569,11 @@ public:
   Item_func_bit(Item *a) :Item_int_func(a) {}
   Item_func_bit(const POS &pos, Item *a) :Item_int_func(pos, a) {}
 
-  void fix_length_and_dec() { unsigned_flag= 1; }
+  void fix_length_and_dec()
+  {
+    unsigned_flag= 1;
+    check_deprecated_bin_op(args[0], check_deprecated_second_arg());
+  }
 
   virtual inline void print(String *str, enum_query_type query_type)
   {
@@ -1575,6 +1583,7 @@ public:
 
 class Item_func_bit_or :public Item_func_bit
 {
+  Item *check_deprecated_second_arg() const { return args[1]; }
 public:
   Item_func_bit_or(const POS &pos, Item *a, Item *b) :Item_func_bit(pos, a, b)
   {}
@@ -1584,6 +1593,7 @@ public:
 
 class Item_func_bit_and :public Item_func_bit
 {
+  Item *check_deprecated_second_arg() const { return args[1]; }
 public:
   Item_func_bit_and(const POS &pos, Item *a, Item *b) :Item_func_bit(pos, a, b)
   {}
@@ -1597,11 +1607,16 @@ public:
   Item_func_bit_count(const POS &pos, Item *a) :Item_int_func(pos, a) {}
   longlong val_int();
   const char *func_name() const { return "bit_count"; }
-  void fix_length_and_dec() { max_length=2; }
+  void fix_length_and_dec()
+  {
+    max_length=2;
+    check_deprecated_bin_op(args[0], NULL);
+  }
 };
 
 class Item_func_shift_left :public Item_func_bit
 {
+  Item *check_deprecated_second_arg() const { return NULL; }
 public:
   Item_func_shift_left(const POS &pos, Item *a, Item *b)
     :Item_func_bit(pos, a, b)
@@ -1612,6 +1627,7 @@ public:
 
 class Item_func_shift_right :public Item_func_bit
 {
+  Item *check_deprecated_second_arg() const { return NULL; }
 public:
   Item_func_shift_right(const POS &pos, Item *a, Item *b)
     :Item_func_bit(pos, a, b)
@@ -1622,6 +1638,7 @@ public:
 
 class Item_func_bit_neg :public Item_func_bit
 {
+  Item *check_deprecated_second_arg() const { return NULL; }
 public:
   Item_func_bit_neg(const POS &pos, Item *a) :Item_func_bit(pos, a) {}
   longlong val_int();
@@ -2364,6 +2381,7 @@ public:
     ft_handler= NULL;
     concat_ws= NULL;
     table_ref= NULL;           // required by Item_func_match::eq()
+    master= NULL;
     DBUG_VOID_RETURN;
   }
   virtual Item *key_item() const { return against; }
@@ -2587,6 +2605,7 @@ private:
 
 class Item_func_bit_xor : public Item_func_bit
 {
+  Item *check_deprecated_second_arg() const { return args[1]; }
 public:
   Item_func_bit_xor(const POS &pos, Item *a, Item *b) :Item_func_bit(pos, a, b)
   {}

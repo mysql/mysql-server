@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 */
 
 #include "abstract_crawler.h"
+#include "dump_end_dump_task.h"
 #include "this_thread.h"
 #include <boost/date_time.hpp>
 
@@ -75,6 +76,15 @@ void Abstract_crawler::wait_for_tasks_completion()
   {
     while ((*it)->is_completed() == false)
       my_boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+    Dump_end_dump_task* end_task= dynamic_cast<Dump_end_dump_task*>(*it);
+    if (end_task != NULL && end_task->is_completed())
+    {
+      for (std::vector<I_chain_maker*>::iterator it= m_chain_makers.begin();
+         it != m_chain_makers.end(); ++it)
+      {
+        delete *it;
+      }
+    }
   }
 }
 

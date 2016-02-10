@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -413,7 +413,9 @@ dict_mem_table_col_rename_low(
 
 	size_t from_len = strlen(s), to_len = strlen(to);
 
-	ut_ad(i < table->n_def);
+	ut_ad(i < table->n_def || is_virtual);
+	ut_ad(i < table->n_v_def || !is_virtual);
+
 	ut_ad(from_len <= NAME_LEN);
 	ut_ad(to_len <= NAME_LEN);
 
@@ -553,7 +555,7 @@ void
 dict_mem_table_col_rename(
 /*======================*/
 	dict_table_t*	table,	/*!< in/out: table */
-	unsigned	nth_col,/*!< in: column index */
+	ulint		nth_col,/*!< in: column index */
 	const char*	from,	/*!< in: old column name */
 	const char*	to,	/*!< in: new column name */
 	bool		is_virtual)
@@ -564,7 +566,7 @@ dict_mem_table_col_rename(
 	ut_ad((!is_virtual && nth_col < table->n_def)
 	       || (is_virtual && nth_col < table->n_v_def));
 
-	for (unsigned i = 0; i < nth_col; i++) {
+	for (ulint i = 0; i < nth_col; i++) {
 		size_t	len = strlen(s);
 		ut_ad(len > 0);
 		s += len + 1;
@@ -574,7 +576,8 @@ dict_mem_table_col_rename(
 	Proceed with the renaming anyway. */
 	ut_ad(!strcmp(from, s));
 
-	dict_mem_table_col_rename_low(table, nth_col, to, s, is_virtual);
+	dict_mem_table_col_rename_low(table, static_cast<unsigned>(nth_col),
+				      to, s, is_virtual);
 }
 
 /**********************************************************************//**

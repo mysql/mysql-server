@@ -1424,7 +1424,8 @@ binlog_cache_data::flush(THD *thd, my_off_t *bytes_written, bool *wrote_xid)
                     };);
 
     if (!error)
-      error= mysql_bin_log.write_gtid(thd, this, &writer);
+      if ((error= mysql_bin_log.write_gtid(thd, this, &writer)))
+        thd->commit_error= THD::CE_FLUSH_ERROR;
     if (!error)
       error= mysql_bin_log.write_cache(thd, this, &writer);
 
@@ -8610,8 +8611,9 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
           binlog_error_action == ABORT_SERVER ? "ABORT_SERVER" : "IGNORE_ERROR");
   if (binlog_error_action == ABORT_SERVER)
   {
-    sprintf(errmsg, "%s Hence aborting the server.", errmsg);
-    exec_binlog_error_action_abort(errmsg);
+    char err_buff[MYSQL_ERRMSG_SIZE];
+    sprintf(err_buff, "%s Hence aborting the server.", errmsg);
+    exec_binlog_error_action_abort(err_buff);
   }
   else
   {
@@ -9506,6 +9508,95 @@ THD::add_to_binlog_accessed_dbs(const char *db_param)
 }
 
 /*
+  Tells if two (or more) tables have auto_increment columns and we want to
+  lock those tables with a write lock.
+
+  SYNOPSIS
+    has_two_write_locked_tables_with_auto_increment
+      tables        Table list
+
+  NOTES:
+    Call this function only when you have established the list of all tables
+    which you'll want to update (including stored functions, triggers, views
+    inside your statement).
+*/
+
+static bool
+has_write_table_with_auto_increment(TABLE_LIST *tables)
+{
+  for (TABLE_LIST *table= tables; table; table= table->next_global)
+  {
+    /* we must do preliminary checks as table->table may be NULL */
+    if (!table->is_placeholder() &&
+        table->table->found_next_number_field &&
+        (table->lock_type >= TL_WRITE_ALLOW_WRITE))
+      return 1;
+  }
+
+  return 0;
+}
+
+/*
+   checks if we have select tables in the table list and write tables
+   with auto-increment column.
+
+  SYNOPSIS
+   has_two_write_locked_tables_with_auto_increment_and_select
+      tables        Table list
+
+  RETURN VALUES
+
+   -true if the table list has atleast one table with auto-increment column
+
+
+         and atleast one table to select from.
+   -false otherwise
+*/
+
+static bool
+has_write_table_with_auto_increment_and_select(TABLE_LIST *tables)
+{
+  bool has_select= false;
+  bool has_auto_increment_tables = has_write_table_with_auto_increment(tables);
+  for(TABLE_LIST *table= tables; table; table= table->next_global)
+  {
+     if (!table->is_placeholder() &&
+        (table->lock_type <= TL_READ_NO_INSERT))
+      {
+        has_select= true;
+        break;
+      }
+  }
+  return(has_select && has_auto_increment_tables);
+}
+
+/*
+  Tells if there is a table whose auto_increment column is a part
+  of a compound primary key while is not the first column in
+  the table definition.
+
+  @param tables Table list
+
+  @return true if the table exists, fais if does not.
+*/
+
+static bool
+has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables)
+{
+  for (TABLE_LIST *table= tables; table; table= table->next_global)
+  {
+    /* we must do preliminary checks as table->table may be NULL */
+    if (!table->is_placeholder() &&
+        table->table->found_next_number_field &&
+        (table->lock_type >= TL_WRITE_ALLOW_WRITE)
+        && table->table->s->next_number_keypart != 0)
+      return 1;
+  }
+
+  return 0;
+}
+
+/*
   Function to check whether the table in query uses a fulltext parser
   plugin or not.
 
@@ -9608,6 +9699,9 @@ static bool inline fulltext_unsafe_set(TABLE_SHARE *s)
      than one engine is involved and at least one engine is
      self-logging.
 
+  9. Error: Do not allow users to modify a gtid_executed table
+     explicitly by a XA transaction.
+
   For each error case above, the statement is prevented from being
   logged, we report an error, and roll back the statement.  For
   warnings, we set the thd->binlog_flags variable: the warning will be
@@ -9619,7 +9713,7 @@ static bool inline fulltext_unsafe_set(TABLE_SHARE *s)
   @param[in] tables Tables involved in the query
 
   @retval 0 No error; statement can be logged.
-  @retval -1 One of the error conditions above applies (1, 2, 4, 5, or 6).
+  @retval -1 One of the error conditions above applies (1, 2, 4, 5, 6 or 9).
 */
 
 int THD::decide_logging_format(TABLE_LIST *tables)
@@ -9729,6 +9823,31 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     }
 #endif
 
+    if (variables.binlog_format != BINLOG_FORMAT_ROW && tables)
+    {
+      /*
+        DML statements that modify a table with an auto_increment column based on
+        rows selected from a table are unsafe as the order in which the rows are
+        fetched fron the select tables cannot be determined and may differ on
+        master and slave.
+       */
+      if (has_write_table_with_auto_increment_and_select(tables))
+        lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_WRITE_AUTOINC_SELECT);
+
+      if (has_write_table_auto_increment_not_first_in_pk(tables))
+        lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_AUTOINC_NOT_FIRST);
+
+      /*
+        A query that modifies autoinc column in sub-statement can make the
+        master and slave inconsistent.
+        We can solve these problems in mixed mode by switching to binlogging
+        if at least one updated table is used by sub-statement
+       */
+      if (lex->requires_prelocking() &&
+          has_write_table_with_auto_increment(lex->first_not_own_table()))
+        lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_AUTOINC_COLUMNS);
+    }
+
     /*
       Get the capabilities vector for all involved storage engines and
       mask out the flags for the binary log.
@@ -9746,8 +9865,16 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       if (table->table->no_replicate)
       {
         if (!warned_gtid_executed_table)
+        {
           warned_gtid_executed_table=
-            gtid_state->warn_on_modify_gtid_table(this, table);
+            gtid_state->warn_or_err_on_modify_gtid_table(this, table);
+          /*
+            Do not allow users to modify the gtid_executed table
+            explicitly by a XA transaction.
+          */
+          if (this->is_error())
+            DBUG_RETURN(-1);
+        }
         /*
           The statement uses a table that is not replicated.
           The following properties about the table:
@@ -9818,6 +9945,24 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         {
           if (fulltext_unsafe_set(table->table->s))
             lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_FULLTEXT_PLUGIN);
+        }
+        /*
+          INSERT...ON DUPLICATE KEY UPDATE on a table with more than one unique keys
+          can be unsafe. Check for it if the flag is already not marked for the
+          given statement.
+        */
+        if (!lex->is_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_TWO_KEYS) &&
+            lex->sql_command == SQLCOM_INSERT && lex->duplicates == DUP_UPDATE)
+        {
+          uint keys= table->table->s->keys, i= 0, unique_keys= 0;
+          for (KEY* keyinfo= table->table->s->key_info;
+               i < keys && unique_keys <= 1; i++, keyinfo++)
+          {
+            if (keyinfo->flags & HA_NOSAME)
+              unique_keys++;
+          }
+          if (unique_keys > 1 )
+            lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_TWO_KEYS);
         }
       }
       if(lex->get_using_match())
@@ -9911,7 +10056,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         my_error((error= ER_BINLOG_ROW_INJECTION_AND_STMT_ENGINE), MYF(0));
       }
       else if (variables.binlog_format == BINLOG_FORMAT_ROW &&
-               sqlcom_can_generate_row_events(this))
+               sqlcom_can_generate_row_events(this->lex->sql_command))
       {
         /*
           2. Error: Cannot modify table that uses a storage engine
@@ -9950,7 +10095,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
           my_error((error= ER_BINLOG_ROW_INJECTION_AND_STMT_MODE), MYF(0));
         }
         else if ((flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0 &&
-                 sqlcom_can_generate_row_events(this))
+                 sqlcom_can_generate_row_events(this->lex->sql_command))
         {
           /*
             5. Error: Cannot modify table that uses a storage engine
@@ -10122,7 +10267,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     for (TABLE_LIST *table= tables; table; table= table->next_global)
     {
       if (!table->is_placeholder() && table->table->no_replicate &&
-          gtid_state->warn_on_modify_gtid_table(this, table))
+          gtid_state->warn_or_err_on_modify_gtid_table(this, table))
         break;
     }
   }
@@ -10144,29 +10289,10 @@ int THD::decide_logging_format(TABLE_LIST *tables)
   @param error_code The error code to use, if error or warning is to
   be generated.
 
-  @param handle_error If the GTID-violation is going to generate an
-  error, generate an error if handle_error is true. Skip the error if
-  handle_error is false.
-
-  @param handle_nonerror If the GTID-violation is not going to
-  generate an error (i.e. either it generates a warning or is silent),
-  increase the counter of GTID-violating transactions if
-  handle_nonerror is true.  Also, if the GTID-violation is going to
-  generate a warning, generate the warning if handle_nonerror is true.
-  Skip increasing counter and skip generating a warning if
-  handle_nonerror is false.
-
-  The reason we have the handle_error and handle_nonerror paramters is
-  that GTID-violation errors for DDL must be generated before the
-  implicit commit, whereas warnings and counter increments must happen
-  after the implicit commit; so there are two calls to this function.
-
   @retval false Error was generated.
   @retval true No error was generated (possibly a warning was generated).
 */
-static bool handle_gtid_consistency_violation(THD *thd, int error_code,
-                                              bool handle_error,
-                                              bool handle_nonerror)
+static bool handle_gtid_consistency_violation(THD *thd, int error_code)
 {
   DBUG_ENTER("handle_gtid_consistency_violation");
 
@@ -10176,11 +10302,8 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code,
     get_gtid_consistency_mode();
   enum_gtid_mode gtid_mode= get_gtid_mode(GTID_MODE_LOCK_SID);
 
-  DBUG_PRINT("info", ("handle_error=%d handle_nonerror=%d "
-                      "gtid_next.type=%d gtid_mode=%s "
+  DBUG_PRINT("info", ("gtid_next.type=%d gtid_mode=%s "
                       "gtid_consistency_mode=%d error=%d query=%s",
-                      handle_error,
-                      handle_nonerror,
                       gtid_next_type,
                       get_gtid_mode_string(gtid_mode),
                       gtid_consistency_mode,
@@ -10201,8 +10324,7 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code,
       gtid_consistency_mode == GTID_CONSISTENCY_MODE_ON)
   {
     global_sid_lock->unlock();
-    if (handle_error)
-      my_error(error_code, MYF(0));
+    my_error(error_code, MYF(0));
     DBUG_RETURN(false);
   }
   else
@@ -10221,7 +10343,7 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code,
       begin_anonymous_gtid_violating_transaction multiple times for the
       same transaction, which would make the counter go out of sync.
     */
-    if (handle_nonerror && !thd->has_gtid_consistency_violation)
+    if (!thd->has_gtid_consistency_violation)
     {
       if (gtid_next_type == AUTOMATIC_GROUP)
         gtid_state->begin_automatic_gtid_violating_transaction();
@@ -10244,7 +10366,7 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code,
     global_sid_lock->unlock();
 
     // Generate warning if ENFORCE_GTID_CONSISTENCY = WARN.
-    if (handle_nonerror && gtid_consistency_mode == GTID_CONSISTENCY_MODE_WARN)
+    if (gtid_consistency_mode == GTID_CONSISTENCY_MODE_WARN)
     {
       // Need to print to log so that replication admin knows when users
       // have adjusted their workloads.
@@ -10257,7 +10379,7 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code,
 }
 
 
-bool THD::is_ddl_gtid_compatible(bool handle_error, bool handle_nonerror)
+bool THD::is_ddl_gtid_compatible()
 {
   DBUG_ENTER("THD::is_ddl_gtid_compatible");
 
@@ -10289,7 +10411,7 @@ bool THD::is_ddl_gtid_compatible(bool handle_error, bool handle_nonerror)
       transactions with the same GTID.
     */
     bool ret= handle_gtid_consistency_violation(
-      this, ER_GTID_UNSAFE_CREATE_SELECT, handle_error, handle_nonerror);
+      this, ER_GTID_UNSAFE_CREATE_SELECT);
     DBUG_RETURN(ret);
   }
   else if ((lex->sql_command == SQLCOM_CREATE_TABLE &&
@@ -10301,12 +10423,12 @@ bool THD::is_ddl_gtid_compatible(bool handle_error, bool handle_nonerror)
       inside a transaction because the table will stay and the
       transaction will be written to the slave's binary log with the
       GTID even if the transaction is rolled back.
+      This includes the execution inside Functions and Triggers.
     */
-    if (in_multi_stmt_transaction_mode())
+    if (in_multi_stmt_transaction_mode() || in_sub_stmt)
     {
       bool ret= handle_gtid_consistency_violation(
-        this, ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION,
-        handle_error, handle_nonerror);
+        this, ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION);
       DBUG_RETURN(ret);
     }
   }
@@ -10361,7 +10483,7 @@ THD::is_dml_gtid_compatible(bool some_transactional_table,
       !DBUG_EVALUATE_IF("allow_gtid_unsafe_non_transactional_updates", 1, 0))
   {
     DBUG_RETURN(handle_gtid_consistency_violation(
-      this, ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE, true, true));
+      this, ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE));
   }
 
   DBUG_RETURN(true);
@@ -11021,7 +11143,7 @@ void THD::issue_unsafe_warnings()
                           ER_BINLOG_UNSAFE_STATEMENT,
                           ER(ER_BINLOG_UNSAFE_STATEMENT),
                           ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
-      if (log_error_verbosity > 1)
+      if (log_error_verbosity > 1 && opt_log_unsafe_statements)
       {
         if (unsafe_type == LEX::BINLOG_STMT_UNSAFE_LIMIT)
           do_unsafe_limit_checkout( buf, unsafe_type, query().str);

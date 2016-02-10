@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -153,6 +153,13 @@ static struct security_context_service_st security_context_handler={
 };
 #endif
 
+static struct mysql_keyring_file_service_st mysql_keyring_file_handler= {
+  my_key_store,
+  my_key_fetch,
+  my_key_remove,
+  my_key_generate
+};
+
 static struct st_service_ref list_of_services[]=
 {
 #ifndef EMBEDDED_LIBRARY
@@ -181,6 +188,7 @@ static struct st_service_ref list_of_services[]=
   { "security_context_service",
     VERSION_security_context_service, &security_context_handler },
 #endif
-  { "mysql_locking_service", VERSION_locking_service, &locking_service_handler }
+  { "mysql_locking_service", VERSION_locking_service, &locking_service_handler },
+  { "mysql_keyring_service", VERSION_mysql_keyring_file_service, &mysql_keyring_file_handler}
 };
 

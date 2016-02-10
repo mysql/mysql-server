@@ -146,26 +146,28 @@ row_sel_sec_rec_is_for_blob(
 	return(!cmp_data_data(mtype, prtype, buf, len, sec_field, sec_len));
 }
 
-/********************************************************************//**
-Returns TRUE if the user-defined column values in a secondary index record
+/** Returns TRUE if the user-defined column values in a secondary index record
 are alphabetically the same as the corresponding columns in the clustered
 index record.
 NOTE: the comparison is NOT done as a binary comparison, but character
 fields are compared with collation!
+@param[in]	sec_rec		secondary index record
+@param[in]	sec_index	secondary index
+@param[in]	clust_rec	clustered index record;
+				must be protected by a page s-latch
+@param[in]	clust_index	clustered index
+@param[in]	thr		query thread
 @return TRUE if the secondary record is equal to the corresponding
 fields in the clustered record, when compared with collation;
 FALSE if not equal or if the clustered record has been marked for deletion */
 static
 ibool
 row_sel_sec_rec_is_for_clust_rec(
-/*=============================*/
-	const rec_t*	sec_rec,	/*!< in: secondary index record */
-	dict_index_t*	sec_index,	/*!< in: secondary index */
-	const rec_t*	clust_rec,	/*!< in: clustered index record;
-					must be protected by a lock or
-					a page latch against deletion
-					in rollback or purge */
-	dict_index_t*	clust_index)	/*!< in: clustered index */
+	const rec_t*	sec_rec,
+	dict_index_t*	sec_index,
+	const rec_t*	clust_rec,
+	dict_index_t*	clust_index,
+	que_thr_t*	thr)
 {
 	const byte*	sec_field;
 	ulint		sec_len;
@@ -231,7 +233,9 @@ row_sel_sec_rec_is_for_clust_rec(
 
 			vfield = innobase_get_computed_value(
 					row, v_col, clust_index,
-					NULL, &heap, NULL, NULL, false);
+					&heap, NULL, NULL,
+					thr_get_trx(thr)->mysql_thd,
+					thr->prebuilt->m_mysql_table);
 
 			clust_len = vfield->len;
 			clust_field = static_cast<byte*>(vfield->data);
@@ -1016,7 +1020,8 @@ row_sel_get_clust_rec(
 		     || rec_get_deleted_flag(rec, dict_table_is_comp(
 						     plan->table)))
 		    && !row_sel_sec_rec_is_for_clust_rec(rec, plan->index,
-							 clust_rec, index)) {
+							 clust_rec, index,
+							 thr)) {
 			goto func_exit;
 		}
 	}
@@ -3575,7 +3580,7 @@ row_sel_get_clust_rec_for_mysql(
 			|| rec_get_deleted_flag(rec, dict_table_is_comp(
 							sec_index->table)))
 		    && !row_sel_sec_rec_is_for_clust_rec(
-			    rec, sec_index, clust_rec, clust_index)) {
+			    rec, sec_index, clust_rec, clust_index, thr)) {
 			clust_rec = NULL;
 		}
 

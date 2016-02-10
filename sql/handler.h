@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -526,6 +526,9 @@ namespace AQP {
   class Join_plan;
 };
 
+/** ENCRYPTION="Y" used during table create. */
+#define HA_CREATE_USED_ENCRYPT          (1L << 27)
+
 /*
   These structures are used to pass information from a set of SQL commands
   on add/drop/change tablespace definitions to the proper hton.
@@ -668,6 +671,8 @@ typedef bool (stat_print_fn)(THD *thd, const char *type, size_t type_len,
                              const char *file, size_t file_len,
                              const char *status, size_t status_len);
 enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
+enum ha_notification_type { HA_NOTIFY_PRE_EVENT, HA_NOTIFY_POST_EVENT };
+
 extern st_plugin_int *hton2plugin[MAX_HA];
 
 class handler;
@@ -904,6 +909,80 @@ struct handlerton
   void (*replace_native_transaction_in_thd)(THD *thd, void *new_trx_arg,
                                             void **ptr_trx_arg);
 
+
+  /**
+    Notify/get permission from storage engine before acquisition or after
+    release of exclusive metadata lock on object represented by key.
+
+    @param thd                Thread context.
+    @param mdl_key            MDL key identifying object on which exclusive
+                              lock is to be acquired/was released.
+    @param notification_type  Indicates whether this is pre-acquire or
+                              post-release notification.
+
+    @note Notification is done only for objects from TABLESPACE, SCHEMA,
+          TABLE, FUNCTION, PROCEDURE, TRIGGER and EVENT namespaces.
+
+    @note Problems during notification are to be reported as warnings, MDL
+          subsystem will report generic error if pre-acquire notification
+          fails/SE refuses lock acquisition.
+    @note Return value is ignored/error is not reported in case of
+          post-release notification.
+
+    @note In some cases post-release notification might happen even if
+          there were no prior pre-acquire notification. For example,
+          when SE was loaded after exclusive lock acquisition, or when
+          we need notify SEs which permitted lock acquisition that it
+          didn't happen because one of SEs didn't allow it (in such case
+          we will do post-release notification for all SEs for simplicity).
+
+    @return False - if notification was successful/lock can be acquired,
+            True - if it has failed/lock should not be acquired.
+  */
+  bool (*notify_exclusive_mdl)(THD *thd, const MDL_key *mdl_key,
+                               ha_notification_type notification_type);
+
+  /**
+    Notify/get permission from storage engine before or after execution of
+    ALTER TABLE operation on the table identified by the MDL key.
+
+    @param thd                Thread context.
+    @param mdl_key            MDL key identifying table which is going to be
+                              or was ALTERed.
+    @param notification_type  Indicates whether this is pre-ALTER TABLE or
+                              post-ALTER TABLE notification.
+
+    @note This hook is necessary because for ALTER TABLE upgrade to X
+          metadata lock happens fairly late during the execution process,
+          so it can be expensive to abort ALTER TABLE operation at this
+          stage by returning failure from notify_exclusive_mdl() hook.
+
+    @note This hook follows the same error reporting convention as
+          @see notify_exclusive_mdl().
+
+    @note Similarly to notify_exclusive_mdl() in some cases post-ALTER
+          notification might happen even if there were no prior pre-ALTER
+          notification.
+
+    @note Post-ALTER notification can happen before post-release notification
+          for exclusive metadata lock acquired by this ALTER TABLE.
+
+    @return False - if notification was successful/ALTER TABLE can proceed.
+            True - if it has failed/ALTER TABLE should be aborted.
+  */
+  bool (*notify_alter_table)(THD *thd, const MDL_key *mdl_key,
+                             ha_notification_type notification_type);
+
+
+  /**
+    @brief
+    Initiate master key rotation
+
+    @returns false on success,
+             true on failure
+  */
+  bool (*rotate_encryption_master_key)(void);
+
    uint32 license; /* Flag for Engine License */
    void *data; /* Location for engines to keep personal structures */
 };
@@ -990,6 +1069,14 @@ typedef struct st_ha_create_information
   and ignored by the Server layer. */
 
   LEX_STRING compress;
+
+  /**
+  This attibute is used for InnoDB's transparent page encryption.
+  If this attribute is set then it is hint to the storage engine to encrypt
+  the data. Note: this value is interpreted by the storage engine only.
+  and ignored by the Server layer. */
+
+  LEX_STRING encrypt_type;
 
   const char *data_file_name, *index_file_name;
   const char *alias;
@@ -3701,10 +3788,29 @@ public:
                                              const char *table_name,
                                              const MY_BITMAP *const fields,
                                              uchar *record);
-  static bool my_eval_gcolumn_expr(THD *thd,
-                                   const char *db_name,
-                                   const char *table_name,
-                                   const MY_BITMAP *const fields,
+
+  /**
+   Callback for computing generated column values.
+
+   Storage engines that need to have virtual column values for a row
+   can use this function to get the values computed. The storage
+   engine must have filled in the values for the base columns that
+   the virutal columns depend on.
+
+   @param  thd	        thread handle
+   @param  table	table object
+   @param  fields	bitmap of field index of evaluated generated
+			column
+   @param  record	buff of base columns generated column depends.
+			After calling this function, it will be
+			used to return the value of the generated
+			columns.
+
+   @retval true in case of error
+   @retval false on success.
+  */
+  static bool my_eval_gcolumn_expr(THD *thd, TABLE *table,
+				   const MY_BITMAP *const fields,
                                    uchar *record);
 
   /* This must be implemented if the handlerton's partition_flags() is set. */
@@ -4029,4 +4135,10 @@ void print_keydup_error(TABLE *table, KEY *key, myf errflag);
 
 void ha_set_normalized_disabled_se_str(const std::string &disabled_se_str);
 bool ha_is_storage_engine_disabled(handlerton *se_engine);
+
+bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
+                             ha_notification_type notification_type);
+bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
+                           ha_notification_type notification_type);
+
 #endif /* HANDLER_INCLUDED */

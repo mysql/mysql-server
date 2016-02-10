@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -150,6 +150,12 @@ enum dberr_t {
 
 	DB_IO_NO_PUNCH_HOLE_TABLESPACE,	/*!< The tablespace doesn't support
 					punch hole */
+
+	DB_IO_DECRYPT_FAIL,		/*!< Failure to decrypt a page
+					after reading it from disk */
+
+	DB_IO_NO_ENCRYPT_TABLESPACE,	/*!< The tablespace doesn't support
+					encrypt */
 
 	DB_IO_PARTIAL_FAILED,		/*!< Partial IO request failed */
 

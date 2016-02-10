@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2634,6 +2634,22 @@ class PT_shutdown : public PT_statement
 
 public:
   virtual Sql_cmd *make_cmd(THD *) { return &sql_cmd; }
+};
+
+
+class PT_alter_instance : public PT_statement
+{
+  typedef PT_statement super;
+
+  Sql_cmd_alter_instance sql_cmd;
+
+public:
+  explicit PT_alter_instance(enum alter_instance_action_enum alter_instance_action)
+    : sql_cmd(alter_instance_action)
+  {}
+
+  virtual Sql_cmd *make_cmd(THD *thd);
+  virtual bool contextualize(Parse_context *pc);
 };
 
 #endif /* PARSE_TREE_NODES_INCLUDED */

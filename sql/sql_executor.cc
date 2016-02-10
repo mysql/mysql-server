@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -750,7 +750,7 @@ return_zero_rows(JOIN *join, List<Item> &fields)
       // Mark tables as containing only NULL values
       for (TABLE_LIST *table= select->leaf_tables; table;
            table= table->next_leaf)
-        mark_as_null_row(table->table);
+        table->table->set_null_row();
 
       // Calculate aggregate functions for no rows
 
@@ -1212,7 +1212,7 @@ sub_select(JOIN *join, QEP_TAB *const qep_tab,bool end_of_records)
 {
   DBUG_ENTER("sub_select");
 
-  qep_tab->table()->null_row=0;
+  qep_tab->table()->reset_null_row();
 
   if (end_of_records)
   {
@@ -1401,7 +1401,7 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
   {
     handler *h= tab->qep_tab->table()->file;
     if (tab->qep_tab->table()->is_nullable() &&
-        tab->qep_tab->table()->null_row)
+        tab->qep_tab->table()->has_null_row())
     {
       /* It's a NULL-complemented row */
       *(nulls_ptr + tab->null_byte) |= tab->null_bit;
@@ -1731,7 +1731,7 @@ evaluate_null_complemented_join_record(JOIN *join, QEP_TAB *qep_tab)
     qep_tab->not_null_compl= false;
     /* The outer row is complemented by nulls for each inner tables */
     restore_record(qep_tab->table(),s->default_values);  // Make empty record
-    mark_as_null_row(qep_tab->table());       // For group by without error
+    qep_tab->table()->set_null_row();       // For group by without error
     if (qep_tab->starts_weedout() && qep_tab > first_inner_tab)
     {
       // sub_select() has not performed a reset for this table.
@@ -1774,6 +1774,10 @@ evaluate_null_complemented_join_record(JOIN *join, QEP_TAB *qep_tab)
     have a significant performance impact.
   */
   const enum_nested_loop_state rc= evaluate_join_record(join, qep_tab);
+
+  for (QEP_TAB *tab= first_inner_tab; tab <= last_inner_tab; tab++)
+    tab->table()->reset_null_row();
+
   DBUG_RETURN(rc);
 }
 
@@ -1837,7 +1841,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   DBUG_ENTER("join_read_const_table");
   TABLE *table=tab->table();
   table->const_table=1;
-  table->null_row=0;
+  table->reset_null_row();
   table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
 
   if (table->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE)
@@ -1897,12 +1901,12 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       DBUG_RETURN(error);
   }
 
-  if (tab->join_cond() && !table->null_row)
+  if (tab->join_cond() && !table->has_null_row())
   {
     // We cannot handle outer-joined tables with expensive join conditions here:
     DBUG_ASSERT(!tab->join_cond()->is_expensive());
-    if ((table->null_row= (tab->join_cond()->val_int() == 0)))
-      mark_as_null_row(table);  
+    if (tab->join_cond()->val_int() == 0)
+      table->set_null_row();
   }
 
   /* Check appearance of new constant items in Item_equal objects */
@@ -1952,7 +1956,7 @@ static int read_system(TABLE *table)
     {
       if (error != HA_ERR_END_OF_FILE)
 	return report_handler_error(table, error);
-      mark_as_null_row(table);
+      table->set_null_row();
       empty_record(table);			// Make empty record
       return -1;
     }
@@ -1960,7 +1964,7 @@ static int read_system(TABLE *table)
   }
   else if (!table->status)			// Only happens with left join
     restore_record(table,record[1]);			// restore old record
-  table->null_row=0;
+  table->reset_null_row();
   return table->status ? -1 : 0;
 }
 
@@ -2002,7 +2006,7 @@ static int read_const(TABLE *table, TABLE_REF *ref)
     if (error)
     {
       table->status= STATUS_NOT_FOUND;
-      mark_as_null_row(table);
+      table->set_null_row();
       empty_record(table);
       if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       {
@@ -2018,7 +2022,7 @@ static int read_const(TABLE *table, TABLE_REF *ref)
     table->status=0;
     restore_record(table,record[1]);			// restore old record
   }
-  table->null_row=0;
+  table->reset_null_row();
   DBUG_RETURN(table->status ? -1 : 0);
 }
 
@@ -2094,7 +2098,7 @@ join_read_key(QEP_TAB *tab)
     DBUG_ASSERT(table_ref->has_record);
     table_ref->use_count++;
   }
-  table->null_row=0;
+  table->reset_null_row();
   return table->status ? -1 : 0;
 }
 
@@ -2175,7 +2179,7 @@ join_read_linked_first(QEP_TAB *tab)
   if (unlikely(error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE))
     DBUG_RETURN(report_handler_error(table, error));
 
-  table->null_row=0;
+  table->reset_null_row();
   int rc= table->status ? -1 : 0;
   DBUG_RETURN(rc);
 }
@@ -4488,7 +4492,7 @@ change_refs_to_tmp_fields(THD *thd, Ref_ptr_array ref_pointer_array,
                             table_map so that the value can be
                             restored by restore_const_null_info()
 
-  @see mark_as_null_row
+  @see TABLE::set_null_row
   @see restore_const_null_info
 */
 static void save_const_null_info(JOIN *join, table_map *save_nullinfo)
@@ -4504,10 +4508,10 @@ static void save_const_null_info(JOIN *join, table_map *save_nullinfo)
       or none set. Otherwise, an additional table_map parameter is
       needed to save/restore_const_null_info() these separately
     */
-    DBUG_ASSERT(table->null_row ? (table->status & STATUS_NULL_ROW) :
-                                 !(table->status & STATUS_NULL_ROW));
+    DBUG_ASSERT(table->has_null_row() ? (table->status & STATUS_NULL_ROW) :
+                                        !(table->status & STATUS_NULL_ROW));
 
-    if (!table->null_row)
+    if (!table->has_null_row())
       *save_nullinfo|= tab->table_ref->map();
   }
 }
@@ -4525,7 +4529,7 @@ static void save_const_null_info(JOIN *join, table_map *save_nullinfo)
                          STATUS_NULL_ROW set when
                          save_const_null_info() was called
 
-  @see mark_as_null_row
+  @see TABLE::set_null_row
   @see save_const_null_info
 */
 static void restore_const_null_info(JOIN *join, table_map save_nullinfo)
@@ -4541,8 +4545,7 @@ static void restore_const_null_info(JOIN *join, table_map save_nullinfo)
         The table had null_row=false and STATUS_NULL_ROW set when
         save_const_null_info was called
       */
-      tab->table()->null_row= false;
-      tab->table()->status&= ~STATUS_NULL_ROW;
+      tab->table()->reset_null_row();
     }
   }
 }

@@ -49,6 +49,8 @@ public:
 
   void check_mutually_exclusive_options();
 
+  int get_total_connections();
+
 private:
   bool message_handler(const Mysql::Tools::Base::Message_data& message);
   void error_log_file_callback(char*);

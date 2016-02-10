@@ -5,9 +5,6 @@
 # connection
 Variable_name	Value
 Ssl_cipher	SSL_CIPHER
-# verify that mysql --skip-ssl connect with unencrypted channel
-Variable_name	Value
-Ssl_cipher	
 # verify that mysql --ssl=0 connect with unencrypted channel
 Variable_name	Value
 Ssl_cipher	

@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -1893,6 +1893,7 @@ sub collect_mysqld_features {
   mtr_add_arg($args, "--log-syslog=0");
   mtr_add_arg($args, "--datadir=%s", mixed_path($tmpdir));
   mtr_add_arg($args, "--secure-file-priv=\"\"");
+  mtr_add_arg($args, "--early_plugin_load=\"\"");
   mtr_add_arg($args, "--lc-messages-dir=%s", $path_language);
   mtr_add_arg($args, "--skip-grant-tables");
   mtr_add_arg($args, "--verbose");
@@ -3720,6 +3721,7 @@ sub mysql_install_db {
   # Do not generate SSL/RSA certificates automatically.
   mtr_add_arg($args, "--loose-auto_generate_certs=OFF");
   mtr_add_arg($args, "--loose-sha256_password_auto_generate_rsa_keys=OFF");
+  mtr_add_arg($args, "--early_plugin_load=\"\"");
 
   # InnoDB arguments that affect file location and sizes may
   # need to be given to the bootstrap process as well as the
@@ -6397,7 +6399,7 @@ sub start_mysqltest ($) {
   if ( $opt_ssl )
   {
     # Turn on SSL for _all_ test cases if option --ssl was used
-    mtr_add_arg($args, "--ssl");
+    mtr_add_arg($args, "--ssl-mode=REQUIRED");
   }
 
   if ( $opt_max_connections ) {

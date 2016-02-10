@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -91,7 +91,8 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_cfg_bk_commit_interval,
 	(ib_cb_t*) &ib_cb_ut_strerr,
 	(ib_cb_t*) &ib_cb_cursor_stmt_begin,
-	(ib_cb_t*) &ib_cb_trx_read_only
+	(ib_cb_t*) &ib_cb_trx_read_only,
+	(ib_cb_t*) &ib_cb_is_virtual_table
 };
 
 /** Set expiration time. If the exp sent by client is larger than

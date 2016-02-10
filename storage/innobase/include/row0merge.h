@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -170,13 +170,13 @@ void
 row_merge_drop_temp_indexes(void);
 /*=============================*/
 
-/*********************************************************************//**
-Creates temporary merge files, and if UNIV_PFS_IO defined, register
-the file descriptor with Performance Schema.
+/** Create temporary merge files in the given paramater path, and if
+UNIV_PFS_IO defined, register the file descriptor with Performance Schema.
+@param[in]	path	location for creating temporary merge files.
 @return File descriptor */
 int
-row_merge_file_create_low(void)
-/*===========================*/
+row_merge_file_create_low(
+	const char*	path)
 	__attribute__((warn_unused_result));
 /*********************************************************************//**
 Destroy a merge file. And de-register the file from Performance Schema
@@ -295,6 +295,8 @@ existing order
 ALTER TABLE. stage->begin_phase_read_pk() will be called at the beginning of
 this function and it will be passed to other functions for further accounting.
 @param[in]	add_v		new virtual columns added along with indexes
+@param[in]	eval_table	mysql table used to evaluate virtual column
+				value, see innobase_get_computed_value().
 @return DB_SUCCESS or error code */
 dberr_t
 row_merge_build_indexes(
@@ -312,7 +314,8 @@ row_merge_build_indexes(
 	ib_sequence_t&		sequence,
 	bool			skip_pk_sort,
 	ut_stage_alter_t*	stage,
-	const dict_add_v_col_t*	add_v)
+	const dict_add_v_col_t*	add_v,
+	struct TABLE*		eval_table)
 __attribute__((warn_unused_result));
 
 /********************************************************************//**
@@ -351,13 +354,15 @@ row_merge_buf_empty(
 /*================*/
 	row_merge_buf_t*	buf)	/*!< in,own: sort buffer */
 	__attribute__((warn_unused_result, nonnull));
-/*********************************************************************//**
-Create a merge file.
+
+/** Create a merge file in the given location.
+@param[out]	merge_file	merge file structure
+@param[in]	path		location for creating temporary file
 @return file descriptor, or -1 on failure */
 int
 row_merge_file_create(
-/*==================*/
-	merge_file_t*	merge_file)	/*!< out: merge file structure */
+	merge_file_t*	merge_file,
+	const char*	path)
 	__attribute__((nonnull));
 
 /** Merge disk files.

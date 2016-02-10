@@ -366,6 +366,7 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
     }
     else
     {
+      DBUG_EXECUTE_IF("simulate_crash_on_commit_xa_trx", DBUG_SUICIDE(););
       DEBUG_SYNC(thd, "trans_xa_commit_after_acquire_commit_lock");
 
       if (tc_log)
@@ -568,7 +569,7 @@ bool Sql_cmd_xa_start::execute(THD *thd)
 
   if (!st)
   {
-    if (thd->variables.pseudo_slave_mode)
+    if (thd->binlog_applier_need_detach_trx())
     {
       /*
         In case of slave thread applier or processing binlog by client,
@@ -682,7 +683,7 @@ bool Sql_cmd_xa_prepare::execute(THD *thd)
 
   if (!st)
   {
-    if (!thd->variables.pseudo_slave_mode ||
+    if (!thd->binlog_applier_has_detached_trx() ||
         !(st= applier_reset_xa_trans(thd)))
       my_ok(thd);
   }

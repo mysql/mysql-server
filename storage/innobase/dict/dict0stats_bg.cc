@@ -76,6 +76,14 @@ typedef recalc_pool_t::iterator
 by background statistics gathering. */
 static recalc_pool_t*		recalc_pool;
 
+/** Variable to initiate shutdown the dict stats thread. Note we don't
+use 'srv_shutdown_state' because we want to shutdown dict stats thread
+before purge thread. */
+static bool dict_stats_start_shutdown;
+
+/** Event to wait for shutdown of the dict stats thread */
+static os_event_t dict_stats_shutdown_event;
+
 /*****************************************************************//**
 Initialize the recalc pool, called once during thread initialization. */
 static
@@ -229,6 +237,7 @@ dict_stats_thread_init()
 	ut_a(!srv_read_only_mode);
 
 	dict_stats_event = os_event_create(0);
+	dict_stats_shutdown_event = os_event_create(0);
 
 	ut_d(dict_stats_disabled_event = os_event_create(0));
 
@@ -271,7 +280,10 @@ dict_stats_thread_deinit()
 #endif /* UNIV_DEBUG */
 
 	os_event_destroy(dict_stats_event);
+	os_event_destroy(dict_stats_shutdown_event);
 	dict_stats_event = NULL;
+	dict_stats_shutdown_event = NULL;
+	dict_stats_start_shutdown = false;
 }
 
 /*****************************************************************//**
@@ -365,7 +377,7 @@ dict_stats_disabled_debug_update(
 
 	const bool disable = *static_cast<const my_bool*>(save);
 
-	const int sig_count = os_event_reset(dict_stats_disabled_event);
+	const int64_t sig_count = os_event_reset(dict_stats_disabled_event);
 
 	innodb_dict_stats_disabled_debug = disable;
 
@@ -398,7 +410,7 @@ DECLARE_THREAD(dict_stats_thread)(
 
 	srv_dict_stats_thread_active = TRUE;
 
-	while (!SHUTTING_DOWN()) {
+	while (!dict_stats_start_shutdown) {
 
 		/* Wake up periodically even if not signaled. This is
 		because we may lose an event - if the below call to
@@ -411,7 +423,7 @@ DECLARE_THREAD(dict_stats_thread)(
 #ifdef UNIV_DEBUG
 		while (innodb_dict_stats_disabled_debug) {
 			os_event_set(dict_stats_disabled_event);
-			if (SHUTTING_DOWN()) {
+			if (dict_stats_start_shutdown) {
 				break;
 			}
 			os_event_wait_time(
@@ -419,7 +431,7 @@ DECLARE_THREAD(dict_stats_thread)(
 		}
 #endif /* UNIV_DEBUG */
 
-		if (SHUTTING_DOWN()) {
+		if (dict_stats_start_shutdown) {
 			break;
 		}
 
@@ -430,6 +442,7 @@ DECLARE_THREAD(dict_stats_thread)(
 
 	srv_dict_stats_thread_active = FALSE;
 
+	os_event_set(dict_stats_shutdown_event);
 	my_thread_end();
 
 	/* We count the number of threads in os_thread_exit(). A created
@@ -437,4 +450,13 @@ DECLARE_THREAD(dict_stats_thread)(
 	os_thread_exit(NULL);
 
 	OS_THREAD_DUMMY_RETURN;
+}
+
+/** Shutdown the dict stats thread. */
+void
+dict_stats_shutdown()
+{
+	dict_stats_start_shutdown = true;
+	os_event_set(dict_stats_event);
+	os_event_wait(dict_stats_shutdown_event);
 }

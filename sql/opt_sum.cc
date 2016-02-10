@@ -373,7 +373,8 @@ int opt_sum_query(THD *thd,
                  !((Item_sum_count*) item)->get_arg(0)->maybe_null)       // 4
         {
           Item_func_match* fts_item= static_cast<Item_func_match*>(conds); 
-          fts_item->set_hints(NULL, FT_NO_RANKING, HA_POS_ERROR, false);
+          fts_item->get_master()->set_hints(NULL, FT_NO_RANKING,
+                                            HA_POS_ERROR, false);
           if (fts_item->init_search(thd))
             break;
           count= fts_item->get_count();
@@ -449,6 +450,14 @@ int opt_sum_query(THD *thd,
                  get_index_max_value(table, &ref, range_fl) :
                  get_index_min_value(table, &ref, item_field, range_fl,
                                      prefix_len);
+
+          /*
+            Set TABLE::status to STATUS_GARBAGE since original and
+            real read_set are different, i.e. some field values
+            from original read set could be unread.
+          */
+          if (!bitmap_is_subset(&table->def_read_set, &table->tmp_set))
+            table->status|= STATUS_GARBAGE;
 
           table->read_set= &table->def_read_set;
           bitmap_clear_all(&table->tmp_set);

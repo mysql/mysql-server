@@ -226,6 +226,11 @@ The following options may be given as the first argument:
  --div-precision-increment=# 
  Precision of the result of '/' operator will be increased
  on that value
+ --early-plugin-load=name 
+ Optional semicolon-separated list of plugins to load
+ before storage engine initialization, where each plugin
+ is identified as name=library, where name is the plugin
+ name and library is the plugin library in plugin_dir.
  --end-markers-in-json 
  In JSON output ("EXPLAIN FORMAT=JSON" and optimizer
  trace), if variable is set to 1, repeats the structure's
@@ -413,6 +418,10 @@ The following options may be given as the first argument:
  --log-slow-slave-statements 
  Log slow statements executed by slave thread to the slow
  log if it is open.
+ --log-statements-unsafe-for-binlog 
+ Log statements considered unsafe when using statement
+ based binary logging.
+ (Defaults to on; use --skip-log-statements-unsafe-for-binlog to disable.)
  --log-syslog        Errors, warnings, and similar issues eligible for MySQL's
  error log file may additionally be sent to the host
  operating system's system log ("syslog").
@@ -1259,7 +1268,7 @@ console FALSE
 date-format %Y-%m-%d
 datetime-format %Y-%m-%d %H:%i:%s
 default-authentication-plugin mysql_native_password
-default-password-lifetime 360
+default-password-lifetime 0
 default-storage-engine InnoDB
 default-time-zone (No default value)
 default-tmp-storage-engine InnoDB
@@ -1328,6 +1337,7 @@ log-short-format FALSE
 log-slave-updates FALSE
 log-slow-admin-statements FALSE
 log-slow-slave-statements FALSE
+log-statements-unsafe-for-binlog TRUE
 log-syslog FALSE
 log-syslog-tag 
 log-tc tc.log
@@ -1446,7 +1456,7 @@ performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-sql-text-length 1024
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 192
+performance-schema-max-statement-classes 193
 performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -313,9 +313,12 @@ btr_root_adjust_on_import(
 		} else {
 			/* Check that the table flags and the tablespace
 			flags match. */
-			ulint	flags = dict_tf_to_fsp_flags(table->flags,
-							     false);
+			ulint	flags = dict_tf_to_fsp_flags(
+				table->flags,
+				false,
+				dict_table_is_encrypted(table));
 			ulint	fsp_flags = fil_space_get_flags(table->space);
+
 			err = fsp_flags_are_equal(flags, fsp_flags)
 			      ? DB_SUCCESS : DB_CORRUPTION;
 		}
@@ -733,6 +736,7 @@ btr_page_get_father_node_ptr_func(
 
 	page_no = btr_cur_get_block(cursor)->page.id.page_no();
 	index = btr_cur_get_index(cursor);
+	ut_ad(!dict_index_is_spatial(index));
 
 	ut_ad(srv_read_only_mode
 	      || mtr_memo_contains_flagged(mtr, dict_index_get_lock(index),
@@ -746,28 +750,17 @@ btr_page_get_father_node_ptr_func(
 
 	user_rec = btr_cur_get_rec(cursor);
 	ut_a(page_rec_is_user_rec(user_rec));
+
 	tuple = dict_index_build_node_ptr(index, user_rec, 0, heap, level);
-
-	if (!dict_index_is_spatial(index)) {
-		if (dict_table_is_intrinsic(index->table)) {
-			btr_cur_search_to_nth_level_with_no_latch(
-				index, level + 1, tuple, PAGE_CUR_LE, cursor,
-				file, line, mtr);
-		} else {
-			btr_cur_search_to_nth_level(
-				index, level + 1, tuple,
-				PAGE_CUR_LE, latch_mode, cursor, 0,
-				file, line, mtr);
-		}
+	if (dict_table_is_intrinsic(index->table)) {
+		btr_cur_search_to_nth_level_with_no_latch(
+			index, level + 1, tuple, PAGE_CUR_LE, cursor,
+			file, line, mtr);
 	} else {
-		/* For R-tree, only latch mode from caller would be
-		BTR_CONT_MODIFY_TREE */
-		ut_ad(latch_mode == BTR_CONT_MODIFY_TREE);
-
-		/* Try to avoid traverse from the root, and get the
-		father node from parent_path vector */
-		rtr_get_father_node(index, level + 1, tuple,
-				    NULL, cursor, page_no, mtr);
+		btr_cur_search_to_nth_level(
+			index, level + 1, tuple,
+			PAGE_CUR_LE, latch_mode, cursor, 0,
+			file, line, mtr);
 	}
 
 	node_ptr = btr_cur_get_rec(cursor);
@@ -3134,8 +3127,15 @@ btr_lift_page_up(
 			* (REC_OFFS_HEADER_SIZE + 1 + 1 + index->n_fields));
 		buf_block_t*	b;
 
-		offsets = btr_page_get_father_block(offsets, heap, index,
-						    block, mtr, &cursor);
+		if (dict_index_is_spatial(index)) {
+			offsets = rtr_page_get_father_block(
+				NULL, heap, index, block, mtr,
+				NULL, &cursor);
+		} else {
+			offsets = btr_page_get_father_block(offsets, heap,
+							    index, block,
+							    mtr, &cursor);
+		}
 		father_block = btr_cur_get_block(&cursor);
 		father_page_zip = buf_block_get_page_zip(father_block);
 		father_page = buf_block_get_frame(father_block);
@@ -3151,9 +3151,17 @@ btr_lift_page_up(
 		     b->page.id.page_no() != root_page_no; ) {
 			ut_a(n_blocks < BTR_MAX_LEVELS);
 
-			offsets = btr_page_get_father_block(offsets, heap,
-							    index, b,
-							    mtr, &cursor);
+			if (dict_index_is_spatial(index)) {
+				offsets = rtr_page_get_father_block(
+					NULL, heap, index, b, mtr,
+					NULL, &cursor);
+			} else {
+				offsets = btr_page_get_father_block(offsets,
+								    heap,
+								    index, b,
+								    mtr,
+								    &cursor);
+			}
 
 			blocks[n_blocks++] = b = btr_cur_get_block(&cursor);
 		}
@@ -3793,9 +3801,10 @@ btr_discard_only_page_on_level(
 		if (dict_index_is_spatial(index)) {
 			/* Check any concurrent search having this page */
 			rtr_check_discard_page(index, NULL, block);
+			rtr_page_get_father(index, block, mtr, NULL, &cursor);
+		} else {
+			btr_page_get_father(index, block, mtr, &cursor);
 		}
-
-		btr_page_get_father(index, block, mtr, &cursor);
 		father = btr_cur_get_block(&cursor);
 
 		if (!dict_table_is_locking_disabled(index->table)) {
@@ -3879,7 +3888,11 @@ btr_discard_page(
 	MONITOR_INC(MONITOR_INDEX_DISCARD);
 
 #ifdef UNIV_DEBUG
-	btr_page_get_father(index, block, mtr, &parent_cursor);
+	if (dict_index_is_spatial(index)) {
+		rtr_page_get_father(index, block, mtr, cursor, &parent_cursor);
+	} else {
+		btr_page_get_father(index, block, mtr, &parent_cursor);
+	}
 #endif
 
 	/* Decide the page which will inherit the locks */
@@ -3943,7 +3956,17 @@ btr_discard_page(
 		btr_set_min_rec_mark(node_ptr, mtr);
 	}
 
-	btr_node_ptr_delete(index, block, mtr);
+	if (dict_index_is_spatial(index)) {
+		btr_cur_t	father_cursor;
+
+		/* Since rtr_node_ptr_delete doesn't contain get father
+		node ptr, so, we need to get father node ptr first and then
+		delete it. */
+		rtr_page_get_father(index, block, mtr, cursor, &father_cursor);
+		rtr_node_ptr_delete(index, &father_cursor, block, mtr);
+	} else {
+		btr_node_ptr_delete(index, block, mtr);
+	}
 
 	/* Remove the page from the level list */
 	btr_level_list_remove(space, page_size, page, index, mtr);
@@ -4141,8 +4164,14 @@ btr_check_node_ptr(
 	}
 
 	heap = mem_heap_create(256);
-	offsets = btr_page_get_father_block(NULL, heap, index, block, mtr,
-					    &cursor);
+
+	if (dict_index_is_spatial(index)) {
+		offsets = rtr_page_get_father_block(NULL, heap, index, block, mtr,
+						    NULL, &cursor);
+	} else {
+		offsets = btr_page_get_father_block(NULL, heap, index, block, mtr,
+						    &cursor);
+	}
 
 	if (page_is_leaf(page)) {
 

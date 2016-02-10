@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -816,23 +816,32 @@ row_upd_build_sec_rec_difference_binary(
 	return(update);
 }
 
-/***************************************************************//**
-Builds an update vector from those fields, excluding the roll ptr and
+/** Builds an update vector from those fields, excluding the roll ptr and
 trx id fields, which in an index entry differ from a record that has
 the equal ordering fields. NOTE: we compare the fields as binary strings!
+@param[in]	index		clustered index
+@param[in]	entry		clustered index entry to insert
+@param[in]	rec		clustered index record
+@param[in]	offsets		rec_get_offsets(rec,index), or NULL
+@param[in]	no_sys		skip the system columns
+				DB_TRX_ID and DB_ROLL_PTR
+@param[in]	trx		transaction (for diagnostics),
+				or NULL
+@param[in]	heap		memory heap from which allocated
+@param[in]	mysql_table	NULL, or mysql table object when
+				user thread invokes dml
 @return own: update vector of differing fields, excluding roll ptr and
 trx id */
 upd_t*
 row_upd_build_difference_binary(
-/*============================*/
-	dict_index_t*	index,	/*!< in: clustered index */
-	const dtuple_t*	entry,	/*!< in: entry to insert */
-	const rec_t*	rec,	/*!< in: clustered index record */
-	const ulint*	offsets,/*!< in: rec_get_offsets(rec,index), or NULL */
-	bool		no_sys,	/*!< in: skip the system columns
-				DB_TRX_ID and DB_ROLL_PTR */
-	trx_t*		trx,	/*!< in: transaction */
-	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
+	dict_index_t*	index,
+	const dtuple_t*	entry,
+	const rec_t*	rec,
+	const ulint*	offsets,
+	bool		no_sys,
+	trx_t*		trx,
+	mem_heap_t*	heap,
+	TABLE*		mysql_table)
 {
 	upd_field_t*	upd_field;
 	dfield_t*	dfield;
@@ -901,11 +910,20 @@ row_upd_build_difference_binary(
 		}
 	}
 
-	/* Check the virtual columns updates, but there must be some non-virtual
-	column (base columns) change */
-	if (n_diff && n_v_fld) {
+	/* Check the virtual columns updates. Even if there is no non-virtual
+	column (base columns) change, we will still need to build the
+	indexed virtual column value so that undo log would log them (
+	for purge/mvcc purpose) */
+	if (n_v_fld > 0) {
 		row_ext_t*	ext;
 		mem_heap_t*	v_heap = NULL;
+		THD*		thd;
+
+		if (trx == NULL) {
+			thd = current_thd;
+		} else {
+			thd = trx->mysql_thd;
+		}
 
 		ut_ad(!update->old_vrow);
 
@@ -926,8 +944,8 @@ row_upd_build_difference_binary(
 			dfield = dtuple_get_nth_v_field(entry, i);
 
 			dfield_t*	vfield = innobase_get_computed_value(
-				update->old_vrow, col, index, NULL,
-				&v_heap, heap, NULL, false);
+				update->old_vrow, col, index,
+				&v_heap, heap, NULL, thd, mysql_table);
 
 			if (!dfield_data_is_binary_equal(
 				dfield, vfield->len,
@@ -1866,13 +1884,17 @@ row_upd_eval_new_vals(
 }
 
 /** Stores to the heap the virtual columns that need for any indexes
-@param[in,out]	node	row update node
-@param[in]	update	an update vector if it is update */
+@param[in,out]	node		row update node
+@param[in]	update		an update vector if it is update
+@param[in]	thd		mysql thread handle
+@param[in,out]	mysql_table	mysql table object */
 static
 void
 row_upd_store_v_row(
 	upd_node_t*	node,
-	const upd_t*	update)
+	const upd_t*	update,
+	THD*		thd,
+	TABLE*		mysql_table)
 {
 	mem_heap_t*	heap = NULL;
 	dict_index_t*	index = dict_table_get_first_index(node->table);
@@ -1927,9 +1949,9 @@ row_upd_store_v_row(
 					/* Need to compute, this happens when
 					deleting row */
 					innobase_get_computed_value(
-						node->row, col, index, NULL,
+						node->row, col, index,
 						&heap, node->heap, NULL,
-						false);
+						thd, mysql_table);
 				}
 			}
 		}
@@ -1940,12 +1962,16 @@ row_upd_store_v_row(
 	}
 }
 
-/***********************************************************//**
-Stores to the heap the row on which the node->pcur is positioned. */
+/** Stores to the heap the row on which the node->pcur is positioned.
+@param[in]	node		row update node
+@param[in]	thd		mysql thread handle
+@param[in,out]	mysql_table	NULL, or mysql table object when
+				user thread invokes dml */
 void
 row_upd_store_row(
-/*==============*/
-	upd_node_t*	node)	/*!< in: row update node */
+	upd_node_t*	node,
+	THD*		thd,
+	TABLE*		mysql_table)
 {
 	dict_index_t*	clust_index;
 	rec_t*		rec;
@@ -1985,8 +2011,8 @@ row_upd_store_row(
 			      NULL, NULL, NULL, ext, node->heap);
 
 	if (node->table->n_v_cols) {
-		row_upd_store_v_row(node, node->is_delete
-						? NULL : node->update);
+		row_upd_store_v_row(node, node->is_delete ? NULL : node->update,
+				    thd, mysql_table);
 	}
 
 	if (node->is_delete) {
@@ -2679,7 +2705,8 @@ row_upd_del_mark_clust_rec(
 	/* Store row because we have to build also the secondary index
 	entries */
 
-	row_upd_store_row(node);
+	row_upd_store_row(node, thr_get_trx(thr)->mysql_thd,
+			  thr->prebuilt ? thr->prebuilt->m_mysql_table : NULL);
 
 	/* Mark the clustered index record deleted; we do not have to check
 	locks, because we assume that we have an x-lock on the record */
@@ -2721,11 +2748,12 @@ row_upd_clust_step(
 	ulint*		offsets;
 	ibool		referenced;
 	ulint		flags	= 0;
+	trx_t*		trx = thr_get_trx(thr);
 	rec_offs_init(offsets_);
 
 	index = dict_table_get_first_index(node->table);
 
-	referenced = row_upd_index_is_referenced(index, thr_get_trx(thr));
+	referenced = row_upd_index_is_referenced(index, trx);
 
 	pcur = node->pcur;
 
@@ -2858,7 +2886,8 @@ row_upd_clust_step(
 		goto exit_func;
 	}
 
-	row_upd_store_row(node);
+	row_upd_store_row(node, trx->mysql_thd,
+			  thr->prebuilt ? thr->prebuilt->m_mysql_table : NULL);
 
 	if (row_upd_changes_ord_field_binary(index, node->update, thr,
 					     node->row, node->ext)) {
@@ -2957,15 +2986,15 @@ row_upd(
 		}
 	}
 
+	DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
+			    "after_row_upd_clust");
+
 	if (node->index == NULL
 	    || (!node->is_delete
 		&& (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE))) {
 
 		DBUG_RETURN(DB_SUCCESS);
 	}
-
-	DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
-			    "after_row_upd_clust");
 
 	DBUG_EXECUTE_IF("row_upd_skip_sec", node->index = NULL;);
 

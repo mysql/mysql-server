@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -31,6 +31,7 @@ Created 12/9/1995 Heikki Tuuri
 *******************************************************/
 
 #include "ha_prototypes.h"
+#include <debug_sync.h>
 
 #include "log0log.h"
 
@@ -46,6 +47,7 @@ Created 12/9/1995 Heikki Tuuri
 #include "log0recv.h"
 #include "fil0fil.h"
 #include "dict0boot.h"
+#include "dict0stats_bg.h"
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "trx0sys.h"
@@ -245,7 +247,36 @@ log_buffer_extend(
 	ib::info() << "innodb_log_buffer_size was extended to "
 		<< LOG_BUFFER_SIZE << ".";
 }
+
 #ifndef UNIV_HOTBACKUP
+/** Calculate actual length in redo buffer and file including
+block header and trailer.
+@param[in]	len	length to write
+@return actual length to write including header and trailer. */
+static inline
+ulint
+log_calculate_actual_len(
+	ulint len)
+{
+	ut_ad(log_mutex_own());
+
+	/* actual length stored per block */
+	const ulint	len_per_blk = OS_FILE_LOG_BLOCK_SIZE
+		- (LOG_BLOCK_HDR_SIZE + LOG_BLOCK_TRL_SIZE);
+
+	/* actual data length in last block already written */
+	ulint	extra_len = (log_sys->buf_free % OS_FILE_LOG_BLOCK_SIZE);
+
+	ut_ad(extra_len >= LOG_BLOCK_HDR_SIZE);
+	extra_len -= LOG_BLOCK_HDR_SIZE;
+
+	/* total extra length for block header and trailer */
+	extra_len = ((len + extra_len) / len_per_blk)
+		* (LOG_BLOCK_HDR_SIZE + LOG_BLOCK_TRL_SIZE);
+
+	return(len + extra_len);
+}
+
 /** Check margin not to overwrite transaction log from the last checkpoint.
 If would estimate the log write to exceed the log_group_capacity,
 waits for the checkpoint is done enough.
@@ -255,7 +286,7 @@ void
 log_margin_checkpoint_age(
 	ulint	len)
 {
-	ulint	margin = len * 2;
+	ulint	margin = log_calculate_actual_len(len);
 
 	ut_ad(log_mutex_own());
 
@@ -277,8 +308,11 @@ log_margin_checkpoint_age(
 		return;
 	}
 
-	while (log_sys->lsn - log_sys->last_checkpoint_lsn + margin
-	       > log_sys->log_group_capacity) {
+	/* Our margin check should ensure that we never reach this condition.
+	Try to do checkpoint once. We cannot keep waiting here as it might
+	result in hang in case the current mtr has latch on oldest lsn */
+	if (log_sys->lsn - log_sys->last_checkpoint_lsn + margin
+	    > log_sys->log_group_capacity) {
 		/* The log write of 'len' might overwrite the transaction log
 		after the last checkpoint. Makes checkpoint. */
 
@@ -292,6 +326,8 @@ log_margin_checkpoint_age(
 
 		log_sys->check_flush_or_checkpoint = true;
 		log_mutex_exit();
+
+		DEBUG_SYNC_C("margin_checkpoint_age_rescue");
 
 		if (!flushed_enough) {
 			os_thread_sleep(100000);
@@ -342,6 +378,8 @@ loop:
 
 	if (log_sys->buf_free + len_upper_limit > log_sys->buf_size) {
 		log_mutex_exit();
+
+		DEBUG_SYNC_C("log_buf_size_exceeded");
 
 		/* Not enough free space, do a write of the log buffer */
 
@@ -471,6 +509,9 @@ log_close(void)
 	checkpoint_age = lsn - log->last_checkpoint_lsn;
 
 	if (checkpoint_age >= log->log_group_capacity) {
+		DBUG_EXECUTE_IF(
+			"print_all_chkp_warnings",
+			log_has_printed_chkp_warning = false;);
 
 		if (!log_has_printed_chkp_warning
 		    || difftime(time(NULL), log_last_warning_time) > 15) {
@@ -1678,6 +1719,12 @@ log_write_checkpoint_info(
 		/* Wait for the checkpoint write to complete */
 		rw_lock_s_lock(&log_sys->checkpoint_lock);
 		rw_lock_s_unlock(&log_sys->checkpoint_lock);
+
+		DEBUG_SYNC_C("checkpoint_completed");
+
+		DBUG_EXECUTE_IF(
+			"crash_after_checkpoint",
+			DBUG_SUICIDE(););
 	}
 }
 
@@ -1712,11 +1759,6 @@ log_checkpoint(
 
 	ut_ad(!srv_read_only_mode);
 
-	DBUG_EXECUTE_IF("no_checkpoint",
-			/* We sleep for a long enough time, forcing
-			the checkpoint doesn't happen any more. */
-			os_thread_sleep(360000000););
-
 	if (recv_recovery_is_on()) {
 		recv_apply_hashed_log_recs(TRUE);
 	}
@@ -1747,9 +1789,10 @@ log_checkpoint(
 	write-ahead-logging algorithm ensures that the log has been
 	flushed up to oldest_lsn. */
 
+	ut_ad(oldest_lsn >= log_sys->last_checkpoint_lsn);
 	if (!write_always
 	    && oldest_lsn
-	    == log_sys->last_checkpoint_lsn + SIZE_OF_MLOG_CHECKPOINT) {
+	    <= log_sys->last_checkpoint_lsn + SIZE_OF_MLOG_CHECKPOINT) {
 		/* Do nothing, because nothing was logged (other than
 		a MLOG_CHECKPOINT marker) since the previous checkpoint. */
 		log_mutex_exit();
@@ -1782,12 +1825,26 @@ log_checkpoint(
 
 	log_write_up_to(flush_lsn, true);
 
+	DBUG_EXECUTE_IF(
+		"using_wa_checkpoint_middle",
+		if (write_always) {
+			DEBUG_SYNC_C("wa_checkpoint_middle");
+
+			const my_bool b = TRUE;
+			buf_flush_page_cleaner_disabled_debug_update(
+				NULL, NULL, NULL, &b);
+			dict_stats_disabled_debug_update(
+				NULL, NULL, NULL, &b);
+			srv_master_thread_disabled_debug_update(
+				NULL, NULL, NULL, &b);
+		});
+
 	log_mutex_enter();
 
-	ut_ad(log_sys->flushed_to_disk_lsn >= oldest_lsn);
+	ut_ad(log_sys->flushed_to_disk_lsn >= flush_lsn);
+	ut_ad(flush_lsn >= oldest_lsn);
 
-	if (!write_always
-	    && log_sys->last_checkpoint_lsn >= oldest_lsn) {
+	if (log_sys->last_checkpoint_lsn >= oldest_lsn) {
 		log_mutex_exit();
 		return(true);
 	}

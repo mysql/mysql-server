@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -290,6 +290,178 @@ struct Compression {
 	Type		m_type;
 };
 
+/** Encryption key length */
+#define ENCRYPTION_KEY_LEN	32
+
+/** Encryption magic bytes size */
+#define ENCRYPTION_MAGIC_SIZE	3
+
+/** Encryption magic bytes, it's for checking the encryption information
+is corrupted or not. */
+static const char ENCRYPTION_KEY_MAGIC[ENCRYPTION_MAGIC_SIZE] = {
+	'l', 'C', 'A' };
+
+/** Encryption master key prifix */
+#define ENCRYPTION_MASTER_KEY_PRIFIX	"INNODBKey"
+
+/** Encryption master key prifix size */
+#define ENCRYPTION_MASTER_KEY_PRIFIX_LEN	9
+
+/** Encryption master key prifix size */
+#define ENCRYPTION_MASTER_KEY_NAME_MAX_LEN	100
+
+/** Encryption information total size: magic number + master_key_id +
+key + iv + checksum */
+#define	ENCRYPTION_INFO_SIZE	(ENCRYPTION_MAGIC_SIZE \
+				+ (ENCRYPTION_KEY_LEN * 2) + 2 * sizeof(ulint))
+
+class IORequest;
+
+/** Encryption algorithm. */
+struct Encryption {
+
+	/** Algorithm types supported */
+	enum Type {
+
+		/** No encryption */
+		NONE = 0,
+
+		/** Use AES */
+		AES = 1,
+	};
+
+	/** Default constructor */
+	Encryption() : m_type(NONE) { };
+
+	/** Specific constructor
+	@param[in]	type		Algorithm type */
+	explicit Encryption(Type type)
+		:
+		m_type(type)
+	{
+#ifdef UNIV_DEBUG
+		switch (m_type) {
+		case NONE:
+		case AES:
+
+		default:
+			ut_error;
+		}
+#endif /* UNIV_DEBUG */
+	}
+
+	/** Copy constructor */
+	Encryption(const Encryption& other)
+		:
+		m_type(other.m_type),
+		m_key(other.m_key),
+		m_klen(other.m_klen),
+		m_iv(other.m_iv)
+	{ };
+
+	/** Check if page is encrypted page or not
+	@param[in]	page	page which need to check
+	@return true if it is a encrypted page */
+	static bool is_encrypted_page(const byte* page)
+		__attribute__((warn_unused_result));
+
+	/** Check the encryption option and set it
+	@param[in]	option		encryption option
+	@param[in/out]	encryption	The encryption type
+	@return DB_SUCCESS or DB_UNSUPPORTED */
+	dberr_t set_algorithm(const char* option, Encryption* type)
+		__attribute__((warn_unused_result));
+
+        /** Validate the algorithm string.
+        @param[in]      algorithm       Encryption algorithm to check
+        @return DB_SUCCESS or error code */
+	static dberr_t validate(const char* algorithm)
+		__attribute__((warn_unused_result));
+
+        /** Convert to a "string".
+        @param[in]      type            The encryption type
+        @return the string representation */
+        static const char* to_string(Type type)
+		__attribute__((warn_unused_result));
+
+        /** Check if the string is "empty" or "none".
+        @param[in]      algorithm       Encryption algorithm to check
+        @return true if no algorithm requested */
+	static bool is_none(const char* algorithm)
+		__attribute__((warn_unused_result));
+
+        /** Generate random encryption value for key and iv.
+        @param[in,out]	value	Encryption value */
+	static void random_value(byte* value);
+
+        /** Create new master key.
+        @param[in,out]	master_key	master key */
+	static void create_master_key(byte** master_key);
+
+        /** Get master key by key id.
+        @param[in]	master_key_id	master key id
+        @param[in,out]	master_key	master key */
+	static void get_master_key(ulint master_key_id,
+				   byte** master_key);
+
+        /** Get current master key and key id.
+        @param[in,out]	master_key_id	master key id
+        @param[in,out]	master_key	master key */
+	static void get_master_key(ulint* master_key_id,
+				   byte** master_key);
+
+	/** Encrypt the page data contents. Page type can't be
+	FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,
+	FIL_PAGE_ENCRYPTED_RTREE.
+	@param[in]	type		IORequest
+	@param[in,out]	src		page data which need to encrypt
+	@param[in]	src_len		Size of the source in bytes
+	@param[in,out]	dst		destination area
+	@param[in,out]	dst_len		Size of the destination in bytes
+	@return buffer data, dst_len will have the length of the data */
+	byte* encrypt(
+		const IORequest&	type,
+		byte*			src,
+		ulint			src_len,
+		byte*			dst,
+		ulint*			dst_len)
+		__attribute__((warn_unused_result));
+
+	/** Decrypt the page data contents. Page type must be
+	FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,
+	FIL_PAGE_ENCRYPTED_RTREE, if not then the source contents are
+	left unchanged and DB_SUCCESS is returned.
+	@param[in]	type		IORequest
+	@param[in,out]	src		Data read from disk, decrypt
+					data will be copied to this page
+	@param[in]	src_len		source data length
+	@param[in,out]	dst		Scratch area to use for decrypt
+	@param[in]	dst_len		Size of the scratch area in bytes
+	@return DB_SUCCESS or error code */
+	dberr_t decrypt(
+		const IORequest&	type,
+		byte*			src,
+		ulint			src_len,
+		byte*			dst,
+		ulint			dst_len)
+		__attribute__((warn_unused_result));
+
+	/** Encrypt type */
+	Type			m_type;
+
+	/** Encrypt key */
+	byte*			m_key;
+
+	/** Encrypt key length*/
+	ulint			m_klen;
+
+	/** Encrypt initial vector */
+	byte*			m_iv;
+
+	/** Current master key id */
+	static ulint		master_key_id;
+};
+
 /** Types for AIO operations @{ */
 
 /** No transformations during read/write, write as is. */
@@ -342,7 +514,6 @@ public:
 		compression e.g., for redo log, merge sort temporary files
 		and the truncate redo log. */
 		NO_COMPRESSION = 512
-
 	};
 
 	/** Default constructor */
@@ -538,6 +709,54 @@ public:
 		m_type |= NO_COMPRESSION;
 	}
 
+	/** Set encryption algorithm
+	@param[in] type		The encryption algorithm to use */
+	void encryption_algorithm(Encryption::Type type)
+	{
+		if (type == Encryption::NONE) {
+			return;
+		}
+
+		m_encryption.m_type = type;
+	}
+
+	/** Set encryption key and iv
+	@param[in] key		The encryption key to use
+	@param[in] key_len	length of the encryption key
+	@param[in] iv		The encryption iv to use */
+	void encryption_key(byte* key,
+			    ulint key_len,
+			    byte* iv)
+	{
+		m_encryption.m_key = key;
+		m_encryption.m_klen = key_len;
+		m_encryption.m_iv = iv;
+	}
+
+	/** Get the encryption algorithm.
+	@return the encryption algorithm */
+	Encryption encryption_algorithm() const
+		__attribute__((warn_unused_result))
+	{
+		return(m_encryption);
+	}
+
+	/** @return true if the page should be encrypted. */
+	bool is_encrypted() const
+		__attribute__((warn_unused_result))
+	{
+		return(m_encryption.m_type != Encryption::NONE);
+	}
+
+	/** Clear all encryption related flags */
+	void clear_encrypted()
+	{
+		m_encryption.m_key = NULL;
+		m_encryption.m_klen = 0;
+		m_encryption.m_iv = NULL;
+		m_encryption.m_type = Encryption::NONE;
+	}
+
 	/** Note that the IO is for double write recovery. */
 	void dblwr_recover()
 	{
@@ -570,6 +789,9 @@ private:
 
 	/** Compression algorithm */
 	Compression		m_compression;
+
+	/** Encryption algorithm */
+	Encryption		m_encryption;
 };
 
 /* @} */
@@ -655,7 +877,8 @@ parameter (--tmpdir).
 @param[in]	path	location for creating temporary file
 @return temporary file handle, or NULL on error */
 FILE*
-os_file_create_tmpfile();
+os_file_create_tmpfile(
+	const char*	path);
 #endif /* !UNIV_HOTBACKUP */
 
 /** The os_file_opendir() function opens a directory stream corresponding to the
@@ -1640,11 +1863,14 @@ os_file_get_status(
 	bool		read_only);
 
 #if !defined(UNIV_HOTBACKUP)
-/** Creates a temporary file that will be deleted on close.
+/** Creates a temporary file in the location specified by the parameter
+path. If the path is NULL then it will be created on --tmpdir location.
 This function is defined in ha_innodb.cc.
+@param[in]	path	location for creating temporary file
 @return temporary file descriptor, or < 0 on error */
 int
-innobase_mysql_tmpfile();
+innobase_mysql_tmpfile(
+	const char*	path);
 #endif /* !UNIV_HOTBACKUP */
 
 

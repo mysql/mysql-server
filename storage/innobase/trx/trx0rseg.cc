@@ -319,14 +319,18 @@ static
 void
 trx_rseg_create_instance(
 /*=====================*/
-	trx_sysf_t*	sys_header,	/*!< in: trx system header */
-	purge_pq_t*	purge_queue,	/*!< in/out: rseg queue */
-	mtr_t*		mtr)		/*!< in: mtr */
+	purge_pq_t*	purge_queue)	/*!< in/out: rseg queue */
 {
 	ulint		i;
 
 	for (i = 0; i < TRX_SYS_N_RSEGS; i++) {
 		ulint	page_no;
+
+		mtr_t	mtr;
+		mtr.start();
+		trx_sysf_t* sys_header = trx_sysf_get(&mtr);
+
+		page_no = trx_sysf_rseg_get_page_no(sys_header, i, &mtr);
 
 		/* Slot-1....Slot-n are reserved for non-redo rsegs.
 		Non-redo rsegs are recreated on server re-start so
@@ -337,20 +341,15 @@ trx_rseg_create_instance(
 			in range from slot-1....slot-n needs to be scheduled
 			for purge if there are pending purge operation. */
 			trx_rseg_schedule_pending_purge(
-				sys_header, purge_queue, i, mtr);
+				sys_header, purge_queue, i, &mtr);
 
-			continue;
-		}
-
-		page_no = trx_sysf_rseg_get_page_no(sys_header, i, mtr);
-
-		if (page_no != FIL_NULL) {
+		} else if (page_no != FIL_NULL) {
 			ulint		space;
 			trx_rseg_t*	rseg = NULL;
 
 			ut_a(!trx_rseg_get_on_id(i, true));
 
-			space = trx_sysf_rseg_get_space(sys_header, i, mtr);
+			space = trx_sysf_rseg_get_space(sys_header, i, &mtr);
 
 			bool			found = true;
 			const page_size_t&	page_size
@@ -365,12 +364,13 @@ trx_rseg_create_instance(
 
 			rseg = trx_rseg_mem_create(
 				i, space, page_no, page_size,
-				purge_queue, rseg_array, mtr);
+				purge_queue, rseg_array, &mtr);
 
 			ut_a(rseg->id == i);
 		} else {
 			ut_a(trx_sys->rseg_array[i] == NULL);
 		}
+		mtr.commit();
 	}
 }
 
@@ -447,13 +447,11 @@ rseg array in trx_sys at a database startup. */
 void
 trx_rseg_array_init(
 /*================*/
-	trx_sysf_t*	sys_header,	/* in/out: trx system header */
-	purge_pq_t*	purge_queue,	/*!< in: rseg queue */
-	mtr_t*		mtr)		/*!< in: mtr */
+	purge_pq_t*	purge_queue)	/*!< in: rseg queue */
 {
 	trx_sys->rseg_history_len = 0;
 
-	trx_rseg_create_instance(sys_header, purge_queue, mtr);
+	trx_rseg_create_instance(purge_queue);
 }
 
 /********************************************************************

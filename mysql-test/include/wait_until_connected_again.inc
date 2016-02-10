@@ -3,7 +3,7 @@
 # server has been restored or timeout occurs
 --disable_result_log
 --disable_query_log
-let $counter= 500;
+let $counter= 5000;
 if ($VALGRIND_TEST) {
   let $counter= 3000;
 }

@@ -43,6 +43,12 @@ public:
   virtual int  is_killed() { return 0; }
   virtual bool is_connected() { return true; }
   virtual THD* get_thd()   { return NULL; }
+
+  virtual bool notify_hton_pre_acquire_exclusive(const MDL_key *mdl_key)
+  { return false; }
+  virtual void notify_hton_post_release_exclusive(const MDL_key *mdl_key)
+  { }
+
   virtual uint get_rand_seed() { return 0; }
 };
 

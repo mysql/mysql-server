@@ -201,6 +201,8 @@ struct row_log_t {
 				old table */
 	ulint		n_old_vcol;
 				/*!< number of virtual column in old table */
+	const char*	path;	/*!< where to create temporary file during
+				log operation */
 };
 
 
@@ -214,7 +216,7 @@ row_log_tmpfile(
 {
 	DBUG_ENTER("row_log_tmpfile");
 	if (log->fd < 0) {
-		log->fd = row_merge_file_create_low();
+		log->fd = row_merge_file_create_low(log->path);
 		DBUG_EXECUTE_IF("row_log_tmpfile_fail",
 				if (log->fd > 0)
 					row_merge_file_destroy_low(log->fd);
@@ -2180,7 +2182,7 @@ func_exit_committed:
 		row, NULL, index, heap);
 	upd_t*		update	= row_upd_build_difference_binary(
 		index, entry, btr_pcur_get_rec(&pcur), cur_offsets,
-		false, NULL, heap);
+		false, NULL, heap, dup->table);
 
 	if (!update->n_fields) {
 		/* Nothing to do. */
@@ -3135,8 +3137,9 @@ row_log_allocate(
 	const dtuple_t*	add_cols,
 				/*!< in: default values of
 				added columns, or NULL */
-	const ulint*	col_map)/*!< in: mapping of old column
+	const ulint*	col_map,/*!< in: mapping of old column
 				numbers to new ones, or NULL if !table */
+	const char*	path)	/*!< in: where to create temporary file */
 {
 	row_log_t*	log;
 	DBUG_ENTER("row_log_allocate");
@@ -3170,6 +3173,7 @@ row_log_allocate(
 	log->tail.block = log->head.block = NULL;
 	log->head.blocks = log->head.bytes = 0;
 	log->head.total = 0;
+	log->path = path;
 	log->n_old_col = index->table->n_cols;
 	log->n_old_vcol = index->table->n_v_cols;
 

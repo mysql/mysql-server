@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5783,8 +5783,7 @@ void do_connect(struct st_command *command)
   my_bool con_pipe= 0, con_shm= 0, con_cleartext_enable= 0;
   struct st_connection* con_slot;
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-  my_bool save_opt_use_ssl= opt_use_ssl;
-  my_bool save_opt_ssl_enforce= opt_ssl_enforce;
+  uint save_opt_ssl_mode= opt_ssl_mode;
 #endif
 
   static DYNAMIC_STRING ds_connection_name;
@@ -5916,16 +5915,18 @@ void do_connect(struct st_command *command)
                   opt_charsets_dir);
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-  if (opt_use_ssl)
-    con_ssl= 1;
+  /*
+    If mysqltest --ssl-mode option is set to DISABLED
+    and connect(.., SSL) command used, set proper opt_ssl_mode.
 
-  opt_use_ssl= con_ssl;
-
-  if (opt_use_ssl)
+    So, SSL connection is used either:
+    a) mysqltest --ssl-mode option is NOT set to DISABLED or
+    b) connect(.., SSL) command used.
+  */
+  if (opt_ssl_mode == SSL_MODE_DISABLED && con_ssl)
   {
-    /* Turn on ssl_verify_server_cert only if host is "localhost" */
-    opt_ssl_verify_server_cert= !strcmp(ds_host.str, "localhost");
-    opt_ssl_enforce= 1;
+    opt_ssl_mode= (opt_ssl_ca || opt_ssl_capath) ?
+      SSL_MODE_VERIFY_CA : SSL_MODE_REQUIRED;
   }
 #else
   /* keep the compiler happy about con_ssl */
@@ -5933,10 +5934,7 @@ void do_connect(struct st_command *command)
 #endif
   SSL_SET_OPTIONS(&con_slot->mysql);
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-  /* Setting default as not ssl for mysqltest because of performance implications.*/
-  mysql_options(&con_slot->mysql, MYSQL_OPT_SSL_ENFORCE, &con_ssl);
-  opt_use_ssl= save_opt_use_ssl;
-  opt_ssl_enforce= save_opt_ssl_enforce;
+  opt_ssl_mode= save_opt_ssl_mode;
 #endif
 
   if (con_pipe)
@@ -9129,10 +9127,11 @@ int main(int argc, char **argv)
 
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-  if (opt_use_ssl)
+  /* Turn on VERIFY_IDENTITY mode only if host=="localhost". */
+  if (opt_ssl_mode == SSL_MODE_VERIFY_IDENTITY)
   {
-    /* Turn on ssl_verify_server_cert only if host is "localhost" */
-    opt_ssl_verify_server_cert= opt_host && !strcmp(opt_host, "localhost");
+    if (!opt_host || strcmp(opt_host, "localhost"))
+      opt_ssl_mode = SSL_MODE_VERIFY_CA;
   }
 #endif
   SSL_SET_OPTIONS(&con->mysql);
@@ -9591,7 +9590,9 @@ int main(int argc, char **argv)
       check_eol_junk(command->last_argument);
 
     if (command->type != Q_ERROR &&
-        command->type != Q_COMMENT)
+        command->type != Q_COMMENT &&
+        command->type != Q_IF &&
+        command->type != Q_END_BLOCK)
     {
       /*
         As soon as any non "error" command or comment has been executed,

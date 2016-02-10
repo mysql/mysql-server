@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -117,10 +117,10 @@ const char general_space_name[] = "innodb_general";
 current working directory ".", but in the MySQL Embedded Server Library
 it is an absolute path. */
 const char*	fil_path_to_mysql_datadir;
-Folder  	folder_mysql_datadir;
+Folder		folder_mysql_datadir;
 
 /** Common InnoDB file extentions */
-const char* dot_ext[] = { "", ".ibd", ".isl", ".cfg" };
+const char* dot_ext[] = { "", ".ibd", ".isl", ".cfg", ".cfp" };
 
 /** The number of fsyncs done to the log */
 ulint	fil_n_log_flushes			= 0;
@@ -795,8 +795,6 @@ fil_node_open_file(
 				page, FSP_FREE_LIMIT);
 			ulint	free_len	= flst_get_len(
 				FSP_HEADER_OFFSET + FSP_FREE + page);
-			ut_ad(space->size_in_header == 0
-			      || space->size_in_header == size);
 			ut_ad(space->free_limit == 0
 			      || space->free_limit == free_limit);
 			ut_ad(space->free_len == 0
@@ -807,6 +805,21 @@ fil_node_open_file(
 		}
 
 		ut_free(buf2);
+
+		/* For encrypted tablespace, we need to check the
+		encrytion key and iv(initial vector) is readed. */
+		if (FSP_FLAGS_GET_ENCRYPTION(flags)
+		    && !recv_recovery_is_on()) {
+			if (space->encryption_key == NULL
+			    || space->encryption_iv == NULL
+			    || space->encryption_type != Encryption::AES) {
+				ib::error()
+					<< "Can't read encryption"
+					<< " key from file "
+					<< node->name << "!";
+				return(false);
+			}
+		}
 
 		if (node->size == 0) {
 			ulint	extent_size;
@@ -1334,6 +1347,8 @@ fil_space_create(
 	space->flags = flags;
 
 	space->magic_n = FIL_SPACE_MAGIC_N;
+
+	space->encryption_type = Encryption::NONE;
 
 	rw_lock_create(fil_space_latch_key, &space->latch, SYNC_FSP);
 
@@ -2689,6 +2704,12 @@ fil_close_tablespace(
 		ut_free(cfg_name);
 	}
 
+	char*	cfp_name = fil_make_filepath(path, NULL, CFP, false);
+	if (cfp_name != NULL) {
+		os_file_delete_if_exists(innodb_data_file_key, cfp_name, NULL);
+		ut_free(cfp_name);
+	}
+
 	ut_free(path);
 
 	return(err);
@@ -2777,6 +2798,12 @@ fil_delete_tablespace(
 		if (cfg_name != NULL) {
 			os_file_delete_if_exists(innodb_data_file_key, cfg_name, NULL);
 			ut_free(cfg_name);
+		}
+
+		char*	cfp_name = fil_make_filepath(path, NULL, CFP, false);
+		if (cfp_name != NULL) {
+			os_file_delete_if_exists(innodb_data_file_key, cfp_name, NULL);
+			ut_free(cfp_name);
 		}
 	}
 
@@ -3070,51 +3097,6 @@ fil_discard_tablespace(
 #endif /* !UNIV_HOTBACKUP */
 
 /*******************************************************************//**
-Renames the memory cache structures of a single-table tablespace.
-@return true if success */
-static
-bool
-fil_rename_tablespace_in_mem(
-/*=========================*/
-	fil_space_t*	space,	/*!< in: tablespace memory object */
-	fil_node_t*	node,	/*!< in: file node of that tablespace */
-	const char*	new_name,	/*!< in: new name */
-	const char*	new_path)	/*!< in: new file path */
-{
-	fil_space_t*	space2;
-	const char*	old_name	= space->name;
-
-	ut_ad(mutex_own(&fil_system->mutex));
-
-	space2 = fil_space_get_by_name(old_name);
-	if (space != space2) {
-		ib::error() << "Cannot find " << old_name
-			<< " in tablespace memory cache";
-		return(false);
-	}
-
-	space2 = fil_space_get_by_name(new_name);
-	if (space2 != NULL) {
-		ib::error() << new_name
-			<< " is already in tablespace memory cache";
-
-		return(false);
-	}
-
-	HASH_DELETE(fil_space_t, name_hash, fil_system->name_hash,
-		    ut_fold_string(space->name), space);
-	ut_free(space->name);
-	ut_free(node->name);
-
-	space->name = mem_strdup(new_name);
-	node->name = mem_strdup(new_path);
-
-	HASH_INSERT(fil_space_t, name_hash, fil_system->name_hash,
-		    ut_fold_string(space->name), space);
-	return(true);
-}
-
-/*******************************************************************//**
 Allocates and builds a file name from a path, a table or tablespace name
 and a suffix. The string must be freed by caller with ut_free().
 @param[in] path NULL or the direcory path or the full path and filename.
@@ -3280,22 +3262,16 @@ fil_rename_tablespace(
 	fil_space_t*	space;
 	fil_node_t*	node;
 	ulint		count		= 0;
-	char*		old_name	= NULL;
-	const char*	new_path	= new_path_in;
 	ut_a(id != 0);
 
-	if (new_path == NULL) {
-		new_path = fil_make_filepath(NULL, new_name, IBD, false);
-	}
-
 	ut_ad(strchr(new_name, '/') != NULL);
-	ut_ad(strchr(new_path, OS_PATH_SEPARATOR) != NULL);
 retry:
 	count++;
 
 	if (!(count % 1000)) {
-		ib::warn() << "Cannot rename " << old_path << " to "
-			<< new_path << ", retried " << count << " times."
+		ib::warn() << "Cannot rename file " << old_path
+			<< " (space id " << id << "), retried " << count
+			<< " times."
 			" There are either pending IOs or flushes or"
 			" the file is being extended.";
 	}
@@ -3304,8 +3280,6 @@ retry:
 
 	space = fil_space_get_by_id(id);
 
-	bool success = false;
-
 	DBUG_EXECUTE_IF("fil_rename_tablespace_failure_1", space = NULL; );
 
 	if (space == NULL) {
@@ -3313,11 +3287,26 @@ retry:
 			<< " in the tablespace memory cache, though the file '"
 			<< old_path
 			<< "' in a rename operation should have that id.";
-
-		goto func_exit;
+func_exit:
+		mutex_exit(&fil_system->mutex);
+		return(false);
 	}
 
 	if (count > 25000) {
+		space->stop_ios = false;
+		goto func_exit;
+	}
+
+	if (space != fil_space_get_by_name(space->name)) {
+		ib::error() << "Cannot find " << space->name
+			<< " in tablespace memory cache";
+		space->stop_ios = false;
+		goto func_exit;
+	}
+
+	if (fil_space_get_by_name(new_name)) {
+		ib::error() << new_name
+			<< " is already in tablespace memory cache";
 		space->stop_ios = false;
 		goto func_exit;
 	}
@@ -3351,10 +3340,9 @@ retry:
 		fil_node_close_file(node);
 	}
 
+	mutex_exit(&fil_system->mutex);
+
 	if (sleep) {
-
-		mutex_exit(&fil_system->mutex);
-
 		os_thread_sleep(20000);
 
 		if (flush) {
@@ -3365,54 +3353,86 @@ retry:
 		goto retry;
 	}
 
-	old_name = mem_strdup(space->name);
+	ut_ad(space->stop_ios);
 
-	/* Rename the tablespace and the node in the memory cache */
-	success = fil_rename_tablespace_in_mem(
-		space, node, new_name, new_path);
+	char*	new_file_name = new_path_in == NULL
+		? fil_make_filepath(NULL, new_name, IBD, false)
+		: mem_strdup(new_path_in);
+	char*	old_file_name = node->name;
+	char*	new_space_name = mem_strdup(new_name);
+	char*	old_space_name = space->name;
+	ulint	old_fold = ut_fold_string(old_space_name);
+	ulint	new_fold = ut_fold_string(new_space_name);
 
-	if (success) {
-
-		DBUG_EXECUTE_IF("fil_rename_tablespace_failure_2",
-			goto skip_second_rename; );
-
-		success = os_file_rename(
-			innodb_data_file_key, old_path, new_path);
-
-		DBUG_EXECUTE_IF("fil_rename_tablespace_failure_2",
-skip_second_rename:
-			success = false; );
-
-		if (!success) {
-			/* We have to revert the changes we made
-			to the tablespace memory cache */
-
-			bool	reverted = fil_rename_tablespace_in_mem(
-				space, node, old_name, old_path);
-
-			ut_a(reverted);
-		}
-	}
-
-	ut_free(old_name);
-	space->stop_ios = false;
-
-func_exit:
-	mutex_exit(&fil_system->mutex);
+	ut_ad(strchr(old_file_name, OS_PATH_SEPARATOR) != NULL);
+	ut_ad(strchr(new_file_name, OS_PATH_SEPARATOR) != NULL);
 
 #ifndef UNIV_HOTBACKUP
-	if (success && !recv_recovery_on) {
+	if (!recv_recovery_on) {
 		mtr_t		mtr;
 
-		mtr_start(&mtr);
-		fil_name_write_rename(id, 0, old_path, new_path, &mtr);
-		mtr_commit(&mtr);
+		mtr.start();
+		fil_name_write_rename(
+			id, 0, old_file_name, new_file_name, &mtr);
+		mtr.commit();
+		log_mutex_enter();
 	}
 #endif /* !UNIV_HOTBACKUP */
 
-	if (new_path != new_path_in) {
-		ut_free(const_cast<char*>(new_path));
+	/* log_sys->mutex is above fil_system->mutex in the latching order */
+	ut_ad(log_mutex_own());
+	mutex_enter(&fil_system->mutex);
+
+	ut_ad(space->name == old_space_name);
+	/* We already checked these. */
+	ut_ad(space == fil_space_get_by_name(old_space_name));
+	ut_ad(!fil_space_get_by_name(new_space_name));
+	ut_ad(node->name == old_file_name);
+
+	bool	success;
+
+	DBUG_EXECUTE_IF("fil_rename_tablespace_failure_2",
+			goto skip_rename; );
+
+	success = os_file_rename(
+		innodb_data_file_key, old_file_name, new_file_name);
+
+	DBUG_EXECUTE_IF("fil_rename_tablespace_failure_2",
+			skip_rename: success = false; );
+
+	ut_ad(node->name == old_file_name);
+
+	if (success) {
+		node->name = new_file_name;
 	}
+
+#ifndef UNIV_HOTBACKUP
+	if (!recv_recovery_on) {
+		log_mutex_exit();
+	}
+#endif /* !UNIV_HOTBACKUP */
+
+	ut_ad(space->name == old_space_name);
+
+	if (success) {
+		HASH_DELETE(fil_space_t, name_hash, fil_system->name_hash,
+			    old_fold, space);
+		space->name = new_space_name;
+		HASH_INSERT(fil_space_t, name_hash, fil_system->name_hash,
+			    new_fold, space);
+	} else {
+		/* Because nothing was renamed, we must free the new
+		names, not the old ones. */
+		old_file_name = new_file_name;
+		old_space_name = new_space_name;
+	}
+
+	ut_ad(space->stop_ios);
+	space->stop_ios = false;
+	mutex_exit(&fil_system->mutex);
+
+	ut_free(old_file_name);
+	ut_free(old_space_name);
 
 	return(success);
 }
@@ -3674,6 +3694,15 @@ fil_ibd_create(
 		goto error_exit_1;
 	}
 
+	/* For encryption tablespace, initial encryption information. */
+	if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+		err = fil_set_encryption(space->id,
+					 Encryption::AES,
+					 NULL,
+					 NULL);
+		ut_ad(err == DB_SUCCESS);
+	}
+
 #ifndef UNIV_HOTBACKUP
 	if (!is_temp) {
 		mtr_t			mtr;
@@ -3750,11 +3779,13 @@ fil_ibd_open(
 	bool		link_file_found = false;
 	bool		link_file_is_bad = false;
 	bool		is_shared = FSP_FLAGS_GET_SHARED(flags);
+	bool		is_encrypted = FSP_FLAGS_GET_ENCRYPTION(flags);
 	Datafile	df_default;	/* default location */
 	Datafile	df_dict;	/* dictionary location */
 	RemoteDatafile	df_remote;	/* remote location */
 	ulint		tablespaces_found = 0;
 	ulint		valid_tablespaces_found = 0;
+	bool		for_import = (purpose == FIL_TYPE_IMPORT);
 
 	ut_ad(!fix_dict || rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
@@ -3870,30 +3901,48 @@ fil_ibd_open(
 	/*  We have now checked all possible tablespace locations and
 	have a count of how many unique files we found.  If things are
 	normal, we only found 1. */
-	if (!validate && tablespaces_found == 1) {
+	/* For encrypted tablespace, we need to check the
+	encryption in header of first page. */
+	if (!validate && tablespaces_found == 1 && !is_encrypted) {
+
 		goto skip_validate;
 	}
 
 	/* Read and validate the first page of these three tablespace
 	locations, if found. */
 	valid_tablespaces_found +=
-		(df_remote.validate_to_dd(id, flags) == DB_SUCCESS) ? 1 : 0;
+		(df_remote.validate_to_dd(id, flags, for_import)
+			== DB_SUCCESS) ? 1 : 0;
 
 	valid_tablespaces_found +=
-		(df_default.validate_to_dd(id, flags) == DB_SUCCESS) ? 1 : 0;
+		(df_default.validate_to_dd(id, flags, for_import)
+			== DB_SUCCESS) ? 1 : 0;
 
 	valid_tablespaces_found +=
-		(df_dict.validate_to_dd(id, flags) == DB_SUCCESS) ? 1 : 0;
+		(df_dict.validate_to_dd(id, flags, for_import)
+			== DB_SUCCESS) ? 1 : 0;
 
 	/* Make sense of these three possible locations.
 	First, bail out if no tablespace files were found. */
 	if (valid_tablespaces_found == 0) {
-		/* The following call prints an error message */
-		os_file_get_last_error(true);
-		ib::error() << "Could not find a valid tablespace file for `"
-			<< space_name << "`. " << TROUBLESHOOT_DATADICT_MSG;
+		if (!is_encrypted) {
+			/* The following call prints an error message.
+			For encrypted tablespace we skip print, since it should
+			be keyring plugin issues. */
+			os_file_get_last_error(true);
+			ib::error() << "Could not find a valid tablespace file for `"
+				<< space_name << "`. " << TROUBLESHOOT_DATADICT_MSG;
+		}
 
 		return(DB_CORRUPTION);
+	}
+
+	if (!validate && !is_encrypted) {
+		return(DB_SUCCESS);
+	}
+
+	if (validate && is_encrypted && fil_space_get(id)) {
+		return(DB_SUCCESS);
 	}
 
 	/* Do not open any tablespaces if more than one tablespace with
@@ -4054,6 +4103,22 @@ skip_validate:
 			    true, atomic_write) == NULL) {
 
 			err = DB_ERROR;
+		}
+
+		/* For encryption tablespace, initialize encryption
+		information.*/
+		if (err == DB_SUCCESS && is_encrypted && !for_import) {
+			Datafile& df_current = df_remote.is_open() ?
+				df_remote: df_dict.is_open() ?
+				df_dict : df_default;
+
+			byte*	key = df_current.m_encryption_key;
+			byte*	iv = df_current.m_encryption_iv;
+			ut_ad(key && iv);
+
+			err = fil_set_encryption(space->id, Encryption::AES,
+						 key, iv);
+			ut_ad(err == DB_SUCCESS);
 		}
 	}
 
@@ -4528,6 +4593,20 @@ fil_ibd_load(
 				 false, true, false)) {
 		ut_error;
 	}
+
+	/* For encryption tablespace, initial encryption information. */
+	if (FSP_FLAGS_GET_ENCRYPTION(space->flags)
+	    && file.m_encryption_key != NULL) {
+		dberr_t err = fil_set_encryption(space->id,
+						 Encryption::AES,
+						 file.m_encryption_key,
+						 file.m_encryption_iv);
+		if (err != DB_SUCCESS) {
+			ib::error() << "Can't set encryption information for"
+				" tablespace " << space->name << "!";
+		}
+	}
+
 
 	return(FIL_LOAD_OK);
 }
@@ -5307,6 +5386,31 @@ fil_report_invalid_page_access(
 	_exit(1);
 }
 
+/** Set encryption information for IORequest.
+@param[in,out]	req_type	IO request
+@param[in]	page_id		page id
+@param[in]	space		table space */
+inline
+void
+fil_io_set_encryption(
+	IORequest&		req_type,
+	const page_id_t&	page_id,
+	fil_space_t*		space)
+{
+	/* Don't encrypt the log, page 0 of all tablespaces, all pages
+	from the system tablespace. */
+	if (!req_type.is_log() && page_id.page_no() > 0
+	    && space->encryption_type != Encryption::NONE)
+	{
+		req_type.encryption_key(space->encryption_key,
+					space->encryption_klen,
+					space->encryption_iv);
+		req_type.encryption_algorithm(Encryption::AES);
+	} else {
+		req_type.clear_encrypted();
+	}
+}
+
 /** Reads or writes data. This operation could be asynchronous (aio).
 
 @param[in,out] type	IO context
@@ -5594,6 +5698,9 @@ fil_io(
 	} else {
 		req_type.clear_compressed();
 	}
+
+	/* Set encryption information. */
+	fil_io_set_encryption(req_type, page_id, space);
 
 	req_type.block_size(node->block_size);
 
@@ -6130,6 +6237,8 @@ struct fil_iterator_t {
 	ulint		n_io_buffers;		/*!< Number of pages to use
 						for IO */
 	byte*		io_buffer;		/*!< Buffer to use for IO */
+	byte*		encryption_key;		/*!< Encryption key */
+	byte*		encryption_iv;		/*!< Encryption iv */
 };
 
 /********************************************************************//**
@@ -6205,6 +6314,14 @@ fil_iterate(
 		dberr_t		err;
 		IORequest	read_request(read_type);
 
+		/* For encrypted table, set encryption information. */
+		if (iter.encryption_key != NULL && offset != 0) {
+			read_request.encryption_key(iter.encryption_key,
+						    ENCRYPTION_KEY_LEN,
+						    iter.encryption_iv);
+			read_request.encryption_algorithm(Encryption::AES);
+		}
+
 		err = os_file_read(
 			read_request, iter.file, io_buffer, offset,
 			(ulint) n_bytes);
@@ -6242,6 +6359,14 @@ fil_iterate(
 		}
 
 		IORequest	write_request(write_type);
+
+		/* For encrypted table, set encryption information. */
+		if (iter.encryption_key != NULL && offset != 0) {
+			write_request.encryption_key(iter.encryption_key,
+						     ENCRYPTION_KEY_LEN,
+						     iter.encryption_iv);
+			write_request.encryption_algorithm(Encryption::AES);
+		}
 
 		/* A page was updated in the set, write back to disk.
 		Note: We don't have the compression algorithm, we write
@@ -6384,26 +6509,47 @@ fil_tablespace_iterate(
 		iter.n_io_buffers = n_io_buffers;
 		iter.page_size = callback.get_page_size().physical();
 
-		/* Compressed pages can't be optimised for block IO for now.
-		We do the IMPORT page by page. */
+		/* Set encryption info. */
+		iter.encryption_key = table->encryption_key;
+		iter.encryption_iv = table->encryption_iv;
 
-		if (callback.get_page_size().is_compressed()) {
-			iter.n_io_buffers = 1;
-			ut_a(iter.page_size
-			     == callback.get_page_size().physical());
+		/* Check encryption is matched or not. */
+		ulint	space_flags = callback.get_space_flags();
+		if (FSP_FLAGS_GET_ENCRYPTION(space_flags)) {
+			ut_ad(table->encryption_key != NULL);
+
+			if (!dict_table_is_encrypted(table)) {
+				ib::error() << "Table is not in an encrypted"
+					" tablespace, but the data file which"
+					" trying to import is an encrypted"
+					" tablespace";
+				err = DB_IO_NO_ENCRYPT_TABLESPACE;
+			}
 		}
 
-		/** Add an extra page for compressed page scratch area. */
+		if (err == DB_SUCCESS) {
 
-		void*	io_buffer = ut_malloc_nokey(
-			(2 + iter.n_io_buffers) * UNIV_PAGE_SIZE);
+			/* Compressed pages can't be optimised for block IO
+			for now.  We do the IMPORT page by page. */
 
-		iter.io_buffer = static_cast<byte*>(
-			ut_align(io_buffer, UNIV_PAGE_SIZE));
+			if (callback.get_page_size().is_compressed()) {
+				iter.n_io_buffers = 1;
+				ut_a(iter.page_size
+				     == callback.get_page_size().physical());
+			}
 
-		err = fil_iterate(iter, block, callback);
+			/** Add an extra page for compressed page scratch
+			area. */
+			void*	io_buffer = ut_malloc_nokey(
+				(2 + iter.n_io_buffers) * UNIV_PAGE_SIZE);
 
-		ut_free(io_buffer);
+			iter.io_buffer = static_cast<byte*>(
+				ut_align(io_buffer, UNIV_PAGE_SIZE));
+
+			err = fil_iterate(iter, block, callback);
+
+			ut_free(io_buffer);
+		}
 	}
 
 	if (err == DB_SUCCESS) {
@@ -6461,6 +6607,14 @@ fil_delete_file(
 		os_file_delete_if_exists(
 			innodb_data_file_key, cfg_filepath, NULL);
 		ut_free(cfg_filepath);
+	}
+
+	char*	cfp_filepath = fil_make_filepath(
+		ibd_filepath, NULL, CFP, false);
+	if (cfp_filepath != NULL) {
+		os_file_delete_if_exists(
+			innodb_data_file_key, cfp_filepath, NULL);
+		ut_free(cfp_filepath);
 	}
 }
 
@@ -7023,6 +7177,101 @@ fil_get_compression(
 	return(space == NULL ? Compression::NONE : space->compression_type);
 }
 
+/** Set the encryption type for the tablespace
+@param[in] space_id		Space ID of tablespace for which to set
+@param[in] algorithm		Encryption algorithm
+@param[in] key			Encryption key
+@param[in] iv			Encryption iv
+@return DB_SUCCESS or error code */
+dberr_t
+fil_set_encryption(
+	ulint			space_id,
+	Encryption::Type	algorithm,
+	byte*			key,
+	byte*			iv)
+{
+	ut_ad(!is_system_or_undo_tablespace(space_id));
+
+	if (is_shared_tablespace(space_id)) {
+		return(DB_IO_NO_ENCRYPT_TABLESPACE);
+	}
+
+	mutex_enter(&fil_system->mutex);
+
+	fil_space_t*	space = fil_space_get_by_id(space_id);
+
+	if (space == NULL) {
+		mutex_exit(&fil_system->mutex);
+		return(DB_NOT_FOUND);
+	}
+
+	ut_ad(algorithm != Encryption::NONE);
+	space->encryption_type = algorithm;
+	if (key == NULL) {
+		Encryption::random_value(space->encryption_key);
+	} else {
+		memcpy(space->encryption_key,
+		       key, ENCRYPTION_KEY_LEN);
+	}
+
+	space->encryption_klen = ENCRYPTION_KEY_LEN;
+	if (iv == NULL) {
+		Encryption::random_value(space->encryption_iv);
+	} else {
+		memcpy(space->encryption_iv,
+		       iv, ENCRYPTION_KEY_LEN);
+	}
+
+	mutex_exit(&fil_system->mutex);
+
+	return(DB_SUCCESS);
+}
+
+/** Rotate the tablespace keys by new master key.
+@return true if the re-encrypt suceeds */
+bool
+fil_encryption_rotate()
+{
+	fil_space_t*	space;
+	mtr_t		mtr;
+	byte		encrypt_info[ENCRYPTION_INFO_SIZE];
+
+	for (space = UT_LIST_GET_FIRST(fil_system->space_list);
+	     space != NULL; ) {
+		/* Skip unencypted tablespaces. */
+		if (is_system_or_undo_tablespace(space->id)
+		    || fsp_is_system_temporary(space->id)
+		    || space->purpose == FIL_TYPE_LOG) {
+			space = UT_LIST_GET_NEXT(space_list, space);
+			continue;
+		}
+
+		if (space->encryption_type != Encryption::NONE) {
+			mtr_start(&mtr);
+			mtr.set_named_space(space->id);
+
+			space = mtr_x_lock_space(space->id, &mtr);
+
+			memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
+
+			if (!fsp_header_rotate_encryption(space,
+							  encrypt_info,
+							  &mtr)) {
+				mtr_commit(&mtr);
+				return(false);
+			}
+
+			mtr_commit(&mtr);
+		}
+
+		space = UT_LIST_GET_NEXT(space_list, space);
+		DBUG_EXECUTE_IF("ib_crash_during_rotation_for_encryption",
+				DBUG_SUICIDE(););
+	}
+
+	return(true);
+}
+
 /** Build the basic folder name from the path and length provided
 @param[in]	path	pathname (may also include the file basename)
 @param[in]	len	length of the path, in bytes */
@@ -7180,6 +7429,7 @@ test_make_filepath()
 	path = MF("/this/is/a/path/with/a/filename", NULL, IBD, false); DISPLAY;
 	path = MF("/this/is/a/path/with/a/filename", NULL, ISL, false); DISPLAY;
 	path = MF("/this/is/a/path/with/a/filename", NULL, CFG, false); DISPLAY;
+	path = MF("/this/is/a/path/with/a/filename", NULL, CFP, false); DISPLAY;
 	path = MF("/this/is/a/path/with/a/filename.ibd", NULL, IBD, false); DISPLAY;
 	path = MF("/this/is/a/path/with/a/filename.ibd", NULL, IBD, false); DISPLAY;
 	path = MF("/this/is/a/path/with/a/filename.dat", NULL, IBD, false); DISPLAY;
@@ -7189,6 +7439,7 @@ test_make_filepath()
 	path = MF(NULL, "dbname/tablespacename", IBD, false); DISPLAY;
 	path = MF(NULL, "dbname/tablespacename", ISL, false); DISPLAY;
 	path = MF(NULL, "dbname/tablespacename", CFG, false); DISPLAY;
+	path = MF(NULL, "dbname/tablespacename", CFP, false); DISPLAY;
 	path = MF(NULL, "dbname\\tablespacename", NO_EXT, false); DISPLAY;
 	path = MF(NULL, "dbname\\tablespacename", IBD, false); DISPLAY;
 	path = MF("/this/is/a/path", "dbname/tablespacename", IBD, false); DISPLAY;
