@@ -148,6 +148,11 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   cached_charset_invalidate();
   inited_hash_workers= FALSE;
   channel_open_temp_tables.atomic_set(0);
+  /*
+    For applier threads, currently_executing_gtid is set to automatic
+    when they are not executing any transaction.
+  */
+  currently_executing_gtid.set_automatic();
 
   if (!rli_fake)
   {
