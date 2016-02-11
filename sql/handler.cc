@@ -7613,3 +7613,28 @@ fl_create_iterator(enum handler_iterator_type type,
   }
 }
 #endif /*TRANS_LOG_MGM_EXAMPLE_CODE*/
+
+
+/**
+   Report a warning for FK constraint violation.
+
+   @param  thd     Thread handle.
+   @param  table   table on which the operation is performed.
+   @param  error   handler error number.
+*/
+void warn_fk_constraint_violation(THD *thd,TABLE *table, int error)
+{
+  String str;
+  switch(error) {
+  case HA_ERR_ROW_IS_REFERENCED:
+    table->file->get_error_message(error, &str);
+    push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+                 ER_ROW_IS_REFERENCED_2, str.c_ptr_safe());
+    break;
+  case HA_ERR_NO_REFERENCED_ROW:
+    table->file->get_error_message(error, &str);
+    push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+                 ER_NO_REFERENCED_ROW_2, str.c_ptr_safe());
+    break;
+  }
+}
