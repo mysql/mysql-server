@@ -1111,15 +1111,11 @@ recv_log_recover_5_7(lsn_t lsn)
 		return(DB_CORRUPTION);
 	}
 
-	/* On a clean shutdown, there will only be the MLOG_CHECKPOINT
-	record pointing to our checkpoint. */
+	/* On a clean shutdown, the redo log will be logically empty
+	after the checkpoint lsn. */
 
 	if (log_block_get_data_len(buf)
-	    != ((source_offset + SIZE_OF_MLOG_CHECKPOINT)
-		& (OS_FILE_LOG_BLOCK_SIZE - 1))
-	    || log_block_get_first_rec_group(buf) != LOG_BLOCK_HDR_SIZE
-	    || mach_read_from_1(buf + LOG_BLOCK_HDR_SIZE) != MLOG_CHECKPOINT
-	    || mach_read_from_8(buf + (LOG_BLOCK_HDR_SIZE + 1)) != lsn) {
+	    != (source_offset & (OS_FILE_LOG_BLOCK_SIZE - 1))) {
 		ib::error() << NO_UPGRADE_RECOVERY_MSG
 			<< log_header_creator
 			<< NO_UPGRADE_RTFM_MSG;
