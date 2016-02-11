@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -532,7 +532,12 @@ ClusterMgr::trp_deliver_signal(const NdbApiSignal* sig,
       tSignal.theReceiversBlockNumber= refToBlock(ref);
       tSignal.theVerId_signalNumber= GSN_SUB_GCP_COMPLETE_ACK;
       tSignal.theSendersBlockRef = API_CLUSTERMGR;
-      safe_noflush_sendSignal(&tSignal, aNodeId);
+
+      // Send signal without delay, otherwise, Suma buffers may
+      // overflow, resulting into the API node being disconnected.
+      // SUB_GCP_COMPLETE_ACK will be sent per node per epoch, with
+      // minimum interval of TimeBetweenEpochs.
+      safe_sendSignal(&tSignal, aNodeId);
     }
     break;
   }
