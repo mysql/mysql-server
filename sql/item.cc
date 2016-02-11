@@ -6149,7 +6149,7 @@ static void convert_zerofill_number_to_string(Item **item, Field_num *field)
   String tmp(buff,sizeof(buff), field->charset()), *res;
 
   res= (*item)->val_str(&tmp);
-  if ((*item)->is_null())
+  if ((*item)->null_value)
     *item= new Item_null();
   else
   {
