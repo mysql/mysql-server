@@ -2841,9 +2841,9 @@ row_merge_blocks_copy(
 
 	DBUG_ENTER("row_merge_blocks_copy");
 	DBUG_PRINT("ib_merge_sort",
-		   ("fd=%d,%lu to fd=%d,%lu",
-		    file->fd, ulong(foffs0),
-		    of->fd, ulong(of->offset)));
+		   ("fd=%d," ULINTPF " to fd=%d," ULINTPF,
+		    file->fd, *foffs0,
+		    of->fd, of->offset));
 
 	heap = row_merge_heap_create(index, &buf, &offsets0, &offsets1);
 

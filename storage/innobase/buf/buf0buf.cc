@@ -2489,7 +2489,7 @@ DECLARE_THREAD(buf_resize_thread)(
 	srv_buf_resize_thread_active = false;
 
 	my_thread_end();
-	os_thread_exit(NULL);
+	os_thread_exit();
 
 	OS_THREAD_DUMMY_RETURN;
 }
@@ -3339,12 +3339,10 @@ retry:
 
 	buf_pool_chunk_map_t*	chunk_map = buf_chunk_map_ref;
 
-	if (ptr < reinterpret_cast<byte*>(srv_buf_pool_chunk_unit)) {
-		it = chunk_map->upper_bound(0);
-	} else {
-		it = chunk_map->upper_bound(
-			ptr - srv_buf_pool_chunk_unit);
-	}
+	const byte* bound = reinterpret_cast<uintptr_t>(ptr)
+			    > srv_buf_pool_chunk_unit
+			    ? ptr - srv_buf_pool_chunk_unit : 0;
+	it = chunk_map->upper_bound(bound);
 
 	ut_a(it != chunk_map->end());
 
@@ -6229,13 +6227,15 @@ buf_print_io_instance(
 	ut_ad(pool_info);
 
 	fprintf(file,
-		"Buffer pool size   %lu\n"
-		"Free buffers       %lu\n"
-		"Database pages     %lu\n"
-		"Old database pages %lu\n"
-		"Modified db pages  %lu\n"
-		"Pending reads %lu\n"
-		"Pending writes: LRU %lu, flush list %lu, single page %lu\n",
+		"Buffer pool size   " ULINTPF "\n"
+		"Free buffers       " ULINTPF "\n"
+		"Database pages     " ULINTPF "\n"
+		"Old database pages " ULINTPF "\n"
+		"Modified db pages  " ULINTPF "\n"
+		"Pending reads      " ULINTPF "\n"
+		"Pending writes: LRU " ULINTPF
+		", flush list " ULINTPF
+		", single page " ULINTPF "\n",
 		pool_info->pool_size,
 		pool_info->free_list_len,
 		pool_info->lru_len,
@@ -6247,9 +6247,12 @@ buf_print_io_instance(
 		pool_info->n_pending_flush_single_page);
 
 	fprintf(file,
-		"Pages made young %lu, not young %lu\n"
+		"Pages made young " ULINTPF
+		", not young " ULINTPF "\n"
 		"%.2f youngs/s, %.2f non-youngs/s\n"
-		"Pages read %lu, created %lu, written %lu\n"
+		"Pages read " ULINTPF
+		", created " ULINTPF
+		", written " ULINTPF "\n"
 		"%.2f reads/s, %.2f creates/s, %.2f writes/s\n",
 		pool_info->n_pages_made_young,
 		pool_info->n_pages_not_made_young,
@@ -6289,8 +6292,9 @@ buf_print_io_instance(
 	/* Print some values to help us with visualizing what is
 	happening with LRU eviction. */
 	fprintf(file,
-		"LRU len: %lu, unzip_LRU len: %lu\n"
-		"I/O sum[%lu]:cur[%lu], unzip sum[%lu]:cur[%lu]\n",
+		"LRU len: " ULINTPF ", unzip_LRU len: " ULINTPF "\n"
+		"I/O sum[" ULINTPF "]:cur[" ULINTPF "], "
+		"unzip sum[" ULINTPF "]:cur[" ULINTPF "]\n",
 		pool_info->lru_len, pool_info->unzip_lru_len,
 		pool_info->io_sum, pool_info->io_cur,
 		pool_info->unzip_sum, pool_info->unzip_cur);
@@ -6351,7 +6355,7 @@ buf_print_io(
 		"----------------------\n", file);
 
 		for (i = 0; i < srv_buf_pool_instances; i++) {
-			fprintf(file, "---BUFFER POOL %lu\n", i);
+			fprintf(file, "---BUFFER POOL " ULINTPF "\n", i);
 			buf_print_io_instance(&pool_info[i], file);
 		}
 	}

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -314,7 +314,7 @@ open_file(
 
 	if (hFile == INVALID_HANDLE_VALUE) {
 		/* print the error message. */
-		fprintf(stderr, "Filename::%s %s\n",
+		fprintf(stderr, "Filename::%s %s\n", name,
 			error_message(GetLastError()));
 
 			return (NULL);
@@ -699,12 +699,14 @@ is_page_corrupted(
 
 		if (is_log_enabled) {
 			fprintf(log_file,
-				"page::%" PRIuMAX "; log sequence number:first = %lu;"
-				" second = %lu\n",
+				"page::%" PRIuMAX
+				"; log sequence number:first = " ULINTPF
+				"; second = " ULINTPF "\n",
 				cur_page_num, logseq, logseqfield);
 			if (logseq != logseqfield) {
 				fprintf(log_file,
-					"Fail; page %" PRIuMAX " invalid (fails log "
+					"Fail; page %" PRIuMAX
+					" invalid (fails log "
 					"sequence number check)\n",
 					cur_page_num);
 			}
@@ -972,8 +974,9 @@ parse_page(
 				"\tindex id=%llu,", cur_page_num, id);
 
 			fprintf(file,
-				" page level=%lu, No. of records=%lu,"
-				" garbage=%lu, %s\n",
+				" page level=" ULINTPF
+				", No. of records=" ULINTPF
+				", garbage=" ULINTPF ", %s\n",
 				page_header_get_field(page, PAGE_LEVEL),
 				page_header_get_field(page, PAGE_N_RECS),
 				page_header_get_field(page, PAGE_GARBAGE), str);
@@ -1646,15 +1649,15 @@ int main(
 
 		if (just_count) {
 			if (read_from_stdin) {
-				fprintf(stderr, "Number of pages:%lu\n", pages);
+				fprintf(stderr, "Number of pages:" ULINTPF "\n", pages);
 			} else {
-				printf("Number of pages:%lu\n", pages);
+				printf("Number of pages:" ULINTPF "\n", pages);
 			}
 			continue;
 		} else if (verbose && !read_from_stdin) {
 			if (is_log_enabled) {
 				fprintf(log_file, "file %s = %llu bytes "
-					"(%lu pages)\n", filename, size, pages);
+					"(" ULINTPF " pages)\n", filename, size, pages);
 				if (do_one_page) {
 					fprintf(log_file, "Innochecksum: "
 						"checking page %" PRIuMAX "\n",
@@ -1759,7 +1762,7 @@ int main(
 			}
 
 			if (ferror(fil_in)) {
-				fprintf(stderr, "Error reading %lu bytes",
+				fprintf(stderr, "Error reading " ULINTPF " bytes",
 					page_size.physical());
 				perror(" ");
 
@@ -1768,7 +1771,7 @@ int main(
 
 			if (bytes != page_size.physical()) {
 				fprintf(stderr, "Error: bytes read (%lu) "
-					"doesn't match page size (%lu)\n",
+					"doesn't match page size (" ULINTPF ")\n",
 					bytes, page_size.physical());
 				DBUG_RETURN(1);
 			}

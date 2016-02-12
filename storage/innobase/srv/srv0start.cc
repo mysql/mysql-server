@@ -323,7 +323,7 @@ DECLARE_THREAD(io_handler_thread)(
 	os_event_wait(). */
 
         my_thread_end();
-	os_thread_exit(NULL);
+	os_thread_exit();
 
 	OS_THREAD_DUMMY_RETURN;
 }
@@ -1550,7 +1550,8 @@ srv_start(
 					strlen(fil_path_to_mysql_datadir)
 					+ 20 + sizeof "/innodb_status."));
 
-			sprintf(srv_monitor_file_name, "%s/innodb_status.%lu",
+			sprintf(srv_monitor_file_name,
+				"%s/innodb_status." ULINTPF,
 				fil_path_to_mysql_datadir,
 				os_proc_get_number());
 

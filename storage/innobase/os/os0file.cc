@@ -872,7 +872,7 @@ os_alloc_block()
 {
 	size_t		pos;
 	Blocks&		blocks = *block_cache;
-	size_t		i = my_timer_cycles();
+	size_t		i = static_cast<size_t>(my_timer_cycles());
 	const size_t	size = blocks.size();
 
 	for (;;) {
@@ -7773,7 +7773,7 @@ AIO::print_segment_info(
 				fprintf(file, ", ");
 			}
 
-			fprintf(file, "%lu", *segments);
+			fprintf(file, ULINTPF, *segments);
 		}
 
 		fprintf(file, "] ");
@@ -7877,19 +7877,23 @@ os_aio_print(FILE*	file)
 	time_elapsed = 0.001 + difftime(current_time, os_last_printout);
 
 	fprintf(file,
-		"Pending flushes (fsync) log: %lu; buffer pool: %lu\n"
-		"%lu OS file reads, %lu OS file writes, %lu OS fsyncs\n",
-		(ulong) fil_n_pending_log_flushes,
-		(ulong) fil_n_pending_tablespace_flushes,
-		(ulong) os_n_file_reads,
-		(ulong) os_n_file_writes,
-		(ulong) os_n_fsyncs);
+		"Pending flushes (fsync) log: " ULINTPF "; "
+		"buffer pool: " ULINTPF "\n"
+		ULINTPF " OS file reads, "
+		ULINTPF " OS file writes, "
+		ULINTPF " OS fsyncs\n",
+		fil_n_pending_log_flushes,
+		fil_n_pending_tablespace_flushes,
+		os_n_file_reads,
+		os_n_file_writes,
+		os_n_fsyncs);
 
 	if (os_n_pending_writes != 0 || os_n_pending_reads != 0) {
 		fprintf(file,
-			"%lu pending preads, %lu pending pwrites\n",
-			(ulint) os_n_pending_reads,
-			(ulong) os_n_pending_writes);
+			ULINTPF " pending preads, "
+			ULINTPF " pending pwrites\n",
+			os_n_pending_reads,
+			os_n_pending_writes);
 	}
 
 	if (os_n_file_reads == os_n_file_reads_old) {
@@ -7954,7 +7958,7 @@ AIO::to_file(FILE* file) const
 {
 	acquire();
 
-	fprintf(file, " %lu\n", static_cast<ulint>(m_n_reserved));
+	fprintf(file, " %lu\n", static_cast<ulong>(m_n_reserved));
 
 	for (ulint i = 0; i < m_slots.size(); ++i) {
 
@@ -8062,7 +8066,7 @@ Encryption::create_master_key(byte** master_key)
 	memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
 
 	/* Generate new master key */
-	sprintf(key_name, "%s-%lu-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
+	sprintf(key_name, "%s-%lu-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
 		server_id, master_key_id + 1);
 
 	/* We call key ring API to generate master key here. */
@@ -8098,7 +8102,7 @@ Encryption::get_master_key(ulint master_key_id,
 	int	ret;
 
 	memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
-	sprintf(key_name, "%s-%lu-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
+	sprintf(key_name, "%s-%lu-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
 		server_id, master_key_id);
 
 	/* We call key ring API to get master key here. */
@@ -8170,7 +8174,7 @@ Encryption::get_master_key(ulint* master_key_id, byte** master_key)
 	} else {
 		*master_key_id = Encryption::master_key_id;
 
-		sprintf(key_name, "%s-%lu-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
+		sprintf(key_name, "%s-%lu-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
 			server_id, *master_key_id);
 
 		/* We call key ring API to get master key here. */
@@ -8269,10 +8273,10 @@ Encryption::encrypt(
 
 		elen = my_aes_encrypt(
 			src + FIL_PAGE_DATA,
-			static_cast<uLong>(main_len),
+			static_cast<uint32>(main_len),
 			dst + FIL_PAGE_DATA,
 			reinterpret_cast<unsigned char*>(m_key),
-			m_klen,
+			static_cast<uint32>(m_klen),
 			my_aes_256_cbc,
 			reinterpret_cast<unsigned char*>(m_iv),
 			false);
@@ -8304,10 +8308,10 @@ Encryption::encrypt(
 
 			elen = my_aes_encrypt(
 				dst + FIL_PAGE_DATA + data_len - remain_len,
-				remain_len,
+				static_cast<uint32>(remain_len),
 				remain_buf,
 				reinterpret_cast<unsigned char*>(m_key),
-				m_klen,
+				static_cast<uint32>(m_klen),
 				my_aes_256_cbc,
 				reinterpret_cast<unsigned char*>(m_iv),
 				false);
@@ -8467,9 +8471,11 @@ Encryption::decrypt(
 
 			elen = my_aes_decrypt(
 				remain_buf,
-				remain_len, dst + data_len - remain_len,
+				static_cast<uint32>(remain_len),
+				dst + data_len - remain_len,
 				reinterpret_cast<unsigned char*>(m_key),
-				m_klen, my_aes_256_cbc,
+				static_cast<uint32>(m_klen),
+				my_aes_256_cbc,
 				reinterpret_cast<unsigned char*>(m_iv),
 				false);
 			if (elen == MY_AES_BAD_DATA) {
@@ -8491,10 +8497,11 @@ Encryption::decrypt(
 
 		/* Then decrypt the main data */
 		elen = my_aes_decrypt(
-				dst, main_len,
+				dst,
+				static_cast<uint32>(main_len),
 				ptr,
 				reinterpret_cast<unsigned char*>(m_key),
-				m_klen,
+				static_cast<uint32>(m_klen),
 				my_aes_256_cbc,
 				reinterpret_cast<unsigned char*>(m_iv),
 				false);
