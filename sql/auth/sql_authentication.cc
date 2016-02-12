@@ -1253,12 +1253,17 @@ char *get_56_lenc_string(char **buffer,
 
   *string_length= (size_t)net_field_length_ll((uchar **)buffer);
 
+  DBUG_EXECUTE_IF("sha256_password_scramble_too_long",
+                  *string_length= SIZE_T_MAX;
+  );
+
   size_t len_len= (size_t)(*buffer - begin);
   
-  if (*string_length + len_len > *max_bytes_available)
+  if (*string_length > *max_bytes_available - len_len)
     return NULL;
 
-  *max_bytes_available -= *string_length + len_len;
+  *max_bytes_available -= *string_length;
+  *max_bytes_available -= len_len;
   *buffer += *string_length;
   return (char *)(begin + len_len);
 }
