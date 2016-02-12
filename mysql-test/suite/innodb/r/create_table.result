@@ -2,9 +2,17 @@
 # Bug #22306581	VALGRIND FAILURE IN INNODB.TEMPORARY_TABLE
 #
 create temporary table t (i int) COMPRESSION = "ZLIB" ENGINE = InnoDB;
-ERROR 42000: Table 't' uses an extension that doesn't exist in this MySQL version
+ERROR HY000: Table storage engine for 't' doesn't have this option
+SHOW WARNINGS;
+Level	Code	Message
+Warning	138	InnoDB: Page Compression is not supported for temporary tables
+Error	1031	Table storage engine for 't' doesn't have this option
 create table t1(i INT) COMPRESSION="ZLIB" ENGINE=InnoDB TABLESPACE=innodb_system;
-ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+SHOW WARNINGS;
+Level	Code	Message
+Warning	138	InnoDB: Page Compression is not supported for the system tablespace
+Error	1031	Table storage engine for 't1' doesn't have this option
 SET DEBUG ='+d, simulate_max_char_col';
 create table t1(f1 varchar(1000))engine=innodb;
 ERROR HY000: Got error 1005 from storage engine

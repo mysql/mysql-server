@@ -3067,28 +3067,38 @@ err_exit:
 			/* We must delete the link file. */
 			RemoteDatafile::delete_link_file(table->name.m_name);
 
-		} else if (compression != NULL) {
+		} else if (compression != NULL && compression[0] != '\0') {
 
-			ut_ad(!is_shared_tablespace(table->space));
+			ut_ad(!dict_table_in_shared_tablespace(table));
 
 			ut_ad(Compression::validate(compression) == DB_SUCCESS);
 
-			err = fil_set_compression(table->space, compression);
+			err = fil_set_compression(table, compression);
 
-			/* The tablespace must be found and we have already
-			done the check for the system tablespace and the
-			temporary tablespace. Compression must be a valid
-			and supported algorithm. */
+			switch (err) {
+			case DB_SUCCESS:
+				break;
+			case DB_NOT_FOUND:
+			case DB_UNSUPPORTED:
+			case DB_IO_NO_PUNCH_HOLE_FS:
+				/* Return these errors */
+				break;
+			case DB_IO_NO_PUNCH_HOLE_TABLESPACE:
+				/* Page Compression will not be used. */
+				err = DB_SUCCESS;
+				break;
+			default:
+				ut_error;
+			}
 
-			/* However, we can check for file system punch hole
-			support only after creating the tablespace. On Windows
+			/* We can check for file system punch hole support
+                        only after creating the tablespace. On Windows
 			we can query that information but not on Linux. */
-
 			ut_ad(err == DB_SUCCESS
-			      || err == DB_IO_NO_PUNCH_HOLE_FS);
+				|| err == DB_IO_NO_PUNCH_HOLE_FS);
 
-                        /* In non-strict mode we ignore dodgy compression
-                        settings. */
+			/* In non-strict mode we ignore dodgy compression
+			settings. */
 		}
 	}
 
@@ -3118,7 +3128,7 @@ err_exit:
 
 		break;
 
-        case DB_UNSUPPORTED:
+	case DB_UNSUPPORTED:
 	case DB_TOO_MANY_CONCURRENT_TRXS:
 		/* We already have .ibd file here. it should be deleted. */
 
