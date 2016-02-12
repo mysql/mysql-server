@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,10 +68,6 @@ GlobalData::mt_getBlock(BlockNumber blockNo, Uint32 instanceNo)
 #endif
 
 /* Constants found by benchmarks to be reasonable values. */
-
-/* Maximum number of signals to execute before sending to remote nodes. */
-static const Uint32 MAX_SIGNALS_BEFORE_SEND = 200;
-static const Uint32 MAX_SIGNALS_BEFORE_SEND_FLUSH = 80;
 
 /*
  * Max. signals to execute from one job buffer before considering other
@@ -4436,7 +4432,7 @@ void handle_scheduling_decisions(thr_data *selfptr,
                                  Uint32 & flush_sum,
                                  Int32 & pending_send)
 {
-  if (send_sum >= MAX_SIGNALS_BEFORE_SEND)
+  if (send_sum >= selfptr->m_max_signals_before_send)
   {
     /* Try to send, but skip for now in case of lock contention. */
     sendpacked(selfptr, signal);
@@ -4447,7 +4443,7 @@ void handle_scheduling_decisions(thr_data *selfptr,
     send_sum = 0;
     flush_sum = 0;
   }
-  else if (flush_sum >= MAX_SIGNALS_BEFORE_SEND_FLUSH)
+  else if (flush_sum >= selfptr->m_max_signals_before_send_flush)
   {
     /* Send buffers append to send queues to dst. nodes. */
     sendpacked(selfptr, signal);
