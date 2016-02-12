@@ -3831,10 +3831,12 @@ innodb_init_params()
 		}
 	}
 
-	if (innobase_open_files > (long) table_cache_size) {
-		innobase_open_files = table_cache_size;
+	if (innobase_open_files > (long) open_files_limit) {
 		ib::warn() << "innodb_open_files should not be greater"
-			" than the open_files_limit.\n";
+                        " than the open_files_limit.\n";
+		if (innobase_open_files > (long) table_cache_size) {
+			innobase_open_files = table_cache_size;
+		}
 	}
 
 	srv_max_n_open_files = (ulint) innobase_open_files;
