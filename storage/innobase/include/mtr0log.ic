@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -221,11 +221,8 @@ mlog_write_initial_log_record_fast(
 	ulint		space;
 	ulint		offset;
 
-	ut_ad(mtr->memo_contains_page_flagged(
-			ptr,
-			MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
-
-	ut_ad(ptr && log_ptr);
+	ut_ad(log_ptr);
+	ut_d(mtr->memo_modify_page(ptr));
 
 	page = (const byte*) ut_align_down(ptr, UNIV_PAGE_SIZE);
 	space = mach_read_from_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
@@ -254,18 +251,7 @@ mlog_write_initial_log_record_fast(
 		}
 	}
 
-	log_ptr = mlog_write_initial_log_record_low(
-		type, space, offset, log_ptr, mtr);
-
-#ifdef UNIV_DEBUG
-	/* We now assume that all x-latched pages have been modified! */
-	buf_block_t*	block = (buf_block_t*) buf_block_align(ptr);
-
-	if (!mtr->memo_contains(mtr->get_memo(), block, MTR_MEMO_MODIFY)) {
-		mtr->memo_push(block, MTR_MEMO_MODIFY);
-	}
-#endif /* UNIV_DEBUG */
-
-	return(log_ptr);
+	return(mlog_write_initial_log_record_low(type, space, offset,
+						 log_ptr, mtr));
 }
 #endif /* !UNIV_HOTBACKUP */

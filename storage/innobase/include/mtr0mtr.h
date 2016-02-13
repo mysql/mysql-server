@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -101,8 +101,7 @@ savepoint. */
 /** Check if memo contains the given page.
 @return	TRUE if contains */
 #define mtr_memo_contains_page(m, p, t)					\
-				(m)->memo_contains_page(		\
-					(m)->get_memo(), (p), (t))
+	(m)->memo_contains_page_flagged((p), (t))
 #endif /* UNIV_DEBUG */
 
 /** Print info of an mtr handle. */
@@ -406,6 +405,10 @@ struct mtr_t {
 	@param type	object type: MTR_MEMO_S_LOCK, ...
 	@return bool if lock released */
 	bool memo_release(const void* object, ulint type);
+	/** Release a page latch.
+	@param[in]	ptr	pointer to within a page frame
+	@param[in]	type	object type: MTR_MEMO_PAGE_X_FIX, ... */
+	void release_page(const void* ptr, mtr_memo_type_t type);
 
 	/** Note that the mini-transaction has modified data. */
 	void set_modified()
@@ -484,17 +487,6 @@ struct mtr_t {
 		ulint		type)
 		__attribute__((warn_unused_result));
 
-	/** Check if memo contains the given page.
-	@param memo	memo stack
-	@param ptr	pointer to buffer frame
-	@param type	type of object
-	@return	true if contains */
-	static bool memo_contains_page(
-		mtr_buf_t*	memo,
-		const byte*	ptr,
-		ulint		type)
-		__attribute__((warn_unused_result));
-
 	/** Check if memo contains the given item.
 	@param object		object to search
 	@param flags		specify types of object (can be ORred) of
@@ -503,11 +495,18 @@ struct mtr_t {
 	bool memo_contains_flagged(const void* ptr, ulint flags) const;
 
 	/** Check if memo contains the given page.
-	@param ptr		buffer frame
-	@param flags		specify types of object with OR of
+	@param[in]	ptr	pointer to within buffer frame
+	@param[in]	flags	specify types of object with OR of
 				MTR_MEMO_PAGE_S_FIX... values
-	@return true if contains */
-	bool memo_contains_page_flagged(const byte* ptr, ulint flags) const;
+	@return	the block
+	@retval	NULL	if not found */
+	buf_block_t* memo_contains_page_flagged(
+		const byte*	ptr,
+		ulint		flags) const;
+
+	/** Mark the given latched page as modified.
+	@param[in]	ptr	pointer to within buffer frame */
+	void memo_modify_page(const byte* ptr);
 
 	/** Print info of an mtr handle. */
 	void print() const;

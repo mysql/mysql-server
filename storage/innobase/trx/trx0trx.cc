@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -743,16 +743,7 @@ trx_resurrect_table_locks(
 		page_t*		undo_rec_page = page_align(undo_rec);
 
 		if (undo_rec_page != undo_page) {
-			if (!mtr_memo_release(&mtr,
-					      buf_block_align(undo_page),
-					      MTR_MEMO_PAGE_X_FIX)) {
-				/* The page of the previous undo_rec
-				should have been latched by
-				trx_undo_page_get() or
-				trx_undo_get_prev_rec(). */
-				ut_ad(0);
-			}
-
+			mtr.release_page(undo_page, MTR_MEMO_PAGE_X_FIX);
 			undo_page = undo_rec_page;
 		}
 
