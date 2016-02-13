@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -551,26 +551,6 @@ UNIV_INLINE
 void
 page_zip_reset_stat_per_index();
 /*===========================*/
-
-#ifndef UNIV_HOTBACKUP
-/** Check if a pointer to an uncompressed page matches a compressed page.
-When we IMPORT a tablespace the blocks and accompanying frames are allocted
-from outside the buffer pool.
-@param ptr pointer to an uncompressed page frame
-@param page_zip compressed page descriptor
-@return TRUE if ptr and page_zip refer to the same block */
-# define PAGE_ZIP_MATCH(ptr, page_zip)					\
-	(((page_zip)->m_external					\
-	  && (page_align(ptr) + UNIV_PAGE_SIZE == (page_zip)->data))	\
-	  || buf_frame_get_page_zip(ptr) == (page_zip))
-#else /* !UNIV_HOTBACKUP */
-/** Check if a pointer to an uncompressed page matches a compressed page.
-@param ptr pointer to an uncompressed page frame
-@param page_zip compressed page descriptor
-@return TRUE if ptr and page_zip refer to the same block */
-# define PAGE_ZIP_MATCH(ptr, page_zip)				\
-	(page_align(ptr) + UNIV_PAGE_SIZE == (page_zip)->data)
-#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_MATERIALIZE
 # undef UNIV_INLINE
