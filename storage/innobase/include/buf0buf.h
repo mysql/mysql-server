@@ -1075,13 +1075,12 @@ if applicable. */
 	((block)->page.zip.data ? &(block)->page.zip : NULL)
 #ifndef UNIV_HOTBACKUP
 
-/** Gets the block to whose frame the pointer is pointing to.  This
-function does not return if the block is not identified.
-@param[in]	ptr	pointer to a frame (ptr can point anywhere
-			within the frame).
+/** Get a buffer block from an adaptive hash index pointer.
+This function does not return if the block is not identified.
+@param[in]	ptr	pointer to within a page frame
 @return pointer to block, never NULL */
 buf_block_t*
-buf_block_align(const byte*	ptr);
+buf_block_from_ahi(const byte* ptr);
 
 /********************************************************************//**
 Find out if a pointer belongs to a buf_block_t. It can be a pointer to
@@ -1102,18 +1101,6 @@ buf_pointer_is_block_field(
 @return TRUE if l is a buf_block_t::lock */
 #define buf_pool_is_block_lock(l)			\
 	buf_pointer_is_block_field((const void*)(l))
-
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
-/*********************************************************************//**
-Gets the compressed page descriptor corresponding to an uncompressed page
-if applicable.
-@return compressed page descriptor, or NULL */
-UNIV_INLINE
-const page_zip_des_t*
-buf_frame_get_page_zip(
-/*===================*/
-	const byte*	ptr);	/*!< in: pointer to the page */
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
 
 /** Inits a page for read to the buffer buf_pool. If the page is
 (1) already in buf_pool, or

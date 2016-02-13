@@ -3303,39 +3303,14 @@ buf_zip_decompress(
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Gets the block to whose frame the pointer is pointing to.  This
-function does not return if the block is not identified.
-@param[in]	ptr	pointer to a frame
+/** Get a buffer block from an adaptive hash index pointer.
+This function does not return if the block is not identified.
+@param[in]	ptr	pointer to within a page frame
 @return pointer to block, never NULL */
 buf_block_t*
-buf_block_align(const byte*	ptr)
+buf_block_from_ahi(const byte* ptr)
 {
 	buf_pool_chunk_map_t::iterator it;
-
-#ifdef UNIV_DEBUG
-	ChunkMapLatch	chunk_map_latch;
-	ut_ad(srv_buf_pool_chunk_unit > 0);
-
-retry:
-	/* TODO: This might be still optimistic treatment.  buf_pool_resize()
-	needs all buf_pool_mutex and all buf_pool->page_hash x-latched until
-	actual modification.  It should block the other user threads and
-	should take while which is enough to done the buf_pool_chunk_map
-	access. */
-	while (buf_pool_resizing) {
-		/* buf_pool_chunk_map is being modified */
-		os_thread_sleep(100000); /* 0.1 sec */
-	}
-
-	chunk_map_latch.s_lock();
-
-	if (buf_pool_resizing) {
-		/* AHI must have been disabled. */
-		ut_ad(!btr_search_enabled);
-		chunk_map_latch.s_unlock();
-		goto retry;
-	}
-#endif
 
 	buf_pool_chunk_map_t*	chunk_map = buf_chunk_map_ref;
 
@@ -3358,63 +3333,11 @@ retry:
 	/* The function buf_chunk_init() invokes buf_block_init() so that
 	block[n].frame == block->frame + n * UNIV_PAGE_SIZE.  Check it. */
 	ut_ad(block->frame == page_align(ptr));
-
-#ifdef UNIV_DEBUG
-	/* A thread that updates these fields must hold buf_pool->mutex and
-	block->mutex.  Acquire only the latter. */
-	buf_page_mutex_enter(block);
-
-	switch (buf_block_get_state(block)) {
-	case BUF_BLOCK_POOL_WATCH:
-	case BUF_BLOCK_ZIP_PAGE:
-	case BUF_BLOCK_ZIP_DIRTY:
-		/* These types should only be used in the compressed buffer
-		pool, whose memory is allocated from buf_pool->chunks,
-		in UNIV_PAGE_SIZE blocks flagged as BUF_BLOCK_MEMORY. */
-		ut_error;
-		break;
-	case BUF_BLOCK_NOT_USED:
-	case BUF_BLOCK_READY_FOR_USE:
-	case BUF_BLOCK_MEMORY:
-		/* Some data structures contain "guess" pointers to file
-		pages.  The file pages may have been freed and reused.
-		Do not complain. */
-		break;
-	case BUF_BLOCK_REMOVE_HASH:
-		/* buf_LRU_block_remove_hashed_page() will overwrite the
-		FIL_PAGE_OFFSET and FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID with
-		0xff and set the state to BUF_BLOCK_REMOVE_HASH. */
-# ifndef UNIV_DEBUG_VALGRIND
-		/* In buf_LRU_block_remove_hashed() we explicitly set those
-		values to 0xff and declare them uninitialized with
-		UNIV_MEM_INVALID() after that. */
-		ut_ad(page_get_space_id(page_align(ptr)) == 0xffffffff);
-		ut_ad(page_get_page_no(page_align(ptr)) == 0xffffffff);
-# endif /* UNIV_DEBUG_VALGRIND */
-		break;
-	case BUF_BLOCK_FILE_PAGE:
-		const ulint space_id1 = block->page.id.space();
-		const ulint page_no1 = block->page.id.page_no();
-		const ulint space_id2 = page_get_space_id(page_align(ptr));
-		const ulint page_no2 = page_get_page_no(page_align(ptr));
-
-		if (space_id1 != space_id2 || page_no1 != page_no2) {
-
-			ib::error() << "Found a mismatch page,"
-				<< " expect page "
-				<< page_id_t(space_id1, page_no1)
-				<< " but found "
-				<< page_id_t(space_id2, page_no2);
-
-			ut_ad(0);
-		}
-		break;
-	}
-
-	buf_page_mutex_exit(block);
-	chunk_map_latch.s_unlock();
-#endif /* UNIV_DEBUG */
-
+	/* Read the state of the block without holding a mutex.
+	A state transition from BUF_BLOCK_FILE_PAGE to
+	BUF_BLOCK_REMOVE_HASH is possible during this execution. */
+	ut_d(const buf_page_state state = buf_block_get_state(block));
+	ut_ad(state == BUF_BLOCK_FILE_PAGE || state == BUF_BLOCK_REMOVE_HASH);
 	return(block);
 }
 
