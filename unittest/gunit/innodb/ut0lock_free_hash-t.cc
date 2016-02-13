@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -614,7 +614,7 @@ DECLARE_THREAD(thread_0r100w)(
 
 	hash_check_deleted(p->hash, p->n_priv_per_thread, key_extra_bits);
 
-	os_thread_exit(NULL);
+	os_thread_exit();
 
 	OS_THREAD_DUMMY_RETURN;
 }
@@ -721,7 +721,7 @@ DECLARE_THREAD(thread_50r50w)(
 
 	hash_check_deleted(p->hash, p->n_priv_per_thread, key_extra_bits);
 
-	os_thread_exit(NULL);
+	os_thread_exit();
 
 	OS_THREAD_DUMMY_RETURN;
 }
@@ -796,7 +796,7 @@ DECLARE_THREAD(thread_100r0w)(
 
 	hash_check_deleted(p->hash, p->n_priv_per_thread, key_extra_bits);
 
-	os_thread_exit(NULL);
+	os_thread_exit();
 
 	OS_THREAD_DUMMY_RETURN;
 }
