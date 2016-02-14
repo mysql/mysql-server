@@ -188,7 +188,7 @@ public:
         double x,y;
         Gcalc_coord1 ix, iy;
         int top_node;
-      };
+      } shape;
       struct
       {
         /* nt_intersection */
@@ -197,21 +197,21 @@ public:
         const Info *p2;
         const Info *p3;
         const Info *p4;
-        void *intersection_data;
-        int equal_intersection;
-      };
+        void *data;
+        int equal;
+      } intersection;
       struct
       {
         /* nt_eq_node */
         const Info *node;
-        void *eq_data;
-      };
-    };
+        void *data;
+      } eq;
+    } node;
 
     bool is_bottom() const
-      { GCALC_DBUG_ASSERT(type == nt_shape_node); return !left; }
+      { GCALC_DBUG_ASSERT(type == nt_shape_node); return !node.shape.left; }
     bool is_top() const
-      { GCALC_DBUG_ASSERT(type == nt_shape_node); return top_node; }
+      { GCALC_DBUG_ASSERT(type == nt_shape_node); return node.shape.top_node; }
     bool is_single_node() const
       { return is_bottom() && is_top(); }
 
@@ -383,7 +383,7 @@ public:
     inline const point *c_get_next() const
       { return (const point *)next; }
     inline bool is_bottom() const { return !next_pi; }
-    gcalc_shape_info get_shape() const { return pi->shape; }
+    gcalc_shape_info get_shape() const { return pi->node.shape.shape; }
     inline point *get_next() { return (point *)next; }
     inline const point *get_next() const { return (const point *)next; }
     /* Compare the dx_dy parameters regarding the horiz_dir */

@@ -636,10 +636,10 @@ static double count_edge_t(const Gcalc_heap::Info *ea,
                            double &ex, double &ey, double &vx, double &vy,
                            double &e_sqrlen)
 {
-  ex= eb->x - ea->x;
-  ey= eb->y - ea->y;
-  vx= v->x - ea->x;
-  vy= v->y - ea->y;
+  ex= eb->node.shape.x - ea->node.shape.x;
+  ey= eb->node.shape.y - ea->node.shape.y;
+  vx= v->node.shape.x - ea->node.shape.x;
+  vy= v->node.shape.y - ea->node.shape.y;
   e_sqrlen= ex * ex + ey * ey;
   return (ex * vx + ey * vy) / e_sqrlen;
 }
@@ -655,8 +655,8 @@ static double distance_to_line(double ex, double ey, double vx, double vy,
 static double distance_points(const Gcalc_heap::Info *a,
                               const Gcalc_heap::Info *b)
 {
-  double x= a->x - b->x;
-  double y= a->y - b->y;
+  double x= a->node.shape.x - b->node.shape.x;
+  double y= a->node.shape.y - b->node.shape.y;
   return sqrt(x * x + y * y);
 }
 
@@ -1697,7 +1697,7 @@ double Item_func_distance::val_real()
       continue;
 
 count_distance:
-    if (cur_point->shape >= obj2_si)
+    if (cur_point->node.shape.shape >= obj2_si)
       continue;
     cur_point_edge= !cur_point->is_bottom();
 
@@ -1705,13 +1705,13 @@ count_distance:
     {
       /* We only check vertices of object 2 */
       if (dist_point->type != Gcalc_heap::nt_shape_node ||
-          dist_point->shape < obj2_si)
+          dist_point->node.shape.shape < obj2_si)
         continue;
 
       /* if we have an edge to check */
-      if (dist_point->left)
+      if (dist_point->node.shape.left)
       {
-        t= count_edge_t(dist_point, dist_point->left, cur_point,
+        t= count_edge_t(dist_point, dist_point->node.shape.left, cur_point,
                         ex, ey, vx, vy, e_sqrlen);
         if ((t>0.0) && (t<1.0))
         {
@@ -1722,7 +1722,7 @@ count_distance:
       }
       if (cur_point_edge)
       {
-        t= count_edge_t(cur_point, cur_point->left, dist_point,
+        t= count_edge_t(cur_point, cur_point->node.shape.left, dist_point,
                         ex, ey, vx, vy, e_sqrlen);
         if ((t>0.0) && (t<1.0))
         {

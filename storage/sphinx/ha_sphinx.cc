@@ -598,8 +598,10 @@ protected:
 	void			SendFloat ( float v )			{ SendDword ( sphF2DW(v) ); }
 };
 
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
 template int CSphSEQuery::ParseArray<uint32> ( uint32 **, const char * );
 template int CSphSEQuery::ParseArray<longlong> ( longlong **, const char * );
+#endif
 
 //////////////////////////////////////////////////////////////////////////////
 

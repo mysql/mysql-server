@@ -1243,7 +1243,7 @@ inline int Gcalc_operation_reducer::get_single_result(res_point *res,
       GCALC_DBUG_RETURN(1);
   }
   else
-    if (storage->single_point(res->pi->x, res->pi->y))
+    if (storage->single_point(res->pi->node.shape.x, res->pi->node.shape.y))
       GCALC_DBUG_RETURN(1);
   free_result(res);
   GCALC_DBUG_RETURN(0);
@@ -1269,8 +1269,8 @@ int Gcalc_operation_reducer::get_result_thread(res_point *cur,
       }
       else
       {
-	x= cur->pi->x;
-        y= cur->pi->y;
+	x= cur->pi->node.shape.x;
+        y= cur->pi->node.shape.y;
       }
       if (storage->add_point(x, y))
         GCALC_DBUG_RETURN(1);

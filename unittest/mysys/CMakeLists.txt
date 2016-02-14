@@ -13,9 +13,9 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-MY_ADD_TESTS(bitmap base64 my_vsnprintf my_atomic my_rdtsc lf my_malloc
-             my_getopt dynstring
+MY_ADD_TESTS(bitmap base64 my_atomic my_rdtsc lf my_malloc my_getopt dynstring
              LINK_LIBRARIES mysys)
+MY_ADD_TESTS(my_vsnprintf LINK_LIBRARIES strings mysys)
 
 IF(WIN32)
   MY_ADD_TESTS(my_delete LINK_LIBRARIES mysys)

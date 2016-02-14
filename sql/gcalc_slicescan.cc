@@ -49,14 +49,14 @@ typedef int (*sc_compare_func)(const void*, const void*);
 static Gcalc_scan_iterator::point *eq_sp(const Gcalc_heap::Info *pi)
 {
   GCALC_DBUG_ASSERT(pi->type == Gcalc_heap::nt_eq_node);
-  return (Gcalc_scan_iterator::point *) pi->eq_data;
+  return (Gcalc_scan_iterator::point *) pi->node.eq.data;
 }
 
 
 static Gcalc_scan_iterator::intersection_info *i_data(const Gcalc_heap::Info *pi)
 {
   GCALC_DBUG_ASSERT(pi->type == Gcalc_heap::nt_intersection);
-  return (Gcalc_scan_iterator::intersection_info *) pi->intersection_data;
+  return (Gcalc_scan_iterator::intersection_info *) pi->node.intersection.data;
 }
 
 
@@ -103,8 +103,8 @@ const char *gcalc_ev_name(int ev)
 static int gcalc_pi_str(char *str, const Gcalc_heap::Info *pi, const char *postfix)
 {
   return sprintf(str, "%s %d %d | %s %d %d%s",
-                     GCALC_SIGN(pi->ix[0]) ? "-":"", FIRST_DIGIT(pi->ix[0]),pi->ix[1],
-                     GCALC_SIGN(pi->iy[0]) ? "-":"", FIRST_DIGIT(pi->iy[0]),pi->iy[1],
+                     GCALC_SIGN(pi->node.shape.ix[0]) ? "-":"", FIRST_DIGIT(pi->node.shape.ix[0]),pi->node.shape.ix[1],
+                     GCALC_SIGN(pi->node.shape.iy[0]) ? "-":"", FIRST_DIGIT(pi->node.shape.iy[0]),pi->node.shape.iy[1],
                      postfix);
 
 }
@@ -594,8 +594,8 @@ void Gcalc_scan_iterator::intersection_info::do_calc_t()
   Gcalc_coord1 a2_a1x, a2_a1y;
   Gcalc_coord2 x1y2, x2y1;
 
-  gcalc_sub_coord1(a2_a1x, edge_b->pi->ix, edge_a->pi->ix);
-  gcalc_sub_coord1(a2_a1y, edge_b->pi->iy, edge_a->pi->iy);
+  gcalc_sub_coord1(a2_a1x, edge_b->pi->node.shape.ix, edge_a->pi->node.shape.ix);
+  gcalc_sub_coord1(a2_a1y, edge_b->pi->node.shape.iy, edge_a->pi->node.shape.iy);
 
   GCALC_DBUG_ASSERT(!gcalc_is_zero(edge_a->dy, GCALC_COORD_BASE) ||
                     !gcalc_is_zero(edge_b->dy, GCALC_COORD_BASE));
@@ -619,7 +619,7 @@ void Gcalc_scan_iterator::intersection_info::do_calc_y()
   Gcalc_coord3 a_tb, b_ta;
 
   gcalc_mul_coord(a_tb, GCALC_COORD_BASE3,
-                  t_b, GCALC_COORD_BASE2, edge_a->pi->iy, GCALC_COORD_BASE);
+                  t_b, GCALC_COORD_BASE2, edge_a->pi->node.shape.iy, GCALC_COORD_BASE);
   gcalc_mul_coord(b_ta, GCALC_COORD_BASE3,
                   t_a, GCALC_COORD_BASE2, edge_a->dy, GCALC_COORD_BASE);
 
@@ -635,7 +635,7 @@ void Gcalc_scan_iterator::intersection_info::do_calc_x()
   Gcalc_coord3 a_tb, b_ta;
 
   gcalc_mul_coord(a_tb, GCALC_COORD_BASE3,
-                  t_b, GCALC_COORD_BASE2, edge_a->pi->ix, GCALC_COORD_BASE);
+                  t_b, GCALC_COORD_BASE2, edge_a->pi->node.shape.ix, GCALC_COORD_BASE);
   gcalc_mul_coord(b_ta, GCALC_COORD_BASE3,
                   t_a, GCALC_COORD_BASE2, edge_a->dx, GCALC_COORD_BASE);
 
@@ -656,7 +656,7 @@ static int cmp_node_isc(const Gcalc_heap::Info *node,
   inf->calc_y_exp();
 
   gcalc_mul_coord(exp, GCALC_COORD_BASE3,
-                  inf->t_b, GCALC_COORD_BASE2, node->iy, GCALC_COORD_BASE);
+                  inf->t_b, GCALC_COORD_BASE2, node->node.shape.iy, GCALC_COORD_BASE);
 
   result= gcalc_cmp_coord(exp, inf->y_exp, GCALC_COORD_BASE3);
 #ifdef GCALC_CHECK_WITH_FLOAT
@@ -664,18 +664,18 @@ static int cmp_node_isc(const Gcalc_heap::Info *node,
   isc->calc_xy_ld(&int_x, &int_y);
   if (result < 0)
   {
-    if (!de_check(int_y, node->y) && node->y > int_y)
-      GCALC_DBUG_PRINT(("floatcheck cmp_nod_iscy %g < %LG", node->y, int_y));
+    if (!de_check(int_y, node->node.shape.y) && node->node.shape.y > int_y)
+      GCALC_DBUG_PRINT(("floatcheck cmp_nod_iscy %g < %LG", node->node.shape.y, int_y));
   }
   else if (result > 0)
   {
-    if (!de_check(int_y, node->y) && node->y < int_y)
-      GCALC_DBUG_PRINT(("floatcheck cmp_nod_iscy %g > %LG", node->y, int_y));
+    if (!de_check(int_y, node->node.shape.y) && node->node.shape.y < int_y)
+      GCALC_DBUG_PRINT(("floatcheck cmp_nod_iscy %g > %LG", node->node.shape.y, int_y));
   }
   else
   {
-    if (!de_check(int_y, node->y))
-      GCALC_DBUG_PRINT(("floatcheck cmp_nod_iscy %g == %LG", node->y, int_y));
+    if (!de_check(int_y, node->node.shape.y))
+      GCALC_DBUG_PRINT(("floatcheck cmp_nod_iscy %g == %LG", node->node.shape.y, int_y));
   }
 #endif /*GCALC_CHECK_WITH_FLOAT*/
   if (result)
@@ -684,27 +684,27 @@ static int cmp_node_isc(const Gcalc_heap::Info *node,
 
   inf->calc_x_exp();
   gcalc_mul_coord(exp, GCALC_COORD_BASE3,
-                  inf->t_b, GCALC_COORD_BASE2, node->ix, GCALC_COORD_BASE);
+                  inf->t_b, GCALC_COORD_BASE2, node->node.shape.ix, GCALC_COORD_BASE);
 
   result= gcalc_cmp_coord(exp, inf->x_exp, GCALC_COORD_BASE3);
 #ifdef GCALC_CHECK_WITH_FLOAT
   if (result < 0)
   {
-    if (!de_check(int_x, node->x) && node->x > int_x)
+    if (!de_check(int_x, node->node.shape.x) && node->node.shape.x > int_x)
       GCALC_DBUG_PRINT(("floatcheck cmp_nod_iscx failed %g < %LG",
-                         node->x, int_x));
+                         node->node.shape.x, int_x));
   }
   else if (result > 0)
   {
-    if (!de_check(int_x, node->x) && node->x < int_x)
+    if (!de_check(int_x, node->node.shape.x) && node->node.shape.x < int_x)
       GCALC_DBUG_PRINT(("floatcheck cmp_nod_iscx failed %g > %LG",
-                        node->x, int_x));
+                        node->node.shape.x, int_x));
   }
   else
   {
-    if (!de_check(int_x, node->x))
+    if (!de_check(int_x, node->node.shape.x))
       GCALC_DBUG_PRINT(("floatcheck cmp_nod_iscx failed %g == %LG",
-                        node->x, int_x));
+                        node->node.shape.x, int_x));
   }
 #endif /*GCALC_CHECK_WITH_FLOAT*/
 exit:
@@ -844,13 +844,13 @@ Gcalc_heap::Info *Gcalc_heap::new_point_info(double x, double y,
     return NULL;
   *m_hook= result;
   m_hook= &result->next;
-  result->x= x;
-  result->y= y;
-  result->shape= shape;
-  result->top_node= 1;
+  result->node.shape.x= x;
+  result->node.shape.y= y;
+  result->node.shape.shape= shape;
+  result->node.shape.top_node= 1;
   result->type= nt_shape_node;
-  gcalc_set_double(result->ix, x, coord_extent);
-  gcalc_set_double(result->iy, y, coord_extent);
+  gcalc_set_double(result->node.shape.ix, x, coord_extent);
+  gcalc_set_double(result->node.shape.iy, y, coord_extent);
 
   m_n_points++;
   return result;
@@ -864,11 +864,11 @@ static Gcalc_heap::Info *new_intersection(
   if (!isc)
     return 0;
   isc->type= Gcalc_heap::nt_intersection;
-  isc->p1= ii->edge_a->pi;
-  isc->p2= ii->edge_a->next_pi;
-  isc->p3= ii->edge_b->pi;
-  isc->p4= ii->edge_b->next_pi;
-  isc->intersection_data= ii;
+  isc->node.intersection.p1= ii->edge_a->pi;
+  isc->node.intersection.p2= ii->edge_a->next_pi;
+  isc->node.intersection.p3= ii->edge_b->pi;
+  isc->node.intersection.p4= ii->edge_b->next_pi;
+  isc->node.intersection.data= ii;
   return isc;
 }
 
@@ -881,46 +881,46 @@ static Gcalc_heap::Info *new_eq_point(
   if (!eqp)
     return 0;
   eqp->type= Gcalc_heap::nt_eq_node;
-  eqp->node= p;
-  eqp->eq_data= edge;
+  eqp->node.eq.node= p;
+  eqp->node.eq.data= edge;
   return eqp;
 }
 
 
 void Gcalc_heap::Info::calc_xy(double *x, double *y) const
 {
-  double b0_x= p2->x - p1->x;
-  double b0_y= p2->y - p1->y;
-  double b1_x= p4->x - p3->x;
-  double b1_y= p4->y - p3->y;
+  double b0_x= node.intersection.p2->node.shape.x - node.intersection.p1->node.shape.x;
+  double b0_y= node.intersection.p2->node.shape.y - node.intersection.p1->node.shape.y;
+  double b1_x= node.intersection.p4->node.shape.x - node.intersection.p3->node.shape.x;
+  double b1_y= node.intersection.p4->node.shape.y - node.intersection.p3->node.shape.y;
   double b0xb1= b0_x * b1_y - b0_y * b1_x;
-  double t= (p3->x - p1->x) * b1_y - (p3->y - p1->y) * b1_x;
+  double t= (node.intersection.p3->node.shape.x - node.intersection.p1->node.shape.x) * b1_y - (node.intersection.p3->node.shape.y - node.intersection.p1->node.shape.y) * b1_x;
 
   t/= b0xb1;
 
-  *x= p1->x + b0_x * t;
-  *y= p1->y + b0_y * t;
+  *x= node.intersection.p1->node.shape.x + b0_x * t;
+  *y= node.intersection.p1->node.shape.y + b0_y * t;
 }
 
 
 #ifdef GCALC_CHECK_WITH_FLOAT
 void Gcalc_heap::Info::calc_xy_ld(long double *x, long double *y) const
 {
-  long double b0_x= ((long double) p2->x) - p1->x;
-  long double b0_y= ((long double) p2->y) - p1->y;
-  long double b1_x= ((long double) p4->x) - p3->x;
-  long double b1_y= ((long double) p4->y) - p3->y;
+  long double b0_x= ((long double) p2->node.shape.x) - p1->node.shape.x;
+  long double b0_y= ((long double) p2->node.shape.y) - p1->node.shape.y;
+  long double b1_x= ((long double) p4->node.shape.x) - p3->node.shape.x;
+  long double b1_y= ((long double) p4->node.shape.y) - p3->node.shape.y;
   long double b0xb1= b0_x * b1_y - b0_y * b1_x;
-  long double ax=   ((long double) p3->x) - p1->x;
-  long double ay=   ((long double) p3->y) - p1->y;
+  long double ax=   ((long double) p3->node.shape.x) - p1->node.shape.x;
+  long double ay=   ((long double) p3->node.shape.y) - p1->node.shape.y;
   long double t_a= ax * b1_y - ay * b1_x;
-  long double hx= (b0xb1 * (long double) p1->x + b0_x * t_a);
-  long double hy= (b0xb1 * (long double) p1->y + b0_y * t_a);
+  long double hx= (b0xb1 * (long double) p1->node.shape.x + b0_x * t_a);
+  long double hy= (b0xb1 * (long double) p1->node.shape.y + b0_y * t_a);
 
   if (fabs(b0xb1) < 1e-15)
   {
-    *x= p1->x;
-    *y= p1->y;
+    *x= p1->node.shape.x;
+    *y= p1->node.shape.y;
     return;
   }
 
@@ -933,10 +933,10 @@ void Gcalc_heap::Info::calc_xy_ld(long double *x, long double *y) const
 static int cmp_point_info(const Gcalc_heap::Info *i0,
                           const Gcalc_heap::Info *i1)
 {
-  int cmp_y= gcalc_cmp_coord1(i0->iy, i1->iy);
+  int cmp_y= gcalc_cmp_coord1(i0->node.shape.iy, i1->node.shape.iy);
   if (cmp_y)
     return cmp_y;
-  return gcalc_cmp_coord1(i0->ix, i1->ix);
+  return gcalc_cmp_coord1(i0->node.shape.ix, i1->node.shape.ix);
 }
 
 
@@ -944,11 +944,11 @@ static inline void trim_node(Gcalc_heap::Info *node, Gcalc_heap::Info *prev_node
 {
   if (!node)
     return;
-  node->top_node= 0;
-  GCALC_DBUG_ASSERT((node->left == prev_node) || (node->right == prev_node));
-  if (node->left == prev_node)
-    node->left= node->right;
-  node->right= NULL;
+  node->node.shape.top_node= 0;
+  GCALC_DBUG_ASSERT((node->node.shape.left == prev_node) || (node->node.shape.right == prev_node));
+  if (node->node.shape.left == prev_node)
+    node->node.shape.left= node->node.shape.right;
+  node->node.shape.right= NULL;
   GCALC_DBUG_ASSERT(cmp_point_info(node, prev_node));
 }
 
@@ -972,8 +972,8 @@ void Gcalc_heap::prepare_operation()
   /* TODO - move this to the 'normal_scan' loop */
   for (cur= get_first(); cur; cur= cur->get_next())
   {
-    trim_node(cur->left, cur);
-    trim_node(cur->right, cur);
+    trim_node(cur->node.shape.left, cur);
+    trim_node(cur->node.shape.right, cur);
   }
 }
 
@@ -995,7 +995,7 @@ int Gcalc_shape_transporter::int_single_point(gcalc_shape_info Info,
   Gcalc_heap::Info *point= m_heap->new_point_info(x, y, Info);
   if (!point)
     return 1;
-  point->left= point->right= 0;
+  point->node.shape.left= point->node.shape.right= 0;
   return 0;
 }
 
@@ -1018,9 +1018,9 @@ int Gcalc_shape_transporter::int_add_point(gcalc_shape_info Info,
       m_heap->free_point_info(point, hook);
       return 0;
     }
-    GCALC_DBUG_ASSERT(!m_prev || m_prev->x != x || m_prev->y != y);
-    m_prev->left= point;
-    point->right= m_prev;
+    GCALC_DBUG_ASSERT(!m_prev || m_prev->node.shape.x != x || m_prev->node.shape.y != y);
+    m_prev->node.shape.left= point;
+    point->node.shape.right= m_prev;
   }
   else
     m_first= point;
@@ -1040,16 +1040,16 @@ void Gcalc_shape_transporter::int_complete()
   /* simple point */
   if (m_first == m_prev)
   {
-    m_first->right= m_first->left= NULL;
+    m_first->node.shape.right= m_first->node.shape.left= NULL;
     return;
   }
 
   /* line */
   if (m_shape_started == 1)
   {
-    m_first->right= NULL;
-    m_prev->left= m_prev->right;
-    m_prev->right= NULL;
+    m_first->node.shape.right= NULL;
+    m_prev->node.shape.left= m_prev->node.shape.right;
+    m_prev->node.shape.right= NULL;
     return;
   }
 
@@ -1057,32 +1057,32 @@ void Gcalc_shape_transporter::int_complete()
   if (cmp_point_info(m_first, m_prev) == 0)
   {
     /* Coinciding points, remove the last one from the list */
-    m_prev->right->left= m_first;
-    m_first->right= m_prev->right;
+    m_prev->node.shape.right->node.shape.left= m_first;
+    m_first->node.shape.right= m_prev->node.shape.right;
     m_heap->free_point_info(m_prev, m_prev_hook);
   }
   else
   {
-    GCALC_DBUG_ASSERT(m_prev->x != m_first->x || m_prev->y != m_first->y);
-    m_first->right= m_prev;
-    m_prev->left= m_first;
+    GCALC_DBUG_ASSERT(m_prev->node.shape.x != m_first->node.shape.x || m_prev->node.shape.y != m_first->node.shape.y);
+    m_first->node.shape.right= m_prev;
+    m_prev->node.shape.left= m_first;
   }
 }
 
 
 inline void calc_dx_dy(Gcalc_scan_iterator::point *p)
 {
-  gcalc_sub_coord1(p->dx, p->next_pi->ix, p->pi->ix);
-  gcalc_sub_coord1(p->dy, p->next_pi->iy, p->pi->iy);
+  gcalc_sub_coord1(p->dx, p->next_pi->node.shape.ix, p->pi->node.shape.ix);
+  gcalc_sub_coord1(p->dy, p->next_pi->node.shape.iy, p->pi->node.shape.iy);
   if (GCALC_SIGN(p->dx[0]))
   {
-    p->l_border= &p->next_pi->ix;
-    p->r_border= &p->pi->ix;
+    p->l_border= &p->next_pi->node.shape.ix;
+    p->r_border= &p->pi->node.shape.ix;
   }
   else
   {
-    p->r_border= &p->next_pi->ix;
-    p->l_border= &p->pi->ix;
+    p->r_border= &p->next_pi->node.shape.ix;
+    p->l_border= &p->pi->node.shape.ix;
   }
 }
 
@@ -1143,10 +1143,10 @@ int Gcalc_scan_iterator::point::cmp_dx_dy(const Gcalc_heap::Info *p1,
                                           const Gcalc_heap::Info *p4)
 {
   Gcalc_coord1 dx_a, dy_a, dx_b, dy_b;
-  gcalc_sub_coord1(dx_a, p2->ix, p1->ix);
-  gcalc_sub_coord1(dy_a, p2->iy, p1->iy);
-  gcalc_sub_coord1(dx_b, p4->ix, p3->ix);
-  gcalc_sub_coord1(dy_b, p4->iy, p3->iy);
+  gcalc_sub_coord1(dx_a, p2->node.shape.ix, p1->node.shape.ix);
+  gcalc_sub_coord1(dy_a, p2->node.shape.iy, p1->node.shape.iy);
+  gcalc_sub_coord1(dx_b, p4->node.shape.ix, p3->node.shape.ix);
+  gcalc_sub_coord1(dy_b, p4->node.shape.iy, p3->node.shape.iy);
   return cmp_dx_dy(dx_a, dy_a, dx_b, dy_b);
 }
 
@@ -1168,8 +1168,8 @@ void Gcalc_scan_iterator::point::calc_x(long double *x, long double y,
     *x= ix;
   }
   else
-    *x= (ddy * (long double) pi->x + gcalc_get_double(dx, GCALC_COORD_BASE) *
-          (y - pi->y)) / ddy;
+    *x= (ddy * (long double) pi->node.shape.x + gcalc_get_double(dx, GCALC_COORD_BASE) *
+          (y - pi->node.shape.y)) / ddy;
 }
 #endif /*GCALC_CHECK_WITH_FLOAT*/
 
@@ -1280,7 +1280,7 @@ int Gcalc_scan_iterator::arrange_event(int do_sorting, int n_intersections)
 int Gcalc_heap::Info::equal_pi(const Info *pi) const
 {
   if (type == nt_intersection)
-    return equal_intersection;
+    return node.intersection.equal;
   if (pi->type == nt_eq_node)
     return 1;
   if (type == nt_eq_node || pi->type == nt_intersection)
@@ -1322,7 +1322,7 @@ int Gcalc_scan_iterator::step()
 #ifndef GCALC_DBUG_OFF
     if (m_cur_pi->type == Gcalc_heap::nt_intersection &&
         m_cur_pi->get_next()->type == Gcalc_heap::nt_intersection &&
-        m_cur_pi->equal_intersection)
+        m_cur_pi->node.intersection.equal)
       GCALC_DBUG_ASSERT(cmp_intersections(m_cur_pi, m_cur_pi->get_next()) == 0);
 #endif /*GCALC_DBUG_OFF*/
     GCALC_DBUG_CHECK_COUNTER();
@@ -1377,23 +1377,23 @@ static int node_on_right(const Gcalc_heap::Info *node,
   Gcalc_coord2 ax_by, ay_bx;
   int result;
 
-  gcalc_sub_coord1(a_x, node->ix, edge_a->ix);
-  gcalc_sub_coord1(a_y, node->iy, edge_a->iy);
-  gcalc_sub_coord1(b_x, edge_b->ix, edge_a->ix);
-  gcalc_sub_coord1(b_y, edge_b->iy, edge_a->iy);
+  gcalc_sub_coord1(a_x, node->node.shape.ix, edge_a->node.shape.ix);
+  gcalc_sub_coord1(a_y, node->node.shape.iy, edge_a->node.shape.iy);
+  gcalc_sub_coord1(b_x, edge_b->node.shape.ix, edge_a->node.shape.ix);
+  gcalc_sub_coord1(b_y, edge_b->node.shape.iy, edge_a->node.shape.iy);
   gcalc_mul_coord1(ax_by, a_x, b_y);
   gcalc_mul_coord1(ay_bx, a_y, b_x);
   result= gcalc_cmp_coord(ax_by, ay_bx, GCALC_COORD_BASE2);
 #ifdef GCALC_CHECK_WITH_FLOAT
   {
-    long double dx= gcalc_get_double(edge_b->ix, GCALC_COORD_BASE) -
-                      gcalc_get_double(edge_a->ix, GCALC_COORD_BASE);
-    long double dy= gcalc_get_double(edge_b->iy, GCALC_COORD_BASE) -
-                      gcalc_get_double(edge_a->iy, GCALC_COORD_BASE);
-    long double ax= gcalc_get_double(node->ix, GCALC_COORD_BASE) -
-                      gcalc_get_double(edge_a->ix, GCALC_COORD_BASE);
-    long double ay= gcalc_get_double(node->iy, GCALC_COORD_BASE) -
-                      gcalc_get_double(edge_a->iy, GCALC_COORD_BASE);
+    long double dx= gcalc_get_double(edge_b->node.shape.ix, GCALC_COORD_BASE) -
+                      gcalc_get_double(edge_a->node.shape.ix, GCALC_COORD_BASE);
+    long double dy= gcalc_get_double(edge_b->node.shape.iy, GCALC_COORD_BASE) -
+                      gcalc_get_double(edge_a->node.shape.iy, GCALC_COORD_BASE);
+    long double ax= gcalc_get_double(node->node.shape.ix, GCALC_COORD_BASE) -
+                      gcalc_get_double(edge_a->node.shape.ix, GCALC_COORD_BASE);
+    long double ay= gcalc_get_double(node->node.shape.iy, GCALC_COORD_BASE) -
+                      gcalc_get_double(edge_a->node.shape.iy, GCALC_COORD_BASE);
     long double d= ax * dy - ay * dx;
     if (result == 0)
       GCALC_DBUG_ASSERT(de_check(d, 0.0));
@@ -1412,8 +1412,8 @@ static int cmp_tops(const Gcalc_heap::Info *top_node,
 {
   int cmp_res_a, cmp_res_b;
 
-  cmp_res_a= gcalc_cmp_coord1(edge_a->ix, top_node->ix);
-  cmp_res_b= gcalc_cmp_coord1(edge_b->ix, top_node->ix);
+  cmp_res_a= gcalc_cmp_coord1(edge_a->node.shape.ix, top_node->node.shape.ix);
+  cmp_res_b= gcalc_cmp_coord1(edge_b->node.shape.ix, top_node->node.shape.ix);
 
   if (cmp_res_a <= 0 && cmp_res_b > 0)
     return -1;
@@ -1438,26 +1438,26 @@ int Gcalc_scan_iterator::insert_top_node()
   if (!sp0)
     GCALC_DBUG_RETURN(1);
   sp0->pi= m_cur_pi;
-  sp0->next_pi= m_cur_pi->left;
+  sp0->next_pi= m_cur_pi->node.shape.left;
 #ifndef GCALC_DBUG_OFF
   sp0->thread= m_cur_thread++;
 #endif /*GCALC_DBUG_OFF*/
-  if (m_cur_pi->left)
+  if (m_cur_pi->node.shape.left)
   {
     calc_dx_dy(sp0);
-    if (m_cur_pi->right)
+    if (m_cur_pi->node.shape.right)
     {
       if (!(sp1= new_slice_point()))
         GCALC_DBUG_RETURN(1);
       sp1->event= sp0->event= scev_two_threads;
       sp1->pi= m_cur_pi;
-      sp1->next_pi= m_cur_pi->right;
+      sp1->next_pi= m_cur_pi->node.shape.right;
 #ifndef GCALC_DBUG_OFF
       sp1->thread= m_cur_thread++;
 #endif /*GCALC_DBUG_OFF*/
       calc_dx_dy(sp1);
       /* We have two threads so should decide which one will be first */
-      cmp_res= cmp_tops(m_cur_pi, m_cur_pi->left, m_cur_pi->right);
+      cmp_res= cmp_tops(m_cur_pi, m_cur_pi->node.shape.left, m_cur_pi->node.shape.right);
       if (cmp_res > 0)
       {
         point *tmp= sp0;
@@ -1467,7 +1467,7 @@ int Gcalc_scan_iterator::insert_top_node()
       else if (cmp_res == 0)
       {
         /* Exactly same direction of the edges. */
-        cmp_res= gcalc_cmp_coord1(m_cur_pi->left->iy, m_cur_pi->right->iy);
+        cmp_res= gcalc_cmp_coord1(m_cur_pi->node.shape.left->node.shape.iy, m_cur_pi->node.shape.right->node.shape.iy);
         if (cmp_res != 0)
         {
           if (cmp_res < 0)
@@ -1483,7 +1483,7 @@ int Gcalc_scan_iterator::insert_top_node()
         }
         else
         {
-          cmp_res= gcalc_cmp_coord1(m_cur_pi->left->ix, m_cur_pi->right->ix);
+          cmp_res= gcalc_cmp_coord1(m_cur_pi->node.shape.left->node.shape.ix, m_cur_pi->node.shape.right->node.shape.ix);
           if (cmp_res != 0)
           {
             if (cmp_res < 0)
@@ -1517,7 +1517,7 @@ int Gcalc_scan_iterator::insert_top_node()
     /* We need to find the place to insert. */
     for (; sp; prev_hook= sp->next_ptr(), sp=sp->get_next())
     {
-      if (sp->event || gcalc_cmp_coord1(*sp->r_border, m_cur_pi->ix) < 0)
+      if (sp->event || gcalc_cmp_coord1(*sp->r_border, m_cur_pi->node.shape.ix) < 0)
         continue;
       cmp_res= node_on_right(m_cur_pi, sp->pi, sp->next_pi);
       if (cmp_res == 0)
@@ -1743,7 +1743,7 @@ int Gcalc_scan_iterator::node_scan()
   GCALC_DBUG_PRINT(("node for %d", sp->thread));
   /* Handle the point itself. */
   sp->pi= cur_pi;
-  sp->next_pi= cur_pi->left;
+  sp->next_pi= cur_pi->node.shape.left;
   sp->event= scev_point;
   calc_dx_dy(sp);
 
@@ -1794,7 +1794,7 @@ void Gcalc_scan_iterator::intersection_scan()
   ii->edge_a->event= ii->edge_b->event= scev_intersection;
   ii->edge_a->ev_pi= ii->edge_b->ev_pi= m_cur_pi;
   free_item(ii);
-  m_cur_pi->intersection_data= NULL;
+  m_cur_pi->node.intersection.data= NULL;
 
   GCALC_DBUG_VOID_RETURN;
 }
@@ -1813,7 +1813,7 @@ int Gcalc_scan_iterator::add_intersection(point *sp_a, point *sp_b,
       !(ii= new_intersection(m_heap, i_calc)))
     GCALC_DBUG_RETURN(1);
 
-  ii->equal_intersection= 0;
+  ii->node.intersection.equal= 0;
 
   for (;
        pi_from->get_next() != sp_a->next_pi &&
@@ -1824,7 +1824,7 @@ int Gcalc_scan_iterator::add_intersection(point *sp_a, point *sp_b,
     if (skip_next)
     {
       if (cur->type == Gcalc_heap::nt_intersection)
-        skip_next= cur->equal_intersection;
+        skip_next= cur->node.intersection.equal;
       else
         skip_next= 0;
       continue;
@@ -1832,7 +1832,7 @@ int Gcalc_scan_iterator::add_intersection(point *sp_a, point *sp_b,
     if (cur->type == Gcalc_heap::nt_intersection)
     {
       cmp_res= cmp_intersections(cur, ii);
-      skip_next= cur->equal_intersection;
+      skip_next= cur->node.intersection.equal;
     }
     else if (cur->type == Gcalc_heap::nt_eq_node)
       continue;
@@ -1840,7 +1840,7 @@ int Gcalc_scan_iterator::add_intersection(point *sp_a, point *sp_b,
       cmp_res= cmp_node_isc(cur, ii);
     if (cmp_res == 0)
     {
-      ii->equal_intersection= 1;
+      ii->node.intersection.equal= 1;
       break;
     }
     else if (cmp_res > 0)
@@ -1881,13 +1881,13 @@ void calc_t(Gcalc_coord2 t_a, Gcalc_coord2 t_b,
   Gcalc_coord2 x1y2, x2y1;
   Gcalc_coord1 dya, dyb;
 
-  gcalc_sub_coord1(a2_a1x, p3->ix, p1->ix);
-  gcalc_sub_coord1(a2_a1y, p3->iy, p1->iy);
+  gcalc_sub_coord1(a2_a1x, p3->node.shape.ix, p1->node.shape.ix);
+  gcalc_sub_coord1(a2_a1y, p3->node.shape.iy, p1->node.shape.iy);
 
-  gcalc_sub_coord1(dxa, p2->ix, p1->ix);
-  gcalc_sub_coord1(dya, p2->iy, p1->iy);
-  gcalc_sub_coord1(dxb, p4->ix, p3->ix);
-  gcalc_sub_coord1(dyb, p4->iy, p3->iy);
+  gcalc_sub_coord1(dxa, p2->node.shape.ix, p1->node.shape.ix);
+  gcalc_sub_coord1(dya, p2->node.shape.iy, p1->node.shape.iy);
+  gcalc_sub_coord1(dxb, p4->node.shape.ix, p3->node.shape.ix);
+  gcalc_sub_coord1(dyb, p4->node.shape.iy, p3->node.shape.iy);
 
   gcalc_mul_coord1(x1y2, dxa, dyb);
   gcalc_mul_coord1(x2y1, dya, dxb);
@@ -1908,11 +1908,11 @@ double Gcalc_scan_iterator::get_y() const
     Gcalc_coord2 t_a, t_b;
     Gcalc_coord3 a_tb, b_ta, y_exp;
     calc_t(t_a, t_b, dxa, dya,
-           state.pi->p1, state.pi->p2, state.pi->p3, state.pi->p4);
+           state.pi->node.intersection.p1, state.pi->node.intersection.p2, state.pi->node.intersection.p3, state.pi->node.intersection.p4);
 
 
     gcalc_mul_coord(a_tb, GCALC_COORD_BASE3,
-        t_b, GCALC_COORD_BASE2, state.pi->p1->iy, GCALC_COORD_BASE);
+        t_b, GCALC_COORD_BASE2, state.pi->node.intersection.p1->node.shape.iy, GCALC_COORD_BASE);
     gcalc_mul_coord(b_ta, GCALC_COORD_BASE3,
         t_a, GCALC_COORD_BASE2, dya, GCALC_COORD_BASE);
 
@@ -1922,7 +1922,7 @@ double Gcalc_scan_iterator::get_y() const
              get_pure_double(t_b, GCALC_COORD_BASE2)) / m_heap->coord_extent;
   }
   else
-    return state.pi->y;
+    return state.pi->node.shape.y;
 }
 
 
@@ -1934,11 +1934,11 @@ double Gcalc_scan_iterator::get_event_x() const
     Gcalc_coord2 t_a, t_b;
     Gcalc_coord3 a_tb, b_ta, x_exp;
     calc_t(t_a, t_b, dxa, dya,
-           state.pi->p1, state.pi->p2, state.pi->p3, state.pi->p4);
+           state.pi->node.intersection.p1, state.pi->node.intersection.p2, state.pi->node.intersection.p3, state.pi->node.intersection.p4);
 
 
     gcalc_mul_coord(a_tb, GCALC_COORD_BASE3,
-        t_b, GCALC_COORD_BASE2, state.pi->p1->ix, GCALC_COORD_BASE);
+        t_b, GCALC_COORD_BASE2, state.pi->node.intersection.p1->node.shape.ix, GCALC_COORD_BASE);
     gcalc_mul_coord(b_ta, GCALC_COORD_BASE3,
         t_a, GCALC_COORD_BASE2, dxa, GCALC_COORD_BASE);
 
@@ -1948,7 +1948,7 @@ double Gcalc_scan_iterator::get_event_x() const
              get_pure_double(t_b, GCALC_COORD_BASE2)) / m_heap->coord_extent;
   }
   else
-    return state.pi->x;
+    return state.pi->node.shape.x;
 }
 
 double Gcalc_scan_iterator::get_h() const
@@ -1961,7 +1961,7 @@ double Gcalc_scan_iterator::get_h() const
     state.pi->calc_xy(&x, &next_y);
   }
   else
-    next_y= state.pi->y;
+    next_y= state.pi->node.shape.y;
   return next_y - cur_y;
 }
 
@@ -1970,11 +1970,11 @@ double Gcalc_scan_iterator::get_sp_x(const point *sp) const
 {
   double dy;
   if (sp->event & (scev_end | scev_two_ends | scev_point))
-    return sp->pi->x;
-  dy= sp->next_pi->y - sp->pi->y;
+    return sp->pi->node.shape.x;
+  dy= sp->next_pi->node.shape.y - sp->pi->node.shape.y;
   if (fabs(dy) < 1e-12)
-    return sp->pi->x;
-  return (sp->next_pi->x - sp->pi->x) * dy;
+    return sp->pi->node.shape.x;
+  return (sp->next_pi->node.shape.x - sp->pi->node.shape.x) * dy;
 }
 
 
