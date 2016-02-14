@@ -72,7 +72,7 @@ err:
   return res;
 }
 
-#elif defined(__linux__) || defined(__sun__)
+#elif defined(__linux__) || defined(__sun)
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <net/if_arp.h>
