@@ -182,7 +182,8 @@ static const char *load_default_groups[]=
 static void free_used_memory(void)
 {
   /* Free memory allocated by 'load_defaults' */
-  free_defaults(defaults_argv);
+  if (defaults_argv)
+    free_defaults(defaults_argv);
 
   dynstr_free(&ds_args);
   dynstr_free(&conn_args);
