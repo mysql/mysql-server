@@ -2374,3 +2374,28 @@ eval $query1;
 eval $query2;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug# 22283790: RANGE OPTIMIZER UTILIZES TOO MUCH MEMORY WITH
+--echo #                MANY OR CONDITIONS
+--echo #
+
+CREATE TABLE t1 (
+ f1 INTEGER,
+ KEY (f1)
+);
+
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15);
+
+SET @orig_range_optimizer_max_mem_size= @@range_optimizer_max_mem_size;
+SET range_optimizer_max_mem_size= 5000;
+
+EXPLAIN SELECT * FROM t1 WHERE f1=1 OR f1=2 OR f1=3 OR f1=4 OR f1=5
+OR f1=6 OR f1=7 OR f1=8 OR f1=9 OR f1=10 OR f1=11;
+
+SET range_optimizer_max_mem_size= @orig_range_optimizer_max_mem_size;
+
+DROP TABLE t1;
+
+--echo #
+
