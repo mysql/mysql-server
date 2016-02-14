@@ -86,6 +86,9 @@ IF(ENABLE_DTRACE)
   ${CMAKE_BINARY_DIR}/include/probes_mysql_dtrace.h
   ${CMAKE_BINARY_DIR}/include/probes_mysql_nodtrace.h
   ) 
+ELSE()
+ CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/include/probes_mysql_nodtrace.h.in
+   ${CMAKE_BINARY_DIR}/include/probes_mysql_nodtrace.h COPYONLY)
 ENDIF()
 
 FUNCTION(DTRACE_INSTRUMENT target)
