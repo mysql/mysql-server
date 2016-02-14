@@ -798,16 +798,36 @@ ENDIF()
 #
 # Test for how the C compiler does inline, if at all
 #
+# SunPro is weird, apparently it only supports inline at -xO3 or -xO4.
+# And if CMAKE_C_FLAGS has -xO4 but CMAKE_C_FLAGS_${CMAKE_BUILD_TYPE} has -xO2
+# then CHECK_C_SOURCE_COMPILES will succeed but the built will fail.
+# We must test all flags here.
+# XXX actually, we can do this for all compilers, not only SunPro
+IF (CMAKE_CXX_COMPILER_ID MATCHES "SunPro" AND
+    CMAKE_GENERATOR MATCHES "Makefiles")
+  STRING(TOUPPER "CMAKE_C_FLAGS_${CMAKE_BUILD_TYPE}" flags)
+  SET(CMAKE_REQUIRED_FLAGS "${${flags}}")
+ENDIF()
 CHECK_C_SOURCE_COMPILES("
-static inline int foo(){return 0;}
+extern int bar(int x);
+static inline int foo(){return bar(1);}
 int main(int argc, char *argv[]){return 0;}"
                             C_HAS_inline)
 IF(NOT C_HAS_inline)
   CHECK_C_SOURCE_COMPILES("
-  static __inline int foo(){return 0;}
+  extern int bar(int x);
+  static __inline int foo(){return bar(1);}
   int main(int argc, char *argv[]){return 0;}"
                             C_HAS___inline)
-  SET(C_INLINE __inline)
+  IF(C_HAS___inline)
+    SET(C_INLINE __inline)
+  ElSE()
+    SET(C_INLINE)
+    MESSAGE(WARNING "C compiler does not support funcion inlining")
+    IF(NOT NOINLINE)
+      MESSAGE(FATAL_ERROR "Use -DNOINLINE=TRUE to allow compilation without inlining")
+    ENDIF()
+  ENDIF()
 ENDIF()
 
 IF(NOT CMAKE_CROSSCOMPILING AND NOT MSVC)

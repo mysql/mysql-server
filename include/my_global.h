@@ -207,20 +207,6 @@
 #define likely(x)	__builtin_expect(((x) != 0),1)
 #define unlikely(x)	__builtin_expect(((x) != 0),0)
 
-/*
-  now let's figure out if inline functions are supported
-  autoconf defines 'inline' to be empty, if not
-*/
-#define inline_test_1(X)        X ## 1
-#define inline_test_2(X)        inline_test_1(X)
-#if inline_test_2(inline) != 1
-#define HAVE_INLINE
-#else
-#error Compiler does not support inline!
-#endif
-#undef inline_test_2
-#undef inline_test_1
-
 /* Fix problem with S_ISLNK() on Linux */
 #if defined(TARGET_OS_LINUX) || defined(__GLIBC__)
 #undef  _GNU_SOURCE
