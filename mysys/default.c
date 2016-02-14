@@ -577,6 +577,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
                                      handle_default_option, (void *) &ctx,
                                      dirs)))
   {
+    delete_dynamic(&args);
     free_root(&alloc,MYF(0));
     DBUG_RETURN(error);
   }
