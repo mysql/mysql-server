@@ -2676,7 +2676,7 @@ static Sys_var_ulong Sys_range_optimizer_max_mem_size(
       "does not have any cap on memory. ",
       SESSION_VAR(range_optimizer_max_mem_size),
       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, ULONG_MAX),
-      DEFAULT(1536000),
+      DEFAULT(8388608),
       BLOCK_SIZE(1));
 
 static bool
