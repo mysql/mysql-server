@@ -409,6 +409,13 @@ row_upd_changes_field_size_or_external(
 	for (i = 0; i < n_fields; i++) {
 		upd_field = upd_get_nth_field(update, i);
 
+		/* We should ignore virtual field if the index is not
+		a virtual index */
+		if (upd_fld_is_virtual_col(upd_field)
+		    && dict_index_has_virtual(index) != DICT_VIRTUAL) {
+			continue;
+		}
+
 		new_val = &(upd_field->new_val);
 		new_len = dfield_get_len(new_val);
 
