@@ -2849,7 +2849,7 @@ void __attribute__ ((constructor)) audit_plugin_so_init(void)
   }
 
   memset(locinfo_ini_value, 'O', sizeof(locinfo_ini_value)-1);
-  locinfo_ini_value[sizeof(locinfo_ini_value)]= 0;
+  locinfo_ini_value[sizeof(locinfo_ini_value)-1]= 0;
 
 exit:
 #ifdef _WIN32
