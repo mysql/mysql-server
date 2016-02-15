@@ -709,22 +709,26 @@ fil_space_release(
 class FilSpace
 {
 public:
-	/** Default constructor: Use this when reference counting
-	is done outside this wrapper. */
-	FilSpace() : m_space(NULL) {}
+	/** Constructor.
+	@param[in]	space	the wrapped space
+	(NULL when reference counting is done outside this wrapper). */
+	FilSpace(fil_space_t* space = NULL) : m_space(space)
+	{
+		/* fil_space_acquire() must have been invoked. */
+		ut_ad(space == NULL || space->n_pending_ops > 0);
+	}
 
 	/** Constructor: Look up the tablespace and increment the
 	referece count if found.
 	@param[in]	space_id	tablespace ID */
-	explicit FilSpace(ulint space_id)
+	explicit FilSpace(space_id_t space_id)
 		: m_space(fil_space_acquire(space_id)) {}
 
 	/** Assignment operator: This assumes that fil_space_acquire()
 	has already been done for the fil_space_t. The caller must
 	assign NULL if it calls fil_space_release().
 	@param[in]	space	tablespace to assign */
-	class FilSpace& operator=(
-		fil_space_t*	space)
+	class FilSpace& operator=(fil_space_t* space)
 	{
 		/* fil_space_acquire() must have been invoked. */
 		ut_ad(space == NULL || space->n_pending_ops > 0);
@@ -748,9 +752,23 @@ public:
 		return(m_space);
 	}
 
+	/** Implicit type conversion
+	@return the wrapped object */
+	operator fil_space_t*()
+	{
+		return(m_space);
+	}
+
 	/** Explicit type conversion
 	@return the wrapped object */
 	const fil_space_t* operator()() const
+	{
+		return(m_space);
+	}
+
+	/** Explicit type conversion
+	@return the wrapped object */
+	fil_space_t* operator()()
 	{
 		return(m_space);
 	}
@@ -759,8 +777,8 @@ private:
 	/** The wrapped pointer */
 	fil_space_t*	m_space;
 };
-
 #endif /* !UNIV_HOTBACKUP */
+
 /** Replay a file rename operation if possible.
 @param[in]	space_id	tablespace identifier
 @param[in]	first_page_no	first page number in the file

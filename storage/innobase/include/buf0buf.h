@@ -455,18 +455,19 @@ buf_page_get_gen(
 	mtr_t*			mtr,
 	bool			dirty_with_no_latch = false);
 
-/** Initializes a page to the buffer buf_pool. The page is usually not read
-from a file even if it cannot be found in the buffer buf_pool. This is one
-of the functions which perform to a block a state transition NOT_USED =>
-FILE_PAGE (the other is buf_page_get_gen).
-@param[in]	page_id		page id
-@param[in]	page_size	page size
+/** Initialize a page to the buffer buf_pool, without any I/O.
+This and buf_page_get_gen() will make a block state transition
+from BUF_BLOCK_NOT_USED to BUF_BLOCK_FILE_PAGE.
+@param[in,out]	space		tablespace
+@param[in]	offset		page number
+@param[in]	latch_mode	RW_X_LATCH or RW_SX_LATCH
 @param[in]	mtr		mini-transaction
-@return pointer to the block, page bufferfixed */
+@return pointer to the block, page X-latched */
 buf_block_t*
 buf_page_create(
-	const page_id_t&	page_id,
-	const page_size_t&	page_size,
+	fil_space_t*		space,
+	page_no_t		offset,
+	rw_lock_type_t		latch_mode,
 	mtr_t*			mtr);
 
 #else /* !UNIV_HOTBACKUP */
