@@ -461,7 +461,7 @@ public:
 		fprintf(m_log_file, "page::%" PRIuMAX ";"
 			" crc32 calculated = %u;"
 			" recorded checksum field1 = %lu recorded"
-			" checksum field2 =%lu\n", m_page_no, crc32,
+			" checksum field2 = %lu\n", m_page_no, crc32,
 			checksum_field1, checksum_field2);
 	}
 
