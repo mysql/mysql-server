@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -462,7 +462,8 @@ struct upd_field_t{
 					the clustered index, but in updating
 					a secondary index record in btr0cur.cc
 					this is the position in the secondary
-					index */
+					index, also it could be the position
+					in virtual index for virtual column */
 #ifndef UNIV_HOTBACKUP
 	unsigned	orig_len:16;	/*!< original length of the locally
 					stored part of an externally stored

@@ -2595,8 +2595,14 @@ row_upd_get_new_autoinc_counter(
 	dfield_t*	field = NULL;
 
 	for (ulint i = 0; i < n_fields; ++i) {
-		if (update->fields[i].field_no == autoinc_field_no) {
-			field = &update->fields[i].new_val;
+		upd_field_t*	upd_field = upd_get_nth_field(update, i);
+
+		if (upd_field->field_no == autoinc_field_no
+		    && !upd_fld_is_virtual_col(upd_field)) {
+			/* We should double check the field to see if this
+			is a virtual column, which is on virtual index
+			instead of clustered index */
+			field = &upd_field->new_val;
 			break;
 		}
 	}
