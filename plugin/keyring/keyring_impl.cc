@@ -27,20 +27,20 @@ namespace keyring
 mysql_rwlock_t LOCK_keyring;
 
 
-boost::movelib::unique_ptr<IKeys_container> keys(NULL);
+boost::movelib::unique_ptr<keyring::IKeys_container> keys(NULL);
 my_bool is_keys_container_initialized= FALSE;
-boost::movelib::unique_ptr<ILogger> logger(NULL);
+boost::movelib::unique_ptr<keyring::ILogger> logger(NULL);
 boost::movelib::unique_ptr<char[]> keyring_file_data(NULL);
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_rwlock_info all_keyring_rwlocks[]=
 {
-  {&key_LOCK_keyring, "LOCK_keyring", 0}
+  {&keyring::key_LOCK_keyring, "LOCK_keyring", 0}
 };
 
 static PSI_memory_info all_keyring_memory[]=
 {
-  {&key_memory_KEYRING, "KEYRING", 0}
+  {&keyring::key_memory_KEYRING, "KEYRING", 0}
 };
 
 void keyring_init_psi_keys(void)
@@ -58,7 +58,7 @@ void keyring_init_psi_keys(void)
 
 my_bool init_keyring_locks()
 {
-  if (mysql_rwlock_init(key_LOCK_keyring, &LOCK_keyring))
+  if (mysql_rwlock_init(keyring::key_LOCK_keyring, &LOCK_keyring))
     return TRUE;
   return FALSE;
 }
@@ -100,7 +100,8 @@ my_bool create_keyring_dir_if_does_not_exist(const char *keyring_file_path)
   return FALSE;
 }
 
-int check_keyring_file_data(IKeyring_io* keyring_io, boost::movelib::unique_ptr<IKeys_container> new_keys,
+int check_keyring_file_data(keyring::IKeyring_io* keyring_io,
+                            boost::movelib::unique_ptr<keyring::IKeys_container> new_keys,
                             MYSQL_THD thd  __attribute__((unused)),
                             struct st_mysql_sys_var *var  __attribute__((unused)),
                             void *save, st_mysql_value *value)
@@ -126,7 +127,7 @@ int check_keyring_file_data(IKeyring_io* keyring_io, boost::movelib::unique_ptr<
       mysql_rwlock_unlock(&LOCK_keyring);
       return 1;
     }
-    *reinterpret_cast<IKeys_container **>(save)= new_keys.get();
+    *reinterpret_cast<keyring::IKeys_container **>(save)= new_keys.get();
     new_keys.release();
     mysql_rwlock_unlock(&LOCK_keyring);
   }
@@ -144,7 +145,8 @@ void update_keyring_file_data(MYSQL_THD thd  __attribute__((unused)),
                               const void *save_ptr)
 {
   mysql_rwlock_wrlock(&LOCK_keyring);
-  IKeys_container *new_keys= *reinterpret_cast<IKeys_container**>(const_cast<void*>(save_ptr));
+  keyring::IKeys_container *new_keys=
+    *reinterpret_cast<keyring::IKeys_container**>(const_cast<void*>(save_ptr));
   keys.reset(new_keys);
   keyring_file_data.reset(new char[new_keys->get_keyring_storage_url().length()+1]);
   memcpy(keyring_file_data.get(), new_keys->get_keyring_storage_url().c_str(),
@@ -154,14 +156,15 @@ void update_keyring_file_data(MYSQL_THD thd  __attribute__((unused)),
   mysql_rwlock_unlock(&LOCK_keyring);
 }
 
-my_bool mysql_key_store(IKeyring_io *keyring_io, const char *key_id,
+my_bool mysql_key_store(keyring::IKeyring_io *keyring_io, const char *key_id,
                         const char *key_type, const char *user_id,
                         const void *key, size_t key_len)
 {
   if (is_keys_container_initialized == FALSE)
     return TRUE;
 
-  boost::movelib::unique_ptr<Key> key_to_store(new Key(key_id, key_type, user_id, key, key_len));
+  boost::movelib::unique_ptr<keyring::Key>
+    key_to_store(new keyring::Key(key_id, key_type, user_id, key, key_len));
   if (key_to_store->is_key_type_valid() == FALSE)
   {
     logger->log(MY_ERROR_LEVEL, "Error while storing key: invalid key_type");
@@ -187,7 +190,7 @@ my_bool mysql_key_store(IKeyring_io *keyring_io, const char *key_id,
   return FALSE;
 }
 
-my_bool mysql_key_remove(IKeyring_io *keyring_io, const char *key_id,
+my_bool mysql_key_remove(keyring::IKeyring_io *keyring_io, const char *key_id,
                          const char *user_id)
 {
   bool retval= false;
@@ -199,7 +202,7 @@ my_bool mysql_key_remove(IKeyring_io *keyring_io, const char *key_id,
                 "Error while removing key: key_id cannot be empty");
     return TRUE;
   }
-  Key key(key_id, NULL, user_id, NULL, 0);
+  keyring::Key key(key_id, NULL, user_id, NULL, 0);
   mysql_rwlock_wrlock(&LOCK_keyring);
   retval= keys->remove_key(keyring_io, &key);
   mysql_rwlock_unlock(&LOCK_keyring);
@@ -212,7 +215,7 @@ my_bool mysql_key_fetch(const char *key_id, char **key_type, const char *user_id
   if (is_keys_container_initialized == FALSE)
     return TRUE;
 
-  Key key_to_fetch(key_id, NULL, user_id, NULL, 0);
+  keyring::Key key_to_fetch(key_id, NULL, user_id, NULL, 0);
   if (key_to_fetch.is_key_id_valid() == FALSE)
   {
     logger->log(MY_ERROR_LEVEL,
@@ -220,14 +223,14 @@ my_bool mysql_key_fetch(const char *key_id, char **key_type, const char *user_id
     return TRUE;
   }
   mysql_rwlock_rdlock(&LOCK_keyring);
-  IKey *fetched_key = keys->fetch_key(&key_to_fetch);
+  keyring::IKey *fetched_key = keys->fetch_key(&key_to_fetch);
   mysql_rwlock_unlock(&LOCK_keyring);
   if (fetched_key)
   {
     *key_len = fetched_key->get_key_data_size();
     fetched_key->xor_data();
-    *reinterpret_cast<uchar **>(key)=fetched_key->release_key_data();
-    *key_type = my_strdup(key_memory_KEYRING,
+    *key= static_cast<void*>(fetched_key->release_key_data());
+    *key_type = my_strdup(keyring::key_memory_KEYRING,
                           fetched_key->get_key_type()->c_str(),
                           MYF(MY_WME));
   }
@@ -236,13 +239,13 @@ my_bool mysql_key_fetch(const char *key_id, char **key_type, const char *user_id
   return FALSE;
 }
 
-my_bool mysql_key_generate(IKeyring_io* keyring_io, const char *key_id,
+my_bool mysql_key_generate(keyring::IKeyring_io* keyring_io, const char *key_id,
                            const char *key_type, const char *user_id,
                            size_t key_len)
 {
   if (is_keys_container_initialized == FALSE)
     return TRUE;
-  Key key_candidate(key_id, key_type, user_id, NULL, 0);
+  keyring::Key key_candidate(key_id, key_type, user_id, NULL, 0);
   if (key_candidate.is_key_id_valid() == FALSE)
   {
     logger->log(MY_ERROR_LEVEL,

@@ -23,7 +23,6 @@
 #include "keys_container.h"
 #include "keyring_memory.h"
 
-using namespace keyring;
 namespace keyring
 {
 /* Always defined. */
@@ -33,9 +32,9 @@ namespace keyring
 
 extern mysql_rwlock_t LOCK_keyring;
 
-extern boost::movelib::unique_ptr<IKeys_container> keys;
+extern boost::movelib::unique_ptr<keyring::IKeys_container> keys;
 extern my_bool is_keys_container_initialized;
-extern boost::movelib::unique_ptr<ILogger> logger;
+extern boost::movelib::unique_ptr<keyring::ILogger> logger;
 extern boost::movelib::unique_ptr<char[]> keyring_file_data;
 
 #ifdef HAVE_PSI_INTERFACE
@@ -46,7 +45,8 @@ my_bool init_keyring_locks();
 
 my_bool create_keyring_dir_if_does_not_exist(const char *keyring_file_path);
 
-int check_keyring_file_data(IKeyring_io* keyring_io, boost::movelib::unique_ptr<IKeys_container> new_keys,
+int check_keyring_file_data(keyring::IKeyring_io* keyring_io,
+                            boost::movelib::unique_ptr<keyring::IKeys_container> new_keys,
                             MYSQL_THD thd  __attribute__((unused)),
                             struct st_mysql_sys_var *var  __attribute__((unused)),
                             void *save, st_mysql_value *value);
@@ -56,18 +56,18 @@ void update_keyring_file_data(MYSQL_THD thd  __attribute__((unused)),
                               void *var_ptr __attribute__((unused)),
                               const void *save_ptr);
 
-my_bool mysql_key_store(IKeyring_io *keyring_io, const char *key_id,
+my_bool mysql_key_store(keyring::IKeyring_io *keyring_io, const char *key_id,
                         const char *key_type, const char *user_id,
                         const void *key, size_t key_len);
 
 
-my_bool mysql_key_remove(IKeyring_io *keyring_io, const char *key_id,
+my_bool mysql_key_remove(keyring::IKeyring_io *keyring_io, const char *key_id,
                          const char *user_id);
 
 my_bool mysql_key_fetch(const char *key_id, char **key_type, const char *user_id,
                         void **key, size_t *key_len);
 
-my_bool mysql_key_generate(IKeyring_io* keyring_io, const char *key_id,
+my_bool mysql_key_generate(keyring::IKeyring_io* keyring_io, const char *key_id,
                            const char *key_type, const char *user_id,
                            size_t key_len);
 

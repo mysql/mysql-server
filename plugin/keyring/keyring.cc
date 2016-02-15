@@ -27,9 +27,10 @@ static int check_keyring_file_data(MYSQL_THD thd  __attribute__((unused)),
                     struct st_mysql_sys_var *var  __attribute__((unused)),
                     void *save, st_mysql_value *value)
 {
-  Buffered_file_io keyring_io(logger.get());
+  keyring::Buffered_file_io keyring_io(logger.get());
 
-  boost::movelib::unique_ptr<IKeys_container> new_keys(new Keys_container(logger.get()));
+  boost::movelib::unique_ptr<keyring::IKeys_container>
+    new_keys(new keyring::Keys_container(logger.get()));
   return check_keyring_file_data(&keyring_io, ::boost::move(new_keys), thd, var, save, value);
 }
 
@@ -60,7 +61,7 @@ static int keyring_init(MYSQL_PLUGIN plugin_info)
     if (init_keyring_locks())
       return TRUE;
 
-    logger.reset(new Logger(plugin_info));
+    logger.reset(new keyring::Logger(plugin_info));
     if (create_keyring_dir_if_does_not_exist(keyring_file_data_value))
     {
       logger->log(MY_ERROR_LEVEL, "Could not create keyring directory "
@@ -68,8 +69,8 @@ static int keyring_init(MYSQL_PLUGIN plugin_info)
         "directory gets provided");
       return FALSE;
     }
-    Buffered_file_io keyring_io(logger.get());
-    keys.reset(new Keys_container(logger.get()));
+    keyring::Buffered_file_io keyring_io(logger.get());
+    keys.reset(new keyring::Keys_container(logger.get()));
     if (keys->init(&keyring_io, keyring_file_data_value))
     {
       is_keys_container_initialized = FALSE;
@@ -94,7 +95,7 @@ my_bool mysql_key_store(const char *key_id, const char *key_type,
 {
   try
   {
-    Buffered_file_io keyring_io(logger.get());
+    keyring::Buffered_file_io keyring_io(logger.get());
     return mysql_key_store(&keyring_io, key_id, key_type, user_id, key,
                            key_len);
   }
@@ -108,7 +109,7 @@ my_bool mysql_key_remove(const char *key_id, const char *user_id)
 {
   try
   {
-    Buffered_file_io keyring_io(logger.get());
+    keyring::Buffered_file_io keyring_io(logger.get());
     return mysql_key_remove(&keyring_io, key_id, user_id);
   }
   catch (...)
@@ -122,7 +123,7 @@ my_bool mysql_key_generate(const char *key_id, const char *key_type,
 {
   try
   {
-    Buffered_file_io keyring_io(logger.get());
+    keyring::Buffered_file_io keyring_io(logger.get());
     return mysql_key_generate(&keyring_io, key_id, key_type, user_id, key_len);
   }
   catch (...)

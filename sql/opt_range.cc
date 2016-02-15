@@ -5777,7 +5777,7 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
                                        bool update_tbl_stats,
                                        const Cost_estimate *cost_est)
 {
-  uint idx, best_idx;
+  uint idx, best_idx= 0;
   SEL_ARG *key, *key_to_read= NULL;
   ha_rows best_records= 0;              /* protected by key_to_read */
   uint    best_mrr_flags= 0, best_buf_size= 0;
