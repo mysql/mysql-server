@@ -368,6 +368,10 @@ private:
   Uint32 m_fragmented_signal_id;
 
 public:
+  /**
+   * To avoid deadlock with trp_client::m_mutex: Always grab 
+   * that mutex lock first, before locking m_open_close_mutex.
+   */
   NdbMutex* m_open_close_mutex;  //Protect multiple m_threads members
   NdbMutex* thePollMutex;        //Protect poll-right assignment
 
