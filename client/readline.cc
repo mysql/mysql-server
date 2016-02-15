@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@ LINE_BUFFER *batch_readline_init(ulong max_size,FILE *file)
 
 #ifndef _WIN32
   MY_STAT input_file_stat;
-  if (my_fstat(fileno(file), &input_file_stat, MYF(MY_WME)) ||
+  if (my_fstat(fileno(file), &input_file_stat) ||
       MY_S_ISDIR(input_file_stat.st_mode) ||
       MY_S_ISBLK(input_file_stat.st_mode))
     return 0;

@@ -1436,7 +1436,7 @@ static void print_relative_row(MYSQL_RES *result, MYSQL_ROW cur, uint row)
 
 static void print_relative_row_vert(MYSQL_RES *result __attribute__((unused)),
 				    MYSQL_ROW cur,
-				    uint row __attribute__((unused)))
+				    uint row)
 {
   uint length;
   ulonglong tmp;

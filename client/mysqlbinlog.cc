@@ -2116,7 +2116,7 @@ static my_time_t convert_str_to_timestamp(const char* str)
 
 
 extern "C" my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+get_one_option(int optid, const struct my_option *opt,
 	       char *argument)
 {
   bool tty_password=0;
@@ -2916,7 +2916,7 @@ static Exit_status check_header(IO_CACHE* file,
   pos= my_b_tell(file);
 
   /* fstat the file to check if the file is a regular file. */
-  if (my_fstat(file->file, &my_file_stat, MYF(0)) == -1)
+  if (my_fstat(file->file, &my_file_stat) == -1)
   {
     error("Unable to stat the file.");
     DBUG_RETURN(ERROR_STOP);

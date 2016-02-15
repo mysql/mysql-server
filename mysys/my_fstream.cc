@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -127,7 +127,7 @@ size_t my_fwrite(FILE *stream, const uchar *Buffer, size_t Count, myf MyFlags)
       }
       if (errno == EINTR)
       {
-	(void) my_fseek(stream,seekptr,MY_SEEK_SET,MYF(0));
+	(void) my_fseek(stream,seekptr,MY_SEEK_SET);
 	continue;
       }
       if (ferror(stream) || (MyFlags & (MY_NABP | MY_FNABP)))
@@ -155,12 +155,11 @@ size_t my_fwrite(FILE *stream, const uchar *Buffer, size_t Count, myf MyFlags)
 
 /* Seek to position in file */
 
-my_off_t my_fseek(FILE *stream, my_off_t pos, int whence,
-		  myf MyFlags __attribute__((unused)))
+my_off_t my_fseek(FILE *stream, my_off_t pos, int whence)
 {
   DBUG_ENTER("my_fseek");
-  DBUG_PRINT("my",("stream: 0x%lx  pos: %lu  whence: %d  MyFlags: %d",
-                   (long) stream, (long) pos, whence, MyFlags));
+  DBUG_PRINT("my",("stream: 0x%lx  pos: %lu  whence: %d" ,
+                   (long) stream, (long) pos, whence));
   DBUG_RETURN(fseek(stream, (off_t) pos, whence) ?
 	      MY_FILEPOS_ERROR : (my_off_t) ftell(stream));
 } /* my_seek */
@@ -168,11 +167,11 @@ my_off_t my_fseek(FILE *stream, my_off_t pos, int whence,
 
 /* Tell current position of file */
 
-my_off_t my_ftell(FILE *stream, myf MyFlags __attribute__((unused)))
+my_off_t my_ftell(FILE *stream)
 {
   off_t pos;
   DBUG_ENTER("my_ftell");
-  DBUG_PRINT("my",("stream: 0x%lx  MyFlags: %d", (long) stream, MyFlags));
+  DBUG_PRINT("my",("stream: 0x%lx", (long) stream));
   pos=ftell(stream);
   DBUG_PRINT("exit",("ftell: %lu",(ulong) pos));
   DBUG_RETURN((my_off_t) pos);

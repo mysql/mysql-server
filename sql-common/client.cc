@@ -3433,7 +3433,6 @@ mysql_fill_packet_header(MYSQL *mysql, char *buff,
   NET *net= &mysql->net;
   char *end;
   uchar *buff_p= (uchar*) buff;
-  (void)buff_size; /* avoid warnings */
 
   if (mysql->client_flag & CLIENT_PROTOCOL_41)
   {

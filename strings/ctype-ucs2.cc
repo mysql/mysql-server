@@ -1418,7 +1418,7 @@ my_ismbchar_utf16(const CHARSET_INFO *cs, const char *b, const char *e)
 
 static uint
 my_mbcharlen_utf16(const CHARSET_INFO *cs  __attribute__((unused)),
-                   uint c __attribute__((unused)))
+                   uint c)
 {
   DBUG_ASSERT(0);
   return MY_UTF16_HIGH_HEAD(c) ? 4 : 2;

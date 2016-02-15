@@ -753,7 +753,7 @@ static void usage(void)
 
 extern "C" {
 static my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+get_one_option(int optid, const struct my_option *opt,
                char *argument)
 {
   DBUG_ENTER("get_one_option");

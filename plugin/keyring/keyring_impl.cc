@@ -141,7 +141,7 @@ int check_keyring_file_data(keyring::IKeyring_io* keyring_io,
 
 void update_keyring_file_data(MYSQL_THD thd  __attribute__((unused)),
                               struct st_mysql_sys_var *var  __attribute__((unused)),
-                              void *var_ptr __attribute__((unused)),
+                              void *var_ptr,
                               const void *save_ptr)
 {
   mysql_rwlock_wrlock(&LOCK_keyring);

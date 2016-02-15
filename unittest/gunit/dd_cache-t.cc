@@ -846,7 +846,7 @@ TEST_F(CacheStorageTest, TestCacheLookup)
 
   std::string obj_name= dd::Table::OBJECT_TABLE().name() +
     std::string("_cacheissue");
-  dd::Object_id id __attribute__((unused));
+  dd::Object_id id;
   //
   // Create table object
   //

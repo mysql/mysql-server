@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -431,7 +431,7 @@ static int create_sys_files(struct languages *lang_head,
     int4store(head + 10, row_count);
     head[30]= csnum;
 
-    my_fseek(to, 0l, MY_SEEK_SET, MYF(0));
+    my_fseek(to, 0l, MY_SEEK_SET);
     if (my_fwrite(to, (uchar*) head, HEADER_LENGTH, MYF(MY_WME | MY_FNABP)))
       goto err;
 

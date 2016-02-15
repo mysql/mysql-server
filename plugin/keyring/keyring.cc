@@ -23,8 +23,8 @@
 #define MYSQL_DEFAULT_KEYRINGFILE MYSQL_KEYRINGDIR"/keyring"
 #endif
 
-static int check_keyring_file_data(MYSQL_THD thd  __attribute__((unused)),
-                    struct st_mysql_sys_var *var  __attribute__((unused)),
+static int check_keyring_file_data(MYSQL_THD thd,
+                    struct st_mysql_sys_var *var,
                     void *save, st_mysql_value *value)
 {
   keyring::Buffered_file_io keyring_io(logger.get());

@@ -22029,7 +22029,7 @@ my_strnncoll_gb18030_internal(const CHARSET_INFO *cs,
 */
 extern "C" {
 static int
-my_strnncoll_gb18030(const CHARSET_INFO *cs __attribute__((unused)),
+my_strnncoll_gb18030(const CHARSET_INFO *cs,
                      const uchar *s, size_t s_length,
                      const uchar *t, size_t t_length,
                      my_bool t_is_prefix)
@@ -22061,7 +22061,7 @@ my_strnncoll_gb18030(const CHARSET_INFO *cs __attribute__((unused)),
                       -1 if the second string is bigger
 */
 static int
-my_strnncollsp_gb18030(const CHARSET_INFO *cs __attribute__((unused)),
+my_strnncollsp_gb18030(const CHARSET_INFO *cs,
                        const uchar *s, size_t s_length,
                        const uchar *t, size_t t_length,
                        my_bool diff_if_only_endspace_difference)

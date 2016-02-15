@@ -800,7 +800,7 @@ static const uchar* get_table_key(const uchar *entry, size_t *length)
 
 
 static my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+get_one_option(int optid, const struct my_option *opt,
                char *argument)
 {
   switch (optid) {

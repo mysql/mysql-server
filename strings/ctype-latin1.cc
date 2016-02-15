@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -360,7 +360,7 @@ static
 int my_mb_wc_latin1(const CHARSET_INFO *cs  __attribute__((unused)),
 		    my_wc_t *wc,
 		    const uchar *str,
-		    const uchar *end __attribute__((unused)))
+		    const uchar *end)
 {
   if (str >= end)
     return MY_CS_TOOSMALL;
@@ -373,7 +373,7 @@ static
 int my_wc_mb_latin1(const CHARSET_INFO *cs  __attribute__((unused)),
 		    my_wc_t wc,
 		    uchar *str,
-		    uchar *end __attribute__((unused)))
+		    uchar *end)
 {
   const uchar *pl;
 

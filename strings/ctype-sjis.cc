@@ -1114,7 +1114,7 @@ static int my_strnncoll_sjis_internal(const CHARSET_INFO *cs,
 
 
 extern "C" {
-static int my_strnncoll_sjis(const CHARSET_INFO *cs __attribute__((unused)),
+static int my_strnncoll_sjis(const CHARSET_INFO *cs,
                              const uchar *a, size_t a_length, 
                              const uchar *b, size_t b_length,
                              my_bool b_is_prefix)
@@ -1126,7 +1126,7 @@ static int my_strnncoll_sjis(const CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-static int my_strnncollsp_sjis(const CHARSET_INFO *cs __attribute__((unused)),
+static int my_strnncollsp_sjis(const CHARSET_INFO *cs,
 			       const uchar *a, size_t a_length, 
 			       const uchar *b, size_t b_length,
                                my_bool diff_if_only_endspace_difference)
