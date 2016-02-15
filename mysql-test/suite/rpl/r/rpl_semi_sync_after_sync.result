@@ -5,7 +5,6 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 include/install_semisync.inc
 SET GLOBAL binlog_error_action = IGNORE_ERROR;
-SET @@global.show_compatibility_56=ON;
 CREATE TABLE t1(c1 INT) ENGINE=InnoDB;
 include/sync_slave_sql_with_master.inc
 #
@@ -166,7 +165,6 @@ include/rpl_restart_server.inc [server_number=1]
 include/start_slave_io.inc
 [connection master]
 CALL mtr.add_suppression("An error occurred during sync stage of the commit.");
-SET @@global.show_compatibility_56=OFF;
 DROP TABLE t1;
 include/uninstall_semisync.inc
 include/rpl_end.inc

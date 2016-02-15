@@ -6,8 +6,6 @@ Note	####	Storing MySQL user name or password information in the master info rep
 call mtr.add_suppression("Master command COM_REGISTER_SLAVE failed.");
 call mtr.add_suppression(" * does not exist in the InnoDB internal");
 include/assert.inc [On master, the table should return an empty set.]
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
 
 # Verify that SELECT works for every field and produces an output
 # similar to the corresponding field in SHOW SLAVE STATUS(SSS).
@@ -31,8 +29,11 @@ include/assert.inc [Value returned by SSS and PS table for Connection_Retry_Coun
 
 # Heartbeat_Interval is part of I_S and P_S. We will compare the
 # two to make sure both match.
-
+# show_compatibility_56 should be turned ON to access I_S tables.
+set @@global.show_compatibility_56=ON;
 include/assert.inc [Value returned by IS and PS table for Heartbeat_Interval should be same.]
+# turning show_compatibility_56 to OFF.
+set @@global.show_compatibility_56=OFF;
 
 # Change configuration parameters and verify that these changes
 # are shown correctly by SELECTs from PS table.
@@ -81,7 +82,6 @@ include/assert.inc [Value returned by SSS and PS table for TLS version should be
 
 include/rpl_restart_server.inc [server_number=1 gtids=on]
 include/rpl_restart_server.inc [server_number=2 gtids=on]
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
 
 # 1) Test for Auto_position= 0.
 
@@ -96,5 +96,4 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # 2) Test for Auto_position= 1.
 
 include/assert.inc [Value returned by SSS and PS table for Auto_Position should be same.]
-set @@global.show_compatibility_56=@show_compatibility_56_save;
 include/rpl_end.inc

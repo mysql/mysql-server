@@ -4440,10 +4440,16 @@ static void do_wait_for_slave_to_stop(struct st_command *c __attribute__((unused
     MYSQL_ROW row;
     int done;
 
-    if (mysql_query(mysql,"show status like 'Slave_running'") ||
-	!(res=mysql_store_result(mysql)))
+    if (mysql_query(mysql,"SELECT 'Slave_running' as Variable_name,"\
+        " IF(count(*)>0,'ON','OFF') as Value FROM"\
+        " performance_schema.replication_applier_status ras,"\
+        "performance_schema.replication_connection_status rcs WHERE "\
+        "ras.SERVICE_STATE='ON' AND rcs.SERVICE_STATE='ON'") ||
+        !(res=mysql_store_result(mysql)))
+
       die("Query failed while probing slave for stop: %s",
 	  mysql_error(mysql));
+
     if (!(row=mysql_fetch_row(res)) || !row[1])
     {
       mysql_free_result(res);
