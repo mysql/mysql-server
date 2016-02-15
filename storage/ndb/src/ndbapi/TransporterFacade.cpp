@@ -1302,6 +1302,14 @@ TransporterFacade::close_clnt(trp_client* clnt)
     bool not_finished;
     do
     {
+      /**
+       * Obey lock order of trp_c_client::m_mutex vs. open_close_mutex:
+       * deliver_signal(CLOSE_COMREQ) will lock the client, then
+       * perform_close_clnt() which takes the m_open_close_mutex.
+       * That would deadlock if we didn't release open_close_mutex now.
+       */
+      NdbMutex_Unlock(m_open_close_mutex);
+
       clnt->start_poll();
       if (first)
       {
@@ -1309,17 +1317,9 @@ TransporterFacade::close_clnt(trp_client* clnt)
         clnt->do_forceSend(1);
         first = false;
       }
-
-      /**
-       * do_poll() only guarantee that some thread, not necessarily this, will 
-       * become the poller. Thus, we have to temporary release m_open_close_mutex
-       * here such that it can be locked by perform_close_clnt() called from the
-       * polling thread.
-       */
-      NdbMutex_Unlock(m_open_close_mutex);
       clnt->do_poll(10);
-      NdbMutex_Lock(m_open_close_mutex);
 
+      NdbMutex_Lock(m_open_close_mutex);
       not_finished = (m_threads.get(clnt->m_blockNo) == clnt);
       clnt->complete_poll();
     } while (not_finished);
@@ -1342,11 +1342,23 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
   if (DBG_POLL) ndbout_c("open(%p)", clnt);
 
   NdbMutex_Lock(m_open_close_mutex);
-  while (m_threads.freeCnt() == 0)
+  while (unlikely(m_threads.freeCnt() == 0))
   {
+    // First ::open_clnt seeing 'freeCnt) == 0' will expand
+    const bool do_expand = !m_threads.m_expanding;
+    m_threads.m_expanding = true;
+
+    /**
+     * Obey lock order of trp_c_client::m_mutex vs. open_close_mutex:
+     * deliver_signal(EXPAND_CLNT) will lock the client, then call
+     * expand_clnt() which takes the m_open_close_mutex.
+     * That would deadlock if we didn't release open_close_mutex now.
+     */
+    NdbMutex_Unlock(m_open_close_mutex);
+
     /* Ask ClusterMgr to do m_thread.expand() (Need poll rights)*/
     clnt->start_poll();
-    if (!m_threads.m_expanding)
+    if (do_expand)
     {
       NdbApiSignal signal(numberToRef(0, theOwnId));
       signal.theVerId_signalNumber = GSN_EXPAND_CLNT;
@@ -1357,19 +1369,11 @@ TransporterFacade::open_clnt(trp_client * clnt, int blockNo)
 
       clnt->raw_sendSignal(&signal, theOwnId);
       clnt->do_forceSend(1);
-      m_threads.m_expanding = true;
     }
 
-    /**
-     * do_poll() only guarantee that some thread, not necessarily this, will 
-     * become the poller. Thus, we have to temporary release m_open_close_mutex
-     * here such that it can be locked by expand_clnt called from the polling thread.
-     */
-    NdbMutex_Unlock(m_open_close_mutex);
     clnt->do_poll(10);
-    NdbMutex_Lock(m_open_close_mutex);
-
     clnt->complete_poll();
+    NdbMutex_Lock(m_open_close_mutex);
   }
 
   const int r= m_threads.open(clnt);
