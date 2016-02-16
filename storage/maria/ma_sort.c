@@ -87,6 +87,27 @@ static inline int
 my_var_write(MARIA_SORT_PARAM *info, IO_CACHE *to_file, uchar *bufs);
 
 /*
+  Sets the appropriate read and write methods for the MARIA_SORT_PARAM
+  based on the variable length key flag.
+*/
+static void set_sort_param_read_write(MARIA_SORT_PARAM *sort_param)
+{
+  if (sort_param->keyinfo->flag & HA_VAR_LENGTH_KEY)
+  {
+    sort_param->write_keys=     write_keys_varlen;
+    sort_param->read_to_buffer= read_to_buffer_varlen;
+    sort_param->write_key=      write_merge_key_varlen;
+  }
+  else
+  {
+    sort_param->write_keys=     write_keys;
+    sort_param->read_to_buffer= read_to_buffer;
+    sort_param->write_key=      write_merge_key;
+  }
+}
+
+
+/*
   Creates a index of sorted keys
 
   SYNOPSIS
@@ -115,18 +136,7 @@ int _ma_create_index_by_sort(MARIA_SORT_PARAM *info, my_bool no_messages,
                       (ulong) sortbuff_size, info->key_length,
                       (ulong) info->sort_info->max_records));
 
-  if (info->keyinfo->flag & HA_VAR_LENGTH_KEY)
-  {
-    info->write_keys= write_keys_varlen;
-    info->read_to_buffer=read_to_buffer_varlen;
-    info->write_key=write_merge_key_varlen;
-  }
-  else
-  {
-    info->write_keys= write_keys;
-    info->read_to_buffer=read_to_buffer;
-    info->write_key=write_merge_key;
-  }
+  set_sort_param_read_write(info);
 
   my_b_clear(&tempfile);
   my_b_clear(&tempfile_for_exceptions);
@@ -347,18 +357,7 @@ pthread_handler_t _ma_thr_find_all_keys(void *arg)
     if (sort_param->sort_info->got_error)
       goto err;
 
-    if (sort_param->keyinfo->flag & HA_VAR_LENGTH_KEY)
-    {
-      sort_param->write_keys=     write_keys_varlen;
-      sort_param->read_to_buffer= read_to_buffer_varlen;
-      sort_param->write_key=      write_merge_key_varlen;
-    }
-    else
-    {
-      sort_param->write_keys=     write_keys;
-      sort_param->read_to_buffer= read_to_buffer;
-      sort_param->write_key=      write_merge_key;
-    }
+    set_sort_param_read_write(sort_param);
 
     my_b_clear(&sort_param->tempfile);
     my_b_clear(&sort_param->tempfile_for_exceptions);
@@ -564,18 +563,9 @@ int _ma_thr_write_keys(MARIA_SORT_PARAM *sort_param)
   {
     if (got_error)
       continue;
-    if (sinfo->keyinfo->flag & HA_VAR_LENGTH_KEY)
-    {
-      sinfo->write_keys=write_keys_varlen;
-      sinfo->read_to_buffer=read_to_buffer_varlen;
-      sinfo->write_key=write_merge_key_varlen;
-    }
-    else
-    {
-      sinfo->write_keys=write_keys;
-      sinfo->read_to_buffer=read_to_buffer;
-      sinfo->write_key=write_merge_key;
-    }
+
+    set_sort_param_read_write(sinfo);
+
     if (sinfo->buffpek.elements)
     {
       uint maxbuffer=sinfo->buffpek.elements-1;

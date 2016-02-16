@@ -84,6 +84,28 @@ static int write_merge_key_varlen(MI_SORT_PARAM *info,
 static inline int
 my_var_write(MI_SORT_PARAM *info, IO_CACHE *to_file, uchar *bufs);
 
+
+/*
+  Sets the appropriate read and write methods for the MI_SORT_PARAM
+  based on the variable length key flag.
+*/
+static void set_sort_param_read_write(MI_SORT_PARAM *sort_param)
+{
+  if (sort_param->keyinfo->flag & HA_VAR_LENGTH_KEY)
+  {
+    sort_param->write_keys=     write_keys_varlen;
+    sort_param->read_to_buffer= read_to_buffer_varlen;
+    sort_param->write_key=      write_merge_key_varlen;
+  }
+  else
+  {
+    sort_param->write_keys=     write_keys;
+    sort_param->read_to_buffer= read_to_buffer;
+    sort_param->write_key=      write_merge_key;
+  }
+}
+
+
 /*
   Creates a index of sorted keys
 
@@ -111,18 +133,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
   DBUG_ENTER("_create_index_by_sort");
   DBUG_PRINT("enter",("sort_length: %d", info->key_length));
 
-  if (info->keyinfo->flag & HA_VAR_LENGTH_KEY)
-  {
-    info->write_keys=write_keys_varlen;
-    info->read_to_buffer=read_to_buffer_varlen;
-    info->write_key= write_merge_key_varlen;
-  }
-  else
-  {
-    info->write_keys=write_keys;
-    info->read_to_buffer=read_to_buffer;
-    info->write_key=write_merge_key;
-  }
+  set_sort_param_read_write(info);
 
   my_b_clear(&tempfile);
   my_b_clear(&tempfile_for_exceptions);
@@ -307,7 +318,6 @@ static ha_rows find_all_keys(MI_SORT_PARAM *info, uint keys,
   DBUG_RETURN((*maxbuffer)*(keys-1)+idx);
 } /* find_all_keys */
 
-
 /* Search after all keys and place them in a temp. file */
 
 pthread_handler_t thr_find_all_keys(void *arg)
@@ -332,18 +342,7 @@ pthread_handler_t thr_find_all_keys(void *arg)
     if (sort_param->sort_info->got_error)
       goto err;
 
-    if (sort_param->keyinfo->flag & HA_VAR_LENGTH_KEY)
-    {
-      sort_param->write_keys=     write_keys_varlen;
-      sort_param->read_to_buffer= read_to_buffer_varlen;
-      sort_param->write_key=      write_merge_key_varlen;
-    }
-    else
-    {
-      sort_param->write_keys=     write_keys;
-      sort_param->read_to_buffer= read_to_buffer;
-      sort_param->write_key=      write_merge_key;
-    }
+    set_sort_param_read_write(sort_param);
 
     my_b_clear(&sort_param->tempfile);
     my_b_clear(&sort_param->tempfile_for_exceptions);
@@ -550,18 +549,9 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
   {
     if (got_error)
       continue;
-    if (sinfo->keyinfo->flag & HA_VAR_LENGTH_KEY)
-    {
-      sinfo->write_keys=write_keys_varlen;
-      sinfo->read_to_buffer=read_to_buffer_varlen;
-      sinfo->write_key=write_merge_key_varlen;
-    }
-    else
-    {
-      sinfo->write_keys=write_keys;
-      sinfo->read_to_buffer=read_to_buffer;
-      sinfo->write_key=write_merge_key;
-    }
+
+    set_sort_param_read_write(sinfo);
+
     if (sinfo->buffpek.elements)
     {
       uint maxbuffer=sinfo->buffpek.elements-1;
