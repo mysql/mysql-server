@@ -6511,7 +6511,7 @@ Dbspj::scanIndex_parent_batch_complete(Signal* signal,
   data.m_rows_expecting = 0;
   ndbassert(data.m_frags_outstanding == 0);
   ndbassert(data.m_frags_complete == data.m_fragCount);
-  ndbassert(treeNodePtr.p->m_state == TreeNode::TN_INACTIVE)
+  ndbassert(treeNodePtr.p->m_state == TreeNode::TN_INACTIVE);
 
   /**
    * Update the fragments 'm_state' and the aggregated TreeNode::m_frag_*
