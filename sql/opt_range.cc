@@ -5880,7 +5880,7 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
       read_plan->mrr_buf_size= best_buf_size;
       DBUG_PRINT("info",
                 ("Returning range plan for key %s, cost %g, records %lu",
-                 param->table->key_info[param->real_keynr[idx]].name,
+                 param->table->key_info[param->real_keynr[best_idx]].name,
                  read_plan->cost_est.total_cost(), (ulong) read_plan->records));
     }
   }
