@@ -1,11 +1,21 @@
 #
 # Basic test for parser_max_mem_size
 #
+# There are separate tests for 32bit and 64bit systems.
+#
+# There are separate tests for command line options
+#   --parser-max-mem-size
+#   --maximum-parser-max-mem-size
+#
 
 --source include/not_embedded.inc
 --source include/load_sysvars.inc
 
 --echo # Display the DEFAULT value of parser_max_mem_size
+--echo # The DEFAULT is determined by --maximum-parser-max-mem-size
+
+SELECT @@session.parser_max_mem_size;
+SELECT @@global.parser_max_mem_size;
 
 SET @@session.parser_max_mem_size = DEFAULT;
 SELECT @@session.parser_max_mem_size;
@@ -16,10 +26,15 @@ SELECT @@session.parser_max_mem_size;
 SET @@session.parser_max_mem_size = 500 * 1000;
 SELECT @@session.parser_max_mem_size;
 
---echo # Change the value of the parser_max_mem_size to a 
+--echo # Change the value of the session parser_max_mem_size to a
 --echo # value greater than --maximum-parser-max-mem-size
 SET session parser_max_mem_size = 1000 * 1000;
 SELECT @@session.parser_max_mem_size;
+
+--echo # Change the value of the global parser_max_mem_size to a
+--echo # value greater than --maximum-parser-max-mem-size
+SET @@global.parser_max_mem_size = 1000 * 1000;
+SELECT @@global.parser_max_mem_size;
 
 --echo # Change the value of parser_max_mem_size to an invalid value
 
@@ -30,14 +45,6 @@ SET @@session.parser_max_mem_size = -10;
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.parser_max_mem_size = 0.5;
-
---echo # Check if the value in session Table matches value in variable
-
---disable_warnings
-SET @@session.parser_max_mem_size = DEFAULT;
-SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES
-WHERE VARIABLE_NAME='parser_max_mem_size';
---enable_warnings
 
 --echo # Check if TRUE and FALSE values can be used on variable
 
@@ -74,14 +81,15 @@ SELECT @@session.parser_max_mem_size;
 SET @@session.parser_max_mem_size = DEFAULT;
 SELECT @@session.parser_max_mem_size;
 
+--echo # disconnect
+disconnect conn_example;
+--source include/wait_until_disconnected.inc
 -- connection default
 
 --echo # default sets sesion 450000
 SET @@session.parser_max_mem_size = 450000;
 SELECT @@session.parser_max_mem_size;
 
---echo # disconnect
-disconnect conn_example;
 DROP USER example;
 
 SET @@global.parser_max_mem_size = DEFAULT;
