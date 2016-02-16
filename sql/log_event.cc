@@ -13619,27 +13619,38 @@ void View_change_log_event::print(FILE *file,
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
 
- int View_change_log_event::do_apply_event(Relay_log_info const *rli)
- {
-   enum_gtid_statement_status state= gtid_pre_statement_checks(thd);
-   if (state == GTID_STATEMENT_SKIP)
-     return 0;
+int View_change_log_event::do_apply_event(Relay_log_info const *rli)
+{
+  enum_gtid_statement_status state= gtid_pre_statement_checks(thd);
+  if (state == GTID_STATEMENT_SKIP)
+    return 0;
 
-   if (state == GTID_STATEMENT_CANCEL ||
-          (state == GTID_STATEMENT_EXECUTE &&
-           gtid_pre_statement_post_implicit_commit_checks(thd)))
-   {
-      uint error= thd->get_stmt_da()->mysql_errno();
-      DBUG_ASSERT(error != 0);
-      rli->report(ERROR_LEVEL, error,
-                  "Error executing View Change event: '%s'",
-                  thd->get_stmt_da()->message_text());
-      thd->is_slave_error= 1;
-      return -1;
-   }
+  if (state == GTID_STATEMENT_CANCEL ||
+         (state == GTID_STATEMENT_EXECUTE &&
+          gtid_pre_statement_post_implicit_commit_checks(thd)))
+  {
+    uint error= thd->get_stmt_da()->mysql_errno();
+    DBUG_ASSERT(error != 0);
+    rli->report(ERROR_LEVEL, error,
+                "Error executing View Change event: '%s'",
+                thd->get_stmt_da()->message_text());
+    thd->is_slave_error= 1;
+    return -1;
+  }
 
-   return mysql_bin_log.write_event(this);
- }
+  if (!opt_bin_log)
+  {
+    return 0;
+  }
+
+  int error= mysql_bin_log.write_event(this);
+  if (error)
+    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                "Could not write the VIEW CHANGE event in the binary log.");
+
+  return (error);
+}
 
 int View_change_log_event::do_update_pos(Relay_log_info *rli)
 {
