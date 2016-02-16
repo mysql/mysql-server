@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -507,7 +507,10 @@ int main(int argc, char** argv){
   printf("# SQL commands for creating the tables in MySQL Server which\n");
   printf("# are used by the NDBINFO storage engine to access system\n");
   printf("# information and statistics from MySQL Cluster\n");
-  printf("#\n");
+  printf("#\n\n");
+
+  printf("# Use latin1 when creating ndbinfo objects\n");
+  printf("SET NAMES 'latin1' COLLATE 'latin1_swedish_ci';\n\n");
 
   printf("# Only create objects if NDBINFO is supported\n");
   printf("SELECT @have_ndbinfo:= COUNT(*) FROM "
