@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -624,6 +624,20 @@ public:
      *  should only do local cleanup(s)
      */
     void (Dbspj::*m_cleanup)(Ptr<Request>, Ptr<TreeNode>);
+
+    /**
+     * This function is called to check the node validity within
+     * the request during debug execution
+     */
+    bool (Dbspj::*m_checkNode)(const Ptr<Request>, const Ptr<TreeNode>);
+
+    /**
+     * This function is called to dump request info to the node
+     * log for debugging purposes.  It should be used for
+     * treenode type-specific data, the generic treenode info
+     * is handled by dumpNodeCommon()
+     */
+    void (Dbspj::*m_dumpNode)(const Ptr<Request>, const Ptr<TreeNode>);
   };  //struct OpInfo
 
   struct LookupData
@@ -1282,6 +1296,8 @@ private:
   void store_scan(Ptr<Request>);
   void handle_early_scanfrag_ref(Signal*, const ScanFragReq *, Uint32 err);
 
+  bool checkRequest(const Ptr<Request>);
+
   struct BuildKeyReq
   {
     Uint32 hashInfo[4]; // Used for hashing
@@ -1410,6 +1426,11 @@ private:
   void common_execTRANSID_AI(Signal*, Ptr<Request>, Ptr<TreeNode>,
 			     const RowPtr&);
 
+  void dumpScanFragHandle(const Ptr<ScanFragHandle> fragPtr) const;
+  void dumpNodeCommon(const Ptr<TreeNode>) const;
+  void dumpRequest(const char* reason,
+                   const Ptr<Request> requestPtr);
+
   /**
    * Lookup
    */
@@ -1441,6 +1462,10 @@ private:
 
   Uint32 computeHash(Signal*, BuildKeyReq&, Uint32 table, Uint32 keyInfoPtrI);
   Uint32 computePartitionHash(Signal*, BuildKeyReq&, Uint32 table, Uint32 keyInfoPtrI);
+  bool lookup_checkNode(const Ptr<Request> requestPtr, 
+                        const Ptr<TreeNode> treeNodePtr);
+  void lookup_dumpNode(const Ptr<Request> requestPtr,
+                       const Ptr<TreeNode> treeNodePtr);
 
   /**
    * ScanFrag
@@ -1457,6 +1482,10 @@ private:
   void scanFrag_execSCAN_NEXTREQ(Signal*, Ptr<Request>,Ptr<TreeNode>);
   void scanFrag_abort(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void scanFrag_cleanup(Ptr<Request>, Ptr<TreeNode>);
+  bool scanFrag_checkNode(const Ptr<Request> requestPtr, 
+                          const Ptr<TreeNode> treeNodePtr);
+  void scanFrag_dumpNode(const Ptr<Request> requestPtr,
+                         const Ptr<TreeNode> treeNodePtr);
 
   /**
    * ScanIndex
@@ -1499,6 +1528,12 @@ private:
   Uint32 scanindex_sendDihGetNodesReq(Signal* signal,
                                       Ptr<Request> requestPtr,
                                       Ptr<TreeNode> treeNodePtr);
+
+  bool scanIndex_checkNode(const Ptr<Request> requestPtr,
+                           const Ptr<TreeNode> treeNodePtr);
+
+  void scanIndex_dumpNode(const Ptr<Request> requestPtr,
+                          const Ptr<TreeNode> treeNodePtr);
 
   /**
    * Page manager
