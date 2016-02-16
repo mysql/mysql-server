@@ -1,4 +1,4 @@
--- Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -2577,6 +2577,10 @@ set @had_proxies_priv_table= @@warning_count != 0;
 # are used by the NDBINFO storage engine to access system
 # information and statistics from MySQL Cluster
 #
+
+# Use latin1 when creating ndbinfo objects
+SET NAMES 'latin1' COLLATE 'latin1_swedish_ci';
+
 # Only create objects if NDBINFO is supported
 SELECT @have_ndbinfo:= COUNT(*) FROM information_schema.engines WHERE engine='NDBINFO' AND support IN ('YES', 'DEFAULT');
 
