@@ -1202,7 +1202,7 @@ bool Item::eq(const Item *item, bool binary_cmp) const
 Item *Item::safe_charset_converter(const CHARSET_INFO *tocs)
 {
   Item_func_conv_charset *conv= new Item_func_conv_charset(this, tocs, 1);
-  return conv->safe ? conv : NULL;
+  return conv && conv->safe ? conv : NULL;
 }
 
 
@@ -2514,7 +2514,6 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
 
   for (i= 0, arg= args; i < nargs; i++, arg+= item_sep)
   {
-    Item* conv;
     size_t dummy_offset;
     if (!String::needs_conversion(1, (*arg)->collation.collation,
                                   coll.collation,
@@ -2539,7 +2538,11 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
         !(coll.collation->state & MY_CS_NONASCII))
       continue;
 
-    if (!(conv= (*arg)->safe_charset_converter(coll.collation)) &&
+    Item *conv= (*arg)->safe_charset_converter(coll.collation);
+    // @todo - check why the constructors may return error
+    if (thd->is_error())
+      return true;
+    if (conv == NULL &&
         ((*arg)->collation.repertoire == MY_REPERTOIRE_ASCII))
       conv= new Item_func_conv_charset(*arg, coll.collation, 1);
 

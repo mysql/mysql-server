@@ -3844,7 +3844,8 @@ static bool build_equal_items_for_cond(THD *thd, Item *cond, Item **retcond,
       List_iterator_fast<Item_equal> it(cond_equal.current_level);
       while ((item_equal= it++))
       {
-        item_equal->fix_length_and_dec();
+        if (item_equal->resolve_type(thd))
+          return true;
         item_equal->update_used_tables();
         set_if_bigger(thd->lex->current_select()->max_equal_elems,
                       item_equal->members());  
@@ -3910,7 +3911,8 @@ static bool build_equal_items_for_cond(THD *thd, Item *cond, Item **retcond,
       {
         if ((item_equal= cond_equal.current_level.pop()))
         {
-          item_equal->fix_length_and_dec();
+          if (item_equal->resolve_type(thd))
+            return true;
           item_equal->update_used_tables();
           set_if_bigger(thd->lex->current_select()->max_equal_elems,
                         item_equal->members());  
@@ -3936,7 +3938,8 @@ static bool build_equal_items_for_cond(THD *thd, Item *cond, Item **retcond,
         List_iterator_fast<Item_equal> it(cond_equal.current_level);
         while ((item_equal= it++))
         {
-          item_equal->fix_length_and_dec();
+          if (item_equal->resolve_type(thd))
+            return true;
           item_equal->update_used_tables();
           set_if_bigger(thd->lex->current_select()->max_equal_elems,
                         item_equal->members());  

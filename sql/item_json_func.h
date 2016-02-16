@@ -137,11 +137,12 @@ public:
 
   enum_field_types field_type() const { return MYSQL_TYPE_JSON; }
 
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
     max_length= MAX_BLOB_WIDTH;
     maybe_null= true;
     collation.set(&my_charset_utf8mb4_bin, DERIVATION_IMPLICIT);
+    return false;
   }
   enum Item_result result_type () const { return STRING_RESULT; }
   String *val_str(String *arg);
@@ -265,9 +266,10 @@ public:
 
   longlong val_int();
 
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
     maybe_null= true;
+    return false;
   }
 };
 
@@ -296,9 +298,10 @@ class Item_func_json_contains :public Item_int_func
 
   longlong val_int();
 
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
     maybe_null= true;
+    return false;
   }
 
   /** Cleanup between executions of the statement */
@@ -335,9 +338,10 @@ public:
 
   longlong val_int();
 
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
     maybe_null= true;
+    return false;
   }
 
   /** Cleanup between executions of the statement */
@@ -359,11 +363,13 @@ public:
     return "json_type";
   }
 
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
     maybe_null= true;
     m_value.set_charset(&my_charset_utf8mb4_bin);
-    fix_length_and_charset(Json_dom::typelit_max_length, &my_charset_utf8mb4_bin);
+    fix_length_and_charset(Json_dom::typelit_max_length,
+                           &my_charset_utf8mb4_bin);
+    return false;
   };
 
   String *val_str(String *);
@@ -403,9 +409,10 @@ public:
     : Item_int_func(pos, a, b), m_path_cache(thd, 2)
   {}
 
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
     maybe_null= true;
+    return false;
   }
 
   const char *func_name() const
@@ -735,7 +742,7 @@ public:
     return "json_quote";
   }
 
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
     maybe_null= true;
 
@@ -745,6 +752,7 @@ public:
     */
     uint32 max_char_length= (6 * args[0]->max_length) + 2;
     fix_length_and_charset(max_char_length, &my_charset_utf8mb4_bin);
+    return false;
   };
 
   String *val_str(String *tmpspace);
@@ -766,10 +774,11 @@ public:
     return "json_unquote";
   }
 
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
     maybe_null= true;
     fix_length_and_charset(args[0]->max_length, &my_charset_utf8mb4_bin);
+    return false;
   };
 
   String *val_str(String *str);

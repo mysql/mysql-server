@@ -392,7 +392,7 @@ void Item_sum::fix_num_length_and_dec()
 }
 
 
-void Item_sum::fix_length_and_dec()
+bool Item_sum::resolve_type(THD *thd)
 {
   maybe_null=1;
   null_value=1;
@@ -401,7 +401,8 @@ void Item_sum::fix_length_and_dec()
 
   // None except these 3 types are allowed for geometry arguments.
   if (!(t == COUNT_FUNC || t == COUNT_DISTINCT_FUNC || t == SUM_BIT_FUNC))
-    reject_geometry_args(arg_count, args, this);
+    return reject_geometry_args(arg_count, args, this);
+  return false;
 }
 
 bool Item_sum::walk(Item_processor processor, enum_walk walk, uchar *argument)
@@ -1254,8 +1255,7 @@ Item_sum_num::fix_fields(THD *thd, Item **ref)
   result_field=0;
   max_length=float_length(decimals);
   null_value=1;
-  fix_length_and_dec();
-  if (thd->is_error())
+  if (resolve_type(thd))
     return true;
 
   if (check_sum_func(thd, ref))
@@ -1297,14 +1297,14 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
   default:
     DBUG_ASSERT(0);
   };
-  setup_hybrid(args[0], NULL);
+  if (setup_hybrid(args[0], NULL))
+    return true;
   /* MIN/MAX can return NULL for empty set indepedent of the used column */
-  maybe_null= 1;
+  maybe_null= true;
   unsigned_flag=item->unsigned_flag;
-  result_field=0;
-  null_value=1;
-  fix_length_and_dec();
-  if (thd->is_error())
+  result_field= NULL;
+  null_value= TRUE;
+  if (resolve_type(thd))
     return true;
   item= item->real_item();
   if (item->type() == Item::FIELD_ITEM)
@@ -1332,16 +1332,24 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
     of the original MIN/MAX object and it is saved in this object's cache.
 */
 
-void Item_sum_hybrid::setup_hybrid(Item *item, Item *value_arg)
+bool Item_sum_hybrid::setup_hybrid(Item *item, Item *value_arg)
 {
   value= Item_cache::get_cache(item);
   value->setup(item);
   value->store(value_arg);
   arg_cache= Item_cache::get_cache(item);
+  if (arg_cache == NULL)
+    return true;
   arg_cache->setup(item);
   cmp= new Arg_comparator();
-  cmp->set_cmp_func(this, (Item**)&arg_cache, (Item**)&value, FALSE);
+  if (cmp == NULL)
+    return true;
+  if (cmp->set_cmp_func(this, pointer_cast<Item **>(&arg_cache),
+                              pointer_cast<Item **>(&value), false))
+    return true;
   collation.set(item->collation);
+
+  return false;
 }
 
 
@@ -1425,9 +1433,9 @@ void Item_sum_sum::clear()
 }
 
 
-void Item_sum_sum::fix_length_and_dec()
+bool Item_sum_sum::resolve_type(THD *thd)
 {
-  DBUG_ENTER("Item_sum_sum::fix_length_and_dec");
+  DBUG_ENTER("Item_sum_sum::resolve_type");
   maybe_null= true;
   null_value= TRUE;
   decimals= args[0]->decimals;
@@ -1456,7 +1464,8 @@ void Item_sum_sum::fix_length_and_dec()
     DBUG_ASSERT(0);
   }
 
-  reject_geometry_args(arg_count, args, this);
+  if (reject_geometry_args(arg_count, args, this))
+    DBUG_RETURN(true);
 
   DBUG_PRINT("info", ("Type: %s (%d, %d)",
                       (hybrid_type == REAL_RESULT ? "REAL_RESULT" :
@@ -1465,7 +1474,7 @@ void Item_sum_sum::fix_length_and_dec()
                        "--ILLEGAL!!!--"),
                       max_length,
                       (int)decimals));
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(false);
 }
 
 
@@ -1689,12 +1698,11 @@ void Item_sum_count::cleanup()
 }
 
 
-/*
-  Avgerage
-*/
-void Item_sum_avg::fix_length_and_dec()
+bool Item_sum_avg::resolve_type(THD *thd)
 {
-  Item_sum_sum::fix_length_and_dec();
+  if (Item_sum_sum::resolve_type(thd))
+    return true;
+
   maybe_null= true;
   null_value= TRUE;
   prec_increment= current_thd->variables.div_precincrement;
@@ -1713,6 +1721,7 @@ void Item_sum_avg::fix_length_and_dec()
     decimals= min<uint>(args[0]->decimals + prec_increment, NOT_FIXED_DEC);
     max_length= args[0]->max_length + prec_increment;
   }
+  return false;
 }
 
 
@@ -1889,9 +1898,9 @@ Item_sum_variance::Item_sum_variance(THD *thd, Item_sum_variance *item):
 }
 
 
-void Item_sum_variance::fix_length_and_dec()
+bool Item_sum_variance::resolve_type(THD *thd)
 {
-  DBUG_ENTER("Item_sum_variance::fix_length_and_dec");
+  DBUG_ENTER("Item_sum_variance::resolve_type");
   maybe_null= true;
   null_value= TRUE;
 
@@ -1905,9 +1914,10 @@ void Item_sum_variance::fix_length_and_dec()
   decimals= NOT_FIXED_DEC;
   max_length= float_length(decimals);
 
-  reject_geometry_args(arg_count, args, this);
+  if (reject_geometry_args(arg_count, args, this))
+    DBUG_RETURN(true);
   DBUG_PRINT("info", ("Type: REAL_RESULT (%d, %d)", max_length, (int)decimals));
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(false);
 }
 
 
@@ -2180,7 +2190,10 @@ void Item_sum_hybrid::no_rows_in_result()
 Item *Item_sum_min::copy_or_same(THD* thd)
 {
   Item_sum_min *item= new (thd->mem_root) Item_sum_min(thd, this);
-  item->setup_hybrid(args[0], value);
+  if (item == NULL)
+    return NULL;
+  if (item->setup_hybrid(args[0], value))
+    return NULL;
   return item;
 }
 
@@ -2203,7 +2216,10 @@ bool Item_sum_min::add()
 Item *Item_sum_max::copy_or_same(THD* thd)
 {
   Item_sum_max *item= new (thd->mem_root) Item_sum_max(thd, this);
-  item->setup_hybrid(args[0], value);
+  if (item == NULL)
+    return NULL;
+  if (item->setup_hybrid(args[0], value))
+    return NULL;
   return item;
 }
 
@@ -3016,13 +3032,12 @@ my_decimal *Item_sum_udf_int::val_decimal(my_decimal *dec)
 
 /** Default max_length is max argument length. */
 
-void Item_sum_udf_str::fix_length_and_dec()
+bool Item_sum_udf_str::resolve_type(THD *thd)
 {
-  DBUG_ENTER("Item_sum_udf_str::fix_length_and_dec");
   max_length=0;
   for (uint i = 0; i < arg_count; i++)
     set_if_bigger(max_length,args[i]->max_length);
-  DBUG_VOID_RETURN;
+  return false;
 }
 
 

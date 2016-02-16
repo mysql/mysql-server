@@ -1,7 +1,7 @@
 #ifndef ITEM_SUBSELECT_INCLUDED
 #define ITEM_SUBSELECT_INCLUDED
 
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -137,7 +137,7 @@ public:
   void fix_after_pullout(SELECT_LEX *parent_select,
                          SELECT_LEX *removed_select);
   virtual bool exec();
-  virtual void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   table_map used_tables() const;
   table_map not_null_tables() const { return 0; }
   bool const_item() const;
@@ -221,7 +221,7 @@ public:
   bool val_bool();
   enum Item_result result_type() const;
   enum_field_types field_type() const;
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
 
   /*
     Mark the subquery as having no rows.
@@ -358,7 +358,7 @@ public:
   {
     return get_time_from_int(ltime);
   }
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   virtual void print(String *str, enum_query_type query_type);
 
   friend class Query_result_exists_subquery;

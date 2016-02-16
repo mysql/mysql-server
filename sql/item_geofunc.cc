@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -87,12 +87,14 @@ Field *Item_geometry_func::tmp_table_field(TABLE *t_arg)
   return result;
 }
 
-void Item_geometry_func::fix_length_and_dec()
+
+bool Item_geometry_func::resolve_type(THD *thd)
 {
   collation.set(&my_charset_bin);
   decimals=0;
   max_length= 0xFFFFFFFFU;
-  maybe_null= 1;
+  maybe_null= true;
+  return false;
 }
 
 
@@ -1284,9 +1286,9 @@ is_member_valid(const Json_dom *member, const char *member_name,
 }
 
 
-void Item_func_geomfromgeojson::fix_length_and_dec()
+bool Item_func_geomfromgeojson::resolve_type(THD *thd)
 {
-  Item_geometry_func::fix_length_and_dec();
+  return Item_geometry_func::resolve_type(thd);
 }
 
 
@@ -2174,11 +2176,12 @@ String *Item_func_as_wkt::val_str_ascii(String *str)
 }
 
 
-void Item_func_as_wkt::fix_length_and_dec()
+bool Item_func_as_wkt::resolve_type(THD *thd)
 {
   collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
   max_length=MAX_BLOB_WIDTH;
-  maybe_null= 1;
+  maybe_null= true;
+  return false;
 }
 
 

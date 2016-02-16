@@ -28,7 +28,7 @@ class PT_item_list;
 
 /* Function items used by mysql */
 
-extern void reject_geometry_args(uint arg_count, Item **args,
+extern bool reject_geometry_args(uint arg_count, Item **args,
                                  Item_result_field *me);
 void unsupported_json_comparison(size_t arg_count, Item **args,
                                  const char *msg);
@@ -579,8 +579,12 @@ public:
     return get_time_from_real(ltime);
   }
   enum Item_result result_type () const { return REAL_RESULT; }
-  void fix_length_and_dec()
-  { decimals= NOT_FIXED_DEC; max_length= float_length(decimals); }
+  virtual bool resolve_type(THD *thd)
+  {
+    decimals= NOT_FIXED_DEC;
+    max_length= float_length(decimals);
+    return false;
+  }
 };
 
 
@@ -610,9 +614,9 @@ public:
   { collation.set_numeric(); }
 
   enum Item_result result_type () const { return hybrid_type; }
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   void fix_num_length_and_dec();
-  virtual void find_num_type()= 0; /* To be called from fix_length_and_dec */
+  virtual void find_num_type()= 0; // To be called from resolve_type()
 
   double val_real();
   longlong val_int();
@@ -760,7 +764,7 @@ public:
     return get_time_from_int(ltime);
   }
   enum Item_result result_type () const { return INT_RESULT; }
-  void fix_length_and_dec() {}
+  virtual bool resolve_type(THD *thd) { return false; }
 };
 
 
@@ -775,7 +779,7 @@ public:
 
   virtual bool itemize(Parse_context *pc, Item **res);
   const char *func_name() const { return "connection_id"; }
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   bool fix_fields(THD *thd, Item **ref);
   longlong val_int() { DBUG_ASSERT(fixed == 1); return value; }
   bool check_gcol_func_processor(uchar *int_arg) { return true;}
@@ -792,7 +796,7 @@ public:
   const char *func_name() const { return "cast_as_signed"; }
   longlong val_int();
   longlong val_int_from_str(int *error);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   virtual void print(String *str, enum_query_type query_type);
   uint decimal_precision() const { return args[0]->decimal_precision(); }
   enum Functype functype() const { return TYPECAST_FUNC; }
@@ -839,7 +843,7 @@ public:
   my_decimal *val_decimal(my_decimal*);
   enum Item_result result_type () const { return DECIMAL_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_NEWDECIMAL; }
-  void fix_length_and_dec() {};
+  virtual bool resolve_type(THD *thd) { return false; }
   const char *func_name() const { return "decimal_typecast"; }
   enum Functype functype() const { return TYPECAST_FUNC; }
   virtual void print(String *str, enum_query_type query_type);
@@ -891,7 +895,7 @@ public:
 
   double real_op();
   my_decimal *decimal_op(my_decimal *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
 };
 
 
@@ -920,7 +924,7 @@ public:
   double real_op();
   my_decimal *decimal_op(my_decimal *);
   const char *func_name() const { return "/"; }
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   void result_precision();
 };
 
@@ -934,7 +938,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "DIV"; }
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
 
   virtual inline void print(String *str, enum_query_type query_type)
   {
@@ -957,7 +961,7 @@ public:
   my_decimal *decimal_op(my_decimal *);
   const char *func_name() const { return "%"; }
   void result_precision();
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   bool check_partition_func_processor(uchar *int_arg) {return false;}
   bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
@@ -974,7 +978,7 @@ public:
   my_decimal *decimal_op(my_decimal *);
   const char *func_name() const { return "-"; }
   enum Functype functype() const   { return NEG_FUNC; }
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   void fix_num_length_and_dec();
   uint decimal_precision() const { return args[0]->decimal_precision(); }
   bool check_partition_func_processor(uchar *int_arg) {return false;}
@@ -990,7 +994,7 @@ public:
   longlong int_op();
   my_decimal *decimal_op(my_decimal *);
   const char *func_name() const { return "abs"; }
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   bool check_partition_func_processor(uchar *int_arg) {return false;}
   bool check_gcol_func_processor(uchar *int_arg) { return false;}
 };
@@ -1043,7 +1047,7 @@ public:
     upper_longitude(upper_longitude), start_on_even_bit(start_on_even_bit_arg)
   {}
   double val_real();
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   bool fix_fields(THD *thd, Item **ref);
   static bool decode_geohash(String *geohash, double upper_latitude,
                              double lower_latitude, double upper_longitude,
@@ -1094,7 +1098,7 @@ class Item_dec_func :public Item_real_func
   Item_dec_func(const POS &pos, Item *a) :Item_real_func(pos, a) {}
 
   Item_dec_func(const POS &pos, Item *a,Item *b) :Item_real_func(pos, a,b) {}
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
 };
 
 class Item_func_exp :public Item_dec_func
@@ -1222,7 +1226,7 @@ class Item_func_integer :public Item_int_func
 {
 public:
   inline Item_func_integer(Item *a) :Item_int_func(a) {}
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
 };
 
 
@@ -1279,7 +1283,7 @@ public:
   double real_op();
   longlong int_op();
   my_decimal *decimal_op(my_decimal *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
 };
 
 
@@ -1308,7 +1312,7 @@ public:
   */
   table_map get_initial_pseudo_tables() const { return RAND_TABLE_BIT; }
   bool fix_fields(THD *thd, Item **ref);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   void cleanup() { first_eval= TRUE; Item_real_func::cleanup(); }
 private:
   void seed_random (Item * val);  
@@ -1321,7 +1325,7 @@ public:
   Item_func_sign(const POS &pos, Item *a) :Item_int_func(pos, a) {}
   const char *func_name() const { return "sign"; }
   longlong val_int();
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
 };
 
 
@@ -1336,7 +1340,7 @@ public:
   {}
   double val_real();
   const char *func_name() const { return name; }
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
 };
 
 
@@ -1368,7 +1372,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);  
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   enum Item_result result_type () const
   {
     /*
@@ -1439,13 +1443,14 @@ public:
   const char *func_name() const { return "rollup_const"; }
   bool const_item() const { return 0; }
   Item_result result_type() const { return args[0]->result_type(); }
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
     collation= args[0]->collation;
     max_length= args[0]->max_length;
     decimals=args[0]->decimals; 
     /* The item could be a NULL constant. */
     null_value= args[0]->is_null();
+    return false;
   }
   enum_field_types field_type() const { return args[0]->field_type(); }
 };
@@ -1458,7 +1463,11 @@ public:
   Item_func_length(const POS &pos, Item *a) :Item_int_func(pos, a) {}
   longlong val_int();
   const char *func_name() const { return "length"; }
-  void fix_length_and_dec() { max_length=10; }
+  virtual bool resolve_type(THD *thd)
+  {
+    max_length= 10;
+    return false;
+  }
 };
 
 class Item_func_bit_length :public Item_func_length
@@ -1478,7 +1487,11 @@ public:
   Item_func_char_length(const POS &pos, Item *a) :Item_int_func(pos, a) {}
   longlong val_int();
   const char *func_name() const { return "char_length"; }
-  void fix_length_and_dec() { max_length=10; }
+  virtual bool resolve_type(THD *thd)
+  {
+    max_length= 10;
+    return false;
+  }
 };
 
 class Item_func_coercibility :public Item_int_func
@@ -1487,7 +1500,12 @@ public:
   Item_func_coercibility(const POS &pos, Item *a) :Item_int_func(pos, a) {}
   longlong val_int();
   const char *func_name() const { return "coercibility"; }
-  void fix_length_and_dec() { max_length=10; maybe_null= 0; }
+  virtual bool resolve_type(THD *thd)
+  {
+    max_length= 10;
+    maybe_null= false;
+    return false;
+  }
   table_map not_null_tables() const { return 0; }
 };
 
@@ -1505,7 +1523,7 @@ public:
 
   const char *func_name() const { return "locate"; }
   longlong val_int();
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   virtual void print(String *str, enum_query_type query_type);
 };
 
@@ -1528,7 +1546,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "validate_password_strength"; }
-  void fix_length_and_dec() { max_length= 10; maybe_null= 1; }
+  virtual bool resolve_type(THD *thd)
+  {
+    max_length= 10;
+    maybe_null= true;
+    return false;
+  }
 };
 
 
@@ -1543,7 +1566,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "field"; }
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
 };
 
 
@@ -1554,7 +1577,11 @@ public:
   Item_func_ascii(const POS &pos, Item *a) :Item_int_func(pos, a) {}
   longlong val_int();
   const char *func_name() const { return "ascii"; }
-  void fix_length_and_dec() { max_length=3; }
+  virtual bool resolve_type(THD *thd)
+  {
+    max_length= 3;
+    return false;
+  }
 };
 
 class Item_func_ord :public Item_int_func
@@ -1578,7 +1605,7 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "find_in_set"; }
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
 };
 
 /* Base class for all bit functions: '~', '|', '^', '&', '>>', '<<' */
@@ -1595,10 +1622,11 @@ public:
   Item_func_bit(Item *a) :Item_int_func(a) {}
   Item_func_bit(const POS &pos, Item *a) :Item_int_func(pos, a) {}
 
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
     unsigned_flag= 1;
     check_deprecated_bin_op(args[0], check_deprecated_second_arg());
+    return false;
   }
 
   virtual inline void print(String *str, enum_query_type query_type)
@@ -1633,10 +1661,11 @@ public:
   Item_func_bit_count(const POS &pos, Item *a) :Item_int_func(pos, a) {}
   longlong val_int();
   const char *func_name() const { return "bit_count"; }
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
-    max_length=2;
+    max_length= 2;
     check_deprecated_bin_op(args[0], NULL);
+    return false;
   }
 };
 
@@ -1688,11 +1717,12 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
   longlong val_int();
   const char *func_name() const { return "last_insert_id"; }
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
-    unsigned_flag= TRUE;
+    unsigned_flag= true;
     if (arg_count)
       max_length= args[0]->max_length;
+    return false;
   }
   bool check_gcol_func_processor(uchar *int_arg)
   { return true; }
@@ -1710,7 +1740,12 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
   longlong val_int();
   const char *func_name() const { return "benchmark"; }
-  void fix_length_and_dec() { max_length=1; maybe_null= true; }
+  virtual bool resolve_type(THD *thd)
+  {
+    max_length= 1;
+    maybe_null= true;
+    return false;
+  }
   virtual void print(String *str, enum_query_type query_type);
   bool check_gcol_func_processor(uchar *int_arg)
   { return true; }
@@ -1785,8 +1820,7 @@ public:
        - Store the deterministic flag returned by <udf>_init into the 
        udf_handler. 
        - Don't implement Item_udf_func::fix_fields, implement
-       Item_udf_func::fix_length_and_dec() instead (similar to non-UDF
-       functions).
+       Item_udf_func::resolve_type() instead (similar to non-UDF functions).
        - Override Item_func::update_used_tables to call 
        Item_func::update_used_tables() and add a RAND_TABLE_BIT to the 
        result of Item_func::update_used_tables() if the UDF is 
@@ -1855,7 +1889,11 @@ class Item_func_udf_float :public Item_udf_func
   {
     return get_time_from_real(ltime);
   }
-  void fix_length_and_dec() { fix_num_length_and_dec(); }
+  virtual bool resolve_type(THD *thd)
+  {
+    fix_num_length_and_dec();
+    return false;
+  }
 };
 
 
@@ -1877,7 +1915,12 @@ public:
     return get_time_from_int(ltime);
   }
   enum Item_result result_type () const { return INT_RESULT; }
-  void fix_length_and_dec() { decimals= 0; max_length= 21; }
+  virtual bool resolve_type(THD *thd)
+  {
+    decimals= 0;
+    max_length= 21;
+    return false;
+  }
 };
 
 
@@ -1901,7 +1944,7 @@ public:
     return get_time_from_decimal(ltime);
   }
   enum Item_result result_type () const { return DECIMAL_RESULT; }
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
 };
 
 
@@ -1946,7 +1989,7 @@ public:
     return get_time_from_string(ltime);
   }
   enum Item_result result_type () const { return STRING_RESULT; }
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
 };
 
 
@@ -1965,7 +2008,12 @@ class Item_func_get_lock :public Item_int_func
   virtual bool itemize(Parse_context *pc, Item **res);
   longlong val_int();
   const char *func_name() const { return "get_lock"; }
-  void fix_length_and_dec() { max_length=1; maybe_null=1;}
+  virtual bool resolve_type(THD *thd)
+  {
+    max_length= 1;
+    maybe_null= true;
+    return false;
+  }
   bool check_gcol_func_processor(uchar *int_arg)
   { return true; }
   virtual uint decimal_precision() const { return max_length; }
@@ -1982,7 +2030,12 @@ public:
 
   longlong val_int();
   const char *func_name() const { return "release_lock"; }
-  void fix_length_and_dec() { max_length=1; maybe_null=1;}
+  virtual bool resolve_type(THD *thd)
+  {
+    max_length= 1;
+    maybe_null= true;
+    return false;
+  }
   bool check_gcol_func_processor(uchar *int_arg)
   { return true; }
   virtual uint decimal_precision() const { return max_length; }
@@ -1998,7 +2051,11 @@ public:
 
   longlong val_int();
   const char *func_name() const { return "release_all_locks"; }
-  void fix_length_and_dec() { unsigned_flag= TRUE; }
+  virtual bool resolve_type(THD *thd)
+  {
+    unsigned_flag= true;
+    return false;
+  }
   bool check_gcol_func_processor(uchar *int_arg)
   { return true; }
 };
@@ -2023,7 +2080,12 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
   longlong val_int();
   const char *func_name() const { return "master_pos_wait"; }
-  void fix_length_and_dec() { max_length=21; maybe_null=1;}
+  virtual bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
   bool check_gcol_func_processor(uchar *int_arg)
   { return true; }
 };
@@ -2047,7 +2109,12 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
   longlong val_int();
   const char *func_name() const { return "wait_for_executed_gtid_set"; }
-  void fix_length_and_dec() { max_length= 21; maybe_null= 1; }
+  virtual bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_master_gtid_set_wait :public Item_int_func
@@ -2067,7 +2134,12 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
   longlong val_int();
   const char *func_name() const { return "wait_until_sql_thread_after_gtids"; }
-  void fix_length_and_dec() { max_length= 21; maybe_null= 1; }
+  virtual bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_gtid_subset : public Item_int_func
@@ -2080,7 +2152,12 @@ public:
   {}
   longlong val_int();
   const char *func_name() const { return "gtid_subset"; }
-  void fix_length_and_dec() { max_length= 21; maybe_null= 0; }
+  virtual bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    maybe_null= false;
+    return false;
+  }
   bool is_bool_func() { return true; }
 };
 
@@ -2382,7 +2459,7 @@ public:
   bool update();
   enum Item_result result_type () const { return cached_result_type; }
   bool fix_fields(THD *thd, Item **ref);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   virtual void print(String *str, enum_query_type query_type);
   void print_assignment(String *str, enum_query_type query_type);
   const char *func_name() const { return "set_user_var"; }
@@ -2420,7 +2497,7 @@ public:
   longlong val_int();
   my_decimal *val_decimal(my_decimal*);
   String *val_str(String* str);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   virtual void print(String *str, enum_query_type query_type);
   enum Item_result result_type() const;
   /*
@@ -2507,7 +2584,7 @@ public:
                            LEX_STRING *component_arg, const char *name_arg,
                            size_t name_len_arg);
   enum Functype functype() const { return GSYSVAR_FUNC; }
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   void print(String *str, enum_query_type query_type);
   bool const_item() const { return true; }
   table_map used_tables() const { return 0; }
@@ -2831,7 +2908,12 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
   longlong val_int();
   const char *func_name() const { return "is_free_lock"; }
-  void fix_length_and_dec() { max_length= 1; maybe_null= TRUE;}
+  virtual bool resolve_type(THD *thd)
+  {
+    max_length= 1;
+    maybe_null= true;
+    return false;
+  }
   bool check_gcol_func_processor(uchar *int_arg)
   { return true; }
 };
@@ -2847,7 +2929,12 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
   longlong val_int();
   const char *func_name() const { return "is_used_lock"; }
-  void fix_length_and_dec() { unsigned_flag= TRUE; maybe_null= TRUE; }
+  virtual bool resolve_type(THD *thd)
+  {
+    unsigned_flag= true;
+    maybe_null= true;
+    return false;
+  }
   bool check_gcol_func_processor(uchar *int_arg)
   { return true; }
 };
@@ -2864,7 +2951,12 @@ public:
 
   longlong val_int();
   const char *func_name() const { return "row_count"; }
-  void fix_length_and_dec() { decimals= 0; maybe_null=0; }
+  virtual bool resolve_type(THD *thd)
+  {
+    decimals= 0;
+    maybe_null= false;
+    return false;
+  }
   bool check_gcol_func_processor(uchar *int_arg)
   { return true; }
 };
@@ -2994,7 +3086,8 @@ public:
   virtual enum Functype functype() const { return FUNC_SP; }
 
   bool fix_fields(THD *thd, Item **ref);
-  void fix_length_and_dec(void);
+  virtual bool resolve_type(THD *thd);
+
   bool is_expensive() { return true; }
 
   inline Field *get_sp_result_field()
@@ -3014,7 +3107,12 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
   longlong val_int();
   const char *func_name() const { return "found_rows"; }
-  void fix_length_and_dec() { decimals= 0; maybe_null=0; }
+  virtual bool resolve_type(THD *thd)
+  {
+    decimals= 0;
+    maybe_null= false;
+    return false;
+  }
   bool check_gcol_func_processor(uchar *int_arg)
   { return true; }
 };
@@ -3031,8 +3129,12 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
   const char *func_name() const { return "uuid_short"; }
   longlong val_int();
-  void fix_length_and_dec()
-  { max_length= 21; unsigned_flag=1; }
+  virtual bool resolve_type(THD *thd)
+  {
+    max_length= 21;
+    unsigned_flag= true;
+    return false;
+  }
   bool check_partition_func_processor(uchar *int_arg) {return false;}
   bool check_gcol_func_processor(uchar *int_arg)
   { return true; }

@@ -3953,7 +3953,18 @@ public:
   Field *get_tmp_table_field() { return result_field; }
   Field *tmp_table_field(TABLE *t_arg) { return result_field; }
   table_map used_tables() const { return 1; }
-  virtual void fix_length_and_dec()=0;
+
+  /**
+    Resolve type-related information for this item, such as result field type,
+    maximum size, precision, signedness, character set and collation.
+    Also check compatibility of argument types and return error when applicable.
+    Also adjust nullability when applicable.
+
+    @param thd    thread handler
+    @returns      false if success, true if error
+  */
+  virtual bool resolve_type(THD *thd)=0;
+
   void set_result_field(Field *field) { result_field= field; }
   bool is_result_field() { return 1; }
   void save_in_result_field(bool no_conversions)

@@ -196,7 +196,7 @@ public:
   {}
   Item_geometry_func(const POS &pos, PT_item_list *list);
 
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   enum_field_types field_type() const  { return MYSQL_TYPE_GEOMETRY; }
   Field *tmp_table_field(TABLE *t_arg);
 };
@@ -240,7 +240,7 @@ public:
   Item_func_as_wkt(const POS &pos, Item *a): Item_str_ascii_func(pos, a) {}
   const char *func_name() const { return "st_astext"; }
   String *val_str_ascii(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
 };
 
 class Item_func_as_wkb: public Item_geometry_func
@@ -259,11 +259,12 @@ public:
   {}
   String *val_str_ascii(String *);
   const char *func_name() const { return "st_geometrytype"; }
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
     // "GeometryCollection" is the longest
     fix_length_and_charset(20, default_charset());
-    maybe_null= 1;
+    maybe_null= true;
+    return false;
   };
 };
 
@@ -308,7 +309,7 @@ public:
     m_srid_found_in_document(-1)
   {}
   String *val_str(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   bool fix_fields(THD *, Item **ref);
   const char *func_name() const { return "st_geomfromgeojson"; }
   Geometry::wkbType get_wkbtype(const char *typestring);
@@ -617,9 +618,10 @@ public:
     item_type=it;
   }
   String *val_str(String *);
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
-    Item_geometry_func::fix_length_and_dec();
+    if (Item_geometry_func::resolve_type(thd))
+      return true;
     for (unsigned int i= 0; i < arg_count; ++i)
     {
       if (args[i]->fixed && args[i]->field_type() != MYSQL_TYPE_GEOMETRY)
@@ -629,8 +631,10 @@ public:
         str.append('\0');
         my_error(ER_ILLEGAL_VALUE_FOR_TYPE, MYF(0), "non geometric",
                  str.ptr());
+        return true;
       }
     }
+    return false;
   }
 
   const char *func_name() const;
@@ -673,7 +677,11 @@ public:
   {
     Item_func::print(str, query_type);
   }
-  void fix_length_and_dec() { maybe_null= 1; }
+  virtual bool resolve_type(THD *thd)
+  {
+    maybe_null= true;
+    return false;
+  }
   bool is_null() { (void) val_int(); return null_value; }
 };
 
@@ -709,7 +717,11 @@ public:
     Item_func::print(str, query_type);
   }
 
-  void fix_length_and_dec() { maybe_null= 1; }
+  virtual bool resolve_type(THD *thd)
+  {
+    maybe_null= true;
+    return false;
+  }
   bool is_null() { (void) val_int(); return null_value; }
 
   template<typename CoordinateSystemType>
@@ -939,7 +951,7 @@ public:
   Item_func_buffer_strategy(const POS &pos, PT_item_list *ilist);
   const char *func_name() const { return "st_buffer_strategy"; }
   String *val_str(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
 };
 
 
@@ -950,7 +962,11 @@ public:
   longlong val_int();
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   const char *func_name() const { return "st_isempty"; }
-  void fix_length_and_dec() { maybe_null= 1; }
+  virtual bool resolve_type(THD *thd)
+  {
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_issimple: public Item_bool_func
@@ -962,7 +978,11 @@ public:
   bool issimple(Geometry *g);
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   const char *func_name() const { return "st_issimple"; }
-  void fix_length_and_dec() { maybe_null= 1; }
+  virtual bool resolve_type(THD *thd)
+  {
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_isclosed: public Item_bool_func
@@ -972,7 +992,11 @@ public:
   longlong val_int();
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   const char *func_name() const { return "st_isclosed"; }
-  void fix_length_and_dec() { maybe_null= 1; }
+  virtual bool resolve_type(THD *thd)
+  {
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_isvalid: public Item_bool_func
@@ -991,7 +1015,12 @@ public:
   Item_func_dimension(const POS &pos, Item *a): Item_int_func(pos, a) {}
   longlong val_int();
   const char *func_name() const { return "st_dimension"; }
-  void fix_length_and_dec() { max_length= 10; maybe_null= 1; }
+  virtual bool resolve_type(THD *thd)
+  {
+    max_length= 10;
+    maybe_null= true;
+    return false;
+  }
 };
 
 class Item_func_x: public Item_real_func
@@ -1001,10 +1030,12 @@ public:
   Item_func_x(const POS &pos, Item *a): Item_real_func(pos, a) {}
   double val_real();
   const char *func_name() const { return "st_x"; }
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
-    Item_real_func::fix_length_and_dec();
-    maybe_null= 1;
+    if (Item_real_func::resolve_type(thd))
+      return true;
+    maybe_null= true;
+    return false;
   }
 };
 
@@ -1016,10 +1047,12 @@ public:
   Item_func_y(const POS &pos, Item *a): Item_real_func(pos, a) {}
   double val_real();
   const char *func_name() const { return "st_y"; }
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
-    Item_real_func::fix_length_and_dec();
-    maybe_null= 1;
+    if (Item_real_func::resolve_type(thd))
+      return true;
+    maybe_null= true;
+    return false;
   }
 };
 
@@ -1031,7 +1064,12 @@ public:
   Item_func_numgeometries(const POS &pos, Item *a): Item_int_func(pos, a) {}
   longlong val_int();
   const char *func_name() const { return "st_numgeometries"; }
-  void fix_length_and_dec() { max_length= 10; maybe_null= 1; }
+  virtual bool resolve_type(THD *thd)
+  {
+    max_length= 10;
+    maybe_null= true;
+    return false;
+  }
 };
 
 
@@ -1042,7 +1080,12 @@ public:
   Item_func_numinteriorring(const POS &pos, Item *a): Item_int_func(pos, a) {}
   longlong val_int();
   const char *func_name() const { return "st_numinteriorrings"; }
-  void fix_length_and_dec() { max_length= 10; maybe_null= 1; }
+  virtual bool resolve_type(THD *thd)
+  {
+    max_length= 10;
+    maybe_null= true;
+    return false;
+  }
 };
 
 
@@ -1053,7 +1096,12 @@ public:
   Item_func_numpoints(const POS &pos, Item *a): Item_int_func(pos, a) {}
   longlong val_int();
   const char *func_name() const { return "st_numpoints"; }
-  void fix_length_and_dec() { max_length= 10; maybe_null= 1; }
+  virtual bool resolve_type(THD *thd)
+  {
+    max_length= 10;
+    maybe_null= true;
+    return false;
+  }
 };
 
 
@@ -1067,10 +1115,12 @@ public:
   Item_func_area(const POS &pos, Item *a): Item_real_func(pos, a) {}
   double val_real();
   const char *func_name() const { return "st_area"; }
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
-    Item_real_func::fix_length_and_dec();
-    maybe_null= 1;
+    if (Item_real_func::resolve_type(thd))
+      return true;
+    maybe_null= true;
+    return false;
   }
 };
 
@@ -1082,10 +1132,12 @@ public:
   Item_func_glength(const POS &pos, Item *a): Item_real_func(pos, a) {}
   double val_real();
   const char *func_name() const { return "st_length"; }
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
-    Item_real_func::fix_length_and_dec();
-    maybe_null= 1;
+    if (Item_real_func::resolve_type(thd))
+      return true;
+    maybe_null= true;
+    return false;
   }
 };
 
@@ -1097,7 +1149,12 @@ public:
   Item_func_srid(const POS &pos, Item *a): Item_int_func(pos, a) {}
   longlong val_int();
   const char *func_name() const { return "st_srid"; }
-  void fix_length_and_dec() { max_length= 10; maybe_null= 1; }
+  virtual bool resolve_type(THD *thd)
+  {
+    max_length= 10;
+    maybe_null= true;
+    return false;
+  }
 };
 
 
@@ -1135,10 +1192,12 @@ public:
     maybe_null= true;
   }
 
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
-    Item_real_func::fix_length_and_dec();
+    if (Item_real_func::resolve_type(thd))
+      return true;
     maybe_null= true;
+    return false;
   }
 
   double val_real();
