@@ -2714,6 +2714,25 @@ static Sys_var_ulonglong Sys_parser_max_mem_size(
       ON_CHECK(limit_parser_max_mem_size),
       ON_UPDATE(NULL));
 
+/*
+  There is no call on Sys_var_integer::do_check() for 'set xxx=default';
+  The predefined default for parser_max_mem_size is "infinite".
+  Update it in case we have seen option maximum-parser-max-mem-size
+  Also update global_system_variables, so 'SELECT parser_max_mem_size'
+  reports correct data.
+*/
+export void update_parser_max_mem_size()
+{
+  const ulonglong max_max= max_system_variables.parser_max_mem_size;
+  if (max_max == max_mem_sz)
+    return;
+  // In case parser-max-mem-size is also set:
+  const ulonglong new_val=
+    std::min(max_max, global_system_variables.parser_max_mem_size);
+  Sys_parser_max_mem_size.update_default(new_val);
+  global_system_variables.parser_max_mem_size= new_val;
+}
+
 static const char *optimizer_switch_names[]=
 {
   "index_merge", "index_merge_union", "index_merge_sort_union",
