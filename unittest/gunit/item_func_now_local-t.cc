@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,7 +68,7 @@ TEST_F(ItemFuncNowLocalTest, saveInField)
   Item_func_now_local *item= new Item_func_now_local(0);
   Mock_field_timestamp f;
 
-  item->fix_length_and_dec();
+  EXPECT_FALSE(item->resolve_type(get_thd()));
   f.make_writable();
   item->save_in_field(&f, true);
 
