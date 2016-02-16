@@ -175,14 +175,19 @@ enum mysql_option
   MYSQL_OPT_CONNECT_ATTR_DELETE,
   MYSQL_SERVER_PUBLIC_KEY,
   MYSQL_ENABLE_CLEARTEXT_PLUGIN,
-  MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
+  MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS
 #ifndef MCP_BUG22389653
 /*
-  The mysql option, 'MYSQL_OPT_RETRY_COUNT' is added which allows
+  The option value 'MYSQL_OPT_RETRY_COUNT' is added to allow
   libmysql clients to configure the retry count using the C
   API, mysql_options(). This new option is an MCP addition.
+  NOTE! Using a high hardcoded value for the option to avoid
+  that it changes in case new option(s) are added to the version
+  which this version of MySQL Cluster is based on. The value does
+  not need to be same between major versions but should not fluctuate
+  betwen minor version numbers.
 */
-  MYSQL_OPT_RETRY_COUNT
+  , MYSQL_OPT_RETRY_COUNT = 237 // Hardcoded
 #endif
 };
 
