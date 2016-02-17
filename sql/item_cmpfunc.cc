@@ -203,7 +203,7 @@ enum_field_types agg_field_type(Item **items, uint nitems)
   @param nitems            Number of items in the array
   @param skip_nulls        Don't collect types of NULL items if TRUE
 
-  @detail
+  @details
     This function collects different result types for comparison of the first
     item in the list with each of the remaining items in the 'items' array.
 
@@ -4902,7 +4902,7 @@ cmp_item_row::~cmp_item_row()
 
   @param item Item to allocate comparator objects for
 
-  @results false on success, true on error (OOM)
+  @returns false on success, true on error (OOM)
 */
 
 bool cmp_item_row::alloc_comparators(Item *item)
