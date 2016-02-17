@@ -7740,7 +7740,12 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
         }
         result_keys.set_bit(idx);
 #ifndef DBUG_OFF
-        (*key1)->test_use_count(*key1);
+        /*
+          Do not test use_count if there is a large range tree created.
+          It takes too much time to traverse the tree.
+        */
+        if (param->mem_root->allocated_size < 2097152)
+          (*key1)->test_use_count(*key1);
 #endif
       }
 
@@ -7935,7 +7940,12 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
         result=tree1;				// Added to tree1
         result_keys.set_bit(idx);
 #ifndef DBUG_OFF
-        (*key1)->test_use_count(*key1);
+        /*
+          Do not test use count if there is a large range tree created.
+          It takes too much time to traverse the tree.
+        */
+        if (param->mem_root->allocated_size < 2097152)
+          (*key1)->test_use_count(*key1);
 #endif
       }
     }
