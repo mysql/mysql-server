@@ -212,11 +212,11 @@ public:
   /**
     Lets us build a parse tree top-down, which is necessary due to the
     context-dependent nature of the join syntax. This function adds
-    the <table_ref> cross join as the left-most leaf in this join tree.
+    the `<table_ref>` cross join as the left-most leaf in this join tree.
 
     This function may only be called if this PT_table_reference is a join.
 
-    @param cj This <table ref> will be added if it represents a cross join.
+    @param cj This `<table ref>` will be added if it represents a cross join.
 
     @return The new top-level join.
   */
@@ -301,7 +301,7 @@ class PT_derived_table_list : public PT_table_factor
   /**
     Note that the 'tail' of this list is actually found in 'head'. since Bison
     constructs the list it is a left-deep tree. This element is always an
-    <esc_table_reference>.
+    `<esc_table_reference>`.
   */
   PT_table_reference *tail;
   bool m_is_nested;

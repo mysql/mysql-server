@@ -1103,8 +1103,8 @@ PT_table_ref_joined_table
   then the right hand side, and lastly the "fake" SELECT_LEX is built and made
   the "current" one. Only then can the order and limit clauses be
   contextualized, because they are attached to the fake SELECT_LEX. This is a
-  bit unnatural, as these clauses belong to the surrounding <query
-  expression>, not the <query expression body> which is the union (and
+  bit unnatural, as these clauses belong to the surrounding `<query
+  expression>`, not the `<query expression body>` which is the union (and
   represented by this class). For this reason, the PT_query_expression is
   expected to call `set_containing_qe(this)` on this object, so that during
   this contextualize() call, a call to contextualize_order_and_limit() can be

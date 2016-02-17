@@ -385,6 +385,7 @@ static void mysql_rewrite_set(THD *thd, String *rlb)
 
   @param thd      The THD to rewrite for.
   @param rlb      An empty String object to put the rewritten query in.
+  @param users_not_to_log Members of this list are ignored.
 */
 
 void mysql_rewrite_create_alter_user(THD *thd, String *rlb,
