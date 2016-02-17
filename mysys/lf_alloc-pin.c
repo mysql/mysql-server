@@ -336,36 +336,31 @@ static int match_pins(LF_PINS *el, void *addr)
 */
 static void _lf_pinbox_real_free(LF_PINS *pins)
 {
-  int npins;
+  int npins, sorted_size;
   void *list;
   void **addr= NULL;
   void *first= NULL, *last= NULL;
   LF_PINBOX *pinbox= pins->pinbox;
+  struct st_harvester hv;
 
   npins= pinbox->pins_in_array+1;
+  sorted_size= sizeof(void *)*LF_PINBOX_PINS*npins;
 
-#ifdef HAVE_ALLOCA
-  if (pins->stack_ends_here != NULL)
+  /* create a sorted list of pinned addresses, to speed up searches */
+  addr= (void **) my_malloc(sorted_size, MYF(MY_WME));
+  if (addr)
   {
-    int alloca_size= sizeof(void *)*LF_PINBOX_PINS*npins;
-    /* create a sorted list of pinned addresses, to speed up searches */
-    if (available_stack_size(&pinbox, *pins->stack_ends_here) > alloca_size)
-    {
-      struct st_harvester hv;
-      addr= (void **) alloca(alloca_size);
-      hv.granary= addr;
-      hv.npins= npins;
-      /* scan the dynarray and accumulate all pinned addresses */
-      _lf_dynarray_iterate(&pinbox->pinarray,
-                           (lf_dynarray_func)harvest_pins, &hv);
+    hv.granary= addr;
+    hv.npins= npins;
+    /* scan the dynarray and accumulate all pinned addresses */
+    _lf_dynarray_iterate(&pinbox->pinarray,
+			 (lf_dynarray_func)harvest_pins, &hv);
 
-      npins= hv.granary-addr;
-      /* and sort them */
-      if (npins)
-        qsort(addr, npins, sizeof(void *), (qsort_cmp)ptr_cmp);
-    }
+    npins= hv.granary-addr;
+    /* and sort them */
+    if (npins)
+      qsort(addr, npins, sizeof(void *), (qsort_cmp)ptr_cmp);
   }
-#endif
 
   list= pins->purgatory;
   pins->purgatory= 0;
@@ -389,7 +384,7 @@ static void _lf_pinbox_real_free(LF_PINS *pins)
         if (cur == *a || cur == *b)
           goto found;
       }
-      else /* no alloca - no cookie. linear search here */
+      else /* couldn't created sorted array: linear search here */
       {
         if (_lf_dynarray_iterate(&pinbox->pinarray,
                                  (lf_dynarray_func)match_pins, cur))
@@ -408,6 +403,8 @@ found:
   }
   if (last)
     pinbox->free_func(first, last, pinbox->free_func_arg);
+
+  my_free(addr);
 }
 
 /* lock-free memory allocator for fixed-size objects */
