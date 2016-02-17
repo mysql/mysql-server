@@ -8204,7 +8204,13 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
           continue;
       }
 
-      *save_pos= *use;
+      /*
+        Protect against self assignment.
+        The compiler *may* generate a call to memcpy() to do the assignment,
+        and that is undefined behaviour (memory overlap).
+       */
+      if (save_pos != use)
+        *save_pos= *use;
       prev=use;
       found_eq_constant= !use->used_tables;
       /* Save ptr to first use */
