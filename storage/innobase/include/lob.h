@@ -824,11 +824,11 @@ struct zblob_reader_t
 	@return DB_SUCCESS on success. */
 	dberr_t fetch_page();
 
-	/** Get the length of the output buffer.
-	@return length of the output buffer. */
+	/** Get the length of data that has been read.
+	@return the length of data that has been read. */
 	ulint length() const
 	{
-		return(m_len);
+		return(m_stream.total_out);
 	}
 
 #ifdef UNIV_DEBUG

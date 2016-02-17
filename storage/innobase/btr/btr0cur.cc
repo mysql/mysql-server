@@ -7101,9 +7101,10 @@ btr_copy_externally_stored_field_func(
 	buf = (byte*) mem_heap_alloc(heap, local_len + extern_len);
 
 	if (page_size.is_compressed()) {
+		ut_ad(local_len == 0);
 		zblob_reader_t	reader(page_size, buf,
-				       local_len + extern_len,
-				       data, local_len + BTR_EXTERN_FIELD_REF_SIZE);
+				       extern_len,
+				       data, BTR_EXTERN_FIELD_REF_SIZE);
 		ut_a(reader.is_valid_blob());
 		ut_d(reader.set_sdi(is_sdi));
 		reader.fetch();
