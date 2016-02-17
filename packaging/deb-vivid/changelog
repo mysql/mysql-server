@@ -1,4 +1,4 @@
-mysql-community (5.8.0-m17-1ubuntu15.04) vivid; urgency=low
+mysql-community (5.8.0-dmr-1ubuntu15.04) vivid; urgency=low
 
   [ Akhil Mohan ]
   * new upstream release
