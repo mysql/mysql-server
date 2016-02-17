@@ -343,41 +343,8 @@ The map pointed by this should not be updated */
 static buf_pool_chunk_map_t*	buf_chunk_map_ref = NULL;
 
 #ifdef UNIV_DEBUG
-/** Protect reference for buf_chunk_map_ref from deleting map,
-because the reference can be caused by debug assertion code. */
-static rw_lock_t*	buf_chunk_map_latch;
-
 /** Disable resizing buffer pool to make assertion code not expensive. */
 my_bool			buf_disable_resize_buffer_pool_debug = TRUE;
-
-/** A wrapper class to acquire and release the chunk map latch. */
-struct ChunkMapLatch
-{
-	/** Constructor. */
-	ChunkMapLatch()
-	: m_take_latch(!buf_disable_resize_buffer_pool_debug)
-	{}
-
-	/** Acquire the chunk map latch in shared mode. */
-	void s_lock()
-	{
-		if (m_take_latch) {
-			rw_lock_s_lock(buf_chunk_map_latch);
-		}
-	}
-
-	/** Release the shared lock on the chunk map latch. */
-	void s_unlock()
-	{
-		if (m_take_latch) {
-			rw_lock_s_unlock(buf_chunk_map_latch);
-		}
-	}
-
-private:
-	/** If false, don't acquire/release the chunk map latch. */
-	const bool m_take_latch;
-};
 #endif /* UNIV_DEBUG */
 
 /** Container for how many pages from each index are contained in the buffer
@@ -1382,12 +1349,6 @@ buf_pool_init(
 
 	buf_chunk_map_reg = UT_NEW_NOKEY(buf_pool_chunk_map_t());
 
-	ut_d(buf_chunk_map_latch = static_cast<rw_lock_t*>(
-			ut_zalloc_nokey(sizeof(*buf_chunk_map_latch))));
-
-	ut_d(rw_lock_create(
-		buf_chunk_map_latch_key, buf_chunk_map_latch, SYNC_ANY_LATCH));
-
 	for (i = 0; i < n_instances; i++) {
 		buf_pool_t*	ptr	= &buf_pool_ptr[i];
 
@@ -1426,10 +1387,6 @@ buf_pool_free(
 	for (ulint i = 0; i < n_instances; i++) {
 		buf_pool_free_instance(buf_pool_from_array(i));
 	}
-
-	ut_d(rw_lock_free(buf_chunk_map_latch));
-	ut_d(ut_free(buf_chunk_map_latch));
-	ut_d(buf_chunk_map_latch = NULL);
 
 	UT_DELETE(buf_chunk_map_reg);
 	buf_chunk_map_reg = buf_chunk_map_ref = NULL;
@@ -2162,9 +2119,7 @@ withdraw_retry:
 	}
 
 	/* Indicate critical path */
-	ut_d(rw_lock_x_lock(buf_chunk_map_latch));
 	buf_pool_resizing = true;
-	ut_d(rw_lock_x_unlock(buf_chunk_map_latch));
 
 	/* Acquire all buf_pool_mutex/hash_lock */
 	for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
@@ -2386,9 +2341,7 @@ calc_buf_pool_size:
 		}
 	}
 
-	ut_d(rw_lock_x_lock(buf_chunk_map_latch));
 	UT_DELETE(chunk_map_old);
-	ut_d(rw_lock_x_unlock(buf_chunk_map_latch));
 
 	buf_pool_resizing = false;
 
@@ -3313,6 +3266,8 @@ buf_block_from_ahi(const byte* ptr)
 	buf_pool_chunk_map_t::iterator it;
 
 	buf_pool_chunk_map_t*	chunk_map = buf_chunk_map_ref;
+	ut_ad(buf_chunk_map_ref == buf_chunk_map_reg);
+	ut_ad(!buf_pool_resizing);
 
 	const byte* bound = reinterpret_cast<uintptr_t>(ptr)
 			    > srv_buf_pool_chunk_unit
