@@ -2523,14 +2523,15 @@ ha_innopart::position_in_last_part(
 	DBUG_VOID_RETURN;
 }
 
-/** Fill in data_dir_path and tablespace name from internal data
-dictionary.
-@param	part_elem	Partition element to fill.
-@param	ib_table	InnoDB table to copy from. */
+/** Fill in data_dir_path and tablespace name from internal data dictionary.
+@param[in,out]	part_elem		Partition element to fill.
+@param[in]	ib_table		InnoDB table to copy from.
+@param[in]	display_tablespace	Display tablespace name if set. */
 void
 ha_innopart::update_part_elem(
 	partition_element*	part_elem,
-	dict_table_t*		ib_table)
+	dict_table_t*		ib_table,
+	bool			display_tablespace)
 {
 	dict_get_and_save_data_dir_path(ib_table, false);
 	if (ib_table->data_dir_path != NULL) {
@@ -2564,6 +2565,27 @@ ha_innopart::update_part_elem(
 				strdup_root(&table->mem_root,
 					ib_table->tablespace);
 		}
+	} else {
+		const char*   tablespace_name = ib_table->space == 0
+			? reserved_system_space_name
+			: reserved_file_per_table_space_name;
+
+		if (part_elem->tablespace_name != NULL) {
+			if (0 != strcmp(part_elem->tablespace_name,
+					tablespace_name)) {
+				/* Update part_elem ablespace to NULL same as in
+				innodb data dictionary ib_table. */
+				part_elem->tablespace_name = NULL;
+			}
+		} else if (display_tablespace) {
+
+			/* Update tablespace values so that SHOW CREATE TABLE
+			will display TABLESPACE=name for the partition when
+			appropriate, if it's not mentioned explicitly during
+			table creation. */
+			part_elem->tablespace_name = strdup_root(
+				&table->mem_root, tablespace_name);
+		}
 	}
 }
 
@@ -2577,6 +2599,7 @@ ha_innopart::update_create_info(
 	uint		num_subparts	= m_part_info->num_subparts;
 	uint		num_parts;
 	uint		part;
+	bool		display_tablespace = false;
 	dict_table_t*	table;
 	List_iterator<partition_element>
 				part_it(m_part_info->partitions);
@@ -2618,10 +2641,26 @@ ha_innopart::update_create_info(
 				if (subpart >= num_subparts) {
 					DBUG_VOID_RETURN;
 				}
+				table = m_part_share->get_table_part(
+						part*num_subparts + subpart);
+
+				if (sub_elem->tablespace_name != NULL
+				    || table->tablespace != NULL
+				    || table->space == 0) {
+					display_tablespace = true;
+				}
 				subpart++;
 			}
 			if (subpart != num_subparts) {
 				DBUG_VOID_RETURN;
+			}
+		} else {
+			table = m_part_share->get_table_part(part);
+
+			if (table->space == 0
+			    || table->tablespace != NULL
+			    || part_elem->tablespace_name != NULL) {
+				display_tablespace = true;
 			}
 		}
 		part++;
@@ -2642,11 +2681,12 @@ ha_innopart::update_create_info(
 				subpart_it(part_elem->subpartitions);
 			while ((sub_elem = subpart_it++)) {
 				table = m_part_share->get_table_part(part++);
-				update_part_elem(sub_elem, table);
+				update_part_elem(sub_elem, table,
+					display_tablespace);
 			}
 		} else {
 			table = m_part_share->get_table_part(part++);
-			update_part_elem(part_elem, table);
+			update_part_elem(part_elem, table, display_tablespace);
 		}
 	}
 	DBUG_VOID_RETURN;

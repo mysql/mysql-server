@@ -653,3 +653,54 @@ WHERE A.NAME LIKE '%t1%' ORDER BY A.NAME;
 DROP TABLE t1;
 DROP TABLESPACE ts1;
 DROP TABLESPACE ts2;
+
+--echo #
+--echo # Bug#22245554 OUTPUT OF SHOW CREATE TABLE INVOLVING PARTITION TABLESPACE
+--echo # LEADS TO CONFUSION
+--echo #
+
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+
+--let $innodb_file_per_table=`select @@innodb_file_per_table`
+
+--let $TABLESPACE1=
+--let $TABLESPACE2=TABLESPACE innodb_system
+--let $TABLESPACE3=TABLESPACE innodb_file_per_table
+--let $TABLESPACE4=
+
+--let $INNODB_FILE_PER_TABLE_FOR_CREATE=OFF
+--let $INNODB_FILE_PER_TABLE_FOR_ALTER=ON
+--echo # CASE A
+--echo # file_per_table OFF for CREATE, ON for ALTER
+--source suite/innodb/include/create_alter_partition.inc
+
+--let $INNODB_FILE_PER_TABLE_FOR_CREATE=ON
+--let $INNODB_FILE_PER_TABLE_FOR_ALTER=OFF
+--echo # CASE B
+--echo # file_per_table ON for CREATE, OFF for ALTER
+--source suite/innodb/include/create_alter_partition.inc
+
+--let $TABLESPACE1=
+--let $TABLESPACE2=
+--let $TABLESPACE3=
+--let $TABLESPACE4=
+
+--let $INNODB_FILE_PER_TABLE_FOR_CREATE=OFF
+--let $INNODB_FILE_PER_TABLE_FOR_ALTER=OFF
+--echo # CASE C
+--echo # file_per_table OFF for CREATE, OFF for ALTER
+--source suite/innodb/include/create_alter_partition.inc
+
+--let $INNODB_FILE_PER_TABLE_FOR_CREATE=ON
+--let $INNODB_FILE_PER_TABLE_FOR_ALTER=ON
+--echo # CASE D
+--echo # file_per_table ON for CREATE, ON for ALTER
+--source suite/innodb/include/create_alter_partition.inc
+
+--let $INNODB_FILE_PER_TABLE_FOR_CREATE=ON
+--let $INNODB_FILE_PER_TABLE_FOR_ALTER=OFF
+--echo # CASE E
+--echo # file_per_table ON for CREATE, OFF for ALTER
+--source suite/innodb/include/create_alter_partition.inc
+
+--eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table
