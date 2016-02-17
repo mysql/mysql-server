@@ -204,23 +204,29 @@ public:
   static Uint32 setScanBit(Uint32 header, Uint32 scanBit);
   static Uint32 setReducedHashValue(Uint32 header, LHBits16 const& reducedHashValue);
   static Uint32 clearScanBit(Uint32 header, Uint32 scanBit);
+
+  static Uint32 setInvalid();
+  static bool isValid(Uint32 header);
 };
 
 inline 
 bool
 ElementHeader::getLocked(Uint32 data){
+  assert(isValid(data));
   return (data & 1) == 1;
 }
 
 inline 
 bool
 ElementHeader::getUnlocked(Uint32 data){
+  assert(isValid(data));
   return (data & 1) == 0;
 }
 
 inline 
 Uint32 
 ElementHeader::getScanBits(Uint32 data){
+  assert(isValid(data));
   assert(getUnlocked(data));
   return (data >> 1) & ((1 << MAX_PARALLEL_SCANS_PER_FRAG) - 1);
 }
@@ -228,6 +234,7 @@ ElementHeader::getScanBits(Uint32 data){
 inline
 LHBits16
 ElementHeader::getReducedHashValue(Uint32 data){
+  assert(isValid(data));
   assert(getUnlocked(data));
   return LHBits16::unpack(data >> 16);
 }
@@ -235,6 +242,7 @@ ElementHeader::getReducedHashValue(Uint32 data){
 inline
 Uint32 
 ElementHeader::getOpPtrI(Uint32 data){
+  assert(isValid(data));
   assert(getLocked(data));
   return data >> 1;
 }
@@ -273,6 +281,21 @@ ElementHeader::setReducedHashValue(Uint32 header, LHBits16 const& reducedHashVal
 {
   assert(getUnlocked(header));
   return (Uint32(reducedHashValue.pack()) << 16) | (header & 0xffff);
+}
+
+inline
+Uint32
+ElementHeader::setInvalid()
+{
+  /* unlocked, unscanned, bad reduced hash value */
+  return 0;
+}
+
+inline
+bool
+ElementHeader::isValid(Uint32 header)
+{
+  return header != 0;
 }
 
 class Element

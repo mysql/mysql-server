@@ -3393,20 +3393,14 @@ void Dbacc::commitdelete(Signal* signal)
   delPageptr.i = operationRecPtr.p->elementPage;
   ptrCheckGuard(delPageptr, cpagesize, page8);
   const Uint32 delElemptr = operationRecPtr.p->elementPointer;
-  /* --------------------------------------------------------------------------------- */
-  // Here we have to take extreme care since we do not want locks to end up after the
-  // log execution. Thus it is necessary to put back the element in unlocked shape.
-  // We thus update the element header to ensure we log an unlocked element. We do not
-  // need to restore it later since it is deleted immediately anyway.
-  /* --------------------------------------------------------------------------------- */
-  const Uint32 eh = ElementHeader::setUnlocked(0, LHBits16());
-  delPageptr.p->word32[delElemptr] = eh;
   if (operationRecPtr.p->elementPage == lastPageptr.i) {
     if (operationRecPtr.p->elementPointer == tlastElementptr) {
       jam();
       /* --------------------------------------------------------------------------------- */
       /*  THE LAST ELEMENT WAS THE ELEMENT TO BE DELETED. WE NEED NOT COPY IT.             */
+      /*  Setting it to an invalid value only for sanity, the value should never be read.  */
       /* --------------------------------------------------------------------------------- */
+      delPageptr.p->word32[delElemptr] = ElementHeader::setInvalid();
       return;
     }//if
   }//if
@@ -3415,6 +3409,9 @@ void Dbacc::commitdelete(Signal* signal)
   /*  DELETED ELEMENT.                                                                 */
   /* --------------------------------------------------------------------------------- */
   const Uint32 delConptr = operationRecPtr.p->elementContainer;
+#if defined(VM_TRACE) || !defined(NDEBUG)
+  delPageptr.p->word32[delElemptr] = ElementHeader::setInvalid();
+#endif
   deleteElement(delPageptr,
                 delConptr,
                 delElemptr,
@@ -3447,6 +3444,7 @@ void Dbacc::deleteElement(Page8Ptr delPageptr,
   {
     const Uint32 tdeElemhead = lastPageptr.p->word32[lastElemptr];
     ndbrequire(fragrecptr.p->elementLength == 2);
+    ndbassert(!ElementHeader::isValid(delPageptr.p->word32[delElemptr]));
     delPageptr.p->word32[delElemptr] = lastPageptr.p->word32[lastElemptr];
     delPageptr.p->word32[delElemptr + 1] =
       lastPageptr.p->word32[lastElemptr + 1];
@@ -3460,13 +3458,8 @@ void Dbacc::deleteElement(Page8Ptr delPageptr,
       deOperationRecPtr.p->elementPage = delPageptr.i;
       deOperationRecPtr.p->elementContainer = delConptr;
       deOperationRecPtr.p->elementPointer = delElemptr;
-      /* --------------------------------------------------------------------------------- */
-      // We need to take extreme care to not install locked records after system restart.
-      // An undo of the delete will reinstall the moved record. We have to ensure that the
-      // lock is removed to ensure that no such thing happen.
-      /* --------------------------------------------------------------------------------- */
-      Uint32 eh = ElementHeader::setUnlocked(0, LHBits16());
-      lastPageptr.p->word32[lastElemptr] = eh;
+      /*  Writing an invalid value only for sanity, the value should never be read.  */
+      lastPageptr.p->word32[lastElemptr] = ElementHeader::setInvalid();
     }//if
     return;
   }
@@ -5343,6 +5336,9 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
   {
     ndbrequire(fragrecptr.p->localkeylen == 1);
     const Uint32 localkey = pageptr.p->word32[elemptr + 1];
+#if defined(VM_TRACE) || !defined(NDEBUG)
+    pageptr.p->word32[elemptr] = ElementHeader::setInvalid();
+#endif
     Uint32 tidrPageindex = fragrecptr.p->expReceiveIndex;
     Page8Ptr idrPageptr;
     idrPageptr.i = fragrecptr.p->expReceivePageptr;
