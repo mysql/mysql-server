@@ -2153,15 +2153,6 @@ public:
       my_error(ER_WRONG_USAGE, MYF(0), "UNION", "LIMIT");
   }
 
-  ~PT_query_expression()
-  {
-    /*
-      Make sure that if this class was being inherited, that
-      contextualize_order_and_limit was indeed called.
-    */
-    DBUG_ASSERT(contextualized);
-  }
-
 private:
   bool contextualized;
   PT_query_expression_body *m_body;
