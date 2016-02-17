@@ -12477,13 +12477,18 @@ ha_innobase::truncate()
 		= dict_table_is_file_per_table(m_prebuilt->table);
 	memset(&info, 0, sizeof info);
 	update_create_info_from_table(&info, table);
+	char* tsname	= NULL;
 
 	if (dict_table_is_temporary(m_prebuilt->table)) {
 		info.options|= HA_LEX_CREATE_TMP_TABLE;
 	} else {
 		dict_get_and_save_data_dir_path(m_prebuilt->table, false);
+		if (m_prebuilt->table->tablespace != NULL) {
+			tsname = mem_strdup(m_prebuilt->table->tablespace);
+		}
 	}
 
+	info.tablespace = tsname;
 	info.key_block_size = table->s->key_block_size;
 
 	char* data_file_name = m_prebuilt->table->data_dir_path;
@@ -12528,6 +12533,7 @@ ha_innobase::truncate()
 	}
 
 	ut_free(name);
+	ut_free(tsname);
 	ut_free(data_file_name);
 
 	DBUG_RETURN(error);

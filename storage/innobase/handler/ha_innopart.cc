@@ -3170,9 +3170,7 @@ ha_innopart::truncate_partition_low()
 
 		/* Intrinsic partitioned tables are not supported! */
 		ut_ad(!dict_table_is_intrinsic(table_part));
-		/* Truncate of intrinsic table is not allowed truncate for
-		now. */
-		if (dict_table_is_intrinsic(table_part)) {
+		if (dict_table_is_temporary(table_part)) {
 			error = HA_ERR_WRONG_COMMAND;
 			break;
 		}
@@ -3198,9 +3196,9 @@ ha_innopart::truncate_partition_low()
 			? 1 : 0;
 
 		info->key_block_size = table_share->key_block_size;
-		// TODO: WL#6205 Add:
-		//info->tablespace = mem_heap_strdup(heap,
-		//table_part->tablespace_name);
+		info->tablespace = table_part->tablespace == NULL
+			? NULL
+			: mem_heap_strdup(heap, table_part->tablespace);
 	}
 
 
