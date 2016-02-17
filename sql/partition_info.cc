@@ -1471,7 +1471,7 @@ bool partition_info::check_list_constants(THD *thd)
   uint list_index= 0;
   part_elem_value *list_value;
   bool result= TRUE;
-  longlong type_add, calc_value;
+  longlong calc_value;
   void *curr_value;
   void *prev_value= NULL;
   partition_element* part_def;
@@ -1559,7 +1559,7 @@ bool partition_info::check_list_constants(THD *thd)
       Fix to be able to reuse signed sort functions also for unsigned
       partition functions.
     */
-    type_add= (longlong)(part_expr->unsigned_flag ?
+    ulonglong type_add= (part_expr->unsigned_flag ?
                                        0x8000000000000000ULL :
                                        0ULL);
 
@@ -1569,7 +1569,7 @@ bool partition_info::check_list_constants(THD *thd)
       List_iterator<part_elem_value> list_val_it2(part_def->list_val_list);
       while ((list_value= list_val_it2++))
       {
-        calc_value= list_value->value - type_add;
+        calc_value= list_value->value | type_add;
         list_array[list_index].list_value= calc_value;
         list_array[list_index++].partition_id= i;
       }

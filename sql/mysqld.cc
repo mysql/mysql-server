@@ -8179,7 +8179,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
 
 /*
   Create version name for running mysqld version
-  We automaticly add suffixes -debug, -embedded, -log, -valgrind and -asan
+  We automaticly add suffixes -debug, -embedded, -log, -valgrind, -asan, -ubsan
   to the version name to make the version more descriptive.
   (MYSQL_SERVER_SUFFIX is set by the compilation environment)
 */
@@ -8216,6 +8216,11 @@ static void set_server_version(void)
   if (SERVER_VERSION_LENGTH - (end - server_version) >
       static_cast<int>(sizeof("-asan")))
     end= my_stpcpy(end, "-asan");
+#endif
+#ifdef HAVE_UBSAN
+  if (SERVER_VERSION_LENGTH - (end - server_version) >
+      static_cast<int>(sizeof("-ubsan")))
+    end= my_stpcpy(end, "-ubsan");
 #endif
 }
 

@@ -1012,6 +1012,9 @@ my_bool Log_event::need_checksum()
 
 bool Log_event::wrapper_my_b_safe_write(IO_CACHE* file, const uchar* buf, size_t size)
 {
+  if (size == 0)
+    return false;
+
   if (need_checksum() && size != 0)
     crc= checksum_crc32(crc, buf, size);
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -515,7 +515,7 @@ trx_undo_page_report_insert(
 
 		ptr += mach_write_compressed(ptr, flen);
 
-		if (flen != UNIV_SQL_NULL) {
+		if (flen != UNIV_SQL_NULL && flen != 0) {
 			if (trx_undo_left(undo_page, ptr) < flen) {
 
 				return(0);

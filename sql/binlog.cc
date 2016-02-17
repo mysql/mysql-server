@@ -2327,7 +2327,7 @@ end:
     When a statement errors out on auto-commit mode it is rollback
     implicitly, so the same should happen to its GTID.
   */
-  if (!thd->in_active_multi_stmt_transaction())
+  if (gtid_state && !thd->in_active_multi_stmt_transaction())
     gtid_state->update_on_rollback(thd);
 
   /*

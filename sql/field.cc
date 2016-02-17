@@ -8402,7 +8402,8 @@ size_t Field_blob::get_key_image(uchar *buff, size_t length, imagetype type_arg)
     length=(uint) blob_length;
   }
   int2store(buff, static_cast<uint16>(length));
-  memcpy(buff+HA_KEY_BLOB_LENGTH, blob, length);
+  if (length > 0)
+    memcpy(buff+HA_KEY_BLOB_LENGTH, blob, length);
   return HA_KEY_BLOB_LENGTH+length;
 }
 

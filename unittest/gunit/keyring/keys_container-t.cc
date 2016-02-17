@@ -132,6 +132,8 @@ namespace keyring__keys_container_unittest
     delete sample_key; //unused in this test
   }
 
+// HAVE_UBSAN: undefined behaviour in gmock.
+#if !defined(HAVE_UBSAN)
   TEST_F(Keys_container_test, InitWithFileWithIncorrectKeyringVersion)
   {
     const char *keyring_incorrect_version= "./keyring_incorrect_version";
@@ -144,6 +146,7 @@ namespace keyring__keys_container_unittest
     remove(keyring_incorrect_version);
     delete sample_key; //unused in this test
   }
+#endif  // HAVE_UBSAN
 
   TEST_F(Keys_container_test, InitWithFileWithIncorrectTAG)
   {
@@ -569,6 +572,8 @@ namespace keyring__keys_container_unittest
     my_free(fetchedKey2->release_key_data());
   }
 
+// HAVE_UBSAN: undefined behaviour in gmock.
+#if !defined(HAVE_UBSAN)
   TEST_F(Keys_container_test_dont_close, BackupfileIsMalformedCheckItIsIgnoredAndDeleted)
   {
     ILogger *logger= new Mock_logger();
@@ -618,6 +623,7 @@ namespace keyring__keys_container_unittest
     my_free(fetchedKey->release_key_data());
     my_free(fetchedKey2->release_key_data());
   }
+#endif  // HAVE_UBSAN
 
   class Mock_keyring_io : public IKeyring_io
   {
@@ -732,6 +738,8 @@ namespace keyring__keys_container_unittest
     }
   }
 
+// HAVE_UBSAN: undefined behaviour in gmock.
+#if !defined(HAVE_UBSAN)
   TEST_F(Keys_container_with_mocked_io_test, ErrorFromIODuringInit)
   {
     keyring_io= new Mock_keyring_io();
@@ -757,7 +765,10 @@ namespace keyring__keys_container_unittest
     delete keyring_io;
     delete sample_key; //unused in this test
   }
+#endif  // HAVE_UBSAN
 
+// HAVE_UBSAN: undefined behaviour in gmock.
+#if !defined(HAVE_UBSAN)
   TEST_F(Keys_container_with_mocked_io_test, StoreAndRemoveKey)
   {
     keyring_io= new Mock_keyring_io();
@@ -791,7 +802,10 @@ namespace keyring__keys_container_unittest
     delete logger;
     delete keyring_io;
   }
+#endif  // HAVE_UBSAN
 
+// HAVE_UBSAN: undefined behaviour in gmock.
+#if !defined(HAVE_UBSAN)
   TEST_F(Keys_container_with_mocked_io_test, ErrorFromIOWhileRemovingKeyAfterAdding2Keys)
   {
     std::string key_data2("Robi2");
@@ -858,8 +872,11 @@ namespace keyring__keys_container_unittest
     delete logger;
     delete keyring_io;
   }
+#endif  // HAVE_UBSAN
 
 
+// HAVE_UBSAN: undefined behaviour in gmock.
+#if !defined(HAVE_UBSAN)
   TEST_F(Keys_container_with_mocked_io_test, ErrorFromIOFlushWhileStoringKey)
   {
     keyring_io= new Mock_keyring_io();
@@ -891,6 +908,7 @@ namespace keyring__keys_container_unittest
     delete keyring_io;
     delete sample_key;
   }
+#endif  // HAVE_UBSAN
 
   int main(int argc, char **argv) {
     if (mysql_rwlock_init(key_LOCK_keyring, &LOCK_keyring))
