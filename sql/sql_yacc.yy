@@ -733,6 +733,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  ITERATE_SYM
 %token  JOIN_SYM                      /* SQL-2003-R */
 %token  JSON_SEPARATOR_SYM            /* MYSQL */
+%token  JSON_UNQUOTED_SEPARATOR_SYM   /* MYSQL */
 %token  JSON_SYM                      /* MYSQL */
 %token  KEYS
 %token  KEY_BLOCK_SIZE
@@ -9547,6 +9548,14 @@ simple_expr:
               NEW_PTN Item_string(@$, $3.str, $3.length,
                                   YYTHD->variables.collation_connection);
             $$= NEW_PTN Item_func_json_extract(YYTHD, @$, $1, path);
+          }
+         | simple_ident JSON_UNQUOTED_SEPARATOR_SYM TEXT_STRING_literal
+          {
+            Item_string *path=
+              NEW_PTN Item_string(@$, $3.str, $3.length,
+                                  YYTHD->variables.collation_connection);
+            Item *extr= NEW_PTN Item_func_json_extract(YYTHD, @$, $1, path);
+            $$= NEW_PTN Item_func_json_unquote(@$, extr);
           }
         ;
 
