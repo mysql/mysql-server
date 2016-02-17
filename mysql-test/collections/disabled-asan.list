@@ -12,9 +12,7 @@ innodb.log_file_size                         : Bug#19442959 2015-11-05 jhauglid
 innodb.log_file_size_1                       : Bug#19442959 2015-11-05 jhauglid
 innodb.log_file_system                       : Bug#19442959 2015-11-05 jhauglid
 innodb.temporary_table                       : Bug#19442959 2015-11-05 jhauglid
-innodb.table_encrypt_1                       : Bug#22681562 2016-02-08 edahl
 innodb.table_encrypt_2                       : Bug#21237667 2016-02-05 hvadodar
-innodb.table_encrypt_3                       : Bug#22681562 2016-02-08 edahl
 main.mysqlpump_basic                         : Bug#21697494 2015-11-05 jhauglid
 main.mysqlpump_charset                       : Bug#21697494 2015-11-05 jhauglid
 main.mysqlpump_concurrency                   : Bug#21697494 2015-11-05 jhauglid
