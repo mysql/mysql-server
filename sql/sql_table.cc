@@ -94,11 +94,11 @@ static bool check_engine(THD *thd, const char *db_name,
                          const char *table_name,
                          HA_CREATE_INFO *create_info);
 
-static int
-mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
+static bool
+mysql_prepare_create_table(THD *thd, const char *table_name,
+                           HA_CREATE_INFO *create_info,
                            Alter_info *alter_info,
                            bool tmp_table,
-                           uint *db_options,
                            handler *file, KEY **key_info_buffer,
                            uint *key_count, int select_field_count,
                            bool is_sql_layer_system_table);
@@ -1832,104 +1832,6 @@ void release_ddl_log()
 */
 
 
-/*
-  Prepare table defintion.
-
-  TODO: Check if the old .FRM limitations still make sense
-  with the new DD.
-
-  SYNOPSIS
-    prepare_table_def()
-    thd			Thread handler
-    table               Name of table
-    create_info		create info parameters
-    create_fields	Fields to create
-    keys		number of keys to create
-    key_info		Keys to create
-    db_file		Handler to use. May be zero, in which case we use
-			create_info->db_type
-  RETURN
-    false  ok
-    true   error
-*/
-
-static bool prepare_table_def(THD *thd, const char *table,
-                              HA_CREATE_INFO *create_info,
-                              List<Create_field> &create_fields,
-                              uint keys, KEY *key_info,
-                              handler *db_file)
-{
-  DBUG_ENTER("prepare_table_def");
-
-  DBUG_ASSERT(db_file != NULL);
-
-  /* Fix this when we have new .frm files;  Current limit is 4G rows (QQ) */
-  if (create_info->max_rows > UINT_MAX32)
-    create_info->max_rows= UINT_MAX32;
-  if (create_info->min_rows > UINT_MAX32)
-    create_info->min_rows= UINT_MAX32;
-
-  /* If fixed row records, we need one bit to check for deleted rows */
-  if (!(create_info->table_options & HA_OPTION_PACK_RECORD))
-    create_info->null_bits++;
-  ulong data_offset= (create_info->null_bits + 7) / 8;
-
-  if (create_fields.elements > MAX_FIELDS)
-  {
-    my_error(ER_TOO_MANY_FIELDS, MYF(0));
-    DBUG_RETURN(true);
-  }
-
-  size_t reclength= data_offset;
-
-  List_iterator<Create_field> it(create_fields);
-  Create_field *field;
-  while ((field=it++))
-  {
-    if (validate_comment_length(thd,
-                                field->comment.str,
-                                &field->comment.length,
-                                COLUMN_COMMENT_MAXLEN,
-                                ER_TOO_LONG_FIELD_COMMENT,
-                                field->field_name))
-      DBUG_RETURN(true);
-
-    size_t length= field->pack_length;
-    if (field->offset + data_offset + length > reclength)
-      reclength= field->offset + data_offset + length;
-  }
-
-  if (reclength > db_file->max_record_length())
-  {
-    my_error(ER_TOO_BIG_ROWSIZE, MYF(0), static_cast<long>(db_file->max_record_length()));
-    DBUG_RETURN(true);
-  }
-
-  if (create_info->comment.length > TABLE_COMMENT_MAXLEN)
-  {
-    const char *real_table_name= table;
-    it.rewind();
-    while ((field=it++))
-    {
-      if (field->field && field->field->table &&
-        (real_table_name= field->field->table->s->table_name.str))
-         break;
-    }
-    if (validate_comment_length(thd,
-                                create_info->comment.str,
-                                &create_info->comment.length,
-                                TABLE_COMMENT_MAXLEN,
-                                ER_TOO_LONG_TABLE_COMMENT,
-                                real_table_name))
-    {
-      DBUG_RETURN(true);
-    }
-  }
-
-  DBUG_RETURN(false);
-}
-
-
 /**
   For a regular table: create table definition in the Data Dictionary.
   For a temporary table: create a dd::Table-object specifying the table
@@ -2102,10 +2004,11 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
   DBUG_ASSERT(shadow_name);
   if (flags & WSDI_WRITE_SHADOW)
   {
-    if (mysql_prepare_create_table(lpt->thd, lpt->create_info,
+    if (mysql_prepare_create_table(lpt->thd,
+                                   lpt->table_name,
+                                   lpt->create_info,
                                    lpt->alter_info,
                                    /*tmp_table*/ 1,
-                                   &lpt->db_options,
                                    lpt->table->file,
                                    &lpt->key_info_buffer,
                                    &lpt->key_count,
@@ -2139,12 +2042,7 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       }
     }
     /* Write shadow frm file */
-    lpt->create_info->table_options= lpt->db_options;
-    if ((prepare_table_def(lpt->thd,
-                           lpt->table_name, lpt->create_info,
-                           lpt->alter_info->create_list, lpt->key_count,
-                           lpt->key_info_buffer, lpt->table->file)) ||
-        lpt->table->file->ha_create_handler_files(shadow_path, NULL,
+    if (lpt->table->file->ha_create_handler_files(shadow_path, NULL,
                                                   CHF_CREATE_FLAG,
                                                   lpt->create_info))
     {
@@ -3760,37 +3658,33 @@ static bool is_phony_blob(enum_field_types sql_type, uint decimals)
 }
 
 
-/*
-  Preparation for table creation
+/**
+  Prepares the table and key structures for table creation.
 
-  SYNOPSIS
-    mysql_prepare_create_table()
-      thd                       Thread object.
-      create_info               Create information (like MAX_ROWS).
-      alter_info                List of columns and indexes to create
-      tmp_table                 If a temporary table is to be created.
-      db_options          INOUT Table options (like HA_OPTION_PACK_RECORD).
-      file                      The handler for the new table.
-      key_info_buffer     OUT   An array of KEY structs for the indexes.
-      key_count           OUT   The number of elements in the array.
-      select_field_count        The number of fields coming from a select table.
+  @param thd                       Thread object.
+  @param table_name                Name of table to create/alter, only used for
+                                   error reporting.
+  @param create_info               Create information (like MAX_ROWS).
+  @param alter_info                List of columns and indexes to create
+  @param tmp_table                 If a temporary table is to be created.
+  @param file                      The handler for the new table.
+  @param[out] key_info_buffer      An array of KEY structs for the indexes.
+  @param[out] key_count            The number of elements in the array.
+  @param select_field_count        The number of fields coming from a select table.
+  @param is_sql_layer_system_table We skip certain index checks for system tables.
 
-  DESCRIPTION
-    Prepares the table and key structures for table creation.
-
-  RETURN VALUES
-    FALSE    OK
-    TRUE     error
+  @retval FALSE   OK
+  @retval TRUE    error
 */
 
-static int
-mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
-                           Alter_info *alter_info,
-                           bool tmp_table,
-                           uint *db_options,
-                           handler *file, KEY **key_info_buffer,
-                           uint *key_count, int select_field_count,
-                           bool is_sql_layer_system_table)
+static bool mysql_prepare_create_table(THD *thd,
+                                       const char* table_name,
+                                       HA_CREATE_INFO *create_info,
+                                       Alter_info *alter_info,
+                                       bool tmp_table,
+                                       handler *file, KEY **key_info_buffer,
+                                       uint *key_count, int select_field_count,
+                                       bool is_sql_layer_system_table)
 {
   const char	*key_name;
   Create_field	*sql_field,*dup_field;
@@ -4100,9 +3994,12 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     if ((sql_field->flags & BLOB_FLAG) ||
 	(sql_field->sql_type == MYSQL_TYPE_VARCHAR &&
 	create_info->row_type != ROW_TYPE_FIXED))
-      (*db_options)|= HA_OPTION_PACK_RECORD;
+      create_info->table_options|= HA_OPTION_PACK_RECORD;
     it2.rewind();
   }
+
+  if (create_info->row_type == ROW_TYPE_DYNAMIC)
+    create_info->table_options|= HA_OPTION_PACK_RECORD;
 
   /* record_offset will be increased with 'length-of-null-bits' later */
   record_offset= 0;
@@ -4766,14 +4663,6 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       /* Use packed keys for long strings on the first column */
 
       /*
-        db_options should not have HA_OPTION_NO_PACK_KEYS flag set unless
-        it is also set in HA_CREATE_INFO::table_options.
-      */
-      DBUG_ASSERT(!((*db_options) & HA_OPTION_NO_PACK_KEYS) ||
-                  (((*db_options) & HA_OPTION_NO_PACK_KEYS) ==
-                   (create_info->table_options & HA_OPTION_NO_PACK_KEYS)));
-
-      /*
         Due to incorrect usage of sql_field->pack_flag & FIELDFLAG_BLOB check
         we have used packing for some columns which are not strings or BLOBs
         (see also is_phony_blob()). Since changing this would mean breaking
@@ -4998,6 +4887,76 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       my_error(ER_WRONG_STRING_LENGTH, MYF(0),
 	       encrypt_type->str, "ENCRYPTION", TABLE_COMMENT_MAXLEN);
       DBUG_RETURN(TRUE);
+    }
+  }
+
+  /*
+    Checks which previously were done during .FRM creation.
+
+    TODO: Check if the old .FRM limitations still make sense
+    with the new DD.
+  */
+
+  /* Fix this when we have new .frm files;  Current limit is 4G rows (QQ) */
+  if (create_info->max_rows > UINT_MAX32)
+    create_info->max_rows= UINT_MAX32;
+  if (create_info->min_rows > UINT_MAX32)
+    create_info->min_rows= UINT_MAX32;
+
+  /* If fixed row records, we need one bit to check for deleted rows */
+  if (!(create_info->table_options & HA_OPTION_PACK_RECORD))
+    create_info->null_bits++;
+  ulong data_offset= (create_info->null_bits + 7) / 8;
+
+  if (alter_info->create_list.elements > MAX_FIELDS)
+  {
+    my_error(ER_TOO_MANY_FIELDS, MYF(0));
+    DBUG_RETURN(true);
+  }
+
+  size_t reclength= data_offset;
+
+  it.rewind();
+  while ((sql_field=it++))
+  {
+    if (validate_comment_length(thd,
+                                sql_field->comment.str,
+                                &sql_field->comment.length,
+                                COLUMN_COMMENT_MAXLEN,
+                                ER_TOO_LONG_FIELD_COMMENT,
+                                sql_field->field_name))
+      DBUG_RETURN(true);
+
+    size_t length= sql_field->pack_length;
+    if (sql_field->offset + data_offset + length > reclength)
+      reclength= sql_field->offset + data_offset + length;
+  }
+
+  if (reclength > file->max_record_length())
+  {
+    my_error(ER_TOO_BIG_ROWSIZE, MYF(0),
+             static_cast<long>(file->max_record_length()));
+    DBUG_RETURN(true);
+  }
+
+  if (create_info->comment.length > TABLE_COMMENT_MAXLEN)
+  {
+    const char *real_table_name= table_name;
+    it.rewind();
+    while ((sql_field=it++))
+    {
+      if (sql_field->field && sql_field->field->table &&
+        (real_table_name= sql_field->field->table->s->table_name.str))
+         break;
+    }
+    if (validate_comment_length(thd,
+                                create_info->comment.str,
+                                &create_info->comment.length,
+                                TABLE_COMMENT_MAXLEN,
+                                ER_TOO_LONG_TABLE_COMMENT,
+                                real_table_name))
+    {
+      DBUG_RETURN(true);
     }
   }
 
@@ -5250,7 +5209,6 @@ bool create_table_impl(THD *thd,
                        dd::Table **tmp_table_def)
 {
   const char	*alias;
-  uint		db_options;
   handler	*file;
   bool		error= TRUE;
   DBUG_ENTER("create_table_impl");
@@ -5280,9 +5238,6 @@ bool create_table_impl(THD *thd,
   if (set_table_default_charset(thd, create_info, db))
     DBUG_RETURN(TRUE);
 
-  db_options= create_info->table_options;
-  if (create_info->row_type == ROW_TYPE_DYNAMIC)
-    db_options|=HA_OPTION_PACK_RECORD;
   alias= table_case_name(create_info, table_name);
   if (!(file= get_new_handler((TABLE_SHARE*) 0, thd->mem_root,
                               create_info->db_type)))
@@ -5535,16 +5490,14 @@ bool create_table_impl(THD *thd,
     }
   }
 
-  if (mysql_prepare_create_table(thd, create_info, alter_info,
+  if (mysql_prepare_create_table(thd, table_name,
+                                 create_info, alter_info,
                                  internal_tmp_table,
-                                 &db_options, file,
+                                 file,
                                  key_info, key_count,
                                  select_field_count,
                                  is_sql_layer_system_table))
     goto err;
-
-  if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
-    create_info->table_options|=HA_CREATE_DELAY_KEY_WRITE;
 
   /* Check if table already exists */
   if ((create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
@@ -5681,12 +5634,6 @@ bool create_table_impl(THD *thd,
                           "INDEX DIRECTORY");
     create_info->data_file_name= create_info->index_file_name= 0;
   }
-  create_info->table_options=db_options;
-
-  if (prepare_table_def(thd, table_name, create_info,
-                        alter_info->create_list, *key_count, *key_info,
-                        file))
-    goto err;
 
   /*
     Create table definitions.
@@ -7440,14 +7387,14 @@ bool mysql_compare_tables(TABLE *table,
     then destroy the copy.
   */
   Alter_info tmp_alter_info(*alter_info, thd->mem_root);
-  uint db_options= 0; /* not used */
   KEY *key_info_buffer= NULL;
 
   /* Create the prepared information. */
-  if (mysql_prepare_create_table(thd, create_info,
+  if (mysql_prepare_create_table(thd,
+                                 "", // Not used
+                                 create_info,
                                  &tmp_alter_info,
                                  (table->s->tmp_table != NO_TMP_TABLE),
-                                 &db_options,
                                  table->file, &key_info_buffer,
                                  &key_count, 0, false))
     DBUG_RETURN(true);
@@ -7470,19 +7417,6 @@ bool mysql_compare_tables(TABLE *table,
     if ((tmp_new_field->flags & NOT_NULL_FLAG) !=
 	(uint) (field->flags & NOT_NULL_FLAG))
       DBUG_RETURN(false);
-
-    /*
-      mysql_prepare_alter_table() clears HA_OPTION_PACK_RECORD bit when
-      preparing description of existing table. In ALTER TABLE it is later
-      updated to correct value by create_table_impl() call.
-      So to get correct value of this bit in this function we have to
-      mimic behavior of create_table_impl().
-    */
-    if (create_info->row_type == ROW_TYPE_DYNAMIC ||
-	(tmp_new_field->flags & BLOB_FLAG) ||
-	(tmp_new_field->sql_type == MYSQL_TYPE_VARCHAR &&
-	create_info->row_type != ROW_TYPE_FIXED))
-      create_info->table_options|= HA_OPTION_PACK_RECORD;
 
     /* Check if field was renamed */
     if (my_strcasecmp(system_charset_info,
@@ -7624,7 +7558,6 @@ bool alter_table_manage_keys(THD *thd, TABLE *table, int indexes_were_disabled,
   @param create_info  Information from the parsing phase about new
                       table properties.
   @param alter_info   Data related to detected changes.
-  @param alter_ctx    Runtime context for ALTER TABLE.
 
   @return false       In-place is possible, check with storage engine.
   @return true        Incompatible operations, must use table copy.
@@ -7632,8 +7565,7 @@ bool alter_table_manage_keys(THD *thd, TABLE *table, int indexes_were_disabled,
 
 static bool is_inplace_alter_impossible(TABLE *table,
                                         HA_CREATE_INFO *create_info,
-                                        const Alter_info *alter_info,
-                                        const Alter_table_ctx *alter_ctx)
+                                        const Alter_info *alter_info)
 {
   DBUG_ENTER("is_inplace_alter_impossible");
 
@@ -9743,7 +9675,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   if ((thd->variables.old_alter_table &&
        alter_info->requested_algorithm !=
        Alter_info::ALTER_TABLE_ALGORITHM_INPLACE)
-      || is_inplace_alter_impossible(table, create_info, alter_info, &alter_ctx)
+      || is_inplace_alter_impossible(table, create_info, alter_info)
       || (partition_changed &&
           !(table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION))
      )

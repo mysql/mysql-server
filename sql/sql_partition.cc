@@ -6909,9 +6909,6 @@ bool fast_alter_partition_table(THD *thd,
   lpt->part_info= part_info;
   lpt->alter_info= alter_info;
   lpt->create_info= create_info;
-  lpt->db_options= create_info->table_options;
-  if (create_info->row_type == ROW_TYPE_DYNAMIC)
-    lpt->db_options|= HA_OPTION_PACK_RECORD;
   lpt->table= table;
   lpt->key_info_buffer= 0;
   lpt->key_count= 0;
