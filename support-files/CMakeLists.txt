@@ -73,7 +73,6 @@ IF(UNIX)
   
   SET(bindir ${prefix}/${INSTALL_BINDIR})
   SET(sbindir ${prefix}/${INSTALL_SBINDIR})
-  SET(scriptdir ${prefix}/${INSTALL_SCRIPTDIR})
   SET(libexecdir ${prefix}/${INSTALL_SBINDIR})
   SET(pkgdatadir ${prefix}/${INSTALL_MYSQLSHAREDIR})
   CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql.server.sh 

@@ -53,7 +53,6 @@
 #
 # - INSTALL_BINDIR          (directory with client executables and scripts)
 # - INSTALL_SBINDIR         (directory with mysqld)
-# - INSTALL_SCRIPTDIR       (several scripts, rarely used)
 #
 # - INSTALL_LIBDIR          (directory with client end embedded libraries)
 # - INSTALL_PLUGINDIR       (directory for plugins)
@@ -155,7 +154,6 @@ ENDIF()
 #
 SET(INSTALL_BINDIR_STANDALONE           "bin")
 SET(INSTALL_SBINDIR_STANDALONE          "bin")
-SET(INSTALL_SCRIPTDIR_STANDALONE        "scripts")
 #
 SET(INSTALL_LIBDIR_STANDALONE           "lib")
 SET(INSTALL_PLUGINDIR_STANDALONE        "lib/plugin")
@@ -183,7 +181,6 @@ SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_STANDALONE ${secure_file_priv_embedded_
 #
 SET(INSTALL_BINDIR_WIN           "bin")
 SET(INSTALL_SBINDIR_WIN          "bin")
-SET(INSTALL_SCRIPTDIR_WIN        "scripts")
 #
 SET(INSTALL_LIBDIR_WIN           "lib")
 SET(INSTALL_PLUGINDIR_WIN        "lib/plugin")
@@ -211,7 +208,6 @@ SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_WIN ${secure_file_priv_embedded_path})
 #
 SET(INSTALL_BINDIR_FREEBSD           "bin")
 SET(INSTALL_SBINDIR_FREEBSD          "bin")
-SET(INSTALL_SCRIPTDIR_FREEBSD        "scripts")
 #
 SET(INSTALL_LIBDIR_FREEBSD           "lib")
 SET(INSTALL_PLUGINDIR_FREEBSD        "lib/plugin")
@@ -239,7 +235,6 @@ SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_FREEBSD ${secure_file_priv_embedded_pat
 #
 SET(INSTALL_BINDIR_GLIBC           "bin")
 SET(INSTALL_SBINDIR_GLIBC          "bin")
-SET(INSTALL_SCRIPTDIR_GLIBC        "scripts")
 #
 SET(INSTALL_LIBDIR_GLIBC           "lib")
 SET(INSTALL_PLUGINDIR_GLIBC        "lib/plugin")
@@ -267,7 +262,6 @@ SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_GLIBC ${secure_file_priv_embedded_path}
 #
 SET(INSTALL_BINDIR_OSX           "bin")
 SET(INSTALL_SBINDIR_OSX          "bin")
-SET(INSTALL_SCRIPTDIR_OSX        "scripts")
 #
 SET(INSTALL_LIBDIR_OSX           "lib")
 SET(INSTALL_PLUGINDIR_OSX        "lib/plugin")
@@ -295,7 +289,6 @@ SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_OSX ${secure_file_priv_embedded_path})
 #
 SET(INSTALL_BINDIR_TARGZ           "bin")
 SET(INSTALL_SBINDIR_TARGZ          "bin")
-SET(INSTALL_SCRIPTDIR_TARGZ        "scripts")
 #
 SET(INSTALL_LIBDIR_TARGZ           "lib")
 SET(INSTALL_PLUGINDIR_TARGZ        "lib/plugin")
@@ -327,7 +320,6 @@ SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_TARGZ ${secure_file_priv_embedded_path}
 #
 SET(INSTALL_BINDIR_RPM                  "bin")
 SET(INSTALL_SBINDIR_RPM                 "sbin")
-SET(INSTALL_SCRIPTDIR_RPM               "bin")
 #
 IF(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
   SET(INSTALL_LIBDIR_RPM                "lib64")
@@ -360,7 +352,6 @@ SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_RPM     ${secure_file_priv_embedded_pat
 #
 SET(INSTALL_BINDIR_SLES                  "bin")
 SET(INSTALL_SBINDIR_SLES                 "sbin")
-SET(INSTALL_SCRIPTDIR_SLES               "bin")
 #
 IF(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
   SET(INSTALL_LIBDIR_SLES                "lib64")
@@ -393,7 +384,6 @@ SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_SLES     ${secure_file_priv_embedded_pa
 #
 SET(INSTALL_BINDIR_DEB                  "bin")
 SET(INSTALL_SBINDIR_DEB                 "bin")
-SET(INSTALL_SCRIPTDIR_DEB               "scripts")
 #
 SET(INSTALL_LIBDIR_DEB                  "lib")
 SET(INSTALL_PLUGINDIR_DEB               "lib/plugin")
@@ -421,7 +411,6 @@ SET(INSTALL_SECURE_FILE_PRIV_EMBEDDEDDIR_DEB     ${secure_file_priv_embedded_pat
 #
 SET(INSTALL_BINDIR_SVR4                 "bin")
 SET(INSTALL_SBINDIR_SVR4                "bin")
-SET(INSTALL_SCRIPTDIR_SVR4              "scripts")
 #
 SET(INSTALL_LIBDIR_SVR4                 "lib")
 SET(INSTALL_PLUGINDIR_SVR4              "lib/plugin")
@@ -456,7 +445,7 @@ SET(OLD_INSTALL_LAYOUT ${INSTALL_LAYOUT} CACHE INTERNAL "")
 # Set INSTALL_FOODIR variables for chosen layout (for example, INSTALL_BINDIR
 # will be defined  as ${INSTALL_BINDIR_STANDALONE} by default if STANDALONE
 # layout is chosen)
-FOREACH(var BIN SBIN LIB MYSQLSHARE SHARE PLUGIN INCLUDE SCRIPT DOC MAN
+FOREACH(var BIN SBIN LIB MYSQLSHARE SHARE PLUGIN INCLUDE DOC MAN
   INFO MYSQLTEST DOCREADME SUPPORTFILES MYSQLDATA PLUGINTEST
   SECURE_FILE_PRIV SECURE_FILE_PRIV_EMBEDDED MYSQLKEYRING)
   SET(INSTALL_${var}DIR  ${INSTALL_${var}DIR_${INSTALL_LAYOUT}}
