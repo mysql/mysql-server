@@ -29,6 +29,7 @@
 #include "mysql/mysql_lex_string.h"             // LEX_STRING
 #include "mysql/psi/mysql_thread.h"             // PSI_mutex_key
 #include "mysql/psi/psi_stage.h"                // PSI_stage_info
+#include "mysql/psi/psi_memory.h"               // PSI_memory_key
 #include "my_time.h"                            /* interval_type */
 
 class Event_db_repository;

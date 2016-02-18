@@ -16,15 +16,20 @@
 #ifndef MYSQL_PSI_MEMORY_H
 #define MYSQL_PSI_MEMORY_H
 
+/*
+  MAINTAINER:
+  Note that this file is part of the public API,
+  because mysql.h exports
+    struct st_mem_root
+  See
+    - PSI_memory_key st_mem_root::m_psi_key
+    - include/mysql.h.pp
+*/
+
 /**
   @file include/mysql/psi/psi_memory.h
   Performance schema instrumentation interface.
 */
-
-#include "my_global.h"
-#include "psi_base.h"
-
-C_MODE_START
 
 /**
   @defgroup psi_abi_memory Memory Instrumentation (ABI)
@@ -32,7 +37,16 @@ C_MODE_START
   @{
 */
 
+/**
+  Instrumented memory key.
+  To instrument memory, a memory key must be obtained using @c register_memory.
+  Using a zero key always disable the instrumentation.
+*/
+typedef unsigned int PSI_memory_key;
+
 #ifdef HAVE_PSI_INTERFACE
+
+C_MODE_START
 
 /**
   @def PSI_MEMORY_VERSION_1
@@ -186,11 +200,11 @@ typedef struct PSI_placeholder PSI_memory_info;
 
 extern MYSQL_PLUGIN_IMPORT PSI_memory_service_t *psi_memory_service;
 
+C_MODE_END
+
 /** @} (end of group psi_abi_memory) */
 
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
-
-C_MODE_END
 
 #endif /* MYSQL_PSI_MEMORY_H */
 

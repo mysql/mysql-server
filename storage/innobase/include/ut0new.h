@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -129,6 +129,7 @@ InnoDB:
 
 #include "my_global.h" /* needed for headers from mysql/psi/ */
 #include "mysql/psi/mysql_memory.h" /* PSI_MEMORY_CALL() */
+#include "mysql/psi/psi_base.h" /* PSI_NOT_INSTRUMENTED */
 #include "mysql/psi/psi_memory.h" /* PSI_memory_key, PSI_memory_info */
 
 #include "univ.i"
