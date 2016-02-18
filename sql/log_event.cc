@@ -537,7 +537,7 @@ static bool write_str_at_most_255_bytes(IO_CACHE *file, const char *str,
   uchar tmp[1];
   tmp[0]= (uchar) length;
   return (my_b_safe_write(file, tmp, sizeof(tmp)) ||
-	  my_b_safe_write(file, (uchar*) str, length));
+	  (length > 0 && my_b_safe_write(file, (uchar*) str, length)));
 }
 
 /**
@@ -3674,7 +3674,8 @@ bool Query_log_event::write(IO_CACHE* file)
       enough to store the host's length.
      */
     *start++= (uchar)invoker_host.length;
-    memcpy(start, invoker_host.str, invoker_host.length);
+    if (invoker_host.length > 0)
+      memcpy(start, invoker_host.str, invoker_host.length);
     start+= invoker_host.length;
   }
 
@@ -6870,6 +6871,8 @@ bool Xid_log_event::do_commit(THD *thd_arg)
 int Xid_apply_log_event::do_apply_event_worker(Slave_worker *w)
 {
   int error= 0;
+  bool skipped_commit_pos= true;
+
   lex_start(thd);
   mysql_reset_thd_for_next_command(thd);
   Slave_committed_queue *coordinator_gaq= w->c_rli->gaq;
@@ -6893,9 +6896,21 @@ int Xid_apply_log_event::do_apply_event_worker(Slave_worker *w)
   ulong gaq_idx= mts_group_idx;
   Slave_job_group *ptr_group= coordinator_gaq->get_job_group(gaq_idx);
 
-  if ((error= w->commit_positions(this, ptr_group,
-                                  w->c_rli->is_transactional())))
-    goto err;
+  if (!thd->get_transaction()->xid_state()->check_in_xa(false) &&
+      w->is_transactional())
+  {
+    /*
+      Regular (not XA) transaction updates the transactional info table
+      along with the main transaction. Otherwise, the local flag turned
+      and given its value the info table is updated after do_commit.
+      todo: the flag won't be need upon the full xa crash-safety bug76233
+            gets fixed.
+    */
+    skipped_commit_pos= false;
+    if ((error= w->commit_positions(this, ptr_group,
+                                    w->is_transactional())))
+      goto err;
+  }
 
   DBUG_PRINT("mts", ("do_apply group master %s %llu  group relay %s %llu event %s %llu.",
                      w->get_group_master_log_name(),
@@ -6911,7 +6926,13 @@ int Xid_apply_log_event::do_apply_event_worker(Slave_worker *w)
 
   error= do_commit(thd);
   if (error)
-    w->rollback_positions(ptr_group);
+  {
+    if (!skipped_commit_pos)
+      w->rollback_positions(ptr_group);
+  }
+  else if (skipped_commit_pos)
+    error= w->commit_positions(this, ptr_group,
+                               w->is_transactional());
 err:
   return error;
 }
@@ -6979,8 +7000,6 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli)
   rli_ptr->set_group_relay_log_pos(rli_ptr->get_event_relay_log_pos());
   rli_ptr->set_group_relay_log_name(rli_ptr->get_event_relay_log_name());
 
-  rli_ptr->notify_group_relay_log_name_update();
-
   if (common_header->log_pos) // 3.23 binlogs don't have log_posx
     rli_ptr->set_group_master_log_pos(common_header->log_pos);
 
@@ -7036,10 +7055,9 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli)
     reset to their new values only on successful commit operation.
    */
   rli_ptr->set_group_master_log_name(saved_group_master_log_name);
-  rli_ptr->notify_group_master_log_name_update();
   rli_ptr->set_group_master_log_pos(saved_group_master_log_pos);
+  rli_ptr->notify_group_master_log_name_update();
   rli_ptr->set_group_relay_log_name(saved_group_relay_log_name);
-  rli_ptr->notify_group_relay_log_name_update();
   rli_ptr->set_group_relay_log_pos(saved_group_relay_log_pos);
 
   DBUG_PRINT("info", ("Rolling back to group master %s %llu  group relay %s"
@@ -7064,10 +7082,9 @@ int Xid_apply_log_event::do_apply_event(Relay_log_info const *rli)
                     DBUG_SUICIDE(););
     /* Update positions on successful commit */
     rli_ptr->set_group_master_log_name(new_group_master_log_name);
-    rli_ptr->notify_group_master_log_name_update();
     rli_ptr->set_group_master_log_pos(new_group_master_log_pos);
+    rli_ptr->notify_group_master_log_name_update();
     rli_ptr->set_group_relay_log_name(new_group_relay_log_name);
-    rli_ptr->notify_group_relay_log_name_update();
     rli_ptr->set_group_relay_log_pos(new_group_relay_log_pos);
 
     DBUG_PRINT("info", ("Updating positions on succesful commit to group master"
@@ -8852,7 +8869,7 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg, const Table_id& tid
     m_distinct_keys(Key_compare(&m_key_info)), m_distinct_key_spare_buf(NULL)
 #endif
 {
-  common_header->type_code= m_type;
+  common_header->type_code= event_type;
   m_row_count= 0;
   m_table_id= tid;
   m_width= tbl_arg ? tbl_arg->s->fields : 1;
@@ -13223,22 +13240,39 @@ Transaction_context_log_event(const char *server_uuid_arg,
               Log_event::EVENT_STMT_CACHE, Log_event::EVENT_NORMAL_LOGGING)
 {
   DBUG_ENTER("Transaction_context_log_event::Transaction_context_log_event(THD *, const char *, ulonglong)");
+  server_uuid= NULL;
   sid_map= new Sid_map(NULL);
   snapshot_version= new Gtid_set(sid_map);
+
   global_sid_lock->wrlock();
-  if (snapshot_version->add_gtid_set(gtid_state->get_executed_gtids()) != RETURN_STATUS_OK)
-    server_uuid= NULL;
-  else
-    server_uuid= my_strdup(key_memory_log_event, server_uuid_arg, MYF(MY_WME));
+  /*
+    Copy global_sid_map to a local copy to avoid that all
+    certification operations on top of this snapshot version do
+    require that global_sid_lock is acquired.
+  */
+  enum_return_status return_status= global_sid_map->copy(sid_map);
+  if (return_status != RETURN_STATUS_OK)
+  {
+    global_sid_lock->unlock();
+    goto err;
+  }
+
+  return_status= snapshot_version->add_gtid_set(gtid_state->get_executed_gtids());
+  if (return_status != RETURN_STATUS_OK)
+  {
+    global_sid_lock->unlock();
+    goto err;
+  }
   global_sid_lock->unlock();
+
+  server_uuid= my_strdup(key_memory_log_event, server_uuid_arg, MYF(MY_WME));
+  if (server_uuid == NULL)
+    goto err;
 
   // These two fields are only populated on event decoding.
   // Encoding is done directly from snapshot_version field.
   encoded_snapshot_version= NULL;
   encoded_snapshot_version_length= 0;
-
-  if (server_uuid != NULL)
-    is_valid_param= true;
 
   // Debug sync point for SQL threads.
   DBUG_EXECUTE_IF("debug.wait_after_set_snapshot_version_on_transaction_context_log_event",
@@ -13251,6 +13285,11 @@ Transaction_context_log_event(const char *server_uuid_arg,
                                                        STRING_WITH_LEN(act)));
                   };);
 
+  is_valid_param= true;
+  DBUG_VOID_RETURN;
+
+err:
+  is_valid_param= false;
   DBUG_VOID_RETURN;
 }
 #endif
@@ -13267,9 +13306,6 @@ Transaction_context_log_event(const char *buffer, uint event_len,
   snapshot_version= new Gtid_set(sid_map);
 
   if (server_uuid == NULL || encoded_snapshot_version == NULL)
-    goto err;
-
-  if (read_snapshot_version())
     goto err;
 
   is_valid_param= true;
@@ -13429,6 +13465,13 @@ bool Transaction_context_log_event::read_snapshot_version()
 {
   DBUG_ENTER("Transaction_context_log_event::read_snapshot_version");
   DBUG_ASSERT(snapshot_version->is_empty());
+
+  global_sid_lock->wrlock();
+  enum_return_status return_status= global_sid_map->copy(sid_map);
+  global_sid_lock->unlock();
+  if (return_status != RETURN_STATUS_OK)
+    DBUG_RETURN(true);
+
   DBUG_RETURN(snapshot_version->add_gtid_encoding(encoded_snapshot_version,
                                                   encoded_snapshot_version_length)
                   != RETURN_STATUS_OK);
@@ -13576,27 +13619,38 @@ void View_change_log_event::print(FILE *file,
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
 
- int View_change_log_event::do_apply_event(Relay_log_info const *rli)
- {
-   enum_gtid_statement_status state= gtid_pre_statement_checks(thd);
-   if (state == GTID_STATEMENT_SKIP)
-     return 0;
+int View_change_log_event::do_apply_event(Relay_log_info const *rli)
+{
+  enum_gtid_statement_status state= gtid_pre_statement_checks(thd);
+  if (state == GTID_STATEMENT_SKIP)
+    return 0;
 
-   if (state == GTID_STATEMENT_CANCEL ||
-          (state == GTID_STATEMENT_EXECUTE &&
-           gtid_pre_statement_post_implicit_commit_checks(thd)))
-   {
-      uint error= thd->get_stmt_da()->mysql_errno();
-      DBUG_ASSERT(error != 0);
-      rli->report(ERROR_LEVEL, error,
-                  "Error executing View Change event: '%s'",
-                  thd->get_stmt_da()->message_text());
-      thd->is_slave_error= 1;
-      return -1;
-   }
+  if (state == GTID_STATEMENT_CANCEL ||
+         (state == GTID_STATEMENT_EXECUTE &&
+          gtid_pre_statement_post_implicit_commit_checks(thd)))
+  {
+    uint error= thd->get_stmt_da()->mysql_errno();
+    DBUG_ASSERT(error != 0);
+    rli->report(ERROR_LEVEL, error,
+                "Error executing View Change event: '%s'",
+                thd->get_stmt_da()->message_text());
+    thd->is_slave_error= 1;
+    return -1;
+  }
 
-   return mysql_bin_log.write_event(this);
- }
+  if (!opt_bin_log)
+  {
+    return 0;
+  }
+
+  int error= mysql_bin_log.write_event(this);
+  if (error)
+    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                "Could not write the VIEW CHANGE event in the binary log.");
+
+  return (error);
+}
 
 int View_change_log_event::do_update_pos(Relay_log_info *rli)
 {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,6 @@
 #include "dd/impl/types/schema_impl.h"
 
 #include "mysql_time.h"                    // MYSQL_TIME
-#include "current_thd.h"                   // current_thd
 #include "mysqld_error.h"                  // ER_*
 #include "sql_class.h"                     // THD
 #include "tztime.h"                        // Time_zone
@@ -138,14 +137,24 @@ bool Schema::update_name_key(name_key_type *key,
 
 ///////////////////////////////////////////////////////////////////////////
 
-Table *Schema_impl::create_table()
+Table *Schema_impl::create_table(THD *thd) const
 {
+  // Creating tables requires an IX meta data lock on the schema name.
+#ifndef DBUG_OFF
+  char name_buf[NAME_LEN + 1];
+  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
+                MDL_key::SCHEMA,
+                dd::Object_table_definition_impl::
+                  fs_name_case(name(), name_buf),
+                "",
+                MDL_INTENTION_EXCLUSIVE));
+#endif
+
   std::unique_ptr<Table> t(dd::create_object<Table>());
   t->set_schema_id(this->id());
   t->set_collation_id(default_collation_id());
 
   // Get statement start time.
-  THD *thd= current_thd;
   MYSQL_TIME curtime;
   thd->variables.time_zone->gmt_sec_to_TIME(&curtime, thd->query_start());
   ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
@@ -159,13 +168,23 @@ Table *Schema_impl::create_table()
 
 ///////////////////////////////////////////////////////////////////////////
 
-View *Schema_impl::create_view()
+View *Schema_impl::create_view(THD *thd) const
 {
+  // Creating views requires an IX meta data lock on the schema name.
+#ifndef DBUG_OFF
+  char name_buf[NAME_LEN + 1];
+  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
+                MDL_key::SCHEMA,
+                dd::Object_table_definition_impl::
+                  fs_name_case(name(), name_buf),
+                "",
+                MDL_INTENTION_EXCLUSIVE));
+#endif
+
   std::unique_ptr<View> v(dd::create_object<View>());
   v->set_schema_id(this->id());
 
   // Get statement start time.
-  THD *thd= current_thd;
   MYSQL_TIME curtime;
   thd->variables.time_zone->gmt_sec_to_TIME(&curtime, thd->query_start());
   ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
@@ -178,8 +197,19 @@ View *Schema_impl::create_view()
 
 ///////////////////////////////////////////////////////////////////////////
 
-View *Schema_impl::create_system_view()
+View *Schema_impl::create_system_view(THD *thd __attribute__((unused))) const
 {
+  // Creating system views requires an IX meta data lock on the schema name.
+#ifndef DBUG_OFF
+  char name_buf[NAME_LEN + 1];
+  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
+                MDL_key::SCHEMA,
+                dd::Object_table_definition_impl::
+                  fs_name_case(name(), name_buf),
+                "",
+                MDL_INTENTION_EXCLUSIVE));
+#endif
+
   std::unique_ptr<View> v(dd::create_object<View>());
   v->set_system_view(true);
   v->set_schema_id(this->id());

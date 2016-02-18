@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -96,11 +96,11 @@ public:
   { m_last_altered= last_altered; }
 
 public:
-  virtual Table *create_table();
+  virtual Table *create_table(THD *thd) const;
 
-  virtual View *create_view();
+  virtual View *create_view(THD *thd) const;
 
-  virtual View *create_system_view();
+  virtual View *create_system_view(THD *thd) const;
 
 public:
   virtual void debug_print(std::string &outb) const
@@ -123,12 +123,10 @@ private:
   // References to other objects
   Object_id m_default_collation_id;
 
-#ifndef DBUG_OFF
   Schema *clone() const
   {
     return new Schema_impl(*this);
   }
-#endif /* !DBUG_OFF */
 };
 
 ///////////////////////////////////////////////////////////////////////////

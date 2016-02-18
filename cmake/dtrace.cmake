@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,6 +17,10 @@
 MACRO(CHECK_DTRACE)
  FIND_PROGRAM(DTRACE dtrace)
  MARK_AS_ADVANCED(DTRACE)
+
+ IF(ENABLE_DTRACE AND NOT DTRACE)
+   MESSAGE(FATAL_ERROR "Could not find dtrace")
+ ENDIF()
 
  # On FreeBSD, dtrace does not handle userland tracing yet
  IF(DTRACE AND NOT CMAKE_SYSTEM_NAME MATCHES "FreeBSD")

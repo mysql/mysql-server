@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -42,15 +42,15 @@
   the dependency on my_sys already exists.
 */
 
-#include "mysql/psi/psi.h"
+#include "mysql/psi/psi_file.h"
 
 #ifndef PSI_FILE_CALL
-#define PSI_FILE_CALL(M) PSI_DYNAMIC_CALL(M)
+#define PSI_FILE_CALL(M) psi_file_service->M
 #endif
 
 /**
-  @defgroup File_instrumentation File Instrumentation
-  @ingroup Instrumentation_interface
+  @defgroup psi_api_file File Instrumentation (API)
+  @ingroup psi_api
   @{
 */
 
@@ -152,16 +152,16 @@
 #define mysql_file_feof(F) inline_mysql_file_feof(F)
 
 /**
-  @def mysql_file_fstat(FN, S, FL)
+  @def mysql_file_fstat(FN, S)
   Instrumented fstat.
   @c mysql_file_fstat is a replacement for @c my_fstat.
 */
 #ifdef HAVE_PSI_FILE_INTERFACE
-  #define mysql_file_fstat(FN, S, FL) \
-    inline_mysql_file_fstat(__FILE__, __LINE__, FN, S, FL)
+  #define mysql_file_fstat(FN, S) \
+    inline_mysql_file_fstat(__FILE__, __LINE__, FN, S)
 #else
-  #define mysql_file_fstat(FN, S, FL) \
-    inline_mysql_file_fstat(FN, S, FL)
+  #define mysql_file_fstat(FN, S) \
+    inline_mysql_file_fstat(FN, S)
 #endif
 
 /**
@@ -250,29 +250,29 @@
 #endif
 
 /**
-  @def mysql_file_fseek(FD, P, W, F)
+  @def mysql_file_fseek(FD, P, W)
   Instrumented fseek.
   @c mysql_file_fseek is a replacement for @c my_fseek.
 */
 #ifdef HAVE_PSI_FILE_INTERFACE
-  #define mysql_file_fseek(FD, P, W, F) \
-    inline_mysql_file_fseek(__FILE__, __LINE__, FD, P, W, F)
+  #define mysql_file_fseek(FD, P, W) \
+    inline_mysql_file_fseek(__FILE__, __LINE__, FD, P, W)
 #else
-  #define mysql_file_fseek(FD, P, W, F) \
-    inline_mysql_file_fseek(FD, P, W, F)
+  #define mysql_file_fseek(FD, P, W) \
+    inline_mysql_file_fseek(FD, P, W)
 #endif
 
 /**
-  @def mysql_file_ftell(FD, F)
+  @def mysql_file_ftell(FD)
   Instrumented ftell.
   @c mysql_file_ftell is a replacement for @c my_ftell.
 */
 #ifdef HAVE_PSI_FILE_INTERFACE
-  #define mysql_file_ftell(FD, F) \
-    inline_mysql_file_ftell(__FILE__, __LINE__, FD, F)
+  #define mysql_file_ftell(FD) \
+    inline_mysql_file_ftell(__FILE__, __LINE__, FD)
 #else
-  #define mysql_file_ftell(FD, F) \
-    inline_mysql_file_ftell(FD, F)
+  #define mysql_file_ftell(FD) \
+    inline_mysql_file_ftell(FD)
 #endif
 
 /**
@@ -742,7 +742,7 @@ inline_mysql_file_fstat(
 #ifdef HAVE_PSI_FILE_INTERFACE
   const char *src_file, uint src_line,
 #endif
-  int filenr, MY_STAT *stat_area, myf flags)
+  int filenr, MY_STAT *stat_area)
 {
   int result;
 #ifdef HAVE_PSI_FILE_INTERFACE
@@ -753,13 +753,13 @@ inline_mysql_file_fstat(
   if (likely(locker != NULL))
   {
     PSI_FILE_CALL(start_file_wait)(locker, (size_t) 0, src_file, src_line);
-    result= my_fstat(filenr, stat_area, flags);
+    result= my_fstat(filenr, stat_area);
     PSI_FILE_CALL(end_file_wait)(locker, (size_t) 0);
     return result;
   }
 #endif
 
-  result= my_fstat(filenr, stat_area, flags);
+  result= my_fstat(filenr, stat_area);
   return result;
 }
 
@@ -957,7 +957,7 @@ inline_mysql_file_fseek(
 #ifdef HAVE_PSI_FILE_INTERFACE
   const char *src_file, uint src_line,
 #endif
-  MYSQL_FILE *file, my_off_t pos, int whence, myf flags)
+  MYSQL_FILE *file, my_off_t pos, int whence)
 {
   my_off_t result;
 #ifdef HAVE_PSI_FILE_INTERFACE
@@ -968,13 +968,13 @@ inline_mysql_file_fseek(
   if (likely(locker != NULL))
   {
     PSI_FILE_CALL(start_file_wait)(locker, (size_t) 0, src_file, src_line);
-    result= my_fseek(file->m_file, pos, whence, flags);
+    result= my_fseek(file->m_file, pos, whence);
     PSI_FILE_CALL(end_file_wait)(locker, (size_t) 0);
     return result;
   }
 #endif
 
-  result= my_fseek(file->m_file, pos, whence, flags);
+  result= my_fseek(file->m_file, pos, whence);
   return result;
 }
 
@@ -983,7 +983,7 @@ inline_mysql_file_ftell(
 #ifdef HAVE_PSI_FILE_INTERFACE
   const char *src_file, uint src_line,
 #endif
-  MYSQL_FILE *file, myf flags)
+  MYSQL_FILE *file)
 {
   my_off_t result;
 #ifdef HAVE_PSI_FILE_INTERFACE
@@ -994,13 +994,13 @@ inline_mysql_file_ftell(
   if (likely(locker != NULL))
   {
     PSI_FILE_CALL(start_file_wait)(locker, (size_t) 0, src_file, src_line);
-    result= my_ftell(file->m_file, flags);
+    result= my_ftell(file->m_file);
     PSI_FILE_CALL(end_file_wait)(locker, (size_t) 0);
     return result;
   }
 #endif
 
-  result= my_ftell(file->m_file, flags);
+  result= my_ftell(file->m_file);
   return result;
 }
 
@@ -1444,7 +1444,7 @@ inline_mysql_file_sync(
   return result;
 }
 
-/** @} (end of group File_instrumentation) */
+/** @} (end of group psi_api_file) */
 
 #endif
 

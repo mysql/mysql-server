@@ -601,6 +601,7 @@ struct TABLE_SHARE
   uchar	*default_values;		/* row with default values */
   LEX_STRING comment;			/* Comment about table */
   LEX_STRING compress;			/* Compression algorithm */
+  LEX_STRING encrypt_type;		/* encryption algorithm */
   const CHARSET_INFO *table_charset;	/* Default charset of string fields */
 
   MY_BITMAP all_set;
@@ -1339,7 +1340,7 @@ public:
 
   void mark_column_used(THD *thd, Field *field, enum enum_mark_columns mark);
   void mark_columns_used_by_index_no_reset(uint index, MY_BITMAP *map,
-                                           uint key_parts= UINT_MAX);
+                                           uint key_parts= 0);
   void mark_columns_used_by_index(uint index);
   void mark_auto_increment_column(void);
   void mark_columns_needed_for_update(THD *thd);
@@ -1462,7 +1463,8 @@ public:
   {
     null_row= TRUE;
     status|= STATUS_NULL_ROW;
-    memset(null_flags, 255, s->null_bytes);
+    if (s->null_bytes > 0)
+      memset(null_flags, 255, s->null_bytes);
   }
 
   /// Clear "null row" status for the current row

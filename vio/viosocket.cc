@@ -258,7 +258,7 @@ static int vio_set_blocking(Vio *vio, my_bool status)
 
 int vio_socket_timeout(Vio *vio,
                        uint which __attribute__((unused)),
-                       my_bool old_mode __attribute__((unused)))
+                       my_bool old_mode)
 {
   int ret= 0;
   DBUG_ENTER("vio_socket_timeout");

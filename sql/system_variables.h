@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -173,6 +173,7 @@ struct System_variables
   ulong net_write_timeout;
   ulong optimizer_prune_level;
   ulong optimizer_search_depth;
+  ulonglong parser_max_mem_size;
   ulong range_optimizer_max_mem_size;
   ulong preload_buff_size;
   ulong profiling_history_size;

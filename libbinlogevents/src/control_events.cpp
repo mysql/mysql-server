@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -507,8 +507,9 @@ Incident_event::Incident_event(const char *buf, unsigned int event_len,
     incident= INCIDENT_NONE;
 
   }
+  else
+    incident= static_cast<enum_incident>(incident_number);
 
-  incident= static_cast<enum_incident>(incident_number);
   char const *ptr= buf + post_header_len;
   char const *const str_end= buf - common_header_len + event_len;
   uint8_t len= 0;                   // Assignment to keep compiler happy

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ public:
 
   virtual bool store_children(Open_dictionary_tables_ctx *otx);
 
-  virtual bool drop_children(Open_dictionary_tables_ctx *otx);
+  virtual bool drop_children(Open_dictionary_tables_ctx *otx) const;
 
   virtual bool restore_attributes(const Raw_record &r);
 
@@ -81,7 +81,7 @@ public:
   { return Entity_object_impl::store(otx); }
 
   // Required by Collection_item.
-  virtual bool drop(Open_dictionary_tables_ctx *otx)
+  virtual bool drop(Open_dictionary_tables_ctx *otx) const
   { return Entity_object_impl::drop(otx); }
 
   // Required by Collection_item.
@@ -261,7 +261,6 @@ private:
 
   Object_id m_tablespace_id;
 
-#ifndef DBUG_OFF
   Partition_impl(const Partition_impl &src, Table_impl *parent);
 
 public:
@@ -269,7 +268,6 @@ public:
   {
     return new Partition_impl(*this, parent);
   }
-#endif /* !DBUG_OFF */
 };
 
 ///////////////////////////////////////////////////////////////////////////

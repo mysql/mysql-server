@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -436,9 +436,12 @@ dict_build_tablespace(
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO); */
 	ut_a(!FSP_FLAGS_GET_TEMPORARY(tablespace->flags()));
 
-	fsp_header_init(space, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
-
+	bool ret = fsp_header_init(space, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
 	mtr_commit(&mtr);
+
+	if (!ret) {
+		return(DB_ERROR);
+	}
 
 	return(err);
 }
@@ -491,7 +494,9 @@ dict_build_tablespace_for_table(
 
 		/* Determine the tablespace flags. */
 		bool	has_data_dir = DICT_TF_HAS_DATA_DIR(table->flags);
-		ulint	fsp_flags = dict_tf_to_fsp_flags(table->flags);
+		bool	is_encrypted = dict_table_is_encrypted(table);
+		ulint	fsp_flags = dict_tf_to_fsp_flags(table->flags,
+							 is_encrypted);
 
 		/* Determine the full filepath */
 		if (has_data_dir) {
@@ -529,8 +534,14 @@ dict_build_tablespace_for_table(
 		mtr_start(&mtr);
 		mtr.set_named_space(table->space);
 
-		fsp_header_init(table->space, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
+		bool ret = fsp_header_init(table->space,
+					   FIL_IBD_FILE_INITIAL_SIZE,
+					   &mtr);
 		mtr_commit(&mtr);
+
+		if (!ret) {
+			return(DB_ERROR);
+		}
 
 		err = btr_sdi_create_indexes(table->space, true);
 		return(err);
@@ -2482,10 +2493,10 @@ dict_table_assign_new_id(
 @return in-memory index structure for tablespace dictionary or NULL */
 dict_index_t*
 dict_sdi_create_idx_in_mem(
-	ulint	space,
-	ulint	copy_num,
-	bool	space_discarded,
-	ulint	in_flags)
+	ulint		space,
+	uint32_t	copy_num,
+	bool		space_discarded,
+	ulint		in_flags)
 {
 	ulint	flags = space_discarded
 		? in_flags
@@ -2522,7 +2533,7 @@ dict_sdi_create_idx_in_mem(
 	digits of copy_num (10) + 1 */
 	char		table_name[28];
 	mem_heap_t*	heap = mem_heap_create(DICT_HEAP_SIZE);
-	ut_snprintf(table_name, sizeof(table_name), "SDI_" ULINTPF "_" ULINTPF,
+	ut_snprintf(table_name, sizeof(table_name), "SDI_" ULINTPF "_" UINT32PF,
 		    space, copy_num);
 
 	dict_table_t*	table = dict_mem_table_create(
@@ -2547,7 +2558,7 @@ dict_sdi_create_idx_in_mem(
 
 	/* 16 =	14(CLUST_IND_SDI_) + 1 (copy_num 0 or 1) + 1 */
 	char	index_name[16];
-	ut_snprintf(index_name, sizeof(index_name), "CLUST_IND_SDI_" ULINTPF,
+	ut_snprintf(index_name, sizeof(index_name), "CLUST_IND_SDI_" UINT32PF,
 		    copy_num);
 
 	dict_index_t*	temp_index = dict_mem_index_create(

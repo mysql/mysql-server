@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -119,22 +119,32 @@ support cross-platform development and expose comonly used SQL names. */
 instrumentation in each of five InnoDB modules if
 HAVE_PSI_INTERFACE is defined. */
 #if defined(HAVE_PSI_INTERFACE) && !defined(UNIV_LIBRARY)
+#ifdef HAVE_PSI_MUTEX_INTERFACE
 # define UNIV_PFS_MUTEX
+#endif /* HAVE_PSI_MUTEX_INTERFACE */
+
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
 # define UNIV_PFS_RWLOCK
+#endif /* HAVE_PSI_RWLOCK_INTERFACE */
+
 /* For I/O instrumentation, performance schema rely
 on a native descriptor to identify the file, this
 descriptor could conflict with our OS level descriptor.
 Disable IO instrumentation on Windows until this is
 resolved */
+#ifdef HAVE_PSI_FILE_INTERFACE
 # ifndef _WIN32
 #  define UNIV_PFS_IO
 # endif
-# define UNIV_PFS_THREAD
+#endif /* HAVE_PSI_FILE_INTERFACE */
 
-# include "mysql/psi/psi.h" /* HAVE_PSI_MEMORY_INTERFACE */
+#ifdef HAVE_PSI_THREAD_INTERFACE
+# define UNIV_PFS_THREAD
+#endif /* HAVE_PSI_THREAD_INTERFACE */
+
 # ifdef HAVE_PSI_MEMORY_INTERFACE
 #  define UNIV_PFS_MEMORY
-# endif /* HAVE_PSI_MEMORY_INTERFACE && !UNIV_LIBRARY */
+# endif /* HAVE_PSI_MEMORY_INTERFACE */
 
 /* There are mutexes/rwlocks that we want to exclude from
 instrumentation even if their corresponding performance schema
@@ -148,6 +158,10 @@ be excluded from instrumentation. */
 /* For PSI_MUTEX_CALL() and similar. */
 #include "pfs_thread_provider.h"
 #include "mysql/psi/mysql_thread.h"
+#include "pfs_mutex_provider.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "pfs_rwlock_provider.h"
+#include "mysql/psi/mysql_rwlock.h"
 /* For PSI_FILE_CALL(). */
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -639,5 +653,8 @@ static const size_t UNIV_SECTOR_SIZE = 512;
 /* Dimension of spatial object we support so far. It has its root in
 myisam/sp_defs.h. We only support 2 dimension data */
 #define SPDIMS          2
+
+typedef ulint page_no_t;
+typedef ulint space_id_t;
 
 #endif

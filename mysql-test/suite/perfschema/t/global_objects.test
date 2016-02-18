@@ -2,6 +2,7 @@
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 --source include/no_protocol.inc
+--source include/not_windows.inc
 
 # Bug#79784 update setup_instruments do not affect the global
 # mutex/rwlock/cond

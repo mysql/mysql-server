@@ -1,6 +1,6 @@
 #ifndef _EVENT_H_
 #define _EVENT_H_
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include "my_global.h"
 #include "mysql/mysql_lex_string.h"             // LEX_STRING
 #include "mysql/psi/mysql_thread.h"             // PSI_mutex_key
+#include "mysql/psi/psi_stage.h"                // PSI_stage_info
 #include "my_time.h"                            /* interval_type */
 
 class Event_db_repository;

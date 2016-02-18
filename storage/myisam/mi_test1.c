@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,6 +44,26 @@ static void get_options(int argc, char *argv[]);
 static void create_key(uchar *key,uint rownr);
 static void create_record(uchar *record,uint rownr);
 static void update_record(uchar *record);
+
+
+/*
+  strappend(dest, len, fill) appends fill-characters to a string so that
+  the result length == len. If the string is longer than len it's
+  trunked. The des+len character is allways set to NULL.
+*/
+static inline void strappend(char *s, size_t len, pchar fill)
+{
+  char *endpos;
+
+  endpos = s+len;
+  while (*s++)
+    ;
+  s--;
+  while (s<endpos)
+    *(s++) = fill;
+  *(endpos) = '\0';
+}
+
 
 int main(int argc,char *argv[])
 {

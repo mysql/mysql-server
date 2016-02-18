@@ -1,5 +1,5 @@
 /* Copyright (c) 2002 MySQL AB & tommy@valley.ne.jp
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -30,7 +30,6 @@ ctype-ujis.c file.
 #include "m_string.h"
 #include "m_ctype.h"
 
-#ifdef HAVE_CHARSET_eucjpms
 
 
 static const uchar ctype_eucjpms[257] =
@@ -67632,5 +67631,3 @@ CHARSET_INFO my_charset_eucjpms_bin=
     &my_collation_mb_bin_handler
 };
 
-
-#endif

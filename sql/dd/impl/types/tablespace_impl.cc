@@ -133,7 +133,7 @@ bool Tablespace_impl::store_children(Open_dictionary_tables_ctx *otx)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Tablespace_impl::drop_children(Open_dictionary_tables_ctx *otx)
+bool Tablespace_impl::drop_children(Open_dictionary_tables_ctx *otx) const
 {
   return m_files->drop_items(
     otx,
@@ -291,7 +291,6 @@ void Tablespace_type::register_tables(Open_dictionary_tables_ctx *otx) const
 
 ///////////////////////////////////////////////////////////////////////////
 
-#ifndef DBUG_OFF
 Tablespace_impl::Tablespace_impl(const Tablespace_impl &src)
   : Weak_object(src), Entity_object_impl(src), m_comment(src.m_comment),
     m_options(Properties_impl::parse_properties(src.m_options->raw_string())),
@@ -309,7 +308,6 @@ Tablespace_impl::Tablespace_impl(const Tablespace_impl &src)
                               clone(this));
   }
 }
-#endif /* !DBUG_OFF */
 
 ///////////////////////////////////////////////////////////////////////////
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -35,6 +35,8 @@ Created 9/20/1997 Heikki Tuuri
 #ifdef UNIV_NONINL
 #include "log0recv.ic"
 #endif
+
+#include <my_aes.h>
 
 #include "mem0mem.h"
 #include "buf0buf.h"
@@ -245,6 +247,40 @@ fil_name_process(
 		switch (fil_ibd_load(space_id, name, space)) {
 		case FIL_LOAD_OK:
 			ut_ad(space != NULL);
+
+			/* For encrypted tablespace, set key and iv. */
+			if (FSP_FLAGS_GET_ENCRYPTION(space->flags)
+			    && recv_sys->encryption_list != NULL) {
+				dberr_t				err;
+				encryption_list_t::iterator	it;
+
+				for (it = recv_sys->encryption_list->begin();
+				     it != recv_sys->encryption_list->end();
+				     it++) {
+					if (it->space_id == space->id) {
+						err = fil_set_encryption(
+							space->id,
+							Encryption::AES,
+							it->key,
+							it->iv);
+						if (err != DB_SUCCESS) {
+							ib::error()
+								<< "Can't set"
+								" encryption"
+								" information"
+								" for"
+								" tablespace"
+								<< space->name
+								<< "!";
+						}
+						ut_free(it->key);
+						ut_free(it->iv);
+						it->key = NULL;
+						it->iv = NULL;
+						it->space_id = 0;
+					}
+				}
+			}
 
 			if (f.space == NULL || f.space == space) {
 				f.name = fname.name;
@@ -825,7 +861,7 @@ DECLARE_THREAD(recv_writer_thread)(
 	/* We count the number of threads in os_thread_exit().
 	A created thread should always use that to exit and not
 	use return() to exit. */
-	os_thread_exit(NULL);
+	os_thread_exit();
 
 	OS_THREAD_DUMMY_RETURN;
 }
@@ -945,6 +981,29 @@ recv_sys_debug_free(void)
 		os_event_set(recv_sys->flush_start);
 	}
 
+	if (recv_sys->encryption_list != NULL) {
+
+		encryption_list_t::iterator	it;
+
+		for (it = recv_sys->encryption_list->begin();
+		     it != recv_sys->encryption_list->end();
+		     it++) {
+			if (it->key != NULL) {
+				ut_free(it->key);
+				it->key = NULL;
+			}
+			if (it->iv != NULL) {
+				ut_free(it->iv);
+				it->iv = NULL;
+			}
+		}
+
+		recv_sys->encryption_list->swap(*recv_sys->encryption_list);
+
+		UT_DELETE(recv_sys->encryption_list);
+		recv_sys->encryption_list = NULL;
+	}
+
 	mutex_exit(&(recv_sys->mutex));
 }
 
@@ -1052,15 +1111,11 @@ recv_log_recover_5_7(lsn_t lsn)
 		return(DB_CORRUPTION);
 	}
 
-	/* On a clean shutdown, there will only be the MLOG_CHECKPOINT
-	record pointing to our checkpoint. */
+	/* On a clean shutdown, the redo log will be logically empty
+	after the checkpoint lsn. */
 
 	if (log_block_get_data_len(buf)
-	    != ((source_offset + SIZE_OF_MLOG_CHECKPOINT)
-		& (OS_FILE_LOG_BLOCK_SIZE - 1))
-	    || log_block_get_first_rec_group(buf) != LOG_BLOCK_HDR_SIZE
-	    || mach_read_from_1(buf + LOG_BLOCK_HDR_SIZE) != MLOG_CHECKPOINT
-	    || mach_read_from_8(buf + (LOG_BLOCK_HDR_SIZE + 1)) != lsn) {
+	    != (source_offset & (OS_FILE_LOG_BLOCK_SIZE - 1))) {
 		ib::error() << NO_UPGRADE_RECOVERY_MSG
 			<< log_header_creator
 			<< NO_UPGRADE_RTFM_MSG;
@@ -1355,6 +1410,110 @@ recv_scan_log_seg_for_backup(
 }
 #endif /* UNIV_HOTBACKUP */
 
+/** Parse or process a write encryption info record.
+@param[in]	ptr		redo log record
+@param[in]	end		end of the redo log buffer
+@param[in]	space_id	the tablespace ID
+@return log record end, NULL if not a complete record */
+static
+byte*
+fil_write_encryption_parse(
+	byte*		ptr,
+	const byte*	end,
+	ulint		space_id)
+{
+	fil_space_t*	space;
+	ulint		offset;
+	ulint		len;
+	byte*		key = NULL;
+	byte*		iv = NULL;
+	bool		is_new = false;
+
+	space = fil_space_get(space_id);
+	if (space == NULL) {
+		encryption_list_t::iterator	it;
+
+		if (recv_sys->encryption_list == NULL) {
+			recv_sys->encryption_list =
+				UT_NEW_NOKEY(encryption_list_t());
+		}
+
+		for (it = recv_sys->encryption_list->begin();
+		     it != recv_sys->encryption_list->end();
+		     it++) {
+			if (it->space_id == space_id) {
+				key = it->key;
+				iv = it->iv;
+			}
+		}
+
+		if (key == NULL) {
+			key = static_cast<byte*>(ut_malloc_nokey(
+					ENCRYPTION_KEY_LEN));
+			iv = static_cast<byte*>(ut_malloc_nokey(
+					ENCRYPTION_KEY_LEN));
+			is_new = true;
+		}
+	} else {
+		key = space->encryption_key;
+		iv = space->encryption_iv;
+	}
+
+	offset = mach_read_from_2(ptr);
+	ptr += 2;
+	len = mach_read_from_2(ptr);
+
+	ptr += 2;
+	if (end < ptr + len) {
+		return(NULL);
+	}
+
+	if (offset >= UNIV_PAGE_SIZE
+	    || len + offset > UNIV_PAGE_SIZE
+	    || len != ENCRYPTION_INFO_SIZE) {
+		recv_sys->found_corrupt_log = TRUE;
+		return(NULL);
+	}
+
+#ifdef	UNIV_ENCRYPT_DEBUG
+	if (space) {
+		fprintf(stderr, "Got %lu from redo log:", space->id);
+	}
+#endif
+	if (!fsp_header_decode_encryption_info(key,
+					       iv,
+					       ptr)) {
+		recv_sys->found_corrupt_log = TRUE;
+		ib::warn() << "Encryption information"
+			<< " in the redo log of space "
+			<< space_id << " is invalid";
+	}
+
+	ut_ad(len == ENCRYPTION_INFO_SIZE);
+
+	ptr += ENCRYPTION_INFO_SIZE;
+
+	if (space == NULL) {
+		if (is_new) {
+			recv_encryption_t info;
+
+			/* Add key and iv to list */
+			info.space_id = space_id;
+			info.key = key;
+			info.iv = iv;
+
+			recv_sys->encryption_list->push_back(info);
+		}
+	} else {
+		ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
+
+		space->encryption_type = Encryption::AES;
+		space->encryption_klen = ENCRYPTION_KEY_LEN;
+	}
+
+	return(ptr);
+}
+
 /** Try to parse a single log record body and also applies it if
 specified.
 @param[in]	type		redo log entry type
@@ -1381,6 +1540,8 @@ recv_parse_or_apply_log_rec_body(
 	buf_block_t*	block,
 	mtr_t*		mtr)
 {
+	DBUG_ENTER("recv_parse_or_apply_log_rec_body");
+
 	ut_ad(!block == !mtr);
 	ut_ad(!apply || recv_sys->mlog_checkpoint_lsn != 0);
 
@@ -1392,13 +1553,25 @@ recv_parse_or_apply_log_rec_body(
 		ut_ad(block == NULL);
 		/* Collect the file names when parsing the log,
 		before applying any log records. */
-		return(fil_name_parse(ptr, end_ptr, space_id, page_no, type,
+		DBUG_RETURN(fil_name_parse(ptr, end_ptr, space_id, page_no, type,
 				      apply));
 	case MLOG_INDEX_LOAD:
 		if (end_ptr < ptr + 8) {
-			return(NULL);
+			DBUG_RETURN(NULL);
 		}
-		return(ptr + 8);
+		DBUG_RETURN(ptr + 8);
+	case MLOG_WRITE_STRING:
+		/* For encrypted tablespace, we need to get the
+		encryption key information before the page 0 is recovered.
+	        Otherwise, redo will not find the key to decrypt
+		the data pages. */
+		if (page_no == 0 && !is_system_tablespace(space_id)
+		    && !apply) {
+			DBUG_RETURN(fil_write_encryption_parse(ptr,
+							  end_ptr,
+							  space_id));
+		}
+		break;
 	default:
 		break;
 	}
@@ -1446,7 +1619,7 @@ recv_parse_or_apply_log_rec_body(
 					<< space_id << ":" << page_no
 					<< ") at "
 					<< recv_sys->recovered_lsn << ".";
-				return(NULL);
+				DBUG_RETURN(NULL);
 			}
 		}
 	}
@@ -1778,7 +1951,8 @@ recv_parse_or_apply_log_rec_body(
 		ptr = fsp_parse_init_file_page(ptr, end_ptr, block);
 		break;
 	case MLOG_WRITE_STRING:
-		ut_ad(!page || page_type != FIL_PAGE_TYPE_ALLOCATED);
+		ut_ad(!page || page_type != FIL_PAGE_TYPE_ALLOCATED
+		      || page_no == 0);
 		ptr = mlog_parse_string(ptr, end_ptr, page, page_zip);
 		break;
 	case MLOG_ZIP_WRITE_NODE_PTR:
@@ -1823,7 +1997,7 @@ recv_parse_or_apply_log_rec_body(
 		dict_mem_table_free(table);
 	}
 
-	return(ptr);
+	DBUG_RETURN(ptr);
 }
 
 /*********************************************************************//**
@@ -2035,6 +2209,8 @@ recv_recover_page_func(
 	ibool		modification_to_page;
 	mtr_t		mtr;
 
+	DBUG_ENTER("recv_recover_page_func");
+
 	mutex_enter(&(recv_sys->mutex));
 
 	if (recv_sys->apply_log_recs == FALSE) {
@@ -2043,7 +2219,7 @@ recv_recover_page_func(
 
 		mutex_exit(&(recv_sys->mutex));
 
-		return;
+		DBUG_VOID_RETURN;
 	}
 
 	recv_addr = recv_get_fil_addr_struct(block->page.id.space(),
@@ -2056,7 +2232,7 @@ recv_recover_page_func(
 
 		mutex_exit(&(recv_sys->mutex));
 
-		return;
+		DBUG_VOID_RETURN;
 	}
 
 	ut_ad(recv_needed_recovery);
@@ -2233,7 +2409,7 @@ recv_recover_page_func(
 	recv_sys->n_addrs--;
 
 	mutex_exit(&(recv_sys->mutex));
-
+	DBUG_VOID_RETURN;
 }
 
 #ifndef UNIV_HOTBACKUP

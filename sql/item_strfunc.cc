@@ -47,6 +47,7 @@
 #include "sql_class.h"               // THD
 #include "sql_locale.h"              // my_locale_by_name
 #include "strfunc.h"                 // hexchar_to_int
+#include "val_int_compare.h"
 
 C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
@@ -193,11 +194,12 @@ static CHARSET_INFO *get_checksum_charset(const char *csname)
 }
 
 
-void Item_func_md5::fix_length_and_dec()
+bool Item_func_md5::resolve_type(THD *thd)
 {
   CHARSET_INFO *cs= get_checksum_charset(args[0]->collation.collation->csname);
   args[0]->collation.set(cs, DERIVATION_COERCIBLE);
   fix_length_and_charset(32, default_charset());
+  return false;
 }
 
 
@@ -224,12 +226,13 @@ String *Item_func_sha::val_str_ascii(String *str)
   return 0;
 }
 
-void Item_func_sha::fix_length_and_dec()
+bool Item_func_sha::resolve_type(THD *thd)
 {
   CHARSET_INFO *cs= get_checksum_charset(args[0]->collation.collation->csname);
   args[0]->collation.set(cs, DERIVATION_COERCIBLE);
   // size of hex representation of hash
   fix_length_and_charset(SHA1_HASH_SIZE * 2, default_charset());
+  return false;
 }
 
 /*
@@ -291,7 +294,7 @@ String *Item_func_sha2::val_str_ascii(String *str)
     break;
 #endif
   default:
-    // For const values we have already warned in fix_length_and_dec.
+    // For const values we have already warned in resolve_type().
     if (!args[1]->const_item())
       push_warning_printf(current_thd,
         Sql_condition::SL_WARNING,
@@ -328,10 +331,10 @@ String *Item_func_sha2::val_str_ascii(String *str)
 }
 
 
-void Item_func_sha2::fix_length_and_dec()
+bool Item_func_sha2::resolve_type(THD *thd)
 {
-  maybe_null = 1;
-  max_length = 0;
+  maybe_null= true;
+  max_length= 0;
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   longlong sha_variant;
@@ -367,22 +370,24 @@ void Item_func_sha2::fix_length_and_dec()
 #endif
   default:
     fix_length_and_charset(SHA256_DIGEST_LENGTH * 2, default_charset());
-    push_warning_printf(current_thd,
+    push_warning_printf(thd,
       Sql_condition::SL_WARNING,
       ER_WRONG_PARAMETERS_TO_NATIVE_FCT,
-      ER_THD(current_thd, ER_WRONG_PARAMETERS_TO_NATIVE_FCT), "sha2");
+      ER_THD(thd, ER_WRONG_PARAMETERS_TO_NATIVE_FCT), "sha2");
   }
 
   CHARSET_INFO *cs= get_checksum_charset(args[0]->collation.collation->csname);
   args[0]->collation.set(cs, DERIVATION_COERCIBLE);
 
 #else
-  push_warning_printf(current_thd,
+  push_warning_printf(thd,
     Sql_condition::SL_WARNING,
     ER_FEATURE_DISABLED,
-    ER_THD(current_thd, ER_FEATURE_DISABLED),
+    ER_THD(thd, ER_FEATURE_DISABLED),
     "sha2", "--with-ssl");
 #endif /* defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY) */
+
+  return false;
 }
 
 /* Implementation of AES encryption routines */
@@ -523,13 +528,14 @@ String *Item_func_aes_encrypt::val_str(String *str)
 }
 
 
-void Item_func_aes_encrypt::fix_length_and_dec()
+bool Item_func_aes_encrypt::resolve_type(THD *thd)
 {
-  ulong aes_opmode= current_thd->variables.my_aes_mode;
+  ulong aes_opmode= thd->variables.my_aes_mode;
   DBUG_ASSERT(aes_opmode <= MY_AES_END);
 
   max_length=my_aes_get_size(args[0]->max_length,
                              (enum my_aes_opmode) aes_opmode);
+  return false;
 }
 
 
@@ -592,10 +598,11 @@ String *Item_func_aes_decrypt::val_str(String *str)
 }
 
 
-void Item_func_aes_decrypt::fix_length_and_dec()
+bool Item_func_aes_decrypt::resolve_type(THD *thd)
 {
-   max_length=args[0]->max_length;
-   maybe_null= 1;
+   max_length= args[0]->max_length;
+   maybe_null= true;
+   return false;
 }
 
 
@@ -621,10 +628,11 @@ bool Item_func_random_bytes::itemize(Parse_context *pc, Item **res)
 const longlong Item_func_random_bytes::MAX_RANDOM_BYTES_BUFFER= 1024;
 
 
-void Item_func_random_bytes::fix_length_and_dec()
+bool Item_func_random_bytes::resolve_type(THD *thd)
 {
   collation.set(&my_charset_bin);
   max_length= MAX_RANDOM_BYTES_BUFFER;
+  return false;
 }
 
 
@@ -668,7 +676,7 @@ String *Item_func_random_bytes::val_str(String *a)
 }
 
 
-void Item_func_to_base64::fix_length_and_dec()
+bool Item_func_to_base64::resolve_type(THD *thd)
 {
   maybe_null= args[0]->maybe_null;
   collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
@@ -683,6 +691,7 @@ void Item_func_to_base64::fix_length_and_dec()
     DBUG_ASSERT(length > 0);
     fix_char_length_ulonglong((ulonglong) length - 1);
   }
+  return false;
 }
 
 
@@ -717,7 +726,7 @@ String *Item_func_to_base64::val_str_ascii(String *str)
 }
 
 
-void Item_func_from_base64::fix_length_and_dec()
+bool Item_func_from_base64::resolve_type(THD *thd)
 {
   if (args[0]->max_length > (uint) base64_decode_max_arg_length())
   {
@@ -728,7 +737,8 @@ void Item_func_from_base64::fix_length_and_dec()
     uint64 length= base64_needed_decoded_length((uint64) args[0]->max_length);
     fix_char_length_ulonglong((ulonglong) length);
   }
-  maybe_null= 1; // Can be NULL, e.g. in case of badly formed input string
+  maybe_null= true; // Can be NULL, e.g. in case of badly formed input string
+  return false;
 }
 
 
@@ -915,17 +925,18 @@ null:
 }
 
 
-void Item_func_concat::fix_length_and_dec()
+bool Item_func_concat::resolve_type(THD *thd)
 {
   ulonglong char_length= 0;
 
   if (agg_arg_charsets_for_string_result(collation, args, arg_count))
-    return;
+    return true;
 
   for (uint i=0 ; i < arg_count ; i++)
     char_length+= args[i]->max_char_length();
 
   fix_char_length_ulonglong(char_length);
+  return false;
 }
 
 /**
@@ -1276,12 +1287,12 @@ null:
 }
 
 
-void Item_func_concat_ws::fix_length_and_dec()
+bool Item_func_concat_ws::resolve_type(THD *thd)
 {
   ulonglong char_length;
 
   if (agg_arg_charsets_for_string_result(collation, args, arg_count))
-    return;
+    return true;
 
   /*
      arg_count cannot be less than 2,
@@ -1293,6 +1304,7 @@ void Item_func_concat_ws::fix_length_and_dec()
     char_length+= args[i]->max_char_length();
 
   fix_char_length_ulonglong(char_length);
+  return false;
 }
 
 
@@ -1343,11 +1355,13 @@ String *Item_func_reverse::val_str(String *str)
 }
 
 
-void Item_func_reverse::fix_length_and_dec()
+bool Item_func_reverse::resolve_type(THD *thd)
 {
-  agg_arg_charsets_for_string_result(collation, args, 1);
+  if (agg_arg_charsets_for_string_result(collation, args, 1))
+    return true;
   DBUG_ASSERT(collation.collation != NULL);
   fix_char_length(args[0]->max_char_length());
+  return false;
 }
 
 /**
@@ -1488,7 +1502,7 @@ null:
 }
 
 
-void Item_func_replace::fix_length_and_dec()
+bool Item_func_replace::resolve_type(THD *thd)
 {
   ulonglong char_length= (ulonglong) args[0]->max_char_length();
   int diff=(int) (args[2]->max_char_length() - args[1]->max_char_length());
@@ -1499,8 +1513,9 @@ void Item_func_replace::fix_length_and_dec()
   }
 
   if (agg_arg_charsets_for_string_result_with_comparison(collation, args, 3))
-    return;
+    return true;
   fix_char_length_ulonglong(char_length);
+  return false;
 }
 
 
@@ -1581,16 +1596,17 @@ null:
 }
 
 
-void Item_func_insert::fix_length_and_dec()
+bool Item_func_insert::resolve_type(THD *thd)
 {
   ulonglong char_length;
 
   // Handle character set for args[0] and args[3].
   if (agg_arg_charsets_for_string_result(collation, args, 2, 3))
-    return;
+    return true;
   char_length= ((ulonglong) args[0]->max_char_length() +
                 (ulonglong) args[3]->max_char_length());
   fix_char_length_ulonglong(char_length);
+  return false;
 }
 
 
@@ -1635,22 +1651,28 @@ String *Item_str_conv::val_str(String *str)
 }
 
 
-void Item_func_lower::fix_length_and_dec()
+bool Item_func_lower::resolve_type(THD *thd)
 {
-  agg_arg_charsets_for_string_result(collation, args, 1);
+  if (agg_arg_charsets_for_string_result(collation, args, 1))
+    return true;
+
   DBUG_ASSERT(collation.collation != NULL);
   multiply= collation.collation->casedn_multiply;
   converter= collation.collation->cset->casedn;
   fix_char_length_ulonglong((ulonglong) args[0]->max_char_length() * multiply);
+  return false;
 }
 
-void Item_func_upper::fix_length_and_dec()
+bool Item_func_upper::resolve_type(THD *thd)
 {
-  agg_arg_charsets_for_string_result(collation, args, 1);
+  if (agg_arg_charsets_for_string_result(collation, args, 1))
+    return true;
+
   DBUG_ASSERT(collation.collation != NULL);
   multiply= collation.collation->caseup_multiply;
   converter= collation.collation->cset->caseup;
   fix_char_length_ulonglong((ulonglong) args[0]->max_char_length() * multiply);
+  return false;
 }
 
 
@@ -1683,14 +1705,15 @@ void Item_str_func::left_right_max_length()
   uint32 char_length= args[0]->max_char_length();
   if (args[1]->const_item())
   {
-    int length= (int) args[1]->val_int();
+    longlong length= args[1]->val_int();
     if (args[1]->null_value)
       goto end;
 
-    if (length <= 0)
-      char_length=0;
-    else
-      set_if_smaller(char_length, (uint) length);
+    Integer_value length_val(length, args[1]->unsigned_flag);
+    if (length_val.is_negative())
+      char_length= 0;
+    else if (length_val <= Integer_value(INT_MAX32, false))
+      char_length= std::min(char_length, static_cast<uint32>(length));
   }
 
 end:
@@ -1698,11 +1721,13 @@ end:
 }
 
 
-void Item_func_left::fix_length_and_dec()
+bool Item_func_left::resolve_type(THD *thd)
 {
-  agg_arg_charsets_for_string_result(collation, args, 1);
+  if (agg_arg_charsets_for_string_result(collation, args, 1))
+    return true;
   DBUG_ASSERT(collation.collation != NULL);
   left_right_max_length();
+  return false;
 }
 
 
@@ -1732,11 +1757,14 @@ String *Item_func_right::val_str(String *str)
 }
 
 
-void Item_func_right::fix_length_and_dec()
+bool Item_func_right::resolve_type(THD *thd)
 {
-  agg_arg_charsets_for_string_result(collation, args, 1);
+  if (agg_arg_charsets_for_string_result(collation, args, 1))
+    return true;
+
   DBUG_ASSERT(collation.collation != NULL);
   left_right_max_length();
+  return false;
 }
 
 
@@ -1787,43 +1815,54 @@ String *Item_func_substr::val_str(String *str)
 }
 
 
-void Item_func_substr::fix_length_and_dec()
+bool Item_func_substr::resolve_type(THD *thd)
 {
   max_length=args[0]->max_length;
 
-  agg_arg_charsets_for_string_result(collation, args, 1);
+  if (agg_arg_charsets_for_string_result(collation, args, 1))
+    return true;
+
   DBUG_ASSERT(collation.collation != NULL);
   if (args[1]->const_item())
   {
-    int32 start= (int32) args[1]->val_int();
+    longlong start= args[1]->val_int();
     if (args[1]->null_value)
       goto end;
-    if (start < 0)
-      max_length= ((uint)(-start) > max_length) ? 0 : (uint)(-start);
-    else
-      max_length-= min((uint)(start - 1), max_length);
+    Integer_value start_val(start, args[1]->unsigned_flag);
+    if (Integer_value(INT_MIN32, false) < start_val &&
+        start_val <= Integer_value(INT_MAX32, false))
+    {
+      if (start < 0)
+        max_length= (static_cast<uint32>(-start) > max_length) ? 0 :
+          static_cast<uint>(-start);
+      else
+        max_length-= min(static_cast<uint32>(start - 1), max_length);
+    }
   }
   if (arg_count == 3 && args[2]->const_item())
   {
-    int32 length= (int32) args[2]->val_int();
+    longlong length= args[2]->val_int();
     if (args[2]->null_value)
       goto end;
-    if (length <= 0)
-      max_length=0; /* purecov: inspected */
-    else
-      set_if_smaller(max_length,(uint) length);
+    Integer_value length_val(length, args[2]->unsigned_flag);
+    if (length_val.is_negative())
+      max_length= 0;
+    else if (length_val <= Integer_value(INT_MAX, false))
+      max_length= std::min(max_length, static_cast<uint32>(length));
   }
 
 end:
   max_length*= collation.collation->mbmaxlen;
+  return false;
 }
 
 
-void Item_func_substr_index::fix_length_and_dec()
+bool Item_func_substr_index::resolve_type(THD *thd)
 { 
   if (agg_arg_charsets_for_string_result_with_comparison(collation, args, 2))
-    return;
+    return true;
   fix_char_length(args[0]->max_char_length());
+  return false;
 }
 
 
@@ -1834,7 +1873,7 @@ String *Item_func_substr_index::val_str(String *str)
   String tmp(buff,sizeof(buff),system_charset_info);
   String *res= args[0]->val_str(str);
   String *delimiter= args[1]->val_str(&tmp);
-  int32 count= (int32) args[2]->val_int();
+  const longlong count= args[2]->val_int();
   int offset;
 
   if (args[0]->null_value || args[1]->null_value || args[2]->null_value)
@@ -1849,6 +1888,13 @@ String *Item_func_substr_index::val_str(String *str)
 
   res->set_charset(collation.collation);
 
+  Integer_value count_val(count, args[2]->unsigned_flag);
+
+  // Assumes that the maximum length of a String < INT_MAX32
+  if (Integer_value(INT_MAX32, false) < count_val ||
+      count_val < Integer_value(INT_MIN32, false))
+    return res;
+
   if (use_mb(res->charset()))
   {
     const char *ptr= res->ptr();
@@ -1856,90 +1902,100 @@ String *Item_func_substr_index::val_str(String *str)
     const char *end= strend-delimiter_length+1;
     const char *search= delimiter->ptr();
     const char *search_end= search+delimiter_length;
-    int32 n=0,c=count,pass;
-    uint32 l;
-    for (pass=(count>0);pass<2;++pass)
+    longlong nnn= 0;
+    longlong ccc= count;
+    // A single pass for positive, two passes for negative count.
+    for (int pass= (count_val.is_negative() ? 0 : 1); pass < 2; ++pass)
     {
       while (ptr < end)
       {
         if (*ptr == *search)
         {
-	  char *i,*j;
-	  i=(char*) ptr+1; j=(char*) search+1;
-	  while (j != search_end)
-	    if (*i++ != *j++) goto skip;
-	  if (pass==0) ++n;
-	  else if (!--c) break;
-	  ptr+= delimiter_length;
-	  continue;
-	}
+          const char *i= ptr + 1;
+          const char *j= search + 1;
+          while (j != search_end)
+          {
+            if (*i++ != *j++)
+              goto skip;
+          }
+          if (pass == 0)
+            ++nnn;
+          else if (--ccc == 0)
+            break;
+          ptr+= delimiter_length;
+          continue;
+        }
     skip:
-        if ((l=my_ismbchar(res->charset(), ptr,strend))) ptr+=l;
-        else ++ptr;
+        ptr+= std::max(1U, my_ismbchar(res->charset(), ptr,strend));
       } /* either not found or got total number when count<0 */
-      if (pass == 0) /* count<0 */
+
+      if (pass == 0) /* count < 0 */
       {
-        c+=n+1;
-        if (c<=0) return res; /* not found, return original string */
-        ptr=res->ptr();
+        ccc+= nnn + 1;
+        if (ccc <= 0)
+          return res; /* not found, return original string */
+        ptr= res->ptr();
       }
       else
       {
-        if (c) return res; /* Not found, return original string */
-        if (count>0) /* return left part */
+        if (ccc != 0)
+          return res; /* Not found, return original string */
+        if (count_val.is_negative()) /* return right part */
         {
-	  tmp_value.set(*res,0,(ulong) (ptr-res->ptr()));
+          ptr+= delimiter_length;
+          tmp_value.set(*res, (ptr-res->ptr()), (strend-ptr));
         }
-        else /* return right part */
+        else /* return left part */
         {
-	  ptr+= delimiter_length;
-	  tmp_value.set(*res,(ulong) (ptr-res->ptr()), (ulong) (strend-ptr));
+          tmp_value.set(*res,0, (ptr-res->ptr()));
         }
       }
     }
   }
   else
   {
-    if (count > 0)
-    {					// start counting from the beginning
-      for (offset=0; ; offset+= delimiter_length)
-      {
-	if ((offset= res->strstr(*delimiter, offset)) < 0)
-	  return res;			// Didn't find, return org string
-	if (!--count)
-	{
-	  tmp_value.set(*res,0,offset);
-	  break;
-	}
-      }
-    }
-    else
+    if (count_val.is_negative())
     {
       /*
         Negative index, start counting at the end
       */
+      longlong count_ll= count;
       for (offset=res->length(); offset; )
       {
-        /* 
-          this call will result in finding the position pointing to one 
+        /*
+          this call will result in finding the position pointing to one
           address space less than where the found substring is located
           in res
         */
-	if ((offset= res->strrstr(*delimiter, offset)) < 0)
-	  return res;			// Didn't find, return org string
+        if ((offset= res->strrstr(*delimiter, offset)) < 0)
+          return res;			// Didn't find, return org string
         /*
           At this point, we've searched for the substring
           the number of times as supplied by the index value
         */
-	if (!++count)
-	{
-	  offset+= delimiter_length;
-	  tmp_value.set(*res,offset,res->length()- offset);
-	  break;
-	}
+        if (++count_ll == 0)
+        {
+          offset+= delimiter_length;
+          tmp_value.set(*res, offset, res->length()- offset);
+          break;
+        }
       }
-      if (count)
+      if (count_ll != 0)
         return res;			// Didn't find, return org string
+    }
+    else
+    {					// start counting from the beginning
+      ulonglong count_ull= count_val.val_unsigned();
+      for (offset=0; ; offset+= delimiter_length)
+      {
+        if ((offset= res->strstr(*delimiter, offset)) < 0)
+          return res;			// Didn't find, return org string
+        if (--count_ull == 0)
+        {
+          tmp_value.set(*res, 0, offset);
+          break;
+        }
+      }
     }
   }
   return (&tmp_value);
@@ -2048,11 +2104,12 @@ String *Item_func_trim::val_str(String *str)
   return &tmp_value;
 }
 
-void Item_func_trim::fix_length_and_dec()
+bool Item_func_trim::resolve_type(THD *thd)
 {
   if (arg_count == 1)
   {
-    agg_arg_charsets_for_string_result(collation, args, 1);
+    if (agg_arg_charsets_for_string_result(collation, args, 1))
+      return true;
     DBUG_ASSERT(collation.collation != NULL);
     remove.set_charset(collation.collation);
     remove.set_ascii(" ",1);
@@ -2063,9 +2120,10 @@ void Item_func_trim::fix_length_and_dec()
     // Note that we pass args[1] as the first item, and args[0] as the second.
     if (agg_arg_charsets_for_string_result_with_comparison(collation,
                                                            &args[1], 2, -1))
-      return;
+      return true;
   }
   fix_char_length(args[0]->max_char_length());
+  return false;
 }
 
 /*
@@ -2123,7 +2181,7 @@ void Item_func_trim::print(String *str, enum_query_type query_type)
 
 /**
   Helper function for calculating a new password. Used in 
-  Item_func_password::fix_length_and_dec() for const parameters and in 
+  Item_func_password::resolve_type() for const parameters and in 
   Item_func_password::val_str_ascii() for non-const parameters.
   @param str The plain text password which should be digested
   @param buffer a pointer to the buffer where the digest will be stored.
@@ -2164,8 +2222,8 @@ static size_t calculate_password(String *str, char *buffer)
   return buffer_len;
 }
 
-/* Item_func_password */
-void Item_func_password::fix_length_and_dec()
+
+bool Item_func_password::resolve_type(THD *thd)
 {
   maybe_null= false; // PASSWORD() never returns NULL
   
@@ -2179,12 +2237,13 @@ void Item_func_password::fix_length_and_dec()
         calculate_password(res, m_hashed_password_buffer);
       fix_length_and_charset(m_hashed_password_buffer_len, default_charset());
       m_recalculate_password= false;
-      return;
+      return false;
     }
   }
 
   m_recalculate_password= true;
   fix_length_and_charset(CRYPT_MAX_PASSWORD_SIZE, default_charset());
+  return false;
 }
 
 String *Item_func_password::val_str_ascii(String *str)
@@ -2314,7 +2373,7 @@ bool Item_func_encode::seed()
   return FALSE;
 }
 
-void Item_func_encode::fix_length_and_dec()
+bool Item_func_encode::resolve_type(THD *thd)
 {
   max_length=args[0]->max_length;
   maybe_null=args[0]->maybe_null || args[1]->maybe_null;
@@ -2322,6 +2381,7 @@ void Item_func_encode::fix_length_and_dec()
   /* Precompute the seed state if the item is constant. */
   seeded= args[1]->const_item() &&
           (args[1]->result_type() == STRING_RESULT) && !seed();
+  return false;
 }
 
 String *Item_func_encode::val_str(String *str)
@@ -2503,14 +2563,16 @@ bool Item_func_current_user::fix_fields(THD *thd, Item **ref)
 }
 
 
-void Item_func_soundex::fix_length_and_dec()
+bool Item_func_soundex::resolve_type(THD *thd)
 {
   uint32 char_length= args[0]->max_char_length();
-  agg_arg_charsets_for_string_result(collation, args, 1);
+  if (agg_arg_charsets_for_string_result(collation, args, 1))
+    return true;
   DBUG_ASSERT(collation.collation != NULL);
   set_if_bigger(char_length, 4);
   fix_char_length(char_length);
   tmp_value.set_charset(collation.collation);
+  return false;
 }
 
 
@@ -2658,10 +2720,11 @@ String *Item_func_soundex::val_str(String *str)
 }
 
 
-void Item_func_geohash::fix_length_and_dec()
+bool Item_func_geohash::resolve_type(THD *thd)
 {
   fix_length_and_charset(Item_func_geohash::upper_limit_output_length,
                          default_charset());
+  return false;
 }
 
 
@@ -3119,7 +3182,7 @@ MY_LOCALE *Item_func_format::get_locale(Item *item)
   return lc;
 }
 
-void Item_func_format::fix_length_and_dec()
+bool Item_func_format::resolve_type(THD *thd)
 {
   uint32 char_length= args[0]->max_char_length();
   uint32 max_sep_count= (char_length / 3) + (decimals ? 1 : 0) + /*sign*/1;
@@ -3129,7 +3192,7 @@ void Item_func_format::fix_length_and_dec()
     locale= args[2]->basic_const_item() ? get_locale(args[2]) : NULL;
   else
     locale= &my_locale_en_US; /* Two arguments */
-  reject_geometry_args(arg_count, args, this);
+  return reject_geometry_args(arg_count, args, this);
 }
 
 
@@ -3257,13 +3320,13 @@ void Item_func_format::print(String *str, enum_query_type query_type)
   str->append(')');
 }
 
-void Item_func_elt::fix_length_and_dec()
+bool Item_func_elt::resolve_type(THD *thd)
 {
   uint32 char_length= 0;
   decimals=0;
 
   if (agg_arg_charsets_for_string_result(collation, args + 1, arg_count - 1))
-    return;
+    return true;
 
   for (uint i= 1 ; i < arg_count ; i++)
   {
@@ -3271,7 +3334,8 @@ void Item_func_elt::fix_length_and_dec()
     set_if_bigger(decimals,args[i]->decimals);
   }
   fix_char_length(char_length);
-  maybe_null=1;					// NULL if wrong first arg
+  maybe_null= true;                        // NULL if wrong first arg
+  return false;
 }
 
 
@@ -3343,12 +3407,12 @@ void Item_func_make_set::split_sum_func(THD *thd,
 }
 
 
-void Item_func_make_set::fix_length_and_dec()
+bool Item_func_make_set::resolve_type(THD *thd)
 {
   uint32 char_length= arg_count - 1; /* Separators */
 
   if (agg_arg_charsets_for_string_result(collation, args, arg_count))
-    return;
+    return true;
   
   for (uint i=0 ; i < arg_count ; i++)
     char_length+= args[i]->max_char_length();
@@ -3357,6 +3421,7 @@ void Item_func_make_set::fix_length_and_dec()
   not_null_tables_cache&= item->not_null_tables();
   const_item_cache&=	  item->const_item();
   with_sum_func= with_sum_func || item->with_sum_func;
+  return false;
 }
 
 
@@ -3523,9 +3588,10 @@ inline String* alloc_buffer(String *res,String *str,String *tmp_value,
 }
 
 
-void Item_func_repeat::fix_length_and_dec()
+bool Item_func_repeat::resolve_type(THD *thd)
 {
-  agg_arg_charsets_for_string_result(collation, args, 1);
+  if (agg_arg_charsets_for_string_result(collation, args, 1))
+    return true;
   DBUG_ASSERT(collation.collation != NULL);
   if (args[1]->const_item())
   {
@@ -3541,12 +3607,13 @@ void Item_func_repeat::fix_length_and_dec()
 
     ulonglong char_length= (ulonglong) args[0]->max_char_length() * count;
     fix_char_length_ulonglong(char_length);
-    return;
+    return false;
   }
 
 end:
   max_length= MAX_BLOB_WIDTH;
-  maybe_null= 1;
+  maybe_null= true;
+  return false;
 }
 
 /**
@@ -3616,7 +3683,7 @@ err:
 
 
 
-void Item_func_space::fix_length_and_dec()
+bool Item_func_space::resolve_type(THD *thd)
 {
   collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII); 
   if (args[0]->const_item())
@@ -3632,12 +3699,13 @@ void Item_func_space::fix_length_and_dec()
     if (count > INT_MAX32)
       count= INT_MAX32;
     fix_char_length_ulonglong(count); 
-    return;
+    return false;
   }
 
 end:
   max_length= MAX_BLOB_WIDTH;
-  maybe_null= 1;
+  maybe_null= true;
+  return false;
 }
 
 
@@ -3685,11 +3753,11 @@ err:
 }
 
 
-void Item_func_rpad::fix_length_and_dec()
+bool Item_func_rpad::resolve_type(THD *thd)
 {
   // Handle character set for args[0] and args[2].
   if (agg_arg_charsets_for_string_result(collation, &args[0], 2, 2))
-    return;
+    return true;
   if (args[1]->const_item())
   {
     ulonglong char_length= (ulonglong) args[1]->val_int();
@@ -3701,12 +3769,13 @@ void Item_func_rpad::fix_length_and_dec()
     if (char_length > INT_MAX32)
       char_length= INT_MAX32;
     fix_char_length_ulonglong(char_length);
-    return;
+    return false;
   }
 
 end:
   max_length= MAX_BLOB_WIDTH;
-  maybe_null= 1;
+  maybe_null= true;
+  return false;
 }
 
 
@@ -3811,11 +3880,11 @@ String *Item_func_rpad::val_str(String *str)
 }
 
 
-void Item_func_lpad::fix_length_and_dec()
+bool Item_func_lpad::resolve_type(THD *thd)
 {
   // Handle character set for args[0] and args[2].
   if (agg_arg_charsets_for_string_result(collation, &args[0], 2, 2))
-    return;
+    return true;
   
   if (args[1]->const_item())
   {
@@ -3828,12 +3897,13 @@ void Item_func_lpad::fix_length_and_dec()
     if (char_length > INT_MAX32)
       char_length= INT_MAX32;
     fix_char_length_ulonglong(char_length);
-    return;
+    return false;
   }
 
 end:
   max_length= MAX_BLOB_WIDTH;
-  maybe_null= 1;
+  maybe_null= true;
+  return false;
 }
 
 
@@ -3925,12 +3995,12 @@ err:
 }
 
 
-void Item_func_conv::fix_length_and_dec()
+bool Item_func_conv::resolve_type(THD *thd)
 {
   collation.set(default_charset());
   max_length=64;
   maybe_null= 1;
-  reject_geometry_args(arg_count, args, this);
+  return reject_geometry_args(arg_count, args, this);
 }
 
 
@@ -4026,10 +4096,11 @@ String *Item_func_conv_charset::val_str(String *str)
                                                    true); // truncate
 }
 
-void Item_func_conv_charset::fix_length_and_dec()
+bool Item_func_conv_charset::resolve_type(THD *thd)
 {
   collation.set(conv_charset, DERIVATION_IMPLICIT);
   fix_char_length(args[0]->max_char_length());
+  return false;
 }
 
 void Item_func_conv_charset::print(String *str, enum_query_type query_type)
@@ -4065,7 +4136,7 @@ String *Item_func_set_collation::val_str(String *str)
   return str;
 }
 
-void Item_func_set_collation::fix_length_and_dec()
+bool Item_func_set_collation::resolve_type(THD *thd)
 {
   CHARSET_INFO *set_collation;
   const char *colname;
@@ -4077,7 +4148,7 @@ void Item_func_set_collation::fix_length_and_dec()
   else
   {
     if (!(set_collation= mysqld_collation_get_by_name(colname)))
-      return;
+      return true;
   }
 
   if (!set_collation || 
@@ -4086,11 +4157,12 @@ void Item_func_set_collation::fix_length_and_dec()
   {
     my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0),
              colname, args[0]->collation.collation->csname);
-    return;
+    return true;
   }
   collation.set(set_collation, DERIVATION_EXPLICIT,
                 args[0]->collation.repertoire);
   max_length= args[0]->max_length;
+  return false;
 }
 
 
@@ -4210,7 +4282,7 @@ void Item_func_weight_string::print(String *str, enum_query_type query_type)
   str->append(')');
 }
 
-void Item_func_weight_string::fix_length_and_dec()
+bool Item_func_weight_string::resolve_type(THD *thd)
 {
   const CHARSET_INFO *cs= args[0]->collation.collation;
   collation.set(&my_charset_bin, args[0]->collation.derivation);
@@ -4225,7 +4297,8 @@ void Item_func_weight_string::fix_length_and_dec()
   max_length= field ? field->pack_length() :
               result_length ? result_length :
               cs->mbmaxlen * max(args[0]->max_length, nweights);
-  maybe_null= 1;
+  maybe_null= true;
+  return false;
 }
 
 bool Item_func_weight_string::eq(const Item *item, bool binary_cmp) const
@@ -4548,7 +4621,7 @@ String *Item_char_typecast::val_str(String *str)
 }
 
 
-void Item_char_typecast::fix_length_and_dec()
+bool Item_char_typecast::resolve_type(THD *thd)
 {
   /*
     If we convert between two ASCII compatible character sets and the
@@ -4578,6 +4651,7 @@ void Item_char_typecast::fix_length_and_dec()
                       (!my_charset_same(from_cs, cast_cs) &&
                        from_cs != &my_charset_bin &&
                        cast_cs != &my_charset_bin);
+  return false;
 }
 
 
@@ -4753,15 +4827,16 @@ String* Item_func_export_set::val_str(String* str)
   return str;
 }
 
-void Item_func_export_set::fix_length_and_dec()
+bool Item_func_export_set::resolve_type(THD *thd)
 {
   uint32 length= max(args[1]->max_char_length(), args[2]->max_char_length());
   uint32 sep_length= (arg_count > 3 ? args[3]->max_char_length() : 1);
 
   if (agg_arg_charsets_for_string_result(collation,
                                          args + 1, min(4U, arg_count) - 1))
-    return;
+    return true;
   fix_char_length(length * 64 + sep_length * 63);
+  return false;
 }
 
 
@@ -5142,11 +5217,12 @@ static void set_clock_seq_str()
 }
 
 
-void Item_func_uuid::fix_length_and_dec()
+bool Item_func_uuid::resolve_type(THD *thd)
 {
   collation.set(system_charset_info,
                 DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
   fix_char_length(UUID_LENGTH);
+  return false;
 }
 
 
@@ -5281,7 +5357,7 @@ String *Item_func_uuid::val_str(String *str)
 }
 
 
-void Item_func_gtid_subtract::fix_length_and_dec()
+bool Item_func_gtid_subtract::resolve_type(THD *thd)
 {
   maybe_null= args[0]->maybe_null || args[1]->maybe_null;
   collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
@@ -5294,7 +5370,9 @@ void Item_func_gtid_subtract::fix_length_and_dec()
   */
   fix_char_length_ulonglong(args[0]->max_length +
                             max<ulonglong>(args[1]->max_length - 
-                                           binary_log::Uuid::TEXT_LENGTH, 0) * 5 / 2);
+                                           binary_log::Uuid::TEXT_LENGTH, 0) *
+                                           5 / 2);
+  return false;
 }
 
 

@@ -1,6 +1,9 @@
 # DEBUG_SYNC must be compiled in.
 --source include/have_debug_sync.inc
 
+# Temporarily skipping the test when log-bin is enabled due to Bug#22328779
+--source include/not_log_bin.inc
+
 # We need to test the use case:
 #    a. Create a transaction T1 that will be promoted to RW.
 #    b. Create a transaction T2 that will be promoted to RW.

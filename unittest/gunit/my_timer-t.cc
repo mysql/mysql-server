@@ -24,7 +24,6 @@
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_mutex_key key_thd_timer_mutex= PSI_NOT_INSTRUMENTED;
-PSI_thread_key key_thread_timer_notifier= PSI_NOT_INSTRUMENTED;
 #endif
 
 /**

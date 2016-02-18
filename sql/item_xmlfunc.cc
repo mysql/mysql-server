@@ -216,13 +216,14 @@ public:
     return str;
   }
   enum Item_result result_type () const { return STRING_RESULT; }
-  void fix_length_and_dec()
+  bool resolve_type(THD *thd)
   {
     max_length= MAX_BLOB_WIDTH;
     collation.collation= pxml->charset();
     // To avoid premature evaluation, mark all nodeset functions as non-const.
     used_tables_cache= RAND_TABLE_BIT;
     const_item_cache= false;
+    return false;
   }
   const char *func_name() const { return "nodeset"; }
 };
@@ -433,7 +434,11 @@ public:
     Item_nodeset_func(pxml), string_cache(str_arg) { }
   String *val_nodeset(String *res)
   { return string_cache; }
-  void fix_length_and_dec() { max_length= MAX_BLOB_WIDTH; }
+  virtual bool resolve_type(THD *thd)
+  {
+    max_length= MAX_BLOB_WIDTH;
+    return false;
+  }
 };
 
 
@@ -444,7 +449,11 @@ public:
   Item_func_xpath_position(Item *a)
     :Item_int_func(a) {}
   const char *func_name() const { return "xpath_position"; }
-  void fix_length_and_dec() { max_length=10; }
+  virtual bool resolve_type(THD *thd)
+  {
+    max_length= 10;
+    return false;
+  }
   longlong val_int()
   {
     String *flt= args[0]->val_nodeset(&tmp_value);
@@ -462,7 +471,11 @@ public:
   Item_func_xpath_count(Item *a)
     :Item_int_func(a) {}
   const char *func_name() const { return "xpath_count"; }
-  void fix_length_and_dec() { max_length=10; }
+  virtual bool resolve_type(THD *thd)
+  {
+    max_length= 10;
+    return false;
+  }
   longlong val_int()
   {
     uint predicate_supplied_context_size;
@@ -2622,12 +2635,12 @@ my_xpath_parse(MY_XPATH *xpath, const char *str, const char *strend)
 }
 
 
-void Item_xml_str_func::fix_length_and_dec()
+bool Item_xml_str_func::resolve_type(THD *thd)
 {
   nodeset_func= 0;
 
   if (agg_arg_charsets_for_comparison(collation, args, arg_count))
-    return;
+    return true;
 
   if (collation.collation->mbminlen > 1)
   {
@@ -2635,29 +2648,32 @@ void Item_xml_str_func::fix_length_and_dec()
     my_printf_error(ER_UNKNOWN_ERROR,
                     "Character set '%s' is not supported by XPATH",
                     MYF(0), collation.collation->csname);
-    return;
+    return true;
   }
 
   if (!args[1]->const_during_execution())
   {
     my_printf_error(ER_UNKNOWN_ERROR,
                     "Only constant XPATH queries are supported", MYF(0));
-    return;
+    return true;
   }
 
-  if (args[1]->const_item())
-    parse_xpath(args[1]);
+  if (args[1]->const_item() && parse_xpath(args[1]))
+    return true;
 
   max_length= MAX_BLOB_WIDTH;
+
+  return false;
 }
 
-void Item_xml_str_func::parse_xpath(Item* xpath_expr)
+
+bool Item_xml_str_func::parse_xpath(Item* xpath_expr)
 {
   String *xp, tmp;
   MY_XPATH xpath;
 
   if (!(xp= xpath_expr->val_str(&tmp)))
-    return;
+    return current_thd->is_error();
 
   my_xpath_init(&xpath);
   xpath.cs= collation.collation;
@@ -2673,12 +2689,14 @@ void Item_xml_str_func::parse_xpath(Item* xpath_expr)
     set_if_smaller(clen, 32);
     my_printf_error(ER_UNKNOWN_ERROR, "XPATH syntax error: '%.*s'",
                     MYF(0), static_cast<int>(clen), xpath.lasttok.beg);
-    return;
+    return true;
   }
 
   nodeset_func= xpath.item;
-  if (nodeset_func)
-    nodeset_func->fix_fields(current_thd, &nodeset_func);
+  if (nodeset_func && nodeset_func->fix_fields(current_thd, &nodeset_func))
+    return true;
+
+  return false;
 }
 
 
@@ -2860,8 +2878,9 @@ String *Item_func_xml_extractvalue::val_str(String *str)
 {
   String *res;
   null_value= 0;
-  if (!nodeset_func)
-    parse_xpath(args[1]);
+  if (!nodeset_func && parse_xpath(args[1]))
+    return NULL;
+
   tmp_value.set("", 0, pxml.charset());
   if (!nodeset_func ||
       !(res= args[0]->val_str(str)) || 
@@ -2880,8 +2899,9 @@ String *Item_func_xml_update::val_str(String *str)
   String *res, *nodeset, *rep;
 
   null_value= 0;
-  if (!nodeset_func)
-    parse_xpath(args[1]);
+  if (!nodeset_func && parse_xpath(args[1]))
+    return NULL;
+
   if (!nodeset_func || 
       !(res= args[0]->val_str(str)) ||
       !(rep= args[2]->val_str(&tmp_value3)) ||

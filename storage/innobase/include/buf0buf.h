@@ -455,18 +455,19 @@ buf_page_get_gen(
 	mtr_t*			mtr,
 	bool			dirty_with_no_latch = false);
 
-/** Initializes a page to the buffer buf_pool. The page is usually not read
-from a file even if it cannot be found in the buffer buf_pool. This is one
-of the functions which perform to a block a state transition NOT_USED =>
-FILE_PAGE (the other is buf_page_get_gen).
-@param[in]	page_id		page id
-@param[in]	page_size	page size
+/** Initialize a page to the buffer buf_pool, without any I/O.
+This and buf_page_get_gen() will make a block state transition
+from BUF_BLOCK_NOT_USED to BUF_BLOCK_FILE_PAGE.
+@param[in,out]	space		tablespace
+@param[in]	offset		page number
+@param[in]	latch_mode	RW_X_LATCH or RW_SX_LATCH
 @param[in]	mtr		mini-transaction
-@return pointer to the block, page bufferfixed */
+@return pointer to the block, page X-latched */
 buf_block_t*
 buf_page_create(
-	const page_id_t&	page_id,
-	const page_size_t&	page_size,
+	fil_space_t*		space,
+	page_no_t		offset,
+	rw_lock_type_t		latch_mode,
 	mtr_t*			mtr);
 
 #else /* !UNIV_HOTBACKUP */
@@ -1074,25 +1075,33 @@ if applicable. */
 #define buf_block_get_page_zip(block) \
 	((block)->page.zip.data ? &(block)->page.zip : NULL)
 #ifndef UNIV_HOTBACKUP
-/*******************************************************************//**
-Gets the block to whose frame the pointer is pointing to.
+
+/** Get a buffer block from an adaptive hash index pointer.
+This function does not return if the block is not identified.
+@param[in]	ptr	pointer to within a page frame
 @return pointer to block, never NULL */
 buf_block_t*
-buf_block_align(
-/*============*/
-	const byte*	ptr);	/*!< in: pointer to a frame */
+buf_block_from_ahi(const byte* ptr);
 
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
-/*********************************************************************//**
-Gets the compressed page descriptor corresponding to an uncompressed page
-if applicable.
-@return compressed page descriptor, or NULL */
-UNIV_INLINE
-const page_zip_des_t*
-buf_frame_get_page_zip(
-/*===================*/
-	const byte*	ptr);	/*!< in: pointer to the page */
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+/********************************************************************//**
+Find out if a pointer belongs to a buf_block_t. It can be a pointer to
+the buf_block_t itself or a member of it
+@return TRUE if ptr belongs to a buf_block_t struct */
+ibool
+buf_pointer_is_block_field(
+/*=======================*/
+	const void*		ptr);	/*!< in: pointer not
+					dereferenced */
+/** Find out if a pointer corresponds to a buf_block_t::mutex.
+@param m in: mutex candidate
+@return TRUE if m is a buf_block_t::mutex */
+#define buf_pool_is_block_mutex(m)			\
+	buf_pointer_is_block_field((const void*)(m))
+/** Find out if a pointer corresponds to a buf_block_t::lock.
+@param l in: rw-lock candidate
+@return TRUE if l is a buf_block_t::lock */
+#define buf_pool_is_block_lock(l)			\
+	buf_pointer_is_block_field((const void*)(l))
 
 /** Inits a page for read to the buffer buf_pool. If the page is
 (1) already in buf_pool, or

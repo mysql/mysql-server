@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,12 +21,25 @@
   Instrumentation helpers for stored programs.
 */
 
-#include "mysql/psi/psi.h"
+#include "mysql/psi/psi_statement.h"
 
 #ifndef PSI_SP_CALL
-#define PSI_SP_CALL(M) PSI_DYNAMIC_CALL(M)
+#define PSI_SP_CALL(M) psi_statement_service->M
 #endif
 
+/**
+  @defgroup psi_api_sp Stored Program Instrumentation (API)
+  @ingroup psi_api
+  @{
+*/
+
+/**
+  @def MYSQL_START_SP(STATE, SP_SHARE)
+  Instrument a stored program execution start.
+  @param STATE Event state data
+  @param SP_SHARE Stored Program share instrumentation
+  @return An event locker
+*/
 #ifdef HAVE_PSI_SP_INTERFACE
   #define MYSQL_START_SP(STATE, SP_SHARE) \
     inline_mysql_start_sp(STATE, SP_SHARE)
@@ -35,7 +48,11 @@
     NULL
 #endif
 
-
+/**
+  @def MYSQL_END_SP(LOCKER)
+  Instrument a stored program execution end.
+  @param LOCKER Event locker
+*/
 #ifdef HAVE_PSI_SP_INTERFACE
   #define MYSQL_END_SP(LOCKER) \
     inline_mysql_end_sp(LOCKER)
@@ -44,6 +61,15 @@
     do {} while (0)
 #endif
 
+/**
+  @def MYSQL_DROP_SP(OT, SN, SNL, ON, ONL)
+  Instrument a drop stored program event.
+  @param OT Object type
+  @param SN Schema name
+  @param SNL Schema name length
+  @param ON Object name
+  @param ONL Object name length
+*/
 #ifdef HAVE_PSI_SP_INTERFACE
   #define MYSQL_DROP_SP(OT, SN, SNL, ON, ONL) \
     inline_mysql_drop_sp(OT, SN, SNL, ON, ONL)
@@ -52,6 +78,16 @@
     do {} while (0)
 #endif
 
+/**
+  @def MYSQL_GET_SP_SHARE(OT, SN, SNL, ON, ONL)
+  Instrument a stored program share.
+  @param OT Object type
+  @param SN Schema name
+  @param SNL Schema name length
+  @param ON Object name
+  @param ONL Object name length
+  @return The instrumented stored program share.
+*/
 #ifdef HAVE_PSI_SP_INTERFACE
   #define MYSQL_GET_SP_SHARE(OT, SN, SNL, ON, ONL) \
     inline_mysql_get_sp_share(OT, SN, SNL, ON, ONL)
@@ -73,7 +109,7 @@ static inline void inline_mysql_end_sp(PSI_sp_locker *locker)
     PSI_SP_CALL(end_sp)(locker);
 }
 
-static inline void 
+static inline void
 inline_mysql_drop_sp(uint sp_type,
                      const char* schema_name, uint shcema_name_length,
                      const char* object_name, uint object_name_length)
@@ -93,5 +129,7 @@ inline_mysql_get_sp_share(uint sp_type,
                                    object_name, object_name_length);
 }
 #endif
+
+/** @} (end of group psi_api_sp) */
 
 #endif

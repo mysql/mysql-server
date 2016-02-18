@@ -1,5 +1,5 @@
 /* Copyright (c) 2002 MySQL AB & tommy@valley.ne.jp
-   Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -29,7 +29,6 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
-#ifdef HAVE_CHARSET_ujis
 
 
 static const uchar ctype_ujis[257] =
@@ -67163,11 +67162,7 @@ static MY_UNICASE_INFO my_caseinfo_ujis=
 
 
 
-#endif /* HAVE_CHARSET_ujis */
 
-
-
-#if defined(HAVE_CHARSET_ujis) || defined(HAVE_CHARSET_eucjpms)
 
 /*
   UJIS and EUCJPMS share the same UPPER/LOWER functions.
@@ -67253,11 +67248,9 @@ my_caseup_ujis(const CHARSET_INFO *cs, char *src, size_t srclen,
   DBUG_ASSERT(src != dst || cs->caseup_multiply == 1);
   return my_casefold_ujis(cs, src, srclen, dst, dstlen, cs->to_upper, 1);
 }
-#endif /* defined(HAVE_CHARSET_ujis) || defined(HAVE_CHARSET_eucjpms) */
 
 
 
-#ifdef HAVE_CHARSET_ujis
 
 static MY_COLLATION_HANDLER my_collation_ci_handler =
 {
@@ -67375,6 +67368,3 @@ CHARSET_INFO my_charset_ujis_bin=
     &my_charset_handler,
     &my_collation_mb_bin_handler
 };
-
-
-#endif /* HAVE_CHARSET_ujis */

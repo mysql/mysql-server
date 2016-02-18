@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -138,7 +138,10 @@ bool Raw_table::open_record_set(const Object_key *key,
 
   // Create specific access key if submitted.
   if (key)
+  {
+    restore_record(get_table(), s->default_values);
     access_key= key->create_access_key(this);
+  }
 
   std::unique_ptr<Raw_record_set> rs1(
     new (std::nothrow) Raw_record_set(get_table(), access_key));

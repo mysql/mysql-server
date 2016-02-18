@@ -4,7 +4,8 @@
 #
 
 --source include/not_embedded.inc
---source include/not_relay_log_info_table.inc
+select @@GLOBAL.relay_log_info_repository into @save_relay_log_info_repository;
+set @@GLOBAL.relay_log_info_repository = 'FILE';
 
 flush logs;
 set global expire_logs_days = 3;
@@ -14,3 +15,4 @@ flush logs;
 show variables like 'log_bin%';
 show variables like 'relay_log%';
 set global expire_logs_days = 0;
+set @@GLOBAL.relay_log_info_repository = @save_relay_log_info_repository;

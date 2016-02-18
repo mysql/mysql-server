@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -114,7 +114,7 @@ bool Abstract_table_impl::store_children(Open_dictionary_tables_ctx *otx)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Abstract_table_impl::drop_children(Open_dictionary_tables_ctx *otx)
+bool Abstract_table_impl::drop_children(Open_dictionary_tables_ctx *otx) const
 {
   return m_columns->drop_items(
     otx,
@@ -318,7 +318,6 @@ void Abstract_table_type::register_tables(Open_dictionary_tables_ctx *otx) const
 
 ///////////////////////////////////////////////////////////////////////////
 
-#ifndef DBUG_OFF
 Abstract_table_impl::Abstract_table_impl(const Abstract_table_impl &src)
   : Weak_object(src), Entity_object_impl(src),
     m_mysql_version_id(src.m_mysql_version_id),
@@ -337,5 +336,4 @@ Abstract_table_impl::Abstract_table_impl(const Abstract_table_impl &src)
                                 clone(this));
   }
 }
-#endif /* !DBUG_OFF */
 }

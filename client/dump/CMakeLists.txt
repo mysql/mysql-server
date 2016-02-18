@@ -1,4 +1,4 @@
-# Copyright (c) 2015 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -210,6 +210,21 @@ MY_CHECK_CXX_COMPILER_FLAG("-Wdeprecated-declarations"
 IF(HAVE_DEPRECATED_DECLARATIONS)
   ADD_COMPILE_FLAGS(${MYSQLPUMP_BOOST_SOURCES}
                     COMPILE_FLAGS "-Wno-deprecated-declarations")
+ENDIF()
+
+# Boost atomics triggers bogus warning in GCC, see
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=61489
+MY_CHECK_CXX_COMPILER_FLAG("-Wmissing-field-initializers" HAVE_MISSING_FIELD_INITIALIZERS)
+IF(HAVE_MISSING_FIELD_INITIALIZERS)
+  ADD_COMPILE_FLAGS(${MYSQLPUMP_BOOST_SOURCES}
+    COMPILE_FLAGS "-Wno-missing-field-initializers")
+ENDIF()
+
+# Boost uses undefined macros in #if
+MY_CHECK_CXX_COMPILER_FLAG("-Wundef" HAVE_UNDEF)
+IF(HAVE_UNDEF)
+  ADD_COMPILE_FLAGS(${BOOST_LIB_SOURCES}
+    COMPILE_FLAGS "-Wno-undef")
 ENDIF()
 
 ADD_COMPILE_FLAGS(

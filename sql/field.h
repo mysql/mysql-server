@@ -508,7 +508,22 @@ void copy_integer(uchar *to, size_t to_length,
 class Generated_column: public Sql_alloc
 {
 public:
+  /**
+    Item representing the generation expression.
+    This is non-NULL for every Field of a TABLE, if that field is a generated
+    column.
+    Contrast this with the Field of a TABLE_SHARE, which has expr_item==NULL
+    even if it's a generated column; that makes sense, as an Item tree cannot
+    be shared.
+  */
   Item *expr_item;
+  /**
+    Text of the expression. Used in only one case:
+    - the text read from the DD is put into the Generated_column::expr_str of
+    the Field of the TABLE_SHARE; then this expr_str is used as source
+    to produce expr_item for the Field of every TABLE derived from this
+    TABLE_SHARE.
+  */
   LEX_STRING expr_str;
   /* It's used to free the items created in parsing generated expression */
   Item *item_free_list;
@@ -518,8 +533,7 @@ public:
   Generated_column()
     : expr_item(0), item_free_list(0),
     field_type(MYSQL_TYPE_LONG),
-    stored_in_db(false), num_non_virtual_base_cols(0),
-    m_expr_str_mem_root(NULL)
+    stored_in_db(false), num_non_virtual_base_cols(0)
   {
     expr_str.str= NULL;
     expr_str.length= 0;
@@ -555,12 +569,18 @@ public:
   /**
      Duplicates a string into expr_str.
 
-     @param root MEM_ROOT to use for allocation; if NULL, use the remembered
-     one; if non-NULL, remember it.
+     @param root MEM_ROOT to use for allocation
      @param src  source string
      @param len  length of 'src' in bytes
   */
   void dup_expr_str(MEM_ROOT *root, const char *src, size_t len);
+
+  /**
+     Writes the generation expression into a String with proper syntax.
+     @param thd  THD
+     @param out  output String
+  */
+  void print_expr(THD *thd, String *out);
 
 private:
   /*
@@ -572,9 +592,6 @@ private:
                                     phisically stored in the database*/
   /// How many non-virtual base columns in base_columns_map
   uint num_non_virtual_base_cols;
-
-  /// MEM_ROOT which provides memory storage for expr_str.str
-  MEM_ROOT *m_expr_str_mem_root;
 };
 
 class Proto_field
@@ -920,7 +937,6 @@ public:
   static bool type_can_have_key_part(enum_field_types);
   static enum_field_types field_type_merge(enum_field_types, enum_field_types);
   static Item_result result_merge_type(enum_field_types);
-  bool gcol_expr_is_equal(const Field *field) const;
   bool gcol_expr_is_equal(const Create_field *field) const;
   virtual bool eq(Field *field)
   {
@@ -4396,7 +4412,8 @@ public:
       it is only used for MYSQL_TYPE_BIT. This avoids bogus
       valgrind warnings in optimized builds.
     */
-    treat_bit_as_char(false)
+    treat_bit_as_char(false),
+    stored_in_db(false)
   {}
   Create_field(Field *field, Field *orig_field);
   /* Used to make a clone of this object for ALTER/CREATE TABLE */

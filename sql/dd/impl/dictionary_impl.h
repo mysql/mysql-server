@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -87,10 +87,10 @@ public:
                                    const std::string &table_name) const;
 
 public:
-  Object_id default_catalog_id() const
+  static Object_id default_catalog_id()
   { return DEFAULT_CATALOG_ID; }
 
-  const std::string &default_catalog_name() const
+  static const std::string &default_catalog_name()
   { return DEFAULT_CATALOG_NAME; }
 
 private:

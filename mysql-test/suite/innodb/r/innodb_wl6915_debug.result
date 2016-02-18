@@ -53,6 +53,7 @@ count(*)
 set session debug="+d,ib_trx_crash_during_commit";
 commit;
 ERROR HY000: Lost connection to MySQL server during query
+# restart
 select count(*) from t2;
 count(*)
 50

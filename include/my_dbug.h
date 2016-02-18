@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -179,6 +179,8 @@ extern void _db_flush_gcov_();
 	sout << v; \
 	DBUG_PRINT(keyword, ("%s", sout.str().c_str())); \
 } while(0)
+#else /* DBUG_OFF */
+#define DBUG_LOG(keyword, v) do {} while(0)
 #endif /* DBUG_OFF */
 #endif /* __cplusplus */
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/schema.h"                  // dd::Schema
 
-#include <memory> // unique_ptr
+#include <memory>                             // unique_ptr
 
 namespace dd {
 
@@ -85,8 +85,8 @@ bool alter_schema(THD *thd, const char *schema_name,
                   const HA_CREATE_INFO *create_info)
 {
   dd::cache::Dictionary_client *client= thd->dd_client();
-
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
   // Get dd::Schema object.
   const dd::Schema *sch_obj= NULL;
   if (client->acquire<dd::Schema>(schema_name, &sch_obj))
@@ -101,15 +101,19 @@ bool alter_schema(THD *thd, const char *schema_name,
     return true;
   }
 
-  // Collation ID
+  // Clone the schema object. The clone is owned here, and must be deleted
+  // eventually.
+  std::unique_ptr<dd::Schema> new_sch_obj(sch_obj->clone());
+
+  // Set new collation ID.
   DBUG_ASSERT(create_info->default_table_charset);
-  const_cast<dd::Schema*>(sch_obj)->set_default_collation_id(
+  new_sch_obj->set_default_collation_id(
     create_info->default_table_charset->number);
 
   Disable_gtid_state_update_guard disabler(thd);
 
   // Update schema.
-  if (client->update(const_cast<dd::Schema*>(sch_obj)))
+  if (client->update(&sch_obj, new_sch_obj.get()))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
@@ -150,7 +154,7 @@ bool drop_schema(THD *thd, const char *schema_name)
   Disable_gtid_state_update_guard disabler(thd);
 
   // Drop the schema.
-  if (client->drop(const_cast<dd::Schema*>(sch_obj)))
+  if (client->drop(sch_obj))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
@@ -163,11 +167,9 @@ bool drop_schema(THD *thd, const char *schema_name)
 }
 
 
-bool Schema_MDL_locker::is_lock_required(const char* schema_name)
+bool Schema_MDL_locker::is_lock_required()
 {
-  return mysqld_server_started &&
-         my_strcasecmp(system_charset_info,
-                       MYSQL_SCHEMA_NAME.str, schema_name) != 0;
+  return mysqld_server_started;
 }
 
 
@@ -188,7 +190,7 @@ bool Schema_MDL_locker::ensure_locked(const char* schema_name)
   }
 
   // If a lock is required, and we do not already have one, acquire a new lock.
-  if (is_lock_required(converted_name) &&
+  if (is_lock_required() &&
       !m_thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::SCHEMA,
                                                       converted_name, "",
                                                       MDL_INTENTION_EXCLUSIVE))
@@ -206,7 +208,7 @@ bool Schema_MDL_locker::ensure_locked(const char* schema_name)
     if (m_thd->mdl_context.acquire_lock(&mdl_request,
                                         m_thd->variables.lock_wait_timeout))
     {
-      DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+      DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
       return true;
     }
     m_ticket= mdl_request.ticket;

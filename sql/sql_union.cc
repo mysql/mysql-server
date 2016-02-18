@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -105,6 +105,9 @@ bool Query_result_union::flush()
   @param options            create options
   @param table_alias        name of the temporary table
   @param bit_fields_as_long convert bit fields to ulonglong
+
+  @param create_table If false, a table handler will not be created when
+                      creating the result table.
 
   @details
     Create a temporary table that is used to store the result of a UNION,

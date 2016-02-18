@@ -1587,3 +1587,14 @@ a	b	d
 NULL	2	NULL
 NULL	NULL	NULL
 DROP TABLE t;
+#
+# Bug #22162200 MEMORY LEAK IN HA_INNOPART_SHARE
+# ::SET_V_TEMPL PARTITIONED ON VIRTUAL COLUMN
+#
+create table t (
+c tinyint,
+d longblob generated always as (c) virtual
+) engine=innodb partition by key (c) partitions 2;
+select d in(select d from t)from t group by d;
+d in(select d from t)
+drop table t;

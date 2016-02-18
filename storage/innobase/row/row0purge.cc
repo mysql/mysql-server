@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -49,6 +49,7 @@ Created 3/14/1997 Heikki Tuuri
 #include "handler.h"
 #include "ha_innodb.h"
 #include "mysqld.h"
+#include "lob.h"
 
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
@@ -799,11 +800,26 @@ skip_secondaries:
 
 			ut_a(dfield_get_len(&ufield->new_val)
 			     >= BTR_EXTERN_FIELD_REF_SIZE);
-			btr_free_externally_stored_field(
-				index,
-				data_field + dfield_get_len(&ufield->new_val)
-				- BTR_EXTERN_FIELD_REF_SIZE,
-				NULL, NULL, NULL, 0, false, &mtr);
+
+			const page_size_t	ext_page_size(
+				dict_table_page_size(index->table));
+			byte* field_ref = data_field
+				+ dfield_get_len(&ufield->new_val)
+				- BTR_EXTERN_FIELD_REF_SIZE;
+
+			if (ext_page_size.is_compressed()) {
+
+				blob_delete_context_t	ctx(
+                                        field_ref, index, NULL, NULL, NULL,
+                                        0, false, &mtr);
+
+				zblob_delete_t	free_blob(ctx);
+				free_blob.destroy();
+			} else {
+				btr_free_externally_stored_field(
+					index, field_ref, NULL, NULL, NULL,
+					0, false, &mtr);
+			}
 			mtr_commit(&mtr);
 		}
 	}

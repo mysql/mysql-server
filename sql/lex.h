@@ -1,7 +1,7 @@
 #ifndef LEX_INCLUDED
 #define LEX_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -139,6 +139,7 @@ static const SYMBOL symbols[] = {
   { SYM("COMPLETION",               COMPLETION_SYM)},
   { SYM("COMPRESSION",              COMPRESSION_SYM)},
   { SYM("COMPRESSED",               COMPRESSED_SYM)},
+  { SYM("ENCRYPTION",               ENCRYPTION_SYM)},
   { SYM("CONCURRENT",               CONCURRENT)},
   { SYM("CONDITION",                CONDITION_SYM)},
   { SYM("CONNECTION",               CONNECTION_SYM)},
@@ -289,6 +290,7 @@ static const SYMBOL symbols[] = {
   { SYM("INSENSITIVE",              INSENSITIVE_SYM)},
   { SYM("INSERT_METHOD",            INSERT_METHOD)},
   { SYM("INSTALL",                  INSTALL_SYM)},
+  { SYM("INSTANCE",                 INSTANCE_SYM)},
   { SYM("INT",                      INT_SYM)},
   { SYM("INT1",                     TINYINT)},
   { SYM("INT2",                     SMALLINT)},
@@ -516,6 +518,7 @@ static const SYMBOL symbols[] = {
   { SYM("ROLLBACK",                 ROLLBACK_SYM)},
   { SYM("ROLLUP",                   ROLLUP_SYM)},
   { SYM("ROUTINE",                  ROUTINE_SYM)},
+  { SYM("ROTATE",                   ROTATE_SYM)},
   { SYM("ROW",                      ROW_SYM)},
   { SYM("ROW_COUNT",                ROW_COUNT_SYM)},
   { SYM("ROWS",                     ROWS_SYM)},

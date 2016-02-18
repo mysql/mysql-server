@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1033,10 +1033,12 @@ dict_table_t::flags |     0     |    1    |     1      |    1
 fil_space_t::flags  |     0     |    0    |     1      |    1
 ==================================================================
 @param[in]	table_flags	dict_table_t::flags
+@param[in]	is_encrypted	if it's an encrypted table
 @return tablespace flags (fil_space_t::flags) */
 ulint
 dict_tf_to_fsp_flags(
-	ulint	table_flags)
+	ulint	table_flags,
+	bool	is_encrypted = false)
 	__attribute__((const));
 
 /** Extract the page size from table flags.
@@ -2085,6 +2087,16 @@ dict_table_is_temporary(
 	const dict_table_t*	table)	/*!< in: table to check */
 	__attribute__((warn_unused_result));
 
+/********************************************************************//**
+Check if it is a encrypted table.
+@return true if table encryption flag is set. */
+UNIV_INLINE
+bool
+dict_table_is_encrypted(
+/*====================*/
+	const dict_table_t*	table)	/*!< in: table to check */
+	__attribute__((warn_unused_result));
+
 /** Check whether the table is intrinsic.
 An intrinsic table is a special kind of temporary table that
 is invisible to the end user.  It is created internally by the MySQL server
@@ -2277,8 +2289,8 @@ dict_table_have_virtual_index(
 @return dict_index_t structure or NULL*/
 dict_index_t*
 dict_sdi_get_index(
-	ulint	tablespace_id,
-	ulint	copy_num);
+	ulint		tablespace_id,
+	uint32_t	copy_num);
 
 /** Retrieve in-memory table object for SDI table.
 @param[in]	tablespace_id	innodb tablespace id
@@ -2287,9 +2299,9 @@ dict_sdi_get_index(
 @return dict_table_t structure */
 dict_table_t*
 dict_sdi_get_table(
-	ulint	tablespace_id,
-	ulint	copy_num,
-	bool	dict_locked);
+	ulint		tablespace_id,
+	uint32_t	copy_num,
+	bool		dict_locked);
 
 /** Remove the SDI table from table cache.
 @param[in]	space_id	InnoDB tablesapce_id
@@ -2321,7 +2333,7 @@ dict_table_is_sdi(
 @param[in]	table_id	InnoDB table id
 @return SDI copy number */
 UNIV_INLINE
-ulint
+uint32_t
 dict_sdi_get_copy_num(
 	table_id_t	table_id);
 

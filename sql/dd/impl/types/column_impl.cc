@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -193,7 +193,7 @@ bool Column_impl::store_children(Open_dictionary_tables_ctx *otx)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Column_impl::drop_children(Open_dictionary_tables_ctx *otx)
+bool Column_impl::drop_children(Open_dictionary_tables_ctx *otx) const
 {
   if (type() == TYPE_ENUM || type() == TYPE_SET)
     return m_enum_elements->drop_items(
@@ -496,7 +496,6 @@ Collection_item *Column_impl::Factory::create_item() const
 
 ///////////////////////////////////////////////////////////////////////////
 
-#ifndef DBUG_OFF
 Column_impl::Column_impl(const Column_impl &src, Abstract_table_impl *parent)
   : Weak_object(src), Entity_object_impl(src), m_type(src.m_type),
     m_is_nullable(src.m_is_nullable),
@@ -540,7 +539,6 @@ Column_impl::Column_impl(const Column_impl &src, Abstract_table_impl *parent)
                                      clone(this, m_set_elements.get()));
   }
 }
-#endif /* !DBUG_OFF */
 
 ///////////////////////////////////////////////////////////////////////////
 // Column_type implementation.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,15 +21,15 @@
   Instrumentation helpers for idle waits.
 */
 
-#include "mysql/psi/psi.h"
+#include "mysql/psi/psi_idle.h"
 
 #ifndef PSI_IDLE_CALL
-#define PSI_IDLE_CALL(M) PSI_DYNAMIC_CALL(M)
+#define PSI_IDLE_CALL(M) psi_idle_service->M
 #endif
 
 /**
-  @defgroup Idle_instrumentation Idle Instrumentation
-  @ingroup Instrumentation_interface
+  @defgroup psi_api_idle Idle Instrumentation (API)
+  @ingroup psi_api
   @{
 */
 
@@ -90,7 +90,7 @@ inline_mysql_end_idle_wait(struct PSI_idle_locker *locker)
 }
 #endif
 
-/** @} (end of group Idle_instrumentation) */
+/** @} (end of group psi_api_idle) */
 
 #endif
 

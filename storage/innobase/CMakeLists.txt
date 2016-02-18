@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@ SET(INNOBASE_SOURCES
 	api/api0misc.cc
 	btr/btr0btr.cc
 	btr/btr0cur.cc
+	btr/lob.cc
 	btr/btr0pcur.cc
 	btr/btr0sea.cc
 	btr/btr0bulk.cc
@@ -159,6 +160,13 @@ IF(WITH_INNODB)
   SET(WITH_INNOBASE_STORAGE_ENGINE TRUE)
 ENDIF()
 
+SET(INNODB_BOOST_ATOMICS_SOURCES
+  btr/btr0btr.cc
+  buf/buf0buf.cc
+  buf/buf0lru.cc
+  handler/ha_innodb.cc
+  handler/i_s.cc)
+
 ADD_LIBRARY(innodb_zipdecompress STATIC ${INNOBASE_ZIP_DECOMPRESS_SOURCES})
 SET_TARGET_PROPERTIES(innodb_zipdecompress PROPERTIES
   COMPILE_DEFINITIONS "UNIV_LIBRARY")
@@ -196,6 +204,14 @@ IF(HAVE_LOGICAL_OP)
   )
 ENDIF()
 
+# Boost atomics triggers bogus warning in GCC, see
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=61489
+MY_CHECK_CXX_COMPILER_FLAG("-Wmissing-field-initializers" HAVE_MISSING_FIELD_INITIALIZERS)
+IF(HAVE_MISSING_FIELD_INITIALIZERS)
+  ADD_COMPILE_FLAGS(${INNODB_BOOST_ATOMICS_SOURCES}
+    COMPILE_FLAGS "-Wno-missing-field-initializers")
+ENDIF()
+
 # A GCC bug causes crash when compiling these files on ARM64 with -O1+
 # Compile them with -O0 as a workaround until the GCC bug is fixed.
 IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
@@ -210,10 +226,6 @@ IF(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
 ENDIF()
 
 ADD_COMPILE_FLAGS(
-  btr/btr0btr.cc
-  buf/buf0buf.cc
-  buf/buf0lru.cc
-  handler/i_s.cc
-  handler/ha_innodb.cc
+  ${INNODB_BOOST_ATOMICS_SOURCES}
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )

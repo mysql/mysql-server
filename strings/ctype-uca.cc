@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -36,7 +36,6 @@
 #include "m_ctype.h"
 #include "mysql/service_my_snprintf.h"
 
-#ifdef HAVE_UCA_COLLATIONS
 
 uint16 page000data[]= { /* 0000 (4 weights per char) */
 0x0000,0x0000,0x0000,0x0000, 0x0000,0x0000,0x0000,0x0000,
@@ -21776,9 +21775,10 @@ my_uca_copy_page(MY_CHARSET_LOADER *loader,
   memset(dst->weights[page], 0, size);
   for (chc=0 ; chc < 256; chc++)
   {
-    memcpy(dst->weights[page] + chc * dst->lengths[page],
-           src->weights[page] + chc * src->lengths[page],
-           src->lengths[page] * sizeof(uint16));
+    if (src->lengths[page] > 0)
+      memcpy(dst->weights[page] + chc * dst->lengths[page],
+             src->weights[page] + chc * src->lengths[page],
+             src->lengths[page] * sizeof(uint16));
   }
   return FALSE;
 }
@@ -22130,7 +22130,6 @@ static size_t my_strnxfrm_any_uca(const CHARSET_INFO *cs,
 } // extern "C"
 
 
-#ifdef HAVE_CHARSET_ucs2
 /*
   UCS2 optimized CHARSET_INFO compatible wrappers.
 */
@@ -23012,10 +23011,8 @@ CHARSET_INFO my_charset_ucs2_vietnamese_ci=
 };
 
 
-#endif
 
 
-#ifdef HAVE_CHARSET_utf8
 MY_COLLATION_HANDLER my_collation_any_uca_handler =
 {
     my_coll_init_uca,	/* init */
@@ -23884,10 +23881,8 @@ CHARSET_INFO my_charset_utf8_vietnamese_ci=
 };
 
 
-#endif /* HAVE_CHARSET_utf8 */
 
 
-#ifdef HAVE_CHARSET_utf8mb4
 
 extern MY_CHARSET_HANDLER my_charset_utf8mb4_handler;
 
@@ -24713,10 +24708,8 @@ CHARSET_INFO my_charset_utf8mb4_vietnamese_ci=
 };
 
 
-#endif /* HAVE_CHARSET_utf8mb4 */
 
 
-#ifdef HAVE_CHARSET_utf32
 
 MY_COLLATION_HANDLER my_collation_utf32_uca_handler =
 {
@@ -25557,10 +25550,8 @@ CHARSET_INFO my_charset_utf32_vietnamese_ci=
 };
 
 
-#endif /* HAVE_CHARSET_utf32 */
 
 
-#ifdef HAVE_CHARSET_utf16
 
 
 MY_COLLATION_HANDLER my_collation_utf16_uca_handler =
@@ -26404,9 +26395,7 @@ CHARSET_INFO my_charset_utf16_vietnamese_ci=
 };
 
 
-#endif /* HAVE_CHARSET_utf16 */
 
-#ifdef HAVE_CHARSET_gb18030
 
 MY_COLLATION_HANDLER my_collation_gb18030_uca_handler =
 {
@@ -26484,7 +26473,3 @@ CHARSET_INFO my_charset_gb18030_unicode_520_ci=
     &my_charset_gb18030_uca_handler,
     &my_collation_gb18030_uca_handler
 };
-
-#endif /* HAVE_CHARSET_gb18030 */
-
-#endif /* HAVE_UCA_COLLATIONS */

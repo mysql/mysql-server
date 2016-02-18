@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -58,7 +58,7 @@ bool Storage_adapter::get(THD *thd, const K &key, const T **object)
 
   if (trx.otx.open_tables())
   {
-    DBUG_ASSERT(thd->is_error() || thd->killed);
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
@@ -70,7 +70,7 @@ bool Storage_adapter::get(THD *thd, const K &key, const T **object)
   std::unique_ptr<Raw_record> r;
   if (t->find_record(key, r))
   {
-    DBUG_ASSERT(thd->is_error() || thd->killed);
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
@@ -78,7 +78,7 @@ bool Storage_adapter::get(THD *thd, const K &key, const T **object)
   Dictionary_object *new_object= NULL;
   if (r.get() && table.restore_object_from_record(&trx.otx, *r.get(), &new_object))
   {
-    DBUG_ASSERT(thd->is_error() || thd->killed);
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
@@ -105,7 +105,7 @@ bool Storage_adapter::get(THD *thd, const K &key, const T **object)
 
 // Drop a dictionary object from persistent storage.
 template <typename T>
-bool Storage_adapter::drop(THD *thd, T *object)
+bool Storage_adapter::drop(THD *thd, const T *object)
 {
 #ifndef DBUG_OFF
   if (s_use_fake_storage)
@@ -114,7 +114,7 @@ bool Storage_adapter::drop(THD *thd, T *object)
 
   if (object->impl()->validate())
   {
-    DBUG_ASSERT(thd->is_error() || thd->killed);
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
@@ -125,7 +125,7 @@ bool Storage_adapter::drop(THD *thd, T *object)
 
   if (ctx.otx.open_tables() || object->impl()->drop(&ctx.otx))
   {
-    DBUG_ASSERT(thd->is_error() || thd->killed);
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
@@ -144,7 +144,7 @@ bool Storage_adapter::store(THD *thd, T *object)
 
   if (object->impl()->validate())
   {
-    DBUG_ASSERT(thd->is_error() || thd->killed);
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
@@ -155,7 +155,7 @@ bool Storage_adapter::store(THD *thd, T *object)
 
   if (ctx.otx.open_tables() || object->impl()->store(&ctx.otx))
   {
-    DBUG_ASSERT(thd->is_error() || thd->killed);
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
@@ -173,11 +173,11 @@ template bool Storage_adapter::get<Abstract_table::name_key_type,
 template bool Storage_adapter::get<Abstract_table::aux_key_type,
                                 Abstract_table>
        (THD *, const Abstract_table::aux_key_type &, const Abstract_table **);
-template bool Storage_adapter::drop(THD *, Abstract_table *);
+template bool Storage_adapter::drop(THD *, const Abstract_table *);
 template bool Storage_adapter::store(THD *, Abstract_table *);
-template bool Storage_adapter::drop(THD *, Table*);
+template bool Storage_adapter::drop(THD *, const Table*);
 template bool Storage_adapter::store(THD *, Table*);
-template bool Storage_adapter::drop(THD *, View*);
+template bool Storage_adapter::drop(THD *, const View*);
 template bool Storage_adapter::store(THD *, View*);
 
 template bool Storage_adapter::get<Charset::id_key_type, Charset>
@@ -186,7 +186,7 @@ template bool Storage_adapter::get<Charset::name_key_type, Charset>
        (THD *, const Charset::name_key_type &, const Charset **);
 template bool Storage_adapter::get<Charset::aux_key_type, Charset>
        (THD *, const Charset::aux_key_type &, const Charset **);
-template bool Storage_adapter::drop(THD *, Charset*);
+template bool Storage_adapter::drop(THD *, const Charset*);
 template bool Storage_adapter::store(THD *, Charset*);
 
 template bool Storage_adapter::get<Collation::id_key_type, Collation>
@@ -195,7 +195,7 @@ template bool Storage_adapter::get<Collation::name_key_type, Collation>
        (THD *, const Collation::name_key_type &, const Collation **);
 template bool Storage_adapter::get<Collation::aux_key_type, Collation>
        (THD *, const Collation::aux_key_type &, const Collation **);
-template bool Storage_adapter::drop(THD *, Collation*);
+template bool Storage_adapter::drop(THD *, const Collation*);
 template bool Storage_adapter::store(THD *, Collation*);
 
 template bool Storage_adapter::get<Schema::id_key_type, Schema>
@@ -204,7 +204,7 @@ template bool Storage_adapter::get<Schema::name_key_type, Schema>
        (THD *, const Schema::name_key_type &, const Schema **);
 template bool Storage_adapter::get<Schema::aux_key_type, Schema>
        (THD *, const Schema::aux_key_type &, const Schema **);
-template bool Storage_adapter::drop(THD *, Schema*);
+template bool Storage_adapter::drop(THD *, const Schema*);
 template bool Storage_adapter::store(THD *, Schema*);
 
 template bool Storage_adapter::get<Tablespace::id_key_type, Tablespace>
@@ -213,7 +213,7 @@ template bool Storage_adapter::get<Tablespace::name_key_type, Tablespace>
        (THD *, const Tablespace::name_key_type &, const Tablespace **);
 template bool Storage_adapter::get<Tablespace::aux_key_type, Tablespace>
        (THD *, const Tablespace::aux_key_type &, const Tablespace **);
-template bool Storage_adapter::drop(THD *, Tablespace*);
+template bool Storage_adapter::drop(THD *, const Tablespace*);
 template bool Storage_adapter::store(THD *, Tablespace*);
 
 } // namespace cache

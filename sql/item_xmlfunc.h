@@ -1,7 +1,7 @@
 #ifndef ITEM_XMLFUNC_INCLUDED
 #define ITEM_XMLFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ public:
   {
     maybe_null= TRUE;
   }
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   String *parse_xml(String *raw_xml, String *parsed_xml_buf);
   bool check_gcol_func_processor(uchar *int_arg) { return false; }
 
@@ -49,8 +49,10 @@ protected:
           const value is not yet known at resolve time.
 
     @param xpath_expr XPATH expression to be parsed
+
+    @returns false on success, true on error
    */
-  void parse_xpath(Item* xpath_expr);
+  bool parse_xpath(Item* xpath_expr);
 };
 
 

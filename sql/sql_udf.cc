@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -87,7 +87,7 @@ static char *init_syms(udf_func *tmp, char *nm)
   tmp->func_init= (Udf_func_init) dlsym(tmp->dlhandle, nm);
 
   /*
-    to prefent loading "udf" from, e.g. libc.so
+    to prevent loading "udf" from, e.g. libc.so
     let's ensure that at least one auxiliary symbol is defined
   */
   if (!tmp->func_init && !tmp->func_deinit && tmp->type != UDFTYPE_AGGREGATE)

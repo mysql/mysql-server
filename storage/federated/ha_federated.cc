@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -384,6 +384,7 @@
 #include "current_thd.h"
 #include "mysqld.h"                             // my_localhost
 #include "sql_class.h"
+#include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_memory.h"
 #include "template_utils.h"
 
@@ -432,9 +433,7 @@ static const uchar *federated_get_key(const uchar *arg, size_t *length)
   return (uchar*) share->share_key;
 }
 
-static PSI_memory_key fe_key_memory_federated_share;
-
-#ifdef HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_MUTEX_INTERFACE
 static PSI_mutex_key fe_key_mutex_federated, fe_key_mutex_FEDERATED_SHARE_mutex;
 
 static PSI_mutex_info all_federated_mutexes[]=
@@ -442,22 +441,32 @@ static PSI_mutex_info all_federated_mutexes[]=
   { &fe_key_mutex_federated, "federated", PSI_FLAG_GLOBAL},
   { &fe_key_mutex_FEDERATED_SHARE_mutex, "FEDERATED_SHARE::mutex", 0}
 };
+#endif /* HAVE_PSI_MUTEX_INTERFACE */
 
+static PSI_memory_key fe_key_memory_federated_share;
+
+#ifdef HAVE_PSI_MEMORY_INTERFACE
 static PSI_memory_info all_federated_memory[]=
 {
   { &fe_key_memory_federated_share, "FEDERATED_SHARE", PSI_FLAG_GLOBAL}
 };
+#endif /* HAVE_PSI_MEMORY_INTERFACE */
 
+#ifdef HAVE_PSI_INTERFACE
 static void init_federated_psi_keys(void)
 {
-  const char* category= "federated";
-  int count;
+  const char* category __attribute__((unused)) = "federated";
+  int count __attribute__((unused));
 
+#ifdef HAVE_PSI_MUTEX_INTERFACE
   count= array_elements(all_federated_mutexes);
   mysql_mutex_register(category, all_federated_mutexes, count);
+#endif /* HAVE_PSI_MUTEX_INTERFACE */
 
+#ifdef HAVE_PSI_MEMORY_INTERFACE
   count= array_elements(all_federated_memory);
   mysql_memory_register(category, all_federated_memory, count);
+#endif /* HAVE_PSI_MEMORY_INTERFACE */
 }
 #endif /* HAVE_PSI_INTERFACE */
 

@@ -654,19 +654,19 @@ STRICT_PROTO_MATCHING  = NO
 # list. This list is created by putting \todo commands in the documentation.
 # The default value is: YES.
 
-GENERATE_TODOLIST      = YES
+GENERATE_TODOLIST      = NO
 
 # The GENERATE_TESTLIST tag can be used to enable (YES) or disable (NO) the test
 # list. This list is created by putting \test commands in the documentation.
 # The default value is: YES.
 
-GENERATE_TESTLIST      = YES
+GENERATE_TESTLIST      = NO
 
 # The GENERATE_BUGLIST tag can be used to enable (YES) or disable (NO) the bug
 # list. This list is created by putting \bug commands in the documentation.
 # The default value is: YES.
 
-GENERATE_BUGLIST       = YES
+GENERATE_BUGLIST       = NO
 
 # The GENERATE_DEPRECATEDLIST tag can be used to enable (YES) or disable (NO)
 # the deprecated list. This list is created by putting \deprecated commands in
@@ -815,7 +815,40 @@ WARN_LOGFILE           = doxyerror.log
 # spaces. See also FILE_PATTERNS and EXTENSION_MAPPING
 # Note: If this tag is empty the current directory is searched.
 
-INPUT                  = .
+## IMPORTANT NOTE:
+## Do not, ever, add "." alone in INPUT,
+## as this will pick up -- blindly -- any code present,
+## whether is it meant to be part of the public documentation or not.
+## Always explicitly add new components by name.
+## For the same reason, do not add "plugin/" alone,
+## but list plugins explicitely
+
+INPUT                  = ./client \
+                         ./dbug \
+                         ./include \
+                         ./libbinlogevents \
+                         ./libbinlogstandalone \
+                         ./libservices \
+                         ./mysys \
+                         ./mysys_ssl \
+                         ./plugin/audit_null \
+                         ./plugin/auth \
+                         ./plugin/daemon_example \
+                         ./plugin/fulltext \
+                         ./plugin/innodb_memcached \
+                         ./plugin/password_validation \
+                         ./plugin/replication_observers_example \
+                         ./plugin/rewrite_example \
+                         ./plugin/rewriter \
+                         ./plugin/semisync \
+                         ./plugin/test_services \
+                         ./plugin/test_service_sql_api \
+                         ./plugin/version_token \
+                         ./sql \
+                         ./sql-common \
+                         ./storage \
+                         ./strings \
+                         ./vio
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses
@@ -1192,7 +1225,7 @@ HTML_STYLESHEET        =
 # list). For an example see the documentation.
 # This tag requires that the tag GENERATE_HTML is set to YES.
 
-HTML_EXTRA_STYLESHEET  =
+HTML_EXTRA_STYLESHEET  = doxygen_ressources/mysql.css
 
 # The HTML_EXTRA_FILES tag can be used to specify one or more extra images or
 # other source files which should be copied to the HTML output directory. Note

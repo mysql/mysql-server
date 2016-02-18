@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -343,15 +343,14 @@ error:
 ****************************************************************************/ 
 
 
-int my_fstat(File Filedes, MY_STAT *stat_area,
-             myf MyFlags __attribute__((unused)))
+int my_fstat(File Filedes, MY_STAT *stat_area)
 {
   DBUG_ENTER("my_fstat");
-  DBUG_PRINT("my",("fd: %d  MyFlags: %d", Filedes, MyFlags));
+  DBUG_PRINT("my",("fd: %d", Filedes));
 #ifdef _WIN32
   DBUG_RETURN(my_win_fstat(Filedes, stat_area));
 #else
-  DBUG_RETURN(fstat(Filedes, (struct stat *) stat_area));
+  DBUG_RETURN(fstat(Filedes, stat_area));
 #endif
 }
 

@@ -28,6 +28,7 @@
 #include "log_event.h"        // slave_execute_deferred_events
 #include "mysqld.h"           // stage_execution_of_init_command
 #include "mysqld_thd_manager.h" // Find_thd_with_id
+#include "mysys_err.h"        // EE_CAPACITY_EXCEEDED
 #include "opt_explain.h"      // mysql_explain_other
 #include "opt_trace.h"        // Opt_trace_start
 #include "partition_info.h"   // partition_info
@@ -252,7 +253,6 @@ void init_update_queries(void)
   server_command_flags[COM_QUERY]=               CF_ALLOW_PROTOCOL_PLUGIN;
   server_command_flags[COM_FIELD_LIST]=          CF_ALLOW_PROTOCOL_PLUGIN;
   server_command_flags[COM_REFRESH]=             CF_ALLOW_PROTOCOL_PLUGIN;
-  server_command_flags[COM_SHUTDOWN]=            CF_ALLOW_PROTOCOL_PLUGIN;
   server_command_flags[COM_STATISTICS]=          CF_SKIP_QUESTIONS;
   server_command_flags[COM_PROCESS_KILL]=        CF_ALLOW_PROTOCOL_PLUGIN;
   server_command_flags[COM_PING]=                CF_SKIP_QUESTIONS;
@@ -416,6 +416,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_REVOKE]=            CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE_ALL]=        CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_OPTIMIZE]=          CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_ALTER_INSTANCE]=    CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_CREATE_FUNCTION]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_PROCEDURE]=  CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_CREATE_SPFUNCTION]= CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
@@ -457,6 +458,7 @@ void init_update_queries(void)
 
   sql_command_flags[SQLCOM_ASSIGN_TO_KEYCACHE]= CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_PRELOAD_KEYS]=       CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ALTER_INSTANCE]|=    CF_AUTO_COMMIT_TRANS;
 
   sql_command_flags[SQLCOM_FLUSH]=              CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_RESET]=              CF_AUTO_COMMIT_TRANS;
@@ -568,6 +570,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_REVOKE_ALL]|=       CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_INSTALL_PLUGIN]|=   CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_UNINSTALL_PLUGIN]|= CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_ALTER_INSTANCE]|=   CF_DISALLOW_IN_RO_TRANS;
 
   /*
     Mark statements that are allowed to be executed by the plugins.
@@ -1183,7 +1186,7 @@ void reset_statement_timer(THD *thd)
     0   ok
   @retval
     1   request of thread shutdown, i. e. if command is
-        COM_QUIT/COM_SHUTDOWN
+        COM_QUIT
 */
 bool dispatch_command(THD *thd, const COM_DATA *com_data,
                       enum enum_server_command command)
@@ -1226,7 +1229,10 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     */
     ulong master_access= thd->security_context()->master_access();
     thd->security_context()->set_master_access(master_access | SHUTDOWN_ACL);
-    command= COM_SHUTDOWN;
+    error= TRUE;
+#ifndef EMBEDDED_LIBRARY
+    kill_mysql();
+#endif
   }
   thd->set_query_id(next_query_id());
   thd->rewritten_query.mem_free();
@@ -1703,27 +1709,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     my_ok(thd);
     break;
   }
-#ifndef EMBEDDED_LIBRARY
-  case COM_SHUTDOWN:
-  {
-    thd->status_var.com_other++;
-    /*
-      If the client is < 4.1.3, it is going to send us no argument; then
-      packet_length is 0, packet[0] is the end 0 of the packet. Note that
-      SHUTDOWN_DEFAULT is 0. If client is >= 4.1.3, the shutdown level is in
-      packet[0].
-    */
-    enum mysql_enum_shutdown_level level;
-    if (!thd->is_valid_time())
-      level= SHUTDOWN_DEFAULT;
-    else
-      level= com_data->com_shutdown.level;
-    if(!shutdown(thd, level, command))
-      break;
-    error= TRUE;
-    break;
-  }
-#endif
   case COM_STATISTICS:
   {
     System_status_var current_global_status_var;
@@ -1903,7 +1888,6 @@ done:
 
   @param  thd        Thread (session) context.
   @param  level      Shutdown level.
-  @param command     type of command to perform
 
   @retval
     true                 success
@@ -1912,7 +1896,7 @@ done:
 
 */
 #ifndef EMBEDDED_LIBRARY
-bool shutdown(THD *thd, enum mysql_enum_shutdown_level level, enum enum_server_command command)
+bool shutdown(THD *thd, enum mysql_enum_shutdown_level level)
 {
   DBUG_ENTER("shutdown");
   bool res= FALSE;
@@ -1929,18 +1913,10 @@ bool shutdown(THD *thd, enum mysql_enum_shutdown_level level, enum enum_server_c
     goto error;;
   }
 
-  if(command == COM_SHUTDOWN)
-    my_eof(thd);
-  else if(command == COM_QUERY)
-    my_ok(thd);
-  else
-  {
-    my_error(ER_NOT_SUPPORTED_YET, MYF(0), "shutdown from this server command");
-    goto error;
-  }
+  my_ok(thd);
 
   DBUG_PRINT("quit",("Got shutdown command for level %u", level));
-  query_logger.general_log_print(thd, command, NullS);
+  query_logger.general_log_print(thd, COM_QUERY, NullS);
   kill_mysql();
   res= TRUE;
 
@@ -2761,7 +2737,7 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_SELECT:
   {
     DBUG_EXECUTE_IF("use_attachable_trx",
-                    thd->begin_attachable_transaction(););
+                    thd->begin_attachable_ro_transaction(););
 
     thd->clear_current_query_costs();
 
@@ -4799,6 +4775,7 @@ end_with_restore_list:
   case SQLCOM_INSTALL_PLUGIN:
   case SQLCOM_UNINSTALL_PLUGIN:
   case SQLCOM_SHUTDOWN:
+  case SQLCOM_ALTER_INSTANCE:
     DBUG_ASSERT(lex->m_sql_cmd != NULL);
     res= lex->m_sql_cmd->execute(thd);
     break;
@@ -6942,6 +6919,42 @@ bool check_host_name(const LEX_CSTRING &str)
 }
 
 
+class Parser_oom_handler : public Internal_error_handler
+{
+public:
+  Parser_oom_handler()
+    : m_has_errors(false), m_is_mem_error(false)
+  {}
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char* sqlstate,
+                                Sql_condition::enum_severity_level *level,
+                                const char* msg)
+  {
+    if (*level == Sql_condition::SL_ERROR)
+    {
+      m_has_errors= true;
+      /* Out of memory error is reported only once. Return as handled */
+      if (m_is_mem_error && sql_errno == EE_CAPACITY_EXCEEDED)
+        return true;
+      if (sql_errno == EE_CAPACITY_EXCEEDED)
+      {
+        m_is_mem_error= true;
+        my_error(ER_CAPACITY_EXCEEDED, MYF(0),
+                 static_cast<ulonglong>(thd->variables.parser_max_mem_size),
+                 "parser_max_mem_size",
+                 ER_THD(thd, ER_CAPACITY_EXCEEDED_IN_PARSER));
+        return true;
+      }
+    }
+    return false;
+  }
+private:
+  bool m_has_errors;
+  bool m_is_mem_error;
+};
+
+
 extern int MYSQLparse(class THD *thd); // from sql_yacc.cc
 
 
@@ -7043,10 +7056,20 @@ bool parse_sql(THD *thd,
   Diagnostics_area *parser_da= thd->get_parser_da();
   Diagnostics_area *da=        thd->get_stmt_da();
 
+  Parser_oom_handler poomh;
+  // Note that we may be called recursively here, on INFORMATION_SCHEMA queries.
+
+  set_memroot_max_capacity(thd->mem_root, thd->variables.parser_max_mem_size);
+  set_memroot_error_reporting(thd->mem_root, true);
+  thd->push_internal_handler(&poomh);
+
   thd->push_diagnostics_area(parser_da, false);
 
   bool mysql_parse_status= MYSQLparse(thd) != 0;
 
+  thd->pop_internal_handler();
+  set_memroot_max_capacity(thd->mem_root, 0);
+  set_memroot_error_reporting(thd->mem_root, false);
   /*
     Unwind diagnostics area.
 

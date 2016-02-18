@@ -142,12 +142,13 @@ Item_func_buffer_strategy(const POS &pos, PT_item_list *ilist)
 }
 
 
-void Item_func_buffer_strategy::fix_length_and_dec()
+bool Item_func_buffer_strategy::resolve_type(THD *thd)
 {
   collation.set(&my_charset_bin);
   decimals=0;
   max_length= 16;
-  maybe_null= 1;
+  maybe_null= true;
+  return false;
 }
 
 String *Item_func_buffer_strategy::val_str(String * /* str_arg */)

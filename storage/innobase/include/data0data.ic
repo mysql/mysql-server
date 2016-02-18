@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -278,7 +278,7 @@ dfield_dup(
 	dfield_t*	field,	/*!< in/out: data field */
 	mem_heap_t*	heap)	/*!< in: memory heap where allocated */
 {
-	if (!dfield_is_null(field)) {
+	if (!dfield_is_null(field) && field->data != NULL) {
 		UNIV_MEM_ASSERT_RW(field->data, field->len);
 		field->data = mem_heap_dup(heap, field->data, field->len);
 	}
@@ -327,6 +327,7 @@ dfield_data_is_binary_equal(
 {
 	return(len == dfield_get_len(field)
 	       && (len == UNIV_SQL_NULL
+		   || len == 0
 		   || !memcmp(dfield_get_data(field), data, len)));
 }
 #endif /* !UNIV_HOTBACKUP */

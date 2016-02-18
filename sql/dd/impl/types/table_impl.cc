@@ -174,7 +174,7 @@ bool Table_impl::store_children(Open_dictionary_tables_ctx *otx)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Table_impl::drop_children(Open_dictionary_tables_ctx *otx)
+bool Table_impl::drop_children(Open_dictionary_tables_ctx *otx) const
 {
   // Note that partition collection has to be dropped first
   // as it has foreign key to indexes.
@@ -603,7 +603,6 @@ void Table_type::register_tables(Open_dictionary_tables_ctx *otx) const
 
 ///////////////////////////////////////////////////////////////////////////
 
-#ifndef DBUG_OFF
 Table_impl::Table_impl(const Table_impl &src)
   : Weak_object(src), Entity_object_impl(src), Abstract_table_impl(src),
     m_hidden(src.m_hidden), m_se_private_id(src.m_se_private_id),
@@ -648,5 +647,4 @@ Table_impl::Table_impl(const Table_impl &src)
                                    clone(this));
   }
 }
-#endif /* !DBUG_OFF */
 }

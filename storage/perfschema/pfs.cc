@@ -32,7 +32,6 @@
 #include "pfs_thread_provider.h"
 #include "pfs_transaction_provider.h"
 
-#include "mysql/psi/psi.h"
 #include "mysql/psi/mysql_thread.h"
 #include "my_thread.h"
 #include "sql_const.h"
@@ -197,8 +196,8 @@ static void report_memory_accounting_error(
   Its role is to advertise all the SQL tables natively
   supported by the performance schema to the SQL server.
   The code consists of creating MySQL tables for the
-  performance schema itself, and is used in './mysqld --install-server'
-  mode when a server is installed.
+  performance schema itself, and is used in './mysqld --initialize'
+  mode when a server is initialized.
 
   The implementation of the database creation script is located in
   @verbatim ./scripts/mysql_system_tables.sql @endverbatim
@@ -1362,15 +1361,15 @@ static inline int mysql_mutex_lock(...)
 */
 
 /**
-  @defgroup Performance_schema Performance Schema
+  @defgroup performance_schema Performance Schema
   The performance schema component.
   For details, see @ref PAGE_PFS
 
-  @defgroup Performance_schema_implementation Performance Schema Implementation
-  @ingroup Performance_schema
+  @defgroup performance_schema_implementation Performance Schema Implementation
+  @ingroup performance_schema
 
-  @defgroup Performance_schema_tables Performance Schema Tables
-  @ingroup Performance_schema_implementation
+  @defgroup performance_schema_tables Performance Schema Tables
+  @ingroup performance_schema_implementation
 */
 
 thread_local_key_t THR_PFS;
@@ -6940,34 +6939,11 @@ pfs_end_metadata_wait_v1(PSI_metadata_locker *locker,
 
 /**
   Implementation of the instrumentation interface.
-  @sa PSI_v1.
+  @sa PSI_thread_service_v1
 */
-PSI_v1 PFS_v1=
+PSI_thread_service_v1 pfs_thread_service_v1=
 {
-  pfs_register_mutex_v1,
-  pfs_register_rwlock_v1,
-  pfs_register_cond_v1,
   pfs_register_thread_v1,
-  pfs_register_file_v1,
-  pfs_register_stage_v1,
-  pfs_register_statement_v1,
-  pfs_register_socket_v1,
-  pfs_init_mutex_v1,
-  pfs_destroy_mutex_v1,
-  pfs_init_rwlock_v1,
-  pfs_destroy_rwlock_v1,
-  pfs_init_cond_v1,
-  pfs_destroy_cond_v1,
-  pfs_init_socket_v1,
-  pfs_destroy_socket_v1,
-  pfs_get_table_share_v1,
-  pfs_release_table_share_v1,
-  pfs_drop_table_share_v1,
-  pfs_open_table_v1,
-  pfs_unbind_table_v1,
-  pfs_rebind_table_v1,
-  pfs_close_table_v1,
-  pfs_create_file_v1,
   pfs_spawn_thread_v1,
   pfs_new_thread_v1,
   pfs_set_thread_id_v1,
@@ -6985,27 +6961,49 @@ PSI_v1 PFS_v1=
   pfs_set_thread_v1,
   pfs_delete_current_thread_v1,
   pfs_delete_thread_v1,
-  pfs_get_thread_file_name_locker_v1,
-  pfs_get_thread_file_stream_locker_v1,
-  pfs_get_thread_file_descriptor_locker_v1,
-  pfs_unlock_mutex_v1,
-  pfs_unlock_rwlock_v1,
-  pfs_signal_cond_v1,
-  pfs_broadcast_cond_v1,
-  pfs_start_idle_wait_v1,
-  pfs_end_idle_wait_v1,
+  pfs_set_thread_connect_attrs_v1
+};
+
+PSI_mutex_service_v1 pfs_mutex_service_v1=
+{
+  pfs_register_mutex_v1,
+  pfs_init_mutex_v1,
+  pfs_destroy_mutex_v1,
   pfs_start_mutex_wait_v1,
   pfs_end_mutex_wait_v1,
+  pfs_unlock_mutex_v1
+};
+
+PSI_rwlock_service_v1 pfs_rwlock_service_v1=
+{
+  pfs_register_rwlock_v1,
+  pfs_init_rwlock_v1,
+  pfs_destroy_rwlock_v1,
   pfs_start_rwlock_rdwait_v1,
   pfs_end_rwlock_rdwait_v1,
   pfs_start_rwlock_wrwait_v1,
   pfs_end_rwlock_wrwait_v1,
+  pfs_unlock_rwlock_v1,
+};
+
+PSI_cond_service_v1 pfs_cond_service_v1=
+{
+  pfs_register_cond_v1,
+  pfs_init_cond_v1,
+  pfs_destroy_cond_v1,
+  pfs_signal_cond_v1,
+  pfs_broadcast_cond_v1,
   pfs_start_cond_wait_v1,
-  pfs_end_cond_wait_v1,
-  pfs_start_table_io_wait_v1,
-  pfs_end_table_io_wait_v1,
-  pfs_start_table_lock_wait_v1,
-  pfs_end_table_lock_wait_v1,
+  pfs_end_cond_wait_v1
+};
+
+PSI_file_service_v1 pfs_file_service_v1=
+{
+  pfs_register_file_v1,
+  pfs_create_file_v1,
+  pfs_get_thread_file_name_locker_v1,
+  pfs_get_thread_file_stream_locker_v1,
+  pfs_get_thread_file_descriptor_locker_v1,
   pfs_start_file_open_wait_v1,
   pfs_end_file_open_wait_v1,
   pfs_end_file_open_wait_and_bind_to_descriptor_v1,
@@ -7013,10 +7011,63 @@ PSI_v1 PFS_v1=
   pfs_start_file_wait_v1,
   pfs_end_file_wait_v1,
   pfs_start_file_close_wait_v1,
-  pfs_end_file_close_wait_v1,
+  pfs_end_file_close_wait_v1
+};
+
+PSI_socket_service_v1 pfs_socket_service_v1=
+{
+  pfs_register_socket_v1,
+  pfs_init_socket_v1,
+  pfs_destroy_socket_v1,
+  pfs_start_socket_wait_v1,
+  pfs_end_socket_wait_v1,
+  pfs_set_socket_state_v1,
+  pfs_set_socket_info_v1,
+  pfs_set_socket_thread_owner_v1
+};
+
+PSI_table_service_v1 pfs_table_service_v1=
+{
+  pfs_get_table_share_v1,
+  pfs_release_table_share_v1,
+  pfs_drop_table_share_v1,
+  pfs_open_table_v1,
+  pfs_unbind_table_v1,
+  pfs_rebind_table_v1,
+  pfs_close_table_v1,
+  pfs_start_table_io_wait_v1,
+  pfs_end_table_io_wait_v1,
+  pfs_start_table_lock_wait_v1,
+  pfs_end_table_lock_wait_v1,
+  pfs_unlock_table_v1
+};
+
+PSI_mdl_service_v1 pfs_mdl_service_v1=
+{
+  pfs_create_metadata_lock_v1,
+  pfs_set_metadata_lock_status_v1,
+  pfs_destroy_metadata_lock_v1,
+  pfs_start_metadata_wait_v1,
+  pfs_end_metadata_wait_v1
+};
+
+PSI_idle_service_v1 pfs_idle_service_v1=
+{
+  pfs_start_idle_wait_v1,
+  pfs_end_idle_wait_v1
+};
+
+PSI_stage_service_v1 pfs_stage_service_v1=
+{
+  pfs_register_stage_v1,
   pfs_start_stage_v1,
   pfs_get_current_stage_progress_v1,
-  pfs_end_stage_v1,
+  pfs_end_stage_v1
+};
+
+PSI_statement_service_v1 pfs_statement_service_v1=
+{
+  pfs_register_statement_v1,
   pfs_get_thread_statement_locker_v1,
   pfs_refine_statement_v1,
   pfs_start_statement_v1,
@@ -7038,6 +7089,21 @@ PSI_v1 PFS_v1=
   pfs_set_statement_no_index_used_v1,
   pfs_set_statement_no_good_index_used_v1,
   pfs_end_statement_v1,
+  pfs_create_prepared_stmt_v1,
+  pfs_destroy_prepared_stmt_v1,
+  pfs_reprepare_prepared_stmt_v1,
+  pfs_execute_prepared_stmt_v1,
+  pfs_digest_start_v1,
+  pfs_digest_end_v1,
+  pfs_get_sp_share_v1,
+  pfs_release_sp_share_v1,
+  pfs_start_sp_v1,
+  pfs_end_sp_v1,
+  pfs_drop_sp_v1
+};
+
+PSI_transaction_service_v1 pfs_transaction_service_v1=
+{
   pfs_get_thread_transaction_locker_v1,
   pfs_start_transaction_v1,
   pfs_set_transaction_xid_v1,
@@ -7047,43 +7113,156 @@ PSI_v1 PFS_v1=
   pfs_inc_transaction_savepoints_v1,
   pfs_inc_transaction_rollback_to_savepoint_v1,
   pfs_inc_transaction_release_savepoint_v1,
-  pfs_end_transaction_v1,
-  pfs_start_socket_wait_v1,
-  pfs_end_socket_wait_v1,
-  pfs_set_socket_state_v1,
-  pfs_set_socket_info_v1,
-  pfs_set_socket_thread_owner_v1,
-  pfs_create_prepared_stmt_v1,
-  pfs_destroy_prepared_stmt_v1,
-  pfs_reprepare_prepared_stmt_v1,
-  pfs_execute_prepared_stmt_v1,
-  pfs_digest_start_v1,
-  pfs_digest_end_v1,
-  pfs_set_thread_connect_attrs_v1,
-  pfs_start_sp_v1,
-  pfs_end_sp_v1,
-  pfs_drop_sp_v1,
-  pfs_get_sp_share_v1,
-  pfs_release_sp_share_v1,
+  pfs_end_transaction_v1
+};
+
+PSI_memory_service_v1 pfs_memory_service_v1=
+{
   pfs_register_memory_v1,
   pfs_memory_alloc_v1,
   pfs_memory_realloc_v1,
   pfs_memory_claim_v1,
-  pfs_memory_free_v1,
-  pfs_unlock_table_v1,
-  pfs_create_metadata_lock_v1,
-  pfs_set_metadata_lock_status_v1,
-  pfs_destroy_metadata_lock_v1,
-  pfs_start_metadata_wait_v1,
-  pfs_end_metadata_wait_v1
+  pfs_memory_free_v1
 };
 
-static void* get_interface(int version)
+static void* get_thread_interface(int version)
 {
   switch (version)
   {
-  case PSI_VERSION_1:
-    return &PFS_v1;
+  case PSI_THREAD_VERSION_1:
+    return &pfs_thread_service_v1;
+  default:
+    return NULL;
+  }
+}
+
+static void* get_mutex_interface(int version)
+{
+  switch (version)
+  {
+  case PSI_MUTEX_VERSION_1:
+    return &pfs_mutex_service_v1;
+  default:
+    return NULL;
+  }
+}
+
+static void* get_rwlock_interface(int version)
+{
+  switch (version)
+  {
+  case PSI_RWLOCK_VERSION_1:
+    return &pfs_rwlock_service_v1;
+  default:
+    return NULL;
+  }
+}
+
+static void* get_cond_interface(int version)
+{
+  switch (version)
+  {
+  case PSI_COND_VERSION_1:
+    return &pfs_cond_service_v1;
+  default:
+    return NULL;
+  }
+}
+
+static void* get_file_interface(int version)
+{
+  switch (version)
+  {
+  case PSI_FILE_VERSION_1:
+    return &pfs_file_service_v1;
+  default:
+    return NULL;
+  }
+}
+
+static void* get_socket_interface(int version)
+{
+  switch (version)
+  {
+  case PSI_SOCKET_VERSION_1:
+    return &pfs_socket_service_v1;
+  default:
+    return NULL;
+  }
+}
+
+static void* get_table_interface(int version)
+{
+  switch (version)
+  {
+  case PSI_TABLE_VERSION_1:
+    return &pfs_table_service_v1;
+  default:
+    return NULL;
+  }
+}
+
+static void* get_mdl_interface(int version)
+{
+  switch (version)
+  {
+  case PSI_MDL_VERSION_1:
+    return &pfs_mdl_service_v1;
+  default:
+    return NULL;
+  }
+}
+
+static void* get_idle_interface(int version)
+{
+  switch (version)
+  {
+  case PSI_IDLE_VERSION_1:
+    return &pfs_idle_service_v1;
+  default:
+    return NULL;
+  }
+}
+
+static void* get_stage_interface(int version)
+{
+  switch (version)
+  {
+  case PSI_STAGE_VERSION_1:
+    return &pfs_stage_service_v1;
+  default:
+    return NULL;
+  }
+}
+
+static void* get_statement_interface(int version)
+{
+  switch (version)
+  {
+  case PSI_STATEMENT_VERSION_1:
+    return &pfs_statement_service_v1;
+  default:
+    return NULL;
+  }
+}
+
+static void* get_transaction_interface(int version)
+{
+  switch (version)
+  {
+  case PSI_TRANSACTION_VERSION_1:
+    return &pfs_transaction_service_v1;
+  default:
+    return NULL;
+  }
+}
+
+static void* get_memory_interface(int version)
+{
+  switch (version)
+  {
+  case PSI_MEMORY_VERSION_1:
+    return &pfs_memory_service_v1;
   default:
     return NULL;
   }
@@ -7091,7 +7270,68 @@ static void* get_interface(int version)
 
 C_MODE_END
 
-struct PSI_bootstrap PFS_bootstrap=
+struct PSI_thread_bootstrap pfs_thread_bootstrap=
 {
-  get_interface
+  get_thread_interface
 };
+
+struct PSI_mutex_bootstrap pfs_mutex_bootstrap=
+{
+  get_mutex_interface
+};
+
+struct PSI_rwlock_bootstrap pfs_rwlock_bootstrap=
+{
+  get_rwlock_interface
+};
+
+struct PSI_cond_bootstrap pfs_cond_bootstrap=
+{
+  get_cond_interface
+};
+
+struct PSI_file_bootstrap pfs_file_bootstrap=
+{
+  get_file_interface
+};
+
+struct PSI_socket_bootstrap pfs_socket_bootstrap=
+{
+  get_socket_interface
+};
+
+struct PSI_table_bootstrap pfs_table_bootstrap=
+{
+  get_table_interface
+};
+
+struct PSI_mdl_bootstrap pfs_mdl_bootstrap=
+{
+  get_mdl_interface
+};
+
+struct PSI_idle_bootstrap pfs_idle_bootstrap=
+{
+  get_idle_interface
+};
+
+struct PSI_stage_bootstrap pfs_stage_bootstrap=
+{
+  get_stage_interface
+};
+
+struct PSI_statement_bootstrap pfs_statement_bootstrap=
+{
+  get_statement_interface
+};
+
+struct PSI_transaction_bootstrap pfs_transaction_bootstrap=
+{
+  get_transaction_interface
+};
+
+struct PSI_memory_bootstrap pfs_memory_bootstrap=
+{
+  get_memory_interface
+};
+

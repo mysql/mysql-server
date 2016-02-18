@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -76,7 +76,7 @@ public:
   { return Weak_object_impl::store(otx); }
 
   // Required by Collection_item.
-  virtual bool drop(Open_dictionary_tables_ctx *otx)
+  virtual bool drop(Open_dictionary_tables_ctx *otx) const
   { return Weak_object_impl::drop(otx); }
 
   virtual void drop();
@@ -86,7 +86,7 @@ public:
   { return Weak_object_impl::restore_children(otx); }
 
   // Required by Collection_item.
-  virtual bool drop_children(Open_dictionary_tables_ctx *otx)
+  virtual bool drop_children(Open_dictionary_tables_ctx *otx) const
   { return Weak_object_impl::drop_children(otx); }
 
   void serialize(WriterVariant *wv) const;
@@ -151,7 +151,6 @@ protected:
   // A pointer to the collection owning this item.
   Collection<Column_type_element> *m_collection;
 
-#ifndef DBUG_OFF
   Column_type_element_impl(const Column_type_element_impl &src,
                            Column_impl *parent,
                            Collection<Column_type_element> *owner);
@@ -162,7 +161,6 @@ public:
   {
     return new Column_type_element_impl(*this, parent, owner);
   }
-#endif /* !DBUG_OFF */
 };
 
 ///////////////////////////////////////////////////////////////////////////

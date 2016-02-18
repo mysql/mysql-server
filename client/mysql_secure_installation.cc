@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -989,9 +989,9 @@ int main(int argc,char *argv[])
 
   /*
     During an unattended rpm deployment a temporary password is created and
-    stored in a file by mysql_install_db. This program use this password to
-    perform security configurations after the bootstrap phase but it needs to
-    be marked for expiration upon exit so the DBA will remember to set a new
+    stored in a file by 'mysqld --initialize'. This program uses this password
+    to perform security configurations after the bootstrap phase, but it needs
+    to be marked for expiration upon exit so the DBA will remember to set a new
     one.
   */
   if (g_expire_password_on_exit == TRUE)

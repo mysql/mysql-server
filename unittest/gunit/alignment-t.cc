@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -92,7 +92,8 @@ class Mem_compare_uchar_int :
   public std::binary_function<const uchar*, const uchar*, bool>
 {
 public:
-  bool operator() (const uchar *s1, const uchar *s2)
+  // SUPPRESS_UBSAN: only executed on intel, misaligned read works OK.
+  bool operator() (const uchar *s1, const uchar *s2) SUPPRESS_UBSAN
   {
     return *(int*) s1 < *(int*) s2;
   }

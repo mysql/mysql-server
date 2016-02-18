@@ -49,9 +49,19 @@
 #include <pfs_statement_provider.h>
 #include <mysql/psi/mysql_statement.h>
 
+#include <pfs_transaction_provider.h>
+#include <mysql/psi/mysql_transaction.h>
+
+#include <pfs_idle_provider.h>
+#include <mysql/psi/mysql_idle.h>
+
 #include <atomic>
 #include <memory>
 #include "mysql/thread_type.h"
+
+struct PSI_statement_locker;
+struct PSI_transaction_locker;
+struct PSI_idle_locker;
 
 namespace dd {
   namespace cache {
@@ -1083,7 +1093,9 @@ public:
     explicit Query_plan(THD *thd_arg)
       : thd(thd_arg),
         sql_command(SQLCOM_END),
-        modification_plan(NULL)
+        lex(NULL),
+        modification_plan(NULL),
+        is_ps(false)
     {}
 
     /**
@@ -1482,7 +1494,103 @@ public:
 private:
   std::unique_ptr<Transaction_ctx> m_transaction;
 
-  class Attachable_trx;
+  /** An utility struct for @c Attachable_trx */
+  struct Transaction_state
+  {
+    Transaction_state()
+      : m_ha_data(PSI_NOT_INSTRUMENTED, m_ha_data.initial_capacity)
+    {}
+    void backup(THD *thd);
+    void restore(THD *thd);
+
+    /// SQL-command.
+    enum_sql_command m_sql_command;
+
+    Query_tables_list m_query_tables_list;
+
+    /// Open-tables state.
+    Open_tables_backup m_open_tables_state;
+
+    /// SQL_MODE.
+    sql_mode_t m_sql_mode;
+
+    /// Transaction isolation level.
+    enum_tx_isolation m_tx_isolation;
+
+    /// Ha_data array.
+    Prealloced_array<Ha_data, PREALLOC_NUM_HA> m_ha_data;
+
+    /// Transaction_ctx instance.
+    Transaction_ctx *m_trx;
+
+    /// Transaction read-only state.
+    my_bool m_tx_read_only;
+
+    /// THD options.
+    ulonglong m_thd_option_bits;
+
+    /// Current transaction instrumentation.
+    PSI_transaction_locker *m_transaction_psi;
+
+    /// Server status flags.
+    uint m_server_status;
+
+    /// THD::in_lock_tables value.
+    bool m_in_lock_tables;
+
+    /**
+      Current time zone (i.e. @@session.time_zone) usage indicator.
+
+      Saving it allows data-dictionary code to read timestamp values
+      as datetimes from system tables without disturbing user's statement.
+
+      TODO: We need to change DD code not to use @@session.time_zone at all and
+      stick to UTC for internal storage of timestamps in DD objects.
+    */
+    bool m_time_zone_used;
+  };
+
+  /**
+    Class representing read-only attachable transaction, encapsulates
+    knowledge how to backup state of current transaction, start
+    read-only attachable transaction in SE, finalize it and then restore
+    state of original transaction back. Also serves as a base class for
+    read-write attachable transaction implementation.
+  */
+  class Attachable_trx
+  {
+  public:
+    Attachable_trx(THD *thd, Attachable_trx *prev_trx);
+    virtual ~Attachable_trx();
+    Attachable_trx *get_prev_attachable_trx() const
+    { return m_prev_attachable_trx; };
+    virtual bool is_read_only() const { return true; }
+
+  protected:
+    /// THD instance.
+    THD *m_thd;
+
+    /**
+      Attachable_trx which was active for the THD before when this
+      transaction was started (NULL in most cases).
+    */
+    Attachable_trx *m_prev_attachable_trx;
+
+    /// Transaction state data.
+    Transaction_state m_trx_state;
+
+  private:
+    Attachable_trx(const Attachable_trx &);
+    Attachable_trx &operator =(const Attachable_trx &);
+  };
+
+  /*
+    Forward declaration of a read-write attachable transaction class.
+    Its exact definition is located in the gtid module that proves its
+    safe usage. Any potential customer to the class must beware of a danger
+    of screwing the global transaction state through ha_commit_{stmt,trans}.
+  */
+  class Attachable_trx_rw;
 
   Attachable_trx *m_attachable_trx;
 
@@ -1902,6 +2010,11 @@ public:
   uint	     tmp_table;
   uint	     server_status,open_options;
   enum enum_thread_type system_thread;
+
+  // Check if this THD belongs to a system thread.
+  inline bool is_system_thread()
+  { return system_thread != NON_SYSTEM_THREAD; }
+
   /*
     Current or next transaction isolation level.
     When a connection is established, the value is taken from
@@ -2798,25 +2911,39 @@ public:
 
 public:
   /**
-    Start an InnoDB attachable transaction.
-
+    Start a read-only attachable transaction.
     There must be no active attachable transactions (in other words, there can
     be only one active attachable transaction at a time).
   */
-  void begin_attachable_transaction();
+  void begin_attachable_ro_transaction();
 
   /**
-    End an active attachable transaction.
+    Start a read-write attachable transaction.
+    All the read-only class' requirements apply.
+    Additional requirements are documented along the class
+    declaration.
+  */
+  void begin_attachable_rw_transaction();
 
-    There must be active attachable transaction.
+  /**
+    End an active attachable transaction. Applies to both the read-only
+    and the read-write versions.
+    Note, that the read-write attachable transaction won't be terminated
+    inside this method.
+    To invoke the function there must be active attachable transaction.
   */
   void end_attachable_transaction();
 
   /**
     @return true if there is an active attachable transaction.
   */
-  bool is_attachable_transaction_active() const
-  { return m_attachable_trx != NULL; }
+  bool is_attachable_ro_transaction_active() const
+  { return m_attachable_trx != NULL && m_attachable_trx->is_read_only(); }
+
+  /**
+    @return true if there is an active rw attachable transaction.
+  */
+  bool is_attachable_rw_transaction_active() const;
 
 public:
   /*

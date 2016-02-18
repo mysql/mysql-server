@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include <my_thread.h>
 #include "my_thread_local.h"
 #include <thr_lock.h>
+#include <mysql/psi/mysql_rwlock.h>
 #include <mysql/psi/mysql_file.h>
 #include <mysql/plugin_ftparser.h>
 

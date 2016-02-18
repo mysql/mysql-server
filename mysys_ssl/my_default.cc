@@ -1163,10 +1163,10 @@ static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file)
 
   if (is_login_file)
   {
-    if (mysql_file_ftell(file, MYF(MY_WME)) == 0)
+    if (mysql_file_ftell(file) == 0)
     {
       /* Move past unused bytes. */
-      mysql_file_fseek(file, 4, SEEK_SET, MYF(MY_WME));
+      mysql_file_fseek(file, 4, SEEK_SET);
       if (mysql_file_fread(file, my_key, LOGIN_KEY_LEN,
                            MYF(MY_WME)) != LOGIN_KEY_LEN)
         return 0;

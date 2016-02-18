@@ -406,7 +406,7 @@ public:
           Thus, the returned table object is owned by the caller, who must
           make sure it is deleted.
 
-    @retval      false    No error.
+    @retval      false    No error or if object was not found.
     @retval      true     Error (e.g. from reading DD tables, or if an
                                  object of a wrong type was found).
   */
@@ -423,7 +423,7 @@ public:
     @param       se_partition_id  SE private id of the partition.
     @param [out] table            Table object, if present; otherwise NULL.
 
-    @retval      false    No error.
+    @retval      false    No error or if object was not found.
     @retval      true     Error (from handling a cache miss).
   */
 
@@ -434,20 +434,16 @@ public:
 
 
   /**
-    Retrieve a schema- and table name by the se private id of the table.
-
-    @note The function returns true and reports 'ER_BAD_TABLE_ERROR' if
-          the table does not exist. If the schema does not exist, it reports
-          'ER_BAD_DB_ERROR'. If an object exists with the required
-          'se_private_id', but is of a wrong type, we fail with
-          'ER_INVALID_DD_OBJECT'.
+    Retrieve schema and table name by the se private id of the table.
 
     @param        engine          Name of the engine storing the table.
     @param        se_private_id   SE private id of the table.
     @param  [out] schema_name     Name of the schema containing the table.
     @param  [out] table_name      Name of the table.
 
-    @retval      false    No error.
+    @retval      false    No error OR if object was not found.
+                          The OUT params will be set to empty
+                          string when object is not found.
     @retval      true     Error.
   */
 
@@ -458,18 +454,16 @@ public:
 
 
   /**
-    Retrieve a schema- and table name by the se private id of the partition.
-
-    @note The function returns true and reports 'ER_BAD_TABLE_ERROR' if
-          the table does not exist. If the schema does not exist, it reports
-          'ER_BAD_DB_ERROR'.
+    Retrieve schema and table name by the se private id of the partition.
 
     @param        engine           Name of the engine storing the table.
     @param        se_partition_id  SE private id of the table partition.
     @param  [out] schema_name      Name of the schema containing the table.
     @param  [out] table_name       Name of the table.
 
-    @retval      false    No error.
+    @retval      false    No error or if object was not found.
+                          The OUT params will be set to empty
+                          string when object is not found.
     @retval      true     Error.
   */
 
@@ -585,6 +579,11 @@ public:
     corresponding entry in the appropriate dd table is deleted. The object may
     not be accessed after calling this function.
 
+    @note The object parameter is const since the contents of the object
+          is not really changed, the object is just deleted. The method
+          makes sure there is an exclusive meta data lock on the object
+          name.
+
     @tparam T       Dictionary object type.
     @param  object  Object to be dropped.
 
@@ -593,7 +592,7 @@ public:
   */
 
   template <typename T>
-  bool drop(T *object);
+  bool drop(const T *object);
 
 
   /**
@@ -615,21 +614,35 @@ public:
 
 
   /**
-    Update a modified dictionary object.
+    Replace a dictionary object by another and store the new one.
 
-    This function will regenerate the keys of the object and store it
-    to the dd tables. The element is still present in the local object
-    registry, and must be released eventually.
+    This function will replace one dictionary object by another. The new object
+    is also stored to the DD tables. The old object is deleted and may not be
+    accessed after calling this function. The element wrapper is still present
+    in the local object registry (and the shared cache), now with the new object
+    being wrapped, and must be released eventually as usual.
 
-    @tparam T       Dictionary object type.
-    @param  object  Object to be updated.
+    @note The new_object will be cloned, and the clone will be owned by the
+          shared cache. The new_object pointer submitted to this function must
+          be deleted explicitly by the caller.
 
-    @retval false   The operation was successful.
-    @retval true    There was an error.
-*/
+    @note The old_object pointer will be reset to point to the new_object clone
+          being owned by the cache.
+
+    @tparam          T          Dictionary object type.
+    @param  [in,out] old_object Old object, present in the cache, to be
+                                replaced. Will be set to point to the new
+                                cached object (upon success) or stay pointing
+                                to the old object (upon failure).
+    @param           new_object New object, not present in the cache, to replace
+                                the old one.
+
+    @retval false       The operation was successful.
+    @retval true        There was an error.
+  */
 
   template <typename T>
-  bool update(T* object);
+  bool update(const T** old_object, T* new_object);
 
 
   /**

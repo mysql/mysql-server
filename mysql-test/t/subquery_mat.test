@@ -7,7 +7,6 @@
 # Run subquery_mat.inc with subquery materialization
 #
 
---source include/have_materialization.inc
 set optimizer_switch='materialization=on';
 
 --disable_query_log

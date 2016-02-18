@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "my_byteorder.h"    /* uint8korr */
 
 #include <string.h>
+#include <mysql/mysql_lex_string.h>
 
 #define bfill please_use_memset_rather_than_bfill
 #define bzero please_use_memset_rather_than_bzero
@@ -49,21 +50,97 @@ extern void (*my_str_free)(void *);
 extern char _dig_vec_upper[];
 extern char _dig_vec_lower[];
 
-	/* Prototypes for string functions */
+/* Prototypes for string functions */
 
-extern	void bchange(uchar *dst,size_t old_len,const uchar *src,
-		     size_t new_len,size_t tot_len);
-extern	void strappend(char *s,size_t len,pchar fill);
-extern	char *strend(const char *s);
-extern  char *strcend(const char *, pchar);
-extern	char *strfill(char * s,size_t len,pchar fill);
 extern	char *strmake(char *dst,const char *src,size_t length);
-
-extern	char *my_stpmov(char *dst,const char *src);
-extern	char *my_stpnmov(char *dst, const char *src, size_t n);
 extern	char *strcont(const char *src, const char *set);
 extern	char *strxmov(char *dst, const char *src, ...);
 extern	char *strxnmov(char *dst, size_t len, const char *src, ...);
+
+
+/*
+  bchange(dst, old_length, src, new_length, tot_length)
+  replaces old_length characters at dst to new_length characters from
+  src in a buffer with tot_length bytes.
+*/
+static inline void bchange(uchar *dst, size_t old_length, const uchar *src,
+                           size_t new_length, size_t tot_length)
+{
+  memmove(dst + new_length, dst + old_length, tot_length - old_length);
+  memcpy(dst,src,new_length);
+}
+
+/*
+  strend(s) returns a character pointer to the NUL which ends s.  That
+  is,  strend(s)-s  ==  strlen(s). This is useful for adding things at
+  the end of strings.  It is redundant, because  strchr(s,'\0')  could
+  be used instead, but this is clearer and faster.
+*/
+static inline char *strend(const char *s)
+{
+  while (*s++)
+    ;
+  return (char*) (s-1);
+}
+
+/*
+  strcend(s, c) returns a pointer to the  first  place  in  s where  c
+  occurs,  or a pointer to the end-null of s if c does not occur in s.
+*/
+static inline char *strcend(const char *s, pchar c)
+{
+  for (;;)
+  {
+     if (*s == (char) c)
+       return (char*) s;
+     if (!*s++)
+       return (char*) s-1;
+  }
+}
+
+/*
+  strfill(dest, len, fill) makes a string of fill-characters. The result
+  string is of length == len. The des+len character is allways set to NULL.
+  strfill() returns pointer to dest+len;
+*/
+static inline char *strfill(char *s, size_t len, pchar fill)
+{
+  while (len--)
+    *s++ = fill;
+  *(s) = '\0';
+  return(s);
+}
+
+/*
+  my_stpmov(dst, src) moves all the  characters  of  src  (including  the
+  closing NUL) to dst, and returns a pointer to the new closing NUL in
+  dst.	 The similar UNIX routine strcpy returns the old value of dst,
+  which I have never found useful.  my_stpmov(my_stpmov(dst,a),b) moves a//b
+  into dst, which seems useful.
+*/
+static inline char *my_stpmov(char *dst, const char *src)
+{
+  while ((*dst++ = *src++))
+    ;
+  return dst-1;
+}
+
+/*
+  my_stpnmov(dst,src,length) moves length characters, or until end, of src to
+  dst and appends a closing NUL to dst if src is shorter than length.
+  The result is a pointer to the first NUL in dst, or is dst+n if dst was
+  truncated.
+*/
+static inline char *my_stpnmov(char *dst, const char *src, size_t n)
+{
+  while (n-- != 0)
+  {
+    if (!(*dst++ = *src++))
+      return (char*) dst-1;
+  }
+  return dst;
+}
+
 
 /**
    Copy a string from src to dst until (and including) terminating null byte.
@@ -159,12 +236,17 @@ static inline int native_strncasecmp(const char *s1, const char *s2, size_t n)
 #endif
 }
 
-/* Prototypes of normal stringfunctions (with may ours) */
-#ifndef HAVE_STRNLEN
-extern size_t strnlen(const char *s, size_t n);
-#endif
-
-extern int is_prefix(const char *, const char *);
+/*
+  is_prefix(s, t) returns 1 if s starts with t.
+  A empty t is always a prefix.
+*/
+static inline int is_prefix(const char *s, const char *t)
+{
+  while (*t)
+    if (*s++ != *t++)
+      return 0;
+  return 1;					/* WRONG */
+}
 
 /* Conversion routines */
 typedef enum {
@@ -204,9 +286,6 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
 */
 #define MY_GCVT_MAX_FIELD_WIDTH (DBL_DIG + 4 + MY_MAX(5, MAX_DECPT_FOR_F_FORMAT)) \
 
-extern char *llstr(longlong value,char *buff);
-extern char *ullstr(longlong value,char *buff);
-
 extern char *int2str(long val, char *dst, int radix, int upcase);
 extern char *int10_to_str(long val,char *dst,int radix);
 extern char *str2int(const char *src,int radix,long lower,long upper,
@@ -224,6 +303,22 @@ extern char *longlong10_to_str(longlong val,char *dst,int radix);
 #endif
 #define longlong2str(A,B,C) ll2str((A),(B),(C),1)
 
+/*
+  This function saves a longlong value in a buffer and returns the pointer to
+  the buffer.
+*/
+static inline char *llstr(longlong value, char *buff)
+{
+  longlong10_to_str(value, buff, -10);
+  return buff;
+}
+
+static inline char *ullstr(longlong value, char *buff)
+{
+  longlong10_to_str(value, buff, 10);
+  return buff;
+}
+
 #if defined(__cplusplus)
 }
 #endif
@@ -234,7 +329,6 @@ extern char *longlong10_to_str(longlong val,char *dst,int radix);
   Ditto LEX_CSTRING/MYSQL_LEX_CSTRING.
 */
 
-#include <mysql/mysql_lex_string.h>
 typedef struct st_mysql_lex_string LEX_STRING;
 typedef struct st_mysql_const_lex_string LEX_CSTRING;
 

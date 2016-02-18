@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@ void init_scheduler_psi_keys()
 {
   const char *category= "scheduler";
 
-  PSI_server->register_statement(category, & Event_queue_element_for_exec::psi_info, 1);
+  mysql_statement_register(category, & Event_queue_element_for_exec::psi_info, 1);
 }
 
 PSI_statement_info Event_queue_element_for_exec::psi_info=

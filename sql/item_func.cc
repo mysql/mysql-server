@@ -50,8 +50,10 @@
 #include "sql_time.h"            // TIME_from_longlong_packed
 #include "strfunc.h"             // find_type
 #include "item_json_func.h"      // Item_func_json_quote
+#include "val_int_compare.h"
 
 #include <cfloat>                // DBL_DIG
+#include <cmath>                 // std::log2
 #include <exception>             // std::exception subclasses
 #include <functional>
 
@@ -207,9 +209,8 @@ bool Item_func::itemize(Parse_context *pc, Item **res)
 			If any argument is binary, this is set to binary
 
    If for any item any of the defaults are wrong, then this can
-   be fixed in the fix_length_and_dec() function that is called
-   after this one or by writing a specialized fix_fields() for the
-   item.
+   be fixed in the resolve_type() function that is called after this one or
+   by writing a specialized fix_fields() for the item.
 
   RETURN VALUES
   FALSE	ok
@@ -252,11 +253,10 @@ Item_func::fix_fields(THD *thd, Item **ref)
         return true;
     }
   }
-  fix_length_and_dec();
-  if (thd->is_error()) // An error inside fix_length_and_dec occured
-    return TRUE;
-  fixed= 1;
-  return FALSE;
+  if (resolve_type(thd) || thd->is_error()) // Some impls still not error-safe
+    return true;
+  fixed= true;
+  return false;
 }
 
 
@@ -675,9 +675,8 @@ void Item_func_numhybrid::fix_num_length_and_dec()
 
   @param item    Argument array
   @param nitems  Number of arguments in the array.
-
-  @retval        False on success, true on error.
 */
+
 void Item_func::count_datetime_length(Item **item, uint nitems)
 {
   unsigned_flag= 0;
@@ -1064,7 +1063,8 @@ Item *Item_func::gc_subst_transformer(uchar *arg)
           fld->table->in_use->change_item_tree(pointer_cast<Item**>(func),
                                                field);
           // Adjust comparator
-          ((Item_bool_func2*)this)->set_cmp_func();
+          if (down_cast<Item_bool_func2 *>(this)->set_cmp_func())
+            return NULL;
           break;
         }
       }
@@ -1107,7 +1107,8 @@ Item *Item_func::gc_subst_transformer(uchar *arg)
           // Adjust comparators
           if (functype() == IN_FUNC)
             ((Item_func_in*)this)->cleanup_arrays();
-          fix_length_and_dec();
+          if (resolve_type(fld->table->in_use))
+            return NULL;
           break;
         }
       }
@@ -1157,10 +1158,12 @@ bool Item_func_connection_id::itemize(Parse_context *pc, Item **res)
 }
 
 
-void Item_func_connection_id::fix_length_and_dec()
+bool Item_func_connection_id::resolve_type(THD *thd)
 {
-  Item_int_func::fix_length_and_dec();
-  unsigned_flag= 1;
+  if (Item_int_func::resolve_type(thd))
+    return true;
+  unsigned_flag= true;
+  return false;
 }
 
 
@@ -1261,10 +1264,10 @@ void Item_func_num1::fix_num_length_and_dec()
 }
 
 /*
-  Reject geometry arguments, should be called in fix_length_and_dec for
+  Reject geometry arguments, should be called in resolve_type() for
   SQL functions/operators where geometries are not suitable as operands.
  */
-void reject_geometry_args(uint arg_count, Item **args, Item_result_field *me)
+bool reject_geometry_args(uint arg_count, Item **args, Item_result_field *me)
 {
   /*
     We want to make sure the operands are not GEOMETRY strings because
@@ -1284,11 +1287,11 @@ void reject_geometry_args(uint arg_count, Item **args, Item_result_field *me)
         args[i]->field_type() == MYSQL_TYPE_GEOMETRY)
     {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), me->func_name());
-      break;
+      return true;
     }
   }
 
-  return;
+  return false;
 }
 
 
@@ -1378,11 +1381,11 @@ void handle_std_exception(const char *funcname)
 }
 
 
-void Item_func_numhybrid::fix_length_and_dec()
+bool Item_func_numhybrid::resolve_type(THD *thd)
 {
   fix_num_length_and_dec();
   find_num_type();
-  reject_geometry_args(arg_count, args, this);
+  return reject_geometry_args(arg_count, args, this);
 }
 
 String *Item_func_numhybrid::val_str(String *str)
@@ -1620,11 +1623,11 @@ void Item_func_signed::print(String *str, enum_query_type query_type)
 }
 
 
-void Item_func_signed::fix_length_and_dec()
+bool Item_func_signed::resolve_type(THD *thd)
 {
   fix_char_length(std::min<uint32>(args[0]->max_char_length(),
                                    MY_INT64_NUM_DECIMAL_DIGITS));
-  reject_geometry_args(arg_count, args, this);
+  return reject_geometry_args(arg_count, args, this);
 }
 
 
@@ -1946,12 +1949,13 @@ void Item_func_additive_op::result_precision()
   subtraction of UNSIGNED BIGINT/DECIMAL to return negative values.
 */
 
-void Item_func_minus::fix_length_and_dec()
+bool Item_func_minus::resolve_type(THD *thd)
 {
-  Item_num_op::fix_length_and_dec();
-  if (unsigned_flag &&
-      (current_thd->variables.sql_mode & MODE_NO_UNSIGNED_SUBTRACTION))
+  if (Item_num_op::resolve_type(thd))
+    return true;
+  if (unsigned_flag && (thd->variables.sql_mode & MODE_NO_UNSIGNED_SUBTRACTION))
     unsigned_flag=0;
+  return false;
 }
 
 
@@ -2059,7 +2063,7 @@ my_decimal *Item_func_minus::decimal_op(my_decimal *decimal_value)
   }
   /*
    Allow sign mismatch only if sql_mode includes MODE_NO_UNSIGNED_SUBTRACTION
-   See Item_func_minus::fix_length_and_dec.
+   See Item_func_minus::resolve_type().
   */
   if (unsigned_flag && decimal_value->sign())
   {
@@ -2264,11 +2268,13 @@ void Item_func_div::result_precision()
 }
 
 
-void Item_func_div::fix_length_and_dec()
+bool Item_func_div::resolve_type(THD *thd)
 {
-  DBUG_ENTER("Item_func_div::fix_length_and_dec");
-  prec_increment= current_thd->variables.div_precincrement;
-  Item_num_op::fix_length_and_dec();
+  DBUG_ENTER("Item_func_div::resolve_type");
+  prec_increment= thd->variables.div_precincrement;
+  if (Item_num_op::resolve_type(thd))
+    DBUG_RETURN(true);
+
   switch(hybrid_type) {
   case REAL_RESULT:
   {
@@ -2295,8 +2301,8 @@ void Item_func_div::fix_length_and_dec()
   default:
     DBUG_ASSERT(0);
   }
-  maybe_null= 1; // devision by zero
-  DBUG_VOID_RETURN;
+  maybe_null= true; // division by zero
+  DBUG_RETURN(false);
 }
 
 
@@ -2372,7 +2378,7 @@ longlong Item_func_int_div::val_int()
 }
 
 
-void Item_func_int_div::fix_length_and_dec()
+bool Item_func_int_div::resolve_type(THD *thd)
 {
   Item_result argtype= args[0]->result_type();
   /* use precision ony for the data type it is applicable for and valid */
@@ -2381,9 +2387,9 @@ void Item_func_int_div::fix_length_and_dec()
                        args[0]->decimals : 0);
   fix_char_length(char_length > MY_INT64_NUM_DECIMAL_DIGITS ?
                   MY_INT64_NUM_DECIMAL_DIGITS : char_length);
-  maybe_null=1;
+  maybe_null= true;
   unsigned_flag=args[0]->unsigned_flag | args[1]->unsigned_flag;
-  reject_geometry_args(arg_count, args, this);
+  return reject_geometry_args(arg_count, args, this);
 }
 
 
@@ -2473,11 +2479,13 @@ void Item_func_mod::result_precision()
 }
 
 
-void Item_func_mod::fix_length_and_dec()
+bool Item_func_mod::resolve_type(THD *thd)
 {
-  Item_num_op::fix_length_and_dec();
-  maybe_null= 1;
+  if (Item_num_op::resolve_type(thd))
+    return true;
+  maybe_null= true;
   unsigned_flag= args[0]->unsigned_flag;
+  return false;
 }
 
 
@@ -2533,11 +2541,11 @@ void Item_func_neg::fix_num_length_and_dec()
 }
 
 
-void Item_func_neg::fix_length_and_dec()
+bool Item_func_neg::resolve_type(THD *thd)
 {
-  DBUG_ENTER("Item_func_neg::fix_length_and_dec");
-  Item_func_num1::fix_length_and_dec();
-
+  DBUG_ENTER("Item_func_neg::resolve_type");
+  if (Item_func_num1::resolve_type(thd))
+    DBUG_RETURN(true);
   /*
     If this is in integer context keep the context as integer if possible
     (This is how multiplication and other integer functions works)
@@ -2559,8 +2567,8 @@ void Item_func_neg::fix_length_and_dec()
       DBUG_PRINT("info", ("Type changed: DECIMAL_RESULT"));
     }
   }
-  unsigned_flag= 0;
-  DBUG_VOID_RETURN;
+  unsigned_flag= false;
+  DBUG_RETURN(false);
 }
 
 
@@ -2600,17 +2608,21 @@ my_decimal *Item_func_abs::decimal_op(my_decimal *decimal_value)
 }
 
 
-void Item_func_abs::fix_length_and_dec()
+bool Item_func_abs::resolve_type(THD *thd)
 {
-  Item_func_num1::fix_length_and_dec();
+  if (Item_func_num1::resolve_type(thd))
+    return true;
   unsigned_flag= args[0]->unsigned_flag;
+    return false;
 }
 
 
-void Item_func_latlongfromgeohash::fix_length_and_dec()
+bool Item_func_latlongfromgeohash::resolve_type(THD *thd)
 {
-  Item_real_func::fix_length_and_dec();
-  unsigned_flag= FALSE;
+  if (Item_real_func::resolve_type(thd))
+    return true;
+  unsigned_flag= false;
+  return false;
 }
 
 
@@ -2903,12 +2915,12 @@ double Item_func_latlongfromgeohash::val_real()
 }
 
 
-void Item_dec_func::fix_length_and_dec()
+bool Item_dec_func::resolve_type(THD *thd)
 {
   decimals= NOT_FIXED_DEC;
   max_length= float_length(decimals);
-  maybe_null= 1;
-  reject_geometry_args(arg_count, args, this);
+  maybe_null= true;
+  return reject_geometry_args(arg_count, args, this);
 }
 
 
@@ -2972,7 +2984,7 @@ double Item_func_log2::val_real()
     signal_invalid_argument_for_log();
     return 0.0;
   }
-  return log(value) / M_LN2;
+  return std::log2(value);
 }
 
 double Item_func_log10::val_real()
@@ -3101,31 +3113,31 @@ double Item_func_cot::val_real()
 longlong Item_func_shift_left::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  uint shift;
-  ulonglong res= ((ulonglong) args[0]->val_int() <<
-		  (shift=(uint) args[1]->val_int()));
+  ulonglong res= args[0]->val_uint();
+  longlong shift= args[1]->val_int();
   if (args[0]->null_value || args[1]->null_value)
   {
     null_value=1;
     return 0;
   }
   null_value=0;
-  return (shift < sizeof(longlong)*8 ? (longlong) res : 0LL);
+  return (shift >= 0 && shift < static_cast<longlong>(sizeof(longlong)*8) ?
+          static_cast<longlong>(res << shift) : 0LL);
 }
 
 longlong Item_func_shift_right::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  uint shift;
-  ulonglong res= (ulonglong) args[0]->val_int() >>
-    (shift=(uint) args[1]->val_int());
+  ulonglong res= args[0]->val_uint();
+  longlong shift= args[1]->val_int();
   if (args[0]->null_value || args[1]->null_value)
   {
     null_value=1;
     return 0;
   }
   null_value=0;
-  return (shift < sizeof(longlong)*8 ? (longlong) res : 0LL);
+  return (shift >= 0 && shift < static_cast<longlong>(sizeof(longlong)*8) ?
+          static_cast<longlong>(res >> shift) : 0LL);
 }
 
 
@@ -3141,13 +3153,13 @@ longlong Item_func_bit_neg::val_int()
 
 // Conversion functions
 
-void Item_func_integer::fix_length_and_dec()
+bool Item_func_integer::resolve_type(THD *thd)
 {
   max_length=args[0]->max_length - args[0]->decimals+1;
   uint tmp=float_length(decimals);
   set_if_smaller(max_length,tmp);
   decimals=0;
-  reject_geometry_args(arg_count, args, this);
+  return reject_geometry_args(arg_count, args, this);
 }
 
 void Item_func_int_val::fix_num_length_and_dec()
@@ -3297,14 +3309,15 @@ my_decimal *Item_func_floor::decimal_op(my_decimal *decimal_value)
 }
 
 
-void Item_func_round::fix_length_and_dec()
+bool Item_func_round::resolve_type(THD *thd)
 {
   int      decimals_to_set;
   longlong val1;
   bool     val1_unsigned;
   
   unsigned_flag= args[0]->unsigned_flag;
-  reject_geometry_args(arg_count, args, this);
+  if (reject_geometry_args(arg_count, args, this))
+    return true;
 
   if (!args[1]->const_item())
   {
@@ -3317,12 +3330,12 @@ void Item_func_round::fix_length_and_dec()
     }
     else
       hybrid_type= REAL_RESULT;
-    return;
+    return false;
   }
 
   val1= args[1]->val_int();
   if ((null_value= args[1]->is_null()))
-    return;
+    return false;
 
   val1_unsigned= args[1]->unsigned_flag;
   if (val1 < 0)
@@ -3335,7 +3348,7 @@ void Item_func_round::fix_length_and_dec()
     decimals= min(decimals_to_set, NOT_FIXED_DEC);
     max_length= float_length(decimals);
     hybrid_type= REAL_RESULT;
-    return;
+    return false;
   }
   
   switch (args[0]->result_type()) {
@@ -3374,6 +3387,7 @@ void Item_func_round::fix_length_and_dec()
   default:
     DBUG_ASSERT(0); /* This result type isn't handled */
   }
+  return false;
 }
 
 double my_double_round(double value, longlong dec, bool dec_unsigned,
@@ -3519,10 +3533,11 @@ void Item_func_rand::seed_random(Item *arg)
 }
 
 
-void Item_func_rand::fix_length_and_dec()
+bool Item_func_rand::resolve_type(THD *thd)
 {
-  Item_real_func::fix_length_and_dec();
-  reject_geometry_args(arg_count, args, this);
+  if (Item_real_func::resolve_type(thd))
+    return true;
+  return reject_geometry_args(arg_count, args, this);
 }
 
 
@@ -3586,10 +3601,11 @@ double Item_func_rand::val_real()
 }
 
 
-void Item_func_sign::fix_length_and_dec()
+bool Item_func_sign::resolve_type(THD *thd)
 {
-  Item_int_func::fix_length_and_dec();
-  reject_geometry_args(arg_count, args, this);
+  if (Item_int_func::resolve_type(thd))
+    return true;
+  return reject_geometry_args(arg_count, args, this);
 }
 
 
@@ -3602,11 +3618,11 @@ longlong Item_func_sign::val_int()
 }
 
 
-void Item_func_units::fix_length_and_dec()
+bool Item_func_units::resolve_type(THD *thd)
 {
   decimals= NOT_FIXED_DEC;
   max_length= float_length(decimals);
-  reject_geometry_args(arg_count, args, this);
+  return reject_geometry_args(arg_count, args, this);
 }
 
 
@@ -3620,7 +3636,7 @@ double Item_func_units::val_real()
 }
 
 
-void Item_func_min_max::fix_length_and_dec()
+bool Item_func_min_max::resolve_type(THD *thd)
 {
   uint string_arg_count= 0;
   uint unsigned_arg_count= 0;
@@ -3656,8 +3672,10 @@ void Item_func_min_max::fix_length_and_dec()
   if (string_arg_count == arg_count)
   {
     // We compare as strings only if all arguments were strings.
-    agg_arg_charsets_for_string_result_with_comparison(collation,
-                                                       args, arg_count);
+    if (agg_arg_charsets_for_string_result_with_comparison(collation,
+                                                           args, arg_count))
+      return true;
+
     if (datetime_found)
     {
       compare_as_dates= TRUE;
@@ -3718,7 +3736,7 @@ void Item_func_min_max::fix_length_and_dec()
   if (cached_field_type == MYSQL_TYPE_JSON)
     cached_field_type= MYSQL_TYPE_VARCHAR;
 
-  reject_geometry_args(arg_count, args, this);
+  return reject_geometry_args(arg_count, args, this);
 }
 
 
@@ -4030,19 +4048,8 @@ mysql> select least('11', '2'), least('11', '2')+0, concat(least(11,2));
       break;
 
     const bool tmp_unsigned= args[i]->unsigned_flag;
-    bool tmp_is_smaller;
-    // both are signed, compare as signed
-    if (!val_unsigned && !tmp_unsigned)
-      tmp_is_smaller= (tmp < value);
-    // both are unsigned, compare as unsigned
-    else if (val_unsigned && tmp_unsigned)
-      tmp_is_smaller= std::less<ulonglong>()(tmp, value);
-    // tmp is signed, check negative value first
-    else if (val_unsigned && !tmp_unsigned)
-      tmp_is_smaller= (tmp < 0) || std::less<ulonglong>()(tmp, value);
-    // value is signed, check negative value first
-    else // !val_unsigned && tmp_unsigned
-      tmp_is_smaller= (value > 0) && std::less<ulonglong>()(tmp, value);
+    const bool tmp_is_smaller=
+      Integer_value(tmp, tmp_unsigned) < Integer_value(value, val_unsigned);
 
     if ((tmp_is_smaller ? cmp_sign : -cmp_sign) > 0)
     {
@@ -4185,10 +4192,10 @@ longlong Item_func_coercibility::val_int()
 }
 
 
-void Item_func_locate::fix_length_and_dec()
+bool Item_func_locate::resolve_type(THD *thd)
 {
   max_length= MY_INT32_NUM_DECIMAL_DIGITS;
-  agg_arg_charsets_for_comparison(cmp_collation, args, 2);
+  return agg_arg_charsets_for_comparison(cmp_collation, args, 2);
 }
 
 
@@ -4210,9 +4217,12 @@ longlong Item_func_locate::val_int()
 
   if (arg_count == 3)
   {
-    start0= start= args[2]->val_int() - 1;
+    const longlong tmp= args[2]->val_int();
+    if (tmp <= 0)
+      return 0;
+    start0= start= tmp - 1;
 
-    if ((start < 0) || (start > static_cast<longlong>(a->length())))
+    if (start > static_cast<longlong>(a->length()))
       return 0;
 
     /* start is now sufficiently valid to pass to charpos function */
@@ -4316,14 +4326,15 @@ longlong Item_func_field::val_int()
 }
 
 
-void Item_func_field::fix_length_and_dec()
+bool Item_func_field::resolve_type(THD *thd)
 {
   maybe_null=0; max_length=3;
   cmp_type= args[0]->result_type();
   for (uint i=1; i < arg_count ; i++)
     cmp_type= item_cmp_type(cmp_type, args[i]->result_type());
   if (cmp_type == STRING_RESULT)
-    agg_arg_charsets_for_comparison(cmp_collation, args, arg_count);
+    return agg_arg_charsets_for_comparison(cmp_collation, args, arg_count);
+  return false;
 }
 
 
@@ -4368,7 +4379,7 @@ longlong Item_func_ord::val_int()
 	/* Returns number of found type >= 1 or 0 if not found */
 	/* This optimizes searching in enums to bit testing! */
 
-void Item_func_find_in_set::fix_length_and_dec()
+bool Item_func_find_in_set::resolve_type(THD *thd)
 {
   decimals=0;
   max_length=3;					// 1-999
@@ -4390,7 +4401,7 @@ void Item_func_find_in_set::fix_length_and_dec()
       }
     }
   }
-  agg_arg_charsets_for_comparison(cmp_collation, args, 2);
+  return agg_arg_charsets_for_comparison(cmp_collation, args, 2);
 }
 
 static const char separator=',';
@@ -4400,7 +4411,7 @@ longlong Item_func_find_in_set::val_int()
   DBUG_ASSERT(fixed == 1);
   if (enum_value)
   {
-    // enum_value is set iff args[0]->const_item() in fix_length_and_dec().
+    // enum_value is set iff args[0]->const_item() in resolve_type().
     DBUG_ASSERT(args[0]->const_item());
 
     ulonglong tmp= (ulonglong) args[1]->val_int();
@@ -4592,7 +4603,8 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
       DBUG_RETURN(TRUE);
     }
   }
-  func->fix_length_and_dec();
+  if (func->resolve_type(thd))
+    DBUG_RETURN(true);
   initid.max_length=func->max_length;
   initid.maybe_null=func->maybe_null;
   initid.const_item=const_item_cache;
@@ -4926,21 +4938,21 @@ String *Item_func_udf_decimal::val_str(String *str)
 }
 
 
-void Item_func_udf_decimal::fix_length_and_dec()
+bool Item_func_udf_decimal::resolve_type(THD *thd)
 {
   fix_num_length_and_dec();
+  return false;
 }
 
 
 /* Default max_length is max argument length */
 
-void Item_func_udf_str::fix_length_and_dec()
+bool Item_func_udf_str::resolve_type(THD *thd)
 {
-  DBUG_ENTER("Item_func_udf_str::fix_length_and_dec");
   max_length=0;
   for (uint i = 0; i < arg_count; i++)
     set_if_bigger(max_length,args[i]->max_length);
-  DBUG_VOID_RETURN;
+  return false;
 }
 
 String *Item_func_udf_str::val_str(String *str)
@@ -6222,7 +6234,7 @@ bool Item_func_set_user_var::set_entry(THD *thd, bool create_if_not_exists)
 bool Item_func_set_user_var::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
-  /* fix_fields will call Item_func_set_user_var::fix_length_and_dec */
+  // fix_fields will call Item_func_set_user_var::resolve_type()
   if (Item_func::fix_fields(thd, ref) || set_entry(thd, TRUE))
     return TRUE;
 
@@ -6233,8 +6245,7 @@ bool Item_func_set_user_var::fix_fields(THD *thd, Item **ref)
 }
 
 
-void
-Item_func_set_user_var::fix_length_and_dec()
+bool Item_func_set_user_var::resolve_type(THD *thd)
 {
   maybe_null=args[0]->maybe_null;
   decimals=args[0]->decimals;
@@ -6255,6 +6266,7 @@ Item_func_set_user_var::fix_length_and_dec()
                            args[0]->collation.collation);
   }
   unsigned_flag= args[0]->unsigned_flag;
+  return false;
 }
 
 
@@ -7183,22 +7195,21 @@ err:
   return 1;
 }
 
-void Item_func_get_user_var::fix_length_and_dec()
+bool Item_func_get_user_var::resolve_type(THD *thd)
 {
-  THD *thd=current_thd;
-  int error;
   maybe_null=1;
   decimals=NOT_FIXED_DEC;
   max_length=MAX_BLOB_WIDTH;
 
-  error= get_var_with_binlog(thd, thd->lex->sql_command, name, &var_entry);
+  if (get_var_with_binlog(thd, thd->lex->sql_command, name, &var_entry))
+    return true;
 
   /*
     If the variable didn't exist it has been created as a STRING-type.
     'var_entry' is NULL only if there occurred an error during the call to
     get_var_with_binlog.
   */
-  if (!error && var_entry)
+  if (var_entry)
   {
     m_cached_result_type= var_entry->type();
     unsigned_flag= var_entry->unsigned_flag;
@@ -7233,6 +7244,8 @@ void Item_func_get_user_var::fix_length_and_dec()
     m_cached_result_type= STRING_RESULT;
     max_length= MAX_BLOB_WIDTH;
   }
+
+  return false;
 }
 
 
@@ -7385,7 +7398,7 @@ bool Item_func_get_system_var::is_written_to_binlog()
 }
 
 
-void Item_func_get_system_var::fix_length_and_dec()
+bool Item_func_get_system_var::resolve_type(THD *thd)
 {
   char *cptr;
   maybe_null= TRUE;
@@ -7397,7 +7410,7 @@ void Item_func_get_system_var::fix_length_and_dec()
     {
       my_error(ER_INCORRECT_GLOBAL_LOCAL_VAR, MYF(0),
                var->name.str, var_type == OPT_GLOBAL ? "SESSION" : "GLOBAL");
-      return;
+      return true;
     }
     /* As there was no local variable, return the global value */
     var_type= OPT_GLOBAL;
@@ -7463,8 +7476,9 @@ void Item_func_get_system_var::fix_length_and_dec()
       break;
     default:
       my_error(ER_VAR_CANT_BE_READ, MYF(0), var->name.str);
-      break;
+      return true;
   }
+  return false;
 }
 
 
@@ -8637,9 +8651,9 @@ Item_func_sp::init_result_field(THD *thd)
   @note called from Item::fix_fields.
 */
 
-void Item_func_sp::fix_length_and_dec()
+bool Item_func_sp::resolve_type(THD *thd)
 {
-  DBUG_ENTER("Item_func_sp::fix_length_and_dec");
+  DBUG_ENTER("Item_func_sp::resolve_type");
 
   DBUG_ASSERT(sp_result_field);
   decimals= sp_result_field->decimals();
@@ -8648,7 +8662,7 @@ void Item_func_sp::fix_length_and_dec()
   maybe_null= 1;
   unsigned_flag= MY_TEST(sp_result_field->flags & UNSIGNED_FLAG);
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(false);
 }
 
 
@@ -8913,7 +8927,7 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
 
   /*
     We must call init_result_field before Item_func::fix_fields() 
-    to make m_sp and result_field members available to fix_length_and_dec(),
+    to make m_sp and result_field members available to resolve_type(),
     which is called from Item_func::fix_fields().
   */
   res= init_result_field(thd);

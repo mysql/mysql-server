@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -317,8 +317,11 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
         tbl->table_name will be correct name of table because VIEWs are
         not opened yet.
       */
-      fill_effective_table_privileges(thd, &tbl->grant, tbl->db,
-                                      tbl->table_name);
+      if (tbl->is_derived())
+        tbl->set_privileges(SELECT_ACL);
+      else
+        fill_effective_table_privileges(thd, &tbl->grant, tbl->db,
+                                        tbl->table_name);
     }
   }
 
@@ -628,9 +631,11 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   /*
     Compare/check grants on view with grants of underlying tables
   */
-
-  fill_effective_table_privileges(thd, &view->grant, view->db,
-                                  view->table_name);
+  if (view->is_derived())
+    view->set_privileges(SELECT_ACL);
+  else
+    fill_effective_table_privileges(thd, &view->grant, view->db,
+                                    view->table_name);
 
   /*
     Make sure that the current user does not have more column-level privileges
@@ -2013,27 +2018,7 @@ mysql_rename_view(THD *thd,
 {
   DBUG_ENTER("mysql_rename_view");
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::View *view_obj= NULL;
-  if (thd->dd_client()->acquire<dd::View>(view->db, view->table_name,
-                                          &view_obj) || !view_obj)
-    DBUG_RETURN(true);
-
-  /*
-    To be PS-friendly we should either to restore state of
-    TABLE_LIST object pointed by 'view' after using it for
-    view definition parsing or use temporary 'view_def_table_list'
-    object for it.
-  */
-  TABLE_LIST view_def_table_list;
-  memset(&view_def_table_list, 0, sizeof(view_def_table_list));
-  view_def_table_list.timestamp.str= view_def_table_list.timestamp_buffer;
-  view_def_table_list.view_suid= TRUE;
-
-  /* Get view definition and source from dd::View object. */
-  dd::read_view(&view_def_table_list, *view_obj, thd->mem_root);
-
-  /* Do the actual renaming of the view. */
+  /* Rename view in the data-dictionary. */
   if (dd::rename_table<dd::View>(thd,
                                  view->db, view->table_name,
                                  new_db, new_name))

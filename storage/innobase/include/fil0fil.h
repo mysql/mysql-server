@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -161,6 +161,18 @@ struct fil_space_t {
 	/** Compression algorithm */
 	Compression::Type	compression_type;
 
+	/** Encryption algorithm */
+	Encryption::Type	encryption_type;
+
+	/** Encrypt key */
+	byte			encryption_key[ENCRYPTION_KEY_LEN];
+
+	/** Encrypt key length*/
+	ulint			encryption_klen;
+
+	/** Encrypt initial vector */
+	byte			encryption_iv[ENCRYPTION_KEY_LEN];
+
 	/** Release the reserved free extents.
 	@param[in]	n_reserved	number of reserved extents */
 	void release_free_extents(ulint n_reserved);
@@ -242,11 +254,13 @@ struct fil_node_t {
 enum ib_extention {
 	NO_EXT = 0,
 	IBD = 1,
-	CFG = 2
+	CFG = 2,
+	CFP = 3
 };
 extern const char* dot_ext[];
 #define DOT_IBD dot_ext[IBD]
 #define DOT_CFG dot_ext[CFG]
+#define DOT_CFP dot_ext[CFP]
 
 #ifdef _WIN32
 /* Initialization of m_abs_path() produces warning C4351:
@@ -414,6 +428,10 @@ typedef	uint16_t	page_type_t;
 #define FIL_PAGE_COMPRESSED	14	/*!< Compressed page */
 #define FIL_PAGE_SDI_BLOB	15	/*!< Uncompressed SDI BLOB page */
 #define FIL_PAGE_SDI_ZBLOB	16	/*!< Commpressed SDI BLOB page */
+#define FIL_PAGE_ENCRYPTED	17	/*!< Encrypted page */
+#define FIL_PAGE_COMPRESSED_AND_ENCRYPTED 18
+					/*!< Compressed and Encrypted page */
+#define FIL_PAGE_ENCRYPTED_RTREE 19	/*!< Encrypted R-tree page */
 
 /** Used by i_s.cc to index into the text description. */
 #define FIL_PAGE_TYPE_LAST	FIL_PAGE_SDI_ZBLOB
@@ -691,22 +709,26 @@ fil_space_release(
 class FilSpace
 {
 public:
-	/** Default constructor: Use this when reference counting
-	is done outside this wrapper. */
-	FilSpace() : m_space(NULL) {}
+	/** Constructor.
+	@param[in]	space	the wrapped space
+	(NULL when reference counting is done outside this wrapper). */
+	FilSpace(fil_space_t* space = NULL) : m_space(space)
+	{
+		/* fil_space_acquire() must have been invoked. */
+		ut_ad(space == NULL || space->n_pending_ops > 0);
+	}
 
 	/** Constructor: Look up the tablespace and increment the
 	referece count if found.
 	@param[in]	space_id	tablespace ID */
-	explicit FilSpace(ulint space_id)
+	explicit FilSpace(space_id_t space_id)
 		: m_space(fil_space_acquire(space_id)) {}
 
 	/** Assignment operator: This assumes that fil_space_acquire()
 	has already been done for the fil_space_t. The caller must
 	assign NULL if it calls fil_space_release().
 	@param[in]	space	tablespace to assign */
-	class FilSpace& operator=(
-		fil_space_t*	space)
+	class FilSpace& operator=(fil_space_t* space)
 	{
 		/* fil_space_acquire() must have been invoked. */
 		ut_ad(space == NULL || space->n_pending_ops > 0);
@@ -730,9 +752,23 @@ public:
 		return(m_space);
 	}
 
+	/** Implicit type conversion
+	@return the wrapped object */
+	operator fil_space_t*()
+	{
+		return(m_space);
+	}
+
 	/** Explicit type conversion
 	@return the wrapped object */
 	const fil_space_t* operator()() const
+	{
+		return(m_space);
+	}
+
+	/** Explicit type conversion
+	@return the wrapped object */
+	fil_space_t* operator()()
 	{
 		return(m_space);
 	}
@@ -741,8 +777,8 @@ private:
 	/** The wrapped pointer */
 	fil_space_t*	m_space;
 };
-
 #endif /* !UNIV_HOTBACKUP */
+
 /** Replay a file rename operation if possible.
 @param[in]	space_id	tablespace identifier
 @param[in]	first_page_no	first page number in the file
@@ -1249,6 +1285,10 @@ struct PageCallback {
 	@return the space id of the tablespace */
 	virtual ulint get_space_id() const UNIV_NOTHROW = 0;
 
+	/**
+	@retval the space flags of the tablespace being iterated over */
+	virtual ulint get_space_flags() const UNIV_NOTHROW = 0;
+
 	/** Set the tablespace table size.
 	@param[in] page a page belonging to the tablespace */
 	void set_page_size(const buf_frame_t* page) UNIV_NOTHROW;
@@ -1388,6 +1428,25 @@ Compression::Type
 fil_get_compression(
         ulint           space_id)
 	__attribute__((warn_unused_result));
+
+/** Set the encryption type for the tablespace
+@param[in] space_id		Space ID of tablespace for which to set
+@param[in] algorithm		Encryption algorithm
+@param[in] key			Encryption key
+@param[in] iv			Encryption iv
+@return DB_SUCCESS or error code */
+dberr_t
+fil_set_encryption(
+	ulint			space_id,
+	Encryption::Type	algorithm,
+	byte*			key,
+	byte*			iv)
+	__attribute__((warn_unused_result));
+
+/**
+@return true if the re-encrypt success */
+bool
+fil_encryption_rotate();
 
 /** Write MLOG_FILE_NAME records if a persistent tablespace was modified
 for the first time since the latest fil_names_clear().

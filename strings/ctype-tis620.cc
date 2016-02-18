@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,7 +53,6 @@
 #include "m_ctype.h"
 #include "t_ctype.h"
 
-#ifdef HAVE_CHARSET_tis620
 
 #define M  L_MIDDLE
 #define U  L_UPPER
@@ -988,6 +987,3 @@ CHARSET_INFO my_charset_tis620_bin=
     &my_charset_handler,
     &my_collation_8bit_bin_handler
 };
-
-
-#endif

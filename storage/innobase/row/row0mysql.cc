@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -134,6 +134,8 @@ row_wait_for_background_drop_list_empty()
 	}
 }
 #endif /* UNIV_DEBUG */
+
+extern ib_mutex_t	master_key_id_mutex;
 
 /*******************************************************************//**
 Delays an INSERT, DELETE or UPDATE operation if the purge is lagging. */
@@ -3819,6 +3821,33 @@ row_discard_tablespace(
 		return(err);
 	}
 
+	/* For encrypted table, before we discard the tablespace,
+	we need save the encryption information into table, otherwise,
+	this information will be lost in fil_discard_tablespace along
+	with fil_space_free(). */
+	if (dict_table_is_encrypted(table)) {
+		ut_ad(table->encryption_key == NULL
+		      && table->encryption_iv == NULL);
+
+		table->encryption_key =
+			static_cast<byte*>(mem_heap_alloc(table->heap,
+							  ENCRYPTION_KEY_LEN));
+
+		table->encryption_iv =
+			static_cast<byte*>(mem_heap_alloc(table->heap,
+							  ENCRYPTION_KEY_LEN));
+
+		fil_space_t*	space = fil_space_get(table->space);
+		ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
+
+		memcpy(table->encryption_key,
+		       space->encryption_key,
+		       ENCRYPTION_KEY_LEN);
+		memcpy(table->encryption_iv,
+		       space->encryption_iv,
+		       ENCRYPTION_KEY_LEN);
+	}
+
 	/* Discard the physical file that is used for the tablespace. */
 
 	err = fil_discard_tablespace(table->space);
@@ -4597,6 +4626,7 @@ row_drop_table_for_mysql(
 		bool		is_discarded;
 		bool		shared_tablespace;
 		table_id_t	table_id;
+		bool		is_encrypted;
 
 	case DB_SUCCESS:
 		space_id = table->space;
@@ -4605,6 +4635,7 @@ row_drop_table_for_mysql(
 		is_discarded = dict_table_is_discarded(table);
 		is_temp = dict_table_is_temporary(table);
 		shared_tablespace = DICT_TF_HAS_SHARED_SPACE(table->flags);
+		is_encrypted = dict_table_is_encrypted(table);
 
 		/* We do not allow temporary tables with a remote path. */
 		ut_a(!(is_temp && DICT_TF_HAS_DATA_DIR(table->flags)));
@@ -4640,12 +4671,27 @@ row_drop_table_for_mysql(
 		nor system or shared general tablespaces. */
 		if (is_discarded || ibd_file_missing || is_temp || shared_tablespace
 		    || is_system_tablespace(space_id)) {
-			break;
+			/* For encrypted table, if ibd file can not be decrypt,
+			we also set ibd_file_missing. We still need to try to
+			remove the ibd file for this. */
+			if (is_discarded || !is_encrypted
+			    || !ibd_file_missing) {
+				break;
+			}
+		}
+
+		if (is_encrypted) {
+			/* Require the mutex to block key rotation. */
+			mutex_enter(&master_key_id_mutex);
 		}
 
 		/* We can now drop the single-table tablespace. */
 		err = row_drop_single_table_tablespace(
 			space_id, tablename, filepath);
+
+		if (is_encrypted) {
+			mutex_exit(&master_key_id_mutex);
+		}
 
 		/* Finally, if it's not a temporary table,
 		let's try to delete the row in DDTableBuffer if exists */

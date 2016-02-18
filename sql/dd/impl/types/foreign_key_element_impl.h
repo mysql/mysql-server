@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,7 +71,7 @@ public:
   { return Weak_object_impl::store(otx); }
 
   // Required by Collection_item.
-  virtual bool drop(Open_dictionary_tables_ctx *otx)
+  virtual bool drop(Open_dictionary_tables_ctx *otx) const
   { return Weak_object_impl::drop(otx); }
 
   // Required by Collection_item, Foreign_key_element.
@@ -82,7 +82,7 @@ public:
   { return Weak_object_impl::restore_children(otx); }
 
   // Required by Collection_item.
-  virtual bool drop_children(Open_dictionary_tables_ctx *otx)
+  virtual bool drop_children(Open_dictionary_tables_ctx *otx) const
   { return Weak_object_impl::drop_children(otx); }
 
   // Required by Collection_item.
@@ -152,7 +152,6 @@ private:
   uint m_ordinal_position;
   std::string m_referenced_column_name;
 
-#ifndef DBUG_OFF
   Foreign_key_element_impl(const Foreign_key_element_impl &src,
                            Foreign_key_impl *parent, Column *column);
 
@@ -162,7 +161,6 @@ public:
   {
     return new Foreign_key_element_impl(*this, parent, column);
   }
-#endif /* !DBUG_OFF */
 /* purecov: end */
 };
 

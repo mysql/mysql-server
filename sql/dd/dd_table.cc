@@ -323,36 +323,20 @@ fill_dd_columns_from_create_fields(THD *thd,
     if (field->gcol_info)
     {
       col_obj->set_virtual(!field->stored_in_db);
-      sql_mode_t sql_mode= thd->variables.sql_mode;
-      thd->variables.sql_mode&= ~MODE_ANSI_QUOTES;
-
       /*
-        It is important to normalize the expression's text into the FRM, to
+        It is important to normalize the expression's text into the DD, to
         make it independent from sql_mode. For example, 'a||b' means 'a OR b'
         or 'CONCAT(a,b)', depending on if PIPES_AS_CONCAT is on. Using
         Item::print(), we get self-sufficient text containing 'OR' or
         'CONCAT'. If sql_mode later changes, it will not affect the column.
        */
-      String s;
-      // Printing db and table name is useless
-      field->gcol_info->expr_item->
-        print(&s, enum_query_type(QT_NO_DB | QT_NO_TABLE));
-
-      thd->variables.sql_mode= sql_mode;
-      /*
-        The new text must have exactly the same lifetime as the old text, it's
-        a replacement for it. So the same MEM_ROOT must be used: pass NULL.
-      */
-      field->gcol_info->dup_expr_str(NULL, s.ptr(), s.length());
-
-      col_obj->set_generation_expression(
-                 std::string(field->gcol_info->expr_str.str,
-                             field->gcol_info->expr_str.length));
+      char buffer[128];
+      String gc_expr(buffer, sizeof(buffer), &my_charset_bin);
+      field->gcol_info->print_expr(thd, &gc_expr);
+      col_obj->set_generation_expression(std::string(gc_expr.ptr(),
+                                                     gc_expr.length()));
 
       // Prepare UTF expression for IS.
-      String gc_expr(field->gcol_info->expr_str.str,
-                     field->gcol_info->expr_str.length,
-                     thd->charset());
       String gc_expr_for_IS;
       convert_and_print(&gc_expr, &gc_expr_for_IS, system_charset_info);
 
@@ -1350,6 +1334,9 @@ static bool fill_dd_table_from_create_info(THD *thd,
   if (create_info->compress.str)
     table_options->set("compress", create_info->compress.str);
 
+  if (create_info->encrypt_type.str)
+    table_options->set("encrypt_type", create_info->encrypt_type.str);
+
   // Storage media
   if (create_info->storage_media > HA_SM_DEFAULT)
     table_options->set_uint32("storage", create_info->storage_media);
@@ -1412,7 +1399,7 @@ static bool create_dd_system_table(THD *thd,
   //
   // Create dd::Table object
   //
-  std::unique_ptr<dd::Table> tab_obj(sch_obj->create_table());
+  std::unique_ptr<dd::Table> tab_obj(sch_obj->create_table(thd));
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,
@@ -1471,8 +1458,7 @@ static bool create_dd_user_table(THD *thd,
   }
 
   // Create dd::Table object.
-  std::unique_ptr<dd::Table> tab_obj(
-    const_cast<dd::Schema *>(sch_obj)->create_table());
+  std::unique_ptr<dd::Table> tab_obj(sch_obj->create_table(thd));
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,
@@ -1543,8 +1529,7 @@ dd::Table *create_tmp_table(THD *thd,
   }
 
   // Create dd::Table object.
-  std::unique_ptr<dd::Table> tab_obj(
-    const_cast<dd::Schema *>(sch_obj)->create_table());
+  std::unique_ptr<dd::Table> tab_obj(sch_obj->create_table(thd));
 
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,
@@ -1593,7 +1578,7 @@ bool drop_table(THD *thd, const char *schema_name, const char *name)
   Disable_gtid_state_update_guard disabler(thd);
 
   // Drop the table/view
-  if (client->drop(const_cast<T*>(at)))
+  if (client->drop(at))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
@@ -1720,7 +1705,7 @@ bool rename_table(THD *thd,
     is_sticky= thd->dd_client()->is_sticky(to_tab);
     if (is_sticky)
       thd->dd_client()->set_sticky(to_tab, false);
-    if (thd->dd_client()->drop(const_cast<T*>(to_tab)))
+    if (thd->dd_client()->drop(to_tab))
     {
       // Error is reported by the dictionary subsystem.
       trans_rollback_stmt(thd);
@@ -1730,17 +1715,21 @@ bool rename_table(THD *thd,
     }
   }
 
-  // Set schema id and table name.
-  const_cast<T*>(from_tab)->set_schema_id(to_sch->id());
-  const_cast<T*>(from_tab)->set_name(to_table_name);
-
   // Preserve stickiness by setting 'from_tab' to sticky if 'to_tab'
   // was sticky, and update the changes.
   if (is_sticky)
     thd->dd_client()->set_sticky(from_tab, true);
 
+  // Clone the object to be modified, and make sure the clone is deleted
+  // by wrapping it in a unique_ptr.
+  std::unique_ptr<T> new_tab(from_tab->clone());
+
+  // Set schema id and table name.
+  new_tab->set_schema_id(to_sch->id());
+  new_tab->set_name(to_table_name);
+
   // Do the update. Errors will be reported by the dictionary subsystem.
-  if (thd->dd_client()->update(const_cast<T*>(from_tab)))
+  if (thd->dd_client()->update(&from_tab, new_tab.get()))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.

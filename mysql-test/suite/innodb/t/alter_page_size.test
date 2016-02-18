@@ -1,7 +1,7 @@
 # Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
 -- source include/not_embedded.inc
 --source include/have_innodb.inc
---source include/have_innodb_zip.inc
+--source include/have_innodb_max_16k.inc
 
 --echo #
 --echo # Bug #19077964 ASSERT PAGE_SIZE.EQUALS_TO SPACE_PAGE_SIZE

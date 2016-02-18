@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -302,7 +302,9 @@ public:
   {
     formatID= f;
     memcpy(data, g, gtrid_length= gl);
-    memcpy(data + gl, b, bqual_length= bl);
+    bqual_length= bl;
+    if (bl > 0)
+      memcpy(data + gl, b, bl);
   }
 
   my_xid get_my_xid() const;

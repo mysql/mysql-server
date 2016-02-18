@@ -1,7 +1,7 @@
 # Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
 -- source include/not_embedded.inc
 -- source include/have_innodb.inc
--- source include/have_innodb_zip.inc
+-- source include/have_innodb_max_16k.inc
 
 let $per_table=`select @@innodb_file_per_table`;
 SET @save_innodb_stats_on_metadata=@@global.innodb_stats_on_metadata;

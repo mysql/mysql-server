@@ -3,7 +3,7 @@
 
 --source include/have_partition.inc
 --source include/have_innodb.inc
---source include/have_innodb_zip.inc
+--source include/have_innodb_max_16k.inc
 
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
 

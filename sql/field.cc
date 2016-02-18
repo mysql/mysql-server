@@ -3319,6 +3319,7 @@ uint Field_new_decimal::is_equal(Create_field *new_field)
    @param   to         Destination of the data
    @param   from       Source of the data
    @param   param_data Precision (upper) and decimal (lower) values
+   @param   low_byte_first See Field::unpack.
 
    @return  New pointer into memory based on from + length of the data
 */
@@ -5287,13 +5288,15 @@ Field_temporal::store(const char *str, size_t len, const CHARSET_INFO *cs)
 
 /**
 
-  @param nr
-  @param unsigned_val
-  @param ltime
-  @param warnings
+  @param nr The datetime value specified as "number", see number_to_datetime()
+  for details on this format.
 
-  @retval -1              Timestamp with wrong values
-  @retval anything else   DATETIME as integer in YYYYMMDDHHMMSS format
+  @param unsigned_val Unused.
+  @param [out] ltime A MYSQL_TIME struct where the result is stored.
+  @param warnings Truncation warning code, see was_cut in number_to_datetime().
+
+  @retval -1    Timestamp with wrong values.
+  @retval other DATETIME as integer in YYYYMMDDHHMMSS format.
 */
 longlong
 Field_temporal::convert_number_to_datetime(longlong nr, bool unsigned_val,
@@ -7085,22 +7088,6 @@ type_conversion_status Field_str::store(double nr)
 /**
   Check whether generated columns' expressions are the same.
 
-  @param field  An existing field to compare against
-
-  @return true means the same, otherwise not.
-*/
-
-bool Field::gcol_expr_is_equal(const Field *field) const
-{
-  DBUG_ASSERT(is_gcol() && field->is_gcol());
-
-  return gcol_info->expr_item->eq(field->gcol_info->expr_item, true);
-}
-
-
-/**
-  Check whether generated columns' expressions are the same.
-
   @param field  A new field to compare against
 
   @return true means the same, otherwise not.
@@ -7109,8 +7096,7 @@ bool Field::gcol_expr_is_equal(const Field *field) const
 bool Field::gcol_expr_is_equal(const Create_field *field) const
 {
   DBUG_ASSERT(is_gcol() && field->is_gcol());
-
-  return ::is_equal(&gcol_info->expr_str, &field->gcol_info->expr_str);
+  return gcol_info->expr_item->eq(field->gcol_info->expr_item, true);
 }
 
 
@@ -7379,6 +7365,7 @@ uchar *Field_string::pack(uchar *to, const uchar *from,
    @param   to         Destination of the data
    @param   from       Source of the data
    @param   param_data Real type (upper) and length (lower) values
+   @param   low_byte_first Unused.
 
    @return  New pointer into memory based on from + length of the data
 */
@@ -7834,6 +7821,7 @@ uchar *Field_varstring::pack(uchar *to, const uchar *from,
    @param   to         Destination of the data
    @param   from       Source of the data
    @param   param_data Length bytes from the master's field data
+   @param   low_byte_first Unused.
 
    @return  New pointer into memory based on from + length of the data
 */
@@ -8359,7 +8347,8 @@ int Field_blob::cmp_binary(const uchar *a_ptr, const uchar *b_ptr,
   b_length=get_length(b_ptr);
   if (b_length > max_length)
     b_length=max_length;
-  diff=memcmp(a,b,min(a_length,b_length));
+  const uint32 min_a_b= min(a_length, b_length);
+  diff= min_a_b == 0 ? 0 : memcmp(a, b, min_a_b); // memcmp(a, b, 0) == 0
   return diff ? diff : (int) (a_length - b_length);
 }
 
@@ -8580,7 +8569,8 @@ uchar *Field_blob::pack(uchar *to, const uchar *from,
    @param   param_data @c TRUE if base types should be stored in little-
                        endian format, @c FALSE if native format should
                        be used.
-   @param low_byte_first
+   @param low_byte_first If true, the length should be unpacked in
+   little-endian format, otherwise in the machine's native order.
 
    @return  New pointer into memory based on from + length of the data
 */
@@ -11249,6 +11239,9 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
   charset(old_field->charset()),		// May be NULL ptr
   geom_type(Field::GEOM_GEOMETRY),
   field(old_field),
+  maybe_null(old_field->maybe_null()),
+  is_zerofill(false),       // Init to avoid UBSAN warnings
+  is_unsigned(false),       // Init to avoid UBSAN warnings
   treat_bit_as_char(false),  // Init to avoid valgrind warnings in opt. build
   gcol_info(old_field->gcol_info),
   stored_in_db(old_field->stored_in_db)

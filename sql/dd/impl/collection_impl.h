@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -56,7 +56,7 @@ public:
   void remove(Collection_item *item); /* purecov: deadcode */
 
   bool is_empty() const
-  { return m_items.empty(); }
+  { return m_items.empty() && m_removed_items.empty(); }
 
   size_t size() const
   { return m_items.size(); }
@@ -103,13 +103,12 @@ public:
   static const bool SKIP_HIDDEN_ITEMS= false;
   static const bool INCLUDE_HIDDEN_ITEMS= true;
 
-#ifndef DBUG_OFF
   // Simplify implementation of clone member functions
   Array &aref()
   {
     return m_items;
   }
-#endif /* !DBUG_OFF */
+
 private:
   class Collection_iterator : public Iterator<T>
   {

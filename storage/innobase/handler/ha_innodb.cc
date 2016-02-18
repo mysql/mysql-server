@@ -129,6 +129,10 @@ extern bool	srv_missing_dd_table_buffer;
 
 /** to protect innobase_open_files */
 static mysql_mutex_t innobase_share_mutex;
+
+/* mutex protecting the master_key_id */
+ib_mutex_t	master_key_id_mutex;
+
 /** to force correct commit order in binlog */
 static ulong commit_threads = 0;
 static mysql_cond_t commit_cond;
@@ -524,6 +528,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(rtr_ssn_mutex),
 	PSI_KEY(trx_sys_mutex),
 	PSI_KEY(zip_pad_mutex),
+	PSI_KEY(master_key_id_mutex),
 };
 # endif /* UNIV_PFS_MUTEX */
 
@@ -550,9 +555,6 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 	PSI_RWLOCK_KEY(index_online_log),
 	PSI_RWLOCK_KEY(dict_table_stats),
 	PSI_RWLOCK_KEY(hash_table_locks),
-#  ifdef UNIV_DEBUG
-	PSI_RWLOCK_KEY(buf_chunk_map_latch)
-#  endif /* UNIV_DEBUG */
 };
 # endif /* UNIV_PFS_RWLOCK */
 
@@ -1301,6 +1303,7 @@ innodb_shutdown(
 		hash_table_free(innobase_open_tables);
 		innobase_open_tables = NULL;
 
+		mutex_free(&master_key_id_mutex);
 		srv_shutdown();
 		innodb_space_shutdown();
 
@@ -2523,6 +2526,56 @@ Compression::validate(const char* algorithm)
 	return(check(algorithm, &compression));
 }
 
+/** Check if the string is "" or "n".
+@param[in]      algorithm       Encryption algorithm to check
+@return true if no algorithm requested */
+bool
+Encryption::is_none(const char* algorithm)
+{
+	/* NULL is the same as NONE */
+	if (algorithm == NULL
+	    || innobase_strcasecmp(algorithm, "n") == 0
+	    || innobase_strcasecmp(algorithm, "") == 0) {
+		return(true);
+	}
+
+	return(false);
+}
+
+/** Check the encryption option and set it
+@param[in]	option		encryption option
+@param[in,out]	encryption	The encryption algorithm
+@return DB_SUCCESS or DB_UNSUPPORTED */
+dberr_t
+Encryption::set_algorithm(
+	const char*	option,
+	Encryption*	encryption)
+{
+	if (is_none(option)) {
+
+		encryption->m_type = NONE;
+
+	} else if (innobase_strcasecmp(option, "y") == 0) {
+
+		encryption->m_type = AES;
+
+	} else {
+		return(DB_UNSUPPORTED);
+	}
+
+	return(DB_SUCCESS);
+}
+
+/** Check for supported ENCRYPT := (Y | N) supported values
+@param[in]	option		Encryption option
+@return DB_SUCCESS or DB_UNSUPPORTED */
+dberr_t
+Encryption::validate(const char* option)
+{
+	Encryption	encryption;
+
+	return(encryption.set_algorithm(option, &encryption));
+}
 /*********************************************************************//**
 Compute the next autoinc value.
 
@@ -3443,6 +3496,57 @@ static bool innobase_is_supported_system_table(const char *db,
 	return false;
 }
 
+/** Rotate the encrypted tablespace keys according to master key
+rotation.
+@return false on success, true on failure */
+bool
+innobase_encryption_key_rotation()
+{
+	byte*	master_key = NULL;
+	bool	ret = FALSE;
+
+	/* Require the mutex to block other rotate request. */
+	mutex_enter(&master_key_id_mutex);
+
+	/* Check if keyring loaded and the currently master key
+	can be fetched. */
+	if (Encryption::master_key_id != 0) {
+		Encryption::get_master_key(Encryption::master_key_id,
+					   &master_key);
+		if (master_key == NULL) {
+			mutex_exit(&master_key_id_mutex);
+			my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+			return(true);
+		}
+		my_free(master_key);
+	}
+
+	master_key = NULL;
+
+	/* Generate the new master key. */
+	Encryption::create_master_key(&master_key);
+
+        if (master_key == NULL) {
+		my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+		mutex_exit(&master_key_id_mutex);
+                return(true);
+        }
+
+	ret = !fil_encryption_rotate();
+
+	my_free(master_key);
+
+	/* If rotation failure, return error */
+	if (ret) {
+		my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+	}
+
+	/* Release the mutex. */
+	mutex_exit(&master_key_id_mutex);
+
+	return(ret);
+}
+
 /** Return partitioning flags. */
 static uint innobase_partition_flags()
 {
@@ -3723,6 +3827,15 @@ innodb_init_params()
 			innobase_open_files = table_cache_size;
 		}
 	}
+
+	if (innobase_open_files > (long) open_files_limit) {
+		ib::warn() << "innodb_open_files should not be greater"
+                        " than the open_files_limit.\n";
+		if (innobase_open_files > (long) table_cache_size) {
+			innobase_open_files = table_cache_size;
+		}
+	}
+
 	srv_max_n_open_files = (ulint) innobase_open_files;
 	srv_innodb_status = (ibool) innobase_create_status_file;
 
@@ -3957,6 +4070,8 @@ innodb_init(
 	innobase_hton->sdi_delete = innobase_sdi_delete;
 	innobase_hton->sdi_flush = innobase_sdi_flush;
 	innobase_hton->sdi_get_num_copies = innobase_sdi_get_num_copies;
+	innobase_hton->rotate_encryption_master_key =
+		innobase_encryption_key_rotation;
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
@@ -4031,6 +4146,9 @@ innodb_init(
 	if (err != DB_SUCCESS) {
 		DBUG_RETURN(innodb_init_abort());
 	}
+
+	/* Create mutex to protect encryption master_key_id. */
+	mutex_create(LATCH_ID_MASTER_KEY_ID_MUTEX, &master_key_id_mutex);
 
 	srv_dict_recover_on_restart();
 
@@ -6055,6 +6173,25 @@ ha_innobase::open(const char* name, int, uint)
 		is_part = NULL;
 	}
 
+	/* For encrypted table, check if the encryption info in data
+	file can't be retrieved properly, mark it as corrupted. */
+	if (ib_table != NULL
+	    && dict_table_is_encrypted(ib_table)
+	    && ib_table->ibd_file_missing) {
+
+		/* Mark this table as corrupted, so the drop table
+		or force recovery can still use it, but not others. */
+
+		dict_table_close(ib_table, FALSE, FALSE);
+		ib_table = NULL;
+		is_part = NULL;
+
+		free_share(m_share);
+		my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
+
+		DBUG_RETURN(HA_ERR_TABLE_CORRUPT);
+	}
+
 	if (NULL == ib_table) {
 
 		if (is_part) {
@@ -7950,7 +8087,7 @@ calc_row_difference(
 			}
 		}
 
-		if (o_len != n_len || (o_len != UNIV_SQL_NULL &&
+		if (o_len != n_len || (o_len != UNIV_SQL_NULL && o_len != 0 &&
 					0 != memcmp(o_ptr, n_ptr, o_len))) {
 			/* The field has changed */
 
@@ -10102,6 +10239,13 @@ err_col:
 
 			err = DB_UNSUPPORTED;
 			dict_mem_table_free(table);
+		} else if (m_create_info->encrypt_type.length > 0
+			   && !Encryption::is_none(
+				   m_create_info->encrypt_type.str)) {
+
+			my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
+			err = DB_UNSUPPORTED;
+			dict_mem_table_free(table);
 		} else {
 
 			/* Get a new table ID */
@@ -10166,6 +10310,37 @@ err_col:
 			algorithm = NULL;
                 }
 
+		const char*	encrypt = m_create_info->encrypt_type.str;
+
+		if (!(m_flags2 & DICT_TF2_USE_FILE_PER_TABLE)
+		    && m_create_info->encrypt_type.length > 0
+		    && !Encryption::is_none(encrypt)) {
+
+			my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
+			err = DB_UNSUPPORTED;
+			dict_mem_table_free(table);
+
+		} else if (!Encryption::is_none(encrypt)) {
+			/* Set the encryption flag. */
+			byte*	master_key = NULL;
+			ulint	master_key_id;
+
+			/* Check if keyring is ready. */
+			Encryption::get_master_key(&master_key_id,
+						   &master_key);
+
+			if (master_key == NULL) {
+				my_error(ER_CANNOT_FIND_KEY_IN_KEYRING,
+					 MYF(0));
+				err = DB_UNSUPPORTED;
+				dict_mem_table_free(table);
+			} else {
+				my_free(master_key);
+				DICT_TF2_FLAG_SET(table,
+						  DICT_TF2_ENCRYPTION);
+			}
+		}
+
 		if (err == DB_SUCCESS) {
 			err = row_create_table_for_mysql(
 				table, algorithm, m_trx, false);
@@ -10185,6 +10360,9 @@ err_col:
 
 			err = DB_SUCCESS;
 		}
+
+		DBUG_EXECUTE_IF("ib_crash_during_create_for_encryption",
+				DBUG_SUICIDE(););
 	}
 
 	mem_heap_free(heap);
@@ -10899,6 +11077,18 @@ create_table_info_t::create_options_are_invalid()
 		}
 	}
 
+	/* Check the encryption option. */
+	if (ret == NULL && m_create_info->encrypt_type.length > 0) {
+		dberr_t		err;
+
+		err = Encryption::validate(m_create_info->encrypt_type.str);
+
+		if (err == DB_UNSUPPORTED) {
+                        my_error(ER_INVALID_ENCRYPTION_OPTION, MYF(0));
+			ret = "ENCRYPTION";
+		}
+	}
+
 	return(ret);
 }
 
@@ -11171,6 +11361,25 @@ index_bad:
 				"InnoDB: Unsupported compression "
 				"algorithm '%s'",
 				compression);
+		}
+
+	} else if (m_create_info->encrypt_type.length > 0) {
+
+		const char*     encryption = m_create_info->encrypt_type.str;
+
+		if (Encryption::validate(encryption) != DB_SUCCESS) {
+			/* Incorrect encryption option */
+                        my_error(ER_INVALID_ENCRYPTION_OPTION, MYF(0));
+			DBUG_RETURN(false);
+		}
+
+		if (m_use_shared_space
+		    || (m_create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
+			if (!Encryption::is_none(encryption)) {
+				/* Can't encrypt shared tablespace */
+				my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
+				DBUG_RETURN(false);
+			}
 		}
 	}
 
@@ -12268,13 +12477,18 @@ ha_innobase::truncate()
 		= dict_table_is_file_per_table(m_prebuilt->table);
 	memset(&info, 0, sizeof info);
 	update_create_info_from_table(&info, table);
+	char* tsname	= NULL;
 
 	if (dict_table_is_temporary(m_prebuilt->table)) {
 		info.options|= HA_LEX_CREATE_TMP_TABLE;
 	} else {
 		dict_get_and_save_data_dir_path(m_prebuilt->table, false);
+		if (m_prebuilt->table->tablespace != NULL) {
+			tsname = mem_strdup(m_prebuilt->table->tablespace);
+		}
 	}
 
+	info.tablespace = tsname;
 	info.key_block_size = table->s->key_block_size;
 
 	char* data_file_name = m_prebuilt->table->data_dir_path;
@@ -12319,6 +12533,7 @@ ha_innobase::truncate()
 	}
 
 	ut_free(name);
+	ut_free(tsname);
 	ut_free(data_file_name);
 
 	DBUG_RETURN(error);
@@ -14081,8 +14296,7 @@ ha_innobase::info_low(
 				    || (key->flags & HA_SPATIAL)) {
 					/* The record per key does not apply to
 					FTS or Spatial indexes. */
-					key->rec_per_key[j] = 1;
-					key->set_records_per_key(j, 1.0);
+					key->set_records_per_key(j, 1.0f);
 					continue;
 				}
 
@@ -14122,28 +14336,6 @@ ha_innobase::info_low(
 						index->table->stat_n_rows);
 
 				key->set_records_per_key(j, rec_per_key);
-
-				/* The code below is legacy and should be
-				removed together with this comment once we
-				are sure the new floating point rec_per_key,
-				set via set_records_per_key(), works fine. */
-
-				ulong	rec_per_key_int = static_cast<ulong>(
-					innodb_rec_per_key(index, j,
-							   stats.records));
-
-				/* Since MySQL seems to favor table scans
-				too much over index searches, we pretend
-				index selectivity is 2 times better than
-				our estimate: */
-
-				rec_per_key_int = rec_per_key_int / 2;
-
-				if (rec_per_key_int == 0) {
-					rec_per_key_int = 1;
-				}
-
-				key->rec_per_key[j] = rec_per_key_int;
 			}
 		}
 	}
@@ -15126,6 +15318,11 @@ ha_innobase::extra(
 		m_prebuilt->skip_serializable_dd_view = true;
 		break;
 	case HA_EXTRA_BEGIN_ALTER_COPY:
+
+		/* Workaround for bug#20017428. Basically
+		there is missing extra() call to reset
+		the duplicate flag. */
+		m_prebuilt->trx->duplicates = 0;
 		m_prebuilt->table->skip_alter_undo = 1;
 		break;
 	case HA_EXTRA_END_ALTER_COPY:

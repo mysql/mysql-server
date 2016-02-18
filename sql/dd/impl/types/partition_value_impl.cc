@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -180,7 +180,6 @@ Collection_item *Partition_value_impl::Factory::create_item() const
 
 ///////////////////////////////////////////////////////////////////////////
 
-#ifndef DBUG_OFF
 Partition_value_impl::
 Partition_value_impl(const Partition_value_impl &src,
                      Partition_impl *parent)
@@ -189,7 +188,6 @@ Partition_value_impl(const Partition_value_impl &src,
     m_list_num(src.m_list_num), m_column_num(src.m_column_num),
     m_value_utf8(src.m_value_utf8), m_partition(parent)
 {}
-#endif /* !DBUG_OFF */
 
 ///////////////////////////////////////////////////////////////////////////
 // Partition_value_type implementation.

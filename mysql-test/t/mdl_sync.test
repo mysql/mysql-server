@@ -3,6 +3,9 @@
 #
 --source include/have_debug_sync.inc
 
+# XA not available in embedded
+--source include/not_embedded.inc
+
 # We need InnoDB tables for some of the tests.
 --source include/have_innodb.inc
 
@@ -5667,9 +5670,7 @@ connection default;
 --echo # Connection con2
 connection con2;
 --echo # Reaping: ALTER DATABASE db1 DEFAULT CHARACTER SET utf8
-# Error 1 is from ALTER DATABASE when the database does not exist.
-# Listing the error twice to prevent result diffences based on filename.
---error 1,1
+--error ER_NO_SUCH_DB
 --reap
 
 
@@ -5747,7 +5748,7 @@ connection default;
 --echo # Connection con2
 connection con2;
 --echo # Reaping: RENAME TABLE db1.t1 TO test.t1
---error ER_FILE_NOT_FOUND, ER_FILE_NOT_FOUND
+--error ER_NO_SUCH_TABLE
 --reap
 
 --echo # Connection default
@@ -5781,9 +5782,7 @@ connection default;
 --echo # Connection con2
 connection con2;
 --echo # Reaping: RENAME TABLE test.t2 TO db1.t2
-# Error 7 is from RENAME TABLE where the target database does not exist.
-# Listing the error twice to prevent result diffences based on filename.
---error 7, 7
+--error ER_BAD_DB_ERROR
 --reap
 DROP TABLE test.t2;
 

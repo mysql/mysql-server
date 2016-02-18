@@ -1,4 +1,4 @@
-# Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -1092,38 +1092,4 @@
    fun:calloc
    ...
    fun:numa_node_to_cpus
-}
-
-# Uninitialized memory is copied while creating the access
-# key if the first usage of the table is to read records
-# using an index with a composite key where only a part
-# of the key is specified.
-{
-  Key copy reads uninitialized data
-  Memcheck:Cond
-  ...
-  fun:_ZN15Field_varstring13get_key_image*
-  fun:_Z8key_copyPhS_P6st_keyj
-  fun:_ZNK2dd19Parent_id_range_key17create_access_keyEPNS_9Raw_tableE
-  fun:_ZN2dd9Raw_table15open_record_setEPKNS_10Object_keyERSt10unique_ptrINS_14Raw_record_setE*
-}
-
-{
-  Key copy reads uninitialized data
-  Memcheck:Value8
-  ...
-  fun:_ZN15Field_varstring13get_key_image*
-  fun:_Z8key_copyPhS_P6st_keyj
-  fun:_ZNK2dd19Parent_id_range_key17create_access_keyEPNS_9Raw_tableE
-  fun:_ZN2dd9Raw_table15open_record_setEPKNS_10Object_keyERSt10unique_ptrINS_14Raw_record_setE*
-}
-
-{
-  Key copy reads uninitialized data
-  Memcheck:Value4
-  ...
-  fun:_ZN15Field_varstring13get_key_image*
-  fun:_Z8key_copyPhS_P6st_keyj
-  fun:_ZNK2dd19Parent_id_range_key17create_access_keyEPNS_9Raw_tableE
-  fun:_ZN2dd9Raw_table15open_record_setEPKNS_10Object_keyERSt10unique_ptrINS_14Raw_record_setE*
 }

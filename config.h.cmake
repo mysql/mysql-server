@@ -123,7 +123,6 @@
 #cmakedefine HAVE_STPCPY 1
 #cmakedefine HAVE_STPNCPY 1
 #cmakedefine HAVE_STRLCPY 1
-#cmakedefine HAVE_STRNLEN 1
 #cmakedefine HAVE_STRLCAT 1
 #cmakedefine HAVE_STRSIGNAL 1
 #cmakedefine HAVE_FGETLN 1
@@ -156,7 +155,6 @@
 #cmakedefine FIONREAD_IN_SYS_FILIO 1
 #cmakedefine HAVE_SIGEV_THREAD_ID 1
 #cmakedefine HAVE_SIGEV_PORT 1
-#cmakedefine HAVE_LOG2 1
 
 #cmakedefine HAVE_ISINF 1
 
@@ -211,10 +209,6 @@
 #cmakedefine HAVE_NETINET_IN6_H 1
 #cmakedefine HAVE_STRUCT_IN6_ADDR 1
 
-#cmakedefine ss_family @ss_family@
-#cmakedefine HAVE_SOCKADDR_IN_SIN_LEN 1
-#cmakedefine HAVE_SOCKADDR_IN6_SIN6_LEN 1
-
 /*
  * Platform specific CMake files
  */
@@ -224,9 +218,6 @@
 #cmakedefine HAVE_SOLARIS_ATOMIC 1
 #cmakedefine HAVE_SOLARIS_STYLE_GETHOST 1
 #define SYSTEM_TYPE "@SYSTEM_TYPE@"
-/* Windows stuff, mostly functions, that have Posix analogs but named differently */
-#cmakedefine IPPROTO_IPV6 @IPPROTO_IPV6@
-#cmakedefine IPV6_V6ONLY @IPV6_V6ONLY@
 /* This should mean case insensitive file system */
 #cmakedefine FN_NO_CASE_SENSE 1
 
@@ -239,12 +230,14 @@
 #cmakedefine ENABLE_MEMCACHED_SASL_PWDB 1
 #cmakedefine ENABLED_PROFILING 1
 #cmakedefine HAVE_ASAN
+#cmakedefine HAVE_UBSAN
 #cmakedefine ENABLED_LOCAL_INFILE 1
 #cmakedefine OPTIMIZER_TRACE 1
 #cmakedefine DEFAULT_MYSQL_HOME "@DEFAULT_MYSQL_HOME@"
 #cmakedefine SHAREDIR "@SHAREDIR@"
 #cmakedefine DEFAULT_BASEDIR "@DEFAULT_BASEDIR@"
 #cmakedefine MYSQL_DATADIR "@MYSQL_DATADIR@"
+#cmakedefine MYSQL_KEYRINGDIR "@MYSQL_KEYRINGDIR@"
 #cmakedefine DEFAULT_CHARSET_HOME "@DEFAULT_CHARSET_HOME@"
 #cmakedefine PLUGINDIR "@PLUGINDIR@"
 #cmakedefine DEFAULT_SYSCONFDIR "@DEFAULT_SYSCONFDIR@"
@@ -257,6 +250,7 @@
 #cmakedefine INSTALL_INCLUDEDIR "@default_prefix@/@INSTALL_INCLUDEDIR@"
 #cmakedefine INSTALL_SCRIPTDIR "@default_prefix@/@INSTALL_SCRIPTDIR@"
 #cmakedefine INSTALL_MYSQLDATADIR "@default_prefix@/@INSTALL_MYSQLDATADIR@"
+#cmakedefine INSTALL_MYSQLKEYRINGDIR "@default_prefix@/@INSTALL_MYSQLKEYRINGDIR@"
 #cmakedefine INSTALL_PLUGINTESTDIR "@INSTALL_PLUGINTESTDIR@"
 #cmakedefine INSTALL_INFODIR "@default_prefix@/@INSTALL_INFODIR@"
 #cmakedefine INSTALL_MYSQLTESTDIR "@default_prefix@/@INSTALL_MYSQLTESTDIR@"
@@ -294,47 +288,6 @@
  */
 #cmakedefine MYSQL_DEFAULT_CHARSET_NAME "@MYSQL_DEFAULT_CHARSET_NAME@"
 #cmakedefine MYSQL_DEFAULT_COLLATION_NAME "@MYSQL_DEFAULT_COLLATION_NAME@"
-#cmakedefine HAVE_CHARSET_armscii8 1
-#cmakedefine HAVE_CHARSET_ascii 1
-#cmakedefine HAVE_CHARSET_big5 1
-#cmakedefine HAVE_CHARSET_cp1250 1
-#cmakedefine HAVE_CHARSET_cp1251 1
-#cmakedefine HAVE_CHARSET_cp1256 1
-#cmakedefine HAVE_CHARSET_cp1257 1
-#cmakedefine HAVE_CHARSET_cp850 1
-#cmakedefine HAVE_CHARSET_cp852 1 
-#cmakedefine HAVE_CHARSET_cp866 1
-#cmakedefine HAVE_CHARSET_cp932 1
-#cmakedefine HAVE_CHARSET_dec8 1
-#cmakedefine HAVE_CHARSET_eucjpms 1
-#cmakedefine HAVE_CHARSET_euckr 1
-#cmakedefine HAVE_CHARSET_gb2312 1
-#cmakedefine HAVE_CHARSET_gbk 1
-#cmakedefine HAVE_CHARSET_gb18030 1
-#cmakedefine HAVE_CHARSET_geostd8 1
-#cmakedefine HAVE_CHARSET_greek 1
-#cmakedefine HAVE_CHARSET_hebrew 1
-#cmakedefine HAVE_CHARSET_hp8 1
-#cmakedefine HAVE_CHARSET_keybcs2 1
-#cmakedefine HAVE_CHARSET_koi8r 1
-#cmakedefine HAVE_CHARSET_koi8u 1
-#cmakedefine HAVE_CHARSET_latin1 1
-#cmakedefine HAVE_CHARSET_latin2 1
-#cmakedefine HAVE_CHARSET_latin5 1
-#cmakedefine HAVE_CHARSET_latin7 1
-#cmakedefine HAVE_CHARSET_macce 1
-#cmakedefine HAVE_CHARSET_macroman 1
-#cmakedefine HAVE_CHARSET_sjis 1
-#cmakedefine HAVE_CHARSET_swe7 1
-#cmakedefine HAVE_CHARSET_tis620 1
-#cmakedefine HAVE_CHARSET_ucs2 1
-#cmakedefine HAVE_CHARSET_ujis 1
-#cmakedefine HAVE_CHARSET_utf8mb4 1
-#cmakedefine HAVE_CHARSET_utf8mb3 1
-#cmakedefine HAVE_CHARSET_utf8 1
-#cmakedefine HAVE_CHARSET_utf16 1
-#cmakedefine HAVE_CHARSET_utf32 1
-#cmakedefine HAVE_UCA_COLLATIONS 1
 
 /*
  * Feature set
@@ -416,5 +369,8 @@
 #cmakedefine DEFAULT_SECURE_FILE_PRIV_DIR @DEFAULT_SECURE_FILE_PRIV_DIR@
 #cmakedefine DEFAULT_SECURE_FILE_PRIV_EMBEDDED_DIR @DEFAULT_SECURE_FILE_PRIV_EMBEDDED_DIR@
 #cmakedefine HAVE_LIBNUMA 1
+
+/* For default value of --early_plugin_load */
+#cmakedefine DEFAULT_EARLY_PLUGIN_LOAD @DEFAULT_EARLY_PLUGIN_LOAD@
 
 #endif

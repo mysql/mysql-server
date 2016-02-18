@@ -64,6 +64,7 @@
 #include "opt_hints.h"
 
 #include <list>
+#include <cmath>
 #include <cstring>
 #include <string>
 #include <boost/foreach.hpp>
@@ -174,18 +175,7 @@
 using std::min;
 using std::max;
 using std::list;
-
-// This is a temporary backporting fix.
-#ifndef HAVE_LOG2
-/*
-  This will be slightly slower and perhaps a tiny bit less accurate than
-  doing it the IEEE754 way but log2() should be available on C99 systems.
-*/
-inline double log2(double x)
-{
-  return (log(x) / M_LN2);
-}
-#endif
+using std::log2;
 
 /**
   While we have legacy_db_type, we have this array to
@@ -468,7 +458,7 @@ redo:
   if ((plugin= ha_resolve_by_name_raw(thd, cstring_name)))
   {
     handlerton *hton= plugin_data<handlerton*>(plugin);
-    if (!(hton->flags & HTON_NOT_USER_SELECTABLE))
+    if (hton && !(hton->flags & HTON_NOT_USER_SELECTABLE))
       return plugin;
       
     /*
@@ -1436,6 +1426,17 @@ int ha_prepare(THD *thd)
   {
     const Ha_trx_info *ha_info= trn_ctx->ha_trx_info(
       Transaction_ctx::SESSION);
+    bool gtid_error= false, need_clear_owned_gtid= false;
+
+    if ((gtid_error=
+         MY_TEST(commit_owned_gtids(thd, true, &need_clear_owned_gtid))))
+    {
+      DBUG_ASSERT(need_clear_owned_gtid);
+
+      ha_rollback_trans(thd, true);
+      error= 1;
+      goto err;
+    }
 
     while (ha_info)
     {
@@ -1462,6 +1463,12 @@ int ha_prepare(THD *thd)
       }
       ha_info= ha_info->next();
     }
+
+    DBUG_ASSERT(thd->get_transaction()->xid_state()->
+                has_state(XID_STATE::XA_IDLE));
+
+err:
+    gtid_state_commit_or_rollback(thd, need_clear_owned_gtid, !gtid_error);
   }
 
   DBUG_RETURN(error);
@@ -1529,6 +1536,47 @@ ha_check_and_coalesce_trx_read_only(THD *thd, Ha_trx_info *ha_list,
 
 
 /**
+  The function computes condition to call gtid persistor wrapper,
+  and executes it.
+  It is invoked at committing a statement or transaction, including XA,
+  and also at XA prepare handling.
+
+  @param thd  Thread context.
+  @param all  The execution scope, true for the transaction one, false
+              for the statement one.
+  @param[out] need_clear_owned_gtid_ptr
+              A pointer to bool variable to return the computed decision
+              value.
+  @return zero as no error indication, non-zero otherwise
+*/
+
+int commit_owned_gtids(THD *thd, bool all, bool *need_clear_owned_gtid_ptr)
+{
+  int error= 0;
+
+  if ((!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates)) &&
+      (all || !thd->in_multi_stmt_transaction_mode()) &&
+      !thd->is_operating_gtid_table_implicitly &&
+      !thd->is_operating_substatement_implicitly)
+  {
+    if (thd->owned_gtid.sidno > 0)
+    {
+      error= gtid_state->save(thd);
+      *need_clear_owned_gtid_ptr= true;
+    }
+    else if (thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS)
+      *need_clear_owned_gtid_ptr= true;
+  }
+  else
+  {
+    *need_clear_owned_gtid_ptr= false;
+  }
+
+  return error;
+}
+
+
+/**
   @param[in] thd                       Thread handle.
   @param[in] all                       Session transaction if true, statement
                                        otherwise.
@@ -1560,15 +1608,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
     if binlog is disabled, or binlog is enabled and log_slave_updates
     is disabled with slave SQL thread or slave worker thread.
   */
-  if ((!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates)) &&
-      (all || !thd->in_multi_stmt_transaction_mode()) &&
-      thd->owned_gtid.sidno > 0 &&
-      !thd->is_operating_gtid_table_implicitly &&
-      !thd->is_operating_substatement_implicitly)
-  {
-    error= gtid_state->save(thd);
-    need_clear_owned_gtid= true;
-  }
+  error= commit_owned_gtids(thd, all, &need_clear_owned_gtid);
 
   /*
     'all' means that this is either an explicit commit issued by
@@ -1791,7 +1831,7 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit)
     if (thd->lex->sql_command == SQLCOM_XA_COMMIT &&
         thd->binlog_applier_has_detached_trx())
     {
-      DBUG_ASSERT(static_cast<Sql_cmd_xa_commit*>(thd->lex->m_sql_cmd)->
+      DBUG_ASSERT(all && static_cast<Sql_cmd_xa_commit*>(thd->lex->m_sql_cmd)->
                   get_xa_opt() == XA_ONE_PHASE);
       restore_backup_trx= true;
     }
@@ -2012,7 +2052,7 @@ int ha_commit_attachable(THD *thd)
   Ha_trx_info *ha_info_next;
 
   /* This function only handles attachable transactions. */
-  DBUG_ASSERT(thd->is_attachable_transaction_active());
+  DBUG_ASSERT(thd->is_attachable_ro_transaction_active());
   /*
     Since the attachable transaction is AUTOCOMMIT we only need
     to care about statement transaction.
@@ -2512,7 +2552,8 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 #ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely(error == 0))
   {
-    my_bool temp_table= (my_bool)is_prefix(alias, tmp_file_prefix);
+    /* Table share not available, so check path for temp_table prefix. */
+    bool temp_table= (strstr(path, tmp_file_prefix) != NULL);
     PSI_TABLE_CALL(drop_table_share)
       (temp_table, db, strlen(db), alias, strlen(alias));
   }
@@ -4942,12 +4983,12 @@ int ha_create_table(THD *thd, const char *path,
   char name_buff[FN_REFLEN];
   const char *name;
   TABLE_SHARE share;
-  DBUG_ENTER("ha_create_table");
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  my_bool temp_table= (my_bool)is_temp_table ||
-               (my_bool)is_prefix(table_name, tmp_file_prefix) ||
-               (create_info->options & HA_LEX_CREATE_TMP_TABLE ? TRUE : FALSE);
+  bool temp_table = is_temp_table ||
+    (create_info->options & HA_LEX_CREATE_TMP_TABLE) ||
+    (strstr(path, tmp_file_prefix) != NULL);
 #endif
+  DBUG_ENTER("ha_create_table");
   
   init_tmp_table_share(thd, &share, db, 0, table_name, path);
   if (open_table_def(thd, &share, false, table_def))

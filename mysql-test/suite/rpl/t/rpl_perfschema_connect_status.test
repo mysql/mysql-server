@@ -42,8 +42,6 @@ source include/have_binlog_format_mixed.inc;
 --source include/assert.inc
 
 --connection slave
-# Running with show_compatibility_56=ON until WL#9001 is pushed.
-set @@global.show_compatibility_56=ON;
 
 --let $Group_Name= query_get_value(select Group_Name from performance_schema.replication_connection_status, Group_Name, 1)
 --let $assert_text= On slave, the group_name should be set NULL
@@ -78,7 +76,9 @@ source include/assert.inc;
 # IS. So to test count_received_heartbeats and last_heartbeat_timestamp
 # we compare values from IS and PS unlike SSS and PS for other fields in this
 # test.
-#
+# To test on IS, show_compatibility_56 variable should be turned ON.
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
 
 let $is_value= query_get_value(select Variable_Value from information_schema.global_status where Variable_name = 'slave_received_heartbeats', Variable_Value, 1);
 let $ps_value= query_get_value(select count_received_heartbeats from performance_schema.replication_connection_status, count_received_heartbeats, 1);
@@ -91,6 +91,9 @@ let $ps_value= query_get_value(select last_heartbeat_timestamp from performance_
 let $assert_text= IS table should give an empty output and PS table should output 0000-00-00 00:00:00 both indicating no heartbeats have been received;
 let $assert_cond= "$is_value" = "" AND "$ps_value"= "0000-00-00 00:00:00";
 source include/assert.inc;
+
+#Restoring the value of show_compatibility_56:
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_Set, 1);
 let $ps_value= query_get_value(select Received_Transaction_Set from performance_schema.replication_connection_status, Received_Transaction_Set, 1);
@@ -379,7 +382,6 @@ source include/assert.inc;
 --echo # after RESET SLAVE.
 --echo
 
-set @@global.show_compatibility_56=OFF;
 RESET SLAVE;
 --let $assert_cond= Received_Transaction_Set = "" FROM performance_schema.replication_connection_status
 --let $assert_text= Received_Transaction_Set should be empty after RESET SLAVE

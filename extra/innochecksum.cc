@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -314,7 +314,7 @@ open_file(
 
 	if (hFile == INVALID_HANDLE_VALUE) {
 		/* print the error message. */
-		fprintf(stderr, "Filename::%s %s\n",
+		fprintf(stderr, "Filename::%s %s\n", name,
 			error_message(GetLastError()));
 
 			return (NULL);
@@ -376,7 +376,8 @@ ulong read_file(
 {
 	ulong bytes = 0;
 
-	ulong physical_page_size = page_size.physical();
+	size_t physical_page_size =
+		static_cast<size_t>(page_size.physical());
 
 	DBUG_ASSERT(physical_page_size >= UNIV_ZIP_SIZE_MIN);
 
@@ -388,7 +389,8 @@ ulong read_file(
 
 	bytes += ulong(fread(buf, 1, physical_page_size, fil_in));
 
-	if (!page_size.is_compressed() || mach_read_from_4(buf + FIL_PAGE_OFFSET) < 3) {
+	if (!page_size.is_compressed()
+	    || mach_read_from_4(buf + FIL_PAGE_OFFSET) < 3) {
 		return(bytes);
 	}
 
@@ -460,8 +462,9 @@ public:
 
 		fprintf(m_log_file, "page::%" PRIuMAX ";"
 			" crc32 calculated = %u;"
-			" recorded checksum field1 = %lu recorded"
-			" checksum field2 =%lu\n", m_page_no, crc32,
+			" recorded checksum field1 = " ULINTPF
+			" recorded checksum field2 = " ULINTPF "\n",
+			m_page_no, crc32,
 			checksum_field1, checksum_field2);
 	}
 
@@ -479,13 +482,13 @@ public:
 		}
 
 		fprintf(m_log_file, "page::%" PRIuMAX ";"
-			" old style: calculated ="
-			" %lu; recorded checksum = %lu\n",
+			" old style: calculated = " ULINTPF
+			"; recorded checksum = " ULINTPF "\n",
 			m_page_no, buf_calc_page_old_checksum(m_read_buf),
 			checksum_field2);
 		fprintf(m_log_file, "page::%" PRIuMAX ";"
-			" new style: calculated ="
-			" %lu; recorded checksum  = %lu\n",
+			" new style: calculated = " ULINTPF
+			"; recorded checksum = " ULINTPF "\n",
 			m_page_no, buf_calc_page_new_checksum(m_read_buf),
 			checksum_field1);
 	}
@@ -506,9 +509,10 @@ public:
 		}
 
 		fprintf(m_log_file,
-			"page::%" PRIuMAX "; none checksum: calculated"
-			" = %lu; recorded checksum_field1 = %lu"
-			" recorded checksum_field2 = %lu\n",
+			"page::%" PRIuMAX
+			"; none checksum: calculated = %lu;"
+			" recorded checksum_field1 = " ULINTPF
+			" recorded checksum_field2 = " ULINTPF "\n",
 			m_page_no, BUF_NO_CHECKSUM_MAGIC,
 			checksum_field1, checksum_field2);
 	}
@@ -545,13 +549,13 @@ public:
 		switch (algo) {
 		case SRV_CHECKSUM_ALGORITHM_INNODB:
 			fprintf(m_log_file, "page::%" PRIuMAX ";"
-				" old style: calculated ="
-				" %lu; recorded = %lu\n",
+				" old style: calculated = " ULINTPF
+				"; recorded = " ULINTPF "\n",
 				m_page_no, old_checksum,
 				checksum_field2);
 			fprintf(m_log_file, "page::%" PRIuMAX ";"
-				" new style: calculated ="
-				" %lu; crc32 = %u; recorded = %lu\n",
+				" new style: calculated = " ULINTPF
+				"; crc32 = %u; recorded = " ULINTPF "\n",
 				m_page_no, new_checksum,
 				buf_calc_page_crc32(m_read_buf),
 				checksum_field1);
@@ -559,13 +563,13 @@ public:
 
 		case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
 			fprintf(log_file, "page::%" PRIuMAX ";"
-				" old style: calculated ="
-				" %lu; recorded checksum = %lu\n",
+				" old style: calculated = " ULINTPF
+				"; recorded checksum = " ULINTPF "\n",
 				m_page_no, old_checksum,
 				checksum_field2);
 			fprintf(log_file, "page::%" PRIuMAX ";"
-				" new style: calculated ="
-				" %lu; recorded checksum  = %lu\n",
+				" new style: calculated = " ULINTPF
+				"; recorded checksum = " ULINTPF "\n",
 				m_page_no, new_checksum,
 				checksum_field1);
 			break;
@@ -604,14 +608,17 @@ public:
 	{
 		if (m_is_log_enabled) {
 
-			fprintf(m_log_file, "page::%" PRIuMAX "; old style:"
-				" calculated = %lu; recorded ="
-				" %lu\n", m_page_no,
+			fprintf(m_log_file, "page::%" PRIuMAX
+				"; old style: calculated = " ULINTPF
+				"; recorded = " ULINTPF "\n",
+				m_page_no,
 				buf_calc_page_old_checksum(m_read_buf),
 				checksum_field2);
-			fprintf(m_log_file, "page::%" PRIuMAX "; new style:"
-				" calculated = %lu; crc32 = %u;"
-				" recorded = %lu\n", m_page_no,
+			fprintf(m_log_file, "page::%" PRIuMAX
+				"; new style: calculated = " ULINTPF
+				"; crc32 = %u;"
+				" recorded = " ULINTPF "\n",
+				m_page_no,
 				buf_calc_page_new_checksum(m_read_buf),
 				buf_calc_page_crc32(m_read_buf),
 				checksum_field1);
@@ -699,12 +706,14 @@ is_page_corrupted(
 
 		if (is_log_enabled) {
 			fprintf(log_file,
-				"page::%" PRIuMAX "; log sequence number:first = %lu;"
-				" second = %lu\n",
+				"page::%" PRIuMAX
+				"; log sequence number:first = " ULINTPF
+				"; second = " ULINTPF "\n",
 				cur_page_num, logseq, logseqfield);
 			if (logseq != logseqfield) {
 				fprintf(log_file,
-					"Fail; page %" PRIuMAX " invalid (fails log "
+					"Fail; page %" PRIuMAX
+					" invalid (fails log "
 					"sequence number check)\n",
 					cur_page_num);
 			}
@@ -771,7 +780,8 @@ update_checksum(
 	byte*			page,
 	const page_size_t&	page_size)
 {
-	ulong		physical_page_size = page_size.physical();
+	size_t		physical_page_size
+		 = static_cast<size_t>(page_size.physical());
 	bool		iscompressed = page_size.is_compressed();
 	ib_uint32_t	checksum = 0;
 	byte		stored1[4];	/* get FIL_PAGE_SPACE_OR_CHKSUM field checksum */
@@ -972,8 +982,9 @@ parse_page(
 				"\tindex id=%llu,", cur_page_num, id);
 
 			fprintf(file,
-				" page level=%lu, No. of records=%lu,"
-				" garbage=%lu, %s\n",
+				" page level=" ULINTPF
+				", No. of records=" ULINTPF
+				", garbage=" ULINTPF ", %s\n",
 				page_header_get_field(page, PAGE_LEVEL),
 				page_header_get_field(page, PAGE_N_RECS),
 				page_header_get_field(page, PAGE_GARBAGE), str);
@@ -989,8 +1000,9 @@ parse_page(
 				cur_page_num, id, IB_UINT64_MAX - id);
 
 			fprintf(file,
-				" page level=%lu, No. of records=%lu,"
-				" garbage=%lu, %s\n",
+				" page level=" ULINTPF
+				", No. of records=" ULINTPF
+				", garbage=" ULINTPF ", %s\n",
 				page_header_get_field(page, PAGE_LEVEL),
 				page_header_get_field(page, PAGE_N_RECS),
 				page_header_get_field(page, PAGE_GARBAGE), str);
@@ -1646,15 +1658,15 @@ int main(
 
 		if (just_count) {
 			if (read_from_stdin) {
-				fprintf(stderr, "Number of pages:%lu\n", pages);
+				fprintf(stderr, "Number of pages:" ULINTPF "\n", pages);
 			} else {
-				printf("Number of pages:%lu\n", pages);
+				printf("Number of pages:" ULINTPF "\n", pages);
 			}
 			continue;
 		} else if (verbose && !read_from_stdin) {
 			if (is_log_enabled) {
 				fprintf(log_file, "file %s = %llu bytes "
-					"(%lu pages)\n", filename, size, pages);
+					"(" ULINTPF " pages)\n", filename, size, pages);
 				if (do_one_page) {
 					fprintf(log_file, "Innochecksum: "
 						"checking page %" PRIuMAX "\n",
@@ -1759,7 +1771,7 @@ int main(
 			}
 
 			if (ferror(fil_in)) {
-				fprintf(stderr, "Error reading %lu bytes",
+				fprintf(stderr, "Error reading " ULINTPF " bytes",
 					page_size.physical());
 				perror(" ");
 
@@ -1768,7 +1780,7 @@ int main(
 
 			if (bytes != page_size.physical()) {
 				fprintf(stderr, "Error: bytes read (%lu) "
-					"doesn't match page size (%lu)\n",
+					"doesn't match page size (" ULINTPF ")\n",
 					bytes, page_size.physical());
 				DBUG_RETURN(1);
 			}
@@ -1889,7 +1901,7 @@ ut_dbg_assertion_failed(
 	ulint		line)
 {
 	fprintf(stderr, "Innochecksum: Assertion failure in"
-		" file %s line %lu\n", file, line);
+		" file %s line " ULINTPF "\n", file, line);
 
 	if (expr) {
 		fprintf(stderr,

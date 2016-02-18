@@ -353,8 +353,7 @@ IF(WITH_UBSAN)
     MESSAGE(FATAL_ERROR
             "Do not know how to enable undefined behavior sanitizer")
   ELSE()
-    MESSAGE(WARNING
-            "Note that Undefined Behavior support is currently experimental.")
+    SET(HAVE_UBSAN 1)
   ENDIF()
 ENDIF()
 
@@ -461,6 +460,11 @@ IF(INSTALL_MYSQLDATADIR MATCHES "^/.*")
 ELSE()
   SET(MYSQL_DATADIR "${DEFAULT_MYSQL_HOME}/${INSTALL_MYSQLDATADIR}" CACHE PATH "default MySQL data directory")
 ENDIF()
+IF(INSTALL_MYSQLKEYRINGDIR MATCHES "^/.*")
+  SET(MYSQL_KEYRINGDIR ${INSTALL_MYSQLKEYRINGDIR} CACHE PATH "default MySQL keyring directory")
+ELSE()
+  SET(MYSQL_KEYRINGDIR "${DEFAULT_MYSQL_HOME}/${INSTALL_MYSQLKEYRINGDIR}" CACHE PATH "default MySQL keyring directory")
+ENDIF()
 SET(DEFAULT_CHARSET_HOME "${DEFAULT_MYSQL_HOME}")
 SET(PLUGINDIR "${DEFAULT_MYSQL_HOME}/${INSTALL_PLUGINDIR}")
 IF(SYSCONFDIR)
@@ -536,6 +540,8 @@ IF(WITH_UNIT_TESTS)
 ENDIF()
 
 IF(NOT WITHOUT_SERVER)
+  # Set default keyring plugin information
+  SET(KEYRING_PLUGIN_INFO "" CACHE INTERNAL "")
   SET (MYSQLD_STATIC_PLUGIN_LIBS "" CACHE INTERNAL "")
   SET (MYSQLD_STATIC_EMBEDDED_PLUGIN_LIBS "" CACHE INTERNAL "")
   # Add storage engines and plugins.
@@ -602,6 +608,10 @@ IF(NOT WITHOUT_SERVER)
   IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
     ADD_SUBDIRECTORY(internal)
   ENDIF()
+  # Set default value for --early_load_plugin.
+  # KEYRING_PLUGIN_INFO should have been set to appropriate default
+  # by keyring plugin
+  SET(DEFAULT_EARLY_PLUGIN_LOAD "\"${KEYRING_PLUGIN_INFO}\"" CACHE INTERNAL "Default value for --early_plugin_load" FORCE)
   ADD_SUBDIRECTORY(packaging/rpm-oel)
   ADD_SUBDIRECTORY(packaging/rpm-fedora)
   ADD_SUBDIRECTORY(packaging/rpm-sles)

@@ -1202,7 +1202,7 @@ bool Item::eq(const Item *item, bool binary_cmp) const
 Item *Item::safe_charset_converter(const CHARSET_INFO *tocs)
 {
   Item_func_conv_charset *conv= new Item_func_conv_charset(this, tocs, 1);
-  return conv->safe ? conv : NULL;
+  return conv && conv->safe ? conv : NULL;
 }
 
 
@@ -1320,14 +1320,31 @@ Item *Item_param::safe_charset_converter(const CHARSET_INFO *tocs)
 {
   if (const_item())
   {
-    uint cnv_errors;
-    String *ostr= val_str(&cnvstr);
-    cnvitem->str_value.copy(ostr->ptr(), ostr->length(),
-                            ostr->charset(), tocs, &cnv_errors);
-    if (cnv_errors)
-       return NULL;
-    cnvitem->str_value.mark_as_const();
-    cnvitem->max_length= static_cast<uint32>(cnvitem->str_value.numchars() * tocs->mbmaxlen);
+    Item *cnvitem;
+    String tmp, cstr, *ostr= val_str(&tmp);
+
+    if (null_value)
+    {
+      cnvitem= new Item_null();
+      if (cnvitem == NULL)
+        return NULL;
+
+      cnvitem->collation.set(tocs);
+    }
+    else
+    {
+      uint conv_errors;
+      cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs,
+                &conv_errors);
+
+      if (conv_errors || !(cnvitem= new Item_string(cstr.ptr(), cstr.length(),
+                                                    cstr.charset(),
+                                                    collation.derivation)))
+        return NULL;
+
+      cnvitem->str_value.copy();
+      cnvitem->str_value.mark_as_const();
+    }
     return cnvitem;
   }
   return Item::safe_charset_converter(tocs);
@@ -2497,7 +2514,6 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
 
   for (i= 0, arg= args; i < nargs; i++, arg+= item_sep)
   {
-    Item* conv;
     size_t dummy_offset;
     if (!String::needs_conversion(1, (*arg)->collation.collation,
                                   coll.collation,
@@ -2522,7 +2538,11 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
         !(coll.collation->state & MY_CS_NONASCII))
       continue;
 
-    if (!(conv= (*arg)->safe_charset_converter(coll.collation)) &&
+    Item *conv= (*arg)->safe_charset_converter(coll.collation);
+    // @todo - check why the constructors may return error
+    if (thd->is_error())
+      return true;
+    if (conv == NULL &&
         ((*arg)->collation.repertoire == MY_REPERTOIRE_ASCII))
       conv= new Item_func_conv_charset(*arg, coll.collation, 1);
 
@@ -3719,8 +3739,6 @@ Item_param::Item_param(const POS &pos, uint pos_in_query_arg) : super(pos),
     value is set.
   */
   maybe_null= 1;
-  cnvitem= new Item_string("", 0, &my_charset_bin, DERIVATION_COERCIBLE);
-  cnvstr.set(cnvbuf, sizeof(cnvbuf), &my_charset_bin);
 }
 
 
@@ -6134,7 +6152,7 @@ static void convert_zerofill_number_to_string(Item **item, Field_num *field)
   String tmp(buff,sizeof(buff), field->charset()), *res;
 
   res= (*item)->val_str(&tmp);
-  if ((*item)->is_null())
+  if ((*item)->null_value)
     *item= new Item_null();
   else
   {

@@ -435,6 +435,7 @@ public:
     If the key is not present, return a null pointer.
 
     @param[in]  key the key of the element whose value we want
+    @return the value associated with the key, or NULL if the key is not found
   */
   Json_dom *get(const std::string &key) const;
 
@@ -1254,7 +1255,8 @@ public:
   /**
     Return the type of the wrapped JSON value
 
-    @return the type
+    @return the type, or Json_dom::J_ERROR if the wrapper does not contain
+    a JSON value
   */
   Json_dom::enum_json_type type() const;
 
@@ -1293,7 +1295,8 @@ public:
     @param[in]     key name for identifying member
     @param[in]     len length of that member name
 
-    @return the member value
+    @return The member value. If there is no member with the specified
+    name, a value with type Json_dom::J_ERROR is returned.
   */
   Json_wrapper lookup(const char *key, size_t len) const;
 

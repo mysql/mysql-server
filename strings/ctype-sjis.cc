@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
-#ifdef HAVE_CHARSET_sjis
 
 
 /*
@@ -1115,7 +1114,7 @@ static int my_strnncoll_sjis_internal(const CHARSET_INFO *cs,
 
 
 extern "C" {
-static int my_strnncoll_sjis(const CHARSET_INFO *cs __attribute__((unused)),
+static int my_strnncoll_sjis(const CHARSET_INFO *cs,
                              const uchar *a, size_t a_length, 
                              const uchar *b, size_t b_length,
                              my_bool b_is_prefix)
@@ -1127,7 +1126,7 @@ static int my_strnncoll_sjis(const CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-static int my_strnncollsp_sjis(const CHARSET_INFO *cs __attribute__((unused)),
+static int my_strnncollsp_sjis(const CHARSET_INFO *cs,
 			       const uchar *a, size_t a_length, 
 			       const uchar *b, size_t b_length,
                                my_bool diff_if_only_endspace_difference)
@@ -34251,5 +34250,3 @@ CHARSET_INFO my_charset_sjis_bin=
     &my_charset_handler,
     &my_collation_mb_bin_handler
 };
-
-#endif

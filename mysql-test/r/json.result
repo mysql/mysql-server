@@ -10551,6 +10551,15 @@ JSON_CONTAINS('[1,2]', '[[1]]')
 SELECT JSON_CONTAINS('[1,2]', '1', '$.abc');
 JSON_CONTAINS('[1,2]', '1', '$.abc')
 NULL
+SELECT JSON_CONTAINS('{}', '{}');
+JSON_CONTAINS('{}', '{}')
+1
+SELECT JSON_CONTAINS('{}', '{"a":1}');
+JSON_CONTAINS('{}', '{"a":1}')
+0
+SELECT JSON_CONTAINS('{"a":1}', '{"a":1,"b":2}');
+JSON_CONTAINS('{"a":1}', '{"a":1,"b":2}')
+0
 SELECT JSON_CONTAINS
 (
 CAST('[1, 4, 6]' AS JSON),
@@ -13396,6 +13405,25 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select json_object('c',json_extract(`test`.`t1`.`f1`,'$.b')) AS `f2` from `test`.`t1` having (json_type(json_extract(`f2`,'$.c')) <> 'NULL')
+Test unquoting operator
+INSERT INTO t1 VALUES('{"t":"a"}'),('{"t":"b"}'),('{"t":"c"}');
+Returned values should be quoted
+SELECT f1->"$.t" FROM t1 WHERE f1->"$.t" <> 'NULL';
+f1->"$.t"
+"a"
+"b"
+"c"
+Returned values should be unquoted
+SELECT f1->>"$.t" FROM t1 WHERE f1->>"$.t" <> 'NULL';
+f1->>"$.t"
+a
+b
+c
+EXPLAIN SELECT f1->>"$.t" FROM t1 WHERE f1->>"$.t" <> 'NULL';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select json_unquote(json_extract(`test`.`t1`.`f1`,'$.t')) AS `f1->>"$.t"` from `test`.`t1` where (json_unquote(json_extract(`test`.`t1`.`f1`,'$.t')) <> 'NULL')
 DROP TABLE t1;
 #
 # Bug#21828321: JSON FUNCS CALL DBUG_ABORT OR EXIT() ON WINDOWS!

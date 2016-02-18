@@ -1781,7 +1781,6 @@ ndbcluster-1186/ndb_3_out.log
 ndbcluster-1186/ndbcluster.pid
 netware/.deps/libmysqlmain.Po
 netware/.deps/my_manage.Po
-netware/.deps/mysql_install_db.Po
 netware/.deps/mysql_test_run.Po
 netware/.deps/mysqld_safe.Po
 netware/init_db.sql
@@ -1840,7 +1839,6 @@ scripts/mysql_fix_privilege_tables.sql
 scripts/mysql_fix_privilege_tables.sql.rule
 scripts/mysql_fix_privilege_tables_sql.c
 scripts/mysql_fix_privilege_tables_sql.c.rule
-scripts/mysql_install_db
 scripts/mysql_secure_installation
 scripts/mysql_server_config
 scripts/mysql_tableinfo
@@ -3114,7 +3112,6 @@ sql/gen_lex_token
 internal/plugin/thread_pool/src/thread_pool_config.h
 internal/tests/innorwlocktest
 packaging/solaris/postinstall-solaris
-client/mysql_install_db
 internal/tests/open_files_limit
 client/mysql_ssl_rsa_setup
 

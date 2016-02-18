@@ -394,6 +394,44 @@ page_size_t
 fsp_header_get_page_size(
 	const page_t*	page);
 
+/** Decoding the encryption info from the first page of a tablespace.
+@param[in,out]	key		key
+@param[in,out]	iv		iv
+@param[in]	encryption_info	encrytion info.
+@return true if success */
+bool
+fsp_header_decode_encryption_info(
+	byte*		key,
+	byte*		iv,
+	byte*		encryption_info);
+
+/** Reads the encryption key from the first page of a tablespace.
+@param[in]	fsp_flags	tablespace flags
+@param[in,out]	key		tablespace key
+@param[in,out]	iv		tablespace iv
+@param[in]	page	first page of a tablespace
+@return true if success */
+bool
+fsp_header_get_encryption_key(
+	ulint		fsp_flags,
+	byte*		key,
+	byte*		iv,
+	page_t*		page);
+
+/** Check the encryption key from the first page of a tablespace.
+@param[in]	fsp_flags	tablespace flags
+@param[in]	page		first page of a tablespace
+@return true if success */
+bool
+fsp_header_check_encryption_key(
+	ulint			fsp_flags,
+	page_t*			page);
+
+/** Check if the tablespace size information is valid.
+@param[in]	space_id	the tablespace identifier
+@return true if valid, false if invalid. */
+bool fsp_check_tablespace_size(ulint space_id);
+
 /**********************************************************************//**
 Writes the space id and flags to a tablespace header.  The flags contain
 row type, physical/compressed page size, and logical/uncompressed page
@@ -405,6 +443,17 @@ fsp_header_init_fields(
 	ulint	space_id,	/*!< in: space id */
 	ulint	flags);		/*!< in: tablespace flags (FSP_SPACE_FLAGS):
 				0, or table->flags if newer than COMPACT */
+
+/** Rotate the encryption info in the space header.
+@param[in]	space		tablespace
+@param[in]      encrypt_info	buffer for re-encrypt key.
+@param[in,out]	mtr		mini-transaction
+@return true if success. */
+bool
+fsp_header_rotate_encryption(
+	fil_space_t*		space,
+	byte*			encrypt_info,
+	mtr_t*			mtr);
 
 /** Initializes the space header of a new created space and creates also the
 insert buffer tree root if space == 0.
@@ -689,6 +738,7 @@ fsp_flags_are_equal(
 @param[in]	has_data_dir	This tablespace is in a remote location.
 @param[in]	is_shared	This tablespace can be shared by many tables.
 @param[in]	is_temporary	This tablespace is temporary.
+@param[in]	is_encrypted	This tablespace is encrypted.
 @return tablespace flags after initialization */
 UNIV_INLINE
 ulint
@@ -697,7 +747,8 @@ fsp_flags_init(
 	bool			atomic_blobs,
 	bool			has_data_dir,
 	bool			is_shared,
-	bool			is_temporary);
+	bool			is_temporary,
+	bool			is_encrypted = false);
 
 /** Convert a 32 bit integer tablespace flags to the 32 bit table flags.
 This can only be done for a tablespace that was built as a file-per-table
@@ -768,7 +819,7 @@ page 1.
 ulint
 fsp_sdi_get_root_page_num(
 	ulint			space,
-	ulint			copy_num,
+	uint32_t		copy_num,
 	const page_size_t&	page_size,
 	mtr_t*			mtr);
 
@@ -859,4 +910,26 @@ const char* xdes_mem_t::state_name() const
 }
 
 #endif /* !DBUG_OFF */
+
+/** Update the tablespace size information and generate redo log for it.
+@param[in]	header	tablespace header.
+@param[in]	size	the new tablespace size in pages.
+@param[in]	mtr	the mini-transaction context. */
+inline
+void
+fsp_header_size_update(
+	fsp_header_t*	header,
+	ulint		size,
+	mtr_t*		mtr)
+{
+	DBUG_ENTER("fsp_header_size_update");
+
+	DBUG_LOG("ib_log", "old_size=" << mach_read_from_4(header + FSP_SIZE)
+		 << ", new_size=" << size);
+
+	mlog_write_ulint(header + FSP_SIZE, size, MLOG_4BYTES, mtr);
+
+	DBUG_VOID_RETURN;
+}
+
 #endif

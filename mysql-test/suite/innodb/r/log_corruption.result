@@ -13,8 +13,11 @@
 # --innodb-force-recovery=6 (skip the entire redo log)
 # valid 5.7.9 header, valid checkpoint 1, no matching MLOG_CHECKSUM
 # --innodb-force-recovery=6 (skip the entire redo log)
-# upgrade: valid 5.7.9 header, valid checkpoint 1, clean redo log
+# upgrade: valid 5.7.9 header, valid checkpoint 1, logically non empty
+# redo log
 # Test a corrupted MLOG_FILE_NAME record.
 # current header, valid checkpoint 1, all-zero (invalid) checkpoint 2
 # Test a corrupted MLOG_FILE_NAME record.
 # valid header, invalid checkpoint 1, valid checkpoint 2
+# Upgrade: valid 5.7.9 header, valid checkpoint 1, logically empty
+# redo log

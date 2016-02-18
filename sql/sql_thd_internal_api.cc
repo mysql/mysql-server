@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -166,7 +166,8 @@ size_t thd_query_safe(THD *thd, char *buf, size_t buflen)
   mysql_mutex_lock(&thd->LOCK_thd_query);
   LEX_CSTRING query_string= thd->query();
   size_t len= MY_MIN(buflen - 1, query_string.length);
-  strncpy(buf, query_string.str, len);
+  if (len > 0)
+    strncpy(buf, query_string.str, len);
   buf[len]= '\0';
   mysql_mutex_unlock(&thd->LOCK_thd_query);
   return len;

@@ -1014,7 +1014,7 @@ func_exit:
 	os_event_set(psort_info->psort_common->sort_event);
 	psort_info->child_status = FTS_CHILD_EXITING;
 
-	os_thread_exit(NULL);
+	os_thread_exit();
 
 	OS_THREAD_DUMMY_RETURN;
 }
@@ -1061,7 +1061,7 @@ fts_parallel_merge(
 	os_event_set(psort_info->psort_common->merge_event);
 	psort_info->child_status = FTS_CHILD_EXITING;
 
-	os_thread_exit(NULL);
+	os_thread_exit();
 
 	OS_THREAD_DUMMY_RETURN;
 }

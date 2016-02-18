@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -56,6 +56,19 @@ Created 10/25/1995 Heikki Tuuri
 #ifndef DBUG_OFF
 #include <fstream>
 #endif /* !DBUG_OFF */
+
+/** Tries to close a file in the LRU list. The caller must hold the fil_sys
+mutex.
+@return true if success, false if should retry later; since i/o's
+generally complete in < 100 ms, and as InnoDB writes at most 128 pages
+from the buffer pool in a batch, and then immediately flushes the
+files, there is a good chance that the next time we find a suitable
+node from the LRU list.
+@param[in] print_info   if true, prints information why it
+			cannot close a file */
+static
+bool
+fil_try_to_close_file_in_LRU(bool print_info);
 
 /*
 		IMPLEMENTATION OF THE TABLESPACE MEMORY CACHE
@@ -121,10 +134,10 @@ const char general_space_name[] = "innodb_general";
 current working directory ".", but in the MySQL Embedded Server Library
 it is an absolute path. */
 const char*	fil_path_to_mysql_datadir;
-Folder  	folder_mysql_datadir;
+Folder		folder_mysql_datadir;
 
 /** Common InnoDB file extentions */
-const char* dot_ext[] = { "", ".ibd", ".cfg" };
+const char* dot_ext[] = { "", ".ibd", ".cfg", ".cfp" };
 
 /** The number of fsyncs done to the log */
 ulint	fil_n_log_flushes			= 0;
@@ -704,14 +717,18 @@ fil_node_open_file(
 		file read function os_file_read() in Windows to read
 		from a file opened for async I/O! */
 
+retry:
 		node->handle = os_file_create_simple_no_error_handling(
 			innodb_data_file_key, node->name, OS_FILE_OPEN,
 			OS_FILE_READ_ONLY, read_only_mode, &success);
 
 		if (!success) {
 			/* The following call prints an error message */
-			os_file_get_last_error(true);
-
+			ulint err = os_file_get_last_error(true);
+			if (err == EMFILE + 100) {
+				if (fil_try_to_close_file_in_LRU(true))
+					goto retry;
+			}
 			ib::warn() << "Cannot open '" << node->name << "'."
 				" Have you deleted .ibd files under a"
 				" running mysqld server?";
@@ -805,8 +822,6 @@ fil_node_open_file(
 				page, FSP_FREE_LIMIT);
 			ulint	free_len	= flst_get_len(
 				FSP_HEADER_OFFSET + FSP_FREE + page);
-			ut_ad(space->size_in_header == 0
-			      || space->size_in_header == size);
 			ut_ad(space->free_limit == 0
 			      || space->free_limit == free_limit);
 			ut_ad(space->free_len == 0
@@ -817,6 +832,19 @@ fil_node_open_file(
 		}
 
 		ut_free(buf2);
+
+		/* For encrypted tablespace, we need to check the
+		encrytion key and iv(initial vector) is readed. */
+		if (FSP_FLAGS_GET_ENCRYPTION(flags)
+		    && !recv_recovery_is_on()) {
+			if (space->encryption_type != Encryption::AES) {
+				ib::error()
+					<< "Can't read encryption"
+					<< " key from file "
+					<< node->name << "!";
+				return(false);
+			}
+		}
 
 		if (node->size == 0) {
 			ulint	extent_size;
@@ -913,20 +941,21 @@ fil_node_close_file(
 	}
 }
 
-/********************************************************************//**
-Tries to close a file in the LRU list. The caller must hold the fil_sys
+/** Tries to close a file in the LRU list. The caller must hold the fil_sys
 mutex.
 @return true if success, false if should retry later; since i/o's
 generally complete in < 100 ms, and as InnoDB writes at most 128 pages
 from the buffer pool in a batch, and then immediately flushes the
 files, there is a good chance that the next time we find a suitable
-node from the LRU list */
+node from the LRU list.
+@param[in] print_info   if true, prints information why it
+			cannot close a file */
 static
 bool
 fil_try_to_close_file_in_LRU(
-/*=========================*/
-	bool	print_info)	/*!< in: if true, prints information why it
-				cannot close a file */
+
+	bool print_info)
+
 {
 	fil_node_t*	node;
 
@@ -1338,6 +1367,8 @@ fil_space_create(
 	space->flags = flags;
 
 	space->magic_n = FIL_SPACE_MAGIC_N;
+
+	space->encryption_type = Encryption::NONE;
 
 	rw_lock_create(fil_space_latch_key, &space->latch, SYNC_FSP);
 
@@ -2524,6 +2555,12 @@ fil_close_tablespace(
 		ut_free(cfg_name);
 	}
 
+	char*	cfp_name = fil_make_filepath(path, NULL, CFP, false);
+	if (cfp_name != NULL) {
+		os_file_delete_if_exists(innodb_data_file_key, cfp_name, NULL);
+		ut_free(cfp_name);
+	}
+
 	ut_free(path);
 
 	return(err);
@@ -2613,6 +2650,12 @@ fil_delete_tablespace(
 		if (cfg_name != NULL) {
 			os_file_delete_if_exists(innodb_data_file_key, cfg_name, NULL);
 			ut_free(cfg_name);
+		}
+
+		char*	cfp_name = fil_make_filepath(path, NULL, CFP, false);
+		if (cfp_name != NULL) {
+			os_file_delete_if_exists(innodb_data_file_key, cfp_name, NULL);
+			ut_free(cfp_name);
 		}
 	}
 
@@ -3435,6 +3478,14 @@ fil_ibd_create(
 		mtr_commit(&mtr);
 	}
 #endif
+	/* For encryption tablespace, initial encryption information. */
+	if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
+		err = fil_set_encryption(space->id,
+					 Encryption::AES,
+					 NULL,
+					 NULL);
+		ut_ad(err == DB_SUCCESS);
+	}
 
 	os_file_close(file);
 	if (err != DB_SUCCESS) {
@@ -3475,6 +3526,8 @@ fil_ibd_open(
 	const char*	path_in)
 {
 	Datafile	df;
+	bool		is_encrypted = FSP_FLAGS_GET_ENCRYPTION(flags);
+	bool		for_import = (purpose == FIL_TYPE_IMPORT);
 
 	ut_ad(fil_type_is_data(purpose));
 
@@ -3504,13 +3557,24 @@ fil_ibd_open(
 	const bool	atomic_write = false;
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
 
-	if (validate && df.validate_to_dd(id, flags) != DB_SUCCESS) {
-		/* The following call prints an error message */
-		os_file_get_last_error(true);
-		ib::error() << "Could not find a valid tablespace file for `"
-			<< space_name << "`. " << TROUBLESHOOT_DATADICT_MSG;
+	if ((validate || is_encrypted)
+	    && df.validate_to_dd(id, flags, for_import) != DB_SUCCESS) {
+		if (!is_encrypted) {
+			/* The following call prints an error message.
+			For encrypted tablespace we skip print, since it should
+			be keyring plugin issues. */
+			os_file_get_last_error(true);
+			ib::error() << "Could not find a valid tablespace file for `"
+				<< space_name << "`. " << TROUBLESHOOT_DATADICT_MSG;
+		}
 
 		return(DB_CORRUPTION);
+	}
+
+	/* If the encrypted tablespace is already opened,
+	return success. */
+	if (validate && is_encrypted && fil_space_get(id)) {
+		return(DB_SUCCESS);
 	}
 
 	fil_space_t*	space = fil_space_create(
@@ -3523,6 +3587,20 @@ fil_ibd_open(
 		    df.filepath(), 0, space, false, true, atomic_write)) {
 
 		return(DB_ERROR);
+	}
+
+	/* For encryption tablespace, initialize encryption information.*/
+	if (is_encrypted && !for_import) {
+		dberr_t err;
+		byte*	key = df.m_encryption_key;
+		byte*	iv = df.m_encryption_iv;
+		ut_ad(key && iv);
+
+		err = fil_set_encryption(space->id, Encryption::AES,
+					 key, iv);
+		if (err != DB_SUCCESS) {
+			return(DB_ERROR);
+		}
 	}
 
 	return(DB_SUCCESS);
@@ -3830,6 +3908,20 @@ fil_ibd_load(
 				 false, true, false)) {
 		ut_error;
 	}
+
+	/* For encryption tablespace, initial encryption information. */
+	if (FSP_FLAGS_GET_ENCRYPTION(space->flags)
+	    && file.m_encryption_key != NULL) {
+		dberr_t err = fil_set_encryption(space->id,
+						 Encryption::AES,
+						 file.m_encryption_key,
+						 file.m_encryption_iv);
+		if (err != DB_SUCCESS) {
+			ib::error() << "Can't set encryption information for"
+				" tablespace " << space->name << "!";
+		}
+	}
+
 
 	return(FIL_LOAD_OK);
 }
@@ -4559,6 +4651,31 @@ fil_report_invalid_page_access(
 	_exit(1);
 }
 
+/** Set encryption information for IORequest.
+@param[in,out]	req_type	IO request
+@param[in]	page_id		page id
+@param[in]	space		table space */
+inline
+void
+fil_io_set_encryption(
+	IORequest&		req_type,
+	const page_id_t&	page_id,
+	fil_space_t*		space)
+{
+	/* Don't encrypt the log, page 0 of all tablespaces, all pages
+	from the system tablespace. */
+	if (!req_type.is_log() && page_id.page_no() > 0
+	    && space->encryption_type != Encryption::NONE)
+	{
+		req_type.encryption_key(space->encryption_key,
+					space->encryption_klen,
+					space->encryption_iv);
+		req_type.encryption_algorithm(Encryption::AES);
+	} else {
+		req_type.clear_encrypted();
+	}
+}
+
 /** Read or write data. This operation could be asynchronous (aio).
 @param[in,out]	type		IO context
 @param[in]	sync		whether synchronous aio is desired
@@ -4839,6 +4956,9 @@ fil_io(
 	} else {
 		req_type.clear_compressed();
 	}
+
+	/* Set encryption information. */
+	fil_io_set_encryption(req_type, page_id, space);
 
 	req_type.block_size(node->block_size);
 
@@ -5371,6 +5491,8 @@ struct fil_iterator_t {
 	ulint		n_io_buffers;		/*!< Number of pages to use
 						for IO */
 	byte*		io_buffer;		/*!< Buffer to use for IO */
+	byte*		encryption_key;		/*!< Encryption key */
+	byte*		encryption_iv;		/*!< Encryption iv */
 };
 
 /********************************************************************//**
@@ -5446,6 +5568,14 @@ fil_iterate(
 		dberr_t		err;
 		IORequest	read_request(read_type);
 
+		/* For encrypted table, set encryption information. */
+		if (iter.encryption_key != NULL && offset != 0) {
+			read_request.encryption_key(iter.encryption_key,
+						    ENCRYPTION_KEY_LEN,
+						    iter.encryption_iv);
+			read_request.encryption_algorithm(Encryption::AES);
+		}
+
 		err = os_file_read(
 			read_request, iter.file, io_buffer, offset,
 			(ulint) n_bytes);
@@ -5483,6 +5613,14 @@ fil_iterate(
 		}
 
 		IORequest	write_request(write_type);
+
+		/* For encrypted table, set encryption information. */
+		if (iter.encryption_key != NULL && offset != 0) {
+			write_request.encryption_key(iter.encryption_key,
+						     ENCRYPTION_KEY_LEN,
+						     iter.encryption_iv);
+			write_request.encryption_algorithm(Encryption::AES);
+		}
 
 		/* A page was updated in the set, write back to disk.
 		Note: We don't have the compression algorithm, we write
@@ -5625,26 +5763,47 @@ fil_tablespace_iterate(
 		iter.n_io_buffers = n_io_buffers;
 		iter.page_size = callback.get_page_size().physical();
 
-		/* Compressed pages can't be optimised for block IO for now.
-		We do the IMPORT page by page. */
+		/* Set encryption info. */
+		iter.encryption_key = table->encryption_key;
+		iter.encryption_iv = table->encryption_iv;
 
-		if (callback.get_page_size().is_compressed()) {
-			iter.n_io_buffers = 1;
-			ut_a(iter.page_size
-			     == callback.get_page_size().physical());
+		/* Check encryption is matched or not. */
+		ulint	space_flags = callback.get_space_flags();
+		if (FSP_FLAGS_GET_ENCRYPTION(space_flags)) {
+			ut_ad(table->encryption_key != NULL);
+
+			if (!dict_table_is_encrypted(table)) {
+				ib::error() << "Table is not in an encrypted"
+					" tablespace, but the data file which"
+					" trying to import is an encrypted"
+					" tablespace";
+				err = DB_IO_NO_ENCRYPT_TABLESPACE;
+			}
 		}
 
-		/** Add an extra page for compressed page scratch area. */
+		if (err == DB_SUCCESS) {
 
-		void*	io_buffer = ut_malloc_nokey(
-			(2 + iter.n_io_buffers) * UNIV_PAGE_SIZE);
+			/* Compressed pages can't be optimised for block IO
+			for now.  We do the IMPORT page by page. */
 
-		iter.io_buffer = static_cast<byte*>(
-			ut_align(io_buffer, UNIV_PAGE_SIZE));
+			if (callback.get_page_size().is_compressed()) {
+				iter.n_io_buffers = 1;
+				ut_a(iter.page_size
+				     == callback.get_page_size().physical());
+			}
 
-		err = fil_iterate(iter, block, callback);
+			/** Add an extra page for compressed page scratch
+			area. */
+			void*	io_buffer = ut_malloc_nokey(
+				(2 + iter.n_io_buffers) * UNIV_PAGE_SIZE);
 
-		ut_free(io_buffer);
+			iter.io_buffer = static_cast<byte*>(
+				ut_align(io_buffer, UNIV_PAGE_SIZE));
+
+			err = fil_iterate(iter, block, callback);
+
+			ut_free(io_buffer);
+		}
 	}
 
 	if (err == DB_SUCCESS) {
@@ -5701,6 +5860,14 @@ fil_delete_file(
 		os_file_delete_if_exists(
 			innodb_data_file_key, cfg_filepath, NULL);
 		ut_free(cfg_filepath);
+	}
+
+	char*	cfp_filepath = fil_make_filepath(
+		ibd_filepath, NULL, CFP, false);
+	if (cfp_filepath != NULL) {
+		os_file_delete_if_exists(
+			innodb_data_file_key, cfp_filepath, NULL);
+		ut_free(cfp_filepath);
 	}
 }
 
@@ -6147,6 +6314,101 @@ fil_get_compression(
 	return(space == NULL ? Compression::NONE : space->compression_type);
 }
 
+/** Set the encryption type for the tablespace
+@param[in] space_id		Space ID of tablespace for which to set
+@param[in] algorithm		Encryption algorithm
+@param[in] key			Encryption key
+@param[in] iv			Encryption iv
+@return DB_SUCCESS or error code */
+dberr_t
+fil_set_encryption(
+	ulint			space_id,
+	Encryption::Type	algorithm,
+	byte*			key,
+	byte*			iv)
+{
+	ut_ad(!is_system_or_undo_tablespace(space_id));
+
+	if (is_shared_tablespace(space_id)) {
+		return(DB_IO_NO_ENCRYPT_TABLESPACE);
+	}
+
+	mutex_enter(&fil_system->mutex);
+
+	fil_space_t*	space = fil_space_get_by_id(space_id);
+
+	if (space == NULL) {
+		mutex_exit(&fil_system->mutex);
+		return(DB_NOT_FOUND);
+	}
+
+	ut_ad(algorithm != Encryption::NONE);
+	space->encryption_type = algorithm;
+	if (key == NULL) {
+		Encryption::random_value(space->encryption_key);
+	} else {
+		memcpy(space->encryption_key,
+		       key, ENCRYPTION_KEY_LEN);
+	}
+
+	space->encryption_klen = ENCRYPTION_KEY_LEN;
+	if (iv == NULL) {
+		Encryption::random_value(space->encryption_iv);
+	} else {
+		memcpy(space->encryption_iv,
+		       iv, ENCRYPTION_KEY_LEN);
+	}
+
+	mutex_exit(&fil_system->mutex);
+
+	return(DB_SUCCESS);
+}
+
+/** Rotate the tablespace keys by new master key.
+@return true if the re-encrypt suceeds */
+bool
+fil_encryption_rotate()
+{
+	fil_space_t*	space;
+	mtr_t		mtr;
+	byte		encrypt_info[ENCRYPTION_INFO_SIZE];
+
+	for (space = UT_LIST_GET_FIRST(fil_system->space_list);
+	     space != NULL; ) {
+		/* Skip unencypted tablespaces. */
+		if (is_system_or_undo_tablespace(space->id)
+		    || fsp_is_system_temporary(space->id)
+		    || space->purpose == FIL_TYPE_LOG) {
+			space = UT_LIST_GET_NEXT(space_list, space);
+			continue;
+		}
+
+		if (space->encryption_type != Encryption::NONE) {
+			mtr_start(&mtr);
+			mtr.set_named_space(space->id);
+
+			space = mtr_x_lock_space(space->id, &mtr);
+
+			memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
+
+			if (!fsp_header_rotate_encryption(space,
+							  encrypt_info,
+							  &mtr)) {
+				mtr_commit(&mtr);
+				return(false);
+			}
+
+			mtr_commit(&mtr);
+		}
+
+		space = UT_LIST_GET_NEXT(space_list, space);
+		DBUG_EXECUTE_IF("ib_crash_during_rotation_for_encryption",
+				DBUG_SUICIDE(););
+	}
+
+	return(true);
+}
+
 /** Build the basic folder name from the path and length provided
 @param[in]	path	pathname (may also include the file basename)
 @param[in]	len	length of the path, in bytes */
@@ -6291,6 +6553,7 @@ test_make_filepath()
 	path = MF("/this/is/a/path/with/a/filename", NULL, IBD, false); DISPLAY;
 	path = MF("/this/is/a/path/with/a/filename", NULL, ISL, false); DISPLAY;
 	path = MF("/this/is/a/path/with/a/filename", NULL, CFG, false); DISPLAY;
+	path = MF("/this/is/a/path/with/a/filename", NULL, CFP, false); DISPLAY;
 	path = MF("/this/is/a/path/with/a/filename.ibd", NULL, IBD, false); DISPLAY;
 	path = MF("/this/is/a/path/with/a/filename.ibd", NULL, IBD, false); DISPLAY;
 	path = MF("/this/is/a/path/with/a/filename.dat", NULL, IBD, false); DISPLAY;
@@ -6300,6 +6563,7 @@ test_make_filepath()
 	path = MF(NULL, "dbname/tablespacename", IBD, false); DISPLAY;
 	path = MF(NULL, "dbname/tablespacename", ISL, false); DISPLAY;
 	path = MF(NULL, "dbname/tablespacename", CFG, false); DISPLAY;
+	path = MF(NULL, "dbname/tablespacename", CFP, false); DISPLAY;
 	path = MF(NULL, "dbname\\tablespacename", NO_EXT, false); DISPLAY;
 	path = MF(NULL, "dbname\\tablespacename", IBD, false); DISPLAY;
 	path = MF("/this/is/a/path", "dbname/tablespacename", IBD, false); DISPLAY;

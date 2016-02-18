@@ -1,0 +1,77 @@
+#####################################################################
+#                                                                   #
+# Replication test for column statistics table.                     #
+# This test ensures that changes to the table mysql.column_stats    #
+# gets replicated properly.                                         #
+#                                                                   #
+#####################################################################
+
+--source include/master-slave.inc
+
+--echo #
+--echo # Verify that inserts are replicated.
+--echo #
+
+--echo # Connection master
+--connection master
+
+INSERT INTO mysql.column_stats
+            (database_name,
+             table_name,
+             column_name,
+             histogram)
+VALUES      ('replication-db-test',
+             'test-tbl-1',
+             'test-col-1',
+             '{"key": "value"}'),
+            ('replication-db-test',
+             'test-tbl-1',
+             'test-col-2',
+             '{"key": "value"}');
+
+SELECT * FROM mysql.column_stats;
+
+# Note: sync_slave_sql_with_master.inc will switch to slave connection.
+--source include/sync_slave_sql_with_master.inc
+--echo # Connection slave
+
+SELECT * FROM mysql.column_stats;
+
+--echo #
+--echo # Verify that updates are replicated.
+--echo #
+
+--echo # Connection master
+--connection master
+UPDATE mysql.column_stats
+SET    histogram = '{"new_key": "new_value"}'
+WHERE  database_name = 'replication-db-test';
+
+SELECT * FROM mysql.column_stats;
+
+# Note: sync_slave_sql_with_master.inc will switch to slave connection.
+--source include/sync_slave_sql_with_master.inc
+--echo # Connection slave
+
+SELECT * FROM mysql.column_stats;
+
+--echo #
+--echo # Verify that deletes are replicated.
+--echo #
+
+--echo # Connection master
+--connection master
+DELETE FROM mysql.column_stats WHERE database_name = 'replication-db-test';
+
+SELECT * FROM mysql.column_stats;
+
+# Note: sync_slave_sql_with_master.inc will switch to slave connection.
+--source include/sync_slave_sql_with_master.inc
+--echo # Connection slave
+
+SELECT * FROM mysql.column_stats;
+
+--echo #
+--echo # Cleanup
+--echo #
+--source include/rpl_end.inc

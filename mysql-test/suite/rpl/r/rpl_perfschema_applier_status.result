@@ -4,8 +4,6 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 include/assert.inc [On master, the table should return an empty set.]
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
 
 # Verify that SELECT works and produces an output similar to
 # the corresponding field in SHOW SLAVE STATUS(SSS) in all scenarios.
@@ -21,6 +19,5 @@ include/assert.inc [COUNT_TRANSACTION_RETRIES should be equal to Slave_retried_t
 include/stop_slave.inc
 include/assert.inc [SSS shows Slave_SQL_Running as "No". So, Service_State from this PS table should be "OFF".]
 include/assert.inc [COUNT_TRANSACTION_RETRIES should be equal to Slave_retried_transactions.]
-set @@global.show_compatibility_56=@show_compatibility_56_save;
 include/start_slave.inc
 include/rpl_end.inc

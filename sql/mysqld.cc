@@ -19,30 +19,206 @@
 */
 
 /**
-  @mainpage MySQL main page
-
-  @section INTRO Introduction
+  @mainpage Welcome
 
   Welcome to the MySQL source code documentation.
-  For the user manual, see http://dev.mysql.com/doc/refman/5.7/en/
 
-  This present page is only an index, which lists the content available.
+  The order chosen to present the content is to start with low level components,
+  and build upon previous sections, so that code is presented in a logical order.
 
-  @section OPT Optimizer
+  For some sections, a full article (Doxygen 'page') presents the component in detail.
 
-  See @ref PAGE_OPT_TRACE
+  For other sections, only links are provided, as a starting point into the component.
 
-  @section PFS Performance Schema
-
-  See @ref PAGE_PFS
-
-  @section RPL Replication
-
-  See @ref PAGE_RPL_FIELD_METADATA
-
-  @section INTERNAL Internals manual
+  For the user manual, see http://dev.mysql.com/doc/refman/5.8/en/
 
   For the internals manual, see https://dev.mysql.com/doc/internals/en/index.html
+*/
+
+/**
+  @page PAGE_GET_STARTED Getting Started
+
+  @section start_source Build from source
+
+  See https://dev.mysql.com/doc/refman/5.8/en/source-installation.html
+
+  @section start_coding_guidelines Coding guidelines
+
+  See http://dev.mysql.com/doc/internals/en/coding-guidelines.html
+
+  @section start_debug Debugging
+
+  The easiest way to install a server, and attach a debugger to it,
+  is to start the mysql-test-run (MTR) tool with debugging options
+
+  @verbatim
+  cd mysql-test
+  ./mtr --ddd main.parser
+  @endverbatim
+
+  The following functions are good candidates for breakpoints:
+  - #my_message_sql
+  - #dispatch_command
+
+  Replace 'main.parser' with another test script, or write your own, to debug a specific area.
+*/
+
+/**
+  @page PAGE_INFRASTRUCTURE Infrastructure
+
+  @section infra_basic Basic classes and templates
+
+  @subsection infra_basic_container Container
+
+  See #DYNAMIC_ARRAY, #LIST, #I_P_List, #HASH, #LF_HASH.
+
+  @subsection infra_basic_syncho Synchonization
+
+  See #native_mutex_t, #native_rw_lock_t, #native_cond_t.
+
+  @subsection infra_basic_fileio File IO
+
+  See #my_open, #my_dir.
+
+  @section infra_server_blocks Server building blocs
+
+  @subsection infra_server_blocks_vio Virtual Input Output
+
+  See #Vio, #vio_init.
+
+  @section deployment Deployment
+
+  @subsection deploy_install Installation
+
+  See #opt_initialize, #bootstrap::run_bootstrap_thread.
+
+  @subsection deploy_startup Startup
+
+  See #mysqld_main.
+
+  @subsection deploy_shutdown Shutdown
+
+  See #handle_fatal_signal, #signal_hand.
+
+  @subsection deploy_upgrade Upgrade
+
+  See #Mysql::Tools::Upgrade::Program.
+
+*/
+
+/**
+  @page PAGE_PROTOCOL Client/Server Protocol
+
+  See #Protocol.
+
+*/
+
+/**
+  @page PAGE_SQL_EXECUTION SQL Query Execution
+
+  @section sql_query_exec_parsing SQL Parsing
+
+  The parser processes SQL strings and builds a tree representation of them.
+
+  See @ref GROUP_PARSER.
+
+  @subpage PAGE_SQL_Optimizer
+
+  @subpage stored_programs
+
+  @section sql_query_exec_prepared Prepared statements
+
+  See #mysql_stmt_prepare
+
+  @section func_stored_proc Stored procedures
+
+  See #sp_head, #sp_instr.
+
+  @section sql_query_exec_sql_functions SQL Functions
+
+  See #Item_func
+
+  @section sql_query_exec_error_handling Error handling
+
+  See #my_message, #my_error
+
+*/
+
+/**
+  @page PAGE_STORAGE Data Storage
+
+  @section storage_innodb Innodb
+
+  See #ha_innobase.
+
+*/
+
+
+/**
+  @page PAGE_REPLICATION Replication
+
+  @subpage PAGE_RPL_FIELD_METADATA
+
+*/
+
+/**
+  @page PAGE_TXN Transactions
+
+  See #trans_begin, #trans_commit, #trans_rollback.
+*/
+
+/**
+  @page PAGE_SECURITY Security
+
+  See #check_access.
+
+*/
+
+
+/**
+  @page PAGE_MONITORING Monitoring
+
+  @subpage PAGE_PFS
+*/
+
+/**
+  @page PAGE_EXTENDING Extending MySQL
+
+  @section extending_plugin Plugins
+
+  See #Sql_cmd_install_plugin, #Sql_cmd_uninstall_plugin.
+
+  @section extending_udf User Defined Functions
+
+  See #add_udf, #del_udf.
+*/
+
+
+/**
+  @page PAGE_CLIENT_TOOLS Client tools
+
+  See mysqldump.cc mysql.cc
+*/
+
+
+/**
+  @page PAGE_SQL_Optimizer SQL Optimizer
+
+  The task of query optimizer is to determine the most efficient means for
+  executing queries. The query optimizer consists of the following
+  sub-modules:
+
+  - @ref Query_Resolver
+  - @ref Query_Optimizer
+  - @ref Query_Planner
+  - @ref Query_Executor
+
+  @subpage PAGE_OPT_TRACE
+
+  Additional articles about the query optimizer:
+
+  - @ref PAGE_OPT_TRACE
+  - @ref AGGREGATE_CHECKS
 */
 
 #include "mysqld.h"
@@ -256,6 +432,9 @@ arg_cmp_func Arg_comparator::comparator_matrix[5][2] =
  {&Arg_comparator::compare_row,        &Arg_comparator::compare_e_row},
  {&Arg_comparator::compare_decimal,    &Arg_comparator::compare_e_decimal}};
 
+PSI_file_key key_file_binlog_cache;
+PSI_file_key key_file_binlog_index_cache;
+
 #ifdef HAVE_PSI_INTERFACE
 #ifndef EMBEDDED_LIBRARY
 static PSI_mutex_key key_LOCK_status;
@@ -405,8 +584,6 @@ my_bool show_compatibility_56= TRUE;
 ulong slow_start_timeout;
 #endif
 
-my_bool opt_bootstrap= 0;
-bool opt_install_server= false;
 my_bool opt_initialize= 0;
 my_bool opt_skip_slave_start = 0; ///< If set, slave is not autostarted
 my_bool opt_reckless_slave = 0;
@@ -832,9 +1009,9 @@ static void option_error_reporter(enum loglevel level, const char *format, ...)
   va_start(args, format);
 
   /*
-    Don't print warnings for --loose options during bootstrap or install-server
+    Don't print warnings for --loose options during initialize.
   */
-  if (level == ERROR_LEVEL || !(opt_bootstrap || opt_install_server) ||
+  if (level == ERROR_LEVEL || !opt_initialize ||
       (log_error_verbosity > 1))
   {
     error_log_print(level, format, args);
@@ -1250,7 +1427,7 @@ static void unireg_abort(int exit_code)
 #endif // !EMBEDDED_LIBRARY
 
   clean_up(!opt_help && (exit_code ||
-           !(opt_bootstrap || opt_install_server))); /* purecov: inspected */
+           !opt_initialize)); /* purecov: inspected */
   DBUG_PRINT("quit",("done with cleanup in unireg_abort"));
 #ifndef EMBEDDED_LIBRARY
   mysqld_exit(exit_code);
@@ -1484,6 +1661,7 @@ void clean_up(bool print_message)
   my_free(const_cast<char*>(relay_log_basename));
   my_free(const_cast<char*>(relay_log_index));
 #endif
+  free_list(opt_early_plugin_load_list_ptr);
   free_list(opt_plugin_load_list_ptr);
 
   if (THR_THD_initialized)
@@ -1616,7 +1794,7 @@ static struct passwd *check_user(const char *user)
   }
   if (!user)
   {
-    if (!(opt_bootstrap || opt_install_server) && !opt_help)
+    if (!opt_initialize && !opt_help)
     {
       sql_print_error("Fatal error: Please read \"Security\" section of the manual to find out how to run mysqld as root!\n");
       unireg_abort(MYSQLD_ABORT_EXIT);
@@ -1715,7 +1893,7 @@ static void set_root(const char *path)
 
 static bool network_init(void)
 {
-  if (opt_bootstrap || opt_install_server)
+  if (opt_initialize)
     return false;
 
   set_ports();
@@ -2444,6 +2622,7 @@ SHOW_VAR com_status_vars[]= {
   {"alter_db",             (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_DB]),                   SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_event",          (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_EVENT]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_function",       (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_FUNCTION]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+  {"alter_instance",       (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_INSTANCE]),             SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_procedure",      (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_PROCEDURE]),            SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_server",         (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_SERVER]),               SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
   {"alter_table",          (char*) offsetof(System_status_var, com_stat[(uint) SQLCOM_ALTER_TABLE]),                SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -2875,6 +3054,16 @@ int init_common_variables()
   compile_time_assert(sizeof(com_status_vars)/sizeof(com_status_vars[0]) - 1 ==
                      SQLCOM_END + 7);
 #endif
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
+  if (strlen(DEFAULT_EARLY_PLUGIN_LOAD))
+  {
+    i_string *default_early_plugin= new i_string(DEFAULT_EARLY_PLUGIN_LOAD);
+    opt_early_plugin_load_list_ptr->push_back(default_early_plugin);
+  }
+
+#endif /* NO_EMBEDDED_ACCESS_CHECKS */
 
   if (get_options(&remaining_argc, &remaining_argv))
     return 1;
@@ -3484,7 +3673,7 @@ int init_ssl()
         auto-generation disabled explcitly while SSL is still on.
       */
 #ifdef HAVE_YASSL
-      if (!opt_bootstrap || SSL_ARTIFACTS_NOT_FOUND != auto_detection_status)
+      if (!opt_initialize || SSL_ARTIFACTS_NOT_FOUND != auto_detection_status)
 #endif
       {
         sql_print_warning("Failed to set up SSL because of the"
@@ -3752,7 +3941,7 @@ initialize_storage_engine(char *se_name, const char *se_kind,
   }
   if (!ha_storage_engine_is_enabled(hton))
   {
-    if (!(opt_bootstrap || opt_install_server))
+    if (!opt_initialize)
     {
       sql_print_error("Default%s storage engine (%s) is not available",
                       se_kind, se_name);
@@ -4079,6 +4268,15 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   */
   tc_log= &tc_log_dummy;
 
+  /*Load early plugins */
+  if (plugin_register_early_plugins(&remaining_argc, remaining_argv,
+                                    opt_help ?
+                                      PLUGIN_INIT_SKIP_INITIALIZATION : 0))
+  {
+    sql_print_error("Failed to initialize early plugins.");
+    unireg_abort(1);
+  }
+
   /* Load builtin plugins, initialize MyISAM, CSV and InnoDB */
   if (plugin_register_builtin_and_init_core_se(&remaining_argc,
                                                remaining_argv))
@@ -4088,7 +4286,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   }
 
   /* Initialize DD, plugin_register_dynamic_and_init_all() needs it */
-  if (!opt_help && dd::init(opt_install_server))
+  if (!opt_help && dd::init(opt_initialize))
   {
     sql_print_error("Data Dictionary initialization failed.");
     unireg_abort(1);
@@ -4181,7 +4379,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
-  if (opt_bootstrap || opt_install_server)
+  if (opt_initialize)
     log_output_options= LOG_FILE;
 
   /*
@@ -4225,7 +4423,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
                                 &global_system_variables.temp_table_plugin))
     unireg_abort(MYSQLD_ABORT_EXIT);
 
-  if (!opt_bootstrap && !opt_noacl)
+  if (!opt_initialize && !opt_noacl)
   {
     std::string disabled_se_str(opt_disabled_storage_engines);
     ha_set_normalized_disabled_se_str(disabled_se_str);
@@ -4420,6 +4618,16 @@ static void test_lc_time_sz()
 }
 #endif//DBUG_OFF
 
+/*
+  @brief : Set opt_super_readonly to user supplied value before
+           enabling communication channels to accept user connections
+*/
+
+static void set_super_read_only_post_init()
+{
+  opt_super_readonly= super_read_only;
+}
+
 #ifdef _WIN32
 int win_main(int argc, char **argv)
 #else
@@ -4478,9 +4686,9 @@ int mysqld_main(int argc, char **argv)
 
 #if !defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
 
-  if (opt_bootstrap && opt_daemonize)
+  if (opt_initialize && opt_daemonize)
   {
-    fprintf(stderr, "Bootstrap and daemon options are incompatible.\n");
+    fprintf(stderr, "Initialize and daemon options are incompatible.\n");
     exit(MYSQLD_ABORT_EXIT);
   }
 
@@ -4516,8 +4724,9 @@ int mysqld_main(int argc, char **argv)
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   if (ho_error == 0)
   {
-    if (!opt_help && !(opt_bootstrap || opt_install_server))
+    if (!opt_help && !opt_initialize)
     {
+      int pfs_rc;
       /* Add sizing hints from the server sizing parameters. */
       pfs_param.m_hints.m_table_definition_cache= table_def_size;
       pfs_param.m_hints.m_table_open_cache= table_cache_size;
@@ -4525,8 +4734,21 @@ int mysqld_main(int argc, char **argv)
       pfs_param.m_hints.m_open_files_limit= requested_open_files;
       pfs_param.m_hints.m_max_prepared_stmt_count= max_prepared_stmt_count;
 
-      PSI_hook= initialize_performance_schema(&pfs_param);
-      if (PSI_hook == NULL && pfs_param.m_enabled)
+      pfs_rc= initialize_performance_schema(& pfs_param,
+                                            & psi_thread_hook,
+                                            & psi_mutex_hook,
+                                            & psi_rwlock_hook,
+                                            & psi_cond_hook,
+                                            & psi_file_hook,
+                                            & psi_socket_hook,
+                                            & psi_table_hook,
+                                            & psi_mdl_hook,
+                                            & psi_idle_hook,
+                                            & psi_stage_hook,
+                                            & psi_statement_hook,
+                                            & psi_transaction_hook,
+                                            & psi_memory_hook);
+      if ((pfs_rc != 0) && pfs_param.m_enabled)
       {
         pfs_param.m_enabled= false;
         sql_print_warning("Performance schema disabled (reason: init failed).");
@@ -4550,32 +4772,154 @@ int mysqld_main(int argc, char **argv)
     Obtain the current performance schema instrumentation interface,
     if available.
   */
-  if (PSI_hook)
+
+  if (psi_thread_hook != NULL)
   {
-    PSI *psi_server= (PSI*) PSI_hook->get_interface(PSI_CURRENT_VERSION);
-    if (likely(psi_server != NULL))
+    PSI_thread_service_t *service;
+    service= (PSI_thread_service_t*) psi_thread_hook->get_interface(PSI_CURRENT_THREAD_VERSION);
+    if (service != NULL)
     {
-      set_psi_server(psi_server);
-
-      /*
-        Now that we have parsed the command line arguments, and have initialized
-        the performance schema itself, the next step is to register all the
-        server instruments.
-      */
-      init_server_psi_keys();
-      /* Instrument the main thread */
-      PSI_thread *psi= PSI_THREAD_CALL(new_thread)(key_thread_main, NULL, 0);
-      PSI_THREAD_CALL(set_thread_os_id)(psi);
-      PSI_THREAD_CALL(set_thread)(psi);
-
-      /*
-        Now that some instrumentation is in place,
-        recreate objects which were initialised early,
-        so that they are instrumented as well.
-      */
-      my_thread_global_reinit();
+      set_psi_thread_service(service);
     }
   }
+
+  if (psi_mutex_hook != NULL)
+  {
+    PSI_mutex_service_t *service;
+    service= (PSI_mutex_service_t*) psi_mutex_hook->get_interface(PSI_CURRENT_MUTEX_VERSION);
+    if (service != NULL)
+    {
+      set_psi_mutex_service(service);
+    }
+  }
+
+  if (psi_rwlock_hook != NULL)
+  {
+    PSI_rwlock_service_t *service;
+    service= (PSI_rwlock_service_t*) psi_rwlock_hook->get_interface(PSI_CURRENT_RWLOCK_VERSION);
+    if (service != NULL)
+    {
+      set_psi_rwlock_service(service);
+    }
+  }
+
+  if (psi_cond_hook != NULL)
+  {
+    PSI_cond_service_t *service;
+    service= (PSI_cond_service_t*) psi_cond_hook->get_interface(PSI_CURRENT_COND_VERSION);
+    if (service != NULL)
+    {
+      set_psi_cond_service(service);
+    }
+  }
+
+  if (psi_file_hook != NULL)
+  {
+    PSI_file_service_t *service;
+    service= (PSI_file_service_t*) psi_file_hook->get_interface(PSI_CURRENT_FILE_VERSION);
+    if (service != NULL)
+    {
+      set_psi_file_service(service);
+    }
+  }
+
+  if (psi_socket_hook != NULL)
+  {
+    PSI_socket_service_t *service;
+    service= (PSI_socket_service_t*) psi_socket_hook->get_interface(PSI_CURRENT_SOCKET_VERSION);
+    if (service != NULL)
+    {
+      set_psi_socket_service(service);
+    }
+  }
+
+  if (psi_table_hook != NULL)
+  {
+    PSI_table_service_t *service;
+    service= (PSI_table_service_t*) psi_table_hook->get_interface(PSI_CURRENT_TABLE_VERSION);
+    if (service != NULL)
+    {
+      set_psi_table_service(service);
+    }
+  }
+
+  if (psi_mdl_hook != NULL)
+  {
+    PSI_mdl_service_t *service;
+    service= (PSI_mdl_service_t*) psi_mdl_hook->get_interface(PSI_CURRENT_MDL_VERSION);
+    if (service != NULL)
+    {
+      set_psi_mdl_service(service);
+    }
+  }
+
+  if (psi_idle_hook != NULL)
+  {
+    PSI_idle_service_t *service;
+    service= (PSI_idle_service_t*) psi_idle_hook->get_interface(PSI_CURRENT_IDLE_VERSION);
+    if (service != NULL)
+    {
+      set_psi_idle_service(service);
+    }
+  }
+
+  if (psi_stage_hook != NULL)
+  {
+    PSI_stage_service_t *service;
+    service= (PSI_stage_service_t*) psi_stage_hook->get_interface(PSI_CURRENT_STAGE_VERSION);
+    if (service != NULL)
+    {
+      set_psi_stage_service(service);
+    }
+  }
+
+  if (psi_statement_hook != NULL)
+  {
+    PSI_statement_service_t *service;
+    service= (PSI_statement_service_t*) psi_statement_hook->get_interface(PSI_CURRENT_STATEMENT_VERSION);
+    if (service != NULL)
+    {
+      set_psi_statement_service(service);
+    }
+  }
+
+  if (psi_transaction_hook != NULL)
+  {
+    PSI_transaction_service_t *service;
+    service= (PSI_transaction_service_t*) psi_transaction_hook->get_interface(PSI_CURRENT_TRANSACTION_VERSION);
+    if (service != NULL)
+    {
+      set_psi_transaction_service(service);
+    }
+  }
+
+  if (psi_memory_hook != NULL)
+  {
+    PSI_memory_service_t *service;
+    service= (PSI_memory_service_t*) psi_memory_hook->get_interface(PSI_CURRENT_MEMORY_VERSION);
+    if (service != NULL)
+    {
+      set_psi_memory_service(service);
+    }
+  }
+
+  /*
+    Now that we have parsed the command line arguments, and have initialized
+    the performance schema itself, the next step is to register all the
+    server instruments.
+  */
+  init_server_psi_keys();
+  /* Instrument the main thread */
+  PSI_thread *psi= PSI_THREAD_CALL(new_thread)(key_thread_main, NULL, 0);
+  PSI_THREAD_CALL(set_thread_os_id)(psi);
+  PSI_THREAD_CALL(set_thread)(psi);
+
+  /*
+    Now that some instrumentation is in place,
+    recreate objects which were initialised early,
+    so that they are instrumented as well.
+  */
+  my_thread_global_reinit();
 #endif /* HAVE_PSI_INTERFACE */
 
   init_error_log();
@@ -4903,7 +5247,7 @@ int mysqld_main(int argc, char **argv)
 #ifndef EMBEDDED_LIBRARY
   if (opt_require_secure_transport &&
       !opt_enable_shared_memory && !opt_use_ssl &&
-      !opt_initialize && !opt_bootstrap)
+      !opt_initialize)
   {
     sql_print_error("Server is started with --require-secure-transport=ON "
                     "but no secure transports (SSL or Shared Memory) are "
@@ -4924,16 +5268,16 @@ int mysqld_main(int argc, char **argv)
   error_handler_hook= my_message_sql;
 
   /* Save pid of this process in a file */
-  if (!(opt_bootstrap || opt_install_server))
+  if (!opt_initialize)
     create_pid_file();
 
 
   /* Read the optimizer cost model configuration tables */
-  if (!(opt_bootstrap || opt_install_server))
+  if (!opt_initialize)
     reload_optimizer_cost_constants();
 
   if (mysql_rm_tmp_tables() || acl_init(opt_noacl) ||
-      my_tz_init((THD *)0, default_tz_name, opt_bootstrap || opt_install_server) ||
+      my_tz_init((THD *)0, default_tz_name, opt_initialize) ||
       grant_init(opt_noacl))
   {
     set_connection_events_loop_aborted(true);
@@ -4943,7 +5287,7 @@ int mysqld_main(int argc, char **argv)
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
-  if (!(opt_bootstrap || opt_install_server))
+  if (!opt_initialize)
     servers_init(0);
 
   if (!opt_noacl)
@@ -4952,8 +5296,8 @@ int mysqld_main(int argc, char **argv)
   }
 
   init_status_vars();
-  /* If running with bootstrap or install-server, do not start replication. */
-  if (opt_bootstrap || opt_install_server)
+  /* If running with --initialize, do not start replication. */
+  if (opt_initialize)
     opt_skip_slave_start= 1;
 
   check_binlog_cache_size(NULL);
@@ -4961,8 +5305,8 @@ int mysqld_main(int argc, char **argv)
 
   binlog_unsafe_map_init();
 
-  /* If running with bootstrap or install-server, do not start replication. */
-  if (!(opt_bootstrap || opt_install_server))
+  /* If running with --initialize, do not start replication. */
+  if (!opt_initialize)
   {
     // Make @@slave_skip_errors show the nice human-readable value.
     set_slave_skip_errors(&opt_slave_skip_errors);
@@ -4975,14 +5319,14 @@ int mysqld_main(int argc, char **argv)
   }
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-  initialize_performance_schema_acl((opt_bootstrap || opt_install_server));
+  initialize_performance_schema_acl(opt_initialize);
   /*
     Do not check the structure of the performance schema tables
     during bootstrap:
     - the tables are not supposed to exist yet, bootstrap will create them
     - a check would print spurious error messages
   */
-  if (!(opt_bootstrap || opt_install_server))
+  if (!opt_initialize)
     check_performance_schema();
 #endif
 
@@ -4991,7 +5335,7 @@ int mysqld_main(int argc, char **argv)
   execute_ddl_log_recovery();
   (void) RUN_HOOK(server_state, after_recovery, (NULL));
 
-  if (Events::init(opt_noacl || opt_bootstrap || opt_install_server))
+  if (Events::init(opt_noacl || opt_initialize))
     unireg_abort(MYSQLD_ABORT_EXIT);
 
 #ifndef _WIN32
@@ -4999,7 +5343,7 @@ int mysqld_main(int argc, char **argv)
   start_signal_handler();
 #endif
 
-  if (opt_bootstrap || opt_install_server)
+  if (opt_initialize)
   {
     // Make sure we can process SIGHUP during bootstrap.
     server_components_initialized();
@@ -5024,8 +5368,7 @@ int mysqld_main(int argc, char **argv)
                         my_progname,
                         server_version,
 #ifdef HAVE_SYS_UN_H
-                        ((opt_bootstrap || opt_install_server) ?
-                          (char*) "" : mysqld_unix_port),
+                        (opt_initialize ? (char*) "" : mysqld_unix_port),
 #else
                         (char*) "",
 #endif
@@ -5046,6 +5389,13 @@ int mysqld_main(int argc, char **argv)
                       opt_ndb_wait_setup);
   }
 #endif
+
+  /*
+    Set opt_super_readonly here because if opt_super_readonly is set
+    in get_option, it will create problem while setting up event scheduler.
+  */
+  set_super_read_only_post_init();
+
   (void) RUN_HOOK(server_state, before_handle_connection, (NULL));
 
   DBUG_PRINT("info", ("Block, listening for incoming connections"));
@@ -5415,25 +5765,8 @@ int handle_early_options()
     remaining_argc++;
     remaining_argv--;
 
-    /* adjust the bootstrap options */
-    if (opt_bootstrap)
-    {
-      sql_print_warning("--bootstrap is deprecated. "
-                        "Please consider using --initialize instead");
-    }
     if (opt_initialize_insecure)
       opt_initialize= TRUE;
-    if (opt_initialize)
-    {
-      if (opt_bootstrap)
-      {
-        sql_print_error("Both --bootstrap and --initialize specified."
-                        " Please pick one. Exiting.");
-        ho_error= EXIT_AMBIGUOUS_OPTION;
-      }
-      opt_bootstrap= TRUE;
-      opt_install_server= true;
-    }
   }
 
   // Swap with an empty vector, i.e. delete elements and free allocated space.
@@ -5546,9 +5879,9 @@ static void adjust_table_def_size()
 void adjust_related_options(ulong *requested_open_files)
 {
   /*
-    In bootstrap or install-server, disable grant tables (about to be created)
+    In bootstrap, disable grant tables (about to be created)
   */
-  if (opt_bootstrap || opt_install_server)
+  if (opt_initialize)
     opt_noacl= 1;
 
   /* The order is critical here, because of dependencies. */
@@ -5562,8 +5895,6 @@ vector<my_option> all_options;
 
 struct my_option my_long_early_options[]=
 {
-  {"bootstrap", OPT_BOOTSTRAP, "Used by mysql installation scripts.", 0, 0, 0,
-   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #if !defined(_WIN32) && !defined(EMBEDDED_LIBRARY)
   {"daemonize", 0, "Run mysqld as sysv daemon", &opt_daemonize,
     &opt_daemonize, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,0},
@@ -5575,9 +5906,6 @@ struct my_option my_long_early_options[]=
   {"help", '?', "Display this help and exit.",
    &opt_help, &opt_help, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
-  {"install-server", OPT_INSTALL_SERVER,
-   "Install the data dictionary for a new server instance.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Used with --help option for detailed help.",
    &opt_verbose, &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
@@ -5929,6 +6257,12 @@ struct my_option my_long_options[]=
    GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "Run mysqld daemon as user.", 0, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
+  {"early-plugin-load", OPT_EARLY_PLUGIN_LOAD,
+   "Optional semicolon-separated list of plugins to load before storage engine "
+   "initialization, where each plugin is identified as name=library, where "
+   "name is the plugin name and library is the plugin library in plugin_dir.",
+   0, 0, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"plugin-load", OPT_PLUGIN_LOAD,
    "Optional semicolon-separated list of plugins to load, where each plugin is "
    "identified as name=library, where name is the plugin name and library "
@@ -7354,12 +7688,6 @@ mysqld_get_one_option(int optid,
   case (int) OPT_SKIP_STACK_TRACE:
     test_flags|=TEST_NO_STACKTRACE;
     break;
-  case OPT_BOOTSTRAP:
-    opt_bootstrap= 1;
-    break;
-  case OPT_INSTALL_SERVER:
-    opt_install_server= true;
-    break;
   case OPT_SERVER_ID:
     /*
      Consider that one received a Server Id when 2 conditions are present:
@@ -7412,7 +7740,10 @@ mysqld_get_one_option(int optid,
     }
     break;
 
-
+  case OPT_EARLY_PLUGIN_LOAD:
+    free_list(opt_early_plugin_load_list_ptr);
+    opt_early_plugin_load_list_ptr->push_back(new i_string(argument));
+    break;
   case OPT_PLUGIN_LOAD:
     free_list(opt_plugin_load_list_ptr);
     /* fall through */
@@ -7664,14 +7995,14 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   sys_var_add_options(&all_options, sys_var::PARSE_NORMAL);
   add_terminator(&all_options);
 
-  if (opt_help || opt_bootstrap || opt_install_server)
+  if (opt_help || opt_initialize)
   {
     /*
       Show errors during --help, but gag everything else so the info the
       user actually wants isn't lost in the spam.  (For --help --verbose,
       we need to set up far enough to be able to print variables provided
       by plugins, so a good number of warnings/notes might get printed.)
-      Likewise for --bootstrap.
+      Likewise for --initialize.
     */
     struct my_option *opt= &all_options[0];
     for (; opt->name; opt++)
@@ -7838,6 +8169,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
     return 1;
   }
 
+  /* If --super-read-only was specified, set read_only to 1 */
+  read_only= super_read_only ? super_read_only : read_only;
   opt_readonly= read_only;
 
   return 0;
@@ -7966,7 +8299,7 @@ bool is_secure_file_path(char *path)
   check_secure_file_priv_path : Checks path specified through
   --secure-file-priv and raises warning in following cases:
   1. If path is empty string or NULL and mysqld is not running
-     with --bootstrap or --install-server mode.
+     with --initialize (bootstrap mode).
   2. If path can access data directory
   3. If path points to a directory which is accessible by
      all OS users (non-Windows build only)
@@ -8002,15 +8335,14 @@ static bool check_secure_file_priv_path()
 
   if (!opt_secure_file_priv[0])
   {
-    if (opt_bootstrap || opt_install_server)
+    if (opt_initialize)
     {
       /*
         Do not impose --secure-file-priv restriction
-        in --bootstrap or --install_server mode
+        in bootstrap mode
       */
       sql_print_information("Ignoring --secure-file-priv value as server is "
-                            "running with --initialize(-insecure), "
-                            "--bootstrap or --install-server.");
+                            "running with --initialize(-insecure).");
     }
     else
     {
@@ -8195,7 +8527,7 @@ static int fix_paths(void)
     Convert the secure-file-priv option to system format, allowing
     a quick strcmp to check if read or write is in an allowed dir
   */
-  if (opt_bootstrap || opt_install_server)
+  if (opt_initialize)
     opt_secure_file_priv= EMPTY_STR.str;
   secure_file_priv_nonempty= opt_secure_file_priv[0] ? true : false;
 
@@ -8327,8 +8659,7 @@ static void create_pid_file()
 static void delete_pid_file(myf flags)
 {
   File file;
-  if (opt_bootstrap || opt_install_server ||
-      !pid_file_created ||
+  if (opt_initialize || !pid_file_created ||
       !(file= mysql_file_open(key_file_pid, pidfile_name,
                               O_RDONLY, flags)))
     return;
@@ -8696,7 +9027,6 @@ PSI_thread_key key_thread_one_connection;
 PSI_thread_key key_thread_compress_gtid_table;
 PSI_thread_key key_thread_parser_service;
 PSI_thread_key key_thread_daemon_plugin;
-PSI_thread_key key_thread_timer_notifier;
 
 #ifndef EMBEDDED_LIBRARY
 static PSI_thread_info all_server_threads[]=
@@ -8707,7 +9037,6 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_handle_con_sockets, "con_sockets", PSI_FLAG_GLOBAL},
   { &key_thread_handle_shutdown, "shutdown", PSI_FLAG_GLOBAL},
 #endif /* _WIN32 && !EMBEDDED_LIBRARY */
-  { &key_thread_timer_notifier, "thread_timer_notifier", PSI_FLAG_GLOBAL},
   { &key_thread_bootstrap, "bootstrap", PSI_FLAG_GLOBAL},
   { &key_thread_handle_manager, "manager", PSI_FLAG_GLOBAL},
   { &key_thread_main, "main", PSI_FLAG_GLOBAL},
@@ -8720,9 +9049,7 @@ static PSI_thread_info all_server_threads[]=
 #endif // !EMBEDDED_LIBRARY
 
 PSI_file_key key_file_binlog;
-PSI_file_key key_file_binlog_cache;
 PSI_file_key key_file_binlog_index;
-PSI_file_key key_file_binlog_index_cache;
 PSI_file_key key_file_dbopt;
 PSI_file_key key_file_des_key_file;
 PSI_file_key key_file_ERRMSG;

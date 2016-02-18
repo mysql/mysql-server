@@ -27,15 +27,13 @@
 #ifndef _mysql_h
 #define _mysql_h
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
-
 #ifndef MY_GLOBAL_INCLUDED                /* If not standard header */
 #ifndef MYSQL_ABI_CHECK
 #include <sys/types.h>
 #endif
+
 typedef char my_bool;
+
 #if !defined(_WIN32)
 #define STDCALL
 #else
@@ -55,6 +53,7 @@ typedef int my_socket;
 #endif /* my_socket_defined */
 #endif /* MY_GLOBAL_INCLUDED */
 
+
 #include "mysql_version.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
@@ -63,6 +62,14 @@ typedef int my_socket;
 
 /* Include declarations of plug-in API */
 #include "mysql/client_plugin.h"
+
+#include "typelib.h"
+
+#include "my_alloc.h"
+
+#ifdef	__cplusplus
+extern "C" {
+#endif
 
 extern unsigned int mysql_port;
 extern char *mysql_unix_port;
@@ -117,8 +124,6 @@ typedef unsigned long long my_ulonglong;
 #endif
 #endif
 
-#include "typelib.h"
-
 #define MYSQL_COUNT_ERROR (~(my_ulonglong) 0)
 
 /* backward compatibility define - to be removed eventually */
@@ -131,8 +136,6 @@ typedef struct st_mysql_rows {
 } MYSQL_ROWS;
 
 typedef MYSQL_ROWS *MYSQL_ROW_OFFSET;	/* offset to current row */
-
-#include "my_alloc.h"
 
 typedef struct embedded_query_result EMBEDDED_QUERY_RESULT;
 typedef struct st_mysql_data {
@@ -435,9 +438,6 @@ mysql_set_local_infile_handler(MYSQL *mysql,
 void
 mysql_set_local_infile_default(MYSQL *mysql);
 
-int		STDCALL mysql_shutdown(MYSQL *mysql,
-                                       enum mysql_enum_shutdown_level
-                                       shutdown_level);
 int		STDCALL mysql_dump_debug_info(MYSQL *mysql);
 int		STDCALL mysql_refresh(MYSQL *mysql,
 				     unsigned int refresh_options);

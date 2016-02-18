@@ -91,10 +91,8 @@ CALL clear_transaction_tables();
 --connection con1
 SELECT @@global.tx_isolation;
 SELECT @@global.autocommit;
-SELECT @@global.binlog_format;
 SELECT @@tx_isolation;
 SELECT @@autocommit;
-SELECT @@binlog_format;
 
 --echo
 --echo # STEP 2.1 - START/COMMIT

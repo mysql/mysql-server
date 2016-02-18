@@ -1,6 +1,9 @@
 # Author: Horst Hunger
 # Created: 2010-07-13
 
+# Skipping the test with log-bin enabled due to Bug#22646741
+--source include/not_log_bin.inc
+
 --source include/have_partition.inc
 
 let $engine_table= MyISAM;

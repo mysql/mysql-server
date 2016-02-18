@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify it under
    the terms of the GNU General Public License as published by
@@ -60,7 +60,7 @@ public:
 
   virtual bool store_children(Open_dictionary_tables_ctx *otx);
 
-  virtual bool drop_children(Open_dictionary_tables_ctx *otx);
+  virtual bool drop_children(Open_dictionary_tables_ctx *otx) const;
 
   virtual bool restore_attributes(const Raw_record &r);
 
@@ -302,13 +302,11 @@ private:
   Object_id m_collation_id;
   Object_id m_tablespace_id;
 
-#ifndef DBUG_OFF
   Table_impl(const Table_impl &src);
   Table_impl *clone() const
   {
     return new Table_impl(*this);
   }
-#endif /* !DBUG_OFF */
 };
 
 ///////////////////////////////////////////////////////////////////////////

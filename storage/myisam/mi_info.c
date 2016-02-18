@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -85,7 +85,7 @@ int mi_status(MI_INFO *info, MI_ISAMINFO *x, uint flag)
     x->data_file_name   = share->data_file_name;
     x->index_file_name  = share->index_file_name;
   }
-  if ((flag & HA_STATUS_TIME) && !mysql_file_fstat(info->dfile, &state, MYF(0)))
+  if ((flag & HA_STATUS_TIME) && !mysql_file_fstat(info->dfile, &state))
     x->update_time=state.st_mtime;
   else
     x->update_time=0;

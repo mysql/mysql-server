@@ -1,7 +1,7 @@
 #ifndef ITEM_STRFUNC_INCLUDED
 #define ITEM_STRFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -126,7 +126,7 @@ class Item_func_md5 :public Item_str_ascii_func
 public:
   Item_func_md5(const POS &pos, Item *a) :Item_str_ascii_func(pos, a) {}
   String *val_str_ascii(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "md5"; }
 };
 
@@ -136,7 +136,7 @@ class Item_func_sha :public Item_str_ascii_func
 public:
   Item_func_sha(const POS &pos, Item *a) :Item_str_ascii_func(pos, a) {}
   String *val_str_ascii(String *);    
-  void fix_length_and_dec();      
+  virtual bool resolve_type(THD *thd);      
   const char *func_name() const { return "sha"; }	
 };
 
@@ -147,7 +147,7 @@ public:
     :Item_str_ascii_func(pos, a, b)
   {}
   String *val_str_ascii(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "sha2"; }
 };
 
@@ -157,7 +157,7 @@ class Item_func_to_base64 :public Item_str_ascii_func
 public:
   Item_func_to_base64(const POS &pos, Item *a) :Item_str_ascii_func(pos, a) {}
   String *val_str_ascii(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "to_base64"; }
 };
 
@@ -167,7 +167,7 @@ class Item_func_from_base64 :public Item_str_func
 public:
   Item_func_from_base64(const POS &pos, Item *a) :Item_str_func(pos, a) {}
   String *val_str(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "from_base64"; }
 };
 
@@ -185,7 +185,7 @@ public:
 
   virtual bool itemize(Parse_context *pc, Item **res);
   String *val_str(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "aes_encrypt"; }
 };
 
@@ -202,7 +202,7 @@ public:
 
   virtual bool itemize(Parse_context *pc, Item **res);
   String *val_str(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "aes_decrypt"; }
 };
 
@@ -218,7 +218,7 @@ public:
   {}
 
   virtual bool itemize(Parse_context *pc, Item **res);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   String *val_str(String *a);
 
   const char *func_name() const
@@ -240,7 +240,7 @@ public:
   Item_func_concat(const POS &pos, Item *a,Item *b) :Item_str_func(pos, a,b) {}
 
   String *val_str(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "concat"; }
 };
 
@@ -253,7 +253,7 @@ public:
     :Item_str_func(pos, opt_list)
   {}
   String *val_str(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "concat_ws"; }
   table_map not_null_tables() const { return 0; }
 };
@@ -266,7 +266,7 @@ public:
   Item_func_reverse(const POS &pos, Item *a) :Item_str_func(pos, a) {}
 
   String *val_str(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "reverse"; }
 };
 
@@ -281,7 +281,7 @@ public:
     :Item_str_func(pos, org,find,replace)
   {}
   String *val_str(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "replace"; }
 };
 
@@ -297,7 +297,7 @@ public:
     :Item_str_func(pos, org,start,length,new_str)
   {}
   String *val_str(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "insert"; }
 };
 
@@ -319,7 +319,7 @@ class Item_func_lower :public Item_str_conv
 public:
   Item_func_lower(const POS &pos, Item *item) :Item_str_conv(pos, item) {}
   const char *func_name() const { return "lower"; }
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
 };
 
 class Item_func_upper :public Item_str_conv
@@ -327,7 +327,7 @@ class Item_func_upper :public Item_str_conv
 public:
   Item_func_upper(const POS &pos, Item *item) :Item_str_conv(pos, item) {}
   const char *func_name() const { return "upper"; }
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
 };
 
 
@@ -337,7 +337,7 @@ class Item_func_left :public Item_str_func
 public:
   Item_func_left(const POS &pos, Item *a,Item *b) :Item_str_func(pos, a,b) {}
   String *val_str(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "left"; }
 };
 
@@ -348,7 +348,7 @@ class Item_func_right :public Item_str_func
 public:
   Item_func_right(const POS &pos, Item *a,Item *b) :Item_str_func(pos, a,b) {}
   String *val_str(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "right"; }
 };
 
@@ -367,7 +367,7 @@ public:
   {}
 
   String *val_str(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "substr"; }
 };
 
@@ -380,7 +380,7 @@ public:
     :Item_str_func(pos, a, b, c)
   {}
   String *val_str(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "substring_index"; }
 };
 
@@ -450,7 +450,7 @@ public:
   }
 
   String *val_str(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const
   {
     switch(m_trim_mode) {
@@ -487,7 +487,7 @@ public:
     m_recalculate_password= false;
   }
   String *val_str_ascii(String *str);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "password"; }
   static char *create_password_hash_buffer(THD *thd, const char *password,
                                            size_t pass_len);
@@ -503,11 +503,12 @@ public:
     : Item_str_func(pos, a, b)
   {}
   String *val_str(String *);
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
-    maybe_null=1;
+    maybe_null= true;
     /* 9 = MAX ((8- (arg_len % 8)) + 1) */
     max_length = args[0]->max_length + 9;
+    return false;
   }
   const char *func_name() const { return "des_encrypt"; }
 };
@@ -521,13 +522,14 @@ public:
     : Item_str_func(pos, a, b)
   {}
   String *val_str(String *);
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
-    maybe_null=1;
+    maybe_null= true;
     /* 9 = MAX ((8- (arg_len % 8)) + 1) */
     max_length= args[0]->max_length;
     if (max_length >= 9U)
       max_length-= 9U;
+    return false;
   }
   const char *func_name() const { return "des_decrypt"; }
 };
@@ -555,7 +557,12 @@ public:
 
   virtual bool itemize(Parse_context *pc, Item **res);
   String *val_str(String *);
-  void fix_length_and_dec() { maybe_null=1; max_length = 13; }
+  virtual bool resolve_type(THD *thd)
+  {
+    maybe_null= true;
+    max_length= 13;
+    return false;
+  }
   const char *func_name() const { return "encrypt"; }
   bool check_gcol_func_processor(uchar *int_arg)
   { return true; }
@@ -578,7 +585,7 @@ public:
     :Item_str_func(pos, a, seed)
   {}
   String *val_str(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "encode"; }
 protected:
   virtual void crypto_transform(String *);
@@ -632,10 +639,11 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
 
   String *val_str(String *);
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
     max_length= MAX_FIELD_NAME * system_charset_info->mbmaxlen;
-    maybe_null=1;
+    maybe_null= true;
+    return false;
   }
   const char *func_name() const { return "database"; }
   const Name_string fully_qualified_func_name() const
@@ -672,10 +680,11 @@ public:
     return (null_value ? 0 : &str_value);
   }
   bool fix_fields(THD *thd, Item **ref);
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
     max_length= (USERNAME_LENGTH +
                  (HOSTNAME_LENGTH + 1) * SYSTEM_CHARSET_MBMAXLEN);
+    return false;
   }
   const char *func_name() const { return "user"; }
   const Name_string fully_qualified_func_name() const
@@ -708,7 +717,7 @@ public:
   Item_func_soundex(Item *a) :Item_str_func(a) {}
   Item_func_soundex(const POS &pos, Item *a) :Item_str_func(pos, a) {}
   String *val_str(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "soundex"; }
 };
 
@@ -774,7 +783,7 @@ public:
     upper_limit_output_length(100)
   {}
   String *val_str_ascii(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   bool fix_fields(THD *thd, Item **ref);
   const char *func_name() const { return "st_geohash"; }
   char char_to_base32(char char_input);
@@ -795,7 +804,7 @@ public:
   double val_real();
   longlong val_int();
   String *val_str(String *str);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "elt"; }
 };
 
@@ -825,7 +834,7 @@ public:
   }
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,
                       List<Item> &fields);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   void update_used_tables();
   const char *func_name() const { return "make_set"; }
 
@@ -862,7 +871,7 @@ public:
   
   MY_LOCALE *get_locale(Item *item);
   String *val_str_ascii(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "format"; }
   virtual void print(String *str, enum_query_type query_type);
 };
@@ -877,9 +886,10 @@ public:
     : Item_str_func(pos, list)
   { collation.set(cs); }  
   String *val_str(String *);
-  void fix_length_and_dec() 
+  virtual bool resolve_type(THD *thd) 
   {
     max_length= arg_count * 4;
+    return false;
   }
   const char *func_name() const { return "char"; }
 };
@@ -893,7 +903,7 @@ public:
     :Item_str_func(pos, arg1,arg2)
   {}
   String *val_str(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "repeat"; }
 };
 
@@ -903,7 +913,7 @@ class Item_func_space :public Item_str_func
 public:
   Item_func_space(const POS &pos, Item *arg1) :Item_str_func(pos, arg1) {}
   String *val_str(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "space"; }
 };
 
@@ -916,7 +926,7 @@ public:
     :Item_str_func(pos, arg1, arg2, arg3)
   {}
   String *val_str(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "rpad"; }
 };
 
@@ -929,7 +939,7 @@ public:
     :Item_str_func(pos , arg1, arg2, arg3)
   {}
   String *val_str(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "lpad"; }
 };
 
@@ -942,7 +952,7 @@ public:
   {}
   const char *func_name() const { return "conv"; }
   String *val_str(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
 };
 
 
@@ -953,11 +963,12 @@ public:
   Item_func_hex(const POS &pos, Item *a) :Item_str_ascii_func(pos, a) {}
   const char *func_name() const { return "hex"; }
   String *val_str_ascii(String *);
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
     collation.set(default_charset());
     decimals=0;
     fix_char_length(args[0]->max_length * 2);
+    return false;
   }
 };
 
@@ -972,11 +983,12 @@ public:
   }
   const char *func_name() const { return "unhex"; }
   String *val_str(String *);
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
     collation.set(&my_charset_bin);
     decimals=0;
     max_length=(1+args[0]->max_length)/2;
+    return false;
   }
 };
 
@@ -993,11 +1005,12 @@ public:
     :Item_str_func(pos, a, b), is_min(is_min_arg)
   { maybe_null= 1; }
   String *val_str(String *);
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
     collation.set(args[0]->collation);
     decimals=0;
     max_length= MAX_BLOB_WIDTH;
+    return false;
   }
 };
 
@@ -1040,7 +1053,7 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   const char *func_name() const { return "cast_as_char"; }
   String *val_str(String *a);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   virtual void print(String *str, enum_query_type query_type);
 };
 
@@ -1058,10 +1071,11 @@ public:
       tmp->set_charset(&my_charset_bin);
     return tmp;
   }
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
     collation.set(&my_charset_bin);
     max_length=args[0]->max_length;
+    return false;
   }
   virtual void print(String *str, enum_query_type query_type);
   const char *func_name() const { return "cast_as_binary"; }
@@ -1080,11 +1094,12 @@ public:
   virtual bool itemize(Parse_context *pc, Item **res);
   String *val_str(String *);
   const char *func_name() const { return "load_file"; }
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
     collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
-    maybe_null=1;
-    max_length=MAX_BLOB_WIDTH;
+    maybe_null= true;
+    max_length= MAX_BLOB_WIDTH;
+    return false;
   }
   bool check_gcol_func_processor(uchar *int_arg)
   { return true; }
@@ -1105,7 +1120,7 @@ class Item_func_export_set: public Item_str_func
     :Item_str_func(pos, a, b, c, d, e)
   {}
   String  *val_str(String *str);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "export_set"; }
 };
 
@@ -1116,12 +1131,13 @@ public:
   Item_func_quote(const POS &pos, Item *a) :Item_str_func(pos, a) {}
   const char *func_name() const { return "quote"; }
   String *val_str(String *);
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
     collation.set(args[0]->collation);
     ulong max_result_length= (ulong) args[0]->max_length * 2 +
                                   2 * collation.collation->mbmaxlen;
     max_length= std::min<ulong>(max_result_length, MAX_BLOB_WIDTH);
+    return false;
   }
 };
 
@@ -1166,7 +1182,7 @@ public:
     }
   }
   String *val_str(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "convert"; }
   virtual void print(String *str, enum_query_type query_type);
 };
@@ -1184,7 +1200,7 @@ public:
 
   virtual bool itemize(Parse_context *pc, Item **res);
   String *val_str(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   bool eq(const Item *item, bool binary_cmp) const;
   const char *func_name() const { return "collate"; }
   enum Functype functype() const { return COLLATE_FUNC; }
@@ -1202,11 +1218,12 @@ public:
   Item_func_charset(const POS &pos, Item *a) :Item_str_func(pos, a) {}
   String *val_str(String *);
   const char *func_name() const { return "charset"; }
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
      collation.set(system_charset_info);
      max_length= 64 * collation.collation->mbmaxlen; // should be enough
-     maybe_null= 0;
+     maybe_null= false;
+     return false;
   };
   table_map not_null_tables() const { return 0; }
 };
@@ -1217,11 +1234,12 @@ public:
   Item_func_collation(const POS &pos, Item *a) :Item_str_func(pos, a) {}
   String *val_str(String *);
   const char *func_name() const { return "collation"; }
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
      collation.set(system_charset_info);
      max_length= 64 * collation.collation->mbmaxlen; // should be enough
-     maybe_null= 0;
+     maybe_null= false;
+     return false;
   };
   table_map not_null_tables() const { return 0; }
 };
@@ -1252,7 +1270,7 @@ public:
   const char *func_name() const { return "weight_string"; }
   bool eq(const Item *item, bool binary_cmp) const;
   String *val_str(String *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   virtual void print(String *str, enum_query_type query_type);
 };
 
@@ -1263,7 +1281,11 @@ public:
   Item_func_crc32(const POS &pos, Item *a) :Item_int_func(pos, a)
   { unsigned_flag= 1; }
   const char *func_name() const { return "crc32"; }
-  void fix_length_and_dec() { max_length=10; }
+  virtual bool resolve_type(THD *thd)
+  {
+    max_length= 10;
+    return false;
+  }
   longlong val_int();
 };
 
@@ -1274,7 +1296,11 @@ public:
   Item_func_uncompressed_length(const POS &pos, Item *a) :Item_int_func(pos, a)
   {}
   const char *func_name() const{return "uncompressed_length";}
-  void fix_length_and_dec() { max_length=10; }
+  virtual bool resolve_type(THD *thd)
+  {
+    max_length= 10;
+    return false;
+  }
   longlong val_int();
 };
 
@@ -1283,7 +1309,11 @@ class Item_func_compress: public Item_str_func
   String buffer;
 public:
   Item_func_compress(const POS &pos, Item *a):Item_str_func(pos, a){}
-  void fix_length_and_dec(){max_length= (args[0]->max_length*120)/100+12;}
+  virtual bool resolve_type(THD *thd)
+  {
+    max_length= (args[0]->max_length*120)/100+12;
+    return false;
+  }
   const char *func_name() const{return "compress";}
   String *val_str(String *str);
 };
@@ -1293,7 +1323,12 @@ class Item_func_uncompress: public Item_str_func
   String buffer;
 public:
   Item_func_uncompress(const POS &pos, Item *a): Item_str_func(pos, a) {}
-  void fix_length_and_dec(){ maybe_null= 1; max_length= MAX_BLOB_WIDTH; }
+  virtual bool resolve_type(THD *thd)
+  {
+    maybe_null= true;
+    max_length= MAX_BLOB_WIDTH;
+    return false;
+  }
   const char *func_name() const{return "uncompress";}
   String *val_str(String * str);
 };
@@ -1307,7 +1342,7 @@ public:
   Item_func_uuid(const POS &pos): Item_str_func(pos) {}
 
   virtual bool itemize(Parse_context *pc, Item **res);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const{ return "uuid"; }
   String *val_str(String *);
   bool check_gcol_func_processor(uchar *int_arg)
@@ -1321,7 +1356,7 @@ public:
   Item_func_gtid_subtract(const POS &pos, Item *a, Item *b)
     :Item_str_ascii_func(pos, a, b)
   {}
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const{ return "gtid_subtract"; }
   String *val_str_ascii(String *);
 };

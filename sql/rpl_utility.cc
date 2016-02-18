@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -737,8 +737,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
 
   for (uint col= 0 ; col < cols_to_create; ++col)
   {
-    Create_field *field_def=
-      (Create_field*) alloc_root(thd->mem_root, sizeof(Create_field));
+    Create_field *field_def= new (thd->mem_root) Create_field();
     if (field_list.push_back(field_def))
       DBUG_RETURN(NULL);
 

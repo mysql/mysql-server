@@ -143,7 +143,6 @@ The following options may be given as the first argument:
  can increase this to get more performance
  --block-encryption-mode=name 
  mode for AES_ENCRYPT/AES_DECRYPT
- --bootstrap         Used by mysql installation scripts.
  --bulk-insert-buffer-size=# 
  Size of tree cache used in bulk insert optimisation. Note
  that this is a limit per thread!
@@ -226,6 +225,11 @@ The following options may be given as the first argument:
  --div-precision-increment=# 
  Precision of the result of '/' operator will be increased
  on that value
+ --early-plugin-load=name 
+ Optional semicolon-separated list of plugins to load
+ before storage engine initialization, where each plugin
+ is identified as name=library, where name is the plugin
+ name and library is the plugin library in plugin_dir.
  --end-markers-in-json 
  In JSON output ("EXPLAIN FORMAT=JSON" and optimizer
  trace), if variable is set to 1, repeats the structure's
@@ -326,7 +330,6 @@ The following options may be given as the first argument:
  --initialize-insecure 
  Create the default database and exit. Create a super user
  with empty password.
- --install-server    Install the data dictionary for a new server instance.
  --interactive-timeout=# 
  The number of seconds the server waits for activity on an
  interactive connection before closing it
@@ -646,6 +649,8 @@ The following options may be given as the first argument:
  Maximum allowed cumulated size of stored optimizer traces
  --optimizer-trace-offset=# 
  Offset of first optimizer trace to show; see manual
+ --parser-max-mem-size=# 
+ Maximum amount of memory available to the parser
  --performance-schema 
  Enable the performance schema.
  (Defaults to on; use --skip-performance-schema to disable.)
@@ -1409,6 +1414,7 @@ optimizer-trace-features greedy_search=on,range_optimizer=on,dynamic_range=on,re
 optimizer-trace-limit 1
 optimizer-trace-max-mem-size 16384
 optimizer-trace-offset -1
+parser-max-mem-size 18446744073709551615
 performance-schema TRUE
 performance-schema-accounts-size -1
 performance-schema-consumer-events-stages-current FALSE
@@ -1456,7 +1462,7 @@ performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-sql-text-length 1024
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 192
+performance-schema-max-statement-classes 193
 performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
@@ -1479,7 +1485,7 @@ query-cache-type OFF
 query-cache-wlock-invalidate FALSE
 query-prealloc-size 8192
 range-alloc-block-size 4096
-range-optimizer-max-mem-size 1536000
+range-optimizer-max-mem-size 8388608
 read-buffer-size 131072
 read-only FALSE
 read-rnd-buffer-size 262144

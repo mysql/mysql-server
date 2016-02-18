@@ -710,14 +710,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 	  !stat(pidfile, &pidfile_status))
 	last_modified= pidfile_status.st_mtime;
 
-      /* Issue COM_SHUTDOWN if server version is older then 5.7*/
-      int resShutdown= 1;
-      if(mysql_get_server_version(mysql) < 50709)
-        resShutdown= mysql_shutdown(mysql, SHUTDOWN_DEFAULT);
-      else
-        resShutdown= mysql_query(mysql, "shutdown");
-
-      if(resShutdown)
+      if(mysql_query(mysql, "shutdown"))
       {
         my_printf_error(0, "shutdown failed; error: '%s'", error_flags,
         mysql_error(mysql));
@@ -1443,7 +1436,7 @@ static void print_relative_row(MYSQL_RES *result, MYSQL_ROW cur, uint row)
 
 static void print_relative_row_vert(MYSQL_RES *result __attribute__((unused)),
 				    MYSQL_ROW cur,
-				    uint row __attribute__((unused)))
+				    uint row)
 {
   uint length;
   ulonglong tmp;

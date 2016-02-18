@@ -1,6 +1,6 @@
 --source include/not_embedded.inc
 --source include/have_innodb.inc
---source include/have_innodb_zip.inc
+--source include/have_innodb_max_16k.inc
 
 # Test the redundant format
 LET $file_per_table='off';

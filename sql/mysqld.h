@@ -25,6 +25,8 @@
 #include "my_thread_local.h"               // my_get_thread_local
 #include "sql_const.h"                     // UUID_LENGTH
 #include "atomic_class.h"                  /* Atomic_int32 */
+#include "mysql/psi/mysql_rwlock.h"        /* mysql_rwlock_t */
+#include "mysql/psi/psi_statement.h"       /* PSI_statement_info */
 
 #include <atomic>
 
@@ -122,8 +124,7 @@ extern my_bool opt_verbose;
 extern bool opt_ignore_builtin_innodb;
 extern my_bool opt_character_set_client_handshake;
 extern MYSQL_PLUGIN_IMPORT int32 volatile connection_events_loop_aborted_flag;
-extern bool opt_install_server;
-extern my_bool opt_bootstrap, opt_initialize;
+extern my_bool opt_initialize;
 extern my_bool opt_safe_user_create;
 extern my_bool opt_local_infile, opt_myisam_use_mmap;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
@@ -329,6 +330,8 @@ static inline int my_thread_set_THR_MALLOC(MEM_ROOT ** hdl)
   return my_set_thread_local(THR_MALLOC, hdl);
 }
 
+extern PSI_file_key key_file_binlog_cache;
+extern PSI_file_key key_file_binlog_index_cache;
 
 #ifdef HAVE_PSI_INTERFACE
 
@@ -417,9 +420,7 @@ extern PSI_thread_key key_thread_parser_service;
 extern PSI_thread_key key_thread_background;
 
 extern PSI_file_key key_file_binlog;
-extern PSI_file_key key_file_binlog_cache;
 extern PSI_file_key key_file_binlog_index;
-extern PSI_file_key key_file_binlog_index_cache;
 extern PSI_file_key key_file_dbopt;
 extern PSI_file_key key_file_des_key_file;
 extern PSI_file_key key_file_ERRMSG;

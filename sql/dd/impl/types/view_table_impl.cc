@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -150,7 +150,6 @@ Collection_item *View_table_impl::Factory::create_item() const
 
 ///////////////////////////////////////////////////////////////////////////
 
-#ifndef DBUG_OFF
 View_table_impl::
 View_table_impl(const View_table_impl &src,
                 View_impl *parent)
@@ -159,7 +158,6 @@ View_table_impl(const View_table_impl &src,
     m_table_name(src.m_table_name),
     m_view(parent)
 {}
-#endif /* !DBUG_OFF */
 
 ///////////////////////////////////////////////////////////////////////////
 // View_table_type implementation.

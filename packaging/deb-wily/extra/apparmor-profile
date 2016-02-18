@@ -49,6 +49,10 @@
   /var/lib/mysql-files/ r,
   /var/lib/mysql-files/** rwk,
 
+# Allow keyring dir access
+  /var/lib/mysql-keyring/ r,
+  /var/lib/mysql-keyring/** rwk,
+
 # Allow log file access
   /var/log/mysql/ r,
   /var/log/mysql/** rw,

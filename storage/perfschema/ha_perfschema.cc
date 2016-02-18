@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -1143,7 +1143,7 @@ static int pfs_init_func(void *p)
     we can not rely on the fact that different mysqld process will assign
     consistently the same legacy_db_type for a given storage engine name.
     In particular, using different --loose-skip-xxx options between
-    ./mysqld --install-server
+    ./mysqld --initialize
     ./mysqld
     creates bogus .frm forms when bootstrapping the performance schema,
     if we rely on ha_initialize_handlerton to assign a really dynamic value.

@@ -1670,7 +1670,10 @@ is_ref_or_null_optimized(const JOIN_TAB *tab, uint ref_key)
   Test if we can use one of the 'usable_keys' instead of 'ref' key
   for sorting.
 
+  @param order The query block's order clause.
+  @param tab   Current JOIN_TAB.
   @param ref			Number of key, used for WHERE clause
+  @param ref_key_parts Index columns used for ref lookup.
   @param usable_keys		Keys for testing
 
   @return
@@ -3841,7 +3844,8 @@ static bool build_equal_items_for_cond(THD *thd, Item *cond, Item **retcond,
       List_iterator_fast<Item_equal> it(cond_equal.current_level);
       while ((item_equal= it++))
       {
-        item_equal->fix_length_and_dec();
+        if (item_equal->resolve_type(thd))
+          return true;
         item_equal->update_used_tables();
         set_if_bigger(thd->lex->current_select()->max_equal_elems,
                       item_equal->members());  
@@ -3907,7 +3911,8 @@ static bool build_equal_items_for_cond(THD *thd, Item *cond, Item **retcond,
       {
         if ((item_equal= cond_equal.current_level.pop()))
         {
-          item_equal->fix_length_and_dec();
+          if (item_equal->resolve_type(thd))
+            return true;
           item_equal->update_used_tables();
           set_if_bigger(thd->lex->current_select()->max_equal_elems,
                         item_equal->members());  
@@ -3933,7 +3938,8 @@ static bool build_equal_items_for_cond(THD *thd, Item *cond, Item **retcond,
         List_iterator_fast<Item_equal> it(cond_equal.current_level);
         while ((item_equal= it++))
         {
-          item_equal->fix_length_and_dec();
+          if (item_equal->resolve_type(thd))
+            return true;
           item_equal->update_used_tables();
           set_if_bigger(thd->lex->current_select()->max_equal_elems,
                         item_equal->members());  
@@ -7061,6 +7067,7 @@ add_key_field(Key_field **key_fields, uint and_level, Item_func *cond,
     @param  eq_func        True if we used =, <=> or IS NULL
     @param  val            Value used for comparison with field
                            Is NULL for BETWEEN and IN    
+    @param  num_values
     @param  usable_tables  Tables which can be used for key optimization
     @param  sargables      IN/OUT Array of found sargable candidates
 
@@ -8033,6 +8040,7 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
   @param       tables         Number of tables in join
   @param       cond           WHERE condition (note that the function analyzes
                               join_tab[i]->join_cond() too)
+  @param       cond_equal
   @param       normal_tables  Tables not inner w.r.t some outer join (ones
                               for which we can make ref access based the WHERE
                               clause)
@@ -8196,7 +8204,13 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
           continue;
       }
 
-      *save_pos= *use;
+      /*
+        Protect against self assignment.
+        The compiler *may* generate a call to memcpy() to do the assignment,
+        and that is undefined behaviour (memory overlap).
+       */
+      if (save_pos != use)
+        *save_pos= *use;
       prev=use;
       found_eq_constant= !use->used_tables;
       /* Save ptr to first use */
@@ -8222,6 +8236,7 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
   @param thd         THD pointer, for memory allocation
   @param table       Table object representing table
   @param keyparts    Number of key parts in the primary key
+  @param fields
   @param outer_exprs List of items used for key lookup
 
   @return Pointer to created keyuse array, or NULL if error
@@ -8383,6 +8398,7 @@ void JOIN::make_outerjoin_info()
   to root_tab, which is the first inner table of an outer join,
   or NULL if the condition being handled is the WHERE clause.
 
+  @param join
   @param idx       index of the first inner table for the inner-most outer join
   @param cond      the predicate to be guarded (must be set)
   @param root_idx  index of the inner table to stop at
@@ -10238,6 +10254,7 @@ bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
   @param tab                  The join table to operate on.
   @param find_func            function to iterate over the list and search
                               for a field
+  @param data
 
   @retval
     1                    found
@@ -11151,15 +11168,22 @@ bool JOIN::optimize_rollup()
     These are updated by rollup_make_fields()
   */
   tmp_table_param.group_parts= send_group_parts;
+  /*
+    substitute_gc() might substitute an expression in the GROUP BY list with
+    a generated column. In such case the GC is added to the all_fields as a
+    hidden field. In total, all_fields list could be grown by up to
+    send_group_parts columns. Reserve space for them here.
+  */
+  const uint ref_array_size= all_fields.elements + send_group_parts;
 
   Item_null_result **null_items=
     static_cast<Item_null_result**>(thd->alloc(sizeof(Item*)*send_group_parts));
 
   rollup.null_items= Item_null_array(null_items, send_group_parts);
   rollup.ref_item_arrays=
-    static_cast<Ref_item_array *>
+    static_cast<Ref_item_array*>
     (thd->alloc((sizeof(Ref_item_array) +
-                 all_fields.elements * sizeof(Item*)) * send_group_parts));
+                 ref_array_size * sizeof(Item*)) * send_group_parts));
   rollup.fields=
     static_cast<List<Item>*>(thd->alloc(sizeof(List<Item>) * send_group_parts));
 
@@ -11182,8 +11206,8 @@ bool JOIN::optimize_rollup()
       return true;           /* purecov: inspected */
     List<Item> *rollup_fields= &rollup.fields[i];
     rollup_fields->empty();
-    rollup.ref_item_arrays[i]= Ref_item_array(ref_array, all_fields.elements);
-    ref_array+= all_fields.elements;
+    rollup.ref_item_arrays[i]= Ref_item_array(ref_array, ref_array_size);
+    ref_array+= ref_array_size;
   }
   for (uint i= 0; i < send_group_parts; i++)
   {

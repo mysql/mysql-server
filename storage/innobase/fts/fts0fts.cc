@@ -39,6 +39,7 @@ Full Text Search interface
 #include "btr0pcur.h"
 #include "sync0sync.h"
 #include "ut0new.h"
+#include "lob.h"
 
 static const ulint FTS_MAX_ID_LEN = 32;
 

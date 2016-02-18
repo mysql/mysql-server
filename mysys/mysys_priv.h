@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,11 +22,10 @@
 
 #include "my_global.h"
 #include "mysql/psi/mysql_thread.h"
+#include "mysql/psi/mysql_stage.h"
+#include "mysql/psi/mysql_file.h"
 
 #ifdef HAVE_PSI_INTERFACE
-
-#include <mysql/psi/mysql_file.h>
-#include <mysql/psi/mysql_thread.h>
 
 C_MODE_START
 
@@ -93,6 +92,8 @@ extern PSI_memory_key key_memory_win_SECURITY_ATTRIBUTES;
 extern PSI_memory_key key_memory_win_PACL;
 extern PSI_memory_key key_memory_win_IP_ADAPTER_ADDRESSES;
 #endif
+
+extern PSI_thread_key key_thread_timer_notifier;
 
 C_MODE_END
 

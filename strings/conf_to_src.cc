@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -199,8 +199,10 @@ static int
 is_case_sensitive(CHARSET_INFO *cs)
 {
  return (cs->sort_order &&
-         cs->sort_order['A'] < cs->sort_order['a'] &&
-         cs->sort_order['a'] < cs->sort_order['B']) ? 1 : 0;
+         cs->sort_order[static_cast<int>('A')] <
+           cs->sort_order[static_cast<int>('a')] &&
+         cs->sort_order[static_cast<int>('a')] <
+           cs->sort_order[static_cast<int>('B')]) ? 1 : 0;
 }
 
 
@@ -278,7 +280,7 @@ static void
 fprint_copyright(FILE *file)
 {
   fprintf(file,
-"/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.\n"
+"/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.\n"
 "\n"
 "   This program is free software; you can redistribute it and/or modify\n"
 "   it under the terms of the GNU General Public License as published by\n"
@@ -336,7 +338,7 @@ main(int argc, char **argv  __attribute__((unused)))
   fprintf(f, "  edit the XML definitions in sql/share/charsets/ instead.\n\n");
   fprintf(f, "  To re-generate, run the following in the strings/ "
           "directory:\n");
-  fprintf(f, "    ./conf_to_src {CMAKE_SOURCE_DIR}/sql/share/charsets/ > ctype-extra.c\n");
+  fprintf(f, "    ./conf_to_src {CMAKE_SOURCE_DIR}/sql/share/charsets/ > ctype-extra.cc\n");
   fprintf(f, "*/\n\n");
   fprint_copyright(f);
   fprintf(f,"#include <my_global.h>\n");
@@ -349,18 +351,17 @@ main(int argc, char **argv  __attribute__((unused)))
   {
     if (simple_cs_is_full(cs))
     {
-      fprintf(f,"#ifdef HAVE_CHARSET_%s\n",cs->csname);
       print_array(f, cs->name, "ctype",      cs->ctype,      MY_CS_CTYPE_TABLE_SIZE);
       print_array(f, cs->name, "to_lower",   cs->to_lower,   MY_CS_TO_LOWER_TABLE_SIZE);
       print_array(f, cs->name, "to_upper",   cs->to_upper,   MY_CS_TO_UPPER_TABLE_SIZE);
       if (cs->sort_order)
         print_array(f, cs->name, "sort_order", cs->sort_order, MY_CS_SORT_ORDER_TABLE_SIZE);
       print_array16(f, cs->name, "to_uni",     cs->tab_to_uni, MY_CS_TO_UNI_TABLE_SIZE);
-      fprintf(f,"#endif\n");
       fprintf(f,"\n");
     }
   }
   
+  fprintf(f,"extern \"C\" {\n");
   fprintf(f,"CHARSET_INFO compiled_charsets[] = {\n");
   for (cs= all_charsets;
        cs < all_charsets + array_elements(all_charsets);
@@ -368,15 +369,14 @@ main(int argc, char **argv  __attribute__((unused)))
   {
     if (simple_cs_is_full(cs))
     {
-      fprintf(f,"#ifdef HAVE_CHARSET_%s\n",cs->csname);
       dispcset(f,cs);
       fprintf(f,",\n");
-      fprintf(f,"#endif\n");
     }
   }
   
   dispcset(f,&ncs);
   fprintf(f,"};\n");
-  
+  fprintf(f,"} // extern \"C\"\n");
+
   return 0;
 }

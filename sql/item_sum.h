@@ -460,7 +460,7 @@ public:
   */
   virtual void update_field()=0;
   virtual bool keep_field_type(void) const { return 0; }
-  virtual void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   virtual Item *result_item(Field *field)
     { return new Item_field(field); }
   table_map used_tables() const { return used_tables_cache; }
@@ -758,8 +758,14 @@ public:
     return get_time_from_int(ltime);
   }
   enum Item_result result_type () const { return INT_RESULT; }
-  void fix_length_and_dec()
-  { decimals=0; max_length=21; maybe_null=false; null_value=FALSE; }
+  virtual bool resolve_type(THD *thd)
+  {
+    decimals= 0;
+    max_length= 21;
+    maybe_null= false;
+    null_value= FALSE;
+    return false;
+  }
 };
 
 
@@ -770,7 +776,7 @@ protected:
   double sum;
   my_decimal dec_buffs[2];
   uint curr_dec_buff;
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
 
 public:
   Item_sum_sum(const POS &pos, Item *item_par, bool distinct)
@@ -903,7 +909,7 @@ public:
   double val_real();
   my_decimal *val_decimal(my_decimal *);
   String *val_str(String*);
-  void fix_length_and_dec() {}
+  virtual bool resolve_type(THD *thd) { return false; }
   const char *func_name() const { DBUG_ASSERT(0); return "avg_field"; }
 };
 
@@ -923,7 +929,7 @@ public:
     :Item_sum_sum(thd, item), count(item->count),
     prec_increment(item->prec_increment) {}
 
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   enum Sumfunctype sum_func () const 
   {
     return has_with_distinct() ? AVG_DISTINCT_FUNC : AVG_FUNC;
@@ -971,7 +977,7 @@ public:
   { return val_string_from_real(str); }
   my_decimal *val_decimal(my_decimal *dec_buf)
   { return val_decimal_from_real(dec_buf); }
-  void fix_length_and_dec() {}
+  virtual bool resolve_type(THD *thd) { return false; }
   const char *func_name() const { DBUG_ASSERT(0); return "variance_field"; }
 };
 
@@ -998,7 +1004,7 @@ But, this falls prey to catastrophic cancellation.  Instead, use the recurrence 
 
 class Item_sum_variance : public Item_sum_num
 {
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
 
 public:
   Item_result hybrid_type;
@@ -1108,7 +1114,7 @@ protected:
     cmp_sign(item->cmp_sign), was_values(item->was_values)
   { }
   bool fix_fields(THD *, Item **);
-  void setup_hybrid(Item *item, Item *value_arg);
+  bool setup_hybrid(Item *item, Item *value_arg);
   void clear();
   double val_real();
   longlong val_int();
@@ -1187,11 +1193,15 @@ public:
   longlong val_int();
   void reset_field();
   void update_field();
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
-    decimals= 0; max_length=21; unsigned_flag= true; maybe_null= false;
+    decimals= 0;
+    max_length= 21;
+    unsigned_flag= true;
+    maybe_null= false;
     null_value= FALSE;
     check_deprecated_bin_op(args[0], NULL);
+    return false;
   }
   void cleanup()
   {
@@ -1313,7 +1323,11 @@ class Item_sum_udf_float :public Item_udf_sum
   {
     return get_time_from_real(ltime);
   }
-  void fix_length_and_dec() { fix_num_length_and_dec(); }
+  virtual bool resolve_type(THD *thd)
+  {
+    fix_num_length_and_dec();
+    return false;
+   }
   Item *copy_or_same(THD* thd);
 };
 
@@ -1340,7 +1354,12 @@ public:
     return get_time_from_int(ltime);
   }
   enum Item_result result_type () const { return INT_RESULT; }
-  void fix_length_and_dec() { decimals=0; max_length=21; }
+  virtual bool resolve_type(THD *thd)
+  {
+    decimals= 0;
+    max_length= 21;
+    return false;
+  }
   Item *copy_or_same(THD* thd);
 };
 
@@ -1386,7 +1405,7 @@ public:
     return get_time_from_string(ltime);
   }
   enum Item_result result_type () const { return STRING_RESULT; }
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   Item *copy_or_same(THD* thd);
 };
 
@@ -1413,7 +1432,11 @@ public:
     return get_time_from_decimal(ltime);
   }
   enum Item_result result_type () const { return DECIMAL_RESULT; }
-  void fix_length_and_dec() { fix_num_length_and_dec(); }
+  virtual bool resolve_type(THD *thd)
+  {
+    fix_num_length_and_dec();
+    return false;
+   }
   Item *copy_or_same(THD* thd);
 };
 

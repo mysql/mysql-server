@@ -1,0 +1,152 @@
+#####################################################################
+#                                                                   #
+# Test for the system table mysql.column_stats.                     #
+# Verify that the system table exists with the correct permissions. #
+# Also verify that the structure is as expected.                    #
+#                                                                   #
+#####################################################################
+
+#
+# For non-embedded server, running queries against tables in mysql.* as non-root
+# will fail with an error. These queries will not fail for embedded server, and
+# that is why we don't run this test with embedded server.
+#
+--source include/not_embedded.inc
+
+#
+# Check that the structure is as expected.
+# (database_name, table_name, column_name, histogram)
+# PRIMARY KEY (database_name, table_name, column_name)
+#
+SHOW CREATE TABLE mysql.column_stats;
+
+
+#
+# Check that data can be inserted to the table.
+#
+INSERT INTO mysql.column_stats
+            (database_name,
+             table_name,
+             column_name,
+             histogram)
+VALUES      ('test-db-1',
+             'test-tbl-1',
+             'test-col-1',
+             '{"key": "value"}'),
+            ('test-db-1',
+             'test-tbl-1',
+             'test-col-2',
+             '{"key": "value"}'),
+            ('test-db-1',
+             'test-tbl-2',
+             'test-col-1',
+             '{"key": "value"}'),
+            ('test-db-2',
+             'test-tbl-1',
+             'test-col-1',
+             '{"key": "value"}'),
+            ('test-db-2',
+             'test-tbl-1',
+             'test-col-2',
+             '{"key": "value"}'),
+            ('TEST-DB-1',
+             'TEST-TBL-1',
+             'TEST-COL-1',
+             '{"key": "value"}');
+
+SELECT * FROM mysql.column_stats;
+
+
+#
+# Check that we cannot insert the same column statistics twice.
+# This should fail, due to the primary key.
+#
+--error ER_DUP_ENTRY
+INSERT INTO mysql.column_stats
+            (database_name,
+             table_name,
+             column_name,
+             histogram)
+VALUES      ('test-db-1',
+             'test-tbl-1',
+             'test-col-1',
+             '{"key": "value"}');
+
+SELECT * FROM mysql.column_stats;
+
+
+#
+# Check that existing data can be updated.
+# Limit the update to the data we have inserted, since other tests may
+# have inserted histogram data that we don't want to change.
+#
+UPDATE mysql.column_stats
+SET    histogram = '{"new_key": "new_value"}'
+WHERE  database_name IN ('test-db-1',
+                         'test-db-2',
+                         'TEST-DB-1');
+
+SELECT * FROM mysql.column_stats;
+
+
+#
+# Check that we cannot insert invalid JSON data into the histogram column.
+#
+--error ER_INVALID_JSON_TEXT
+INSERT INTO mysql.column_stats
+            (database_name,
+             table_name,
+             column_name,
+             histogram)
+VALUES      ('test-db-2',
+             'test-tbl-2',
+             'test-col-2',
+             '{"key": value}');
+
+
+#
+# Check that existing data can be deleted.
+# Limit the delete to the data we have inserted, since other tests may
+# have inserted histogram data that we don't want to delete.
+#
+DELETE FROM mysql.column_stats WHERE database_name IN ('test-db-1',
+                                                       'test-db-2',
+                                                       'TEST-DB-1');
+
+SELECT * FROM mysql.column_stats;
+
+
+#
+# Check that the table cannot be viewed or modified by other than root.
+# Create a new user, and switch to the new user.
+#
+CREATE USER user1;
+--change_user user1,,
+
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT * FROM mysql.column_stats;
+
+--error ER_TABLEACCESS_DENIED_ERROR
+INSERT INTO mysql.column_stats
+            (database_name,
+             table_name,
+             column_name,
+             histogram)
+VALUES      ('test-db-1',
+             'test-tbl-1',
+             'test-col-1',
+             '{"key": "value"}');
+
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE mysql.column_stats
+SET    histogram = '{"new_key": "new_value"}';
+
+--error ER_TABLEACCESS_DENIED_ERROR
+DELETE FROM mysql.column_stats;
+
+--change_user root,,
+
+#
+# Cleanup
+#
+DROP USER user1;

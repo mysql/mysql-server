@@ -560,6 +560,19 @@ ha_innobase::check_if_supported_inplace_alter(
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
+	if (ha_alter_info->create_info->encrypt_type.length > 0) {
+		char*	encryption =
+			ha_alter_info->create_info->encrypt_type.str;
+
+		if (DICT_TF2_FLAG_SET(m_prebuilt->table, DICT_TF2_ENCRYPTION)
+		    != Encryption::is_none(encryption)) {
+			ha_alter_info->unsupported_reason =
+				innobase_get_err_msg(
+					ER_INVALID_ENCRYPTION_OPTION);
+			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+		}
+	}
+
 	update_thd();
 	trx_search_latch_release_if_reserved(m_prebuilt->trx);
 
@@ -2364,6 +2377,7 @@ innobase_create_key_defs(
 			index->name = innobase_index_reserve_name;
 			index->rebuild = true;
 			index->key_number = ~0;
+			index->is_ngram = false;
 			primary_key_number = ULINT_UNDEFINED;
 			goto created_clustered;
 		} else {
@@ -2458,6 +2472,7 @@ created_clustered:
 		      || fts_doc_id_col <= altered_table->s->fields);
 
 		index->name = FTS_DOC_ID_INDEX_NAME;
+		index->is_ngram = false;
 		index->rebuild = rebuild;
 
 		/* TODO: assign a real MySQL key number for this */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,6 +22,11 @@
 #include "pfs_global.h"
 #include "pfs_atomic.h"
 #include "prealloced_array.h"
+#include "pfs_lock.h"
+#include "pfs_stat.h"
+#include "pfs_column_types.h"
+
+struct TABLE_SHARE;
 
 /**
   @file storage/perfschema/pfs_instr_class.h
@@ -42,13 +47,6 @@
   of the sql layer in the server.
 */
 #define PFS_MAX_FULL_PREFIX_NAME_LENGTH 32
-
-#include <my_global.h>
-#include <my_sys.h>
-#include <mysql/psi/psi.h>
-#include "pfs_lock.h"
-#include "pfs_stat.h"
-#include "pfs_column_types.h"
 
 struct PFS_global_param;
 struct PFS_table_share;

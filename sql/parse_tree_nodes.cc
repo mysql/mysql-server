@@ -1034,9 +1034,6 @@ PT_derived_table::PT_derived_table(PT_subquery *subquery,
 
 bool PT_derived_table::contextualize(Parse_context *pc)
 {
-  if (super::contextualize(pc))
-    return true;
-
   SELECT_LEX *outer_select= pc->select;
   LEX *lex= pc->thd->lex;
 
@@ -1148,3 +1145,45 @@ bool PT_union::contextualize(Parse_context *pc)
 
   return false;
 }
+
+/**
+  @brief
+  make_cmd for PT_alter_instance.
+  Contextualize parse tree node and return sql_cmd handle.
+
+  @param [in] thd Thread handle
+
+  @returns
+    sql_cmd Success
+    NULL    Failure
+*/
+
+Sql_cmd *PT_alter_instance::make_cmd(THD *thd)
+{
+  Parse_context pc(thd, thd->lex->current_select());
+  if (contextualize(&pc))
+    return NULL;
+  return &sql_cmd;
+}
+
+/**
+  @brief
+  Prepare parse tree node and set required information
+
+  @param [in] pc Parser context
+
+  @returns
+    false Success
+    true Error
+*/
+
+bool PT_alter_instance::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc))
+    return true;
+
+  LEX *lex= pc->thd->lex;
+  lex->no_write_to_binlog= false;
+  return false;
+}
+

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -135,7 +135,8 @@ uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key,
       set_if_smaller(length,tmp_length);
       FIX_LENGTH(cs, pos, length, char_length);
       store_key_length_inc(key,char_length);
-      memcpy((uchar*) key,(uchar*) pos,(size_t) char_length);
+      if (char_length > 0)
+        memcpy((uchar*) key,(uchar*) pos,(size_t) char_length);
       key+= char_length;
       continue;
     }

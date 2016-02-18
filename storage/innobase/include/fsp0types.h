@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -250,7 +250,9 @@ it is for a single client and should be deleted upon startup if it exists. */
 /** Width of the SDI flag.  This flag indicates the presence of
 tablespace dictionary.*/
 #define FSP_FLAGS_WIDTH_SDI		1
-
+/** Width of the encryption flag.  This flag indicates that the tablespace
+is a tablespace with encryption. */
+#define FSP_FLAGS_WIDTH_ENCRYPTION	1
 /** Width of all the currently known tablespace flags */
 #define FSP_FLAGS_WIDTH		(FSP_FLAGS_WIDTH_POST_ANTELOPE	\
 				+ FSP_FLAGS_WIDTH_ZIP_SSIZE	\
@@ -259,7 +261,8 @@ tablespace dictionary.*/
 				+ FSP_FLAGS_WIDTH_DATA_DIR	\
 				+ FSP_FLAGS_WIDTH_SHARED	\
 				+ FSP_FLAGS_WIDTH_TEMPORARY	\
-				+ FSP_FLAGS_WIDTH_SDI)
+				+ FSP_FLAGS_WIDTH_SDI		\
+				+ FSP_FLAGS_WIDTH_ENCRYPTION)
 
 /** A mask of all the known/used bits in tablespace flags */
 #define FSP_FLAGS_MASK		(~(~0 << FSP_FLAGS_WIDTH))
@@ -287,9 +290,12 @@ tablespace dictionary.*/
 /** Zero relative shift position of the start of the SDI bits */
 #define FSP_FLAGS_POS_SDI		(FSP_FLAGS_POS_TEMPORARY	\
 					+ FSP_FLAGS_WIDTH_TEMPORARY)
-/** Zero relative shift position of the start of the UNUSED bits */
-#define FSP_FLAGS_POS_UNUSED		(FSP_FLAGS_POS_SDI	\
+/** Zero relative shift position of the start of the ENCRYPTION bit */
+#define FSP_FLAGS_POS_ENCRYPTION	(FSP_FLAGS_POS_SDI		\
 					+ FSP_FLAGS_WIDTH_SDI)
+/** Zero relative shift position of the start of the UNUSED bits */
+#define FSP_FLAGS_POS_UNUSED		(FSP_FLAGS_POS_ENCRYPTION	\
+					+ FSP_FLAGS_WIDTH_ENCRYPTION)
 
 /** Bit mask of the POST_ANTELOPE field */
 #define FSP_FLAGS_MASK_POST_ANTELOPE				\
@@ -323,6 +329,10 @@ tablespace dictionary.*/
 #define FSP_FLAGS_MASK_SDI					\
 		((~(~0 << FSP_FLAGS_WIDTH_SDI))			\
 		<< FSP_FLAGS_POS_SDI)
+/** Bit mask of the ENCRYPTION field */
+#define FSP_FLAGS_MASK_ENCRYPTION				\
+		((~(~0U << FSP_FLAGS_WIDTH_ENCRYPTION))		\
+		<< FSP_FLAGS_POS_ENCRYPTION)
 
 /** Return the value of the POST_ANTELOPE field */
 #define FSP_FLAGS_GET_POST_ANTELOPE(flags)			\
@@ -356,7 +366,10 @@ tablespace dictionary.*/
 #define FSP_FLAGS_HAS_SDI(flags)				\
 		((flags & FSP_FLAGS_MASK_SDI)			\
 		>> FSP_FLAGS_POS_SDI)
-
+/** Return the contents of the ENCRYPTION field */
+#define FSP_FLAGS_GET_ENCRYPTION(flags)				\
+		((flags & FSP_FLAGS_MASK_ENCRYPTION)		\
+		>> FSP_FLAGS_POS_ENCRYPTION)
 /** Return the contents of the UNUSED bits */
 #define FSP_FLAGS_GET_UNUSED(flags)				\
 		(flags >> FSP_FLAGS_POS_UNUSED)

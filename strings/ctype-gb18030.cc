@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,6 @@
 #include "m_string.h"
 #include "m_ctype.h"
 
-#ifdef HAVE_CHARSET_gb18030
 
 #define is_mb_1(c)            ((uchar) (c) <= 0x7F)
 #define is_mb_odd(c)          (0x81 <= (uchar) (c) && (uchar) (c) <= 0xFE)
@@ -22030,7 +22029,7 @@ my_strnncoll_gb18030_internal(const CHARSET_INFO *cs,
 */
 extern "C" {
 static int
-my_strnncoll_gb18030(const CHARSET_INFO *cs __attribute__((unused)),
+my_strnncoll_gb18030(const CHARSET_INFO *cs,
                      const uchar *s, size_t s_length,
                      const uchar *t, size_t t_length,
                      my_bool t_is_prefix)
@@ -22062,7 +22061,7 @@ my_strnncoll_gb18030(const CHARSET_INFO *cs __attribute__((unused)),
                       -1 if the second string is bigger
 */
 static int
-my_strnncollsp_gb18030(const CHARSET_INFO *cs __attribute__((unused)),
+my_strnncollsp_gb18030(const CHARSET_INFO *cs,
                        const uchar *s, size_t s_length,
                        const uchar *t, size_t t_length,
                        my_bool diff_if_only_endspace_difference)
@@ -22577,5 +22576,3 @@ CHARSET_INFO my_charset_gb18030_bin=
   &my_charset_gb18030_handler,
   &my_collation_mb_bin_handler
 };
-
-#endif

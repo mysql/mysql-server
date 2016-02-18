@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -630,7 +630,7 @@ SysTablespace::read_lsn_and_check_flags(lsn_t* flushed_lsn)
 	first datafile. */
 	for (int retry = 0; retry < 2; ++retry) {
 
-		err = it->validate_first_page(flushed_lsn);
+		err = it->validate_first_page(flushed_lsn, false);
 
 		if (err != DB_SUCCESS
 		    && (retry == 1

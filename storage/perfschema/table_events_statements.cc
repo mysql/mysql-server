@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -360,7 +360,8 @@ void table_events_statements_common::make_row_part_1(PFS_events_statements *stat
 
   m_row.m_sqltext.set_charset(cs);
   m_row.m_sqltext.length(0);
-  m_row.m_sqltext.append(statement->m_sqltext, (uint32)valid_length, cs);
+  if (valid_length > 0)
+    m_row.m_sqltext.append(statement->m_sqltext, (uint32)valid_length, cs);
 
   /* Indicate that sqltext is truncated or not well-formed. */
   if (statement->m_sqltext_truncated || valid_length < statement->m_sqltext_length)

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1064,7 +1064,7 @@ int ndbz_file_size(ndbzio_stream *s, size_t *size)
   if (s == NULL || size == NULL)
     return -1;
 
-  if (my_fstat(s->file, &stat_buf, 0) != 0)
+  if (my_fstat(s->file, &stat_buf) != 0)
     return -1;
 
   *size = (size_t)stat_buf.st_size;

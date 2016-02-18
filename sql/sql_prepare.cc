@@ -819,13 +819,6 @@ inline bool is_param_long_data_type(Item_param *param)
           (param->param_type <= MYSQL_TYPE_STRING));
 }
 
-#ifdef HAVE_PSI_PS_INTERFACE
-PSI_prepared_stmt* Prepared_statement::get_PS_prepared_stmt()
-{
-  return m_prepared_stmt;
-}
-#endif
-
 /**
   Routines to assign parameters from data supplied by the client.
 
@@ -2000,6 +1993,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_GRANT:
   case SQLCOM_REVOKE:
   case SQLCOM_KILL:
+  case SQLCOM_ALTER_INSTANCE:
     break;
 
   case SQLCOM_PREPARE:

@@ -265,6 +265,7 @@ applications.
 Summary:        Shared compat libraries for MySQL %{compatver} database client applications
 Group:          Applications/Databases
 Obsoletes:      mysql-libs-compat < %{version}-%{release}
+Obsoletes:      mariadb-libs
 Provides:       mysql-libs-compat = %{version}-%{release}
 Provides:       mysql-libs-compat%{?_isa} = %{version}-%{release}
 %if 0%{?commercial}
@@ -455,6 +456,7 @@ MBD=$RPM_BUILD_DIR/%{src_dir}
 install -d -m 0751 %{buildroot}/var/lib/mysql
 install -d -m 0755 %{buildroot}/var/run/mysqld
 install -d -m 0750 %{buildroot}/var/lib/mysql-files
+install -d -m 0750 %{buildroot}/var/lib/mysql-keyring
 
 # Install all binaries
 pushd $MBD/release
@@ -573,7 +575,6 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_bindir}/myisamchk
 %attr(755, root, root) %{_bindir}/myisamlog
 %attr(755, root, root) %{_bindir}/myisampack
-%attr(755, root, root) %{_bindir}/mysql_install_db
 %attr(755, root, root) %{_bindir}/mysql_secure_installation
 %attr(755, root, root) %{_bindir}/mysql_ssl_rsa_setup
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
@@ -594,6 +595,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/innodb_engine.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libmemcached.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/locking_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libpluginmecab.so
@@ -609,6 +611,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_file.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libmemcached.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/locking_service.so
@@ -641,6 +644,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %dir %attr(751, mysql, mysql) /var/lib/mysql
 %dir %attr(755, mysql, mysql) /var/run/mysqld
 %dir %attr(750, mysql, mysql) /var/lib/mysql-files
+%dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %files common
 %defattr(-, root, root, -)
@@ -831,11 +835,17 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 * Fri Jan 08 2016 Bjorn Munch <bjorn.munch@oracle.com> - 5.8.0-1
 - Purge man page for mysql_install_db in preparation for its removal
 
+* Mon Jan 4 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.11-1
+- Include mysql-keyring directory
+- Provide keyring_file.so plugin
+
 * Tue Nov 24 2015 Bjorn Munch <bjorn.munch@oracle.com> - 5.7.10-1
 - Included man pages for lz4_decompress and zlib_decompress
 
 * Thu Nov 12 2015 Bjorn Munch <bjorn.munch@oracle.com> - 5.7.10-1
 - Added lines to remove man pages we are not ready to include yet
+
+* Mon Oct 19 2015 Bharathy Satish <bharathy.x.satish@oracle.com> - 5.7.10-1
 - Added new decompression utilities lz4_decompress and zlib_decompress binaries to
   client subpackage.
 

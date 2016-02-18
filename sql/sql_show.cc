@@ -1682,9 +1682,10 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     {
       packet->append(STRING_WITH_LEN(" GENERATED ALWAYS"));
       packet->append(STRING_WITH_LEN(" AS ("));
-      packet->append(field->gcol_info->expr_str.str,
-                     field->gcol_info->expr_str.length,
-                     system_charset_info);
+      char buffer[128];
+      String s(buffer, sizeof(buffer), system_charset_info);
+      field->gcol_info->print_expr(thd, &s);
+      packet->append(s);
       packet->append(STRING_WITH_LEN(")"));
       if (field->stored_in_db)
         packet->append(STRING_WITH_LEN(" STORED"));
@@ -1984,6 +1985,11 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     {
       packet->append(STRING_WITH_LEN(" COMPRESSION="));
       append_unescaped(packet, share->compress.str, share->compress.length);
+    }
+    if (table->s->encrypt_type.length)
+    {
+      packet->append(STRING_WITH_LEN(" ENCRYPTION="));
+      append_unescaped(packet, share->encrypt_type.str, share->encrypt_type.length);
     }
     table->file->append_create_info(packet);
     if (share->comment.length)
@@ -5108,6 +5114,16 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
       ptr= my_stpcpy(ptr, "\"");
     }
 
+    if (share->encrypt_type.length > 0)
+    {
+      /* In the .frm file this option has a max length of 2K. Currently,
+      InnoDB uses only the first 1 bytes and the only supported values
+      are (Y | N). */
+      ptr= my_stpcpy(ptr, " ENCRYPTION=\"");
+      ptr= strxnmov(ptr, 3, share->encrypt_type.str, NullS);
+      ptr= my_stpcpy(ptr, "\"");
+    }
+
     if (is_partitioned)
       ptr= my_stpcpy(ptr, " partitioned");
 
@@ -5501,9 +5517,11 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
       else
         table->field[IS_COLUMNS_EXTRA]->
           store(STRING_WITH_LEN("VIRTUAL GENERATED"), cs);
+      char buffer[128];
+      String s(buffer, sizeof(buffer), system_charset_info);
+      field->gcol_info->print_expr(thd, &s);
       table->field[IS_COLUMNS_GENERATION_EXPRESSION]->
-        store(field->gcol_info->expr_str.str,field->gcol_info->expr_str.length,
-              cs);
+        store(s.ptr(), s.length(), cs);
     }
     else
       table->field[IS_COLUMNS_GENERATION_EXPRESSION]->set_null();
@@ -7294,7 +7312,8 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     sch_table->field[ISE_LAST_EXECUTED]->store_time(&time);
   }
 
-  sch_table->field[ISE_EVENT_COMMENT]->
+  if (et.comment.length > 0)
+    sch_table->field[ISE_EVENT_COMMENT]->
                       store(et.comment.str, et.comment.length, scs);
 
   sch_table->field[ISE_CLIENT_CS]->set_notnull();

@@ -1,16 +1,17 @@
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
+
 ###############################################################################
 #   BUG#21107331 RESET SLAVE ALL DOESN'T RESETS SLAVE_RETRIED_TRANSACTIONS
 #   BUG#21111229 RESET SLAVE ALL BEHAVES DIFFERENT FOR DEFAULT AND
 #                NON-DEFAULT CHANNELS
 #
-#   Verify that slave_retried_transactions is reset to 0 after RESET SLAVE ALL
+#   Verify that count_transactions_retries is reset to 0 after RESET SLAVE ALL
 #   Step 1. Generates an innodb row lock timeout to increase
-#           slave_retried_transactions
+#           count_transactions_retries
 #   Step 2. RESET SLAVE
-#   Step 3. check slave_retried_transactions is 0
+#   Step 3. check count_transactions_retries is 0
 ###############################################################################
 
 CREATE TABLE t1 (c1 INT KEY) ENGINE=InnoDB;
@@ -26,9 +27,7 @@ SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
 SET GLOBAL slave_transaction_retries = 1;
 SET GLOBAL innodb_lock_wait_timeout = 1;
 --source include/start_slave.inc
-# Running with show_compatibility_56=ON until WL#9001 is pushed.
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
+
 # It blocks slave applier which applies INSERT INTO t1 VALUES(1);
 BEGIN;
 INSERT INTO t1 VALUES(1);
@@ -46,17 +45,20 @@ INSERT INTO t1 VALUES(1);
 CALL mtr.add_suppression(".*worker thread retried transaction 1 time.*");
 CALL mtr.add_suppression(".*The slave coordinator and worker threads are "
                          "stopped, possibly leaving data in inconsistent.*");
---let $assert_text= slave_retried_transactions should be greater than 0
---let $assert_status_name= slave_retried_transactions
+--let $assert_text= count_transactions_retries should be greater than 0
+--let $assert_status_name= count_transactions_retries
 --let $assert_status_value= 0
 --let $assert_comparator= >=
---source include/assert_status.inc
+--let $table=replication_applier_status
+--source include/rpl_pfs_assert_status.inc
 
 RESET SLAVE ALL;
---let $assert_text= slave_retried_transactions should be 0
---let $assert_status_name= slave_retried_transactions
+
+--let $assert_text= count_transactions_retries should be 0
+--let $assert_status_name= count_transactions_retries
 --let $assert_status_value= 0
---source include/assert_status.inc
+--let $table= replication_applier_status
+--source include/rpl_pfs_assert_status.inc
 
 --source include/rpl_connection_slave.inc
 # rollback the INSERT which is used to block slave applier.
@@ -72,8 +74,7 @@ SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
 eval CHANGE MASTER TO MASTER_LOG_FILE = "$binlog_file", MASTER_LOG_POS = $binlog_position,
      MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT;
 --source include/start_slave.inc
-# Restoring the value of show_compatibility_56
-set @@global.show_compatibility_56=OFF;
+
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
 --source include/rpl_end.inc

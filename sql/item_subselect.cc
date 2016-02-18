@@ -229,7 +229,9 @@ bool Item_in_subselect::finalize_exists_transform(SELECT_LEX *select_lex)
     Note that if the subquery is "SELECT1 UNION SELECT2" then this is not
     working optimally (Bug#14215895).
   */
-  unit->global_parameters()->select_limit= new Item_int(1);
+  if (!(unit->global_parameters()->select_limit= new Item_int(1)))
+    return true;
+
   unit->set_limit(unit->global_parameters());
 
   select_lex->join->allow_outer_refs= true;   // for JOIN::set_prefix_tables()
@@ -451,7 +453,8 @@ bool Item_subselect::fix_fields(THD *thd, Item **ref)
       my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
       return TRUE;
     }
-    fix_length_and_dec();
+    if (resolve_type(thd))
+      goto err;
   }
   else
     goto err;
@@ -752,9 +755,10 @@ Item::Type Item_subselect::type() const
 }
 
 
-void Item_subselect::fix_length_and_dec()
+bool Item_subselect::resolve_type(THD *thd)
 {
   engine->fix_length_and_dec(0);
+  return false;
 }
 
 
@@ -1187,7 +1191,7 @@ enum_field_types Item_singlerow_subselect::field_type() const
   return engine->field_type();
 }
 
-void Item_singlerow_subselect::fix_length_and_dec()
+bool Item_singlerow_subselect::resolve_type(THD *thd)
 {
   if ((max_columns= engine->cols()) == 1)
   {
@@ -1196,7 +1200,7 @@ void Item_singlerow_subselect::fix_length_and_dec()
   else
   {
     if (!(row= (Item_cache**) sql_alloc(sizeof(Item_cache*)*max_columns)))
-      return;
+      return true;
     engine->fix_length_and_dec(row);
     value= *row;
   }
@@ -1207,6 +1211,7 @@ void Item_singlerow_subselect::fix_length_and_dec()
     subquery could return an empty result.
   */
   maybe_null= engine->may_be_null();
+  return false;
 }
 
 void Item_singlerow_subselect::no_rows_in_result()
@@ -1505,7 +1510,7 @@ Item_allany_subselect::Item_allany_subselect(Item * left_exp,
 }
 
 
-void Item_exists_subselect::fix_length_and_dec()
+bool Item_exists_subselect::resolve_type(THD *thd)
 {
    decimals= 0;
    max_length= 1;
@@ -1519,6 +1524,7 @@ void Item_exists_subselect::fix_length_and_dec()
      */
      unit->global_parameters()->select_limit= new Item_int(1);
    }
+  return false;
 }
 
 double Item_exists_subselect::val_real()

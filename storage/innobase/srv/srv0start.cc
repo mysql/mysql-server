@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -44,7 +44,6 @@ Created 2/16/1996 Heikki Tuuri
 
 #include "mysqld.h"
 #include "mysql/psi/mysql_stage.h"
-#include "mysql/psi/psi.h"
 
 #include "row0ftsort.h"
 #include "ut0mem.h"
@@ -178,6 +177,9 @@ static char*	srv_monitor_file_name;
 /** */
 #define SRV_MAX_N_PENDING_SYNC_IOS	100
 
+mysql_pfs_key_t	srv_purge_thread_key;
+mysql_pfs_key_t	srv_worker_thread_key;
+
 #ifdef UNIV_PFS_THREAD
 /* Keys to register InnoDB threads with performance schema */
 mysql_pfs_key_t	buf_dump_thread_key;
@@ -191,9 +193,7 @@ mysql_pfs_key_t	srv_error_monitor_thread_key;
 mysql_pfs_key_t	srv_lock_timeout_thread_key;
 mysql_pfs_key_t	srv_master_thread_key;
 mysql_pfs_key_t	srv_monitor_thread_key;
-mysql_pfs_key_t	srv_purge_thread_key;
 mysql_pfs_key_t	trx_rollback_clean_thread_key;
-mysql_pfs_key_t	srv_worker_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
@@ -276,6 +276,8 @@ DECLARE_THREAD(io_handler_thread)(
 {
 	ulint	segment;
 
+        my_thread_init();
+
 	segment = *((ulint*) arg);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
@@ -320,7 +322,8 @@ DECLARE_THREAD(io_handler_thread)(
 	The thread actually never comes here because it is exited in an
 	os_event_wait(). */
 
-	os_thread_exit(NULL);
+        my_thread_end();
+	os_thread_exit();
 
 	OS_THREAD_DUMMY_RETURN;
 }
@@ -1547,7 +1550,8 @@ srv_start(
 					strlen(fil_path_to_mysql_datadir)
 					+ 20 + sizeof "/innodb_status."));
 
-			sprintf(srv_monitor_file_name, "%s/innodb_status.%lu",
+			sprintf(srv_monitor_file_name,
+				"%s/innodb_status." ULINTPF,
 				fil_path_to_mysql_datadir,
 				os_proc_get_number());
 
@@ -2200,6 +2204,15 @@ files_checked:
 	}
 	srv_sys_tablespaces_open = true;
 
+	/* Rotate the encryption key for recovery. It's because
+	server could crash in middle of key rotation. Some tablespace
+	didn't complete key rotation. Here, we will resume the
+	rotation. */
+	if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
+		fil_encryption_rotate();
+	}
+
+
 	/* Create the SYS_VIRTUAL system table */
 	err = dict_create_or_check_sys_virtual();
 	if (err != DB_SUCCESS) {
@@ -2485,6 +2498,15 @@ srv_pre_dd_shutdown()
 		dict_stats_shutdown();
 	}
 
+	/* On slow shutdown, we have to wait for background thread
+	doing the rollback to finish first because it can add undo to
+	purge. So exit this thread before initiating purge shutdown. */
+	while (srv_fast_shutdown == 0 && trx_rollback_or_clean_is_active) {
+		/* we should wait until rollback after recovery end
+		for slow shutdown */
+		os_thread_sleep(100000);
+	}
+
 	/* Here, we will only shut down the tasks that may be looking up
 	tables or other objects in the Global Data Dictionary.
 	The following background tasks will not be affected:
@@ -2740,6 +2762,41 @@ srv_get_meta_data_filename(
 			table->data_dir_path, table->name.m_name, CFG, true);
 	} else {
 		path = fil_make_filepath(NULL, table->name.m_name, CFG, false);
+	}
+
+	ut_a(path);
+	len = ut_strlen(path);
+	ut_a(max_len >= len);
+
+	strcpy(filename, path);
+
+	ut_free(path);
+}
+
+/** Get the encryption-data filename from the table name for a
+single-table tablespace.
+@param[in]	table		table object
+@param[out]	filename	filename
+@param[in]	max_len		filename max length */
+void
+srv_get_encryption_data_filename(
+	dict_table_t*	table,
+	char*		filename,
+	ulint		max_len)
+{
+	ulint		len;
+	char*		path;
+
+	/* Make sure the data_dir_path is set. */
+	dict_get_and_save_data_dir_path(table, false);
+
+	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
+		ut_a(table->data_dir_path);
+
+		path = fil_make_filepath(
+			table->data_dir_path, table->name.m_name, CFP, true);
+	} else {
+		path = fil_make_filepath(NULL, table->name.m_name, CFP, false);
 	}
 
 	ut_a(path);

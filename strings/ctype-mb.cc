@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -371,7 +371,7 @@ int my_wildcmp_mb(const CHARSET_INFO *cs,
 }
 
 
-size_t my_numchars_mb(const CHARSET_INFO *cs __attribute__((unused)),
+size_t my_numchars_mb(const CHARSET_INFO *cs,
 		      const char *pos, const char *end)
 {
   size_t count= 0;
@@ -385,7 +385,7 @@ size_t my_numchars_mb(const CHARSET_INFO *cs __attribute__((unused)),
 }
 
 
-size_t my_charpos_mb(const CHARSET_INFO *cs __attribute__((unused)),
+size_t my_charpos_mb(const CHARSET_INFO *cs,
 		     const char *pos, const char *end, size_t length)
 {
   const char *start= pos;

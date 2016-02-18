@@ -33,7 +33,7 @@
 #include "sql_plugin_ref.h"    // plugin_ref
 #include "system_variables.h"  // System_status_var
 
-#include "mysql/psi/psi.h"
+#include "mysql/psi/psi_table.h"
 
 #include <algorithm>
 #include <string>
@@ -56,6 +56,7 @@ typedef struct st_key_cache KEY_CACHE;
 typedef struct st_key_create_information KEY_CREATE_INFO;
 typedef struct st_savepoint SAVEPOINT;
 typedef struct xid_t XID;
+struct MDL_key;
 
 namespace dd {
   class  Table;
@@ -552,6 +553,9 @@ struct st_handler_tablename
 
 #define COMPATIBLE_DATA_YES 0
 #define COMPATIBLE_DATA_NO  1
+
+/** ENCRYPTION="Y" used during table create. */
+#define HA_CREATE_USED_ENCRYPT          (1L << 27)
 
 /*
   These structures are used to pass information from a set of SQL commands
@@ -1085,6 +1089,15 @@ typedef bool (*notify_exclusive_mdl_t)(THD *thd, const MDL_key *mdl_key,
 typedef bool (*notify_alter_table_t)(THD *thd, const MDL_key *mdl_key,
                                      ha_notification_type notification_type);
 
+/**
+  @brief
+  Initiate master key rotation
+
+  @returns false on success,
+           true on failure
+*/
+typedef bool (*rotate_encryption_master_key_t)(void);
+
 
 /**
   handlerton is a singleton structure - one instance per storage engine -
@@ -1214,6 +1227,7 @@ struct handlerton
   replace_native_transaction_in_thd_t replace_native_transaction_in_thd;
   notify_exclusive_mdl_t notify_exclusive_mdl;
   notify_alter_table_t notify_alter_table;
+  rotate_encryption_master_key_t rotate_encryption_master_key;
 
   /** Flag for Engine License. */
   uint32 license;
@@ -1289,6 +1303,14 @@ typedef struct st_ha_create_information
   and ignored by the Server layer. */
 
   LEX_STRING compress;
+
+  /**
+  This attibute is used for InnoDB's transparent page encryption.
+  If this attribute is set then it is hint to the storage engine to encrypt
+  the data. Note: this value is interpreted by the storage engine only.
+  and ignored by the Server layer. */
+
+  LEX_STRING encrypt_type;
 
   const char *data_file_name, *index_file_name;
   const char *alias;
@@ -4285,5 +4307,7 @@ bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
                              ha_notification_type notification_type);
 bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
                            ha_notification_type notification_type);
+
+int commit_owned_gtids(THD *thd, bool all, bool *need_clear_ptr);
 
 #endif /* HANDLER_INCLUDED */

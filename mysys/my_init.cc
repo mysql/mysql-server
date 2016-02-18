@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,9 @@
 #include "my_static.h"
 #include "mysys_err.h"
 #include "m_string.h"
+#include "my_timer.h"
+#include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_my_snprintf.h"
@@ -446,8 +449,7 @@ static void my_win_init()
 PSI_stage_info stage_waiting_for_table_level_lock=
 {0, "Waiting for table level lock", 0};
 
-#ifdef HAVE_PSI_INTERFACE
-
+#ifdef HAVE_PSI_MUTEX_INTERFACE
 PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
   key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock,
   key_THR_LOCK_charset, key_THR_LOCK_heap,
@@ -474,14 +476,18 @@ static PSI_mutex_info all_mysys_mutexes[]=
   { &key_TMPDIR_mutex, "TMPDIR_mutex", PSI_FLAG_GLOBAL},
   { &key_THR_LOCK_myisam_mmap, "THR_LOCK_myisam_mmap", PSI_FLAG_GLOBAL}
 };
+#endif /* HAVE_PSI_MUTEX_INTERFACE */
 
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
 PSI_rwlock_key key_SAFE_HASH_lock;
 
 static PSI_rwlock_info all_mysys_rwlocks[]=
 {
   { &key_SAFE_HASH_lock, "SAFE_HASH::lock", 0}
 };
+#endif /* HAVE_PSI_RWLOCK_INTERFACE */
 
+#ifdef HAVE_PSI_COND_INTERFACE
 PSI_cond_key key_IO_CACHE_SHARE_cond,
   key_IO_CACHE_SHARE_cond_writer,
   key_THR_COND_threads;
@@ -492,7 +498,9 @@ static PSI_cond_info all_mysys_conds[]=
   { &key_IO_CACHE_SHARE_cond_writer, "IO_CACHE_SHARE::cond_writer", 0},
   { &key_THR_COND_threads, "THR_COND_threads", 0}
 };
+#endif /* HAVE_PSI_COND_INTERFACE */
 
+#ifdef HAVE_PSI_FILE_INTERFACE
 #ifdef HAVE_LINUX_LARGE_PAGES
 PSI_file_key key_file_proc_meminfo;
 #endif /* HAVE_LINUX_LARGE_PAGES */
@@ -506,12 +514,16 @@ static PSI_file_info all_mysys_files[]=
   { &key_file_charset, "charset", 0},
   { &key_file_cnf, "cnf", 0}
 };
+#endif /* HAVE_PSI_FILE_INTERFACE */
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
 PSI_stage_info *all_mysys_stages[]=
 {
   & stage_waiting_for_table_level_lock
 };
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 
+#ifdef HAVE_PSI_MEMORY_INTERFACE
 static PSI_memory_info all_mysys_memory[]=
 {
 #ifdef _WIN32
@@ -541,29 +553,55 @@ static PSI_memory_info all_mysys_memory[]=
   { &key_memory_DYNAMIC_STRING, "DYNAMIC_STRING", 0},
   { &key_memory_TREE, "TREE", 0}
 };
+#endif /* HAVE_PSI_MEMORY_INTERFACE */
 
+#ifdef HAVE_PSI_THREAD_INTERFACE
+static PSI_thread_info all_mysys_thread[]=
+{
+  { &key_thread_timer_notifier, "thread_timer_notifier", PSI_FLAG_GLOBAL}
+};
+#endif /* HAVE_PSI_THREAD_INTERFACE */
+
+#ifdef HAVE_PSI_INTERFACE
 void my_init_mysys_psi_keys()
 {
-  const char* category= "mysys";
-  int count;
+  const char* category __attribute__((unused)) = "mysys";
+  int count __attribute__((unused));
 
+#ifdef HAVE_PSI_MUTEX_INTERFACE
   count= sizeof(all_mysys_mutexes)/sizeof(all_mysys_mutexes[0]);
   mysql_mutex_register(category, all_mysys_mutexes, count);
+#endif /* HAVE_PSI_MUTEX_INTERFACE */
 
+#ifdef HAVE_PSI_RWLOCK_INTERFACE
   count= sizeof(all_mysys_rwlocks)/sizeof(all_mysys_rwlocks[0]);
   mysql_rwlock_register(category, all_mysys_rwlocks, count);
+#endif /* HAVE_PSI_RWLOCK_INTERFACE */
 
+#ifdef HAVE_PSI_COND_INTERFACE
   count= sizeof(all_mysys_conds)/sizeof(all_mysys_conds[0]);
   mysql_cond_register(category, all_mysys_conds, count);
+#endif /* HAVE_PSI_COND_INTERFACE */
 
+#ifdef HAVE_PSI_FILE_INTERFACE
   count= sizeof(all_mysys_files)/sizeof(all_mysys_files[0]);
   mysql_file_register(category, all_mysys_files, count);
+#endif /* HAVE_PSI_FILE_INTERFACE */
 
+#ifdef HAVE_PSI_STAGE_INTERFACE
   count= array_elements(all_mysys_stages);
   mysql_stage_register(category, all_mysys_stages, count);
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 
+#ifdef HAVE_PSI_MEMORY_INTERFACE
   count= array_elements(all_mysys_memory);
   mysql_memory_register(category, all_mysys_memory, count);
+#endif /* HAVE_PSI_MEMORY_INTERFACE */
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  count= array_elements(all_mysys_thread);
+  mysql_thread_register(category, all_mysys_thread, count);
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 }
 #endif /* HAVE_PSI_INTERFACE */
 

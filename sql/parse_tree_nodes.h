@@ -2757,4 +2757,20 @@ public:
   virtual Sql_cmd *make_cmd(THD *) { return &sql_cmd; }
 };
 
+
+class PT_alter_instance : public PT_statement
+{
+  typedef PT_statement super;
+
+  Sql_cmd_alter_instance sql_cmd;
+
+public:
+  explicit PT_alter_instance(enum alter_instance_action_enum alter_instance_action)
+    : sql_cmd(alter_instance_action)
+  {}
+
+  virtual Sql_cmd *make_cmd(THD *thd);
+  virtual bool contextualize(Parse_context *pc);
+};
+
 #endif /* PARSE_TREE_NODES_INCLUDED */

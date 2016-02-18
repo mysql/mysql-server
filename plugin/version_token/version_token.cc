@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,8 @@
 #include <mysql/service_locking.h>
 #include <locking_service.h>
 #include <derror.h>
+#include <mysql/psi/mysql_rwlock.h>
+#include <mysql/psi/mysql_memory.h>
 
 #ifdef WIN32
 #define PLUGIN_EXPORT extern "C" __declspec(dllexport)
@@ -98,14 +100,11 @@ static void vtoken_init_psi_keys(void)
   const char* category= "vtoken";
   int count;
 
-  if (PSI_server == NULL)
-    return;
-
   count= array_elements(all_vtoken_rwlocks);
-  PSI_server->register_rwlock(category, all_vtoken_rwlocks, count);
+  PSI_RWLOCK_CALL(register_rwlock)(category, all_vtoken_rwlocks, count);
 
   count= array_elements(all_vtoken_memory);
-  PSI_server->register_memory(category, all_vtoken_memory, count);
+  PSI_MEMORY_CALL(register_memory)(category, all_vtoken_memory, count);
 }
 
 #endif /* HAVE_PSI_INTERFACE */

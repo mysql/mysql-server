@@ -9,7 +9,6 @@ let BASEDIR= `select @@basedir`;
 let DDIR=$MYSQL_TMP_DIR/installdb_test;
 let MYSQLD_LOG=$MYSQL_TMP_DIR/server.log;
 let extra_args=--no-defaults --console --log-syslog=0 --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
-let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/tiny_bootstrap.sql;
 let PASSWD_FILE=$MYSQL_TMP_DIR/password_file.txt;
 
 --echo # We don't care about innodb warnings at this point

@@ -142,6 +142,7 @@ SET(SQL_SHARED_SOURCES
   auth/password_policy_service.cc
   auth/sql_security_ctx.cc
   auth/service_security_context.cc
+  keyring_service.cc
   bootstrap.cc
   conn_handler/connection_handler_manager.cc 
   current_thd.cc
@@ -240,6 +241,7 @@ SET(SQL_SHARED_SOURCES
   sql_admin.cc
   sql_alloc_error_handler.cc
   sql_alter.cc
+  sql_alter_instance.cc
   sql_analyse.cc
   sql_base.cc 
   sql_bootstrap.cc
@@ -489,7 +491,8 @@ SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
                   rpl_info_factory.cc rpl_info_table_access.cc dynamic_ids.cc
                   rpl_rli_pdb.cc rpl_info_dummy.cc rpl_mts_submode.cc
                   rpl_slave_commit_order_manager.cc rpl_msr.cc
-                  rpl_trx_boundary_parser.cc rpl_channel_service_interface.cc)
+                  rpl_trx_boundary_parser.cc rpl_channel_service_interface.cc
+                  rpl_slave_until_options.cc)
 ADD_CONVENIENCE_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
 
@@ -706,4 +709,3 @@ ADD_CUSTOM_TARGET(distclean
 ADD_CUSTOM_TARGET(show-dist-name
   COMMAND ${CMAKE_COMMAND} -E echo "${CPACK_PACKAGE_FILE_NAME}"
 )
-

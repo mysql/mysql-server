@@ -561,3 +561,32 @@ SELECT a, pkey, d FROM v3;
 DROP TABLE v1, v2, v3;
 
 DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t30, t32, t33;
+
+CREATE TABLE t1 (
+  a INT NOT NULL,
+  d VARCHAR(15) NOT NULL,
+  b VARCHAR(198) NOT NULL,
+  c CHAR(187),
+  vadcol INT AS (a + length(d)) STORED,
+  vbcol CHAR(2) AS (substr(b, 2, 2)) VIRTUAL,
+  vbidxcol CHAR(3) AS (substr(b, 1, 3)) VIRTUAL,
+  INDEX(d),
+  INDEX(a),
+  INDEX(vbidxcol),
+  INDEX(a,vbidxcol),
+  INDEX(vbidxcol,d)) ENGINE=InnoDB;
+
+INSERT INTO t1(a, d, b, c) VALUES (1, 'database', 'storage', 'engine');
+
+ALTER TABLE t1 DROP COLUMN vbcol, ADD COLUMN nc07226 BIGINT AUTO_INCREMENT NOT NULL, ADD UNIQUE KEY auto_nc07226(nc07226), ADD COLUMN nc05019 BOOL NOT NULL FIRST, LOCK=EXCLUSIVE;
+
+UPDATE t1 SET b = repeat('dbms', 3);
+
+INSERT INTO t1(a, d, b, c, nc07226, nc05019) VALUES (2, 'database', 'storage', 'engine', 0, false);
+
+UPDATE t1 SET c = repeat('engine', 3);
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+

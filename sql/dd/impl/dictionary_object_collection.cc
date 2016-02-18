@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -67,7 +67,7 @@ bool Dictionary_object_collection<Object_type>::fetch(
 
     if (trx.otx.open_tables())
     {
-      DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+      DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
       return true;
     }
 
@@ -78,7 +78,7 @@ bool Dictionary_object_collection<Object_type>::fetch(
       std::unique_ptr<Raw_record_set> rs;
       if (table->open_record_set(object_key, rs))
       {
-        DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+        DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
         return true;
       }
 
@@ -89,7 +89,8 @@ bool Dictionary_object_collection<Object_type>::fetch(
 
         if (rs->next(r))
         {
-          DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+          DBUG_ASSERT(m_thd->is_system_thread() ||
+                      m_thd->killed || m_thd->is_error());
           return true;
         }
       }
@@ -108,7 +109,7 @@ bool Dictionary_object_collection<Object_type>::fetch(
     const Object_type *o= NULL;
     if (m_thd->dd_client()->acquire_uncached(*it, &o))
     {
-      DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+      DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
       return true;
     }
 
@@ -129,10 +130,12 @@ bool Dictionary_object_collection<Object_type>::fetch(
 ///////////////////////////////////////////////////////////////////////////
 
 // Explicitly instantiate the type for the various usages.
-template class Dictionary_object_collection<const Schema>;
 template class Dictionary_object_collection<const Abstract_table>;
+template class Dictionary_object_collection<const Charset>;
+template class Dictionary_object_collection<const Collation>;
+template class Dictionary_object_collection<const Schema>;
 template class Dictionary_object_collection<const Table>;
-template class Dictionary_object_collection<const View>;
 template class Dictionary_object_collection<const Tablespace>;
+template class Dictionary_object_collection<const View>;
 
 }

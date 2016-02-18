@@ -76,18 +76,18 @@ public:
     get_value_a_func(0), get_value_b_func(0), json_scalar(0)
   {}
 
-  int set_compare_func(Item_result_field *owner, Item_result type);
-  inline int set_compare_func(Item_result_field *owner_arg)
+  bool set_compare_func(Item_result_field *owner, Item_result type);
+  bool set_compare_func(Item_result_field *owner_arg)
   {
     return set_compare_func(owner_arg, item_cmp_type((*a)->result_type(),
                                                      (*b)->result_type()));
   }
-  int set_cmp_func(Item_result_field *owner_arg,
-                   Item **a1, Item **a2,
-                   Item_result type);
+  bool set_cmp_func(Item_result_field *owner_arg,
+                    Item **a1, Item **a2,
+                    Item_result type);
 
-  int set_cmp_func(Item_result_field *owner_arg,
-                   Item **a1, Item **a2, bool set_null_arg);
+  bool set_cmp_func(Item_result_field *owner_arg,
+                    Item **a1, Item **a2, bool set_null_arg);
 
   inline int compare() { return (this->*func)(); }
 
@@ -161,7 +161,12 @@ public:
   Item_bool_func(THD *thd, Item_bool_func *item) : Item_int_func(thd, item),
     m_created_by_in2exists(item->m_created_by_in2exists) {}
   bool is_bool_func() { return 1; }
-  void fix_length_and_dec() { decimals=0; max_length=1; }
+  virtual bool resolve_type(THD *thd)
+  {
+    decimals= 0;
+    max_length= 1;
+    return false;
+  }
   uint decimal_precision() const { return 1; }
   virtual bool created_by_in2exists() const { return m_created_by_in2exists; }
   void set_created_by_in2exists() { m_created_by_in2exists= true; }
@@ -184,7 +189,7 @@ class Item_func_truth : public Item_bool_func
 public:
   virtual bool val_bool();
   virtual longlong val_int();
-  virtual void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   virtual void print(String *str, enum_query_type query_type);
 
 protected:
@@ -437,7 +442,8 @@ public:
 class Item_bool_func2 :public Item_bool_func
 {						/* Bool with 2 string args */
 private:
-  bool convert_constant_arg(THD *thd, Item *field, Item **item);
+  bool convert_constant_arg(THD *thd, Item *field, Item **item,
+                            bool *converted);
 protected:
   Arg_comparator cmp;
   bool abort_on_null;
@@ -450,8 +456,8 @@ public:
     :Item_bool_func(pos, a,b), cmp(tmp_arg, tmp_arg+1), abort_on_null(FALSE)
   {}
 
-  void fix_length_and_dec();
-  int set_cmp_func()
+  virtual bool resolve_type(THD *thd);
+  bool set_cmp_func()
   {
     return cmp.set_cmp_func(this, tmp_arg, tmp_arg+1, TRUE);
   }
@@ -735,7 +741,7 @@ public:
   {};
 
   longlong val_int();
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   table_map not_null_tables() const { return 0; }
   enum Functype functype() const { return EQUAL_FUNC; }
   enum Functype rev_functype() const { return EQUAL_FUNC; }
@@ -909,7 +915,7 @@ public:
   bool fix_fields(THD *, Item **);
   void fix_after_pullout(SELECT_LEX *parent_select,
                          SELECT_LEX *removed_select);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   virtual void print(String *str, enum_query_type query_type);
   bool is_bool_func() { return 1; }
   const CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
@@ -936,10 +942,12 @@ public:
   {
     Item_func::print(str, query_type);
   }
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
-    Item_bool_func2::fix_length_and_dec();
+    if (Item_bool_func2::resolve_type(thd))
+      return true;
     fix_char_length(2); // returns "1" or "0" or "-1"
+    return false;
   }
 };
 
@@ -970,7 +978,7 @@ public:
 
   virtual bool itemize(Parse_context *pc, Item **res);
   longlong val_int();
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "interval"; }
   uint decimal_precision() const { return 2; }
   void print(String *str, enum_query_type query_type);
@@ -1005,7 +1013,7 @@ public:
   bool date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool time_op(MYSQL_TIME *ltime);
   my_decimal *decimal_op(my_decimal *);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   void find_num_type() {}
   enum Item_result result_type () const { return hybrid_type; }
   const char *func_name() const { return "coalesce"; }
@@ -1029,7 +1037,7 @@ public:
   bool time_op(MYSQL_TIME *ltime);
   my_decimal *decimal_op(my_decimal *);
   bool val_json(Json_wrapper *result);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "ifnull"; }
   Field *tmp_table_field(TABLE *table);
   uint decimal_precision() const;
@@ -1073,7 +1081,7 @@ public:
   enum Item_result result_type () const { return cached_result_type; }
   enum_field_types field_type() const { return cached_field_type; }
   bool fix_fields(THD *, Item **);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   void fix_after_pullout(SELECT_LEX *parent_select,
                          SELECT_LEX *removed_select);
   uint decimal_precision() const;
@@ -1095,7 +1103,7 @@ public:
   String *val_str(String *str);
   my_decimal *val_decimal(my_decimal *);
   enum Item_result result_type () const { return cached_result_type; }
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   uint decimal_precision() const { return args[0]->decimal_precision(); }
   const char *func_name() const { return "nullif"; }
 
@@ -1121,7 +1129,7 @@ public:
   uint used_count;   ///< The actual size of the vector (NULL may be ignored)
 
   /**
-    See Item_func_in::fix_length_and_dec for why we need both
+    See Item_func_in::resolve_type() for why we need both
     count and used_count.
    */
   explicit in_vector(uint elements)
@@ -1553,7 +1561,7 @@ public:
   corresponding THEN expression is returned.
   In order to do correct comparisons several comparators are used. One for
   each result type. Different result types that are used in particular
-  CASE ... END expression are collected in the fix_length_and_dec() member
+  CASE ... END expression are collected in the resolve_type() member
   function and only comparators for there result types are used.
 */
 
@@ -1598,7 +1606,7 @@ public:
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
   bool fix_fields(THD *thd, Item **ref);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   uint decimal_precision() const;
   table_map not_null_tables() const { return 0; }
   enum Item_result result_type () const { return cached_result_type; }
@@ -1622,8 +1630,7 @@ public:
   2) otherwise Item_func_in employs several cmp_item objects to perform
     comparisons of in_expr and an item from <in value list>. One cmp_item
     object for each result type. Different result types are collected in the
-    fix_length_and_dec() member function by means of collect_cmp_types()
-    function.
+    resolve_type() member function by means of collect_cmp_types() function.
 */
 class Item_func_in :public Item_func_opt_neg
 {
@@ -1638,7 +1645,7 @@ public:
   */
   bool have_null;
   /**
-    Set to true by fix_length_and_dec() if the IN list contains a
+    Set to true by resolve_type() if the IN list contains a
     dependent subquery, in which case condition filtering will not be
     calculated for this item.
   */
@@ -1658,7 +1665,7 @@ public:
   bool fix_fields(THD *, Item **);
   void fix_after_pullout(SELECT_LEX *parent_select,
                          SELECT_LEX *removed_select);
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   uint decimal_precision() const { return 1; }
 
   /**
@@ -1741,12 +1748,12 @@ public:
   cmp_item_row(): comparators(0), n(0) {}
   ~cmp_item_row();
   void store_value(Item *item);
-  void alloc_comparators(Item *item);
+  bool alloc_comparators(Item *item);
   int cmp(Item *arg);
   int compare(const cmp_item *arg) const;
   cmp_item *make_same();
   void store_value_by_template(cmp_item *tmpl, Item *);
-  friend void Item_func_in::fix_length_and_dec();
+  friend bool Item_func_in::resolve_type(THD *thd);
 };
 
 
@@ -1762,7 +1769,7 @@ public:
   ~in_row();
   void set(uint pos,Item *item);
   uchar *get_value(Item *item);
-  friend void Item_func_in::fix_length_and_dec();
+  friend bool Item_func_in::resolve_type(THD *thd);
   Item_result result_type() { return ROW_RESULT; }
 
   virtual void shrink_array(size_t n) { base_pointers.resize(n); }
@@ -1784,11 +1791,7 @@ public:
 
   longlong val_int();
   enum Functype functype() const { return ISNULL_FUNC; }
-  void fix_length_and_dec()
-  {
-    decimals=0; max_length=1; maybe_null=0;
-    update_used_tables();
-  }
+  virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "isnull"; }
   /* Optimize case of not_null_column IS NULL */
   virtual void update_used_tables()
@@ -1865,9 +1868,12 @@ public:
 
   longlong val_int();
   enum Functype functype() const { return ISNOTNULL_FUNC; }
-  void fix_length_and_dec()
+  virtual bool resolve_type(THD *thd)
   {
-    decimals=0; max_length=1; maybe_null=0;
+    decimals= 0;
+    max_length= 1;
+    maybe_null= false;
+    return false;
   }
   const char *func_name() const { return "isnotnull"; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
@@ -2175,7 +2181,7 @@ public:
   optimize_type select_optimize() const { return OPTIMIZE_EQUAL; }
   void sort(Item_field_cmpfunc compare, void *arg);
   friend class Item_equal_iterator;
-  void fix_length_and_dec();
+  virtual bool resolve_type(THD *thd);
   bool fix_fields(THD *thd, Item **ref);
   void update_used_tables();
   bool walk(Item_processor processor, enum_walk walk, uchar *arg);

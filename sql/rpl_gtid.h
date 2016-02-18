@@ -27,6 +27,7 @@
 #include <list>
 #include "atomic_class.h"
 #include "typelib.h"
+#include "mysql/psi/mysql_rwlock.h" // mysql_rwlock_t
 #include "template_utils.h"
 
 struct TABLE_LIST;
@@ -711,6 +712,20 @@ public:
 
   /// Return the sid_lock.
   Checkable_rwlock *get_sid_lock() const { return sid_lock; }
+
+  /**
+    Deep copy this Sid_map to dest.
+
+    The caller must hold:
+     * the read lock on this sid_lock
+     * the write lock on the dest sid_lock
+    before invoking this function.
+
+    @param[out] dest The Sid_map to which the sids and sidnos will
+                     be copied.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status copy(Sid_map *dest);
 
 private:
   /// Node pointed to by both the hash and the array.
@@ -3376,6 +3391,30 @@ void gtid_set_performance_schema_values(const THD *thd);
   @retval false Success.
 */
 bool gtid_reacquire_ownership_if_anonymous(THD *thd);
+
+
+/**
+  The function commits or rolls back the gtid state if it needs to.
+  It's supposed to be invoked at the end of transaction commit or
+  rollback, as well as as at the end of XA prepare.
+
+  @param thd       Thread context
+  @param needs_to  The actual work will be done when the parameter is true
+  @param do_commit When true the gtid state changes are committed, otherwise
+                   they are rolled back.
+*/
+
+inline void gtid_state_commit_or_rollback(THD *thd, bool needs_to,
+                                          bool do_commit)
+{
+  if (needs_to)
+  {
+    if (do_commit)
+      gtid_state->update_on_commit(thd);
+    else
+      gtid_state->update_on_rollback(thd);
+  }
+}
 
 #endif // ifndef MYSQL_CLIENT
 

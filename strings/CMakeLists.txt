@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,7 +16,6 @@
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
 
 SET(STRINGS_SOURCES
-  bchange.cc
   ctype-big5.cc
   ctype-bin.cc
   ctype.cc
@@ -41,36 +40,24 @@ SET(STRINGS_SOURCES
   decimal.cc
   dtoa.cc
   int2str.cc
-  is_prefix.cc
-  llstr.cc
   longlong2str.cc
-  my_stpmov.cc
-  my_stpnmov.cc
   my_strchr.cc
   my_strtoll10.cc
   my_vsnprintf.cc
   str2int.cc
   str_alloc.cc
-  strappend.cc
-  strcend.cc
   strcont.cc
-  strend.cc
-  strfill.cc
   strmake.cc
   strxmov.cc
   strxnmov.cc
   xml.cc
 )
 
-IF(NOT HAVE_STRNLEN)
-  # OSX does not have strnlen
-  SET(STRINGS_SOURCES ${STRINGS_SOURCES} strnlen.cc)
-ENDIF()
 # Avoid dependencies on perschema data defined in mysys
 ADD_DEFINITIONS(-DDISABLE_MYSQL_THREAD_H)
 ADD_CONVENIENCE_LIBRARY(strings ${STRINGS_SOURCES})
 
-ADD_EXECUTABLE(conf_to_src EXCLUDE_FROM_ALL conf_to_src.cc)
+ADD_EXECUTABLE(conf_to_src conf_to_src.cc)
 TARGET_LINK_LIBRARIES(conf_to_src strings)
 
 IF(MSVC)

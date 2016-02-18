@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -697,6 +697,10 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share, const dd::Table *ta
   if (table_options->exists("compress"))
     table_options->get("compress", share->compress, &share->mem_root);
 
+  // Read Encrypt string
+  if (table_options->exists("encrypt_type"))
+    table_options->get("encrypt_type", share->encrypt_type, &share->mem_root);
+
   return false;
 }
 
@@ -796,7 +800,14 @@ static bool fill_column_from_dd(TABLE_SHARE *share,
 
   // Collation ID
   charset= dd_get_mysql_charset(col_obj->collation_id());
-  DBUG_ASSERT(charset);
+  if (charset == NULL)
+  {
+    my_printf_error(ER_UNKNOWN_COLLATION,
+                    "invalid collation id %llu for table %s, column %s",
+                    MYF(0), col_obj->collation_id(), share->table_name.str,
+                    name);
+    return true;
+  }
 
   // Decimals
   if (field_type == MYSQL_TYPE_DECIMAL || field_type == MYSQL_TYPE_NEWDECIMAL)
@@ -896,6 +907,13 @@ static bool fill_column_from_dd(TABLE_SHARE *share,
 
     // Read generation expression.
     std::string gc_expr= col_obj->generation_expression();
+
+    /*
+      Place the expression's text into the TABLE_SHARE. Field objects of
+      TABLE_SHARE only have that. They don't have a corresponding Item,
+      which will be later created for the Field in TABLE, by
+      fill_dd_columns_from_create_fields().
+    */
     gcol_info->dup_expr_str(&share->mem_root,
                             gc_expr.c_str(),
                             gc_expr.length());
@@ -1036,7 +1054,9 @@ static bool fill_columns_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
     */
     if (!col_obj->is_virtual())
     {
-      fill_column_from_dd(share, col_obj, null_pos, null_bit_pos, rec_pos, field_nr);
+      if (fill_column_from_dd(share, col_obj, null_pos, null_bit_pos,
+                              rec_pos, field_nr))
+        return true;
 
       rec_pos+= share->field[field_nr]->pack_length_in_rec();
     }
@@ -1076,7 +1096,10 @@ static bool fill_columns_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
       if (col_obj->is_virtual())
       {
         // Fill details of each column.
-        fill_column_from_dd(share, col_obj, null_pos, null_bit_pos, rec_pos, field_nr);
+        if (fill_column_from_dd(share, col_obj, null_pos, null_bit_pos,
+                                rec_pos, field_nr))
+          return true;
+
         rec_pos+= share->field[field_nr]->pack_length_in_rec();
       }
 

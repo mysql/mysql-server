@@ -661,38 +661,38 @@ static bool contains_wr(const THD *thd,
 {
   if (doc_wrapper.type() == Json_dom::J_OBJECT)
   {
-    if (containee_wr.type() != Json_dom::J_OBJECT)
+    if (containee_wr.type() != Json_dom::J_OBJECT ||
+        containee_wr.length() > doc_wrapper.length())
     {
       *result= false;
       return false;
     }
 
-    Json_wrapper_object_iterator d_oi= doc_wrapper.object_iterator();
-    Json_wrapper_object_iterator c_oi= containee_wr.object_iterator();
-    Json_key_comparator cmp;
-
-    while (!c_oi.empty() && !d_oi.empty())
+    for (auto c_oi= containee_wr.object_iterator(); !c_oi.empty(); c_oi.next())
     {
-      for(; !d_oi.empty() && cmp(d_oi.elt().first, c_oi.elt().first);
-          d_oi.next()) {}
+      auto c_elt= c_oi.elt();
+      auto d_wr= doc_wrapper.lookup(c_elt.first.data(), c_elt.first.length());
 
-      if (d_oi.empty() || cmp(c_oi.elt().first, d_oi.elt().first))
+      if (d_wr.type() == Json_dom::J_ERROR)
       {
+        // No match for this key. Give up.
         *result= false;
         return false;
       }
 
       // key is the same, now compare values
-      if (contains_wr(thd, d_oi.elt().second, c_oi.elt().second, result))
+      if (contains_wr(thd, d_wr, c_elt.second, result))
         return true;                          /* purecov: inspected */
+
       if (!*result)
       {
         // Value didn't match, give up.
         return false;
       }
-      c_oi.next();
     }
-    *result= c_oi.empty(); // must be exhausted
+
+    // All members in containee_wr found a match in doc_wrapper.
+    *result= true;
     return false;
   }
 
@@ -728,26 +728,38 @@ static bool contains_wr(const THD *thd,
 
     for (size_t c_i= 0; c_i < c.size(); c_i++)
     {
-      Json_dom::enum_json_type candt= (*wr)[c[c_i]].type();
-
-      if (candt == Json_dom::J_ARRAY)
+      Json_wrapper candidate= (*wr)[c[c_i]];
+      if (candidate.type() == Json_dom::J_ARRAY)
       {
-        while (doc_i < d.size() &&
-               doc_wrapper[d[doc_i]].type() < candt)
-        {
-          doc_i++;
-        }
-
         bool found= false;
         /*
           We do not increase doc_i here, use a tmp. We might need to check again
           against doc_i: this allows duplicates in the candidate.
         */
-        for (size_t tmp= doc_i;
-             tmp < d.size() && doc_wrapper[d[tmp]].type() == Json_dom::J_ARRAY;
-             tmp++)
+        for (size_t tmp= doc_i; tmp < d.size(); tmp++)
         {
-          if (contains_wr(thd, doc_wrapper[d[tmp]], (*wr)[c[c_i]], result))
+          auto d_wr= doc_wrapper[d[tmp]];
+          const auto dtype= d_wr.type();
+
+          // Skip past all non-arrays.
+          if (dtype < Json_dom::J_ARRAY)
+          {
+            /*
+              Remember the position so that we don't need to skip past
+              these elements again for the next candidate.
+            */
+            doc_i= tmp;
+            continue;
+          }
+
+          /*
+            No more potential matches for this candidate if we've
+            moved past all the arrays.
+          */
+          if (dtype > Json_dom::J_ARRAY)
+            break;
+
+          if (contains_wr(thd, d_wr, candidate, result))
             return true;                      /* purecov: inspected */
           if (*result)
           {
@@ -769,10 +781,11 @@ static bool contains_wr(const THD *thd,
 
         while (tmp < d.size())
         {
-          if (doc_wrapper[d[tmp]].type() == Json_dom::J_ARRAY ||
-              doc_wrapper[d[tmp]].type() == Json_dom::J_OBJECT)
+          auto d_wr= doc_wrapper[d[tmp]];
+          const auto dtype= d_wr.type();
+          if (dtype == Json_dom::J_ARRAY || dtype == Json_dom::J_OBJECT)
           {
-            if (contains_wr(thd, doc_wrapper[d[tmp]], (*wr)[c[c_i]], result))
+            if (contains_wr(thd, d_wr, candidate, result))
               return true;                    /* purecov: inspected */
             if (*result)
             {
@@ -780,7 +793,7 @@ static bool contains_wr(const THD *thd,
               break;
             }
           }
-          else if (doc_wrapper[d[tmp]].compare((*wr)[c[c_i]]) == 0)
+          else if (d_wr.compare(candidate) == 0)
           {
             found= true;
             break;
@@ -2956,13 +2969,12 @@ static bool find_matches(const Json_wrapper &wrapper, Json_path *path,
         if (path->to_string(&str))
           return true;                        /* purecov: inspected */
 
-        std::string string_contents(str.ptr(), str.length());
         std::pair<String_set::iterator, bool> res=
-          duplicates->insert_unique(string_contents);
+          duplicates->insert_unique(std::string(str.ptr(), str.length()));
 
         if (res.second)
         {
-          Json_string *jstr= new (std::nothrow) Json_string(string_contents);
+          Json_string *jstr= new (std::nothrow) Json_string(*res.first);
           if (!jstr || matches->push_back(jstr))
             return true;                      /* purecov: inspected */
         }
@@ -2976,13 +2988,9 @@ static bool find_matches(const Json_wrapper &wrapper, Json_path *path,
            !jwot.empty(); jwot.next())
       {
         std::pair<const std::string, Json_wrapper> pair= jwot.elt();
-        const std::string key= pair.first;
-        Json_wrapper value= pair.second;
-        Json_path_leg next_leg(key);
-
         // recurse
-        if (path->append(next_leg) ||
-            find_matches(value, path, matches, duplicates, one_match,
+        if (path->append(Json_path_leg(pair.first)) ||
+            find_matches(pair.second, path, matches, duplicates, one_match,
                          like_node, source_string))
           return true;                        /* purecov: inspected */
         path->pop();
@@ -2999,12 +3007,9 @@ static bool find_matches(const Json_wrapper &wrapper, Json_path *path,
     {
       for (size_t idx= 0; idx < wrapper.length(); idx++)
       {
-        Json_wrapper value= wrapper[idx];
-        Json_path_leg next_leg(idx);
-
         // recurse
-        if (path->append(next_leg) ||
-            find_matches(value, path, matches, duplicates, one_match,
+        if (path->append(Json_path_leg(idx)) ||
+            find_matches(wrapper[idx], path, matches, duplicates, one_match,
                          like_node, source_string))
           return true;                        /* purecov: inspected */
         path->pop();

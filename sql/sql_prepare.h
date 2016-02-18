@@ -1,6 +1,6 @@
 #ifndef SQL_PREPARE_H
 #define SQL_PREPARE_H
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include "sql_class.h"    // Query_arena
 
 struct LEX;
+struct PSI_prepared_stmt;
 
 /**
   An interface that is used to take an action when
@@ -470,7 +471,10 @@ public:
                     uchar *packet_arg, uchar *packet_end_arg);
   bool execute_server_runnable(Server_runnable *server_runnable);
 #ifdef HAVE_PSI_PS_INTERFACE
-  PSI_prepared_stmt* get_PS_prepared_stmt();
+  PSI_prepared_stmt* get_PS_prepared_stmt()
+  {
+    return m_prepared_stmt;
+  }
 #endif
   /* Destroy this statement */
   void deallocate();

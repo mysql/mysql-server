@@ -34,9 +34,6 @@ insert into d3.t1 (b) select count(*) from tt_##;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements writing to a table with an auto-increment column after selecting from another table are unsafe because the order in which rows are retrieved determines what (if any) rows will be written. This order cannot be predicted and may differ on master and the slave.
 include/sync_slave_sql_with_master.inc
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
-set @@global.show_compatibility_56=@show_compatibility_56_save;
 include/diff_tables.inc [master:d4.t1, slave:d4.t1]
 include/diff_tables.inc [master:d3.t1, slave:d3.t1]
 include/diff_tables.inc [master:d2.t1, slave:d2.t1]

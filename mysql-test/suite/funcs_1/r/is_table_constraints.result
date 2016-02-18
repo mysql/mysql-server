@@ -57,6 +57,7 @@ table_schema, table_name
 FROM information_schema.table_constraints
 WHERE constraint_catalog IS NOT NULL;
 constraint_catalog	constraint_schema	constraint_name	table_schema	table_name
+def	mysql	PRIMARY	mysql	column_stats
 def	mysql	PRIMARY	mysql	columns_priv
 def	mysql	PRIMARY	mysql	db
 def	mysql	PRIMARY	mysql	engine_cost

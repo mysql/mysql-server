@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,39 +23,12 @@ Following are the tests that mostly pass or will be
 disabled due to some other dependencies.
 ////////////////////////////////////////////////////////////
 
-/** MEDIUM - Joh
-  Needs understanding of test case scenario and bit more
-  involved study to re-write these tests. We may or may
-  not be successful in re-write, need to check.
-*/
-main.mdl_sync                          WL6378_DEBUG_SYNC
-main.lock_sync                         WL6378_DEBUG_SYNC
-
-
 /** LOW
   Deals with upgrade scenarios.
   Need to re-visit once we have WL6392
 */
 i_main.mysql_upgrade                   WL6378_UPGRADE
 main.mysql_upgrade                     WL6378_UPGRADE
-sysschema.mysqldump                    WL6378_UPGRADE
-
-
-/** LOW
-  Test deals with CREATE/DROP/ALTER on innodb_index_stats
-  innodb_table_stats DD tables. As DD tables structures
-  should not be changed, this should be avoided.
-
-  Can we re-write the test to avoid this ?
-
-  NOTE: we must block DDL to these tables. Revisit after
-  WL6391.
-*/
-main.mysqldump                         WL6378_DDL_ON_DD_TABLE
-main.system_mysql_db_fix50030          WL6378_DDL_ON_DD_TABLE
-main.system_mysql_db_fix40123          WL6378_DDL_ON_DD_TABLE
-main.system_mysql_db_fix50117          WL6378_DDL_ON_DD_TABLE
-
 
 ///////////////////////////////////////////////////////////////////
 // RELATED TO INNODB SE
@@ -108,20 +81,21 @@ innodb.partition                       WL6378_ALTER_PARTITION_TABLESPACE
 i_main.plugin_auth                     WL6378_MODIFIES_SYSTEM_TABLE
 
 /*
+  Allow dump/restore of innodb_index_stats and innodb_table_stats.
+  See Bug#22655287
+*/
+main.mysqldump                         WL6378_DDL_ON_DD_TABLE
+sysschema.mysqldump                    WL6378_DDL_ON_DD_TABLE
+
+/** MEDIUM - Joh
+  Needs understanding of test case scenario and bit more
+  involved study to re-write these tests. We may or may
+  not be successful in re-write, need to check.
+*/
+main.lock_sync                         WL6378_DEBUG_SYNC
+
+/*
   WL#6599
   Disabled for valgrind because of I_S timeout. Retry after WL#6599
 */
 main.get_table_share
-
-///////////////////////////////////////////////////////////////////
-// TEST DISABLED BY OTHER WL TREE (not WL#6378 stuff)
-///////////////////////////////////////////////////////////////////
-
-/* HIGH/MEDIUM - Marko
-  Tests with result difference
-*/
-// WL#7811/WL#7743/WL#7141 TODO: Adjust for TRUNCATE (WL#7899/WL#6795)
-innodb_zip.wl6501_scale_1                      : WL6795_WL7016_RECOVERY
-
-(16:16:46) marko: innodb_zip.wl6501_scale_1 needs some WL#6795 (http://wl.no.oracle.com/?tid=6795) adjustment
-(16:16:58) marko: or re-recording (warnings on TRUNCATE)

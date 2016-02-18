@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -217,14 +217,13 @@ Ha_innopart_share::set_v_templ(
 
 	if (ib_table->n_v_cols > 0) {
 		for (ulint i = 0; i < m_tot_parts; i++) {
-			if (m_table_parts[i]->vc_templ != NULL
-			    && m_table_parts[i]->get_ref_count() == 1) {
-				/* Clean and refresh the template */
-				dict_free_vc_templ(m_table_parts[i]->vc_templ);
-				m_table_parts[i]->vc_templ->vtempl = NULL;
-			} else {
+			if (m_table_parts[i]->vc_templ == NULL) {
 				m_table_parts[i]->vc_templ
 					= UT_NEW_NOKEY(dict_vcol_templ_t());
+				m_table_parts[i]->vc_templ->vtempl = NULL;
+			} else if (m_table_parts[i]->get_ref_count() == 1) {
+				/* Clean and refresh the template */
+				dict_free_vc_templ(m_table_parts[i]->vc_templ);
 				m_table_parts[i]->vc_templ->vtempl = NULL;
 			}
 
@@ -234,7 +233,6 @@ Ha_innopart_share::set_v_templ(
 					m_table_parts[i]->vc_templ,
 					NULL, true, name);
 			}
-
 		}
 	}
 }
@@ -2525,14 +2523,15 @@ ha_innopart::position_in_last_part(
 	DBUG_VOID_RETURN;
 }
 
-/** Fill in data_dir_path and tablespace name from internal data
-dictionary.
-@param	part_elem	Partition element to fill.
-@param	ib_table	InnoDB table to copy from. */
+/** Fill in data_dir_path and tablespace name from internal data dictionary.
+@param[in,out]	part_elem		Partition element to fill.
+@param[in]	ib_table		InnoDB table to copy from.
+@param[in]	display_tablespace	Display tablespace name if set. */
 void
 ha_innopart::update_part_elem(
 	partition_element*	part_elem,
-	dict_table_t*		ib_table)
+	dict_table_t*		ib_table,
+	bool			display_tablespace)
 {
 	dict_get_and_save_data_dir_path(ib_table, false);
 	if (ib_table->data_dir_path != NULL) {
@@ -2566,6 +2565,27 @@ ha_innopart::update_part_elem(
 				strdup_root(&table->mem_root,
 					ib_table->tablespace);
 		}
+	} else {
+		const char*   tablespace_name = ib_table->space == 0
+			? reserved_system_space_name
+			: reserved_file_per_table_space_name;
+
+		if (part_elem->tablespace_name != NULL) {
+			if (0 != strcmp(part_elem->tablespace_name,
+					tablespace_name)) {
+				/* Update part_elem ablespace to NULL same as in
+				innodb data dictionary ib_table. */
+				part_elem->tablespace_name = NULL;
+			}
+		} else if (display_tablespace) {
+
+			/* Update tablespace values so that SHOW CREATE TABLE
+			will display TABLESPACE=name for the partition when
+			appropriate, if it's not mentioned explicitly during
+			table creation. */
+			part_elem->tablespace_name = strdup_root(
+				&table->mem_root, tablespace_name);
+		}
 	}
 }
 
@@ -2579,6 +2599,7 @@ ha_innopart::update_create_info(
 	uint		num_subparts	= m_part_info->num_subparts;
 	uint		num_parts;
 	uint		part;
+	bool		display_tablespace = false;
 	dict_table_t*	table;
 	List_iterator<partition_element>
 				part_it(m_part_info->partitions);
@@ -2620,10 +2641,26 @@ ha_innopart::update_create_info(
 				if (subpart >= num_subparts) {
 					DBUG_VOID_RETURN;
 				}
+				table = m_part_share->get_table_part(
+						part*num_subparts + subpart);
+
+				if (sub_elem->tablespace_name != NULL
+				    || table->tablespace != NULL
+				    || table->space == 0) {
+					display_tablespace = true;
+				}
 				subpart++;
 			}
 			if (subpart != num_subparts) {
 				DBUG_VOID_RETURN;
+			}
+		} else {
+			table = m_part_share->get_table_part(part);
+
+			if (table->space == 0
+			    || table->tablespace != NULL
+			    || part_elem->tablespace_name != NULL) {
+				display_tablespace = true;
 			}
 		}
 		part++;
@@ -2644,11 +2681,12 @@ ha_innopart::update_create_info(
 				subpart_it(part_elem->subpartitions);
 			while ((sub_elem = subpart_it++)) {
 				table = m_part_share->get_table_part(part++);
-				update_part_elem(sub_elem, table);
+				update_part_elem(sub_elem, table,
+					display_tablespace);
 			}
 		} else {
 			table = m_part_share->get_table_part(part++);
-			update_part_elem(part_elem, table);
+			update_part_elem(part_elem, table, display_tablespace);
 		}
 	}
 	DBUG_VOID_RETURN;
@@ -3132,9 +3170,7 @@ ha_innopart::truncate_partition_low()
 
 		/* Intrinsic partitioned tables are not supported! */
 		ut_ad(!dict_table_is_intrinsic(table_part));
-		/* Truncate of intrinsic table is not allowed truncate for
-		now. */
-		if (dict_table_is_intrinsic(table_part)) {
+		if (dict_table_is_temporary(table_part)) {
 			error = HA_ERR_WRONG_COMMAND;
 			break;
 		}
@@ -3160,9 +3196,9 @@ ha_innopart::truncate_partition_low()
 			? 1 : 0;
 
 		info->key_block_size = table_share->key_block_size;
-		// TODO: WL#6205 Add:
-		//info->tablespace = mem_heap_strdup(heap,
-		//table_part->tablespace_name);
+		info->tablespace = table_part->tablespace == NULL
+			? NULL
+			: mem_heap_strdup(heap, table_part->tablespace);
 	}
 
 
@@ -3834,7 +3870,7 @@ ha_innopart::info_low(
 				if ((key->flags & HA_FULLTEXT) != 0) {
 					/* The whole concept has no validity
 					for FTS indexes. */
-					key->rec_per_key[j] = 1;
+					key->set_records_per_key(j, 1.0f);
 					continue;
 				}
 
@@ -3873,28 +3909,6 @@ ha_innopart::info_low(
 						max_rows);
 
 				key->set_records_per_key(j, rec_per_key);
-
-				/* The code below is legacy and should be
-				removed together with this comment once we
-				are sure the new floating point rec_per_key,
-				set via set_records_per_key(), works fine. */
-
-				ulong	rec_per_key_int = static_cast<ulong>(
-					innodb_rec_per_key(index, j,
-							   max_rows));
-
-				/* Since MySQL seems to favor table scans
-				too much over index searches, we pretend
-				index selectivity is 2 times better than
-				our estimate: */
-
-				rec_per_key_int = rec_per_key_int / 2;
-
-				if (rec_per_key_int == 0) {
-					rec_per_key_int = 1;
-				}
-
-				key->rec_per_key[j] = rec_per_key_int;
 			}
 		}
 

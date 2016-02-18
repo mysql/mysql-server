@@ -185,7 +185,7 @@ bool Partition_impl::store_children(Open_dictionary_tables_ctx *otx)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Partition_impl::drop_children(Open_dictionary_tables_ctx *otx)
+bool Partition_impl::drop_children(Open_dictionary_tables_ctx *otx) const
 {
   return m_values->drop_items(
            otx,
@@ -385,7 +385,6 @@ Collection_item *Partition_impl::Factory::create_item() const
 
 ///////////////////////////////////////////////////////////////////////////
 
-#ifndef DBUG_OFF
 Partition_impl::Partition_impl(const Partition_impl &src,
                                Table_impl *parent)
   : Weak_object(src), Entity_object_impl(src),
@@ -420,7 +419,6 @@ Partition_impl::Partition_impl(const Partition_impl &src,
                                 clone(this, dstix));
   }
 }
-#endif /* !DBUG_OFF */
 
 ///////////////////////////////////////////////////////////////////////////
 // Partition_type implementation.

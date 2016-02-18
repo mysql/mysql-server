@@ -2318,7 +2318,11 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
 end:
   /* Deferred xa rollback to engines */
   if (!error && thd->lex->sql_command == SQLCOM_XA_ROLLBACK)
+  {
     error= ha_rollback_low(thd, all);
+    /* Successful XA-rollback commits the new gtid_state */
+    gtid_state->update_on_commit(thd);
+  }
   /*
     When a statement errors out on auto-commit mode it is rollback
     implicitly, so the same should happen to its GTID.
@@ -5656,7 +5660,6 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
   {
     rli->set_group_relay_log_pos(BIN_LOG_HEADER_SIZE);
     rli->set_group_relay_log_name(rli->linfo.log_file_name);
-    rli->notify_group_relay_log_name_update();
   }
   /*
     Store where we are in the new file for the execution thread.

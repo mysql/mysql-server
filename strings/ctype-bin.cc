@@ -1,5 +1,5 @@
 /* Copyright (c) 2002 MySQL AB & tommy@valley.ne.jp
-   Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -21,6 +21,7 @@
 #include <my_global.h>
 #include "m_string.h"
 #include "m_ctype.h"
+#include <algorithm>
 
 static const uchar ctype_bin[]=
 {
@@ -81,8 +82,8 @@ static int my_strnncoll_binary(const CHARSET_INFO *cs __attribute__((unused)),
                                const uchar *t, size_t tlen,
                                my_bool t_is_prefix)
 {
-  size_t len= MY_MIN(slen,tlen);
-  int cmp= memcmp(s,t,len);
+  size_t len= std::min(slen,tlen);
+  const int cmp= len == 0 ? 0 :  memcmp(s,t,len); // memcmp(a, b, 0) == 0
   return cmp ? cmp : (int)((t_is_prefix ? len : slen) - tlen);
 }
 

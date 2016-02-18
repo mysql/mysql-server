@@ -35,7 +35,7 @@ enum enum_server_command
   COM_CREATE_DB,
   COM_DROP_DB,
   COM_REFRESH,
-  COM_SHUTDOWN,
+  COM_DEPRECATED_1,   /* deprecated, used to be COM_SHUTDOWN */
   COM_STATISTICS,
   COM_PROCESS_INFO,
   COM_CONNECT,

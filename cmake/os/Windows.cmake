@@ -138,15 +138,4 @@ LINK_LIBRARIES(ws2_32)
 # ..also for tests
 SET(CMAKE_REQUIRED_LIBRARIES ws2_32)
 
-# IPv6 constants appeared in Vista SDK first. We need to define them in any case if they are 
-# not in headers, to handle dual mode sockets correctly.
-CHECK_SYMBOL_EXISTS(IPPROTO_IPV6 "winsock2.h" HAVE_IPPROTO_IPV6)
-IF(NOT HAVE_IPPROTO_IPV6)
-  SET(HAVE_IPPROTO_IPV6 41)
-ENDIF()
-CHECK_SYMBOL_EXISTS(IPV6_V6ONLY  "winsock2.h;ws2ipdef.h" HAVE_IPV6_V6ONLY)
-IF(NOT HAVE_IPV6_V6ONLY)
-  SET(IPV6_V6ONLY 27)
-ENDIF()
-
 SET(FN_NO_CASE_SENSE 1)

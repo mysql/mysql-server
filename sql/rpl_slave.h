@@ -18,6 +18,7 @@
 
 #include "my_global.h"
 #include "my_thread.h"                     // my_start_routine
+#include "mysql/psi/mysql_cond.h"          // mysql_cond_t
 #include "mysql/psi/mysql_thread.h"        // mysql_mutex_t
 #include "rpl_channel_service_interface.h" // enum_channel_type
 
@@ -393,7 +394,6 @@ void skip_load_data_infile(NET* net);
 
 void end_slave(); /* release slave threads */
 void delete_slave_info_objects(); /* clean up slave threads data */
-void clear_until_condition(Relay_log_info* rli);
 void clear_slave_error(Relay_log_info* rli);
 void lock_slave_threads(Master_info* mi);
 void unlock_slave_threads(Master_info* mi);

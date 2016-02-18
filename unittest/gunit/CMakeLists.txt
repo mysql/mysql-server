@@ -222,6 +222,7 @@ IF (WITH_SSL STREQUAL "bundled")
 ENDIF()
 
 ADD_SUBDIRECTORY(innodb)
+ADD_SUBDIRECTORY(keyring) 
 
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
@@ -322,12 +323,9 @@ SET(TESTS
   my_timer
   timespec
   my_alloc
+  val_int_compare
   )
  
-IF (UNIX)
-  LIST(APPEND TESTS path auth_utils)
-ENDIF()
-
 IF(WIN32)
   LIST(APPEND TESTS win_tests)
 ENDIF()

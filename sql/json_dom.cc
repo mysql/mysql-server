@@ -1814,10 +1814,8 @@ Json_wrapper_object_iterator::elt() const
     return std::make_pair(m_iter->first, wr);
   }
 
-  std::string key(m_value->key(m_curr_element).get_data(),
-                  m_value->key(m_curr_element).get_data_length());
-  Json_wrapper wr(m_value->element(m_curr_element));
-  return std::make_pair(key, wr);
+  return std::make_pair(get_string_data(m_value->key(m_curr_element)),
+                        Json_wrapper(m_value->element(m_curr_element)));
 }
 
 
@@ -1885,11 +1883,8 @@ Json_wrapper &Json_wrapper::operator=(const Json_wrapper& from)
     return *this;   // self assignment: no-op
   }
 
-  if (m_is_dom && !m_dom_alias &&!empty())
-  {
-    // we own our own copy, so we are responsible for deallocation
-    delete m_dom_value;
-  }
+  // Deallocate DOM if needed.
+  this->~Json_wrapper();
 
   // Copy the value into this.
   new (this) Json_wrapper(from);
@@ -2493,7 +2488,7 @@ bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
           size_t key_length= path_leg->get_member_name_length();
           Json_wrapper member= lookup(key, key_length);
 
-          if (!member.empty() & !(member.type() == Json_dom::J_ERROR))
+          if (member.type() != Json_dom::J_ERROR)
           {
             // recursion
             if (member.seek_no_ellipsis(path, hits, leg_number + 1, auto_wrap,
@@ -3037,14 +3032,13 @@ int Json_wrapper::compare(const Json_wrapper &other) const
         const std::pair<const std::string, Json_wrapper> elt1= it1.elt();
         const std::pair<const std::string, Json_wrapper> elt2= it2.elt();
 
-        const std::string key1= elt1.first;
-        const std::string key2= elt2.first;
-
-        cmp= compare_json_strings(key1.data(), key1.size(),
-                                  key2.data(), key2.size());
+        // Compare the keys of the two members.
+        cmp= compare_json_strings(elt1.first.data(), elt1.first.size(),
+                                  elt2.first.data(), elt2.first.size());
         if (cmp != 0)
           return cmp;
 
+        // Compare the values of the two members.
         cmp= elt1.second.compare(elt2.second);
         if (cmp != 0)
           return cmp;

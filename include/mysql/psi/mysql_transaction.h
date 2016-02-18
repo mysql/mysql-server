@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,15 +21,15 @@
   Instrumentation helpers for transactions.
 */
 
-#include "mysql/psi/psi.h"
+#include "mysql/psi/psi_transaction.h"
 
 #ifndef PSI_TRANSACTION_CALL
-#define PSI_TRANSACTION_CALL(M) PSI_DYNAMIC_CALL(M)
+#define PSI_TRANSACTION_CALL(M) psi_transaction_service->M
 #endif
 
 /**
-  @defgroup Transaction_instrumentation Transaction Instrumentation
-  @ingroup Instrumentation_interface
+  @defgroup psi_api_transaction Transaction Instrumentation (API)
+  @ingroup psi_api
   @{
 */
 
@@ -207,7 +207,7 @@ inline_mysql_commit_transaction(struct PSI_transaction_locker *locker)
 }
 #endif
 
-/** @} (end of group Transaction_instrumentation) */
+/** @} (end of group psi_api_transaction) */
 
 #endif
 

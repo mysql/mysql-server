@@ -31,8 +31,6 @@ SET GLOBAL max_relay_log_size = 4096;
 include/stop_slave_sql.inc
 SET GLOBAL slave_parallel_type = "LOGICAL_CLOCK";
 include/start_slave_sql.inc
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
 #
 # Case 1: slave will stop if slave_transaction_retries is 0
 #
@@ -120,7 +118,7 @@ INSERT INTO db1.t1 VALUES(50, NULL);
 include/save_master_pos.inc
 [connection slave]
 include/wait_for_slave_sql_error.inc [errno=1062]
-include/assert.inc [slave_retried_transactions should not increase]
+include/assert.inc [count_transactions_retries should not increase]
 DELETE FROM db1.t1 WHERE c1 = 50;
 include/start_slave_sql.inc
 include/sync_slave_sql.inc
@@ -131,7 +129,6 @@ SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
 SET GLOBAL slave_parallel_workers = @saved_slave_parallel_workers;
 SET GLOBAL max_relay_log_size = @saved_max_relay_log_size;
 SET GLOBAL slave_transaction_retries = @saved_slave_transaction_retries;
-set @@global.show_compatibility_56=@show_compatibility_56_save;
 include/stop_slave_sql.inc
 SET GLOBAL slave_parallel_type= @saved_slave_parallel_type;
 include/start_slave_sql.inc

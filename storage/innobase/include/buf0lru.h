@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -200,9 +200,12 @@ Remove one page from LRU list and put it to free list */
 void
 buf_LRU_free_one_page(
 /*==================*/
-	buf_page_t*	bpage);	/*!< in/out: block, must contain a file page and
+	buf_page_t*	bpage,	/*!< in/out: block, must contain a file page and
 				be in a state where it can be freed; there
 				may or may not be a hash index to the page */
+	bool		ignore_content);
+				/*!< in: true if should ignore page
+				content, since it could be not initialized. */
 
 /******************************************************************//**
 Adjust LRU hazard pointers if needed. */

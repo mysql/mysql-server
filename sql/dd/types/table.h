@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify it under
    the terms of the GNU General Public License as published by the Free Software
@@ -223,15 +223,13 @@ public:
   virtual const Partition *get_partition_by_se_private_id(
                              Object_id se_private_id) const = 0;
 
-#ifndef DBUG_OFF
   /**
     Allocate a new object graph and invoke the copy contructor for
-    each object. Only used in unit testing.
+    each object.
 
     @return pointer to dynamically allocated copy
   */
   virtual Table *clone() const = 0;
-#endif /* !DBUG_OFF */
 
 };
 

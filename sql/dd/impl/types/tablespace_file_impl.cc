@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -185,7 +185,6 @@ Collection_item *Tablespace_file_impl::Factory::create_item() const
 
 ///////////////////////////////////////////////////////////////////////////
 
-#ifndef DBUG_OFF
 Tablespace_file_impl::
 Tablespace_file_impl(const Tablespace_file_impl &src,
                      Tablespace_impl *parent)
@@ -195,7 +194,6 @@ Tablespace_file_impl(const Tablespace_file_impl &src,
                       parse_properties(src.m_se_private_data->raw_string())),
     m_tablespace(parent)
 {}
-#endif /* !DBUG_OFF */
 
 ///////////////////////////////////////////////////////////////////////////
 // Tablespace_file_type implementation.

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -149,8 +149,11 @@ buf_LRU_block_remove_hashed(
 	buf_page_t*	bpage,	/*!< in: block, must contain a file page and
 				be in a state where it can be freed; there
 				may or may not be a hash index to the page */
-	bool		zip);	/*!< in: true if should remove also the
+	bool		zip,	/*!< in: true if should remove also the
 				compressed page of an uncompressed page */
+	bool		ignore_content);
+				/*!< in: true if should ignore page
+				content, since it could be not initialized. */
 /******************************************************************//**
 Puts a file page whose has no hash index to the free list. */
 static
@@ -822,7 +825,7 @@ scan_again:
 
 		/* Remove from the LRU list. */
 
-		if (buf_LRU_block_remove_hashed(bpage, true)) {
+		if (buf_LRU_block_remove_hashed(bpage, true, false)) {
 			buf_LRU_block_free_hashed_page((buf_block_t*) bpage);
 		} else {
 			ut_ad(block_mutex == &buf_pool->zip_mutex);
@@ -1839,7 +1842,7 @@ func_exit:
         ut_ad(rw_lock_own(hash_lock, RW_LOCK_X));
 	ut_ad(buf_page_can_relocate(bpage));
 
-	if (!buf_LRU_block_remove_hashed(bpage, zip)) {
+	if (!buf_LRU_block_remove_hashed(bpage, zip, false)) {
 		return(true);
 	}
 
@@ -2117,8 +2120,11 @@ buf_LRU_block_remove_hashed(
 	buf_page_t*	bpage,	/*!< in: block, must contain a file page and
 				be in a state where it can be freed; there
 				may or may not be a hash index to the page */
-	bool		zip)	/*!< in: true if should remove also the
+	bool		zip,	/*!< in: true if should remove also the
 				compressed page of an uncompressed page */
+	bool		ignore_content)
+				/*!< in: true if should ignore page
+				content, since it could be not initialized. */
 {
 	const buf_page_t*	hashed_bpage;
 	buf_pool_t*		buf_pool = buf_pool_from_bpage(bpage);
@@ -2198,24 +2204,28 @@ buf_LRU_block_remove_hashed(
 			break;
 		}
 
-		/* Account the eviction of index leaf pages from
-		the buffer pool(s). */
+		if (!ignore_content) {
+			/* Account the eviction of index leaf pages from
+			the buffer pool(s). */
 
-		const byte*	frame
-			= bpage->zip.data != NULL
-			? bpage->zip.data
-			: reinterpret_cast<buf_block_t*>(bpage)->frame;
+			const byte*	frame
+				= bpage->zip.data != NULL
+				? bpage->zip.data
+				: reinterpret_cast<buf_block_t*>(bpage)->frame;
 
-		const ulint	type = fil_page_get_type(frame);
+			const ulint	type = fil_page_get_type(frame);
 
-		if ((type == FIL_PAGE_INDEX || type == FIL_PAGE_RTREE)
-		    && btr_page_get_level_low(frame) == 0) {
+			if ((type == FIL_PAGE_INDEX || type == FIL_PAGE_RTREE)
+			    && page_is_leaf(frame) == 0) {
 
-			uint32_t	space_id = bpage->id.space();
+				uint32_t	space_id = bpage->id.space();
 
-			space_index_t	idx_id = btr_page_get_index_id(frame);
+				space_index_t	idx_id =
+					btr_page_get_index_id(frame);
 
-			buf_stat_per_index->dec(index_id_t(space_id, idx_id));
+				buf_stat_per_index->dec(
+					index_id_t(space_id, idx_id));
+			}
 		}
 
 		/* fall through */
@@ -2389,9 +2399,12 @@ Remove one page from LRU list and put it to free list */
 void
 buf_LRU_free_one_page(
 /*==================*/
-	buf_page_t*	bpage)	/*!< in/out: block, must contain a file page and
+	buf_page_t*	bpage,	/*!< in/out: block, must contain a file page and
 				be in a state where it can be freed; there
 				may or may not be a hash index to the page */
+	bool		ignore_content)
+				/*!< in: true if should ignore page
+				content, since it could be not initialized. */
 {
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 
@@ -2403,7 +2416,7 @@ buf_LRU_free_one_page(
 	rw_lock_x_lock(hash_lock);
 	mutex_enter(block_mutex);
 
-	if (buf_LRU_block_remove_hashed(bpage, true)) {
+	if (buf_LRU_block_remove_hashed(bpage, true, ignore_content)) {
 		buf_LRU_block_free_hashed_page((buf_block_t*) bpage);
 	}
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1136,8 +1136,8 @@ dict_table_open_on_id(
 	} else if (dict_table_is_sdi(table_id)) {
 
 		/* The table is SDI table */
-		ulint	space_id = dict_sdi_get_space_id(table_id);
-		ulint	copy_num = dict_sdi_get_copy_num(table_id);
+		ulint	        space_id = dict_sdi_get_space_id(table_id);
+		uint32_t	copy_num = dict_sdi_get_copy_num(table_id);
 
 		/* Create in-memory table oject for SDI table */
 		dict_index_t*	sdi_index = dict_sdi_create_idx_in_mem(
@@ -7084,10 +7084,12 @@ Other bits are the same.
 dict_table_t::flags |     0     |    1    |     1      |    1
 fil_space_t::flags  |     0     |    0    |     1      |    1
 @param[in]	table_flags	dict_table_t::flags
+@param[in]	is_encrypted	if it's an encrypted table
 @return tablespace flags (fil_space_t::flags) */
 ulint
 dict_tf_to_fsp_flags(
-	ulint	table_flags)
+	ulint	table_flags,
+	bool	is_encrypted)
 {
 	DBUG_EXECUTE_IF("dict_tf_to_fsp_flags_failure",
 			return(ULINT_UNDEFINED););
@@ -7110,7 +7112,8 @@ dict_tf_to_fsp_flags(
 						   has_atomic_blobs,
 						   has_data_dir,
 						   is_shared,
-						   false);
+						   false,
+						   is_encrypted);
 
 	return(fsp_flags);
 }
@@ -8034,8 +8037,8 @@ use only in IMPORT/EXPORT as of now. */
 @return dict_index_t structure or NULL*/
 dict_index_t*
 dict_sdi_get_index(
-	ulint	tablespace_id,
-	ulint	copy_num)
+	ulint		tablespace_id,
+	uint32_t	copy_num)
 {
 	ut_ad(copy_num < MAX_SDI_COPIES);
 
@@ -8058,8 +8061,8 @@ dict_sdi_get_index(
 @return dict_table_t structure */
 dict_table_t*
 dict_sdi_get_table(
-	ulint	tablespace_id,
-	ulint	copy_num,
+	ulint		tablespace_id,
+	uint32_t	copy_num,
 	bool	dict_locked)
 {
 	ut_ad(copy_num < MAX_SDI_COPIES);

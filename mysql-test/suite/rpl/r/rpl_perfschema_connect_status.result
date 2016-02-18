@@ -4,7 +4,6 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 include/assert.inc [On master, the table should return an empty set.]
-set @@global.show_compatibility_56=ON;
 include/assert.inc [On slave, the group_name should be set NULL]
 
 # Verify that SELECT works for every field and produces an output similar
@@ -14,8 +13,11 @@ include/assert.inc [On slave, the group_name should be set NULL]
 include/assert.inc [Value returned by SSS and PS table for Source_UUID should be same.]
 include/assert.inc [thread_name should should indicate io thread.]
 include/assert.inc [SSS shows Slave_IO_Running as "Yes". So, Service_State from this PS table should be "ON".]
+select @@global.show_compatibility_56 into @show_compatibility_56_save;
+set @@global.show_compatibility_56=ON;
 include/assert.inc [IS and PS tables should both show that no heartbeats have been received.]
 include/assert.inc [IS table should give an empty output and PS table should output 0000-00-00 00:00:00 both indicating no heartbeats have been received]
+set @@global.show_compatibility_56=@show_compatibility_56_save;
 include/assert.inc [Value returned by SSS and PS table for Received_Transaction_Set should be same.]
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Number should be same.]
 include/assert.inc [Value returned by SSS and PS table for Last_Error_Message should be same.]
@@ -102,7 +104,6 @@ include/assert.inc [Received_Transaction_Set should not have changed after STOP 
 # Verify that the value for 'Received_Transaction_Set' is cleared
 # after RESET SLAVE.
 
-set @@global.show_compatibility_56=OFF;
 RESET SLAVE;
 include/assert.inc [Received_Transaction_Set should be empty after RESET SLAVE]
 include/start_slave.inc

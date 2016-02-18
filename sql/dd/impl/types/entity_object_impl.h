@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -98,16 +98,18 @@ private:
   */
   bool m_has_new_primary_key;
 
-#ifndef DBUG_OFF
 protected:
   // The generated copy constructor could have been used,
   // but by adding this we force derived classes which define
   // their own copy constructor to also invoke the Entity_object_impl
   // copy constructor in the initializer list.
+  // Note that we must copy the m_has_new_primary_key property to make sure
+  // the clone is handled correctly if storing it persistently as part of
+  // updating a DD object.
   Entity_object_impl(const Entity_object_impl &src)
-    : Weak_object(src), m_id(src.m_id), m_name(src.m_name)
+    : Weak_object(src), m_id(src.m_id), m_name(src.m_name),
+            m_has_new_primary_key(src.m_has_new_primary_key)
   {}
-#endif /* !DBUG_OFF */
 };
 
 ///////////////////////////////////////////////////////////////////////////

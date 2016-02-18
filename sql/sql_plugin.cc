@@ -20,6 +20,7 @@
 #include <mysql/plugin_auth.h>
 #include <mysql/plugin_validate_password.h>
 #include <mysql/plugin_group_replication.h>
+#include <mysql/plugin_keyring.h>
 #include "auth_common.h"       // check_table_access
 #include "current_thd.h"
 #include "debug_sync.h"        // DEBUG_SYNC
@@ -88,6 +89,8 @@ static TYPELIB global_plugin_typelib=
 
 static I_List<i_string> opt_plugin_load_list;
 I_List<i_string> *opt_plugin_load_list_ptr= &opt_plugin_load_list;
+static I_List<i_string> opt_early_plugin_load_list;
+I_List<i_string> *opt_early_plugin_load_list_ptr= &opt_early_plugin_load_list;
 char *opt_plugin_dir_ptr;
 char opt_plugin_dir[FN_REFLEN];
 /*
@@ -105,7 +108,8 @@ const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   { C_STRING_WITH_LEN("REPLICATION") },
   { C_STRING_WITH_LEN("AUTHENTICATION") },
   { C_STRING_WITH_LEN("VALIDATE PASSWORD") },
-  { C_STRING_WITH_LEN("GROUP REPLICATION") }
+  { C_STRING_WITH_LEN("GROUP REPLICATION") },
+  { C_STRING_WITH_LEN("KEYRING") }
 };
 
 extern int initialize_schema_table(st_plugin_int *plugin);
@@ -157,7 +161,8 @@ static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_REPLICATION_INTERFACE_VERSION,
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   MYSQL_VALIDATE_PASSWORD_INTERFACE_VERSION,
-  MYSQL_GROUP_REPLICATION_INTERFACE_VERSION
+  MYSQL_GROUP_REPLICATION_INTERFACE_VERSION,
+  MYSQL_KEYRING_INTERFACE_VERSION
 };
 static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
@@ -170,7 +175,8 @@ static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_REPLICATION_INTERFACE_VERSION,
   MYSQL_AUTHENTICATION_INTERFACE_VERSION,
   MYSQL_VALIDATE_PASSWORD_INTERFACE_VERSION,
-  MYSQL_GROUP_REPLICATION_INTERFACE_VERSION
+  MYSQL_GROUP_REPLICATION_INTERFACE_VERSION,
+  MYSQL_KEYRING_INTERFACE_VERSION
 };
 
 /* support for Services */
@@ -1057,7 +1063,7 @@ static void reap_plugins(void)
   list= reap;
   while ((plugin= *(--list)))
   {
-    if (!(opt_bootstrap || opt_install_server))
+    if (!opt_initialize)
       sql_print_information("Shutting down plugin '%s'", plugin->name.str);
     plugin_deinitialize(plugin, true);
   }
@@ -1349,6 +1355,102 @@ err:
 }
 
 /**
+  Initialize the plugins. Reap those that fail to initialize.
+
+  @return Operation outcome, false means no errors
+ */
+static bool plugin_init_initialize_and_reap()
+{
+  struct st_plugin_int *plugin_ptr;
+  struct st_plugin_int **reap;
+
+  /* Now we initialize all plugins that are not already initialized */
+  mysql_mutex_lock(&LOCK_plugin);
+  reap= (st_plugin_int **) my_alloca((plugin_array->size()+1) * sizeof(void*));
+  *(reap++)= NULL;
+
+  for (st_plugin_int **it= plugin_array->begin();
+       it != plugin_array->end(); ++it)
+  {
+    plugin_ptr= *it;
+    if (plugin_ptr->state == PLUGIN_IS_UNINITIALIZED)
+    {
+      if (plugin_initialize(plugin_ptr))
+      {
+        plugin_ptr->state= PLUGIN_IS_DYING;
+        *(reap++)= plugin_ptr;
+      }
+    }
+  }
+
+  /* Check if any plugins have to be reaped */
+  bool reaped_mandatory_plugin= false;
+  while ((plugin_ptr= *(--reap)))
+  {
+    mysql_mutex_unlock(&LOCK_plugin);
+    if (plugin_ptr->load_option == PLUGIN_FORCE ||
+        plugin_ptr->load_option == PLUGIN_FORCE_PLUS_PERMANENT)
+      reaped_mandatory_plugin= TRUE;
+    plugin_deinitialize(plugin_ptr, true);
+    mysql_mutex_lock(&LOCK_plugin_delete);
+    mysql_mutex_lock(&LOCK_plugin);
+    plugin_del(plugin_ptr);
+    mysql_mutex_unlock(&LOCK_plugin_delete);
+  }
+
+  mysql_mutex_unlock(&LOCK_plugin);
+  if (reaped_mandatory_plugin)
+    return true;
+
+  return false;
+}
+
+/**
+   Register and initialize early plugins.
+
+   @param argc  Command line argument counter
+   @param argv  Command line arguments
+   @param flags Flags to control whether dynamic loading
+                and plugin initialization should be skipped
+
+   @return Operation outcome, false if no errors
+*/
+bool plugin_register_early_plugins(int *argc, char **argv, int flags)
+{
+  bool retval= false;
+  DBUG_ENTER("plugin_register_dynamic_and_init_all");
+
+  /* Don't allow initializing twice */
+  DBUG_ASSERT(!initialized);
+
+  /* Make sure the internals are initialized */
+  if ((retval= plugin_init_internals()))
+    DBUG_RETURN(retval);
+
+  /* --early-plugin-load will not work with --initialize */
+  if (opt_initialize)
+    DBUG_RETURN(retval);
+
+  /* Allocate the temporary mem root, will be freed before returning */
+  MEM_ROOT tmp_root;
+  init_alloc_root(key_memory_plugin_init_tmp, &tmp_root, 4096, 4096);
+
+  I_List_iterator<i_string> iter(opt_early_plugin_load_list);
+  i_string *item;
+  while (NULL != (item= iter++))
+    plugin_load_list(&tmp_root, argc, argv, item->ptr);
+
+  /* Temporary mem root not needed anymore, can free it here */
+  free_root(&tmp_root, MYF(0));
+
+  if (!(flags & PLUGIN_INIT_SKIP_INITIALIZATION))
+    retval= plugin_init_initialize_and_reap();
+
+  DBUG_RETURN(retval);
+}
+
+
+/**
   Register the builtin plugins. Some of the plugins (MyISAM, CSV and InnoDB)
   are also initialized.
 
@@ -1367,10 +1469,6 @@ bool plugin_register_builtin_and_init_core_se(int *argc, char **argv)
   /* Allocate the temporary mem root, will be freed before returning */
   MEM_ROOT tmp_root;
   init_alloc_root(key_memory_plugin_init_tmp, &tmp_root, 4096, 4096);
-
-  /* Make sure the internals are initialized */
-  if (plugin_init_internals())
-    goto err;
 
   mysql_mutex_lock(&LOCK_plugin);
   initialized= true;
@@ -1474,61 +1572,8 @@ bool plugin_register_builtin_and_init_core_se(int *argc, char **argv)
 
 err_unlock:
   mysql_mutex_unlock(&LOCK_plugin);
-
-err:
   free_root(&tmp_root, MYF(0));
   DBUG_RETURN(true);
-}
-
-/**
-  Initialize the plugins. Reap those that fail to initialize.
-
-  @return Operation outcome, false means no errors
- */
-static bool plugin_init_initialize_and_reap()
-{
-  struct st_plugin_int *plugin_ptr;
-  struct st_plugin_int **reap;
-
-  /* Now we initialize all plugins that are not already initialized */
-  mysql_mutex_lock(&LOCK_plugin);
-  reap= (st_plugin_int **) my_alloca((plugin_array->size()+1) * sizeof(void*));
-  *(reap++)= NULL;
-
-  for (st_plugin_int **it= plugin_array->begin();
-       it != plugin_array->end(); ++it)
-  {
-    plugin_ptr= *it;
-    if (plugin_ptr->state == PLUGIN_IS_UNINITIALIZED)
-    {
-      if (plugin_initialize(plugin_ptr))
-      {
-        plugin_ptr->state= PLUGIN_IS_DYING;
-        *(reap++)= plugin_ptr;
-      }
-    }
-  }
-
-  /* Check if any plugins have to be reaped */
-  bool reaped_mandatory_plugin= false;
-  while ((plugin_ptr= *(--reap)))
-  {
-    mysql_mutex_unlock(&LOCK_plugin);
-    if (plugin_ptr->load_option == PLUGIN_FORCE ||
-        plugin_ptr->load_option == PLUGIN_FORCE_PLUS_PERMANENT)
-      reaped_mandatory_plugin= TRUE;
-    plugin_deinitialize(plugin_ptr, true);
-    mysql_mutex_lock(&LOCK_plugin_delete);
-    mysql_mutex_lock(&LOCK_plugin);
-    plugin_del(plugin_ptr);
-    mysql_mutex_unlock(&LOCK_plugin_delete);
-  }
-
-  mysql_mutex_unlock(&LOCK_plugin);
-  if (reaped_mandatory_plugin)
-    return true;
-
-  return false;
 }
 
 /**
@@ -1693,7 +1738,8 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv)
 
 
 /*
-  called only by plugin_register_dynamic_and_init_all()
+  called by plugin_register_early_plugins() and
+  plugin_register_dynamic_and_init_all()
 */
 static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
                              const char *list)

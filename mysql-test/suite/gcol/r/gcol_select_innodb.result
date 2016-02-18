@@ -1156,6 +1156,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t2` `t1` where (not(<in_optimizer>(`test`.`t1`.`b`,<exists>(<primary_index_lookup>(<cache>(`test`.`t1`.`b`) in t1 on b where <if>(outer_field_is_not_null, (<cache>(`test`.`t1`.`b`) = `test`.`t1`.`b`), true))))))
 DROP TABLE t1;
+DROP TABLE t2, t3;
 #
 # Bug#21317507:GC: STORED COLUMN REJECTED, BUT VIRTUAL IS ACCEPTED
 #
@@ -1314,6 +1315,345 @@ pk	i1	i2	v1	v2
 DROP TABLE t0, t1;
 set optimizer_switch= @optimizer_switch_save;
 set @@read_rnd_buffer_size= @read_rnd_buffer_size_save;
+#
+# Bug#21872184 CONDITIONAL JUMP AT JOIN_CACHE::WRITE_RECORD_DATA IN 
+#              SQL_JOIN_BUFFER.CC
+#
+#
+# Test 1: Dynamic range scan with one covering index
+#
+CREATE TABLE t1 (
+i1 INTEGER NOT NULL,
+c1 VARCHAR(1) NOT NULL
+);
+INSERT INTO t1
+VALUES (10, 'c'), (10, 'i'), (2, 't'), (4, 'g');
+CREATE TABLE t2 (
+i1 INTEGER NOT NULL,
+c1 VARCHAR(1) NOT NULL
+);
+INSERT INTO t2
+VALUES (2, 'k'), (9, 'k'), (7, 'o'), (5, 'n'), (7, 'e');
+CREATE TABLE t3 (
+pk INTEGER NOT NULL,
+i1 INTEGER,
+i2_key INTEGER GENERATED ALWAYS AS (i1 + i1) VIRTUAL NOT NULL,
+PRIMARY KEY (pk)
+);
+# Add a covering index. The reason for this index being covering is that
+# secondary indexes in InnoDB include the primary key.
+ALTER TABLE t3 ADD INDEX v_idx (i2_key);
+INSERT INTO t3 (pk, i1)
+VALUES (1, 1), (2, 48), (3, 228), (4, 3), (5, 5),
+(6, 39), (7, 6), (8, 8), (9, 3);
+CREATE TABLE t4 (
+i1 INTEGER NOT NULL,
+c1 VARCHAR(1) NOT NULL
+);
+INSERT INTO t4 
+VALUES (1, 'j'), (2, 'c'), (0, 'a');
+ANALYZE TABLE t1, t2, t3, t4;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+test.t4	analyze	status	OK
+EXPLAIN SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
+FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
+WHERE ( t3.pk IN 
+(
+SELECT /*+ QB_NAME(subq1) */ t4.i1
+FROM t4
+WHERE t4.c1 < 'o'
+  )
+) 
+AND t1.i1 <= t3.i2_key;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	PRIMARY	t3	NULL	ALL	v_idx	NULL	NULL	NULL	9	33.33	Range checked for each record (index map: 0x2)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
+2	SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,`test`.`t3`.`pk` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`i1` from `test`.`t4` where (`test`.`t4`.`c1` < 'o') ), <primary_index_lookup>(`test`.`t3`.`pk` in <temporary table> on <auto_key> where ((`test`.`t3`.`pk` = `materialized-subquery`.`i1`))))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
+SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
+FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
+WHERE ( t3.pk IN 
+(
+SELECT /*+ QB_NAME(subq1) */ t4.i1
+FROM t4
+WHERE t4.c1 < 'o'
+  )
+) 
+AND t1.i1 <= t3.i2_key;
+c1	i1
+c	2
+i	2
+t	2
+t	2
+g	2
+c	9
+i	9
+t	9
+t	9
+g	9
+c	7
+i	7
+t	7
+t	7
+g	7
+c	5
+i	5
+t	5
+t	5
+g	5
+c	7
+i	7
+t	7
+t	7
+g	7
+#
+# Test 2: Two alternative covering indexes for the range scan
+#
+ALTER TABLE t3 ADD INDEX v_idx2 (i2_key, i1);
+EXPLAIN SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
+FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
+WHERE ( t3.pk IN 
+(
+SELECT /*+ QB_NAME(subq1) */ t4.i1
+FROM t4
+WHERE t4.c1 < 'o'
+  )
+) 
+AND t1.i1 <= t3.i2_key;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	PRIMARY	t3	NULL	ALL	v_idx,v_idx2	NULL	NULL	NULL	9	33.33	Range checked for each record (index map: 0x6)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
+2	SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,`test`.`t3`.`pk` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`i1` from `test`.`t4` where (`test`.`t4`.`c1` < 'o') ), <primary_index_lookup>(`test`.`t3`.`pk` in <temporary table> on <auto_key> where ((`test`.`t3`.`pk` = `materialized-subquery`.`i1`))))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
+SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
+FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
+WHERE ( t3.pk IN 
+(
+SELECT /*+ QB_NAME(subq1) */ t4.i1
+FROM t4
+WHERE t4.c1 < 'o'
+  )
+) 
+AND t1.i1 <= t3.i2_key;
+c1	i1
+c	2
+i	2
+t	2
+t	2
+g	2
+c	9
+i	9
+t	9
+t	9
+g	9
+c	7
+i	7
+t	7
+t	7
+g	7
+c	5
+i	5
+t	5
+t	5
+g	5
+c	7
+i	7
+t	7
+t	7
+g	7
+#
+# Test 3: One covering index including the base column for the virtual
+#         column
+#
+# Drop the index with only the virtual column
+ALTER TABLE t3 DROP INDEX v_idx;
+EXPLAIN SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
+FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
+WHERE ( t3.pk IN 
+(
+SELECT /*+ QB_NAME(subq1) */ t4.i1
+FROM t4
+WHERE t4.c1 < 'o'
+  )
+) 
+AND t1.i1 <= t3.i2_key;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	PRIMARY	t3	NULL	ALL	v_idx2	NULL	NULL	NULL	9	33.33	Range checked for each record (index map: 0x2)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
+2	SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,`test`.`t3`.`pk` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`i1` from `test`.`t4` where (`test`.`t4`.`c1` < 'o') ), <primary_index_lookup>(`test`.`t3`.`pk` in <temporary table> on <auto_key> where ((`test`.`t3`.`pk` = `materialized-subquery`.`i1`))))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
+SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
+FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
+WHERE ( t3.pk IN 
+(
+SELECT /*+ QB_NAME(subq1) */ t4.i1
+FROM t4
+WHERE t4.c1 < 'o'
+  )
+) 
+AND t1.i1 <= t3.i2_key;
+c1	i1
+c	2
+i	2
+t	2
+t	2
+g	2
+c	9
+i	9
+t	9
+t	9
+g	9
+c	7
+i	7
+t	7
+t	7
+g	7
+c	5
+i	5
+t	5
+t	5
+g	5
+c	7
+i	7
+t	7
+t	7
+g	7
+#
+# Test 4: One non-covering index
+#
+# Drop the index on two columns, add index on just one virtual column
+ALTER TABLE t3 DROP INDEX v_idx2;
+ALTER TABLE t3 ADD INDEX v_idx (i2_key);
+# Add more data to the table so that it will run the dynamic range scan
+# as both table scan and range scan (the purpose of this is to make the
+# table scan more expensive).
+INSERT INTO t3 (pk, i1)
+VALUES (10,1), (11,1), (12,1), (13,1), (14,1),(15,1), (16,1),(17,1), (18,1),
+(19,1), (20,1), (21,1), (22,1), (23,1), (24,1),(25,1),(26,1),(27,1), 
+(28,1), (29,1);
+# Change the query to read an extra column (t3.i1) making the index
+# non-covering.
+EXPLAIN SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1, t3.i1
+FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
+WHERE ( t3.pk IN 
+(
+SELECT /*+ QB_NAME(subq1) */ t4.i1
+FROM t4
+WHERE t4.c1 < 'o'
+  )
+) 
+AND t1.i1 <= t3.i2_key;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	PRIMARY	t3	NULL	ALL	v_idx	NULL	NULL	NULL	29	33.33	Range checked for each record (index map: 0x2)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using join buffer (Block Nested Loop)
+2	SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1`,`test`.`t3`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,`test`.`t3`.`pk` in ( <materialize> (/* select#2 */ select /*+ QB_NAME(`subq1`) */ `test`.`t4`.`i1` from `test`.`t4` where (`test`.`t4`.`c1` < 'o') ), <primary_index_lookup>(`test`.`t3`.`pk` in <temporary table> on <auto_key> where ((`test`.`t3`.`pk` = `materialized-subquery`.`i1`))))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
+SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1, t3.i1
+FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
+WHERE ( t3.pk IN 
+(
+SELECT /*+ QB_NAME(subq1) */ t4.i1
+FROM t4
+WHERE t4.c1 < 'o'
+  )
+) 
+AND t1.i1 <= t3.i2_key;
+c1	i1	i1
+c	2	48
+i	2	48
+t	2	1
+t	2	48
+g	2	48
+c	9	48
+i	9	48
+t	9	1
+t	9	48
+g	9	48
+c	7	48
+i	7	48
+t	7	1
+t	7	48
+g	7	48
+c	5	48
+i	5	48
+t	5	1
+t	5	48
+g	5	48
+c	7	48
+i	7	48
+t	7	1
+t	7	48
+g	7	48
+#
+# Test 5: Test where the added primary key to secondary indexes is
+#         used after it has been included in the join buffer
+#
+EXPLAIN SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
+FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
+WHERE ( t3.pk IN 
+(
+SELECT /*+ QB_NAME(subq1) */ t4.i1
+FROM t4
+WHERE t4.c1 < 'o' and t4.i1 < (t2.i1 + 1)
+)
+) 
+AND t1.i1 <= t3.i2_key;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	PRIMARY	t3	NULL	ALL	v_idx	NULL	NULL	NULL	29	33.33	Range checked for each record (index map: 0x2)
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1276	Field or reference 'test.t2.i1' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select /*+ NO_SEMIJOIN(@`subq1`) */ `test`.`t1`.`c1` AS `c1`,`test`.`t2`.`i1` AS `i1` from `test`.`t1` straight_join `test`.`t3` straight_join `test`.`t2` where (<in_optimizer>(`test`.`t3`.`pk`,<exists>(/* select#2 */ select /*+ QB_NAME(`subq1`) */ 1 from `test`.`t4` where ((`test`.`t4`.`c1` < 'o') and (`test`.`t4`.`i1` < (`test`.`t2`.`i1` + 1)) and (<cache>(`test`.`t3`.`pk`) = `test`.`t4`.`i1`)))) and (`test`.`t1`.`i1` <= `test`.`t3`.`i2_key`))
+SELECT /*+ NO_SEMIJOIN(@subq1) */ t1.c1, t2.i1
+FROM t1 STRAIGHT_JOIN t3 STRAIGHT_JOIN t2 
+WHERE ( t3.pk IN 
+(
+SELECT /*+ QB_NAME(subq1) */ t4.i1
+FROM t4
+WHERE t4.c1 < 'o' and t4.i1 < (t2.i1 + 1)
+)
+) 
+AND t1.i1 <= t3.i2_key;
+c1	i1
+c	2
+i	2
+t	2
+t	2
+g	2
+c	9
+i	9
+t	9
+t	9
+g	9
+c	7
+i	7
+t	7
+t	7
+g	7
+c	5
+i	5
+t	5
+t	5
+g	5
+c	7
+i	7
+t	7
+t	7
+g	7
+DROP TABLE t1, t2, t3, t4;
 SET optimizer_switch='derived_merge=default';
 DROP VIEW  IF EXISTS v1,v2;
 DROP TABLE IF EXISTS t1,t2,t3;
