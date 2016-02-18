@@ -96,8 +96,7 @@
   upper 16 bits are used for a version.
 
   It is assumed that pins belong to a THD and are not transferable
-  between THD's (LF_PINS::stack_ends_here being a primary reason
-  for this limitation).
+  between THD's
 */
 #include <my_global.h>
 #include <my_sys.h>
@@ -146,7 +145,6 @@ void lf_pinbox_destroy(LF_PINBOX *pinbox)
 */
 LF_PINS *_lf_pinbox_get_pins(LF_PINBOX *pinbox)
 {
-  struct st_my_thread_var *var;
   uint32 pins, next, top_ver;
   LF_PINS *el;
   /*
@@ -189,12 +187,6 @@ LF_PINS *_lf_pinbox_get_pins(LF_PINBOX *pinbox)
   el->link= pins;
   el->purgatory_count= 0;
   el->pinbox= pinbox;
-  var= my_thread_var;
-  /*
-    Threads that do not call my_thread_init() should still be
-    able to use the LF_HASH.
-  */
-  el->stack_ends_here= (var ? & var->stack_ends_here : NULL);
   return el;
 }
 
@@ -321,12 +313,6 @@ static int match_pins(LF_PINS *el, void *addr)
         return 1;
   return 0;
 }
-
-#if STACK_DIRECTION < 0
-#define available_stack_size(CUR,END) (long) ((char*)(CUR) - (char*)(END))
-#else
-#define available_stack_size(CUR,END) (long) ((char*)(END) - (char*)(CUR))
-#endif
 
 #define next_node(P, X) (*((uchar * volatile *)(((uchar *)(X)) + (P)->free_ptr_offset)))
 #define anext_node(X) next_node(&allocator->pinbox, (X))

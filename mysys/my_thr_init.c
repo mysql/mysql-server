@@ -297,9 +297,6 @@ my_bool my_thread_init(void)
   mysql_mutex_init(key_my_thread_var_mutex, &tmp->mutex, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_my_thread_var_suspend, &tmp->suspend, NULL);
 
-  tmp->stack_ends_here= (char*)&tmp +
-                         STACK_DIRECTION * (long)my_thread_stack_size;
-
   mysql_mutex_lock(&THR_LOCK_threads);
   tmp->id= ++thread_id;
   ++THR_thread_count;
