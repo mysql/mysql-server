@@ -1267,6 +1267,8 @@ SELECT 2 FROM t1 UNION ((SELECT 3 FROM t1));
 1
 SELECT a FROM t1 LIMIT 1 UNION ALL SELECT a FROM t1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION ALL SELECT a FROM t1' at line 1
+(SELECT 1) UNION (SELECT 2 UNION SELECT 3);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT 2 UNION SELECT 3)' at line 1
 (SELECT a FROM t1 LIMIT 1) UNION ALL (SELECT a FROM t1 ORDER BY a) LIMIT 2;
 a
 1
@@ -1750,6 +1752,10 @@ SELECT 1 PROCEDURE ANALYSE() INTO @v;
 ERROR HY000: Incorrect usage of PROCEDURE and INTO
 (SELECT 1 PROCEDURE ANALYSE() INTO @v);
 ERROR HY000: Incorrect usage of PROCEDURE and INTO
+(SELECT 1 UNION SELECT 1) ORDER BY 1 PROCEDURE ANALYSE();
+ERROR HY000: Incorrect usage of PROCEDURE and UNION
+(SELECT 1 UNION SELECT 1) LIMIT 1 PROCEDURE ANALYSE();
+ERROR HY000: Incorrect usage of PROCEDURE and UNION
 DROP TABLE t1;
 #
 # Part 4: The <joined table> syntax.
