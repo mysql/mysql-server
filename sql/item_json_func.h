@@ -769,6 +769,10 @@ public:
     : Item_str_func(pos, a)
   {}
 
+  Item_func_json_unquote(const POS &pos, Item *a)
+    : Item_str_func(pos, a)
+  {}
+
   const char *func_name() const
   {
     return "json_unquote";

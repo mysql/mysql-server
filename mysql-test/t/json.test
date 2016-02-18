@@ -6134,6 +6134,13 @@ SELECT JSON_OBJECT("c",f1->"$.b") AS f2
   FROM t1 HAVING JSON_TYPE(f2->"$.c") <> 'NULL';
 EXPLAIN
   SELECT JSON_OBJECT("c",f1->"$.b") AS f2 FROM t1 HAVING JSON_TYPE(f2->"$.c") <> 'NULL';
+--echo Test unquoting operator
+INSERT INTO t1 VALUES('{"t":"a"}'),('{"t":"b"}'),('{"t":"c"}');
+--echo Returned values should be quoted
+SELECT f1->"$.t" FROM t1 WHERE f1->"$.t" <> 'NULL';
+--echo Returned values should be unquoted
+SELECT f1->>"$.t" FROM t1 WHERE f1->>"$.t" <> 'NULL';
+EXPLAIN SELECT f1->>"$.t" FROM t1 WHERE f1->>"$.t" <> 'NULL';
 
 DROP TABLE t1;
 

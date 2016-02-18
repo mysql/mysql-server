@@ -1433,6 +1433,11 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd)
       {
         lip->yySkip();
         lip->next_state= MY_LEX_START;
+        if (lip->yyPeek() == '>')
+        {
+          lip->yySkip();
+          return JSON_UNQUOTED_SEPARATOR_SYM;
+        }
         return JSON_SEPARATOR_SYM;
       }
 
