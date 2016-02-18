@@ -4,6 +4,8 @@
 
 --source include/have_innodb.inc
 --source include/big_test.inc
+# Disable in valgrind because of timeout, cf. Bug#22755816
+--source include/not_valgrind.inc
 
 DELIMITER |;
 CREATE PROCEDURE populate_t1()
