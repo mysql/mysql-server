@@ -1988,20 +1988,6 @@ public:
   PT_limit_clause *limit_clause() const { return opt_limit_clause; }
   PT_order *order_clause() const { return opt_order_clause; }
 
-  virtual PT_order *remove_order_clause()
-  {
-    PT_order *order= opt_order_clause;
-    opt_order_clause= NULL;
-    return order;
-  }
-
-  virtual PT_limit_clause *remove_limit_clause()
-  {
-    PT_limit_clause *limit= opt_limit_clause;
-    opt_limit_clause= NULL;
-    return limit;
-  }
-
   virtual bool contextualize(Parse_context *pc);
 
   virtual bool has_into_clause() const { return opt_into1 != NULL; }
@@ -2262,14 +2248,6 @@ public:
 
   PT_order *order_clause() { return m_select_part2->order_clause(); }
   PT_limit_clause *limit_clause() { return m_select_part2->limit_clause(); }
-  PT_order *remove_order_clause()
-  {
-    return m_select_part2->remove_order_clause();
-  }
-  PT_limit_clause *remove_limit_clause()
-  {
-    return m_select_part2->remove_limit_clause();
-  }
 
   virtual bool has_into_clause() const
   {
