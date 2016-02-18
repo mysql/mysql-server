@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -140,12 +140,12 @@ TEST_F(UnionSyntaxTest, QueryExpParensDualOrder)
   EXPECT_EQ(term, exp->first_select());
 
   // Table expression
-  EXPECT_EQ(1, term->table_list.elements);
+  EXPECT_EQ(1U, term->table_list.elements);
   TABLE_LIST *table_list= term->table_list.first;
   EXPECT_STREQ("t1", table_list->alias);
 
   // Inner order clause, outer is ignored
-  EXPECT_EQ(1, term->order_list.elements);
+  EXPECT_EQ(1U, term->order_list.elements);
   ORDER *inner_order= term->order_list.first;
   Item *order_exp= *inner_order->item;
   EXPECT_EQ(2, order_exp->val_int());
@@ -165,12 +165,12 @@ TEST_F(UnionSyntaxTest, QueryExpParensOrder)
   EXPECT_EQ(term, exp->first_select());
 
   // Table expression
-  EXPECT_EQ(1, term->table_list.elements);
+  EXPECT_EQ(1U, term->table_list.elements);
   TABLE_LIST *table_list= term->table_list.first;
   EXPECT_STREQ("t1", table_list->alias);
 
   // Inner order clause, outer is used when inner is missing
-  EXPECT_EQ(1, term->order_list.elements);
+  EXPECT_EQ(1U, term->order_list.elements);
   ORDER *inner_order= term->order_list.first;
   ASSERT_FALSE(inner_order == NULL);
   Item *order_exp= *inner_order->item;
@@ -191,7 +191,7 @@ TEST_F(UnionSyntaxTest, QueryExpParensLimit)
   EXPECT_EQ(term, exp->first_select());
 
   // Table expression
-  EXPECT_EQ(1, term->table_list.elements);
+  EXPECT_EQ(1U, term->table_list.elements);
   TABLE_LIST *table_list= term->table_list.first;
   EXPECT_STREQ("t1", table_list->alias);
 
@@ -277,10 +277,10 @@ TEST_F(UnionSyntaxTest, UnionOrderLimit)
 
 //    << "Second query block should not have a limit clause.";
 
-  EXPECT_EQ(0, block1->order_list.elements)
+  EXPECT_EQ(0U, block1->order_list.elements)
     << "First query block should not have an order by clause.";
 
-  EXPECT_EQ(0, block2->order_list.elements)
+  EXPECT_EQ(0U, block2->order_list.elements)
     << "Second query block should not have an order by clause.";
 
   SELECT_LEX_UNIT *query_expression= block1->master_unit();
@@ -311,7 +311,7 @@ TEST_F(UnionSyntaxTest, UnionNestedQueryBlock)
   expect_null<Item>(block1->select_limit);
 //    << "First query block should not have a limit clause.";
 
-  EXPECT_EQ(0, block1->order_list.elements)
+  EXPECT_EQ(0U, block1->order_list.elements)
     << "First query block should not have an order by clause.";
 
   EXPECT_EQ(123, get_limit(block2));
@@ -324,7 +324,7 @@ TEST_F(UnionSyntaxTest, UnionNestedQueryBlock)
   SELECT_LEX *fake= query_expression->fake_select_lex;
 //  expect_null<Item>(fake->select_limit);
 
-  EXPECT_EQ(0, fake->order_list.elements)
+  EXPECT_EQ(0U, fake->order_list.elements)
     << "The union should not have an order by clause.";
 }
 
