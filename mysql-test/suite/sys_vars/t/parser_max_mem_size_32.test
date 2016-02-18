@@ -6,5 +6,5 @@
 SELECT @@global.parser_max_mem_size;
 
 --echo # global default is now "infite", must reset it to silence mtr.
-SET @@global.parser_max_mem_size = 500000;
+SET @@global.parser_max_mem_size = 50000000;
 SELECT @@global.parser_max_mem_size;
