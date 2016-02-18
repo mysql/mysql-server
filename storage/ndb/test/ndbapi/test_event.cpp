@@ -5348,15 +5348,20 @@ int runGetLogEventParsable(NDBT_Context* ctx, NDBT_Step* step)
            Uint32 alloc = le_event.EventBufferStatus.alloc;
            Uint32 max = le_event.EventBufferStatus.max;
            Uint32 used = le_event.EventBufferStatus.usage;
-           Uint32 used_pct = (Uint32)((((Uint64)used)*100)/alloc);
-           Uint32 allocd_pct = (Uint32)((((Uint64)alloc)*100)/max);
+           Uint32 used_pct = 0;
+           if (alloc != 0)
+             used_pct = (Uint32)((((Uint64)used)*100)/alloc);
+           Uint32 allocd_pct = 0;
+           if (max != 0)
+             allocd_pct = (Uint32)((((Uint64)alloc)*100)/max);
 
            g_err << "Parsable str: Event buffer status: ";
            g_err << "used=" << le_event.EventBufferStatus.usage
                  << "(" << used_pct << "%) "
-                 << "alloc=" << alloc
-                 << "(" << allocd_pct << "%) "
-                 << "max=" << max
+                 << "alloc=" << alloc;
+           if (max != 0)
+             g_err << "(" << allocd_pct << "%)";
+           g_err << " max=" << max
                  << " apply_gci " << le_event.EventBufferStatus.apply_gci_l
                  << "/" << le_event.EventBufferStatus.apply_gci_h
                  << " latest_gci " << le_event.EventBufferStatus.latest_gci_l
@@ -5369,8 +5374,12 @@ int runGetLogEventParsable(NDBT_Context* ctx, NDBT_Step* step)
            Uint32 alloc = le_event.EventBufferStatus2.alloc;
            Uint32 max = le_event.EventBufferStatus2.max;
            Uint32 used = le_event.EventBufferStatus2.usage;
-           Uint32 used_pct = (Uint32)((((Uint64)used)*100)/alloc);
-           Uint32 allocd_pct = (Uint32)((((Uint64)alloc)*100)/max);
+           Uint32 used_pct = 0;
+           if (alloc != 0)
+             used_pct = (Uint32)((((Uint64)used)*100)/alloc);
+           Uint32 allocd_pct = 0;
+           if (max != 0)
+             allocd_pct = (Uint32)((((Uint64)alloc)*100)/max);
 
            Uint32 ndb_ref = le_event.EventBufferStatus2.ndb_reference;
            Uint32 reason = le_event.EventBufferStatus2.report_reason;
@@ -5381,9 +5390,10 @@ int runGetLogEventParsable(NDBT_Context* ctx, NDBT_Step* step)
                  << "(" << hex << ndb_ref << "): " << dec
                  << "used=" << used
                  << "(" << used_pct << "%) "
-                 << "alloc=" << alloc
-                 << "(" << allocd_pct << "%) "
-                 << "max=" << max
+                 << "alloc=" << alloc;
+           if (max != 0)
+             g_err << "(" << allocd_pct << "%)";
+           g_err << " max=" << max
                  << " latest_consumed_epoch "
                  << le_event.EventBufferStatus2.latest_consumed_epoch_l
                  << "/" << le_event.EventBufferStatus2.latest_consumed_epoch_h
@@ -5871,22 +5881,10 @@ TESTCASE("SlowGCP_COMPLETE_ACK",
   STEP(runSlowGCPCompleteAck);
   FINALIZER(runDropEvent);
 }
-TESTCASE("getEventBufferUsage",
-         "Get event buffer usage as pretty and parsable format "
+TESTCASE("getEventBufferUsage2",
+         "Get event buffer usage2 as pretty and parsable format "
          "by subscribing them. Event buffer usage msg is ensured "
          "by running tardy listener filling the event buffer")
-{
-  INITIALIZER(runCreateEvent);
-  STEP(runInsertDeleteUntilStopped);
-  STEP(runTardyEventListener);
-  STEP(runGetLogEventParsable);
-  STEP(runGetLogEventPretty);
-  FINALIZER(runDropEvent);
-}
-TESTCASE("getEventBufferUsage2",
-         "Same as the testcase 'getEventBufferUsage' above, except "
-         "it gets the newly introduced event buffer usage as pretty "
-         "and parsable format by subscribing them.")
 {
   TC_PROPERTY("BufferUsage2", 1);
   INITIALIZER(runCreateEvent);
