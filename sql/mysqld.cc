@@ -3068,6 +3068,8 @@ int init_common_variables()
   if (get_options(&remaining_argc, &remaining_argv))
     return 1;
 
+  update_parser_max_mem_size();
+
   if (log_syslog_init())
     opt_log_syslog_enable= 0;
 

@@ -2708,18 +2708,41 @@ static unsigned long max_mem_sz = ~0;
 static unsigned long long max_mem_sz = ~0;
 #endif
 
-// Need at least 400Kb to get through bootstrap.
+/*
+  Need at least 400Kb to get through bootstrap.
+  Need at least 8Mb to get through mtr check testcase, which does
+    SELECT * FROM INFORMATION_SCHEMA.VIEWS
+*/
 static Sys_var_ulonglong Sys_parser_max_mem_size(
       "parser_max_mem_size",
       "Maximum amount of memory available to the parser",
       SESSION_VAR(parser_max_mem_size),
       CMD_LINE(REQUIRED_ARG),
-      VALID_RANGE(400 * 1000, max_mem_sz),
+      VALID_RANGE(10 * 1000 * 1000, max_mem_sz),
       DEFAULT(max_mem_sz),
       BLOCK_SIZE(1),
       NO_MUTEX_GUARD, NOT_IN_BINLOG,
       ON_CHECK(limit_parser_max_mem_size),
       ON_UPDATE(NULL));
+
+/*
+  There is no call on Sys_var_integer::do_check() for 'set xxx=default';
+  The predefined default for parser_max_mem_size is "infinite".
+  Update it in case we have seen option maximum-parser-max-mem-size
+  Also update global_system_variables, so 'SELECT parser_max_mem_size'
+  reports correct data.
+*/
+export void update_parser_max_mem_size()
+{
+  const ulonglong max_max= max_system_variables.parser_max_mem_size;
+  if (max_max == max_mem_sz)
+    return;
+  // In case parser-max-mem-size is also set:
+  const ulonglong new_val=
+    std::min(max_max, global_system_variables.parser_max_mem_size);
+  Sys_parser_max_mem_size.update_default(new_val);
+  global_system_variables.parser_max_mem_size= new_val;
+}
 
 static const char *optimizer_switch_names[]=
 {
