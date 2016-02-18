@@ -18,11 +18,6 @@ let $wait_condition =
 
 --disable_query_log
 set @old_innodb_buffer_pool_size = @@innodb_buffer_pool_size;
-if (`select (version() like '%debug%') > 0`)
-{
-    set @old_innodb_disable_resize = @@innodb_disable_resize_buffer_pool_debug;
-    set global innodb_disable_resize_buffer_pool_debug = OFF;
-}
 --enable_query_log
 
 select @@innodb_buffer_pool_chunk_size;
@@ -59,9 +54,5 @@ select @@innodb_buffer_pool_size;
 
 --disable_query_log
 set global innodb_buffer_pool_size = @old_innodb_buffer_pool_size;
-if (`select (version() like '%debug%') > 0`)
-{
-    set global innodb_disable_resize_buffer_pool_debug = @old_innodb_disable_resize;
-}
 --enable_query_log
 --source include/wait_condition.inc

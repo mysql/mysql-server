@@ -338,15 +338,6 @@ typedef std::map<
 
 static buf_pool_chunk_map_t*			buf_chunk_map_reg;
 
-/** Chunk map to be used to lookup.
-The map pointed by this should not be updated */
-static buf_pool_chunk_map_t*	buf_chunk_map_ref = NULL;
-
-#ifdef UNIV_DEBUG
-/** Disable resizing buffer pool to make assertion code not expensive. */
-my_bool			buf_disable_resize_buffer_pool_debug = TRUE;
-#endif /* UNIV_DEBUG */
-
 /** Container for how many pages from each index are contained in the buffer
 pool(s). */
 buf_stat_per_index_t*	buf_stat_per_index;
@@ -1361,8 +1352,6 @@ buf_pool_init(
 		}
 	}
 
-	buf_chunk_map_ref = buf_chunk_map_reg;
-
 	buf_pool_set_sizes();
 	buf_LRU_old_ratio_update(100 * 3/ 8, FALSE);
 
@@ -1389,7 +1378,7 @@ buf_pool_free(
 	}
 
 	UT_DELETE(buf_chunk_map_reg);
-	buf_chunk_map_reg = buf_chunk_map_ref = NULL;
+	buf_chunk_map_reg = NULL;
 
 	ut_free(buf_pool_ptr);
 	buf_pool_ptr = NULL;
@@ -2133,6 +2122,7 @@ withdraw_retry:
 		hash_lock_x_all(buf_pool->page_hash);
 	}
 
+	UT_DELETE(buf_chunk_map_reg);
 	buf_chunk_map_reg = UT_NEW_NOKEY(buf_pool_chunk_map_t());
 
 	/* add/delete chunks */
@@ -2283,9 +2273,6 @@ calc_buf_pool_size:
 		}
 	}
 
-	buf_pool_chunk_map_t*	chunk_map_old = buf_chunk_map_ref;
-	buf_chunk_map_ref = buf_chunk_map_reg;
-
 	/* set instance sizes */
 	{
 		ulint	curr_size = 0;
@@ -2310,7 +2297,7 @@ calc_buf_pool_size:
 
 	const bool	new_size_too_diff
 		= srv_buf_pool_base_size > srv_buf_pool_size * 2
-			|| srv_buf_pool_base_size * 2 < srv_buf_pool_size;
+		|| srv_buf_pool_base_size * 2 < srv_buf_pool_size;
 
 	/* Normalize page_hash and zip_hash,
 	if the new size is too different */
@@ -2340,8 +2327,6 @@ calc_buf_pool_size:
 			buf_pool->page_hash_old = NULL;
 		}
 	}
-
-	UT_DELETE(chunk_map_old);
 
 	buf_pool_resizing = false;
 
@@ -3265,8 +3250,7 @@ buf_block_from_ahi(const byte* ptr)
 {
 	buf_pool_chunk_map_t::iterator it;
 
-	buf_pool_chunk_map_t*	chunk_map = buf_chunk_map_ref;
-	ut_ad(buf_chunk_map_ref == buf_chunk_map_reg);
+	buf_pool_chunk_map_t*	chunk_map = buf_chunk_map_reg;
 	ut_ad(!buf_pool_resizing);
 
 	const byte* bound = reinterpret_cast<uintptr_t>(ptr)
