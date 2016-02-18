@@ -5787,3 +5787,22 @@ DROP VIEW bug22108567_v1;
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc
 
+--echo #
+--echo # BUG#21877062: MIN/MAX IN VIEW ON TIMESTAMDIFF IN VIEW CONFUSES
+--echo #               OPTIMIZER TO THROW SYNTAX ERROR
+--echo #
+
+CREATE TABLE t(ts1 DATETIME(6), ts2 DATETIME(6));
+INSERT INTO t VALUES('2016-01-11 09:15:25','2016-01-11 21:15:25');
+
+CREATE VIEW v1 AS
+SELECT TIMESTAMPDIFF(MICROSECOND, ts1, ts2) duration FROM t;
+
+--echo # Without the patch, a syntax error is reported.
+SELECT * FROM v1;
+
+CREATE VIEW v2 AS
+SELECT MIN(duration) AS dmin, MAX(duration) AS dmax FROM v1;
+
+DROP VIEW v1, v2;
+DROP TABLE t;

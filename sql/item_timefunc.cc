@@ -3200,7 +3200,7 @@ void Item_func_timestamp_diff::print(String *str, enum_query_type query_type)
     str->append(STRING_WITH_LEN("SECOND"));
     break;		
   case INTERVAL_MICROSECOND:
-    str->append(STRING_WITH_LEN("SECOND_FRAC"));
+    str->append(STRING_WITH_LEN("MICROSECOND"));
     break;
   default:
     break;
