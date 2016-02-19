@@ -234,7 +234,7 @@ DROP TABLE t2;
 SET @global_event_scheduler_status= @@global.event_scheduler;
 SET @@global.event_scheduler= ON;
 SET @@global.max_execution_time= 1;
-CREATE TABLE t2 (f1 int);
+CREATE TABLE t2 (f1 int, f2 int);
 
 # Both of the following selects are interrupted because of timeout.
 SELECT SLEEP(2) into @a;
@@ -247,8 +247,7 @@ CREATE EVENT event1 ON SCHEDULE AT CURRENT_TIMESTAMP
 DO BEGIN
   SELECT SLEEP(2) into @a;
   SELECT /*+ MAX_EXECUTION_TIME(1) */ SLEEP(2) into @b;
-  INSERT INTO t2 VALUES(@a);
-  INSERT INTO t2 VALUES(@b);
+  INSERT INTO t2 VALUES(@a, @b);
 END|
 
 delimiter ;|

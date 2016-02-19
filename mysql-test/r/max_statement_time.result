@@ -206,7 +206,7 @@ DROP TABLE t2;
 SET @global_event_scheduler_status= @@global.event_scheduler;
 SET @@global.event_scheduler= ON;
 SET @@global.max_execution_time= 1;
-CREATE TABLE t2 (f1 int);
+CREATE TABLE t2 (f1 int, f2 int);
 SELECT SLEEP(2) into @a;
 SELECT @a;
 @a
@@ -215,16 +215,14 @@ CREATE EVENT event1 ON SCHEDULE AT CURRENT_TIMESTAMP
 DO BEGIN
 SELECT SLEEP(2) into @a;
 SELECT /*+ MAX_EXECUTION_TIME(1) */ SLEEP(2) into @b;
-INSERT INTO t2 VALUES(@a);
-INSERT INTO t2 VALUES(@b);
+INSERT INTO t2 VALUES(@a, @b);
 END|
 Warnings:
 Warning	3125	MAX_EXECUTION_TIME hint is supported by top-level standalone SELECT statements only
 # Wait until at least one instance of event is executed.
 SELECT /*+ MAX_EXECUTION_TIME(3600000) */ * FROM t2;
-f1
-0
-0
+f1	f2
+0	0
 DELETE FROM t2;
 SET @@global.event_scheduler= @global_event_scheduler_status;
 SET @@global.max_execution_time= 0;
