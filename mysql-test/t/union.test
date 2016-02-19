@@ -68,6 +68,9 @@ select a,b from t1 order by a union select a,b from t2;
 --error 1221
 insert into t3 select a from t1 order by a union select a from t2;
 
+--error ER_WRONG_USAGE
+INSERT INTO t3 SELECT a FROM t1 LIMIT 1 UNION SELECT a FROM t2;
+
 --error 1222
 create table t3 select a,b from t1 union select a from t2;
 

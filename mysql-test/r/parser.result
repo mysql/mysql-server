@@ -1756,6 +1756,8 @@ ERROR HY000: Incorrect usage of PROCEDURE and INTO
 ERROR HY000: Incorrect usage of PROCEDURE and UNION
 (SELECT 1 UNION SELECT 1) LIMIT 1 PROCEDURE ANALYSE();
 ERROR HY000: Incorrect usage of PROCEDURE and UNION
+SELECT ( SELECT 1 PROCEDURE ANALYSE() ) a;
+ERROR HY000: Incorrect usage of PROCEDURE and subquery
 DROP TABLE t1;
 #
 # Part 4: The <joined table> syntax.
