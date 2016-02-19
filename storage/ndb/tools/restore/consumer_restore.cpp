@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -840,7 +840,7 @@ BackupRestore::init(Uint32 tableChangesMask)
     return false;
   }
   m_cluster_connection->set_name(g_options.c_str());
-  if(m_cluster_connection->connect(12, 5, 1) != 0)
+  if(m_cluster_connection->connect(m_ndb_connect_retries - 1, m_ndb_connect_retry_delay, 1) != 0)
   {
     return false;
   }
@@ -2224,7 +2224,17 @@ BackupRestore::table_compatible_check(TableS & tableS)
     return true;
 
   const NdbTableImpl & tmptab = NdbTableImpl::getImpl(* tableS.m_dictTable);
-  if ((int) tmptab.m_indexType != (int) NdbDictionary::Index::Undefined){
+  if ((int) tmptab.m_indexType != (int) NdbDictionary::Index::Undefined)
+  {
+    if((int) tmptab.m_indexType == (int) NdbDictionary::Index::UniqueHashIndex)
+    {
+      BaseString dummy1, dummy2, indexname;
+      dissect_index_name(tablename, dummy1, dummy2, indexname);
+      ndbout << "WARNING: Table " << tmptab.m_primaryTable.c_str() << " contains unique index " << indexname.c_str() << ". ";
+      ndbout << "This can cause ndb_restore failures with duplicate key errors while restoring data. ";
+      ndbout << "To avoid duplicate key errors, use --disable-indexes before restoring data ";
+      ndbout << "and --rebuild-indexes after data is restored." << endl;
+    }
     return true;
   }
 
@@ -2823,8 +2833,47 @@ BackupRestore::fk(Uint32 type, const void * ptr)
   {
     const NdbDictionary::ForeignKey* fk_ptr =
       (const NdbDictionary::ForeignKey*)ptr;
-    m_fks.push_back(fk_ptr);
-    info << "Save FK " << fk_ptr->getName() << endl;
+    const NdbDictionary::Table *child = NULL, *parent=NULL;
+    BaseString db_name, dummy, table_name;
+    //check if the child table is a part of the restoration
+    if (!dissect_table_name(fk_ptr->getChildTable(),
+                       db_name, dummy, table_name))
+      return false;
+    for(unsigned i = 0; i < m_new_tables.size(); i++)
+    {
+      if(m_new_tables[i] == NULL)
+        continue;
+      BaseString new_table_name(m_new_tables[i]->getMysqlName());
+      //table name in format db-name/table-name
+      Vector<BaseString> split;
+      if (new_table_name.split(split, "/") != 2) {
+        continue;
+      }
+      if(db_name == split[0] && table_name == split[1])
+      {
+        child = m_new_tables[i];
+        break;
+      }
+    }
+    if(child)
+    {
+      //check if parent exists
+      if (!dissect_table_name(fk_ptr->getParentTable(),
+                              db_name, dummy, table_name))
+        return false;
+      m_ndb->setDatabaseName(db_name.c_str());
+      NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
+      parent = dict->getTable(table_name.c_str());
+      if (parent == 0)
+      {
+        err << "Foreign key " << fk_ptr->getName() << " parent table "
+            << db_name.c_str() << "." << table_name.c_str()
+            << " not found: " << dict->getNdbError() << endl;
+        return false;
+      }
+      m_fks.push_back(fk_ptr);
+      info << "Save FK " << fk_ptr->getName() << endl;
+    }
     return true;
     break;
   }

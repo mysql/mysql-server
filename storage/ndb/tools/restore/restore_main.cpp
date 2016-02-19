@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -631,7 +631,9 @@ o verify nodegroup mapping
                                              opt_nodegroup_map,
                                              opt_nodegroup_map_len,
                                              ga_nodeId,
-                                             ga_nParallelism);
+                                             ga_nParallelism,
+                                             opt_connect_retry_delay,
+                                             opt_connect_retries);
   if (restore == NULL) 
   {
     delete g_printer;
@@ -925,17 +927,6 @@ static inline bool
 isSYSTAB_0(const TableS* table)
 {
   return table->isSYSTAB_0();
-}
-
-static inline bool
-isInList(BaseString &needle, Vector<BaseString> &lst){
-  unsigned int i= 0;
-  for (i= 0; i < lst.size(); i++)
-  {
-    if (strcmp(needle.c_str(), lst[i].c_str()) == 0)
-      return true;
-  }
-  return false;
 }
 
 const char*
@@ -1496,8 +1487,7 @@ main(int argc, char** argv)
       if (!g_consumers[j]->fk(metaData.getObjType(i),
 			      metaData.getObjPtr(i)))
       {
-        // no error is possible 
-        assert(false);
+        exitHandler(NDBT_FAILED);
       } 
   }
 

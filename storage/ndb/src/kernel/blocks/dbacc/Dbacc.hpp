@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include <LHLevel.hpp>
 #include <IntrusiveList.hpp>
 #include "Container.hpp"
+#include "signaldata/AccKeyReq.hpp"
 
 #define JAM_FILE_ID 344
 
@@ -75,8 +76,6 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
  * ----------------------------------------------------------------------- */
 #define ZHEAD_SIZE 32
 #define ZBUF_SIZE 28
-#define ZSHIFT_PLUS 5
-#define ZSHIFT_MINUS 2
 #define ZFREE_LIMIT 65
 #define ZNO_CONTAINERS 64
 #define ZELEM_HEAD_SIZE 1
@@ -166,7 +165,6 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZSCAN_REFACC_CONNECT_ERROR 608 // ACC_SCANREF
 #define ZFOUR_ACTIVE_SCAN_ERROR 609 // ACC_SCANREF
 #define ZNULL_SCAN_REC_ERROR 610 // ACC_SCANREF
-
 #define ZDIRSIZE_ERROR 623
 #define ZOVER_REC_ERROR 624 // Insufficient Space
 #define ZPAGESIZE_ERROR 625
@@ -177,16 +175,7 @@ ndbout << "Ptr: " << ptr.p->word32 << " \tIndex: " << tmp_string << " \tValue: "
 #define ZTOO_EARLY_ACCESS_ERROR 632
 #define ZDIR_RANGE_FULL_ERROR 633 // on fragment
 
-#if ZBUF_SIZE != ((1 << ZSHIFT_PLUS) - (1 << ZSHIFT_MINUS))
-#error ZBUF_SIZE != ((1 << ZSHIFT_PLUS) - (1 << ZSHIFT_MINUS))
-#endif
-
-static
-inline
-Uint32 mul_ZBUF_SIZE(Uint32 i)
-{
-  return (i << ZSHIFT_PLUS) - (i << ZSHIFT_MINUS);
-}
+#define ZLOCAL_KEY_LENGTH_ERROR 634 // From Dbdict via Dblqh
 
 #endif
 
@@ -285,6 +274,16 @@ ElementHeader::setReducedHashValue(Uint32 header, LHBits16 const& reducedHashVal
   assert(getUnlocked(header));
   return (Uint32(reducedHashValue.pack()) << 16) | (header & 0xffff);
 }
+
+class Element
+{
+  Uint32 m_header;
+  Uint32 m_data;
+public:
+  Element(Uint32 header, Uint32 data): m_header(header), m_data(data) {}
+  Uint32 getHeader() const { return m_header; }
+  Uint32 getData() const { return m_data; }
+};
 
 typedef Container::Header ContainerHeader;
 
@@ -397,7 +396,7 @@ struct Fragmentrec {
 //-----------------------------------------------------------------------------
   Uint32 expReceivePageptr;
   Uint32 expReceiveIndex;
-  Uint32 expReceiveForward;
+  bool expReceiveIsforward;
   Uint32 expSenderDirIndex;
   Uint32 expSenderIndex;
   Uint32 expSenderPageptr;
@@ -452,7 +451,7 @@ struct Fragmentrec {
 // for slack will be within -2^43 and +2^43 words.
 //-----------------------------------------------------------------------------
   LHLevelRH level;
-  Uint32 localkeylen;
+  Uint32 localkeylen; // Currently only 1 is supported
   Uint32 maxloadfactor;
   Uint32 minloadfactor;
   Int64 slack;
@@ -485,7 +484,7 @@ struct Fragmentrec {
 // elementLength: Length of element in bucket and overflow pages
 // keyLength: Length of key
 //-----------------------------------------------------------------------------
-  Uint8 elementLength;
+  STATIC_CONST( elementLength = 2 );
   Uint16 keyLength;
 
 //-----------------------------------------------------------------------------
@@ -534,7 +533,6 @@ public:
 struct Operationrec {
   Uint32 m_op_bits;
   Uint32 localdata[2];
-  Uint32 elementIsforward;
   Uint32 elementPage;
   Uint32 elementPointer;
   Uint32 fid;
@@ -704,52 +702,50 @@ private:
   void execNODE_STATE_REP(Signal*);
 
   // Statement blocks
-  void ACCKEY_error(Uint32 fromWhere);
-
-  void commitDeleteCheck();
+  void commitDeleteCheck() const;
   void report_dealloc(Signal* signal, const Operationrec* opPtrP);
   
   typedef void * RootfragmentrecPtr;
-  void initRootFragPageZero(FragmentrecPtr, Page8Ptr);
-  void initFragAdd(Signal*, FragmentrecPtr);
-  void initFragPageZero(FragmentrecPtr, Page8Ptr);
-  void initFragGeneral(FragmentrecPtr);
-  void verifyFragCorrect(FragmentrecPtr regFragPtr);
+  void initRootFragPageZero(FragmentrecPtr, Page8Ptr) const;
+  void initFragAdd(Signal*, FragmentrecPtr) const;
+  void initFragPageZero(FragmentrecPtr, Page8Ptr) const;
+  void initFragGeneral(FragmentrecPtr) const;
+  void verifyFragCorrect(FragmentrecPtr regFragPtr) const;
   void releaseFragResources(Signal* signal, Uint32 fragIndex);
-  void releaseRootFragRecord(Signal* signal, RootfragmentrecPtr rootPtr);
+  void releaseRootFragRecord(Signal* signal, RootfragmentrecPtr rootPtr) const;
   void releaseRootFragResources(Signal* signal, Uint32 tableId);
   void releaseDirResources(Signal* signal);
   void releaseDirectoryResources(Signal* signal,
                                  Uint32 fragIndex,
                                  Uint32 dirIndex,
                                  Uint32 startIndex,
-                                 Uint32 directoryIndex);
-  void releaseFragRecord(Signal* signal, FragmentrecPtr regFragPtr);
-  void initScanFragmentPart(Signal* signal);
-  Uint32 checkScanExpand(Signal* signal, Uint32 splitBucket);
-  Uint32 checkScanShrink(Signal* signal, Uint32 sourceBucket, Uint32 destBucket);
-  void initialiseFragRec(Signal* signal);
-  void initialiseFsConnectionRec(Signal* signal);
-  void initialiseFsOpRec(Signal* signal);
-  void initialiseOperationRec(Signal* signal);
-  void initialisePageRec(Signal* signal);
-  void initialiseRootfragRec(Signal* signal);
-  void initialiseScanRec(Signal* signal);
-  void initialiseTableRec(Signal* signal);
-  bool addfragtotab(Signal* signal, Uint32 rootIndex, Uint32 fragId);
-  void initOpRec(Signal* signal);
-  void sendAcckeyconf(Signal* signal);
-  Uint32 getNoParallelTransaction(const Operationrec*);
+                                 Uint32 directoryIndex) const;
+  void releaseFragRecord(FragmentrecPtr regFragPtr);
+  void initScanFragmentPart();
+  Uint32 checkScanExpand(Uint32 splitBucket);
+  Uint32 checkScanShrink(Uint32 sourceBucket, Uint32 destBucket);
+  void initialiseFragRec();
+  void initialiseFsConnectionRec(Signal* signal) const;
+  void initialiseFsOpRec(Signal* signal) const;
+  void initialiseOperationRec();
+  void initialisePageRec();
+  void initialiseRootfragRec(Signal* signal) const;
+  void initialiseScanRec();
+  void initialiseTableRec();
+  bool addfragtotab(Uint32 rootIndex, Uint32 fragId) const;
+  void initOpRec(const AccKeyReq* signal, Uint32 siglen) const;
+  void sendAcckeyconf(Signal* signal) const;
+  Uint32 getNoParallelTransaction(const Operationrec*) const;
 
 #ifdef VM_TRACE
-  Uint32 getNoParallelTransactionFull(const Operationrec*);
+  Uint32 getNoParallelTransactionFull(const Operationrec*) const;
 #endif
 #ifdef ACC_SAFE_QUEUE
-  bool validate_lock_queue(OperationrecPtr opPtr);
-  Uint32 get_parallel_head(OperationrecPtr opPtr);
-  void dump_lock_queue(OperationrecPtr loPtr);
+  bool validate_lock_queue(OperationrecPtr opPtr) const;
+  Uint32 get_parallel_head(OperationrecPtr opPtr) const;
+  void dump_lock_queue(OperationrecPtr loPtr) const;
 #else
-  bool validate_lock_queue(OperationrecPtr) { return true;}
+  bool validate_lock_queue(OperationrecPtr) const { return true;}
 #endif
   /**
     Return true if the sum of per fragment pages counts matches the total
@@ -761,128 +757,176 @@ public:
   void startNext(Signal* signal, OperationrecPtr lastOp);
   
 private:
-  Uint32 placeReadInLockQueue(OperationrecPtr lockOwnerPtr);
-  Uint32 placeWriteInLockQueue(OperationrecPtr lockOwnerPtr);
-  void placeSerialQueue(OperationrecPtr lockOwner, OperationrecPtr op);
+  Uint32 placeReadInLockQueue(OperationrecPtr lockOwnerPtr) const;
+  Uint32 placeWriteInLockQueue(OperationrecPtr lockOwnerPtr) const;
+  void placeSerialQueue(OperationrecPtr lockOwner, OperationrecPtr op) const;
   void abortSerieQueueOperation(Signal* signal, OperationrecPtr op);  
-  void abortParallelQueueOperation(Signal* signal, OperationrecPtr op);  
+  void abortParallelQueueOperation(Signal* signal, OperationrecPtr op);
   
-  void expandcontainer(Signal* signal);
-  void shrinkcontainer(Signal* signal);
-  void nextcontainerinfoExp(Signal* signal, ContainerHeader const containerhead);
+  void expandcontainer(Page8Ptr pageptr, Uint32 conidx);
+  void shrinkcontainer(Page8Ptr pageptr,
+                       Uint32 conptr,
+                       bool isforward,
+                       Uint32 conlen);
   void releaseAndCommitActiveOps(Signal* signal);
   void releaseAndCommitQueuedOps(Signal* signal);
   void releaseAndAbortLockedOps(Signal* signal);
-  void containerinfo(Signal* signal, ContainerHeader& containerhead);
-  bool getScanElement(Signal* signal);
-  void initScanOpRec(Signal* signal);
-  void nextcontainerinfo(Signal* signal, ContainerHeader const containerhead);
-  void putActiveScanOp(Signal* signal);
-  void putOpScanLockQue();
-  void putReadyScanQueue(Signal* signal, Uint32 scanRecIndex);
-  void releaseScanBucket(Signal* signal);
-  void releaseScanContainer(Signal* signal);
-  void releaseScanRec(Signal* signal);
-  bool searchScanContainer(Signal* signal);
+  Uint32 getContainerPtr(Uint32 index, bool isforward) const;
+  Uint32 getForwardContainerPtr(Uint32 index) const;
+  Uint32 getBackwardContainerPtr(Uint32 index) const;
+  bool getScanElement(Page8Ptr& pageptr,
+                      Uint32& conidx,
+                      Uint32& conptr,
+                      bool& isforward,
+                      Uint32& elemptr,
+                      Uint32& islocked) const;
+  void initScanOpRec(Page8Ptr pageptr,
+                     Uint32 conptr,
+                     Uint32 elemptr) const;
+  void nextcontainerinfo(Page8Ptr& pageptr,
+                         Uint32 conptr,
+                         ContainerHeader containerhead,
+                         Uint32& nextConidx,
+                         bool& nextIsforward) const;
+  void putActiveScanOp() const;
+  void putOpScanLockQue() const;
+  void putReadyScanQueue(Uint32 scanRecIndex) const;
+  void releaseScanBucket(Page8Ptr pageptr, Uint32 conidx) const;
+  void releaseScanContainer(Page8Ptr pageptr, Uint32 conptr,
+      bool isforward, Uint32 conlen) const;
+  void releaseScanRec();
+  bool searchScanContainer(Page8Ptr pageptr,
+                           Uint32 conptr,
+                           bool isforward,
+                           Uint32 conlen,
+                           Uint32& elemptr,
+                           Uint32& islocked) const;
   void sendNextScanConf(Signal* signal);
-  void setlock(Signal* signal);
-  void takeOutActiveScanOp(Signal* signal);
-  void takeOutScanLockQueue(Uint32 scanRecIndex);
-  void takeOutReadyScanQueue(Signal* signal);
-  void insertElement(Signal* signal);
-  void insertContainer(Signal* signal, ContainerHeader& containerhead);
-  void addnewcontainer(Signal* signal);
-  void getfreelist(Signal* signal);
-  void increaselistcont(Signal* signal);
-  void seizeLeftlist(Signal* signal);
-  void seizeRightlist(Signal* signal);
+  void setlock(Page8Ptr pageptr, Uint32 elemptr) const;
+  void takeOutActiveScanOp() const;
+  void takeOutScanLockQueue(Uint32 scanRecIndex) const;
+  void takeOutReadyScanQueue() const;
+  void insertElement(Element elem,
+                     OperationrecPtr oprecptr,
+                     Page8Ptr& pageptr,
+                     Uint32& conidx,
+                     bool& isforward,
+                     Uint32& conptr);
+  void insertContainer(Element elem,
+                       OperationrecPtr  oprecptr,
+                       Page8Ptr& pageptr,
+                       Uint32 conidx,
+                       bool isforward,
+                       Uint32& conptr,
+                       ContainerHeader& containerhead,
+                       Uint32& result);
+  void addnewcontainer(Page8Ptr pageptr, Uint32 conptr,
+    Uint32 nextConidx, Uint32 nextContype, bool nextSamepage,
+    Uint32 nextPagei) const;
+  void getfreelist(Page8Ptr pageptr, Uint32& pageindex, Uint32& buftype);
+  void increaselistcont(Page8Ptr);
+  void seizeLeftlist(Page8Ptr slPageptr, Uint32 conidx);
+  void seizeRightlist(Page8Ptr slPageptr, Uint32 conidx);
   Uint32 readTablePk(Uint32 lkey1, Uint32 lkey2, Uint32 eh, OperationrecPtr);
-  Uint32 getElement(Signal* signal, OperationrecPtr& lockOwner);
+  Uint32 getElement(const AccKeyReq* signal,
+                    OperationrecPtr& lockOwner,
+                    Page8Ptr& bucketPageptr,
+                    Uint32& bucketConidx,
+                    Page8Ptr& elemPageptr,
+                    Uint32& elemConptr,
+                    Uint32& elemptr);
   LHBits32 getElementHash(OperationrecPtr& oprec);
-  LHBits32 getElementHash(Uint32 const* element, Int32 forward);
-  LHBits32 getElementHash(Uint32 const* element, Int32 forward, OperationrecPtr& oprec);
+  LHBits32 getElementHash(Uint32 const* element);
+  LHBits32 getElementHash(Uint32 const* element, OperationrecPtr& oprec);
   void shrink_adjust_reduced_hash_value(Uint32 bucket_number);
   Uint32 getPagePtr(DynArr256::Head&, Uint32);
   bool setPagePtr(DynArr256::Head& directory, Uint32 index, Uint32 ptri);
   Uint32 unsetPagePtr(DynArr256::Head& directory, Uint32 index);
-  void getdirindex(Signal* signal);
+  void getdirindex(Page8Ptr& pageptr, Uint32& conidx);
   void commitdelete(Signal* signal);
-  void deleteElement(Signal* signal);
-  void getLastAndRemove(Signal* signal, ContainerHeader& containerhead);
-  void releaseLeftlist(Signal* signal);
-  void releaseRightlist(Signal* signal);
-  void checkoverfreelist(Signal* signal);
+  void deleteElement(Page8Ptr delPageptr, Uint32 delConptr,
+      Uint32 delElemptr, Page8Ptr lastPageptr, Uint32 lastElemptr) const;
+  void getLastAndRemove(Page8Ptr tlastPrevpageptr, Uint32 tlastPrevconptr,
+     Page8Ptr& lastPageptr, Uint32& tlastPageindex, Uint32& tlastContainerptr,
+     bool& tlastIsforward, Uint32& tlastElementptr);
+  void releaseLeftlist(Page8Ptr rlPageptr, Uint32 conidx, Uint32 conptr);
+  void releaseRightlist(Page8Ptr rlPageptr, Uint32 conidx, Uint32 conptr);
+  void checkoverfreelist(Page8Ptr colPageptr);
   void abortOperation(Signal* signal);
   void commitOperation(Signal* signal);
-  void copyOpInfo(OperationrecPtr dst, OperationrecPtr src);
-  Uint32 executeNextOperation(Signal* signal);
-  void releaselock(Signal* signal);
+  void copyOpInfo(OperationrecPtr dst, OperationrecPtr src) const;
+  Uint32 executeNextOperation(Signal* signal) const;
+  void releaselock(Signal* signal) const;
   void release_lockowner(Signal* signal, OperationrecPtr, bool commit);
   void startNew(Signal* signal, OperationrecPtr newOwner);
-  void abortWaitingOperation(Signal*, OperationrecPtr);
-  void abortExecutedOperation(Signal*, OperationrecPtr);
+  void abortWaitingOperation(Signal*, OperationrecPtr) const;
+  void abortExecutedOperation(Signal*, OperationrecPtr) const;
   
-  void takeOutFragWaitQue(Signal* signal);
-  void check_lock_upgrade(Signal* signal, OperationrecPtr release_op, bool lo);
+  void takeOutFragWaitQue(Signal* signal) const;
+  void check_lock_upgrade(Signal* signal,
+                          OperationrecPtr release_op,
+                          bool lo) const;
   void check_lock_upgrade(Signal* signal, OperationrecPtr lock_owner,
-			  OperationrecPtr release_op);
-  void allocOverflowPage(Signal* signal);
-  bool getfragmentrec(Signal* signal, FragmentrecPtr&, Uint32 fragId);
-  void insertLockOwnersList(Signal* signal, const OperationrecPtr&);
-  void takeOutLockOwnersList(Signal* signal, const OperationrecPtr&);
+			  OperationrecPtr release_op) const;
+  void allocOverflowPage();
+  bool getfragmentrec(FragmentrecPtr&, Uint32 fragId);
+  void insertLockOwnersList(const OperationrecPtr&) const;
+  void takeOutLockOwnersList(const OperationrecPtr&) const;
 
-  void initFsOpRec(Signal* signal);
-  void initOverpage(Signal* signal);
-  void initPage(Signal* signal);
-  void initRootfragrec(Signal* signal);
-  void putOpInFragWaitQue(Signal* signal);
-  void releaseFsConnRec(Signal* signal);
-  void releaseFsOpRec(Signal* signal);
-  void releaseOpRec(Signal* signal);
-  void releaseOverpage(Signal* signal);
-  void releasePage(Signal* signal);
-  void seizeDirectory(Signal* signal);
-  void seizeFragrec(Signal* signal);
-  void seizeFsConnectRec(Signal* signal);
-  void seizeFsOpRec(Signal* signal);
-  void seizeOpRec(Signal* signal);
-  void seizePage(Signal* signal);
-  void seizeRootfragrec(Signal* signal);
-  void seizeScanRec(Signal* signal);
-  void sendSystemerror(Signal* signal, int line);
+  void initFsOpRec(Signal* signal) const;
+  void initOverpage(Page8Ptr);
+  void initPage(Page8Ptr);
+  void initRootfragrec(Signal* signal) const;
+  void putOpInFragWaitQue(Signal* signal) const;
+  void releaseFsConnRec(Signal* signal) const;
+  void releaseFsOpRec(Signal* signal) const;
+  void releaseOpRec();
+  void releaseOverpage(Page8Ptr ropPageptr);
+  void releasePage(Page8Ptr rpPageptr);
+  void seizeDirectory(Signal* signal) const;
+  void seizeFragrec();
+  void seizeFsConnectRec(Signal* signal) const;
+  void seizeFsOpRec(Signal* signal) const;
+  void seizeOpRec();
+  void seizePage(Page8Ptr& spPageptr);
+  void seizeRootfragrec(Signal* signal) const;
+  void seizeScanRec();
+  void sendSystemerror(int line) const;
 
-  void addFragRefuse(Signal* signal, Uint32 errorCode);
-  void ndbsttorryLab(Signal* signal);
-  void acckeyref1Lab(Signal* signal, Uint32 result_code);
-  void insertelementLab(Signal* signal);
+  void addFragRefuse(Signal* signal, Uint32 errorCode) const;
+  void ndbsttorryLab(Signal* signal) const;
+  void acckeyref1Lab(Signal* signal, Uint32 result_code) const;
+  void insertelementLab(Signal* signal,
+                        Page8Ptr bucketPageptr,
+                        Uint32 bucketConidx);
   void checkNextFragmentLab(Signal* signal);
-  void endofexpLab(Signal* signal);
+  void endofexpLab(Signal* signal) const;
   void endofshrinkbucketLab(Signal* signal);
-  void senddatapagesLab(Signal* signal);
-  void sttorrysignalLab(Signal* signal);
-  void sendholdconfsignalLab(Signal* signal);
-  void accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr);
-  void insertExistElemLab(Signal* signal, OperationrecPtr lockOwnerPtr);
+  void senddatapagesLab(Signal* signal) const;
+  void sttorrysignalLab(Signal* signal) const;
+  void sendholdconfsignalLab(Signal* signal) const;
+  void accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) const;
+  void insertExistElemLab(Signal* signal, OperationrecPtr lockOwnerPtr) const;
   void refaccConnectLab(Signal* signal);
   void releaseScanLab(Signal* signal);
-  void ndbrestart1Lab(Signal* signal);
+  void ndbrestart1Lab();
   void initialiseRecordsLab(Signal* signal, Uint32 ref, Uint32 data);
   void checkNextBucketLab(Signal* signal);
-  void storeDataPageInDirectoryLab(Signal* signal);
+  void storeDataPageInDirectoryLab(Signal* signal) const;
 
   void zpagesize_error(const char* where);
 
   // charsets
-  void xfrmKeyData(Signal* signal);
+  void xfrmKeyData(AccKeyReq* signal) const;
 
   // Initialisation
   void initData();
   void initRecords();
 
 #ifdef VM_TRACE
-  void debug_lh_vars(const char* where);
+  void debug_lh_vars(const char* where) const;
 #else
-  void debug_lh_vars(const char* where) {}
+  void debug_lh_vars(const char* where) const {}
 #endif
 
 public:
@@ -912,10 +956,7 @@ private:
 /* --------------------------------------------------------------------------------- */
   Operationrec *operationrec;
   OperationrecPtr operationRecPtr;
-  OperationrecPtr idrOperationRecPtr;
-  OperationrecPtr mlpqOperPtr;
   OperationrecPtr queOperPtr;
-  OperationrecPtr readWriteOpPtr;
   Uint32 cfreeopRec;
   Uint32 coprecsize;
 
@@ -924,39 +965,7 @@ private:
 /* --------------------------------------------------------------------------------- */
   Page8 *page8;
   /* 8 KB PAGE                       */
-  Page8Ptr ancPageptr;
-  Page8Ptr colPageptr;
-  Page8Ptr ccoPageptr;
-  Page8Ptr datapageptr;
-  Page8Ptr delPageptr;
-  Page8Ptr excPageptr;
   Page8Ptr expPageptr;
-  Page8Ptr gdiPageptr;
-  Page8Ptr gePageptr;
-  Page8Ptr gflPageptr;
-  Page8Ptr idrPageptr;
-  Page8Ptr ilcPageptr;
-  Page8Ptr inpPageptr;
-  Page8Ptr iopPageptr;
-  Page8Ptr lastPageptr;
-  Page8Ptr lastPrevpageptr;
-  Page8Ptr lcnPageptr;
-  Page8Ptr lcnCopyPageptr;
-  Page8Ptr lupPageptr;
-  Page8Ptr ciPageidptr;
-  Page8Ptr gsePageidptr;
-  Page8Ptr isoPageptr;
-  Page8Ptr nciPageidptr;
-  Page8Ptr rsbPageidptr;
-  Page8Ptr rscPageidptr;
-  Page8Ptr slPageidptr;
-  Page8Ptr sscPageidptr;
-  Page8Ptr rlPageptr;
-  Page8Ptr rlpPageptr;
-  Page8Ptr ropPageptr;
-  Page8Ptr rpPageptr;
-  Page8Ptr slPageptr;
-  Page8Ptr spPageptr;
   Page8List::Head cfreepages;
   Uint32 cpagesize;
   Uint32 cpageCount;
@@ -987,115 +996,26 @@ private:
   Tabrec *tabrec;
   TabrecPtr tabptr;
   Uint32 ctablesize;
-  Uint32 tgseElementptr;
-  Uint32 tgseContainerptr;
-  Uint32 trlNextused;
-  Uint32 trlPrevused;
-  Uint32 tlcnChecksum;
-  Uint32 tlupElemIndex;
-  Uint32 tlupIndex;
-  Uint32 tlupForward;
-  Uint32 tancNext;
-  Uint32 tancBufType;
-  Uint32 tancContainerptr;
-  Uint32 tancPageindex;
-  Uint32 tancPagei;
-  Uint32 tidrResult;
-  Uint32 tidrElemhead;
-  Uint32 tidrForward;
-  Uint32 tidrPageindex;
-  Uint32 tidrContainerptr;
-  Uint32 tlastForward;
-  Uint32 tlastPageindex;
-  Uint32 tlastContainerlen;
-  Uint32 tlastElementptr;
-  Uint32 tlastContainerptr;
-  Uint32 trlPageindex;
-  Uint32 tdelContainerptr;
-  Uint32 tdelElementptr;
-  Uint32 tdelForward;
   Uint32 tipPageId;
-  Uint32 tgeContainerptr;
-  Uint32 tgeElementptr;
-  Uint32 tgeForward;
   Uint32 texpDirInd;
-  Uint32 texpDirRangeIndex;
-  Uint32 texpDirPageIndex;
   Uint32 tdata0;
-  Uint32 tcheckpointid;
-  Uint32 tciContainerptr;
-  Uint32 tnciContainerptr;
-  Uint32 tisoContainerptr;
-  Uint32 trscContainerptr;
-  Uint32 tsscContainerptr;
-  Uint32 tciContainerlen;
-  Uint32 trscContainerlen;
-  Uint32 tsscContainerlen;
-  Uint32 tslElementptr;
-  Uint32 tisoElementptr;
-  Uint32 tsscElementptr;
   Uint32 tfid;
   Uint32 tscanFlag;
-  Uint32 tgflBufType;
-  Uint32 tgseIsforward;
-  Uint32 tsscIsforward;
-  Uint32 trscIsforward;
-  Uint32 tciIsforward;
-  Uint32 tnciIsforward;
-  Uint32 tisoIsforward;
-  Uint32 tgseIsLocked;
-  Uint32 tsscIsLocked;
-  Uint32 tkeylen;
   Uint32 tmp;
-  Uint32 tmpP;
-  Uint32 tmpP2;
   Uint32 tmp2;
-  Uint32 tgflPageindex;
-  Uint32 tmpindex;
-  Uint32 tslNextfree;
-  Uint32 tslPageindex;
-  Uint32 tgsePageindex;
-  Uint32 tnciNextSamePage;
-  Uint32 tslPrevfree;
-  Uint32 tciPageindex;
-  Uint32 trsbPageindex;
-  Uint32 tnciPageindex;
-  Uint32 tlastPrevconptr;
   Uint32 tresult;
   Uint32 tuserptr;
   BlockReference tuserblockref;
-  Uint32 tlqhPointer;
-  Uint32 tholdSentOp;
-  Uint32 tholdMore;
-  Uint32 tgdiPageindex;
   Uint32 tiopIndex;
-  Uint32 tullIndex;
-  Uint32 turlIndex;
-  Uint32 tlfrTmp1;
-  Uint32 tlfrTmp2;
   Uint32 tscanTrid1;
   Uint32 tscanTrid2;
 
-  Uint32 ctest;
-  Uint32 clqhPtr;
-  BlockReference clqhBlockRef;
   Uint32 cminusOne;
   NodeId cmynodeid;
   BlockReference cownBlockref;
   BlockReference cndbcntrRef;
   Uint16 csignalkey;
   Uint32 czero;
-  Uint32 cexcForward;
-  Uint32 cexcPageindex;
-  Uint32 cexcContainerptr;
-  Uint32 cexcContainerlen;
-  Uint32 cexcElementptr;
-  Uint32 cexcPrevconptr;
-  Uint32 cexcMovedLen;
-  Uint32 cexcPrevpageptr;
-  Uint32 cexcPrevpageindex;
-  Uint32 cexcPrevforward;
-  Uint32 clocalkey[32];
   union {
   Uint32 ckeys[2048 * MAX_XFRM_MULTIPLY];
   Uint64 ckeys_align;
@@ -1104,6 +1024,8 @@ private:
   Uint32 c_errorInsert3000_TableId;
   Uint32 c_memusage_report_frequency;
 };
+
+#ifdef DBACC_C
 
 inline Uint32 Dbacc::Fragmentrec::getPageNumber(Uint32 bucket_number) const
 {
@@ -1129,6 +1051,32 @@ inline void Dbacc::getPtr(Ptr<Page8>& page) const
   ptrCheckGuard(page, cpagesize, page8);
 }
 
+inline Uint32 Dbacc::getForwardContainerPtr(Uint32 index) const
+{
+  ndbassert(index <= Container::MAX_CONTAINER_INDEX);
+  return ZHEAD_SIZE + index * Container::CONTAINER_SIZE;
+}
+
+inline Uint32 Dbacc::getBackwardContainerPtr(Uint32 index) const
+{
+  ndbassert(index <= Container::MAX_CONTAINER_INDEX);
+  return ZHEAD_SIZE + index * Container::CONTAINER_SIZE +
+         Container::CONTAINER_SIZE - Container::HEADER_SIZE;
+}
+
+inline Uint32 Dbacc::getContainerPtr(Uint32 index, bool isforward) const
+{
+  if (isforward)
+  {
+    return getForwardContainerPtr(index);
+  }
+  else
+  {
+    return getBackwardContainerPtr(index);
+  }
+}
+
+#endif
 
 #undef JAM_FILE_ID
 

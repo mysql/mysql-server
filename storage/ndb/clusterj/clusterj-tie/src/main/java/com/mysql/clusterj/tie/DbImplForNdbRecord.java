@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -53,11 +53,8 @@ class DbImplForNdbRecord implements com.mysql.clusterj.core.store.Db {
     /** The Ndb instance that this instance is wrapping */
     private Ndb ndb;
 
-    /** A "big enough" size for error information */
-    private int errorBufferSize = 300;
-
     /** The ndb error detail buffer */
-    private ByteBuffer errorBuffer = ByteBuffer.allocateDirect(errorBufferSize);
+    private ByteBuffer errorBuffer;
 
     /** The NdbDictionary for this Ndb */
     private Dictionary ndbDictionary;
@@ -71,6 +68,7 @@ class DbImplForNdbRecord implements com.mysql.clusterj.core.store.Db {
     public DbImplForNdbRecord(ClusterConnectionImpl clusterConnection, Ndb ndb) {
         this.clusterConnection = clusterConnection;
         this.ndb = ndb;
+        this.errorBuffer = this.clusterConnection.byteBufferPoolForDBImplError.borrowBuffer();
         int returnCode = ndb.init(1);
         handleError(returnCode, ndb);
         ndbDictionary = ndb.getDictionary();
@@ -88,6 +86,7 @@ class DbImplForNdbRecord implements com.mysql.clusterj.core.store.Db {
     }
 
     public void close() {
+        this.clusterConnection.byteBufferPoolForDBImplError.returnBuffer(this.errorBuffer);
         Ndb.delete(ndb);
         clusterConnection.close(this);
     }

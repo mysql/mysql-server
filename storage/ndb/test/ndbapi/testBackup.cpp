@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -741,6 +741,7 @@ int runRestoreBankAndVerify(NDBT_Context* ctx, NDBT_Step* step){
 
     if (restarter.waitClusterStarted() != 0)
       return NDBT_FAILED;
+    CHK_NDB_READY(GETNDB(step));
 
     ndbout << "Dropping " << tabname << endl;
     NdbDictionary::Dictionary* pDict = GETNDB(step)->getDictionary();
@@ -1093,6 +1094,7 @@ int
 runBug17882305(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbBackup backup;
+  NdbRestarter res;
   NdbDictionary::Table tab;
   NdbDictionary::Index idx;
   const char *tablename = "#sql-dummy"; 
@@ -1114,6 +1116,11 @@ runBug17882305(NDBT_Context* ctx, NDBT_Step* step)
     g_err << "Failed to create index, error: " << dict->getNdbError() << endl;
     return NDBT_FAILED;
   }
+
+  /**
+   * Test CONTINUEB in get table fragmentation while at it.
+   */
+  res.insertErrorInAllNodes(10046);
 
   // start backup which will contain "#sql-dummy"
   g_err << "Starting backup." << endl;

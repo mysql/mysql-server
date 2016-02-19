@@ -65,6 +65,16 @@ Ndb_cluster_connection::Ndb_cluster_connection(const char *connect_string,
 {
 }
 
+
+Ndb_cluster_connection::Ndb_cluster_connection(const char *connect_string,
+                                               Ndb_cluster_connection *
+                                               main_connection,
+                                               int force_api_nodeid)
+  : m_impl(* new Ndb_cluster_connection_impl(connect_string,
+                                             main_connection, force_api_nodeid))
+{
+}
+
 Ndb_cluster_connection::Ndb_cluster_connection
 (Ndb_cluster_connection_impl& impl) : m_impl(impl)
 {
@@ -467,9 +477,10 @@ Ndb_cluster_connection_impl(const char * connect_string,
     m_transporter_facade=
       new TransporterFacade(m_main_connection->m_impl.m_globalDictCache);
 
-    // The secondary connection can't use same nodeid, clear the nodeid
-    // in ConfigRetriver to avoid asking for the same nodeid again
-    m_config_retriever->setNodeId(0);
+    // The secondary connection can't use same nodeid, but it's ok
+    // to specify one to use. Use the force_api_nodeid given(although
+    // it will normally be 0 in order to allocate dynamic nodeid)
+    m_config_retriever->setNodeId(force_api_nodeid);
 
   }
 

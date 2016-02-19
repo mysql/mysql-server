@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -210,7 +210,7 @@ trp_client::getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
     m_send_nodes_cnt = cnt + 1;
   }
 
-  TFPage* page = m_facade->alloc_sb_page();
+  TFPage* page = m_facade->alloc_sb_page(node);
   if (likely(page != 0))
   {
     page->init();
@@ -368,6 +368,9 @@ int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
   /* Use nanosecond to calculate when wait_time has expired. */
   Int64 remain_wait_nano = ((Int64)wait_time) * 1000000;
   const int maxsleep = (wait_time == -1 || wait_time > 10) ? 10 : wait_time;
+#ifdef VM_TRACE
+  const bool verbose = (m_waiter->get_state() != WAIT_EVENT);
+#endif
   do
   {
     wait_for_input(maxsleep);
@@ -376,6 +379,12 @@ int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
     const Uint64 waited_nano = NdbTick_Elapsed(start_ticks,curr_ticks).nanoSec();
     m_clnt->recordWaitTimeNanos(waited_nano);
     Uint32 state= m_waiter->get_state();
+
+    DBUG_EXECUTE_IF("ndb_simulate_nodefail", {
+      DBUG_PRINT("info", ("Simulating node failure while waiting for response"));
+      state = WAIT_NODE_FAILURE;;
+    });
+
     if (state == NO_WAIT)
     {
       return 0;
@@ -397,7 +406,10 @@ int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
     if (remain_wait_nano <= 0)
     {
 #ifdef VM_TRACE
-      ndbout << "Time-out state is " << m_waiter->get_state() << endl;
+      if (verbose)
+      {
+        ndbout << "Time-out state is " << m_waiter->get_state() << endl;
+      }
 #endif
       m_waiter->set_state(WST_WAIT_TIMEOUT);
       ret_val= -1;
@@ -410,8 +422,11 @@ int PollGuard::wait_for_input_in_loop(int wait_time, bool forceSend)
     m_clnt->flush_send_buffers();
   } while (1);
 #ifdef VM_TRACE
-  ndbout << "ERR: receiveResponse - theImpl->theWaiter.m_state = ";
-  ndbout << m_waiter->get_state() << endl;
+  if (verbose)
+  {
+    ndbout << "ERR: receiveResponse - theImpl->theWaiter.m_state = ";
+    ndbout << m_waiter->get_state() << endl;
+  }
 #endif
   return ret_val;
 }

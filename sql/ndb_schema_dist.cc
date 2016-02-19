@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,15 +63,4 @@ get_schema_type_name(uint type)
     return "REVOKE";
   }
   return "<unknown>";
-}
-
-extern struct NDB_SHARE* ndb_schema_share;
-
-bool ndb_schema_dist_is_ready(void)
-{
-  if (ndb_schema_share)
-    return true;
-
-  DBUG_PRINT("info", ("ndb schema dist not ready"));
-  return false;
 }

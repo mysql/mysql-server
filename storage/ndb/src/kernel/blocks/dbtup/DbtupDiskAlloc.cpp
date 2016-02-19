@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -88,7 +88,7 @@ operator<<(NdbOut& out, const Ptr<Dbtup::Extent_info> & ptr)
   return out;
 }
 
-#if NOT_YET_FREE_EXTENT
+#ifdef NOT_YET_FREE_EXTENT
 static
 inline
 bool
@@ -103,7 +103,7 @@ check_free(const Dbtup::Extent_info* extP)
 #error "This code is not yet complete"
 #endif
 
-#if NOT_YET_UNDO_ALLOC_EXTENT
+#ifdef NOT_YET_UNDO_ALLOC_EXTENT
 #error "This is needed for deallocting extents when they get empty"
 #error "This code is not complete yet"
 #endif
@@ -561,7 +561,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
       /**
        * We need to alloc an extent
        */
-#if NOT_YET_UNDO_ALLOC_EXTENT
+#ifdef NOT_YET_UNDO_ALLOC_EXTENT
       Uint32 logfile_group_id = fragPtr.p->m_logfile_group_id;
 
       err = c_lgman->alloc_log_space(logfile_group_id,
@@ -579,7 +579,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
 	jam();
 	//XXX
 	err= 2;
-#if NOT_YET_UNDO_ALLOC_EXTENT
+#ifdef NOT_YET_UNDO_ALLOC_EXTENT
 	c_lgman->free_log_space(logfile_group_id, 
 				sizeof(Disk_undo::AllocExtent)>>2,
                                 jamBuffer());
@@ -592,7 +592,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
       if ((err= tsman.alloc_extent(&ext.p->m_key)) < 0)
       {
 	jamEntry();
-#if NOT_YET_UNDO_ALLOC_EXTENT
+#ifdef NOT_YET_UNDO_ALLOC_EXTENT
 	c_lgman->free_log_space(logfile_group_id, 
 				sizeof(Disk_undo::AllocExtent)>>2,
                                 jamBuffer());
@@ -603,7 +603,7 @@ Dbtup::disk_page_prealloc(Signal* signal,
       }
 
       int pages= err;
-#if NOT_YET_UNDO_ALLOC_EXTENT
+#ifdef NOT_YET_UNDO_ALLOC_EXTENT
       {
 	/**
 	 * Do something here
@@ -1266,7 +1266,7 @@ Dbtup::disk_page_free(Signal *signal,
   }
   
   update_extent_pos(jamBuffer(), alloc, extentPtr, sz);
-#if NOT_YET_FREE_EXTENT
+#ifdef NOT_YET_FREE_EXTENT
   if (check_free(extentPtr.p) == 0)
   {
     ndbout_c("free: extent is free");
@@ -1367,7 +1367,7 @@ Dbtup::disk_page_abort_prealloc_callback_1(Signal* signal,
   }
   
   update_extent_pos(jamBuffer(), alloc, extentPtr, sz);
-#if NOT_YET_FREE_EXTENT
+#ifdef NOT_YET_FREE_EXTENT
   if (check_free(extentPtr.p) == 0)
   {
     ndbout_c("abort: extent is free");
@@ -1375,7 +1375,7 @@ Dbtup::disk_page_abort_prealloc_callback_1(Signal* signal,
 #endif
 }
 
-#if NOT_YET_UNDO_ALLOC_EXTENT
+#ifdef NOT_YET_UNDO_ALLOC_EXTENT
 void
 Dbtup::disk_page_alloc_extent_log_buffer_callback(Signal* signal,
 						  Uint32 extentPtrI,

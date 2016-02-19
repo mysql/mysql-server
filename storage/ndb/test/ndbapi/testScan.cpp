@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -560,6 +560,7 @@ int runScanReadErrorOneNode(NDBT_Context* ctx, NDBT_Step* step){
       g_err << "Cluster failed to restart" << endl;
       result = NDBT_FAILED;
     }
+    CHK_NDB_READY(GETNDB(step));
     restarter.insertErrorInAllNodes(0);
     
     i++;
@@ -1718,6 +1719,8 @@ runBug54945(NDBT_Context* ctx, NDBT_Step* step)
       res.waitNodesNoStart(&node, 1);
       res.startAll();
       res.waitClusterStarted();
+      if (pNdb->waitUntilReady() != 0)
+        return NDBT_FAILED;
     }
   }
 
@@ -2846,9 +2849,9 @@ TESTCASE("CloseRefresh", "")
 {
   INITIALIZER(runCloseRefresh);
 }
-TESTCASE("Bug54945", "")
+TESTCASE("Bug54945", "Need --skip-ndb-optimized-node-selection")
 {
-  INITIALIZER(runBug54945);
+  STEP(runBug54945);
 }
 TESTCASE("ScanFragRecExhaust", 
          "Test behaviour when TC scan frag recs exhausted")

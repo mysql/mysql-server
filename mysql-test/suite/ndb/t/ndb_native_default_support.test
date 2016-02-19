@@ -17,6 +17,9 @@ let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
 # while inserting rows without default values.
 # NOTE! one test at the end turns STRICT back on for a while
 --source suite/ndb/include/turn_off_strict_sql_mode.inc
+# Also turn off NO_ZERO_DATE to allow table with
+# TIMSTAMP NO NULL to be created
+set sql_mode=(select replace(@@sql_mode,'NO_ZERO_DATE',''));
 
 --disable_warnings
 DROP TABLE IF EXISTS t1,bit1;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -318,7 +318,7 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   tmpThread->cpu_set_key = NULL;
 #ifdef HAVE_LINUX_SCHEDULING
   tmpThread->orig_cpu_set = NULL;
-#elif HAVE_SOLARIS_AFFINITY
+#elif defined HAVE_SOLARIS_AFFINITY
   tmpThread->first_lock_call = TRUE;
 #endif
 
@@ -906,6 +906,7 @@ NdbThread_Init()
   my_create_thread_local_key(&(tls_keys[NDB_THREAD_TLS_JAM]), NULL);
   my_create_thread_local_key(&(tls_keys[NDB_THREAD_TLS_THREAD]), NULL);
   my_create_thread_local_key(&(tls_keys[NDB_THREAD_TLS_NDB_THREAD]), NULL);
+  my_create_thread_local_key(&(tls_keys[NDB_THREAD_TLS_RES_OWNER]), NULL);
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
   my_create_thread_local_key(&(tls_keys[NDB_THREAD_TLS_MAX]), NULL);
 #endif

@@ -1628,6 +1628,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
     ndb_free_defaults(defaults_argv);
     return NDBT_ProgramExit(NDBT_FAILED);
   }
+  con.set_optimized_node_selection(opt_ndb_optimized_node_selection);
 
   if(argc == 0){
     // No table specified

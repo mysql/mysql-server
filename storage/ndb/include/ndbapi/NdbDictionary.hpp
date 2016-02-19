@@ -927,11 +927,6 @@ public:
     int setHashMap(const class HashMap &);
 
     /**
-     * Get table object type
-     */
-    Object::Type getObjectType() const;
-
-    /**
      * Get object status
      */
     virtual Object::Status getObjectStatus() const;
@@ -999,11 +994,6 @@ public:
     Uint32 getFragmentNodes(Uint32 fragmentId, 
                             Uint32* nodeIdArrayPtr,
                             Uint32 arraySize) const;
-
-    /**
-     * Set table object type
-     */
-    void setObjectType(Object::Type type);
 
     /**
      * Set/Get Maximum number of rows in table (only used to calculate
@@ -1988,11 +1978,6 @@ public:
     const char * getTablespace() const;
     void getTablespaceId(ObjectId * dst) const;
 
-    void setNode(Uint32 nodeId);
-    Uint32 getNode() const;
-
-    Uint32 getFileNo() const;
-
     /**
      * Get object status
      */
@@ -2030,11 +2015,6 @@ public:
     void setLogfileGroup(const class LogfileGroup &);
     const char * getLogfileGroup() const;
     void getLogfileGroupId(ObjectId * dst) const;
-
-    void setNode(Uint32 nodeId);
-    Uint32 getNode() const;
-
-    Uint32 getFileNo() const;
 
     /**
      * Get object status
@@ -2467,13 +2447,13 @@ public:
      */
     int alterTable(const Table & f, const Table & t);
 
+#endif
+
     /**
      * Invalidate cached table object
      * @param name  Name of table to invalidate
      */
     void invalidateTable(const char * name);
-#endif
-
     /**
      * Remove table from local cache
      */
@@ -2482,8 +2462,14 @@ public:
      * Remove index from local cache
      */
     void removeCachedIndex(const char * index, const char * table);
+    /**
+     * Invalidate cached index object
+     * @param indexName  Name of index to invalidate
+     * @param tableName  Name of table the index belongs to
+     */
+    void invalidateIndex(const char * indexName,
+                         const char * tableName);
 
-    
     /** @} *******************************************************************/
     /** 
      * @name Index creation
@@ -2539,11 +2525,6 @@ public:
     void removeCachedTable(const Table *table);
     void removeCachedIndex(const Index *index);
     void invalidateTable(const Table *table);
-    /**
-     * Invalidate cached index object
-     */
-    void invalidateIndex(const char * indexName,
-                         const char * tableName);
     void invalidateIndex(const Index *index);
     /**
      * Force gcp and wait for gcp complete

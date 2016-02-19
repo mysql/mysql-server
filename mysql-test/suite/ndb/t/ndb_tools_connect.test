@@ -1,0 +1,68 @@
+--echo Bug #11764714 - Adding --connect-retry-delay and --connect-retries  options to tools
+
+--source include/have_ndb.inc
+--source suite/ndb/include/ndb_find_tools.inc
+
+--echo Testing ndbinfo_select_all
+--error 1
+--exec $NDBINFO_SELECT_ALL test --ndb-connectstring=no_such_host --connect-retry-delay=1 --connect-retries=3
+
+--echo Testing ndb_mgm
+--error 255
+--exec $NDB_MGM --ndb-connectstring=no_such_host --connect-retry-delay=1 --connect-retries=3 -e'show';
+
+--echo Testing ndb_blob_tool
+--error 1
+--exec $NDB_BLOB_TOOL --check-orphans --verbose -d test t --ndb-connectstring=no_such_host --connect-retry-delay=1 --connect-retries=3
+
+--echo Testing ndb_config
+--error 255
+--exec $NDB_CONFIG --ndb-connectstring=no_such_host  --connect-retry-delay=1 --connect-retries=3
+
+--echo Testing ndb_delete_all
+--error 1
+--exec $NDB_DELETE_ALL --ndb-connectstring=no_such_host --connect-retry-delay=1 --connect-retries=3
+
+--echo Testing ndb_desc
+--error 1
+--exec $NDB_DESC --ndb-connectstring=no_such_host --connect-retry-delay=1 --connect-retries=3
+
+--echo Testing ndb_drop_index
+--error 1
+--exec $NDB_DROP_INDEX --ndb-connectstring=no_such_host --connect-retry-delay=1 --connect-retries=3 -dtest t idx1
+
+--echo Testing ndb_drop_table
+--error 1
+--exec $NDB_DROP_TABLE --ndb-connectstring=no_such_host --connect-retry-delay=1 --connect-retries=3 -dtest t
+
+--echo Testing ndb_index_stat
+--source suite/ndb/include/ndb_find_index_stat_tool.inc
+--error 1
+--exec $NDB_INDEX_STAT -dtest t --ndb-connectstring=no_such_host --connect-retry-delay=1 --connect-retries=3
+
+
+--echo Testing ndb_restore
+CREATE TABLE t1 (col1 int)engine=ndb;
+--source include/ndb_backup.inc
+drop table t1;
+--exec $NDB_RESTORE --connect-retry-delay=1 --connect-retries=3 -b $the_backup_id -n 1 -m --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --connect-retry-delay=1 --connect-retries=3 -b $the_backup_id -n 1 -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --connect-retry-delay=1 --connect-retries=3 -b $the_backup_id -n 2 -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+drop table t1;
+
+--echo Testing ndb_select_all
+--error 1
+--exec $NDB_SELECT_ALL -dtest t --ndb-connectstring=no_such_host --connect-retry-delay=1 --connect-retries=3
+
+--echo Testing ndb_select_count
+--error 1
+--exec $NDB_SELECT_COUNT -dtest t --ndb-connectstring=no_such_host --connect-retry-delay=1 --connect-retries=3
+
+--echo Testing ndb_show_tables
+--error 1
+--exec $NDB_SHOW_TABLES --ndb-connectstring=no_such_host --connect-retry-delay=1 --connect-retries=3
+
+--echo Testing ndb_waiter
+--replace_regex /line.*/line=no_such_host/
+--error 1
+--exec $NDB_WAITER --ndb-connectstring=no_such_host --connect-retry-delay=1 --connect-retries=3

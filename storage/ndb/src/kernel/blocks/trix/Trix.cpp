@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2955,7 +2955,7 @@ Trix::statScanEnd(Signal* signal, StatOp& stat)
    * we prefer DbtuxProxy to avoid introducing MT-LQH into TRIX.
    */
 
-#if trix_index_stat_rep_to_tux_instance
+#ifdef trix_index_stat_rep_to_tux_instance
   Uint32 instanceKey = getInstanceKey(req->indexId, req->fragId);
   BlockReference tuxRef = numberToRef(DBTUX, instanceKey, getOwnNodeId());
 #else

@@ -1123,7 +1123,7 @@ MgmtSrvr::sendVersionReq(int v_nodeId,
       *address= Ndb_inet_ntop(AF_INET,
                               static_cast<void*>(&in),
                               addr_buf,
-                              (socklen_t)addr_buf_size);
+                              addr_buf_size);
 
       return 0;
     }
@@ -2168,7 +2168,7 @@ MgmtSrvr::status_mgmd(NodeId node_id,
         *address = Ndb_inet_ntop(AF_INET,
                                  static_cast<void*>(&addr),
                                  addr_buf,
-                                 (socklen_t)addr_buf_size);
+                                 addr_buf_size);
       }
     }
 
@@ -2997,6 +2997,11 @@ MgmtSrvr::dumpState(int nodeId, const char* args)
 int
 MgmtSrvr::dumpState(int nodeId, const Uint32 args[], Uint32 no)
 {
+  if (nodeId == _ownNodeId)
+  {
+    return dumpStateSelf(args, no);
+  }
+
   INIT_SIGNAL_SENDER(ss,nodeId);
 
   const Uint32 len = no > 25 ? 25 : no;
@@ -3026,6 +3031,70 @@ MgmtSrvr::dumpState(int nodeId, const Uint32 args[], Uint32 no)
   return res;
 
 }
+
+int
+MgmtSrvr::dumpStateSelf(const Uint32 args[], Uint32 no)
+{
+  if (no < 1)
+    return -1;
+
+  switch(args[0])
+  {
+#ifdef ERROR_INSERT
+  case 9994:
+  {
+    /* Transporter send blocking */
+    if (no >= 2)
+    {
+      Uint32 nodeId = args[1];
+      ndbout_c("Blocking send to node %u",
+               nodeId);
+      TransporterRegistry* tr = theFacade->get_registry();
+      tr->blockSend(*theFacade, nodeId);
+    }
+    break;
+  }
+  case 9995:
+  {
+    /* Transporter send unblocking */
+    if (no >= 2)
+    {
+      Uint32 nodeId = args[1];
+      ndbout_c("Unblocking send to node %u",
+               nodeId);
+      TransporterRegistry* tr = theFacade->get_registry();
+      tr->unblockSend(*theFacade, nodeId);
+    }
+    break;
+  }
+
+  case 9996:
+  {
+    /* Sendbuffer consumption */
+    if (no >= 2)
+    {
+      Uint64 remain_bytes = args[1];
+      ndbout_c("Consuming sendbuffer except for %llu bytes",
+               remain_bytes);
+      theFacade->consume_sendbuffer(remain_bytes);
+    }
+    break;
+  }
+  case 9997:
+  {
+    /* Sendbuffer release */
+    ndbout_c("Releasing consumed sendbuffer");
+    theFacade->release_consumed_sendbuffer();
+    break;
+  }
+#endif
+  default:
+    ;
+  }
+
+  return 0;
+}
+
 
 
 //****************************************************************************
@@ -3176,7 +3245,7 @@ MgmtSrvr::get_connect_address(NodeId node_id,
   return Ndb_inet_ntop(AF_INET,
                        static_cast<void*>(&m_connect_address[node_id]),
                        addr_buf,
-                       (socklen_t)addr_buf_size);
+                       addr_buf_size);
 }
 
 
@@ -3420,11 +3489,11 @@ static int
 match_hostname(const struct sockaddr *clnt_addr,
                const char *config_hostname)
 {
-  struct in_addr config_addr= {0};
   if (clnt_addr)
   {
     const struct in_addr *clnt_in_addr = &((sockaddr_in*)clnt_addr)->sin_addr;
 
+    struct in_addr config_addr;
     if (Ndb_getInAddr(&config_addr, config_hostname) != 0
         || memcmp(&config_addr, clnt_in_addr, sizeof(config_addr)) != 0)
     {
@@ -3551,24 +3620,31 @@ MgmtSrvr::find_node_type(NodeId node_id,
     if (found_config_hostname)
     {
       char addr_buf[NDB_ADDR_STRLEN];
-      char *addr_str;
-      struct in_addr config_addr= {0};
-      struct in_addr conn_addr =
-        ((struct sockaddr_in*)(client_addr))->sin_addr;
-      int r_config_addr= Ndb_getInAddr(&config_addr, found_config_hostname);
-      addr_str = Ndb_inet_ntop(AF_INET,
-                               static_cast<void*>(&conn_addr),
-                               addr_buf,
-                               (socklen_t)sizeof(addr_buf));
-      error_string.appfmt("Connection with id %d done from wrong host ip %s,",
-                          node_id, addr_str);
-      addr_str = Ndb_inet_ntop(AF_INET,
-                               static_cast<void*>(&config_addr),
-                               addr_buf,
-                               (socklen_t)sizeof(addr_buf));
-      error_string.appfmt(" expected %s(%s).", found_config_hostname,
-                          r_config_addr ?
-                          "lookup failed" : addr_str);
+      {
+        // Append error describing which host the faulty connection was from
+        struct in_addr conn_addr =
+          ((struct sockaddr_in*)(client_addr))->sin_addr;
+        char* addr_str =
+            Ndb_inet_ntop(AF_INET,
+                          static_cast<void*>(&conn_addr),
+                          addr_buf,
+                          sizeof(addr_buf));
+        error_string.appfmt("Connection with id %d done from wrong host ip %s,",
+                            node_id, addr_str);
+      }
+      {
+        // Append error describing which was the expected host
+        struct in_addr config_addr;
+        int r_config_addr= Ndb_getInAddr(&config_addr, found_config_hostname);
+        char* addr_str =
+            Ndb_inet_ntop(AF_INET,
+                          static_cast<void*>(&config_addr),
+                          addr_buf,
+                          sizeof(addr_buf));
+        error_string.appfmt(" expected %s(%s).", found_config_hostname,
+                            r_config_addr ?
+                            "lookup failed" : addr_str);
+      }
       return -1;
     }
     error_string.appfmt("No node defined with id=%d in config file.", node_id);
@@ -3584,7 +3660,7 @@ MgmtSrvr::find_node_type(NodeId node_id,
     char *addr_str = Ndb_inet_ntop(AF_INET,
                                    static_cast<void*>(&conn_addr),
                                    addr_buf,
-                                   (socklen_t)sizeof(addr_buf));
+                                   sizeof(addr_buf));
     error_string.appfmt("Connection done from wrong host ip %s.",
                         (client_addr) ? addr_str : "");
     return -1;
@@ -3890,7 +3966,7 @@ MgmtSrvr::alloc_node_id(NodeId& nodeid,
   char* addr_str = Ndb_inet_ntop(AF_INET,
                                  static_cast<void*>(&conn_addr),
                                  addr_buf,
-                                 (socklen_t)sizeof(addr_buf));
+                                 sizeof(addr_buf));
 
   g_eventLogger->debug("Trying to allocate nodeid for %s" \
                        "(nodeid: %u, type: %s)",

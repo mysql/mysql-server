@@ -25,8 +25,8 @@ load data local infile 'suite/ndb/data/table_data10000.dat' into table t2 fields
 --replace_regex /Connected to Management Server at: .*//
 --exec $NDB_MGM -e "create nodegroup 3,4"
 
-alter online table t2 reorganize partition;
-alter online table t1 reorganize partition;
+alter table t2 algorithm=inplace, reorganize partition;
+alter table t1 algorithm=inplace, reorganize partition;
 
 ## Check details of partitioning
 --replace_regex /FragmentCount:/FragmentCount/ /HashMap:/HashMap/ /.*[=:#].*// /.*- .*// /[0-9]*\/[0-9]*\/id1/.../

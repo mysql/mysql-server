@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,7 +82,7 @@ Ndb_local_connection::execute_query(MYSQL_LEX_STRING sql_text,
                          last_errno, last_errmsg));
 
     // catch some SQL parse errors in debug
-    assert(last_errno != ER_PARSE_ERROR ||
+    assert(last_errno != ER_PARSE_ERROR &&
            last_errno != ER_EMPTY_QUERY);
 
     /* Check if this is a MySQL level errors that should be ignored */

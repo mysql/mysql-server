@@ -308,6 +308,7 @@ class Lgman;
 #define ZNO_FREE_FRAG_SCAN_REC_ERROR 490 // SCAN_FRAGREF error code
 #define ZCOPY_NO_FRAGMENT_ERROR 491      // COPY_FRAGREF error code
 #define ZTAKE_OVER_ERROR 499
+#define ZTO_OP_STATE_ERROR 631           // Same as in Dbacc.hpp
 #define ZCOPY_NODE_ERROR 1204
 #define ZTOO_MANY_COPY_ACTIVE_ERROR 1208 // COPY_FRAG and COPY_ACTIVEREF code
 #define ZCOPY_ACTIVE_ERROR 1210          // COPY_ACTIVEREF error code
@@ -596,7 +597,7 @@ public:
  * Mainly used to avoid overextending the stack and to some
  * extent keeping the scheduling rules.
  */
-#define ZMAX_SCAN_DIRECT_COUNT 5
+#define ZMAX_SCAN_DIRECT_COUNT 6
 
   struct Fragrecord {
     Fragrecord() {}
@@ -2336,6 +2337,7 @@ public:
       Uint32 m_page_id[2];
       Local_key m_disk_ref[2];
     } m_nr_delete;
+    Uint32 accOpPtr; /* for scan lock take over */
 #endif // DBLQH_STATE_EXTRACT
   }; /* p2c: size = 280 bytes */
 
@@ -3149,6 +3151,7 @@ private:
   Uint32 c_free_mb_force_lcp_limit; // Force lcp when less than this free mb
   Uint32 c_free_mb_tail_problem_limit; // Set TAIL_PROBLEM when less than this..
 
+  Uint32 c_max_scan_direct_count;
 /* ------------------------------------------------------------------------- */
 // cmaxWordsAtNodeRec keeps track of how many words that currently are
 // outstanding in a node recovery situation.

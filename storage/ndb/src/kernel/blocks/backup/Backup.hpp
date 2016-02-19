@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -114,7 +114,6 @@ protected:
    * DIH signals
    */
   void execDIH_SCAN_TAB_CONF(Signal* signal);
-  void execDIH_SCAN_GET_NODES_CONF(Signal* signal);
   void execCHECK_NODE_RESTARTCONF(Signal*);
 
   /**
@@ -221,6 +220,7 @@ public:
     Uint64 noOfRecords;
 
     Uint32 tableId;
+    Uint32 backupPtrI;
     Uint32 schemaVersion;
     Uint32 tableType;
     Uint32 m_scan_cookie;
@@ -238,6 +238,10 @@ public:
 
     Uint32 nextList;
     union { Uint32 nextPool; Uint32 prevList; };
+    /**
+     * Pointer used by c_tableMap
+     */
+    Uint32 nextMapTable;
   };
   typedef Ptr<Table> TablePtr;
 
@@ -555,6 +559,7 @@ public:
     Uint64 m_disk_write_speed_max;
     Uint64 m_disk_write_speed_max_other_node_restart;
     Uint64 m_disk_write_speed_max_own_restart;
+    Uint32 m_backup_disk_write_pct;
     Uint32 m_disk_synch_size;
     Uint32 m_diskless;
     Uint32 m_o_direct;
@@ -566,6 +571,12 @@ public:
    * Variables
    */
   Uint32 * c_startOfPages;
+  /**
+   * Map from tableId to tabPtr.i to speed up findTable
+   * If the same table is mapped to several backups we will
+   * look for the table with the correct backupPtr.
+   */
+  Uint32 * c_tableMap;
   NodeId c_masterNodeId;
   SLList<Node> c_nodes;
   NdbNodeBitmask c_aliveNodes;
@@ -575,6 +586,8 @@ public:
   /*
     Variables that control checkpoint to disk speed
   */
+  bool m_is_lcp_running;
+  bool m_is_backup_running;
   bool m_is_any_node_restarting;
   bool m_node_restart_check_sent;
   bool m_our_node_started;
@@ -647,8 +660,9 @@ public:
   void calculate_next_delay(const NDB_TICKS curr_time);
   void monitor_disk_write_speed(const NDB_TICKS curr_time,
                                 const Uint64 millisPassed);
-  void adjust_disk_write_speed_down(int adjust_speed);
-  void adjust_disk_write_speed_up(int adjust_speed);
+  void calculate_current_speed_bounds(Uint64& max_speed, Uint64& min_speed);
+  void adjust_disk_write_speed_down(Uint64 min_speed, int adjust_speed);
+  void adjust_disk_write_speed_up(Uint64 max_speed, int adjust_speed);
   void calculate_disk_write_speed(Signal *signal);
   void send_next_reset_disk_speed_counter(Signal *signal);
 
@@ -720,6 +734,7 @@ public:
   void backupFragmentRef(Signal * signal, BackupFilePtr filePtr);
 
   void nextFragment(Signal*, BackupRecordPtr);
+  void release_tables(BackupRecordPtr);
   
   void sendCreateTrig(Signal*, BackupRecordPtr ptr, TablePtr tabPtr);
   void createAttributeMask(TablePtr tab, Bitmask<MAXNROFATTRIBUTESINWORDS>&);
@@ -766,7 +781,9 @@ public:
 
 
   NodeId getMasterNodeId() const { return c_masterNodeId; }
-  bool findTable(const BackupRecordPtr &, TablePtr &, Uint32 tableId) const;
+  bool findTable(const BackupRecordPtr &, TablePtr &, Uint32 tableId);
+  void insertTableMap(TablePtr &, Uint32 backupPtrI, Uint32 tableId);
+  void removeTableMap(TablePtr &, Uint32 backupPtrI, Uint32 tableId);
   bool parseTableDescription(Signal*, BackupRecordPtr ptr, TablePtr, const Uint32*, Uint32);
   
   bool insertFileHeader(BackupFormat::FileType, BackupRecord*, BackupFile*);
@@ -816,6 +833,19 @@ public:
   Uint32 instanceKey(BackupRecordPtr ptr) {
     return ptr.p->is_lcp() ? instance() : UserBackupInstanceKey;
   }
+
+  bool is_backup_worker()
+  {
+    return isNdbMtLqh() ? (instance() == UserBackupInstanceKey) :  true;
+  }
+
+  /**
+   * Ugly shared state to allow different worker instances
+   * to detect that a backup is going, although they are
+   * not participating.
+   * Modified by the instance performing backup
+   */  
+  static bool g_is_backup_running;
 };
 
 inline

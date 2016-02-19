@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -134,7 +134,10 @@ if(defined $ENV{"CXXFLAGS"} and $ENV{"CXXFLAGS"} =~ "-fno-exceptions")
   {
     print("compile-cluster: debug build requested\n");
     push(@args, "-DWITH_DEBUG=1");
-    push(@args, "-DMYSQL_MAINTAINER_MODE=0");
+    # The MySQL maintainter mode is automatically turned on when
+    # building with debug using gcc on linux, turn it off
+    # by uncommenting the line below or use --mysql-maintainer-mode=0
+    # push(@args, "-DMYSQL_MAINTAINER_MODE=0");
   }
 
   if ($opt_vanilla)
@@ -707,7 +710,6 @@ sub suppress_warning {
   # regexes. If both expressions match, the warning is suppressed.
   my @suppressions = (
     # [ qr/<dirname+filename regex>/, qr/<warning regex>/ ],
-    [ qr/DbtuxMeta.cpp/, qr/Warray-bounds/ ],
   );
 
   foreach my $sup ( @suppressions )

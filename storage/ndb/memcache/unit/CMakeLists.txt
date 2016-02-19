@@ -13,7 +13,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-
 ######### run_unit_tests ##############
 set(UNIT_SOURCE_FILES
     harness.cc
@@ -38,9 +37,10 @@ if(HAVE_SOLARIS_ATOMICS)
   set(TEST_WORKQUEUE_SOURCES ${TEST_WORKQUEUE_SOURCES} ../src/atomics.c)
 endif()
 
-add_executable(test_workqueue-t ${TEST_WORKQUEUE_SOURCES})
+set(libs)
 
 if(LIBRT) 
-  target_link_libraries(test_workqueue-t rt)
+  set(libs rt)
 endif()
+#NDB_ADD_TEST(test_workqueue-t "${TEST_WORKQUEUE_SOURCES}" LIBS "${libs}")
 ##########################################

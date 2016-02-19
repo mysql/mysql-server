@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -113,6 +113,7 @@ struct atrt_config
   bool m_generated;
   BaseString m_key;
   BaseString m_replication;
+  BaseString m_site;
   Vector<atrt_host*> m_hosts;
   Vector<atrt_cluster*> m_clusters;
   Vector<atrt_process*> m_processes;
@@ -156,7 +157,7 @@ bool update_status(atrt_config&, int);
 int is_running(atrt_config&, int);
 bool gather_result(atrt_config&, int * result);
 
-bool read_test_case(FILE *, atrt_testcase&, int& line);
+int read_test_case(FILE *, atrt_testcase&, int& line);
 bool setup_test_case(atrt_config&, const atrt_testcase&);
 
 bool setup_hosts(atrt_config&);
@@ -203,6 +204,7 @@ extern int          g_fix_nodeid;
 extern int          g_default_ports;
 extern int          g_restart;
 
+extern const char * g_site;
 extern const char * g_clusters;
 
 /**

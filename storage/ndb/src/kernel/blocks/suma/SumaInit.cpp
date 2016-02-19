@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -78,6 +78,9 @@ Suma::Suma(Block_context& ctx) :
   addRecSignal(GSN_SUB_STOP_REQ, &Suma::execSUB_STOP_REQ);
   addRecSignal(GSN_SUB_SYNC_REQ, &Suma::execSUB_SYNC_REQ);
 
+  addRecSignal(GSN_DIH_SCAN_TAB_CONF, &Suma::execDIH_SCAN_TAB_CONF);
+  addRecSignal(GSN_DIH_SCAN_TAB_REF, &Suma::execDIH_SCAN_TAB_REF);
+
   /**
    * Dict interface
    */
@@ -94,9 +97,6 @@ Suma::Suma(Block_context& ctx) :
   /**
    * Dih interface
    */
-  addRecSignal(GSN_DIH_SCAN_TAB_REF, &Suma::execDIH_SCAN_TAB_REF);
-  addRecSignal(GSN_DIH_SCAN_TAB_CONF, &Suma::execDIH_SCAN_TAB_CONF);
-  addRecSignal(GSN_DIH_SCAN_GET_NODES_CONF, &Suma::execDIH_SCAN_GET_NODES_CONF);
   addRecSignal(GSN_CHECKNODEGROUPSCONF, &Suma::execCHECKNODEGROUPSCONF);
   addRecSignal(GSN_GCP_PREPARE, &Suma::execGCP_PREPARE);
 

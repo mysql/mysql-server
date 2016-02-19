@@ -11,7 +11,7 @@ CREATE TEMPORARY TABLE test.backup_info(
 --chmod 0777 $dump_file
 --disable_warnings
 --replace_result $dump_file DUMP_FILE
-eval LOAD DATA INFILE '$dump_file' INTO TABLE test.backup_info
+eval LOAD DATA INFILE '$dump_file' IGNORE INTO TABLE test.backup_info
   FIELDS TERMINATED BY ',' IGNORE 1 LINES;
 --remove_file $dump_file
 --enable_warnings

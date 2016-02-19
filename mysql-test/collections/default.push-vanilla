@@ -1,0 +1,4 @@
+# Run the standard 'n_mix' tests to check that none of them are affected
+# by compiling MySQL Cluster vanilla i.e without NDB, ha_ndbcluster or any
+# of the other Cluster tools.
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=n_mix --vardir=var-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --unit-tests-report --skip-ndbcluster

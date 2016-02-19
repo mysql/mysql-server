@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include <NdbBackup.hpp>
 #include <Bitmask.hpp>
 #include <DbUtil.hpp>
+#include <NdbMgmd.hpp>
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
@@ -1277,6 +1278,7 @@ int runWaitStarted(NDBT_Context* ctx, NDBT_Step* step){
 
   NdbRestarter restarter;
   restarter.waitClusterStarted(300);
+  CHK_NDB_READY(GETNDB(step));
 
   NdbSleep_SecSleep(3);
   return NDBT_OK;
@@ -1487,6 +1489,100 @@ runBug29167(NDBT_Context* ctx, NDBT_Step* step)
   
   return result;
 }
+int
+runOneNodeWithCleanFilesystem(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  NdbRestarter restarter;
+
+  const int nodeCount = restarter.getNumDbNodes();
+  int master = restarter.getMasterNodeId();
+  int other_ng_node = restarter.getRandomNodeOtherNodeGroup(master, rand());
+  int other_ng = restarter.getNodeGroup(other_ng_node);
+  Vector<int> nodeIds;
+  for(int i = 0; i<nodeCount; i++)
+  {
+    int node = restarter.getDbNodeId(i);
+    if (restarter.getNodeGroup(node) == other_ng)
+      nodeIds.push_back(node);
+  }
+
+  if (nodeIds.size() == 0) {
+    g_err << "[SKIPPED] Test skipped.  Need at least two node groups." << endl;
+    return NDBT_OK;
+  }
+
+  /**
+   * All nodes but one in a node group will be taken down early so
+   * that their filesystem are too old for recreating node group.
+   * The last node is taken down late and causing cluster down, and
+   * before restarted that nodes file system is cleared.
+   * Restarting cluster should now fail in a controlled.
+   */
+  do {
+    ndbout_c("master: %u, victim node group: %u", master, other_ng);
+
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    restarter.dumpStateAllNodes(val2, 2);
+
+    int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
+
+    NdbLogEventHandle handle =
+      ndb_mgm_create_logevent_handle(restarter.handle, filter);
+    struct ndb_logevent event;
+
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+          event.type != NDB_LE_GlobalCheckpointCompleted);
+
+    for(unsigned i=1; i < nodeIds.size(); i++)
+    {
+      int node = nodeIds[i];
+      g_info << "Crashing node " << node << ", will have old logs" << endl;
+      CHECK(restarter.insertErrorInNode(node, 7183) == 0);
+      CHECK(restarter.waitNodesNoStart(&node, 1) == 0);
+
+      // Wait for an global checkpoint to complete
+      while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+          event.type != NDB_LE_GlobalCheckpointCompleted);
+    }
+
+    // Wait for some more global checkpoint to complete
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+          event.type != NDB_LE_GlobalCheckpointCompleted);
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+          event.type != NDB_LE_GlobalCheckpointCompleted);
+    while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+          event.type != NDB_LE_GlobalCheckpointCompleted);
+    ndb_mgm_destroy_logevent_handle(&handle);
+
+    // Crash last node in victim node group
+    int node = nodeIds[0];
+    CHECK(restarter.insertErrorInAllNodes(944) == 0);
+    g_info << "Crashing node " << node << endl;
+    CHECK(restarter.insertErrorInNode(node, 7183) == 0);
+    CHECK(restarter.waitNodesNoStart(&node, 1) == 0);
+    CHECK(restarter.waitClusterNoStart() == 0);
+
+    restarter.dumpStateAllNodes(val2, 2);
+    CHECK(restarter.insertErrorInAllNodes(944) == 0);
+    g_info << "Save file system clean on restart for node " << node << endl;
+    CHECK(restarter.insertError2InNode(node, 2000, 944) == 0);
+
+    restarter.startAll();
+    // Wait a short while for start phase 0, but cluster might already stopped again
+    (void) restarter.waitClusterStartPhase(0, 5 /* attempts */);
+    CHECK(restarter.waitClusterNoStart() == 0);
+    g_info << "Cluster failed start as expected" << endl;
+
+    // A successul test must leave a live cluster behind
+    g_info << "Restore file system on restart for node " << node << endl;
+    CHECK(restarter.insertError2InNode(node, 2001, 0) == 0);
+    restarter.startAll();
+  } while(false);
+
+  return result;
+}
+
 int
 runBug28770(NDBT_Context* ctx, NDBT_Step* step) {
   Ndb* pNdb = GETNDB(step);
@@ -1867,6 +1963,7 @@ int runSR_DD_3(NDBT_Context* ctx, NDBT_Step* step)
     CHECK(restarter.waitClusterNoStart() == 0);
     CHECK(restarter.startAll() == 0);
     CHECK(restarter.waitClusterStarted() == 0);
+    CHK_NDB_READY(pNdb);
     if (error)
     {
       restarter.insertErrorInAllNodes(error);
@@ -2205,6 +2302,7 @@ int runBug45154(NDBT_Context* ctx, NDBT_Step* step)
     restarter.waitClusterNoStart();
     restarter.startAll();
     restarter.waitClusterStarted();
+    CHK_NDB_READY(pNdb);
 
     pDict->dropTable("BUG_45154");
   }
@@ -2273,7 +2371,7 @@ int runBug46651(NDBT_Context* ctx, NDBT_Step* step)
   if (res.waitClusterStarted())
     return NDBT_FAILED;
 
-  pNdb->waitUntilReady();
+  CHK_NDB_READY(pNdb);
 
   NdbDictionary::Table newTab = *pTab;
   col.setName("ATTR4");
@@ -2297,7 +2395,7 @@ int runBug46651(NDBT_Context* ctx, NDBT_Step* step)
   if (res.waitClusterStarted())
     return NDBT_FAILED;
 
-  pNdb->waitUntilReady();
+  CHK_NDB_READY(pNdb);
   pDict->dropTable(tab.getName());
 
   return NDBT_OK;
@@ -2538,7 +2636,7 @@ runBug54611(NDBT_Context* ctx, NDBT_Step* step)
     res.insertErrorInAllNodes(5055);
     res.startAll();
     res.waitClusterStarted();
-    pNdb->waitUntilReady();
+    CHK_NDB_READY(pNdb);
   }
 
   return NDBT_OK;
@@ -2571,6 +2669,7 @@ runBug56961(NDBT_Context* ctx, NDBT_Step* step)
     res.startNodes(&node, 1);
     ndbout_c("Waiting for %d to start", node);
     res.waitClusterStarted();
+    CHK_NDB_READY(pNdb);
 
     ndbout_c("Waiting for %d to restart (5059)", node);
     res.dumpStateOneNode(node, val2, 2);
@@ -2585,7 +2684,7 @@ runBug56961(NDBT_Context* ctx, NDBT_Step* step)
     res.startNodes(&node, 1);
     ndbout_c("Waiting for %d to start", node);
     res.waitClusterStarted();
-    pNdb->waitUntilReady();
+    CHK_NDB_READY(pNdb);
   }
 
   return NDBT_OK;
@@ -2654,36 +2753,37 @@ int runAlterTableAndOptimize(NDBT_Context* ctx, NDBT_Step* step)
   DbUtil sql("TEST_DB");
   {
     BaseString query;
-    int numOfTables = ctx->getNumTables();
+    SqlResultSet resultSet;
+    const char* table_name = ctx->getTableName(0);
 
-    /* ALTER ONLINE TABLE <tbl_name> REORGANIZE PARTITION */
-    for(int i= 0; i < numOfTables; i++ )
-    {
-      SqlResultSet resultSet;
-      query.assfmt("ALTER ONLINE TABLE %s REORGANIZE PARTITION",
-                   ctx->getTableName(i));
-      g_info << "Executing query : "<< query.c_str() << endl;
+    /* ALTER TABLE <tbl_name> ALGORITHM=INPLACE, REORGANIZE PARTITION */
+    query.assfmt("ALTER TABLE %s ALGORITHM=INPLACE, REORGANIZE PARTITION",
+                 table_name);
 
-      if(!sql.doQuery(query.c_str(), resultSet)){
-        if(nodesKilledDuringStep &&
-           sql.getErrorNumber() == 0)
-        {
-          /* query failed probably because of a node kill in another step.
-             wait for the nodes to get into start phase before retrying */
-          if(restarter.waitClusterStarted() != 0){
-            g_err << "Cluster went down during reorganize partition" << endl;
-            return NDBT_FAILED;
-          }
-          /* retry the query for same table */
-          i--;
-          nodesKilledDuringStep= false;
-          continue;
-        } else {
-          /* either the query failed due to returning error code from server
-           or cluster crash */
-          g_err << "QUERY : "<< query.c_str() << "; failed" << endl;
+    /* wait until the killing step is about to begin */
+    while(nodesKilledDuringStep && ctx->getProperty("WaitForNodeKillStart"))
+      NdbSleep_MilliSleep(200);
+
+    reorganize_table :
+    g_info << "Executing query : "<< query.c_str() << endl;
+    if(!sql.doQuery(query.c_str(), resultSet)){
+      if(nodesKilledDuringStep &&
+          sql.getErrorNumber() == 0)
+      {
+        /* query failed probably because of a node kill in another step.
+           wait for the nodes to get into start phase before retrying */
+        if(restarter.waitClusterStarted() != 0){
+          g_err << "Cluster went down during reorganize partition" << endl;
           return NDBT_FAILED;
         }
+        /* retry the query for same table */
+        nodesKilledDuringStep= false;
+        goto reorganize_table;
+      } else {
+        /* either the query failed due to returning error code from server
+           or cluster crash */
+        g_err << "QUERY : "<< query.c_str() << "; failed" << endl;
+        return NDBT_FAILED;
       }
     }
 
@@ -2696,16 +2796,11 @@ int runAlterTableAndOptimize(NDBT_Context* ctx, NDBT_Step* step)
     }
 
     /* Reclaim freed space by running optimize table */
-    for(int i= 0; i < numOfTables; i++ )
-    {
-      SqlResultSet result;
-      BaseString query;
-      query.assfmt("OPTIMIZE TABLE %s", ctx->getTableName(i));
-      g_info << "Executing query : "<< query.c_str() << endl;
-      if (!sql.doQuery(query.c_str(), result)){
-        g_err << "Failed executing optimize table" << endl;
-        return NDBT_FAILED;
-      }
+    query.assfmt("OPTIMIZE TABLE %s", table_name);
+    g_info << "Executing query : "<< query.c_str() << endl;
+    if (!sql.doQuery(query.c_str(), resultSet)){
+      g_err << "Failed executing optimize table" << endl;
+      return NDBT_FAILED;
     }
   }
   return NDBT_OK;
@@ -2724,6 +2819,7 @@ int runKillTwoNodes(NDBT_Context* ctx, NDBT_Step* step)
   nodes.push_back(restarter.getDbNodeId(rand() % restarter.getNumDbNodes()));
   /* select a node from different group as next victim */
   nodes.push_back(restarter.getRandomNodeOtherNodeGroup(nodes[0], rand()));
+  ctx->setProperty("WaitForNodeKillStart", (uint)false);
   for(int i = 0; i < 2; i++){
     g_info << "Killing node " << nodes[i] << "..." << endl;
     CHECK(restarter.dumpStateOneNode(nodes[i], val, 2) == 0);
@@ -3340,6 +3436,15 @@ TESTCASE("Bug29167", "")
   INITIALIZER(runWaitStarted);
   STEP(runBug29167);
 }
+TESTCASE("OneNodeWithCleanFilesystem",
+         "Test system restart with a nodegroup there one node "
+         "was up to date when cluster went down but filesystem "
+         "is gone on restart, and the other nodes died earlier "
+         "having too old redo logs to use for restart.")
+{
+  INITIALIZER(runWaitStarted);
+  STEP(runOneNodeWithCleanFilesystem);
+}
 TESTCASE("Bug28770",
          "Check readTableFile1 fails, readTableFile2 succeeds\n"
          "1. Restart all node -nostart\n"
@@ -3414,7 +3519,6 @@ TESTCASE("MTR_AddNodesAndRestart1",
          "3. Reorganize partition and optimize table"
          "Should be run only once")
 {
-  ALL_TABLES();
   INITIALIZER(runWaitStarted);
   INITIALIZER(runFillTable);
   INITIALIZER(runAddNodes);
@@ -3428,7 +3532,7 @@ TESTCASE("MTR_AddNodesAndRestart2",
          "4. Kill 2 nodes during reorganization"
          "Should be run only once")
 {
-  ALL_TABLES();
+  TC_PROPERTY("WaitForNodeKillStart", true);
   TC_PROPERTY("NodesKilledDuringStep", true);
   INITIALIZER(runWaitStarted);
   INITIALIZER(runFillTable);

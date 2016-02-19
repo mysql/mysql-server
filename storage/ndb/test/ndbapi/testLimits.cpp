@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016 Oracle and/or its affiliates.  All rights reserved
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1053,7 +1053,7 @@ int create100Tables(NDBT_Context* ctx, NDBT_Step* step)
   for (Uint32 t=0; t < 100; t++)
   {
     char tabnameBuff[10];
-    snprintf(tabnameBuff, sizeof(tabnameBuff), "TAB%u", t);
+    BaseString::snprintf(tabnameBuff, sizeof(tabnameBuff), "TAB%u", t);
     
     NdbDictionary::Table tab;
     tab.setName(tabnameBuff);
@@ -1094,7 +1094,7 @@ int drop100Tables(NDBT_Context* ctx, NDBT_Step* step)
   for (Uint32 t=0; t < 100; t++)
   {
     char tabnameBuff[10];
-    snprintf(tabnameBuff, sizeof(tabnameBuff), "TAB%u", t);
+    BaseString::snprintf(tabnameBuff, sizeof(tabnameBuff), "TAB%u", t);
     
     if (pNdb->getDictionary()->dropTable(tabnameBuff) != 0)
     {
@@ -1123,7 +1123,7 @@ int dropTable(NDBT_Context* ctx, NDBT_Step* step, Uint32 num)
     return NDBT_OK;
     
   char tabnameBuff[10];
-  snprintf(tabnameBuff, sizeof(tabnameBuff), "TAB%u", num);
+  BaseString::snprintf(tabnameBuff, sizeof(tabnameBuff), "TAB%u", num);
   
   if (pNdb->getDictionary()->dropTable(tabnameBuff) != 0)
   {

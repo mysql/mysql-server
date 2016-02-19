@@ -490,6 +490,48 @@ DECLARE_NDBINFO_TABLE(RESTART_INFO, 22) =
   }
 };
 
+DECLARE_NDBINFO_TABLE(TC_TIME_TRACK_STATS, 15) =
+{ { "tc_time_track_stats", 15, 0,
+      "Time tracking of transaction, key operations and scan ops" },
+  {
+    {"node_id",                     Ndbinfo::Number, "node_id"},
+    {"block_number",                Ndbinfo::Number, "Block number"},
+    {"block_instance",              Ndbinfo::Number, "Block instance"},
+    {"comm_node_id",                Ndbinfo::Number, "node_id of API or DB"},
+    {"upper_bound",                 Ndbinfo::Number64,
+        "Upper bound in micros of interval"},
+    {"scans",                       Ndbinfo::Number64,
+        "scan histogram interval"},
+    {"scan_errors",                 Ndbinfo::Number64,
+        "scan error histogram interval"},
+    {"scan_fragments",              Ndbinfo::Number64,
+        "scan fragment histogram interval"},
+    {"scan_fragment_errors",        Ndbinfo::Number64,
+        "scan fragment error histogram interval"},
+    {"transactions",                Ndbinfo::Number64,
+        "transaction histogram interval"},
+    {"transaction_errors",          Ndbinfo::Number64,
+        "transaction error histogram interval"},
+    {"read_key_ops",                Ndbinfo::Number64,
+        "read key operation histogram interval"},
+    {"write_key_ops",               Ndbinfo::Number64,
+        "write key operation histogram interval"},
+    {"index_key_ops",               Ndbinfo::Number64,
+        "index key operation histogram interval"},
+    {"key_op_errors",               Ndbinfo::Number64,
+        "key operation error histogram interval"},
+  }
+};
+
+DECLARE_NDBINFO_TABLE(CONFIG_VALUES,12) =
+{ { "config_values", 3, 0, "Configuration parameter values" },
+  {
+    {"node_id",           Ndbinfo::Number, ""},
+    {"config_param",      Ndbinfo::Number, "Parameter number"},
+    {"config_value",      Ndbinfo::String, "Parameter value"},
+  }
+};
+
 #define DBINFOTBL(x) { Ndbinfo::x##_TABLEID, (Ndbinfo::Table*)&ndbinfo_##x }
 
 static
@@ -520,7 +562,9 @@ struct ndbinfo_table_list_entry {
   DBINFOTBL(DISK_WRITE_SPEED_BASE),
   DBINFOTBL(DISK_WRITE_SPEED_AGGREGATE),
   DBINFOTBL(FRAG_OPERATIONS),
-  DBINFOTBL(RESTART_INFO)
+  DBINFOTBL(RESTART_INFO),
+  DBINFOTBL(TC_TIME_TRACK_STATS),
+  DBINFOTBL(CONFIG_VALUES)
 };
 
 static int no_ndbinfo_tables =

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -782,10 +782,12 @@ parseUnsigned(char *& str, unsigned * dst)
   str = skipblank(str);
   char * endptr = 0;
   errno = 0;
-  long val = strtol(str, &endptr, 0);
-  if (errno == ERANGE)
+  unsigned long val = strtoul(str, &endptr, 0);
+  // Check value out of 'unsigned long' range
+  if (val == ULONG_MAX && errno == ERANGE)
     return -1;
-  if (val < 0 || Int64(val) > 0xFFFFFFFF)
+  // Check value out of 'unsigned' range
+  if (val > UINT_MAX)
     return -1;
   if (endptr == str)
     return -1;
@@ -1214,7 +1216,7 @@ THRConfigApplier::do_get_spintime(const unsigned short list[],
                                   unsigned cnt) const
 {
   const T_Thread* thr = find_thread(list, cnt);
-  return (bool)thr->m_spintime;
+  return thr->m_spintime;
 }
 
 bool

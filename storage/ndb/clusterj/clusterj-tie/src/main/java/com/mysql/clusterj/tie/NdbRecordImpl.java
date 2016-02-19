@@ -160,20 +160,25 @@ public class NdbRecordImpl {
         this.tableConst = getNdbTable(storeTable.getName());
         this.name = storeTable.getName();
         this.numberOfTableColumns = tableConst.getNoOfColumns();
-        this.recordSpecificationArray = RecordSpecificationArray.create(numberOfTableColumns);
-        recordSpecificationIndexes = new int[numberOfTableColumns];
+        this.recordSpecificationIndexes = new int[numberOfTableColumns];
         this.offsets = new int[numberOfTableColumns];
         this.lengths = new int[numberOfTableColumns];
         this.nullbitBitInByte = new int[numberOfTableColumns];
         this.nullbitByteOffset = new int[numberOfTableColumns];
         this.storeColumns = new Column[numberOfTableColumns];
-        this.autoIncrementColumn = storeTable.getAutoIncrementColumn();
-        if (this.autoIncrementColumn != null) {
-            chooseAutoIncrementValueSetter();
+        this.recordSpecificationArray = RecordSpecificationArray.create(numberOfTableColumns);
+        try {
+           this.autoIncrementColumn = storeTable.getAutoIncrementColumn();
+            if (this.autoIncrementColumn != null) {
+                chooseAutoIncrementValueSetter();
+            }
+            this.ndbRecord = createNdbRecord(storeTable, ndbDictionary);
+            if (logger.isDetailEnabled()) logger.detail(storeTable.getName() + " " + dumpDefinition());
+            initializeDefaultBuffer();
+        } finally {
+            // delete the RecordSpecificationArray since it is no longer needed
+            RecordSpecificationArray.delete(this.recordSpecificationArray);
         }
-        this.ndbRecord = createNdbRecord(storeTable, ndbDictionary);
-        if (logger.isDetailEnabled()) logger.detail(storeTable.getName() + " " + dumpDefinition());
-        initializeDefaultBuffer();
     }
 
     /** Constructor for index operations. The NdbRecord has columns just for
@@ -190,16 +195,21 @@ public class NdbRecordImpl {
         this.name = storeTable.getName() + ":" + storeIndex.getInternalName();
         this.numberOfTableColumns = tableConst.getNoOfColumns();
         int numberOfIndexColumns = this.indexConst.getNoOfColumns();
-        this.recordSpecificationArray = RecordSpecificationArray.create(numberOfIndexColumns);
-        recordSpecificationIndexes = new int[numberOfTableColumns];
+        this.recordSpecificationIndexes = new int[numberOfTableColumns];
         this.offsets = new int[numberOfTableColumns];
         this.lengths = new int[numberOfTableColumns];
         this.nullbitBitInByte = new int[numberOfTableColumns];
         this.nullbitByteOffset = new int[numberOfTableColumns];
         this.storeColumns = new Column[numberOfTableColumns];
-        this.ndbRecord = createNdbRecord(storeIndex, storeTable, ndbDictionary);
-        if (logger.isDetailEnabled()) logger.detail(storeIndex.getInternalName() + " " + dumpDefinition());
-        initializeDefaultBuffer();
+        this.recordSpecificationArray = RecordSpecificationArray.create(numberOfIndexColumns);
+        try {
+            this.ndbRecord = createNdbRecord(storeIndex, storeTable, ndbDictionary);
+            if (logger.isDetailEnabled()) logger.detail(storeIndex.getInternalName() + " " + dumpDefinition());
+            initializeDefaultBuffer();
+        } finally {
+            // delete the RecordSpecificationArray since it is no longer needed
+            RecordSpecificationArray.delete(this.recordSpecificationArray);
+        }
     }
 
     /** Initialize the byte buffer containing default values for all columns.
@@ -693,6 +703,7 @@ public class NdbRecordImpl {
         // create the NdbRecord
         NdbRecord result = ndbDictionary.createRecord(indexConst, tableConst, recordSpecificationArray,
                 columnNames.length, SIZEOF_RECORD_SPECIFICATION, 0);
+        handleError(result, ndbDictionary);
         int rowLength = NdbDictionary.getRecordRowLength(result);
         // create the buffer pool now that the size of the record is known
         if (this.bufferSize < rowLength) {
@@ -701,9 +712,6 @@ public class NdbRecordImpl {
             this.bufferSize = rowLength;
         }
         bufferPool = new FixedByteBufferPoolImpl(this.bufferSize, this.name);
-        // delete the RecordSpecificationArray since it is no longer needed
-        RecordSpecificationArray.delete(recordSpecificationArray);
-        handleError(result, ndbDictionary);
         return result;
     }
 
@@ -715,6 +723,7 @@ public class NdbRecordImpl {
         // create the NdbRecord
         NdbRecord result = ndbDictionary.createRecord(tableConst, recordSpecificationArray,
                 columnNames.length, SIZEOF_RECORD_SPECIFICATION, 0);
+        handleError(result, ndbDictionary);
         int rowLength = NdbDictionary.getRecordRowLength(result);
         // create the buffer pool now that the size of the record is known
         if (this.bufferSize < rowLength) {
@@ -723,9 +732,6 @@ public class NdbRecordImpl {
             this.bufferSize = rowLength;
         }
         bufferPool = new FixedByteBufferPoolImpl(this.bufferSize, this.name);
-        // delete the RecordSpecificationArray since it is no longer needed
-        RecordSpecificationArray.delete(recordSpecificationArray);
-        handleError(result, ndbDictionary);
         return result;
     }
 

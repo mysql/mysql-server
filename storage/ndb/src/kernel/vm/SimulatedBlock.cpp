@@ -523,6 +523,15 @@ SimulatedBlock::getSignalsInJBB()
   return num_signals;
 }
 
+NDB_TICKS
+SimulatedBlock::getHighResTimer()
+{
+#ifdef NDBD_MULTITHREADED
+  return mt_getHighResTimer(m_threadId);
+#else
+  return globalScheduler.getHighResTimer();
+#endif
+}
 void 
 SimulatedBlock::sendSignal(BlockReference ref, 
 			   GlobalSignalNumber gsn, 
@@ -4617,6 +4626,26 @@ SimulatedBlock::releaseSegmentList(Uint32 firstSegmentIVal)
 {
   ::releaseSection(SB_SP_ARG firstSegmentIVal);
 }
+
+#ifdef NDB_DEBUG_RES_OWNERSHIP
+void
+SimulatedBlock::lock_global_ssp()
+{
+#ifdef NDBD_MULTITHREADED
+  f_section_lock.lock();
+#endif
+}
+
+void
+SimulatedBlock::unlock_global_ssp()
+{
+#ifdef NDBD_MULTITHREADED
+  f_section_lock.unlock();
+#endif
+}
+
+#endif
+
 
 
 /** 

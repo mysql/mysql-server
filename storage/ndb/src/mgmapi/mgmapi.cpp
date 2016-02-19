@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -168,49 +168,18 @@ bool check_version_new(Uint32 curr, ...)
   return false;
 }
 
-static inline void
-test_check_version_new(void)
-{
-  assert(check_version_new(NDB_MAKE_VERSION(7,0,19),
-                           NDB_MAKE_VERSION(7,0,20),
-                           0) == false);
-  assert(check_version_new(NDB_MAKE_VERSION(7,0,19),
-                           NDB_MAKE_VERSION(7,1,6),
-                           NDB_MAKE_VERSION(7,0,20),
-                           0) == false);
-  assert(check_version_new(NDB_MAKE_VERSION(7,0,19),
-                           NDB_MAKE_VERSION(7,1,6),
-                           NDB_MAKE_VERSION(7,0,18),
-                           0));
-  assert(check_version_new(NDB_MAKE_VERSION(7,1,5),
-                           NDB_MAKE_VERSION(7,1,6),
-                           NDB_MAKE_VERSION(7,0,20),
-                           0) == false);
-  assert(check_version_new(NDB_MAKE_VERSION(7,1,8),
-                           NDB_MAKE_VERSION(7,1,6),
-                           NDB_MAKE_VERSION(7,0,18),
-                           0));
-  assert(check_version_new(NDB_MAKE_VERSION(7,2,3),
-                           NDB_MAKE_VERSION(7,1,6),
-                           NDB_MAKE_VERSION(7,0,18),
-                           0));
-  assert(check_version_new(NDB_MAKE_VERSION(7,1,3),
-                           NDB_MAKE_VERSION(7,2,6),
-                           NDB_MAKE_VERSION(7,0,18),
-                           0) == false);
-  assert(check_version_new(NDB_MAKE_VERSION(5,5,6),
-                           NDB_MAKE_VERSION(7,1,6),
-                           NDB_MAKE_VERSION(7,0,18),
-                           0) == false);
-}
-
-#define SET_ERROR(h, e, s) setError((h), (e), __LINE__, (s))
 
 static
 void
-setError(NdbMgmHandle h, int error, int error_line, const char * msg, ...){
+setError(NdbMgmHandle h, int error, int error_line, const char * msg, ...)
+ ATTRIBUTE_FORMAT(printf, 4, 5);
 
-  h->last_error = error;  \
+static
+void
+setError(NdbMgmHandle h, int error, int error_line, const char * msg, ...)
+{
+
+  h->last_error = error;
   h->last_error_line = error_line;
 
   va_list ap;
@@ -218,6 +187,8 @@ setError(NdbMgmHandle h, int error, int error_line, const char * msg, ...){
   BaseString::vsnprintf(h->last_error_desc, sizeof(h->last_error_desc), msg, ap);
   va_end(ap);
 }
+
+#define SET_ERROR(h, e, s) setError((h), (e), __LINE__, "%s", (s))
 
 #define CHECK_HANDLE(handle, ret) \
   if(handle == 0) {   \
@@ -2802,12 +2773,11 @@ ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, int nodetype,
     {
       const char *hostname= ndb_mgm_get_connected_host(handle);
       unsigned port=  ndb_mgm_get_connected_port(handle);
-      BaseString err;
       Uint32 error_code= NDB_MGM_ALLOCID_ERROR;
-      err.assfmt("Could not alloc node id at %s port %d: %s",
-		 hostname, port, buf);
       prop->get("error_code", &error_code);
-      setError(handle, error_code, __LINE__, err.c_str());
+      setError(handle, error_code, __LINE__,
+              "Could not alloc node id at %s port %d: %s",
+               hostname, port, buf);
       break;
     }
     Uint32 _nodeid;
@@ -3488,7 +3458,7 @@ int ndb_mgm_create_nodegroup(NdbMgmHandle handle,
     res = -1;
     Uint32 err = NDB_MGM_ILLEGAL_SERVER_REPLY;
     prop->get("error_code", &err);
-    setError(handle, err, __LINE__, buf ? buf : "Illegal reply");
+    setError(handle, err, __LINE__, "%s", buf ? buf : "Illegal reply");
   }
   else if (!prop->get("ng",(Uint32*)ng))
   {
@@ -3532,7 +3502,7 @@ int ndb_mgm_drop_nodegroup(NdbMgmHandle handle,
     res = -1;
     Uint32 err = NDB_MGM_ILLEGAL_SERVER_REPLY;
     prop->get("error_code", &err);
-    setError(handle, err, __LINE__, buf ? buf : "Illegal reply");
+    setError(handle, err, __LINE__, "%s", buf ? buf : "Illegal reply");
   }
 
   delete prop;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -173,7 +173,11 @@ NdbOut::println(const char * fmt, ...)
 }
 
 static
-void 
+void
+vndbout_c(const char * fmt, va_list ap) ATTRIBUTE_FORMAT(printf, 1, 0);
+
+static
+void
 vndbout_c(const char * fmt, va_list ap)
 {
   if (fmt == NULL)

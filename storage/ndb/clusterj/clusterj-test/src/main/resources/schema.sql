@@ -1,3 +1,21 @@
+-- Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights
+-- reserved.
+--
+-- This program is free software; you can redistribute it and/or
+-- modify it under the terms of the GNU General Public License
+-- as published by the Free Software Foundation; version 2 of
+-- the License.
+--
+-- This program is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-- GNU General Public License for more details.
+--
+-- You should have received a copy of the GNU General Public License
+-- along with this program; if not, write to the Free Software
+-- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+-- 02110-1301  USA
+--
 # the first statement is a drop table for the test table
 drop table if exists t_basic;
 # the second statement is a test; if it succeeds, skip the rest of the file.
@@ -335,10 +353,10 @@ create table stringtypes (
  string_null_both varchar(20),
  string_null_none varchar(300),
 
- string_not_null_hash varchar(300),
- string_not_null_btree varchar(20),
- string_not_null_both varchar(300),
- string_not_null_none varchar(20),
+ string_not_null_hash varchar(300) not null default '0',
+ string_not_null_btree varchar(20) not null default '0',
+ string_not_null_both varchar(300) not null default '0',
+ string_not_null_none varchar(20) not null default '0',
  unique key idx_string_null_hash (string_null_hash) using hash,
  key idx_string_null_btree (string_null_btree),
  unique key idx_string_null_both (string_null_both),
@@ -633,10 +651,10 @@ drop table if exists timestamptypes;
 create table timestamptypes (
  id int not null primary key,
 
- timestamp_not_null_hash timestamp not null,
- timestamp_not_null_btree timestamp not null,
- timestamp_not_null_both timestamp not null,
- timestamp_not_null_none timestamp not null,
+ timestamp_not_null_hash timestamp not null  default '2001-01-01 00:00:00',
+ timestamp_not_null_btree timestamp not null default '2001-01-01 00:00:00',
+ timestamp_not_null_both timestamp not null  default '2001-01-01 00:00:00',
+ timestamp_not_null_none timestamp not null  default '2001-01-01 00:00:00',
 
  unique key idx_timestamp_not_null_hash (timestamp_not_null_hash) using hash,
  key idx_timestamp_not_null_btree (timestamp_not_null_btree),

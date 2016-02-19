@@ -1,0 +1,11 @@
+# Stop the running server
+# - Empty nodeid last
+# - Empty nodeid in the middle
+# - Specified nodeid is not a number
+# - Check valid nodeid(> 0)
+# - Check valid nodeid(<= 255)
+# - Specified nodeid is unique
+# - Number of nodeids in list must match size of pool
+#   (config specifies --ndb-cluster-connection-pool=3)
+# - First nodeid must be equal to --ndb-nodeid(if given)
+# Cleanup

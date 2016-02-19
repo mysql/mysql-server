@@ -52,7 +52,7 @@ int Ndb_getInAddr(struct in_addr * dst, const char *address);
 char* Ndb_inet_ntop(int af,
                     const void *src,
                     char *dst,
-                    socklen_t size);
+                    size_t dst_size);
 
 int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock);
 

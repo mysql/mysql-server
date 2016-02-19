@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,24 +54,22 @@ class NdbQueryOperationTypeWrapper;
 class NdbQueryParamValue;
 class ndb_pushed_join;
 
-typedef enum ndb_index_type {
+enum NDB_INDEX_TYPE {
   UNDEFINED_INDEX = 0,
   PRIMARY_KEY_INDEX = 1,
   PRIMARY_KEY_ORDERED_INDEX = 2,
   UNIQUE_INDEX = 3,
   UNIQUE_ORDERED_INDEX = 4,
   ORDERED_INDEX = 5
-} NDB_INDEX_TYPE;
+};
 
-typedef enum ndb_index_status {
-  UNDEFINED = 0,
-  ACTIVE = 1,
-  TO_BE_DROPPED = 2
-} NDB_INDEX_STATUS;
-
-typedef struct ndb_index_data {
+struct NDB_INDEX_DATA {
   NDB_INDEX_TYPE type;
-  NDB_INDEX_STATUS status;  
+  enum {
+    UNDEFINED = 0,
+    ACTIVE = 1,
+    TO_BE_DROPPED = 2
+  } status;
   const NdbDictionary::Index *index;
   const NdbDictionary::Index *unique_index;
   unsigned char *unique_index_attrid_map;
@@ -85,7 +83,7 @@ typedef struct ndb_index_data {
   NdbRecord *ndb_record_key;
   NdbRecord *ndb_unique_record_key;
   NdbRecord *ndb_unique_record_row;
-} NDB_INDEX_DATA;
+};
 
 // Wrapper class for list to hold NDBFKs
 class Ndb_fk_list :public List<NdbDictionary::ForeignKey>
@@ -97,11 +95,6 @@ public:
   }
 };
 
-typedef enum ndb_write_op {
-  NDB_INSERT = 0,
-  NDB_UPDATE = 1,
-  NDB_PK_UPDATE = 2
-} NDB_WRITE_OP;
 
 #include "ndb_ndbapi_util.h"
 #include "ndb_share.h"
@@ -175,7 +168,7 @@ class ha_ndbcluster: public handler, public Partition_handler
   int rnd_next(uchar *buf);
   int rnd_pos(uchar *buf, uchar *pos);
   void position(const uchar *record);
-  virtual int cmp_ref(const uchar * ref1, const uchar * ref2);
+  virtual int cmp_ref(const uchar * ref1, const uchar * ref2) const;
   int read_range_first(const key_range *start_key,
                        const key_range *end_key,
                        bool eq_range, bool sorted);
@@ -380,11 +373,7 @@ void notify_table_changed();
 
 private:
   void prepare_for_alter();
-  /*
-  int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys,
-		handler_add_index **add);
-  */
-  int prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys);
+  void prepare_drop_index(uint key_num);
   int final_drop_index(TABLE *table_arg);
   
   bool abort_inplace_alter_table(TABLE *altered_table,
@@ -425,7 +414,7 @@ private:
 // Index list management
   int create_indexes(THD *thd, Ndb *ndb, TABLE *tab) const;
   int open_indexes(THD *thd, Ndb *ndb, TABLE *tab, bool ignore_error);
-  void renumber_indexes(Ndb *ndb, TABLE *tab);
+  void renumber_indexes(uint dropped_index_num);
   int drop_indexes(Ndb *ndb, TABLE *tab);
   int add_index_handle(THD *thd, NdbDictionary::Dictionary *dict,
                        KEY *key_info, const char *key_name, uint index_no);
@@ -492,6 +481,13 @@ private:
                                       const NdbOperation *first,
                                       const NdbOperation *last,
                                       uint errcode);
+
+  enum NDB_WRITE_OP {
+    NDB_INSERT = 0,
+    NDB_UPDATE = 1,
+    NDB_PK_UPDATE = 2
+  };
+
   int peek_indexed_rows(const uchar *record, NDB_WRITE_OP write_op);
   int scan_handle_lock_tuple(NdbScanOperation *scanOp, NdbTransaction *trans);
   int fetch_next(NdbScanOperation* op);

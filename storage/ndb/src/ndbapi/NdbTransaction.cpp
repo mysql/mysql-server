@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -522,12 +522,6 @@ NdbTransaction::execute(ExecType aTypeOfExec,
     if (theCompletedLastOp == NULL)
       theCompletedLastOp = tCompletedLastOp;
   }
-#if ndb_api_count_completed_ops_after_blob_execute
-  { NdbOperation* tOp; unsigned n = 0;
-    for (tOp = theCompletedFirstOp; tOp != NULL; tOp = tOp->next()) n++;
-    ndbout << "completed ops: " << n << endl;
-  }
-#endif
 
   /* Sometimes the original error is trampled by 'Trans already aborted',
    * detect this case and attempt to restore the original error

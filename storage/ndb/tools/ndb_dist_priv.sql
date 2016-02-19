@@ -1,4 +1,4 @@
--- Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -49,6 +49,13 @@ begin
  declare distributed_privileges bool default 0;
  declare first_backup bool default 1;
  declare first_distributed_backup bool default 1;
+
+ -- Ignore error 1292 ER_TRUNCATED_WRONG_VALUE when
+ -- copying rows into one of the backup tables. The
+ -- source tables are known to hold invalid timestamp
+ -- values in the Timestamp column but should be copied anyway
+ declare continue handler for 1292 begin end;
+
  select mysql.mysql_cluster_privileges_are_distributed()
    into distributed_privileges;
  select 0 into first_backup

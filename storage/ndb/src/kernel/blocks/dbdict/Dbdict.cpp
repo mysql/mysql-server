@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4930,6 +4930,14 @@ Dbdict::restartDropObj(Signal* signal,
     opRecPtr.p->m_request.filegroup_version = entry->m_tableVersion;
     break;
   }
+  case DictTabInfo::ForeignKey:
+  {
+    DropFKRecPtr opRecPtr;
+    seizeSchemaOp(trans_ptr, op_ptr, opRecPtr);
+    opRecPtr.p->m_request.fkId = tableId;
+    opRecPtr.p->m_request.fkVersion = entry->m_tableVersion;
+    break;
+  }
   }
 
   ndbout_c("restartDropObj(%u)", tableId);
@@ -5401,7 +5409,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
     (c_tableDesc.RowChecksumFlag ? TableRecord::TR_RowChecksum : 0);
   tablePtr.p->m_bits |=
     (c_tableDesc.RowGCIFlag ? TableRecord::TR_RowGCI : 0);
-#if DOES_NOT_WORK_CURRENTLY
+#ifdef DOES_NOT_WORK_CURRENTLY
   tablePtr.p->m_bits |=
     (c_tableDesc.TableTemporaryFlag ? TableRecord::TR_Temporary : 0);
 #endif
@@ -6124,6 +6132,15 @@ Dbdict::execCREATE_TABLE_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  if(ERROR_INSERTED(6217))
+  {
+    ndbout_c("Delaying GSN_CREATE_TABLE_REQ");
+    sendSignalWithDelay(reference(), GSN_CREATE_TABLE_REQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
+
 
   if (check_sender_version(signal, MAKE_VERSION(6,4,0)) < 0)
   {
@@ -7819,6 +7836,14 @@ Dbdict::execDROP_TABLE_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  if(ERROR_INSERTED(6217))
+  {
+    ndbout_c("Delaying GSN_DROP_TABLE_REQ");
+    sendSignalWithDelay(reference(), GSN_DROP_TABLE_REQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
 
   if (check_sender_version(signal, MAKE_VERSION(6,4,0)) < 0)
   {
@@ -8504,6 +8529,14 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
   }
   SectionHandle handle(this, signal);
 
+  if(ERROR_INSERTED(6217))
+  {
+    ndbout_c("Delaying GSN_ALTER_TABLE_REQ");
+    sendSignalWithDelay(reference(), GSN_ALTER_TABLE_REQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
   if (check_sender_version(signal, MAKE_VERSION(6,4,0)) < 0)
   {
     jam();
@@ -10486,6 +10519,15 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
   {
     return;
   }
+  if(ERROR_INSERTED(6216))
+  {
+    ndbout_c("Delaying GSN_GET_TABINFOREQ");
+    SectionHandle handle(this, signal);
+    sendSignalWithDelay(reference(), GSN_GET_TABINFOREQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
 
   /**
    * First stage response / queueing handled here
@@ -10563,17 +10605,7 @@ Dbdict::doGET_TABINFOREQ(Signal* signal)
 {
   jam();
   GetTabInfoReq * const req = (GetTabInfoReq *)&signal->theData[0];
-
   SectionHandle handle(this, signal);
-
-  if(ERROR_INSERTED(6216))
-  {
-    ndbout_c("Delaying GSN_GET_TABINFOREQ\n");
-    sendSignalWithDelay(reference(), GSN_GET_TABINFOREQ, signal, 10000,
-                       signal->length(),
-                       &handle);
-    return;
-  }
 
   const bool useLongSig = (req->requestType & GetTabInfoReq::LongSignalConf);
   const bool byName = (req->requestType & GetTabInfoReq::RequestByName);
@@ -10797,6 +10829,15 @@ Dbdict::execLIST_TABLES_REQ(Signal* signal)
 {
   jamEntry();
   ListTablesReq * req = (ListTablesReq*)signal->getDataPtr();
+  if(ERROR_INSERTED(6220))
+  {
+    ndbout_c("Delaying LIST_TABLES_REQ");
+    SectionHandle handle(this, signal);
+    sendSignalWithDelay(reference(), GSN_LIST_TABLES_REQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
 
   Uint32 senderRef  = req->senderRef;
   Uint32 receiverVersion = getNodeInfo(refToNode(senderRef)).m_version;
@@ -11542,6 +11583,15 @@ Dbdict::execCREATE_INDX_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  if(ERROR_INSERTED(6218))
+  {
+    ndbout_c("Delaying GSN_CREATE_INDX_REQ");
+    sendSignalWithDelay(reference(), GSN_CREATE_INDX_REQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
+
 
   if (check_sender_version(signal, MAKE_VERSION(6,4,0)) < 0)
   {
@@ -12306,6 +12356,14 @@ Dbdict::execDROP_INDX_REQ(Signal* signal)
   }
   SectionHandle handle(this, signal);
 
+  if(ERROR_INSERTED(6219))
+  {
+    ndbout_c("Delaying GSN_DROP_INDX_REQ");
+    sendSignalWithDelay(reference(), GSN_DROP_INDX_REQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
   if (check_sender_version(signal, MAKE_VERSION(6,4,0)) < 0)
   {
     jam();
@@ -14835,6 +14893,14 @@ Dbdict::execINDEX_STAT_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  if(ERROR_INSERTED(6221))
+  {
+    ndbout_c("Delaying GSN_INDEX_STAT_REQ");
+    sendSignalWithDelay(reference(), GSN_INDEX_STAT_REQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
 
   const IndexStatReq req_copy =
     *(const IndexStatReq*)signal->getDataPtr();
@@ -18238,7 +18304,8 @@ Dbdict::execSUB_REMOVE_REF(Signal* signal)
     jam();
     OpSubEventPtr subbPtr;
     c_opSubEvent.getPtr(subbPtr, ref->senderData);
-    if (err == SubRemoveRef::NoSuchSubscription)
+    if (err == SubRemoveRef::NoSuchSubscription ||
+        err == SubRemoveRef::AlreadyDropped)
     {
       jam();
       // conf this since this may occur if a nodefailure has occured
@@ -18324,6 +18391,9 @@ Dbdict::execSUB_REMOVE_CONF(Signal* signal)
   OpDropEventPtr eventRecPtr;
   c_opDropEvent.getPtr(eventRecPtr, conf->senderData);
   eventRecPtr.p->m_reqTracker.reportConf(c_counterMgr, refToNode(senderRef));
+
+  CRASH_INSERTION2(6125, getOwnNodeId() == c_masterNodeId);
+
   completeSubRemoveReq(signal,eventRecPtr.i,0);
 }
 
@@ -22491,6 +22561,14 @@ Dbdict::execCREATE_FILEGROUP_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  if(ERROR_INSERTED(6218))
+  {
+    ndbout_c("Delaying CREATE_FILEGROUP_REQ");
+    sendSignalWithDelay(reference(), GSN_CREATE_FILEGROUP_REQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
 
   const CreateFilegroupReq req_copy =
     *(const CreateFilegroupReq*)signal->getDataPtr();
@@ -23090,6 +23168,14 @@ Dbdict::execDROP_FILE_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  if(ERROR_INSERTED(6219))
+  {
+    ndbout_c("Delaying GSN_DROP_FILE_REQ");
+    sendSignalWithDelay(reference(), GSN_DROP_FILE_REQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
 
   const DropFileReq req_copy =
     *(const DropFileReq*)signal->getDataPtr();
@@ -23447,6 +23533,14 @@ Dbdict::execDROP_FILEGROUP_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  if(ERROR_INSERTED(6219))
+  {
+    ndbout_c("Delaying DROP_FILEGROUP_REQ");
+    sendSignalWithDelay(reference(), GSN_DROP_FILEGROUP_REQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
 
   const DropFilegroupReq req_copy =
     *(const DropFilegroupReq*)signal->getDataPtr();
@@ -26485,6 +26579,14 @@ Dbdict::execDROP_FK_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  if(ERROR_INSERTED(6219))
+  {
+    ndbout_c("Delaying GSN_DROP_FK_REQ");
+    sendSignalWithDelay(reference(), GSN_DROP_FK_REQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
 
   const DropFKReq req_copy =
     *(const DropFKReq*)signal->getDataPtr();
@@ -26875,8 +26977,19 @@ Dbdict::dropFK_complete(Signal* signal, SchemaOpPtr op_ptr)
    *   triggers are dropped...which they are in commit
    */
   Callback c =  { safe_cast(&Dbdict::dropFK_fromLocal), op_ptr.p->op_key };
-  op_ptr.p->m_callback = c;
 
+  /*
+    During NR/SR, the signal CREATE_FK_IMPL_REQ is skipped.
+    Thus the fk won't be created in the c_fk_hash during the create old pass.
+    So, DROP_FK_IMP_REQ signal need not be sent during the NR/SR.
+  */
+  if(op_ptr.p->m_restart){
+    jam();
+    execute(signal, c, 0);
+    return;
+  }
+
+  op_ptr.p->m_callback = c;
   send_drop_fk_req(signal, op_ptr);
 }
 

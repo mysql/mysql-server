@@ -1,0 +1,63 @@
+--source setup.inc
+
+# Test that it's possible to turn off inplace ALTER TABLE by
+# setting  ndb_use_copying_alter_table = 1. This means that
+# only queries where user explicitly requested ALGORITHM=INPLACE will
+# be allowed
+
+# Save t1's table id
+let $table_id = `SELECT id FROM test.ndbinfo_dict_obj_info
+                   WHERE fq_name = 'ndb_ddl_test/def/t1'`;
+
+#
+# Show that adding a column is inplace
+#
+ALTER TABLE t1
+  algorithm=inplace,
+  add column c int;
+
+# Show t1's table id is the same
+let $new_table_id = `SELECT id FROM test.ndbinfo_dict_obj_info
+                    WHERE fq_name = 'ndb_ddl_test/def/t1'`;
+if ($table_id != $new_table_id)
+{
+  die The table t1 was not altered inplace, its table id changed;
+}
+
+#
+# Force copying alter table and add a column (normally inplace)
+# which now are forced to copying due to the variable
+#
+set @@ndb_use_copying_alter_table = 1;
+ALTER TABLE t1
+  add column d int;
+set @@ndb_use_copying_alter_table = default;
+
+# Check that t1's table id has changed since this was copying ALTER
+let $new_table_id = `SELECT id FROM test.ndbinfo_dict_obj_info
+                       WHERE fq_name = 'ndb_ddl_test/def/t1'`;
+if ($table_id == $new_table_id)
+{
+  die The table t1 was not altered copying, its table id did not change;
+}
+let $table_id = $new_table_id;
+
+# Force copying alter table and add a column (normally inplace)
+# which now becomes inplace since user specified ALGORITHM=INPLACE
+set @@ndb_use_copying_alter_table = 1;
+ALTER TABLE t1
+  algorithm=inplace,
+  add column e int;
+set @@ndb_use_copying_alter_table = default;
+
+# Show t1's table id is the same
+let $new_table_id = `SELECT id FROM test.ndbinfo_dict_obj_info
+                    WHERE fq_name = 'ndb_ddl_test/def/t1'`;
+if ($table_id != $new_table_id)
+{
+  die The table t1 was not altered inplace, its table id changed;
+}
+
+--source cleanup.inc
+
+

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -73,8 +73,6 @@ Backup::Backup(Block_context& ctx, Uint32 instanceNumber) :
   addRecSignal(GSN_DROP_TRIG_IMPL_CONF, &Backup::execDROP_TRIG_IMPL_CONF);
 
   addRecSignal(GSN_DIH_SCAN_TAB_CONF, &Backup::execDIH_SCAN_TAB_CONF);
-  addRecSignal(GSN_DIH_SCAN_GET_NODES_CONF,
-               &Backup::execDIH_SCAN_GET_NODES_CONF);
 
   addRecSignal(GSN_FSOPENREF, &Backup::execFSOPENREF, true);
   addRecSignal(GSN_FSOPENCONF, &Backup::execFSOPENCONF);
@@ -169,6 +167,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   c_defaults.m_disk_write_speed_max_own_restart = 100 * (1024 * 1024);
   c_defaults.m_disk_synch_size = 4 * (1024 * 1024);
   c_defaults.m_o_direct = true;
+  c_defaults.m_backup_disk_write_pct = 50;
 
   Uint32 noBackups = 0, noTables = 0, noAttribs = 0, noFrags = 0;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, 
@@ -186,6 +185,8 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int64_parameter(p,
                 CFG_DB_MAX_DISK_WRITE_SPEED_OWN_RESTART,
                 &c_defaults.m_disk_write_speed_max_own_restart);
+  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_DISK_WRITE_PCT,
+                            &c_defaults.m_backup_disk_write_pct);
 
   ndb_mgm_get_int_parameter(p, CFG_DB_DISK_SYNCH_SIZE,
 			    &c_defaults.m_disk_synch_size);
@@ -215,7 +216,16 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   c_tablePool.setSize(noBackups * noTables + 1);
   c_triggerPool.setSize(noBackups * 3 * noTables);
   c_fragmentPool.setSize(noBackups * noFrags + 1);
- 
+
+  c_tableMap = (Uint32*)allocRecord("c_tableMap",
+                                    sizeof(Uint32),
+                                    noBackups * noTables + 1);
+
+  for (Uint32 i = 0; i < (noBackups * noTables + 1); i++)
+  {
+    c_tableMap[i] = RNIL;
+  }
+
   jam();
 
   const Uint32 DEFAULT_WRITE_SIZE = (256 * 1024);
@@ -293,6 +303,8 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
     TablePtr ptr;
     while (tables.seizeFirst(ptr)){
       new (ptr.p) Table(c_fragmentPool);
+      ptr.p->backupPtrI = RNIL;
+      ptr.p->tableId = RNIL;
     }
     jam();
     while (tables.releaseFirst())

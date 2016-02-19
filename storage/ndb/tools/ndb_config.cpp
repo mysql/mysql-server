@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -72,7 +72,6 @@
 #include <NdbTCP.h>
 
 static int g_verbose = 0;
-static int try_reconnect = 3;
 
 static int g_nodes, g_connections, g_system, g_section;
 static const char * g_query = 0;
@@ -113,9 +112,6 @@ static struct my_option my_long_options[] =
   { "type", NDB_OPT_NOSHORT, "Type of node/connection",
     (uchar**) &g_type, (uchar**) &g_type,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  { "id", NDB_OPT_NOSHORT, "Nodeid",
-    (uchar**) &g_nodeid, (uchar**) &g_nodeid,
-    0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "nodeid", NDB_OPT_NOSHORT, "Nodeid",
     (uchar**) &g_nodeid, (uchar**) &g_nodeid,
     0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -319,7 +315,7 @@ parse_query(Vector<Apply*>& select, int &argc, char**& argv)
       const char * str= list[i].c_str();
       if(g_section == CFG_SECTION_NODE)
       {
-	if(native_strcasecmp(str, "id") == 0 || native_strcasecmp(str, "nodeid") == 0)
+	if(native_strcasecmp(str, "nodeid") == 0)
 	{
 	  select.push_back(new Apply(CFG_NODE_ID));
 	  continue;
@@ -588,7 +584,7 @@ fetch_configuration(int from_node)
     goto noconnect;
   }
 
-  if(ndb_mgm_connect(mgm, try_reconnect-1, 5, 1))
+  if(ndb_mgm_connect(mgm, opt_connect_retries - 1, opt_connect_retry_delay, 1))
   {
     fprintf(stderr, "Connect failed");
     fprintf(stderr, " code: %d, msg: %s\n",

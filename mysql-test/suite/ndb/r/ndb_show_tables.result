@@ -1,0 +1,41 @@
+# BUG 11758430
+"NDB_SHOW_TABLES SHOULD REQUIRE A DATABASE WHEN TABLE IS SUPPLIED"
+CREATE TABLE test.t1 (
+a int primary key,
+b int
+)engine=ndbcluster;
+"Table exists in user db and db specified in ndb_show_tables command"
+id    type                 state    logging database     schema   name
+XX    OrderedIndex         Online   No      sys          def      PRIMARY
+
+NDBT_ProgramExit: 0 - OK
+
+"Table doesn't exist in TEST_DB and no db specified in ndb_show_tables command"
+Please specify database name using the -d option. Use option --help for more details.
+
+NDBT_ProgramExit: 1 - Failed
+
+CREATE DATABASE TEST_DB;
+CREATE TABLE TEST_DB.t1 (
+d int primary key,
+e int
+)engine=ndbcluster;
+"Table exists in TEST_DB and no db specified in ndb_show_tables command"
+id    type                 state    logging database     schema   name
+XX    OrderedIndex         Online   No      sys          def      PRIMARY
+
+NDBT_ProgramExit: 0 - OK
+
+DROP TABLE test.t1;
+"Table doesn't exist in user db and db specified in ndb_show_tables command"
+Table t1: not found - 723: No such table existed
+
+NDBT_ProgramExit: 1 - Failed
+
+DROP TABLE TEST_DB.t1;
+"Table doesn't exist in TEST_DB and no db specified in ndb_show_tables command"
+Please specify database name using the -d option. Use option --help for more details.
+
+NDBT_ProgramExit: 1 - Failed
+
+DROP DATABASE TEST_DB;

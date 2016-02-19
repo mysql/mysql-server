@@ -22,9 +22,8 @@ installdir=@CMAKE_INSTALL_PREFIX@
 
 # Install Trees:
 bindir=@INSTALL_BINDIR@
-libexecdir=@INSTALL_SBINDIR@
+sbindir=@INSTALL_SBINDIR@
 libdir=@INSTALL_LIBDIR@
-scriptsdir=@INSTALL_SCRIPTDIR@
 sharedir=@INSTALL_MYSQLSHAREDIR@
 memcachedbin=@MEMCACHED_BIN_PATH@
 
@@ -53,37 +52,32 @@ if test -d $BUILD_DIR
   MGM_SERVER_DIR=$BUILD_DIR/storage/ndb/src/mgmsrv
   NDBD_DIR=$BUILD_DIR/storage/ndb/src/kernel
   MYSQL_CLIENT_DIR=$BUILD_DIR/client
-  MYSQL_SERVER_DIR=$BUILD_DIR/scripts
+  MYSQL_SERVER_DIR=$BUILD_DIR/sql
+  MYSQLD_SAFE_DIR=$BUILD_DIR/scripts
   ENGINE_SO_DIR=$BUILD_DIR/storage/ndb/memcache
   METADATA_DIR=$BUILD_DIR/scripts/
-  SCRIPTS_DIR=$INSTALL_DIR/$scriptsdir    # See NOTE below
  else
   # Use install dir
   MEMCACHED_DIR=`dirname $memcachedbin`
-  MGM_CLIENT_DIR=$INSTALL_DIR/$libexecdir
-  MGM_SERVER_DIR=$INSTALL_DIR/$libexecdir
-  NDBD_DIR=$INSTALL_DIR/$libexecdir
+  MGM_CLIENT_DIR=$INSTALL_DIR/$sbindir
+  MGM_SERVER_DIR=$INSTALL_DIR/$sbindir
+  NDBD_DIR=$INSTALL_DIR/$sbindir
   MYSQL_CLIENT_DIR=$INSTALL_DIR/$bindir
-  MYSQL_SERVER_DIR=$INSTALL_DIR/$libexecdir
+  MYSQL_SERVER_DIR=$INSTALL_DIR/$bindir
+  MYSQLD_SAFE_DIR=$INSTALL_DIR/$sbindir
   ENGINE_SO_DIR=$INSTALL_DIR/$libdir
   METADATA_DIR=$sharedir/memcache-api
-  SCRIPTS_DIR=$INSTALL_DIR/$scriptsdir
 fi
 
-## NOTE.
-##  mysql_install_db only works from an installed copy.
-##  mtr fixes this by reimplementing mysql_install_db internally.
-##  Our solution for now is to hope we find a copy in the install_dir
- 
 test_paths() {
   test_exec_path $MGM_CLIENT_DIR ndb_mgm
   test_exec_path $MGM_SERVER_DIR ndb_mgmd
   test_exec_path $MYSQL_CLIENT_DIR mysql
   test_exec_path $MYSQL_CLIENT_DIR mysqladmin
-  test_exec_path $MYSQL_SERVER_DIR mysqld_safe
+  test_exec_path $MYSQL_SERVER_DIR mysqld
+  test_exec_path $MYSQLD_SAFE_DIR mysqld_safe
   test_exec_path $NDBD_DIR ndbd
   test_exec_path $MEMCACHED_DIR memcached
-  test_exec_path $SCRIPTS_DIR mysql_install_db
   test_read_path $ENGINE_SO_DIR ndb_engine.so
   test_read_path $METADATA_DIR ndb_memcache_metadata.sql
 }
@@ -155,11 +149,11 @@ do_install_db() {
     then OUTFILE=`mktemp XXXXXX`
     else OUTFILE=`mktemp`
   fi
-  $SCRIPTS_DIR/mysql_install_db \
+  $MYSQL_SERVER_DIR/mysqld --initialize-insecure \
     --basedir=$INSTALL_DIR --datadir=$HOME_BASE/sandbox/data \
     --skip-name-resolve --user=$MYSELF > $OUTFILE
   if test ! -d $HOME_BASE/sandbox/data/mysql 
-    then echo "Failed: mysql_install_db did not work:"
+    then echo "Failed: mysqld --initialize did not work:"
     cat $OUTFILE
     rm $OUTFILE
     exit    
@@ -193,7 +187,7 @@ start_ndbd() {
 }
 
 start_mysql_server() {
-  $MYSQL_SERVER_DIR/mysqld_safe --defaults-file=$HOME_BASE/sandbox/my.cnf &
+  $MYSQLD_SAFE_DIR/mysqld_safe --defaults-file=$HOME_BASE/sandbox/my.cnf &
   sleep 3
   wait_for_mysql_ready
 }

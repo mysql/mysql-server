@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -150,6 +150,20 @@ void Dbtc::initRecords()
     while (tmp.releaseFirst());
   }
 
+  for (Uint32 i = 0; i < cscanrecFileSize; i++)
+  {
+    ScanRecordPtr ptr;
+    ptr.i = i;
+    ptrAss(ptr, scanRecord);
+    new (ptr.p) ScanRecord();
+  }
+  for (Uint32 i = 0; i < ctcConnectFilesize; i++)
+  {
+    TcConnectRecordPtr ptr;
+    ptr.i = i;
+    ptrAss(ptr, tcConnectRecord);
+    new (ptr.p) TcConnectRecord();
+  }
   while (indexOps.releaseFirst());
   
   gcpRecord = (GcpRecord*)allocRecord("GcpRecord",
@@ -242,11 +256,7 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   addRecSignal(GSN_SCAN_HBREP, &Dbtc::execSCAN_HBREP);
   addRecSignal(GSN_COMPLETED, &Dbtc::execCOMPLETED);
   addRecSignal(GSN_COMMITTED, &Dbtc::execCOMMITTED);
-  addRecSignal(GSN_DIH_SCAN_GET_NODES_CONF, &Dbtc::execDIH_SCAN_GET_NODES_CONF);
-  addRecSignal(GSN_DIH_SCAN_GET_NODES_REF, &Dbtc::execDIH_SCAN_GET_NODES_REF);
   addRecSignal(GSN_DIVERIFYCONF, &Dbtc::execDIVERIFYCONF);
-  addRecSignal(GSN_DIH_SCAN_TAB_CONF, &Dbtc::execDIH_SCAN_TAB_CONF);
-  addRecSignal(GSN_DIH_SCAN_TAB_REF, &Dbtc::execDIH_SCAN_TAB_REF);
   addRecSignal(GSN_GCP_NOMORETRANS, &Dbtc::execGCP_NOMORETRANS);
   addRecSignal(GSN_LQHKEYCONF, &Dbtc::execLQHKEYCONF);
   addRecSignal(GSN_NDB_STTOR, &Dbtc::execNDB_STTOR);
