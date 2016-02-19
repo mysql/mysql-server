@@ -1921,7 +1921,6 @@ before_trg_err:
 int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
                                            TABLE_LIST *table_list)
 {
-  int err= 0;
   MY_BITMAP *write_set= entry->fields_set_during_insert;
 
   for (Field **field=entry->field ; *field ; field++)
@@ -1944,11 +1943,10 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
       else
         (*field)->set_warning(Sql_condition::SL_WARNING,
                               ER_NO_DEFAULT_FOR_FIELD, 1);
-      err= 1;
     }
   }
   bitmap_clear_all(write_set);
-  return (!thd->lex->is_ignore() && thd->is_strict_mode()) ? err : 0;
+  return thd->is_error();
 }
 
 
