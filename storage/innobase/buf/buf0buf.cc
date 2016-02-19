@@ -4773,15 +4773,14 @@ buf_page_create_low(
 		}
 
 		buf_pool_mutex_exit(buf_pool);
+	} else if (buf_block_get_io_fix(block) != BUF_IO_NONE) {
+		/* Avoid a hang if I/O is going on. */
+		buf_pool_mutex_exit(buf_pool);
+		rw_lock_x_unlock(hash_lock);
+		os_thread_sleep(WAIT_FOR_READ);
+		return(NULL);
 	} else if (buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE) {
 		/* The existing page can be reused as is. */
-		if (buf_block_get_io_fix(block) != BUF_IO_NONE) {
-			/* Avoid a hang if I/O is going on. */
-			buf_pool_mutex_exit(buf_pool);
-			rw_lock_x_unlock(hash_lock);
-			os_thread_sleep(WAIT_FOR_READ);
-			return(NULL);
-		}
 
 		buf_page_mutex_enter(block);
 		buf_pool_mutex_exit(buf_pool);
