@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21833,6 +21833,15 @@ Dbdict::execCREATE_FILE_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  if(ERROR_INSERTED(6218))
+  {
+    ndbout_c("Delaying GSN_CREATE_FILE_REQ");
+    sendSignalWithDelay(reference(), GSN_CREATE_FILE_REQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
+
 
   const CreateFileReq req_copy =
     *(const CreateFileReq*)signal->getDataPtr();
@@ -25042,6 +25051,15 @@ Dbdict::execCREATE_FK_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  if(ERROR_INSERTED(6218))
+  {
+    ndbout_c("Delaying GSN_CREATE_FK_REQ");
+    sendSignalWithDelay(reference(), GSN_CREATE_FK_REQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
+
 
   const CreateFKReq req_copy =
     *(const CreateFKReq*)signal->getDataPtr();
@@ -31659,6 +31677,15 @@ Dbdict::execCREATE_HASH_MAP_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  if(ERROR_INSERTED(6222))
+  {
+    ndbout_c("Delaying GSN_CREATE_HASH_MAP_REQ");
+    sendSignalWithDelay(reference(), GSN_CREATE_HASH_MAP_REQ, signal, 1000,
+                       signal->length(),
+                       &handle);
+    return;
+  }
+
 
   const CreateHashMapReq req_copy =
     *(const CreateHashMapReq*)signal->getDataPtr();
