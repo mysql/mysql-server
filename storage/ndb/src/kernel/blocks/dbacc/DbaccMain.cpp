@@ -3553,38 +3553,67 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr,
                              bool& lastIsforward,
                              Uint32& tlastElementptr)
 {
+  /**
+   * Should find the last container with same scanbits as the first.
+   */
   ContainerHeader containerhead(lastPageptr.p->word32[tlastContainerptr]);
   Uint32 tlastContainerlen = containerhead.getLength();
- GLR_LOOP_10:
-  if (containerhead.getNextEnd() != 0) {
+  /**
+   * getLastAndRemove are always called prior delete of element in first
+   * container, and that can not be empty.
+   */
+  ndbassert(tlastContainerlen != Container::HEADER_SIZE);
+  const Uint16 activeScanMask = fragrecptr.p->activeScanMask;
+  const Uint16 conScanMask = containerhead.getScanBits();
+  while (containerhead.getNextEnd() != 0)
+  {
     jam();
+    Uint32 nextIndex = containerhead.getNextIndexNumber();
+    Uint32 nextEnd = containerhead.getNextEnd();
+    bool nextOnSamePage = containerhead.isNextOnSamePage();
+    Page8Ptr nextPage;
+    if (nextOnSamePage)
+    {
+      nextPage = lastPageptr;
+    }
+    else
+    {
+      jam();
+      nextPage.i = lastPageptr.p->word32[tlastContainerptr + 1];
+      ptrCheckGuard(nextPage, cpagesize, page8);
+    }
+    const bool nextIsforward = nextEnd == ZLEFT;
+    const Uint32 nextConptr = getContainerPtr(nextIndex, nextIsforward);
+    const ContainerHeader nextHead(nextPage.p->word32[nextConptr]);
+    const Uint16 nextScanMask = nextHead.getScanBits();
+    if (((conScanMask ^ nextScanMask) & activeScanMask) != 0)
+    {
+      /**
+       * Next container have different active scan bits,
+       * current container is the last one with wanted scan bits.
+       * Stop searching!
+       */
+
+      ndbassert(((nextScanMask & ~conScanMask) & activeScanMask) == 0);
+      break;
+    }
     lastPrevpageptr.i = lastPageptr.i;
     lastPrevpageptr.p = lastPageptr.p;
     tlastPrevconptr = tlastContainerptr;
-    tlastPageindex = containerhead.getNextIndexNumber();
-    if (!containerhead.isNextOnSamePage()) {
-      jam();
-      arrGuard(tlastContainerptr + 1, 2048);
-      lastPageptr.i = lastPageptr.p->word32[tlastContainerptr + 1];
-      ptrCheckGuard(lastPageptr, cpagesize, page8);
-    }//if
-    if (containerhead.getNextEnd() == ZLEFT) {
-      jam();
-      lastIsforward = true;
-    } else if (containerhead.getNextEnd() == ZRIGHT) {
-      jam();
-      lastIsforward = false;
-    } else {
-      ndbrequire(false);
-      return;
-    }//if
-    tlastContainerptr = getContainerPtr(tlastPageindex, lastIsforward);
-    arrGuard(tlastContainerptr, 2048);
+    tlastPageindex = nextIndex;
+    if (!nextOnSamePage)
+    {
+      lastPageptr = nextPage;
+    }
+    lastIsforward = nextIsforward;
+    tlastContainerptr = nextConptr;
     containerhead = lastPageptr.p->word32[tlastContainerptr];
     tlastContainerlen = containerhead.getLength();
-    ndbrequire(tlastContainerlen >= ((Uint32)Container::HEADER_SIZE + fragrecptr.p->elementLength));
-    goto GLR_LOOP_10;
-  }//if
+    ndbassert(tlastContainerlen >= ((Uint32)Container::HEADER_SIZE + fragrecptr.p->elementLength));
+  }
+  /**
+   * Last container found.
+   */
   tlastContainerlen = tlastContainerlen - fragrecptr.p->elementLength;
   if (lastIsforward)
   {
@@ -3622,9 +3651,11 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr,
       }//if
     }//if
   }//if
-  if (tlastContainerlen <= 2) {
-    ndbrequire(tlastContainerlen == 2);
-    if (lastPrevpageptr.i != RNIL) {
+  if (tlastContainerlen <= Container::HEADER_SIZE)
+  {
+    ndbrequire(tlastContainerlen == Container::HEADER_SIZE);
+    if (lastPrevpageptr.i != RNIL)
+    {
       jam();
       /* --------------------------------------------------------------------------------- */
       /*  THE LAST CONTAINER IS EMPTY AND IS NOT THE FIRST CONTAINER WHICH IS NOT REMOVED. */
@@ -3632,11 +3663,26 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr,
       /*  CONTAINER IN FREE CONTAINER LIST OF THE PAGE.                                    */
       /* --------------------------------------------------------------------------------- */
       ndbrequire(tlastPrevconptr < 2048);
-      Uint32 tglrTmp = ContainerHeader(lastPrevpageptr.p->word32[tlastPrevconptr]).clearNext();
-      dbgWord32(lastPrevpageptr, tlastPrevconptr, tglrTmp);
-      lastPrevpageptr.p->word32[tlastPrevconptr] = tglrTmp;
-      ContainerHeader conhead(lastPageptr.p->word32[tlastContainerptr]);
-      ndbrequire(conhead.isInUse());
+      ContainerHeader prevConhead(lastPrevpageptr.p->word32[tlastPrevconptr]);
+      ndbrequire(containerhead.isInUse());
+      if (!containerhead.haveNext())
+      {
+         Uint32 tglrTmp = prevConhead.clearNext();
+         dbgWord32(lastPrevpageptr, tlastPrevconptr, tglrTmp);
+         lastPrevpageptr.p->word32[tlastPrevconptr] = tglrTmp;
+      }
+      else
+      {
+        Uint32 nextPagei = (containerhead.isNextOnSamePage()
+                            ? lastPageptr.i
+                            : lastPageptr.p->word32[tlastContainerptr+1]);
+        Uint32 tglrTmp = prevConhead.setNext(containerhead.getNextEnd(),
+                                             containerhead.getNextIndexNumber(),
+                                             (nextPagei == lastPrevpageptr.i));
+        dbgWord32(lastPrevpageptr, tlastPrevconptr, tglrTmp);
+        lastPrevpageptr.p->word32[tlastPrevconptr] = tglrTmp;
+        lastPrevpageptr.p->word32[tlastPrevconptr+1] = nextPagei;
+      }
       if (lastIsforward)
       {
         jam();
@@ -3650,11 +3696,10 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr,
       return;
     }//if
   }//if
-  ContainerHeader conthead = containerhead;
-  conthead.setLength(tlastContainerlen);
-  dbgWord32(lastPageptr, tlastContainerptr, conthead);
+  containerhead.setLength(tlastContainerlen);
+  dbgWord32(lastPageptr, tlastContainerptr, containerhead);
   arrGuard(tlastContainerptr, 2048);
-  lastPageptr.p->word32[tlastContainerptr] = conthead;
+  lastPageptr.p->word32[tlastContainerptr] = containerhead;
 }//Dbacc::getLastAndRemove()
 
 /* --------------------------------------------------------------------------------- */
