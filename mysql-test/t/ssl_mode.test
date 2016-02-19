@@ -1,0 +1,47 @@
+-- source include/not_embedded.inc
+-- source include/have_ssl_communication.inc
+
+--echo # positive client tests
+--echo # mysql
+--exec $MYSQL test --ssl-mode=ReQuIrEd --ssl-cipher=DHE-RSA-AES256-SHA -e "SHOW STATUS LIKE 'Ssl_cipher'" 2>&1
+--exec $MYSQL test --ssl-mode=REQUIRED --ssl --ssl-cipher=DHE-RSA-AES256-SHA -e "SHOW STATUS LIKE 'Ssl_cipher'" 2>&1
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(0);
+
+--echo # mysqldump
+--exec $MYSQL_DUMP --ssl-mode=REQUIRED --ssl-cipher=DHE-RSA-AES256-SHA --compact --skip-comments test 2>&1
+--echo # mysqladmin
+--exec $MYSQLADMIN --ssl-mode=REQUIRED --ssl-cipher=DHE-RSA-AES256-SHA -S $MASTER_MYSOCK -P $MASTER_MYPORT -u root --password= ping 2>&1
+--echo # mysqlcheck
+--exec $MYSQL_CHECK --ssl-mode=REQUIRED --ssl-cipher=DHE-RSA-AES256-SHA test 2>&1
+--echo # mysqlimport
+CREATE TABLE words(a VARCHAR(255));
+--exec $MYSQL_IMPORT --ssl-mode=REQUIRED --ssl-cipher=DHE-RSA-AES256-SHA test $MYSQLTEST_VARDIR/std_data/words.dat 2>&1
+DROP TABLE words;
+--echo # mysqlshow
+--exec $MYSQL_SHOW --ssl-mode=REQUIRED --ssl-cipher=DHE-RSA-AES256-SHA test 2>&1
+--echo # mysqlslap
+--exec $MYSQL_SLAP --ssl-mode=REQUIRED --ssl-cipher=DHE-RSA-AES256-SHA --create-schema=test --query="select * from t1" --silent 2>&1
+--echo # mysqltest
+--exec $MYSQL_TEST --ssl-mode=REQUIRED --ssl-cipher=DHE-RSA-AES256-SHA -x $MYSQL_TEST_DIR/include/mysqltest-x.inc 2>&1
+
+DROP TABLE t1;
+
+--echo # negative client tests
+--echo # mysql
+--error 5
+--exec $MYSQL test --ssl-mode
+--error 1
+--exec $MYSQL test --ssl-mode= 2>&1
+--error 1
+--exec $MYSQL test --ssl-mode=DERIUQER 2>&1
+--error 1
+--exec $MYSQL test --ssl-mode=REQUIRED 2>&1
+--error 1
+--exec $MYSQL test --ssl-mode=REQUIRED --ssl 2>&1
+--error 1
+--exec $MYSQL test --ssl-mode=REQUIRED --ssl-cipher=DHE-RSA-AES256-SHA --skip-ssl 2>&1
+
+--echo
+--echo End of tests

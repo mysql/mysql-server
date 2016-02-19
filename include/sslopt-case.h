@@ -1,7 +1,7 @@
 #ifndef SSLOPT_CASE_INCLUDED
 #define SSLOPT_CASE_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,5 +35,18 @@
       opt_ssl_crlpath= NULL;
 #endif
       break;
+#ifdef MYSQL_CLIENT
+    case OPT_SSL_MODE:
+      if (my_strcasecmp(&my_charset_latin1, argument, "required"))
+      {
+        fprintf(stderr,
+                "Unknown value to --ssl-mode: '%s'. Use --ssl-mode=REQUIRED\n",
+                argument);
+        exit(1);
+      }
+      else
+        opt_ssl_required= 1;
+      break;
+#endif /* MYSQL_CLIENT */
 #endif
 #endif /* SSLOPT_CASE_INCLUDED */
