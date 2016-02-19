@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,8 +21,6 @@
 #include "dd/impl/types/collation_impl.h"
 #include "dd/impl/types/dictionary_object_table_impl.h"
 #include "dd/impl/types/object_table_impl.h"
-
-DD_HEADER_BEGIN
 
 namespace dd {
 namespace tables {
@@ -95,6 +93,12 @@ public:
   virtual Dictionary_object *create_dictionary_object(const Raw_record &) const
   { return new (std::nothrow) Collation_impl(); }
 
+  // Fix "inherits ... via dominance" warnings
+  virtual const Object_table_definition &table_definition() const
+  { return Object_table_impl::table_definition(); }
+  virtual bool hidden() const
+  { return Object_table_impl::hidden(); }
+
 public:
   static bool update_object_key(Global_name_key *key,
                                 const std::string &collation_name);
@@ -104,7 +108,5 @@ public:
 
 }
 }
-
-DD_HEADER_END
 
 #endif // DD_TABLES__COLLATIONS_INCLUDED

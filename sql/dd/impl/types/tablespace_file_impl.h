@@ -19,14 +19,11 @@
 #include "my_global.h"
 
 #include "dd/impl/collection_item.h"        // dd::Collection_item
-#include "dd/impl/os_specific.h"            // DD_HEADER_BEGIN
 #include "dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
 #include "dd/types/object_type.h"           // dd::Object_type
 #include "dd/types/tablespace_file.h"       // dd::Tablespace_file
 
 #include <memory>   // std::unique_ptr
-
-DD_HEADER_BEGIN
 
 namespace dd {
 
@@ -120,6 +117,12 @@ public:
   virtual bool set_se_private_data_raw(
     const std::string &se_private_data_raw);
 
+  // Fix "inherits ... via dominance" warnings
+  virtual Weak_object_impl *impl()
+  { return Weak_object_impl::impl(); }
+  virtual const Weak_object_impl *impl() const
+  { return Weak_object_impl::impl(); }
+
   /////////////////////////////////////////////////////////////////////////
   // tablespace.
   /////////////////////////////////////////////////////////////////////////
@@ -180,7 +183,5 @@ public:
 ///////////////////////////////////////////////////////////////////////////
 
 }
-
-DD_HEADER_END
 
 #endif // DD__TABLESPACE_FILES_IMPL_INCLUDED

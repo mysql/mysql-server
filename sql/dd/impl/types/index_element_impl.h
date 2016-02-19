@@ -19,19 +19,10 @@
 #include "my_global.h"
 
 #include "dd/impl/collection_item.h"        // dd::Collection_item
-#include "dd/impl/os_specific.h"            // DD_HEADER_BEGIN
 #include "dd/impl/types/index_impl.h"       // dd::Index_impl
 #include "dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
 #include "dd/types/index_element.h"         // dd::Index_element
 #include "dd/types/object_type.h"           // dd::Object_type
-
-/*
-#include "dd/impl/raw/object_keys.h"
-#include "dd/impl/properties_impl.h"
-#include "dd/types/column.h"
-*/
-
-DD_HEADER_BEGIN
 
 namespace dd {
 
@@ -167,6 +158,12 @@ public:
   virtual Index_element_impl *factory_clone() const
   { return new (std::nothrow) Index_element_impl(*this); }
 
+  // Fix "inherits ... via dominance" warnings
+  virtual Weak_object_impl *impl()
+  { return Weak_object_impl::impl(); }
+  virtual const Weak_object_impl *impl() const
+  { return Weak_object_impl::impl(); }
+
 public:
   class Factory : public Collection_item_factory
   {
@@ -256,7 +253,5 @@ public:
 ///////////////////////////////////////////////////////////////////////////
 
 }
-
-DD_HEADER_END
 
 #endif // DD__INDEX_ELEMENT_IMPL_INCLUDED

@@ -19,14 +19,11 @@
 #include "my_global.h"
 
 #include "dd/impl/collection_item.h"            // dd::Collection_item
-#include "dd/impl/os_specific.h"                // DD_HEADER_BEGIN
 #include "dd/impl/types/weak_object_impl.h"     // dd::Weak_object_impl
 #include "dd/types/object_type.h"               // dd::Object_type
 #include "dd/types/partition_index.h"           // dd::Partition_index
 
 #include <memory>
-
-DD_HEADER_BEGIN
 
 namespace dd {
 
@@ -149,6 +146,12 @@ public:
   virtual void set_tablespace_id(Object_id tablespace_id)
   { m_tablespace_id= tablespace_id; }
 
+  // Fix "inherits ... via dominance" warnings
+  virtual Weak_object_impl *impl()
+  { return Weak_object_impl::impl(); }
+  virtual const Weak_object_impl *impl() const
+  { return Weak_object_impl::impl(); }
+
 public:
   class Factory : public Collection_item_factory
   {
@@ -208,7 +211,5 @@ public:
 ///////////////////////////////////////////////////////////////////////////
 
 }
-
-DD_HEADER_END
 
 #endif // DD__PARTITION_INDEX_IMPL_INCLUDED

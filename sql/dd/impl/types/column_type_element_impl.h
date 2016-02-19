@@ -19,12 +19,9 @@
 #include "my_global.h"
 
 #include "dd/impl/collection_item.h"          // dd::Collection_item
-#include "dd/impl/os_specific.h"              // DD_HEADER_BEGIN
 #include "dd/impl/types/weak_object_impl.h"   // dd::Weak_object_impl
 #include "dd/types/column_type_element.h"     // dd::Column_type_element
 #include "dd/types/object_type.h"             // dd::Object_type
-
-DD_HEADER_BEGIN
 
 namespace dd {
 
@@ -133,6 +130,12 @@ public:
   virtual uint index() const
   { return m_index; }
 
+  // Fix "inherits ... via dominance" warnings
+  virtual Weak_object_impl *impl()
+  { return Weak_object_impl::impl(); }
+  virtual const Weak_object_impl *impl() const
+  { return Weak_object_impl::impl(); }
+
 public:
   virtual void debug_print(std::string &outb) const;
 
@@ -177,7 +180,5 @@ public:
 ///////////////////////////////////////////////////////////////////////////
 
 }
-
-DD_HEADER_END
 
 #endif // DD__COLUMN_TYPE_ELEMENT_IMPL_INCLUDED

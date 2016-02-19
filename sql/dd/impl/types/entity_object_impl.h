@@ -18,11 +18,8 @@
 
 #include "my_global.h"
 
-#include "dd/impl/os_specific.h"            // DD_HEADER_BEGIN
 #include "dd/impl/types/weak_object_impl.h" // Weak_object_impl
 #include "dd/types/entity_object.h"         // Entity_object
-
-DD_HEADER_BEGIN
 
 namespace dd {
 
@@ -64,6 +61,12 @@ public:
 
   virtual bool has_new_primary_key() const
   { return m_has_new_primary_key; }
+
+  // Fix "inherits ... via dominance" warnings
+  virtual Weak_object_impl *impl()
+  { return Weak_object_impl::impl(); }
+  virtual const Weak_object_impl *impl() const
+  { return Weak_object_impl::impl(); }
 
 protected:
   virtual void set_primary_key_value(const Raw_new_record &r);
@@ -115,7 +118,5 @@ protected:
 ///////////////////////////////////////////////////////////////////////////
 
 }
-
-DD_HEADER_END
 
 #endif // DD__ENTITY_OBJECT_IMPL_INCLUDED

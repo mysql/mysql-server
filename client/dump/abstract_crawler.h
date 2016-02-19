@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -36,6 +36,14 @@ public:
    */
   virtual void register_chain_maker(I_chain_maker* new_chain_maker);
 
+  // Fix "inherits ... via dominance" warnings
+  void register_progress_watcher(I_progress_watcher* new_progress_watcher)
+  { Abstract_chain_element::register_progress_watcher(new_progress_watcher); }
+
+  // Fix "inherits ... via dominance" warnings
+  uint64 get_id() const
+  { return Abstract_chain_element::get_id(); }
+
 protected:
   Abstract_crawler(
     Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
@@ -48,6 +56,10 @@ protected:
   void wait_for_tasks_completion();
 
   bool need_callbacks_in_child();
+
+  // Fix "inherits ... via dominance" warnings
+  void item_completion_in_child_callback(Item_processing_data* item_processed)
+  { Abstract_chain_element::item_completion_in_child_callback(item_processed); }
 
 private:
   std::vector<I_chain_maker*> m_chain_makers;

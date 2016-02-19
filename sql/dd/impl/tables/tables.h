@@ -22,8 +22,6 @@
 #include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
 #include "dd/impl/types/object_table_impl.h"            // dd::Object_table_i...
 
-DD_HEADER_BEGIN
-
 namespace dd {
 
 class Object_key;
@@ -223,6 +221,14 @@ public:
   virtual Dictionary_object *create_dictionary_object(
     const Raw_record &r) const;
 
+  // Fix "inherits ... via dominance" warnings
+  virtual const Object_table_definition &table_definition() const
+  { return Object_table_impl::table_definition(); }
+  virtual bool populate(THD *thd) const
+  { return Object_table_impl::populate(thd); }
+  virtual bool hidden() const
+  { return Object_table_impl::hidden(); }
+
 public:
   static bool update_object_key(Item_name_key *key,
                                 Object_id schema_id,
@@ -251,7 +257,5 @@ public:
 
 }
 }
-
-DD_HEADER_END
 
 #endif // DD_TABLES__TABLES_INCLUDED

@@ -18,13 +18,10 @@
 
 #include "my_global.h"
 
-#include "dd/impl/os_specific.h"             // DD_HEADER_BEGIN
 #include "dd/impl/types/weak_object_impl.h"  // dd::Weak_object_impl
 #include "dd/types/foreign_key_element.h"    // dd::Foreign_key_element
 #include "dd/types/object_type.h"            // dd::Object_id
 #include "dd/impl/collection_item.h"         // dd::Collection_item
-
-DD_HEADER_BEGIN
 
 namespace dd {
 
@@ -128,6 +125,12 @@ public:
   virtual void referenced_column_name(const std::string &name)
   { m_referenced_column_name= name; }
 
+  // Fix "inherits ... via dominance" warnings
+  virtual Weak_object_impl *impl()
+  { return Weak_object_impl::impl(); }
+  virtual const Weak_object_impl *impl() const
+  { return Weak_object_impl::impl(); }
+
 public:
   class Factory : public Collection_item_factory
   {
@@ -178,7 +181,5 @@ public:
 ///////////////////////////////////////////////////////////////////////////
 
 }
-
-DD_HEADER_END
 
 #endif // DD__FOREIGN_KEY_ELEMENT_IMPL_INCLUDED

@@ -19,11 +19,8 @@
 #include "my_global.h"
 
 #include "dd/object_id.h"          // Object_id
-#include "dd/impl/os_specific.h"   // DD_HEADER_BEGIN
 #include "dd/impl/rj_fwd.h"        // RJ_Document
 #include "dd/types/weak_object.h"  // dd::Weak_object
-
-DD_HEADER_BEGIN
 
 namespace dd {
 
@@ -140,7 +137,5 @@ protected:
 ///////////////////////////////////////////////////////////////////////////
 
 }
-
-DD_HEADER_END
 
 #endif // DD__WEAK_OBJECT_IMPL_INCLUDED

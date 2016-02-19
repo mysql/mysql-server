@@ -22,8 +22,6 @@
 #include "dd/impl/types/object_table_impl.h"            // dd::Object_table_i...
 #include "dd/impl/types/tablespace_impl.h"              // dd::Tablespace_impl
 
-DD_HEADER_BEGIN
-
 namespace dd {
 namespace tables {
 
@@ -95,6 +93,14 @@ public:
   virtual Dictionary_object *create_dictionary_object(const Raw_record &) const
   { return new (std::nothrow) Tablespace_impl(); }
 
+  // Fix "inherits ... via dominance" warnings
+  virtual const Object_table_definition &table_definition() const
+  { return Object_table_impl::table_definition(); }
+  virtual bool populate(THD *thd) const
+  { return Object_table_impl::populate(thd); }
+  virtual bool hidden() const
+  { return Object_table_impl::hidden(); }
+
 public:
   static bool update_object_key(Global_name_key *key,
                                 const std::string &tablespace_name);
@@ -104,7 +110,5 @@ public:
 
 }
 }
-
-DD_HEADER_END
 
 #endif // DD_TABLES__TABLESPACES_INCLUDED

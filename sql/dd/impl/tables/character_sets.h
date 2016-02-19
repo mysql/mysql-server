@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,8 +21,6 @@
 #include "dd/impl/types/charset_impl.h"                 // dd::Charset_impl
 #include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
 #include "dd/impl/types/object_table_impl.h"            // dd::Object_table_i...
-
-DD_HEADER_BEGIN
 
 namespace dd {
 namespace tables {
@@ -105,6 +103,12 @@ public:
   { return new (std::nothrow) Charset_impl(); }
   /* purecov: end */
 
+  // Fix "inherits ... via dominance" warnings
+  virtual const Object_table_definition &table_definition() const
+  { return Object_table_impl::table_definition(); }
+  virtual bool hidden() const
+  { return Object_table_impl::hidden(); }
+
 public:
    static bool update_object_key(Global_name_key *key,
                                  const std::string &charset_name);
@@ -114,7 +118,5 @@ public:
 
 }
 }
-
-DD_HEADER_END
 
 #endif // DD_TABLES__CHARACTER_SETS_INCLUDED

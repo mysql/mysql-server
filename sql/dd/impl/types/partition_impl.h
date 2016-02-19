@@ -18,15 +18,12 @@
 
 #include "my_global.h"
 
-#include "dd/impl/os_specific.h"               // DD_HEADER_BEGIN
 #include "dd/impl/collection_item.h"           // dd::Collection_item
 #include "dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
 #include "dd/types/object_type.h"              // dd::Object_type
 #include "dd/types/partition.h"                // dd::Partition
 
 #include <memory>
-
-DD_HEADER_BEGIN
 
 namespace dd {
 
@@ -224,6 +221,20 @@ public:
   Index_collection *index_collection()
   { return m_indexes.get(); }
 
+  // Fix "inherits ... via dominance" warnings
+  virtual Weak_object_impl *impl()
+  { return Weak_object_impl::impl(); }
+  virtual const Weak_object_impl *impl() const
+  { return Weak_object_impl::impl(); }
+  virtual Object_id id() const
+  { return Entity_object_impl::id(); }
+  virtual bool is_persistent() const
+  { return Entity_object_impl::is_persistent(); }
+  virtual const std::string &name() const
+  { return Entity_object_impl::name(); }
+  virtual void set_name(const std::string &name)
+  { Entity_object_impl::set_name(name); }
+
 public:
   class Factory : public Collection_item_factory
   {
@@ -300,7 +311,5 @@ public:
 ///////////////////////////////////////////////////////////////////////////
 
 }
-
-DD_HEADER_END
 
 #endif // DD__PARTITION_IMPL_INCLUDED

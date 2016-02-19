@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,8 +23,6 @@
 #include "dd/impl/types/schema_impl.h"                  // dd::Schema_impl
 
 #include <string>
-
-DD_HEADER_BEGIN
 
 namespace dd {
 namespace tables {
@@ -112,6 +110,14 @@ public:
   virtual Dictionary_object *create_dictionary_object(const Raw_record &) const
   { return new (std::nothrow) Schema_impl(); }
 
+  // Fix "inherits ... via dominance" warnings
+  virtual const Object_table_definition &table_definition() const
+  { return Object_table_impl::table_definition(); }
+  virtual bool populate(THD *thd) const
+  { return Object_table_impl::populate(thd); }
+  virtual bool hidden() const
+  { return Object_table_impl::hidden(); }
+
 public:
   static bool update_object_key(Item_name_key *key,
                                 Object_id catalog_id,
@@ -125,7 +131,5 @@ public:
 
 }
 }
-
-DD_HEADER_END
 
 #endif // DD_TABLES__SCHEMATA_INCLUDED

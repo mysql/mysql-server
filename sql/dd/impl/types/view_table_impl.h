@@ -17,12 +17,9 @@
 #define DD__VIEW_TABLE_IMPL_INCLUDED
 
 #include "dd/impl/collection_item.h"         // dd::Collection_item
-#include "dd/impl/os_specific.h"             // DD_HEADER_BEGIN
 #include "dd/impl/types/weak_object_impl.h"  // dd::Weak_object_impl
 #include "dd/types/object_type.h"            // dd::Object_type
 #include "dd/types/view_table.h"             // dd::View_table
-
-DD_HEADER_BEGIN
 
 namespace dd {
 
@@ -125,6 +122,12 @@ public:
 
   virtual View &view();
 
+  // Fix "inherits ... via dominance" warnings
+  virtual Weak_object_impl *impl()
+  { return Weak_object_impl::impl(); }
+  virtual const Weak_object_impl *impl() const
+  { return Weak_object_impl::impl(); }
+
 public:
   class Factory : public Collection_item_factory
   {
@@ -175,7 +178,5 @@ public:
 ///////////////////////////////////////////////////////////////////////////
 
 }
-
-DD_HEADER_END
 
 #endif // DD__VIEW_TABLE_IMPL_INCLUDED

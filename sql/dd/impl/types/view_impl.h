@@ -18,7 +18,6 @@
 
 #include "my_global.h"
 
-#include "dd/impl/os_specific.h"               // DD_HEADER_BEGIN
 #include "dd/impl/types/abstract_table_impl.h" // dd::Abstract_table_impl
 #include "dd/types/dictionary_object_table.h"  // dd::Dictionary_object_table
 #include "dd/types/view.h"                     // dd::View
@@ -26,8 +25,6 @@
 #include <memory>   // std::unique_ptr
 
 typedef struct charset_info_st CHARSET_INFO;
-
-DD_HEADER_BEGIN
 
 namespace dd {
 
@@ -180,6 +177,52 @@ public:
   View_table_collection *table_collection()
   { return m_tables.get(); }
 
+  // Fix "inherits ... via dominance" warnings
+  virtual Weak_object_impl *impl()
+  { return Weak_object_impl::impl(); }
+  virtual const Weak_object_impl *impl() const
+  { return Weak_object_impl::impl(); }
+  virtual Object_id id() const
+  { return Entity_object_impl::id(); }
+  virtual bool is_persistent() const
+  { return Entity_object_impl::is_persistent(); }
+  virtual const std::string &name() const
+  { return Entity_object_impl::name(); }
+  virtual void set_name(const std::string &name)
+  { Entity_object_impl::set_name(name); }
+  virtual Object_id schema_id() const
+  { return Abstract_table_impl::schema_id(); }
+  virtual void set_schema_id(Object_id schema_id)
+  { Abstract_table_impl::set_schema_id(schema_id); }
+  virtual uint mysql_version_id() const
+  { return Abstract_table_impl::mysql_version_id(); }
+  virtual Properties &options()
+  { return Abstract_table_impl::options(); }
+  virtual bool set_options_raw(const std::string &options_raw)
+  { return Abstract_table_impl::set_options_raw(options_raw); }
+  virtual ulonglong created() const
+  { return Abstract_table_impl::created(); }
+  virtual void set_created(ulonglong created)
+  { Abstract_table_impl::set_created(created); }
+  virtual ulonglong last_altered() const
+  { return Abstract_table_impl::last_altered(); }
+  virtual void set_last_altered(ulonglong last_altered)
+  { Abstract_table_impl::set_last_altered(last_altered); }
+  virtual Column *add_column()
+  { return Abstract_table_impl::add_column(); }
+  virtual Column_const_iterator *columns() const
+  { return Abstract_table_impl::columns(); }
+  virtual Column_iterator *columns()
+  { return Abstract_table_impl::columns(); }
+  virtual Column_const_iterator *user_columns() const
+  { return Abstract_table_impl::user_columns(); }
+  virtual Column_iterator *user_columns()
+  { return Abstract_table_impl::user_columns(); }
+  const Column *get_column(const std::string name) const
+  { return Abstract_table_impl::get_column(name); }
+  Column *get_column(const std::string name)
+  { return Abstract_table_impl::get_column(name); }
+
 private:
   enum_table_type    m_type;
   bool               m_is_updatable;
@@ -222,7 +265,5 @@ public:
 ///////////////////////////////////////////////////////////////////////////
 
 }
-
-DD_HEADER_END
 
 #endif // DD__VIEW_IMPL_INCLUDED

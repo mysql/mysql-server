@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@
 
 #include "mysqld.h"                           // lower_case_table_names
 
-#include "dd/impl/os_specific.h"              // DD_HEADER_BEGIN
 #include "dd/types/object_table_definition.h" // dd::Object_table_definition
 #include "dd/types/table.h"                   // dd::Table
 
@@ -29,8 +28,6 @@
 #include <sstream>
 #include <string>
 #include <vector>
-
-DD_HEADER_BEGIN
 
 namespace dd {
 
@@ -227,8 +224,6 @@ public:
 ///////////////////////////////////////////////////////////////////////////
 
 }
-
-DD_HEADER_END
 
 #endif	// DD__OBJECT_TABLE_DEFINITION_IMPL_INCLUDED
 

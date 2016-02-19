@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -43,6 +43,12 @@ public:
 
   /** Disable move assignment to avoid Wvirtual-move-assign warning */
   Abstract_chain_element& operator= (Abstract_chain_element&& other) = delete;
+
+  // Fix "inherits ... via dominance" warnings
+  void register_progress_watcher(I_progress_watcher* new_progress_watcher)
+  {
+    Abstract_progress_reporter::register_progress_watcher(new_progress_watcher);
+  }
 
 protected:
   Abstract_chain_element(
@@ -112,6 +118,8 @@ protected:
 protected:
   virtual bool need_callbacks_in_child();
 
+  // Must be protected to allow subclasses to call explicitly.
+  void item_completion_in_child_callback(Item_processing_data* item_processed);
 
 private:
   /**
@@ -126,8 +134,6 @@ private:
    */
   void item_completion_in_child_completes_task_callback(
     Item_processing_data* item_processed);
-
-  void item_completion_in_child_callback(Item_processing_data* item_processed);
 
   Item_processing_data* task_to_be_processed_in_child(
     Item_processing_data* current_item_data,
