@@ -397,6 +397,7 @@ void Dbacc::initialiseScanRec()
     scanPtr.p->scanNextfreerec = scanPtr.i + 1;
     scanPtr.p->scanState = ScanRec::SCAN_DISCONNECT;
     scanPtr.p->activeLocalFrag = RNIL;
+    scanPtr.p->initContainer();
   }//for
   scanPtr.i = cscanRecSize - 1;
   ptrAss(scanPtr, scanRec);
@@ -3504,6 +3505,90 @@ void Dbacc::commitdelete(Signal* signal)
                    tlastElementptr);
 
   const Uint32 delElemptr = operationRecPtr.p->elementPointer;
+  /*
+   * If last element is in same container as delete element, and that container
+   * have scans in progress, one must make sure the last element still have the
+   * same scan state, or clear if it is the one deleted.
+   * If last element is not in same container as delete element, that element
+   * can not have any scans in progress, in that case the container scanbits
+   * should have been fewer than delete containers which is not allowed for last.
+   */
+  if ((lastPageptr.i == delPageptr.i) &&
+      (tlastContainerptr == delConptr))
+  {
+    ContainerHeader conhead(delPageptr.p->word32[delConptr]);
+    /**
+     * If the deleted element was the only element in container
+     * getLastAndRemove may have released the container already.
+     * In that case header is still valid to read but it will
+     * not be in use, but free.
+     */
+    if (conhead.isInUse() && conhead.isScanInProgress())
+    {
+      /**
+       * Initialize scanInProgress with the active scans which have not
+       * completly scanned the container.  Then check which scan actually
+       * currently scan the container.
+       */
+      Uint16 scansInProgress =
+          fragrecptr.p->activeScanMask & ~conhead.getScanBits();
+      scansInProgress = delPageptr.p->checkScans(scansInProgress, delConptr);
+      for(int i = 0; scansInProgress != 0; i++, scansInProgress >>= 1)
+      {
+        /**
+         * For each scan in progress in container, move the scan bit for
+         * last element to the delete elements place.  If it is the last
+         * element that is deleted, the scan bit will be cleared by
+         * moveScanBit.
+         */
+        if ((scansInProgress & 1) != 0)
+        {
+          ScanRecPtr scanPtr;
+          scanPtr.i = fragrecptr.p->scan[i];
+          ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
+          scanPtr.p->moveScanBit(delElemptr, tlastElementptr);
+        }
+      }
+    }
+  }
+  else
+  {
+    /**
+     * The last element which is to be moved into deleted elements place
+     * are in different containers.
+     *
+     * Since both containers have the same scan bits that implies that there
+     * are no scans in progress in the last elements container, otherwise
+     * the delete container should have an extra scan bit set.
+     */
+#ifdef VM_TRACE
+    ContainerHeader conhead(lastPageptr.p->word32[tlastContainerptr]);
+    ndbassert(!conhead.isInUse() || !conhead.isScanInProgress());
+    conhead = ContainerHeader(delPageptr.p->word32[delConptr]);
+#else
+    ContainerHeader conhead(delPageptr.p->word32[delConptr]);
+#endif
+    if (conhead.isScanInProgress())
+    {
+      /**
+       * Initialize scanInProgress with the active scans which have not
+       * completly scanned the container.  Then check which scan actually
+       * currently scan the container.
+       */
+      Uint16 scansInProgress = fragrecptr.p->activeScanMask & ~conhead.getScanBits();
+      scansInProgress = delPageptr.p->checkScans(scansInProgress, delConptr);
+      for(int i = 0; scansInProgress != 0; i++, scansInProgress >>= 1)
+      {
+        if ((scansInProgress & 1) != 0)
+        {
+          ScanRecPtr scanPtr;
+          scanPtr.i = fragrecptr.p->scan[i];
+          ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
+          scanPtr.p->clearScanned(delElemptr);
+        }
+      }
+    }
+  }
   if (operationRecPtr.p->elementPage == lastPageptr.i) {
     if (operationRecPtr.p->elementPointer == tlastElementptr) {
       jam();
@@ -3750,6 +3835,32 @@ void Dbacc::getLastAndRemove(Page8Ptr lastPrevpageptr,
         dbgWord32(lastPrevpageptr, tlastPrevconptr, tglrTmp);
         lastPrevpageptr.p->word32[tlastPrevconptr] = tglrTmp;
         lastPrevpageptr.p->word32[tlastPrevconptr+1] = nextPagei;
+      }
+      /**
+       * Any scans currently scanning the last container must be evicted from
+       * container since it is about to be deleted.  Scans will look for next
+       * unscanned container at next call to getScanElement.
+       */
+      if (containerhead.isScanInProgress())
+      {
+        Uint16 scansInProgress =
+            fragrecptr.p->activeScanMask & ~containerhead.getScanBits();
+        scansInProgress = lastPageptr.p->checkScans(scansInProgress,
+                                                    tlastContainerptr);
+        Uint16 scanbit = 1;
+        for(int i = 0 ;
+            scansInProgress != 0 ;
+            i++, scansInProgress>>=1, scanbit<<=1)
+        {
+          if ((scansInProgress & 1) != 0)
+          {
+            ScanRecPtr scanPtr;
+            scanPtr.i = fragrecptr.p->scan[i];
+            ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
+            scanPtr.p->leaveContainer(lastPageptr.i, tlastContainerptr);
+            lastPageptr.p->clearScanContainer(scanbit, tlastContainerptr);
+          }
+        }
       }
       if (lastIsforward)
       {
@@ -6036,6 +6147,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     Page8Ptr rlPageptr;
     rlPageptr.i = prevPageptr;
     ptrCheckGuard(rlPageptr, cpagesize, page8);
+    ndbassert(!containerhead.isScanInProgress());
     if (cexcPrevisforward)
     {
       jam();
@@ -6668,6 +6780,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
         gnsPageidptr.i = getPagePtr(fragrecptr.p->directory, pagei);
         ptrCheckGuard(gnsPageidptr, cpagesize, page8);
       }//if
+      ndbassert(!scanPtr.p->isInContainer());
       releaseScanBucket(gnsPageidptr, conidx, scanPtr.p->scanMask);
     }//if
     signal->theData[0] = scanPtr.i;
@@ -6794,6 +6907,7 @@ void Dbacc::initScanFragmentPart()
   ndbassert(scanPtr.p->activeLocalFrag == RNIL);
   scanPtr.p->activeLocalFrag = fragrecptr.i;
   scanPtr.p->nextBucketIndex = 0;	/* INDEX OF SCAN BUCKET */
+  ndbassert(!scanPtr.p->isInContainer());
   scanPtr.p->scanBucketState = ScanRec::FIRST_LAP;
   scanPtr.p->startNoOfBuckets = fragrecptr.p->level.getTop();
   scanPtr.p->minBucketIndexToRescan = 0xFFFFFFFF;
@@ -6802,6 +6916,7 @@ void Dbacc::initScanFragmentPart()
   ptrCheckGuard(cnfPageidptr, cpagesize, page8);
   const Uint32 conidx = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
   ndbassert(!(fragrecptr.p->activeScanMask & scanPtr.p->scanMask));
+  ndbassert(!scanPtr.p->isInContainer());
   releaseScanBucket(cnfPageidptr, conidx, scanPtr.p->scanMask);
   fragrecptr.p->activeScanMask |= scanPtr.p->scanMask;
 }//Dbacc::initScanFragmentPart()
@@ -6836,6 +6951,23 @@ void Dbacc::releaseScanLab(Signal* signal)
     Page8Ptr pageptr;
     pageptr.i = getPagePtr(fragrecptr.p->directory, pagei);
     ptrCheckGuard(pageptr, cpagesize, page8);
+
+    Uint32 inPageI;
+    Uint32 inConptr;
+    if(scanPtr.p->getContainer(inPageI, inConptr))
+    {
+      Page8Ptr page;
+      page.i = inPageI;
+      ptrCheckGuard(page, cpagesize, page8);
+      ContainerHeader conhead(page.p->word32[inConptr]);
+      scanPtr.p->leaveContainer(inPageI, inConptr);
+      page.p->clearScanContainer(scanPtr.p->scanMask, inConptr);
+      if (!page.p->checkScanContainer(inConptr))
+      {
+        conhead.clearScanInProgress();
+        page.p->word32[inConptr] = Uint32(conhead);
+      }
+    }
     releaseScanBucket(pageptr, conidx, scanPtr.p->scanMask);
   }
 
@@ -7129,36 +7261,88 @@ bool Dbacc::getScanElement(Page8Ptr& pageptr,
                            Uint32& elemptr,
                            Uint32& islocked) const
 {
+  /* Input is always the bucket header container */
   isforward = true;
+  /* Check if scan is already active in a container */
+  Uint32 inPageI;
+  Uint32 inConptr;
+  if (scanPtr.p->getContainer(inPageI, inConptr))
+  {
+    // TODO: in VM_TRACE double check container is in bucket!
+    pageptr.i = inPageI;
+    ptrCheckGuard(pageptr, cpagesize, page8);
+    conptr = inConptr;
+    ContainerHeader conhead(pageptr.p->word32[conptr]);
+    ndbassert(conhead.isScanInProgress());
+    ndbassert((conhead.getScanBits() & scanPtr.p->scanMask)==0);
+    getContainerIndex(conptr, conidx, isforward);
+  }
+  else // if first bucket is not in scan nor scanned , start it
+  {
+    Uint32 conptr = getContainerPtr(conidx, isforward);
+    ContainerHeader containerhead(pageptr.p->word32[conptr]);
+    if (!(containerhead.getScanBits() & scanPtr.p->scanMask))
+    {
+      if(!containerhead.isScanInProgress())
+      {
+        containerhead.setScanInProgress();
+        pageptr.p->word32[conptr] = containerhead;
+      }
+      scanPtr.p->enterContainer(pageptr.i, conptr);
+      pageptr.p->setScanContainer(scanPtr.p->scanMask, conptr);
+    }
+  }
  NEXTSEARCH_SCAN_LOOP:
   conptr = getContainerPtr(conidx, isforward);
   ContainerHeader containerhead(pageptr.p->word32[conptr]);
   Uint32 conlen = containerhead.getLength();
-  if (searchScanContainer(pageptr,
-                          conptr,
-                          isforward,
-                          conlen,
-                          elemptr,
-                          islocked))
+  if (containerhead.getScanBits() & scanPtr.p->scanMask)
+  { // Already scanned, go to next.
+    ndbassert(!containerhead.isScanInProgress());
+  }
+  else
   {
-    jam();
-    return true;
-  }//if
-  if (containerhead.getNextEnd() != 0) {
-    jam();
-    if ((containerhead.getScanBits() & scanPtr.p->scanMask) == 0)
+    ndbassert(containerhead.isScanInProgress());
+    if (searchScanContainer(pageptr,
+                            conptr,
+                            isforward,
+                            conlen,
+                            elemptr,
+                            islocked))
     {
-      containerhead.setScanBits(scanPtr.p->scanMask);
-      pageptr.p->word32[conptr] = Uint32(containerhead);
-    }
-    nextcontainerinfo(pageptr, conptr, containerhead, conidx, isforward);
-    goto NEXTSEARCH_SCAN_LOOP;
-  }//if
+      jam();
+      return true;
+    }//if
+  }
   if ((containerhead.getScanBits() & scanPtr.p->scanMask) == 0)
   {
     containerhead.setScanBits(scanPtr.p->scanMask);
+    scanPtr.p->leaveContainer(pageptr.i, conptr);
+    pageptr.p->clearScanContainer(scanPtr.p->scanMask, conptr);
+    if (!pageptr.p->checkScanContainer(conptr))
+    {
+      containerhead.clearScanInProgress();
+    }
     pageptr.p->word32[conptr] = Uint32(containerhead);
   }
+  if (containerhead.haveNext())
+  {
+    jam();
+    nextcontainerinfo(pageptr, conptr, containerhead, conidx, isforward);
+    conptr=getContainerPtr(conidx,isforward);
+    containerhead=pageptr.p->word32[conptr];
+    if ((containerhead.getScanBits() & scanPtr.p->scanMask) == 0)
+    {
+      if(!containerhead.isScanInProgress())
+      {
+        containerhead.setScanInProgress();
+      }
+      pageptr.p->word32[conptr] = Uint32(containerhead);
+      scanPtr.p->enterContainer(pageptr.i, conptr);
+      pageptr.p->setScanContainer(scanPtr.p->scanMask, conptr);
+    } // else already scanned, get next
+    goto NEXTSEARCH_SCAN_LOOP;
+  }//if
   pageptr.p->word32[conptr] = Uint32(containerhead);
   return false;
 }//Dbacc::getScanElement()
@@ -7512,6 +7696,19 @@ bool Dbacc::searchScanContainer(Page8Ptr pageptr,
   Uint32 Telemptr;
   Uint32 Tislocked;
 
+#ifdef VM_TRACE
+  ContainerHeader chead(pageptr.p->word32[conptr]);
+  ndbassert((chead.getScanBits()&scanPtr.p->scanMask)==0);
+  ndbassert(chead.isScanInProgress());
+  ndbassert(scanPtr.p->isInContainer());
+  {
+    Uint32 pagei; Uint32 cptr;
+    ndbassert(scanPtr.p->getContainer(pagei, cptr));
+    ndbassert(pageptr.i==pagei);
+    ndbassert(conptr==cptr);
+  }
+#endif
+
   if (conlen < 4) {
     jam();
     return false;	/* 2 IS THE MINIMUM SIZE OF THE ELEMENT */
@@ -7534,6 +7731,12 @@ bool Dbacc::searchScanContainer(Page8Ptr pageptr,
  SCANELEMENTLOOP001:
   arrGuard(Telemptr, 2048);
   const Uint32 eh = pageptr.p->word32[Telemptr];
+  bool found=false;
+  if (!scanPtr.p->isScanned(Telemptr))
+  {
+    found=true;
+    scanPtr.p->setScanned(Telemptr);
+  }
   Tislocked = ElementHeader::getLocked(eh);
   if (!Tislocked){
     jam();
@@ -7560,6 +7763,13 @@ bool Dbacc::searchScanContainer(Page8Ptr pageptr,
       return true;
     }//if
   }//if
+  if (found)
+  {
+    elemptr = Telemptr;
+    islocked = Tislocked;
+    return true;
+  }
+  ndbassert(!found);
   /* THE ELEMENT IS ALREADY SENT. */
   /* SEARCH FOR NEXT ONE */
   elemlens = elemlens - elemlen;
