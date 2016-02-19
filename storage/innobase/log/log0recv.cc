@@ -165,13 +165,13 @@ get_mlog_string(mlog_id_t type);
 /* prototypes */
 
 #ifndef UNIV_HOTBACKUP
-/*******************************************************//**
-Initialize crash recovery environment. Can be called iff
+
+/** Initialize crash recovery environment. Can be called iff
 recv_needed_recovery == false. */
 static
 void
-recv_init_crash_recovery(void);
-/*===========================*/
+recv_init_crash_recovery();
+
 #endif /* !UNIV_HOTBACKUP */
 
 /** Tablespace item during recovery */
@@ -196,6 +196,33 @@ typedef std::map<
 	ut_allocator<std::pair<const ulint, file_name_t> > >	recv_spaces_t;
 
 static recv_spaces_t	recv_spaces;
+
+/** Check if the name is an undo tablespace name.
+@param[in]	name	Tablespace name
+@param[in]	len	Tablespace name length in bytes
+@return true if it is an undo tablespace name */
+static
+bool
+is_undo_tablespace_name(
+	const char*	name,
+	ulint		len)
+{
+	if (len >= 8) {
+
+		const char*	end_ptr = name + len;
+
+		return(end_ptr[-8] == OS_PATH_SEPARATOR
+		       && end_ptr[-7] == 'u'
+		       && end_ptr[-6] == 'n'
+		       && end_ptr[-5] == 'd'
+		       && end_ptr[-4] == 'o'
+		       && isdigit(end_ptr[-3])
+		       && isdigit(end_ptr[-2])
+		       && isdigit(end_ptr[-1]));
+	}
+
+	return(false);
+}
 
 /** Process a file name from a MLOG_FILE_* record.
 @param[in,out]	name		file name
@@ -419,16 +446,7 @@ fil_name_parse(
 		/* Only MLOG_FILE_NAME is allowed for other than
 		user-defined tablespaces. */
 		corrupt = true;
-	} else if (len > 9
-		   && end_ptr[-9] == OS_PATH_SEPARATOR
-		   && end_ptr[-8] == 'u'
-		   && end_ptr[-7] == 'n'
-		   && end_ptr[-6] == 'd'
-		   && end_ptr[-5] == 'o'
-		   && end_ptr[-4] >= '0' && end_ptr[-4] <= '9'
-		   && end_ptr[-3] >= '0' && end_ptr[-3] <= '9'
-		   && end_ptr[-2] >= '0' && end_ptr[-2] <= '9'
-		   && end_ptr[-1] == 0) {
+	} else if (is_undo_tablespace_name(name, len - 1)) {
 		/* Undo tablespace */
 		if (first_page_no != 0) {
 			corrupt = true;
@@ -3678,12 +3696,11 @@ recv_group_scan_log_recs(
 	DBUG_RETURN(store_to_hash == STORE_NO);
 }
 
-/*******************************************************//**
-Initialize crash recovery environment. Can be called iff
+/** Initialize crash recovery environment. Can be called iff
 recv_needed_recovery == false. */
 static
 void
-recv_init_crash_recovery(void)
+recv_init_crash_recovery()
 {
 	ut_ad(!srv_read_only_mode);
 	ut_a(!recv_needed_recovery);
@@ -3692,28 +3709,146 @@ recv_init_crash_recovery(void)
 }
 
 /** Report a missing tablespace for which page-redo log exists.
-@param[in]	err	previous error code
-@param[in]	i	tablespace descriptor
-@return new error code */
+@param[in]	space		Space id
+@param[in]	file_name	Tablespace file name */
 static
-dberr_t
-recv_init_missing_space(dberr_t err, const recv_spaces_t::const_iterator& i)
+void
+recv_print_missing_msg(
+	space_id_t		space,
+	const std::string&	file_name)
 {
 	if (srv_force_recovery == 0) {
-		ib::error() << "Tablespace " << i->first << " was not"
-			" found at " << i->second.name << ".";
 
-		if (err == DB_SUCCESS) {
-			ib::error() << "Set innodb_force_recovery=1 to"
-				" ignore this and to permanently lose"
-				" all changes to the tablespace.";
-			err = DB_TABLESPACE_NOT_FOUND;
-		}
+		ib::error()
+			<< "Tablespace " << space << " was not"
+			" found at " << file_name << ".";
+
 	} else {
-		ib::warn() << "Tablespace " << i->first << " was not"
-			" found at " << i->second.name << ", and"
+		ib::warn()
+			<< "Tablespace " << space << " was not"
+			" found at " << file_name << ", and"
 			" innodb_force_recovery was set. All redo log"
 			" for this tablespace will be ignored!";
+	}
+}
+
+typedef std::set<space_id_t, std::less<space_id_t>, ut_allocator<space_id_t>>
+space_set_t;
+
+/** Check if the space ID was recovered from the redo log. If it was already
+marked as deleted then ignore. If it is in the missing set then remove from
+the set and mark it as deleted. UNDO tablespace are handled differently, we
+don't return a DB_TABLESPACE_NOT_FOUND, but a DB_TABLESPACE_DELETED error.
+This is to handle the case where we are in the process of a truncating an
+UNDO tablespace and the server crashes.
+@param[in,out]	missing		space ids of tablespaces that were found in
+				the redo log but could not be opened.
+@param[in]	space		space id to check
+@return DB_SUCCESS, DB_TABLESPACE_NOT_FOUND or DB_TABLESPACE_DELETED */
+static
+dberr_t
+recv_check_space(
+	space_set_t&		missing,
+	space_id_t		space)
+{
+	recv_spaces_t::iterator it = recv_spaces.find(space);
+
+	ut_ad(it != recv_spaces.end());
+
+	if (it->second.deleted) {
+
+		ut_ad(missing.find(space) == missing.end());
+
+		return(DB_TABLESPACE_DELETED);
+	}
+
+	space_set_t::iterator	itm;
+
+	itm = missing.find(space);
+
+	if (itm == missing.end()) {
+
+		return(DB_SUCCESS);
+	}
+
+	missing.erase(itm);
+
+	recv_print_missing_msg(it->first, it->second.name);
+
+	/* All further redo log for this tablespace should be removed. */
+	it->second.deleted = true;
+
+	const std::string&	name = it->second.name;
+
+	/* DB_TABLESPACE_NOT_FOUND is a hard error, we return
+	DB_TABLESPACE_DELETED so that the UNDO tablespace will
+	be created. */
+	/* TODO: We should check if the undo tablespace was being truncated
+	before crash */
+	if (is_undo_tablespace_name(name.c_str(), name.length())) {
+		return(DB_TABLESPACE_DELETED);
+	}
+
+	return(DB_TABLESPACE_NOT_FOUND);
+}
+
+/** Remove the space IDs from missing that we were not able to open.
+@param[in,out]	missing		Set of tablespace IDs that were logged
+				in the redo logged but which we failed
+				to open
+@return	DB_SUCCESS or error code(DB_TABLESPACE_NOT_FOUND) */
+static
+dberr_t
+recv_check_missing_spaces(space_set_t& missing)
+{
+	dberr_t	err = DB_SUCCESS;
+	static const char* help_msg = "Set innodb_force_recovery=1 to ignore"
+				      " this and to permanently lose all"
+				      " changes to the tablespace.";
+
+	for (ulint i = 0; i < hash_get_n_cells(recv_sys->addr_hash); ++i) {
+
+		for (recv_addr_t* recv_addr = static_cast<recv_addr_t*>(
+			     HASH_GET_FIRST(recv_sys->addr_hash, i));
+		     recv_addr != NULL;
+		     recv_addr = static_cast<recv_addr_t*>(
+			     HASH_GET_NEXT(addr_hash, recv_addr))) {
+
+			const space_id_t space = recv_addr->space;
+
+			if (space == TRX_SYS_SPACE) {
+				continue;
+			}
+
+			switch (recv_check_space(missing, space)) {
+			case DB_SUCCESS:
+				break;
+
+			case DB_TABLESPACE_NOT_FOUND:
+				/* Tablespace was logged in the redo log,
+				but could not be opened. */
+
+				/* We only return the first not found
+				error to the caller and only if
+				we are not ignoring file not
+				found errors. */
+				if (err == DB_SUCCESS
+				    && srv_force_recovery == 0) {
+
+					ib::error() << help_msg;
+					err = DB_TABLESPACE_NOT_FOUND;
+				}
+				/* Fall through */
+
+			case DB_TABLESPACE_DELETED:
+				/* Tablespace was deleted before the crash */
+				recv_addr->state = RECV_DISCARDED;
+				break;
+
+			default:
+				ut_error;
+			}
+		}
 	}
 
 	return(err);
@@ -3723,11 +3858,10 @@ recv_init_missing_space(dberr_t err, const recv_spaces_t::const_iterator& i)
 @return error code or DB_SUCCESS */
 static __attribute__((warn_unused_result))
 dberr_t
-recv_init_crash_recovery_spaces(void)
+recv_init_crash_recovery_spaces()
 {
-	typedef std::set<ulint>	space_set_t;
-	bool		flag_deleted	= false;
 	space_set_t	missing_spaces;
+	bool		flag_deleted	= false;
 
 	ut_ad(!srv_read_only_mode);
 	ut_ad(recv_needed_recovery);
@@ -3735,81 +3869,52 @@ recv_init_crash_recovery_spaces(void)
 	ib::info() << "Database was not shutdown normally!";
 	ib::info() << "Starting crash recovery.";
 
-	for (recv_spaces_t::iterator i = recv_spaces.begin();
-	     i != recv_spaces.end(); i++) {
-		if (i->second.deleted) {
+	for (const auto& v : recv_spaces) {
+
+		if (v.second.deleted) {
+
 			/* The tablespace was deleted,
 			so we can ignore any redo log for it. */
-			ut_ad(i->first != TRX_SYS_SPACE);
+			ut_ad(v.first != TRX_SYS_SPACE);
 			flag_deleted = true;
-		} else if (i->second.space != NULL) {
+
+		} else if (v.second.space != NULL) {
+
 			/* The tablespace was found, and there
 			are some redo log records for it. */
-			fil_names_dirty(i->second.space);
-		} else if (i->first == TRX_SYS_SPACE) {
+			fil_names_dirty(v.second.space);
+
+		} else if (v.first == TRX_SYS_SPACE) {
+
 			/* The system tablespace is always opened. */
+
 		} else {
-			missing_spaces.insert(i->first);
+
+			missing_spaces.insert(v.first);
 			flag_deleted = true;
 		}
 	}
 
 	if (flag_deleted) {
-		dberr_t err = DB_SUCCESS;
 
-		for (ulint h = 0;
-		     h < hash_get_n_cells(recv_sys->addr_hash);
-		     h++) {
-			for (recv_addr_t* recv_addr
-				     = static_cast<recv_addr_t*>(
-					     HASH_GET_FIRST(
-						     recv_sys->addr_hash, h));
-			     recv_addr != 0;
-			     recv_addr = static_cast<recv_addr_t*>(
-				     HASH_GET_NEXT(addr_hash, recv_addr))) {
-				const ulint space = recv_addr->space;
+		dberr_t	err;
 
-				if (space == TRX_SYS_SPACE) {
-					continue;
-				}
-
-				recv_spaces_t::iterator i
-					= recv_spaces.find(space);
-				ut_ad(i != recv_spaces.end());
-
-				if (i->second.deleted) {
-					ut_ad(missing_spaces.find(space)
-					      == missing_spaces.end());
-					recv_addr->state = RECV_DISCARDED;
-					continue;
-				}
-
-				space_set_t::iterator m = missing_spaces.find(
-					space);
-
-				if (m != missing_spaces.end()) {
-					missing_spaces.erase(m);
-					err = recv_init_missing_space(err, i);
-					recv_addr->state = RECV_DISCARDED;
-					/* All further redo log for this
-					tablespace should be removed. */
-					i->second.deleted = true;
-				}
-			}
-		}
+		err = recv_check_missing_spaces(missing_spaces);
 
 		if (err != DB_SUCCESS) {
 			return(err);
 		}
 	}
 
-	for (space_set_t::const_iterator m = missing_spaces.begin();
-	     m != missing_spaces.end(); m++) {
-		recv_spaces_t::iterator i = recv_spaces.find(*m);
-		ut_ad(i != recv_spaces.end());
+	for (const auto& space : missing_spaces) {
 
-		ib::info() << "Tablespace " << i->first
-			<< " was not found at '" << i->second.name
+		recv_spaces_t::iterator itm = recv_spaces.find(space);
+
+		ut_ad(itm != recv_spaces.end());
+
+		ib::info()
+			<< "Tablespace " << itm->first
+			<< " was not found at '" << itm->second.name
 			<< "', but there were no modifications either.";
 	}
 
