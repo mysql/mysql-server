@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5281,8 +5281,9 @@ void safe_connect(MYSQL* mysql, const char *name, const char *host,
   verbose_msg("Connecting to server %s:%d (socket %s) as '%s'"
               ", connection '%s', attempt %d ...", 
               host, port, sock, user, name, failed_attempts);
-  while(!mysql_real_connect(mysql, host,user, pass, db, port, sock,
-                            CLIENT_MULTI_STATEMENTS | CLIENT_REMEMBER_OPTIONS))
+  while(!mysql_connect_ssl_check(mysql, host,user, pass, db, port, sock,
+                                 CLIENT_MULTI_STATEMENTS | CLIENT_REMEMBER_OPTIONS,
+                                 opt_ssl_required))
   {
     /*
       Connect failed
@@ -5382,8 +5383,9 @@ int connect_n_handle_errors(struct st_command *command,
     dynstr_append_mem(ds, ";\n", 2);
   }
   
-  while (!mysql_real_connect(con, host, user, pass, db, port, sock ? sock: 0,
-                          CLIENT_MULTI_STATEMENTS))
+  while (!mysql_connect_ssl_check(con, host, user, pass, db, port,
+                                  sock ? sock: 0, CLIENT_MULTI_STATEMENTS,
+                                  opt_ssl_required))
   {
     /*
       If we have used up all our connections check whether this
