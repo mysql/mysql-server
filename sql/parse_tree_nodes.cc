@@ -22,6 +22,44 @@
 #include "sp_pcontext.h"
 
 
+/**
+  Gcc can't or won't allow a pure virtual destructor without an implementation.
+*/
+PT_joined_table::~PT_joined_table() {}
+
+
+PT_table_ref_joined_table
+*PT_table_factor::add_cross_join(PT_table_ref_joined_table *cj)
+{
+  cj->add_rhs(this);
+  return cj;
+}
+
+
+bool PT_table_ref_joined_table::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc) || join_table->contextualize(pc))
+    return true;
+
+  value= pc->select->nest_last_join(pc->thd);
+  return value == NULL;
+}
+
+
+PT_table_ref_joined_table
+*PT_table_ref_joined_table::add_cross_join(PT_table_ref_joined_table *cj)
+{
+  join_table->add_cross_join_left(cj);
+  return this;
+}
+
+
+void PT_table_ref_joined_table::add_rhs(PT_table_reference *table)
+{
+  join_table->add_rhs(table);
+}
+
+
 bool PT_option_value_no_option_type_charset:: contextualize(Parse_context *pc)
 {
   if (super::contextualize(pc))
@@ -220,155 +258,6 @@ bool PT_order::contextualize(Parse_context *pc)
   // Reset parsing place only for ORDER BY
   if (pc->select->parsing_place == CTX_ORDER_BY)
     pc->select->parsing_place= CTX_NONE;
-  return false;
-}
-
-
-bool PT_table_factor_select_sym::contextualize(Parse_context *pc)
-{
-  if (super::contextualize(pc))
-    return true;
-
-  LEX * const lex= pc->thd->lex;
-  SELECT_LEX *const outer_select= pc->select;
-
-  if (!outer_select->embedding || outer_select->end_nested_join(pc->thd))
-  {
-    /* we are not in parentheses */
-    error(pc, pos);
-    return true;
-  }
-  TABLE_LIST *embedding= outer_select->embedding;
-  const bool is_deeply_nested= embedding &&
-                               !embedding->nested_join->join_list.elements;
-
-  lex->derived_tables|= DERIVED_SUBQUERY;
-  if (!lex->expr_allows_subselect ||
-      lex->sql_command == (int)SQLCOM_PURGE)
-  {
-    error(pc, pos);
-    return true;
-  }
-
-  outer_select->parsing_place= CTX_DERIVED;
-  if (outer_select->linkage == GLOBAL_OPTIONS_TYPE)
-    return true; // TODO: error(pc, pos)?
-
-  SELECT_LEX * const child= lex->new_query(pc->select);
-  if (child == NULL)
-    return true;
-
-  // Note that this current select is different from the one above
-  pc->select= child;
-  pc->select->linkage= DERIVED_TABLE_TYPE;
-  pc->select->parsing_place= CTX_SELECT_LIST;
-  outer_select->parsing_place= CTX_NONE;
-
-  Yacc_state *yyps= &pc->thd->m_parser_state->m_yacc;
-
-  if (select_options.query_spec_options & SELECT_HIGH_PRIORITY)
-  {
-    yyps->m_lock_type= TL_READ_HIGH_PRIORITY;
-    yyps->m_mdl_type= MDL_SHARED_READ;
-  }
-  if (select_options.save_to(pc))
-    return true;
-
-  if (select_item_list->contextualize(pc))
-    return true;
-  DBUG_ASSERT(child == pc->select);
-
-  // Ensure we're resetting parsing place of the right select
-  DBUG_ASSERT(child->parsing_place == CTX_SELECT_LIST);
-  child->parsing_place= CTX_NONE;
-
-  if (table_expression->contextualize(pc))
-    return true;
-
-  if (is_deeply_nested)
-  {
-    if (child->set_braces(1))
-    {
-      error(pc, pos);
-      return true;
-    }
-  }
-  if (outer_select->init_nested_join(pc->thd))
-    return true;
-
-  /* incomplete derived tables return NULL, we must be
-     nested in select_derived rule to be here. */
-  value= NULL;
-
-  if (opt_hint_list != NULL && opt_hint_list->contextualize(pc))
-    return true;
-
-  return false;
-}
-
-
-bool PT_table_factor_parenthesis::contextualize(Parse_context *pc)
-{
-  if (super::contextualize(pc))
-    return true;
-
-  SELECT_LEX * const outer_select= pc->select;
-
-  if (select_derived_union->contextualize(pc))
-    return true;
-
-  /*
-    Use outer_select instead of pc->select as derived table has
-    altered value of pc->select.
-  */
-  if (!(select_derived_union->value || opt_table_alias) &&
-      outer_select->embedding &&
-      !outer_select->embedding->nested_join->join_list.elements)
-  {
-    /*
-      we have a derived table (select_derived_union->value == NULL)
-      but no alias,
-      Since we are nested in further parentheses so we
-      can pass NULL to the outer level parentheses
-      Permits parsing of "((((select ...))) as xyz)"
-    */
-    value= 0;
-  }
-  else if (!select_derived_union->value)
-  {
-    /*
-      Handle case of derived table, alias may be NULL if there
-      are no outer parentheses, add_table_to_list() will throw
-      error in this case
-    */
-    SELECT_LEX_UNIT *unit= pc->select->master_unit();
-    pc->select= outer_select;
-    Table_ident *ti= new Table_ident(unit);
-    if (ti == NULL)
-      return true;
-
-    value= pc->select->add_table_to_list(pc->thd,
-                                         ti, opt_table_alias, 0,
-                                         TL_READ, MDL_SHARED_READ);
-    if (value == NULL)
-      return true;
-    pc->select->add_joined_table(value);
-    pc->thd->lex->pop_context();
-  }
-  else if (opt_table_alias != NULL)
-  {
-    /*
-      Tables with or without joins within parentheses cannot
-      have aliases, and we ruled out derived tables above.
-    */
-    error(pc, alias_pos);
-    return true;
-  }
-  else
-  {
-    /* nested join: FROM (t1 JOIN t2 ...) */
-    value= select_derived_union->value;
-  }
   return false;
 }
 
@@ -1102,6 +991,161 @@ Sql_cmd *PT_insert::make_cmd(THD *thd)
 }
 
 
+bool PT_select_part2::contextualize(Parse_context *pc)
+{
+  if (super::contextualize(pc) ||
+      select_options_and_item_list->contextualize(pc) ||
+      contextualize_safe(pc, opt_into1) ||
+      contextualize_safe(pc, from_clause) ||
+      itemize_safe(pc, &opt_where_clause) ||
+      contextualize_safe(pc, opt_group_clause) ||
+      itemize_safe(pc, &opt_having_clause))
+    return true;
+
+  pc->select->set_where_cond(opt_where_clause);
+  pc->select->set_having_cond(opt_having_clause);
+
+  if (contextualize_safe(pc, opt_order_clause) ||
+      contextualize_safe(pc, opt_limit_clause) ||
+      contextualize_safe(pc, opt_procedure_analyse_clause))
+    return true;
+
+  DBUG_ASSERT(opt_procedure_analyse_clause == NULL || opt_into1 == NULL);
+
+  if (opt_select_lock_type.is_set)
+  {
+    pc->select->set_lock_for_tables(opt_select_lock_type.lock_type);
+    pc->thd->lex->safe_to_cache_query=
+      opt_select_lock_type.is_safe_to_cache_query;
+  }
+
+  return false;
+}
+
+
+PT_derived_table::PT_derived_table(PT_subquery *subquery,
+                                   LEX_STRING *table_alias)
+  : m_subquery(subquery),
+    m_table_alias(table_alias)
+{
+  m_subquery->m_is_derived_table= true;
+}
+
+
+bool PT_derived_table::contextualize(Parse_context *pc)
+{
+  SELECT_LEX *outer_select= pc->select;
+  LEX *lex= pc->thd->lex;
+
+  lex->derived_tables|= DERIVED_SUBQUERY;
+
+  outer_select->parsing_place= CTX_DERIVED;
+  DBUG_ASSERT(outer_select->linkage != GLOBAL_OPTIONS_TYPE);
+
+  if (m_subquery->contextualize(pc))
+    return true;
+
+  outer_select->parsing_place= CTX_NONE;
+
+  DBUG_ASSERT(pc->select->next_select() == NULL);
+
+  SELECT_LEX_UNIT *unit= pc->select->first_inner_unit();
+  pc->select= outer_select;
+  Table_ident *ti= new Table_ident(unit);
+  if (ti == NULL)
+    return true;
+
+  value= pc->select->add_table_to_list(pc->thd,
+                                       ti, m_table_alias, 0,
+                                       TL_READ, MDL_SHARED_READ);
+  if (value == NULL)
+    return true;
+  pc->select->add_joined_table(value);
+
+  return false;
+}
+
+
+bool PT_table_factor_joined_table::contextualize(Parse_context *pc)
+{
+  if (Parse_tree_node::contextualize(pc))
+    return true;
+
+  SELECT_LEX *outer_select= pc->select;
+  if (outer_select->init_nested_join(pc->thd))
+    return true;
+
+  if (m_joined_table->contextualize(pc))
+    return true;
+
+  value= pc->select->nest_last_join(pc->thd);
+
+  outer_select->end_nested_join(pc->thd);
+
+  return false;
+}
+
+
+PT_table_ref_joined_table
+*PT_table_factor_joined_table::add_cross_join(PT_table_ref_joined_table* cj)
+{
+  cj->add_rhs(this);
+  return cj;
+}
+
+
+/**
+  A SELECT_LEX_UNIT has to be built in a certain order: First the SELECT_LEX
+  representing the left-hand side of the union is built ("contextualized",)
+  then the right hand side, and lastly the "fake" SELECT_LEX is built and made
+  the "current" one. Only then can the order and limit clauses be
+  contextualized, because they are attached to the fake SELECT_LEX. This is a
+  bit unnatural, as these clauses belong to the surrounding `<query
+  expression>`, not the `<query expression body>` which is the union (and
+  represented by this class). For this reason, the PT_query_expression is
+  expected to call `set_containing_qe(this)` on this object, so that during
+  this contextualize() call, a call to contextualize_order_and_limit() can be
+  made at just the right time.
+*/
+bool PT_union::contextualize(Parse_context *pc)
+{
+  THD *thd= pc->thd;
+
+  if (pc->is_top_level && m_lhs->is_union() && m_lhs->has_parentheses())
+    thd->parse_error_at(m_lhs_pos, NULL);
+
+  if (PT_query_expression_body::contextualize(pc))
+    return true;
+
+  if (m_lhs->contextualize(pc))
+    return true;
+
+  pc->select=
+    pc->thd->lex->new_union_query(pc->select, m_is_distinct, false);
+
+  if (pc->select == NULL || m_rhs->contextualize(pc))
+    return true;
+
+  SELECT_LEX_UNIT *unit= pc->select->master_unit();
+  if (unit->fake_select_lex == NULL && unit->add_fake_select_lex(thd))
+    return true;
+
+  SELECT_LEX *select_lex= pc->select;
+  pc->select= unit->fake_select_lex;
+  pc->select->no_table_names_allowed= true;
+
+  if (m_containing_qe != NULL &&
+      m_containing_qe->contextualize_order_and_limit(pc))
+    return true;
+
+  pc->select->no_table_names_allowed= false;
+  pc->select= select_lex;
+
+  pc->thd->lex->pop_context();
+
+  return false;
+}
+
 /**
   @brief
   make_cmd for PT_alter_instance.
@@ -1142,3 +1186,4 @@ bool PT_alter_instance::contextualize(Parse_context *pc)
   lex->no_write_to_binlog= false;
   return false;
 }
+

@@ -16,6 +16,8 @@
 #ifndef TEMPLATE_UTILS_INCLUDED
 #define TEMPLATE_UTILS_INCLUDED
 
+#include "my_dbug.h"
+
 /**
   @file include/template_utils.h
 */

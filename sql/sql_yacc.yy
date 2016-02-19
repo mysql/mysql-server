@@ -423,11 +423,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %parse-param { class THD *YYTHD }
 %lex-param { class THD *YYTHD }
 %pure-parser                                    /* We have threads */
-/*
-  Currently there are 159 shift/reduce conflicts.
-  We should not introduce new conflicts any more.
-*/
-%expect 155
+/* We should not introduce new conflicts any more. */
+%expect 121
 
 /*
    Comments for TOKENS.
@@ -1009,7 +1006,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  SYSDATE
 %token  TABLES
 %token  TABLESPACE_SYM
-%token  TABLE_REF_PRIORITY
 %token  TABLE_SYM                     /* SQL-2003-R */
 %token  TABLE_CHECKSUM_SYM
 %token  TABLE_NAME_SYM                /* SQL-2003-N */
@@ -1103,9 +1099,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 */
 %right UNIQUE_SYM KEY_SYM
 
-%left   JOIN_SYM INNER_SYM STRAIGHT_JOIN CROSS LEFT RIGHT
-/* A dummy token to force the priority of table_ref production in a join. */
-%left   TABLE_REF_PRIORITY
+%left CONDITIONLESS_JOIN
+%left   JOIN_SYM INNER_SYM CROSS STRAIGHT_JOIN NATURAL LEFT RIGHT ON USING
 %left   SET_VAR
 %left   OR_OR_SYM OR_SYM OR2_SYM
 %left   XOR
@@ -1122,6 +1117,11 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %right  NOT_SYM NOT2_SYM
 %right  BINARY COLLATE_SYM
 %left  INTERVAL_SYM
+%left SUBQUERY_AS_EXPR
+%left '(' ')'
+
+%left EMPTY_FROM_CLAUSE
+%right INTO
 
 %type <lex_str>
         IDENT IDENT_QUOTED TEXT_STRING DECIMAL_NUM FLOAT_NUM NUM LONG_NUM HEX_NUM
@@ -1293,7 +1293,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         field_opt_list table_lock_list table_lock
         ref_list opt_match_clause opt_on_update_delete use
         varchar nchar nvarchar
-        opt_outer table_list table_name
+        table_list table_name
         opt_place
         opt_attribute opt_attribute_list attribute column_list column_list_id
         opt_column_list grant_privileges grant_ident grant_list grant_option
@@ -1301,7 +1301,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         clear_privileges flush_options flush_option
         opt_flush_lock flush_options_list
         equal optional_braces
-        opt_mi_check_type opt_to mi_check_types normal_join
+        opt_mi_check_type opt_to mi_check_types
         table_to_table_list table_to_table opt_table_list opt_as
         opt_and charset
         help
@@ -1390,8 +1390,6 @@ END_OF_INPUT
         index_hints_list opt_index_hints_list opt_key_definition
         cache_key_list_or_empty cache_keys_spec
 
-%type <subselect> subselect
-
 %type <order_expr> order_expr
 
 %type <order_list> order_list group_list gorder_list opt_gorder_clause
@@ -1408,18 +1406,17 @@ END_OF_INPUT
 
 %type <limit_clause> limit_clause opt_limit_clause
 
-%type <ulonglong_number> query_spec_option query_spec_option_list
-        opt_query_spec_options
+%type <ulonglong_number> query_spec_option
 
 %type <select_options> select_option select_option_list select_options
         empty_select_options
 
-%type <node> join_table order_or_limit opt_union_order_or_limit
-        option_value union_opt
+%type <node> order_or_limit
+          option_value union_opt
 
-%type <table_reference_list> table_reference_list from_clause opt_from_clause
+%type <join_table> joined_table joined_table_parens
 
-%type <select_part2_derived> select_part2_derived
+%type <table_reference_list> opt_from_clause from_clause from_tables
 
 %type <olap_type> olap_opt
 
@@ -1437,14 +1434,12 @@ END_OF_INPUT
 
 %type <table_expression> table_expression
 
-%type <table_list2> select_derived_union
-        table_factor table_ref esc_table_ref derived_table_list select_derived
+%type <table_reference> table_reference esc_table_reference
+          table_reference_list table_reference_list_parens
 
-%type <join_table_list> join_table_list
+%type <table_factor> table_factor single_table single_table_parens
 
-%type <select_paren_derived> select_paren_derived
-
-%type <select_lex2> query_specification query_expression_body
+%type <query_expression_body> query_expression_body
 
 %type <internal_variable_name> internal_variable_name
 
@@ -1474,7 +1469,7 @@ END_OF_INPUT
 
 %type <field_separators> field_term field_term_list opt_field_term
 
-%type <into_destination> into_destination into opt_into
+%type <into_destination> into_destination into_clause
 
 %type <select_var_ident> select_var_ident
 
@@ -1484,11 +1479,19 @@ END_OF_INPUT
 
 %type <select_part2> select_part2
 
+%type <query_primary> query_primary  query_specification
+
 %type <select_paren> select_paren
 
 %type <select_init> select_init
 
-%type <select> select do_stmt
+%type <query_expression> query_expression query_expression_parens
+
+%type <subquery> subquery row_subquery table_subquery
+
+%type <derived_table> derived_table
+
+%type <select_stmt> select_stmt do_stmt select_stmt_with_into
 
 %type <param_marker> param_marker
 
@@ -1530,6 +1533,8 @@ END_OF_INPUT
 %type <column_row_value_list_pair> insert_from_constructor
 
 %type <optimizer_hints> SELECT_SYM INSERT REPLACE UPDATE_SYM DELETE_SYM
+
+%type <join_type> outer_join_type natural_join_type inner_join_type
 
 %type <alter_instance_action> alter_instance_action
 
@@ -1656,7 +1661,7 @@ statement:
         | revoke
         | rollback
         | savepoint
-        | select                { CONTEXTUALIZE($1); }
+        | select_stmt           { CONTEXTUALIZE($1); }
         | set                   { CONTEXTUALIZE($1); }
         | signal_stmt
         | show
@@ -3064,7 +3069,7 @@ sp_decl:
             sp->reset_lex(thd);
             sp->m_parser_data.set_current_stmt_start_ptr(@4.raw.end);
           }
-          select        /*$6*/
+          select_stmt   /*$6*/
           {             /*$7*/
             CONTEXTUALIZE($6);
 
@@ -5058,6 +5063,10 @@ create2:
           }
         ;
 
+/**
+  @todo: Make this rule produce query_expression instead of create_select and
+  union_opt.
+*/
 create2a:
           create_field_list ')' opt_create_table_options
           opt_create_partitioning
@@ -5075,6 +5084,10 @@ create2a:
            }
         ;
 
+/**
+  @todo: Make this rule produce query_expression instead of create_select and
+  opt_union_clause or union_opt.
+*/
 create3:
           /* empty */ {}
         | opt_duplicate opt_as create_select
@@ -8931,19 +8944,79 @@ opt_ignore_leaves:
         | IGNORE_SYM LEAVES { $$= TL_OPTION_IGNORE_LEAVES; }
         ;
 
-/*
-  Select : retrieve data from table
-*/
-
-
-select:
-          select_init
+select_stmt:
+          query_expression
           {
-            $$= NEW_PTN PT_select($1, SQLCOM_SELECT);
+            $$= NEW_PTN PT_select_stmt($1);
+          }
+        | query_expression_parens
+          {
+            if ($1 == NULL)
+              MYSQL_YYABORT; // OOM
+            $$= NEW_PTN PT_select_stmt($1);
+          }
+        | select_stmt_with_into
+        ;
+
+/*
+  MySQL has a syntax extension that allows into clauses in any one of two
+  places. They may appear either before the from clause or at the end. All in
+  a top-level select statement. This extends the standard syntax in two
+  ways. First, we don't have the restriction that the result can contain only
+  one row: the into clause might be INTO OUTFILE/DUMPFILE in which case any
+  number of rows is allowed. Hence MySQL does not have any special case for
+  the standard's <select statement: single row>. Secondly, and this has more
+  severe implications for the parser, it makes the grammar ambiguous, because
+  in a from-clause-less select statement with an into clause, it is not clear
+  whether the into clause is the leading or the trailing one.
+
+  While it's possible to write an unambiguous grammar, it would force us to
+  duplicate the entire <select statement> syntax all the way down to the <into
+  clause>. So instead we solve it by writing an ambiguous grammar and use
+  precedence rules to sort out the shift/reduce conflict.
+
+  The problem is when the parser has seen SELECT <select list>, and sees an
+  INTO token. It can now either shift it or reduce what it has to a table-less
+  query expression. If it shifts the token, it will accept seeing a FROM token
+  next and hence the INTO will be interpreted as the leading INTO. If it
+  reduces what it has seen to a table-less select, however, it will interpret
+  INTO as the trailing into. But what if the next token is FROM? Obviously,
+  we want to always shift INTO. We do this by two precedence declarations: We
+  make the INTO token right-associative, and we give it higher precedence than
+  an empty from clause, using the artificial token EMPTY_FROM_CLAUSE.
+
+  The remaining problem is that now we allow the leading INTO anywhere, when
+  it should be allowed on the top level only. We solve this by manually
+  throwing parse errors whenever we reduce a nested query expression if it
+  contains an into clause.
+*/
+select_stmt_with_into:
+          '(' select_stmt_with_into ')'
+          {
+            $$= $2;
+          }
+        | query_expression into_clause
+          {
+            if ($1 == NULL)
+              MYSQL_YYABORT; // OOM
+
+            if ($1->has_into_clause())
+              YYTHD->parse_error_at(@2, ER_THD(YYTHD, ER_SYNTAX_ERROR));
+
+            if ($1->has_procedure())
+            {
+              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "INTO");
+              MYSQL_YYABORT;
+            }
+
+            $$= NEW_PTN PT_select_stmt($1, $2);
           }
         ;
 
-/* Need first branch for subselects. */
+/*
+  Need first branch for subselects.
+  todo: Remove this rule and replace uses of it with query_expression.
+*/
 select_init:
           SELECT_SYM select_part2 opt_union_clause
           {
@@ -8955,21 +9028,165 @@ select_init:
           }
         ;
 
+/**
+  A <query_expression> within parentheses can be used as an <expr>. Now,
+  because both a <query_expression> and an <expr> can appear syntactically
+  within any number of parentheses, we get an ambiguous grammar: Where do the
+  parentheses belong? Techically, we have to tell Bison by which rule to
+  reduce the extra pair of parentheses. We solve it in a somewhat tedious way
+  by defining a query_expression so that it can't have enclosing
+  parentheses. This forces us to be very explicit about exactly where we allow
+  parentheses; while the standard defines only one rule for <query expression>
+  parentheses, we have to do it in several places. But this is a blessing in
+  disguise, as we are able to define our syntax in a more fine-grained manner,
+  and this is necessary in order to support some MySQL extensions, for example
+  as in the last two sub-rules here.
+
+  Even if we define a query_expression not to have outer parentheses, we still
+  get a shift/reduce conflict for the <subquery> rule, but we solve this by
+  using an artifical token SUBQUERY_AS_EXPR that has less priority than
+  parentheses. This ensures that the parser consumes as many parentheses as it
+  can, and only when that fails will it try to reduce, and by then it will be
+  clear from the lookahead token whether we have a subquery or just a
+  query_expression within parentheses. For example, if the lookahead token is
+  UNION it's just a query_expression within parentheses and the parentheses
+  don't mean it's a subquery. If the next token is PLUS, we know it must be an
+  <expr> and the parentheses really mean it's a subquery.
+*/
+query_expression:
+          query_expression_body
+          opt_order_clause
+          opt_limit_clause
+          opt_procedure_analyse_clause
+          opt_select_lock_type
+          {
+            if ($1 == NULL)
+              MYSQL_YYABORT; // OOM
+
+            if ($1->is_union() && $4 != NULL)
+              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
+
+            if ($1->has_into_clause() && $4 != NULL)
+            {
+              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "INTO");
+              MYSQL_YYABORT;
+            }
+
+            $$= NEW_PTN PT_query_expression($1, $2, @$, $3, $4, $5);
+          }
+        | query_expression_parens
+          order_clause
+          opt_limit_clause
+          opt_procedure_analyse_clause
+          opt_select_lock_type
+          {
+            if ($1 == NULL)
+              MYSQL_YYABORT; // OOM
+            if ($1->is_union() && $4 != NULL)
+              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
+            PT_nested_query_expression *nested=
+              NEW_PTN PT_nested_query_expression($1);
+            PT_query_expression_body_primary *body=
+              NEW_PTN PT_query_expression_body_primary(nested);
+            $$= NEW_PTN PT_query_expression(body, $2, @$, $3, $4, $5);
+          }
+        | query_expression_parens
+          limit_clause
+          opt_procedure_analyse_clause
+          opt_select_lock_type
+          {
+            if ($1 == NULL)
+              MYSQL_YYABORT; // OOM
+            if ($1->is_union() && $3 != NULL)
+              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
+            $$= NEW_PTN PT_query_expression($1, NULL, @$, $2, $3, $4);
+          }
+        ;
+
+query_expression_body:
+          query_primary
+          {
+            $$= NEW_PTN PT_query_expression_body_primary($1);
+          }
+        | query_expression_body UNION_SYM union_option query_primary
+          {
+            $$= NEW_PTN PT_union(NEW_PTN PT_query_expression($1), @1, $3, $4);
+          }
+        | query_expression_parens UNION_SYM union_option query_primary
+          {
+            if ($1 == NULL)
+              MYSQL_YYABORT; // OOM
+
+            $1->set_parentheses();
+
+            $$= NEW_PTN PT_union($1, @1, $3, $4);
+          }
+        | query_expression_body UNION_SYM union_option query_expression_parens
+          {
+            if ($4 == NULL)
+              MYSQL_YYABORT; // OOM
+
+            if ($4->is_union())
+              YYTHD->parse_error_at(@4, ER_THD(YYTHD, ER_SYNTAX_ERROR));
+
+            auto lhs_qe= NEW_PTN PT_query_expression($1);
+            PT_nested_query_expression *nested_qe=
+              NEW_PTN PT_nested_query_expression($4);
+
+            $$= NEW_PTN PT_union(lhs_qe, @1, $3, nested_qe);
+          }
+        | query_expression_parens UNION_SYM union_option query_expression_parens
+          {
+            if ($1 == NULL || $4 == NULL)
+              MYSQL_YYABORT; // OOM
+
+            if ($4->is_union())
+              YYTHD->parse_error_at(@4, ER_THD(YYTHD, ER_SYNTAX_ERROR));
+
+            $1->set_parentheses();
+
+            PT_nested_query_expression *nested_qe=
+              NEW_PTN PT_nested_query_expression($4);
+            $$= NEW_PTN PT_union($1, @1, $3, nested_qe);
+          }
+        ;
+
+
+query_expression_parens:
+          '(' query_expression_parens ')' { $$= $2; }
+        | '(' query_expression ')'
+          {
+            /*
+              We don't call set_parentheses() on a query expression here. It
+              makes no difference to the contextualization phase whether a
+              query expression was within parentheses unless it is used in
+              conjunction with UNION. Therefore set_parentheses() is called
+              only in the rules producing UNION syntax.
+
+              The need for set_parentheses() is purely to support legacy parse
+              rules, and we are gradually moving away from them and using the
+              query_expression_body to define UNION syntax. When this move is
+              complete, we will not need set_parentheses() any more, and the
+              contextualize() phase can be greatly simplified.
+            */
+            $$= $2;
+          }
+        ;
+
+query_primary:
+          query_specification
+          {
+            // Bison doesn't get polymorphism.
+            $$= $1;
+          }
+        ;
+
 select_paren:
           SELECT_SYM select_part2
           {
             $$= NEW_PTN PT_select_paren($1, $2);
           }
         | '(' select_paren ')' { $$= $2; }
-        ;
-
-/* The equivalent of select_paren for nested queries. */
-select_paren_derived:
-          SELECT_SYM select_part2_derived table_expression
-          {
-            $$= NEW_PTN PT_select_paren_derived($1, $2, $3);
-          }
-        | '(' select_paren_derived ')' { $$= $2; }
         ;
 
 /*
@@ -8984,39 +9201,62 @@ select_part2:
           opt_select_lock_type
           {
             $$= NEW_PTN PT_select_part2($1, NULL, NULL, NULL, NULL, NULL,
-                                        $2, $3, NULL, NULL, $4);
+                                        $2, $3, NULL, $4);
           }
-        | select_options_and_item_list into opt_select_lock_type
+        | select_options_and_item_list into_clause opt_select_lock_type
           {
             $$= NEW_PTN PT_select_part2($1, $2, NULL, NULL, NULL, NULL, NULL,
-                                        NULL, NULL, NULL, $3);
+                                        NULL, NULL, $3);
           }
         | select_options_and_item_list  /* #1 */
-          opt_into                      /* #2 */
-          from_clause                   /* #3 */
-          opt_where_clause              /* #4 */
-          opt_group_clause              /* #5 */
-          opt_having_clause             /* #6 */
-          opt_order_clause              /* #7 */
-          opt_limit_clause              /* #8 */
-          opt_procedure_analyse_clause  /* #9 */
-          opt_into                      /* #10 */
-          opt_select_lock_type          /* #11 */
+          from_clause                   /* #2 */
+          opt_where_clause              /* #3 */
+          opt_group_clause              /* #4 */
+          opt_having_clause             /* #5 */
+          opt_order_clause              /* #6 */
+          opt_limit_clause              /* #7 */
+          opt_procedure_analyse_clause  /* #8 */
+          opt_select_lock_type          /* #9 */
           {
-            if ($2 && $10)
-            {
-              /* double "INTO" clause */
-              YYTHD->parse_error_at(@10, ER_THD(YYTHD, ER_SYNTAX_ERROR));
-              MYSQL_YYABORT;
-            }
-            if ($9 && ($2 || $10))
-            {
-              /* "INTO" with "PROCEDURE ANALYSE" */
-              my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "INTO");
-              MYSQL_YYABORT;
-            }
-            $$= NEW_PTN PT_select_part2($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                                        $11);
+            $$= NEW_PTN PT_select_part2($1, NULL, $2, $3, $4, $5, $6, $7, $8,
+                                        $9);
+          }
+        ;
+
+query_specification:
+          SELECT_SYM
+          select_options_and_item_list
+          into_clause
+          opt_from_clause
+          opt_where_clause
+          opt_group_clause
+          opt_having_clause
+          {
+            PT_select_part2 *select_part2=
+              NEW_PTN PT_select_part2($2,  // select_options_and_item_list
+                                      $3,  // into_clause
+                                      $4,  // from
+                                      $5,  // where
+                                      $6,  // group
+                                      $7); // having
+
+            $$= NEW_PTN PT_query_specification($1, select_part2);
+          }
+        | SELECT_SYM
+          select_options_and_item_list
+          opt_from_clause
+          opt_where_clause
+          opt_group_clause
+          opt_having_clause
+          {
+            PT_select_part2 *select_part2=
+              NEW_PTN PT_select_part2($2,  // select_options_and_item_list
+                                      $3,  // from
+                                      $4,  // where
+                                      $5,  // group
+                                      $6); // having
+
+            $$= NEW_PTN PT_query_specification($1, select_part2);
           }
         ;
 
@@ -9025,6 +9265,10 @@ select_options_and_item_list:
             /*
               TODO: remove this semantic action (currently this removal
               adds shift/reduce conflict)
+
+              The new rules, i.e. query_expression et. al are not afflicted by
+              this problem, so when select_part2 has been fully replaced, we
+              can remove it.
             */
           }
           select_options select_item_list
@@ -9048,25 +9292,29 @@ table_expression:
           }
         ;
 
-from_clause:
-          FROM table_reference_list { $$= $2; }
-        ;
-
 opt_from_clause:
-          /* empty */ { $$= NULL; }
+          /* Empty. */ %prec EMPTY_FROM_CLAUSE { $$= NULL; }
         | from_clause
         ;
 
-table_reference_list:
-          join_table_list
+from_clause:
+          FROM from_tables { $$= $2; }
+        ;
+
+from_tables:
+          DUAL_SYM { $$= NULL; }
+        | table_reference_list
           {
-            $$= NEW_PTN PT_table_reference_list($1);
+            $$= NEW_PTN PT_table_reference_list(@$, $1);
           }
-        | DUAL_SYM { $$= NULL; }
-          /* oracle compatibility: oracle always requires FROM clause,
-             and DUAL is system table without fields.
-             Is "SELECT 1 FROM DUAL" any better than "SELECT 1" ?
-          Hmmm :) */
+        ;
+
+table_reference_list:
+          table_reference
+        | table_reference_list ',' table_reference
+          {
+            $$= NEW_PTN PT_derived_table_list(@$, $1, $3);
+          }
         ;
 
 select_options:
@@ -9232,11 +9480,11 @@ bool_pri:
           {
             $$= NEW_PTN Item_func_isnotnull(@$, $1);
           }
-        | bool_pri comp_op predicate %prec EQ
+        | bool_pri comp_op predicate
           {
             $$= NEW_PTN PTI_comp_op(@$, $1, $2, $3);
           }
-        | bool_pri comp_op all_or_any '(' subselect ')' %prec EQ
+        | bool_pri comp_op all_or_any table_subquery %prec EQ
           {
             if ($2 == &comp_equal_creator)
               /*
@@ -9247,19 +9495,19 @@ bool_pri:
                 we still don't want the count to go up.
               */
               YYTHD->parse_error_at(@2, ER_THD(YYTHD, ER_SYNTAX_ERROR));
-            $$= NEW_PTN PTI_comp_op_all(@$, $1, $2, $3, $5);
+            $$= NEW_PTN PTI_comp_op_all(@$, $1, $2, $3, $4);
           }
         | predicate
         ;
 
 predicate:
-          bit_expr IN_SYM '(' subselect ')'
+          bit_expr IN_SYM table_subquery
           {
-            $$= NEW_PTN Item_in_subselect(@$, $1, $4);
+            $$= NEW_PTN Item_in_subselect(@$, $1, $3);
           }
-        | bit_expr not IN_SYM '(' subselect ')'
+        | bit_expr not IN_SYM table_subquery
           {
-            Item *item= NEW_PTN Item_in_subselect(@$, $1, $5);
+            Item *item= NEW_PTN Item_in_subselect(@$, $1, $4);
             $$= NEW_PTN PTI_negate_expression(@$, item);
           }
         | bit_expr IN_SYM '(' expr ')'
@@ -9452,12 +9700,11 @@ simple_expr:
           {
             $$= NEW_PTN PTI_negate_expression(@$, $2);
           }
-        | '(' subselect ')'
+        | row_subquery
           {
-            $$= NEW_PTN PTI_singlerow_subselect(@$, $2);
+            $$= NEW_PTN PTI_singlerow_subselect(@$, $1);
           }
-        | '(' expr ')'
-          { $$= $2; }
+        | '(' expr ')' { $$= $2; }
         | '(' expr ',' expr_list ')'
           {
             $$= NEW_PTN Item_row(@$, $2, $4->value);
@@ -9466,9 +9713,9 @@ simple_expr:
           {
             $$= NEW_PTN Item_row(@$, $3, $5->value);
           }
-        | EXISTS '(' subselect ')'
+        | EXISTS table_subquery
           {
-            $$= NEW_PTN PTI_exists_subselect(@$, $3);
+            $$= NEW_PTN PTI_exists_subselect(@$, $2);
           }
         | '{' ident expr '}'
           {
@@ -10288,129 +10535,175 @@ when_list:
           }
         ;
 
-/* Equivalent to <table reference> in the SQL:2003 standard. */
-/* Warning - may return NULL in case of incomplete SELECT */
-table_ref:
-          table_factor
-        | join_table
+table_reference:
+          table_factor { $$= $1; }
+        | joined_table
           {
-            $$= NEW_PTN PT_table_ref_join_table($1);
+            $$= NEW_PTN PT_table_ref_joined_table($1);
           }
-        ;
-
-join_table_list:
-          derived_table_list
-          {
-            $$= NEW_PTN PT_join_table_list(@$, $1);
-          }
+        | '{' ident esc_table_reference '}' { $$= $3; }
         ;
 
 /*
-  The ODBC escape syntax for Outer Join is: '{' OJ join_table '}'
+  The ODBC escape syntax for Outer Join is: '{' OJ joined_table '}'
   The parser does not define OJ as a token, any ident is accepted
   instead in $2 (ident). Also, all productions from table_ref can
-  be escaped, not only join_table. Both syntax extensions are safe
+  be escaped, not only joined_table. Both syntax extensions are safe
   and are ignored.
 */
-esc_table_ref:
-        table_ref
-      | '{' ident table_ref '}' { $$= $3; }
-      ;
-
-/* Equivalent to <table reference list> in the SQL:2003 standard. */
-/* Warning - may return NULL in case of incomplete SELECT */
-derived_table_list:
-          esc_table_ref
-        | derived_table_list ',' esc_table_ref
+esc_table_reference:
+          table_factor { $$= $1; }
+        | joined_table
           {
-            $$= NEW_PTN PT_derived_table_list(@$, $1, $3);
+            $$= NEW_PTN PT_table_ref_joined_table($1);
           }
         ;
-
 /*
-  Notice that JOIN is a left-associative operation, and it must be parsed
-  as such, that is, the parser must process first the left join operand
-  then the right one. Such order of processing ensures that the parser
-  produces correct join trees which is essential for semantic analysis
-  and subsequent optimization phases.
+  Join operations are normally left-associative, as in
+
+    t1 JOIN t2 ON t1.a = t2.a JOIN t3 ON t3.a = t2.a
+
+  This is equivalent to
+
+    (t1 JOIN t2 ON t1.a = t2.a) JOIN t3 ON t3.a = t2.a
+
+  They can also be right-associative without parentheses, e.g.
+
+    t1 JOIN t2 JOIN t3 ON t2.a = t3.a ON t1.a = t2.a
+
+  Which is equivalent to
+
+    t1 JOIN (t2 JOIN t3 ON t2.a = t3.a) ON t1.a = t2.a
+
+  In MySQL, JOIN and CROSS JOIN mean the same thing, i.e.:
+
+  - A join without a <join specification> is the same as a cross join.
+  - A cross join with a <join specification> is the same as an inner join.
+
+  For the join operation above, this means that the parser can't know until it
+  has seen the last ON whether `t1 JOIN t2` was a cross join or not. The only
+  way to solve the abiguity is to keep shifting the tokens on the stack, and
+  not reduce until the last ON is seen. We tell Bison this by adding a fake
+  token CONDITIONLESS_JOIN which has lower precedence than all tokens that
+  would continue the join. These are JOIN_SYM, INNER_SYM, CROSS,
+  STRAIGHT_JOIN, NATURAL, LEFT, RIGHT, ON and USING. This way the automaton
+  only reduces to a cross join unless no other interpretation is
+  possible. This gives a right-deep join tree for join *with* conditions,
+  which is what is expected.
+
+  The challenge here is that t1 JOIN t2 *could* have been a cross join, we
+  just don't know it until afterwards. So if the query had been
+
+    t1 JOIN t2 JOIN t3 ON t2.a = t3.a
+
+  we will first reduce `t2 JOIN t3 ON t2.a = t3.a` to a <table_reference>,
+  which is correct, but a problem arises when reducing t1 JOIN
+  <table_reference>. If we were to do that, we'd get a right-deep tree. The
+  solution is to build the tree downwards instead of upwards, as is normally
+  done. This concept may seem outlandish at first, but it's really quite
+  simple. When the semantic action for table_reference JOIN table_reference is
+  executed, the parse tree is (please pardon the ASCII graphic):
+
+                       JOIN ON t2.a = t3.a
+                      /    \
+                     t2    t3
+
+  Now, normally we'd just add the cross join node on top of this tree, as:
+
+                    JOIN
+                   /    \
+                 t1    JOIN ON t2.a = t3.a
+                      /    \
+                     t2    t3
+
+  This is not the meaning of the query, however. The cross join should be
+  addded at the bottom:
+
+
+                       JOIN ON t2.a = t3.a
+                      /    \
+                    JOIN    t3
+                   /    \
+                  t1    t2
+
+  There is only one rule to pay attention to: If the right-hand side of a
+  cross join is a join tree, find its left-most leaf (which is a table
+  name). Then replace this table name with a cross join of the left-hand side
+  of the top cross join, and the right hand side with the original table.
+
+  Natural joins are also syntactically conditionless, but we need to make sure
+  that they are never right associative. We handle them in their own rule
+  natural_join, which is left-associative only. In this case we know that
+  there is no join condition to wait for, so we can reduce immediately.
 */
-join_table:
-          /* INNER JOIN variants */
-          /*
-            Use %prec to evaluate production 'table_ref' before 'normal_join'
-            so that [INNER | CROSS] JOIN is properly nested as other
-            left-associative joins.
-          */
-          table_ref normal_join table_ref %prec TABLE_REF_PRIORITY
+joined_table:
+          table_reference inner_join_type table_reference ON expr
           {
-            $$= NEW_PTN PT_join_table<JTT_NORMAL>($1, @2, $3);
+            $$= NEW_PTN PT_joined_table_on($1, @2, $2, $3, $5);
           }
-        | table_ref STRAIGHT_JOIN table_factor
-          {
-            $$= NEW_PTN PT_join_table<JTT_STRAIGHT>($1, @2, $3);
-          }
-        | table_ref normal_join table_ref
-          ON
-          expr
-          {
-            $$= NEW_PTN PT_join_table_on<JTT_NORMAL>($1, @2, $3, $5);
-          }
-        | table_ref STRAIGHT_JOIN table_factor
-          ON
-          expr
-          {
-            $$= NEW_PTN PT_join_table_on<JTT_STRAIGHT>($1, @2, $3, $5);
-          }
-        | table_ref normal_join table_ref
-          USING
+        | table_reference inner_join_type table_reference USING
           '(' using_list ')'
           {
-            $$= NEW_PTN PT_join_table_using<JTT_NORMAL>($1, @2, $3, $6);
+            $$= NEW_PTN PT_joined_table_using($1, @2, $2, $3, $6);
           }
-        | table_ref NATURAL JOIN_SYM table_factor
+        | table_reference outer_join_type table_reference ON expr
           {
-            $$= NEW_PTN PT_join_table<JTT_NATURAL>($1, @2, $4);
+            $$= NEW_PTN PT_joined_table_on($1, @2, $2, $3, $5);
           }
+        | table_reference outer_join_type table_reference USING '(' using_list ')'
+          {
+            $$= NEW_PTN PT_joined_table_using($1, @2, $2, $3, $6);
+          }
+        | table_reference inner_join_type table_reference
+          %prec CONDITIONLESS_JOIN
+          {
+            auto this_cross_join= NEW_PTN PT_cross_join($1, @2, $2, NULL);
 
-          /* LEFT JOIN variants */
-        | table_ref LEFT opt_outer JOIN_SYM table_ref
-          ON
-          expr
-          {
-            $$= NEW_PTN PT_join_table_on<JTT_LEFT>($1, @2, $5, $7);
-          }
-        | table_ref LEFT opt_outer JOIN_SYM table_factor
-          USING '(' using_list ')'
-          {
-            $$= NEW_PTN PT_join_table_using<JTT_LEFT>($1, @2, $5, $8);
-          }
-        | table_ref NATURAL LEFT opt_outer JOIN_SYM table_factor
-          {
-            $$= NEW_PTN PT_join_table<JTT_NATURAL_LEFT>($1, @2, $6);
-          }
+            PT_table_ref_joined_table *this_table_ref=
+              NEW_PTN PT_table_ref_joined_table(this_cross_join);
 
-          /* RIGHT JOIN variants */
-        | table_ref RIGHT opt_outer JOIN_SYM table_ref
-          ON
-          expr
-          {
-            $$= NEW_PTN PT_join_table_on<JTT_RIGHT>($1, @2, $5, $7);
+            if ($3 == NULL)
+              MYSQL_YYABORT; // OOM
+
+            PT_table_ref_joined_table *new_root=
+              $3->add_cross_join(this_table_ref);
+
+            if (new_root == NULL)
+              MYSQL_YYABORT; // OOM
+
+            $$= new_root->get_joined_table();
           }
-        | table_ref RIGHT opt_outer JOIN_SYM table_factor
-          USING '(' using_list ')'
+        | table_reference natural_join_type table_factor
           {
-            $$= NEW_PTN PT_join_table_using<JTT_RIGHT>($1, @2, $5, $8);
-          }
-        | table_ref NATURAL RIGHT opt_outer JOIN_SYM table_factor
-          {
-            $$= NEW_PTN PT_join_table<JTT_NATURAL_RIGHT>($1, @2, $6);
+            $$= NEW_PTN PT_joined_table_using($1, @2, $2, $3);
           }
         ;
 
-normal_join:
-          JOIN_SYM {}
-        | INNER_SYM JOIN_SYM {}
-        | CROSS JOIN_SYM {}
+natural_join_type:
+          NATURAL opt_inner JOIN_SYM       { $$= JTT_NATURAL_INNER; }
+        | NATURAL RIGHT opt_outer JOIN_SYM { $$= JTT_NATURAL_RIGHT; }
+        | NATURAL LEFT opt_outer JOIN_SYM  { $$= JTT_NATURAL_LEFT; }
+        ;
+
+inner_join_type:
+          JOIN_SYM                         { $$= JTT_INNER; }
+        | INNER_SYM JOIN_SYM               { $$= JTT_INNER; }
+        | CROSS JOIN_SYM                   { $$= JTT_INNER; }
+        | STRAIGHT_JOIN                    { $$= JTT_STRAIGHT_INNER; }
+
+outer_join_type:
+          LEFT opt_outer JOIN_SYM          { $$= JTT_LEFT; }
+        | RIGHT opt_outer JOIN_SYM         { $$= JTT_RIGHT; }
+        ;
+
+opt_inner:
+          /* empty */
+        | INNER_SYM
+        ;
+
+opt_outer:
+          /* empty */
+        | OUTER
         ;
 
 /*
@@ -10429,103 +10722,81 @@ use_partition:
           }
         ;
 
-/*
-   This is a flattening of the rules <table factor> and <table primary>
-   in the SQL:2003 standard, since we don't have <sample clause>
+/**
+  MySQL has a syntax extension where a comma-separated list of table
+  references is allowed as a table reference in itself, for instance
 
-   I.e.
-   <table factor> ::= <table primary> [ <sample clause> ]
+    SELECT * FROM (t1, t2) JOIN t3 ON 1
+
+  which is not allowed in standard SQL. The syntax is equivalent to
+
+    SELECT * FROM (t1 CROSS JOIN t2) JOIN t3 ON 1
+
+  We call this rule table_reference_list_parens.
+
+  A <table_factor> may be a <single_table>, a <subquery>, a <derived_table>, a
+  <joined_table>, or the bespoke <table_reference_list_parens>, each of those
+  enclosed in any number of parentheses. This makes for an ambiguous grammar
+  since a <table_factor> may also be enclosed in parentheses. We get around
+  this by designing the grammar so that a <table_factor> does not have
+  parentheses, but all the sub-cases of it have their own parentheses-rules,
+  i.e. <single_table_parens>, <joined_table_parens> and
+  <table_reference_list_parens>. It's a bit tedious but the grammar is
+  unambiguous and doesn't have shift/reduce conflicts.
 */
-/* Warning - may return NULL in case of incomplete SELECT */
 table_factor:
+          single_table
+        | single_table_parens
+        | derived_table { $$ = $1; }
+        | joined_table_parens
+          { $$= NEW_PTN PT_table_factor_joined_table($1); }
+        | table_reference_list_parens
+          {
+            if ($1 == NULL)
+              MYSQL_YYABORT; // OOM
+            $1->nest();
+          }
+        ;
+
+table_reference_list_parens:
+          '(' table_reference_list_parens ')' { $$= $2; }
+        | '(' table_reference_list ',' table_reference ')'
+          {
+            $$= NEW_PTN PT_derived_table_list(@$, $2, $4);
+          }
+        ;
+
+single_table_parens:
+          '(' single_table_parens ')' { $$= $2; }
+        | '(' single_table ')' { $$= $2; }
+        ;
+
+single_table:
           table_ident opt_use_partition opt_table_alias opt_key_definition
           {
             $$= NEW_PTN PT_table_factor_table_ident($1, $2, $3, $4);
           }
-        | SELECT_SYM select_options select_item_list table_expression
-          {
-            $$= NEW_PTN PT_table_factor_select_sym(@$, $1, $2, $3, $4);
-          }
-          /*
-            Represents a flattening of the following rules from the SQL:2003
-            standard. This sub-rule corresponds to the sub-rule
-            <table primary> ::= ... | <derived table> [ AS ] <correlation name>
-
-            The following rules have been flattened into query_expression_body
-            (since we have no <with clause>).
-
-            <derived table> ::= <table subquery>
-            <table subquery> ::= <subquery>
-            <subquery> ::= <left paren> <query expression> <right paren>
-            <query expression> ::= [ <with clause> ] <query expression body>
-
-            For the time being we use the non-standard rule
-            select_derived_union which is a compromise between the standard
-            and our parser. Possibly this rule could be replaced by our
-            query_expression_body.
-          */
-        | '(' select_derived_union ')' opt_table_alias
-          {
-            $$= NEW_PTN PT_table_factor_parenthesis($2, $4, @4);
-          }
         ;
 
-/*
-  This rule accepts just about anything. The reason is that we have
-  empty-producing rules in the beginning of rules, in this case
-  subselect_start. This forces bison to take a decision which rules to
-  reduce by long before it has seen any tokens. This approach ties us
-  to a very limited class of parseable languages, and unfortunately
-  SQL is not one of them. The chosen 'solution' was this rule, which
-  produces just about anything, even complete bogus statements, for
-  instance ( table UNION SELECT 1 ).
-
-  Fortunately, we know that the semantic value returned by
-  select_derived->value is NULL if it contained a derived table, and a pointer to
-  the base table's TABLE_LIST if it was a base table. So in the rule
-  regarding union's, we throw a parse error manually and pretend it
-  was bison that did it.
-
-  Also worth noting is that this rule concerns query expressions in
-  the from clause only. Top level select statements and other types of
-  subqueries have their own union rules.
- */
-select_derived_union:
-          select_derived opt_union_order_or_limit
-          {
-            $$= NEW_PTN PT_select_derived_union_select($1, $2, @2);
-          }
-        | select_derived_union UNION_SYM union_option query_specification
-          {
-            $$= NEW_PTN PT_select_derived_union_union($1, @2, $3, $4);
-          }
+joined_table_parens:
+          '(' joined_table_parens ')' { $$= $2; }
+        | '(' joined_table ')' { $$= $2; }
         ;
 
-/* The equivalent of select_part2 for nested queries. */
-select_part2_derived:
+derived_table:
+          table_subquery opt_table_alias
           {
             /*
-              TODO: remove this semantic action (currently this removal
-              adds shift/reduce conflict)
+              The alias is actually not optional at all, but being MySQL we
+              are friendly and give an informative error message instead of
+              just 'syntax error'.
             */
-          }
-          opt_query_spec_options select_item_list
-          {
-            $$= NEW_PTN PT_select_part2_derived($2, $3);
-          }
-        ;
+            if ($2 == NULL)
+              my_message(ER_DERIVED_MUST_HAVE_ALIAS,
+                         ER_THD(YYTHD, ER_DERIVED_MUST_HAVE_ALIAS), MYF(0));
 
-/* handle contents of parentheses in join expression */
-select_derived:
-          derived_table_list
-          {
-            $$= NEW_PTN PT_select_derived(@1, $1);
+            $$= NEW_PTN PT_derived_table($1, $2);
           }
-        ;
-
-opt_outer:
-          /* empty */ {}
-        | OUTER {}
         ;
 
 index_hint_clause:
@@ -10674,7 +10945,7 @@ date_time_type:
         | DATETIME  {$$= MYSQL_TIMESTAMP_DATETIME; }
         ;
 
-table_alias:
+opt_as_or_eq:
           /* empty */
         | AS
         | EQ
@@ -10682,7 +10953,7 @@ table_alias:
 
 opt_table_alias:
           /* empty */ { $$=0; }
-        | table_alias ident
+        | opt_as_or_eq ident
           {
             $$= (LEX_STRING*) sql_memdup(&$2,sizeof(LEX_STRING));
             if ($$ == NULL)
@@ -10981,7 +11252,7 @@ select_var_list:
           }
         | select_var_ident
           {
-            $$= NEW_PTN PT_select_var_list;
+            $$= NEW_PTN PT_select_var_list(@$);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT;
           }
@@ -10998,12 +11269,7 @@ select_var_ident:
           }
         ;
 
-opt_into:
-          /* empty */ { $$= NULL; }
-        | into
-        ;
-
-into:
+into_clause:
           INTO into_destination
           {
             $$= $2;
@@ -11015,11 +11281,11 @@ into_destination:
           opt_load_data_charset
           opt_field_term opt_line_term
           {
-            $$= NEW_PTN PT_into_destination_outfile($2, $3, $4, $5);
+            $$= NEW_PTN PT_into_destination_outfile(@$, $2, $3, $4, $5);
           }
         | DUMPFILE TEXT_STRING_filesystem
           {
-            $$= NEW_PTN PT_into_destination_dumpfile($2);
+            $$= NEW_PTN PT_into_destination_dumpfile(@$, $2);
           }
         | select_var_list { $$= $1; }
         ;
@@ -11031,11 +11297,12 @@ into_destination:
 do_stmt:
           DO_SYM empty_select_options select_item_list
           {
-            $$= NEW_PTN PT_select(
-                  NEW_PTN PT_select_init2(NULL,
-                    NEW_PTN PT_select_part2(
-                      NEW_PTN PT_select_options_and_item_list($2, $3)), NULL),
-                                                              SQLCOM_DO);
+            $$= NEW_PTN PT_select_stmt(SQLCOM_DO,
+                  NEW_PTN PT_query_expression(
+                    NEW_PTN PT_query_expression_body_primary(
+                      NEW_PTN PT_query_specification(
+                        NEW_PTN PT_select_part2(
+                          NEW_PTN PT_select_options_and_item_list($2, $3))))));
           }
         ;
 
@@ -11539,7 +11806,7 @@ update_stmt:
           UPDATE_SYM            /* #1 */
           opt_low_priority      /* #2 */
           opt_ignore            /* #3 */
-          join_table_list       /* #4 */
+          table_reference_list  /* #4 */
           SET                   /* #5 */
           update_list           /* #6 */
           opt_where_clause      /* #7 */
@@ -11601,20 +11868,22 @@ delete_stmt:
           opt_delete_options
           table_alias_ref_list
           FROM
-          join_table_list
+          table_reference_list
           opt_where_clause
           {
-            $$= NEW_PTN PT_delete($1, $2, $3, $5, $6);
+            auto *trl= NEW_PTN PT_table_reference_list(@$, $5);
+            $$= NEW_PTN PT_delete($1, $2, $3, trl, $6);
           }
         | DELETE_SYM
           opt_delete_options
           FROM
           table_alias_ref_list
           USING
-          join_table_list
+          table_reference_list
           opt_where_clause
           {
-            $$= NEW_PTN PT_delete($1, $2, $4, $6, $7);
+            auto *trl= NEW_PTN PT_table_reference_list(@$, $6);
+            $$= NEW_PTN PT_delete($1, $2, $4, trl, $7);
           }
         ;
 
@@ -12208,7 +12477,7 @@ describe:
         ;
 
 explainable_command:
-          select  { CONTEXTUALIZE($1); }
+          select_stmt { CONTEXTUALIZE($1); }
         | insert_stmt                           { MAKE_CMD($1); }
         | replace_stmt                          { MAKE_CMD($1); }
         | update_stmt                           { MAKE_CMD($1); }
@@ -14634,11 +14903,6 @@ union_opt:
         | union_order_or_limit { $$= $1; }
         ;
 
-opt_union_order_or_limit:
-          /* Empty */          { $$= NULL; }
-        | union_order_or_limit { $$= $1; }
-        ;
-
 union_order_or_limit:
           order_or_limit
           {
@@ -14660,51 +14924,25 @@ union_option:
         | ALL       { $$=0; }
         ;
 
-query_specification:
-          SELECT_SYM select_part2_derived table_expression
-          {
-            $$= NEW_PTN PT_query_specification_select($1, $2, $3);
-          }
-        | '(' select_paren_derived ')'
-          opt_union_order_or_limit
-          {
-            $$= NEW_PTN PT_query_specification_parenthesis($2, $4);
-          }
+row_subquery:
+          subquery
         ;
 
-query_expression_body:
-          query_specification
-        | query_expression_body UNION_SYM union_option query_specification
-          {
-            $$= NEW_PTN PT_query_expression_body_union(@$, $1, $3, $4);
-          }
+table_subquery:
+          subquery
         ;
 
-/* Corresponds to <query expression> in the SQL:2003 standard. */
-subselect:
+subquery:
+          query_expression_parens %prec SUBQUERY_AS_EXPR
           {
-            /*
-              TODO: remove this semantic action (currently this removal
-              adds reduce/reduce conflict)
-            */
-          }
-          query_expression_body
-          {
-            $$= NEW_PTN PT_subselect(@$, $2);
-          }
-        ;
+            if ($1 == NULL)
+              MYSQL_YYABORT; // OOM
 
-opt_query_spec_options:
-          /* empty */ { $$= 0; }
-        | query_spec_option_list
-        ;
+            if ($1->has_into_clause())
+              YYTHD->parse_error_at(@1, ER_THD(YYTHD, ER_SYNTAX_ERROR));
 
-query_spec_option_list:
-          query_spec_option_list query_spec_option
-          {
-            $$= $1 | $2;
+            $$= NEW_PTN PT_subquery(@$, $1);
           }
-        | query_spec_option
         ;
 
 query_spec_option:
@@ -14880,6 +15118,8 @@ view_select:
           }
         ;
 
+
+/// @todo: Make this rule produce query_expression instead.
 view_select_aux:
           create_view_select
           {

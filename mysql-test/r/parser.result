@@ -758,11 +758,12 @@ SELECT 1 FROM t1
 UNION
 SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
 PROCEDURE ANALYSE() FOR UPDATE;
-ERROR HY000: Incorrect usage of PROCEDURE and subquery
+ERROR HY000: Incorrect usage of PROCEDURE and UNION
 SELECT 1 FROM DUAL PROCEDURE ANALYSE() 
 UNION
 SELECT 1 FROM t1;
-ERROR HY000: Incorrect usage of UNION and SELECT ... PROCEDURE ANALYSE()
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION
+SELECT 1 FROM t1' at line 2
 (SELECT 1 FROM t1)
 UNION 
 (SELECT 1 FROM DUAL WHERE 1 GROUP BY 1 HAVING 1 ORDER BY 1
@@ -778,7 +779,7 @@ ERROR HY000: Incorrect usage of PROCEDURE and subquery
 SELECT 1 FROM t1 UNION SELECT 1 FROM t1 ORDER BY 1 LIMIT 1;
 1
 SELECT 1 FROM t1 FOR UPDATE UNION SELECT 1 FROM t1 ORDER BY 1 LIMIT 1;
-1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 FROM t1 ORDER BY 1 LIMIT 1' at line 1
 SELECT 1 FROM t1 UNION SELECT 1 FROM t1 ORDER BY 1 LIMIT 1 FOR UPDATE;
 1
 # "INTO" clause tests
@@ -815,9 +816,9 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT EXISTS(SELECT 1 FROM t1 INTO @var17727401);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @var17727401)' at line 1
 SELECT 1 FROM t1 INTO @var17727401 UNION SELECT 1 FROM t1 INTO t1;
-ERROR HY000: Incorrect usage of UNION and INTO
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 FROM t1 INTO t1' at line 1
 (SELECT 1 FROM t1 INTO @var17727401) UNION (SELECT 1 FROM t1 INTO t1);
-ERROR HY000: Incorrect usage of UNION and INTO
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION (SELECT 1 FROM t1 INTO t1)' at line 1
 SELECT 1 FROM t1 UNION SELECT 1 FROM t1 INTO @var17727401;
 Warnings:
 Warning	1329	No data - zero rows fetched, selected, or processed
@@ -831,17 +832,17 @@ ERROR HY000: Incorrect usage of PROCEDURE and INTO
 (SELECT 1 FROM t1 LIMIT 1) LIMIT 1;
 1
 ((SELECT 1 FROM t1 ORDER BY 1) ORDER BY 1) ORDER BY 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY 1) ORDER BY 1' at line 1
+1
 ((SELECT 1 FROM t1 LIMIT 1) LIMIT 1) LIMIT 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'LIMIT 1) LIMIT 1' at line 1
+1
 (SELECT 1 FROM t1 ORDER BY 1) LIMIT 1;
 1
 (SELECT 1 FROM t1 LIMIT 1) ORDER BY 1;
 1
 ((SELECT 1 FROM t1 ORDER BY 1) LIMIT 1) ORDER BY 1);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'LIMIT 1) ORDER BY 1)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 ((SELECT 1 FROM t1 LIMIT 1) ORDER BY 1) LIMIT 1);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY 1) LIMIT 1)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT 1 FROM t1 UNION SELECT 1 FROM t1 ORDER BY 1;
 1
 SELECT (SELECT 1 FROM t1 UNION SELECT 1 FROM t1 ORDER BY 1);
@@ -870,53 +871,53 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT 1 FROM (SELECT 1 FROM t1 UNION SELECT 1 FROM t1 LIMIT 1 ORDER BY 1) a;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY 1) a' at line 1
 SELECT 1 FROM t1 ORDER BY 1 UNION SELECT 1 FROM t1;
-ERROR HY000: Incorrect usage of UNION and ORDER BY
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 FROM t1' at line 1
 SELECT (SELECT 1 FROM t1 ORDER BY 1 UNION SELECT 1 FROM t1);
-ERROR HY000: Incorrect usage of UNION and ORDER BY
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 FROM t1)' at line 1
 SELECT 1 FROM (SELECT 1 FROM t1 ORDER BY 1 UNION SELECT 1 FROM t1) a;
-ERROR HY000: Incorrect usage of UNION and ORDER BY
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 FROM t1) a' at line 1
 SELECT 1 FROM t1 LIMIT 1 UNION SELECT 1 FROM t1;
-ERROR HY000: Incorrect usage of UNION and LIMIT
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 FROM t1' at line 1
 SELECT (SELECT 1 FROM t1 LIMIT 1 UNION SELECT 1 FROM t1);
-ERROR HY000: Incorrect usage of UNION and LIMIT
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 FROM t1)' at line 1
 SELECT 1 FROM (SELECT 1 FROM t1 LIMIT 1 UNION SELECT 1 FROM t1) a;
-ERROR HY000: Incorrect usage of UNION and LIMIT
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 FROM t1) a' at line 1
 SELECT 1 FROM t1 ORDER BY 1 LIMIT 1 UNION SELECT 1 FROM t1;
-ERROR HY000: Incorrect usage of UNION and ORDER BY
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 FROM t1' at line 1
 SELECT (SELECT 1 FROM t1 ORDER BY 1 LIMIT 1 UNION SELECT 1 FROM t1);
-ERROR HY000: Incorrect usage of UNION and ORDER BY
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 FROM t1)' at line 1
 SELECT 1 FROM (SELECT 1 FROM t1 ORDER BY 1 LIMIT 1 UNION SELECT 1 FROM t1) a;
-ERROR HY000: Incorrect usage of UNION and ORDER BY
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 FROM t1) a' at line 1
 SELECT 1 FROM t1 LIMIT 1 ORDER BY 1 UNION SELECT 1 FROM t1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY 1 UNION SELECT 1 FROM t1' at line 1
 SELECT (SELECT 1 FROM t1 LIMIT 1 ORDER BY 1 UNION SELECT 1 FROM t1);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY 1 UNION SELECT 1 FROM t1)' at line 1
 SELECT 1 FROM (SELECT 1 FROM t1 LIMIT 1 ORDER BY 1 UNION SELECT 1 FROM t1) a;
-ERROR HY000: Incorrect usage of UNION and ORDER BY
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY 1 UNION SELECT 1 FROM t1) a' at line 1
 SELECT 1 FROM t1 ORDER BY 1 UNION SELECT 1 FROM t1 ORDER BY 1;
-ERROR HY000: Incorrect usage of UNION and ORDER BY
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 FROM t1 ORDER BY 1' at line 1
 SELECT (SELECT 1 FROM t1 ORDER BY 1 UNION SELECT 1 FROM t1 ORDER BY 1);
-ERROR HY000: Incorrect usage of UNION and ORDER BY
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 FROM t1 ORDER BY 1)' at line 1
 SELECT 1 FROM (SELECT 1 FROM t1 ORDER BY 1 UNION SELECT 1 FROM t1 ORDER BY 1) a;
-ERROR HY000: Incorrect usage of UNION and ORDER BY
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 FROM t1 ORDER BY 1) a' at line 1
 SELECT 1 FROM t1 LIMIT 1 UNION SELECT 1 FROM t1 LIMIT 1;
-ERROR HY000: Incorrect usage of UNION and LIMIT
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 FROM t1 LIMIT 1' at line 1
 SELECT (SELECT 1 FROM t1 LIMIT 1 UNION SELECT 1 FROM t1 LIMIT 1);
-ERROR HY000: Incorrect usage of UNION and LIMIT
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 FROM t1 LIMIT 1)' at line 1
 SELECT 1 FROM (SELECT 1 FROM t1 LIMIT 1 UNION SELECT 1 FROM t1 LIMIT 1) a;
-ERROR HY000: Incorrect usage of UNION and LIMIT
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 FROM t1 LIMIT 1) a' at line 1
 SELECT 1 FROM t1 LIMIT 1 UNION SELECT 1 FROM t1 ORDER BY 1;
-ERROR HY000: Incorrect usage of UNION and LIMIT
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 FROM t1 ORDER BY 1' at line 1
 SELECT (SELECT 1 FROM t1 LIMIT 1 UNION SELECT 1 FROM t1 ORDER BY 1);
-ERROR HY000: Incorrect usage of UNION and LIMIT
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 FROM t1 ORDER BY 1)' at line 1
 SELECT 1 FROM (SELECT 1 FROM t1 LIMIT 1 UNION SELECT 1 FROM t1 ORDER BY 1) a;
-ERROR HY000: Incorrect usage of UNION and LIMIT
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 FROM t1 ORDER BY 1) a' at line 1
 SELECT 1 FROM t1 ORDER BY 1 UNION SELECT 1 FROM t1 LIMIT 1;
-ERROR HY000: Incorrect usage of UNION and ORDER BY
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 FROM t1 LIMIT 1' at line 1
 SELECT (SELECT 1 FROM t1 ORDER BY 1 UNION SELECT 1 FROM t1 LIMIT 1);
-ERROR HY000: Incorrect usage of UNION and ORDER BY
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 FROM t1 LIMIT 1)' at line 1
 SELECT 1 FROM (SELECT 1 FROM t1 ORDER BY 1 UNION SELECT 1 FROM t1 LIMIT 1) a;
-ERROR HY000: Incorrect usage of UNION and ORDER BY
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 FROM t1 LIMIT 1) a' at line 1
 DROP TABLE t1;
 #
 # Bug #18106014: RECENT REGRESSION: MORE CASES OF ASSERTION FAILED:
@@ -926,7 +927,8 @@ SELECT COUNT(1) FROM DUAL GROUP BY '1' ORDER BY 1 ;
 COUNT(1)
 1
 SELECT COUNT(1)           GROUP BY '1' ORDER BY 1 ;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GROUP BY '1' ORDER BY 1' at line 1
+COUNT(1)
+1
 DO(SELECT 1 c           GROUP BY 1 HAVING 1 ORDER BY COUNT(1));
 DO(SELECT 1 c FROM DUAL GROUP BY 1 HAVING 1 ORDER BY COUNT(1));
 SELECT (SELECT 1 c                   GROUP BY 1 HAVING 1 ORDER BY COUNT(1)) AS
@@ -983,7 +985,8 @@ c
 SELECT 1 c FROM DUAL GROUP BY 1 HAVING 0 ORDER BY COUNT(1);
 c
 SELECT 1 c           GROUP BY 1 HAVING 1 ORDER BY COUNT(1);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GROUP BY 1 HAVING 1 ORDER BY COUNT(1)' at line 1
+c
+1
 #
 # Bug #18106058: RECENT REGRESSION: CRASH IN JOIN::MAKE_TMP_TABLES_INFO
 #
@@ -1005,8 +1008,8 @@ f
 1
 SELECT 1 AS f                   HAVING EXISTS(SELECT 1 FROM t1) IS TRUE
 ORDER BY f;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'HAVING EXISTS(SELECT 1 FROM t1) IS TRUE
-ORDER BY f' at line 1
+f
+1
 DROP TABLE t1;
 #
 # Bug#17075846 : unquoted file names for variable values are
@@ -1216,3 +1219,785 @@ LOCK=EXCLUSIVE, WITHOUT VALIDATION, ALGORITHM=INPLACE;
 ERROR HY000: Incorrect usage of ALTER and WITH VALIDATION
 DROP TABLE t1;
 #
+# WL#8083: Introduce <query expression> parser rule
+# Bug#14743786: PARSE ERROR WITH UNION PARENTHESES ON TOP LEVEL
+#
+#
+# Part1: Regression Testing.
+#
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES ( 1 );
+CREATE TABLE t2 ( a INT );
+INSERT INTO t2 VALUES ( 2 ), ( 2 );
+CREATE TABLE t3 ( a INT );
+INSERT INTO t3 VALUES ( 3 ), ( 3 ), ( 3 );
+SELECT 1 UNION SELECT 2;
+1
+1
+2
+(SELECT 1) UNION SELECT 2;
+1
+1
+2
+SELECT 1 UNION (SELECT 2);
+1
+1
+2
+(SELECT 1) UNION (SELECT 2);
+1
+1
+2
+SELECT 2 FROM t1 UNION ((SELECT 3 FROM t1));
+2
+2
+3
+(SELECT 2 FROM t1)  UNION SELECT 3 FROM t1;
+2
+2
+3
+((SELECT 2 FROM t1)) UNION SELECT 3 FROM t1;
+2
+2
+3
+(SELECT 1 FROM t1 ORDER BY 1) ORDER BY 1;
+1
+1
+(SELECT 1 FROM t1 LIMIT 1) LIMIT 1;
+1
+1
+SELECT a FROM t1 LIMIT 1 UNION ALL SELECT a FROM t1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION ALL SELECT a FROM t1' at line 1
+(SELECT 1) UNION (SELECT 2 UNION SELECT 3);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT 2 UNION SELECT 3)' at line 1
+(SELECT a FROM t1 LIMIT 1) UNION ALL (SELECT a FROM t1 ORDER BY a) LIMIT 2;
+a
+1
+1
+(SELECT a FROM t1 LIMIT 1) UNION ALL ((SELECT a FROM t1 ORDER BY a)) LIMIT 2;
+a
+1
+1
+SELECT 1 UNION SELECT 2 FROM t1 ORDER BY a LIMIT 1;
+ERROR 42S22: Unknown column 'a' in 'order clause'
+SELECT 1 UNION (SELECT 2 FROM t1 ORDER BY a LIMIT 1);
+1
+1
+2
+(SELECT 1 FROM t1 LIMIT 2) UNION  SELECT 2 FROM t1 ORDER BY a LIMIT 1;
+ERROR 42S22: Unknown column 'a' in 'order clause'
+(SELECT 1 FROM t1 LIMIT 2) UNION (SELECT 2 FROM t1 ORDER BY a LIMIT 1);
+1
+1
+2
+(SELECT a FROM t1 LIMIT 2) LIMIT 1;
+a
+1
+((SELECT a FROM t1 LIMIT 2)) LIMIT 1;
+a
+1
+(SELECT a FROM t1 LIMIT 2) ORDER BY 1;
+a
+1
+(SELECT 1 FROM t1 LIMIT 2) UNION (SELECT 2 FROM t1 ORDER BY a LIMIT 1) LIMIT 1;
+1
+1
+(SELECT 1 FROM t1 LIMIT 2) UNION (SELECT 2 FROM t1 ORDER BY a LIMIT 1)
+ORDER BY a;
+ERROR 42S22: Unknown column 'a' in 'order clause'
+(SELECT 1 FROM t1 LIMIT 1) UNION ((SELECT 2 FROM t1 ORDER BY a LIMIT 2))
+ORDER BY a;
+ERROR 42S22: Unknown column 'a' in 'order clause'
+(SELECT a FROM t2 LIMIT 1) UNION (SELECT a FROM t3 LIMIT 2) LIMIT 1;
+a
+2
+(SELECT 1 FROM t1 ORDER BY 1) ORDER BY 1;
+1
+1
+(SELECT a FROM t1 LIMIT 1) ORDER BY t1.a;
+ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER clause
+((SELECT a FROM t1 LIMIT 1)) ORDER BY t1.a;
+ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER clause
+(SELECT a FROM t1 LIMIT 1) UNION ALL (SELECT 2) ORDER BY t1.b;
+ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER clause
+(SELECT a FROM t1 LIMIT 1) UNION ALL ((SELECT 2)) ORDER BY t1.b;
+ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER clause
+(SELECT a FROM t1 LIMIT 1) UNION ALL (SELECT a FROM t1 ORDER BY a LIMIT 2)
+ORDER BY t1.b;
+ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER clause
+SELECT 1 UNION ( SELECT 1 UNION SELECT 1 );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 )' at line 1
+( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 ) UNION SELECT 1' at line 1
+SELECT a FROM t1 ORDER BY a UNION SELECT a FROM t1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT a FROM t1' at line 1
+(SELECT * FROM t1 LIMIT 1) UNION SELECT * FROM t1;
+a
+1
+(SELECT * FROM t1 ORDER BY a) UNION SELECT * FROM t1;
+a
+1
+SELECT a FROM t1
+UNION
+SELECT a FROM t1 ORDER BY a
+UNION
+SELECT a FROM t1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION
+SELECT a FROM t1' at line 4
+(SELECT SQL_CALC_FOUND_ROWS a FROM t1 LIMIT 2)
+UNION
+(SELECT a FROM t2 ORDER BY a) LIMIT 2;
+a
+1
+2
+DROP TABLE t1, t2, t3;
+CREATE PROCEDURE p1() BEGIN IF whatever THEN SELECT 1; END IF; END|
+CALL p1();
+ERROR 42S22: Unknown column 'whatever' in 'field list'
+DROP PROCEDURE p1;
+SELECT 1 PROCEDURE ANALYSE() UNION SELECT 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1' at line 1
+SELECT 1 UNION SELECT 1 PROCEDURE ANALYSE() ;
+ERROR HY000: Incorrect usage of PROCEDURE and UNION
+(SELECT 1 PROCEDURE ANALYSE()) UNION SELECT 1;
+ERROR HY000: Incorrect usage of UNION and SELECT ... PROCEDURE ANALYSE()
+(SELECT 1 PROCEDURE ANALYSE()) UNION (SELECT 1);
+ERROR HY000: Incorrect usage of UNION and SELECT ... PROCEDURE ANALYSE()
+SELECT 1 UNION (SELECT 1 PROCEDURE ANALYSE());
+ERROR HY000: Incorrect usage of PROCEDURE and subquery
+(SELECT 1) UNION (SELECT 1 PROCEDURE ANALYSE());
+ERROR HY000: Incorrect usage of PROCEDURE and subquery
+#
+# Part 2: Test of changed (fixed) behavior.
+#
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES ( 1 );
+CREATE TABLE t2 ( a INT );
+INSERT INTO t2 VALUES ( 2 ), ( 2 );
+CREATE TABLE t3 ( a INT );
+INSERT INTO t3 VALUES ( 3 ), ( 3 ), ( 3 );
+(SELECT 1 FROM t1   UNION   SELECT 2 FROM t1);
+1
+1
+2
+((SELECT 1 FROM t1   UNION   SELECT 2 FROM t1));
+1
+1
+2
+(SELECT 1 FROM t1   UNION  (SELECT 2 FROM t1));
+1
+1
+2
+((SELECT 1 FROM t1   UNION  (SELECT 2 FROM t1)));
+1
+1
+2
+((SELECT 1 FROM t1   UNION ((SELECT 2 FROM t1))));
+1
+1
+2
+((SELECT 1 FROM t1)  UNION   SELECT 2 FROM t1);
+1
+1
+2
+(((SELECT 1 FROM t1)) UNION   SELECT 2 FROM t1);
+1
+1
+2
+((((SELECT 1 FROM t1)) UNION   SELECT 2 FROM t1));
+1
+1
+2
+((SELECT 1 FROM t1)  UNION  (SELECT 2 FROM t1));
+1
+1
+2
+(((SELECT 1 FROM t1)  UNION  (SELECT 2 FROM t1)));
+1
+1
+2
+((((SELECT 1 FROM t1)) UNION  (SELECT 2 FROM t1)));
+1
+1
+2
+(((SELECT 1 FROM t1)  UNION ((SELECT 2 FROM t1))));
+1
+1
+2
+((((SELECT 1 FROM t1)) UNION ((SELECT 2 FROM t1))));
+1
+1
+2
+(SELECT 1 UNION SELECT 2) ORDER BY 1;
+1
+1
+2
+((SELECT 1 UNION SELECT 2)) ORDER BY 1;
+1
+1
+2
+((SELECT 1) ORDER BY 1);
+1
+1
+((SELECT 1) LIMIT 1);
+1
+1
+(SELECT 1 UNION SELECT 2) LIMIT 1;
+1
+1
+((SELECT 1 UNION SELECT 2)) LIMIT 1;
+1
+1
+(SELECT a FROM t1) LIMIT 1 UNION ALL ((SELECT a FROM t1 ORDER BY a)) LIMIT 2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION ALL ((SELECT a FROM t1 ORDER BY a)) LIMIT 2' at line 1
+DROP TABLE t1, t2, t3;
+#
+# Part 3: The <table factor> syntax.
+#
+CREATE TABLE t1 ( a INT );
+INSERT INTO t1 VALUES ( 1 );
+CREATE TABLE t2 ( a INT );
+INSERT INTO t2 VALUES ( 2 );
+CREATE TABLE t3 ( a INT );
+INSERT INTO t3 VALUES ( 3 );
+CREATE TABLE t4 ( a INT );
+INSERT INTO t4 VALUES ( 3 );
+SELECT * FROM    (SELECT 1 FROM t1   UNION   SELECT 2 FROM t1) dt;
+1
+1
+2
+SELECT * FROM   ((SELECT 1 FROM t1   UNION   SELECT 2 FROM t1)) dt;
+1
+1
+2
+SELECT * FROM    (SELECT 1 FROM t1   UNION  (SELECT 2 FROM t1)) dt;
+1
+1
+2
+SELECT * FROM   ((SELECT 1 FROM t1   UNION  (SELECT 2 FROM t1))) dt;
+1
+1
+2
+SELECT * FROM   ((SELECT 1 FROM t1   UNION ((SELECT 2 FROM t1)))) dt;
+1
+1
+2
+SELECT * FROM   ((SELECT 1 FROM t1)  UNION   SELECT 2 FROM t1) dt;
+1
+1
+2
+SELECT * FROM  (((SELECT 1 FROM t1)) UNION   SELECT 2 FROM t1) dt;
+1
+1
+2
+SELECT * FROM ((((SELECT 1 FROM t1)) UNION   SELECT 2 FROM t1)) dt;
+1
+1
+2
+SELECT * FROM   ((SELECT 1 FROM t1)  UNION  (SELECT 2 FROM t1)) dt;
+1
+1
+2
+SELECT * FROM  (((SELECT 1 FROM t1)  UNION  (SELECT 2 FROM t1))) dt;
+1
+1
+2
+SELECT * FROM ((((SELECT 1 FROM t1)) UNION  (SELECT 2 FROM t1))) dt;
+1
+1
+2
+SELECT * FROM  (((SELECT 1 FROM t1)  UNION ((SELECT 2 FROM t1)))) dt;
+1
+1
+2
+SELECT * FROM ((((SELECT 1 FROM t1)) UNION ((SELECT 2 FROM t1)))) dt;
+1
+1
+2
+SELECT * FROM    (SELECT 1 FROM t1   UNION   SELECT 2 FROM t1);
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM   ((SELECT 1 FROM t1   UNION   SELECT 2 FROM t1));
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM    (SELECT 1 FROM t1   UNION  (SELECT 2 FROM t1));
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM   ((SELECT 1 FROM t1   UNION  (SELECT 2 FROM t1)));
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM   ((SELECT 1 FROM t1   UNION ((SELECT 2 FROM t1))));
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM   ((SELECT 1 FROM t1)  UNION   SELECT 2 FROM t1);
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM  (((SELECT 1 FROM t1)) UNION   SELECT 2 FROM t1);
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM ((((SELECT 1 FROM t1)) UNION   SELECT 2 FROM t1));
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM   ((SELECT 1 FROM t1)  UNION  (SELECT 2 FROM t1));
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM  (((SELECT 1 FROM t1)  UNION  (SELECT 2 FROM t1)));
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM ((((SELECT 1 FROM t1)) UNION  (SELECT 2 FROM t1)));
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM  (((SELECT 1 FROM t1)  UNION ((SELECT 2 FROM t1))));
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM ((((SELECT 1 FROM t1)) UNION ((SELECT 2 FROM t1))));
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM  ( t1 JOIN t2 ON TRUE );
+a	a
+1	2
+SELECT * FROM (( t1 JOIN t2 ON TRUE ));
+a	a
+1	2
+SELECT * FROM ( t1 JOIN t2 ON TRUE  JOIN t3 ON TRUE );
+a	a	a
+1	2	3
+SELECT * FROM ((t1 JOIN t2 ON TRUE) JOIN t3 ON TRUE );
+a	a	a
+1	2	3
+SELECT * FROM (t1 INNER JOIN t2 ON (t1.a = t2.a));
+a	a
+SELECT 1 FROM (SELECT 1 FROM t1 INTO @v) a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INTO @v) a' at line 1
+SELECT 1 FROM (t1);
+1
+1
+SELECT 1 FROM ((t1));
+1
+1
+SELECT 1 UNION SELECT 2 FROM (t2);
+1
+1
+2
+SELECT 1 FROM  (SELECT 2  ORDER BY 1) AS res;
+1
+1
+#
+# This syntax is no longer allowed
+#
+SELECT 1 FROM ((SELECT 2) ORDER BY 1) AS res;
+1
+1
+SELECT 1 FROM ((SELECT 2) a ORDER BY 1) AS res;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ORDER BY 1) AS res' at line 1
+SELECT 1 FROM ((SELECT 2) LIMIT 1) AS res;
+1
+1
+SELECT 1 FROM ((SELECT 2) a LIMIT 1) AS res;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'LIMIT 1) AS res' at line 1
+SELECT * FROM ( t1 AS alias1 );
+a
+1
+SELECT * FROM   t1 AS alias1, t2 AS alias2;
+a	a
+1	2
+SELECT * FROM ( t1 AS alias1, t2 AS alias2 );
+a	a
+1	2
+SELECT * FROM ( t1 JOIN t2 ON TRUE, t1 JOIN t3 ON TRUE );
+ERROR 42000: Not unique table/alias: 't1'
+SELECT * FROM ( t1 JOIN t2 ON TRUE, t1 t11 JOIN t3 ON TRUE ) t1a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1a' at line 1
+SELECT * FROM ( t1 JOIN t2 ON TRUE, SELECT 1 FROM DUAL );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT 1 FROM DUAL )' at line 1
+SELECT * FROM ( t1 JOIN t2 ON TRUE, (SELECT 1 FROM DUAL) t1a );
+a	a	1
+1	2	1
+SELECT * FROM t1 JOIN t2 ON TRUE, (SELECT 1 FROM DUAL) t1a;
+a	a	1
+1	2	1
+SELECT * FROM ( SELECT 1 FROM DUAL );
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM ( SELECT 1 FROM DUAL ) t1a;
+1
+1
+SELECT * FROM  ( t1, t2 );
+a	a
+1	2
+SELECT * FROM (( t1, t2 ));
+a	a
+1	2
+SELECT * FROM  ( (t1),   t2  );
+a	a
+1	2
+SELECT * FROM  (((t1)),  t2  );
+a	a
+1	2
+SELECT * FROM  ( (t1),  (t2) );
+a	a
+1	2
+SELECT * FROM  (  t1,   (t2) );
+a	a
+1	2
+((SELECT 1 UNION SELECT 1) UNION SELECT 1);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT 1 UNION SELECT 1) UNION SELECT 1)' at line 1
+SELECT * FROM ((SELECT 1 UNION SELECT 1) UNION SELECT 1) a;
+1
+1
+SELECT * FROM (t1, t2) JOIN (t3, t4) ON TRUE;
+a	a	a	a
+1	2	3	3
+SELECT * FROM ((t1, t2) JOIN t3 ON TRUE);
+a	a	a
+1	2	3
+SELECT * FROM t1 JOIN ( t2, t3 ) USING ( a );
+ERROR 23000: Column 'a' in from clause is ambiguous
+DROP TABLE t1, t2, t3, t4;
+# Check the format in the note.
+CREATE TABLE t1 (a INT);
+EXPLAIN SELECT 1 FROM (SELECT 1 FROM t1) t;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1`
+DROP TABLE t1;
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( b INT );
+CREATE TABLE t3 ( c INT );
+CREATE TABLE t4 ( d INT );
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (2);
+INSERT INTO t3 VALUES (2);
+INSERT INTO t4 VALUES (2);
+SELECT * FROM t1 LEFT JOIN ( t2, t3, t4 ) ON a = c;
+a	b	c	d
+1	NULL	NULL	NULL
+SELECT * FROM t1 NATURAL JOIN ((t1 NATURAL JOIN t1), (t1 NATURAL JOIN t1));
+ERROR 42000: Not unique table/alias: 't1'
+DROP TABLE t1, t2, t3, t4;
+CREATE TABLE t1 ( a INT );
+CREATE TABLE t2 ( b INT );
+CREATE TABLE t3 ( c INT );
+CREATE TABLE t4 ( d INT );
+CREATE TABLE t5 ( d INT );
+SELECT * FROM t5 NATURAL JOIN ((t1 NATURAL JOIN t2), (t3 NATURAL JOIN t4));
+d	a	b	c
+SELECT * FROM ((t1 NATURAL JOIN t2), (t3 NATURAL JOIN t4)) NATURAL JOIN t5;
+d	a	b	c
+SELECT * FROM t1 JOIN ( t2, t3 ) ON TRUE;
+a	b	c
+SELECT * FROM ( t1, t2 , t3 );
+a	b	c
+SELECT * FROM ( ( t1, t2 ), t3 );
+a	b	c
+SELECT * FROM ( ((t1, t2)), t3 );
+a	b	c
+SELECT * FROM ( t1, ( t2, t3 ) );
+a	b	c
+SELECT * FROM ( t1, ((t2, t3)) );
+a	b	c
+SELECT * FROM ((( t1, t2 ), t3));
+a	b	c
+SELECT * FROM ((((t1, t2)), t3));
+a	b	c
+SELECT * FROM ((t1, ( t2, t3 )));
+a	b	c
+SELECT * FROM ((t1, ((t2, t3))));
+a	b	c
+CREATE VIEW v1 AS SELECT 1 INTO @v;
+ERROR HY000: View's SELECT contains a 'INTO' clause
+CREATE VIEW v1 AS SELECT 1 FROM ( SELECT 1 FROM t1 ) my_table;
+DROP TABLE t1, t2, t3, t4, t5;
+DROP VIEW v1;
+CREATE TABLE t1( a INT );
+INSERT INTO t1 VALUES (1);
+SELECT 1 INTO @v;
+(SELECT 1 INTO @v);
+((SELECT 1 INTO @v));
+SELECT 1 FROM t1 INTO @v;
+(SELECT 1 FROM t1 INTO @v);
+((SELECT 1 FROM t1 INTO @v));
+SELECT 1 FROM t1 INTO @v UNION SELECT 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1' at line 1
+(SELECT 1 FROM t1 INTO @v) UNION SELECT 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1' at line 1
+SELECT 1 FROM t1 INTO @v UNION (SELECT 1);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION (SELECT 1)' at line 1
+((SELECT 1 FROM t1 INTO @v) UNION (SELECT 1));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION (SELECT 1))' at line 1
+SELECT 1 INTO @v UNION SELECT 1;
+ERROR HY000: Incorrect usage of UNION and INTO
+(SELECT 1 INTO @v) UNION SELECT 1;
+ERROR HY000: Incorrect usage of UNION and INTO
+SELECT 1 INTO @v UNION (SELECT 1);
+ERROR HY000: Incorrect usage of UNION and INTO
+((SELECT 1 INTO @v) UNION (SELECT 1));
+ERROR HY000: Incorrect usage of UNION and INTO
+SELECT 1 UNION SELECT 2 INTO @v;
+ERROR 42000: Result consisted of more than one row
+(SELECT 1) UNION SELECT 2 INTO @v;
+ERROR 42000: Result consisted of more than one row
+(SELECT 1) UNION (SELECT 2 INTO @v);
+ERROR 42000: Result consisted of more than one row
+((SELECT 1) UNION (SELECT 2 INTO @v));
+ERROR 42000: Result consisted of more than one row
+SELECT 1 UNION SELECT 2 INTO @v FROM t1;
+ERROR 42000: Result consisted of more than one row
+(SELECT 1) UNION SELECT 2 INTO @v FROM t1;
+ERROR 42000: Result consisted of more than one row
+(SELECT 1) UNION (SELECT 2 INTO @v FROM t1);
+ERROR 42000: Result consisted of more than one row
+((SELECT 1) UNION (SELECT 2 INTO @v FROM t1));
+ERROR 42000: Result consisted of more than one row
+SELECT 1 UNION SELECT 1 INTO @v FROM t1;
+(SELECT 1) UNION SELECT 1 INTO @v FROM t1;
+(SELECT 1) UNION (SELECT 1 INTO @v FROM t1);
+((SELECT 1) UNION (SELECT 1 INTO @v FROM t1));
+SELECT 1 UNION SELECT 2 INTO OUTFILE 'parser.test.file1';
+SELECT 1 UNION (SELECT 2 INTO OUTFILE 'parser.test.file2');
+(SELECT 1) UNION SELECT 2 INTO OUTFILE 'parser.test.file3';
+(SELECT 1) UNION (SELECT 2 INTO OUTFILE 'parser.test.file4');
+((SELECT 1) UNION (SELECT 2 INTO OUTFILE 'parser.test.file5'));
+SELECT * FROM (SELECT a INTO @v FROM t1) t1a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT a INTO @v FROM t1) t1a' at line 1
+SELECT * FROM (SELECT a INTO @v) t1a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT a INTO @v) t1a' at line 1
+SELECT 1 PROCEDURE ANALYSE() INTO @v;
+ERROR HY000: Incorrect usage of PROCEDURE and INTO
+(SELECT 1 PROCEDURE ANALYSE() INTO @v);
+ERROR HY000: Incorrect usage of PROCEDURE and INTO
+(SELECT 1 UNION SELECT 1) ORDER BY 1 PROCEDURE ANALYSE();
+ERROR HY000: Incorrect usage of PROCEDURE and UNION
+(SELECT 1 UNION SELECT 1) LIMIT 1 PROCEDURE ANALYSE();
+ERROR HY000: Incorrect usage of PROCEDURE and UNION
+SELECT ( SELECT 1 PROCEDURE ANALYSE() ) a;
+ERROR HY000: Incorrect usage of PROCEDURE and subquery
+DROP TABLE t1;
+#
+# Part 4: The <joined table> syntax.
+#
+CREATE TABLE t1( a INT );
+CREATE TABLE t2( b INT );
+CREATE TABLE t3( c INT );
+CREATE TABLE t4( d INT );
+CREATE TABLE t5( e INT );
+# We use EXPLAIN so we can get the parser's interpretation of the
+# nesting. We don't really care about the execution plan.
+SET optimizer_switch = 'block_nested_loop=off';
+SELECT * FROM t1 JOIN t2;
+a	b
+SELECT * FROM t1 JOIN t2 ON a = b;
+a	b
+SELECT * FROM t1 t11 JOIN t1 t12 USING ( a );
+a
+SELECT * FROM t1 INNER JOIN t2;
+a	b
+SELECT * FROM t1 INNER JOIN t2 ON a = b;
+a	b
+SELECT * FROM t1 t11 INNER JOIN t1 t12 USING ( a );
+a
+SELECT * FROM t1 CROSS JOIN t2;
+a	b
+SELECT * FROM t1 CROSS JOIN t2 ON a = b;
+a	b
+SELECT * FROM t1 t11 CROSS JOIN t1 t12 USING ( a );
+a
+SELECT * FROM t1 STRAIGHT_JOIN t2;
+a	b
+SELECT * FROM t1 STRAIGHT_JOIN t2 ON a = b;
+a	b
+SELECT * FROM t1 t11 STRAIGHT_JOIN t1 t12 USING ( a );
+a
+SELECT * FROM t1 t11 NATURAL JOIN t1 t12;
+a
+SELECT * FROM t1 t11 NATURAL JOIN t1 t12 ON t11.a = t12.a;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ON t11.a = t12.a' at line 1
+SELECT * FROM t1 t11 NATURAL JOIN t1 t12 USING ( a );
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USING ( a )' at line 1
+SELECT * FROM t1 t11 NATURAL INNER JOIN t1 t12;
+a
+SELECT * FROM t1 LEFT JOIN t2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+SELECT * FROM t1 LEFT JOIN t2 ON a = b;
+a	b
+SELECT * FROM t1 t11 LEFT JOIN t1 t12 USING ( a );
+a
+SELECT * FROM t1 NATURAL LEFT JOIN t2;
+a	b
+SELECT * FROM t1 LEFT OUTER JOIN t2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+SELECT * FROM t1 LEFT OUTER JOIN t2 ON a = b;
+a	b
+SELECT * FROM t1 t11 LEFT OUTER JOIN t1 t12 USING ( a );
+a
+SELECT * FROM t1 NATURAL LEFT OUTER JOIN t2;
+a	b
+SELECT * FROM t1 RIGHT JOIN t2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+SELECT * FROM t1 RIGHT JOIN t2 ON a = b;
+a	b
+SELECT * FROM t1 t11 RIGHT JOIN t1 t12 USING ( a );
+a
+SELECT * FROM t1 NATURAL RIGHT JOIN t2;
+b	a
+SELECT * FROM t1 RIGHT OUTER JOIN t2;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
+SELECT * FROM t1 RIGHT OUTER JOIN t2 ON a = b;
+a	b
+SELECT * FROM t1 t11 RIGHT OUTER JOIN t1 t12 USING ( a );
+a
+SELECT * FROM t1 NATURAL RIGHT OUTER JOIN t2;
+b	a
+# Right-deep join nesting.
+EXPLAIN SELECT * FROM t1 JOIN t2 JOIN t3 ON t2.b = t3.c ON t1.a = t2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`b` = `test`.`t1`.`a`) and (`test`.`t3`.`c` = `test`.`t1`.`a`))
+# Right-deep join nesting from t2 and on.
+EXPLAIN SELECT * FROM t1 JOIN t2 JOIN t3 JOIN t4 ON t3.c = t4.d ON t2.b = t3.c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` where ((`test`.`t3`.`c` = `test`.`t2`.`b`) and (`test`.`t4`.`d` = `test`.`t2`.`b`))
+# Right-deep join nesting from t2 and on.
+EXPLAIN SELECT * FROM t1 JOIN t2 JOIN t3 JOIN t4 ON t3.c = t4.d ON t1.a = t2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` where ((`test`.`t4`.`d` = `test`.`t3`.`c`) and (`test`.`t2`.`b` = `test`.`t1`.`a`))
+# Left-deep join nesting.
+EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.a = t2.b JOIN t3 ON t2.b = t3.c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`b` = `test`.`t1`.`a`) and (`test`.`t3`.`c` = `test`.`t1`.`a`))
+# A cross join joined with an inner join (i.e. with a join condition).
+EXPLAIN SELECT * FROM t1 JOIN t2 JOIN t3 ON t1.a = t2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t1` join `test`.`t2` join `test`.`t3` where (`test`.`t2`.`b` = `test`.`t1`.`a`)
+EXPLAIN SELECT * FROM t1 t11 JOIN t2 JOIN t1 t12 USING ( a );
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` `t11` join `test`.`t2` join `test`.`t1` `t12` where (`test`.`t12`.`a` = `test`.`t11`.`a`)
+# A left-deep cross join tree joined with an inner join.
+EXPLAIN SELECT * FROM t1 JOIN t2 JOIN t3 JOIN t4 ON t1.a = t2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` where (`test`.`t2`.`b` = `test`.`t1`.`a`)
+EXPLAIN SELECT * FROM t1 JOIN t2 JOIN t3 JOIN t4 JOIN t5 ON t1.a = t2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t4`.`d` AS `d`,`test`.`t5`.`e` AS `e` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` where (`test`.`t2`.`b` = `test`.`t1`.`a`)
+# The different kinds of <table_ref> when used with context-dependent
+# join. Tests the top-down build of the parse tree.
+EXPLAIN SELECT * FROM t1 JOIN (t2) JOIN t3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t1` join `test`.`t2` join `test`.`t3`
+EXPLAIN SELECT * FROM t1 JOIN (SELECT 1 AS b) a JOIN t3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,'1' AS `b`,`test`.`t3`.`c` AS `c` from `test`.`t1` join `test`.`t3`
+EXPLAIN SELECT * FROM t1 JOIN (t2 JOIN t3) JOIN t4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4`
+EXPLAIN SELECT * FROM t1 JOIN (t2, t3) JOIN t4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4`
+EXPLAIN SELECT * FROM t1 JOIN t2 JOIN t3 ON t2.b = t3.c JOIN t4 ON t1.a = t4.d;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` where ((`test`.`t3`.`c` = `test`.`t2`.`b`) and (`test`.`t4`.`d` = `test`.`t1`.`a`))
+EXPLAIN SELECT * FROM t1 JOIN t2 JOIN t3 ON t2.b = t3.c JOIN t4 ON t1.a = t2.b;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` where ((`test`.`t2`.`b` = `test`.`t1`.`a`) and (`test`.`t3`.`c` = `test`.`t1`.`a`))
+EXPLAIN SELECT * FROM t1 t11 JOIN t2 JOIN t1 t12 USING(a) JOIN t1 t13 USING(a);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t13	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` `t11` join `test`.`t2` join `test`.`t1` `t12` join `test`.`t1` `t13` where ((`test`.`t12`.`a` = `test`.`t11`.`a`) and (`test`.`t13`.`a` = `test`.`t11`.`a`))
+EXPLAIN SELECT * FROM t2 JOIN t1 t11 JOIN t1 t12 USING(a) JOIN t1 t13 USING(a);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	SIMPLE	t13	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` join `test`.`t1` `t11` join `test`.`t1` `t12` join `test`.`t1` `t13` where ((`test`.`t12`.`a` = `test`.`t11`.`a`) and (`test`.`t13`.`a` = `test`.`t11`.`a`))
+EXPLAIN SELECT * FROM t1 JOIN t2 JOIN t3 JOIN t4 ON t3.c = t4.d;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` where (`test`.`t4`.`d` = `test`.`t3`.`c`)
+SET optimizer_switch = DEFAULT;
+DROP TABLE t1, t2, t3, t4, t5;
+# Testing correct nesting of natural joins.
+CREATE TABLE t1( a INT, b int );
+CREATE TABLE t2( a INT, c int );
+CREATE TABLE t3( a INT, d int );
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO t2 VALUES         (2, 2), (3, 3), (4, 4);
+INSERT INTO t3 VALUES                 (3, 3), (4, 4), (5, 5);
+# The two queries below should produce identical result sets.
+SELECT * FROM t1 NATURAL LEFT JOIN t2 NATURAL RIGHT JOIN t3;
+a	d	b	c
+3	3	3	3
+4	4	NULL	NULL
+5	5	NULL	NULL
+SELECT * FROM (t1 NATURAL LEFT JOIN t2) NATURAL RIGHT JOIN t3;
+a	d	b	c
+3	3	3	3
+4	4	NULL	NULL
+5	5	NULL	NULL
+# This result should differ from the result sets above.
+SELECT * FROM t1 NATURAL LEFT JOIN (t2 NATURAL RIGHT JOIN t3);
+a	b	d	c
+3	3	3	3
+1	1	NULL	NULL
+2	2	NULL	NULL
+DROP TABLE t1, t2, t3;

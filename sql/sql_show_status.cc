@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -72,13 +72,6 @@ build_query(const POS &pos,
     SELECT_LEX::SQL_CACHE_UNSPECIFIED /* sql_cache */
   };
 
-  static const Select_lock_type lock_type=
-  {
-    false, /* is_set */
-    TL_READ, /* lock_type */
-    false /* is_safe_to_cache_query */
-  };
-
   /* ... VARIABLE_NAME ... */
   PTI_simple_ident_ident *ident_name;
   ident_name= new (thd->mem_root) PTI_simple_ident_ident(pos, col_name);
@@ -144,13 +137,8 @@ build_query(const POS &pos,
   if (table_factor == NULL)
     return NULL;
 
-  PT_join_table_list *join_table_list;
-  join_table_list= new (thd->mem_root) PT_join_table_list(pos, table_factor);
-  if (join_table_list == NULL)
-    return NULL;
-
   PT_table_reference_list *table_reference_list;
-  table_reference_list= new (thd->mem_root) PT_table_reference_list(join_table_list);
+  table_reference_list= new (thd->mem_root) PT_table_reference_list(pos, table_factor);
   if (table_reference_list == NULL)
     return NULL;
 
@@ -199,26 +187,28 @@ build_query(const POS &pos,
   /* SELECT ... [ WHERE <cond> ] */
   PT_select_part2 *select_part2;
   select_part2= new (thd->mem_root) PT_select_part2(options_and_item_list,
-                                                    NULL, /* opt_into */
-                                                    table_reference_list, /* from */
-                                                    where_clause, /* opt_where_clause */
-                                                    NULL, /* opt_group_clause */
-                                                    NULL, /* opt_having_clause */
-                                                    NULL, /* opt_order_clause */
-                                                    NULL, /* opt_limit_clause */
-                                                    NULL, /* opt_procedure_analyse_clause */
-                                                    NULL, /* opt_into */
-                                                    lock_type /* opt_select_lock_type */);
+                                                    table_reference_list,
+                                                    where_clause);
   if (select_part2 == NULL)
     return NULL;
 
-  PT_select_init2 *select_init2;
-  select_init2= new (thd->mem_root) PT_select_init2(NULL, select_part2, NULL);
-  if (select_init2 == NULL)
+  PT_query_primary *query_primary=
+    new (thd->mem_root) PT_query_specification(select_part2);
+  if (query_primary == NULL)
     return NULL;
 
-  PT_select *select;
-  select= new (thd->mem_root) PT_select(select_init2, SQLCOM_SELECT);
+  PT_query_expression_body_primary *query_expression_body=
+    new (thd->mem_root) PT_query_expression_body_primary(query_primary);
+  if (query_expression_body == NULL)
+    return NULL;
+
+   PT_query_expression *query_expression=
+     new (thd->mem_root) PT_query_expression(query_expression_body);
+   if (query_expression == NULL)
+     return NULL;
+
+  PT_select_stmt *select;
+  select= new (thd->mem_root) PT_select_stmt(query_expression);
   if (select == NULL)
     return NULL;
 

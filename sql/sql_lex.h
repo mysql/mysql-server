@@ -288,7 +288,7 @@ public:
   {
     db= NULL_CSTR;
   }
-  /*
+  /**
     This constructor is used only for the case when we create a derived
     table. A derived table has no name and doesn't belong to any database.
     Later, if there was an alias specified for the table, it will be set
@@ -1613,6 +1613,26 @@ enum delete_option_enum {
 };
 
 
+/**
+  Internally there is no CROSS JOIN join type, as cross joins are just a
+  special case of inner joins with a join condition that is always true. The
+  only difference is the nesting, and that is handled by the parser.
+*/
+enum PT_joined_table_type
+{
+  JTT_INNER             = 0x01,
+  JTT_STRAIGHT          = 0x02,
+  JTT_NATURAL           = 0x04,
+  JTT_LEFT              = 0x08,
+  JTT_RIGHT             = 0x10,
+
+  JTT_STRAIGHT_INNER    = JTT_STRAIGHT | JTT_INNER,
+  JTT_NATURAL_INNER     = JTT_NATURAL | JTT_INNER,
+  JTT_NATURAL_LEFT      = JTT_NATURAL | JTT_LEFT,
+  JTT_NATURAL_RIGHT     = JTT_NATURAL | JTT_RIGHT
+};
+
+
 union YYSTYPE {
   /*
     Hint parser section (sql_hints.yy)
@@ -1720,8 +1740,10 @@ union YYSTYPE {
   Select_lock_type select_lock_type;
   class PT_union_order_or_limit *union_order_or_limit;
   class PT_table_expression *table_expression;
-  class PT_table_list *table_list2;
-  class PT_join_table_list *join_table_list;
+  class PT_table_reference *table_reference;
+  class PT_table_factor *table_factor;
+  class PT_joined_table *join_table;
+  enum PT_joined_table_type join_type;
   class PT_select_paren_derived *select_paren_derived;
   class PT_select_lex *select_lex2;
   class PT_internal_variable_name *internal_variable_name;
@@ -1747,9 +1769,15 @@ union YYSTYPE {
   class PT_select_paren *select_paren;
   class PT_select_init *select_init;
   class PT_select_init2 *select_init2;
-  class PT_select *select;
+  class PT_select_stmt *select_stmt;
   class Item_param *param_marker;
   class PTI_text_literal *text_literal;
+  class PT_query_expression *query_expression;
+  class PT_derived_table *derived_table;
+  class PT_query_expression_body *query_expression_body;
+  class PT_query_primary *query_primary;
+  class PT_subquery *subquery;
+
   XID *xid;
   enum xa_option_words xa_option_type;
   struct {
@@ -3423,7 +3451,8 @@ public:
   SELECT_LEX *new_query(SELECT_LEX *curr_select);
 
   /// Create query block and attach it to the current query expression.
-  SELECT_LEX *new_union_query(SELECT_LEX *curr_select, bool distinct);
+  SELECT_LEX *new_union_query(SELECT_LEX *curr_select, bool distinct,
+                              bool check_syntax= true);
 
   /// Create top-level query expression and query block.
   bool new_top_level_query();

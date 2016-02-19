@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -86,7 +86,15 @@ struct Parse_context {
   MEM_ROOT *mem_root;           ///< Current MEM_ROOT
   SELECT_LEX * select;          ///< Current SELECT_LEX object
 
-  Parse_context(THD *thd, SELECT_LEX *select);
+  /**
+    Sometimes in the contextualization process we need to keep track of
+    whether the current query expression is nested or top level.
+  */
+  bool is_top_level;
+
+  Parse_context(THD *thd, SELECT_LEX *sl) : Parse_context(thd, sl, true) {}
+
+  Parse_context(THD *const thd_arg, SELECT_LEX *sl_arg, bool is_top_level_arg);
 };
 
 

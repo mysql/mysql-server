@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,10 +18,13 @@
 #include "sql_class.h"
 #include "sql_parse.h"
 
-Parse_context::Parse_context(THD *thd, SELECT_LEX *select)
-: thd(thd),
-  mem_root(thd->mem_root),
-  select(select)
+
+Parse_context::Parse_context(THD *const thd_arg, SELECT_LEX *sl_arg,
+                             bool is_top_level_arg)
+  : thd(thd_arg),
+    mem_root(thd->mem_root),
+    select(sl_arg),
+    is_top_level(is_top_level_arg)
 {}
 
 
