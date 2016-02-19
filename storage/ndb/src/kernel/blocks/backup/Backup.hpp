@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -114,7 +114,6 @@ protected:
    * DIH signals
    */
   void execDIH_SCAN_TAB_CONF(Signal* signal);
-  void execDIH_SCAN_GET_NODES_CONF(Signal* signal);
   void execCHECK_NODE_RESTARTCONF(Signal*);
 
   /**
@@ -221,6 +220,7 @@ public:
     Uint64 noOfRecords;
 
     Uint32 tableId;
+    Uint32 backupPtrI;
     Uint32 schemaVersion;
     Uint32 tableType;
     Uint32 m_scan_cookie;
@@ -238,6 +238,10 @@ public:
 
     Uint32 nextList;
     union { Uint32 nextPool; Uint32 prevList; };
+    /**
+     * Pointer used by c_tableMap
+     */
+    Uint32 nextMapTable;
   };
   typedef Ptr<Table> TablePtr;
 
@@ -567,6 +571,12 @@ public:
    * Variables
    */
   Uint32 * c_startOfPages;
+  /**
+   * Map from tableId to tabPtr.i to speed up findTable
+   * If the same table is mapped to several backups we will
+   * look for the table with the correct backupPtr.
+   */
+  Uint32 * c_tableMap;
   NodeId c_masterNodeId;
   SLList<Node> c_nodes;
   NdbNodeBitmask c_aliveNodes;
@@ -724,6 +734,7 @@ public:
   void backupFragmentRef(Signal * signal, BackupFilePtr filePtr);
 
   void nextFragment(Signal*, BackupRecordPtr);
+  void release_tables(BackupRecordPtr);
   
   void sendCreateTrig(Signal*, BackupRecordPtr ptr, TablePtr tabPtr);
   void createAttributeMask(TablePtr tab, Bitmask<MAXNROFATTRIBUTESINWORDS>&);
@@ -770,7 +781,9 @@ public:
 
 
   NodeId getMasterNodeId() const { return c_masterNodeId; }
-  bool findTable(const BackupRecordPtr &, TablePtr &, Uint32 tableId) const;
+  bool findTable(const BackupRecordPtr &, TablePtr &, Uint32 tableId);
+  void insertTableMap(TablePtr &, Uint32 backupPtrI, Uint32 tableId);
+  void removeTableMap(TablePtr &, Uint32 backupPtrI, Uint32 tableId);
   bool parseTableDescription(Signal*, BackupRecordPtr ptr, TablePtr, const Uint32*, Uint32);
   
   bool insertFileHeader(BackupFormat::FileType, BackupRecord*, BackupFile*);

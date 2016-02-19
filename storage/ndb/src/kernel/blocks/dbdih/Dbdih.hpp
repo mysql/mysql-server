@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -318,8 +318,23 @@ public:
     NF_LCP_TAKE_OVER = 4
   };
   
+  /**
+   * useInTransactions is used in DIGETNODES to assert that we give
+   * DBTC a node view which is correct. To ensure we provide a view
+   * which is correct we use an RCU mechanism when executing
+   * DIGETNODES. It's not a crashing problem, but it ensures that
+   * we avoid getting into unnecessary extra wait states at node
+   * failures and also that we avoid unnecessary abortions.
+   *
+   * We update this view any time any node is changing the value of
+   * useInTransactions and DBTC could be actively executing
+   * transactions.
+   */
+  NdbSeqLock m_node_view_lock;
+
   struct NodeRecord
   {
+    NodeRecord() { }
     /**
      * Removed the constructor method and replaced it with the method
      * initNodeRecord. The problem with the constructor method is that
@@ -439,9 +454,10 @@ public:
     };
     
     Sysfile::ActiveStatus activeStatus;
-    
-    NodeStatus nodeStatus;
+
     bool useInTransactions;
+
+    NodeStatus nodeStatus;
     bool allowNodeStart;
     bool m_inclDihLcp;
     Uint8 copyCompleted; // 0 = NO :-), 1 = YES, 2 = yes, first WAITING
@@ -612,13 +628,6 @@ public:
     TabRecord() { }
 
     /**
-     * rw-lock that protects multiple parallel DIGETNODES (readers) from
-     *   updates to fragmenation changes (e.g UPDATE_FRAG_STATEREQ)...
-     *   search for DIH_TAB_WRITE_LOCK
-     */
-    NdbSeqLock m_lock;
-
-    /**
      * State for copying table description into pages
      */
     enum CopyStatus {
@@ -674,51 +683,119 @@ public:
       ST_NORMAL = 1,            // Normal table, logged and durable
       ST_TEMPORARY = 2          // Table is lost after SR, not logged
     };
-    CopyStatus tabCopyStatus;
-    UpdateState tabUpdateState;
-    TabLcpStatus tabLcpStatus;
-    TabStatus tabStatus;
-    Method method;
-    Storage tabStorage;
 
-    Uint32 pageRef[PACK_TABLE_PAGES]; // TODO: makedynamic
+    /**
+     * rw-lock that protects multiple parallel DIGETNODES (readers) from
+     *   updates to fragmenation changes (e.g UPDATE_FRAG_STATEREQ)...
+     *   search for DIH_TAB_WRITE_LOCK
+     */
+    NdbSeqLock m_lock;
+
+    /**
+     * tabStatus, schemaTransId, m_map_ptr_i, totalfragments, noOfBackups
+     * and m_scan_reorg_flag are read concurrently from many TC threads in
+     * the execDIH_SCAN_TAB_REQ so we place these close to each other.
+     */
+    TabStatus tabStatus;
+    Uint32 schemaTransId;
+    Uint32 totalfragments;
+    union {
+      Uint32 mask;
+      Uint32 m_map_ptr_i;
+    };
+    Uint32 m_scan_reorg_flag;
+
+    Uint8 noOfBackups;
+    Uint8 kvalue;
+    Uint16 primaryTableId;
+
+    Uint16 noPages;
+    Uint16 tableType;
+
+    Uint32 schemaVersion;
+    union {
+      Uint32 hashpointer;
+      Uint32 m_new_map_ptr_i;
+    };
+    Method method;
+
+
+
 //-----------------------------------------------------------------------------
 // Each entry in this array contains a reference to 16 fragment records in a
 // row. Thus finding the correct record is very quick provided the fragment id.
 //-----------------------------------------------------------------------------
     Uint32 startFid[(MAX_NDB_PARTITIONS - 1) / NO_OF_FRAGS_PER_CHUNK + 1];
 
+    CopyStatus tabCopyStatus;
+    UpdateState tabUpdateState;
+    TabLcpStatus tabLcpStatus;
+    Storage tabStorage;
+
     Uint32 tabFile[2];
-    Uint32 connectrec;                                    
-    union {
-      Uint32 hashpointer;
-      Uint32 m_new_map_ptr_i;
-    };
-    union {
-      Uint32 mask;
-      Uint32 m_map_ptr_i;
-    };
     Uint32 noOfWords;
-    Uint32 schemaVersion;
     Uint32 tabRemoveNode;
-    Uint32 totalfragments;
     Uint32 noOfFragChunks;
-    Uint32 m_scan_count[2];
-    Uint32 m_scan_reorg_flag;
     Uint32 tabErrorCode;
+
     struct {
       Uint32 tabUserRef;
       Uint32 tabUserPtr;
     } m_dropTab;
-
-    Uint8 kvalue;
-    Uint8 noOfBackups;
-    Uint16 noPages;
-    Uint16 tableType;
-    Uint16 primaryTableId;
+    Uint32 connectrec;
 
     // set in local protocol during prepare until commit
-    Uint32 schemaTransId;
+    /**
+     * m_scan_count is heavily updated by all TC threads as they start and
+     * stop scans. This is always updated when also grabbing the mutex,
+     * so we place it close to the declaration of the mutex to avoid
+     * contaminating too many CPU cache lines.
+     */
+    Uint32 m_scan_count[2];
+
+    /**
+     * This mutex protects the changes to m_scan_count to ensure that we
+     * complete old scans relying on old meta data before removing the
+     * metadata parts. It also protects the combination of tabStatus
+     * schemaTransId checked for in execDIH_SCAN_TAB_REQ(...).
+     *
+     * Given that DIH_SCAN_TAB_REQ also reads totalfragments, m_map_ptr_i,
+     * noOfBackups, m_scan_reorg_flag we protect those variables as well
+     * with this mutex. These variables are also protected by the
+     * above NdbSeqLock to ensure that execDIGETNODESREQ can execute
+     * concurrently from many TC threads simultaneously.
+     *
+     * DIH_SCAN_TAB_REQ and DIH_SCAN_TAB_COMPLETE_REP are called once per
+     * scan at start and end. These will both grab a mutex on the table
+     * object. This should support in the order of a few million scans
+     * per table per data node. This should suffice. The need for a mutex
+     * comes from the fact that we need to keep track of number of scans.
+     * Thus we need to update from many different threads.
+     *
+     * DIGETNODESREQ is called once per primary key operation and once
+     * per fragment scanned in a scan operation. This means that it can
+     * be called many millions of times per second in a data node. Thus
+     * a mutex per table is not sufficient. The data read in DIGETNODESREQ
+     * is updated very seldomly. So we use the RCU mechanism, we read
+     * the value of the NdbSeqLock before reading the variables, we then
+     * read the variables protected by this mechanism whereafter we verify
+     * that the NdbSeqLock haven't changed it's value.
+     *
+     * It is noteworthy that using RCU requires reading the lock variable
+     * before and after in both the successful case as well as in the
+     * error case. We cannot deduce an error until we have verified that
+     * we have read consistent data.
+     *
+     * So with this mechanism DIGETNODESREQ can scale to almost any number
+     * of key operations and fragment scans per second with minor glitches
+     * while still performing online schema changes.
+     *
+     * We put the mutex surrounded by variables that are not used in normal
+     * operation to minimize the bad effects of CPU cache misses.
+     */
+    NdbMutex theMutex;
+
+    Uint32 pageRef[PACK_TABLE_PAGES]; // TODO: makedynamic
   };
   typedef Ptr<TabRecord> TabRecordPtr;
 
@@ -1167,7 +1244,6 @@ private:
   void execDIGETNODESREQ(Signal *);
   void execSTTOR(Signal *);
   void execDIH_SCAN_TAB_REQ(Signal *);
-  void execDIH_SCAN_GET_NODES_REQ(Signal *);
   void execDIH_SCAN_TAB_COMPLETE_REP(Signal*);
   void execGCP_SAVEREF(Signal *);
   void execGCP_TCFINISHED(Signal *);
@@ -1256,13 +1332,12 @@ private:
   void sendStartFragreq(Signal *,
                         TabRecordPtr regTabPtr,
                         Uint32 fragId);
-  void sendAddFragreq(Signal *,
-                      TabRecordPtr regTabPtr,
-                      Uint32 fragId,
-                      Uint32 lcpNo,
-                      Uint32 param);
 
-  void sendAddFragreq(Signal*, ConnectRecordPtr, TabRecordPtr, Uint32 fragId);
+  void sendAddFragreq(Signal*,
+                      ConnectRecordPtr,
+                      TabRecordPtr,
+                      Uint32 fragId,
+                      bool rcu_lock_held);
   void addTable_closeConf(Signal* signal, Uint32 tabPtrI);
   void resetReplicaSr(TabRecordPtr tabPtr);
   void resetReplicaLcp(ReplicaRecord * replicaP, Uint32 stopGci);

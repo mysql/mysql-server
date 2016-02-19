@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,6 +24,11 @@ MACRO(NDB_ADD_TEST)
     ""
     ${ARGN}
   )
+
+  # Check switch WITH_UNIT_TESTS and build only when requested
+  IF(NOT WITH_UNIT_TESTS)
+    RETURN()
+  ENDIF()
 
   # Extracting the executable from DEFAULT_ARGS
   LIST(GET ARG_DEFAULT_ARGS 0 EXEC)

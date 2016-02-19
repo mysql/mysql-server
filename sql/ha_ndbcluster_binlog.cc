@@ -6434,6 +6434,7 @@ restart_cluster_failure:
   injector_thd= thd;
   injector_ndb= i_ndb;
   schema_ndb= s_ndb;
+  DBUG_PRINT("info", ("set schema_ndb to s_ndb"));
 
   if (opt_bin_log && opt_ndb_log_bin)
   {
