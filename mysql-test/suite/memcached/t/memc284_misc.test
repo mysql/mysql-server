@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
 #
 
 source include/not_valgrind.inc;
@@ -60,40 +60,30 @@ my $memd = new Cache::Memcached {
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
-print "Set E|Essen with negative expire time:\n";
-if (!$memd->set("E","Essen","-60")) {
-  print "Error: E|Essen cannot be inserted.\n";
-}
 
-print "Set B|Berlin with expire time as INT_MAX32:\n";
-if (!$memd->set("B","Berlin","2147483647")) {
-  print "Error: B|Berlin cannot be inserted.\n";
-}
+print "Set E|Essen with negative expire time should fail:\n";
+$memd->set("E","Essen","-60");
 
-print "Set P|paris with expire time greater than INT_MAX32:\n";
-if (!$memd->set("B","Berlin","2147483648")) {
-  print "Error: P|paris cannot be inserted.\n";
-}
+$val = $memd->get("E");
+if ($val) { print "$val\n"; }
+
+print "Set B|Berlin with expire time as INT_MAX32 should succeed:\n";
+$memd->set("B","Berlin","2147483647");
+
+$val = $memd->get("B");
+if ($val) { print "$val\n"; }
+
+print "Set P|paris with expire time greater than INT_MAX32 should fail:\n";
+$memd->set("P","Paris","2147483648");
+
+$val = $memd->get("P");
+if ($val) { print "$val\n"; }
 
 $memd->disconnect_all;
 EOF
 
 --sorted_result
 SELECT c1,c2 FROM t1;
-
-perl;
-use DBI;
-use Cache::Memcached;
-my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11284" ],
-  'connect_timeout' => 20,
-  'select_timeout' => 20
-};
-print "Here the memcached results with E:\n";
-$val = $memd->get("E");
-if ($val) { print "$val\n"; }
-$memd->disconnect_all;
-EOF
 
 DROP TABLE t1;
 
