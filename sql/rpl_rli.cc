@@ -2883,4 +2883,11 @@ const char* Relay_log_info::get_for_channel_str(bool upper_case) const
     return mi->get_for_channel_str(upper_case);
 }
 
+enum_return_status Relay_log_info::add_gtid_set(const Gtid_set *gtid_set)
+{
+  DBUG_ENTER("Relay_log_info::add_gtid_set(gtid_set)");
 
+  enum_return_status return_status= this->gtid_set.add_gtid_set(gtid_set);
+
+  DBUG_RETURN(return_status);
+}
