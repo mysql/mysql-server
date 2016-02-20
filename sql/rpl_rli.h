@@ -296,6 +296,16 @@ public:
     gtid_set.ensure_sidno(sidno);
     gtid_set._add_gtid(sidno, gno);
   }
+
+  /**
+    Adds a GTID set to received GTID set.
+
+    @param gtid_set the gtid_set to add
+
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status add_gtid_set(const Gtid_set *gtid_set);
+
   const Gtid_set *get_gtid_set() const { return &gtid_set; }
 
   int init_relay_log_pos(const char* log,

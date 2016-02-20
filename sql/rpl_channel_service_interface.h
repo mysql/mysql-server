@@ -247,6 +247,17 @@ int channel_get_thread_id(const char* channel,
 long long channel_get_last_delivered_gno(const char* channel, int sidno);
 
 /**
+  Adds server executed GTID set to channel received GTID set.
+
+  @param channel the channel name
+
+  @return the operation status
+    @retval 0      OK
+    @retval != 0   Error
+*/
+int channel_add_executed_gtids_to_received_gtids(const char* channel);
+
+/**
   Queues a event packet into the current active channel.
 
   @param channel     the channel name
