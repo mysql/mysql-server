@@ -704,3 +704,5 @@ CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
 --source suite/innodb/include/create_alter_partition.inc
 
 --eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table
+
+DROP TABLESPACE ts1;

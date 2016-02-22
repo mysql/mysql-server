@@ -1414,3 +1414,4 @@ test/t2#p#p3#sp#sp3	Single	test/t2#p#p3#sp#sp3
 test/t2#p#p4#sp#sp4	System	NULL
 DROP TABLE t2;
 SET GLOBAL innodb_file_per_table=1;
+DROP TABLESPACE ts1;
