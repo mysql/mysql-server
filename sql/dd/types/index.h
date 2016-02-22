@@ -35,7 +35,7 @@ typedef Iterator<const Index_element> Index_element_const_iterator;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Index : public Entity_object
+class Index : virtual public Entity_object
 {
 public:
   static const Object_type &TYPE();

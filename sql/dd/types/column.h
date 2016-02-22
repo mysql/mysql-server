@@ -35,7 +35,7 @@ typedef Iterator<const Column_type_element> Column_type_element_const_iterator;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Column : public Entity_object
+class Column : virtual public Entity_object
 {
 public:
   static const Object_type &TYPE();

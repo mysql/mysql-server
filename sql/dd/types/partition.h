@@ -39,7 +39,7 @@ typedef Iterator<const Partition_value>  Partition_value_const_iterator;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Partition : public Entity_object
+class Partition : virtual public Entity_object
 {
 public:
   static const Object_type &TYPE();

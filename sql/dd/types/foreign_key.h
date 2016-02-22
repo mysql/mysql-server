@@ -34,7 +34,7 @@ typedef Iterator<const Foreign_key_element> Foreign_key_element_const_iterator;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Foreign_key : public Entity_object
+class Foreign_key : virtual public Entity_object
 {
 public:
   static const Object_type &TYPE();
