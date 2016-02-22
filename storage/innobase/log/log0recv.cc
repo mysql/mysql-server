@@ -852,7 +852,26 @@ DECLARE_THREAD(recv_writer_thread)(
 		<< os_thread_pf(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
-	recv_writer_thread_active = true;
+	/* The code flow is as follows:
+	Step 1: In recv_recovery_from_checkpoint_start().
+	Step 2: This recv_writer thread is started.
+	Step 3: In recv_recovery_from_checkpoint_finish().
+	Step 4: Wait for recv_writer thread to complete. This is based
+	on the flag recv_writer_thread_active.
+	Step 5: Assert that recv_writer thread is not active anymore.
+
+	It is possible that the thread that is started in step 2,
+	becomes active only after step 4 and hence the assert in
+	step 5 fails.  So mark this thread active only if necessary. */
+	mutex_enter(&recv_sys->writer_mutex);
+	if (recv_recovery_on) {
+		recv_writer_thread_active = true;
+	} else {
+		mutex_exit(&recv_sys->writer_mutex);
+		os_thread_exit();
+		ut_error;
+	}
+	mutex_exit(&recv_sys->writer_mutex);
 
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 
