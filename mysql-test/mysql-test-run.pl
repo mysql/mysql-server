@@ -182,6 +182,8 @@ our @opt_combinations;
 our @opt_extra_mysqld_opt;
 our @opt_mysqld_envs;
 
+our @opt_extra_mysqltest_opt;
+
 our @opt_extra_bootstrap_opt;
 
 my $opt_stress;
@@ -1038,6 +1040,7 @@ sub print_global_resfile {
   resfile_global("check-testcases", $opt_check_testcases ? 1 : 0);
   resfile_global("mysqld", \@opt_extra_mysqld_opt);
   resfile_global("bootstrap", \@opt_extra_bootstrap_opt);
+  resfile_global("mysqltest", \@opt_extra_mysqltest_opt);
   resfile_global("debug", $opt_debug ? 1 : 0);
   resfile_global("gcov", $opt_gcov ? 1 : 0);
   resfile_global("gprof", $opt_gprof ? 1 : 0);
@@ -1143,6 +1146,9 @@ sub command_line_setup {
 
              # Run test on running server
              'extern=s'                  => \%opts_extern, # Append to hash
+
+             # Extra options used when running test clients
+             'mysqltest=s'               => \@opt_extra_mysqltest_opt,
 
              # Debugging
              'debug'                    => \$opt_debug,
@@ -6526,6 +6532,10 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--server-arg=%s", $_) for @$mysqld_args;
   }
 
+  foreach my $arg ( @opt_extra_mysqltest_opt ) {
+    mtr_add_arg($args, $arg);
+  }
+
   # ----------------------------------------------------------------------
   # export MYSQL_TEST variable containing <path>/mysqltest <args>
   # ----------------------------------------------------------------------
@@ -7202,6 +7212,9 @@ Options that pass on options (these may be repeated)
 
   mysqld=ARGS           Specify additional arguments to "mysqld"
   mysqld-env=VAR=VAL    Specify additional environment settings for "mysqld"
+
+Options for mysqltest
+  mysqltest=ARGS        Extra options used when running test clients
 
 Options to run test on running server
 

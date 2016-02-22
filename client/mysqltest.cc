@@ -121,7 +121,7 @@ enum {
   OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL, OPT_MAX_CONNECT_RETRIES,
   OPT_MAX_CONNECTIONS, OPT_MARK_PROGRESS, OPT_LOG_DIR,
   OPT_TAIL_LINES, OPT_RESULT_FORMAT_VERSION, OPT_TRACE_PROTOCOL,
-  OPT_EXPLAIN_PROTOCOL, OPT_JSON_EXPLAIN_PROTOCOL
+  OPT_EXPLAIN_PROTOCOL, OPT_JSON_EXPLAIN_PROTOCOL, OPT_TRACE_EXEC
 };
 
 static int record= 0, opt_sleep= -1;
@@ -134,7 +134,7 @@ static int opt_port= 0;
 static int opt_max_connect_retries;
 static int opt_result_format_version;
 static int opt_max_connections= DEFAULT_MAX_CONN;
-static my_bool opt_compress= 0, silent= 0, verbose= 0;
+static my_bool opt_compress= 0, silent= 0, verbose= 0, trace_exec= 0;
 static my_bool debug_info_flag= 0, debug_check_flag= 0;
 static my_bool tty_password= 0;
 static my_bool opt_mark_progress= 0;
@@ -3237,6 +3237,11 @@ static void do_exec(struct st_command *command)
 
   while (fgets(buf, sizeof(buf), res_file))
   {
+    if (trace_exec)
+    {
+      fprintf(stdout, "%s", buf);
+      fflush(stdout);
+    }
     if (disable_result_log)
     {
       buf[strlen(buf)-1]=0;
@@ -6970,6 +6975,8 @@ static struct my_option my_long_options[] =
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tmpdir", 't', "Temporary directory where sockets are put.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"trace-exec", OPT_TRACE_EXEC, "Print output from exec to stdout.", &trace_exec, &trace_exec, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "User for login.", &opt_user, &opt_user, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Write more.", &verbose, &verbose, 0,
