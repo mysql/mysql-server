@@ -1,5 +1,6 @@
 --source include/have_innodb.inc
 --source include/not_embedded.inc
+--source include/big_test.inc
 
 CALL mtr.add_suppression("innodb_open_files should not be greater than the open_files_limit.");
 
@@ -13,7 +14,7 @@ inc $innodb_file_limit;
 --source include/wait_until_disconnected.inc
 --enable_reconnect
 
---exec echo "restart: --innodb_open_files=16385 --no-console --log-error=$MYSQLTEST_VARDIR/tmp/innodb_file_limit.err" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --innodb_open_files=$innodb_file_limit --no-console --log-error=$MYSQLTEST_VARDIR/tmp/innodb_file_limit.err" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 --enable_reconnect
 --source include/wait_until_connected_again.inc
