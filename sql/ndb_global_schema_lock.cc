@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -359,20 +359,146 @@ ndbcluster_global_schema_unlock(THD *thd)
 }
 
 
-#ifndef NDB_WITHOUT_GLOBAL_SCHEMA_LOCK
 static
-int
-ndbcluster_global_schema_func(THD *thd, bool lock, void* args)
+bool
+notify_mdl_lock(THD *thd, bool lock)
 {
+  DBUG_ENTER("notify_mdl_lock");
+
   if (lock)
   {
-    bool no_lock_queue = (bool)args;
-    return ndbcluster_global_schema_lock(thd, no_lock_queue, true);
+    if (ndbcluster_global_schema_lock(thd, false, true) != 0)
+    {
+      DBUG_PRINT("error", ("Failed to lock global schema lock"));
+      /*
+        Ignore error to lock GSL and let execution continue
+        until one of ha_ndbcluster's DDL functions use
+        Thd_ndb::has_required_global_schema_lock() to verify
+        if the GSL is taken or not.
+        This allows users to work with non NDB objects although
+        failure to lock GSL occurs(for example because connection
+        to NDB is not available).
+      */
+      DBUG_RETURN(false); // Ignore error!
+    }
+    DBUG_RETURN(false); // OK
   }
 
-  return ndbcluster_global_schema_unlock(thd);
+
+  if (ndbcluster_global_schema_unlock(thd) != 0)
+  {
+    DBUG_PRINT("error", ("Failed to unlock global schema lock"));
+    DBUG_RETURN(true); // Error
+  }
+  DBUG_RETURN(false); // OK
 }
-#endif
+
+
+static
+const char*
+mdl_namespace_name(const MDL_key* mdl_key)
+{
+  switch(mdl_key->mdl_namespace())
+  {
+  case MDL_key::GLOBAL:
+    return "GLOBAL";
+  case MDL_key::SCHEMA:
+    return "SCHEMA";
+  case MDL_key::TABLESPACE:
+    return "TABLESPACE";
+  case MDL_key::TABLE:
+    return "TABLE";
+  case MDL_key::FUNCTION:
+    return "FUNCTION";
+  case MDL_key::PROCEDURE:
+    return "PROCEDURE";
+  case MDL_key::TRIGGER:
+    return "TRIGGER";
+  case MDL_key::EVENT:
+    return "EVENT";
+  default:
+    return "<unknown>";
+  }
+}
+
+
+/**
+  Callback handling the notification of ALTER TABLE start and end
+  on the given key. The function locks or unlocks the GSL thus
+  preventing concurrent modification to any other object in
+  the cluster.
+
+  @param thd                Thread context.
+  @param mdl_key            MDL key identifying table which is going to be
+                            or was ALTERed.
+  @param notification_type  Indicates whether this is pre-ALTER TABLE or
+                            post-ALTER TABLE notification.
+
+  @note This is an additional notification that spans the duration
+        of the whole ALTER TABLE thus avoiding the need for an expensive
+        abort of the ALTER late in the process when upgrade to X
+        metadata lock happens.
+
+  @note This callback is called in addition to notify_exclusive_mdl()
+        which means that during an ALTER TABLE we will get two different
+        calls to take and release GSL.
+
+  @see notify_alter_table() in handler.h
+*/
+
+static
+bool
+ndbcluster_notify_alter_table(THD *thd, const MDL_key *mdl_key,
+                              ha_notification_type notification)
+{
+  DBUG_ENTER("ndbcluster_notify_alter_table");
+  DBUG_PRINT("enter", ("namespace: '%s', db: '%s', name: '%s'",
+                       mdl_namespace_name(mdl_key),
+                       mdl_key->db_name(), mdl_key->name()));
+
+  DBUG_ASSERT(notification == HA_NOTIFY_PRE_EVENT ||
+              notification == HA_NOTIFY_POST_EVENT);
+
+  const bool result =
+      notify_mdl_lock(thd,
+                      notification == HA_NOTIFY_PRE_EVENT);
+  DBUG_RETURN(result);
+}
+
+
+/**
+  Callback handling the notification about acquisition or after
+  release of exclusive metadata lock on object represented by
+  key. The function locks or unlocks the GSL thus preventing
+  concurrent modification to any other object in the cluster
+
+  @param thd                Thread context.
+  @param mdl_key            MDL key identifying object on which exclusive
+                            lock is to be acquired/was released.
+  @param notification_type  Indicates whether this is pre-acquire or
+                            post-release notification.
+
+  @see notify_exclusive_mdl() in handler.h
+*/
+
+static
+bool
+ndbcluster_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
+                                ha_notification_type notification)
+{
+  DBUG_ENTER("ndbcluster_notify_exclusive_mdl");
+  DBUG_PRINT("enter", ("namespace: '%s', db: '%s', name: '%s'",
+                       mdl_namespace_name(mdl_key),
+                       mdl_key->db_name(), mdl_key->name()));
+
+  DBUG_ASSERT(notification == HA_NOTIFY_PRE_EVENT ||
+              notification == HA_NOTIFY_POST_EVENT);
+
+  const bool result =
+      notify_mdl_lock(thd,
+                      notification == HA_NOTIFY_PRE_EVENT);
+  DBUG_RETURN(result);
+}
 
 
 #include "ndb_global_schema_lock.h"
@@ -385,9 +511,8 @@ void ndbcluster_global_schema_lock_init(handlerton *hton)
   gsl_initialized= true;
   native_mutex_init(&gsl_mutex, MY_MUTEX_INIT_FAST);
 
-#ifndef NDB_WITHOUT_GLOBAL_SCHEMA_LOCK
-  hton->global_schema_func= ndbcluster_global_schema_func;
-#endif
+  hton->notify_alter_table = ndbcluster_notify_alter_table;
+  hton->notify_exclusive_mdl = ndbcluster_notify_exclusive_mdl;
 }
 
 
@@ -404,11 +529,6 @@ void ndbcluster_global_schema_lock_deinit(void)
 bool
 Thd_ndb::has_required_global_schema_lock(const char* func)
 {
-#ifdef NDB_WITHOUT_GLOBAL_SCHEMA_LOCK
-  // The global schema lock hook is not installed ->
-  //  no thd has gsl
-  return true;
-#else
   if (global_schema_lock_error)
   {
     // An error occured while locking, either because
@@ -431,7 +551,6 @@ Thd_ndb::has_required_global_schema_lock(const char* func)
                   (int)query.length, query.str, func);
   abort();
   return false;
-#endif
 }
 
 
