@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,8 +32,8 @@ class Table_partition_values : public Object_table_impl
 public:
   static const Table_partition_values &instance()
   {
-    static Table_partition_values s_instance;
-    return s_instance;
+    static Table_partition_values *s_instance= new Table_partition_values();
+    return *s_instance;
   }
 
   static const std::string &table_name()
@@ -56,6 +56,7 @@ public:
   Table_partition_values()
   {
     m_target_def.table_name(table_name());
+    m_target_def.dd_version(1);
 
     m_target_def.add_field(FIELD_PARTITION_ID,
                            "FIELD_PARTITION_ID",

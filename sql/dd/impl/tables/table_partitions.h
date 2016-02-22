@@ -33,8 +33,8 @@ class Table_partitions : public Object_table_impl
 public:
   static const Table_partitions &instance()
   {
-    static Table_partitions s_instance;
-    return s_instance;
+    static Table_partitions *s_instance= new Table_partitions();
+    return *s_instance;
   }
 
   static const std::string &table_name()
@@ -63,6 +63,7 @@ public:
   Table_partitions()
   {
     m_target_def.table_name(table_name());
+    m_target_def.dd_version(1);
 
     m_target_def.add_field(FIELD_ID,
                            "FIELD_ID",

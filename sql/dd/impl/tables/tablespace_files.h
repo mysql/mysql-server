@@ -32,8 +32,8 @@ class Tablespace_files : public Object_table_impl
 public:
   static const Tablespace_files &instance()
   {
-    static Tablespace_files s_instance;
-    return s_instance;
+    static Tablespace_files *s_instance= new Tablespace_files();
+    return *s_instance;
   }
 
   static const std::string &table_name()
@@ -55,6 +55,7 @@ public:
   Tablespace_files()
   {
     m_target_def.table_name(table_name());
+    m_target_def.dd_version(1);
 
     m_target_def.add_field(FIELD_TABLESPACE_ID,
                            "FIELD_TABLESPACE_ID",

@@ -32,8 +32,8 @@ class Column_type_elements : public Object_table_impl
 public:
   static const Column_type_elements &instance()
   {
-    static Column_type_elements s_instance;
-    return s_instance;
+    static Column_type_elements *s_instance= new Column_type_elements();
+    return *s_instance;
   }
 
   static const std::string &table_name()
@@ -54,6 +54,7 @@ public:
   Column_type_elements()
   {
     m_target_def.table_name(table_name());
+    m_target_def.dd_version(1);
 
     m_target_def.add_field(FIELD_COLUMN_ID,
                            "FIELD_COLUMN_ID",

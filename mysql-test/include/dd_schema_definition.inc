@@ -35,7 +35,8 @@ let $dd_table_ids=
                'foreign_key_column_usage',
                'table_partitions',
                'table_partition_values',
-               'index_partitions');
+               'index_partitions',
+               'version');
 
 # Expression representing the DD index ids
 let $dd_index_ids= SELECT id FROM indexes

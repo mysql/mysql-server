@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 #define BOOTSTRAP_H
 
 #include "my_global.h"
+#include "mysql/thread_type.h"              // enum_thread_type
 
 typedef struct st_mysql_file MYSQL_FILE;
 
@@ -35,9 +36,12 @@ typedef bool (*bootstrap_functor)(THD *thd);
 
   @param file         File providing SQL statements, if non-NULL
   @param boot_handler Optional functor for customized handling
+  @param thread_type  Bootstrap thread type.
+
   @return             Operation outcome, 0 if no errors
 */
-bool run_bootstrap_thread(MYSQL_FILE *file, bootstrap_functor boot_handler);
+bool run_bootstrap_thread(MYSQL_FILE *file, bootstrap_functor boot_handler,
+                          enum_thread_type thread_type);
 }
 
 #endif // BOOTSTRAP_H

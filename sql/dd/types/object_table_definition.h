@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,9 +35,6 @@ class Table;
   necessary to create and populate a DD table. An Object_table instance
   may use one or more instances implementing this interface to keep track
   of the table definitions corresponding to the supported DD versions.
-
-  This interface also enables storing (in main memory) and retrieving the
-  meta data associated with the table definition.
 */
 
 class Object_table_definition
@@ -68,20 +65,18 @@ public:
   virtual const std::vector<std::string> &dml_populate_statements() const= 0;
 
   /**
-    Set generated meta data representing the object table.
+    Get dd version of the meta data representing the object table.
 
-    @param table Object structure representing the meta data corresponding
-                 to the table definition
+    @return actual or target dd version, depending on context
   */
-  virtual void meta_data(Table *table)= 0;
+  virtual uint dd_version() const= 0;
 
   /**
-    Get meta data representing the object table.
+    Set dd version of the meta data representing the object table.
 
-    @return Object structure representing the meta data corresponding
-            to the table definition
+    @param version actual or target dd version, depending on context
   */
-  virtual Table *meta_data() const= 0;
+  virtual void dd_version(uint version)= 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////

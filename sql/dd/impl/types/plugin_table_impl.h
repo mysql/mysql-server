@@ -13,29 +13,20 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
-#ifndef DD__OBJECT_TABLE_IMPL_INCLUDED
-#define DD__OBJECT_TABLE_IMPL_INCLUDED
+#ifndef DD__PLUGIN_TABLE_IMPL_INCLUDED
+#define DD__PLUGIN_TABLE_IMPL_INCLUDED
 
-#include "my_global.h"
-
-#include "log.h"                                        // sql_print_warning
-#include "mysqld.h"                                     // opt_initialize
-
-#include "dd/impl/dictionary_impl.h"                    // get_target_dd_...
-#include "dd/impl/types/object_table_definition_impl.h" // Object_table_defin...
-#include "dd/types/object_table.h"                      // Object_table
-#include "dd/types/object_table.h"                      // Object_table
-
-class THD;
+#include "dd/types/object_table.h"
+#include "dd/impl/types/plugin_table_definition_impl.h"
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Object_table_impl : virtual public Object_table
+class Plugin_table_impl : public Object_table
 {
 protected:
-  Object_table_definition_impl m_target_def;
+  Plugin_table_definition_impl m_target_def;
 
 public:
   virtual const Object_table_definition *table_definition(
@@ -74,14 +65,26 @@ public:
   { return false; }
 
   virtual bool hidden() const
-  { return true; }
+  { return false; }
 
-  virtual ~Object_table_impl()
+  Plugin_table_impl(const std::string &name, const std::string &definition,
+                    const std::string &options, uint version)
+  {
+    m_target_def.set_table_name(name);
+    m_target_def.set_table_definition(definition);
+    m_target_def.set_table_options(options);
+    m_target_def.dd_version(version);
+  }
+
+  virtual ~Plugin_table_impl()
   { }
+
+  virtual const std::string &name() const
+  { return m_target_def.get_table_name(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
 }
 
-#endif // DD__OBJECT_TABLE_IMPL_INCLUDED
+#endif // DD__PLUGIN_TABLE_IMPL_INCLUDED

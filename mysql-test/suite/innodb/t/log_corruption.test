@@ -73,7 +73,7 @@ let SEARCH_PATTERN=InnoDB: Cannot create sys_virtual system tables. running in r
 --exec $MYSQLD $args --innodb-force-recovery=5
 let SEARCH_PATTERN=InnoDB: Ignoring the redo log due to missing MLOG_CHECKPOINT between the checkpoint 1213964 and the end 1213952\.;
 --source include/search_pattern_in_file.inc
-let SEARCH_PATTERN=Plugin 'InnoDB' registration as a STORAGE ENGINE failed;
+let SEARCH_PATTERN=Data Dictionary initialization failed;
 --source include/search_pattern_in_file.inc
 --echo # --innodb-force-recovery=6 (skip the entire redo log)
 --error 1
@@ -90,7 +90,7 @@ let SEARCH_PATTERN=InnoDB: Log block 2372 at lsn 1213952 has valid header, but c
 --source include/search_pattern_in_file.inc
 let SEARCH_PATTERN=InnoDB: Ignoring the redo log due to missing MLOG_CHECKPOINT between the checkpoint 1213964 and the end 1213952\\.;
 --source include/search_pattern_in_file.inc
-let SEARCH_PATTERN=Plugin 'InnoDB' registration as a STORAGE ENGINE failed;
+let SEARCH_PATTERN=Data Dictionary initialization failed;
 --source include/search_pattern_in_file.inc
 --echo # --innodb-force-recovery=6 (skip the entire redo log)
 --error 1
@@ -105,7 +105,7 @@ let SEARCH_PATTERN=InnoDB: Cannot create sys_virtual system tables. running in r
 --exec $MYSQLD $args --innodb-force-recovery=5
 let SEARCH_PATTERN=InnoDB: Upgrade after a crash is not supported\\. This redo log was created with malicious intentions, or perhaps\\.;
 --source include/search_pattern_in_file.inc
-let SEARCH_PATTERN=Plugin 'InnoDB' registration as a STORAGE ENGINE failed;
+let SEARCH_PATTERN=Data Dictionary initialization failed;
 --source include/search_pattern_in_file.inc
 --echo # --innodb-force-recovery=6 (skip the entire redo log)
 --error 1

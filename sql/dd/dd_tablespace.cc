@@ -19,14 +19,16 @@
 #include "transaction.h"                      // trans_commit
 
 #include "dd/dd.h"                            // dd::create_object
+#include "dd/dictionary.h"                    // dd::Dictionary::is_dd_table...
 #include "dd/iterator.h"                      // dd::Iterator
-#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/properties.h"                    // dd::Properties
+#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
+#include "dd/impl/system_registry.h"          // dd::System_tablespaces
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/partition.h"               // dd::Partition
 #include "dd/types/table.h"                   // dd::Table
-#include "dd/types/tablespace.h"              // dd::Tablespace
 #include "dd/types/tablespace_file.h"         // dd::Tablespace_file
+#include "dd/types/tablespace.h"              // dd::Tablespace
 
 namespace dd {
 
@@ -105,7 +107,14 @@ bool get_tablespace_name(THD *thd, const T *obj,
   //
   std::string name;
 
-  if (obj->tablespace_id() != dd::INVALID_OBJECT_ID)
+  if (System_tablespaces::instance()->find(MYSQL_TABLESPACE_NAME.str) &&
+      dd::get_dictionary()->is_dd_table_name(MYSQL_SCHEMA_NAME.str,
+                                             obj->name()))
+  {
+    // If this is a DD table, and we have a DD tablespace, then we use its name.
+    name= MYSQL_TABLESPACE_NAME.str;
+  }
+  else if (obj->tablespace_id() != dd::INVALID_OBJECT_ID)
   {
     /*
       We get here, when we have InnoDB or NDB table in a tablespace
@@ -152,7 +161,7 @@ bool get_tablespace_name(THD *thd, const T *obj,
   *tablespace_name= NULL;
   if (!name.empty() && !(*tablespace_name= strmake_root(mem_root,
                                              name.c_str(),
-                                             name.length() + 1)))
+                                             name.length())))
   {
     return true;
   }

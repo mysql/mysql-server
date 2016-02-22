@@ -1372,11 +1372,13 @@ trx_start_low(
 	}
 
 #ifdef UNIV_DEBUG
-	/* If the transaction is DD attachable trx, it should be AC-NL-RO-RC
-	(AutoCommit-NonLocking-ReadOnly-ReadCommited) trx */
+	/* If the transaction is DD attachable trx, it should be AC-NL-RO
+	(AutoCommit-NonLocking-ReadOnly) trx */
 	if (trx->is_dd_trx) {
-		ut_ad(trx->read_only && trx->auto_commit
-		      && trx->isolation_level == TRX_ISO_READ_COMMITTED);
+		ut_ad(trx->read_only);
+		ut_ad(trx->auto_commit);
+		ut_ad(trx->isolation_level == TRX_ISO_READ_UNCOMMITTED
+		      || trx->isolation_level == TRX_ISO_READ_COMMITTED);
 	}
 #endif /* UNIV_DEBUG */
 

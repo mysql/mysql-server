@@ -16,13 +16,13 @@
 #ifndef DD_CACHE__STORAGE_ADAPTER_INCLUDED
 #define DD_CACHE__STORAGE_ADAPTER_INCLUDED
 
-
 #include "my_global.h"                       // DBUG_ASSERT() etc.
+#include "handler.h"                         // enum_tx_isolation
+#include "dd/impl/types/entity_object_impl.h" // set_id()
 
 #ifndef DBUG_OFF
 // Only needed for unit testing
 #include "sql_class.h"                       // THD
-#include "dd/impl/types/entity_object_impl.h" // set_id()
 #include "mysqld_error.h"                    // my_error
 #include "mysql/psi/mysql_thread.h"          // mysql_mutex_t, mysql_cond_t
 #include "dd/cache/object_registry.h"        // Object_registry
@@ -85,7 +85,7 @@ private:
       // We absolutely need to clone the object here,
       // otherwise there will be only one copy present, and
       // e.g. evicting the object from the cache will also
-      // make it vanish from the fake storage...
+      // make it vanish from the fake storage.
       *object= dynamic_cast<const T*>(element->object())->clone();
       ret= false;
     }
@@ -108,10 +108,7 @@ private:
   {
     Cache_element<typename T::cache_partition_type> *element= NULL;
     mysql_mutex_lock(&m_lock);
-    m_storage.get(
-                  //static_cast<const typename T::cache_partition_type*>(object),
-                  typename T::id_key_type(object->id()),
-      &element);
+    m_storage.get(typename T::id_key_type(object->id()), &element);
     m_storage.remove(element);
     delete element->object();
     delete element;
@@ -148,18 +145,22 @@ public:
     from the appropriate table. Restore the record into a new dictionary
     object.
 
-    @tparam      K       Key type.
-    @tparam      T       Dictionary object type.
-    @param       thd     Thread context.
-    @param       key     Key for which to get the object.
-    @param [out] object  Object retrieved, possibly NULL if not present.
+    @tparam      K         Key type.
+    @tparam      T         Dictionary object type.
+    @param       thd       Thread context.
+    @param       key       Key for which to get the object.
+    @param       isolation Isolation level.
+    @param [out] object    Object retrieved, possibly NULL if not present.
 
     @retval      false   No error.
     @retval      true    Error.
   */
 
   template <typename K, typename T>
-  static bool get(THD *thd, const K &key, const T **object);
+  static bool get(THD *thd,
+                  const K &key,
+                  enum_tx_isolation isolation,
+                  const T **object);
 
 
   /**

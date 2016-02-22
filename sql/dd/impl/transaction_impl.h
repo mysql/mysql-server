@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -85,12 +85,13 @@ private:
 class Transaction_ro
 {
 public:
-  Transaction_ro(THD *thd)
+  Transaction_ro(THD *thd, enum_tx_isolation isolation)
    : otx(thd, TL_READ),
      m_thd(thd),
      m_kill_immunizer(thd)
   {
     thd->begin_attachable_ro_transaction();
+    thd->tx_isolation= isolation;
   }
 
   ~Transaction_ro()

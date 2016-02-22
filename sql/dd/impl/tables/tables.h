@@ -34,8 +34,8 @@ class Tables : public Dictionary_object_table_impl
 public:
   static const Tables &instance()
   {
-    static Tables s_instance;
-    return s_instance;
+    static Tables *s_instance= new Tables();
+    return *s_instance;
   }
 
   static const std::string &table_name()
@@ -83,6 +83,7 @@ public:
   Tables()
   {
     m_target_def.table_name(table_name());
+    m_target_def.dd_version(1);
 
     m_target_def.add_field(FIELD_ID,
                            "FIELD_ID",
@@ -218,14 +219,6 @@ public:
 
   virtual Dictionary_object *create_dictionary_object(
     const Raw_record &r) const;
-
-  // Fix "inherits ... via dominance" warnings
-  virtual const Object_table_definition &table_definition() const
-  { return Object_table_impl::table_definition(); }
-  virtual bool populate(THD *thd) const
-  { return Object_table_impl::populate(thd); }
-  virtual bool hidden() const
-  { return Object_table_impl::hidden(); }
 
 public:
   static bool update_object_key(Item_name_key *key,

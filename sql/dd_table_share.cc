@@ -2172,75 +2172,65 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
 
   if (!table_def)
   {
-    // For DD tables, get dd::Table from Object_table_definition.
-    const dd::Object_table *dd_table=
-      dd::get_dictionary()->get_dd_table(share->db.str,
-                                         share->table_name.str);
+    // No special handling needed for system tables like timezones, help etc.
+    // because their meta data objects are sticky in the cache. Previously,
+    // these objects had to be retrieved from a separate registry.
 
-    if (dd_table)
-      table_def= dd_table->table_definition().meta_data();
-    else
+    // Make sure the schema exists.
+    bool exists= false;
+    if (dd::schema_exists(thd, share->db.str, &exists))
+      DBUG_RETURN(true);
+
+    if (!exists)
     {
-      // No special handling needed for system tables like timezones, help etc.
-      // because their meta data objects are sticky in the cache. Previously,
-      // these objects had to be retrieved from a separate registry.
+      my_error(ER_BAD_DB_ERROR, MYF(0), share->db.str);
+      DBUG_RETURN(true);
+    }
 
-      // Make sure the schema exists.
-      bool exists= false;
-      if (dd::schema_exists(thd, share->db.str, &exists))
+    if (dd::abstract_table_type(thd->dd_client(), share->db.str,
+                                share->table_name.str,
+                                &dd_table_type))
+    {
+      // Error is reported in dd_abstract_table_type().
+      DBUG_RETURN(true);
+    }
+
+    if (dd_table_type == dd::Abstract_table::TT_USER_VIEW ||
+        dd_table_type == dd::Abstract_table::TT_SYSTEM_VIEW)
+    {
+      if (!open_view)
+      {
+        // We found a view but were trying to open table only.
+        my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
         DBUG_RETURN(true);
-
-      if (!exists)
+      }
+      /*
+        Create view reference object and hold it in TABLE_SHARE member view_object.
+        Read it from DD
+      */
+      share->is_view= true;
+      if (thd->dd_client()->acquire_uncached<dd::View>(share->db.str,
+                                                       share->table_name.str,
+                                                       &share->view_object))
       {
-        my_error(ER_BAD_DB_ERROR, MYF(0), share->db.str);
+        DBUG_ASSERT(thd->is_error() || thd->killed);
         DBUG_RETURN(true);
       }
 
-      if (dd::abstract_table_type(thd->dd_client(), share->db.str,
-                                  share->table_name.str,
-                                  &dd_table_type))
+      if (!share->view_object)
       {
-        // Error is reported in dd_abstract_table_type().
+        my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
         DBUG_RETURN(true);
       }
-
-      if (dd_table_type == dd::Abstract_table::TT_USER_VIEW ||
-          dd_table_type == dd::Abstract_table::TT_SYSTEM_VIEW)
-      {
-        if (!open_view)
-        {
-          // We found a view but were trying to open table only.
-          my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
-          DBUG_RETURN(true);
-        }
-        /*
-          Create view reference object and hold it in TABLE_SHARE member view_object.
-          Read it from DD
-        */
-        share->is_view= true;
-        if (thd->dd_client()->acquire_uncached<dd::View>(share->db.str,
-                                                         share->table_name.str,
-                                                         &share->view_object))
-        {
-          DBUG_ASSERT(thd->is_error() || thd->killed);
-          DBUG_RETURN(true);
-        }
-
-        if (!share->view_object)
-        {
-          my_error(ER_NO_SUCH_TABLE, MYF(0), share->db.str, share->table_name.str);
-          DBUG_RETURN(true);
-        }
-        share->table_category= get_table_category(share->db, share->table_name);
-        thd->status_var.opened_shares++;
-        DBUG_RETURN(false);
-      }
-      else // TT_BASE_TABLE
-      {
-        (void) thd->dd_client()->acquire<dd::Table>(share->db.str,
-                                                    share->table_name.str,
-                                                    &table_def);
-      }
+      share->table_category= get_table_category(share->db, share->table_name);
+      thd->status_var.opened_shares++;
+      DBUG_RETURN(false);
+    }
+    else // TT_BASE_TABLE
+    {
+      (void) thd->dd_client()->acquire<dd::Table>(share->db.str,
+                                                  share->table_name.str,
+                                                  &table_def);
     }
   }
 

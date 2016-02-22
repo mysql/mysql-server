@@ -32,8 +32,8 @@ class Foreign_keys : public Object_table_impl
 public:
   static const Foreign_keys &instance()
   {
-    static Foreign_keys s_instance;
-    return s_instance;
+    static Foreign_keys *s_instance= new Foreign_keys();
+    return *s_instance;
   }
 
   static const std::string &table_name()
@@ -62,6 +62,7 @@ public:
   Foreign_keys()
   {
     m_target_def.table_name(table_name());
+    m_target_def.dd_version(1);
 
     m_target_def.add_field(FIELD_ID,
                            "FIELD_ID",

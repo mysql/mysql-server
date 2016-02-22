@@ -1,0 +1,100 @@
+# Preparation: Shut server down.
+#
+# 1. Try restart after setting an invalid version.
+# ------------------------------------------------
+# 1.1 Create bootstrap file.
+# 1.2 First start the server with --initialize, and update the version.
+# 1.3 Restart the server against DDIR - should fail.
+# 1.4 Look for warning.
+#     Dictionary version warning found 1 times.
+# 1.5 Delete bootstrap file, log file and datadir.
+#
+# 2. Try restart after dropping the version table.
+# ------------------------------------------------
+# 2.1 Create bootstrap file.
+# 2.2 First start the server with --initialize, and drop the version table: Should fail.
+# 2.3 Look for error.
+#     Drop table error found 1 times.
+# 2.4 Restart the server against DDIR - should fail.
+# 2.5 Look for error.
+#     Data Dictionary initialization error found 1 times.
+# 2.6 Delete bootstrap file, log file and datadir.
+#
+# 3. Try restart after dropping the tables table.
+# -----------------------------------------------
+# 3.1 Create bootstrap file.
+# 3.2 First start the server with --initialize, and drop the tables table: Should fail.
+# 3.3 Look for error.
+#     Drop table error found 1 times.
+# 3.4 Restart the server against DDIR - should fail.
+# 3.5 Look for error.
+#     Data Dictionary initialization error found 1 times.
+# 3.6 Delete bootstrap file, log file and datadir.
+#
+# 4. Try restart after dropping the time_zone_transition_type table.
+# ------------------------------------------------------------------
+# 4.1 Create bootstrap file.
+# 4.2 First start the server with --initialize, and drop the time_zone_transition_type table.
+# 4.3 Restart the server against DDIR - should succeed.
+# 4.4 Shut server down.
+# 4.5 Look for warning.
+#     Time zone table warning found 1 times.
+# 4.6 Delete bootstrap file, log file and datadir.
+#
+# 5. Try restart after deleting the version tablespace.
+# -----------------------------------------------------
+# 5.1 First start the server with --initialize.
+# 5.2 Delete the physical tablespace file for mysql.version.
+# 5.3 Restart the server against DDIR - should fail.
+# 5.4 Look for error.
+#     Tablespace error found 1 times.
+# 5.5 Delete log file and datadir.
+#
+# 6. Try restart after altering the schemata table.
+# -------------------------------------------------
+# 6.1 Create bootstrap file.
+# 6.2 First start the server with --initialize, and alter the schemata table.
+# 6.3 Restart the server against DDIR.
+# 6.4 Connect as root.
+# 6.5 Verify that the modified table is present.
+SHOW CREATE TABLE mysql.schemata;
+Table	Create Table
+schemata	CREATE TABLE `schemata` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `catalog_id` bigint(20) unsigned NOT NULL,
+  `name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `default_collation_id` bigint(20) unsigned NOT NULL,
+  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `last_altered` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `catalog_id` (`catalog_id`,`name`),
+  KEY `default_collation_id` (`default_collation_id`),
+  CONSTRAINT `schemata_ibfk_1` FOREIGN KEY (`catalog_id`) REFERENCES `catalogs` (`id`),
+  CONSTRAINT `schemata_ibfk_2` FOREIGN KEY (`default_collation_id`) REFERENCES `collations` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 COMMENT='Altered table'
+# 6.6 Shut server down.
+# 6.7 Close the test connection.
+# 6.8 Delete bootstrap file, log file and datadir.
+#
+# 7. Try restart on a non-existing datadir.
+# -----------------------------------------
+# 7.1 Restart the server against non-existing DDIR - should fail.
+# 7.2 Look for error.
+#     Datadir error found 1 times.
+# 7.3 Delete log file and datadir.
+#
+# 8. Try restart on an empty datadir (non-existing mysql dir).
+# ------------------------------------------------------------
+# 8.1 Restart the server against existing but empty DDIR - should fail.
+# 8.2 Look for error.
+#     Datadir error found 1 times.
+# 8.3 Delete log file and datadir.
+#
+# 9. Try restart on an empty mysql dir.
+# -------------------------------------
+# 9.1 Restart the server against existing but empty mysql dir - should fail.
+# 9.2 Look for error.
+#     Data Dictionary initialization error found 1 times.
+# 9.3 Delete log file and datadir.
+#
+# Cleanup: Restarting the server against default datadir.

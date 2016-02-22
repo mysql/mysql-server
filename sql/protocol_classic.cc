@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -479,7 +479,8 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
                            const char* sqlstate)
 {
   return net_send_error_packet(thd->get_protocol_classic()->get_net(),
-                               sql_errno, err, sqlstate, thd->bootstrap,
+                               sql_errno, err, sqlstate,
+                               thd->is_bootstrap_system_thread(),
                                thd->get_protocol()->get_client_capabilities(),
                                thd->variables.character_set_results);
 }

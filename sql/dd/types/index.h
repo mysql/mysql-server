@@ -26,6 +26,7 @@ namespace dd {
 
 class Column;
 class Index_element;
+class Object_table;
 class Object_type;
 class Properties;
 class Table;

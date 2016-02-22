@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -234,6 +234,16 @@ public:
 	ha_rows estimate_rows_upper_bound();
 
 	void update_create_info(HA_CREATE_INFO* create_info);
+
+	/** Get storage-engine private data for a data dictionary table.
+	@param[in,out]	dd_table	data dictionary table definition
+	@param[in]	dd_version	data dictionary version
+	@retval		true		an error occurred
+	@retval		false		success */
+	bool get_se_private_data(
+		dd::Table*	dd_table,
+		uint		dd_version);
+
 	int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
 	int create(const char *name, TABLE* form, HA_CREATE_INFO* create_info,
 		   bool file_per_table);

@@ -32,8 +32,8 @@ class View_table_usage : public Object_table_impl
 public:
   static const View_table_usage &instance()
   {
-    static View_table_usage s_instance;
-    return s_instance;
+    static View_table_usage *s_instance= new (std::nothrow) View_table_usage();
+    return *s_instance;
   }
 
   static const std::string &table_name()
@@ -55,6 +55,7 @@ public:
   View_table_usage()
   {
     m_target_def.table_name(table_name());
+    m_target_def.dd_version(1);
 
     m_target_def.add_field(FIELD_VIEW_ID,
                            "FIELD_VIEW_ID",

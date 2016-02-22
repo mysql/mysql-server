@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 #define DD_CACHE__SHARED_DICTIONARY_CACHE_INCLUDED
 
 #include "my_global.h"                      // DBUG_ASSERT() etc.
+#include "handler.h"                        // enum_tx_isolation
 #include "shared_multi_map.h"               // Shared_multi_map
 
 #include "dd/types/charset.h"               // Charset
@@ -61,7 +62,7 @@ private:
 
   /**
     Overloaded functions to use for selecting map instance based
-    on a key type.
+    on a key type. Const and non-const variants.
   */
 
   Shared_multi_map<Abstract_table> *m_map(Type_selector<Abstract_table>)
@@ -76,21 +77,39 @@ private:
   { return &m_tablespace_map; }
 
 
+  const Shared_multi_map<Abstract_table> *m_map(Type_selector<Abstract_table>) const
+  { return &m_abstract_table_map; }
+  const Shared_multi_map<Charset>        *m_map(Type_selector<Charset>) const
+  { return &m_charset_map; }
+  const Shared_multi_map<Collation>      *m_map(Type_selector<Collation>) const
+  { return &m_collation_map; }
+  const Shared_multi_map<Schema>         *m_map(Type_selector<Schema>) const
+  { return &m_schema_map; }
+  const Shared_multi_map<Tablespace>     *m_map(Type_selector<Tablespace>) const
+  { return &m_tablespace_map; }
+
+
   /**
     Template function to get a map instance.
 
     To support generic code, the map instances are available through
     template function instances. This allows looking up the
     appropriate instance based on the key type. We must use
-    overloading to accomplish this (see above).
+    overloading to accomplish this (see above). Const and non-const
+    variants.
 
     @tparam  T  Dictionary object type.
 
     @return  The shared map handling objects of type T.
-   */
+  */
 
   template <typename T>
   Shared_multi_map<T> *m_map()
+  { return m_map(Type_selector<T>()); }
+
+
+  template <typename T>
+  const Shared_multi_map<T> *m_map() const
   { return m_map(Type_selector<T>()); }
 
 
@@ -165,18 +184,20 @@ public:
     cache. The object returned is owned by the caller, who thus becomes
     responsible of deleting it.
 
-    @tparam      K       Key type.
-    @tparam      T       Dictionary object type.
-    @param       thd     Thread context.
-    @param       key     Key to use for looking up the object.
-    @param [out] object  Object pointer, if present. NULL if not present.
+    @tparam      K         Key type.
+    @tparam      T         Dictionary object type.
+    @param       thd       Thread context.
+    @param       key       Key to use for looking up the object.
+    @param       isolation Isolation level to use.
+    @param [out] object    Object pointer, if present. NULL if not present.
 
     @retval      false   No error.
     @retval      true    Error (from reading from the DD tables).
   */
 
   template <typename K, typename T>
-  bool get_uncached(THD *thd, const K &key, const T **object) const;
+  bool get_uncached(THD *thd, const K &key,
+                    enum_tx_isolation isolation, const T **object) const;
 
 
   /**

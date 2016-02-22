@@ -41,7 +41,9 @@
 #include "sql_table.h"       // build_table_filename
 #include "table.h"           // TABLE_LIST
 
+#include "dd/dd.h"                      // dd::get_dictionary()
 #include "dd/dd_schema.h"               // dd::create_schema
+#include "dd/dictionary.h"              // dd::Dictionary
 #include "dd/iterator.h"                // dd::Iterator
 #include "dd/cache/dictionary_client.h" // Dictionary_client
 
@@ -107,23 +109,11 @@ bool get_default_db_collation(THD *thd,
                               const char *db_name,
                               const CHARSET_INFO **collation)
 {
-  // Getting the default collation for the DD schema must be possible
-  // even before the schemata table is created for server install to
-  // be possible.
-  // TODO: Get mysql schema meta data from the bootstrapper in wl#6394
-
-  *collation= NULL;
-  if (my_strcasecmp(system_charset_info,
-                    MYSQL_SCHEMA_NAME.str, db_name) == 0)
-  {
-    *collation= default_charset_info;
-    return false;
-  }
-
   // We must make sure the schema is released and unlocked in the right order.
   dd::Schema_MDL_locker mdl_handler(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *sch_obj= NULL;
+
   if (mdl_handler.ensure_locked(db_name) ||
       thd->dd_client()->acquire<dd::Schema>(db_name, &sch_obj))
     return true;
@@ -200,9 +190,26 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   }
   path[path_len-1]= 0;                    // Remove last '/' from path
 
+  // If we are creating the system schema, then we create it physically
+  // only during first time server initialization. During ordinary restart,
+  // we still execute the CREATE statement to initialize the meta data, but
+  // the physical representation of the schema is not re-created since it
+  // already exists.
   MY_STAT stat_info;
   bool store_in_dd= true;
-  if (mysql_file_stat(key_file_misc, path, &stat_info, MYF(0)))
+  bool schema_exists= (mysql_file_stat(key_file_misc,
+                                       path, &stat_info, MYF(0)) != NULL);
+  if (thd->is_dd_system_thread() && !opt_initialize &&
+      dd::get_dictionary()->is_dd_schema_name(db))
+  {
+    if (!schema_exists)
+    {
+      sql_print_warning("The system schema does not exist.");
+      my_error(ER_BAD_DB_ERROR, MYF(0), db);
+      DBUG_RETURN(true);
+    }
+  }
+  else if (schema_exists)
   {
     if (!(create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS))
     {
@@ -272,9 +279,12 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     }
   }
 
-  //
-  // Create schema in DD
-  //
+  /*
+    Create schema in DD. This is done even when initializing the server
+    and creating the system schema. In that case, the shared cache will
+    store the object without storing it to disk. When the DD tables have
+    been created, the cached objects will be stored persistently.
+  */
 
   if (store_in_dd)
   {

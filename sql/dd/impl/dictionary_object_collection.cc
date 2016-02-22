@@ -60,7 +60,7 @@ bool Dictionary_object_collection<Object_type>::fetch(
   std::vector<Object_id> ids;
 
   {
-    Transaction_ro trx(m_thd);
+    Transaction_ro trx(m_thd, ISO_READ_COMMITTED);
     trx.otx.register_tables<Object_type>();
     Raw_table *table= trx.otx.get_table<Object_type>();
     DBUG_ASSERT(table);

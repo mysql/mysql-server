@@ -348,7 +348,7 @@ void Column_impl::debug_print(std::string &outb) const
     << "m_datetime_precision: " << m_datetime_precision << "; "
     << "m_collation_id: {OID: " << m_collation_id << "}; "
     << "m_has_no_default: " << m_has_no_default << "; "
-    << "m_default_value: " << m_default_value << "; "
+    << "m_default_value: <excluded from output>" << "; "
     << "m_default_option: " << m_default_option << "; "
     << "m_update_option: " << m_update_option << "; "
     << "m_is_auto_increment: " <<  m_is_auto_increment << "; "

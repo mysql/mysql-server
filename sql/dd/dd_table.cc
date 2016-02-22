@@ -1393,33 +1393,37 @@ static bool create_dd_system_table(THD *thd,
                                    handler *file,
                                    const dd::Object_table &dd_table)
 {
-  // For DD tables: create system schema using special DD operation.
-  std::unique_ptr<dd::Schema> sch_obj(dd::create_dd_schema());
+  // Retrieve the system schema.
+  const Schema *system_schema= NULL;
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  if (thd->dd_client()->acquire(std::string(MYSQL_SCHEMA_NAME.str),
+                                &system_schema))
+  {
+    // Error is reported by the dictionary subsystem.
+    return true;
+  }
 
-  //
-  // Create dd::Table object
-  //
-  std::unique_ptr<dd::Table> tab_obj(sch_obj->create_table(thd));
+  if (!system_schema)
+  {
+    my_error(ER_BAD_DB_ERROR, MYF(0), MYSQL_SCHEMA_NAME.str);
+    return true;
+  }
 
-  if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
+  // Create dd::Table object.
+  dd::Table *tab_obj= const_cast<dd::Schema *>(system_schema)->create_table(thd);
+
+  if (fill_dd_table_from_create_info(thd, tab_obj, table_name,
                                      create_info, create_fields,
                                      keyinfo, keys, file))
     return true;
 
-  //
-  // Store info in DD tables now, unless this is a DD table
-  //
+  // Get the se private data for the DD table
+  if (file->ha_get_se_private_data(tab_obj, dd_table.default_dd_version(thd)))
+    return true;
 
-  dd::Object_table_definition &td=
-    const_cast<dd::Object_table_definition &> (dd_table.table_definition());
-
-  // For DD tables, the dd::Table object is now owned by the table
-  // definition object.
-  td.meta_data(tab_obj.release());
-
-  // Set correct schema id explicitly.
-  td.meta_data()->set_schema_id(sch_obj->id());
-
+  // "Store" the object in the shared cache, and make it sticky.
+  thd->dd_client()->add_and_reset_id(tab_obj);
+  thd->dd_client()->set_sticky(tab_obj, true);
   return false;
 }
 
@@ -1434,10 +1438,8 @@ static bool create_dd_user_table(THD *thd,
                                  handler *file)
 {
   // Verify that this is not a dd table.
-  // TODO-WL6394 Refactor.
-  dd::Dictionary *dict __attribute__((unused));
-  dict= dd::get_dictionary();
-  DBUG_ASSERT(dict->get_dd_table(schema_name, table_name) == NULL);
+  DBUG_ASSERT(!dd::get_dictionary()->is_dd_table_name(schema_name,
+                                                      table_name));
 
   // Check if the schema exists. We must make sure the schema is released
   // and unlocked in the right order.
@@ -1598,25 +1600,16 @@ bool table_exists(dd::cache::Dictionary_client *client,
 {
   DBUG_ENTER("dd::table_exists");
   DBUG_ASSERT(exists);
-  // A DD table exists (has been created) if the meta data exists.
-  // TODO-WL6394.
-  dd::Dictionary *dict= dd::get_dictionary();
-  const dd::Object_table *dd_table= dict->get_dd_table(schema_name, name);
-  if (dd_table)
+
+  // Tables exist if they can be acquired.
+  dd::cache::Dictionary_client::Auto_releaser releaser(client);
+  const T *tab_obj= NULL;
+  if (client->acquire<T>(schema_name, name, &tab_obj))
   {
-    *exists= dd_table->table_definition().meta_data() != NULL;
+    // Error is reported by the dictionary subsystem.
+    DBUG_RETURN(true);
   }
-  else
-  {
-    dd::cache::Dictionary_client::Auto_releaser releaser(client);
-    const T* tab_obj= NULL;
-    if (client->acquire<T>(schema_name, name, &tab_obj))
-    {
-      // Error is reported by the dictionary subsystem.
-      DBUG_RETURN(true);
-    }
-    *exists= (tab_obj != NULL);
-  }
+  *exists= (tab_obj != NULL);
 
   DBUG_RETURN(false);
 }

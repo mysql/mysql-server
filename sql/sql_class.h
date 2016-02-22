@@ -526,6 +526,10 @@ show_system_thread(enum_thread_type thread)
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_SLAVE_WORKER);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_COMPRESS_GTID_TABLE);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_BACKGROUND);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_DD_INITIALIZE);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_DD_RESTART);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_SERVER_INITIALIZE);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_INIT_FILE);
   default:
     sprintf(buf, "<UNKNOWN SYSTEM THREAD: %d>", thread);
     return buf;
@@ -2015,6 +2019,21 @@ public:
   inline bool is_system_thread()
   { return system_thread != NON_SYSTEM_THREAD; }
 
+  // Check if this THD belongs to a dd bootstrap system thread.
+  inline bool is_dd_system_thread()
+  {
+    return system_thread == SYSTEM_THREAD_DD_INITIALIZE ||
+           system_thread == SYSTEM_THREAD_DD_RESTART;
+  }
+
+  // Check if this THD belongs to a bootstrap system thread.
+  inline bool is_bootstrap_system_thread()
+  {
+    return is_dd_system_thread() ||
+           system_thread == SYSTEM_THREAD_SERVER_INITIALIZE ||
+           system_thread == SYSTEM_THREAD_INIT_FILE;
+  }
+
   /*
     Current or next transaction isolation level.
     When a connection is established, the value is taken from
@@ -2230,7 +2249,6 @@ public:
     it returned an error on master, and this is OK on the slave.
   */
   bool       is_slave_error;
-  bool       bootstrap;
 
   /**  is set if some thread specific value(s) used in a statement. */
   bool       thread_specific_used;

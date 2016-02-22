@@ -31,8 +31,8 @@ class Character_sets : public Dictionary_object_table_impl
 public:
   static const Character_sets &instance()
   {
-    static Character_sets s_instance;
-    return s_instance;
+    static Character_sets *s_instance= new Character_sets();
+    return *s_instance;
   }
 
   static const std::string &table_name()
@@ -55,6 +55,7 @@ public:
   Character_sets()
   {
     m_target_def.table_name(table_name());
+    m_target_def.dd_version(1);
 
     m_target_def.add_field(FIELD_ID,
                            "FIELD_ID",
@@ -74,10 +75,6 @@ public:
 
     m_target_def.add_index("PRIMARY KEY(id)");
     m_target_def.add_index("UNIQUE KEY(name)");
-
-    // Add an explicit index for the FK column to avoid errors regarding
-    // different number of indexes known to InnoDB and MySQL
-    m_target_def.add_index("UNIQUE KEY(default_collation_id)");
 
     m_target_def.add_cyclic_foreign_key("FOREIGN KEY (default_collation_id) "
                                         "REFERENCES collations(id)");
@@ -100,12 +97,6 @@ public:
   virtual Dictionary_object *create_dictionary_object(const Raw_record &) const
   { return new (std::nothrow) Charset_impl(); }
   /* purecov: end */
-
-  // Fix "inherits ... via dominance" warnings
-  virtual const Object_table_definition &table_definition() const
-  { return Object_table_impl::table_definition(); }
-  virtual bool hidden() const
-  { return Object_table_impl::hidden(); }
 
 public:
    static bool update_object_key(Global_name_key *key,

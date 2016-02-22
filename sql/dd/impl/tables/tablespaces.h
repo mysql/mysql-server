@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,8 +31,8 @@ class Tablespaces : public Dictionary_object_table_impl
 public:
   static const Tablespaces &instance()
   {
-    static Tablespaces s_instance;
-    return s_instance;
+    static Tablespaces *s_instance= new Tablespaces();
+    return *s_instance;
   }
 
   static const std::string &table_name()
@@ -56,6 +56,7 @@ public:
   Tablespaces()
   {
     m_target_def.table_name(table_name());
+    m_target_def.dd_version(1);
 
     m_target_def.add_field(FIELD_ID,
                            "FIELD_ID",
@@ -90,14 +91,6 @@ public:
 
   virtual Dictionary_object *create_dictionary_object(const Raw_record &) const
   { return new (std::nothrow) Tablespace_impl(); }
-
-  // Fix "inherits ... via dominance" warnings
-  virtual const Object_table_definition &table_definition() const
-  { return Object_table_impl::table_definition(); }
-  virtual bool populate(THD *thd) const
-  { return Object_table_impl::populate(thd); }
-  virtual bool hidden() const
-  { return Object_table_impl::hidden(); }
 
 public:
   static bool update_object_key(Global_name_key *key,

@@ -33,8 +33,8 @@ class Schemata : public Dictionary_object_table_impl
 public:
   static const Schemata &instance()
   {
-    static Schemata s_instance;
-    return s_instance;
+    static Schemata *s_instance= new Schemata();
+    return *s_instance;
   }
 
   static const std::string &table_name()
@@ -58,6 +58,7 @@ public:
   Schemata()
   {
     m_target_def.table_name(table_name());
+    m_target_def.dd_version(1);
 
     m_target_def.add_field(FIELD_ID,
                            "FIELD_ID",
@@ -93,13 +94,6 @@ public:
     m_target_def.add_option("DEFAULT CHARSET=utf8");
     m_target_def.add_option("COLLATE=utf8_bin");
     m_target_def.add_option("STATS_PERSISTENT=0");
-
-    std::stringstream ss;
-    ss << default_charset_info->number;
-    m_target_def.add_populate_statement(
-      "INSERT INTO schemata (id, catalog_id, name, default_collation_id, "
-                             "created, last_altered) "
-        "VALUES (1, 1, 'mysql', " + ss.str() + ", now(), now())");
   }
 
   virtual const std::string &name() const
@@ -107,14 +101,6 @@ public:
 
   virtual Dictionary_object *create_dictionary_object(const Raw_record &) const
   { return new (std::nothrow) Schema_impl(); }
-
-  // Fix "inherits ... via dominance" warnings
-  virtual const Object_table_definition &table_definition() const
-  { return Object_table_impl::table_definition(); }
-  virtual bool populate(THD *thd) const
-  { return Object_table_impl::populate(thd); }
-  virtual bool hidden() const
-  { return Object_table_impl::hidden(); }
 
 public:
   static bool update_object_key(Item_name_key *key,

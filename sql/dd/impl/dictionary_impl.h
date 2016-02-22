@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "dd/object_id.h"            // dd::Object_id
 
 #include <string>
+#include <memory>
 
 namespace dd_schema_unittest {
   class SchemaTest;
@@ -41,12 +42,6 @@ namespace cache {
 class Dictionary_impl : public Dictionary
 {
   friend class dd_schema_unittest::SchemaTest;
-  /////////////////////////////////////////////////////////////////////////
-  // Dictionary interface.
-  /////////////////////////////////////////////////////////////////////////
-public:
-  // Invoked during bootstrap
-  virtual bool load_and_cache_server_collation(THD *thd);
 
   /////////////////////////////////////////////////////////////////////////
   // Implementation details.
@@ -64,7 +59,6 @@ public:
 
 private:
   Dictionary_impl()
-  :m_server_collation(NULL)
   { }
 
 public:
@@ -72,6 +66,10 @@ public:
   { }
 
 public:
+  static uint get_target_dd_version();
+
+  virtual uint get_actual_dd_version(THD *thd);
+
   virtual const Object_table *get_dd_table(
     const std::string &schema_name, const std::string &table_name) const;
 
@@ -96,8 +94,6 @@ public:
 private:
   static Object_id DEFAULT_CATALOG_ID;
   static const std::string DEFAULT_CATALOG_NAME;
-
-  const Collation *m_server_collation;
 };
 
 ///////////////////////////////////////////////////////////////////////////

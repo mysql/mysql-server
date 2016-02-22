@@ -18,9 +18,10 @@
 
 #include "my_global.h"
 #include "m_string.h"                         // my_stpcpy
-
 #include "mysqld.h"                           // lower_case_table_names
+#include "table.h"                            // MYSQL_TABLESPACE_NAME
 
+#include "dd/impl/system_registry.h"          // System_tablespaces
 #include "dd/types/object_table_definition.h" // dd::Object_table_definition
 #include "dd/types/table.h"                   // dd::Table
 
@@ -54,18 +55,14 @@ private:
   Options m_options;
   std::vector<std::string> m_populate_statements;
 
-  Table *m_table_meta_data;
+  uint m_dd_version;
 
 public:
-  Object_table_definition_impl()
-   :m_table_meta_data(NULL)
+  Object_table_definition_impl(): m_dd_version(0)
   { }
 
   virtual ~Object_table_definition_impl()
-  {
-    if (m_table_meta_data)
-      delete m_table_meta_data;
-  }
+  { }
 
 
   /**
@@ -114,11 +111,11 @@ public:
     return tmp_name;
   }
 
-  virtual void meta_data(Table *table)
-  { m_table_meta_data= table; }
+  virtual uint dd_version() const
+  { return m_dd_version; }
 
-  virtual Table *meta_data() const
-  { return m_table_meta_data; }
+  virtual void dd_version(uint version)
+  { m_dd_version= version; }
 
   virtual const std::string &table_name() const
   { return m_table_name; }
@@ -194,6 +191,10 @@ public:
     for (Options::const_iterator option= m_options.begin();
          option != m_options.end(); ++option)
       ss << " " << *option;
+
+    // Optionally output tablespace clause
+    if (System_tablespaces::instance()->find(MYSQL_TABLESPACE_NAME.str))
+      ss << " " << "TABLESPACE=" << MYSQL_TABLESPACE_NAME.str;
 
     return ss.str();
   }

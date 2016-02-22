@@ -72,9 +72,8 @@ SET(DD_SOURCES
   dd/impl/dd.cc
   dd/impl/dictionary_impl.cc
   dd/impl/dictionary_object_collection.cc
-  dd/impl/object_table_registry.cc
   dd/impl/properties_impl.cc
-  dd/impl/system_view_name_registry.cc
+  dd/impl/system_registry.cc
   dd/impl/transaction_impl.cc
   dd/impl/utils.cc
 
@@ -105,6 +104,7 @@ SET(DD_SOURCES
   dd/impl/tables/tables.cc
   dd/impl/tables/tablespace_files.cc
   dd/impl/tables/tablespaces.cc
+  dd/impl/tables/version.cc
   dd/impl/tables/view_table_usage.cc
 
   dd/impl/types/abstract_table_impl.cc

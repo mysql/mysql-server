@@ -691,6 +691,111 @@ enum enum_schema_tables
 enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
 enum ha_notification_type { HA_NOTIFY_PRE_EVENT, HA_NOTIFY_POST_EVENT };
 
+/**
+  Class to hold information regarding a table to be created on
+  behalf of a plugin. The class stores the name, definition and
+  options of the table. The definition should not contain the
+  'CREATE TABLE name' prefix.
+
+  @note The data members are not owned by the class, and will not
+        be deleted when this instance is deleted.
+*/
+class Plugin_table
+{
+private:
+  const char *m_table_name;
+  const char *m_table_definition;
+  const char *m_table_options;
+
+public:
+  Plugin_table(const char *name, const char *definition,
+               const char *options):
+    m_table_name(name),
+    m_table_definition(definition),
+    m_table_options(options)
+  { }
+
+  const char *get_name() const
+  { return m_table_name; }
+
+  const char *get_table_definition() const
+  { return m_table_definition; }
+
+  const char *get_table_options() const
+  { return m_table_options; }
+};
+
+/**
+  Class to hold information regarding a predefined tablespace
+  created by a storage engine. The class stores the name, options,
+  se_private_data, comment and engine of the tablespace. A list of
+  of the tablespace files is also stored.
+
+  @note The data members are not owned by the class, and will not
+        be deleted when this instance is deleted.
+*/
+class Plugin_tablespace
+{
+public:
+  class Plugin_tablespace_file
+  {
+  private:
+    const char *m_name;
+    const char *m_se_private_data;
+  public:
+    Plugin_tablespace_file(const char *name, const char *se_private_data):
+      m_name(name),
+      m_se_private_data(se_private_data)
+    { }
+
+    const char *get_name() const
+    { return m_name; }
+
+    const char *get_se_private_data() const
+    { return m_se_private_data; }
+  };
+
+private:
+  const char *m_name;
+  const char *m_options;
+  const char *m_se_private_data;
+  const char *m_comment;
+  const char *m_engine;
+  List<const Plugin_tablespace_file> m_files;
+
+public:
+  Plugin_tablespace(const char *name, const char *options,
+                    const char *se_private_data, const char *comment,
+                    const char *engine):
+    m_name(name),
+    m_options(options),
+    m_se_private_data(se_private_data),
+    m_comment(comment),
+    m_engine(engine)
+  { }
+
+  void add_file(const Plugin_tablespace_file *file)
+  { m_files.push_back(file); }
+
+  const char *get_name() const
+  { return m_name; }
+
+  const char *get_options() const
+  { return m_options; }
+
+  const char *get_se_private_data() const
+  { return m_se_private_data; }
+
+  const char *get_comment() const
+  { return m_comment; }
+
+  const char *get_engine() const
+  { return m_engine; }
+
+  const List<const Plugin_tablespace_file> &get_files() const
+  { return m_files; }
+};
+
 /* handlerton methods */
 
 /**
@@ -1026,6 +1131,72 @@ typedef SE_cost_constants *(*get_cost_constants_t)(uint storage_category);
 typedef void (*replace_native_transaction_in_thd_t)(THD *thd, void *new_trx_arg,
                                                     void **ptr_trx_arg);
 
+
+/** Mode for initializing the data dictionary. */
+enum dict_init_mode_t
+{
+  DICT_INIT_CREATE_FILES,         //< Create all required SE files
+  DICT_INIT_CREATE_MISSING_FILES, //< Use files that already exist
+  DICT_INIT_CHECK_FILES,          //< Verify existence of expected files
+  DICT_INIT_IGNORE_FILES          //< Don't care about files at all
+};
+
+
+/**
+  Initialize the SE for being used to store the DD tables. Create
+  the required files according to the dict_init_mode. Create strings
+  representing the required DDSE tables, i.e., tables that the DDSE
+  expects to exist in the DD, and add them to the appropriate out
+  parameter.
+
+  @param dict_init_mode         How to initialize files
+  @param version                Target DD version if a new
+                                server is being installed.
+                                0 if restarting an existing
+                                server.
+  @param [out] DDSE_tables      List of SQL DDL statements
+                                for creating DD tables that
+                                are needed by the DDSE.
+  @param [out] DDSE_tablespaces List of meta data for predefined
+                                tablespaces created by the DDSE.
+
+  @retval true                  An error occurred.
+  @retval false                 Success - no errors.
+ */
+
+typedef bool (*dict_init_t)(dict_init_mode_t dict_init_mode,
+                            uint version,
+                            List<const Plugin_table> *DDSE_tables,
+                            List<const Plugin_tablespace> *DDSE_tablespaces);
+
+
+/** Mode for data dictionary recovery. */
+enum dict_recovery_mode_t
+{
+  DICT_RECOVERY_INITIALIZE_SERVER,       //< First start of a new server
+  DICT_RECOVERY_INITIALIZE_TABLESPACES,  //< First start, create tablespaces
+  DICT_RECOVERY_RESTART_SERVER           //< Restart of an existing server
+};
+
+
+/**
+  Do recovery in the DDSE as part of initializing the data dictionary.
+  The dict_recovery_mode indicates what kind of recovery should be
+  done.
+
+  @param dict_recovery_mode   How to do recovery
+  @param version              Target DD version if a new
+                              server is being installed.
+                              Actual DD version if restarting
+                              an existing server.
+
+  @retval true                An error occurred.
+  @retval false               Success - no errors.
+ */
+
+typedef bool (*dict_recover_t)(dict_recovery_mode_t dict_recovery_mode,
+                               uint version);
+
 /**
   Notify/get permission from storage engine before acquisition or after
   release of exclusive metadata lock on object represented by key.
@@ -1168,6 +1339,8 @@ struct handlerton
   get_tablespace_t get_tablespace;
   alter_tablespace_t alter_tablespace;
   fill_is_table_t fill_is_table;
+  dict_init_t dict_init;
+  dict_recover_t dict_recover;
 
   /** Global handler flags. */
   uint32 flags;
@@ -2608,6 +2781,26 @@ public:
 
   int ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info);
 
+
+  /**
+    Submit a dd::Table object representing a core DD table having
+    hardcoded data to be filled in by the DDSE. This function can be
+    used for retrieving the hard coded SE private data for the dd.version
+    table, before creating or opening it (submitting dd_version = 0), or for
+    retrieving the hard coded SE private data for a core table,
+    before creating or opening them (submit version == the actual version
+    which was read from the dd.version table).
+
+    @param dd_table [in,out]    A dd::Table object representing
+                                a core DD table.
+    @param dd_version           Actual version of the DD.
+
+    @retval true                An error occurred.
+    @retval false               Success - no errors.
+   */
+
+  bool ha_get_se_private_data(dd::Table *dd_table, uint dd_version);
+
   int ha_create_handler_files(const char *name, const char *old_name,
                               int action_flag, HA_CREATE_INFO *info);
 
@@ -3945,6 +4138,9 @@ public:
   }
   virtual void drop_table(const char *name);
   virtual int create(const char *name, TABLE *form, HA_CREATE_INFO *info)=0;
+
+  virtual bool get_se_private_data(dd::Table *dd_table, uint dd_version)
+  { return false; }
 
   virtual int create_handler_files(const char *name, const char *old_name,
                                    int action_flag, HA_CREATE_INFO *info)

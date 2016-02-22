@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,16 +63,6 @@ class Dictionary *get_dictionary();
 template <typename X>
 inline X *create_object()
 { return dynamic_cast<X *> (X::TYPE().create_object()); }
-
-
-/**
-  Create dd::Schema object representing 'mysql' schema where data
-  dictionary tables reside. The object id for 'mysql' schema will
-  be 1.
-
-  @returns Pointer to the newly created Schema*.
-*/
-class Schema *create_dd_schema();
 
 ///////////////////////////////////////////////////////////////////////////
 

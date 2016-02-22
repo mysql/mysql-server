@@ -239,6 +239,11 @@ static void *handle_bootstrap(void *arg)
     Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
     thd_manager->add_thd(thd);
 
+    // Set tx_read_only to false to allow installing DD tables even
+    // if the server is started with --transaction-read-only=true.
+    thd->variables.tx_read_only= false;
+    thd->tx_read_only= false;
+
     if (bootstrap_handler)
       bootstrap_error= (*bootstrap_handler)(thd);
     else
@@ -253,12 +258,13 @@ static void *handle_bootstrap(void *arg)
 }
 } // extern "C"
 
-bool run_bootstrap_thread(MYSQL_FILE *file, bootstrap_functor boot_handler)
+bool run_bootstrap_thread(MYSQL_FILE *file, bootstrap_functor boot_handler,
+                          enum_thread_type thread_type)
 {
   DBUG_ENTER("bootstrap");
 
   THD *thd= new THD;
-  thd->bootstrap= 1;
+  thd->system_thread= thread_type;
   thd->get_protocol_classic()->init_net(NULL);
   thd->security_context()->set_master_access(~(ulong)0);
 

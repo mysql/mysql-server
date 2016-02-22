@@ -74,7 +74,7 @@ bool Table_partitions::get_partition_table_id(
   DBUG_ASSERT(oid);
   *oid= INVALID_OBJECT_ID;
 
-  Transaction_ro trx(thd);
+  Transaction_ro trx(thd, ISO_READ_COMMITTED);
   trx.otx.register_tables<dd::Table>();
   if (trx.otx.open_tables())
     return true;

@@ -51,13 +51,8 @@ bool schema_exists(THD *thd, const char *schema_name, bool *exists)
 bool create_schema(THD *thd, const char *schema_name,
                    const HA_CREATE_INFO *create_info)
 {
-  dd::Dictionary *dict= dd::get_dictionary();
-
-  if (dict->is_dd_schema_name(schema_name))
-    return false;
-
   // Create dd::Schema object.
-  std::unique_ptr<dd::Schema> sch_obj(dd::create_object<dd::Schema>());
+  dd::Schema *sch_obj= dd::create_object<dd::Schema>();
 
   // Set schema name and collation id.
   sch_obj->set_name(schema_name);
@@ -67,8 +62,22 @@ bool create_schema(THD *thd, const char *schema_name,
 
   Disable_gtid_state_update_guard disabler(thd);
 
+  // If this is the dd schema, "store" it temporarily in the shared cache.
+  if (get_dictionary()->is_dd_schema_name(schema_name))
+  {
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    thd->dd_client()->add_and_reset_id(sch_obj);
+    thd->dd_client()->set_sticky(sch_obj, true);
+    // Note that the object is now owned by the shared cache, so we cannot
+    // delete it here.
+    return false;
+  }
+
+  // Wrap the pointer in a unique_ptr to ease memory management.
+  std::unique_ptr<dd::Schema> wrapped_sch_obj(sch_obj);
+
   // Store the schema. Error will be reported by the dictionary subsystem.
-  if (thd->dd_client()->store(sch_obj.get()))
+  if (thd->dd_client()->store(wrapped_sch_obj.get()))
   {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.

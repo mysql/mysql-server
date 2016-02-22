@@ -320,6 +320,33 @@ public:
 
 
   /**
+    Retrieve a possibly uncommitted object by its object id without caching it.
+
+    The object is not cached, hence, it is owned by the caller, who must
+    make sure it is deleted. The object must not be released, and may not
+    be used as a parameter to most of the other dictionary client methods
+    since it is not known by the object registry.
+
+    When the object is read from the persistent tables, the transaction
+    isolation level is READ UNCOMMITTED. This is necessary to be able to
+    read uncommitted data from an earlier stage of the same session.
+
+    @note This is needed when acquiring tablespace objects during execution
+          of ALTER TABLE.
+
+    @tparam       T       Dictionary object type.
+    @param        id      Object id to retrieve.
+    @param [out]  object  Dictionary object, if present; otherwise NULL.
+
+    @retval       false   No error.
+    @retval       true    Error (from reading the dictionary tables).
+   */
+
+  template <typename T>
+  bool acquire_uncached_uncommitted(Object_id id, const T** object);
+
+
+  /**
     Retrieve an object by its name.
 
     @tparam       T             Dictionary object type.
@@ -332,6 +359,30 @@ public:
 
   template <typename T>
   bool acquire(const std::string &object_name, const T** object);
+
+
+  /**
+    Retrieve an object by its name without caching it.
+
+    The object is not cached, hence, it is owned by the caller, who must
+    make sure it is deleted. The object must not be released, and may not
+    be used as a parameter to the other dictionary client methods since it is
+    not known by the object registry.
+
+    @note This is needed when acquiring objects during bootstrap to make
+          sure we get objects from the DD tables in order to replace the
+          temporarily generated meta data.
+
+    @tparam       T            Dictionary object type.
+    @param        object_name  Name of the object to be retrieved.
+    @param [out]  object       Dictionary object, if present; otherwise NULL.
+
+    @retval       false        No error.
+    @retval       true         Error (from reading the dictionary tables).
+   */
+
+  template <typename T>
+  bool acquire_uncached(const std::string &object_name, const T** object);
 
 
   /**
@@ -602,6 +653,10 @@ public:
     added neither to the dictionary client's object registry nor the shared
     cache.
 
+   @note A precondition is that the object has not been acquired from the
+         shared cache. For storing an object which is already in the cache,
+         please use update().
+
     @tparam T       Dictionary object type.
     @param  object  Object to be stored.
 
@@ -636,23 +691,58 @@ public:
                                 to the old object (upon failure).
     @param           new_object New object, not present in the cache, to replace
                                 the old one.
+    @param           persist    Store update persistently, default is true.
+                                Only the bootstrap thread is allowed to
+                                override this.
 
-    @retval false       The operation was successful.
-    @retval true        There was an error.
+    @retval          false      The operation was successful.
+    @retval          true       There was an error.
   */
 
   template <typename T>
-  bool update(const T** old_object, T* new_object);
+  bool update(const T** old_object, T* new_object, bool persist= true);
 
 
   /**
-    Add a new dictionary object.
+    Update a modified dictionary object and remove it from the cache.
+
+    This function will remove the object from the object registry of
+    the client, store the modified object into the DD tables, and
+    remove the object from the shared cache. Then, further attempts
+    to acquire the object will result in a cache miss, thus reading the
+    object from the DD tables. This behavior is needed to maintain
+    cache consistency regardless of the transaction outcome (commit
+    or rollback).
+
+    @note There must be an exclusive meta data lock on the object
+          prior to calling this function.
+
+    @note This operation is not allowed on a sticky object, since a sticky
+          object should always be present in the cache.
+
+    @note The object pointed to is released and deleted, and may not be
+          accessed after calling this function.
+
+    @tparam T       Dictionary object type.
+    @param  object  Object to be updated.
+
+    @retval false   The operation was successful.
+    @retval true    There was an error.
+  */
+
+  template <typename T>
+  bool update_and_invalidate(T* object);
+
+  /**
+    Add a new dictionary object and assign an id.
 
     This function will add the object to the dictionary client's object
     registry and the shared cache. The object is not stored into the persistent
     dd tables. The newly added object's element is returned to the dictionary
     client and added to the local registry. The object must be released
     afterwards,
+
+    @note This function is only to be used during server start.
 
     @note The new object will be owned by the shared cache. Thus, the
           dictionary user may not delete the object. Instead, the
@@ -665,7 +755,7 @@ public:
   */
 
   template <typename T>
-  void add(const T* object);
+  void add_and_reset_id(T* object);
 
 
   /**

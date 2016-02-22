@@ -1566,7 +1566,7 @@ query:
           END_OF_INPUT
           {
             THD *thd= YYTHD;
-            if (!thd->bootstrap &&
+            if (!thd->is_bootstrap_system_thread() &&
                 !thd->m_parser_state->has_comment())
             {
               my_error(ER_EMPTY_QUERY, MYF(0));

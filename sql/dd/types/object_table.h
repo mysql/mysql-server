@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,18 +41,40 @@ public:
   virtual const std::string &name() const = 0;
 
   /**
-    Get the definition for the dictionary table. When supporting upgrade,
-    the method will accept a version parameter, and the table definition
-    according to the submitted version will be returned.
+    Get the definition for the dictionary table for the submitted
+    dictionary version.
 
-    @return Pointer to the definition of the table
+    @param version   Dictionary version for which to get the definition.
+
+    @return Pointer to the definition of the table.
    */
-  virtual const Object_table_definition &table_definition() const= 0;
+  virtual const Object_table_definition *table_definition(
+                                          uint version) const= 0;
+
+  /**
+    Get the definition for the dictionary table for the default
+    dictionary version.
+
+    @param thd  Thread context.
+
+    @return Pointer to the definition of the table.
+   */
+  virtual const Object_table_definition *table_definition(
+                                          THD *thd) const= 0;
+
+  /**
+    Get the dictionary version to use, given the circumstances.
+
+    @param thd  Thread context.
+
+    @return Dictionary version to use.
+   */
+  virtual uint default_dd_version(THD *thd) const= 0;
 
   /**
     Execute low level code for populating the table.
 
-    @return Boolean operation outcome, false if success
+    @return Boolean operation outcome, false if success.
    */
   virtual bool populate(THD *thd) const= 0;
 

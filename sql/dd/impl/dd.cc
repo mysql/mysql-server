@@ -18,7 +18,7 @@
 #include "table.h"                                  // MYSQL_SCHEMA_NAME
 
 #include "dd/impl/dictionary_impl.h"                // dd::Dictionary_impl
-#include "dd/impl/object_table_registry.h"          // dd::Object_table_registry
+#include "dd/impl/system_registry.h"                // dd::System_tables
 #include "dd/impl/cache/shared_dictionary_cache.h"  // dd::cache::Shared_...
 #include "dd/impl/types/schema_impl.h"              // dd::Schema_impl
 
@@ -26,13 +26,11 @@ namespace dd {
 
 bool init(bool install)
 {
-  bool error= Object_table_registry::init() ||
-         Dictionary_impl::init(install);
+  cache::Shared_dictionary_cache::init();
+  System_tables::instance()->init();
+  System_views::instance()->init();
 
-  if (!error)
-    cache::Shared_dictionary_cache::init();
-
-  return error;
+  return Dictionary_impl::init(install);
 }
 
 
@@ -48,17 +46,5 @@ Dictionary *get_dictionary()
   return Dictionary_impl::instance();
 }
 
-
-Schema *create_dd_schema()
-{
-  Schema_impl *schema=
-    dynamic_cast<Schema_impl *> (
-      dd::create_object<Schema>());
-
-  schema->set_id(1); // The DD schema ID.
-  schema->set_name(MYSQL_SCHEMA_NAME.str); // The DD schema name.
-
-  return schema;
-}
 
 } // namespace dd

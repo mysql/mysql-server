@@ -2970,7 +2970,12 @@ extern LEX_STRING SLOW_LOG_NAME;
 
 /* information schema */
 extern LEX_STRING INFORMATION_SCHEMA_NAME;
+
+/* mysql schema */
 extern LEX_STRING MYSQL_SCHEMA_NAME;
+
+/* mysql tablespace */
+extern LEX_STRING MYSQL_TABLESPACE_NAME;
 
 /* replication's tables */
 extern LEX_STRING RLI_INFO_NAME;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ namespace dd {
 
 class Collation;
 class Object_table;
+class Schema;
 
 namespace cache {
   class Dictionary_client;
@@ -115,6 +116,108 @@ bool acquire_shared_table_mdl(THD *thd,
                               const char *table_name,
                               bool no_wait,
                               MDL_ticket **out_mdl_ticket);
+
+
+/**
+  Predicate to check if we have a shared meta data lock on the
+  submitted schema qualified table name.
+
+  @param    thd            Thread context.
+  @param    schema_name    Schema name.
+  @param    table_name     Table name.
+
+  @retval   true           The thread context has a lock.
+  @retval   false          The thread context does not have a lock.
+*/
+
+bool has_shared_table_mdl(THD *thd,
+                          const char *schema_name,
+                          const char *table_name);
+
+
+/**
+  Predicate to check if we have an exclusive meta data lock on the
+  submitted schema qualified table name.
+
+  @param    thd            Thread context.
+  @param    schema_name    Schema name.
+  @param    table_name     Table name.
+
+  @retval   true           The thread context has a lock.
+  @retval   false          The thread context does not have a lock.
+*/
+
+bool has_exclusive_table_mdl(THD *thd,
+                             const char *schema_name,
+                             const char *table_name);
+
+
+/**
+  Acquire an exclusive metadata lock on the given tablespace name with
+  transaction duration.
+
+  @param       thd           THD to which lock belongs.
+  @param       tablespace_name  Tablespace name
+  @param       no_wait        Use try_acquire_lock() if no_wait is true,
+                              else use acquire_lock() with
+                              thd->variables.lock_wait_timeout timeout value.
+
+  @retval      true           Failure, e.g. a lock wait timeout.
+  @retval      false          Successful lock acquisition.
+*/
+
+bool acquire_exclusive_tablespace_mdl(THD *thd,
+                                      const char *tablespace_name,
+                                      bool no_wait);
+
+
+/**
+  Acquire a shared metadata lock on the given tablespace name with
+  transaction duration.
+
+  @param       thd           THD to which lock belongs.
+  @param       tablespace_name  Tablespace name
+  @param       no_wait        Use try_acquire_lock() if no_wait is true,
+                              else use acquire_lock() with
+                              thd->variables.lock_wait_timeout timeout value.
+
+  @retval      true           Failure, e.g. a lock wait timeout.
+  @retval      false          Successful lock acquisition.
+*/
+bool acquire_shared_tablespace_mdl(THD *thd,
+                                   const char *tablespace_name,
+                                   bool no_wait);
+
+
+/**
+  Predicate to check if we have a shared meta data lock on the
+  submitted tablespace name.
+
+  @param    thd              Thread context.
+  @param    tablespace_name  Tablespace name.
+
+  @retval   true             The thread context has a lock.
+  @retval   false            The thread context does not have a lock.
+*/
+
+bool has_shared_tablespace_mdl(THD *thd,
+                               const char *tablespace_name);
+
+
+/**
+  Predicate to check if we have an exclusive meta data lock on the
+  submitted tablespace name.
+
+  @param    thd              Thread context.
+  @param    tablespace_name  Tablespace name.
+
+  @retval   true             The thread context has a lock.
+  @retval   false            The thread context does not have a lock.
+*/
+
+bool has_exclusive_tablespace_mdl(THD *thd,
+                                  const char *tablespace_name);
+
 
 /**
   @brief

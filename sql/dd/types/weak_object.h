@@ -26,6 +26,7 @@ namespace dd {
 
 namespace cache {
   class Storage_adapter;
+  class Dictionary_client;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -49,6 +50,7 @@ private:
   virtual const class Weak_object_impl *impl() const= 0;
   friend class cache::Storage_adapter;
   friend class Dictionary_object_table_impl;
+  friend class cache::Dictionary_client;
 };
 
 ///////////////////////////////////////////////////////////////////////////

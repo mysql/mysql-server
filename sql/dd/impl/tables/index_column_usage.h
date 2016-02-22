@@ -32,8 +32,8 @@ class Index_column_usage : public Object_table_impl
 public:
   static const Index_column_usage &instance()
   {
-    static Index_column_usage s_instance;
-    return s_instance;
+    static Index_column_usage *s_instance= new Index_column_usage();
+    return *s_instance;
   }
 
   static const std::string &table_name()
@@ -57,6 +57,7 @@ public:
   Index_column_usage()
   {
     m_target_def.table_name(table_name());
+    m_target_def.dd_version(1);
 
     m_target_def.add_field(FIELD_INDEX_ID,
                            "FIELD_INDEX_ID",

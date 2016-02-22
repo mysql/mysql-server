@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,8 +23,8 @@
 #include "dd/iterator.h"                   // dd::Iterator
 #include "dd/cache/dictionary_client.h"    // dd::Dictionary_client
 #include "dd/impl/bootstrapper.h"          // dd::Bootstrapper
-#include "dd/impl/object_table_registry.h" // dd::Object_table_registry
-#include "dd/impl/system_view_name_registry.h"  // dd::System_view_name_registry
+#include "dd/impl/system_registry.h"       // dd::System_tables
+#include "dd/impl/tables/version.h"        // get_actual_dd_version()
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -58,11 +58,6 @@ bool Dictionary_impl::init(bool install)
   acl_init(true);
 #endif
 
-  /* Install or start the dictionary depending on bootstrapping option */
-  bootstrap::bootstrap_functor boot_handler= &Bootstrapper::start;
-  if (install)
-    boot_handler= &Bootstrapper::install;
-
   /*
     Initialize the cost model, but delete it after the dd is initialized.
     This is because the cost model is needed for the dd initialization, but
@@ -70,7 +65,14 @@ bool Dictionary_impl::init(bool install)
   */
   init_optimizer_cost_module(false);
 
-  bool result= bootstrap::run_bootstrap_thread(NULL, boot_handler);
+  /* Install or start the dictionary depending on bootstrapping option */
+  bool result= false;
+  if (install)
+    result= ::bootstrap::run_bootstrap_thread(NULL, &bootstrap::initialize,
+                                              SYSTEM_THREAD_DD_INITIALIZE);
+  else
+    result= ::bootstrap::run_bootstrap_thread(NULL, &bootstrap::restart,
+                                              SYSTEM_THREAD_DD_RESTART);
 
   /* Now that the dd is initialized, delete the cost model. */
   delete_optimizer_cost_module();
@@ -99,6 +101,16 @@ bool Dictionary_impl::shutdown()
 // Implementation details.
 ///////////////////////////////////////////////////////////////////////////
 
+uint Dictionary_impl::get_target_dd_version()
+{ return dd::tables::Version::get_target_dd_version(); }
+
+///////////////////////////////////////////////////////////////////////////
+
+uint Dictionary_impl::get_actual_dd_version(THD *thd)
+{ return dd::tables::Version::instance().get_actual_dd_version(thd); }
+
+///////////////////////////////////////////////////////////////////////////
+
 const Object_table *Dictionary_impl::get_dd_table(
   const std::string &schema_name,
   const std::string &table_name) const
@@ -106,14 +118,7 @@ const Object_table *Dictionary_impl::get_dd_table(
   if (!is_dd_schema_name(schema_name))
     return NULL;
 
-  std::unique_ptr<Iterator<const Object_table> > it(
-    Object_table_registry::instance()->types());
-
-  for (const Object_table *t= it->next(); t != NULL; t= it->next())
-    if (table_name == t->name())
-      return t;
-
-  return NULL;
+  return System_tables::instance()->find(schema_name, table_name);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -121,44 +126,11 @@ const Object_table *Dictionary_impl::get_dd_table(
 bool Dictionary_impl::is_system_view_name(const std::string &schema_name,
                                           const std::string &table_name) const
 {
-  if (schema_name.compare("information_schema") != 0)
+  if (schema_name.compare(INFORMATION_SCHEMA_NAME.str) != 0)
     return false;
 
-  std::unique_ptr<Iterator<const char> > it(
-    System_view_name_registry::instance()->names());
-
-  while (true)
-  {
-    const char *name= it->next();
-
-    if (!name)
-      break;
-
-    if (table_name.compare(name) == 0)
-      return true;
-  }
-
-  return false;
+  return (System_views::instance()->find(schema_name, table_name) != NULL);
 }
-
-///////////////////////////////////////////////////////////////////////////
-
-bool Dictionary_impl::load_and_cache_server_collation(THD *thd)
-{
-  // Build object and cache it.
-  // This object will be released and destroyed when Dictionary object dies.
-  const dd::Collation *obj= NULL;
-  if (thd->dd_client()->acquire<dd::Collation>(default_charset_info->name, &obj))
-    return true;
-
-  DBUG_ASSERT(obj);
-  thd->dd_client()->set_sticky(obj, true);
-
-  m_server_collation= obj;
-
-  return false;
-}
-
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -167,18 +139,20 @@ bool Dictionary_impl::load_and_cache_server_collation(THD *thd)
   Following are couple of API's that InnoDB needs to acquire MDL locks.
 */
 
-static bool acquire_table_mdl(THD *thd,
-                              const char *schema_name,
-                              const char *table_name,
-                              bool no_wait,
-                              enum_mdl_type lock_type,
-                              MDL_ticket **out_mdl_ticket)
+static bool acquire_mdl(THD *thd,
+                        MDL_key::enum_mdl_namespace lock_namespace,
+                        const char *schema_name,
+                        const char *table_name,
+                        bool no_wait,
+                        enum_mdl_type lock_type,
+                        enum_mdl_duration lock_duration,
+                        MDL_ticket **out_mdl_ticket)
 {
-  DBUG_ENTER("dd::acquire_table_mdl");
+  DBUG_ENTER("dd::acquire_mdl");
 
   MDL_request mdl_request;
-  MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, schema_name, table_name,
-                   lock_type, MDL_EXPLICIT);
+  MDL_REQUEST_INIT(&mdl_request, lock_namespace, schema_name, table_name,
+                   lock_type, lock_duration);
 
   if (no_wait)
   {
@@ -189,11 +163,12 @@ static bool acquire_table_mdl(THD *thd,
                                          thd->variables.lock_wait_timeout))
     DBUG_RETURN(true);
 
-
-  *out_mdl_ticket= mdl_request.ticket;
+  if (out_mdl_ticket)
+    *out_mdl_ticket= mdl_request.ticket;
 
   DBUG_RETURN(false);
 }
+
 
 bool acquire_shared_table_mdl(THD *thd,
                               const char *schema_name,
@@ -201,9 +176,78 @@ bool acquire_shared_table_mdl(THD *thd,
                               bool no_wait,
                               MDL_ticket **out_mdl_ticket)
 {
-  return acquire_table_mdl(thd, schema_name, table_name, no_wait,
-                           MDL_SHARED, out_mdl_ticket);
+  return acquire_mdl(thd, MDL_key::TABLE, schema_name, table_name, no_wait,
+                     MDL_SHARED, MDL_EXPLICIT, out_mdl_ticket);
 }
+
+
+bool has_shared_table_mdl(THD *thd,
+                          const char *schema_name,
+                          const char *table_name)
+{
+  return thd->mdl_context.owns_equal_or_stronger_lock(
+                          MDL_key::TABLE,
+                          schema_name,
+                          table_name,
+                          MDL_SHARED);
+}
+
+
+bool has_exclusive_table_mdl(THD *thd,
+                             const char *schema_name,
+                             const char *table_name)
+{
+  return thd->mdl_context.owns_equal_or_stronger_lock(
+                          MDL_key::TABLE,
+                          schema_name,
+                          table_name,
+                          MDL_EXCLUSIVE);
+}
+
+
+bool acquire_exclusive_tablespace_mdl(THD *thd,
+                                      const char *tablespace_name,
+                                      bool no_wait)
+{
+  // When requesting a tablespace name lock, we leave the schema name empty.
+  return acquire_mdl(thd, MDL_key::TABLESPACE, "", tablespace_name, no_wait,
+                     MDL_EXCLUSIVE, MDL_TRANSACTION, NULL);
+}
+
+
+bool acquire_shared_tablespace_mdl(THD *thd,
+                                   const char *tablespace_name,
+                                   bool no_wait)
+{
+  // When requesting a tablespace name lock, we leave the schema name empty.
+  return acquire_mdl(thd, MDL_key::TABLESPACE, "", tablespace_name, no_wait,
+                     MDL_SHARED, MDL_TRANSACTION, NULL);
+}
+
+
+bool has_shared_tablespace_mdl(THD *thd,
+                               const char *tablespace_name)
+{
+  // When checking a tablespace name lock, we leave the schema name empty.
+  return thd->mdl_context.owns_equal_or_stronger_lock(
+                          MDL_key::TABLESPACE,
+                          "",
+                          tablespace_name,
+                          MDL_SHARED);
+}
+
+
+bool has_exclusive_tablespace_mdl(THD *thd,
+                                  const char *tablespace_name)
+{
+  // When checking a tablespace name lock, we leave the schema name empty.
+  return thd->mdl_context.owns_equal_or_stronger_lock(
+                          MDL_key::TABLESPACE,
+                          "",
+                          tablespace_name,
+                          MDL_EXCLUSIVE);
+}
+
 
 void release_mdl(THD *thd, MDL_ticket *mdl_ticket)
 {

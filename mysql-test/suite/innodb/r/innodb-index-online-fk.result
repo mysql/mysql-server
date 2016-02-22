@@ -421,6 +421,7 @@ mysql/time_zone_transition
 mysql/time_zone_transition_type
 mysql/triggers
 mysql/user
+mysql/version
 mysql/view_table_usage
 test/child
 test/parent
@@ -1077,6 +1078,7 @@ mysql/time_zone_transition
 mysql/time_zone_transition_type
 mysql/triggers
 mysql/user
+mysql/version
 mysql/view_table_usage
 test/child
 test/parent
@@ -1231,6 +1233,7 @@ mysql/time_zone_transition
 mysql/time_zone_transition_type
 mysql/triggers
 mysql/user
+mysql/version
 mysql/view_table_usage
 test/child
 test/parent
@@ -1396,6 +1399,7 @@ mysql/time_zone_transition
 mysql/time_zone_transition_type
 mysql/triggers
 mysql/user
+mysql/version
 mysql/view_table_usage
 test/child
 test/parent
@@ -1561,6 +1565,7 @@ mysql/time_zone_transition
 mysql/time_zone_transition_type
 mysql/triggers
 mysql/user
+mysql/version
 mysql/view_table_usage
 test/child
 test/parent

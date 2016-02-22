@@ -59,6 +59,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <dd/types/tablespace.h>
 #include <dd/properties.h>
 
+#include "dd/iterator.h"
+#include "dd/properties.h"
+#include "dd/types/table.h"
+#include "dd/types/index.h"
+#include "dd/types/partition.h"
+
 /* Include necessary InnoDB headers */
 #include "api0api.h"
 #include "api0misc.h"
@@ -3430,6 +3436,61 @@ innodb_init_abort()
 	DBUG_RETURN(1);
 }
 
+/** Open or create InnoDB data files.
+@param[in]	dict_init_mode	whether to create or open the files
+@return 0 on success, 1 on failure */
+static
+int
+innobase_init_files(
+	dict_init_mode_t	dict_init_mode);
+
+/** Initialize InnoDB for being used to store the DD tables.
+Create the required files according to the dict_init_mode.
+Create strings representing the required DDSE tables, i.e.,
+tables that InnoDB expects to exist in the DD,
+and add them to the appropriate out parameter.
+
+@param[in]	dict_init_mode	How to initialize files
+
+@param[in]	version		Target DD version if a new server
+				is being installed.
+				0 if restarting an existing server.
+
+@param[out]	tables		List of SQL DDL statements
+				for creating DD tables that
+				are needed by the DDSE.
+
+@param[out]	tablespaces	List of meta data for predefined
+				tablespaces created by the DDSE.
+
+@retval	true			An error occurred.
+@retval	false			Success - no errors. */
+static
+bool
+innobase_dict_init(
+	dict_init_mode_t		dict_init_mode,
+	uint				version,
+	List<const Plugin_table>*	tables,
+	List<const Plugin_tablespace>*	tablespaces);
+
+/** Perform high-level recovery in InnoDB as part of initializing the
+data dictionary.
+@param[in]	dict_recovery_mode	How to do recovery
+@param[in]	version			Target DD version if a new
+					server is being installed.
+					Actual DD version if restarting
+					an existing server.
+@retval	true				An error occurred.
+@retval	false				Success - no errors. */
+static
+bool
+innobase_dict_recover(
+	dict_recovery_mode_t			dict_recovery_mode,
+	uint					version)
+{
+	return false;
+}
+
 /** Check if InnoDB is in a mode where the data dictionary is read-only.
 @return true if srv_read_only_mode is TRUE or if srv_force_recovery > 0 */
 static
@@ -4056,6 +4117,12 @@ innodb_init(
 	innobase_hton->file_extensions = ha_innobase_exts;
 	innobase_hton->data = &innodb_api_cb;
 
+	innobase_hton->dict_init=
+		innobase_dict_init;
+
+	innobase_hton->dict_recover=
+		innobase_dict_recover;
+
 	innobase_hton->is_supported_system_table=
 		innobase_is_supported_system_table;
 
@@ -4131,6 +4198,18 @@ innodb_init(
 		DBUG_RETURN(innodb_init_abort());
 	}
 
+	DBUG_RETURN(0);
+}
+
+/** Open or create InnoDB data files.
+@param[in]	dict_init_mode	whether to create or open the files
+@return 0 on success, 1 on failure */
+static
+int
+innobase_init_files(
+	dict_init_mode_t	dict_init_mode)
+{
+	DBUG_ENTER("innobase_init_files");
 	bool	create_new_db = false;
 
 	/* Check if the data files exist or not. */
@@ -11141,6 +11220,180 @@ innobase_fts_load_stopword(
 				 THDVAR(thd, ft_enable_stopword), FALSE));
 }
 
+#ifndef DBUG_OFF
+/** Hard-coded data dictionary information */
+struct innodb_dd_table_t {
+	/** Data dictionary table name */
+	const char*	name;
+	/** Number of indexes */
+	const uint	n_indexes;
+};
+
+/** Hard-coded data dictionary entry */
+# define INNODB_DD_TABLE(name, n_indexes) { name, n_indexes }
+
+/** The hard-coded data dictionary tables */
+static const innodb_dd_table_t innodb_dd_table[] = {
+	INNODB_DD_TABLE("version", 1),
+	INNODB_DD_TABLE("character_sets", 2),
+	INNODB_DD_TABLE("collations", 3),
+	INNODB_DD_TABLE("tablespaces", 2),
+	INNODB_DD_TABLE("tablespace_files", 2),
+	INNODB_DD_TABLE("catalogs", 2),
+	INNODB_DD_TABLE("schemata", 3),
+	INNODB_DD_TABLE("tables", 6),
+	INNODB_DD_TABLE("view_table_usage", 2),
+	INNODB_DD_TABLE("columns", 4),
+	INNODB_DD_TABLE("indexes", 3),
+	INNODB_DD_TABLE("index_column_usage", 3),
+	INNODB_DD_TABLE("column_type_elements", 1),
+	INNODB_DD_TABLE("foreign_keys", 4),
+	INNODB_DD_TABLE("foreign_key_column_usage", 3),
+	INNODB_DD_TABLE("table_partitions", 6),
+	INNODB_DD_TABLE("table_partition_values", 1),
+	INNODB_DD_TABLE("index_partitions", 3),
+	INNODB_DD_TABLE("innodb_table_stats", 1),
+	INNODB_DD_TABLE("innodb_index_stats", 1)
+};
+
+/** Number of hard-coded data dictionary tables */
+static const uint innodb_dd_table_size
+	= (sizeof innodb_dd_table) / sizeof *innodb_dd_table;
+#endif /* !DBUG_OFF */
+
+/** Initialize InnoDB for being used to store the DD tables.
+Create the required files according to the dict_init_mode.
+Create strings representing the required DDSE tables, i.e.,
+tables that InnoDB expects to exist in the DD,
+and add them to the appropriate out parameter.
+
+@param[in]	dict_init_mode	How to initialize files
+
+@param[in]	version		Target DD version if a new server
+				is being installed.
+				0 if restarting an existing server.
+
+@param[out]	tables		List of SQL DDL statements
+				for creating DD tables that
+				are needed by the DDSE.
+
+@param[out]	tablespaces	List of meta data for predefined
+				tablespaces created by the DDSE.
+
+@retval	true			An error occurred.
+@retval	false			Success - no errors. */
+static
+bool
+innobase_dict_init(
+	dict_init_mode_t		dict_init_mode,
+	uint				version,
+	List<const Plugin_table>*	tables,
+	List<const Plugin_tablespace>*	tablespaces)
+{
+	DBUG_ENTER("innobase_dict_init");
+
+	DBUG_ASSERT(tables && tables->is_empty());
+	DBUG_ASSERT(tablespaces && tablespaces->is_empty());
+
+	static Plugin_table innodb_table_stats(
+		/* Name */
+		"innodb_table_stats",
+		/* Definition */
+		"  database_name VARCHAR(64) NOT NULL, \n"
+		"  table_name VARCHAR(64) NOT NULL, \n"
+		"  last_update TIMESTAMP NOT NULL NOT NULL \n"
+		"  DEFAULT CURRENT_TIMESTAMP \n"
+		"  ON UPDATE CURRENT_TIMESTAMP, \n"
+		"  n_rows BIGINT UNSIGNED NOT NULL, \n"
+		"  clustered_index_size BIGINT UNSIGNED NOT NULL, \n"
+		"  sum_of_other_index_sizes BIGINT UNSIGNED NOT NULL, \n"
+		"  PRIMARY KEY (database_name, table_name) \n",
+		/* Options */
+		" ENGINE=INNODB DEFAULT "
+		"CHARSET=utf8 COLLATE=utf8_bin "
+		"STATS_PERSISTENT=0");
+
+	static Plugin_table innodb_index_stats(
+		/* Name */
+		"innodb_index_stats",
+		/* Definition */
+		"  database_name VARCHAR(64) NOT NULL, \n"
+		"  table_name VARCHAR(64) NOT NULL, \n"
+		"  index_name VARCHAR(64) NOT NULL, \n"
+		"  last_update TIMESTAMP NOT NULL NOT NULL \n"
+		"  DEFAULT CURRENT_TIMESTAMP \n"
+		"  ON UPDATE CURRENT_TIMESTAMP, \n"
+		/*
+			There are at least: stat_name='size'
+				stat_name='n_leaf_pages'
+				stat_name='n_diff_pfx%'
+		*/
+		"  stat_name VARCHAR(64) NOT NULL, \n"
+		"  stat_value BIGINT UNSIGNED NOT NULL, \n"
+		"  sample_size BIGINT UNSIGNED, \n"
+		"  stat_description VARCHAR(1024) NOT NULL, \n"
+		"  PRIMARY KEY (database_name, table_name, "
+			"index_name, stat_name) \n",
+		/* Options */
+		" ENGINE=INNODB DEFAULT "
+		"CHARSET=utf8 COLLATE=utf8_bin "
+		"STATS_PERSISTENT=0");
+
+	tables->push_back(&innodb_table_stats);
+	tables->push_back(&innodb_index_stats);
+
+	static Plugin_tablespace innodb_sys(
+		/* Name */
+		"innodb_system",
+		/* Options */
+		"",
+		/* Se private data */
+		"",
+		/* Comment */
+		"",
+		/* Engine */
+		"INNODB");
+
+	static Plugin_tablespace::Plugin_tablespace_file innodb_sys_file(
+		/* Name */
+		"innodb_sys.ibd",
+		/* Se private data */
+		"");
+
+	innodb_sys.add_file(&innodb_sys_file);
+
+	static Plugin_tablespace mysql_dd(
+		/* Name */
+		"mysql_dd",
+		/* Options */
+		 "",
+		 /* Se private data */
+		 "",
+		 /* Comment */
+		 "",
+		 /* Engine */
+		 "INNODB");
+
+	static Plugin_tablespace::Plugin_tablespace_file mysql_file1(
+		/* Name */
+		"mysql1.ibd",
+		/* Se private data */
+		"");
+	static Plugin_tablespace::Plugin_tablespace_file mysql_file2(
+		/* Name */
+		"mysql2.ibd",
+		/* Se private data */
+		"");
+
+	mysql_dd.add_file(&mysql_file1);
+	mysql_dd.add_file(&mysql_file2);
+
+	tablespaces->push_back(&innodb_sys);
+	tablespaces->push_back(&mysql_dd);
+
+	DBUG_RETURN(innobase_init_files(DICT_INIT_IGNORE_FILES));
+}
+
 /** Parse the table name into normal name and remote path if needed.
 @param[in]	name	Table name (db/table or full path).
 @return 0 if successful, otherwise, error number */
@@ -12172,6 +12425,64 @@ create_table_info_t::allocate_trx()
 
 	m_trx->will_lock++;
 	m_trx->ddl = true;
+}
+
+/** Get storage-engine private data for a data dictionary table.
+@param[in,out]	dd_table	data dictionary table definition
+@param[in]	dd_version	data dictionary version
+@retval		true		an error occurred
+@retval		false		success */
+bool
+ha_innobase::get_se_private_data(
+	dd::Table*	dd_table,
+	uint		dd_version)
+{
+	static uint	n_tables;
+	static uint	n_indexes;
+	static uint	n_pages;
+#ifndef DBUG_OFF
+	const uint	n_indexes_old = n_indexes;
+#endif
+
+	DBUG_ENTER("ha_innobase::get_se_private_data");
+	DBUG_ASSERT(dd_version < 2);
+	DBUG_ASSERT(dd_table != nullptr);
+	DBUG_ASSERT((dd_version == 0)
+		    == (dd_table->name() == innodb_dd_table[0].name));
+	DBUG_ASSERT((dd_version == 0) == (n_tables == 0));
+	DBUG_ASSERT(n_tables < innodb_dd_table_size);
+#ifndef DBUG_OFF
+	{
+		/* These tables must not be partitioned. */
+		std::unique_ptr<dd::Iterator<dd::Partition> > p(
+			dd_table->partitions());
+		DBUG_ASSERT(!p->next());
+	}
+
+	const innodb_dd_table_t&	data = innodb_dd_table[n_tables];
+#endif
+
+	DBUG_ASSERT(dd_table->name() == data.name);
+
+	dd_table->set_se_private_id(++n_tables + DICT_HDR_FIRST_ID);
+
+	std::unique_ptr<dd::Iterator<dd::Index> > it(dd_table->indexes());
+
+	while (dd::Index* i = it->next()) {
+		uint32	root_page = 270 + n_pages++;
+		n_indexes++;
+		i->se_private_data().set_uint32("root", root_page);
+		i->se_private_data().set_uint64("id", n_indexes
+						+ DICT_HDR_FIRST_ID);
+	}
+
+	DBUG_ASSERT(n_indexes - n_indexes_old == data.n_indexes);
+	/* Reserve space for the FIL_PAGE_INODE */
+	n_pages++;
+	switch (270 + n_pages) {
+	case 304: n_pages++; // TODO: Remove this tweak.
+	}
+	DBUG_RETURN(false);
 }
 
 /** Create an InnoDB table.

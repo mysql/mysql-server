@@ -5350,7 +5350,8 @@ int mysqld_main(int argc, char **argv)
     // Make sure we can process SIGHUP during bootstrap.
     server_components_initialized();
 
-    int error= bootstrap::run_bootstrap_thread(mysql_stdin, NULL);
+    int error= bootstrap::run_bootstrap_thread(mysql_stdin, NULL,
+                                          SYSTEM_THREAD_SERVER_INITIALIZE);
     unireg_abort(error ? MYSQLD_ABORT_EXIT : MYSQLD_SUCCESS_EXIT);
   }
   if (opt_init_file && *opt_init_file)
@@ -5711,7 +5712,7 @@ bool read_init_file(char *file_name)
   if (!(file= mysql_file_fopen(key_file_init, file_name,
                                O_RDONLY, MYF(MY_WME))))
     DBUG_RETURN(TRUE);
-  (void) bootstrap::run_bootstrap_thread(file, NULL);
+  (void) bootstrap::run_bootstrap_thread(file, NULL, SYSTEM_THREAD_INIT_FILE);
   mysql_file_fclose(file, MYF(MY_WME));
 
   sql_print_information("Execution of init_file \'%s\' ended.", file_name);

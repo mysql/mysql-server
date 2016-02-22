@@ -36,6 +36,21 @@ public:
     Open_dictionary_tables_ctx *otx,
     const Raw_record &record,
     Dictionary_object **o) const;
+
+  // Fix "inherits ... via dominance" warnings
+  virtual const Object_table_definition *table_definition(
+                  uint version __attribute__((unused))) const
+  { return Object_table_impl::table_definition(version); }
+
+  virtual const Object_table_definition *table_definition(
+                  THD *thd __attribute__((unused))) const
+  { return Object_table_impl::table_definition(thd); }
+
+  virtual bool populate(THD *thd) const
+  { return Object_table_impl::populate(thd); }
+
+  virtual bool hidden() const
+  { return Object_table_impl::hidden(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

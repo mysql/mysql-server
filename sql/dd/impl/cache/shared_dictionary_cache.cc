@@ -34,7 +34,7 @@ bool Shared_dictionary_cache::get(THD *thd, const K &key,
   {
     // Handle cache miss.
     const T *new_object= NULL;
-    error= get_uncached(thd, key, &new_object);
+    error= get_uncached(thd, key, ISO_READ_COMMITTED, &new_object);
 
     // Add the new object, and assign the output element, even in the case of
     // a miss error (needed to remove the missed key).
@@ -46,19 +46,20 @@ bool Shared_dictionary_cache::get(THD *thd, const K &key,
 
 // Read an object directly from disk, given the key.
 template <typename K, typename T>
-bool Shared_dictionary_cache::get_uncached(THD *thd, const K &key,
+bool Shared_dictionary_cache::get_uncached(THD *thd,
+                                           const K &key,
+                                           enum_tx_isolation isolation,
                                            const T **object) const
 {
   DBUG_ASSERT(object);
-  bool error= Storage_adapter::get(thd, key, object);
+  bool error= Storage_adapter::get(thd, key, isolation, object);
   DBUG_ASSERT(!error || thd->is_system_thread() || thd->killed || thd->is_error());
 
   return error;
 }
 
 
-// Add an object to the shared cache. (Needed by WL#6394)
-/* purecov: begin deadcode */
+// Add an object to the shared cache.
 template <typename T>
 void Shared_dictionary_cache::put(const T* object, Cache_element<T> **element)
 {
@@ -67,7 +68,6 @@ void Shared_dictionary_cache::put(const T* object, Cache_element<T> **element)
   m_map<T>()->put(static_cast<const typename T::id_key_type*>(NULL),
                   object, element);
 }
-/* purecov: end */
 
 
 // Explicitly instantiate the types for the various usages.
@@ -86,15 +86,15 @@ template bool Shared_dictionary_cache::
 template bool Shared_dictionary_cache::
   get_uncached<Abstract_table::id_key_type, Abstract_table>(
     THD *thd, const Abstract_table::id_key_type&,
-    const Abstract_table**) const;
+    enum_tx_isolation, const Abstract_table**) const;
 template bool Shared_dictionary_cache::
   get_uncached<Abstract_table::name_key_type, Abstract_table>(
     THD *thd, const Abstract_table::name_key_type&,
-    const Abstract_table**) const;
+    enum_tx_isolation, const Abstract_table**) const;
 template bool Shared_dictionary_cache::
   get_uncached<Abstract_table::aux_key_type, Abstract_table>(
     THD *thd, const Abstract_table::aux_key_type&,
-    const Abstract_table**) const;
+    enum_tx_isolation, const Abstract_table**) const;
 template void Shared_dictionary_cache::put<Abstract_table>(
     const Abstract_table*,
     Cache_element<Abstract_table>**);
@@ -114,15 +114,15 @@ template bool Shared_dictionary_cache::
 template bool Shared_dictionary_cache::
   get_uncached<Charset::id_key_type, Charset>(
     THD *thd, const Charset::id_key_type&,
-    const Charset**) const;
+    enum_tx_isolation, const Charset**) const;
 template bool Shared_dictionary_cache::
   get_uncached<Charset::name_key_type, Charset>(
     THD *thd, const Charset::name_key_type&,
-    const Charset**) const;
+    enum_tx_isolation, const Charset**) const;
 template bool Shared_dictionary_cache::
   get_uncached<Charset::aux_key_type, Charset>(
     THD *thd, const Charset::aux_key_type&,
-    const Charset**) const;
+    enum_tx_isolation, const Charset**) const;
 template void Shared_dictionary_cache::put<Charset>(
     const Charset*,
     Cache_element<Charset>**);
@@ -142,15 +142,15 @@ template bool Shared_dictionary_cache::
 template bool Shared_dictionary_cache::
   get_uncached<Collation::id_key_type, Collation>(
     THD *thd, const Collation::id_key_type&,
-    const Collation**) const;
+    enum_tx_isolation, const Collation**) const;
 template bool Shared_dictionary_cache::
   get_uncached<Collation::name_key_type, Collation>(
     THD *thd, const Collation::name_key_type&,
-    const Collation**) const;
+    enum_tx_isolation, const Collation**) const;
 template bool Shared_dictionary_cache::
   get_uncached<Collation::aux_key_type, Collation>(
     THD *thd, const Collation::aux_key_type&,
-    const Collation**) const;
+    enum_tx_isolation, const Collation**) const;
 template void Shared_dictionary_cache::put<Collation>(
     const Collation*,
     Cache_element<Collation>**);
@@ -170,15 +170,15 @@ template bool Shared_dictionary_cache::
 template bool Shared_dictionary_cache::
   get_uncached<Schema::id_key_type, Schema>(
     THD *thd, const Schema::id_key_type&,
-    const Schema**) const;
+    enum_tx_isolation, const Schema**) const;
 template bool Shared_dictionary_cache::
   get_uncached<Schema::name_key_type, Schema>(
     THD *thd, const Schema::name_key_type&,
-    const Schema**) const;
+    enum_tx_isolation, const Schema**) const;
 template bool Shared_dictionary_cache::
   get_uncached<Schema::aux_key_type, Schema>(
     THD *thd, const Schema::aux_key_type&,
-    const Schema**) const;
+    enum_tx_isolation, const Schema**) const;
 template void Shared_dictionary_cache::put<Schema>(
     const Schema*,
     Cache_element<Schema>**);
@@ -198,15 +198,15 @@ template bool Shared_dictionary_cache::
 template bool Shared_dictionary_cache::
   get_uncached<Tablespace::id_key_type, Tablespace>(
     THD *thd, const Tablespace::id_key_type&,
-    const Tablespace**) const;
+    enum_tx_isolation, const Tablespace**) const;
 template bool Shared_dictionary_cache::
   get_uncached<Tablespace::name_key_type, Tablespace>(
     THD *thd, const Tablespace::name_key_type&,
-    const Tablespace**) const;
+    enum_tx_isolation, const Tablespace**) const;
 template bool Shared_dictionary_cache::
   get_uncached<Tablespace::aux_key_type, Tablespace>(
     THD *thd, const Tablespace::aux_key_type&,
-    const Tablespace**) const;
+    enum_tx_isolation, const Tablespace**) const;
 template void Shared_dictionary_cache::put<Tablespace>(
     const Tablespace*,
     Cache_element<Tablespace>**);
