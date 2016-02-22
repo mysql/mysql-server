@@ -37,9 +37,9 @@ template <typename T> class Collection;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Foreign_key_impl : virtual public Entity_object_impl,
-                         virtual public Foreign_key,
-                         virtual public Collection_item
+class Foreign_key_impl : public Entity_object_impl,
+                         public Foreign_key,
+                         public Collection_item
 {
 // Foreign keys not supported in the Global DD yet
 /* purecov: begin deadcode */

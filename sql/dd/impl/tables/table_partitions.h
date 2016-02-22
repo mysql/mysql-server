@@ -28,7 +28,7 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Table_partitions : virtual public Object_table_impl
+class Table_partitions : public Object_table_impl
 {
 public:
   static const Table_partitions &instance()

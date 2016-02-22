@@ -29,7 +29,7 @@ template <typename T> class Collection;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Abstract_table_impl : virtual public Entity_object_impl,
+class Abstract_table_impl : public Entity_object_impl,
                             virtual public Abstract_table
 {
 public:

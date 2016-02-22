@@ -30,8 +30,8 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class View_impl : virtual public Abstract_table_impl,
-                  virtual public View
+class View_impl : public Abstract_table_impl,
+                  public View
 {
 public:
   typedef Collection<View_table> View_table_collection;

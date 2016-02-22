@@ -36,9 +36,9 @@ template <typename T> class Collection;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Partition_impl : virtual public Entity_object_impl,
-                       virtual public Partition,
-                       virtual public Collection_item
+class Partition_impl : public Entity_object_impl,
+                       public Partition,
+                       public Collection_item
 {
 public:
   typedef Collection<Partition_value> Value_collection;

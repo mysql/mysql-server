@@ -34,9 +34,9 @@ class Tablespace_impl;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Tablespace_file_impl : virtual public Weak_object_impl,
-                             virtual public Tablespace_file,
-                             virtual public Collection_item
+class Tablespace_file_impl : public Weak_object_impl,
+                             public Tablespace_file,
+                             public Collection_item
 {
 public:
   Tablespace_file_impl();

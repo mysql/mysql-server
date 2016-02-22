@@ -18,13 +18,15 @@
 
 #include "my_global.h"
 
+#include "dd/impl/types/object_table_impl.h"  // Object_table_impl
 #include "dd/types/dictionary_object_table.h" // dd::Dictionary_object_table
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Dictionary_object_table_impl : virtual public Dictionary_object_table
+class Dictionary_object_table_impl : public Object_table_impl,
+                                     public Dictionary_object_table
 {
 public:
   virtual ~Dictionary_object_table_impl()

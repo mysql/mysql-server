@@ -42,7 +42,7 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Abstract_table : public virtual Dictionary_object
+class Abstract_table : public Dictionary_object
 {
 public:
   static const Object_type &TYPE();

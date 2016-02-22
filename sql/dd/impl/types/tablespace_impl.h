@@ -30,8 +30,8 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Tablespace_impl : virtual public Entity_object_impl,
-                        virtual public Tablespace
+class Tablespace_impl : public Entity_object_impl,
+                        public Tablespace
 {
 public:
   typedef Collection<Tablespace_file> Tablespace_file_collection;

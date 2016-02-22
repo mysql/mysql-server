@@ -42,7 +42,7 @@ typedef Iterator<const Tablespace_file>  Tablespace_file_const_iterator;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Tablespace : virtual public Dictionary_object
+class Tablespace : public Dictionary_object
 {
 public:
   static const Object_type &TYPE();

@@ -103,7 +103,8 @@ bool Foreign_key_element_impl::validate() const
 
 bool Foreign_key_element_impl::restore_attributes(const Raw_record &r)
 {
-  if (check_parent_consistency(m_foreign_key,
+  // Must resolve ambiguity by static cast.
+  if (check_parent_consistency(static_cast<Entity_object_impl*>(m_foreign_key),
         r.read_ref_id(Foreign_key_column_usage::FIELD_FOREIGN_KEY_ID)))
     return true;
 

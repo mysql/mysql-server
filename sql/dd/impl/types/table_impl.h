@@ -26,8 +26,8 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Table_impl : virtual public Abstract_table_impl,
-                   virtual public Table
+class Table_impl : public Abstract_table_impl,
+                   public Table
 {
 public:
   typedef Collection<Index> Index_collection;

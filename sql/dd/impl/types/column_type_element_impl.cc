@@ -71,7 +71,8 @@ bool Column_type_element_impl::validate() const
 
 bool Column_type_element_impl::restore_attributes(const Raw_record &r)
 {
-  if (check_parent_consistency(m_column,
+  // Must resolve ambiguity by static cast.
+  if (check_parent_consistency(static_cast<Entity_object_impl*>(m_column),
         r.read_ref_id(Column_type_elements::FIELD_COLUMN_ID)))
     return true;
 

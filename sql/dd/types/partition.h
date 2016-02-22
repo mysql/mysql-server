@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ typedef Iterator<const Partition_value>  Partition_value_const_iterator;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Partition : virtual public Entity_object
+class Partition : public Entity_object
 {
 public:
   static const Object_type &TYPE();

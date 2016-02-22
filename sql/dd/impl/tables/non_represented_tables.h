@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Innodb_table_stats: virtual public Object_table_impl
+class Innodb_table_stats: public Object_table_impl
 {
 public:
   static const Innodb_table_stats &instance()
@@ -78,7 +78,7 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Innodb_index_stats: virtual public Object_table_impl
+class Innodb_index_stats: public Object_table_impl
 {
 public:
   static const Innodb_index_stats &instance()
@@ -139,7 +139,7 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Catalogs: virtual public Object_table_impl
+class Catalogs: public Object_table_impl
 {
 public:
   static const Catalogs &instance()

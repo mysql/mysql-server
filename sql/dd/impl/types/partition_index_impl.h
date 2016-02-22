@@ -35,9 +35,9 @@ class Open_dictionary_tables_ctx;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Partition_index_impl : virtual public Weak_object_impl,
-                             virtual public Partition_index,
-                             virtual public Collection_item
+class Partition_index_impl : public Weak_object_impl,
+                             public Partition_index,
+                             public Collection_item
 {
 public:
   Partition_index_impl();

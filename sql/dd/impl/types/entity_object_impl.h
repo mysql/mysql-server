@@ -25,8 +25,8 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Entity_object_impl : virtual public Weak_object_impl,
-                           virtual public Entity_object
+class Entity_object_impl : virtual public Entity_object,
+                           public Weak_object_impl
 {
 public:
   Entity_object_impl()

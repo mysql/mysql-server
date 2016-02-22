@@ -27,7 +27,7 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Indexes : virtual public Object_table_impl
+class Indexes : public Object_table_impl
 {
 public:
   static const Indexes &instance()

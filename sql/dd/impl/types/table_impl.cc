@@ -604,7 +604,7 @@ void Table_type::register_tables(Open_dictionary_tables_ctx *otx) const
 ///////////////////////////////////////////////////////////////////////////
 
 Table_impl::Table_impl(const Table_impl &src)
-  : Weak_object(src), Entity_object_impl(src), Abstract_table_impl(src),
+  : Weak_object(src), Abstract_table_impl(src),
     m_hidden(src.m_hidden), m_se_private_id(src.m_se_private_id),
     m_engine(src.m_engine),
     m_comment(src.m_comment),

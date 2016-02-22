@@ -34,9 +34,9 @@ template <typename T> class Collection;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Column_type_element_impl : virtual public Weak_object_impl,
-                                 virtual public Column_type_element,
-                                 virtual public Collection_item
+class Column_type_element_impl : public Weak_object_impl,
+                                 public Column_type_element,
+                                 public Collection_item
 {
 public:
   Column_type_element_impl()

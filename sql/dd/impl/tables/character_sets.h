@@ -20,15 +20,13 @@
 
 #include "dd/impl/types/charset_impl.h"                 // dd::Charset_impl
 #include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
-#include "dd/impl/types/object_table_impl.h"            // dd::Object_table_i...
 
 namespace dd {
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Character_sets : virtual public Dictionary_object_table_impl,
-                       virtual public Object_table_impl
+class Character_sets : public Dictionary_object_table_impl
 {
 public:
   static const Character_sets &instance()

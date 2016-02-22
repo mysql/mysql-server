@@ -20,7 +20,6 @@
 
 #include "dd/object_id.h"                               // dd::Object_id
 #include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
-#include "dd/impl/types/object_table_impl.h"            // dd::Object_table_i...
 
 namespace dd {
 
@@ -30,8 +29,7 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Tables : virtual public Dictionary_object_table_impl,
-               virtual public Object_table_impl
+class Tables : public Dictionary_object_table_impl
 {
 public:
   static const Tables &instance()

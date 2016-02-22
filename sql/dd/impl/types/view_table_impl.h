@@ -30,9 +30,9 @@ class View_impl;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class View_table_impl : virtual public Weak_object_impl,
-                        virtual public View_table,
-                        virtual public Collection_item
+class View_table_impl : public Weak_object_impl,
+                        public View_table,
+                        public Collection_item
 {
 public:
   View_table_impl();

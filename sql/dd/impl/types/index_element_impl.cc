@@ -83,7 +83,8 @@ bool Index_element_impl::validate() const
 
 bool Index_element_impl::restore_attributes(const Raw_record &r)
 {
-  if (check_parent_consistency(m_index,
+  // Must resolve ambiguity by static cast.
+  if (check_parent_consistency(static_cast<Entity_object_impl*>(m_index),
         r.read_ref_id(Index_column_usage::FIELD_INDEX_ID)))
     return true;
 

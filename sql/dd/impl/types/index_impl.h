@@ -36,9 +36,9 @@ template <typename T> class Collection;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Index_impl : virtual public Entity_object_impl,
-                   virtual public Index,
-                   virtual public Collection_item
+class Index_impl : public Entity_object_impl,
+                   public Index,
+                   public Collection_item
 {
 public:
   typedef Collection<Index_element> Element_collection;

@@ -33,9 +33,9 @@ class Open_dictionary_tables_ctx;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Foreign_key_element_impl : virtual public Weak_object_impl,
-                                 virtual public Foreign_key_element,
-                                 virtual public Collection_item
+class Foreign_key_element_impl : public Weak_object_impl,
+                                 public Foreign_key_element,
+                                 public Collection_item
 {
 // Foreign keys not supported in the Global DD yet
 /* purecov: begin deadcode */

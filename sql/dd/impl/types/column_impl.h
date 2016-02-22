@@ -38,9 +38,9 @@ template <typename T> class Collection;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Column_impl : virtual public Entity_object_impl,
-                    virtual public Column,
-                    virtual public Collection_item
+class Column_impl : public Entity_object_impl,
+                    public Column,
+                    public Collection_item
 {
 public:
   typedef Collection<Column_type_element> Column_type_element_collection;

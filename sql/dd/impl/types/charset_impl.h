@@ -32,8 +32,8 @@ class Open_dictionary_tables_ctx;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Charset_impl : virtual public Entity_object_impl,
-                     virtual public Charset
+class Charset_impl : public Entity_object_impl,
+                     public Charset
 {
 public:
   Charset_impl()

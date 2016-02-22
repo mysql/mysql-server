@@ -287,7 +287,7 @@ void View_type::register_tables(Open_dictionary_tables_ctx *otx) const
 ///////////////////////////////////////////////////////////////////////////
 
 View_impl::View_impl(const View_impl &src)
-  : Weak_object(src), Entity_object_impl(src), Abstract_table_impl(src),
+  : Weak_object(src), Abstract_table_impl(src),
     m_type(src.m_type), m_is_updatable(src.m_is_updatable),
     m_check_option(src.m_check_option), m_algorithm(src.m_algorithm),
     m_security_type(src.m_security_type), m_definition(src.m_definition),

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Foreign_key_column_usage : virtual public Object_table_impl
+class Foreign_key_column_usage : public Object_table_impl
 {
 public:
   static const Foreign_key_column_usage &instance()

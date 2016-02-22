@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ typedef Iterator<const Foreign_key_element> Foreign_key_element_const_iterator;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Foreign_key : virtual public Entity_object
+class Foreign_key : public Entity_object
 {
 public:
   static const Object_type &TYPE();

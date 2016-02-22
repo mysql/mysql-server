@@ -39,7 +39,7 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Schema : virtual public Dictionary_object
+class Schema : public Dictionary_object
 {
 public:
   static const Object_type &TYPE();

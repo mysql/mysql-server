@@ -37,7 +37,7 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Charset : virtual public Dictionary_object
+class Charset : public Dictionary_object
 {
 public:
   static const Object_type &TYPE();

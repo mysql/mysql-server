@@ -19,7 +19,6 @@
 #include "my_global.h"
 
 #include "dd/impl/types/dictionary_object_table_impl.h" // dd::Dictionary_obj...
-#include "dd/impl/types/object_table_impl.h"            // dd::Object_table_i...
 #include "dd/impl/types/schema_impl.h"                  // dd::Schema_impl
 
 #include <string>
@@ -29,8 +28,7 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Schemata : virtual public Dictionary_object_table_impl,
-                 virtual public Object_table_impl
+class Schemata : public Dictionary_object_table_impl
 {
 public:
   static const Schemata &instance()

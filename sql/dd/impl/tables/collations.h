@@ -20,15 +20,13 @@
 
 #include "dd/impl/types/collation_impl.h"
 #include "dd/impl/types/dictionary_object_table_impl.h"
-#include "dd/impl/types/object_table_impl.h"
 
 namespace dd {
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Collations : virtual public Dictionary_object_table_impl,
-                   virtual public Object_table_impl
+class Collations : public Dictionary_object_table_impl
 {
 public:
   static const Collations &instance()

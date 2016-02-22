@@ -34,9 +34,9 @@ class Open_dictionary_tables_ctx;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Index_element_impl : virtual public Weak_object_impl,
-                           virtual public Index_element,
-                           virtual public Collection_item
+class Index_element_impl : public Weak_object_impl,
+                           public Index_element,
+                           public Collection_item
 {
 public:
   Index_element_impl()

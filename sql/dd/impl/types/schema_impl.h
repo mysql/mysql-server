@@ -34,8 +34,8 @@ class Table;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Schema_impl : virtual public Entity_object_impl,
-                    virtual public Schema
+class Schema_impl : public Entity_object_impl,
+                    public Schema
 {
 public:
   Schema_impl()

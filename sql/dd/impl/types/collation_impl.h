@@ -31,8 +31,8 @@ class Transaction;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Collation_impl : virtual public Entity_object_impl,
-                       virtual public Collation
+class Collation_impl : public Entity_object_impl,
+                       public Collation
 {
 public:
   Collation_impl()

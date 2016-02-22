@@ -37,7 +37,7 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Collation : virtual public Dictionary_object
+class Collation : public Dictionary_object
 {
 public:
   static const Object_type &TYPE();
