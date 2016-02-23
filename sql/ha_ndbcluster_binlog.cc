@@ -3260,7 +3260,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     // Participant never takes GSL
-    assert(thd_get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
+    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
 
     Ndb_local_schema::Table tab(m_thd, schema->db, schema->name);
     if (tab.is_local_table())
@@ -3352,7 +3352,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     // Participant never takes GSL
-    assert(thd_get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
+    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
 
     Ndb_local_schema::Table from(m_thd, schema->db, schema->name);
     if (from.is_local_table())
@@ -3430,7 +3430,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     // Participant never takes GSL
-    assert(thd_get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
+    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
 
     if (check_if_local_tables_in_db(schema->db))
     {
@@ -3536,7 +3536,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     // Participant never takes GSL
-    assert(thd_get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
+    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
 
     const int no_print_error[1]= {0};
     run_query(m_thd, schema->query,
@@ -3560,7 +3560,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     // Participant never takes GSL
-    assert(thd_get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
+    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
 
     const int no_print_error[1]= {0};
     run_query(m_thd, schema->query,
@@ -3589,7 +3589,7 @@ class Ndb_schema_event_handler {
                             get_schema_type_name(schema->type));
 
     // Participant never takes GSL
-    assert(thd_get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
+    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
 
     const int no_print_error[1]= {0};
     char *cmd= (char *) "flush privileges";
