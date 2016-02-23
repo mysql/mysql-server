@@ -1676,6 +1676,7 @@ int ha_federated::open(const char *name, int mode, uint test_if_locked)
 
 int ha_federated::close(void)
 {
+  THD *thd= current_thd;
   DBUG_ENTER("ha_federated::close");
 
   free_result();
@@ -1687,7 +1688,7 @@ int ha_federated::close(void)
     FLUSH TABLES will quit the connection and if connection is broken,
     it will reconnect again and quit silently.
   */
-  if (mysql && !vio_is_connected(mysql->net.vio))
+  if (mysql && (!mysql->net.vio || !vio_is_connected(mysql->net.vio)))
      mysql->net.error= 2;
 
   /* Disconnect from mysql */
@@ -1701,8 +1702,15 @@ int ha_federated::close(void)
     if the original query was not issued against the FEDERATED table.
     So, don't propagate errors from mysql_close().
   */
-  if (table->in_use)
+  if (table->in_use && thd != table->in_use)
     table->in_use->clear_error();
+
+  /*
+    Errors from mysql_close() are silently ignored for flush tables.
+    Close the connection silently.
+  */
+  if (thd && thd->lex->sql_command == SQLCOM_FLUSH)
+     thd->clear_error();
 
   DBUG_RETURN(free_share(share));
 }
