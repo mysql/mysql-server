@@ -1304,7 +1304,7 @@ Thd_ndb::~Thd_ndb()
 
 Ndb *ha_ndbcluster::get_ndb(THD *thd) const
 {
-  return thd_get_thd_ndb(thd)->ndb;
+  return get_thd_ndb(thd)->ndb;
 }
 
 /*
@@ -11764,7 +11764,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
   if (check_ndb_connection(thd))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
 
-  Thd_ndb *thd_ndb= thd_get_thd_ndb(thd);
+  Thd_ndb *thd_ndb= get_thd_ndb(thd);
   if (!thd_ndb->has_required_global_schema_lock("ha_ndbcluster::rename_table"))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
 
