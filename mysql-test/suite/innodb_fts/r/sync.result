@@ -88,6 +88,7 @@ INSERT INTO t1(title) VALUES('database');
 SET SESSION debug="+d,fts_instrument_sync_debug,fts_write_node_crash";
 INSERT INTO t1(title) VALUES('mysql');
 ERROR HY000: Lost connection to MySQL server during query
+# restart
 After restart
 SELECT * FROM t1 WHERE MATCH(title) AGAINST ('mysql database');
 id	title
