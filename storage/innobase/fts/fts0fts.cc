@@ -4041,6 +4041,10 @@ fts_sync_write_words(
 				DBUG_EXECUTE_IF("fts_write_node_crash",
 					DBUG_SUICIDE(););
 
+				DBUG_EXECUTE_IF("fts_instrument_sync_sleep",
+					os_thread_sleep(1000000);
+				);
+
 				if (unlock_cache) {
 					rw_lock_x_lock(
 						&table->fts->cache->lock);
@@ -4603,10 +4607,6 @@ begin_sync:
 	}
 
 end_sync:
-	DBUG_EXECUTE_IF("fts_instrument_sync_sleep",
-		os_thread_sleep(2000000);
-	);
-
 	if (error == DB_SUCCESS && !sync->interrupted) {
 		error = fts_sync_commit(sync);
 	}  else {
