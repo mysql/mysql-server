@@ -35,8 +35,9 @@ enum THD_NDB_OPTIONS
 {
   TNO_NO_LOG_SCHEMA_OP=  1 << 0,
   /*
-    In participating mysqld, do not try to acquire global schema
-    lock, as one other mysqld already has the lock.
+    Do not acquire global schema lock. Normally used in schema
+    dist participant code where the schema dist client(which may be in
+    another mysqld) already has locked the GSL.
   */
   TNO_NO_LOCK_SCHEMA_OP= 1 << 1,
   /*
@@ -83,6 +84,12 @@ public:
   bool m_force_send;
 
   uint32 options;
+
+  // Check if given option is set
+  bool check_option(uint32 option) const;
+  // Set given option
+  void set_option(uint32 option);
+
   uint32 trans_options;
   void transaction_checks(void);
   List<NDB_SHARE> changed_tables;

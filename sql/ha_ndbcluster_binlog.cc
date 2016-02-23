@@ -3269,6 +3269,9 @@ class Ndb_schema_event_handler {
 
     write_schema_op_to_binlog(m_thd, schema);
 
+    // Participant never takes GSL
+    assert(thd_get_thd_ndb(m_thd)->check_option(TNO_NO_LOCK_SCHEMA_OP));
+
     Ndb_local_schema::Table tab(m_thd, schema->db, schema->name);
     if (tab.is_local_table())
     {
@@ -3358,6 +3361,9 @@ class Ndb_schema_event_handler {
 
     write_schema_op_to_binlog(m_thd, schema);
 
+    // Participant never takes GSL
+    assert(thd_get_thd_ndb(m_thd)->check_option(TNO_NO_LOCK_SCHEMA_OP));
+
     Ndb_local_schema::Table from(m_thd, schema->db, schema->name);
     if (from.is_local_table())
     {
@@ -3433,11 +3439,8 @@ class Ndb_schema_event_handler {
 
     write_schema_op_to_binlog(m_thd, schema);
 
-    Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
-    Thd_ndb_options_guard thd_ndb_options(thd_ndb);
-    // Set NO_LOCK_SCHEMA_OP before 'check_if_local_tables_indb'
-    // until ndbcluster_find_files does not take GSL
-    thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
+    // Participant never takes GSL
+    assert(thd_get_thd_ndb(m_thd)->check_option(TNO_NO_LOCK_SCHEMA_OP));
 
     if (check_if_local_tables_in_db(schema->db))
     {
@@ -3542,9 +3545,9 @@ class Ndb_schema_event_handler {
 
     write_schema_op_to_binlog(m_thd, schema);
 
-    Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
-    Thd_ndb_options_guard thd_ndb_options(thd_ndb);
-    thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
+    // Participant never takes GSL
+    assert(thd_get_thd_ndb(m_thd)->check_option(TNO_NO_LOCK_SCHEMA_OP));
+
     const int no_print_error[1]= {0};
     run_query(m_thd, schema->query,
               schema->query + schema->query_length,
@@ -3566,9 +3569,9 @@ class Ndb_schema_event_handler {
 
     write_schema_op_to_binlog(m_thd, schema);
 
-    Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
-    Thd_ndb_options_guard thd_ndb_options(thd_ndb);
-    thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
+    // Participant never takes GSL
+    assert(thd_get_thd_ndb(m_thd)->check_option(TNO_NO_LOCK_SCHEMA_OP));
+
     const int no_print_error[1]= {0};
     run_query(m_thd, schema->query,
               schema->query + schema->query_length,
@@ -3595,9 +3598,9 @@ class Ndb_schema_event_handler {
                             "flushing privileges",
                             get_schema_type_name(schema->type));
 
-    Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
-    Thd_ndb_options_guard thd_ndb_options(thd_ndb);
-    thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
+    // Participant never takes GSL
+    assert(thd_get_thd_ndb(m_thd)->check_option(TNO_NO_LOCK_SCHEMA_OP));
+
     const int no_print_error[1]= {0};
     char *cmd= (char *) "flush privileges";
     run_query(m_thd, cmd,
@@ -6579,6 +6582,13 @@ restart_cluster_failure:
     DBUG_ASSERT(ndbcluster_hton->slot != ~(uint)0);
     thd_set_thd_ndb(thd, thd_ndb);
     thd_ndb->options|= TNO_NO_LOG_SCHEMA_OP;
+
+    /*
+      Prevent schema dist participant from (implicitly)
+      taking GSL lock as part of taking MDL lock
+    */
+    thd_ndb->set_option(TNO_NO_LOCK_SCHEMA_OP);
+
     thd->query_id= 0; // to keep valgrind quiet
   }
 
