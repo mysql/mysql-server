@@ -16,7 +16,6 @@
 # [--let $rpl_skip_sync= 1]
 # [--let $rpl_only_running_threads= 1]
 # [--let $rpl_debug= 1]
-# [--let $rpl_set_enforce_gtid_consistency= [0|1]]
 # --source include/rpl_set_gtid_mode.inc
 #
 # Parameters:
