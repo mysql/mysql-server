@@ -353,6 +353,13 @@ set @binlog_format=@@global.binlog_format;
 set sql_mode=no_engine_substitution;
 create table t1 (a int unique); 
 create table t2 (a int) engine=myisam;
+--echo # Warm-up data-dictionary cache.
+--disable_result_log
+--disable_query_log
+show create table t1;
+show create table t2;
+--enable_query_log
+--enable_result_log
 set sql_mode=default;
 --echo #
 --echo # An auxiliary procedure to track Handler_prepare and Handler_commit
@@ -653,7 +660,7 @@ drop table t2;
 set sql_mode=no_engine_substitution;
 create temporary table t2 (a int);
 --disable_warnings
-call p_verify_status_increment(3, 0, 0, 0);
+call p_verify_status_increment(4, 0, 0, 0);
 --enable_warnings
 set sql_mode=default;
 --echo # 19. A function changes temp-trans-table.
@@ -791,16 +798,17 @@ create table t2 (a int);
 # COM_PREPARE.
 if (`SELECT $PS_PROTOCOL = 0`)
 {
-  --replace_regex /(call p_verify_status_increment.*)5(.*6)/\1<commit_count>\2/
-  call p_verify_status_increment(5, 0, 6, 0);
+  --replace_regex /(call p_verify_status_increment.*)4(.*6)/\1<commit_count>\2/
+  call p_verify_status_increment(4, 0, 6, 0);
 }
 if (`SELECT $PS_PROTOCOL > 0`)
 {
-  --replace_regex /(call p_verify_status_increment.*)6(.*6)/\1<commit_count>\2/
-  call p_verify_status_increment(6, 0, 6, 0);
+  --replace_regex /(call p_verify_status_increment.*)5(.*6)/\1<commit_count>\2/
+  call p_verify_status_increment(5, 0, 6, 0);
 }
+--echo # One extra transaction to load table 't2' into data-dictionary cache.
 do (select f1() from t1 where a=2);
-call p_verify_status_increment(2, 2, 3, 2);
+call p_verify_status_increment(3, 2, 3, 2);
 commit;
 call p_verify_status_increment(2, 2, 2, 2);
 --enable_warnings
@@ -850,22 +858,22 @@ create table t3 select a from t2;
 # COM_PREPARE.
 if (`SELECT $PS_PROTOCOL = 0`)
 {
-  --replace_regex /7/<commit_count>/
-  call p_verify_status_increment(7, 0, 4, 4);
+  --replace_regex /6/<commit_count>/
+  call p_verify_status_increment(6, 0, 4, 4);
 }
 if (`SELECT $PS_PROTOCOL > 0`)
 {
-  --replace_regex /8/<commit_count>/
-  call p_verify_status_increment(8, 0, 4, 4);
+  --replace_regex /7/<commit_count>/
+  call p_verify_status_increment(7, 0, 4, 4);
 }
 alter table t3 add column (b int);
-call p_verify_status_increment(5, 0, 2, 0);
+call p_verify_status_increment(6, 0, 2, 0);
 alter table t3 rename t4;
-call p_verify_status_increment(4, 0, 3, 0);
+call p_verify_status_increment(6, 0, 3, 0);
 rename table t4 to t3;
-call p_verify_status_increment(5, 0, 5, 0);
+call p_verify_status_increment(8, 0, 5, 0);
 truncate table t3;
-call p_verify_status_increment(2, 0, 4, 0);
+call p_verify_status_increment(3, 0, 4, 0);
 create view v1 as select * from t2;
 call p_verify_status_increment(4, 0, 3, 0);
 check table t1;

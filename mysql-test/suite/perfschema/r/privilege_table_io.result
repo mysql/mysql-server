@@ -16,6 +16,7 @@ optimize table mysql.tables_priv;
 optimize table mysql.procs_priv;
 optimize table mysql.servers;
 flush privileges;
+show create table test.marker;
 show global status;
 show global variables;
 update performance_schema.setup_consumers set enabled='YES';

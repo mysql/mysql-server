@@ -1003,7 +1003,7 @@ done:
 @retval 1 if error
 @retval 0 if success */
 int
-ha_innopart::open(const char* name, int, uint)
+ha_innopart::open(const char* name, int, uint,const dd::Table* dd_tab)
 {
 	dict_table_t*	ib_table;
 	char		norm_name[FN_REFLEN];
@@ -2749,7 +2749,9 @@ int
 ha_innopart::create(
 	const char*	name,
 	TABLE*		form,
-	HA_CREATE_INFO*	create_info)
+	HA_CREATE_INFO*	create_info,
+	dd::Table*	dd_tab,
+	const char*	sql_name)
 {
 	int		error;
 	/** {database}/{tablename} */
@@ -3108,7 +3110,7 @@ ha_innopart::extra(
 /** Deletes all rows of a partitioned InnoDB table.
 @return	0 or error number. */
 int
-ha_innopart::truncate()
+ha_innopart::truncate(dd::Table *dd_tab)
 {
 	ut_ad(m_part_info->num_partitions_used() == m_tot_parts);
 	return(truncate_partition_low());
@@ -3242,16 +3244,17 @@ ha_innopart::truncate_partition_low()
 		const char*	name = info->alias;
 		info->alias = NULL;
 		/* TODO: Add DDL_LOG here to avoid missing partitions on crash. */
-		error = ha_innobase::delete_table(name, SQLCOM_TRUNCATE);
+		error = ha_innobase::delete_table(name, NULL, SQLCOM_TRUNCATE);
 		if (error == 0) {
-			error = ha_innobase::create(name, table, info, file_per_table);
+			error = ha_innobase::create(name, table, info, NULL, NULL,
+					file_per_table);
 		}
 		if (error != 0) {
 			break;
 		}
 	}
 	mem_heap_free(heap);
-	open(table_name, 0, 0);
+	open(table_name, 0, 0, NULL);
 	DBUG_RETURN(error);
 }
 
@@ -4436,7 +4439,7 @@ ha_innopart::create_new_partition(
 		DBUG_RETURN(HA_WRONG_CREATE_OPTION);
 	}
 
-	error = ha_innobase::create(norm_name, table, create_info);
+	error = ha_innobase::create(norm_name, table, create_info, NULL, NULL);
 	create_info->tablespace = tablespace_name_backup;
 	create_info->data_file_name = data_file_name_backup;
 	if (error == HA_ERR_FOUND_DUPP_KEY) {

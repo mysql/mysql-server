@@ -81,7 +81,8 @@ find_files_result find_files(THD *thd, List<LEX_STRING> *files, const char *db,
                              MEM_ROOT *tmp_mem_root);
 
 int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
-                      HA_CREATE_INFO  *create_info_arg, bool show_database);
+                      HA_CREATE_INFO  *create_info_arg, bool is_tmp_table,
+                      bool show_database);
 
 int copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table);
 

@@ -530,12 +530,12 @@ FLUSH STATUS;
 CREATE TABLE t3 SELECT * FROM t1 PARTITION (pNeg,subp3,`p100-99999`);
 if (`SELECT $PS_PROTOCOL = 0`)
 {
-  --replace_regex /^7$/<handler_commit_count>/ /5/<handler_read_first_count>/ /12/<handler_read_key_count>/ /90/<handler_external_lock_count>/
+  --replace_regex /^6$/<handler_commit_count>/ /^11$/<handler_read_next_count>/ /5/<handler_read_first_count>/ /20/<handler_read_key_count>/ /132/<handler_external_lock_count>/
   --source include/get_handler_status_counts.inc
 }
 if (`SELECT $PS_PROTOCOL > 0`)
 {
-  --replace_regex /^8$/<handler_commit_count>/ /5/<handler_read_first_count>/ /13/<handler_read_key_count>/ /112/<handler_external_lock_count>/
+  --replace_regex /^7$/<handler_commit_count>/ /^11$/<handler_read_next_count>/ /^5$/<handler_read_first_count>/ /21/<handler_read_key_count>/ /154/<handler_external_lock_count>/
   --source include/get_handler_status_counts.inc
 }
 SHOW CREATE TABLE t1;

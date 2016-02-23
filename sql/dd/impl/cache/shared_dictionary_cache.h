@@ -250,6 +250,12 @@ public:
   { m_map<T>()->drop(element); }
 
 
+  template <typename K, typename T>
+  void drop_if_present(const K &key)
+  {
+     m_map<T>()->drop_if_present(key);
+  }
+
   /**
     Replace the object and re-create the keys for an element.
 

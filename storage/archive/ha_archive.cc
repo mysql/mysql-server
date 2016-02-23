@@ -128,8 +128,9 @@
 extern "C" PSI_file_key arch_key_file_data;
 
 /* Static declarations for handerton */
-static handler *archive_create_handler(handlerton *hton, 
-                                       TABLE_SHARE *table, 
+static handler *archive_create_handler(handlerton *hton,
+                                       TABLE_SHARE *table,
+                                       bool partitioned,
                                        MEM_ROOT *mem_root);
 
 /*
@@ -143,7 +144,8 @@ static handler *archive_create_handler(handlerton *hton,
 #define ARCHIVE_ROW_HEADER_SIZE 4
 
 static handler *archive_create_handler(handlerton *hton,
-                                       TABLE_SHARE *table, 
+                                       TABLE_SHARE *table,
+                                       bool partitioned,
                                        MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_archive(hton, table);
@@ -564,7 +566,8 @@ int ha_archive::init_archive_reader()
   Init out lock.
   We open the file we will read from.
 */
-int ha_archive::open(const char *name, int mode, uint open_options)
+int ha_archive::open(const char *name, int mode, uint open_options,
+                     const dd::Table *)
 {
   int rc= 0;
   DBUG_ENTER("ha_archive::open");
@@ -651,7 +654,8 @@ int ha_archive::close(void)
 */
 
 int ha_archive::create(const char *name, TABLE *table_arg,
-                       HA_CREATE_INFO *create_info)
+                       HA_CREATE_INFO *create_info,
+                       dd::Table *dd_tab, const char *)
 {
   char name_buff[FN_REFLEN];
   char linkname[FN_REFLEN];
@@ -766,7 +770,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   DBUG_RETURN(0);
 
 error2:
-  delete_table(name);
+  delete_table(name, dd_tab);
 error:
   /* Return error number, if we got one */
   DBUG_RETURN(error ? error : -1);
@@ -1661,7 +1665,7 @@ int ha_archive::end_bulk_insert()
   This is done for security reasons. In a later version we will enable this by 
   allowing the user to select a different row format.
 */
-int ha_archive::truncate()
+int ha_archive::truncate(dd::Table *dd_tab)
 {
   DBUG_ENTER("ha_archive::truncate");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);

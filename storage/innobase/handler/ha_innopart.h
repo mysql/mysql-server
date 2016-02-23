@@ -259,7 +259,9 @@ public:
 	bool
 	prepare_inplace_alter_table(
 		TABLE*			altered_table,
-		Alter_inplace_info*	ha_alter_info);
+		Alter_inplace_info*	ha_alter_info,
+		const dd::Table*	old_dd_tab,
+		dd::Table*		new_dd_tab);
 
 	/** Alter the table structure in-place.
 	Alter the table structure in-place with operations
@@ -274,7 +276,9 @@ public:
 	bool
 	inplace_alter_table(
 		TABLE*			altered_table,
-		Alter_inplace_info*	ha_alter_info);
+		Alter_inplace_info*	ha_alter_info,
+		const dd::Table*	old_dd_tab,
+		dd::Table*		new_dd_tab);
 
 	/** Commit or rollback.
 	Commit or rollback the changes made during
@@ -294,7 +298,9 @@ public:
 	commit_inplace_alter_table(
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info,
-		bool			commit);
+		bool			commit,
+		const dd::Table*	old_dd_tab,
+		dd::Table*		new_dd_tab);
 	/** @} */
 
 	// TODO: should we implement init_table_handle_for_HANDLER() ?
@@ -367,12 +373,14 @@ public:
 
 	int
 	create(
-		const char*	name,
-		TABLE*		form,
-		HA_CREATE_INFO*	create_info);
+		const char*		name,
+		TABLE*			form,
+		HA_CREATE_INFO*		create_info,
+		dd::Table*		dd_tab,
+		const char*		sql_name);
 
 	int
-	truncate();
+	truncate(dd::Table *dd_tab);
 
 	int
 	check(
@@ -1049,7 +1057,8 @@ private:
 	open(
 		const char*	name,
 		int		mode,
-		uint		test_if_locked);
+		uint		test_if_locked,
+		const dd::Table*	dd_tab);
 
 	int
 	close();

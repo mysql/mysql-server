@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -130,6 +130,11 @@ static const uint FN_IS_TMP=       FN_FROM_IS_TMP | FN_TO_IS_TMP;
 static const uint NO_HA_TABLE=     1 << 2;
 /** Don't check foreign key constraints while renaming table */
 static const uint NO_FK_CHECKS=    1 << 3;
+/**
+  Don't commit transaction after updating data-dictionary while renaming
+  the table.
+*/
+static const uint NO_DD_COMMIT=    1 << 4;
 
 size_t filename_to_tablename(const char *from, char *to, size_t to_length
 #ifndef DBUG_OFF

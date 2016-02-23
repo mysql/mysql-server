@@ -22,6 +22,9 @@ DROP TABLE IF EXISTS nt1;
 CREATE TABLE t1 (s1 int, s2 varchar(64)) ENGINE=INNODB;
 CREATE TABLE nt1 (s1 int, s2 varchar(64)) ENGINE=MYISAM;
 
+# Get tables loaded in data-dictionary cache
+
+
 # Disable all events from the control thread
 
 
@@ -537,7 +540,7 @@ COMMIT;
 ## Expect 1 event, 0 stats
 SELECT * FROM performance_schema.events_transactions_summary_global_by_event_name;
 EVENT_NAME	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT	COUNT_READ_WRITE	SUM_TIMER_READ_WRITE	MIN_TIMER_READ_WRITE	AVG_TIMER_READ_WRITE	MAX_TIMER_READ_WRITE	COUNT_READ_ONLY	SUM_TIMER_READ_ONLY	MIN_TIMER_READ_ONLY	AVG_TIMER_READ_ONLY	MAX_TIMER_READ_ONLY
-transaction	1	0	0	0	0	1	0	0	0	0	0	0	0	0	0
+transaction	2	0	0	0	0	2	0	0	0	0	0	0	0	0	0
 
 ## Restore setup_consumers and setup_instruments
 UPDATE performance_schema.setup_consumers SET enabled = 'YES' WHERE name = 'thread_instrumentation';

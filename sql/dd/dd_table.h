@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,8 @@
 
 #include "dd/types/abstract_table.h" // enum_table_type
 
+#include <memory>                    // unique_ptr
+
 class Create_field;
 class THD;
 typedef struct st_ha_create_information HA_CREATE_INFO;
@@ -40,25 +42,29 @@ static const char FIELD_NAME_SEPARATOR_CHAR = ';';
   Prepares a dd::Table object from mysql_prepare_create_table() output
   and updates DD tables accordingly.
 
-  @param thd            Thread handle
-  @param schema_name    Schema name.
-  @param table_name     Table name.
-  @param create_info    HA_CREATE_INFO describing the table to be created.
-  @param create_fields  List of fields for the table.
-  @param keyinfo        Array with descriptions of keys for the table.
-  @param keys           Number of keys.
-  @param file           handler instance for the table.
+  @param thd                Thread handle
+  @param schema_name        Schema name.
+  @param table_name         Table name.
+  @param create_info        HA_CREATE_INFO describing the table to be created.
+  @param create_fields      List of fields for the table.
+  @param keyinfo            Array with descriptions of keys for the table.
+  @param keys               Number of keys.
+  @param file               handler instance for the table.
+  @param commit_dd_changes  Indicates whether change should be committed
+                            (WL7743/TODO: consider if this parameter is
+                            necessary).
 
-  @retval 0 on success.
-  @retval ER_CANT_CREATE_TABLE, ER_TABLE_EXISTS_ERROR on failure.
+  @returns Uncached dd::Table object for table created (nullptr in
+           case of failure).
 */
-bool create_table(THD *thd,
-                  const std::string &schema_name,
-                  const std::string &table_name,
-                  HA_CREATE_INFO *create_info,
-                  const List<Create_field> &create_fields,
-                  const KEY *keyinfo, uint keys,
-                  handler *file);
+std::unique_ptr<Table> create_table(THD *thd,
+                                    const std::string &schema_name,
+                                    const std::string &table_name,
+                                    HA_CREATE_INFO *create_info,
+                                    const List<Create_field> &create_fields,
+                                    const KEY *keyinfo, uint keys,
+                                    handler *file,
+                                    bool commit_dd_changes);
 
 /**
   Prepares a dd::Table object for a temporary table from
@@ -74,15 +80,15 @@ bool create_table(THD *thd,
   @param keys           Number of keys.
   @param file           handler instance for the table.
 
-  @returns constructed dd::Table object, or NULL in case of an error.
+  @returns Constructed dd::Table object, or nullptr in case of an error.
 */
-dd::Table *create_tmp_table(THD *thd,
-                            const std::string &schema_name,
-                            const std::string &table_name,
-                            HA_CREATE_INFO *create_info,
-                            const List<Create_field> &create_fields,
-                            const KEY *keyinfo, uint keys,
-                            handler *file);
+std::unique_ptr<dd::Table> create_tmp_table(THD *thd,
+                             const std::string &schema_name,
+                             const std::string &table_name,
+                             HA_CREATE_INFO *create_info,
+                             const List<Create_field> &create_fields,
+                             const KEY *keyinfo, uint keys,
+                             handler *file);
 
 //////////////////////////////////////////////////////////////////////////
 // Function common to 'table' and 'view' objects
@@ -132,19 +138,21 @@ bool rename_table(THD *thd,
                   const char *from_name,
                   const char *to_schema_name,
                   const char *to_name,
-                  bool no_foreign_key_check);
+                  bool no_foreign_key_check,
+                  bool commit_dd_changes);
 
 template <typename T>
 inline bool rename_table(THD *thd,
                          const char *from_schema_name,
                          const char *from_name,
                          const char *to_schema_name,
-                         const char *to_name)
+                         const char *to_name,
+                         bool commit_dd_changes)
 {
   return dd::rename_table<T>(thd,
                              from_schema_name, from_name,
                              to_schema_name, to_name,
-                             false);
+                             false, commit_dd_changes);
 }
 
 
@@ -254,6 +262,15 @@ bool check_storage_engine_flag(THD *thd, const TABLE_LIST *table_list,
 */
 bool recreate_table(THD *thd, const char *schema_name,
                     const char *table_name);
+
+/**
+  Wrapper around Dictionary_client::acquire_uncached_uncommitted() which emits
+  appropriate error if table is missing and puts result object in smart-pointer.
+*/
+template <typename T>
+std::unique_ptr<T> acquire_uncached_uncommitted_table(THD *thd,
+                                                      const char *schema_name,
+                                                      const char *name);
 
 } // namespace dd
 #endif // DD_TABLE_INCLUDED

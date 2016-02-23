@@ -452,19 +452,24 @@ uint cached_table_definitions(void)
         for resources like row- or metadata locks, table flushes, etc.
         Otherwise, we may end up in deadlocks that will not be detected.
 
-  @param thd         thread handle
-  @param table_list  table that should be opened
-  @param key         table cache key
-  @param key_length  length of key
-  @param open_view   allow open of view
-  @param hash_value  hash value to use for lookup in THD
+  @param thd                thread handle
+  @param table_list         table that should be opened
+  @param key                table cache key
+  @param key_length         length of key
+  @param open_view          allow open of view
+  @param read_uncommitted   use READ UNCOMMITTED to get table definition
+                            from data-dictionary. It is responsibility
+                            of caller to clean-up TDC afterwards if
+                            necessary.
+  @param hash_value         hash value to use for lookup in THD
 
   @return Pointer to the new TABLE_SHARE, or NULL if there was an error
 */
 
 TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
                              const char *key, size_t key_length,
-                             bool open_view, my_hash_value_type hash_value)
+                             bool open_view, bool read_uncommitted,
+                             my_hash_value_type hash_value)
 {
   TABLE_SHARE *share;
   bool open_table_err= false;
@@ -481,6 +486,15 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
                                  table_list->db, table_list->table_name,
                                  MDL_SHARED));
 
+  /*
+    We must hold exclusive lock on table to read its definition which is
+    not yet committed. Otherwise other threads might be able to see and
+    use this definition through the table definition cache.
+  */
+  DBUG_ASSERT(!read_uncommitted ||
+              thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                 table_list->db, table_list->table_name,
+                                 MDL_EXCLUSIVE));
   /*
     Read table definition from the cache. If the share is being opened,
     wait for the appropriate condition. The share may be destroyed if
@@ -549,7 +563,22 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
   */
   mysql_mutex_unlock(&LOCK_open);
   DEBUG_SYNC(thd, "get_share_before_open");
-  open_table_err= open_table_def(thd, share, open_view, NULL);
+
+
+  if (read_uncommitted)
+  {
+    std::unique_ptr<dd::Table> uncommitted_table_def=
+      dd::acquire_uncached_uncommitted_table<dd::Table>(thd, share->db.str,
+                                                        share->table_name.str);
+    if (uncommitted_table_def)
+      open_table_err= open_table_def(thd, share, open_view,
+                                     uncommitted_table_def.get());
+    else
+      open_table_err= true;
+
+  }
+  else
+    open_table_err= open_table_def(thd, share, open_view, NULL);
 
   /*
     Get back LOCK_open before continuing. Notify all waiters that the
@@ -661,6 +690,7 @@ found:
 static TABLE_SHARE *
 get_table_share_with_discover(THD *thd, TABLE_LIST *table_list,
                               const char *key, size_t key_length,
+                              bool read_uncommitted,
                               int *error, my_hash_value_type hash_value)
 
 {
@@ -669,7 +699,7 @@ get_table_share_with_discover(THD *thd, TABLE_LIST *table_list,
   DBUG_ENTER("get_table_share_with_create");
 
   share= get_table_share(thd, table_list, key, key_length, true,
-                         hash_value);
+                         read_uncommitted, hash_value);
   /*
     If share is not NULL, we found an existing share.
 
@@ -2335,7 +2365,7 @@ void close_temporary(THD *thd, TABLE *table, bool free_share, bool delete_table)
   if (delete_table)
   {
     DBUG_ASSERT(thd);
-    rm_temporary_table(thd, table_type, table->s->path.str);
+    rm_temporary_table(thd, table_type, table->s->path.str, table->s->tmp_table_def);
   }
 
   if (free_share)
@@ -2410,49 +2440,6 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
   /* extra() call must come only after all instances above are closed */
   (void) table->file->extra(function);
   DBUG_RETURN(FALSE);
-}
-
-
-/**
-  Close a and drop a just created table in CREATE TABLE ... SELECT.
-
-  @param  thd         Thread handle
-  @param  table       TABLE object for the table to be dropped
-  @param  db_name     Name of database for this table
-  @param  table_name  Name of this table
-
-  This routine assumes that the table to be closed is open only
-  by the calling thread, so we needn't wait until other threads
-  close the table. It also assumes that the table is first
-  in thd->open_ables and a data lock on it, if any, has been
-  released. To sum up, it's tuned to work with
-  CREATE TABLE ... SELECT and CREATE TABLE .. SELECT only.
-  Note, that currently CREATE TABLE ... SELECT is not supported
-  under LOCK TABLES. This function, still, can be called in
-  prelocked mode, e.g. if we do CREATE TABLE .. SELECT f1();
-*/
-
-void drop_open_table(THD *thd, TABLE *table, const char *db_name,
-                     const char *table_name)
-{
-  DBUG_ENTER("drop_open_table");
-  if (table->s->tmp_table)
-    close_temporary_table(thd, table, 1, 1);
-  else
-  {
-    DBUG_ASSERT(table == thd->open_tables);
-
-    handlerton *table_type= table->s->db_type();
-
-    table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
-    close_thread_table(thd, &thd->open_tables);
-    /* Remove the table share from the table cache. */
-    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, db_name, table_name,
-                     FALSE);
-    /* Remove the table from the storage engine and rm the .frm. */
-    quick_rm_table(thd, table_type, db_name, table_name, 0);
-  }
-  DBUG_VOID_RETURN;
 }
 
 
@@ -3064,8 +3051,9 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
   hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
 
 
-  if (table_list->open_strategy == TABLE_LIST::OPEN_IF_EXISTS ||
-      table_list->open_strategy == TABLE_LIST::OPEN_FOR_CREATE)
+  if ((table_list->open_strategy == TABLE_LIST::OPEN_IF_EXISTS ||
+       table_list->open_strategy == TABLE_LIST::OPEN_FOR_CREATE) &&
+      !(flags & MYSQL_OPEN_UNCOMMITTED))
   {
     bool exists;
 
@@ -3193,7 +3181,9 @@ retry_share:
   mysql_mutex_lock(&LOCK_open);
 
   if (!(share= get_table_share_with_discover(thd, table_list, key,
-                                             key_length, &error,
+                                             key_length,
+                                             (flags & MYSQL_OPEN_UNCOMMITTED),
+                                             &error,
                                              hash_value)))
   {
     mysql_mutex_unlock(&LOCK_open);
@@ -3329,18 +3319,29 @@ share_found:
 
   DEBUG_SYNC(thd, "open_table_found_share");
 
-  /* make a new table */
-  if (!(table= (TABLE*) my_malloc(key_memory_TABLE,
-                                  sizeof(*table), MYF(MY_WME))))
-    goto err_lock;
+  {
+    std::unique_ptr<const dd::Table> uncommitted_table_def;
 
-  error= open_table_from_share(thd, share, alias,
-                               (uint) (HA_OPEN_KEYFILE |
-                                       HA_OPEN_RNDFILE |
-                                       HA_GET_INDEX |
-                                       HA_TRY_READ_ONLY),
-                                       EXTRA_RECORD,
-                               thd->open_options, table, FALSE);
+    if ((flags & MYSQL_OPEN_UNCOMMITTED) &&
+        !(uncommitted_table_def=
+            dd::acquire_uncached_uncommitted_table<dd::Table>(thd,
+                  share->db.str, share->table_name.str)))
+      goto err_lock;
+
+    /* make a new table */
+    if (!(table= (TABLE*) my_malloc(key_memory_TABLE,
+                                  sizeof(*table), MYF(MY_WME))))
+      goto err_lock;
+
+    error= open_table_from_share(thd, share, alias,
+                                 (uint) (HA_OPEN_KEYFILE |
+                                         HA_OPEN_RNDFILE |
+                                         HA_GET_INDEX |
+                                         HA_TRY_READ_ONLY),
+                                         EXTRA_RECORD,
+                                 thd->open_options, table, false,
+                                 uncommitted_table_def.get());
+  }
 
   if (error)
   {
@@ -4100,7 +4101,7 @@ bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
 
   if (!(share= get_table_share(thd, table_list, cache_key,
                                cache_key_length,
-                               true, hash_value)))
+                               true, false, hash_value)))
     goto err;
 
   if ((flags & CHECK_METADATA_VERSION))
@@ -4227,7 +4228,7 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
 
   if (!(share= get_table_share(thd, table_list, cache_key,
                                cache_key_length,
-                               true, hash_value)))
+                               true, false, hash_value)))
     goto end_unlock;
 
   if (share->is_view)
@@ -4250,7 +4251,7 @@ static bool auto_repair_table(THD *thd, TABLE_LIST *table_list)
                                     HA_TRY_READ_ONLY),
                             EXTRA_RECORD,
                             ha_open_options | HA_OPEN_FOR_REPAIR,
-                            entry, FALSE) || ! entry->file ||
+                            entry, FALSE, NULL) || ! entry->file ||
       (entry->file->is_crashed() && entry->file->ha_check_and_repair(thd)))
   {
     /* Give right error message */
@@ -6734,7 +6735,7 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
                               Set "is_create_table" if the table does not
                               exist in SE
                             */
-                            open_in_engine ? false : true))
+                            (open_in_engine ? false : true) , table_def))
   {
     /* No need to lock share->mutex as this is not needed for tmp tables */
     free_table_share(share);
@@ -6784,14 +6785,17 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
   @retval true  - failure.
 */
 
-bool rm_temporary_table(THD *thd, handlerton *base, const char *path)
+bool rm_temporary_table(THD *thd, handlerton *base, const char *path,
+                        dd::Table *dd_tab)
 {
   bool error=0;
   handler *file;
   DBUG_ENTER("rm_temporary_table");
 
-  file= get_new_handler((TABLE_SHARE*) 0, thd->mem_root, base);
-  if (file && file->ha_delete_table(path))
+  file= get_new_handler((TABLE_SHARE*) 0,
+                        dd_tab->partition_type() != dd::Table::PT_NONE,
+                        thd->mem_root, base);
+  if (file && file->ha_delete_table(path, dd_tab))
   {
     error=1;
     sql_print_warning("Could not remove temporary table: '%s', error: %d",

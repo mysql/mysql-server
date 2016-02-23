@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,7 +26,8 @@
 #include "current_thd.h"
 
 static handler *heap_create_handler(handlerton *hton,
-                                    TABLE_SHARE *table, 
+                                    TABLE_SHARE *table,
+                                    bool partitioned,
                                     MEM_ROOT *mem_root);
 static int
 heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
@@ -58,7 +59,8 @@ static int heap_init(void *p)
 }
 
 static handler *heap_create_handler(handlerton *hton,
-                                    TABLE_SHARE *table, 
+                                    TABLE_SHARE *table,
+                                    bool partitioned,
                                     MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_heap(hton, table);
@@ -88,7 +90,8 @@ ha_heap::ha_heap(handlerton *hton, TABLE_SHARE *table_arg)
 */
 #define HEAP_STATS_UPDATE_THRESHOLD 10
 
-int ha_heap::open(const char *name, int mode, uint test_if_locked)
+int ha_heap::open(const char *name, int mode, uint test_if_locked,
+                  const dd::Table *)
 {
   internal_table= MY_TEST(test_if_locked & HA_OPEN_INTERNAL_TABLE);
   if (internal_table || (!(file= heap_open(name, mode)) && my_errno() == ENOENT))
@@ -153,9 +156,10 @@ int ha_heap::close(void)
 
 handler *ha_heap::clone(const char *name, MEM_ROOT *mem_root)
 {
-  handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type());
+  handler *new_handler= get_new_handler(table->s, false, mem_root,
+                                        table->s->db_type());
   if (new_handler && !new_handler->ha_open(table, file->s->name, table->db_stat,
-                                           HA_OPEN_IGNORE_IF_LOCKED))
+                                           HA_OPEN_IGNORE_IF_LOCKED, NULL))
     return new_handler;
   return NULL;  /* purecov: inspected */
 }
@@ -453,7 +457,7 @@ int ha_heap::delete_all_rows()
 }
 
 
-int ha_heap::truncate()
+int ha_heap::truncate(dd::Table *)
 {
   int error= delete_all_rows();
   return error ? error : reset_auto_increment(0);
@@ -601,7 +605,7 @@ THR_LOCK_DATA **ha_heap::store_lock(THD *thd,
   not when doing a CREATE on the table.
 */
 
-int ha_heap::delete_table(const char *name)
+int ha_heap::delete_table(const char *name, dd::Table *)
 {
   int error= heap_delete_table(name);
   return error == ENOENT ? 0 : error;
@@ -615,7 +619,7 @@ void ha_heap::drop_table(const char *name)
 }
 
 
-int ha_heap::rename_table(const char * from, const char * to)
+int ha_heap::rename_table(const char * from, const char * to, dd::Table *dd_tab)
 {
   return heap_rename(from,to);
 }
@@ -762,7 +766,8 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
 
 
 int ha_heap::create(const char *name, TABLE *table_arg,
-		    HA_CREATE_INFO *create_info)
+		    HA_CREATE_INFO *create_info,
+                    dd::Table *, const char *)
 {
   int error;
   my_bool created;

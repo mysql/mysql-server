@@ -47,6 +47,10 @@
 #include "table_trigger_dispatcher.h"    // Table_trigger_dispatcher
 #include "template_utils.h"              // down_cast
 
+#include "dd/dd.h"
+#include "dd/dictionary.h"
+#include "dd/cache/dictionary_client.h"  // dd::cache_Dictionary_client
+
 #include "dd/types/table.h"              // dd::Table
 #include "dd/types/view.h"               // dd::View
 
@@ -1209,7 +1213,8 @@ parse_err:
 
 int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
-                          TABLE *outparam, bool is_create_table)
+                          TABLE *outparam, bool is_create_table,
+                          const dd::Table *table_def)
 {
   int error;
   uint records, i, bitmap_size;
@@ -1244,7 +1249,9 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   outparam->file= 0;
   if (!(prgflag & OPEN_FRM_FILE_ONLY))
   {
-    if (!(outparam->file= get_new_handler(share, &outparam->mem_root,
+    if (!(outparam->file= get_new_handler(share,
+                                          share->m_part_info != NULL,
+                                          &outparam->mem_root,
                                           share->db_type())))
       goto err;
     if (outparam->file->set_ha_share_ref(&share->ha_share))
@@ -1422,7 +1429,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     {
       thd->stmt_arena= backup_stmt_arena_ptr;
       thd->restore_active_arena(&part_func_arena, &backup_arena);
-      goto partititon_err;
+      goto partition_err;
     }
     outparam->part_info->is_auto_partitioned= share->auto_partitioned;
     DBUG_PRINT("info", ("autopartitioned: %u", share->auto_partitioned));
@@ -1447,7 +1454,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     DBUG_ASSERT(!share->m_part_info ||
                 outparam->part_info->list_of_part_fields ==
                   share->m_part_info->list_of_part_fields);
-partititon_err:
+partition_err:
     if (tmp)
     {
       if (is_create_table)
@@ -1528,16 +1535,39 @@ partititon_err:
   error= 2;
   if (db_stat)
   {
+    const dd::Table *dd_tab= table_def;
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+
+    if (!dd_tab)
+    {
+
+      if (thd->dd_client()->acquire<dd::Table>(share->db.str,
+                                               share->table_name.str,
+                                               &dd_tab))
+      {
+        error_reported= true;
+        goto err;
+      }
+
+      if (!dd_tab)
+      {
+        error= 1;
+        set_my_errno(ENOENT);
+        goto err;
+      }
+    }
+
     int ha_err;
     if ((ha_err= (outparam->file->
                   ha_open(outparam, share->normalized_path.str,
                           (db_stat & HA_READ_ONLY ? O_RDONLY : O_RDWR),
-                          (db_stat & HA_OPEN_TEMPORARY ? HA_OPEN_TMP_TABLE :
-                           (db_stat & HA_WAIT_IF_LOCKED) ?
-                           HA_OPEN_WAIT_IF_LOCKED :
-                           (db_stat & (HA_ABORT_IF_LOCKED | HA_GET_INFO)) ?
-                          HA_OPEN_ABORT_IF_LOCKED :
-                           HA_OPEN_IGNORE_IF_LOCKED) | ha_open_flags))))
+                          ((db_stat & HA_OPEN_TEMPORARY ? HA_OPEN_TMP_TABLE :
+                            (db_stat & HA_WAIT_IF_LOCKED) ?
+                            HA_OPEN_WAIT_IF_LOCKED :
+                            (db_stat & (HA_ABORT_IF_LOCKED | HA_GET_INFO)) ?
+                             HA_OPEN_ABORT_IF_LOCKED :
+                             HA_OPEN_IGNORE_IF_LOCKED) | ha_open_flags),
+                          dd_tab))))
     {
       /* Set a flag if the table is crashed and it can be auto. repaired */
       share->crashed= ((ha_err == HA_ERR_CRASHED_ON_USAGE) &&
@@ -1779,7 +1809,9 @@ static void open_table_error(THD *thd, TABLE_SHARE *share,
 
     if (share->db_type() != NULL)
     {
-      if ((file= get_new_handler(share, thd->mem_root,
+      if ((file= get_new_handler(share,
+                                 share->m_part_info != NULL,
+                                 thd->mem_root,
                                  share->db_type())))
       {
         if (! file->ht->file_extensions ||

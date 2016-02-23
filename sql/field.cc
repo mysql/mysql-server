@@ -10406,6 +10406,47 @@ void Create_field::create_length_to_internal_length(void)
 }
 
 
+/*
+  Calculate key length for field from its type, length and other attributes.
+
+  @note for string fields "length" parameter is assumed to take into account
+        character set.
+
+  TODO/FIXME: Try to get rid of this function as its code is redundant with
+  Field::key_length() and Create_field::create_length_to_internal_length()
+  code.
+*/
+
+uint32 calc_key_length(enum_field_types sql_type, uint32 length,
+                       uint32 decimals, bool is_unsigned, uint32 elements)
+{
+  switch (sql_type) {
+  case MYSQL_TYPE_TINY_BLOB:
+  case MYSQL_TYPE_MEDIUM_BLOB:
+  case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_BLOB:
+  case MYSQL_TYPE_GEOMETRY:
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_VARCHAR:
+    return length;
+  case MYSQL_TYPE_ENUM:
+    return get_enum_pack_length(elements);
+  case MYSQL_TYPE_SET:
+    return get_set_pack_length(elements);
+  case MYSQL_TYPE_BIT:
+    return length / 8 + MY_TEST(length & 7);
+    break;
+  case MYSQL_TYPE_NEWDECIMAL:
+    return my_decimal_get_binary_size(my_decimal_length_to_precision(length,
+                                        decimals, is_unsigned),
+                                      decimals);
+  default:
+    return calc_pack_length(sql_type, length);
+  }
+}
+
+
 /**
   Init for a tmp table field. To be extended if need be.
 */

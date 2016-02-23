@@ -224,8 +224,8 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share)
 
   // Setup other fields =====================================================
   /* Allocate handler */
-  if (!(handler_file= get_new_handler(share, &share->mem_root,
-                                      share->db_type())))
+  if (!(handler_file= get_new_handler(share, (share->m_part_info != NULL),
+                                      &share->mem_root, share->db_type())))
   {
     my_error(ER_INVALID_DD_OBJECT, MYF(0),  share->path.str,
              "Failed to initialize handler.");
@@ -2262,4 +2262,90 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
     DBUG_RETURN(false);
   }
   DBUG_RETURN(true);
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+/**
+  Check if Index_element represents prefix key part on the column.
+
+  @note This function is in sync with how we evaluate HA_PART_KEY_SEG.
+        As result it returns funny results for BLOB/GIS types (TODO/FIXME
+        check this logic).
+
+  TODO/FIXME: Consider making it proper method of Index_element.
+*/
+
+bool dd_index_element_is_prefix(const dd::Index_element *idx_el)
+{
+  uint interval_parts;
+  const dd::Column& col= idx_el->column();
+  enum_field_types field_type= dd_get_old_field_type(col.type());
+
+  if (field_type == MYSQL_TYPE_ENUM || field_type == MYSQL_TYPE_SET)
+    interval_parts= (field_type == MYSQL_TYPE_ENUM) ?
+                    col.enum_elements_count() : col.set_elements_count();
+  else
+    interval_parts= 0;
+
+  return calc_key_length(field_type,
+                         col.char_length(),
+                         col.numeric_scale(),
+                         col.is_unsigned(),
+                         interval_parts) != idx_el->length();
+}
+
+
+/**
+  Check if Index represents candidate key.
+
+  @note This function is in sync with how we evaluate TABLE_SHARE::primary_key.
+
+  TODO/FIXME: Consider making it proper method of Index.
+*/
+
+bool dd_index_is_candidate_key(const dd::Index *idx_obj)
+{
+  if (idx_obj->type() != dd::Index::IT_PRIMARY &&
+      idx_obj->type() != dd::Index::IT_UNIQUE)
+    return false;
+
+  std::unique_ptr<dd::Index_element_const_iterator> idx_elem_it(idx_obj->user_elements());
+  const dd::Index_element *idx_elem_obj;
+
+  while ((idx_elem_obj= idx_elem_it->next()) != NULL)
+  {
+    if (idx_elem_obj->column().is_nullable())
+      return false;
+
+    /*
+      Probably we should adjust is_prefix() to take these two scenarios
+      into account. But this also means that we probably need avoid
+      setting HA_PART_KEY_SEG in them.
+    */
+
+    if ((idx_elem_obj->column().type() == dd::Column::TYPE_TINY_BLOB &&
+         idx_elem_obj->length() == 255) ||
+        (idx_elem_obj->column().type() == dd::Column::TYPE_BLOB &&
+         idx_elem_obj->length() == 65535) ||
+        (idx_elem_obj->column().type() == dd::Column::TYPE_MEDIUM_BLOB &&
+         idx_elem_obj->length() == (1 << 24) - 1) ||
+        (idx_elem_obj->column().type() == dd::Column::TYPE_LONG_BLOB &&
+         idx_elem_obj->length() == (1LL << 32) - 1))
+      continue;
+
+    if (idx_elem_obj->column().type() == dd::Column::TYPE_GEOMETRY)
+    {
+      uint32 sub_type;
+      idx_elem_obj->column().options().get_uint32("geom_type", &sub_type);
+      if (sub_type ==  Field::GEOM_POINT &&
+          idx_elem_obj->length() == MAX_LEN_GEOM_POINT_FIELD)
+        continue;
+    }
+
+
+    if (dd_index_element_is_prefix(idx_elem_obj))
+      return false;
+  }
+  return true;
 }

@@ -446,6 +446,36 @@ public:
 
 
   /**
+    Retrieve a possibly uncommitted object by its schema- and object name
+    without caching it.
+
+    The object is not cached, hence, it is owned by the caller, who must
+    make sure it is deleted. The object must not be released, and may not
+    be used as a parameter to the other dictionary client methods since it is
+    not known by the object registry.
+
+    When the object is read from the persistent tables, the transaction
+    isolation level is READ UNCOMMITTED. This is necessary to be able to
+    read uncommitted data from an earlier stage of the same session.
+
+    @note This is needed by WL#7743.
+
+    @tparam       T             Dictionary object type.
+    @param        schema_name   Name of the schema containing the table.
+    @param        object_name   Name of the object.
+    @param [out]  object        Dictionary object, if present; otherwise NULL.
+
+    @retval       false   No error.
+    @retval       true    Error (from handling a cache miss).
+  */
+
+  template <typename T>
+  bool acquire_uncached_uncommitted(const std::string &schema_name,
+                                    const std::string &object_name,
+                                    const T** object);
+
+
+  /**
     Retrieve a table object by its se private id.
 
     @param       engine        Name of the engine storing the table.
@@ -645,6 +675,9 @@ public:
   template <typename T>
   bool drop(const T *object);
 
+  template <typename T>
+  bool drop_uncached(const T *object);
+
 
   /**
     Store a new dictionary object.
@@ -731,7 +764,7 @@ public:
   */
 
   template <typename T>
-  bool update_and_invalidate(T* object);
+  bool update_uncached_and_invalidate(T* object);
 
   /**
     Add a new dictionary object and assign an id.

@@ -101,7 +101,7 @@ public:
 
 	const Key_map* keys_to_use_for_scanning();
 
-	int open(const char *name, int, uint);
+	int open(const char *name, int, uint, const dd::Table *dd_tab);
 
 	/** Opens dictionary table object using table name. For partition, we need to
 	try alternative lower/upper case names to support moving data files across
@@ -244,23 +244,67 @@ public:
 		dd::Table*	dd_table,
 		uint		dd_version);
 
-	int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
-	int create(const char *name, TABLE* form, HA_CREATE_INFO* create_info,
-		   bool file_per_table);
-	int truncate();
+	/** Create an InnoDB table.
+	@param[in]	name		table name in filename-safe encoding
+	@param[in]	form		table structure
+	@param[in]	create_info	more information
+	@param[in,out]	dd_table	data dictionary cache object
+	@param[in,out]	dd_trx_rw	data dictionary transaction
+	@param[in]	file_per_table	whether to create a tablespace too
+	@return error number
+	@retval 0 on success */
+	int create(
+		const char*		name,
+		TABLE*			form,
+		HA_CREATE_INFO*		create_info,
+		dd::Table*		dd_tab,
+		const char *		sql_name,
+		bool			file_per_table);
+
+	/** Create an InnoDB table.
+	@param[in]	name		table name in filename-safe encoding
+	@param[in]	form		table structure
+	@param[in]	create_info	more information on the table
+	@param[in,out]	dd_table	data dictionary cache object
+	@param[in,out]	dd_trx_rw	data dictionary transaction
+	@return error number
+	@retval 0 on success */
+	int create(
+		const char*		name,
+		TABLE*			form,
+		HA_CREATE_INFO*		create_info,
+		dd::Table*		dd_tab,
+		const char *		sql_name);
 
 	/** Drop a table.
-	@param[in]	name	table name
-	@return error number */
-	int delete_table(const char* name);
+	@param[in]	name		table name
+	@param[in,out]	dd_table	data dictionary table
+	@param[in,out]	dd_trx_rw	dictionary transaction
+	@return	error number
+	@retval 0 on success */
+	int delete_table(
+		const char*		name,
+		dd::Table*		dd_table);
 protected:
 	/** Drop a table.
-	@param[in]	name	table name
+	@param[in]	name		table name
+	@param[in,out]	dd_table	data dictionary table
+	@param[in,out]	dd_trx_rw	dictionary transaction
 	@param[in]	sqlcom	type of operation that the DROP is part of
-	@return error number */
-	int delete_table(const char* name, enum enum_sql_command sqlcom);
+	@return	error number
+	@retval 0 on success */
+	int delete_table(
+		const char*		name,
+		dd::Table*		dd_table,
+		enum enum_sql_command	sqlcom);
 public:
-	int rename_table(const char* from, const char* to);
+	/** DROP and CREATE an InnoDB table.
+	@param[in,out]	dd_trx_rw	data dictionary transaction
+	@return	error number
+	@retval 0 on success */
+	int truncate(dd::Table *dd_tab);
+
+	int rename_table(const char* from, const char* to, dd::Table *dd_tab);
 
 	int check(THD* thd, HA_CHECK_OPT* check_opt);
 
@@ -350,7 +394,9 @@ public:
 	*/
 	bool prepare_inplace_alter_table(
 		TABLE*			altered_table,
-		Alter_inplace_info*	ha_alter_info);
+		Alter_inplace_info*	ha_alter_info,
+		const dd::Table*	old_dd_tab,
+		dd::Table*		new_dd_tab);
 
 	/** Alter the table structure in-place with operations
 	specified using HA_ALTER_FLAGS and Alter_inplace_information.
@@ -366,7 +412,9 @@ public:
 	*/
 	bool inplace_alter_table(
 		TABLE*			altered_table,
-		Alter_inplace_info*	ha_alter_info);
+		Alter_inplace_info*	ha_alter_info,
+		const dd::Table*	old_dd_tab,
+		dd::Table*		new_dd_tab);
 
 	/** Commit or rollback the changes made during
 	prepare_inplace_alter_table() and inplace_alter_table() inside
@@ -385,7 +433,9 @@ public:
 	bool commit_inplace_alter_table(
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info,
-		bool			commit);
+		bool			commit,
+		const dd::Table*	old_dd_tab,
+		dd::Table*		new_dd_tab);
 	/** @} */
 
 	bool check_if_incompatible_data(

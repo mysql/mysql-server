@@ -453,55 +453,55 @@ index_id	table_id	type	n_fields	space	name
 18	16	3	1	2	PRIMARY
 19	17	3	1	3	PRIMARY
 20	17	2	1	3	name
-21	18	3	1	4	PRIMARY
-22	18	2	1	4	name
-23	18	0	1	4	character_set_id
-24	19	3	1	5	PRIMARY
-25	19	2	1	5	name
-26	20	3	2	6	tablespace_id
-27	20	2	1	6	file_name
-28	21	3	1	7	PRIMARY
-29	21	2	1	7	name
-30	22	3	1	8	PRIMARY
-31	22	2	2	8	catalog_id
-32	22	0	1	8	default_collation_id
-33	23	3	1	9	PRIMARY
-34	23	2	2	9	schema_id
-35	23	2	2	9	engine
-36	23	0	1	9	engine_2
-37	23	0	1	9	collation_id
-38	23	0	1	9	tablespace_id
-39	24	3	4	10	PRIMARY
-40	24	0	3	10	table_catalog
-41	25	3	1	11	PRIMARY
-42	25	2	2	11	table_id
-43	25	2	2	11	table_id_2
-44	25	0	1	11	collation_id
-45	26	3	1	12	PRIMARY
-46	26	2	2	12	table_id
-47	26	0	1	12	tablespace_id
-48	27	3	2	13	index_id
-49	27	2	3	13	index_id_2
-50	27	0	1	13	f2
-51	28	3	2	14	PRIMARY
-52	29	3	1	15	PRIMARY
-53	29	2	2	15	schema_id
-54	29	2	2	15	table_id
-55	29	0	1	15	unique_constraint_id
-56	30	3	3	16	foreign_key_id
-57	30	2	2	16	foreign_key_id_2
-58	30	0	1	16	column_id
-59	31	3	1	17	PRIMARY
-60	31	2	2	17	table_id
-61	31	2	3	17	table_id_2
-62	31	2	2	17	engine
-63	31	0	1	17	engine_2
-64	31	0	1	17	tablespace_id
-65	32	3	3	18	PRIMARY
-66	33	3	2	19	PRIMARY
-67	33	0	1	19	index_id
-68	33	0	1	19	tablespace_id
-71	17	0	1	3	default_collation_id
+21	17	2	1	3	default_collation_id
+22	18	3	1	4	PRIMARY
+23	18	2	1	4	name
+24	18	0	1	4	character_set_id
+25	19	3	1	5	PRIMARY
+26	19	2	1	5	name
+27	20	3	2	6	tablespace_id
+28	20	2	1	6	file_name
+29	21	3	1	7	PRIMARY
+30	21	2	1	7	name
+31	22	3	1	8	PRIMARY
+32	22	2	2	8	catalog_id
+33	22	0	1	8	default_collation_id
+34	23	3	1	9	PRIMARY
+35	23	2	2	9	schema_id
+36	23	2	2	9	engine
+37	23	0	1	9	engine_2
+38	23	0	1	9	collation_id
+39	23	0	1	9	tablespace_id
+40	24	3	4	10	PRIMARY
+41	24	0	3	10	table_catalog
+42	25	3	1	11	PRIMARY
+43	25	2	2	11	table_id
+44	25	2	2	11	table_id_2
+45	25	0	1	11	collation_id
+46	26	3	1	12	PRIMARY
+47	26	2	2	12	table_id
+48	26	0	1	12	tablespace_id
+49	27	3	2	13	index_id
+50	27	2	3	13	index_id_2
+51	27	0	1	13	f2
+52	28	3	2	14	PRIMARY
+53	29	3	1	15	PRIMARY
+54	29	2	2	15	schema_id
+55	29	2	2	15	table_id
+56	29	0	1	15	unique_constraint_id
+57	30	3	3	16	foreign_key_id
+58	30	2	2	16	foreign_key_id_2
+59	30	0	1	16	column_id
+60	31	3	1	17	PRIMARY
+61	31	2	2	17	table_id
+62	31	2	3	17	table_id_2
+63	31	2	2	17	engine
+64	31	0	1	17	engine_2
+65	31	0	1	17	tablespace_id
+66	32	3	3	18	PRIMARY
+67	33	3	2	19	PRIMARY
+68	33	0	1	19	index_id
+69	33	0	1	19	tablespace_id
 72	36	3	1	22	PRIMARY
 73	36	2	2	22	schema_id
 74	36	2	4	22	table_id
@@ -564,72 +564,72 @@ index_id	pos	name
 17	2	BASE_POS
 18	0	version
 20	0	name
-22	0	name
-23	0	character_set_id
-25	0	name
-26	0	tablespace_id
-26	1	ordinal_position
-27	0	file_name
-29	0	name
-31	0	catalog_id
-31	1	name
-32	0	default_collation_id
-34	0	schema_id
-34	1	name
-35	0	engine
-35	1	se_private_id
+21	0	default_collation_id
+23	0	name
+24	0	character_set_id
+26	0	name
+27	0	tablespace_id
+27	1	ordinal_position
+28	0	file_name
+30	0	name
+32	0	catalog_id
+32	1	name
+33	0	default_collation_id
+35	0	schema_id
+35	1	name
 36	0	engine
-37	0	collation_id
-38	0	tablespace_id
-39	0	view_id
-39	1	table_catalog
-39	2	table_schema
-40	0	table_catalog
-40	1	table_schema
-42	0	table_id
-42	1	name
+36	1	se_private_id
+37	0	engine
+38	0	collation_id
+39	0	tablespace_id
+40	0	view_id
+40	1	table_catalog
+40	2	table_schema
+41	0	table_catalog
+41	1	table_schema
 43	0	table_id
-43	1	ordinal_position
-44	0	collation_id
-46	0	table_id
-46	1	name
-47	0	tablespace_id
-48	0	index_id
-48	1	ordinal_position
+43	1	name
+44	0	table_id
+44	1	ordinal_position
+45	0	collation_id
+47	0	table_id
+47	1	name
+48	0	tablespace_id
 49	0	index_id
-49	1	column_id
-49	2	hidden
-50	0	column_id
+49	1	ordinal_position
+50	0	index_id
+50	1	column_id
+50	2	hidden
 51	0	column_id
-51	1	element_index
-53	0	schema_id
-53	1	name
-54	0	table_id
+52	0	column_id
+52	1	element_index
+54	0	schema_id
 54	1	name
-55	0	unique_constraint_id
-56	0	foreign_key_id
-56	1	column_id
-56	2	referenced_column_name
+55	0	table_id
+55	1	name
+56	0	unique_constraint_id
 57	0	foreign_key_id
-57	1	ordinal_position
-58	0	column_id
-60	0	table_id
-60	1	name
+57	1	column_id
+57	2	referenced_column_name
+58	0	foreign_key_id
+58	1	ordinal_position
+59	0	column_id
 61	0	table_id
-61	1	level
-61	2	number
-62	0	engine
-62	1	se_private_id
+61	1	name
+62	0	table_id
+62	1	level
+62	2	number
 63	0	engine
-64	0	tablespace_id
-65	0	partition_id
-65	1	list_num
-65	2	column_num
+63	1	se_private_id
+64	0	engine
+65	0	tablespace_id
 66	0	partition_id
-66	1	index_id
-67	0	index_id
-68	0	tablespace_id
-71	0	default_collation_id
+66	1	list_num
+66	2	column_num
+67	0	partition_id
+67	1	index_id
+68	0	index_id
+69	0	tablespace_id
 73	0	schema_id
 73	1	name
 74	0	table_id

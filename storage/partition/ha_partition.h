@@ -2,7 +2,7 @@
 #define HA_PARTITION_INCLUDED
 
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -187,13 +187,18 @@ public:
     object needed in opening the object in openfrm
     -------------------------------------------------------------------------
   */
-  virtual int delete_table(const char *from);
-  virtual int rename_table(const char *from, const char *to);
+  virtual int delete_table(const char *from, dd::Table *dd_tab);
+  virtual int rename_table(const char *from, const char *to, dd::Table *dd_tab);
   virtual int create(const char *name, TABLE *form,
-                     HA_CREATE_INFO *create_info);
+                     HA_CREATE_INFO *create_info,
+                     dd::Table *dd_tab, const char *sql_name);
   virtual int create_handler_files(const char *name,
                                    const char *old_name, int action_flag,
                                    HA_CREATE_INFO *create_info);
+  virtual int get_extra_columns_and_keys(const HA_CREATE_INFO *create_info,
+                                         const List<Create_field> *create_list,
+                                         const KEY *key_info, uint key_count,
+                                         dd::Table *table);
   virtual void update_create_info(HA_CREATE_INFO *create_info);
   int change_partitions_low(HA_CREATE_INFO *create_info,
                             const char *path,
@@ -265,7 +270,8 @@ public:
     being used for normal queries (not before meta-data changes always.
     If the object was opened it will also be closed before being deleted.
   */
-  virtual int open(const char *name, int mode, uint test_if_locked);
+  virtual int open(const char *name, int mode, uint test_if_locked,
+                   const dd::Table *dd_tab);
   virtual int close(void);
 
   /*
@@ -352,7 +358,7 @@ public:
     return Partition_helper::ph_delete_row(buf);
   }
   virtual int delete_all_rows(void);
-  virtual int truncate();
+  virtual int truncate(dd::Table *dd_tab);
   virtual void start_bulk_insert(ha_rows rows);
   virtual int end_bulk_insert();
 private:
@@ -1046,13 +1052,19 @@ public:
       check_if_supported_inplace_alter(TABLE *altered_table,
                                        Alter_inplace_info *ha_alter_info);
     virtual bool prepare_inplace_alter_table(TABLE *altered_table,
-                                             Alter_inplace_info *ha_alter_info);
+                                             Alter_inplace_info *ha_alter_info,
+                                             const dd::Table *old_dd_tab,
+                                             dd::Table *new_dd_tab);
     virtual bool inplace_alter_table(TABLE *altered_table,
-                                     Alter_inplace_info *ha_alter_info);
+                                     Alter_inplace_info *ha_alter_info,
+                                    const dd::Table *old_dd_tab,
+                                    dd::Table *new_dd_tab);
     virtual bool commit_inplace_alter_table(TABLE *altered_table,
                                             Alter_inplace_info *ha_alter_info,
-                                            bool commit);
-    virtual void notify_table_changed();
+                                            bool commit,
+                                            const dd::Table *old_dd_tab,
+                                            dd::Table *new_dd_tab);
+    virtual void notify_table_changed(Alter_inplace_info *ha_alter_info);
 
   /*
     -------------------------------------------------------------------------

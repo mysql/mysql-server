@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -106,6 +106,7 @@ static const char *opt_op_name[]= {"optimize", "analyze", "check", "repair",
 
 static handler *partition_create_handler(handlerton *hton,
                                          TABLE_SHARE *share,
+                                         bool partitioned,
                                          MEM_ROOT *mem_root);
 static uint partition_flags();
 
@@ -251,6 +252,7 @@ bool Ha_partition_share::init(uint num_parts)
 
 static handler *partition_create_handler(handlerton *hton,
                                          TABLE_SHARE *share,
+                                         bool partitioned,
                                          MEM_ROOT *mem_root)
 {
   ha_partition *file= new (mem_root) ha_partition(hton, share);
@@ -560,7 +562,7 @@ bool ha_partition::initialize_partition(MEM_ROOT *mem_root)
     the storage engine.
 */
 
-int ha_partition::delete_table(const char *name)
+int ha_partition::delete_table(const char *name, dd::Table *)
 {
   DBUG_ENTER("ha_partition::delete_table");
 
@@ -590,7 +592,8 @@ int ha_partition::delete_table(const char *name)
     Called from sql_table.cc by mysql_rename_table().
 */
 
-int ha_partition::rename_table(const char *from, const char *to)
+int ha_partition::rename_table(const char *from, const char *to,
+                               dd::Table *dd_tab)
 {
   DBUG_ENTER("ha_partition::rename_table");
 
@@ -659,6 +662,17 @@ int ha_partition::create_handler_files(const char *path,
   DBUG_RETURN(0);
 }
 
+int ha_partition::get_extra_columns_and_keys(const HA_CREATE_INFO *create_info,
+                                             const List<Create_field> *create_list,
+                                             const KEY *key_info,
+                                             uint key_count,
+                                             dd::Table *table)
+{
+  return m_file[0]->get_extra_columns_and_keys(create_info, create_list,
+                                               key_info, key_count,
+                                               table);
+}
+
 
 /*
   Create a partitioned table
@@ -685,7 +699,8 @@ int ha_partition::create_handler_files(const char *path,
 */
 
 int ha_partition::create(const char *name, TABLE *table_arg,
-                         HA_CREATE_INFO *create_info)
+                         HA_CREATE_INFO *create_info,
+                         dd::Table *dd_tab, const char *sql_name)
 {
   int error;
   char name_buff[FN_REFLEN], name_lc_buff[FN_REFLEN];
@@ -739,7 +754,8 @@ int ha_partition::create(const char *name, TABLE *table_arg,
                               NORMAL_PART_NAME, FALSE);
         if ((error= set_up_table_before_create(thd, share, name_buff,
                                                create_info, part_elem)) ||
-            ((error= (*file)->ha_create(name_buff, table_arg, create_info))))
+            ((error= (*file)->ha_create(name_buff, table_arg, create_info,
+                                        dd_tab, sql_name))))
           goto create_error;
 
         table_level_options.put_to_info(create_info);
@@ -753,7 +769,8 @@ int ha_partition::create(const char *name, TABLE *table_arg,
                             NORMAL_PART_NAME, FALSE);
       if ((error= set_up_table_before_create(thd, share, name_buff,
                                              create_info, part_elem)) ||
-          ((error= (*file)->ha_create(name_buff, table_arg, create_info))))
+          ((error= (*file)->ha_create(name_buff, table_arg, create_info,
+                                      dd_tab, sql_name))))
         goto create_error;
 
       table_level_options.put_to_info(create_info);
@@ -769,10 +786,10 @@ create_error:
   {
     create_partition_name(name_buff, path, name_buffer_ptr, NORMAL_PART_NAME,
                           FALSE);
-    (void) (*file)->ha_delete_table((const char*) name_buff);
+    (void) (*file)->ha_delete_table((const char*) name_buff, dd_tab);
     name_buffer_ptr= strend(name_buffer_ptr) + 1;
   }
-  handler::delete_table(name);
+  handler::delete_table(name, dd_tab);
   DBUG_RETURN(error);
 }
 
@@ -1212,7 +1229,7 @@ int ha_partition::create_new_partition(TABLE *tbl,
   Parts_share_refs *p_share_refs;
   DBUG_ENTER("ha_partition::create_new_partition");
 
-  file= get_new_handler(share, thd->mem_root, p_elem->engine_type);
+  file= get_new_handler(share, false, thd->mem_root, p_elem->engine_type);
   if (!file)
   {
     mem_alloc_error(sizeof(ha_partition));
@@ -1245,7 +1262,7 @@ int ha_partition::create_new_partition(TABLE *tbl,
     DBUG_RETURN(HA_ERR_INITIALIZATION);
   }
 
-  if ((error= file->ha_create(part_name, tbl, create_info)))
+  if ((error= file->ha_create(part_name, tbl, create_info, NULL, NULL)))
   {
     /*
       Added for safety, InnoDB reports HA_ERR_FOUND_DUPP_KEY
@@ -1260,7 +1277,8 @@ int ha_partition::create_new_partition(TABLE *tbl,
   }
   DBUG_PRINT("info", ("partition %s created", part_name));
   if ((error= file->ha_open(tbl, part_name, m_mode,
-                            m_open_test_lock | HA_OPEN_NO_PSI_CALL)))
+                            m_open_test_lock | HA_OPEN_NO_PSI_CALL,
+                            NULL)))
   {
     goto error_open;
   }
@@ -1288,7 +1306,7 @@ int ha_partition::create_new_partition(TABLE *tbl,
 error_external_lock:
   (void) file->ha_close();
 error_open:
-  (void) file->ha_delete_table(part_name);
+  (void) file->ha_delete_table(part_name, NULL);
 error_create:
   DBUG_RETURN(error);
 }
@@ -1601,13 +1619,13 @@ int ha_partition::del_ren_table(const char *from, const char *to)
     {                                           // Rename branch
       create_partition_name(to_buff, to_path, name_buffer_ptr,
                             NORMAL_PART_NAME, FALSE);
-      error= (*file)->ha_rename_table(from_buff, to_buff);
+      error= (*file)->ha_rename_table(from_buff, to_buff, NULL);
       if (error)
         goto rename_error;
     }
     else                                        // delete branch
     {
-      error= (*file)->ha_delete_table(from_buff);
+      error= (*file)->ha_delete_table(from_buff, NULL);
     }
     name_buffer_ptr= strend(name_buffer_ptr) + 1;
     if (error)
@@ -1620,7 +1638,7 @@ int ha_partition::del_ren_table(const char *from, const char *to)
     DBUG_EXECUTE_IF("crash_before_deleting_par_file", DBUG_SUICIDE(););
 
     /* Delete the .par file. If error, break.*/
-    if ((error= handler::delete_table(from)))
+    if ((error= handler::delete_table(from, NULL)))
       DBUG_RETURN(error);
 
     DBUG_EXECUTE_IF("crash_after_deleting_par_file", DBUG_SUICIDE(););
@@ -1628,10 +1646,10 @@ int ha_partition::del_ren_table(const char *from, const char *to)
 
   if (to != NULL)
   {
-    if ((error= handler::rename_table(from, to)))
+    if ((error= handler::rename_table(from, to, NULL)))
     {
       /* Try to revert everything, ignore errors */
-      (void) handler::rename_table(to, from);
+      (void) handler::rename_table(to, from, NULL);
       goto rename_error;
     }
   }
@@ -1646,7 +1664,7 @@ rename_error:
     create_partition_name(to_buff, to_path, name_buffer_ptr,
                           NORMAL_PART_NAME, FALSE);
     /* Ignore error here */
-    (void) (*file)->ha_rename_table(to_buff, from_buff);
+    (void) (*file)->ha_rename_table(to_buff, from_buff, NULL);
     name_buffer_ptr= strend(name_buffer_ptr) + 1;
   }
   DBUG_RETURN(error);
@@ -1879,7 +1897,7 @@ bool ha_partition::create_handlers(MEM_ROOT *mem_root)
   for (i= 0; i < m_tot_parts; i++)
   {
     handlerton *hton= plugin_data<handlerton*>(m_engine_array[i]);
-    if (!(m_file[i]= get_new_handler(table_share, mem_root, hton)))
+    if (!(m_file[i]= get_new_handler(table_share, false, mem_root, hton)))
       DBUG_RETURN(TRUE);
     DBUG_PRINT("info", ("engine_type: %u", hton->db_type));
   }
@@ -1943,7 +1961,8 @@ bool ha_partition::new_handlers_from_part_info(MEM_ROOT *mem_root)
     {
       for (j= 0; j < m_part_info->num_subparts; j++)
       {
-        if (!(m_file[part_count++]= get_new_handler(table_share, mem_root,
+        if (!(m_file[part_count++]= get_new_handler(table_share, false,
+                                                    mem_root,
                                                     part_elem->engine_type)))
           goto error;
         DBUG_PRINT("info", ("engine_type: %u",
@@ -1952,7 +1971,8 @@ bool ha_partition::new_handlers_from_part_info(MEM_ROOT *mem_root)
     }
     else
     {
-      if (!(m_file[part_count++]= get_new_handler(table_share, mem_root,
+      if (!(m_file[part_count++]= get_new_handler(table_share, false,
+                                                  mem_root,
                                                   part_elem->engine_type)))
         goto error;
       DBUG_PRINT("info", ("engine_type: %u",
@@ -2317,7 +2337,8 @@ bool ha_partition::init_partition_bitmaps()
     by calling ha_open() which then calls the handler specific open().
 */
 
-int ha_partition::open(const char *name, int mode, uint test_if_locked)
+int ha_partition::open(const char *name, int mode, uint test_if_locked,
+                       const dd::Table *dd_tab)
 {
   char *name_buffer_ptr;
   int error= HA_ERR_INITIALIZATION;
@@ -2417,7 +2438,8 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
       create_partition_name(name_buff, name, name_buffer_ptr, NORMAL_PART_NAME,
                             FALSE);
       if ((error= (*file)->ha_open(table, name_buff, mode,
-                                   test_if_locked | HA_OPEN_NO_PSI_CALL)))
+                                   test_if_locked | HA_OPEN_NO_PSI_CALL,
+                                   dd_tab)))
         goto err_handler;
       if (m_file == file)
         m_num_locks= (*file)->lock_count();
@@ -2573,7 +2595,8 @@ handler *ha_partition::clone(const char *name, MEM_ROOT *mem_root)
 
   if (new_handler->ha_open(table, name,
                            table->db_stat,
-                           HA_OPEN_IGNORE_IF_LOCKED | HA_OPEN_NO_PSI_CALL))
+                           HA_OPEN_IGNORE_IF_LOCKED | HA_OPEN_NO_PSI_CALL,
+                           NULL))
     goto err;
 
   DBUG_RETURN((handler*) new_handler);
@@ -3080,7 +3103,7 @@ int ha_partition::delete_all_rows()
   @retval  > 0  Error code.
 */
 
-int ha_partition::truncate()
+int ha_partition::truncate(dd::Table *dd_tab)
 {
   int error;
   handler **file;
@@ -3102,7 +3125,7 @@ int ha_partition::truncate()
   file= m_file;
   do
   {
-    if ((error= (*file)->ha_truncate()))
+    if ((error= (*file)->ha_truncate(dd_tab)))
       DBUG_RETURN(error);
   } while (*(++file));
   DBUG_RETURN(0);
@@ -3141,7 +3164,7 @@ int ha_partition::truncate_partition_low()
        i= m_part_info->get_next_used_partition(i))
   {
     DBUG_PRINT("info", ("truncate partition %u", i));
-    if ((error= m_file[i]->ha_truncate()))
+    if ((error= m_file[i]->ha_truncate(NULL)))
       break;
   }
   if (error)
@@ -5349,7 +5372,9 @@ ha_partition::check_if_supported_inplace_alter(TABLE *altered_table,
 
 
 bool ha_partition::prepare_inplace_alter_table(TABLE *altered_table,
-                                               Alter_inplace_info *ha_alter_info)
+                                               Alter_inplace_info *ha_alter_info,
+                                               const dd::Table *old_dd_tab,
+                                               dd::Table *new_dd_tab)
 {
   uint index= 0;
   bool error= false;
@@ -5371,7 +5396,8 @@ bool ha_partition::prepare_inplace_alter_table(TABLE *altered_table,
   {
     ha_alter_info->handler_ctx= part_inplace_ctx->handler_ctx_array[index];
     if (m_file[index]->ha_prepare_inplace_alter_table(altered_table,
-                                                      ha_alter_info))
+                                                      ha_alter_info,
+                                                      old_dd_tab, new_dd_tab))
       error= true;
     part_inplace_ctx->handler_ctx_array[index]= ha_alter_info->handler_ctx;
   }
@@ -5382,7 +5408,9 @@ bool ha_partition::prepare_inplace_alter_table(TABLE *altered_table,
 
 
 bool ha_partition::inplace_alter_table(TABLE *altered_table,
-                                       Alter_inplace_info *ha_alter_info)
+                                       Alter_inplace_info *ha_alter_info,
+                                       const dd::Table *old_dd_tab,
+                                       dd::Table *new_dd_tab)
 {
   uint index= 0;
   bool error= false;
@@ -5404,7 +5432,8 @@ bool ha_partition::inplace_alter_table(TABLE *altered_table,
   {
     ha_alter_info->handler_ctx= part_inplace_ctx->handler_ctx_array[index];
     if (m_file[index]->ha_inplace_alter_table(altered_table,
-                                              ha_alter_info))
+                                              ha_alter_info,
+                                              old_dd_tab, new_dd_tab))
       error= true;
     part_inplace_ctx->handler_ctx_array[index]= ha_alter_info->handler_ctx;
   }
@@ -5423,7 +5452,9 @@ bool ha_partition::inplace_alter_table(TABLE *altered_table,
 */
 bool ha_partition::commit_inplace_alter_table(TABLE *altered_table,
                                               Alter_inplace_info *ha_alter_info,
-                                              bool commit)
+                                              bool commit,
+                                              const dd::Table *old_dd_tab,
+                                              dd::Table *new_dd_tab)
 {
   ha_partition_inplace_ctx *part_inplace_ctx;
   bool error= false;
@@ -5446,7 +5477,8 @@ bool ha_partition::commit_inplace_alter_table(TABLE *altered_table,
                 part_inplace_ctx->handler_ctx_array);
     ha_alter_info->handler_ctx= part_inplace_ctx->handler_ctx_array[0];
     error= m_file[0]->ha_commit_inplace_alter_table(altered_table,
-                                                    ha_alter_info, commit);
+                                                    ha_alter_info, commit,
+                                                    old_dd_tab, new_dd_tab);
     if (error)
       goto end;
     if (ha_alter_info->group_commit_ctx)
@@ -5466,7 +5498,8 @@ bool ha_partition::commit_inplace_alter_table(TABLE *altered_table,
         ha_alter_info->handler_ctx= part_inplace_ctx->handler_ctx_array[i];
         error|= m_file[i]->ha_commit_inplace_alter_table(altered_table,
                                                          ha_alter_info,
-                                                         true);
+                                                         true, old_dd_tab,
+                                                         new_dd_tab);
       }
     }
   }
@@ -5478,7 +5511,8 @@ bool ha_partition::commit_inplace_alter_table(TABLE *altered_table,
       /* Rollback, commit == false,  is done for each partition! */
       ha_alter_info->handler_ctx= part_inplace_ctx->handler_ctx_array[i];
       if (m_file[i]->ha_commit_inplace_alter_table(altered_table,
-                                                   ha_alter_info, false))
+                                                   ha_alter_info, false,
+                                                   old_dd_tab, new_dd_tab))
         error= true;
     }
   }
@@ -5489,14 +5523,14 @@ end:
 }
 
 
-void ha_partition::notify_table_changed()
+void ha_partition::notify_table_changed(Alter_inplace_info *ha_alter_info)
 {
   handler **file;
 
   DBUG_ENTER("ha_partition::notify_table_changed");
 
   for (file= m_file; *file; file++)
-    (*file)->ha_notify_table_changed();
+    (*file)->ha_notify_table_changed(ha_alter_info);
 
   DBUG_VOID_RETURN;
 }

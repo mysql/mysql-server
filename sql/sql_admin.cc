@@ -109,12 +109,14 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 
     hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
     mysql_mutex_lock(&LOCK_open);
-    share= get_table_share(thd, table_list, key, key_length, false, hash_value);
+    share= get_table_share(thd, table_list, key, key_length, false, false,
+                           hash_value);
     mysql_mutex_unlock(&LOCK_open);
     if (share == NULL)
       DBUG_RETURN(0);				// Can't open frm file
 
-    if (open_table_from_share(thd, share, "", 0, 0, 0, &tmp_table, FALSE))
+    if (open_table_from_share(thd, share, "", 0, 0, 0, &tmp_table, FALSE,
+                              NULL))
     {
       mysql_mutex_lock(&LOCK_open);
       release_table_share(share);

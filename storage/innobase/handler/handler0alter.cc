@@ -5244,7 +5244,9 @@ bool
 ha_innobase::prepare_inplace_alter_table(
 /*=====================================*/
 	TABLE*			altered_table,
-	Alter_inplace_info*	ha_alter_info)
+	Alter_inplace_info*	ha_alter_info,
+	const dd::Table*	old_dd_tab,
+	dd::Table*		new_dd_tab)
 {
 	dict_index_t**	drop_index = NULL;	/*!< Index to be dropped */
 	ulint		n_drop_index;	/*!< Number of indexes to drop */
@@ -5953,7 +5955,9 @@ bool
 ha_innobase::inplace_alter_table(
 /*=============================*/
 	TABLE*			altered_table,
-	Alter_inplace_info*	ha_alter_info)
+	Alter_inplace_info*	ha_alter_info,
+	const dd::Table*	old_dd_tab,
+	dd::Table*		new_dd_tab)
 {
 	dberr_t			error;
 	dict_add_v_col_t*	add_v = NULL;
@@ -7928,7 +7932,9 @@ ha_innobase::commit_inplace_alter_table(
 /*====================================*/
 	TABLE*			altered_table,
 	Alter_inplace_info*	ha_alter_info,
-	bool			commit)
+	bool			commit,
+	const dd::Table*	old_dd_tab,
+	dd::Table*		new_dd_tab)
 {
 	dberr_t	error;
 	ha_innobase_inplace_ctx*ctx0;
@@ -8792,7 +8798,9 @@ by ALTER TABLE and holding data used during in-place alter.
 bool
 ha_innopart::prepare_inplace_alter_table(
 	TABLE*			altered_table,
-	Alter_inplace_info*	ha_alter_info)
+	Alter_inplace_info*	ha_alter_info,
+	const dd::Table*	old_dd_tab,
+	dd::Table*		new_dd_tab)
 {
 	THD* thd;
 	ha_innopart_inplace_ctx* ctx_parts;
@@ -8869,7 +8877,9 @@ ha_innopart::prepare_inplace_alter_table(
 			m_prebuilt->table->data_dir_path;
 
 		res = ha_innobase::prepare_inplace_alter_table(altered_table,
-							ha_alter_info);
+							ha_alter_info,
+							old_dd_tab,
+							new_dd_tab);
 		update_partition(i);
 		ctx_parts->ctx_array[i] = ha_alter_info->handler_ctx;
 		if (res) {
@@ -8898,7 +8908,9 @@ by ALTER TABLE and holding data used during in-place alter.
 bool
 ha_innopart::inplace_alter_table(
 	TABLE*			altered_table,
-	Alter_inplace_info*	ha_alter_info)
+	Alter_inplace_info*	ha_alter_info,
+	const dd::Table*	old_dd_tab,
+	dd::Table*		new_dd_tab)
 {
 	bool res = true;
 	ha_innopart_inplace_ctx* ctx_parts;
@@ -8910,7 +8922,8 @@ ha_innopart::inplace_alter_table(
 		ha_alter_info->handler_ctx = ctx_parts->ctx_array[i];
 		set_partition(i);
 		res = ha_innobase::inplace_alter_table(altered_table,
-						ha_alter_info);
+						ha_alter_info,
+						old_dd_tab, new_dd_tab);
 		ut_ad(ctx_parts->ctx_array[i] == ha_alter_info->handler_ctx);
 		ctx_parts->ctx_array[i] = ha_alter_info->handler_ctx;
 		if (res) {
@@ -8940,7 +8953,9 @@ bool
 ha_innopart::commit_inplace_alter_table(
 	TABLE*			altered_table,
 	Alter_inplace_info*	ha_alter_info,
-	bool			commit)
+	bool			commit,
+	const dd::Table*	old_dd_tab,
+	dd::Table*		new_dd_tab)
 {
 	bool res = false;
 	ha_innopart_inplace_ctx* ctx_parts;
@@ -8957,7 +8972,8 @@ ha_innopart::commit_inplace_alter_table(
 		set_partition(0);
 		res = ha_innobase::commit_inplace_alter_table(altered_table,
 							ha_alter_info,
-							commit);
+							commit,
+							old_dd_tab, new_dd_tab);
 		ut_ad(res || !ha_alter_info->group_commit_ctx);
 		goto end;
 	}
@@ -8967,7 +8983,8 @@ ha_innopart::commit_inplace_alter_table(
 		ha_alter_info->handler_ctx = ctx_parts->ctx_array[i];
 		set_partition(i);
 		if (ha_innobase::commit_inplace_alter_table(altered_table,
-						ha_alter_info, commit)) {
+						ha_alter_info, commit,
+						old_dd_tab, new_dd_tab)) {
 			res = true;
 		}
 		ut_ad(ctx_parts->ctx_array[i] == ha_alter_info->handler_ctx);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,9 @@
 #include "table.h"          // TABLE, FOREIGN_KEY_INFO
 #include "sql_audit.h"      // mysql_audit_table_access_notify
 
+#include "dd/dd.h"
+#include "dd/dictionary.h"
+#include "dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
 #include "dd/dd_table.h"    // dd::recreate_table
 
 
@@ -243,9 +246,29 @@ Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
     if (fk_truncate_illegal_if_parent(thd, table_ref->table))
       DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
 
-  error= table_ref->table->file->ha_truncate();
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Table *c_table_def= 0;
+  dd::Table *table_def= table_ref->table->s->tmp_table_def;
+
+  if (!table_def)
+  {
+    if (thd->dd_client()->acquire<dd::Table>(table_ref->db,
+                                             table_ref->table_name,
+                                             &c_table_def))
+    {
+      fprintf(stderr, "DD: Failed to get table def for truncate\n");
+      DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
+    }
+    table_def= c_table_def->clone();
+  }
+
+  error= table_ref->table->file->ha_truncate(table_def);
+
+
   if (error)
   {
+    if (c_table_def)
+      delete table_def;
     table_ref->table->file->print_error(error, MYF(0));
     /*
       If truncate method is not implemented then we don't binlog the
@@ -259,6 +282,14 @@ Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
     else
       DBUG_RETURN(TRUNCATE_FAILED_BUT_BINLOG);
   }
+  else if (c_table_def && thd->dd_client()->update(&c_table_def, table_def))
+  {
+    delete table_def;
+    fprintf(stderr, "DD: DD update for truncate failed\n");
+    DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
+  }
+  if (c_table_def)
+    delete table_def;
   DBUG_RETURN(TRUNCATE_OK);
 }
 
@@ -302,7 +333,7 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
   */
   ha_create_table(thd, share->normalized_path.str, share->db.str,
                   share->table_name.str, &create_info, true, true,
-                  share->tmp_table_def);
+                  share->tmp_table_def, NULL, false);
 
   if ((new_table= open_table_uncached(thd, share->path.str, share->db.str,
                                       share->table_name.str, true, true,
@@ -315,7 +346,7 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
     thd->thread_specific_used= TRUE;
   }
   else
-    rm_temporary_table(thd, table_type, share->path.str);
+    rm_temporary_table(thd, table_type, share->path.str, share->tmp_table_def);
 
   free_table_share(share);
   my_free(table);

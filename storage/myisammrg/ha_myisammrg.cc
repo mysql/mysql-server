@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -108,6 +108,7 @@ using std::max;
 
 static handler *myisammrg_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
+                                         bool partitioned,
                                          MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_myisammrg(hton, table);
@@ -320,7 +321,7 @@ extern "C" int myisammrg_parent_open_callback(void *callback_param,
 */
 
 int ha_myisammrg::open(const char *name, int mode __attribute__((unused)),
-                       uint test_if_locked_arg)
+                       uint test_if_locked_arg, const dd::Table *)
 {
   DBUG_ENTER("ha_myisammrg::open");
   DBUG_PRINT("myrg", ("name: '%s'  table: 0x%lx", name, (long) table));
@@ -692,7 +693,8 @@ handler *ha_myisammrg::clone(const char *name, MEM_ROOT *mem_root)
 {
   MYRG_TABLE    *u_table,*newu_table;
   ha_myisammrg *new_handler= 
-    (ha_myisammrg*) get_new_handler(table->s, mem_root, table->s->db_type());
+    (ha_myisammrg*) get_new_handler(table->s, false, mem_root,
+                                    table->s->db_type());
   if (!new_handler)
     return NULL;
   
@@ -710,7 +712,7 @@ handler *ha_myisammrg::clone(const char *name, MEM_ROOT *mem_root)
   }
 
   if (new_handler->ha_open(table, name, table->db_stat,
-                           HA_OPEN_IGNORE_IF_LOCKED))
+                           HA_OPEN_IGNORE_IF_LOCKED, NULL))
   {
     delete new_handler;
     return NULL;
@@ -1224,7 +1226,7 @@ ha_rows ha_myisammrg::records_in_range(uint inx, key_range *min_key,
 }
 
 
-int ha_myisammrg::truncate()
+int ha_myisammrg::truncate(dd::Table *)
 {
   int err= 0;
   MYRG_TABLE *my_table;
@@ -1476,7 +1478,8 @@ err:
 
 
 int ha_myisammrg::create(const char *name, TABLE *form,
-			 HA_CREATE_INFO *create_info)
+			 HA_CREATE_INFO *create_info,
+                         dd::Table *, const char *)
 {
   char buff[FN_REFLEN];
   const char **table_names, **pos;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -101,7 +101,8 @@ class ha_myisam: public handler
   uint max_supported_key_part_length() const { return MI_MAX_KEY_LENGTH; }
   uint checksum() const;
 
-  int open(const char *name, int mode, uint test_if_locked);
+  int open(const char *name, int mode, uint test_if_locked,
+           const dd::Table *dd_tab);
   int close(void);
   int write_row(uchar * buf);
   int update_row(const uchar * old_data, uchar * new_data);
@@ -141,7 +142,7 @@ class ha_myisam: public handler
   int reset(void);
   int external_lock(THD *thd, int lock_type);
   int delete_all_rows(void);
-  int truncate();
+  int truncate(dd::Table *dd_tab);
   int reset_auto_increment(ulonglong value);
   int disable_indexes(uint mode);
   int enable_indexes(uint mode);
@@ -150,15 +151,16 @@ class ha_myisam: public handler
   int end_bulk_insert();
   ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
   void update_create_info(HA_CREATE_INFO *create_info);
-  int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
+  int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
+             dd::Table *dd_tab, const char *sql_name);
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     enum thr_lock_type lock_type);
   virtual void get_auto_increment(ulonglong offset, ulonglong increment,
                                   ulonglong nb_desired_values,
                                   ulonglong *first_value,
                                   ulonglong *nb_reserved_values);
-  int rename_table(const char * from, const char * to);
-  int delete_table(const char *name);
+  int rename_table(const char * from, const char * to, dd::Table *dd_tab);
+  int delete_table(const char *name, dd::Table *dd_tab);
   int check(THD* thd, HA_CHECK_OPT* check_opt);
   int analyze(THD* thd,HA_CHECK_OPT* check_opt);
   int repair(THD* thd, HA_CHECK_OPT* check_opt);

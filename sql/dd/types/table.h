@@ -175,6 +175,13 @@ public:
   virtual void set_subpartition_expression(
     const std::string &subpartition_expression) = 0;
 
+  /** Dummy method to be able to use Partition and Table interchangeably
+  in templates. */
+  const Table &table() const
+  { return *this; }
+  Table &table()
+  { return *this; }
+
   /////////////////////////////////////////////////////////////////////////
   //Index collection.
   /////////////////////////////////////////////////////////////////////////

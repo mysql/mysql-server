@@ -95,6 +95,9 @@ drop table if exists test.t1;
 --enable_warnings
 
 create table test.t1(a varchar(64));
+# Warm up DD cache
+select count(*) into @dummy from test.t1;
+
 create function test.f(a int, b int) returns int
 return a+b;
 

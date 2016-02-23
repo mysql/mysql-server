@@ -71,6 +71,15 @@
 #include <boost/tokenizer.hpp>
 #include <boost/algorithm/string.hpp>
 
+#include <dd/dictionary.h>
+
+#include "dd/dd.h"
+#include "dd/types/object_type.h"
+#include "dd/types/schema.h"
+#include "dd/types/table.h"
+#include "dd/types/partition.h"
+#include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
+
 /**
   @def MYSQL_TABLE_IO_WAIT
   Instrumentation helper for table io_waits.
@@ -618,8 +627,8 @@ handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
 } /* ha_checktype */
 
 
-handler *get_new_handler(TABLE_SHARE *share, MEM_ROOT *alloc,
-                         handlerton *db_type)
+handler *get_new_handler(TABLE_SHARE *share, bool partitioned,
+                         MEM_ROOT *alloc, handlerton *db_type)
 {
   handler *file;
   DBUG_ENTER("get_new_handler");
@@ -627,7 +636,7 @@ handler *get_new_handler(TABLE_SHARE *share, MEM_ROOT *alloc,
 
   if (db_type && db_type->state == SHOW_OPTION_YES && db_type->create)
   {
-    if ((file= db_type->create(db_type, share, alloc)))
+    if ((file= db_type->create(db_type, share, partitioned, alloc)))
       file->init();
     DBUG_RETURN(file);
   }
@@ -636,7 +645,8 @@ handler *get_new_handler(TABLE_SHARE *share, MEM_ROOT *alloc,
     Here the call to current_thd() is ok as we call this function a lot of
     times but we enter this branch very seldom.
   */
-  DBUG_RETURN(get_new_handler(share, alloc, ha_default_handlerton(current_thd)));
+  DBUG_RETURN(get_new_handler(share, partitioned, alloc,
+                              ha_default_handlerton(current_thd)));
 }
 
 
@@ -2511,13 +2521,31 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
   memset(&dummy_share, 0, sizeof(dummy_share));
   dummy_table.s= &dummy_share;
 
+  dd::Dictionary *dict= dd::get_dictionary();
+  dd::Table *dd_tab= 0;
+
+  if (! dict->is_dd_table_name(db, alias))
+  {
+    const dd::Table *c_dd_tab;
+    if (thd->dd_client()->acquire_uncached_uncommitted<dd::Table>(db, alias, &c_dd_tab))
+      DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+
+    dd_tab= const_cast<dd::Table*>(c_dd_tab);
+  }
+
   /* DB_TYPE_UNKNOWN is used in ALTER TABLE when renaming only .frm files */
   if (table_type == NULL ||
-      ! (file=get_new_handler((TABLE_SHARE*)0, thd->mem_root, table_type)))
+      ! (file= get_new_handler((TABLE_SHARE*)0,
+                               dd_tab->partition_type() != dd::Table::PT_NONE,
+                               thd->mem_root, table_type)))
+  {
+    delete dd_tab;
     DBUG_RETURN(ENOENT);
+  }
 
   path= get_canonical_filename(file, path, tmp_path);
-  if ((error= file->ha_delete_table(path)) && generate_warning)
+
+  if ((error= file->ha_delete_table(path, dd_tab)) && generate_warning)
   {
     /*
       Because file->print_error() use my_error() to generate the error message
@@ -2547,7 +2575,10 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 
     thd->pop_internal_handler();
   }
+
   delete file;
+
+  delete dd_tab;
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely(error == 0))
@@ -2568,34 +2599,64 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 handler *handler::clone(const char *name, MEM_ROOT *mem_root)
 {
   DBUG_ENTER("handler::clone");
-  handler *new_handler= get_new_handler(table->s, mem_root, ht);
+  handler *new_handler= ha_clone_prepare(mem_root);
 
   if (!new_handler)
     DBUG_RETURN(NULL);
-  if (new_handler->set_ha_share_ref(ha_share))
-    goto err;
 
-  /*
-    Allocate handler->ref here because otherwise ha_open will allocate it
-    on this->table->mem_root and we will not be able to reclaim that memory 
-    when the clone handler object is destroyed.
-  */
-  if (!(new_handler->ref= (uchar*) alloc_root(mem_root,
-                                              ALIGN_SIZE(ref_length)*2)))
-    goto err;
   /*
     TODO: Implement a more efficient way to have more than one index open for
     the same table instance. The ha_open call is not cachable for clone.
   */
   if (new_handler->ha_open(table, name, table->db_stat,
-                           HA_OPEN_IGNORE_IF_LOCKED))
-    goto err;
+                           HA_OPEN_IGNORE_IF_LOCKED, NULL))
+  {
+    delete new_handler;
+    new_handler = NULL;
+  }
 
   DBUG_RETURN(new_handler);
+}
 
-err:
-  delete new_handler;
-  DBUG_RETURN(NULL);
+
+handler* handler::ha_clone_prepare(MEM_ROOT *mem_root) const
+{
+  DBUG_ENTER("handler::ha_clone_prepare");
+
+  handler *new_handler= get_new_handler(table->s,
+                                        (table->s->m_part_info != NULL),
+                                        mem_root, ht);
+
+  if (new_handler == NULL)
+    DBUG_RETURN(NULL);
+
+  /*
+    Allocate handler->ref here because otherwise possible later call to
+    ha_open will allocate it on this->table->mem_root and we will not be
+    able to reclaim that memory when the clone handler object is destroyed.
+  */
+  if (new_handler->set_ha_share_ref(ha_share) ||
+      !(new_handler->ref= (uchar*) alloc_root(mem_root,
+                                              ALIGN_SIZE(ref_length)*2)))
+  {
+    delete new_handler;
+    new_handler = NULL;
+  }
+
+  DBUG_RETURN(new_handler);
+}
+
+
+void handler::ha_open_psi()
+{
+#ifdef HAVE_PSI_TABLE_INTERFACE
+  DBUG_ENTER("handler::ha_open_psi()");
+  DBUG_ASSERT(m_psi == NULL);
+  DBUG_ASSERT(table_share != NULL);
+  PSI_table_share *share_psi= ha_table_share_psi(table_share);
+  m_psi= PSI_TABLE_CALL(open_table)(share_psi, this);
+  DBUG_VOID_RETURN;
+#endif
 }
 
 
@@ -2675,7 +2736,7 @@ PSI_table_share *handler::ha_table_share_psi(const TABLE_SHARE *share) const
     Don't wait for locks if not HA_OPEN_WAIT_IF_LOCKED is set
 */
 int handler::ha_open(TABLE *table_arg, const char *name, int mode,
-                     int test_if_locked)
+                     int test_if_locked, const dd::Table *dd_tab)
 {
   int error;
   DBUG_ENTER("handler::ha_open");
@@ -2690,13 +2751,13 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
   DBUG_PRINT("info", ("old m_lock_type: %d F_UNLCK %d", m_lock_type, F_UNLCK));
   DBUG_ASSERT(alloc_root_inited(&table->mem_root));
 
-  if ((error=open(name,mode,test_if_locked)))
+  if ((error=open(name, mode, test_if_locked, dd_tab)))
   {
     if ((error == EACCES || error == EROFS) && mode == O_RDWR &&
 	(table->db_stat & HA_TRY_READ_ONLY))
     {
       table->db_stat|=HA_READ_ONLY;
-      error=open(name,O_RDONLY,test_if_locked);
+      error=open(name, O_RDONLY, test_if_locked, dd_tab);
     }
   }
   if (error)
@@ -2708,18 +2769,14 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
   {
     DBUG_ASSERT(m_psi == NULL);
     DBUG_ASSERT(table_share != NULL);
-#ifdef HAVE_PSI_TABLE_INTERFACE
+
     /*
       Do not call this for partitions handlers, since it may take too much
       resources.
       So only use the m_psi on table level, not for individual partitions.
     */
     if (!(test_if_locked & HA_OPEN_NO_PSI_CALL))
-    {
-      PSI_table_share *share_psi= ha_table_share_psi(table_share);
-      m_psi= PSI_TABLE_CALL(open_table)(share_psi, this);
-    }
-#endif
+      ha_open_psi();
 
     if (table->s->db_options_in_use & HA_OPTION_READ_ONLY_DATA)
       table->db_stat|=HA_READ_ONLY;
@@ -4320,7 +4377,7 @@ uint handler::get_dup_key(int error)
   @retval
     !0  Error
 */
-int handler::delete_table(const char *name)
+int handler::delete_table(const char *name, dd::Table *)
 {
   int saved_error= 0;
   int error= 0;
@@ -4356,7 +4413,7 @@ int handler::delete_table(const char *name)
 }
 
 
-int handler::rename_table(const char * from, const char * to)
+int handler::rename_table(const char * from, const char * to, dd::Table *dd_tab)
 {
   int error= 0;
   const char **ext, **start_ext;
@@ -4386,7 +4443,7 @@ int handler::rename_table(const char * from, const char * to)
 void handler::drop_table(const char *name)
 {
   close();
-  delete_table(name);
+  delete_table(name, NULL);
 }
 
 
@@ -4558,13 +4615,13 @@ handler::ha_delete_all_rows()
 */
 
 int
-handler::ha_truncate()
+handler::ha_truncate(dd::Table *dd_tab)
 {
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type == F_WRLCK);
   mark_trx_read_write();
 
-  return truncate();
+  return truncate(dd_tab);
 }
 
 
@@ -4671,19 +4728,24 @@ handler::ha_discard_or_import_tablespace(my_bool discard)
 
 
 bool handler::ha_prepare_inplace_alter_table(TABLE *altered_table,
-                                             Alter_inplace_info *ha_alter_info)
+                                             Alter_inplace_info *ha_alter_info,
+                                             const dd::Table *old_dd_tab,
+                                             dd::Table *new_dd_tab)
 {
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   mark_trx_read_write();
 
-  return prepare_inplace_alter_table(altered_table, ha_alter_info);
+  return prepare_inplace_alter_table(altered_table, ha_alter_info,
+                                     old_dd_tab, new_dd_tab);
 }
 
 
 bool handler::ha_commit_inplace_alter_table(TABLE *altered_table,
                                             Alter_inplace_info *ha_alter_info,
-                                            bool commit)
+                                            bool commit,
+                                            const dd::Table *old_dd_tab,
+                                            dd::Table *new_dd_tab)
 {
    /*
      At this point we should have an exclusive metadata lock on the table.
@@ -4697,7 +4759,8 @@ bool handler::ha_commit_inplace_alter_table(TABLE *altered_table,
                                        MDL_EXCLUSIVE) ||
                !commit);
 
-   return commit_inplace_alter_table(altered_table, ha_alter_info, commit);
+   return commit_inplace_alter_table(altered_table, ha_alter_info, commit,
+                                     old_dd_tab, new_dd_tab);
 }
 
 
@@ -4760,7 +4823,7 @@ handler::check_if_supported_inplace_alter(TABLE *altered_table,
    and old online add/drop index API
 */
 
-void handler::notify_table_changed()
+void handler::notify_table_changed(Alter_inplace_info *)
 {
   ha_create_handler_files(table->s->path.str, NULL, CHF_INDEX_FLAG, NULL);
 }
@@ -4785,12 +4848,12 @@ void Alter_inplace_info::report_unsupported_error(const char *not_supported,
 */
 
 int
-handler::ha_rename_table(const char *from, const char *to)
+handler::ha_rename_table(const char *from, const char *to, dd::Table *dd_tab)
 {
   DBUG_ASSERT(m_lock_type == F_UNLCK);
   mark_trx_read_write();
 
-  return rename_table(from, to);
+  return rename_table(from, to, dd_tab);
 }
 
 
@@ -4801,12 +4864,12 @@ handler::ha_rename_table(const char *from, const char *to)
 */
 
 int
-handler::ha_delete_table(const char *name)
+handler::ha_delete_table(const char *name, dd::Table *dd_tab)
 {
   DBUG_ASSERT(m_lock_type == F_UNLCK);
   mark_trx_read_write();
 
-  return delete_table(name);
+  return delete_table(name, dd_tab);
 }
 
 
@@ -4833,12 +4896,13 @@ handler::ha_drop_table(const char *name)
 */
 
 int
-handler::ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info)
+handler::ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info,
+                   dd::Table *dd_tab, const char *sql_name)
 {
   DBUG_ASSERT(m_lock_type == F_UNLCK);
   mark_trx_read_write();
 
-  return create(name, form, info);
+  return create(name, form, info, dd_tab, sql_name);
 }
 
 
@@ -4975,9 +5039,15 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
                              cases when this info is not available from
                              HA_CREATE_INFO).
   @param table_def           Data-dictionary object describing table to
-                             be used for table creation instead of reading
-                             information from DD. Currently used only for
-                             explicit temporary tables, NULL otherwise.
+                             be used for table creation.
+  @param name_override       Optional, real name of table which is created,
+                             to be used by SE in case when we create new
+                             version of table for ALTER TABLE with a
+                             temporary name (WL7743/TODO - double check
+                             with Marko if he really needs this).
+  @param commit_dd_changes   Indicates whether we need to commit changes
+                             to data-dictionary (WL7743/TODO - this
+                             parameter should not be necessary in the end).
 
   @retval
    0  ok
@@ -4989,7 +5059,9 @@ int ha_create_table(THD *thd, const char *path,
                     HA_CREATE_INFO *create_info,
                     bool update_create_info,
                     bool is_temp_table,
-                    const dd::Table *table_def)
+                    dd::Table *table_def,
+                    const char *name_override,
+                    bool commit_dd_changes)
 {
   int error= 1;
   TABLE table;
@@ -5002,8 +5074,9 @@ int ha_create_table(THD *thd, const char *path,
     (strstr(path, tmp_file_prefix) != NULL);
 #endif
   DBUG_ENTER("ha_create_table");
-  
+
   init_tmp_table_share(thd, &share, db, 0, table_name, path);
+
   if (open_table_def(thd, &share, false, table_def))
     goto err;
 
@@ -5012,7 +5085,7 @@ int ha_create_table(THD *thd, const char *path,
 #endif
 
   if (open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
-                            TRUE))
+                            TRUE, table_def))
   {
 #ifdef HAVE_PSI_TABLE_INTERFACE
     PSI_TABLE_CALL(drop_table_share)
@@ -5026,7 +5099,9 @@ int ha_create_table(THD *thd, const char *path,
 
   name= get_canonical_filename(table.file, share.path.str, name_buff);
 
-  error= table.file->ha_create(name, &table, create_info);
+  error= table.file->ha_create(name, &table, create_info, table_def,
+                               name_override);
+
   if (error)
   {
     table.file->print_error(error, MYF(0));
@@ -5034,6 +5109,35 @@ int ha_create_table(THD *thd, const char *path,
     PSI_TABLE_CALL(drop_table_share)
       (temp_table, db, strlen(db), table_name, strlen(table_name));
 #endif
+  }
+  else
+  {
+    // QQ: Should we move this code to helper function similar to
+    //     dd::create_table() ?
+    //
+    // The dd::Table objects for temporary tables are not stored in DD
+    // so do not need DD update.
+    // The dd::Table objects representing the DD tables themselves cannot
+    // be stored until the DD tables have been created in the SE.
+    if (!((create_info->options & HA_LEX_CREATE_TMP_TABLE) || is_temp_table ||
+          dd::get_dictionary()->is_dd_table_name(db, table_name)))
+    {
+      Disable_gtid_state_update_guard disabler(thd);
+
+      if(thd->dd_client()->update_uncached_and_invalidate(table_def))
+      {
+        if (commit_dd_changes)
+        {
+          trans_rollback_stmt(thd);
+          // Full rollback in case we have THD::transaction_rollback_request.
+          trans_rollback(thd);
+        }
+        error= 1;
+      }
+      else
+        error= (commit_dd_changes &&
+                (trans_commit_stmt(thd) || trans_commit(thd)));
+    }
   }
   (void) closefrm(&table, 0);
 err:
@@ -5098,7 +5202,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   */
 #endif
 
-  if (open_table_from_share(thd, &share, "" ,0, 0, 0, &table, FALSE))
+  if (open_table_from_share(thd, &share, "" ,0, 0, 0, &table, FALSE, NULL))
   {
     free_table_share(&share);
     DBUG_RETURN(3);
@@ -5108,7 +5212,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   create_info.table_options|= HA_OPTION_CREATE_FROM_ENGINE;
 
   get_canonical_filename(table.file, path, path);
-  error=table.file->ha_create(path, &table, &create_info);
+  error=table.file->ha_create(path, &table, &create_info, NULL, name);
   (void) closefrm(&table, 1);
 
   DBUG_RETURN(error != 0);
@@ -8037,7 +8141,6 @@ void handler::use_hidden_primary_key()
   /* fallback to use all columns in the table to identify row */
   table->use_all_columns();
 }
-
 
 /**
   Get an initialized ha_share.

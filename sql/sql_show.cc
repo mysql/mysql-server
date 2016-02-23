@@ -1043,7 +1043,8 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   if ((table_list->is_view() ?
        view_store_create_info(thd, table_list, &buffer) :
        store_create_info(thd, table_list, &buffer, NULL,
-                         FALSE /* show_database */)))
+                         table_list->table->s->tmp_table,
+                         false /* show_database */)))
     goto exit;
 
   if (table_list->is_view())
@@ -1524,36 +1525,29 @@ static bool print_default_clause(THD *thd, Field *field, String *def_value,
 }
 
 
-/*
+/**
   Build a CREATE TABLE statement for a table.
 
-  SYNOPSIS
-    store_create_info()
-    thd               The thread
-    table_list        A list containing one table to write statement
-                      for.
-    packet            Pointer to a string where statement will be
-                      written.
-    create_info_arg   Pointer to create information that can be used
-                      to tailor the format of the statement.  Can be
-                      NULL, in which case only SQL_MODE is considered
-                      when building the statement.
-    show_database     If true, then print the database before the table
-                      name. The database name is only printed in the event
-                      that it is different from the current database.
-                      If false, then do not print the database before
-                      the table name.
-  
-  NOTE
-    Currently always return 0, but might return error code in the
-    future.
-    
-  RETURN
-    0       OK
- */
+  @param thd              The thread
+  @param table_list       A list containing one table to write statement for.
+  @param packet           Pointer to a string where statement will be written.
+  @param create_info_arg  Pointer to create information that can be used to
+                          tailor the format of the statement.  Can be NULL,
+                          in which case only SQL_MODE is considered when
+                          building the statement.
+  @param is_tmp_table     Indicates whether table is a temporary table.
+  @param show_database    If true, then print the database before the table
+                          name. The database name is only printed in the event
+                          that it is different from the current database.
+                          If false, then do not print the database before
+                          the table name.
+
+  @returns Currently always return 0, but might return error code in the future.
+*/
 
 int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
-                      HA_CREATE_INFO *create_info_arg, bool show_database)
+                      HA_CREATE_INFO *create_info_arg, bool is_tmp_table,
+                      bool show_database)
 {
   List<Item> field_list;
   char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], def_value_buf[MAX_FIELD_WIDTH];
@@ -1584,7 +1578,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 
   restore_record(table, s->default_values); // Get empty record
 
-  if (share->tmp_table)
+  if (is_tmp_table)
     packet->append(STRING_WITH_LEN("CREATE TEMPORARY TABLE "));
   else
     packet->append(STRING_WITH_LEN("CREATE TABLE "));
@@ -4442,7 +4436,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
   hash_value= my_calc_hash(&table_def_cache, (uchar*) key, key_length);
   mysql_mutex_lock(&LOCK_open);
   share= get_table_share(thd, &table_list, key,
-                         key_length, true, hash_value);
+                         key_length, true, false, hash_value);
   if (!share)
   {
     res= 0;
@@ -4492,7 +4486,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
 
     if (!open_table_from_share(thd, share, table_name->str, 0,
                                (EXTRA_RECORD | OPEN_FRM_FILE_ONLY),
-                               thd->open_options, &tbl, false))
+                               thd->open_options, &tbl, false, NULL))
     {
       tbl.s= share;
       table_list.table= &tbl;

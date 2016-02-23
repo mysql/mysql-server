@@ -143,7 +143,7 @@ SET SESSION GTID_NEXT = 'AUTOMATIC';
 INSERT INTO t1 VALUES (4);
 - history=none current=AUTOMATIC
 COMMIT;
-- history=SERVER_UUID:1 current=SERVER_UUID:1
+- history=SERVER_UUID:3 current=SERVER_UUID:3
 * AUTOCOMMIT = OFF
 SET @@SESSION.AUTOCOMMIT = 0;
 - history=none current=none
@@ -154,7 +154,7 @@ SET SESSION GTID_NEXT = 'AUTOMATIC';
 [END] INSERT INTO t1 VALUES (4);
 - history=none current=AUTOMATIC
 COMMIT;
-- history=SERVER_UUID:1 current=SERVER_UUID:1
+- history=SERVER_UUID:3 current=SERVER_UUID:3
 * AUTOCOMMIT = ON
 SET @@SESSION.AUTOCOMMIT = 1;
 - history=none current=none
@@ -163,7 +163,7 @@ SET SESSION GTID_NEXT = 'AUTOMATIC';
 [START] INSERT INTO t1 VALUES (4);
 - history=none current=AUTOMATIC
 [END] INSERT INTO t1 VALUES (4);
-- history=SERVER_UUID:1 current=SERVER_UUID:1
+- history=SERVER_UUID:3 current=SERVER_UUID:3
 ==== Clean up ====
 DROP TABLE t1;
 include/rpl_set_gtid_mode.inc [OFF on servers 1]

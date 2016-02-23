@@ -50,6 +50,9 @@ connection default;
 CREATE TABLE ta (pk integer primary key);
 CREATE TABLE tb (pk integer primary key);
 #
+# Warm-up data-dictionary cache but keep Table Definition Cache intact.
+#
+#
 connection con_TA1;
 # Wait after releasing LOCK_open for ta, and make sure we never
 # end up at the 'found_share' sync point:
@@ -124,6 +127,9 @@ connection default;
 CREATE TABLE ta (pk integer primary key);
 CREATE TABLE tb (pk integer primary key);
 #
+# Warm-up data-dictionary cache but keep Table Definition Cache intact.
+#
+#
 connection con_TA1;
 # Wait after releasing LOCK_open for ta, and make sure we never
 # end up at the 'found_share' sync point:
@@ -192,6 +198,9 @@ connection default;
 # Create one table:
 CREATE TABLE tb (pk integer primary key);
 #
+# Warm-up data-dictionary cache but keep Table Definition Cache intact.
+#
+#
 connection con_TB1;
 # Wait after releasing LOCK_open when opening table tb.
 # Set up a debug label to make the code simulate an error when
@@ -257,6 +266,9 @@ connection default;
 # Create one table:
 CREATE TABLE tb (pk integer primary key);
 #
+# Warm-up data-dictionary cache but keep Table Definition Cache intact.
+#
+#
 connection con_TB1;
 # Do an insert, wait after releasing LOCK_open for tb. Due to
 # a concurrent pending FLUSH TABLES, the first share will be
@@ -303,6 +315,9 @@ DROP TABLE tb;
 connection default;
 # Create one table:
 CREATE TABLE tb (pk integer primary key);
+#
+# Warm-up data-dictionary cache but keep Table Definition Cache intact.
+#
 #
 connection con_TB1;
 # Do an insert, wait after releasing LOCK_open for tb. 
@@ -362,6 +377,9 @@ DROP TABLE tb;
 connection default;
 # Create one table:
 CREATE TABLE tb (pk integer primary key);
+#
+# Warm-up data-dictionary cache but keep Table Definition Cache intact.
+#
 #
 connection con_TB1;
 # Do an insert, wait after releasing LOCK_open for tb. After
@@ -490,6 +508,9 @@ connection default;
 # Create two tables:
 CREATE TABLE ta (pk integer primary key);
 CREATE TABLE tb (pk integer primary key);
+#
+# Warm-up data-dictionary cache but keep Table Definition Cache intact.
+#
 #
 # Insert into ta to make sure it is open and in the cache:
 INSERT INTO ta VALUES(0);

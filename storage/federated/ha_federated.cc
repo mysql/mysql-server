@@ -410,6 +410,7 @@ static const uint sizeof_trailing_where= sizeof(" WHERE ") - 1;
 /* Static declaration for handerton */
 static handler *federated_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
+                                         bool partitioned,
                                          MEM_ROOT *mem_root);
 static int federated_commit(handlerton *hton, THD *thd, bool all);
 static int federated_rollback(handlerton *hton, THD *thd, bool all);
@@ -418,6 +419,7 @@ static int federated_rollback(handlerton *hton, THD *thd, bool all);
 
 static handler *federated_create_handler(handlerton *hton, 
                                          TABLE_SHARE *table,
+                                         bool partitioned,
                                          MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_federated(hton, table);
@@ -1644,7 +1646,8 @@ ha_rows ha_federated::records_in_range(uint inx, key_range *start_key,
   specific open().
 */
 
-int ha_federated::open(const char *name, int mode, uint test_if_locked)
+int ha_federated::open(const char *name, int mode, uint test_if_locked,
+                       const dd::Table *)
 {
   DBUG_ENTER("ha_federated::open");
 
@@ -3051,7 +3054,7 @@ int ha_federated::delete_all_rows()
   Used to manually truncate the table.
 */
 
-int ha_federated::truncate()
+int ha_federated::truncate(dd::Table *)
 {
   char query_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   String query(query_buffer, sizeof(query_buffer), &my_charset_bin);
@@ -3150,7 +3153,8 @@ THR_LOCK_DATA **ha_federated::store_lock(THD *thd,
 */
 
 int ha_federated::create(const char *name, TABLE *table_arg,
-                         HA_CREATE_INFO *create_info)
+                         HA_CREATE_INFO *create_info,
+                         dd::Table *, const char *)
 {
   int retval;
   THD *thd= current_thd;

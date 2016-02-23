@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -93,7 +93,8 @@
 #include "sql_plugin.h"
 
 static handler *example_create_handler(handlerton *hton,
-                                       TABLE_SHARE *table, 
+                                       TABLE_SHARE *table,
+                                       bool partitioned,
                                        MEM_ROOT *mem_root);
 
 handlerton *example_hton;
@@ -155,7 +156,8 @@ err:
 
 
 static handler* example_create_handler(handlerton *hton,
-                                       TABLE_SHARE *table, 
+                                       TABLE_SHARE *table,
+                                       bool partitioned,
                                        MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_example(hton, table);
@@ -242,7 +244,8 @@ static bool example_is_supported_system_table(const char *db,
   handler::ha_open() in handler.cc
 */
 
-int ha_example::open(const char *name, int mode, uint test_if_locked)
+int ha_example::open(const char *name, int mode, uint test_if_locked,
+                     const dd::Table *)
 {
   DBUG_ENTER("ha_example::open");
 
@@ -680,7 +683,7 @@ int ha_example::delete_all_rows()
   Truncate_statement in sql_truncate.cc
   Remarks in handler::truncate.
 */
-int ha_example::truncate()
+int ha_example::truncate(dd::Table *dd_tab)
 {
   DBUG_ENTER("ha_example::truncate");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
@@ -778,7 +781,7 @@ THR_LOCK_DATA **ha_example::store_lock(THD *thd,
   @see
   delete_table and ha_create_table() in handler.cc
 */
-int ha_example::delete_table(const char *name)
+int ha_example::delete_table(const char *name, dd::Table *)
 {
   DBUG_ENTER("ha_example::delete_table");
   /* This is not implemented but we want someone to be able that it works. */
@@ -800,7 +803,8 @@ int ha_example::delete_table(const char *name)
   @see
   mysql_rename_table() in sql_table.cc
 */
-int ha_example::rename_table(const char * from, const char * to)
+int ha_example::rename_table(const char * from, const char * to,
+                             dd::Table *dd_tab)
 {
   DBUG_ENTER("ha_example::rename_table ");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);
@@ -868,7 +872,8 @@ static MYSQL_THDVAR_UINT(
 */
 
 int ha_example::create(const char *name, TABLE *table_arg,
-                       HA_CREATE_INFO *create_info)
+                       HA_CREATE_INFO *create_info,
+                       dd::Table *, const char *)
 {
   DBUG_ENTER("ha_example::create");
   /*

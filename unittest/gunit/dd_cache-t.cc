@@ -643,6 +643,17 @@ TEST_F(CacheStorageTest, TestSchema)
 
     if (s1 && s2)
     {
+      // Get "schema1.table1" table uncached.
+      const dd::Table *s1_t1= NULL;
+      EXPECT_FALSE(dc.acquire_uncached("schema1", "table1", &s1_t1));
+      EXPECT_NE(nullp<const dd::Table>(), s1_t1);
+      delete s1_t1;
+
+      // Get "schema1.table1" table uncached uncommitted.
+      EXPECT_FALSE(dc.acquire_uncached_uncommitted("schema1", "table1", &s1_t1));
+      EXPECT_NE(nullp<const dd::Table>(), s1_t1);
+      delete s1_t1;
+
       MDL_REQUEST_INIT(&m_request, MDL_key::TABLE,
                        "schema1", "table1",
                        MDL_EXCLUSIVE,
@@ -651,9 +662,7 @@ TEST_F(CacheStorageTest, TestSchema)
       m_mdl_context.acquire_lock(&m_request,
                                  thd()->variables.lock_wait_timeout);
 
-
       // Get "schema1.table1" table from cache.
-      const dd::Table *s1_t1= NULL;
       EXPECT_FALSE(dc.acquire<dd::Table>("schema1", "table1", &s1_t1));
       EXPECT_NE(nullp<const dd::Table>(), s1_t1);
 

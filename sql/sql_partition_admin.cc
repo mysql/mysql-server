@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -307,7 +307,7 @@ static bool exchange_name_with_ddl_log(THD *thd,
   handler *file= NULL;
   DBUG_ENTER("exchange_name_with_ddl_log");
 
-  if (!(file= get_new_handler(NULL, thd->mem_root, ht)))
+  if (!(file= get_new_handler(NULL, false, thd->mem_root, ht)))
   {
     mem_alloc_error(sizeof(handler));
     DBUG_RETURN(TRUE);
@@ -355,7 +355,7 @@ static bool exchange_name_with_ddl_log(THD *thd,
                   error_set= TRUE;
                   goto err_rename;);
   DBUG_EXECUTE_IF("exchange_partition_abort_3", DBUG_SUICIDE(););
-  if (file->ha_rename_table(name, tmp_name))
+  if (file->ha_rename_table(name, tmp_name, NULL))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     my_error(ER_ERROR_ON_RENAME, MYF(0), name, tmp_name,
@@ -375,7 +375,7 @@ static bool exchange_name_with_ddl_log(THD *thd,
                   error_set= TRUE;
                   goto err_rename;);
   DBUG_EXECUTE_IF("exchange_partition_abort_5", DBUG_SUICIDE(););
-  if (file->ha_rename_table(from_name, name))
+  if (file->ha_rename_table(from_name, name, NULL))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     my_error(ER_ERROR_ON_RENAME, MYF(0), from_name, name,
@@ -395,7 +395,7 @@ static bool exchange_name_with_ddl_log(THD *thd,
                   error_set= TRUE;
                   goto err_rename;);
   DBUG_EXECUTE_IF("exchange_partition_abort_7", DBUG_SUICIDE(););
-  if (file->ha_rename_table(tmp_name, from_name))
+  if (file->ha_rename_table(tmp_name, from_name, NULL))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     my_error(ER_ERROR_ON_RENAME, MYF(0), tmp_name, from_name,

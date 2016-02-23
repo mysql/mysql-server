@@ -369,7 +369,7 @@ bool commit_inplace_alter_table(TABLE *altered_table,
                                    Alter_inplace_info *ha_alter_info,
                                    bool commit);
 
-void notify_table_changed();
+void notify_table_changed(Alter_inplace_info *ha_alter_info);
 
 private:
   void prepare_for_alter();

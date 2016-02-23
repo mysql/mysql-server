@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -380,6 +380,25 @@ void Shared_multi_map<T>::drop(Cache_element<T> *element)
 }
 
 
+// Delete an object corresponding to the key from the map if exists.
+template <typename T>
+template <typename K>
+void Shared_multi_map<T>::drop_if_present(const K &key)
+{
+  Autolocker lock(this);
+
+  Cache_element<T> *element= use_if_present(key);
+
+  if (element)
+  {
+    // If the element is sticky, remove stickiness.
+    if (element->sticky())
+      element->set_sticky(false);
+    remove(element, &lock);
+  }
+}
+
+
 // Replace the object and re-generate the keys for an element.
 template <typename T>
 void Shared_multi_map<T>::replace(Cache_element<T> *element, const T* object)
@@ -460,6 +479,8 @@ template void Shared_multi_map<Abstract_table>::
   put<Abstract_table::aux_key_type>
     (const Abstract_table::aux_key_type*, const Abstract_table*,
       Cache_element<Abstract_table> **);
+template void Shared_multi_map<Abstract_table>::
+  drop_if_present<Abstract_table::id_key_type>(const Abstract_table::id_key_type&);
 
 template class Shared_multi_map<Charset>;
 template bool Shared_multi_map<Charset>::
@@ -564,6 +585,8 @@ template void Shared_multi_map<Tablespace>::
   put<Tablespace::aux_key_type>
     (const Tablespace::aux_key_type*, const Tablespace*,
       Cache_element<Tablespace> **);
+template void Shared_multi_map<Tablespace>::
+  drop_if_present<Tablespace::id_key_type>(const Tablespace::id_key_type&);
 
 } // namespace cache
 } // namespace dd

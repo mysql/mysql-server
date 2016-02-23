@@ -2021,7 +2021,7 @@ mysql_rename_view(THD *thd,
   /* Rename view in the data-dictionary. */
   if (dd::rename_table<dd::View>(thd,
                                  view->db, view->table_name,
-                                 new_db, new_name))
+                                 new_db, new_name, true /* WL7743/TODO: RENAME TABLE */))
   {
     DBUG_RETURN(true);
   }

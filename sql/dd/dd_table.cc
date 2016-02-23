@@ -47,8 +47,6 @@
 // TODO: Avoid exposing dd/impl headers in public files.
 #include "dd/impl/utils.h"                    // dd::escape
 
-#include <memory>                             // unique_ptr
-
 
 // Explicit instanciation of some template functions
 template bool dd::drop_table<dd::Abstract_table>(THD *thd,
@@ -89,6 +87,16 @@ template bool dd::rename_table<dd::View>(THD *thd,
                                       const char *to_schema_name,
                                       const char *to_name,
                                       bool no_foreign_key_check);
+
+template std::unique_ptr<dd::Table>
+dd::acquire_uncached_uncommitted_table<dd::Table>(THD *thd,
+                                                  const char *schema_name,
+                                                  const char *name);
+
+template std::unique_ptr<dd::View>
+dd::acquire_uncached_uncommitted_table<dd::View>(THD *thd,
+                                                 const char *schema_name,
+                                                 const char *name);
 
 namespace dd {
 
@@ -1375,23 +1383,30 @@ static bool fill_dd_table_from_create_info(THD *thd,
                               create_info->options & HA_LEX_CREATE_TMP_TABLE))
     return true;
 
+  if (file->get_extra_columns_and_keys(create_info, &create_fields,
+                                       keyinfo, keys, tab_obj))
+    return true;
+
   // Add partition definitions
-  return fill_dd_partition_from_create_info(thd,
-                                            tab_obj,
-                                            create_info,
-                                            create_fields,
-                                            thd->work_part_info);
+  if (fill_dd_partition_from_create_info(thd,
+                                         tab_obj,
+                                         create_info,
+                                         create_fields,
+                                         thd->work_part_info))
+    return true;
+
+  return false;
 }
 
 
-static bool create_dd_system_table(THD *thd,
-                                   const std::string &table_name,
-                                   HA_CREATE_INFO *create_info,
-                                   const List<Create_field> &create_fields,
-                                   const KEY *keyinfo,
-                                   uint keys,
-                                   handler *file,
-                                   const dd::Object_table &dd_table)
+static std::unique_ptr<dd::Table> create_dd_system_table(THD *thd,
+                                    const std::string &table_name,
+                                    HA_CREATE_INFO *create_info,
+                                    const List<Create_field> &create_fields,
+                                    const KEY *keyinfo,
+                                    uint keys,
+                                    handler *file,
+                                    const dd::Object_table &dd_table)
 {
   // Retrieve the system schema.
   const Schema *system_schema= NULL;
@@ -1400,42 +1415,48 @@ static bool create_dd_system_table(THD *thd,
                                 &system_schema))
   {
     // Error is reported by the dictionary subsystem.
-    return true;
+    return nullptr;
   }
 
   if (!system_schema)
   {
     my_error(ER_BAD_DB_ERROR, MYF(0), MYSQL_SCHEMA_NAME.str);
-    return true;
+    return nullptr;
   }
 
   // Create dd::Table object.
-  dd::Table *tab_obj= const_cast<dd::Schema *>(system_schema)->create_table(thd);
+  std::unique_ptr<dd::Table> tab_obj(const_cast<dd::Schema *>(system_schema)->
+                                     create_table(thd));
 
-  if (fill_dd_table_from_create_info(thd, tab_obj, table_name,
+  if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,
                                      keyinfo, keys, file))
-    return true;
+    return nullptr;
 
   // Get the se private data for the DD table
-  if (file->ha_get_se_private_data(tab_obj, dd_table.default_dd_version(thd)))
-    return true;
+  if (file->ha_get_se_private_data(tab_obj.get(),
+                                   dd_table.default_dd_version(thd)))
+    return nullptr;
 
   // "Store" the object in the shared cache, and make it sticky.
-  thd->dd_client()->add_and_reset_id(tab_obj);
-  thd->dd_client()->set_sticky(tab_obj, true);
-  return false;
+  // Ownership of dd::Table object is passed to Auto_releaser;
+  dd::Table *tab_obj_auto;
+  thd->dd_client()->add_and_reset_id((tab_obj_auto= tab_obj.release()));
+  thd->dd_client()->set_sticky(tab_obj_auto, true);
+
+  return std::unique_ptr<dd::Table>(tab_obj_auto->clone());
 }
 
 
-static bool create_dd_user_table(THD *thd,
-                                 const std::string &schema_name,
-                                 const std::string &table_name,
-                                 HA_CREATE_INFO *create_info,
-                                 const List<Create_field> &create_fields,
-                                 const KEY *keyinfo,
-                                 uint keys,
-                                 handler *file)
+static std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
+                                    const std::string &schema_name,
+                                    const std::string &table_name,
+                                    HA_CREATE_INFO *create_info,
+                                    const List<Create_field> &create_fields,
+                                    const KEY *keyinfo,
+                                    uint keys,
+                                    handler *file,
+                                    bool commit_dd_changes)
 {
   // Verify that this is not a dd table.
   DBUG_ASSERT(!dd::get_dictionary()->is_dd_table_name(schema_name,
@@ -1450,13 +1471,13 @@ static bool create_dd_user_table(THD *thd,
       thd->dd_client()->acquire<dd::Schema>(schema_name, &sch_obj))
   {
     // Error is reported by the dictionary subsystem.
-    return true;
+    return nullptr;
   }
 
   if (!sch_obj)
   {
     my_error(ER_BAD_DB_ERROR, MYF(0), schema_name.c_str());
-    return true;
+    return nullptr;
   }
 
   // Create dd::Table object.
@@ -1465,32 +1486,43 @@ static bool create_dd_user_table(THD *thd,
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,
                                      keyinfo, keys, file))
-    return true;
+    return nullptr;
+
+  // WL7743:/TODO: Consider pulling out commit/rollback code below
+  //               once partitioning DDL code is removed.
+  //
+  // QQ: Do we want to keep commits on this layer?
 
   Disable_gtid_state_update_guard disabler(thd);
 
   // Store info in DD tables.
   if (thd->dd_client()->store(tab_obj.get()))
   {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
-    return true;
+    if (commit_dd_changes)
+    {
+      trans_rollback_stmt(thd);
+      // Full rollback in case we have THD::transaction_rollback_request.
+      trans_rollback(thd);
+    }
+    return nullptr;
   }
 
-  return trans_commit_stmt(thd) ||
-         trans_commit(thd);
+  if (commit_dd_changes && (trans_commit_stmt(thd) || trans_commit(thd)))
+    return nullptr;
+
+  return tab_obj;
 }
 
 
-bool create_table(THD *thd,
-                  const std::string &schema_name,
-                  const std::string &table_name,
-                  HA_CREATE_INFO *create_info,
-                  const List<Create_field> &create_fields,
-                  const KEY *keyinfo,
-                  uint keys,
-                  handler *file)
+std::unique_ptr<dd::Table> create_table(THD *thd,
+                             const std::string &schema_name,
+                             const std::string &table_name,
+                             HA_CREATE_INFO *create_info,
+                             const List<Create_field> &create_fields,
+                             const KEY *keyinfo,
+                             uint keys,
+                             handler *file,
+                             bool commit_dd_changes)
 {
   dd::Dictionary *dict= dd::get_dictionary();
   const dd::Object_table *dd_table= dict->get_dd_table(schema_name, table_name);
@@ -1499,18 +1531,18 @@ bool create_table(THD *thd,
     create_dd_system_table(thd, table_name, create_info, create_fields,
                            keyinfo, keys, file, *dd_table) :
     create_dd_user_table(thd, schema_name, table_name, create_info,
-                         create_fields, keyinfo, keys, file);
+                         create_fields, keyinfo, keys, file, commit_dd_changes);
 }
 
 
-dd::Table *create_tmp_table(THD *thd,
-                            const std::string &schema_name,
-                            const std::string &table_name,
-                            HA_CREATE_INFO *create_info,
-                            const List<Create_field> &create_fields,
-                            const KEY *keyinfo,
-                            uint keys,
-                            handler *file)
+std::unique_ptr<dd::Table> create_tmp_table(THD *thd,
+                             const std::string &schema_name,
+                             const std::string &table_name,
+                             HA_CREATE_INFO *create_info,
+                             const List<Create_field> &create_fields,
+                             const KEY *keyinfo,
+                             uint keys,
+                             handler *file)
 {
   // Check if the schema exists. We must make sure the schema is released
   // and unlocked in the right order.
@@ -1521,13 +1553,13 @@ dd::Table *create_tmp_table(THD *thd,
       thd->dd_client()->acquire<dd::Schema>(schema_name, &sch_obj))
   {
     // Error is reported by the dictionary subsystem.
-    return NULL;
+    return nullptr;
   }
 
   if (!sch_obj)
   {
     my_error(ER_BAD_DB_ERROR, MYF(0), schema_name.c_str());
-    return NULL;
+    return nullptr;
   }
 
   // Create dd::Table object.
@@ -1536,9 +1568,9 @@ dd::Table *create_tmp_table(THD *thd,
   if (fill_dd_table_from_create_info(thd, tab_obj.get(), table_name,
                                      create_info, create_fields,
                                      keyinfo, keys, file))
-    return NULL;
+    return nullptr;
 
-  return tab_obj.release();
+  return tab_obj;
 }
 
 
@@ -1621,7 +1653,8 @@ bool rename_table(THD *thd,
                   const char *from_table_name,
                   const char *to_schema_name,
                   const char *to_table_name,
-                  bool no_foreign_key_check)
+                  bool no_foreign_key_check,
+                  bool commit_dd_changes)
 {
   // Disable foreign key checks temporarily
   class Disable_foreign_key_check
@@ -1653,17 +1686,20 @@ bool rename_table(THD *thd,
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *from_sch= NULL;
   const dd::Schema *to_sch= NULL;
-  const T *from_tab= NULL;
+  std::unique_ptr<T> from_tab;
   const T *to_tab= NULL;
 
-  // Acquire all objects.
+  /*
+    Acquire all objects. Uncommitted read for 'from' object allows us
+    to use this function in ALTER TABLE ALGORITHM=INPLACE implementation.
+  */
   if (from_mdl_locker.ensure_locked(from_schema_name) ||
       to_mdl_locker.ensure_locked(to_schema_name) ||
       thd->dd_client()->acquire<dd::Schema>(from_schema_name, &from_sch) ||
       thd->dd_client()->acquire<dd::Schema>(to_schema_name, &to_sch) ||
       thd->dd_client()->acquire<T>(to_schema_name, to_table_name, &to_tab) ||
-      thd->dd_client()->acquire<T>(from_schema_name, from_table_name,
-                                   &from_tab))
+      !(from_tab= acquire_uncached_uncommitted_table<T>(thd, from_schema_name,
+                                                        from_table_name)))
   {
     // Error is reported by the dictionary subsystem.
     return true;
@@ -1682,56 +1718,45 @@ bool rename_table(THD *thd,
     return true;
   }
 
-  if (!from_tab)
-  {
-    my_error(ER_NO_SUCH_TABLE, MYF(0), from_schema_name, from_table_name);
-    return true;
-  }
-
   Disable_gtid_state_update_guard disabler(thd);
 
-  // If 'to_tab' exists (which it may not), get the 'to' table stickiness.
-  // Set it unsticky to allow dropping it.
-  bool is_sticky= false;
   if (to_tab)
   {
-    is_sticky= thd->dd_client()->is_sticky(to_tab);
-    if (is_sticky)
-      thd->dd_client()->set_sticky(to_tab, false);
+    /* This function can't properly handle sticky (i.e. system tables). */
+    DBUG_ASSERT(! thd->dd_client()->is_sticky(to_tab));
+
     if (thd->dd_client()->drop(to_tab))
     {
-      // Error is reported by the dictionary subsystem.
-      trans_rollback_stmt(thd);
-      // Full rollback in case we have THD::transaction_rollback_request.
-      trans_rollback(thd);
+      if (commit_dd_changes)
+      {
+        // Error is reported by the dictionary subsystem.
+        trans_rollback_stmt(thd);
+        // Full rollback in case we have THD::transaction_rollback_request.
+        trans_rollback(thd);
+      }
       return true;
     }
   }
 
-  // Preserve stickiness by setting 'from_tab' to sticky if 'to_tab'
-  // was sticky, and update the changes.
-  if (is_sticky)
-    thd->dd_client()->set_sticky(from_tab, true);
-
-  // Clone the object to be modified, and make sure the clone is deleted
-  // by wrapping it in a unique_ptr.
-  std::unique_ptr<T> new_tab(from_tab->clone());
 
   // Set schema id and table name.
-  new_tab->set_schema_id(to_sch->id());
-  new_tab->set_name(to_table_name);
+  from_tab->set_schema_id(to_sch->id());
+  from_tab->set_name(to_table_name);
 
   // Do the update. Errors will be reported by the dictionary subsystem.
-  if (thd->dd_client()->update(&from_tab, new_tab.get()))
+  if (thd->dd_client()->update_uncached_and_invalidate(from_tab.get()))
   {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
+    if (commit_dd_changes)
+    {
+      trans_rollback_stmt(thd);
+      // Full rollback in case we have THD::transaction_rollback_request.
+      trans_rollback(thd);
+    }
     return true;
   }
 
-  return trans_commit_stmt(thd) ||
-         trans_commit(thd);
+  return commit_dd_changes &&
+         (trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 
@@ -1920,9 +1945,37 @@ bool recreate_table(THD *thd, const char *schema_name,
   char path[FN_REFLEN + 1];
   build_table_filename(path, sizeof(path) - 1, schema_name, table_name, "", 0);
 
+  const dd::Table *c_dd_tab;
+  if (thd->dd_client()->acquire_uncached<dd::Table>(schema_name, table_name,
+                                                    &c_dd_tab))
+    return true;
+
+  // QQ: How to get rid of const_cast here?
+  std::unique_ptr<dd::Table> dd_tab(const_cast<dd::Table*>(c_dd_tab));
+
   // Attempt to reconstruct the table
   return ha_create_table(thd, path, schema_name, table_name, &create_info,
-                         true, false, NULL);
+                         true, false, dd_tab.get(), NULL, true);
+}
+
+
+template <typename T>
+std::unique_ptr<T> acquire_uncached_uncommitted_table(THD *thd,
+                                                      const char *schema_name,
+                                                      const char *name)
+{
+  const T *object;
+  if (thd->dd_client()->acquire_uncached_uncommitted(schema_name, name,
+                                                     &object))
+    return std::unique_ptr<T>(nullptr);
+
+  if (!object)
+  {
+    my_error(ER_NO_SUCH_TABLE, MYF(0), schema_name, name);
+    return std::unique_ptr<T>(nullptr);
+  }
+
+  return std::unique_ptr<T>(const_cast<T*>(object));
 }
 
 } // namespace dd

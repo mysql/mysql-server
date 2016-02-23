@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@ static bool is_slave_applier(THD *thd)
 
 static handler *blackhole_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
+                                         bool partitioned,
                                          MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_blackhole(hton, table);
@@ -57,7 +58,8 @@ ha_blackhole::ha_blackhole(handlerton *hton,
 {}
 
 
-int ha_blackhole::open(const char *name, int mode, uint test_if_locked)
+int ha_blackhole::open(const char *name, int mode, uint test_if_locked,
+                       const dd::Table *)
 {
   DBUG_ENTER("ha_blackhole::open");
 
@@ -76,7 +78,8 @@ int ha_blackhole::close(void)
 }
 
 int ha_blackhole::create(const char *name, TABLE *table_arg,
-                         HA_CREATE_INFO *create_info)
+                         HA_CREATE_INFO *create_info,
+                         dd::Table *, const char *)
 {
   DBUG_ENTER("ha_blackhole::create");
   DBUG_RETURN(0);
@@ -86,7 +89,7 @@ int ha_blackhole::create(const char *name, TABLE *table_arg,
   Intended to support partitioning.
   Allows a particular partition to be truncated.
 */
-int ha_blackhole::truncate()
+int ha_blackhole::truncate(dd::Table *)
 {
   DBUG_ENTER("ha_blackhole::truncate");
   DBUG_RETURN(0);

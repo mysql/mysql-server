@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -172,7 +172,8 @@ public:
   /** @brief
     We implement this in ha_example.cc; it's a required method.
   */
-  int open(const char *name, int mode, uint test_if_locked);    // required
+  int open(const char *name, int mode, uint test_if_locked,
+           const dd::Table *dd_tab);    // required
 
   /** @brief
     We implement this in ha_example.cc; it's a required method.
@@ -245,13 +246,14 @@ public:
   int extra(enum ha_extra_function operation);
   int external_lock(THD *thd, int lock_type);                   ///< required
   int delete_all_rows(void);
-  int truncate();
+  int truncate(dd::Table *dd_tab);
   ha_rows records_in_range(uint inx, key_range *min_key,
                            key_range *max_key);
-  int delete_table(const char *from);
-  int rename_table(const char * from, const char * to);
+  int delete_table(const char *from, dd::Table *dd_tab);
+  int rename_table(const char * from, const char * to, dd::Table *dd_tab);
   int create(const char *name, TABLE *form,
-             HA_CREATE_INFO *create_info);                      ///< required
+             HA_CREATE_INFO *create_info,
+             dd::Table *dd_tab, const char *sql_name);          ///< required
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);     ///< required

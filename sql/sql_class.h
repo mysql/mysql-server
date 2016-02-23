@@ -1498,6 +1498,17 @@ public:
 private:
   std::unique_ptr<Transaction_ctx> m_transaction;
 
+public:
+  enum killed_state
+  {
+    NOT_KILLED=0,
+    KILL_CONNECTION=ER_SERVER_SHUTDOWN,
+    KILL_QUERY=ER_QUERY_INTERRUPTED,
+    KILL_TIMEOUT=ER_QUERY_TIMEOUT,
+    KILLED_NO_VALUE      /* means neither of the states */
+  };
+
+private:
   /** An utility struct for @c Attachable_trx */
   struct Transaction_state
   {
@@ -1552,6 +1563,7 @@ private:
       stick to UTC for internal storage of timestamps in DD objects.
     */
     bool m_time_zone_used;
+    killed_state m_killed;
   };
 
   /**
@@ -2185,14 +2197,6 @@ public:
     condition. For details see the implementation of awake(),
     especially the "broadcast" part.
   */
-  enum killed_state
-  {
-    NOT_KILLED=0,
-    KILL_CONNECTION=ER_SERVER_SHUTDOWN,
-    KILL_QUERY=ER_QUERY_INTERRUPTED,
-    KILL_TIMEOUT=ER_QUERY_TIMEOUT,
-    KILLED_NO_VALUE      /* means neither of the states */
-  };
   killed_state volatile killed;
 
   /**

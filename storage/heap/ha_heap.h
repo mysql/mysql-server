@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,7 +63,8 @@ public:
   double read_time(uint index, uint ranges, ha_rows rows)
   { return (double) rows /  20.0+1; }
 
-  int open(const char *name, int mode, uint test_if_locked);
+  int open(const char *name, int mode, uint test_if_locked,
+           const dd::Table *dd_tab);
   int close(void);
   void set_keys_for_scanning(void);
   int write_row(uchar * buf);
@@ -92,16 +93,17 @@ public:
   int reset();
   int external_lock(THD *thd, int lock_type);
   int delete_all_rows(void);
-  int truncate();
+  int truncate(dd::Table *dd_tab);
   int reset_auto_increment(ulonglong value);
   int disable_indexes(uint mode);
   int enable_indexes(uint mode);
   int indexes_are_disabled(void);
   ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
-  int delete_table(const char *from);
+  int delete_table(const char *from, dd::Table *dd_tab);
   void drop_table(const char *name);
-  int rename_table(const char * from, const char * to);
-  int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);
+  int rename_table(const char * from, const char * to, dd::Table *dd_tab);
+  int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
+             dd::Table *dd_tab, const char *sql_name);
   void update_create_info(HA_CREATE_INFO *create_info);
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,

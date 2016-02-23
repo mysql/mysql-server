@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -469,7 +469,7 @@ void Cache_temp_engine_properties::init(THD *thd)
 
   // Cache HEAP engine's
   db_plugin= ha_lock_engine(0, heap_hton);
-  handler= get_new_handler((TABLE_SHARE *)0, thd->mem_root, heap_hton);
+  handler= get_new_handler((TABLE_SHARE *)0, false, thd->mem_root, heap_hton);
   HEAP_MAX_KEY_LENGTH= handler->max_key_length();
   HEAP_MAX_KEY_PART_LENGTH= handler->max_key_part_length();
   HEAP_MAX_KEY_PARTS= handler->max_key_parts();
@@ -477,7 +477,7 @@ void Cache_temp_engine_properties::init(THD *thd)
   plugin_unlock(0, db_plugin);
   // Cache MYISAM engine's
   db_plugin= ha_lock_engine(0, myisam_hton);
-  handler= get_new_handler((TABLE_SHARE *)0, thd->mem_root, myisam_hton);
+  handler= get_new_handler((TABLE_SHARE *)0, false, thd->mem_root, myisam_hton);
   MYISAM_MAX_KEY_LENGTH= handler->max_key_length();
   MYISAM_MAX_KEY_PART_LENGTH= handler->max_key_part_length();
   MYISAM_MAX_KEY_PARTS= handler->max_key_parts();
@@ -485,7 +485,7 @@ void Cache_temp_engine_properties::init(THD *thd)
   plugin_unlock(0, db_plugin);
   // Cache INNODB engine's
   db_plugin= ha_lock_engine(0, innodb_hton);
-  handler= get_new_handler((TABLE_SHARE *)0, thd->mem_root, innodb_hton);
+  handler= get_new_handler((TABLE_SHARE *)0, false, thd->mem_root, innodb_hton);
   INNODB_MAX_KEY_LENGTH= handler->max_key_length();
   /*
     For ha_innobase::max_supported_key_part_length(), the returned value
@@ -846,6 +846,7 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   share->keys_for_keyread.init();
   share->keys_in_use.init();
   share->keys= 0;
+  share->field= reg_field;
   if (param->schema_table)
     share->db= INFORMATION_SCHEMA_NAME;
 
@@ -1061,7 +1062,7 @@ update_hidden:
   if (select_options & TMP_TABLE_FORCE_MYISAM)
   {
     share->db_plugin= ha_lock_engine(0, myisam_hton);
-    table->file= get_new_handler(share, &table->mem_root,
+    table->file= get_new_handler(share, false, &table->mem_root,
                                  share->db_type());
   }
   else if (blob_count ||
@@ -1084,13 +1085,13 @@ update_hidden:
       share->db_plugin= ha_lock_engine(0, innodb_hton);
     }
 
-    table->file= get_new_handler(share, &table->mem_root,
+    table->file= get_new_handler(share, false, &table->mem_root,
                                  share->db_type());
   }
   else
   {
     share->db_plugin= ha_lock_engine(0, heap_hton);
-    table->file= get_new_handler(share, &table->mem_root,
+    table->file= get_new_handler(share, false, &table->mem_root,
                                  share->db_type());
   }
 
@@ -1236,6 +1237,7 @@ update_hidden:
     field_count= ++fieldnr;
     param->hidden_field_count++;
     share->fields= field_count;
+    share->field--;
     table->hash_field= field;
   }
 
@@ -1676,6 +1678,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   share->primary_key= MAX_KEY;               // Indicate no primary key
   share->keys_for_keyread.init();
   share->keys_in_use.init();
+  share->field= reg_field;
 
   uint reclength= 0;
   uint null_count= 0;
@@ -1740,13 +1743,13 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
       DBUG_ASSERT(0); /* purecov: deadcode */
       share->db_plugin= ha_lock_engine(0, innodb_hton);
     }
-    table->file= get_new_handler(share, &table->mem_root,
+    table->file= get_new_handler(share, false, &table->mem_root,
                                  share->db_type());
   }
   else
   {
     share->db_plugin= ha_lock_engine(0, heap_hton);
-    table->file= get_new_handler(share, &table->mem_root,
+    table->file= get_new_handler(share, false, &table->mem_root,
                                  share->db_type());
   }
 
@@ -1975,6 +1978,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
   table->temp_pool_slot= MY_BIT_NONE;
   share->blob_field= blob_field;
   share->fields= field_count;
+  share->field= field;
   share->db_low_byte_first=1;                // True for HEAP and MyISAM
   setup_tmp_table_column_bitmaps(table, bitmaps);
 
@@ -2073,7 +2077,8 @@ static bool open_tmp_table(TABLE *table)
 {
   int error;
   if ((error=table->file->ha_open(table, table->s->table_name.str,O_RDWR,
-                                  HA_OPEN_TMP_TABLE | HA_OPEN_INTERNAL_TABLE)))
+                                  HA_OPEN_TMP_TABLE | HA_OPEN_INTERNAL_TABLE,
+                                  NULL)))
   {
     table->file->print_error(error,MYF(0)); /* purecov: inspected */
     table->db_stat=0;
@@ -2259,7 +2264,8 @@ static bool create_innodb_tmp_table(TABLE *table, KEY *keyinfo)
                         HA_LEX_CREATE_INTERNAL_TMP_TABLE;
 
   int error;
-  if ((error= table->file->create(share->table_name.str, table, &create_info)))
+  if ((error= table->file->create(share->table_name.str, table,
+                                  &create_info, NULL, NULL)))
   {
     table->file->print_error(error,MYF(0));    /* purecov: inspected */
     /*
@@ -2376,7 +2382,7 @@ bool instantiate_tmp_table(TABLE *table, KEY *keyinfo,
 
   if (open_tmp_table(table))
   {
-    table->file->ha_delete_table(table->s->table_name.str);
+    table->file->ha_delete_table(table->s->table_name.str, NULL);
     return TRUE;
   }
 
@@ -2410,7 +2416,7 @@ free_tmp_table(THD *thd, TABLE *entry)
     if (entry->db_stat)
       entry->file->ha_drop_table(entry->s->table_name.str);
     else
-      entry->file->ha_delete_table(entry->s->table_name.str);
+      entry->file->ha_delete_table(entry->s->table_name.str, NULL);
     delete entry->file;
     entry->file= NULL;
 
@@ -2510,7 +2516,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
     new_table.s->db_plugin= ha_lock_engine(thd, innodb_hton);
   }
 
-  if (!(new_table.file= get_new_handler(&share, &new_table.mem_root,
+  if (!(new_table.file= get_new_handler(&share, false, &new_table.mem_root,
                                         new_table.s->db_type())))
     DBUG_RETURN(1);				// End of memory
   if (new_table.file->set_ha_share_ref(&share.ha_share))
@@ -2620,6 +2626,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
     }
   }
   table->file->change_table_ptr(table, table->s);
+  table->file->set_ha_share_ref(&table->s->ha_share);
   table->use_all_columns();
   if (save_proc_info)
     thd_proc_info(thd, (!strcmp(save_proc_info,"Copying to tmp table") ?
@@ -2636,7 +2643,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *table,
     (void) table->file->ha_rnd_end();
   (void) new_table.file->ha_close();
  err1:
-  new_table.file->ha_delete_table(new_table.s->table_name.str);
+  new_table.file->ha_delete_table(new_table.s->table_name.str, NULL);
  err2:
   delete new_table.file;
   thd_proc_info(thd, save_proc_info);

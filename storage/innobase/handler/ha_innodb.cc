@@ -1071,12 +1071,14 @@ innobase_release_savepoint(
 /** Function for constructing an InnoDB table handler instance.
 @param[in,out]	hton		handlerton for InnoDB
 @param[in]	table		MySQL table
+@param[in]	partitioned	Indicates whether table is partitioned
 @param[in]	mem_root	memory context */
 static
 handler*
 innobase_create_handler(
 	handlerton*	hton,
 	TABLE_SHARE*	table,
+	bool		partitioned,
 	MEM_ROOT*	mem_root);
 
 /** Create SDI in a tablespace. This API should be used when
@@ -1476,23 +1478,17 @@ innobase_commit_concurrency_validate(
 /** Function for constructing an InnoDB table handler instance.
 @param[in,out]	hton		handlerton for InnoDB
 @param[in]	table		MySQL table
+@param[in]	partitioned	Indicates whether table is partitioned
 @param[in]	mem_root	memory context */
 static
 handler*
 innobase_create_handler(
 	handlerton*	hton,
 	TABLE_SHARE*	table,
+	bool		partitioned,
 	MEM_ROOT*	mem_root)
 {
-	/* If the table:
-	1) have type InnoDB (not the generic partition handlerton)
-	2) have partitioning defined
-	Then return the native partitioning handler ha_innopart
-	else return normal ha_innobase handler. */
-	if (table
-	    && table->db_type() == innodb_hton_ptr // 1)
-	    && table->partition_info_str           // 2)
-	    && table->partition_info_str_len) {    // 2)
+	if (partitioned) {
 		ha_innopart* file = new (mem_root) ha_innopart(hton, table);
 		if (file && file->init_partitioning(mem_root))
 		{
@@ -4108,7 +4104,8 @@ innodb_init(
 	innobase_hton->show_status = innobase_show_status;
 	innobase_hton->fill_is_table = innobase_fill_i_s_table;
 	innobase_hton->flags =
-		HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS;
+		HTON_SUPPORTS_EXTENDED_KEYS | HTON_SUPPORTS_FOREIGN_KEYS |
+		HTON_SUPPORTS_ATOMIC_DDL;
 
 	innobase_hton->release_temporary_latches =
 		innobase_release_temporary_latches;
@@ -6164,7 +6161,7 @@ ha_innobase::innobase_initialize_autoinc()
 @retval 1 if error
 @retval 0 if success */
 int
-ha_innobase::open(const char* name, int, uint)
+ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 {
 	dict_table_t*		ib_table;
 	char			norm_name[FN_REFLEN];
@@ -11235,7 +11232,7 @@ struct innodb_dd_table_t {
 /** The hard-coded data dictionary tables */
 static const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("version", 1),
-	INNODB_DD_TABLE("character_sets", 2),
+	INNODB_DD_TABLE("character_sets", 3),
 	INNODB_DD_TABLE("collations", 3),
 	INNODB_DD_TABLE("tablespaces", 2),
 	INNODB_DD_TABLE("tablespace_files", 2),
@@ -12486,17 +12483,22 @@ ha_innobase::get_se_private_data(
 }
 
 /** Create an InnoDB table.
-@param[in]	name		table name
-@param[in]	form		table structure
-@param[in]	create_info	more information on the table
-@param[in]	file_per_table	whether to create a per-table tablespace
-@return error number */
+@param[in]	name		Table name, format: "db/table_name".
+@param[in]	form		Table format; columns and index information.
+@param[in]	create_info	Create info (including create statement string).
+@param[in,out]	dd_table	data dictionary cache object
+@param[in]	sql_name	user-visible table name
+@param[in]	file_per_table	whether to create a tablespace too
+@return	error number
+@retval 0 on success */
 int
 ha_innobase::create(
-	const char*	name,
-	TABLE*		form,
-	HA_CREATE_INFO*	create_info,
-	bool		file_per_table)
+	const char*		name,
+	TABLE*			form,
+	HA_CREATE_INFO*		create_info,
+	dd::Table*		dd_table,
+	const char *		sql_name,
+	bool			file_per_table)
 {
 	int		error;
 	char		norm_name[FN_REFLEN];	/* {database}/{tablename} */
@@ -12606,19 +12608,24 @@ cleanup:
 @param[in]	name		table name
 @param[in]	form		table structure
 @param[in]	create_info	more information on the table
+@param[in,out]	dd_table	data dictionary cache object
+@param[in]	sql_name	user-visible table name
 @return error number */
 int
 ha_innobase::create(
-	const char*	name,
-	TABLE*		form,
-	HA_CREATE_INFO*	create_info)
+	const char*		name,
+	TABLE*			form,
+	HA_CREATE_INFO*		create_info,
+	dd::Table*		dd_table,
+	const char *		sql_name)
 {
 	/* Determine if this CREATE TABLE will be making a file-per-table
 	tablespace.  Note that "srv_file_per_table" is not under
 	dict_sys mutex protection, and could be changed while creating the
 	table. So we read the current value here and make all further
 	decisions based on this. */
-	return(create(name, form, create_info, srv_file_per_table));
+	return(create(name, form, create_info, dd_table,
+		sql_name, srv_file_per_table));
 }
 
 /*****************************************************************//**
@@ -12757,9 +12764,10 @@ ha_innobase::discard_or_import_tablespace(
 }
 
 /** DROP and CREATE an InnoDB table.
-@return error number */
+@return	error number
+@retval 0 on success */
 int
-ha_innobase::truncate()
+ha_innobase::truncate(dd::Table *dd_tab)
 {
 	DBUG_ENTER("ha_innobase::truncate");
 	/* The table should have been opened in ha_innobase::open().
@@ -12813,13 +12821,16 @@ ha_innobase::truncate()
 
 	close();
 
-	int	error	= delete_table(name, SQLCOM_TRUNCATE);
+	int	error	= delete_table(
+		name, dd_tab, SQLCOM_TRUNCATE);
 
 	if (!error) {
-		error = create(name, table, &info, file_per_table);
+		error = create(name, table, &info, dd_tab,
+				table->s->table_name.str,
+				file_per_table);
 	}
 
-	open(name, 0, 0);
+	open(name, 0, 0, dd_tab);
 
 	if (!error) {
 		dict_names_t	fk_tables;
@@ -12851,12 +12862,14 @@ ha_innobase::truncate()
 }
 
 /** Drop a table.
-@param[in]	name	table name
+@param[in]	name		table name
+@param[in,out]	dd_table	data dictionary table
 @return error number */
 
 int
 ha_innobase::delete_table(
-	const char*		name)
+	const char*		name,
+	dd::Table*		dd_table)
 {
 	enum enum_sql_command	sqlcom	= static_cast<enum enum_sql_command>(
 		thd_sql_command(ha_thd()));
@@ -12872,17 +12885,19 @@ ha_innobase::delete_table(
 	from the data dictionary tables. */
 	DBUG_ASSERT(sqlcom != SQLCOM_TRUNCATE);
 
-	return(delete_table(name, sqlcom));
+	return(delete_table(name, dd_table, sqlcom));
 }
 
 /** Drop a table.
-@param[in]	name	table name
+@param[in]	name		table name
+@param[in,out]	dd_table	data dictionary table
 @param[in]	sqlcom	type of operation that the DROP is part of
-@return error number */
-
+@return	error number
+@retval 0 on success */
 int
 ha_innobase::delete_table(
 	const char*		name,
+	dd::Table*		dd_table,
 	enum enum_sql_command	sqlcom)
 {
 	dberr_t	err;
@@ -13652,7 +13667,8 @@ int
 ha_innobase::rename_table(
 /*======================*/
 	const char*	from,	/*!< in: old name of the table */
-	const char*	to)	/*!< in: new name of the table */
+	const char*	to,	/*!< in: new name of the table */
+	dd::Table*	dd_tab)
 {
 	THD*	thd = ha_thd();
 

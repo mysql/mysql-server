@@ -20,3 +20,5 @@ explain_for_connection_rqg_trad : Bug#20697533 2015-03-20 erlend Fails several t
 # For more details on tags WL6378_* refer sql/dd/mtr_readme.txt
 main.mysql_upgrade        : WL#6378 2015-11-06 jhauglid WL6378_UPGRADE
 main.status               : Bug#14286343 2015-12-22 Mohit Legacy Bug leading to sporadic failures on PB2 occuring since 2012.
+synchronization           : WL#7743 auto-inc on DD issue
+innodb_mysql_sync         : WL#7743 auto-inc on DD issue

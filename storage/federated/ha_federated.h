@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -200,7 +200,8 @@ public:
     Most of these methods are not obligatory, skip them and
     MySQL will treat them as not implemented
   */
-  int open(const char *name, int mode, uint test_if_locked);    // required
+  int open(const char *name, int mode, uint test_if_locked,
+           const dd::Table *dd_tab);                            // required
   int close(void);                                              // required
 
   void start_bulk_insert(ha_rows rows);
@@ -245,9 +246,10 @@ public:
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
 
   int delete_all_rows(void);
-  int truncate();
+  int truncate(dd::Table *dd_tab);
   int create(const char *name, TABLE *form,
-             HA_CREATE_INFO *create_info);                      //required
+             HA_CREATE_INFO *create_info,
+             dd::Table *dd_tab, const char *sql_name); //required
   ha_rows records_in_range(uint inx, key_range *start_key,
                                    key_range *end_key);
   uint8 table_cache_type() { return HA_CACHE_TBL_NOCACHE; }

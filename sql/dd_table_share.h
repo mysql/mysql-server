@@ -1,6 +1,6 @@
 #ifndef DD_TABLE_SHARE_INCLUDED
 #define DD_TABLE_SHARE_INCLUDED
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,8 @@ struct TABLE_SHARE;
 typedef struct charset_info_st CHARSET_INFO;
 namespace dd {
   class Table;
+  class Index;
+  class Index_element;
 }
 
 
@@ -62,5 +64,10 @@ static inline CHARSET_INFO *dd_get_mysql_charset(dd::Object_id dd_cs_id)
 {
   return get_charset(static_cast<uint> (dd_cs_id), MYF(0));
 }
+
+//////////////////////////////////////////////////////////////////////////
+
+bool dd_index_element_is_prefix(const dd::Index_element *idx_el);
+bool dd_index_is_candidate_key(const dd::Index *idx);
 
 #endif // DD_TABLE_SHARE_INCLUDED

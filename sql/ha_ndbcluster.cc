@@ -368,6 +368,7 @@ ndbcluster_fill_is_table(handlerton *hton, THD *thd, TABLE_LIST *tables,
 
 static handler *ndbcluster_create_handler(handlerton *hton,
                                           TABLE_SHARE *table,
+                                          bool partitioned,
                                           MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_ndbcluster(hton, table);
@@ -17990,7 +17991,7 @@ ha_ndbcluster::abort_inplace_alter_table(TABLE *altered_table,
   DBUG_RETURN(false);
 }
 
-void ha_ndbcluster::notify_table_changed()
+void ha_ndbcluster::notify_table_changed(Alter_inplace_info *)
 {
   DBUG_ENTER("ha_ndbcluster::notify_table_changed ");
 

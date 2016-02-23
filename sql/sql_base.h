@@ -137,7 +137,8 @@ uint cached_table_definitions(void);
 size_t get_table_def_key(const TABLE_LIST *table_list, const char **key);
 TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
                              const char *key, size_t key_length,
-                             bool open_view, my_hash_value_type hash_value);
+                             bool open_view, bool read_uncommitted,
+                             my_hash_value_type hash_value);
 void release_table_share(TABLE_SHARE *share);
 
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
@@ -189,6 +190,13 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
   table flush, wait on thr_lock.c locks) while opening and locking table.
 */
 #define MYSQL_OPEN_IGNORE_KILLED                0x4000
+/**
+  Use READ UNCOMMITTED to get table definition from data-dictionary.
+  It is responsibility of caller to clean up table and table definition
+  caches afterwards if necessary (e.g. if DDL statement fails). Implies
+  that X metadata lock is held on the table.
+*/
+#define MYSQL_OPEN_UNCOMMITTED                  0x8000
 
 /** Please refer to the internals manual. */
 #define MYSQL_OPEN_REOPEN  (MYSQL_OPEN_IGNORE_FLUSH |\
@@ -213,7 +221,8 @@ thr_lock_type read_lock_type_for_table(THD *thd,
                                        bool routine_modifies_data);
 
 bool mysql_rm_tmp_tables(void);
-bool rm_temporary_table(THD *thd, handlerton *base, const char *path);
+bool rm_temporary_table(THD *thd, handlerton *base, const char *path,
+                        dd::Table *dd_tab);
 void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
                              const MDL_savepoint &start_of_statement_svp);
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name);
@@ -272,8 +281,6 @@ bool setup_natural_join_row_types(THD *thd,
 bool wait_while_table_is_used(THD *thd, TABLE *table,
                               enum ha_extra_function function);
 
-void drop_open_table(THD *thd, TABLE *table, const char *db_name,
-                     const char *table_name);
 void update_non_unique_table_error(TABLE_LIST *update,
                                    const char *operation,
                                    TABLE_LIST *duplicate);

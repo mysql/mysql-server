@@ -15,3 +15,4 @@ binlog.binlog_mysqlbinlog_row_innodb @windows : Bug#22608247 2016-02-22 Erlend D
 binlog.binlog_gtid_mysqlbinlog_row        @windows : Bug#22608247 2016-02-08 Erlend Disabled on windows
 binlog.binlog_gtid_mysqlbinlog_row_innodb @windows : Bug#22608247 2016-02-08 Erlend Disabled on windows
 binlog.binlog_gtid_mysqlbinlog_row_myisam @windows : Bug#22608247 2016-02-22 Erlend Disabled on windows
+binlog.binlog_write_error : WL#7743/7016 Needs implementation of atomic DDL on InnoDB side

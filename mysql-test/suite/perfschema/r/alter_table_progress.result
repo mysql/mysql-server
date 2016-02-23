@@ -66,11 +66,27 @@ stage/sql/creating table	NULL	NULL
 stage/sql/Opening tables	NULL	NULL
 stage/sql/System lock	NULL	NULL
 stage/sql/After create	NULL	NULL
+stage/sql/Opening tables	NULL	NULL
+stage/sql/System lock	NULL	NULL
+stage/sql/Opening tables	NULL	NULL
+stage/sql/System lock	NULL	NULL
 stage/sql/System lock	NULL	NULL
 stage/sql/Opening tables	NULL	NULL
 stage/sql/System lock	NULL	NULL
 stage/sql/copy to tmp table	5	5
 stage/sql/rename result table	NULL	NULL
+stage/sql/Opening tables	NULL	NULL
+stage/sql/System lock	NULL	NULL
+stage/sql/Opening tables	NULL	NULL
+stage/sql/System lock	NULL	NULL
+stage/sql/Opening tables	NULL	NULL
+stage/sql/System lock	NULL	NULL
+stage/sql/Opening tables	NULL	NULL
+stage/sql/System lock	NULL	NULL
+stage/sql/Opening tables	NULL	NULL
+stage/sql/System lock	NULL	NULL
+stage/sql/Opening tables	NULL	NULL
+stage/sql/System lock	NULL	NULL
 stage/sql/Opening tables	NULL	NULL
 stage/sql/System lock	NULL	NULL
 stage/sql/Opening tables	NULL	NULL
