@@ -65,6 +65,7 @@ class Thd_ndb
   /* Skip binlog setup in ndbcluster_find_files() */
   bool m_skip_binlog_setup_in_find_files;
 
+  uint32 options;
 public:
   static Thd_ndb* seize(THD*);
   static void release(Thd_ndb* thd_ndb);
@@ -83,12 +84,34 @@ public:
   bool m_slow_path;
   bool m_force_send;
 
-  uint32 options;
-
   // Check if given option is set
-  bool check_option(uint32 option) const;
+  bool check_option(THD_NDB_OPTIONS option) const;
   // Set given option
-  void set_option(uint32 option);
+  void set_option(THD_NDB_OPTIONS option);
+
+  // Guard class for automatically restoring the state of
+  // Thd_ndb::options when the guard goes out of scope
+  class Options_guard
+  {
+    Thd_ndb* const m_thd_ndb;
+    const uint32 m_save_options;
+  public:
+    Options_guard(Thd_ndb* thd_ndb)
+      : m_thd_ndb(thd_ndb),
+        m_save_options(thd_ndb->options)
+    {
+      assert(sizeof(m_save_options) == sizeof(Thd_ndb::options));
+    }
+    ~Options_guard()
+    {
+      // Restore the saved options
+      m_thd_ndb->options= m_save_options;
+    }
+    void set(THD_NDB_OPTIONS option)
+    {
+      m_thd_ndb->set_option(option);
+    }
+  };
 
   uint32 trans_options;
   void transaction_checks(void);

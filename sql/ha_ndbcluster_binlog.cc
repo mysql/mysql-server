@@ -1052,17 +1052,6 @@ ndb_schema_table__create(THD *thd)
   DBUG_RETURN(res);
 }
 
-class Thd_ndb_options_guard
-{
-public:
-  Thd_ndb_options_guard(Thd_ndb *thd_ndb)
-    : m_val(thd_ndb->options), m_save_val(thd_ndb->options) {}
-  ~Thd_ndb_options_guard() { m_val= m_save_val; }
-  void set(uint32 flag) { m_val|= flag; }
-private:
-  uint32 &m_val;
-  uint32 m_save_val;
-};
 
 extern int ndb_setup_complete;
 extern native_cond_t COND_ndb_setup_complete;
@@ -1146,7 +1135,7 @@ static int ndbcluster_find_all_databases(THD *thd)
 {
   Ndb *ndb= check_ndb_in_thd(thd);
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
-  Thd_ndb_options_guard thd_ndb_options(thd_ndb);
+  Thd_ndb::Options_guard thd_ndb_options(thd_ndb);
   NDBDICT *dict= ndb->getDictionary();
   NdbTransaction *trans= NULL;
   NdbError ndb_error;
@@ -1490,7 +1479,7 @@ ndb_binlog_setup(THD *thd)
     }
 
     /* Give additional 'binlog_setup rights' to this Thd_ndb */
-    Thd_ndb_options_guard thd_ndb_options(get_thd_ndb(thd));
+    Thd_ndb::Options_guard thd_ndb_options(get_thd_ndb(thd));
     thd_ndb_options.set(TNO_ALLOW_BINLOG_SETUP);
 
     if (ndb_create_table_from_engine(thd, NDB_REP_DB, NDB_SCHEMA_TABLE))
@@ -1661,10 +1650,10 @@ int ndbcluster_log_schema_op(THD *thd,
     thd_set_thd_ndb(thd, thd_ndb);
   }
 
-  DBUG_PRINT("enter",
-             ("query: %s  db: %s  table_name: %s  thd_ndb->options: %d",
-              query, db, table_name, thd_ndb->options));
-  if (!ndb_schema_share || thd_ndb->options & TNO_NO_LOG_SCHEMA_OP)
+  DBUG_PRINT("enter", ("query: %s  db: %s  table_name: %s",
+                       query, db, table_name));
+  if (!ndb_schema_share ||
+      thd_ndb->check_option(TNO_NO_LOG_SCHEMA_OP))
   {
     if (thd->slave_thread)
       update_slave_api_stats(thd_ndb->ndb);
@@ -4729,7 +4718,7 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
   // Before 'schema_dist_is_ready', TNO_ALLOW_BINLOG_SETUP is required
   int ret= 0;
   if (ndb_schema_dist_is_ready() ||
-      get_thd_ndb(thd)->options & TNO_ALLOW_BINLOG_SETUP)
+      get_thd_ndb(thd)->check_option(TNO_ALLOW_BINLOG_SETUP))
   {
     ret= ndbcluster_create_binlog_setup(thd, ndb, share);
   }
@@ -5163,7 +5152,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra  use_count: %u",
                              share->key_string(), share->use_count));
     (void) native_cond_signal(&injector_cond);
-    DBUG_ASSERT(get_thd_ndb(thd)->options & TNO_ALLOW_BINLOG_SETUP);
+    DBUG_ASSERT(get_thd_ndb(thd)->check_option(TNO_ALLOW_BINLOG_SETUP));
   }
   else if (do_ndb_schema_share)
   {
@@ -5172,7 +5161,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra  use_count: %u",
                              share->key_string(), share->use_count));
     (void) native_cond_signal(&injector_cond);
-    DBUG_ASSERT(get_thd_ndb(thd)->options & TNO_ALLOW_BINLOG_SETUP);
+    DBUG_ASSERT(get_thd_ndb(thd)->check_option(TNO_ALLOW_BINLOG_SETUP));
   }
 
   DBUG_PRINT("info",("%s share->op: 0x%lx  share->use_count: %u",
@@ -6581,7 +6570,8 @@ restart_cluster_failure:
 
     DBUG_ASSERT(ndbcluster_hton->slot != ~(uint)0);
     thd_set_thd_ndb(thd, thd_ndb);
-    thd_ndb->options|= TNO_NO_LOG_SCHEMA_OP;
+
+    thd_ndb->set_option(TNO_NO_LOG_SCHEMA_OP);
 
     /*
       Prevent schema dist participant from (implicitly)

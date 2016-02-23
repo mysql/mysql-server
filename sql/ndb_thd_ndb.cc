@@ -131,14 +131,14 @@ Thd_ndb::init_open_tables()
 
 
 bool
-Thd_ndb::check_option(uint32 option) const
+Thd_ndb::check_option(THD_NDB_OPTIONS option) const
 {
   return (options & option);
 }
 
 
 void
-Thd_ndb::set_option(uint32 option)
+Thd_ndb::set_option(THD_NDB_OPTIONS option)
 {
   options |= option;
 }
