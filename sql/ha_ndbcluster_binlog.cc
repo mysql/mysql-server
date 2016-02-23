@@ -1110,14 +1110,15 @@ void clean_away_stray_files(THD *thd)
        */
 
       Thd_ndb *thd_ndb= get_thd_ndb(thd);
-      thd_ndb->set_skip_binlog_setup_in_find_files(true);
+      Thd_ndb::Options_guard thd_ndb_options(thd_ndb);
+      thd_ndb->set_option(Thd_ndb::SKIP_BINLOG_SETUP_IN_FIND_FILES);
+
       Ndb_find_files_list tab_names(thd);
       if (!tab_names.find_tables(db_name->str, path))
       {
         thd->clear_error();
         DBUG_PRINT("info", ("Failed to find tables"));
       }
-      thd_ndb->set_skip_binlog_setup_in_find_files(false);
     }
   }
   DBUG_VOID_RETURN;

@@ -46,9 +46,6 @@ class Thd_ndb
   ~Thd_ndb();
   const bool m_slave_thread; // cached value of thd->slave_thread
 
-  /* Skip binlog setup in ndbcluster_find_files() */
-  bool m_skip_binlog_setup_in_find_files;
-
   uint32 options;
 public:
   static Thd_ndb* seize(THD*);
@@ -81,7 +78,10 @@ public:
       Gives special priorites to this Thd_ndb, allowing it to create
       schema distribution event ops before ndb_schema_dist_is_ready()
      */
-    ALLOW_BINLOG_SETUP= 1 << 2
+    ALLOW_BINLOG_SETUP= 1 << 2,
+
+    /* Skip binlog setup in ndbcluster_find_files() */
+    SKIP_BINLOG_SETUP_IN_FIND_FILES = 1 << 3
   };
 
   // Check if given option is set
@@ -179,19 +179,6 @@ public:
   bool recycle_ndb(void);
 
   bool is_slave_thread(void) const { return m_slave_thread; }
-
-  void set_skip_binlog_setup_in_find_files(bool value)
-  {
-    // Only alloow toggeling the value
-    assert(m_skip_binlog_setup_in_find_files != value);
-
-    m_skip_binlog_setup_in_find_files = value;
-  }
-
-  bool skip_binlog_setup_in_find_files(void) const
-  {
-    return m_skip_binlog_setup_in_find_files;
-  }
 };
 
 #endif
