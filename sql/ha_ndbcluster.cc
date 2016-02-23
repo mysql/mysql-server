@@ -1236,7 +1236,6 @@ uchar *thd_ndb_share_get_key(THD_NDB_SHARE *thd_ndb_share, size_t *length,
 Thd_ndb::Thd_ndb(THD* thd) :
   m_thd(thd),
   m_slave_thread(thd->slave_thread),
-  m_skip_binlog_setup_in_find_files(false),
   options(0),
   schema_locks_count(0),
   m_last_commit_epoch_session(0)
@@ -13402,7 +13401,7 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
     }
   }
 
-  if (!thd_ndb->skip_binlog_setup_in_find_files())
+  if (!thd_ndb->check_option(Thd_ndb::SKIP_BINLOG_SETUP_IN_FIND_FILES))
   {
     /* setup logging to binlog for all discovered tables */
     char *end, *end1= name +
