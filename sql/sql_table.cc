@@ -1217,7 +1217,7 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
 
             // Remove table from DD
             if (table_exists &&
-                dd::drop_table<dd::Table>(thd, db, table_name))
+                dd::drop_table<dd::Table>(thd, db, table_name, true))
               break;
           }
         }
@@ -1937,7 +1937,7 @@ err:
       We ignore error from dd_drop_table() as we anyway
       return 'true' failure below.
     */
-    (void) dd::drop_table<dd::Table>(thd, db, table_name);
+    (void) dd::drop_table<dd::Table>(thd, db, table_name, true);
   }
 
   DBUG_RETURN(true);
@@ -2735,9 +2735,9 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           uint err;
           if (drop_view) // Remove either table or a view
             err= dd::drop_table<dd::Abstract_table>(thd, db,
-                                                   table->table_name);
+                                                    table->table_name, true);
           else // Remove only table
-            err= dd::drop_table<dd::Table>(thd, db, table->table_name);
+            err= dd::drop_table<dd::Table>(thd, db, table->table_name, true);
 
           if (!err)
           {
@@ -3081,7 +3081,7 @@ bool quick_rm_table(THD *thd, handlerton *base, const char *db,
   // because the DDL code will handle situations where a table is present
   // in the DD while missing from the SE, but not the opposite.
   if (!dd::get_dictionary()->is_dd_table_name(db, table_name) &&
-      dd::drop_table<dd::Table>(thd, db, table_name))
+      dd::drop_table<dd::Table>(thd, db, table_name, !(flags & NO_DD_COMMIT)))
   {
     DBUG_ASSERT(thd->is_error() || thd->killed);
     DBUG_RETURN(true);
@@ -5784,7 +5784,7 @@ bool create_table_impl(THD *thd,
         as we anyway report error.
       */
       if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
-        (void) dd::drop_table<dd::Table>(thd, db, table_name);
+        (void) dd::drop_table<dd::Table>(thd, db, table_name, true);
 
       file->ha_create_handler_files(path, NULL, CHF_DELETE_FLAG, create_info);
 
@@ -9443,6 +9443,8 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
       this thread was killed) then it must be that previous step of
       simple rename did nothing and therefore we can safely return
       without additional clean-up.
+
+      WL7743/TODO: Handle this as part of work on RENAME TABLE.
     */
     if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
       DBUG_RETURN(true);
@@ -10104,6 +10106,10 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
     We become responsible for destroying this dd::Table object until we pass its
     ownership to the TABLE_SHARE of the temporary table.
+
+    WL7743/TODO: Consider acquiring X lock on tmp_name before using it (needed
+                 to block InnoDB purge, also makes sense since such names might
+                 be visible to other threads for non-trans SEs).
   */
   dd::Table *tmp_table_def;
 
@@ -10123,12 +10129,15 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   if (error)
     DBUG_RETURN(true);
 
+  /*
+    Atomic replacement of the table is possible only if both old and new
+    storage engines support DDL atomicity.
+  */
+  bool atomic_replace= (new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
+                       (old_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL);
+
   /* Remember that we have not created table in storage engine yet. */
   bool no_ha_table= true;
-
-  /* WL7743/TODO: To be removed once ALTER TABLE COPY case is covered. */
-  bool dd_change_committed= !(create_info->db_type->flags &
-                              HTON_SUPPORTS_ATOMIC_DDL);
 
   if (alter_info->requested_algorithm != Alter_info::ALTER_TABLE_ALGORITHM_COPY)
   {
@@ -10212,7 +10221,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       */
       close_temporary_table(thd, altered_table, true, false);
 
-      if (dd_change_committed)
+      if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
         // NewDD - Delete temporary .frm/.par
         (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
                               alter_ctx.tmp_name, FN_IS_TMP | NO_HA_TABLE);
@@ -10355,37 +10364,29 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       goto err_new_table_cleanup;
 
     DEBUG_SYNC(thd, "alter_table_copy_after_lock_upgrade");
-
-    /* WL7743/TODO: Remove once ALTER TABLE COPY branch is handled. */
-    if (trans_commit_stmt(thd) || trans_commit(thd))
-      goto err_new_table_cleanup;
-    dd_change_committed= true;
   }
 
   {
-    // Get table object for non-temporary tables
-    // WL7743/TODO: We should use in-memory or uncommited version of object
-    //              here once ALTER-related part of WL7743 is implemented.
-    std::unique_ptr<dd::Table> dd_tab;
+    /*
+      Get table object for non-temporary tables use uncommitted read
+      since changes to data-dictionary might be not yet committed.
 
-    if (!tmp_table_def)
-    {
-      // QQ Why do we need const here, what is the proper way?
-      const dd::Table *c_dd_tab;
-      if (thd->dd_client()->acquire_uncached<dd::Table>(alter_ctx.new_db,
-                                                        alter_ctx.tmp_name,
-                                                        &c_dd_tab))
-          goto err_new_table_cleanup;
+      QQ: merge table_def and tmp_table_def?
+    */
+    std::unique_ptr<dd::Table> table_def;
 
-      dd_tab.reset(const_cast<dd::Table*>(c_dd_tab));
-    }
+    if (!tmp_table_def &&
+        !(table_def= dd::acquire_uncached_uncommitted_table<dd::Table>(thd,
+                           alter_ctx.new_db, alter_ctx.tmp_name)))
+      goto err_new_table_cleanup;
 
     if (ha_create_table(thd, alter_ctx.get_tmp_path(),
                         alter_ctx.new_db, alter_ctx.tmp_name,
                         create_info, false, false,
-                        tmp_table_def ? tmp_table_def : dd_tab.get(),
+                        tmp_table_def ? tmp_table_def : table_def.get(),
                         table->s->table_name.str,
-                        true /* WL7743/TODO ALTER-stage*/))
+                        !(create_info->db_type->flags &
+                          HTON_SUPPORTS_ATOMIC_DDL)))
       goto err_new_table_cleanup;
 
     /* Mark that we have created table in storage engine. */
@@ -10401,40 +10402,40 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
         thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(thd, NULL);
     }
-  }
 
-  // It's now safe to take the table level lock.
-  if (lock_tables(thd, table_list, alter_ctx.tables_opened, 0))
-    goto err_new_table_cleanup;
+    // It's now safe to take the table level lock.
+    if (lock_tables(thd, table_list, alter_ctx.tables_opened, 0))
+      goto err_new_table_cleanup;
 
-  /* Open the table since we need to copy the data. */
-  if (table->s->tmp_table != NO_TMP_TABLE)
-  {
-    TABLE_LIST tbl;
-    tbl.init_one_table(alter_ctx.new_db, strlen(alter_ctx.new_db),
-                       alter_ctx.tmp_name, strlen(alter_ctx.tmp_name),
-                       alter_ctx.tmp_name, TL_READ_NO_INSERT);
-    /* Table is in thd->temporary_tables */
-    (void) open_temporary_table(thd, &tbl);
-    new_table= tbl.table;
-    /* Transfer dd::Table ownership to temporary table's share. */
-    new_table->s->tmp_table_def= tmp_table_def;
-    tmp_table_def= NULL;
+    /* Open the table since we need to copy the data. */
+    if (table->s->tmp_table != NO_TMP_TABLE)
+    {
+      TABLE_LIST tbl;
+      tbl.init_one_table(alter_ctx.new_db, strlen(alter_ctx.new_db),
+                         alter_ctx.tmp_name, strlen(alter_ctx.tmp_name),
+                         alter_ctx.tmp_name, TL_READ_NO_INSERT);
+      /* Table is in thd->temporary_tables */
+      (void) open_temporary_table(thd, &tbl);
+      new_table= tbl.table;
+      /* Transfer dd::Table ownership to temporary table's share. */
+      new_table->s->tmp_table_def= tmp_table_def;
+      tmp_table_def= NULL;
+    }
+    else
+    {
+      /* table is a normal table: Create temporary table in same directory */
+      /* Open our intermediate table. */
+      new_table= open_table_uncached(thd, alter_ctx.get_tmp_path(),
+                                     alter_ctx.new_db, alter_ctx.tmp_name,
+                                     true, true, table_def.get());
+    }
+    if (!new_table)
+      goto err_new_table_cleanup;
+    /*
+      Note: In case of MERGE table, we do not attach children. We do not
+      copy data for MERGE tables. Only the children have data.
+    */
   }
-  else
-  {
-    /* table is a normal table: Create temporary table in same directory */
-    /* Open our intermediate table. */
-    new_table= open_table_uncached(thd, alter_ctx.get_tmp_path(),
-                                   alter_ctx.new_db, alter_ctx.tmp_name,
-                                   true, true, NULL);
-  }
-  if (!new_table)
-    goto err_new_table_cleanup;
-  /*
-    Note: In case of MERGE table, we do not attach children. We do not
-    copy data for MERGE tables. Only the children have data.
-  */
 
   /*
     We do not copy data for MERGE tables. Only the children have data.
@@ -10488,6 +10489,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     DEBUG_SYNC(thd, "alter_table_manage_keys");
     alter_table_manage_keys(thd, table, table->file->indexes_are_disabled(),
                             alter_info->keys_onoff);
+    DBUG_ASSERT(!(new_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL));
     if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
       goto err_new_table_cleanup;
   }
@@ -10557,12 +10559,26 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   if (wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME))
     goto err_new_table_cleanup;
 
+  /*
+    To ensure DDL atomicity after this point support from both old and
+    new engines is necessary. If either of them lacks such support let
+    us commit transaction so changes to data-dictionary are more closely
+    reflect situations in SEs.
+  */
+  if (!atomic_replace)
+  {
+    if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
+      goto err_new_table_cleanup;
+  }
+
   close_all_tables_for_name(thd, table->s, alter_ctx.is_table_renamed(), NULL);
   table_list->table= table= NULL;                  /* Safety */
 
   /*
     Rename the old table to temporary name to have a backup in case
     anything goes wrong while renaming the new table.
+
+    WL7743/TODO Acquire X MDL lock on backup_name too?
   */
   char backup_name[32];
   DBUG_ASSERT(sizeof(my_thread_id) == 4);
@@ -10571,23 +10587,36 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, backup_name);
   if (mysql_rename_table(thd, old_db_type, alter_ctx.db, alter_ctx.table_name,
-                         alter_ctx.db, backup_name, FN_TO_IS_TMP))
+                         alter_ctx.db, backup_name,
+                         FN_TO_IS_TMP | (atomic_replace ? NO_DD_COMMIT : 0)))
   {
     // Catch situations where the SE has requested rollback. This will make
     // quick_rm_table() fail anyway when the DD starts an attachable
     // transaction. This situation will be fixed in WL#7785.
+    //
+    // WL7743/TODO: think about how this situation can be handled?
     DBUG_ASSERT(!thd->transaction_rollback_request);
 
     // Rename to temporary name failed, delete the new table, abort ALTER.
-    (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
-                          alter_ctx.tmp_name, FN_IS_TMP);
+    if (!atomic_replace)
+      (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
+                            alter_ctx.tmp_name, FN_IS_TMP);
+#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL7016
+    else
+    {
+      trans_commit_stmt(thd);
+      trans_commit_implicit(thd);
+      (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
+                            alter_ctx.tmp_name, FN_IS_TMP);
+    }
+#endif
     goto err_with_mdl;
   }
 
   // Rename the new table to the correct name.
   if (mysql_rename_table(thd, new_db_type, alter_ctx.new_db, alter_ctx.tmp_name,
                          alter_ctx.new_db, alter_ctx.new_alias,
-                         FN_FROM_IS_TMP))
+                         FN_FROM_IS_TMP | (atomic_replace ? NO_DD_COMMIT : 0)))
   {
     // Catch situations where the SE has requested rollback. This will make
     // quick_rm_table() fail anyway when the DD starts an attachable
@@ -10595,18 +10624,34 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     DBUG_ASSERT(!thd->transaction_rollback_request);
 
     // Rename failed, delete the temporary table.
-    (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
-                          alter_ctx.tmp_name, FN_IS_TMP);
+    if (!atomic_replace)
+    {
+      (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
+                            alter_ctx.tmp_name, FN_IS_TMP);
 
-    // Restore the backup of the original table to its original name.
-    // In lieu of wl#7785, if the operation fails, we need to retry it
-    // to avoid leaving the dictionary inconsistent.
-    uint retries= 20;
-    while (retries-- &&
-           mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,
-                              alter_ctx.db, alter_ctx.alias,
-                              FN_FROM_IS_TMP | NO_FK_CHECKS))
-      ;
+      // Restore the backup of the original table to its original name.
+      // In lieu of wl#7785, if the operation fails, we need to retry it
+      // to avoid leaving the dictionary inconsistent.
+      //
+      // WL7743/TODO: think about how this situation can be handled?
+      uint retries= 20;
+      while (retries-- &&
+             mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,
+                                alter_ctx.db, alter_ctx.alias,
+                                FN_FROM_IS_TMP | NO_FK_CHECKS));
+    }
+#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL7016
+    else
+    {
+      trans_commit_stmt(thd);
+      trans_commit_implicit(thd);
+      (void) quick_rm_table(thd, new_db_type, alter_ctx.new_db,
+                            alter_ctx.tmp_name, FN_IS_TMP);
+      (void) mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,
+                                alter_ctx.db, alter_ctx.alias,
+                                FN_FROM_IS_TMP | NO_FK_CHECKS);
+    }
+#endif
 
     goto err_with_mdl;
   }
@@ -10620,18 +10665,34 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                 alter_ctx.new_db,
                                 alter_ctx.new_alias))
   {
-    // Rename succeeded, delete the new table.
-    (void) quick_rm_table(thd, new_db_type,
-                          alter_ctx.new_db, alter_ctx.new_alias, 0);
-    // Restore the backup of the original table to the old name.
-    (void) mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,
-                              alter_ctx.db, alter_ctx.alias, 
-                              FN_FROM_IS_TMP | NO_FK_CHECKS);
+    if (!atomic_replace)
+    {
+      // Rename failed, delete the new table.
+      (void) quick_rm_table(thd, new_db_type,
+                            alter_ctx.new_db, alter_ctx.new_alias, 0);
+      // Restore the backup of the original table to the old name.
+      (void) mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,
+                                alter_ctx.db, alter_ctx.alias, 
+                                FN_FROM_IS_TMP | NO_FK_CHECKS);
+    }
+#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL7016
+    else
+    {
+      trans_commit_stmt(thd);
+      trans_commit_implicit(thd);
+      (void) quick_rm_table(thd, new_db_type,
+                            alter_ctx.new_db, alter_ctx.new_alias, 0);
+      (void) mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,
+                                alter_ctx.db, alter_ctx.alias, 
+                                FN_FROM_IS_TMP | NO_FK_CHECKS);
+    }
+#endif
     goto err_with_mdl;
   }
 
   // ALTER TABLE succeeded, delete the backup of the old table.
-  if (quick_rm_table(thd, old_db_type, alter_ctx.db, backup_name, FN_IS_TMP))
+  if (quick_rm_table(thd, old_db_type, alter_ctx.db, backup_name,
+                     FN_IS_TMP | (atomic_replace ? NO_DD_COMMIT : 0)))
   {
     /*
       The fact that deletion of the backup failed is not critical
@@ -10655,10 +10716,17 @@ end_inplace_noop:
   DBUG_ASSERT(!(mysql_bin_log.is_open() &&
                 thd->is_current_stmt_binlog_format_row() &&
                 (create_info->options & HA_LEX_CREATE_TMP_TABLE)));
-  if (write_bin_log(thd, true, thd->query().str, thd->query().length))
+  if (write_bin_log(thd, true, thd->query().str, thd->query().length,
+                    atomic_replace))
+    goto err_with_mdl;
+
+  // Commit if it was not done before in order to be able to reopen tables.
+  if (atomic_replace &&
+      (trans_commit_stmt(thd) || trans_commit_implicit(thd)))
     goto err_with_mdl;
 
 end_inplace:
+
   if (thd->locked_tables_list.reopen_tables(thd))
     goto err_with_mdl;
 
@@ -10698,7 +10766,7 @@ err_new_table_cleanup:
     else
       close_temporary_table(thd, new_table, true, true);
   }
-  else if (dd_change_committed)
+  else if (!(create_info->db_type->flags & HTON_SUPPORTS_ATOMIC_DDL))
     (void) quick_rm_table(thd, new_db_type,
                           alter_ctx.new_db, alter_ctx.tmp_name,
                           (FN_IS_TMP | (no_ha_table ? NO_HA_TABLE : 0)));
@@ -10840,9 +10908,20 @@ copy_data_between_tables(THD * thd,
   QEP_TAB &qep_tab= qep_tab_st.as_QEP_TAB();
   DBUG_ENTER("copy_data_between_tables");
 
-  if (mysql_trans_prepare_alter_copy_data(thd))
+  /*
+    If target storage engine supports atomic DDL we should not commit
+    and disable transaction to let SE do proper cleanup on error/crash.
+    Such engines should be smart enough to disable undo/redo logging
+    for target table automatically.
+    Temporary tables path doesn't employ atomic DDL support so disabling
+    transaction is OK. Moreover doing so allows to not interfere with
+    concurrent FLUSH TABLES WITH READ LOCK.
+  */
+  if ((!(to->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL) ||
+       from->s->tmp_table) &&
+      mysql_trans_prepare_alter_copy_data(thd))
     DBUG_RETURN(-1);
-  
+
   if (!(copy= new Copy_field[to->s->fields]))
     DBUG_RETURN(-1);				/* purecov: inspected */
 
@@ -11036,7 +11115,9 @@ copy_data_between_tables(THD * thd,
   to->file->extra(HA_EXTRA_END_ALTER_COPY);
 
   DBUG_EXECUTE_IF("crash_copy_before_commit", DBUG_SUICIDE(););
-  if (mysql_trans_commit_alter_copy_data(thd))
+  if ((!(to->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL) ||
+       from->s->tmp_table) &&
+      mysql_trans_commit_alter_copy_data(thd))
     error= 1;
 
  err:

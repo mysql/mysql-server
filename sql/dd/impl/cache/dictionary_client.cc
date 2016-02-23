@@ -1559,7 +1559,11 @@ template bool Dictionary_client::acquire(const std::string&,
 template bool Dictionary_client::acquire_uncached(const std::string&,
                                                   const std::string&,
                                                   const Abstract_table**);
+template bool Dictionary_client::acquire_uncached_uncommitted(const std::string&,
+                                                              const std::string&,
+                                                              const Abstract_table**);
 template bool Dictionary_client::drop(const Abstract_table*);
+template bool Dictionary_client::drop_uncached(const Abstract_table*);
 template bool Dictionary_client::store(Abstract_table*);
 template void Dictionary_client::add_and_reset_id(Abstract_table*);
 template bool Dictionary_client::update(const Abstract_table**,
@@ -1669,6 +1673,7 @@ template bool Dictionary_client::acquire_uncached_uncommitted(const std::string&
                                                               const std::string&,
                                                               const View**);
 template bool Dictionary_client::drop(const View*);
+template bool Dictionary_client::drop_uncached(const View*);
 template bool Dictionary_client::store(View*);
 template bool Dictionary_client::update_uncached_and_invalidate(View*);
 template void Dictionary_client::add_and_reset_id(View*);

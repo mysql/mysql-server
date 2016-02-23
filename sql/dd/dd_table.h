@@ -98,7 +98,8 @@ std::unique_ptr<dd::Table> create_tmp_table(THD *thd,
 template <typename T>
 bool drop_table(THD *thd,
                 const char *schema_name,
-                const char *table_name);
+                const char *table_name,
+                bool commit_dd_changes);
 
 /**
   Check if a table or view exists

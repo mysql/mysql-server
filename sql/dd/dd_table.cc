@@ -51,13 +51,16 @@
 // Explicit instanciation of some template functions
 template bool dd::drop_table<dd::Abstract_table>(THD *thd,
                                                  const char *schema_name,
-                                                 const char *name);
+                                                 const char *name,
+                                                 bool commit_dd_changes);
 template bool dd::drop_table<dd::Table>(THD *thd,
                                         const char *schema_name,
-                                        const char *name);
+                                        const char *name,
+                                        bool commit_dd_changes);
 template bool dd::drop_table<dd::View>(THD *thd,
                                        const char *schema_name,
-                                       const char *name);
+                                       const char *name,
+                                       bool commit_dd_changes);
 
 template bool dd::table_exists<dd::Abstract_table>(
                                       dd::cache::Dictionary_client *client,
@@ -1575,7 +1578,8 @@ std::unique_ptr<dd::Table> create_tmp_table(THD *thd,
 
 
 template <typename T>
-bool drop_table(THD *thd, const char *schema_name, const char *name)
+bool drop_table(THD *thd, const char *schema_name, const char *name,
+                bool commit_dd_changes)
 {
   dd::cache::Dictionary_client *client= thd->dd_client();
 
@@ -1598,8 +1602,13 @@ bool drop_table(THD *thd, const char *schema_name, const char *name)
     return true;
   }
 
+  /*
+    Use uncommitted read, so ALTER TABLE ... ALGORITHM=COPY can employ
+    this function to drop old version of the table after it was renamed,
+    without committing the rename first.
+  */
   const T *at= NULL;
-  if (client->acquire<T>(schema_name, name, &at))
+  if (client->acquire_uncached_uncommitted<T>(schema_name, name, &at))
   {
     // Error is reported by the dictionary subsystem.
     return true;
@@ -1609,19 +1618,24 @@ bool drop_table(THD *thd, const char *schema_name, const char *name)
   if (!at)
     return false;
 
+  std::unique_ptr<const T> table_def(at);
+
   Disable_gtid_state_update_guard disabler(thd);
 
   // Drop the table/view
-  if (client->drop(at))
+  if (client->drop_uncached(table_def.get()))
   {
-    trans_rollback_stmt(thd);
-    // Full rollback in case we have THD::transaction_rollback_request.
-    trans_rollback(thd);
+    if (commit_dd_changes)
+    {
+      trans_rollback_stmt(thd);
+      // Full rollback in case we have THD::transaction_rollback_request.
+      trans_rollback(thd);
+    }
     return true;
   }
 
-  return trans_commit_stmt(thd) ||
-         trans_commit(thd);
+  return commit_dd_changes &&
+         (trans_commit_stmt(thd) || trans_commit(thd));
 }
 
 
@@ -1688,6 +1702,7 @@ bool rename_table(THD *thd,
   const dd::Schema *to_sch= NULL;
   std::unique_ptr<T> from_tab;
   const T *to_tab= NULL;
+  std::unique_ptr<const T> to_guard;
 
   /*
     Acquire all objects. Uncommitted read for 'from' object allows us
@@ -1697,13 +1712,18 @@ bool rename_table(THD *thd,
       to_mdl_locker.ensure_locked(to_schema_name) ||
       thd->dd_client()->acquire<dd::Schema>(from_schema_name, &from_sch) ||
       thd->dd_client()->acquire<dd::Schema>(to_schema_name, &to_sch) ||
-      thd->dd_client()->acquire<T>(to_schema_name, to_table_name, &to_tab) ||
+      thd->dd_client()->acquire_uncached_uncommitted<T>(to_schema_name,
+                                                        to_table_name,
+                                                        &to_tab) ||
       !(from_tab= acquire_uncached_uncommitted_table<T>(thd, from_schema_name,
                                                         from_table_name)))
   {
     // Error is reported by the dictionary subsystem.
+    to_guard.reset(to_tab);
     return true;
   }
+
+  to_guard.reset(to_tab);
 
   // Report error if missing objects. Missing 'to_tab' is not an error.
   if (!from_sch)
@@ -1725,7 +1745,7 @@ bool rename_table(THD *thd,
     /* This function can't properly handle sticky (i.e. system tables). */
     DBUG_ASSERT(! thd->dd_client()->is_sticky(to_tab));
 
-    if (thd->dd_client()->drop(to_tab))
+    if (thd->dd_client()->drop_uncached(to_tab))
     {
       if (commit_dd_changes)
       {
@@ -1955,7 +1975,7 @@ bool recreate_table(THD *thd, const char *schema_name,
 
   // Attempt to reconstruct the table
   return ha_create_table(thd, path, schema_name, table_name, &create_info,
-                         true, false, dd_tab.get(), NULL, true);
+                         true, false, dd_tab.get(), NULL, true /* WL7743/TODO which part??? */);
 }
 
 

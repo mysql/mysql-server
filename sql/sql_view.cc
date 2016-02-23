@@ -1031,7 +1031,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   }
 
   if (mode != VIEW_CREATE_NEW &&
-      dd::drop_table<dd::View>(thd, view->db, view->table_name))
+      dd::drop_table<dd::View>(thd, view->db, view->table_name, true))
   {
     error= 1;
     goto err;
@@ -1750,7 +1750,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views)
           thd->add_to_binlog_accessed_dbs(view->db);
 
           // Remove view from DD tables
-          if (dd::drop_table<dd::View>(thd, view->db, view->table_name))
+          if (dd::drop_table<dd::View>(thd, view->db, view->table_name, true))
           {
             error= true;
           }
