@@ -31,22 +31,6 @@
   Place holder for ha_ndbcluster thread specific data
 */
 
-enum THD_NDB_OPTIONS
-{
-  TNO_NO_LOG_SCHEMA_OP=  1 << 0,
-  /*
-    Do not acquire global schema lock. Normally used in schema
-    dist participant code where the schema dist client(which may be in
-    another mysqld) already has locked the GSL.
-  */
-  TNO_NO_LOCK_SCHEMA_OP= 1 << 1,
-  /*
-    Gives special priorites to this Thd_ndb, allowing it to create
-    schema distribution event ops before ndb_schema_dist_is_ready()
-   */
-  TNO_ALLOW_BINLOG_SETUP= 1 << 2
-};
-
 enum THD_NDB_TRANS_OPTIONS
 {
   TNTO_INJECTED_APPLY_STATUS= 1 << 0
@@ -84,10 +68,26 @@ public:
   bool m_slow_path;
   bool m_force_send;
 
+  enum Options
+  {
+    NO_LOG_SCHEMA_OP=  1 << 0,
+    /*
+      Do not acquire global schema lock. Normally used in schema
+      dist participant code where the schema dist client(which may be in
+      another mysqld) already has locked the GSL.
+    */
+    NO_GLOBAL_SCHEMA_LOCK= 1 << 1,
+    /*
+      Gives special priorites to this Thd_ndb, allowing it to create
+      schema distribution event ops before ndb_schema_dist_is_ready()
+     */
+    ALLOW_BINLOG_SETUP= 1 << 2
+  };
+
   // Check if given option is set
-  bool check_option(THD_NDB_OPTIONS option) const;
+  bool check_option(Options option) const;
   // Set given option
-  void set_option(THD_NDB_OPTIONS option);
+  void set_option(Options option);
 
   // Guard class for automatically restoring the state of
   // Thd_ndb::options when the guard goes out of scope
@@ -107,7 +107,7 @@ public:
       // Restore the saved options
       m_thd_ndb->options= m_save_options;
     }
-    void set(THD_NDB_OPTIONS option)
+    void set(Options option)
     {
       m_thd_ndb->set_option(option);
     }

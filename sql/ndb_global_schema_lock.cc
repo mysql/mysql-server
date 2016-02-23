@@ -191,7 +191,7 @@ ndbcluster_global_schema_lock(THD *thd, bool no_lock_queue,
   Ndb *ndb= check_ndb_in_thd(thd);
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   NdbError ndb_error;
-  if (thd_ndb->check_option(TNO_NO_LOCK_SCHEMA_OP))
+  if (thd_ndb->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK))
     return 0;
   DBUG_ENTER("ndbcluster_global_schema_lock");
   DBUG_PRINT("enter", ("query: '%-.4096s', no_lock_queue: %d",
@@ -309,7 +309,7 @@ ndbcluster_global_schema_unlock(THD *thd)
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   DBUG_ASSERT(thd_ndb != 0);
   if (thd_ndb == 0 ||
-      thd_ndb->check_option(TNO_NO_LOCK_SCHEMA_OP))
+      thd_ndb->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK))
   {
     return 0;
   }

@@ -1152,8 +1152,8 @@ static int ndbcluster_find_all_databases(THD *thd)
     DBUG_RETURN(1);
 
   ndb->setDatabaseName(NDB_REP_DB);
-  thd_ndb_options.set(TNO_NO_LOG_SCHEMA_OP);
-  thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
+  thd_ndb_options.set(Thd_ndb::NO_LOG_SCHEMA_OP);
+  thd_ndb_options.set(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK);
   while (1)
   {
     char db_buffer[FN_REFLEN];
@@ -1480,7 +1480,7 @@ ndb_binlog_setup(THD *thd)
 
     /* Give additional 'binlog_setup rights' to this Thd_ndb */
     Thd_ndb::Options_guard thd_ndb_options(get_thd_ndb(thd));
-    thd_ndb_options.set(TNO_ALLOW_BINLOG_SETUP);
+    thd_ndb_options.set(Thd_ndb::ALLOW_BINLOG_SETUP);
 
     if (ndb_create_table_from_engine(thd, NDB_REP_DB, NDB_SCHEMA_TABLE))
     {
@@ -1653,7 +1653,7 @@ int ndbcluster_log_schema_op(THD *thd,
   DBUG_PRINT("enter", ("query: %s  db: %s  table_name: %s",
                        query, db, table_name));
   if (!ndb_schema_share ||
-      thd_ndb->check_option(TNO_NO_LOG_SCHEMA_OP))
+      thd_ndb->check_option(Thd_ndb::NO_LOG_SCHEMA_OP))
   {
     if (thd->slave_thread)
       update_slave_api_stats(thd_ndb->ndb);
@@ -3259,7 +3259,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     // Participant never takes GSL
-    assert(thd_get_thd_ndb(m_thd)->check_option(TNO_NO_LOCK_SCHEMA_OP));
+    assert(thd_get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
 
     Ndb_local_schema::Table tab(m_thd, schema->db, schema->name);
     if (tab.is_local_table())
@@ -3351,7 +3351,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     // Participant never takes GSL
-    assert(thd_get_thd_ndb(m_thd)->check_option(TNO_NO_LOCK_SCHEMA_OP));
+    assert(thd_get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
 
     Ndb_local_schema::Table from(m_thd, schema->db, schema->name);
     if (from.is_local_table())
@@ -3429,7 +3429,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     // Participant never takes GSL
-    assert(thd_get_thd_ndb(m_thd)->check_option(TNO_NO_LOCK_SCHEMA_OP));
+    assert(thd_get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
 
     if (check_if_local_tables_in_db(schema->db))
     {
@@ -3535,7 +3535,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     // Participant never takes GSL
-    assert(thd_get_thd_ndb(m_thd)->check_option(TNO_NO_LOCK_SCHEMA_OP));
+    assert(thd_get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
 
     const int no_print_error[1]= {0};
     run_query(m_thd, schema->query,
@@ -3559,7 +3559,7 @@ class Ndb_schema_event_handler {
     write_schema_op_to_binlog(m_thd, schema);
 
     // Participant never takes GSL
-    assert(thd_get_thd_ndb(m_thd)->check_option(TNO_NO_LOCK_SCHEMA_OP));
+    assert(thd_get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
 
     const int no_print_error[1]= {0};
     run_query(m_thd, schema->query,
@@ -3588,7 +3588,7 @@ class Ndb_schema_event_handler {
                             get_schema_type_name(schema->type));
 
     // Participant never takes GSL
-    assert(thd_get_thd_ndb(m_thd)->check_option(TNO_NO_LOCK_SCHEMA_OP));
+    assert(thd_get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
 
     const int no_print_error[1]= {0};
     char *cmd= (char *) "flush privileges";
@@ -4715,10 +4715,10 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
     DBUG_RETURN(-1);
   }
 
-  // Before 'schema_dist_is_ready', TNO_ALLOW_BINLOG_SETUP is required
+  // Before 'schema_dist_is_ready', Thd_ndb::ALLOW_BINLOG_SETUP is required
   int ret= 0;
   if (ndb_schema_dist_is_ready() ||
-      get_thd_ndb(thd)->check_option(TNO_ALLOW_BINLOG_SETUP))
+      get_thd_ndb(thd)->check_option(Thd_ndb::ALLOW_BINLOG_SETUP))
   {
     ret= ndbcluster_create_binlog_setup(thd, ndb, share);
   }
@@ -5152,7 +5152,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra  use_count: %u",
                              share->key_string(), share->use_count));
     (void) native_cond_signal(&injector_cond);
-    DBUG_ASSERT(get_thd_ndb(thd)->check_option(TNO_ALLOW_BINLOG_SETUP));
+    DBUG_ASSERT(get_thd_ndb(thd)->check_option(Thd_ndb::ALLOW_BINLOG_SETUP));
   }
   else if (do_ndb_schema_share)
   {
@@ -5161,7 +5161,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra  use_count: %u",
                              share->key_string(), share->use_count));
     (void) native_cond_signal(&injector_cond);
-    DBUG_ASSERT(get_thd_ndb(thd)->check_option(TNO_ALLOW_BINLOG_SETUP));
+    DBUG_ASSERT(get_thd_ndb(thd)->check_option(Thd_ndb::ALLOW_BINLOG_SETUP));
   }
 
   DBUG_PRINT("info",("%s share->op: 0x%lx  share->use_count: %u",
@@ -6571,13 +6571,13 @@ restart_cluster_failure:
     DBUG_ASSERT(ndbcluster_hton->slot != ~(uint)0);
     thd_set_thd_ndb(thd, thd_ndb);
 
-    thd_ndb->set_option(TNO_NO_LOG_SCHEMA_OP);
+    thd_ndb->set_option(Thd_ndb::NO_LOG_SCHEMA_OP);
 
     /*
       Prevent schema dist participant from (implicitly)
       taking GSL lock as part of taking MDL lock
     */
-    thd_ndb->set_option(TNO_NO_LOCK_SCHEMA_OP);
+    thd_ndb->set_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK);
 
     thd->query_id= 0; // to keep valgrind quiet
   }
