@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -736,6 +736,12 @@ fts_optimize_remove_table(
 void
 fts_optimize_shutdown();
 
+/** Send sync fts cache for the table.
+@param[in]	table	table to sync */
+void
+fts_optimize_request_sync_table(
+	dict_table_t*	table);
+
 /**********************************************************************//**
 Take a FTS savepoint. */
 void
@@ -814,13 +820,17 @@ fts_drop_index_split_tables(
 	dict_index_t*	index)			/*!< in: fts instance */
 	__attribute__((warn_unused_result));
 
-/****************************************************************//**
-Run SYNC on the table, i.e., write out data from the cache to the
-FTS auxiliary INDEX table and clear the cache at the end. */
+/** Run SYNC on the table, i.e., write out data from the cache to the
+FTS auxiliary INDEX table and clear the cache at the end.
+@param[in,out]	table		fts table
+@param[in]	unlock_cache	whether unlock cache when write node
+@param[in]	wait		whether wait for existing sync to finish
+@return DB_SUCCESS on success, error code on failure. */
 dberr_t
 fts_sync_table(
-/*===========*/
-	dict_table_t*	table);			/*!< in: table */
+	dict_table_t*	table,
+	bool		unlock_cache,
+	bool		wait);
 
 /****************************************************************//**
 Free the query graph but check whether dict_sys->mutex is already
