@@ -10324,24 +10324,6 @@ end_inplace:
   if (write_bin_log(thd, true, thd->query().str, thd->query().length))
     DBUG_RETURN(true);
 
-  if (ha_check_storage_engine_flag(old_db_type, HTON_FLUSH_AFTER_RENAME))
-  {
-    /*
-      For the alter table to be properly flushed to the logs, we
-      have to open the new table.  If not, we get a problem on server
-      shutdown. But we do not need to attach MERGE children.
-    */
-    TABLE *t_table;
-    t_table= open_table_uncached(thd, alter_ctx.get_new_path(),
-                                 alter_ctx.new_db, alter_ctx.new_name,
-                                 false, true, NULL);
-    if (t_table)
-      intern_close_table(t_table);
-    else
-      sql_print_warning("Could not open table %s.%s after rename\n",
-                        alter_ctx.new_db, alter_ctx.table_name);
-    ha_flush_logs(old_db_type);
-  }
   table_list->table= NULL;			// For query cache
   query_cache.invalidate(thd, table_list, FALSE);
 
