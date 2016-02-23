@@ -1237,6 +1237,7 @@ Thd_ndb::Thd_ndb(THD* thd) :
   m_thd(thd),
   m_slave_thread(thd->slave_thread),
   m_skip_binlog_setup_in_find_files(false),
+  options(0),
   schema_locks_count(0),
   m_last_commit_epoch_session(0)
 {
@@ -1250,7 +1251,6 @@ Thd_ndb::Thd_ndb(THD* thd) :
   trans= NULL;
   m_handler= NULL;
   m_error= FALSE;
-  options= 0;
   (void) my_hash_init(&open_tables, table_alias_charset, 5, 0, 0,
                       (my_hash_get_key)thd_ndb_share_get_key, 0, 0,
                       PSI_INSTRUMENT_ME);
@@ -10489,11 +10489,11 @@ int ha_ndbcluster::create(const char *name,
 
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
 
-  if (!((thd_ndb->options & TNO_NO_LOCK_SCHEMA_OP) ||
+  if (!(thd_ndb->check_option(TNO_NO_LOCK_SCHEMA_OP) ||
         thd_ndb->has_required_global_schema_lock("ha_ndbcluster::create")))
-  
+  {
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
-
+  }
 
   if (!ndb_schema_dist_is_ready())
   {
@@ -16934,7 +16934,7 @@ Ndb_util_thread::do_run()
     goto ndb_util_thread_end;
   }
   thd_set_thd_ndb(thd, thd_ndb);
-  thd_ndb->options|= TNO_NO_LOG_SCHEMA_OP;
+  thd_ndb->set_option(TNO_NO_LOG_SCHEMA_OP);
 
   if (opt_ndb_extra_logging && ndb_binlog_running)
     sql_print_information("NDB Binlog: Ndb tables initially read only.");
