@@ -842,7 +842,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                        NULL, 1, 1, FALSE))
     goto end;
   table->use_all_columns();
-  (void) my_init_dynamic_array(&acl_users,sizeof(ACL_USER),50,100);
   
   allow_all_hosts=0;
   while (!(read_record_info.read_record(&read_record_info)))
@@ -1142,7 +1141,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                        NULL, 1, 1, FALSE))
     goto end;
   table->use_all_columns();
-  (void) my_init_dynamic_array(&acl_dbs,sizeof(ACL_DB),50,100);
   while (!(read_record_info.read_record(&read_record_info)))
   {
     /* Reading record in mysql.db */
@@ -1203,8 +1201,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   freeze_size(&acl_dbs);
 
   /* Prepare to read records from the mysql.proxies_priv table */
-  (void) my_init_dynamic_array(&acl_proxy_users, sizeof(ACL_PROXY_USER), 
-                               50, 100);
   if (tables[2].table)
   {
     if (init_read_record(&read_record_info, thd, table= tables[2].table,
@@ -1432,6 +1428,9 @@ my_bool acl_reload(THD *thd)
   old_acl_users= acl_users;
   old_acl_proxy_users= acl_proxy_users;
   old_acl_dbs= acl_dbs;
+  my_init_dynamic_array(&acl_users, sizeof(ACL_USER), 50, 100);
+  my_init_dynamic_array(&acl_dbs, sizeof(ACL_DB), 50, 100);
+  my_init_dynamic_array(&acl_proxy_users, sizeof(ACL_PROXY_USER), 50, 100);
   old_mem= global_acl_memory;
   delete_dynamic(&acl_wild_hosts);
   my_hash_free(&acl_check_hosts);
