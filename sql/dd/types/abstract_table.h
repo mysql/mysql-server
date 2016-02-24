@@ -42,6 +42,15 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
+/**
+  Abstract base class for tables and views.
+
+  @note This class may be inherited along different paths
+        for some subclasses due to the diamond shaped
+        inheritance hierarchy; thus, direct subclasses
+        must inherit this class virtually.
+*/
+
 class Abstract_table : public Dictionary_object
 {
 public:

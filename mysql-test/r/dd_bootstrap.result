@@ -57,21 +57,9 @@
 # 6.3 Restart the server against DDIR.
 # 6.4 Connect as root.
 # 6.5 Verify that the modified table is present.
-SHOW CREATE TABLE mysql.schemata;
-Table	Create Table
-schemata	CREATE TABLE `schemata` (
-  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `catalog_id` bigint(20) unsigned NOT NULL,
-  `name` varchar(64) COLLATE utf8_bin NOT NULL,
-  `default_collation_id` bigint(20) unsigned NOT NULL,
-  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `last_altered` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `catalog_id` (`catalog_id`,`name`),
-  KEY `default_collation_id` (`default_collation_id`),
-  CONSTRAINT `schemata_ibfk_1` FOREIGN KEY (`catalog_id`) REFERENCES `catalogs` (`id`),
-  CONSTRAINT `schemata_ibfk_2` FOREIGN KEY (`default_collation_id`) REFERENCES `collations` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 COMMENT='Altered table'
+SELECT comment FROM mysql.tables WHERE name='schemata';
+comment
+Altered table
 # 6.6 Shut server down.
 # 6.7 Close the test connection.
 # 6.8 Delete bootstrap file, log file and datadir.

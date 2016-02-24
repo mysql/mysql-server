@@ -31,7 +31,7 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Version : virtual public Object_table_impl
+class Version : public Object_table_impl
 {
 public:
   // The version table always uses version == 0.

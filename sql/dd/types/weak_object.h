@@ -31,7 +31,15 @@ namespace cache {
 
 ///////////////////////////////////////////////////////////////////////////
 
-/// Base class for all data dictionary objects.
+/**
+  Base class for all data dictionary objects.
+
+  @note This class may be inherited along different paths
+        for some subclasses due to the diamond shaped
+        inheritance hierarchy; thus, direct subclasses
+        must inherit this class virtually.
+*/
+
 class Weak_object
 {
 public:

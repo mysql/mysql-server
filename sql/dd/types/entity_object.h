@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,7 +30,13 @@ namespace dd {
 /**
   Base class for dictionary objects which has single column
   integer primary key.
+
+  @note This class may be inherited along different paths
+        for some subclasses due to the diamond shaped
+        inheritance hierarchy; thus, direct subclasses
+        must inherit this class virtually.
 */
+
 class Entity_object : virtual public Weak_object
 {
 public:
