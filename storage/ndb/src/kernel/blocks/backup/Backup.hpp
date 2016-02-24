@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -543,6 +543,16 @@ public:
   };
   friend struct BackupRecord;
   typedef Ptr<BackupRecord> BackupRecordPtr;
+
+/**
+ * Number of words needed in buff to start a new scan batch
+ * (Which can directly write a number of rows of max size
+ *  into the buffer)
+ */
+#define BACKUP_MIN_BUFF_WORDS (ZRESERVED_SCAN_BATCH_SIZE *   \
+                               (MAX_TUPLE_SIZE_IN_WORDS +    \
+                                MAX_ATTRIBUTES_IN_TABLE +    \
+                                128))
 
   struct Config {
     Uint32 m_dataBufferSize;
