@@ -4204,9 +4204,7 @@ Backup::execDEFINE_BACKUP_REQ(Signal* signal)
   const Uint32 maxInsert[] = {
     MAX_WORDS_META_FILE,
     4096,    // 16k
-    // Max 16 tuples
-    ZRESERVED_SCAN_BATCH_SIZE *
-      (MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE + 128/* safety */),
+    BACKUP_MIN_BUFF_WORDS
   };
   Uint32 minWrite[] = {
     8192,
