@@ -26,7 +26,7 @@ let $other_page_size_nk= `SELECT CONCAT($other_page_size_k,'k')`;
 --source include/wait_until_disconnected.inc
 
 # Run the mysqld with exec with --daemonize option.
---exec $MYSQLD --defaults-file=$MYSQLTEST_VARDIR/my.cnf --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --loose-debug-sync-timeout=600 --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB --loose-skip-log-bin --core-file --lc-messages-dir=$MYSQL_MESSAGESDIR --innodb-page-size=$other_page_size_nk --daemonize --secure-file-priv="" --early_plugin_load="" >$MYSQLTEST_VARDIR/log/mysqld_out_err.log 2>&1
+--exec $MYSQLD --defaults-file=$MYSQLTEST_VARDIR/my.cnf --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --loose-debug-sync-timeout=600 --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB --loose-skip-log-bin --core-file --lc-messages-dir=$MYSQL_MESSAGESDIR --innodb-page-size=$other_page_size_nk --daemonize --secure-file-priv="" >$MYSQLTEST_VARDIR/log/mysqld_out_err.log 2>&1
 
 # mysqld takes some time to come up.
 --enable_reconnect

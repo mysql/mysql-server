@@ -271,7 +271,6 @@ my @mysqld_rules=
  { 'ssl-cert' => \&fix_ssl_server_cert },
  { 'ssl-key' => \&fix_ssl_server_key },
  { 'loose-sha256_password_auto_generate_rsa_keys' => "0"},
- { 'early_plugin_load' => "" },
   );
 
 if (IS_WINDOWS)
