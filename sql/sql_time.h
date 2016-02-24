@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -110,7 +110,7 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
                        Interval interval);
 bool calc_time_diff(const MYSQL_TIME *l_time1, const MYSQL_TIME *l_time2,
                     int l_sign, longlong *seconds_out, long *microseconds_out);
-int my_time_compare(MYSQL_TIME *a, MYSQL_TIME *b);
+int my_time_compare(const MYSQL_TIME *a, const MYSQL_TIME *b);
 void localtime_to_TIME(MYSQL_TIME *to, struct tm *from);
 void calc_time_from_sec(MYSQL_TIME *to, longlong seconds, long microseconds);
 uint calc_week(MYSQL_TIME *l_time, uint week_behaviour, uint *year);

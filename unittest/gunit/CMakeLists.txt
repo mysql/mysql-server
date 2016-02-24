@@ -273,6 +273,7 @@ SET(TESTS
   dynarray
   filesort_buffer
   filesort_compare
+  float_compare
   inplace_vector
   key
   like_range
@@ -334,6 +335,7 @@ SET(SERVER_TESTS
   get_diagnostics
   gis_algos
   handler
+  histograms
   initialize_password
   insert_delayed
   into_syntax

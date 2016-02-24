@@ -534,6 +534,7 @@ ADD_DEFINITIONS(-DRAPIDJSON_NO_SIZETYPEDEFINE)
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}/include
   ${CMAKE_SOURCE_DIR}/extra/rapidjson/include
+  ${CMAKE_SOURCE_DIR}/sql/histograms
   ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/include
   ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
 # Add bundled or system zlib.

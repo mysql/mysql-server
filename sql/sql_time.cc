@@ -1462,7 +1462,7 @@ calc_time_diff(const MYSQL_TIME *l_time1, const MYSQL_TIME *l_time2,
 
 */
 
-int my_time_compare(MYSQL_TIME *a, MYSQL_TIME *b)
+int my_time_compare(const MYSQL_TIME *a, const MYSQL_TIME *b)
 {
   ulonglong a_t= TIME_to_ulonglong_datetime(a);
   ulonglong b_t= TIME_to_ulonglong_datetime(b);
