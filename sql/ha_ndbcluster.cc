@@ -13915,7 +13915,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
   ndb_index_stat_end();
   ndbcluster_disconnect();
 
-  ndbcluster_global_schema_lock_deinit();
+  ndbcluster_global_schema_lock_deinit(hton);
   ndb_util_thread.deinit();
   ndb_index_stat_thread.deinit();
 

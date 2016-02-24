@@ -1474,7 +1474,7 @@ ndb_binlog_setup(THD *thd)
      * being distributed to other mysqld's.
      */
     Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
-    if (global_schema_lock_guard.lock(false, false))
+    if (global_schema_lock_guard.lock(false))
     {
       break;
     }
