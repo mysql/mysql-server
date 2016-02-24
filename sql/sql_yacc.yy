@@ -5915,6 +5915,8 @@ create_table_option:
           }
         | PACK_KEYS_SYM opt_equal ulong_num
           {
+            Lex->create_info.table_options&=
+              ~(HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS);
             switch($3) {
             case 0:
                 Lex->create_info.table_options|= HA_OPTION_NO_PACK_KEYS;
@@ -5956,6 +5958,8 @@ create_table_option:
           }
         | STATS_PERSISTENT_SYM opt_equal ulong_num
           {
+            Lex->create_info.table_options&=
+              ~(HA_OPTION_STATS_PERSISTENT | HA_OPTION_NO_STATS_PERSISTENT);
             switch($3) {
             case 0:
                 Lex->create_info.table_options|= HA_OPTION_NO_STATS_PERSISTENT;
@@ -6000,16 +6004,19 @@ create_table_option:
           }
         | CHECKSUM_SYM opt_equal ulong_num
           {
+            Lex->create_info.table_options&= ~(HA_OPTION_CHECKSUM | HA_OPTION_NO_CHECKSUM);
             Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM;
             Lex->create_info.used_fields|= HA_CREATE_USED_CHECKSUM;
           }
         | TABLE_CHECKSUM_SYM opt_equal ulong_num
           {
+             Lex->create_info.table_options&= ~(HA_OPTION_CHECKSUM | HA_OPTION_NO_CHECKSUM);
              Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM;
              Lex->create_info.used_fields|= HA_CREATE_USED_CHECKSUM;
           }
         | DELAY_KEY_WRITE_SYM opt_equal ulong_num
           {
+            Lex->create_info.table_options&= ~(HA_OPTION_DELAY_KEY_WRITE | HA_OPTION_NO_DELAY_KEY_WRITE);
             Lex->create_info.table_options|= $3 ? HA_OPTION_DELAY_KEY_WRITE : HA_OPTION_NO_DELAY_KEY_WRITE;
             Lex->create_info.used_fields|= HA_CREATE_USED_DELAY_KEY_WRITE;
           }
