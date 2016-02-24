@@ -28,6 +28,7 @@
 #include "violite.h"                  // SSL_type
 #include "item.h"                     // Name_resolution_context
 #include "item_subselect.h"           // chooser_compare_func_creator
+#include "key_spec.h"                 // KEY_CREATE_INFO
 #include "lex_symbol.h"               // LEX_SYMBOL
 #include "parse_tree_node_base.h"     // enum_parsing_context
 #include "query_options.h"            // OPTION_NO_CONST_TABLES
@@ -129,15 +130,6 @@ void binlog_unsafe_map_init();
 enum enum_yes_no_unknown
 {
   TVL_YES, TVL_NO, TVL_UNKNOWN
-};
-
-enum keytype {
-  KEYTYPE_PRIMARY,
-  KEYTYPE_UNIQUE,
-  KEYTYPE_MULTIPLE,
-  KEYTYPE_FULLTEXT,
-  KEYTYPE_SPATIAL,
-  KEYTYPE_FOREIGN
 };
 
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };

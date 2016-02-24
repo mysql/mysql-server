@@ -39,7 +39,7 @@ ALTER TABLE t_stmt ADD COLUMN b INT;
 ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE'
 CREATE TRIGGER trig_stmt BEFORE INSERT ON t_stmt FOR EACH ROW INSERT INTO t_stmt VALUES (1);
 CREATE INDEX i ON t_stmt(a);
-ERROR 42000: Too many key parts specified; max 0 parts allowed
+ERROR 42000: Too many keys specified; max 0 keys allowed
 CREATE TABLE t_stmt_new ENGINE = EXAMPLE SELECT * FROM t_stmt;
 ERROR HY000: Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = ROW and at least one table uses a storage engine limited to statement-based logging.
 DROP TABLE t_stmt;

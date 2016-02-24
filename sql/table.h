@@ -3008,8 +3008,6 @@ inline bool is_perfschema_db(const char *name)
                         PERFORMANCE_SCHEMA_DB_NAME.str, name);
 }
 
-TYPELIB *typelib(MEM_ROOT *mem_root, List<String> &strings);
-
 /**
   return true if the table was created explicitly.
 */

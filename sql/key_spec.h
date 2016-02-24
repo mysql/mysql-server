@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,8 +18,44 @@
 
 #include "my_global.h"
 #include "m_string.h"
+#include "my_base.h"
 #include "sql_alloc.h"
-#include "sql_lex.h"
+#include "sql_list.h"
+
+class Create_field;
+
+
+enum keytype {
+  KEYTYPE_PRIMARY,
+  KEYTYPE_UNIQUE,
+  KEYTYPE_MULTIPLE,
+  KEYTYPE_FULLTEXT,
+  KEYTYPE_SPATIAL,
+  KEYTYPE_FOREIGN
+};
+
+
+typedef struct st_key_create_information
+{
+  enum ha_key_alg algorithm;
+  /**
+    A flag which indicates that index algorithm was explicitly specified
+    by user.
+  */
+  bool is_algorithm_explicit;
+  ulong block_size;
+  LEX_STRING parser_name;
+  LEX_STRING comment;
+  /**
+    A flag to determine if we will check for duplicate indexes.
+    This typically means that the key information was specified
+    directly by the user (set by the parser) or a column
+    associated with it was dropped.
+  */
+  bool check_for_duplicate_indexes;
+} KEY_CREATE_INFO;
+
+extern KEY_CREATE_INFO default_key_create_info;
 
 
 class Key_part_spec :public Sql_alloc {

@@ -2768,7 +2768,6 @@ sp_fdparam:
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            sp_head *sp= lex->sphead;
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
 
             if (pctx->find_variable($1, TRUE))
@@ -2782,9 +2781,9 @@ sp_fdparam:
                                                    (enum enum_field_types) $3,
                                                    sp_variable::MODE_IN);
 
-            if (fill_field_definition(thd, sp,
-                                      (enum enum_field_types) $3,
-                                      &spvar->field_def))
+            if (prepare_sp_create_field(thd,
+                                        (enum enum_field_types) $3,
+                                        &spvar->field_def))
             {
               MYSQL_YYABORT;
             }
@@ -2809,7 +2808,6 @@ sp_pdparam:
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            sp_head *sp= lex->sphead;
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
 
             if (pctx->find_variable($3, TRUE))
@@ -2822,9 +2820,9 @@ sp_pdparam:
                                                    (enum enum_field_types) $4,
                                                    (sp_variable::enum_mode) $1);
 
-            if (fill_field_definition(thd, sp,
-                                      (enum enum_field_types) $4,
-                                      &spvar->field_def))
+            if (prepare_sp_create_field(thd,
+                                        (enum enum_field_types) $4,
+                                        &spvar->field_def))
             {
               MYSQL_YYABORT;
             }
@@ -2937,7 +2935,7 @@ sp_decl:
               spvar->type= var_type;
               spvar->default_value= dflt_value_item;
 
-              if (fill_field_definition(thd, sp, var_type, &spvar->field_def))
+              if (prepare_sp_create_field(thd, var_type, &spvar->field_def))
                 MYSQL_YYABORT;
 
               spvar->field_def.field_name= spvar->name.str;
@@ -15408,9 +15406,9 @@ sf_tail:
               MYSQL_YYABORT;
             }
 
-            if (fill_field_definition(YYTHD, sp,
-                                      (enum enum_field_types) $10,
-                                      &sp->m_return_field_def))
+            if (prepare_sp_create_field(YYTHD,
+                                        (enum enum_field_types) $10,
+                                        &sp->m_return_field_def))
               MYSQL_YYABORT;
 
             memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));

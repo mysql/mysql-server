@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,15 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "key_spec.h"
+
+#include "field.h"       // Create_field
+#include "mysqld.h"      // system_charset_info
+#include "sql_lex.h"     // FK_OPTION_SET_NULL
+
 #include <algorithm>
+
+KEY_CREATE_INFO default_key_create_info=
+  { HA_KEY_ALG_SE_SPECIFIC, false, 0, {NullS, 0}, {NullS, 0}, true };
 
 bool Key_part_spec::operator==(const Key_part_spec& other) const
 {

@@ -98,11 +98,11 @@ alter table t1 add column b int generated always as (a+1) virtual key;
 alter table t1 add column b int generated always as (a+1) stored key;
 if ($support_virtual_index)
 {
---error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
+--error ER_MULTIPLE_PRI_KEY
 alter table t1 add column c int generated always as (a+2) virtual primary key;
 }
 show create table t1;
---error 1068
+--error ER_MULTIPLE_PRI_KEY
 alter table t1 add column c int generated always as (a+2) stored primary key;
 drop table t1;
 

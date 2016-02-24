@@ -34,7 +34,7 @@
 #include "key_spec.h"                 // Key_part_spec
 #include "lock.h"                     // mysql_lock_remove, lock_tablespace_names
 #include "log.h"                      // sql_print_error
-#include "mysqld.h"                   // key_file_frm
+#include "mysqld.h"                   // lower_case_table_names
 #include "mysqld_error.h"             // ER_*
 #include "partition_info.h"           // partition_info
 #include "psi_memory_key.h"           // key_memory_gdl
@@ -44,14 +44,14 @@
 #include "sql_base.h"                 // lock_table_names
 #include "sql_cache.h"                // query_cache
 #include "sql_class.h"                // THD
-#include "sql_db.h"                   // load_db_opt_by_name
+#include "sql_db.h"                   // check_db_dir_existence
 #include "sql_executor.h"             // QEP_TAB_standalone
 #include "sql_parse.h"                // test_if_data_home_dir
 #include "sql_partition.h"            // ALTER_PARTITION_PARAM_TYPE
 #include "sql_resolver.h"             // setup_order
 #include "sql_tablespace.h"           // check_tablespace_name
 #include "sql_time.h"                 // make_truncated_value_warning
-#include "sql_trigger.h"              // change_trigger_name
+#include "sql_trigger.h"              // change_trigger_table_name
 #include "strfunc.h"                  // find_type2
 #include "transaction.h"              // trans_commit_stmt
 
@@ -78,6 +78,9 @@ using binary_log::checksum_crc32;
 
 const char *primary_key_name="PRIMARY";
 
+/* special marker for keys to be ignored */
+static char ignore_key[1];
+
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
 static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
 static int copy_data_between_tables(THD *thd,
@@ -89,19 +92,19 @@ static int copy_data_between_tables(THD *thd,
                                     Alter_table_ctx *alter_ctx);
 
 static bool prepare_blob_field(THD *thd, Create_field *sql_field);
-static void sp_prepare_create_field(THD *thd, Create_field *sql_field);
 static bool check_engine(THD *thd, const char *db_name,
                          const char *table_name,
                          HA_CREATE_INFO *create_info);
 
+static bool prepare_set_field(THD *thd, Create_field *sql_field);
+static bool prepare_enum_field(THD *thd, Create_field *sql_field);
+
 static bool
-mysql_prepare_create_table(THD *thd, const char *table_name,
+mysql_prepare_create_table(THD *thd, const char *error_table_name,
                            HA_CREATE_INFO *create_info,
                            Alter_info *alter_info,
-                           bool tmp_table,
                            handler *file, KEY **key_info_buffer,
-                           uint *key_count, int select_field_count,
-                           bool is_sql_layer_system_table);
+                           uint *key_count, int select_field_count);
 
 static
 bool validate_comment_length(THD *thd, const char *comment_str,
@@ -2010,12 +2013,10 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
                                    lpt->table_name,
                                    lpt->create_info,
                                    lpt->alter_info,
-                                   /*tmp_table*/ 1,
                                    lpt->table->file,
                                    &lpt->key_info_buffer,
                                    &lpt->key_count,
-                                   /*select_field_count*/ 0,
-                                   false))
+                                   /*select_field_count*/ 0))
     {
       DBUG_RETURN(TRUE);
     }
@@ -3165,42 +3166,6 @@ static bool check_duplicates_in_interval(THD *thd,
 }
 
 
-/*
-  Check TYPELIB (set or enum) max and total lengths
-
-  SYNOPSIS
-    calculate_interval_lengths()
-    cs            charset+collation pair of the interval
-    typelib       list of values for the column
-    max_length    length of the longest item
-    tot_length    sum of the item lengths
-
-  DESCRIPTION
-    After this function call:
-    - ENUM uses max_length
-    - SET uses tot_length.
-
-  RETURN VALUES
-    void
-*/
-static void calculate_interval_lengths(const CHARSET_INFO *cs,
-                                       TYPELIB *interval,
-                                       size_t *max_length,
-                                       size_t *tot_length)
-{
-  const char **pos;
-  uint *len;
-  *max_length= *tot_length= 0;
-  for (pos= interval->type_names, len= interval->type_lengths;
-       *pos ; pos++, len++)
-  {
-    size_t length= cs->cset->numchars(cs, *pos, *pos + *len);
-    *tot_length+= length;
-    set_if_bigger(*max_length, length);
-  }
-}
-
-
 /**
   Check TYPELIB (set or enum) length of individual values.
 
@@ -3230,35 +3195,21 @@ static bool check_interval_length(const char *col_name,
 }
 
 
-/*
+/**
   Prepare a create_table instance for packing
 
-  SYNOPSIS
-    prepare_create_field()
-    thd           Thread handle
-    sql_field     field to prepare for packing
-    blob_columns  count for BLOBs
-    table_flags   table flags
+  @param thd                    Thread handle
+  @param [in,out] sql_field     field to prepare for packing
+  @param table_flags            table flags
 
-  DESCRIPTION
-    This function prepares a Create_field instance.
-
-  RETURN VALUES
-   0	ok
-   1	Error
+  @return true if error, false if ok
 */
 
-static int prepare_create_field(THD *thd, Create_field *sql_field,
-                                uint *blob_columns,
-                                longlong table_flags)
+static bool prepare_pack_create_field(THD *thd, Create_field *sql_field,
+                                      longlong table_flags)
 {
   unsigned int dup_val_count;
-  DBUG_ENTER("prepare_field");
-
-  /*
-    This code came from mysql_prepare_create_table.
-    Indent preserved to make patching easier
-  */
+  DBUG_ENTER("prepare_pack_create_field");
   DBUG_ASSERT(sql_field->charset);
 
   sql_field->maybe_null= true;
@@ -3269,10 +3220,8 @@ static int prepare_create_field(THD *thd, Create_field *sql_field,
   case MYSQL_TYPE_GEOMETRY:
     if (!(table_flags & HA_CAN_GEOMETRY))
     {
-      my_printf_error(ER_CHECK_NOT_IMPLEMENTED,
-                      ER_THD(thd, ER_CHECK_NOT_IMPLEMENTED),
-                      MYF(0), "GEOMETRY");
-      DBUG_RETURN(1);
+      my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "GEOMETRY");
+      DBUG_RETURN(true);
     }
     /* fall-through */
   case MYSQL_TYPE_BLOB:
@@ -3280,9 +3229,8 @@ static int prepare_create_field(THD *thd, Create_field *sql_field,
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_JSON:
-    sql_field->length=8;			// Unireg field length
+    sql_field->length= 8;			// Unireg field length
     DBUG_ASSERT(sql_field->auto_flags == Field::NONE);
-    (*blob_columns)++;
     break;
   case MYSQL_TYPE_VARCHAR:
     if (table_flags & HA_NO_VARCHAR)
@@ -3294,14 +3242,12 @@ static int prepare_create_field(THD *thd, Create_field *sql_field,
       if ((sql_field->length / sql_field->charset->mbmaxlen) >
           MAX_FIELD_CHARLENGTH)
       {
-        my_printf_error(ER_TOO_BIG_FIELDLENGTH,
-                        ER_THD(thd, ER_TOO_BIG_FIELDLENGTH),
-                        MYF(0), sql_field->field_name,
-                        static_cast<ulong>(MAX_FIELD_CHARLENGTH));
-        DBUG_RETURN(1);
+        my_error(ER_TOO_BIG_FIELDLENGTH, MYF(0), sql_field->field_name,
+                 static_cast<ulong>(MAX_FIELD_CHARLENGTH));
+        DBUG_RETURN(true);
       }
     }
-    /* fall through */
+    break;
   case MYSQL_TYPE_STRING:
     break;
   case MYSQL_TYPE_ENUM:
@@ -3309,32 +3255,32 @@ static int prepare_create_field(THD *thd, Create_field *sql_field,
     if (check_duplicates_in_interval(thd, "ENUM",sql_field->field_name,
                                      sql_field->interval,
                                      sql_field->charset, &dup_val_count))
-      DBUG_RETURN(1);
+      DBUG_RETURN(true);
     if (check_interval_length(sql_field->field_name,
                               sql_field->charset,
                               sql_field->interval))
-      DBUG_RETURN(1);
+      DBUG_RETURN(true);
     if (sql_field->interval->count > MAX_ENUM_VALUES)
     {
       my_error(ER_TOO_BIG_ENUM, MYF(0), sql_field->field_name);
-      DBUG_RETURN(1);
+      DBUG_RETURN(true);
     }
     break;
   case MYSQL_TYPE_SET:
     DBUG_ASSERT(sql_field->auto_flags == Field::NONE);
-    if (check_duplicates_in_interval(thd, "SET",sql_field->field_name,
+    if (check_duplicates_in_interval(thd, "SET", sql_field->field_name,
                                      sql_field->interval,
                                      sql_field->charset, &dup_val_count))
-      DBUG_RETURN(1);
+      DBUG_RETURN(true);
     if (check_interval_length(sql_field->field_name,
                               sql_field->charset,
                               sql_field->interval))
-      DBUG_RETURN(1);
+      DBUG_RETURN(true);
     /* Check that count of unique members is not more then 64 */
-    if (sql_field->interval->count -  dup_val_count > sizeof(longlong)*8)
+    if (sql_field->interval->count - dup_val_count > sizeof(longlong) * 8)
     {
        my_error(ER_TOO_BIG_SET, MYF(0), sql_field->field_name);
-       DBUG_RETURN(1);
+       DBUG_RETURN(true);
     }
     break;
   case MYSQL_TYPE_DATE:			// Rest of string types
@@ -3361,85 +3307,90 @@ static int prepare_create_field(THD *thd, Create_field *sql_field,
     sql_field->maybe_null= false;
   sql_field->pack_length_override= 0;
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(false);
 }
 
 
-static TYPELIB *create_typelib(MEM_ROOT *mem_root,
-                               Create_field *field_def,
-                               List<String> *src)
+static TYPELIB *create_typelib(MEM_ROOT *mem_root, Create_field *field_def)
 {
-  const CHARSET_INFO *cs= field_def->charset;
-
-  if (!src->elements)
+  if (!field_def->interval_list.elements)
     return NULL;
 
-  TYPELIB *result= (TYPELIB*) alloc_root(mem_root, sizeof(TYPELIB));
-  result->count= src->elements;
+  TYPELIB *result= reinterpret_cast<TYPELIB*>(alloc_root(mem_root,
+                                                         sizeof(TYPELIB)));
+  if (!result)
+    return NULL;
+
+  result->count= field_def->interval_list.elements;
   result->name= "";
-  if (!(result->type_names=(const char **)
-        alloc_root(mem_root,(sizeof(char *)+sizeof(int))*(result->count+1))))
+
+  // Allocate type_names and type_lengths as one block.
+  size_t nbytes= (sizeof(char*) + sizeof(uint)) * (result->count + 1);
+  if (!(result->type_names=
+          reinterpret_cast<const char **>(alloc_root(mem_root, nbytes))))
     return NULL;
-  result->type_lengths= (uint*)(result->type_names + result->count+1);
-  List_iterator<String> it(*src);
-  String conv;
-  for (uint i=0; i < result->count; i++)
+
+  result->type_lengths=
+    reinterpret_cast<uint*>(result->type_names + result->count + 1);
+
+  List_iterator<String> it(field_def->interval_list);
+  for (uint i= 0; i < result->count; i++)
   {
     size_t dummy;
-    size_t length;
     String *tmp= it++;
 
     if (String::needs_conversion(tmp->length(), tmp->charset(),
-                                 cs, &dummy))
+                                 field_def->charset, &dummy))
     {
       uint cnv_errs;
-      conv.copy(tmp->ptr(), tmp->length(), tmp->charset(), cs, &cnv_errs);
+      String conv;
+      conv.copy(tmp->ptr(), tmp->length(), tmp->charset(),
+                field_def->charset, &cnv_errs);
 
-      length= conv.length();
-      result->type_names[i]= strmake_root(mem_root, conv.ptr(),
-                                          length);
+      result->type_names[i]= strmake_root(mem_root, conv.ptr(), conv.length());
+      result->type_lengths[i]= conv.length();
     }
     else
     {
-      length= tmp->length();
-      result->type_names[i]= strmake_root(mem_root, tmp->ptr(), length);
+      result->type_names[i]= tmp->ptr();
+      result->type_lengths[i]= tmp->length();
     }
 
     // Strip trailing spaces.
-    length= cs->cset->lengthsp(cs, result->type_names[i], length);
+    size_t length= field_def->charset->cset->lengthsp(field_def->charset,
+                                                      result->type_names[i],
+                                                      result->type_lengths[i]);
     result->type_lengths[i]= length;
-    ((uchar *)result->type_names[i])[length]= '\0';
+    (const_cast<char*>(result->type_names[i]))[length]= '\0';
   }
-  result->type_names[result->count]= 0;
-  result->type_lengths[result->count]= 0;
+  result->type_names[result->count]= NULL;  // End marker (char*)
+  result->type_lengths[result->count]= 0;   // End marker (uint)
 
+  field_def->interval_list.empty(); // Don't need interval_list anymore
   return result;
 }
 
 
 /**
   Prepare an instance of Create_field for field creation
-  (fill all necessary attributes).
+  (fill all necessary attributes). Only used for stored programs.
 
   @param[in]  thd          Thread handle
-  @param[in]  sp           The current SP
   @param[in]  field_type   Field type
   @param[out] field_def    An instance of create_field to be filled
 
   @return Error status.
 */
 
-bool fill_field_definition(THD *thd,
-                           sp_head *sp,
-                           enum enum_field_types field_type,
-                           Create_field *field_def)
+bool prepare_sp_create_field(THD *thd,
+                             enum enum_field_types field_type,
+                             Create_field *field_def)
 {
   LEX *lex= thd->lex;
-  LEX_STRING cmt = { 0, 0 };
-  uint unused1= 0;
+  LEX_STRING cmt = { NULL, 0 };
 
-  if (field_def->init(thd, (char*) "", field_type, lex->length, lex->dec,
-                      lex->type, (Item*) 0, (Item*) 0, &cmt, 0,
+  if (field_def->init(thd, "", field_type, lex->length, lex->dec,
+                      lex->type, NULL, NULL, &cmt, 0,
                       &lex->interval_list,
                       lex->charset ? lex->charset :
                                      thd->variables.collation_database,
@@ -3448,16 +3399,24 @@ bool fill_field_definition(THD *thd,
     return true;
   }
 
-  if (field_def->interval_list.elements)
+  if (field_def->sql_type == MYSQL_TYPE_SET)
   {
-    field_def->interval= create_typelib(sp->get_current_mem_root(),
-                                        field_def,
-                                        &field_def->interval_list);
+    if (prepare_set_field(thd, field_def))
+      return true;
   }
+  else if (field_def->sql_type == MYSQL_TYPE_ENUM)
+  {
+    if (prepare_enum_field(thd, field_def))
+      return true;
+  }
+  else if (field_def->sql_type == MYSQL_TYPE_BIT)
+    field_def->treat_bit_as_char= true;
 
-  sp_prepare_create_field(thd, field_def);
+  field_def->create_length_to_internal_length();
+  if (prepare_blob_field(thd, field_def))
+    return true;
 
-  return prepare_create_field(thd, field_def, &unused1, HA_CAN_GEOMETRY);
+  return prepare_pack_create_field(thd, field_def, HA_CAN_GEOMETRY);
 }
 
 /*
@@ -3660,370 +3619,389 @@ static bool is_phony_blob(enum_field_types sql_type, uint decimals)
 }
 
 
-/**
-  Prepares the table and key structures for table creation.
-
-  @param thd                       Thread object.
-  @param table_name                Name of table to create/alter, only used for
-                                   error reporting.
-  @param create_info               Create information (like MAX_ROWS).
-  @param alter_info                List of columns and indexes to create
-  @param tmp_table                 If a temporary table is to be created.
-  @param file                      The handler for the new table.
-  @param[out] key_info_buffer      An array of KEY structs for the indexes.
-  @param[out] key_count            The number of elements in the array.
-  @param select_field_count        The number of fields coming from a select table.
-  @param is_sql_layer_system_table We skip certain index checks for system tables.
-
-  @retval FALSE   OK
-  @retval TRUE    error
-*/
-
-static bool mysql_prepare_create_table(THD *thd,
-                                       const char* table_name,
-                                       HA_CREATE_INFO *create_info,
-                                       Alter_info *alter_info,
-                                       bool tmp_table,
-                                       handler *file, KEY **key_info_buffer,
-                                       uint *key_count, int select_field_count,
-                                       bool is_sql_layer_system_table)
+static bool prepare_set_field(THD *thd, Create_field *sql_field)
 {
-  const char	*key_name;
-  Create_field	*sql_field,*dup_field;
-  uint		field,null_fields,blob_columns,max_key_length;
-  size_t	record_offset= 0;
-  KEY		*key_info;
-  KEY_PART_INFO *key_part_info;
-  int		field_no,dup_no;
-  int		select_field_pos,auto_increment=0;
-  List_iterator<Create_field> it(alter_info->create_list);
-  List_iterator<Create_field> it2(alter_info->create_list);
-  uint total_uneven_bit_length= 0;
-  DBUG_ENTER("mysql_prepare_create_table");
+  DBUG_ENTER("prepare_set_field");
+  DBUG_ASSERT(sql_field->sql_type == MYSQL_TYPE_SET);
 
-  select_field_pos= alter_info->create_list.elements - select_field_count;
-  null_fields=blob_columns=0;
-  max_key_length= file->max_key_length();
-
-  for (field_no=0; (sql_field=it++) ; field_no++)
+  /*
+    Create typelib from interval_list, and if necessary
+    convert strings from client character set to the
+    column character set.
+  */
+  if (!sql_field->interval)
   {
-    const CHARSET_INFO *save_cs;
-
     /*
-      Initialize length from its original value (number of characters),
-      which was set in the parser. This is necessary if we're
-      executing a prepared statement for the second time.
+      Create the typelib in runtime memory - we will free the
+      occupied memory at the same time when we free this
+      sql_field -- at the end of execution.
     */
-    sql_field->length= sql_field->char_length;
-    /* Set field charset. */
-    save_cs= sql_field->charset= get_sql_field_charset(sql_field,
-                                                       create_info);
-    if (sql_field->flags & BINCMP_FLAG)
-    {
-      // e.g. CREATE TABLE t1 (a CHAR(1) BINARY);
-      if (!(sql_field->charset= get_charset_by_csname(sql_field->charset->csname,
-                                                      MY_CS_BINSORT,MYF(0))))
-      {
-        char tmp[65];
-        strmake(strmake(tmp, save_cs->csname, sizeof(tmp)-4),
-                STRING_WITH_LEN("_bin"));
-        my_error(ER_UNKNOWN_COLLATION, MYF(0), tmp);
-        DBUG_RETURN(TRUE);
-      }
-      /*
-        Now that we have sql_field->charset set properly,
-        we don't need the BINCMP_FLAG any longer.
-      */
-      sql_field->flags&= ~BINCMP_FLAG;
-    }
-
-    /*
-      Convert the default value from client character
-      set into the column character set if necessary.
-    */
-    if (sql_field->def && 
-        save_cs != sql_field->def->collation.collation &&
-        (sql_field->sql_type == MYSQL_TYPE_VAR_STRING ||
-         sql_field->sql_type == MYSQL_TYPE_STRING ||
-         sql_field->sql_type == MYSQL_TYPE_SET ||
-         sql_field->sql_type == MYSQL_TYPE_ENUM))
-    {
-      /*
-        Starting from 5.1 we work here with a copy of Create_field
-        created by the caller, not with the instance that was
-        originally created during parsing. It's OK to create
-        a temporary item and initialize with it a member of the
-        copy -- this item will be thrown away along with the copy
-        at the end of execution, and thus not introduce a dangling
-        pointer in the parsed tree of a prepared statement or a
-        stored procedure statement.
-      */
-      sql_field->def= sql_field->def->safe_charset_converter(save_cs);
-
-      if (sql_field->def == NULL)
-      {
-        /* Could not convert */
-        my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
-        DBUG_RETURN(TRUE);
-      }
-    }
-
-    if (sql_field->sql_type == MYSQL_TYPE_SET ||
-        sql_field->sql_type == MYSQL_TYPE_ENUM)
-    {
-      size_t dummy;
-      const CHARSET_INFO *cs= sql_field->charset;
-      TYPELIB *interval= sql_field->interval;
-
-      /*
-        Create typelib from interval_list, and if necessary
-        convert strings from client character set to the
-        column character set.
-      */
-      if (!interval)
-      {
-        /*
-          Create the typelib in runtime memory - we will free the
-          occupied memory at the same time when we free this
-          sql_field -- at the end of execution.
-        */
-        interval= sql_field->interval= typelib(thd->mem_root,
-                                               sql_field->interval_list);
-        List_iterator<String> int_it(sql_field->interval_list);
-        String conv, *tmp;
-        char comma_buf[4]; /* 4 bytes for utf32 */
-        int comma_length= cs->cset->wc_mb(cs, ',', (uchar*) comma_buf,
-                                          (uchar*) comma_buf + 
-                                          sizeof(comma_buf));
-        DBUG_ASSERT(comma_length > 0);
-        for (uint i= 0; (tmp= int_it++); i++)
-        {
-          size_t lengthsp;
-          size_t dummy2;
-          if (String::needs_conversion(tmp->length(), tmp->charset(),
-                                       cs, &dummy2))
-          {
-            uint cnv_errs;
-            conv.copy(tmp->ptr(), tmp->length(), tmp->charset(), cs, &cnv_errs);
-            interval->type_names[i]= strmake_root(thd->mem_root, conv.ptr(),
-                                                  conv.length());
-            interval->type_lengths[i]= conv.length();
-          }
-
-          // Strip trailing spaces.
-          lengthsp= cs->cset->lengthsp(cs, interval->type_names[i],
-                                       interval->type_lengths[i]);
-          interval->type_lengths[i]= lengthsp;
-          ((uchar *)interval->type_names[i])[lengthsp]= '\0';
-          if (sql_field->sql_type == MYSQL_TYPE_SET)
-          {
-            if (cs->coll->instr(cs, interval->type_names[i], 
-                                interval->type_lengths[i], 
-                                comma_buf, comma_length, NULL, 0))
-            {
-              ErrConvString err(tmp->ptr(), tmp->length(), cs);
-              my_error(ER_ILLEGAL_VALUE_FOR_TYPE, MYF(0), "set", err.ptr());
-              DBUG_RETURN(TRUE);
-            }
-          }
-        }
-        sql_field->interval_list.empty(); // Don't need interval_list anymore
-      }
-
-      if (sql_field->sql_type == MYSQL_TYPE_SET)
-      {
-        size_t field_length;
-        if (sql_field->def != NULL)
-        {
-          char *not_used;
-          uint not_used2;
-          bool not_found= 0;
-          String str, *def= sql_field->def->val_str(&str);
-          if (def == NULL) /* SQL "NULL" maps to NULL */
-          {
-            if ((sql_field->flags & NOT_NULL_FLAG) != 0)
-            {
-              my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
-              DBUG_RETURN(TRUE);
-            }
-
-            /* else, NULL is an allowed value */
-            (void) find_set(interval, NULL, 0,
-                            cs, &not_used, &not_used2, &not_found);
-          }
-          else /* not NULL */
-          {
-            (void) find_set(interval, def->ptr(), def->length(),
-                            cs, &not_used, &not_used2, &not_found);
-          }
-
-          if (not_found)
-          {
-            my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
-            DBUG_RETURN(TRUE);
-          }
-        }
-        calculate_interval_lengths(cs, interval, &dummy, &field_length);
-        sql_field->length= field_length + (interval->count - 1);
-      }
-      else  /* MYSQL_TYPE_ENUM */
-      {
-        size_t field_length;
-        DBUG_ASSERT(sql_field->sql_type == MYSQL_TYPE_ENUM);
-        if (sql_field->def != NULL)
-        {
-          String str, *def= sql_field->def->val_str(&str);
-          if (def == NULL) /* SQL "NULL" maps to NULL */
-          {
-            if ((sql_field->flags & NOT_NULL_FLAG) != 0)
-            {
-              my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
-              DBUG_RETURN(TRUE);
-            }
-
-            /* else, the defaults yield the correct length for NULLs. */
-          } 
-          else /* not NULL */
-          {
-            def->length(cs->cset->lengthsp(cs, def->ptr(), def->length()));
-            if (find_type2(interval, def->ptr(), def->length(), cs) == 0) /* not found */
-            {
-              my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
-              DBUG_RETURN(TRUE);
-            }
-          }
-        }
-        calculate_interval_lengths(cs, interval, &field_length, &dummy);
-        sql_field->length= field_length;
-      }
-      set_if_smaller(sql_field->length, MAX_FIELD_WIDTH-1);
-    }
-
-    if (sql_field->sql_type == MYSQL_TYPE_BIT)
-    {
-      if (file->ha_table_flags() & HA_CAN_BIT_FIELD)
-      {
-        total_uneven_bit_length+= sql_field->length & 7;
-        sql_field->treat_bit_as_char= false;
-      }
-      else
-        sql_field->treat_bit_as_char= true;
-    }
-
-    sql_field->create_length_to_internal_length();
-    if (prepare_blob_field(thd, sql_field))
-      DBUG_RETURN(TRUE);
-
-    if (!(sql_field->flags & NOT_NULL_FLAG))
-      null_fields++;
-
-    if (check_column_name(sql_field->field_name))
-    {
-      my_error(ER_WRONG_COLUMN_NAME, MYF(0), sql_field->field_name);
-      DBUG_RETURN(TRUE);
-    }
-
-    /* Check if we have used the same field name before */
-    for (dup_no=0; (dup_field=it2++) != sql_field; dup_no++)
-    {
-      if (my_strcasecmp(system_charset_info,
-			sql_field->field_name,
-			dup_field->field_name) == 0)
-      {
-	/*
-	  If this was a CREATE ... SELECT statement, accept a field
-	  redefinition if we are changing a field in the SELECT part
-	*/
-	if (field_no < select_field_pos || dup_no >= select_field_pos)
-	{
-	  my_error(ER_DUP_FIELDNAME, MYF(0), sql_field->field_name);
-	  DBUG_RETURN(TRUE);
-	}
-	else
-	{
-	  /* Field redefined */
-
-          /*
-            If we are replacing a BIT field, revert the increment
-            of total_uneven_bit_length that was done above.
-          */
-          if (sql_field->sql_type == MYSQL_TYPE_BIT &&
-              file->ha_table_flags() & HA_CAN_BIT_FIELD)
-            total_uneven_bit_length-= sql_field->length & 7;
-
-	  sql_field->def=		dup_field->def;
-	  sql_field->sql_type=		dup_field->sql_type;
-
-          /*
-            If we are replacing a field with a BIT field, we need
-            to initialize treat_bit_as_char. Note that we do not need to
-            increment total_uneven_bit_length here as this dup_field
-            has already been processed.
-          */
-          if (sql_field->sql_type == MYSQL_TYPE_BIT)
-          {
-            sql_field->treat_bit_as_char=
-              !(file->ha_table_flags() & HA_CAN_BIT_FIELD);
-          }
-
-	  sql_field->charset=		(dup_field->charset ?
-					 dup_field->charset :
-					 create_info->default_table_charset);
-	  sql_field->length=		dup_field->char_length;
-          sql_field->pack_length=	dup_field->pack_length;
-          sql_field->key_length=	dup_field->key_length;
-	  sql_field->decimals=		dup_field->decimals;
-	  sql_field->auto_flags=	dup_field->auto_flags;
-          /* 
-            We're making one field from two, the result field will have
-            dup_field->flags as flags. If we've incremented null_fields
-            because of sql_field->flags, decrement it back.
-          */
-          if (!(sql_field->flags & NOT_NULL_FLAG))
-            null_fields--;
-	  sql_field->flags=		dup_field->flags;
-	  sql_field->create_length_to_internal_length();
-          sql_field->interval=          dup_field->interval;
-          sql_field->gcol_info=         dup_field->gcol_info;
-          sql_field->stored_in_db=      dup_field->stored_in_db;
-	  it2.remove();			// Remove first (create) definition
-	  select_field_pos--;
-	  break;
-	}
-      }
-    }
-    /* Don't pack rows in old tables if the user has requested this */
-    if ((sql_field->flags & BLOB_FLAG) ||
-	(sql_field->sql_type == MYSQL_TYPE_VARCHAR &&
-	create_info->row_type != ROW_TYPE_FIXED))
-      create_info->table_options|= HA_OPTION_PACK_RECORD;
-    it2.rewind();
+    sql_field->interval= create_typelib(thd->mem_root, sql_field);
   }
 
-  if (create_info->row_type == ROW_TYPE_DYNAMIC)
+  // Comma is an invalid character for SET names
+  char comma_buf[4]; /* 4 bytes for utf32 */
+  int comma_length=
+    sql_field->charset->cset->wc_mb(sql_field->charset, ',',
+                                    reinterpret_cast<uchar*>(comma_buf),
+                                    reinterpret_cast<uchar*>(comma_buf) +
+                                    sizeof(comma_buf));
+  DBUG_ASSERT(comma_length > 0);
+
+  for (uint i= 0; i < sql_field->interval->count; i++)
+  {
+    if (sql_field->charset->coll->instr(sql_field->charset,
+                                        sql_field->interval->type_names[i],
+                                        sql_field->interval->type_lengths[i],
+                                        comma_buf, comma_length, NULL, 0))
+    {
+      ErrConvString err(sql_field->interval->type_names[i],
+                        sql_field->interval->type_lengths[i],
+                        sql_field->charset);
+      my_error(ER_ILLEGAL_VALUE_FOR_TYPE, MYF(0), "set", err.ptr());
+      DBUG_RETURN(true);
+    }
+  }
+
+  if (sql_field->def != NULL)
+  {
+    char *not_used;
+    uint not_used2;
+    bool not_found= false;
+    String str;
+    String *def= sql_field->def->val_str(&str);
+    if (def == NULL) /* SQL "NULL" maps to NULL */
+    {
+      if ((sql_field->flags & NOT_NULL_FLAG) != 0)
+      {
+        my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
+        DBUG_RETURN(true);
+      }
+
+      /* else, NULL is an allowed value */
+      (void) find_set(sql_field->interval, NULL, 0,
+                      sql_field->charset, &not_used, &not_used2, &not_found);
+    }
+    else /* not NULL */
+    {
+      (void) find_set(sql_field->interval, def->ptr(), def->length(),
+                      sql_field->charset, &not_used, &not_used2, &not_found);
+    }
+
+    if (not_found)
+    {
+      my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
+      DBUG_RETURN(true);
+    }
+  }
+
+  sql_field->length= 0;
+  const char **pos;
+  uint *len;
+  for (pos= sql_field->interval->type_names,
+         len= sql_field->interval->type_lengths;
+       *pos ; pos++, len++)
+  {
+    // SET uses tot_length
+    sql_field->length+= sql_field->charset->cset->numchars(sql_field->charset,
+                                                           *pos, *pos + *len);
+  }
+  sql_field->length+= (sql_field->interval->count - 1);
+  sql_field->length= min<size_t>(sql_field->length, MAX_FIELD_WIDTH - 1);
+
+  DBUG_RETURN(false);
+}
+
+
+static bool prepare_enum_field(THD *thd, Create_field *sql_field)
+{
+  DBUG_ENTER("prepare_enum_field");
+  DBUG_ASSERT(sql_field->sql_type == MYSQL_TYPE_ENUM);
+
+  /*
+    Create typelib from interval_list, and if necessary
+    convert strings from client character set to the
+    column character set.
+  */
+  if (!sql_field->interval)
+  {
+    /*
+      Create the typelib in runtime memory - we will free the
+      occupied memory at the same time when we free this
+      sql_field -- at the end of execution.
+    */
+    sql_field->interval= create_typelib(thd->mem_root, sql_field);
+  }
+
+  if (sql_field->def != NULL)
+  {
+    String str;
+    String *def= sql_field->def->val_str(&str);
+    if (def == NULL) /* SQL "NULL" maps to NULL */
+    {
+      if ((sql_field->flags & NOT_NULL_FLAG) != 0)
+      {
+        my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
+        DBUG_RETURN(true);
+      }
+
+      /* else, the defaults yield the correct length for NULLs. */
+    }
+    else /* not NULL */
+    {
+      def->length(sql_field->charset->cset->lengthsp(sql_field->charset,
+                                                     def->ptr(), def->length()));
+      if (find_type2(sql_field->interval, def->ptr(),
+                     def->length(), sql_field->charset) == 0) /* not found */
+      {
+        my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
+        DBUG_RETURN(true);
+      }
+    }
+  }
+
+  sql_field->length= 0;
+  const char **pos;
+  uint *len;
+  for (pos= sql_field->interval->type_names,
+         len= sql_field->interval->type_lengths;
+       *pos ; pos++, len++)
+  {
+    // ENUM uses max_length
+    sql_field->length= max(sql_field->length,
+                           sql_field->charset->cset->numchars(sql_field->charset,
+                                                              *pos, *pos + *len));
+  }
+  sql_field->length= min<size_t>(sql_field->length, MAX_FIELD_WIDTH - 1);
+
+  DBUG_RETURN(false);
+}
+
+
+/**
+  Prepares the column definitions for table creation.
+
+  @param thd                       Thread object.
+  @param create_info               Create information.
+  @param[in,out] create_list       List of columns to create.
+  @param[in,out] select_field_pos  Position where the SELECT columns start
+                                   for CREATE TABLE ... SELECT.
+  @param file                      The handler for the new table.
+  @param[in,out] sql_field         Create_field to populate.
+  @param field_no                  Column number.
+
+  @retval false   OK
+  @retval true    error
+*/
+
+static bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
+                                 List<Create_field> *create_list,
+                                 int *select_field_pos, handler *file,
+                                 Create_field *sql_field, int field_no)
+{
+  DBUG_ENTER("prepare_create_field");
+  DBUG_ASSERT(create_list);
+  const CHARSET_INFO *save_cs;
+
+  /*
+    Initialize length from its original value (number of characters),
+    which was set in the parser. This is necessary if we're
+    executing a prepared statement for the second time.
+  */
+  sql_field->length= sql_field->char_length;
+  /* Set field charset. */
+  save_cs= sql_field->charset= get_sql_field_charset(sql_field,
+                                                     create_info);
+  if (sql_field->flags & BINCMP_FLAG)
+  {
+    // e.g. CREATE TABLE t1 (a CHAR(1) BINARY);
+    if (!(sql_field->charset= get_charset_by_csname(sql_field->charset->csname,
+                                                    MY_CS_BINSORT,MYF(0))))
+    {
+      char tmp[65];
+      strmake(strmake(tmp, save_cs->csname, sizeof(tmp)-4),
+              STRING_WITH_LEN("_bin"));
+      my_error(ER_UNKNOWN_COLLATION, MYF(0), tmp);
+      DBUG_RETURN(true);
+    }
+    /*
+      Now that we have sql_field->charset set properly,
+      we don't need the BINCMP_FLAG any longer.
+    */
+    sql_field->flags&= ~BINCMP_FLAG;
+  }
+
+  /*
+    Convert the default value from client character
+    set into the column character set if necessary.
+  */
+  if (sql_field->def &&
+      save_cs != sql_field->def->collation.collation &&
+      (sql_field->sql_type == MYSQL_TYPE_VAR_STRING ||
+       sql_field->sql_type == MYSQL_TYPE_STRING ||
+       sql_field->sql_type == MYSQL_TYPE_SET ||
+       sql_field->sql_type == MYSQL_TYPE_ENUM))
+  {
+    /*
+      Starting from 5.1 we work here with a copy of Create_field
+      created by the caller, not with the instance that was
+      originally created during parsing. It's OK to create
+      a temporary item and initialize with it a member of the
+      copy -- this item will be thrown away along with the copy
+      at the end of execution, and thus not introduce a dangling
+      pointer in the parsed tree of a prepared statement or a
+      stored procedure statement.
+    */
+    sql_field->def= sql_field->def->safe_charset_converter(save_cs);
+
+    if (sql_field->def == NULL)
+    {
+      /* Could not convert */
+      my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
+      DBUG_RETURN(true);
+    }
+  }
+
+  if (sql_field->sql_type == MYSQL_TYPE_SET)
+  {
+    if (prepare_set_field(thd, sql_field))
+      DBUG_RETURN(true);
+  }
+  else if (sql_field->sql_type == MYSQL_TYPE_ENUM)
+  {
+    if (prepare_enum_field(thd, sql_field))
+      DBUG_RETURN(true);
+  }
+  else if (sql_field->sql_type == MYSQL_TYPE_BIT)
+  {
+    if (file->ha_table_flags() & HA_CAN_BIT_FIELD)
+    {
+      create_info->null_bits+= sql_field->length & 7;
+      sql_field->treat_bit_as_char= false;
+    }
+    else
+      sql_field->treat_bit_as_char= true;
+  }
+
+  sql_field->create_length_to_internal_length();
+  if (prepare_blob_field(thd, sql_field))
+    DBUG_RETURN(true);
+
+  if (!(sql_field->flags & NOT_NULL_FLAG))
+    create_info->null_bits++;
+
+  if (check_column_name(sql_field->field_name))
+  {
+    my_error(ER_WRONG_COLUMN_NAME, MYF(0), sql_field->field_name);
+    DBUG_RETURN(true);
+  }
+
+  if (validate_comment_length(thd,
+                              sql_field->comment.str,
+                              &sql_field->comment.length,
+                              COLUMN_COMMENT_MAXLEN,
+                              ER_TOO_LONG_FIELD_COMMENT,
+                              sql_field->field_name))
+      DBUG_RETURN(true);
+
+  /* Check if we have used the same field name before */
+  Create_field *dup_field;
+  List_iterator<Create_field> it(*create_list);
+  for (int dup_no= 0; (dup_field= it++) != sql_field; dup_no++)
+  {
+    if (my_strcasecmp(system_charset_info,
+                      sql_field->field_name,
+                      dup_field->field_name) == 0)
+    {
+      /*
+        If this was a CREATE ... SELECT statement, accept a field
+        redefinition if we are changing a field in the SELECT part
+      */
+      if (field_no < (*select_field_pos) || dup_no >= (*select_field_pos))
+      {
+        my_error(ER_DUP_FIELDNAME, MYF(0), sql_field->field_name);
+        DBUG_RETURN(true);
+      }
+      else
+      {
+        /* Field redefined */
+
+        /*
+          If we are replacing a BIT field, revert the increment
+          of null_bits that was done above.
+        */
+        if (sql_field->sql_type == MYSQL_TYPE_BIT &&
+            file->ha_table_flags() & HA_CAN_BIT_FIELD)
+          create_info->null_bits-= sql_field->length & 7;
+
+        sql_field->def=         dup_field->def;
+        sql_field->sql_type=    dup_field->sql_type;
+
+        /*
+          If we are replacing a field with a BIT field, we need
+          to initialize treat_bit_as_char. Note that we do not need to
+          increment null_bits here as this dup_field
+          has already been processed.
+        */
+        if (sql_field->sql_type == MYSQL_TYPE_BIT)
+        {
+          sql_field->treat_bit_as_char=
+            !(file->ha_table_flags() & HA_CAN_BIT_FIELD);
+        }
+
+        sql_field->charset=             (dup_field->charset ?
+                                         dup_field->charset :
+                                         create_info->default_table_charset);
+        sql_field->length=              dup_field->char_length;
+        sql_field->pack_length=         dup_field->pack_length;
+        sql_field->key_length=          dup_field->key_length;
+        sql_field->decimals=            dup_field->decimals;
+        sql_field->auto_flags=          dup_field->auto_flags;
+        /*
+           We're making one field from two, the result field will have
+           dup_field->flags as flags. If we've incremented null_bits
+           because of sql_field->flags, decrement it back.
+        */
+        if (!(sql_field->flags & NOT_NULL_FLAG))
+          create_info->null_bits--;
+        sql_field->flags=               dup_field->flags;
+        sql_field->create_length_to_internal_length();
+        sql_field->interval=            dup_field->interval;
+        sql_field->gcol_info=           dup_field->gcol_info;
+        sql_field->stored_in_db=        dup_field->stored_in_db;
+        it.remove();                    // Remove first (create) definition
+        (*select_field_pos)--;
+        break;
+      }
+    }
+  }
+
+  /* Don't pack rows in old tables if the user has requested this */
+  if ((sql_field->flags & BLOB_FLAG) ||
+      (sql_field->sql_type == MYSQL_TYPE_VARCHAR &&
+       create_info->row_type != ROW_TYPE_FIXED))
     create_info->table_options|= HA_OPTION_PACK_RECORD;
 
-  /* record_offset will be increased with 'length-of-null-bits' later */
-  record_offset= 0;
-  null_fields+= total_uneven_bit_length;
+  if (prepare_pack_create_field(thd, sql_field, file->ha_table_flags()))
+    DBUG_RETURN(true);
 
+  DBUG_RETURN(false);
+}
+
+
+static void calculate_field_offsets(List<Create_field> *create_list)
+{
+  DBUG_ASSERT(create_list);
+  List_iterator<Create_field> it(*create_list);
+  size_t record_offset= 0;
   bool has_vgc= false;
-  it.rewind();
-  while ((sql_field=it++))
+  Create_field *sql_field;
+  while ((sql_field= it++))
   {
-    DBUG_ASSERT(sql_field->charset != 0);
-
-    if (prepare_create_field(thd, sql_field, &blob_columns,
-			     file->ha_table_flags()))
-      DBUG_RETURN(TRUE);
-
     sql_field->offset= record_offset;
-    if (sql_field->auto_flags & Field::NEXT_NUMBER)
-      auto_increment++;
     /*
       For now skip fields that are not physically stored in the database
-      (generated fields) and update their offset later 
-      (see the next loop).
+      (generated fields) and update their offset later (see the next loop).
     */
     if (sql_field->stored_in_db)
       record_offset+= sql_field->pack_length;
@@ -4034,7 +4012,7 @@ static bool mysql_prepare_create_table(THD *thd,
   if (has_vgc)
   {
     it.rewind();
-    while ((sql_field=it++))
+    while ((sql_field= it++))
     {
       if (!sql_field->stored_in_db)
       {
@@ -4043,606 +4021,324 @@ static bool mysql_prepare_create_table(THD *thd,
       }
     }
   }
-  if (auto_increment > 1)
-  {
-    my_error(ER_WRONG_AUTO_KEY, MYF(0));
-    DBUG_RETURN(TRUE);
-  }
-  if (auto_increment &&
-      (file->ha_table_flags() & HA_NO_AUTO_INCREMENT))
-  {
-    my_error(ER_TABLE_CANT_HANDLE_AUTO_INCREMENT, MYF(0));
-    DBUG_RETURN(TRUE);
-  }
+}
 
-  if (blob_columns && (file->ha_table_flags() & HA_NO_BLOBS))
-  {
-    my_error(ER_TABLE_CANT_HANDLE_BLOB, MYF(0));
-    DBUG_RETURN(TRUE);
-  }
 
-  /*
-   CREATE TABLE[with auto_increment column] SELECT is unsafe as the rows
-   inserted in the created table depends on the order of the rows fetched
-   from the select tables. This order may differ on master and slave. We
-   therefore mark it as unsafe.
-  */
-  if (select_field_count > 0 && auto_increment)
-  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_CREATE_SELECT_AUTOINC);
+/**
+   Count keys and key segments. Note that FKs are ignored.
+   Also mark redundant keys to be ignored.
 
-  /* Create keys */
+   @param[in,out] key_list  List of keys to count and possibly mark as ignored.
+   @param[out] key_count    Returned number of keys counted.
+   @param[out] key_parts    Returned number of key segments.
+*/
 
-  List_iterator<Key_spec> key_iterator(alter_info->key_list);
-  List_iterator<Key_spec> key_iterator2(alter_info->key_list);
-  uint key_parts=0, fk_key_count=0;
-  bool primary_key=0,unique_key=0;
-  Key_spec *key, *key2;
-  uint tmp, key_number;
-  /* special marker for keys to be ignored */
-  static char ignore_key[1];
-
-  /* Calculate number of key segements */
+static void count_keys(List<Key_spec> *key_list,
+                       uint *key_count, uint *key_parts)
+{
+  DBUG_ASSERT(key_list);
   *key_count= 0;
+  *key_parts= 0;
 
+  Key_spec *key;
+  List_iterator<Key_spec> key_iterator(*key_list);
   while ((key=key_iterator++))
   {
-    DBUG_PRINT("info", ("key name: '%s'  type: %d", key->name.str ? key->name.str :
-                        "(none)" , key->type));
+    // Skip foreign keys - we don't make KEYs for them.
     if (key->type == KEYTYPE_FOREIGN)
-    {
-      fk_key_count++;
-      if (down_cast<Foreign_key_spec*>(key)->validate(alter_info->create_list))
-        DBUG_RETURN(TRUE);
-      Foreign_key_spec *fk_key= down_cast<Foreign_key_spec*>(key);
-      if (fk_key->ref_columns.elements &&
-	  fk_key->ref_columns.elements != fk_key->columns.elements)
-      {
-        my_error(ER_WRONG_FK_DEF, MYF(0),
-                 (fk_key->name.str ? fk_key->name.str :
-                                     "foreign key without name"),
-                 ER_THD(thd, ER_KEY_REF_DO_NOT_MATCH_TABLE_REF));
-	DBUG_RETURN(TRUE);
-      }
       continue;
-    }
-    (*key_count)++;
-    tmp=file->max_key_parts();
-    if (key->columns.elements > tmp && key->type != KEYTYPE_SPATIAL)
-    {
-      my_error(ER_TOO_MANY_KEY_PARTS,MYF(0),tmp);
-      DBUG_RETURN(TRUE);
-    }
 
-    LEX_CSTRING key_name_cstr= {key->name.str, key->name.length};
-    if (check_string_char_length(key_name_cstr, "", NAME_CHAR_LEN,
-                                 system_charset_info, 1))
+    List_iterator<Key_spec> key_iterator2(*key_list);
+    Key_spec *key2;
+    while ((key2 = key_iterator2++) != key)
     {
-      my_error(ER_TOO_LONG_IDENT, MYF(0), key->name.str);
-      DBUG_RETURN(TRUE);
-    }
-    key_iterator2.rewind ();
-    if (key->type != KEYTYPE_FOREIGN)
-    {
-      while ((key2 = key_iterator2++) != key)
+      /*
+        foreign_key_prefix(key, key2) returns 0 if key or key2, or both, is
+        'generated', and a generated key is a prefix of the other key.
+        Then we do not need the generated shorter key.
+
+        KEYTYPE_SPATIAL and KEYTYPE_FULLTEXT cannot be used as
+        supporting keys for foreign key constraints even if the
+        generated key is prefix of such a key.
+      */
+      if ((key2->type != KEYTYPE_FOREIGN &&
+           key2->type != KEYTYPE_SPATIAL &&
+           key2->type != KEYTYPE_FULLTEXT &&
+           key2->name.str != ignore_key &&
+           !foreign_key_prefix(key, key2)))
       {
-	/*
-          foreign_key_prefix(key, key2) returns 0 if key or key2, or both, is
-          'generated', and a generated key is a prefix of the other key.
-          Then we do not need the generated shorter key.
-
-          KEYTYPE_SPATIAL and KEYTYPE_FULLTEXT cannot be used as
-          supporting keys for foreign key constraints even if the
-          generated key is prefix of such a key.
-        */
-        if ((key2->type != KEYTYPE_FOREIGN &&
-             key2->type != KEYTYPE_SPATIAL &&
-             key2->type != KEYTYPE_FULLTEXT &&
-             key2->name.str != ignore_key &&
-             !foreign_key_prefix(key, key2)))
+        /* TODO: issue warning message */
+        /* mark that the generated key should be ignored */
+        if (!key2->generated ||
+            (key->generated && key->columns.elements <
+             key2->columns.elements))
+          key->name.str= ignore_key;
+        else
         {
-          /* TODO: issue warning message */
-          /* mark that the generated key should be ignored */
-          if (!key2->generated ||
-              (key->generated && key->columns.elements <
-               key2->columns.elements))
-            key->name.str= ignore_key;
-          else
-          {
-            key2->name.str= ignore_key;
-            key_parts-= key2->columns.elements;
-            (*key_count)--;
-          }
-          break;
+          key2->name.str= ignore_key;
+          (*key_parts)-= key2->columns.elements;
+          (*key_count)--;
         }
+        break;
       }
     }
     if (key->name.str != ignore_key)
-      key_parts+=key->columns.elements;
-    else
-      (*key_count)--;
-    if (key->name.str && !tmp_table && (key->type != KEYTYPE_PRIMARY) &&
-	!my_strcasecmp(system_charset_info, key->name.str, primary_key_name))
     {
-      my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), key->name.str);
-      DBUG_RETURN(TRUE);
+      (*key_count)++;
+      (*key_parts)+= key->columns.elements;
     }
   }
-  tmp=file->max_keys();
-  if (*key_count > tmp)
+}
+
+
+static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
+                               List<Create_field> *create_list,
+                               Key_spec *key, Key_part_spec *column,
+                               const uint column_nr, KEY *key_info,
+                               KEY_PART_INFO *key_part_info,
+                               const handler *file, int *auto_increment,
+                               const CHARSET_INFO **ft_key_charset)
+{
+  DBUG_ENTER("prepare_key_column");
+
+  /*
+    Find the matching table column.
+  */
+  uint field= 0;
+  Create_field *sql_field;
+  DBUG_ASSERT(create_list);
+  List_iterator<Create_field> it(*create_list);
+  while ((sql_field= it++) && my_strcasecmp(system_charset_info,
+                                            column->field_name.str,
+                                            sql_field->field_name))
+    field++;
+  if (!sql_field)
   {
-    my_error(ER_TOO_MANY_KEYS,MYF(0),tmp);
-    DBUG_RETURN(TRUE);
+    my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), column->field_name.str);
+    DBUG_RETURN(true);
   }
 
-  (*key_info_buffer)= key_info= (KEY*) sql_calloc(sizeof(KEY) * (*key_count));
-  key_part_info=(KEY_PART_INFO*) sql_calloc(sizeof(KEY_PART_INFO)*key_parts);
-  if (!*key_info_buffer || ! key_part_info)
-    DBUG_RETURN(TRUE);				// Out of memory
-
-  Mem_root_array<const KEY *, true> keys_to_check(thd->mem_root);
-
-  if (keys_to_check.reserve(*key_count))
-    DBUG_RETURN(TRUE);				// Out of memory
-
-  key_iterator.rewind();
-  key_number=0;
-  for (; (key=key_iterator++) ; key_number++)
+  /*
+    Virtual generated column checks.
+  */
+  if (sql_field->is_virtual_gcol())
   {
-    size_t key_length=0;
-    Key_part_spec *column;
-
-    if (key->name.str == ignore_key)
-    {
-      /* ignore redundant keys */
-      do
-	key=key_iterator++;
-      while (key && key->name.str == ignore_key);
-      if (!key)
-	break;
-    }
-
-    switch (key->type) {
-    case KEYTYPE_MULTIPLE:
-	key_info->flags= 0;
-	break;
-    case KEYTYPE_FULLTEXT:
-	key_info->flags= HA_FULLTEXT;
-	if ((key_info->parser_name= &key->key_create_info.parser_name)->str)
-          key_info->flags|= HA_USES_PARSER;
-        else
-          key_info->parser_name= 0;
-	break;
-    case KEYTYPE_SPATIAL:
-	key_info->flags= HA_SPATIAL;
-	break;
-    case KEYTYPE_FOREIGN:
-      key_number--;				// Skip this key
-      continue;
-    case KEYTYPE_PRIMARY:
-	key_info->flags= HA_NOSAME;
-	break;
-    case KEYTYPE_UNIQUE:
-      key_info->flags= HA_NOSAME;
-      break;
-    default:
-      DBUG_ASSERT(0);
-      key_info->flags= 0;
-      break;
-    }
-    if (key->generated)
-      key_info->flags|= HA_GENERATED_KEY;
-
-    key_info->algorithm= key->key_create_info.algorithm;
-    key_info->user_defined_key_parts=(uint8) key->columns.elements;
-    key_info->actual_key_parts= key_info->user_defined_key_parts;
-    key_info->key_part=key_part_info;
-    key_info->usable_key_parts= key_number;
-    key_info->is_algorithm_explicit= false;
-
-
+    const char *errmsg= NULL;
     if (key->type == KEYTYPE_FULLTEXT)
+      errmsg= "Fulltext index on virtual generated column";
+    else if (key->type == KEYTYPE_SPATIAL)
+      errmsg= "Spatial index on virtual generated column";
+    else if (key->type == KEYTYPE_PRIMARY)
+      errmsg= "Defining a virtual generated column as primary key";
+    if (errmsg)
     {
-      key_info->algorithm= HA_KEY_ALG_FULLTEXT;
-      if (!(file->ha_table_flags() & HA_CAN_FULLTEXT))
-      {
-        if (is_ha_partition_handlerton(file->ht))
-        {
-          my_error(ER_FULLTEXT_NOT_SUPPORTED_WITH_PARTITIONING,
-                   MYF(0));
-          DBUG_RETURN(TRUE);
-        }
-	my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
-	DBUG_RETURN(TRUE);
-      }
+      my_error(ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN, MYF(0), errmsg);
+      DBUG_RETURN(true);
     }
+    /* Check if the storage engine supports indexes on virtual columns. */
+    if (!(file->ha_table_flags() & HA_CAN_INDEX_VIRTUAL_GENERATED_COLUMN))
+    {
+      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+               ha_resolve_storage_engine_name(file->ht),
+               "Index on virtual generated column");
+      DBUG_RETURN(true);
+    }
+    key_info->flags|= HA_VIRTUAL_GEN_KEY;
+  }
+
+  // JSON columns cannot be used as keys.
+  if (sql_field->sql_type == MYSQL_TYPE_JSON)
+  {
+    my_error(ER_JSON_USED_AS_KEY, MYF(0), column->field_name.str);
+    DBUG_RETURN(true);
+  }
+
+  if (sql_field->auto_flags & Field::NEXT_NUMBER)
+  {
+    if (column_nr == 0 || (file->ha_table_flags() & HA_AUTO_PART_KEY))
+      (*auto_increment)--;			// Field is used
+  }
+
+  /*
+    Check for duplicate columns.
+  */
+  List_iterator<Key_part_spec> cols2(key->columns);
+  Key_part_spec *dup_column;
+  while ((dup_column= cols2++) != column)
+  {
+    if (!my_strcasecmp(system_charset_info,
+                       column->field_name.str, dup_column->field_name.str))
+    {
+      my_error(ER_DUP_FIELDNAME, MYF(0), column->field_name.str);
+      DBUG_RETURN(true);
+    }
+  }
+
+  if (key->type == KEYTYPE_FULLTEXT)
+  {
+    if ((sql_field->sql_type != MYSQL_TYPE_STRING &&
+         sql_field->sql_type != MYSQL_TYPE_VARCHAR &&
+         !is_blob(sql_field->sql_type)) ||
+        sql_field->charset == &my_charset_bin ||
+        sql_field->charset->mbminlen > 1 || // ucs2 doesn't work yet
+        (*ft_key_charset && sql_field->charset != *ft_key_charset))
+    {
+      my_error(ER_BAD_FT_COLUMN, MYF(0), column->field_name.str);
+      DBUG_RETURN(true);
+    }
+    *ft_key_charset= sql_field->charset;
     /*
-       Make SPATIAL to be RTREE by default
-       SPATIAL only on BLOB or at least BINARY, this
-       actually should be replaced by special GEOM type
-       in near future when new frm file is ready
-       checking for proper key parts number:
+      for fulltext keys keyseg length is 1 for blobs (it's ignored in ft
+      code anyway, and 0 (set to column width later) for char's. it has
+      to be correct col width for char's, as char data are not prefixed
+      with length (unlike blobs, where ft code takes data length from a
+      data prefix, ignoring column->length).
     */
+    column->length= MY_TEST(is_blob(sql_field->sql_type));
+  }
+  else
+  {
+    column->length*= sql_field->charset->mbmaxlen;
 
-    if (key_info->flags & HA_SPATIAL)
+    if (key->type == KEYTYPE_SPATIAL)
     {
-      if (!(file->ha_table_flags() & HA_CAN_RTREEKEYS))
-      {
-        my_error(ER_TABLE_CANT_HANDLE_SPKEYS, MYF(0));
-        DBUG_RETURN(TRUE);
-      }
-      if (key_info->user_defined_key_parts != 1)
-      {
-        my_error(ER_TOO_MANY_KEY_PARTS, MYF(0), 1);
-        DBUG_RETURN(TRUE);
-      }
-      DBUG_ASSERT(! key->key_create_info.is_algorithm_explicit);
-      key_info->algorithm= HA_KEY_ALG_RTREE;
-    }
-    else if (key_info->flags & HA_FULLTEXT)
-    {
-      DBUG_ASSERT(! key->key_create_info.is_algorithm_explicit);
-      key_info->algorithm= HA_KEY_ALG_FULLTEXT;
-    }
-    else
-    {
-      if (key->key_create_info.is_algorithm_explicit)
-      {
-        if (key->key_create_info.algorithm == HA_KEY_ALG_RTREE)
-        {
-          if ((key_info->user_defined_key_parts & 1) == 1)
-          {
-             my_error(ER_TOO_MANY_KEY_PARTS, MYF(0), 1);
-             DBUG_RETURN(TRUE);
-          }
-          /* TODO: To be deleted */
-          my_error(ER_NOT_SUPPORTED_YET, MYF(0), "RTREE INDEX");
-          DBUG_RETURN(TRUE);
-        }
-        else
-        {
-          /*
-            If key algorithm was specified explicitly check if it is
-            supported by SE.
-          */
-          if (file->is_index_algorithm_supported(key->key_create_info.algorithm))
-          {
-            key_info->is_algorithm_explicit= true;
-            key_info->algorithm= key->key_create_info.algorithm;
-          }
-          else
-          {
-            /*
-              If explicit algorithm is not supported by SE, replace it with
-              default one. Don't mark key algorithm as explicitly specified
-              in this case.
-            */
-            key_info->algorithm= file->get_default_index_algorithm();
-
-            push_warning_printf(thd, Sql_condition::SL_NOTE,
-                                ER_UNSUPPORTED_INDEX_ALGORITHM,
-                                ER_THD(thd, ER_UNSUPPORTED_INDEX_ALGORITHM),
-                                ((key->key_create_info.algorithm ==
-                                  HA_KEY_ALG_HASH) ? "HASH" : "BTREE"));
-          }
-        }
-      }
-      else
-      {
-        /*
-          If key algorithm was not explicitly specified used default one for
-          this SE. Interesting side-effect of this is that ALTER TABLE will
-          cause index rebuild if SE default changes.
-          Assert that caller doesn't use any non-default algorithm in this
-          case as such setting is ignored anyway.
-        */
-        DBUG_ASSERT(key->key_create_info.algorithm == HA_KEY_ALG_SE_SPECIFIC);
-        key_info->algorithm= file->get_default_index_algorithm();
-      }
-    }
-
-    /* Take block size from key part or table part */
-    /*
-      TODO: Add warning if block size changes. We can't do it here, as
-      this may depend on the size of the key
-    */
-    key_info->block_size= (key->key_create_info.block_size ?
-                           key->key_create_info.block_size :
-                           create_info->key_block_size);
-
-    if (key_info->block_size)
-      key_info->flags|= HA_USES_BLOCK_SIZE;
-
-    List_iterator<Key_part_spec> cols(key->columns), cols2(key->columns);
-    const CHARSET_INFO *ft_key_charset=0;  // for FULLTEXT
-    for (uint column_nr=0 ; (column=cols++) ; column_nr++)
-    {
-      Key_part_spec *dup_column;
-
-      it.rewind();
-      field=0;
-      while ((sql_field=it++) &&
-	     my_strcasecmp(system_charset_info,
-			   column->field_name.str,
-			   sql_field->field_name))
-	field++;
-      if (!sql_field)
-      {
-	my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), column->field_name.str);
-	DBUG_RETURN(TRUE);
-      }
-      if (sql_field->is_virtual_gcol())
-      {
-        const char *errmsg= NULL;
-        if (key->type == KEYTYPE_FULLTEXT)
-          errmsg= "Fulltext index on virtual generated column";
-        else if (key->type == KEYTYPE_SPATIAL)
-          errmsg= "Spatial index on virtual generated column";
-        if (errmsg)
-        {
-          my_error(ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN, MYF(0), errmsg);
-          DBUG_RETURN(TRUE);
-        }
-        key_info->flags|= HA_VIRTUAL_GEN_KEY;
-        /* Check if the storage engine supports indexes on virtual columns. */
-        if (!(file->ha_table_flags() & HA_CAN_INDEX_VIRTUAL_GENERATED_COLUMN))
-        {
-          my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
-                   ha_resolve_storage_engine_name(file->ht),
-                   "Index on virtual generated column");
-          DBUG_RETURN(TRUE);
-        }
-      }
-      while ((dup_column= cols2++) != column)
-      {
-        if (!my_strcasecmp(system_charset_info,
-	     	           column->field_name.str, dup_column->field_name.str))
-	{
-	  my_printf_error(ER_DUP_FIELDNAME,
-			  ER_THD(thd, ER_DUP_FIELDNAME),MYF(0),
-			  column->field_name.str);
-	  DBUG_RETURN(TRUE);
-	}
-      }
-      cols2.rewind();
-      if (key->type == KEYTYPE_FULLTEXT)
-      {
-	if ((sql_field->sql_type != MYSQL_TYPE_STRING &&
-	     sql_field->sql_type != MYSQL_TYPE_VARCHAR &&
-	     !is_blob(sql_field->sql_type)) ||
-	    sql_field->charset == &my_charset_bin ||
-	    sql_field->charset->mbminlen > 1 || // ucs2 doesn't work yet
-	    (ft_key_charset && sql_field->charset != ft_key_charset))
-	{
-	    my_error(ER_BAD_FT_COLUMN, MYF(0), column->field_name.str);
-	    DBUG_RETURN(-1);
-	}
-	ft_key_charset=sql_field->charset;
-	/*
-	  for fulltext keys keyseg length is 1 for blobs (it's ignored in ft
-	  code anyway, and 0 (set to column width later) for char's. it has
-	  to be correct col width for char's, as char data are not prefixed
-	  with length (unlike blobs, where ft code takes data length from a
-	  data prefix, ignoring column->length).
-	*/
-	column->length= MY_TEST(is_blob(sql_field->sql_type));
-      }
-      else
-      {
-	column->length*= sql_field->charset->mbmaxlen;
-
-        if (key->type == KEYTYPE_SPATIAL)
-        {
-          if (column->length)
-          {
-            my_error(ER_WRONG_SUB_KEY, MYF(0));
-            DBUG_RETURN(TRUE);
-          }
-          if (sql_field->sql_type != MYSQL_TYPE_GEOMETRY)
-          {
-            my_error(ER_SPATIAL_MUST_HAVE_GEOM_COL, MYF(0));
-            DBUG_RETURN(TRUE);
-          }
-        }
-
-        // JSON columns cannot be used as keys.
-        if (sql_field->sql_type == MYSQL_TYPE_JSON)
-        {
-          my_error(ER_JSON_USED_AS_KEY, MYF(0), column->field_name.str);
-          DBUG_RETURN(TRUE);
-        }
-
-	if (is_blob(sql_field->sql_type) ||
-            (sql_field->sql_type == MYSQL_TYPE_GEOMETRY &&
-             key->type != KEYTYPE_SPATIAL))
-	{
-	  if (!(file->ha_table_flags() & HA_CAN_INDEX_BLOBS))
-	  {
-	    my_error(ER_BLOB_USED_AS_KEY, MYF(0), column->field_name.str);
-	    DBUG_RETURN(TRUE);
-	  }
-          if (sql_field->sql_type == MYSQL_TYPE_GEOMETRY &&
-              sql_field->geom_type == Field::GEOM_POINT)
-            column->length= MAX_LEN_GEOM_POINT_FIELD;
-	  if (!column->length)
-	  {
-	    my_error(ER_BLOB_KEY_WITHOUT_LENGTH, MYF(0), column->field_name.str);
-	    DBUG_RETURN(TRUE);
-	  }
-	}
-	if (key->type == KEYTYPE_SPATIAL)
-	{
-	  if (!column->length)
-	  {
-	    /*
-              4 is: (Xmin,Xmax,Ymin,Ymax), this is for 2D case
-              Lately we'll extend this code to support more dimensions
-	    */
-	    column->length= 4*sizeof(double);
-	  }
-	}
-        /*
-          Set NO_DEFAULT_VALUE_FLAG for the PRIMARY KEY column if default
-          values is not explicitly provided for the column in CREATE TABLE
-          statement and it is not an AUTO_INCREMENT field.
-
-          Default values for TIMESTAMP/DATETIME needs special handling as:
-
-         a) If default is explicitly specified (lets say this as case 1) :
-              DEFAULT CURRENT_TIMESTAMP
-              DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-            MySQL does not set sql_field->def flag , but sets
-            Field::DEFAULT_NOW in Create_info::auto_flags.
-            This flags are also set during timestamp column promotion (case2)
-
-            When explicit_defaults_for_timestamp is not set, the behavior
-            expected in both case1 and case2 is to retain the defaults even
-            when the column participates in PRIMARY KEY. When
-            explicit_defaults_for_timestamp is set, the promotion logic
-            is disabled and the above mentioned flag is not used implicitly.
-
-         b) If explicit_defaults_for_timestamp variable is not set:
-             Default value assigned due to first timestamp column promotion is
-             retained.
-             Default constant value assigned due to implicit promotion of second
-             timestamp column is removed.
-        */
-        if (key->type == KEYTYPE_PRIMARY && !sql_field->def &&
-            !(sql_field->flags & AUTO_INCREMENT_FLAG) &&
-            !(real_type_with_now_as_default(sql_field->sql_type) &&
-              (sql_field->auto_flags & Field::DEFAULT_NOW)))
-        {
-          sql_field->flags|= NO_DEFAULT_VALUE_FLAG;
-        }
-        /*
-          Emitting error when field is a part of primary key and is
-          explicitly requested to be NULL by the user.
-        */
-        if ((sql_field->flags & EXPLICIT_NULL_FLAG) &&
-            (key->type == KEYTYPE_PRIMARY))
-        {
-          my_error(ER_PRIMARY_CANT_HAVE_NULL, MYF(0));
-          DBUG_RETURN(true);
-        }
-        // Primary key on virtual generated column is not supported.
-        if (key->type == KEYTYPE_PRIMARY &&
-            !sql_field->stored_in_db)
-        {
-          /* Primary key fields must always be physically stored. */
-          my_error(ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN, MYF(0),
-                   "Defining a virtual generated column as primary key");
-          DBUG_RETURN(TRUE);
-        }
-
-	if (!(sql_field->flags & NOT_NULL_FLAG))
-	{
-	  if (key->type == KEYTYPE_PRIMARY)
-	  {
-	    /* Implicitly set primary key fields to NOT NULL for ISO conf. */
-	    sql_field->flags|= NOT_NULL_FLAG;
-	    sql_field->maybe_null= false;
-            null_fields--;
-	  }
-	  else
-          {
-            key_info->flags|= HA_NULL_PART_KEY;
-            if (!(file->ha_table_flags() & HA_NULL_IN_KEY))
-            {
-              my_error(ER_NULL_COLUMN_IN_INDEX, MYF(0), column->field_name.str);
-              DBUG_RETURN(TRUE);
-            }
-            if (key->type == KEYTYPE_SPATIAL)
-            {
-              my_error(ER_SPATIAL_CANT_HAVE_NULL, MYF(0));
-              DBUG_RETURN(TRUE);
-            }
-          }
-	}
-	if (sql_field->auto_flags & Field::NEXT_NUMBER)
-	{
-	  if (column_nr == 0 || (file->ha_table_flags() & HA_AUTO_PART_KEY))
-	    auto_increment--;			// Field is used
-	}
-      }
-
-      key_part_info->fieldnr= field;
-      key_part_info->offset=  (uint16) sql_field->offset;
-
-      size_t key_part_length= sql_field->key_length;
-
       if (column->length)
       {
-	if (is_blob(sql_field->sql_type))
-	{
-          key_part_length= column->length;
-          /*
-            There is a possibility that the given prefix length is less
-            than the engine max key part length, but still greater
-            than the BLOB field max size. We handle this case
-            using the max_field_size variable below.
-          */
-          size_t max_field_size= sql_field->key_length * sql_field->charset->mbmaxlen;
-	  if ((max_field_size && key_part_length > max_field_size) ||
-              key_part_length > max_key_length ||
-	      key_part_length > file->max_key_part_length())
-	  {
-            // Given prefix length is too large, adjust it.
-	    key_part_length= min(max_key_length, file->max_key_part_length());
-	    if (max_field_size)
-              key_part_length= min(key_part_length, max_field_size);
-	    if (key->type == KEYTYPE_MULTIPLE)
-	    {
-	      /* not a critical problem */
-	      push_warning_printf(thd, Sql_condition::SL_WARNING,
-		                  ER_TOO_LONG_KEY, ER_THD(thd, ER_TOO_LONG_KEY),
-                                  key_part_length);
-              /* Align key length to multibyte char boundary */
-              key_part_length-= key_part_length % sql_field->charset->mbmaxlen;
-              /*
-               If SQL_MODE is STRICT, then report error, else report warning
-               and continue execution.
-              */
-              if (thd->is_error())
-                DBUG_RETURN(true);
-	    }
-	    else
-	    {
-	      my_error(ER_TOO_LONG_KEY, MYF(0), key_part_length);
-	      DBUG_RETURN(TRUE);
-	    }
-	  }
-	}
-        // Catch invalid use of partial keys 
-	else if (sql_field->sql_type != MYSQL_TYPE_GEOMETRY &&
-                 // is the key partial? 
-                 column->length != key_part_length &&
-                 // is prefix length bigger than field length? 
-                 (column->length > key_part_length ||
-                  // can the field have a partial key? 
-                  !Field::type_can_have_key_part (sql_field->sql_type) ||
-                  // does the storage engine allow prefixed search?
-                  ((file->ha_table_flags() & HA_NO_PREFIX_CHAR_KEYS) &&
-                   // and is this a 'unique' key?
-                   (key_info->flags & HA_NOSAME))))
+        my_error(ER_WRONG_SUB_KEY, MYF(0));
+        DBUG_RETURN(true);
+      }
+      if (sql_field->sql_type != MYSQL_TYPE_GEOMETRY)
+      {
+        my_error(ER_SPATIAL_MUST_HAVE_GEOM_COL, MYF(0));
+        DBUG_RETURN(true);
+      }
+      /*
+        4 is: (Xmin,Xmax,Ymin,Ymax), this is for 2D case
+        Lately we'll extend this code to support more dimensions
+      */
+      column->length= 4*sizeof(double);
+    }
+
+    if (is_blob(sql_field->sql_type) ||
+        (sql_field->sql_type == MYSQL_TYPE_GEOMETRY &&
+         key->type != KEYTYPE_SPATIAL))
+    {
+      if (!(file->ha_table_flags() & HA_CAN_INDEX_BLOBS))
+      {
+        my_error(ER_BLOB_USED_AS_KEY, MYF(0), column->field_name.str);
+        DBUG_RETURN(true);
+      }
+      if (sql_field->sql_type == MYSQL_TYPE_GEOMETRY &&
+          sql_field->geom_type == Field::GEOM_POINT)
+        column->length= MAX_LEN_GEOM_POINT_FIELD;
+      if (!column->length)
+      {
+        my_error(ER_BLOB_KEY_WITHOUT_LENGTH, MYF(0), column->field_name.str);
+        DBUG_RETURN(true);
+      }
+    }
+
+    if (key->type == KEYTYPE_PRIMARY)
+    {
+      /*
+        Set NO_DEFAULT_VALUE_FLAG for the PRIMARY KEY column if default
+        values is not explicitly provided for the column in CREATE TABLE
+        statement and it is not an AUTO_INCREMENT field.
+
+        Default values for TIMESTAMP/DATETIME needs special handling as:
+
+        a) If default is explicitly specified (lets say this as case 1) :
+             DEFAULT CURRENT_TIMESTAMP
+             DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+           MySQL does not set sql_field->def flag , but sets
+           Field::DEFAULT_NOW in Create_info::auto_flags.
+           This flags are also set during timestamp column promotion (case2)
+
+           When explicit_defaults_for_timestamp is not set, the behavior
+           expected in both case1 and case2 is to retain the defaults even
+           when the column participates in PRIMARY KEY. When
+           explicit_defaults_for_timestamp is set, the promotion logic
+           is disabled and the above mentioned flag is not used implicitly.
+
+        b) If explicit_defaults_for_timestamp variable is not set:
+           Default value assigned due to first timestamp column promotion is
+           retained.
+           Default constant value assigned due to implicit promotion of second
+           timestamp column is removed.
+      */
+      if (!sql_field->def &&
+          !(sql_field->flags & AUTO_INCREMENT_FLAG) &&
+          !(real_type_with_now_as_default(sql_field->sql_type) &&
+            (sql_field->auto_flags & Field::DEFAULT_NOW)))
+      {
+        sql_field->flags|= NO_DEFAULT_VALUE_FLAG;
+      }
+      /*
+        Emitting error when field is a part of primary key and is
+        explicitly requested to be NULL by the user.
+      */
+      if ((sql_field->flags & EXPLICIT_NULL_FLAG))
+      {
+        my_error(ER_PRIMARY_CANT_HAVE_NULL, MYF(0));
+        DBUG_RETURN(true);
+      }
+    }
+
+    if (!(sql_field->flags & NOT_NULL_FLAG))
+    {
+      if (key->type == KEYTYPE_PRIMARY)
+      {
+        /* Implicitly set primary key fields to NOT NULL for ISO conf. */
+        sql_field->flags|= NOT_NULL_FLAG;
+        sql_field->maybe_null= false;
+        create_info->null_bits--;
+      }
+      else
+      {
+        key_info->flags|= HA_NULL_PART_KEY;
+        if (!(file->ha_table_flags() & HA_NULL_IN_KEY))
         {
-	  my_error(ER_WRONG_SUB_KEY, MYF(0));
-	  DBUG_RETURN(TRUE);
-	}
-	else if (!(file->ha_table_flags() & HA_NO_PREFIX_CHAR_KEYS))
-	  key_part_length= column->length;
+          my_error(ER_NULL_COLUMN_IN_INDEX, MYF(0), column->field_name.str);
+          DBUG_RETURN(true);
+        }
+        if (key->type == KEYTYPE_SPATIAL)
+        {
+          my_error(ER_SPATIAL_CANT_HAVE_NULL, MYF(0));
+          DBUG_RETURN(true);
+        }
       }
-      else if (key_part_length == 0)
+    }
+  } // key->type != KEYTYPE_FULLTEXT
+
+  key_part_info->fieldnr= field;
+  key_part_info->offset=  static_cast<uint16>(sql_field->offset);
+
+  size_t key_part_length= sql_field->key_length;
+
+  if (column->length)
+  {
+    if (is_blob(sql_field->sql_type))
+    {
+      key_part_length= column->length;
+      /*
+        There is a possibility that the given prefix length is less
+        than the engine max key part length, but still greater
+        than the BLOB field max size. We handle this case
+        using the max_field_size variable below.
+      */
+      size_t max_field_size= sql_field->key_length * sql_field->charset->mbmaxlen;
+      if ((max_field_size && key_part_length > max_field_size) ||
+          key_part_length > file->max_key_length() ||
+          key_part_length > file->max_key_part_length())
       {
-	my_error(ER_WRONG_KEY_COLUMN, MYF(0), column->field_name.str);
-        DBUG_RETURN(TRUE);
-      }
-      if (key_part_length > file->max_key_part_length() &&
-          key->type != KEYTYPE_FULLTEXT)
-      {
-        key_part_length= file->max_key_part_length();
-	if (key->type == KEYTYPE_MULTIPLE)
-	{
-	  /* not a critical problem */
-	  push_warning_printf(thd, Sql_condition::SL_WARNING,
+        // Given prefix length is too large, adjust it.
+        key_part_length= min(file->max_key_length(), file->max_key_part_length());
+        if (max_field_size)
+          key_part_length= min(key_part_length, max_field_size);
+        if (key->type == KEYTYPE_MULTIPLE)
+        {
+          /* not a critical problem */
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_TOO_LONG_KEY, ER_THD(thd, ER_TOO_LONG_KEY),
                               key_part_length);
           /* Align key length to multibyte char boundary */
@@ -4653,133 +4349,601 @@ static bool mysql_prepare_create_table(THD *thd,
           */
           if (thd->is_error())
             DBUG_RETURN(true);
-	}
-	else
-	{
-	  my_error(ER_TOO_LONG_KEY, MYF(0), key_part_length);
-	  DBUG_RETURN(TRUE);
-	}
-      }
-      key_part_info->length= (uint16) key_part_length;
-
-      /* Use packed keys for long strings on the first column */
-
-      /*
-        Due to incorrect usage of sql_field->pack_flag & FIELDFLAG_BLOB check
-        we have used packing for some columns which are not strings or BLOBs
-        (see also is_phony_blob()). Since changing this would mean breaking
-        binary compatibility for MyISAM tables with indexes on such columns
-        we mimic this buggy behavior here.
-      */
-      if (!((create_info->table_options & HA_OPTION_NO_PACK_KEYS)) &&
-	  (key_part_length >= KEY_DEFAULT_PACK_LENGTH &&
-	   (sql_field->sql_type == MYSQL_TYPE_STRING ||
-	    sql_field->sql_type == MYSQL_TYPE_VARCHAR ||
-            is_blob(sql_field->sql_type) ||
-            is_phony_blob(sql_field->sql_type, sql_field->decimals))))
-      {
-	if ((column_nr == 0 &&
-             (is_blob(sql_field->sql_type) ||
-              is_phony_blob(sql_field->sql_type, sql_field->decimals))) ||
-            sql_field->sql_type == MYSQL_TYPE_VARCHAR)
-	  key_info->flags|= HA_BINARY_PACK_KEY;
-	else
-	  key_info->flags|= HA_PACK_KEY;
-      }
-
-      /*
-         Check if the key segment is partial, set the key flag
-         accordingly. The key segment for a POINT column is NOT considered
-         partial if key_length==MAX_LEN_GEOM_POINT_FIELD.
-         Note that fulltext indexes ignores prefixes.
-      */
-      if (key->type != KEYTYPE_FULLTEXT &&
-          key_part_length != sql_field->key_length &&
-          !(sql_field->sql_type == MYSQL_TYPE_GEOMETRY &&
-            sql_field->geom_type == Field::GEOM_POINT &&
-            key_part_length == MAX_LEN_GEOM_POINT_FIELD))
-        {
-          key_info->flags|= HA_KEY_HAS_PART_KEY_SEG;
         }
-
-      key_length+= key_part_length;
-      key_part_info++;
-
-      /* Create the key name based on the first column (if not given) */
-      if (column_nr == 0)
-      {
-	if (key->type == KEYTYPE_PRIMARY)
-	{
-	  if (primary_key)
-	  {
-	    my_error(ER_MULTIPLE_PRI_KEY, MYF(0));
-	    DBUG_RETURN(TRUE);
-	  }
-	  key_name=primary_key_name;
-	  primary_key=1;
-	}
-	else if (!(key_name= key->name.str))
-	  key_name=make_unique_key_name(sql_field->field_name,
-					*key_info_buffer, key_info);
-	if (check_if_keyname_exists(key_name, *key_info_buffer, key_info))
-	{
-	  my_error(ER_DUP_KEYNAME, MYF(0), key_name);
-	  DBUG_RETURN(TRUE);
-	}
-	key_info->name=(char*) key_name;
+        else
+        {
+          my_error(ER_TOO_LONG_KEY, MYF(0), key_part_length);
+          DBUG_RETURN(true);
+        }
       }
-    }
-    key_info->actual_flags= key_info->flags;
-    if (!key_info->name || check_column_name(key_info->name))
+    } // is_blob
+    // Catch invalid use of partial keys
+    else if (sql_field->sql_type != MYSQL_TYPE_GEOMETRY &&
+             // is the key partial?
+             column->length != key_part_length &&
+             // is prefix length bigger than field length?
+             (column->length > key_part_length ||
+              // can the field have a partial key?
+              !Field::type_can_have_key_part (sql_field->sql_type) ||
+              // does the storage engine allow prefixed search?
+              ((file->ha_table_flags() & HA_NO_PREFIX_CHAR_KEYS) &&
+               // and is this a 'unique' key?
+               (key_info->flags & HA_NOSAME))))
     {
-      my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), key_info->name);
+      my_error(ER_WRONG_SUB_KEY, MYF(0));
       DBUG_RETURN(TRUE);
     }
-    if (!(key_info->flags & HA_NULL_PART_KEY))
-      unique_key=1;
-    key_info->key_length=(uint16) key_length;
-
-    if (key_length > max_key_length && key->type != KEYTYPE_FULLTEXT &&
-        !is_sql_layer_system_table)
+    else if (!(file->ha_table_flags() & HA_NO_PREFIX_CHAR_KEYS))
+      key_part_length= column->length;
+  } // column->length
+  else if (key_part_length == 0)
+  {
+    my_error(ER_WRONG_KEY_COLUMN, MYF(0), column->field_name.str);
+    DBUG_RETURN(true);
+  }
+  if (key_part_length > file->max_key_part_length() &&
+      key->type != KEYTYPE_FULLTEXT)
+  {
+    key_part_length= file->max_key_part_length();
+    if (key->type == KEYTYPE_MULTIPLE)
     {
-      my_error(ER_TOO_LONG_KEY,MYF(0),max_key_length);
-      DBUG_RETURN(TRUE);
-    }
-
-    if (validate_comment_length(thd, key->key_create_info.comment.str,
-                                &key->key_create_info.comment.length,
-                                INDEX_COMMENT_MAXLEN,
-                                ER_TOO_LONG_INDEX_COMMENT,
-                                key_info->name))
-       DBUG_RETURN(true);
-    key_info->comment.length= key->key_create_info.comment.length;
-    if (key_info->comment.length > 0)
-    {
-      key_info->flags|= HA_USES_COMMENT;
-      key_info->comment.str= key->key_create_info.comment.str;
-    }
-
-    /*
-      We only check for duplicate indexes if it is requested and the key is
-      not auto-generated and non-PRIMARY.
-
-      Check is requested if the key was explicitly created or altered
-      (Index is altered/column associated with it is dropped) by the user
-      (unless it's a foreign key).
-
-      The fact that we have only one PRIMARY key for the table is checked
-      elsewhere.
-
-      At this point we simply add qualifying keys to the list, so we can
-      perform check later when we properly construct KEY objects for all
-      keys.
-    */
-    if (key->key_create_info.check_for_duplicate_indexes &&
-        ! key->generated && key->type != KEYTYPE_PRIMARY)
-    {
-      if (keys_to_check.push_back(key_info))
+      /* not a critical problem */
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_TOO_LONG_KEY, ER_THD(thd, ER_TOO_LONG_KEY),
+                          key_part_length);
+      /* Align key length to multibyte char boundary */
+      key_part_length-= key_part_length % sql_field->charset->mbmaxlen;
+      /*
+        If SQL_MODE is STRICT, then report error, else report warning
+        and continue execution.
+      */
+      if (thd->is_error())
         DBUG_RETURN(true);
     }
+    else
+    {
+      my_error(ER_TOO_LONG_KEY, MYF(0), key_part_length);
+      DBUG_RETURN(true);
+    }
+  }
+  key_part_info->length= static_cast<uint16>(key_part_length);
+
+  /*
+    Use packed keys for long strings on the first column
+
+    Due to incorrect usage of sql_field->pack_flag & FIELDFLAG_BLOB check
+    we have used packing for some columns which are not strings or BLOBs
+    (see also is_phony_blob()). Since changing this would mean breaking
+    binary compatibility for MyISAM tables with indexes on such columns
+    we mimic this buggy behavior here.
+  */
+  if (!((create_info->table_options & HA_OPTION_NO_PACK_KEYS)) &&
+      (key_part_length >= KEY_DEFAULT_PACK_LENGTH &&
+       (sql_field->sql_type == MYSQL_TYPE_STRING ||
+        sql_field->sql_type == MYSQL_TYPE_VARCHAR ||
+        is_blob(sql_field->sql_type) ||
+        is_phony_blob(sql_field->sql_type, sql_field->decimals))))
+  {
+    if ((column_nr == 0 &&
+         (is_blob(sql_field->sql_type) ||
+          is_phony_blob(sql_field->sql_type, sql_field->decimals))) ||
+        sql_field->sql_type == MYSQL_TYPE_VARCHAR)
+      key_info->flags|= HA_BINARY_PACK_KEY;
+    else
+      key_info->flags|= HA_PACK_KEY;
+  }
+
+  /*
+    Check if the key segment is partial, set the key flag
+    accordingly. The key segment for a POINT column is NOT considered
+    partial if key_length==MAX_LEN_GEOM_POINT_FIELD.
+    Note that fulltext indexes ignores prefixes.
+  */
+  if (key->type != KEYTYPE_FULLTEXT &&
+      key_part_length != sql_field->key_length &&
+      !(sql_field->sql_type == MYSQL_TYPE_GEOMETRY &&
+        sql_field->geom_type == Field::GEOM_POINT &&
+        key_part_length == MAX_LEN_GEOM_POINT_FIELD))
+  {
+    key_info->flags|= HA_KEY_HAS_PART_KEY_SEG;
+  }
+
+  key_info->key_length+= key_part_length;
+  DBUG_RETURN(false);
+}
+
+
+static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
+                        List<Create_field> *create_list, Key_spec *key,
+                        KEY **key_info_buffer, KEY *key_info,
+                        KEY_PART_INFO **key_part_info,
+                        Mem_root_array<const KEY *, true> &keys_to_check,
+                        uint key_number, const handler *file,
+                        int *auto_increment)
+{
+  DBUG_ENTER("prepare_key");
+  DBUG_ASSERT(create_list);
+
+  /*
+    General checks.
+  */
+
+  if (key->columns.elements > file->max_key_parts() && key->type != KEYTYPE_SPATIAL)
+  {
+    my_error(ER_TOO_MANY_KEY_PARTS,MYF(0), file->max_key_parts());
+    DBUG_RETURN(true);
+  }
+
+  LEX_CSTRING key_name_cstr= {key->name.str, key->name.length};
+  if (check_string_char_length(key_name_cstr, "", NAME_CHAR_LEN,
+                               system_charset_info, 1))
+  {
+    my_error(ER_TOO_LONG_IDENT, MYF(0), key->name.str);
+    DBUG_RETURN(true);
+  }
+
+  if (key->name.str && (key->type != KEYTYPE_PRIMARY) &&
+      !my_strcasecmp(system_charset_info, key->name.str, primary_key_name))
+  {
+    my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), key->name.str);
+    DBUG_RETURN(true);
+  }
+
+  /* Create the key name based on the first column (if not given) */
+  if (key->type == KEYTYPE_PRIMARY)
+    key_info->name= const_cast<char*>(primary_key_name);
+  else if (key->name.str)
+    key_info->name= key->name.str;
+  else
+  {
+    Key_part_spec *first_col= key->columns.head();
+    List_iterator<Create_field> it(*create_list);
+    Create_field *sql_field;
+    while ((sql_field= it++) &&
+           my_strcasecmp(system_charset_info,
+                         first_col->field_name.str,
+                         sql_field->field_name))
+      ;
+    if (!sql_field)
+    {
+      my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), first_col->field_name.str);
+      DBUG_RETURN(true);
+    }
+    key_info->name= make_unique_key_name(sql_field->field_name,
+                                         *key_info_buffer, key_info);
+  }
+  if (key->type != KEYTYPE_PRIMARY &&
+      check_if_keyname_exists(key_info->name, *key_info_buffer, key_info))
+  {
+    my_error(ER_DUP_KEYNAME, MYF(0), key_info->name);
+    DBUG_RETURN(true);
+  }
+
+  if (!key_info->name || check_column_name(key_info->name))
+  {
+    my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), key_info->name);
+    DBUG_RETURN(true);
+  }
+
+  key_info->comment.length= key->key_create_info.comment.length;
+  key_info->comment.str= key->key_create_info.comment.str;
+  if (validate_comment_length(thd, key_info->comment.str,
+                              &key_info->comment.length,
+                              INDEX_COMMENT_MAXLEN,
+                              ER_TOO_LONG_INDEX_COMMENT,
+                              key_info->name))
+    DBUG_RETURN(true);
+  if (key_info->comment.length > 0)
+    key_info->flags|= HA_USES_COMMENT;
+
+  switch (key->type) {
+  case KEYTYPE_MULTIPLE:
+    key_info->flags= 0;
+    break;
+  case KEYTYPE_FULLTEXT:
+    if (!(file->ha_table_flags() & HA_CAN_FULLTEXT))
+    {
+      if (is_ha_partition_handlerton(file->ht))
+      {
+        my_error(ER_FULLTEXT_NOT_SUPPORTED_WITH_PARTITIONING, MYF(0));
+        DBUG_RETURN(true);
+      }
+      my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
+      DBUG_RETURN(true);
+    }
+    key_info->flags= HA_FULLTEXT;
+    if ((key_info->parser_name= &key->key_create_info.parser_name)->str)
+      key_info->flags|= HA_USES_PARSER;
+    else
+      key_info->parser_name= NULL;
+    break;
+  case KEYTYPE_SPATIAL:
+    if (!(file->ha_table_flags() & HA_CAN_RTREEKEYS))
+    {
+      my_error(ER_TABLE_CANT_HANDLE_SPKEYS, MYF(0));
+      DBUG_RETURN(true);
+    }
+    if (key->columns.elements != 1)
+    {
+      my_error(ER_TOO_MANY_KEY_PARTS, MYF(0), 1);
+      DBUG_RETURN(true);
+    }
+    key_info->flags= HA_SPATIAL;
+    break;
+  case KEYTYPE_PRIMARY:
+  case KEYTYPE_UNIQUE:
+    key_info->flags= HA_NOSAME;
+    break;
+  default:
+    DBUG_ASSERT(false);
+    DBUG_RETURN(true);
+  }
+  if (key->generated)
+    key_info->flags|= HA_GENERATED_KEY;
+
+  key_info->algorithm=              key->key_create_info.algorithm;
+  key_info->user_defined_key_parts= key->columns.elements;
+  key_info->actual_key_parts=       key_info->user_defined_key_parts;
+  key_info->key_part=               *key_part_info;
+  key_info->usable_key_parts=       key_number;
+  key_info->is_algorithm_explicit=  false;
+
+  /*
+    Make SPATIAL to be RTREE by default
+    SPATIAL only on BLOB or at least BINARY, this
+    actually should be replaced by special GEOM type
+    in near future when new frm file is ready
+    checking for proper key parts number:
+  */
+
+  if (key_info->flags & HA_SPATIAL)
+  {
+    DBUG_ASSERT(!key->key_create_info.is_algorithm_explicit);
+    key_info->algorithm= HA_KEY_ALG_RTREE;
+  }
+  else if (key_info->flags & HA_FULLTEXT)
+  {
+    DBUG_ASSERT(!key->key_create_info.is_algorithm_explicit);
+    key_info->algorithm= HA_KEY_ALG_FULLTEXT;
+  }
+  else
+  {
+    if (key->key_create_info.is_algorithm_explicit)
+    {
+      if (key->key_create_info.algorithm == HA_KEY_ALG_RTREE)
+      {
+        if ((key_info->user_defined_key_parts & 1) == 1)
+        {
+          my_error(ER_TOO_MANY_KEY_PARTS, MYF(0), 1);
+          DBUG_RETURN(true);
+        }
+        /* TODO: To be deleted */
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0), "RTREE INDEX");
+        DBUG_RETURN(true);
+      }
+      else
+      {
+        /*
+          If key algorithm was specified explicitly check if it is
+          supported by SE.
+        */
+        if (file->is_index_algorithm_supported(key->key_create_info.algorithm))
+        {
+          key_info->is_algorithm_explicit= true;
+          key_info->algorithm= key->key_create_info.algorithm;
+        }
+        else
+        {
+          /*
+            If explicit algorithm is not supported by SE, replace it with
+            default one. Don't mark key algorithm as explicitly specified
+            in this case.
+          */
+          key_info->algorithm= file->get_default_index_algorithm();
+
+          push_warning_printf(thd, Sql_condition::SL_NOTE,
+                              ER_UNSUPPORTED_INDEX_ALGORITHM,
+                              ER_THD(thd, ER_UNSUPPORTED_INDEX_ALGORITHM),
+                              ((key->key_create_info.algorithm ==
+                                HA_KEY_ALG_HASH) ? "HASH" : "BTREE"));
+        }
+      }
+    }
+    else
+    {
+      /*
+        If key algorithm was not explicitly specified used default one for
+        this SE. Interesting side-effect of this is that ALTER TABLE will
+        cause index rebuild if SE default changes.
+        Assert that caller doesn't use any non-default algorithm in this
+        case as such setting is ignored anyway.
+      */
+      DBUG_ASSERT(key->key_create_info.algorithm == HA_KEY_ALG_SE_SPECIFIC);
+      key_info->algorithm= file->get_default_index_algorithm();
+    }
+  }
+
+  /*
+    Take block size from key part or table part
+    TODO: Add warning if block size changes. We can't do it here, as
+    this may depend on the size of the key
+  */
+  key_info->block_size= (key->key_create_info.block_size ?
+                         key->key_create_info.block_size :
+                         create_info->key_block_size);
+
+  if (key_info->block_size)
+    key_info->flags|= HA_USES_BLOCK_SIZE;
+
+  List_iterator<Key_part_spec> cols(key->columns);
+  const CHARSET_INFO *ft_key_charset= NULL;  // for FULLTEXT
+  key_info->key_length= 0;
+  Key_part_spec *column;
+  for (uint column_nr= 0 ; (column=cols++) ; column_nr++, (*key_part_info)++)
+  {
+    if (prepare_key_column(thd, create_info, create_list, key, column,
+                           column_nr, key_info, *key_part_info, file,
+                           auto_increment, &ft_key_charset))
+      DBUG_RETURN(true);
+  }
+  key_info->actual_flags= key_info->flags;
+
+  if (key_info->key_length > file->max_key_length() &&
+      key->type != KEYTYPE_FULLTEXT)
+  {
+    my_error(ER_TOO_LONG_KEY, MYF(0), file->max_key_length());
+    if (thd->is_error()) // May be silenced - see Bug#20629014
+      DBUG_RETURN(true);
+  }
+
+  /*
+    We only check for duplicate indexes if it is requested and the key is
+    not auto-generated and non-PRIMARY.
+
+    Check is requested if the key was explicitly created or altered
+    (Index is altered/column associated with it is dropped) by the user
+    (unless it's a foreign key).
+
+    The fact that we have only one PRIMARY key for the table is checked
+    elsewhere.
+
+    At this point we simply add qualifying keys to the list, so we can
+    perform check later when we properly construct KEY objects for all
+    keys.
+  */
+  if (key->key_create_info.check_for_duplicate_indexes &&
+      !key->generated && key->type != KEYTYPE_PRIMARY)
+  {
+    if (keys_to_check.push_back(key_info))
+      DBUG_RETURN(true);
+  }
+  DBUG_RETURN(false);
+}
+
+
+/**
+  Prepares the table and key structures for table creation.
+
+  @param thd                       Thread object.
+  @param error_table_name          Name of table to create/alter, only used for
+                                   error reporting.
+  @param create_info               Create information (like MAX_ROWS).
+  @param alter_info                List of columns and indexes to create
+  @param file                      The handler for the new table.
+  @param[out] key_info_buffer      An array of KEY structs for the indexes.
+  @param[out] key_count            The number of elements in the array.
+  @param select_field_count        The number of fields coming from a select table.
+
+  @retval false   OK
+  @retval true    error
+*/
+
+static bool mysql_prepare_create_table(THD *thd,
+                                       const char* error_table_name,
+                                       HA_CREATE_INFO *create_info,
+                                       Alter_info *alter_info,
+                                       handler *file, KEY **key_info_buffer,
+                                       uint *key_count, int select_field_count)
+{
+  DBUG_ENTER("mysql_prepare_create_table");
+
+  /*
+    Validation of table properties.
+  */
+  LEX_STRING *compress= &create_info->compress;
+  if (compress->length != 0 &&
+      compress->length > TABLE_COMMENT_MAXLEN &&
+      system_charset_info->cset->charpos(system_charset_info,
+                                         compress->str,
+                                         compress->str + compress->length,
+                                         TABLE_COMMENT_MAXLEN)
+      < compress->length)
+  {
+    my_error(ER_WRONG_STRING_LENGTH, MYF(0),
+             compress->str, "COMPRESSION", TABLE_COMMENT_MAXLEN);
+    DBUG_RETURN(true);
+  }
+
+  LEX_STRING *encrypt_type= &create_info->encrypt_type;
+  if (encrypt_type->length != 0 &&
+      encrypt_type->length > TABLE_COMMENT_MAXLEN &&
+      system_charset_info->cset->charpos(system_charset_info,
+                                         encrypt_type->str,
+                                         encrypt_type->str
+					   + encrypt_type->length,
+                                         TABLE_COMMENT_MAXLEN)
+      < encrypt_type->length)
+  {
+    my_error(ER_WRONG_STRING_LENGTH, MYF(0),
+             encrypt_type->str, "ENCRYPTION", TABLE_COMMENT_MAXLEN);
+    DBUG_RETURN(TRUE);
+  }
+
+  if (validate_comment_length(thd,
+                              create_info->comment.str,
+                              &create_info->comment.length,
+                              TABLE_COMMENT_MAXLEN,
+                              ER_TOO_LONG_TABLE_COMMENT,
+                              error_table_name))
+  {
+    DBUG_RETURN(true);
+  }
+
+  if (alter_info->create_list.elements > MAX_FIELDS)
+  {
+    my_error(ER_TOO_MANY_FIELDS, MYF(0));
+    DBUG_RETURN(true);
+  }
+
+  /*
+    Checks which previously were done during .FRM creation.
+
+    TODO: Check if the old .FRM limitations still make sense
+    with the new DD.
+  */
+
+  /* Fix this when we have new .frm files;  Current limit is 4G rows (QQ) */
+  if (create_info->max_rows > UINT_MAX32)
+    create_info->max_rows= UINT_MAX32;
+  if (create_info->min_rows > UINT_MAX32)
+    create_info->min_rows= UINT_MAX32;
+
+  if (create_info->row_type == ROW_TYPE_DYNAMIC)
+    create_info->table_options|= HA_OPTION_PACK_RECORD;
+
+  /*
+    Prepare fields.
+  */
+  int select_field_pos= alter_info->create_list.elements - select_field_count;
+  create_info->null_bits= 0;
+  Create_field *sql_field;
+  List_iterator<Create_field> it(alter_info->create_list);
+  for (int field_no= 0; (sql_field=it++) ; field_no++)
+  {
+    if (prepare_create_field(thd, create_info, &alter_info->create_list,
+                             &select_field_pos, file, sql_field, field_no))
+      DBUG_RETURN(true);
+  }
+  calculate_field_offsets(&alter_info->create_list);
+
+  /*
+    Auto increment and blob checks.
+  */
+  int auto_increment= 0;
+  int blob_columns= 0;
+  it.rewind();
+  while ((sql_field=it++))
+  {
+    if (sql_field->auto_flags & Field::NEXT_NUMBER)
+      auto_increment++;
+    switch (sql_field->sql_type)
+    {
+    case MYSQL_TYPE_GEOMETRY:
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_LONG_BLOB:
+    case MYSQL_TYPE_JSON:
+      blob_columns++;
+      break;
+    default:
+      break;
+    }
+  }
+  if (auto_increment > 1)
+  {
+    my_error(ER_WRONG_AUTO_KEY, MYF(0));
+    DBUG_RETURN(true);
+  }
+  if (auto_increment && (file->ha_table_flags() & HA_NO_AUTO_INCREMENT))
+  {
+    my_error(ER_TABLE_CANT_HANDLE_AUTO_INCREMENT, MYF(0));
+    DBUG_RETURN(true);
+  }
+  if (blob_columns && (file->ha_table_flags() & HA_NO_BLOBS))
+  {
+    my_error(ER_TABLE_CANT_HANDLE_BLOB, MYF(0));
+    DBUG_RETURN(true);
+  }
+  /*
+   CREATE TABLE[with auto_increment column] SELECT is unsafe as the rows
+   inserted in the created table depends on the order of the rows fetched
+   from the select tables. This order may differ on master and slave. We
+   therefore mark it as unsafe.
+  */
+  if (select_field_count > 0 && auto_increment)
+    thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_CREATE_SELECT_AUTOINC);
+
+  /*
+    Count keys and key segments.
+    Also mark redundant keys to be ignored.
+  */
+  uint key_parts;
+  count_keys(&alter_info->key_list, key_count, &key_parts);
+  if (*key_count > file->max_keys())
+  {
+    my_error(ER_TOO_MANY_KEYS,MYF(0), file->max_keys());
+    DBUG_RETURN(true);
+  }
+
+  /*
+    Make KEY objects for the keys in the new table.
+  */
+  KEY *key_info;
+  (*key_info_buffer)= key_info= (KEY*) sql_calloc(sizeof(KEY) * (*key_count));
+  KEY_PART_INFO *key_part_info=
+    (KEY_PART_INFO*) sql_calloc(sizeof(KEY_PART_INFO)*key_parts);
+  if (!*key_info_buffer || ! key_part_info)
+    DBUG_RETURN(true);				// Out of memory
+
+  Mem_root_array<const KEY *, true> keys_to_check(thd->mem_root);
+  if (keys_to_check.reserve(*key_count))
+    DBUG_RETURN(true);				// Out of memory
+
+  Key_spec *key;
+  List_iterator<Key_spec> key_iterator(alter_info->key_list);
+  uint key_number= 0;
+  bool primary_key= false;
+  for (; (key=key_iterator++) ; key_number++)
+  {
+    if (key->name.str == ignore_key)
+    {
+      key_number--; // Skip redundant keys
+      continue;
+    }
+
+    if (key->type == KEYTYPE_FOREIGN)
+    {
+      if (down_cast<Foreign_key_spec*>(key)->validate(alter_info->create_list))
+        DBUG_RETURN(TRUE);
+      Foreign_key_spec *fk_key= down_cast<Foreign_key_spec*>(key);
+      if (fk_key->ref_columns.elements &&
+	  fk_key->ref_columns.elements != fk_key->columns.elements)
+      {
+        my_error(ER_WRONG_FK_DEF, MYF(0),
+                 (fk_key->name.str ? fk_key->name.str :
+                                     "foreign key without name"),
+                 ER_THD(thd, ER_KEY_REF_DO_NOT_MATCH_TABLE_REF));
+	DBUG_RETURN(true);
+      }
+      key_number--; // Skip foreign keys
+      continue;
+    }
+
+    if (key->type == KEYTYPE_PRIMARY)
+    {
+      if (primary_key)
+      {
+        my_error(ER_MULTIPLE_PRI_KEY, MYF(0));
+        DBUG_RETURN(true);
+      }
+      primary_key= true;
+    }
+
+    if (prepare_key(thd, create_info, &alter_info->create_list, key, key_info_buffer,
+                    key_info, &key_part_info, keys_to_check, key_number, file,
+                    &auto_increment))
+      DBUG_RETURN(true);
 
     key_info++;
   }
@@ -4793,41 +4957,57 @@ static bool mysql_prepare_create_table(THD *thd,
        dup_check_key != keys_to_check.end();
        dup_check_key++)
   {
-    if (check_duplicate_key(thd, *dup_check_key,
-                            *key_info_buffer, *key_count,
+    if (check_duplicate_key(thd, *dup_check_key, *key_info_buffer, *key_count,
                             alter_info))
       DBUG_RETURN(true);
   }
 
-  if (!unique_key && !primary_key &&
-      (file->ha_table_flags() & HA_REQUIRE_PRIMARY_KEY))
+  /*
+    Primary/unique key check.
+  */
+  if (file->ha_table_flags() & HA_REQUIRE_PRIMARY_KEY)
   {
-    my_error(ER_REQUIRES_PRIMARY_KEY, MYF(0));
-    DBUG_RETURN(TRUE);
+    bool unique_key= false;
+    for (const KEY *k= *key_info_buffer;
+         k != *key_info_buffer + *key_count; k++)
+    {
+      if (!(k->flags & HA_NULL_PART_KEY))
+        unique_key= true;
+    }
+    if (!unique_key && !primary_key)
+    {
+      my_error(ER_REQUIRES_PRIMARY_KEY, MYF(0));
+      DBUG_RETURN(true);
+    }
   }
+
+  /*
+    Any auto increment columns not found during prepare_key?
+  */
   if (auto_increment > 0)
   {
     my_error(ER_WRONG_AUTO_KEY, MYF(0));
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
-  /* Sort keys in optimized order */
-  my_qsort((uchar*) *key_info_buffer, *key_count, sizeof(KEY),
-	   sort_keys);
-  create_info->null_bits= null_fields;
 
-  /* Check fields. */
-  it.rewind();
+  /* Sort keys in optimized order */
+  my_qsort(reinterpret_cast<uchar*>(*key_info_buffer),
+           *key_count, sizeof(KEY), sort_keys);
 
   /*
     Check if  STRICT SQL mode is active and server is not started with
     --explicit-defaults-for-timestamp. Below check was added to prevent implicit
     default 0 value of timestamp. When explicit-defaults-for-timestamp server
     option is removed, whole set of check can be removed.
+
+    Note that this check must be after KEYs have been created as this
+    can cause the NOT_NULL_FLAG to be set.
   */
   if (thd->variables.sql_mode & MODE_NO_ZERO_DATE &&
       !thd->variables.explicit_defaults_for_timestamp)
   {
-    while ((sql_field=it++))
+    it.rewind();
+    while ((sql_field= it++))
     {
       if (!sql_field->def &&
           !sql_field->gcol_info &&
@@ -4852,88 +5032,23 @@ static bool mysql_prepare_create_table(THD *thd,
         */
 
         my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
-        DBUG_RETURN(TRUE);
+        DBUG_RETURN(true);
       }
     }
   }
-
-  {
-    LEX_STRING*	compress = &create_info->compress;
-
-    if (compress->length != 0 &&
-	compress->length > TABLE_COMMENT_MAXLEN &&
-	system_charset_info->cset->charpos(system_charset_info,
-					   compress->str,
-					   compress->str + compress->length,
-					   TABLE_COMMENT_MAXLEN)
-	< compress->length)
-    {
-      my_error(ER_WRONG_STRING_LENGTH, MYF(0),
-	       compress->str, "COMPRESSION", TABLE_COMMENT_MAXLEN);
-      DBUG_RETURN(TRUE);
-    }
-  }
-
-  {
-    LEX_STRING*	encrypt_type = &create_info->encrypt_type;
-
-    if (encrypt_type->length != 0 &&
-	encrypt_type->length > TABLE_COMMENT_MAXLEN &&
-	system_charset_info->cset->charpos(system_charset_info,
-					   encrypt_type->str,
-					   encrypt_type->str
-					   + encrypt_type->length,
-					   TABLE_COMMENT_MAXLEN)
-	< encrypt_type->length)
-    {
-      my_error(ER_WRONG_STRING_LENGTH, MYF(0),
-	       encrypt_type->str, "ENCRYPTION", TABLE_COMMENT_MAXLEN);
-      DBUG_RETURN(TRUE);
-    }
-  }
-
-  /*
-    Checks which previously were done during .FRM creation.
-
-    TODO: Check if the old .FRM limitations still make sense
-    with the new DD.
-  */
-
-  /* Fix this when we have new .frm files;  Current limit is 4G rows (QQ) */
-  if (create_info->max_rows > UINT_MAX32)
-    create_info->max_rows= UINT_MAX32;
-  if (create_info->min_rows > UINT_MAX32)
-    create_info->min_rows= UINT_MAX32;
 
   /* If fixed row records, we need one bit to check for deleted rows */
   if (!(create_info->table_options & HA_OPTION_PACK_RECORD))
     create_info->null_bits++;
   ulong data_offset= (create_info->null_bits + 7) / 8;
-
-  if (alter_info->create_list.elements > MAX_FIELDS)
-  {
-    my_error(ER_TOO_MANY_FIELDS, MYF(0));
-    DBUG_RETURN(true);
-  }
-
   size_t reclength= data_offset;
-
   it.rewind();
-  while ((sql_field=it++))
+  while ((sql_field= it++))
   {
-    if (validate_comment_length(thd,
-                                sql_field->comment.str,
-                                &sql_field->comment.length,
-                                COLUMN_COMMENT_MAXLEN,
-                                ER_TOO_LONG_FIELD_COMMENT,
-                                sql_field->field_name))
-      DBUG_RETURN(true);
-
     size_t length= sql_field->pack_length;
     if (sql_field->offset + data_offset + length > reclength)
       reclength= sql_field->offset + data_offset + length;
   }
-
   if (reclength > file->max_record_length())
   {
     my_error(ER_TOO_BIG_ROWSIZE, MYF(0),
@@ -4941,28 +5056,7 @@ static bool mysql_prepare_create_table(THD *thd,
     DBUG_RETURN(true);
   }
 
-  if (create_info->comment.length > TABLE_COMMENT_MAXLEN)
-  {
-    const char *real_table_name= table_name;
-    it.rewind();
-    while ((sql_field=it++))
-    {
-      if (sql_field->field && sql_field->field->table &&
-        (real_table_name= sql_field->field->table->s->table_name.str))
-         break;
-    }
-    if (validate_comment_length(thd,
-                                create_info->comment.str,
-                                &create_info->comment.length,
-                                TABLE_COMMENT_MAXLEN,
-                                ER_TOO_LONG_TABLE_COMMENT,
-                                real_table_name))
-    {
-      DBUG_RETURN(true);
-    }
-  }
-
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 /**
@@ -5105,61 +5199,14 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field)
 }
 
 
-/*
-  Preparation of Create_field for SP function return values.
-  Based on code used in the inner loop of mysql_prepare_create_table()
-  above.
-
-  SYNOPSIS
-    sp_prepare_create_field()
-    thd			Thread object
-    sql_field		Field to prepare
-
-  DESCRIPTION
-    Prepares the field structures for field creation.
-
-*/
-
-static void sp_prepare_create_field(THD *thd, Create_field *sql_field)
-{
-  if (sql_field->sql_type == MYSQL_TYPE_SET ||
-      sql_field->sql_type == MYSQL_TYPE_ENUM)
-  {
-    size_t field_length, dummy;
-    if (sql_field->sql_type == MYSQL_TYPE_SET)
-    {
-      calculate_interval_lengths(sql_field->charset,
-                                 sql_field->interval, &dummy, 
-                                 &field_length);
-      sql_field->length= field_length + 
-                         (sql_field->interval->count - 1);
-    }
-    else /* MYSQL_TYPE_ENUM */
-    {
-      calculate_interval_lengths(sql_field->charset,
-                                 sql_field->interval,
-                                 &field_length, &dummy);
-      sql_field->length= field_length;
-    }
-    set_if_smaller(sql_field->length, MAX_FIELD_WIDTH-1);
-  }
-
-  if (sql_field->sql_type == MYSQL_TYPE_BIT)
-    sql_field->treat_bit_as_char= true;
-
-  sql_field->create_length_to_internal_length();
-  DBUG_ASSERT(sql_field->def == 0);
-  /* Can't go wrong as sql_field->def is not defined */
-  (void) prepare_blob_field(thd, sql_field);
-}
-
-
 /**
   Create a table
 
   @param thd                 Thread object
   @param db                  Database
   @param table_name          Table name
+  @param error_table_name    The real table name in case table_name is a temporary
+                             table (ALTER). Only used for error messages.
   @param path                Path to table (i.e. to its .FRM file without
                              the extension).
   @param create_info         Create information (like MAX_ROWS)
@@ -5177,8 +5224,6 @@ static void sp_prepare_create_field(THD *thd, Create_field *sql_field)
   @param[out] key_info       Array of KEY objects describing keys in table
                              which was created.
   @param[out] key_count      Number of keys in table which was created.
-  @param[in] is_sql_layer_system_table
-                             We skip certain index checks for system tables.
   @param[out] tmp_table_def  Data-dictionary object for temporary table
                              which was created, but was not open because
                              of "no_ha_table" flag. NULL otherwise (if
@@ -5198,6 +5243,7 @@ static void sp_prepare_create_field(THD *thd, Create_field *sql_field)
 static
 bool create_table_impl(THD *thd,
                        const char *db, const char *table_name,
+                       const char *error_table_name,
                        const char *path,
                        HA_CREATE_INFO *create_info,
                        Alter_info *alter_info,
@@ -5207,7 +5253,6 @@ bool create_table_impl(THD *thd,
                        bool *is_trans,
                        KEY **key_info,
                        uint *key_count,
-                       bool is_sql_layer_system_table,
                        dd::Table **tmp_table_def)
 {
   const char	*alias;
@@ -5492,13 +5537,11 @@ bool create_table_impl(THD *thd,
     }
   }
 
-  if (mysql_prepare_create_table(thd, table_name,
+  if (mysql_prepare_create_table(thd, error_table_name,
                                  create_info, alter_info,
-                                 internal_tmp_table,
                                  file,
                                  key_info, key_count,
-                                 select_field_count,
-                                 is_sql_layer_system_table))
+                                 select_field_count))
     goto err;
 
   /* Check if table already exists */
@@ -5799,10 +5842,10 @@ bool mysql_create_table_no_lock(THD *thd,
         dd::get_dictionary()->is_dd_table_name(db, table_name))
     no_ha_table= true;
 
-  return create_table_impl(thd, db, table_name, path, create_info, alter_info,
+  return create_table_impl(thd, db, table_name, table_name,
+                           path, create_info, alter_info,
                            false, select_field_count, no_ha_table, is_trans,
                            &not_used_1, &not_used_2,
-                           check_if_sql_layer_system_table(db, table_name),
                            &not_used_3);
 }
 
@@ -7412,9 +7455,8 @@ bool mysql_compare_tables(TABLE *table,
                                  "", // Not used
                                  create_info,
                                  &tmp_alter_info,
-                                 (table->s->tmp_table != NO_TMP_TABLE),
                                  table->file, &key_info_buffer,
-                                 &key_count, 0, false))
+                                 &key_count, 0))
     DBUG_RETURN(true);
 
   /* Some very basic checks. */
@@ -9831,15 +9873,13 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   dd::Table *tmp_table_def;
 
   tmp_disable_binlog(thd);
-  bool sql_layer_system_table=
-     check_if_sql_layer_system_table(alter_ctx.db,
-                                     alter_ctx.table_name);
+
   error= create_table_impl(thd, alter_ctx.new_db, alter_ctx.tmp_name,
+                           alter_ctx.table_name,
                            alter_ctx.get_tmp_path(),
                            create_info, alter_info,
                            true, 0, true, NULL,
                            &key_info, &key_count,
-                           sql_layer_system_table,
                            &tmp_table_def);
   reenable_binlog(thd);
 

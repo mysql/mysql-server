@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -193,10 +193,9 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                             bool log_query);
 bool quick_rm_table(THD *thd, handlerton *base, const char *db,
                     const char *table_name, uint flags);
-bool fill_field_definition(THD *thd,
-                           class sp_head *sp,
-                           enum enum_field_types field_type,
-                           Create_field *field_def);
+bool prepare_sp_create_field(THD *thd,
+                             enum enum_field_types field_type,
+                             Create_field *field_def);
 const CHARSET_INFO* get_sql_field_charset(Create_field *sql_field,
                                           const HA_CREATE_INFO *create_info);
 bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags);

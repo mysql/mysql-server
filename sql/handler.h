@@ -53,7 +53,6 @@ typedef struct st_bitmap MY_BITMAP;
 typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
 typedef struct st_hash HASH;
 typedef struct st_key_cache KEY_CACHE;
-typedef struct st_key_create_information KEY_CREATE_INFO;
 typedef struct st_savepoint SAVEPOINT;
 typedef struct xid_t XID;
 struct MDL_key;
@@ -77,7 +76,6 @@ namespace AQP {
 }
 
 extern ulong savepoint_alloc_size;
-extern KEY_CREATE_INFO default_key_create_info;
 
 extern MYSQL_PLUGIN_IMPORT const Key_map key_map_empty;
 extern MYSQL_PLUGIN_IMPORT Key_map key_map_full; // Should be treated as const
@@ -1932,31 +1930,6 @@ public:
     DBUG_PRINT("info", ("index added: '%s'", new_key->name));
   }
 };
-
-/*
-  TODO: move this struct out of handler.h. It is not really part
-        of SE API and more related to Key class produced by parser.
-*/
-
-typedef struct st_key_create_information
-{
-  enum ha_key_alg algorithm;
-  /**
-    A flag which indicates that index algorithm was explicitly specified
-    by user.
-  */
-  bool is_algorithm_explicit;
-  ulong block_size;
-  LEX_STRING parser_name;
-  LEX_STRING comment;
-  /**
-    A flag to determine if we will check for duplicate indexes.
-    This typically means that the key information was specified
-    directly by the user (set by the parser) or a column
-    associated with it was dropped.
-  */
-  bool check_for_duplicate_indexes;
-} KEY_CREATE_INFO;
 
 
 typedef struct st_ha_check_opt
@@ -4416,8 +4389,6 @@ bool ha_check_if_supported_system_table(handlerton *hton, const char* db,
                                         const char* table_name);
 bool ha_rm_tmp_tables(THD *thd, List<LEX_STRING> *files);
 bool default_rm_tmp_tables(handlerton *hton, THD *thd, List<LEX_STRING> *files);
-bool check_if_sql_layer_system_table(const char *db,
-                                     const char *table_name);
 
 /* key cache */
 extern "C" int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);

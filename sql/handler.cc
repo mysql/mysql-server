@@ -226,9 +226,6 @@ const char *ha_resolve_storage_engine_name(const handlerton *db_type)
 
 static handlerton *installed_htons[128];
 
-KEY_CREATE_INFO default_key_create_info=
-  { HA_KEY_ALG_SE_SPECIFIC, false, 0, {NullS, 0}, {NullS, 0}, true };
-
 /* number of storage engines (from installed_htons[]) that support 2pc */
 ulong total_ha_2pc= 0;
 /* size of savepoint storage area (see ha_init) */
@@ -5196,28 +5193,6 @@ static bool check_if_system_table(const char *db,
   }
 
   return true;
-}
-
-
-/**
-  Check if a table specified by name is a sql layer system table.
-
-  @param db                    Database name.
-  @param table_name            Table name to be checked.
-
-  @return Operation status
-    @retval  true            If the table name is a sql-layer system table.
-    @retval  false           If the table name is not a sql-layer system table.
-*/
-
-bool check_if_sql_layer_system_table(const char *db,
-                                     const char *table_name)
-{
-  bool is_sql_layer_system_table= false;
-  return
-    check_if_system_table(db, table_name,
-                          &is_sql_layer_system_table) &&
-    is_sql_layer_system_table;
 }
 
 
