@@ -13538,3 +13538,18 @@ j	vc
 "abc"	abc
 "abc"	abc
 DROP TABLE t;
+#
+# Bug#22816576: ASSERTION FAILED: !THD->IS_ERROR() IN OPTIMIZE_COND()
+#
+CREATE TABLE t(a DATE);
+SELECT 1 FROM t WHERE 1 <>
+(
+SELECT 1 FROM
+(
+SELECT 1 FROM t e
+JOIN t ON t.a <=> JSON_REPLACE(JSON_OBJECT('', ''), '', '')
+WHERE e.a
+) w
+);
+ERROR 42000: Invalid JSON path expression. The error is around character position 0.
+DROP TABLE t;

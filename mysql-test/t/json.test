@@ -6248,6 +6248,22 @@ INSERT INTO t SELECT * FROM t;
 SELECT * FROM t WHERE j = vc;
 DROP TABLE t;
 
+--echo #
+--echo # Bug#22816576: ASSERTION FAILED: !THD->IS_ERROR() IN OPTIMIZE_COND()
+--echo #
+CREATE TABLE t(a DATE);
+--error ER_INVALID_JSON_PATH
+SELECT 1 FROM t WHERE 1 <>
+(
+ SELECT 1 FROM
+ (
+  SELECT 1 FROM t e
+  JOIN t ON t.a <=> JSON_REPLACE(JSON_OBJECT('', ''), '', '')
+  WHERE e.a
+ ) w
+);
+DROP TABLE t;
+
 
 # Local Variables:
 # mode: sql
