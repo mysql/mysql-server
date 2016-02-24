@@ -162,10 +162,7 @@ private:
 
 #include "ndb_thd.h"
 #include "ndb_thd_ndb.h"
-#include "log.h"
-
-
-extern ulong opt_ndb_extra_logging;
+#include "ndb_log.h"
 
 
 /*
@@ -213,10 +210,7 @@ ndbcluster_global_schema_lock(THD *thd,
 
   if (thd_ndb->global_schema_lock_trans)
   {
-    if (opt_ndb_extra_logging > 19)
-    {
-      sql_print_information("NDB: Global schema lock acquired");
-    }
+    ndb_log_verbose(19, "Global schema lock acquired");
 
     // Count number of global schema locks taken by this thread
     thd_ndb->schema_locks_count++;
@@ -228,8 +222,8 @@ ndbcluster_global_schema_lock(THD *thd,
 
   if (ndb_error.code != 4009 || report_cluster_disconnected)
   {
-    sql_print_warning("NDB: Could not acquire global schema lock (%d)%s",
-                      ndb_error.code, ndb_error.message);
+    ndb_log_warning("Failed to acquire global schema lock, error: (%d)%s",
+                    ndb_error.code, ndb_error.message);
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_GET_ERRMSG, ER_DEFAULT(ER_GET_ERRMSG),
                         ndb_error.code, ndb_error.message,
@@ -275,8 +269,8 @@ ndbcluster_global_schema_unlock(THD *thd)
     NdbError ndb_error;
     if (!gsl_unlock_ext(ndb, trans, ndb_error))
     {
-      sql_print_warning("NDB: Releasing global schema lock (%d)%s",
-                        ndb_error.code, ndb_error.message);
+      ndb_log_warning("Failed to release global schema lock, error: (%d)%s",
+                      ndb_error.code, ndb_error.message);
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_GET_ERRMSG, ER_DEFAULT(ER_GET_ERRMSG),
                           ndb_error.code,
@@ -284,10 +278,8 @@ ndbcluster_global_schema_unlock(THD *thd)
                           "ndb. Releasing global schema lock");
       DBUG_RETURN(-1);
     }
-    if (opt_ndb_extra_logging > 19)
-    {
-      sql_print_information("NDB: Global schema lock release");
-    }
+
+    ndb_log_verbose(19, "Global schema lock release");
   }
   DBUG_RETURN(0);
 }
@@ -471,9 +463,9 @@ Thd_ndb::has_required_global_schema_lock(const char* func)
   // No attempt at taking global schema lock has been done, neither
   // error or trans set -> programming error
   LEX_CSTRING query= thd_query_unsafe(m_thd);
-  sql_print_error("NDB: programming error, no lock taken while running "
-                  "query '%*s' in function '%s'",
-                  (int)query.length, query.str, func);
+  ndb_log_error("programming error, no lock taken while running "
+                "query '%*s' in function '%s'",
+                (int)query.length, query.str, func);
   abort();
   return false;
 }
