@@ -2215,8 +2215,7 @@ void my_message_sql(uint error, const char *str, myf MyFlags)
   }
 
 #ifndef EMBEDDED_LIBRARY
-  if (error != ER_STACK_OVERRUN_NEED_MORE)
-    mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_ERROR, error, str);
+  mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_ERROR, error, str);
 #endif
 
   if (thd)
