@@ -2929,7 +2929,9 @@ found_col:
 					    DICT_TF2_FTS_HAS_DOC_ID));
 			DBUG_ASSERT(altered_table->s->fields
 				    + DATA_N_SYS_COLS + 1
-				    == new_table->n_cols);
+				    == static_cast<ulint>(
+					new_table->n_cols
+					+ new_table->n_v_cols));
 			col_map[i] = altered_table->s->fields
 				     - new_table->n_v_cols;
 		} else {
