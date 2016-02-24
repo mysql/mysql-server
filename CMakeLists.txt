@@ -540,8 +540,6 @@ IF(WITH_UNIT_TESTS)
 ENDIF()
 
 IF(NOT WITHOUT_SERVER)
-  # Set default keyring plugin information
-  SET(KEYRING_PLUGIN_INFO "" CACHE INTERNAL "")
   SET (MYSQLD_STATIC_PLUGIN_LIBS "" CACHE INTERNAL "")
   SET (MYSQLD_STATIC_EMBEDDED_PLUGIN_LIBS "" CACHE INTERNAL "")
   # Add storage engines and plugins.
@@ -608,10 +606,6 @@ IF(NOT WITHOUT_SERVER)
   IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
     ADD_SUBDIRECTORY(internal)
   ENDIF()
-  # Set default value for --early_load_plugin.
-  # KEYRING_PLUGIN_INFO should have been set to appropriate default
-  # by keyring plugin
-  SET(DEFAULT_EARLY_PLUGIN_LOAD "\"${KEYRING_PLUGIN_INFO}\"" CACHE INTERNAL "Default value for --early_plugin_load" FORCE)
   ADD_SUBDIRECTORY(packaging/rpm-oel)
   ADD_SUBDIRECTORY(packaging/rpm-fedora)
   ADD_SUBDIRECTORY(packaging/rpm-sles)

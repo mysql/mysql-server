@@ -3055,16 +3055,6 @@ int init_common_variables()
                      SQLCOM_END + 7);
 #endif
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-
-  if (strlen(DEFAULT_EARLY_PLUGIN_LOAD))
-  {
-    i_string *default_early_plugin= new i_string(DEFAULT_EARLY_PLUGIN_LOAD);
-    opt_early_plugin_load_list_ptr->push_back(default_early_plugin);
-  }
-
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
-
   if (get_options(&remaining_argc, &remaining_argv))
     return 1;
 
