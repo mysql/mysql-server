@@ -5068,10 +5068,6 @@ int mysqld_main(int argc, char **argv)
   if (init_server_components())
     unireg_abort(MYSQLD_ABORT_EXIT);
 
-  if (mysql_audit_notify(MYSQL_AUDIT_SERVER_STARTUP_STARTUP,
-                         (const char**)argv, argc))
-    unireg_abort(MYSQLD_ABORT_EXIT);
-
   /*
     Each server should have one UUID. We will create it automatically, if it
     does not exist.
@@ -5349,6 +5345,14 @@ int mysqld_main(int argc, char **argv)
     if (read_init_file(opt_init_file))
       unireg_abort(MYSQLD_ABORT_EXIT);
   }
+
+  /*
+    Event must be invoked after error_handler_hook is assigned to
+    my_message_sql, otherwise my_message will not cause the event to abort.
+  */
+  if (mysql_audit_notify(AUDIT_EVENT(MYSQL_AUDIT_SERVER_STARTUP_STARTUP),
+                         (const char **) argv, argc))
+    unireg_abort(MYSQLD_ABORT_EXIT);
 
 #ifdef _WIN32
   create_shutdown_thread();
