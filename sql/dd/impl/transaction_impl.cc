@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -140,7 +140,8 @@ Update_dictionary_tables_ctx::Update_dictionary_tables_ctx(THD *thd)
   m_thd->lex= new (m_thd->mem_root) st_lex_local;
   lex_start(m_thd);
 
-  m_thd->reset_n_backup_open_tables_state(&m_open_tables_state_backup);
+  m_thd->reset_n_backup_open_tables_state(&m_open_tables_state_backup,
+                                          Open_tables_state::SYSTEM_TABLES);
 
   if ((m_saved_binlog_row_based= m_thd->is_current_stmt_binlog_format_row()))
     m_thd->clear_current_stmt_binlog_format_row();

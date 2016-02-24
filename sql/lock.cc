@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -325,7 +325,11 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, size_t count, uint flags
   if (! (sql_lock= get_lock_data(thd, tables, count, GET_LOCK_STORE_LOCKS)))
     DBUG_RETURN(NULL);
 
-  THD_STAGE_INFO(thd, stage_system_lock);
+  if (thd->state_flags & Open_tables_state::SYSTEM_TABLES)
+    THD_STAGE_INFO(thd, stage_locking_system_tables);
+  else
+    THD_STAGE_INFO(thd, stage_system_lock);
+
   DBUG_PRINT("info", ("thd->proc_info %s", thd->proc_info));
   if (sql_lock->table_count && lock_external(thd, sql_lock->table,
                                              sql_lock->table_count))

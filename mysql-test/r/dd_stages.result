@@ -1,0 +1,42 @@
+#
+# Bug #22811659 "ACCESSES TO NEW DATA-DICTIONARY ADD CONFUSING STAGES
+#                TO P_S.EVENTS_STAGES_*.".
+#
+connect  con1, localhost, root, , ;
+# Obtain @con1_thread_id
+connection default;
+# Reduce noise from the default connection.
+update performance_schema.threads set instrumented = 'NO' where processlist_id = connection_id();
+truncate table performance_schema.events_stages_history_long;
+connection con1;
+# Run some statements and see that we have different stage names for
+# opening and locking system and user tables.
+create table t1(a int);
+insert into t1 values (1), (2), (3), (4), (5);
+drop table t1;
+connection default;
+select event_name from performance_schema.events_stages_history_long
+where thread_id = @con1_thread_id and
+(event_name like '%Opening %tables' or
+event_name like '%Locking system tables' or
+event_name like '%System lock' )
+order by event_id;
+event_name
+stage/sql/Opening tables
+stage/sql/Opening system tables
+stage/sql/Locking system tables
+stage/sql/Opening system tables
+stage/sql/Locking system tables
+stage/sql/Opening system tables
+stage/sql/Locking system tables
+stage/sql/Opening system tables
+stage/sql/Locking system tables
+stage/sql/Opening tables
+stage/sql/System lock
+stage/sql/Opening system tables
+stage/sql/Locking system tables
+connection con1;
+disconnect con1;
+connection default;
+# Clean-up.
+update performance_schema.threads set instrumented = 'YES' where processlist_id = connection_id();
