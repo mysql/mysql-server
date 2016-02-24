@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -252,7 +252,16 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   }
 
   /**
+   * Data buffer size must at least be big enough for a max-sized 
+   * scan batch.
+   */
+  ndbrequire(szDataBuf >= (BACKUP_MIN_BUFF_WORDS * 4));
+    
+  /**
    * add min writesize to buffer size...and the alignment added here and there
+   * Need buffer size to be >= max-sized scan batch + min write size
+   * to avoid 'deadlock' where there's not enough buffered bytes to
+   * write, and too many bytes to fit another batch...
    */
   Uint32 extra = szWrite + 4 * (/* align * 512b */ 128);
 
