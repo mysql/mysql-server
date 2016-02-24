@@ -114,7 +114,7 @@ KEY `vbidxcol` (`vbidxcol`),
 KEY `a_2` (`a`,`vbidxcol`),
 KEY `vbidxcol_2` (`vbidxcol`),
 FULLTEXT KEY `ftsic` (`c`,`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=1 COMPRESSION='lz4';
+) ENGINE=InnoDB;
 Warnings:
 Warning	1831	Duplicate index 'vbidxcol_2' defined on the table 'test.ibstd_08'. This is deprecated and will be disallowed in a future release.
 ALTER TABLE ibstd_08  ADD COLUMN nc07006 BIGINT  AUTO_INCREMENT NOT NULL  , ADD KEY auto_nc07006(nc07006);
