@@ -109,11 +109,11 @@ DROP TABLE t1;
 
 connect (con1,localhost,root,,);
 
-CREATE TABLE t1(
-        id INT AUTO_INCREMENT,
-        title VARCHAR(100),
-        FULLTEXT(title),
-        PRIMARY KEY(id)) ENGINE=InnoDB;
+CREATE TABLE t1 (
+        FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        FULLTEXT(title)
+) ENGINE = InnoDB;
 
 INSERT INTO t1(title) VALUES('database');
 
