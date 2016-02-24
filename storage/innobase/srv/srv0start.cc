@@ -913,6 +913,8 @@ srv_undo_tablespaces_init(
 			srv_undo_dir, OS_PATH_SEPARATOR,
 			undo_tablespace_ids[i]);
 
+		os_normalize_path(name);
+
 		/* Should be no gaps in undo tablespace ids. */
 		ut_a(prev_space_id + 1 == undo_tablespace_ids[i]);
 
