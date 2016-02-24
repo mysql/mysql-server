@@ -6,7 +6,7 @@
 -- source include/have_ndb.inc
 
 # Test will produce this error in server log file -> ignore
-call mtr.add_suppression("Could not acquire global schema lock");
+call mtr.add_suppression("Failed to acquire global schema lock");
 
 #
 # Run all the commands which should take the global schema lock
