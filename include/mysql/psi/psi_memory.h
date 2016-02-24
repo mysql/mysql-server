@@ -46,7 +46,9 @@ typedef unsigned int PSI_memory_key;
 
 #ifdef HAVE_PSI_INTERFACE
 
-C_MODE_START
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
 
 /**
   @def PSI_MEMORY_VERSION_1
@@ -200,7 +202,9 @@ typedef struct PSI_placeholder PSI_memory_info;
 
 extern MYSQL_PLUGIN_IMPORT PSI_memory_service_t *psi_memory_service;
 
-C_MODE_END
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
 
 /** @} (end of group psi_abi_memory) */
 
