@@ -60,7 +60,7 @@ connection default;
 -- echo # make con1 & con2 show up in mysql.slow_log
 SELECT SLEEP(2);
 -- echo # slow log results should only contain INSERT INTO t1.
-SELECT sql_text FROM mysql.slow_log WHERE query_time >= '00:00:01';
+SELECT sql_text FROM mysql.slow_log WHERE query_time >= '00:00:02';
 
 SET GLOBAL debug="-d,fts_instrument_sync_debug,fts_instrument_sync_sleep";
 TRUNCATE TABLE mysql.slow_log;
@@ -105,7 +105,7 @@ connection default;
 -- echo # make con1 & con2 show up in mysql.slow_log
 SELECT SLEEP(2);
 -- echo # slow log results should be empty here.
-SELECT sql_text FROM mysql.slow_log WHERE query_time >= '00:00:01';
+SELECT sql_text FROM mysql.slow_log WHERE query_time >= '00:00:02';
 
 SET GLOBAL debug="-d,fts_instrument_sync_request,fts_instrument_sync_sleep";
 TRUNCATE TABLE mysql.slow_log;
