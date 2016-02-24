@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -126,6 +126,12 @@ static MYSQL_THDVAR_INT(abort_value,
 static MYSQL_THDVAR_STR(event_order_check,
                         PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
                         "Event order check string", NULL, NULL, NULL);
+
+static MYSQL_THDVAR_UINT(event_order_check_consume_ignore_count,
+                         PLUGIN_VAR_RQCMDARG,
+                         "Do not consume event order string specified "
+                         "number of times.",
+                         NULL, NULL, 0, 0, ULONG_MAX, 1);
 
 static MYSQL_THDVAR_INT(event_order_started,
                         PLUGIN_VAR_RQCMDARG,
@@ -316,7 +322,8 @@ static void process_event_record(MYSQL_THD thd, LEX_CSTRING event_name,
   }
 }
 
-static int process_command(MYSQL_THD thd, LEX_CSTRING event_command)
+static int process_command(MYSQL_THD thd, LEX_CSTRING event_command,
+                           my_bool consume_event)
 {
   LEX_CSTRING abort_ret_command= { C_STRING_WITH_LEN("ABORT_RET") };
 
@@ -330,15 +337,20 @@ static int process_command(MYSQL_THD thd, LEX_CSTRING event_command)
     const char *err_message = (const char *)THDVAR(thd, abort_message);
     LEX_CSTRING status = { C_STRING_WITH_LEN("EVENT-ORDER-ABORT") };
     LEX_CSTRING order_cstr;
+    ulong ignore_count= THDVAR(thd, event_order_check_consume_ignore_count);
 
     lex_cstring_set(&order_cstr, 
                     (const char *)THDVAR(thd, event_order_check));
 
-    memmove((char *)order_cstr.str,
-            (void *)status.str, status.length + 1);
+    /* Do not replace order string yet. */
+    if (consume_event)
+    {
+      memmove((char *) order_cstr.str,
+              (void *) status.str, status.length + 1);
 
-    THDVAR(thd, abort_value) = 1;
-    THDVAR(thd, abort_message) = 0;
+      THDVAR(thd, abort_value)= 1;
+      THDVAR(thd, abort_message)= 0;
+    }
 
     if (err_message)
     {
@@ -376,6 +388,7 @@ static int audit_null_notify(MYSQL_THD thd,
   LEX_CSTRING event_token= get_token(&order_str);
   LEX_CSTRING event_data= get_token(&order_str);
   LEX_CSTRING event_command= get_token(&order_str);
+  my_bool consume_event= TRUE;
 
   /* prone to races, oh well */
   number_of_calls++;
@@ -674,31 +687,45 @@ static int audit_null_notify(MYSQL_THD thd,
     else
     {
       LEX_CSTRING order_cstr;
+      ulong consume= THDVAR(thd, event_order_check_consume_ignore_count);
       lex_cstring_set(&order_cstr,
                       (const char *)THDVAR(thd, event_order_check));
 
       THDVAR(thd, event_order_started)= 1;
 
-      memmove((char*)order_cstr.str, (void*)order_str,
-        order_cstr.length - (order_str - order_cstr.str) + 1);
-
-      /* Count new length. */
-      lex_cstring_set(&order_cstr, order_cstr.str);
-
-      if (order_cstr.length == 0)
+      if (consume)
       {
-        LEX_CSTRING status = { C_STRING_WITH_LEN("EVENT-ORDER-OK") };
+        /*
+          Do not consume event this time. Just decrease value and wait until
+          the next event is matched.
+        */
+        THDVAR(thd, event_order_check_consume_ignore_count)= consume - 1;
+        consume_event= FALSE;
+      }
+      else
+      {
+        /* Consume matched event. */
+        memmove((char*)order_cstr.str, (void*)order_str,
+          order_cstr.length - (order_str - order_cstr.str) + 1);
 
-        memmove((char *)order_cstr.str,
-                (void *)status.str, status.length + 1);
+        /* Count new length. */
+        lex_cstring_set(&order_cstr, order_cstr.str);
 
-        /* event_order_started contains message. Do not verify it. */
-        THDVAR(thd, event_order_started)= 0;
+        if (order_cstr.length == 0)
+        {
+          LEX_CSTRING status = { C_STRING_WITH_LEN("EVENT-ORDER-OK") };
+
+          memmove((char *)order_cstr.str,
+                  (void *)status.str, status.length + 1);
+
+          /* event_order_started contains message. Do not verify it. */
+          THDVAR(thd, event_order_started)= 0;
+        }
       }
     }
   }
 
-  return process_command(thd, event_command);
+  return process_command(thd, event_command, consume_event);
 }
 
 /*
@@ -729,6 +756,7 @@ static struct st_mysql_sys_var* system_variables[] = {
   MYSQL_SYSVAR(abort_value),
 
   MYSQL_SYSVAR(event_order_check),
+  MYSQL_SYSVAR(event_order_check_consume_ignore_count),
   MYSQL_SYSVAR(event_order_started),
   MYSQL_SYSVAR(event_order_check_exact),
 
