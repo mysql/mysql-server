@@ -1237,6 +1237,9 @@ Thd_ndb::Thd_ndb(THD* thd) :
   m_thd(thd),
   m_slave_thread(thd->slave_thread),
   options(0),
+  global_schema_lock_trans(NULL),
+  global_schema_lock_count(0),
+  global_schema_lock_error(0),
   schema_locks_count(0),
   m_last_commit_epoch_session(0)
 {
@@ -1264,9 +1267,7 @@ Thd_ndb::Thd_ndb(THD* thd) :
   m_pushed_reads= 0;
   memset(m_transaction_no_hint_count, 0, sizeof(m_transaction_no_hint_count));
   memset(m_transaction_hint_count, 0, sizeof(m_transaction_hint_count));
-  global_schema_lock_trans= NULL;
-  global_schema_lock_count= 0;
-  global_schema_lock_error= 0;
+
   init_alloc_root(PSI_INSTRUMENT_ME,
                   &m_batch_mem_root, BATCH_FLUSH_SIZE/4, 0);
 }
