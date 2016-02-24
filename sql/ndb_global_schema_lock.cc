@@ -155,7 +155,7 @@ public:
       thd_proc_info(m_thd, m_proc_info);
   }
 private:
-  THD *m_thd;
+  THD* const m_thd;
   const char *m_proc_info;
 };
 

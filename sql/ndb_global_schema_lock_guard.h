@@ -27,7 +27,7 @@ public:
   ~Ndb_global_schema_lock_guard();
   int lock(bool report_cluster_disconnected=true);
 private:
-  THD* m_thd;
+  THD* const m_thd;
   bool m_locked;
 };
 
