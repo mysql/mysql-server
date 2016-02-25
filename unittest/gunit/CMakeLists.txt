@@ -305,6 +305,7 @@ SET(TESTS
   my_timer
   timespec
   my_alloc
+  pump_object_filter
   )
  
 IF (UNIX)
@@ -452,6 +453,10 @@ ENDIF(MERGE_UNITTESTS)
   ENDIF()
   ADD_COMPILE_FLAGS(
     bounded_queue-t.cc
+    COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+  )
+  ADD_COMPILE_FLAGS(
+    pump_object_filter-t.cc
     COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
   )
 
