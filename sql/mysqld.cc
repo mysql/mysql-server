@@ -3055,16 +3055,6 @@ int init_common_variables()
                      SQLCOM_END + 7);
 #endif
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-
-  if (strlen(DEFAULT_EARLY_PLUGIN_LOAD))
-  {
-    i_string *default_early_plugin= new i_string(DEFAULT_EARLY_PLUGIN_LOAD);
-    opt_early_plugin_load_list_ptr->push_back(default_early_plugin);
-  }
-
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
-
   if (get_options(&remaining_argc, &remaining_argv))
     return 1;
 
@@ -5078,10 +5068,6 @@ int mysqld_main(int argc, char **argv)
   if (init_server_components())
     unireg_abort(MYSQLD_ABORT_EXIT);
 
-  if (mysql_audit_notify(MYSQL_AUDIT_SERVER_STARTUP_STARTUP,
-                         (const char**)argv, argc))
-    unireg_abort(MYSQLD_ABORT_EXIT);
-
   /*
     Each server should have one UUID. We will create it automatically, if it
     does not exist.
@@ -5359,6 +5345,14 @@ int mysqld_main(int argc, char **argv)
     if (read_init_file(opt_init_file))
       unireg_abort(MYSQLD_ABORT_EXIT);
   }
+
+  /*
+    Event must be invoked after error_handler_hook is assigned to
+    my_message_sql, otherwise my_message will not cause the event to abort.
+  */
+  if (mysql_audit_notify(AUDIT_EVENT(MYSQL_AUDIT_SERVER_STARTUP_STARTUP),
+                         (const char **) argv, argc))
+    unireg_abort(MYSQLD_ABORT_EXIT);
 
 #ifdef _WIN32
   create_shutdown_thread();
@@ -9159,12 +9153,14 @@ PSI_stage_info stage_insert= { 0, "insert", 0};
 PSI_stage_info stage_invalidating_query_cache_entries_table= { 0, "invalidating query cache entries (table)", 0};
 PSI_stage_info stage_invalidating_query_cache_entries_table_list= { 0, "invalidating query cache entries (table list)", 0};
 PSI_stage_info stage_killing_slave= { 0, "Killing slave", 0};
+PSI_stage_info stage_locking_system_tables= { 0, "Locking system tables", 0};
 PSI_stage_info stage_logging_slow_query= { 0, "logging slow query", 0};
 PSI_stage_info stage_making_temp_file_append_before_load_data= { 0, "Making temporary file (append) before replaying LOAD DATA INFILE", 0};
 PSI_stage_info stage_making_temp_file_create_before_load_data= { 0, "Making temporary file (create) before replaying LOAD DATA INFILE", 0};
 PSI_stage_info stage_manage_keys= { 0, "manage keys", 0};
 PSI_stage_info stage_master_has_sent_all_binlog_to_slave= { 0, "Master has sent all binlog to slave; waiting for more updates", 0};
 PSI_stage_info stage_opening_tables= { 0, "Opening tables", 0};
+PSI_stage_info stage_opening_system_tables= { 0, "Opening system tables", 0};
 PSI_stage_info stage_optimizing= { 0, "optimizing", 0};
 PSI_stage_info stage_preparing= { 0, "preparing", 0};
 PSI_stage_info stage_purging_old_relay_logs= { 0, "Purging old relay logs", 0};
@@ -9270,12 +9266,14 @@ PSI_stage_info *all_server_stages[]=
   & stage_invalidating_query_cache_entries_table,
   & stage_invalidating_query_cache_entries_table_list,
   & stage_killing_slave,
+  & stage_locking_system_tables,
   & stage_logging_slow_query,
   & stage_making_temp_file_append_before_load_data,
   & stage_making_temp_file_create_before_load_data,
   & stage_manage_keys,
   & stage_master_has_sent_all_binlog_to_slave,
   & stage_opening_tables,
+  & stage_opening_system_tables,
   & stage_optimizing,
   & stage_preparing,
   & stage_purging_old_relay_logs,

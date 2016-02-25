@@ -2967,6 +2967,14 @@ btr_cur_ins_lock_and_undo(
 	if (!(flags & BTR_KEEP_SYS_FLAG)
 	    && !dict_table_is_intrinsic(index->table)) {
 
+		/* Roll_ptr is zero during copy alter table.
+		So pretend to be freshly inserted row. */
+		if (index->table->skip_alter_undo) {
+			ut_ad(roll_ptr == 0);
+			roll_ptr = trx_undo_build_roll_ptr(1, 0, 0, 0);
+			ut_ad(roll_ptr == (1ULL << 55));
+		}
+
 		row_upd_index_entry_sys_field(entry, index,
 					      DATA_ROLL_PTR, roll_ptr);
 	}

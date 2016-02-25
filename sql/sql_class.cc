@@ -145,7 +145,8 @@ THD::Attachable_trx::Attachable_trx(THD *thd, Attachable_trx *prev_trx)
 
   // Save and reset open-tables.
 
-  m_thd->reset_n_backup_open_tables_state(&m_trx_state.m_open_tables_state);
+  m_thd->reset_n_backup_open_tables_state(&m_trx_state.m_open_tables_state,
+                                          Open_tables_state::SYSTEM_TABLES);
 
   // Reset transaction state.
 
@@ -2095,13 +2096,14 @@ void THD::send_kill_message() const
   access to mysql.proc table to find definitions of stored routines.
 ****************************************************************************/
 
-void THD::reset_n_backup_open_tables_state(Open_tables_backup *backup)
+void THD::reset_n_backup_open_tables_state(Open_tables_backup *backup,
+                                           uint add_state_flags)
 {
   DBUG_ENTER("reset_n_backup_open_tables_state");
   backup->set_open_tables_state(this);
   backup->mdl_system_tables_svp= mdl_context.mdl_savepoint();
   reset_open_tables_state();
-  state_flags|= Open_tables_state::BACKUPS_AVAIL;
+  state_flags|= (Open_tables_state::BACKUPS_AVAIL | add_state_flags);
   DBUG_VOID_RETURN;
 }
 

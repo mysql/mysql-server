@@ -199,7 +199,7 @@ struct fts_tokenize_param_t {
 FTS auxiliary INDEX table and clear the cache at the end.
 @param[in,out]	sync		sync state
 @param[in]	unlock_cache	whether unlock cache lock when write node
-@pram[in]	wait		whether wait when a sync is in progress
+@param[in]	wait		whether wait when a sync is in progress
 @return DB_SUCCESS if all OK */
 static
 dberr_t
@@ -4348,7 +4348,7 @@ fts_sync_rollback(
 FTS auxiliary INDEX table and clear the cache at the end.
 @param[in,out]	sync		sync state
 @param[in]	unlock_cache	whether unlock cache lock when write node
-@pram[in]	wait		whether wait when a sync is in progress
+@param[in]	wait		whether wait when a sync is in progress
 @return DB_SUCCESS if all OK */
 static
 dberr_t

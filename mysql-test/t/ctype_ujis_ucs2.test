@@ -3,9 +3,6 @@
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
 
--- source include/have_ujis.inc
--- source include/have_ucs2.inc
-
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings

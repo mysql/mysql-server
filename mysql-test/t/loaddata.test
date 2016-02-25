@@ -1,5 +1,3 @@
---source include/have_utf8.inc
-
 #
 # Some simple test of load data
 #

@@ -106,13 +106,6 @@ typedef unsigned int PSI_statement_key;
 */
 typedef unsigned int PSI_socket_key;
 
-/**
-  Instrumented memory key.
-  To instrument memory, a memory key must be obtained using @c register_memory.
-  Using a zero key always disable the instrumentation.
-*/
-typedef unsigned int PSI_memory_key;
-
 #define PSI_INSTRUMENT_ME 0
 
 #define PSI_NOT_INSTRUMENTED 0

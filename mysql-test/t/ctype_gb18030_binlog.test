@@ -1,7 +1,6 @@
 --source include/force_myisam_default.inc
 
 -- source include/force_binlog_format_statement.inc
--- source include/have_gb18030.inc
 
 RESET MASTER;
 SET NAMES gb18030;

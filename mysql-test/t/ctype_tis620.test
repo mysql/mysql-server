@@ -1,6 +1,3 @@
-
--- source include/have_tis620.inc
-
 #
 # Tests with the big5 character set
 #

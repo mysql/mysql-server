@@ -46,9 +46,9 @@ user2	stage/sql/init	STATEMENT
 user2	stage/sql/Opening tables	STATEMENT
 user2	stage/sql/setup	STATEMENT
 user2	stage/sql/creating table	STATEMENT
-user2	stage/sql/Opening tables	STATEMENT
-user2	stage/sql/System lock	STATEMENT
+user2	stage/sql/Opening system tables	STATEMENT
+user2	stage/sql/Locking system tables	STATEMENT
 user2	stage/sql/After create	STATEMENT
-user2	stage/sql/Opening tables	STATEMENT
-user2	stage/sql/System lock	STATEMENT
+user2	stage/sql/Opening system tables	STATEMENT
+user2	stage/sql/Locking system tables	STATEMENT
 commit;

@@ -2239,3 +2239,17 @@ SELECT * FROM t ORDER BY (a-b);
 ERROR 22003: DECIMAL UNSIGNED value is out of range in '(`test`.`t`.`a` - `test`.`t`.`b`)'
 DROP TABLE t;
 SET sql_mode= DEFAULT;
+#
+# Bug#22782948 ASSERTION: SCALE >= 0 && PRECISION > 0 &&
+#              SCALE <= PRECISION, JSON THINGIES
+#
+CREATE TABLE t1(a DATETIME(4));
+INSERT INTO t1 VALUES(NOW()),(NOW()),(NOW()),(NOW()),(NOW());
+SELECT SQL_BUFFER_RESULT JSON_OBJECT('a', a MOD 1) FROM t1;
+JSON_OBJECT('a', a MOD 1)
+{"a": 0}
+{"a": 0}
+{"a": 0}
+{"a": 0}
+{"a": 0}
+DROP TABLE t1;

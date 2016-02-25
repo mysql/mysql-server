@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -48,7 +48,8 @@ bool System_table_access::open_table(THD* thd, const LEX_STRING dbstr,
     tables.
   */
   thd->lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
-  thd->reset_n_backup_open_tables_state(backup);
+  thd->reset_n_backup_open_tables_state(backup,
+                                        Open_tables_state::SYSTEM_TABLES);
 
   tables.init_one_table(dbstr.str, dbstr.length, tbstr.str, tbstr.length,
                         tbstr.str, lock_type);

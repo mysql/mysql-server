@@ -4647,7 +4647,7 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
     open and will ignore pending exclusive metadata locks for these
     tables by using high-priority requests for shared metadata locks.
   */
-  thd->reset_n_backup_open_tables_state(&open_tables_state_backup);
+  thd->reset_n_backup_open_tables_state(&open_tables_state_backup, 0);
 
   schema_table_idx= get_schema_table_idx(schema_table);
   tables->table_open_method= table_open_method=

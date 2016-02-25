@@ -282,6 +282,7 @@ my $opt_testcase_timeout= $ENV{MTR_TESTCASE_TIMEOUT} ||  15; # minutes
 my $opt_suite_timeout   = $ENV{MTR_SUITE_TIMEOUT}    || 300; # minutes
 my $opt_shutdown_timeout= $ENV{MTR_SHUTDOWN_TIMEOUT} ||  10; # seconds
 my $opt_start_timeout   = $ENV{MTR_START_TIMEOUT}    || 180; # seconds
+my $opt_ctest_timeout   = $ENV{MTR_CTEST_TIMEOUT}    || 120; # seconds
 
 sub suite_timeout { return $opt_suite_timeout * 60; };
 
@@ -1962,7 +1963,6 @@ sub collect_mysqld_features {
   mtr_add_arg($args, "--log-syslog=0");
   mtr_add_arg($args, "--datadir=%s", mixed_path($tmpdir));
   mtr_add_arg($args, "--secure-file-priv=\"\"");
-  mtr_add_arg($args, "--early_plugin_load=\"\"");
   mtr_add_arg($args, "--lc-messages-dir=%s", $path_language);
   mtr_add_arg($args, "--skip-grant-tables");
   mtr_add_arg($args, "--verbose");
@@ -3809,7 +3809,6 @@ sub mysql_install_db {
   # Do not generate SSL/RSA certificates automatically.
   mtr_add_arg($args, "--loose-auto_generate_certs=OFF");
   mtr_add_arg($args, "--loose-sha256_password_auto_generate_rsa_keys=OFF");
-  mtr_add_arg($args, "--early_plugin_load=\"\"");
 
   # InnoDB arguments that affect file location and sizes may
   # need to be given to the bootstrap process as well as the
@@ -7040,7 +7039,7 @@ sub run_ctest() {
   # Special override: also ignore in Pushbuild, some platforms may not have it
   # Now, run ctest and collect output
   $ENV{CTEST_OUTPUT_ON_FAILURE} = 1;
-  my $ctest_out= `ctest $ctest_vs 2>&1`;
+  my $ctest_out= `ctest --test-timeout $opt_ctest_timeout $ctest_vs 2>&1`;
   if ($? == $no_ctest && ($opt_ctest == -1 || defined $ENV{PB2WORKDIR})) {
     chdir($olddir);
     return;

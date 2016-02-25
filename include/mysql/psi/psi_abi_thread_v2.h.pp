@@ -9,7 +9,6 @@ typedef unsigned int PSI_file_key;
 typedef unsigned int PSI_stage_key;
 typedef unsigned int PSI_statement_key;
 typedef unsigned int PSI_socket_key;
-typedef unsigned int PSI_memory_key;
 struct PSI_placeholder
 {
   int m_placeholder;

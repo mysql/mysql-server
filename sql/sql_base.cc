@@ -5489,7 +5489,11 @@ restart:
   table_to_open= start;
   sroutine_to_open= &thd->lex->sroutines_list.first;
   *counter= 0;
-  THD_STAGE_INFO(thd, stage_opening_tables);
+
+  if (thd->state_flags & Open_tables_state::SYSTEM_TABLES)
+    THD_STAGE_INFO(thd, stage_opening_system_tables);
+  else
+    THD_STAGE_INFO(thd, stage_opening_tables);
 
   /*
     If we are executing LOCK TABLES statement or a DDL statement
@@ -6149,7 +6153,10 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
   /* should not be used in a prelocked_mode context, see NOTE above */
   DBUG_ASSERT(thd->locked_tables_mode < LTM_PRELOCKED);
 
-  THD_STAGE_INFO(thd, stage_opening_tables);
+  if (thd->state_flags & Open_tables_state::SYSTEM_TABLES)
+    THD_STAGE_INFO(thd, stage_opening_system_tables);
+  else
+    THD_STAGE_INFO(thd, stage_opening_tables);
 
   /* open_ltable can be used only for BASIC TABLEs */
   table_list->required_type= dd::Abstract_table::TT_BASE_TABLE;
@@ -9793,7 +9800,8 @@ open_nontrans_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
     prelocking is needed and what tables should be added for it.
   */
   lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
-  thd->reset_n_backup_open_tables_state(backup);
+  thd->reset_n_backup_open_tables_state(backup,
+                                        Open_tables_state::SYSTEM_TABLES);
 
   if (open_tables(thd, &table_list, &counter, flags) ||
       lock_tables(thd, table_list, counter, flags))
@@ -10059,7 +10067,8 @@ open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup)
   ulonglong save_utime_after_lock= thd->utime_after_lock;
   DBUG_ENTER("open_log_table");
 
-  thd->reset_n_backup_open_tables_state(backup);
+  thd->reset_n_backup_open_tables_state(backup,
+                                        Open_tables_state::SYSTEM_TABLES);
 
   if ((table= open_ltable(thd, one_table, one_table->lock_type, flags)))
   {

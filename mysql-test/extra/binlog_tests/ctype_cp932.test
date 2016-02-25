@@ -1,5 +1,3 @@
--- source include/have_cp932.inc
-
 --character_set cp932
 --disable_warnings
 drop table if exists t1;

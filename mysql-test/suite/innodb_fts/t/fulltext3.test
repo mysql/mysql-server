@@ -1,7 +1,5 @@
 --source include/have_innodb.inc
 
---source include/have_gbk.inc
---source include/have_gb18030.inc
 #
 # test of new fulltext search features
 #

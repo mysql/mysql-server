@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2584,10 +2584,19 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
         *buf0++=*start1++;
   }
 done:
-  tmp1= remove_leading_zeroes(to, &to->intg);
-  if(to->buf != tmp1)
-    memmove(to->buf, tmp1,
-            (ROUND_UP(to->intg) + ROUND_UP(to->frac)) * sizeof(dec1));
+  if (decimal_is_zero(to))
+  {
+    // Return "0." rather than "0.000000"
+    decimal_make_zero(to);
+  }
+  else
+  {
+    tmp1= remove_leading_zeroes(to, &to->intg);
+    if(to->buf != tmp1)
+      memmove(to->buf, tmp1,
+              (ROUND_UP(to->intg) + ROUND_UP(to->frac)) * sizeof(dec1));
+  }
+  DBUG_ASSERT(to->intg + to->frac > 0);
   return error;
 }
 

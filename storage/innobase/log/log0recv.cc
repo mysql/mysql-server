@@ -436,6 +436,9 @@ fil_name_parse(
 	and end in .ibd.
 	Exception: MLOG_FILE_NAME can be created for
 	predefined tablespaces. */
+
+	os_normalize_path(name);
+
 	if (len > sizeof "/a.ibd" && !memcmp(end_ptr - 5, DOT_IBD, 5)
 	    && memchr(name, OS_PATH_SEPARATOR, len - 1) != NULL) {
 		/* User-defined tablespace (*.ibd file) */

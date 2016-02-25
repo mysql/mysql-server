@@ -79,14 +79,14 @@ FTS_DOC_ID	title
 2	database
 DROP TABLE t1;
 # Case 3: Test insert crash recovery
-CREATE TABLE t1(
-id INT AUTO_INCREMENT,
-title VARCHAR(100),
-FULLTEXT(title),
-PRIMARY KEY(id)) ENGINE=InnoDB;
-INSERT INTO t1(title) VALUES('database');
+CREATE TABLE t1 (
+id    INT,
+title VARCHAR(200),
+FULLTEXT(title)
+) ENGINE = InnoDB;
+INSERT INTO t1(id, title) VALUES(1, 'database');
 SET SESSION debug="+d,fts_instrument_sync_debug,fts_write_node_crash";
-INSERT INTO t1(title) VALUES('mysql');
+INSERT INTO t1(id, title) VALUES(2, 'mysql');
 ERROR HY000: Lost connection to MySQL server during query
 # restart
 After restart
@@ -94,10 +94,10 @@ SELECT * FROM t1 WHERE MATCH(title) AGAINST ('mysql database');
 id	title
 1	database
 SET SESSION debug="+d,fts_instrument_sync_debug";
-INSERT INTO t1(title) VALUES('mysql');
+INSERT INTO t1(id, title) VALUES(3, 'mysql');
 SET SESSION debug="-d,fts_instrument_sync_debug";
 SELECT * FROM t1 WHERE MATCH(title) AGAINST ('mysql database');
 id	title
 1	database
-2	mysql
+3	mysql
 DROP TABLE t1;

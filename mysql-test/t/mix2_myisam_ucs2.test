@@ -4,7 +4,6 @@
 #
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
--- source include/have_ucs2.inc
 
 let $engine_type= MyISAM;
 let $other_engine_type= MEMORY;

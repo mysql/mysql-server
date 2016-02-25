@@ -3,10 +3,6 @@
 
 --source include/have_innodb.inc
 --source include/have_debug.inc
---source include/have_ucs2.inc
---source include/have_utf8mb4.inc
---source include/have_utf16.inc
---source include/have_utf32.inc
 
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 show variables like 'character_sets_dir%';

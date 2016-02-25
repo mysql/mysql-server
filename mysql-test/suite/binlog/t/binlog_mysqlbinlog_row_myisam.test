@@ -20,6 +20,5 @@ let $engine_type=MyISAM;
 # current test suite, new main test cases are required.
 #
 --source include/have_binlog_format_row.inc
---source include/have_ucs2.inc 
 
 --source extra/binlog_tests/mysqlbinlog_row_engine.inc

@@ -7355,10 +7355,14 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
 
     DBUG_PRINT("info",("sweep: nblocks=%g, busy_blocks=%g", n_blocks,
                        busy_blocks));
-    if (interrupted)
-      cost->add_io(cost_model->page_read_cost(busy_blocks));
-    else
+    /*
+      The random access cost for reading the data pages will be the upper
+      limit for the sweep_cost.
+    */
+    cost->add_io(cost_model->page_read_cost(busy_blocks));
+    if (!interrupted)
     {
+      Cost_estimate sweep_cost;
       /*
         Assume reading pages from disk is done in one 'sweep'. 
 
@@ -7374,7 +7378,7 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
       DBUG_ASSERT(busy_blocks_disk >= 0.0);
 
       // Cost of accessing blocks in main memory buffer
-      cost->add_io(cost_model->buffer_block_read_cost(busy_blocks_mem));
+      sweep_cost.add_io(cost_model->buffer_block_read_cost(busy_blocks_mem));
 
       // Cost of reading blocks from disk in a 'sweep'
       const double seek_distance= (busy_blocks_disk > 1.0) ?
@@ -7382,7 +7386,17 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
 
       const double disk_cost=
         busy_blocks_disk * cost_model->disk_seek_cost(seek_distance);
-      cost->add_io(disk_cost);
+      sweep_cost.add_io(disk_cost);
+
+      /*
+        For some cases, ex: when only few blocks need to be read and the
+        seek distance becomes very large, the sweep cost model can produce
+        a cost estimate that is larger than the cost of random access.
+        To handle this case, we use the sweep cost only when it is less
+        than the random access cost.
+      */
+      if (sweep_cost < *cost)
+        *cost= sweep_cost;
     }
   }
   DBUG_PRINT("info",("returning cost=%g", cost->total_cost()));

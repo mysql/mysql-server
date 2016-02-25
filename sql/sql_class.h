@@ -438,7 +438,8 @@ public:
   enum enum_locked_tables_mode locked_tables_mode;
 
   enum enum_flags {
-    BACKUPS_AVAIL = (1U << 0)     /* There are backups available */
+    BACKUPS_AVAIL = (1U << 0),    /* There are backups available. */
+    SYSTEM_TABLES = (1U << 1)     /* We are opening system tables. */
   };
 
   /*
@@ -2924,7 +2925,8 @@ public:
   void send_kill_message() const;
 
   void set_status_var_init();
-  void reset_n_backup_open_tables_state(Open_tables_backup *backup);
+  void reset_n_backup_open_tables_state(Open_tables_backup *backup,
+                                        uint add_state_flags);
   void restore_backup_open_tables_state(Open_tables_backup *backup);
   void reset_sub_statement_state(Sub_statement_state *backup, uint new_state);
   void restore_sub_statement_state(Sub_statement_state *backup);
