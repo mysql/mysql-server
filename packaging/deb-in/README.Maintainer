@@ -1,0 +1,5 @@
+TODO: watch file needs updating (currently set to 5.7)
+TODO: Why /bin/bash for some files and /bin/sh for others (this is also the case in native packaging, so might be a reason)
+TODO: Related to above: Should be POSIX compliant
+TODO: Build with -DWITH_SYSTEMD and related to use inbuilt systemd support (Deb8 and Ubuntu15+)
+TODO: Remove packaging/deb-scripts
