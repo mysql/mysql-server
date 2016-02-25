@@ -2664,7 +2664,7 @@ Suma::sendDIH_SCAN_TAB_REQ(Signal *signal,
   req->schemaTransId = schemaTransId;
   req->jamBufferPtr = jamBuffer();
   EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
-                 DihScanTabReq::SignalLength, JBB);
+                 DihScanTabReq::SignalLength, 0);
   DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
   Uint32 retCode = conf->senderData;
   conf->senderData = synPtrI;
@@ -3320,7 +3320,7 @@ Suma::SyncRecord::completeScan(Signal* signal, int error)
   rep->scanCookie = m_scan_cookie;
   rep->jamBufferPtr = jamBuffer();
   suma.EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_COMPLETE_REP, signal,
-                      DihScanTabCompleteRep::SignalLength, JBB);
+                      DihScanTabCompleteRep::SignalLength, 0);
 
 #if PRINT_ONLY
   ndbout_c("GSN_SUB_SYNC_CONF (data)");
