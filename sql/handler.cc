@@ -6642,13 +6642,30 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
 
     DBUG_PRINT("info",("sweep: nblocks=%g, busy_blocks=%g", n_blocks,
                        busy_blocks));
-    if (interrupted)
-      cost->add_io(busy_blocks * Cost_estimate::IO_BLOCK_READ_COST());
-    else
+    /*
+      The random access cost for reading the data pages will be the
+      upper limit for the sweep_cost.
+    */
+    cost->add_io(busy_blocks * Cost_estimate::IO_BLOCK_READ_COST());
+
+    if (!interrupted)
+    {
       /* Assume reading is done in one 'sweep' */
-      cost->add_io(busy_blocks * 
+      Cost_estimate sweep_cost;
+      sweep_cost.add_io(busy_blocks *
                    (DISK_SEEK_BASE_COST +
                     DISK_SEEK_PROP_COST * n_blocks / busy_blocks));
+      /*
+        For some cases, ex: when only few blocks need to be read
+        and the seek distance becomes very large, the sweep cost
+        model can produce a cost estimate that is larger than the
+        cost of random access.  To handle this case, we use the
+        sweep cost only when it is less than the random access
+        cost.
+      */
+      if (sweep_cost.get_io_cost() < cost->get_io_cost())
+        *cost= sweep_cost;
+    }
   }
   DBUG_PRINT("info",("returning cost=%g", cost->total_cost()));
   DBUG_VOID_RETURN;
