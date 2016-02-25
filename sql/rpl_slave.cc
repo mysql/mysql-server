@@ -10938,6 +10938,58 @@ err:
 }
 
 /**
+   Method used to check if the user is trying to update any other option for
+   the change master apart from the MASTER_USER and MASTER_PASSWORD.
+   In case user tries to update any other parameter apart from these two,
+   this method will return error.
+
+   @param  lex_mi structure that holds all change master options given on
+           the change master command.
+
+   @retval TRUE - The CHANGE MASTER is updating a unsupported parameter for the
+                  recovery channel.
+
+   @retval FALSE - Everything is fine. The CHANGE MASTER can execute with the
+                   given option(s) for the recovery channel.
+*/
+static bool is_invalid_change_master_for_group_replication_recovery(const
+                                                                    LEX_MASTER_INFO*
+                                                                    lex_mi)
+{
+  DBUG_ENTER("is_invalid_change_master_for_group_replication_recovery");
+  bool have_extra_option_received= false;
+
+  /* Check if *at least one* receive/execute option is given on change master command*/
+  if (lex_mi->host ||
+      lex_mi->log_file_name ||
+      lex_mi->pos ||
+      lex_mi->bind_addr ||
+      lex_mi->port ||
+      lex_mi->connect_retry ||
+      lex_mi->server_id ||
+      lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->retry_count_opt !=  LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->ssl_key ||
+      lex_mi->ssl_cert ||
+      lex_mi->ssl_ca ||
+      lex_mi->ssl_capath ||
+      lex_mi->tls_version ||
+      lex_mi->ssl_cipher ||
+      lex_mi->ssl_crl ||
+      lex_mi->ssl_crlpath ||
+      lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE ||
+      lex_mi->relay_log_name ||
+      lex_mi->relay_log_pos ||
+      lex_mi->sql_delay != -1)
+    have_extra_option_received= true;
+
+  DBUG_RETURN(have_extra_option_received);
+}
+
+/**
   Entry point for the CHANGE MASTER command. Function
   decides to create a new channel or create an existing one.
 
@@ -10965,12 +11017,27 @@ bool change_master_cmd(THD *thd)
     goto err;
   }
 
-  //If the chosen name is a group replication reserved name abort
-  if (channel_map.is_group_replication_channel_name(lex->mi.channel))
+  //If the chosen name is for group_replication_applier channel we abort
+  if (channel_map.is_group_replication_channel_name(lex->mi.channel, true))
   {
     my_error(ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG, MYF(0));
     res= true;
     goto err;
+  }
+
+  // If the channel being used is group_replication_recovery we allow the
+  // channel creation based on the check as to which field is being updated.
+  if (channel_map.is_group_replication_channel_name(lex->mi.channel) &&
+      !channel_map.is_group_replication_channel_name(lex->mi.channel, true))
+  {
+    LEX_MASTER_INFO* lex_mi= &thd->lex->mi;
+    if (is_invalid_change_master_for_group_replication_recovery(lex_mi))
+    {
+      my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
+               "CHANGE MASTER with the given parameters", lex->mi.channel);
+      res= true;
+      goto err;
+    }
   }
 
   /*
@@ -10990,8 +11057,12 @@ bool change_master_cmd(THD *thd)
   /* create a new channel if doesn't exist */
   if (!mi && strcmp(lex->mi.channel, channel_map.get_default_channel()))
   {
+    enum_channel_type channel_type= SLAVE_REPLICATION_CHANNEL;
+    if (channel_map.is_group_replication_channel_name(lex->mi.channel))
+      channel_type= GROUP_REPLICATION_CHANNEL;
+
     /* The mi will be returned holding mi->channel_lock for writing */
-    if (add_new_channel(&mi, lex->mi.channel))
+    if (add_new_channel(&mi, lex->mi.channel, channel_type))
       goto err;
   }
 

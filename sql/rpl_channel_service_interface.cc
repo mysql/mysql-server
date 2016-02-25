@@ -246,7 +246,7 @@ int channel_create(const char* channel,
   /* Get the Master_info of the channel */
   mi= channel_map.get_mi(channel);
 
-    /* create a new channel if doesn't exist */
+  /* create a new channel if doesn't exist */
   if (!mi)
   {
     if ((error= add_new_channel(&mi, channel,
