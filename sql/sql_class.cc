@@ -483,6 +483,7 @@ THD::THD(bool enable_plugins)
 
   /* Variables with default values */
   proc_info="login";
+  m_current_stage_key= 0;
   where= THD::DEFAULT_WHERE;
   server_id = ::server_id;
   unmasked_server_id = server_id;
