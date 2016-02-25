@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -3218,6 +3218,7 @@ row_sel_store_mysql_rec(
 					rec_get_offsets(rec) */
 {
 	ulint		i;
+	mem_heap_t*	heap = NULL;
 	DBUG_ENTER("row_sel_store_mysql_rec");
 
 	ut_ad(rec_clust || index == prebuilt->index);
@@ -3249,6 +3250,43 @@ row_sel_store_mysql_rec(
 
 			const dfield_t* dfield = dtuple_get_nth_v_field(
 				vrow, col->v_pos);
+
+			/* If this is a partitioned table, it might request
+			InnoDB to fill out virtual column data even it is
+			not indexed (materialized) by setting prebuilt->
+			m_read_virtual_key set. Such info is usually filled
+			by server, but due to the nature of partition table
+			frame work, it is now need to be filled by InnoDB.
+			So we will need to compute the value here */
+			if (dfield_get_type(dfield)->mtype == DATA_MISSING) {
+
+				ut_ad(prebuilt->m_read_virtual_key);
+
+				que_thr_t*	thr = que_fork_get_first_thr(
+					prebuilt->sel_graph);
+
+				if (heap == NULL) {
+					heap = mem_heap_create(100);
+				}
+
+				dtuple_t*	row = row_build(
+					ROW_COPY_DATA, index, rec, offsets,
+					NULL, NULL, NULL, NULL, heap);
+
+				/* BLOB field goes to separate heap */
+				if (DATA_LARGE_MTYPE(templ->type)
+				    && prebuilt->blob_heap == NULL) {
+					prebuilt->blob_heap = mem_heap_create(
+                                        UNIV_PAGE_SIZE);
+				}
+
+				dfield = innobase_get_computed_value(
+					row, col, index,
+					&heap, prebuilt->blob_heap,
+					NULL,
+					thr_get_trx(thr)->mysql_thd,
+					prebuilt->m_mysql_table);
+			}
 
 			if (dfield->len == UNIV_SQL_NULL) {
 				mysql_rec[templ->mysql_null_byte_offset]
@@ -3285,6 +3323,10 @@ row_sel_store_mysql_rec(
 		if (!row_sel_store_mysql_field(mysql_rec, prebuilt,
 					       rec, index, offsets,
 					       field_no, templ)) {
+			if (heap != NULL) {
+				mem_heap_free(heap);
+			}
+
 			DBUG_RETURN(FALSE);
 		}
 	}
@@ -3300,6 +3342,10 @@ row_sel_store_mysql_rec(
 			prebuilt->fts_doc_id = fts_get_doc_id_from_rec(
 				prebuilt->table, rec, index, NULL);
 		}
+	}
+
+	if (heap != NULL) {
+		mem_heap_free(heap);
 	}
 
 	DBUG_RETURN(TRUE);
@@ -4401,6 +4447,9 @@ row_sel_fill_vrow(
 	*vrow = dtuple_create_with_vcol(
 		heap, 0, dict_table_get_n_v_cols(index->table));
 
+	/* Initialize all virtual row's mtype to DATA_MISSING */
+	dtuple_init_v_fld(*vrow);
+
 	for (ulint i = 0; i < dict_index_get_n_fields(index); i++) {
 		const dict_field_t*     field;
                 const dict_col_t*       col;
@@ -4420,6 +4469,7 @@ row_sel_fill_vrow(
 			dfield_t* dfield = dtuple_get_nth_v_field(
 				*vrow, vcol->v_pos);
 			dfield_set_data(dfield, data, len);
+			dict_col_copy_type(col, dfield_get_type(dfield));
 		}
 	}
 }
