@@ -4895,7 +4895,7 @@ Backup::afterGetTabinfoLockTab(Signal *signal,
     req->schemaTransId = 0;
     req->jamBufferPtr = jamBuffer();
     EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
-               DihScanTabReq::SignalLength, JBB);
+               DihScanTabReq::SignalLength, 0);
     DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
     ndbrequire(conf->senderData == 0);
     conf->senderData = ptr.i;
@@ -5070,7 +5070,7 @@ Backup::execDIH_SCAN_TAB_CONF(Signal* signal)
     req->schemaTransId = 0;
     req->jamBufferPtr = jamBuffer();
     EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
-                   DihScanTabReq::SignalLength, JBB);
+                   DihScanTabReq::SignalLength, 0);
     jamEntry();
     DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
     ndbrequire(conf->senderData == 0);
@@ -5143,7 +5143,7 @@ Backup::getFragmentInfo(Signal* signal,
     rep->scanCookie = tabPtr.p->m_scan_cookie;
     rep->jamBufferPtr = jamBuffer();
     EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_COMPLETE_REP, signal,
-                   DihScanTabCompleteRep::SignalLength, JBB);
+                   DihScanTabCompleteRep::SignalLength, 0);
 
     fragNo = 0;
   }//for

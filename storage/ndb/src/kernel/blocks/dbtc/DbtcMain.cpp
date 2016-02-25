@@ -12097,7 +12097,7 @@ void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr)
   req->jamBufferPtr = jamBuffer();
 
   EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
-                 DihScanTabReq::SignalLength, JBB);
+                 DihScanTabReq::SignalLength, 0);
 
   DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
   if (conf->senderData == 0)
@@ -12417,7 +12417,7 @@ void Dbtc::releaseScanResources(Signal* signal,
     rep->jamBufferPtr = jamBuffer();
 
     EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_COMPLETE_REP, signal,
-                   DihScanTabCompleteRep::SignalLength, JBB);
+                   DihScanTabCompleteRep::SignalLength, 0);
     jamEntry();
     /* No return code, it will always succeed. */
     scanPtr.p->m_scan_cookie = DihScanTabConf::InvalidCookie;
