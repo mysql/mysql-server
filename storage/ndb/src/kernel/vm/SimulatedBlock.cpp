@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1872,7 +1872,8 @@ SimulatedBlock::update_watch_dog_timer(Uint32 interval)
 }
 
 void
-SimulatedBlock::progError(int line, int err_code, const char* extra) const {
+SimulatedBlock::progError(int line, int err_code, const char* extra,
+                          const char* check) const {
   jamNoBlock();
 
   const char *aBlockName = getBlockName(number(), "VM Kernel");
@@ -1883,10 +1884,17 @@ SimulatedBlock::progError(int line, int err_code, const char* extra) const {
     (m_ctx.m_config.stopOnError()<<1) + 
     (m_ctx.m_config.getInitialStart()<<2);
 
-  /* Add line number to block name */
-  char buf[100];
-  BaseString::snprintf(&buf[0], 100, "%s (Line: %d) 0x%.8x", 
-	   aBlockName, line, magicStatus);
+  /* Add line number and failed expression to block name */
+  char buf[500];
+  /*Add the check to the log message only if default value of ""
+    is over-written. */
+  if(native_strcasecmp(check,"") == 0)
+    BaseString::snprintf(&buf[0], 100, "%s (Line: %d) 0x%.8x",
+        aBlockName, line, magicStatus);
+  else
+    BaseString::snprintf(&buf[0], sizeof(buf),
+        "%s (Line: %d) 0x%.8x Check %.400s failed", aBlockName,
+        line, magicStatus, check);
 
   ErrorReporter::handleError(err_code, extra, buf);
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -480,7 +480,7 @@ private:
     Uint32* getPref();
     TreeEnt getEnt(unsigned pos);
     // for ndbrequire and ndbassert
-    void progError(int line, int cause, const char* file);
+    void progError(int line, int cause, const char* file, const char* check);
   };
 
   // stats scan

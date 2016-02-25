@@ -310,8 +310,8 @@ public:
     Backup & backup;
     BlockNumber number() const { return backup.number(); }
     EmulatedJamBuffer *jamBuffer() const { return backup.jamBuffer(); }
-    void progError(int line, int cause, const char * extra) { 
-      backup.progError(line, cause, extra); 
+    void progError(int line, int cause, const char * extra, const char * check) {
+      backup.progError(line, cause, extra, check);
     }
   };
   friend struct OperationRecord;
@@ -406,8 +406,8 @@ public:
     
     BlockNumber number() const { return backup.number(); }
     EmulatedJamBuffer *jamBuffer() const { return backup.jamBuffer(); }
-    void progError(int line, int cause, const char * extra) { 
-      backup.progError(line, cause, extra); 
+    void progError(int line, int cause, const char * extra, const char * check) {
+      backup.progError(line, cause, extra, check);
     }
   private:
     Backup & backup;
@@ -541,8 +541,8 @@ public:
     Backup & backup;
     BlockNumber number() const { return backup.number(); }
     EmulatedJamBuffer *jamBuffer() const { return backup.jamBuffer(); }
-    void progError(int line, int cause, const char * extra) { 
-      backup.progError(line, cause, extra); 
+    void progError(int line, int cause, const char * extra, const char * check) {
+      backup.progError(line, cause, extra, check);
     }
   };
   friend struct BackupRecord;

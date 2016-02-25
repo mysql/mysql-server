@@ -218,8 +218,9 @@ public:
 #endif
     BlockNumber number() const { return suma.number(); }
     EmulatedJamBuffer *jamBuffer() const { return suma.jamBuffer(); }
-    void progError(int line, int cause, const char * extra) { 
-      suma.progError(line, cause, extra); 
+    void progError(int line, int cause, const char * extra,
+                   const char * check) {
+      suma.progError(line, cause, extra, check);
     }
     
     Uint32 prevList; Uint32 ptrI;
