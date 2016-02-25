@@ -1,4 +1,3 @@
---source include/have_utf8.inc
 --disable_warnings
 drop database if exists `ﾆﾎﾝｺﾞ`;
 drop database if exists `日本語`;

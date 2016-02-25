@@ -1,11 +1,6 @@
 --source include/have_myisam.inc
 # There are test for bug which contain MyISAM specific tests
 
--- source include/have_ucs2.inc
--- source include/have_utf16.inc
--- source include/have_utf32.inc
--- source include/have_utf8mb4.inc
-
 --echo #
 --echo # Start of 5.6 tests
 --echo #

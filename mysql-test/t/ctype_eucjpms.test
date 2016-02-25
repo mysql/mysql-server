@@ -4,9 +4,6 @@
  #Get deafult engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
--- source include/have_eucjpms.inc
-
-
 --disable_warnings
 drop table if exists t1;
 drop table if exists t2;

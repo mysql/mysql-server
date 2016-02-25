@@ -1,10 +1,6 @@
 --source include/have_myisam.inc
 # Testcases for some bug fixes need MyISAM
 
--- source include/have_ucs2.inc
--- source include/have_utf16.inc
--- source include/have_utf8mb4.inc
-
 --echo #
 --echo # Start of 5.5 tests
 --echo #

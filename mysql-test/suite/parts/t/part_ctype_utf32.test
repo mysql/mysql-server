@@ -13,7 +13,6 @@
 ################################################################################
 
 --source include/have_partition.inc
---source include/have_utf32.inc
 
 --echo #
 --echo # Bug#52121 partition by key on utf32 enum field cause debug assertion: (length % 4) == 0

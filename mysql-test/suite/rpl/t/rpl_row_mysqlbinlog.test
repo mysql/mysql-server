@@ -12,8 +12,6 @@
 -- source include/have_binlog_format_row.inc
 # Embedded server doesn't support binlogging
 -- source include/not_embedded.inc
-# This test requires the cp932 charset compiled in
--- source include/have_cp932.inc
 -- source include/master-slave.inc
 
 # Setup Section

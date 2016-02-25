@@ -1,4 +1,3 @@
---source include/have_utf8mb4.inc
 
 #
 # Tests with the utf8mb4 character set
