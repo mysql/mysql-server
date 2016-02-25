@@ -54,6 +54,8 @@ static void test_noop()
   PSI_memory_key memory_key;
   PSI_metadata_lock *metadata_lock;
   PSI_metadata_locker *metadata_locker;
+  PSI_thread *owner;
+
   diag("test_noop");
 
   psi_mutex_service->register_mutex(NULL, NULL, 0);
@@ -191,9 +193,9 @@ static void test_noop()
   ok(sp_share == NULL, "no sp_share");
   psi_statement_service->release_sp_share(NULL);
   psi_memory_service->register_memory(NULL, NULL, 0);
-  memory_key= psi_memory_service->memory_alloc(0, 0, NULL);
+  memory_key= psi_memory_service->memory_alloc(0, 0, & owner);
   ok(memory_key == PSI_NOT_INSTRUMENTED, "no memory_key");
-  memory_key= psi_memory_service->memory_realloc(0, 0, 0, NULL);
+  memory_key= psi_memory_service->memory_realloc(0, 0, 0, & owner);
   ok(memory_key == PSI_NOT_INSTRUMENTED, "no memory_key");
   psi_memory_service->memory_free(0, 0, NULL);
   psi_table_service->unlock_table(NULL);
