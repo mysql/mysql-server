@@ -18,7 +18,7 @@
 #include <my_global.h>
 #include <mysql/plugin.h>
 #include <ndbapi/NdbApi.hpp>
-#include <portlib/NdbTick.h>
+
 #include <my_sys.h>               // my_sleep.h
 
 /* perform random sleep in the range milli_sleep to 2*milli_sleep */
@@ -34,13 +34,10 @@ void do_retry_sleep(unsigned milli_sleep)
 /*
   The lock/unlock functions use the BACKUP_SEQUENCE row in SYSTAB_0
 
-  retry_time == 0 means no retry
-  retry_time <  0 means infinite retries
-  retry_time >  0 means retries for max 'retry_time' seconds
+  The function will retry infintely or until the THD is killed
 */
 static NdbTransaction *
-gsl_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error,
-             int retry_time= 10)
+gsl_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error)
 {
   ndb->setDatabaseName("sys");
   ndb->setDatabaseSchemaName("def");
@@ -49,13 +46,7 @@ gsl_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error,
   const NdbDictionary::Table *ndbtab= NULL;
   NdbOperation *op;
   NdbTransaction *trans= NULL;
-  int retry_sleep= 50; /* 50 milliseconds, transaction */
-  NDB_TICKS start;
 
-  if (retry_time > 0)
-  {
-    start = NdbTick_getCurrentTicks();
-  }
   while (1)
   {
     if (!ndbtab)
@@ -88,19 +79,13 @@ gsl_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error,
     else if (thd_killed(thd))
       goto error_handler;
   retry:
-    if (retry_time == 0)
-      goto error_handler;
-    if (retry_time > 0)
-    {
-      const NDB_TICKS now = NdbTick_getCurrentTicks();
-      if (NdbTick_Elapsed(start,now).seconds() > (Uint64)retry_time)
-        goto error_handler;
-    }
     if (trans)
     {
       ndb->closeTransaction(trans);
       trans= NULL;
     }
+
+    const unsigned retry_sleep= 50; /* 50 milliseconds, transaction */
     do_retry_sleep(retry_sleep);
   }
   return trans;
@@ -204,7 +189,7 @@ ndbcluster_global_schema_lock(THD *thd,
   */
   Thd_proc_info_guard proc_info(thd);
   proc_info.set("Waiting for ndbcluster global schema lock");
-  thd_ndb->global_schema_lock_trans= gsl_lock_ext(thd, ndb, ndb_error, -1);
+  thd_ndb->global_schema_lock_trans= gsl_lock_ext(thd, ndb, ndb_error);
 
   DBUG_EXECUTE_IF("sleep_after_global_schema_lock", my_sleep(6000000););
 
