@@ -3401,6 +3401,32 @@ void Dbacc::commitdelete(Signal* signal)
   lastPrevpageptr.i = RNIL;
   ptrNull(lastPrevpageptr);
   tlastPrevconptr = 0;
+
+  /**
+   * Position last on delete container before call to getLastAndRemove.
+   */
+  Page8Ptr delPageptr;
+  delPageptr.i = operationRecPtr.p->elementPage;
+  ptrCheckGuard(delPageptr, cpagesize, page8);
+  const Uint32 delConptr = operationRecPtr.p->elementContainer;
+
+  while (lastPageptr.i != delPageptr.i ||
+         tlastContainerptr != delConptr)
+  {
+    lastPrevpageptr = lastPageptr;
+    tlastPrevconptr = tlastContainerptr;
+    ContainerHeader lasthead(lastPageptr.p->word32[tlastContainerptr]);
+    ndbrequire(lasthead.haveNext());
+    if (!lasthead.isNextOnSamePage())
+    {
+      lastPageptr.i = lastPageptr.p->word32[tlastContainerptr + 1];
+      ptrCheckGuard(lastPageptr, cpagesize, page8);
+    }
+    tlastPageindex = lasthead.getNextIndexNumber();
+    lastIsforward = lasthead.getNextEnd() == ZLEFT;
+    tlastContainerptr = getContainerPtr(tlastPageindex, lastIsforward);
+  }
+
   getLastAndRemove(lastPrevpageptr,
                    tlastPrevconptr,
                    lastPageptr,
@@ -3409,9 +3435,6 @@ void Dbacc::commitdelete(Signal* signal)
                    lastIsforward,
                    tlastElementptr);
 
-  Page8Ptr delPageptr;
-  delPageptr.i = operationRecPtr.p->elementPage;
-  ptrCheckGuard(delPageptr, cpagesize, page8);
   const Uint32 delElemptr = operationRecPtr.p->elementPointer;
   if (operationRecPtr.p->elementPage == lastPageptr.i) {
     if (operationRecPtr.p->elementPointer == tlastElementptr) {
@@ -3428,7 +3451,6 @@ void Dbacc::commitdelete(Signal* signal)
   /*  THE DELETED ELEMENT IS NOT THE LAST. WE READ THE LAST ELEMENT AND OVERWRITE THE  */
   /*  DELETED ELEMENT.                                                                 */
   /* --------------------------------------------------------------------------------- */
-  const Uint32 delConptr = operationRecPtr.p->elementContainer;
 #if defined(VM_TRACE) || !defined(NDEBUG)
   delPageptr.p->word32[delElemptr] = ElementHeader::setInvalid();
 #endif
@@ -5554,7 +5576,7 @@ Uint32 Dbacc::checkScanShrink(Uint32 sourceBucket, Uint32 destBucket)
   Uint16 releaseDestScanMask = 0;
   Uint16 releaseSourceScanMask = 0;
   Page8Ptr TPageptr;
-  ScanRecPtr TscanPtr;
+  ScanRecPtr scanPtr;
 
   TmergeDest = destBucket;
   TmergeSource = sourceBucket;
@@ -5562,17 +5584,17 @@ Uint32 Dbacc::checkScanShrink(Uint32 sourceBucket, Uint32 destBucket)
   {
     actions[Ti].clear();
     if (fragrecptr.p->scan[Ti] != RNIL) {
-      TscanPtr.i = fragrecptr.p->scan[Ti];
-      ptrCheckGuard(TscanPtr, cscanRecSize, scanRec);
-      if (TscanPtr.p->activeLocalFrag == fragrecptr.i) {
+      scanPtr.i = fragrecptr.p->scan[Ti];
+      ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
+      if (scanPtr.p->activeLocalFrag == fragrecptr.i) {
 	//-------------------------------------------------------------
 	// A scan is ongoing on this particular local fragment. We have
 	// to check its current state.
 	//-------------------------------------------------------------
-        if (TscanPtr.p->scanBucketState ==  ScanRec::FIRST_LAP) {
+        if (scanPtr.p->scanBucketState ==  ScanRec::FIRST_LAP) {
           jam();
-          if ((TmergeDest == TscanPtr.p->nextBucketIndex) ||
-              (TmergeSource == TscanPtr.p->nextBucketIndex)) {
+          if ((TmergeDest == scanPtr.p->nextBucketIndex) ||
+              (TmergeSource == scanPtr.p->nextBucketIndex)) {
             jam();
 	    //-------------------------------------------------------------
 	    // We are currently scanning one of the buckets involved in the
@@ -5582,7 +5604,7 @@ Uint32 Dbacc::checkScanShrink(Uint32 sourceBucket, Uint32 destBucket)
             TreturnCode = 1;
             return TreturnCode;
           }
-          else if (TmergeDest < TscanPtr.p->nextBucketIndex)
+          else if (TmergeDest < scanPtr.p->nextBucketIndex)
           {
             jam();
             /**
@@ -5596,7 +5618,7 @@ Uint32 Dbacc::checkScanShrink(Uint32 sourceBucket, Uint32 destBucket)
                * bucket.  Source buckets scan bits must be cleared.
                */
               actions[Ti].set(ReduceUndefined);
-              releaseSourceScanMask |= TscanPtr.p->scanMask;
+              releaseSourceScanMask |= scanPtr.p->scanMask;
             }
             TreleaseInd = 1;
           }//if
@@ -5609,18 +5631,18 @@ Uint32 Dbacc::checkScanShrink(Uint32 sourceBucket, Uint32 destBucket)
             if (TmergeSource == scanPtr.p->startNoOfBuckets)
             {
               actions[Ti].set(ReduceUndefined);
-              releaseSourceScanMask |= TscanPtr.p->scanMask;
+              releaseSourceScanMask |= scanPtr.p->scanMask;
               TreleaseInd = 1;
             }
-            if (TmergeDest <= TscanPtr.p->startNoOfBuckets)
+            if (TmergeDest <= scanPtr.p->startNoOfBuckets)
             {
               jam();
               // Destination bucket is not scanned by scan
-              releaseDestScanMask |= TscanPtr.p->scanMask;
+              releaseDestScanMask |= scanPtr.p->scanMask;
             }
           }
         }
-        else if (TscanPtr.p->scanBucketState ==  ScanRec::SECOND_LAP)
+        else if (scanPtr.p->scanBucketState ==  ScanRec::SECOND_LAP)
         {
           jam();
 	  //-------------------------------------------------------------
@@ -5630,14 +5652,14 @@ Uint32 Dbacc::checkScanShrink(Uint32 sourceBucket, Uint32 destBucket)
 	  //-------------------------------------------------------------
           TreturnCode = 1;
           return TreturnCode;
-        } else if (TscanPtr.p->scanBucketState ==  ScanRec::SCAN_COMPLETED) {
+        } else if (scanPtr.p->scanBucketState ==  ScanRec::SCAN_COMPLETED) {
           jam();
 	  //-------------------------------------------------------------
 	  // The scan is completed and we can thus go ahead and perform
 	  // the split.
 	  //-------------------------------------------------------------
-          releaseDestScanMask |= TscanPtr.p->scanMask;
-          releaseSourceScanMask |= TscanPtr.p->scanMask;
+          releaseDestScanMask |= scanPtr.p->scanMask;
+          releaseSourceScanMask |= scanPtr.p->scanMask;
         } else {
           jam();
           sendSystemerror(__LINE__);
