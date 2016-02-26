@@ -4171,7 +4171,7 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
         return 1;
 
       // Fail if the table does not exist
-      dd::Abstract_table::enum_table_type table_type;
+      dd::enum_table_type table_type;
       if (dd::abstract_table_type(thd->dd_client(), db_name->str,
                                   table_name->str, &table_type))
         table->field[3]->store(STRING_WITH_LEN("ERROR"), system_charset_info);
@@ -4179,15 +4179,15 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
       {
         switch (table_type)
         {
-        case dd::Abstract_table::TT_BASE_TABLE:
+        case dd::enum_table_type::BASE_TABLE:
           table->field[3]->store(STRING_WITH_LEN("BASE TABLE"),
                                  system_charset_info);
           break;
-        case dd::Abstract_table::TT_USER_VIEW:
+        case dd::enum_table_type::USER_VIEW:
           table->field[3]->store(STRING_WITH_LEN("VIEW"),
                                  system_charset_info);
           break;
-        case dd::Abstract_table::TT_SYSTEM_VIEW:
+        case dd::enum_table_type::SYSTEM_VIEW:
           table->field[3]->store(STRING_WITH_LEN("SYSTEM VIEW"),
                                  system_charset_info);
           break;

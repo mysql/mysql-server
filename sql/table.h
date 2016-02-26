@@ -29,8 +29,6 @@
 #include "sql_sort.h"      // Filesort_info
 #include "table_id.h"      // Table_id
 
-#include "dd/types/abstract_table.h" // enum_table_type
-
 /* Structs that defines the TABLE */
 class File_parser;
 class Item_subselect;
@@ -56,6 +54,7 @@ class SELECT_LEX;
 namespace dd {
   class Table;
   class View;
+  enum class enum_table_type;
 }
 
 typedef int64 query_id_t;
@@ -2513,7 +2512,7 @@ public:
   /// TRUE <=> Filter condition is processed
   bool          replace_filter_processed;
 
-  dd::Abstract_table::enum_table_type required_type;
+  dd::enum_table_type required_type;
   char		timestamp_buffer[20];	/* buffer for timestamp (19+1) */
   /*
     This TABLE_LIST object is just placeholder for prelocking, it will be

@@ -102,10 +102,10 @@ public:
   // type.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Column::enum_column_types type() const
+  virtual enum_column_types type() const
   { return m_type; }
 
-  virtual void set_type(Column::enum_column_types type)
+  virtual void set_type(enum_column_types type)
   { m_type= type; }
 
   /////////////////////////////////////////////////////////////////////////

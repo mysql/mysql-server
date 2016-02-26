@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,10 +30,10 @@ namespace tables {
 Dictionary_object *Tables::create_dictionary_object(
   const Raw_record &r) const
 {
-  Abstract_table::enum_table_type table_type=
-    (Abstract_table::enum_table_type) r.read_int(FIELD_TYPE);
+  enum_table_type table_type=
+    static_cast<enum_table_type>(r.read_int(FIELD_TYPE));
 
-  if (table_type == Abstract_table::TT_BASE_TABLE)
+  if (table_type == enum_table_type::BASE_TABLE)
     return dd::create_object<Table>();
   else
     return dd::create_object<View>();

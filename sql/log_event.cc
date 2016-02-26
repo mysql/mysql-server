@@ -66,6 +66,7 @@
 #include "sql_class.h"
 #include "mysql/psi/mysql_transaction.h"
 #include "sql_plugin.h" // plugin_foreach
+#include "dd/types/abstract_table.h" // dd::enum_table_type
 #define window_size Log_throttle::LOG_THROTTLE_WINDOW_SIZE
 Error_log_throttle
 slave_ignored_err_throttle(window_size,
@@ -11618,7 +11619,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
   table_list->table_id=
     DBUG_EVALUATE_IF("inject_tblmap_same_id_maps_diff_table", 0, m_table_id.id());
   table_list->updating= 1;
-  table_list->required_type= dd::Abstract_table::TT_BASE_TABLE;
+  table_list->required_type= dd::enum_table_type::BASE_TABLE;
   DBUG_PRINT("debug", ("table: %s is mapped to %llu", table_list->table_name,
                        table_list->table_id.id()));
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,8 +20,6 @@
 
 #include "handler.h"                 // legacy_db_type
 
-#include "dd/types/abstract_table.h" // enum_table_type
-
 class Create_field;
 class THD;
 typedef struct st_ha_create_information HA_CREATE_INFO;
@@ -30,6 +28,7 @@ template <class T> class List;
 
 namespace dd {
   class Table;
+  enum class enum_table_type;
   namespace cache {
     class Dictionary_client;
   }
@@ -171,7 +170,7 @@ inline bool rename_table(THD *thd,
 */
 bool abstract_table_type(dd::cache::Dictionary_client *client,
                          const char *schema_name, const char *table_name,
-                         dd::Abstract_table::enum_table_type *table_type);
+                         dd::enum_table_type *table_type);
 
 /**
   Get the legacy db type from the options of the given table.

@@ -67,7 +67,7 @@ public:
   /////////////////////////////////////////////////////////////////////////
 
   /* non-virtual */ bool is_system_view() const
-  { return type() == TT_SYSTEM_VIEW; }
+  { return type() == enum_table_type::SYSTEM_VIEW; }
 
   virtual void set_system_view(bool system_view) = 0;
 

@@ -39,6 +39,7 @@
 #include "debug_sync.h"
 
 #include "dd/dd_table.h"                /* dd::table_exists */
+#include "dd/types/abstract_table.h"    /* dd::Abstract_table */
 
 const char *command_array[]=
 {

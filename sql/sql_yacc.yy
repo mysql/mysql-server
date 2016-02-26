@@ -5044,7 +5044,7 @@ create2:
             if (! src_table)
               MYSQL_YYABORT;
             /* CREATE TABLE ... LIKE is not allowed for views. */
-            src_table->required_type= dd::Abstract_table::TT_BASE_TABLE;
+            src_table->required_type= dd::enum_table_type::BASE_TABLE;
           }
         | '(' LIKE table_ident ')'
           {
@@ -5059,7 +5059,7 @@ create2:
             if (! src_table)
               MYSQL_YYABORT;
             /* CREATE TABLE ... LIKE is not allowed for views. */
-            src_table->required_type= dd::Abstract_table::TT_BASE_TABLE;
+            src_table->required_type= dd::enum_table_type::BASE_TABLE;
           }
         ;
 
@@ -12599,7 +12599,7 @@ opt_flush_lock:
             {
               tables->mdl_request.set_type(MDL_SHARED_NO_WRITE);
               /* Don't try to flush views. */
-              tables->required_type= dd::Abstract_table::TT_BASE_TABLE;
+              tables->required_type= dd::enum_table_type::BASE_TABLE;
               tables->open_type= OT_BASE_ONLY;      /* Ignore temporary tables. */
             }
           }
@@ -12619,7 +12619,7 @@ opt_flush_lock:
             {
               tables->mdl_request.set_type(MDL_SHARED_NO_WRITE);
               /* Don't try to flush views. */
-              tables->required_type= dd::Abstract_table::TT_BASE_TABLE;
+              tables->required_type= dd::enum_table_type::BASE_TABLE;
               tables->open_type= OT_BASE_ONLY;      /* Ignore temporary tables. */
             }
           }

@@ -99,102 +99,102 @@ namespace dd {
   information schema requirements.
 */
 
-static dd::Column::enum_column_types dd_get_new_field_type(enum_field_types type)
+static dd::enum_column_types dd_get_new_field_type(enum_field_types type)
 {
   switch (type)
   {
   case MYSQL_TYPE_DECIMAL:
-    return dd::Column::TYPE_DECIMAL;
+    return dd::enum_column_types::DECIMAL;
 
   case MYSQL_TYPE_TINY:
-    return dd::Column::TYPE_TINY;
+    return dd::enum_column_types::TINY;
 
   case MYSQL_TYPE_SHORT:
-    return dd::Column::TYPE_SHORT;
+    return dd::enum_column_types::SHORT;
 
   case MYSQL_TYPE_LONG:
-    return dd::Column::TYPE_LONG;
+    return dd::enum_column_types::LONG;
 
   case MYSQL_TYPE_FLOAT:
-    return dd::Column::TYPE_FLOAT;
+    return dd::enum_column_types::FLOAT;
 
   case MYSQL_TYPE_DOUBLE:
-    return dd::Column::TYPE_DOUBLE;
+    return dd::enum_column_types::DOUBLE;
 
   case MYSQL_TYPE_NULL:
-    return dd::Column::TYPE_NULL;
+    return dd::enum_column_types::TYPE_NULL;
 
   case MYSQL_TYPE_TIMESTAMP:
-    return dd::Column::TYPE_TIMESTAMP;
+    return dd::enum_column_types::TIMESTAMP;
 
   case MYSQL_TYPE_LONGLONG:
-    return dd::Column::TYPE_LONGLONG;
+    return dd::enum_column_types::LONGLONG;
 
   case MYSQL_TYPE_INT24:
-    return dd::Column::TYPE_INT24;
+    return dd::enum_column_types::INT24;
 
   case MYSQL_TYPE_DATE:
-    return dd::Column::TYPE_DATE;
+    return dd::enum_column_types::DATE;
 
   case MYSQL_TYPE_TIME:
-    return dd::Column::TYPE_TIME;
+    return dd::enum_column_types::TIME;
 
   case MYSQL_TYPE_DATETIME:
-    return dd::Column::TYPE_DATETIME;
+    return dd::enum_column_types::DATETIME;
 
   case MYSQL_TYPE_YEAR:
-    return dd::Column::TYPE_YEAR;
+    return dd::enum_column_types::YEAR;
 
   case MYSQL_TYPE_NEWDATE:
-    return dd::Column::TYPE_NEWDATE;
+    return dd::enum_column_types::NEWDATE;
 
   case MYSQL_TYPE_VARCHAR:
-    return dd::Column::TYPE_VARCHAR;
+    return dd::enum_column_types::VARCHAR;
 
   case MYSQL_TYPE_BIT:
-    return dd::Column::TYPE_BIT;
+    return dd::enum_column_types::BIT;
 
   case MYSQL_TYPE_TIMESTAMP2:
-    return dd::Column::TYPE_TIMESTAMP2;
+    return dd::enum_column_types::TIMESTAMP2;
 
   case MYSQL_TYPE_DATETIME2:
-    return dd::Column::TYPE_DATETIME2;
+    return dd::enum_column_types::DATETIME2;
 
   case MYSQL_TYPE_TIME2:
-    return dd::Column::TYPE_TIME2;
+    return dd::enum_column_types::TIME2;
 
   case MYSQL_TYPE_NEWDECIMAL:
-    return dd::Column::TYPE_NEWDECIMAL;
+    return dd::enum_column_types::NEWDECIMAL;
 
   case MYSQL_TYPE_ENUM:
-    return dd::Column::TYPE_ENUM;
+    return dd::enum_column_types::ENUM;
 
   case MYSQL_TYPE_SET:
-    return dd::Column::TYPE_SET;
+    return dd::enum_column_types::SET;
 
   case MYSQL_TYPE_TINY_BLOB:
-    return dd::Column::TYPE_TINY_BLOB;
+    return dd::enum_column_types::TINY_BLOB;
 
   case MYSQL_TYPE_MEDIUM_BLOB:
-    return dd::Column::TYPE_MEDIUM_BLOB;
+    return dd::enum_column_types::MEDIUM_BLOB;
 
   case MYSQL_TYPE_LONG_BLOB:
-    return dd::Column::TYPE_LONG_BLOB;
+    return dd::enum_column_types::LONG_BLOB;
 
   case MYSQL_TYPE_BLOB:
-    return dd::Column::TYPE_BLOB;
+    return dd::enum_column_types::BLOB;
 
   case MYSQL_TYPE_VAR_STRING:
-    return dd::Column::TYPE_VAR_STRING;
+    return dd::enum_column_types::VAR_STRING;
 
   case MYSQL_TYPE_STRING:
-    return dd::Column::TYPE_STRING;
+    return dd::enum_column_types::STRING;
 
   case MYSQL_TYPE_GEOMETRY:
-    return dd::Column::TYPE_GEOMETRY;
+    return dd::enum_column_types::GEOMETRY;
 
   case MYSQL_TYPE_JSON:
-    return dd::Column::TYPE_JSON;
+    return dd::enum_column_types::JSON;
 
   }
 
@@ -202,7 +202,7 @@ static dd::Column::enum_column_types dd_get_new_field_type(enum_field_types type
   sql_print_error("Error: Invalid field type.");
   DBUG_ASSERT(false);
 
-  return dd::Column::TYPE_LONG;
+  return dd::enum_column_types::LONG;
   /* purecov: end */
 }
 
@@ -432,12 +432,12 @@ fill_dd_columns_from_create_fields(THD *thd,
         //
         dd::Column_type_element *elem_obj= NULL;
 
-        DBUG_ASSERT(col_obj->type() == dd::Column::TYPE_SET ||
-                    col_obj->type() == dd::Column::TYPE_ENUM);
+        DBUG_ASSERT(col_obj->type() == dd::enum_column_types::SET ||
+                    col_obj->type() == dd::enum_column_types::ENUM);
 
-        if (col_obj->type() == dd::Column::TYPE_SET)
+        if (col_obj->type() == dd::enum_column_types::SET)
           elem_obj= col_obj->add_set_element();
-        else if (col_obj->type() == dd::Column::TYPE_ENUM)
+        else if (col_obj->type() == dd::enum_column_types::ENUM)
           elem_obj= col_obj->add_enum_element();
 
         //  Copy type_lengths[i] bytes including '\0'
@@ -1738,7 +1738,7 @@ bool rename_table(THD *thd,
 bool abstract_table_type(dd::cache::Dictionary_client *client,
                          const char *schema_name,
                          const char *table_name,
-                         dd::Abstract_table::enum_table_type *table_type)
+                         dd::enum_table_type *table_type)
 {
   DBUG_ENTER("dd::abstract_table_type");
 

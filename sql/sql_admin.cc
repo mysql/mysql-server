@@ -37,6 +37,7 @@
 #include "sql_cache.h"                       // query_cache
 
 #include "dd/dd_table.h"                     // dd::recreate_table
+#include "dd/types/abstract_table.h"         // dd::enum_table_type
 #include "sql_alter_instance.h"              // Alter_instance
 
 #include "pfs_file_provider.h"
@@ -358,7 +359,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       */
       if (lex->alter_info.flags & Alter_info::ALTER_ADMIN_PARTITION ||
         check_view != 1)
-        table->required_type= dd::Abstract_table::TT_BASE_TABLE;
+        table->required_type= dd::enum_table_type::BASE_TABLE;
 
       if (!thd->locked_tables_mode && repair_table_use_frm)
       {

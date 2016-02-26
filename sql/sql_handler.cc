@@ -66,6 +66,8 @@
 #include "template_utils.h"
 #include "error_handler.h"
 
+#include "dd/types/abstract_table.h"            // dd::enum_table_type
+
 #define HANDLER_TABLES_HASH_SIZE 120
 
 static enum enum_ha_read_modes rkey_to_rnext[]=
@@ -260,7 +262,7 @@ bool Sql_cmd_handler_open::execute(THD *thd)
                    MDL_key::TABLE, db, name, MDL_SHARED,
                    MDL_TRANSACTION);
   /* for now HANDLER can be used only for real TABLES */
-  hash_tables->required_type= dd::Abstract_table::TT_BASE_TABLE;
+  hash_tables->required_type= dd::enum_table_type::BASE_TABLE;
   /* add to hash */
   if (my_hash_insert(&thd->handler_tables_hash, (uchar*) hash_tables))
   {

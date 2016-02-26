@@ -201,9 +201,9 @@ bool Table_impl::restore_attributes(const Raw_record &r)
 {
   {
     enum_table_type table_type=
-      (enum_table_type) r.read_int(Tables::FIELD_TYPE);
+      static_cast<enum_table_type>(r.read_int(Tables::FIELD_TYPE));
 
-    if (table_type != TT_BASE_TABLE)
+    if (table_type != enum_table_type::BASE_TABLE)
       return true;
   }
 
@@ -253,11 +253,11 @@ bool Table_impl::store_attributes(Raw_record *r)
   //
   // Special cases dealing with NULL values for nullable fields
   //   - Store NULL if version is not set
-  //     Eg: TT_USER_VIEW or TT_SYSTEM_VIEW may not have version set
+  //     Eg: USER_VIEW or SYSTEM_VIEW may not have version set
   //   - Store NULL if se_private_id is not set
   //     Eg: A non-innodb table may not have se_private_id
   //   - Store NULL if collation id is not set
-  //     Eg: TT_USER_VIEW will not have collation id set.
+  //     Eg: USER_VIEW will not have collation id set.
   //   - Store NULL if tablespace id is not set
   //     Eg: A non-innodb table may not have tablespace
   //   - Store NULL in options if there are no key=value pairs

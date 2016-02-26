@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -269,7 +269,7 @@ void set_attributes(dd::Table *obj, const std::string &name,
   dd::Column *col_obj2= obj->add_column();
   col_obj2->set_name(name + "col3");
   col_obj2->set_default_value_null(true);
-  col_obj2->set_type(dd::Column::TYPE_ENUM);
+  col_obj2->set_type(dd::enum_column_types::ENUM);
   col_obj2->set_collation_id(1);
 
   dd::Column_type_element *elem_obj= col_obj2->add_enum_element();

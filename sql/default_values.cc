@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,26 +50,26 @@ static size_t column_pack_length(const dd::Column &col_obj)
   size_t pack_length= 0;
 
   switch (col_obj.type()) {
-  case dd::Column::TYPE_TINY_BLOB:
-  case dd::Column::TYPE_MEDIUM_BLOB:
-  case dd::Column::TYPE_LONG_BLOB:
-  case dd::Column::TYPE_BLOB:
-  case dd::Column::TYPE_GEOMETRY:
-  case dd::Column::TYPE_VAR_STRING:
-  case dd::Column::TYPE_STRING:
-  case dd::Column::TYPE_VARCHAR:
+  case dd::enum_column_types::TINY_BLOB:
+  case dd::enum_column_types::MEDIUM_BLOB:
+  case dd::enum_column_types::LONG_BLOB:
+  case dd::enum_column_types::BLOB:
+  case dd::enum_column_types::GEOMETRY:
+  case dd::enum_column_types::VAR_STRING:
+  case dd::enum_column_types::STRING:
+  case dd::enum_column_types::VARCHAR:
     // The length is already calculated in number of bytes, no need
     // to multiply by number of bytes per symbol.
     pack_length= calc_pack_length(dd_get_old_field_type(col_obj.type()),
                                   col_obj.char_length());
     break;
-  case dd::Column::TYPE_ENUM:
+  case dd::enum_column_types::ENUM:
     pack_length= get_enum_pack_length(col_obj.enum_elements_count());
     break;
-  case dd::Column::TYPE_SET:
+  case dd::enum_column_types::SET:
     pack_length= get_set_pack_length(col_obj.set_elements_count());
     break;
-  case dd::Column::TYPE_BIT:
+  case dd::enum_column_types::BIT:
     {
       bool treat_bit_as_char;
       if (col_obj.options().get_bool("treat_bit_as_char", &treat_bit_as_char))
@@ -81,7 +81,7 @@ static size_t column_pack_length(const dd::Column &col_obj)
         pack_length= col_obj.char_length() / 8;
     }
     break;
-  case dd::Column::TYPE_NEWDECIMAL:
+  case dd::enum_column_types::NEWDECIMAL:
     {
       uint decimals= col_obj.numeric_scale();
       ulong precision= my_decimal_length_to_precision(col_obj.char_length(),
@@ -143,7 +143,7 @@ static bool find_record_length(const dd::Table &table, size_t min_length,
 
     // Check if this is a BIT field with leftover bits in the preamble, and
     // adjust record length accordingly.
-    if (col_obj->type() == dd::Column::TYPE_BIT)
+    if (col_obj->type() == dd::enum_column_types::BIT)
     {
       bool treat_bit_as_char;
       if (col_obj->options().get_bool("treat_bit_as_char", &treat_bit_as_char))

@@ -2648,12 +2648,12 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       }
     }
 
-    dd::Abstract_table::enum_table_type table_type;
+    dd::enum_table_type table_type;
     if (drop_temporary ||
         ((!table_exists && ha_create_table_from_engine(thd, db, alias)) ||
         (!drop_view &&
          (dd::abstract_table_type(thd->dd_client(), db, alias, &table_type) ||
-           table_type != dd::Abstract_table::TT_BASE_TABLE))))
+           table_type != dd::enum_table_type::BASE_TABLE))))
     {
       /*
         One of the following cases happened:
@@ -2684,7 +2684,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       // If this is an existing table which has an unknown SE, we fail
       handlerton *hton= NULL;
       if (!dd::abstract_table_type(thd->dd_client(), db, alias, &table_type) &&
-          table_type == dd::Abstract_table::TT_BASE_TABLE &&
+          table_type == dd::enum_table_type::BASE_TABLE &&
           dd::table_storage_engine(thd, table, &hton))
       {
         wrong_tables.mem_free();
@@ -6403,7 +6403,7 @@ int mysql_discard_or_import_tablespace(THD *thd,
   table_list->mdl_request.set_type(MDL_EXCLUSIVE);
   table_list->lock_type= TL_WRITE;
   /* Do not open views. */
-  table_list->required_type= dd::Abstract_table::TT_BASE_TABLE;
+  table_list->required_type= dd::enum_table_type::BASE_TABLE;
 
   if (open_and_lock_tables(thd, table_list, 0, &alter_prelocking_strategy))
   {
@@ -9372,7 +9372,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     Note that RENAME TABLE the only ALTER clause which is supported for views
     has been already processed.
   */
-  table_list->required_type= dd::Abstract_table::TT_BASE_TABLE;
+  table_list->required_type= dd::enum_table_type::BASE_TABLE;
 
   /*
     If we are about to ALTER non-temporary table we need to get permission
@@ -10809,7 +10809,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
     table->next_global= NULL;
     table->lock_type= TL_READ;
     /* Allow to open real tables only. */
-    table->required_type= dd::Abstract_table::TT_BASE_TABLE;
+    table->required_type= dd::enum_table_type::BASE_TABLE;
 
     if (open_temporary_tables(thd, table) ||
         open_and_lock_tables(thd, table, 0))

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,8 @@
 #include "sql_view.h"         // mysql_rename_view
 
 #include "dd/dd_table.h"      // dd::table_exists
+#include "dd/types/abstract_table.h" // dd::Abstract_table
+
 
 static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
 				 bool skip_error);
@@ -265,7 +267,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
   }
 
   // Get the table type of the old table, and fail if it does not exist
-  dd::Abstract_table::enum_table_type table_type;
+  dd::enum_table_type table_type;
   if (dd::abstract_table_type(thd->dd_client(), ren_table->db,
                               old_alias, &table_type))
   {
@@ -277,7 +279,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
   // not exist. Next is to act based on the table type.
   switch (table_type)
   {
-  case dd::Abstract_table::TT_BASE_TABLE:
+  case dd::enum_table_type::BASE_TABLE:
     {
       handlerton *hton= NULL;
       // If the engine is not found, my_error() has already been called
@@ -301,8 +303,8 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
       }
       break;
     }
-  case dd::Abstract_table::TT_SYSTEM_VIEW: // Fall through
-  case dd::Abstract_table::TT_USER_VIEW:
+  case dd::enum_table_type::SYSTEM_VIEW: // Fall through
+  case dd::enum_table_type::USER_VIEW:
     {
       // Changing the schema of a view is not allowed.
       if (strcmp(ren_table->db, new_db))

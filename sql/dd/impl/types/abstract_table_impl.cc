@@ -148,11 +148,11 @@ bool Abstract_table_impl::store_attributes(Raw_record *r)
   //
   // Special cases dealing with NULL values for nullable fields
   //   - Store NULL if version is not set
-  //     Eg: TT_USER_VIEW or TT_SYSTEM_VIEW may not have version set
+  //     Eg: USER_VIEW or SYSTEM_VIEW may not have version set
   //   - Store NULL if se_private_id is not set
   //     Eg: A non-innodb table may not have se_private_id
   //   - Store NULL if collation id is not set
-  //     Eg: TT_USER_VIEW will not have collation id set.
+  //     Eg: USER_VIEW will not have collation id set.
   //   - Store NULL if tablespace id is not set
   //     Eg: A non-innodb table may not have tablespace
   //   - Store NULL in options if there are no key=value pairs
@@ -167,7 +167,7 @@ bool Abstract_table_impl::store_attributes(Raw_record *r)
     store_id(r, Tables::FIELD_ID) ||
     store_name(r, Tables::FIELD_NAME) ||
     r->store_ref_id(Tables::FIELD_SCHEMA_ID, m_schema_id) ||
-    r->store(Tables::FIELD_TYPE, type()) ||
+    r->store(Tables::FIELD_TYPE, static_cast<int>(type())) ||
     r->store(Tables::FIELD_MYSQL_VERSION_ID, m_mysql_version_id) ||
     r->store(Tables::FIELD_OPTIONS, *m_options) ||
     r->store(Tables::FIELD_CREATED, m_created) ||

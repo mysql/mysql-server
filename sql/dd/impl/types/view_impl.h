@@ -73,7 +73,11 @@ public:
   /////////////////////////////////////////////////////////////////////////
 
   virtual void set_system_view(bool system_view)
-  { m_type= system_view ? TT_SYSTEM_VIEW : TT_USER_VIEW; }
+  {
+    m_type= system_view ?
+      enum_table_type::SYSTEM_VIEW :
+      enum_table_type::USER_VIEW;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // collation.
