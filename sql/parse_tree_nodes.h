@@ -856,7 +856,7 @@ public:
          opt_procedure_analyse->contextualize(pc)))
       return true;
 
-    if (opt_select_lock_type.is_set)
+    if (opt_select_lock_type.is_set && !pc->thd->lex->is_explain())
     {
       pc->select->set_lock_for_tables(opt_select_lock_type.lock_type);
       pc->thd->lex->safe_to_cache_query=
@@ -2060,7 +2060,7 @@ public:
     if (m_procedure_analyse && pc->select->master_unit()->outer_select() != NULL)
       my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "subquery");
 
-    if (m_lock_type.is_set)
+    if (m_lock_type.is_set && !pc->thd->lex->is_explain())
     {
       pc->select->set_lock_for_tables(m_lock_type.lock_type);
       pc->thd->lex->safe_to_cache_query= m_lock_type.is_safe_to_cache_query;
