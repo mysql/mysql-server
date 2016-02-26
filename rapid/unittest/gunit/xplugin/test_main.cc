@@ -43,7 +43,7 @@ int main(int argc, char **argv)
     for (int i = 0; i < ut->total_test_case_count(); ++i)
     {
       const char *name = ut->GetTestCase(i)->name();
-      f << "add_test(" << name << " run_unit_tests --gtest_filter=" << name << ".*)" << std::endl;
+      f << "add_test(" << name << " xplugin_unit_tests --gtest_filter=" << name << ".*)" << std::endl;
     }
 
     return 0;
