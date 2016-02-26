@@ -1,0 +1,367 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+CREATE DATABASE xtest;
+USE xtest;
+CREATE TABLE `scalar_types`(`number_uint` INTEGER UNSIGNED DEFAULT 10, `number_sint` INTEGER DEFAULT -10, `value_bool` BOOLEAN DEFAULT 0, `value_string` VARCHAR(255) default NULL, `number_float` FLOAT DEFAULT 1.1, `number_double` DOUBLE DEFAULT 2.2, `value_blob` TINYBLOB DEFAULT NULL);
+send Mysqlx.Sql.StmtExecute {
+  stmt: "INSERT INTO `xtest`.`scalar_types`(`number_sint`, `number_uint`, `value_string`) VALUES(0, ?, \'First inserted row\'),(?, 1,\'Second inserted row\'), (-1, 0,?)"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 1
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_SINT
+      v_signed_int: -1
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "\"Thrid\" inserted \'row\'"
+      }
+    }
+  }
+}
+
+
+3 rows affected
+Records: 3  Duplicates: 0  Warnings: 0
+send Mysqlx.Sql.StmtExecute {
+  stmt: "INSERT INTO `xtest`.`scalar_types`(`number_float`, `number_double`, `value_blob`) VALUES(0.1, ?, \'First inserted blob\'),(?, 200.01,\'Second inserted blob\'), (10.11, 2.2, ?), (111, 222, ?)"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_DOUBLE
+      v_double: 200.01
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_DOUBLE
+      v_double: 10.11
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "\"Thrid\" inserted \'blob\'"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_NULL
+    }
+  }
+}
+
+
+4 rows affected
+Records: 4  Duplicates: 0  Warnings: 0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+SELECT * FROM `xtest`.`scalar_types`;
+number_uint	number_sint	value_bool	value_string	number_float	number_double	value_blob
+1	0	0	First inserted row	1.1	2.2	NULL
+1	-1	0	Second inserted row	1.1	2.2	NULL
+0	-1	0	"Thrid" inserted 'row'	1.1	2.2	NULL
+10	-10	0	NULL	0.1	200.01	First inserted blob
+10	-10	0	NULL	10.11	200.01	Second inserted blob
+10	-10	0	NULL	10.11	2.2	"Thrid" inserted 'blob'
+10	-10	0	NULL	111	222	NULL
+Filter data by unsigned int
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT * FROM `xtest`.`scalar_types` WHERE `number_uint`=?"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 1
+    }
+  }
+}
+
+number_uint	number_sint	value_bool	value_string	number_float	number_double	value_blob
+1	0	0	First inserted row	1.1	2.2	null
+1	-1	0	Second inserted row	1.1	2.2	null
+0 rows affected
+Filter data by signed int
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT * FROM `xtest`.`scalar_types` WHERE `number_sint`=?"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_SINT
+      v_signed_int: -1
+    }
+  }
+}
+
+number_uint	number_sint	value_bool	value_string	number_float	number_double	value_blob
+1	-1	0	Second inserted row	1.1	2.2	null
+0	-1	0	"Thrid" inserted 'row'	1.1	2.2	null
+0 rows affected
+Filter data by blob
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT * FROM `xtest`.`scalar_types` WHERE `value_blob` LIKE ?"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "%blob%"
+      }
+    }
+  }
+}
+
+number_uint	number_sint	value_bool	value_string	number_float	number_double	value_blob
+10	-10	0	null	0.1	200.01	First inserted blob
+10	-10	0	null	10.11	200.01	Second inserted blob
+10	-10	0	null	10.11	2.2	"Thrid" inserted 'blob'
+0 rows affected
+Filter empty data
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT * FROM `xtest`.`scalar_types` WHERE `value_string` IS ?"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_NULL
+    }
+  }
+}
+
+number_uint	number_sint	value_bool	value_string	number_float	number_double	value_blob
+10	-10	0	null	0.1	200.01	First inserted blob
+10	-10	0	null	10.11	200.01	Second inserted blob
+10	-10	0	null	10.11	2.2	"Thrid" inserted 'blob'
+10	-10	0	null	111	222	null
+0 rows affected
+Filter data by string pattern
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT * FROM `xtest`.`scalar_types` WHERE `value_string` LIKE ?"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "%inserted \'row%"
+      }
+    }
+  }
+}
+
+number_uint	number_sint	value_bool	value_string	number_float	number_double	value_blob
+0	-1	0	"Thrid" inserted 'row'	1.1	2.2	null
+0 rows affected
+Filter data by double
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT * FROM `xtest`.`scalar_types` WHERE `number_double` = ?"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_DOUBLE
+      v_double: 2.2
+    }
+  }
+}
+
+number_uint	number_sint	value_bool	value_string	number_float	number_double	value_blob
+1	0	0	First inserted row	1.1	2.2	null
+1	-1	0	Second inserted row	1.1	2.2	null
+0	-1	0	"Thrid" inserted 'row'	1.1	2.2	null
+10	-10	0	null	10.11	2.2	"Thrid" inserted 'blob'
+0 rows affected
+Append string as new column
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT `number_sint`,? FROM `xtest`.`scalar_types` LIMIT 1"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "number_sint"
+      }
+    }
+  }
+}
+
+number_sint	number_sint
+0	number_sint
+0 rows affected
+Use compact_metadata=true/false
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT `number_sint`,? FROM `xtest`.`scalar_types` LIMIT 1"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "number_sint"
+      }
+    }
+  }
+  compact_metadata: true
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: SINT
+  collation: 0
+  fractional_digits: 0
+  length: 11
+  flags: 0
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  collation: 45
+  fractional_digits: 31
+  length: 44
+  flags: 16
+}
+
+Mysqlx.Resultset.Row {
+  field: "\000"
+  field: "number_sint\000"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT `number_sint`,? FROM `xtest`.`scalar_types` LIMIT 1"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "number_sint"
+      }
+    }
+  }
+  compact_metadata: false
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: SINT
+  name: "number_sint"
+  original_name: "number_sint"
+  table: "scalar_types"
+  original_table: "scalar_types"
+  schema: "xtest"
+  catalog: "def"
+  collation: 0
+  fractional_digits: 0
+  length: 11
+  flags: 0
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  name: "number_sint"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: "def"
+  collation: 45
+  fractional_digits: 31
+  length: 44
+  flags: 16
+}
+
+Mysqlx.Resultset.Row {
+  field: "\000"
+  field: "number_sint\000"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Notice.Frame {
+  type: 3
+  scope: LOCAL
+  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Too many args
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT * FROM `xtest`.`scalar_types`"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "%inserted \'row%"
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 5015
+  msg: "Too many arguments"
+  sql_state: "HY000"
+}
+
+RUN USE `xtest`
+
+0 rows affected
+String as identifier
+send Mysqlx.Sql.StmtExecute {
+  stmt: "SELECT * FROM ?"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "scalar_types"
+      }
+    }
+  }
+}
+
+Mysqlx.Error {
+  severity: ERROR
+  code: 1064
+  msg: "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near \'\'scalar_types\'\' at line 1"
+  sql_state: "42000"
+}
+
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+UNINSTALL PLUGIN mysqlx;
+DROP DATABASE xtest;

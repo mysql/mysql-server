@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -843,4 +843,10 @@ IF(HAVE_NUMAIF_H AND WITH_NUMA)
     }"
     HAVE_LIBNUMA)
     SET(CMAKE_REQUIRED_LIBRARIES ${SAVE_CMAKE_REQUIRED_LIBRARIES})
+ENDIF()
+
+# needed for libevent
+CHECK_TYPE_SIZE("socklen_t" SIZEOF_SOCKLEN_T)
+IF(SIZEOF_SOCKLEN_T)
+  SET(HAVE_SOCKLEN_T 1)
 ENDIF()

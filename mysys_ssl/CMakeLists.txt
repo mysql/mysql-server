@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,26 +22,8 @@ IF(SSL_DEFINES)
 ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
 
-# We do RESTRICT_SYMBOL_EXPORTS(yassl) elsewhere.
-# In order to get correct symbol visibility, these files
-# must be compiled with "-fvisibility=hidden"
-IF(WITH_SSL STREQUAL "bundled" AND HAVE_VISIBILITY_HIDDEN)
-  SET_SOURCE_FILES_PROPERTIES(
-    crypt_genhash_impl.cc
-    my_aes.cc
-    my_md5.cc
-    my_sha1.cc
-    my_sha2.cc
-    PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
-ENDIF()
-
 IF(WITH_SSL STREQUAL "bundled")
   SET(MYSYS_AES_IMPLEMENTATION my_aes_yassl.cc)
-  if (HAVE_VISIBILITY_HIDDEN)
-    SET_SOURCE_FILES_PROPERTIES(
-      my_aes_yassl.cc
-      PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
-  ENDIF()
 ELSE()
   SET(MYSYS_AES_IMPLEMENTATION my_aes_openssl.cc)
 ENDIF()
@@ -62,7 +44,13 @@ SET(MYSYS_SSL_SOURCES
 
 ADD_CONVENIENCE_LIBRARY(mysys_ssl ${MYSYS_SSL_SOURCES})
 TARGET_LINK_LIBRARIES(mysys_ssl dbug strings ${SSL_LIBRARIES} ${ZLIB_LIBRARY})
+# Needed to resolve OpenSSL dependency on Windows
+IF(WIN32 AND NOT WITH_SSL STREQUAL "bundled")
+  TARGET_LINK_LIBRARIES(mysys_ssl crypt32)
+ENDIF()
 DTRACE_INSTRUMENT(mysys_ssl)
+
+RESTRICT_SYMBOL_SOURCE("my_sha1.cc")
 
 IF(MSVC)
    INSTALL_DEBUG_TARGET(mysys_ssl DESTINATION ${INSTALL_LIBDIR}/debug)

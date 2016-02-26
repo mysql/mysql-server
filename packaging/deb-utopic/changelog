@@ -6,6 +6,12 @@ mysql-community (5.7.10-1ubuntu14.10) utopic; urgency=low
 
  -- Bharathy Satish <bharathy.x.satish@oracle.com>  Mon, 19 Oct 2015 15:20:12 +0530
 
+mysql-community (5.7.9-2ubuntu14.10) utopic; urgency=low
+
+  * added mysqlx plugin
+
+ -- Alfredo Kojima <alfredo.kengi.kojima@oracle.com> Thu, 15 Oct 2015 07:54:32 -0700
+
 mysql-community (5.7.9-1ubuntu14.10) utopic; urgency=low
 
   [ Akhil Mohan ]

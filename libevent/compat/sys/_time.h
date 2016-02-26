@@ -49,10 +49,12 @@ struct timeval {
 /*
  * Structure defined by POSIX.1b to be like a timeval.
  */
+#if defined(_MSC_VER) && (_MSC_VER < 1900)
 struct timespec {
 	time_t	tv_sec;		/* seconds */
 	long	tv_nsec;	/* and nanoseconds */
 };
+#endif
 
 #define	TIMEVAL_TO_TIMESPEC(tv, ts) {					\
 	(ts)->tv_sec = (tv)->tv_sec;					\

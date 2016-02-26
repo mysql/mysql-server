@@ -362,6 +362,7 @@
 #cmakedefine HAVE_SYS_THREAD_SELFID 1
 #cmakedefine HAVE_SYS_GETTID 1
 #cmakedefine HAVE_PTHREAD_GETTHREADID_NP 1
+#cmakedefine HAVE_PTHREAD_SETNAME_NP 1
 #cmakedefine HAVE_INTEGER_PTHREAD_SELF 1
 
 /* Platform-specific C++ compiler behaviors we rely upon */
@@ -417,7 +418,10 @@
 #define HAVE_FCNTL_H 1
 #define HAVE_GETADDRINFO 1
 #define HAVE_INTTYPES_H 1
+/* libevent's select.c is not Windows compatible */
+#ifndef _WIN32
 #define HAVE_SELECT 1
+#endif
 #define HAVE_SIGNAL_H 1
 #define HAVE_STDARG_H 1
 #define HAVE_STDINT_H 1
@@ -428,6 +432,11 @@
 #define HAVE_SYS_STAT_H 1
 #define HAVE_SYS_TYPES_H 1
 #define SIZEOF_CHAR 1
+
+/*
+ * Needed by libevent
+ */
+#cmakedefine HAVE_SOCKLEN_T 1
 
 /* For --secure-file-priv */
 #cmakedefine DEFAULT_SECURE_FILE_PRIV_DIR @DEFAULT_SECURE_FILE_PRIV_DIR@
