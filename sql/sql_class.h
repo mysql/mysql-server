@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -2342,6 +2342,9 @@ public:
                 current_stmt_binlog_format == BINLOG_FORMAT_ROW);
     return current_stmt_binlog_format == BINLOG_FORMAT_ROW;
   }
+
+  bool is_current_stmt_binlog_disabled() const;
+
   /** Tells whether the given optimizer_switch flag is on */
   inline bool optimizer_switch_flag(ulonglong flag) const
   {
