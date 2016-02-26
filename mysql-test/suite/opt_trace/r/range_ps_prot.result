@@ -3442,8 +3442,8 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                           "index": "cola",
                           "index_scan_cost": 11.231,
                           "cumulated_index_scan_cost": 11.231,
-                          "disk_sweep_cost": 309.15,
-                          "cumulated_total_cost": 320.38,
+                          "disk_sweep_cost": 278.58,
+                          "cumulated_total_cost": 289.81,
                           "usable": true,
                           "matching_rows_now": 533,
                           "isect_covering_with_this_index": false,
@@ -3453,8 +3453,8 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                           "index": "colb",
                           "index_scan_cost": 11.231,
                           "cumulated_index_scan_cost": 22.462,
-                          "disk_sweep_cost": 30.898,
-                          "cumulated_total_cost": 53.359,
+                          "disk_sweep_cost": 28.152,
+                          "cumulated_total_cost": 50.613,
                           "usable": true,
                           "matching_rows_now": 32.639,
                           "isect_covering_with_this_index": false,
@@ -3466,7 +3466,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                         "cause": "no_clustered_pk_index"
                       } /* clustered_pk */,
                       "rows": 32,
-                      "cost": 53.359,
+                      "cost": 50.613,
                       "covering": false,
                       "chosen": true
                     } /* analyzing_roworder_intersect */
@@ -3475,7 +3475,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                     "range_access_plan": {
                       "type": "index_roworder_intersect",
                       "rows": 32,
-                      "cost": 53.359,
+                      "cost": 50.613,
                       "covering": false,
                       "clustered_pk_scan": false,
                       "intersect_of": [
@@ -3498,7 +3498,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                       ] /* intersect_of */
                     } /* range_access_plan */,
                     "rows_for_plan": 32,
-                    "cost_for_plan": 53.359,
+                    "cost_for_plan": 50.613,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -3530,12 +3530,12 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                     {
                       "access_type": "range",
                       "rows": 24,
-                      "cost": 59.759,
+                      "cost": 57.013,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 59.759,
+                "cost_for_plan": 57.013,
                 "rows_for_plan": 24,
                 "chosen": true
               }
@@ -5519,8 +5519,8 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                           "index": "v_idx",
                           "index_scan_cost": 1,
                           "cumulated_index_scan_cost": 1,
-                          "disk_sweep_cost": 1,
-                          "cumulated_total_cost": 2,
+                          "disk_sweep_cost": 0.9031,
+                          "cumulated_total_cost": 1.9031,
                           "usable": true,
                           "matching_rows_now": 1,
                           "isect_covering_with_this_index": false,
