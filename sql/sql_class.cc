@@ -2886,3 +2886,15 @@ bool THD::binlog_applier_has_detached_trx()
   return false;
 #endif
 }
+/**
+  Determine if binlogging is disabled for this session
+  @retval 0 if the current statement binlogging is disabled
+  (could be because of binlog closed/binlog option
+  is set to false).
+  @retval 1 if the current statement will be binlogged
+*/
+bool THD::is_current_stmt_binlog_disabled() const
+{
+  return (!(variables.option_bits & OPTION_BIN_LOG) ||
+          !mysql_bin_log.is_open());
+}
