@@ -191,14 +191,19 @@ private:
 class X509_NAME {
     char*       name_;
     size_t      sz_;
+    int         cnPosition_;   // start of common name, -1 is none
+    int         cnLen_;        // length of above
     ASN1_STRING entry_;
 public:
-    X509_NAME(const char*, size_t sz);
+    X509_NAME(const char*, size_t sz, int pos, int len);
     ~X509_NAME();
 
     const char*  GetName() const;
     ASN1_STRING* GetEntry(int i);
     size_t       GetLength() const;
+    int          GetCnPosition() const { return cnPosition_; }
+    int          GetCnLength()   const { return cnLen_; }
+
 private:
     X509_NAME(const X509_NAME&);                // hide copy
     X509_NAME& operator=(const X509_NAME&);     // and assign
@@ -226,7 +231,7 @@ class X509 {
     StringHolder afterDate_;    // not valid after
 public:
     X509(const char* i, size_t, const char* s, size_t,
-         ASN1_STRING *b, ASN1_STRING *a);
+         ASN1_STRING *b, ASN1_STRING *a, int, int, int, int);
     ~X509() {}
 
     X509_NAME* GetIssuer();
