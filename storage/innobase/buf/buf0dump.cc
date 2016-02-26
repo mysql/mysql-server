@@ -553,8 +553,17 @@ buf_load()
 		dump_n = total_buffer_pools_pages;
 	}
 
-	dump = static_cast<buf_dump_t*>(ut_malloc_nokey(dump_n
-							* sizeof(*dump)));
+	if(dump_n != 0) {
+		dump = static_cast<buf_dump_t*>(ut_malloc_nokey(
+				dump_n * sizeof(*dump)));
+	} else {
+		fclose(f);
+		ut_sprintf_timestamp(now);
+		buf_load_status(STATUS_INFO,
+				"Buffer pool(s) load completed at %s"
+				" (%s was empty)", now, full_filename);
+		return;
+	}
 
 	if (dump == NULL) {
 		fclose(f);

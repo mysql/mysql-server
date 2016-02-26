@@ -183,3 +183,19 @@ WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 
 DROP TABLE ib_bp_test;
 SET GLOBAL innodb_buffer_pool_dump_pct=default;
+
+--echo #
+--echo # Bug#21371070 [ERROR] INNODB: CANNOT ALLOCATE 0 BYTES: SUCCESS
+--echo #
+
+--let $file = `SELECT CONCAT(@@datadir, @@global.innodb_buffer_pool_filename)`
+
+# Remove the buffer pool file that exists already
+--error 0,1
+--remove_file $file
+
+# Create an empty buffer pool file
+write_file $file;
+EOF
+
+SET GLOBAL innodb_buffer_pool_load_now = ON;
