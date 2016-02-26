@@ -474,8 +474,9 @@ void DH_Decoder::Decode(DH& key)
 
 CertDecoder::CertDecoder(Source& s, bool decode, SignerList* signers,
                          bool noVerify, CertType ct)
-    : BER_Decoder(s), certBegin_(0), sigIndex_(0), sigLength_(0),
-      signature_(0), verify_(!noVerify)
+    : BER_Decoder(s), certBegin_(0), sigIndex_(0), sigLength_(0), subCnPos_(-1),
+      subCnLen_(0), issCnPos_(-1), issCnLen_(0), signature_(0),
+      verify_(!noVerify)
 {
     issuer_[0] = 0;
     subject_[0] = 0;
@@ -796,6 +797,13 @@ void CertDecoder::GetName(NameType nt)
             case COMMON_NAME:
                 if (!(ptr = AddTag(ptr, buf_end, "/CN=", 4, strLen)))
                     return;
+                if (nt == ISSUER) {
+                    issCnPos_ = (int)(ptr - strLen - issuer_);
+                    issCnLen_ = (int)strLen;
+                } else {
+                    subCnPos_ = (int)(ptr - strLen - subject_);
+                    subCnLen_ = (int)strLen;
+                }
                 break;
             case SUR_NAME:
                 if (!(ptr = AddTag(ptr, buf_end, "/SN=", 4, strLen)))

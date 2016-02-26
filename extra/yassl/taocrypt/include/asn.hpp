@@ -283,6 +283,10 @@ public:
     const byte*      GetHash()       const { return subjectHash_; }
     const char*      GetBeforeDate() const { return beforeDate_; }
     const char*      GetAfterDate()  const { return afterDate_; }
+    int              GetSubjectCnStart()  const { return subCnPos_; }
+    int              GetIssuerCnStart()   const { return issCnPos_; }
+    int              GetSubjectCnLength() const { return subCnLen_; }
+    int              GetIssuerCnLength()  const { return issCnLen_; }
 
     void DecodeToKey();
 private:
@@ -292,6 +296,10 @@ private:
     word32    sigLength_;               // length of signature
     word32    signatureOID_;            // sum of algorithm object id
     word32    keyOID_;                  // sum of key algo  object id
+    int       subCnPos_;                // subject common name start, -1 is none
+    int       subCnLen_;                // length of above
+    int       issCnPos_;                // issuer common name start, -1 is none
+    int       issCnLen_;                // length of above
     byte      subjectHash_[SHA_SIZE];   // hash of all Names
     byte      issuerHash_[SHA_SIZE];    // hash of all Names
     byte*     signature_;
