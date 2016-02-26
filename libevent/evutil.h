@@ -98,6 +98,14 @@ extern "C" {
 #define ev_uint8_t unsigned char
 #endif
 
+#if !defined(__cplusplus) && defined(_MSC_VER)
+#define inline __inline
+#endif
+
+#if defined(_MSC_VER)
+#define __func__ __FUNCTION__
+#endif
+
 int evutil_socketpair(int d, int type, int protocol, int sv[2]);
 int evutil_make_socket_nonblocking(int sock);
 #ifdef WIN32

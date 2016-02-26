@@ -1093,3 +1093,26 @@
    ...
    fun:numa_node_to_cpus
 }
+
+{
+   General protobuf globals
+   Memcheck:Leak
+   fun:_Znwm
+   ...
+   fun:_GLOBAL__sub_I_mysqlx*.pb.cc
+   ...
+}
+
+
+{
+   mysqlx plugin install
+   Memcheck:Leak
+   fun:*alloc
+   ...
+   fun:_dl_catch_error
+   ...
+   fun:dlopen*
+   ...
+   fun:_ZL13plugin_dl_addPK19st_mysql_lex_stringi*
+   ...
+}

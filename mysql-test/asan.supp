@@ -1,0 +1,4 @@
+# Warning: this works for clang-3.7 and later
+odr_violation:*yaSSL*
+odr_violation:*TaoCrypt*
+
