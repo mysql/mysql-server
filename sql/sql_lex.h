@@ -2997,7 +2997,7 @@ public:
     m_current_select= select;
   }
   /// @return true if this is an EXPLAIN statement
-  bool is_explain() const { return describe; }
+  bool is_explain() const { return (describe & DESCRIBE_NORMAL); }
   char *length,*dec,*change;
   LEX_STRING name;
   char *help_arg;
