@@ -719,21 +719,22 @@ enum_return_status Gtid_state::add_lost_gtids(const Gtid_set *gtid_set)
 
   gtid_set->dbug_print("add_lost_gtids");
 
-  if (!executed_gtids.is_empty())
+  if (executed_gtids.is_intersection_nonempty(gtid_set))
   {
-    BINLOG_ERROR((ER(ER_CANT_SET_GTID_PURGED_WHEN_GTID_EXECUTED_IS_NOT_EMPTY)),
-                 (ER_CANT_SET_GTID_PURGED_WHEN_GTID_EXECUTED_IS_NOT_EMPTY,
-                 MYF(0)));
+    my_error(ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS, MYF(0),
+             "the being assigned value must not overlap with the current "
+             "executed gtids in incremental assignment");
     RETURN_REPORTED_ERROR;
   }
-  if (!owned_gtids.is_empty())
+  DBUG_ASSERT(!lost_gtids.is_intersection_nonempty(gtid_set));
+
+  if (owned_gtids.is_intersection_nonempty(gtid_set))
   {
-    BINLOG_ERROR((ER(ER_CANT_SET_GTID_PURGED_WHEN_OWNED_GTIDS_IS_NOT_EMPTY)),
-                 (ER_CANT_SET_GTID_PURGED_WHEN_OWNED_GTIDS_IS_NOT_EMPTY,
-                 MYF(0)));
+    my_error(ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS, MYF(0),
+             "the being assigned value must not overlap with GTIDS of "
+             "transactions in progress");
     RETURN_REPORTED_ERROR;
   }
-  DBUG_ASSERT(lost_gtids.is_empty());
 
   if (save(gtid_set))
     RETURN_REPORTED_ERROR;

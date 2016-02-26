@@ -7737,6 +7737,9 @@ ER_SRS_NOT_CARTESIAN 22S00
 ER_SRS_NOT_CARTESIAN_UNDEFINED SR001
   eng "Function %s is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID %u, which has not been defined."
 
+ER_CANT_SET_GTID_PURGED_DUE_SETS_CONSTRAINTS
+  eng "@@GLOBAL.GTID_PURGED cannot be changed: %s"
+
 #
 #  End of 5.8 error messages.
 #
