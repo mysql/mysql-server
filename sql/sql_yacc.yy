@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -8775,15 +8775,21 @@ select_lock_type:
         | FOR_SYM UPDATE_SYM
           {
             LEX *lex=Lex;
-            lex->current_select->set_lock_for_tables(TL_WRITE);
-            lex->safe_to_cache_query=0;
+            if (!lex->describe)
+            {
+              lex->current_select->set_lock_for_tables(TL_WRITE);
+              lex->safe_to_cache_query=0;
+            }
           }
         | LOCK_SYM IN_SYM SHARE_SYM MODE_SYM
           {
             LEX *lex=Lex;
-            lex->current_select->
-              set_lock_for_tables(TL_READ_WITH_SHARED_LOCKS);
-            lex->safe_to_cache_query=0;
+            if (!lex->describe)
+            {
+              lex->current_select->
+                set_lock_for_tables(TL_READ_WITH_SHARED_LOCKS);
+              lex->safe_to_cache_query=0;
+            }
           }
         ;
 
