@@ -99,19 +99,19 @@ FILE(
   "${PROJECT_SOURCE_DIR}/rapid/plugin/x/mysqlxtest_src/mysqlx_row.cc"
 )
 
-ADD_EXECUTABLE(run_unit_tests ${unit_tests_SRC} ${xplugin_SRC} ${protobuf_SRC})
+ADD_EXECUTABLE(xplugin_unit_tests ${unit_tests_SRC} ${xplugin_SRC} ${protobuf_SRC})
 
-ADD_DEPENDENCIES(run_unit_tests mysqlxtest)
+ADD_DEPENDENCIES(xplugin_unit_tests mysqlxtest)
 
 # New warning in Visual Studio 2008
 # '%$S': virtual function overrides '%$pS', previous versions of the compiler
 # did not override when parameters only differed by const/volatile qualifiers
 IF(WIN32)
-  SET_TARGET_PROPERTIES(run_unit_tests PROPERTIES COMPILE_FLAGS "/wd4373")
+  SET_TARGET_PROPERTIES(xplugin_unit_tests PROPERTIES COMPILE_FLAGS "/wd4373")
 ENDIF(WIN32)
 
 TARGET_LINK_LIBRARIES(
-  run_unit_tests
+  xplugin_unit_tests
   xplugin
   gtest
   regex

@@ -110,7 +110,13 @@ void ssl_wrapper_cipher(Vio *vio, char *buffer, const size_t buffer_size)
   buffer[buffer_size - 1]= '\0';
 }
 
+/**
+  Return cipher list that can be used for SSL
 
+  @param vio                       VIO connection descriptor
+  @param clipher_list              Pointer to an array of c-strings
+  @param maximun_num_of_elements   Size of the pointer array
+*/
 long ssl_wrapper_cipher_list(Vio *vio, const char **clipher_list, const size_t maximun_num_of_elements)
 {
   const char *cipher= NULL;
@@ -153,8 +159,8 @@ long ssl_wrapper_verify_mode(Vio *vio)
   Return issuer name form peers ssl certificate
 
   @param vio              VIO connection descriptor
-  @param subject          Character buffer in which the issuer name is going to be placed
-  @param subject_size     Size of character buffer for the issuer name
+  @param issuer           Character buffer in which the issuer name is going to be placed
+  @param issuer_size      Size of character buffer for the issuer name
 */
 void ssl_wrapper_get_peer_certificate_issuer(Vio *vio, char *issuer, const size_t issuer_size)
 {
@@ -274,8 +280,8 @@ void  ssl_wrapper_ctx_server_not_after(struct st_VioSSLFd *vio_ssl, char *no_aft
   Return the first day the server certificate is valid
 
   @param vio_ssl              VIO SSL contex descriptor
-  @param no_after             Character buffer for to be filed with the date in human readble format
-  @param no_after_size        Size of the character buffer
+  @param no_before            Character buffer for to be filed with the date in human readble format
+  @param no_before_size       Size of the character buffer
 */
 void ssl_wrapper_ctx_server_not_before(struct st_VioSSLFd *vio_ssl, char *no_before, const size_t no_before_size)
 {
