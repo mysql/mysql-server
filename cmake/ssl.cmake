@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -193,13 +193,13 @@ MACRO (MYSQL_CHECK_SSL)
     IF (WITH_SSL_PATH)
       GET_FILENAME_COMPONENT(CRYPTO_EXT "${CRYPTO_LIBRARY}" EXT)
       GET_FILENAME_COMPONENT(OPENSSL_EXT "${OPENSSL_LIBRARY}" EXT)
-      IF (CRYPTO_EXT STREQUAL ".a")
+      IF (CRYPTO_EXT STREQUAL ".a" OR OPENSSL_EXT STREQUAL ".lib")
         SET(MY_CRYPTO_LIBRARY imported_crypto)
         ADD_LIBRARY(imported_crypto STATIC IMPORTED)
         SET_TARGET_PROPERTIES(imported_crypto
           PROPERTIES IMPORTED_LOCATION "${CRYPTO_LIBRARY}")
       ENDIF()
-      IF (OPENSSL_EXT STREQUAL ".a")
+      IF (OPENSSL_EXT STREQUAL ".a" OR OPENSSL_EXT STREQUAL ".lib")
         SET(MY_OPENSSL_LIBRARY imported_openssl)
         ADD_LIBRARY(imported_openssl STATIC IMPORTED)
         SET_TARGET_PROPERTIES(imported_openssl

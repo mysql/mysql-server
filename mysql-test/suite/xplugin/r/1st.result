@@ -1,0 +1,12 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+RUN SELECT plugin_name,plugin_status,plugin_type FROM information_schema.plugins WHERE plugin_name LIKE '%mysqlx%'
+plugin_name	plugin_status	plugin_type
+mysqlx	ACTIVE	DAEMON
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+uninstall plugin mysqlx;

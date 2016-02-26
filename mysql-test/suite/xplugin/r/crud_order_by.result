@@ -1,0 +1,104 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+RUN drop schema if exists xtest
+
+0 rows affected
+RUN create schema xtest
+
+1 rows affected
+RUN use xtest
+
+0 rows affected
+RUN create table xcoll (doc JSON)
+
+0 rows affected
+RUN insert into xcoll (doc) values ('{"numeric": 2, "string": "2"}')
+
+1 rows affected
+RUN insert into xcoll (doc) values ('{"numeric": 70, "string": "70"}')
+
+1 rows affected
+RUN insert into xcoll (doc) values ('{"numeric": 5, "string": "5"}')
+
+1 rows affected
+RUN insert into xcoll (doc) values ('{"numeric": 10, "string": "10"}')
+
+1 rows affected
+RUN insert into xcoll (doc) values ('{"numeric": 1, "string": "1"}')
+
+1 rows affected
+RUN insert into xcoll (doc) values ('{"numeric": 30, "string": "30"}')
+
+1 rows affected
+RUN SELECT * FROM xtest.xcoll
+doc
+{"string": "2", "numeric": 2}
+{"string": "70", "numeric": 70}
+{"string": "5", "numeric": 5}
+{"string": "10", "numeric": 10}
+{"string": "1", "numeric": 1}
+{"string": "30", "numeric": 30}
+0 rows affected
+send Mysqlx.Crud.Find {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  order {
+    expr {
+      type: IDENT
+      identifier {
+        document_path {
+          type: MEMBER
+          value: "numeric"
+        }
+      }
+    }
+  }
+}
+
+doc
+{"string": "1", "numeric": 1}
+{"string": "2", "numeric": 2}
+{"string": "5", "numeric": 5}
+{"string": "10", "numeric": 10}
+{"string": "30", "numeric": 30}
+{"string": "70", "numeric": 70}
+command ok
+send Mysqlx.Crud.Find {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: TABLE
+  order {
+    expr {
+      type: IDENT
+      identifier {
+        document_path {
+          type: MEMBER
+          value: "string"
+        }
+      }
+    }
+  }
+}
+
+doc
+{"string": "1", "numeric": 1}
+{"string": "10", "numeric": 10}
+{"string": "2", "numeric": 2}
+{"string": "30", "numeric": 30}
+{"string": "5", "numeric": 5}
+{"string": "70", "numeric": 70}
+command ok
+RUN drop schema if exists xtest
+
+1 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+uninstall plugin mysqlx;

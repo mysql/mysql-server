@@ -1,3 +1,9 @@
+mysql-community (5.7.12-1ubuntu15.10) wily; urgency=low
+
+  * added mysqlx plugin
+
+ -- Alfredo Kojima <alfredo.kengi.kojima@oracle.com>  Sun, 21 Feb 2016 10:21:08 -0800
+
 mysql-community (5.7.11-1ubuntu15.10) wily; urgency=low
 
   * new upstream release

@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ our @EXPORT= qw(report_option mtr_print_line mtr_print_thick_line
 		mtr_warning mtr_error mtr_debug mtr_verbose
 		mtr_verbose_restart mtr_report_test_passed
 		mtr_report_test_skipped mtr_print
-		mtr_report_test isotime);
+		mtr_report_test isotime mtr_xml_init);
 
 use mtr_match;
 use My::Platform;
@@ -44,6 +44,8 @@ our $name;
 our $verbose;
 our $verbose_restart= 0;
 our $timer= 1;
+
+our $xml_report_file;
 
 sub report_option {
   my ($opt, $value)= @_;
@@ -228,8 +230,112 @@ sub mtr_report_test ($) {
 }
 
 
+sub mtr_generate_xml_report($) {
+  my ($tests) = @_;
+  my $tsuite;
+  my $tname;
+  my $suite_group;
+
+  my $all_t = 0;
+  my $all_f = 0;
+  my $all_d = 0;
+  my $all_e = 0;
+  my $all_time = 0;
+
+  my @suite_t;
+  my @suite_f;
+  my @suite_d;
+  my @suite_e;
+  my @suite_time;
+
+
+  # calculate totals
+  foreach my $tinfo (@$tests) 
+  {
+    my @parts = split /\./, $tinfo->{'name'};
+    $tsuite = $parts[0];
+    $tname = $parts[1];
+
+    if ($tsuite ne $suite_group)
+    {
+      push(@suite_t, 0);
+      push(@suite_f, 0);
+      push(@suite_d, 0);
+      push(@suite_e, 0);
+      push(@suite_time, 0);
+      $suite_group = $tsuite;
+    }
+
+    $all_t++;
+    $suite_t[-1]++;
+
+    if ( $tinfo->{'result'} eq 'MTR_RES_FAILED' ) {
+        $suite_f[-1]++;
+        $all_f++;
+    }
+    elsif ( $tinfo->{'result'} eq 'MTR_RES_SKIPPED' ) {
+        $suite_d[-1]++;
+        $all_d++;
+    }
+
+    $all_time = $all_time + $tinfo->{'timer'};
+    $suite_time[-1] = $suite_time[-1] + $tinfo->{'timer'};
+  }
+
+  $suite_group = "";
+  my $s = 0;
+  # output data
+ 
+  $all_time = $all_time / 1000.0;
+
+  print $xml_report_file "<testsuites tests=\"$all_t\" failures=\"$all_f\" disabled=\"$all_d\" errors=\"0\" time=\"$all_time\" name=\"AllTests\">\n";
+  foreach my $tinfo (@$tests) 
+  {
+    my @parts = split /\./, $tinfo->{'name'};
+    $tsuite = $parts[0];
+    $tname = $parts[1];
+
+    if ($tsuite ne $suite_group)
+    {
+      if ($suite_group)
+      {
+        print $xml_report_file "  </testsuite>\n";
+      }
+      $suite_group = $tsuite;
+      my $tmp = $suite_time[$s] / 1000.0;
+      print $xml_report_file "  <testsuite name=\"$tsuite\" tests=\"@suite_t[$s]\" failures=\"$suite_f[$s]\" disabled=\"$suite_d[$s]\" errors=\"$suite_e[$s]\" time=\"$tmp\">\n";
+      $s++;
+    }
+
+    my $time = $tinfo->{'timer'} / 1000.0;
+    if ( $tinfo->{'result'} eq 'MTR_RES_FAILED' ) {
+      print $xml_report_file "    <testcase name=\"$tname\" status=\"run\" time=\"$time\" classname=\"$tsuite\" >\n";
+      print $xml_report_file "       <failure message=\"test failed:\" type=\"\"><![CDATA[$tinfo->{'comment'}]]></failure>\n";
+      print $xml_report_file "    </testcase>\n";
+    }
+    elsif ( $tinfo->{'result'} eq 'MTR_RES_SKIPPED' ) {
+      print $xml_report_file "    <testcase name=\"$tname\" status=\"notrun\" time=\"$time\" classname=\"$tsuite\" />\n";
+    }
+    elsif ( $tinfo->{'result'} eq 'MTR_RES_PASSED' ) {
+      print $xml_report_file "    <testcase name=\"$tname\" status=\"run\" time=\"$time\" classname=\"$tsuite\" />\n";
+    }
+  }
+  if ($suite_group)
+  {
+    print $xml_report_file "  </testsuite>\n";
+  }
+  print $xml_report_file "</testsuites>\n";
+}
+
+
 sub mtr_report_stats ($$;$) {
   my ($prefix, $tests, $dont_error)= @_;
+
+  if ($xml_report_file)
+  {
+    mtr_generate_xml_report($tests);
+    $xml_report_file->flush();
+  }
 
   # ----------------------------------------------------------------------
   # Find out how we where doing
@@ -426,6 +532,21 @@ sub mtr_print_header ($) {
   print "COMMENT\n";
   mtr_print_line();
   print "\n";
+}
+
+##############################################################################
+#
+#  XML Output
+#
+##############################################################################
+
+sub mtr_xml_init($) {
+  my ($fn) = @_;
+  unless(open $xml_report_file, '>'.$fn) {
+    mtr_error("could not create xml_report file $fn");
+  }
+  print "Writing XML report to $fn...\n";
+  print $xml_report_file "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
 }
 
 

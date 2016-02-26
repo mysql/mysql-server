@@ -538,7 +538,7 @@ struct st_match_err
 
 struct st_expected_errors
 {
-  struct st_match_err err[10];
+  struct st_match_err err[20];
   uint count;
 };
 static struct st_expected_errors saved_expected_errors;

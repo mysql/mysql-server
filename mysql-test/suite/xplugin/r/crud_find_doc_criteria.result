@@ -1,0 +1,65 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+DROP SCHEMA IF EXISTS xtest;
+Warnings:
+Note	1008	Can't drop database 'xtest'; database doesn't exist
+CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
+CREATE TABLE xtest.xcoll (doc JSON, _id VARBINARY(16) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY);
+INSERT INTO xtest.xcoll (doc) VALUES ('{"_id": "1", "name": "Anabel"}');
+CREATE TABLE xtest.ycoll (ydoc JSON, _id VARBINARY(16) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(ydoc, '$._id'))) STORED PRIMARY KEY);
+INSERT INTO xtest.ycoll (ydoc) VALUES ('{"_id": "1", "name": "Anabel"}');
+CREATE TABLE xtest.zcoll (doc JSON, _zid VARBINARY(16) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY);
+INSERT INTO xtest.zcoll (doc) VALUES ('{"_id": "1", "name": "Anabel"}');
+
+ xcoll is corect collection
+***************************
+OK
+doc
+{"_id": "1", "name": "Anabel"}
+command ok
+OK
+doc
+command ok
+OK
+doc
+command ok
+OK
+doc
+{"_id": "1", "name": "Anabel"}
+command ok
+OK
+doc
+command ok
+Got expected error: `name` is not a member of collection (code 5121)
+
+ ycoll is not corect collection; missing `doc` column
+*****************************************************
+Got expected error: `ycoll` is not a collection (code 5156)
+Got expected error: `ycoll` is not a collection (code 5156)
+Got expected error: `ycoll` is not a collection (code 5156)
+Got expected error: `ycoll` is not a collection (code 5156)
+Got expected error: `ycoll` is not a collection (code 5156)
+Got expected error: `ycoll` is not a collection (code 5156)
+
+ zcoll is not corect collection; missing `_id` column
+*****************************************************
+Got expected error: `zcoll` is not a collection (code 5156)
+Got expected error: `zcoll` is not a collection (code 5156)
+OK
+doc
+command ok
+OK
+doc
+{"_id": "1", "name": "Anabel"}
+command ok
+OK
+doc
+command ok
+Got expected error: `name` is not a member of collection (code 5121)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP SCHEMA IF EXISTS xtest;
+UNINSTALL PLUGIN mysqlx;
