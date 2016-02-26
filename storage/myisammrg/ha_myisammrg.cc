@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1481,6 +1481,8 @@ void ha_myisammrg::update_create_info(HA_CREATE_INFO *create_info)
 	 open_table != file->end_table ;
 	 open_table++)
     {
+      if (!open_table->table)
+        continue;
       TABLE_LIST *ptr;
       LEX_STRING db, name;
       LINT_INIT(db.str);
