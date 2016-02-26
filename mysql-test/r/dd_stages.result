@@ -11,6 +11,8 @@ truncate table performance_schema.events_stages_history_long;
 connection con1;
 # Run some statements and see that we have different stage names for
 # opening and locking system and user tables.
+# Disable prepared statements since they cause extra attempts to open
+# tables.
 create table t1(a int);
 insert into t1 values (1), (2), (3), (4), (5);
 drop table t1;
