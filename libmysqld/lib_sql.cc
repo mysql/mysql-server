@@ -579,7 +579,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
     Each server should have one UUID. We will create it automatically, if it
     does not exist.
    */
-  if (!opt_initialize && init_server_auto_options())
+  if (!opt_initialize && init_server_auto_options(false))
   {
     mysql_server_end();
     return 1;

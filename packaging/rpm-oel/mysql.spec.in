@@ -767,12 +767,14 @@ fi
 %if 0%{?commercial}
 %attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
 %attr(644, root, root) %{_datadir}/mysql/linux_install_firewall.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_pam.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/firewall.so
@@ -993,6 +995,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
+* Fri Feb 5 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.12-1
+- Add keyring_okv.so plugin to commercial server subpackage
+
 * Fri Jan 08 2016 Bjorn Munch <bjorn.munch@oracle.com> - 5.8.0-1
 - Purge man page for mysql_install_db in preparation for its removal
 

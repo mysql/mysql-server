@@ -8066,8 +8066,8 @@ Encryption::create_master_key(byte** master_key)
 	memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
 
 	/* Generate new master key */
-	sprintf(key_name, "%s-%lu-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
-		server_id, master_key_id + 1);
+	sprintf(key_name, "%s-%s-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
+		server_uuid, master_key_id + 1);
 
 	/* We call key ring API to generate master key here. */
 	ret = my_key_generate(key_name, "AES",
@@ -8102,8 +8102,8 @@ Encryption::get_master_key(ulint master_key_id,
 	int	ret;
 
 	memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
-	sprintf(key_name, "%s-%lu-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
-		server_id, master_key_id);
+	sprintf(key_name, "%s-%s-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
+		server_uuid, master_key_id);
 
 	/* We call key ring API to get master key here. */
 	ret = my_key_fetch(key_name, &key_type, NULL,
@@ -8148,8 +8148,8 @@ Encryption::get_master_key(ulint* master_key_id, byte** master_key)
 		/* If m_master_key is 0, means there's no encrypted
 		tablespace, we need to generate the first master key,
 		and store it to key ring. */
-		sprintf(key_name, "%s-%lu-1", ENCRYPTION_MASTER_KEY_PRIFIX,
-			server_id);
+		sprintf(key_name, "%s-%s-1", ENCRYPTION_MASTER_KEY_PRIFIX,
+			server_uuid);
 
 		/* We call key ring API to generate master key here. */
 		ret = my_key_generate(key_name, "AES",
@@ -8174,8 +8174,8 @@ Encryption::get_master_key(ulint* master_key_id, byte** master_key)
 	} else {
 		*master_key_id = Encryption::master_key_id;
 
-		sprintf(key_name, "%s-%lu-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
-			server_id, *master_key_id);
+		sprintf(key_name, "%s-%s-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
+			server_uuid, *master_key_id);
 
 		/* We call key ring API to get master key here. */
 		ret = my_key_fetch(key_name, &key_type, NULL,
