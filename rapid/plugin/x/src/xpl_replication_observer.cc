@@ -26,7 +26,7 @@ using namespace xpl;
 
 int xpl_before_server_shutdown(Server_state_param *param)
 {
-  google::protobuf::ShutdownProtobufLibrary();
+ // google::protobuf::ShutdownProtobufLibrary();
 
   return 0;
 }
