@@ -52,6 +52,13 @@ char *xpl_func_ptr(Xpl_status_variable_get callback)
   return ptr_cast.ptr;
 }
 
+
+static void exit_hook()
+{
+  google::protobuf::ShutdownProtobufLibrary();
+}
+
+
 /*
   Start the plugin: start webservers
 
@@ -65,6 +72,13 @@ char *xpl_func_ptr(Xpl_status_variable_get callback)
  */
 int xpl_plugin_init(MYSQL_PLUGIN p)
 {
+  static bool atexit_installed = false;
+  if (!atexit_installed)
+  {
+    atexit_installed = true;
+    atexit(exit_hook);
+  }
+
   xpl::Plugin_system_variables::clean_callbacks();
 
   xpl_init_performance_schema();

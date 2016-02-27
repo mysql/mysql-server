@@ -16,6 +16,7 @@
 
 #include <gtest/gtest.h>
 #include <boost/scoped_ptr.hpp>
+#include <boost/shared_ptr.hpp>
 #include <mysql/service_my_snprintf.h>
 #include <limits>
 #include <string>
@@ -43,11 +44,14 @@ typedef ngs::Page_pool Page_pool;
 
 const ngs::Pool_config default_pool_config = { 0, 0, BUFFER_PAGE_SIZE };
 
+static std::vector<boost::shared_ptr<ngs::Page> > page_del;
+
 static void add_pages(Output_buffer *ob, const size_t no_of_pages, const size_t page_size)
 {
   for (size_t i = 0; i < no_of_pages; i++)
   {
-    ngs::Resource<ngs::Page> page(new ngs::Page(page_size));
+    page_del.push_back(boost::shared_ptr<ngs::Page>(new ngs::Page(page_size)));
+    ngs::Resource<ngs::Page> page(page_del.back().get());
     ob->push_back(page);
   }
 }
