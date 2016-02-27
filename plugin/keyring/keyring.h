@@ -58,7 +58,7 @@ my_bool mysql_key_store(IKeyring_io *keyring_io,
 my_bool mysql_key_remove(IKeyring_io *keyring_io,
                          boost::movelib::unique_ptr<IKey> key_to_remove);
 
-my_bool check_key_for_writting(IKey* key);
+my_bool check_key_for_writting(IKey* key, std::string error_for);
 
 template <typename T, typename U>
 my_bool mysql_key_fetch(const char *key_id, char **key_type, const char *user_id,

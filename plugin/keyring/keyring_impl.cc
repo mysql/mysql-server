@@ -107,17 +107,20 @@ my_bool mysql_key_fetch(boost::movelib::unique_ptr<IKey> key_to_fetch, char **ke
   return FALSE;
 }
 
-my_bool check_key_for_writting(IKey* key)
+my_bool check_key_for_writting(IKey* key, std::string error_for)
 {
+  std::string error_msg= "Error while ";
+  error_msg+= error_for;
   if (key->is_key_type_valid() == FALSE)
   {
-    logger->log(MY_ERROR_LEVEL, "Error while storing key: invalid key_type");
+    error_msg+= " key: invalid key_type";
+    logger->log(MY_ERROR_LEVEL, error_msg.c_str());
     return TRUE;
   }
   if (key->is_key_id_valid() == FALSE)
   {
-    logger->log(MY_ERROR_LEVEL,
-                "Error while storing key: key_id cannot be empty");
+    error_msg+= " key: key_id cannot be empty";
+    logger->log(MY_ERROR_LEVEL, error_msg.c_str());
     return TRUE;
   }
  return FALSE;
@@ -129,7 +132,7 @@ my_bool mysql_key_store(IKeyring_io *keyring_io,
   if (is_keys_container_initialized == FALSE)
     return TRUE;
 
-  if (check_key_for_writting(key_to_store.get()))
+  if (check_key_for_writting(key_to_store.get(), "storing"))
     return TRUE;
 
   if (key_to_store->get_key_data_size() > 0)
