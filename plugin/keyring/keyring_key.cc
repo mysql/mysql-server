@@ -34,7 +34,7 @@ Key::Key(const char *a_key_id, const char *a_key_type, const char *a_user_id,
     user_id= a_user_id;
 
   key_len= a_key_len;
-  if (key_len > 0)
+  if (a_key != NULL && key_len > 0)
   {
     key.reset(new uchar[a_key_len]);
     memcpy(key.get(), a_key, a_key_len);
@@ -168,6 +168,8 @@ size_t Key::get_key_pod_size() const
 
 void Key::xor_data()
 {
+  if (key == NULL)
+    return;
   static const char *obfuscate_str="*305=Ljt0*!@$Hnm(*-9-w;:";
   for(uint i=0, l=0; i < key_len; ++i, l=((l+1) % strlen(obfuscate_str)))
     key.get()[i]^= obfuscate_str[l];

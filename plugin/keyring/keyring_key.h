@@ -60,7 +60,7 @@ private:
                           const char *field, size_t field_length) const;
   my_bool load_field_size(const uchar *buffer, size_t *buffer_position,
                           size_t key_pod_size, size_t *field_length);
-
+protected:
   std::string key_id;
   std::string key_type;
   std::string user_id;
