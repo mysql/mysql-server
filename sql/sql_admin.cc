@@ -180,7 +180,8 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
 			     "Failed renaming data file");
     goto end;
   }
-  if (dd::recreate_table(thd, table_list->db, table_list->table_name))
+  if (dd::recreate_table(thd, table_list->db, table_list->table_name,
+                         true /* WL7743/TODO: REPAIR*/))
   {
     error= send_check_errmsg(thd, table_list, "repair",
 			     "Failed generating table from .frm file");

@@ -1953,11 +1953,30 @@ bool check_storage_engine_flag(THD *thd, const TABLE_LIST *table_list,
 
 
 bool recreate_table(THD *thd, const char *schema_name,
-                    const char *table_name)
+                    const char *table_name, bool commit_dd_changes)
 {
   // There should be an exclusive metadata lock on the table
   DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
               schema_name, table_name, MDL_EXCLUSIVE));
+
+  std::unique_ptr<dd::Table> table_def;
+  {
+    /*
+      Ensure that we release cached object before we try to invalidate
+      cache in ha_create_table() call below.
+    */
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Table *old_table_def;
+    if (thd->dd_client()->acquire_uncached<dd::Table>(schema_name, table_name,
+                                                    &old_table_def))
+      return true;
+    if (!old_table_def)
+    {
+      my_error(ER_NO_SUCH_TABLE, MYF(0), schema_name, table_name);
+      return true;
+    }
+    table_def= std::unique_ptr<dd::Table>(old_table_def->clone());
+  }
 
   HA_CREATE_INFO create_info;
 
@@ -1965,17 +1984,9 @@ bool recreate_table(THD *thd, const char *schema_name,
   char path[FN_REFLEN + 1];
   build_table_filename(path, sizeof(path) - 1, schema_name, table_name, "", 0);
 
-  const dd::Table *c_dd_tab;
-  if (thd->dd_client()->acquire_uncached<dd::Table>(schema_name, table_name,
-                                                    &c_dd_tab))
-    return true;
-
-  // QQ: How to get rid of const_cast here?
-  std::unique_ptr<dd::Table> dd_tab(const_cast<dd::Table*>(c_dd_tab));
-
   // Attempt to reconstruct the table
   return ha_create_table(thd, path, schema_name, table_name, &create_info,
-                         true, false, dd_tab.get(), NULL, true /* WL7743/TODO which part??? */);
+                         true, false, table_def.get(), NULL, commit_dd_changes);
 }
 
 

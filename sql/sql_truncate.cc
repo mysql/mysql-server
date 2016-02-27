@@ -246,29 +246,36 @@ Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
     if (fk_truncate_illegal_if_parent(thd, table_ref->table))
       DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Table *c_table_def= 0;
-  dd::Table *table_def= table_ref->table->s->tmp_table_def;
+  std::unique_ptr<dd::Table> non_tmp_table_def;
 
-  if (!table_def)
+  if (!is_tmp_table)
   {
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Table *table_def= 0;
+
     if (thd->dd_client()->acquire<dd::Table>(table_ref->db,
                                              table_ref->table_name,
-                                             &c_table_def))
+                                             &table_def))
+      DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
+
+    if (!table_def)
     {
-      fprintf(stderr, "DD: Failed to get table def for truncate\n");
+      /* Impossible since table was successfully opened above. */
+      DBUG_ASSERT(0);
+      my_error(ER_NO_SUCH_TABLE, MYF(0), table_ref->db, table_ref->table_name);
       DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
     }
-    table_def= c_table_def->clone();
+
+    non_tmp_table_def= std::unique_ptr<dd::Table>(table_def->clone());
   }
 
-  error= table_ref->table->file->ha_truncate(table_def);
+  error= table_ref->table->file->ha_truncate(is_tmp_table ?
+                                   table_ref->table->s->tmp_table_def :
+                                   non_tmp_table_def.get());
 
 
   if (error)
   {
-    if (c_table_def)
-      delete table_def;
     table_ref->table->file->print_error(error, MYF(0));
     /*
       If truncate method is not implemented then we don't binlog the
@@ -282,14 +289,16 @@ Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
     else
       DBUG_RETURN(TRUNCATE_FAILED_BUT_BINLOG);
   }
-  else if (c_table_def && thd->dd_client()->update(&c_table_def, table_def))
+  else if (!is_tmp_table &&
+           // WL7743/TODO: Do update only for SEs supporting atomic DDL.
+           table_ref->table->file->has_transactions() &&
+           thd->dd_client()->update_uncached_and_invalidate(non_tmp_table_def.get()))
   {
-    delete table_def;
-    fprintf(stderr, "DD: DD update for truncate failed\n");
+    // WL7743/TODO/QQ: Does change of DD object means we need to invalidate
+    //                 TDC/TC too?
+    /* Statement rollback will revert effect of handler::truncate() as well. */
     DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
   }
-  if (c_table_def)
-    delete table_def;
   DBUG_RETURN(TRUNCATE_OK);
 }
 
@@ -460,6 +469,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
 {
   int error;
   bool binlog_stmt;
+  bool binlog_is_trans;
   DBUG_ENTER("Sql_cmd_truncate_table::truncate_table");
 
   DBUG_ASSERT((!table_ref->table) ||
@@ -484,6 +494,13 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
 
       DBUG_ASSERT(! thd->get_transaction()->cannot_safely_rollback(
         Transaction_ctx::STMT));
+
+      /*
+        There is no point in writing to transaction cache and do 2pc with
+        binary log even for engines supporting atomic DDL as rollback won't
+        revert recreation of temporary table.
+      */
+      binlog_is_trans= false;
     }
     else
     {
@@ -494,6 +511,8 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
         table.
       */
       error= handler_truncate(thd, table_ref, TRUE);
+
+      binlog_is_trans= table_ref->table->file->has_transactions();
     }
 
     /*
@@ -518,17 +537,25 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
         DBUG_RETURN(true);
       }
 #endif /* !EMBEDDED_LIBRARY */
+
+      bool hton_supports_atomic_ddl;
+      if (dd::check_storage_engine_flag(thd, table_ref,
+                                        HTON_SUPPORTS_ATOMIC_DDL,
+                                        &hton_supports_atomic_ddl))
+        DBUG_RETURN(true);
      /*
         The storage engine can truncate the table by creating an
         empty table with the same structure.
       */
-      error= dd::recreate_table(thd, table_ref->db, table_ref->table_name);
+      error= dd::recreate_table(thd, table_ref->db, table_ref->table_name,
+                                hton_supports_atomic_ddl);
 
       if (thd->locked_tables_mode && thd->locked_tables_list.reopen_tables(thd))
           thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
 
       /* No need to binlog a failed truncate-by-recreate. */
       binlog_stmt= !error;
+      binlog_is_trans= hton_supports_atomic_ddl;
     }
     else
     {
@@ -547,9 +574,15 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
         unimplemented truncate method.
       */
       if (error == TRUNCATE_OK || error == TRUNCATE_FAILED_BUT_BINLOG)
+      {
         binlog_stmt= true;
+        binlog_is_trans= table_ref->table->file->has_transactions();
+      }
       else
+      {
         binlog_stmt= false;
+        binlog_is_trans= false; // Safety.
+      }
     }
 
     /*
@@ -564,7 +597,8 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
 
   /* DDL is logged in statement format, regardless of binlog format. */
   if (binlog_stmt)
-    error|= write_bin_log(thd, !error, thd->query().str, thd->query().length);
+    error|= write_bin_log(thd, !error, thd->query().str, thd->query().length,
+                          binlog_is_trans);
 
   /*
     A locked table ticket was upgraded to a exclusive lock. After the

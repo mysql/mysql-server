@@ -4203,6 +4203,11 @@ public:
     @remark Engine is responsible for resetting the auto-increment counter.
 
     @remark The table is locked in exclusive mode.
+
+    @note   It is assumed that transactional storage engines implementing
+            this method can revert its effects if transaction is rolled
+            back (e.g. because we failed to write statement to the binary
+            log).
   */
   virtual int truncate(dd::Table *dd_tab)
   { return HA_ERR_WRONG_COMMAND; }
