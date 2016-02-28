@@ -1737,3 +1737,35 @@ s020
 SELECT ST_LatFromGeoHash('m7s9pyctu9bbwqkgbw5x6vutzkztd9szjh86gmz9w9nsz6792d');
 ST_LatFromGeoHash('m7s9pyctu9bbwqkgbw5x6vutzkztd9szjh86gmz9w9nsz6792d')
 -25.098643334722453
+#
+# Bug#22838668 CRASH IN ITEM_FUNC_LATLONGFROMGEOHASH::VAL_REAL
+# WITH BAD PARAMETERS
+#
+DO ST_Disjoint(
+POLYGON(
+LINESTRING(POINT(1, 1))
+),
+ST_LatFromGeoHash(ExtractValue(1, NULL))
+);
+ERROR 22023: Invalid GIS data provided to function linestring.
+DO ST_Disjoint(
+POLYGON(
+LINESTRING(POINT(1, 1))
+),
+ST_LongFromGeoHash(ExtractValue(1, NULL))
+);
+ERROR 22023: Invalid GIS data provided to function linestring.
+DO ST_Disjoint(
+POLYGON(
+LINESTRING(POINT(1, 1))
+),
+ST_LatFromGeoHash(UpdateXML(1, NULL, NULL))
+);
+ERROR 22023: Invalid GIS data provided to function linestring.
+DO ST_Disjoint(
+POLYGON(
+LINESTRING(POINT(1, 1))
+),
+ST_LongFromGeoHash(UpdateXML(1, NULL, NULL))
+);
+ERROR 22023: Invalid GIS data provided to function linestring.
