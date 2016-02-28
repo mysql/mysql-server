@@ -309,7 +309,6 @@ public:
     m_srid_found_in_document(-1)
   {}
   String *val_str(String *);
-  virtual bool resolve_type(THD *thd);
   bool fix_fields(THD *, Item **ref);
   const char *func_name() const { return "st_geomfromgeojson"; }
   Geometry::wkbType get_wkbtype(const char *typestring);
