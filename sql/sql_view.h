@@ -1,7 +1,7 @@
 #ifndef SQL_VIEW_INCLUDED
 #define SQL_VIEW_INCLUDED
 
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@ extern TYPELIB updatable_views_with_limit_typelib;
 bool check_duplicate_names(List<Item>& item_list, bool gen_unique_view_names);
 
 bool mysql_rename_view(THD *thd, const char *new_db, const char *new_name,
-                       TABLE_LIST *view);
+                       TABLE_LIST *view, bool do_commit);
 
 bool open_and_read_view(THD *thd, TABLE_SHARE *share,
                         TABLE_LIST *view_ref);

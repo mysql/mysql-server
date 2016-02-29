@@ -9398,6 +9398,8 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
   TABLE *table= table_list->table;
   MDL_ticket *mdl_ticket= table->mdl_ticket;
   int error= 0;
+  handlerton *old_db_type= table->s->db_type();
+  bool atomic_ddl= (old_db_type->flags & HTON_SUPPORTS_ATOMIC_DDL);
   DBUG_ENTER("simple_rename_or_index_change");
 
   if (keys_onoff != Alter_info::LEAVE_AS_IS)
@@ -9435,7 +9437,6 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
   if (!error && alter_ctx->is_table_renamed())
   {
     THD_STAGE_INFO(thd, stage_rename);
-    handlerton *old_db_type= table->s->db_type();
     /*
       Then do a 'simple' rename of the table. First we need to close all
       instances of 'source' table.
@@ -9443,8 +9444,6 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
       this thread was killed) then it must be that previous step of
       simple rename did nothing and therefore we can safely return
       without additional clean-up.
-
-      WL7743/TODO: Handle this as part of work on RENAME TABLE.
     */
     if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
       DBUG_RETURN(true);
@@ -9452,7 +9451,8 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
 
     if (mysql_rename_table(thd, old_db_type,
                            alter_ctx->db, alter_ctx->table_name,
-                           alter_ctx->new_db, alter_ctx->new_alias, 0))
+                           alter_ctx->new_db, alter_ctx->new_alias,
+                           atomic_ddl ? NO_DD_COMMIT: 0))
       error= -1;
     else if (change_trigger_table_name(thd,
                                        alter_ctx->db,
@@ -9461,20 +9461,46 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
                                        alter_ctx->new_db,
                                        alter_ctx->new_alias))
     {
-      (void) mysql_rename_table(thd, old_db_type,
-                                alter_ctx->new_db, alter_ctx->new_alias,
-                                alter_ctx->db, alter_ctx->table_name, 
-                                NO_FK_CHECKS);
+#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL7016_AND_WL7896
+      if (!atomic_ddl)
+#endif
+      {
+        (void) mysql_rename_table(thd, old_db_type,
+                                  alter_ctx->new_db, alter_ctx->new_alias,
+                                  alter_ctx->db, alter_ctx->table_name,
+                                  NO_FK_CHECKS);
+      }
       error= -1;
     }
   }
 
   if (!error)
   {
-    error= write_bin_log(thd, true, thd->query().str, thd->query().length);
+    error= write_bin_log(thd, true, thd->query().str, thd->query().length,
+                         atomic_ddl);
+
+    /*
+      Commit changes to data-dictionary, SE and binary log if it was not done
+      earlier. We need to do this before releasing/downgrading MDL.
+    */
+    if (!error && atomic_ddl)
+      error= (trans_commit_stmt(thd) || trans_commit_implicit(thd));
+
     if (!error)
       my_ok(thd);
   }
+
+  if (error)
+  {
+    /*
+      We need rollback possible changes to data-dictionary before releasing
+      metadata lock.
+
+      WL7743/TODO/QQ: Perhaps align with error handling in general case?
+    */
+    trans_rollback_stmt(thd);
+  }
+
   table_list->table= NULL;                    // For query cache
   query_cache.invalidate(thd, table_list, FALSE);
 

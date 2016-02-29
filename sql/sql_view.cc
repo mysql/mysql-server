@@ -1994,34 +1994,32 @@ int view_checksum(THD *thd, TABLE_LIST *view)
           HA_ADMIN_OK);
 }
 
-/*
-  rename view
+/**
+  Rename a view,
 
-  Synopsis:
-    renames a view
+  @param thd        Thread context.
+  @param new_db     New database into which
+                    view should be moved.
+  @param new_name   New name of view,
+  @param view       View to rename.
+  @param do_commit  Commit transaction after
+                    updating data-dictionary.
 
-  Parameters:
-    thd        thread handler
-    new_db     new name of database
-    new_name   new name of view
-    view       view
-
-  Return values:
-    FALSE      Ok
-    TRUE       Error
+  @return False - success, true - error.
 */
 bool
 mysql_rename_view(THD *thd,
                   const char *new_db,
                   const char *new_name,
-                  TABLE_LIST *view)
+                  TABLE_LIST *view,
+                  bool do_commit)
 {
   DBUG_ENTER("mysql_rename_view");
 
   /* Rename view in the data-dictionary. */
   if (dd::rename_table<dd::View>(thd,
                                  view->db, view->table_name,
-                                 new_db, new_name, true /* WL7743/TODO: RENAME TABLE */))
+                                 new_db, new_name, do_commit))
   {
     DBUG_RETURN(true);
   }

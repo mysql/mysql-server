@@ -660,7 +660,7 @@ drop table t2;
 set sql_mode=no_engine_substitution;
 create temporary table t2 (a int);
 --disable_warnings
-call p_verify_status_increment(5, 0, 0, 0);
+call p_verify_status_increment(6, 0, 0, 0);
 --enable_warnings
 set sql_mode=default;
 --echo # 19. A function changes temp-trans-table.
@@ -871,9 +871,9 @@ call p_verify_status_increment(6, 0, 2, 0);
 alter table t3 rename t4;
 call p_verify_status_increment(6, 0, 3, 0);
 rename table t4 to t3;
-call p_verify_status_increment(8, 0, 5, 0);
+call p_verify_status_increment(10, 0, 5, 0);
 truncate table t3;
-call p_verify_status_increment(3, 0, 4, 0);
+call p_verify_status_increment(4, 0, 4, 0);
 create view v1 as select * from t2;
 call p_verify_status_increment(4, 0, 3, 0);
 check table t1;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,9 +32,10 @@
 #include "sql_view.h"         // mysql_rename_view
 
 #include "dd/dd_table.h"      // dd::table_exists
+#include "dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
 
 static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
-				 bool skip_error);
+				 bool skip_error, bool *int_commit_done);
 
 static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list);
 
@@ -50,6 +51,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
   TABLE_LIST *ren_table= 0;
   int to_table;
   char *rename_log_table[2]= {NULL, NULL};
+  bool int_commit_done= false;
   DBUG_ENTER("mysql_rename_tables");
 
   /*
@@ -152,24 +154,33 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     An exclusive lock on table names is satisfactory to ensure
     no other thread accesses this table.
   */
-  if ((ren_table=rename_tables(thd,table_list,0)))
+  if ((ren_table= rename_tables(thd, table_list, 0, &int_commit_done)))
   {
     /* Rename didn't succeed;  rename back the tables in reverse order */
     TABLE_LIST *table;
 
-    /* Reverse the table list */
-    table_list= reverse_table_list(table_list);
+#ifdef WORKAROUND_TO_BE_REMOVED_BY_WL7016_AND_WL7896
+    if (int_commit_done)
+    {
+#else
+      int_commit_done= true;
+#endif
+      /* Reverse the table list */
+      table_list= reverse_table_list(table_list);
 
-    /* Find the last renamed table */
-    for (table= table_list;
-	 table->next_local != ren_table ;
-	 table= table->next_local->next_local) ;
-    table= table->next_local->next_local;		// Skip error table
-    /* Revert to old names */
-    rename_tables(thd, table, 1);
+      /* Find the last renamed table */
+      for (table= table_list;
+	   table->next_local != ren_table ;
+	   table= table->next_local->next_local) ;
+      table= table->next_local->next_local;		// Skip error table
+      /* Revert to old names */
+      rename_tables(thd, table, 1, &int_commit_done);
 
-    /* Revert the table list (for prepared statements) */
-    table_list= reverse_table_list(table_list);
+      /* Revert the table list (for prepared statements) */
+      table_list= reverse_table_list(table_list);
+#ifdef WORKAROUND_TO_BE_REMOVED_BY_WL7016_AND_WL7896
+    }
+#endif
 
     error= 1;
   }
@@ -177,7 +188,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
   if (!silent && !error)
   {
     binlog_error= write_bin_log(thd, true,
-                                thd->query().str, thd->query().length);
+                                thd->query().str, thd->query().length,
+                                !int_commit_done);
     if (!binlog_error)
       my_ok(thd);
   }
@@ -215,30 +227,27 @@ static TABLE_LIST *reverse_table_list(TABLE_LIST *table_list)
 }
 
 
-/*
-  Rename a single table or a view
+/**
+  Rename a single table or a view.
 
-  SYNPOSIS
-    do_rename()
-      thd               Thread handle
-      ren_table         A table/view to be renamed
-      new_db            The database to which the table to be moved to
-      new_table_name    The new table/view name
-      new_table_alias   The new table/view alias
-      skip_error        Whether to skip errors
+  @param[in]      thd               Thread handle.
+  @param[in]      ren_table         A table/view to be renamed.
+  @param[in]      new_db            The database to which the
+                                    table to be moved to.
+  @param[in]      new_table_name    The new table/view name.
+  @param[in]      new_table_alias   The new table/view alias.
+  @param[in]      skip_error        Whether to skip errors.
+  @param[in/out]  int_commit_done   Whether intermediate commits
+                                    were done.
 
-  DESCRIPTION
-    Rename a single table or a view.
-
-  RETURN
-    false     Ok
-    true      rename failed
+  @return False on success, True if rename failed.
 */
 
 static bool
 do_rename(THD *thd, TABLE_LIST *ren_table,
           const char *new_db, const char *new_table_name,
-          const char *new_table_alias, bool skip_error)
+          const char *new_table_alias, bool skip_error,
+          bool *int_commit_done)
 {
   const char *new_alias= new_table_name;
   const char *old_alias= ren_table->table_name;
@@ -253,29 +262,27 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
   DBUG_ASSERT(new_alias);
 
   // Fail if the target table already exists
-  bool exists;
-  if (dd::table_exists<dd::Abstract_table>(thd->dd_client(), new_db,
-                                           new_alias, &exists))
+  const dd::Abstract_table *new_table;
+  if (thd->dd_client()->acquire_uncached_uncommitted<dd::Abstract_table>(new_db,
+                          new_alias, &new_table))
     DBUG_RETURN(true);                         // This error cannot be skipped
-
-  if (exists)
+  if (new_table)
   {
+    delete new_table;
     my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_alias);
     DBUG_RETURN(true);                         // This error cannot be skipped
   }
 
   // Get the table type of the old table, and fail if it does not exist
-  dd::Abstract_table::enum_table_type table_type;
-  if (dd::abstract_table_type(thd->dd_client(), ren_table->db,
-                              old_alias, &table_type))
-  {
-    my_error(ER_NO_SUCH_TABLE, MYF(0), ren_table->db, old_alias);
+  std::unique_ptr<dd::Abstract_table> old_table_def;
+  if (!(old_table_def=
+          dd::acquire_uncached_uncommitted_table<dd::Abstract_table>(thd,
+                ren_table->db, old_alias)))
     DBUG_RETURN(!skip_error);
-  }
 
   // So here we know the source table exists and the target table does
   // not exist. Next is to act based on the table type.
-  switch (table_type)
+  switch (old_table_def->type())
   {
   case dd::Abstract_table::TT_BASE_TABLE:
     {
@@ -284,11 +291,24 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
       if (dd::table_storage_engine(thd, ren_table, &hton))
         DBUG_RETURN(!skip_error);
 
+      /*
+        Commit changes to data-dictionary immediately after renaming
+        table in storage negine if SE doesn't support atomic DDL or
+        there were intermediate commits already. In the latter case
+        the whole statement is not crash-safe anyway and clean-up is
+        simpler this way.
+      */
+      const bool do_commit= *int_commit_done ||
+                            (hton->flags & HTON_SUPPORTS_ATOMIC_DDL);
+
       // If renaming fails, my_error() has already been called
       if (mysql_rename_table(thd, hton, ren_table->db, old_alias, new_db,
-                             new_alias, 0))
+                             new_alias, (do_commit ? 0 : NO_DD_COMMIT)))
         DBUG_RETURN(!skip_error);
 
+      *int_commit_done|= do_commit;
+
+#ifndef WORKAROUND_TO_BE_REMOVED_BY_WL7896
       // If we fail to update the triggers appropriately, we revert the
       // changes done and report an error.
       if (change_trigger_table_name(thd, ren_table->db, old_alias,
@@ -299,6 +319,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
                                   ren_table->db, old_alias, NO_FK_CHECKS);
         DBUG_RETURN(!skip_error);
       }
+#endif
       break;
     }
   case dd::Abstract_table::TT_SYSTEM_VIEW: // Fall through
@@ -310,7 +331,8 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
         my_error(ER_FORBID_SCHEMA_CHANGE, MYF(0), ren_table->db, new_db);
         DBUG_RETURN(!skip_error);
       }
-      else if (mysql_rename_view(thd, new_db, new_alias, ren_table))
+      else if (mysql_rename_view(thd, new_db, new_alias, ren_table,
+                                 *int_commit_done))
         DBUG_RETURN(!skip_error);
       break;
     }
@@ -325,31 +347,32 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
   DBUG_RETURN(false);
 }
 /*
-  Rename all tables in list; Return pointer to wrong entry if something goes
+  Rename all tables in list;
+  Return pointer to wrong entry if something goes
   wrong.  Note that the table_list may be empty!
 */
 
-/*
-  Rename tables/views in the list
+/**
+  Rename all tables/views in the list.
 
-  SYNPOSIS
-    rename_tables()
-      thd               Thread handle
-      table_list        List of tables to rename
-      skip_error        Whether to skip errors
+  @param[in]      thd               Thread handle.
+  @param[in]      table_list        List of tables to rename.
+  @param[in]      skip_error        Whether to skip errors.
+  @param[in/out]  int_commit_done   Whether intermediate commits
+                                    were done.
 
-  DESCRIPTION
+  @note
     Take a table/view name from and odd list element and rename it to a
     the name taken from list element+1. Note that the table_list may be
     empty.
 
-  RETURN
-    false     Ok
-    true      rename failed
+  @return 0 - on success, pointer to problematic entry if something
+          goes wrong.
 */
 
 static TABLE_LIST *
-rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
+rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error,
+              bool *int_commit_done)
 {
   TABLE_LIST *ren_table, *new_table;
 
@@ -359,7 +382,7 @@ rename_tables(THD *thd, TABLE_LIST *table_list, bool skip_error)
   {
     new_table= ren_table->next_local;
     if (do_rename(thd, ren_table, new_table->db, new_table->table_name,
-                  new_table->alias, skip_error))
+                  new_table->alias, skip_error, int_commit_done))
       DBUG_RETURN(ren_table);
   }
   DBUG_RETURN(0);

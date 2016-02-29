@@ -91,6 +91,10 @@ template bool dd::rename_table<dd::View>(THD *thd,
                                       const char *to_name,
                                       bool no_foreign_key_check);
 
+template std::unique_ptr<dd::Abstract_table>
+dd::acquire_uncached_uncommitted_table<dd::Abstract_table>(THD *thd,
+      const char *schema_name, const char *name);
+
 template std::unique_ptr<dd::Table>
 dd::acquire_uncached_uncommitted_table<dd::Table>(THD *thd,
                                                   const char *schema_name,
@@ -1880,18 +1884,16 @@ bool table_storage_engine(THD *thd, const TABLE_LIST *table_list,
                                                            table_name,
                                                            MDL_SHARED));
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  // Get hold of the dd::Table object.
-  const dd::Table *table= NULL;
-  if (thd->dd_client()->acquire<dd::Table>(schema_name, table_name, &table))
+  /*
+    Get hold of the dd::Table object. Use uncommitted read, so this function
+    can be used by RENAME TABLES implementation even in cases when the same
+    table is renamed several times within the same statement.
+  */
+  std::unique_ptr<dd::Table> table;
+  if (!(table= acquire_uncached_uncommitted_table<dd::Table>(thd,
+                                                             schema_name,
+                                                             table_name)))
   {
-    // Error is reported by the dictionary subsystem.
-    DBUG_RETURN(true);
-  }
-
-  if (table == NULL)
-  {
-    my_error(ER_NO_SUCH_TABLE, MYF(0), schema_name, table_name);
     DBUG_RETURN(true);
   }
 
