@@ -529,7 +529,7 @@ bool Slave_worker::set_info_search_keys(Rpl_info_handler *to)
 
 bool Slave_worker::write_info(Rpl_info_handler *to)
 {
-  DBUG_ENTER("Master_info::write_info");
+  DBUG_ENTER("Slave_worker::write_info");
 
   ulong nbytes= (ulong) no_bytes_in_map(&group_executed);
   uchar *buffer= (uchar*) group_executed.bitmap;
