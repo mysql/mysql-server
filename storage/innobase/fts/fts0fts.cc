@@ -3928,6 +3928,8 @@ fts_write_node(
 	doc_id_t	first_doc_id;
 	char		table_name[MAX_FULL_NAME_LEN];
 
+	ut_a(node->ilist != NULL);
+
 	if (*graph) {
 		info = (*graph)->info;
 	} else {
