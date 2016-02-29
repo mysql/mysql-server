@@ -7,4 +7,4 @@
 
 # Expecting nothing lost with default parameters
 
-show global status like "performance_schema%";
+show global status like "performance_schema%_lost";

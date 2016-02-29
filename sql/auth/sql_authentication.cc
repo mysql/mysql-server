@@ -831,10 +831,12 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio)
 
 static bool
 read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
-                          const CHARSET_INFO *from_cs)
+                          MPVIO_EXT *mpvio)
 {
   size_t length, length_length;
   char *ptr_save;
+  MYSQL_SERVER_AUTH_INFO *auth_info= &mpvio->auth_info;
+
   /* not enough bytes to hold the length */
   if (*max_bytes_available < 1)
     return true;
@@ -857,9 +859,19 @@ read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
     return true;
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  if (PSI_THREAD_CALL(set_thread_connect_attrs)(*ptr, length, from_cs))
-    sql_print_warning("Connection attributes of length %lu were truncated",
-                      (unsigned long) length);
+  int bytes_lost;
+  if ((bytes_lost= PSI_THREAD_CALL(set_thread_connect_attrs)(*ptr, length, mpvio->charset_adapter->charset())))
+    sql_print_warning("Connection attributes of length %lu were truncated "
+                      "(%d bytes lost) "
+                      "for connection %llu, user %s@%s (as %s), auth: %s",
+                      (unsigned long) length, (int) bytes_lost,
+                      (unsigned long long) mpvio->thread_id,
+                      (auth_info->user_name == NULL)
+                      ? ""
+                      : auth_info->user_name,
+                      auth_info->host_or_ip,
+                      auth_info->authenticated_as,
+                      mpvio->can_authenticate() ? "yes" : "no");
 #endif /* HAVE_PSI_THREAD_INTERFACE */
   return false;
 }
@@ -1095,8 +1107,7 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   size_t bytes_remaining_in_packet= end - ptr;
 
   if (protocol->has_client_capability(CLIENT_CONNECT_ATTRS) &&
-      read_client_connect_attrs(&ptr, &bytes_remaining_in_packet,
-                                mpvio->charset_adapter->charset()))
+      read_client_connect_attrs(&ptr, &bytes_remaining_in_packet, mpvio))
     DBUG_RETURN(MY_TEST(packet_error));
 
   DBUG_PRINT("info", ("client_plugin=%s, restart", client_plugin));
@@ -1570,11 +1581,6 @@ skip_to_ssl:
   if (client_plugin == NULL)
     client_plugin= &empty_c_string[0];
 
-  if ((protocol->has_client_capability(CLIENT_CONNECT_ATTRS)) &&
-      read_client_connect_attrs(&end, &bytes_remaining_in_packet,
-                                mpvio->charset_adapter->charset()))
-    return packet_error;
-
   char db_buff[NAME_LEN + 1];           // buffer to store db in utf8
   char user_buff[USERNAME_LENGTH + 1];  // buffer to store user in utf8
   uint dummy_errors;
@@ -1628,6 +1634,10 @@ skip_to_ssl:
   }
 
   if (find_mpvio_user(thd, mpvio))
+    return packet_error;
+
+  if (protocol->has_client_capability(CLIENT_CONNECT_ATTRS) &&
+      read_client_connect_attrs(&end, &bytes_remaining_in_packet, mpvio))
     return packet_error;
 
   if (!(protocol->has_client_capability(CLIENT_PLUGIN_AUTH)))

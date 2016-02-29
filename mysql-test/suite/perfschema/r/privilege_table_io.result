@@ -90,6 +90,7 @@ Performance_schema_prepared_statements_lost	0
 Performance_schema_program_lost	0
 Performance_schema_rwlock_classes_lost	0
 Performance_schema_rwlock_instances_lost	0
+Performance_schema_session_connect_attrs_longest_seen	0
 Performance_schema_session_connect_attrs_lost	0
 Performance_schema_socket_classes_lost	0
 Performance_schema_socket_instances_lost	0
@@ -128,7 +129,7 @@ wait/io/table/sql/handler	handler.cc:	TABLE	mysql	servers	fetch	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	1
-show global status like 'performance_schema_%';
+show global status like 'performance_schema_%_lost';
 Variable_name	Value
 Performance_schema_accounts_lost	0
 Performance_schema_cond_classes_lost	0

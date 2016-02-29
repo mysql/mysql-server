@@ -65,6 +65,8 @@ ulong locker_lost= 0;
 ulong statement_lost= 0;
 /** Size of connection attribute storage per thread */
 ulong session_connect_attrs_size_per_thread;
+/** Longest connection attributes string seen so far, pre-truncation */
+ulong session_connect_attrs_longest_seen= 0;
 /** Number of connection attributes lost */
 ulong session_connect_attrs_lost= 0;
 
