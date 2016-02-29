@@ -108,7 +108,7 @@ bool Sql_data_context::kill()
         else
         {
           COM_DATA data;
-          data.com_kill.id= mysql_session_id();
+          data.com_kill.id= static_cast<unsigned long>(mysql_session_id());
           Callback_command_delegate deleg;
           if (!command_service_run_command(session, COM_PROCESS_KILL, &data,
                                            mysqld::get_charset_utf8mb4_general_ci(), deleg.callbacks(),
@@ -344,7 +344,7 @@ ngs::Error_code Sql_data_context::execute_kill_sql_session(uint64_t mysql_sessio
 {
   COM_DATA data;
 
-  data.com_kill.id= mysql_session_id;
+  data.com_kill.id= static_cast<unsigned long>(mysql_session_id);
   Callback_command_delegate deleg;
   if (command_service_run_command(m_mysql_session, COM_PROCESS_KILL, &data,
                                   mysqld::get_charset_utf8mb4_general_ci(), deleg.callbacks(),

@@ -142,8 +142,11 @@ void Server::timeout_call(int sock, short which, void *arg)
   if (!data->callback())
   {
     evtimer_del(&data->ev);
-    data->self->m_timers.erase(std::remove(data->self->m_timers.begin(), data->self->m_timers.end(), data),
-              data->self->m_timers.end());
+    {
+      Mutex_lock timer_lock(data->self->m_timers_mutex);
+      data->self->m_timers.erase(std::remove(data->self->m_timers.begin(), data->self->m_timers.end(), data),
+                data->self->m_timers.end());
+    }
     delete data;
   }
   else
@@ -173,6 +176,7 @@ void Server::add_timer(std::size_t delay_ms, boost::function<bool ()> callback)
   event_base_set(m_evbase, &data->ev);
   evtimer_add(&data->ev, &data->tv);
 
+  Mutex_lock lock(m_timers_mutex);
   m_timers.push_back(data);
 }
 

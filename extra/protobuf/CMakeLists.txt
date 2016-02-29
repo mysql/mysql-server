@@ -26,6 +26,8 @@
 #   protobuf-2.6.0/m4/
 #   protobuf-2.6.0/vsprojects/
 
+SET(PROTOBUF_MSVC_DISABLED_WARNINGS "/wd4018 /wd4005 /wd4244 /wd4267 /wd4065")
+
 # Turn off some warning flags when compiling protobuf
 MY_CHECK_CXX_COMPILER_FLAG("-Wno-sign-compare" HAVE_NO_SIGN_COMPARE)
 IF(HAVE_NO_SIGN_COMPARE)
@@ -95,6 +97,11 @@ SET(LIBPROTOBUF_LITE_SOURCES
   ${PROTO_SRC_DIR}/google/protobuf/io/zero_copy_stream.cc
   ${PROTO_SRC_DIR}/google/protobuf/io/zero_copy_stream_impl_lite.cc
 )
+
+IF(MSVC)
+  ADD_COMPILE_FLAGS(${LIBPROTOBUF_LITE_SOURCES} COMPILE_FLAGS ${PROTOBUF_MSVC_DISABLED_WARNINGS})
+ENDIF(MSVC)
+
 ADD_CONVENIENCE_LIBRARY(protobuf-lite ${LIBPROTOBUF_LITE_SOURCES})
 SET_PROPERTY(TARGET protobuf-lite PROPERTY EXCLUDE_FROM_ALL TRUE)
 
@@ -125,6 +132,11 @@ SET(LIBPROTOBUF_SOURCES
   ${PROTO_SRC_DIR}/google/protobuf/compiler/importer.cc
   ${PROTO_SRC_DIR}/google/protobuf/compiler/parser.cc
 )
+
+IF(MSVC)
+  ADD_COMPILE_FLAGS(${LIBPROTOBUF_SOURCES} COMPILE_FLAGS ${PROTOBUF_MSVC_DISABLED_WARNINGS})
+ENDIF(MSVC)
+
 ADD_CONVENIENCE_LIBRARY(protobuf 
   ${LIBPROTOBUF_SOURCES} ${LIBPROTOBUF_LITE_SOURCES})
 TARGET_LINK_LIBRARIES(protobuf
@@ -200,6 +212,10 @@ SET(LIBPROTOC_SOURCES
   ${PROTO_SRC_DIR}/google/protobuf/compiler/java/java_doc_comment.h
   ${PROTO_SRC_DIR}/google/protobuf/compiler/python/python_generator.cc
 )
+
+IF(MSVC)
+  ADD_COMPILE_FLAGS(${LIBPROTOC_SOURCES} COMPILE_FLAGS ${PROTOBUF_MSVC_DISABLED_WARNINGS})
+ENDIF(MSVC)
 
 ADD_CONVENIENCE_LIBRARY(protoclib ${LIBPROTOC_SOURCES})
 ADD_EXECUTABLE(protoc ${PROTO_SRC_DIR}/google/protobuf/compiler/main.cc)

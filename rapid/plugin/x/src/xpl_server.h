@@ -139,7 +139,7 @@ template <void (Client::*method)(st_mysql_show_var *)>
 void Server::session_status_variable(THD *thd, st_mysql_show_var *var, char *buff)
 {
   var->type= SHOW_UNDEF;
-  var->value= buff;  
+  var->value= buff;
 
   Server_ref server(get_instance());
   if (server)
@@ -156,7 +156,7 @@ template <typename ReturnType, ReturnType (ngs::IOptions_session::*method)()>
 void Server::session_status_variable(THD *thd, st_mysql_show_var *var, char *buff)
 {
   var->type= SHOW_UNDEF;
-  var->value= buff;  
+  var->value= buff;
 
   Server_ref server(get_instance());
   if (server)
@@ -221,7 +221,7 @@ void Server::common_status_variable(THD *thd, st_mysql_show_var *var, char *buff
       return;
     }
   }
-  
+
   Common_status_variables &common_status = Global_status_variables::instance();
   ReturnType result = (common_status.*method)();
   mysqld::xpl_show_var(var).assign(result);
