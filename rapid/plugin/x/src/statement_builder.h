@@ -66,7 +66,7 @@ public:
     template<typename L, typename Op>
     const Builder &put_list(const L &list, Op generate) const
     {
-      if (list.empty())
+      if (list.size() == 0)
         return *this;
 
       typename L::const_iterator p = list.begin();
