@@ -20,9 +20,7 @@
 #include "ngs/protocol/message_builder.h"
 #include "ngs/protocol/output_buffer.h"
 
-#include <google/protobuf/io/coded_stream.h>
-#include <google/protobuf/wire_format_lite.h>
-#include <google/protobuf/wire_format_lite_inl.h>
+#include "ngs_common/protocol_protobuf.h"
 
 using namespace ngs;
 

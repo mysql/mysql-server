@@ -105,8 +105,8 @@ namespace ngs
 
   struct Pool_config
   {
-    int64_t pages_max;
-    int64_t pages_cache_max;
+    int32_t pages_max;
+    int32_t pages_cache_max;
     int32_t page_size;
   };
 

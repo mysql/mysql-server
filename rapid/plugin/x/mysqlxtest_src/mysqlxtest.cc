@@ -83,7 +83,9 @@ bool OPT_bindump = false;
 bool OPT_show_warnings = false;
 bool OPT_fatal_errors = false;
 bool OPT_verbose = false;
+#ifndef _WIN32
 bool OPT_color = false;
+#endif
 
 class Expected_error;
 static Expected_error *OPT_expect_error = 0;
@@ -147,17 +149,21 @@ static std::string error()
     context.append(tmp);
   }
 
+#ifndef _WIN32
   if (OPT_color)
     return std::string("\e[1;31m").append(context).append("ERROR: ");
   else
+#endif
     return std::string(context).append("ERROR: ");
 }
 
 static std::string eoerr()
 {
+#ifndef _WIN32
   if (OPT_color)
     return "\e[0m\n";
   else
+#endif
     return "\n";
 }
 
@@ -1373,7 +1379,7 @@ private:
         //  std::cout << unreplace_variables(message_to_text(*msg), true) << "\n";
       }
     }
-    catch (mysqlx::Error &e)
+    catch (mysqlx::Error&)
     {
       std::cerr << "Server disconnected\n";
     }
@@ -1809,7 +1815,7 @@ private:
     {
       boost::algorithm::unhex(args_copy.begin(), args_copy.end(), std::back_inserter(data));
     }
-    catch(const std::exception &e)
+    catch(const std::exception&)
     {
       std::cerr << "Hex string is invalid\n";
       return Stop_with_failure;
@@ -1861,7 +1867,7 @@ private:
         }
       }
     }
-    catch (const std::out_of_range &e)
+    catch (const std::out_of_range&)
     {
       std::cerr << "Invalid number of arguments for command binsendoffset:" << argl.size() << "\n";
       return Stop_with_failure;
@@ -2827,8 +2833,10 @@ public:
         OPT_verbose = true;
       else if (check_arg(argv, i, "--daemon", NULL))
         daemon = true;
+#ifndef _WIN32
       else if (check_arg(argv, i, "--color", NULL))
         OPT_color = true;
+#endif
       else if (check_arg(argv, i, "--help", "--help"))
       {
         print_help();
