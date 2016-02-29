@@ -120,7 +120,7 @@ ELSE()
     ${xplugin_SRC} ${xplugin_PROTOBUF_SRC}
     COMPILE_FLAGS "-I${xplugin_PROTOBUF_DIR}")
 
-  TARGET_LINK_LIBRARIES(xplugin ${LIBEVENT_LIBRARY})
+  TARGET_LINK_LIBRARIES(xplugin ${LIBEVENT_LIBRARY} ${LIBEVENT_LIBRARIES})
 
   # These are built *with* -DMYSQL_DYNAMIC_PLUGIN
   MYSQL_ADD_PLUGIN(mysqlx
@@ -131,7 +131,10 @@ ELSE()
 
   RESTRICT_SYMBOL_SOURCE("${MYSQLX_PROJECT_DIR}/ngs/src/mysql41_hash.cc")
 
-  ADD_DEPENDENCIES(xplugin GenError event)
+  ADD_DEPENDENCIES(xplugin GenError)
+  IF (WITH_LIBEVENT STREQUAL "bundled")
+    ADD_DEPENDENCIES(xplugin ${LIBEVENT_LIBRARY})
+  ENDIF()
 
   IF(XPLUGIN_LOG_PROTOBUF)
     MESSAGE(STATUS "MYSQLX - Text log of protobuf messages enabled")
