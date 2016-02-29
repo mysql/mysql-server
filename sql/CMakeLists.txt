@@ -543,10 +543,8 @@ IF(NOT WITHOUT_DYNAMIC_PLUGINS)
     FOREACH (CORELIB sql binlog slave mysys mysys_ssl dbug regex strings
         vio binlogevents_static)
       GET_TARGET_PROPERTY(LOC ${CORELIB} LOCATION)
-      MESSAGE(STATUS "${CORELIB} ${LOC}")
       IF (NOT LOC)
         GET_TARGET_PROPERTY(LOC ${CORELIB} IMPORTED_LOCATION)
-        MESSAGE(STATUS "${CORELIB} ${LOC}")
       ENDIF()
 
 
