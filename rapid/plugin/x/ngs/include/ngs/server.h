@@ -268,6 +268,7 @@ namespace ngs
       timeval tv;
       Server *self;
     };
+    Mutex m_timers_mutex;
     std::vector<Timer_data*> m_timers;
 
     bool m_timer_running;

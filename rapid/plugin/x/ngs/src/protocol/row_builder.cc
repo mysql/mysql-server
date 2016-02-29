@@ -21,17 +21,12 @@
 
 #include "ngs/protocol/output_buffer.h"
 
-#include "mysqlx_resultset.pb.h"
-#include "mysqlx.pb.h"
 #include "ngs_common/xdatetime.h"
 #include "ngs_common/xdecimal.h"
 
 #include "decimal.h"
 
-#include <google/protobuf/io/coded_stream.h>
-#include <google/protobuf/wire_format_lite.h>
-#include <google/protobuf/wire_format_lite_inl.h>
-
+#include "ngs_common/protocol_protobuf.h"
 #include <iostream>
 #include <string>
 #include <limits>
