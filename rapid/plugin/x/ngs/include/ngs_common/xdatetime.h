@@ -100,7 +100,6 @@ namespace mysqlx
     uint8_t m_seconds;
     uint32_t m_useconds;
     bool m_valid;
-
   };
 
 

@@ -20,10 +20,7 @@
 #include "mysqlx_row.h"
 #include "ngs_common/xdatetime.h"
 #include "ngs_common/xdecimal.h"
-
-#include <google/protobuf/io/coded_stream.h>
-#include <google/protobuf/wire_format_lite.h>
-#include <google/protobuf/wire_format_lite_inl.h>
+#include "ngs_common/protocol_protobuf.h"
 
 #include <iostream>
 #include <string>
