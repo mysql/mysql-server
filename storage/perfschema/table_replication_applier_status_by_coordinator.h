@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,9 @@
 
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
+
+#ifdef HAVE_REPLICATION
+
 #include "rpl_mi.h"
 #include "mysql_com.h"
 #include "rpl_msr.h"
@@ -32,10 +35,14 @@
 
 class Master_info;
 
+#endif /* HAVE_REPLICATION */
+
 /**
   @addtogroup Performance_schema_tables
   @{
 */
+
+#ifdef HAVE_REPLICATION
 
 #ifndef ENUM_RPL_YES_NO
 #define ENUM_RPL_YES_NO
@@ -62,18 +69,24 @@ struct st_row_coordinator {
   ulonglong last_error_timestamp;
 };
 
+#endif /* HAVE_REPLICATION */
+
 /** Table PERFORMANCE_SCHEMA.replication_applier_status_by_coordinator */
 class table_replication_applier_status_by_coordinator: public PFS_engine_table
 {
 private:
+#ifdef HAVE_REPLICATION
   void make_row(Master_info *mi);
+#endif /* HAVE_REPLICATION */
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
+#ifdef HAVE_REPLICATION
   /** Current row */
   st_row_coordinator m_row;
+#endif /* HAVE_REPLICATION */
   /** True is the current row exists. */
   bool m_row_exists;
   /** Current position. */

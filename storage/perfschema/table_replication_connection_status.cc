@@ -1,5 +1,5 @@
 /*
-      Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+      Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
       This program is free software; you can redistribute it and/or modify
       it under the terms of the GNU General Public License as published by
@@ -19,8 +19,6 @@
   Table replication_connection_status (implementation).
 */
 
-#define HAVE_REPLICATION
-
 #include "my_global.h"
 #include "table_replication_connection_status.h"
 #include "pfs_instr_class.h"
@@ -33,6 +31,8 @@
 #include "rpl_msr.h"           /* Multi source replication */
 #include "log.h"
 #include "rpl_group_replication.h"
+
+#ifdef HAVE_REPLICATION
 
 /*
   Callbacks implementation for GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS.
@@ -74,6 +74,8 @@ static void set_service_state(void* const context, bool value)
   row->service_state= value ? PS_RPL_CONNECT_SERVICE_STATE_YES
                             : PS_RPL_CONNECT_SERVICE_STATE_NO;
 }
+
+#endif /* HAVE_REPLICATION */
 
 
 THR_LOCK table_replication_connection_status::m_table_lock;
@@ -181,16 +183,22 @@ void table_replication_connection_status::reset_position(void)
 
 ha_rows table_replication_connection_status::get_row_count()
 {
+#ifdef HAVE_REPLICATION
   /*A lock is not needed for an estimate */
   return channel_map.get_max_channels();
+#else
+  return 0;
+#endif /* HAVE_REPLICATION */
 }
 
 
 
 int table_replication_connection_status::rnd_next(void)
 {
-  Master_info *mi= NULL;
   int res= HA_ERR_END_OF_FILE;
+
+#ifdef HAVE_REPLICATION
+  Master_info *mi= NULL;
 
   channel_map.rdlock();
 
@@ -209,13 +217,17 @@ int table_replication_connection_status::rnd_next(void)
   }
 
   channel_map.unlock();
+#endif /* HAVE_REPLICATION */
+
   return res;
 }
 
 int table_replication_connection_status::rnd_pos(const void *pos)
 {
-  Master_info *mi;
   int res= HA_ERR_RECORD_DELETED;
+
+#ifdef HAVE_REPLICATION
+  Master_info *mi;
 
   set_position(pos);
 
@@ -228,9 +240,12 @@ int table_replication_connection_status::rnd_pos(const void *pos)
   }
 
   channel_map.unlock();
+#endif /* HAVE_REPLICATION */
+
   return res;
 }
 
+#ifdef HAVE_REPLICATION
 void table_replication_connection_status::make_row(Master_info *mi)
 {
   DBUG_ENTER("table_replication_connection_status::make_row");
@@ -359,12 +374,14 @@ end:
     m_row_exists= true;
   DBUG_VOID_RETURN;
 }
+#endif /* HAVE_REPLICATION */
 
 int table_replication_connection_status::read_row_values(TABLE *table,
                                                          unsigned char *buf,
                                                          Field **fields,
                                                          bool read_all)
 {
+#ifdef HAVE_REPLICATION
   Field *f;
 
   if (unlikely(! m_row_exists))
@@ -431,4 +448,7 @@ int table_replication_connection_status::read_row_values(TABLE *table,
   m_row.cleanup();
 
   return 0;
+#else
+  return HA_ERR_RECORD_DELETED;
+#endif /* HAVE_REPLICATION */
 }

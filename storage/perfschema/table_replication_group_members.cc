@@ -19,8 +19,6 @@
   Table replication_group_members (implementation).
 */
 
-#define HAVE_REPLICATION
-
 #include "my_global.h"
 #include "table_replication_group_members.h"
 #include "pfs_instr_class.h"
@@ -30,6 +28,8 @@
 #include "thr_lock.h"
 #include "table.h"
 #include "field.h"
+
+#ifdef HAVE_REPLICATION
 
 /*
   Callbacks implementation for GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS.
@@ -88,6 +88,7 @@ static void set_member_state(void* const context, const char& value,
   row->member_state_length= length;
   memcpy(row->member_state, &value, length);
 }
+#endif /* HAVE_REPLICATION */
 
 
 THR_LOCK table_replication_group_members::m_table_lock;
@@ -163,11 +164,16 @@ void table_replication_group_members::reset_position(void)
 
 ha_rows table_replication_group_members::get_row_count()
 {
+#ifdef HAVE_REPLICATION
   return get_group_replication_members_number_info();
+#else
+  return 0;
+#endif /* HAVE_REPLICATION */
 }
 
 int table_replication_group_members::rnd_next(void)
 {
+#ifdef HAVE_REPLICATION
   if (!is_group_replication_plugin_loaded())
     return HA_ERR_END_OF_FILE;
 
@@ -179,12 +185,14 @@ int table_replication_group_members::rnd_next(void)
     m_next_pos.set_after(&m_pos);
     return 0;
   }
+#endif /* HAVE_REPLICATION */
 
   return HA_ERR_END_OF_FILE;
 }
 
 int table_replication_group_members::rnd_pos(const void *pos)
 {
+#ifdef HAVE_REPLICATION
   if (!is_group_replication_plugin_loaded())
     return HA_ERR_END_OF_FILE;
 
@@ -193,8 +201,12 @@ int table_replication_group_members::rnd_pos(const void *pos)
   make_row(m_pos.m_index);
 
   return 0;
+#else
+  return HA_ERR_END_OF_FILE;
+#endif /* HAVE_REPLICATION */
 }
 
+#ifdef HAVE_REPLICATION
 void table_replication_group_members::make_row(uint index)
 {
   DBUG_ENTER("table_replication_group_members::make_row");
@@ -229,6 +241,7 @@ void table_replication_group_members::make_row(uint index)
 
   DBUG_VOID_RETURN;
 }
+#endif /* HAVE_REPLICATION */
 
 
 int table_replication_group_members::read_row_values(TABLE *table,
@@ -236,6 +249,7 @@ int table_replication_group_members::read_row_values(TABLE *table,
                                                      Field **fields,
                                                      bool read_all)
 {
+#ifdef HAVE_REPLICATION
   Field *f;
 
   if (unlikely(! m_row_exists))
@@ -274,4 +288,7 @@ int table_replication_group_members::read_row_values(TABLE *table,
     }
   }
   return 0;
+#else
+  return HA_ERR_RECORD_DELETED;
+#endif /* HAVE_REPLICATION */
 }

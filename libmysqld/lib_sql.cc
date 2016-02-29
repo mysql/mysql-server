@@ -2,7 +2,7 @@
  * Copyright (c)  2000, 2014
  * SWsoft  company
  *
- * Modifications copyright (c) 2001, 2015. Oracle and/or its affiliates.
+ * Modifications copyright (c) 2001, 2016. Oracle and/or its affiliates.
  * All rights reserved.
  *
  * This material is provided "as is", with absolutely no warranty expressed
@@ -38,6 +38,7 @@
 #include "sql_table.h"
 #include "sql_thd_internal_api.h"
 #include "tztime.h"
+#include "../storage/perfschema/pfs_server.h"
 
 #include "sql_db.h"     // mysql_change_db
 #include <algorithm>
@@ -605,6 +606,47 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   if (!opt_initialize)
     servers_init(0);
+
+  /*
+    PERFORMANCE_SCHEMA minimal initialization,
+    for the embedded library.
+    - all instrumentation is disabled
+    - no memory is allocated
+    The following tables are supported:
+    - performance_schema.session_status
+    - performance_schema.global_status
+    - performance_schema.session_variables
+    - performance_schema.global_variables
+    to support the following statements:
+    - SHOW SESSION STATUS
+    - SHOW GLOBAL STATUS
+    - SHOW SESSION VARIABLES
+    - SHOW GLOBAL VARIABLES
+  */
+  pre_initialize_performance_schema();
+  if (! opt_initialize)
+  {
+    set_embedded_performance_schema_param(& pfs_param);
+    (void) initialize_performance_schema(& pfs_param,
+                                         & psi_thread_hook,
+                                         & psi_mutex_hook,
+                                         & psi_rwlock_hook,
+                                         & psi_cond_hook,
+                                         & psi_file_hook,
+                                         & psi_socket_hook,
+                                         & psi_table_hook,
+                                         & psi_mdl_hook,
+                                         & psi_idle_hook,
+                                         & psi_stage_hook,
+                                         & psi_statement_hook,
+                                         & psi_transaction_hook,
+                                         & psi_memory_hook);
+  }
+  initialize_performance_schema_acl(opt_initialize);
+  if (! opt_initialize)
+  {
+    check_performance_schema();
+  }
 
   start_handle_manager();
 

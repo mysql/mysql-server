@@ -1,5 +1,5 @@
 /*
-      Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+      Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
       This program is free software; you can redistribute it and/or modify
       it under the terms of the GNU General Public License as published by
@@ -18,8 +18,6 @@
   @file storage/perfschema/table_replication_applier_status_by_coordinator.cc
   Table replication_applier_status_by_coordinator (implementation).
 */
-
-#define HAVE_REPLICATION
 
 #include "my_global.h"
 #include "table_replication_applier_status_by_coordinator.h"
@@ -115,14 +113,20 @@ void table_replication_applier_status_by_coordinator::reset_position(void)
 
 ha_rows table_replication_applier_status_by_coordinator::get_row_count()
 {
- return channel_map.get_max_channels();
+#ifdef HAVE_REPLICATION
+  return channel_map.get_max_channels();
+#else
+  return 0;
+#endif /* HAVE_REPLICATION */
 }
 
 
 int table_replication_applier_status_by_coordinator::rnd_next(void)
 {
-  Master_info *mi;
   int res= HA_ERR_END_OF_FILE;
+
+#ifdef HAVE_REPLICATION
+  Master_info *mi;
 
   channel_map.rdlock();
 
@@ -149,13 +153,17 @@ int table_replication_applier_status_by_coordinator::rnd_next(void)
   }
 
   channel_map.unlock();
+#endif /* HAVE_REPLICATION */
+
   return res;
 }
 
 int table_replication_applier_status_by_coordinator::rnd_pos(const void *pos)
 {
-  Master_info *mi=NULL;
   int res= HA_ERR_RECORD_DELETED;
+
+#ifdef HAVE_REPLICATION
+  Master_info *mi=NULL;
 
   set_position(pos);
 
@@ -168,9 +176,12 @@ int table_replication_applier_status_by_coordinator::rnd_pos(const void *pos)
   }
 
   channel_map.unlock();
+#endif /* HAVE_REPLICATION */
+
   return res;
 }
 
+#ifdef HAVE_REPLICATION
 void table_replication_applier_status_by_coordinator::make_row(Master_info *mi)
 {
   m_row_exists= false;
@@ -226,11 +237,13 @@ void table_replication_applier_status_by_coordinator::make_row(Master_info *mi)
 
   m_row_exists= true;
 }
+#endif /* HAVE_REPLICATION */
 
 int table_replication_applier_status_by_coordinator
   ::read_row_values(TABLE *table, unsigned char *buf,
                     Field **fields, bool read_all)
 {
+#ifdef HAVE_REPLICATION
   Field *f;
 
   if (unlikely(! m_row_exists))
@@ -273,4 +286,7 @@ int table_replication_applier_status_by_coordinator
     }
   }
   return 0;
+#else
+  return HA_ERR_RECORD_DELETED;
+#endif /* HAVE_REPLICATION */
 }
