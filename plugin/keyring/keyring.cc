@@ -187,6 +187,9 @@ my_bool mysql_key_generate(const char *key_id, const char *key_type,
     boost::movelib::unique_ptr<IKey> key_candidate(new Key(key_id, key_type, user_id, NULL, 0));
 
     boost::movelib::unique_ptr<uchar[]> key(new uchar[key_len]);
+    if (key.get() == NULL)
+      return TRUE;
+    memset(key.get(), 0, key_len);
     if (is_keys_container_initialized == FALSE || check_key_for_writting(key_candidate.get(), "generating") ||
         my_rand_buffer(key.get(), key_len))
       return TRUE;
