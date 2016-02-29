@@ -25,6 +25,9 @@
 
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
+
+#ifdef HAVE_REPLICATION
+
 #include "rpl_mi.h"
 #include "rpl_reporting.h" /* MAX_SLAVE_ERRMSG */
 #include "mysql_com.h"
@@ -33,10 +36,14 @@
 
 class Master_info;
 
+#endif /* HAVE_REPLICATION */
+
 /**
   @addtogroup Performance_schema_tables
   @{
 */
+
+#ifdef HAVE_REPLICATION
 
 #ifndef ENUM_RPL_YES_NO
 #define ENUM_RPL_YES_NO
@@ -87,21 +94,26 @@ struct st_row_connect_status {
   }
 };
 
+#endif /* HAVE_REPLICATION */
 
 /** Table PERFORMANCE_SCHEMA.REPLICATION_CONNECTION_STATUS. */
 class table_replication_connection_status: public PFS_engine_table
 {
 private:
+#ifdef HAVE_REPLICATION
   void make_row(Master_info *mi);
+#endif /* HAVE_REPLICATION */
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
-  /** True if the current row exists. */
-  bool m_row_exists;
+#ifdef HAVE_REPLICATION
   /** Current row */
   st_row_connect_status m_row;
+#endif /* HAVE_REPLICATION */
+  /** True if the current row exists. */
+  bool m_row_exists;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */

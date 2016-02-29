@@ -25,6 +25,9 @@
 
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
+
+#ifdef HAVE_REPLICATION
+
 #include "rpl_mi.h"
 #include "mysql_com.h"
 #include "rpl_rli_pdb.h"
@@ -34,10 +37,14 @@
 class Slave_worker;
 class Master_info;
 
+#endif /* HAVE_REPLICATION */
+
 /**
   @addtogroup Performance_schema_tables
   @{
 */
+
+#ifdef HAVE_REPLICATION
 
 #ifndef ENUM_RPL_YES_NO
 #define ENUM_RPL_YES_NO
@@ -73,6 +80,8 @@ struct st_row_worker {
   ulonglong last_error_timestamp;
 };
 
+#endif /* HAVE_REPLICATION */
+
 /**
   Index 1 for replication channel
   Index 2 for worker
@@ -105,19 +114,23 @@ struct workers_per_channel
 class table_replication_applier_status_by_worker: public PFS_engine_table
 {
 private:
+#ifdef HAVE_REPLICATION
   void make_row(Slave_worker *);
   /*
     Master_info to construct a row to display SQL Thread's status
     information in STS mode
   */
   void make_row(Master_info *);
+#endif /* HAVE_REPLICATION */
 
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Fields definition. */
   static TABLE_FIELD_DEF m_field_def;
+#ifdef HAVE_REPLICATION
   /** current row*/
   st_row_worker m_row;
+#endif /* HAVE_REPLICATION */
   /** True is the current row exists. */
   bool m_row_exists;
   /** Current position. */

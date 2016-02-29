@@ -19,9 +19,12 @@
   Table replication_connection_configuration (implementation).
 */
 
-#define HAVE_REPLICATION
-
 #include "my_global.h"
+
+#ifndef EMBEDDED_LIBRARY
+#define HAVE_REPLICATION
+#endif /* EMBEDDED_LIBRARY */
+
 #include "table_replication_connection_configuration.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
@@ -178,18 +181,23 @@ void table_replication_connection_configuration::reset_position(void)
 
 ha_rows table_replication_connection_configuration::get_row_count()
 {
+#ifdef HAVE_REPLICATION
   /*
      We actually give the MAX_CHANNELS rather than the current
      number of channels
   */
-
- return channel_map.get_max_channels();
+  return channel_map.get_max_channels();
+#else
+  return 0;
+#endif /* HAVE_REPLICATION */
 }
 
 int table_replication_connection_configuration::rnd_next(void)
 {
-  Master_info *mi;
   int res= HA_ERR_END_OF_FILE;
+
+#ifdef HAVE_REPLICATION
+  Master_info *mi;
 
   channel_map.rdlock();
 
@@ -208,13 +216,17 @@ int table_replication_connection_configuration::rnd_next(void)
   }
 
   channel_map.unlock();
+#endif /* HAVE_REPLICATION */
+
   return res;
 }
 
 int table_replication_connection_configuration::rnd_pos(const void *pos)
 {
-  Master_info *mi;
   int res= HA_ERR_RECORD_DELETED;
+
+#ifdef HAVE_REPLICATION
+  Master_info *mi;
 
   channel_map.rdlock();
 
@@ -227,15 +239,17 @@ int table_replication_connection_configuration::rnd_pos(const void *pos)
   }
 
   channel_map.unlock();
+#endif /* HAVE_REPLICATION */
+
   return res;
 }
 
+#ifdef HAVE_REPLICATION
 void table_replication_connection_configuration::make_row(Master_info *mi)
 {
   char * temp_store;
 
   m_row_exists= false;
-
 
   DBUG_ASSERT(mi != NULL);
 
@@ -318,12 +332,14 @@ void table_replication_connection_configuration::make_row(Master_info *mi)
 
   m_row_exists= true;
 }
+#endif /* HAVE_REPLICATION */
 
 int table_replication_connection_configuration::read_row_values(TABLE *table,
                                                                 unsigned char *,
                                                                 Field **fields,
                                                                 bool read_all)
 {
+#ifdef HAVE_REPLICATION
   Field *f;
 
   if (unlikely(! m_row_exists))
@@ -407,4 +423,7 @@ int table_replication_connection_configuration::read_row_values(TABLE *table,
     }
   }
   return 0;
+#else
+  return HA_ERR_RECORD_DELETED;
+#endif /* HAVE_REPLICATION */
 }
