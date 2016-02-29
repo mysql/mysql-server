@@ -1507,6 +1507,12 @@ fts_optimize_write_word(
 		fts_node_t* node = (fts_node_t*) ib_vector_get(nodes, i);
 
 		if (error == DB_SUCCESS) {
+			/* Skip empty node. */
+			if (node->ilist == NULL) {
+				ut_ad(node->ilist_size == 0);
+				continue;
+			}
+
 			error = fts_write_node(
 				trx, &graph, fts_table, word, node);
 
