@@ -2603,10 +2603,12 @@ static Sys_var_mybool Sys_old_mode(
        "old", "Use compatible behavior",
        READ_ONLY GLOBAL_VAR(old_mode), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
+#ifndef EMBEDDED_LIBRARY
 static Sys_var_mybool Sys_show_compatibility_56(
        "show_compatibility_56",
        "SHOW commands / INFORMATION_SCHEMA tables compatible with MySQL 5.6",
        GLOBAL_VAR(show_compatibility_56), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+#endif /* EMBEDDED_LIBRARY */
 
 static Sys_var_mybool Sys_old_alter_table(
        "old_alter_table", "Use old, non-optimized alter table",

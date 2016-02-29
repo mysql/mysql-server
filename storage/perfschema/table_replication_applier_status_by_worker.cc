@@ -19,6 +19,8 @@
   Table replication_applier_status_by_worker (implementation).
 */
 
+#define HAVE_REPLICATION
+
 #include "my_global.h"
 #include "table_replication_applier_status_by_worker.h"
 #include "pfs_instr_class.h"
@@ -125,24 +127,18 @@ void table_replication_applier_status_by_worker::reset_position(void)
 
 ha_rows table_replication_applier_status_by_worker::get_row_count()
 {
-#ifdef HAVE_REPLICATION
   /*
     Return an estimate, number of master info's multipled by worker threads
   */
-  return channel_map.get_max_channels()*32;
-#else
-  return 0;
-#endif /* HAVE_REPLICATION */
+ return channel_map.get_max_channels()*32;
 }
 
 
 int table_replication_applier_status_by_worker::rnd_next(void)
 {
-  int res= HA_ERR_END_OF_FILE;
-
-#ifdef HAVE_REPLICATION
   Slave_worker *worker;
   Master_info *mi;
+  int res= HA_ERR_END_OF_FILE;
 
   channel_map.rdlock();
 
@@ -187,18 +183,14 @@ int table_replication_applier_status_by_worker::rnd_next(void)
   }
 
   channel_map.unlock();
-#endif /* HAVE_REPLICATION */
-
   return res;
 }
 
 int table_replication_applier_status_by_worker::rnd_pos(const void *pos)
 {
-  int res= HA_ERR_RECORD_DELETED;
-
-#ifdef HAVE_REPLICATION
   Slave_worker *worker;
   Master_info *mi;
+  int res= HA_ERR_RECORD_DELETED;
 
   set_position(pos);
 
@@ -229,12 +221,9 @@ int table_replication_applier_status_by_worker::rnd_pos(const void *pos)
 
 end:
   channel_map.unlock();
-#endif /* HAVE_REPLICATION */
-
   return res;
 }
 
-#ifdef HAVE_REPLICATION
 /**
   Function to display SQL Thread's status as part of
   'replication_applier_status_by_worker' in single threaded slave mode.
@@ -325,9 +314,7 @@ void table_replication_applier_status_by_worker::make_row(Master_info *mi)
   mysql_mutex_unlock(&mi->rli->data_lock);
   m_row_exists= true;
 }
-#endif /* HAVE_REPLICATION */
 
-#ifdef HAVE_REPLICATION
 void table_replication_applier_status_by_worker::make_row(Slave_worker *w)
 {
   m_row_exists= false;
@@ -407,13 +394,11 @@ void table_replication_applier_status_by_worker::make_row(Slave_worker *w)
 
   m_row_exists= true;
 }
-#endif /* HAVE_REPLICATION */
 
 int table_replication_applier_status_by_worker
   ::read_row_values(TABLE *table, unsigned char *buf,  Field **fields,
                     bool read_all)
 {
-#ifdef HAVE_REPLICATION
   Field *f;
 
   if (unlikely(! m_row_exists))
@@ -461,7 +446,4 @@ int table_replication_applier_status_by_worker
     }
   }
   return 0;
-#else
-  return HA_ERR_RECORD_DELETED;
-#endif /* HAVE_REPLICATION */
 }
