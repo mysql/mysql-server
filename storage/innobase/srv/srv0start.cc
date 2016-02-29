@@ -861,6 +861,8 @@ srv_undo_tablespaces_init(
 
 			undo::Truncate	undo_trunc;
 
+			fil_flush(undo_tablespace_ids[i]);
+
 			fil_space_close(undo_tablespace_ids[i]);
 
 			if (undo_trunc.needs_fix_up(undo_tablespace_ids[i])) {
