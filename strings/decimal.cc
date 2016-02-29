@@ -1148,14 +1148,13 @@ int decimal2longlong(decimal_t *from, longlong *to)
 
   for (intg=from->intg; intg > 0; intg-=DIG_PER_DEC1)
   {
-    longlong y=x;
     /*
       Attention: trick!
       we're calculating -|from| instead of |from| here
       because |LLONG_MIN| > LLONG_MAX
       so we can convert -9223372036854775808 correctly
     */
-    if (unlikely(y < (LLONG_MIN/DIG_BASE)))
+    if (unlikely(x < (LLONG_MIN/DIG_BASE)))
     {
       /*
         the decimal is bigger than any possible integer
@@ -1164,8 +1163,9 @@ int decimal2longlong(decimal_t *from, longlong *to)
       *to= from->sign ? LLONG_MIN : LLONG_MAX;
       return E_DEC_OVERFLOW;
     }
-    x=x*DIG_BASE - *buf++;
-    if (unlikely(x > y))
+    x= x * DIG_BASE;
+    const longlong digit= *buf++;
+    if (unlikely(x < LLONG_MIN + digit))
     {
       /*
         the decimal is bigger than any possible integer
@@ -1174,6 +1174,7 @@ int decimal2longlong(decimal_t *from, longlong *to)
       *to= from->sign ? LLONG_MIN : LLONG_MAX;
       return E_DEC_OVERFLOW;
     }
+    x= x - digit;
   }
   /* boundary case: 9223372036854775808 */
   if (unlikely(from->sign==0 && x == LLONG_MIN))

@@ -9369,7 +9369,7 @@ select_option:
         ;
 
 opt_select_lock_type:
-          /* empty */ { $$.is_set= false; }
+          /* empty */ { $$= Select_lock_type(); }
         | FOR_SYM UPDATE_SYM
           {
             $$.is_set= true;

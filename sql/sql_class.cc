@@ -389,6 +389,7 @@ THD::THD(bool enable_plugins)
    rand_used(0),
    time_zone_used(0),
    in_lock_tables(0),
+   got_warning(false),
    derived_tables_processing(FALSE),
    sp_runtime_ctx(NULL),
    m_parser_state(NULL),

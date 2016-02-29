@@ -6,6 +6,8 @@
 --source include/big_test.inc
 # As per discussion with Olav, skipping this test from valgrind runs
 --source include/not_valgrind.inc
+# Times out with ubsan
+--source include/not_ubsan.inc
 
 --echo #
 --echo # Bug 12365385 STRAIGHT_JOIN QUERY QUICKLY EXHAUSTS SYSTEM+VIRT. 

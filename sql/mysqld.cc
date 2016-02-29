@@ -1574,7 +1574,6 @@ void clean_up(bool print_message)
 
   injector::free_instance();
   mysql_bin_log.cleanup();
-  gtid_server_cleanup();
 
 #ifdef HAVE_REPLICATION
   if (use_slave_mask)
@@ -1598,6 +1597,7 @@ void clean_up(bool print_message)
   }
   table_def_start_shutdown();
   plugin_shutdown();
+  gtid_server_cleanup(); // after plugin_shutdown
   delete_optimizer_cost_module();
   ha_end();
   if (tc_log)

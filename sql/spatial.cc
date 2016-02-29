@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3883,6 +3883,10 @@ const char *Polygon_stepper::operator()(const char *p)
   @param g a geometry that must be a polygon.
   @return the polygon's inner rings object.
  */
+// SUPPRESS_UBSAN Wrong downcast. FIXME
+static inline
+Gis_polygon::inner_container_type *inner_rings(const Geometry *g) SUPPRESS_UBSAN
+;
 static inline
 Gis_polygon::inner_container_type *inner_rings(const Geometry *g)
 {
@@ -3901,6 +3905,10 @@ Gis_polygon::inner_container_type *inner_rings(const Geometry *g)
   @param inns
   @return the polygon's inner rings object.
  */
+// SUPPRESS_UBSAN Wrong downcast. FIXME
+static inline
+void set_inner_rings(Geometry *g,
+                     Gis_polygon::inner_container_type *inns) SUPPRESS_UBSAN;
 static inline
 void set_inner_rings(Geometry *g, Gis_polygon::inner_container_type *inns)
 {
