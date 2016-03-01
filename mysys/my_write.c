@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
 {
   size_t writtenbytes, written;
   uint errors;
+  size_t ToWriteCount;
   DBUG_ENTER("my_write");
   DBUG_PRINT("my",("fd: %d  Buffer: %p  Count: %lu  MyFlags: %d",
 		   Filedes, Buffer, (ulong) Count, MyFlags));
@@ -37,11 +38,14 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
                    { DBUG_SET("+d,simulate_file_write_error");});
   for (;;)
   {
+    ToWriteCount= Count;
+    DBUG_EXECUTE_IF("simulate_io_thd_wait_for_disk_space", { ToWriteCount= 1; });
 #ifdef _WIN32
-    writtenbytes= my_win_write(Filedes, Buffer, Count);
+    writtenbytes= my_win_write(Filedes, Buffer, ToWriteCount);
 #else
-    writtenbytes= write(Filedes, Buffer, Count);
+    writtenbytes= write(Filedes, Buffer, ToWriteCount);
 #endif
+    DBUG_EXECUTE_IF("simulate_io_thd_wait_for_disk_space", { errno= ENOSPC; });
     DBUG_EXECUTE_IF("simulate_file_write_error",
                     {
                       errno= ENOSPC;

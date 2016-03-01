@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include "handler.h"                            /* my_xid */
 
 class Relay_log_info;
+class Master_info;
 
 class Format_description_log_event;
 
@@ -454,8 +455,8 @@ public:
     v stands for vector
     invoked as appendv(buf1,len1,buf2,len2,...,bufn,lenn,0)
   */
-  bool appendv(const char* buf,uint len,...);
-  bool append(Log_event* ev);
+  bool appendv(Master_info* mi, const char* buf,uint len,...);
+  bool append(Log_event* ev, Master_info* mi);
 
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);
