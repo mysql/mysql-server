@@ -1,0 +1,47 @@
+# Following test first creates two databases (d1 and d2) and setup slave to use
+# two parallel workers. The test case then insert on the slave a tuple that will
+# block writes on d2 and generate gaps.
+
+--let $slave_stop_wait=5
+
+--echo #### I. Initialize ####
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+SET @save.innodb_lock_wait_timeout= @@global.innodb_lock_wait_timeout;
+--eval set @@global.innodb_lock_wait_timeout=$slave_stop_wait + 1000
+
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+CREATE DATABASE d1;
+CREATE DATABASE d2;
+CREATE TABLE d1.t (a INT PRIMARY KEY, name text) ENGINE=INNODB;
+CREATE TABLE d2.t (a INT PRIMARY KEY, name text) ENGINE=INNODB;
+
+--echo #### II. Prepare test scenario ####
+
+--source include/sync_slave_sql_with_master.inc
+BEGIN;
+INSERT INTO d2.t VALUES (2, 'Slave local'); # Hold T3
+INSERT INTO d1.t VALUES (3, 'Slave local'); # Hold T6
+
+--source include/rpl_connection_master.inc
+INSERT INTO d1.t VALUES (1, 'T1');
+INSERT INTO d2.t VALUES (1, 'T2');
+INSERT INTO d2.t VALUES (2, 'T3'); # This will be a gap when executed on slave
+INSERT INTO d2.t VALUES (3, 'T4'); # This will be a gap when executed on slave
+INSERT INTO d1.t VALUES (2, 'T5');
+
+--source include/rpl_connection_slave1.inc
+--let $table=d1.t
+--let $count=2
+--source include/wait_until_rows_count.inc
+
+--echo # Now d1.t has two rows and d2.t has one row.
+
+# Wait for coordinator to populate worker's queues.
+--let $show_statement= SHOW PROCESSLIST
+--let $field= State
+--let $condition= = 'Slave has read all relay log; waiting for more updates'
+--source include/wait_show_condition.inc

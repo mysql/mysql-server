@@ -232,6 +232,13 @@ public:
   uint32 cur_log_old_open_count;
 
   /*
+    If on init_info() call error_on_rli_init_info is true that means
+    that previous call to init_info() terminated with an error, RESET
+    SLAVE must be executed and the problem fixed manually.
+   */
+  bool error_on_rli_init_info;
+
+  /*
     Let's call a group (of events) :
       - a transaction
       or
@@ -386,9 +393,7 @@ public:
     UNTIL_SQL_AFTER_GTIDS,
     UNTIL_SQL_AFTER_MTS_GAPS,
     UNTIL_SQL_VIEW_ID,
-#ifndef DBUG_OFF
     UNTIL_DONE
-#endif
   } until_condition;
 
   char cached_charset[6];
@@ -1122,6 +1127,36 @@ public:
     commit_order_mngr= mngr;
   }
 
+  /*
+    Following set function is required to initialize the 'until_option' during
+    MTS relay log recovery process.
+
+    Ideally initialization of 'until_option' is done through rli::init_until_option.
+    This init_until_option requires the main server thread object and it makes
+    use of the thd->lex->mi object to initialize the 'until_option'.
+
+    But MTS relay log recovery process happens before the main server comes
+    up at this time the THD object will not be available. Hence the following
+    set function does the initialization of 'until_option'.
+  */
+  void set_until_option(Until_option *option)
+  {
+    mysql_mutex_lock(&data_lock);
+    until_option= option;
+    mysql_mutex_unlock(&data_lock);
+  }
+
+  void clear_until_option()
+  {
+    mysql_mutex_lock(&data_lock);
+    if (until_option)
+    {
+      delete until_option;
+      until_option= NULL;
+    }
+    mysql_mutex_unlock(&data_lock);
+  }
+
   bool set_info_search_keys(Rpl_info_handler *to);
 
   /**
@@ -1207,12 +1242,6 @@ private:
   time_t row_stmt_start_timestamp;
   bool long_find_row_note_printed;
 
-  /*
-    If on init_info() call error_on_rli_init_info is true that means
-    that previous call to init_info() terminated with an error, RESET
-    SLAVE must be executed and the problem fixed manually.
-   */
-  bool error_on_rli_init_info;
 
  /**
    sets the suffix required for relay log names

@@ -81,7 +81,8 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    cur_log_fd(-1), relay_log(&sync_relaylog_period, SEQ_READ_APPEND),
    is_relay_log_recovery(is_slave_recovery),
    save_temporary_tables(0),
-   cur_log_old_open_count(0), group_relay_log_pos(0), event_relay_log_number(0),
+   cur_log_old_open_count(0), error_on_rli_init_info(false),
+   group_relay_log_pos(0), event_relay_log_number(0),
    event_relay_log_pos(0), event_start_pos(0),
    group_master_log_pos(0),
    gtid_set(global_sid_map, global_sid_lock),
@@ -114,7 +115,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    reported_unsafe_warning(false), rli_description_event(NULL),
    commit_order_mngr(NULL),
    sql_delay(0), sql_delay_end(0), m_flags(0), row_stmt_start_timestamp(0),
-   long_find_row_note_printed(false), error_on_rli_init_info(false),
+   long_find_row_note_printed(false),
    thd_tx_priority(0),
    is_native_trx_detached(false)
 {
@@ -1981,7 +1982,11 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
     goto err;
   }
 
-  is_relay_log_recovery= FALSE;
+  /*
+    In case of MTS the recovery is deferred until the end of global_init_info.
+  */
+  if (!mi->rli->mts_recovery_group_cnt)
+    is_relay_log_recovery= FALSE;
   DBUG_RETURN(error);
 
 err:
@@ -2648,11 +2653,7 @@ int Relay_log_info::init_until_option(THD *thd,
   Until_option *option= NULL;
 
   until_condition= UNTIL_NONE;
-  if (until_option)
-  {
-    delete until_option;
-    until_option= NULL;
-  }
+  clear_until_option();
 
   try
   {
