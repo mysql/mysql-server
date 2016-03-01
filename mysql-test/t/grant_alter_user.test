@@ -326,7 +326,9 @@ disconnect con1;
 --error ER_MUST_CHANGE_PASSWORD
 SELECT USER();
 # password set to user()
+--disable_ps_protocol
 ALTER USER user() IDENTIFIED BY 'abc';
+--enable_ps_protocol
 disconnect con1;
 
 --connect(con1, localhost, u1, abc)
@@ -549,9 +551,11 @@ eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/log/rewrite_general.log'
 
 --echo Show what is logged:
 --echo ------ rewrite ------
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %' AND
+                                             command_type NOT LIKE 'Prepare';
 SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET PASSWORD %';
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %' AND
+                                             command_type NOT LIKE 'Prepare';
 --echo ------ done ------
 
 # cleanup
@@ -587,7 +591,9 @@ ALTER USER 20553132_u1@localhost PASSWORD EXPIRE DEFAULT;
 ALTER USER 20553132_u1@localhost, 20553132_u2@localhost IDENTIFIED BY 'abcd' PASSWORD EXPIRE NEVER;
 
 # Must succeed
+--disable_ps_protocol
 ALTER USER 20553132_u2@localhost IDENTIFIED BY 'abcd', 20553132_u1@localhost IDENTIFIED BY 'defg' PASSWORD EXPIRE NEVER;
+--enable_ps_protocol
 
 disconnect con_20553132_u1;
 
@@ -596,7 +602,9 @@ ALTER USER 20553132_u1@localhost PASSWORD EXPIRE;
 
 --connect(con_20553132_u1, localhost, 20553132_u1, defg)
 # Must succeed
+--disable_ps_protocol
 ALTER USER 20553132_u2@localhost IDENTIFIED BY 'abcd', 20553132_u1@localhost IDENTIFIED WITH 'mysql_native_password' BY 'hijk' PASSWORD EXPIRE DEFAULT;
+--enable_ps_protocol
 disconnect con_20553132_u1;
 
 --connect(con_20553132_u1, localhost, 20553132_u1, hijk)
@@ -605,7 +613,9 @@ SELECT USER();
 disconnect con_20553132_u1;
 
 --connect(con_20553132_u3, localhost, 20553132_u3)
+--disable_ps_protocol
 ALTER USER CURRENT_USER() IDENTIFIED BY 'abcd';
+--enable_ps_protocol
 SELECT CURRENT_USER();
 disconnect con_20553132_u3;
 
@@ -613,7 +623,9 @@ connection default;
 ALTER USER '20553132_u3'@'%' PASSWORD EXPIRE;
 
 --connect(con_20553132_u3, localhost, 20553132_u3, abcd)
+--disable_ps_protocol
 ALTER USER '20553132_u3'@'%' IDENTIFIED BY 'abcd';
+--enable_ps_protocol
 SELECT CURRENT_USER();
 disconnect con_20553132_u3;
 

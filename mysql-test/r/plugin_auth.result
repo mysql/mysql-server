@@ -252,7 +252,8 @@ SELECT @@LOCAL.external_user;
 plug_dest
 # in connection default
 WL#5706 -- show the above got logged/rewritten correctly
-SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('%IDENTIFIED ','WITH %');
+SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('%IDENTIFIED ','WITH %') AND
+command_type NOT LIKE 'Prepare';
 argument
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
 CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'

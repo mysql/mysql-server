@@ -337,7 +337,9 @@ SELECT last_t1();
 CALL test_t1(last_t1() + 1);
 
 --echo # setting a password unlocks it
+--disable_ps_protocol
 ALTER USER must_change@localhost IDENTIFIED BY 'aha2';
+--enable_ps_protocol
 --echo # must not throw an error
 SELECT USER();
 --echo # must not throw an error
@@ -365,7 +367,9 @@ CALL test_t1(last_t1() + 1);
 
 --echo # setting a password with a user name is ok if it exactly matches the
 --echo # authenticated user.
+--disable_ps_protocol
 ALTER USER must_change@localhost IDENTIFIED BY 'aha3';
+--enable_ps_protocol
 SELECT USER();
 SELECT last_t1();
 CALL test_t1(last_t1() + 1);
@@ -389,7 +393,9 @@ SELECT password_expired FROM mysql.user
 --connect(must_change_con, localhost, must_change, aha3)
 --error ER_MUST_CHANGE_PASSWORD
 SELECT USER();
+--disable_ps_protocol
 ALTER USER must_change@localhost IDENTIFIED BY 'aha4';
+--enable_ps_protocol
 
 connection default;
 disconnect must_change_con;
@@ -406,7 +412,9 @@ SELECT password_expired FROM mysql.user
 --connect(must_change_con, localhost, must_change, aha4)
 --error ER_MUST_CHANGE_PASSWORD
 SELECT USER();
+--disable_ps_protocol
 ALTER USER must_change@localhost IDENTIFIED BY 'aha5';
+--enable_ps_protocol
 SELECT USER();
 
 connection default;

@@ -349,12 +349,14 @@ LOAD DATA LOCAL INFILE '.../log/rewrite_general.log'
      INTO TABLE test_log FIELDS TERMINATED BY '\n' LINES TERMINATED BY '\n';
 Show what is logged:
 ------ rewrite ------
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %' AND
+command_type NOT LIKE 'Prepare';
 argument
 CREATE USER 'u1'@'%' IDENTIFIED BY PASSWORD '*196BDEDE2AE4F84CA44C47D54D78478C7E2BD7B7'
 CREATE USER 'u2'@'%' IDENTIFIED BY PASSWORD '*196BDEDE2AE4F84CA44C47D54D78478C7E2BD7B7' ACCOUNT LOCK
 CREATE USER 'u3'@'%' IDENTIFIED BY PASSWORD '*196BDEDE2AE4F84CA44C47D54D78478C7E2BD7B7' ACCOUNT UNLOCK
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'ALTER USER %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'ALTER USER %'AND
+command_type NOT LIKE 'Prepare';
 argument
 ALTER USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 ALTER USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' ACCOUNT LOCK

@@ -544,7 +544,9 @@ SHOW CREATE USER u12@localhost;
 --error ER_MUST_CHANGE_PASSWORD
 SELECT USER();
 # Password set to current user
+--disable_ps_protocol
 ALTER USER USER() IDENTIFIED BY 'abc';
+--enable_ps_protocol
 SELECT USER();
 connection default;
 disconnect con1;

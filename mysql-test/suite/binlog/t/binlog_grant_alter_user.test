@@ -660,9 +660,11 @@ disconnect con1;
 --error ER_MUST_CHANGE_PASSWORD
 SELECT USER();
 # Password set to current user
+--disable_ps_protocol
 --error ER_PARSE_ERROR
 ALTER USER IDENTIFIED BY 'npwd';
 ALTER USER USER() IDENTIFIED BY 'abc';
+--enable_ps_protocol
 disconnect con1;
 
 --connect(con1, localhost, u1, abc)

@@ -18,7 +18,7 @@ if(`SELECT CONVERT(@@version_compile_os USING latin1)
 let $expected_calls= 65;
 if(`SELECT $PS_PROTOCOL > 0`)
 {
-   let $expected_calls= 107;
+   let $expected_calls= 112;
 }
 if(`SELECT $SP_PROTOCOL > 0`)
 {

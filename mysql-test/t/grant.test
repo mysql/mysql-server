@@ -2339,7 +2339,9 @@ connect(con1,localhost,wl7131,wl7131,,);
 --error 1820
 SELECT 1;
 --echo # Setting password should work
+--disable_ps_protocol
 ALTER USER wl7131 IDENTIFIED BY 'new_wl7131';
+--enable_ps_protocol
 --echo # Doing something should pass
 SELECT 1;
 disconnect con1;
