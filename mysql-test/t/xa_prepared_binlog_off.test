@@ -5,6 +5,7 @@
 ###############################################################################
 
 --source include/not_valgrind.inc
+--source include/not_embedded.inc
 # Common part with XA binlogging testing
 call mtr.add_suppression("You need to use --log-bin to make --log-slave-updates work.");
 --source extra/binlog_tests/binlog_xa_prepared.test
