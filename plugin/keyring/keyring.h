@@ -23,7 +23,11 @@
 #include "keys_container.h"
 #include "keyring_memory.h"
 
-using namespace keyring;
+using keyring::IKeys_container;
+using keyring::IKeyring_io;
+using keyring::ILogger;
+using keyring::IKey;
+
 namespace keyring
 {
 /* Always defined. */
