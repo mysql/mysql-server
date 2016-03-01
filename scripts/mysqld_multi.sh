@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -687,7 +687,11 @@ sub my_which
   my ($command) = @_;
   my (@paths, $path);
 
-  return $command if (-f $command && -x $command);
+ # If the argument is not 'my_print_defaults' then it would be of the format
+ # <absolute_path>/<program>
+ return $command if ($command ne 'my_print_defaults' && -f $command &&
+                     -x $command);
+
   @paths = split(':', $ENV{'PATH'});
   foreach $path (@paths)
   {
