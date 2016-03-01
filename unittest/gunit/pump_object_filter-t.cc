@@ -33,14 +33,14 @@ protected:
 TEST_F(PumpObjectParserTest, empty)
 {
   err= parse_inclusion_string("", list, true, false);
-  EXPECT_EQ(err.length(), 0);
+  EXPECT_EQ(err.length(), 0U);
 }
 
 TEST_F(PumpObjectParserTest, singe)
 {
   err= parse_inclusion_string(" t1 ", list, true, false);
-  EXPECT_EQ(err.length(), 0) << "returned '" << err << "'";
-  EXPECT_EQ(list.size(), 1);
+  EXPECT_EQ(err.length(), 0U) << "returned '" << err << "'";
+  EXPECT_EQ(list.size(), 1U);
   EXPECT_EQ(list[0].first, "%");
   EXPECT_EQ(list[0].second, "t1");
 }
@@ -48,8 +48,8 @@ TEST_F(PumpObjectParserTest, singe)
 TEST_F(PumpObjectParserTest, two_tables)
 {
   err= parse_inclusion_string(" t1 , foo . bar ", list, true, false);
-  EXPECT_EQ(err.length(), 0) << "returned '" << err << "'";
-  EXPECT_EQ(list.size(), 2);
+  EXPECT_EQ(err.length(), 0U) << "returned '" << err << "'";
+  EXPECT_EQ(list.size(), 2U);
   EXPECT_EQ(list[0].first, "%");
   EXPECT_EQ(list[0].second, "t1");
   EXPECT_EQ(list[1].first, "foo");
@@ -59,8 +59,8 @@ TEST_F(PumpObjectParserTest, two_tables)
 TEST_F(PumpObjectParserTest, table_with_a_dot)
 {
   err= parse_inclusion_string(" t1\\\\.t2 ", list, true, false);
-  EXPECT_EQ(err.length(), 0) << "returned '" << err << "'";
-  EXPECT_EQ(list.size(), 1);
+  EXPECT_EQ(err.length(), 0U) << "returned '" << err << "'";
+  EXPECT_EQ(list.size(), 1U);
   EXPECT_EQ(list[0].first, "%");
   EXPECT_EQ(list[0].second, "t1.t2");
 }
@@ -68,22 +68,22 @@ TEST_F(PumpObjectParserTest, table_with_a_dot)
 TEST_F(PumpObjectParserTest, bad_list_escape)
 {
   err= parse_inclusion_string(" t1\\.t2 ", list, true, false);
-  EXPECT_NE(err.length(), 0) << "returned '" << err << "'";
-  EXPECT_EQ(list.size(), 0);
+  EXPECT_NE(err.length(), 0U) << "returned '" << err << "'";
+  EXPECT_EQ(list.size(), 0U);
 }
 
 TEST_F(PumpObjectParserTest, bad_table_name_escape)
 {
   err= parse_inclusion_string(" t1\\\\,t2 ", list, true, false);
-  EXPECT_NE(err.length(), 0) << "returned '" << err << "'";
-  EXPECT_EQ(list.size(), 0);
+  EXPECT_NE(err.length(), 0U) << "returned '" << err << "'";
+  EXPECT_EQ(list.size(), 0U);
 }
 
 TEST_F(PumpObjectParserTest, table_with_a_comma)
 {
   err= parse_inclusion_string(" t1\\,t2 ", list, true, false);
-  EXPECT_EQ(err.length(), 0) << "returned '" << err << "'";
-  EXPECT_EQ(list.size(), 1);
+  EXPECT_EQ(err.length(), 0U) << "returned '" << err << "'";
+  EXPECT_EQ(list.size(), 1U);
   EXPECT_EQ(list[0].first, "%");
   EXPECT_EQ(list[0].second, "t1,t2");
 }
@@ -91,8 +91,8 @@ TEST_F(PumpObjectParserTest, table_with_a_comma)
 TEST_F(PumpObjectParserTest, user_with_an_at)
 {
   err= parse_inclusion_string(" t1\\\\@t2 ", list, true, true);
-  EXPECT_EQ(err.length(), 0) << "returned '" << err << "'";
-  EXPECT_EQ(list.size(), 1);
+  EXPECT_EQ(err.length(), 0U) << "returned '" << err << "'";
+  EXPECT_EQ(list.size(), 1U);
   EXPECT_EQ(list[0].first, "'t1@t2'");
   EXPECT_EQ(list[0].second, "%");
 }
