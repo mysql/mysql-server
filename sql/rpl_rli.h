@@ -231,6 +231,13 @@ public:
   uint32 cur_log_old_open_count;
 
   /*
+    If on init_info() call error_on_rli_init_info is true that means
+    that previous call to init_info() terminated with an error, RESET
+    SLAVE must be executed and the problem fixed manually.
+   */
+  bool error_on_rli_init_info;
+
+  /*
     Let's call a group (of events) :
       - a transaction
       or
@@ -387,9 +394,7 @@ public:
     UNTIL_SQL_AFTER_GTIDS,
     UNTIL_SQL_AFTER_MTS_GAPS,
     UNTIL_SQL_VIEW_ID,
-#ifndef DBUG_OFF
     UNTIL_DONE
-#endif
   } until_condition;
   char until_log_name[FN_REFLEN];
   ulonglong until_log_pos;
@@ -1264,12 +1269,6 @@ private:
   time_t row_stmt_start_timestamp;
   bool long_find_row_note_printed;
 
-  /*
-    If on init_info() call error_on_rli_init_info is true that means
-    that previous call to init_info() terminated with an error, RESET
-    SLAVE must be executed and the problem fixed manually.
-   */
-  bool error_on_rli_init_info;
 
  /**
    sets the suffix required for relay log names

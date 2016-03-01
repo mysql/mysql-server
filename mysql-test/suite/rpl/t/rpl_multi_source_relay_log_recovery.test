@@ -1,0 +1,130 @@
+###############################################################################
+# Bug#21507981: REPLICATION POSITION LOST AFTER CRASH ON MTS CONFIGURED SLAVE
+#
+# Problem:
+# ========
+# Enable MTS along with crash-safe replication tables. Make sure that the
+# server
+# is busily inserting data with multiple threads in parallel. Shutdown mysqld
+# uncleanly (kill -9 or power off server without notice).
+#
+# Now users are restarting the server with --relay-log-recovery=1 to recover
+# the
+# crashed slave.
+#
+# This results in following error:
+# ================================
+# 2015-06-24 13:49:03 3895 [ERROR] --relay-log-recovery cannot
+# be executed when the slave was stopped with an error or
+# killed in MTS mode; consider using RESET SLAVE or restart
+# the server with --relay-log-recovery = 0 followed by
+# START SLAVE UNTIL SQL_AFTER_MTS_GAPS.
+#
+# i.e relay-log-recovery will not work in MTS mode.
+###############################################################################
+# Following test demonstrates that when gaps are generated due to MTS crash
+# but not due to an error then recovery should be successful with
+# --relay-log-recovery=1 option.
+# In case of Multi source replication all channels will go through the relay
+# log recovery process and gaps will be filled.
+
+# Test ensures that after crash recovery the slave is in a consistent state
+# and there are no gaps in MTS execution and it is up and running.
+
+#Skip on group replication runs
+--source include/not_group_replication_plugin.inc
+--source include/force_restart.inc
+--source include/have_binlog_format_statement.inc
+--source include/only_mts_slave_parallel_workers.inc
+--source include/only_mts_slave_parallel_type_database.inc
+
+--echo #
+--echo # set up masters server_1 and server_3 with server_2 being a slave.
+--echo #.
+--let $rpl_topology= 1->2,3->2
+--let $rpl_multi_source= 1
+--source include/rpl_init.inc
+
+--echo #### I. Initialize slaves ####
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--let $slave_stop_wait=5
+
+--source include/rpl_stop_slaves.inc
+SET @save.innodb_lock_wait_timeout= @@global.innodb_lock_wait_timeout;
+--eval set @@global.innodb_lock_wait_timeout=$slave_stop_wait + 1000
+
+--echo #start slave
+--source include/rpl_start_slaves.inc
+
+--echo #
+--echo # Generate MTS gaps for channel1.
+--echo #
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--let $channel_id=1
+--source extra/rpl_tests/rpl_multi_source_generate_mts_gap.test
+
+--echo #
+--echo # Generate MTS gaps for channel2.
+--echo #
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+--let $channel_id=3
+--source extra/rpl_tests/rpl_multi_source_generate_mts_gap.test
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+CALL mtr.add_suppression("Recovery from master pos");
+# Kill the slave server
+--source include/kill_mysqld.inc
+
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --relay-log-recovery --skip-slave-start --gtid-mode=off --master-info-repository=TABLE --relay-log-info-repository=TABLE
+--source include/rpl_start_server.inc
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+START SLAVE;
+
+
+#
+# Cleanup; This involves deleting/dropping and manual syncing
+#
+
+--echo # channel 1
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name= channel_1
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+--echo # channel 3
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name= channel_3
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+# now do the clean up
+
+--echo connection_server_1
+--connection server_1
+DROP DATABASE d1_1;
+DROP DATABASE d2_1;
+--let $rpl_channel_name= channel_1
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+--echo connection_server_3
+--connection server_3
+DROP DATABASE d1_3;
+DROP DATABASE d2_3;
+--let $rpl_channel_name= channel_3
+--let $sync_slave_connection= server_2
+--source include/sync_slave_sql_with_master.inc
+
+--let $rpl_skip_sync= 1
+--source include/rpl_end.inc
