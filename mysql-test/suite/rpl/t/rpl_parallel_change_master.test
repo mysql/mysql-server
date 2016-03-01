@@ -106,7 +106,7 @@ SET @@global.slave_parallel_workers= @save.slave_parallel_workers; # cleanup
 
 --connection slave
 SELECT @@global.relay_log_recovery as 'must be ON';
-call mtr.add_suppression("--relay-log-recovery cannot be executed when the slave was stopped with an error or killed in MTS mode; consider using RESET SLAVE or restart the server with --relay-log-recovery = 0");
+call mtr.add_suppression("MTS recovery: automatic recovery failed.*");
 call mtr.add_suppression("Failed to initialize the master info structure");
 #
 # the following suppression applies to either restart.
