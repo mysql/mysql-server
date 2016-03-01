@@ -681,7 +681,11 @@ sub my_which
   my ($command) = @_;
   my (@paths, $path);
 
-  return $command if (-f $command && -x $command);
+ # If the argument is not 'my_print_defaults' then it would be of the format
+ # <absolute_path>/<program>
+ return $command if ($command ne 'my_print_defaults' && -f $command &&
+                     -x $command);
+
   @paths = split(':', $ENV{'PATH'});
   foreach $path (@paths)
   {
