@@ -23,6 +23,11 @@
 #define MYSQL_DEFAULT_KEYRINGFILE MYSQL_KEYRINGDIR"/keyring"
 #endif
 
+using keyring::Buffered_file_io;
+using keyring::Key;
+using keyring::Keys_container;
+using keyring::Logger;
+
 my_bool create_keyring_dir_if_does_not_exist(const char *keyring_file_path)
 {
   if (!keyring_file_path || strlen(keyring_file_path) == 0)
