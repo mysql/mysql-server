@@ -237,13 +237,13 @@ void Protocol_encoder::on_error(int error)
 }
 
 
-void Protocol_encoder::log_protobuf(const char *direction_name, Request_unique_ptr &request)
+void Protocol_encoder::log_protobuf(const char *direction_name, Request &request)
 {
-  const Message *message = request->message();
+  const Message *message = request.message();
 
   if (NULL == message)
   {
-    log_protobuf(request->get_type());
+    log_protobuf(request.get_type());
     return;
   }
 

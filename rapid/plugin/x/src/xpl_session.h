@@ -82,7 +82,7 @@ public:
 
   bool can_see_user(const char *user) const;
 protected:
-  virtual bool handle_ready_message(ngs::Request_unique_ptr &command);
+  virtual bool handle_ready_message(ngs::Request &command);
 
   Sql_data_context *m_sql;
   Crud_command_handler *m_crud_handler;

@@ -160,30 +160,30 @@ static ngs::Error_code do_dispatch_command(Session &session,
                                            Sql_data_context &da, ngs::Protocol_encoder &proto,
                                            Crud_command_handler &crudh, Expectation_stack &expect,
                                            Session_options &options,
-                                           ngs::Request_unique_ptr &command)
+                                           ngs::Request &command)
 {
-  switch (command->get_type())
+  switch (command.get_type())
   {
     case Mysqlx::ClientMessages::SQL_STMT_EXECUTE:
-      return on_stmt_execute(session, da, options, proto, static_cast<const Mysqlx::Sql::StmtExecute&>(*command->message()));
+      return on_stmt_execute(session, da, options, proto, static_cast<const Mysqlx::Sql::StmtExecute&>(*command.message()));
 
     case Mysqlx::ClientMessages::CRUD_FIND:
-      return crudh.execute_crud_find(proto, static_cast<const Mysqlx::Crud::Find&>(*command->message()));
+      return crudh.execute_crud_find(proto, static_cast<const Mysqlx::Crud::Find&>(*command.message()));
 
     case Mysqlx::ClientMessages::CRUD_INSERT:
-      return crudh.execute_crud_insert(proto, static_cast<const Mysqlx::Crud::Insert&>(*command->message()));
+      return crudh.execute_crud_insert(proto, static_cast<const Mysqlx::Crud::Insert&>(*command.message()));
 
     case Mysqlx::ClientMessages::CRUD_UPDATE:
-      return crudh.execute_crud_update(proto, static_cast<const Mysqlx::Crud::Update&>(*command->message()));
+      return crudh.execute_crud_update(proto, static_cast<const Mysqlx::Crud::Update&>(*command.message()));
 
     case Mysqlx::ClientMessages::CRUD_DELETE:
-      return crudh.execute_crud_delete(proto, static_cast<const Mysqlx::Crud::Delete&>(*command->message()));
+      return crudh.execute_crud_delete(proto, static_cast<const Mysqlx::Crud::Delete&>(*command.message()));
 
     case Mysqlx::ClientMessages::EXPECT_OPEN:
-      return on_expect_open(session, proto, expect, options, static_cast<const Mysqlx::Expect::Open&>(*command->message()));
+      return on_expect_open(session, proto, expect, options, static_cast<const Mysqlx::Expect::Open&>(*command.message()));
 
     case Mysqlx::ClientMessages::EXPECT_CLOSE:
-      return on_expect_close(session, proto, expect, options, static_cast<const Mysqlx::Expect::Close&>(*command->message()));
+      return on_expect_close(session, proto, expect, options, static_cast<const Mysqlx::Expect::Close&>(*command.message()));
   }
   return ngs::Error(ER_UNKNOWN_COM_ERROR, "Unexpected message received");
 }
@@ -193,15 +193,15 @@ bool dispatcher::dispatch_command(Session &session,
                                   Sql_data_context &da, ngs::Protocol_encoder &proto,
                                   Crud_command_handler &crudh, Expectation_stack &expect,
                                   Session_options &options,
-                                  ngs::Request_unique_ptr command)
+                                  ngs::Request &command)
 {
-  ngs::Error_code error = expect.pre_client_stmt(command->get_type());
+  ngs::Error_code error = expect.pre_client_stmt(command.get_type());
   if (!error)
   {
     error = do_dispatch_command(session, da, proto, crudh, expect, options, command);
     if (error)
       proto.send_result(error);
-    expect.post_client_stmt(command->get_type(), error);
+    expect.post_client_stmt(command.get_type(), error);
   }
   else
     proto.send_result(error);
