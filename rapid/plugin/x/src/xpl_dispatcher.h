@@ -43,7 +43,7 @@ namespace xpl
                           Crud_command_handler &crudh,
                           Expectation_stack &expect,
                           Session_options &options,
-                          ngs::Request_unique_ptr command);
+                          ngs::Request &command);
   };
 
   ngs::Error_code show_warnings_and_send(Sql_data_context &da, ngs::Protocol_encoder &proto);
