@@ -1236,7 +1236,7 @@ Mysqlx.Sql.StmtExecute {
 -->quiet
 
 -->varlet %VALUE% 11
--->repeat 50
+-->repeat 30
 -->callmacro Create_3_field_index	%VALUE%
 -->varinc %VALUE% 1
 -->endrepeat
@@ -1245,7 +1245,8 @@ Mysqlx.Sql.StmtExecute {
 
 
 -->sql
-SHOW CREATE TABLE xplugintest.col_myp337;
+SHOW INDEX from xplugintest.col_myp337 where Key_name rlike '^index_[12][0-9]*';
+SHOW INDEX from xplugintest.col_myp337 where Key_name rlike '^index_[34][0-9]*';
 -->endsql
 
 EOF
