@@ -14,6 +14,7 @@ call mtr.add_suppression("Plugin mysqlx reported: 'DROP USER mysqlxsys@localhost
 call mtr.add_suppression("Plugin mysqlx reported: 'mysqlxsys@localhost account already exists but does not have the expected grants'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Authentication account could not be created, mysqlx plugin will be inaccessible.'");
 call mtr.add_suppression("Plugin mysqlx reported: '1.1: Unsuccessful login attempt");
+call mtr.add_suppression("Plugin mysqlx reported: '2.1: Unsuccessful login attempt: Unable to switch context to user mysqlxsys");
 call mtr.add_suppression("Plugin mysqlx reported: 'Delayed startup failed. Plugin is unable to accept connections.'");
 call mtr.add_suppression("Password for mysqlxsys@localhost account has been expired");
 call mtr.add_suppression("Can't setup mysqlxsys@localhost account - root password expired");
@@ -24,6 +25,9 @@ call mtr.add_suppression("Can't setup mysqlxsys@localhost account - root passwor
 select current_user();
 EOF
 
+--write_file $MYSQL_TMP_DIR/connection_sync.tmp
+EOF
+
 --echo ============================================
 --echo check that the mysqlxsys@localhost account does not exist initially
 select if(count(*)=0, 'OK', 'FAIL') from mysql.user where user='mysqlxsys' and host='localhost';
@@ -31,8 +35,9 @@ select if(count(*)=0, 'OK', 'FAIL') from mysql.user where user='mysqlxsys' and h
 --echo Install plugin, ensure that account got created
 --replace_regex /\.dll/.so/
 --eval install plugin mysqlx soname "$MYSQLXPLUGIN"
+
 # wait a little for the account to get created
-select sleep(1);
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/connection_sync.tmp 2>&1
 
 select if(count(*)=1, 'OK', 'FAIL') from mysql.user where user='mysqlxsys' and host='localhost';
 show grants for mysqlxsys@localhost;
@@ -45,7 +50,7 @@ select if(count(*)=0, 'OK', 'FAIL') from mysql.user where user='mysqlxsys' and h
 --replace_regex /\.dll/.so/
 --eval install plugin mysqlx soname "$MYSQLXPLUGIN"
 # wait a little for the account to get created
-select sleep(1);
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/connection_sync.tmp 2>&1
 
 drop user mysqlxsys@localhost;
 --error 1
@@ -96,7 +101,7 @@ select if(count(*)=1, 'OK', 'FAIL') from mysql.user where user='mysqlxsys' and h
 --replace_regex /\.dll/.so/
 --eval install plugin mysqlx soname "$MYSQLXPLUGIN"
 # wait a little for the account to get created
-select sleep(1);
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/connection_sync.tmp 2>&1
 
 alter user mysqlxsys@localhost password expire;
 
@@ -156,6 +161,7 @@ UNINSTALL PLUGIN mysqlx;
 --connection default
 SET PASSWORD FOR root@localhost = '';
 --remove_file $MYSQL_TMP_DIR/connection_mysqlxsys.tmp
+--remove_file $MYSQL_TMP_DIR/connection_sync.tmp
 
 UPDATE mysql.user SET password_last_changed = @passwordchanged where host='localhost' and user='root';
 FLUSH PRIVILEGES;
