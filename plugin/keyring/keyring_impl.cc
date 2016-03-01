@@ -34,12 +34,12 @@ boost::movelib::unique_ptr<char[]> keyring_file_data(NULL);
 #ifdef HAVE_PSI_INTERFACE
 static PSI_rwlock_info all_keyring_rwlocks[]=
 {
-  {&key_LOCK_keyring, "LOCK_keyring", 0}
+  {&keyring::key_LOCK_keyring, "LOCK_keyring", 0}
 };
 
 static PSI_memory_info all_keyring_memory[]=
 {
-  {&key_memory_KEYRING, "KEYRING", 0}
+  {&keyring::key_memory_KEYRING, "KEYRING", 0}
 };
 
 void keyring_init_psi_keys(void)
@@ -57,7 +57,7 @@ void keyring_init_psi_keys(void)
 
 my_bool init_keyring_locks()
 {
-  if (mysql_rwlock_init(key_LOCK_keyring, &LOCK_keyring))
+  if (mysql_rwlock_init(keyring::key_LOCK_keyring, &LOCK_keyring))
     return TRUE;
   return FALSE;
 }
@@ -97,10 +97,10 @@ my_bool mysql_key_fetch(boost::movelib::unique_ptr<IKey> key_to_fetch, char **ke
   {
     *key_len = fetched_key->get_key_data_size();
     fetched_key->xor_data();
-    *reinterpret_cast<uchar **>(key)=fetched_key->release_key_data();
-    *key_type = my_strdup(key_memory_KEYRING,
-                          fetched_key->get_key_type()->c_str(),
-                          MYF(MY_WME));
+    *key= static_cast<void*>(fetched_key->release_key_data());
+    *key_type= my_strdup(keyring::key_memory_KEYRING,
+                         fetched_key->get_key_type()->c_str(),
+                         MYF(MY_WME));
   }
   else
     *key = NULL;
