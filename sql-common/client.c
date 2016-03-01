@@ -1128,6 +1128,22 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
     } while(0)
 #endif
 
+static char *set_ssl_option_unpack_path(struct st_mysql_options *options,
+                                        const char *arg)
+{
+  char *opt_var= NULL;
+  if (arg)
+  {
+    char *buff= (char *)my_malloc(FN_REFLEN + 1, MYF(MY_WME));
+    unpack_filename(buff, (char *)arg);
+    opt_var= my_strdup(buff, MYF(MY_WME));
+    options->use_ssl= 1;
+    my_free(buff);
+  }
+  return opt_var;
+}
+
+
 void mysql_read_default_options(struct st_mysql_options *options,
 				const char *filename,const char *group)
 {
@@ -4480,17 +4496,43 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
   case MYSQL_DEFAULT_AUTH:
     EXTENSION_SET_STRING(&mysql->options, default_auth, arg);
     break;
-  case MYSQL_OPT_SSL_KEY:      SET_SSL_OPTION(ssl_key, arg);     break;
-  case MYSQL_OPT_SSL_CERT:     SET_SSL_OPTION(ssl_cert, arg);    break;
-  case MYSQL_OPT_SSL_CA:       SET_SSL_OPTION(ssl_ca, arg);      break;
-  case MYSQL_OPT_SSL_CAPATH:   SET_SSL_OPTION(ssl_capath, arg);  break;
+  case MYSQL_OPT_SSL_KEY:
+    if (mysql->options.ssl_key)
+      my_free(mysql->options.ssl_key);
+    mysql->options.ssl_key= set_ssl_option_unpack_path(&mysql->options, arg);
+    break;
+  case MYSQL_OPT_SSL_CERT:
+    if (mysql->options.ssl_cert)
+      my_free(mysql->options.ssl_cert);
+    mysql->options.ssl_cert= set_ssl_option_unpack_path(&mysql->options, arg);
+    break;
+  case MYSQL_OPT_SSL_CA:
+    if (mysql->options.ssl_ca)
+      my_free(mysql->options.ssl_ca);
+    mysql->options.ssl_ca= set_ssl_option_unpack_path(&mysql->options, arg);
+    break;
+  case MYSQL_OPT_SSL_CAPATH:
+    if (mysql->options.ssl_capath)
+      my_free(mysql->options.ssl_capath);
+    mysql->options.ssl_capath= set_ssl_option_unpack_path(&mysql->options, arg);
+    break;
   case MYSQL_OPT_SSL_CIPHER:   SET_SSL_OPTION(ssl_cipher, arg);  break;
-  case MYSQL_OPT_SSL_CRL:      EXTENSION_SET_SSL_STRING(&mysql->options,
-                                                        ssl_crl, arg);
-                               break;
-  case MYSQL_OPT_SSL_CRLPATH:  EXTENSION_SET_SSL_STRING(&mysql->options,
-                                                        ssl_crlpath, arg);
-                               break;
+  case MYSQL_OPT_SSL_CRL:
+    if (mysql->options.extension)
+      my_free(mysql->options.extension->ssl_crl);
+    else
+      ALLOCATE_EXTENSIONS(&mysql->options);
+    mysql->options.extension->ssl_crl=
+                   set_ssl_option_unpack_path(&mysql->options, arg);
+    break;
+  case MYSQL_OPT_SSL_CRLPATH:
+    if (mysql->options.extension)
+      my_free(mysql->options.extension->ssl_crlpath);
+    else
+      ALLOCATE_EXTENSIONS(&mysql->options);
+    mysql->options.extension->ssl_crlpath=
+                   set_ssl_option_unpack_path(&mysql->options, arg);
+    break;
   case MYSQL_SERVER_PUBLIC_KEY:
     EXTENSION_SET_STRING(&mysql->options, server_public_key_path, arg);
     break;
