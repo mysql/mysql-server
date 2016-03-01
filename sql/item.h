@@ -2045,6 +2045,16 @@ public:
   { return true; }
 
   /**
+    Check if a generated expression depends on DEFAULT function.
+
+    @param arg ignored
+
+    @returns false if the function is not DEFAULT(), otherwise true.
+  */
+  virtual bool check_gcol_depend_default_processor(uchar *arg)
+  { return false; }
+
+  /**
     @brief  update_indexed_column_map
     Update columns map for index.
 
@@ -4909,6 +4919,9 @@ public:
            (arg && arg->walk(processor, walk, args)) ||
            ((walk & WALK_POSTFIX) && (this->*processor)(args));
   }
+
+  bool check_gcol_depend_default_processor(uchar *arg)
+  { return true; }
 
   Item *transform(Item_transformer transformer, uchar *args);
 };

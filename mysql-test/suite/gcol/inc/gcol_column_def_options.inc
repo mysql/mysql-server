@@ -578,3 +578,62 @@ SET sql_mode= @sql_mode_save;
 DROP TABLE t1;
 --enable_warnings
 }
+
+
+--echo #
+--echo # Bug#22680839: DEFAULT IS NOT DETERMINISTIC AND SHOULD NOT BE
+--echo #               ALLOWED IN GENERATED COLUMNS
+--echo #
+if ($support_virtual_index)
+{
+CREATE TABLE tzz(a INT DEFAULT 5,
+                 gc1 INT AS (a+DEFAULT(a)) VIRTUAL,
+                 gc2 INT AS (a+DEFAULT(a)) STORED,
+                 KEY k1(gc1));
+INSERT INTO tzz(A) VALUES (1);
+SELECT * FROM tzz;
+SELECT gc1 FROM tzz;
+
+ALTER TABLE tzz MODIFY COLUMN a INT DEFAULT 6;
+SELECT * FROM tzz;
+SELECT gc1 FROM tzz;
+DROP TABLE tzz;
+}
+
+--echo # Test 1: ALTER DEFAULT
+--echo #
+CREATE TABLE t1(a INT PRIMARY KEY DEFAULT 5,
+                b INT AS (1 + DEFAULT(a)) STORED,
+                c INT AS (1 + DEFAULT(a)) VIRTUAL);
+INSERT INTO t1 VALUES ();
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7, ALGORITHM = INPLACE;
+--disable_warnings
+# Check how many rows are accessed: >0 = COPY
+--enable_info
+ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7;
+ALTER TABLE t1 MODIFY COLUMN a INT DEFAULT 8;
+ALTER TABLE t1 CHANGE COLUMN a a DOUBLE DEFAULT 5;
+--disable_info
+DROP TABLE t1;
+
+--echo # Test 2: ALTER DEFAULT + ADD GCOL
+--echo #
+CREATE TABLE t1(a INT PRIMARY KEY DEFAULT 5);
+INSERT INTO t1 VALUES();
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7,
+               ADD COLUMN b INT AS (1 + DEFAULT(a)) STORED,
+               ALGORITHM = INPLACE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED, ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7,
+               ADD COLUMN c INT AS (1 + DEFAULT(a)) VIRTUAL,
+               ALGORITHM = INPLACE;
+# Check how many rows are accessed: >0 = COPY
+--enable_info
+ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7,
+               ADD COLUMN b INT AS (1 + DEFAULT(a)) STORED,
+               ADD COLUMN c INT AS (1 + DEFAULT(a)) VIRTUAL;
+--disable_info
+DROP TABLE t1;
+--enable_warnings
