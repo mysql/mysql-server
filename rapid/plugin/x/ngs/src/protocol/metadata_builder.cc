@@ -18,7 +18,7 @@
 */
 
 #include "ngs/protocol/metadata_builder.h"
-#include "mysqlx.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 
 using namespace ngs;
 

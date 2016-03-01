@@ -30,6 +30,10 @@ LIST(REMOVE_ITEM xplugin_SRC "${MYSQLX_PROJECT_DIR}/src/mysql_variables.cc")
 
 MYSQLX_PROTOBUF_GENERATE_CPP_NAMES(protobuf_SRC ${PROTOBUF_MYSQLX_FILES})
 
+IF(MSVC)
+  ADD_COMPILE_FLAGS(${protobuf_SRC} COMPILE_FLAGS "/wd4018")
+ENDIF(MSVC)
+
 # Turn off some warning flags when compiling GUnit and proto files.
 MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
 IF(HAVE_NO_UNUSED_TYPEDEFS)
