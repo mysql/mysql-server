@@ -79,19 +79,6 @@ public:
 
 
   /**
-    Check if we need a schema meta data lock in the current situation.
-
-    Before the server is started, meta data locks are not needed since
-    we are in a single threaded context.
-
-    @retval true    We need an IX meta data lock on the schema name.
-            false   We do not need any meta data lock on the schema name.
-  */
-
-  static bool is_lock_required();
-
-
-  /**
     Make sure we have an IX meta data lock on the schema name.
 
     If the circumstances indicate that we need a meta data lock, and

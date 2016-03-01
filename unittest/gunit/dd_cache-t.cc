@@ -124,6 +124,8 @@ protected:
   virtual void SetUp()
   {
     m_init.SetUp();
+    // Mark this as a dd system thread to skip MDL checks/asserts in the dd cache.
+    thd()->system_thread= SYSTEM_THREAD_DD_INITIALIZE;
 #ifndef DBUG_OFF
     dd::cache::Storage_adapter::s_use_fake_storage= true;
 #endif /* !DBUG_OFF */
