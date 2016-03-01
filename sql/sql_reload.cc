@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -157,7 +157,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   {
 #ifdef HAVE_REPLICATION
     mysql_mutex_lock(&LOCK_active_mi);
-    if (rotate_relay_log(active_mi))
+    if (rotate_relay_log(active_mi, true/*need_data_lock=true*/))
       *write_to_binlog= -1;
     mysql_mutex_unlock(&LOCK_active_mi);
 #endif
