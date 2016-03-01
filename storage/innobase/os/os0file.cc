@@ -8196,6 +8196,22 @@ Encryption::get_master_key(ulint* master_key_id, byte** master_key)
 		ret = my_key_fetch(key_name, &key_type, NULL,
 				   reinterpret_cast<void**>(master_key),
 				   &key_len);
+
+		/* For compitable with 5.7.11, we need to try to get master key with
+		server id when get master key failure. */
+		if (ret || *master_key == NULL) {
+			if (key_type) {
+				my_free(key_type);
+			}
+
+			memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
+			sprintf(key_name, "%s-%lu-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
+				server_id, *master_key_id);
+
+			ret = my_key_fetch(key_name, &key_type, NULL,
+					   reinterpret_cast<void**>(master_key),
+					   &key_len);
+		}
 #ifdef UNIV_ENCRYPT_DEBUG
 		if (!ret && *master_key) {
 			fprintf(stderr, "Fetched master key:%lu ",
