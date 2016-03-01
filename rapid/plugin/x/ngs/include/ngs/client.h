@@ -146,7 +146,7 @@ namespace ngs
 
     void remove_client_from_server();
 
-    void handle_message(Request_unique_ptr &message);
+    void handle_message(Request &message);
     virtual bool is_localhost(const char *) = 0;
 
   private:
