@@ -1044,7 +1044,6 @@ void Dbacc::execACCKEYREQ(Signal* signal)
 	  // the operation.
 	  /*---------------------------------------------------------------*/
           Uint32 eh = elemPageptr.p->word32[elemptr];
-          operationRecPtr.p->scanBits = ElementHeader::getScanBits(eh);
           operationRecPtr.p->reducedHashValue = ElementHeader::getReducedHashValue(eh);
           operationRecPtr.p->elementPage = elemPageptr.i;
           operationRecPtr.p->elementContainer = elemConptr;
@@ -1517,7 +1516,6 @@ void Dbacc::insertelementLab(Signal* signal,
   
   insertLockOwnersList(operationRecPtr);
 
-  operationRecPtr.p->scanBits = Operationrec::ANY_SCANBITS;
   operationRecPtr.p->reducedHashValue = fragrecptr.p->level.reduce(operationRecPtr.p->hashValue);
   const Uint32 tidrElemhead = ElementHeader::setLocked(operationRecPtr.i);
   Page8Ptr idrPageptr;
@@ -2904,33 +2902,17 @@ void Dbacc::insertContainer(const Element          elem,
   /* --------------------------------------------------------------------------------- */
   const Uint32 elemhead = elem.getHeader();
   ContainerHeader conthead = pageptr.p->word32[conptr];
-  Uint32 scanmask = conthead.getScanBits();
-  Uint32 elemscanmask;
   if (oprecptr.i != RNIL)
   {
     jam();
     ndbrequire(ElementHeader::getLocked(elemhead));
-    if (oprecptr.p->scanBits == Operationrec::ANY_SCANBITS)
-    {
-      /**
-       * ANY_SCANBITS indicates insert of new element, not part of expand or
-       * shrink.  Inherit scan bits from container.
-       */
-      oprecptr.p->scanBits = conthead.getScanBits();
-    }
     oprecptr.p->elementPage = pageptr.i;
     oprecptr.p->elementContainer = conptr;
     oprecptr.p->elementPointer = tidrIndex;
-    elemscanmask = oprecptr.p->scanBits;
   }
   else
   {
-    ndbrequire(!ElementHeader::getLocked(elemhead));
-    elemscanmask = ElementHeader::getScanBits(elemhead);
-  }
-  if (elemscanmask != scanmask)
-  {
-    conthead.copyScanBits(scanmask & elemscanmask);
+    ndbassert(!ElementHeader::getLocked(elemhead));
   }
   /* --------------------------------------------------------------------------------- */
   /*       WE CHOOSE TO UNDO LOG INSERTS BY WRITING THE BEFORE VALUE TO THE UNDO LOG.  */
@@ -3644,8 +3626,6 @@ void Dbacc::deleteElement(Page8Ptr delPageptr,
     delPageptr.p->word32[delElemptr + 1] =
       lastPageptr.p->word32[lastElemptr + 1];
     ContainerHeader delConhead = delPageptr.p->word32[delConptr];
-    const Uint32 delscanmask = delConhead.getScanBits();
-    Uint32 elemscanmask;
     if (ElementHeader::getLocked(tdeElemhead)) {
       /* --------------------------------------------------------------------------------- */
       /* THE LAST ELEMENT IS LOCKED AND IS THUS REFERENCED BY AN OPERATION RECORD. WE NEED */
@@ -3656,19 +3636,9 @@ void Dbacc::deleteElement(Page8Ptr delPageptr,
       deOperationRecPtr.p->elementPage = delPageptr.i;
       deOperationRecPtr.p->elementContainer = delConptr;
       deOperationRecPtr.p->elementPointer = delElemptr;
-      elemscanmask = deOperationRecPtr.p->scanBits;
       /*  Writing an invalid value only for sanity, the value should never be read.  */
       lastPageptr.p->word32[lastElemptr] = ElementHeader::setInvalid();
     }//if
-    else
-    {
-      elemscanmask = ElementHeader::getScanBits(tdeElemhead);
-    }
-    if (delscanmask != elemscanmask)
-    {
-      delPageptr.p->word32[delConptr] =
-        delConhead.copyScanBits(delscanmask & elemscanmask);
-    }
     return;
   }
 
@@ -4372,8 +4342,7 @@ void Dbacc::abortOperation(Signal* signal)
 
         taboElementptr = operationRecPtr.p->elementPointer;
         aboPageidptr.i = operationRecPtr.p->elementPage;
-        ndbassert(operationRecPtr.p->scanBits != Operationrec::ANY_SCANBITS);
-        tmp2Olq = ElementHeader::setUnlocked(operationRecPtr.p->scanBits, operationRecPtr.p->reducedHashValue);
+        tmp2Olq = ElementHeader::setUnlocked(operationRecPtr.p->reducedHashValue);
         ptrCheckGuard(aboPageidptr, cpagesize, page8);
         dbgWord32(aboPageidptr, taboElementptr, tmp2Olq);
         arrGuard(taboElementptr, 2048);
@@ -4532,8 +4501,7 @@ void Dbacc::commitOperation(Signal* signal)
       
       coPageidptr.i = operationRecPtr.p->elementPage;
       tcoElementptr = operationRecPtr.p->elementPointer;
-      ndbassert(operationRecPtr.p->scanBits != Operationrec::ANY_SCANBITS);
-      tmp2Olq = ElementHeader::setUnlocked(operationRecPtr.p->scanBits, operationRecPtr.p->reducedHashValue);
+      tmp2Olq = ElementHeader::setUnlocked(operationRecPtr.p->reducedHashValue);
       ptrCheckGuard(coPageidptr, cpagesize, page8);
       dbgWord32(coPageidptr, tcoElementptr, tmp2Olq);
       arrGuard(tcoElementptr, 2048);
@@ -4852,8 +4820,6 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
     newOwner.p->elementPage = opPtr.p->elementPage;
     newOwner.p->elementPointer = opPtr.p->elementPointer;
     newOwner.p->elementContainer = opPtr.p->elementContainer;
-    ndbassert(opPtr.p->scanBits != Operationrec::ANY_SCANBITS);
-    newOwner.p->scanBits = opPtr.p->scanBits;
     newOwner.p->reducedHashValue = opPtr.p->reducedHashValue;
     newOwner.p->m_op_bits |= (opbits & Operationrec::OP_ELEMENT_DISAPPEARED);
     if (opbits & Operationrec::OP_ELEMENT_DISAPPEARED)
@@ -7612,26 +7578,8 @@ void Dbacc::releaseScanContainer(const Page8Ptr pageptr,
     trscElementptr = conptr - trscElemlen;
     trscElemStep = 0 - trscElemlen;
   }//if
-  do {
-    arrGuard(trscElementptr, 2048);
-    const Uint32 eh = pageptr.p->word32[trscElementptr];
-    if (ElementHeader::getUnlocked(eh)) {
-      jam();
-      ndbassert(allScanned == (ElementHeader::getScanBits(eh) & scanMask & allScanned));
-      const Uint32 tmp = ElementHeader::clearScanBit(eh, scanMask);
-      dbgWord32(pageptr, trscElementptr, tmp);
-      pageptr.p->word32[trscElementptr] = tmp;
-    } else {
-      jam();
-      rscOperPtr.i = ElementHeader::getOpPtrI(eh);
-      ptrCheckGuard(rscOperPtr, coprecsize, operationrec);
-      ndbrequire(allScanned == (rscOperPtr.p->scanBits & scanMask & allScanned));
-      rscOperPtr.p->scanBits &= ~scanMask;
-    }//if
-    trscElemlens = trscElemlens - trscElemlen;
-    trscElementptr = trscElementptr + trscElemStep;
-  } while (trscElemlens > 1);
-  if (trscElemlens != 0) {
+  if (trscElemlens % trscElemlen != 0)
+  {
     jam();
     sendSystemerror(__LINE__);
   }//if
@@ -7689,7 +7637,6 @@ bool Dbacc::searchScanContainer(Page8Ptr pageptr,
                                 Uint32& islocked) const
 {
   OperationrecPtr operPtr;
-  Uint32 scanBits;
   Uint32 elemlens;
   Uint32 elemlen;
   Uint32 elemStep;
@@ -7738,31 +7685,6 @@ bool Dbacc::searchScanContainer(Page8Ptr pageptr,
     scanPtr.p->setScanned(Telemptr);
   }
   Tislocked = ElementHeader::getLocked(eh);
-  if (!Tislocked){
-    jam();
-    scanBits = ElementHeader::getScanBits(eh);
-    if ((scanPtr.p->scanMask & scanBits) == 0) {
-      jam();
-      const Uint32 tmp = ElementHeader::setScanBit(eh, scanPtr.p->scanMask);
-      dbgWord32(pageptr, Telemptr, tmp);
-      pageptr.p->word32[Telemptr] = tmp;
-      elemptr = Telemptr;
-      islocked = Tislocked;
-      return true;
-    }//if
-  } else {
-    jam();
-    operPtr.i = ElementHeader::getOpPtrI(eh);
-    ptrCheckGuard(operPtr, coprecsize, operationrec);
-    ndbassert(operPtr.p->scanBits != Operationrec::ANY_SCANBITS);
-    if ((operPtr.p->scanBits & scanPtr.p->scanMask) == 0) {
-      jam();
-      operPtr.p->scanBits |= scanPtr.p->scanMask;
-      elemptr = Telemptr;
-      islocked = Tislocked;
-      return true;
-    }//if
-  }//if
   if (found)
   {
     elemptr = Telemptr;
@@ -7826,7 +7748,6 @@ void Dbacc::setlock(Page8Ptr pageptr, Uint32 elemptr) const
 
   arrGuard(elemptr, 2048);
   tselTmp1 = pageptr.p->word32[elemptr];
-  operationRecPtr.p->scanBits = ElementHeader::getScanBits(tselTmp1);
   operationRecPtr.p->reducedHashValue = ElementHeader::getReducedHashValue(tselTmp1);
 
   tselTmp1 = ElementHeader::setLocked(operationRecPtr.i);
@@ -8546,8 +8467,8 @@ Dbacc::execDUMP_STATE_ORD(Signal* signal)
 	      tmpOpPtr.p->prevLockOwnerOp, tmpOpPtr.p->nextParallelQue);
     infoEvent("prevSerialQue=%d, scanRecPtr=%d",
 	      tmpOpPtr.p->prevSerialQue, tmpOpPtr.p->scanRecPtr);
-    infoEvent("m_op_bits=0x%x, scanBits=%d, reducedHashValue=%x ",
-              tmpOpPtr.p->m_op_bits, tmpOpPtr.p->scanBits, tmpOpPtr.p->reducedHashValue.pack());
+    infoEvent("m_op_bits=0x%x, reducedHashValue=%x ",
+              tmpOpPtr.p->m_op_bits, tmpOpPtr.p->reducedHashValue.pack());
     return;
   }
 
