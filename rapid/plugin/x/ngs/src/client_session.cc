@@ -98,7 +98,7 @@ void Session::on_kill()
 
 // Return value means true if message was handled, false if not.
 // If message is handled, ownership of the object is passed on (and should be deleted by the callee)
-bool Session::handle_message(Request_unique_ptr command)
+bool Session::handle_message(ngs::Request &command)
 {
   log_message_recv(command);
 
@@ -116,9 +116,9 @@ bool Session::handle_message(Request_unique_ptr command)
 }
 
 
-bool Session::handle_ready_message(Request_unique_ptr &command)
+bool Session::handle_ready_message(ngs::Request &command)
 {
-  switch (command->get_type())
+  switch (command.get_type())
   {
     case Mysqlx::ClientMessages::SESS_CLOSE:
       m_encoder->send_ok("bye!");
@@ -149,14 +149,14 @@ void Session::stop_auth()
 }
 
 
-bool Session::handle_auth_message(Request_unique_ptr &command)
+bool Session::handle_auth_message(ngs::Request &command)
 {
   Authentication_handler::Response r;
-  int8_t type = command->get_type();
+  int8_t type = command.get_type();
 
   if (type == Mysqlx::ClientMessages::SESS_AUTHENTICATE_START && m_auth_handler.get() == NULL)
   {
-    const Mysqlx::Session::AuthenticateStart &authm = static_cast<const Mysqlx::Session::AuthenticateStart&>(*command->message());
+    const Mysqlx::Session::AuthenticateStart &authm = static_cast<const Mysqlx::Session::AuthenticateStart&>(*command.message());
 
     log_debug("%s.%u: Login attempt: mechanism=%s auth_data=%s",
              m_client.client_id(), m_id, authm.mech_name().c_str(),
@@ -179,7 +179,7 @@ bool Session::handle_auth_message(Request_unique_ptr &command)
   }
   else if (type == Mysqlx::ClientMessages::SESS_AUTHENTICATE_CONTINUE && m_auth_handler.get())
   {
-    const Mysqlx::Session::AuthenticateContinue &authm = static_cast<const Mysqlx::Session::AuthenticateContinue&>(*command->message());
+    const Mysqlx::Session::AuthenticateContinue &authm = static_cast<const Mysqlx::Session::AuthenticateContinue&>(*command.message());
 
     r = m_auth_handler->handle_continue(authm.auth_data());
   }

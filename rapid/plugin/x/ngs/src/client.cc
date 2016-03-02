@@ -149,16 +149,16 @@ void Client::set_capabilities(const Mysqlx::Connection::CapabilitiesSet &setcap)
 }
 
 
-void Client::handle_message(Request_unique_ptr &request)
+void Client::handle_message(Request &request)
 {
   log_message_recv(request);
 
   Client_state expected_state = Client_accepted;
 
   // there is no session before authentication, so we handle the messages ourselves
-  log_debug("%s: Client got message %i", client_id(), request->get_type());
+  log_debug("%s: Client got message %i", client_id(), request.get_type());
 
-  switch (request->get_type())
+  switch (request.get_type())
   {
     case Mysqlx::ClientMessages::CON_CLOSE:
       m_encoder->send_ok("bye!");
@@ -171,11 +171,11 @@ void Client::handle_message(Request_unique_ptr &request)
       break;
 
     case Mysqlx::ClientMessages::CON_CAPABILITIES_GET:
-      get_capabilities(static_cast<const Mysqlx::Connection::CapabilitiesGet&>(*request->message()));
+      get_capabilities(static_cast<const Mysqlx::Connection::CapabilitiesGet&>(*request.message()));
       break;
 
     case Mysqlx::ClientMessages::CON_CAPABILITIES_SET:
-      set_capabilities(static_cast<const Mysqlx::Connection::CapabilitiesSet&>(*request->message()));
+      set_capabilities(static_cast<const Mysqlx::Connection::CapabilitiesSet&>(*request.message()));
       break;
 
     case Mysqlx::ClientMessages::SESS_AUTHENTICATE_START:
@@ -189,7 +189,7 @@ void Client::handle_message(Request_unique_ptr &request)
         if (s)
         {
           // forward the message to the pre-allocated session, rest of auth will be handled by the session
-          s->handle_message(boost::move(request));
+          s->handle_message(request);
         }
         break;
       }
@@ -197,7 +197,7 @@ void Client::handle_message(Request_unique_ptr &request)
 
     default:
       // invalid message at this time
-      log_info("%s: Invalid message %i received during client initialization", client_id(), request->get_type());
+      log_info("%s: Invalid message %i received during client initialization", client_id(), request.get_type());
       m_encoder->send_result(ngs::Fatal(ER_X_BAD_MESSAGE, "Invalid message"));
 
       m_close_reason = Close_error;
@@ -512,10 +512,10 @@ void Client::run(bool skip_name_resolve, struct sockaddr_in client_addr)
       if (m_state != Client_accepted && s)
       {
         // pass the message to the session
-        s->handle_message(boost::move(message));
+        s->handle_message(*message);
       }
       else
-        handle_message(message);
+        handle_message(*message);
     }
     catch (std::exception &e)
     {

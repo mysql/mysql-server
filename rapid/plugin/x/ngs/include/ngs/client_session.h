@@ -58,7 +58,7 @@ namespace ngs
     virtual void on_auth_failure(const Authentication_handler::Response &response);
 
     // handle a single message, returns true if message was handled false if not
-    virtual bool handle_message(Request_unique_ptr command);
+    virtual bool handle_message(ngs::Request &command);
 
     Client &client() const { return m_client; }
 
@@ -66,8 +66,8 @@ namespace ngs
     virtual Error_code init() = 0;
 
   protected:
-    virtual bool handle_auth_message(Request_unique_ptr &command);
-    virtual bool handle_ready_message(Request_unique_ptr &command);
+    virtual bool handle_auth_message(ngs::Request &command);
+    virtual bool handle_ready_message(ngs::Request &command);
 
     void stop_auth();
 

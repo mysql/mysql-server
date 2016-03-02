@@ -55,7 +55,7 @@ xpl::Session::~Session()
 
 
 // handle a message while in Ready state
-bool xpl::Session::handle_ready_message(ngs::Request_unique_ptr &command)
+bool xpl::Session::handle_ready_message(ngs::Request &command)
 {
   DBUG_ASSERT(m_crud_handler != NULL);
 
@@ -74,7 +74,7 @@ bool xpl::Session::handle_ready_message(ngs::Request_unique_ptr &command)
   try
   {
     return dispatcher::dispatch_command(*this, *m_sql, *m_encoder, *m_crud_handler, m_expect_stack,
-                                            m_options, boost::move(command));
+                                            m_options, command);
   }
   catch (ngs::Error_code &err)
   {

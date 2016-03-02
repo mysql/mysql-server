@@ -107,7 +107,7 @@ namespace ngs
 
     virtual IProtocol_monitor &get_protocol_monitor();
 
-    static void log_protobuf(const char *direction_name, Request_unique_ptr &request);
+    static void log_protobuf(const char *direction_name, Request &request);
     static void log_protobuf(const char *direction_name, const Message *request);
     static void log_protobuf(int8_t type);
 
