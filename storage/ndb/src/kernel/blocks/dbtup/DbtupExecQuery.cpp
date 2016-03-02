@@ -457,7 +457,8 @@ Dbtup::load_diskpage(Signal* signal,
   }
   
   jam();
-  Uint32 page_idx= lkey2;
+  ndbassert(Uint16(lkey2) == lkey2);
+  Uint16 page_idx= Uint16(lkey2);
   Uint32 frag_page_id= lkey1;
   regOperPtr->m_tuple_location.m_page_no= getRealpid(regFragPtr,
 						     frag_page_id);
@@ -2184,13 +2185,6 @@ int Dbtup::handleInsertReq(Signal* signal,
     if (ERROR_INSERTED(4021))
     {
       terrorCode = 1601;
-      goto disk_prealloc_error;
-    }
-
-    if (!Local_key::isShort(frag_page_id))
-    {
-      jam();
-      terrorCode = 1603;
       goto disk_prealloc_error;
     }
 
