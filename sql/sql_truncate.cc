@@ -290,8 +290,7 @@ Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
       DBUG_RETURN(TRUNCATE_FAILED_BUT_BINLOG);
   }
   else if (!is_tmp_table &&
-           // WL7743/TODO: Do update only for SEs supporting atomic DDL.
-           table_ref->table->file->has_transactions() &&
+           (table_ref->table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
            thd->dd_client()->update_uncached_and_invalidate(non_tmp_table_def.get()))
   {
     // WL7743/TODO/QQ: Does change of DD object means we need to invalidate
@@ -548,7 +547,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
         empty table with the same structure.
       */
       error= dd::recreate_table(thd, table_ref->db, table_ref->table_name,
-                                hton_supports_atomic_ddl);
+                                false);
 
       if (thd->locked_tables_mode && thd->locked_tables_list.reopen_tables(thd))
           thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);

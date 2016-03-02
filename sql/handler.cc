@@ -5045,8 +5045,8 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
                              version of table for ALTER TABLE with a
                              temporary name (WL7743/TODO - double check
                              with Marko if he really needs this).
-  @param commit_dd_changes   Indicates whether we need to commit changes
-                             to data-dictionary (WL7743/TODO - this
+  @param force_dd_commit     Indicates whether we need to force commit
+                             of changes to data-dictionary (WL7743/TODO - this
                              parameter should not be necessary in the end).
 
   @retval
@@ -5061,7 +5061,7 @@ int ha_create_table(THD *thd, const char *path,
                     bool is_temp_table,
                     dd::Table *table_def,
                     const char *name_override,
-                    bool commit_dd_changes)
+                    bool force_dd_commit)
 {
   int error= 1;
   TABLE table;
@@ -5119,14 +5119,17 @@ int ha_create_table(THD *thd, const char *path,
     // so do not need DD update.
     // The dd::Table objects representing the DD tables themselves cannot
     // be stored until the DD tables have been created in the SE.
+    // We do post-create update only for engines supporting atomic
+    // DDL.
     if (!((create_info->options & HA_LEX_CREATE_TMP_TABLE) || is_temp_table ||
-          dd::get_dictionary()->is_dd_table_name(db, table_name)))
+          dd::get_dictionary()->is_dd_table_name(db, table_name)) &&
+        (table.file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL))
     {
       Disable_gtid_state_update_guard disabler(thd);
 
       if(thd->dd_client()->update_uncached_and_invalidate(table_def))
       {
-        if (commit_dd_changes)
+        if (force_dd_commit)
         {
           trans_rollback_stmt(thd);
           // Full rollback in case we have THD::transaction_rollback_request.
@@ -5135,7 +5138,7 @@ int ha_create_table(THD *thd, const char *path,
         error= 1;
       }
       else
-        error= (commit_dd_changes &&
+        error= (force_dd_commit &&
                 (trans_commit_stmt(thd) || trans_commit(thd)));
     }
   }

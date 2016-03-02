@@ -257,15 +257,16 @@ bool check_storage_engine_flag(THD *thd, const TABLE_LIST *table_list,
   @param[in]    thd                 Thread context
   @param[in]    schema_name         Name of the schema
   @param[in]    table_name          Name of the table
-  @param[in]    commit_dd_changes   Indicates whether change should be
-                                    committed (WL7743/TODO: consider
-                                    if this parameter is necessary).
+  @param[in]    force_dd_commit     Indicates whether we need to force
+                                    commit of changes to data-dictionary.
+                                    (WL7743/TODO: consider if this
+                                    parameter is necessary).
 
   @retval       false       Success
   @retval       true        Error
 */
 bool recreate_table(THD *thd, const char *schema_name,
-                    const char *table_name, bool commit_dd_changes);
+                    const char *table_name, bool force_dd_commit);
 
 /**
   Wrapper around Dictionary_client::acquire_uncached_uncommitted() which emits

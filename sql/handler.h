@@ -4189,6 +4189,8 @@ public:
   /**
     Quickly remove all rows from a table.
 
+    @param[in/out]  dd_tab  dd::Table object for table being truncated.
+
     @remark This method is responsible for implementing MySQL's TRUNCATE
             TABLE statement, which is a DDL operation. As such, a engine
             can bypass certain integrity checks and in some cases avoid
@@ -4208,6 +4210,10 @@ public:
             this method can revert its effects if transaction is rolled
             back (e.g. because we failed to write statement to the binary
             log).
+
+    @note   Changes to dd::Table object done by this method will be saved
+            to data-dictionary only if storage engine supporting atomic
+            DDL (i.e. with HTON_SUPPORTS_ATOMIC_DDL flag).
   */
   virtual int truncate(dd::Table *dd_tab)
   { return HA_ERR_WRONG_COMMAND; }
@@ -4224,6 +4230,12 @@ public:
     return HA_ERR_WRONG_COMMAND;
   }
   virtual void drop_table(const char *name);
+
+  /**
+    @note   Changes to dd::Table object done by this method will be saved
+            to data-dictionary only if storage engine supporting atomic
+            DDL (i.e. with HTON_SUPPORTS_ATOMIC_DDL flag).
+  */
   virtual int create(const char *name, TABLE *form, HA_CREATE_INFO *info,
                      dd::Table *dd_tab, const char *sql_name) = 0;
 
@@ -4478,7 +4490,7 @@ int ha_create_table(THD *thd, const char *path,
                     bool is_temp_table,
                     dd::Table *table_def,
                     const char *name_override,
-                    bool commit_dd_changes);
+                    bool force_dd_commit);
 
 int ha_delete_table(THD *thd, handlerton *db_type, const char *path,
                     const char *db, const char *alias, bool generate_warning);

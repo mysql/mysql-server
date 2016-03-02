@@ -1911,9 +1911,7 @@ static bool rea_create_table(THD *thd, const char *path,
 
   if (!no_ha_table &&
        ha_create_table(thd, path, db, table_name, create_info,
-                       false, false, table_ptr.get(), NULL,
-                       !(create_info->db_type->flags &
-                         HTON_SUPPORTS_ATOMIC_DDL)))
+                       false, false, table_ptr.get(), NULL, false))
   {
     (void) file->ha_create_handler_files(path, NULL, CHF_DELETE_FLAG,
                                          create_info);
@@ -10410,9 +10408,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                         alter_ctx.new_db, alter_ctx.tmp_name,
                         create_info, false, false,
                         tmp_table_def ? tmp_table_def : table_def.get(),
-                        table->s->table_name.str,
-                        !(create_info->db_type->flags &
-                          HTON_SUPPORTS_ATOMIC_DDL)))
+                        table->s->table_name.str, false))
       goto err_new_table_cleanup;
 
     /* Mark that we have created table in storage engine. */
