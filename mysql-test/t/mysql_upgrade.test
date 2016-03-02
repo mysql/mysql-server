@@ -1092,6 +1092,15 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+--echo #
+--echo # Bug #21762656 AFTER RUNNING MYSQL_UPGRADE PROXIES_PRIV USER COLUMNS
+--echo # ARE NOT UPDATED TO 32
+--echo #
+
+ALTER TABLE mysql.proxies_priv MODIFY User char(16) binary DEFAULT '' NOT NULL;
+ALTER TABLE mysql.proxies_priv MODIFY Proxied_user char(16) binary DEFAULT '' NOT NULL;
+ALTER TABLE mysql.proxies_priv MODIFY Grantor char(77) DEFAULT '' NOT NULL;
+
 --echo # Tables with user name column downgraded to 5.6, now run mysql_upgrade
 
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
