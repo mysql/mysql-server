@@ -183,27 +183,23 @@ class ElementHeader {
   /**
    * 
    * l = Locked    -- If true contains operation else scan bits + hash value
-   * s = Scan bits
    * h = Reduced hash value. The lower bits used for address is shifted away
    * o = Operation ptr I
    *
    *           1111111111222222222233
    * 01234567890123456789012345678901
-   * lssssssssssss   hhhhhhhhhhhhhhhh
+   * l               hhhhhhhhhhhhhhhh
    *  ooooooooooooooooooooooooooooooo
    */
 public:
   static bool getLocked(Uint32 data);
   static bool getUnlocked(Uint32 data);
-  static Uint32 getScanBits(Uint32 data);
   static Uint32 getOpPtrI(Uint32 data);
   static LHBits16 getReducedHashValue(Uint32 data);
 
   static Uint32 setLocked(Uint32 opPtrI);
-  static Uint32 setUnlocked(Uint32 scanBits, LHBits16 const& reducedHashValue);
-  static Uint32 setScanBit(Uint32 header, Uint32 scanBit);
+  static Uint32 setUnlocked(LHBits16 const& reducedHashValue);
   static Uint32 setReducedHashValue(Uint32 header, LHBits16 const& reducedHashValue);
-  static Uint32 clearScanBit(Uint32 header, Uint32 scanBit);
 
   static Uint32 setInvalid();
   static bool isValid(Uint32 header);
@@ -221,14 +217,6 @@ bool
 ElementHeader::getUnlocked(Uint32 data){
   assert(isValid(data));
   return (data & 1) == 0;
-}
-
-inline 
-Uint32 
-ElementHeader::getScanBits(Uint32 data){
-  assert(isValid(data));
-  assert(getUnlocked(data));
-  return (data >> 1) & ((1 << MAX_PARALLEL_SCANS_PER_FRAG) - 1);
 }
 
 inline
@@ -255,24 +243,9 @@ ElementHeader::setLocked(Uint32 opPtrI){
 }
 inline
 Uint32 
-ElementHeader::setUnlocked(Uint32 scanBits, LHBits16 const& reducedHashValue)
+ElementHeader::setUnlocked(LHBits16 const& reducedHashValue)
 {
-  assert(scanBits < (1 << MAX_PARALLEL_SCANS_PER_FRAG));
-  return (Uint32(reducedHashValue.pack()) << 16) | (scanBits << 1) | 0;
-}
-
-inline
-Uint32 
-ElementHeader::setScanBit(Uint32 header, Uint32 scanBit){
-  assert(getUnlocked(header));
-  return header | (scanBit << 1);
-}
-
-inline
-Uint32 
-ElementHeader::clearScanBit(Uint32 header, Uint32 scanBit){
-  assert(getUnlocked(header));
-  return header & (~(scanBit << 1));
+  return (Uint32(reducedHashValue.pack()) << 16) | 0;
 }
 
 inline
@@ -595,7 +568,6 @@ struct Operationrec {
   Uint16 tupkeylen;
   Uint32 xfrmtupkeylen;
   Uint32 userblockref;
-  Uint16 scanBits; // scanBits may only be ANY_SCANBITS while executing ACCKEYREQ insert.
   enum { ANY_SCANBITS = Uint16(0xffff) };
   LHBits16 reducedHashValue;
 
