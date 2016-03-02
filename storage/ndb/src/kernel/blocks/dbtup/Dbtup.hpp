@@ -1347,24 +1347,6 @@ typedef Ptr<HostBuffer> HostBufferPtr;
    */
   struct Var_part_ref 
   {
-#ifdef NDB_32BIT_VAR_REF
-    /*
-      In versions prior to ndb 6.1.6, 6.2.1 and mysql 5.1.17
-      Running this code limits DataMemory to 16G, also online
-      upgrade not possible between versions
-     */
-    Uint32 m_ref;
-    STATIC_CONST( SZ32 = 1 );
-
-    void copyout(Local_key* dst) const {
-      dst->m_page_no = Local_key::ref2page_id(m_ref);
-      dst->m_page_idx = Local_key::ref2page_idx(m_ref);
-    }
-
-    void assign(const Local_key* src) {
-      m_ref = Local_key::ref(src->m_page_no, src->m_page_idx);
-    }
-#else
     Uint32 m_page_no;
     Uint32 m_page_idx;
     STATIC_CONST( SZ32 = 2 );
@@ -1378,7 +1360,6 @@ typedef Ptr<HostBuffer> HostBufferPtr;
       m_page_no = src->m_page_no;
       m_page_idx = src->m_page_idx;
     }
-#endif    
   };
   
   struct Disk_part_ref
@@ -1395,9 +1376,13 @@ typedef Ptr<HostBuffer> HostBufferPtr;
        * regOperPtr->prevActiveOp links.
        */
       Uint32 m_operation_ptr_i;  // OperationPtrI
-      Uint32 m_base_record_ref;  // For disk tuple, ref to MM tuple
+      Uint32 m_base_record_page_no;  // For disk tuple, ref to MM tuple
     };
-    Uint32 m_header_bits;      // Header word
+    union
+    {
+      Uint32 m_header_bits;      // Header word
+      Uint32 m_base_record_page_idx;  // For disk tuple, ref to MM tuple
+    };
     union {
       Uint32 m_checksum;
       Uint32 m_data[1];
@@ -1440,7 +1425,17 @@ typedef Ptr<HostBuffer> HostBufferPtr;
 	(m_header_bits & ~(Uint32)TUP_VERSION_MASK) | 
 	(version & TUP_VERSION_MASK);
     }
-
+    void get_base_record_ref(Local_key& key)
+    {
+      require(m_base_record_page_idx <= MAX_TUPLES_PER_PAGE);
+      key.m_page_no = m_base_record_page_no;
+      key.m_page_idx = m_base_record_page_idx;
+    }
+    void set_base_record_ref(Local_key key)
+    {
+      m_base_record_page_no = key.m_page_no;
+      m_base_record_page_idx = key.m_page_idx;
+    }
     Uint32* get_null_bits(const Tablerec* tabPtrP) {
       return m_null_bits+tabPtrP->m_offsets[MM].m_null_offset;
     }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -437,7 +437,7 @@ Dbtup::load_diskpage(Signal* signal,
   Fragrecord * regFragPtr= prepare_fragptr.p;
   Tablerec* regTabPtr = prepare_tabptr.p;
 
-  if (Local_key::ref(lkey1, lkey2) == ~(Uint32)0)
+  if (Local_key::isInvalid(lkey1, lkey2))
   {
     jam();
     regOperPtr->op_struct.bit_field.m_wait_log_buffer= 1;
@@ -2213,8 +2213,7 @@ int Dbtup::handleInsertReq(Signal* signal,
     ref.m_page_no = frag_page_id;
     
     Tuple_header* disk_ptr= req_struct->m_disk_ptr;
-    disk_ptr->m_header_bits = 0;
-    disk_ptr->m_base_record_ref= ref.ref();
+    disk_ptr->set_base_record_ref(ref);
   }
 
   if (req_struct->m_reorg != ScanFragReq::REORG_ALL)
@@ -4242,9 +4241,14 @@ Dbtup::validate_page(Tablerec* regTabPtr, Var_page* p)
 	  if(! (ptr->m_header_bits & Tuple_header::COPY_TUPLE))
 	  {
 	    ndbrequire(len == fix_sz + 1);
-	    Local_key tmp; tmp.assref(*part);
+            Local_key tmp;
+            Var_part_ref* vpart = reinterpret_cast<Var_part_ref*>(part);
+            vpart->copyout(&tmp);
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+            ndbrequire(!"Looking for test coverage - found it!");
+#endif
 	    Ptr<Page> tmpPage;
-	    part= get_ptr(&tmpPage, *(Var_part_ref*)part);
+	    part= get_ptr(&tmpPage, *vpart);
 	    len= ((Var_page*)tmpPage.p)->get_entry_len(tmp.m_page_idx);
 	    Uint32 sz= ((mm_vars + 1) << 1) + (((Uint16*)part)[mm_vars]);
 	    ndbrequire(len >= ((sz + 3) >> 2));
