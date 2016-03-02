@@ -116,9 +116,15 @@ protected:
   {
   }
 
+  static void SetUpTestCase()
+  {
+    mdl_init();
+  }
+
   static void TearDownTestCase()
   {
     dd::cache::Shared_dictionary_cache::shutdown();
+    mdl_destroy();
   }
 
   virtual void SetUp()
@@ -136,7 +142,6 @@ protected:
 
     mdl_locks_unused_locks_low_water= MDL_LOCKS_UNUSED_LOCKS_LOW_WATER_DEFAULT;
     max_write_lock_count= ULONG_MAX;
-    mdl_init();
     m_mdl_context.init(this);
     EXPECT_FALSE(m_mdl_context.has_locks());
   }
@@ -157,7 +162,6 @@ protected:
     delete mysql;
     m_mdl_context.release_transactional_locks();
     m_mdl_context.destroy();
-    mdl_destroy();
 #ifndef DBUG_OFF
     dd::cache::Storage_adapter::s_use_fake_storage= false;
 #endif /* !DBUG_OFF */
