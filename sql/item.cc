@@ -7467,7 +7467,7 @@ public:
   }
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
-    return m_value.coerce_date(ltime, fuzzydate, item_name.ptr());
+    return m_value.coerce_date(ltime, item_name.ptr());
   }
   bool get_time(MYSQL_TIME *ltime)
   {
@@ -10038,7 +10038,7 @@ bool Item_cache_json::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   if (null_value)
     return true;
 
-  return wr.coerce_date(ltime, fuzzydate, whence(cached_field));
+  return wr.coerce_date(ltime, whence(cached_field));
 }
 
 

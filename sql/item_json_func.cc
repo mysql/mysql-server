@@ -18,7 +18,6 @@
 
 #include "item_json_func.h"
 #include "current_thd.h"        // current_thd
-#include "derror.h"             // ER_THD
 #include "item_cmpfunc.h"       // Item_func_like
 #include "json_dom.h"
 #include "json_path.h"
@@ -1180,7 +1179,7 @@ bool Item_json_func::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   if (null_value)
     return true;
 
-  return wr.coerce_date(ltime, fuzzydate, func_name());
+  return wr.coerce_date(ltime, func_name());
 }
 
 

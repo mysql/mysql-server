@@ -20,11 +20,9 @@
 #include "malloc_allocator.h"   // Malloc_allocator
 #include "my_decimal.h"         // my_decimal
 #include "binary_log_types.h"   // enum_field_types
-#include "my_time.h"            // my_time_flags_t
 #include "mysql_time.h"         // MYSQL_TIME
 #include "json_binary.h"        // json_binary::Value
 #include "sql_alloc.h"          // Sql_alloc
-#include "sql_error.h"          // Sql_condition
 #include "prealloced_array.h"   // Prealloced_array
 
 #include <map>
@@ -1089,9 +1087,6 @@ public:
   std::pair<const std::string, Json_wrapper> elt() const;
 };
 
-typedef bool *warning_method(Sql_condition::enum_severity_level,
-                             unsigned int, int);
-
 /**
   Abstraction for accessing JSON values irrespective of whether they
   are (started out as) binary JSON values or JSON DOM values. The
@@ -1511,12 +1506,10 @@ public:
     Extract a date from the JSON if possible, coercing if need be.
 
     @param[in,out] ltime a value buffer
-    @param[in]     fuzzydate
     @param msgnam
     @returns json value coerced to date
    */
-  bool coerce_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate,
-                   const char *msgnam) const;
+  bool coerce_date(MYSQL_TIME *ltime, const char *msgnam) const;
 
   /**
     Extract a time value from the JSON if possible, coercing if need be.

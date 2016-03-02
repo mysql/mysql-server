@@ -16,14 +16,14 @@
 #include "json_dom.h"
 #include "base64.h"
 #include "current_thd.h"        // current_thd
-#include "derror.h"
+#include "derror.h"             // ER_THD
 #include "json_path.h"
 #include "m_string.h"           // my_gcvt, _dig_vec_lower
 #include "mysqld_error.h"       // ER_*
 #include "prealloced_array.h"   // Prealloced_array
 #include "psi_memory_key.h"     // key_memory_JSON
 #include "sql_class.h"          // THD
-#include "sql_const.h"
+#include "sql_const.h"          // STACK_MIN_SIZE
 #include "sql_parse.h"          // check_stack_overrun
 #include "sql_time.h"
 #include "template_utils.h"     // down_cast, pointer_cast
@@ -3419,7 +3419,6 @@ my_decimal
 
 
 bool Json_wrapper::coerce_date(MYSQL_TIME *ltime,
-                               my_time_flags_t fuzzydate,
                                const char *msgnam) const
 {
   bool result= coerce_time(ltime, msgnam);

@@ -16,7 +16,6 @@
 #include "json_binary.h"
 #include "current_thd.h"        // current_thd
 #include "json_dom.h"           // Json_dom
-#include "psi_memory_key.h"     // key_memory_JSON
 #include "sql_class.h"          // THD
 #include "template_utils.h"     // down_cast
 #include <algorithm>            // std::min
