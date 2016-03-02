@@ -925,8 +925,8 @@ void Dbacc::sendAcckeyconf(Signal* signal) const
   signal->theData[0] = operationRecPtr.p->userptr;
   signal->theData[1] = operationRecPtr.p->m_op_bits & Operationrec::OP_MASK;
   signal->theData[2] = operationRecPtr.p->fid;
-  signal->theData[3] = operationRecPtr.p->localdata[0];
-  signal->theData[4] = operationRecPtr.p->localdata[1];
+  signal->theData[3] = operationRecPtr.p->localdata.m_page_no;
+  signal->theData[4] = operationRecPtr.p->localdata.m_page_idx;
 }//Dbacc::sendAcckeyconf()
 
 /* ******************--------------------------------------------------------------- */
@@ -1034,8 +1034,8 @@ void Dbacc::execACCKEYREQ(Signal* signal)
 	}
 	opbits |= Operationrec::OP_STATE_RUNNING;
 	opbits |= Operationrec::OP_RUN_QUEUE;
-        c_tup->prepareTUPKEYREQ(operationRecPtr.p->localdata[0],
-                                operationRecPtr.p->localdata[1],
+        c_tup->prepareTUPKEYREQ(operationRecPtr.p->localdata.m_page_no,
+                                operationRecPtr.p->localdata.m_page_idx,
                                 fragrecptr.p->tupFragptr);
         sendAcckeyconf(signal);
         if (! (opbits & Operationrec::OP_DIRTY_READ)) {
@@ -1344,8 +1344,7 @@ checkop:
 
 conf:
   nextOp.p->m_op_bits = nextbits;
-  nextOp.p->localdata[0] = lastOp.p->localdata[0];
-  nextOp.p->localdata[1] = lastOp.p->localdata[1];
+  nextOp.p->localdata = lastOp.p->localdata;
   
   if (nextop == ZSCAN_OP && (nextbits & Operationrec::OP_LOCK_REQ) == 0)
   {
@@ -1420,8 +1419,8 @@ Dbacc::accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) const
     }//if
     if (return_result == ZPARALLEL_QUEUE) {
       jam();
-      c_tup->prepareTUPKEYREQ(operationRecPtr.p->localdata[0],
-                              operationRecPtr.p->localdata[1],
+      c_tup->prepareTUPKEYREQ(operationRecPtr.p->localdata.m_page_no,
+                              operationRecPtr.p->localdata.m_page_idx,
                               fragrecptr.p->tupFragptr);
       sendAcckeyconf(signal);
       return;
@@ -1439,16 +1438,15 @@ Dbacc::accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) const
   else 
   {
     if (! (lockOwnerPtr.p->m_op_bits & Operationrec::OP_ELEMENT_DISAPPEARED) &&
-	! Local_key::isInvalid(lockOwnerPtr.p->localdata[0],
-                               lockOwnerPtr.p->localdata[1]))
+	! lockOwnerPtr.p->localdata.isInvalid())
     {
       jam();
       /* ---------------------------------------------------------------
        * It is a dirty read. We do not lock anything. Set state to
        *IDLE since no COMMIT call will arrive.
        * ---------------------------------------------------------------*/
-      c_tup->prepareTUPKEYREQ(operationRecPtr.p->localdata[0],
-                              operationRecPtr.p->localdata[1],
+      c_tup->prepareTUPKEYREQ(operationRecPtr.p->localdata.m_page_no,
+                              operationRecPtr.p->localdata.m_page_idx,
                               fragrecptr.p->tupFragptr);
       sendAcckeyconf(signal);
       operationRecPtr.p->m_op_bits = Operationrec::OP_EXECUTED_DIRTY_READ;
@@ -1526,11 +1524,11 @@ void Dbacc::insertelementLab(Signal* signal,
   /* ----------------------------------------------------------------------- */
   /* WE SET THE LOCAL KEY TO MINUS ONE TO INDICATE IT IS NOT YET VALID.      */
   /* ----------------------------------------------------------------------- */
-  const Uint32 localKey = ~(Uint32)0;
-  operationRecPtr.p->localdata[0] = localKey;
-  operationRecPtr.p->localdata[1] = localKey;
+  Local_key localKey;
+  localKey.setInvalid();
+  operationRecPtr.p->localdata = localKey;
   Uint32 conptr;
-  insertElement(Element(tidrElemhead, localKey),
+  insertElement(Element(tidrElemhead, localKey.m_page_no),
                 operationRecPtr,
                 idrPageptr,
                 tidrPageindex,
@@ -1538,7 +1536,7 @@ void Dbacc::insertelementLab(Signal* signal,
                 conptr,
                 Operationrec::ANY_SCANBITS,
                 false);
-  c_tup->prepareTUPKEYREQ(localKey, localKey, fragrecptr.p->tupFragptr);
+  c_tup->prepareTUPKEYREQ(localKey.m_page_no, localKey.m_page_idx, fragrecptr.p->tupFragptr);
   sendAcckeyconf(signal);
   return;
 }//Dbacc::insertelementLab()
@@ -2030,8 +2028,7 @@ checkop:
     }
     
     opbits |= Operationrec::OP_STATE_RUNNING;
-    operationRecPtr.p->localdata[0] = lastOpPtr.p->localdata[0];
-    operationRecPtr.p->localdata[1] = lastOpPtr.p->localdata[1];
+    operationRecPtr.p->localdata = lastOpPtr.p->localdata;
     retValue = ZPARALLEL_QUEUE;
   }
   
@@ -2138,8 +2135,7 @@ checkop:
 #endif
     
     opbits |= Operationrec::OP_STATE_RUNNING;
-    operationRecPtr.p->localdata[0] = lastOpPtr.p->localdata[0];
-    operationRecPtr.p->localdata[1] = lastOpPtr.p->localdata[1];
+    operationRecPtr.p->localdata = lastOpPtr.p->localdata;
     retValue = ZPARALLEL_QUEUE;
   }
   opbits |= (lastbits & Operationrec::OP_ACC_LOCK_MODE);
@@ -2205,13 +2201,12 @@ void Dbacc::execACCMINUPDATE(Signal* signal)
 {
   Page8Ptr ulkPageidptr;
   Uint32 tulkLocalPtr;
-  Uint32 tlocalkey1, tlocalkey2;
+  Local_key localkey;
 
   jamEntry();
   operationRecPtr.i = signal->theData[0];
-  tlocalkey1 = signal->theData[1];
-  tlocalkey2 = signal->theData[2];
-  Uint32 localref = Local_key::ref(tlocalkey1, tlocalkey2);
+  localkey.m_page_no = signal->theData[1];
+  localkey.m_page_idx = signal->theData[2];
   ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
   Uint32 opbits = operationRecPtr.p->m_op_bits;
   fragrecptr.i = operationRecPtr.p->fragptr;
@@ -2224,10 +2219,9 @@ void Dbacc::execACCMINUPDATE(Signal* signal)
     ptrCheckGuard(ulkPageidptr, cpagesize, page8);
     dbgWord32(ulkPageidptr, tulkLocalPtr, tlocalkey1);
     arrGuard(tulkLocalPtr, 2048);
-    operationRecPtr.p->localdata[0] = tlocalkey1;
-    operationRecPtr.p->localdata[1] = tlocalkey2;
+    operationRecPtr.p->localdata = localkey;
     ndbrequire(fragrecptr.p->localkeylen == 1);
-    ulkPageidptr.p->word32[tulkLocalPtr] = localref;
+    ulkPageidptr.p->word32[tulkLocalPtr] = localkey.m_page_no;
     return;
   }//if
   ndbrequire(false);
@@ -2260,8 +2254,8 @@ Dbacc::removerow(Uint32 opPtrI, const Local_key* key)
 
 #ifdef VM_TRACE
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
-  ndbrequire(operationRecPtr.p->localdata[0] == key->m_page_no);
-  ndbrequire(operationRecPtr.p->localdata[1] == key->m_page_idx);
+  ndbrequire(operationRecPtr.p->localdata.m_page_no == key->m_page_no);
+  ndbrequire(operationRecPtr.p->localdata.m_page_idx == key->m_page_idx);
 #endif
 }//Dbacc::execACCMINUPDATE()
 
@@ -3305,7 +3299,7 @@ Dbacc::getElement(const AccKeyReq* signal,
         bool possible_match;
         tgeElementHeader = elemPageptr.p->word32[elemptr];
         tgeRemLen = tgeRemLen - TelemLen;
-	Uint32 localkey1, localkey2;
+	Local_key localkey;
 	lockOwnerPtr.i = RNIL;
 	lockOwnerPtr.p = NULL;
         LHBits16 reducedHashValue;
@@ -3315,16 +3309,14 @@ Dbacc::getElement(const AccKeyReq* signal,
           ptrCheckGuard(lockOwnerPtr, coprecsize, operationrec);
           possible_match = lockOwnerPtr.p->hashValue.match(operationRecPtr.p->hashValue);
           reducedHashValue = lockOwnerPtr.p->reducedHashValue;
-	  localkey1 = lockOwnerPtr.p->localdata[0];
-	  localkey2 = lockOwnerPtr.p->localdata[1];
+	  localkey = lockOwnerPtr.p->localdata;
         } else {
           jam();
           reducedHashValue = ElementHeader::getReducedHashValue(tgeElementHeader);
           const Uint32 pos = elemptr + 1;
           ndbrequire(localkeylen == 1);
-          localkey1 = elemPageptr.p->word32[pos];
-          localkey2 = Local_key::ref2page_idx(localkey1);
-          localkey1 = Local_key::ref2page_id(localkey1);
+          localkey.m_page_no = elemPageptr.p->word32[pos];
+          localkey.m_page_idx = ElementHeader::getPageIdx(tgeElementHeader);
           possible_match = true;
         }
         if (possible_match &&
@@ -3334,19 +3326,18 @@ Dbacc::getElement(const AccKeyReq* signal,
           bool found;
           if (! searchLocalKey) 
 	  {
-            Uint32 len = readTablePk(localkey1, localkey2, tgeElementHeader,
+            Uint32 len = readTablePk(localkey.m_page_no, localkey.m_page_idx, tgeElementHeader,
 				     lockOwnerPtr);
             found = (len == operationRecPtr.p->xfrmtupkeylen) &&
 	      (memcmp(Tkeydata, ckeys, len << 2) == 0);
           } else {
             jam();
-            found = (localkey1 == Tkeydata[0] && localkey2 == Tkeydata[1]);
+            found = (localkey.m_page_no == Tkeydata[0] && Uint32(localkey.m_page_idx) == Tkeydata[1]);
           }
           if (found) 
 	  {
             jam();
-            operationRecPtr.p->localdata[0] = localkey1;
-            operationRecPtr.p->localdata[1] = localkey2;
+            operationRecPtr.p->localdata = localkey;
             return ZTRUE;
           }
         }
@@ -3407,20 +3398,19 @@ Dbacc::getElement(const AccKeyReq* signal,
 void
 Dbacc::report_dealloc(Signal* signal, const Operationrec* opPtrP)
 {
-  Uint32 localKey1 = opPtrP->localdata[0];
-  Uint32 localKey2 = opPtrP->localdata[1];
+  Local_key localKey = opPtrP->localdata;
   Uint32 opbits = opPtrP->m_op_bits;
   Uint32 userptr= opPtrP->userptr;
   Uint32 scanInd = 
     ((opbits & Operationrec::OP_MASK) == ZSCAN_OP) || 
     (opbits & Operationrec::OP_LOCK_REQ);
   
-  if (! Local_key::isInvalid(localKey1, localKey2))
+  if (! localKey.isInvalid())
   {
     signal->theData[0] = fragrecptr.p->myfid;
     signal->theData[1] = fragrecptr.p->myTableId;
-    signal->theData[2] = localKey1;
-    signal->theData[3] = localKey2;
+    signal->theData[2] = localKey.m_page_no;
+    signal->theData[3] = localKey.m_page_idx;
     signal->theData[4] = userptr;
     signal->theData[5] = scanInd;
     EXECUTE_DIRECT(DBLQH, GSN_TUP_DEALLOCREQ, signal, 6);
@@ -4342,7 +4332,10 @@ void Dbacc::abortOperation(Signal* signal)
 
         taboElementptr = operationRecPtr.p->elementPointer;
         aboPageidptr.i = operationRecPtr.p->elementPage;
-        tmp2Olq = ElementHeader::setUnlocked(operationRecPtr.p->reducedHashValue);
+        ndbassert(!operationRecPtr.p->localdata.isInvalid());
+        tmp2Olq = ElementHeader::setUnlocked(
+                      operationRecPtr.p->localdata.m_page_idx,
+                      operationRecPtr.p->reducedHashValue);
         ptrCheckGuard(aboPageidptr, cpagesize, page8);
         dbgWord32(aboPageidptr, taboElementptr, tmp2Olq);
         arrGuard(taboElementptr, 2048);
@@ -4501,7 +4494,10 @@ void Dbacc::commitOperation(Signal* signal)
       
       coPageidptr.i = operationRecPtr.p->elementPage;
       tcoElementptr = operationRecPtr.p->elementPointer;
-      tmp2Olq = ElementHeader::setUnlocked(operationRecPtr.p->reducedHashValue);
+      ndbassert(!operationRecPtr.p->localdata.isInvalid());
+      tmp2Olq = ElementHeader::setUnlocked(
+                    operationRecPtr.p->localdata.m_page_idx,
+                    operationRecPtr.p->reducedHashValue);
       ptrCheckGuard(coPageidptr, cpagesize, page8);
       dbgWord32(coPageidptr, tcoElementptr, tmp2Olq);
       arrGuard(tcoElementptr, 2048);
@@ -4718,14 +4714,12 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
 	{
 	  jam();
 	  report_dealloc(signal, opPtr.p);
-	  newOwner.p->localdata[0] = ~(Uint32)0;
-	  newOwner.p->localdata[1] = ~(Uint32)0;
+	  newOwner.p->localdata.setInvalid();
 	}
 	else
 	{
 	  jam();
-	  newOwner.p->localdata[0] = opPtr.p->localdata[0];
-	  newOwner.p->localdata[1] = opPtr.p->localdata[1];
+	  newOwner.p->localdata = opPtr.p->localdata;
 	}
 	action = START_NEW;
       }
@@ -4767,14 +4761,12 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
     if (opbits & Operationrec::OP_ELEMENT_DISAPPEARED)
     {
       report_dealloc(signal, opPtr.p);
-      newOwner.p->localdata[0] = ~(Uint32)0;
-      newOwner.p->localdata[1] = ~(Uint32)0;
+      newOwner.p->localdata.setInvalid();
     }
     else
     {
       jam();
-      newOwner.p->localdata[0] = opPtr.p->localdata[0];
-      newOwner.p->localdata[1] = opPtr.p->localdata[1];
+      newOwner.p->localdata = opPtr.p->localdata;
     }
     
     lastP = newOwner;
@@ -5387,10 +5379,9 @@ LHBits32 Dbacc::getElementHash(OperationrecPtr& oprec)
   if (oprec.p->hashValue.valid_bits() < fragrecptr.p->MAX_HASH_VALUE_BITS)
   {
     jam();
-    Uint32 localkey[2];
-    localkey[0] = oprec.p->localdata[0];
-    localkey[1] = oprec.p->localdata[1];
-    Uint32 len = readTablePk(localkey[0], localkey[1], ElementHeader::setLocked(oprec.i), oprec);
+    Local_key localkey;
+    localkey = oprec.p->localdata;
+    Uint32 len = readTablePk(localkey.m_page_no, localkey.m_page_idx, ElementHeader::setLocked(oprec.i), oprec);
     if (len > 0)
       oprec.p->hashValue = LHBits32(md5_hash((Uint64*)ckeys, len));
   }
@@ -5403,15 +5394,14 @@ LHBits32 Dbacc::getElementHash(Uint32 const* elemptr)
   assert(ElementHeader::getUnlocked(*elemptr));
 
   Uint32 elemhead = *elemptr;
-  Uint32 localkey[2];
+  Local_key localkey;
   elemptr += 1;
   ndbrequire(fragrecptr.p->localkeylen == 1);
-  localkey[0] = *elemptr;
-  localkey[1] = Local_key::ref2page_idx(localkey[0]);
-  localkey[0] = Local_key::ref2page_id(localkey[0]);
+  localkey.m_page_no = *elemptr;
+  localkey.m_page_idx = ElementHeader::getPageIdx(elemhead);
   OperationrecPtr oprec;
   oprec.i = RNIL;
-  Uint32 len = readTablePk(localkey[0], localkey[1], elemhead, oprec);
+  Uint32 len = readTablePk(localkey.m_page_no, localkey.m_page_idx, elemhead, oprec);
   if (len > 0)
   {
     jam();
@@ -6782,8 +6772,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
       ElementHeader::getOpPtrI(nsPageptr.p->word32[tnsElementptr]);
     ptrCheckGuard(queOperPtr, coprecsize, operationrec);
     if (queOperPtr.p->m_op_bits & Operationrec::OP_ELEMENT_DISAPPEARED ||
-	Local_key::isInvalid(queOperPtr.p->localdata[0],
-                             queOperPtr.p->localdata[1]))
+	queOperPtr.p->localdata.isInvalid())
     {
       jam();
       /* ------------------------------------------------------------------ */
@@ -7349,11 +7338,23 @@ void Dbacc::initScanOpRec(Page8Ptr pageptr,
   tisoLocalPtr = elemptr + 1;
 
   arrGuard(tisoLocalPtr, 2048);
-  Uint32 Tkey1 = pageptr.p->word32[tisoLocalPtr];
+  Local_key key;
+  key.m_page_no = pageptr.p->word32[tisoLocalPtr];
+  if(ElementHeader::getUnlocked(pageptr.p->word32[elemptr]))
+  {
+    key.m_page_idx = ElementHeader::getPageIdx(pageptr.p->word32[elemptr]);
+  }
+  else
+  {
+    OperationrecPtr oprec;
+    oprec.i = ElementHeader::getOpPtrI(pageptr.p->word32[elemptr]);
+    ptrCheckGuard(oprec, coprecsize, operationrec);
+    ndbassert(oprec.p->localdata.m_page_no == key.m_page_no);
+    key.m_page_idx = oprec.p->localdata.m_page_idx;
+  }
   tisoLocalPtr = tisoLocalPtr + 1;
   ndbrequire(localkeylen == 1)
-  operationRecPtr.p->localdata[0] = Local_key::ref2page_id(Tkey1);
-  operationRecPtr.p->localdata[1] = Local_key::ref2page_idx(Tkey1);
+  operationRecPtr.p->localdata = key;
   operationRecPtr.p->hashValue.clear();
   operationRecPtr.p->tupkeylen = fragrecptr.p->keyLength;
   operationRecPtr.p->xfrmtupkeylen = 0; // not used
@@ -7708,10 +7709,9 @@ bool Dbacc::searchScanContainer(Page8Ptr pageptr,
 /* --------------------------------------------------------------------------------- */
 void Dbacc::sendNextScanConf(Signal* signal)
 {
-  const Uint32 localKey1 = operationRecPtr.p->localdata[0];
-  const Uint32 localKey2 = operationRecPtr.p->localdata[1];
+  const Local_key localKey = operationRecPtr.p->localdata;
 
-  c_tup->prepareTUPKEYREQ(localKey1, localKey2, fragrecptr.p->tupFragptr);
+  c_tup->prepareTUPKEYREQ(localKey.m_page_no, localKey.m_page_idx, fragrecptr.p->tupFragptr);
 
   const Uint32 scanUserPtr = scanPtr.p->scanUserptr;
   const Uint32 opPtrI = operationRecPtr.i;
@@ -7726,8 +7726,8 @@ void Dbacc::sendNextScanConf(Signal* signal)
   signal->theData[0] = scanUserPtr;
   signal->theData[1] = opPtrI;
   signal->theData[2] = fid;
-  signal->theData[3] = localKey1;
-  signal->theData[4] = localKey2;
+  signal->theData[3] = localKey.m_page_no;
+  signal->theData[4] = localKey.m_page_idx;
   EXECUTE_DIRECT(refToMain(blockRef), GSN_NEXT_SCANCONF, signal, 5);
   return;
 }//Dbacc::sendNextScanConf()

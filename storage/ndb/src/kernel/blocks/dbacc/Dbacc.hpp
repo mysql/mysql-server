@@ -183,12 +183,13 @@ class ElementHeader {
   /**
    * 
    * l = Locked    -- If true contains operation else scan bits + hash value
+   * i = page index in dbtup fix page
    * h = Reduced hash value. The lower bits used for address is shifted away
    * o = Operation ptr I
    *
    *           1111111111222222222233
    * 01234567890123456789012345678901
-   * l               hhhhhhhhhhhhhhhh
+   * liiiiiiiiiiiii  hhhhhhhhhhhhhhhh
    *  ooooooooooooooooooooooooooooooo
    */
 public:
@@ -196,9 +197,10 @@ public:
   static bool getUnlocked(Uint32 data);
   static Uint32 getOpPtrI(Uint32 data);
   static LHBits16 getReducedHashValue(Uint32 data);
+  static Uint16 getPageIdx(Uint32 data);
 
   static Uint32 setLocked(Uint32 opPtrI);
-  static Uint32 setUnlocked(LHBits16 const& reducedHashValue);
+  static Uint32 setUnlocked(Uint16 page_idx, LHBits16 const& reducedHashValue);
   static Uint32 setReducedHashValue(Uint32 header, LHBits16 const& reducedHashValue);
 
   static Uint32 setInvalid();
@@ -228,6 +230,15 @@ ElementHeader::getReducedHashValue(Uint32 data){
 }
 
 inline
+Uint16
+ElementHeader::getPageIdx(Uint32 data)
+{
+  /* Bits 1-13 is reserved for page index */
+  NDB_STATIC_ASSERT(MAX_TUPLES_BITS <= 13);
+  return (data >> 1) & MAX_TUPLES_PER_PAGE;
+}
+
+inline
 Uint32 
 ElementHeader::getOpPtrI(Uint32 data){
   assert(isValid(data));
@@ -243,9 +254,10 @@ ElementHeader::setLocked(Uint32 opPtrI){
 }
 inline
 Uint32 
-ElementHeader::setUnlocked(LHBits16 const& reducedHashValue)
+ElementHeader::setUnlocked(Uint16 page_idx, LHBits16 const& reducedHashValue)
 {
-  return (Uint32(reducedHashValue.pack()) << 16) | 0;
+  assert(page_idx <= MAX_TUPLES_PER_PAGE);
+  return (Uint32(reducedHashValue.pack()) << 16) | (page_idx << 1) | 0;
 }
 
 inline
@@ -537,7 +549,7 @@ public:
 /* --------------------------------------------------------------------------------- */
 struct Operationrec {
   Uint32 m_op_bits;
-  Uint32 localdata[2];
+  Local_key localdata;
   Uint32 elementPage;
   Uint32 elementPointer;
   Uint32 fid;

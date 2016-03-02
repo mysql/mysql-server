@@ -62,21 +62,19 @@ struct Local_key
   bool isNull() const { return m_page_no == RNIL; }
   void setNull() { m_page_no= RNIL; m_file_no= m_page_idx= ~0;}
 
-  Uint32 ref() const { return ref(m_page_no,m_page_idx) ;}
-  
-  static Uint32 ref(Uint32 lk1, Uint32 lk2) {
-    require(isShort(lk1));
-    return (lk1 << MAX_TUPLES_BITS) | lk2;
-  }
-
-  static Uint32 ref2page_id(Uint32 ref) { return ref >> MAX_TUPLES_BITS; }
-  static Uint32 ref2page_idx(Uint32 ref) { return ref & MAX_TUPLES_PER_PAGE; }
-
   static bool isInvalid(Uint32 lk1, Uint32 lk2)
   {
     return lk1 == INVALID_PAGE_NO;
   }
-  void setInvalid() { m_page_no = INVALID_PAGE_NO; m_page_idx = INVALID_PAGE_IDX; }
+  void setInvalid()
+  {
+    m_page_no = INVALID_PAGE_NO;
+    m_page_idx = INVALID_PAGE_IDX;
+  }
+  bool isInvalid() const
+  {
+    return m_page_no == INVALID_PAGE_NO;
+  }
   /**
    * Can the local key be saved in one Uint32
    */
