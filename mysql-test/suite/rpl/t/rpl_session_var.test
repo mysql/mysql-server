@@ -29,16 +29,111 @@ drop table t1, t2;
 set @@session.sql_mode=default;
 create table t1(a int auto_increment primary key);
 create table t2(b int, a int);
+
+#
+# To verify Bug#19641806 SQL_AUTO_IS_NULL IS NOT REPLICATED, FAILURE
+#                        IN RPL_SESSION_VAR AND RPL_INSERT_ID
+# The bug manifested in various scenarios incl when the slave applier thread
+# resumes having a next event to take on dependent on LAST_INSERT_ID.
+# After fixing the event - INSERT..SELECT..where a-is-null - is processed correctly,
+# which is proved with diffing the master and slave tables.
+#
+
+# The slave applier gets stopped and master prepares the required event.
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
+
+--connection master
+set @sav.sql_auto_is_null=@@session.sql_auto_is_null;
 set @@session.sql_auto_is_null=1;
 insert into t1 values(null);
 insert into t2 select 1,a from t1 where a is null;
-set @@session.sql_auto_is_null=0;
+# Prove of a regular case where last_insert_id() is computed
+# without any hint of @@session.last_insert_id.
+--let $assert_text= set @@session.last_insert_id must be found in results of the insert..select
+--let $assert_cond=`select count(*)=1 from t2 where a=last_insert_id()`
+--source include/assert.inc
+
+# Explicitly set @session.last_insert_id makes the select
+# to find the last inserted value even when it was another connection
+# that  inserted it.
 insert into t1 values(null);
-insert into t2 select 2,a from t1 where a is null;
-select * from t2 order by b;
+--let $last_insert_id=`select last_insert_id()`
+
+--connection master1
+set @@session.sql_auto_is_null=1;
+--eval set @@session.last_insert_id=$last_insert_id;
+insert into t2 select 1,a from t1 where a is null;
+
+--connection master
+# Prove of a "hinted" last_insert_id case.
+--let $assert_text= set @@session.last_insert_id must be found in results of the insert..select
+--let $assert_cond=`select count(*)=1 from t2 where a=last_insert_id()`
+--source include/assert.inc
+insert into t1 values(null);
+set @@session.sql_auto_is_null=0;
+insert into t2 select 1,a from t1 where a is null;
+insert into t1 values(null);
+set @@session.last_insert_id=last_insert_id();
+insert into t2 select 1,a from t1 where a is null;
+--let $assert_text= set @@session.last_insert_id must *not* be found in results of the insert..select
+--let $assert_cond=`select count(*)=0 from t2 where a=@@session.last_insert_id`
+--source include/assert.inc
+set @@session.sql_auto_is_null= @sav.sql_auto_is_null;
+
+# The slave applier restarts with the first of the above queries'  events
+# which satisfy the mentioned above failure scenario.
+--connection slave
+--source include/start_slave_sql.inc
+
+--connection master
 --source include/sync_slave_sql_with_master.inc
-select * from t2 order by b;
-connection master;
+
+# Bug#19641806 fixing correctness proof
+let $diff_tables= master:t2, slave:t2;
+--source include/diff_tables.inc
+
+# Explicit mysqlbinlog testing in Bug#19641806  fixes is similar
+# to the "hinted" last_insert_id above.
+# An auto-inc INSERT is separated is followed by INSERT-SELECT
+# in a new binlog file.
+# The INSERT-SELECT binlog file is replayed, clearly by a different session,
+# and correctly.
+--connection master
+delete from t1;
+delete from t2;
+insert into t1 values(null);
+flush logs;
+set @sav.sql_auto_is_null=@@session.sql_auto_is_null;
+set @@session.sql_auto_is_null=1;
+insert into t2 select 1,a from t1 where a is null;
+set @@session.sql_auto_is_null= @sav.sql_auto_is_null;
+
+--let $MYSQLD_DATADIR=`select @@datadir`
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+flush logs;
+delete from t2;
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/$binlog_file > $MYSQLTEST_VARDIR/tmp/bug19641806.sql
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug19641806.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/bug19641806.sql
+
+# The same positive assert as above. This piece of test is ineffective
+# with GTID is ON due to the ineffective replay from the binlog.  The
+# client set @@last_insert_id in GTID mode is tested above on l.63,
+# see connection master1.
+--let $assert_text= set @@session.last_insert_id must be found in binlog results of the insert..select
+--let $assert_cond=`select @@global.gtid_mode = 'ON' or count(*)=1 from t2 where a=last_insert_id()`
+--source include/assert.inc
+
+--source include/sync_slave_sql_with_master.inc
+let $diff_tables= master:t2, slave:t2;
+--source include/diff_tables.inc
+#
+# eof of bug19641806 tests
+#
+
+# Cleanup
+--connection master
 drop table t1,t2;
 --source include/sync_slave_sql_with_master.inc
 
