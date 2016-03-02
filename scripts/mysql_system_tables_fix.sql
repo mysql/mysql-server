@@ -1,4 +1,4 @@
--- Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -194,6 +194,12 @@ ADD max_questions int(11) NOT NULL DEFAULT 0 AFTER x509_subject,
 ADD max_updates   int(11) unsigned NOT NULL DEFAULT 0 AFTER max_questions,
 ADD max_connections int(11) unsigned NOT NULL DEFAULT 0 AFTER max_updates;
 
+#
+# Update proxies_priv definition.
+#
+ALTER TABLE proxies_priv MODIFY User char(32) binary DEFAULT '' NOT NULL;
+ALTER TABLE proxies_priv MODIFY Proxied_user char(32) binary DEFAULT '' NOT NULL;
+ALTER TABLE proxies_priv MODIFY Grantor char(93) DEFAULT '' NOT NULL;
 
 #
 #  Add Create_tmp_table_priv and Lock_tables_priv to db

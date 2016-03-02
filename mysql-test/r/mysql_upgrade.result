@@ -2301,6 +2301,13 @@ SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
+#
+# Bug #21762656 AFTER RUNNING MYSQL_UPGRADE PROXIES_PRIV USER COLUMNS
+# ARE NOT UPDATED TO 32
+#
+ALTER TABLE mysql.proxies_priv MODIFY User char(16) binary DEFAULT '' NOT NULL;
+ALTER TABLE mysql.proxies_priv MODIFY Proxied_user char(16) binary DEFAULT '' NOT NULL;
+ALTER TABLE mysql.proxies_priv MODIFY Grantor char(77) DEFAULT '' NOT NULL;
 # Tables with user name column downgraded to 5.6, now run mysql_upgrade
 mysql.columns_priv                                 OK
 mysql.db                                           OK
