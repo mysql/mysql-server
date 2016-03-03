@@ -7928,6 +7928,9 @@ int handler::ha_reset()
   free_io_cache(table);
   /* reset the bitmaps to point to defaults */
   table->default_column_bitmaps();
+  /* Reset the handler flags used for dupilcate record handling */
+  table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+  table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
   /* Reset information about pushed engine conditions */
   pushed_cond= NULL;
   /* Reset information about pushed index conditions */

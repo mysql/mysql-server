@@ -15629,11 +15629,6 @@ ha_innobase::extra(
 		m_prebuilt->skip_serializable_dd_view = true;
 		break;
 	case HA_EXTRA_BEGIN_ALTER_COPY:
-
-		/* Workaround for bug#20017428. Basically
-		there is missing extra() call to reset
-		the duplicate flag. */
-		m_prebuilt->trx->duplicates = 0;
 		m_prebuilt->table->skip_alter_undo = 1;
 		break;
 	case HA_EXTRA_END_ALTER_COPY:
@@ -15672,6 +15667,7 @@ ha_innobase::end_stmt()
 
 	/* This transaction had called ha_innobase::start_stmt() */
 	trx_t*	trx = m_prebuilt->trx;
+	ut_ad(trx->duplicates == 0);
 
 	if (trx->lock.start_stmt) {
 		TrxInInnoDB::end_stmt(trx);

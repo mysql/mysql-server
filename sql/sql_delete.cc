@@ -536,8 +536,6 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
       /* Only handler knows how many records were really written */
       deleted= table->file->end_read_removal();
     }
-    if (thd->lex->is_ignore())
-      table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     THD_STAGE_INFO(thd, stage_end);
     end_read_record(&info);
     if (select_lex->active_options() & OPTION_QUICK)
@@ -948,14 +946,6 @@ bool Query_result_delete::initialize_tables(JOIN *join)
 
 Query_result_delete::~Query_result_delete()
 {
-  for (TABLE_LIST *tbl_ref= delete_tables; tbl_ref;
-       tbl_ref= tbl_ref->next_local)
-  {
-    TABLE *table= tbl_ref->correspondent_table->updatable_base_table()->table;
-    if (thd->lex->is_ignore())
-      table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
-  }
-
   for (uint counter= 0; counter < num_of_tables; counter++)
   {
     if (tempfiles && tempfiles[counter])

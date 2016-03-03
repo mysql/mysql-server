@@ -12081,19 +12081,6 @@ Write_rows_log_event::do_after_row_operations(const Slave_reporting_capability *
   }
   m_table->next_number_field=0;
   m_table->auto_increment_field_not_null= FALSE;
-  if ((rbr_exec_mode == RBR_EXEC_MODE_IDEMPOTENT) ||
-      m_table->s->db_type()->db_type == DB_TYPE_NDBCLUSTER)
-  {
-    m_table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
-    m_table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
-    /*
-      resetting the extra with 
-      table->file->extra(HA_EXTRA_NO_IGNORE_NO_KEY); 
-      fires bug#27077
-      explanation: file->reset() performs this duty
-      ultimately. Still todo: fix
-    */
-  }
   if ((local_error= m_table->file->ha_end_bulk_insert()))
   {
     m_table->file->print_error(local_error, MYF(0));
