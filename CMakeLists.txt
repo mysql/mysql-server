@@ -207,7 +207,13 @@ INCLUDE(install_layout)
 INCLUDE(mysql_add_executable)
 
 # Handle options
-OPTION(WITH_RAPID "Build additonal code(plugins) that is located in rapid directory" ON)
+IF(EXISTS ${CMAKE_SOURCE_DIR}/rapid)
+  OPTION(WITH_RAPID
+    "Build additonal code(plugins) that is located in rapid directory" ON)
+ELSE()
+  OPTION(WITH_RAPID
+    "Build additonal code(plugins) that is located in rapid directory" OFF)
+ENDIF()
 OPTION(DISABLE_SHARED 
  "Don't build shared libraries, compile code as position-dependent" OFF)
 IF(DISABLE_SHARED)
@@ -593,9 +599,9 @@ IF(WITH_UNIT_TESTS)
   ENDIF()
   ADD_SUBDIRECTORY(unittest/gunit)
   
-  IF(WITH_RAPID)
+  IF(WITH_RAPID AND EXISTS rapid/unittest/gunit)
     ADD_SUBDIRECTORY(rapid/unittest/gunit)
-  ENDIF(WITH_RAPID)
+  ENDIF()
 ENDIF()
 
 ADD_SUBDIRECTORY(extra)
