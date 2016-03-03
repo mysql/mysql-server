@@ -36,8 +36,7 @@ int main(int argc, char **argv)
     std::ofstream f(path);
 
     std::cout << "Updating " << path << "..." << std::endl;
-    f << "# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved." << std::endl <<
-         "# Automatically generated, use make testgroups to update" << std::endl;
+    f << "# Automatically generated, use make testgroups to update" << std::endl;
 
     ::testing::UnitTest *ut = ::testing::UnitTest::GetInstance();
     for (int i = 0; i < ut->total_test_case_count(); ++i)
