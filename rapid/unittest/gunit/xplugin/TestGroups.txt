@@ -1,4 +1,3 @@
-# Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
 # Automatically generated, use make testgroups to update
 add_test(Query_string_builder_testsuite xplugin_unit_tests --gtest_filter=Query_string_builder_testsuite.*)
 add_test(row_builder xplugin_unit_tests --gtest_filter=row_builder.*)
