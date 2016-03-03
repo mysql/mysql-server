@@ -68,7 +68,7 @@ public:
     {}
   };
 
-  Sql_data_context(ngs::Protocol_encoder &proto, const bool query_without_authentication = false)
+  Sql_data_context(ngs::Protocol_encoder *proto, const bool query_without_authentication = false)
   : m_proto(proto), m_mysql_session(NULL),
     m_streaming_delegate(m_proto),
     m_user(NULL),
@@ -90,7 +90,11 @@ public:
   ngs::Error_code init(const int client_port, const bool is_tls_activated);
   virtual ngs::Error_code authenticate(const char *user, const char *host, const char *ip, const char *db, On_user_password_hash password_hash_cb, bool allow_expired_passwords, ngs::IOptions_session_ptr &options_session);
 
-  ngs::Protocol_encoder &proto() { return m_proto; }
+  ngs::Protocol_encoder &proto()
+  {
+    DBUG_ASSERT(m_proto != NULL);
+    return *m_proto;
+  }
 
   MYSQL_SESSION mysql_session() const { return m_mysql_session; }
 
@@ -135,7 +139,7 @@ private:
 
   static void default_completion_handler(void *ctx, unsigned int sql_errno, const char *err_msg);
 
-  ngs::Protocol_encoder& m_proto;
+  ngs::Protocol_encoder* m_proto;
   MYSQL_SESSION          m_mysql_session;
 
   Callback_command_delegate m_callback_delegate;

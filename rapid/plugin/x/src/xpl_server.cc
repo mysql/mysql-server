@@ -533,7 +533,7 @@ bool xpl::Server::on_net_startup()
     if (server().is_running())
       return true;
 
-    Sql_data_context sql_context(*(ngs::Protocol_encoder*)NULL, true);
+    Sql_data_context sql_context(NULL, true);
 
     if (!sql_context.wait_api_ready(&is_exiting))
       throw ngs::Error_code(ER_X_SERVICE_ERROR, "Service isn't ready after pulling it few times");
@@ -635,7 +635,7 @@ void xpl::Server::on_net_shutdown()
   {
     try
     {
-      Sql_data_context sql_context(*(ngs::Protocol_encoder*)NULL, true);
+      Sql_data_context sql_context(NULL, true);
 
       if (!sql_context.init())
       {
