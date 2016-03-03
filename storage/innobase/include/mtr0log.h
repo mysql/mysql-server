@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -135,13 +135,25 @@ mlog_catenate_ull_compressed(
 	ib_uint64_t	val);
 
 /** Opens a buffer to mlog. It must be closed with mlog_close.
+@param[in,out]	mtr	mtr
 @param[in]	size	buffer size in bytes; MUST be smaller than
 			DYN_ARRAY_DATA_SIZE!
-@param[in]	mtr	mtr
 @return buffer, NULL if log mode MTR_LOG_NONE */
 UNIV_INLINE
 byte*
 mlog_open(
+	mtr_t*		mtr,
+	ulint		size);
+
+/** Opens a buffer to mlog. It must be closed with mlog_close.
+This is used for writing log for metadata changes
+@param[in,out]	mtr	mtr
+@param[in]	size	buffer size in bytes; MUST be smaller than
+			DYN_ARRAY_DATA_SIZE!
+@return buffer */
+UNIV_INLINE
+byte*
+mlog_open_metadata(
 	mtr_t*		mtr,
 	ulint		size);
 

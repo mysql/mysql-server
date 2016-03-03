@@ -494,9 +494,9 @@ mtr_t::commit()
 
 	Command	cmd(this);
 
-	if (m_impl.m_modifications
-	    && (m_impl.m_n_log_recs > 0
-		|| m_impl.m_log_mode == MTR_LOG_NO_REDO)) {
+	if (m_impl.m_n_log_recs > 0
+	    || (m_impl.m_modifications
+		&& m_impl.m_log_mode == MTR_LOG_NO_REDO)) {
 
 		ut_ad(!srv_read_only_mode
 		      || m_impl.m_log_mode == MTR_LOG_NO_REDO);

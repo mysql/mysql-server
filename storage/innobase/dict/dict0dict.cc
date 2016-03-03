@@ -7554,6 +7554,8 @@ DDTableBuffer::remove(
 
 	mtr.set_named_space(m_index->space);
 
+	DEBUG_SYNC_C("delete_metadata_before");
+
 	btr_cur_pessimistic_delete(&error, false, btr_pcur_get_btr_cur(&pcur),
 				   BTR_CREATE_FLAG, false, &mtr);
 	ut_ad(error == DB_SUCCESS);
@@ -7635,7 +7637,7 @@ Persister::write_log(
 	/* We will write the id in a much compressed format, which costs
 	1..11 bytes, and the MLOG_TABLE_DYNAMIC_META costs 1 byte,
 	refer to mlog_write_initial_dict_log_record() as well */
-	log_ptr = mlog_open(mtr, 12 + size);
+	log_ptr = mlog_open_metadata(mtr, 12 + size);
 	ut_ad(log_ptr != NULL);
 
 	log_ptr = mlog_write_initial_dict_log_record(
