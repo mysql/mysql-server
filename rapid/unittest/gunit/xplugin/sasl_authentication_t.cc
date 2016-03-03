@@ -27,6 +27,7 @@
 #include <stdexcept>
 #include <boost/scoped_ptr.hpp>
 #include <boost/system/error_code.hpp>
+#include "my_config.h"
 
 
 namespace xpl
@@ -229,13 +230,20 @@ public:
 typedef AuthenticationTestSuite<Partialmock_Sasl_auth> PartialMockSaslAuthenticationTestSuite;
 
 
-TEST_F(PartialMockSaslAuthenticationTestSuite, smartPtrDestructor_callsDoneMethod_always)
+/*
+  HAVE_UBSAN: undefined behaviour in gmock.
+  runtime error: member call on null pointer of type 'const struct ResultHolder'
+ */
+#if !defined(HAVE_UBSAN)
+TEST_F(PartialMockSaslAuthenticationTestSuite,
+       smartPtrDestructor_callsDoneMethod_always)
 {
   Partialmock_Sasl_auth *mock_sut = dynamic_cast<Partialmock_Sasl_auth*>(sut.get());
 
   // Check call to object and ensure that its delete by calling base method
   EXPECT_CALL(*mock_sut, done()).WillOnce(InvokeWithoutArgs(mock_sut, &Partialmock_Sasl_auth::DoDone));
 }
+#endif  // HAVE_UBSAN
 
 
 } // namespace test

@@ -23,7 +23,7 @@
 #include "mock/session.h"
 #include "mock/capabilities.h"
 #include "mock/connection.h"
-
+#include "my_config.h"
 
 namespace ngs
 {
@@ -173,6 +173,7 @@ public:
 };
 
 
+#if !defined(HAVE_UBSAN)
 TEST_P(SuccessSetCapabilityHanderTlsTestSuite, get_success_forValidParametersAndTlsSupported)
 {
   Set_params s = GetParam();
@@ -186,6 +187,7 @@ TEST_P(SuccessSetCapabilityHanderTlsTestSuite, get_success_forValidParametersAnd
 
   sut.commit();
 }
+#endif  // HAVE_UBSAN
 
 
 TEST_P(SuccessSetCapabilityHanderTlsTestSuite, get_failure_forValidParametersAndTlsIsntSupported)
@@ -290,6 +292,11 @@ TEST_F(CapabilityHanderAuthMechTestSuite, name)
 }
 
 
+/*
+  HAVE_UBSAN: undefined behaviour in gmock.
+  runtime error: member call on null pointer of type 'const struct ResultHolder'
+ */
+#if !defined(HAVE_UBSAN)
 TEST_F(CapabilityHanderAuthMechTestSuite, get_doesNothing_whenEmptySetReceive)
 {
   std::vector<std::string> names;
@@ -329,6 +336,7 @@ TEST_F(CapabilityHanderAuthMechTestSuite, get_returnAuthMethodsFromServer_always
     ASSERT_STREQ(names[i].c_str(), a.scalar().v_string().value().c_str());
   }
 }
+#endif  // HAVE_UBSAN
 
 
 } // namespace test

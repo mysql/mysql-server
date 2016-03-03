@@ -66,12 +66,14 @@ Callback_command_delegate::Field_value::Field_value(const longlong &num, bool un
 }
 
 Callback_command_delegate::Field_value::Field_value(const double num)
+  : is_unsigned(false)
 {
   value.v_double = num;
   is_string = false;
 }
 
 Callback_command_delegate::Field_value::Field_value(const decimal_t &decimal)
+  : is_unsigned(false)
 {
   value.v_decimal = decimal;
   is_string = false;
@@ -79,12 +81,14 @@ Callback_command_delegate::Field_value::Field_value(const decimal_t &decimal)
 
 
 Callback_command_delegate::Field_value::Field_value(const MYSQL_TIME &time)
+  : is_unsigned(false)
 {
   value.v_time = time;
   is_string = false;
 }
 
 Callback_command_delegate::Field_value::Field_value(const char *str, size_t length)
+  : is_unsigned(false)
 {
   value.v_string = new std::string(str, length);
   is_string = true;

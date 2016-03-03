@@ -17,6 +17,7 @@
 #include "ngs/mysqlx/getter_any.h"
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include "my_config.h"
 
 
 namespace ngs
@@ -78,6 +79,11 @@ TEST_F(Getter_any_testsuite, put_throwError_whenPutAnyWithoutType)
 }
 
 
+/*
+  HAVE_UBSAN: undefined behaviour in gmock.
+  runtime error: member call on null pointer of type 'const struct ResultHolder'
+ */
+#if !defined(HAVE_UBSAN)
 TEST_F(Getter_any_testsuite, put_executesNullCallback)
 {
   any.set_type(Any_Type_SCALAR);
@@ -152,6 +158,7 @@ TEST_F(Getter_any_testsuite, put_executesDoubleCallback)
 
   Getter_any::put_scalar_value_to_functor( any, *this);
 }
+#endif  // HAVE_UBSAN
 
 TEST_F(Getter_any_testsuite, put_throwsError_whenStringWithoutValue)
 {
@@ -164,6 +171,7 @@ TEST_F(Getter_any_testsuite, put_throwsError_whenStringWithoutValue)
   ASSERT_THROW(Getter_any::put_scalar_value_to_functor( any, *this), Error_code);
 }
 
+#if !defined(HAVE_UBSAN)
 TEST_F(Getter_any_testsuite, put_executesStringCallback)
 {
   std::string expected_value = "Expected string";
@@ -189,6 +197,7 @@ TEST_F(Getter_any_testsuite, put_executesOctetsCallback)
 
   Getter_any::put_scalar_value_to_functor( any, *this);
 }
+#endif  // HAVE_UBSAN
 
 class Getter_any_type_testsuite : public Getter_any_testsuite, public ::testing::WithParamInterface<Any_Type> {};
 

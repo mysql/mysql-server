@@ -26,7 +26,7 @@
 #include "ngs/memory.h"
 #include "ngs/ngs_error.h"
 #include "mock/capabilities.h"
-
+#include "my_config.h"
 
 const int   NUMBER_OF_HANDLERS = 4;
 const char* NAMES[NUMBER_OF_HANDLERS] = {
@@ -195,11 +195,15 @@ TEST_F(CapabilitiesConfiguratorTestSuite, get_doesNothing_whenEmpty)
 }
 
 
+/*
+  HAVE_UBSAN: undefined behaviour in gmock.
+  runtime error: member call on null pointer of type 'const struct ResultHolder'
+ */
+#if !defined(HAVE_UBSAN)
 TEST_F(CapabilitiesConfiguratorTestSuite, get_returnsAllCapabilities)
 {
   assert_get(mock_handlers);
 }
-
 
 TEST_F(CapabilitiesConfiguratorTestSuite, get_returnsOnlySupportedCaps)
 {
@@ -210,6 +214,7 @@ TEST_F(CapabilitiesConfiguratorTestSuite, get_returnsOnlySupportedCaps)
 
   assert_get(supported_handlers);
 }
+#endif  // HAVE_UBSAN
 
 
 TEST_F(CapabilitiesConfiguratorTestSuite, prepareSet_errorErrorAndCommitDoesNothing_whenOneUnknownCapability)
@@ -228,7 +233,9 @@ TEST_F(CapabilitiesConfiguratorTestSuite, prepareSet_errorErrorAndCommitDoesNoth
 }
 
 
-TEST_F(CapabilitiesConfiguratorTestSuite, prepareSet_success_whenAllRequestedCapsSucceded)
+#if !defined(HAVE_UBSAN)
+TEST_F(CapabilitiesConfiguratorTestSuite,
+       prepareSet_success_whenAllRequestedCapsSucceded)
 {
   boost::scoped_ptr<Capabilities> caps(new Capabilities());
   std::vector<Mock_ptr>           supported_handlers;
@@ -246,6 +253,7 @@ TEST_F(CapabilitiesConfiguratorTestSuite, prepareSet_success_whenAllRequestedCap
   std::for_each(supported_handlers.begin(), supported_handlers.end(), expect_commit);
   sut->commit();
 }
+#endif
 
 TEST_F(CapabilitiesConfiguratorTestSuite, prepareSet_FailsAndCommitDoesNothing_whenAnyCapsFailsLast)
 {
