@@ -1752,6 +1752,13 @@ SELECT 1 FROM t WHERE a<=>time('-t');
 DROP TABLE t;
 
 --echo #
+--echo # Bug#22839915 UNINTIALIZED VALUE IN DECIMAL_ROUND
+--echo #               WITH DECIMAL CONVERSIONS
+--echo #
+
+select maketime(1,1.1,1);
+
+--echo #
 --echo # Bug#21462523 RETURNED VALUE OVERFLOWS DECIMAL DATA TYPE
 --echo #
 
