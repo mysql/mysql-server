@@ -64,7 +64,7 @@ Client::Client(Connection_ptr connection, IServer *server, Client_id client_id, 
   m_close_reason(Not_closing)
 {
   ++num_of_instances;
-  my_snprintf(m_id, sizeof(m_id), "%ld", client_id);
+  my_snprintf(m_id, sizeof(m_id), "%llu", static_cast<ulonglong>(client_id));
 }
 
 
