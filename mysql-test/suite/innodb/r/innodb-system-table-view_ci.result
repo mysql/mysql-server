@@ -371,7 +371,7 @@ table_id	pos	mtype	prtype	len	name
 44	1	13	5439998	192	Db
 44	2	13	5439998	96	User
 44	3	13	5439998	192	Table_name
-44	4	13	5439998	231	Grantor
+44	4	13	5439998	279	Grantor
 44	5	3	525575	4	Timestamp
 44	6	6	1022	2	Table_priv
 44	7	6	1022	1	Column_priv
