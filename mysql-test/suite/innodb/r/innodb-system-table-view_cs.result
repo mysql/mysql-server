@@ -440,7 +440,7 @@ table_id	pos	mtype	prtype	len	name
 63	2	13	5439998	180	Proxied_host
 63	3	13	5439998	96	Proxied_user
 63	4	6	1281	1	With_grant
-63	5	13	5439998	231	Grantor
+63	5	13	5439998	279	Grantor
 63	6	3	525575	4	Timestamp
 index_id	table_id	type	n_fields	space	name
 11	11	3	1	0	ID_IND
