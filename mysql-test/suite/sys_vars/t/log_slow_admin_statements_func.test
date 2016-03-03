@@ -50,8 +50,14 @@ SELECT count(sql_text)= 0 FROM mysql.slow_log
 
 SET GLOBAL log_slow_admin_statements = on;
 
+DROP TABLE log_slow_admin_statements;
+CREATE TABLE log_slow_admin_statements (
+        i INT PRIMARY KEY AUTO_INCREMENT,
+        j VARCHAR(255)
+) ENGINE=InnoDB;
+
 # ALTER, OPTIMIZE, CHECK and DROP operations should be logged in slow query log.
-SELECT sql_text FROM mysql.slow_log WHERE sql_text LIKE '%TABLE log_slow_admin_statements%';
+CALL add_rows();
 
 ANALYZE TABLE log_slow_admin_statements;
 OPTIMIZE TABLE log_slow_admin_statements;

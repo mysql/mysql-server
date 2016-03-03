@@ -40,10 +40,12 @@ WHERE sql_text LIKE '%TABLE log_slow_admin_statements%';
 count(sql_text)= 0
 1
 SET GLOBAL log_slow_admin_statements = on;
-SELECT sql_text FROM mysql.slow_log WHERE sql_text LIKE '%TABLE log_slow_admin_statements%';
-sql_text
-SELECT count(sql_text)= 0 FROM mysql.slow_log
-WHERE sql_text LIKE '%TABLE log_slow_admin_statements%'
+DROP TABLE log_slow_admin_statements;
+CREATE TABLE log_slow_admin_statements (
+i INT PRIMARY KEY AUTO_INCREMENT,
+j VARCHAR(255)
+) ENGINE=InnoDB;
+CALL add_rows();
 ANALYZE TABLE log_slow_admin_statements;
 Table	Op	Msg_type	Msg_text
 test.log_slow_admin_statements	analyze	status	OK
