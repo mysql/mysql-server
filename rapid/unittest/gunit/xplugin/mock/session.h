@@ -125,7 +125,7 @@ class Mock_sql_data_context : public xpl::Sql_data_context
 {
 public:
   Mock_sql_data_context(ngs::Protocol_encoder *p=0)
-  : xpl::Sql_data_context(*p)
+  : xpl::Sql_data_context(p)
   {
   }
 
