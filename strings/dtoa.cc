@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -1411,7 +1411,8 @@ static double my_strtod_int(const char *s00, char **se, int *error, char *buf, s
   nd0= nd;
   if (s < end && c == '.')
   {
-    c= *++s;
+    if (++s < end)
+      c= *s;
     if (!nd)
     {
       for (; s < end; ++s)

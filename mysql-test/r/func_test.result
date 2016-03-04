@@ -340,3 +340,12 @@ t2	CREATE TABLE `t2` (
   `greatest(9223372036854775808, 9223372036854775808)` bigint(19) unsigned NOT NULL DEFAULT '0'
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1, t2;
+#
+# Bug#22839888 UNINITIALIZED VALUE WHEN CONVERTING
+#              MULTIBYTE STRINGS TO NUMBERS
+#
+select greatest(1,_utf16'.',_utf8'');
+greatest(1,_utf16'.',_utf8'')
+1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '.'
