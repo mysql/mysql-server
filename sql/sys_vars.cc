@@ -2060,7 +2060,7 @@ static bool fix_syslog(sys_var *self, THD *thd, enum_var_type type)
 
 static bool check_syslog_tag(sys_var *self, THD *THD, set_var *var)
 {
-  return ((var->value != NULL) &&
+  return ((var->save_result.string_value.str != NULL) &&
           (strchr(var->save_result.string_value.str, FN_LIBCHAR) != NULL));
 }
 
