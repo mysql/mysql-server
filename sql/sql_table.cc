@@ -1745,6 +1745,8 @@ void execute_ddl_log_recovery()
     DBUG_VOID_RETURN;
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
+  // Mark this as a system thread to skip metadata lock checks in the DD.
+  thd->system_thread= SYSTEM_THREAD_DDL_LOG_RECOVERY;
 
   thd->set_query(recover_query_string, strlen(recover_query_string));
 
