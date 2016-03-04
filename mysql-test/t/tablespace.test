@@ -177,27 +177,19 @@ SET SESSION debug="-d,out_of_tablespace_disk";
 --echo #
 
 --echo #
---echo # Create a tablespace, and drop it, but make drop fail
---echo # before the object is deleted from the dd tables. Now,
---echo # the object exists in the global data dictionary, but
---echo # not in the SE not in the SE private data dictionary.
+--echo # Create a tablespace.
 
 CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd';
 
 --enable_connect_log
 --connect (con1, localhost, root)
-SET SESSION DEBUG='+d,fail_while_dropping_dd_object';
---error ER_LOCK_WAIT_TIMEOUT
-DROP TABLESPACE ts;
-SET SESSION DEBUG='-d,fail_while_dropping_dd_object';
 
 --echo #
 --echo # Without the patch, the next create statement will acquire the
 --echo # tablespace object without using an auto releaser, because the
---echo # tablespace with the same name already exists in the global DD,
---echo # but not in the SE. If it existed in the SE, the fact that it
---echo # alrady exists would be caught differently. This will give an
---echo # assert when the thd is deleted, when the connection is closed.
+--echo # tablespace with the same name already exists in the global DD.
+--echo # This will give an assert when the thd is deleted, when the
+--echo #  connection is closed.
 --echo # The fix is simply to add an auto releaser at the right place.
 
 --error ER_TABLESPACE_EXISTS
@@ -207,6 +199,6 @@ CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd';
 --source include/wait_until_disconnected.inc
 
 --connection default
---echo # Drop the tablespace for real.
+--echo # Clean-up.
 DROP TABLESPACE ts;
 --disable_connect_log

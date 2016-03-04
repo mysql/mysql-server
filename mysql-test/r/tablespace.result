@@ -238,27 +238,19 @@ SET SESSION debug="-d,out_of_tablespace_disk";
 # Bug #21625393 ASSERT(E->USAGE() == 1) FAILURE IN DD::CACHE::SHARED_MULTI_MAP<T>::::REMOVE()
 #
 #
-# Create a tablespace, and drop it, but make drop fail
-# before the object is deleted from the dd tables. Now,
-# the object exists in the global data dictionary, but
-# not in the SE not in the SE private data dictionary.
+# Create a tablespace.
 CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd';
 connect  con1, localhost, root;
-SET SESSION DEBUG='+d,fail_while_dropping_dd_object';
-DROP TABLESPACE ts;
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction
-SET SESSION DEBUG='-d,fail_while_dropping_dd_object';
 #
 # Without the patch, the next create statement will acquire the
 # tablespace object without using an auto releaser, because the
-# tablespace with the same name already exists in the global DD,
-# but not in the SE. If it existed in the SE, the fact that it
-# alrady exists would be caught differently. This will give an
-# assert when the thd is deleted, when the connection is closed.
+# tablespace with the same name already exists in the global DD.
+# This will give an assert when the thd is deleted, when the
+#  connection is closed.
 # The fix is simply to add an auto releaser at the right place.
 CREATE TABLESPACE ts ADD DATAFILE 'ts.ibd';
 ERROR HY000: Tablespace 'ts' exists.
 disconnect con1;
 connection default;
-# Drop the tablespace for real.
+# Clean-up.
 DROP TABLESPACE ts;

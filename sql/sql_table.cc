@@ -109,11 +109,6 @@ mysql_prepare_create_table(THD *thd, const char *table_name,
                            uint *key_count, int select_field_count,
                            bool is_sql_layer_system_table);
 
-static
-bool validate_comment_length(THD *thd, const char *comment_str,
-                             size_t *comment_len, uint max_len,
-                             uint err_code, const char *comment_name);
-
 
 /**
   @brief Helper function for explain_filename
@@ -5026,9 +5021,9 @@ static bool mysql_prepare_create_table(THD *thd,
     @retval       false           On success
 */
 
-static bool validate_comment_length(THD *thd, const char *comment_str,
-                                    size_t *comment_len, uint max_len,
-                                    uint err_code, const char *comment_name)
+bool validate_comment_length(THD *thd, const char *comment_str,
+                             size_t *comment_len, uint max_len,
+                             uint err_code, const char *comment_name)
 {
   size_t length= 0;
   DBUG_ENTER("validate_comment_length");

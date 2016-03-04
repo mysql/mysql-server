@@ -908,7 +908,10 @@ typedef uint (*partition_flags_t)();
 typedef int (*get_tablespace_t)(THD* thd, LEX_CSTRING db_name, LEX_CSTRING table_name,
                                 LEX_CSTRING *tablespace_name);
 
-typedef int (*alter_tablespace_t)(handlerton *hton, THD *thd, st_alter_tablespace *ts_info);
+typedef int (*alter_tablespace_t)(handlerton *hton, THD *thd,
+                                  st_alter_tablespace *ts_info,
+                                  const dd::Tablespace *old_ts_def,
+                                  dd::Tablespace *new_ts_def);
 
 typedef int (*fill_is_table_t)(handlerton *hton, THD *thd, TABLE_LIST *tables,
                                class Item *cond,

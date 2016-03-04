@@ -163,10 +163,10 @@ SET DEBUG= '+d, fail_while_storing_dd_object';
 CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG= '-d, fail_while_storing_dd_object';
-# Here, the global DD and InnoDB are out of sync. To get
-# out of this, we must do a drop, which fails since the
-# object does not exist in the DD, but which still
-# removes the tablespace from the SE.
+# There should be no trace left in the data-dictionary
+SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
+COUNT(*)
+0
 DROP TABLESPACE ts1;
 ERROR HY000: Tablespace ts1 doesn't exist.
 # Then, we can do it for real.
@@ -179,19 +179,19 @@ SET DEBUG= '+d, fail_while_dropping_dd_object';
 DROP TABLESPACE ts1;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG= '-d, fail_while_dropping_dd_object';
-# Do it for real.
-# Note: The statement below fails, and there is still an entry for
-#       ts1 in mysql.tablespaces.
-DROP TABLESPACE ts1;
-ERROR HY000: Failed to drop TABLESPACE ts1
+# Tablespace is still in the data-dictionary.
 SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
 COUNT(*)
 1
-# To get around this, recreate the tablespace, which will fail,
-# yet also makes the global DD in sync with InnoDB. Then drop.
-CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
-ERROR HY000: Tablespace 'ts1' exists.
+# Here, the global DD and InnoDB are out of sync. To get
+# out of this, we must do a drop, which fails since the
+# object does not exist in the SE, but which still
+# removes the tablespace from the DD.
+# Note: The statement below fails, but removes entry for
+#       ts1 from mysql.tablespaces.
+# Do it for real.
 DROP TABLESPACE ts1;
+ERROR HY000: Failed to drop TABLESPACE ts1
 SELECT COUNT(*) FROM mysql.tablespaces WHERE name LIKE 'ts1';
 COUNT(*)
 0

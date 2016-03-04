@@ -204,6 +204,9 @@ bool fill_field_definition(THD *thd,
                            Create_field *field_def);
 const CHARSET_INFO* get_sql_field_charset(Create_field *sql_field,
                                           const HA_CREATE_INFO *create_info);
+bool validate_comment_length(THD *thd, const char *comment_str,
+                             size_t *comment_len, uint max_len,
+                             uint err_code, const char *comment_name);
 bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags);
 int write_bin_log(THD *thd, bool clear_error,
                   const char *query, size_t query_length,

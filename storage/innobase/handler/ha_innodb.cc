@@ -1259,13 +1259,19 @@ innobase_rollback_by_xid(
 @param[in]	hton		Handlerton of InnoDB
 @param[in]	thd		Connection
 @param[in]	alter_info	Describies the command and how to do it.
+@param[in]	old_ts_def	Old version of dd::Tablespace object for the
+tablespace
+@param[in/out]	new_ts_def	New version of dd::Tablespace object for the
+tablespace
 @return MySQL error code*/
 static
 int
 innobase_alter_tablespace(
 	handlerton*		hton,
 	THD*			thd,
-	st_alter_tablespace*	alter_info);
+	st_alter_tablespace*	alter_info,
+	const dd::Tablespace*	old_ts_def,
+	dd::Tablespace*		new_ts_def);
 
 /** Remove all tables in the named database inside InnoDB.
 @param[in]	hton	handlerton from InnoDB
@@ -13396,13 +13402,19 @@ cleanup:
 @param[in]	hton		Handlerton of InnoDB
 @param[in]	thd		Connection
 @param[in]	alter_info	How to do the command
+@param[in]	old_ts_def	Old version of dd::Tablespace object for the
+tablespace
+@param[in/out]	new_ts_def	New version of dd::Tablespace object for the
+tablespace
 @return MySQL error code*/
 static
 int
 innobase_alter_tablespace(
 	handlerton*		hton,
 	THD*			thd,
-	st_alter_tablespace*	alter_info)
+	st_alter_tablespace*	alter_info,
+	const dd::Tablespace*	old_ts_def,
+	dd::Tablespace*		new_ts_def)
 {
 	int		error;		/* return zero for success */
 	DBUG_ENTER("innobase_alter_tablespace");

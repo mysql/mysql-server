@@ -337,7 +337,9 @@ static int ndbcluster_get_tablespace(THD* thd,
                                      LEX_CSTRING *tablespace_name);
 static int ndbcluster_alter_tablespace(handlerton *hton,
                                        THD* thd, 
-                                       st_alter_tablespace *info);
+                                       st_alter_tablespace *info,
+                                       const dd::Tablespace *old_ts_def,
+                                       dd::Tablespace *new_ts_def);
 static int ndbcluster_fill_files_table(handlerton *hton,
                                        THD *thd, 
                                        TABLE_LIST *tables, 
@@ -18158,7 +18160,9 @@ int ndbcluster_get_tablespace(THD* thd,
 
 static
 int ndbcluster_alter_tablespace(handlerton *hton,
-                                THD* thd, st_alter_tablespace *alter_info)
+                                THD* thd, st_alter_tablespace *alter_info,
+                                const dd::Tablespace *old_ts_def,
+                                dd::Tablespace *new_ts_def)
 {
   int is_tablespace= 0;
   NdbError err;

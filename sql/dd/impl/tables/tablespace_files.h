@@ -65,7 +65,7 @@ public:
                            "ordinal_position INT UNSIGNED NOT NULL");
     m_target_def.add_field(FIELD_FILE_NAME,
                            "FIELD_FILE_NAME",
-                           "file_name VARCHAR(255) NOT NULL");
+                           "file_name VARCHAR(512) NOT NULL");
     m_target_def.add_field(FIELD_SE_PRIVATE_DATA,
                            "FIELD_SE_PRIVATE_DATA",
                            "se_private_data MEDIUMTEXT");

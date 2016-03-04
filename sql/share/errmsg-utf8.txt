@@ -7683,6 +7683,9 @@ ER_INVALID_DD_OBJECT_NAME
 ER_TABLESPACE_MISSING_WITH_NAME
    eng "Tablespace %-.192s doesn't exist."
 
+ER_TOO_LONG_TABLESPACE_COMMENT
+  eng "Comment for tablespace '%-.64s' is too long (max = %lu)"
+
 #
 #  End of 5.8 error messages.
 #

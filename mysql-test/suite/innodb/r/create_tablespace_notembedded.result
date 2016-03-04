@@ -5,11 +5,11 @@
 CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;
 # restart: --innodb_read_only
 CREATE TABLESPACE s2 ADD DATAFILE 's2.ibd' ENGINE InnoDB;
-ERROR HY000: Failed to create TABLESPACE s2
+ERROR HY000: Table 'tablespaces' is read only
 SHOW WARNINGS;
 Level	Code	Message
-Error	1528	Failed to create TABLESPACE s2
-Error	1874	InnoDB is in read only mode.
+Warning	1836	InnoDB: Running in read-only mode
+Error	1036	Table 'tablespaces' is read only
 DROP TABLESPACE s1;
 ERROR HY000: Failed to drop TABLESPACE s1
 SHOW WARNINGS;

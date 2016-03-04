@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,11 +20,15 @@
 
 #include "lock.h"                    // Tablespace_hash_set
 
+#include <memory>                    // unique_ptr
+
 class st_alter_tablespace;
 class THD;
 struct handlerton;
 
 namespace dd {
+
+class Tablespace;
 
 /**
   Fill Tablespace_hash_set with tablespace names used by the
@@ -69,41 +73,66 @@ bool get_tablespace_name(THD *thd, const T *obj,
   We now impose tablespace names to be unique accross SE's.
   Which was not the case earlier.
 
-  @param thd     - Thread executing the operation.
-  @param ts_info - Tablespace metadata from the DDL.
-  @param hton    - Handlerton in which tablespace reside.
+  @param thd                Thread executing the operation.
+  @param ts_info            Tablespace metadata from the DDL.
+  @param hton               Handlerton in which tablespace reside.
+  @param commit_dd_changes  Indicates that we need to commit
+                            changes to data-dictionary.
 
-  @return false - On success.
-  @return true - On failure.
+  @returns Uncached dd::Tablespace object for tablespace created
+           (nullptr in case of failure).
 */
-bool create_tablespace(THD *thd, st_alter_tablespace *ts_info,
-                       handlerton *hton);
+std::unique_ptr<Tablespace> create_tablespace(THD *thd,
+                                              st_alter_tablespace *ts_info,
+                                              handlerton *hton,
+                                              bool commit_dd_changes);
 
 /**
   Drop Tablespace from Data Dictionary.
 
-  @param thd     - Thread executing the operation.
-  @param ts_info - Tablespace metadata from the DDL.
-  @param hton    - Handlerton in which tablespace reside.
+  @param thd                Thread executing the operation.
+  @param tablespace         Uncached tablespace object for
+                            the tablespace to be dropped.
+  @param commit_dd_changes  Indicates that we need to commit
+                            changes to data-dictionary.
+  @param uncached           Indicates whether dd::Tablespace
+                            object is uncached.
 
   @return false - On success.
   @return true - On failure.
 */
-bool drop_tablespace(THD *thd, st_alter_tablespace *ts_info,
-                     handlerton *hton);
+bool drop_tablespace(THD *thd, const Tablespace *tablespace,
+                     bool commit_dd_changes, bool uncached);
+
+/**
+  Update tablespace description in Data Dictionary.
+
+  @param thd                Thread executing the operation.
+  @param tablespace         Uncached tablespace object for
+                            the tablespace.
+  @param commit_dd_changes  Indicates that we need to commit
+                            changes to data-dictionary.
+
+  @return false - On success.
+  @return true - On failure.
+*/
+bool update_tablespace(THD *thd, Tablespace *tablespace,
+                       bool commit_dd_changes);
 
 /**
   Add/Drop Tablespace file for a tablespace from Data Dictionary.
 
-  @param thd     - Thread executing the operation.
-  @param ts_info - Tablespace metadata from the DDL.
-  @param hton    - Handlerton in which tablespace reside.
+  @param thd          Thread executing the operation.
+  @param ts_info      Tablespace metadata from the DDL.
+  @param old_ts_def   Old version of tablespace definition.
+  @param new_ts_def   New version of tablespace definition.
 
   @return false - On success.
   @return true - On failure.
 */
 bool alter_tablespace(THD *thd, st_alter_tablespace *ts_info,
-                      handlerton *hton);
+                      const dd::Tablespace *old_ts_def,
+                      dd::Tablespace *new_ts_def);
 
 } // namespace dd
 #endif // DD_TABLESPACE_INCLUDED

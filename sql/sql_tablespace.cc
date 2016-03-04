@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,10 +24,9 @@
 #include "sql_class.h"                          // THD
 
 #include "dd/dd_tablespace.h"                   // dd::create_tablespace
+#include "dd/cache/dictionary_client.h"         // dd::Dictionary_client
+#include "dd/types/tablespace_file.h"           // dd::Tablespace_file
 
-
-static bool update_tablespace_dictionary(
-              THD *thd, st_alter_tablespace *ts_info, handlerton *hton);
 
 /**
   Check if tablespace name is valid
@@ -124,10 +123,8 @@ static bool is_tablespace_command(ts_command_type ts_cmd_type)
   }
 }
 
-int mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
+bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
 {
-  int error= HA_ADMIN_NOT_IMPLEMENTED;
-
   DBUG_ENTER("mysql_alter_tablespace");
 
   DBUG_ASSERT(ts_info);
@@ -164,11 +161,97 @@ int mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
   if (is_tablespace_command(ts_info->ts_cmd_type) &&
       (check_tablespace_name(ts_info->tablespace_name) != IDENT_NAME_OK ||
        lock_tablespace_name(thd, ts_info->tablespace_name)))
-    DBUG_RETURN(1);
+    DBUG_RETURN(true);
 
   if (hton->alter_tablespace)
   {
-    if ((error= hton->alter_tablespace(hton, thd, ts_info)))
+    int error;
+
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Tablespace *old_ts_def= NULL;
+    std::unique_ptr<dd::Tablespace> new_ts_def;
+
+    switch (ts_info->ts_cmd_type)
+    {
+    case CREATE_TABLESPACE:
+      /*
+        Commit after creation of tablespace in the data-dictionary for
+        storage engines which don't support atomic DDL. We do this to
+        avoid being left with tablespace in SE but not in data-dictionary
+        in case of crash. Indeed, in this case, we can end-up with tablespace
+        present in the data-dictionary and not present in SE. But this can be
+        easily fixed by doing DROP TABLESPACE.
+      */
+      if (!(new_ts_def= dd::create_tablespace(thd, ts_info, hton,
+                              !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL))))
+        DBUG_RETURN(true);
+      break;
+
+    case DROP_TABLESPACE:
+      if (thd->dd_client()->acquire<dd::Tablespace>(ts_info->tablespace_name,
+                                                    &old_ts_def))
+        DBUG_RETURN(true);
+      if (!old_ts_def)
+      {
+        my_error(ER_TABLESPACE_MISSING_WITH_NAME, MYF(0), ts_info->tablespace_name);
+        DBUG_RETURN(true);
+      }
+      break;
+
+    case ALTER_TABLESPACE:
+      if (thd->dd_client()->acquire<dd::Tablespace>(ts_info->tablespace_name,
+                                                    &old_ts_def))
+        DBUG_RETURN(true);
+
+      if (!old_ts_def)
+      {
+        my_error(ER_TABLESPACE_MISSING_WITH_NAME, MYF(0), ts_info->tablespace_name);
+        DBUG_RETURN(true);
+      }
+
+      new_ts_def= std::unique_ptr<dd::Tablespace>(old_ts_def->clone());
+
+      if (ts_info->ts_cmd_type == ALTER_TABLESPACE &&
+          dd::alter_tablespace(thd, ts_info, old_ts_def, new_ts_def.get()))
+      {
+        // Error should be reported already.
+        DBUG_RETURN(true);
+      }
+      break;
+
+    /*
+      Below tablespace alter operations are handled by SE
+      and data dictionary does not capture metadata related
+      to these operations. OR the operation is not implemented
+      by the SE. The server just returns success in these cases
+      letting the SE to take actions.
+    */
+
+    /*
+      Metadata related to LOGFILE GROUP are not stored in
+      dictionary as of now.
+    */
+    case CREATE_LOGFILE_GROUP:
+    case ALTER_LOGFILE_GROUP:
+    case DROP_LOGFILE_GROUP:
+
+    /*
+      Change file operation is not implemented by any storage
+      engine.
+    */
+    case CHANGE_FILE_TABLESPACE:
+
+    /*
+      Access mode of tablespace is set by SE operation and MySQL
+      ignores it.
+    */
+    case ALTER_ACCESS_MODE_TABLESPACE:
+    default:
+    ;
+    }
+
+    if ((error= hton->alter_tablespace(hton, thd, ts_info, old_ts_def,
+                                       new_ts_def.get())))
     {
       const char* sql_syntax[] =
       {
@@ -221,93 +304,66 @@ int mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
         my_error(ER_GET_ERRNO, MYF(0), error,
                  my_strerror(errbuf, MYSQL_ERRMSG_SIZE, error));
       }
-      DBUG_RETURN(error);
+
+      if (ts_info->ts_cmd_type == CREATE_TABLESPACE &&
+          !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL))
+      {
+        /*
+          For engines which don't support atomic DDL addition of tablespace to
+          data-dictionary has been committed already so we need to revert it.
+        */
+        (void) dd::drop_tablespace(thd, new_ts_def.get(), true, true);
+      }
+      if (ts_info->ts_cmd_type == DROP_TABLESPACE &&
+          (error == HA_ERR_TABLESPACE_MISSING)
+#ifdef WORKAROUND_UNTIL_WL7016_IS_IMPLEMENTED
+          && !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL)
+#endif
+          )
+      {
+        /*
+          Also for such engines we might have orphan tablespace entries in
+          the data-dictionary which do not correspond to tablespaces in SEs.
+          To allow user to do manual clean-up we drop tablespace from the
+          dictionary even if SE says it is missing (but still report error).
+        */
+        (void) dd::drop_tablespace(thd, old_ts_def, true, false);
+      }
+      DBUG_RETURN(true);
     }
 
-    // Update data dictionary tables
-    if (update_tablespace_dictionary(thd, ts_info, hton))
+    if (ts_info->ts_cmd_type == DROP_TABLESPACE)
+    {
+      if (dd::drop_tablespace(thd, old_ts_def,
+                              !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL),
+                              false))
+        DBUG_RETURN(true);
+    }
+    else if (ts_info->ts_cmd_type == ALTER_TABLESPACE ||
+             (ts_info->ts_cmd_type == CREATE_TABLESPACE &&
+              (hton->flags & HTON_SUPPORTS_ATOMIC_DDL)))
     {
       /*
-        In practice DD operations should not fail as respective
-        SE tablespace operations are already successfull at this point.
+        Per convention only engines supporting atomic DDL are allowed to
+        modify data-dictionary objects in handler::create() and other
+        similar calls.
       */
-      DBUG_RETURN(HA_ADMIN_INTERNAL_ERROR);
+      if (dd::update_tablespace(thd, new_ts_def.get(),
+                                !(hton->flags & HTON_SUPPORTS_ATOMIC_DDL)))
+        DBUG_RETURN(true);
     }
-
   }
   else
   {
     my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
              ha_resolve_storage_engine_name(hton),
              "TABLESPACE or LOGFILE GROUP");
-    DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+    DBUG_RETURN(true);
   }
-  error= write_bin_log(thd, false, thd->query().str, thd->query().length);
-  DBUG_RETURN(error);
-}
 
-
-/*
-  Handle following operations,
-    - Create tablespace.
-    - Drop tablespace.
-    - Add/Drop datafile.
-
-  @param thd     - Thread executing the operation.
-  @param ts_info - Tablespace metadata from the DDL.
-  @param hton    - Handlerton in which tablespace reside.
-
-  @return false - On success.
-  @return true - On failure.
-*/
-static bool update_tablespace_dictionary(
-              THD *thd, st_alter_tablespace *ts_info, handlerton *hton)
-{
-  DBUG_ENTER("dd_alter_tablespace");
-
-  switch (ts_info->ts_cmd_type)
-  {
-  case CREATE_TABLESPACE:
-    DBUG_RETURN(dd::create_tablespace(thd, ts_info, hton));
-
-  case DROP_TABLESPACE:
-    DBUG_RETURN(dd::drop_tablespace(thd, ts_info, hton));
-
-  case ALTER_TABLESPACE:
-    DBUG_RETURN(dd::alter_tablespace(thd, ts_info, hton));
-
-
-  /*
-    Below tablespace alter operations are handled by SE
-    and data dictionary does not capture metadata related
-    to these operations. OR the operation is not implemented
-    by the SE. The server just returns success in these cases
-    letting the SE to take actions.
-  */
-
-  /*
-    Metadata related to LOGFILE GROUP are not stored in
-    dictionary as of now.
-  */
-  case CREATE_LOGFILE_GROUP:
-  case ALTER_LOGFILE_GROUP:
-  case DROP_LOGFILE_GROUP:
-
-  /*
-    Change file operation is not implemented by any storage
-    engine.
-  */
-  case CHANGE_FILE_TABLESPACE:
-
-  /*
-    Access mode of tablespace is set by SE operation and MySQL
-    ignores it.
-  */
-  case ALTER_ACCESS_MODE_TABLESPACE:
-  default:
-    ;
-  }
+  if (write_bin_log(thd, false, thd->query().str, thd->query().length,
+                    (hton->flags & HTON_SUPPORTS_ATOMIC_DDL)))
+    DBUG_RETURN(true);
 
   DBUG_RETURN(false);
 }
-
