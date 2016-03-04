@@ -1,6 +1,8 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 --source include/have_perfschema.inc
+# Test uses performance_schema.events_waits_current
+--source include/not_embedded.inc
 --source include/not_valgrind.inc # I_S query times out in valgrind
 --enable_connect_log
 
