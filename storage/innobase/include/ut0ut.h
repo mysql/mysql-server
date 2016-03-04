@@ -79,10 +79,7 @@ private:
 # elif defined(HAVE_FAKE_PAUSE_INSTRUCTION)
 #  define UT_RELAX_CPU() __asm__ __volatile__ ("rep; nop")
 # elif defined(HAVE_ATOMIC_BUILTINS)
-#  define UT_RELAX_CPU() do { \
-     volatile lint	volatile_var; \
-     os_compare_and_swap_lint(&volatile_var, 0, 1); \
-   } while (0)
+#  define UT_RELAX_CPU() __asm__ __volatile__ ("":::"memory")
 # elif defined(HAVE_WINDOWS_ATOMICS)
    /* In the Win32 API, the x86 PAUSE instruction is executed by calling
    the YieldProcessor macro defined in WinNT.h. It is a CPU architecture-

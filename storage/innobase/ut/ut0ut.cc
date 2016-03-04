@@ -44,9 +44,6 @@ Created 5/11/1994 Heikki Tuuri
 # include "mysql_com.h" /* NAME_LEN */
 #endif /* UNIV_HOTBACKUP */
 
-/** A constant to prevent the compiler from optimizing ut_delay() away. */
-UNIV_INTERN ibool	ut_always_false	= FALSE;
-
 #ifdef __WIN__
 /*****************************************************************//**
 NOTE: The Windows epoch starts from 1601/01/01 whereas the Unix
@@ -410,10 +407,6 @@ ut_delay(
 	for (i = 0; i < delay * 50; i++) {
 		j += i;
 		UT_RELAX_CPU();
-	}
-
-	if (ut_always_false) {
-		ut_always_false = (ibool) j;
 	}
 
 	UT_RESUME_PRIORITY_CPU();
