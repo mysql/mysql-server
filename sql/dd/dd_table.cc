@@ -1969,8 +1969,8 @@ bool recreate_table(THD *thd, const char *schema_name,
     */
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     const dd::Table *old_table_def;
-    if (thd->dd_client()->acquire_uncached<dd::Table>(schema_name, table_name,
-                                                    &old_table_def))
+    if (thd->dd_client()->acquire<dd::Table>(schema_name, table_name,
+                                             &old_table_def))
       return true;
     if (!old_table_def)
     {
