@@ -2333,6 +2333,7 @@ sub mysqlxtest_arguments(){
                              "$bindir/rapid/plugin/x/mysqlxtest",
                              "$bindir/rapid/plugin/x/Debug/mysqlxtest",
                              "$bindir/rapid/plugin/x/Release/mysqlxtest",
+                             "$bindir/rapid/plugin/x/RelWithDebInfo/mysqlxtest",
                              "$bindir/bin/mysqlxtest");
   return "" unless $exe;
 
