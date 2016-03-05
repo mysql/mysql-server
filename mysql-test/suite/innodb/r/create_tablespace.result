@@ -320,7 +320,7 @@ Error	1031	Table storage engine for 's_bad' doesn't have this option
 #
 CREATE TABLESPACE s4_def ADD DATAFILE 'MYSQL_TMP_DIR/tablespace.ibd/s4.ibd';
 CREATE TABLESPACE s5_def ADD DATAFILE 'MYSQL_TMP_DIR/tablespace.ibd/s4.ibd';
-ERROR 23000: Duplicate entry 'MYSQL_TMP_DIR/tablesp' for key 'file_name'
+Got one of the listed errors
 CREATE TABLESPACE s6_def ADD DATAFILE 'MYSQL_TMP_DIR/tablespace.ibd';
 ERROR HY000: Failed to create TABLESPACE s6_def
 === information_schema.innodb_sys_tablespaces and innodb_sys_datafiles ===

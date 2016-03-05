@@ -279,7 +279,8 @@ SHOW WARNINGS;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLESPACE s4_def ADD DATAFILE '$MYSQL_TMP_DIR/tablespace.ibd/s4.ibd';
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
---error ER_DUP_ENTRY
+# Mask error text as it varies with MYSQL_TMP_DIR length
+--error ER_DUP_ENTRY, 1
 eval CREATE TABLESPACE s5_def ADD DATAFILE '$MYSQL_TMP_DIR/tablespace.ibd/s4.ibd';
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --error ER_CREATE_FILEGROUP_FAILED
