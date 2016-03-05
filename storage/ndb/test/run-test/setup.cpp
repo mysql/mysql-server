@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -797,8 +797,10 @@ generate(atrt_process& proc, const char * name, Properties& props)
   }
   else if (strcmp(name, "--datadir=") == 0)
   {
-    opts.m_loaded.put(name, proc.m_proc.m_cwd.c_str());
-    opts.m_generated.put(name, proc.m_proc.m_cwd.c_str());
+    BaseString datadir(proc.m_proc.m_cwd);
+    datadir.append("/data");
+    opts.m_loaded.put(name, datadir.c_str());
+    opts.m_generated.put(name, datadir.c_str());
     return true;
   }
   else if (strcmp(name, "--FileSystemPath=") == 0)
