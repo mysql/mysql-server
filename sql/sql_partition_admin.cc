@@ -26,6 +26,7 @@
 #include "partitioning/partition_handler.h" // Partition_handler
 #include "sql_class.h"                      // THD
 #include "sql_cache.h"                      // query_cache
+#include "dd/cache/dictionary_client.h"     // dd::cache::Dictionary_client
 
 
 bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd)
@@ -776,6 +777,31 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   if (lock_tables(thd, first_table, table_counter, 0))
     DBUG_RETURN(true);
 
+
+  std::unique_ptr<dd::Table> table_def;
+
+  {
+    // Ensure that we release cached object before we invalidate cache below.
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Table *old_table_def= 0;
+
+    if (thd->dd_client()->acquire<dd::Table>(first_table->db,
+                                             first_table->table_name,
+                                             &old_table_def))
+      DBUG_RETURN(true);
+
+    if (!old_table_def)
+    {
+      /* Impossible since table was successfully opened above. */
+      DBUG_ASSERT(0);
+      my_error(ER_NO_SUCH_TABLE, MYF(0), first_table->db,
+               first_table->table_name);
+      DBUG_RETURN(true);
+    }
+
+    table_def= std::unique_ptr<dd::Table>(old_table_def->clone());
+  }
+
   /*
     Under locked table modes this might still not be an exclusive
     lock. Hence, upgrade the lock since the handler truncate method
@@ -789,21 +815,46 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
                    first_table->table_name, FALSE);
 
   /* Invoke the handler method responsible for truncating the partition. */
-  if ((error= part_handler->truncate_partition()))
+  if ((error= part_handler->truncate_partition(table_def.get())))
   {
     first_table->table->file->print_error(error, MYF(0));
   }
 
-  /*
-    All effects of a truncate operation are committed even if the
-    operation fails. Thus, the query must be written to the binary
-    log. The exception is a unimplemented truncate method or failure
-    before any call to handler::truncate() is done.
-    Also, it is logged in statement format, regardless of the binlog format.
-  */
-  if (error != HA_ERR_WRONG_COMMAND)
+  if (first_table->table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL)
   {
-    error|= write_bin_log(thd, !error, thd->query().str, thd->query().length);
+    /*
+      Storage engine supporting atomic DDL can fully rollback truncate
+      if any problem occurs. This will happen during statement rollback.
+
+      In case of success we need to save dd::Table object which might
+      have been updated by SE. If this step or subsequent write to binary
+      log fail then statement rollback will also restore status quo ante.
+
+      Note that Table Definition and Table Caches were invalidated above.
+    */
+    if (!error)
+    {
+      if (thd->dd_client()->update_uncached_and_invalidate(table_def.get()))
+        error= 1;
+      else
+        error= write_bin_log(thd, true, thd->query().str, thd->query().length,
+                             true);
+    }
+  }
+  else
+  {
+    /*
+      For engines which don't support atomic DDL all effects of a
+      truncate operation are committed even if the operation fails.
+      Thus, the query must be written to the binary log.
+      The exception is a unimplemented truncate method or failure
+      before any call to handler::truncate() is done.
+      Also, it is logged in statement format, regardless of the binlog format.
+    */
+    if (error != HA_ERR_WRONG_COMMAND)
+    {
+      error|= write_bin_log(thd, !error, thd->query().str, thd->query().length);
+    }
   }
 
   /*

@@ -374,7 +374,7 @@ public:
     @remark This method is a partitioning-specific hook
             and thus not a member of the general SE API.
   */
-  int truncate_partition_low();
+  int truncate_partition_low(dd::Table *table_def);
 
   virtual bool is_ignorable_error(int error)
   {

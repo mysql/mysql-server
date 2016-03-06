@@ -2,7 +2,7 @@
 #define PARTITION_HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -266,7 +266,7 @@ public:
       @retval    0  Success.
       @retval != 0  Error code.
   */
-  int truncate_partition();
+  int truncate_partition(dd::Table *table_def);
 
   /**
     Change partitions.
@@ -313,7 +313,7 @@ private:
       @retval    0  Success.
       @retval != 0  Error code.
   */
-  virtual int truncate_partition_low()
+  virtual int truncate_partition_low(dd::Table *table_def)
   { return HA_ERR_WRONG_COMMAND; }
   /**
     Truncate partition.

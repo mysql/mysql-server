@@ -1155,7 +1155,7 @@ private:
 	/** Truncate partition.
 	Called from Partition_handler::trunctate_partition(). */
 	int
-	truncate_partition_low();
+	truncate_partition_low(dd::Table *table_def);
 
 	/** Change partitions according to ALTER TABLE ... PARTITION ...
 	Called from Partition_handler::change_partitions().

@@ -3113,7 +3113,7 @@ int
 ha_innopart::truncate(dd::Table *dd_tab)
 {
 	ut_ad(m_part_info->num_partitions_used() == m_tot_parts);
-	return(truncate_partition_low());
+	return(truncate_partition_low(dd_tab));
 }
 
 /** Delete all rows in the requested partitions.
@@ -3121,7 +3121,7 @@ Done by deleting the partitions and recreate them again.
 TODO: Add DDL_LOG handling to avoid missing partitions in case of crash.
 @return	0 or error number. */
 int
-ha_innopart::truncate_partition_low()
+ha_innopart::truncate_partition_low(dd::Table *table_def)
 {
 	int		error = 0;
 	const char*	table_name = table->s->normalized_path.str;

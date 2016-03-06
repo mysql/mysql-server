@@ -3140,7 +3140,7 @@ int ha_partition::truncate(dd::Table *dd_tab)
   ALTER TABLE t TRUNCATE PARTITION ...
 */
 
-int ha_partition::truncate_partition_low()
+int ha_partition::truncate_partition_low(dd::Table *table_def)
 {
   int error= 0;
   List_iterator<partition_element> part_it(m_part_info->partitions);
@@ -3164,7 +3164,7 @@ int ha_partition::truncate_partition_low()
        i= m_part_info->get_next_used_partition(i))
   {
     DBUG_PRINT("info", ("truncate partition %u", i));
-    if ((error= m_file[i]->ha_truncate(NULL)))
+    if ((error= m_file[i]->ha_truncate(table_def)))
       break;
   }
   if (error)

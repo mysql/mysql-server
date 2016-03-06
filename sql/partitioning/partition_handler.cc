@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -346,7 +346,7 @@ const char *Partition_share::get_partition_name(size_t part_id) const
 }
 
 
-int Partition_handler::truncate_partition()
+int Partition_handler::truncate_partition(dd::Table *table_def)
 {
   handler *file= get_handler();
   if (!file)
@@ -356,7 +356,7 @@ int Partition_handler::truncate_partition()
   DBUG_ASSERT(file->table_share->tmp_table != NO_TMP_TABLE ||
               file->m_lock_type == F_WRLCK);
   file->mark_trx_read_write();
-  return truncate_partition_low();
+  return truncate_partition_low(table_def);
 }
 
 

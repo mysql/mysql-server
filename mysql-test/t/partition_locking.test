@@ -531,6 +531,14 @@ INSERT INTO t2 SELECT a, b FROM t1 WHERE a IN (1,4);
 FLUSH STATUS;
 ALTER TABLE t2 TRUNCATE PARTITION p1;
 --source include/get_handler_status_counts.inc
+--echo # Lots of lock acquisitions, reads and updated due to data-dictionary
+--echo # being updated.
+--echo # Warm-up data-dictionary cache.
+--disable_query_log
+--disable_result_log
+SHOW CREATE TABLE t2;
+--enable_result_log
+--enable_query_log
 FLUSH STATUS;
 INSERT INTO t2 SELECT a, b FROM t1 WHERE a = 1;
 --source include/get_handler_status_counts.inc
