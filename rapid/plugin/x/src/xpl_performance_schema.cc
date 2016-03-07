@@ -17,7 +17,7 @@
 * 02110-1301  USA
 */
 
-#ifdef WIN32
+#if !defined(MYSQL_DYNAMIC_PLUGIN) && defined(WIN32) && !defined(XPLUGIN_UNIT_TESTS)
 // Needed for importing PERFORMANCE_SCHEMA plugin API.
 #define MYSQL_DYNAMIC_PLUGIN 1
 #endif // WIN32
