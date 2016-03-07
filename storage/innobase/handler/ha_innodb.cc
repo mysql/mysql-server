@@ -20367,6 +20367,8 @@ innobase_init_vc_templ(
 @param[in]	ifield		index field
 @param[in]	thd		MySQL thread handle
 @param[in,out]	mysql_table	mysql table object
+@param[in]	old_table	during ALTER TABLE, this is the old table
+				or NULL.
 @return the field filled with computed value, or NULL if just want
 to store the value in passed in "my_rec" */
 dfield_t*
@@ -20378,7 +20380,8 @@ innobase_get_computed_value(
 	mem_heap_t*		heap,
 	const dict_field_t*	ifield,
 	THD*			thd,
-	TABLE*			mysql_table)
+	TABLE*			mysql_table,
+	const dict_table_t*	old_table)
 {
 	byte		rec_buf1[REC_VERSION_56_MAX_INDEX_COL_LEN];
 	byte		rec_buf2[REC_VERSION_56_MAX_INDEX_COL_LEN];
@@ -20386,7 +20389,11 @@ innobase_get_computed_value(
 	byte*		buf;
 	dfield_t*	field;
 	ulint		len;
-	const page_size_t page_size = dict_table_page_size(index->table);
+
+	const page_size_t page_size = (old_table == NULL)
+		? dict_table_page_size(index->table)
+		: dict_table_page_size(old_table);
+
 	ulint		ret = 0;
 
 	ut_ad(index->table->vc_templ);
