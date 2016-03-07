@@ -4989,3 +4989,31 @@ SELECT SUBSTRING_INDEX('www.mysql.com', '.', -2147483649);
 SUBSTRING_INDEX('www.mysql.com', '.', -2147483649)
 www.mysql.com
 set names default;
+#
+# Bug#22882717 "BIN", "OCT" FUNCTION LEADS TO MANY VALGRIND ERRORS
+#
+SELECT BIN(MID(REPEAT('b',64),21,229));
+BIN(MID(REPEAT('b',64),21,229))
+0
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+SELECT BIN(MID(1.051098E+308,9,99));
+BIN(MID(1.051098E+308,9,99))
+0
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: 'e308'
+SELECT BIN(RIGHT(REPEAT('b',64),30));
+BIN(RIGHT(REPEAT('b',64),30))
+0
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+SELECT BIN(SUBSTRING(REPEAT('b',64),9));
+BIN(SUBSTRING(REPEAT('b',64),9))
+0
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+SELECT OCT(LEFT(REPEAT('b',64),15));
+OCT(LEFT(REPEAT('b',64),15))
+0
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: 'bbbbbbbbbbbbbbb'

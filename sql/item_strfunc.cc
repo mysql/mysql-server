@@ -4177,8 +4177,10 @@ String *Item_func_conv::val_str(String *str)
       if (from_base > 0)
       {
         my_decimal res_as_dec;
-        my_decimal *decptr= args[0]->val_decimal(&res_as_dec);
-        if (decptr && decptr->sign())
+        res_as_dec.sign(false);
+        str2my_decimal(E_DEC_OK, res->ptr(), res->length(), res->charset(),
+                       &res_as_dec);
+        if (res_as_dec.sign())
           dec= 0;
       }
       ErrConvString err(res);
