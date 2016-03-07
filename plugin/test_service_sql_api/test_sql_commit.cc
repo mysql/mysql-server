@@ -787,13 +787,13 @@ static void test_sql(void *p)
 
   WRITE_STR("[srv_session_open]\n");
   MYSQL_SESSION session= srv_session_open(NULL, NULL);
-  switch_user(session, user_privileged);
 
   if (!session)
   {
     my_plugin_log_message(&p, MY_ERROR_LEVEL, "srv_session_open failed.");
-    DBUG_VOID_RETURN;
   }
+  else
+    switch_user(session, user_privileged);
 
   test_selects(session, p);
 
