@@ -317,6 +317,7 @@ are shown.");
 }
 
 
+extern "C" {
 static my_bool
 get_one_option(int optid, const struct my_option *opt,
 	       char *argument)
@@ -379,6 +380,7 @@ get_one_option(int optid, const struct my_option *opt,
   }
   return 0;
 }
+} // extern "C"
 
 
 static void

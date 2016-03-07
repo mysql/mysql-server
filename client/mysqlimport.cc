@@ -245,6 +245,7 @@ file. The SQL command 'LOAD DATA INFILE' is used to import the rows.\n");
 }
 
 
+extern "C" {
 static my_bool
 get_one_option(int optid, const struct my_option *opt,
 	       char *argument)
@@ -303,6 +304,7 @@ get_one_option(int optid, const struct my_option *opt,
   }
   return 0;
 }
+} // extern "C"
 
 
 static int get_options(int *argc, char ***argv)
@@ -594,6 +596,7 @@ static char *field_escape(char *to,const char *from,uint length)
 
 int exitcode= 0;
 
+extern "C" {
 static void *worker_thread(void *arg)
 {
   int error;
@@ -633,6 +636,7 @@ error:
 
   return 0;
 }
+} // extern "C"
 
 
 int main(int argc, char **argv)
