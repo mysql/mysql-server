@@ -669,16 +669,16 @@ static void test_sql(void *p)
   session_1= srv_session_open(NULL,plugin_ctx);
   if (!session_1)
     my_plugin_log_message(&p, MY_ERROR_LEVEL, "Opening Session 1 failed");
-
-  switch_user(session_1, user_privileged);
+  else
+    switch_user(session_1, user_privileged);
 
   /* Opening session 2 */
   WRITE_STR("Opening Session 2\n");
   session_2= srv_session_open(NULL,plugin_ctx);
   if (!session_2)
     my_plugin_log_message(&p, MY_ERROR_LEVEL, "Opening Session 2 failed");
-
-  switch_user(session_2, user_privileged);
+  else
+    switch_user(session_2, user_privileged);
 
   /* srv_session_info_get_thd and srv_session_info_get_session_id*/
   /* Session 1 */

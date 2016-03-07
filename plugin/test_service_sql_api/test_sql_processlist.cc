@@ -659,8 +659,8 @@ static void test_sql(void *p)
   session_1= srv_session_open(NULL,plugin_ctx);
   if (!session_1)
     my_plugin_log_message(&p, MY_ERROR_LEVEL, "open session_1 failed.");
-
-  switch_user(session_1, user_privileged);
+  else
+    switch_user(session_1, user_privileged);
 
   WRITE_STR("-----------------------------------------------------------------\n");
   WRITE_STR("Session 1 : \n");
@@ -672,8 +672,8 @@ static void test_sql(void *p)
   session_2= srv_session_open(NULL,plugin_ctx);
   if (!session_2)
     my_plugin_log_message(&p, MY_ERROR_LEVEL, "open session_2 failed.");
-
-  switch_user(session_2, user_privileged);
+  else
+    switch_user(session_2, user_privileged);
 
   WRITE_STR("-----------------------------------------------------------------\n");
   WRITE_STR("Session 1 : \n");

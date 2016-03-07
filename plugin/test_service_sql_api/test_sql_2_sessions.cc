@@ -705,10 +705,10 @@ static void test_sql(void *p)
   /* Opening session 1 */
   WRITE_STR("Opening Session 1\n");
   session_1= srv_session_open(NULL,plugin_ctx);
-  switch_user(session_1, user_privileged);
-
   if (!session_1)
     my_plugin_log_message(&p, MY_ERROR_LEVEL, "Open session_1 failed.");
+  else
+    switch_user(session_1, user_privileged);
 
   /* Statement 1 */
   WRITE_SEP();
@@ -719,10 +719,10 @@ static void test_sql(void *p)
   /* Opening session 2 */
   WRITE_STR("\nOpening Session 2\n");
   session_2= srv_session_open(NULL,plugin_ctx);
-  switch_user(session_2, user_privileged);
-
   if (!session_2)
     my_plugin_log_message(&p, MY_ERROR_LEVEL, "Open session_2 failed.");
+  else
+    switch_user(session_2, user_privileged);
 
   /* Statement 2 */
   WRITE_SEP();
