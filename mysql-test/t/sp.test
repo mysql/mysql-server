@@ -9148,3 +9148,85 @@ CREATE FUNCTION f21(p1 CHAR) RETURNS CHAR RETURN (p1);
 SELECT sql_data_access FROM information_schema.routines WHERE
 specific_name like 'p%' and routine_schema=0;
 DROP DATABASE bug22222013;
+SET NAMES default;
+
+--echo #
+--echo # WL#9262: All system tables should support 32 character length user names
+--echo #
+
+--echo #This should just work with username + hostname of length 93 as DEFINER
+CREATE USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+--echo #For procedure
+CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char PROCEDURE test.proc_test() SELECT CURRENT_USER();
+--echo #and for function
+CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char FUNCTION test.f_test() RETURNS INT RETURN 1;
+
+--replace_column 5 # 6 #
+SHOW PROCEDURE STATUS LIKE 'proc_test';
+DROP PROCEDURE test.proc_test;
+
+--replace_column 5 # 6 #
+SHOW FUNCTION STATUS LIKE 'f_test';
+DROP FUNCTION test.f_test;
+
+--echo # Changing mysql.proc.definer column to char(77) - i.e. old layout (5.7.12)
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode='';
+ALTER TABLE mysql.proc
+  MODIFY definer char(77) collate utf8_bin DEFAULT '' NOT NULL;
+SET sql_mode= @orig_sql_mode;
+
+--echo #Now we make sure that username + hostname with length of 77 or less work with
+--echo #this old db schema
+
+--echo #This should just pass as the DEFINER length is 77 chars - so the same as mysql.proc.definer
+CREATE USER robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+--echo #For procedure
+CREATE DEFINER=robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char PROCEDURE test.proc_test_1() SELECT CURRENT_USER();
+DROP PROCEDURE test.proc_test_1;
+--echo #For function
+CREATE DEFINER=robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char FUNCTION test.f_test_1() RETURNS INT RETURN 1;
+DROP FUNCTION test.f_test_1;
+
+--echo #Now definer is 93 char long so we should get error as mysql.proc.definer in old schema was only 77 char long
+--echo #For procedure
+--error ER_USER_COLUMN_OLD_LENGTH
+CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char PROCEDURE test.proc_test() SELECT CURRENT_USER();
+--echo #For function
+--error ER_USER_COLUMN_OLD_LENGTH
+CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char FUNCTION test.f_test_1() RETURNS INT RETURN 1;
+
+--echo # Let us check with user name + hostname of length 78
+--echo #For procedure
+--error ER_USER_COLUMN_OLD_LENGTH
+CREATE DEFINER=robert_golebiowsk@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char PROCEDURE test.proc_test() SELECT CURRENT_USER();
+--echo #For function
+--error ER_USER_COLUMN_OLD_LENGTH
+CREATE DEFINER=robert_golebiowsk@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char FUNCTION test.f_test_1() RETURNS INT RETURN 1;
+
+--echo # DEFINER with length longer than 93 characters should fail with old plain error staying that data is too long for username
+--echo # as upgrading to 93 characters (with mysql_upgrade) will not help
+--echo # Let us try with 94 characters long username
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=user_name_robert_golebiowski12345@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char PROCEDURE test.proc_test() SELECT CURRENT_USER();
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=user_name_robert_golebiowski12345@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char FUNCTION test.f_test_1() RETURNS INT RETURN 1;
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char1 PROCEDURE test.proc_test() SELECT CURRENT_USER();
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char1 FUNCTION test.f_test_1() RETURNS INT RETURN 1;
+
+--echo #Cleanup
+
+DROP USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+DROP USER robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+
+--echo Restore mysql.proc
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode='';
+ALTER TABLE mysql.proc
+  MODIFY definer char(93) collate utf8_bin DEFAULT '' NOT NULL;
+SET sql_mode= @orig_sql_mode;
+

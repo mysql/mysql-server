@@ -1,0 +1,165 @@
+# The include statement below is a temp one for tests that are yet to
+
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
+# Grant tests not performed with embedded server
+--source include/not_embedded.inc
+
+--source include/have_debug.inc
+
+call mtr.add_suppression("Did not write failed .* ");
+
+--echo #
+--echo # WL#9262: All system tables should support 32 character length user names
+--echo #
+
+CREATE USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+GRANT ALL PRIVILEGES ON *.* TO user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char WITH GRANT OPTION;
+
+CREATE USER user_name_robert_golebiowski1234@localhost;
+GRANT ALL PRIVILEGES ON *.* TO user_name_robert_golebiowski1234@localhost WITH GRANT OPTION;
+
+CREATE USER some_user@localhost;
+
+connect (con_1, localhost, user_name_robert_golebiowski1234,,);
+
+--echo # This will change CURRENT_USER from user_name_robert_golebiowski1234@localhost to
+--echo # user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+--echo # We have to do this in the server code as we are not able to simulate connecting to
+--echo # such a host from MTR
+SET DEBUG='+d,wl_9262_set_max_length_hostname';
+FLUSH PRIVILEGES;
+SET DEBUG='-d,wl_9262_set_max_length_hostname';
+SELECT CURRENT_USER();
+
+CREATE DATABASE db_1;
+CREATE TABLE db_1.test_table(ID INT);
+
+--echo # This should just work and Grantor should not be truncated
+GRANT SELECT ON db_1.test_table TO some_user@localhost;
+
+SELECT Grantor FROM mysql.tables_priv WHERE USER = 'some_user';
+SELECT LENGTH(Grantor) FROM mysql.tables_priv WHERE USER = 'some_user';
+
+DROP USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+DROP USER user_name_robert_golebiowski1234@localhost;
+DROP USER some_user@localhost;
+DROP DATABASE db_1;
+
+--connection default
+--disconnect con_1
+
+--echo #Make sure CURRENT_USER is root@localhost
+SELECT CURRENT_USER();
+
+--echo # Changing mysql.tables_priv.Grantor column to char(77) - i.e. old layout (5.7.12)
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode='';
+ALTER TABLE mysql.tables_priv
+  MODIFY Grantor char(77) DEFAULT '' NOT NULL;
+SET sql_mode= @orig_sql_mode;
+
+--echo # Now let us do the same for the procedure privileges
+--echo # Changing mysql.procs_priv.Grantor column to char(77) - i.e. old layout (5.7.12)
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode='';
+ALTER TABLE mysql.procs_priv
+  MODIFY Grantor char(77) DEFAULT '' NOT NULL;
+SET sql_mode= @orig_sql_mode;
+
+CREATE DATABASE db_1;
+CREATE TABLE db_1.test_table(ID INT);
+
+CREATE USER user_name_robert_golebiowski@localhost;
+GRANT ALL PRIVILEGES ON *.* TO user_name_robert_golebiowski@localhost WITH GRANT OPTION;
+
+--echo #Create user with length > 77 (username length + hostname length)
+CREATE USER user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+GRANT ALL PRIVILEGES ON *.* TO user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char WITH GRANT OPTION;
+
+connect (con_grant,localhost,user_name_robert_golebiowski,,);
+
+--echo # This will change CURRENT_USER from user_name_robert_golebiowski@localhost to
+--echo # user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+--echo # We have to do this in the server code as we are not able to simulate connecting to
+--echo # such a host from MTR
+SET DEBUG='+d,wl_9262_set_max_length_hostname';
+FLUSH PRIVILEGES;
+SET DEBUG='-d,wl_9262_set_max_length_hostname';
+SELECT CURRENT_USER();
+
+CREATE USER lucky_user@localhost;
+
+--echo # Now we should get error as the length of the Grantor (user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char - 93 chars)
+--echo # is longer then mysql.tables_priv.Grantor column length - 77 chars)
+--error ER_USER_COLUMN_OLD_LENGTH
+GRANT SELECT ON db_1.test_table TO lucky_user@localhost;
+
+CREATE PROCEDURE db_1.p_def() SQL SECURITY DEFINER SELECT 1;
+
+--echo # We should get error as the length of the Grantor (user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char - 93 chars)
+--echo # is longer then mysql.procs_priv.Grantor column length - 77 chars)
+--error ER_USER_COLUMN_OLD_LENGTH
+GRANT EXECUTE ON PROCEDURE db_1.p_def TO lucky_user@localhost;
+
+--echo #Now we make sure if usernames with length of 77 or less work with
+--echo #this old db schema
+
+--echo #First create user of length 77 chars.
+CREATE USER robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+GRANT ALL PRIVILEGES ON *.* TO robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char WITH GRANT OPTION;
+--echo #Create user for connecting
+CREATE USER robert_golebiows@localhost;
+GRANT ALL PRIVILEGES ON *.* TO robert_golebiows@localhost WITH GRANT OPTION;
+
+connect (con_grant_2,localhost,robert_golebiows,,);
+
+--echo # Again we change localhost to oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+--echo # for CURRENT_USER
+SET DEBUG='+d,wl_9262_set_max_length_hostname';
+FLUSH PRIVILEGES;
+SET DEBUG='-d,wl_9262_set_max_length_hostname';
+SELECT CURRENT_USER();
+
+--echo # Now the CURRENT_USER is robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+
+--echo #Now it should pass as mysql.tables_priv.Grantor is 77 chars
+GRANT SELECT ON db_1.test_table TO lucky_user@localhost;
+SELECT Grantor FROM mysql.tables_priv WHERE User = 'lucky_user';
+SELECT LENGTH(Grantor) FROM mysql.tables_priv WHERE User = 'lucky_user';
+
+--echo #Now it should pass as mysql.procs_priv.Grantor is 77 chars
+GRANT EXECUTE ON PROCEDURE db_1.p_def TO lucky_user@localhost;
+SELECT Grantor FROM mysql.procs_priv WHERE User = 'lucky_user';
+SELECT LENGTH(Grantor) FROM mysql.procs_priv WHERE User = 'lucky_user';
+
+--echo #cleanup
+
+--echo Restore mysql.procs_priv
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode='';
+ALTER TABLE mysql.procs_priv
+  MODIFY Grantor char(93) DEFAULT '' NOT NULL;
+SET sql_mode= @orig_sql_mode;
+
+--echo Restore mysql.tables_priv
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode='';
+ALTER TABLE mysql.tables_priv
+  MODIFY Grantor char(93) DEFAULT '' NOT NULL;
+SET sql_mode= @orig_sql_mode;
+
+--connection default
+--disconnect con_grant
+--disconnect con_grant_2
+
+DROP USER user_name_robert_golebiowski@localhost;
+DROP USER user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+DROP USER robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+DROP USER robert_golebiows@localhost;
+DROP USER lucky_user@localhost;
+DROP PROCEDURE db_1.p_def;
+DROP DATABASE db_1;
+
