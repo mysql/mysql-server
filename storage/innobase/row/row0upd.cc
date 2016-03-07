@@ -965,7 +965,7 @@ row_upd_build_difference_binary(
 
 			dfield_t*	vfield = innobase_get_computed_value(
 				update->old_vrow, col, index,
-				&v_heap, heap, NULL, thd, mysql_table);
+				&v_heap, heap, NULL, thd, mysql_table, NULL);
 
 			if (!dfield_data_is_binary_equal(
 				dfield, vfield->len,
@@ -1971,7 +1971,7 @@ row_upd_store_v_row(
 					innobase_get_computed_value(
 						node->row, col, index,
 						&heap, node->heap, NULL,
-						thd, mysql_table);
+						thd, mysql_table, NULL);
 				}
 			}
 		}
