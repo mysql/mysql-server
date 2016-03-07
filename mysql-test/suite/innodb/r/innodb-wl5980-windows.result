@@ -27,6 +27,8 @@ purchase#p#p1#sp#s3.isl
 # plugin field for users in WL6982.
 # Restart the DB server from unzip location of MySQL Data Dir
 Run mysql_upgrade once
+mysql_upgrade: (non fatal) [ERROR] 1728: Cannot load from mysql.proc. The table is probably corrupted
+mysql_upgrade: (non fatal) [ERROR] 1545: Failed to open mysql.event
 mysql_upgrade: [ERROR] 1072: Key column 'Id' doesn't exist in table
 mysql.columns_priv                                 OK
 mysql.db                                           OK
