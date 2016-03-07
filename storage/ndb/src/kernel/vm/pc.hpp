@@ -222,7 +222,7 @@
   if(likely(check)){ \
   } else {     \
     jamNoBlock(); \
-    progError(__LINE__, NDBD_EXIT_NDBASSERT, __FILE__, __STRING(check)); \
+    progError(__LINE__, NDBD_EXIT_NDBASSERT, __FILE__, #check); \
   }
 #else
 #define ndbassert(check) do { } while(0)
@@ -232,7 +232,7 @@
   if(likely(check)){ \
   } else {     \
     jamNoBlock(); \
-    progError(__LINE__, error, __FILE__, __STRING(check)); \
+    progError(__LINE__, error, __FILE__, #check); \
   }
 
 #define ndbrequire(check) \
