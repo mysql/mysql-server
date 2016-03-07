@@ -462,6 +462,60 @@ DROP EVENT ev1;
 SHOW EVENTS;
 
 
+--echo #
+--echo # WL#9262: All system tables should support 32 character length user names
+--echo #
+
+--echo #This should just work with username + hostname of length 93 as DEFINER
+CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char EVENT event_test ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO SELECT CURRENT_USER();
+
+--replace_column 6 # 9 # 10 #
+SHOW EVENTS LIKE 'event_test';
+
+SELECT DEFINER FROM information_schema.EVENTS WHERE EVENT_NAME='event_test';
+
+DROP EVENT event_test;
+
+--echo # Changing mysql.event.definer column to char(77) - i.e. old layout (5.7.12)
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode='';
+ALTER TABLE mysql.event
+  MODIFY definer char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '';
+SET sql_mode= @orig_sql_mode;
+
+--echo #Now we make sure that username + hostname with length of 77 or less work with
+--echo #this old db schema
+
+--echo #This should just pass as the DEFINER length is 77 chars - so the same as mysql.event.definer
+CREATE DEFINER=robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char EVENT event_test_should_pass ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO SELECT CURRENT_USER();
+DROP EVENT event_test_should_pass; 
+
+--echo #Now definer is 93 char long so we should get error as mysql.event.definer in old schema was only 77 char long
+--error ER_USER_COLUMN_OLD_LENGTH
+CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char EVENT event_test ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO SELECT CURRENT_USER();
+
+--echo # Let us check with user name + hostname of length 78
+--error ER_USER_COLUMN_OLD_LENGTH
+CREATE DEFINER=robert_golebiowsk@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char EVENT event_test ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO SELECT CURRENT_USER();
+
+--echo # DEFINER with length longer than 93 characters should fail with old plain error staying that data is too long for username
+--echo # as upgrading to 93 characters (with mysql_upgrade) will not help
+--echo # Let us try with 94 characters long username
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=user_name_robert_golebiowski12345@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char EVENT event_test ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO SELECT CURRENT_USER();
+
+--error ER_WRONG_STRING_LENGTH
+CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char1 EVENT event_test ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO SELECT CURRENT_USER();
+
+#--echo Restore mysql.event
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode='';
+ALTER TABLE mysql.event
+  MODIFY definer char(93) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '';
+SET sql_mode= @orig_sql_mode;
+
+
 --echo
 --echo # 
 --echo # End of tests

@@ -1,0 +1,146 @@
+call mtr.add_suppression("Did not write failed .* ");
+#
+# WL#9262: All system tables should support 32 character length user names
+#
+CREATE USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+GRANT ALL PRIVILEGES ON *.* TO user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char WITH GRANT OPTION;
+CREATE USER user_name_robert_golebiowski1234@localhost;
+GRANT ALL PRIVILEGES ON *.* TO user_name_robert_golebiowski1234@localhost WITH GRANT OPTION;
+CREATE USER some_user@localhost;
+# This will change CURRENT_USER from user_name_robert_golebiowski1234@localhost to
+# user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+# We have to do this in the server code as we are not able to simulate connecting to
+# such a host from MTR
+SET DEBUG='+d,wl_9262_set_max_length_hostname';
+FLUSH PRIVILEGES;
+SET DEBUG='-d,wl_9262_set_max_length_hostname';
+SELECT CURRENT_USER();
+CURRENT_USER()
+user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+CREATE DATABASE db_1;
+CREATE TABLE db_1.test_table(ID INT);
+# This should just work and Grantor should not be truncated
+GRANT SELECT ON db_1.test_table TO some_user@localhost;
+SELECT Grantor FROM mysql.tables_priv WHERE USER = 'some_user';
+Grantor
+user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+SELECT LENGTH(Grantor) FROM mysql.tables_priv WHERE USER = 'some_user';
+LENGTH(Grantor)
+93
+DROP USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+DROP USER user_name_robert_golebiowski1234@localhost;
+DROP USER some_user@localhost;
+DROP DATABASE db_1;
+#Make sure CURRENT_USER is root@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+root@localhost
+# Changing mysql.tables_priv.Grantor column to char(77) - i.e. old layout (5.7.12)
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+ALTER TABLE mysql.tables_priv
+MODIFY Grantor char(77) DEFAULT '' NOT NULL;
+SET sql_mode= @orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+# Now let us do the same for the procedure privileges
+# Changing mysql.procs_priv.Grantor column to char(77) - i.e. old layout (5.7.12)
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+ALTER TABLE mysql.procs_priv
+MODIFY Grantor char(77) DEFAULT '' NOT NULL;
+SET sql_mode= @orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE DATABASE db_1;
+CREATE TABLE db_1.test_table(ID INT);
+CREATE USER user_name_robert_golebiowski@localhost;
+GRANT ALL PRIVILEGES ON *.* TO user_name_robert_golebiowski@localhost WITH GRANT OPTION;
+#Create user with length > 77 (username length + hostname length)
+CREATE USER user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+GRANT ALL PRIVILEGES ON *.* TO user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char WITH GRANT OPTION;
+# This will change CURRENT_USER from user_name_robert_golebiowski@localhost to
+# user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+# We have to do this in the server code as we are not able to simulate connecting to
+# such a host from MTR
+SET DEBUG='+d,wl_9262_set_max_length_hostname';
+FLUSH PRIVILEGES;
+SET DEBUG='-d,wl_9262_set_max_length_hostname';
+SELECT CURRENT_USER();
+CURRENT_USER()
+user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+CREATE USER lucky_user@localhost;
+# Now we should get error as the length of the Grantor (user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char - 93 chars)
+# is longer then mysql.tables_priv.Grantor column length - 77 chars)
+GRANT SELECT ON db_1.test_table TO lucky_user@localhost;
+ERROR HY000: It seems that your db schema is old. The Grantor column is 77 characters long and should be 93 characters long. Please run mysql_upgrade.
+CREATE PROCEDURE db_1.p_def() SQL SECURITY DEFINER SELECT 1;
+# We should get error as the length of the Grantor (user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char - 93 chars)
+# is longer then mysql.procs_priv.Grantor column length - 77 chars)
+GRANT EXECUTE ON PROCEDURE db_1.p_def TO lucky_user@localhost;
+ERROR HY000: It seems that your db schema is old. The Grantor column is 77 characters long and should be 93 characters long. Please run mysql_upgrade.
+#Now we make sure if usernames with length of 77 or less work with
+#this old db schema
+#First create user of length 77 chars.
+CREATE USER robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+GRANT ALL PRIVILEGES ON *.* TO robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char WITH GRANT OPTION;
+#Create user for connecting
+CREATE USER robert_golebiows@localhost;
+GRANT ALL PRIVILEGES ON *.* TO robert_golebiows@localhost WITH GRANT OPTION;
+# Again we change localhost to oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+# for CURRENT_USER
+SET DEBUG='+d,wl_9262_set_max_length_hostname';
+FLUSH PRIVILEGES;
+SET DEBUG='-d,wl_9262_set_max_length_hostname';
+SELECT CURRENT_USER();
+CURRENT_USER()
+robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+# Now the CURRENT_USER is robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+#Now it should pass as mysql.tables_priv.Grantor is 77 chars
+GRANT SELECT ON db_1.test_table TO lucky_user@localhost;
+SELECT Grantor FROM mysql.tables_priv WHERE User = 'lucky_user';
+Grantor
+robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+SELECT LENGTH(Grantor) FROM mysql.tables_priv WHERE User = 'lucky_user';
+LENGTH(Grantor)
+77
+#Now it should pass as mysql.procs_priv.Grantor is 77 chars
+GRANT EXECUTE ON PROCEDURE db_1.p_def TO lucky_user@localhost;
+SELECT Grantor FROM mysql.procs_priv WHERE User = 'lucky_user';
+Grantor
+robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+SELECT LENGTH(Grantor) FROM mysql.procs_priv WHERE User = 'lucky_user';
+LENGTH(Grantor)
+77
+#cleanup
+Restore mysql.procs_priv
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+ALTER TABLE mysql.procs_priv
+MODIFY Grantor char(93) DEFAULT '' NOT NULL;
+SET sql_mode= @orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Restore mysql.tables_priv
+SET @orig_sql_mode= @@sql_mode;
+SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+ALTER TABLE mysql.tables_priv
+MODIFY Grantor char(93) DEFAULT '' NOT NULL;
+SET sql_mode= @orig_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+DROP USER user_name_robert_golebiowski@localhost;
+DROP USER user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+DROP USER robert_golebiows@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+DROP USER robert_golebiows@localhost;
+DROP USER lucky_user@localhost;
+DROP PROCEDURE db_1.p_def;
+DROP DATABASE db_1;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -1380,6 +1380,13 @@ int replace_table_table(THD *thd, GRANT_TABLE *grant_table,
     DBUG_RETURN(1);                            /* purecov: deadcode */
   }
 
+  if (strlen(grantor) > (table->field[4]->field_length /
+                         table->field[4]->charset()->mbmaxlen))
+  {
+    my_error(ER_USER_COLUMN_OLD_LENGTH, MYF(0), table->field[4]->field_name);
+    DBUG_RETURN(1);
+  }
+
   table->use_all_columns();
   restore_record(table, s->default_values);     // Get empty record
   table->field[0]->store(combo.host.str,combo.host.length,
@@ -1513,6 +1520,14 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   }
 
   get_grantor(thd, grantor);
+
+  if (strlen(grantor) > (table->field[5]->field_length /
+                         table->field[5]->charset()->mbmaxlen))
+  {
+    my_error(ER_USER_COLUMN_OLD_LENGTH, MYF(0), table->field[5]->field_name);
+    DBUG_RETURN(-1);
+  }
+
   /*
     New users are created before this function is called.
 
