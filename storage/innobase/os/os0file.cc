@@ -5318,9 +5318,9 @@ os_file_read_page(
 			}
 		}
 
-		ib::error()
-			<< "Tried to read " << n << " bytes at offset "
-			<< offset << " was only able to read" << n_bytes;
+		ib::error() << "Tried to read " << n
+			<< " bytes at offset " << offset
+			<< ", but was only able to read " << n_bytes;
 
 		if (exit_on_err) {
 
