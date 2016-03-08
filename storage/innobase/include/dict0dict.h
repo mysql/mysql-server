@@ -2097,11 +2097,18 @@ dict_table_decode_n_col(
 	ulint*	n_v_col);
 
 /** Look for any dictionary objects that are found in the given tablespace.
-@param[in]	space	Tablespace ID to search for.
+@param[in]	space_id	Tablespace ID to search for.
 @return true if tablespace is empty. */
 bool
-dict_tablespace_is_empty(
+dict_space_is_empty(
 	ulint	space_id);
+
+/** Find the space_id for the given name in sys_tablespaces.
+@param[in]	name	Tablespace name to search for.
+@return the tablespace ID. */
+ulint
+dict_space_get_id(
+	const char*	name);
 
 /** Free the virtual column template
 @param[in,out]	vc_templ	virtual column template */

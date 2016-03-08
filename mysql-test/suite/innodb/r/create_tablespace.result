@@ -398,7 +398,7 @@ DROP TABLESPACE s2_remote;
 DROP TABLESPACE `s1_#_hash`;
 #
 # Try to create a tablespace that already exists.
-# Make sure that the tablespace name is compared in a CASE-INSENSITIVE way.
+# Make sure that the tablespace name is compared in a CASE SENSITIVE way.
 #
 CREATE TABLESPACE s_def ADD DATAFILE 's_def.ibd';
 ERROR HY000: InnoDB: A tablespace named `s_def` already exists.
