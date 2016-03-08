@@ -232,8 +232,6 @@ my_bool
 get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 	       char *argument)
 {
-  int error = 0;
-
   switch(optid) {
   case 'c':
     opt_count_iterations= 1;
@@ -281,8 +279,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case '?':
   case 'I':					/* Info */
-    error++;
-    break;
+    usage();
+    exit(0);
   case OPT_CHARSETS_DIR:
 #if MYSQL_VERSION_ID > 32300
     charsets_dir = argument;
@@ -292,11 +290,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
     break;
-  }
-  if (error)
-  {
-    usage();
-    exit(1);
   }
   return 0;
 }
