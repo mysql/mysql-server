@@ -259,6 +259,13 @@ CREATE TABLE t_red_in_16k_from_1k TABLESPACE s_16k ROW_FORMAT=redundant AS (SELE
 CREATE TABLE t_com_in_16k_from_1k TABLESPACE s_16k ROW_FORMAT=compact AS (SELECT * FROM t_zip1k_in_1k);
 CREATE TABLE t_dyn_in_16k_from_1k TABLESPACE s_16k ROW_FORMAT=dynamic AS (SELECT * FROM t_zip1k_in_1k);
 
+--echo #
+--echo # Create a tablespace that will be deleted while the engine is not
+--echo # running to show that it can still be dropped.
+--echo #
+CREATE TABLESPACE s_missing ADD DATAFILE 'delete_me.ibd';
+CREATE TABLE t_missing (a int) TABLESPACE=s_missing;
+
 --source suite/innodb/include/show_i_s_tablespaces.inc
 --source suite/innodb/include/show_i_s_tables.inc
 --echo # Directory of MYSQLD_DATADIR/
@@ -267,9 +274,16 @@ CREATE TABLE t_dyn_in_16k_from_1k TABLESPACE s_16k ROW_FORMAT=dynamic AS (SELECT
 --list_files $MYSQLD_DATADIR/test/ *.ibd
 
 --echo #
---echo # Restart the server and make sure that everything is OK.
+--echo # Stop the server.
+--source include/shutdown_mysqld.inc
+
+--echo # Delete a general tablespace datafile.
+--remove_file $MYSQLD_DATADIR/delete_me.ibd
+--source include/start_mysqld.inc
+
+--echo # Make sure that the missing tablespace can be dropped and
+--echo # everything else is OK.
 --echo #
---source include/restart_mysqld.inc
 
 --source suite/innodb/include/show_i_s_tablespaces.inc
 --source suite/innodb/include/show_i_s_tables.inc
@@ -281,6 +295,12 @@ CREATE TABLE t_dyn_in_16k_from_1k TABLESPACE s_16k ROW_FORMAT=dynamic AS (SELECT
 --echo #
 --echo # Clean-up tables we no longer need
 --echo #
+
+--error ER_DROP_FILEGROUP_FAILED
+DROP TABLESPACE s_missing;
+SHOW WARNINGS;
+DROP TABLE t_missing;
+DROP TABLESPACE s_missing;
 
 DROP TABLE t_zip1k_in_1k_like;
 DROP TABLE t_zip2k_in_2k_like;
@@ -622,3 +642,14 @@ DROP TABLESPACE s_4k;
 DROP TABLESPACE s_8k;
 DROP TABLESPACE s_16k;
 --rmdir $MYSQL_TMP_DIR/test
+
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number .* in a file operation");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot delete tablespace .* because it is not found in the tablespace memory cache");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `test`.`t_missing` in the cache. Attempting to load the tablespace with space id .*");
+call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace `s_missing` because it could not be opened");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for `s_missing`. Please refer to .* for how to resolve the issue.");
+--enable_query_log

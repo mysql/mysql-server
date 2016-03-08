@@ -311,7 +311,7 @@ DROP TABLESPACE `s1_#_hash`;
 
 --echo #
 --echo # Try to create a tablespace that already exists.
---echo # Make sure that the tablespace name is compared in a CASE-INSENSITIVE way.
+--echo # Make sure that the tablespace name is compared in a CASE SENSITIVE way.
 --echo #
 --error ER_TABLESPACE_EXISTS
 CREATE TABLESPACE s_def ADD DATAFILE 's_def.ibd';
