@@ -3958,7 +3958,11 @@ bool Item_func_case::val_json(Json_wrapper *wr)
   }
 
   Item *args[]= {item};
-  return json_value(args, 0, wr);
+  if (json_value(args, 0, wr))
+    return error_json();
+
+  null_value= item->null_value;
+  return false;
 }
 
 
