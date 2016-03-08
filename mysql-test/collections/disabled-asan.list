@@ -7,7 +7,7 @@ innodb.innodb_pagesize_max_recordsize        : Bug#19442959 2015-11-05 jhauglid
 innodb.log_based_discovery                   : Bug#19442959 2016-03-11 jhauglid
 innodb.log_corruption                        : Bug#19442959 2015-11-05 jhauglid
 innodb.log_corruption_1                      : Bug#19442959 2015-11-05 jhauglid
-innodb.log_file                              : Bug#19442959 2015-11-05 jhauglid
+innodb.bootstrap                             : Bug#19442959 2015-11-05 jhauglid
 innodb.log_file_name                         : Bug#19442959 2015-11-05 jhauglid
 innodb.log_file_size                         : Bug#19442959 2015-11-05 jhauglid
 innodb.log_file_size_1                       : Bug#19442959 2015-11-05 jhauglid

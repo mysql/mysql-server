@@ -4237,11 +4237,26 @@ innobase_init_files(
 	dict_init_mode_t	dict_init_mode)
 {
 	DBUG_ENTER("innobase_init_files");
-	bool	create_new_db = false;
+
+	bool create_new_db = false;
+
+	switch (dict_init_mode) {
+	case DICT_INIT_CREATE_FILES:
+		create_new_db = true;
+		break;
+	case DICT_INIT_CHECK_FILES:
+		create_new_db = false;
+		break;
+	case DICT_INIT_CREATE_MISSING_FILES:
+	case DICT_INIT_IGNORE_FILES:
+		/* Unused modes. */
+		create_new_db = false;
+		ut_error;
+	}
 
 	/* Check if the data files exist or not. */
 	dberr_t	err = srv_sys_space.check_file_spec(
-		&create_new_db, MIN_EXPECTED_TABLESPACE_SIZE);
+		create_new_db, MIN_EXPECTED_TABLESPACE_SIZE);
 
 	if (err != DB_SUCCESS) {
 		DBUG_RETURN(innodb_init_abort());
@@ -11510,7 +11525,7 @@ innobase_dict_init(
 	tablespaces->push_back(&innodb_sys);
 	tablespaces->push_back(&mysql_dd);
 
-	DBUG_RETURN(innobase_init_files(DICT_INIT_IGNORE_FILES));
+	DBUG_RETURN(innobase_init_files(dict_init_mode));
 }
 
 /** Parse the table name into normal name and remote path if needed.

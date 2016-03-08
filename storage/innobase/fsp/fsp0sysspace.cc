@@ -738,12 +738,12 @@ SysTablespace::check_file_status(
 
 /** Note that the data file was not found.
 @param[in]	file		data file object
-@param[out]	create_new_db	true if a new instance to be created
+@param[in]	create_new_db	true if a new instance to be created
 @return DB_SUCCESS or error code */
 dberr_t
 SysTablespace::file_not_found(
 	Datafile&	file,
-	bool*	create_new_db)
+	bool	create_new_db)
 {
 	file.m_exists = false;
 
@@ -756,10 +756,8 @@ SysTablespace::file_not_found(
 	} else if (&file == &m_files.front()) {
 
 		/* First data file. */
-		ut_a(!*create_new_db);
-		*create_new_db = TRUE;
 
-		if (space_id() == TRX_SYS_SPACE) {
+		if (space_id() == TRX_SYS_SPACE && create_new_db) {
 			ib::info() << "The first " << name() << " data file '"
 				<< file.name() << "' did not exist."
 				" A new tablespace will be created!";
@@ -768,6 +766,12 @@ SysTablespace::file_not_found(
 	} else {
 		ib::info() << "Need to create a new " << name()
 			<< " data file '" << file.name() << "'.";
+	}
+
+	/* We allow add new files at end even if dict_init_mode is
+	not creating files. */
+	if (!create_new_db && (&file == &m_files.front())) {
+		return(DB_SUCCESS);
 	}
 
 	/* Set the file create mode. */
@@ -786,9 +790,8 @@ SysTablespace::file_not_found(
 }
 
 /** Note that the data file was found.
-@param[in,out]	file	data file object
-@return true if a new instance to be created */
-bool
+@param[in,out]	file	data file object */
+void
 SysTablespace::file_found(
 	Datafile&	file)
 {
@@ -809,9 +812,6 @@ SysTablespace::file_found(
 		file.set_open_flags(OS_FILE_OPEN_RAW);
 		break;
 	}
-
-	/* Need to create the system tablespace for new raw device. */
-	return(file.m_type == SRV_NEW_RAW);
 }
 
 /** Check the data file specification.
@@ -820,10 +820,9 @@ SysTablespace::file_found(
 @return DB_SUCCESS if all OK else error code */
 dberr_t
 SysTablespace::check_file_spec(
-	bool*	create_new_db,
+	bool	create_new_db,
 	ulint	min_expected_size)
 {
-	*create_new_db = FALSE;
 
 	if (m_files.size() >= 1000) {
 		ib::error() << "There must be < 1000 data files in "
@@ -877,7 +876,7 @@ SysTablespace::check_file_spec(
 			ut_a(err != DB_FAIL);
 			break;
 
-		} else if (*create_new_db) {
+		} else if (create_new_db) {
 			ib::error() << "The " << name() << " data file '"
 				<< begin->m_name << "' was not found but"
 				" one of the other data files '" << it->m_name
@@ -887,12 +886,12 @@ SysTablespace::check_file_spec(
 			break;
 
 		} else {
-			*create_new_db = file_found(*it);
+			file_found(*it);
 		}
 	}
 
 	/* We assume doublewirte blocks in the first data file. */
-	if (err == DB_SUCCESS && *create_new_db
+	if (err == DB_SUCCESS
 	    && begin->m_size < TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 3) {
 		ib::error() << "The " << name() << " data file "
 			<< "'" << begin->name() << "' must be at least "

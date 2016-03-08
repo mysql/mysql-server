@@ -714,82 +714,6 @@ srv_undo_tablespace_open(
 	return(err);
 }
 
-/** Check if undo tablespaces and redo log files exist before creating a
-new system tablespace
-@retval DB_SUCCESS  if all undo and redo logs are not found
-@retval DB_ERROR    if any undo and redo logs are found */
-static
-dberr_t
-srv_check_undo_redo_logs_exists()
-{
-	bool		ret;
-	os_file_t	fh;
-	char	name[OS_FILE_MAX_PATH];
-
-	/* Check if any undo tablespaces exist */
-	for (ulint i = 1; i <= srv_undo_tablespaces; ++i) {
-
-		ut_snprintf(
-			name, sizeof(name),
-			"%s%cundo%03lu",
-			srv_undo_dir, OS_PATH_SEPARATOR,
-			i);
-
-		fh = os_file_create(
-			innodb_data_file_key, name,
-			OS_FILE_OPEN_RETRY
-			| OS_FILE_ON_ERROR_NO_EXIT
-			| OS_FILE_ON_ERROR_SILENT,
-			OS_FILE_NORMAL,
-			OS_DATA_FILE,
-			srv_read_only_mode,
-			&ret);
-
-		if (ret) {
-			os_file_close(fh);
-			ib::error()
-				<< "undo tablespace '" << name << "' exists."
-				" Creating system tablespace with existing undo"
-				" tablespaces is not supported. Please delete"
-				" all undo tablespaces before creating new"
-				" system tablespace.";
-			return(DB_ERROR);
-		}
-	}
-
-	/* Check if any redo log files exist */
-	char	logfilename[OS_FILE_MAX_PATH];
-	size_t dirnamelen = strlen(srv_log_group_home_dir);
-	memcpy(logfilename, srv_log_group_home_dir, dirnamelen);
-
-	for (unsigned i = 0; i < srv_n_log_files; i++) {
-		sprintf(logfilename + dirnamelen,
-			"ib_logfile%u", i);
-
-		fh = os_file_create(
-			innodb_log_file_key, logfilename,
-			OS_FILE_OPEN_RETRY
-			| OS_FILE_ON_ERROR_NO_EXIT
-			| OS_FILE_ON_ERROR_SILENT,
-			OS_FILE_NORMAL,
-			OS_LOG_FILE,
-			srv_read_only_mode,
-			&ret);
-
-		if (ret) {
-			os_file_close(fh);
-			ib::error() << "redo log file '" << logfilename
-				<< "' exists. Creating system tablespace with"
-				" existing redo log files is not recommended."
-				" Please delete all redo log files before"
-				" creating new system tablespace.";
-			return(DB_ERROR);
-		}
-	}
-
-	return(DB_SUCCESS);
-}
-
 undo::undo_spaces_t	undo::Truncate::s_fix_up_spaces;
 
 /********************************************************************
@@ -1126,7 +1050,7 @@ srv_open_tmp_tablespace(
 
 	ib::info() << "Creating shared tablespace for temporary tables";
 
-	bool	create_new_temp_space;
+	bool	create_new_temp_space = true;
 	ulint	temp_space_id = ULINT_UNDEFINED;
 
 	dict_hdr_get_new_id(NULL, NULL, &temp_space_id, NULL, true);
@@ -1136,7 +1060,7 @@ srv_open_tmp_tablespace(
 	RECOVERY_CRASH(100);
 
 	dberr_t	err = tmp_space->check_file_spec(
-			&create_new_temp_space, 12 * 1024 * 1024);
+		create_new_temp_space, 12 * 1024 * 1024);
 
 	if (err == DB_FAIL) {
 
@@ -1711,13 +1635,7 @@ srv_start(
 
 	srv_startup_is_before_trx_rollback_phase = !create_new_db;
 
-	/* Check if undo tablespaces and redo log files exist before creating
-	a new system tablespace */
 	if (create_new_db) {
-		err = srv_check_undo_redo_logs_exists();
-		if (err != DB_SUCCESS) {
-			return(srv_init_abort(DB_ERROR));
-		}
 		recv_sys_debug_free();
 	}
 
