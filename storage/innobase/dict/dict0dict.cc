@@ -7145,7 +7145,7 @@ dict_tf_to_row_format_string(
 @param[in]	space_id	Tablespace ID to search for.
 @return true if tablespace is empty. */
 bool
-dict_tablespace_is_empty(
+dict_space_is_empty(
 	ulint	space_id)
 {
 	btr_pcur_t	pcur;
@@ -7179,6 +7179,51 @@ dict_tablespace_is_empty(
 	rw_lock_x_unlock(dict_operation_lock);
 
 	return(!found);
+}
+
+/** Find the space_id for the given name in sys_tablespaces.
+@param[in]	name	Tablespace name to search for.
+@return the tablespace ID. */
+ulint
+dict_space_get_id(
+	const char*	name)
+{
+	btr_pcur_t	pcur;
+	const rec_t*	rec;
+	mtr_t		mtr;
+	ulint		name_len = strlen(name);
+	ulint		id = ULINT_UNDEFINED;
+
+	rw_lock_x_lock(dict_operation_lock);
+	mutex_enter(&dict_sys->mutex);
+	mtr_start(&mtr);
+
+	for (rec = dict_startscan_system(&pcur, &mtr, SYS_TABLESPACES);
+	     rec != NULL;
+	     rec = dict_getnext_system(&pcur, &mtr)) {
+		const byte*	field;
+		ulint		len;
+
+		field = rec_get_nth_field_old(
+			rec, DICT_FLD__SYS_TABLESPACES__NAME, &len);
+		ut_ad(len > 0);
+		ut_ad(len < OS_FILE_MAX_PATH);
+
+		if (len == name_len && ut_memcmp(name, field, len) == 0) {
+
+			field = rec_get_nth_field_old(
+				rec, DICT_FLD__SYS_TABLESPACES__SPACE, &len);
+			ut_ad(len == 4);
+			id = mach_read_from_4(field);
+			break;
+		}
+	}
+
+	mtr_commit(&mtr);
+	mutex_exit(&dict_sys->mutex);
+	rw_lock_x_unlock(dict_operation_lock);
+
+	return(id);
 }
 #endif /* !UNIV_HOTBACKUP */
 

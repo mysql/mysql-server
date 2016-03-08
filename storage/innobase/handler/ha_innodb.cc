@@ -13322,11 +13322,18 @@ innobase_drop_tablespace(
 	/* Be sure that this tablespace is known and valid. */
 	space_id = fil_space_get_id_by_name(alter_info->tablespace_name);
 	if (space_id == ULINT_UNDEFINED) {
-		DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
+
+		space_id = dict_space_get_id(alter_info->tablespace_name);
+		if (space_id == ULINT_UNDEFINED) {
+			DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
+		}
+
+		/* The datafile is not open but the tablespace is in
+		sys_tablespaces, so we can try to drop the metadata. */
 	}
 
 	/* The tablespace can only be dropped if it is empty. */
-	if (!dict_tablespace_is_empty(space_id)) {
+	if (!dict_space_is_empty(space_id)) {
 		DBUG_RETURN(HA_ERR_TABLESPACE_IS_NOT_EMPTY);
 	}
 
@@ -13352,25 +13359,27 @@ innobase_drop_tablespace(
 		ib::error() << "Unable to delete the dictionary entries"
 			" for tablespace `" << alter_info->tablespace_name
 			<< "`, Space ID " << space_id;
-		error = convert_error_code_to_mysql(err, 0, NULL);
-		trx_rollback_for_mysql(trx);
-		goto cleanup;
+		goto have_error;
 	}
 
 	/* Delete the physical files, fil_space_t & fil_node_t entries. */
 	err = fil_delete_tablespace(space_id, BUF_REMOVE_FLUSH_NO_WRITE);
-	if (err != DB_SUCCESS) {
+	switch (err) {
+	case DB_TABLESPACE_NOT_FOUND:
+		/* OK if the physical file is mising.
+		We deleted the metadata. */
+	case DB_SUCCESS:
+		innobase_commit_low(trx);
+		break;
+	default:
 		ib::error() << "Unable to delete the tablespace `"
 			<< alter_info->tablespace_name
 			<< "`, Space ID " << space_id;
+have_error:
 		error = convert_error_code_to_mysql(err, 0, NULL);
 		trx_rollback_for_mysql(trx);
-		goto cleanup;
 	}
 
-	innobase_commit_low(trx);
-
-cleanup:
 	row_mysql_unlock_data_dictionary(trx);
 	trx_free_for_mysql(trx);
 
