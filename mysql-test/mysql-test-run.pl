@@ -116,7 +116,7 @@ our $path_charsetsdir;
 our $path_client_bindir;
 our $path_client_libdir;
 our $path_language;
-
+our $suitedir;
 our $path_current_testlog;
 our $path_testlog;
 
@@ -129,7 +129,7 @@ my $opt_tmpdir_pid;
 my $opt_start;
 my $opt_start_dirty;
 my $opt_start_exit;
-my $start_only;
+our $start_only;
 
 our $num_tests_for_report;      # for test-progress option
 our $remaining;
@@ -962,6 +962,16 @@ sub run_worker ($) {
       my $test= My::Test::read_test($server);
       #$test->print_test();
 
+      # Don't use configurations of the first test case when using --start
+      if ( $start_only and !@opt_cases )
+      {
+        my $default_cnf = "$suitedir/my.cnf";
+        if (! -f $default_cnf )
+        {
+          $default_cnf = "include/default_my.cnf";
+        }
+        $test->{'template_path'} = $default_cnf;
+      }
       # Clear comment and logfile, to avoid
       # reusing them from previous test
       delete($test->{'comment'});
@@ -4538,7 +4548,7 @@ sub run_testcase ($) {
   if ( $start_only )
   {
     mtr_print("\nStarted", started(all_servers()));
-    mtr_print("Using config for test", $tinfo->{name});
+    mtr_print("Using config", $tinfo->{template_path});
     mtr_print("Port and socket path for server(s):");
     foreach my $mysqld ( mysqlds() )
     {
@@ -7338,8 +7348,11 @@ Misc options
   timer                 Show test case execution time.
   verbose               More verbose output(use multiple times for even more)
   verbose-restart       Write when and why servers are restarted
-  start                 Only initialize and start the servers, using the
-                        startup settings for the first specified test case
+  start                 Only initialize and start the servers. If a testcase is
+                        mentioned server is started with startup settings of the testcase.
+                        If a --suite option is specified the configurations of the
+                        my.cnf of the specified suite is used. If no suite or testcase
+                        is mentioned, settings from include/default_my.cnf is used
                         Example:
                          $0 --start alias &
   start-and-exit        Same as --start, but mysql-test-run terminates and
