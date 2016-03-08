@@ -1486,11 +1486,12 @@ Event_job_data::execute(THD *thd, bool drop)
     sphead->set_creation_ctx(creation_ctx);
     sphead->optimize();
 
-    sphead->m_type= SP_TYPE_EVENT;
+    sphead->m_type= enum_sp_type::EVENT;
 #ifdef HAVE_PSI_SP_INTERFACE
-    sphead->m_sp_share= MYSQL_GET_SP_SHARE(SP_TYPE_EVENT,
-                                           dbname.str, dbname.length,
-                                           name.str, name.length);
+    sphead->m_sp_share=
+      MYSQL_GET_SP_SHARE(to_uint(enum_sp_type::EVENT),
+                         dbname.str, dbname.length,
+                         name.str, name.length);
 #endif
 
     ret= sphead->execute_procedure(thd, &empty_item_list);

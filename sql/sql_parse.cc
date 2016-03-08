@@ -4272,7 +4272,7 @@ end_with_restore_list:
       goto error;
 
     name= lex->sphead->name(&namelen);
-    if (lex->sphead->m_type == SP_TYPE_FUNCTION)
+    if (lex->sphead->m_type == enum_sp_type::FUNCTION)
     {
       udf_func *udf = find_udf(name, namelen);
 
@@ -4404,7 +4404,7 @@ end_with_restore_list:
         By this moment all needed SPs should be in cache so no need to look 
         into DB. 
       */
-      if (!(sp= sp_find_routine(thd, SP_TYPE_PROCEDURE, lex->spname,
+      if (!(sp= sp_find_routine(thd, enum_sp_type::PROCEDURE, lex->spname,
                                 &thd->sp_proc_cache, TRUE)))
       {
 	my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PROCEDURE",
@@ -4504,7 +4504,7 @@ end_with_restore_list:
         goto error;
 
       enum_sp_type sp_type= (lex->sql_command == SQLCOM_ALTER_PROCEDURE) ?
-                            SP_TYPE_PROCEDURE : SP_TYPE_FUNCTION;
+                            enum_sp_type::PROCEDURE : enum_sp_type::FUNCTION;
       /*
         Note that if you implement the capability of ALTER FUNCTION to
         alter the body of the function, this command should be made to
@@ -4584,7 +4584,7 @@ end_with_restore_list:
         goto error;
 
       enum_sp_type sp_type= (lex->sql_command == SQLCOM_DROP_PROCEDURE) ?
-                            SP_TYPE_PROCEDURE : SP_TYPE_FUNCTION;
+                            enum_sp_type::PROCEDURE : enum_sp_type::FUNCTION;
 
       /* Conditionally writes to binlog */
       int sp_result= sp_drop_routine(thd, sp_type, lex->spname);
@@ -4650,13 +4650,13 @@ end_with_restore_list:
     }
   case SQLCOM_SHOW_CREATE_PROC:
     {
-      if (sp_show_create_routine(thd, SP_TYPE_PROCEDURE, lex->spname))
+      if (sp_show_create_routine(thd, enum_sp_type::PROCEDURE, lex->spname))
         goto error;
       break;
     }
   case SQLCOM_SHOW_CREATE_FUNC:
     {
-      if (sp_show_create_routine(thd, SP_TYPE_FUNCTION, lex->spname))
+      if (sp_show_create_routine(thd, enum_sp_type::FUNCTION, lex->spname))
 	goto error;
       break;
     }
@@ -4666,7 +4666,7 @@ end_with_restore_list:
 #ifndef DBUG_OFF
       sp_head *sp;
       enum_sp_type sp_type= (lex->sql_command == SQLCOM_SHOW_PROC_CODE) ?
-                            SP_TYPE_PROCEDURE : SP_TYPE_FUNCTION;
+                            enum_sp_type::PROCEDURE : enum_sp_type::FUNCTION;
 
       if (sp_cache_routine(thd, sp_type, lex->spname, false, &sp))
         goto error;

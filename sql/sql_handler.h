@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,11 +18,12 @@
 
 #include "my_base.h"                   /* ha_rkey_function, ha_rows */
 #include "sql_cmd.h"                   // Sql_cmd
-#include "sql_lex.h"                   // enum_ha_read_modes
-#include "sql_list.h"                  /* List */
 
+class Item;
 class THD;
 struct TABLE_LIST;
+enum class enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
+template <class T> class List;
 
 /**
   Sql_cmd_handler_open represents HANDLER OPEN statement.
@@ -80,7 +81,7 @@ public:
 
 private:
   /** Read mode for HANDLER READ: FIRST, NEXT, LAST, ... */
-  enum enum_ha_read_modes m_read_mode;
+  enum_ha_read_modes m_read_mode;
 
   /**
     Name of key to be used for reading,

@@ -24,11 +24,14 @@
 
 #include "sql_alloc.h"
 #include "parse_tree_node_base.h"
-#include "sql_lex.h"
+#include "sql_list.h"
+#include "sql_string.h"
 
+class Item;
+class Query_result;
+class SELECT_LEX_UNIT;
 struct st_join_table;
-class String;
-
+enum class enum_explain_type;
 
 /**
   Types of traditional "extra" column parts and property names for hierarchical
@@ -186,20 +189,7 @@ public:
       length= 0;
       deferred= NULL;
     }
-    bool is_empty()
-    {
-      if (deferred)
-      {
-        StringBuffer<128> buff(system_charset_info);
-        if (deferred->eval(&buff) || set(buff))
-        {
-          DBUG_ASSERT(!"OOM!");
-          return true; // ignore OOM
-        }
-        deferred= NULL; // prevent double evaluation, if any
-      }
-      return str == NULL;
-    }
+    bool is_empty();
     bool set(const char *str_arg)
     {
       return set(str_arg, strlen(str_arg));
@@ -292,7 +282,7 @@ public:
           will be pushed into "items" list instead.
   */
   column<uint> col_id; ///< "id" column: seq. number of SELECT withing the query
-  column<SELECT_LEX::type_enum> col_select_type; ///< "select_type" column
+  column<enum_explain_type> col_select_type; ///< "select_type" column
   mem_root_str col_table_name; ///< "table" to which the row of output refers
   List<const char> col_partitions; ///< "partitions" column
   mem_root_str col_join_type; ///< "type" column, see join_type_str array

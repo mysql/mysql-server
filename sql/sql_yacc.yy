@@ -2317,7 +2317,7 @@ create:
           }
         | CREATE
           {
-            Lex->create_view_mode= VIEW_CREATE_NEW;
+            Lex->create_view_mode= enum_view_create_mode::VIEW_CREATE_NEW;
             Lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
             Lex->create_view_suid= TRUE;
           }
@@ -2541,7 +2541,7 @@ ev_sql_stmt:
             }
 
             sp_head *sp= sp_start_parsing(thd,
-                                          SP_TYPE_EVENT,
+                                          enum_sp_type::EVENT,
                                           lex->event_parse_data->identifier);
 
             if (!sp)
@@ -2701,7 +2701,7 @@ call:
             lex->sql_command= SQLCOM_CALL;
             lex->spname= $2;
             lex->call_value_list.empty();
-            sp_add_used_routine(lex, YYTHD, $2, SP_TYPE_PROCEDURE);
+            sp_add_used_routine(lex, YYTHD, $2, enum_sp_type::PROCEDURE);
           }
           opt_sp_cparam_list {}
         ;
@@ -3733,7 +3733,7 @@ sp_proc_stmt_return:
 
             /* Check that this is a stored function. */
 
-            if (sp->m_type != SP_TYPE_FUNCTION)
+            if (sp->m_type != enum_sp_type::FUNCTION)
             {
               my_error(ER_SP_BADRETURN, MYF(0));
               MYSQL_YYABORT;
@@ -7546,7 +7546,7 @@ alter:
               my_error(ER_SP_BADSTATEMENT, MYF(0), "ALTER VIEW");
               MYSQL_YYABORT;
             }
-            lex->create_view_mode= VIEW_ALTER;
+            lex->create_view_mode= enum_view_create_mode::VIEW_ALTER;
           }
           view_tail
           {}
@@ -7565,7 +7565,7 @@ alter:
               MYSQL_YYABORT;
             }
             lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
-            lex->create_view_mode= VIEW_ALTER;
+            lex->create_view_mode= enum_view_create_mode::VIEW_ALTER;
           }
           view_tail
           {}
@@ -14331,15 +14331,15 @@ handler_read_or_scan:
         ;
 
 handler_scan_function:
-          FIRST_SYM { $$= RFIRST; }
-        | NEXT_SYM  { $$= RNEXT;  }
+          FIRST_SYM { $$= enum_ha_read_modes::RFIRST; }
+        | NEXT_SYM  { $$= enum_ha_read_modes::RNEXT;  }
         ;
 
 handler_rkey_function:
-          FIRST_SYM { $$= RFIRST; }
-        | NEXT_SYM  { $$= RNEXT;  }
-        | PREV_SYM  { $$= RPREV;  }
-        | LAST_SYM  { $$= RLAST;  }
+          FIRST_SYM { $$= enum_ha_read_modes::RFIRST; }
+        | NEXT_SYM  { $$= enum_ha_read_modes::RNEXT;  }
+        | PREV_SYM  { $$= enum_ha_read_modes::RPREV;  }
+        | LAST_SYM  { $$= enum_ha_read_modes::RLAST;  }
         | handler_rkey_mode
           {
             YYTHD->m_parser_state->m_yacc.m_ha_rkey_mode= $1;
@@ -14348,7 +14348,7 @@ handler_rkey_function:
           {
             CONTEXTUALIZE($4);
             Lex->handler_insert_list= &$4->value;
-            $$= RKEY;
+            $$= enum_ha_read_modes::RKEY;
           }
         ;
 
@@ -15042,7 +15042,7 @@ view_replace_or_algorithm:
 
 view_replace:
           OR_SYM REPLACE
-          { Lex->create_view_mode= VIEW_CREATE_OR_REPLACE; }
+          { Lex->create_view_mode= enum_view_create_mode::VIEW_CREATE_OR_REPLACE; }
         ;
 
 view_algorithm:
@@ -15256,7 +15256,7 @@ trigger_tail:
               lex->trg_ordering_clause_end= @10.cpp.end;
             }
 
-            sp_head *sp= sp_start_parsing(thd, SP_TYPE_TRIGGER, $2);
+            sp_head *sp= sp_start_parsing(thd, enum_sp_type::TRIGGER, $2);
 
             if (!sp)
               MYSQL_YYABORT;
@@ -15367,7 +15367,7 @@ sf_tail:
               MYSQL_YYABORT;
             }
 
-            sp_head *sp= sp_start_parsing(thd, SP_TYPE_FUNCTION, lex->spname);
+            sp_head *sp= sp_start_parsing(thd, enum_sp_type::FUNCTION, lex->spname);
 
             if (!sp)
               MYSQL_YYABORT;
@@ -15493,7 +15493,7 @@ sp_tail:
 
             lex->stmt_definition_begin= @2.cpp.start;
 
-            sp_head *sp= sp_start_parsing(thd, SP_TYPE_PROCEDURE, $2);
+            sp_head *sp= sp_start_parsing(thd, enum_sp_type::PROCEDURE, $2);
 
             if (!sp)
               MYSQL_YYABORT;

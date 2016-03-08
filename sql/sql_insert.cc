@@ -1143,7 +1143,7 @@ Sql_cmd_insert_base::mysql_prepare_insert_check_table(THD *thd,
                table_list->view_db.str, table_list->view_name.str);
       DBUG_RETURN(true);
     }
-    if (insert_view_fields(thd, &fields, table_list))
+    if (insert_view_fields(&fields, table_list))
       DBUG_RETURN(true);
     /*
        Item_fields inserted above from field_translation list have been

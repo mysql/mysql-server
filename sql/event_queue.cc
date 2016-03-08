@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -300,7 +300,7 @@ Event_queue::drop_matching_events(THD *thd, LEX_STRING pattern,
       queue.remove(i);
 #ifdef HAVE_PSI_SP_INTERFACE
       /* Drop statistics for this stored program from performance schema. */
-      MYSQL_DROP_SP(SP_TYPE_EVENT,
+      MYSQL_DROP_SP(to_uint(enum_sp_type::EVENT),
                     et->dbname.str, et->dbname.length,
                     et->name.str, et->name.length);
 #endif

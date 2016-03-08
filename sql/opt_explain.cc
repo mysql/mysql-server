@@ -689,7 +689,7 @@ bool Explain::explain_select_type()
       select_lex->join->get_plan_state() != JOIN::NO_PLAN)
   {
     fmt->entry()->is_dependent= select_lex->is_dependent();
-    if (select_lex->type() != SELECT_LEX::SLT_DERIVED)
+    if (select_lex->type() != enum_explain_type::EXPLAIN_DERIVED)
       fmt->entry()->is_cacheable= select_lex->is_cacheable();
   }
   fmt->entry()->col_select_type.set(select_lex->type());
@@ -1394,7 +1394,7 @@ bool Explain_join::explain_table_name()
 bool Explain_join::explain_select_type()
 {
   if (tab && sj_is_materialize_strategy(tab->get_sj_strategy()))
-    fmt->entry()->col_select_type.set(SELECT_LEX::SLT_MATERIALIZED);
+    fmt->entry()->col_select_type.set(enum_explain_type::EXPLAIN_MATERIALIZED);
   else
     return Explain::explain_select_type();
   return false;

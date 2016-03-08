@@ -1942,7 +1942,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
     break;
 
   case SQLCOM_CREATE_VIEW:
-    if (lex->create_view_mode == VIEW_ALTER)
+    if (lex->create_view_mode == enum_view_create_mode::VIEW_ALTER)
     {
       my_error(ER_UNSUPPORTED_PS, MYF(0));
       goto error;

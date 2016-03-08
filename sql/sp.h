@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,9 @@
 #define _SP_H_
 
 #include "my_global.h"
-#include "sql_lex.h"       // enum_sp_type
+
+#include "item.h"            // Item::Type
+#include "mdl.h"             // MDL_request
 
 class Field;
 class Open_tables_backup;
@@ -25,14 +27,19 @@ class Open_tables_state;
 class Query_arena;
 class Query_tables_list;
 class Sroutine_hash_entry;
+class String;
 class THD;
 class sp_cache;
+class sp_head;
+class sp_name;
 struct st_sp_chistics;
 struct LEX;
 struct TABLE;
 struct TABLE_LIST;
 typedef struct st_hash HASH;
+typedef ulonglong sql_mode_t;
 template <typename T> class SQL_I_List;
+enum class enum_sp_type;
 
 
 /* Tells what SP_DEFAULT_ACCESS should be mapped to */

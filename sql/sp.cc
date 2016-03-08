@@ -43,7 +43,7 @@
 
 /* Used in error handling only */
 #define SP_TYPE_STRING(LP) \
-    ((LP)->sphead->m_type == SP_TYPE_FUNCTION ? "FUNCTION" : "PROCEDURE")
+  ((LP)->sphead->m_type == enum_sp_type::FUNCTION ? "FUNCTION" : "PROCEDURE")
 static bool
 create_string(THD *thd, String *buf,
 	      enum_sp_type sp_type,
@@ -494,7 +494,7 @@ static TABLE *open_proc_table_for_update(THD *thd)
 
 static void recursion_level_error(THD *thd, sp_head *sp)
 {
-  if (sp->m_type == SP_TYPE_PROCEDURE)
+  if (sp->m_type == enum_sp_type::PROCEDURE)
   {
     my_error(ER_SP_RECURSION_LIMIT, MYF(0),
              static_cast<int>(thd->variables.max_sp_recursion_depth),
@@ -556,7 +556,7 @@ db_find_routine_aux(THD *thd, enum_sp_type type, sp_name *name, TABLE *table)
   sp_head object for it.
 
   @param thd   Thread context
-  @param type  Type of routine (SP_TYPE_PROCEDURE/...)
+  @param type  Type of routine (PROCEDURE/...)
   @param name  Name of routine
   @param sphp  Out parameter in which pointer to created sp_head
                object is returned (0 in case of error).
@@ -656,7 +656,7 @@ db_find_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp)
     params= "";
   }
 
-  if (type == SP_TYPE_PROCEDURE)
+  if (type == enum_sp_type::PROCEDURE)
     returns= "";
   else if ((returns= get_field(thd->mem_root,
 			       table->field[MYSQL_PROC_FIELD_RETURNS])) == NULL)
@@ -801,9 +801,9 @@ static sp_head *sp_compile(THD *thd, String *defstr, sql_mode_t sql_mode,
   thd->variables.select_limit= old_select_limit;
 #ifdef HAVE_PSI_SP_INTERFACE
   if (sp != NULL)
-  sp->m_sp_share= MYSQL_GET_SP_SHARE(sp->m_type,
-                                     sp->m_db.str, sp->m_db.length,
-                                     sp->m_name.str, sp->m_name.length);
+    sp->m_sp_share= MYSQL_GET_SP_SHARE(static_cast<uint>(sp->m_type),
+                                       sp->m_db.str, sp->m_db.length,
+                                       sp->m_name.str, sp->m_name.length);
 #endif
   return sp;
 }
@@ -1015,7 +1015,7 @@ bool sp_create_routine(THD *thd, sp_head *sp)
   TABLE *table;
   char definer[USER_HOST_BUFF_SIZE];
   sql_mode_t saved_mode= thd->variables.sql_mode;
-  MDL_key::enum_mdl_namespace mdl_type= (sp->m_type == SP_TYPE_FUNCTION) ?
+  MDL_key::enum_mdl_namespace mdl_type= (sp->m_type == enum_sp_type::FUNCTION) ?
                                         MDL_key::FUNCTION : MDL_key::PROCEDURE;
 
   enum_check_fields saved_count_cuted_fields;
@@ -1028,8 +1028,8 @@ bool sp_create_routine(THD *thd, sp_head *sp)
   String retstr(64);
   retstr.set_charset(system_charset_info);
 
-  DBUG_ASSERT(sp->m_type == SP_TYPE_PROCEDURE ||
-              sp->m_type == SP_TYPE_FUNCTION);
+  DBUG_ASSERT(sp->m_type == enum_sp_type::PROCEDURE ||
+              sp->m_type == enum_sp_type::FUNCTION);
 
   /* Grab an exclusive MDL lock. */
   if (lock_object_name(thd, mdl_type, sp->m_db.str, sp->m_name.str))
@@ -1147,7 +1147,7 @@ bool sp_create_routine(THD *thd, sp_head *sp)
       table->field[MYSQL_PROC_FIELD_PARAM_LIST]->
         store(sp->m_params.str, sp->m_params.length, system_charset_info);
 
-    if (sp->m_type == SP_TYPE_FUNCTION)
+    if (sp->m_type == enum_sp_type::FUNCTION)
     {
       sp_returns_type(thd, retstr, sp);
 
@@ -1179,7 +1179,7 @@ bool sp_create_routine(THD *thd, sp_head *sp)
                 system_charset_info);
     }
 
-    if ((sp->m_type == SP_TYPE_FUNCTION) &&
+    if ((sp->m_type == enum_sp_type::FUNCTION) &&
         !trust_function_creators && mysql_bin_log.is_open())
     {
       if (!sp->m_chistics->detistic)
@@ -1300,7 +1300,7 @@ done:
 
   @param thd  Thread context.
   @param type Stored routine type
-              (SP_TYPE_PROCEDURE or SP_TYPE_FUNCTION)
+              (PROCEDURE or FUNCTION)
   @param name Stored routine name.
 
   @return Error code. SP_OK is returned on success. Other SP_ constants are
@@ -1311,13 +1311,13 @@ int sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
 {
   TABLE *table;
   int ret;
-  MDL_key::enum_mdl_namespace mdl_type= (type == SP_TYPE_FUNCTION) ?
+  MDL_key::enum_mdl_namespace mdl_type= (type == enum_sp_type::FUNCTION) ?
                                         MDL_key::FUNCTION : MDL_key::PROCEDURE;
   DBUG_ENTER("sp_drop_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",
 		       type, (int) name->m_name.length, name->m_name.str));
 
-  DBUG_ASSERT(type == SP_TYPE_PROCEDURE || type == SP_TYPE_FUNCTION);
+  DBUG_ASSERT(type == enum_sp_type::PROCEDURE || type == enum_sp_type::FUNCTION);
 
   /* Grab an exclusive MDL lock. */
   if (lock_object_name(thd, mdl_type, name->m_db.str, name->m_name.str))
@@ -1354,7 +1354,7 @@ int sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
     */
     {
       sp_head *sp;
-      sp_cache **spc= (type == SP_TYPE_FUNCTION ?
+      sp_cache **spc= (type == enum_sp_type::FUNCTION ?
                       &thd->sp_func_cache : &thd->sp_proc_cache);
       sp= sp_cache_lookup(spc, name);
       if (sp)
@@ -1362,7 +1362,7 @@ int sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
     }
 #ifdef HAVE_PSI_SP_INTERFACE
     /* Drop statistics for this stored program from performance schema. */
-    MYSQL_DROP_SP(type,
+    MYSQL_DROP_SP(static_cast<uint>(type),
                   name->m_db.str, name->m_db.length,
                   name->m_name.str, name->m_name.length);
 #endif 
@@ -1380,7 +1380,7 @@ int sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
 
   @param thd      Thread context.
   @param type     Stored routine type
-                  (SP_TYPE_PROCEDURE or SP_TYPE_FUNCTION)
+                  (PROCEDURE or FUNCTION)
   @param name     Stored routine name.
   @param chistics New values of stored routine attributes to write.
 
@@ -1393,13 +1393,13 @@ int sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
 {
   TABLE *table;
   int ret;
-  MDL_key::enum_mdl_namespace mdl_type= (type == SP_TYPE_FUNCTION) ?
+  MDL_key::enum_mdl_namespace mdl_type= (type == enum_sp_type::FUNCTION) ?
                                         MDL_key::FUNCTION : MDL_key::PROCEDURE;
   DBUG_ENTER("sp_update_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",
 		       type, (int) name->m_name.length, name->m_name.str));
 
-  DBUG_ASSERT(type == SP_TYPE_PROCEDURE || type == SP_TYPE_FUNCTION);
+  DBUG_ASSERT(type == enum_sp_type::PROCEDURE || type == enum_sp_type::FUNCTION);
 
   /* Grab an exclusive MDL lock. */
   if (lock_object_name(thd, mdl_type, name->m_db.str, name->m_name.str))
@@ -1418,7 +1418,7 @@ int sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
 
   if ((ret= db_find_routine_aux(thd, type, name, table)) == SP_OK)
   {
-    if (type == SP_TYPE_FUNCTION && ! trust_function_creators &&
+    if (type == enum_sp_type::FUNCTION && ! trust_function_creators &&
         mysql_bin_log.is_open() &&
         (chistics->daccess == SP_CONTAINS_SQL ||
          chistics->daccess == SP_MODIFIES_SQL_DATA))
@@ -1559,7 +1559,7 @@ bool lock_db_routines(THD *thd, const char *db)
       longlong sp_type= table->field[MYSQL_PROC_MYSQL_TYPE]->val_int();
       MDL_request *mdl_request= new (thd->mem_root) MDL_request;
       MDL_REQUEST_INIT(mdl_request,
-                       sp_type == SP_TYPE_FUNCTION ?
+                       sp_type == to_longlong(enum_sp_type::FUNCTION) ?
                          MDL_key::FUNCTION : MDL_key::PROCEDURE,
                        db, sp_name, MDL_EXCLUSIVE, MDL_TRANSACTION);
       mdl_requests.push_front(mdl_request);
@@ -1638,9 +1638,10 @@ sp_drop_db_routines(THD *thd, const char *db)
       size_t sp_name_length= sp_name_end - sp_name;
       size_t db_name_length= strlen(db);
 
-      enum_sp_type sp_type= (enum_sp_type) table->field[MYSQL_PROC_MYSQL_TYPE]->ptr[0];
+      enum_sp_type sp_type=
+        to_sp_type(table->field[MYSQL_PROC_MYSQL_TYPE]->ptr[0]);
       /* Drop statistics for this stored program from performance schema. */
-      MYSQL_DROP_SP(sp_type,
+      MYSQL_DROP_SP(to_uint(sp_type),
                     db, db_name_length,
                     sp_name, sp_name_length);
 #endif
@@ -1681,7 +1682,7 @@ err:
 
   @param thd  Thread context.
   @param type Stored routine type
-              (SP_TYPE_PROCEDURE or SP_TYPE_FUNCTION)
+              (PROCEDURE or FUNCTION)
   @param name Stored routine name.
 
   @return Error status.
@@ -1698,7 +1699,7 @@ bool sp_show_create_routine(THD *thd, enum_sp_type type, sp_name *name)
                        (int) name->m_name.length,
                        name->m_name.str));
 
-  DBUG_ASSERT(type == SP_TYPE_PROCEDURE || type == SP_TYPE_FUNCTION);
+  DBUG_ASSERT(type == enum_sp_type::PROCEDURE || type == enum_sp_type::FUNCTION);
 
   /*
     @todo: Consider using prelocking for this code as well. Currently
@@ -1717,7 +1718,7 @@ bool sp_show_create_routine(THD *thd, enum_sp_type type, sp_name *name)
       does not exist.
     */
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
-             type == SP_TYPE_FUNCTION ? "FUNCTION" : "PROCEDURE",
+             type == enum_sp_type::FUNCTION ? "FUNCTION" : "PROCEDURE",
              name->m_name.str);
     DBUG_RETURN(TRUE);
   }
@@ -1731,7 +1732,7 @@ bool sp_show_create_routine(THD *thd, enum_sp_type type, sp_name *name)
   stored procedures cache and looking into mysql.proc if needed.
 
   @param thd          thread context
-  @param type         type of object (SP_TYPE_FUNCTION or SP_TYPE_PROCEDURE)
+  @param type         type of object (FUNCTION or PROCEDURE)
   @param name         name of procedure
   @param cp           hash to look routine in
   @param cache_only   if true perform cache-only lookup
@@ -1747,7 +1748,7 @@ sp_head *sp_find_routine(THD *thd, enum_sp_type type, sp_name *name,
                          sp_cache **cp, bool cache_only)
 {
   sp_head *sp;
-  ulong depth= (type == SP_TYPE_PROCEDURE ?
+  ulong depth= (type == enum_sp_type::PROCEDURE ?
                 thd->variables.max_sp_recursion_depth :
                 0);
   DBUG_ENTER("sp_find_routine");
@@ -1800,7 +1801,7 @@ sp_head *sp_find_routine(THD *thd, enum_sp_type type, sp_name *name,
 
     strxmov(definer, sp->m_definer_user.str, "@",
             sp->m_definer_host.str, NullS);
-    if (type == SP_TYPE_FUNCTION)
+    if (type == enum_sp_type::FUNCTION)
     {
       sp_returns_type(thd, retstr, sp);
       returns= retstr.ptr();
@@ -1867,10 +1868,10 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc)
     lex_name.str= thd->strmake(routine->table_name, lex_name.length);
     name= new sp_name(lex_db, lex_name, true);
     name->init_qname(thd);
-    sp_object_found= is_proc ? sp_find_routine(thd, SP_TYPE_PROCEDURE,
+    sp_object_found= is_proc ? sp_find_routine(thd, enum_sp_type::PROCEDURE,
                                                name, &thd->sp_proc_cache,
                                                FALSE) != NULL :
-                               sp_find_routine(thd, SP_TYPE_FUNCTION,
+                               sp_find_routine(thd, enum_sp_type::FUNCTION,
                                                name, &thd->sp_func_cache,
                                                FALSE) != NULL;
     thd->get_stmt_da()->reset_condition_info(thd);
@@ -1965,7 +1966,7 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
   @param arena           Arena in which memory for new element of the set
                          will be allocated
   @param rt              Routine name
-  @param rt_type         Routine type (one of SP_TYPE_PROCEDURE/...)
+  @param rt_type         Routine type (one of PROCEDURE/...)
 
   @note
     Will also add element to end of 'Query_tables_list::sroutines_list' list
@@ -1975,8 +1976,8 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
 void sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
                          sp_name *rt, enum_sp_type rt_type)
 {
-  MDL_key key((rt_type == SP_TYPE_FUNCTION) ? MDL_key::FUNCTION :
-                                                MDL_key::PROCEDURE,
+  MDL_key key((rt_type == enum_sp_type::FUNCTION) ? MDL_key::FUNCTION :
+                                                    MDL_key::PROCEDURE,
               rt->m_db.str, rt->m_name.str);
   (void)sp_add_used_routine(prelocking_ctx, arena, &key, 0);
   prelocking_ctx->sroutines_list_own_last= prelocking_ctx->sroutines_list.next;
@@ -2076,7 +2077,7 @@ int sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
   sp_name name(&rt->mdl_request.key, qname_buff);
   MDL_key::enum_mdl_namespace mdl_type= rt->mdl_request.key.mdl_namespace();
   enum_sp_type type= (mdl_type == MDL_key::FUNCTION) ?
-                     SP_TYPE_FUNCTION : SP_TYPE_PROCEDURE;
+    enum_sp_type::FUNCTION : enum_sp_type::PROCEDURE;
 
   /*
     Check that we have an MDL lock on this routine, unless it's a top-level
@@ -2097,7 +2098,7 @@ int sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
   loading.
 
   @param[in]  thd   Thread context.
-  @param[in]  type  Type of object (SP_TYPE_FUNCTION or SP_TYPE_PROCEDURE).
+  @param[in]  type  Type of object (FUNCTION or PROCEDURE).
   @param[in]  name  Name of routine.
   @param[in]  lookup_only Only check that the routine is in the cache.
                     If it's not, don't try to load. If it is present,
@@ -2114,12 +2115,12 @@ int sp_cache_routine(THD *thd, enum_sp_type type, sp_name *name,
                      bool lookup_only, sp_head **sp)
 {
   int ret= 0;
-  sp_cache **spc= (type == SP_TYPE_FUNCTION) ?
+  sp_cache **spc= (type == enum_sp_type::FUNCTION) ?
                   &thd->sp_func_cache : &thd->sp_proc_cache;
 
   DBUG_ENTER("sp_cache_routine");
 
-  DBUG_ASSERT(type == SP_TYPE_FUNCTION || type == SP_TYPE_PROCEDURE);
+  DBUG_ASSERT(type == enum_sp_type::FUNCTION || type == enum_sp_type::PROCEDURE);
 
 
   *sp= sp_cache_lookup(spc, name);
@@ -2209,7 +2210,7 @@ static bool create_string(THD *thd, String *buf,
   thd->variables.sql_mode= sql_mode;
   buf->append(STRING_WITH_LEN("CREATE "));
   append_definer(thd, buf, definer_user, definer_host);
-  if (type == SP_TYPE_FUNCTION)
+  if (type == enum_sp_type::FUNCTION)
     buf->append(STRING_WITH_LEN("FUNCTION "));
   else
     buf->append(STRING_WITH_LEN("PROCEDURE "));
@@ -2222,7 +2223,7 @@ static bool create_string(THD *thd, String *buf,
   buf->append('(');
   buf->append(params, paramslen);
   buf->append(')');
-  if (type == SP_TYPE_FUNCTION)
+  if (type == enum_sp_type::FUNCTION)
   {
     buf->append(STRING_WITH_LEN(" RETURNS "));
     buf->append(returns, returnslen);
@@ -2293,7 +2294,7 @@ sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
   LEX_CSTRING sp_db_str;
   LEX_STRING sp_name_str;
   sp_head *sp;
-  sp_cache **spc= (type == SP_TYPE_FUNCTION) ?
+  sp_cache **spc= (type == enum_sp_type::FUNCTION) ?
                   &thd->sp_func_cache : &thd->sp_proc_cache;
   sp_db_str.str= db->c_ptr();
   sp_db_str.length= db->length();
@@ -2313,7 +2314,7 @@ sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
   if (creation_ctx == NULL)
     return NULL;
 
-  sp_body= (type == SP_TYPE_FUNCTION) ? "RETURN NULL" : "BEGIN END";
+  sp_body= (type == enum_sp_type::FUNCTION) ? "RETURN NULL" : "BEGIN END";
   memset(&sp_chistics, 0, sizeof(sp_chistics));
   defstr.set_charset(creation_ctx->get_client_cs());
   if (!create_string(thd, &defstr, type, 

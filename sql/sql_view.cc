@@ -19,7 +19,7 @@
 #include "binlog.h"         // mysql_bin_log
 #include "derror.h"         // ER_THD
 #include "mysqld.h"         // stage_end reg_ext key_file_frm
-#include "opt_trace.h"      // Opt_trace_object
+#include "opt_trace.h"      // opt_trace_disable_if_no_view_access
 #include "sp_cache.h"       // sp_cache_invalidate
 #include "sql_base.h"       // get_table_def_key
 #include "sql_cache.h"      // query_cache
@@ -276,7 +276,7 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
                     &view->grant.m_internal,
                     0, 0) ||
        check_grant(thd, CREATE_VIEW_ACL, view, FALSE, 1, FALSE)) ||
-      (mode != VIEW_CREATE_NEW &&
+      (mode != enum_view_create_mode::VIEW_CREATE_NEW &&
        (check_access(thd, DROP_ACL, view->db,
                      &view->grant.privilege,
                      &view->grant.m_internal,
@@ -465,7 +465,8 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     goto err;
   }
 
-  if (mode == VIEW_ALTER && fill_defined_view_parts(thd, view))
+  if (mode == enum_view_create_mode::VIEW_ALTER &&
+      fill_defined_view_parts(thd, view))
   {
     res= TRUE;
     goto err;
@@ -707,8 +708,8 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
         { C_STRING_WITH_LEN("ALTER ") },
         { C_STRING_WITH_LEN("CREATE OR REPLACE ") }};
 
-      buff.append(command[thd->lex->create_view_mode].str,
-                  command[thd->lex->create_view_mode].length);
+      buff.append(command[static_cast<int>(thd->lex->create_view_mode)].str,
+                  command[static_cast<int>(thd->lex->create_view_mode)].length);
       view_store_options(thd, views, &buff);
       buff.append(STRING_WITH_LEN("VIEW "));
       /* Test if user supplied a db (ie: we did not use thd->db) */
@@ -744,7 +745,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
         res= TRUE;
     }
   }
-  if (mode != VIEW_CREATE_NEW)
+  if (mode != enum_view_create_mode::VIEW_CREATE_NEW)
     query_cache.invalidate(thd, view, FALSE);
   if (res)
     goto err;
@@ -923,7 +924,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
         goto err;
       }
 
-      if (mode == VIEW_CREATE_NEW)
+      if (mode == enum_view_create_mode::VIEW_CREATE_NEW)
       {
 	my_error(ER_TABLE_EXISTS_ERROR, MYF(0), view->alias);
         error= -1;
@@ -945,7 +946,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     }
     else
     {
-      if (mode == VIEW_ALTER)
+      if (mode == enum_view_create_mode::VIEW_ALTER)
       {
 	my_error(ER_NO_SUCH_TABLE, MYF(0), view->db, view->alias);
         error= -1;
@@ -1030,7 +1031,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     goto err;
   }
 
-  if (mode != VIEW_CREATE_NEW &&
+  if (mode != enum_view_create_mode::VIEW_CREATE_NEW &&
       dd::drop_table<dd::View>(thd, view->db, view->table_name))
   {
     error= 1;
@@ -1568,8 +1569,6 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
   if (view_ref->prelocking_placeholder)
     DBUG_RETURN(false);
 
-  old_lex->derived_tables|= (DERIVED_VIEW | view_lex->derived_tables);
-
   // Move SQL_NO_CACHE & Co to whole query
   old_lex->safe_to_cache_query&= view_lex->safe_to_cache_query;
 
@@ -1936,7 +1935,6 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref)
 
   SYNOPSIS
     insert_view_fields()
-    thd       thread handler
     list      list for insertion
     view      view for processing
 
@@ -1945,7 +1943,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref)
     TRUE  error (is not sent to cliet)
 */
 
-bool insert_view_fields(THD *thd, List<Item> *list, TABLE_LIST *view)
+bool insert_view_fields(List<Item> *list, TABLE_LIST *view)
 {
   Field_translator *trans_end;
   Field_translator *trans;
@@ -1974,7 +1972,6 @@ bool insert_view_fields(THD *thd, List<Item> *list, TABLE_LIST *view)
 
   SINOPSYS
     view_checksum()
-    thd     threar handler
     view    view for check
 
   RETUIRN
@@ -1983,7 +1980,7 @@ bool insert_view_fields(THD *thd, List<Item> *list, TABLE_LIST *view)
     HA_ADMIN_WRONG_CHECKSUM   check sum is wrong
 */
 
-int view_checksum(THD *thd, TABLE_LIST *view)
+int view_checksum(TABLE_LIST *view)
 {
   char md5[MD5_BUFF_LENGTH];
   if (!view->is_view() || view->md5.length != 32)

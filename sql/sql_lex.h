@@ -132,7 +132,7 @@ enum enum_yes_no_unknown
   TVL_YES, TVL_NO, TVL_UNKNOWN
 };
 
-enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
+enum class enum_ha_read_modes;
 
 enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 
@@ -198,21 +198,35 @@ enum enum_sp_data_access
 /**
   enum_sp_type defines type codes of stored programs.
 
-  Events have the SP_TYPE_PROCEDURE type code.
-
   @note these codes are used when dealing with the mysql.proc system table, so
   they must not be changed.
 
   @note the following macros were used previously for the same purpose. Now they
   are used for ACL only.
 */
-enum enum_sp_type
+enum class enum_sp_type
 {
-  SP_TYPE_FUNCTION= 1,
-  SP_TYPE_PROCEDURE,
-  SP_TYPE_TRIGGER,
-  SP_TYPE_EVENT
+  FUNCTION= 1,
+  PROCEDURE,
+  TRIGGER,
+  EVENT
 };
+
+inline enum_sp_type to_sp_type(longlong val)
+{
+  DBUG_ASSERT(val >=1 && val <= 4);
+  return static_cast<enum_sp_type>(val);
+}
+
+inline longlong to_longlong(enum_sp_type val)
+{
+  return static_cast<longlong>(val);
+}
+
+inline uint to_uint(enum_sp_type val)
+{
+  return static_cast<uint>(val);
+}
 
 /*
   Values for the type enum. This reflects the order of the enum declaration
@@ -236,13 +250,10 @@ const LEX_STRING sp_data_access_name[]=
   { C_STRING_WITH_LEN("MODIFIES SQL DATA") }
 };
 
-#define DERIVED_SUBQUERY	1
-#define DERIVED_VIEW		2
-
-enum enum_view_create_mode
+enum class enum_view_create_mode
 {
   VIEW_CREATE_NEW,		// check that there are not such VIEW/table
-  VIEW_ALTER,			// check that VIEW .frm with such name exists
+  VIEW_ALTER,			// check that VIEW with such name exists
   VIEW_CREATE_OR_REPLACE	// check only that there are not such table
 };
 
@@ -754,6 +765,24 @@ public:
 typedef Bounds_checked_array<Item*> Ref_item_array;
 
 /**
+  SELECT_LEX type enum
+*/
+enum class enum_explain_type
+{
+  EXPLAIN_NONE= 0,
+  EXPLAIN_PRIMARY,
+  EXPLAIN_SIMPLE,
+  EXPLAIN_DERIVED,
+  EXPLAIN_SUBQUERY,
+  EXPLAIN_UNION,
+  EXPLAIN_UNION_RESULT,
+  EXPLAIN_MATERIALIZED,
+  // Total:
+  EXPLAIN_total ///< fake type, total number of all valid types
+  // Don't insert new types below this line!
+};
+
+/**
   This class represents a query block, aka a query specification, which is
   a query consisting of a SELECT keyword, followed by a table list,
   optionally followed by a WHERE clause, a GROUP BY, etc.
@@ -986,22 +1015,6 @@ public:
   bool has_sj_nests;
   /// Number of partitioned tables
   uint partitioned_table_count;
-  /**
-    SELECT_LEX type enum
-  */
-  enum type_enum {
-    SLT_NONE= 0,
-    SLT_PRIMARY,
-    SLT_SIMPLE,
-    SLT_DERIVED,
-    SLT_SUBQUERY,
-    SLT_UNION,
-    SLT_UNION_RESULT,
-    SLT_MATERIALIZED,
-  // Total:
-    SLT_total ///< fake type, total number of all valid types
-  // Don't insert new types below this line!
-  };
 
   /**
     ORDER BY clause.
@@ -1331,11 +1344,13 @@ public:
   void set_agg_func_used(bool val)      { m_agg_func_used= val; }
 
   /// Lookup for SELECT_LEX type
-  type_enum type();
+  enum_explain_type type();
 
   /// Lookup for a type string
-  const char *get_type_str(const THD *thd) { return type_str[type()]; }
-  static const char *get_type_str(type_enum type) { return type_str[type]; }
+  const char *get_type_str(const THD *thd)
+  { return type_str[static_cast<int>(type())]; }
+  static const char *get_type_str(enum_explain_type type)
+  { return type_str[static_cast<int>(type)]; }
 
   bool is_dependent() const { return uncacheable & UNCACHEABLE_DEPENDENT; }
   bool is_cacheable() const
@@ -1389,7 +1404,8 @@ private:
   void fix_prepare_information_for_order(THD *thd,
                                          SQL_I_List<ORDER> *list,
                                          Group_list_ptrs **list_ptrs);
-  static const char *type_str[SLT_total];
+  static const char *
+    type_str[static_cast<int>(enum_explain_type::EXPLAIN_total)];
 
   friend class SELECT_LEX_UNIT;
 
@@ -1665,7 +1681,7 @@ union YYSTYPE {
   handlerton *db_type;
   enum row_type row_type;
   enum ha_rkey_function ha_rkey_mode;
-  enum enum_ha_read_modes ha_read_mode;
+  enum_ha_read_modes ha_read_mode;
   enum enum_tx_isolation tx_isolation;
   const char *c_str;
   struct
@@ -3258,7 +3274,7 @@ public:
   enum enum_duplicates duplicates;
   enum enum_tx_isolation tx_isolation;
   enum enum_var_type option_type;
-  enum enum_view_create_mode create_view_mode;
+  enum_view_create_mode create_view_mode;
   enum enum_drop_mode drop_mode;
 
   /// QUERY ID for SHOW PROFILE and EXPLAIN CONNECTION
@@ -3272,12 +3288,6 @@ public:
   uint slave_thd_opt, start_transaction_opt;
   int select_number;                     ///< Number of query block (by EXPLAIN)
   uint8 describe;
-  /*
-    A flag that indicates what kinds of derived tables are present in the
-    query (0 if no derived tables, otherwise a combination of flags
-    DERIVED_SUBQUERY and DERIVED_VIEW).
-  */
-  uint8 derived_tables;
   uint8 create_view_algorithm;
   uint8 create_view_check;
   uint8 context_analysis_only;

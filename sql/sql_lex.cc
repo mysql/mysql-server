@@ -108,7 +108,8 @@ const char * index_hint_type_name[] =
   @note The order of the elements of this array must correspond to
   the order of elements in type_enum
 */
-const char *SELECT_LEX::type_str[SLT_total]=
+const char *
+SELECT_LEX::type_str[static_cast<int>(enum_explain_type::EXPLAIN_total)]=
 { "NONE",
   "PRIMARY",
   "SIMPLE",
@@ -454,7 +455,6 @@ void LEX::reset()
   describe= DESCRIBE_NONE;
   subqueries= false;
   context_analysis_only= 0;
-  derived_tables= 0;
   safe_to_cache_query= true;
   insert_table= NULL;
   insert_table_leaf= NULL;
@@ -4114,17 +4114,8 @@ void LEX::link_first_table_back(TABLE_LIST *first,
 
 void LEX::cleanup_after_one_table_open()
 {
-  /*
-    thd->lex->derived_tables & additional units may be set if we open
-    a view. It is necessary to clear thd->lex->derived_tables flag
-    to prevent processing of derived tables during next open_and_lock_tables
-    if next table is a real table and cleanup & remove underlying units
-    NOTE: all units will be connected to thd->lex->select_lex, because we
-    have not UNION on most upper level.
-    */
   if (all_selects_list != select_lex)
   {
-    derived_tables= 0;
     /* cleunup underlying units (units of VIEW) */
     for (SELECT_LEX_UNIT *un= select_lex->first_inner_unit();
          un;
@@ -4246,27 +4237,27 @@ void SELECT_LEX::fix_prepare_information(THD *thd)
 */
 
 
-SELECT_LEX::type_enum SELECT_LEX::type()
+enum_explain_type SELECT_LEX::type()
 {
   if (master_unit()->fake_select_lex == this)
-    return SLT_UNION_RESULT;
+    return enum_explain_type::EXPLAIN_UNION_RESULT;
   else if (!master_unit()->outer_select() &&
-           master_unit()->first_select() == this) 
+           master_unit()->first_select() == this)
   {
     if (first_inner_unit() || next_select())
-      return SLT_PRIMARY;
+      return enum_explain_type::EXPLAIN_PRIMARY;
     else
-      return SLT_SIMPLE;
+      return enum_explain_type::EXPLAIN_SIMPLE;
   }
   else if (this == master_unit()->first_select())
   {
-    if (linkage == DERIVED_TABLE_TYPE) 
-      return SLT_DERIVED;
+    if (linkage == DERIVED_TABLE_TYPE)
+      return enum_explain_type::EXPLAIN_DERIVED;
     else
-      return SLT_SUBQUERY;
+      return enum_explain_type::EXPLAIN_SUBQUERY;
   }
   else
-    return SLT_UNION;
+    return enum_explain_type::EXPLAIN_UNION;
 }
 
 

@@ -5728,17 +5728,17 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
 
 static inline enum_object_type sp_type_to_object_type(uint sp_type)
 {
-  enum enum_sp_type value= static_cast<enum enum_sp_type> (sp_type);
+  enum_sp_type value= to_sp_type(sp_type);
 
   switch (value)
   {
-    case SP_TYPE_FUNCTION:
+    case enum_sp_type::FUNCTION:
       return OBJECT_TYPE_FUNCTION;
-    case SP_TYPE_PROCEDURE:
+    case enum_sp_type::PROCEDURE:
       return OBJECT_TYPE_PROCEDURE;
-    case SP_TYPE_TRIGGER:
+    case enum_sp_type::TRIGGER:
       return OBJECT_TYPE_TRIGGER;
-    case SP_TYPE_EVENT:
+    case enum_sp_type::EVENT:
       return OBJECT_TYPE_EVENT;
     default:
       DBUG_ASSERT(false);

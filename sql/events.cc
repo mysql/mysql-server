@@ -598,9 +598,9 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
     ret= write_bin_log(thd, TRUE, thd->query().str, thd->query().length);
 #ifdef HAVE_PSI_SP_INTERFACE
     /* Drop statistics for this stored program from performance schema. */
-    MYSQL_DROP_SP(SP_TYPE_EVENT,
+    MYSQL_DROP_SP(to_uint(enum_sp_type::EVENT),
                   dbname.str, dbname.length, name.str, name.length);
-#endif 
+#endif
   }
   DBUG_RETURN(ret);
 }

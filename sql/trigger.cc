@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -705,7 +705,7 @@ bool Trigger::parse(THD *thd)
   m_sp->set_definer(m_definer.str, m_definer.length);
 
 #ifdef HAVE_PSI_SP_INTERFACE
-  m_sp->m_sp_share= MYSQL_GET_SP_SHARE(SP_TYPE_TRIGGER,
+  m_sp->m_sp_share= MYSQL_GET_SP_SHARE(to_uint(enum_sp_type::TRIGGER),
                                        m_sp->m_db.str, m_sp->m_db.length,
                                        m_sp->m_name.str, m_sp->m_name.length);
 #endif

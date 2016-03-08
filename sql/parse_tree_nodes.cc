@@ -308,7 +308,7 @@ bool PT_internal_variable_name_2d::contextualize(Parse_context *pc)
     return true;
   }
 
-  if (sp && sp->m_type == SP_TYPE_TRIGGER &&
+  if (sp && sp->m_type == enum_sp_type::TRIGGER &&
       (!my_strcasecmp(system_charset_info, ident1.str, "NEW") ||
        !my_strcasecmp(system_charset_info, ident1.str, "OLD")))
   {
@@ -1035,9 +1035,6 @@ PT_derived_table::PT_derived_table(PT_subquery *subquery,
 bool PT_derived_table::contextualize(Parse_context *pc)
 {
   SELECT_LEX *outer_select= pc->select;
-  LEX *lex= pc->thd->lex;
-
-  lex->derived_tables|= DERIVED_SUBQUERY;
 
   outer_select->parsing_place= CTX_DERIVED;
   DBUG_ASSERT(outer_select->linkage != GLOBAL_OPTIONS_TYPE);

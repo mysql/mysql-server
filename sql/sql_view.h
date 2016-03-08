@@ -1,7 +1,7 @@
 #ifndef SQL_VIEW_INCLUDED
 #define SQL_VIEW_INCLUDED
 
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,13 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 #include "my_global.h"
-#include "sql_lex.h"           // enum_view_create_mode
+
+class Item;
+class THD;
+struct TABLE_LIST;
+struct TABLE_SHARE;
+template <class T> class List;
+enum class enum_view_create_mode;
 
 bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
                           enum_view_create_mode mode);
@@ -29,11 +35,9 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *view);
 
 bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref);
 
-bool insert_view_fields(THD *thd, List<Item> *list, TABLE_LIST *view);
+bool insert_view_fields(List<Item> *list, TABLE_LIST *view);
 
-int view_checksum(THD *thd, TABLE_LIST *view);
-
-extern TYPELIB updatable_views_with_limit_typelib;
+int view_checksum(TABLE_LIST *view);
 
 bool check_duplicate_names(List<Item>& item_list, bool gen_unique_view_names);
 

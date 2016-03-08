@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2397,12 +2397,12 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
                             mem_check->host.get_host() : "");
         }
       }
-      if (p_table->field[4]->val_int() == SP_TYPE_PROCEDURE)
+      const enum_sp_type sp_type= to_sp_type(p_table->field[4]->val_int());
+      if (sp_type == enum_sp_type::PROCEDURE)
       {
         hash= &proc_priv_hash;
       }
-      else
-      if (p_table->field[4]->val_int() == SP_TYPE_FUNCTION)
+      else if (sp_type == enum_sp_type::FUNCTION)
       {
         hash= &func_priv_hash;
       }

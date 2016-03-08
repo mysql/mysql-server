@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -962,11 +962,11 @@ bool Trigger_loader::drop_all_triggers(const char *db_name,
       rc= true;
       continue;
     }
-#ifdef HAVE_PSI_SP_INTERFACE                                                    
+#ifdef HAVE_PSI_SP_INTERFACE
     LEX_CSTRING db_name= t->get_db_name();
-    /* Drop statistics for this stored program from performance schema. */      
-    MYSQL_DROP_SP(SP_TYPE_TRIGGER,                                       
-                  db_name.str, db_name.length,    
+    /* Drop statistics for this stored program from performance schema. */
+    MYSQL_DROP_SP(to_uint(enum_sp_type::TRIGGER),
+                  db_name.str, db_name.length,
                   trigger_name.str, trigger_name.length);
 #endif
   }
