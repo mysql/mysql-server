@@ -4406,27 +4406,12 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
       }//if
       tabPtr.p->tableType = tableType;
       tabPtr.p->tableId = tableId;
-    }//for
-  }
-  {
-    TablePtr tabPtr;
-    jam();
-    for (ptr.p->tables.first(tabPtr);
-         tabPtr.i !=RNIL;
-         ptr.p->tables.next(tabPtr))
-    {
-      /**
-       * Insert into table map after completing loop to avoid
-       * complex error handling.
-       */
-      jamLine(tabPtr.p->tableId);
 #ifdef VM_TRACE
       TablePtr locTabPtr;
       ndbassert(findTable(ptr, locTabPtr, tabPtr.p->tableId) == false);
 #endif
       insertTableMap(tabPtr, ptr.i, tabPtr.p->tableId);
-    }
-    jam();
+    }//for
   }
 
   releaseSections(handle);
