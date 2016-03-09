@@ -59,7 +59,7 @@ public:
   MOCK_METHOD0(stop, void());
   MOCK_METHOD0(thread_init, bool ());
   MOCK_METHOD0(thread_end, void ());
-  MOCK_METHOD1(set_num_workers, void(unsigned int n));
+  MOCK_METHOD1(set_num_workers, unsigned int(unsigned int n));
 };
 
 
