@@ -158,10 +158,16 @@ bool xpl::Server::on_verify_server_state()
 
     // closing clients has been moved to other thread
     // this thread have to gracefully shutdown io operations
-    typedef ngs::Scheduler_dynamic::Task Task;
-    Task *task = new Task(boost::bind(&ngs::Server::close_all_clients, &m_server));
-    if (!m_wscheduler->post(task))
-      delete task;
+    if (m_wscheduler->is_running())
+    {
+      typedef ngs::Scheduler_dynamic::Task Task;
+      Task *task = new Task(boost::bind(&ngs::Server::close_all_clients, &m_server));
+      if (!m_wscheduler->post(task))
+      {
+        log_debug("Unable to schedule closing all clients ");
+        delete task;
+      }
+    }
 
     // stop the server, making the event loop stop looping around
     m_server.stop();
@@ -170,6 +176,7 @@ bool xpl::Server::on_verify_server_state()
   }
   return true;
 }
+
 
 boost::shared_ptr<ngs::Client> xpl::Server::create_client(ngs::Connection_ptr connection)
 {
@@ -216,6 +223,7 @@ void xpl::Server::did_accept_client(boost::shared_ptr<ngs::Client> client)
   Global_status_variables::instance().increment_accepted_connections_count();
 }
 
+
 void xpl::Server::did_reject_client(ngs::Server_delegate::Reject_reason reason)
 {
   switch (reason)
@@ -233,7 +241,10 @@ void xpl::Server::did_reject_client(ngs::Server_delegate::Reject_reason reason)
 
 void xpl::Server::plugin_system_variables_changed()
 {
-  m_wscheduler->set_num_workers(Plugin_system_variables::min_worker_threads);
+  const unsigned int min = m_wscheduler->set_num_workers(Plugin_system_variables::min_worker_threads);
+  if (min < Plugin_system_variables::min_worker_threads)
+    Plugin_system_variables::min_worker_threads = min;
+
   m_wscheduler->set_idle_worker_timeout(Plugin_system_variables::idle_worker_thread_timeout * 1000);
 
   m_config->max_message_size = Plugin_system_variables::max_allowed_packet;
@@ -246,10 +257,12 @@ bool xpl::Server::is_terminating() const
   return mysqld::is_terminating();
 }
 
+
 bool xpl::Server::is_exiting()
 {
   return mysqld::is_terminating() || xpl::Server::exiting;
 }
+
 
 int xpl::Server::main(MYSQL_PLUGIN p)
 {
