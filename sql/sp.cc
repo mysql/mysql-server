@@ -525,7 +525,9 @@ db_find_routine_aux(THD *thd, enum_sp_type type, sp_name *name, TABLE *table)
   uchar key[MAX_KEY_LENGTH];	// db, name, optional key length type
   DBUG_ENTER("db_find_routine_aux");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",
-		       type, (int) name->m_name.length, name->m_name.str));
+                       static_cast<int>(type),
+                       static_cast<int>(name->m_name.length),
+                       name->m_name.str));
 
   /*
     Create key to find row. We have to use field->store() to be able to
@@ -592,7 +594,9 @@ db_find_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp)
 
   DBUG_ENTER("db_find_routine");
   DBUG_PRINT("enter", ("type: %d name: %.*s",
-		       type, (int) name->m_name.length, name->m_name.str));
+                       static_cast<int>(type),
+                       static_cast<int>(name->m_name.length),
+                       name->m_name.str));
 
   *sphp= 0;                                     // In case of errors
   if (!(table= open_proc_table_for_read(thd, &open_tables_state_backup)))
@@ -1023,8 +1027,10 @@ bool sp_create_routine(THD *thd, sp_head *sp)
   bool store_failed= FALSE;
 
   DBUG_ENTER("sp_create_routine");
-  DBUG_PRINT("enter", ("type: %d  name: %.*s",sp->m_type,
-                       (int) sp->m_name.length, sp->m_name.str));
+  DBUG_PRINT("enter", ("type: %d  name: %.*s",
+                       static_cast<int>(sp->m_type),
+                       static_cast<int>(sp->m_name.length),
+                       sp->m_name.str));
   String retstr(64);
   retstr.set_charset(system_charset_info);
 
@@ -1315,7 +1321,9 @@ int sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name)
                                         MDL_key::FUNCTION : MDL_key::PROCEDURE;
   DBUG_ENTER("sp_drop_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",
-		       type, (int) name->m_name.length, name->m_name.str));
+                       static_cast<int>(type),
+                       static_cast<int>(name->m_name.length),
+                       name->m_name.str));
 
   DBUG_ASSERT(type == enum_sp_type::PROCEDURE || type == enum_sp_type::FUNCTION);
 
@@ -1397,7 +1405,9 @@ int sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
                                         MDL_key::FUNCTION : MDL_key::PROCEDURE;
   DBUG_ENTER("sp_update_routine");
   DBUG_PRINT("enter", ("type: %d  name: %.*s",
-		       type, (int) name->m_name.length, name->m_name.str));
+                       static_cast<int>(type),
+                       static_cast<int>(name->m_name.length),
+                       name->m_name.str));
 
   DBUG_ASSERT(type == enum_sp_type::PROCEDURE || type == enum_sp_type::FUNCTION);
 
@@ -1753,9 +1763,12 @@ sp_head *sp_find_routine(THD *thd, enum_sp_type type, sp_name *name,
                 0);
   DBUG_ENTER("sp_find_routine");
   DBUG_PRINT("enter", ("name:  %.*s.%.*s  type: %d  cache only %d",
-                       (int) name->m_db.length, name->m_db.str,
-                       (int) name->m_name.length, name->m_name.str,
-                       type, cache_only));
+                       static_cast<int>(name->m_db.length),
+                       name->m_db.str,
+                       static_cast<int>(name->m_name.length),
+                       name->m_name.str,
+                       static_cast<int>(type),
+                       cache_only));
 
   if ((sp= sp_cache_lookup(cp, name)))
   {
