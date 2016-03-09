@@ -136,7 +136,7 @@ static MYSQL_SYSVAR_UINT(min_worker_threads, xpl::Plugin_system_variables::min_w
 static MYSQL_SYSVAR_UINT(idle_worker_thread_timeout, xpl::Plugin_system_variables::idle_worker_thread_timeout,
     PLUGIN_VAR_OPCMDARG,
     "Time after which an idle worker thread is terminated (in seconds).",
-    NULL, &xpl::Plugin_system_variables::update_func<unsigned int>, 60, 0, std::numeric_limits<unsigned int>::max(), 0);
+    NULL, &xpl::Plugin_system_variables::update_func<unsigned int>, 60, 0, 60 * 60, 0);
 
 static MYSQL_SYSVAR_UINT(max_allowed_packet, xpl::Plugin_system_variables::max_allowed_packet,
     PLUGIN_VAR_OPCMDARG,
