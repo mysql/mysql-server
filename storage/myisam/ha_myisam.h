@@ -160,7 +160,7 @@ class ha_myisam: public handler
                                   ulonglong *first_value,
                                   ulonglong *nb_reserved_values);
   int rename_table(const char * from, const char * to, dd::Table *dd_tab);
-  int delete_table(const char *name, dd::Table *dd_tab);
+  int delete_table(const char *name, const dd::Table *table_def);
   int check(THD* thd, HA_CHECK_OPT* check_opt);
   int analyze(THD* thd,HA_CHECK_OPT* check_opt);
   int repair(THD* thd, HA_CHECK_OPT* check_opt);

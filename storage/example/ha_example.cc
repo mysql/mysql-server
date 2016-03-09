@@ -781,7 +781,7 @@ THR_LOCK_DATA **ha_example::store_lock(THD *thd,
   @see
   delete_table and ha_create_table() in handler.cc
 */
-int ha_example::delete_table(const char *name, dd::Table *)
+int ha_example::delete_table(const char *name, const dd::Table *)
 {
   DBUG_ENTER("ha_example::delete_table");
   /* This is not implemented but we want someone to be able that it works. */

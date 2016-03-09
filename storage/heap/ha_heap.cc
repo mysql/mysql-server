@@ -605,7 +605,7 @@ THR_LOCK_DATA **ha_heap::store_lock(THD *thd,
   not when doing a CREATE on the table.
 */
 
-int ha_heap::delete_table(const char *name, dd::Table *)
+int ha_heap::delete_table(const char *name, const dd::Table *)
 {
   int error= heap_delete_table(name);
   return error == ENOENT ? 0 : error;

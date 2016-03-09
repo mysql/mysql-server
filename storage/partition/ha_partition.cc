@@ -562,7 +562,7 @@ bool ha_partition::initialize_partition(MEM_ROOT *mem_root)
     the storage engine.
 */
 
-int ha_partition::delete_table(const char *name, dd::Table *)
+int ha_partition::delete_table(const char *name, const dd::Table *)
 {
   DBUG_ENTER("ha_partition::delete_table");
 

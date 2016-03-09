@@ -2812,7 +2812,7 @@ public:
   int ha_enable_indexes(uint mode);
   int ha_discard_or_import_tablespace(my_bool discard);
   int ha_rename_table(const char *from, const char *to, dd::Table *dd_tab);
-  int ha_delete_table(const char *name, dd::Table *dd_tab);
+  int ha_delete_table(const char *name, const dd::Table *table_def);
   virtual int finish_delete_table(const char *name)
   { return 0; }
   void ha_drop_table(const char *name);
@@ -4023,7 +4023,7 @@ protected:
     Delete a table in the engine. Called for base as well as temporary
     tables.
   */
-  virtual int delete_table(const char *name, dd::Table *dd_tab);
+  virtual int delete_table(const char *name, const dd::Table *table_def);
 
 private:
   /* Private helpers */

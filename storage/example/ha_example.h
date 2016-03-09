@@ -249,7 +249,7 @@ public:
   int truncate(dd::Table *dd_tab);
   ha_rows records_in_range(uint inx, key_range *min_key,
                            key_range *max_key);
-  int delete_table(const char *from, dd::Table *dd_tab);
+  int delete_table(const char *from, const dd::Table *table_def);
   int rename_table(const char * from, const char * to, dd::Table *dd_tab);
   int create(const char *name, TABLE *form,
              HA_CREATE_INFO *create_info,

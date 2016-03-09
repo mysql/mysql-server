@@ -12869,13 +12869,13 @@ ha_innobase::truncate(dd::Table *dd_tab)
 
 /** Drop a table.
 @param[in]	name		table name
-@param[in,out]	dd_table	data dictionary table
+@param[in]	dd_table	data dictionary table
 @return error number */
 
 int
 ha_innobase::delete_table(
 	const char*		name,
-	dd::Table*		dd_table)
+	const dd::Table*	dd_table)
 {
 	enum enum_sql_command	sqlcom	= static_cast<enum enum_sql_command>(
 		thd_sql_command(ha_thd()));
@@ -12896,14 +12896,14 @@ ha_innobase::delete_table(
 
 /** Drop a table.
 @param[in]	name		table name
-@param[in,out]	dd_table	data dictionary table
+@param[in]	dd_table	data dictionary table
 @param[in]	sqlcom	type of operation that the DROP is part of
 @return	error number
 @retval 0 on success */
 int
 ha_innobase::delete_table(
 	const char*		name,
-	dd::Table*		dd_table,
+	const dd::Table*	dd_table,
 	enum enum_sql_command	sqlcom)
 {
 	dberr_t	err;

@@ -2522,30 +2522,28 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
   dummy_table.s= &dummy_share;
 
   dd::Dictionary *dict= dd::get_dictionary();
-  dd::Table *dd_tab= 0;
+  const dd::Table *table_def= 0;
 
   if (! dict->is_dd_table_name(db, alias))
   {
-    const dd::Table *c_dd_tab;
-    if (thd->dd_client()->acquire_uncached_uncommitted<dd::Table>(db, alias, &c_dd_tab))
+    if (thd->dd_client()->acquire_uncached_uncommitted<dd::Table>(db, alias,
+                                                                  &table_def))
       DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-
-    dd_tab= const_cast<dd::Table*>(c_dd_tab);
   }
 
   /* DB_TYPE_UNKNOWN is used in ALTER TABLE when renaming only .frm files */
   if (table_type == NULL ||
       ! (file= get_new_handler((TABLE_SHARE*)0,
-                               dd_tab->partition_type() != dd::Table::PT_NONE,
-                               thd->mem_root, table_type)))
+                 table_def->partition_type() != dd::Table::PT_NONE,
+                 thd->mem_root, table_type)))
   {
-    delete dd_tab;
+    delete table_def;
     DBUG_RETURN(ENOENT);
   }
 
   path= get_canonical_filename(file, path, tmp_path);
 
-  if ((error= file->ha_delete_table(path, dd_tab)) && generate_warning)
+  if ((error= file->ha_delete_table(path, table_def)) && generate_warning)
   {
     /*
       Because file->print_error() use my_error() to generate the error message
@@ -2578,7 +2576,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 
   delete file;
 
-  delete dd_tab;
+  delete table_def;
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely(error == 0))
@@ -4377,7 +4375,7 @@ uint handler::get_dup_key(int error)
   @retval
     !0  Error
 */
-int handler::delete_table(const char *name, dd::Table *)
+int handler::delete_table(const char *name, const dd::Table *)
 {
   int saved_error= 0;
   int error= 0;
@@ -4864,12 +4862,12 @@ handler::ha_rename_table(const char *from, const char *to, dd::Table *dd_tab)
 */
 
 int
-handler::ha_delete_table(const char *name, dd::Table *dd_tab)
+handler::ha_delete_table(const char *name, const dd::Table *table_def)
 {
   DBUG_ASSERT(m_lock_type == F_UNLCK);
   mark_trx_read_write();
 
-  return delete_table(name, dd_tab);
+  return delete_table(name, table_def);
 }
 
 

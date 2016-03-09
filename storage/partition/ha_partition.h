@@ -187,7 +187,7 @@ public:
     object needed in opening the object in openfrm
     -------------------------------------------------------------------------
   */
-  virtual int delete_table(const char *from, dd::Table *dd_tab);
+  virtual int delete_table(const char *from, const dd::Table *table_def);
   virtual int rename_table(const char *from, const char *to, dd::Table *dd_tab);
   virtual int create(const char *name, TABLE *form,
                      HA_CREATE_INFO *create_info,

@@ -1981,7 +1981,7 @@ int ha_myisam::reset_auto_increment(ulonglong value)
   return 0;
 }
 
-int ha_myisam::delete_table(const char *name, dd::Table *)
+int ha_myisam::delete_table(const char *name, const dd::Table *)
 {
   return mi_delete_table(name);
 }

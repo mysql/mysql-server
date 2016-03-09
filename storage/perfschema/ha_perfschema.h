@@ -174,7 +174,7 @@ public:
 
   int truncate(dd::Table *dd_tab);
 
-  int delete_table(const char *from, dd::Table *dd_tab);
+  int delete_table(const char *from, const dd::Table *table_def);
 
   int rename_table(const char * from, const char * to, dd::Table *dd_tab);
 

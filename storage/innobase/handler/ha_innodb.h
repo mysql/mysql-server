@@ -284,7 +284,7 @@ public:
 	@retval 0 on success */
 	int delete_table(
 		const char*		name,
-		dd::Table*		dd_table);
+		const dd::Table*	dd_table);
 protected:
 	/** Drop a table.
 	@param[in]	name		table name
@@ -295,7 +295,7 @@ protected:
 	@retval 0 on success */
 	int delete_table(
 		const char*		name,
-		dd::Table*		dd_table,
+		const dd::Table*	dd_table,
 		enum enum_sql_command	sqlcom);
 public:
 	/** DROP and CREATE an InnoDB table.
