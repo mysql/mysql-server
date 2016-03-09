@@ -25,11 +25,12 @@
 #include "ngs/thread.h"
 
 
-int ngs::thread_create(PSI_thread_key key, Thread_t *thread,
-                       const Thread_attr_t *attr,
-                       Start_routine_t func, void *arg)
+void ngs::thread_create(PSI_thread_key key, Thread_t *thread,
+                        const Thread_attr_t *attr,
+                        Start_routine_t func, void *arg)
 {
-  return mysql_thread_create(key, thread, attr, func, arg);
+  if (mysql_thread_create(key, thread, attr, func, arg))
+    throw std::runtime_error("Could not create a thread");
 }
 
 

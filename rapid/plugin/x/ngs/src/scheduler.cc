@@ -45,6 +45,7 @@ Scheduler_dynamic::Scheduler_dynamic(const char* name)
   m_task_pending_cond(KEY_cond_x_scheduler_dynamic_task_pending),
   m_thread_exit_mutex(KEY_mutex_x_scheduler_dynamic_thread_exit),
   m_thread_exit_cond(KEY_cond_x_scheduler_dynamic_thread_exit),
+  m_post_mutex(KEY_mutex_x_scheduler_dynamic_post),
   m_is_running(0),
   m_min_workers_count(1),
   m_workers_count(0),
@@ -65,27 +66,42 @@ void Scheduler_dynamic::launch()
   int32 int_0 = 0;
   if (my_atomic_cas32(&m_is_running, &int_0, 1))
   {
-    set_num_workers(my_atomic_load32(&m_min_workers_count));
+    create_min_num_workers();
     log_info("Scheduler \"%s\" started.", m_name.c_str());
   }
 }
 
 
-void Scheduler_dynamic::set_num_workers(unsigned int n)
+void Scheduler_dynamic::create_min_num_workers()
 {
-  my_atomic_store32(&m_min_workers_count, n);
-
   while (is_running() &&
-         my_atomic_load32(&m_workers_count) <
-           my_atomic_load32(&m_min_workers_count))
+         my_atomic_load32(&m_workers_count) < my_atomic_load32(&m_min_workers_count))
   {
     create_thread();
   }
 }
 
 
-void Scheduler_dynamic::set_idle_worker_timeout(
-  unsigned long long milliseconds)
+unsigned int Scheduler_dynamic::set_num_workers(unsigned int n)
+{
+  my_atomic_store32(&m_min_workers_count, n);
+  try
+  {
+    create_min_num_workers();
+  }
+  catch (std::exception &e)
+  {
+    log_debug("Exception in set minimal number of workers \"%s\"", e.what());
+    const int32 m = my_atomic_load32(&m_workers_count);
+    log_warning("Unable to set minimal number of workers to %u; actual value is %i", n, m);
+    my_atomic_store32(&m_min_workers_count, m);
+    return m;
+  }
+  return n;
+}
+
+
+void Scheduler_dynamic::set_idle_worker_timeout(unsigned long long milliseconds)
 {
   my_atomic_store64(&m_idle_worker_timeout, milliseconds);
   m_task_pending_cond.broadcast(m_task_pending_mutex);
@@ -131,11 +147,23 @@ bool Scheduler_dynamic::post(Task* task)
   if (is_running() == false || task == NULL)
     return false;
 
+  {
+    Mutex_lock lock(m_post_mutex);
+
+    if (increase_tasks_count() >= my_atomic_load32(&m_workers_count))
+    {
+      try { create_thread(); }
+      catch (std::exception &e)
+      {
+        log_error("Exception in post: %s", e.what());
+        decrease_tasks_count();
+        return false;
+      }
+    }
+  }
+
   while (m_tasks.push(task) == false) {}
   m_task_pending_cond.signal(m_task_pending_mutex);
-
-  if (increase_tasks_count() >= my_atomic_load32(&m_workers_count))
-    create_thread();
 
   return true;
 }
@@ -143,22 +171,15 @@ bool Scheduler_dynamic::post(Task* task)
 
 bool Scheduler_dynamic::post(const Task& task)
 {
-  if (is_running() == false || task == NULL)
-    return false;
-
   Task *copy_task = new (std::nothrow) Task(task);
 
-  if (NULL == copy_task)
-    return false;
+  if (post(copy_task))
+    return true;
 
-  while (m_tasks.push(copy_task) == false) {}
-  m_task_pending_cond.signal(m_task_pending_mutex);
-
-  if (increase_tasks_count() >= my_atomic_load32(&m_workers_count))
-    create_thread();
-
-  return true;
+  delete copy_task;
+  return false;
 }
+
 
 bool Scheduler_dynamic::post_and_wait(const Task& task_to_be_posted)
 {
@@ -166,10 +187,13 @@ bool Scheduler_dynamic::post_and_wait(const Task& task_to_be_posted)
 
   {
     ngs::Scheduler_dynamic::Task task = boost::bind(&Wait_for_signal::Signal_when_done::execute,
-        boost::make_shared<ngs::Wait_for_signal::Signal_when_done>(boost::ref(future), task_to_be_posted));
+                                                    boost::make_shared<ngs::Wait_for_signal::Signal_when_done>(boost::ref(future), task_to_be_posted));
 
     if (!post(task))
+    {
+      log_error("Internal error scheduling task");
       return false;
+    }
   }
 
   future.wait();
@@ -189,6 +213,7 @@ void *Scheduler_dynamic::worker_proxy(void *data)
 {
   return reinterpret_cast<Scheduler_dynamic*>(data)->worker();
 }
+
 
 void *Scheduler_dynamic::worker()
 {
@@ -259,15 +284,8 @@ void Scheduler_dynamic::create_thread()
   if (is_running())
   {
     Thread_t thread;
-
+    ngs::thread_create(0, &thread, NULL, worker_proxy, this);
     increase_workers_count();
-
-    if (ngs::thread_create(0, &thread, NULL, worker_proxy, this) < 0)
-    {
-      decrease_workers_count();
-      throw std::runtime_error("Could not create a worker thread.");
-    }
-
     m_threads.push(thread);
   }
 }
