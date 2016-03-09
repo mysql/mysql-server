@@ -55,6 +55,10 @@ SET @@global.mysqlx_idle_worker_thread_timeout=7;
 show variables like 'mysqlx_idle_worker_thread_timeout';
 Variable_name	Value
 mysqlx_idle_worker_thread_timeout	7
+SET @@global.mysqlx_idle_worker_thread_timeout=3600;
+show variables like 'mysqlx_idle_worker_thread_timeout';
+Variable_name	Value
+mysqlx_idle_worker_thread_timeout	3600
 SET mysqlx_idle_worker_thread_timeout=7;
 ERROR HY000: Variable 'mysqlx_idle_worker_thread_timeout' is a GLOBAL variable and should be set with SET GLOBAL
 SET @@local.mysqlx_idle_worker_thread_timeout=7;
@@ -65,6 +69,9 @@ SET @@session.mysqlx_idle_worker_thread_timeout=7;
 ERROR HY000: Variable 'mysqlx_idle_worker_thread_timeout' is a GLOBAL variable and should be set with SET GLOBAL
 SET SESSION mysqlx_idle_worker_thread_timeout=7;
 ERROR HY000: Variable 'mysqlx_idle_worker_thread_timeout' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@global.mysqlx_idle_worker_thread_timeout=3601;
+Warnings:
+Warning	1292	Truncated incorrect mysqlx_idle_worker_thread_timeou value: '3601'
 SET GLOBAL mysqlx_idle_worker_thread_timeout=0;
 SET GLOBAL mysqlx_idle_worker_thread_timeout=-1;
 Warnings:
