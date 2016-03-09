@@ -4271,6 +4271,7 @@ NdbEventBuffer::reportStatus(ReportReason reason)
       goto send_report;
     }
   }
+  /*
   if (m_gci_slip_thresh &&
       (m_latestGCI - m_latest_consumed_epoch >= m_gci_slip_thresh) &&
       NdbTick_Elapsed(m_last_log_time, NdbTick_getCurrentTicks()).milliSec() >= 1000)
@@ -4279,6 +4280,7 @@ NdbEventBuffer::reportStatus(ReportReason reason)
     reason = BUFFERED_EPOCHS_OVER_THRESHOLD;
     goto send_report;
   }
+  */
   return;
 
 send_report:
