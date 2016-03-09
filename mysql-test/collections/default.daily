@@ -55,4 +55,4 @@ perl mysql-test-run.pl --timer --force  --comment=memcached --vardir=var-memcach
 perl mysql-test-run.pl  --timer --force --testcase-timeout=60 --parallel=auto --comment=Query_Cache_Enabled --vardir=var-QC_Enabled --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--query_cache_type=1 --mysqld=--query_cache_size=1M
 
 # Run all tests under the suite interactive_utilities
-perl mysql-test-run.pl --force --timer  --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=interactive_tests  --vardir=interactive-tests  --suite=interactive_utilities
+perl mysql-test-run.pl --force --timer  --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=var-interactive  --vardir=interactive-tests  --suite=interactive_utilities
