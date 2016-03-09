@@ -43,6 +43,8 @@ struct Buffer
     DBUG_ASSERT(memory_size % sizeof(size_t) == 0); //make sure size is sizeof(size_t) aligned
     data= reinterpret_cast<uchar*>(new size_t[memory_size / sizeof(size_t)]);//force size_t alignment
     size= memory_size;
+    if(data)
+      memset(data, 0, size);
     position= 0;
   }
   uchar *data;

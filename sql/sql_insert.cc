@@ -825,8 +825,6 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
       error= 1;
       /* purecov: end */
     }
-    if (duplicates != DUP_ERROR || lex->is_ignore())
-      insert_table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
 
     transactional_table= insert_table->file->has_transactions();
 
@@ -907,10 +905,6 @@ bool Sql_cmd_insert::mysql_insert(THD *thd,TABLE_LIST *table_list)
   insert_table->next_number_field= 0;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   insert_table->auto_increment_field_not_null= FALSE;
-  if (duplicates == DUP_REPLACE &&
-      (!insert_table->triggers ||
-       !insert_table->triggers->has_delete_triggers()))
-    insert_table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
   if (thd->is_error())
     goto exit_without_my_ok;
@@ -2338,9 +2332,6 @@ bool Query_result_insert::send_eof()
   if (!error && thd->is_error())
     error= thd->get_stmt_da()->mysql_errno();
 
-  table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
-  table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
-
   changed= (info.stats.copied || info.stats.deleted || info.stats.updated);
   if (changed)
   {
@@ -3079,10 +3070,6 @@ bool Query_result_create::send_eof()
       thd->get_stmt_da()->set_overwrite_status(false);
     }
 
-    table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
-    table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
-
-    /* We should unlock the table nevertheless. */
     if (m_plock)
     {
       mysql_unlock_tables(thd, *m_plock);
@@ -3215,8 +3202,6 @@ void Query_result_create::abort_result_set()
 
   if (table)
   {
-    table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
-    table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
     table->auto_increment_field_not_null= FALSE;
     drop_open_table();
     table=0;                                    // Safety

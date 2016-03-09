@@ -41,6 +41,7 @@
 #include <ndbapi/ndb_cluster_connection.hpp>
 #include "mysqld_thd_manager.h"  // Global_THD_manager
 #include "dd_table_share.h"
+#include "dd/types/abstract_table.h"
 
 #include <my_thread.h>
 
@@ -3967,7 +3968,7 @@ ndb_binlog_index_table__open(THD *thd,
                         TL_WRITE);                      // for write
 
   /* Only allow real table to be opened */
-  tables.required_type= dd::Abstract_table::TT_BASE_TABLE;
+  tables.required_type= dd::enum_table_type::BASE_TABLE;
 
   const uint flags =
     MYSQL_LOCK_IGNORE_TIMEOUT; /* Wait for lock "infinitely" */

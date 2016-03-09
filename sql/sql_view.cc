@@ -915,7 +915,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     }
     if (exists)
     {
-      dd::Abstract_table::enum_table_type table_type;
+      dd::enum_table_type table_type;
       if (dd::abstract_table_type(thd->dd_client(), view->db,
                                   view->table_name, &table_type))
       {
@@ -930,8 +930,8 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
         goto err;
       }
 
-      if (table_type != dd::Abstract_table::TT_USER_VIEW &&
-          table_type != dd::Abstract_table::TT_SYSTEM_VIEW)
+      if (table_type != dd::enum_table_type::USER_VIEW &&
+          table_type != dd::enum_table_type::SYSTEM_VIEW)
       {
         my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
         error= -1;
@@ -1101,7 +1101,7 @@ bool open_and_read_view(THD *thd, TABLE_SHARE *share,
 
   TABLE_LIST *const top_view= view_ref->top_table();
 
-  if (view_ref->required_type == dd::Abstract_table::TT_BASE_TABLE)
+  if (view_ref->required_type == dd::enum_table_type::BASE_TABLE)
   {
     my_error(ER_WRONG_OBJECT, MYF(0), share->db.str, share->table_name.str,
              "BASE TABLE");
@@ -1730,22 +1730,22 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views)
     }
     else
     {
-      dd::Abstract_table::enum_table_type table_type;
+      dd::enum_table_type table_type;
       if (dd::abstract_table_type(thd->dd_client(), view->db, view->table_name,
                                  &table_type))
         DBUG_RETURN(true);
 
       switch (table_type)
       {
-      case dd::Abstract_table::TT_BASE_TABLE:
+      case dd::enum_table_type::BASE_TABLE:
         if (!wrong_object_name)
         {
           wrong_object_db= const_cast<char*>(view->db);
           wrong_object_name= const_cast<char*>(view->table_name);
         }
         break;
-      case dd::Abstract_table::TT_SYSTEM_VIEW: // Fall through
-      case dd::Abstract_table::TT_USER_VIEW:
+      case dd::enum_table_type::SYSTEM_VIEW: // Fall through
+      case dd::enum_table_type::USER_VIEW:
         {
           thd->add_to_binlog_accessed_dbs(view->db);
 

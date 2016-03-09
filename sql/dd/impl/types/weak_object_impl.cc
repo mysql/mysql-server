@@ -18,6 +18,7 @@
 #include "mysqld_error.h"                 // ER_*
 #include "log.h"                          // sql_print_error
 
+#include "dd/types/entity_object.h"       // Entity_object
 #include "dd/types/object_table.h"        // Object_table
 #include "dd/impl/object_key.h"           // Needed for destructor
 #include "dd/impl/transaction_impl.h"     // Open_dictionary_tables_ctx

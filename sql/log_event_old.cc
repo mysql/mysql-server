@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -126,16 +126,25 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
     /*
       When the open and locking succeeded, we check all tables to
       ensure that they still have the correct type.
-
-      We can use a down cast here since we know that every table added
-      to the tables_to_lock is a RPL_TABLE_LIST.
     */
 
     {
-      RPL_TABLE_LIST *ptr= rli->tables_to_lock;
-      for (uint i= 0 ; ptr&& (i< rli->tables_to_lock_count); 
-           ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_global), i++)
+      TABLE_LIST *table_list_ptr= rli->tables_to_lock;
+      for (uint i=0 ; table_list_ptr&& (i< rli->tables_to_lock_count);
+           table_list_ptr= table_list_ptr->next_global, i++)
       {
+        /*
+          Please see comment in log_event.cc-Rows_log_event::do_apply_event()
+          function for the explanation of the below if condition
+        */
+        if (table_list_ptr->parent_l)
+          continue;
+        /*
+          We can use a down cast here since we know that every table added
+          to the tables_to_lock is a RPL_TABLE_LIST(or child table which is
+          skipped above).
+        */
+        RPL_TABLE_LIST *ptr=static_cast<RPL_TABLE_LIST*>(table_list_ptr);
         DBUG_ASSERT(ptr->m_tabledef_valid);
         TABLE *conv_table;
         if (!ptr->m_tabledef.compatible_with(thd, const_cast<Relay_log_info*>(rli),
@@ -169,7 +178,15 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
      */
     TABLE_LIST *ptr= rli->tables_to_lock;
     for (uint i=0; ptr && (i < rli->tables_to_lock_count); ptr= ptr->next_global, i++)
+    {
+      /*
+        Please see comment in log_event.cc-Rows_log_event::do_apply_event()
+        function for the explanation of the below if condition
+       */
+      if (ptr->parent_l)
+        continue;
       const_cast<Relay_log_info*>(rli)->m_table_map.set_table(ptr->table_id, ptr->table);
+    }
     query_cache.invalidate_locked_for_write(thd, rli->tables_to_lock);
   }
 
@@ -957,14 +974,6 @@ int Write_rows_log_event_old::do_before_row_operations(TABLE *table)
 int Write_rows_log_event_old::do_after_row_operations(TABLE *table, int error)
 {
   int local_error= 0;
-  table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
-  table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
-  /*
-    reseting the extra with 
-    table->file->extra(HA_EXTRA_NO_IGNORE_NO_KEY); 
-    fires bug#27077
-    todo: explain or fix
-  */
   if ((local_error= table->file->ha_end_bulk_insert()))
   {
     table->file->print_error(local_error, MYF(0));
@@ -1565,16 +1574,25 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     /*
       When the open and locking succeeded, we check all tables to
       ensure that they still have the correct type.
-
-      We can use a down cast here since we know that every table added
-      to the tables_to_lock is a RPL_TABLE_LIST.
     */
 
     {
-      RPL_TABLE_LIST *ptr= rli->tables_to_lock;
-      for (uint i= 0 ; ptr&& (i< rli->tables_to_lock_count);
-           ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_global), i++)
+      TABLE_LIST *table_list_ptr= rli->tables_to_lock;
+      for (uint i=0; table_list_ptr&& (i< rli->tables_to_lock_count);
+           table_list_ptr= static_cast<RPL_TABLE_LIST*>(table_list_ptr->next_global), i++)
       {
+        /*
+          Please see comment in log_event.cc-Rows_log_event::do_apply_event()
+          function for the explanation of the below if condition
+        */
+        if (table_list_ptr->parent_l)
+          continue;
+        /*
+          We can use a down cast here since we know that every table added
+          to the tables_to_lock is a RPL_TABLE_LIST (or child table which is
+          skipped above).
+        */
+        RPL_TABLE_LIST *ptr=static_cast<RPL_TABLE_LIST*>(table_list_ptr);
         TABLE *conv_table;
         if (ptr->m_tabledef.compatible_with(thd, const_cast<Relay_log_info*>(rli),
                                             ptr->table, &conv_table))
@@ -2618,14 +2636,6 @@ Write_rows_log_event_old::do_after_row_operations(const Slave_reporting_capabili
                                                   int error)
 {
   int local_error= 0;
-  m_table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
-  m_table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
-  /*
-    reseting the extra with 
-    table->file->extra(HA_EXTRA_NO_IGNORE_NO_KEY); 
-    fires bug#27077
-    todo: explain or fix
-  */
   if ((local_error= m_table->file->ha_end_bulk_insert()))
   {
     m_table->file->print_error(local_error, MYF(0));

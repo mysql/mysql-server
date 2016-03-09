@@ -33,6 +33,8 @@
 
 #include "dd/dd_table.h"      // dd::table_exists
 #include "dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
+#include "dd/types/abstract_table.h" // dd::Abstract_table
+
 
 static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
 				 bool skip_error, bool *int_commit_done);
@@ -284,7 +286,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
   // not exist. Next is to act based on the table type.
   switch (old_table_def->type())
   {
-  case dd::Abstract_table::TT_BASE_TABLE:
+  case dd::enum_table_type::BASE_TABLE:
     {
       handlerton *hton= NULL;
       // If the engine is not found, my_error() has already been called
@@ -322,8 +324,8 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
 #endif
       break;
     }
-  case dd::Abstract_table::TT_SYSTEM_VIEW: // Fall through
-  case dd::Abstract_table::TT_USER_VIEW:
+  case dd::enum_table_type::SYSTEM_VIEW: // Fall through
+  case dd::enum_table_type::USER_VIEW:
     {
       // Changing the schema of a view is not allowed.
       if (strcmp(ren_table->db, new_db))

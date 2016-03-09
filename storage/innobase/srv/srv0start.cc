@@ -861,6 +861,8 @@ srv_undo_tablespaces_init(
 
 			undo::Truncate	undo_trunc;
 
+			fil_flush(undo_tablespace_ids[i]);
+
 			fil_space_close(undo_tablespace_ids[i]);
 
 			if (undo_trunc.needs_fix_up(undo_tablespace_ids[i])) {
@@ -912,6 +914,8 @@ srv_undo_tablespaces_init(
 			"%s%cundo%03lu",
 			srv_undo_dir, OS_PATH_SEPARATOR,
 			undo_tablespace_ids[i]);
+
+		os_normalize_path(name);
 
 		/* Should be no gaps in undo tablespace ids. */
 		ut_a(prev_space_id + 1 == undo_tablespace_ids[i]);

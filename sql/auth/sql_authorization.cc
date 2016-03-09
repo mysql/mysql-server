@@ -39,6 +39,7 @@
 #include "debug_sync.h"
 
 #include "dd/dd_table.h"                /* dd::table_exists */
+#include "dd/types/abstract_table.h"    /* dd::Abstract_table */
 
 const char *command_array[]=
 {
@@ -1045,8 +1046,6 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
   Security_context *sctx= thd->security_context();
   Security_context *backup_ctx= thd->security_context();
 
-  DBUG_EXECUTE_IF("force_check_table_access_return_ok",
-                  return false;);
   /*
     The check that first_not_own_table is not reached is for the case when
     the given table list refers to the list for prelocking (contains tables
@@ -1089,6 +1088,9 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
       goto deny;
   }
   thd->set_security_context(backup_ctx);
+
+  DBUG_EXECUTE_IF("force_check_table_access_return_ok",
+                  return false;);
   return check_grant(thd,requirements,org_tables,
                      any_combination_of_privileges_will_do,
                      number, no_errors);

@@ -71,11 +71,11 @@ TARGET_LINK_LIBRARIES(mysqlcheck mysqlcheck_core)
 MYSQL_ADD_EXECUTABLE(mysqldump mysqldump.cc ../sql-common/my_user.c)
 TARGET_LINK_LIBRARIES(mysqldump mysqlclient)
 
-MYSQL_ADD_EXECUTABLE(mysqlimport mysqlimport.c)
-SET_SOURCE_FILES_PROPERTIES(mysqlimport.c PROPERTIES COMPILE_FLAGS "-DTHREADS")
+MYSQL_ADD_EXECUTABLE(mysqlimport mysqlimport.cc)
+SET_SOURCE_FILES_PROPERTIES(mysqlimport.cc PROPERTIES COMPILE_FLAGS "-DTHREADS")
 TARGET_LINK_LIBRARIES(mysqlimport mysqlclient)
 
-MYSQL_ADD_EXECUTABLE(mysqlshow mysqlshow.c)
+MYSQL_ADD_EXECUTABLE(mysqlshow mysqlshow.cc)
 TARGET_LINK_LIBRARIES(mysqlshow mysqlclient)
 
 MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc)
@@ -124,12 +124,3 @@ SET_TARGET_PROPERTIES(mysql_ssl_rsa_setup PROPERTIES LINKER_LANGUAGE CXX)
 IF(WIN32)
   MYSQL_ADD_EXECUTABLE(echo echo.c)
 ENDIF(WIN32)
-
-SET_TARGET_PROPERTIES (
-  mysqlcheck
-  mysqldump
-  mysqlimport
-  mysqlshow
-  mysqlslap
-PROPERTIES HAS_CXX TRUE)
-

@@ -48,20 +48,25 @@ enum enum_one_or_all_type
 class Json_path_cache
 {
 private:
-  // holder for path strings
+  /// Holder for path strings.
   String m_path_value;
 
-  // list of paths
+  /// List of paths.
   Prealloced_array<Json_path, 8, false> m_paths;
 
-  // map argument indexes to indexes into m_paths
-  Mem_root_array<int, true> m_arg_idx_to_vector_idx;
+  /// Enum that tells the status of a cell in m_paths.
+  enum class enum_path_status : uint8
+  { UNINITIALIZED, OK_NOT_NULL, OK_NULL, ERROR };
 
-  // remembers whether a constant path was null or invalid
-  Mem_root_array<bool, true> m_arg_idx_to_problem_indicator;
+  /// Struct that points to a cell in m_paths and tells its status.
+  struct Path_cell
+  {
+    enum_path_status m_status= enum_path_status::UNINITIALIZED;
+    size_t m_index= 0;
+  };
 
-  // number of cells in m_arg_idx_to_vector
-  uint m_size;
+  /// Map argument indexes to indexes into m_paths.
+  Mem_root_array<Path_cell, true> m_arg_idx_to_vector_idx;
 
 public:
   Json_path_cache(THD *thd, uint size);
@@ -80,7 +85,7 @@ public:
     @param[in]  arg_idx          Index of the path_expression in args
     @param[in]  forbid_wildcards True if the path shouldn't contain * or **
 
-    @returns false on success, true on error or if the path is NULL
+    @returns false on success (valid path or NULL), true on error
   */
   bool parse_and_cache_path(Item ** args, uint arg_idx,
                             bool forbid_wildcards);
@@ -91,7 +96,7 @@ public:
 
     @param[in]  arg_idx   Index of the path_expression in the JSON function args
 
-    @returns the already parsed path
+    @returns the already parsed path, possibly NULL
   */
   Json_path *get_path(uint arg_idx);
 

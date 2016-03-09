@@ -2383,7 +2383,6 @@ row_ins_clust_index_entry_low(
 	big_rec_t*	big_rec		= NULL;
 	mtr_t		mtr;
 	AutoIncLogMtr	autoinc_mtr(&mtr);
-	ib_uint64_t	counter		= 0;
 	mem_heap_t*	offsets_heap	= NULL;
 	ulint           offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*          offsets         = offsets_;
@@ -2415,6 +2414,28 @@ row_ins_clust_index_entry_low(
 	} else {
 
 		autoinc_mtr.get_mtr()->set_named_space(index->space);
+
+		/* We do logging first to prevent further potential deadlock.
+		Temporary tables don't require persistent counters.
+		For 'ALTER TABLE ... ALGORITHM = COPY', intermediate tables
+		need this, but we can set it only once when necessary to prevent
+		writing so many logs. This is why row_is_mysql_tmp_table_name()
+		is necessary here */
+		if (dict_table_has_autoinc_col(index->table)
+		    && !row_is_mysql_tmp_table_name(index->table->name.m_name)
+		    && !srv_missing_dd_table_buffer) {
+
+			ib_uint64_t counter = row_get_autoinc_counter(
+				entry, index->table->autoinc_field_no);
+
+			if (counter != 0) {
+				/* We always log the counter before real
+				insertion. So even if there was a failure later,
+				current counter still gets persisted and never
+				re-used, as long as the log gets flushed */
+				autoinc_mtr.log(index->table, counter);
+			}
+		}
 	}
 
 	if (mode == BTR_MODIFY_LEAF && dict_index_is_online_ddl(index)) {
@@ -2443,20 +2464,6 @@ row_ins_clust_index_entry_low(
 		      || rec_n_fields_is_sane(index, first_rec, entry));
 	}
 #endif /* UNIV_DEBUG */
-
-	/* Temporary tables don't require persistent counters.
-	But for 'ALTER TABLE ... ALGORITHM = COPY', MySQL temporary tables
-	need this, but we can set it only once when necessary to prevent
-	writing so many logs. This is why row_is_mysql_tmp_table_name()
-	is necessary here */
-	if (dict_table_has_autoinc_col(index->table)
-	    && !dict_table_is_temporary(index->table)
-	    && !row_is_mysql_tmp_table_name(index->table->name.m_name)
-	    && !srv_missing_dd_table_buffer) {
-
-		counter = row_get_autoinc_counter(
-			entry, index->table->autoinc_field_no);
-	}
 
 	/* Allowing duplicates in clustered index is currently enabled
 	only for intrinsic table and caller understand the limited
@@ -2502,13 +2509,6 @@ row_ins_clust_index_entry_low(
 
 		if (err != DB_SUCCESS) {
 err_exit:
-			if (err == DB_DUPLICATE_KEY && counter != 0) {
-				/* Although it's duplicate in clustered index,
-				the counter could be still bigger and should
-				still be logged. */
-				autoinc_mtr.log(index->table, counter);
-			}
-
 			autoinc_mtr.commit();
 			goto func_exit;
 		}
@@ -2544,9 +2544,6 @@ err_exit:
 					     index, offsets);
 		}
 
-		if (err == DB_SUCCESS && counter != 0) {
-			autoinc_mtr.log(index->table, counter);
-		}
 		autoinc_mtr.commit();
 		mem_heap_free(entry_heap);
 	} else {
@@ -2584,10 +2581,6 @@ err_exit:
 		}
 
 		if (big_rec != NULL) {
-			if (err == DB_SUCCESS && counter != 0) {
-				autoinc_mtr.log(index->table, counter);
-			}
-
 			autoinc_mtr.commit();
 
 			/* Online table rebuild could read (and
@@ -2608,10 +2601,6 @@ err_exit:
 			    && dict_index_is_online_ddl(index)) {
 				row_log_table_insert(
 					insert_rec, entry, index, offsets);
-			}
-
-			if (err == DB_SUCCESS && counter != 0) {
-				autoinc_mtr.log(index->table, counter);
 			}
 
 			autoinc_mtr.commit();

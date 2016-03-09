@@ -18,6 +18,7 @@
 #include "log.h"                 // sql_print_warning
 #include "mysqld_thd_manager.h"  // Global_THD_manager
 #include "bootstrap_impl.h"
+#include "error_handler.h"       // Internal_error_handler
 #include "mysqld.h"              // key_file_init
 #include "sql_initialize.h"
 #include "sql_class.h"           // THD
@@ -83,6 +84,23 @@ void File_command_iterator::end(void)
 
 Command_iterator *Command_iterator::current_iterator= NULL;
 
+
+// Disable ER_TOO_LONG_KEY for creation of system tables.
+// See Bug#20629014.
+class Key_length_error_handler : public Internal_error_handler
+{
+public:
+  virtual bool handle_condition(THD *,
+                                uint sql_errno,
+                                const char*,
+                                Sql_condition::enum_severity_level *,
+                                const char*)
+  {
+    return (sql_errno == ER_TOO_LONG_KEY);
+  }
+};
+
+
 static bool handle_bootstrap_impl(THD *thd)
 {
   std::string query;
@@ -90,6 +108,7 @@ static bool handle_bootstrap_impl(THD *thd)
   DBUG_ENTER("handle_bootstrap");
   File_command_iterator file_iter(bootstrap_file, mysql_file_fgets_fn);
   Compiled_in_command_iterator comp_iter;
+  Key_length_error_handler error_handler;
 
   thd->thread_stack= (char*) &thd;
   thd->security_context()->assign_user(STRING_WITH_LEN("boot"));
@@ -188,7 +207,10 @@ static bool handle_bootstrap_impl(THD *thd)
       /* purecov: end */
     }
 
+    // Ignore ER_TOO_LONG_KEY for system tables.
+    thd->push_internal_handler(&error_handler);
     mysql_parse(thd, &parser_state);
+    thd->pop_internal_handler();
 
     bootstrap_error= thd->is_error();
     thd->send_statement_status();

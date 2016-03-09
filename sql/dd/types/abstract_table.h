@@ -42,6 +42,27 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
+/////////////////////////////////////////////////////////////////////////
+// enum_table_type.
+/////////////////////////////////////////////////////////////////////////
+
+enum class enum_table_type
+{
+  BASE_TABLE= 1,
+  USER_VIEW,
+  SYSTEM_VIEW
+};
+
+
+/**
+  Abstract base class for tables and views.
+
+  @note This class may be inherited along different paths
+        for some subclasses due to the diamond shaped
+        inheritance hierarchy; thus, direct subclasses
+        must inherit this class virtually.
+*/
+
 class Abstract_table : public Dictionary_object
 {
 public:
@@ -111,17 +132,6 @@ public:
 
   virtual ulonglong last_altered() const = 0;
   virtual void set_last_altered(ulonglong last_altered) = 0;
-
-  /////////////////////////////////////////////////////////////////////////
-  // enum_table_type.
-  /////////////////////////////////////////////////////////////////////////
-
-  enum enum_table_type
-  {
-    TT_BASE_TABLE= 1,
-    TT_USER_VIEW,
-    TT_SYSTEM_VIEW
-  };
 
   virtual enum_table_type type() const = 0;
 

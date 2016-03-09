@@ -2877,9 +2877,13 @@ String *Item_xml_str_func::parse_xml(String *raw_xml, String *parsed_xml_buf)
 String *Item_func_xml_extractvalue::val_str(String *str)
 {
   String *res;
-  null_value= 0;
+  null_value= FALSE;
   if (!nodeset_func && parse_xpath(args[1]))
+  {
+    DBUG_ASSERT(maybe_null);
+    null_value= TRUE;
     return NULL;
+  }
 
   tmp_value.set("", 0, pxml.charset());
   if (!nodeset_func ||
@@ -2898,9 +2902,13 @@ String *Item_func_xml_update::val_str(String *str)
 {
   String *res, *nodeset, *rep;
 
-  null_value= 0;
+  null_value= FALSE;
   if (!nodeset_func && parse_xpath(args[1]))
+  {
+    DBUG_ASSERT(maybe_null);
+    null_value= TRUE;
     return NULL;
+  }
 
   if (!nodeset_func || 
       !(res= args[0]->val_str(str)) ||

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -527,7 +527,7 @@ enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
     else
     {
       rpl_sid sid;
-      if (sid.parse(s) != 0)
+      if (sid.parse(s, binary_log::Uuid::TEXT_LENGTH) != 0)
       {
         DBUG_PRINT("info", ("expected UUID; found garbage '%.80s' at char %d in '%s'", s, (int)(s - text), text));
         goto parse_error;
@@ -626,7 +626,7 @@ bool Gtid_set::is_valid(const char *text)
       DBUG_RETURN(true);
 
     // Parse SID.
-    if (!rpl_sid::is_valid(s))
+    if (!rpl_sid::is_valid(s, binary_log::Uuid::TEXT_LENGTH))
       DBUG_RETURN(false);
     s += binary_log::Uuid::TEXT_LENGTH;
     SKIP_WHITESPACE();

@@ -32,6 +32,7 @@ template <class T> class List;
 
 namespace dd {
   class Table;
+  enum class enum_table_type;
   namespace cache {
     class Dictionary_client;
   }
@@ -180,7 +181,7 @@ inline bool rename_table(THD *thd,
 */
 bool abstract_table_type(dd::cache::Dictionary_client *client,
                          const char *schema_name, const char *table_name,
-                         dd::Abstract_table::enum_table_type *table_type);
+                         dd::enum_table_type *table_type);
 
 /**
   Get the legacy db type from the options of the given table.

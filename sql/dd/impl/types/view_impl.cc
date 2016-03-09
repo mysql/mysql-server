@@ -58,7 +58,7 @@ const Object_type &View::TYPE()
 ///////////////////////////////////////////////////////////////////////////
 
 View_impl::View_impl()
- :m_type(TT_USER_VIEW),
+ :m_type(enum_table_type::USER_VIEW),
   m_is_updatable(false),
   m_check_option(CO_NONE),
   m_algorithm(VA_UNDEFINED),
@@ -135,7 +135,8 @@ bool View_impl::restore_attributes(const Raw_record &r)
 {
   m_type = (enum_table_type) r.read_int(Tables::FIELD_TYPE);
 
-  if (m_type != TT_USER_VIEW && m_type != TT_SYSTEM_VIEW)
+  if (m_type != enum_table_type::USER_VIEW &&
+      m_type != enum_table_type::SYSTEM_VIEW)
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
@@ -194,7 +195,7 @@ bool View_impl::store_attributes(Raw_record *r)
 
   return
     Abstract_table_impl::store_attributes(r) ||
-    r->store(Tables::FIELD_TYPE, m_type) ||
+    r->store(Tables::FIELD_TYPE, static_cast<int>(m_type)) ||
     r->store(Tables::FIELD_VIEW_DEFINITION, m_definition) ||
     r->store(Tables::FIELD_VIEW_DEFINITION_UTF8, m_definition_utf8) ||
     r->store(Tables::FIELD_VIEW_CHECK_OPTION, m_check_option) ||

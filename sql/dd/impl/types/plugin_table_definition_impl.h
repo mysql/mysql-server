@@ -30,7 +30,7 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Plugin_table_definition_impl: virtual public Object_table_definition
+class Plugin_table_definition_impl: public Object_table_definition
 {
 private:
   std::string m_table_name;

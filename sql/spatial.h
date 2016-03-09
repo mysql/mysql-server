@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2306,7 +2306,9 @@ public:
 
 
   self &operator=(const self &rhs);
-  virtual void shallow_push(const Geometry *g);
+
+  // SUPPRESS_UBSAN Wrong downcast. FIXME
+  virtual void shallow_push(const Geometry *g) SUPPRESS_UBSAN;
 
   Geo_vector *get_geo_vect(bool create_if_null= false)
   {
@@ -2534,12 +2536,14 @@ public:
 
   bool set_polygon_ring_order();
 
-  inner_container_type *inner_rings() const
+  // SUPPRESS_UBSAN Wrong downcast. FIXME
+  inner_container_type *inner_rings() const SUPPRESS_UBSAN
   {
     return m_inn_rings;
   }
 
-  void set_inner_rings(inner_container_type *inns)
+  // SUPPRESS_UBSAN Wrong downcast. FIXME
+  void set_inner_rings(inner_container_type *inns) SUPPRESS_UBSAN
   {
     m_inn_rings= inns;
   }

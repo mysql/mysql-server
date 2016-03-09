@@ -1038,7 +1038,6 @@ static bool mysql_update(THD *thd,
 
   end_read_record(&info);
   THD_STAGE_INFO(thd, stage_end);
-  (void) table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
 
   /*
     Invalidate the table in the query cache if something changed.
@@ -2207,8 +2206,6 @@ Query_result_update::~Query_result_update()
   for (table= update_tables ; table; table= table->next_local)
   {
     table->table->no_cache= 0;
-    if (thd->lex->is_ignore())
-      table->table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   }
 
   if (tmp_tables)

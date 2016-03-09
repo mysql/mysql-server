@@ -34,7 +34,7 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Object_table_definition_impl: virtual public Object_table_definition
+class Object_table_definition_impl: public Object_table_definition
 {
 private:
   typedef std::map<std::string, int> Field_numbers;

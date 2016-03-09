@@ -191,6 +191,7 @@ EXECUTE s2;
 --echo # views with warnings
 --echo #
 
+--disable_ps_protocol
 CREATE VIEW v1 AS
 SELECT
 b & c, b & 0x31393838, b & NULL, b & 0b1011,
@@ -201,18 +202,23 @@ b ^ c, b ^ 0x31393838, b ^ NULL, b ^ 0b1011,
 0x31393838 ^ b, NULL ^ b, 0b1011 ^ b,
 BIT_COUNT(b), ~b, b << 1, b >> 1
 FROM t1;
+--enable_ps_protocol
 SELECT * from v1;
 RESET QUERY CACHE;
 SELECT * from v1;
 
+--disable_ps_protocol
 CREATE VIEW v2 AS
 SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1 GROUP BY a;
+--enable_ps_protocol
 SELECT * from v2;
 RESET QUERY CACHE;
 SELECT * from v2;
 
+--disable_ps_protocol
 CREATE VIEW v3 AS
 SELECT BIT_AND(b), BIT_OR(b), BIT_XOR(b) FROM t1;
+--enable_ps_protocol
 SELECT * from v3;
 RESET QUERY CACHE;
 SELECT * from v3;

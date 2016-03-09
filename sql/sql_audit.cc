@@ -159,7 +159,7 @@ public:
     Create THD object and initialize internal variables.
   */
   Auto_THD() :
-    thd(create_thd(false, false, false, 0))
+    thd(create_thd(false, true, false, 0))
   {
     thd->push_internal_handler(this);
   }

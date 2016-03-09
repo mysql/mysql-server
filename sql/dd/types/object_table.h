@@ -34,7 +34,13 @@ class Object_table_definition;
   This class represents all data dictionary table like
   mysql.tables, mysql.columns and more. This is base class of all
   the classes defined in sql/dd/impl/tables/ headers.
+
+  @note This class may be inherited along different paths
+        for some subclasses due to the diamond shaped
+        inheritance hierarchy; thus, direct subclasses
+        must inherit this class virtually.
 */
+
 class Object_table
 {
 public:

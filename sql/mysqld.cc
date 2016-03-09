@@ -1574,7 +1574,6 @@ void clean_up(bool print_message)
 
   injector::free_instance();
   mysql_bin_log.cleanup();
-  gtid_server_cleanup();
 
 #ifdef HAVE_REPLICATION
   if (use_slave_mask)
@@ -1598,6 +1597,7 @@ void clean_up(bool print_message)
   }
   table_def_start_shutdown();
   plugin_shutdown();
+  gtid_server_cleanup(); // after plugin_shutdown
   delete_optimizer_cost_module();
   ha_end();
   if (tc_log)
@@ -3834,7 +3834,7 @@ static int flush_auto_options(const char* fname)
   @todo consider to implement sql-query-able persistent storage by WL#5279.
   @return Return 0 or 1 if an error occurred.
  */
-int init_server_auto_options()
+int init_server_auto_options(bool read_uuid)
 {
   bool flush= false;
   char fname[FN_REFLEN];
@@ -3882,15 +3882,14 @@ int init_server_auto_options()
   DBUG_PRINT("info", ("uuid=%p=%s server_uuid=%s", uuid, uuid, server_uuid));
   if (uuid)
   {
-    if (!binary_log::Uuid::is_valid(uuid))
+    if (!binary_log::Uuid::is_valid(uuid, binary_log::Uuid::TEXT_LENGTH))
     {
       sql_print_error("The server_uuid stored in auto.cnf file is not a valid UUID.");
       goto err;
     }
     strcpy(server_uuid, uuid);
   }
-  else
-  {
+  else if (!read_uuid) {
     DBUG_PRINT("info", ("generating server_uuid"));
     flush= TRUE;
     /* server_uuid will be set in the function */
@@ -5065,6 +5064,11 @@ int mysqld_main(int argc, char **argv)
   Service.SetSlowStarting(slow_start_timeout);
 #endif
 
+  /*
+    Read UUID if exist, we need it to recover TDE tablespaces.
+   */
+  init_server_auto_options(true);
+
   if (init_server_components())
     unireg_abort(MYSQLD_ABORT_EXIT);
 
@@ -5072,7 +5076,7 @@ int mysqld_main(int argc, char **argv)
     Each server should have one UUID. We will create it automatically, if it
     does not exist.
    */
-  if (init_server_auto_options())
+  if (init_server_auto_options(false))
   {
     sql_print_error("Initialization of the server's UUID failed because it could"
                     " not be read from the auto.cnf file. If this is a new"
@@ -9186,6 +9190,9 @@ PSI_stage_info stage_slave_waiting_worker_queue= { 0, "Waiting for Slave Worker 
 PSI_stage_info stage_slave_waiting_worker_to_free_events= { 0, "Waiting for Slave Workers to free pending events", 0};
 PSI_stage_info stage_slave_waiting_worker_to_release_partition= { 0, "Waiting for Slave Worker to release partition", 0};
 PSI_stage_info stage_slave_waiting_workers_to_exit= { 0, "Waiting for workers to exit", 0};
+PSI_stage_info stage_rpl_apply_row_evt_write= { 0, "Applying batch of row changes (write)", PSI_FLAG_STAGE_PROGRESS};
+PSI_stage_info stage_rpl_apply_row_evt_update= { 0, "Applying batch of row changes (update)", PSI_FLAG_STAGE_PROGRESS};
+PSI_stage_info stage_rpl_apply_row_evt_delete= { 0, "Applying batch of row changes (delete)", PSI_FLAG_STAGE_PROGRESS};
 PSI_stage_info stage_sorting_for_group= { 0, "Sorting for group", 0};
 PSI_stage_info stage_sorting_for_order= { 0, "Sorting for order", 0};
 PSI_stage_info stage_sorting_result= { 0, "Sorting result", 0};
@@ -9299,6 +9306,9 @@ PSI_stage_info *all_server_stages[]=
   & stage_slave_waiting_worker_to_free_events,
   & stage_slave_waiting_worker_to_release_partition,
   & stage_slave_waiting_workers_to_exit,
+  & stage_rpl_apply_row_evt_write,
+  & stage_rpl_apply_row_evt_update,
+  & stage_rpl_apply_row_evt_delete,
   & stage_sorting_for_group,
   & stage_sorting_for_order,
   & stage_sorting_result,

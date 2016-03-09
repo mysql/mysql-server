@@ -3112,7 +3112,7 @@ analyze table messages;
 select * from messages order by id;
 
 # FULLTEXT INDEX can't be created on JSON column type.
---error ER_BAD_FT_COLUMN
+--error ER_JSON_USED_AS_KEY
 alter table messages add fulltext index (raw_message) ;
 
 # Search the message subject and body
@@ -6246,6 +6246,22 @@ CREATE TABLE t(j JSON, vc VARCHAR(99));
 INSERT INTO t VALUES ('"abc"', REPEAT('abc', 33)), ('"abc"', 'abc');
 INSERT INTO t SELECT * FROM t;
 SELECT * FROM t WHERE j = vc;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#22816576: ASSERTION FAILED: !THD->IS_ERROR() IN OPTIMIZE_COND()
+--echo #
+CREATE TABLE t(a DATE);
+--error ER_INVALID_JSON_PATH
+SELECT 1 FROM t WHERE 1 <>
+(
+ SELECT 1 FROM
+ (
+  SELECT 1 FROM t e
+  JOIN t ON t.a <=> JSON_REPLACE(JSON_OBJECT('', ''), '', '')
+  WHERE e.a
+ ) w
+);
 DROP TABLE t;
 
 

@@ -2768,7 +2768,6 @@ sp_fdparam:
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            sp_head *sp= lex->sphead;
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
 
             if (pctx->find_variable($1, TRUE))
@@ -2782,9 +2781,9 @@ sp_fdparam:
                                                    (enum enum_field_types) $3,
                                                    sp_variable::MODE_IN);
 
-            if (fill_field_definition(thd, sp,
-                                      (enum enum_field_types) $3,
-                                      &spvar->field_def))
+            if (prepare_sp_create_field(thd,
+                                        (enum enum_field_types) $3,
+                                        &spvar->field_def))
             {
               MYSQL_YYABORT;
             }
@@ -2809,7 +2808,6 @@ sp_pdparam:
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            sp_head *sp= lex->sphead;
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
 
             if (pctx->find_variable($3, TRUE))
@@ -2822,9 +2820,9 @@ sp_pdparam:
                                                    (enum enum_field_types) $4,
                                                    (sp_variable::enum_mode) $1);
 
-            if (fill_field_definition(thd, sp,
-                                      (enum enum_field_types) $4,
-                                      &spvar->field_def))
+            if (prepare_sp_create_field(thd,
+                                        (enum enum_field_types) $4,
+                                        &spvar->field_def))
             {
               MYSQL_YYABORT;
             }
@@ -2937,7 +2935,7 @@ sp_decl:
               spvar->type= var_type;
               spvar->default_value= dflt_value_item;
 
-              if (fill_field_definition(thd, sp, var_type, &spvar->field_def))
+              if (prepare_sp_create_field(thd, var_type, &spvar->field_def))
                 MYSQL_YYABORT;
 
               spvar->field_def.field_name= spvar->name.str;
@@ -5044,7 +5042,7 @@ create2:
             if (! src_table)
               MYSQL_YYABORT;
             /* CREATE TABLE ... LIKE is not allowed for views. */
-            src_table->required_type= dd::Abstract_table::TT_BASE_TABLE;
+            src_table->required_type= dd::enum_table_type::BASE_TABLE;
           }
         | '(' LIKE table_ident ')'
           {
@@ -5059,7 +5057,7 @@ create2:
             if (! src_table)
               MYSQL_YYABORT;
             /* CREATE TABLE ... LIKE is not allowed for views. */
-            src_table->required_type= dd::Abstract_table::TT_BASE_TABLE;
+            src_table->required_type= dd::enum_table_type::BASE_TABLE;
           }
         ;
 
@@ -5915,6 +5913,8 @@ create_table_option:
           }
         | PACK_KEYS_SYM opt_equal ulong_num
           {
+            Lex->create_info.table_options&=
+              ~(HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS);
             switch($3) {
             case 0:
                 Lex->create_info.table_options|= HA_OPTION_NO_PACK_KEYS;
@@ -5956,6 +5956,8 @@ create_table_option:
           }
         | STATS_PERSISTENT_SYM opt_equal ulong_num
           {
+            Lex->create_info.table_options&=
+              ~(HA_OPTION_STATS_PERSISTENT | HA_OPTION_NO_STATS_PERSISTENT);
             switch($3) {
             case 0:
                 Lex->create_info.table_options|= HA_OPTION_NO_STATS_PERSISTENT;
@@ -6000,16 +6002,19 @@ create_table_option:
           }
         | CHECKSUM_SYM opt_equal ulong_num
           {
+            Lex->create_info.table_options&= ~(HA_OPTION_CHECKSUM | HA_OPTION_NO_CHECKSUM);
             Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM;
             Lex->create_info.used_fields|= HA_CREATE_USED_CHECKSUM;
           }
         | TABLE_CHECKSUM_SYM opt_equal ulong_num
           {
+             Lex->create_info.table_options&= ~(HA_OPTION_CHECKSUM | HA_OPTION_NO_CHECKSUM);
              Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM;
              Lex->create_info.used_fields|= HA_CREATE_USED_CHECKSUM;
           }
         | DELAY_KEY_WRITE_SYM opt_equal ulong_num
           {
+            Lex->create_info.table_options&= ~(HA_OPTION_DELAY_KEY_WRITE | HA_OPTION_NO_DELAY_KEY_WRITE);
             Lex->create_info.table_options|= $3 ? HA_OPTION_DELAY_KEY_WRITE : HA_OPTION_NO_DELAY_KEY_WRITE;
             Lex->create_info.used_fields|= HA_CREATE_USED_DELAY_KEY_WRITE;
           }
@@ -9362,7 +9367,7 @@ select_option:
         ;
 
 opt_select_lock_type:
-          /* empty */ { $$.is_set= false; }
+          /* empty */ { $$= Select_lock_type(); }
         | FOR_SYM UPDATE_SYM
           {
             $$.is_set= true;
@@ -12592,7 +12597,7 @@ opt_flush_lock:
             {
               tables->mdl_request.set_type(MDL_SHARED_NO_WRITE);
               /* Don't try to flush views. */
-              tables->required_type= dd::Abstract_table::TT_BASE_TABLE;
+              tables->required_type= dd::enum_table_type::BASE_TABLE;
               tables->open_type= OT_BASE_ONLY;      /* Ignore temporary tables. */
             }
           }
@@ -12612,7 +12617,7 @@ opt_flush_lock:
             {
               tables->mdl_request.set_type(MDL_SHARED_NO_WRITE);
               /* Don't try to flush views. */
-              tables->required_type= dd::Abstract_table::TT_BASE_TABLE;
+              tables->required_type= dd::enum_table_type::BASE_TABLE;
               tables->open_type= OT_BASE_ONLY;      /* Ignore temporary tables. */
             }
           }
@@ -15401,9 +15406,9 @@ sf_tail:
               MYSQL_YYABORT;
             }
 
-            if (fill_field_definition(YYTHD, sp,
-                                      (enum enum_field_types) $10,
-                                      &sp->m_return_field_def))
+            if (prepare_sp_create_field(YYTHD,
+                                        (enum enum_field_types) $10,
+                                        &sp->m_return_field_def))
               MYSQL_YYABORT;
 
             memset(&lex->sp_chistics, 0, sizeof(st_sp_chistics));

@@ -85,7 +85,7 @@ alter table t1 add column b int generated always as (a+1) virtual key;
 ERROR HY000: 'Defining a virtual generated column as primary key' is not supported for generated columns.
 alter table t1 add column b int generated always as (a+1) stored key;
 alter table t1 add column c int generated always as (a+2) virtual primary key;
-ERROR HY000: 'Defining a virtual generated column as primary key' is not supported for generated columns.
+ERROR 42000: Multiple primary key defined
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

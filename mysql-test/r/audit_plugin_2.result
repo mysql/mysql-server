@@ -99,6 +99,8 @@ SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-OK
 # SHOW GLOBAL VARIABLE
+SET @old_show_compatibility_56=@@global.show_compatibility_56;
+SET @@global.show_compatibility_56=ON;
 SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
                                      'MYSQL_AUDIT_PARSE_PREPARSE;;;'
                                      'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
@@ -114,6 +116,23 @@ EVENT-ORDER-ABORT
 SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
 Variable_name	Value
 null_audit_abort_value	1
+SET @@global.show_compatibility_56=OFF;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                     'MYSQL_AUDIT_QUERY_START;sql_command_id="15";;'
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;<IGNORE>;ABORT_RET',
+@@null_audit_event_order_check_exact = 1;
+SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_GLOBAL_VARIABLE_GET';1).
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
+Variable_name	Value
+null_audit_abort_value	1
+SET @@global.show_compatibility_56=@old_show_compatibility_56;
 # SHOW GLOBAL VARIABLE
 SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
                                           'MYSQL_AUDIT_PARSE_PREPARSE;;;'

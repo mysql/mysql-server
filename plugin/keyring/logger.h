@@ -16,6 +16,8 @@
 #ifndef LOGGER_H
 #define LOGGER_H
 
+#include <mysql/plugin.h>
+
 namespace keyring {
 
 class ILogger

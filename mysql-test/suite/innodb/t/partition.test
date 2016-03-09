@@ -56,6 +56,12 @@ DROP TABLE t0;
 
 ANALYZE TABLE t1;
 EXPLAIN SELECT * FROM t1 WHERE a BETWEEN 1 AND 450 AND b BETWEEN 1 AND 10;
+--echo # Pull performance_schema.session_status into data-dictionary cache.
+--disable_result_log
+--disable_query_log
+SHOW CREATE TABLE performance_schema.session_status;
+--enable_query_log
+--enable_result_log
 FLUSH STATUS;
 --sorted_result
 SELECT * FROM t1 WHERE a BETWEEN 1 AND 450 AND b BETWEEN 1 AND 10;
@@ -706,3 +712,28 @@ CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
 --eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table
 
 DROP TABLESPACE ts1;
+--echo # Bug#22444530 - GCOLS + PARTITIONED TABLE, CRASH IN
+--echo #
+set sql_mode='';
+create table t (
+   a int not null,
+   b int generated always as (1) virtual not null,
+   c int generated always as (1) virtual not null,
+   key (c)
+) engine=innodb partition by key (a) partitions 2;
+insert into t(a) values(1);
+select b from t group by c;
+
+drop table t;
+
+# Make column b a BLOB
+create table t (
+   a int not null,
+   b blob generated always as ("a") virtual not null,
+   c int generated always as (1) virtual not null,
+   key (c)
+) engine=innodb partition by key (a) partitions 2;
+insert into t(a) values(1);
+select b from t group by c;
+
+drop table t;

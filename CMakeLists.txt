@@ -245,6 +245,7 @@ INCLUDE(lz4)
 INCLUDE(libevent)
 INCLUDE(ssl)
 INCLUDE(readline)
+INCLUDE(protobuf)
 INCLUDE(mysql_version)
 INCLUDE(libutils)
 INCLUDE(dtrace)
@@ -254,6 +255,13 @@ INCLUDE(install_layout)
 INCLUDE(mysql_add_executable)
 
 # Handle options
+IF(EXISTS ${CMAKE_SOURCE_DIR}/rapid)
+  OPTION(WITH_RAPID
+    "Build additonal code(plugins) that is located in rapid directory" ON)
+ELSE()
+  OPTION(WITH_RAPID
+    "Build additonal code(plugins) that is located in rapid directory" OFF)
+ENDIF()
 OPTION(DISABLE_SHARED 
  "Don't build shared libraries, compile code as position-dependent" OFF)
 IF(DISABLE_SHARED)
@@ -521,6 +529,23 @@ MYSQL_CHECK_EDITLINE()
 MYSQL_CHECK_LIBEVENT()
 # Add lz4 library
 MYSQL_CHECK_LZ4()
+# Add protoc and libprotobuf
+IF(NOT WITHOUT_SERVER)
+  MYSQL_CHECK_PROTOBUF()
+ENDIF()
+
+IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+  # Check for pthread_setname_np
+  CHECK_C_SOURCE_COMPILES("
+  #include <pthread.h>
+  int main(int ac, char **av)
+  {
+    const char *thread_name= 0;
+    int ret = pthread_setname_np(pthread_self(), thread_name);
+    return ret;
+  }"
+  HAVE_PTHREAD_SETNAME_NP)
+ENDIF()
 
 #
 # Setup maintainer mode options by the end. Platform checks are
@@ -574,6 +599,10 @@ IF(WITH_UNIT_TESTS)
     ADD_DEFINITIONS(-DGTEST_USE_OWN_TR1_TUPLE=1)
   ENDIF()
   ADD_SUBDIRECTORY(unittest/gunit)
+  
+  IF(WITH_RAPID AND EXISTS ${CMAKE_SOURCE_DIR}/rapid/unittest/gunit)
+    ADD_SUBDIRECTORY(rapid/unittest/gunit)
+  ENDIF()
 ENDIF()
 
 ADD_SUBDIRECTORY(extra)

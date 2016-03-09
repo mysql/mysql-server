@@ -395,6 +395,7 @@ THD::THD(bool enable_plugins)
    rand_used(0),
    time_zone_used(0),
    in_lock_tables(0),
+   got_warning(false),
    derived_tables_processing(FALSE),
    sp_runtime_ctx(NULL),
    m_parser_state(NULL),
@@ -489,6 +490,7 @@ THD::THD(bool enable_plugins)
 
   /* Variables with default values */
   proc_info="login";
+  m_current_stage_key= 0;
   where= THD::DEFAULT_WHERE;
   server_id = ::server_id;
   unmasked_server_id = server_id;
@@ -581,7 +583,7 @@ bool THD::set_db(const LEX_CSTRING &new_db)
   mysql_mutex_unlock(&LOCK_thd_data);
   result= new_db.str && !m_db.str;
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  if (result)
+  if (!result)
     PSI_THREAD_CALL(set_thread_db)(new_db.str,
                                    static_cast<int>(new_db.length));
 #endif
@@ -2890,4 +2892,16 @@ bool THD::binlog_applier_has_detached_trx()
 #else
   return false;
 #endif
+}
+/**
+  Determine if binlogging is disabled for this session
+  @retval 0 if the current statement binlogging is disabled
+  (could be because of binlog closed/binlog option
+  is set to false).
+  @retval 1 if the current statement will be binlogged
+*/
+bool THD::is_current_stmt_binlog_disabled() const
+{
+  return (!(variables.option_bits & OPTION_BIN_LOG) ||
+          !mysql_bin_log.is_open());
 }

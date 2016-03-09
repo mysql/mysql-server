@@ -17,7 +17,6 @@
 
 #include "debug_sync.h"                      // DEBUG_SYNC()
 #include "log.h"                             // sql_print_warning()
-#include "mysqld.h"                          // mysqld_server_started
 #include "sql_class.h"                       // THD
 
 #include "cache_element.h"                   // Cache_element
@@ -57,10 +56,8 @@ namespace {
   until after we have the name of the object, so if we acquire an object
   by id, the asserts must be delayed until the object is retrieved.
 
-  @note Checking for MDL locks is disabled until the server is started,
-        as indicated by the 'mysqld_server_started' flag. This is because
-        in this phase, MDL locks are not acquired since the server is not
-        available for user connections yet.
+  @note Checking for MDL locks is disabled for the DD initialization
+        thread because the server is not multi threaded at this stage.
 */
 
 class MDL_checker
@@ -149,9 +146,9 @@ private:
     // Likewise, if there is no schema, we cannot have a proper lock.
     // This may in theory happen during bootstrapping since the meta data for
     // the system schema is not stored yet; however, this is prevented by
-    // surrounding code calling this function only if 'mysql_server_started',
-    // i.e., bootstrapping is finished.
-    DBUG_ASSERT(mysqld_server_started);
+    // surrounding code calling this function only if '!thd->is_dd_system_thread'
+    // i.e., this is not a bootstrapping thread.
+    DBUG_ASSERT(!thd->is_dd_system_thread());
     if (schema)
       return is_locked(thd, schema->name(), table, lock_type);
 
@@ -220,11 +217,14 @@ public:
 
   // Reading a table object should be governed by MDL_SHARED.
   static bool is_read_locked(THD *thd, const dd::Abstract_table *table)
-  { return !mysqld_server_started || is_locked(thd, table, MDL_SHARED); }
+  { return thd->is_dd_system_thread() || is_locked(thd, table, MDL_SHARED); }
 
   // Writing a table object should be governed by MDL_EXCLUSIVE.
   static bool is_write_locked(THD *thd, const dd::Abstract_table *table)
-  { return !mysqld_server_started || is_locked(thd, table, MDL_EXCLUSIVE); }
+  {
+    return thd->is_dd_system_thread() ||
+           is_locked(thd, table, MDL_EXCLUSIVE);
+  }
 
   // No MDL namespace for character sets.
   static bool is_read_locked(THD*, const dd::Charset*)
@@ -251,13 +251,16 @@ public:
   */
   static bool is_read_locked(THD *thd, const dd::Schema *schema)
   {
-    return !dd::Schema_MDL_locker::is_lock_required() ||
-      is_locked(thd, schema, MDL_INTENTION_EXCLUSIVE);
+    return thd->is_dd_system_thread() ||
+           is_locked(thd, schema, MDL_INTENTION_EXCLUSIVE);
   }
 
   // Writing a schema object should be governed by MDL_EXCLUSIVE.
   static bool is_write_locked(THD *thd, const dd::Schema *schema)
-  { return !mysqld_server_started || is_locked(thd, schema, MDL_EXCLUSIVE); }
+  {
+    return thd->is_dd_system_thread() ||
+           is_locked(thd, schema, MDL_EXCLUSIVE);
+  }
 
   // Releasing a schema object should be covered in the same way as for reading.
   static bool is_release_locked(THD *thd, const dd::Schema *schema)
@@ -269,13 +272,17 @@ public:
     being accessed when creating/altering table.
   */
   static bool is_read_locked(THD *thd, const dd::Tablespace *tablespace)
-  { return(!mysqld_server_started ||
-           is_locked(thd, tablespace, MDL_INTENTION_EXCLUSIVE));
+  {
+    return thd->is_dd_system_thread() ||
+           is_locked(thd, tablespace, MDL_INTENTION_EXCLUSIVE);
   }
 
   // Writing a tablespace object should be governed by MDL_EXCLUSIVE.
   static bool is_write_locked(THD *thd, const dd::Tablespace *tablespace)
-  { return !mysqld_server_started || is_locked(thd, tablespace, MDL_EXCLUSIVE); }
+  {
+    return thd->is_dd_system_thread() ||
+           is_locked(thd, tablespace, MDL_EXCLUSIVE);
+  }
 };
 }
 
@@ -1360,7 +1367,8 @@ bool Dictionary_client::update(const T** old_object, T* new_object,
       in order to store it the first time.
     */
     DBUG_ASSERT((*old_object)->id() == new_object->id() ||
-            (new_object->id() == INVALID_OBJECT_ID && !mysqld_server_started));
+                (new_object->id() == INVALID_OBJECT_ID &&
+                 m_thd->is_dd_system_thread()));
 
     /*
       We first store the new object. If store() fails, there is not a

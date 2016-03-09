@@ -2739,6 +2739,10 @@ row_upd_clust_rec(
 			btr_cur_get_rec(btr_cur), index, offsets, NULL, &heap);
 	}
 
+	/* Check and log if necessary at the beginning, to prevent any
+	further potential deadlock */
+	row_upd_check_autoinc_counter(node, &autoinc_mtr);
+
 	/* Try optimistic updating of the record, keeping changes within
 	the page; we do not check locks because we assume the x-lock on the
 	record to update */
@@ -2835,8 +2839,6 @@ success:
 				index, offsets, rebuilt_old_pk, new_v_row,
 				old_v_row);
 		}
-
-		row_upd_check_autoinc_counter(node, &autoinc_mtr);
 	}
 
 	autoinc_mtr.commit();

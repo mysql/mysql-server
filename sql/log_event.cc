@@ -66,6 +66,7 @@
 #include "sql_class.h"
 #include "mysql/psi/mysql_transaction.h"
 #include "sql_plugin.h" // plugin_foreach
+#include "dd/types/abstract_table.h" // dd::enum_table_type
 #define window_size Log_throttle::LOG_THROTTLE_WINDOW_SIZE
 Error_log_throttle
 slave_ignored_err_throttle(window_size,
@@ -9748,6 +9749,54 @@ void Rows_log_event::do_post_row_operations(Relay_log_info const *rli, int error
     thd->get_transaction()->set_unsafe_rollback_flags(Transaction_ctx::STMT,
                                                       TRUE);
   }
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+  /*
+   Count the number of rows processed unconditionally. Needed instrumentation
+   may be toggled while a rows event is being processed.
+  */
+  m_psi_progress.inc_n_rows_applied(1);
+
+  if (m_curr_row > m_rows_buf)
+  {
+    /* Report progress. */
+    m_psi_progress.update_work_estimated_and_completed(m_curr_row,
+                                                       m_rows_buf,
+                                                       m_rows_end);
+  }
+  else if (m_curr_row == m_rows_buf)
+  {
+    /*
+      Master can generate an empty row, in the following situation:
+      mysql> SET SESSION binlog_row_image=MINIMAL;
+      mysql> CREATE TABLE t1 (c1 INT DEFAULT 100);
+      mysql> INSERT INTO t1 VALUES ();
+
+      Otherwise, m_curr_row must be ahead of m_rows_buf, since we
+      have processed the first row already.
+
+      No point in reporting progress, since this would show for a
+      very small fraction of time - thence no point in speding extra
+      CPU cycles for this.
+
+      Nevertheless assert that the event is a write event, otherwise,
+      this should not happen.
+    */
+    DBUG_ASSERT(get_general_type_code() == binary_log::WRITE_ROWS_EVENT);
+  }
+  else
+    /* Impossible */
+    DBUG_ASSERT(false);
+
+  DBUG_EXECUTE_IF("dbug.rpl_apply_sync_barrier",
+               {
+                 const char act[]= "now SIGNAL signal.rpl_row_apply_progress_updated "
+                                   "WAIT_FOR signal.rpl_row_apply_process_next_row";
+                 DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                 DBUG_ASSERT(!debug_sync_set_action(thd,
+                                                    STRING_WITH_LEN(act)));
+               };);
+#endif /* HAVE_PSI_STAGE_INTERFACE */
 }
 
 int Rows_log_event::handle_idempotent_and_ignored_errors(Relay_log_info const *rli, int *err)
@@ -9801,7 +9850,6 @@ int Rows_log_event::do_apply_row(Relay_log_info const *rli)
     DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
     DBUG_ASSERT(error != HA_ERR_RECORD_DELETED);
   }
-
   m_table->in_use = old_thd;
 
   DBUG_RETURN(error);
@@ -10675,9 +10723,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     /*
       When the open and locking succeeded, we check all tables to
       ensure that they still have the correct type.
-
-      We can use a down cast here since we know that every table added
-      to the tables_to_lock is a RPL_TABLE_LIST.
     */
 
     {
@@ -10696,10 +10741,37 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         NOTE: The base tables are added here are removed when 
               close_thread_tables is called.
        */
-      RPL_TABLE_LIST *ptr= rli->tables_to_lock;
-      for (uint i= 0 ; ptr && (i < rli->tables_to_lock_count);
-           ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_global), i++)
+      TABLE_LIST *table_list_ptr= rli->tables_to_lock;
+      for (uint i=0 ; table_list_ptr && (i < rli->tables_to_lock_count);
+           table_list_ptr= table_list_ptr->next_global, i++)
       {
+        /*
+          Below if condition takes care of skipping base tables that
+          make up the MERGE table (which are added by open_tables()
+          call). They are added next to the merge table in the list.
+          For eg: If RPL_TABLE_LIST is t3->t1->t2 (where t1 and t2
+          are base tables for merge table 't3'), open_tables will modify
+          the list by adding t1 and t2 again immediately after t3 in the
+          list (*not at the end of the list*). New table_to_lock list will
+          look like t3->t1'->t2'->t1->t2 (where t1' and t2' are TABLE_LIST
+          objects added by open_tables() call). There is no flag(or logic) in
+          open_tables() that can skip adding these base tables to the list.
+          So the logic here should take care of skipping them.
+
+          tables_to_lock_count logic will take care of skipping base tables
+          that are added at the end of the list.
+          For eg: If RPL_TABLE_LIST is t1->t2->t3, open_tables will modify
+          the list into t1->t2->t3->t1'->t2'. t1' and t2' will be skipped
+          because tables_to_lock_count logic in this for loop.
+        */
+        if (table_list_ptr->parent_l)
+          continue;
+        /*
+          We can use a down cast here since we know that every table added
+          to the tables_to_lock is a RPL_TABLE_LIST (or child table which is
+          skipped above).
+        */
+        RPL_TABLE_LIST *ptr= static_cast<RPL_TABLE_LIST*>(table_list_ptr);
         DBUG_ASSERT(ptr->m_tabledef_valid);
         TABLE *conv_table;
         if (!ptr->m_tabledef.compatible_with(thd, const_cast<Relay_log_info*>(rli),
@@ -10740,7 +10812,15 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
      */
     TABLE_LIST *ptr= rli->tables_to_lock;
     for (uint i=0 ;  ptr && (i < rli->tables_to_lock_count); ptr= ptr->next_global, i++)
+    {
+      /*
+        Please see comment in above 'for' loop to know the reason
+        for this if condition
+      */
+      if (ptr->parent_l)
+        continue;
       const_cast<Relay_log_info*>(rli)->m_table_map.set_table(ptr->table_id, ptr->table);
+    }
 
     query_cache.invalidate_locked_for_write(thd, rli->tables_to_lock);
   }
@@ -10767,6 +10847,16 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       (this was set up by Table_map_log_event::do_apply_event()
       which tested replicate-* rules).
     */
+
+    bool no_columns_to_update= false;
+    // set the database
+    LEX_CSTRING thd_db;
+    LEX_CSTRING current_db_name_saved= thd->db();
+    thd_db.str= table->s->db.str;
+    thd_db.length= table->s->db.length;
+    thd->reset_db(thd_db);
+    thd->set_command(COM_QUERY);
+    PSI_stage_info *stage= NULL;
 
     /*
       It's not needed to set_time() but
@@ -10807,16 +10897,30 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     DBUG_PRINT_BITSET("debug", "Setting table's read_set from: %s", &m_cols);
 
     bitmap_set_all(table->read_set);
-    if (get_general_type_code() == binary_log::DELETE_ROWS_EVENT ||
-        get_general_type_code() == binary_log::UPDATE_ROWS_EVENT)
-        bitmap_intersect(table->read_set,&m_cols);
-
     bitmap_set_all(table->write_set);
 
-    /* WRITE ROWS EVENTS store the bitmap in m_cols instead of m_cols_ai */
-    MY_BITMAP *after_image= ((get_general_type_code() == binary_log::UPDATE_ROWS_EVENT) ?
-                             &m_cols_ai : &m_cols);
-    bitmap_intersect(table->write_set, after_image);
+    switch (get_general_type_code())
+    {
+      case binary_log::DELETE_ROWS_EVENT:
+        bitmap_intersect(table->read_set,  &m_cols);
+        stage= & stage_rpl_apply_row_evt_delete;
+        break;
+      case binary_log::UPDATE_ROWS_EVENT:
+        bitmap_intersect(table->read_set,  &m_cols);
+        bitmap_intersect(table->write_set, &m_cols_ai);
+        /* Skip update rows events that don't have data for this server's table. */
+        if (!is_any_column_signaled_for_table(table, &m_cols_ai))
+          no_columns_to_update= true;
+        stage= & stage_rpl_apply_row_evt_update;
+        break;
+      case binary_log::WRITE_ROWS_EVENT:
+        /* WRITE ROWS EVENTS store the bitmap in the m_cols bitmap */
+        bitmap_intersect(table->write_set, &m_cols);
+        stage= & stage_rpl_apply_row_evt_write;
+        break;
+      default:
+        DBUG_ASSERT(false);
+    }
 
     if (thd->slave_thread) // set the mode for slave
       this->rbr_exec_mode= slave_exec_mode_options;
@@ -10854,8 +10958,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
        Skip update rows events that don't have data for this slave's
        table.
      */
-    if ((get_general_type_code() == binary_log::UPDATE_ROWS_EVENT) &&
-        !is_any_column_signaled_for_table(table, &m_cols_ai))
+    if (no_columns_to_update)
       goto AFTER_MAIN_EXEC_ROW_LOOP;
 
     /**
@@ -10899,6 +11002,13 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         break;
     }
 
+    DBUG_ASSERT(stage != NULL);
+    THD_STAGE_INFO(thd, *stage);
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+    m_psi_progress.set_progress(mysql_set_stage(stage->m_key));
+#endif
+
     do {
 
       error= (this->*do_apply_row_ptr)(rli);
@@ -10910,6 +11020,10 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       do_post_row_operations(rli, error);
 
     } while (!error && (m_curr_row != m_rows_end));
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+    m_psi_progress.end_work();
+#endif
 
 AFTER_MAIN_EXEC_ROW_LOOP:
 
@@ -10963,6 +11077,9 @@ AFTER_MAIN_EXEC_ROW_LOOP:
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       error= 0;
     }
+
+    // reset back the db
+    thd->reset_db(current_db_name_saved);
   } // if (table)
 
   if (error)
@@ -11618,7 +11735,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
   table_list->table_id=
     DBUG_EVALUATE_IF("inject_tblmap_same_id_maps_diff_table", 0, m_table_id.id());
   table_list->updating= 1;
-  table_list->required_type= dd::Abstract_table::TT_BASE_TABLE;
+  table_list->required_type= dd::enum_table_type::BASE_TABLE;
   DBUG_PRINT("debug", ("table: %s is mapped to %llu", table_list->table_name,
                        table_list->table_id.id()));
 
@@ -11964,19 +12081,6 @@ Write_rows_log_event::do_after_row_operations(const Slave_reporting_capability *
   }
   m_table->next_number_field=0;
   m_table->auto_increment_field_not_null= FALSE;
-  if ((rbr_exec_mode == RBR_EXEC_MODE_IDEMPOTENT) ||
-      m_table->s->db_type()->db_type == DB_TYPE_NDBCLUSTER)
-  {
-    m_table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
-    m_table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
-    /*
-      resetting the extra with 
-      table->file->extra(HA_EXTRA_NO_IGNORE_NO_KEY); 
-      fires bug#27077
-      explanation: file->reset() performs this duty
-      ultimately. Still todo: fix
-    */
-  }
   if ((local_error= m_table->file->ha_end_bulk_insert()))
   {
     m_table->file->print_error(local_error, MYF(0));

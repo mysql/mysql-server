@@ -45,7 +45,7 @@ public:
   /////////////////////////////////////////////////////////////////////////
 
   virtual enum_table_type type() const
-  { return TT_BASE_TABLE; }
+  { return enum_table_type::BASE_TABLE; }
 
 public:
   virtual const Dictionary_object_table &object_table() const

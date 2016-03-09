@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2153,6 +2153,43 @@ public:
 protected:
   Create_func_lpad() {}
   virtual ~Create_func_lpad() {}
+};
+
+
+class Create_func_uuid_to_bin : public Create_native_func
+{
+public:
+  virtual Item* create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+  static Create_func_uuid_to_bin s_singleton;
+
+protected:
+  Create_func_uuid_to_bin() {}
+  virtual ~Create_func_uuid_to_bin() {}
+};
+
+class Create_func_is_uuid : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+  static Create_func_is_uuid s_singleton;
+
+protected:
+  Create_func_is_uuid() {}
+  virtual ~Create_func_is_uuid() {}
+};
+
+
+class Create_func_bin_to_uuid : public Create_native_func
+{
+public:
+  virtual Item* create_native(THD *thd, LEX_STRING name,
+                              PT_item_list *item_list);
+  static Create_func_bin_to_uuid s_singleton;
+
+protected:
+  Create_func_bin_to_uuid() {}
+  virtual ~Create_func_bin_to_uuid() {}
 };
 
 
@@ -5503,6 +5540,91 @@ Create_func_lpad::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
 }
 
 
+Create_func_uuid_to_bin Create_func_uuid_to_bin::s_singleton;
+
+Item*
+Create_func_uuid_to_bin::create_native(THD *thd, LEX_STRING name,
+                                       PT_item_list *item_list)
+{
+  Item *func= NULL;
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements();
+
+  POS pos;
+  switch (arg_count) {
+    case 1:
+    {
+      Item *param_1= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_uuid_to_bin(pos, param_1);
+      break;
+    }
+    case 2:
+    {
+      Item *param_1= item_list->pop_front();
+      Item *param_2= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_uuid_to_bin(pos, param_1, param_2);
+      break;
+    }
+    default:
+    {
+      my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+      break;
+    }
+  }
+
+  return func;
+}
+
+
+Create_func_bin_to_uuid Create_func_bin_to_uuid::s_singleton;
+
+Item*
+Create_func_bin_to_uuid::create_native(THD *thd, LEX_STRING name,
+                                       PT_item_list *item_list)
+{
+  Item *func= NULL;
+  int arg_count= 0;
+
+  if (item_list != NULL)
+    arg_count= item_list->elements();
+
+  POS pos;
+  switch (arg_count) {
+    case 1:
+    {
+      Item *param_1= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_bin_to_uuid(pos, param_1);
+      break;
+    }
+    case 2:
+    {
+      Item *param_1= item_list->pop_front();
+      Item *param_2= item_list->pop_front();
+      func= new (thd->mem_root) Item_func_bin_to_uuid(pos, param_1, param_2);
+      break;
+    }
+    default:
+    {
+      my_error(ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT, MYF(0), name.str);
+      break;
+    }
+  }
+
+  return func;
+}
+
+
+Create_func_is_uuid Create_func_is_uuid::s_singleton;
+
+Item*
+Create_func_is_uuid::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_is_uuid(POS(), arg1);
+}
+
+
 Create_func_ltrim Create_func_ltrim::s_singleton;
 
 Item*
@@ -6484,6 +6606,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ATAN2") }, BUILDER(Create_func_atan)},
   { { C_STRING_WITH_LEN("BENCHMARK") }, BUILDER(Create_func_benchmark)},
   { { C_STRING_WITH_LEN("BIN") }, BUILDER(Create_func_bin)},
+  { { C_STRING_WITH_LEN("BIN_TO_UUID") }, BUILDER(Create_func_bin_to_uuid)},
   { { C_STRING_WITH_LEN("BIT_COUNT") }, BUILDER(Create_func_bit_count)},
   { { C_STRING_WITH_LEN("BIT_LENGTH") }, BUILDER(Create_func_bit_length)},
   { { C_STRING_WITH_LEN("CEIL") }, BUILDER(Create_func_ceiling)},
@@ -6537,6 +6660,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("IS_IPV6") }, BUILDER(Create_func_is_ipv6)},
   { { C_STRING_WITH_LEN("IS_IPV4_COMPAT") }, BUILDER(Create_func_is_ipv4_compat)},
   { { C_STRING_WITH_LEN("IS_IPV4_MAPPED") }, BUILDER(Create_func_is_ipv4_mapped)},
+  { { C_STRING_WITH_LEN("IS_UUID") }, BUILDER(Create_func_is_uuid)},
   { { C_STRING_WITH_LEN("INSTR") }, BUILDER(Create_func_instr)},
   { { C_STRING_WITH_LEN("ISNULL") }, BUILDER(Create_func_isnull)},
   { { C_STRING_WITH_LEN("JSON_VALID") }, BUILDER(Create_func_json_valid)},
@@ -6730,6 +6854,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("UPPER") }, BUILDER(Create_func_upper)},
   { { C_STRING_WITH_LEN("UUID") }, BUILDER(Create_func_uuid)},
   { { C_STRING_WITH_LEN("UUID_SHORT") }, BUILDER(Create_func_uuid_short)},
+  { { C_STRING_WITH_LEN("UUID_TO_BIN") }, BUILDER(Create_func_uuid_to_bin)},
   { { C_STRING_WITH_LEN("VALIDATE_PASSWORD_STRENGTH") }, BUILDER(Create_func_validate_password_strength)},
   { { C_STRING_WITH_LEN("VERSION") }, BUILDER(Create_func_version)},
   { { C_STRING_WITH_LEN("WEEKDAY") }, BUILDER(Create_func_weekday)},

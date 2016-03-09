@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1649,6 +1649,8 @@ int end_io_cache(IO_CACHE *info)
 
 #include <my_dir.h>
 
+void die(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
+
 void die(const char* fmt, ...)
 {
   va_list va_args;
@@ -1656,6 +1658,7 @@ void die(const char* fmt, ...)
   fprintf(stderr,"Error:");
   vfprintf(stderr, fmt,va_args);
   fprintf(stderr,", errno=%d\n", errno);
+  va_end(va_args);
   exit(1);
 }
 
@@ -1684,12 +1687,12 @@ int main(int argc, char** argv)
   char llstr_buf[22];
   int max_block,total_bytes=0;
   int i,num_loops=100,error=0;
-  char *p;
-  char* block, *block_end;
+  uchar *p;
+  uchar* block, *block_end;
   MY_INIT(argv[0]);
   max_block = cache_size*3;
-  if (!(block=(char*)my_malloc(PSI_NOT_INSTRUMENTED,
-                               max_block,MYF(MY_WME))))
+  if (!(block=(uchar*)my_malloc(PSI_NOT_INSTRUMENTED,
+                                max_block,MYF(MY_WME))))
     die("Not enough memory to allocate test block");
   block_end = block + max_block;
   for (p = block,i=0; p < block_end;i++)
@@ -1704,7 +1707,7 @@ int main(int argc, char** argv)
   open_file(fname,&sra_cache, cache_size);
   for (i = 0; i < num_loops; i++)
   {
-    char buf[4];
+    uchar buf[4];
     int block_size = abs(rand() % max_block);
     int4store(buf, block_size);
     if (my_b_append(&sra_cache,buf,4) ||
@@ -1715,7 +1718,7 @@ int main(int argc, char** argv)
   close_file(&sra_cache);
   my_free(block);
   if (!my_stat(fname,&status,MYF(MY_WME)))
-    die("%s failed to stat, but I had just closed it,\
+    die("failed to stat, but I had just closed it,\
  wonder how that happened");
   printf("Final size of %s is %s, wrote %d bytes\n",fname,
 	 llstr(status.st_size,llstr_buf),
@@ -1724,10 +1727,11 @@ int main(int argc, char** argv)
   /* check correctness of tests */
   if (total_bytes != status.st_size)
   {
-    fprintf(stderr,"Not the same number of bytes acutally  in file as bytes \
+    fprintf(stderr,"Not the same number of bytes actually in file as bytes \
 supposedly written\n");
     error=1;
   }
+  my_end(0);
   exit(error);
   return 0;
 }

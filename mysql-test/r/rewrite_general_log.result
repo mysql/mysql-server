@@ -49,7 +49,8 @@ SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('%azun','dris%
 argument
 Show that we logged stuff at all:
 ------ from file ------
-SELECT TRIM(LEADING '\t' FROM MID(argument,LOCATE('Query',argument)+5)) FROM test_log WHERE argument LIKE '%AS %';
+SELECT TRIM(LEADING '\t' FROM MID(argument,LOCATE('Query',argument)+5)) FROM test_log WHERE argument LIKE '%AS %' AND
+argument NOT LIKE '%Prepare%';
 TRIM(LEADING '\t' FROM MID(argument,LOCATE('Query',argument)+5))
 CREATE USER 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 CREATE USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE SSL
@@ -57,7 +58,7 @@ ALTER USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '
 CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 ALTER USER 'test_user4'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 ------ from table ------
-SELECT argument FROM mysql.general_log WHERE argument LIKE '%AS %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE '%AS %' AND command_type NOT LIKE 'Prepare';
 argument
 CREATE USER 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 CREATE USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE SSL
@@ -74,7 +75,7 @@ argument
 set names 'latin1',@dummy='B'
 set names 'latin1' collate 'latin1_german2_ci'
 set names default,@dummy='c'
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %' AND command_type NOT LIKE 'Prepare';
 argument
 GRANT SELECT(f2), INSERT(f3), INDEX, UPDATE(f1,f3, f2, f4), ALTER on
 test.t1 TO test_user1

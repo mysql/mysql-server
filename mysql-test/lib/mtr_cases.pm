@@ -22,7 +22,7 @@ package mtr_cases;
 use strict;
 
 use base qw(Exporter);
-our @EXPORT= qw(collect_option collect_test_cases);
+our @EXPORT= qw(collect_option collect_test_cases $suitedir);
 
 use mtr_report;
 use mtr_match;
@@ -46,8 +46,7 @@ our $quick_collect;
 # as default.  (temporary option used in connection
 # with the change of default storage engine to InnoDB)
 our $default_myisam= 0;
- 
-
+our $suitedir;
 sub collect_option {
   my ($opt, $value)= @_;
 
@@ -274,7 +273,7 @@ sub collect_one_suite($)
 
   mtr_verbose("Collecting: $suite");
 
-  my $suitedir= "$::glob_mysql_test_dir"; # Default
+  $suitedir= "$::glob_mysql_test_dir"; # Default
   if ( $suite ne "main" )
   {
     # Allow suite to be path to "some dir" if $suite has at least
@@ -1138,16 +1137,18 @@ sub collect_one_test_case {
   push(@{$tinfo->{'master_opt'}}, @::opt_extra_mysqld_opt);
   push(@{$tinfo->{'slave_opt'}}, @::opt_extra_mysqld_opt);
 
-  # ----------------------------------------------------------------------
-  # Add master opts, extra options only for master
-  # ----------------------------------------------------------------------
-  process_opts_file($tinfo, "$testdir/$tname-master.opt", 'master_opt');
+  if ( !$::start_only or @::opt_cases )
+  {
+    # ----------------------------------------------------------------------
+    # Add master opts, extra options only for master
+    # ----------------------------------------------------------------------
+    process_opts_file($tinfo, "$testdir/$tname-master.opt", 'master_opt');
 
-  # ----------------------------------------------------------------------
-  # Add slave opts, list of extra option only for slave
-  # ----------------------------------------------------------------------
-  process_opts_file($tinfo, "$testdir/$tname-slave.opt", 'slave_opt');
-
+    # ----------------------------------------------------------------------
+    # Add slave opts, list of extra option only for slave
+    # ----------------------------------------------------------------------
+    process_opts_file($tinfo, "$testdir/$tname-slave.opt", 'slave_opt');
+  }
   return $tinfo;
 }
 

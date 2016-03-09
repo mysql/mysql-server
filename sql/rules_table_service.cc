@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,7 +63,8 @@ static void add_column(MY_BITMAP *map, Cursor::column_id column)
 Cursor::Cursor(THD *mysql_thd) :
   m_thd(mysql_thd),
   m_table_list(NULL),
-  m_is_finished(true)
+  m_is_finished(true),
+  m_table_is_malformed(true)
 {
   m_table_list= new TABLE_LIST;
   if (m_table_list == NULL)

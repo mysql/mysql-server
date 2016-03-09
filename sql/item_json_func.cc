@@ -27,9 +27,7 @@
 #include "sql_class.h"          // THD
 #include "sql_time.h"           // field_type_to_timestamp_type
 #include "template_utils.h"     // down_cast
-
-// Used by the Json_path_cache
-#define JPC_UNINITIALIZED -1
+#include <algorithm>            // std::fill
 
 /** Helper routines */
 
@@ -339,18 +337,18 @@ static bool json_is_valid(Item **args,
   @param[out] value            Holder for path string
   @param[in]  forbid_wildcards True if the path shouldn't contain * or **
   @param[out] json_path        The object that will hold the parsed path
+  @param[out] null_value       Tells if the returned path is NULL
 
-  @returns false on success, true on error or if the path is NULL
+  @returns false on success (valid path or NULL), true on error
 */
 static bool parse_path(Item * path_expression, String *value,
-                       bool forbid_wildcards, Json_path *json_path)
+                       bool forbid_wildcards, Json_path *json_path,
+                       bool *null_value)
 {
   String *path_value= path_expression->val_str(value);
-
-  if (!path_value)
-  {
-    return true;
-  }
+  *null_value= (path_value == nullptr);
+  if (*null_value)
+    return false;
 
   const char * path_chars= path_value->ptr();
   size_t path_length= path_value->length();
@@ -447,9 +445,7 @@ static enum_one_or_all_type parse_and_cache_ooa(Item *arg,
 
 Json_path_cache::Json_path_cache(THD *thd, uint size)
   : m_paths(key_memory_JSON),
-    m_arg_idx_to_vector_idx(thd->mem_root, size),
-    m_arg_idx_to_problem_indicator(thd->mem_root, size),
-    m_size(size)
+    m_arg_idx_to_vector_idx(thd->mem_root, size)
 {
   reset_cache();
 }
@@ -464,50 +460,38 @@ bool Json_path_cache::parse_and_cache_path(Item ** args, uint arg_idx,
 {
   Item *arg= args[arg_idx];
 
-  bool is_constant= arg->const_during_execution();
-  int vector_idx= m_arg_idx_to_vector_idx[arg_idx];
+  const bool is_constant= arg->const_during_execution();
+  Path_cell &cell= m_arg_idx_to_vector_idx[arg_idx];
 
-  if (is_constant)
+  if (is_constant && cell.m_status != enum_path_status::UNINITIALIZED)
   {
     // nothing to do if it has already been parsed
-    if (vector_idx >= 0)
-    {
-      if (m_arg_idx_to_problem_indicator[vector_idx])
-      {
-        return true;
-      }
-
-      return false;
-    }
+    return cell.m_status == enum_path_status::ERROR;
   }
 
-  DBUG_ASSERT((vector_idx == JPC_UNINITIALIZED) || (vector_idx >= 0));
-
-  if (vector_idx == JPC_UNINITIALIZED)
+  if (cell.m_status == enum_path_status::UNINITIALIZED)
   {
-    vector_idx= (int) m_paths.size();
+    cell.m_index= m_paths.size();
     if (m_paths.push_back(Json_path()))
       return true;                            /* purecov: inspected */
-    m_arg_idx_to_vector_idx[arg_idx]= vector_idx;
   }
   else
   {
     // re-parsing a non-constant path for the next row
-    m_paths[vector_idx].clear();
+    m_paths[cell.m_index].clear();
   }
 
-  if (parse_path(arg, &m_path_value, forbid_wildcards, &m_paths[vector_idx]))
+  bool null_value;
+  if (parse_path(arg, &m_path_value, forbid_wildcards, &m_paths[cell.m_index],
+                 &null_value))
   {
     // oops, parsing failed
-
-    if (is_constant)
-    {
-      // remember that we had a problem
-      m_arg_idx_to_problem_indicator[vector_idx]= true;
-    }
-
+    cell.m_status= enum_path_status::ERROR;
     return true;
   }
+
+  cell.m_status= null_value ?
+    enum_path_status::OK_NULL : enum_path_status::OK_NOT_NULL;
 
   return false;
 }
@@ -515,24 +499,21 @@ bool Json_path_cache::parse_and_cache_path(Item ** args, uint arg_idx,
 
 Json_path *Json_path_cache::get_path(uint arg_idx)
 {
-  int vector_idx= m_arg_idx_to_vector_idx[arg_idx];
+  const Path_cell &cell= m_arg_idx_to_vector_idx[arg_idx];
 
-  if ((vector_idx < 0) || m_arg_idx_to_problem_indicator[vector_idx])
+  if (cell.m_status != enum_path_status::OK_NOT_NULL)
   {
     return NULL;
   }
 
-  return &(m_paths.at(vector_idx));
+  return &m_paths[cell.m_index];
 }
 
 
 void Json_path_cache::reset_cache()
 {
-  for (uint arg_idx= 0; arg_idx < m_size; arg_idx++)
-  {
-    m_arg_idx_to_vector_idx[arg_idx]= JPC_UNINITIALIZED;
-    m_arg_idx_to_problem_indicator[arg_idx] = false;
-  }
+  std::fill(m_arg_idx_to_vector_idx.begin(), m_arg_idx_to_vector_idx.end(),
+            Path_cell());
 
   m_paths.clear();
 }
@@ -856,11 +837,13 @@ longlong Item_func_json_contains::val_int()
     {
       // path is specified
       if (m_path_cache.parse_and_cache_path(args, 2, true))
+        return error_int();
+      Json_path *path= m_path_cache.get_path(2);
+      if (path == nullptr)
       {
         null_value= true;
         return 0;
       }
-      Json_path *path= m_path_cache.get_path(2);
 
       Json_wrapper_vector v(key_memory_JSON);
       if (doc_wrapper.seek(*path, &v, true, false))
@@ -954,11 +937,13 @@ longlong Item_func_json_contains_path::val_int()
     for (uint32 i= 2; i < arg_count; ++i)
     {
       if (m_path_cache.parse_and_cache_path(args, i, false))
+        return error_int();
+      Json_path *path= m_path_cache.get_path(i);
+      if (path == nullptr)
       {
         null_value= true;
         return 0;
       }
-      Json_path *path= m_path_cache.get_path(i);
 
       hits.clear();
       if (wrapper.seek(*path, &hits, true, true))
@@ -1824,11 +1809,13 @@ longlong Item_func_json_length::val_int()
   if (arg_count > 1)
   {
     if (m_path_cache.parse_and_cache_path(args, 1, true))
+      return error_int();
+    Json_path *json_path= m_path_cache.get_path(1);
+    if (json_path == nullptr)
     {
       null_value= true;
       return 0;
     }
-    Json_path *json_path= m_path_cache.get_path(1);
 
     Json_wrapper_vector hits(key_memory_JSON);
     if (wrapper.seek(*json_path, &hits, true, true))
@@ -1904,11 +1891,13 @@ bool Item_func_json_keys::val_json(Json_wrapper *wr)
     if (arg_count > 1)
     {
       if (m_path_cache.parse_and_cache_path(args, 1, true))
+        return error_json();
+      Json_path *path= m_path_cache.get_path(1);
+      if (path == nullptr)
       {
         null_value= true;
         return false;
       }
-      Json_path *path= m_path_cache.get_path(1);
 
       Json_wrapper_vector hits(key_memory_JSON);
       if (wrapper.seek(*path, &hits, false, true))
@@ -1986,11 +1975,13 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr)
     for (uint32 i= 1; i < arg_count; ++i)
     {
       if (m_path_cache.parse_and_cache_path(args, i, false))
+        return error_json();
+      Json_path *path= m_path_cache.get_path(i);
+      if (path == nullptr)
       {
         null_value= true;
         return false;
       }
-      Json_path *path= m_path_cache.get_path(i);
 
       if (path->contains_wildcard_or_ellipsis())
       {
@@ -2095,12 +2086,13 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr)
         return error_json();              /* purecov: inspected */
 
       if (m_path_cache.parse_and_cache_path(args, i, true))
+        return error_json();
+      Json_path *path= m_path_cache.get_path(i);
+      if (path == nullptr)
       {
-        // empty path (error signalled already)
         null_value= true;
         return false;
       }
-      Json_path *path= m_path_cache.get_path(i);
 
       Json_dom_vector hits(key_memory_JSON);
       if (doc->seek(*path, &hits, true, true))
@@ -2209,12 +2201,13 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
         return error_json();              /* purecov: inspected */
 
       if (m_path_cache.parse_and_cache_path(args, i, true))
+        return error_json();
+      Json_path *current_path= m_path_cache.get_path(i);
+      if (current_path == nullptr)
       {
-        // empty path (error signalled already)
         null_value= true;
         return false;
       }
-      Json_path *current_path= m_path_cache.get_path(i);
 
       /**
         Clone the path so that we won't mess up the cached version
@@ -2376,12 +2369,13 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
         return error_json();              /* purecov: inspected */
 
       if (m_path_cache.parse_and_cache_path(args, i, true))
+        return error_json();
+      Json_path *current_path= m_path_cache.get_path(i);
+      if (current_path == nullptr)
       {
-        // empty path (error signalled already)
         null_value= true;
         return false;
       }
-      Json_path *current_path= m_path_cache.get_path(i);
 
       /**
         Clone the path so that we won't mess up the cached version
@@ -2557,12 +2551,13 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
         return error_json();                    /* purecov: inspected */
 
       if (m_path_cache.parse_and_cache_path(args, i, true))
+        return error_json();
+      Json_path *current_path= m_path_cache.get_path(i);
+      if (current_path == nullptr)
       {
-        // empty path (error signalled already)
         null_value= true;
         return false;
       }
-      Json_path *current_path= m_path_cache.get_path(i);
 
       /**
         Clone the path, stripping off redundant auto-wrapping.
@@ -3098,6 +3093,8 @@ bool Item_func_json_search::val_json(Json_wrapper *wr)
       for (uint32 i= 4; i < arg_count; ++i)
       {
         if (m_path_cache.parse_and_cache_path(args, i, false))
+          return error_json();
+        if (m_path_cache.get_path(i) == nullptr)
         {
           null_value= true;
           return false;
@@ -3242,6 +3239,8 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr)
     for (uint path_idx= 0; path_idx < path_count; ++path_idx)
     {
       if (m_path_cache.parse_and_cache_path(args, path_idx + 1, true))
+        return error_json();
+      if (m_path_cache.get_path(path_idx + 1) == nullptr)
       {
         null_value= true;
         return false;

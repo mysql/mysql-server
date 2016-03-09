@@ -420,8 +420,10 @@ eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/log/rewrite_general.log'
 
 --echo Show what is logged:
 --echo ------ rewrite ------
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %';
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'ALTER USER %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %' AND
+                                             command_type NOT LIKE 'Prepare';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'ALTER USER %'AND
+                                             command_type NOT LIKE 'Prepare';
 --echo ------ done ------
 
 # cleanup

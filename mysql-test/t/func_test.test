@@ -188,3 +188,9 @@ SHOW CREATE TABLE t1;
 SHOW CREATE TABLE t2;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#22839888 UNINITIALIZED VALUE WHEN CONVERTING
+--echo #              MULTIBYTE STRINGS TO NUMBERS
+--echo #
+select greatest(1,_utf16'.',_utf8'');

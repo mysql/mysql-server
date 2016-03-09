@@ -2928,11 +2928,11 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
         during prelocking process (in this case in theory we still
         should hold shared metadata lock on it).
       */
-      dd::Abstract_table::enum_table_type table_type;
+      dd::enum_table_type table_type;
       if (!dd::abstract_table_type(thd->dd_client(), table_list->db,
                                    table_list->table_name, &table_type) &&
-          (table_type == dd::Abstract_table::TT_USER_VIEW ||
-           table_type == dd::Abstract_table::TT_SYSTEM_VIEW))
+          (table_type == dd::enum_table_type::USER_VIEW ||
+           table_type == dd::enum_table_type::SYSTEM_VIEW))
       {
         /*
           If parent_l of the table_list is non null then a merge table
@@ -6105,7 +6105,7 @@ TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
   /* Set requested lock type. */
   table_l->lock_type= lock_type;
   /* Allow to open real tables only. */
-  table_l->required_type= dd::Abstract_table::TT_BASE_TABLE;
+  table_l->required_type= dd::enum_table_type::BASE_TABLE;
 
   /* Open the table. */
   if (open_and_lock_tables(thd, table_l, flags, prelocking_strategy))
@@ -6159,7 +6159,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
     THD_STAGE_INFO(thd, stage_opening_tables);
 
   /* open_ltable can be used only for BASIC TABLEs */
-  table_list->required_type= dd::Abstract_table::TT_BASE_TABLE;
+  table_list->required_type= dd::enum_table_type::BASE_TABLE;
 
   /* This function can't properly handle requests for such metadata locks. */
   DBUG_ASSERT(!table_list->mdl_request.is_ddl_or_lock_tables_lock_request());

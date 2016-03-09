@@ -17,6 +17,11 @@
 #define HTTP_PREFIX		"http://"
 #define HTTP_DEFAULTPORT	80
 
+#ifndef HAVE_SOCKLEN_T
+#define socklen_t unsigned int
+#endif
+
+
 enum message_read_status {
 	ALL_DATA_READ = 1,
 	MORE_DATA_EXPECTED = 0,

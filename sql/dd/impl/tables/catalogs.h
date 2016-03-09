@@ -24,7 +24,7 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Catalogs: virtual public Object_table_impl
+class Catalogs: public Object_table_impl
 {
 public:
   static const Catalogs &instance()

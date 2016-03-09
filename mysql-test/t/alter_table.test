@@ -2416,3 +2416,28 @@ let $test_dir= `SELECT CONCAT(@@datadir, 'test/')`;
 --list_files $test_dir `#sql-*.frm`
 
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#22227958: ASSERT IN DD::FILL_DD_TABLE_FROM_CREATE_INFO, DDL
+--echo #
+--echo # Verify that it is possible to set conflicting values for PACK_KEYS,
+--echo # STATS_PERSISTENT CHECKSUM and DELAY_KEY_WRITE
+--echo # The last value set should be displayed by SHOW CREATE TABLE.
+
+--echo # Create table with conflicting values
+CREATE TABLE t1(i INT) ENGINE=INNODB PACK_KEYS=0 PACK_KEYS=1
+STATS_PERSISTENT=0 STATS_PERSISTENT=1 CHECKSUM=0 CHECKSUM=1
+DELAY_KEY_WRITE=0 DELAY_KEY_WRITE=1;
+
+--echo # Should show PACK_KEYS=1 STATS_PERSISTENT=1
+--echo # CHECKSUM=1 DELAY_KEY_WRITE=1
+SHOW CREATE TABLE t1;
+
+--echo # Alter table with conflicting values
+ALTER TABLE t1 PACK_KEYS=1 PACK_KEYS=0 STATS_PERSISTENT=1 STATS_PERSISTENT=0 CHECKSUM=1 CHECKSUM=0 DELAY_KEY_WRITE=1 DELAY_KEY_WRITE=0;
+
+--echo # Should show PACK_KEYS=0 STATS_PERSISTENT=0 (0 is default for CHECKSUM and DELAY_KEY_WRITE)
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;

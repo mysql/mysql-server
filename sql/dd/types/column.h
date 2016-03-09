@@ -35,50 +35,48 @@ typedef Iterator<const Column_type_element> Column_type_element_const_iterator;
 
 ///////////////////////////////////////////////////////////////////////////
 
+// Redefined enum_field_types here. We can remove some old types ?
+enum class enum_column_types
+{
+    DECIMAL= 1, // This is 1 > than MYSQL_TYPE_DECIMAL
+    TINY,
+    SHORT,
+    LONG,
+    FLOAT,
+    DOUBLE,
+    TYPE_NULL,
+    TIMESTAMP,
+    LONGLONG,
+    INT24,
+    DATE,
+    TIME,
+    DATETIME,
+    YEAR,
+    NEWDATE,
+    VARCHAR,
+    BIT,
+    TIMESTAMP2,
+    DATETIME2,
+    TIME2,
+    NEWDECIMAL,
+    ENUM,
+    SET,
+    TINY_BLOB,
+    MEDIUM_BLOB,
+    LONG_BLOB,
+    BLOB,
+    VAR_STRING,
+    STRING,
+    GEOMETRY,
+    JSON
+  };
+
 class Column : virtual public Entity_object
 {
 public:
   static const Object_type &TYPE();
   static const Object_table &OBJECT_TABLE();
 
-public:
-  // Redefined enum_field_types here. We can remove some old types ?
-  enum enum_column_types
-  {
-    TYPE_DECIMAL= 1, // This is 1 > than MYSQL_TYPE_DECIMAL
-    TYPE_TINY,
-    TYPE_SHORT,
-    TYPE_LONG,
-    TYPE_FLOAT,
-    TYPE_DOUBLE,
-    TYPE_NULL,
-    TYPE_TIMESTAMP,
-    TYPE_LONGLONG,
-    TYPE_INT24,
-    TYPE_DATE,
-    TYPE_TIME,
-    TYPE_DATETIME,
-    TYPE_YEAR,
-    TYPE_NEWDATE,
-    TYPE_VARCHAR,
-    TYPE_BIT,
-    TYPE_TIMESTAMP2,
-    TYPE_DATETIME2,
-    TYPE_TIME2,
-    TYPE_NEWDECIMAL,
-    TYPE_ENUM,
-    TYPE_SET,
-    TYPE_TINY_BLOB,
-    TYPE_MEDIUM_BLOB,
-    TYPE_LONG_BLOB,
-    TYPE_BLOB,
-    TYPE_VAR_STRING,
-    TYPE_STRING,
-    TYPE_GEOMETRY,
-    TYPE_JSON
-  };
-
-public:
   virtual ~Column()
   { };
 

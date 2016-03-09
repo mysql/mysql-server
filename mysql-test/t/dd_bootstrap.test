@@ -5,7 +5,7 @@
 let BASEDIR=    `select @@basedir`;
 let DDIR=       $MYSQL_TMP_DIR/dd_bootstrap_test;
 let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
-let extra_args= --no-defaults --console --log-syslog=0 --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
+let extra_args= --no-defaults --log-error=$MYSQLD_LOG --log-syslog=0 --secure-file-priv="" --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
 let BOOTSTRAP_SQL= $MYSQL_TMP_DIR/tiny_bootstrap.sql;
 let PASSWD_FILE=   $MYSQL_TMP_DIR/password_file.txt;
 
@@ -31,11 +31,11 @@ write_file $BOOTSTRAP_SQL;
 EOF
 
 --echo # 1.2 First start the server with --initialize, and update the version.
---exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL > $MYSQLD_LOG 2>&1
+--exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
 
 --echo # 1.3 Restart the server against DDIR - should fail.
 --error 1
---exec $MYSQLD $extra_args --datadir=$DDIR > $MYSQLD_LOG 2>&1
+--exec $MYSQLD $extra_args --datadir=$DDIR
 
 --echo # 1.4 Look for warning.
 perl;
@@ -68,7 +68,7 @@ EOF
 
 --echo # 2.2 First start the server with --initialize, and drop the version table: Should fail.
 --error 1
---exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL > $MYSQLD_LOG 2>&1
+--exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
 
 --echo # 2.3 Look for error.
 perl;
@@ -82,7 +82,7 @@ EOF
 
 --echo # 2.4 Restart the server against DDIR - should fail.
 --error 1
---exec $MYSQLD $extra_args --datadir=$DDIR > $MYSQLD_LOG 2>&1
+--exec $MYSQLD $extra_args --datadir=$DDIR
 
 --echo # 2.5 Look for error.
 perl;
@@ -116,7 +116,7 @@ EOF
 
 --echo # 3.2 First start the server with --initialize, and drop the tables table: Should fail.
 --error 1
---exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL > $MYSQLD_LOG 2>&1
+--exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
 
 --echo # 3.3 Look for error.
 perl;
@@ -130,7 +130,7 @@ EOF
 
 --echo # 3.4 Restart the server against DDIR - should fail.
 --error 1
---exec $MYSQLD $extra_args --datadir=$DDIR > $MYSQLD_LOG 2>&1
+--exec $MYSQLD $extra_args --datadir=$DDIR
 
 --echo # 3.5 Look for error.
 perl;
@@ -162,10 +162,10 @@ write_file $BOOTSTRAP_SQL;
 EOF
 
 --echo # 4.2 First start the server with --initialize, and drop the time_zone_transition_type table.
---exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL > $MYSQLD_LOG 2>&1
+--exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
 
 --echo # 4.3 Restart the server against DDIR - should succeed.
---exec echo "restart: --datadir=$DDIR --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --datadir=$DDIR --no-console --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -198,14 +198,14 @@ EOF
 --echo # -----------------------------------------------------
 
 --echo # 5.1 First start the server with --initialize.
---exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR > $MYSQLD_LOG 2>&1
+--exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR
 
 --echo # 5.2 Delete the physical tablespace file for mysql.version.
 remove_file $DDIR/mysql/version.ibd;
 
 --echo # 5.3 Restart the server against DDIR - should fail.
 --error 1
---exec $MYSQLD $extra_args --datadir=$DDIR > $MYSQLD_LOG 2>&1
+--exec $MYSQLD $extra_args --datadir=$DDIR
 
 --echo # 5.4 Look for error.
 perl;
@@ -236,10 +236,10 @@ write_file $BOOTSTRAP_SQL;
 EOF
 
 --echo # 6.2 First start the server with --initialize, and alter the schemata table.
---exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL > $MYSQLD_LOG 2>&1
+--exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
 
 --echo # 6.3 Restart the server against DDIR.
---exec echo "restart: --datadir=$DDIR " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --datadir=$DDIR --no-console --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -247,7 +247,7 @@ EOF
 connect(root_con,localhost,root,,mysql);
 
 --echo # 6.5 Verify that the modified table is present.
-SHOW CREATE TABLE mysql.schemata;
+SELECT comment FROM mysql.tables WHERE name='schemata';
 
 --echo # 6.6 Shut server down.
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -272,6 +272,8 @@ EOF
 --echo # -----------------------------------------
 
 --echo # 7.1 Restart the server against non-existing DDIR - should fail.
+# Note that the error happens before log-error is setup, so we must redirect
+# stderr to get log messages for analysis below.
 --error 1
 --exec $MYSQLD $extra_args --datadir=$DDIR > $MYSQLD_LOG 2>&1
 
@@ -301,7 +303,7 @@ EOF
 
 --echo # 8.1 Restart the server against existing but empty DDIR - should fail.
 --error 1
---exec $MYSQLD $extra_args --datadir=$DDIR > $MYSQLD_LOG 2>&1
+--exec $MYSQLD $extra_args --datadir=$DDIR
 
 --echo # 8.2 Look for error.
 perl;
@@ -330,7 +332,7 @@ EOF
 
 --echo # 9.1 Restart the server against existing but empty mysql dir - should fail.
 --error 1
---exec $MYSQLD $extra_args --datadir=$DDIR > $MYSQLD_LOG 2>&1
+--exec $MYSQLD $extra_args --datadir=$DDIR
 
 --echo # 9.2 Look for error.
 perl;
@@ -355,4 +357,3 @@ EOF
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
-

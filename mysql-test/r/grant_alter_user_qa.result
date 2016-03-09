@@ -1795,7 +1795,8 @@ LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/log/log_builtin_as_identified_by_passwo
 INTO TABLE test_log_off FIELDS TERMINATED BY '\n' LINES TERMINATED BY '\n';
 Show what is logged:
 ------ rewrite ------
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %' AND
+command_type NOT LIKE 'Prepare';
 argument
 CREATE USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 CREATE USER user8@localhost IDENTIFIED WITH 'mysql_native_password'
@@ -1818,7 +1819,8 @@ CREATE USER 'user15'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<se
 CREATE USER user16@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
                              ACCOUNT LOCK PASSWORD EXPIRE NEVER
 CREATE USER user10@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'ALTER USER %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'ALTER USER %' AND
+command_type NOT LIKE 'Prepare';
 argument
 ALTER USER u10@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string'
                          REQUIRE SSL
@@ -1838,7 +1840,8 @@ ALTER USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET PASSWORD %';
 argument
 SET PASSWORD FOR `u3`@`localhost`=<secret>
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %'AND
+command_type NOT LIKE 'Prepare';
 argument
 GRANT SELECT ON `test`.* TO 'u3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' WITH GRANT OPTION
 GRANT SELECT ON mysql.user TO user8@localhost
@@ -2020,7 +2023,8 @@ LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/log/log_builtin_as_identified_by_passwo
 INTO TABLE test_log FIELDS TERMINATED BY '\n' LINES TERMINATED BY '\n';
 Show what is logged:
 ------ rewrite ------
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %' AND
+command_type NOT LIKE 'Prepare';
 argument
 CREATE USER 'u1'@'%' IDENTIFIED BY PASSWORD '*8D15E74BC850D11573A52BE84B504DD0BA40C1E3'
 CREATE USER user8@localhost IDENTIFIED WITH 'mysql_native_password'
@@ -2045,7 +2049,8 @@ CREATE USER user16@localhost IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7B
                              ACCOUNT LOCK PASSWORD EXPIRE NEVER
 CREATE USER user10@localhost
 IDENTIFIED BY PASSWORD '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF'
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'ALTER USER %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'ALTER USER %' AND
+command_type NOT LIKE 'Prepare';
 argument
 ALTER USER u10@localhost IDENTIFIED WITH 'mysql_native_password' AS 'auth_string'
                          REQUIRE SSL
@@ -2065,7 +2070,8 @@ ALTER USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
 SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET PASSWORD %';
 argument
 SET PASSWORD FOR `u3`@`localhost`=<secret>
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %' AND
+command_type NOT LIKE 'Prepare';
 argument
 GRANT SELECT ON `test`.* TO 'u3'@'localhost' IDENTIFIED BY PASSWORD '*8D15E74BC850D11573A52BE84B504DD0BA40C1E3' WITH GRANT OPTION
 GRANT SELECT ON mysql.user TO user8@localhost

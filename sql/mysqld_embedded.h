@@ -33,7 +33,7 @@ int init_ssl();
 
 int init_server_components();
 
-int init_server_auto_options();
+int init_server_auto_options(bool read_uuid);
 
 bool read_init_file(char *file_name);
 

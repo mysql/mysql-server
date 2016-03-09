@@ -23,9 +23,9 @@ UNINSTALL PLUGIN example;
 eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';
 
 --echo # Example engine does not support indexes
---error ER_TOO_MANY_KEY_PARTS
+--error ER_TOO_MANY_KEYS
 CREATE TABLE t1 (a int PRIMARY KEY) ENGINE=EXAMPLE;
---error ER_TOO_MANY_KEY_PARTS
+--error ER_TOO_MANY_KEYS
 CREATE TABLE t1 (a int, KEY (a)) ENGINE=EXAMPLE;
 
 

@@ -20,15 +20,17 @@
 #include "my_sys.h"                  // get_charset
 #include "binary_log_types.h"        // enum_field_types
 
-#include "dd/types/column.h"         // enum_column_types
+#include "dd/object_id.h"            // dd::Object_id
 
 class THD;
 struct TABLE_SHARE;
 typedef struct charset_info_st CHARSET_INFO;
 namespace dd {
+  class Column;
   class Table;
   class Index;
   class Index_element;
+  enum class enum_column_types;
 }
 
 
@@ -58,7 +60,7 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
 
 
 /* Map from new to old field type. */
-enum_field_types dd_get_old_field_type(dd::Column::enum_column_types type);
+enum_field_types dd_get_old_field_type(dd::enum_column_types type);
 
 static inline CHARSET_INFO *dd_get_mysql_charset(dd::Object_id dd_cs_id)
 {

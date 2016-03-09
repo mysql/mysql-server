@@ -116,7 +116,7 @@ our $path_charsetsdir;
 our $path_client_bindir;
 our $path_client_libdir;
 our $path_language;
-
+our $suitedir;
 our $path_current_testlog;
 our $path_testlog;
 
@@ -129,7 +129,7 @@ my $opt_tmpdir_pid;
 my $opt_start;
 my $opt_start_dirty;
 my $opt_start_exit;
-my $start_only;
+our $start_only;
 
 our $num_tests_for_report;      # for test-progress option
 our $remaining;
@@ -164,7 +164,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,gis,rpl,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,gis,rpl,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,xplugin";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -258,6 +258,7 @@ our @opt_experimentals;
 our $experimental_test_cases= [];
 
 my $baseport;
+my $mysqlx_baseport;
 # $opt_build_thread may later be set from $opt_port_base
 my $opt_build_thread= $ENV{'MTR_BUILD_THREAD'} || "auto";
 my $opt_port_base= $ENV{'MTR_PORT_BASE'} || "auto";
@@ -356,6 +357,8 @@ my $opt_max_test_fail= env_or_val(MTR_MAX_TEST_FAIL => 10);
 my $opt_parallel= $ENV{MTR_PARALLEL};
 
 our $opt_run_non_parallel_tests;
+
+our $opt_xml_report;
 
 select(STDOUT);
 $| = 1; # Automatically flush STDOUT
@@ -458,6 +461,10 @@ sub main {
   if ($opt_resfile) {
     resfile_init("$opt_vardir/mtr-results.txt");
     print_global_resfile();
+  }
+
+  if ($opt_xml_report) {
+    mtr_xml_init($opt_xml_report);
   }
 
   # --------------------------------------------------------------------------
@@ -955,6 +962,16 @@ sub run_worker ($) {
       my $test= My::Test::read_test($server);
       #$test->print_test();
 
+      # Don't use configurations of the first test case when using --start
+      if ( $start_only and !@opt_cases )
+      {
+        my $default_cnf = "$suitedir/my.cnf";
+        if (! -f $default_cnf )
+        {
+          $default_cnf = "include/default_my.cnf";
+        }
+        $test->{'template_path'} = $default_cnf;
+      }
       # Clear comment and logfile, to avoid
       # reusing them from previous test
       delete($test->{'comment'});
@@ -1067,6 +1084,7 @@ sub print_global_resfile {
   resfile_global("max-connections", $opt_max_connections);
 #  resfile_global("default-myisam", $opt_default_myisam ? 1 : 0);
   resfile_global("product", "MySQL");
+  resfile_global("xml-report", $opt_xml_report);
   # Somewhat hacky code to convert numeric version back to dot notation
   my $v1= int($mysql_version_id / 10000);
   my $v2= int(($mysql_version_id % 10000)/100);
@@ -1252,7 +1270,8 @@ sub command_line_setup {
 	     # list-options is internal, not listed in help
 	     'list-options'             => \$opt_list_options,
              'skip-test-list=s'         => \@opt_skip_test_list,
-             'do-test-list=s'           => \$opt_do_test_list
+             'do-test-list=s'           => \$opt_do_test_list,
+            'xml-report=s'          => \$opt_xml_report
            );
 
   GetOptions(%options) or usage("Can't read options");
@@ -1925,7 +1944,8 @@ sub set_build_thread_ports($) {
 
   # Calculate baseport
   $baseport= $build_thread * 10 + 10000;
-  if ( $baseport < 5001 or $baseport + 9 >= 32767 )
+  $mysqlx_baseport =  $baseport + 9;
+  if ( $baseport < 5001 or $mysqlx_baseport + 9 >= 32767 )
   {
     mtr_error("MTR_BUILD_THREAD number results in a port",
               "outside 5001 - 32767",
@@ -1934,7 +1954,6 @@ sub set_build_thread_ports($) {
 
   mtr_report("Using MTR_BUILD_THREAD $build_thread,",
 	     "with reserved ports $baseport..".($baseport+9));
-
 }
 
 
@@ -2317,6 +2336,33 @@ sub mysql_client_test_arguments(){
   return mtr_args2str($exe, @$args);
 }
 
+sub mysqlxtest_arguments(){
+  my $exe;
+  # mysql_client_test executable may _not_ exist
+  $exe= mtr_exe_maybe_exists(vs_config_dirs('plugin', 'mysqlxtest'),
+                             "$bindir/rapid/plugin/x/mysqlxtest",
+                             "$bindir/rapid/plugin/x/Debug/mysqlxtest",
+                             "$bindir/rapid/plugin/x/Release/mysqlxtest",
+                             "$bindir/rapid/plugin/x/RelWithDebInfo/mysqlxtest",
+                             "$bindir/bin/mysqlxtest");
+  return "" unless $exe;
+
+  my $args;
+  mtr_init_args(\$args);
+  
+  if ( $opt_valgrind_clients )
+  {
+    valgrind_client_arguments($args, \$exe);
+  }
+  
+  # Let user provide username and password to command.
+  #mtr_add_arg($args, "-u root");
+  #mtr_add_arg($args, "--password=");
+  mtr_add_arg($args, "--port=%d",$mysqlx_baseport);
+
+   return mtr_args2str($exe, @$args);
+ }
+
 sub mysqlpump_arguments ($) {
   my($group_suffix) = @_;
   my $exe= mtr_exe_exists(vs_config_dirs('client/dump','mysqlpump'),
@@ -2392,7 +2438,11 @@ sub read_plugin_defs($)
     $plug_file= "debug/$plug_file" if $running_debug && !$source_dist;
 
     my ($plugin)= find_plugin($plug_file, $plug_loc);
-
+    
+    if (!$plugin) {
+      ($plugin)= find_plugin($plug_file, "rapid/$plug_loc");
+    }
+    
     # Set env. variables that tests may use, set to empty if plugin
     # listed in def. file but not found.
 
@@ -2613,6 +2663,7 @@ sub environment_setup {
   $ENV{'MYSQL_SECURE_INSTALLATION'}=   "$path_client_bindir/mysql_secure_installation";
   $ENV{'MYSQLADMIN'}=                  native_path($exe_mysqladmin);
   $ENV{'MYSQL_CLIENT_TEST'}=           mysql_client_test_arguments();
+  $ENV{'MYSQLXTEST'}=                  mysqlxtest_arguments();
   $ENV{'EXE_MYSQL'}=                   $exe_mysql;
   $ENV{'MYSQL_EMBEDDED'}=              $exe_mysql_embedded;
   $ENV{'PATH_CONFIG_FILE'}=            $path_config_file;
@@ -4497,7 +4548,7 @@ sub run_testcase ($) {
   if ( $start_only )
   {
     mtr_print("\nStarted", started(all_servers()));
-    mtr_print("Using config for test", $tinfo->{name});
+    mtr_print("Using config", $tinfo->{template_path});
     mtr_print("Port and socket path for server(s):");
     foreach my $mysqld ( mysqlds() )
     {
@@ -5724,6 +5775,7 @@ sub mysqld_arguments ($$$) {
   {
     mtr_add_arg($args, "%s", "--core-file");
   }
+  mtr_add_arg($args, "--loose-mysqlx-port=%d",$mysqlx_baseport);
 
   return $args;
 }
@@ -7199,6 +7251,10 @@ Options that specify ports
   build-thread=#        Can be set in environment variable MTR_BUILD_THREAD.
                         Set  MTR_BUILD_THREAD="auto" to automatically aquire
                         a build thread id that is unique to current host
+  mysqlx-port           Specify the port number to be used for mysqlxplugin.
+                        Can be set in environment variable MYSQLXPLUGIN_PORT.
+                        If not specified will create its own ports.
+                        [NOTE]-- will not work for parallel servers.
 
 Options for test case authoring
 
@@ -7292,8 +7348,11 @@ Misc options
   timer                 Show test case execution time.
   verbose               More verbose output(use multiple times for even more)
   verbose-restart       Write when and why servers are restarted
-  start                 Only initialize and start the servers, using the
-                        startup settings for the first specified test case
+  start                 Only initialize and start the servers. If a testcase is
+                        mentioned server is started with startup settings of the testcase.
+                        If a --suite option is specified the configurations of the
+                        my.cnf of the specified suite is used. If no suite or testcase
+                        is mentioned, settings from include/default_my.cnf is used
                         Example:
                          $0 --start alias &
   start-and-exit        Same as --start, but mysql-test-run terminates and
@@ -7354,6 +7413,7 @@ Misc options
   stress=ARGS           Run stress test, providing options to
                         mysql-stress-test.pl. Options are separated by comma.
   suite-opt             Run the particular file in the suite as the suite.opt.
+  xml-report=FILE       Generate a XML report file compatible with JUnit.
 
 Some options that control enabling a feature for normal test runs,
 can be turned off by prepending 'no' to the option, e.g. --notimer.

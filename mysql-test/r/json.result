@@ -8520,7 +8520,7 @@ id	raw_message	sender	receiver	subject	received	body
 5	{"body": "Chinese for lunch?", "sender": "fred", "subject": "lunch today?", "received": "2015-05-18 09:30:05", "receiver": "alice"}	fred	alice	"lunch today?"	2015-05-18 09:30:05	"Chinese for lunch?"
 6	{"body": "Sorry. I have a tight deadline I have to meet.", "sender": "alice", "subject": "re: lunch today?", "received": "2015-05-18 09:45:05", "receiver": "fred"}	alice	fred	"re: lunch today?"	2015-05-18 09:45:05	"Sorry. I have a tight deadline I have to meet."
 alter table messages add fulltext index (raw_message) ;
-ERROR HY000: Column 'raw_message' cannot be part of FULLTEXT index
+ERROR 42000: JSON column 'raw_message' cannot be used in key specification.
 select id from messages
 where match( body ) against ( 'thai' )
 and match( subject ) against( 'lunch' )
@@ -13537,4 +13537,19 @@ SELECT * FROM t WHERE j = vc;
 j	vc
 "abc"	abc
 "abc"	abc
+DROP TABLE t;
+#
+# Bug#22816576: ASSERTION FAILED: !THD->IS_ERROR() IN OPTIMIZE_COND()
+#
+CREATE TABLE t(a DATE);
+SELECT 1 FROM t WHERE 1 <>
+(
+SELECT 1 FROM
+(
+SELECT 1 FROM t e
+JOIN t ON t.a <=> JSON_REPLACE(JSON_OBJECT('', ''), '', '')
+WHERE e.a
+) w
+);
+ERROR 42000: Invalid JSON path expression. The error is around character position 0.
 DROP TABLE t;

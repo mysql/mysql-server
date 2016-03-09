@@ -7,9 +7,9 @@ UNINSTALL PLUGIN example;
 INSTALL PLUGIN example SONAME 'ha_example.so';
 # Example engine does not support indexes
 CREATE TABLE t1 (a int PRIMARY KEY) ENGINE=EXAMPLE;
-ERROR 42000: Too many key parts specified; max 0 parts allowed
+ERROR 42000: Too many keys specified; max 0 keys allowed
 CREATE TABLE t1 (a int, KEY (a)) ENGINE=EXAMPLE;
-ERROR 42000: Too many key parts specified; max 0 parts allowed
+ERROR 42000: Too many keys specified; max 0 keys allowed
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 SHOW CREATE TABLE t1;
 Table	Create Table

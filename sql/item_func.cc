@@ -2887,8 +2887,9 @@ double Item_func_latlongfromgeohash::val_real()
 
   String buf;
   String *input_value= args[0]->val_str_ascii(&buf);
+  DBUG_ASSERT(input_value != NULL || args[0]->null_value);
 
-  if ((null_value= args[0]->null_value))
+  if ((null_value= (input_value == NULL || args[0]->null_value)))
     return 0.0;
 
   if (input_value->length() == 0)

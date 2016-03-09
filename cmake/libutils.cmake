@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -292,20 +292,14 @@ FUNCTION(GET_DEPENDEND_OS_LIBS target result)
   SET(${result} ${ret} PARENT_SCOPE)
 ENDFUNCTION()
 
-# We try to hide the symbols in yassl/zlib to avoid name clashes with
-# other libraries like openssl.
-FUNCTION(RESTRICT_SYMBOL_EXPORTS target)
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+
+FUNCTION(RESTRICT_SYMBOL_SOURCE target)
   IF(CMAKE_COMPILER_IS_GNUCXX AND UNIX)
     SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Werror")
     CHECK_C_COMPILER_FLAG("-fvisibility=hidden" HAVE_VISIBILITY_HIDDEN)
     IF(HAVE_VISIBILITY_HIDDEN)
-      GET_TARGET_PROPERTY(COMPILE_FLAGS ${target} COMPILE_FLAGS)
-      IF(NOT COMPILE_FLAGS)
-        # Avoid COMPILE_FLAGS-NOTFOUND
-        SET(COMPILE_FLAGS)
-      ENDIF()
-      SET_TARGET_PROPERTIES(${target} PROPERTIES 
-        COMPILE_FLAGS "${COMPILE_FLAGS} -fvisibility=hidden")
+      ADD_COMPILE_FLAGS(${target} COMPILE_FLAGS "-fvisibility=hidden")
     ENDIF()
   ENDIF()
 ENDFUNCTION()

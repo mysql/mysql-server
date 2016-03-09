@@ -305,9 +305,7 @@ bool Until_mts_gap::check_before_dispatching_event(const Log_event *ev)
                           "UNTIL SQL_AFTER_MTS_GAPS as it has "
                           "processed all gap transactions left from "
                           "the previous slave session.");
-#ifndef DBUG_OFF
     m_rli->until_condition= Relay_log_info::UNTIL_DONE;
-#endif
     return true;
   }
   return false;

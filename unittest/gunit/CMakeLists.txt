@@ -221,9 +221,6 @@ IF (WITH_SSL STREQUAL "bundled")
   ADD_SUBDIRECTORY(yassl)
 ENDIF()
 
-ADD_SUBDIRECTORY(innodb)
-ADD_SUBDIRECTORY(keyring) 
-
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
@@ -323,6 +320,7 @@ SET(TESTS
   my_timer
   timespec
   my_alloc
+  pump_object_filter
   val_int_compare
   )
  
@@ -500,6 +498,10 @@ ENDIF(MERGE_UNITTESTS)
     bounded_queue-t.cc
     COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
   )
+  ADD_COMPILE_FLAGS(
+    pump_object_filter-t.cc
+    COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+  )
 
   FOREACH(test ${SERVER_TESTS})
     SET(SRC_FILES ${test}-t.cc)
@@ -534,3 +536,6 @@ ENDIF(MERGE_UNITTESTS)
 
 ## Most executables depend on libeay32.dll (through mysys_ssl).
 COPY_OPENSSL_DLLS(copy_openssl_gunit)
+
+ADD_SUBDIRECTORY(innodb)
+ADD_SUBDIRECTORY(keyring)

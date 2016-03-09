@@ -966,14 +966,16 @@ LOAD DATA LOCAL INFILE '.../log/rewrite_general.log'
      INTO TABLE test_log FIELDS TERMINATED BY '\n' LINES TERMINATED BY '\n';
 Show what is logged:
 ------ rewrite ------
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %' AND
+command_type NOT LIKE 'Prepare';
 argument
 CREATE USER 'u1'@'%' IDENTIFIED BY PASSWORD '*8D15E74BC850D11573A52BE84B504DD0BA40C1E3'
 CREATE USER 'u2'@'localhost' IDENTIFIED BY PASSWORD '*82DC221D557298F6CE9961037DB1C90604792F5C'
 SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET PASSWORD %';
 argument
 SET PASSWORD FOR `u3`@`localhost`=<secret>
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %' AND
+command_type NOT LIKE 'Prepare';
 argument
 GRANT SELECT ON `test`.* TO 'u3'@'localhost' IDENTIFIED BY PASSWORD '*8D15E74BC850D11573A52BE84B504DD0BA40C1E3' WITH GRANT OPTION
 ------ done ------

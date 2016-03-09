@@ -1013,6 +1013,53 @@ err:
   master_log_pos and master_log_name. Eventually, the old
   relay logs will be purged by the normal purge mechanism.
 
+  When GTID's are enabled the "Retrieved GTID" set should be cleared
+  so that partial read events are discarded and they are
+  fetched once again
+
+  @param mi    pointer to Master_info instance
+*/
+static void recover_relay_log(Master_info *mi)
+{
+  Relay_log_info *rli=mi->rli;
+  // Set Receiver Thread's positions as per the recovered Applier Thread.
+  mi->set_master_log_pos(max<ulonglong>(BIN_LOG_HEADER_SIZE,
+                                        rli->get_group_master_log_pos()));
+  mi->set_master_log_name(rli->get_group_master_log_name());
+
+  sql_print_warning("Recovery from master pos %ld and file %s%s. "
+                    "Previous relay log pos and relay log file had "
+                    "been set to %lld, %s respectively.",
+                    (ulong) mi->get_master_log_pos(), mi->get_master_log_name(),
+                    mi->get_for_channel_str(),
+                    rli->get_group_relay_log_pos(), rli->get_group_relay_log_name());
+
+  // Start with a fresh relay log.
+  rli->set_group_relay_log_name(rli->relay_log.get_log_fname());
+  rli->set_event_relay_log_name(rli->relay_log.get_log_fname());
+  rli->set_group_relay_log_pos(BIN_LOG_HEADER_SIZE);
+  rli->set_event_relay_log_pos(BIN_LOG_HEADER_SIZE);
+  /*
+    Clear the retrieved GTID set so that events that are written partially
+    will be fetched again.
+  */
+  if (get_gtid_mode(GTID_MODE_LOCK_NONE) == GTID_MODE_ON &&
+      !channel_map.is_group_replication_channel_name(rli->get_channel()))
+  {
+    global_sid_lock->wrlock();
+    (const_cast<Gtid_set *>(rli->get_gtid_set()))->clear();
+    global_sid_lock->unlock();
+  }
+}
+
+
+/*
+  Updates the master info based on the information stored in the
+  relay info and ignores relay logs previously retrieved by the IO
+  thread, which thus starts fetching again based on to the
+  master_log_pos and master_log_name. Eventually, the old
+  relay logs will be purged by the normal purge mechanism.
+
   There can be a special case where rli->group_master_log_name and
   rli->group_master_log_pos are not intialized, as the sql thread was never
   started at all. In those cases all the existing relay logs are parsed
@@ -1048,7 +1095,6 @@ int init_recovery(Master_info* mi, const char** errmsg)
   int error= 0;
   Relay_log_info *rli= mi->rli;
   char *group_master_log_name= NULL;
-
   if (rli->recovery_parallel_workers)
   {
     /*
@@ -1071,14 +1117,7 @@ int init_recovery(Master_info* mi, const char** errmsg)
         rli->clear_mts_recovery_groups();
       }
       else
-      {
-        error= 1;
-        sql_print_error("--relay-log-recovery cannot be executed when the slave "
-                        "was stopped with an error or killed in MTS mode; "
-                        "consider using RESET SLAVE or restart the server "
-                        "with --relay-log-recovery = 0 followed by "
-                        "START SLAVE UNTIL SQL_AFTER_MTS_GAPS");
-      }
+        DBUG_RETURN(error);
     }
   }
 
@@ -1100,36 +1139,122 @@ int init_recovery(Master_info* mi, const char** errmsg)
       if (error)
         DBUG_RETURN(error);
     }
-    mi->set_master_log_pos(max<ulonglong>(BIN_LOG_HEADER_SIZE,
-                                               rli->get_group_master_log_pos()));
-    mi->set_master_log_name(rli->get_group_master_log_name());
-
-    sql_print_warning("Recovery from master pos %ld and file %s%s. "
-                      "Previous relay log pos and relay log file had "
-                      "been set to %lld, %s respectively.",
-                      (ulong) mi->get_master_log_pos(), mi->get_master_log_name(),
-                      mi->get_for_channel_str(),
-                      rli->get_group_relay_log_pos(), rli->get_group_relay_log_name());
-
-    rli->set_group_relay_log_name(rli->relay_log.get_log_fname());
-    rli->set_event_relay_log_name(rli->relay_log.get_log_fname());
-    rli->set_group_relay_log_pos(BIN_LOG_HEADER_SIZE);
-    rli->set_event_relay_log_pos(BIN_LOG_HEADER_SIZE);
+    recover_relay_log(mi);
   }
-
-  /*
-    Clear the retrieved GTID set so that events that are written partially
-    will be fetched again.
-  */
-  if (!channel_map.is_group_replication_channel_name(rli->get_channel()))
-  {
-    global_sid_lock->wrlock();
-    (const_cast<Gtid_set *>(rli->get_gtid_set()))->clear();
-    global_sid_lock->unlock();
-  }
-
   DBUG_RETURN(error);
 }
+
+/*
+  Relay log recovery in the case of MTS, is handled by the following function.
+  Gaps in MTS execution are filled using implicit execution of
+  START SLAVE UNTIL SQL_AFTER_MTS_GAPS call. Once slave reaches a consistent
+  gapless state receiver thread's positions are initialized to applier thread's
+  positions and the old relay logs are discarded. This completes the recovery
+  process.
+
+  @param mi    pointer to Master_info instance.
+
+  @retval 0 success
+  @retval 1 error
+*/
+static inline int fill_mts_gaps_and_recover(Master_info* mi)
+{
+  DBUG_ENTER("fill_mts_gaps_and_recover");
+  Relay_log_info *rli= mi->rli;
+  int recovery_error= 0;
+  rli->is_relay_log_recovery= FALSE;
+  Until_mts_gap *until_mg= new Until_mts_gap(rli);
+  rli->set_until_option(until_mg);
+  rli->until_condition= Relay_log_info::UNTIL_SQL_AFTER_MTS_GAPS;
+  until_mg->init();
+  rli->channel_mts_submode= (mts_parallel_option ==
+                             MTS_PARALLEL_TYPE_DB_NAME) ?
+                             MTS_PARALLEL_TYPE_DB_NAME :
+                             MTS_PARALLEL_TYPE_LOGICAL_CLOCK;
+  sql_print_information("MTS recovery: starting coordinator thread to fill MTS "
+                        "gaps.");
+  recovery_error= start_slave_thread(
+#ifdef HAVE_PSI_INTERFACE
+                                     key_thread_slave_sql,
+#endif
+                                     handle_slave_sql, &rli->run_lock,
+                                     &rli->run_lock,
+                                     &rli->start_cond,
+                                     &rli->slave_running,
+                                     &rli->slave_run_id,
+                                     mi);
+
+  if (recovery_error)
+  {
+    sql_print_warning("MTS recovery: failed to start the coordinator "
+                      "thread. Check the error log for additional"
+                      " details.");
+    goto err;
+  }
+  mysql_mutex_lock(&rli->run_lock);
+  mysql_cond_wait(&rli->stop_cond, &rli->run_lock);
+  mysql_mutex_unlock(&rli->run_lock);
+  if (rli->until_condition != Relay_log_info::UNTIL_DONE)
+  {
+    sql_print_warning("MTS recovery: automatic recovery failed. Either the "
+                      "slave server had stopped due to an error during an "
+                      "earlier session or relay logs are corrupted."
+                      "Fix the cause of the slave side error and restart the "
+                      "slave server or consider using RESET SLAVE.");
+    goto err;
+  }
+  rli->clear_until_option();
+  /*
+    We need a mutex while we are changing master info parameters to
+    keep other threads from reading bogus info
+  */
+  mysql_mutex_lock(&mi->data_lock);
+  mysql_mutex_lock(&rli->data_lock);
+  recover_relay_log(mi);
+
+  const char* msg;
+  if (rli->init_relay_log_pos(rli->get_group_relay_log_name(),
+                              rli->get_group_relay_log_pos(),
+                              false/*need_data_lock=false*/,
+                              &msg, 0))
+  {
+    char llbuf[22];
+    sql_print_error("Failed to open the relay log '%s' (relay_log_pos %s).",
+                    rli->get_group_relay_log_name(),
+                    llstr(rli->get_group_relay_log_pos(), llbuf));
+
+    recovery_error=1;
+    mysql_mutex_unlock(&mi->data_lock);
+    mysql_mutex_unlock(&rli->data_lock);
+    goto err;
+  }
+  if (mi->flush_info(true) || rli->flush_info(true))
+  {
+    recovery_error= 1;
+    mysql_mutex_unlock(&mi->data_lock);
+    mysql_mutex_unlock(&rli->data_lock);
+    goto err;
+  }
+  rli->inited=1;
+  rli->error_on_rli_init_info= false;
+  mysql_mutex_unlock(&mi->data_lock);
+  mysql_mutex_unlock(&rli->data_lock);
+  sql_print_information("MTS recovery: completed successfully.\n");
+  DBUG_RETURN(recovery_error);
+err:
+  /*
+    If recovery failed means we failed to initialize rli object in the case
+    of MTS. We should not allow the START SLAVE command to work as we do in
+    the case of STS. i.e if init_recovery call fails then we set inited=0.
+  */
+  rli->end_info();
+  rli->inited=0;
+  rli->error_on_rli_init_info= true;
+  rli->clear_until_option();
+  DBUG_RETURN(recovery_error);
+}
+
+
 
 int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
 {
@@ -1169,7 +1294,10 @@ int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
   */
   check_return= mi->check_info();
   if (check_return == ERROR_CHECKING_REPOSITORY)
+  {
+    init_error= 1;
     goto end;
+  }
 
   if (!(ignore_if_no_info && check_return == REPOSITORY_DOES_NOT_EXIST))
   {
@@ -1179,7 +1307,10 @@ int global_init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask)
 
   check_return= mi->rli->check_info();
   if (check_return == ERROR_CHECKING_REPOSITORY)
+  {
+    init_error= 1;
     goto end;
+  }
   if (!(ignore_if_no_info && check_return == REPOSITORY_DOES_NOT_EXIST))
   {
     if (((thread_mask & SLAVE_SQL) != 0 || !(mi->rli->inited))
@@ -1201,7 +1332,20 @@ end:
 
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
-  DBUG_RETURN(check_return == ERROR_CHECKING_REPOSITORY || init_error);
+
+  /*
+    Handling MTS Relay-log recovery after successful initialization of mi and
+    rli objects.
+
+    MTS Relay-log recovery is handled by SSUG command. In order to start the
+    slave applier thread rli needs to be inited and mi->rli->data_lock should
+    be in released state. Hence we do the MTS recovery at this point of time
+    where both conditions are satisfied.
+  */
+  if (!init_error && mi->rli->is_relay_log_recovery
+      && mi->rli->mts_recovery_group_cnt)
+    init_error= fill_mts_gaps_and_recover(mi);
+  DBUG_RETURN(init_error);
 }
 
 void end_info(Master_info* mi)
@@ -3546,11 +3690,9 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
     break;
   case Relay_log_info::UNTIL_SQL_AFTER_MTS_GAPS:
     until_type= "SQL_AFTER_MTS_GAPS";
-#ifndef DBUG_OFF
   case Relay_log_info::UNTIL_DONE:
     until_type= "DONE";
     break;
-#endif
   default:
     DBUG_ASSERT(0);
   }
@@ -4104,6 +4246,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   if (thd_type == SLAVE_THD_SQL)
   {
     THD_STAGE_INFO(thd, stage_waiting_for_the_next_event_in_relay_log);
+    thd->set_command(COM_QUERY); // the SQL thread does not use the server protocol
   }
   else
   {
@@ -4773,10 +4916,9 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
                                 rli->get_group_relay_log_pos(),
                                 rli->get_group_master_log_name(),
                                 rli->get_group_master_log_pos());
-#ifndef DBUG_OFF
-          /* 
+          /*
              Few tests wait for UNTIL_SQL_AFTER_MTS_GAPS completion.
-             Due to exisiting convention the status won't change 
+             Due to exisiting convention the status won't change
              prior to slave restarts.
              So making of UNTIL_SQL_AFTER_MTS_GAPS completion isdone here,
              and only in the debug build to make the test to catch the change
@@ -4786,7 +4928,6 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
           {
             rli->until_condition= Relay_log_info::UNTIL_DONE;
           }
-#endif
           // reset the Worker tables to remove last slave session time info
           if ((error= rli->mts_finalize_recovery()))
           {
@@ -8269,9 +8410,6 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
      direct master (an unsupported, useless setup!).
   */
 
-  mysql_mutex_lock(log_lock);
-  DBUG_ASSERT(lock_count == 1);
-  lock_count= 2;
 
   s_id= uint4korr(buf + SERVER_ID_OFFSET);
 
@@ -8313,6 +8451,7 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
       IGNORE_SERVER_IDS it increments mi->get_master_log_pos()
       as well as rli->group_relay_log_pos.
     */
+    mysql_mutex_lock(log_lock);
     if (!(s_id == ::server_id && !mi->rli->replicate_same_server_id) ||
         (event_type != binary_log::FORMAT_DESCRIPTION_EVENT &&
          event_type != binary_log::ROTATE_EVENT &&
@@ -8324,6 +8463,7 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
       rli->ign_master_log_pos_end= mi->get_master_log_pos();
     }
     rli->relay_log.signal_update(); // the slave SQL thread needs to re-check
+    mysql_mutex_unlock(log_lock);
     DBUG_PRINT("info", ("master_log_pos: %lu, event originating from %u server, ignored",
                         (ulong) mi->get_master_log_pos(), uint4korr(buf + SERVER_ID_OFFSET)));
   }
@@ -8369,7 +8509,9 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
     }
     else
       is_error= true;
+    mysql_mutex_lock(log_lock);
     rli->ign_master_log_name_end[0]= 0; // last event is not ignored
+    mysql_mutex_unlock(log_lock);
     if (save_buf != NULL)
       buf= save_buf;
     if (is_error)
@@ -8388,8 +8530,6 @@ err:
 end:
   if (lock_count >= 1)
     mysql_mutex_unlock(&mi->data_lock);
-  if (lock_count >= 2)
-    mysql_mutex_unlock(log_lock);
   DBUG_PRINT("info", ("error: %d", error));
   DBUG_RETURN(error);
 }
@@ -10938,6 +11078,58 @@ err:
 }
 
 /**
+   Method used to check if the user is trying to update any other option for
+   the change master apart from the MASTER_USER and MASTER_PASSWORD.
+   In case user tries to update any other parameter apart from these two,
+   this method will return error.
+
+   @param  lex_mi structure that holds all change master options given on
+           the change master command.
+
+   @retval TRUE - The CHANGE MASTER is updating a unsupported parameter for the
+                  recovery channel.
+
+   @retval FALSE - Everything is fine. The CHANGE MASTER can execute with the
+                   given option(s) for the recovery channel.
+*/
+static bool is_invalid_change_master_for_group_replication_recovery(const
+                                                                    LEX_MASTER_INFO*
+                                                                    lex_mi)
+{
+  DBUG_ENTER("is_invalid_change_master_for_group_replication_recovery");
+  bool have_extra_option_received= false;
+
+  /* Check if *at least one* receive/execute option is given on change master command*/
+  if (lex_mi->host ||
+      lex_mi->log_file_name ||
+      lex_mi->pos ||
+      lex_mi->bind_addr ||
+      lex_mi->port ||
+      lex_mi->connect_retry ||
+      lex_mi->server_id ||
+      lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->retry_count_opt !=  LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->ssl_key ||
+      lex_mi->ssl_cert ||
+      lex_mi->ssl_ca ||
+      lex_mi->ssl_capath ||
+      lex_mi->tls_version ||
+      lex_mi->ssl_cipher ||
+      lex_mi->ssl_crl ||
+      lex_mi->ssl_crlpath ||
+      lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE ||
+      lex_mi->relay_log_name ||
+      lex_mi->relay_log_pos ||
+      lex_mi->sql_delay != -1)
+    have_extra_option_received= true;
+
+  DBUG_RETURN(have_extra_option_received);
+}
+
+/**
   Entry point for the CHANGE MASTER command. Function
   decides to create a new channel or create an existing one.
 
@@ -10965,12 +11157,27 @@ bool change_master_cmd(THD *thd)
     goto err;
   }
 
-  //If the chosen name is a group replication reserved name abort
-  if (channel_map.is_group_replication_channel_name(lex->mi.channel))
+  //If the chosen name is for group_replication_applier channel we abort
+  if (channel_map.is_group_replication_channel_name(lex->mi.channel, true))
   {
     my_error(ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG, MYF(0));
     res= true;
     goto err;
+  }
+
+  // If the channel being used is group_replication_recovery we allow the
+  // channel creation based on the check as to which field is being updated.
+  if (channel_map.is_group_replication_channel_name(lex->mi.channel) &&
+      !channel_map.is_group_replication_channel_name(lex->mi.channel, true))
+  {
+    LEX_MASTER_INFO* lex_mi= &thd->lex->mi;
+    if (is_invalid_change_master_for_group_replication_recovery(lex_mi))
+    {
+      my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
+               "CHANGE MASTER with the given parameters", lex->mi.channel);
+      res= true;
+      goto err;
+    }
   }
 
   /*
@@ -10990,8 +11197,12 @@ bool change_master_cmd(THD *thd)
   /* create a new channel if doesn't exist */
   if (!mi && strcmp(lex->mi.channel, channel_map.get_default_channel()))
   {
+    enum_channel_type channel_type= SLAVE_REPLICATION_CHANNEL;
+    if (channel_map.is_group_replication_channel_name(lex->mi.channel))
+      channel_type= GROUP_REPLICATION_CHANNEL;
+
     /* The mi will be returned holding mi->channel_lock for writing */
-    if (add_new_channel(&mi, lex->mi.channel))
+    if (add_new_channel(&mi, lex->mi.channel, channel_type))
       goto err;
   }
 

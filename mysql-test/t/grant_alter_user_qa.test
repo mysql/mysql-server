@@ -318,7 +318,9 @@ password_last_changed,password_lifetime FROM mysql.user WHERE USER='u2';
 --connect(con1, localhost, u2)
 --error ER_MUST_CHANGE_PASSWORD
 SELECT USER();
+--disable_ps_protocol
 ALTER USER USER() IDENTIFIED BY 'abc';
+--enable_ps_protocol
 connection default;
 disconnect con1;
 --echo
@@ -532,7 +534,9 @@ password_last_changed,password_lifetime FROM mysql.user WHERE USER='u13';
 --connect(con1, localhost, u13,,,,,SSL)
 --error ER_MUST_CHANGE_PASSWORD
 SELECT USER();
+--disable_ps_protocol
 ALTER USER USER() IDENTIFIED BY 'new_pwd_string';
+--enable_ps_protocol
 disconnect con1;
 --connect(con1, localhost, u13,'new_pwd_string',,,,SSL)
 SELECT USER();
@@ -667,9 +671,11 @@ disconnect con1;
 --error ER_MUST_CHANGE_PASSWORD
 SELECT USER();
 # Password set to current user
+--disable_ps_protocol
 --error ER_PARSE_ERROR
 ALTER USER IDENTIFIED BY 'npwd';
 ALTER USER USER() IDENTIFIED BY 'abc';
+--enable_ps_protocol
 disconnect con1;
 
 --connect(con1, localhost, u1, abc)
@@ -1199,10 +1205,13 @@ INTO TABLE test_log_off FIELDS TERMINATED BY '\n' LINES TERMINATED BY '\n';
 
 --echo Show what is logged:
 --echo ------ rewrite ------
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %';
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'ALTER USER %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %' AND
+                                             command_type NOT LIKE 'Prepare';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'ALTER USER %' AND
+                                             command_type NOT LIKE 'Prepare';
 SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET PASSWORD %';
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %'AND
+                                             command_type NOT LIKE 'Prepare';
 --echo ------ done ------
 
 # Cleanup
@@ -1381,10 +1390,13 @@ INTO TABLE test_log FIELDS TERMINATED BY '\n' LINES TERMINATED BY '\n';
 
 --echo Show what is logged:
 --echo ------ rewrite ------
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %';
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'ALTER USER %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'CREATE USER %' AND
+                                             command_type NOT LIKE 'Prepare';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'ALTER USER %' AND
+                                             command_type NOT LIKE 'Prepare';
 SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET PASSWORD %';
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %' AND
+                                             command_type NOT LIKE 'Prepare';
 --echo ------ done ------
 
 # Cleanup

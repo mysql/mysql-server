@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,8 @@
 #include "binlog.h"
 #include "sp_head.h"                  // sp_name
 #include "derror.h"                   // ER_THD
+
+#include "dd/types/abstract_table.h"  // dd::enum_table_type
 
 #include "mysql/psi/mysql_sp.h"
 
@@ -193,7 +195,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   }
 
   /* We also don't allow creation of triggers on views. */
-  tables->required_type= dd::Abstract_table::TT_BASE_TABLE;
+  tables->required_type= dd::enum_table_type::BASE_TABLE;
   /*
     Also prevent DROP TRIGGER from opening temporary table which might
     shadow the subject table on which trigger to be dropped is defined.

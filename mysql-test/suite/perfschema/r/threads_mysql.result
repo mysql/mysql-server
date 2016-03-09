@@ -21,7 +21,7 @@ name	thread/sql/main
 type	BACKGROUND
 processlist_user	NULL
 processlist_host	NULL
-processlist_db	NULL
+processlist_db	mysql
 processlist_command	NULL
 processlist_info	NULL
 unified_parent_thread_id	NULL
@@ -99,7 +99,7 @@ name	thread/sql/event_worker
 type	FOREGROUND
 processlist_user	root
 processlist_host	localhost
-processlist_db	NULL
+processlist_db	test
 processlist_command	Sleep
 processlist_info	SELECT SLEEP(3)
 unified_parent_thread_id	unified parent_thread_id

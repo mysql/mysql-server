@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1569,7 +1569,7 @@ exp:    /* [ E [ <sign> ] <unsigned integer> ] */
     str++;
     if (str < end)
     {
-      int negative_exp, exponent;
+      longlong negative_exp, exponent;
       if ((negative_exp= (*str == '-')) || *str=='+')
       {
         if (++str == end)

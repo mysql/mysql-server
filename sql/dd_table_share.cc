@@ -31,6 +31,7 @@
 #include "dd/dictionary.h"                    // dd::Dictionary
 #include "dd/properties.h"                    // dd::Properties
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
+#include "dd/types/column.h"                  // dd::enum_column_types
 #include "dd/types/column_type_element.h"     // dd::Column_type_element
 #include "dd/types/index.h"                   // dd::Index
 #include "dd/types/index_element.h"           // dd::Index_element
@@ -46,101 +47,101 @@
 #include <memory>                             // unique_ptr
 
 
-enum_field_types dd_get_old_field_type(dd::Column::enum_column_types type)
+enum_field_types dd_get_old_field_type(dd::enum_column_types type)
 {
   switch (type)
   {
-  case dd::Column::TYPE_DECIMAL:
+  case dd::enum_column_types::DECIMAL:
     return MYSQL_TYPE_DECIMAL;
 
-  case dd::Column::TYPE_TINY:
+  case dd::enum_column_types::TINY:
     return MYSQL_TYPE_TINY;
 
-  case dd::Column::TYPE_SHORT:
+  case dd::enum_column_types::SHORT:
     return MYSQL_TYPE_SHORT;
 
-  case dd::Column::TYPE_LONG:
+  case dd::enum_column_types::LONG:
     return MYSQL_TYPE_LONG;
 
-  case dd::Column::TYPE_FLOAT:
+  case dd::enum_column_types::FLOAT:
     return MYSQL_TYPE_FLOAT;
 
-  case dd::Column::TYPE_DOUBLE:
+  case dd::enum_column_types::DOUBLE:
     return MYSQL_TYPE_DOUBLE;
 
-  case dd::Column::TYPE_NULL:
+  case dd::enum_column_types::TYPE_NULL:
     return MYSQL_TYPE_NULL;
 
-  case dd::Column::TYPE_TIMESTAMP:
+  case dd::enum_column_types::TIMESTAMP:
     return MYSQL_TYPE_TIMESTAMP;
 
-  case dd::Column::TYPE_LONGLONG:
+  case dd::enum_column_types::LONGLONG:
     return MYSQL_TYPE_LONGLONG;
 
-  case dd::Column::TYPE_INT24:
+  case dd::enum_column_types::INT24:
     return MYSQL_TYPE_INT24;
 
-  case dd::Column::TYPE_DATE:
+  case dd::enum_column_types::DATE:
     return MYSQL_TYPE_DATE;
 
-  case dd::Column::TYPE_TIME:
+  case dd::enum_column_types::TIME:
     return MYSQL_TYPE_TIME;
 
-  case dd::Column::TYPE_DATETIME:
+  case dd::enum_column_types::DATETIME:
     return MYSQL_TYPE_DATETIME;
 
-  case dd::Column::TYPE_YEAR:
+  case dd::enum_column_types::YEAR:
     return MYSQL_TYPE_YEAR;
 
-  case dd::Column::TYPE_NEWDATE:
+  case dd::enum_column_types::NEWDATE:
     return MYSQL_TYPE_NEWDATE;
 
-  case dd::Column::TYPE_VARCHAR:
+  case dd::enum_column_types::VARCHAR:
     return MYSQL_TYPE_VARCHAR;
 
-  case dd::Column::TYPE_BIT:
+  case dd::enum_column_types::BIT:
     return MYSQL_TYPE_BIT;
 
-  case dd::Column::TYPE_TIMESTAMP2:
+  case dd::enum_column_types::TIMESTAMP2:
     return MYSQL_TYPE_TIMESTAMP2;
 
-  case dd::Column::TYPE_DATETIME2:
+  case dd::enum_column_types::DATETIME2:
     return MYSQL_TYPE_DATETIME2;
 
-  case dd::Column::TYPE_TIME2:
+  case dd::enum_column_types::TIME2:
     return MYSQL_TYPE_TIME2;
 
-  case dd::Column::TYPE_NEWDECIMAL:
+  case dd::enum_column_types::NEWDECIMAL:
     return MYSQL_TYPE_NEWDECIMAL;
 
-  case dd::Column::TYPE_ENUM:
+  case dd::enum_column_types::ENUM:
     return MYSQL_TYPE_ENUM;
 
-  case dd::Column::TYPE_SET:
+  case dd::enum_column_types::SET:
     return MYSQL_TYPE_SET;
 
-  case dd::Column::TYPE_TINY_BLOB:
+  case dd::enum_column_types::TINY_BLOB:
     return MYSQL_TYPE_TINY_BLOB;
 
-  case dd::Column::TYPE_MEDIUM_BLOB:
+  case dd::enum_column_types::MEDIUM_BLOB:
     return MYSQL_TYPE_MEDIUM_BLOB;
 
-  case dd::Column::TYPE_LONG_BLOB:
+  case dd::enum_column_types::LONG_BLOB:
     return MYSQL_TYPE_LONG_BLOB;
 
-  case dd::Column::TYPE_BLOB:
+  case dd::enum_column_types::BLOB:
     return MYSQL_TYPE_BLOB;
 
-  case dd::Column::TYPE_VAR_STRING:
+  case dd::enum_column_types::VAR_STRING:
     return MYSQL_TYPE_VAR_STRING;
 
-  case dd::Column::TYPE_STRING:
+  case dd::enum_column_types::STRING:
     return MYSQL_TYPE_STRING;
 
-  case dd::Column::TYPE_GEOMETRY:
+  case dd::enum_column_types::GEOMETRY:
     return MYSQL_TYPE_GEOMETRY;
 
-  case dd::Column::TYPE_JSON:
+  case dd::enum_column_types::JSON:
     return MYSQL_TYPE_JSON;
 
   default:
@@ -717,7 +718,7 @@ static uint column_preamble_bits(const dd::Column *col_obj)
   if (col_obj->is_nullable())
     result++;
 
-  if (col_obj->type() == dd::Column::TYPE_BIT)
+  if (col_obj->type() == dd::enum_column_types::BIT)
   {
     bool treat_bit_as_char;
     (void) col_obj->options().get_bool("treat_bit_as_char",
@@ -876,7 +877,7 @@ static bool fill_column_from_dd(TABLE_SHARE *share,
     // Iterate through all the column elements
     //
     std::unique_ptr<dd::Column_type_element_const_iterator> cte_iter;
-    if (field_type == dd_get_old_field_type(dd::Column::TYPE_ENUM))
+    if (field_type == dd_get_old_field_type(dd::enum_column_types::ENUM))
       cte_iter.reset(col_obj->enum_elements());
     else
       cte_iter.reset(col_obj->set_elements());
@@ -2167,8 +2168,7 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   // Assume base table, we find it is a view a bit later.
-  dd::Abstract_table::enum_table_type dd_table_type=
-    dd::Abstract_table::TT_BASE_TABLE;
+  dd::enum_table_type dd_table_type= dd::enum_table_type::BASE_TABLE;
 
   if (!table_def)
   {
@@ -2195,8 +2195,8 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
       DBUG_RETURN(true);
     }
 
-    if (dd_table_type == dd::Abstract_table::TT_USER_VIEW ||
-        dd_table_type == dd::Abstract_table::TT_SYSTEM_VIEW)
+    if (dd_table_type == dd::enum_table_type::USER_VIEW ||
+        dd_table_type == dd::enum_table_type::SYSTEM_VIEW)
     {
       if (!open_view)
       {
@@ -2226,7 +2226,7 @@ bool open_table_def(THD *thd, TABLE_SHARE *share, bool open_view,
       thd->status_var.opened_shares++;
       DBUG_RETURN(false);
     }
-    else // TT_BASE_TABLE
+    else // BASE_TABLE
     {
       (void) thd->dd_client()->acquire<dd::Table>(share->db.str,
                                                   share->table_name.str,
@@ -2324,17 +2324,17 @@ bool dd_index_is_candidate_key(const dd::Index *idx_obj)
       setting HA_PART_KEY_SEG in them.
     */
 
-    if ((idx_elem_obj->column().type() == dd::Column::TYPE_TINY_BLOB &&
+    if ((idx_elem_obj->column().type() == dd::enum_column_types::TINY_BLOB &&
          idx_elem_obj->length() == 255) ||
-        (idx_elem_obj->column().type() == dd::Column::TYPE_BLOB &&
+        (idx_elem_obj->column().type() == dd::enum_column_types::BLOB &&
          idx_elem_obj->length() == 65535) ||
-        (idx_elem_obj->column().type() == dd::Column::TYPE_MEDIUM_BLOB &&
+        (idx_elem_obj->column().type() == dd::enum_column_types::MEDIUM_BLOB &&
          idx_elem_obj->length() == (1 << 24) - 1) ||
-        (idx_elem_obj->column().type() == dd::Column::TYPE_LONG_BLOB &&
+        (idx_elem_obj->column().type() == dd::enum_column_types::LONG_BLOB &&
          idx_elem_obj->length() == (1LL << 32) - 1))
       continue;
 
-    if (idx_elem_obj->column().type() == dd::Column::TYPE_GEOMETRY)
+    if (idx_elem_obj->column().type() == dd::enum_column_types::GEOMETRY)
     {
       uint32 sub_type;
       idx_elem_obj->column().options().get_uint32("geom_type", &sub_type);
