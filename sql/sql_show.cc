@@ -1043,8 +1043,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   if ((table_list->is_view() ?
        view_store_create_info(thd, table_list, &buffer) :
        store_create_info(thd, table_list, &buffer, NULL,
-                         table_list->table->s->tmp_table,
-                         false /* show_database */)))
+                         FALSE /* show_database */)))
     goto exit;
 
   if (table_list->is_view())
@@ -1535,7 +1534,6 @@ static bool print_default_clause(THD *thd, Field *field, String *def_value,
                           tailor the format of the statement.  Can be NULL,
                           in which case only SQL_MODE is considered when
                           building the statement.
-  @param is_tmp_table     Indicates whether table is a temporary table.
   @param show_database    If true, then print the database before the table
                           name. The database name is only printed in the event
                           that it is different from the current database.
@@ -1546,8 +1544,7 @@ static bool print_default_clause(THD *thd, Field *field, String *def_value,
 */
 
 int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
-                      HA_CREATE_INFO *create_info_arg, bool is_tmp_table,
-                      bool show_database)
+                      HA_CREATE_INFO *create_info_arg, bool show_database)
 {
   List<Item> field_list;
   char tmp[MAX_FIELD_WIDTH], *for_str, buff[128], def_value_buf[MAX_FIELD_WIDTH];
@@ -1578,7 +1575,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 
   restore_record(table, s->default_values); // Get empty record
 
-  if (is_tmp_table)
+  if (share->tmp_table)
     packet->append(STRING_WITH_LEN("CREATE TEMPORARY TABLE "));
   else
     packet->append(STRING_WITH_LEN("CREATE TABLE "));

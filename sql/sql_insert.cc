@@ -2974,8 +2974,7 @@ int Query_result_create::binlog_show_create_table(TABLE **tables, uint count)
   query.length(0);      // Have to zero it since constructor doesn't
 
   result= store_create_info(thd, &tmp_table_list, &query, create_info,
-                            tmp_table_list.table->s->tmp_table,
-                            /* show_database */ true);
+                            /* show_database */ TRUE);
   DBUG_ASSERT(result == 0); /* store_create_info() always return 0 */
 
   if (mysql_bin_log.is_open())

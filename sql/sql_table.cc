@@ -6448,7 +6448,9 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
         char buf[2048];
         String query(buf, sizeof(buf), system_charset_info);
         query.length(0);  // Have to zero it since constructor doesn't
-        TABLE *new_table= NULL; // TABLE object for newly created table.
+        Open_table_context ot_ctx(thd, MYSQL_OPEN_REOPEN |
+                                       MYSQL_OPEN_UNCOMMITTED);
+        bool new_table= FALSE; // Whether newly created table is open.
 
         /*
           The condition avoids a crash as described in BUG#48506. Other
@@ -6464,30 +6466,21 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
               destination table if it is not already open (i.e. if it
               has not existed before). We don't need acquire metadata
               lock in order to do this as we already hold exclusive
-              lock on this table. We need to use uncommitted read from
-              data-dictionary since our changes to it might not be
-              committed yet.
+              lock on this table. The table will be closed by
+              close_thread_table() at the end of this branch.
             */
-            std::unique_ptr<dd::Table> table_def;
-            if (!(table_def=
-                    dd::acquire_uncached_uncommitted_table<dd::Table>(thd,
-                          table->db, table->table_name)))
+            bool result= open_table(thd, table, &ot_ctx);
+
+            /*
+              Play safe, ensure that we won't poison TDC/TC by storing
+              not-yet-committed table definition there.
+            */
+            tdc_remove_table(thd, TDC_RT_REMOVE_NOT_OWN, table->db,
+                             table->table_name, false);
+
+            if (res)
               goto err;
-
-            char path[FN_REFLEN+1];
-            bool not_used;
-            build_table_filename(path, sizeof(path) - 1 - reg_ext_length,
-                                 table->db, table->table_name, "", 0,
-                                 &not_used);
-
-            if (!(new_table= open_table_uncached(thd, path,
-                                                 table->db,
-                                                 table->table_name,
-                                                 false, true,
-                                                 table_def.get())))
-              goto err;
-
-            table->table= new_table;
+            new_table= TRUE;
           }
 
           /*
@@ -6507,12 +6500,20 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 
           int result __attribute__((unused))=
             store_create_info(thd, table, &query,
-                              create_info, false /* is_tmp_table */,
-                              true /* show_database */);
+                              create_info, TRUE /* show_database */);
+
           DBUG_ASSERT(result == 0); // store_create_info() always return 0
 
           if (new_table)
-            intern_close_table(new_table);
+          {
+            DBUG_ASSERT(thd->open_tables == table->table);
+            /*
+              When opening the table, we ignored the locked tables
+              (MYSQL_OPEN_GET_NEW_TABLE). Now we can close the table
+              without risking to close some locked table.
+            */
+            close_thread_table(thd, &thd->open_tables);
+          }
 
           if (write_bin_log(thd, true, query.ptr(), query.length(), is_trans))
             goto err;
