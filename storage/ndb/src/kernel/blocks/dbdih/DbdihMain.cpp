@@ -16557,7 +16557,7 @@ Dbdih::resetReplicaSr(TabRecordPtr tabPtr){
       replicaPtr.i = fragPtr.p->oldStoredReplicas;
       while (replicaPtr.i != RNIL)
       {
-        ptrCheckGuard(replicaPtr, creplicaFileSize, replicaRecord);
+        c_replicaRecordPool.getPtr(replicaPtr);
         g_eventLogger->info("[1/3] frag %u, replica %u @%p, SYSFILE @%p",
           fragPtr.i, replicaPtr.i, replicaPtr.p, SYSFILE);
         g_eventLogger->info("[2/3] frag %u, replica %u, node %u, replicaLastGci %u,%u",
