@@ -52,7 +52,7 @@ namespace ngs
     virtual ~Scheduler_dynamic();
 
     virtual void launch();
-    virtual void set_num_workers(unsigned int n);
+    virtual unsigned int set_num_workers(unsigned int n);
     virtual void stop();
     void set_idle_worker_timeout(unsigned long long milliseconds);
     bool post(Task* task);
@@ -65,6 +65,7 @@ namespace ngs
     void set_monitor(Monitor *monitor);
 
     bool is_worker_thread(my_thread_t thread_id);
+    bool is_running();
 
   private:
     template<typename Element_type>
@@ -113,7 +114,7 @@ namespace ngs
     void* worker();
 
     void create_thread();
-    bool is_running();
+    void create_min_num_workers();
 
     int32 increase_workers_count();
     int32 decrease_workers_count();
@@ -125,6 +126,7 @@ namespace ngs
     Cond m_task_pending_cond;
     Mutex m_thread_exit_mutex;
     Cond m_thread_exit_cond;
+    Mutex m_post_mutex;
     volatile int32 m_is_running;
     volatile int32 m_min_workers_count;
     volatile int32 m_workers_count;
