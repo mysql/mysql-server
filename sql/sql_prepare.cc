@@ -1116,10 +1116,15 @@ bool Prepared_statement::insert_params_from_vars(List<LEX_STRING>& varnames,
   /* Protects thd->user_vars */
   mysql_mutex_lock(&thd->LOCK_thd_data);
 
+  Item_param *param= NULL;
+  String      new_query(query->length());
+
+  new_query.set_charset(query->charset());
+
   for (Item_param **it= begin; it < end; ++it)
   {
-    Item_param *param= *it;
-    varname= var_it++;
+    param=   *it;
+    varname=  var_it++;
 
     entry= (user_var_entry *) my_hash_search(&thd->user_vars, (uchar*)
                                              varname->str, varname->length);
@@ -1138,9 +1143,12 @@ bool Prepared_statement::insert_params_from_vars(List<LEX_STRING>& varnames,
       if (param->convert_str_value(thd))
         goto error;
 
-      if (query->replace(param->pos_in_query+length, 1, *val))
+      if (new_query.append(query->ptr() + length,
+                           param->pos_in_query - length) ||
+          new_query.append(*val))
         goto error;
-      length+= val->length()-1;
+
+      length= param->pos_in_query + 1;
     }
     else
     {
@@ -1149,6 +1157,14 @@ bool Prepared_statement::insert_params_from_vars(List<LEX_STRING>& varnames,
         goto error;
     }
   }
+
+  /*
+    If logging, take care of tail.
+  */
+  if (length)
+    new_query.append(query->ptr() + length, query->length() - length);
+
+  query->swap(new_query);
 
   mysql_mutex_unlock(&thd->LOCK_thd_data);
   DBUG_RETURN(0);
