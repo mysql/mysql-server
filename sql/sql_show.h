@@ -30,6 +30,9 @@ class SELECT_LEX;
 // TODO: allocator based on my_malloc.
 typedef std::vector<st_mysql_show_var> Status_var_array;
 
+namespace dd {
+  class Event;
+}
 enum find_files_result {
   FIND_FILES_OK,
   FIND_FILES_OOM,
@@ -83,7 +86,8 @@ find_files_result find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                       HA_CREATE_INFO  *create_info_arg, bool show_database);
 
-int copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table);
+int copy_event_to_schema_table(THD *thd, TABLE *sch_table,
+                               const dd::Event &event_obj, const char *db);
 
 void append_identifier(THD *thd, String *packet, const char *name, size_t length,
                        const CHARSET_INFO *from_cs, const CHARSET_INFO *to_cs);

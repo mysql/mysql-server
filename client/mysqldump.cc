@@ -2219,13 +2219,6 @@ static uint dump_events_for_db(char *db)
   print_comment(sql_file, 0,
                 "\n--\n-- Dumping events for database '%s'\n--\n", db);
 
-  /*
-    not using "mysql_query_with_error_report" because we may have not
-    enough privileges to lock mysql.events.
-  */
-  if (lock_tables)
-    mysql_query(mysql, "LOCK TABLES mysql.event READ");
-
   if (mysql_query_with_error_report(mysql, &event_list_res, "show events"))
     DBUG_RETURN(0);
 
@@ -2368,8 +2361,6 @@ static uint dump_events_for_db(char *db)
   }
   mysql_free_result(event_list_res);
 
-  if (lock_tables)
-    (void) mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES");
   DBUG_RETURN(0);
 }
 

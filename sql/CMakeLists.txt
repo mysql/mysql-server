@@ -62,6 +62,7 @@ IF(SSL_DEFINES)
 ENDIF()
 
 SET(DD_SOURCES
+  dd/dd_event.cc
   dd/dd_schema.cc
   dd/dd_table.cc
   dd/dd_tablespace.cc

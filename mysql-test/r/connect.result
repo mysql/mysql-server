@@ -5,8 +5,6 @@ column_stats
 columns_priv
 db
 engine_cost
-event
-events
 func
 general_log
 gtid_executed
@@ -53,8 +51,6 @@ column_stats
 columns_priv
 db
 engine_cost
-event
-events
 func
 general_log
 gtid_executed

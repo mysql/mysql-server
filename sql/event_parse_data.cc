@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,9 +54,9 @@ Event_parse_data::new_instance(THD *thd)
 Event_parse_data::Event_parse_data()
   :on_completion(Event_parse_data::ON_COMPLETION_DEFAULT),
   status(Event_parse_data::ENABLED), status_changed(false),
-  do_not_create(FALSE), body_changed(FALSE),
+  do_not_create(false), body_changed(false),
   item_starts(NULL), item_ends(NULL), item_execute_at(NULL),
-  starts_null(TRUE), ends_null(TRUE), execute_at_null(TRUE),
+  starts_null(true), ends_null(true), execute_at_null(true),
   item_expression(NULL), expression(0)
 {
   DBUG_ENTER("Event_parse_data::Event_parse_data");
@@ -141,7 +141,7 @@ Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
       DBUG_ASSERT(0);
     }
 
-    do_not_create= TRUE;
+    do_not_create= true;
   }
   else if (status == Event_parse_data::ENABLED)
   {
@@ -170,8 +170,8 @@ Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
                      Will be overridden by value in ALTER EVENT if given.
 
   RETURN VALUE
-    TRUE            an error occurred, do not ALTER
-    FALSE           OK
+    true            an error occurred, do not ALTER
+    false           OK
 */
 
 bool
@@ -234,7 +234,7 @@ Event_parse_data::init_execute_at(THD *thd)
 
   check_if_in_the_past(thd, ltime_utc);
 
-  execute_at_null= FALSE;
+  execute_at_null= false;
   execute_at= ltime_utc;
   DBUG_RETURN(0);
 
@@ -396,7 +396,7 @@ Event_parse_data::init_starts(THD *thd)
   DBUG_PRINT("info",("now: %ld  starts: %ld",
                      (long) thd->query_start(), (long) ltime_utc));
 
-  starts_null= FALSE;
+  starts_null= false;
   starts= ltime_utc;
   DBUG_RETURN(0);
 
@@ -455,7 +455,7 @@ Event_parse_data::init_ends(THD *thd)
 
   check_if_in_the_past(thd, ltime_utc);
 
-  ends_null= FALSE;
+  ends_null= false;
   ends= ltime_utc;
   DBUG_RETURN(0);
 
@@ -493,8 +493,8 @@ Event_parse_data::report_bad_value(const char *item_name, Item *bad_item)
       thd  Thread
 
   RETURN VALUE
-    FALSE  OK
-    TRUE   Error (reported)
+    false  OK
+    true   Error (reported)
 */
 
 bool

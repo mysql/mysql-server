@@ -48,9 +48,9 @@ id	name	type	engine	collation_id	comment	hidden	options	se_private_data	se_priva
 16	table_partitions	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	26	NULL
 17	table_partition_values	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	27	NULL
 18	index_partitions	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	28	NULL
-19	innodb_table_stats	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	29	NULL
-20	innodb_index_stats	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	30	NULL
-21	character_sets	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	NULL	NULL
+20	innodb_table_stats	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	30	NULL
+21	innodb_index_stats	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	31	NULL
+22	character_sets	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	NULL	NULL
 #
 # Subset of definitions from columns, not including
 # default_values.
@@ -227,25 +227,25 @@ id	table_id	name	ordinal_position	type	is_nullable	is_zerofill	is_unsigned	char_
 147	18	options	3	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	0	83	NULL	NULL	0		0	NULL	NULL
 148	18	se_private_data	4	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	0	83	NULL	NULL	0		0	NULL	NULL
 149	18	tablespace_id	5	MYSQL_TYPE_LONGLONG	1	0	1	20	0	0	0	83	NULL	NULL	0		0	NULL	NULL
-150	19	database_name	1	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	0	83	NULL	NULL	0		0	NULL	NULL
-151	19	table_name	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	0	83	NULL	NULL	0		0	NULL	NULL
-152	19	last_update	3	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	CURRENT_TIMESTAMP	0		0	NULL	NULL
-153	19	n_rows	4	MYSQL_TYPE_LONGLONG	0	0	1	20	0	0	0	83	NULL	NULL	0		0	NULL	NULL
-154	19	clustered_index_size	5	MYSQL_TYPE_LONGLONG	0	0	1	20	0	0	0	83	NULL	NULL	0		0	NULL	NULL
-155	19	sum_of_other_index_sizes	6	MYSQL_TYPE_LONGLONG	0	0	1	20	0	0	0	83	NULL	NULL	0		0	NULL	NULL
-156	20	database_name	1	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	0	83	NULL	NULL	0		0	NULL	NULL
-157	20	table_name	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	0	83	NULL	NULL	0		0	NULL	NULL
-158	20	index_name	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	0	83	NULL	NULL	0		0	NULL	NULL
-159	20	last_update	4	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	CURRENT_TIMESTAMP	0		0	NULL	NULL
-160	20	stat_name	5	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	0	83	NULL	NULL	0		0	NULL	NULL
-161	20	stat_value	6	MYSQL_TYPE_LONGLONG	0	0	1	20	0	0	0	83	NULL	NULL	0		0	NULL	NULL
-162	20	sample_size	7	MYSQL_TYPE_LONGLONG	1	0	1	20	0	0	0	83	NULL	NULL	0		0	NULL	NULL
-163	20	stat_description	8	MYSQL_TYPE_VARCHAR	0	0	0	3072	0	NULL	0	83	NULL	NULL	0		0	NULL	NULL
-164	21	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	0	0	0	8	NULL	NULL	1		0	NULL	NULL
-165	21	name	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	0	33	NULL	NULL	0		0	NULL	NULL
-166	21	default_collation_id	3	MYSQL_TYPE_LONGLONG	0	0	1	20	0	0	0	8	NULL	NULL	0		0	NULL	NULL
-167	21	comment	4	MYSQL_TYPE_VARCHAR	0	0	0	6144	0	NULL	0	83	NULL	NULL	0		0	NULL	NULL
-168	21	mb_max_length	5	MYSQL_TYPE_LONG	0	0	1	10	0	0	0	8	NULL	NULL	0		0	NULL	NULL
+173	20	database_name	1	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	0	83	NULL	NULL	0		0	NULL	NULL
+174	20	table_name	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	0	83	NULL	NULL	0		0	NULL	NULL
+175	20	last_update	3	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	CURRENT_TIMESTAMP	0		0	NULL	NULL
+176	20	n_rows	4	MYSQL_TYPE_LONGLONG	0	0	1	20	0	0	0	83	NULL	NULL	0		0	NULL	NULL
+177	20	clustered_index_size	5	MYSQL_TYPE_LONGLONG	0	0	1	20	0	0	0	83	NULL	NULL	0		0	NULL	NULL
+178	20	sum_of_other_index_sizes	6	MYSQL_TYPE_LONGLONG	0	0	1	20	0	0	0	83	NULL	NULL	0		0	NULL	NULL
+179	21	database_name	1	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	0	83	NULL	NULL	0		0	NULL	NULL
+180	21	table_name	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	0	83	NULL	NULL	0		0	NULL	NULL
+181	21	index_name	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	0	83	NULL	NULL	0		0	NULL	NULL
+182	21	last_update	4	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	CURRENT_TIMESTAMP	0		0	NULL	NULL
+183	21	stat_name	5	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	0	83	NULL	NULL	0		0	NULL	NULL
+184	21	stat_value	6	MYSQL_TYPE_LONGLONG	0	0	1	20	0	0	0	83	NULL	NULL	0		0	NULL	NULL
+185	21	sample_size	7	MYSQL_TYPE_LONGLONG	1	0	1	20	0	0	0	83	NULL	NULL	0		0	NULL	NULL
+186	21	stat_description	8	MYSQL_TYPE_VARCHAR	0	0	0	3072	0	NULL	0	83	NULL	NULL	0		0	NULL	NULL
+187	22	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	0	0	0	8	NULL	NULL	1		0	NULL	NULL
+188	22	name	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	0	33	NULL	NULL	0		0	NULL	NULL
+189	22	default_collation_id	3	MYSQL_TYPE_LONGLONG	0	0	1	20	0	0	0	8	NULL	NULL	0		0	NULL	NULL
+190	22	comment	4	MYSQL_TYPE_VARCHAR	0	0	0	6144	0	NULL	0	83	NULL	NULL	0		0	NULL	NULL
+191	22	mb_max_length	5	MYSQL_TYPE_LONG	0	0	1	10	0	0	0	8	NULL	NULL	0		0	NULL	NULL
 #
 # Definitions from indexes
 SELECT * FROM indexes
@@ -322,11 +322,11 @@ id	table_id	name	type	algorithm	is_algorithm_explicit	is_generated	hidden	ordina
 49	18	PRIMARY	PRIMARY	BTREE	0	0	0	1		flags=0;	id=59;root=335;	NULL	InnoDB
 50	18	index_id	MULTIPLE	BTREE	0	1	0	2		flags=0;	id=60;root=336;	NULL	InnoDB
 51	18	tablespace_id	MULTIPLE	BTREE	0	1	0	3		flags=0;	id=61;root=337;	NULL	InnoDB
-52	19	PRIMARY	PRIMARY	BTREE	0	0	0	1		flags=32;	id=62;root=339;	NULL	InnoDB
-53	20	PRIMARY	PRIMARY	BTREE	0	0	0	1		flags=32;	id=63;root=341;	NULL	InnoDB
-54	21	PRIMARY	PRIMARY	BTREE	0	0	0	1		flags=0;	NULL	NULL	InnoDB
-55	21	name	UNIQUE	BTREE	0	0	0	2		flags=32;	NULL	NULL	InnoDB
-56	21	default_collation_id	MULTIPLE	BTREE	0	1	0	3		flags=0;	NULL	NULL	InnoDB
+57	20	PRIMARY	PRIMARY	BTREE	0	0	0	1		flags=32;	id=67;root=345;	NULL	InnoDB
+58	21	PRIMARY	PRIMARY	BTREE	0	0	0	1		flags=32;	id=68;root=347;	NULL	InnoDB
+59	22	PRIMARY	PRIMARY	BTREE	0	0	0	1		flags=0;	NULL	NULL	InnoDB
+60	22	name	UNIQUE	BTREE	0	0	0	2		flags=32;	NULL	NULL	InnoDB
+61	22	default_collation_id	MULTIPLE	BTREE	0	1	0	3		flags=0;	NULL	NULL	InnoDB
 #
 # Definitions from index_column_usage
 SELECT * FROM index_column_usage
@@ -432,12 +432,12 @@ index_id	ordinal_position	column_id	length	order	hidden
 49	2	146	8	ASC	0
 50	1	146	8	ASC	0
 51	1	149	8	ASC	0
-52	1	150	192	ASC	0
-52	2	151	192	ASC	0
-53	1	156	192	ASC	0
-53	2	157	192	ASC	0
-53	3	158	192	ASC	0
-53	4	160	192	ASC	0
-54	1	164	8	ASC	0
-55	1	165	192	ASC	0
-56	1	166	8	ASC	0
+57	1	173	192	ASC	0
+57	2	174	192	ASC	0
+58	1	179	192	ASC	0
+58	2	180	192	ASC	0
+58	3	181	192	ASC	0
+58	4	183	192	ASC	0
+59	1	187	8	ASC	0
+60	1	188	192	ASC	0
+61	1	189	8	ASC	0

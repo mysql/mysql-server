@@ -1547,6 +1547,8 @@ template bool Dictionary_client::fetch_global_components(
 
 template bool Dictionary_client::fetch_global_components(
     std::unique_ptr<Tablespace_const_iterator>*) const;
+template bool Dictionary_client::fetch_global_components(
+    std::unique_ptr<Event_const_iterator>*) const;
 
 template bool Dictionary_client::fetch_global_components(
      std::unique_ptr<Schema_const_iterator>*) const;

@@ -1569,13 +1569,6 @@ static bool event_scheduler_check(sys_var *self, THD *thd, set_var *var)
   /* DISABLED is only accepted on the command line */
   if (var->save_result.ulonglong_value == Events::EVENTS_DISABLED)
     return true;
-  /*
-    If the scheduler was disabled because there are no/bad
-    system tables, produce a more meaningful error message
-    than ER_OPTION_PREVENTS_STATEMENT
-  */
-  if (Events::check_if_system_tables_error())
-    return true;
   if (Events::opt_event_scheduler == Events::EVENTS_DISABLED)
   {
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),

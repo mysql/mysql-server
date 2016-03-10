@@ -61,13 +61,6 @@ def	mysql	PRIMARY	mysql	column_stats
 def	mysql	PRIMARY	mysql	columns_priv
 def	mysql	PRIMARY	mysql	db
 def	mysql	PRIMARY	mysql	engine_cost
-def	mysql	PRIMARY	mysql	event
-def	mysql	PRIMARY	mysql	events
-def	mysql	schema_id	mysql	events
-def	mysql	events_ibfk_1	mysql	events
-def	mysql	events_ibfk_2	mysql	events
-def	mysql	events_ibfk_3	mysql	events
-def	mysql	events_ibfk_4	mysql	events
 def	mysql	PRIMARY	mysql	func
 def	mysql	PRIMARY	mysql	gtid_executed
 def	mysql	PRIMARY	mysql	help_category

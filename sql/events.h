@@ -20,7 +20,7 @@
   @ingroup Runtime_Environment
   @{
 
-  @file events.h
+  @file sql/events.h
 
   A public interface of Events_Scheduler module.
 */
@@ -59,6 +59,18 @@ extern PSI_stage_info stage_waiting_for_scheduler_to_stop;
 int
 sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs);
 
+
+/**
+  Convert name to lowercase.
+
+  @param from the string to be converted to lowercase.
+  @param to   Buffer space for the coverted lowercase string.
+  @param len  Maximum length of the buffer.
+*/
+
+void convert_name_lowercase(const char *from, char *to, size_t len);
+
+
 /**
   @brief A facade to the functionality of the Event Scheduler.
 
@@ -91,70 +103,52 @@ public:
   enum enum_opt_event_scheduler { EVENTS_OFF, EVENTS_ON, EVENTS_DISABLED };
   /* Protected using LOCK_global_system_variables only. */
   static ulong opt_event_scheduler;
-  static bool check_if_system_tables_error();
   static bool start(int *err_no);
   static bool stop();
 
-public:
   /* A hack needed for Event_queue_element */
-  static Event_db_repository *
-  get_db_repository() { return db_repository; }
+  static Event_db_repository *get_db_repository() { return db_repository; }
 
-  static bool
-  init(my_bool opt_noacl);
+  static bool init(my_bool opt_noacl);
 
-  static void
-  deinit();
+  static void deinit();
 
-  static void
-  init_mutexes();
+  static void init_mutexes();
 
-  static void
-  destroy_mutexes();
+  static void destroy_mutexes();
 
-  static bool
-  create_event(THD *thd, Event_parse_data *parse_data, bool if_exists);
+  static bool create_event(THD *thd, Event_parse_data *parse_data,
+                           bool if_exists);
 
-  static bool
-  update_event(THD *thd, Event_parse_data *parse_data,
-               LEX_STRING *new_dbname, LEX_STRING *new_name);
+  static bool update_event(THD *thd, Event_parse_data *parse_data,
+                           LEX_STRING *new_dbname, LEX_STRING *new_name);
 
-  static bool
-  drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists);
+  static bool drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
+                         bool if_exists);
 
-  static void
-  drop_schema_events(THD *thd, const char *db);
+  static bool lock_schema_events(THD *thd, const char *db);
 
-  static bool
-  show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name);
+  static bool drop_schema_events(THD *thd, const char *db);
+
+  static bool show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name);
 
   /* Needed for both SHOW CREATE EVENT and INFORMATION_SCHEMA */
-  static int
-  reconstruct_interval_expression(String *buf, interval_type interval,
-                                  longlong expression);
+  static int reconstruct_interval_expression(String *buf,
+                                             interval_type interval,
+                                             longlong expression);
 
-  static int
-  fill_schema_events(THD *thd, TABLE_LIST *tables, Item * /* cond */);
+  static int fill_schema_events(THD *thd, TABLE_LIST *tables,
+                                Item * /* cond */);
 
-  static void
-  dump_internal_status();
+  static void dump_internal_status();
 
-private:
-
-  static bool
-  load_events_from_db(THD *thd);
+  Events(const Events &)= delete;
+  void operator=(Events &)= delete;
 
 private:
   static Event_queue         *event_queue;
   static Event_scheduler     *scheduler;
   static Event_db_repository *db_repository;
-  /* Set to TRUE if an error at start up */
-  static bool check_system_tables_error;
-
-private:
-  /* Prevent use of these */
-  Events(const Events &);
-  void operator=(Events &);
 };
 
 /**

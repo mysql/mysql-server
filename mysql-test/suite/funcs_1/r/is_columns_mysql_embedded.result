@@ -44,51 +44,6 @@ def	mysql	engine_cost	cost_value	4	NULL	YES	float	NULL	NULL	12	NULL	NULL	NULL	NU
 def	mysql	engine_cost	device_type	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	PRI				
 def	mysql	engine_cost	engine_name	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI				
 def	mysql	engine_cost	last_update	5	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP			
-def	mysql	event	body	3	NULL	NO	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	NULL	longblob					
-def	mysql	event	body_utf8	22	NULL	YES	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	NULL	longblob					
-def	mysql	event	character_set_client	19	NULL	YES	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)					
-def	mysql	event	collation_connection	20	NULL	YES	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)					
-def	mysql	event	comment	16		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)					
-def	mysql	event	created	8	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP			
-def	mysql	event	db	1		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)	PRI				
-def	mysql	event	db_collation	21	NULL	YES	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)					
-def	mysql	event	definer	4		NO	char	77	231	NULL	NULL	NULL	utf8	utf8_bin	char(77)					
-def	mysql	event	ends	12	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime					
-def	mysql	event	execute_at	5	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime					
-def	mysql	event	interval_field	7	NULL	YES	enum	18	54	NULL	NULL	NULL	utf8	utf8_general_ci	enum('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND')					
-def	mysql	event	interval_value	6	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)					
-def	mysql	event	last_executed	10	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime					
-def	mysql	event	modified	9	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp					
-def	mysql	event	name	2		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI				
-def	mysql	event	on_completion	14	DROP	NO	enum	8	24	NULL	NULL	NULL	utf8	utf8_general_ci	enum('DROP','PRESERVE')					
-def	mysql	event	originator	17	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned					
-def	mysql	event	sql_mode	15		NO	set	478	1434	NULL	NULL	NULL	utf8	utf8_general_ci	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH')					
-def	mysql	event	starts	11	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime					
-def	mysql	event	status	13	ENABLED	NO	enum	18	54	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ENABLED','DISABLED','SLAVESIDE_DISABLED')					
-def	mysql	event	time_zone	18	SYSTEM	NO	char	64	64	NULL	NULL	NULL	latin1	latin1_swedish_ci	char(64)					
-def	mysql	events	client_collation_id	21	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL				
-def	mysql	events	comment	19	NULL	NO	varchar	2048	6144	NULL	NULL	NULL	utf8	utf8_bin	varchar(2048)					
-def	mysql	events	connection_collation_id	22	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL				
-def	mysql	events	created	16	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP			
-def	mysql	events	definer	4	NULL	NO	varchar	77	231	NULL	NULL	NULL	utf8	utf8_bin	varchar(77)					
-def	mysql	events	definition	6	NULL	NO	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	NULL	longblob					
-def	mysql	events	definition_utf8	7	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_bin	longtext					
-def	mysql	events	ends	13	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime					
-def	mysql	events	execute_at	8	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime					
-def	mysql	events	id	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI	auto_increment			
-def	mysql	events	interval_field	10	NULL	YES	enum	18	54	NULL	NULL	NULL	utf8	utf8_bin	enum('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND')					
-def	mysql	events	interval_value	9	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)					
-def	mysql	events	last_altered	17	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp					
-def	mysql	events	last_executed	18	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime					
-def	mysql	events	name	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)					
-def	mysql	events	on_completion	15	NULL	NO	enum	8	24	NULL	NULL	NULL	utf8	utf8_bin	enum('DROP','PRESERVE')					
-def	mysql	events	originator	20	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned					
-def	mysql	events	schema_collation_id	23	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL				
-def	mysql	events	schema_id	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL				
-def	mysql	events	sql_mode	11	NULL	NO	set	638	1914	NULL	NULL	NULL	utf8	utf8_bin	set('MODE_REAL_AS_FLOAT','MODE_PIPES_AS_CONCAT','MODE_ANSI_QUOTES','MODE_IGNORE_SPACE','MODE_NOT_USED','MODE_ONLY_FULL_GROUP_BY','MODE_NO_UNSIGNED_SUBTRACTION','MODE_NO_DIR_IN_CREATE','MODE_POSTGRESQL','MODE_ORACLE','MODE_MSSQL','MODE_DB2','MODE_MAXDB','MODE_NO_KEY_OPTIONS','MODE_NO_TABLE_OPTIONS','MODE_NO_FIELD_OPTIONS','MODE_MYSQL323','MODE_MYSQL40','MODE_ANSI','MODE_NO_AUTO_VALUE_ON_ZERO','MODE_NO_BACKSLASH_ESCAPES','MODE_STRICT_TRANS_TABLES','MODE_STRICT_ALL_TABLES','MODE_NO_ZERO_IN_DATE','MODE_NO_ZERO_DATE','MODE_INVALID_DATES','MODE_ERROR_FOR_DIVISION_BY_ZERO','MODE_TRADITIONAL','MODE_NO_AUTO_CREATE_USER','MODE_HIGH_NOT_PRECEDENCE','MODE_NO_ENGINE_SUBSTITUTION','MODE_PAD_CHAR_TO_FULL_LENGTH')					
-def	mysql	events	starts	12	NULL	YES	datetime	NULL	NULL	NULL	NULL	0	NULL	NULL	datetime					
-def	mysql	events	status	14	NULL	NO	enum	18	54	NULL	NULL	NULL	utf8	utf8_bin	enum('ENABLED','DISABLED','SLAVESIDE_DISABLED')					
-def	mysql	events	time_zone	5	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)					
 def	mysql	func	dl	3		NO	char	128	384	NULL	NULL	NULL	utf8	utf8_bin	char(128)					
 def	mysql	func	name	1		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)	PRI				
 def	mysql	func	ret	2	0	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)					
@@ -422,7 +377,6 @@ AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH IS NULL
 ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 NULL	bigint	NULL	NULL
-NULL	datetime	NULL	NULL
 NULL	float	NULL	NULL
 NULL	int	NULL	NULL
 NULL	json	NULL	NULL
@@ -485,51 +439,6 @@ NULL	mysql	engine_cost	device_type	int	NULL	NULL	NULL	NULL	int(11)
 NULL	mysql	engine_cost	cost_value	float	NULL	NULL	NULL	NULL	float
 NULL	mysql	engine_cost	last_update	timestamp	NULL	NULL	NULL	NULL	timestamp
 3.0000	mysql	engine_cost	comment	varchar	1024	3072	utf8	utf8_general_ci	varchar(1024)
-3.0000	mysql	event	db	char	64	192	utf8	utf8_bin	char(64)
-3.0000	mysql	event	name	char	64	192	utf8	utf8_general_ci	char(64)
-1.0000	mysql	event	body	longblob	4294967295	4294967295	NULL	NULL	longblob
-3.0000	mysql	event	definer	char	77	231	utf8	utf8_bin	char(77)
-NULL	mysql	event	execute_at	datetime	NULL	NULL	NULL	NULL	datetime
-NULL	mysql	event	interval_value	int	NULL	NULL	NULL	NULL	int(11)
-3.0000	mysql	event	interval_field	enum	18	54	utf8	utf8_general_ci	enum('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND')
-NULL	mysql	event	created	timestamp	NULL	NULL	NULL	NULL	timestamp
-NULL	mysql	event	modified	timestamp	NULL	NULL	NULL	NULL	timestamp
-NULL	mysql	event	last_executed	datetime	NULL	NULL	NULL	NULL	datetime
-NULL	mysql	event	starts	datetime	NULL	NULL	NULL	NULL	datetime
-NULL	mysql	event	ends	datetime	NULL	NULL	NULL	NULL	datetime
-3.0000	mysql	event	status	enum	18	54	utf8	utf8_general_ci	enum('ENABLED','DISABLED','SLAVESIDE_DISABLED')
-3.0000	mysql	event	on_completion	enum	8	24	utf8	utf8_general_ci	enum('DROP','PRESERVE')
-3.0000	mysql	event	sql_mode	set	478	1434	utf8	utf8_general_ci	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH')
-3.0000	mysql	event	comment	char	64	192	utf8	utf8_bin	char(64)
-NULL	mysql	event	originator	int	NULL	NULL	NULL	NULL	int(10) unsigned
-1.0000	mysql	event	time_zone	char	64	64	latin1	latin1_swedish_ci	char(64)
-3.0000	mysql	event	character_set_client	char	32	96	utf8	utf8_bin	char(32)
-3.0000	mysql	event	collation_connection	char	32	96	utf8	utf8_bin	char(32)
-3.0000	mysql	event	db_collation	char	32	96	utf8	utf8_bin	char(32)
-1.0000	mysql	event	body_utf8	longblob	4294967295	4294967295	NULL	NULL	longblob
-NULL	mysql	events	id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	mysql	events	schema_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-3.0000	mysql	events	name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
-3.0000	mysql	events	definer	varchar	77	231	utf8	utf8_bin	varchar(77)
-3.0000	mysql	events	time_zone	varchar	64	192	utf8	utf8_bin	varchar(64)
-1.0000	mysql	events	definition	longblob	4294967295	4294967295	NULL	NULL	longblob
-1.0000	mysql	events	definition_utf8	longtext	4294967295	4294967295	utf8	utf8_bin	longtext
-NULL	mysql	events	execute_at	datetime	NULL	NULL	NULL	NULL	datetime
-NULL	mysql	events	interval_value	int	NULL	NULL	NULL	NULL	int(11)
-3.0000	mysql	events	interval_field	enum	18	54	utf8	utf8_bin	enum('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND')
-3.0000	mysql	events	sql_mode	set	638	1914	utf8	utf8_bin	set('MODE_REAL_AS_FLOAT','MODE_PIPES_AS_CONCAT','MODE_ANSI_QUOTES','MODE_IGNORE_SPACE','MODE_NOT_USED','MODE_ONLY_FULL_GROUP_BY','MODE_NO_UNSIGNED_SUBTRACTION','MODE_NO_DIR_IN_CREATE','MODE_POSTGRESQL','MODE_ORACLE','MODE_MSSQL','MODE_DB2','MODE_MAXDB','MODE_NO_KEY_OPTIONS','MODE_NO_TABLE_OPTIONS','MODE_NO_FIELD_OPTIONS','MODE_MYSQL323','MODE_MYSQL40','MODE_ANSI','MODE_NO_AUTO_VALUE_ON_ZERO','MODE_NO_BACKSLASH_ESCAPES','MODE_STRICT_TRANS_TABLES','MODE_STRICT_ALL_TABLES','MODE_NO_ZERO_IN_DATE','MODE_NO_ZERO_DATE','MODE_INVALID_DATES','MODE_ERROR_FOR_DIVISION_BY_ZERO','MODE_TRADITIONAL','MODE_NO_AUTO_CREATE_USER','MODE_HIGH_NOT_PRECEDENCE','MODE_NO_ENGINE_SUBSTITUTION','MODE_PAD_CHAR_TO_FULL_LENGTH')
-NULL	mysql	events	starts	datetime	NULL	NULL	NULL	NULL	datetime
-NULL	mysql	events	ends	datetime	NULL	NULL	NULL	NULL	datetime
-3.0000	mysql	events	status	enum	18	54	utf8	utf8_bin	enum('ENABLED','DISABLED','SLAVESIDE_DISABLED')
-3.0000	mysql	events	on_completion	enum	8	24	utf8	utf8_bin	enum('DROP','PRESERVE')
-NULL	mysql	events	created	timestamp	NULL	NULL	NULL	NULL	timestamp
-NULL	mysql	events	last_altered	timestamp	NULL	NULL	NULL	NULL	timestamp
-NULL	mysql	events	last_executed	datetime	NULL	NULL	NULL	NULL	datetime
-3.0000	mysql	events	comment	varchar	2048	6144	utf8	utf8_bin	varchar(2048)
-NULL	mysql	events	originator	int	NULL	NULL	NULL	NULL	int(10) unsigned
-NULL	mysql	events	client_collation_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	mysql	events	connection_collation_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	mysql	events	schema_collation_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 3.0000	mysql	func	name	char	64	192	utf8	utf8_bin	char(64)
 NULL	mysql	func	ret	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
 3.0000	mysql	func	dl	char	128	384	utf8	utf8_bin	char(128)

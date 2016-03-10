@@ -1945,8 +1945,6 @@ ALTER TABLE proc ENGINE=heap;
 ERROR HY000: Storage engine 'MEMORY' does not support system tables. [mysql.proc]
 ALTER TABLE func ENGINE=csv;
 ERROR HY000: Storage engine 'CSV' does not support system tables. [mysql.func]
-ALTER TABLE event ENGINE=merge;
-ERROR HY000: Storage engine 'MRG_MYISAM' does not support system tables. [mysql.event]
 ALTER TABLE servers ENGINE=merge;
 ERROR HY000: Storage engine 'MRG_MYISAM' does not support system tables. [mysql.servers]
 ALTER TABLE procs_priv ENGINE=memory;
@@ -1967,8 +1965,6 @@ CREATE TABLE proc (dummy int) ENGINE=heap;
 ERROR HY000: Storage engine 'MEMORY' does not support system tables. [mysql.proc]
 CREATE TABLE func (dummy int) ENGINE=csv;
 ERROR HY000: Storage engine 'CSV' does not support system tables. [mysql.func]
-CREATE TABLE event (dummy int) ENGINE=merge;
-ERROR HY000: Storage engine 'MRG_MYISAM' does not support system tables. [mysql.event]
 CREATE TABLE servers (dummy int) ENGINE=merge;
 ERROR HY000: Storage engine 'MRG_MYISAM' does not support system tables. [mysql.servers]
 CREATE TABLE procs_priv (dummy int) ENGINE=memory;

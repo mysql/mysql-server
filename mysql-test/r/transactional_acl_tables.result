@@ -1768,8 +1768,6 @@ mysql.columns_priv_bak                             OK
 mysql.db                                           OK
 mysql.db_bak                                       OK
 mysql.engine_cost                                  OK
-mysql.event                                        OK
-mysql.events                                       OK
 mysql.func                                         OK
 mysql.general_log                                  OK
 mysql.gtid_executed                                OK

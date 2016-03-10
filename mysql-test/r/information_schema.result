@@ -101,8 +101,6 @@ column_stats
 columns_priv
 db
 engine_cost
-event
-events
 func
 general_log
 gtid_executed
@@ -850,7 +848,6 @@ information_schema	ROUTINES	ROUTINE_COMMENT
 information_schema	TRIGGERS	ACTION_CONDITION
 information_schema	TRIGGERS	ACTION_STATEMENT
 information_schema	VIEWS	VIEW_DEFINITION
-mysql	events	definition_utf8
 mysql	routines	definition_utf8
 mysql	triggers	action_statement_utf8
 select table_name, column_name, data_type from information_schema.columns
@@ -879,14 +876,6 @@ TABLES	CREATE_TIME	datetime
 TABLES	UPDATE_TIME	datetime
 TABLES	CHECK_TIME	datetime
 TRIGGERS	CREATED	datetime
-event	execute_at	datetime
-event	last_executed	datetime
-event	starts	datetime
-event	ends	datetime
-events	execute_at	datetime
-events	starts	datetime
-events	ends	datetime
-events	last_executed	datetime
 SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES A
 WHERE NOT EXISTS
 (SELECT * FROM INFORMATION_SCHEMA.COLUMNS B
@@ -946,7 +935,7 @@ AND table_name not like 'ndb%' AND table_name not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
 information_schema	31
-mysql	33
+mysql	31
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
 begin

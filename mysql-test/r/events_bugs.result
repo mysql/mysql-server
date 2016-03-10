@@ -49,7 +49,6 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 create event e_55 on schedule every 10 hour starts 10000101000000 do drop table t;
 ERROR HY000: Incorrect STARTS value: '10000101000000'
 set global event_scheduler=off;
-delete from mysql.event;
 set global event_scheduler= on;
 set @old_sql_mode:=@@sql_mode;
 set sql_mode=ansi;
@@ -668,10 +667,10 @@ CREATE EVENT e1 ON SCHEDULE AT '2020-01-01 00:00:00' DO SET @a = 1;
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
 
 ALTER EVENT e1 COMMENT 'comment';
-ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+ERROR HY000: Unknown event 'e1'
 
 DROP EVENT e1;
-ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+ERROR HY000: Unknown event 'e1'
 
 #
 # Connection: root_con (root@localhost/events_test).
@@ -754,9 +753,8 @@ select @@sql_mode into @full_mode;
 set @@sql_mode= @old_mode;
 select replace(@full_mode, ',,,', ',NOT_USED,') into @full_mode;
 select replace(@full_mode, 'ALLOW_INVALID_DATES', 'INVALID_DATES') into @full_mode;
-select name from mysql.event where name = 'e1' and sql_mode = @full_mode;
-name
-e1
+select event_name from information_schema.events where event_name = 'e1' and sql_mode = @full_mode;
+event_name
 drop event e1;
 SET @old_server_id = @@GLOBAL.server_id;
 SET GLOBAL server_id = (1 << 32) - 1;
@@ -831,24 +829,6 @@ event_test11764334	ev1	root@localhost	SYSTEM	RECURRING	NULL	4	SECOND	#	#	DISABLE
 DROP EVENT ev1;
 DROP DATABASE event_test11764334;
 USE test;
-#
-# BUG#18311187 - SQL_MODE IS CHANGED TO WRONG VALUE AFTER DUMP/DATA
-#                UPGRADE FOR TRIGGERS
-#
-# Check that Inserting NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes
-# manually into mysql.event table do not show up in SHOW CREATE event OUTPUT.
-#
-INSERT IGNORE INTO mysql.event VALUES ('test','ev1','select 1','root@localhost','NULL','1','SECOND','1970-01-01 05:30:00','1970-01-01 05:30:00','NULL','1970-01-01 05:30:00','NULL','ENABLED','DROP','NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,STRICT_ALL_TABLES','','0','SYSTEM', 'utf8', 'utf8_general_ci', 'latin1_swedish_ci', 'select 1');
-Warnings:
-Warning	1265	Data truncated for column 'execute_at' at row 1
-Warning	1265	Data truncated for column 'last_executed' at row 1
-Warning	1265	Data truncated for column 'ends' at row 1
-# NO_ZERO_* modes should not show up in the output.
-SHOW CREATE EVENT ev1;
-Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-ev1	STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `ev1` ON SCHEDULE EVERY 1 SECOND STARTS '1970-01-01 08:30:00' ENDS '1970-01-01 03:00:00' ON COMPLETION NOT PRESERVE ENABLE DO select 1	utf8	utf8_general_ci	latin1_swedish_ci
-# Clean-up
-DROP EVENT ev1;
 #
 # Bug#17435114 ASSERTION FAILED: THD->LEX->LOCK_TABLES_STATE == QUERY_TABLES_LIST::LTS_NOT_LOCK
 #

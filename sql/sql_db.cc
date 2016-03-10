@@ -459,8 +459,11 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
   }
 
   /* Lock all tables and stored routines about to be dropped. */
-  if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout, 0) ||
-      lock_db_routines(thd, db.str))
+  if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout, 0)
+#ifndef EMBEDDED_LIBRARY
+      || Events::lock_schema_events(thd, db.str)
+#endif
+      || lock_db_routines(thd, db.str))
     DBUG_RETURN(true);
 
   /* mysql_ha_rm_tables() requires a non-null TABLE_LIST. */
@@ -503,10 +506,10 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
     ha_drop_database(path);
     tmp_disable_binlog(thd);
     query_cache.invalidate(thd, db.str);
-    (void) sp_drop_db_routines(thd, db.str); /* @todo Do not ignore errors */
 #ifndef EMBEDDED_LIBRARY
-    Events::drop_schema_events(thd, db.str);
+    (void) Events::drop_schema_events(thd, db.str); /* @todo Do not ignore errors */
 #endif
+    (void) sp_drop_db_routines(thd, db.str); /* @todo Do not ignore errors */
     reenable_binlog(thd);
     thd->clear_error(); /* @todo Do not ignore errors */
 

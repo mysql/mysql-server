@@ -11,13 +11,6 @@ def	mysql	PRIMARY	mysql	columns_priv	PRIMARY KEY
 def	mysql	PRIMARY	mysql	column_stats	PRIMARY KEY
 def	mysql	PRIMARY	mysql	db	PRIMARY KEY
 def	mysql	PRIMARY	mysql	engine_cost	PRIMARY KEY
-def	mysql	PRIMARY	mysql	event	PRIMARY KEY
-def	mysql	events_ibfk_1	mysql	events	FOREIGN KEY
-def	mysql	events_ibfk_2	mysql	events	FOREIGN KEY
-def	mysql	events_ibfk_3	mysql	events	FOREIGN KEY
-def	mysql	events_ibfk_4	mysql	events	FOREIGN KEY
-def	mysql	PRIMARY	mysql	events	PRIMARY KEY
-def	mysql	schema_id	mysql	events	UNIQUE
 def	mysql	PRIMARY	mysql	func	PRIMARY KEY
 def	mysql	PRIMARY	mysql	gtid_executed	PRIMARY KEY
 def	mysql	name	mysql	help_category	UNIQUE

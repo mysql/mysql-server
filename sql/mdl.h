@@ -149,6 +149,10 @@ enum enum_mdl_type {
     An intention exclusive metadata lock. Used only for scoped locks.
     Owner of this type of lock can acquire upgradable exclusive locks on
     individual objects.
+    This lock type is also used when doing lookups in the dictionary
+    cache. When acquiring objects in a schema, we lock the schema with IX
+    to prevent the schema from being deleted. This should conceptually
+    be an IS lock, but it would have the same behavior as the current IX.
     Compatible with other IX locks, but is incompatible with scoped S and
     X locks.
   */

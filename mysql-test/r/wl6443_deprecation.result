@@ -113,8 +113,6 @@ mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
-mysql.event                                        OK
-mysql.events                                       OK
 mysql.func                                         OK
 mysql.general_log                                  OK
 mysql.gtid_executed                                OK
@@ -159,8 +157,6 @@ mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
-mysql.event                                        OK
-mysql.events                                       OK
 mysql.func                                         OK
 mysql.general_log                                  OK
 mysql.gtid_executed                                OK
@@ -200,8 +196,6 @@ mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
-mysql.event                                        OK
-mysql.events                                       OK
 mysql.func                                         OK
 mysql.general_log                                  OK
 mysql.gtid_executed                                OK

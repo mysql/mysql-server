@@ -7162,22 +7162,19 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
 
 #ifndef EMBEDDED_LIBRARY
 /*
-  Loads an event from mysql.event and copies it's data to a row of
+  Loads an event from the Data Dictionary and copies it's data to a row of
   I_S.EVENTS
 
-  Synopsis
-    copy_event_to_schema_table()
-      thd         Thread
-      sch_table   The schema table (information_schema.event)
-      event_table The event table to use for loading (mysql.event).
+  @param    thd         THD context
+  @param    sch_table   The schema table (information_schema.events)
+  @param    event_obj   The event object containing the Event information.
 
-  Returns
-    0  OK
-    1  Error
+  @returns 0 on success 1 on error.
 */
 
 int
-copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
+copy_event_to_schema_table(THD *thd, TABLE *sch_table,
+                           const dd::Event &event_obj, const char *db)
 {
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
   CHARSET_INFO *scs= system_charset_info;
@@ -7186,14 +7183,15 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   DBUG_ENTER("copy_event_to_schema_table");
 
   restore_record(sch_table, s->default_values);
-
-  if (et.load_from_row(thd, event_table))
+  if (et.fill_event_info(thd, event_obj, db))
   {
-    my_error(ER_CANNOT_LOAD_FROM_TABLE_V2, MYF(0), "mysql", "event");
+    my_error(ER_INTERNAL_ERROR, MYF(0),
+             "Cannot load data for Event from Data Dictionary");
     DBUG_RETURN(1);
   }
 
-  if (!(!wild || !wild[0] || !wild_case_compare(scs, et.name.str, wild)))
+  if (!(!wild || !wild[0] || !wild_case_compare(scs, et.m_event_name.str,
+                                                wild)))
     DBUG_RETURN(0);
 
   /*
@@ -7202,60 +7200,59 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     has access.
   */
   if (thd->lex->sql_command != SQLCOM_SHOW_EVENTS &&
-      check_access(thd, EVENT_ACL, et.dbname.str, NULL, NULL, 0, 1))
+      check_access(thd, EVENT_ACL, et.m_schema_name.str, NULL, NULL, 0, 1))
     DBUG_RETURN(0);
 
   sch_table->field[ISE_EVENT_CATALOG]->store(STRING_WITH_LEN("def"), scs);
-  sch_table->field[ISE_EVENT_SCHEMA]->
-                                store(et.dbname.str, et.dbname.length,scs);
-  sch_table->field[ISE_EVENT_NAME]->
-                                store(et.name.str, et.name.length, scs);
-  sch_table->field[ISE_DEFINER]->
-                                store(et.definer.str, et.definer.length, scs);
-  const String *tz_name= et.time_zone->get_name();
-  sch_table->field[ISE_TIME_ZONE]->
-                                store(tz_name->ptr(), tz_name->length(), scs);
-  sch_table->field[ISE_EVENT_BODY]->
-                                store(STRING_WITH_LEN("SQL"), scs);
-  sch_table->field[ISE_EVENT_DEFINITION]->store(
-    et.body_utf8.str, et.body_utf8.length, scs);
+  sch_table->field[ISE_EVENT_SCHEMA]->store(et.m_schema_name.str,
+                                            et.m_schema_name.length, scs);
+  sch_table->field[ISE_EVENT_NAME]->store(et.m_event_name.str,
+                                          et.m_event_name.length, scs);
+  sch_table->field[ISE_DEFINER]->store(et.m_definer.str,
+                                       et.m_definer.length, scs);
+  const String *tz_name= et.m_time_zone->get_name();
+  sch_table->field[ISE_TIME_ZONE]->store(tz_name->ptr(),
+                                         tz_name->length(), scs);
+  sch_table->field[ISE_EVENT_BODY]->store(STRING_WITH_LEN("SQL"), scs);
+  sch_table->field[ISE_EVENT_DEFINITION]->store(et.m_definition_utf8.str,
+                                                et.m_definition_utf8.length,
+                                                scs);
 
   /* SQL_MODE */
   {
     LEX_STRING sql_mode;
-    sql_mode_string_representation(thd, et.sql_mode, &sql_mode);
-    sch_table->field[ISE_SQL_MODE]->
-                                store(sql_mode.str, sql_mode.length, scs);
+    sql_mode_string_representation(thd, et.m_sql_mode, &sql_mode);
+    sch_table->field[ISE_SQL_MODE]->store(sql_mode.str, sql_mode.length, scs);
   }
 
   int not_used=0;
 
-  if (et.expression)
+  if (et.m_expression)
   {
     String show_str;
     /* type */
     sch_table->field[ISE_EVENT_TYPE]->store(STRING_WITH_LEN("RECURRING"), scs);
 
-    if (Events::reconstruct_interval_expression(&show_str, et.interval,
-                                                et.expression))
+    if (Events::reconstruct_interval_expression(&show_str, et.m_interval,
+                                                et.m_expression))
       DBUG_RETURN(1);
 
     sch_table->field[ISE_INTERVAL_VALUE]->set_notnull();
-    sch_table->field[ISE_INTERVAL_VALUE]->
-                                store(show_str.ptr(), show_str.length(), scs);
+    sch_table->field[ISE_INTERVAL_VALUE]->store(show_str.ptr(),
+                                                show_str.length(), scs);
 
-    LEX_STRING *ival= &interval_type_to_name[et.interval];
+    LEX_STRING *ival= &interval_type_to_name[et.m_interval];
     sch_table->field[ISE_INTERVAL_FIELD]->set_notnull();
     sch_table->field[ISE_INTERVAL_FIELD]->store(ival->str, ival->length, scs);
 
     /* starts & ends . STARTS is always set - see sql_yacc.yy */
-    et.time_zone->gmt_sec_to_TIME(&time, et.starts);
+    et.m_time_zone->gmt_sec_to_TIME(&time, et.m_starts);
     sch_table->field[ISE_STARTS]->set_notnull();
     sch_table->field[ISE_STARTS]->store_time(&time);
 
-    if (!et.ends_null)
+    if (!et.m_ends_null)
     {
-      et.time_zone->gmt_sec_to_TIME(&time, et.ends);
+      et.m_time_zone->gmt_sec_to_TIME(&time, et.m_ends);
       sch_table->field[ISE_ENDS]->set_notnull();
       sch_table->field[ISE_ENDS]->store_time(&time);
     }
@@ -7265,14 +7262,14 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     /* type */
     sch_table->field[ISE_EVENT_TYPE]->store(STRING_WITH_LEN("ONE TIME"), scs);
 
-    et.time_zone->gmt_sec_to_TIME(&time, et.execute_at);
+    et.m_time_zone->gmt_sec_to_TIME(&time, et.m_execute_at);
     sch_table->field[ISE_EXECUTE_AT]->set_notnull();
     sch_table->field[ISE_EXECUTE_AT]->store_time(&time);
   }
 
   /* status */
 
-  switch (et.status)
+  switch (et.m_status)
   {
     case Event_parse_data::ENABLED:
       sch_table->field[ISE_STATUS]->store(STRING_WITH_LEN("ENABLED"), scs);
@@ -7287,51 +7284,51 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     default:
       DBUG_ASSERT(0);
   }
-  sch_table->field[ISE_ORIGINATOR]->store(et.originator, TRUE);
+  sch_table->field[ISE_ORIGINATOR]->store(et.m_originator, TRUE);
 
   /* on_completion */
-  if (et.on_completion == Event_parse_data::ON_COMPLETION_DROP)
+  if (et.m_on_completion == Event_parse_data::ON_COMPLETION_DROP)
     sch_table->field[ISE_ON_COMPLETION]->
                                 store(STRING_WITH_LEN("NOT PRESERVE"), scs);
   else
     sch_table->field[ISE_ON_COMPLETION]->
                                 store(STRING_WITH_LEN("PRESERVE"), scs);
-    
-  number_to_datetime(et.created, &time, 0, &not_used);
+
+  number_to_datetime(et.m_created, &time, 0, &not_used);
   DBUG_ASSERT(not_used==0);
   sch_table->field[ISE_CREATED]->store_time(&time);
 
-  number_to_datetime(et.modified, &time, 0, &not_used);
+  number_to_datetime(et.m_modified, &time, 0, &not_used);
   DBUG_ASSERT(not_used==0);
   sch_table->field[ISE_LAST_ALTERED]->store_time(&time);
 
-  if (et.last_executed)
+  if (et.m_last_executed)
   {
-    et.time_zone->gmt_sec_to_TIME(&time, et.last_executed);
+    et.m_time_zone->gmt_sec_to_TIME(&time, et.m_last_executed);
     sch_table->field[ISE_LAST_EXECUTED]->set_notnull();
     sch_table->field[ISE_LAST_EXECUTED]->store_time(&time);
   }
 
-  if (et.comment.length > 0)
+  if (et.m_comment.length > 0)
     sch_table->field[ISE_EVENT_COMMENT]->
-                      store(et.comment.str, et.comment.length, scs);
+      store(et.m_comment.str, et.m_comment.length, scs);
 
   sch_table->field[ISE_CLIENT_CS]->set_notnull();
   sch_table->field[ISE_CLIENT_CS]->store(
-    et.creation_ctx->get_client_cs()->csname,
-    strlen(et.creation_ctx->get_client_cs()->csname),
+    et.m_creation_ctx->get_client_cs()->csname,
+    strlen(et.m_creation_ctx->get_client_cs()->csname),
     scs);
 
   sch_table->field[ISE_CONNECTION_CL]->set_notnull();
   sch_table->field[ISE_CONNECTION_CL]->store(
-    et.creation_ctx->get_connection_cl()->name,
-    strlen(et.creation_ctx->get_connection_cl()->name),
+    et.m_creation_ctx->get_connection_cl()->name,
+    strlen(et.m_creation_ctx->get_connection_cl()->name),
     scs);
 
   sch_table->field[ISE_DB_CL]->set_notnull();
   sch_table->field[ISE_DB_CL]->store(
-    et.creation_ctx->get_db_cl()->name,
-    strlen(et.creation_ctx->get_db_cl()->name),
+    et.m_creation_ctx->get_db_cl()->name,
+    strlen(et.m_creation_ctx->get_db_cl()->name),
     scs);
 
   if (schema_table_store_record(thd, sch_table))
