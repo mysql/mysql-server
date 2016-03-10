@@ -275,7 +275,22 @@ void *Scheduler_dynamic::worker()
     m_thread_exit_cond.signal();
   }
 
+  m_terminating_workers.push(my_thread_self());
+
   return NULL;
+}
+
+void Scheduler_dynamic::join_terminating_workers()
+{
+  my_thread_t tid;
+  while (m_terminating_workers.pop(tid))
+  {
+    Thread_t thread;
+    if (m_threads.remove_if(thread, boost::bind(Scheduler_dynamic::thread_id_matches, _1, tid)))
+    {
+      ngs::thread_join(&thread, NULL);
+    }
+  }
 }
 
 
@@ -284,6 +299,8 @@ void Scheduler_dynamic::create_thread()
   if (is_running())
   {
     Thread_t thread;
+    join_terminating_workers();
+
     ngs::thread_create(0, &thread, NULL, worker_proxy, this);
     increase_workers_count();
     m_threads.push(thread);
