@@ -2260,3 +2260,13 @@ JSON_OBJECT('a', a MOD 1)
 {"a": 0}
 {"a": 0}
 DROP TABLE t1;
+#
+# Bug#22883278 UNINITIALIZED SIGN:DECIMAL_CMP WHEN DIVIDING BY
+#              RESULT OF FAILED LEAST()
+SELECT -1 DIV LEAST(1,JSON_INSERT(1, '$[1]','','',''));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_insert; a JSON string or JSON type is required.
+SELECT -1 DIV LEAST(1, JSON_EXTRACT('1', '$.abc'));
+-1 DIV LEAST(1, JSON_EXTRACT('1', '$.abc'))
+NULL
+Warnings:
+Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the LEAST and GREATEST operators'
