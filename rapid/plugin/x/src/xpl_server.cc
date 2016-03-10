@@ -126,6 +126,7 @@ xpl::Server::Server(my_socket tcp_socket, boost::shared_ptr<ngs::Scheduler_dynam
   m_wscheduler(wscheduler),
   m_server(tcp_socket, wscheduler, this, config)
 {
+  m_acceptor_thread.thread = 0;
 }
 
 
@@ -280,6 +281,7 @@ int xpl::Server::main(MYSQL_PLUGIN p)
     my_socket tcp_socket = ngs::Connection_vio::create_and_bind_socket(Plugin_system_variables::xport);
 
     instance_rwl.wlock();
+
     exiting = false;
     instance = new Server(tcp_socket, thd_scheduler, boost::make_shared<ngs::Protocol_config>());
 
@@ -304,6 +306,8 @@ int xpl::Server::main(MYSQL_PLUGIN p)
   }
   catch(const std::exception &e)
   {
+    if (instance)
+      instance->server().start_failed();
     instance_rwl.unlock();
     my_plugin_log_message(&xpl::plugin_handle, MY_ERROR_LEVEL, "Startup failed with error \"%s\"", e.what());
     return 1;
@@ -327,10 +331,13 @@ int xpl::Server::exit(MYSQL_PLUGIN p)
     // successful
     instance->server().stop();
 
-    void *ret;
-    log_info("Waiting for acceptor thread to finish...");
-    ngs::thread_join(&instance->m_acceptor_thread, &ret);
-    log_info("Acceptor thread finished");
+    if (0 != instance->m_acceptor_thread.thread)
+    {
+      void *ret;
+      log_info("Waiting for acceptor thread to finish...");
+      ngs::thread_join(&instance->m_acceptor_thread, &ret);
+      log_info("Acceptor thread finished");
+    }
 
     xpl::Plugin_system_variables::clean_callbacks();
 
