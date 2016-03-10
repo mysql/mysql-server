@@ -327,7 +327,7 @@ is a tablespace with encryption. */
 		<< FSP_FLAGS_POS_TEMPORARY)
 /** Bit mask of the SDI field */
 #define FSP_FLAGS_MASK_SDI					\
-		((~(~0 << FSP_FLAGS_WIDTH_SDI))			\
+		((~(~0U << FSP_FLAGS_WIDTH_SDI))			\
 		<< FSP_FLAGS_POS_SDI)
 /** Bit mask of the ENCRYPTION field */
 #define FSP_FLAGS_MASK_ENCRYPTION				\
