@@ -66,6 +66,7 @@ namespace ngs
 
     bool is_worker_thread(my_thread_t thread_id);
     bool is_running();
+    void join_terminating_workers();
 
   private:
     template<typename Element_type>
@@ -102,6 +103,22 @@ namespace ngs
         return true;
       }
 
+      bool remove_if(Element_type &result, boost::function<bool(Element_type &)> matches)
+      {
+        Mutex_lock guard(m_access_mutex);
+        for (typename std::list<Element_type>::iterator it = m_list.begin(); it != m_list.end(); ++it)
+        {
+          if (matches(*it))
+          {
+            result = *it;
+            m_list.erase(it);
+            return true;
+          }
+        }
+
+        return false;
+      }
+
     private:
       Mutex m_access_mutex;
       std::list<Element_type> m_list;
@@ -115,6 +132,11 @@ namespace ngs
 
     void create_thread();
     void create_min_num_workers();
+
+    static bool thread_id_matches(Thread_t& thread, my_thread_t id)
+    {
+      return thread.thread == id;
+    }
 
     int32 increase_workers_count();
     int32 decrease_workers_count();
@@ -135,6 +157,7 @@ namespace ngs
     //boost::lockfree::queue<Task*> m_tasks;
     lock_list<Task *> m_tasks;
     lock_list<Thread_t> m_threads;
+    lock_list<my_thread_t> m_terminating_workers;
     boost::scoped_ptr<Monitor> m_monitor;
   };
 }
