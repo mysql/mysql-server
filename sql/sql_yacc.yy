@@ -427,7 +427,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %expect 121
 
 /*
-   Comments for TOKENS.
+   MAINTAINER:
+
+   1) Comments for TOKENS.
+
    For each token, please include in the same line a comment that contains
    the following tags:
    SQL-2003-R : Reserved keyword as per SQL-2003
@@ -441,6 +444,37 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
    FUTURE-USE : Reserved for futur use
 
    This makes the code grep-able, and helps maintenance.
+
+   2) About token values
+
+   Token values are assigned by bison, in order of declaration.
+
+   Token values are used in query DIGESTS.
+   To make DIGESTS stable, it is desirable to avoid changing token values.
+
+   In practice, this means adding new tokens at the end of the list,
+   in the current release section (5.8),
+   instead of adding them in the middle of the list.
+
+   Failing to comply with instructions below will trigger build failure,
+   as this process is enforced by gen_lex_token.
+
+   3) Instructions to add a new token:
+
+   Add the new token at the end of the list,
+   in the MySQL 5.8 section.
+
+   4) Instructions to remove an old token:
+
+   Do not remove the token, rename it as follows:
+   %token OBSOLETE_TOKEN_<NNN> / * was: TOKEN_FOO * /
+   where NNN is the token value (found in sql_yacc.h)
+
+   For example, see OBSOLETE_TOKEN_820
+*/
+
+/*
+   Tokens from MySQL 5.7, keep in alphabetical order.
 */
 
 %token  ABORT_SYM                     /* INTERNAL (used in lex) */
@@ -700,7 +734,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  ITERATE_SYM
 %token  JOIN_SYM                      /* SQL-2003-R */
 %token  JSON_SEPARATOR_SYM            /* MYSQL */
-%token  JSON_UNQUOTED_SEPARATOR_SYM   /* MYSQL */
 %token  JSON_SYM                      /* MYSQL */
 %token  KEYS
 %token  KEY_BLOCK_SIZE
@@ -1006,6 +1039,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  SYSDATE
 %token  TABLES
 %token  TABLESPACE_SYM
+%token  OBSOLETE_TOKEN_820            /* was: TABLE_REF_PRIORITY */
 %token  TABLE_SYM                     /* SQL-2003-R */
 %token  TABLE_CHECKSUM_SYM
 %token  TABLE_NAME_SYM                /* SQL-2003-N */
@@ -1092,6 +1126,12 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  YEAR_MONTH_SYM
 %token  YEAR_SYM                      /* SQL-2003-R */
 %token  ZEROFILL
+
+/*
+   Tokens from MySQL 5.8
+*/
+
+%token  JSON_UNQUOTED_SEPARATOR_SYM   /* MYSQL */
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
