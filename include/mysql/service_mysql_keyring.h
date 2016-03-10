@@ -20,7 +20,7 @@
 extern "C" {
 #endif
 
-extern struct mysql_keyring_file_service_st
+extern struct mysql_keyring_service_st
 {
   int (*my_key_store_func)(const char *, const char *, const char *,
                            const void *, size_t);
@@ -29,21 +29,21 @@ extern struct mysql_keyring_file_service_st
   int (*my_key_remove_func)(const char *, const char *);
   int (*my_key_generate_func)(const char *, const char *, const char *,
                               size_t);
-} *mysql_keyring_file_service;
+} *mysql_keyring_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 
 #define my_key_store(key_id, key_type, user_id, key, key_len) \
-  mysql_keyring_file_service->my_key_store_func(key_id, key_type, user_id, key, \
-                                                key_len)
+  mysql_keyring_service->my_key_store_func(key_id, key_type, user_id, key, \
+                                           key_len)
 #define my_key_fetch(key_id, key_type, user_id, key, key_len) \
-  mysql_keyring_file_service->my_key_fetch_func(key_id, key_type, user_id, key, \
-                                                key_len)
+  mysql_keyring_service->my_key_fetch_func(key_id, key_type, user_id, key, \
+                                           key_len)
 #define my_key_remove(key_id, user_id) \
-  mysql_keyring_file_service->my_key_remove_func(key_id, user_id)
+  mysql_keyring_service->my_key_remove_func(key_id, user_id)
 #define my_key_generate(key_id, key_type, user_id, key_len) \
-  mysql_keyring_file_service->my_key_generate_func(key_id, key_type, user_id, \
-                                                   key_len)
+  mysql_keyring_service->my_key_generate_func(key_id, key_type, user_id, \
+                                              key_len)
 #else
 
 int my_key_store(const char *, const char *, const char *, const void *, size_t);
