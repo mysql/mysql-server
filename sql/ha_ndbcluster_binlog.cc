@@ -5291,13 +5291,11 @@ ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
 
   This wait is however not strictly neccessary to produce a binlog
   that is usable.  However the slave does not currently handle
-  these out of order, thus we are keeping the SYNC_DROP_ defined
-  for now.
+  these out of order.
 */
   const char *save_proc_info= thd->proc_info;
-#define SYNC_DROP_
-#ifdef SYNC_DROP_
   thd->proc_info= "Syncing ndb table schema operation and binlog";
+
   native_mutex_lock(&share->mutex);
   int max_timeout= DEFAULT_SYNC_TIMEOUT;
   while (share->op)
@@ -5310,9 +5308,9 @@ ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
     // only use injector_cond with injector_mutex)
     native_mutex_unlock(&share->mutex);
     native_mutex_lock(&injector_mutex);
-    int ret= native_cond_timedwait(&injector_cond,
-                                    &injector_mutex,
-                                    &abstime);
+    const int ret= native_cond_timedwait(&injector_cond,
+                                         &injector_mutex,
+                                         &abstime);
     native_mutex_unlock(&injector_mutex);
     native_mutex_lock(&share->mutex);
 
@@ -5335,11 +5333,7 @@ ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
     }
   }
   native_mutex_unlock(&share->mutex);
-#else
-  native_mutex_lock(&share->mutex);
-  share->op= 0;
-  native_mutex_unlock(&share->mutex);
-#endif
+
   thd->proc_info= save_proc_info;
 
   DBUG_RETURN(0);
