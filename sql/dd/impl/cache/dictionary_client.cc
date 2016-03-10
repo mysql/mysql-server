@@ -28,7 +28,9 @@
 #include "dd/types/charset.h"                // Charset
 #include "dd/types/collation.h"              // Collation
 #include "dd/types/event.h"                  // Event
+#include "dd/types/function.h"               // Function
 #include "dd/types/fwd.h"                    // Schema_const_iterator
+#include "dd/types/procedure.h"              // Procedure
 #include "dd/types/schema.h"                 // Schema
 #include "dd/types/table.h"                  // Table
 #include "dd/types/tablespace.h"             // Tablespace
@@ -42,6 +44,7 @@
 #include "dd/impl/tables/character_sets.h"   // create_name_key()
 #include "dd/impl/tables/collations.h"       // create_name_key()
 #include "dd/impl/tables/events.h"           // create_name_key()
+#include "dd/impl/tables/routines.h"         // create_name_key()
 #include "dd/impl/tables/schemata.h"         // create_name_key()
 #include "dd/impl/tables/tables.h"           // create_name_key()
 #include "dd/impl/tables/tablespaces.h"      // create_name_key()
@@ -71,10 +74,11 @@ private:
 
     @note For temporary tables, we have no locks.
 
-    @param   thd          Thread context.
-    @param   schema_name  Schema name to use in the MDL key.
-    @param   table        Table object.
-    @param   lock_type    Weakest lock type accepted.
+    @param   thd            Thread context.
+    @param   schema_name    Schema name to use in the MDL key.
+    @param   object_name    Object name to use in the MDL key.
+    @param   mdl_namespace  MDL key namespace to use.
+    @param   lock_type      Weakest lock type accepted.
 
     @return true if we have the required lock, otherwise false.
   */
@@ -96,7 +100,7 @@ private:
     // of the schema name.
     char schema_name_buf[NAME_LEN + 1];
     return thd->mdl_context.owns_equal_or_stronger_lock(
-                              MDL_key::TABLE,
+                              mdl_namespace,
                               schema_name,
                               object_name,
                               lock_type) ||
@@ -203,6 +207,57 @@ private:
 
     return false;
   }
+
+
+  /**
+    Private helper function for asserting MDL for routines.
+
+    @note We need to retrieve the schema name, since this is required
+          for the MDL key.
+
+    @param   thd          Thread context.
+    @param   routine      Routine object.
+    @param   lock_type    Weakest lock type accepted.
+
+    @return true if we have the required lock, otherwise false.
+  */
+
+  static bool is_locked(THD *thd, const dd::Routine *routine,
+                        enum_mdl_type lock_type)
+  {
+    // The schema must be auto released to avoid disturbing the context
+    // at the origin of the function call.
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Schema *schema= NULL;
+
+    // If the schema acquisition fails, we cannot assure that we have a lock,
+    // and therefore return false.
+    if (thd->dd_client()->acquire<dd::Schema>(routine->schema_id(), &schema))
+      return false;
+
+    MDL_key::enum_mdl_namespace mdl_namespace= MDL_key::FUNCTION;
+    if (routine->type() == dd::Routine::RT_PROCEDURE)
+      mdl_namespace= MDL_key::PROCEDURE;
+
+    // Routine names are case in-sensitive to MDL's are taken
+    // on lower case names.
+    char lc_routine_name[NAME_LEN + 1];
+    my_stpcpy(lc_routine_name, routine->name().c_str());
+    my_casedn_str(system_charset_info, lc_routine_name);
+
+    // Likewise, if there is no schema, we cannot have a proper lock.
+    // @todo This may happen during bootstrapping since the meta data for the
+    // system schema is not stored yet. To be fixed in wl#6394. TODO_WL6394.
+    if (schema)
+      return is_locked(thd, schema->name().c_str(), lc_routine_name,
+                       mdl_namespace, lock_type);
+    else if (routine->schema_id() == 1)
+      return is_locked(thd, MYSQL_SCHEMA_NAME.str, lc_routine_name,
+                       mdl_namespace, lock_type);
+
+    return false;
+  }
+
 
   /**
     Private helper function for asserting MDL for schemata.
@@ -345,6 +400,20 @@ public:
     return (thd->is_dd_system_thread() ||
             is_locked(thd, event, MDL_SHARED));
   }
+
+  // Reading a Routine object should be governed at least MDL_SHARED.
+  static bool is_read_locked(THD *thd, const dd::Routine *routine)
+  {
+    return (thd->is_dd_system_thread() ||
+            is_locked(thd, routine, MDL_SHARED));
+  }
+
+  // Writing a Routine object should be governed by MDL_EXCLUSIVE.
+  static bool is_write_locked(THD *thd, const dd::Routine *routine)
+  {
+    return (thd->is_dd_system_thread() ||
+            is_locked(thd, routine, MDL_EXCLUSIVE));
+  }
 };
 }
 
@@ -412,6 +481,7 @@ Dictionary_client::Auto_releaser::~Auto_releaser()
   m_client->release<Charset>(&m_release_registry);
   m_client->release<Collation>(&m_release_registry);
   m_client->release<Event>(&m_release_registry);
+  m_client->release<Routine>(&m_release_registry);
 
   // Restore the client's previous releaser.
   m_client->m_current_releaser= m_prev;
@@ -549,7 +619,8 @@ size_t Dictionary_client::release(Object_registry *registry)
           release<Tablespace>(registry) +
           release<Charset>(registry) +
           release<Collation>(registry) +
-          release<Event>(registry);
+          release<Event>(registry) +
+          release<Routine>(registry);
 }
 
 
@@ -1129,7 +1200,7 @@ bool Dictionary_client::fetch_schema_component_names(
 
   // Create the key based on the schema id.
   std::unique_ptr<Object_key> object_key(
-    dd::tables::Tables::create_key_by_schema_id(schema->id()));
+    T::cache_partition_table_type::create_key_by_schema_id(schema->id()));
 
   // Retrieve a set of the schema components, and add the component names
   // to the vector output parameter.
@@ -1536,6 +1607,10 @@ template bool Dictionary_client::fetch_schema_components(
     const Schema*,
     std::unique_ptr<Event_const_iterator>*) const;
 
+template bool Dictionary_client::fetch_schema_components(
+    const Schema*,
+    std::unique_ptr<Routine_const_iterator>*) const;
+
 template bool Dictionary_client::fetch_catalog_components(
     std::unique_ptr<Schema_const_iterator>*) const;
 
@@ -1552,10 +1627,10 @@ template bool Dictionary_client::fetch_global_components(
 
 template bool Dictionary_client::fetch_global_components(
      std::unique_ptr<Schema_const_iterator>*) const;
+
 template bool Dictionary_client::fetch_schema_component_names<Abstract_table>(
     const Schema*,
     std::vector<std::string>*) const;
-
 
 template bool Dictionary_client::fetch_schema_component_names<Event>(
     const Schema*,
@@ -1695,6 +1770,47 @@ template void Dictionary_client::add_and_reset_id(Event*);
 template void Dictionary_client::set_sticky(const Event*, bool);
 template bool Dictionary_client::is_sticky(const Event*) const;
 
+
+template bool Dictionary_client::acquire_uncached(Object_id,
+                                                  const Function**);
+template bool Dictionary_client::acquire(Object_id,
+                                         const Function**);
+template bool Dictionary_client::acquire(const std::string&,
+                                         const std::string&,
+                                         const Function**);
+template bool Dictionary_client::acquire_uncached(const std::string&,
+                                                  const std::string&,
+                                                  const Function**);
+template bool Dictionary_client::drop(const Function*);
+template bool Dictionary_client::store(Function*);
+template bool Dictionary_client::update(const Function**, Function*,  bool);
+template void Dictionary_client::add_and_reset_id(Function*);
+template void Dictionary_client::set_sticky(const Function*, bool);
+template bool Dictionary_client::is_sticky(const Function*) const;
+
+
+template bool Dictionary_client::acquire_uncached(Object_id,
+                                                  const Procedure**);
+template bool Dictionary_client::acquire(Object_id,
+                                         const Procedure**);
+template bool Dictionary_client::acquire(const std::string&,
+                                         const std::string&,
+                                         const Procedure**);
+template bool Dictionary_client::acquire_uncached(const std::string&,
+                                                  const std::string&,
+                                                  const Procedure**);
+template bool Dictionary_client::drop(const Procedure*);
+template bool Dictionary_client::store(Procedure*);
+template bool Dictionary_client::update(const Procedure**, Procedure*, bool);
+template void Dictionary_client::add_and_reset_id(Procedure*);
+template void Dictionary_client::set_sticky(const Procedure*, bool);
+template bool Dictionary_client::is_sticky(const Procedure*) const;
+
+template bool Dictionary_client::drop(const Routine*);
+template bool Dictionary_client::update(const Routine**, Routine*, bool);
+
+template bool Dictionary_client::acquire_uncached(Object_id,
+                                                  const Routine**);
 /**
  @endcond
 */

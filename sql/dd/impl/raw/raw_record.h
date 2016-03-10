@@ -17,7 +17,6 @@
 #define DD__RAW_RECORD_INCLUDED
 
 #include "my_global.h"
-#include "tztime.h"
 
 #include "dd/object_id.h"      // dd::Object_id
 

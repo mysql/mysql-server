@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "dd/types/charset.h"                // Charset
 #include "dd/types/collation.h"              // Collation
 #include "dd/types/event.h"                  // Event
+#include "dd/types/routine.h"                // Routine
 #include "dd/types/schema.h"                 // Schema
 #include "dd/types/tablespace.h"             // Tablespace
 
@@ -539,6 +540,32 @@ template void Shared_multi_map<Event>::
 put<Event::aux_key_type>
 (const Event::aux_key_type*, const Event*,
  Cache_element<Event> **);
+
+template class Shared_multi_map<Routine>;
+template bool Shared_multi_map<Routine>::
+  get<const Routine*>
+    (const Routine* const&, Cache_element<Routine> **);
+template bool Shared_multi_map<Routine>::
+  get<Routine::id_key_type>
+    (const Routine::id_key_type&, Cache_element<Routine> **);
+template bool Shared_multi_map<Routine>::
+  get<Routine::name_key_type>
+    (const Routine::name_key_type&, Cache_element<Routine> **);
+template bool Shared_multi_map<Routine>::
+  get<Routine::aux_key_type>
+    (const Routine::aux_key_type&, Cache_element<Routine> **);
+template void Shared_multi_map<Routine>::
+  put<Routine::id_key_type>
+    (const Routine::id_key_type*, const Routine*,
+      Cache_element<Routine> **);
+template void Shared_multi_map<Routine>::
+  put<Routine::name_key_type>
+    (const Routine::name_key_type*, const Routine*,
+      Cache_element<Routine> **);
+template void Shared_multi_map<Routine>::
+  put<Routine::aux_key_type>
+    (const Routine::aux_key_type*, const Routine*,
+      Cache_element<Routine> **);
 
 template class Shared_multi_map<Schema>;
 template bool Shared_multi_map<Schema>::

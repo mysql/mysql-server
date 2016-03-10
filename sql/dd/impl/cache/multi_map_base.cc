@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include "dd/types/charset.h"                 // Charset
 #include "dd/types/collation.h"               // Collation
 #include "dd/types/event.h"                   // Event
+#include "dd/types/routine.h"                 // Routine
 #include "dd/types/schema.h"                  // Schema
 #include "dd/types/tablespace.h"              // Tablespace
 
@@ -65,9 +66,10 @@ void Multi_map_base<T>::add_single_element(Cache_element<T> *element)
 template class Multi_map_base<Abstract_table>;
 template class Multi_map_base<Charset>;
 template class Multi_map_base<Collation>;
+template class Multi_map_base<Event>;
+template class Multi_map_base<Routine>;
 template class Multi_map_base<Schema>;
 template class Multi_map_base<Tablespace>;
-template class Multi_map_base<Event>;
 
 } // namespace cache
 } // namespace dd

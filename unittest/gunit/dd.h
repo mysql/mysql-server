@@ -44,6 +44,8 @@
 #include "dd/types/view.h"
 #include "dd/types/view_table.h"
 #include "dd/types/event.h"
+#include "dd/types/procedure.h"
+#include "dd/types/parameter.h"
 
 #include "dd/iterator.h"
 
@@ -361,6 +363,27 @@ void set_attributes(dd::Event *obj,
   obj->set_client_collation_id(1);
   obj->set_connection_collation_id(1);
   obj->set_schema_collation_id(1);
+
+}
+
+void set_attributes(dd::Procedure *obj,
+                    const std::string &name,
+                    const dd::Schema &schema)
+{
+  obj->set_name(name);
+  obj->set_definer("definer_username", "definer_hostname");
+  obj->set_schema_id(schema.id());
+  obj->set_client_collation_id(1);
+  obj->set_connection_collation_id(1);
+  obj->set_schema_collation_id(1);
+
+  //
+  // Create a new parameter
+  //
+
+  dd::Parameter *param_obj= obj->add_parameter();
+  param_obj->set_name(name + "param1");
+  param_obj->set_collation_id(1);
 
 }
 

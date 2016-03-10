@@ -23,6 +23,7 @@
 #include "dd/types/charset.h"                 // Charset
 #include "dd/types/collation.h"               // Collation
 #include "dd/types/event.h"                   // Event
+#include "dd/types/routine.h"                 // Routine
 #include "dd/types/schema.h"                  // Schema
 #include "dd/types/tablespace.h"              // Tablespace
 
@@ -53,6 +54,7 @@ private:
   Local_multi_map<Charset>        m_charset_map;
   Local_multi_map<Collation>      m_collation_map;
   Local_multi_map<Event>          m_event_map;
+  Local_multi_map<Routine>        m_routine_map;
   Local_multi_map<Schema>         m_schema_map;
   Local_multi_map<Tablespace>     m_tablespace_map;
 
@@ -93,6 +95,14 @@ private:
   const Local_multi_map<Event>
     *m_map(Type_selector<Event>) const
   { return &m_event_map; }
+
+  Local_multi_map<Routine>
+    *m_map(Type_selector<Routine>)
+  { return &m_routine_map; }
+
+  const Local_multi_map<Routine>
+    *m_map(Type_selector<Routine>) const
+  { return &m_routine_map; }
 
   Local_multi_map<Schema>
     *m_map(Type_selector<Schema>)

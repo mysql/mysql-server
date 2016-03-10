@@ -28,6 +28,8 @@
 #include "dd/impl/tables/schemata.h"       // Schemata
 #include "dd/impl/tables/tables.h"         // Tables
 #include "dd/types/event.h"                // Event
+#include "dd/types/function.h"             // Function
+#include "dd/types/procedure.h"            // Procedure
 #include "dd/types/view.h"                 // View
 
 #include <memory>
@@ -156,6 +158,42 @@ Event *Schema_impl::create_event(THD *thd) const
 
 ///////////////////////////////////////////////////////////////////////////
 
+Function *Schema_impl::create_function(THD *thd) const
+{
+  std::unique_ptr<Function> f(dd::create_object<Function>());
+  f->set_schema_id(this->id());
+
+  // Get statement start time.
+  MYSQL_TIME curtime;
+  thd->variables.time_zone->gmt_sec_to_TIME(&curtime, thd->query_start());
+  ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
+
+  f->set_created(ull_curtime);
+  f->set_last_altered(ull_curtime);
+
+  return f.release();
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+Procedure *Schema_impl::create_procedure(THD *thd) const
+{
+  std::unique_ptr<Procedure> p(dd::create_object<Procedure>());
+  p->set_schema_id(this->id());
+
+  // Get statement start time.
+  MYSQL_TIME curtime;
+  thd->variables.time_zone->gmt_sec_to_TIME(&curtime, thd->query_start());
+  ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
+
+  p->set_created(ull_curtime);
+  p->set_last_altered(ull_curtime);
+
+  return p.release();
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 Table *Schema_impl::create_table(THD *thd) const
 {
   // Creating tables requires an IX meta data lock on the schema name.
@@ -237,7 +275,7 @@ View *Schema_impl::create_system_view(THD *thd __attribute__((unused))) const
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Schema_type implementation.
+//Schema_type implementation.
 ///////////////////////////////////////////////////////////////////////////
 
 void Schema_type::register_tables(Open_dictionary_tables_ctx *otx) const

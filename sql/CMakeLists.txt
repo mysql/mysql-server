@@ -100,6 +100,9 @@ SET(DD_SOURCES
   dd/impl/tables/index_column_usage.cc
   dd/impl/tables/indexes.cc
   dd/impl/tables/index_partitions.cc
+  dd/impl/tables/parameters.cc
+  dd/impl/tables/parameter_type_elements.cc
+  dd/impl/tables/routines.cc
   dd/impl/tables/schemata.cc
   dd/impl/tables/table_partitions.cc
   dd/impl/tables/table_partition_values.cc
@@ -119,11 +122,16 @@ SET(DD_SOURCES
   dd/impl/types/event_impl.cc
   dd/impl/types/foreign_key_element_impl.cc
   dd/impl/types/foreign_key_impl.cc
+  dd/impl/types/function_impl.cc
   dd/impl/types/index_element_impl.cc
   dd/impl/types/index_impl.cc
+  dd/impl/types/parameter_impl.cc
+  dd/impl/types/parameter_type_element_impl.cc
   dd/impl/types/partition_impl.cc
   dd/impl/types/partition_index_impl.cc
   dd/impl/types/partition_value_impl.cc
+  dd/impl/types/procedure_impl.cc
+  dd/impl/types/routine_impl.cc
   dd/impl/types/schema_impl.cc
   dd/impl/types/table_impl.cc
   dd/impl/types/tablespace_file_impl.cc
