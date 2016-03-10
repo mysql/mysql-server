@@ -62,6 +62,7 @@ Server::~Server()
 
   if (INVALID_SOCKET != m_tcp_socket)
     Connection_vio::close_socket(m_tcp_socket);
+
 //  stop();
 }
 
@@ -96,6 +97,7 @@ bool Server::prepare(const bool skip_networking, const bool skip_name_resolve)
   {
     if (!setup_accept())
       return false;
+    add_timer(120*1000, boost::bind(&Server::on_check_terminated_workers, this));
   }
   else
   {
@@ -398,6 +400,16 @@ void Server::on_accept(int sock, short what, void *ctx)
       Connection_vio::close_socket(nsock);
     }
   }
+}
+
+bool Server::on_check_terminated_workers()
+{
+  if (m_worker_scheduler)
+  {
+    m_worker_scheduler->join_terminating_workers();
+    return true;
+  }
+  return false;
 }
 
 boost::shared_ptr<Session> Server::create_session(boost::shared_ptr<Client> client,
