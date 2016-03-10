@@ -4375,11 +4375,14 @@ String *Item_func_unhex::val_str(String *str)
   return &tmp_value;
 
 err:
-  ErrConvString err(res);
+  char buf[256];
+  String err(buf, sizeof(buf), system_charset_info);
+  err.length(0);
+  args[0]->print(&err, QT_NO_DATA_EXPANSION);
   push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                       ER_WRONG_VALUE_FOR_TYPE,
                       ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE),
-                      "string", err.ptr(), func_name());
+                      "string", err.c_ptr_safe(), func_name());
 
   return NULL;
 }
