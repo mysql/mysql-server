@@ -22,6 +22,7 @@
 #include "dd/impl/transaction_impl.h"    // dd::Transaction_ro
 #include "dd/impl/raw/raw_record_set.h"  // dd::Raw_record_set
 #include "dd/impl/raw/raw_table.h"       // dd::Raw_table
+#include "dd/types/event.h"              // dd::Event
 #include "dd/types/object_type.h"        // dd::Object_type
 #include "dd/types/table.h"              // dd::Table
 #include "dd/types/view.h"               // dd::View
@@ -137,5 +138,6 @@ template class Dictionary_object_collection<const Schema>;
 template class Dictionary_object_collection<const Table>;
 template class Dictionary_object_collection<const Tablespace>;
 template class Dictionary_object_collection<const View>;
+template class Dictionary_object_collection<const Event>;
 
 }

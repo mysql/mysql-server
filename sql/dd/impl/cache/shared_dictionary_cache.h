@@ -22,6 +22,7 @@
 
 #include "dd/types/charset.h"               // Charset
 #include "dd/types/collation.h"             // Collation
+#include "dd/types/event.h"                 // Event
 #include "dd/types/schema.h"                // Schema
 #include "dd/types/table.h"                 // Table
 #include "dd/types/tablespace.h"            // Tablespace
@@ -50,10 +51,12 @@ private:
   // the server, as of MySQL 5.8.0.
   static const size_t collation_capacity= 256;
   static const size_t charset_capacity= 64;
+  static const size_t event_capacity= 256;
 
   Shared_multi_map<Abstract_table> m_abstract_table_map;
   Shared_multi_map<Charset>        m_charset_map;
   Shared_multi_map<Collation>      m_collation_map;
+  Shared_multi_map<Event>          m_event_map;
   Shared_multi_map<Schema>         m_schema_map;
   Shared_multi_map<Tablespace>     m_tablespace_map;
 
@@ -71,6 +74,8 @@ private:
   { return &m_charset_map; }
   Shared_multi_map<Collation>      *m_map(Type_selector<Collation>)
   { return &m_collation_map; }
+  Shared_multi_map<Event>        *m_map(Type_selector<Event>)
+  { return &m_event_map; }
   Shared_multi_map<Schema>         *m_map(Type_selector<Schema>)
   { return &m_schema_map; }
   Shared_multi_map<Tablespace>     *m_map(Type_selector<Tablespace>)
@@ -136,6 +141,7 @@ public:
     instance()->m_map<Abstract_table>()->set_capacity(max_connections);
     instance()->m_map<Schema>()->set_capacity(schema_def_size);
     instance()->m_map<Tablespace>()->set_capacity(tablespace_def_size);
+    instance()->m_map<Event>()->set_capacity(event_capacity);
   }
 
 
@@ -144,7 +150,7 @@ public:
   {
     instance()->m_map<Collation>()->shutdown();
     instance()->m_map<Charset>()->shutdown();
-    instance()->m_map<Abstract_table>()->shutdown();
+    instance()->m_map<Event>()->shutdown();
     instance()->m_map<Schema>()->shutdown();
     instance()->m_map<Tablespace>()->shutdown();
   }

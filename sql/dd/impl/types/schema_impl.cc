@@ -27,6 +27,7 @@
 #include "dd/impl/raw/raw_record.h"        // Raw_record
 #include "dd/impl/tables/schemata.h"       // Schemata
 #include "dd/impl/tables/tables.h"         // Tables
+#include "dd/types/event.h"                // Event
 #include "dd/types/view.h"                 // View
 
 #include <memory>
@@ -133,6 +134,24 @@ bool Schema::update_name_key(name_key_type *key,
   return Schemata::update_object_key(key,
                       Dictionary_impl::instance()->default_catalog_id(),
                       name);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+Event *Schema_impl::create_event(THD *thd) const
+{
+  std::unique_ptr<Event> f(dd::create_object<Event>());
+  f->set_schema_id(this->id());
+
+  // Get statement start time.
+  MYSQL_TIME curtime;
+  thd->variables.time_zone->gmt_sec_to_TIME(&curtime, thd->query_start());
+  ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
+
+  f->set_created(ull_curtime);
+  f->set_last_altered(ull_curtime);
+
+  return f.release();
 }
 
 ///////////////////////////////////////////////////////////////////////////

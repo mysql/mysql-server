@@ -3873,8 +3873,8 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
     }
 
     std::vector<std::string> component_names;
-    if (thd->dd_client()->fetch_schema_component_names(sch_obj,
-                                                       &component_names))
+    if (thd->dd_client()->fetch_schema_component_names<dd::Abstract_table>(sch_obj,
+      &component_names))
       return 1;
 
     for(std::vector<std::string>::const_iterator name= component_names.begin();

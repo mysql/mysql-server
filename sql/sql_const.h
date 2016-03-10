@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -120,6 +120,7 @@ static const ulong TABLE_DEF_CACHE_DEFAULT=          400;
 static const ulong SCHEMA_DEF_CACHE_DEFAULT=         256;
 static const ulong STORED_PROGRAM_DEF_CACHE_DEFAULT= 256;
 static const ulong TABLESPACE_DEF_CACHE_DEFAULT=     256;
+static const ulong EVENT_DEF_CACHE_DEFAULT=          256;
 
 /**
   Maximum number of connections default value.
@@ -144,6 +145,7 @@ static const ulong TABLE_DEF_CACHE_MIN=          400;
 static const ulong SCHEMA_DEF_CACHE_MIN=         256;
 static const ulong STORED_PROGRAM_DEF_CACHE_MIN= 256;
 static const ulong TABLESPACE_DEF_CACHE_MIN=     256;
+static const ulong EVENT_DEF_CACHE_MIN=          256;
 
 /*
   Stack reservation.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include "dd/types/abstract_table.h"          // Abstract_table
 #include "dd/types/charset.h"                 // Charset
 #include "dd/types/collation.h"               // Collation
+#include "dd/types/event.h"                   // Event
 #include "dd/types/schema.h"                  // Schema
 #include "dd/types/tablespace.h"              // Tablespace
 
@@ -51,6 +52,7 @@ private:
   Local_multi_map<Abstract_table> m_abstract_table_map;
   Local_multi_map<Charset>        m_charset_map;
   Local_multi_map<Collation>      m_collation_map;
+  Local_multi_map<Event>          m_event_map;
   Local_multi_map<Schema>         m_schema_map;
   Local_multi_map<Tablespace>     m_tablespace_map;
 
@@ -84,6 +86,14 @@ private:
     *m_map(Type_selector<Collation>) const
   { return &m_collation_map; }
 
+  Local_multi_map<Event>
+    *m_map(Type_selector<Event>)
+  { return &m_event_map; }
+
+  const Local_multi_map<Event>
+    *m_map(Type_selector<Event>) const
+  { return &m_event_map; }
+
   Local_multi_map<Schema>
     *m_map(Type_selector<Schema>)
   { return &m_schema_map; }
@@ -99,7 +109,6 @@ private:
   const Local_multi_map<Tablespace>
     *m_map(Type_selector<Tablespace>) const
   { return &m_tablespace_map; }
-
 
   /**
     Template function to get a map instance.

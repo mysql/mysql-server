@@ -93,6 +93,7 @@ SET(DD_SOURCES
   dd/impl/tables/collations.cc
   dd/impl/tables/columns.cc
   dd/impl/tables/column_type_elements.cc
+  dd/impl/tables/events.cc
   dd/impl/tables/foreign_key_column_usage.cc
   dd/impl/tables/foreign_keys.cc
   dd/impl/tables/index_column_usage.cc
@@ -114,6 +115,7 @@ SET(DD_SOURCES
   dd/impl/types/column_type_element_impl.cc
   dd/impl/types/dictionary_object_table_impl.cc
   dd/impl/types/entity_object_impl.cc
+  dd/impl/types/event_impl.cc
   dd/impl/types/foreign_key_element_impl.cc
   dd/impl/types/foreign_key_impl.cc
   dd/impl/types/index_element_impl.cc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 #include "field.h"                  // Field
 #include "table.h"                  // TABLE
+#include "tztime.h"                 // Time_zone_offset
 
 #include "dd/properties.h"          // dd::Properties
 
@@ -193,6 +194,21 @@ bool Raw_record::store(int field_no, const Properties &p)
 
 ///////////////////////////////////////////////////////////////////////////
 
+bool Raw_record::store_time(int field_no, my_time_t val, bool is_null)
+{
+  set_null(field_no, is_null);
+
+  if (is_null)
+    return false;
+
+  MYSQL_TIME time;
+
+  my_tz_OFFSET0->gmt_sec_to_TIME(&time, val);
+  return field(field_no)->store_time(&time);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 bool Raw_record::is_null(int field_no) const
 {
   return field(field_no)->is_null();
@@ -231,6 +247,17 @@ Object_id Raw_record::read_ref_id(int field_no) const
   return field(field_no)->is_null() ?
          dd::INVALID_OBJECT_ID :
          read_int(field_no);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+my_time_t Raw_record::read_time(int field_no) const
+{
+  MYSQL_TIME time;
+  my_bool not_used;
+
+  field(field_no)->get_date(&time, TIME_DATETIME_ONLY);
+  return my_tz_OFFSET0->TIME_to_gmt_sec(&time,&not_used);
 }
 
 ///////////////////////////////////////////////////////////////////////////

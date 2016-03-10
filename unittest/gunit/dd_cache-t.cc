@@ -43,6 +43,7 @@
 #include "dd/impl/types/table_impl.h"
 #include "dd/impl/types/tablespace_impl.h"
 #include "dd/impl/types/view_impl.h"
+#include "dd/impl/types/event_impl.h"
 
 
 namespace dd {
@@ -209,7 +210,8 @@ typedef ::testing::Types
   dd::Schema_impl,
   dd::Table_impl,
   dd::Tablespace_impl,
-  dd::View_impl
+  dd::View_impl,
+  dd::Event_impl
 > DDTypes;
 TYPED_TEST_CASE(CacheTest, DDTypes);
 
@@ -486,6 +488,11 @@ TEST_F(CacheStorageTest, BasicStoreAndGetTable)
 TEST_F(CacheStorageTest, BasicStoreAndGetView)
 {
   test_basic_store_and_get_with_schema<dd::View, dd::View_impl>(this, thd());
+}
+
+TEST_F(CacheStorageTest, BasicStoreAndGetEvent)
+{
+  test_basic_store_and_get_with_schema<dd::Event, dd::Event_impl>(this, thd());
 }
 
 

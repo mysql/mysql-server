@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 #define DD__RAW_RECORD_INCLUDED
 
 #include "my_global.h"
+#include "tztime.h"
 
 #include "dd/object_id.h"      // dd::Object_id
 
@@ -24,6 +25,7 @@
 
 struct TABLE;
 class Field;
+typedef long my_time_t;
 
 namespace dd {
 
@@ -61,6 +63,8 @@ public:
 
   bool store(int field_no, const Properties &p);
 
+  bool store_time(int field_no, my_time_t val, bool is_null= false);
+
 public:
   bool is_null(int field_no) const;
 
@@ -80,6 +84,8 @@ public:
 
   bool read_bool(int field_no) const
   { return read_int(field_no) != 0; }
+
+  my_time_t read_time(int field_no) const;
 
 protected:
   void set_null(int field_no, bool is_null);

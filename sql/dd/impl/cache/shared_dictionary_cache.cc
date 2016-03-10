@@ -156,6 +156,34 @@ template void Shared_dictionary_cache::put<Collation>(
     Cache_element<Collation>**);
 
 template bool Shared_dictionary_cache::
+   get<Event::id_key_type, Event>(
+     THD *thd, const Event::id_key_type&,
+     Cache_element<Event>**);
+template bool Shared_dictionary_cache::
+   get<Event::name_key_type, Event>(
+     THD *thd, const Event::name_key_type&,
+     Cache_element<Event>**);
+ template bool Shared_dictionary_cache::
+   get<Event::aux_key_type, Event>(
+     THD *thd, const Event::aux_key_type&,
+     Cache_element<Event>**);
+template bool Shared_dictionary_cache::
+   get_uncached<Event::id_key_type, Event>(
+     THD *thd, const Event::id_key_type&,
+     enum_tx_isolation, const Event**) const;
+template bool Shared_dictionary_cache::
+   get_uncached<Event::name_key_type, Event>(
+     THD *thd, const Event::name_key_type&,
+     enum_tx_isolation, const Event**) const;
+template bool Shared_dictionary_cache::
+   get_uncached<Event::aux_key_type, Event>(
+     THD *thd, const Event::aux_key_type&,
+     enum_tx_isolation, const Event**) const;
+template void Shared_dictionary_cache::put<Event>(
+     const Event*,
+     Cache_element<Event>**);
+
+template bool Shared_dictionary_cache::
   get<Schema::id_key_type, Schema>(
     THD *thd, const Schema::id_key_type&,
     Cache_element<Schema>**);
@@ -210,6 +238,5 @@ template bool Shared_dictionary_cache::
 template void Shared_dictionary_cache::put<Tablespace>(
     const Tablespace*,
     Cache_element<Tablespace>**);
-
-} // namespace cache
+}
 } // namespace dd

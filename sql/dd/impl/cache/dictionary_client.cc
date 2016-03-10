@@ -27,6 +27,7 @@
 #include "dd/types/abstract_table.h"         // Abstract_table
 #include "dd/types/charset.h"                // Charset
 #include "dd/types/collation.h"              // Collation
+#include "dd/types/event.h"                  // Event
 #include "dd/types/fwd.h"                    // Schema_const_iterator
 #include "dd/types/schema.h"                 // Schema
 #include "dd/types/table.h"                  // Table
@@ -40,6 +41,7 @@
 #include "dd/impl/raw/raw_table.h"           // Raw_table
 #include "dd/impl/tables/character_sets.h"   // create_name_key()
 #include "dd/impl/tables/collations.h"       // create_name_key()
+#include "dd/impl/tables/events.h"           // create_name_key()
 #include "dd/impl/tables/schemata.h"         // create_name_key()
 #include "dd/impl/tables/tables.h"           // create_name_key()
 #include "dd/impl/tables/tablespaces.h"      // create_name_key()
@@ -77,17 +79,12 @@ private:
     @return true if we have the required lock, otherwise false.
   */
 
-  static bool is_locked(THD *thd, const std::string &schema_name,
-                        const dd::Abstract_table *table,
+  static bool is_locked(THD *thd,
+                        const char *schema_name,
+                        const char *object_name,
+                        MDL_key::enum_mdl_namespace mdl_namespace,
                         enum_mdl_type lock_type)
   {
-    // Skip check for temporary tables.
-    if (!table || is_prefix(table->name().c_str(), tmp_file_prefix))
-      return true;
-
-    // We must take l_c_t_n into account when reconstructing the
-    // MDL key from the table name.
-    char table_name_buf[NAME_LEN + 1];
 
     // For the schema name part, the behavior is dependent on whether
     // the schema name is supplied explicitly in the sql statement
@@ -100,19 +97,15 @@ private:
     char schema_name_buf[NAME_LEN + 1];
     return thd->mdl_context.owns_equal_or_stronger_lock(
                               MDL_key::TABLE,
-                              schema_name.c_str(),
-                              dd::Object_table_definition_impl::
-                                fs_name_case(table->name(),
-                                             table_name_buf),
+                              schema_name,
+                              object_name,
                               lock_type) ||
            thd->mdl_context.owns_equal_or_stronger_lock(
-                              MDL_key::TABLE,
+                              mdl_namespace,
                               dd::Object_table_definition_impl::
                                 fs_name_case(schema_name,
                                              schema_name_buf),
-                              dd::Object_table_definition_impl::
-                                fs_name_case(table->name(),
-                                             table_name_buf),
+                              object_name,
                               lock_type);
   }
 
@@ -143,18 +136,73 @@ private:
     if (thd->dd_client()->acquire<dd::Schema>(table->schema_id(), &schema))
       return false;
 
+    // Skip check for temporary tables.
+    if (!table || is_prefix(table->name().c_str(), tmp_file_prefix))
+      return true;
+
     // Likewise, if there is no schema, we cannot have a proper lock.
     // This may in theory happen during bootstrapping since the meta data for
     // the system schema is not stored yet; however, this is prevented by
     // surrounding code calling this function only if '!thd->is_dd_system_thread'
     // i.e., this is not a bootstrapping thread.
     DBUG_ASSERT(!thd->is_dd_system_thread());
+
+    // We must take l_c_t_n into account when reconstructing the
+    // MDL key from the table name.
+    char table_name_buf[NAME_LEN + 1];
+
     if (schema)
-      return is_locked(thd, schema->name(), table, lock_type);
+      return is_locked(thd, schema->name().c_str(),
+                       dd::Object_table_definition_impl::fs_name_case(table->name(),
+                                                                      table_name_buf),
+                       MDL_key::TABLE, lock_type);
 
     return false;
   }
 
+
+  /**
+    Private helper function for asserting MDL for events.
+
+    @note We need to retrieve the schema name, since this is required
+          for the MDL key.
+
+    @param   thd          Thread context.
+    @param   event        Event object.
+    @param   lock_type    Weakest lock type accepted.
+
+    @return true if we have the required lock, otherwise false.
+  */
+
+  static bool is_locked(THD *thd, const dd::Event *event,
+                        enum_mdl_type lock_type)
+  {
+    // The schema must be auto released to avoid disturbing the context
+    // at the origin of the function call.
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Schema *schema= NULL;
+
+    // If the schema acquisition fails, we cannot assure that we have a lock,
+    // and therefore return false.
+    if (thd->dd_client()->acquire<dd::Schema>(event->schema_id(), &schema))
+      return false;
+
+    char lc_event_name[NAME_LEN + 1];
+    my_stpcpy(lc_event_name, event->name().c_str());
+    my_casedn_str(&my_charset_utf8_tolower_ci, lc_event_name);
+
+    // Likewise, if there is no schema, we cannot have a proper lock.
+    // @todo This may happen during bootstrapping since the meta data for the
+    // system schema is not stored yet. To be fixed in wl#6394. TODO_WL6394.
+    if (schema)
+      return is_locked(thd, schema->name().c_str(), lc_event_name,
+                       MDL_key::EVENT, lock_type);
+    else if (event->schema_id() == 1)
+      return is_locked(thd, MYSQL_SCHEMA_NAME.str, lc_event_name,
+                       MDL_key::EVENT, lock_type);
+
+    return false;
+  }
 
   /**
     Private helper function for asserting MDL for schemata.
@@ -283,6 +331,20 @@ public:
     return thd->is_dd_system_thread() ||
            is_locked(thd, tablespace, MDL_EXCLUSIVE);
   }
+
+  // Reading a Event object should be governed at least MDL_SHARED.
+  static bool is_read_locked(THD *thd, const dd::Event *event)
+  {
+    return (thd->is_dd_system_thread() ||
+            is_locked(thd, event, MDL_INTENTION_EXCLUSIVE));
+  }
+
+  // Writing a Event object should be governed by MDL_EXCLUSIVE.
+  static bool is_write_locked(THD *thd, const dd::Event *event)
+  {
+    return (thd->is_dd_system_thread() ||
+            is_locked(thd, event, MDL_SHARED));
+  }
 };
 }
 
@@ -349,6 +411,7 @@ Dictionary_client::Auto_releaser::~Auto_releaser()
   m_client->release<Tablespace>(&m_release_registry);
   m_client->release<Charset>(&m_release_registry);
   m_client->release<Collation>(&m_release_registry);
+  m_client->release<Event>(&m_release_registry);
 
   // Restore the client's previous releaser.
   m_client->m_current_releaser= m_prev;
@@ -485,7 +548,8 @@ size_t Dictionary_client::release(Object_registry *registry)
           release<Schema>(registry) +
           release<Tablespace>(registry) +
           release<Charset>(registry) +
-          release<Collation>(registry);
+          release<Collation>(registry) +
+          release<Event>(registry);
 }
 
 
@@ -1056,6 +1120,7 @@ bool Dictionary_client::get_tables_max_se_private_id(const std::string &engine,
 
 
 // Fetch the names of all the components in the schema.
+template <typename T>
 bool Dictionary_client::fetch_schema_component_names(
     const Schema *schema,
     std::vector<std::string> *names) const
@@ -1070,8 +1135,8 @@ bool Dictionary_client::fetch_schema_component_names(
   // to the vector output parameter.
   Transaction_ro trx(m_thd, ISO_READ_COMMITTED);
 
-  trx.otx.register_tables<dd::Abstract_table>();
-  Raw_table *table= trx.otx.get_table<dd::Abstract_table>();
+  trx.otx.register_tables<T>();
+  Raw_table *table= trx.otx.get_table<T>();
   DBUG_ASSERT(table);
 
   if (trx.otx.open_tables())
@@ -1091,7 +1156,7 @@ bool Dictionary_client::fetch_schema_component_names(
   while (r)
   {
     // Here, we need only the table name.
-    names->push_back(r->read_str(tables::Tables::FIELD_NAME));
+    names->push_back(r->read_str(T::cache_partition_table_type::FIELD_NAME));
 
     if (rs->next(r))
     {
@@ -1467,6 +1532,10 @@ template bool Dictionary_client::fetch_schema_components(
     const Schema*,
     std::unique_ptr<View_const_iterator>*) const;
 
+template bool Dictionary_client::fetch_schema_components(
+    const Schema*,
+    std::unique_ptr<Event_const_iterator>*) const;
+
 template bool Dictionary_client::fetch_catalog_components(
     std::unique_ptr<Schema_const_iterator>*) const;
 
@@ -1478,6 +1547,17 @@ template bool Dictionary_client::fetch_global_components(
 
 template bool Dictionary_client::fetch_global_components(
     std::unique_ptr<Tablespace_const_iterator>*) const;
+
+template bool Dictionary_client::fetch_global_components(
+     std::unique_ptr<Schema_const_iterator>*) const;
+template bool Dictionary_client::fetch_schema_component_names<Abstract_table>(
+    const Schema*,
+    std::vector<std::string>*) const;
+
+
+template bool Dictionary_client::fetch_schema_component_names<Event>(
+    const Schema*,
+    std::vector<std::string>*) const;
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   const Abstract_table**);
@@ -1594,6 +1674,24 @@ template void Dictionary_client::add_and_reset_id(View*);
 template bool Dictionary_client::update(const View**, View*, bool);
 template void Dictionary_client::set_sticky(const View*, bool);
 template bool Dictionary_client::is_sticky(const View*) const;
+
+
+template bool Dictionary_client::acquire_uncached(Object_id,
+                                                  const Event**);
+template bool Dictionary_client::acquire(Object_id,
+                                         const Event**);
+template bool Dictionary_client::acquire(const std::string&,
+                                         const std::string&,
+                                         const Event**);
+template bool Dictionary_client::acquire_uncached(const std::string&,
+                                                  const std::string&,
+                                                  const Event**);
+template bool Dictionary_client::drop(const Event*);
+template bool Dictionary_client::store(Event*);
+template bool Dictionary_client::update(const Event**, Event*, bool);
+template void Dictionary_client::add_and_reset_id(Event*);
+template void Dictionary_client::set_sticky(const Event*, bool);
+template bool Dictionary_client::is_sticky(const Event*) const;
 
 /**
  @endcond

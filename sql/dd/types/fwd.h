@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,6 +41,7 @@ class Tablespace_file;
 class Tablespace;
 class View;
 class View_table;
+class Event;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -62,6 +63,7 @@ typedef Iterator<Tablespace_file>     Tablespace_file_iterator;
 typedef Iterator<Tablespace>          Tablespace_iterator;
 typedef Iterator<View>                View_iterator;
 typedef Iterator<View_table>          View_table_iterator;
+typedef Iterator<Event>               Event_iterator;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -83,6 +85,7 @@ typedef Iterator<const Tablespace_file>     Tablespace_file_const_iterator;
 typedef Iterator<const Tablespace>          Tablespace_const_iterator;
 typedef Iterator<const View>                View_const_iterator;
 typedef Iterator<const View_table>          View_table_const_iterator;
+typedef Iterator<const Event>               Event_const_iterator;
 
 ///////////////////////////////////////////////////////////////////////////
 

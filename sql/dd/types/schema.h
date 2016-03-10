@@ -31,6 +31,7 @@ class Object_type;
 class Primary_id_key;
 class Table;
 class View;
+class Event;
 class Void_key;
 
 namespace tables {
@@ -98,6 +99,7 @@ public:
 
   virtual View *create_system_view(THD *thd) const = 0;
 
+  virtual Event *create_event(THD *thd) const = 0;
   /**
     Allocate a new object and invoke the copy contructor.
 

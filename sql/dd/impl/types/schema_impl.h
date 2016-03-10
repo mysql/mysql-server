@@ -107,6 +107,9 @@ public:
   { Entity_object_impl::set_name(name); }
 
 public:
+
+  virtual Event *create_event(THD *thd) const;
+
   virtual Table *create_table(THD *thd) const;
 
   virtual View *create_view(THD *thd) const;

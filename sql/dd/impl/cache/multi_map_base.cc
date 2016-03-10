@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include "dd/types/abstract_table.h"          // Abstract_table
 #include "dd/types/charset.h"                 // Charset
 #include "dd/types/collation.h"               // Collation
+#include "dd/types/event.h"                   // Event
 #include "dd/types/schema.h"                  // Schema
 #include "dd/types/tablespace.h"              // Tablespace
 
@@ -66,6 +67,7 @@ template class Multi_map_base<Charset>;
 template class Multi_map_base<Collation>;
 template class Multi_map_base<Schema>;
 template class Multi_map_base<Tablespace>;
+template class Multi_map_base<Event>;
 
 } // namespace cache
 } // namespace dd

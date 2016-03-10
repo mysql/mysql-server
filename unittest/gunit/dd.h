@@ -43,6 +43,7 @@
 #include "dd/types/tablespace_file.h"
 #include "dd/types/view.h"
 #include "dd/types/view_table.h"
+#include "dd/types/event.h"
 
 #include "dd/iterator.h"
 
@@ -348,6 +349,19 @@ void set_attributes(dd::View *obj, const std::string &name,
   vt_obj->set_table_catalog("def");
   vt_obj->set_table_schema("test");
   vt_obj->set_table_name("t1");
+}
+
+void set_attributes(dd::Event *obj,
+                    const std::string &name,
+                    const dd::Schema &schema)
+{
+  obj->set_name(name);
+  obj->set_definer("definer_username", "definer_hostname");
+  obj->set_schema_id(schema.id());
+  obj->set_client_collation_id(1);
+  obj->set_connection_collation_id(1);
+  obj->set_schema_collation_id(1);
+
 }
 
 

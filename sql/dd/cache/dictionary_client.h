@@ -544,6 +544,7 @@ public:
     @note          This is an intermediate solution which will be replaced
                    by the implementation in WL#6599.
 
+    @tparam        T              Type of object to retrieve names for.
     @param         schema         Schema for which to get component names.
     @param   [out] names          An std::vector containing all object names.
 
@@ -551,6 +552,7 @@ public:
     @return      false  Success.
   */
 
+  template <typename T>
   bool fetch_schema_component_names(
     const Schema *schema,
     std::vector<std::string> *names) const;
