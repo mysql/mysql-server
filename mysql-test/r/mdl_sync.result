@@ -2991,6 +2991,7 @@ drop table t1;
 #
 create table t1(i int);
 create table t2(j int);
+# Warm-up data-dictionary and table definition caches
 #
 # First, let us check how we handle a simple scenario involving
 # waits in MDL and TDC.
@@ -3156,6 +3157,7 @@ drop tables if exists t1, t2;
 set debug_sync= 'RESET';
 create table t1(i int);
 create table t2(j int);
+# Warm-up data-dictionary and table definition caches
 # Switching to connection 'con2'.
 set debug_sync='open_tables_after_open_and_process_table SIGNAL parked WAIT_FOR go';
 # The below FLUSH TABLES <list> WITH READ LOCK should acquire
