@@ -2101,7 +2101,7 @@ int ha_myisam::create(const char *name, TABLE *table_arg,
 
 
 int ha_myisam::rename_table(const char * from, const char * to,
-                            dd::Table *dd_tab)
+                            const dd::Table *, dd::Table *)
 {
   return mi_rename(from,to);
 }

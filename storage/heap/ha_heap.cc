@@ -619,7 +619,8 @@ void ha_heap::drop_table(const char *name)
 }
 
 
-int ha_heap::rename_table(const char * from, const char * to, dd::Table *dd_tab)
+int ha_heap::rename_table(const char * from, const char * to,
+                          const dd::Table *, dd::Table *)
 {
   return heap_rename(from,to);
 }

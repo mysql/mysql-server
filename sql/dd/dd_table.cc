@@ -90,6 +90,10 @@ template bool dd::rename_table<dd::View>(THD *thd,
                                       const char *to_schema_name,
                                       const char *to_name,
                                       bool no_foreign_key_check);
+template bool dd::rename_table<dd::Table>(THD *thd,
+                                          const dd::Table *from_table_def,
+                                          dd::Table *to_table_def,
+                                          bool commit_dd_changes);
 
 template std::unique_ptr<dd::Abstract_table>
 dd::acquire_uncached_uncommitted_table<dd::Abstract_table>(THD *thd,
@@ -1671,31 +1675,8 @@ bool rename_table(THD *thd,
                   const char *from_table_name,
                   const char *to_schema_name,
                   const char *to_table_name,
-                  bool no_foreign_key_check,
                   bool commit_dd_changes)
 {
-  // Disable foreign key checks temporarily
-  class Disable_foreign_key_check
-  {
-  public:
-    Disable_foreign_key_check(THD *thd, bool check)
-      :m_thd(thd)
-    {
-      if (check &&
-          !(m_thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS))
-        m_thd->variables.option_bits|= OPTION_NO_FOREIGN_KEY_CHECKS;
-      else
-        m_thd= NULL;
-    }
-    ~Disable_foreign_key_check()
-    {
-      if (m_thd)
-        m_thd->variables.option_bits&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
-    }
-    THD *m_thd;
-  };
-  Disable_foreign_key_check dfkc(thd, no_foreign_key_check);
-
   // We must make sure the schema is released and unlocked in the right order.
   dd::Schema_MDL_locker from_mdl_locker(thd);
   dd::Schema_MDL_locker to_mdl_locker(thd);
@@ -1769,6 +1750,31 @@ bool rename_table(THD *thd,
 
   // Do the update. Errors will be reported by the dictionary subsystem.
   if (thd->dd_client()->update_uncached_and_invalidate(from_tab.get()))
+  {
+    if (commit_dd_changes)
+    {
+      trans_rollback_stmt(thd);
+      // Full rollback in case we have THD::transaction_rollback_request.
+      trans_rollback(thd);
+    }
+    return true;
+  }
+
+  return commit_dd_changes &&
+         (trans_commit_stmt(thd) || trans_commit(thd));
+}
+
+
+template <typename T>
+bool rename_table(THD *thd,
+                  const dd::Table *from_table_def,
+                  dd::Table *to_table_def,
+                  bool commit_dd_changes)
+{
+  Disable_gtid_state_update_guard disabler(thd);
+
+  // Do the update. Errors will be reported by the dictionary subsystem.
+  if (thd->dd_client()->update_uncached_and_invalidate(to_table_def))
   {
     if (commit_dd_changes)
     {

@@ -804,7 +804,7 @@ int ha_example::delete_table(const char *name, const dd::Table *)
   mysql_rename_table() in sql_table.cc
 */
 int ha_example::rename_table(const char * from, const char * to,
-                             dd::Table *dd_tab)
+                             const dd::Table *, dd::Table *)
 {
   DBUG_ENTER("ha_example::rename_table ");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);

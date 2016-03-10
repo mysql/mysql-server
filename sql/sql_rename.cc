@@ -305,7 +305,8 @@ do_rename(THD *thd, TABLE_LIST *ren_table,
 
       // If renaming fails, my_error() has already been called
       if (mysql_rename_table(thd, hton, ren_table->db, old_alias, new_db,
-                             new_alias, (do_commit ? 0 : NO_DD_COMMIT)))
+                             new_alias, (NO_TARGET_CHECK |
+                                         (do_commit ? 0 : NO_DD_COMMIT))))
         DBUG_RETURN(!skip_error);
 
       *int_commit_done|= do_commit;

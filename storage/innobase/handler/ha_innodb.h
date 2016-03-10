@@ -304,7 +304,9 @@ public:
 	@retval 0 on success */
 	int truncate(dd::Table *dd_tab);
 
-	int rename_table(const char* from, const char* to, dd::Table *dd_tab);
+	int rename_table(const char* from, const char* to,
+		const dd::Table *from_table_def,
+		dd::Table *to_table_def);
 
 	int check(THD* thd, HA_CHECK_OPT* check_opt);
 

@@ -593,7 +593,8 @@ int ha_partition::delete_table(const char *name, const dd::Table *)
 */
 
 int ha_partition::rename_table(const char *from, const char *to,
-                               dd::Table *dd_tab)
+                               const dd::Table *from_table_def,
+                               dd::Table *to_table_def)
 {
   DBUG_ENTER("ha_partition::rename_table");
 
@@ -1619,7 +1620,7 @@ int ha_partition::del_ren_table(const char *from, const char *to)
     {                                           // Rename branch
       create_partition_name(to_buff, to_path, name_buffer_ptr,
                             NORMAL_PART_NAME, FALSE);
-      error= (*file)->ha_rename_table(from_buff, to_buff, NULL);
+      error= (*file)->ha_rename_table(from_buff, to_buff, NULL, NULL);
       if (error)
         goto rename_error;
     }
@@ -1646,10 +1647,10 @@ int ha_partition::del_ren_table(const char *from, const char *to)
 
   if (to != NULL)
   {
-    if ((error= handler::rename_table(from, to, NULL)))
+    if ((error= handler::rename_table(from, to, NULL, NULL)))
     {
       /* Try to revert everything, ignore errors */
-      (void) handler::rename_table(to, from, NULL);
+      (void) handler::rename_table(to, from, NULL, NULL);
       goto rename_error;
     }
   }
@@ -1664,7 +1665,7 @@ rename_error:
     create_partition_name(to_buff, to_path, name_buffer_ptr,
                           NORMAL_PART_NAME, FALSE);
     /* Ignore error here */
-    (void) (*file)->ha_rename_table(to_buff, from_buff, NULL);
+    (void) (*file)->ha_rename_table(to_buff, from_buff, NULL, NULL);
     name_buffer_ptr= strend(name_buffer_ptr) + 1;
   }
   DBUG_RETURN(error);

@@ -1481,7 +1481,7 @@ int ha_perfschema::delete_table(const char *name, const dd::Table *)
 }
 
 int ha_perfschema::rename_table(const char * from, const char * to,
-                                dd::Table *dd_tab)
+                                const dd::Table *, dd::Table *)
 {
   DBUG_ENTER("ha_perfschema::rename_table ");
   DBUG_RETURN(HA_ERR_WRONG_COMMAND);

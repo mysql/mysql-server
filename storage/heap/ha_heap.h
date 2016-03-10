@@ -101,7 +101,9 @@ public:
   ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
   int delete_table(const char *from, const dd::Table *table_def);
   void drop_table(const char *name);
-  int rename_table(const char * from, const char * to, dd::Table *dd_tab);
+  int rename_table(const char * from, const char * to,
+                   const dd::Table *from_table_def,
+                   dd::Table *to_table_def);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
              dd::Table *dd_tab, const char *sql_name);
   void update_create_info(HA_CREATE_INFO *create_info);

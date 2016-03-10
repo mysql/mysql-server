@@ -188,7 +188,9 @@ public:
     -------------------------------------------------------------------------
   */
   virtual int delete_table(const char *from, const dd::Table *table_def);
-  virtual int rename_table(const char *from, const char *to, dd::Table *dd_tab);
+  virtual int rename_table(const char *from, const char *to,
+                           const dd::Table *from_table_def,
+                           dd::Table *to_table_def);
   virtual int create(const char *name, TABLE *form,
                      HA_CREATE_INFO *create_info,
                      dd::Table *dd_tab, const char *sql_name);

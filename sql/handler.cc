@@ -4408,7 +4408,9 @@ int handler::delete_table(const char *name, const dd::Table *)
 }
 
 
-int handler::rename_table(const char * from, const char * to, dd::Table *dd_tab)
+int handler::rename_table(const char * from, const char * to,
+                          const dd::Table *from_table_def,
+                          dd::Table *to_table_def)
 {
   int error= 0;
   const char **ext, **start_ext;
@@ -4843,12 +4845,14 @@ void Alter_inplace_info::report_unsupported_error(const char *not_supported,
 */
 
 int
-handler::ha_rename_table(const char *from, const char *to, dd::Table *dd_tab)
+handler::ha_rename_table(const char *from, const char *to,
+                         const dd::Table *from_table_def,
+                         dd::Table *to_table_def)
 {
   DBUG_ASSERT(m_lock_type == F_UNLCK);
   mark_trx_read_write();
 
-  return rename_table(from, to, dd_tab);
+  return rename_table(from, to, from_table_def, to_table_def);
 }
 
 

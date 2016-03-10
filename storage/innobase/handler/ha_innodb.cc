@@ -13689,7 +13689,8 @@ ha_innobase::rename_table(
 /*======================*/
 	const char*	from,	/*!< in: old name of the table */
 	const char*	to,	/*!< in: new name of the table */
-	dd::Table*	dd_tab)
+	const dd::Table	*from_table_def,
+	dd::Table	*to_table_def)
 {
 	THD*	thd = ha_thd();
 

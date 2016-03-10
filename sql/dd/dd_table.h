@@ -140,23 +140,13 @@ bool rename_table(THD *thd,
                   const char *from_name,
                   const char *to_schema_name,
                   const char *to_name,
-                  bool no_foreign_key_check,
                   bool commit_dd_changes);
 
 template <typename T>
-inline bool rename_table(THD *thd,
-                         const char *from_schema_name,
-                         const char *from_name,
-                         const char *to_schema_name,
-                         const char *to_name,
-                         bool commit_dd_changes)
-{
-  return dd::rename_table<T>(thd,
-                             from_schema_name, from_name,
-                             to_schema_name, to_name,
-                             false, commit_dd_changes);
-}
-
+bool rename_table(THD *thd,
+                  const dd::Table *from_table_def,
+                  dd::Table *to_table_def,
+                  bool commit_dd_changes);
 
 //////////////////////////////////////////////////////////////////////////
 // Functions for retrieving, inspecting and manipulating instances of

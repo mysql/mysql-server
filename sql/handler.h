@@ -2784,7 +2784,9 @@ public:
   int ha_disable_indexes(uint mode);
   int ha_enable_indexes(uint mode);
   int ha_discard_or_import_tablespace(my_bool discard);
-  int ha_rename_table(const char *from, const char *to, dd::Table *dd_tab);
+  int ha_rename_table(const char *from, const char *to,
+                      const dd::Table *from_table_def,
+                      dd::Table *to_table_def);
   int ha_delete_table(const char *name, const dd::Table *table_def);
   virtual int finish_delete_table(const char *name)
   { return 0; }
@@ -3991,7 +3993,9 @@ protected:
     These methods can be overridden, but their default implementation
     provide useful functionality.
   */
-  virtual int rename_table(const char *from, const char *to, dd::Table *dd_tab);
+  virtual int rename_table(const char *from, const char *to,
+                           const dd::Table *from_table_def,
+                           dd::Table *to_table_def);
   /**
     Delete a table in the engine. Called for base as well as temporary
     tables.

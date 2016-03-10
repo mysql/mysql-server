@@ -1287,7 +1287,7 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
       {
         if (file->ha_rename_table(ddl_log_entry->from_name,
                                   ddl_log_entry->name,
-                                  NULL))
+                                  NULL, NULL))
           break;
       }
       if ((deactivate_ddl_log_entry_no_lock(ddl_log_entry->entry_pos)))
@@ -1311,7 +1311,7 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
           /* tmp_name -> from_name possibly done */
           (void) file->ha_rename_table(ddl_log_entry->from_name,
                                        ddl_log_entry->tmp_name,
-                                       NULL);
+                                       NULL, NULL);
           /* decrease the phase and sync */
           file_entry_buf[DDL_LOG_PHASE_POS]--;
           if (write_ddl_log_file_entry(ddl_log_entry->entry_pos))
@@ -1323,7 +1323,7 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
           /* from_name -> name possibly done */
           (void) file->ha_rename_table(ddl_log_entry->name,
                                        ddl_log_entry->from_name,
-                                       NULL);
+                                       NULL, NULL);
           /* decrease the phase and sync */
           file_entry_buf[DDL_LOG_PHASE_POS]--;
           if (write_ddl_log_file_entry(ddl_log_entry->entry_pos))
@@ -1335,7 +1335,7 @@ static bool execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
           /* name -> tmp_name possibly done */
           (void) file->ha_rename_table(ddl_log_entry->tmp_name,
                                        ddl_log_entry->name,
-                                       NULL);
+                                       NULL, NULL);
           /* disable the entry and sync */
           file_entry_buf[DDL_LOG_ENTRY_TYPE_POS]= DDL_IGNORE_LOG_ENTRY_CODE;
           if (write_ddl_log_file_entry(ddl_log_entry->entry_pos))
@@ -2134,7 +2134,7 @@ bool mysql_update_dd(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
                                       lpt->db,
                                       shadow_name,
                                       lpt->db,
-                                      lpt->table_name, true,
+                                      lpt->table_name,
                                       true /* WL7743/TODO to be removed with partitioning SE. */))
       {
         error= 1;
@@ -6049,6 +6049,8 @@ make_unique_key_name(const char *field_name,KEY *start,KEY *end)
                    NO_FK_CHECKS   Don't check FK constraints during rename.
                    NO_DD_COMMIT   Don't commit transaction after updating
                                   data-dictionary.
+                   NO_TARGET_CHECK  Don't check that target name is not
+                                    occupied, rely on caller doing this.
 
   @return false    OK
   @return true     Error
@@ -6070,18 +6072,46 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
     succeeds renaming the table without verifying if the new_db
     database exists when innodb_file_per_table=0.
   */
-  bool sch_exists;
-  if (dd::schema_exists(thd, new_db, &sch_exists))
+
+  // We must make sure the schema is released and unlocked in the right order.
+  dd::Schema_MDL_locker to_mdl_locker(thd);
+  // Check if destination schemas exist.
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Schema *to_sch= NULL;
+
+  if (thd->dd_client()->acquire<dd::Schema>(new_db, &to_sch))
   {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
   }
 
   // We did not find new_db, so stop here.
-  if (!sch_exists)
+  if (!to_sch)
   {
     my_error(ER_BAD_DB_ERROR, MYF(0), new_db);
     DBUG_RETURN(true);
+  }
+
+  if (!(flags & NO_TARGET_CHECK))
+  {
+    /*
+      Check if target name is already occupied. Use uncommitted read, so this
+      call can be used by atomic ALTER TABLE implementation.
+    */
+    const dd::Abstract_table *conf_tab= NULL;
+    if (thd->dd_client()->acquire_uncached_uncommitted<dd::Abstract_table>(new_db,
+                            new_name, &conf_tab))
+    {
+      // Error is reported by the dictionary subsystem.
+      DBUG_RETURN(true);
+    }
+
+    if (conf_tab)
+    {
+      delete conf_tab;
+      my_error(ER_TABLE_EXISTS_ERROR, MYF(0), new_name);
+      DBUG_RETURN(true);
+    }
   }
 
   // Check if we hit FN_REFLEN bytes along with file extension.
@@ -6099,39 +6129,28 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
     DBUG_RETURN(true);
   }
 
-  std::unique_ptr<dd::Table> dd_tab;
+  /*
+    Get original dd::Table object (also emits error if it doesn't exist).
+    Use uncommitted read, so this call can be used by atomic multi-table
+    RENAME TABLE and atomic ALTER TABLE implementations.
+  */
+  std::unique_ptr<dd::Table> from_table_def;
+  if (!(from_table_def= dd::acquire_uncached_uncommitted_table<dd::Table>(thd,
+                              old_db, old_name)))
+  {
+    DBUG_RETURN(true);
+  }
 
-  if (! (flags & NO_HA_TABLE))
-  {
-    if (! dd::get_dictionary()->is_dd_table_name(old_db, old_name))
-    {
-      /*
-        WL7743/TODO: Marko wants new version of dd::Table object to be
-                     passed to handler::rename_table().
-      */
-      if (!(dd_tab= dd::acquire_uncached_uncommitted_table<dd::Table>(thd,
-                          old_db, old_name)))
-      {
-        fprintf(stderr, "DD: no table");
-        DBUG_RETURN(true);
-      }
-    }
-  }
-  else
-  {
-    /*
-      handler::create_handler_files() is only used by partitioning SE.
-      Since we plan to remove it soon and this SE doesn't care about
-      "partitioned" argument of get_new_handler() we don't determine
-      is correct value. We simply assume that table is non-partitioned.
-    */
-  }
+  std::unique_ptr<dd::Table> to_table_def(from_table_def->clone());
+
+  // Set schema id and table name.
+  to_table_def->set_schema_id(to_sch->id());
+  to_table_def->set_name(new_name);
 
   // Get the handler for the table, and issue an error if we cannot load it.
   handler *file= (base == NULL ? 0 :
          get_new_handler((TABLE_SHARE*)0,
-                         (dd_tab &&
-                          dd_tab->partition_type() != dd::Table::PT_NONE),
+                         from_table_def->partition_type()!=dd::Table::PT_NONE,
                          thd->mem_root, base));
   if (!file)
   {
@@ -6181,7 +6200,8 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
   if (flags & NO_HA_TABLE)
     error= file->ha_create_handler_files(to, from, CHF_RENAME_FLAG, NULL);
   else
-    error= file->ha_rename_table(from_base, to_base, dd_tab.get());
+    error= file->ha_rename_table(from_base, to_base, from_table_def.get(),
+                                 to_table_def.get());
 
   thd->variables.option_bits= save_bits;
 
@@ -6207,12 +6227,18 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
   }
   else
   {
-    if (dd::rename_table<dd::Table>(thd, old_db, old_name,
-                                    new_db, new_name, true,
+    if (dd::rename_table<dd::Table>(thd, from_table_def.get(),
+                                    to_table_def.get(),
                                     !(flags & NO_DD_COMMIT)))
     {
+      /*
+        WL7743/TODO: What should we do for SEs supporting atomic DDL?
+                     Note that we won't be able update DD objects in
+                     this case...
+       */
       if (!(flags & NO_HA_TABLE))
-        (void) file->ha_rename_table(to_base, from_base, dd_tab.get());
+        (void) file->ha_rename_table(to_base, from_base, to_table_def.get(),
+                                     from_table_def.get());
       delete file;
       DBUG_RETURN(true);
     }
@@ -8196,6 +8222,7 @@ static bool mysql_inplace_alter_table(THD *thd,
 
     if (mysql_rename_table(thd, db_type, alter_ctx->db, alter_ctx->table_name,
                            alter_ctx->new_db, alter_ctx->new_alias,
+                           NO_TARGET_CHECK |
                            ((db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) ?
                             NO_DD_COMMIT : 0)))
     {
@@ -8218,7 +8245,8 @@ static bool mysql_inplace_alter_table(THD *thd,
       */
       (void) mysql_rename_table(thd, db_type,
                                 alter_ctx->new_db, alter_ctx->new_alias,
-                                alter_ctx->db, alter_ctx->alias, NO_FK_CHECKS |
+                                alter_ctx->db, alter_ctx->alias,
+                                NO_FK_CHECKS | NO_TARGET_CHECK |
                                 ((db_type->flags & HTON_SUPPORTS_ATOMIC_DDL) ?
                                  NO_DD_COMMIT : 0));
       DBUG_RETURN(true);
@@ -9505,7 +9533,7 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
     if (mysql_rename_table(thd, old_db_type,
                            alter_ctx->db, alter_ctx->table_name,
                            alter_ctx->new_db, alter_ctx->new_alias,
-                           atomic_ddl ? NO_DD_COMMIT: 0))
+                           NO_TARGET_CHECK | (atomic_ddl ? NO_DD_COMMIT: 0)))
       error= -1;
     else if (change_trigger_table_name(thd,
                                        alter_ctx->db,
@@ -9521,7 +9549,7 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
         (void) mysql_rename_table(thd, old_db_type,
                                   alter_ctx->new_db, alter_ctx->new_alias,
                                   alter_ctx->db, alter_ctx->table_name,
-                                  NO_FK_CHECKS);
+                                  NO_FK_CHECKS | NO_TARGET_CHECK);
       }
       error= -1;
     }
@@ -10691,7 +10719,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   // Rename the new table to the correct name.
   if (mysql_rename_table(thd, new_db_type, alter_ctx.new_db, alter_ctx.tmp_name,
                          alter_ctx.new_db, alter_ctx.new_alias,
-                         FN_FROM_IS_TMP | (atomic_replace ? NO_DD_COMMIT : 0)))
+                         (FN_FROM_IS_TMP | NO_TARGET_CHECK |
+                          (atomic_replace ? NO_DD_COMMIT : 0))))
   {
     // Catch situations where the SE has requested rollback. This will make
     // quick_rm_table() fail anyway when the DD starts an attachable
@@ -10713,7 +10742,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       while (retries-- &&
              mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,
                                 alter_ctx.db, alter_ctx.alias,
-                                FN_FROM_IS_TMP | NO_FK_CHECKS));
+                                FN_FROM_IS_TMP | NO_TARGET_CHECK |
+                                NO_FK_CHECKS));
     }
 #ifndef WORKAROUND_TO_BE_REMOVED_BY_WL7016
     else
@@ -10724,7 +10754,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                             alter_ctx.tmp_name, FN_IS_TMP);
       (void) mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,
                                 alter_ctx.db, alter_ctx.alias,
-                                FN_FROM_IS_TMP | NO_FK_CHECKS);
+                                FN_FROM_IS_TMP | NO_TARGET_CHECK |
+                                NO_FK_CHECKS);
     }
 #endif
 
@@ -10747,8 +10778,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                             alter_ctx.new_db, alter_ctx.new_alias, 0);
       // Restore the backup of the original table to the old name.
       (void) mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,
-                                alter_ctx.db, alter_ctx.alias, 
-                                FN_FROM_IS_TMP | NO_FK_CHECKS);
+                                alter_ctx.db, alter_ctx.alias,
+                                FN_FROM_IS_TMP | NO_TARGET_CHECK |
+                                NO_FK_CHECKS);
     }
 #ifndef WORKAROUND_TO_BE_REMOVED_BY_WL7016
     else
@@ -10758,8 +10790,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       (void) quick_rm_table(thd, new_db_type,
                             alter_ctx.new_db, alter_ctx.new_alias, 0);
       (void) mysql_rename_table(thd, old_db_type, alter_ctx.db, backup_name,
-                                alter_ctx.db, alter_ctx.alias, 
-                                FN_FROM_IS_TMP | NO_FK_CHECKS);
+                                alter_ctx.db, alter_ctx.alias,
+                                FN_FROM_IS_TMP | NO_TARGET_CHECK |
+                                NO_FK_CHECKS);
     }
 #endif
     goto err_with_mdl;

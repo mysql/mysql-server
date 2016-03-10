@@ -356,7 +356,7 @@ static bool exchange_name_with_ddl_log(THD *thd,
                   error_set= TRUE;
                   goto err_rename;);
   DBUG_EXECUTE_IF("exchange_partition_abort_3", DBUG_SUICIDE(););
-  if (file->ha_rename_table(name, tmp_name, NULL))
+  if (file->ha_rename_table(name, tmp_name, NULL, NULL))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     my_error(ER_ERROR_ON_RENAME, MYF(0), name, tmp_name,
@@ -376,7 +376,7 @@ static bool exchange_name_with_ddl_log(THD *thd,
                   error_set= TRUE;
                   goto err_rename;);
   DBUG_EXECUTE_IF("exchange_partition_abort_5", DBUG_SUICIDE(););
-  if (file->ha_rename_table(from_name, name, NULL))
+  if (file->ha_rename_table(from_name, name, NULL, NULL))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     my_error(ER_ERROR_ON_RENAME, MYF(0), from_name, name,
@@ -396,7 +396,7 @@ static bool exchange_name_with_ddl_log(THD *thd,
                   error_set= TRUE;
                   goto err_rename;);
   DBUG_EXECUTE_IF("exchange_partition_abort_7", DBUG_SUICIDE(););
-  if (file->ha_rename_table(tmp_name, from_name, NULL))
+  if (file->ha_rename_table(tmp_name, from_name, NULL, NULL))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     my_error(ER_ERROR_ON_RENAME, MYF(0), tmp_name, from_name,
