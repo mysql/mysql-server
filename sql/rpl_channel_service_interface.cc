@@ -175,7 +175,7 @@ void set_mi_ssl_options(LEX_MASTER_INFO* lex_mi, Channel_ssl_info* channel_ssl_i
 
   if (channel_ssl_info->ssl_ca_directory != NULL)
   {
-    lex_mi->ssl_capath= channel_ssl_info->ssl_ca_file_name;
+    lex_mi->ssl_capath= channel_ssl_info->ssl_ca_directory;
   }
 
   if (channel_ssl_info->tls_version != NULL)
