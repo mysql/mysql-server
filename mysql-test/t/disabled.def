@@ -15,8 +15,6 @@ ds_mrr-big @solaris      : Bug#14168107 2012-04-03 Hemant disabled new test adde
 mysql_embedded_client_test	: Bug#13964673 2012-04-16 amitbha since most of the test cases are failing
 mysql_client_test_embedded : Bug#16084066 2013-01-08 Disabled since this test is failing
 ssl-big                  : Bug #18977126 MAIN.SSL-BIG FAILS WITH TIMEOUT Times out on weekly, disable it
-explain_for_connection_rqg_json  : Bug#20697533 2015-03-20 erlend Fails several times each day on all platforms
-explain_for_connection_rqg_trad : Bug#20697533 2015-03-20 erlend Fails several times each day on all platforms
 # For more details on tags WL6378_* refer sql/dd/mtr_readme.txt
 main.mysql_upgrade        : WL#6378 2015-11-06 jhauglid WL6378_UPGRADE
 main.status               : Bug#14286343 2015-12-22 Mohit Legacy Bug leading to sporadic failures on PB2 occuring since 2012.
