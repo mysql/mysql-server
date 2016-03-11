@@ -2014,7 +2014,7 @@ SET @@GLOBAL.CONCURRENT_INSERT = @OLD_CONCURRENT_INSERT;
 ###########################################################################
 
 --echo
---echo Bug #34861 - mysqldump with --tab gives weird output for triggers.
+--echo Bug#34861 - mysqldump with --tab gives weird output for triggers.
 --echo
 
 CREATE TABLE t1 (f1 INT);
@@ -2026,7 +2026,8 @@ CREATE EVENT ev1 ON SCHEDULE AT '2030-01-01 00:00:00' DO SELECT "Meow";
 --replace_column 6 #
 SHOW TRIGGERS;
 SHOW EVENTS;
-SELECT routine_name, routine_definition FROM INFORMATION_SCHEMA.routines WHERE routine_name='pr1';
+SELECT routine_name, routine_definition FROM INFORMATION_SCHEMA.routines
+WHERE routine_name = 'pr1';
 
 --echo
 --echo dump table; if anything goes to stdout, it ends up here: ---------------
@@ -2045,7 +2046,8 @@ DROP PROCEDURE pr1;
 --replace_column 6 #
 SHOW TRIGGERS;
 SHOW EVENTS;
-SELECT routine_name, routine_definition FROM INFORMATION_SCHEMA.routines WHERE routine_name='pr1';
+SELECT routine_name, routine_definition FROM INFORMATION_SCHEMA.routines
+WHERE routine_name = 'pr1';
 
 --echo
 --echo reload db; this should restore routines and events
@@ -2053,7 +2055,8 @@ SELECT routine_name, routine_definition FROM INFORMATION_SCHEMA.routines WHERE r
 --replace_column 6 #
 SHOW TRIGGERS;
 SHOW EVENTS;
-SELECT routine_name, routine_definition FROM INFORMATION_SCHEMA.routines WHERE routine_name='pr1';
+SELECT routine_name, routine_definition FROM INFORMATION_SCHEMA.routines
+WHERE routine_name = 'pr1';
 
 --echo
 --echo cleanup

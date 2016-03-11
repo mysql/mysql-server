@@ -3766,74 +3766,116 @@ drop function test.f111111111122222222223333333333444444444455555555556666666666
 drop function mysqltest111111111122222222223333333333444444444455555555556666666666777777777788888888889999999999aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeffffffffffgggggggggghhhhhhhhhhiiiiiiiiiijjjj.test;
 
 --echo #
---echo # WL#7897- Use DD API for Stored Routines.
+--echo # WL#7897 -- Use DD API for Stored Routines.
 --echo # Test cases to verify error scenarios.
 --echo #
 
 --disable_query_log
 
-set @orig_character_set_client= @@character_set_client; 
+SET @orig_character_set_client = @@character_set_client;
 SET character_set_client = utf8;
 
 --echo # Case 1. Test case to verify length of stored routine name length.
+let $object_name_64= oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo;
+let $object_name_65= ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo;
+--echo #         STORED PROCEDURE -- name with maximum length
+eval CREATE PROCEDURE $object_name_64() SELECT 1 AS my_column;
+eval ALTER PROCEDURE $object_name_64 COMMENT 'Changed';
+eval CALL $object_name_64();
+eval DROP PROCEDURE $object_name_64;
+--echo #         STORED PROCEDURE -- name with maximum length + 1 --> expect a fail
 --error ER_TOO_LONG_IDENT
-CREATE PROCEDURE ppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp() SELECT 1;
+eval CREATE PROCEDURE $object_name_65() SELECT 1 AS my_column;
 --error ER_TOO_LONG_IDENT
-CREATE FUNCTION fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff() RETURNS INT return 1;
+eval ALTER PROCEDURE $object_name_65 COMMENT 'Changed';
+--error ER_TOO_LONG_IDENT
+eval CALL $object_name_65();
+--error ER_TOO_LONG_IDENT
+eval DROP PROCEDURE $object_name_65;
+#
+--echo #         STORED FUNCTION -- name with maximum length
+eval CREATE FUNCTION $object_name_64() RETURNS INT RETURN 1;
+eval ALTER FUNCTION $object_name_64 COMMENT 'Changed';
+eval SELECT $object_name_64() AS my_column;
+eval DROP FUNCTION $object_name_64;
+--echo #         STORED FUNCTION -- name with maximum length + 1 --> expect a fail
+--error ER_TOO_LONG_IDENT
+eval CREATE FUNCTION $object_name_65() RETURNS INT RETURN 1;
+--error ER_TOO_LONG_IDENT
+eval ALTER FUNCTION $object_name_65 COMMENT 'Changed';
+--error ER_TOO_LONG_IDENT
+eval SELECT $object_name_65() AS my_column;
+--error ER_TOO_LONG_IDENT
+eval DROP FUNCTION $object_name_65;
 
 --echo # Case 2: Test case to validate stored routine name.
 --error ER_INVALID_CHARACTER_STRING
 CREATE PROCEDURE test𝌆() SELECT 1;
 --error ER_INVALID_CHARACTER_STRING
-CREATE FUNCTION test𝌆() RETURNS INT return 1;
+CREATE FUNCTION test𝌆() RETURNS INT RETURN 1;
 
 --echo # Case 3: Test case to verify routine's parameter length.
+eval CREATE PROCEDURE p(IN $object_name_64 INT) SELECT 1 AS my_column;
+DROP PROCEDURE p;
 --error ER_TOO_LONG_IDENT
-CREATE PROCEDURE p(IN ppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp INT) SELECT 1;
+eval CREATE PROCEDURE p(IN $object_name_65 INT) SELECT 1 AS my_column;
+#
+eval CREATE FUNCTION f($object_name_64 INT) RETURNS INT RETURN 1;
+DROP FUNCTION f;
 --error ER_TOO_LONG_IDENT
-CREATE FUNCTION f(fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff INT) RETURNS INT return 1;
+eval CREATE FUNCTION f($object_name_65 INT) RETURNS INT RETURN 1;
 
 --echo # Case 4: Test case to validate routine's parameter name.
 --error ER_INVALID_CHARACTER_STRING
 CREATE PROCEDURE p(IN test𝌆 INT) SELECT 1;
 --error ER_INVALID_CHARACTER_STRING
-CREATE FUNCTION f(test𝌆 INT) RETURNS INT return 1;
+CREATE FUNCTION f(test𝌆 INT) RETURNS INT RETURN 1;
 
 --echo # Case 5: Test case to verify comment string length.
-SELECT repeat('n', 65536) into @str;
---let comment_str= `SELECT @str`
-
+let $string_65535= `SELECT REPEAT('n', 65535)`;
+let $string_65536= `SELECT REPEAT('n', 65536)`;
+eval CREATE PROCEDURE p1() COMMENT '$string_65535' SELECT 1;
+DROP PROCEDURE p1;
 --error ER_TOO_LONG_ROUTINE_COMMENT
---eval CREATE PROCEDURE p1() COMMENT '$comment_str' SELECT 1
+eval CREATE PROCEDURE p1() COMMENT '$string_65536' SELECT 1;
+#
+eval CREATE FUNCTION f1() RETURNS INT COMMENT '$string_65535' RETURN 1;
+DROP FUNCTION f1;
 --error ER_TOO_LONG_ROUTINE_COMMENT
---eval CREATE FUNCTION f1() RETURNS INT COMMENT '$comment_str' return 1
+eval CREATE FUNCTION f1() RETURNS INT COMMENT '$string_65536' RETURN 1;
 
 CREATE PROCEDURE p1() SELECT 1;
-CREATE FUNCTION f1() RETURNS INT return 1;
-
+eval ALTER PROCEDURE p1 COMMENT '$string_65535';
 --error ER_TOO_LONG_ROUTINE_COMMENT
---eval ALTER PROCEDURE p1 COMMENT '$comment_str'
+eval ALTER PROCEDURE p1 COMMENT '$string_65536';
+DROP PROCEDURE p1;
+#
+CREATE FUNCTION f1() RETURNS INT RETURN 1;
+eval ALTER FUNCTION f1 COMMENT '$string_65535';
 --error ER_TOO_LONG_ROUTINE_COMMENT
---eval ALTER FUNCTION f1 COMMENT '$comment_str'
+eval ALTER FUNCTION f1 COMMENT '$string_65536';
+DROP FUNCTION f1;
 
 --echo # Case 6: Test case to validate comment string.
 --error ER_INVALID_CHARACTER_STRING
 CREATE PROCEDURE p2() COMMENT 'test𝌆' SELECT 1;
-
+#
 --error ER_INVALID_CHARACTER_STRING
-CREATE FUNCTION f2() RETURNS INT COMMENT 'test𝌆' return 1;
+CREATE FUNCTION f2() RETURNS INT COMMENT 'test𝌆' RETURN 1;
+
 
 CREATE PROCEDURE p2() SELECT 1;
-CREATE FUNCTION f2() RETURNS INT return 1;
-
 --error ER_INVALID_CHARACTER_STRING
 ALTER PROCEDURE p2 COMMENT 'test𝌆';
+DROP PROCEDURE p2;
+#
+CREATE FUNCTION f2() RETURNS INT RETURN 1;
 --error ER_INVALID_CHARACTER_STRING
 ALTER FUNCTION f2 COMMENT 'test𝌆';
-
---echo # cleanup
-DROP PROCEDURE p1;
-DROP PROCEDURE p2;
-DROP FUNCTION f1;
 DROP FUNCTION f2;
-SET character_set_client= @orig_character_set_client;
+
+--echo # Cleanup
+SET character_set_client = @orig_character_set_client;
+
+--enable_query_log
+

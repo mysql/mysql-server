@@ -2,13 +2,7 @@
 # suite/funcs_1/t/storedproc.test
 #
 # Check general properties of stored procedures.
-# 
-# Last Modification:
-# 2008-08-27 mleich - Fix Bug#37744 Expected result of "<engine>_storedproc"
-#                                   test is inconsistent
-#                   - remove variation of storage engines
-#                   - restore global sort_buffer_size after some subtest
-#                  
+#
 ############################################################################
 
 # Bug#37746 - Arithmetic range ("int") is smaller than expected
@@ -709,38 +703,38 @@ drop procedure;
 --source include/show_msg80.inc
 
 --sorted_result
---replace_column 24 created 25 modified
+--replace_column 24 <created> 25 <modified>
 SELECT * from information_schema.routines where specific_name='sp9';
 
 --disable_warnings ONCE
 DROP PROCEDURE IF EXISTS sp9;
 
 --sorted_result
---replace_column 24 created 25 modified
+--replace_column 24 <created> 25 <modified>
 SELECT * from information_schema.routines where specific_name='sp9';
 
 CREATE PROCEDURE sp9()SELECT * from t1;
 
 --sorted_result
---replace_column 24 created 25 modified
+--replace_column 24 <created> 25 <modified>
 SELECT * from information_schema.routines where specific_name='sp9';
 
 DROP PROCEDURE sp9;
 
 --sorted_result
---replace_column 24 created 25 modified
+--replace_column 24 <created> 25 <modified>
 SELECT * from information_schema.routines where specific_name='sp9';
 
 CREATE PROCEDURE sp9()SELECT * from t1;
 
 --sorted_result
---replace_column 24 created 25 modified
+--replace_column 24 <created> 25 <modified>
 SELECT * from information_schema.routines where specific_name='sp9';
 
 DROP PROCEDURE IF EXISTS sp9;
 
 --sorted_result
---replace_column 24 created 25 modified
+--replace_column 24 <created> 25 <modified>
 SELECT * from information_schema.routines where specific_name='sp9';
 
 # ------------------------------------------------------------------------------
@@ -749,34 +743,34 @@ let $message= Testcase 4.1.10:
 DROP FUNCTION;
 --source include/show_msg80.inc
 
---replace_column 24 created 25 modified
+--replace_column 24 <created> 25 <modified>
 SELECT * from information_schema.routines where specific_name='fn10' and routine_type='FUNCTION';
 
 --disable_warnings ONCE
 DROP FUNCTION IF EXISTS fn10;
 
---replace_column 24 created 25 modified
+--replace_column 24 <created> 25 <modified>
 SELECT * from information_schema.routines where specific_name='fn10' and routine_type='FUNCTION';
 
 
 CREATE FUNCTION fn10() returns int return 100;
 
---replace_column 24 created 25 modified
+--replace_column 24 <created> 25 <modified>
 SELECT * from information_schema.routines where specific_name='fn10' and routine_type='FUNCTION';
 
 DROP FUNCTION fn10;
 
---replace_column 24 created 25 modified
+--replace_column 24 <created> 25 <modified>
 SELECT * from information_schema.routines where specific_name='fn10' and routine_type='FUNCTION';
 
 CREATE FUNCTION fn10() returns int return 100;
 
---replace_column 24 created 25 modified
+--replace_column 24 <created> 25 <modified>
 SELECT * from information_schema.routines where specific_name='fn10' and routine_type='FUNCTION';
 
 DROP FUNCTION IF EXISTS fn10;
 
---replace_column 24 created 25 modified
+--replace_column 24 <created> 25 <modified>
 SELECT * from information_schema.routines where specific_name='fn10' and routine_type='FUNCTION';
 
 

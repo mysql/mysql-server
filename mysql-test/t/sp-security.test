@@ -246,16 +246,18 @@ drop procedure q;
 
 
 # Clean up
-#Still connection con1root;
+# Still connection con1root;
 disconnect con2user1;
 disconnect con3anon;
 disconnect con4user2;
 use test;
-select routine_type, routine_schema, routine_name from information_schema.routines where routine_schema like 'db%';
+select routine_type, routine_schema, routine_name
+from information_schema.routines where routine_schema like 'db%';
 drop database db1_secret;
 drop database db2;
 # Make sure the routines are gone
-select routine_type, routine_schema, routine_name from information_schema.routines where routine_schema like 'db%';
+select routine_type, routine_schema, routine_name
+from information_schema.routines where routine_schema like 'db%';
 # Get rid of the users
 delete from mysql.user where user='user1' or user='user2';
 delete from mysql.user where user='' and host='%';
@@ -1007,9 +1009,9 @@ drop user bug12602983_user@localhost;
 drop database mysqltest_db;
 
 --echo #
---echo # WL#7897 - Use DD API for Stored Routines.
---echo #           Test case to verify I_S.ROUTINES and I_S.PARAMETERS result set when
---echo #           user has NO/ROUTINE LEVEL/GLOBAL SELECT Privilege(s).
+--echo # WL#7897 Use DD API for Stored Routines.
+--echo #    Test case to verify I_S.ROUTINES and I_S.PARAMETERS result set when
+--echo #    user has NO/ROUTINE LEVEL/GLOBAL SELECT Privilege(s).
 --echo #
 
 --enable_connect_log
@@ -1017,53 +1019,64 @@ drop database mysqltest_db;
 CREATE DATABASE mysqltest_db;
 CREATE PROCEDURE mysqltest_db.p1(IN f1 INT) SELECT 1;
 
+let $select_routines=
+SELECT routine_schema, routine_name, routine_type
+FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_schema = 'mysqltest_db';
+let $select_parameters=
+SELECT specific_schema, specific_name, parameter_name
+FROM INFORMATION_SCHEMA.PARAMETERS WHERE specific_schema = 'mysqltest_db';
+
 --echo # Create user with no privileges on mysqltest_db database.
 CREATE USER user@localhost;
 
---echo # Connect as user 'user@localhost'
-CONNECT (conn1, localhost, user,,);
+--echo # Connect as user 'user@localhost'.
+--connect (conn1, localhost, user,,)
 
---echo # I_S.Routine and I_S.parameters shows empty result set for user@localhost as user does not have any privileges.
-SELECT routine_schema, routine_name, routine_type FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_schema='mysqltest_db';
-SELECT specific_schema, specific_name, parameter_name FROM INFORMATION_SCHEMA.PARAMETERS WHERE specific_schema='mysqltest_db';
+--echo # I_S.Routine and I_S.parameters shows empty result set for
+--echo # user@localhost as user does not have any privileges.
+eval $select_routines;
+eval $select_parameters;
 
---echo # Grant procedure execute privilege to user@localhost;
-CONNECTION default;
+--echo # Grant procedure execute privilege to user@localhost.
+--connection default
 GRANT EXECUTE ON PROCEDURE mysqltest_db.p1 TO user@localhost;
 
---echo # I_S.Routine and I_S.parameters shows result set for user@localhost as user has routine level privilege.
-CONNECTION conn1;
-SELECT routine_schema, routine_name, routine_type FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_schema='mysqltest_db';
-SELECT specific_schema, specific_name, parameter_name FROM INFORMATION_SCHEMA.PARAMETERS WHERE specific_schema='mysqltest_db';
+--echo # I_S.Routine and I_S.parameters shows result set
+--echo # for user@localhost as user has routine level privilege.
+--connection conn1
+eval $select_routines;
+eval $select_parameters;
 
---echo # Revoke procedure execute privilege from user@localhost;
+--echo # Revoke procedure execute privilege from user@localhost.
 CONNECTION default;
 REVOKE EXECUTE ON PROCEDURE mysqltest_db.p1 FROM user@localhost;
 
---echo # I_S.Routine and I_S.parameters shows empty result set for user@localhost as user does not have any privileges.
-CONNECTION conn1;
-SELECT routine_schema, routine_name, routine_type FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_schema='mysqltest_db';
-SELECT specific_schema, specific_name, parameter_name FROM INFORMATION_SCHEMA.PARAMETERS WHERE specific_schema='mysqltest_db';
+--echo # I_S.Routine and I_S.parameters shows empty result set for
+--echo # user@localhost as user does not have any privileges.
+--connection conn1
+eval $select_routines;
+eval $select_parameters;
 
---echo # Grant GLOBAL SELECT privilege to user@localhost;
-CONNECTION default;
+--echo # Grant GLOBAL SELECT privilege to user@localhost.
+--connection default
 GRANT SELECT ON *.* TO user@localhost;
 
---echo # I_S.Routine and I_S.parameters shows result set for user@localhost as user has global select privilege.
-CONNECT (conn2, localhost, user,,);
-SELECT routine_schema, routine_name, routine_type FROM INFORMATION_SCHEMA.ROUTINES WHERE routine_schema='mysqltest_db';
-SELECT specific_schema, specific_name, parameter_name FROM INFORMATION_SCHEMA.PARAMETERS WHERE specific_schema='mysqltest_db';
+--echo # I_S.Routine and I_S.parameters shows result set for
+--echo # user@localhost as user has global select privilege.
+--connect (conn2, localhost, user,,)
+eval $select_routines;
+eval $select_parameters;
 
-# cleanup
-CONNECTION default;
-DISCONNECT conn1;
-DISCONNECT conn2;
+# Cleanup
+--connection default
+--disconnect conn1
+--disconnect conn2
 DROP USER user@localhost;
 DROP DATABASE mysqltest_db;
 
-set GLOBAL sql_mode= @orig_sql_mode_global;
-set SESSION sql_mode= @orig_sql_mode_session;
+SET GLOBAL sql_mode= @orig_sql_mode_global;
+SET SESSION sql_mode= @orig_sql_mode_session;
 
-# Wait till all disconnects are completed
+# Wait till all disconnects are completed.
 --source include/wait_until_count_sessions.inc
 

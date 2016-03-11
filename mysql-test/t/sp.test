@@ -9121,39 +9121,40 @@ SET NAMES default;
 USE test;
 
 --echo #
---echo # WL#7897- Use DD API for Stored Routines.
+--echo # WL#7897 -- Use DD API for Stored Routines.
 --echo # Basic test to verify:
---echo #   i) mysql.proc is not available any more
---echo #  ii) Stored routine metadata is still available with the information_schema
---echo #      tables "routines" and "parameters"
---echo #      (these tables are filled from the new DD tables mysql.routine and mysql.parameter).
+--echo #   i) The table mysql.proc does not exists any more.
+--echo #  ii) Stored routine metadata is still available with the
+--echo #      information_schema tables "routines" and "parameters".
+--echo #      These tables are filled from the new DD tables mysql.routine
+--echo #      and mysql.parameter.
 --echo # iii) Basic test to cover "READS SQL DATA" in ALTER operation.
 --echo #
 
 CREATE FUNCTION f1(a INT) RETURNS INT return 1;
 CREATE PROCEDURE p1(IN a INT, INOUT b INT, OUT c INT) select 1;
 
---echo # mysql.proc table does not exists any more.
+--echo # The table mysql.proc does not exists any more.
 --error ER_NO_SUCH_TABLE
 SELECT * FROM mysql.proc;
 
 --echo # Metadata of stored function f1.
 --sorted_result
---replace_column 24 created 25 modified
-SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME='f1';
+--replace_column 24 <created> 25 <modified>
+SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'f1';
 --sorted_result
-SELECT * FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME='f1';
+SELECT * FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'f1';
 
 --echo # Metadata of stored procedure p1.
 --sorted_result
---replace_column 24 created 25 modified
-SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME='p1';
+--replace_column 24 <created> 25 <modified>
+SELECT * FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'p1';
 --sorted_result
-SELECT * FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME='p1';
+SELECT * FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'p1';
 
 --echo # Basic test to cover "READS SQL DATA" in ALTER operation.
 ALTER FUNCTION f1 READS SQL DATA;
 
-# cleanup
+# Cleanup
 DROP FUNCTION f1;
 DROP PROCEDURE p1;

@@ -2877,18 +2877,32 @@ ERROR 42000: Identifier name 'f1111111111222222222233333333334444444444555555555
 drop function mysqltest111111111122222222223333333333444444444455555555556666666666777777777788888888889999999999aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeffffffffffgggggggggghhhhhhhhhhiiiiiiiiiijjjj.test;
 ERROR 42000: Incorrect database name 'mysqltest111111111122222222223333333333444444444455555555556666666666777777777788888888889999999999a'
 #
-# WL#7897- Use DD API for Stored Routines.
+# WL#7897 -- Use DD API for Stored Routines.
 # Test cases to verify error scenarios.
 #
 # Case 1. Test case to verify length of stored routine name length.
-ERROR 42000: Identifier name 'ppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp' is too long
-ERROR 42000: Identifier name 'fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' is too long
+#         STORED PROCEDURE -- name with maximum length
+my_column
+1
+#         STORED PROCEDURE -- name with maximum length + 1 --> expect a fail
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+#         STORED FUNCTION -- name with maximum length
+my_column
+1
+#         STORED FUNCTION -- name with maximum length + 1 --> expect a fail
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
 # Case 2: Test case to validate stored routine name.
 ERROR HY000: Invalid utf8 character string: 'test\xF0\x9D\x8C\x86'
 ERROR HY000: Invalid utf8 character string: 'test\xF0\x9D\x8C\x86'
 # Case 3: Test case to verify routine's parameter length.
-ERROR 42000: Identifier name 'ppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp' is too long
-ERROR 42000: Identifier name 'fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' is too long
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
 # Case 4: Test case to validate routine's parameter name.
 ERROR HY000: Invalid utf8 character string: 'test\xF0\x9D\x8C\x86'
 ERROR HY000: Invalid utf8 character string: 'test\xF0\x9D\x8C\x86'
@@ -2902,4 +2916,4 @@ ERROR HY000: Invalid utf8 character string: 'F09D8C'
 ERROR HY000: Invalid utf8 character string: 'F09D8C'
 ERROR HY000: Invalid utf8 character string: 'F09D8C'
 ERROR HY000: Invalid utf8 character string: 'F09D8C'
-# cleanup
+# Cleanup
