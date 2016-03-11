@@ -97,7 +97,7 @@ bool Server::prepare(const bool skip_networking, const bool skip_name_resolve)
   {
     if (!setup_accept())
       return false;
-    add_timer(120*1000, boost::bind(&Server::on_check_terminated_workers, this));
+    add_timer(1000, boost::bind(&Server::on_check_terminated_workers, this));
   }
   else
   {
