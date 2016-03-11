@@ -543,10 +543,6 @@ TEST_F(CacheStorageTest, GetTableBySePrivateId)
     EXPECT_EQ(tab->name(), table_name);
     EXPECT_EQ(*obj, *tab);
 
-    // Get partition by ID
-    const dd::Partition *p= tab->get_partition_by_se_private_id(0xAFFF);
-    EXPECT_EQ(0xAFFFu, p->se_private_id());
-
     const dd::Table *obj2= NULL;
     EXPECT_FALSE(dc->acquire<dd::Table>("mysql", obj->name(), &obj2));
     EXPECT_NE(nullp<const dd::Table>(), tab);

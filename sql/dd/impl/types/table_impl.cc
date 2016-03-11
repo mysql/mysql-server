@@ -549,27 +549,6 @@ Partition *Table_impl::get_partition(Object_id partition_id)
 
 ///////////////////////////////////////////////////////////////////////////
 
-const Partition *Table_impl::get_partition_by_se_private_id(
-                               Object_id se_private_id) const
-{
-  std::unique_ptr<Partition_const_iterator> it(partitions());
-
-  while (true)
-  {
-    const Partition *i= it->next();
-
-    if (!i)
-      break;
-
-    if (i->se_private_id() == se_private_id)
-      return i;
-  }
-
-  return NULL;
-}
-
-///////////////////////////////////////////////////////////////////////////
-
 const Partition *Table_impl::get_last_partition() const
 {
   return m_partitions->back();

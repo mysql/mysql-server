@@ -44,7 +44,7 @@
 #include "sql_base.h"                 // lock_table_names
 #include "sql_cache.h"                // query_cache
 #include "sql_class.h"                // THD
-#include "sql_db.h"                   // check_db_dir_existence
+#include "sql_db.h"                   // get_default_db_collation
 #include "sql_executor.h"             // QEP_TAB_standalone
 #include "sql_parse.h"                // test_if_data_home_dir
 #include "sql_partition.h"            // ALTER_PARTITION_PARAM_TYPE
@@ -2399,12 +2399,13 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
   String wrong_tables;
   int error= 0;
   int non_temp_tables_count= 0;
-  bool foreign_key_error=0;
-  bool non_tmp_error= 0;
-  bool trans_tmp_table_deleted= 0, non_trans_tmp_table_deleted= 0;
-  bool non_tmp_table_deleted= 0;
-  bool have_nonexistent_tmp_table= 0;
-  bool is_drop_tmp_if_exists_with_no_defaultdb= 0;
+  bool foreign_key_error= false;
+  bool non_tmp_error= false;
+  bool trans_tmp_table_deleted= false;
+  bool non_trans_tmp_table_deleted= false;
+  bool non_tmp_table_deleted= false;
+  bool have_nonexistent_tmp_table= false;
+  bool is_drop_tmp_if_exists_with_no_defaultdb= false;
   String built_query;
   String built_trans_tmp_query, built_non_trans_tmp_query;
   String nonexistent_tmp_tables;
@@ -2462,8 +2463,17 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         'DROP TEMPORARY TABLE IF EXISTS' command is logged with a qualified
         table name.
       */
-      if (thd->db().str != NULL && check_db_dir_existence(thd->db().str))
-        is_drop_tmp_if_exists_with_no_defaultdb= true;
+      if (thd->db().str != NULL)
+      {
+        bool exists= false;
+        if (dd::schema_exists(thd, thd->db().str, &exists))
+        {
+          error= 1;
+          goto err;
+        }
+        if (!exists)
+          is_drop_tmp_if_exists_with_no_defaultdb= true;
+      }
       built_trans_tmp_query.set_charset(system_charset_info);
       built_trans_tmp_query.append("DROP TEMPORARY TABLE IF EXISTS ");
       built_non_trans_tmp_query.set_charset(system_charset_info);

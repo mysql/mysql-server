@@ -45,7 +45,7 @@
 #include "sql_audit.h"                      // audit_global_variable_get
 #include "sql_base.h"                       // close_thread_tables
 #include "sql_class.h"                      // THD
-#include "sql_db.h"                         // check_db_dir_existence
+#include "sql_db.h"                         // get_default_db_collation
 #include "sql_optimizer.h"                  // JOIN
 #include "sql_parse.h"                      // command_name
 #include "sql_plugin.h"                     // PLUGIN_IS_DELTED
@@ -1155,7 +1155,10 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   }
   else
   {
-    if (check_db_dir_existence(dbname))
+    bool exists= false;
+    if (dd::schema_exists(thd, dbname, &exists))
+      DBUG_RETURN(TRUE);
+    else if (!exists)
     {
       my_error(ER_BAD_DB_ERROR, MYF(0), dbname);
       DBUG_RETURN(TRUE);
