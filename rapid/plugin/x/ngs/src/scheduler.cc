@@ -299,7 +299,6 @@ void Scheduler_dynamic::create_thread()
   if (is_running())
   {
     Thread_t thread;
-    join_terminating_workers();
 
     ngs::thread_create(0, &thread, NULL, worker_proxy, this);
     increase_workers_count();
