@@ -277,7 +277,8 @@ public:
   
   enum IndexState {
     IS_BUILDING = 0,          // build in progress, start state at create
-    IS_ONLINE = 1             // ready to use
+    IS_ONLINE = 1,            // ready to use
+    IS_OFFLINE = 2            // not in use
   };
 
   /* Sub states of IndexOperation while waiting for TransId_AI
@@ -545,7 +546,9 @@ public:
   /* WHEN THE INDEX IS DROPPED.               */
   /* **************************************** */
   struct TcIndexData {
-    TcIndexData() {}
+    TcIndexData() :
+      indexState(IS_OFFLINE)
+    {}
 
     /**
      *  IndexState

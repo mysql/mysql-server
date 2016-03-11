@@ -16093,6 +16093,7 @@ void Dbtc::execDROP_INDX_IMPL_REQ(Signal* signal)
     return;
   }
   // Release index record
+  indexData->indexState = IS_OFFLINE;
   c_theIndexes.release(req->indexId);
 
   DropIndxImplConf * const conf =  
@@ -17022,7 +17023,7 @@ void Dbtc::readIndexTable(Signal* signal,
 {
   TcKeyReq * const tcKeyReq = (TcKeyReq *)signal->getDataPtrSend();
   Uint32 tcKeyRequestInfo = indexOp->tcIndxReq.requestInfo; 
-  TcIndexData* indexData;
+  TcIndexDataPtr indexDataPtr;
   Uint32 transId1 = indexOp->tcIndxReq.transId1;
   Uint32 transId2 = indexOp->tcIndxReq.transId2;
   ApiConnectRecord* regApiPtr = transPtr.p;
@@ -17031,22 +17032,27 @@ void Dbtc::readIndexTable(Signal* signal,
     (Operation_t)TcKeyReq::getOperationType(tcKeyRequestInfo);
 
   // Find index table
-  if ((indexData = c_theIndexes.getPtr(indexOp->tcIndxReq.tableId)) == NULL) {
-    // TODO : Free KeyInfo and AttrInfo sections here if necessary
-    // How is this operation cleaned up?
+  indexDataPtr.i = indexOp->tcIndxReq.tableId;
+  /* Using a IgnoreAlloc variant of getPtr to make the lookup safe.
+   * The validity of the index is checked subsequently using indexState. */
+  c_theIndexes.getPool().getPtrIgnoreAlloc(indexDataPtr);
+  if (indexDataPtr.p == NULL ||
+      indexDataPtr.p->indexState == IS_OFFLINE )
+  {
+    /* The index was either null or was already dropped.
+     * Abort the operation and release the resources. */
     jam();
-    // Failed to find index record
-    TcKeyRef * const tcIndxRef = (TcKeyRef *)signal->getDataPtrSend();
-
-    tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
-    tcIndxRef->transId[0] = regApiPtr->transid[0];
-    tcIndxRef->transId[1] = regApiPtr->transid[1];
-    tcIndxRef->errorCode = 4000;    
-    // tcIndxRef->errorData = ??; Where to find indexId
-    sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
-	       TcKeyRef::SignalLength, JBB);
+    terrorCode = ZNO_SUCH_TABLE;
+    apiConnectptr = transPtr;
+    /* If the signal is last in the batch, don't wait for more
+     * and enable sending the reply signal in abortErrorLab */
+    regApiPtr->m_flags |=
+      TcKeyReq::getExecuteFlag(tcKeyRequestInfo) ?
+      ApiConnectRecord::TF_EXEC_FLAG : 0;
+    abortErrorLab(signal);
     return;
   }
+  TcIndexData* indexData = indexDataPtr.p;
   tcKeyReq->transId1 = transId1;
   tcKeyReq->transId2 = transId2;
   tcKeyReq->tableId = indexData->indexId;
