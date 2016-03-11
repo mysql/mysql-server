@@ -61,13 +61,6 @@ sanity () {
 		chmod 750 ${MYSQLKEYRING}
 	fi
 
-	if [ ! -d "${MYSQLDATA}/mysql" -a ! -L "${MYSQLDATA}/mysql" ];
-	then
-		mkdir ${MYSQLDATA}/mysql
-		chown mysql:mysql ${MYSQLDATA}/mysql
-		chmod 750 ${MYSQLDATA}/mysql
-	fi
-
 	if [ ! "$(ls -A ${MYSQLDATA}/mysql)" ];
 	then
 		su - mysql -s /bin/bash -c "/usr/sbin/mysqld --initialize-insecure=on 2>&1 > /dev/null"
