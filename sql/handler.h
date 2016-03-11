@@ -2851,8 +2851,6 @@ public:
                       const dd::Table *from_table_def,
                       dd::Table *to_table_def);
   int ha_delete_table(const char *name, const dd::Table *table_def);
-  virtual int finish_delete_table(const char *name)
-  { return 0; }
   void ha_drop_table(const char *name);
 
   int ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info,

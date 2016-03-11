@@ -2310,6 +2310,13 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
           if (!table->table)
             DBUG_RETURN(true);
           table->mdl_request.ticket= table->table->mdl_ticket;
+
+          if (wait_while_table_is_used(thd, table->table, HA_EXTRA_FORCE_REOPEN))
+            DBUG_RETURN(true);
+
+          close_all_tables_for_name(thd, table->table->s, true, NULL);
+          table->table= 0;
+
           /* Here we are sure that a non-tmp table exists */
           have_non_tmp_table= 1;
         }
@@ -2411,8 +2418,6 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
   String built_query;
   String built_trans_tmp_query, built_non_trans_tmp_query;
   String nonexistent_tmp_tables;
-  List<TABLE_LIST> finish_delete_list;
-
   DBUG_ENTER("mysql_rm_table_no_locks");
 
   /*
@@ -2585,17 +2590,6 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     {
       non_temp_tables_count++;
 
-      if (thd->locked_tables_mode)
-      {
-        if (wait_while_table_is_used(thd, table->table, HA_EXTRA_FORCE_REOPEN))
-        {
-          error= -1;
-          goto err;
-        }
-        close_all_tables_for_name(thd, table->table->s, true, NULL);
-        table->table= 0;
-      }
-
       /* Check that we have an exclusive lock on the table to be dropped. */
       DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
                                      table->db, table->table_name,
@@ -2750,9 +2744,6 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           }
           else
             error|= 1;
-
-          if (hton == innodb_hton)
-            finish_delete_list.push_back(table);
         }
         else
           error|= 1;
@@ -2956,27 +2947,6 @@ err:
 
   if (! drop_temporary)
     ha_commit_trans(thd, false, true);
-
-  List_iterator<TABLE_LIST> finish_delete_it(finish_delete_list);
-  while ((table= finish_delete_it++))
-  {
-    /*
-      It doesn't matter for InnoDB id post-commit hook called for
-      ha_innobase or ha_innopart. So we don't fuss about figuring
-      out if table partitioned or not here.
-    */
-    handler *file= get_new_handler((TABLE_SHARE*) 0, false, thd->mem_root,
-                                   ha_resolve_by_legacy_type(thd,
-                                                             DB_TYPE_INNODB));
-    char tmp_path[FN_REFLEN];
-
-    build_table_filename(path, sizeof(path) - 1, table->db, 
-                         (lower_case_table_names == 2) ? table->alias :
-                                                         table->table_name,
-                         "", 0);
-    file->finish_delete_table(get_canonical_filename(file, path, tmp_path));
-    delete file;
-  }
 
   if (!drop_temporary)
   {
