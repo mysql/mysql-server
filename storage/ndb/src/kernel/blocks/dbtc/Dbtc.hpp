@@ -282,7 +282,8 @@ public:
   
   enum IndexState {
     IS_BUILDING = 0,          // build in progress, start state at create
-    IS_ONLINE = 1             // ready to use
+    IS_ONLINE = 1,            // ready to use
+    IS_OFFLINE = 2            // not in use
   };
 
   /* Sub states of IndexOperation while waiting for TransId_AI
@@ -550,7 +551,9 @@ public:
   /* WHEN THE INDEX IS DROPPED.               */
   /* **************************************** */
   struct TcIndexData {
-    TcIndexData() {}
+    TcIndexData() :
+      indexState(IS_OFFLINE)
+    {}
 
     /**
      *  IndexState
@@ -1759,9 +1762,9 @@ private:
                         const Uint32 *src,
                         Uint32 len);
   bool receivedAllTRANSID_AI(TcIndexOperation* indexOp);
-  void readIndexTable(Signal* signal, 
-		      ApiConnectRecord* regApiPtr,
-		      TcIndexOperation* indexOp,
+  void readIndexTable(Signal* signal,
+                      ApiConnectRecordPtr transPtr,
+                      TcIndexOperation* indexOp,
                       Uint32 special_op_flags);
   void executeIndexOperation(Signal* signal, 
 			     ApiConnectRecord* regApiPtr,
