@@ -94,7 +94,6 @@ void THD::Transaction_state::backup(THD *thd)
   this->m_server_status= thd->server_status;
   this->m_in_lock_tables= thd->in_lock_tables;
   this->m_time_zone_used= thd->time_zone_used;
-  this->m_killed= thd->killed;
 }
 
 
@@ -114,7 +113,6 @@ void THD::Transaction_state::restore(THD *thd)
   thd->lex->sql_command= this->m_sql_command;
   thd->in_lock_tables= this->m_in_lock_tables;
   thd->time_zone_used= this->m_time_zone_used;
-  thd->killed= this->m_killed;
 }
 
 
@@ -194,10 +192,6 @@ THD::Attachable_trx::Attachable_trx(THD *thd, Attachable_trx *prev_trx)
 
   // Reset @@session.time_zone usage indicator for consistency.
   m_thd->time_zone_used= false;
-
-  // TODO: This is temporary workaround until we make DD transactions
-  // immune to ALL kinds of KILL (including THD::KILL_BAD_DATA).
-  m_thd->killed= THD::NOT_KILLED;
 }
 
 
