@@ -1841,6 +1841,15 @@ SELECT length(data) AS len
 FROM ( SELECT repeat(_utf8mb4 0xE29883, 21846) AS data ) AS sub;
 
 --echo #
+--echo # Bug #22884187 RTRIM GETS EXPONENTIALLY SLOWER ON LARGE STRINGS
+--echo #
+
+set names utf8;
+SELECT TRIM(BOTH 'å' FROM 'aæaå');
+set names default;
+SELECT HEX(TRIM(CONVERT(_gb18030 0x20202081408141208144202020 USING utf32)));
+
+--echo #
 --echo # Bug#21447969 FILTER USING TRIM RESULTS IN CORRECT
 --echo #
 

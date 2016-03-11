@@ -2060,27 +2060,50 @@ String *Item_func_trim::val_str(String *str)
     }
     if (m_trim_trailing)
     {
-      bool found;
-      const char *p= ptr;
-      do
+      // Optimize a common case, removing 0x20
+      if (remove_length == 1)
       {
-        found= false;
-        while (ptr + remove_length < end)
+        const char *save_ptr= ptr;
+        const char *new_end= ptr;
+        const char chr= (*remove_str)[0];
+        while (ptr < end)
         {
           uint32 l;
           if ((l= my_ismbchar(res->charset(), ptr, end)))
+          {
             ptr+= l;
-          else
-            ++ptr;
+            new_end= ptr;
+          }
+          else if (*ptr++ != chr)
+            new_end= ptr;
         }
-        if (ptr + remove_length == end && !memcmp(ptr, r_ptr, remove_length))
-        {
-          end-= remove_length;
-          found= true;
-        }
-        ptr= p;
+        end= new_end;
+        ptr= save_ptr;
       }
-      while (found);
+      else
+      {
+        bool found;
+        const char *save_ptr= ptr;
+        do
+        {
+          found= false;
+          while (ptr + remove_length < end)
+          {
+            uint32 l;
+            if ((l= my_ismbchar(res->charset(), ptr, end)))
+              ptr+= l;
+            else
+              ++ptr;
+          }
+          if (ptr + remove_length == end && !memcmp(ptr, r_ptr, remove_length))
+          {
+            end-= remove_length;
+            found= true;
+          }
+          ptr= save_ptr;
+        }
+        while (found);
+      }
     }
   }
   else
