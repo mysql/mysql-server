@@ -6283,7 +6283,6 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   HA_CREATE_INFO local_create_info;
   Alter_info local_alter_info;
   Alter_table_ctx local_alter_ctx; // Not used
-  bool res= TRUE;
   bool is_trans= FALSE;
   uint not_used;
   Tablespace_hash_set tablespace_set(PSI_INSTRUMENT_ME);
@@ -6302,7 +6301,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     properly isolated from all concurrent operations which matter.
   */
   if (open_tables(thd, &thd->lex->query_tables, &not_used, 0))
-    goto err;
+    DBUG_RETURN(true);
   src_table->table->use_all_columns();
 
   DEBUG_SYNC(thd, "create_table_like_after_open");
@@ -6358,7 +6357,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   local_create_info.row_type= src_table->table->s->row_type;
   if (mysql_prepare_alter_table(thd, src_table->table, &local_create_info,
                                 &local_alter_info, &local_alter_ctx))
-    goto err;
+    DBUG_RETURN(true);
   /* Partition info is not handled by mysql_prepare_alter_table() call. */
   if (src_table->table->part_info)
     thd->work_part_info= src_table->table->part_info->get_clone();
@@ -6386,10 +6385,10 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   local_create_info.data_file_name= local_create_info.index_file_name= NULL;
   local_create_info.alias= create_info->alias;
 
-  if ((res= mysql_create_table_no_lock(thd, table->db, table->table_name,
-                                       &local_create_info, &local_alter_info,
-                                       0, &is_trans)))
-    goto err;
+  if (mysql_create_table_no_lock(thd, table->db, table->table_name,
+                                 &local_create_info, &local_alter_info,
+                                 0, &is_trans))
+    DBUG_RETURN(true);
 
   /*
     Ensure that table or view does not exist and we have an exclusive lock on
@@ -6478,8 +6477,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
             tdc_remove_table(thd, TDC_RT_REMOVE_NOT_OWN, table->db,
                              table->table_name, false);
 
-            if (res)
-              goto err;
+            if (result)
+              DBUG_RETURN(true);
             new_table= TRUE;
           }
 
@@ -6490,7 +6489,14 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
             Note that placeholders don't have the handler open.
           */
           if (table->table->file->extra(HA_EXTRA_ADD_CHILDREN_LIST))
-            goto err;
+          {
+            if (new_table)
+            {
+              DBUG_ASSERT(thd->open_tables == table->table);
+              close_thread_table(thd, &thd->open_tables);
+            }
+            DBUG_RETURN(true);
+          }
 
           /*
             As the reference table is temporary and may not exist on slave, we must
@@ -6516,13 +6522,13 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
           }
 
           if (write_bin_log(thd, true, query.ptr(), query.length(), is_trans))
-            goto err;
+            DBUG_RETURN(true);
         }
       }
       else                                      // Case 1
         if (write_bin_log(thd, true, thd->query().str, thd->query().length,
                           is_trans))
-          goto err;
+          DBUG_RETURN(true);
     }
     /*
       Case 3 and 4 does nothing under RBR
@@ -6530,10 +6536,9 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   }
   else if (write_bin_log(thd, true,
                          thd->query().str, thd->query().length, is_trans))
-    goto err;
+    DBUG_RETURN(true);
 
-err:
-  DBUG_RETURN(res);
+  DBUG_RETURN(false);
 }
 
 /* table_list should contain just one table */
