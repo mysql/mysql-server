@@ -4,6 +4,7 @@ innodb.alter_kill                            : Bug#19442959 2015-11-05 jhauglid
 innodb.innodb-multiple-tablespaces           : Bug#19442959 2015-11-05 jhauglid
 innodb.innodb_page_size_func                 : Bug#19442959 2015-11-05 jhauglid
 innodb.innodb_pagesize_max_recordsize        : Bug#19442959 2015-11-05 jhauglid
+innodb.log_based_discovery                   : Bug#19442959 2016-03-11 jhauglid
 innodb.log_corruption                        : Bug#19442959 2015-11-05 jhauglid
 innodb.log_corruption_1                      : Bug#19442959 2015-11-05 jhauglid
 innodb.log_file                              : Bug#19442959 2015-11-05 jhauglid
