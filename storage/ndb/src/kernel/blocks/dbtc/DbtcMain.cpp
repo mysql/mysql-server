@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16288,7 +16288,7 @@ void Dbtc::execTCINDXREQ(Signal* signal)
     handle.clear();
 
     /* All data received, process */
-    readIndexTable(signal, regApiPtr, indexOp, 0);
+    readIndexTable(signal, transPtr, indexOp, 0);
     return;
   }
   else
@@ -16315,7 +16315,7 @@ void Dbtc::execTCINDXREQ(Signal* signal)
     {
       jam();
       /* All KI + no AI received, process */
-      readIndexTable(signal, regApiPtr, indexOp, 0);
+      readIndexTable(signal, transPtr, indexOp, 0);
       return;
     }
     else if (ret == -1)
@@ -16332,7 +16332,7 @@ void Dbtc::execTCINDXREQ(Signal* signal)
                          includedAttrLength) == 0) {
       jam();
       /* All KI and AI received, process */
-      readIndexTable(signal, regApiPtr, indexOp, 0);
+      readIndexTable(signal, transPtr, indexOp, 0);
       return;
     }
   }
@@ -16381,7 +16381,7 @@ void Dbtc::execINDXKEYINFO(Signal* signal)
 			keyInfoLength) == 0) {
       jam();
       /* All KI + AI received, process */
-      readIndexTable(signal, regApiPtr, indexOp, 0);
+      readIndexTable(signal, transPtr, indexOp, 0);
     }
   }
 }
@@ -16429,7 +16429,7 @@ void Dbtc::execINDXATTRINFO(Signal* signal)
 			 attrInfoLength) == 0) {
       jam();
       /* All KI + AI received, process */
-      readIndexTable(signal, regApiPtr, indexOp, 0);
+      readIndexTable(signal, transPtr, indexOp, 0);
       return;
     }
     return;
@@ -17015,9 +17015,9 @@ void Dbtc::execTCROLLBACKREP(Signal* signal)
 /**
  * Read index table with the index attributes as PK
  */
-void Dbtc::readIndexTable(Signal* signal, 
-			  ApiConnectRecord* regApiPtr,
-			  TcIndexOperation* indexOp,
+void Dbtc::readIndexTable(Signal* signal,
+                          ApiConnectRecordPtr transPtr,
+                          TcIndexOperation* indexOp,
                           Uint32 special_op_flags)
 {
   TcKeyReq * const tcKeyReq = (TcKeyReq *)signal->getDataPtrSend();
@@ -17025,6 +17025,7 @@ void Dbtc::readIndexTable(Signal* signal,
   TcIndexData* indexData;
   Uint32 transId1 = indexOp->tcIndxReq.transId1;
   Uint32 transId2 = indexOp->tcIndxReq.transId2;
+  ApiConnectRecord* regApiPtr = transPtr.p;
 
   const Operation_t opType = 
     (Operation_t)TcKeyReq::getOperationType(tcKeyRequestInfo);
@@ -18040,7 +18041,7 @@ Dbtc::fk_execTCINDXREQ(Signal* signal,
   handle.clear();
 
   /* All data received, process */
-  readIndexTable(signal, transPtr.p, indexOpPtr.p,
+  readIndexTable(signal, transPtr, indexOpPtr.p,
                  transPtr.p->m_special_op_flags);
 
   if (unlikely(transPtr.p->apiConnectstate == CS_ABORTING))
