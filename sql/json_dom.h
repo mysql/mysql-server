@@ -27,6 +27,7 @@
 
 #include <map>
 #include <string>
+#include <type_traits>          // is_base_of
 
 class Json_dom;
 class Json_path;
@@ -63,6 +64,43 @@ typedef Prealloced_array<Json_dom *, 16> Json_dom_vector;
 */
 
 /**
+  Json values in MySQL comprises the stand set of JSON values plus a
+  MySQL specific set. A Json _number_ type is subdivided into _int_,
+  _uint_, _double_ and _decimal_.
+
+  MySQL also adds four built-in date/time values: _date_, _time_,
+  _datetime_ and _timestamp_.  An additional _opaque_ value can
+  store any other MySQL type.
+
+  The enumeration is common to Json_dom and Json_wrapper.
+
+  The enumeration is also used by Json_wrapper::compare() to
+  determine the ordering when comparing values of different types,
+  so the order in which the values are defined in the enumeration,
+  is significant. The expected order is null < number < string <
+  object < array < boolean < date < time < datetime/timestamp <
+  opaque.
+*/
+enum class enum_json_type
+{
+  J_NULL,
+  J_DECIMAL,
+  J_INT,
+  J_UINT,
+  J_DOUBLE,
+  J_STRING,
+  J_OBJECT,
+  J_ARRAY,
+  J_BOOLEAN,
+  J_DATE,
+  J_TIME,
+  J_DATETIME,
+  J_TIMESTAMP,
+  J_OPAQUE,
+  J_ERROR
+};
+
+/**
   JSON DOM abstract base class.
 
   MySQL representation of in-memory JSON objects used by the JSON type
@@ -96,53 +134,6 @@ class Json_dom
   // so that these classes can call set_parent()
   friend class Json_object;
   friend class Json_array;
-public:
-  /**
-    Json values in MySQL comprises the stand set of JSON values plus a
-    MySQL specific set. A Json _number_ type is subdivided into _int_,
-    _uint_, _double_ and _decimal_.
-
-    MySQL also adds four built-in date/time values: _date_, _time_,
-    _datetime_ and _timestamp_.  An additional _opaque_ value can
-    store any other MySQL type.
-
-    The enumeration is common to Json_dom and Json_wrapper.
-
-    The enumeration is also used by Json_wrapper::compare() to
-    determine the ordering when comparing values of different types,
-    so the order in which the values are defined in the enumeration,
-    is significant. The expected order is null < number < string <
-    object < array < boolean < date < time < datetime/timestamp <
-    opaque.
-  */
-  enum enum_json_type {
-    J_NULL,
-    J_DECIMAL,
-    J_INT,
-    J_UINT,
-    J_DOUBLE,
-    J_STRING,
-    J_OBJECT,
-    J_ARRAY,
-    J_BOOLEAN,
-    J_DATE,
-    J_TIME,
-    J_DATETIME,
-    J_TIMESTAMP,
-    J_OPAQUE,
-    J_ERROR
-  };
-
-  /**
-    Extended type ids so that JSON_TYPE() can give useful type
-    names to certain sub-types of J_OPAQUE.
-  */
-  enum enum_json_opaque_type {
-    J_OPAQUE_BLOB,
-    J_OPAQUE_BIT,
-    J_OPAQUE_GEOMETRY
-  };
-
 protected:
   Json_dom() : m_parent(NULL) {}
 
@@ -255,20 +246,6 @@ public:
   static Json_dom *parse(const char *text, size_t length,
                          const char **errmsg, size_t *offset,
                          bool preserve_neg_zero_int= false);
-
-  /**
-    Maps the enumeration value of type enum_json_type into a string.
-    The last cell in the array contains a NULL pointer.
-    For example:
-    json_type_string_map[J_OBJECT] == "OBJECT"
-  */
-  static const char * json_type_string_map[];
-
-  /**
-    The maximum length of a string in json_type_string_map including
-    a final zero char.
-  */
-  static const uint32 typelit_max_length;
 
   /**
     Construct a DOM object based on a binary JSON value. The ownership
@@ -389,7 +366,7 @@ private:
 public:
   Json_object();
   ~Json_object();
-  enum_json_type json_type() const { return J_OBJECT; }
+  enum_json_type json_type() const { return enum_json_type::J_OBJECT; }
 
   /**
     Add a clone of the value to the object iff the key isn't already set.  If
@@ -493,7 +470,7 @@ public:
   ~Json_array();
 
   // See base class documentation.
-  enum_json_type json_type() const { return J_ARRAY; }
+  enum_json_type json_type() const { return enum_json_type::J_ARRAY; }
 
   /**
     Append a clone of the value to the end of the array.
@@ -648,7 +625,7 @@ public:
   ~Json_string() {}
 
   // See base class documentation
-  enum_json_type json_type() const { return J_STRING; }
+  enum_json_type json_type() const { return enum_json_type::J_STRING; }
   // See base class documentation.
   Json_dom *clone() const { return new (std::nothrow) Json_string(m_str); }
 
@@ -711,7 +688,7 @@ public:
   bool get_binary(char *dest) const;
 
   // See base class documentation
-  enum_json_type json_type() const { return J_DECIMAL; }
+  enum_json_type json_type() const { return enum_json_type::J_DECIMAL; }
 
   /**
     Get a pointer to the MySQL decimal held by this object. Ownership
@@ -748,7 +725,7 @@ public:
   ~Json_double() {}
 
   // See base class documentation
-  enum_json_type json_type() const { return J_DOUBLE; }
+  enum_json_type json_type() const { return enum_json_type::J_DOUBLE; }
 
   // See base class documentation
   Json_dom *clone() const;
@@ -774,7 +751,7 @@ public:
   ~Json_int() {}
 
   // See base class documentation
-  enum_json_type json_type() const { return J_INT; }
+  enum_json_type json_type() const { return enum_json_type::J_INT; }
 
   /**
     Return the signed int held by this object.
@@ -811,7 +788,7 @@ public:
   ~Json_uint() {}
 
   // See base class documentation
-  enum_json_type json_type() const { return J_UINT; }
+  enum_json_type json_type() const { return enum_json_type::J_UINT; }
 
   /**
     Return the unsigned int held by this object.
@@ -846,7 +823,7 @@ public:
   ~Json_null() {}
 
   // See base class documentation
-  enum_json_type json_type() const { return J_NULL; }
+  enum_json_type json_type() const { return enum_json_type::J_NULL; }
 
   // See base class documentation
   Json_dom *clone() const { return new (std::nothrow) Json_null(); }
@@ -953,7 +930,7 @@ public:
   ~Json_opaque() {}
 
   // See base class documentation
-  enum_json_type json_type() const { return J_OPAQUE; }
+  enum_json_type json_type() const { return enum_json_type::J_OPAQUE; }
 
   /**
     @return a pointer to the opaque value. Use #size() to get its size.
@@ -986,7 +963,7 @@ public:
   ~Json_boolean() {}
 
   // See base class documentation
-  enum_json_type json_type() const { return J_BOOLEAN; }
+  enum_json_type json_type() const { return enum_json_type::J_BOOLEAN; }
 
   /**
     @return false for JSON false, true for JSON true
@@ -1253,7 +1230,7 @@ public:
     @return the type, or Json_dom::J_ERROR if the wrapper does not contain
     a JSON value
   */
-  Json_dom::enum_json_type type() const;
+  enum_json_type type() const;
 
   /**
     Return the MYSQL type of the opaque value, see #type(). Valid for
@@ -1547,5 +1524,74 @@ public:
   @return true if the string is valid JSON text, false otherwise
 */
 bool is_valid_json_syntax(const char *text, size_t length);
+
+/**
+  A class that is capable of holding objects of any sub-type of
+  Json_scalar. Used for pre-allocating space in query-duration memory
+  for JSON scalars that are to be returned by get_json_atom_wrapper().
+*/
+class Json_scalar_holder : public Sql_alloc
+{
+  /**
+    Union of all concrete subclasses of Json_scalar. The union is
+    never instantiated. It is only used for finding how much space
+    needs to be allocated for #m_buffer.
+  */
+  union Any_json_scalar
+  {
+    Json_string m_string;
+    Json_decimal m_decimal;
+    Json_int m_int;
+    Json_uint m_uint;
+    Json_double m_double;
+    Json_boolean m_boolean;
+    Json_null m_null;
+    Json_datetime m_datetime;
+    Json_opaque m_opaque;
+    // Need explicitly deleted destructor to silence warning on MSVC.
+    ~Any_json_scalar() = delete;
+  };
+
+  /// The buffer in which the Json_scalar value is stored.
+  char m_buffer[sizeof(Any_json_scalar)];
+
+  /// True if and only if a value has been assigned to the holder.
+  bool m_assigned= false;
+
+  /// Clear the holder, and destroy the held value if there is one.
+  void clear()
+  {
+    if (m_assigned)
+    {
+      get()->~Json_scalar();
+      m_assigned= false;
+    }
+  }
+public:
+  /// Destructor. The held value is destroyed, if there is one.
+  ~Json_scalar_holder() { clear(); }
+
+  /// Get a pointer to the held object, or nullptr if there is none.
+  Json_scalar *get()
+  {
+    void *ptr= m_assigned ? &m_buffer : nullptr;
+    return static_cast<Json_scalar *>(ptr);
+  }
+
+  /**
+    Construct a new Json_scalar value in this Json_scalar_holder.
+    If a value is already held, the old value is destroyed and replaced.
+    @tparam T which type of Json_scalar to create
+    @param args the arguments to T's constructor
+  */
+  template <typename T, typename... Args> void emplace(Args&&... args)
+  {
+    static_assert(std::is_base_of<Json_scalar, T>::value, "Not a Json_scalar");
+    static_assert(sizeof(T) <= sizeof(m_buffer), "Buffer is too small");
+    clear();
+    new (&m_buffer) T(std::forward<Args>(args)...);
+    m_assigned= true;
+  }
+};
 
 #endif /* JSON_DOM_INCLUDED */

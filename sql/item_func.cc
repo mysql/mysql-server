@@ -49,7 +49,7 @@
 #include "sql_show.h"            // append_identifier
 #include "sql_time.h"            // TIME_from_longlong_packed
 #include "strfunc.h"             // find_type
-#include "item_json_func.h"      // Item_func_json_quote
+#include "json_dom.h"            // Json_wrapper
 #include "val_int_compare.h"
 
 #include <cfloat>                // DBL_DIG

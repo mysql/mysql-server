@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -576,7 +576,7 @@ static const Json_string *parse_name_with_rapidjson(const char *str, size_t len)
 {
   const Json_dom *dom= Json_dom::parse(str, len, NULL, NULL);
 
-  if (dom != NULL && dom->json_type() == Json_dom::J_STRING)
+  if (dom != NULL && dom->json_type() == enum_json_type::J_STRING)
     return down_cast<const Json_string *>(dom);
 
   delete dom;

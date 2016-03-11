@@ -46,32 +46,6 @@ static bool populate_object(const THD *thd, Json_object *jo,
 static bool populate_array(const THD *thd, Json_array *ja,
                            const json_binary::Value &v);
 
-const char * Json_dom::json_type_string_map[]= {
-  "NULL",
-  "DECIMAL",
-  "INTEGER",
-  "UNSIGNED INTEGER",
-  "DOUBLE",
-  "STRING",
-  "OBJECT",
-  "ARRAY",
-  "BOOLEAN",
-  "DATE",
-  "TIME",
-  "DATETIME",
-  "TIMESTAMP",
-  "OPAQUE",
-  "ERROR",
-
-  // OPAQUE types with special names
-  "BLOB",
-  "BIT",
-  "GEOMETRY",
-
-  NULL
-};
-
-
 /**
  Auto-wrap a dom. Delete the dom if there is a memory
  allocation failure.
@@ -94,8 +68,8 @@ static Json_dom *make_mergeable(Json_dom *candidate)
 {
   switch (candidate->json_type())
   {
-  case Json_dom::J_ARRAY:
-  case Json_dom::J_OBJECT:
+  case enum_json_type::J_ARRAY:
+  case enum_json_type::J_OBJECT:
     {
       return candidate;
     }
@@ -127,8 +101,8 @@ Json_dom *merge_doms(Json_dom *left, Json_dom *right)
   }
 
   // at this point, the arguments are either objects or arrays
-  bool left_is_array= (left->json_type() == Json_dom::J_ARRAY);
-  bool right_is_array= (right->json_type() == Json_dom::J_ARRAY);
+  bool left_is_array= (left->json_type() == enum_json_type::J_ARRAY);
+  bool right_is_array= (right->json_type() == enum_json_type::J_ARRAY);
 
   if (left_is_array || right_is_array)
   {
@@ -203,24 +177,6 @@ void Json_dom::operator delete(void *ptr, const std::nothrow_t&) throw()
 /* purecov: end */
 
 
-/**
-  Compute the maximum length of the string representation of the Json type
-  literals which we use as output from JSON_TYPE.
-
-  @return the length of the longest literal + 1 (for terminating NUL).
-*/
-static uint32 compute_max_typelit()
-{
-  size_t maxl= 0;
-  for (const char **s= &Json_dom::json_type_string_map[0]; *s; ++s)
-  {
-    maxl= std::max(std::strlen(*s), maxl);
-  }
-  return static_cast<uint32>(maxl + 1);
-}
-
-const uint32 Json_dom::typelit_max_length= compute_max_typelit();
-
 static bool seen_already(Json_dom_vector *result, Json_dom *cand)
 {
   Json_dom_vector::iterator it= std::find(result->begin(),
@@ -268,7 +224,7 @@ bool Json_dom::find_child_doms(const Json_path_leg *path_leg,
                                Json_dom_vector *duplicates,
                                Json_dom_vector *result)
 {
-  Json_dom::enum_json_type dom_type= json_type();
+  enum_json_type dom_type= json_type();
   enum_json_path_leg_type leg_type= path_leg->get_type();
 
   if (is_seek_done(result, only_need_one))
@@ -280,7 +236,7 @@ bool Json_dom::find_child_doms(const Json_path_leg *path_leg,
     {
       size_t array_cell_index= path_leg->get_array_cell_index();
 
-      if (dom_type == Json_dom::J_ARRAY)
+      if (dom_type == enum_json_type::J_ARRAY)
       {
         const Json_array * const array= down_cast<const Json_array *>(this);
 
@@ -305,7 +261,7 @@ bool Json_dom::find_child_doms(const Json_path_leg *path_leg,
       if (add_if_missing(this, duplicates, result))
         return true;                          /* purecov: inspected */
 
-      if (dom_type == Json_dom::J_ARRAY)
+      if (dom_type == enum_json_type::J_ARRAY)
       {
         const Json_array * const array= down_cast<const Json_array *>(this);
 
@@ -317,9 +273,9 @@ bool Json_dom::find_child_doms(const Json_path_leg *path_leg,
           if (is_seek_done(result, only_need_one))
             return false;                     /* purecov: inspected */
 
-          Json_dom::enum_json_type child_type= child->json_type();
-          if ((child_type == Json_dom::J_ARRAY) ||
-              (child_type == Json_dom::J_OBJECT))
+          enum_json_type child_type= child->json_type();
+          if ((child_type == enum_json_type::J_ARRAY) ||
+              (child_type == enum_json_type::J_OBJECT))
           {
             // now recurse and add all objects and arrays under the child
             if (child->find_child_doms(path_leg, auto_wrap, only_need_one,
@@ -328,7 +284,7 @@ bool Json_dom::find_child_doms(const Json_path_leg *path_leg,
           }
         } // end of loop through children
       }
-      else if (dom_type == Json_dom::J_OBJECT)
+      else if (dom_type == enum_json_type::J_OBJECT)
       {
         const Json_object *const object=
           down_cast<const Json_object *>(this);
@@ -337,15 +293,15 @@ bool Json_dom::find_child_doms(const Json_path_leg *path_leg,
              iter != object->end(); ++iter)
         {
           Json_dom *child= iter->second;
-          Json_dom::enum_json_type child_type= child->json_type();
+          enum_json_type child_type= child->json_type();
 
           if (add_if_missing(child, duplicates, result))
             return true;                      /* purecov: inspected */
           if (is_seek_done(result, only_need_one))
             return false;                     /* purecov: inspected */
 
-          if ((child_type == Json_dom::J_ARRAY) ||
-              (child_type == Json_dom::J_OBJECT))
+          if ((child_type == enum_json_type::J_ARRAY) ||
+              (child_type == enum_json_type::J_OBJECT))
           {
             // now recurse and add all objects and arrays under the child
             if (child->find_child_doms(path_leg, auto_wrap, only_need_one,
@@ -359,7 +315,7 @@ bool Json_dom::find_child_doms(const Json_path_leg *path_leg,
     }
   case jpl_array_cell_wildcard:
     {
-      if (dom_type == Json_dom::J_ARRAY)
+      if (dom_type == enum_json_type::J_ARRAY)
       {
         const Json_array * array= down_cast<const Json_array *>(this);
 
@@ -376,7 +332,7 @@ bool Json_dom::find_child_doms(const Json_path_leg *path_leg,
     }
   case jpl_member:
     {
-      if (dom_type == Json_dom::J_OBJECT)
+      if (dom_type == enum_json_type::J_OBJECT)
       {
         const Json_object * object= down_cast<const Json_object *>(this);
         std::string member_name(path_leg->get_member_name(),
@@ -391,7 +347,7 @@ bool Json_dom::find_child_doms(const Json_path_leg *path_leg,
     }
   case jpl_member_wildcard:
     {
-      if (dom_type == Json_dom::J_OBJECT)
+      if (dom_type == enum_json_type::J_OBJECT)
       {
         const Json_object * object= down_cast<const Json_object *>(this);
 
@@ -964,43 +920,42 @@ bool is_valid_json_syntax(const char *text, size_t length)
   @param[in]  bintype
   @returns the JSON_dom JSON type.
 */
-static Json_dom::enum_json_type
-bjson2json(const json_binary::Value::enum_type bintype)
+static enum_json_type bjson2json(const json_binary::Value::enum_type bintype)
 {
-  Json_dom::enum_json_type res= Json_dom::J_ERROR;
+  enum_json_type res= enum_json_type::J_ERROR;
 
   switch (bintype)
   {
   case json_binary::Value::STRING:
-    res= Json_dom::J_STRING;
+    res= enum_json_type::J_STRING;
     break;
   case json_binary::Value::INT:
-    res= Json_dom::J_INT;
+    res= enum_json_type::J_INT;
     break;
   case json_binary::Value::UINT:
-    res= Json_dom::J_UINT;
+    res= enum_json_type::J_UINT;
     break;
   case json_binary::Value::DOUBLE:
-    res= Json_dom::J_DOUBLE;
+    res= enum_json_type::J_DOUBLE;
     break;
   case json_binary::Value::LITERAL_TRUE:
   case json_binary::Value::LITERAL_FALSE:
-    res= Json_dom::J_BOOLEAN;
+    res= enum_json_type::J_BOOLEAN;
     break;
   case json_binary::Value::LITERAL_NULL:
-    res= Json_dom::J_NULL;
+    res= enum_json_type::J_NULL;
     break;
   case json_binary::Value::ARRAY:
-    res= Json_dom::J_ARRAY;
+    res= enum_json_type::J_ARRAY;
     break;
   case json_binary::Value::OBJECT:
-    res= Json_dom::J_OBJECT;
+    res= enum_json_type::J_OBJECT;
     break;
   case json_binary::Value::ERROR:
-    res= Json_dom::J_ERROR;
+    res= enum_json_type::J_ERROR;
     break;
   case json_binary::Value::OPAQUE:
-    res= Json_dom::J_OPAQUE;
+    res= enum_json_type::J_OPAQUE;
     break;
   }
 
@@ -1722,19 +1677,23 @@ Json_dom *Json_double::clone() const
 }
 
 
-Json_dom::enum_json_type Json_datetime::json_type () const
+enum_json_type Json_datetime::json_type() const
 {
   switch (m_field_type)
   {
-  case MYSQL_TYPE_TIME : return J_TIME;
-  case MYSQL_TYPE_DATETIME: return J_DATETIME;
-  case MYSQL_TYPE_DATE: return J_DATE;
-  case MYSQL_TYPE_TIMESTAMP: return J_TIMESTAMP;
+  case MYSQL_TYPE_TIME:
+    return enum_json_type::J_TIME;
+  case MYSQL_TYPE_DATETIME:
+    return enum_json_type::J_DATETIME;
+  case MYSQL_TYPE_DATE:
+    return enum_json_type::J_DATE;
+  case MYSQL_TYPE_TIMESTAMP:
+    return enum_json_type::J_TIMESTAMP;
   default: ;
   }
   /* purecov: begin inspected */
   DBUG_ABORT();
-  return J_NULL;
+  return enum_json_type::J_NULL;
   /* purecov: end inspected */
 }
 
@@ -1982,10 +1941,10 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
 
   switch (wr.type())
   {
-  case Json_dom::J_TIME:
-  case Json_dom::J_DATE:
-  case Json_dom::J_DATETIME:
-  case Json_dom::J_TIMESTAMP:
+  case enum_json_type::J_TIME:
+  case enum_json_type::J_DATE:
+  case enum_json_type::J_DATETIME:
+  case enum_json_type::J_TIMESTAMP:
     {
       // Make sure the buffer has space for the datetime and the quotes.
       if (buffer->reserve(MAX_DATE_STRING_REP_LENGTH + 2))
@@ -2001,7 +1960,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
         return true;                           /* purecov: inspected */
       break;
     }
-  case Json_dom::J_ARRAY:
+  case enum_json_type::J_ARRAY:
     {
       if (buffer->append('['))
         return true;                           /* purecov: inspected */
@@ -2018,11 +1977,11 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
         return true;                           /* purecov: inspected */
       break;
     }
-  case Json_dom::J_BOOLEAN:
+  case enum_json_type::J_BOOLEAN:
     if (buffer->append(wr.get_boolean() ? "true" : "false"))
       return true;                             /* purecov: inspected */
     break;
-  case Json_dom::J_DECIMAL:
+  case enum_json_type::J_DECIMAL:
     {
       int length= DECIMAL_MAX_STR_LENGTH + 1;
       if (buffer->reserve(length))
@@ -2035,7 +1994,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       buffer->length(buffer->length() + length);
       break;
     }
-  case Json_dom::J_DOUBLE:
+  case enum_json_type::J_DOUBLE:
     {
       if (buffer->reserve(MY_GCVT_MAX_FIELD_WIDTH + 1))
         return true;                           /* purecov: inspected */
@@ -2046,17 +2005,17 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       buffer->length(buffer->length() + len);
       break;
     }
-  case Json_dom::J_INT:
+  case enum_json_type::J_INT:
     {
       if (buffer->append_longlong(wr.get_int()))
         return true;                           /* purecov: inspected */
       break;
     }
-  case Json_dom::J_NULL:
+  case enum_json_type::J_NULL:
     if (buffer->append("null"))
       return true;                             /* purecov: inspected */
     break;
-  case Json_dom::J_OBJECT:
+  case enum_json_type::J_OBJECT:
     {
       if (buffer->append('{'))
         return true;                           /* purecov: inspected */
@@ -2080,7 +2039,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
         return true;                           /* purecov: inspected */
       break;
     }
-  case Json_dom::J_OPAQUE:
+  case enum_json_type::J_OPAQUE:
     {
       if (wr.get_data_length() > base64_encode_max_arg_length())
       {
@@ -2112,7 +2071,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
         return true;                           /* purecov: inspected */
       break;
     }
-  case Json_dom::J_STRING:
+  case enum_json_type::J_STRING:
     {
       const char *data= wr.get_data();
       size_t length= wr.get_data_length();
@@ -2121,7 +2080,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
         return true;                           /* purecov: inspected */
       break;
     }
-  case Json_dom::J_UINT:
+  case enum_json_type::J_UINT:
     {
       if (buffer->append_ulonglong(wr.get_uint()))
         return true;                           /* purecov: inspected */
@@ -2155,11 +2114,11 @@ bool Json_wrapper::to_string(String *buffer, bool json_quoted,
   return wrapper_to_string(*this, buffer, json_quoted, func_name, 0);
 }
 
-Json_dom::enum_json_type Json_wrapper::type() const
+enum_json_type Json_wrapper::type() const
 {
   if (empty())
   {
-    return Json_dom::J_ERROR;
+    return enum_json_type::J_ERROR;
   }
 
   if (m_is_dom)
@@ -2176,15 +2135,15 @@ Json_dom::enum_json_type Json_wrapper::type() const
     switch (ftyp)
     {
     case MYSQL_TYPE_NEWDECIMAL:
-      return Json_dom::J_DECIMAL;
+      return enum_json_type::J_DECIMAL;
     case MYSQL_TYPE_DATETIME:
-      return Json_dom::J_DATETIME;
+      return enum_json_type::J_DATETIME;
     case MYSQL_TYPE_DATE:
-      return Json_dom::J_DATE;
+      return enum_json_type::J_DATE;
     case MYSQL_TYPE_TIME:
-      return Json_dom::J_TIME;
+      return enum_json_type::J_TIME;
     case MYSQL_TYPE_TIMESTAMP:
-      return Json_dom::J_TIMESTAMP;
+      return enum_json_type::J_TIMESTAMP;
     default: ;
       // ok, fall through
     }
@@ -2207,7 +2166,7 @@ enum_field_types Json_wrapper::field_type() const
 
 Json_wrapper_object_iterator Json_wrapper::object_iterator() const
 {
-  DBUG_ASSERT(type() == Json_dom::J_OBJECT);
+  DBUG_ASSERT(type() == enum_json_type::J_OBJECT);
 
   if (m_is_dom)
   {
@@ -2221,7 +2180,7 @@ Json_wrapper_object_iterator Json_wrapper::object_iterator() const
 
 Json_wrapper Json_wrapper::lookup(const char *key, size_t len) const
 {
-  DBUG_ASSERT(type() == Json_dom::J_OBJECT);
+  DBUG_ASSERT(type() == enum_json_type::J_OBJECT);
   if (m_is_dom)
   {
     const Json_object *object= down_cast<const Json_object *>(m_dom_value);
@@ -2236,7 +2195,7 @@ Json_wrapper Json_wrapper::lookup(const char *key, size_t len) const
 
 Json_wrapper Json_wrapper::operator[](size_t index) const
 {
-  DBUG_ASSERT(type() == Json_dom::J_ARRAY);
+  DBUG_ASSERT(type() == enum_json_type::J_ARRAY);
   if (m_is_dom)
   {
     const Json_array *o= down_cast<const Json_array *>(m_dom_value);
@@ -2253,7 +2212,7 @@ const char *Json_wrapper::get_data() const
 {
   if (m_is_dom)
   {
-    return type() == Json_dom::J_STRING ?
+    return type() == enum_json_type::J_STRING ?
       down_cast<Json_string *>(m_dom_value)->value().c_str() :
       down_cast<Json_opaque *>(m_dom_value)->value();
   }
@@ -2266,7 +2225,7 @@ size_t Json_wrapper::get_data_length() const
 {
   if (m_is_dom)
   {
-    return type() == Json_dom::J_STRING ?
+    return type() == enum_json_type::J_STRING ?
       down_cast<Json_string *>(m_dom_value)->size() :
       down_cast<Json_opaque *>(m_dom_value)->size();
   }
@@ -2328,14 +2287,14 @@ void Json_wrapper::get_datetime(MYSQL_TIME *t) const
 
   switch(type())
   {
-  case Json_dom::J_DATE:
+  case enum_json_type::J_DATE:
     ftyp= MYSQL_TYPE_DATE;
     break;
-  case Json_dom::J_DATETIME:
-  case Json_dom::J_TIMESTAMP:
+  case enum_json_type::J_DATETIME:
+  case enum_json_type::J_TIMESTAMP:
     ftyp= MYSQL_TYPE_DATETIME;
     break;
-  case Json_dom::J_TIME:
+  case enum_json_type::J_TIME:
     ftyp= MYSQL_TYPE_TIME;
     break;
   default:
@@ -2387,7 +2346,7 @@ Json_path Json_dom::get_location()
 
   Json_path result= m_parent->get_location();
 
-  if (m_parent->json_type() == Json_dom::J_OBJECT)
+  if (m_parent->json_type() == enum_json_type::J_OBJECT)
   {
     Json_object *object= down_cast<Json_object *>(m_parent);
     for (Json_object::const_iterator it= object->begin();
@@ -2403,7 +2362,7 @@ Json_path Json_dom::get_location()
   }
   else
   {
-    DBUG_ASSERT(m_parent->json_type() == Json_dom::J_ARRAY);
+    DBUG_ASSERT(m_parent->json_type() == enum_json_type::J_ARRAY);
     Json_array *array= down_cast<Json_array *>(m_parent);
 
     for (size_t idx= 0; idx < array->size(); idx++)
@@ -2482,13 +2441,13 @@ bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
     {
       switch(this->type())
       {
-      case Json_dom::J_OBJECT:
+      case enum_json_type::J_OBJECT:
         {
           const char *key= path_leg->get_member_name();
           size_t key_length= path_leg->get_member_name_length();
           Json_wrapper member= lookup(key, key_length);
 
-          if (member.type() != Json_dom::J_ERROR)
+          if (member.type() != enum_json_type::J_ERROR)
           {
             // recursion
             if (member.seek_no_ellipsis(path, hits, leg_number + 1, auto_wrap,
@@ -2509,7 +2468,7 @@ bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
     {
       switch(this->type())
       {
-      case Json_dom::J_OBJECT:
+      case enum_json_type::J_OBJECT:
         {
           for (Json_wrapper_object_iterator iter= object_iterator();
                !iter.empty(); iter.next())
@@ -2541,7 +2500,7 @@ bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
       // handle auto-wrapping
       if ((cell_idx == 0) &&
           auto_wrap &&
-          (this->type() != Json_dom::J_ARRAY))
+          (this->type() != enum_json_type::J_ARRAY))
       {
         // recursion
         return seek_no_ellipsis(path, hits, leg_number + 1, auto_wrap,
@@ -2550,7 +2509,7 @@ bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
 
       switch(this->type())
       {
-      case Json_dom::J_ARRAY:
+      case enum_json_type::J_ARRAY:
         {
           if (cell_idx < this->length())
           {
@@ -2572,7 +2531,7 @@ bool Json_wrapper::seek_no_ellipsis(const Json_seekable_path &path,
     {
       switch(this->type())
       {
-      case Json_dom::J_ARRAY:
+      case enum_json_type::J_ARRAY:
         {
           size_t  array_length= this->length();
           for (size_t idx= 0; idx < array_length; idx++)
@@ -2656,9 +2615,9 @@ size_t Json_wrapper::length() const
   {
     switch(m_dom_value->json_type())
     {
-    case Json_dom::J_ARRAY:
+    case enum_json_type::J_ARRAY:
       return down_cast<Json_array *>(m_dom_value)->size();
-    case Json_dom::J_OBJECT:
+    case enum_json_type::J_OBJECT:
       return down_cast<Json_object *>(m_dom_value)->cardinality();
     default:
       return 1;
@@ -2936,6 +2895,9 @@ static int compare_json_strings(const char *str1, size_t str1_len,
   return compare_numbers(str1_len, str2_len);
 }
 
+/// The number of enumerators in the enum_json_type enum.
+static constexpr int num_json_types=
+  static_cast<int>(enum_json_type::J_ERROR) + 1;
 
 /**
   The following matrix tells how two JSON values should be compared
@@ -2944,7 +2906,7 @@ static int compare_json_strings(const char *str1, size_t str1_len,
   is greater than b. If it is 0, it means it cannot be determined
   which value is the greater one just by looking at the types.
 */
-static const int type_comparison[Json_dom::J_ERROR + 1][Json_dom::J_ERROR + 1]=
+static constexpr int type_comparison[num_json_types][num_json_types]=
 {
   /* NULL */      {0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
   /* DECIMAL */   {1,  0,  0,  0,  0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
@@ -2966,14 +2928,15 @@ static const int type_comparison[Json_dom::J_ERROR + 1][Json_dom::J_ERROR + 1]=
 
 int Json_wrapper::compare(const Json_wrapper &other) const
 {
-  const Json_dom::enum_json_type this_type= type();
-  const Json_dom::enum_json_type other_type= other.type();
+  const enum_json_type this_type= type();
+  const enum_json_type other_type= other.type();
 
-  DBUG_ASSERT(this_type != Json_dom::J_ERROR);
-  DBUG_ASSERT(other_type != Json_dom::J_ERROR);
+  DBUG_ASSERT(this_type != enum_json_type::J_ERROR);
+  DBUG_ASSERT(other_type != enum_json_type::J_ERROR);
 
   // Check if the type tells us which value is bigger.
-  int cmp= type_comparison[this_type][other_type];
+  int cmp=
+    type_comparison[static_cast<int>(this_type)][static_cast<int>(other_type)];
   if (cmp != 0)
     return cmp;
 
@@ -2981,7 +2944,7 @@ int Json_wrapper::compare(const Json_wrapper &other) const
 
   switch (this_type)
   {
-  case Json_dom::J_ARRAY:
+  case enum_json_type::J_ARRAY:
     /*
       Two arrays are equal if they have the same length, and all
       elements in one array are equal to the corresponding elements in
@@ -3006,7 +2969,7 @@ int Json_wrapper::compare(const Json_wrapper &other) const
       }
       return compare_numbers(size_a, size_b);
     }
-  case Json_dom::J_OBJECT:
+  case enum_json_type::J_OBJECT:
     /*
       An object is equal to another object if they have the same set
       of keys, and all values in one objects are equal to the values
@@ -3053,20 +3016,20 @@ int Json_wrapper::compare(const Json_wrapper &other) const
       // No differences found. The two objects must be equal.
       return 0;
     }
-  case Json_dom::J_STRING:
+  case enum_json_type::J_STRING:
     return compare_json_strings(get_data(), get_data_length(),
                                 other.get_data(), other.get_data_length());
-  case Json_dom::J_INT:
+  case enum_json_type::J_INT:
     // Signed integers can be compared to all other numbers.
     switch (other_type)
     {
-    case Json_dom::J_INT:
+    case enum_json_type::J_INT:
       return compare_numbers(get_int(), other.get_int());
-    case Json_dom::J_UINT:
+    case enum_json_type::J_UINT:
       return compare_json_int_uint(get_int(), other.get_uint());
-    case Json_dom::J_DOUBLE:
+    case enum_json_type::J_DOUBLE:
       return -compare_json_double_int(other.get_double(), get_int());
-    case Json_dom::J_DECIMAL:
+    case enum_json_type::J_DECIMAL:
       {
         my_decimal b_dec;
         if (other.get_decimal_data(&b_dec))
@@ -3076,17 +3039,17 @@ int Json_wrapper::compare(const Json_wrapper &other) const
     default:
       break;
     }
-  case Json_dom::J_UINT:
+  case enum_json_type::J_UINT:
     // Unsigned integers can be compared to all other numbers.
     switch (other_type)
     {
-    case Json_dom::J_UINT:
+    case enum_json_type::J_UINT:
       return compare_numbers(get_uint(), other.get_uint());
-    case Json_dom::J_INT:
+    case enum_json_type::J_INT:
       return -compare_json_int_uint(other.get_int(), get_uint());
-    case Json_dom::J_DOUBLE:
+    case enum_json_type::J_DOUBLE:
       return -compare_json_double_uint(other.get_double(), get_uint());
-    case Json_dom::J_DECIMAL:
+    case enum_json_type::J_DECIMAL:
       {
         my_decimal b_dec;
         if (other.get_decimal_data(&b_dec))
@@ -3096,18 +3059,18 @@ int Json_wrapper::compare(const Json_wrapper &other) const
     default:
       break;
     }
-  case Json_dom::J_DOUBLE:
+  case enum_json_type::J_DOUBLE:
     // Doubles can be compared to all other numbers.
     {
       switch (other_type)
       {
-      case Json_dom::J_DOUBLE:
+      case enum_json_type::J_DOUBLE:
         return compare_numbers(get_double(), other.get_double());
-      case Json_dom::J_INT:
+      case enum_json_type::J_INT:
         return compare_json_double_int(get_double(), other.get_int());
-      case Json_dom::J_UINT:
+      case enum_json_type::J_UINT:
         return compare_json_double_uint(get_double(), other.get_uint());
-      case Json_dom::J_DECIMAL:
+      case enum_json_type::J_DECIMAL:
         {
           my_decimal other_dec;
           if (other.get_decimal_data(&other_dec))
@@ -3118,7 +3081,7 @@ int Json_wrapper::compare(const Json_wrapper &other) const
         break;
       }
     }
-  case Json_dom::J_DECIMAL:
+  case enum_json_type::J_DECIMAL:
     // Decimals can be compared to all other numbers.
     {
       my_decimal a_dec;
@@ -3127,7 +3090,7 @@ int Json_wrapper::compare(const Json_wrapper &other) const
         return 1;                             /* purecov: inspected */
       switch (other_type)
       {
-      case Json_dom::J_DECIMAL:
+      case enum_json_type::J_DECIMAL:
         if (other.get_decimal_data(&b_dec))
           return 1;                           /* purecov: inspected */
         /*
@@ -3137,21 +3100,21 @@ int Json_wrapper::compare(const Json_wrapper &other) const
         if (my_decimal_is_zero(&a_dec) && my_decimal_is_zero(&b_dec))
           return 0;
         return my_decimal_cmp(&a_dec, &b_dec);
-      case Json_dom::J_INT:
+      case enum_json_type::J_INT:
         return compare_json_decimal_int(a_dec, other.get_int());
-      case Json_dom::J_UINT:
+      case enum_json_type::J_UINT:
         return compare_json_decimal_uint(a_dec, other.get_uint());
-      case Json_dom::J_DOUBLE:
+      case enum_json_type::J_DOUBLE:
         return compare_json_decimal_double(a_dec, other.get_double());
       default:
         break;
       }
     }
-  case Json_dom::J_BOOLEAN:
+  case enum_json_type::J_BOOLEAN:
     // Booleans are only equal to other booleans. false is less than true.
     return compare_numbers(get_boolean(), other.get_boolean());
-  case Json_dom::J_DATETIME:
-  case Json_dom::J_TIMESTAMP:
+  case enum_json_type::J_DATETIME:
+  case enum_json_type::J_TIMESTAMP:
     // Timestamps and datetimes can be equal to each other.
     {
       MYSQL_TIME val_a;
@@ -3161,8 +3124,8 @@ int Json_wrapper::compare(const Json_wrapper &other) const
       return compare_numbers(TIME_to_longlong_packed(&val_a),
                              TIME_to_longlong_packed(&val_b));
     }
-  case Json_dom::J_TIME:
-  case Json_dom::J_DATE:
+  case enum_json_type::J_TIME:
+  case enum_json_type::J_DATE:
     // Dates and times can only be equal to values of the same type.
     {
       DBUG_ASSERT(this_type == other_type);
@@ -3173,7 +3136,7 @@ int Json_wrapper::compare(const Json_wrapper &other) const
       return compare_numbers(TIME_to_longlong_packed(&val_a),
                              TIME_to_longlong_packed(&val_b));
     }
-  case Json_dom::J_OPAQUE:
+  case enum_json_type::J_OPAQUE:
     /*
       Opaque values are equal to other opaque values with the same
       field type and the same binary representation.
@@ -3183,11 +3146,11 @@ int Json_wrapper::compare(const Json_wrapper &other) const
       cmp= compare_json_strings(get_data(), get_data_length(),
                                 other.get_data(), other.get_data_length());
     return cmp;
-  case Json_dom::J_NULL:
+  case enum_json_type::J_NULL:
     // Null is always equal to other nulls.
     DBUG_ASSERT(this_type == other_type);
     return 0;
-  case Json_dom::J_ERROR:
+  case enum_json_type::J_ERROR:
     break;
   }
 
@@ -3227,11 +3190,11 @@ longlong Json_wrapper::coerce_int(const char *msgnam) const
 {
   switch (type())
   {
-  case Json_dom::J_UINT:
+  case enum_json_type::J_UINT:
     return static_cast<longlong>(get_uint());
-  case Json_dom::J_INT:
+  case enum_json_type::J_INT:
     return get_int();
-  case Json_dom::J_STRING:
+  case enum_json_type::J_STRING:
     {
       /*
         For a string result, we must first get the string and then convert it
@@ -3255,9 +3218,9 @@ longlong Json_wrapper::coerce_int(const char *msgnam) const
 
       return value;
     }
-  case Json_dom::J_BOOLEAN:
+  case enum_json_type::J_BOOLEAN:
     return get_boolean() ? 1 : 0;
-  case Json_dom::J_DECIMAL:
+  case enum_json_type::J_DECIMAL:
     {
       longlong i;
       my_decimal decimal_value;
@@ -3270,7 +3233,7 @@ longlong Json_wrapper::coerce_int(const char *msgnam) const
                      &i);
       return i;
     }
-  case Json_dom::J_DOUBLE:
+  case enum_json_type::J_DOUBLE:
     {
       // logic here is borrowed from Field_double::val_int
       double j= get_double();
@@ -3306,7 +3269,7 @@ double Json_wrapper::coerce_real(const char *msgnam) const
 {
   switch (type())
   {
-  case Json_dom::J_DECIMAL:
+  case enum_json_type::J_DECIMAL:
     {
       double dbl;
       my_decimal decimal_value;
@@ -3314,7 +3277,7 @@ double Json_wrapper::coerce_real(const char *msgnam) const
       my_decimal2double(E_DEC_FATAL_ERROR, &decimal_value, &dbl);
       return dbl;
     }
-  case Json_dom::J_STRING:
+  case enum_json_type::J_STRING:
     {
       /*
         For a string result, we must first get the string and then convert it
@@ -3338,13 +3301,13 @@ double Json_wrapper::coerce_real(const char *msgnam) const
       }
       return value;
     }
-  case Json_dom::J_DOUBLE:
+  case enum_json_type::J_DOUBLE:
     return get_double();
-  case Json_dom::J_INT:
+  case enum_json_type::J_INT:
     return static_cast<double>(get_int());
-  case Json_dom::J_UINT:
+  case enum_json_type::J_UINT:
     return static_cast<double>(get_uint());
-  case Json_dom::J_BOOLEAN:
+  case enum_json_type::J_BOOLEAN:
     return static_cast<double>(get_boolean());
   default:;
   }
@@ -3360,10 +3323,10 @@ my_decimal
 {
   switch (type())
   {
-  case Json_dom::J_DECIMAL:
+  case enum_json_type::J_DECIMAL:
     get_decimal_data(decimal_value);
     return decimal_value;
-  case Json_dom::J_STRING:
+  case enum_json_type::J_STRING:
     {
       /*
         For a string result, we must first get the string and then convert it
@@ -3381,28 +3344,28 @@ my_decimal
       }
       return decimal_value;
     }
-  case Json_dom::J_DOUBLE:
+  case enum_json_type::J_DOUBLE:
     if (double2my_decimal(E_DEC_FATAL_ERROR, get_double(), decimal_value))
     {
       push_json_coercion_warning("DECIMAL",
                                  ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
     }
     return decimal_value;
-  case Json_dom::J_INT:
+  case enum_json_type::J_INT:
     if (longlong2decimal(get_int(), decimal_value))
     {
       push_json_coercion_warning("DECIMAL",
                                  ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
     }
     return decimal_value;
-  case Json_dom::J_UINT:
+  case enum_json_type::J_UINT:
     if (longlong2decimal(get_uint(), decimal_value))
     {
       push_json_coercion_warning("DECIMAL",
                                  ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
     }
     return decimal_value;
-  case Json_dom::J_BOOLEAN:
+  case enum_json_type::J_BOOLEAN:
     // no danger of overflow, so void result
     (void)int2my_decimal(E_DEC_FATAL_ERROR, get_boolean(),
                          true /* unsigned */, decimal_value);
@@ -3438,10 +3401,10 @@ bool Json_wrapper::coerce_time(MYSQL_TIME *ltime,
 {
   switch (type())
   {
-  case Json_dom::J_DATETIME:
-  case Json_dom::J_DATE:
-  case Json_dom::J_TIME:
-  case Json_dom::J_TIMESTAMP:
+  case enum_json_type::J_DATETIME:
+  case enum_json_type::J_DATE:
+  case enum_json_type::J_TIME:
+  case enum_json_type::J_TIMESTAMP:
     set_zero_time(ltime, MYSQL_TIMESTAMP_DATETIME);
     get_datetime(ltime);
     return false;
@@ -3787,13 +3750,13 @@ static void make_json_numeric_sort_key(const char *from, size_t len,
 void Json_wrapper::make_sort_key(uchar *to, size_t to_length) const
 {
   Wrapper_sort_key key(to, to_length);
-  const Json_dom::enum_json_type jtype= type();
+  const enum_json_type jtype= type();
   switch (jtype)
   {
-  case Json_dom::J_NULL:
+  case enum_json_type::J_NULL:
     key.append(JSON_KEY_NULL);
     break;
-  case Json_dom::J_DECIMAL:
+  case enum_json_type::J_DECIMAL:
     {
       my_decimal dec;
       if (get_decimal_data(&dec))
@@ -3805,7 +3768,7 @@ void Json_wrapper::make_sort_key(uchar *to, size_t to_length) const
       make_json_numeric_sort_key(str.ptr(), str.length(), dec.sign(), &key);
       break;
     }
-  case Json_dom::J_INT:
+  case enum_json_type::J_INT:
     {
       longlong i= get_int();
       char buff[MAX_BIGINT_WIDTH + 1];
@@ -3813,7 +3776,7 @@ void Json_wrapper::make_sort_key(uchar *to, size_t to_length) const
       make_json_numeric_sort_key(buff, len, i < 0, &key);
       break;
     }
-  case Json_dom::J_UINT:
+  case enum_json_type::J_UINT:
     {
       ulonglong ui= get_uint();
       char buff[MAX_BIGINT_WIDTH + 1];
@@ -3821,7 +3784,7 @@ void Json_wrapper::make_sort_key(uchar *to, size_t to_length) const
       make_json_numeric_sort_key(buff, len, false, &key);
       break;
     }
-  case Json_dom::J_DOUBLE:
+  case enum_json_type::J_DOUBLE:
     {
       double dbl= get_double();
       char buff[MY_GCVT_MAX_FIELD_WIDTH + 1];
@@ -3830,18 +3793,18 @@ void Json_wrapper::make_sort_key(uchar *to, size_t to_length) const
       make_json_numeric_sort_key(buff, len, (dbl < 0), &key);
       break;
     }
-  case Json_dom::J_STRING:
+  case enum_json_type::J_STRING:
     key.append(JSON_KEY_STRING);
     key.append_str_and_len(get_data(), get_data_length());
     break;
-  case Json_dom::J_OBJECT:
-  case Json_dom::J_ARRAY:
+  case enum_json_type::J_OBJECT:
+  case enum_json_type::J_ARRAY:
     /*
       Internal ordering of objects and arrays only considers length
       for now.
     */
     {
-      key.append(jtype == Json_dom::J_OBJECT ?
+      key.append(jtype == enum_json_type::J_OBJECT ?
                  JSON_KEY_OBJECT : JSON_KEY_ARRAY);
       uchar len[4];
       int4store(len, static_cast<uint32>(length()));
@@ -3859,17 +3822,17 @@ void Json_wrapper::make_sort_key(uchar *to, size_t to_length) const
                           "sorting of non-scalar JSON values");
       break;
     }
-  case Json_dom::J_BOOLEAN:
+  case enum_json_type::J_BOOLEAN:
     key.append(get_boolean() ? JSON_KEY_TRUE : JSON_KEY_FALSE);
     break;
-  case Json_dom::J_DATE:
-  case Json_dom::J_TIME:
-  case Json_dom::J_DATETIME:
-  case Json_dom::J_TIMESTAMP:
+  case enum_json_type::J_DATE:
+  case enum_json_type::J_TIME:
+  case enum_json_type::J_DATETIME:
+  case enum_json_type::J_TIMESTAMP:
     {
-      if (jtype == Json_dom::J_DATE)
+      if (jtype == enum_json_type::J_DATE)
         key.append(JSON_KEY_DATE);
-      else if (jtype == Json_dom::J_TIME)
+      else if (jtype == enum_json_type::J_TIME)
         key.append(JSON_KEY_TIME);
       else
         key.append(JSON_KEY_DATETIME);
@@ -3887,12 +3850,12 @@ void Json_wrapper::make_sort_key(uchar *to, size_t to_length) const
                    packed_length, false);
       break;
     }
-  case Json_dom::J_OPAQUE:
+  case enum_json_type::J_OPAQUE:
     key.append(JSON_KEY_OPAQUE);
     key.append(field_type());
     key.append_str_and_len(get_data(), get_data_length());
     break;
-  case Json_dom::J_ERROR:
+  case enum_json_type::J_ERROR:
     break;
   }
 
@@ -3903,14 +3866,12 @@ void Json_wrapper::make_sort_key(uchar *to, size_t to_length) const
 ulonglong Json_wrapper::make_hash_key(ulonglong *hash_val)
 {
   Wrapper_hash_key hash_key(hash_val);
-
-  const Json_dom::enum_json_type jtype= type();
-  switch (jtype)
+  switch (type())
   {
-  case Json_dom::J_NULL:
+  case enum_json_type::J_NULL:
     hash_key.add_character(JSON_KEY_NULL);
     break;
-  case Json_dom::J_DECIMAL:
+  case enum_json_type::J_DECIMAL:
     {
       my_decimal dec;
       if (get_decimal_data(&dec))
@@ -3920,20 +3881,20 @@ ulonglong Json_wrapper::make_hash_key(ulonglong *hash_val)
       hash_key.add_double(dbl);
       break;
     }
-  case Json_dom::J_INT:
+  case enum_json_type::J_INT:
     hash_key.add_double(static_cast<double>(get_int()));
     break;
-  case Json_dom::J_UINT:
+  case enum_json_type::J_UINT:
     hash_key.add_double(ulonglong2double(get_uint()));
     break;
-  case Json_dom::J_DOUBLE:
+  case enum_json_type::J_DOUBLE:
     hash_key.add_double(get_double());
     break;
-  case Json_dom::J_STRING:
-  case Json_dom::J_OPAQUE:
+  case enum_json_type::J_STRING:
+  case enum_json_type::J_OPAQUE:
     hash_key.add_string(get_data(), get_data_length());
     break;
-  case Json_dom::J_OBJECT:
+  case enum_json_type::J_OBJECT:
     {
       hash_key.add_character(JSON_KEY_OBJECT);
       for (Json_wrapper_object_iterator it(object_iterator());
@@ -3946,7 +3907,7 @@ ulonglong Json_wrapper::make_hash_key(ulonglong *hash_val)
       }
       break;
     }
-  case Json_dom::J_ARRAY:
+  case enum_json_type::J_ARRAY:
     {
       hash_key.add_character(JSON_KEY_ARRAY);
       size_t elts= length();
@@ -3957,13 +3918,13 @@ ulonglong Json_wrapper::make_hash_key(ulonglong *hash_val)
       }
     break;
     }
-  case Json_dom::J_BOOLEAN:
+  case enum_json_type::J_BOOLEAN:
     hash_key.add_character(get_boolean() ? JSON_KEY_TRUE : JSON_KEY_FALSE);
     break;
-  case Json_dom::J_DATE:
-  case Json_dom::J_TIME:
-  case Json_dom::J_DATETIME:
-  case Json_dom::J_TIMESTAMP:
+  case enum_json_type::J_DATE:
+  case enum_json_type::J_TIME:
+  case enum_json_type::J_DATETIME:
+  case enum_json_type::J_TIMESTAMP:
     {
       const size_t packed_length= Json_datetime::PACKED_SIZE;
       char tmp[packed_length];
@@ -3971,7 +3932,7 @@ ulonglong Json_wrapper::make_hash_key(ulonglong *hash_val)
       hash_key.add_string(packed, packed_length);
       break;
     }
-  case Json_dom::J_ERROR:
+  case enum_json_type::J_ERROR:
     DBUG_ABORT();                               /* purecov: inspected */
     break;                                      /* purecov: inspected */
   }

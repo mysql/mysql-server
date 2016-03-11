@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -529,7 +529,7 @@ void JsonPathTest::vet_remove(Json_dom *parent,
       const Json_dom *child= hits[0];
 
       bool was_removed= false;
-      if (parent->json_type() == Json_dom::J_OBJECT)
+      if (parent->json_type() == enum_json_type::J_OBJECT)
       {
         Json_object *object= (Json_object *) parent;
         was_removed= object->remove(child);

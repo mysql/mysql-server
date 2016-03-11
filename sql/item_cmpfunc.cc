@@ -28,6 +28,7 @@
 #include "item_subselect.h"     // Item_subselect
 #include "item_sum.h"           // Item_sum_hybrid
 #include "item_json_func.h"     // json_value, get_json_atom_wrapper
+#include "json_dom.h"           // Json_scalar_holder
 #include "mysqld.h"             // log_10
 #include "opt_trace.h"          // Opt_trace_object
 #include "parse_tree_helpers.h" // PT_item_list

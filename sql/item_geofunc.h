@@ -27,6 +27,10 @@
 
 #include <vector>
 
+class Json_dom;
+class Json_array;
+class Json_object;
+enum class enum_json_type;
 
 /**
    We have to hold result buffers in functions that return a GEOMETRY string,
@@ -326,7 +330,7 @@ public:
   static bool check_argument_valid_integer(Item *argument);
   bool parse_crs_object(const Json_object *crs_object);
   bool is_member_valid(const Json_dom *member, const char *member_name,
-                       Json_dom::enum_json_type expected_type, bool allow_null,
+                       enum_json_type expected_type, bool allow_null,
                        bool *was_null);
   const Json_dom *
   my_find_member_ncase(const Json_object *object, const char *member_name);

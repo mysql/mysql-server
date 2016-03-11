@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -331,16 +331,16 @@ static bool should_inline_value(const Json_dom *value, bool large,
 {
   switch (value->json_type())
   {
-  case Json_dom::J_NULL:
+  case enum_json_type::J_NULL:
     *inlined_val= JSONB_NULL_LITERAL;
     *inlined_type= JSONB_TYPE_LITERAL;
     return true;
-  case Json_dom::J_BOOLEAN:
+  case enum_json_type::J_BOOLEAN:
     *inlined_val= (down_cast<const Json_boolean*>(value)->value()) ?
                 JSONB_TRUE_LITERAL : JSONB_FALSE_LITERAL;
     *inlined_type= JSONB_TYPE_LITERAL;
     return true;
-  case Json_dom::J_INT:
+  case enum_json_type::J_INT:
     {
       const Json_int *i= down_cast<const Json_int*>(value);
       if (i->is_16bit() || (large && i->is_32bit()))
@@ -351,7 +351,7 @@ static bool should_inline_value(const Json_dom *value, bool large,
       }
       return false;
     }
-  case Json_dom::J_UINT:
+  case enum_json_type::J_UINT:
     {
       const Json_uint *i= down_cast<const Json_uint*>(value);
       if (i->is_16bit() || (large && i->is_32bit()))
@@ -609,7 +609,7 @@ serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
 
   switch (dom->json_type())
   {
-  case Json_dom::J_ARRAY:
+  case enum_json_type::J_ARRAY:
     {
       const Json_array *array= down_cast<const Json_array*>(dom);
       (*dest)[type_pos]= JSONB_TYPE_SMALL_ARRAY;
@@ -631,7 +631,7 @@ serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
       }
       break;
     }
-  case Json_dom::J_OBJECT:
+  case enum_json_type::J_OBJECT:
     {
       const Json_object *object= down_cast<const Json_object*>(dom);
       (*dest)[type_pos]= JSONB_TYPE_SMALL_OBJECT;
@@ -653,7 +653,7 @@ serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
       }
       break;
     }
-  case Json_dom::J_STRING:
+  case enum_json_type::J_STRING:
     {
       const Json_string *jstr= down_cast<const Json_string*>(dom);
       size_t size= jstr->size();
@@ -664,7 +664,7 @@ serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
       result= OK;
       break;
     }
-  case Json_dom::J_INT:
+  case enum_json_type::J_INT:
     {
       const Json_int *i= down_cast<const Json_int*>(dom);
       longlong val= i->value();
@@ -689,7 +689,7 @@ serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
       result= OK;
       break;
     }
-  case Json_dom::J_UINT:
+  case enum_json_type::J_UINT:
     {
       const Json_uint *i= down_cast<const Json_uint*>(dom);
       ulonglong val= i->value();
@@ -714,7 +714,7 @@ serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
       result= OK;
       break;
     }
-  case Json_dom::J_DOUBLE:
+  case enum_json_type::J_DOUBLE:
     {
       // Store the double in a platform-independent eight-byte format.
       const Json_double *d= down_cast<const Json_double*>(dom);
@@ -726,13 +726,13 @@ serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
       result= OK;
       break;
     }
-  case Json_dom::J_NULL:
+  case enum_json_type::J_NULL:
     if (dest->append(JSONB_NULL_LITERAL))
       return FAILURE;                         /* purecov: inspected */
     (*dest)[type_pos]= JSONB_TYPE_LITERAL;
     result= OK;
     break;
-  case Json_dom::J_BOOLEAN:
+  case enum_json_type::J_BOOLEAN:
     {
       char c= (down_cast<const Json_boolean*>(dom)->value()) ?
         JSONB_TRUE_LITERAL : JSONB_FALSE_LITERAL;
@@ -742,7 +742,7 @@ serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
       result= OK;
       break;
     }
-  case Json_dom::J_OPAQUE:
+  case enum_json_type::J_OPAQUE:
     {
       const Json_opaque *o= down_cast<const Json_opaque*>(dom);
       if (dest->append(static_cast<char>(o->type())) ||
@@ -753,7 +753,7 @@ serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
       result= OK;
       break;
     }
-  case Json_dom::J_DECIMAL:
+  case enum_json_type::J_DECIMAL:
     {
       // Store DECIMALs as opaque values.
       const Json_decimal *jd= down_cast<const Json_decimal*>(dom);
@@ -765,10 +765,10 @@ serialize_json_value(const Json_dom *dom, size_t type_pos, String *dest,
       result= serialize_json_value(&o, type_pos, dest, depth);
       break;
     }
-  case Json_dom::J_DATETIME:
-  case Json_dom::J_DATE:
-  case Json_dom::J_TIME:
-  case Json_dom::J_TIMESTAMP:
+  case enum_json_type::J_DATETIME:
+  case enum_json_type::J_DATE:
+  case enum_json_type::J_TIME:
+  case enum_json_type::J_TIMESTAMP:
     {
       // Store datetime as opaque values.
       const Json_datetime *jdt= down_cast<const Json_datetime*>(dom);
