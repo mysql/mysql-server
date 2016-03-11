@@ -176,8 +176,6 @@ explain select a.ROUTINE_NAME from information_schema.ROUTINES a,
 information_schema.SCHEMATA b where
 a.ROUTINE_SCHEMA = b.SCHEMA_NAME;
 
-select a.ROUTINE_NAME, b.name from information_schema.ROUTINES a,
-mysql.proc b where a.ROUTINE_NAME = convert(b.name using utf8) AND a.ROUTINE_SCHEMA='test' order by 1;
 select count(*) from information_schema.ROUTINES where routine_schema='test';
 
 create view v1 as select routine_schema, routine_name from information_schema.routines where routine_schema='test'
@@ -350,11 +348,6 @@ select COLUMN_NAME,COLUMN_TYPE, CHARACTER_MAXIMUM_LENGTH,
  CHARACTER_OCTET_LENGTH, NUMERIC_PRECISION, NUMERIC_SCALE
 from information_schema.columns where table_name= 't1';
 drop table t1;
-
-create table t115 as select table_name, column_name, column_type
-from information_schema.columns where table_name = 'proc';
-select * from t115;
-drop table t115;
 
 delimiter //;
 create procedure p108 () begin declare c cursor for select data_type
@@ -866,17 +859,6 @@ default character set utf8;
 select CHARACTER_MAXIMUM_LENGTH, CHARACTER_OCTET_LENGTH from
 information_schema.columns where table_schema='test' and table_name = 't1';
 drop table t1;
-
-#
-# Bug#18177 any access to INFORMATION_SCHEMA.ROUTINES crashes
-#
-use mysql;
-INSERT INTO `proc` VALUES ('test','','PROCEDURE','','SQL','CONTAINS_SQL',
-'NO','DEFINER','','','BEGIN\r\n  \r\nEND','root@%','2006-03-02 18:40:03',
-'2006-03-02 18:40:03','','','utf8','utf8_general_ci','utf8_general_ci','n/a');
-select routine_name from information_schema.routines where ROUTINE_SCHEMA='test';
-delete from proc where name='';
-use test;
 
 #
 # Bug#16681 information_schema shows forbidden VIEW details

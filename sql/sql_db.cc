@@ -504,20 +504,20 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
     */
 
     ha_drop_database(path);
+    thd->clear_error(); /* @todo Do not ignore errors */
     tmp_disable_binlog(thd);
     query_cache.invalidate(thd, db.str);
 #ifndef EMBEDDED_LIBRARY
-    (void) Events::drop_schema_events(thd, db.str); /* @todo Do not ignore errors */
+    error= Events::drop_schema_events(thd, db.str);
 #endif
-    (void) sp_drop_db_routines(thd, db.str); /* @todo Do not ignore errors */
+    error= (error || (sp_drop_db_routines(thd, db.str) != SP_OK));
     reenable_binlog(thd);
-    thd->clear_error(); /* @todo Do not ignore errors */
 
     /*
       If the directory is a symbolic link, remove the link first, then
       remove the directory the symbolic link pointed at
     */
-    if (found_other_files)
+    if (error || found_other_files)
       error= true;
     else
       error= rm_dir_w_symlink(path, true);
@@ -1238,8 +1238,6 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
     DBUG_RETURN(TRUE);
   }
 #endif
-
-  DEBUG_SYNC(thd, "before_db_dir_check");
 
   if (check_db_dir_existence(new_db_file_name.str))
   {

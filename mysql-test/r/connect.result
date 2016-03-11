@@ -15,12 +15,9 @@ help_topic
 innodb_index_stats
 innodb_table_stats
 ndb_binlog_index
-parameters
 plugin
-proc
 procs_priv
 proxies_priv
-routines
 server_cost
 servers
 slave_master_info
@@ -61,12 +58,9 @@ help_topic
 innodb_index_stats
 innodb_table_stats
 ndb_binlog_index
-parameters
 plugin
-proc
 procs_priv
 proxies_priv
-routines
 server_cost
 servers
 slave_master_info

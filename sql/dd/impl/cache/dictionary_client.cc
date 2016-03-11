@@ -904,6 +904,60 @@ bool Dictionary_client::acquire(const std::string &schema_name,
 }
 
 
+// Retrieve an object by its schema- and object name. Return as double
+// pointer to base type.
+template <typename T>
+bool Dictionary_client::acquire(const std::string &schema_name,
+                                const std::string &object_name,
+                                const typename T::cache_partition_type** object)
+{
+  // We must make sure the schema is released and unlocked in the right order.
+  Schema_MDL_locker mdl_locker(m_thd);
+  Auto_releaser releaser(this);
+
+  DBUG_ASSERT(object);
+  *object= NULL;
+
+  // Get the schema object by name.
+  const Schema *schema= NULL;
+  bool error= mdl_locker.ensure_locked(schema_name.c_str()) ||
+              acquire(schema_name, &schema);
+
+  // If there was an error, or if we found no valid schema, return here.
+  if (error)
+  {
+    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+    return true;
+  }
+
+  // A non existing schema is not reported as an error.
+  if (!schema)
+    return false;
+
+  DEBUG_SYNC(m_thd, "acquired_schema_while_acquiring_table");
+
+  // Create the name key for the object.
+  typename T::name_key_type key;
+  T::update_name_key(&key, schema->id(), object_name);
+
+  // Acquire the dictionary object.
+  bool local= false;
+  error= acquire(key, object, &local);
+
+  if (!error)
+  {
+    // No downcasting is necessary here.
+    // Don't auto release the object here if it is returned.
+    if (!local && *object)
+      releaser.transfer_release(*object);
+  }
+  else
+    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
+
+  return error;
+}
+
+
 // Retrieve an object by its schema- and object name without caching it.
 template <typename T>
 bool Dictionary_client::acquire_uncached(const std::string &schema_name,
@@ -1638,7 +1692,7 @@ template bool Dictionary_client::fetch_schema_component_names<Event>(
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   const Abstract_table**);
-template bool Dictionary_client::acquire(const std::string&,
+template bool Dictionary_client::acquire<Abstract_table>(const std::string&,
                                          const std::string&,
                                          const Abstract_table**);
 template bool Dictionary_client::acquire_uncached(const std::string&,
@@ -1757,9 +1811,9 @@ template bool Dictionary_client::acquire_uncached(Object_id,
                                                   const Event**);
 template bool Dictionary_client::acquire(Object_id,
                                          const Event**);
-template bool Dictionary_client::acquire(const std::string&,
-                                         const std::string&,
-                                         const Event**);
+template bool Dictionary_client::acquire<Event>(const std::string&,
+                                                const std::string&,
+                                                const Event**);
 template bool Dictionary_client::acquire_uncached(const std::string&,
                                                   const std::string&,
                                                   const Event**);
@@ -1808,6 +1862,15 @@ template bool Dictionary_client::is_sticky(const Procedure*) const;
 
 template bool Dictionary_client::drop(const Routine*);
 template bool Dictionary_client::update(const Routine**, Routine*, bool);
+
+template bool Dictionary_client::acquire<Function>(
+  const std::string&,
+  const std::string&,
+  const Function::cache_partition_type**);
+template bool Dictionary_client::acquire<Procedure>(
+  const std::string&,
+  const std::string&,
+  const Procedure::cache_partition_type**);
 
 template bool Dictionary_client::acquire_uncached(Object_id,
                                                   const Routine**);

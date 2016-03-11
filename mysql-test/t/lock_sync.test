@@ -234,7 +234,7 @@ let $table= t1;
 --echo # Switch to connection 'con1'.
 connection con1;
 --echo # Cache all functions used in the tests below so statements
---echo # calling them won't need to open and lock mysql.proc table
+--echo # calling them won't need to open and lock data dictionary table
 --echo # and we can assume that each statement locks its tables
 --echo # once during its execution.
 --disable_result_log

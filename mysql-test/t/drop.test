@@ -165,28 +165,6 @@ drop table t1,t2;
 
 ###########################################################################
 
---echo # --
---echo # -- Bug#29958: Weird message on DROP DATABASE if mysql.proc does not
---echo # -- exist.
---echo # --
-
-CREATE DATABASE mysql_test;
-
-RENAME TABLE mysql.proc TO mysql.proc_bkp;
-
-FLUSH TABLES;
-
-DROP DATABASE mysql_test;
-
-RENAME TABLE mysql.proc_bkp TO mysql.proc;
-
---echo
---echo # --
---echo # -- End of Bug#29958.
---echo # --
-
-###########################################################################
-
 --echo
 #
 # Bug#26703: DROP DATABASE fails if database contains a #mysql50# table with backticks

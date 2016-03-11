@@ -1571,7 +1571,7 @@ use test;
 --echo #           defined by a different user
 --echo #
 --echo # Bug#22761 mysqldump reports no errors when using
---echo #           --routines without mysql.proc privileges
+--echo #           --routines without proper privileges
 --echo #
 
 create database mysqldump_test_db;
@@ -1815,11 +1815,10 @@ drop database mysqldump_test_db;
 #
 # Bug#26121 mysqldump includes LOCK TABLES general_log WRITE
 #
-# TODO: Allow dump/restore of innodb_index_stats/innodb_table_stats
-# See Bug#22655287
+# TODO: Allow dump/restore of innodb_index_stats/innodb_table_stats See
+# Bug#22655287
 --exec $MYSQL_DUMP --all-databases --ignore-table=mysql.innodb_index_stats --ignore-table=mysql.innodb_table_stats > $MYSQLTEST_VARDIR/tmp/bug26121.sql
-# take a backup of mysql.proc table
---exec $MYSQL_DUMP mysql proc > $MYSQLTEST_VARDIR/tmp/mysql.proc.sql
+# take a backup of sys db.
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug26121.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/bug26121.sql
 
@@ -2027,7 +2026,7 @@ CREATE EVENT ev1 ON SCHEDULE AT '2030-01-01 00:00:00' DO SELECT "Meow";
 --replace_column 6 #
 SHOW TRIGGERS;
 SHOW EVENTS;
-SELECT name,body FROM mysql.proc WHERE NAME = 'pr1';
+SELECT routine_name, routine_definition FROM INFORMATION_SCHEMA.routines WHERE routine_name='pr1';
 
 --echo
 --echo dump table; if anything goes to stdout, it ends up here: ---------------
@@ -2046,7 +2045,7 @@ DROP PROCEDURE pr1;
 --replace_column 6 #
 SHOW TRIGGERS;
 SHOW EVENTS;
-SELECT name,body FROM mysql.proc WHERE NAME = 'pr1';
+SELECT routine_name, routine_definition FROM INFORMATION_SCHEMA.routines WHERE routine_name='pr1';
 
 --echo
 --echo reload db; this should restore routines and events
@@ -2054,7 +2053,7 @@ SELECT name,body FROM mysql.proc WHERE NAME = 'pr1';
 --replace_column 6 #
 SHOW TRIGGERS;
 SHOW EVENTS;
-SELECT name,body FROM mysql.proc WHERE NAME = 'pr1';
+SELECT routine_name, routine_definition FROM INFORMATION_SCHEMA.routines WHERE routine_name='pr1';
 
 --echo
 --echo cleanup
@@ -2626,24 +2625,19 @@ DROP DATABASE dump_generated;
 --echo #               EVEN IF SKIPPING SCHEMA
 --echo #
 
-# restore mysql.proc table
---exec $MYSQL mysql < $MYSQLTEST_VARDIR/tmp/mysql.proc.sql
 # take backup of sys schema
---exec $MYSQL_DUMP --databases sys > $MYSQLTEST_VARDIR/tmp/sys.sql
-# this will not dump sys schema and
-# sys schema routines present in mysql.proc table
+--exec $MYSQL_DUMP --databases sys --routines > $MYSQLTEST_VARDIR/tmp/sys.sql
+# this will not dump sys schema and sys schema routines.
 # TODO: Allow dump/restore of innodb_index_stats/innodb_table_stats
 # See Bug#22655287
 --exec $MYSQL_DUMP --all-databases --ignore-table=mysql.innodb_index_stats --ignore-table=mysql.innodb_table_stats > $MYSQLTEST_VARDIR/tmp/bug21549860.sql
-SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 DROP DATABASE sys;
-SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug21549860.sql
-SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
-# restore mysql.proc table and sys schema
---exec $MYSQL mysql < $MYSQLTEST_VARDIR/tmp/mysql.proc.sql
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
+# restore and sys schema
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/sys.sql
-SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 --remove_file $MYSQLTEST_VARDIR/tmp/bug21549860.sql
---remove_file $MYSQLTEST_VARDIR/tmp/mysql.proc.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/sys.sql

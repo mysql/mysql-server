@@ -150,33 +150,6 @@ DROP PROCEDURE p1;
 DROP FUNCTION f1;
 DROP TABLES t0, t1;
 
-
---echo #
---echo # test for bug#11756013
---echo #
---disable_warnings
-DROP SCHEMA IF EXISTS s1;
---enable_warnings
-CREATE SCHEMA s1;
-CREATE PROCEDURE s1.p1() BEGIN END;
-
-connect (con3, localhost, root);
-SET DEBUG_SYNC='before_db_dir_check SIGNAL check_db WAIT_FOR dropped_schema';
---send CALL s1.p1
-
-connection default;
-SET DEBUG_SYNC='now WAIT_FOR check_db';
-DROP SCHEMA s1;
-SET DEBUG_SYNC='now SIGNAL dropped_schema';
-
-connection con3;
---error ER_BAD_DB_ERROR
---reap
-connection default;
-disconnect con3;
-
-SET DEBUG_SYNC = 'RESET';
-
-# Check that all connections opened by test cases in this file are really
-# gone so execution of other tests won't be affected by their presence.
+# Check that all connections opened by test cases in this file are really gone
+# so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc

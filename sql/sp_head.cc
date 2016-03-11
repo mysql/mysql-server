@@ -3785,14 +3785,20 @@ void sp_head::add_used_tables_to_table_list(THD *thd,
 
 bool sp_head::check_show_access(THD *thd, bool *full_access)
 {
-  TABLE_LIST tables;
-  memset(&tables, 0, sizeof(tables));
-  tables.db= (char*) "mysql";
-  tables.table_name= tables.alias= (char*) "proc";
-
+  /*
+    Before WL#7897 changes, full access to routine information is provided to
+    the definer of routine and to the user having SELECT privilege on
+    mysql.proc. But as part of WL#7897, mysql.proc table is removed. Now, non
+    definer user can not have full access on routine. So backup of routine or
+    getting exact create string of stored routine is not possible with this
+    change.
+    So as workaround for this issue, currently full access on stored routine
+    provided to any user having global SELECT privilege.
+    Correct solution to this issue will be provided with the WL#8131 and
+    WL#9049.
+  */
   *full_access=
-    ((!check_table_access(thd, SELECT_ACL, &tables, false, 1, true) &&
-      (tables.grant.privilege & SELECT_ACL) != 0) ||
+    (thd->security_context()->check_access(SELECT_ACL) ||
      (!strcmp(m_definer_user.str, thd->security_context()->priv_user().str) &&
       !strcmp(m_definer_host.str, thd->security_context()->priv_host().str)));
 

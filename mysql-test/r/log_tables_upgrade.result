@@ -23,13 +23,10 @@ mysql.help_topic                                   OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
-mysql.parameters                                   OK
 mysql.plugin                                       OK
-mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
 mysql.renamed_general_log                          OK
-mysql.routines                                     OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK

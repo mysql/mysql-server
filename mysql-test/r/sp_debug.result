@@ -1,0 +1,35 @@
+#
+# WL#7897 -- Use DD API for Stored Routines.
+#
+# Test case to verify stored routine load failure.
+CREATE FUNCTION f1() RETURNS INT return 1;
+CREATE PROCEDURE p1() SELECT 1 AS my_column;
+SET DEBUG='+d,fail_stored_routine_load';
+SELECT f1();
+ERROR HY000: Failed to load routine 'test.f1'.
+CALL p1();
+ERROR HY000: Failed to load routine 'test.p1'.
+SET DEBUG='-d,fail_stored_routine_load';
+SELECT f1();
+f1()
+1
+CALL p1();
+my_column
+1
+DROP FUNCTION f1;
+DROP PROCEDURE p1;
+# Test case to verify stored routine body length error.
+SET DEBUG='+d,simulate_routine_length_error';
+CREATE PROCEDURE p1() SELECT "simulate_routine_length_error";
+ERROR 42000: Routine body for 'p1' is too long
+SET DEBUG='-d,simulate_routine_length_error';
+# Test case to verify the schema state after failure to drop routine.
+CREATE SCHEMA new_db;
+CREATE PROCEDURE new_db.proc() SELECT 1 AS my_column;
+SET DEBUG='+d,fail_drop_db_routines';
+DROP SCHEMA IF EXISTS new_db;
+ERROR HY000: Failed to DROP ROUTINE 
+SET DEBUG='-d,fail_drop_db_routines';
+DROP SCHEMA IF EXISTS new_db;
+CREATE SCHEMA new_db;
+DROP SCHEMA new_db;

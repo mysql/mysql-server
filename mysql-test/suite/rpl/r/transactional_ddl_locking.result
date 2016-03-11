@@ -981,6 +981,7 @@ DROP PROCEDURE p1;;
 --- connection master2 ---
 --- connection master1 ---
 reap result of previous---
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 --- connection master ---
 COMMIT;
 --- connection slave ---
@@ -1394,6 +1395,7 @@ DROP TABLE t1trig,t2trig;
 DROP TABLE t1bin,t2bin,t1myisam,t1innodb;
 DROP TABLE t3967_1,t3967_2,t1_30138,t1_30138_old;
 DROP FUNCTION f1;
+DROP PROCEDURE p1;
 DROP VIEW v1;
 DROP USER user1@localhost;
 DROP DATABASE db1;

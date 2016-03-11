@@ -25,7 +25,6 @@
 #include "tztime.h"                            // my_tz_find, my_tz_OFFSET0
                                                // struct Time_zone
 #include "auth_common.h"                       // EVENT_ACL, SUPER_ACL
-#include "sp.h"                                // load_charset, load_collation
 #include "events.h"
 #include "event_db_repository.h"
 #include "event_parse_data.h"

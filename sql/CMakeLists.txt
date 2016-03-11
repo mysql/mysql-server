@@ -63,6 +63,7 @@ ENDIF()
 
 SET(DD_SOURCES
   dd/dd_event.cc
+  dd/dd_routine.cc
   dd/dd_schema.cc
   dd/dd_table.cc
   dd/dd_tablespace.cc
@@ -158,6 +159,7 @@ SET(SQL_SHARED_SOURCES
   bootstrap.cc
   conn_handler/connection_handler_manager.cc 
   current_thd.cc
+  dd_sp.cc
   dd_table_share.cc
   debug_sync.cc
   default_values.cc

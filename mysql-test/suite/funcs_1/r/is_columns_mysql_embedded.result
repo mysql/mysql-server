@@ -97,41 +97,8 @@ def	mysql	ndb_binlog_index	orig_server_id	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL
 def	mysql	ndb_binlog_index	Position	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned					
 def	mysql	ndb_binlog_index	schemaops	7	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned					
 def	mysql	ndb_binlog_index	updates	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned					
-def	mysql	parameters	char_length	9	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned					
-def	mysql	parameters	collation_id	13	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL				
-def	mysql	parameters	data_type	6	NULL	NO	enum	39	117	NULL	NULL	NULL	utf8	utf8_bin	enum('MYSQL_TYPE_DECIMAL','MYSQL_TYPE_TINY','MYSQL_TYPE_SHORT','MYSQL_TYPE_LONG','MYSQL_TYPE_FLOAT','MYSQL_TYPE_DOUBLE','MYSQL_TYPE_NULL,   MYSQL_TYPE_TIMESTAMP','MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24','MYSQL_TYPE_DATE','MYSQL_TYPE_TIME','MYSQL_TYPE_DATETIME','MYSQL_TYPE_YEAR','MYSQL_TYPE_NEWDATE','MYSQL_TYPE_VARCHAR','MYSQL_TYPE_BIT','MYSQL_TYPE_TIMESTAMP2','MYSQL_TYPE_DATETIME2','MYSQL_TYPE_TIME2','MYSQL_TYPE_NEWDECIMAL','MYSQL_TYPE_ENUM','MYSQL_TYPE_SET','MYSQL_TYPE_TINY_BLOB','MYSQL_TYPE_MEDIUM_BLOB','MYSQL_TYPE_LONG_BLOB','MYSQL_TYPE_BLOB','MYSQL_TYPE_VAR_STRING','MYSQL_TYPE_STRING','MYSQL_TYPE_GEOMETRY')					
-def	mysql	parameters	datetime_precision	12	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned					
-def	mysql	parameters	id	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI	auto_increment			
-def	mysql	parameters	is_unsigned	8	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)					
-def	mysql	parameters	is_zerofill	7	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)					
-def	mysql	parameters	mode	4	NULL	NO	enum	5	15	NULL	NULL	NULL	utf8	utf8_bin	enum('IN','OUT','INOUT')					
-def	mysql	parameters	name	5	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)					
-def	mysql	parameters	numeric_precision	10	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned					
-def	mysql	parameters	numeric_scale	11	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned					
-def	mysql	parameters	ordinal_position	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned					
-def	mysql	parameters	routine_id	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL				
 def	mysql	plugin	dl	2		NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)					
 def	mysql	plugin	name	1		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI				
-def	mysql	proc	body	11	NULL	NO	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	NULL	longblob					
-def	mysql	proc	body_utf8	20	NULL	YES	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	NULL	longblob					
-def	mysql	proc	character_set_client	17	NULL	YES	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)					
-def	mysql	proc	collation_connection	18	NULL	YES	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)					
-def	mysql	proc	comment	16	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_bin	text					
-def	mysql	proc	created	13	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP			
-def	mysql	proc	db	1		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)	PRI				
-def	mysql	proc	db_collation	19	NULL	YES	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)					
-def	mysql	proc	definer	12		NO	char	77	231	NULL	NULL	NULL	utf8	utf8_bin	char(77)					
-def	mysql	proc	is_deterministic	7	NO	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')					
-def	mysql	proc	language	5	SQL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('SQL')					
-def	mysql	proc	modified	14	0000-00-00 00:00:00	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp					
-def	mysql	proc	name	2		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI				
-def	mysql	proc	param_list	9	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob					
-def	mysql	proc	returns	10	NULL	NO	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	NULL	longblob					
-def	mysql	proc	security_type	8	DEFINER	NO	enum	7	21	NULL	NULL	NULL	utf8	utf8_general_ci	enum('INVOKER','DEFINER')					
-def	mysql	proc	specific_name	4		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)					
-def	mysql	proc	sql_data_access	6	CONTAINS_SQL	NO	enum	17	51	NULL	NULL	NULL	utf8	utf8_general_ci	enum('CONTAINS_SQL','NO_SQL','READS_SQL_DATA','MODIFIES_SQL_DATA')					
-def	mysql	proc	sql_mode	15		NO	set	478	1434	NULL	NULL	NULL	utf8	utf8_general_ci	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH')					
-def	mysql	proc	type	3	NULL	NO	enum	9	27	NULL	NULL	NULL	utf8	utf8_general_ci	enum('FUNCTION','PROCEDURE')	PRI				
 def	mysql	procs_priv	Db	2		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)	PRI				
 def	mysql	procs_priv	Grantor	6		NO	char	77	231	NULL	NULL	NULL	utf8	utf8_bin	char(77)	MUL				
 def	mysql	procs_priv	Host	1		NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)	PRI				
@@ -147,30 +114,6 @@ def	mysql	proxies_priv	Proxied_user	4		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bi
 def	mysql	proxies_priv	Timestamp	7	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP			
 def	mysql	proxies_priv	User	2		NO	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)	PRI				
 def	mysql	proxies_priv	With_grant	5	0	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)					
-def	mysql	routines	client_collation_id	19	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL				
-def	mysql	routines	comment	24	NULL	NO	varchar	2048	6144	NULL	NULL	NULL	utf8	utf8_bin	varchar(2048)					
-def	mysql	routines	connection_collation_id	20	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL				
-def	mysql	routines	created	22	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP			
-def	mysql	routines	definer	18	NULL	NO	varchar	77	231	NULL	NULL	NULL	utf8	utf8_bin	varchar(77)					
-def	mysql	routines	definition	13	NULL	YES	longblob	4294967295	4294967295	NULL	NULL	NULL	NULL	NULL	longblob					
-def	mysql	routines	definition_utf8	14	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_bin	longtext					
-def	mysql	routines	id	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI	auto_increment			
-def	mysql	routines	is_deterministic	15	NULL	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)					
-def	mysql	routines	last_altered	23	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp					
-def	mysql	routines	name	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)					
-def	mysql	routines	result_char_length	8	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned					
-def	mysql	routines	result_collation_id	12	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL				
-def	mysql	routines	result_data_type	5	NULL	YES	enum	39	117	NULL	NULL	NULL	utf8	utf8_bin	enum('MYSQL_TYPE_DECIMAL','MYSQL_TYPE_TINY','MYSQL_TYPE_SHORT','MYSQL_TYPE_LONG','MYSQL_TYPE_FLOAT','MYSQL_TYPE_DOUBLE','MYSQL_TYPE_NULL,   MYSQL_TYPE_TIMESTAMP','MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24','MYSQL_TYPE_DATE','MYSQL_TYPE_TIME','MYSQL_TYPE_DATETIME','MYSQL_TYPE_YEAR','MYSQL_TYPE_NEWDATE','MYSQL_TYPE_VARCHAR','MYSQL_TYPE_BIT','MYSQL_TYPE_TIMESTAMP2','MYSQL_TYPE_DATETIME2','MYSQL_TYPE_TIME2','MYSQL_TYPE_NEWDECIMAL','MYSQL_TYPE_ENUM','MYSQL_TYPE_SET','MYSQL_TYPE_TINY_BLOB','MYSQL_TYPE_MEDIUM_BLOB','MYSQL_TYPE_LONG_BLOB','MYSQL_TYPE_BLOB','MYSQL_TYPE_VAR_STRING','MYSQL_TYPE_STRING','MYSQL_TYPE_GEOMETRY')					
-def	mysql	routines	result_datetime_precision	11	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned					
-def	mysql	routines	result_is_unsigned	7	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)					
-def	mysql	routines	result_is_zerofill	6	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)					
-def	mysql	routines	result_numeric_precision	9	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned					
-def	mysql	routines	result_numeric_scale	10	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned					
-def	mysql	routines	schema_collation_id	21	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL				
-def	mysql	routines	schema_id	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL				
-def	mysql	routines	security_type	17	NULL	NO	enum	7	21	NULL	NULL	NULL	utf8	utf8_bin	enum('INVOKER','DEFINER')					
-def	mysql	routines	sql_data_access	16	NULL	NO	enum	17	51	NULL	NULL	NULL	utf8	utf8_bin	enum('CONTAINS_SQL','NO_SQL','READS_SQL_DATA','MODIFIES_SQL_DATA')					
-def	mysql	routines	type	4	NULL	NO	enum	9	27	NULL	NULL	NULL	utf8	utf8_bin	enum('FUNCTION','PROCEDURE')					
 def	mysql	servers	Db	3		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)					
 def	mysql	servers	Host	2		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)					
 def	mysql	servers	Owner	9		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)					
@@ -492,41 +435,8 @@ NULL	mysql	ndb_binlog_index	orig_epoch	bigint	NULL	NULL	NULL	NULL	bigint(20) uns
 NULL	mysql	ndb_binlog_index	gci	int	NULL	NULL	NULL	NULL	int(10) unsigned
 NULL	mysql	ndb_binlog_index	next_position	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 1.0000	mysql	ndb_binlog_index	next_file	varchar	255	255	latin1	latin1_swedish_ci	varchar(255)
-NULL	mysql	parameters	id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	mysql	parameters	routine_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	mysql	parameters	ordinal_position	int	NULL	NULL	NULL	NULL	int(10) unsigned
-3.0000	mysql	parameters	mode	enum	5	15	utf8	utf8_bin	enum('IN','OUT','INOUT')
-3.0000	mysql	parameters	name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
-3.0000	mysql	parameters	data_type	enum	39	117	utf8	utf8_bin	enum('MYSQL_TYPE_DECIMAL','MYSQL_TYPE_TINY','MYSQL_TYPE_SHORT','MYSQL_TYPE_LONG','MYSQL_TYPE_FLOAT','MYSQL_TYPE_DOUBLE','MYSQL_TYPE_NULL,   MYSQL_TYPE_TIMESTAMP','MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24','MYSQL_TYPE_DATE','MYSQL_TYPE_TIME','MYSQL_TYPE_DATETIME','MYSQL_TYPE_YEAR','MYSQL_TYPE_NEWDATE','MYSQL_TYPE_VARCHAR','MYSQL_TYPE_BIT','MYSQL_TYPE_TIMESTAMP2','MYSQL_TYPE_DATETIME2','MYSQL_TYPE_TIME2','MYSQL_TYPE_NEWDECIMAL','MYSQL_TYPE_ENUM','MYSQL_TYPE_SET','MYSQL_TYPE_TINY_BLOB','MYSQL_TYPE_MEDIUM_BLOB','MYSQL_TYPE_LONG_BLOB','MYSQL_TYPE_BLOB','MYSQL_TYPE_VAR_STRING','MYSQL_TYPE_STRING','MYSQL_TYPE_GEOMETRY')
-NULL	mysql	parameters	is_zerofill	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
-NULL	mysql	parameters	is_unsigned	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
-NULL	mysql	parameters	char_length	int	NULL	NULL	NULL	NULL	int(10) unsigned
-NULL	mysql	parameters	numeric_precision	int	NULL	NULL	NULL	NULL	int(10) unsigned
-NULL	mysql	parameters	numeric_scale	int	NULL	NULL	NULL	NULL	int(10) unsigned
-NULL	mysql	parameters	datetime_precision	int	NULL	NULL	NULL	NULL	int(10) unsigned
-NULL	mysql	parameters	collation_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 3.0000	mysql	plugin	name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	mysql	plugin	dl	varchar	128	384	utf8	utf8_general_ci	varchar(128)
-3.0000	mysql	proc	db	char	64	192	utf8	utf8_bin	char(64)
-3.0000	mysql	proc	name	char	64	192	utf8	utf8_general_ci	char(64)
-3.0000	mysql	proc	type	enum	9	27	utf8	utf8_general_ci	enum('FUNCTION','PROCEDURE')
-3.0000	mysql	proc	specific_name	char	64	192	utf8	utf8_general_ci	char(64)
-3.0000	mysql	proc	language	enum	3	9	utf8	utf8_general_ci	enum('SQL')
-3.0000	mysql	proc	sql_data_access	enum	17	51	utf8	utf8_general_ci	enum('CONTAINS_SQL','NO_SQL','READS_SQL_DATA','MODIFIES_SQL_DATA')
-3.0000	mysql	proc	is_deterministic	enum	3	9	utf8	utf8_general_ci	enum('YES','NO')
-3.0000	mysql	proc	security_type	enum	7	21	utf8	utf8_general_ci	enum('INVOKER','DEFINER')
-1.0000	mysql	proc	param_list	blob	65535	65535	NULL	NULL	blob
-1.0000	mysql	proc	returns	longblob	4294967295	4294967295	NULL	NULL	longblob
-1.0000	mysql	proc	body	longblob	4294967295	4294967295	NULL	NULL	longblob
-3.0000	mysql	proc	definer	char	77	231	utf8	utf8_bin	char(77)
-NULL	mysql	proc	created	timestamp	NULL	NULL	NULL	NULL	timestamp
-NULL	mysql	proc	modified	timestamp	NULL	NULL	NULL	NULL	timestamp
-3.0000	mysql	proc	sql_mode	set	478	1434	utf8	utf8_general_ci	set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH')
-1.0000	mysql	proc	comment	text	65535	65535	utf8	utf8_bin	text
-3.0000	mysql	proc	character_set_client	char	32	96	utf8	utf8_bin	char(32)
-3.0000	mysql	proc	collation_connection	char	32	96	utf8	utf8_bin	char(32)
-3.0000	mysql	proc	db_collation	char	32	96	utf8	utf8_bin	char(32)
-1.0000	mysql	proc	body_utf8	longblob	4294967295	4294967295	NULL	NULL	longblob
 3.0000	mysql	procs_priv	Host	char	60	180	utf8	utf8_bin	char(60)
 3.0000	mysql	procs_priv	Db	char	64	192	utf8	utf8_bin	char(64)
 3.0000	mysql	procs_priv	User	char	32	96	utf8	utf8_bin	char(32)
@@ -542,30 +452,6 @@ NULL	mysql	procs_priv	Timestamp	timestamp	NULL	NULL	NULL	NULL	timestamp
 NULL	mysql	proxies_priv	With_grant	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
 3.0000	mysql	proxies_priv	Grantor	char	93	279	utf8	utf8_bin	char(93)
 NULL	mysql	proxies_priv	Timestamp	timestamp	NULL	NULL	NULL	NULL	timestamp
-NULL	mysql	routines	id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	mysql	routines	schema_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-3.0000	mysql	routines	name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
-3.0000	mysql	routines	type	enum	9	27	utf8	utf8_bin	enum('FUNCTION','PROCEDURE')
-3.0000	mysql	routines	result_data_type	enum	39	117	utf8	utf8_bin	enum('MYSQL_TYPE_DECIMAL','MYSQL_TYPE_TINY','MYSQL_TYPE_SHORT','MYSQL_TYPE_LONG','MYSQL_TYPE_FLOAT','MYSQL_TYPE_DOUBLE','MYSQL_TYPE_NULL,   MYSQL_TYPE_TIMESTAMP','MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24','MYSQL_TYPE_DATE','MYSQL_TYPE_TIME','MYSQL_TYPE_DATETIME','MYSQL_TYPE_YEAR','MYSQL_TYPE_NEWDATE','MYSQL_TYPE_VARCHAR','MYSQL_TYPE_BIT','MYSQL_TYPE_TIMESTAMP2','MYSQL_TYPE_DATETIME2','MYSQL_TYPE_TIME2','MYSQL_TYPE_NEWDECIMAL','MYSQL_TYPE_ENUM','MYSQL_TYPE_SET','MYSQL_TYPE_TINY_BLOB','MYSQL_TYPE_MEDIUM_BLOB','MYSQL_TYPE_LONG_BLOB','MYSQL_TYPE_BLOB','MYSQL_TYPE_VAR_STRING','MYSQL_TYPE_STRING','MYSQL_TYPE_GEOMETRY')
-NULL	mysql	routines	result_is_zerofill	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
-NULL	mysql	routines	result_is_unsigned	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
-NULL	mysql	routines	result_char_length	int	NULL	NULL	NULL	NULL	int(10) unsigned
-NULL	mysql	routines	result_numeric_precision	int	NULL	NULL	NULL	NULL	int(10) unsigned
-NULL	mysql	routines	result_numeric_scale	int	NULL	NULL	NULL	NULL	int(10) unsigned
-NULL	mysql	routines	result_datetime_precision	int	NULL	NULL	NULL	NULL	int(10) unsigned
-NULL	mysql	routines	result_collation_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-1.0000	mysql	routines	definition	longblob	4294967295	4294967295	NULL	NULL	longblob
-1.0000	mysql	routines	definition_utf8	longtext	4294967295	4294967295	utf8	utf8_bin	longtext
-NULL	mysql	routines	is_deterministic	tinyint	NULL	NULL	NULL	NULL	tinyint(1)
-3.0000	mysql	routines	sql_data_access	enum	17	51	utf8	utf8_bin	enum('CONTAINS_SQL','NO_SQL','READS_SQL_DATA','MODIFIES_SQL_DATA')
-3.0000	mysql	routines	security_type	enum	7	21	utf8	utf8_bin	enum('INVOKER','DEFINER')
-3.0000	mysql	routines	definer	varchar	77	231	utf8	utf8_bin	varchar(77)
-NULL	mysql	routines	client_collation_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	mysql	routines	connection_collation_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	mysql	routines	schema_collation_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	mysql	routines	created	timestamp	NULL	NULL	NULL	NULL	timestamp
-NULL	mysql	routines	last_altered	timestamp	NULL	NULL	NULL	NULL	timestamp
-3.0000	mysql	routines	comment	varchar	2048	6144	utf8	utf8_bin	varchar(2048)
 3.0000	mysql	servers	Server_name	char	64	192	utf8	utf8_general_ci	char(64)
 3.0000	mysql	servers	Host	char	64	192	utf8	utf8_general_ci	char(64)
 3.0000	mysql	servers	Db	char	64	192	utf8	utf8_general_ci	char(64)

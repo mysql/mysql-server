@@ -162,7 +162,7 @@ select * from t2;
 
 insert into t2 (a) values (1015);
 --error ER_DUP_ENTRY
-show columns in mysql.proc where (f2(15) = 15);
+show columns in information_schema.routines where (f2(15) = 15);
 select * from t2;
 rollback;
 select * from t2;
@@ -411,7 +411,7 @@ flush status;
 --echo #
 select * from t1;
 --disable_warnings
-call p_verify_status_increment(1, 0, 2, 0);
+call p_verify_status_increment(2, 0, 2, 0);
 commit;
 call p_verify_status_increment(1, 0, 1, 0);
 --enable_warnings
@@ -600,7 +600,7 @@ begin
 end|
 delimiter ;|
 --disable_warnings
-call p_verify_status_increment(0, 0, 2, 0);
+call p_verify_status_increment(3, 0, 2, 0);
 --enable_warnings
 
 --echo # 16. A function changes non-trans-table.
@@ -611,7 +611,7 @@ call p_verify_status_increment(0, 0, 2, 0);
 --echo #
 select f1();
 --disable_warnings
-call p_verify_status_increment(1, 0, 2, 0);
+call p_verify_status_increment(2, 0, 2, 0);
 commit;
 call p_verify_status_increment(1, 0, 2, 0);
 --enable_warnings

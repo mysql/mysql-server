@@ -203,7 +203,7 @@ end|
 #
 # Switch to connection 'con1'.
 # Cache all functions used in the tests below so statements
-# calling them won't need to open and lock mysql.proc table
+# calling them won't need to open and lock data dictionary table
 # and we can assume that each statement locks its tables
 # once during its execution.
 show create procedure p1;

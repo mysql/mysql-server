@@ -1014,21 +1014,25 @@ deallocate prepare stmt;
 --echo =====================================================================
 
 prepare stmt from
- "select type, db, name from mysql.proc where name='p1'";
+ "select database_name, table_name, n_rows, sum_of_other_index_sizes from mysql.innodb_table_stats where table_name='t1'";
 
-create procedure p1() select "hi there";
+create table test.t1(f1 int);
+insert into test.t1 values (10);
 
 execute stmt;
 execute stmt;
 
-drop procedure p1;
-create procedure p1() select "hi there, again";
+drop table test.t1;
+create table test.t1(f1 int primary key, f2 int, key(f2));
+insert into test.t1 values (20, 20);
+insert into test.t1 values (30, 20);
+analyze table test.t1;
 
 execute stmt;
 execute stmt;
 call p_verify_reprepare_count(0);
 
-drop procedure p1;
+drop table test.t1;
 deallocate prepare stmt;
 
 --echo =====================================================================

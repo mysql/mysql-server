@@ -1709,6 +1709,7 @@ let $lock_status = `SELECT COUNT(*) = 1 FROM information_schema.processlist
 --echo --- connection master1 ---
 connection master1;
 --echo reap result of previous---
+--error ER_LOCK_WAIT_TIMEOUT
 --reap
 
 --echo --- connection master ---
@@ -2383,6 +2384,7 @@ DROP TABLE t1trig,t2trig;
 DROP TABLE t1bin,t2bin,t1myisam,t1innodb;
 DROP TABLE t3967_1,t3967_2,t1_30138,t1_30138_old;
 DROP FUNCTION f1;
+DROP PROCEDURE p1;
 DROP VIEW v1;
 DROP USER user1@localhost;
 DROP DATABASE db1;

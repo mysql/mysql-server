@@ -1248,26 +1248,32 @@ deallocate prepare stmt;
 Part 21: Special tables (system tables)
 =====================================================================
 prepare stmt from
-"select type, db, name from mysql.proc where name='p1'";
-create procedure p1() select "hi there";
+"select database_name, table_name, n_rows, sum_of_other_index_sizes from mysql.innodb_table_stats where table_name='t1'";
+create table test.t1(f1 int);
+insert into test.t1 values (10);
 execute stmt;
-type	db	name
-PROCEDURE	test	p1
+database_name	table_name	n_rows	sum_of_other_index_sizes
+test	t1	0	0
 execute stmt;
-type	db	name
-PROCEDURE	test	p1
-drop procedure p1;
-create procedure p1() select "hi there, again";
+database_name	table_name	n_rows	sum_of_other_index_sizes
+test	t1	0	0
+drop table test.t1;
+create table test.t1(f1 int primary key, f2 int, key(f2));
+insert into test.t1 values (20, 20);
+insert into test.t1 values (30, 20);
+analyze table test.t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 execute stmt;
-type	db	name
-PROCEDURE	test	p1
+database_name	table_name	n_rows	sum_of_other_index_sizes
+test	t1	2	1
 execute stmt;
-type	db	name
-PROCEDURE	test	p1
+database_name	table_name	n_rows	sum_of_other_index_sizes
+test	t1	2	1
 call p_verify_reprepare_count(0);
 SUCCESS
 
-drop procedure p1;
+drop table test.t1;
 deallocate prepare stmt;
 =====================================================================
 Part 22: Special tables (views temp tables)

@@ -4076,7 +4076,7 @@ static bool fix_sql_mode(sys_var *self, THD *thd, enum_var_type type)
 }
 /*
   WARNING: When adding new SQL modes don't forget to update the
-  tables definitions that stores it's value (ie: mysql.event, mysql.proc)
+  tables definitions that stores it's value (ie: mysql.event, mysql.routines)
 */
 static const char *sql_mode_names[]=
 {

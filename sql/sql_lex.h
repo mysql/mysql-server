@@ -198,8 +198,8 @@ enum enum_sp_data_access
 /**
   enum_sp_type defines type codes of stored programs.
 
-  @note these codes are used when dealing with the mysql.proc system table, so
-  they must not be changed.
+  @note these codes are used when dealing with the mysql.routines system table,
+  so they must not be changed.
 
   @note the following macros were used previously for the same purpose. Now they
   are used for ACL only.
@@ -1858,7 +1858,7 @@ typedef struct struct_slave_connection
 
 struct st_sp_chistics
 {
-  LEX_STRING comment;
+  LEX_CSTRING comment;
   enum enum_sp_suid_behaviour suid;
   bool detistic;
   enum enum_sp_data_access daccess;

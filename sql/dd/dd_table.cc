@@ -99,7 +99,7 @@ namespace dd {
   information schema requirements.
 */
 
-static dd::enum_column_types dd_get_new_field_type(enum_field_types type)
+dd::enum_column_types dd_get_new_field_type(enum_field_types type)
 {
   switch (type)
   {

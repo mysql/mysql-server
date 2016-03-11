@@ -2660,7 +2660,7 @@ sp_c_chistics:
 /* Characteristics for both create and alter */
 sp_chistic:
           COMMENT_SYM TEXT_STRING_sys
-          { Lex->sp_chistics.comment= $2; }
+          { Lex->sp_chistics.comment= to_lex_cstring($2); }
         | LANGUAGE_SYM SQL_SYM
           { /* Just parse it, we only have one language for now. */ }
         | NO_SYM SQL_SYM
@@ -2770,6 +2770,9 @@ sp_fdparam:
             LEX *lex= thd->lex;
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
 
+            if (sp_check_name(&$1))
+              MYSQL_YYABORT;
+
             if (pctx->find_variable($1, TRUE))
             {
               my_error(ER_SP_DUP_PARAM, MYF(0), $1.str);
@@ -2809,6 +2812,9 @@ sp_pdparam:
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
+
+            if (sp_check_name(&$3))
+              MYSQL_YYABORT;
 
             if (pctx->find_variable($3, TRUE))
             {

@@ -21,9 +21,11 @@
 #include "item.h"            // Item::Type
 #include "mdl.h"             // MDL_request
 
+namespace dd {
+  class Routine;
+}
+
 class Field;
-class Open_tables_backup;
-class Open_tables_state;
 class Query_arena;
 class Query_tables_list;
 class Sroutine_hash_entry;
@@ -41,52 +43,52 @@ typedef ulonglong sql_mode_t;
 template <typename T> class SQL_I_List;
 enum class enum_sp_type;
 
-
 /* Tells what SP_DEFAULT_ACCESS should be mapped to */
 #define SP_DEFAULT_ACCESS_MAPPING SP_CONTAINS_SQL
 
-// Return codes from sp_create_*, sp_drop_*, and sp_show_*:
-#define SP_OK                 0
-#define SP_KEY_NOT_FOUND     -1
-#define SP_OPEN_TABLE_FAILED -2
-#define SP_WRITE_ROW_FAILED  -3
-#define SP_DELETE_ROW_FAILED -4
-#define SP_GET_FIELD_FAILED  -5
-#define SP_PARSE_ERROR       -6
-#define SP_INTERNAL_ERROR    -7
-#define SP_NO_DB_ERROR       -8
-#define SP_BAD_IDENTIFIER    -9
-#define SP_BODY_TOO_LONG    -10
-#define SP_FLD_STORE_FAILED -11
+/* Tells what SP_IS_DEFAULT_SUID should be mapped to */
+#define SP_DEFAULT_SUID_MAPPING SP_IS_SUID
 
-/* DB storage of Stored PROCEDUREs and FUNCTIONs */
-enum
+/* Max length(LONGBLOB field type length) of stored routine body */
+static const uint MYSQL_STORED_ROUTINE_BODY_LENGTH= 4294967295U;
+
+/* Max length(TEXT field type length) of stored routine comment */
+static const int MYSQL_STORED_ROUTINE_COMMENT_LENGTH= 65535;
+
+enum enum_sp_return_code
 {
-  MYSQL_PROC_FIELD_DB = 0,
-  MYSQL_PROC_FIELD_NAME,
-  MYSQL_PROC_MYSQL_TYPE,
-  MYSQL_PROC_FIELD_SPECIFIC_NAME,
-  MYSQL_PROC_FIELD_LANGUAGE,
-  MYSQL_PROC_FIELD_ACCESS,
-  MYSQL_PROC_FIELD_DETERMINISTIC,
-  MYSQL_PROC_FIELD_SECURITY_TYPE,
-  MYSQL_PROC_FIELD_PARAM_LIST,
-  MYSQL_PROC_FIELD_RETURNS,
-  MYSQL_PROC_FIELD_BODY,
-  MYSQL_PROC_FIELD_DEFINER,
-  MYSQL_PROC_FIELD_CREATED,
-  MYSQL_PROC_FIELD_MODIFIED,
-  MYSQL_PROC_FIELD_SQL_MODE,
-  MYSQL_PROC_FIELD_COMMENT,
-  MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT,
-  MYSQL_PROC_FIELD_COLLATION_CONNECTION,
-  MYSQL_PROC_FIELD_DB_COLLATION,
-  MYSQL_PROC_FIELD_BODY_UTF8,
-  MYSQL_PROC_FIELD_COUNT
+  SP_OK= 0,
+
+  // Schema does not exists
+  SP_NO_DB_ERROR,
+
+  // Routine does not exists
+  SP_DOES_NOT_EXISTS,
+
+  // Routine already exists
+  SP_ALREADY_EXISTS,
+
+  // Create routine failed
+  SP_STORE_FAILED,
+
+  // Drop routine failed
+  SP_DROP_FAILED,
+
+  // Alter routine failed
+  SP_ALTER_FAILED,
+
+  // Routine load failed
+  SP_LOAD_FAILED,
+
+  // Routine parse failed
+  SP_PARSE_ERROR,
+
+  // Internal errors
+  SP_INTERNAL_ERROR
 };
 
 /* Drop all routines in database 'db' */
-int sp_drop_db_routines(THD *thd, const char *db);
+enum_sp_return_code sp_drop_db_routines(THD *thd, const char *db);
 
 /**
    Acquires exclusive metadata lock on all stored routines in the
@@ -103,11 +105,11 @@ bool lock_db_routines(THD *thd, const char *db);
 sp_head *sp_find_routine(THD *thd, enum_sp_type type, sp_name *name,
                          sp_cache **cp, bool cache_only);
 
-int sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
-                     bool lookup_only, sp_head **sp);
+enum_sp_return_code sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
+                                     bool lookup_only, sp_head **sp);
 
-int sp_cache_routine(THD *thd, enum_sp_type type, sp_name *name,
-                     bool lookup_only, sp_head **sp);
+enum_sp_return_code sp_cache_routine(THD *thd, enum_sp_type type, sp_name *name,
+                                     bool lookup_only, sp_head **sp);
 
 bool sp_exist_routines(THD *thd, TABLE_LIST *procs, bool is_proc);
 
@@ -115,10 +117,10 @@ bool sp_show_create_routine(THD *thd, enum_sp_type type, sp_name *name);
 
 bool sp_create_routine(THD *thd, sp_head *sp);
 
-int sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
-                      st_sp_chistics *chistics);
+enum_sp_return_code sp_update_routine(THD *thd, enum_sp_type type,
+                                      sp_name *name, st_sp_chistics *chistics);
 
-int sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name);
+enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type, sp_name *name);
 
 
 /**
@@ -174,27 +176,9 @@ void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
 
 const uchar* sp_sroutine_key(const uchar *ptr, size_t *plen);
 
-/*
-  Routines which allow open/lock and close mysql.proc table even when
-  we already have some tables open and locked.
-*/
-TABLE *open_proc_table_for_read(THD *thd, Open_tables_backup *backup);
-
-sp_head *sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
-                                        String *name, sql_mode_t sql_mode,
-                                        enum_sp_type type,
-                                        const char *returns, const char *params,
+sp_head *sp_load_for_information_schema(THD *thd, LEX_CSTRING db_name,
+                                        const dd::Routine *routine,
                                         bool *free_sp_head);
-
-bool load_charset(MEM_ROOT *mem_root,
-                  Field *field,
-                  const CHARSET_INFO *dflt_cs,
-                  const CHARSET_INFO **cs);
-
-bool load_collation(MEM_ROOT *mem_root,
-                    Field *field,
-                    const CHARSET_INFO *dflt_cl,
-                    const CHARSET_INFO **cl);
 
 ///////////////////////////////////////////////////////////////////////////
 

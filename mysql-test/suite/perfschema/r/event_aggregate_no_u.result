@@ -318,18 +318,18 @@ statement/sql/insert	1
 statement/sql/select	3
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	1
+localhost	transaction	2
 execute dump_transactions_global;
 event_name	count_star
-transaction	1
+transaction	2
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	1
+transaction	2
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -455,19 +455,19 @@ statement/sql/insert	1
 statement/sql/select	3
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	0
 execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	1
+localhost	transaction	2
 execute dump_transactions_global;
 event_name	count_star
-transaction	1
+transaction	2
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	1
+transaction	2
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -606,19 +606,19 @@ statement/sql/insert	2
 statement/sql/select	6
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	1
 execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	2
+localhost	transaction	3
 execute dump_transactions_global;
 event_name	count_star
-transaction	2
+transaction	3
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	2
+transaction	3
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -762,20 +762,20 @@ statement/sql/insert	2
 statement/sql/select	6
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	1
 user3	localhost	transaction	0
 execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	2
+localhost	transaction	3
 execute dump_transactions_global;
 event_name	count_star
-transaction	2
+transaction	3
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	2
+transaction	3
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -932,20 +932,20 @@ statement/sql/insert	3
 statement/sql/select	9
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	1
 user3	localhost	transaction	1
 execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	3
+localhost	transaction	4
 execute dump_transactions_global;
 event_name	count_star
-transaction	3
+transaction	4
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	3
+transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -1107,7 +1107,7 @@ statement/sql/insert	3
 statement/sql/select	9
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	1
 user3	localhost	transaction	1
 user4	localhost	transaction	0
@@ -1115,13 +1115,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	3
+localhost	transaction	4
 execute dump_transactions_global;
 event_name	count_star
-transaction	3
+transaction	4
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	3
+transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -1296,7 +1296,7 @@ statement/sql/insert	4
 statement/sql/select	12
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	1
 user3	localhost	transaction	1
 user4	localhost	transaction	1
@@ -1304,13 +1304,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -1472,7 +1472,7 @@ statement/sql/insert	4
 statement/sql/select	12
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	1
 user3	localhost	transaction	1
 user4	localhost	transaction	1
@@ -1480,13 +1480,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -1645,7 +1645,7 @@ statement/sql/insert	4
 statement/sql/select	12
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	1
 user3	localhost	transaction	1
 user4	localhost	transaction	1
@@ -1653,13 +1653,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -1815,7 +1815,7 @@ statement/sql/insert	4
 statement/sql/select	12
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	1
 user3	localhost	transaction	1
 user4	localhost	transaction	1
@@ -1823,13 +1823,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -1982,7 +1982,7 @@ statement/sql/insert	4
 statement/sql/select	12
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	1
 user3	localhost	transaction	1
 user4	localhost	transaction	1
@@ -1990,13 +1990,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -2150,7 +2150,7 @@ statement/sql/insert	4
 statement/sql/select	12
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	1
 user3	localhost	transaction	1
 user4	localhost	transaction	1
@@ -2158,13 +2158,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -2318,7 +2318,7 @@ statement/sql/insert	4
 statement/sql/select	12
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	1
 user3	localhost	transaction	1
 user4	localhost	transaction	1
@@ -2326,13 +2326,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -2486,7 +2486,7 @@ statement/sql/insert	4
 statement/sql/select	12
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	1
 user3	localhost	transaction	1
 user4	localhost	transaction	1
@@ -2494,13 +2494,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -2654,7 +2654,7 @@ statement/sql/insert	4
 statement/sql/select	12
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	1
 user3	localhost	transaction	1
 user4	localhost	transaction	1
@@ -2662,13 +2662,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -2822,7 +2822,7 @@ statement/sql/insert	4
 statement/sql/select	12
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	1
 user3	localhost	transaction	1
 user4	localhost	transaction	1
@@ -2830,13 +2830,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -2990,7 +2990,7 @@ statement/sql/insert	4
 statement/sql/select	12
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	1
 user3	localhost	transaction	1
 user4	localhost	transaction	1
@@ -2998,13 +2998,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -3158,7 +3158,7 @@ statement/sql/insert	4
 statement/sql/select	12
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	1
 user3	localhost	transaction	1
 user4	localhost	transaction	1
@@ -3166,13 +3166,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -3326,7 +3326,7 @@ statement/sql/insert	4
 statement/sql/select	12
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	1
 user3	localhost	transaction	1
 user4	localhost	transaction	1
@@ -3334,13 +3334,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -3494,7 +3494,7 @@ statement/sql/insert	4
 statement/sql/select	12
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	1
 user3	localhost	transaction	1
 user4	localhost	transaction	1
@@ -3502,13 +3502,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -3662,7 +3662,7 @@ statement/sql/insert	4
 statement/sql/select	12
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	1
 user3	localhost	transaction	1
 user4	localhost	transaction	1
@@ -3670,13 +3670,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -3830,7 +3830,7 @@ statement/sql/insert	4
 statement/sql/select	12
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	1
 user3	localhost	transaction	1
 user4	localhost	transaction	1
@@ -3838,13 +3838,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -3998,7 +3998,7 @@ statement/sql/insert	4
 statement/sql/select	12
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	1
 user3	localhost	transaction	1
 user4	localhost	transaction	1
@@ -4006,13 +4006,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -4166,7 +4166,7 @@ statement/sql/insert	4
 statement/sql/select	12
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	1
 user3	localhost	transaction	1
 user4	localhost	transaction	1
@@ -4174,13 +4174,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -4334,7 +4334,7 @@ statement/sql/insert	4
 statement/sql/select	12
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	1
 user3	localhost	transaction	1
 user4	localhost	transaction	1
@@ -4342,13 +4342,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -4502,7 +4502,7 @@ statement/sql/insert	4
 statement/sql/select	12
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	1
 user3	localhost	transaction	1
 user4	localhost	transaction	1
@@ -4510,13 +4510,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -4670,7 +4670,7 @@ statement/sql/insert	4
 statement/sql/select	12
 execute dump_transactions_account;
 user	host	event_name	count_star
-user1	localhost	transaction	1
+user1	localhost	transaction	2
 user2	localhost	transaction	1
 user3	localhost	transaction	1
 user4	localhost	transaction	1
@@ -4678,13 +4678,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -4846,13 +4846,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -5014,13 +5014,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -5185,10 +5185,10 @@ host	event_name	count_star
 localhost	transaction	0
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -5356,7 +5356,7 @@ event_name	count_star
 transaction	0
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -5464,7 +5464,7 @@ event_name	count_star
 transaction	0
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -5568,7 +5568,7 @@ event_name	count_star
 transaction	0
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
@@ -5672,7 +5672,7 @@ event_name	count_star
 transaction	0
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 root	localhost	1	1
