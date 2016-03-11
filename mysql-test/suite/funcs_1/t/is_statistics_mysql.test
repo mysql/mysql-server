@@ -14,5 +14,5 @@
 
 --source include/not_embedded.inc
 let $database = mysql;
-let $my_where = WHERE table_schema = 'mysql';
+let $my_where = WHERE table_schema = 'mysql' AND table_name != 'ndb_binlog_index';
 --source suite/funcs_1/datadict/statistics.inc

@@ -2,7 +2,7 @@ SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT * FROM information_schema.columns
-WHERE table_schema = 'mysql'
+WHERE table_schema = 'mysql' AND table_name != 'ndb_binlog_index'
 ORDER BY table_schema, table_name, column_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION
 def	mysql	columns_priv	Column_name	5		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)	PRI				
@@ -85,18 +85,6 @@ def	mysql	innodb_table_stats	last_update	3	CURRENT_TIMESTAMP	NO	timestamp	NULL	N
 def	mysql	innodb_table_stats	n_rows	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned					
 def	mysql	innodb_table_stats	sum_of_other_index_sizes	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned					
 def	mysql	innodb_table_stats	table_name	2	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)	PRI				
-def	mysql	ndb_binlog_index	deletes	6	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned					
-def	mysql	ndb_binlog_index	epoch	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI				
-def	mysql	ndb_binlog_index	File	2	NULL	NO	varchar	255	255	NULL	NULL	NULL	latin1	latin1_swedish_ci	varchar(255)					
-def	mysql	ndb_binlog_index	gci	10	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned					
-def	mysql	ndb_binlog_index	inserts	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned					
-def	mysql	ndb_binlog_index	next_file	12	NULL	NO	varchar	255	255	NULL	NULL	NULL	latin1	latin1_swedish_ci	varchar(255)					
-def	mysql	ndb_binlog_index	next_position	11	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned					
-def	mysql	ndb_binlog_index	orig_epoch	9	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI				
-def	mysql	ndb_binlog_index	orig_server_id	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned	PRI				
-def	mysql	ndb_binlog_index	Position	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned					
-def	mysql	ndb_binlog_index	schemaops	7	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned					
-def	mysql	ndb_binlog_index	updates	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned					
 def	mysql	plugin	dl	2		NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)					
 def	mysql	plugin	name	1		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI				
 def	mysql	procs_priv	Db	2		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)	PRI				
@@ -278,7 +266,7 @@ DATA_TYPE,
 CHARACTER_SET_NAME,
 COLLATION_NAME
 FROM information_schema.columns
-WHERE table_schema = 'mysql'
+WHERE table_schema = 'mysql' AND table_name != 'ndb_binlog_index'
 AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH = 1
 ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
@@ -286,7 +274,6 @@ COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 1.0000	longblob	NULL	NULL
 1.0000	mediumblob	NULL	NULL
 1.0000	char	latin1	latin1_swedish_ci
-1.0000	varchar	latin1	latin1_swedish_ci
 1.0000	longtext	utf8	utf8_bin
 1.0000	text	utf8	utf8_bin
 1.0000	mediumtext	utf8	utf8_general_ci
@@ -297,7 +284,7 @@ DATA_TYPE,
 CHARACTER_SET_NAME,
 COLLATION_NAME
 FROM information_schema.columns
-WHERE table_schema = 'mysql'
+WHERE table_schema = 'mysql' AND table_name != 'ndb_binlog_index'
 AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH <> 1
 ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
@@ -315,7 +302,7 @@ DATA_TYPE,
 CHARACTER_SET_NAME,
 COLLATION_NAME
 FROM information_schema.columns
-WHERE table_schema = 'mysql'
+WHERE table_schema = 'mysql' AND table_name != 'ndb_binlog_index'
 AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH IS NULL
 ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
@@ -340,7 +327,7 @@ CHARACTER_SET_NAME,
 COLLATION_NAME,
 COLUMN_TYPE
 FROM information_schema.columns
-WHERE table_schema = 'mysql'
+WHERE table_schema = 'mysql' AND table_name != 'ndb_binlog_index'
 ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION;
 COL_CML	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE
 3.0000	mysql	columns_priv	Host	char	60	180	utf8	utf8_bin	char(60)
@@ -423,18 +410,6 @@ NULL	mysql	innodb_table_stats	last_update	timestamp	NULL	NULL	NULL	NULL	timestam
 NULL	mysql	innodb_table_stats	n_rows	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 NULL	mysql	innodb_table_stats	clustered_index_size	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 NULL	mysql	innodb_table_stats	sum_of_other_index_sizes	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	mysql	ndb_binlog_index	Position	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-1.0000	mysql	ndb_binlog_index	File	varchar	255	255	latin1	latin1_swedish_ci	varchar(255)
-NULL	mysql	ndb_binlog_index	epoch	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	mysql	ndb_binlog_index	inserts	int	NULL	NULL	NULL	NULL	int(10) unsigned
-NULL	mysql	ndb_binlog_index	updates	int	NULL	NULL	NULL	NULL	int(10) unsigned
-NULL	mysql	ndb_binlog_index	deletes	int	NULL	NULL	NULL	NULL	int(10) unsigned
-NULL	mysql	ndb_binlog_index	schemaops	int	NULL	NULL	NULL	NULL	int(10) unsigned
-NULL	mysql	ndb_binlog_index	orig_server_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
-NULL	mysql	ndb_binlog_index	orig_epoch	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	mysql	ndb_binlog_index	gci	int	NULL	NULL	NULL	NULL	int(10) unsigned
-NULL	mysql	ndb_binlog_index	next_position	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-1.0000	mysql	ndb_binlog_index	next_file	varchar	255	255	latin1	latin1_swedish_ci	varchar(255)
 3.0000	mysql	plugin	name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	mysql	plugin	dl	varchar	128	384	utf8	utf8_general_ci	varchar(128)
 3.0000	mysql	procs_priv	Host	char	60	180	utf8	utf8_bin	char(60)

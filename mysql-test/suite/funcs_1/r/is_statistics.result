@@ -83,7 +83,8 @@ INDEX_TYPE	varchar(16)	NO
 COMMENT	varchar(16)	YES		NULL	
 INDEX_COMMENT	varchar(1024)	NO			
 SELECT table_catalog, table_schema, table_name, index_schema, index_name
-FROM information_schema.statistics WHERE table_catalog IS NOT NULL;
+FROM information_schema.statistics WHERE table_catalog IS NOT NULL AND
+table_name != 'ndb_binlog_index';
 table_catalog	table_schema	table_name	index_schema	index_name
 def	mysql	column_stats	mysql	PRIMARY
 def	mysql	column_stats	mysql	PRIMARY
@@ -117,9 +118,6 @@ def	mysql	innodb_index_stats	mysql	PRIMARY
 def	mysql	innodb_index_stats	mysql	PRIMARY
 def	mysql	innodb_table_stats	mysql	PRIMARY
 def	mysql	innodb_table_stats	mysql	PRIMARY
-def	mysql	ndb_binlog_index	mysql	PRIMARY
-def	mysql	ndb_binlog_index	mysql	PRIMARY
-def	mysql	ndb_binlog_index	mysql	PRIMARY
 def	mysql	plugin	mysql	PRIMARY
 def	mysql	procs_priv	mysql	PRIMARY
 def	mysql	procs_priv	mysql	PRIMARY

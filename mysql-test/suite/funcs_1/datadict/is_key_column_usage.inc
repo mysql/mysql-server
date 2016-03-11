@@ -73,7 +73,8 @@ eval SHOW COLUMNS FROM information_schema.$is_table;
 SELECT constraint_catalog, constraint_schema, constraint_name, table_catalog,
        table_schema, table_name, column_name
 FROM information_schema.key_column_usage
-WHERE constraint_catalog IS NOT NULL OR table_catalog IS NOT NULL;
+WHERE (constraint_catalog IS NOT NULL OR table_catalog IS NOT NULL) AND
+      table_name != 'ndb_binlog_index';
 
 
 --echo ########################################################################################

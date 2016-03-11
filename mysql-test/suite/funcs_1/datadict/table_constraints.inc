@@ -28,7 +28,7 @@ CREATE USER testuser1@localhost;
 GRANT SELECT ON db_datadict.* TO testuser1@localhost;
 
 let $my_select = SELECT * FROM information_schema.table_constraints
-WHERE table_schema = '$table_schema'
+WHERE table_schema = '$table_schema' AND table_name != 'ndb_binlog_index'
 ORDER BY table_schema,table_name,constraint_name;
 eval $my_select;
 

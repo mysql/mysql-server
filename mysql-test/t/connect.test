@@ -25,7 +25,7 @@ call mtr.add_suppression("Did not write failed .*");
 #connect (con1,localhost,root,,"");
 #show tables;
 connect (con1,localhost,root,,mysql);
-show tables;
+show tables where Tables_in_mysql != 'ndb_binlog_index';
 connect (con2,localhost,root,,test);
 show tables;
 
@@ -50,7 +50,7 @@ grant ALL on *.* to test@127.0.0.1;
 #connect (con1,localhost,test,gambling,"");
 #show tables;
 connect (con3,localhost,test,gambling,mysql);
-show tables;
+show tables where Tables_in_mysql != 'ndb_binlog_index';
 connect (con4,localhost,test,gambling,test);
 show tables;
 

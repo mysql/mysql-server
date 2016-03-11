@@ -21,10 +21,22 @@ drop database if exists client_test_db;
 # Bug #13783  mysqlcheck tries to optimize and analyze information_schema
 #
 --replace_result 'Table is already up to date' OK
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_CHECK --all-databases --analyze
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_CHECK --all-databases --optimize
 --replace_result 'Table is already up to date' OK
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_CHECK --analyze --databases test information_schema mysql
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
 --exec $MYSQL_CHECK --optimize  --databases test information_schema mysql
 --exec $MYSQL_CHECK --analyze information_schema schemata
 --exec $MYSQL_CHECK --optimize information_schema schemata

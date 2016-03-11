@@ -1,5 +1,5 @@
 drop table if exists t1,t2;
-show tables;
+show tables where Tables_in_mysql != 'ndb_binlog_index';
 Tables_in_mysql
 column_stats
 columns_priv
@@ -14,7 +14,6 @@ help_relation
 help_topic
 innodb_index_stats
 innodb_table_stats
-ndb_binlog_index
 plugin
 procs_priv
 proxies_priv
@@ -42,7 +41,7 @@ create user test@localhost identified by "gambling";
 grant ALL on *.* to test@localhost;
 create user test@127.0.0.1 identified by "gambling";
 grant ALL on *.* to test@127.0.0.1;
-show tables;
+show tables where Tables_in_mysql != 'ndb_binlog_index';
 Tables_in_mysql
 column_stats
 columns_priv
@@ -57,7 +56,6 @@ help_relation
 help_topic
 innodb_index_stats
 innodb_table_stats
-ndb_binlog_index
 plugin
 procs_priv
 proxies_priv
