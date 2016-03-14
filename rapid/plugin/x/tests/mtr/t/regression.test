@@ -102,7 +102,8 @@ Mysqlx.Sql.StmtExecute {
     stmt: "list_clients"
     namespace: "xplugin"
 }
--->recverror 1820
+-->expecterror 1820
+-->recvresult
 
 Mysqlx.Sql.StmtExecute {
     stmt: "set password=password('a')"

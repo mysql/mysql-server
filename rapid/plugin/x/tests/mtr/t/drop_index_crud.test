@@ -89,7 +89,6 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
-
 -->recv
 -->endmacro
 
@@ -125,7 +124,6 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
-
 -->recv
 -->endmacro
 
@@ -157,11 +155,12 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
--->recv
+-->recvresult
 
 -->echo Create and drop indexes of different types on single fields
 
 -->callmacro Create_collection_index	ix	TINYINT
+
 -->sql
 SHOW INDEX FROM xplugintest.table1;
 SHOW CREATE TABLE xplugintest.table1;
@@ -1187,7 +1186,6 @@ SHOW INDEX FROM xplugintest.table1;
 
 -->sql
 #Trying to add FULLTEXT INDEX leads to server crash BUG 21633035
-ALTER TABLE xplugintest.table1 ADD PRIMARY KEY(_id);
 ALTER TABLE xplugintest.table1 ADD SUBJECT text GENERATED ALWAYS AS (json_extract( doc, '$.subject' )) STORED;
 ALTER TABLE xplugintest.table1 ADD book text ;
 ALTER TABLE xplugintest.table1 ADD INDEX `fulltext_idx_1` (subject(100));

@@ -242,6 +242,7 @@ send Mysqlx.Sql.StmtExecute {
 
 
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 switched to session sess
 aborting session sess
 switched to session default

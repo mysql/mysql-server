@@ -4,6 +4,7 @@ call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations
 CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
 
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 Got expected error (code 0)
 Tables_in_xtest
 books
@@ -113,6 +114,7 @@ active session is now 'temp'
 0 rows affected
 
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 Got expected error (code 0)
 Tables_in_xtest
 books

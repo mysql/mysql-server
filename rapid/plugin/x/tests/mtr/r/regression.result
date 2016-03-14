@@ -94,14 +94,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Got expected error:
-Mysqlx.Error {
-  severity: ERROR
-  code: 1820
-  msg: "You must reset your password using ALTER USER statement before executing this statement."
-  sql_state: "HY000"
-}
-
+Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
 send Mysqlx.Sql.StmtExecute {
   stmt: "set password=password(\'a\')"
 }

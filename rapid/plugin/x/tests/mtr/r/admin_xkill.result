@@ -42,6 +42,7 @@ expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	sql_session
 1	root	localhost	$SESSION
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
 RUN show status like 'Mysqlx%client%'
 Variable_name	Value
@@ -61,6 +62,7 @@ client_id	user	host
 1	root	localhost
 2	root	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0 even with another new root session
 RUN show status like 'Mysqlx%client%'
 Variable_name	Value
@@ -131,6 +133,7 @@ expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 3	abc	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 killing root user session with unprivileged user 'abc' which should be unsuccessful
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
@@ -176,6 +179,7 @@ client_id	user	host
 3	abc	localhost
 4	abc	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   args {
@@ -274,6 +278,7 @@ send Mysqlx.Sql.StmtExecute {
 client_id	user	host	
 5	process	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   args {
@@ -324,6 +329,7 @@ client_id	user	host
 5	process	localhost
 6	xplugin	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   args {
@@ -385,6 +391,7 @@ expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 7	root	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 expect error while killing client with data type other than usinged int
 try killing xprotocol session with valid sql_session id once xprotocol connetion opened with kill_client,expect error
 send Mysqlx.Sql.StmtExecute {
@@ -415,7 +422,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Got expected error: Invalid type for argument 'client_id' at #1 (should be unsigned int) (code 5016)
+Got expected error: Invalid type for argument 'id' at #1 (should be unsigned int) (code 5016)
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   args {
@@ -428,7 +435,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Got expected error: Invalid type for argument 'client_id' at #1 (should be unsigned int) (code 5016)
+Got expected error: Invalid type for argument 'id' at #1 (should be unsigned int) (code 5016)
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   args {
@@ -441,7 +448,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Got expected error: Invalid type for argument 'client_id' at #1 (should be unsigned int) (code 5016)
+Got expected error: Invalid type for argument 'id' at #1 (should be unsigned int) (code 5016)
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   args {
@@ -454,7 +461,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Got expected error: Invalid type for argument 'client_id' at #1 (should be unsigned int) (code 5016)
+Got expected error: Invalid type for argument 'id' at #1 (should be unsigned int) (code 5016)
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   args {
@@ -467,7 +474,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Got expected error: Invalid type for argument 'client_id' at #1 (should be unsigned int) (code 5016)
+Got expected error: Invalid type for argument 'id' at #1 (should be unsigned int) (code 5016)
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   args {
@@ -480,7 +487,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Got expected error: Invalid type for argument 'client_id' at #1 (should be unsigned int) (code 5016)
+Got expected error: Invalid type for argument 'id' at #1 (should be unsigned int) (code 5016)
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   args {
@@ -493,7 +500,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Got expected error: Invalid type for argument 'client_id' at #1 (should be unsigned int) (code 5016)
+Got expected error: Invalid type for argument 'id' at #1 (should be unsigned int) (code 5016)
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   args {
@@ -505,7 +512,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Got expected error: Invalid type for argument 'client_id' at #1 (should be unsigned int) (code 5016)
+Got expected error: Invalid type for argument 'id' at #1 (should be unsigned int) (code 5016)
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   args {
@@ -520,7 +527,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Got expected error: Invalid type for argument 'client_id' at #1 (should be unsigned int) (code 5016)
+Got expected error: Invalid type for argument 'id' at #1 (should be unsigned int) (code 5016)
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   args {
@@ -533,7 +540,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Got expected error: Invalid type for argument 'client_id' at #1 (should be unsigned int) (code 5016)
+Got expected error: Invalid type for argument 'id' at #1 (should be unsigned int) (code 5016)
 expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=11 with root user even though kill_client returns errors
 RUN show status like 'Mysqlx%client%'
 Variable_name	Value
@@ -554,14 +561,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Got expected error:
-Mysqlx.Error {
-  severity: ERROR
-  code: 1820
-  msg: "You must reset your password using ALTER USER statement before executing this statement."
-  sql_state: "HY000"
-}
-
+Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   args {
@@ -599,6 +599,7 @@ send Mysqlx.Sql.StmtExecute {
 client_id	user	host	
 9	root	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_CLIENT"
   args {
@@ -793,6 +794,7 @@ expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	sql_session
 10	root	localhost	$SESSION
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0 
 RUN show status like 'Mysqlx%client%'
 Variable_name	Value
@@ -909,6 +911,7 @@ expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 60	xconnection50	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 switched to session default
 list all connected clients
 send Mysqlx.Sql.StmtExecute {
@@ -1950,6 +1953,7 @@ expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 62	sslcon	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
 RUN show status like 'Mysqlx%client%'
 Variable_name	Value
@@ -1968,6 +1972,7 @@ expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 63	con1	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
 RUN show status like 'Mysqlx%client%'
 Variable_name	Value
@@ -2072,6 +2077,7 @@ expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 65	root	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 create and activate new session con1
 connecting...
 active session is now 'con1      con1    con1'
@@ -2085,6 +2091,7 @@ client_id	user	host
 65	root	localhost
 66	root	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 open 3rd xprotocol connection where 2 sessions already opened
 connecting...
 active session is now 'con2      con2    con2'
@@ -2202,6 +2209,7 @@ expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 1	root	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
 RUN show status like 'Mysqlx%client%'
 Variable_name	Value
@@ -2221,6 +2229,7 @@ client_id	user	host
 1	root	localhost
 2	root	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0 even with another new root session
 RUN show status like 'Mysqlx%client%'
 Variable_name	Value
@@ -2290,6 +2299,7 @@ expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
 3	abc	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 killing root user session with unprivileged user 'abc' which should be unsuccessful
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
@@ -2323,6 +2333,7 @@ client_id	user	host
 3	abc	localhost
 4	abc	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   args {
@@ -2399,6 +2410,7 @@ send Mysqlx.Sql.StmtExecute {
 client_id	user	host	
 5	process	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   args {
@@ -2445,6 +2457,7 @@ client_id	user	host
 5	process	localhost
 6	xplugin	localhost
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   args {

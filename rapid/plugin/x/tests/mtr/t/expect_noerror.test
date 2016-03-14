@@ -30,7 +30,7 @@ Mysqlx.Sql.StmtExecute {
     namespace : "xplugin"
     stmt : "ping"
 }
--->recv
+-->recvresult
 
 Mysqlx.Sql.StmtExecute {
     namespace : "bla"

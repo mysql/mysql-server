@@ -198,6 +198,7 @@ static struct st_mysql_show_var xpl_plugin_status[]=
 {
   { XPL_STATUS_VARIABLE_NAME("stmt_execute_sql"),               xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_execute_sql>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
   { XPL_STATUS_VARIABLE_NAME("stmt_execute_xplugin"),           xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_execute_xplugin>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
+  { XPL_STATUS_VARIABLE_NAME("stmt_execute_mysqlx"),            xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_stmt_execute_mysqlx>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
   { XPL_STATUS_VARIABLE_NAME("crud_update"),                    xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_crud_update>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
   { XPL_STATUS_VARIABLE_NAME("crud_delete"),                    xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_crud_delete>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },
   { XPL_STATUS_VARIABLE_NAME("crud_find"),                      xpl_func_ptr(xpl::Server::common_status_variable<long long, &xpl::Common_status_variables::get_crud_find>), SHOW_FUNC, SHOW_SCOPE_GLOBAL },

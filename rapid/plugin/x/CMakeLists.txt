@@ -135,7 +135,10 @@ ELSE()
     COMPILE_FLAGS "-I${xplugin_PROTOBUF_DIR}")
 
   TARGET_LINK_LIBRARIES(xplugin ${LIBEVENT_LIBRARY} ${LIBEVENT_LIBRARIES})
-
+  IF(MSVC)
+    TARGET_LINK_LIBRARIES(xplugin strings) 
+  ENDIF(MSVC)
+  
   # These are built *with* -DMYSQL_DYNAMIC_PLUGIN
   MYSQL_ADD_PLUGIN(mysqlx
     src/xpl_plugin.cc

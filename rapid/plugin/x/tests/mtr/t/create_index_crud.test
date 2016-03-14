@@ -91,7 +91,7 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
--->recv
+-->recvresult
 
 -- "Index with  unique(true), index column NOT NULL (true)"
 Mysqlx.Sql.StmtExecute {

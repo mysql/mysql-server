@@ -41,6 +41,7 @@ send Mysqlx.Sql.StmtExecute {
 
 
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 RUN create view fakecoll as select * from xtest.books
 
 

@@ -1,0 +1,35 @@
+## generated
+## Invalid admin command
+
+--source ../include/xplugin_preamble.inc
+## Test starts here
+--let $xtest_file= $MYSQL_TMP_DIR/admin_bogus_mysqlx.tmp
+--write_file $xtest_file
+-->quiet
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "whatever"
+  namespace: "mysqlx"
+}
+-->expecterror 5157
+-->recvresult
+
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "whatever"
+  namespace: "bogus"
+}
+-->expecterror 5162
+-->recvresult
+
+-->sql
+SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
+-->endsql
+EOF
+
+
+--exec $MYSQLXTEST -uroot --password='' --file=$xtest_file 2>&1
+
+## Postamble
+--remove_file $xtest_file
+uninstall plugin mysqlx;

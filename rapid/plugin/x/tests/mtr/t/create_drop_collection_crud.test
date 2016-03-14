@@ -415,7 +415,9 @@ Mysqlx.Sql.StmtExecute {
   }
 }
 ## Error
--->recv
+-->expecterror 1142
+-->recvresult
+
 -- "show table "
 -->expecterror 1142
 -->sql
@@ -451,7 +453,8 @@ Mysqlx.Sql.StmtExecute {
   }
 }
 ## error
--->recv
+-->expecterror 5162
+-->recvresult
 EOF
 --error 1
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out.tmp 2>&1
@@ -492,7 +495,8 @@ Mysqlx.Sql.StmtExecute {
   }
 }
 ## error
--->recv
+-->expecterror 5015
+-->recvresult
 EOF
 
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
@@ -523,7 +527,8 @@ Mysqlx.Sql.StmtExecute {
   }
 }
 ## error
--->recv
+-->expecterror 5162
+-->recvresult
 EOF
 
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
@@ -555,7 +560,8 @@ Mysqlx.Sql.StmtExecute {
   }
 }
 ## error
--->recv
+-->expecterror 1049
+-->recvresult
 EOF
 
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp  2>&1
@@ -583,7 +589,8 @@ Mysqlx.Sql.StmtExecute {
   }
 }
 ## error
--->recv
+-->expecterror 5016
+-->recvresult
 EOF
 
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
@@ -616,7 +623,8 @@ Mysqlx.Sql.StmtExecute {
   }
 }
 ## error
--->recv
+-->expecterror 5016
+-->recvresult
 EOF
 
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
@@ -647,7 +655,8 @@ Mysqlx.Sql.StmtExecute {
   }
 }
 ## error
--->recv
+-->expecterror 1050
+-->recvresult
 EOF
 
 --exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
@@ -714,7 +723,7 @@ END_MESSAGE
        $find = "table_name";
        $str =~ s/$find/$replace/g;
        print OUTPUT "$str\n";
-       print OUTPUT "-->recv\n";
+       print OUTPUT "-->recvresult\n";
     }
  } 
  print OUTPUT "-->sql\n";
@@ -777,7 +786,7 @@ END_MESSAGE
        $find = "table_name";
        $str =~ s/$find/$replace/g;
        print OUTPUT "$str\n";
-       print OUTPUT "-->recv\n";
+       print OUTPUT "-->recvresult\n";
     }
  } 
  print OUTPUT "-->sql\n";

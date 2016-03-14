@@ -799,6 +799,7 @@ private:
 
 std::list<boost::shared_ptr<Macro> > Macro::macros;
 
+
 //---------------------------------------------------------------------------------------------------------
 
 class Command
@@ -821,8 +822,8 @@ public:
     m_commands["enablessl"]   = &Command::cmd_enablessl;
     m_commands["sleep "]      = &Command::cmd_sleep;
     m_commands["login "]      = &Command::cmd_login;
-    m_commands["stmtadmin "]  = &Command::cmd_stmt;
-    m_commands["stmtsql "]    = &Command::cmd_stmt;
+    m_commands["stmtadmin "]  = &Command::cmd_stmt_admin;
+    m_commands["stmtsql "]    = &Command::cmd_stmt_sql;
     m_commands["loginerror "] = &Command::cmd_loginerror;
     m_commands["repeat "]     = &Command::cmd_repeat;
     m_commands["endrepeat"]   = &Command::cmd_endrepeat;
@@ -887,6 +888,7 @@ public:
 
 private:
   typedef std::map< std::string, Result (Command::*)(Execution_context &,const std::string &) > Command_map;
+  typedef ::Mysqlx::Datatypes::Any Any;
 
   struct Loop_do
   {
@@ -1147,22 +1149,59 @@ private:
     return Continue;
   }
 
-  Result cmd_stmt(Execution_context &context, const std::string &args)
+  Result cmd_stmt_sql(Execution_context &context, const std::string &args)
   {
     Mysqlx::Sql::StmtExecute stmt;
 
-    const bool is_sql = context.m_command_name.find("sql") != std::string::npos;
     std::string command = args;
-
     replace_variables(command);
 
     stmt.set_stmt(command);
-    stmt.set_namespace_(is_sql ? "sql" : "xplugin");
+    stmt.set_namespace_("sql");
 
     context.connection()->send(stmt);
 
     return Continue;
   }
+
+
+  Result cmd_stmt_admin(Execution_context &context, const std::string &args)
+  {
+    std::string tmp = args;
+    replace_variables(tmp);
+    std::vector<std::string> params;
+    boost::split(params, tmp, boost::is_any_of("\t"), boost::token_compress_on);
+    if (params.empty())
+    {
+      std::cerr << "Invalid empty admin command\n";
+      return Stop_with_failure;
+    }
+
+    boost::algorithm::trim(params[0]);
+
+    Mysqlx::Sql::StmtExecute stmt;
+    stmt.set_stmt(params[0]);
+    stmt.set_namespace_("mysqlx");
+
+    if (params.size() == 2)
+    {
+      Any obj;
+      if (!json_string_to_any(params[1], obj))
+      {
+        std::cerr << "Invalid argument for '" << params[0] << "' command; json object expected\n";
+        return Stop_with_failure;
+      }
+      stmt.add_args()->CopyFrom(obj);
+    }
+
+    context.connection()->send(stmt);
+
+    return Continue;
+  }
+
+
+  bool json_string_to_any(const std::string &json_string, Any &any) const;
+
 
   Result cmd_sleep(Execution_context &context, const std::string &args)
   {
@@ -1898,6 +1937,7 @@ private:
 };
 
 boost::posix_time::ptime Command::m_start_measure = boost::posix_time::not_a_date_time;
+
 
 static int process_client_message(mysqlx::Connection *connection, int8_t msg_id, const mysqlx::Message &msg)
 {
@@ -2719,8 +2759,8 @@ public:
     std::cout << "  End block of instructions that should be repeated - next iteration\n";
     std::cout << "-->stmtsql <CMD>\n";
     std::cout << "  Send StmtExecute with sql command\n";
-    std::cout << "-->stmtadmin <CMD>\n";
-    std::cout << "  Send StmtExecute with admin command\n";
+    std::cout << "-->stmtadmin <CMD> [json_string]\n";
+    std::cout << "  Send StmtExecute with admin command with given aguments (formated as json object) \n";
     std::cout << "-->system <CMD>\n";
     std::cout << "  Execute application or script (dev only)\n";
     std::cout << "-->exit\n";
@@ -3023,6 +3063,137 @@ bool Macro::call(Execution_context &context, const std::string &cmd)
   return r;
 }
 
+
+namespace
+{
+
+class Json_to_any_handler : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>, Json_to_any_handler>
+{
+public:
+  typedef ::Mysqlx::Datatypes::Any Any;
+
+  Json_to_any_handler(Any &any)
+  {
+    m_stack.push(&any);
+  }
+
+  bool Key(const char *str, rapidjson::SizeType length, bool copy)
+  {
+    typedef ::Mysqlx::Datatypes::Object_ObjectField Field;
+    Field *f = m_stack.top()->mutable_obj()->add_fld();
+    f->set_key(str, length);
+    m_stack.push(f->mutable_value());
+    return true;
+  }
+
+  bool Null()
+  {
+    get_scalar(::Mysqlx::Datatypes::Scalar_Type_V_NULL);
+    return true;
+  }
+
+  bool Bool(bool b)
+  {
+    get_scalar(::Mysqlx::Datatypes::Scalar_Type_V_BOOL)->set_v_bool(b);
+    return true;
+  }
+
+  bool Int(int i)
+  {
+    get_scalar(::Mysqlx::Datatypes::Scalar_Type_V_SINT)->set_v_signed_int(i);
+    return true;
+  }
+
+  bool Uint(unsigned u)
+  {
+    get_scalar(::Mysqlx::Datatypes::Scalar_Type_V_UINT)->set_v_unsigned_int(u);
+    return true;
+  }
+
+  bool Int64(int64_t i)
+  {
+    get_scalar(::Mysqlx::Datatypes::Scalar_Type_V_SINT)->set_v_signed_int(i);
+    return true;
+  }
+
+  bool Uint64(uint64_t u)
+  {
+    get_scalar(::Mysqlx::Datatypes::Scalar_Type_V_UINT)->set_v_unsigned_int(u);
+    return true;
+  }
+
+  bool Double(double d, bool = false)
+  {
+    get_scalar(::Mysqlx::Datatypes::Scalar_Type_V_DOUBLE)->set_v_double(d);
+    return true;
+  }
+
+  bool String(const char* str, rapidjson::SizeType length, bool)
+  {
+    get_scalar(::Mysqlx::Datatypes::Scalar_Type_V_STRING)->mutable_v_string()->set_value(str, length);
+    return true;
+  }
+
+  bool StartObject()
+  {
+    Any *any = m_stack.top();
+    if (any->has_type() && any->type() == ::Mysqlx::Datatypes::Any_Type_ARRAY)
+      m_stack.push(any->mutable_array()->add_value());
+    m_stack.top()->set_type(::Mysqlx::Datatypes::Any_Type_OBJECT);
+    m_stack.top()->mutable_obj();
+    return true;
+  }
+
+  bool EndObject(rapidjson::SizeType memberCount)
+  {
+    m_stack.pop();
+    return true;
+  }
+
+  bool StartArray()
+  {
+    m_stack.top()->set_type(::Mysqlx::Datatypes::Any_Type_ARRAY);
+    m_stack.top()->mutable_array();
+    return true;
+  }
+
+  bool EndArray(rapidjson::SizeType elementCount)
+  {
+    m_stack.pop();
+    return true;
+  }
+
+private:
+  typedef ::Mysqlx::Datatypes::Scalar Scalar;
+
+  Scalar *get_scalar(Scalar::Type scalar_t)
+  {
+    Any *any = m_stack.top();
+    if (any->has_type() && any->type() == ::Mysqlx::Datatypes::Any_Type_ARRAY)
+      any = any->mutable_array()->add_value();
+    else
+      m_stack.pop();
+    any->set_type(::Mysqlx::Datatypes::Any_Type_SCALAR);
+    Scalar *s = any->mutable_scalar();
+    s->set_type(scalar_t);
+    return s;
+  }
+
+  std::stack<Any*> m_stack;
+};
+
+} // namespace
+
+
+bool Command::json_string_to_any(const std::string &json_string, Any &any) const
+{
+  Json_to_any_handler handler(any);
+  rapidjson::Reader reader;
+  rapidjson::StringStream ss(json_string.c_str());
+  return !reader.Parse(ss, handler).IsError();
+}
+
+
 Command::Result Command::cmd_import(Execution_context &context, const std::string &args)
 {
   std::ifstream fs;
@@ -3151,6 +3322,7 @@ int main(int argc, char **argv)
   my_end(0);
   return result;
 }
+
 
 #include "mysqlx_all_msgs.h"
 

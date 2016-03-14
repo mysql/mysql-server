@@ -8,6 +8,7 @@ send Mysqlx.Sql.StmtExecute {
 
 
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 RUN drop schema if exists xtest
 
 0 rows affected

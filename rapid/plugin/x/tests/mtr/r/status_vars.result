@@ -161,6 +161,7 @@ Mysqlx_crud_delete	1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_stmt_execute_%'
 Variable_name	Value
+Mysqlx_stmt_execute_mysqlx	0
 Mysqlx_stmt_execute_sql	13
 Mysqlx_stmt_execute_xplugin	0
 0 rows affected
@@ -173,6 +174,7 @@ COUNT(*)
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_stmt_execute_%'
 Variable_name	Value
+Mysqlx_stmt_execute_mysqlx	0
 Mysqlx_stmt_execute_sql	15
 Mysqlx_stmt_execute_xplugin	0
 0 rows affected
