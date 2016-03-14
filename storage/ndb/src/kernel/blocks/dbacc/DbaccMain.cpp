@@ -18,6 +18,7 @@
 #include "Dbacc.hpp"
 
 #include <AttributeHeader.hpp>
+#include <Bitmask.hpp>
 #include <signaldata/AccFrag.hpp>
 #include <signaldata/AccScan.hpp>
 #include <signaldata/NextScan.hpp>
@@ -4839,14 +4840,17 @@ Uint32 Dbacc::checkScanExpand(Uint32 splitBucket)
   Uint32 TSplit;
   Uint32 TreleaseInd = 0;
   Uint32 TreleaseScanBucket;
-  Uint32 TreleaseScanIndicator[MAX_PARALLEL_SCANS_PER_FRAG];
+  enum Actions { ClearScanBit };
+  Bitmask<1> actions[MAX_PARALLEL_SCANS_PER_FRAG];
   Page8Ptr TPageptr;
   ScanRecPtr TscanPtr;
 
   TSplit = splitBucket;
-  for (Ti = 0; Ti < MAX_PARALLEL_SCANS_PER_FRAG; Ti++) {
-    TreleaseScanIndicator[Ti] = 0;
-    if (fragrecptr.p->scan[Ti] != RNIL) {
+  for (Ti = 0; Ti < MAX_PARALLEL_SCANS_PER_FRAG; Ti++)
+  {
+    actions[Ti].clear();
+    if (fragrecptr.p->scan[Ti] != RNIL)
+    {
       //-------------------------------------------------------------
       // A scan is ongoing on this particular local fragment. We have
       // to check its current state.
@@ -4864,15 +4868,19 @@ Uint32 Dbacc::checkScanExpand(Uint32 splitBucket)
 	    //-------------------------------------------------------------
             TreturnCode = 1;
             return TreturnCode;
-          } else if (TSplit > TscanPtr.p->nextBucketIndex) {
+          }
+          else if (TSplit > TscanPtr.p->nextBucketIndex)
+          {
             jam();
 	    //-------------------------------------------------------------
 	    // This bucket has not yet been scanned. We must reset the scanned
 	    // bit indicator for this scan on this bucket.
 	    //-------------------------------------------------------------
-            TreleaseScanIndicator[Ti] = 1;
+            actions[Ti].set(ClearScanBit);
             TreleaseInd = 1;
-          } else {
+          }
+          else
+          {
             jam();
           }//if
         } else if (TscanPtr.p->scanBucketState ==  ScanRec::SECOND_LAP) {
@@ -4902,7 +4910,8 @@ Uint32 Dbacc::checkScanExpand(Uint32 splitBucket)
     TPageptr.i = getPagePtr(fragrecptr.p->directory, TDirInd);
     ptrCheckGuard(TPageptr, cpagesize, page8);
     for (Ti = 0; Ti < MAX_PARALLEL_SCANS_PER_FRAG; Ti++) {
-      if (TreleaseScanIndicator[Ti] == 1) {
+      if (actions[Ti].get(ClearScanBit))
+      {
         jam();
         scanPtr.i = fragrecptr.p->scan[Ti];
         ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
@@ -5469,14 +5478,16 @@ Uint32 Dbacc::checkScanShrink(Uint32 sourceBucket, Uint32 destBucket)
   Uint32 TmergeSource;
   Uint32 TreleaseScanBucket;
   Uint32 TreleaseInd = 0;
-  Uint32 TreleaseScanIndicator[MAX_PARALLEL_SCANS_PER_FRAG];
+  enum Actions { ClearScanBit, ExtendRescan, ShortenUndefined };
+  Bitmask<1> actions[MAX_PARALLEL_SCANS_PER_FRAG];
   Page8Ptr TPageptr;
   ScanRecPtr TscanPtr;
 
   TmergeDest = destBucket;
   TmergeSource = sourceBucket;
-  for (Ti = 0; Ti < MAX_PARALLEL_SCANS_PER_FRAG; Ti++) {
-    TreleaseScanIndicator[Ti] = 0;
+  for (Ti = 0; Ti < MAX_PARALLEL_SCANS_PER_FRAG; Ti++)
+  {
+    actions[Ti].clear();
     if (fragrecptr.p->scan[Ti] != RNIL) {
       TscanPtr.i = fragrecptr.p->scan[Ti];
       ptrCheckGuard(TscanPtr, cscanRecSize, scanRec);
@@ -5497,12 +5508,40 @@ Uint32 Dbacc::checkScanShrink(Uint32 sourceBucket, Uint32 destBucket)
 	    //-------------------------------------------------------------
             TreturnCode = 1;
             return TreturnCode;
-          } else if (TmergeDest < TscanPtr.p->nextBucketIndex) {
+          }
+          else if (TmergeDest < TscanPtr.p->nextBucketIndex)
+          {
             jam();
-            TreleaseScanIndicator[Ti] = 1;
+            /**
+             * Merge bucket into scanned bucket.  Mark for rescan.
+             */
+            actions[Ti].set(ExtendRescan);
+            if (TmergeSource == scanPtr.p->startNoOfBuckets)
+            {
+              /**
+               * Merge unscanned bucket with undefined scan bits into scanned
+               * bucket.  Source buckets scan bits must be cleared.
+               */
+              actions[Ti].set(ShortenUndefined);
+              actions[Ti].set(ClearScanBit);
+            }
             TreleaseInd = 1;
           }//if
-        } else if (TscanPtr.p->scanBucketState ==  ScanRec::SECOND_LAP) {
+          else
+          {
+            /**
+             * Merge unscanned bucket with undefined scan bits into unscanned
+             * bucket with undefined scan bits.
+             */
+            if (TmergeSource == scanPtr.p->startNoOfBuckets)
+            {
+              actions[Ti].set(ShortenUndefined);
+              TreleaseInd = 1;
+            }
+          }
+        }
+        else if (TscanPtr.p->scanBucketState ==  ScanRec::SECOND_LAP)
+        {
           jam();
 	  //-------------------------------------------------------------
 	  // We are performing a second lap to handle buckets that was
@@ -5533,27 +5572,40 @@ Uint32 Dbacc::checkScanShrink(Uint32 sourceBucket, Uint32 destBucket)
     TPageptr.i = getPagePtr(fragrecptr.p->directory, TDirInd);
     ptrCheckGuard(TPageptr, cpagesize, page8);
     for (Ti = 0; Ti < MAX_PARALLEL_SCANS_PER_FRAG; Ti++) {
-      if (TreleaseScanIndicator[Ti] == 1) {
+      if (!actions[Ti].isclear())
+      {
         jam();
         scanPtr.i = fragrecptr.p->scan[Ti];
         ptrCheckGuard(scanPtr, cscanRecSize, scanRec);
-        releaseScanBucket(TPageptr, TPageIndex);
-        if (TmergeDest < scanPtr.p->minBucketIndexToRescan) {
-          jam();
-	  //-------------------------------------------------------------
-	  // We have to keep track of the starting bucket to Rescan in the
-	  // second lap.
-	  //-------------------------------------------------------------
-          scanPtr.p->minBucketIndexToRescan = TmergeDest;
-        }//if
-        if (TmergeDest > scanPtr.p->maxBucketIndexToRescan) {
-          jam();
-	  //-------------------------------------------------------------
-	  // We have to keep track of the ending bucket to Rescan in the
-	  // second lap.
-	  //-------------------------------------------------------------
-          scanPtr.p->maxBucketIndexToRescan = TmergeDest;
-        }//if
+        if (actions[Ti].get(ClearScanBit))
+        {
+          releaseScanBucket(TPageptr, TPageIndex);
+        }
+        if (actions[Ti].get(ShortenUndefined))
+        {
+          scanPtr.p->startNoOfBuckets --;
+        }
+        if (actions[Ti].get(ExtendRescan))
+        {
+          if (TmergeDest < scanPtr.p->minBucketIndexToRescan)
+          {
+            jam();
+	    //-------------------------------------------------------------
+	    // We have to keep track of the starting bucket to Rescan in the
+	    // second lap.
+	    //-------------------------------------------------------------
+            scanPtr.p->minBucketIndexToRescan = TmergeDest;
+          }//if
+          if (TmergeDest > scanPtr.p->maxBucketIndexToRescan)
+          {
+            jam();
+	    //-------------------------------------------------------------
+	    // We have to keep track of the ending bucket to Rescan in the
+	    // second lap.
+	    //-------------------------------------------------------------
+            scanPtr.p->maxBucketIndexToRescan = TmergeDest;
+          }//if
+        }
       }//if
     }//for
   }//if
