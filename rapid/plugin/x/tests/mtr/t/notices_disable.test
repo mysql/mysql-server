@@ -18,7 +18,7 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
--->recv
+-->recvresult
 
 -->echo check with password function which is deprecated
 Mysqlx.Sql.StmtExecute {
@@ -802,7 +802,6 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
-
 -->recv
 
 EOF
@@ -821,7 +820,8 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
--->recv
+-->recvresult
+
 -->echo checking warnings with procedure execution
 -->sql
 SET @start_global_value = @@global.max_error_count;
@@ -991,7 +991,7 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
--->recv
+-->recvresult
 
 -->echo Try Disable account_expired 
 Mysqlx.Sql.StmtExecute {
@@ -1116,7 +1116,8 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
--->recv
+-->expecterror 5164
+-->recvresult
 
 Mysqlx.Sql.StmtExecute {
   stmt: "list_notices"
@@ -1199,7 +1200,7 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
--->recv
+-->recvresult
 
 -->echo expect Mysqlx_notice_other_sent=0,Mysqlx_stmt_disable_notices=1 with xconnection
 -->sql

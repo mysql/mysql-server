@@ -41,6 +41,7 @@ public:
   {
     my_atomic_store64(&m_stmt_execute_sql, 0);
     my_atomic_store64(&m_stmt_execute_xplugin, 0);
+    my_atomic_store64(&m_stmt_execute_mysqlx, 0);
     my_atomic_store64(&m_crud_insert, 0);
     my_atomic_store64(&m_crud_update, 0);
     my_atomic_store64(&m_crud_find, 0);
@@ -86,9 +87,21 @@ public:
   }
 
 
+  void inc_stmt_execute_mysqlx()
+  {
+    my_atomic_add64(&m_stmt_execute_mysqlx, 1);
+  }
+
+
   long long get_stmt_execute_xplugin() const
   {
     return my_atomic_load64(&m_stmt_execute_xplugin);
+  }
+
+
+  long long get_stmt_execute_mysqlx() const
+  {
+    return my_atomic_load64(&m_stmt_execute_mysqlx);
   }
 
 
@@ -385,6 +398,7 @@ private:
 
   mutable volatile int64 m_stmt_execute_sql;
   mutable volatile int64 m_stmt_execute_xplugin;
+  mutable volatile int64 m_stmt_execute_mysqlx;
   mutable volatile int64 m_crud_insert;
   mutable volatile int64 m_crud_update;
   mutable volatile int64 m_crud_find;

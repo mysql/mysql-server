@@ -35,6 +35,7 @@ send Mysqlx.Sql.StmtExecute {
 
 
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 send Mysqlx.Crud.Insert {
   collection {
     name: "books"
@@ -214,8 +215,8 @@ send Mysqlx.Sql.StmtExecute {
 
 Mysqlx.Error {
   severity: ERROR
-  code: 5113
-  msg: "Invalid collection name"
+  code: 5017
+  msg: "Invalid value for argument \'name\'"
   sql_state: "HY000"
 }
 

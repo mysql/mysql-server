@@ -828,8 +828,8 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
+-->recvresult
 
--->recv
 
 -->sql
 show status like 'Mysqlx%notice%';
@@ -1008,7 +1008,8 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
--->recv
+-->recvresult
+
 
 -->echo Try enable account_expired
 Mysqlx.Sql.StmtExecute {
@@ -1131,7 +1132,8 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
--->recv
+-->recvresult
+
 
 Mysqlx.Sql.StmtExecute {
   stmt: "list_notices"
@@ -1187,7 +1189,8 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
--->recv
+-->recvresult
+
 
 -->echo expect Mysqlx_notice_other_sent=8,Mysqlx_notice_warning_sent=3,Mysqlx_stmt_disable_notices=1
 -->sql

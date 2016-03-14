@@ -45,9 +45,9 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Sql.StmtExecuteOk {
-}
 
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection_index"
   args {
@@ -732,7 +732,7 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Error {
   severity: ERROR
   code: 5016
-  msg: "Invalid type for argument \'index_name\' at #3 (should be string)"
+  msg: "Invalid type for argument \'name\' at #3 (should be string)"
   sql_state: "HY000"
 }
 
@@ -1097,7 +1097,7 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Error {
   severity: ERROR
   code: 5017
-  msg: "Invalid document path value for argument document_path"
+  msg: "Invalid document path value for argument member"
   sql_state: "HY000"
 }
 
@@ -1168,7 +1168,7 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Error {
   severity: ERROR
   code: 5017
-  msg: "Invalid document path value for argument document_path"
+  msg: "Invalid document path value for argument member"
   sql_state: "HY000"
 }
 

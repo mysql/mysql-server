@@ -45,6 +45,7 @@ send Mysqlx.Sql.StmtExecute {
 
 
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 Insert multiple rows into a Document column
 send Mysqlx.Crud.Insert {
   collection {

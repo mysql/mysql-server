@@ -31,7 +31,7 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
--->recv
+-->recvresult
 
 Mysqlx.Sql.StmtExecute {
   stmt: "select 1/0"

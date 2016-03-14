@@ -15,9 +15,9 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Sql.StmtExecuteOk {
-}
 
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 check with password function which is deprecated
 send Mysqlx.Sql.StmtExecute {
   stmt: "select 1/0,1/0,password(\'test\'),password(\'\')"
@@ -2953,9 +2953,9 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Sql.StmtExecuteOk {
-}
 
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 Try Disable account_expired 
 send Mysqlx.Sql.StmtExecute {
   stmt: "disable_notices"
@@ -3047,7 +3047,7 @@ Mysqlx.Error {
 expect Mysqlx_stmt_disable_notices=5 and remaining are 0
 RUN show status like 'Mysqlx%notice%'
 Variable_name	Value
-Mysqlx_notice_other_sent	1
+Mysqlx_notice_other_sent	2
 Mysqlx_notice_warning_sent	0
 Mysqlx_stmt_disable_notices	5
 Mysqlx_stmt_enable_notices	0
@@ -3073,9 +3073,9 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Sql.StmtExecuteOk {
-}
 
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 Try Disable account_expired 
 send Mysqlx.Sql.StmtExecute {
   stmt: "disable_notices"
@@ -3167,7 +3167,7 @@ Mysqlx.Error {
 expect Mysqlx_stmt_disable_notices=5 and remaining are 0
 RUN show status like 'Mysqlx%notice%'
 Variable_name	Value
-Mysqlx_notice_other_sent	1
+Mysqlx_notice_other_sent	2
 Mysqlx_notice_warning_sent	0
 Mysqlx_stmt_disable_notices	5
 Mysqlx_stmt_enable_notices	0
@@ -3191,9 +3191,9 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Sql.StmtExecuteOk {
-}
 
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 checking warnings with procedure execution
 RUN SET @start_global_value = @@global.max_error_count
 
@@ -3470,13 +3470,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 5164
-  msg: "Cannot disable notice account_expired"
-  sql_state: "HY000"
-}
-
+Got expected error: Cannot disable notice account_expired (code 5164)
 send Mysqlx.Sql.StmtExecute {
   stmt: "list_notices"
   namespace: "xplugin"
@@ -3683,13 +3677,13 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Sql.StmtExecuteOk {
-}
 
+command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 expect Mysqlx_notice_other_sent=0,Mysqlx_stmt_disable_notices=1 with xconnection
 RUN show status like 'Mysqlx%notice%'
 Variable_name	Value
-Mysqlx_notice_other_sent	1
+Mysqlx_notice_other_sent	2
 Mysqlx_notice_warning_sent	0
 Mysqlx_stmt_disable_notices	1
 Mysqlx_stmt_enable_notices	0
@@ -3720,7 +3714,7 @@ Mysqlx.Error {
 expect Mysqlx_notice_other_sent=0,Mysqlx_stmt_disable_notices=2 with xconnection
 RUN show status like 'Mysqlx%notice%'
 Variable_name	Value
-Mysqlx_notice_other_sent	2
+Mysqlx_notice_other_sent	3
 Mysqlx_notice_warning_sent	0
 Mysqlx_stmt_disable_notices	2
 Mysqlx_stmt_enable_notices	0
@@ -3732,7 +3726,7 @@ Mysqlx.Ok {
 ok
 show status like 'Mysqlx%notice%';
 Variable_name	Value
-Mysqlx_notice_other_sent	3
+Mysqlx_notice_other_sent	4
 Mysqlx_notice_warning_sent	0
 Mysqlx_stmt_disable_notices	2
 Mysqlx_stmt_enable_notices	0

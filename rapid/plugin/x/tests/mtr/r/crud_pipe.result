@@ -60,6 +60,7 @@ SLEEP (5)
 0 rows affected
 
 command ok
+Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 (100+10)
 110
 0 rows affected

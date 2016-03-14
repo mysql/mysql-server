@@ -10,7 +10,9 @@ Mysqlx.Sql.StmtExecute {
 }
 
 ## expect Mysqlx.Error
--->recv
+-->expecterror 5157
+-->recvresult
+
 Mysqlx.Sql.StmtExecute {
   stmt: "whatever"
   namespace: "bogus"
