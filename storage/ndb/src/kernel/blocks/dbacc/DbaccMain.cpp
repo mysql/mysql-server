@@ -2290,6 +2290,15 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
      (Toperation != ZSCAN_OP))
   {
     fragrecptr.p->m_commit_count++;
+#ifdef ERROR_INSERT
+    bool force_expand_shrink = false;
+    if (ERROR_INSERTED(3004) &&
+        fragrecptr.p->fragmentid == 0 &&
+        fragrecptr.p->level.getSize() != ERROR_INSERT_EXTRA)
+    {
+      force_expand_shrink = true;
+    }
+#endif
     if (Toperation != ZINSERT) {
       if (Toperation != ZDELETE) {
 	return;
@@ -2302,7 +2311,12 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
 #endif
 	fragrecptr.p->noOfElements--;
 	fragrecptr.p->slack += fragrecptr.p->elementLength;
-	if (fragrecptr.p->slack > fragrecptr.p->slackCheck) { 
+#ifdef ERROR_INSERT
+        if (force_expand_shrink || fragrecptr.p->slack > fragrecptr.p->slackCheck)
+#else
+        if (fragrecptr.p->slack > fragrecptr.p->slackCheck)
+#endif
+        {
           /* TIME FOR JOIN BUCKETS PROCESS */
 	  if (fragrecptr.p->expandCounter > 0) {
             if (!fragrecptr.p->expandOrShrinkQueued)
@@ -2319,7 +2333,12 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
       jam();                                                /* EXPAND PROCESS HANDLING */
       fragrecptr.p->noOfElements++;
       fragrecptr.p->slack -= fragrecptr.p->elementLength;
+#ifdef ERROR_INSERT
+      if ((force_expand_shrink || fragrecptr.p->slack < 0) &&
+          !fragrecptr.p->level.isFull())
+#else
       if (fragrecptr.p->slack < 0 && !fragrecptr.p->level.isFull())
+#endif
       {
 	/* IT MEANS THAT IF SLACK < ZERO */
         if (!fragrecptr.p->expandOrShrinkQueued)
@@ -4936,7 +4955,25 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   tresult = 0;	/* 0= FALSE,1= TRUE,> ZLIMIT_OF_ERROR =ERRORCODE */
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
   fragrecptr.p->expandOrShrinkQueued = false;
-  if (fragrecptr.p->slack > 0) {
+#ifdef ERROR_INSERT
+  bool force_expand_shrink = false;
+  if (ERROR_INSERTED(3004) && fragrecptr.p->fragmentid == 0)
+  {
+    if (fragrecptr.p->level.getSize() > ERROR_INSERT_EXTRA)
+    {
+      return execSHRINKCHECK2(signal);
+    }
+    else if (fragrecptr.p->level.getSize() == ERROR_INSERT_EXTRA)
+    {
+      return;
+    }
+    force_expand_shrink = true;
+  }
+  if (!force_expand_shrink && fragrecptr.p->slack > 0)
+#else
+  if (fragrecptr.p->slack > 0)
+#endif
+  {
     jam();
     /* IT MEANS THAT IF SLACK > ZERO */
     /*--------------------------------------------------------------*/
@@ -5074,7 +5111,19 @@ void Dbacc::endofexpLab(Signal* signal) const
   Uint32 noOfBuckets = fragrecptr.p->level.getSize();
   Uint32 Thysteres = fragrecptr.p->maxloadfactor - fragrecptr.p->minloadfactor;
   fragrecptr.p->slackCheck = Int64(noOfBuckets) * Thysteres;
+#ifdef ERROR_INSERT
+  bool force_expand_shrink = false;
+  if (ERROR_INSERTED(3004) &&
+      fragrecptr.p->fragmentid == 0 &&
+      fragrecptr.p->level.getSize() != ERROR_INSERT_EXTRA)
+  {
+    force_expand_shrink = true;
+  }
+  if ((force_expand_shrink || fragrecptr.p->slack < 0) &&
+      !fragrecptr.p->level.isFull())
+#else
   if (fragrecptr.p->slack < 0 && !fragrecptr.p->level.isFull())
+#endif
   {
     jam();
     /* IT MEANS THAT IF SLACK < ZERO */
@@ -5619,7 +5668,26 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
   fragrecptr.p->expandOrShrinkQueued = false;
   tresult = 0;	/* 0= FALSE,1= TRUE,> ZLIMIT_OF_ERROR =ERRORCODE */
-  if (fragrecptr.p->slack <= fragrecptr.p->slackCheck) {
+#ifdef ERROR_INSERT
+  bool force_expand_shrink = false;
+  if (ERROR_INSERTED(3004) && fragrecptr.p->fragmentid == 0)
+  {
+    if (fragrecptr.p->level.getSize() < ERROR_INSERT_EXTRA)
+    {
+      return execEXPANDCHECK2(signal);
+    }
+    else if (fragrecptr.p->level.getSize() == ERROR_INSERT_EXTRA)
+    {
+      return;
+    }
+    force_expand_shrink = true;
+  }
+  if (!force_expand_shrink &&
+      fragrecptr.p->slack <= fragrecptr.p->slackCheck)
+#else
+  if (fragrecptr.p->slack <= fragrecptr.p->slackCheck)
+#endif
+  {
     jam();
     /* TIME FOR JOIN BUCKETS PROCESS */
     /*--------------------------------------------------------------*/
@@ -5627,7 +5695,12 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     /*--------------------------------------------------------------*/
     return;
   }//if
-  if (fragrecptr.p->slack < 0) {
+#ifdef ERROR_INSERT
+  if (!force_expand_shrink && fragrecptr.p->slack < 0)
+#else
+  if (fragrecptr.p->slack < 0)
+#endif
+  {
     jam();
     /*--------------------------------------------------------------*/
     /* THE SLACK IS NEGATIVE, IN THIS CASE WE WILL NOT NEED ANY     */
@@ -5842,7 +5915,19 @@ void Dbacc::endofshrinkbucketLab(Signal* signal)
       }
     }//if
   }//if
-  if (fragrecptr.p->slack > 0) {
+#ifdef ERROR_INSERT
+  bool force_expand_shrink = false;
+  if (ERROR_INSERTED(3004) &&
+      fragrecptr.p->fragmentid == 0 &&
+      fragrecptr.p->level.getSize() != ERROR_INSERT_EXTRA)
+  {
+    force_expand_shrink = true;
+  }
+  if (force_expand_shrink || fragrecptr.p->slack > 0)
+#else
+  if (fragrecptr.p->slack > 0)
+#endif
+  {
     jam();
     /*--------------------------------------------------------------*/
     /* THE SLACK IS POSITIVE, IN THIS CASE WE WILL CHECK WHETHER    */
@@ -5851,7 +5936,12 @@ void Dbacc::endofshrinkbucketLab(Signal* signal)
     Uint32 noOfBuckets = fragrecptr.p->level.getSize();
     Uint32 Thysteresis = fragrecptr.p->maxloadfactor - fragrecptr.p->minloadfactor;
     fragrecptr.p->slackCheck = Int64(noOfBuckets) * Thysteresis;
-    if (fragrecptr.p->slack > Thysteresis) {
+#ifdef ERROR_INSERT
+    if (force_expand_shrink || fragrecptr.p->slack > Thysteresis)
+#else
+    if (fragrecptr.p->slack > Thysteresis)
+#endif
+    {
       /*--------------------------------------------------------------*/
       /*       IT IS STILL NECESSARY TO SHRINK THE FRAGMENT MORE. THIS*/
       /*       CAN HAPPEN WHEN A NUMBER OF SHRINKS GET REJECTED       */
