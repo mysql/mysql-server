@@ -58,3 +58,11 @@ max-time : 300
 cmd: testNodeRestart
 args: -n ArbitrationWithApiNodeFailure T1
 
+cmd: testScan
+args: -n ScanDuringExpandAndShrinkBack T1
+max-time : 180
+
+cmd: testScan
+args: -n ScanDuringShrinkAndExpandBack T1
+max-time : 180
+

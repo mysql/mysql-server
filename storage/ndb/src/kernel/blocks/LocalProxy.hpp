@@ -493,9 +493,13 @@ protected:
   void sendDUMP_STATE_ORD(Signal*, Uint32 ssId, SectionHandle*);
 
   // GSN_NDB_TAMPER
-  struct Ss_NDB_TAMPER : SsParallel {
+  struct Ss_NDB_TAMPER : SsParallel
+  {
     Uint32 m_errorInsert;
-    Ss_NDB_TAMPER() {
+    Uint32 m_errorInsertExtra;
+    bool m_haveErrorInsertExtra;
+    Ss_NDB_TAMPER()
+    {
       m_sendREQ = &LocalProxy::sendNDB_TAMPER;
       m_sendCONF = 0;
     }
