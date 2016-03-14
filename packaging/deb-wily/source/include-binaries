@@ -64,3 +64,4 @@ debian/extra/test_security_context-plugin
 debian/extra/validate_password-plugin
 debian/extra/version_token-plugin
 debian/extra/keyring_file-plugin
+debian/extra/keyring_udf-plugin
