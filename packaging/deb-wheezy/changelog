@@ -1,3 +1,10 @@
+mysql-community (5.7.13-1debian7) wheezy; urgency=low
+
+  * new upstream release
+  * Added keyring_udf.so plugin to server
+
+ -- Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>  Thu, 07 Apr 2016 15:34:14 +0530
+
 mysql-community (5.7.11-1debian7) wheezy; urgency=low
 
   * new upstream release
