@@ -497,10 +497,11 @@ void String::strip_sp()
 
 bool String::append(const String &s)
 {
-  DBUG_ASSERT(!this->uses_buffer_owned_by(&s));
-  DBUG_ASSERT(!s.uses_buffer_owned_by(this));
   if (s.length())
   {
+    DBUG_ASSERT(!this->uses_buffer_owned_by(&s));
+    DBUG_ASSERT(!s.uses_buffer_owned_by(this));
+
     if (mem_realloc_exp((m_length+s.length())))
       return true;
     memcpy(m_ptr + m_length,s.ptr(), s.length());
