@@ -1317,6 +1317,24 @@ SELECT a FROM t WHERE (CASE WHEN (a AND b) THEN a ELSE b END) = 1;
 a
 0
 1
+EXPLAIN SELECT a, b FROM t WHERE 1 = (b AND a);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (1 = (`test`.`t`.`b` and `test`.`t`.`a`))
+SELECT a, b FROM t WHERE 1 = (b AND a);
+a	b
+1	1
+EXPLAIN SELECT a, b FROM t WHERE 1 = (b OR a);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,`test`.`t`.`b` AS `b` from `test`.`t` where (1 = (`test`.`t`.`b` or `test`.`t`.`a`))
+Warnings:
+SELECT a, b FROM t WHERE 1 = (b OR a);
+a	b
+0	1
+1	0
+1	1
 DROP TABLE t;
 #
 # Bug#21854241: QUERY USING JSON_EXTRACT() RETURNS WRONG RESULT
@@ -1458,6 +1476,38 @@ ALTER TABLE c1 ADD COLUMN vc3 INT(11) GENERATED ALWAYS AS
 ALTER TABLE c1 drop vc2;
 ALTER TABLE c1 ADD vc4 INT(11);
 DROP TABLE c1;
+#
+# Bug#22810883: ASSERTION FAILED:
+#               !(USED_TABS & (~READ_TABLES & ~FILTER_FOR_TABLE))
+#
+CREATE TABLE t1 (a1 INTEGER GENERATED ALWAYS AS (1 AND 0) STORED,
+a2 INTEGER, KEY (a1));
+INSERT INTO t1 VALUES ();
+CREATE TABLE t2 (b INTEGER);
+INSERT INTO t2 VALUES (1);
+ANALYZE TABLE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+# Used to choose the index on a1 and get wrong results.
+EXPLAIN SELECT * FROM t1 WHERE (a2 AND a2) = 0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where ((`test`.`t1`.`a2` and `test`.`t1`.`a2`) = 0)
+SELECT * FROM t1 WHERE (a2 AND a2) = 0;
+a1	a2
+# Used to get assertion or wrong results.
+EXPLAIN SELECT * FROM t1 STRAIGHT_JOIN t2 ON b WHERE (b AND b) = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t2`.`b` AS `b` from `test`.`t1` straight_join `test`.`t2` where (((`test`.`t2`.`b` and `test`.`t2`.`b`) = 1) and `test`.`t2`.`b`)
+SELECT * FROM t1 STRAIGHT_JOIN t2 ON b WHERE (b AND b) = 1;
+a1	a2	b
+0	NULL	1
+DROP TABLE t1, t2;
 #
 #
 # BUG#21365158 WL8149:ASSERTION `!TABLE || (!TABLE->WRITE_SET 
