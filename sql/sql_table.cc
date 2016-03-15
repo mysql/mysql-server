@@ -9989,6 +9989,19 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
   /* We have to do full alter table. */
 
+  if (table->s->tmp_table == NO_TMP_TABLE)
+  {
+    MDL_request tmp_name_mdl_request;
+
+    MDL_REQUEST_INIT(&tmp_name_mdl_request, MDL_key::TABLE,
+                     alter_ctx.new_db, alter_ctx.tmp_name,
+                     MDL_EXCLUSIVE, MDL_TRANSACTION);
+
+    if (thd->mdl_context.acquire_lock(&tmp_name_mdl_request,
+                                      thd->variables.lock_wait_timeout))
+      DBUG_RETURN(true);
+  }
+
   bool partition_changed= false;
   partition_info *new_part_info= NULL;
   {
@@ -10680,6 +10693,24 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       goto err_new_table_cleanup;
   }
 
+
+  char backup_name[32];
+  DBUG_ASSERT(sizeof(my_thread_id) == 4);
+  my_snprintf(backup_name, sizeof(backup_name), "%s2-%lx-%lx", tmp_file_prefix,
+              current_pid, thd->thread_id());
+  if (lower_case_table_names)
+    my_casedn_str(files_charset_info, backup_name);
+
+  {
+    MDL_request backup_name_mdl_request;
+    MDL_REQUEST_INIT(&backup_name_mdl_request, MDL_key::TABLE,
+                     alter_ctx.db, backup_name,
+                     MDL_EXCLUSIVE, MDL_TRANSACTION);
+    if (thd->mdl_context.acquire_lock(&backup_name_mdl_request,
+                                      thd->variables.lock_wait_timeout))
+      goto err_new_table_cleanup;
+  }
+
   close_all_tables_for_name(thd, table->s, alter_ctx.is_table_renamed(), NULL);
   table_list->table= table= NULL;                  /* Safety */
 
@@ -10689,12 +10720,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
     WL7743/TODO Acquire X MDL lock on backup_name too?
   */
-  char backup_name[32];
-  DBUG_ASSERT(sizeof(my_thread_id) == 4);
-  my_snprintf(backup_name, sizeof(backup_name), "%s2-%lx-%lx", tmp_file_prefix,
-              current_pid, thd->thread_id());
-  if (lower_case_table_names)
-    my_casedn_str(files_charset_info, backup_name);
   if (mysql_rename_table(thd, old_db_type, alter_ctx.db, alter_ctx.table_name,
                          alter_ctx.db, backup_name,
                          FN_TO_IS_TMP | (atomic_replace ? NO_DD_COMMIT : 0)))
