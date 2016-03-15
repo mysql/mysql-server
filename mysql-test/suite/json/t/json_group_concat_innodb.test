@@ -1,0 +1,9 @@
+########### suite/json/t/json_group_concat_innodb.test               #
+# Tests group_concat json function using the innodb storage engine   #
+#                                                                    #
+# This test copies some tests originally in json.test                #
+######################################################################
+# Set the session storage engine
+set default_storage_engine=innodb;
+
+--source suite/json/inc/json_group_concat.inc
