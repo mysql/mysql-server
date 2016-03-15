@@ -532,6 +532,150 @@ SimulatedBlock::getHighResTimer()
   return globalScheduler.getHighResTimer();
 #endif
 }
+
+void
+SimulatedBlock::setNeighbourNode(NodeId node)
+{
+  /* We only treat neighbour nodes in a special manner in ndbmtd. */
+#ifdef NDBD_MULTITHREADED
+  mt_setNeighbourNode(node);
+#endif
+}
+
+void
+SimulatedBlock::setWakeupThread(Uint32 wakeup_instance)
+{
+#ifdef NDBD_MULTITHREADED
+  mt_setWakeupThread(m_threadId, wakeup_instance);
+#endif
+}
+
+void
+SimulatedBlock::setOverloadStatus(OverloadStatus new_status)
+{
+#ifdef NDBD_MULTITHREADED
+  mt_setOverloadStatus(m_threadId, new_status);
+#endif
+}
+
+void
+SimulatedBlock::setNodeOverloadStatus(OverloadStatus new_status)
+{
+#ifdef NDBD_MULTITHREADED
+  mt_setNodeOverloadStatus(m_threadId, new_status);
+#endif
+}
+
+void
+SimulatedBlock::setSendNodeOverloadStatus(OverloadStatus new_status)
+{
+#ifdef NDBD_MULTITHREADED
+  mt_setSendNodeOverloadStatus(new_status);
+#endif
+}
+
+Uint32
+SimulatedBlock::getSpintime()
+{
+#ifdef NDBD_MULTITHREADED
+  return mt_getSpintime(m_threadId);
+#else
+  return 0;
+#endif
+}
+
+void
+SimulatedBlock::getPerformanceTimers(Uint64 & micros_sleep,
+                                     Uint64 & spin_time,
+                                     Uint64 & buffer_full_micros_sleep,
+                                     Uint64 & micros_send)
+{
+#ifdef NDBD_MULTITHREADED
+  mt_getPerformanceTimers(m_threadId,
+                          micros_sleep,
+                          spin_time,
+                          buffer_full_micros_sleep,
+                          micros_send);
+#else
+  micros_sleep = globalData.theMicrosSleep;
+  spin_time = globalData.theMicrosSpin;
+  buffer_full_micros_sleep = globalData.theBufferFullMicrosSleep;
+  micros_send = globalData.theMicrosSend;
+#endif
+}
+
+const char *
+SimulatedBlock::getThreadDescription()
+{
+  const char *desc;
+#ifdef NDBD_MULTITHREADED
+  desc = mt_getThreadDescription(m_threadId);
+#else
+  desc = "ndbd single thread";
+#endif
+  return desc;
+}
+
+const char *
+SimulatedBlock::getThreadName()
+{
+  const char *name;
+#ifdef NDBD_MULTITHREADED
+  name = mt_getThreadName(m_threadId);
+#else
+  name = "main";
+#endif
+  return name;
+}
+
+void
+SimulatedBlock::getSendPerformanceTimers(Uint32 send_instance,
+                                         Uint64 & exec_time,
+                                         Uint64 & sleep_time,
+                                         Uint64 & spin_time,
+                                         Uint64 & user_time_os,
+                                         Uint64 & kernel_time_os,
+                                         Uint64 & elapsed_time_os)
+{
+  /* No send thread in ndbd */
+#ifdef NDBD_MULTITHREADED
+  mt_getSendPerformanceTimers(send_instance,
+                              exec_time,
+                              sleep_time,
+                              spin_time,
+                              user_time_os,
+                              kernel_time_os,
+                              elapsed_time_os);
+#else
+  exec_time = 0;
+  sleep_time = 0;
+  spin_time = 0;
+  user_time_os = 0;
+  kernel_time_os = 0;
+  elapsed_time_os = 0;
+#endif
+}
+
+Uint32
+SimulatedBlock::getNumSendThreads()
+{
+#ifdef NDBD_MULTITHREADED
+  return mt_getNumSendThreads();
+#else
+  return 0;
+#endif
+}
+
+Uint32
+SimulatedBlock::getNumThreads()
+{
+#ifdef NDBD_MULTITHREADED
+  return mt_getNumThreads();
+#else
+  return 1;
+#endif
+}
+
 void 
 SimulatedBlock::sendSignal(BlockReference ref, 
 			   GlobalSignalNumber gsn, 

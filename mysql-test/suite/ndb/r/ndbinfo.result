@@ -68,9 +68,14 @@ table_id	table_name	comment
 21	restart_info	Times of restart phases in seconds and current state
 22	tc_time_track_stats	Time tracking of transaction, key operations and scan ops
 23	config_values	Configuration parameter values
+24	threads	Base table for threads
+25	cpustat_50ms	Thread CPU stats at 50 milliseconds intervals
+26	cpustat_1sec	Thread CPU stats at 1 second intervals
+27	cpustat_20sec	Thread CPU stats at 20 seconds intervals
+28	cpustat	Thread CPU stats for last second
 SELECT COUNT(*) FROM ndb$tables;
 COUNT(*)
-24
+29
 SELECT * FROM ndb$tables WHERE table_id = 2;
 table_id	table_name	comment
 2	test	for testing
@@ -94,6 +99,11 @@ table_id	table_name	comment
 21	restart_info	Times of restart phases in seconds and current state
 22	tc_time_track_stats	Time tracking of transaction, key operations and scan ops
 23	config_values	Configuration parameter values
+24	threads	Base table for threads
+25	cpustat_50ms	Thread CPU stats at 50 milliseconds intervals
+26	cpustat_1sec	Thread CPU stats at 1 second intervals
+27	cpustat_20sec	Thread CPU stats at 20 seconds intervals
+28	cpustat	Thread CPU stats for last second
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
 table_id	table_name	comment
 SELECT COUNT(*) FROM ndb$tables t, ndb$columns c
@@ -116,6 +126,10 @@ table_id	table_name
 1	columns
 23	config_values
 8	counters
+28	cpustat
+26	cpustat_1sec
+27	cpustat_20sec
+25	cpustat_50ms
 16	dict_obj_info
 10	diskpagebuffer
 19	disk_write_speed_aggregate
@@ -134,6 +148,7 @@ table_id	table_name
 22	tc_time_track_stats
 2	test
 11	threadblocks
+24	threads
 12	threadstat
 13	transactions
 4	transporters
@@ -196,6 +211,11 @@ table_id
 21
 22
 23
+24
+25
+26
+27
+28
 
 TRUNCATE ndb$tables;
 ERROR HY000: Table 'ndb$tables' is read only
@@ -523,6 +543,62 @@ select distinct node_id from tc_time_track_stats;
 node_id
 1
 2
+
+desc threads;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+thr_no	int(10) unsigned	YES		NULL	
+thread_name	varchar(256)	YES		NULL	
+thread_description	varchar(256)	YES		NULL	
+
+desc cpustat_50ms;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+thr_no	int(10) unsigned	YES		NULL	
+OS_user_time	int(10) unsigned	YES		NULL	
+OS_system_time	int(10) unsigned	YES		NULL	
+OS_idle_time	int(10) unsigned	YES		NULL	
+exec_time	int(10) unsigned	YES		NULL	
+sleep_time	int(10) unsigned	YES		NULL	
+send_time	int(10) unsigned	YES		NULL	
+buffer_full_time	int(10) unsigned	YES		NULL	
+elapsed_time	int(10) unsigned	YES		NULL	
+desc cpustat_1sec;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+thr_no	int(10) unsigned	YES		NULL	
+OS_user_time	int(10) unsigned	YES		NULL	
+OS_system_time	int(10) unsigned	YES		NULL	
+OS_idle_time	int(10) unsigned	YES		NULL	
+exec_time	int(10) unsigned	YES		NULL	
+sleep_time	int(10) unsigned	YES		NULL	
+send_time	int(10) unsigned	YES		NULL	
+buffer_full_time	int(10) unsigned	YES		NULL	
+elapsed_time	int(10) unsigned	YES		NULL	
+desc cpustat_20sec;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+thr_no	int(10) unsigned	YES		NULL	
+OS_user_time	int(10) unsigned	YES		NULL	
+OS_system_time	int(10) unsigned	YES		NULL	
+OS_idle_time	int(10) unsigned	YES		NULL	
+exec_time	int(10) unsigned	YES		NULL	
+sleep_time	int(10) unsigned	YES		NULL	
+send_time	int(10) unsigned	YES		NULL	
+buffer_full_time	int(10) unsigned	YES		NULL	
+elapsed_time	int(10) unsigned	YES		NULL	
+desc cpustat;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+thr_no	int(10) unsigned	YES		NULL	
+OS_user	int(10) unsigned	YES		NULL	
+OS_system	int(10) unsigned	YES		NULL	
+OS_idle	int(10) unsigned	YES		NULL	
+thread_exec	int(10) unsigned	YES		NULL	
+thread_sleeping	int(10) unsigned	YES		NULL	
+thread_send	int(10) unsigned	YES		NULL	
+thread_buffer_full	int(10) unsigned	YES		NULL	
+elapsed_time	int(10) unsigned	YES		NULL	
 
 desc cluster_transactions;
 Field	Type	Null	Key	Default	Extra
