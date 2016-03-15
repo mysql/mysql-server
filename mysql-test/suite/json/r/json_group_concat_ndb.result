@@ -1,0 +1,43 @@
+set default_storage_engine=ndb;
+# ----------------------------------------------------------------------
+# Test of aggregate function SUM, AVG: in constrast to strings, we do not
+# auto-convert to numeric (double) type:
+# ----------------------------------------------------------------------
+create table t(j json, c varchar(20));
+Warnings:
+Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
+show create table t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `j` json DEFAULT NULL,
+  `c` varchar(20) DEFAULT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+insert into t values (cast('[1,2,3]' as json), '[a,b,c]');
+insert into t values (cast(7 as json), '7'),  (cast(2 as json), '2');
+select sum(j), sum(cast(j as unsigned)), sum(c) from t;
+sum(j)	sum(cast(j as unsigned))	sum(c)
+9	9	9
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DOUBLE: '[1, 2, 3]' from j at row 1
+Warning	3156	Invalid JSON value for CAST to INTEGER: '[1, 2, 3]' from j at row 1
+Warning	1292	Truncated incorrect DOUBLE value: '[a,b,c]'
+select avg(j), avg(cast(j as unsigned)), avg(c) from t;
+avg(j)	avg(cast(j as unsigned))	avg(c)
+3	3.0000	3
+Warnings:
+Warning	3156	Invalid JSON value for CAST to DOUBLE: '[1, 2, 3]' from j at row 3
+Warning	3156	Invalid JSON value for CAST to INTEGER: '[1, 2, 3]' from j at row 3
+Warning	1292	Truncated incorrect DOUBLE value: '[a,b,c]'
+# ----------------------------------------------------------------------
+# Test of aggregate function GROUP_CONCAT
+# ----------------------------------------------------------------------
+# TODO: innodb and ndb results differ
+select group_concat(j order by j), group_concat(distinct j order by j), group_concat(c order by c) from t;
+group_concat(j order by j)	group_concat(distinct j order by j)	group_concat(c order by c)
+[1, 2, 3],2,7	[1, 2, 3],2,7	2,7,[a,b,c]
+insert into t values (NULL, NULL);
+# TODO: ndb results are inconsistent
+select group_concat(j order by j), group_concat(distinct j order by j), group_concat(c order by c) from t;
+group_concat(j order by j)	group_concat(distinct j order by j)	group_concat(c order by c)
+[1, 2, 3],2,7	[1, 2, 3],2,7	2,7,[a,b,c]
+drop table t;

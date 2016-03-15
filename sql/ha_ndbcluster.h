@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,18 @@
 /* DDL names have to fit in system table ndb_schema */
 #define NDB_MAX_DDL_NAME_BYTESIZE 63
 #define NDB_MAX_DDL_NAME_BYTESIZE_STR "63"
+
+/*
+  JSON columns are just like LONG BLOB columns except for inline size and part size.
+  Inline size is chosen to accommodate a large number of embedded json documents
+  without spilling over to the part table. The tradeoff is that only three JSON
+  columns can be defined in a table due to the inline size.
+  Part size is chosen to optimize use of pages in the part table.
+  Note that much of the JSON functionality is available by storing JSON documents
+  in VARCHAR columns, including extracting keys from documents to be used as indexes.
+ */
+#define NDB_JSON_INLINE_SIZE 4000
+#define NDB_JSON_PART_SIZE   8100
 
 /* Blob tables and events are internal to NDB and must never be accessed */
 #define IS_NDB_BLOB_PREFIX(A) is_prefix(A, "NDB$BLOB")
