@@ -732,6 +732,13 @@ SELECT a FROM t WHERE (NOT a) = 1;
 EXPLAIN SELECT a FROM t WHERE (CASE WHEN (a AND b) THEN a ELSE b END) = 1;
 --sorted_result
 SELECT a FROM t WHERE (CASE WHEN (a AND b) THEN a ELSE b END) = 1;
+# The expression must be exactly the same as the generated expression.
+# (b AND a) is not recognized as equivalent to (a AND b).
+EXPLAIN SELECT a, b FROM t WHERE 1 = (b AND a);
+SELECT a, b FROM t WHERE 1 = (b AND a);
+--sorted_result
+EXPLAIN SELECT a, b FROM t WHERE 1 = (b OR a);
+SELECT a, b FROM t WHERE 1 = (b OR a);
 DROP TABLE t;
 
 --echo #
@@ -808,4 +815,25 @@ ALTER TABLE c1 drop vc2;
 ALTER TABLE c1 ADD vc4 INT(11);
 DROP TABLE c1;
 } 
+
+--echo #
+--echo # Bug#22810883: ASSERTION FAILED:
+--echo #               !(USED_TABS & (~READ_TABLES & ~FILTER_FOR_TABLE))
+--echo #
+CREATE TABLE t1 (a1 INTEGER GENERATED ALWAYS AS (1 AND 0) STORED,
+                 a2 INTEGER, KEY (a1));
+INSERT INTO t1 VALUES ();
+CREATE TABLE t2 (b INTEGER);
+INSERT INTO t2 VALUES (1);
+ANALYZE TABLE t1, t2;
+--echo # Used to choose the index on a1 and get wrong results.
+--let $query= SELECT * FROM t1 WHERE (a2 AND a2) = 0
+--eval EXPLAIN $query
+--eval $query
+--echo # Used to get assertion or wrong results.
+--let $query= SELECT * FROM t1 STRAIGHT_JOIN t2 ON b WHERE (b AND b) = 1
+--eval EXPLAIN $query
+--eval $query
+DROP TABLE t1, t2;
+
 --echo #

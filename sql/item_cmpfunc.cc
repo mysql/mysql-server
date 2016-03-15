@@ -5871,11 +5871,16 @@ bool Item_cond::eq(const Item *item, bool binary_cmp) const
     return false;
   const Item_cond *item_cond= down_cast<const Item_cond *>(item);
   if (functype() != item_cond->functype() ||
-      arg_count != item_cond->arg_count ||
+      list.elements != item_cond->list.elements ||
       func_name() != item_cond->func_name())
     return false;
-  for (size_t i= 0; i < arg_count; ++i)
-    if (!args[i]->eq(item_cond->args[i], binary_cmp))
+  // Item_cond never uses "args". Inspect "list" instead.
+  DBUG_ASSERT(arg_count == 0 && item_cond->arg_count == 0);
+  List_iterator_fast<Item> it1(const_cast<Item_cond *>(this)->list);
+  List_iterator_fast<Item> it2(const_cast<Item_cond *>(item_cond)->list);
+  Item *i;
+  while ((i= it1++))
+    if (!i->eq(it2++, binary_cmp))
       return false;
   return true;
 }
