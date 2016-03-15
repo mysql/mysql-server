@@ -2161,7 +2161,7 @@ int decimal_is_zero(const decimal_t *from)
 
   SYNOPSIS
     decimal_mul()
-      from1, from2 - factors
+      from_1, from_2 - factors
       to      - product
 
   RETURN VALUE
@@ -2177,8 +2177,20 @@ int decimal_is_zero(const decimal_t *from)
     XXX if this library is to be used with huge numbers of thousands of
     digits, fast multiplication must be implemented.
 */
-int decimal_mul(const decimal_t *from1, const decimal_t *from2, decimal_t *to)
+int decimal_mul(const decimal_t *from_1, const decimal_t *from_2, decimal_t *to)
 {
+  if (decimal_is_zero(from_1) || decimal_is_zero(from_2))
+  {
+    decimal_make_zero(to);
+    return E_DEC_OK;
+  }
+  decimal_t f1= *from_1;
+  decimal_t f2= *from_2;
+  f1.buf= remove_leading_zeroes(&f1, &f1.intg);
+  f2.buf= remove_leading_zeroes(&f2, &f2.intg);
+
+  const decimal_t *from1= &f1;
+  const decimal_t *from2= &f2;
   int intg1=ROUND_UP(from1->intg), intg2=ROUND_UP(from2->intg),
       frac1=ROUND_UP(from1->frac), frac2=ROUND_UP(from2->frac),
       intg0=ROUND_UP(from1->intg+from2->intg),
