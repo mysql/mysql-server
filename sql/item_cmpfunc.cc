@@ -6781,7 +6781,7 @@ Item_func_regex::fix_fields(THD *thd, Item **ref)
     {						// Will always return NULL
       maybe_null=1;
       fixed= 1;
-      return FALSE;
+      return thd->is_error();
     }
     else if (comp_res)
       return TRUE;
