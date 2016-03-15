@@ -3832,7 +3832,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   ulonglong micro_end_time= my_micro_time();
   my_micro_time_to_timeval(micro_end_time, &end_time);
 
-  exec_time= end_time.tv_sec - thd_arg->start_time.tv_sec;
+  exec_time= end_time.tv_sec - thd_arg->query_start_in_secs();
 
   /**
     @todo this means that if we have no catalog, then it is replicated
@@ -4606,7 +4606,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
 
         mysql_parse(thd, &parser_state);
         /* Finalize server status flags after executing a statement. */
-        thd->update_server_status();
+        thd->update_slow_query_status();
         log_slow_statement(thd);
       }
 
@@ -5677,7 +5677,7 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
   ulonglong micro_end_time= my_micro_time();
   my_micro_time_to_timeval(micro_end_time, &end_time);
 
-  exec_time= end_time.tv_sec - thd_arg->start_time.tv_sec;
+  exec_time= end_time.tv_sec - thd_arg->query_start_in_secs();
 
   /* db can never be a zero pointer in 4.0 */
   db_len = strlen(db);

@@ -2050,7 +2050,7 @@ check_password_lifetime(THD *thd, const ACL_USER *acl_user)
 
     thd->set_time();
     thd->variables.time_zone->gmt_sec_to_TIME(&cur_time,
-      static_cast<my_time_t>(thd->query_start()));
+      static_cast<my_time_t>(thd->query_start_in_secs()));
     password_change_by= acl_user->password_last_changed;
     memset(&interval, 0, sizeof(interval));
 

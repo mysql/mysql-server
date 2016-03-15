@@ -26,9 +26,6 @@
 int thd_init(THD *thd, char *stack_start, bool bound, PSI_thread_key psi_key)
 {
   DBUG_ENTER("thd_init");
-  thd->set_time();
-  thd->thr_create_utime= thd->start_utime= my_micro_time();
-
   // TODO: Purge threads currently terminate too late for them to be added.
   // Note that P_S interprets all threads with thread_id != 0 as
   // foreground threads. And THDs need thread_id != 0 to be added

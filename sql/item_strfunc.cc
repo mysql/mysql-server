@@ -2350,7 +2350,7 @@ String *Item_func_encrypt::val_str(String *str)
     return make_empty_result();
   if (arg_count == 1)
   {					// generate random salt
-    time_t timestamp=current_thd->query_start();
+    time_t timestamp=current_thd->query_start_in_secs();
     salt[0] = bin_to_ascii( (ulong) timestamp & 0x3f);
     salt[1] = bin_to_ascii(( (ulong) timestamp >> 5) & 0x3f);
     salt[2] = 0;

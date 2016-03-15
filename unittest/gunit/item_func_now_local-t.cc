@@ -72,7 +72,7 @@ TEST_F(ItemFuncNowLocalTest, saveInField)
   f.make_writable();
   item->save_in_field(&f, true);
 
-  EXPECT_EQ(get_thd()->query_start_timeval().tv_sec, f.to_timeval().tv_sec);
+  EXPECT_EQ(get_thd()->query_start_timeval_trunc(0).tv_sec, f.to_timeval().tv_sec);
   // CURRENT_TIMESTAMP should truncate.
   EXPECT_EQ(0, f.to_timeval().tv_usec);
 }
@@ -87,7 +87,7 @@ TEST_F(ItemFuncNowLocalTest, storeInTimestamp)
   Mock_field_timestamp f;
   Item_func_now_local::store_in(&f);
 
-  EXPECT_EQ(get_thd()->query_start_timeval().tv_sec, f.to_timeval().tv_sec);
+  EXPECT_EQ(get_thd()->query_start_timeval_trunc(0).tv_sec, f.to_timeval().tv_sec);
   // CURRENT_TIMESTAMP should truncate.
   EXPECT_EQ(0, f.to_timeval().tv_usec);
   EXPECT_TRUE(f.store_timestamp_called);
@@ -122,7 +122,7 @@ TEST_F(ItemFuncNowLocalTest, storeInTimestampf)
     f.make_writable();
     Item_func_now_local::store_in(&f);
 
-    EXPECT_EQ(get_thd()->query_start_timeval().tv_sec, f.to_timeval().tv_sec);
+    EXPECT_EQ(get_thd()->query_start_timeval_trunc(0).tv_sec, f.to_timeval().tv_sec);
     // CURRENT_TIMESTAMP should truncate.
     EXPECT_EQ(truncate(CURRENT_TIMESTAMP_FRACTIONAL_SECONDS, scale),
               f.to_timeval().tv_usec);

@@ -1217,8 +1217,6 @@ public:
   uint16 peer_port;
   struct timeval start_time;
   struct timeval user_time;
-  // track down slow my_thread_create
-  ulonglong  thr_create_utime;
   ulonglong  start_utime, utime_after_lock;
 
   /**
@@ -2531,73 +2529,40 @@ public:
     time_zone_used= 1;
     return variables.time_zone;
   }
-  inline time_t query_start()
+  time_t query_start_in_secs() const
   {
     return start_time.tv_sec;
   }
-  inline long query_start_usec()
-  {
-    query_start_usec_used= 1;
-    return start_time.tv_usec;
-  }
-  inline timeval query_start_timeval()
-  {
-    query_start_usec_used= true;
-    return start_time;
-  }
   timeval query_start_timeval_trunc(uint decimals);
-  inline void set_time()
+  void set_time()
   {
     start_utime= utime_after_lock= my_micro_time();
     if (user_time.tv_sec || user_time.tv_usec)
-    {
       start_time= user_time;
-    }
     else
       my_micro_time_to_timeval(start_utime, &start_time);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_THREAD_CALL(set_thread_start_time)(start_time.tv_sec);
+    PSI_THREAD_CALL(set_thread_start_time)(query_start_in_secs());
 #endif
   }
-  inline void set_current_time()
+  void set_time(const struct timeval *t)
   {
-    my_micro_time_to_timeval(my_micro_time(), &start_time);
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_THREAD_CALL(set_thread_start_time)(start_time.tv_sec);
-#endif
-  }
-  inline void set_time(const struct timeval *t)
-  {
-    start_time= user_time= *t;
-    start_utime= utime_after_lock= my_micro_time();
-#ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_THREAD_CALL(set_thread_start_time)(start_time.tv_sec);
-#endif
-  }
-  /*TODO: this will be obsolete when we have support for 64 bit my_time_t */
-  inline bool	is_valid_time() 
-  { 
-    return (IS_TIME_T_VALID_FOR_TIMESTAMP(start_time.tv_sec));
+    user_time= *t;
+    set_time();
   }
   void set_time_after_lock()
   {
     utime_after_lock= my_micro_time();
     MYSQL_SET_STATEMENT_LOCK_TIME(m_statement_psi, (utime_after_lock - start_utime));
   }
-  ulonglong current_utime()  { return my_micro_time(); }
   /**
-   Update server status after execution of a top level statement.
-
-   Currently only checks if a query was slow, and assigns
-   the status accordingly.
    Evaluate the current time, and if it exceeds the long-query-time
    setting, mark the query as slow.
   */
-  void update_server_status()
+  void update_slow_query_status()
   {
-    ulonglong end_utime_of_query= current_utime();
-    if (end_utime_of_query > utime_after_lock + variables.long_query_time)
+    if (my_micro_time() > utime_after_lock + variables.long_query_time)
       server_status|= SERVER_QUERY_WAS_SLOW;
   }
   inline ulonglong found_rows(void)

@@ -1224,7 +1224,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
   thd->enable_slow_log= TRUE;
   thd->lex->sql_command= SQLCOM_END; /* to avoid confusing VIEW detectors */
   thd->set_time();
-  if (!thd->is_valid_time())
+  if (!IS_TIME_T_VALID_FOR_TIMESTAMP(thd->query_start_in_secs()))
   {
     /*
      If the time has got past 2038 we need to shut this server down
@@ -1453,7 +1453,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       const char *beginning_of_next_stmt= parser_state.m_lip.found_semicolon;
 
       /* Finalize server status flags after executing a statement. */
-      thd->update_server_status();
+      thd->update_slow_query_status();
       thd->send_statement_status();
       query_cache.end_of_result(thd);
 
@@ -1729,7 +1729,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     mysql_mutex_lock(&LOCK_status);
     calc_sum_of_all_status(&current_global_status_var);
     mysql_mutex_unlock(&LOCK_status);
-    if (!(uptime= (ulong) (thd->start_time.tv_sec - server_start_time)))
+    if (!(uptime= (ulong) (thd->query_start_in_secs() - server_start_time)))
       queries_per_second1000= 0;
     else
       queries_per_second1000= thd->query_id * 1000LL / uptime;
@@ -1834,7 +1834,7 @@ done:
                (thd->locked_tables_mode == LTM_LOCK_TABLES)));
 
   /* Finalize server status flags after executing a command. */
-  thd->update_server_status();
+  thd->update_slow_query_status();
   if (thd->killed)
     thd->send_kill_message();
   thd->send_statement_status();
@@ -5233,7 +5233,7 @@ void THD::reset_for_next_command()
   thd->auto_inc_intervals_in_cur_stmt_for_binlog.empty();
   thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
 
-  thd->query_start_usec_used= 0;
+  thd->query_start_usec_used= false;
   thd->is_fatal_error= thd->time_zone_used= 0;
   /*
     Clear the status flag that are expected to be cleared at the

@@ -6330,7 +6330,8 @@ static int show_starttime(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONGLONG;
   var->value= buff;
-  *((longlong *)buff)= (longlong) (thd->query_start() - server_start_time);
+  *((longlong *)buff)= (longlong) (thd->query_start_in_secs() -
+                                   server_start_time);
   return 0;
 }
 
@@ -6437,7 +6438,8 @@ static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONGLONG;
   var->value= buff;
-  *((longlong *)buff)= (longlong) (thd->query_start() - flush_status_time);
+  *((longlong *)buff)= (longlong) (thd->query_start_in_secs() -
+                                   flush_status_time);
   return 0;
 }
 #endif

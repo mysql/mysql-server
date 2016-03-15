@@ -465,20 +465,17 @@ static void ull2timeval(ulonglong utime, struct timeval *tv)
 
   @param buf       A buffer of at least 26 bytes to store the timestamp in
                    (19 + tzinfo tail + \0)
-  @param utime     Seconds since the epoch, or 0 for "now"
+  @param utime     Microseconds since the epoch
 
   @return          length of timestamp (excluding \0)
 */
 
-static int make_iso8601_timestamp(char *buf, ulonglong utime= 0)
+static int make_iso8601_timestamp(char *buf, ulonglong utime)
 {
   struct tm  my_tm;
   char       tzinfo[7]="Z";  // max 6 chars plus \0
   size_t     len;
   time_t     seconds;
-
-  if (utime == 0)
-    utime= my_micro_time();
 
   seconds= utime / 1000000;
   utime = utime % 1000000;
@@ -1281,8 +1278,6 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
   if (thd->slave_thread && !opt_log_slow_slave_statements)
     return false;
 
-  mysql_rwlock_rdlock(&LOCK_logger);
-
   /* fill in user_host value: the format is "%s[%s] @ %s [%s]" */
   char user_host_buff[MAX_USER_HOST_SIZE + 1];
   Security_context *sctx= thd->security_context();
@@ -1295,7 +1290,7 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
                                   sctx_host.length ? sctx_host.str : "", " [",
                                   sctx_ip.length ? sctx_ip.str : "", "]",
                                   NullS) - user_host_buff);
-  ulonglong current_utime= thd->current_utime();
+  ulonglong current_utime= my_micro_time();
   ulonglong query_utime, lock_utime;
   if (thd->start_utime)
   {
@@ -1315,6 +1310,8 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
     query= command_name[thd->get_command()].str;
     query_length= command_name[thd->get_command()].length;
   }
+
+  mysql_rwlock_rdlock(&LOCK_logger);
 
   bool error= false;
   for (Log_event_handler **current_handler= slow_log_handler_list;
@@ -1380,11 +1377,11 @@ bool Query_logger::general_log_write(THD *thd, enum_server_command command,
       !(*general_log_handler_list))
     return false;
 
-  mysql_rwlock_rdlock(&LOCK_logger);
-
   char user_host_buff[MAX_USER_HOST_SIZE + 1];
   size_t user_host_len= make_user_name(thd->security_context(), user_host_buff);
-  ulonglong current_utime= thd->current_utime();
+  ulonglong current_utime= my_micro_time();
+
+  mysql_rwlock_rdlock(&LOCK_logger);
 
   bool error= false;
   for (Log_event_handler **current_handler= general_log_handler_list;
@@ -1710,7 +1707,7 @@ void Slow_log_throttle::print_summary(THD *thd, ulong suppressed,
   my_snprintf(buf, sizeof(buf), summary_template, suppressed);
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
-  thd->start_utime=                thd->current_utime() - print_exec_time;
+  thd->start_utime=                my_micro_time() - print_exec_time;
   thd->utime_after_lock=           thd->start_utime + print_lock_time;
   thd->set_security_context(&aggregate_sctx);
   mysql_mutex_unlock(&thd->LOCK_thd_data);
@@ -1757,7 +1754,7 @@ bool Slow_log_throttle::log(THD *thd, bool eligible)
     ulong     suppressed_count=   0;
     ulonglong print_lock_time=    total_lock_time;
     ulonglong print_exec_time=    total_exec_time;
-    ulonglong end_utime_of_query= thd->current_utime();
+    ulonglong end_utime_of_query= my_micro_time();
 
     /*
       If the window has expired, we'll try to write a summary line.
@@ -1999,7 +1996,7 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer,
   if (THR_THD_initialized && (current_thd != NULL))
     thread_id= current_thd->thread_id();
 
-  make_iso8601_timestamp(my_timestamp);
+  make_iso8601_timestamp(my_timestamp, my_micro_time());
 
   /*
     This must work even if the mutex has not been initialized yet.

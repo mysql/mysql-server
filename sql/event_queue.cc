@@ -172,7 +172,7 @@ Event_queue::create_event(THD *thd, Event_queue_element *new_element,
 
   LOCK_QUEUE_DATA();
   *created= (queue.push(new_element) == false);
-  dbug_dump_queue(thd->query_start());
+  dbug_dump_queue(thd->query_start_in_secs());
   mysql_cond_broadcast(&COND_queue_state);
   UNLOCK_QUEUE_DATA();
 
@@ -224,7 +224,7 @@ Event_queue::update_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
     mysql_cond_broadcast(&COND_queue_state);
   }
 
-  dbug_dump_queue(thd->query_start());
+  dbug_dump_queue(thd->query_start_in_secs());
   UNLOCK_QUEUE_DATA();
 
   DBUG_VOID_RETURN;
@@ -250,7 +250,7 @@ Event_queue::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
 
   LOCK_QUEUE_DATA();
   find_n_remove_event(dbname, name);
-  dbug_dump_queue(thd->query_start());
+  dbug_dump_queue(thd->query_start_in_secs());
   UNLOCK_QUEUE_DATA();
 
   /*
@@ -571,17 +571,17 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
 
     top= queue.top();
 
-    thd->set_current_time(); /* Get current time */
+    thd->set_time(); /* Get current time */
 
     next_activation_at= top->m_execute_at;
-    if (next_activation_at > thd->query_start())
+    if (next_activation_at > thd->query_start_in_secs())
     {
       /*
         Not yet time for top event, wait on condition with
         time or until signaled. Release LOCK_queue while waiting.
       */
       struct timespec top_time;
-      set_timespec(&top_time, next_activation_at - thd->query_start());
+      set_timespec(&top_time, next_activation_at - thd->query_start_in_secs());
 
       /* Release any held audit resources before waiting */
       mysql_audit_release(thd);
@@ -632,7 +632,7 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
     else
       queue.update_top();
 
-    dbug_dump_queue(thd->query_start());
+    dbug_dump_queue(thd->query_start_in_secs());
     break;
   }
 end:

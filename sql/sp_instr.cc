@@ -864,7 +864,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
     if (thd->get_stmt_da()->is_eof())
     {
       /* Finalize server status flags after executing a statement. */
-      thd->update_server_status();
+      thd->update_slow_query_status();
 
       thd->send_statement_status();
     }

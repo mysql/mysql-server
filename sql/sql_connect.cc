@@ -106,7 +106,7 @@ int get_or_create_user_conn(THD *thd, const char *user,
     uc->len= temp_len;
     uc->connections= uc->questions= uc->updates= uc->conn_per_hour= 0;
     uc->user_resources= *mqh;
-    uc->reset_utime= thd->thr_create_utime;
+    uc->reset_utime= thd->start_utime;
     if (my_hash_insert(&hash_user_connections, (uchar*) uc))
     {
       /* The only possible error is out of memory, MY_WME sets an error. */
@@ -819,7 +819,6 @@ static void prepare_new_connection_state(THD* thd)
   */
   thd->proc_info= 0;
   thd->set_command(COM_SLEEP);
-  thd->set_time();
   thd->init_for_queries();
 
   if (opt_init_connect.length && !(sctx->check_access(SUPER_ACL)))
@@ -863,7 +862,6 @@ static void prepare_new_connection_state(THD* thd)
     }
 
     thd->proc_info=0;
-    thd->set_time();
     thd->init_for_queries();
   }
 }
