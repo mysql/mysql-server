@@ -176,7 +176,7 @@ public:
   // Get total size of block as once allocated
   Uint32 alloced_size() const
   {
-    return m_size + offsetof(EventMemoryBlock, m_data);
+    return m_size + my_offsetof(EventMemoryBlock, m_data);
   }
 
   const Uint32      m_size;   // Number of bytes available to allocate from m_data
@@ -196,7 +196,7 @@ private:
   // Calculates usable size of m_data given total size 'full_sz'
   Uint32 data_size(Uint32 full_sz)
   {
-    return full_sz - offsetof(EventMemoryBlock, m_data);
+    return full_sz - my_offsetof(EventMemoryBlock, m_data);
   }
 };
 
