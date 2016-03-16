@@ -2215,7 +2215,8 @@ acl_authenticate(THD *thd, enum_server_command command)
     acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
       mpvio.auth_info.authenticated_as, mpvio.db.str, thd, command);
   }
-  if (!mpvio.can_authenticate() && res == CR_OK)
+  if (res == CR_OK &&
+      (!mpvio.can_authenticate() || thd->is_error()))
   {
     res= CR_ERROR;
   }
@@ -2272,6 +2273,9 @@ acl_authenticate(THD *thd, enum_server_command command)
       acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
         mpvio.auth_info.authenticated_as, mpvio.db.str, thd, command);
     }
+
+    if (thd->is_error())
+      DBUG_RETURN(1);
 
     if (is_proxy_user)
     {

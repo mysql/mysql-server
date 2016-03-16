@@ -23,6 +23,7 @@
 #include "sql_thd_internal_api.h"               // create_thd / destroy_thd
 #include "sql_plugin.h"                         // my_plugin_foreach
 #include "sql_rewrite.h"                        // mysql_rewrite_query
+#include "sql_parse.h"                          // check_stack_overrun
 
 /**
   @class Audit_error_handler
@@ -1258,6 +1259,19 @@ static int event_class_dispatch(THD *thd, mysql_event_class_t event_class,
   else
   {
     plugin_ref *plugins, *plugins_last;
+
+    /*
+      Does not allow infinite recursive calls that crash the server.
+      This happens when error is reported from within a plugin that already
+      is receiving error event (MYSQL_AUDIT_GENERAL_ERROR). This condition
+      breaks the recursion, when the stack size gets close to its minimal
+      value.
+    */
+    if (check_stack_overrun(thd, STACK_MIN_SIZE * 5,
+                            reinterpret_cast<uchar *>(&event_generic)))
+    {
+      return 0;
+    }
 
     /* Use the cached set of audit plugins */
     plugins= thd->audit_class_plugins.begin();
