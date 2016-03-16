@@ -1882,6 +1882,11 @@ thr_send_threads::get_node(Uint32 instance_no, NDB_TICKS now)
           const Uint32 send_delay = check_delay_expired(node, now);
           if (likely(send_delay == 0))
           {
+            /**
+             * Found a neighbour node to return. Handle this and ensure that
+             * next call to get_node will start looking for non-neighbour
+             * nodes.
+             */
             m_next_is_high_prio_node = false;
             goto found_neighbour;
           }
@@ -1920,7 +1925,15 @@ thr_send_threads::get_node(Uint32 instance_no, NDB_TICKS now)
     }
     else
     {
-      ;
+      /**
+       * We might loop one more time and then we need to ensure that
+       * we don't just come back here. If we report a node from this
+       * function this variable will be set again. If we find no node
+       * then it really doesn't matter what this variable is set to.
+       * When nodes are available we will always try to be fair and
+       * return high prio nodes as often as non-high prio nodes.
+       */
+      m_next_is_high_prio_node = true;
     }
 
     node = m_first_node;
@@ -1954,6 +1967,11 @@ thr_send_threads::get_node(Uint32 instance_no, NDB_TICKS now)
       const Uint32 send_delay = check_delay_expired(node, now);
       if (likely(send_delay == 0))
       {
+        /**
+         * We found a non-neighbour node to return, handle this
+         * and set the next get_node to start looking for
+         * neighbour nodes.
+         */
         m_next_is_high_prio_node = true;
         goto found_non_neighbour;
       }
