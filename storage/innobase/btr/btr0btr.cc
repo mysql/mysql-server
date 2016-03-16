@@ -3737,6 +3737,8 @@ retry:
 		/* For rtree, we need to update father's mbr. */
 		if (dict_index_is_spatial(index)) {
 			ulint*	offsets2;
+			ulint	rec_info;
+
 			offsets2 = rec_get_offsets(
 				btr_cur_get_rec(&cursor2),
 				index, NULL, ULINT_UNDEFINED, &heap);
@@ -3745,11 +3747,31 @@ retry:
 				btr_cur_get_rec(&cursor2), offsets2)
 				== right_page_no);
 
-			rtr_merge_and_update_mbr(&father_cursor,
-						 &cursor2,
-						 offsets, offsets2,
-						 merge_page, merge_block,
-						 block, index, mtr);
+			rec_info = rec_get_info_bits(
+				btr_cur_get_rec(&father_cursor),
+				rec_offs_comp(offsets));
+			if (rec_info & REC_INFO_MIN_REC_FLAG) {
+				/* When the father node ptr is minimal rec,
+				we will keep it and delete the node ptr of
+				merge page. */
+				rtr_merge_and_update_mbr(&father_cursor,
+							 &cursor2,
+							 offsets, offsets2,
+							 merge_page,
+							 merge_block,
+							 block, index, mtr);
+			} else {
+				/* Otherwise, we will keep the node ptr of
+				merge page and delete the father node ptr.
+				This is for keeping the rec order in upper
+				level. */
+				rtr_merge_and_update_mbr(&cursor2,
+							 &father_cursor,
+							 offsets2, offsets,
+							 merge_page,
+							 merge_block,
+							 block, index, mtr);
+			}
 			lock_mutex_enter();
 			lock_rec_free_all_from_discard_page(block);
 			lock_mutex_exit();
