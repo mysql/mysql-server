@@ -3271,14 +3271,19 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
   invoke_pre_parse_rewrite_plugins(thd);
   thd->m_parser_state = NULL;
 
-  error= parse_sql(thd, &parser_state, NULL) ||
-    thd->is_error() ||
-    init_param_array(this);
+  error= thd->is_error();
 
   if (!error)
-  { // We've just created the statement maybe there is a rewrite
-    invoke_post_parse_rewrite_plugins(thd, true);
-    error= init_param_array(this);
+  {
+    error = parse_sql(thd, &parser_state, NULL) ||
+            thd->is_error() ||
+            init_param_array(this);
+
+    if (!error)
+    { // We've just created the statement maybe there is a rewrite
+      invoke_post_parse_rewrite_plugins(thd, true);
+      error = init_param_array(this);
+    }
   }
 
   lex->set_trg_event_type_for_tables();
