@@ -4170,6 +4170,7 @@ prepare_inplace_alter_table_dict(
 	dict_index_t*		fts_index	= NULL;
 	ulint			new_clustered	= 0;
 	dberr_t			error;
+	const char*		punch_hole_warning = NULL;
 	ulint			num_fts_index;
 	dict_add_v_col_t*	add_v = NULL;
 	ha_innobase_inplace_ctx*ctx;
@@ -4542,17 +4543,24 @@ prepare_inplace_alter_table_dict(
 		error = row_create_table_for_mysql(
 			ctx->new_table, compression, ctx->trx, false);
 
+		punch_hole_warning =
+			(error == DB_IO_NO_PUNCH_HOLE_FS)
+			? "Punch hole is not supported by the file system"
+			: "Page Compression is not supported for this"
+			  " tablespace";
+
 		switch (error) {
 			dict_table_t*	temp_table;
 		case DB_IO_NO_PUNCH_HOLE_FS:
+		case DB_IO_NO_PUNCH_HOLE_TABLESPACE:
 
 			push_warning_printf(
 				ctx->prebuilt->trx->mysql_thd,
 				Sql_condition::SL_WARNING,
 				HA_ERR_UNSUPPORTED,
-				"XPunch hole not supported by the file system. "
-				"Compression disabled for '%s'",
-				ctx->new_table->name.m_name);
+				"%s. Compression disabled for '%s'",
+				punch_hole_warning,
+				ctx->old_table->name.m_name);
 
 			error = DB_SUCCESS;
 

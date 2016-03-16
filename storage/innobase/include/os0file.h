@@ -638,6 +638,14 @@ public:
 	/** @return true if punch hole is supported */
 	static bool is_punch_hole_supported()
 	{
+
+		/* In this debugging mode, we act as if punch hole is supported,
+		and then skip any calls to actually punch a hole here.
+		In this way, Transparent Page Compression is still being tested. */
+		DBUG_EXECUTE_IF("ignore_punch_hole",
+			return(true);
+		);
+
 #if defined(HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE) || defined(_WIN32)
 		return(true);
 #else

@@ -1411,22 +1411,22 @@ fil_names_dirty_and_write(
 	fil_space_t*	space,
 	mtr_t*		mtr);
 
-/** Set the compression type for the tablespace
-@param[in]	space_id	Space ID of tablespace for which to set
+/** Set the compression type for the tablespace of a table
+@param[in]	table		Table that should be compressesed
 @param[in]	algorithm	Text representation of the algorithm
 @return DB_SUCCESS or error code */
 dberr_t
 fil_set_compression(
-	ulint		space_id,
+	dict_table_t*	table,
 	const char*	algorithm)
 	__attribute__((warn_unused_result));
 
-/**
-@param[in]      space_id        Space ID to check
+/** Get the compression type for the tablespace
+@param[in]	space_id	Space ID to check
 @return the compression algorithm */
 Compression::Type
 fil_get_compression(
-        ulint           space_id)
+	ulint		space_id)
 	__attribute__((warn_unused_result));
 
 /** Set the encryption type for the tablespace

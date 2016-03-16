@@ -2123,6 +2123,15 @@ bool
 dict_table_is_table_buffer(
 	const dict_table_t*	table);
 
+/** Check if the table is in a shared tablespace (System or General).
+@param[in]	id	Space ID to check
+@return true if id is a shared tablespace, false if not. */
+UNIV_INLINE
+bool
+dict_table_in_shared_tablespace(
+	const dict_table_t*	table)
+	__attribute__((warn_unused_result));
+
 /** Check whether locking is disabled for this table.
 Currently this is done for intrinsic table as their visibility is limited
 to the connection and the DDTableBuffer as it's protected by
