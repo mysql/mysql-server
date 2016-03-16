@@ -5385,12 +5385,18 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
   if (query_cache.send_result_to_client(thd, thd->query()) <= 0)
   {
     LEX *lex= thd->lex;
+    const char *found_semicolon;
 
-    bool err= parse_sql(thd, parser_state, NULL);
+    bool err= thd->get_stmt_da()->is_error();
+
     if (!err)
-      err= invoke_post_parse_rewrite_plugins(thd, false);
+    {
+      err= parse_sql(thd, parser_state, NULL);
+      if (!err)
+        err= invoke_post_parse_rewrite_plugins(thd, false);
 
-    const char *found_semicolon= parser_state->m_lip.found_semicolon;
+      found_semicolon= parser_state->m_lip.found_semicolon;
+    }
 
     if (!err)
     {
