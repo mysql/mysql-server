@@ -38,6 +38,14 @@
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
+/**
+ * Page allocation of memory (mmap) depends on MAP_ANONYMOUS being available
+ * on the platform, else plain NdbMem_Allocate will be used (Windows, osx).
+ */
+#if defined(MAP_ANONYMOUS)
+#define USE_MMAP 1
+#endif
+
 #define TOTAL_BUCKETS_INIT (1U << 15)
 
 static const Uint32 MEM_BLOCK_SMALL  = 128*1024;
@@ -1404,24 +1412,34 @@ NdbEventBuffer::~NdbEventBuffer()
   EventMemoryBlock *mem_block;
   while ((mem_block = m_mem_block_head) != NULL)
   {
-    const size_t unmap_sz = mem_block->alloced_size();
+    const Uint32 unmap_sz = mem_block->alloced_size();
     m_total_alloc -= unmap_sz;
     m_mem_block_head = mem_block->m_next;
 #ifndef NDEBUG
     memset(mem_block, 0x11, unmap_sz);
 #endif
+
+#if defined(USE_MMAP)
     require(my_munmap(mem_block, unmap_sz) == 0);
+#else
+    NdbMem_Free(mem_block);
+#endif
   }
   while ((mem_block = m_mem_block_free) != NULL)
   {
-    const size_t unmap_sz = mem_block->alloced_size();
+    const Uint32 unmap_sz = mem_block->alloced_size();
     m_total_alloc -= unmap_sz;
     m_mem_block_free = mem_block->m_next;
     m_mem_block_free_sz -= mem_block->get_size();
 #ifndef NDEBUG
     memset(mem_block, 0x11, unmap_sz);
 #endif
+
+#if defined(USE_MAP)
     require(my_munmap(mem_block, unmap_sz) == 0);
+#else
+    NdbMem_Free(mem_block);
+#endif
   }
   assert(m_mem_block_free_sz == 0);
   assert(m_total_alloc == 0);
@@ -3331,7 +3349,7 @@ NdbEventBuffer::alloc_mem(EventBufData* data,
 }
 
 void*
-NdbEventBuffer::alloc(size_t sz)
+NdbEventBuffer::alloc(Uint32 sz)
 {
   DBUG_ENTER("alloc");
 
@@ -3434,7 +3452,7 @@ NdbEventBuffer::expand_memory_blocks()
   else  //Allocate new EventMemoryBlock */
   {
     /* Allocate new EventMemoryBlock, adapt block size to current usage */
-    const size_t sz = (m_total_alloc < 1024*1024)
+    const Uint32 sz = (m_total_alloc < 1024*1024)
                       ? MEM_BLOCK_SMALL
                       : MEM_BLOCK_LARGE;
     /**
@@ -3442,9 +3460,14 @@ NdbEventBuffer::expand_memory_blocks()
      * to the OS when we free it. my_mmap() will use malloc if page alloc
      * not available at this OS.
      */
+#if defined(USE_MMAP)
     void *memptr = my_mmap(NULL, sz, PROT_READ|PROT_WRITE,
                            MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
     if (unlikely(memptr == MAP_FAILED))
+#else
+    void *memptr = NdbMem_Allocate(sz);
+    if (unlikely(memptr == NULL))
+#endif
     {
 #ifdef VM_TRACE
       printf("m_latest_command: %s 0x%x %s\n",
@@ -3528,13 +3551,18 @@ void NdbEventBuffer::remove_consumed_memory(MonotonicEpoch consumed_epoch)  //Ne
       assert(m_mem_block_free_sz >= mem_block->get_size());
       m_mem_block_free_sz -= mem_block->get_size();
 
-      const size_t alloced_sz = mem_block->alloced_size();
+      const Uint32 alloced_sz = mem_block->alloced_size();
       assert(m_total_alloc >= alloced_sz);
       m_total_alloc -= alloced_sz;
 #ifndef NDEBUG
       memset(mem_block, 0x11, alloced_sz);
 #endif
+
+#if defined(USE_MMAP)
       require(my_munmap(mem_block, alloced_sz) == 0);
+#else
+      NdbMem_Free(mem_block);
+#endif
     }
   }
 }
