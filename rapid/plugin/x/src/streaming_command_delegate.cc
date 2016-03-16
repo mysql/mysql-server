@@ -21,7 +21,7 @@
 
 #include "xpl_log.h"
 #include "ngs/protocol/row_builder.h"
-#include "mysqlx_resultset.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 #include "ngs_common/protocol_const.h"
 
 #include "decimal.h"

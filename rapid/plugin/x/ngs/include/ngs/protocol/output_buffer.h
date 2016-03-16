@@ -22,7 +22,7 @@
 
 #include <stdint.h>
 #include <vector>
-#include <google/protobuf/io/zero_copy_stream.h>
+#include "ngs_common/protocol_protobuf.h"
 
 #include "ngs_common/types.h"
 #include "ngs/protocol/buffer.h"

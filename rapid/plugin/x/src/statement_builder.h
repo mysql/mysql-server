@@ -22,7 +22,7 @@
 #include "ngs/protocol_fwd.h"
 #include "expr_generator.h"
 
-#include <google/protobuf/repeated_field.h>
+#include "ngs_common/protocol_protobuf.h"
 #include <algorithm>
 #include <boost/bind.hpp>
 

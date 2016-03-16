@@ -17,7 +17,7 @@
 #include <gtest/gtest.h>
 #include "expect.h"
 #include "xpl_error.h"
-#include "mysqlx.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 
 
 static const int EXPECT_NO_ERROR = 1;

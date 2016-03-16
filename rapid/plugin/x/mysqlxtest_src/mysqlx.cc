@@ -27,8 +27,7 @@
 #pragma warning (disable : 4018 4996)
 #endif
 
-#include <google/protobuf/text_format.h>
-#include <google/protobuf/message.h>
+#include "ngs_common/protocol_protobuf.h"
 #include <boost/scoped_ptr.hpp>
 #include "mysqlx.h"
 #include "mysqlx_connection.h"
@@ -69,7 +68,13 @@ namespace mysqlx {
 #endif
 
 #include <iostream>
+#ifdef WIN32
+#pragma warning(push, 0)
+#endif
 #include <boost/asio.hpp>
+#ifdef WIN32
+#pragma warning(pop)
+#endif
 #ifndef WIN32
 #include <netdb.h>
 #include <sys/socket.h>
@@ -744,11 +749,11 @@ Message *Connection::recv_next(int &mid)
   }
 }
 
-Message *Connection::recv_raw_with_deadline(int &mid, const std::size_t deadline_miliseconds)
+Message *Connection::recv_raw_with_deadline(int &mid, const int deadline_milliseconds)
 {
   char header_buffer[5];
   std::size_t data = sizeof(header_buffer);
-  boost::system::error_code error = m_sync_connection.read_with_timeout(header_buffer, data, deadline_miliseconds);
+  boost::system::error_code error = m_sync_connection.read_with_timeout(header_buffer, data, deadline_milliseconds);
 
   if (0 == data)
   {

@@ -70,8 +70,8 @@ void Message_builder::encode_string(const char* value, size_t len, bool write)
   if (write)
   {
     google::protobuf::internal::WireFormatLite::WriteTag(m_field_number, google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED, m_out_stream);
-    m_out_stream->WriteVarint32(len);
-    m_out_stream->WriteRaw(value, len);
+    m_out_stream->WriteVarint32(static_cast<google::protobuf::uint32>(len));
+    m_out_stream->WriteRaw(value, static_cast<int>(len));
   }
 }
 

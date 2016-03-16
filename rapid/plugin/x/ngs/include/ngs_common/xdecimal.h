@@ -38,8 +38,8 @@ namespace mysqlx
 
     Decimal(const std::string &s)
     {
-      int scale = 0;
-      std::size_t  dot_pos = s.find('.');
+      std::size_t scale = 0;
+      std::size_t dot_pos = s.find('.');
       bool dot_skipped = false;
       if (dot_pos != std::string::npos)
       {

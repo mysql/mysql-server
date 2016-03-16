@@ -23,7 +23,7 @@
 #include <boost/shared_ptr.hpp>
 #include <string>
 
-#include "mysqlx_datatypes.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 
 
 namespace ngs

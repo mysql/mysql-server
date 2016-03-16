@@ -19,7 +19,7 @@
 
 #include "expect.h"
 #include "xpl_error.h"
-#include "mysqlx.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 //#include "expect_gtid.h"
 
 using namespace xpl;
