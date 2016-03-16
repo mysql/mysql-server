@@ -833,7 +833,7 @@ public:
                      EventBufData* main_data,
                      EventBufData* blob_data);
 
-  void *alloc(size_t sz);
+  void *alloc(Uint32 sz);
   Uint32 get_free_data_sz() const;
   Uint32 get_used_data_sz() const;
 
