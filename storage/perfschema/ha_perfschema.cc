@@ -1489,7 +1489,7 @@ int ha_perfschema::rename_table(const char * from, const char * to,
 
 int ha_perfschema::create(const char *name, TABLE *table_arg,
                           HA_CREATE_INFO *create_info,
-                          dd::Table *, const char *)
+                          dd::Table *)
 {
   DBUG_ENTER("ha_perfschema::create");
   DBUG_ASSERT(table_arg);

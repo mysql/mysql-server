@@ -655,7 +655,7 @@ int ha_archive::close(void)
 
 int ha_archive::create(const char *name, TABLE *table_arg,
                        HA_CREATE_INFO *create_info,
-                       dd::Table *dd_tab, const char *)
+                       dd::Table *dd_tab)
 {
   char name_buff[FN_REFLEN];
   char linkname[FN_REFLEN];

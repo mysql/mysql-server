@@ -34,8 +34,8 @@ public:
   // Declare all the pure-virtuals.
   // Note: Sun Studio needs a little help in resolving uchar.
   MOCK_METHOD0(close,    int());
-  MOCK_METHOD5(create,   int(const char *name, TABLE *form, HA_CREATE_INFO*,
-                             dd::Table*, const char *));
+  MOCK_METHOD4(create,   int(const char *name, TABLE *form, HA_CREATE_INFO*,
+                             dd::Table*));
   MOCK_METHOD1(info,     int(unsigned ha_status_bitmap));
   MOCK_METHOD4(open,     int(const char *name, int mode, uint test_if_locked,
                              const dd::Table *dd_tab));

@@ -155,7 +155,7 @@ public:
   int extra(enum ha_extra_function operation);
   int delete_all_rows(void);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
-             dd::Table *dd_tab, const char *sql_name);
+             dd::Table *dd_tab);
   bool check_if_incompatible_data(HA_CREATE_INFO *info,
                                   uint table_changes);
 

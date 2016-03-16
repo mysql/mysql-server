@@ -79,7 +79,7 @@ int ha_blackhole::close(void)
 
 int ha_blackhole::create(const char *name, TABLE *table_arg,
                          HA_CREATE_INFO *create_info,
-                         dd::Table *, const char *)
+                         dd::Table *)
 {
   DBUG_ENTER("ha_blackhole::create");
   DBUG_RETURN(0);

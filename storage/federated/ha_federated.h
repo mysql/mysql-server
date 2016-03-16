@@ -249,7 +249,7 @@ public:
   int truncate(dd::Table *dd_tab);
   int create(const char *name, TABLE *form,
              HA_CREATE_INFO *create_info,
-             dd::Table *dd_tab, const char *sql_name); //required
+             dd::Table *dd_tab);                                //required
   ha_rows records_in_range(uint inx, key_range *start_key,
                                    key_range *end_key);
   uint8 table_cache_type() { return HA_CACHE_TBL_NOCACHE; }

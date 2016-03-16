@@ -1994,7 +1994,7 @@ bool recreate_table(THD *thd, const char *schema_name,
 
   // Attempt to reconstruct the table
   return ha_create_table(thd, path, schema_name, table_name, &create_info,
-                         true, false, table_def.get(), NULL, force_dd_commit);
+                         true, false, table_def.get(), force_dd_commit);
 }
 
 

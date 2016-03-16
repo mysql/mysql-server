@@ -193,7 +193,7 @@ public:
                            dd::Table *to_table_def);
   virtual int create(const char *name, TABLE *form,
                      HA_CREATE_INFO *create_info,
-                     dd::Table *dd_tab, const char *sql_name);
+                     dd::Table *dd_tab);
   virtual int create_handler_files(const char *name,
                                    const char *old_name, int action_flag,
                                    HA_CREATE_INFO *create_info);

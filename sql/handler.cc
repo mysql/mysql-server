@@ -4896,12 +4896,12 @@ handler::ha_drop_table(const char *name)
 
 int
 handler::ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info,
-                   dd::Table *dd_tab, const char *sql_name)
+                   dd::Table *dd_tab)
 {
   DBUG_ASSERT(m_lock_type == F_UNLCK);
   mark_trx_read_write();
 
-  return create(name, form, info, dd_tab, sql_name);
+  return create(name, form, info, dd_tab);
 }
 
 
@@ -5039,11 +5039,6 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
                              HA_CREATE_INFO).
   @param table_def           Data-dictionary object describing table to
                              be used for table creation.
-  @param name_override       Optional, real name of table which is created,
-                             to be used by SE in case when we create new
-                             version of table for ALTER TABLE with a
-                             temporary name (WL7743/TODO - double check
-                             with Marko if he really needs this).
   @param force_dd_commit     Indicates whether we need to force commit
                              of changes to data-dictionary (WL7743/TODO - this
                              parameter should not be necessary in the end).
@@ -5059,7 +5054,6 @@ int ha_create_table(THD *thd, const char *path,
                     bool update_create_info,
                     bool is_temp_table,
                     dd::Table *table_def,
-                    const char *name_override,
                     bool force_dd_commit)
 {
   int error= 1;
@@ -5098,8 +5092,7 @@ int ha_create_table(THD *thd, const char *path,
 
   name= get_canonical_filename(table.file, share.path.str, name_buff);
 
-  error= table.file->ha_create(name, &table, create_info, table_def,
-                               name_override);
+  error= table.file->ha_create(name, &table, create_info, table_def);
 
   if (error)
   {
@@ -5214,7 +5207,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   create_info.table_options|= HA_OPTION_CREATE_FROM_ENGINE;
 
   get_canonical_filename(table.file, path, path);
-  error=table.file->ha_create(path, &table, &create_info, NULL, name);
+  error=table.file->ha_create(path, &table, &create_info, NULL);
   (void) closefrm(&table, 1);
 
   DBUG_RETURN(error != 0);

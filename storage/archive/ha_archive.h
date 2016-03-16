@@ -154,7 +154,7 @@ public:
   int extra(enum ha_extra_function operation);
   void update_create_info(HA_CREATE_INFO *create_info);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
-             dd::Table *dd_tab, const char *sql_name);
+             dd::Table *dd_tab);
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int repair(THD* thd, HA_CHECK_OPT* check_opt);
   void start_bulk_insert(ha_rows rows);

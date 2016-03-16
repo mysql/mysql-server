@@ -105,7 +105,7 @@ public:
                    const dd::Table *from_table_def,
                    dd::Table *to_table_def);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
-             dd::Table *dd_tab, const char *sql_name);
+             dd::Table *dd_tab);
   void update_create_info(HA_CREATE_INFO *create_info);
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,

@@ -2261,7 +2261,7 @@ static bool create_innodb_tmp_table(TABLE *table, KEY *keyinfo)
 
   int error;
   if ((error= table->file->create(share->table_name.str, table,
-                                  &create_info, NULL, NULL)))
+                                  &create_info, NULL)))
   {
     table->file->print_error(error,MYF(0));    /* purecov: inspected */
     /*

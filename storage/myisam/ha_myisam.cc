@@ -2019,7 +2019,7 @@ void ha_myisam::update_create_info(HA_CREATE_INFO *create_info)
 
 int ha_myisam::create(const char *name, TABLE *table_arg,
 		      HA_CREATE_INFO *ha_create_info,
-                      dd::Table*, const char *)
+                      dd::Table*)
 {
   int error;
   uint create_flags= 0, records, i;

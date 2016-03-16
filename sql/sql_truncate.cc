@@ -342,7 +342,7 @@ static bool recreate_temporary_table(THD *thd, TABLE *table)
   */
   ha_create_table(thd, share->normalized_path.str, share->db.str,
                   share->table_name.str, &create_info, true, true,
-                  share->tmp_table_def, NULL, false);
+                  share->tmp_table_def, false);
 
   if ((new_table= open_table_uncached(thd, share->path.str, share->db.str,
                                       share->table_name.str, true, true,

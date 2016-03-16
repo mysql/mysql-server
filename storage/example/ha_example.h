@@ -255,7 +255,7 @@ public:
                    dd::Table *to_table_def);
   int create(const char *name, TABLE *form,
              HA_CREATE_INFO *create_info,
-             dd::Table *dd_tab, const char *sql_name);          ///< required
+             dd::Table *dd_tab);                                ///< required
 
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);     ///< required

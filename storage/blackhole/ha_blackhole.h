@@ -90,7 +90,7 @@ public:
   int external_lock(THD *thd, int lock_type);
   int create(const char *name, TABLE *table_arg,
              HA_CREATE_INFO *create_info,
-             dd::Table *dd_tab, const char *sql_name);
+             dd::Table *dd_tab);
   THR_LOCK_DATA **store_lock(THD *thd,
                              THR_LOCK_DATA **to,
                              enum thr_lock_type lock_type);

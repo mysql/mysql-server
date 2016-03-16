@@ -2793,7 +2793,7 @@ public:
   void ha_drop_table(const char *name);
 
   int ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info,
-                dd::Table *dd_tab, const char *sql_name);
+                dd::Table *dd_tab);
 
 
   /**
@@ -4217,7 +4217,7 @@ public:
             DDL (i.e. with HTON_SUPPORTS_ATOMIC_DDL flag).
   */
   virtual int create(const char *name, TABLE *form, HA_CREATE_INFO *info,
-                     dd::Table *dd_tab, const char *sql_name) = 0;
+                     dd::Table *dd_tab) = 0;
 
   virtual bool get_se_private_data(dd::Table *dd_table, uint dd_version)
   { return false; }
@@ -4469,7 +4469,6 @@ int ha_create_table(THD *thd, const char *path,
                     bool update_create_info,
                     bool is_temp_table,
                     dd::Table *table_def,
-                    const char *name_override,
                     bool force_dd_commit);
 
 int ha_delete_table(THD *thd, handlerton *db_type, const char *path,

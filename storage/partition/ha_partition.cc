@@ -701,7 +701,7 @@ int ha_partition::get_extra_columns_and_keys(const HA_CREATE_INFO *create_info,
 
 int ha_partition::create(const char *name, TABLE *table_arg,
                          HA_CREATE_INFO *create_info,
-                         dd::Table *dd_tab, const char *sql_name)
+                         dd::Table *dd_tab)
 {
   int error;
   char name_buff[FN_REFLEN], name_lc_buff[FN_REFLEN];
@@ -756,7 +756,7 @@ int ha_partition::create(const char *name, TABLE *table_arg,
         if ((error= set_up_table_before_create(thd, share, name_buff,
                                                create_info, part_elem)) ||
             ((error= (*file)->ha_create(name_buff, table_arg, create_info,
-                                        dd_tab, sql_name))))
+                                        dd_tab))))
           goto create_error;
 
         table_level_options.put_to_info(create_info);
@@ -771,7 +771,7 @@ int ha_partition::create(const char *name, TABLE *table_arg,
       if ((error= set_up_table_before_create(thd, share, name_buff,
                                              create_info, part_elem)) ||
           ((error= (*file)->ha_create(name_buff, table_arg, create_info,
-                                      dd_tab, sql_name))))
+                                      dd_tab))))
         goto create_error;
 
       table_level_options.put_to_info(create_info);
@@ -1263,7 +1263,7 @@ int ha_partition::create_new_partition(TABLE *tbl,
     DBUG_RETURN(HA_ERR_INITIALIZATION);
   }
 
-  if ((error= file->ha_create(part_name, tbl, create_info, NULL, NULL)))
+  if ((error= file->ha_create(part_name, tbl, create_info, NULL)))
   {
     /*
       Added for safety, InnoDB reports HA_ERR_FOUND_DUPP_KEY

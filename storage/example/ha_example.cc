@@ -873,7 +873,7 @@ static MYSQL_THDVAR_UINT(
 
 int ha_example::create(const char *name, TABLE *table_arg,
                        HA_CREATE_INFO *create_info,
-                       dd::Table *, const char *)
+                       dd::Table *)
 {
   DBUG_ENTER("ha_example::create");
   /*

@@ -249,7 +249,6 @@ public:
 	@param[in]	form		table structure
 	@param[in]	create_info	more information
 	@param[in,out]	dd_table	data dictionary cache object
-	@param[in,out]	dd_trx_rw	data dictionary transaction
 	@param[in]	file_per_table	whether to create a tablespace too
 	@return error number
 	@retval 0 on success */
@@ -258,7 +257,6 @@ public:
 		TABLE*			form,
 		HA_CREATE_INFO*		create_info,
 		dd::Table*		dd_tab,
-		const char *		sql_name,
 		bool			file_per_table);
 
 	/** Create an InnoDB table.
@@ -266,15 +264,13 @@ public:
 	@param[in]	form		table structure
 	@param[in]	create_info	more information on the table
 	@param[in,out]	dd_table	data dictionary cache object
-	@param[in,out]	dd_trx_rw	data dictionary transaction
 	@return error number
 	@retval 0 on success */
 	int create(
 		const char*		name,
 		TABLE*			form,
 		HA_CREATE_INFO*		create_info,
-		dd::Table*		dd_tab,
-		const char *		sql_name);
+		dd::Table*		dd_tab);
 
 	/** Drop a table.
 	@param[in]	name		table name

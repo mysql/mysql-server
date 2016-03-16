@@ -152,7 +152,7 @@ class ha_myisam: public handler
   ha_rows records_in_range(uint inx, key_range *min_key, key_range *max_key);
   void update_create_info(HA_CREATE_INFO *create_info);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *create_info,
-             dd::Table *dd_tab, const char *sql_name);
+             dd::Table *dd_tab);
   THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 			     enum thr_lock_type lock_type);
   virtual void get_auto_increment(ulonglong offset, ulonglong increment,

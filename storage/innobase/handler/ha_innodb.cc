@@ -12493,7 +12493,6 @@ ha_innobase::get_se_private_data(
 @param[in]	form		Table format; columns and index information.
 @param[in]	create_info	Create info (including create statement string).
 @param[in,out]	dd_table	data dictionary cache object
-@param[in]	sql_name	user-visible table name
 @param[in]	file_per_table	whether to create a tablespace too
 @return	error number
 @retval 0 on success */
@@ -12503,7 +12502,6 @@ ha_innobase::create(
 	TABLE*			form,
 	HA_CREATE_INFO*		create_info,
 	dd::Table*		dd_table,
-	const char *		sql_name,
 	bool			file_per_table)
 {
 	int		error;
@@ -12615,23 +12613,20 @@ cleanup:
 @param[in]	form		table structure
 @param[in]	create_info	more information on the table
 @param[in,out]	dd_table	data dictionary cache object
-@param[in]	sql_name	user-visible table name
 @return error number */
 int
 ha_innobase::create(
 	const char*		name,
 	TABLE*			form,
 	HA_CREATE_INFO*		create_info,
-	dd::Table*		dd_table,
-	const char *		sql_name)
+	dd::Table*		dd_table)
 {
 	/* Determine if this CREATE TABLE will be making a file-per-table
 	tablespace.  Note that "srv_file_per_table" is not under
 	dict_sys mutex protection, and could be changed while creating the
 	table. So we read the current value here and make all further
 	decisions based on this. */
-	return(create(name, form, create_info, dd_table,
-		sql_name, srv_file_per_table));
+	return(create(name, form, create_info, dd_table, srv_file_per_table));
 }
 
 /*****************************************************************//**
@@ -12832,7 +12827,6 @@ ha_innobase::truncate(dd::Table *dd_tab)
 
 	if (!error) {
 		error = create(name, table, &info, dd_tab,
-				table->s->table_name.str,
 				file_per_table);
 	}
 

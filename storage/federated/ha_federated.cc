@@ -3154,7 +3154,7 @@ THR_LOCK_DATA **ha_federated::store_lock(THD *thd,
 
 int ha_federated::create(const char *name, TABLE *table_arg,
                          HA_CREATE_INFO *create_info,
-                         dd::Table *, const char *)
+                         dd::Table *)
 {
   int retval;
   THD *thd= current_thd;

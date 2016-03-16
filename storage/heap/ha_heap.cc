@@ -768,7 +768,7 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
 
 int ha_heap::create(const char *name, TABLE *table_arg,
 		    HA_CREATE_INFO *create_info,
-                    dd::Table *, const char *)
+                    dd::Table *)
 {
   int error;
   my_bool created;

@@ -2750,8 +2750,7 @@ ha_innopart::create(
 	const char*	name,
 	TABLE*		form,
 	HA_CREATE_INFO*	create_info,
-	dd::Table*	dd_tab,
-	const char*	sql_name)
+	dd::Table*	dd_tab)
 {
 	int		error;
 	/** {database}/{tablename} */
@@ -3246,7 +3245,7 @@ ha_innopart::truncate_partition_low(dd::Table *table_def)
 		/* TODO: Add DDL_LOG here to avoid missing partitions on crash. */
 		error = ha_innobase::delete_table(name, NULL, SQLCOM_TRUNCATE);
 		if (error == 0) {
-			error = ha_innobase::create(name, table, info, NULL, NULL,
+			error = ha_innobase::create(name, table, info, NULL,
 					file_per_table);
 		}
 		if (error != 0) {
@@ -4439,7 +4438,7 @@ ha_innopart::create_new_partition(
 		DBUG_RETURN(HA_WRONG_CREATE_OPTION);
 	}
 
-	error = ha_innobase::create(norm_name, table, create_info, NULL, NULL);
+	error = ha_innobase::create(norm_name, table, create_info, NULL);
 	create_info->tablespace = tablespace_name_backup;
 	create_info->data_file_name = data_file_name_backup;
 	if (error == HA_ERR_FOUND_DUPP_KEY) {

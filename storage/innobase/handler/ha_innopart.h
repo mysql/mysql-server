@@ -376,8 +376,7 @@ public:
 		const char*		name,
 		TABLE*			form,
 		HA_CREATE_INFO*		create_info,
-		dd::Table*		dd_tab,
-		const char*		sql_name);
+		dd::Table*		dd_tab);
 
 	int
 	truncate(dd::Table *dd_tab);

@@ -1479,7 +1479,7 @@ err:
 
 int ha_myisammrg::create(const char *name, TABLE *form,
 			 HA_CREATE_INFO *create_info,
-                         dd::Table *, const char *)
+                         dd::Table *)
 {
   char buff[FN_REFLEN];
   const char **table_names, **pos;
