@@ -19,8 +19,7 @@
 
 #include "crud_cmd_handler.h"
 
-#include "mysqlx_sql.pb.h"
-#include "mysqlx_crud.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 
 #include "xpl_log.h"
 #include "sql_data_context.h"

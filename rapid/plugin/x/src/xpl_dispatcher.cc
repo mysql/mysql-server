@@ -28,7 +28,7 @@
 #include "xpl_session.h"
 #include "xpl_dispatcher.h"
 #include "xpl_error.h"
-#include "mysqlx.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 #include "notices.h"
 #include "expect.h"
 

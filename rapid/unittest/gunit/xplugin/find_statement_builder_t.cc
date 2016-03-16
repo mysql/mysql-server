@@ -19,10 +19,9 @@
 #include "query_string_builder.h"
 #include "mysqld_error.h"
 #include "expr_generator.h"
-#include "mysqlx_crud.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 
 #include <gtest/gtest.h>
-#include <google/protobuf/text_format.h>
 
 namespace xpl
 {

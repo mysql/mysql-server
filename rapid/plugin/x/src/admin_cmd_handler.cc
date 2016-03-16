@@ -24,7 +24,7 @@
 #include "mysql/service_my_snprintf.h"
 #include "ngs/protocol/row_builder.h"
 
-#include "mysqlx_resultset.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 
 #include "expr_generator.h"
 #include "json_utils.h"
@@ -678,7 +678,7 @@ static ngs::Error_code index_on_virtual_column_supported(
   // if query didn't fail it should return 1 row
   if (create_stmts.size() != 1)
   {
-    const unsigned int num_of_rows = create_stmts.size();
+    const unsigned int num_of_rows = static_cast<unsigned int>(create_stmts.size());
     log_error("index_on_virtual_column_supported() failed: wrong number of rows: %u", num_of_rows);
     return ngs::Error(ER_INTERNAL_ERROR, "Error executing statement");
   }

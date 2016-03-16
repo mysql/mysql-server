@@ -19,14 +19,7 @@
 #define _NGS_PROTOCOL_DECODER_H_
 
 #include "protocol/message.h"
-
-#include "mysqlx_connection.pb.h"
-#include "mysqlx_session.pb.h"
-
-#include "mysqlx_sql.pb.h"
-#include "mysqlx_crud.pb.h"
-#include "mysqlx_expect.pb.h"
-
+#include "ngs_common/protocol_protobuf.h"
 #include "error_code.h"
 
 namespace ngs

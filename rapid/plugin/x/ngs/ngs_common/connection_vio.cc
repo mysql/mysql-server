@@ -66,7 +66,7 @@ Connection_vio::~Connection_vio()
   delete m_impl;
 }
 
-int Connection_vio::get_socket_id()
+my_socket Connection_vio::get_socket_id()
 {
   return vio_fd(m_impl->get_vio());
 }

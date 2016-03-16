@@ -23,7 +23,7 @@
 #include <string>
 #include <set>
 #include <stdint.h>
-#include <google/protobuf/io/coded_stream.h>
+#include "ngs_common/protocol_protobuf.h"
 
 namespace mysqlx
 {

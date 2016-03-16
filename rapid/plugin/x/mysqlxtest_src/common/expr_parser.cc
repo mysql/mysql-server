@@ -192,7 +192,7 @@ Mysqlx::Expr::Expr* Expr_builder::build_unary_op(const std::string& name, Mysqlx
   return e;
 }
 
-Token::Token(Token::TokenType type, const std::string& text, int cur_pos) : _type(type), _text(text), _pos(cur_pos)
+Token::Token(Token::TokenType type, const std::string& text, size_t cur_pos) : _type(type), _text(text), _pos(cur_pos)
 {
 }
 
@@ -278,7 +278,7 @@ void Tokenizer::get_tokens()
     else if (std::isdigit(c))
     {
       // numerical literal
-      int start = i;
+      size_t start = i;
       // floating grammar is
       // float -> int '.' (int | (int expo[sign] int))
       // int -> digit +
@@ -565,7 +565,7 @@ void Tokenizer::inc_pos_token()
   ++_pos;
 }
 
-int Tokenizer::get_token_pos()
+size_t Tokenizer::get_token_pos()
 {
   return _pos;
 }
@@ -761,7 +761,7 @@ void Expr_parser::document_path(Mysqlx::Expr::ColumnIdentifier& colid)
       break;
     }
   }
-  size_t size = colid.document_path_size();
+  int size = colid.document_path_size();
   if (size > 0 && (colid.document_path(size - 1).type() == Mysqlx::Expr::DocumentPathItem::DOUBLE_ASTERISK))
   {
     const Token& tok = _tokenizer.peek_token();

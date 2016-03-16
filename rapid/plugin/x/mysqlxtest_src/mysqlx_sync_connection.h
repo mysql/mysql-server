@@ -66,7 +66,7 @@ public:
 
   boost::system::error_code write(const void *data, const std::size_t data_length);
   boost::system::error_code read(void *data, const std::size_t data_length);
-  boost::system::error_code read_with_timeout(void *data, std::size_t &data_length, const std::size_t deadline_miliseconds);
+  boost::system::error_code read_with_timeout(void *data, std::size_t &data_length, const int deadline_milliseconds);
 
   void close();
 
