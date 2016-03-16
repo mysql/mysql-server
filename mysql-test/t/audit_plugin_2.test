@@ -1705,6 +1705,16 @@ SELECT @@null_audit_event_order_check;
 eval SET @@null_audit_event_order_check_exact = $event_order_exact;
 --replace_result $command_start_id <expected_command_start_id>
 eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="$command_start_id";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;ABORT_RET';
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+SELECT 1;
+SELECT @@null_audit_event_order_check;
+
+--replace_result $event_order_exact <expected_check_exact>
+eval SET @@null_audit_event_order_check_exact = $event_order_exact;
+--replace_result $command_start_id <expected_command_start_id>
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="$command_start_id";;'
                                           'MYSQL_AUDIT_PARSE_PREPARSE;;;'
                                           'MYSQL_AUDIT_PARSE_POSTPARSE;;ABORT_RET';
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
