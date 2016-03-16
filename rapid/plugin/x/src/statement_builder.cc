@@ -16,7 +16,7 @@
  */
 
 #include "statement_builder.h"
-#include "mysqlx_crud.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 #include "xpl_error.h"
 #include <boost/bind.hpp>
 

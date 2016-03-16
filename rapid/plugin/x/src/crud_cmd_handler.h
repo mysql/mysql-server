@@ -24,7 +24,7 @@
 #include "ngs/error_code.h"
 #include "query_string_builder.h"
 
-#include <google/protobuf/repeated_field.h>
+#include "ngs_common/protocol_protobuf.h"
 
 #include <map>
 

@@ -41,8 +41,7 @@
 #include "ngs/log.h"
 
 #undef ERROR // Needed to avoid conflict with ERROR in mysqlx.pb.h
-#include "mysqlx.pb.h"
-#include "mysqlx_connection.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 
 #include "mysql/service_my_snprintf.h"
 
@@ -425,7 +424,7 @@ Request_unique_ptr Client::read_one_message(Error_code &ret_error)
     return Request_unique_ptr();
   }
 
-  m_protocol_monitor.on_receive(nread);
+  m_protocol_monitor.on_receive(static_cast<long>(nread));
 
 #ifdef WORDS_BIGENDIAN
   std::swap(buffer[0], buffer[3]);
@@ -467,7 +466,7 @@ Request_unique_ptr Client::read_one_message(Error_code &ret_error)
       on_network_error(err);
       return Request_unique_ptr();
     }
-    m_protocol_monitor.on_receive(nread);
+    m_protocol_monitor.on_receive(static_cast<long>(nread));
 
     ret_error = m_decoder.parse(*request);
     return boost::move(request);

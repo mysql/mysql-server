@@ -16,7 +16,7 @@
  */
 
 #include "delete_statement_builder.h"
-#include "mysqlx_crud.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 
 
 xpl::Delete_statement_builder::Delete_statement_builder(const Delete &msg, Query_string_builder &qb)

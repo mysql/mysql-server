@@ -111,7 +111,7 @@ public:
 
     for(std::size_t i = 0; i < supported_handlers.size();i ++)
     {
-      ASSERT_EQ(NAMES[i], cap->capabilities(i).name());
+      ASSERT_EQ(NAMES[i], cap->capabilities(static_cast<int>(i)).name());
     }
   }
 

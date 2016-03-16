@@ -31,7 +31,6 @@
 
 #include <vector>
 #include <map>
-
 #include <boost/shared_ptr.hpp>
 #include <boost/ref.hpp>
 #include <boost/function.hpp>

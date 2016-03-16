@@ -43,7 +43,7 @@ ngs::Authentication_handler::Response Sasl_mysql41_auth::handle_start(const std:
   if (m_state == S_starting)
   {
     m_salt.resize(SCRAMBLE_LENGTH);
-    ::generate_user_salt(&m_salt[0], m_salt.size());
+    ::generate_user_salt(&m_salt[0], static_cast<int>(m_salt.size()));
     r.data = m_salt;
     r.status = Ongoing;
     r.error_code = 0;

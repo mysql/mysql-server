@@ -19,7 +19,7 @@
 
 #include "mysqlx_crud.h"
 #include "mysqlx_connection.h"
-#include "mysqlx_datatypes.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 
 #include "mysqlx_parser.h"
 

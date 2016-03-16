@@ -17,15 +17,11 @@
  * 02110-1301  USA
  */
 
-#include <google/protobuf/text_format.h>
+#include "ngs_common/protocol_protobuf.h"
 #include "mysqlx.h"
 #include "mysqlx_crud.h"
 #include "mysqlx_connection.h"
 #include "ngs_common/protocol_const.h"
-
-#include <google/protobuf/dynamic_message.h>
-#include <google/protobuf/io/zero_copy_stream.h>
-#include <google/protobuf/io/tokenizer.h>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/hex.hpp>
@@ -595,7 +591,7 @@ static std::string message_to_bindump(const mysqlx::Message &message)
   message.SerializeToString(&out);
 
   res.resize(5);
-  *(uint32_t*)res.data() = out.size() + 1;
+  *(uint32_t*)res.data() = static_cast<uint32_t>(out.size() + 1);
 
 #ifdef WORDS_BIGENDIAN
   std::swap(res[0], res[3]);

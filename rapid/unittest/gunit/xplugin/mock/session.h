@@ -25,8 +25,6 @@
 #include "xpl_session.h"
 #include "sql_data_context.h"
 
-#include <boost/asio/io_service.hpp>
-
 
 namespace ngs
 {
