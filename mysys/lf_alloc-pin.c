@@ -103,6 +103,12 @@
 #include <my_sys.h>
 #include <lf.h>
 
+/*
+  when using alloca() leave at least that many bytes of the stack -
+  for functions we might be calling from within this stack frame
+*/
+#define ALLOCA_SAFETY_MARGIN 8192
+
 #define LF_PINBOX_MAX_PINS 65536
 
 static void _lf_pinbox_real_free(LF_PINS *pins);
@@ -349,7 +355,8 @@ static void _lf_pinbox_real_free(LF_PINS *pins)
   {
     int alloca_size= sizeof(void *)*LF_PINBOX_PINS*npins;
     /* create a sorted list of pinned addresses, to speed up searches */
-    if (available_stack_size(&pinbox, *pins->stack_ends_here) > alloca_size)
+    if (available_stack_size(&pinbox, *pins->stack_ends_here) >
+        alloca_size + ALLOCA_SAFETY_MARGIN)
     {
       struct st_harvester hv;
       addr= (void **) alloca(alloca_size);
