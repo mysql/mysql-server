@@ -512,7 +512,6 @@ static int is_view(const char *table)
   {
     fprintf(stderr, "Failed to %s\n", query);
     fprintf(stderr, "Error: %s\n", mysql_error(sock));
-    my_free(query);
     DBUG_RETURN(-1);
   }
   res= mysql_store_result(sock);
