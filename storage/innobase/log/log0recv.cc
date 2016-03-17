@@ -840,7 +840,7 @@ extern "C"
 os_thread_ret_t
 DECLARE_THREAD(recv_writer_thread)(
 /*===============================*/
-	void*	arg __attribute__((unused)))
+	void*	arg MY_ATTRIBUTE((unused)))
 			/*!< in: a dummy parameter required by
 			os_thread_create */
 {
@@ -1179,7 +1179,7 @@ recv_log_recover_5_7(lsn_t lsn)
 @param[out]	max_group	log group, or NULL
 @param[out]	max_field	LOG_CHECKPOINT_1 or LOG_CHECKPOINT_2
 @return error code or DB_SUCCESS */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 recv_find_max_checkpoint(
 	log_group_t**	max_group,
@@ -3022,7 +3022,7 @@ hash table to wait merging to file pages.
 @param[in]	apply		whether to apply the records
 @return whether MLOG_CHECKPOINT record was seen the first time,
 or corruption was noticed */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 bool
 recv_parse_log_recs(
 	lsn_t		checkpoint_lsn,
@@ -3878,7 +3878,7 @@ recv_check_missing_spaces(space_set_t& missing)
 
 /** Check if all tablespaces were found for crash recovery.
 @return error code or DB_SUCCESS */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 recv_init_crash_recovery_spaces()
 {

@@ -288,7 +288,7 @@ typedef short int yytype_int16;
 # if (defined __GNUC__                                               \
       && (2 < __GNUC__ || (__GNUC__ == 2 && 96 <= __GNUC_MINOR__)))  \
      || defined __SUNPRO_C && 0x5110 <= __SUNPRO_C
-#  define YY_ATTRIBUTE(Spec) __attribute__(Spec)
+#  define YY_ATTRIBUTE(Spec) MY_ATTRIBUTE(Spec)
 # else
 #  define YY_ATTRIBUTE(Spec) /* empty */
 # endif

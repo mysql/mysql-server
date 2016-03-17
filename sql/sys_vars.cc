@@ -2605,7 +2605,7 @@ static Sys_var_mybool Sys_old_alter_table(
        "old_alter_table", "Use old, non-optimized alter table",
        SESSION_VAR(old_alter_table), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
-static bool old_passwords_check(sys_var *self  __attribute__((unused)),
+static bool old_passwords_check(sys_var *self  MY_ATTRIBUTE((unused)),
                                 THD *thd,
                                 set_var *var)
 {

@@ -184,7 +184,7 @@ static const uchar sort_order_ujis[]=
 
 
 extern "C" {
-static uint ismbchar_ujis(const CHARSET_INFO *cs __attribute__((unused)),
+static uint ismbchar_ujis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 		  const char* p, const char *e)
 {
   return ((*(uchar*)(p)<0x80)? 0:\
@@ -194,7 +194,7 @@ static uint ismbchar_ujis(const CHARSET_INFO *cs __attribute__((unused)),
     0);
 }
 
-static uint mbcharlen_ujis(const CHARSET_INFO *cs __attribute__((unused)),
+static uint mbcharlen_ujis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                            uint c)
 {
   return (isujis(c)? 2: isujis_ss2(c)? 2: isujis_ss3(c)? 3: 1);
@@ -210,7 +210,7 @@ static uint mbcharlen_ujis(const CHARSET_INFO *cs __attribute__((unused)),
 */
 
 static
-size_t my_well_formed_len_ujis(const CHARSET_INFO *cs __attribute__((unused)),
+size_t my_well_formed_len_ujis(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                const char *beg, const char *end,
                                size_t pos, int *error)
 {
@@ -260,7 +260,7 @@ size_t my_well_formed_len_ujis(const CHARSET_INFO *cs __attribute__((unused)),
 
 
 static
-size_t my_numcells_eucjp(const CHARSET_INFO *cs __attribute__((unused)),
+size_t my_numcells_eucjp(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                        const char *str, const char *str_end)
 {
   size_t clen;
@@ -65883,7 +65883,7 @@ static const uint16 unicode_to_jisx0212_eucjp[65536]=
 */
 extern "C" {
 static int
-my_mb_wc_euc_jp(const CHARSET_INFO *cs __attribute__((unused)),
+my_mb_wc_euc_jp(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                 my_wc_t *pwc, const uchar *s, const uchar *e)
 {
   int hi;
@@ -65944,7 +65944,7 @@ my_mb_wc_euc_jp(const CHARSET_INFO *cs __attribute__((unused)),
   @retval   MY_CS_ILUNI    If the Unicode character does not exist in UJIS
 */
 static int
-my_wc_mb_euc_jp(const CHARSET_INFO *cs __attribute__((unused)),
+my_wc_mb_euc_jp(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                 my_wc_t wc, uchar *s, uchar *e)
 {
   int jp;
@@ -67182,7 +67182,7 @@ get_case_info_for_ch(const CHARSET_INFO *cs, uint plane, uint page, uint offs)
 static size_t
 my_casefold_ujis(const CHARSET_INFO *cs,
                  char *src, size_t srclen,
-                 char *dst, size_t dstlen __attribute__((unused)),
+                 char *dst, size_t dstlen MY_ATTRIBUTE((unused)),
                  const uchar *map,
                  size_t is_upper)
 {

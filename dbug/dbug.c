@@ -277,7 +277,7 @@ static char *DbugMalloc(size_t size);
 static const char *BaseName(const char *pathname);
 static void Indent(CODE_STATE *cs, int indent);
 static void DbugFlush(CODE_STATE *);
-static void DbugExit(const char *why) __attribute__((noreturn));
+static void DbugExit(const char *why) MY_ATTRIBUTE((noreturn));
 static const char *DbugStrTok(const char *s);
 static void DbugVfprintf(FILE *stream, const char* format, va_list args);
 

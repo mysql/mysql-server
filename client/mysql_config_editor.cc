@@ -85,7 +85,7 @@ static int add_header(void);
 static void my_perror(const char *msg);
 
 static void verbose_msg(const char *fmt, ...)
-  __attribute__((format(printf, 1, 2)));
+  MY_ATTRIBUTE((format(printf, 1, 2)));
 static void print_version(void);
 static void usage_program(void);
 static void usage_command(int command);
@@ -217,7 +217,7 @@ static struct my_option my_help_command_options[]=
 extern "C" {
 static my_bool
 my_program_get_one_option(int optid,
-                          const struct my_option *opt __attribute__((unused)),
+                          const struct my_option *opt MY_ATTRIBUTE((unused)),
                           char *argument)
 {
   switch(optid) {
@@ -238,7 +238,7 @@ my_program_get_one_option(int optid,
 
 static my_bool
 my_set_command_get_one_option(int optid,
-                              const struct my_option *opt __attribute__((unused)),
+                              const struct my_option *opt MY_ATTRIBUTE((unused)),
                               char *argument)
 {
   switch(optid) {
@@ -265,7 +265,7 @@ my_set_command_get_one_option(int optid,
 
 static my_bool
 my_remove_command_get_one_option(int optid,
-                                 const struct my_option *opt __attribute__((unused)),
+                                 const struct my_option *opt MY_ATTRIBUTE((unused)),
                                  char *argument)
 {
   switch(optid) {
@@ -289,7 +289,7 @@ my_remove_command_get_one_option(int optid,
 
 static my_bool
 my_print_command_get_one_option(int optid,
-                                const struct my_option *opt __attribute__((unused)),
+                                const struct my_option *opt MY_ATTRIBUTE((unused)),
                                 char *argument)
 {
   switch(optid) {
@@ -313,7 +313,7 @@ my_print_command_get_one_option(int optid,
 
 static my_bool
 my_reset_command_get_one_option(int optid,
-                                const struct my_option *opt __attribute__((unused)),
+                                const struct my_option *opt MY_ATTRIBUTE((unused)),
                                 char *argument)
 {
   switch(optid) {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -348,7 +348,7 @@ UNIV_INLINE
 ibool
 rw_lock_s_lock_low(
 	rw_lock_t*	lock,
-	ulint		pass __attribute__((unused)),
+	ulint		pass MY_ATTRIBUTE((unused)),
 	const char*	file_name,
 	ulint		line);
 
@@ -571,7 +571,7 @@ rw_lock_own(
 	rw_lock_t*	lock,		/*!< in: rw-lock */
 	ulint		lock_type)	/*!< in: lock type: RW_LOCK_S,
 					RW_LOCK_X */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /******************************************************************//**
 Checks if the thread has locked the rw-lock in the specified mode, with
@@ -582,7 +582,7 @@ rw_lock_own_flagged(
 	const rw_lock_t*	lock,	/*!< in: rw-lock */
 	rw_lock_flags_t		flags)	/*!< in: specify lock types with
 					OR of the rw_lock_flag_t values */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 #endif /* UNIV_DEBUG */
 /******************************************************************//**
 Checks if somebody has locked the rw-lock in the specified mode.

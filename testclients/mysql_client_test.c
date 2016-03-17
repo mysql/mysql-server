@@ -28,7 +28,7 @@
 #include "mysql/service_my_snprintf.h"
 
 static void mct_log(const char *format, ...)
-  __attribute__((format(printf, 1, 2)));
+  MY_ATTRIBUTE((format(printf, 1, 2)));
 
 /* Query processing */
 

@@ -2256,7 +2256,7 @@ row_import_discard_changes(
 
 /*****************************************************************//**
 Clean up after import tablespace. */
-static	__attribute__((warn_unused_result))
+static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_import_cleanup(
 /*===============*/
@@ -2294,7 +2294,7 @@ row_import_cleanup(
 
 /*****************************************************************//**
 Report error during tablespace import. */
-static	__attribute__((warn_unused_result))
+static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_import_error(
 /*=============*/
@@ -2322,7 +2322,7 @@ row_import_error(
 Adjust the root page index node and leaf node segment headers, update
 with the new space id. For all the table's secondary indexes.
 @return error code */
-static	__attribute__((warn_unused_result))
+static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_import_adjust_root_pages_of_secondary_indexes(
 /*==============================================*/
@@ -2432,7 +2432,7 @@ row_import_adjust_root_pages_of_secondary_indexes(
 /*****************************************************************//**
 Ensure that dict_sys->row_id exceeds SELECT MAX(DB_ROW_ID).
 @return error code */
-static	__attribute__((warn_unused_result))
+static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_import_set_sys_max_row_id(
 /*==========================*/
@@ -2577,7 +2577,7 @@ row_import_cfg_read_string(
 /*********************************************************************//**
 Write the meta data (index user fields) config file.
 @return DB_SUCCESS or error code. */
-static	__attribute__((warn_unused_result))
+static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_import_cfg_read_index_fields(
 /*=============================*/
@@ -2667,7 +2667,7 @@ row_import_cfg_read_index_fields(
 Read the index names and root page numbers of the indexes and set the values.
 Row format [root_page_no, len of str, str ... ]
 @return DB_SUCCESS or error code. */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_import_read_index_data(
 /*=======================*/
@@ -2867,7 +2867,7 @@ row_import_read_indexes(
 /*********************************************************************//**
 Read the meta data (table columns) config file. Deserialise the contents of
 dict_col_t structure, along with the column name. */
-static	__attribute__((warn_unused_result))
+static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_import_read_columns(
 /*====================*/
@@ -3000,7 +3000,7 @@ row_import_read_columns(
 /*****************************************************************//**
 Read the contents of the @<tablespace@>.cfg file.
 @return DB_SUCCESS or error code. */
-static	__attribute__((warn_unused_result))
+static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_import_read_v1(
 /*===============*/
@@ -3169,7 +3169,7 @@ row_import_read_v1(
 @param[in]	thd	session
 @param[in,out]	cfg	meta data
 @return DB_SUCCESS or error code. */
-static	__attribute__((nonnull, warn_unused_result))
+static	MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_import_read_v2(
 	FILE*		file,
@@ -3200,7 +3200,7 @@ row_import_read_v2(
 @param[in]	thd	session
 @param[in,out]	cfg	meta data
 @return DB_SUCCESS or error code. */
-static	__attribute__((nonnull, warn_unused_result))
+static	MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_import_read_common(
 	FILE*		file,
@@ -3226,7 +3226,7 @@ row_import_read_common(
 /**
 Read the contents of the @<tablespace@>.cfg file.
 @return DB_SUCCESS or error code. */
-static	__attribute__((warn_unused_result))
+static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_import_read_meta_data(
 /*======================*/
@@ -3285,7 +3285,7 @@ row_import_read_meta_data(
 /**
 Read the contents of the @<tablename@>.cfg file.
 @return DB_SUCCESS or error code. */
-static	__attribute__((warn_unused_result))
+static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_import_read_cfg(
 /*================*/

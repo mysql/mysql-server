@@ -1106,7 +1106,7 @@ static void intern_plugin_unlock(LEX *lex, plugin_ref plugin)
       could be unlocked faster - optimizing for LIFO semantics.
     */
     plugin_ref *iter= lex->plugins.end() - 1;
-    bool found_it __attribute__((unused)) = false;
+    bool found_it MY_ATTRIBUTE((unused)) = false;
     for (; iter >= lex->plugins.begin() - 1; --iter)
     {
       if (plugin == *iter)
@@ -3693,7 +3693,7 @@ static void plugin_opt_set_limits(struct my_option *options,
 extern "C" my_bool get_one_plugin_option(int optid, const struct my_option *,
                                          char *);
 
-my_bool get_one_plugin_option(int optid __attribute__((unused)),
+my_bool get_one_plugin_option(int optid MY_ATTRIBUTE((unused)),
                               const struct my_option *opt,
                               char *argument)
 {
@@ -4014,7 +4014,7 @@ static my_option *construct_help_options(MEM_ROOT *mem_root,
 
 static my_bool check_if_option_is_deprecated(int optid,
                                              const struct my_option *opt,
-                                             char *argument __attribute__((unused)))
+                                             char *argument MY_ATTRIBUTE((unused)))
 {
   if (optid == -1)
   {
@@ -4058,7 +4058,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
   LEX_STRING plugin_name;
   char *varname;
   int error;
-  sys_var *v __attribute__((unused));
+  sys_var *v MY_ATTRIBUTE((unused));
   st_bookmark *var;
   size_t len;
   uint count= EXTRA_OPTIONS;

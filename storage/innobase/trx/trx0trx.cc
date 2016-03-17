@@ -2991,7 +2991,7 @@ which is in the prepared state
 @return trx on match, the trx->xid will be invalidated;
 note that the trx may have been committed, unless the caller is
 holding lock_sys->mutex */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 trx_t*
 trx_get_trx_by_xid_low(
 /*===================*/

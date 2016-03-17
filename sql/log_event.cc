@@ -17,8 +17,8 @@
 /*
   This include needs to be before my_compiler.h (via my_global.h)
   is included. This is because string conflicts with the define
-  of __attribute__ in my_compiler.h on Sun Studio x86.
-  TODO: Get rid of the __attribute__ define in my_compiler.h
+  of MY_ATTRIBUTE in my_compiler.h on Sun Studio x86.
+  TODO: Get rid of the MY_ATTRIBUTE define in my_compiler.h
 */
 #include <string>
 
@@ -1772,7 +1772,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
 
 void Log_event::print_header(IO_CACHE* file,
                              PRINT_EVENT_INFO* print_event_info,
-                             bool is_more __attribute__((unused)))
+                             bool is_more MY_ATTRIBUTE((unused)))
 {
   char llbuff[22];
   my_off_t hexdump_from= print_event_info->hexdump_from;

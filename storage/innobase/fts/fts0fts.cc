@@ -237,7 +237,7 @@ ulint
 fts_add_doc_by_id(
 	fts_trx_table_t*ftt,
 	doc_id_t	doc_id,
-	ib_vector_t*	fts_indexes __attribute__((unused)));
+	ib_vector_t*	fts_indexes MY_ATTRIBUTE((unused)));
 
 /******************************************************************//**
 Update the last document id. This function could create a new
@@ -1429,7 +1429,7 @@ fts_cache_add_doc(
 /****************************************************************//**
 Drops a table. If the table can't be found we return a SUCCESS code.
 @return DB_SUCCESS or error code */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 fts_drop_table(
 /*===========*/
@@ -1471,7 +1471,7 @@ fts_drop_table(
 /****************************************************************//**
 Rename a single auxiliary table due to database name change.
 @return DB_SUCCESS or error code */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 fts_rename_one_aux_table(
 /*=====================*/
@@ -1575,7 +1575,7 @@ Drops the common ancillary tables needed for supporting an FTS index
 on the given table. row_mysql_lock_data_dictionary must have been called
 before this.
 @return DB_SUCCESS or error code */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 fts_drop_common_tables(
 /*===================*/
@@ -1659,7 +1659,7 @@ Drops FTS ancillary tables needed for supporting an FTS index
 on the given table. row_mysql_lock_data_dictionary must have been called
 before this.
 @return DB_SUCCESS or error code */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 fts_drop_all_index_tables(
 /*======================*/
@@ -2911,7 +2911,7 @@ fts_add(
 /*********************************************************************//**
 Do commit-phase steps necessary for the deletion of a row.
 @return DB_SUCCESS or error code */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 fts_delete(
 /*=======*/
@@ -3006,7 +3006,7 @@ fts_delete(
 /*********************************************************************//**
 Do commit-phase steps necessary for the modification of a row.
 @return DB_SUCCESS or error code */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 fts_modify(
 /*=======*/
@@ -3076,7 +3076,7 @@ fts_create_doc_id(
 The given transaction is about to be committed; do whatever is necessary
 from the FTS system's POV.
 @return DB_SUCCESS or error code */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 fts_commit_table(
 /*=============*/
@@ -3517,7 +3517,7 @@ ulint
 fts_add_doc_by_id(
 	fts_trx_table_t*ftt,
 	doc_id_t	doc_id,
-	ib_vector_t*	fts_indexes __attribute__((unused)))
+	ib_vector_t*	fts_indexes MY_ATTRIBUTE((unused)))
 {
 	mtr_t		mtr;
 	mem_heap_t*	heap;
@@ -3635,7 +3635,7 @@ fts_add_doc_by_id(
 				get_doc, clust_index, doc_pcur, offsets, &doc);
 
 			if (doc.found) {
-				ibool	success __attribute__((unused));
+				ibool	success MY_ATTRIBUTE((unused));
 
 				btr_pcur_store_position(doc_pcur, &mtr);
 				mtr_commit(&mtr);
@@ -3743,7 +3743,7 @@ fts_get_max_doc_id(
 	dict_table_t*	table)		/*!< in: user table */
 {
 	dict_index_t*	index;
-	dict_field_t*	dfield __attribute__((unused)) = NULL;
+	dict_field_t*	dfield MY_ATTRIBUTE((unused)) = NULL;
 	doc_id_t	doc_id = 0;
 	mtr_t		mtr;
 	btr_pcur_t	pcur;
@@ -4006,7 +4006,7 @@ fts_write_node(
 /*********************************************************************//**
 Add rows to the DELETED_CACHE table.
 @return DB_SUCCESS if all went well else error code*/
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 fts_sync_add_deleted_cache(
 /*=======================*/
@@ -4064,7 +4064,7 @@ fts_sync_add_deleted_cache(
 @param[in]	index_cache	index cache
 @param[in]	unlock_cache	whether unlock cache when write node
 @return DB_SUCCESS if all went well else error code */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 fts_sync_write_words(
 	trx_t*			trx,
@@ -4187,7 +4187,7 @@ fts_sync_begin(
 Run SYNC on the table, i.e., write out data from the index specific
 cache to the FTS aux INDEX table and FTS aux doc id stats table.
 @return DB_SUCCESS if all OK */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 fts_sync_index(
 /*===========*/
@@ -4240,7 +4240,7 @@ fts_sync_index_check(
 /*********************************************************************//**
 Commit the SYNC, change state of processed doc ids etc.
 @return DB_SUCCESS if all OK */
-static  __attribute__((warn_unused_result))
+static  MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 fts_sync_commit(
 /*============*/
@@ -6233,7 +6233,7 @@ fts_update_hex_format_flag(
 /*********************************************************************//**
 Rename an aux table to HEX format. It's called when "%016llu" is used
 to format an object id in table name, which only happens in Windows. */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 fts_rename_one_aux_table_to_hex_format(
 /*===================================*/
@@ -6320,7 +6320,7 @@ Note the ids in tables are correct but the names are old ambiguous ones.
 
 This function should make sure that either all the parent table and aux tables
 are set DICT_TF2_FTS_AUX_HEX_NAME with flags2 or none of them are set */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 fts_rename_aux_tables_to_hex_format_low(
 /*====================================*/

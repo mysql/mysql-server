@@ -497,7 +497,7 @@ init_tmptable_sum_functions(Item_sum **func_ptr)
 
 static void
 update_tmptable_sum_func(Item_sum **func_ptr,
-			 TABLE *tmp_table __attribute__((unused)))
+			 TABLE *tmp_table MY_ATTRIBUTE((unused)))
 {
   Item_sum *func;
   while ((func= *(func_ptr++)))
@@ -2290,7 +2290,7 @@ join_read_last_key(QEP_TAB *tab)
 
 	/* ARGSUSED */
 static int
-join_no_more_records(READ_RECORD *info __attribute__((unused)))
+join_no_more_records(READ_RECORD *info MY_ATTRIBUTE((unused)))
 {
   return -1;
 }
@@ -4167,7 +4167,7 @@ setup_copy_fields(THD *thd, Temp_table_param *param,
   Item *pos;
   List_iterator_fast<Item> li(all_fields);
   Copy_field *copy= NULL;
-  Copy_field *copy_start __attribute__((unused));
+  Copy_field *copy_start MY_ATTRIBUTE((unused));
   res_selected_fields.empty();
   res_all_fields.empty();
   List_iterator_fast<Item> itr(res_all_fields);

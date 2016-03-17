@@ -291,8 +291,8 @@ static int add_collation(CHARSET_INFO *cs)
   Be silent by default: no warnings on the client side.
 */
 static void
-default_reporter(enum loglevel level  __attribute__ ((unused)),
-                 const char *format  __attribute__ ((unused)),
+default_reporter(enum loglevel level  MY_ATTRIBUTE ((unused)),
+                 const char *format  MY_ATTRIBUTE ((unused)),
                  ...)
 {
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,9 +41,9 @@
 #define vsnprintf _vsnprintf
 #endif
 
-static void handle_core_signal(int signo) __attribute__((noreturn));
+static void handle_core_signal(int signo) MY_ATTRIBUTE((noreturn));
 static void vemit_tap(int pass, char const *fmt, va_list ap)
-  __attribute__((format(printf, 2, 0)));
+  MY_ATTRIBUTE((format(printf, 2, 0)));
 
 /**
    @defgroup MyTAP_Internal MyTAP Internals

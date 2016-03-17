@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,8 @@
 /*
   This include needs to be before my_compiler.h (via my_global.h)
   is included. This is because string conflicts with the define
-  of __attribute__ in my_compiler.h on Sun Studio x86.
-  TODO: Get rid of the __attribute__ define in my_compiler.h
+  of MY_ATTRIBUTE in my_compiler.h on Sun Studio x86.
+  TODO: Get rid of the MY_ATTRIBUTE define in my_compiler.h
 */
 #include <string>
 

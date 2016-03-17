@@ -1,7 +1,7 @@
 #ifndef SQL_ANALYSE_INCLUDED
 #define SQL_ANALYSE_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -56,11 +56,11 @@ typedef struct st_tree_info
 
 uint check_ulonglong(const char *str, uint length);
 bool test_if_number(NUM_INFO *info, const char *str, uint str_len);
-int compare_double2(const void* cmp_arg __attribute__((unused)),
+int compare_double2(const void* cmp_arg MY_ATTRIBUTE((unused)),
 		    const void *s, const void *t);
-int compare_longlong2(const void* cmp_arg __attribute__((unused)),
+int compare_longlong2(const void* cmp_arg MY_ATTRIBUTE((unused)),
 		      const void *s, const void *t);
-int compare_ulonglong2(const void* cmp_arg __attribute__((unused)),
+int compare_ulonglong2(const void* cmp_arg MY_ATTRIBUTE((unused)),
 		       const void *s, const void *t);
 int compare_decimal2(const void* len, const void *s, const void *t);
 void free_string(String*);
@@ -98,7 +98,7 @@ public:
 int collect_string(String *element, element_count count,
 		   TREE_INFO *info);
 
-int sortcmp2(const void* cmp_arg __attribute__((unused)),
+int sortcmp2(const void* cmp_arg MY_ATTRIBUTE((unused)),
 	     const void *a,const void *b);
 
 class field_str :public field_info
@@ -121,9 +121,9 @@ public:
 
   void	 add();
   void	 get_opt_type(String*, ha_rows);
-  String *get_min_arg(String *not_used __attribute__((unused)))
+  String *get_min_arg(String *not_used MY_ATTRIBUTE((unused)))
   { return &min_arg; }
-  String *get_max_arg(String *not_used __attribute__((unused)))
+  String *get_max_arg(String *not_used MY_ATTRIBUTE((unused)))
   { return &max_arg; }
   String *avg(String *s, ha_rows rows)
   {
@@ -138,8 +138,8 @@ public:
 			    TREE_INFO *info);
   tree_walk_action collect_enum()
   { return (tree_walk_action) collect_string; }
-  String *std(String *s __attribute__((unused)),
-	      ha_rows rows __attribute__((unused)))
+  String *std(String *s MY_ATTRIBUTE((unused)),
+	      ha_rows rows MY_ATTRIBUTE((unused)))
   { return (String*) 0; }
 };
 

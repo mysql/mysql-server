@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ static int close_some_file(TREE *tree);
 static int reopen_closed_file(TREE *tree,struct file_info *file_info);
 static int find_record_with_key(struct file_info *file_info,uchar *record);
 static void printf_log(const char *str,...)
-  __attribute__((format(printf, 1, 2)));
+  MY_ATTRIBUTE((format(printf, 1, 2)));
 static my_bool cmp_filename(struct file_info *file_info,char * name);
 
 static uint verbose=0,update=0,test_info=0,max_files=0,re_open_count=0,
@@ -705,7 +705,7 @@ static int read_string(IO_CACHE *file, uchar* *to, uint length)
 }				/* read_string */
 
 
-static int file_info_compare(const void* cmp_arg __attribute__((unused)),
+static int file_info_compare(const void* cmp_arg MY_ATTRIBUTE((unused)),
 			     const void *a, const void *b)
 {
   long lint;
@@ -719,7 +719,7 @@ static int file_info_compare(const void* cmp_arg __attribute__((unused)),
 	/* ARGSUSED */
 
 static int test_if_open (struct file_info *key,
-			 element_count count __attribute__((unused)),
+			 element_count count MY_ATTRIBUTE((unused)),
 			 struct test_if_open_param *param)
 {
   if (!strcmp(key->name,param->name) && key->id > param->max_id)
@@ -747,7 +747,7 @@ static void fix_blob_pointers(MI_INFO *info, uchar *record)
 	/* ARGSUSED */
 
 static int test_when_accessed (struct file_info *key,
-			       element_count count __attribute__((unused)),
+			       element_count count MY_ATTRIBUTE((unused)),
 			       struct st_access_param *access_param)
 {
   if (key->accessed < access_param->min_accessed && ! key->closed)

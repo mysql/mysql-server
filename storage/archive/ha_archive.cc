@@ -183,8 +183,8 @@ static PSI_memory_info all_archive_memory[]=
 
 static void init_archive_psi_keys(void)
 {
-  const char* category __attribute__((unused)) = "archive";
-  int count __attribute__((unused));
+  const char* category MY_ATTRIBUTE((unused)) = "archive";
+  int count MY_ATTRIBUTE((unused));
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
   count= array_elements(all_archive_mutexes);

@@ -149,7 +149,7 @@ log_init(void);
 /******************************************************************//**
 Inits a log group to the log system.
 @return true if success, false if not */
-__attribute__((warn_unused_result))
+MY_ATTRIBUTE((warn_unused_result))
 bool
 log_group_init(
 /*===========*/

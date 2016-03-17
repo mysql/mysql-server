@@ -97,7 +97,7 @@ os_thread_create_func(
 /** Exits the current thread. */
 void
 os_thread_exit()
-	UNIV_COLD __attribute__((noreturn));
+	UNIV_COLD MY_ATTRIBUTE((noreturn));
 
 /*****************************************************************//**
 Advises the os to give up remainder of the thread's time slice. */

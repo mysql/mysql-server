@@ -349,7 +349,7 @@ dict_create_sys_virtual_tuple(
 /***************************************************************//**
 Builds a table definition to insert.
 @return DB_SUCCESS or error code */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 dict_build_table_def_step(
 /*======================*/
@@ -847,7 +847,7 @@ dict_create_search_tuple(
 /***************************************************************//**
 Builds an index definition row to insert.
 @return DB_SUCCESS or error code */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 dict_build_index_def_step(
 /*======================*/
@@ -964,7 +964,7 @@ dict_build_field_def_step(
 /***************************************************************//**
 Creates an index tree for the index if it is not a member of a cluster.
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 dict_create_index_tree_step(
 /*========================*/
@@ -1823,7 +1823,7 @@ dict_create_or_check_sys_virtual()
 /****************************************************************//**
 Evaluate the given foreign key SQL statement.
 @return error code or DB_SUCCESS */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 dict_foreign_eval_sql(
 /*==================*/
@@ -1888,7 +1888,7 @@ dict_foreign_eval_sql(
 Add a single foreign key field definition to the data dictionary tables in
 the database.
 @return error code or DB_SUCCESS */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 dict_create_add_foreign_field_to_dictionary(
 /*========================================*/

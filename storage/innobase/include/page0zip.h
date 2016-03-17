@@ -99,7 +99,7 @@ page_zip_rec_needs_ext(
 	ulint			comp,
 	ulint			n_fields,
 	const page_size_t&	page_size)
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /**********************************************************************//**
 Determine the guaranteed free space on an empty page.
@@ -109,7 +109,7 @@ page_zip_empty_size(
 /*================*/
 	ulint	n_fields,	/*!< in: number of columns in the index */
 	ulint	zip_size)	/*!< in: compressed page size in bytes */
-	__attribute__((const));
+	MY_ATTRIBUTE((const));
 #endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************************//**
@@ -209,7 +209,7 @@ page_zip_max_ins_size(
 /*==================*/
 	const page_zip_des_t*	page_zip,/*!< in: compressed page */
 	ibool			is_clust)/*!< in: TRUE if clustered index */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /**********************************************************************//**
 Determine if enough space is available in the modification log.
@@ -223,7 +223,7 @@ page_zip_available(
 	ulint			length,	/*!< in: combined size of the record */
 	ulint			create)	/*!< in: nonzero=add the record to
 					the heap */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Write data to the uncompressed header portion of a page. The data must
 already have been written to the uncompressed page.

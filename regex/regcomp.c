@@ -1258,8 +1258,8 @@ char *cp;
  */
 static void
 mcinvert(p, cs)
-  struct parse *p __attribute__((unused));
-  cset *cs __attribute__((unused));
+  struct parse *p MY_ATTRIBUTE((unused));
+  cset *cs MY_ATTRIBUTE((unused));
 {
 	assert(cs->multis == NULL);	/* xxx */
 }
@@ -1273,8 +1273,8 @@ mcinvert(p, cs)
  */
 static void
 mccase(p, cs)
-struct parse *p __attribute__((unused));
-cset *cs __attribute__((unused));
+struct parse *p MY_ATTRIBUTE((unused));
+cset *cs MY_ATTRIBUTE((unused));
 {
 	assert(cs->multis == NULL);	/* xxx */
 }

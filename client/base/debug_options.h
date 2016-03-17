@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@ public:
 
 private:
 
-  void debug_option_callback(char *argument __attribute__((unused)));
+  void debug_option_callback(char *argument MY_ATTRIBUTE((unused)));
 
   Abstract_program* m_program;
   bool m_debug_info_flag;

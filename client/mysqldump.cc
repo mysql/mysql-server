@@ -598,7 +598,7 @@ static int dump_tablespaces(char* ts_where);
 static void print_comment(FILE *sql_file, my_bool is_error, const char *format,
                           ...);
 static void verbose_msg(const char *fmt, ...)
-  __attribute__((format(printf,1,2)));
+  MY_ATTRIBUTE((format(printf,1,2)));
 
 
 /*
@@ -4462,7 +4462,7 @@ RETURN VALUES
   0        Success.
   1        Failure.
 */
-int init_dumping_views(char *qdatabase __attribute__((unused)))
+int init_dumping_views(char *qdatabase MY_ATTRIBUTE((unused)))
 {
     return 0;
 } /* init_dumping_views */

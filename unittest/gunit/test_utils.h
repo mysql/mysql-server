@@ -44,7 +44,7 @@ inline int native_compare(size_t *length, unsigned char **a, unsigned char **b)
   return memcmp(*a, *b, *length);
 }
 
-inline qsort2_cmp get_ptr_compare(size_t size __attribute__((unused)))
+inline qsort2_cmp get_ptr_compare(size_t size MY_ATTRIBUTE((unused)))
 {
   return (qsort2_cmp) native_compare;
 }

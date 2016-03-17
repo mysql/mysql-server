@@ -1827,7 +1827,7 @@ terminate_slave_thread(THD *thd,
       ESRCH: thread already killed (can happen, should be ignored)
     */
 #ifndef _WIN32
-    int err __attribute__((unused))= pthread_kill(thd->real_id, SIGUSR1);
+    int err MY_ATTRIBUTE((unused))= pthread_kill(thd->real_id, SIGUSR1);
     DBUG_ASSERT(err != EINVAL);
 #endif
     thd->awake(THD::NOT_KILLED);

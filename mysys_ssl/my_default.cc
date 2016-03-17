@@ -1294,7 +1294,7 @@ static int add_directory(MEM_ROOT *alloc, const char *dir, const char **dirs)
   char buf[FN_REFLEN];
   size_t len;
   char *p;
-  my_bool err __attribute__((unused));
+  my_bool err MY_ATTRIBUTE((unused));
 
   len= normalize_dirname(buf, dir);
   if (!(p= strmake_root(alloc, buf, len)))

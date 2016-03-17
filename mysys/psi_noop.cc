@@ -39,7 +39,7 @@
 
 C_MODE_START
 
-#define NNN __attribute__((unused))
+#define NNN MY_ATTRIBUTE((unused))
 
 // ===========================================================================
 
@@ -143,9 +143,9 @@ static void delete_thread_noop(PSI_thread *thread NNN)
 }
 
 static int
-set_thread_connect_attrs_noop(const char *buffer __attribute__((unused)),
-                             uint length  __attribute__((unused)),
-                             const void *from_cs __attribute__((unused)))
+set_thread_connect_attrs_noop(const char *buffer MY_ATTRIBUTE((unused)),
+                             uint length  MY_ATTRIBUTE((unused)),
+                             const void *from_cs MY_ATTRIBUTE((unused)))
 {
   return 0;
 }

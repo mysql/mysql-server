@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -126,7 +126,7 @@ void plan(int const count);
 */
 
 void ok(int const pass, char const *fmt, ...)
-  __attribute__((format(printf,2,3)));
+  MY_ATTRIBUTE((format(printf,2,3)));
 
 
 /**
@@ -169,7 +169,7 @@ void ok1(int const pass);
  */
 
 void skip(int how_many, char const *reason, ...)
-    __attribute__((format(printf,2,3)));
+    MY_ATTRIBUTE((format(printf,2,3)));
 
 
 /**
@@ -218,7 +218,7 @@ void skip(int how_many, char const *reason, ...)
  */
 
 void diag(char const *fmt, ...)
-  __attribute__((format(printf,1,2)));
+  MY_ATTRIBUTE((format(printf,1,2)));
 
 
 /**
@@ -240,7 +240,7 @@ void diag(char const *fmt, ...)
 */
 
 void BAIL_OUT(char const *fmt, ...)
-  __attribute__((noreturn, format(printf,1,2)));
+  MY_ATTRIBUTE((noreturn, format(printf,1,2)));
 
 
 /**
@@ -271,7 +271,7 @@ int exit_status(void);
  */
 
 void skip_all(char const *reason, ...)
-  __attribute__((noreturn, format(printf, 1, 2)));
+  MY_ATTRIBUTE((noreturn, format(printf, 1, 2)));
 
 
 /**
@@ -296,7 +296,7 @@ void skip_all(char const *reason, ...)
 */
 
 void todo_start(char const *message, ...)
-  __attribute__((format(printf, 1, 2)));
+  MY_ATTRIBUTE((format(printf, 1, 2)));
 
 
 /**

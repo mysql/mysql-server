@@ -39,11 +39,11 @@ public:
 
   // Fix "inherits ... via dominance" warnings
   virtual const Object_table_definition *table_definition(
-                  uint version __attribute__((unused))) const
+                  uint version MY_ATTRIBUTE((unused))) const
   { return Object_table_impl::table_definition(version); }
 
   virtual const Object_table_definition *table_definition(
-                  THD *thd __attribute__((unused))) const
+                  THD *thd MY_ATTRIBUTE((unused))) const
   { return Object_table_impl::table_definition(thd); }
 
   virtual bool populate(THD *thd) const

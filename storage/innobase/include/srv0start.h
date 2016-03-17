@@ -112,7 +112,7 @@ srv_path_copy(
 	ulint		dest_len,	/*!< in: max bytes to copy */
 	const char*	basedir,	/*!< in: base directory */
 	const char*	table_name)	/*!< in: source table name */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Get the meta-data filename from the table name for a
 single-table tablespace.
@@ -182,6 +182,6 @@ extern	enum srv_shutdown_t	srv_shutdown_state;
 /** Call exit(3) */
 void
 srv_fatal_error()
-	__attribute__((noreturn));
+	MY_ATTRIBUTE((noreturn));
 
 #endif

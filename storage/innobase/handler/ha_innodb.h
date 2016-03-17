@@ -601,7 +601,7 @@ innobase_index_name_is_reserved(
 						created */
 	ulint			num_of_keys)	/*!< in: Number of indexes to
 						be created. */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 extern const char reserved_file_per_table_space_name[];
 
@@ -839,7 +839,7 @@ innobase_fts_load_stopword(
 	dict_table_t*	table,		/*!< in: Table has the FTS */
 	trx_t*		trx,		/*!< in: transaction */
 	THD*		thd)		/*!< in: current thread */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Some defines for innobase_fts_check_doc_id_index() return value */
 enum fts_doc_id_index_enum {
@@ -859,7 +859,7 @@ innobase_fts_check_doc_id_index(
 						that is being altered */
 	ulint*			fts_doc_col_no)	/*!< out: The column number for
 						Doc ID */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /**
 Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
@@ -870,7 +870,7 @@ fts_doc_id_index_enum
 innobase_fts_check_doc_id_index_in_def(
 	ulint		n_key,		/*!< in: Number of keys */
 	const KEY*	key_info)	/*!< in: Key definitions */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /**
 Copy table flags from MySQL's TABLE_SHARE into an InnoDB table object.

@@ -34,7 +34,7 @@ typedef struct ib_sdi_key	ib_sdi_key_t;
 typedef struct ib_sdi_vector	ib_sdi_vector_t;
 
 #if defined(__GNUC__)
-#define UNIV_NO_IGNORE		__attribute__ ((warn_unused_result))
+#define UNIV_NO_IGNORE		MY_ATTRIBUTE ((warn_unused_result))
 #else
 #define UNIV_NO_IGNORE
 #endif /* __GNUC__ */

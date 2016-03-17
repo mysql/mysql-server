@@ -3714,8 +3714,8 @@ Item *Item_null::safe_charset_converter(const CHARSET_INFO *tocs)
 
 static void
 default_set_param_func(Item_param *param,
-                       uchar **pos __attribute__((unused)),
-                       ulong len __attribute__((unused)))
+                       uchar **pos MY_ATTRIBUTE((unused)),
+                       ulong len MY_ATTRIBUTE((unused)))
 {
   param->set_null();
 }
@@ -5984,7 +5984,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
   {
     TABLE *table= field->table;
     MY_BITMAP *current_bitmap;
-    MY_BITMAP *other_bitmap __attribute__((unused));
+    MY_BITMAP *other_bitmap MY_ATTRIBUTE((unused));
     if (thd->mark_used_columns == MARK_COLUMNS_READ)
     {
       current_bitmap= table->read_set;

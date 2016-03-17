@@ -99,7 +99,7 @@ public:
 	/** Checks if a page is corrupt.
 	@retval	true	if page is corrupt
 	@retval	false	if page is not corrupt */
-	bool __attribute__((warn_unused_result))
+	bool MY_ATTRIBUTE((warn_unused_result))
 	is_corrupted() const;
 
 	/** Print message if page is empty.

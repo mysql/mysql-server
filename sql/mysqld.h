@@ -659,7 +659,7 @@ typedef int64 query_id_t;
 extern std::atomic<query_id_t> atomic_global_query_id;
 
 /* increment query_id and return it.  */
-inline __attribute__((warn_unused_result)) query_id_t next_query_id()
+inline MY_ATTRIBUTE((warn_unused_result)) query_id_t next_query_id()
 {
   return ++atomic_global_query_id;
 }
@@ -667,7 +667,7 @@ inline __attribute__((warn_unused_result)) query_id_t next_query_id()
 #define ER(X) please_use_ER_THD_or_ER_DEFAULT_instead(X)
 
 /* Accessor function for _connection_events_loop_aborted flag */
-inline __attribute__((warn_unused_result))
+inline MY_ATTRIBUTE((warn_unused_result))
 bool connection_events_loop_aborted()
 {
   return my_atomic_load32(&connection_events_loop_aborted_flag);

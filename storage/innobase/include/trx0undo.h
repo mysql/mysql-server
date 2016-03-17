@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -79,7 +79,7 @@ bool
 trx_undo_trx_id_is_insert(
 /*======================*/
 	const byte*	trx_id)	/*!< in: DB_TRX_ID, followed by DB_ROLL_PTR */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 
 /** Writes a roll ptr to an index page. In case that the size changes in
@@ -234,7 +234,7 @@ trx_undo_add_page(
 					a latch to any undo log page;
 					the caller must have reserved
 					the rollback segment mutex */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /********************************************************************//**
 Frees the last undo log page.
 The caller must hold the rollback segment mutex. */
@@ -313,7 +313,7 @@ trx_undo_assign_undo(
 					referred rollback segment. */
 	ulint		type)		/*!< in: TRX_UNDO_INSERT or
 					TRX_UNDO_UPDATE */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /******************************************************************//**
 Sets the state of the undo log segment at a transaction finish.
 @return undo log segment header page, x-latched */

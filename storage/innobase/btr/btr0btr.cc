@@ -441,7 +441,7 @@ that the caller has made the reservation for free extents!
 @retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
 (init_mtr == mtr, or the page was not previously freed in mtr)
 @retval block (not allocated or initialized) otherwise */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 buf_block_t*
 btr_page_alloc_low(
 /*===============*/
@@ -931,7 +931,7 @@ btr_free_root_invalidate(
 @param[in,out]	mtr		mini-transaction
 @return root block, to invoke btr_free_but_not_root() and btr_free_root()
 @retval NULL if the page is no longer a matching B-tree page */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 buf_block_t*
 btr_free_root_check(
 	const page_id_t&	page_id,
@@ -2103,7 +2103,7 @@ func_exit:
 Returns TRUE if the insert fits on the appropriate half-page with the
 chosen split_rec.
 @return true if fits */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 bool
 btr_page_insert_fits(
 /*=================*/
@@ -2434,7 +2434,7 @@ btr_attach_half_pages(
 /*************************************************************//**
 Determine if a tuple is smaller than any record on the page.
 @return TRUE if smaller */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 bool
 btr_page_tuple_smaller(
 /*===================*/

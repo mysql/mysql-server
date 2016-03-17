@@ -43,7 +43,7 @@ st_keycache_thread_var main_thread_keycache_var;
 /* Key used by myisamchk */
 thread_local_key_t keycache_tls_key;
 
-static int always_valid(const char *filename __attribute__((unused)))
+static int always_valid(const char *filename MY_ATTRIBUTE((unused)))
 {
   return 0;
 }
@@ -178,8 +178,8 @@ static PSI_memory_info all_myisam_memory[]=
 #ifdef HAVE_PSI_INTERFACE
 void init_myisam_psi_keys()
 {
-  const char* category __attribute__((unused)) = "myisam";
-  int count __attribute__((unused));
+  const char* category MY_ATTRIBUTE((unused)) = "myisam";
+  int count MY_ATTRIBUTE((unused));
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
   count= array_elements(all_myisam_mutexes);

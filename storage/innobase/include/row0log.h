@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -55,7 +55,7 @@ row_log_allocate(
 	const ulint*	col_map,/*!< in: mapping of old column
 				numbers to new ones, or NULL if !table */
 	const char*	path)	/*!< in: where to create temporary file */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /******************************************************//**
 Free the row log for an index that was being created online. */
@@ -85,7 +85,7 @@ row_log_online_op_try(
 	const dtuple_t* tuple,	/*!< in: index tuple */
 	trx_id_t	trx_id)	/*!< in: transaction ID for insert,
 				or 0 for delete */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /******************************************************//**
 Logs an operation to a secondary index that is (or was) being created. */
 void
@@ -105,7 +105,7 @@ row_log_table_get_error(
 /*====================*/
 	const dict_index_t*	index)	/*!< in: clustered index of a table
 					that is being rebuilt online */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /******************************************************//**
 Logs a delete operation to a table that is being rebuilt.
@@ -159,7 +159,7 @@ row_log_table_get_pk(
 	byte*		sys,	/*!< out: DB_TRX_ID,DB_ROLL_PTR for
 				row_log_table_delete(), or NULL */
 	mem_heap_t**	heap)	/*!< in/out: memory heap where allocated */
-	UNIV_COLD __attribute__((warn_unused_result));
+	UNIV_COLD MY_ATTRIBUTE((warn_unused_result));
 
 /******************************************************//**
 Logs an insert to a table that is being rebuilt.
@@ -205,7 +205,7 @@ row_log_table_apply(
 	dict_table_t*		old_table,
 	struct TABLE*		table,
 	ut_stage_alter_t*	stage)
-__attribute__((warn_unused_result));
+MY_ATTRIBUTE((warn_unused_result));
 
 /******************************************************//**
 Get the latest transaction ID that has invoked row_log_online_op()
@@ -215,7 +215,7 @@ trx_id_t
 row_log_get_max_trx(
 /*================*/
 	dict_index_t*	index)	/*!< in: index, must be locked */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Apply the row log to the index upon completing index creation.
 @param[in]	trx	transaction (for checking if the operation was
@@ -232,7 +232,7 @@ row_log_apply(
 	dict_index_t*		index,
 	struct TABLE*		table,
 	ut_stage_alter_t*	stage)
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
 /** Estimate how much work is to be done by the log apply phase

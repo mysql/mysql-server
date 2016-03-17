@@ -118,7 +118,7 @@ btr_search_fold_index_id(
 @param[in]	n_fields	number of complete fields
 @param[in]	n_bytes		number of bytes in an incomplete last field
 @return	number of complete or incomplete fields */
-inline __attribute__((warn_unused_result))
+inline MY_ATTRIBUTE((warn_unused_result))
 ulint
 btr_search_get_n_fields(
 	ulint	n_fields,
@@ -130,7 +130,7 @@ btr_search_get_n_fields(
 /** Determine the number of accessed key fields.
 @param[in]	cursor		b-tree cursor
 @return	number of complete or incomplete fields */
-inline __attribute__((warn_unused_result))
+inline MY_ATTRIBUTE((warn_unused_result))
 ulint
 btr_search_get_n_fields(
 	const btr_cur_t*	cursor)

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -238,7 +238,7 @@ ibool
 ibuf_inside(
 /*========*/
 	const mtr_t*	mtr)	/*!< in: mini-transaction */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Checks if a page address is an ibuf bitmap page (level 3 page) address.
 @param[in]	page_id		page id
@@ -272,7 +272,7 @@ ibuf_page_low(
 	const char*		file,
 	ulint			line,
 	mtr_t*			mtr)
-__attribute__((warn_unused_result));
+MY_ATTRIBUTE((warn_unused_result));
 
 #ifdef UNIV_DEBUG
 
@@ -422,7 +422,7 @@ ibuf_check_bitmap_on_import(
 /*========================*/
 	const trx_t*	trx,		/*!< in: transaction */
 	ulint		space_id)	/*!< in: tablespace identifier */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Updates free bits and buffered bits for bulk loaded page.
 @param[in]      block   index page

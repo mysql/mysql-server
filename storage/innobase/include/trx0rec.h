@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -179,7 +179,7 @@ trx_undo_rec_get_partial_row(
 				only in the assertion. */
 	mem_heap_t*	heap)	/*!< in: memory heap from which the memory
 				needed is allocated */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /***********************************************************************//**
 Writes information to an undo log about an insert, update, or a delete marking
 of a clustered index record. This information is used in a rollback of the
@@ -210,7 +210,7 @@ trx_undo_report_row_operation(
 					inserted undo log record,
 					0 if BTR_NO_UNDO_LOG
 					flag was specified */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** status bit used for trx_undo_prev_version_build() */
 

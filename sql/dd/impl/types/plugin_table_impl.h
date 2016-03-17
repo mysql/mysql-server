@@ -30,7 +30,7 @@ protected:
 
 public:
   virtual const Object_table_definition *table_definition(
-                  uint version __attribute__((unused))) const
+                  uint version MY_ATTRIBUTE((unused))) const
   {
     // Upgrade/downgrade not supported yet.
     if (m_target_def.dd_version() != version)
@@ -42,7 +42,7 @@ public:
   }
 
   virtual const Object_table_definition *table_definition(
-                  THD *thd __attribute__((unused))) const
+                  THD *thd MY_ATTRIBUTE((unused))) const
   {
     // Upgrade/downgrade not supported yet.
     if (m_target_def.dd_version() != default_dd_version(thd))

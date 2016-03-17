@@ -1007,7 +1007,7 @@ struct System_status_var* get_thd_status_var(THD *thd)
 C_MODE_START
 
 static void option_error_reporter(enum loglevel level, const char *format, ...)
-  __attribute__((format(printf, 2, 3)));
+  MY_ATTRIBUTE((format(printf, 2, 3)));
 
 static void option_error_reporter(enum loglevel level, const char *format, ...)
 {
@@ -1037,7 +1037,7 @@ static void option_error_reporter(enum loglevel level, const char *format, ...)
 */
 static void charset_error_reporter(enum loglevel level,
                                    const char *format, ...)
-  __attribute__((format(printf, 2, 3)));
+  MY_ATTRIBUTE((format(printf, 2, 3)));
 
 static void charset_error_reporter(enum loglevel level,
                                    const char *format, ...)
@@ -1125,7 +1125,7 @@ static bool pid_file_created= false;
 static void usage(void);
 static void clean_up_mutexes(void);
 static void create_pid_file();
-static void mysqld_exit(int exit_code) __attribute__((noreturn));
+static void mysqld_exit(int exit_code) MY_ATTRIBUTE((noreturn));
 static void delete_pid_file(myf flags);
 #ifdef HAVE_PSI_INTERFACE
 static void init_server_psi_keys();
@@ -2241,7 +2241,7 @@ void my_init_signals()
 #else // !_WIN32
 
 extern "C" {
-static void empty_signal_handler(int sig __attribute__((unused)))
+static void empty_signal_handler(int sig MY_ATTRIBUTE((unused)))
 { }
 }
 
@@ -2367,7 +2367,7 @@ static void start_signal_handler()
 
 /** This thread handles SIGTERM, SIGQUIT and SIGHUP signals. */
 /* ARGSUSED */
-extern "C" void *signal_hand(void *arg __attribute__((unused)))
+extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused)))
 {
   my_thread_init();
 
@@ -7491,7 +7491,7 @@ static int mysql_init_variables(void)
 
 my_bool
 mysqld_get_one_option(int optid,
-                      const struct my_option *opt __attribute__((unused)),
+                      const struct my_option *opt MY_ATTRIBUTE((unused)),
                       char *argument)
 {
   switch(optid) {

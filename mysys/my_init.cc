@@ -565,8 +565,8 @@ static PSI_thread_info all_mysys_thread[]=
 #ifdef HAVE_PSI_INTERFACE
 void my_init_mysys_psi_keys()
 {
-  const char* category __attribute__((unused)) = "mysys";
-  int count __attribute__((unused));
+  const char* category MY_ATTRIBUTE((unused)) = "mysys";
+  int count MY_ATTRIBUTE((unused));
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
   count= sizeof(all_mysys_mutexes)/sizeof(all_mysys_mutexes[0]);

@@ -1028,7 +1028,7 @@ static bool fill_columns_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
   // Iterate through all the columns.
   std::unique_ptr<dd::Column_const_iterator> it(tab_obj->user_columns());
   const dd::Column *col_obj;
-  uchar *null_flags __attribute__((unused));
+  uchar *null_flags MY_ATTRIBUTE((unused));
   uchar *null_pos, *rec_pos;
   null_flags= null_pos= share->default_values;
   rec_pos= share->default_values + share->null_bytes;

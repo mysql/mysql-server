@@ -1072,8 +1072,8 @@ static void print_version(void)
 
 
 static my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__ ((unused)),
-	       char *argument __attribute__ ((unused)))
+get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE ((unused)),
+	       char *argument MY_ATTRIBUTE ((unused)))
 {
   DBUG_ENTER("get_one_option");
   switch (optid) {

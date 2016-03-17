@@ -946,7 +946,7 @@ Mts_submode_logical_clock::get_free_worker(Relay_log_info *rli)
 int
 Mts_submode_logical_clock::
    wait_for_workers_to_finish(Relay_log_info *rli,
-                              __attribute__((unused)) Slave_worker * ignore)
+                              MY_ATTRIBUTE((unused)) Slave_worker * ignore)
 {
   PSI_stage_info *old_stage= 0;
   THD *thd= rli->info_thd;

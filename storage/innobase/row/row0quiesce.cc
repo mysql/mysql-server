@@ -41,7 +41,7 @@ Created 2012-02-08 by Sunny Bains.
 /*********************************************************************//**
 Write the meta data (index user fields) config file.
 @return DB_SUCCESS or error code. */
-static	__attribute__((warn_unused_result))
+static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_quiesce_write_index_fields(
 /*===========================*/
@@ -102,7 +102,7 @@ row_quiesce_write_index_fields(
 @param[in,out]	file	file to write to
 @param[in,out]	thd	session
 @return DB_SUCCESS or error code. */
-static	__attribute__((warn_unused_result))
+static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_quiesce_write_one_index(
 	const dict_index_t*	index,
@@ -184,7 +184,7 @@ row_quiesce_write_one_index(
 /*********************************************************************//**
 Write the meta data config file index information.
 @return DB_SUCCESS or error code. */
-static	__attribute__((nonnull, warn_unused_result))
+static	MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_quiesce_write_indexes(
 /*======================*/
@@ -259,7 +259,7 @@ Write the meta data (table columns) config file. Serialise the contents of
 dict_col_t structure, along with the column name. All fields are serialized
 as ib_uint32_t.
 @return DB_SUCCESS or error code. */
-static	__attribute__((warn_unused_result))
+static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_quiesce_write_table(
 /*====================*/
@@ -342,7 +342,7 @@ row_quiesce_write_table(
 /*********************************************************************//**
 Write the meta data config file header.
 @return DB_SUCCESS or error code. */
-static	__attribute__((warn_unused_result))
+static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_quiesce_write_header(
 /*=====================*/
@@ -478,7 +478,7 @@ row_quiesce_write_header(
 /*********************************************************************//**
 Write the table meta data after quiesce.
 @return DB_SUCCESS or error code */
-static	__attribute__((warn_unused_result))
+static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_quiesce_write_cfg(
 /*==================*/
@@ -543,7 +543,7 @@ row_quiesce_write_cfg(
 @param[in]	file		file to write to
 @param[in]	thd		session
 @return DB_SUCCESS or error code. */
-static	__attribute__((nonnull, warn_unused_result))
+static	MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_quiesce_write_transfer_key(
 	const dict_table_t*	table,
@@ -652,7 +652,7 @@ row_quiesce_write_transfer_key(
 @param[in]	table		write the data for this table
 @param[in]	thd		session
 @return DB_SUCCESS or error code */
-static	__attribute__((nonnull, warn_unused_result))
+static	MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_quiesce_write_cfp(
 	dict_table_t*	table,

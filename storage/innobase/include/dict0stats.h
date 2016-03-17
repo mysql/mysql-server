@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2009, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -74,7 +74,7 @@ ibool
 dict_stats_is_persistent_enabled(
 /*=============================*/
 	const dict_table_t*	table)	/*!< in: table */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Set the auto recalc flag for a given table (only honored for a persistent
 stats enabled table). The flag is set only in the in-memory table object and is
@@ -188,7 +188,7 @@ dict_stats_rename_index(
 						is renamed */
 	const char*		old_index_name,	/*!< in: old index name */
 	const char*		new_index_name)	/*!< in: new index name */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 #ifndef UNIV_NONINL
 #include "dict0stats.ic"

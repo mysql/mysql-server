@@ -310,7 +310,7 @@ int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
 
 my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
 			my_off_t seek_offset,
-			pbool use_async_io __attribute__((unused)),
+			pbool use_async_io MY_ATTRIBUTE((unused)),
 			pbool clear_cache)
 {
   DBUG_ENTER("reinit_io_cache");
@@ -1103,7 +1103,7 @@ static void copy_to_read_buffer(IO_CACHE *write_cache,
   while (write_length)
   {
     size_t copy_length= MY_MIN(write_length, write_cache->buffer_length);
-    int  __attribute__((unused)) rc;
+    int  MY_ATTRIBUTE((unused)) rc;
 
     rc= lock_io_cache(write_cache, write_cache->pos_in_file);
     /* The writing thread does always have the lock when it awakes. */
@@ -1649,7 +1649,7 @@ int end_io_cache(IO_CACHE *info)
 
 #include <my_dir.h>
 
-void die(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
+void die(const char* fmt, ...) MY_ATTRIBUTE((format(printf, 1, 2)));
 
 void die(const char* fmt, ...)
 {
