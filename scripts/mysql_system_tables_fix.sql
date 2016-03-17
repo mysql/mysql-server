@@ -123,7 +123,7 @@ ALTER TABLE tables_priv
   MODIFY Db char(64) NOT NULL default '',
   MODIFY User char(32) NOT NULL default '',
   MODIFY Table_name char(64) NOT NULL default '',
-  MODIFY Grantor char(93) NOT NULL default '',
+  MODIFY Grantor char(77) NOT NULL default '',
   ENGINE=MyISAM,
   CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
 
@@ -418,8 +418,6 @@ ALTER TABLE procs_priv
 ALTER TABLE procs_priv
   MODIFY Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER Proc_priv;
 
-ALTER TABLE procs_priv
-  MODIFY Grantor char(93) DEFAULT '' NOT NULL;
 #
 # proc
 #
@@ -477,7 +475,7 @@ ALTER TABLE proc CONVERT TO CHARACTER SET utf8;
 ALTER TABLE proc  MODIFY db
                          char(64) collate utf8_bin DEFAULT '' NOT NULL,
                   MODIFY definer
-                         char(93) collate utf8_bin DEFAULT '' NOT NULL,
+                         char(77) collate utf8_bin DEFAULT '' NOT NULL,
                   MODIFY comment
                          text collate utf8_bin DEFAULT '' NOT NULL;
 
@@ -621,7 +619,6 @@ ALTER TABLE event ADD body_utf8 longblob DEFAULT NULL
                       AFTER db_collation;
 ALTER TABLE event MODIFY body_utf8 longblob DEFAULT NULL;
 
-ALTER TABLE event MODIFY definer char(93) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '';
 
 #
 # TRIGGER privilege
