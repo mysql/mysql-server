@@ -2600,6 +2600,7 @@ private:
   // MT LQH
   Uint32 c_fragments_per_node_;
   Uint32 getFragmentsPerNode();
+  Uint32 getFragmentCount(Uint32 fragmentCountType, Uint32 extraNodeGroups);
   /**
    * dihGetInstanceKey
    *

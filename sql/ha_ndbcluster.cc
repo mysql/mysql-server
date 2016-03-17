@@ -9049,18 +9049,18 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
  */
 struct NDB_Modifier
 {
-  enum { M_BOOL } m_type;
+  enum { M_BOOL, M_STRING } m_type;
   const char * m_name;
   size_t m_name_len;
   bool m_found;
   union {
     bool m_val_bool;
-#ifdef TODO__
-    int m_val_int;
     struct {
       const char * str;
       size_t len;
     } m_val_str;
+#ifdef TODO__
+    int m_val_int;
 #endif
   };
 };
@@ -9069,6 +9069,7 @@ static const
 struct NDB_Modifier ndb_table_modifiers[] =
 {
   { NDB_Modifier::M_BOOL, STRING_WITH_LEN("NOLOGGING"), 0, {0} },
+  { NDB_Modifier::M_STRING, STRING_WITH_LEN("FRAGMENT_COUNT_TYPE"), 0, {0} },
   { NDB_Modifier::M_BOOL, 0, 0, 0, {0} }
 };
 
@@ -9100,6 +9101,11 @@ public:
    * Get modifier...returns NULL if unknown
    */
   const NDB_Modifier * get(const char * name) const;
+
+  /**
+   * return a modifier which has m_found == false
+   */
+  const NDB_Modifier * notfound() const;
 private:
   uint m_len;
   struct NDB_Modifier * m_modifiers;
@@ -9119,8 +9125,8 @@ NDB_Modifiers::NDB_Modifiers(const NDB_Modifier modifiers[])
 {
   for (m_len = 0; modifiers[m_len].m_name != 0; m_len++)
   {}
-  m_modifiers = new NDB_Modifier[m_len];
-  memcpy(m_modifiers, modifiers, m_len * sizeof(NDB_Modifier));
+  m_modifiers = new NDB_Modifier[m_len + 1];
+  memcpy(m_modifiers, modifiers, (m_len + 1) * sizeof(NDB_Modifier));
 }
 
 NDB_Modifiers::~NDB_Modifiers()
@@ -9164,7 +9170,28 @@ NDB_Modifiers::parse_modifier(THD *thd,
       m->m_val_bool = false;
       goto found;
     }
+  break;
+  case NDB_Modifier::M_STRING:{
+    if (end_of_token(str))
+    {
+      m->m_val_str.str = "";
+      m->m_val_str.len = 0;
+      goto found;
+    }
+
+    if (str[0] != '=')
+      break;
+
+    str++;
+    m->m_val_str.str = str;
+    while (!end_of_token(str))
+      str++;
+
+    m->m_val_str.len = str - m->m_val_str.str;
+    goto found;
   }
+  }
+
 
   {
     const char * end = strpbrk(str, " ,");
@@ -9312,6 +9339,14 @@ NDB_Modifiers::get(const char * name) const
     }
   }
   return 0;
+}
+
+const NDB_Modifier *
+NDB_Modifiers::notfound() const
+{
+  const NDB_Modifier * last = m_modifiers + m_len;
+  assert(last->m_found == false);
+  return last; // last has m_found == false
 }
 
 /**
@@ -9959,6 +9994,66 @@ adjusted_frag_count(Ndb* ndb,
   return (reported_frags < requested_frags);
 }
 
+static
+bool
+parseFragmentCountType(THD *thd,
+                       const NDB_Modifier * mod,
+                       NdbDictionary::Object::FragmentCountType * fct)
+{
+  if (mod->m_found == false)
+    return false; // OK
+
+  NdbDictionary::Object::FragmentCountType ret;
+  if (mod->m_val_str.len == (sizeof("ONE_PER_LDM_PER_NODE") - 1) &&
+           strncmp(mod->m_val_str.str, "ONE_PER_LDM_PER_NODE",
+                   (sizeof("ONE_PER_LDM_PER_NODE") - 1)) == 0)
+  {
+    ret = NdbDictionary::Object::FragmentCount_OnePerLDMPerNode;
+  }
+  else if (mod->m_val_str.len == (sizeof("ONE_PER_LDM_PER_NODE_GROUP") - 1) &&
+           strncmp(mod->m_val_str.str, "ONE_PER_LDM_PER_NODE_GROUP",
+                   (sizeof("ONE_PER_LDM_PER_NODE_GROUP") - 1)) == 0)
+  {
+    ret = NdbDictionary::Object::FragmentCount_OnePerLDMPerNodeGroup;
+  }
+  else if (mod->m_val_str.len == (sizeof("ONE_PER_NODE") - 1) &&
+           strncmp(mod->m_val_str.str, "ONE_PER_NODE",
+                   (sizeof("ONE_PER_NODE") - 1)) == 0)
+  {
+    ret = NdbDictionary::Object::FragmentCount_OnePerNode;
+  }
+  else if (mod->m_val_str.len == (sizeof("ONE_PER_NODE_GROUP") - 1) &&
+           strncmp(mod->m_val_str.str, "ONE_PER_NODE_GROUP",
+                   (sizeof("ONE_PER_NODE_GROUP") - 1)) == 0)
+  {
+    ret = NdbDictionary::Object::FragmentCount_OnePerNodeGroup;
+  }
+  else
+  {
+    DBUG_PRINT("info", ("FragmentCountType: %s not supported",
+                        mod->m_val_str.str));
+    /**
+     * Comment section contains a fragment count type we cannot
+     * recognize, we will print warning about this and will
+     * not change the comment string.
+     */
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_GET_ERRMSG,
+                        ER(ER_GET_ERRMSG),
+                        4500,
+                        "Comment contains non-supported fragment"
+                        " count type",
+                        "NDB");
+    return false;
+  }
+
+  if (fct)
+  {
+    * fct = ret;
+  }
+  return true;
+}
+
 
 extern bool ndb_fk_util_truncate_allowed(THD* thd,
                                          NdbDictionary::Dictionary* dict,
@@ -9981,6 +10076,201 @@ static int
 create_table_set_list_data(const partition_info* part_info,
                            NdbDictionary::Table&);
 
+
+void ha_ndbcluster::append_create_info(String *packet)
+{
+  THD *thd = current_thd;
+  Thd_ndb *thd_ndb = get_thd_ndb(thd);
+  Ndb *ndb = thd_ndb->ndb;
+  NDBDICT *dict = ndb->getDictionary();
+  ndb->setDatabaseName(table_share->db.str);
+  Ndb_table_guard ndbtab_g(dict, table_share->table_name.str);
+  const NdbDictionary::Table * tab = ndbtab_g.get_table();
+  NdbDictionary::Object::FragmentCountType fctype = tab->getFragmentCountType();
+  bool logged_table = tab->getLogging();
+
+  DBUG_PRINT("info", ("append_create_info: comment: %s, logged_table = %u,"
+                      " fctype = %d",
+                      table_share->comment.length == 0 ?
+                      "NULL" : table_share->comment.str,
+                      logged_table,
+                      fctype));
+  if (table_share->comment.length == 0 &&
+      fctype == NdbDictionary::Object::FragmentCount_Specific &&
+      logged_table)
+  {
+    /**
+     * No comment set by user
+     * The fragment count type is default and thus no need to set
+     * The table is logged which is default and thus no need to set
+     */
+    return;
+  }
+
+  /**
+   * Now parse the comment string if there is one to deduce the
+   * settings already in the comment string, no need to set a
+   * property already set in the comment string.
+   */
+  NdbDictionary::Object::FragmentCountType comment_fctype =
+    NdbDictionary::Object::FragmentCount_OnePerLDMPerNode;
+
+  bool comment_fctype_set = false;
+  bool comment_logged_table = true;
+  bool comment_logged_table_set = false;
+
+  if (table_share->comment.length)
+  {
+    /* Parse the current comment string */
+    NDB_Modifiers table_modifiers(ndb_table_modifiers);
+    table_modifiers.parse(thd, "NDB_TABLE=", table_share->comment.str,
+                          table_share->comment.length);
+    const NDB_Modifier *mod_nologging = table_modifiers.get("NOLOGGING");
+    const NDB_Modifier *mod_frags = table_modifiers.get("FRAGMENT_COUNT_TYPE");
+
+    if (mod_nologging->m_found)
+    {
+      /**
+       * NOLOGGING is set, ensure that it is set to the same value as
+       * the table object value. If it is then no need to print anything.
+       */
+      comment_logged_table = !mod_nologging->m_val_bool;
+      comment_logged_table_set = true;
+    }
+    if (mod_frags->m_found)
+    {
+      if (parseFragmentCountType(thd /* for pushing warning */,
+                                 mod_frags,
+                                 &comment_fctype))
+      {
+        if (comment_fctype != fctype)
+        {
+          /**
+           * The table property and the comment on the table differs.
+           * Let the comment string stay as is, but push warning
+           * about this fact.
+           */
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
+                              ER_GET_ERRMSG,
+                              ER(ER_GET_ERRMSG),
+                              4501,
+                              "Table property is not the same as in"
+                              " comment for FRAGMENT_COUNT_TYPE"
+                              " property",
+                              "NDB");
+        }
+      }
+      comment_fctype_set = true;
+    }
+  }
+  DBUG_PRINT("info", ("comment_logged_table_set: %u, comment_logged_table: %u",
+                      comment_logged_table_set,
+                      comment_logged_table));
+  DBUG_PRINT("info", ("comment_fctype_set: %u, comment_fctype: %d",
+                      comment_fctype_set,
+                      comment_fctype));
+  if (!comment_logged_table_set)
+  {
+    if (!logged_table)
+    {
+      /**
+       * No property was given in table comment, but table is not logged.
+       */
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_GET_ERRMSG,
+                          ER(ER_GET_ERRMSG),
+                          4502,
+                          "Table property is NOLOGGING=1,"
+                          " but not in comment",
+                          "NDB");
+    }
+  }
+  else if (logged_table != comment_logged_table)
+  {
+    /**
+     * The table property and the comment property differs, we will
+     * print comment string as is and issue a warning to this effect.
+     */
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_GET_ERRMSG,
+                        ER(ER_GET_ERRMSG),
+                        4502,
+                        "Table property is not the same as in"
+                        " comment for NOLOGGING property",
+                        "NDB");
+  }
+  if (!comment_fctype_set)
+  {
+    if (fctype != NdbDictionary::Object::FragmentCount_OnePerLDMPerNode &&
+        fctype != NdbDictionary::Object::FragmentCount_Specific)
+    {
+      /**
+       * There is a table property not reflected in the COMMENT string,
+       * most likely someone has done an ALTER TABLE with a new comment
+       * string and hasn't changed this property in this comment string.
+       * In this case the table property will stay, so we print this in
+       * the SHOW CREATE TABLE comment string.
+       */
+      switch (fctype)
+      {
+        case NdbDictionary::Object::FragmentCount_OnePerLDMPerNodeGroup:
+        {
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
+            ER_GET_ERRMSG,
+            ER(ER_GET_ERRMSG),
+            4503,
+            "Table property is "
+            "FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE_GROUP"
+            " but not in comment",
+            "NDB");
+          break;
+        }
+        case NdbDictionary::Object::FragmentCount_OnePerNode:
+        {
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
+            ER_GET_ERRMSG,
+            ER(ER_GET_ERRMSG),
+            4503,
+            "Table property is "
+            "FRAGMENT_COUNT_TYPE=ONE_PER_NODE"
+            " but not in comment",
+            "NDB");
+          break;
+        }
+        case NdbDictionary::Object::FragmentCount_OnePerNodeGroup:
+        {
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
+            ER_GET_ERRMSG,
+            ER(ER_GET_ERRMSG),
+            4503,
+            "Table property is "
+            "FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP"
+            " but not in comment",
+            "NDB");
+          break;
+        }
+        default:
+        {
+          assert(false);
+          /**
+           * This should never happen, the table property should not be set
+           * to an incorrect value. Potential problem if a lower MySQL version
+           * is used to print the comment string where the table property comes
+           * from a cluster on a newer version where additional types have been
+           * added.
+           */
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
+                              ER_GET_ERRMSG,
+                              ER(ER_GET_ERRMSG),
+                              4503,
+                              "Table property FRAGMENT_COUNT_TYPE is set to"
+                              " an unknown value, could be an upgrade issue"
+                              "NDB");
+        }
+      }
+    }
+  }
+}
 
 /**
   Create a table in NDB Cluster
@@ -10176,10 +10466,35 @@ int ha_ndbcluster::create(const char *name,
     ndbtab_g.reinit();
   }
 
+  DBUG_PRINT("info", ("Start parse of table modifiers, comment = %s",
+                      create_info->comment.str));
   NDB_Modifiers table_modifiers(ndb_table_modifiers);
   table_modifiers.parse(thd, "NDB_TABLE=", create_info->comment.str,
                         create_info->comment.length);
   const NDB_Modifier * mod_nologging = table_modifiers.get("NOLOGGING");
+  const NDB_Modifier * mod_frags = table_modifiers.get("FRAGMENT_COUNT_TYPE");
+  NdbDictionary::Object::FragmentCountType fctype =
+    NdbDictionary::Object::FragmentCount_OnePerLDMPerNode;
+  if (parseFragmentCountType(thd /* for pushing warning */,
+                             mod_frags,
+                             &fctype) == false)
+  {
+    /**
+     * unable to parse => modifier which is not found
+     */
+    mod_frags = table_modifiers.notfound();
+  }
+  else if (ndbd_support_fragment_count_type(
+            ndb->getMinDbNodeVersion()) == 0)
+  {
+    /**
+     * NDB_TABLE=FRAGMENT_COUNT_TYPE not supported by data nodes.
+     */
+    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+             ndbcluster_hton_name,
+             "FRAGMENT_COUNT_TYPE not supported by current data node versions");
+    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+  }
 
 #ifdef HAVE_NDB_BINLOG
   /* Read ndb_replication entry for this table, if any */
@@ -10261,17 +10576,31 @@ int ha_ndbcluster::create(const char *name,
 #ifdef DOES_NOT_WORK_CURRENTLY
       tab.setTemporary(TRUE);
 #endif
+      DBUG_PRINT("info", ("table_temporary set"));
       tab.setLogging(FALSE);
     }
     else if (THDVAR(thd, table_no_logging))
     {
+      DBUG_PRINT("info", ("table_no_logging set"));
       tab.setLogging(FALSE);
     }
 
     if (mod_nologging->m_found)
     {
+      DBUG_PRINT("info", ("tab.setLogging(%u)",
+                         (!mod_nologging->m_val_bool)));
       tab.setLogging(!mod_nologging->m_val_bool);
     }
+    else
+    {
+      DBUG_PRINT("info",
+                 ("mod_nologging not found, getLogging()=%u",
+                  tab.getLogging()));
+    }
+  }
+  else
+  {
+    DBUG_PRINT("info", ("ndb_sys_table true"));
   }
   tab.setSingleUserMode(single_user_mode);
 
@@ -10350,7 +10679,24 @@ int ha_ndbcluster::create(const char *name,
 
   tmp_restore_column_map(form->read_set, old_map);
   if (use_disk)
-  { 
+  {
+    if (mod_nologging->m_found &&
+        mod_nologging->m_val_bool)
+    {
+      /**
+       * Trying to set NLOGGING=1 on a disk table isn't permitted.
+       * Signal error, if table_temporary set or if not table_logging
+       * set then we will silently convert to logged table.
+       */
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_ILLEGAL_HA_CREATE_OPTION,
+                          ER(ER_ILLEGAL_HA_CREATE_OPTION),
+                          ndbcluster_hton_name,
+                          "Not allowed to set NOLOGGING=1 on table"
+                          " with fields using STORAGE DISK");
+      result= HA_ERR_UNSUPPORTED;
+      goto abort_return;
+    }
     tab.setLogging(TRUE);
     tab.setTemporary(FALSE);
     if (create_info->tablespace)
@@ -10470,6 +10816,18 @@ int ha_ndbcluster::create(const char *name,
   DBUG_ASSERT(create_info->max_rows == table_share->max_rows);
   DBUG_ASSERT(create_info->min_rows == table_share->min_rows);
 
+  {
+    ha_rows max_rows= create_info->max_rows;
+    ha_rows min_rows= create_info->min_rows;
+    if (max_rows < min_rows)
+      max_rows= min_rows;
+    if (max_rows != (ha_rows)0) /* default setting, don't set fragmentation */
+    {
+      tab.setMaxRows(max_rows);
+      tab.setMinRows(min_rows);
+    }
+  }
+
   // Check partition info
   set_my_errno(create_table_set_up_partition_info(create_info,
                                                   form->part_info,
@@ -10479,6 +10837,7 @@ int ha_ndbcluster::create(const char *name,
 
   if (tab.getFragmentType() == NDBTAB::HashMapPartition && 
       tab.getDefaultNoPartitionsFlag() &&
+      !mod_frags->m_found && // Let FRAGMENT_COUNT_TYPE override max_rows
       (create_info->max_rows != 0 || create_info->min_rows != 0))
   {
     ulonglong rows= create_info->max_rows >= create_info->min_rows ? 
@@ -10496,14 +10855,22 @@ int ha_ndbcluster::create(const char *name,
     tab.setFragmentCount(reported_frags);
     tab.setDefaultNoPartitionsFlag(false);
     tab.setFragmentData(0, 0);
+    tab.setFragmentCountType(NdbDictionary::Object::FragmentCount_Specific);
   }
 
   // Check for HashMap
   if (tab.getFragmentType() == NDBTAB::HashMapPartition && 
       tab.getDefaultNoPartitionsFlag())
   {
+    /**
+     * Default partitioning
+     */
     tab.setFragmentCount(0);
     tab.setFragmentData(0, 0);
+    if (mod_frags->m_found)
+    {
+      tab.setFragmentCountType(fctype);
+    }
   }
   else if (tab.getFragmentType() == NDBTAB::HashMapPartition)
   {
@@ -10582,6 +10949,9 @@ int ha_ndbcluster::create(const char *name,
     if (dict->endSchemaTrans() == -1)
       goto err_return;
     ret = write_ndb_file(name);
+    Ndb_table_guard ndbtab_g(dict);
+    ndbtab_g.init(m_tabname);
+    ndbtab_g.invalidate();
   }
   else
   {
@@ -10598,6 +10968,8 @@ abort:
     m_table= 0;
 
     {
+      DBUG_PRINT("info", ("Flush out table %s out of dict cache",
+                          m_tabname));
       // Flush the table out of ndbapi's dictionary cache
       Ndb_table_guard ndbtab_g(dict);
       ndbtab_g.init(m_tabname);
@@ -10835,7 +11207,6 @@ int ha_ndbcluster::create_unique_index(THD *thd, const char *name,
   DBUG_ENTER("ha_ndbcluster::create_unique_index");
   DBUG_RETURN(create_ndb_index(thd, name, key_info, TRUE));
 }
-
 
 /**
   Create an index in NDB Cluster.
@@ -17070,16 +17441,15 @@ create_table_set_up_partition_info(HA_CREATE_INFO* create_info,
   const bool use_default_num_parts = part_info->use_default_num_partitions;
   ndbtab.setDefaultNoPartitionsFlag(use_default_num_parts);
   ndbtab.setLinearFlag(part_info->linear_hash_ind);
+
+  if (ndbtab.getFragmentType()  == NDBTAB::HashMapPartition &&
+      use_default_num_parts)
   {
-    ha_rows max_rows= create_info->max_rows;
-    ha_rows min_rows= create_info->min_rows;
-    if (max_rows < min_rows)
-      max_rows= min_rows;
-    if (max_rows != (ha_rows)0) /* default setting, don't set fragmentation */
-    {
-      ndbtab.setMaxRows(max_rows);
-      ndbtab.setMinRows(min_rows);
-    }
+    /**
+     * Skip below for default partitioning, this removes the need to undo
+     * these settings later in ha_ndbcluster::create.
+     */
+    DBUG_RETURN(0);
   }
 
   {
@@ -17117,6 +17487,7 @@ create_table_set_up_partition_info(HA_CREATE_INFO* create_info,
 
     ndbtab.setFragmentCount(fd_index);
     ndbtab.setFragmentData(frag_data, fd_index);
+    ndbtab.setFragmentCountType(NdbDictionary::Object::FragmentCount_Specific);
   }
   DBUG_RETURN(0);
 }
@@ -17219,6 +17590,7 @@ enum_alter_inplace_result
 
   bool auto_increment_value_changed= false;
   bool max_rows_changed= false;
+  bool comment_changed = false;
   if (alter_flags & Alter_inplace_info::CHANGE_CREATE_OPTION)
   {
     DBUG_PRINT("info", ("Some create options changed"));
@@ -17240,6 +17612,11 @@ enum_alter_inplace_result
                                         "setting MAX_ROWS on table "
                                         "without MAX_ROWS"));
       }
+    }
+    if (create_info->used_fields & HA_CREATE_USED_COMMENT)
+    {
+      DBUG_PRINT("info", ("The COMMENT string changed"));
+      comment_changed = true;
     }
   }
 
@@ -17277,7 +17654,8 @@ enum_alter_inplace_result
   if (alter_flags & Alter_inplace_info::ADD_COLUMN ||
       alter_flags & Alter_inplace_info::ADD_PARTITION ||
       alter_flags & Alter_inplace_info::ALTER_TABLE_REORG ||
-      max_rows_changed)
+      max_rows_changed ||
+      comment_changed)
   {
      Ndb *ndb= get_ndb(thd);
      NDBDICT *dict= ndb->getDictionary();
@@ -17369,8 +17747,14 @@ enum_alter_inplace_result
      {
        DBUG_PRINT("info", ("Adding partition (%u)", part_info->num_parts));
        new_tab.setFragmentCount(part_info->num_parts);
+       new_tab.setFragmentCountType(NdbDictionary::Object::FragmentCount_Specific);
      }
-     if (max_rows_changed)
+     if (comment_changed &&
+         parse_comment_changes(&new_tab, create_info, thd, max_rows_changed))
+     {
+       DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+     }
+     else if (max_rows_changed)
      {
        ulonglong rows= create_info->max_rows;
        uint no_fragments= get_no_fragments(rows);
@@ -17390,18 +17774,9 @@ enum_alter_inplace_result
        new_tab.setFragmentCount(reported_frags);
        new_tab.setDefaultNoPartitionsFlag(false);
        new_tab.setFragmentData(0, 0);
+       new_tab.setFragmentCountType(NdbDictionary::Object::FragmentCount_Specific);
      }
 
-     NDB_Modifiers table_modifiers(ndb_table_modifiers);
-     table_modifiers.parse(thd, "NDB_TABLE=", create_info->comment.str,
-                           create_info->comment.length);
-     const NDB_Modifier* mod_nologging = table_modifiers.get("NOLOGGING");
-
-     if (mod_nologging->m_found)
-     {
-       new_tab.setLogging(!mod_nologging->m_val_bool);
-     }
-     
      if (dict->supportedAlterTable(*old_tab, new_tab))
      {
        DBUG_PRINT("info", ("Adding column(s) supported on-line"));
@@ -17557,6 +17932,65 @@ enum_alter_inplace_result
 }
 
 bool
+ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
+                                     HA_CREATE_INFO *create_info,
+                                     THD *thd,
+                                     bool & max_rows_changed)
+{
+  DBUG_ENTER("ha_ndbcluster::parse_comment_changes");
+  NDB_Modifiers table_modifiers(ndb_table_modifiers);
+  table_modifiers.parse(thd, "NDB_TABLE=", create_info->comment.str,
+                        create_info->comment.length);
+  const NDB_Modifier* mod_nologging = table_modifiers.get("NOLOGGING");
+  const NDB_Modifier* mod_frags = table_modifiers.get("FRAGMENT_COUNT_TYPE");
+  NdbDictionary::Object::FragmentCountType fct =
+    NdbDictionary::Object::FragmentCount_OnePerLDMPerNode;
+  if (parseFragmentCountType(thd /* for pushing warning */,
+                             mod_frags, &fct) == false)
+  {
+    /**
+     * unable to parse => modifier which is not found
+     */
+    mod_frags = table_modifiers.notfound();
+  }
+  else if (ndbd_support_fragment_count_type(
+            get_thd_ndb(thd)->ndb->getMinDbNodeVersion()) == 0)
+  {
+    /**
+     * NDB_TABLE=FRAGMENT_COUNT_TYPE not supported by data nodes.
+     */
+    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+             ndbcluster_hton_name,
+             "FRAGMENT_COUNT_TYPE not supported by current data node versions");
+    DBUG_RETURN(true);
+  }
+  if (mod_nologging->m_found)
+  {
+    if (new_tab->getLogging() != (!mod_nologging->m_val_bool))
+    {
+      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+               ndbcluster_hton_name,
+               "Cannot alter nologging inplace");
+      DBUG_RETURN(true);
+    }
+    new_tab->setLogging(!mod_nologging->m_val_bool);
+  }
+  if (mod_frags->m_found)
+  {
+    if (max_rows_changed)
+    {
+      max_rows_changed = false;
+    }
+    new_tab->setFragmentCount(0);
+    new_tab->setFragmentData(0,0);
+    new_tab->setFragmentCountType(fct);
+    DBUG_PRINT("info", ("parse_comment_changes: FragmentCounType: %s",
+                        new_tab->getFragmentCountTypeString()));
+  }
+  DBUG_RETURN(false);
+}
+
+bool
 ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
                                               Alter_inplace_info *ha_alter_info)
 {
@@ -17601,6 +18035,7 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
 
   bool auto_increment_value_changed= false;
   bool max_rows_changed= false;
+  bool comment_changed = false;
   if (alter_flags & Alter_inplace_info::CHANGE_CREATE_OPTION)
   {
     if (create_info->auto_increment_value !=
@@ -17608,6 +18043,11 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
       auto_increment_value_changed= true;
     if (create_info->used_fields & HA_CREATE_USED_MAX_ROWS)
       max_rows_changed= true;
+    if (create_info->used_fields & HA_CREATE_USED_COMMENT)
+    {
+      DBUG_PRINT("info", ("The COMMENT string changed"));
+      comment_changed= true;
+    }
   }
 
   prepare_for_alter();
@@ -17715,7 +18155,8 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
 
   if (alter_flags & Alter_inplace_info::ALTER_TABLE_REORG ||
       alter_flags & Alter_inplace_info::ADD_PARTITION ||
-      max_rows_changed)
+      max_rows_changed ||
+      comment_changed)
   {
     if (alter_flags & Alter_inplace_info::ALTER_TABLE_REORG)
     {
@@ -17726,6 +18167,16 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
     {
       partition_info *part_info= altered_table->part_info;
       new_tab->setFragmentCount(part_info->num_parts);
+      new_tab->setFragmentCountType(
+        NdbDictionary::Object::FragmentCount_Specific);
+    }
+    else if (comment_changed &&
+             parse_comment_changes(new_tab,
+                                   create_info,
+                                   thd,
+                                   max_rows_changed))
+    {
+      goto abort;
     }
     else if (max_rows_changed)
     {
@@ -17748,6 +18199,7 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
       new_tab->setFragmentCount(reported_frags);
       new_tab->setDefaultNoPartitionsFlag(false);
       new_tab->setFragmentData(0, 0);
+      new_tab->setFragmentCountType(NdbDictionary::Object::FragmentCount_Specific);
     }
     
     int res= dict->prepareHashMap(*old_tab, *new_tab);
@@ -17828,7 +18280,12 @@ int ha_ndbcluster::alter_frm(const char *file,
     DBUG_PRINT("info", ("Table %s has changed, altering frm in ndb",
                         m_tabname));
     const NDBTAB *old_tab= alter_data->old_table;
+    
     NdbDictionary::Table *new_tab= alter_data->new_table;
+
+    NdbDictionary::Object::FragmentCountType fctype;
+    fctype = new_tab->getFragmentCountType();
+    DBUG_PRINT("info", ("New table fragmentCountType = %d", fctype));
 
     new_tab->setFrm(pack_data, (Uint32)pack_length);
     if (dict->alterTableGlobal(*old_tab, *new_tab))

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -69,6 +69,7 @@ struct AlterTableReq {
 #define REORG_COMPLETE_SHIFT (10)
 #define REORG_SUMA_ENABLE (11)
 #define REORG_SUMA_FILTER (12)
+#define FRAGMENT_COUNT_TYPE_SHIFT (13)
 
  /**
    * Getters and setters
@@ -99,6 +100,8 @@ struct AlterTableReq {
   static void setReorgSumaEnableFlag(UintR &  changeMask, Uint32 tsFlg);
   static Uint8 getReorgSumaFilterFlag(const UintR & changeMask);
   static void setReorgSumaFilterFlag(UintR &  changeMask, Uint32 tsFlg);
+  static void setFragmentCountTypeFlag(UintR & changeMask, Uint32 tsFlg);
+  static Uint8 getFragmentCountTypeFlag(const UintR & changeMask);
 
   static bool getReorgSubOp(const UintR & changeMask){
     return
@@ -264,6 +267,18 @@ inline
 void
 AlterTableReq::setReorgSumaFilterFlag(UintR & changeMask, Uint32 reorgAttrFlg){
   changeMask |= (reorgAttrFlg << REORG_SUMA_FILTER);
+}
+
+inline
+Uint8
+AlterTableReq::getFragmentCountTypeFlag(const UintR & changeMask){
+  return (Uint8)((changeMask >> FRAGMENT_COUNT_TYPE_SHIFT) & 1);
+}
+
+inline
+void
+AlterTableReq::setFragmentCountTypeFlag(UintR & changeMask, Uint32 fctFlag){
+  changeMask |= (fctFlag << FRAGMENT_COUNT_TYPE_SHIFT);
 }
 
 struct AlterTableConf {

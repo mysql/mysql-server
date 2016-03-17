@@ -2651,11 +2651,38 @@ BackupRestore::table(const TableS & table){
 
     if (copy.getFragmentType() == NdbDictionary::Object::HashMapPartition)
     {
-      Uint32 id;
-      if (copy.getHashMap(&id))
+      switch(copy.getFragmentCountType()) {
+      case NdbDictionary::Object::FragmentCount_Specific:
       {
-        NdbDictionary::HashMap * hm = m_hashmaps[id];
-        copy.setHashMap(* hm);
+        /**
+         * The only specific information we have in specific hash map
+         * partitions is really the number of fragments. Other than
+         * that we can use a new hash map. We won't be able to restore
+         * in exactly the same distribution anyways. So we set the
+         * hash map to be non-existing and thus it will be created
+         * as part of creating the table. The fragment count is already
+         * set in the copy object.
+         */
+        NdbDictionary::HashMap nullMap;
+        assert(Uint32(nullMap.getObjectId()) == RNIL);
+        assert(Uint32(nullMap.getObjectVersion()) == ~Uint32(0));
+        copy.setHashMap(nullMap);
+        break;
+      }
+      case NdbDictionary::Object::FragmentCount_OnePerLDMPerNode:
+      case NdbDictionary::Object::FragmentCount_OnePerLDMPerNodeGroup:
+      case NdbDictionary::Object::FragmentCount_OnePerNode:
+      case NdbDictionary::Object::FragmentCount_OnePerNodeGroup:
+        /**
+         * Use the FragmentCountType to resize table for this cluster...
+         *   set "null" hashmap
+         */
+        NdbDictionary::HashMap nullMap;
+        assert(Uint32(nullMap.getObjectId()) == RNIL);
+        assert(Uint32(nullMap.getObjectVersion()) == ~Uint32(0));
+        copy.setFragmentCount(0);
+        copy.setHashMap(nullMap);
+        break;
       }
     }
     else if (copy.getDefaultNoPartitionsFlag())

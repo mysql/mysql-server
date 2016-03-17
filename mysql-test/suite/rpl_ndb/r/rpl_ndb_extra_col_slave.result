@@ -493,6 +493,8 @@ t16	CREATE TABLE `t16` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (c1)
 PARTITIONS 4 */
+Warnings:
+Warning	1296	Got error 4502 'Table property is NOLOGGING=1, but not in comment' from NDB
 *** Show table on Slave ****
 SHOW CREATE TABLE t16;
 Table	Create Table
@@ -508,6 +510,8 @@ t16	CREATE TABLE `t16` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (c1)
 PARTITIONS 4 */
+Warnings:
+Warning	1296	Got error 4502 'Table property is NOLOGGING=1, but not in comment' from NDB
 *** DROP TABLE t16 ***
 DROP TABLE t16;
 *** Alter Master End ***
