@@ -31,6 +31,8 @@ Table	Create Table
 ndb_myisam	CREATE TABLE `ndb_myisam` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Warnings:
+Warning	1296	Got error 4502 'Table property is NOLOGGING=1, but not in comment' from NDB
 SHOW CREATE TABLE innodb_ndb;
 Table	Create Table
 innodb_ndb	CREATE TABLE `innodb_ndb` (
@@ -41,6 +43,8 @@ Table	Create Table
 ndb_innodb	CREATE TABLE `ndb_innodb` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Warnings:
+Warning	1296	Got error 4502 'Table property is NOLOGGING=1, but not in comment' from NDB
 ---- setup slave with different engines ----
 DROP TABLE myisam_innodb, innodb_myisam;
 DROP TABLE myisam_ndb, ndb_myisam;
@@ -66,6 +70,8 @@ Table	Create Table
 myisam_ndb	CREATE TABLE `myisam_ndb` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Warnings:
+Warning	1296	Got error 4502 'Table property is NOLOGGING=1, but not in comment' from NDB
 SHOW CREATE TABLE ndb_myisam;
 Table	Create Table
 ndb_myisam	CREATE TABLE `ndb_myisam` (
@@ -76,6 +82,8 @@ Table	Create Table
 innodb_ndb	CREATE TABLE `innodb_ndb` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Warnings:
+Warning	1296	Got error 4502 'Table property is NOLOGGING=1, but not in comment' from NDB
 SHOW CREATE TABLE ndb_innodb;
 Table	Create Table
 ndb_innodb	CREATE TABLE `ndb_innodb` (

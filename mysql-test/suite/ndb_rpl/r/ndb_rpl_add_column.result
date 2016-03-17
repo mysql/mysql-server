@@ -152,6 +152,8 @@ t1	CREATE TABLE `t1` (
   `e` char(255) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+Warnings:
+Warning	1296	Got error 4502 'Table property is NOLOGGING=1, but not in comment' from NDB
 SELECT * FROM t1 ORDER BY a;
 a	b	c	d	e
 1	1	NULL	NULL	NULL
@@ -169,6 +171,8 @@ t1	CREATE TABLE `t1` (
   `e` char(255) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+Warnings:
+Warning	1296	Got error 4502 'Table property is NOLOGGING=1, but not in comment' from NDB
 SELECT * FROM t1 ORDER BY a;
 a	b	c	d	e
 1	1	NULL	NULL	NULL

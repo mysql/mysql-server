@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -190,6 +190,8 @@ class ha_ndbcluster: public handler, public Partition_handler
                                       uint *flags, Cost_estimate *cost);
   ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
                                 uint *bufsz, uint *flags, Cost_estimate *cost);
+
+  virtual void append_create_info(String *packet);
 private:
   bool choose_mrr_impl(uint keyno, uint n_ranges, ha_rows n_rows,
                        uint *bufsz, uint *flags,
@@ -353,6 +355,11 @@ static void set_tabname(const char *pathname, char *tabname);
 enum_alter_inplace_result
   check_if_supported_inplace_alter(TABLE *altered_table,
                                    Alter_inplace_info *ha_alter_info);
+
+bool parse_comment_changes(NdbDictionary::Table *new_tab,
+                           HA_CREATE_INFO *create_info,
+                           THD *thd,
+                           bool & max_rows_changed);
 
 bool prepare_inplace_alter_table(TABLE *altered_table,
                                     Alter_inplace_info *ha_alter_info);

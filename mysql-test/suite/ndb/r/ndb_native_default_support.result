@@ -145,6 +145,7 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -184,6 +185,7 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -253,6 +255,7 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+FragmentCountType: ONE_PER_LDM_PER_NODE
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -290,6 +293,7 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+FragmentCountType: ONE_PER_LDM_PER_NODE
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -372,6 +376,7 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -463,6 +468,7 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -515,6 +521,7 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -559,6 +566,7 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -613,6 +621,7 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -661,6 +670,7 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -708,6 +718,7 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -755,6 +766,7 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -804,6 +816,7 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -856,6 +869,7 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -903,6 +917,7 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -952,6 +967,7 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -1002,6 +1018,7 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -1056,6 +1073,7 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -1104,6 +1122,7 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -1151,6 +1170,7 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -1198,6 +1218,7 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -1245,6 +1266,7 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -1294,6 +1316,7 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -1346,6 +1369,7 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
@@ -1439,6 +1463,7 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved

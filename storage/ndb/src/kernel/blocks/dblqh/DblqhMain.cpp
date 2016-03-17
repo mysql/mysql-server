@@ -2876,6 +2876,7 @@ Dblqh::execALTER_TAB_REQ(Signal* signal)
   tablePtr.i = tableId;
   ptrCheckGuard(tablePtr, ctabrecFileSize, tablerec);
 
+  D("ALTER_TAB_REQ: requestType: " << requestType);
   Uint32 len = signal->getLength();
   switch (requestType) {
   case AlterTabReq::AlterTablePrepare:
@@ -2976,6 +2977,7 @@ Dblqh::wait_reorg_suma_filter_enabled(Signal* signal)
     Uint32 connectPtr = signal->theData[3];
     Uint32 senderRef = signal->theData[4];
 
+    D("ALTER_TAB_CONF after suma filter enabled");
     AlterTabConf* conf = (AlterTabConf*)signal->getDataPtrSend();
     conf->senderRef = reference();
     conf->senderData = senderData;

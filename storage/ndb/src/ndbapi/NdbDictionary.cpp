@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -760,6 +760,37 @@ Uint32
 NdbDictionary::Table::getFragmentCount() const
 {
   return m_impl.getFragmentCount();
+}
+
+void
+NdbDictionary::Table::setFragmentCountType(NdbDictionary::Object::FragmentCountType arg)
+{
+  m_impl.m_fragmentCountType = arg;
+}
+
+NdbDictionary::Object::FragmentCountType
+NdbDictionary::Table::getFragmentCountType() const
+{
+  return m_impl.m_fragmentCountType;
+}
+
+const char*
+NdbDictionary::Table::getFragmentCountTypeString() const
+{
+  switch (m_impl.m_fragmentCountType)
+  {
+    case FragmentCount_Specific:
+      return "SPECIFIC";
+    case FragmentCount_OnePerLDMPerNode:
+      return "ONE_PER_LDM_PER_NODE";
+    case FragmentCount_OnePerLDMPerNodeGroup:
+      return "ONE_PER_LDM_PER_NODE_GROUP";
+    case FragmentCount_OnePerNode:
+      return "ONE_PER_NODE";
+    case FragmentCount_OnePerNodeGroup:
+      return "ONE_PER_NODE_GROUP";
+  }
+  return "unknown";
 }
 
 int
@@ -2008,6 +2039,7 @@ NdbDictionary::Dictionary::prepareHashMap(const Table& oldTableF,
 
     Uint32 oldcnt = oldTable.getFragmentCount();
     Uint32 newcnt = newTable.getFragmentCount();
+    DBUG_PRINT("info", ("prepareHashMap: frag count: %u", newcnt));
     if (newcnt == 0)
     {
       /**
@@ -2018,7 +2050,8 @@ NdbDictionary::Dictionary::prepareHashMap(const Table& oldTableF,
       int ret = m_impl.m_receiver.create_hashmap(NdbHashMapImpl::getImpl(newmapF),
                                                  &NdbDictObjectImpl::getImpl(tmp),
                                                  CreateHashMapReq::CreateDefault |
-                                                 CreateHashMapReq::CreateIfNotExists);
+                                                 CreateHashMapReq::CreateIfNotExists,
+                                                 newTable.getFragmentCountType());
       if (ret)
       {
         return ret;
@@ -2049,6 +2082,7 @@ NdbDictionary::Dictionary::prepareHashMap(const Table& oldTableF,
         newcnt = oldcnt;
       }
       newTable.setFragmentCount(newcnt);
+      DBUG_PRINT("info", ("prepareHashMap: New frag count: %u", newcnt));
     }
 
     /*
@@ -4033,7 +4067,8 @@ NdbDictionary::Dictionary::createHashMap(const HashMap& map, ObjectId * dst)
   DO_TRANS(ret,
            m_impl.m_receiver.create_hashmap(NdbHashMapImpl::getImpl(map),
                                             &NdbDictObjectImpl::getImpl(*dst),
-                                            0));
+                                            0,
+                     NdbDictionary::Object::FragmentCount_OnePerLDMPerNode));
   return ret;
 }
 
@@ -4275,6 +4310,7 @@ NdbOut& operator <<(class NdbOut&, NdbDictionary::Table const& tab)
   ndbout << "SingleUserMode: " << (Uint32) tab.getSingleUserMode() << endl;
   ndbout << "ForceVarPart: " << tab.getForceVarPart() << endl;
   ndbout << "FragmentCount: " << tab.getFragmentCount() << endl;
+  ndbout << "FragmentCountType: " << tab.getFragmentCountTypeString() << endl;
   ndbout << "ExtraRowGciBits: " << tab.getExtraRowGciBits() << endl;
   ndbout << "ExtraRowAuthorBits: " << tab.getExtraRowAuthorBits() << endl;
   ndbout << "TableStatus: " << tab.getObjectStatus() << endl;
