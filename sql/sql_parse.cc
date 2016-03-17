@@ -5385,7 +5385,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
   if (query_cache.send_result_to_client(thd, thd->query()) <= 0)
   {
     LEX *lex= thd->lex;
-    const char *found_semicolon;
+    const char *found_semicolon= nullptr;
 
     bool err= thd->get_stmt_da()->is_error();
 
