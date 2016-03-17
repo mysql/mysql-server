@@ -844,6 +844,7 @@ INPUT                  = ./client \
                          ./plugin/test_services \
                          ./plugin/test_service_sql_api \
                          ./plugin/version_token \
+                         ./rapid \
                          ./sql \
                          ./sql-common \
                          ./storage \
