@@ -123,7 +123,7 @@ ALTER TABLE tables_priv
   MODIFY Db char(64) NOT NULL default '',
   MODIFY User char(32) NOT NULL default '',
   MODIFY Table_name char(64) NOT NULL default '',
-  MODIFY Grantor char(77) NOT NULL default '',
+  MODIFY Grantor char(93) NOT NULL default '',
   CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
 
 ALTER TABLE tables_priv
@@ -416,6 +416,8 @@ ALTER TABLE procs_priv
   MODIFY Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER Proc_priv;
 
 
+ALTER TABLE procs_priv
+  MODIFY Grantor char(93) DEFAULT '' NOT NULL;
 #
 # EVENT privilege
 #

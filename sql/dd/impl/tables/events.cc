@@ -40,7 +40,7 @@ Events::Events()
                          "name VARCHAR(64) NOT NULL COLLATE utf8_general_ci");
   m_target_def.add_field(FIELD_DEFINER,
                          "FIELD_DEFINER",
-                         "definer VARCHAR(77) NOT NULL");
+                         "definer VARCHAR(93) NOT NULL");
   m_target_def.add_field(FIELD_TIME_ZONE,
                          "FIELD_TIME_ZONE",
                          "time_zone VARCHAR(64) NOT NULL");
