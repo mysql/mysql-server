@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,7 +57,7 @@ const TABLE_FIELD_TYPE event_table_fields[ET_FIELD_COUNT] =
   },
   {
     { C_STRING_WITH_LEN("definer") },
-    { C_STRING_WITH_LEN("char(93)") },
+    { C_STRING_WITH_LEN("char(77)") },
     { C_STRING_WITH_LEN("utf8") }
   },
   {
