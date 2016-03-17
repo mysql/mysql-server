@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -147,7 +147,7 @@ static FILE *my_win_freopen(const char *path, const char *mode, FILE *stream)
 
 /* No close operation hook. */
 
-static int no_close(void *cookie __attribute__((unused)))
+static int no_close(void *cookie MY_ATTRIBUTE((unused)))
 {
   return 0;
 }

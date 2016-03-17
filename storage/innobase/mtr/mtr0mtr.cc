@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -58,7 +58,7 @@ mtr_block_dirtied(
 
 /*****************************************************************//**
 Releases the item in the slot given. */
-static __attribute__((nonnull))
+static MY_ATTRIBUTE((nonnull))
 void
 mtr_memo_slot_release_func(
 /*=======================*/
@@ -105,7 +105,7 @@ mtr_memo_slot_release_func(
 Releases the mlocks and other objects stored in an mtr memo.
 They are released in the order opposite to which they were pushed
 to the memo. */
-static __attribute__((nonnull))
+static MY_ATTRIBUTE((nonnull))
 void
 mtr_memo_pop_all(
 /*=============*/
@@ -395,7 +395,7 @@ mtr_read_ulint(
 /*===========*/
 	const byte*	ptr,	/*!< in: pointer from where to read */
 	ulint		type,	/*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
-	mtr_t*		mtr __attribute__((unused)))
+	mtr_t*		mtr MY_ATTRIBUTE((unused)))
 				/*!< in: mini-transaction handle */
 {
 	ut_ad(mtr->state == MTR_ACTIVE);

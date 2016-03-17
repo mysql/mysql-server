@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -357,7 +357,7 @@ UNIV_INLINE
 ulint
 dict_table_get_n_sys_cols(
 /*======================*/
-	const dict_table_t*	table __attribute__((unused)))	/*!< in: table */
+	const dict_table_t*	table MY_ATTRIBUTE((unused)))	/*!< in: table */
 {
 	ut_ad(table);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);

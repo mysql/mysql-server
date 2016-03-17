@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -86,7 +86,7 @@ public:
 
     /** Lock for protecting the queue. */
     mysql_mutex_t m_lock;
-  } __attribute__((aligned(CPU_LEVEL1_DCACHE_LINESIZE)));
+  } MY_ATTRIBUTE((aligned(CPU_LEVEL1_DCACHE_LINESIZE)));
 
 public:
   Stage_manager()

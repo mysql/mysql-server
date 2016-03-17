@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -267,7 +267,7 @@ ibool
 trx_in_trx_list(
 /*============*/
 	const trx_t*	in_trx)		/*!< in: transaction */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 #endif /* UNIV_DEBUG */
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 /***********************************************************//**
@@ -278,7 +278,7 @@ ibool
 trx_assert_recovered(
 /*=================*/
 	trx_id_t	trx_id)		/*!< in: transaction identifier */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 /*****************************************************************//**
 Updates the offset information about the end of the MySQL binlog entry

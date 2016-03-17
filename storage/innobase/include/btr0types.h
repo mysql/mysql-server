@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -81,7 +81,7 @@ btr_blob_dbg_rbt_insert(
 	dict_index_t*		index,	/*!< in/out: index tree */
 	const btr_blob_dbg_t*	b,	/*!< in: the reference */
 	const char*		ctx)	/*!< in: context (for logging) */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 
 /** Remove from index->blobs a reference to an off-page column.
 @param index	the index tree
@@ -94,7 +94,7 @@ btr_blob_dbg_rbt_delete(
 	dict_index_t*		index,	/*!< in/out: index tree */
 	const btr_blob_dbg_t*	b,	/*!< in: the reference */
 	const char*		ctx)	/*!< in: context (for logging) */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 
 /**************************************************************//**
 Add to index->blobs any references to off-page columns from a record.
@@ -107,7 +107,7 @@ btr_blob_dbg_add_rec(
 	dict_index_t*	index,	/*!< in/out: index */
 	const ulint*	offsets,/*!< in: offsets */
 	const char*	ctx)	/*!< in: context (for logging) */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /**************************************************************//**
 Remove from index->blobs any references to off-page columns from a record.
 @return number of references removed */
@@ -119,7 +119,7 @@ btr_blob_dbg_remove_rec(
 	dict_index_t*	index,	/*!< in/out: index */
 	const ulint*	offsets,/*!< in: offsets */
 	const char*	ctx)	/*!< in: context (for logging) */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /**************************************************************//**
 Count and add to index->blobs any references to off-page columns
 from records on a page.
@@ -131,7 +131,7 @@ btr_blob_dbg_add(
 	const page_t*	page,	/*!< in: rewritten page */
 	dict_index_t*	index,	/*!< in/out: index */
 	const char*	ctx)	/*!< in: context (for logging) */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /**************************************************************//**
 Count and remove from index->blobs any references to off-page columns
 from records on a page.
@@ -144,7 +144,7 @@ btr_blob_dbg_remove(
 	const page_t*	page,	/*!< in: b-tree page */
 	dict_index_t*	index,	/*!< in/out: index */
 	const char*	ctx)	/*!< in: context (for logging) */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /**************************************************************//**
 Restore in index->blobs any references to off-page columns
 Used when page reorganize fails due to compressed page overflow. */
@@ -156,7 +156,7 @@ btr_blob_dbg_restore(
 	const page_t*	page,	/*!< in: copy of original page */
 	dict_index_t*	index,	/*!< in/out: index */
 	const char*	ctx)	/*!< in: context (for logging) */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 
 /** Operation that processes the BLOB references of an index record
 @param[in]	rec	record on index page
@@ -180,7 +180,7 @@ btr_blob_dbg_op(
 	dict_index_t*		index,	/*!< in/out: index */
 	const char*		ctx,	/*!< in: context (for logging) */
 	const btr_blob_dbg_op_f	op)	/*!< in: operation on records */
-	__attribute__((nonnull(1,3,4,5)));
+	MY_ATTRIBUTE((nonnull(1,3,4,5)));
 #else /* UNIV_BLOB_DEBUG */
 # define btr_blob_dbg_add_rec(rec, index, offsets, ctx)		((void) 0)
 # define btr_blob_dbg_add(page, index, ctx)			((void) 0)

@@ -625,7 +625,7 @@ public:
 
 
 static uchar* acl_entry_get_key(acl_entry *entry, size_t *length,
-                                my_bool not_used __attribute__((unused)))
+                                my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length=(uint) entry->length;
   return (uchar*) entry->key;
@@ -1673,7 +1673,7 @@ bool acl_getroot(Security_context *sctx, char *user, char *host,
 }
 
 static uchar* check_get_key(ACL_USER *buff, size_t *length,
-                            my_bool not_used __attribute__((unused)))
+                            my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length=buff->host.get_host_len();
   return (uchar*) buff->host.get_host();
@@ -3607,7 +3607,7 @@ public:
 
 
 static uchar* get_key_column(GRANT_COLUMN *buff, size_t *length,
-			    my_bool not_used __attribute__((unused)))
+			    my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length=buff->key_length;
   return (uchar*) buff->column;
@@ -3800,7 +3800,7 @@ GRANT_TABLE::~GRANT_TABLE()
 
 
 static uchar* get_grant_table(GRANT_NAME *buff, size_t *length,
-			     my_bool not_used __attribute__((unused)))
+			     my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length=buff->key_length;
   return (uchar*) buff->hash_key;

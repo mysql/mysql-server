@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -406,7 +406,7 @@ exit:
 static void usage(void)
 {
   PRINT_VERSION;
-  puts("Copyright (c) 2011, 2015, Oracle and/or its affiliates. "
+  puts("Copyright (c) 2011, 2016, Oracle and/or its affiliates. "
        "All rights reserved.\n");
   puts("Enable or disable plugins.");
   printf("\nUsage: %s [options] <plugin> ENABLE|DISABLE\n\nOptions:\n",
@@ -471,7 +471,7 @@ static void print_default_values(void)
 
 static my_bool
 get_one_option(int optid,
-               const struct my_option *opt __attribute__((unused)),
+               const struct my_option *opt MY_ATTRIBUTE((unused)),
                char *argument)
 {
   switch(optid) {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -61,7 +61,7 @@ introduced where a call to log_free_check() is bypassed. */
 Removes a clustered index record. The pcur in node was positioned on the
 record, now it is detached.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static  __attribute__((nonnull, warn_unused_result))
+static  MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_undo_ins_remove_clust_rec(
 /*==========================*/
@@ -176,7 +176,7 @@ func_exit:
 /***************************************************************//**
 Removes a secondary index entry if found.
 @return	DB_SUCCESS, DB_FAIL, or DB_OUT_OF_FILE_SPACE */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_undo_ins_remove_sec_low(
 /*========================*/
@@ -251,7 +251,7 @@ func_exit_no_pcur:
 Removes a secondary index entry from the index if found. Tries first
 optimistic, then pessimistic descent down the tree.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_undo_ins_remove_sec(
 /*====================*/
@@ -350,7 +350,7 @@ close_table:
 /***************************************************************//**
 Removes secondary index records.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_undo_ins_remove_sec_rec(
 /*========================*/

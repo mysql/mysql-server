@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -222,7 +222,7 @@ static uint partition_flags()
   return HA_CAN_PARTITION;
 }
 
-static uint alter_table_flags(uint flags __attribute__((unused)))
+static uint alter_table_flags(uint flags MY_ATTRIBUTE((unused)))
 {
   return (HA_PARTITION_FUNCTION_SUPPORTED |
           HA_FAST_CHANGE_PARTITION);
@@ -1670,9 +1670,9 @@ int ha_partition::change_partitions(HA_CREATE_INFO *create_info,
                                     ulonglong * const copied,
                                     ulonglong * const deleted,
                                     const uchar *pack_frm_data
-                                    __attribute__((unused)),
+                                    MY_ATTRIBUTE((unused)),
                                     size_t pack_frm_len
-                                    __attribute__((unused)))
+                                    MY_ATTRIBUTE((unused)))
 {
   List_iterator<partition_element> part_it(m_part_info->partitions);
   List_iterator <partition_element> t_it(m_part_info->temp_partitions);
@@ -2956,7 +2956,7 @@ bool ha_partition::get_from_handler_file(const char *name, MEM_ROOT *mem_root,
 */
 
 static uchar *get_part_name(PART_NAME_DEF *part, size_t *length,
-                            my_bool not_used __attribute__((unused)))
+                            my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= part->length;
   return part->partition_name;

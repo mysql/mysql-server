@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -228,7 +228,7 @@ while (1)						\
   the length of the strings being specified
 */
 
-static int my_strnncoll_czech(const CHARSET_INFO *cs __attribute__((unused)),
+static int my_strnncoll_czech(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 			      const uchar *s1, size_t len1, 
 			      const uchar *s2, size_t len2,
                               my_bool s2_is_prefix)
@@ -266,7 +266,7 @@ int my_strnncollsp_czech(const CHARSET_INFO *cs,
                          const uchar *s, size_t slen, 
                          const uchar *t, size_t tlen,
                          my_bool diff_if_only_endspace_difference
-                         __attribute__((unused)))
+                         MY_ATTRIBUTE((unused)))
 {
   for ( ; slen && s[slen-1] == ' ' ; slen--);
   for ( ; tlen && t[tlen-1] == ' ' ; tlen--);
@@ -279,7 +279,7 @@ int my_strnncollsp_czech(const CHARSET_INFO *cs,
 */
 static size_t
 my_strnxfrmlen_czech(const CHARSET_INFO *cs
-                     __attribute__((unused)), size_t len)
+                     MY_ATTRIBUTE((unused)), size_t len)
 {
   return len * 4 + 4;
 }
@@ -291,9 +291,9 @@ my_strnxfrmlen_czech(const CHARSET_INFO *cs
 */
 
 static size_t
-my_strnxfrm_czech(const CHARSET_INFO *cs __attribute__((unused)), 
+my_strnxfrm_czech(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), 
                   uchar *dest, size_t len,
-                  uint nweights_arg __attribute__((unused)),
+                  uint nweights_arg MY_ATTRIBUTE((unused)),
                   const uchar *src, size_t srclen, uint flags)
 {
   int value;
@@ -369,7 +369,7 @@ my_strnxfrm_czech(const CHARSET_INFO *cs __attribute__((unused)),
 
 
 static my_bool my_like_range_czech(const CHARSET_INFO *cs
-                                   __attribute__((unused)),
+                                   MY_ATTRIBUTE((unused)),
 				   const char *ptr,size_t ptr_length,
 				   pbool escape, pbool w_one, pbool w_many,
 				   size_t res_length, char *min_str,

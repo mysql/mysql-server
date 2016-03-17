@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -33,7 +33,7 @@ UNIV_INTERN
 bool
 row_is_mysql_tmp_table_name(
 /*========================*/
-	const char*     name) __attribute__((warn_unused_result));
+	const char*     name) MY_ATTRIBUTE((warn_unused_result));
 				/*!< in: table name in the form
 				'database/tablename' */
 

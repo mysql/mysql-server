@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -75,7 +75,7 @@ cmp_debug_dtuple_rec_with_match(
 				completely  matched fields; when function
 				returns, contains the value for current
 				comparison */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 #endif /* UNIV_DEBUG */
 /*************************************************************//**
 This function is used to compare two data fields for which the data type
@@ -920,7 +920,7 @@ Compare two physical record fields.
 @retval 1 if rec1 field is greater than rec2
 @retval -1 if rec1 field is less than rec2
 @retval 0 if rec1 field equals to rec2 */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 int
 cmp_rec_rec_simple_field(
 /*=====================*/

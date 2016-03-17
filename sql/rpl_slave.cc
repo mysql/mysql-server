@@ -1384,7 +1384,7 @@ terminate_slave_thread(THD *thd,
 
   while (*slave_running)                        // Should always be true
   {
-    int error __attribute__((unused));
+    int error MY_ATTRIBUTE((unused));
     DBUG_PRINT("loop", ("killing slave thread"));
 
     mysql_mutex_lock(&thd->LOCK_thd_data);
@@ -1394,7 +1394,7 @@ terminate_slave_thread(THD *thd,
       EINVAL: invalid signal number (can't happen)
       ESRCH: thread already killed (can happen, should be ignored)
     */
-    int err __attribute__((unused))= pthread_kill(thd->real_id, thr_client_alarm);
+    int err MY_ATTRIBUTE((unused))= pthread_kill(thd->real_id, thr_client_alarm);
     DBUG_ASSERT(err != EINVAL);
 #endif
     thd->awake(THD::NOT_KILLED);

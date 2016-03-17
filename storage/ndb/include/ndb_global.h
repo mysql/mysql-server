@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -251,19 +251,19 @@ extern "C" {
 #endif
 
 /**
- *  __attribute__((noreturn)) was introduce in gcc 2.5
+ *  MY_ATTRIBUTE((noreturn)) was introduce in gcc 2.5
  */
 #if (GCC_VERSION >= 2005)
-#define ATTRIBUTE_NORETURN __attribute__((noreturn))
+#define ATTRIBUTE_NORETURN MY_ATTRIBUTE((noreturn))
 #else
 #define ATTRIBUTE_NORETURN
 #endif
 
 /**
- *  __attribute__((noinline)) was introduce in gcc 3.1
+ *  MY_ATTRIBUTE((noinline)) was introduce in gcc 3.1
  */
 #if (GCC_VERSION >= 3001)
-#define ATTRIBUTE_NOINLINE __attribute__((noinline))
+#define ATTRIBUTE_NOINLINE MY_ATTRIBUTE((noinline))
 #else
 #define ATTRIBUTE_NOINLINE
 #endif

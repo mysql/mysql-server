@@ -1216,7 +1216,7 @@ extern "C" uchar *get_bookmark_hash_key(const uchar *, size_t *, my_bool);
 
 
 uchar *get_plugin_hash_key(const uchar *buff, size_t *length,
-                           my_bool not_used __attribute__((unused)))
+                           my_bool not_used MY_ATTRIBUTE((unused)))
 {
   struct st_plugin_int *plugin= (st_plugin_int *)buff;
   *length= (uint)plugin->name.length;
@@ -1225,7 +1225,7 @@ uchar *get_plugin_hash_key(const uchar *buff, size_t *length,
 
 
 uchar *get_bookmark_hash_key(const uchar *buff, size_t *length,
-                             my_bool not_used __attribute__((unused)))
+                             my_bool not_used MY_ATTRIBUTE((unused)))
 {
   struct st_bookmark *var= (st_bookmark *)buff;
   *length= var->name_len + 1;
@@ -3396,7 +3396,7 @@ static void plugin_opt_set_limits(struct my_option *options,
 extern "C" my_bool get_one_plugin_option(int optid, const struct my_option *,
                                          char *);
 
-my_bool get_one_plugin_option(int optid __attribute__((unused)),
+my_bool get_one_plugin_option(int optid MY_ATTRIBUTE((unused)),
                               const struct my_option *opt,
                               char *argument)
 {
@@ -3717,7 +3717,7 @@ static my_option *construct_help_options(MEM_ROOT *mem_root,
 
 static my_bool check_if_option_is_deprecated(int optid,
                                              const struct my_option *opt,
-                                             char *argument __attribute__((unused)))
+                                             char *argument MY_ATTRIBUTE((unused)))
 {
   if (optid == -1)
   {
@@ -3767,7 +3767,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
   LEX_STRING plugin_name;
   char *varname;
   int error;
-  sys_var *v __attribute__((unused));
+  sys_var *v MY_ATTRIBUTE((unused));
   struct st_bookmark *var;
   uint len, count= EXTRA_OPTIONS;
   DBUG_ENTER("test_plugin_options");

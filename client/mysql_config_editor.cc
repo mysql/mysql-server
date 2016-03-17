@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -209,7 +209,7 @@ static struct my_option my_help_command_options[]=
 
 my_bool
 my_program_get_one_option(int optid,
-                          const struct my_option *opt __attribute__((unused)),
+                          const struct my_option *opt MY_ATTRIBUTE((unused)),
                           char *argument)
 {
   switch(optid) {
@@ -230,7 +230,7 @@ my_program_get_one_option(int optid,
 
 my_bool
 my_set_command_get_one_option(int optid,
-                              const struct my_option *opt __attribute__((unused)),
+                              const struct my_option *opt MY_ATTRIBUTE((unused)),
                               char *argument)
 {
   switch(optid) {
@@ -257,7 +257,7 @@ my_set_command_get_one_option(int optid,
 
 my_bool
 my_remove_command_get_one_option(int optid,
-                                 const struct my_option *opt __attribute__((unused)),
+                                 const struct my_option *opt MY_ATTRIBUTE((unused)),
                                  char *argument)
 {
   switch(optid) {
@@ -281,7 +281,7 @@ my_remove_command_get_one_option(int optid,
 
 my_bool
 my_print_command_get_one_option(int optid,
-                                const struct my_option *opt __attribute__((unused)),
+                                const struct my_option *opt MY_ATTRIBUTE((unused)),
                                 char *argument)
 {
   switch(optid) {
@@ -305,7 +305,7 @@ my_print_command_get_one_option(int optid,
 
 my_bool
 my_reset_command_get_one_option(int optid,
-                                const struct my_option *opt __attribute__((unused)),
+                                const struct my_option *opt MY_ATTRIBUTE((unused)),
                                 char *argument)
 {
   switch(optid) {

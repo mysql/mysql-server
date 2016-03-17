@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -33,7 +33,7 @@ fts_write_object_id(
 /*================*/
 	ib_id_t		id,		/* in: a table/index id */
 	char*		str,		/* in: buffer to write the id to */
-	bool		hex_format __attribute__((unused)))
+	bool		hex_format MY_ATTRIBUTE((unused)))
 					/* in: true for fixed hex format,
 					false for old ambiguous format */
 {

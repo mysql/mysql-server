@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -600,7 +600,7 @@ bool Rpl_info_table::do_get_info(const int pos, char *value, const size_t size,
 }
 
 bool Rpl_info_table::do_get_info(const int pos, uchar *value, const size_t size,
-                                 const uchar *default_value __attribute__((unused)))
+                                 const uchar *default_value MY_ATTRIBUTE((unused)))
 {
   if (field_values->value[pos].length() == size)
     return (!memcpy((char *) value, (char *)
@@ -661,7 +661,7 @@ bool Rpl_info_table::do_get_info(const int pos, float *value,
 }
 
 bool Rpl_info_table::do_get_info(const int pos, Dynamic_ids *value,
-                                 const Dynamic_ids *default_value __attribute__((unused)))
+                                 const Dynamic_ids *default_value MY_ATTRIBUTE((unused)))
 {
   if (value->unpack_dynamic_ids(field_values->value[pos].c_ptr_safe()))
     return TRUE;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -51,7 +51,7 @@ recv_read_checkpoint_info_for_backup(
 	lsn_t*		first_header_lsn)
 				/*!< out: lsn of of the start of the
 				first log file */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /*******************************************************************//**
 Scans the log segment and n_bytes_scanned is set to the length of valid
 log scanned. */

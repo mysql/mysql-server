@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -62,7 +62,7 @@ extern TYPELIB binlog_checksum_typelib;
 
 extern "C" uint32
 *slave_list_key(SLAVE_INFO* si, size_t *len,
-		my_bool not_used __attribute__((unused)))
+		my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *len = 4;
   return &si->server_id;

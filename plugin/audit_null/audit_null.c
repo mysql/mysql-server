@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -18,9 +18,7 @@
 #include <mysql/plugin.h>
 #include <mysql/plugin_audit.h>
 
-#if !defined(__attribute__) && (defined(__cplusplus) || !defined(__GNUC__)  || __GNUC__ == 2 && __GNUC_MINOR__ < 8)
-#define __attribute__(A)
-#endif
+#include "my_attribute.h"
 
 static volatile int number_of_calls; /* for SHOW STATUS, see below */
 /* Count MYSQL_AUDIT_GENERAL_CLASS event instances */
@@ -48,7 +46,7 @@ static volatile int number_of_calls_connection_change_user;
     1                    failure (cannot happen)
 */
 
-static int audit_null_plugin_init(void *arg __attribute__((unused)))
+static int audit_null_plugin_init(void *arg MY_ATTRIBUTE((unused)))
 {
   number_of_calls= 0;
   number_of_calls_general_log= 0;
@@ -75,7 +73,7 @@ static int audit_null_plugin_init(void *arg __attribute__((unused)))
 
 */
 
-static int audit_null_plugin_deinit(void *arg __attribute__((unused)))
+static int audit_null_plugin_deinit(void *arg MY_ATTRIBUTE((unused)))
 {
   return(0);
 }
@@ -91,7 +89,7 @@ static int audit_null_plugin_deinit(void *arg __attribute__((unused)))
   DESCRIPTION
 */
 
-static void audit_null_notify(MYSQL_THD thd __attribute__((unused)),
+static void audit_null_notify(MYSQL_THD thd MY_ATTRIBUTE((unused)),
                               unsigned int event_class,
                               const void *event)
 {

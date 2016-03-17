@@ -1,5 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
-   Use is subject to license terms
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* Function to set a varible when we got a alarm */
 /* Used by my_lock samt functions in m_alarm.h */
@@ -24,7 +23,7 @@
 #ifdef HAVE_ALARM
 
 	/* ARGSUSED */
-sig_handler my_set_alarm_variable(int signo __attribute__((unused)))
+sig_handler my_set_alarm_variable(int signo MY_ATTRIBUTE((unused)))
 {
   my_have_got_alarm=1;			/* Tell program that time expired */
   return;

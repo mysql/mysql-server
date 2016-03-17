@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1311,7 +1311,7 @@ public:
   }
   virtual bool write_data_header(IO_CACHE* file)
   { return 0; }
-  virtual bool write_data_body(IO_CACHE* file __attribute__((unused)))
+  virtual bool write_data_body(IO_CACHE* file MY_ATTRIBUTE((unused)))
   { return 0; }
   inline time_t get_time()
   {
@@ -4520,7 +4520,7 @@ public:
   static bool binlog_row_logging_function(THD *thd, TABLE *table,
                                           bool is_transactional,
                                           const uchar *before_record
-                                          __attribute__((unused)),
+                                          MY_ATTRIBUTE((unused)),
                                           const uchar *after_record)
   {
     return thd->binlog_write_row(table, is_transactional,
@@ -4660,7 +4660,7 @@ public:
                                           bool is_transactional,
                                           const uchar *before_record,
                                           const uchar *after_record
-                                          __attribute__((unused)))
+                                          MY_ATTRIBUTE((unused)))
   {
     return thd->binlog_delete_row(table, is_transactional,
                                   before_record, NULL);

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -476,9 +476,9 @@ void
 mem_heap_free_func(
 /*===============*/
 	mem_heap_t*	heap,		/*!< in, own: heap to be freed */
-	const char*	file_name __attribute__((unused)),
+	const char*	file_name MY_ATTRIBUTE((unused)),
 					/*!< in: file name where freed */
-	ulint		line  __attribute__((unused)))
+	ulint		line  MY_ATTRIBUTE((unused)))
 {
 	mem_block_t*	block;
 	mem_block_t*	prev_block;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@ void safe_mutex_global_init(void)
 
 
 int safe_mutex_init(safe_mutex_t *mp,
-		    const pthread_mutexattr_t *attr __attribute__((unused)),
+		    const pthread_mutexattr_t *attr MY_ATTRIBUTE((unused)),
 		    const char *file,
 		    uint line)
 {
@@ -370,7 +370,7 @@ int safe_mutex_destroy(safe_mutex_t *mp, const char *file, uint line)
    This is ok, as this thread may not yet have been exited.
 */
 
-void safe_mutex_end(FILE *file __attribute__((unused)))
+void safe_mutex_end(FILE *file MY_ATTRIBUTE((unused)))
 {
   if (!safe_mutex_count)			/* safetly */
     pthread_mutex_destroy(&THR_LOCK_mutex);

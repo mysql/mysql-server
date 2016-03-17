@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@ PSI_mutex_info Table_cache::m_mutex_keys[]= {
 
 extern "C" uchar *table_cache_key(const uchar *record,
                                   size_t *length,
-                                  my_bool not_used __attribute__((unused)))
+                                  my_bool not_used MY_ATTRIBUTE((unused)))
 {
   TABLE_SHARE *share= ((Table_cache_element*)record)->get_share();
   *length= share->table_cache_key.length;

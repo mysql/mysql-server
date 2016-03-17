@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -180,7 +180,7 @@ err:
 
 int _mi_bin_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
                    uchar *key, uint key_len, uint comp_flag, uchar **ret_pos,
-                   uchar *buff __attribute__((unused)), my_bool *last_key)
+                   uchar *buff MY_ATTRIBUTE((unused)), my_bool *last_key)
 {
   reg4 int start,mid,end,save_end;
   int flag;
@@ -1420,9 +1420,9 @@ int _mi_search_last(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 
 int
 _mi_calc_static_key_length(MI_KEYDEF *keyinfo,uint nod_flag,
-                           uchar *next_pos  __attribute__((unused)),
-                           uchar *org_key  __attribute__((unused)),
-                           uchar *prev_key __attribute__((unused)),
+                           uchar *next_pos  MY_ATTRIBUTE((unused)),
+                           uchar *org_key  MY_ATTRIBUTE((unused)),
+                           uchar *prev_key MY_ATTRIBUTE((unused)),
                            uchar *key, MI_KEY_PARAM *s_temp)
 {
   s_temp->key=key;
@@ -1433,9 +1433,9 @@ _mi_calc_static_key_length(MI_KEYDEF *keyinfo,uint nod_flag,
 
 int
 _mi_calc_var_key_length(MI_KEYDEF *keyinfo,uint nod_flag,
-                        uchar *next_pos  __attribute__((unused)),
-                        uchar *org_key  __attribute__((unused)),
-                        uchar *prev_key __attribute__((unused)),
+                        uchar *next_pos  MY_ATTRIBUTE((unused)),
+                        uchar *org_key  MY_ATTRIBUTE((unused)),
+                        uchar *prev_key MY_ATTRIBUTE((unused)),
                         uchar *key, MI_KEY_PARAM *s_temp)
 {
   s_temp->key=key;
@@ -1825,7 +1825,7 @@ _mi_calc_bin_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
 
 /* store key without compression */
 
-void _mi_store_static_key(MI_KEYDEF *keyinfo __attribute__((unused)),
+void _mi_store_static_key(MI_KEYDEF *keyinfo MY_ATTRIBUTE((unused)),
                           register uchar *key_pos,
                           register MI_KEY_PARAM *s_temp)
 {
@@ -1840,7 +1840,7 @@ void _mi_store_static_key(MI_KEYDEF *keyinfo __attribute__((unused)),
   { *((pos)++) = (uchar) ((length) >> 8); *((pos)++) = (uchar) (length);  } }
 
 
-void _mi_store_var_pack_key(MI_KEYDEF *keyinfo  __attribute__((unused)),
+void _mi_store_var_pack_key(MI_KEYDEF *keyinfo  MY_ATTRIBUTE((unused)),
                             register uchar *key_pos,
                             register MI_KEY_PARAM *s_temp)
 {
@@ -1903,7 +1903,7 @@ void _mi_store_var_pack_key(MI_KEYDEF *keyinfo  __attribute__((unused)),
 
 /* variable length key with prefix compression */
 
-void _mi_store_bin_pack_key(MI_KEYDEF *keyinfo  __attribute__((unused)),
+void _mi_store_bin_pack_key(MI_KEYDEF *keyinfo  MY_ATTRIBUTE((unused)),
                             register uchar *key_pos,
                             register MI_KEY_PARAM *s_temp)
 {

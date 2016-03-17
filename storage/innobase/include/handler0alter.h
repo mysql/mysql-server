@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -32,7 +32,7 @@ innobase_rec_to_mysql(
 	const dict_index_t*	index,	/*!< in: index */
 	const ulint*		offsets)/*!< in: rec_get_offsets(
 					rec, index, ...) */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 
 /*************************************************************//**
 Copies an InnoDB index entry to table->record[0]. */
@@ -43,7 +43,7 @@ innobase_fields_to_mysql(
 	struct TABLE*		table,	/*!< in/out: MySQL table */
 	const dict_index_t*	index,	/*!< in: InnoDB index */
 	const dfield_t*		fields)	/*!< in: InnoDB index fields */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 
 /*************************************************************//**
 Copies an InnoDB row to table->record[0]. */
@@ -54,7 +54,7 @@ innobase_row_to_mysql(
 	struct TABLE*		table,	/*!< in/out: MySQL table */
 	const dict_table_t*	itab,	/*!< in: InnoDB table */
 	const dtuple_t*		row)	/*!< in: InnoDB row */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 
 /*************************************************************//**
 Resets table->record[0]. */
@@ -63,7 +63,7 @@ void
 innobase_rec_reset(
 /*===============*/
 	struct TABLE*		table)		/*!< in/out: MySQL table */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 
 /** Generate the next autoinc based on a snapshot of the session
 auto_increment_increment and auto_increment_offset variables. */

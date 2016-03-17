@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -508,7 +508,7 @@ extern "C" uchar *get_table_key(const uchar *, size_t *, my_bool);
 extern "C" void free_table_ent(void* a);
 
 uchar *get_table_key(const uchar* a, size_t *len,
-                     my_bool __attribute__((unused)))
+                     my_bool MY_ATTRIBUTE((unused)))
 {
   TABLE_RULE_ENT *e= (TABLE_RULE_ENT *) a;
 

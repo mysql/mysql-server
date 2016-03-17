@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -89,7 +89,7 @@ static bool mysql_ha_open_table(THD *thd, TABLE_LIST *table);
 */
 
 static char *mysql_ha_hash_get_key(TABLE_LIST *tables, size_t *key_len_p,
-                                   my_bool first __attribute__((unused)))
+                                   my_bool first MY_ATTRIBUTE((unused)))
 {
   *key_len_p= strlen(tables->alias) + 1 ; /* include '\0' in comparisons */
   return tables->alias;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -102,7 +102,7 @@ int sort_set (tina_set *a, tina_set *b)
 }
 
 static uchar* tina_get_key(TINA_SHARE *share, size_t *length,
-                          my_bool not_used __attribute__((unused)))
+                          my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length=share->table_name_length;
   return (uchar*) share->table_name;

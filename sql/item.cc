@@ -3413,8 +3413,8 @@ Item *Item_null::safe_charset_converter(const CHARSET_INFO *tocs)
 
 static void
 default_set_param_func(Item_param *param,
-                       uchar **pos __attribute__((unused)),
-                       ulong len __attribute__((unused)))
+                       uchar **pos MY_ATTRIBUTE((unused)),
+                       ulong len MY_ATTRIBUTE((unused)))
 {
   param->set_null();
 }
