@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -248,7 +248,7 @@ void
 mem_field_erase(
 /*============*/
 	byte*	buf,	/*!< in: memory field */
-	ulint	n __attribute__((unused)))
+	ulint	n MY_ATTRIBUTE((unused)))
 			/*!< in: how many bytes the user requested */
 {
 	byte*	usr_buf;
@@ -450,7 +450,7 @@ void
 mem_heap_validate_or_print(
 /*=======================*/
 	mem_heap_t*	heap,	/*!< in: memory heap */
-	byte*		top __attribute__((unused)),
+	byte*		top MY_ATTRIBUTE((unused)),
 				/*!< in: calculate and validate only until
 				this top pointer in the heap is reached,
 				if this pointer is NULL, ignored */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -542,7 +542,7 @@ bool Master_info::write_info(Rpl_info_handler *to)
 }
 
 bool Master_info::set_password(const char* password_arg,
-                               int password_arg_size __attribute__((unused)))
+                               int password_arg_size MY_ATTRIBUTE((unused)))
 {
   bool ret= true;
   DBUG_ENTER("Master_info::set_password");

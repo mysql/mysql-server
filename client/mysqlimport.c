@@ -222,7 +222,7 @@ file. The SQL command 'LOAD DATA INFILE' is used to import the rows.\n");
 
 
 static my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument)
 {
   switch(optid) {

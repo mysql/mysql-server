@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -369,7 +369,7 @@ ignore_db_dirs_init()
 
 static uchar *
 db_dirs_hash_get_key(const uchar *data, size_t *len_ret,
-                     my_bool __attribute__((unused)))
+                     my_bool MY_ATTRIBUTE((unused)))
 {
   LEX_STRING *e= (LEX_STRING *) data;
 
@@ -2032,8 +2032,8 @@ public:
   {
     return (void*) sql_alloc((uint) size);
   }
-  static void operator delete(void *ptr __attribute__((unused)),
-                              size_t size __attribute__((unused)))
+  static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
+                              size_t size MY_ATTRIBUTE((unused)))
   { TRASH(ptr, size); }
 
   ulong thread_id;

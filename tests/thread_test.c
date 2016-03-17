@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,9 +29,9 @@ static char *database,*host,*user,*password,*unix_socket,*query;
 uint tcp_port;
 
 #ifndef __WIN__
-void *test_thread(void *arg __attribute__((unused)))
+void *test_thread(void *arg MY_ATTRIBUTE((unused)))
 #else
-unsigned __stdcall test_thread(void *arg __attribute__((unused)))
+unsigned __stdcall test_thread(void *arg MY_ATTRIBUTE((unused)))
 #endif
 {
   MYSQL *mysql;
@@ -134,7 +134,7 @@ static void usage()
 
 
 static my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument)
 {
   switch (optid) {

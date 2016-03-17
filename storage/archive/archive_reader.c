@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include <m_string.h>
 #include <my_getopt.h>
 #include <mysql_version.h>
+#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #define BUFFER_LEN 1024
 #define ARCHIVE_ROW_HEADER_SIZE 4
@@ -292,7 +293,7 @@ end:
 
 static my_bool
 get_one_option(int optid,
-	       const struct my_option *opt __attribute__((unused)),
+	       const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument)
 {
   switch (optid) {
@@ -388,8 +389,8 @@ static struct my_option my_long_options[] =
 static void usage(void)
 {
   print_version();
-  puts("Copyright 2007-2008 MySQL AB, 2008 Sun Microsystems, Inc.");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2007"));
+
   puts("Read and modify Archive files directly\n");
   printf("Usage: %s [OPTIONS] file_to_be_looked_at [file_for_backup]\n", my_progname);
   print_defaults("my", load_default_groups);

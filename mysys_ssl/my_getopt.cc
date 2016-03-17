@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1370,7 +1370,7 @@ static void init_one_value(const struct my_option *option, void *variable,
 */
 
 static void fini_one_value(const struct my_option *option, void *variable,
-			   longlong value __attribute__ ((unused)))
+			   longlong value MY_ATTRIBUTE ((unused)))
 {
   DBUG_ENTER("fini_one_value");
   switch ((option->var_type & GET_TYPE_MASK)) {

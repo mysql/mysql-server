@@ -1,4 +1,4 @@
-/*  Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -32,8 +32,8 @@
 #include <stdlib.h>
 
 static int mysql_no_login(
-    MYSQL_PLUGIN_VIO *vio __attribute__((unused)),
-    MYSQL_SERVER_AUTH_INFO *info __attribute__((unused)))
+    MYSQL_PLUGIN_VIO *vio MY_ATTRIBUTE((unused)),
+    MYSQL_SERVER_AUTH_INFO *info MY_ATTRIBUTE((unused)))
 {
   return CR_ERROR;
 }

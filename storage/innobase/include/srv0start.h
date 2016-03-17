@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -105,7 +105,7 @@ srv_path_copy(
 	ulint		dest_len,	/*!< in: max bytes to copy */
 	const char*	basedir,	/*!< in: base directory */
 	const char*	table_name)	/*!< in: source table name */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 
 /*****************************************************************//**
 Get the meta-data filename from the table name. */
@@ -116,7 +116,7 @@ srv_get_meta_data_filename(
 	dict_table_t*	table,		/*!< in: table */
 	char*			filename,	/*!< out: filename */
 	ulint			max_len)	/*!< in: filename max length */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 
 /** Log sequence number at shutdown */
 extern	lsn_t	srv_shutdown_lsn;

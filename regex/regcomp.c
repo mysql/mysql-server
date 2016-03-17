@@ -3,7 +3,7 @@
 
    This file was modified by Oracle on 2015-05-18 for 32-bit compatibility.
 
-   Modifications copyright (c) 2015, Oracle and/or its affiliates. All rights
+   Modifications copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights
    reserved. */
 
 #include <my_global.h>
@@ -1258,8 +1258,8 @@ register char *cp;
  */
 static void
 mcinvert(p, cs)
-  register struct parse *p __attribute__((unused));
-  register cset *cs __attribute__((unused));
+  register struct parse *p MY_ATTRIBUTE((unused));
+  register cset *cs MY_ATTRIBUTE((unused));
 {
 	assert(cs->multis == NULL);	/* xxx */
 }
@@ -1273,8 +1273,8 @@ mcinvert(p, cs)
  */
 static void
 mccase(p, cs)
-register struct parse *p __attribute__((unused));
-register cset *cs __attribute__((unused));
+register struct parse *p MY_ATTRIBUTE((unused));
+register cset *cs MY_ATTRIBUTE((unused));
 {
 	assert(cs->multis == NULL);	/* xxx */
 }

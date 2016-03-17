@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -129,7 +129,7 @@ page_zip_rec_set_deleted(
 	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
 	const byte*	rec,	/*!< in: record on the uncompressed page */
 	ulint		flag)	/*!< in: the deleted flag (nonzero=TRUE) */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 
 /**********************************************************************//**
 Write the "owned" flag of a record on a compressed page.  The n_owned field
@@ -141,7 +141,7 @@ page_zip_rec_set_owned(
 	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
 	const byte*	rec,	/*!< in: record on the uncompressed page */
 	ulint		flag)	/*!< in: the owned flag (nonzero=TRUE) */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 
 /**********************************************************************//**
 Shift the dense page directory when a record is deleted. */
@@ -154,7 +154,7 @@ page_zip_dir_delete(
 	dict_index_t*	index,	/*!< in: index of rec */
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec) */
 	const byte*	free)	/*!< in: previous start of the free list */
-	__attribute__((nonnull(1,2,3,4)));
+	MY_ATTRIBUTE((nonnull(1,2,3,4)));
 
 /**********************************************************************//**
 Add a slot to the dense page directory. */
@@ -165,5 +165,5 @@ page_zip_dir_add_slot(
 	page_zip_des_t*	page_zip,	/*!< in/out: compressed page */
 	ulint		is_clustered)	/*!< in: nonzero for clustered index,
 					zero for others */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 #endif

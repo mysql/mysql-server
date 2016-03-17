@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -180,7 +180,7 @@ page_cur_tuple_insert(
 	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	mtr_t*		mtr)	/*!< in: mini-transaction handle, or NULL */
-	__attribute__((nonnull(1,2,3,4,5), warn_unused_result));
+	MY_ATTRIBUTE((nonnull(1,2,3,4,5), warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Inserts a record next to page cursor. Returns pointer to inserted record if
@@ -218,7 +218,7 @@ page_cur_insert_rec_low(
 	const rec_t*	rec,	/*!< in: pointer to a physical record */
 	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
 	mtr_t*		mtr)	/*!< in: mini-transaction handle, or NULL */
-	__attribute__((nonnull(1,2,3,4), warn_unused_result));
+	MY_ATTRIBUTE((nonnull(1,2,3,4), warn_unused_result));
 /***********************************************************//**
 Inserts a record next to page cursor on a compressed and uncompressed
 page. Returns pointer to inserted record if succeed, i.e.,
@@ -240,7 +240,7 @@ page_cur_insert_rec_zip(
 	const rec_t*	rec,	/*!< in: pointer to a physical record */
 	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
 	mtr_t*		mtr)	/*!< in: mini-transaction handle, or NULL */
-	__attribute__((nonnull(1,2,3,4), warn_unused_result));
+	MY_ATTRIBUTE((nonnull(1,2,3,4), warn_unused_result));
 /*************************************************************//**
 Copies records from page to a newly created page, from a given record onward,
 including that record. Infimum and supremum records are not copied.

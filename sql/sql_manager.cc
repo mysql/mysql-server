@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ bool mysql_manager_submit(void (*action)())
   return result;
 }
 
-pthread_handler_t handle_manager(void *arg __attribute__((unused)))
+pthread_handler_t handle_manager(void *arg MY_ATTRIBUTE((unused)))
 {
   int error = 0;
   struct timespec abstime;

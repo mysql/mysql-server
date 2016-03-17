@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,9 +45,9 @@ static int native_compare(size_t *length, unsigned char **a, unsigned char **b)
   Special case for ORDER BY / GROUP BY CHAR(0) NOT NULL
  */
 static
-int ptr_compare_zero_length(size_t *compare_length __attribute__((unused)),
-                            uchar **a __attribute__((unused)),
-                            uchar **b __attribute__((unused)))
+int ptr_compare_zero_length(size_t *compare_length MY_ATTRIBUTE((unused)),
+                            uchar **a MY_ATTRIBUTE((unused)),
+                            uchar **b MY_ATTRIBUTE((unused)))
 {
   return 0;
 }
@@ -61,7 +61,7 @@ static int ptr_compare_3(size_t *compare_length, uchar **a, uchar **b);
 	/* Get a pointer to a optimal byte-compare function for a given size */
 
 #ifdef __sun
-qsort2_cmp get_ptr_compare (size_t size __attribute__((unused)))
+qsort2_cmp get_ptr_compare (size_t size MY_ATTRIBUTE((unused)))
 {
   return (qsort2_cmp) native_compare;
 }

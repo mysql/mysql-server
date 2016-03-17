@@ -1740,7 +1740,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
 
 void Log_event::print_header(IO_CACHE* file,
                              PRINT_EVENT_INFO* print_event_info,
-                             bool is_more __attribute__((unused)))
+                             bool is_more MY_ATTRIBUTE((unused)))
 {
   char llbuff[22];
   my_off_t hexdump_from= print_event_info->hexdump_from;
@@ -2724,7 +2724,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
   {
     if (!rli->curr_group_seen_gtid && !rli->curr_group_seen_begin)
     {
-      ulong gaq_idx __attribute__((unused));
+      ulong gaq_idx MY_ATTRIBUTE((unused));
       rli->mts_groups_assigned++;
 
       rli->curr_group_isolated= FALSE;

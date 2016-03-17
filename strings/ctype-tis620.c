@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -526,7 +526,7 @@ static size_t thai2sortable(uchar *tstr, size_t len)
 */
 
 static
-int my_strnncoll_tis620(const CHARSET_INFO *cs __attribute__((unused)),
+int my_strnncoll_tis620(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                         const uchar *s1, size_t len1, 
                         const uchar *s2, size_t len2,
                         my_bool s2_is_prefix)
@@ -556,7 +556,7 @@ int my_strnncoll_tis620(const CHARSET_INFO *cs __attribute__((unused)),
 
 
 static
-int my_strnncollsp_tis620(const CHARSET_INFO * cs __attribute__((unused)),
+int my_strnncollsp_tis620(const CHARSET_INFO * cs MY_ATTRIBUTE((unused)),
 			  const uchar *a0, size_t a_length, 
 			  const uchar *b0, size_t b_length,
                           my_bool diff_if_only_endspace_difference)
@@ -841,10 +841,10 @@ NULL,NULL,NULL,NULL,NULL,NULL,NULL,plFF
 
 
 static
-int my_mb_wc_tis620(const CHARSET_INFO *cs  __attribute__((unused)),
+int my_mb_wc_tis620(const CHARSET_INFO *cs  MY_ATTRIBUTE((unused)),
 		  my_wc_t *wc,
 		  const uchar *str,
-		  const uchar *end __attribute__((unused)))
+		  const uchar *end MY_ATTRIBUTE((unused)))
 {
   if (str >= end)
     return MY_CS_TOOSMALL;
@@ -854,10 +854,10 @@ int my_mb_wc_tis620(const CHARSET_INFO *cs  __attribute__((unused)),
 }
 
 static
-int my_wc_mb_tis620(const CHARSET_INFO *cs  __attribute__((unused)),
+int my_wc_mb_tis620(const CHARSET_INFO *cs  MY_ATTRIBUTE((unused)),
 		  my_wc_t wc,
 		  uchar *str,
-		  uchar *end __attribute__((unused)))
+		  uchar *end MY_ATTRIBUTE((unused)))
 {
   uchar *pl;
   

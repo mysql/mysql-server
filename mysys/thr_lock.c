@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1512,21 +1512,21 @@ static ulong sum=0;
 
 /* The following functions is for WRITE_CONCURRENT_INSERT */
 
-static void test_get_status(void* param __attribute__((unused)),
-                            int concurrent_insert __attribute__((unused)))
+static void test_get_status(void* param MY_ATTRIBUTE((unused)),
+                            int concurrent_insert MY_ATTRIBUTE((unused)))
 {
 }
 
-static void test_update_status(void* param __attribute__((unused)))
+static void test_update_status(void* param MY_ATTRIBUTE((unused)))
 {
 }
 
-static void test_copy_status(void* to __attribute__((unused)) ,
-			     void *from __attribute__((unused)))
+static void test_copy_status(void* to MY_ATTRIBUTE((unused)) ,
+			     void *from MY_ATTRIBUTE((unused)))
 {
 }
 
-static my_bool test_check_status(void* param __attribute__((unused)))
+static my_bool test_check_status(void* param MY_ATTRIBUTE((unused)))
 {
   return 0;
 }
@@ -1583,7 +1583,7 @@ static void *test_thread(void *arg)
 }
 
 
-int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
+int main(int argc MY_ATTRIBUTE((unused)),char **argv MY_ATTRIBUTE((unused)))
 {
   pthread_t tid;
   pthread_attr_t thr_attr;

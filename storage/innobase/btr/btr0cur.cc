@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -1084,7 +1084,7 @@ This has to be done either within the same mini-transaction,
 or by invoking ibuf_reset_free_bits() before mtr_commit().
 
 @return	pointer to inserted record if succeed, else NULL */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 rec_t*
 btr_cur_insert_if_possible(
 /*=======================*/
@@ -1127,7 +1127,7 @@ btr_cur_insert_if_possible(
 /*************************************************************//**
 For an insert, checks the locks and does the undo logging if desired.
 @return	DB_SUCCESS, DB_WAIT_LOCK, DB_FAIL, or error number */
-UNIV_INLINE __attribute__((warn_unused_result, nonnull(2,3,5,6)))
+UNIV_INLINE MY_ATTRIBUTE((warn_unused_result, nonnull(2,3,5,6)))
 dberr_t
 btr_cur_ins_lock_and_undo(
 /*======================*/
@@ -1653,7 +1653,7 @@ btr_cur_pessimistic_insert(
 /*************************************************************//**
 For an update, checks the locks and does the undo logging.
 @return	DB_SUCCESS, DB_WAIT_LOCK, or error number */
-UNIV_INLINE __attribute__((warn_unused_result, nonnull(2,3,6,7)))
+UNIV_INLINE MY_ATTRIBUTE((warn_unused_result, nonnull(2,3,6,7)))
 dberr_t
 btr_cur_upd_lock_and_undo(
 /*======================*/
@@ -4992,7 +4992,7 @@ btr_free_externally_stored_field(
 	ulint		i,		/*!< in: field number of field_ref;
 					ignored if rec == NULL */
 	enum trx_rb_ctx	rb_ctx,		/*!< in: rollback context */
-	mtr_t*		local_mtr __attribute__((unused))) /*!< in: mtr
+	mtr_t*		local_mtr MY_ATTRIBUTE((unused))) /*!< in: mtr
 					containing the latch to data an an
 					X-latch to the index tree */
 {

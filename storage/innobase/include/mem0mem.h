@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -353,7 +353,7 @@ mem_heap_printf(
 /*============*/
 	mem_heap_t*	heap,	/*!< in: memory heap */
 	const char*	format,	/*!< in: format string */
-	...) __attribute__ ((format (printf, 2, 3)));
+	...) MY_ATTRIBUTE ((format (printf, 2, 3)));
 
 #ifdef MEM_PERIODIC_CHECK
 /******************************************************************//**

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -174,7 +174,7 @@ cmp_dtuple_rec_with_match_low(
 				bytes within the first field not completely
 				matched; when function returns, contains the
 				value for current comparison */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 #define cmp_dtuple_rec_with_match(tuple,rec,offsets,fields,bytes)	\
 	cmp_dtuple_rec_with_match_low(					\
 		tuple,rec,offsets,dtuple_get_n_fields_cmp(tuple),fields,bytes)
@@ -218,7 +218,7 @@ cmp_rec_rec_simple(
 	struct TABLE*		table)	/*!< in: MySQL table, for reporting
 					duplicate key value if applicable,
 					or NULL */
-	__attribute__((nonnull(1,2,3,4), warn_unused_result));
+	MY_ATTRIBUTE((nonnull(1,2,3,4), warn_unused_result));
 /*************************************************************//**
 This function is used to compare two physical records. Only the common
 first fields are compared, and if an externally stored field is

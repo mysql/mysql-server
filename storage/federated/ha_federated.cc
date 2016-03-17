@@ -425,7 +425,7 @@ static handler *federated_create_handler(handlerton *hton,
 /* Function we use in the creation of our hash to get key */
 
 static uchar *federated_get_key(FEDERATED_SHARE *share, size_t *length,
-                                my_bool not_used __attribute__ ((unused)))
+                                my_bool not_used MY_ATTRIBUTE ((unused)))
 {
   *length= share->share_key_length;
   return (uchar*) share->share_key;
@@ -2743,7 +2743,7 @@ int ha_federated::read_next(uchar *buf, MYSQL_RES *result)
   @param[in]  record  record data (unused)
 */
 
-void ha_federated::position(const uchar *record __attribute__ ((unused)))
+void ha_federated::position(const uchar *record MY_ATTRIBUTE ((unused)))
 {
   DBUG_ENTER("ha_federated::position");
   

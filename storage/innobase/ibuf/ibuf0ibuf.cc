@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -657,7 +657,7 @@ byte*
 ibuf_parse_bitmap_init(
 /*===================*/
 	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr __attribute__((unused)), /*!< in: buffer end */
+	byte*		end_ptr MY_ATTRIBUTE((unused)), /*!< in: buffer end */
 	buf_block_t*	block,	/*!< in: block or NULL */
 	mtr_t*		mtr)	/*!< in: mtr or NULL */
 {
@@ -2494,7 +2494,7 @@ ibuf_get_merge_page_nos_func(
 /*******************************************************************//**
 Get the matching records for space id.
 @return	current rec or NULL */
-static	__attribute__((nonnull, warn_unused_result))
+static	MY_ATTRIBUTE((nonnull, warn_unused_result))
 const rec_t*
 ibuf_get_user_rec(
 /*===============*/
@@ -2516,7 +2516,7 @@ ibuf_get_user_rec(
 Reads page numbers for a space id from an ibuf tree.
 @return a lower limit for the combined volume of records which will be
 merged */
-static	__attribute__((nonnull, warn_unused_result))
+static	MY_ATTRIBUTE((nonnull, warn_unused_result))
 ulint
 ibuf_get_merge_pages(
 /*=================*/
@@ -2626,7 +2626,7 @@ ibuf_merge_pages(
 /*********************************************************************//**
 Get the table instance from the table id.
 @return table instance */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dict_table_t*
 ibuf_get_table(
 /*===========*/
@@ -2725,7 +2725,7 @@ Contracts insert buffer trees by reading pages to the buffer pool.
 @return a lower limit for the combined size in bytes of entries which
 will be merged from ibuf trees to the pages read, 0 if ibuf is
 empty */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 ulint
 ibuf_merge(
 /*=======*/
@@ -3444,7 +3444,7 @@ ibuf_get_entry_counter_func(
 Buffer an operation in the insert/delete buffer, instead of doing it
 directly to the disk page, if this is possible.
 @return	DB_SUCCESS, DB_STRONG_FAIL or other error */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 ibuf_insert_low(
 /*============*/
@@ -3935,7 +3935,7 @@ skip_watch:
 During merge, inserts to an index page a secondary index entry extracted
 from the insert buffer.
 @return	newly inserted record */
-static __attribute__((nonnull))
+static MY_ATTRIBUTE((nonnull))
 rec_t*
 ibuf_insert_to_index_page_low(
 /*==========================*/
@@ -4366,7 +4366,7 @@ ibuf_delete(
 /*********************************************************************//**
 Restores insert buffer tree cursor position
 @return	TRUE if the position was restored; FALSE if not */
-static __attribute__((nonnull))
+static MY_ATTRIBUTE((nonnull))
 ibool
 ibuf_restore_pos(
 /*=============*/
@@ -4421,7 +4421,7 @@ Deletes from ibuf the record on which pcur is positioned. If we have to
 resort to a pessimistic delete, this function commits mtr and closes
 the cursor.
 @return	TRUE if mtr was committed and pcur closed in this operation */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 ibool
 ibuf_delete_rec(
 /*============*/

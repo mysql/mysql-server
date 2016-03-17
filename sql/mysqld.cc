@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -1303,7 +1303,7 @@ static void close_server_sock();
 static void clean_up_mutexes(void);
 static void wait_for_signal_thread_to_end(void);
 static void create_pid_file();
-static void mysqld_exit(int exit_code) __attribute__((noreturn));
+static void mysqld_exit(int exit_code) MY_ATTRIBUTE((noreturn));
 #endif
 static void delete_pid_file(myf flags);
 static void end_ssl();
@@ -1715,7 +1715,7 @@ static void __cdecl kill_server(int sig_ptr)
 
 
 #if defined(USE_ONE_SIGNAL_HAND)
-pthread_handler_t kill_server_thread(void *arg __attribute__((unused)))
+pthread_handler_t kill_server_thread(void *arg MY_ATTRIBUTE((unused)))
 {
   my_thread_init();       // Initialize new thread
   kill_server(0);
@@ -2619,7 +2619,7 @@ void close_connection(THD *thd, uint sql_errno)
 
 /** Called when a thread is aborted. */
 /* ARGSUSED */
-extern "C" sig_handler end_thread_signal(int sig __attribute__((unused)))
+extern "C" sig_handler end_thread_signal(int sig MY_ATTRIBUTE((unused)))
 {
   THD *thd=current_thd;
   my_safe_printf_stderr("end_thread_signal %p", thd);
@@ -2824,7 +2824,7 @@ void kill_blocked_pthreads()
   @todo
     One should have to fix that thr_alarm know about this thread too.
 */
-extern "C" sig_handler abort_thread(int sig __attribute__((unused)))
+extern "C" sig_handler abort_thread(int sig MY_ATTRIBUTE((unused)))
 {
   THD *thd=current_thd;
   DBUG_ENTER("abort_thread");
@@ -3135,7 +3135,7 @@ static void start_signal_handler(void)
 
 /** This threads handles all signals and alarms. */
 /* ARGSUSED */
-pthread_handler_t signal_hand(void *arg __attribute__((unused)))
+pthread_handler_t signal_hand(void *arg MY_ATTRIBUTE((unused)))
 {
   sigset_t set;
   int sig;
@@ -8384,7 +8384,7 @@ static int mysql_init_variables(void)
 
 my_bool
 mysqld_get_one_option(int optid,
-                      const struct my_option *opt __attribute__((unused)),
+                      const struct my_option *opt MY_ATTRIBUTE((unused)),
                       char *argument)
 {
   switch(optid) {

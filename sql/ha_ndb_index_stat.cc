@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1727,7 +1727,7 @@ ndb_index_stat_stop_listener(Ndb_index_stat_proc &pr)
 }
 
 pthread_handler_t
-ndb_index_stat_thread_func(void *arg __attribute__((unused)))
+ndb_index_stat_thread_func(void *arg MY_ATTRIBUTE((unused)))
 {
   THD *thd; /* needs to be first for thread_stack */
   struct timespec abstime;

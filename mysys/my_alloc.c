@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@
 */
 
 void init_alloc_root(MEM_ROOT *mem_root, size_t block_size,
-		     size_t pre_alloc_size __attribute__((unused)))
+		     size_t pre_alloc_size MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("init_alloc_root");
   DBUG_PRINT("enter",("root: 0x%lx", (long) mem_root));
@@ -94,7 +94,7 @@ void init_alloc_root(MEM_ROOT *mem_root, size_t block_size,
 */
 
 void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
-                         size_t pre_alloc_size __attribute__((unused)))
+                         size_t pre_alloc_size MY_ATTRIBUTE((unused)))
 {
   DBUG_ASSERT(alloc_root_inited(mem_root));
 

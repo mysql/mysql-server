@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights
  * reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -1265,7 +1265,7 @@ static struct my_tests_st *get_my_tests();  /* To be defined in main .c file */
 static struct my_tests_st *my_testlist= 0;
 
 static my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 char *argument)
 {
  switch (optid) {

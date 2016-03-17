@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -74,12 +74,12 @@ void (*error_handler_hook)(uint error, const char *str, myf MyFlags)=
 void (*fatal_error_handler_hook)(uint error, const char *str, myf MyFlags)=
   my_message_stderr;
 
-static void proc_info_dummy(void *a __attribute__((unused)),
-                            const PSI_stage_info *b __attribute__((unused)),
-                            PSI_stage_info *c __attribute__((unused)),
-                            const char *d __attribute__((unused)),
-                            const char *e __attribute__((unused)),
-                            const unsigned int f __attribute__((unused)))
+static void proc_info_dummy(void *a MY_ATTRIBUTE((unused)),
+                            const PSI_stage_info *b MY_ATTRIBUTE((unused)),
+                            PSI_stage_info *c MY_ATTRIBUTE((unused)),
+                            const char *d MY_ATTRIBUTE((unused)),
+                            const char *e MY_ATTRIBUTE((unused)),
+                            const unsigned int f MY_ATTRIBUTE((unused)))
 {
   return;
 }

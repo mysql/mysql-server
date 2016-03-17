@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -417,7 +417,7 @@ pthread_mutex_t ndbcluster_mutex;
 HASH ndbcluster_open_tables;
 
 static uchar *ndbcluster_get_key(NDB_SHARE *share, size_t *length,
-                                my_bool not_used __attribute__((unused)));
+                                my_bool not_used MY_ATTRIBUTE((unused)));
 
 static void modify_shared_stats(NDB_SHARE *share,
                                 Ndb_local_table_statistics *local_stat);
@@ -1293,7 +1293,7 @@ typedef struct st_thd_ndb_share {
 } THD_NDB_SHARE;
 static
 uchar *thd_ndb_share_get_key(THD_NDB_SHARE *thd_ndb_share, size_t *length,
-                            my_bool not_used __attribute__((unused)))
+                            my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= sizeof(thd_ndb_share->key);
   return (uchar*) &thd_ndb_share->key;
@@ -11106,7 +11106,7 @@ int ndbcluster_table_exists_in_engine(handlerton *hton, THD* thd,
 
 
 extern "C" uchar* tables_get_key(const char *entry, size_t *length,
-                                my_bool not_used __attribute__((unused)))
+                                my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= strlen(entry);
   return (uchar*) entry;
@@ -12657,7 +12657,7 @@ ha_ndbcluster::register_query_cache_table(THD *thd,
 */
 
 static uchar *ndbcluster_get_key(NDB_SHARE *share, size_t *length,
-                                my_bool not_used __attribute__((unused)))
+                                my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= share->key_length;
   return (uchar*) share->key;
@@ -14539,7 +14539,7 @@ ha_ndbcluster::update_table_comment(
 /**
   Utility thread main loop.
 */
-pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
+pthread_handler_t ndb_util_thread_func(void *arg MY_ATTRIBUTE((unused)))
 {
   THD *thd; /* needs to be first for thread_stack */
   struct timespec abstime;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -276,7 +276,7 @@ dict_mem_table_add_col(
 	ulint		mtype,	/*!< in: main datatype */
 	ulint		prtype,	/*!< in: precise type */
 	ulint		len)	/*!< in: precision */
-	__attribute__((nonnull(1)));
+	MY_ATTRIBUTE((nonnull(1)));
 /**********************************************************************//**
 Renames a column of a table in the data dictionary cache. */
 UNIV_INTERN
@@ -287,7 +287,7 @@ dict_mem_table_col_rename(
 	unsigned	nth_col,/*!< in: column index */
 	const char*	from,	/*!< in: old column name */
 	const char*	to)	/*!< in: new column name */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /**********************************************************************//**
 This function populates a dict_col_t memory structure with
 supplied information. */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -399,7 +399,7 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
 }
 #else
 static bool send_prep_stmt(Prepared_statement *stmt,
-                           uint columns __attribute__((unused)))
+                           uint columns MY_ATTRIBUTE((unused)))
 {
   THD *thd= stmt->thd;
 
@@ -1183,7 +1183,7 @@ swap_parameter_array(Item_param **param_array_dst,
 
 static bool insert_params_from_vars(Prepared_statement *stmt,
                                     List<LEX_STRING>& varnames,
-                                    String *query __attribute__((unused)))
+                                    String *query MY_ATTRIBUTE((unused)))
 {
   Item_param **begin= stmt->param_array;
   Item_param **end= begin + stmt->param_count;
@@ -4529,7 +4529,7 @@ bool Protocol_local::store(const char *str, size_t length,
 /* Store MYSQL_TIME (in binary format) */
 
 bool Protocol_local::store(MYSQL_TIME *time,
-                           uint precision __attribute__((unused)))
+                           uint precision MY_ATTRIBUTE((unused)))
 {
   return store_column(time, sizeof(MYSQL_TIME));
 }
@@ -4546,7 +4546,7 @@ bool Protocol_local::store_date(MYSQL_TIME *time)
 /** Store MYSQL_TIME (in binary format) */
 
 bool Protocol_local::store_time(MYSQL_TIME *time,
-                                uint precision __attribute__((unused)))
+                                uint precision MY_ATTRIBUTE((unused)))
 {
   return store_column(time, sizeof(MYSQL_TIME));
 }

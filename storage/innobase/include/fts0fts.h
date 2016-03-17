@@ -411,7 +411,7 @@ fts_get_next_doc_id(
 /*================*/
 	const dict_table_t*	table,	/*!< in: table */
 	doc_id_t*		doc_id)	/*!< out: new document id */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /*********************************************************************//**
 Update the next and last Doc ID in the CONFIG table to be the input
 "doc_id" value (+ 1). We would do so after each FTS index build or
@@ -424,7 +424,7 @@ fts_update_next_doc_id(
 	const dict_table_t*	table,		/*!< in: table */
 	const char*		table_name,	/*!< in: table name, or NULL */
 	doc_id_t		doc_id)		/*!< in: DOC ID to set */
-	__attribute__((nonnull(2)));
+	MY_ATTRIBUTE((nonnull(2)));
 
 /******************************************************************//**
 Create a new document id .
@@ -440,7 +440,7 @@ fts_create_doc_id(
 						current row that is being
 						inserted. */
 	mem_heap_t*	heap)			/*!< in: heap */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /******************************************************************//**
 Create a new fts_doc_ids_t.
 @return new fts_doc_ids_t. */
@@ -469,7 +469,7 @@ fts_trx_add_op(
 	fts_row_state	state,			/*!< in: state of the row */
 	ib_vector_t*	fts_indexes)		/*!< in: FTS indexes affected
 						(NULL=all) */
-	__attribute__((nonnull(1,2)));
+	MY_ATTRIBUTE((nonnull(1,2)));
 
 /******************************************************************//**
 Free an FTS trx. */
@@ -494,7 +494,7 @@ fts_create_common_tables(
 						index */
 	const char*	name,			/*!< in: table name */
 	bool		skip_doc_id_index)	/*!< in: Skip index on doc id */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 /******************************************************************//**
 Wrapper function of fts_create_index_tables_low(), create auxiliary
 tables for an FTS index
@@ -506,7 +506,7 @@ fts_create_index_tables(
 	trx_t*			trx,		/*!< in: transaction handle */
 	const dict_index_t*	index)		/*!< in: the FTS index
 						instance */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 /******************************************************************//**
 Creates the column specific ancillary tables needed for supporting an
 FTS index on the given table. row_mysql_lock_data_dictionary must have
@@ -522,7 +522,7 @@ fts_create_index_tables_low(
 						instance */
 	const char*	table_name,		/*!< in: the table name */
 	table_id_t	table_id)		/*!< in: the table id */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 /******************************************************************//**
 Add the FTS document id hidden column. */
 UNIV_INTERN
@@ -531,7 +531,7 @@ fts_add_doc_id_column(
 /*==================*/
 	dict_table_t*	table,	/*!< in/out: Table with FTS index */
 	mem_heap_t*	heap)	/*!< in: temporary memory heap, or NULL */
-	__attribute__((nonnull(1)));
+	MY_ATTRIBUTE((nonnull(1)));
 
 /*********************************************************************//**
 Drops the ancillary tables needed for supporting an FTS index on the
@@ -545,7 +545,7 @@ fts_drop_tables(
 	trx_t*		trx,			/*!< in: transaction */
 	dict_table_t*	table)			/*!< in: table has the FTS
 						index */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /******************************************************************//**
 The given transaction is about to be committed; do whatever is necessary
 from the FTS system's POV.
@@ -555,7 +555,7 @@ dberr_t
 fts_commit(
 /*=======*/
 	trx_t*		trx)			/*!< in: transaction */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 
 /*******************************************************************//**
 FTS Query entry point.
@@ -572,7 +572,7 @@ fts_query(
 						in bytes */
 	fts_result_t**	result)			/*!< out: query result, to be
 						freed by the caller.*/
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 
 /******************************************************************//**
 Retrieve the FTS Relevance Ranking result for doc with doc_id
@@ -690,7 +690,7 @@ dberr_t
 fts_optimize_table(
 /*===============*/
 	dict_table_t*	table)			/*!< in: table to optimiza */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 
 /**********************************************************************//**
 Startup the optimize thread and create the work queue. */
@@ -716,7 +716,7 @@ fts_drop_index_tables(
 /*==================*/
 	trx_t*		trx,			/*!< in: transaction */
 	dict_index_t*	index)			/*!< in: Index to drop */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 
 /******************************************************************//**
 Remove the table from the OPTIMIZER's list. We do wait for
@@ -757,7 +757,7 @@ fts_savepoint_take(
 	trx_t*		trx,			/*!< in: transaction */
 	fts_trx_t*	fts_trx,		/*!< in: fts transaction */
 	const char*	name)			/*!< in: savepoint name */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /**********************************************************************//**
 Refresh last statement savepoint. */
 UNIV_INTERN
@@ -765,7 +765,7 @@ void
 fts_savepoint_laststmt_refresh(
 /*===========================*/
 	trx_t*		trx)			/*!< in: transaction */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 /**********************************************************************//**
 Release the savepoint data identified by  name. */
 UNIV_INTERN
@@ -834,7 +834,7 @@ fts_drop_index_split_tables(
 /*========================*/
 	trx_t*		trx,			/*!< in: transaction */
 	dict_index_t*	index)			/*!< in: fts instance */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 
 /** Run SYNC on the table, i.e., write out data from the cache to the
 FTS auxiliary INDEX table and clear the cache at the end.
@@ -1026,7 +1026,7 @@ fts_drop_index(
 	dict_table_t*	table,	/*!< in: Table where indexes are dropped */
 	dict_index_t*	index,	/*!< in: Index to be dropped */
 	trx_t*		trx)	/*!< in: Transaction for the drop */
-	__attribute__((nonnull));
+	MY_ATTRIBUTE((nonnull));
 
 /****************************************************************//**
 Rename auxiliary tables for all fts index for a table

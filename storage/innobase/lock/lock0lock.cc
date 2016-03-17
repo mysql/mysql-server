@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -409,7 +409,7 @@ ibool
 lock_rec_validate_page(
 /*===================*/
 	const buf_block_t*	block)	/*!< in: buffer block */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 #endif /* UNIV_DEBUG */
 
 /* The lock system */
@@ -493,7 +493,7 @@ Checks that a transaction id is sensible, i.e., not in the future.
 #ifdef UNIV_DEBUG
 UNIV_INTERN
 #else
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 #endif
 bool
 lock_check_trx_id_sanity(
@@ -5779,7 +5779,7 @@ lock_validate_table_locks(
 /*********************************************************************//**
 Validate record locks up to a limit.
 @return lock at limit or NULL if no more locks in the hash bucket */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 const lock_t*
 lock_rec_validate(
 /*==============*/

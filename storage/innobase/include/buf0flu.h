@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -85,7 +85,7 @@ buf_flush_page_try(
 /*===============*/
 	buf_pool_t*	buf_pool,	/*!< in/out: buffer pool instance */
 	buf_block_t*	block)		/*!< in/out: buffer control block */
-	__attribute__((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((nonnull, warn_unused_result));
 # endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 /*******************************************************************//**
 This utility flushes dirty blocks from the end of the flush list of
@@ -254,7 +254,7 @@ buf_flush_ready_for_flush(
 	buf_page_t*	bpage,	/*!< in: buffer control block, must be
 				buf_page_in_file(bpage) */
 	buf_flush_t	flush_type)/*!< in: type of flush */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 #ifdef UNIV_DEBUG
 /******************************************************************//**
