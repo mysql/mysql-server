@@ -2810,41 +2810,210 @@ double Item_func_cot::val_real()
 }
 
 
+// Bitwise functions
+
+bool Item_func_bit::resolve_type(THD *thd)
+{
+  if (bit_func_returns_binary(args[0],
+                              binary_result_requires_binary_second_arg() ?
+                              args[1] : nullptr))
+  {
+    hybrid_type= STRING_RESULT;
+    collation.set(&my_charset_bin);
+    fix_char_length_ulonglong(
+      max<ulonglong>(args[0]->max_length,
+                     binary_result_requires_binary_second_arg() ?
+                     args[1]->max_length : 0));
+  }
+  else
+  {
+    hybrid_type= INT_RESULT;
+    decimals= 0;
+    unsigned_flag= true;
+    collation.set_numeric();
+    fix_char_length(MAX_BIGINT_WIDTH + 1);
+  }
+  return reject_geometry_args(arg_count, args, this);
+}
+
+
+longlong Item_func_bit::val_int()
+{
+  DBUG_ASSERT(fixed);
+  if (hybrid_type == INT_RESULT)
+    return int_op();
+  else
+  {
+    String *res;
+    if (!(res= str_op(&str_value)))
+      return 0;
+
+    int ovf_error;
+    char *from= const_cast<char *>(res->ptr());
+    size_t len= res->length();
+    char *end= from + len;
+    return my_strtoll10(from, &end, &ovf_error);
+  }
+}
+
+
+double Item_func_bit::val_real()
+{
+  DBUG_ASSERT(fixed);
+  if (hybrid_type == INT_RESULT)
+    return static_cast<ulonglong>(int_op());
+  else
+  {
+    String *res;
+    if (!(res= str_op(&str_value)))
+      return 0.0;
+
+    int ovf_error;
+    char *from= const_cast<char *>(res->ptr());
+    size_t len= res->length();
+    char *end= from + len;
+    return my_strtod(from, &end, &ovf_error);
+  }
+}
+
+
+my_decimal *Item_func_bit::val_decimal(my_decimal *decimal_value)
+{
+  DBUG_ASSERT(fixed);
+  if (hybrid_type == INT_RESULT)
+    return val_decimal_from_int(decimal_value);
+  else
+    return val_decimal_from_string(decimal_value);
+}
+
+
+String *Item_func_bit::val_str(String *str)
+{
+  DBUG_ASSERT(fixed);
+  if (hybrid_type == INT_RESULT)
+  {
+    longlong nr= int_op();
+    if (null_value)
+      return nullptr;
+    str->set_int(nr, unsigned_flag, collation.collation);
+    return str;
+  }
+  else
+    return str_op(str);
+}
+
+
 // Shift-functions, same as << and >> in C/C++
 
-
-longlong Item_func_shift_left::val_int()
+/**
+  Template function that evaluates the bitwise shift operation over integer
+  arguments.
+  @tparam to_left True if left-shift, false if right-shift
+*/
+template<bool to_left> longlong Item_func_shift::eval_int_op()
 {
-  DBUG_ASSERT(fixed == 1);
-  ulonglong res= args[0]->val_uint();
-  longlong shift= args[1]->val_int();
-  if (args[0]->null_value || args[1]->null_value)
-  {
-    null_value=1;
+  DBUG_ASSERT(fixed);
+  null_value= true;
+  ulonglong res= args[0]->val_int();
+  if (args[0]->null_value)
     return 0;
-  }
-  null_value=0;
-  return (shift >= 0 && shift < static_cast<longlong>(sizeof(longlong)*8) ?
-          static_cast<longlong>(res << shift) : 0LL);
+
+  uint shift= args[1]->val_int();
+  if (args[1]->null_value)
+    return 0;
+
+  null_value= false;
+  if (shift < sizeof(longlong) * 8)
+    return to_left ? (res << shift) : (res >> shift);
+  return 0;
 }
 
-longlong Item_func_shift_right::val_int()
+/// Instantiations of the above
+template longlong Item_func_shift::eval_int_op<true>();
+template longlong Item_func_shift::eval_int_op<false>();
+
+
+/**
+  Template function that evaluates the bitwise shift operation over binary
+  string arguments.
+  @tparam to_left True if left-shift, false if right-shift
+  @param str      String usable as scratch buffer
+*/
+template<bool to_left> String *Item_func_shift::eval_str_op(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
-  ulonglong res= args[0]->val_uint();
-  longlong shift= args[1]->val_int();
-  if (args[0]->null_value || args[1]->null_value)
+  DBUG_ASSERT(fixed);
+  null_value= true;
+
+  String tmp_str;
+  String *arg= args[0]->val_str(&tmp_str);
+  if (!arg || tmp_value.alloc(arg->length()) || args[0]->null_value)
+    return nullptr;
+
+  ssize_t arg_length= arg->length();
+  size_t shift= min(args[1]->val_uint(),
+                    static_cast<ulonglong>(arg_length) * 8);
+  if (args[1]->null_value)
+    return nullptr;
+  null_value= false;
+  tmp_value.length(arg_length);
+  tmp_value.set_charset(&my_charset_bin);
+  /*
+    Example with left-shift-by-21-bits:
+    |........|........|........|........|
+      byte i  byte i+1 byte i+2 byte i+3
+    First (leftmost) bit has number 1.
+    21 = 2*8 + 5.
+    Bits of number 1-3 of byte 'i' receive bits 22-24 i.e. the last 3 bits of
+    byte 'i+2'. So, take byte 'i+2', shift it left by 5 bits, that puts the
+    last 3 bits of byte 'i+2' in bits 1-3, and 0s elsewhere.
+    Bits of number 4-8 of byte 'i' receive bits 25-39 i.e. the first 5 bits of
+    byte 'i+3'. So, take byte 'i+3', shift it right by 3 bits, that puts the
+    first 5 bits of byte 'i+3' in bits 4-8, and 0s elsewhere.
+    In total, do OR of both results.
+  */
+  size_t mod= shift % 8;
+  size_t mod_complement= 8 - mod;
+  ssize_t entire_bytes= shift / 8;
+
+  const unsigned char *from_c= pointer_cast<const unsigned char *>(arg->ptr());
+  unsigned char *to_c= pointer_cast<unsigned char *>(tmp_value.c_ptr_quick());
+
+  if (to_left)
   {
-    null_value=1;
-    return 0;
+    // Bytes of lower index are overwritten by bytes of higher index
+    for (ssize_t i= 0; i < arg_length; i++)
+      if (i + entire_bytes + 1 < arg_length)
+        to_c[i]= (from_c[i + entire_bytes] << mod) |
+          (from_c[i + entire_bytes + 1] >> mod_complement);
+      else if (i + entire_bytes + 1 == arg_length)
+        to_c[i]= from_c[i + entire_bytes] << mod;
+      else
+        to_c[i]= 0;
   }
-  null_value=0;
-  return (shift >= 0 && shift < static_cast<longlong>(sizeof(longlong)*8) ?
-          static_cast<longlong>(res >> shift) : 0LL);
+  else
+  {
+    // Bytes of higher index are overwritten by bytes of lower index
+    for (ssize_t i= arg_length - 1; i >= 0; i--)
+      if (i > entire_bytes)
+        to_c[i]= (from_c[i - entire_bytes] >> mod) |
+          (from_c[i - entire_bytes - 1] << mod_complement);
+      else if (i == entire_bytes)
+        to_c[i]= from_c[i - entire_bytes] >> mod;
+      else
+        to_c[i]= 0;
+  }
+  return &tmp_value;
 }
 
 
-longlong Item_func_bit_neg::val_int()
+/// Instantiations of the above
+template String *Item_func_shift::eval_str_op<true>(String *);
+template String *Item_func_shift::eval_str_op<false>(String *);
+
+
+// Bit negation ('~')
+
+longlong Item_func_bit_neg::int_op()
 {
   DBUG_ASSERT(fixed == 1);
   ulonglong res= (ulonglong) args[0]->val_int();
@@ -2853,6 +3022,161 @@ longlong Item_func_bit_neg::val_int()
   return ~res;
 }
 
+
+String *Item_func_bit_neg::str_op(String *str)
+{
+  DBUG_ASSERT(fixed);
+  null_value= true;
+  String *res= args[0]->val_str(str);
+  if (!res || args[0]->null_value || tmp_value.alloc(res->length()))
+    return nullptr;
+
+  size_t arg_length= res->length();
+  tmp_value.length(arg_length);
+  tmp_value.set_charset(&my_charset_bin);
+  const unsigned char *from_c= pointer_cast<const unsigned char *>(res->ptr());
+  unsigned char *to_c= pointer_cast<unsigned char *>(tmp_value.c_ptr_quick());
+  size_t i= 0;
+  while (i + sizeof(longlong) <= arg_length)
+  {
+    int8store(&to_c[i], ~(uint8korr(&from_c[i])));
+    i+= sizeof(longlong);
+  }
+  while (i < arg_length)
+  {
+    to_c[i]= ~from_c[i];
+    i++;
+  }
+
+  null_value= false;
+  return &tmp_value;
+}
+
+
+/**
+  Template function used to evaluate the bitwise operation over int arguments.
+
+  @param int_func  The bitwise function.
+*/
+template<class Int_func> longlong
+Item_func_bit_two_param::eval_int_op(Int_func int_func)
+{
+  DBUG_ASSERT(fixed);
+  null_value= true;
+  ulonglong arg0= args[0]->val_uint();
+  if (args[0]->null_value)
+    return 0;
+  ulonglong arg1= args[1]->val_uint();
+  if (args[1]->null_value)
+    return 0;
+  null_value= false;
+  return (longlong) int_func(arg0, arg1);
+}
+
+/// Instantiations of the above
+template longlong Item_func_bit_two_param::eval_int_op
+<std::bit_or<ulonglong> >(std::bit_or<ulonglong>);
+template longlong Item_func_bit_two_param::eval_int_op
+<std::bit_and<ulonglong> >(std::bit_and<ulonglong>);
+template longlong Item_func_bit_two_param::eval_int_op
+<std::bit_xor<ulonglong> >(std::bit_xor<ulonglong>);
+
+
+/**
+  Template function that evaluates the bitwise operation over binary arguments.
+  Checks that both arguments have same length and applies the bitwise operation
+
+   @param str        Buffer
+   @param char_func  The Bitwise function used to evaluate unsigned chars.
+   @param int_func   The Bitwise function used to evaluate unsigned long longs.
+*/
+template<class Char_func, class Int_func> String *
+Item_func_bit_two_param::eval_str_op(String *str, Char_func char_func,
+                                     Int_func int_func)
+{
+  DBUG_ASSERT(fixed);
+  null_value= true;
+
+  String arg0_buff;
+  String *s1= args[0]->val_str(&arg0_buff);
+
+  if (!s1)
+    return nullptr;
+
+  String arg1_buff;
+  String *s2= args[1]->val_str(&arg1_buff);
+
+  if (!s2)
+    return nullptr;
+
+  size_t arg_length= s1->length();
+  if (arg_length != s2->length())
+  {
+    my_error(ER_INVALID_BITWISE_OPERANDS_SIZE, MYF(0), func_name());
+    return nullptr;
+  }
+
+  if(tmp_value.alloc(arg_length))
+    return nullptr;
+
+  null_value= false;
+  tmp_value.length(arg_length);
+  tmp_value.set_charset(&my_charset_bin);
+
+  const uchar *s1_c_p= pointer_cast<const uchar *>(s1->ptr());
+  const uchar *s2_c_p= pointer_cast<const uchar *>(s2->ptr());
+  char *res= const_cast<char *>(tmp_value.ptr());
+  size_t i= 0;
+  while (i + sizeof(longlong) <= arg_length)
+  {
+    int8store(&res[i], int_func(uint8korr(&s1_c_p[i]), uint8korr(&s2_c_p[i])));
+    i+= sizeof(longlong);
+  }
+  while (i < arg_length)
+  {
+    res[i]= char_func(s1_c_p[i], s2_c_p[i]);
+    i++;
+  }
+
+  return &tmp_value;
+}
+
+
+/// Instantiations of the above
+template String* Item_func_bit_two_param::eval_str_op
+<std::bit_or<char>, std::bit_or<ulonglong> >
+(String*, std::bit_or<char>, std::bit_or<ulonglong>);
+template String* Item_func_bit_two_param::eval_str_op
+<std::bit_and<char>, std::bit_and<ulonglong> >
+(String*, std::bit_and<char>, std::bit_and<ulonglong>);
+template String* Item_func_bit_two_param::eval_str_op
+<std::bit_xor<char>, std::bit_xor<ulonglong> >
+(String*, std::bit_xor<char>, std::bit_xor<ulonglong>);
+
+
+bool Item::bit_func_returns_binary(const Item *a, const Item *b)
+{
+  /*
+    Checks if the bitwise function should return binary data.
+    The conditions to return true are the following:
+
+    1. If there's only one argument(so b is nullptr),
+    then a must be a [VAR]BINARY Item, different from the hex/bit/NULL literal.
+
+    2. If there are two arguments, both should be [VAR]BINARY
+    and at least one of them should be different from the hex/bit/NULL literal
+  */
+  // Check if a is [VAR]BINARY Item
+  bool a_is_binary= a->result_type() == STRING_RESULT &&
+                    a->collation.collation == &my_charset_bin;
+  // Check if b is not null and is [VAR]BINARY Item
+  bool b_is_binary= b && b->result_type() == STRING_RESULT &&
+                    b->collation.collation == &my_charset_bin;
+
+  return a_is_binary && (!b || b_is_binary) &&
+    ((a->type() != Item::VARBIN_ITEM && a->type() != Item::NULL_ITEM) ||
+     (b && b->type() != Item::VARBIN_ITEM && b->type() != Item::NULL_ITEM));
+}
 
 // Conversion functions
 
@@ -4196,7 +4520,31 @@ longlong Item_func_find_in_set::val_int()
 
 longlong Item_func_bit_count::val_int()
 {
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(fixed);
+  if (bit_func_returns_binary(args[0], NULL))
+  {
+    String *s= args[0]->val_str(&str_value);
+    if ((null_value= args[0]->null_value))
+      return 0;
+
+    char *val= const_cast<char *>(s->ptr());
+
+    longlong len= 0;
+    size_t i= 0;
+    size_t arg_length= s->length();
+    while (i + sizeof(longlong) <= arg_length)
+    {
+      len+= my_count_bits(uint8korr(&val[i]));
+      i+= sizeof(longlong);
+    }
+    while (i < arg_length)
+    {
+      len+= _my_bits_nbits[(uchar) val[i]];
+      i++;
+    }
+
+    return len;
+  }
   ulonglong value= (ulonglong) args[0]->val_int();
   if ((null_value= args[0]->null_value))
     return 0; /* purecov: inspected */
@@ -8022,17 +8370,6 @@ void Item_func_match::set_hints(JOIN *join, uint ft_flag,
   */
   if (join->primary_tables == 1 && (no_cond || is_simple_expression()))
     hints->set_hint_limit(ft_limit);
-}
-
-
-longlong Item_func_bit_xor::val_int()
-{
-  DBUG_ASSERT(fixed == 1);
-  ulonglong arg1= (ulonglong) args[0]->val_int();
-  ulonglong arg2= (ulonglong) args[1]->val_int();
-  if ((null_value= (args[0]->null_value || args[1]->null_value)))
-    return 0;
-  return (longlong) (arg1 ^ arg2);
 }
 
 

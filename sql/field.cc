@@ -10533,6 +10533,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
       break;
     case Item::COPY_STR_ITEM:
     case Item::FIELD_AVG_ITEM:
+    case Item::FIELD_BIT_ITEM:
     case Item::PROC_ITEM:
     case Item::REF_ITEM:
     case Item::FIELD_STD_ITEM:

@@ -197,7 +197,12 @@ public:
   table(NULL), mark(mark)
   {}
 
+  /**
+     If == NULL, update map of any table.
+     If <> NULL, update map of only this table.
+  */
   TABLE *const table;
+  /// How to mark the map.
   const enum_mark_columns mark;
 };
 
@@ -779,7 +784,7 @@ public:
              SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM, TYPE_HOLDER,
              PARAM_ITEM, TRIGGER_FIELD_ITEM, DECIMAL_ITEM,
              XPATH_NODESET, XPATH_NODESET_CMP,
-             VIEW_FIXER_ITEM};
+             VIEW_FIXER_ITEM, FIELD_BIT_ITEM};
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
 
@@ -856,13 +861,16 @@ protected:
   }
 
   /*
-    Checks if the items provided as parameter offend the deprecated behaviour
-    on binary operations and if so, a warning will be sent.
+    Checks if the function should return binary result based on the items
+    provided as parameter.
+    Function should only be used by Item_bit_func*
 
     @param      a item to check
-    @param      b item to check, may be NULL
+    @param      b item to check, may be nullptr
+
+    @returns true if binary result.
    */
-  static void check_deprecated_bin_op(const Item *a, const Item *b);
+  static bool bit_func_returns_binary(const Item *a, const Item *b);
 public:
   /**
     The same as contextualize()/contextualize_() but with additional parameter
@@ -1766,7 +1774,31 @@ public:
   virtual bool change_context_processor(uchar *context) { return false; }
   virtual bool reset_query_id_processor(uchar *query_id_arg) { return false; }
   virtual bool find_item_processor(uchar *arg) { return this == (void *) arg; }
+  /**
+    Mark underlying field in read or write map of a table.
+
+    @param arg        Mark_field object
+  */
   virtual bool mark_field_in_map(uchar *arg) { return false; }
+protected:
+  /**
+    Helper function for mark_field_in_map(uchar *arg).
+
+    @param mark_field Mark_field object
+    @param field      Field to be marked for read/write
+  */
+  static inline bool mark_field_in_map(Mark_field *mark_field, Field* field)
+  {
+    TABLE *table= mark_field->table;
+    if (table != NULL && table != field->table)
+      return false;
+
+    table= field->table;
+    table->mark_column_used(table->in_use, field, mark_field->mark);
+
+    return false;
+  }
+public:
   /**
     Return used table information for the specified query block (level).
     For a field that is resolved from this query block, return the table number.
@@ -2906,7 +2938,10 @@ public:
   bool remove_column_from_bitmap(uchar * arg);
   bool find_item_in_field_list_processor(uchar *arg);
   bool check_gcol_func_processor(uchar *int_arg);
-  bool mark_field_in_map(uchar *arg);
+  bool mark_field_in_map(uchar *arg)
+  {
+    return Item::mark_field_in_map(pointer_cast<Mark_field *>(arg), field);
+  }
   bool used_tables_for_level(uchar *arg);
   bool check_column_privileges(uchar *arg);
   bool check_partition_func_processor(uchar *int_arg) { return false; }
