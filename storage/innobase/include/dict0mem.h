@@ -1250,7 +1250,7 @@ struct dict_vcol_templ_t {
 	ulint			rec_len;
 
 	/** default column value if any */
-	const byte*		default_rec;
+	byte*			default_rec;
 };
 
 /* This flag is for sync SQL DDL and memcached DML.
