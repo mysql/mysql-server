@@ -175,7 +175,8 @@ static void dumpx(const mysqlx::Error &exc)
 
 static void print_columndata(const std::vector<mysqlx::ColumnMetadata> &meta);
 static void print_result_set(mysqlx::Result &result);
-static void print_result_set(mysqlx::Result &result, const std::vector<std::string> &columns, Value_callback value_callback = Value_callback());
+static void print_result_set(mysqlx::Result &result, const std::vector<std::string> &columns,
+                             Value_callback value_callback = Value_callback(), bool quiet = false);
 
 static std::string message_to_text(const mysqlx::Message &message);
 
@@ -808,7 +809,6 @@ public:
     m_commands["recvtype "]   = &Command::cmd_recvtype;
     m_commands["recverror "]  = &Command::cmd_recverror;
     m_commands["recvresult"]  = &Command::cmd_recvresult;
-    m_commands["recvresult "] = &Command::cmd_recvresult;
     m_commands["recvtovar "]  = &Command::cmd_recvtovar;
     m_commands["recvuntil "]  = &Command::cmd_recvuntil;
     m_commands["recvuntildisc"] = &Command::cmd_recv_all_until_disc;
@@ -1040,36 +1040,41 @@ private:
 
       std::vector<std::string>::iterator i = std::find(columns.begin(), columns.end(), "print-columnsinfo");
       const bool print_colinfo = i != columns.end();
+      i = std::find(columns.begin(), columns.end(), "be-quiet");
+      const bool quiet = i != columns.end();
+
       if (print_colinfo)
         columns.erase(i);
 
       result = context.connection()->recv_result();
-      print_result_set(*result, columns, value_callback);
-
-      if (print_colinfo)
-        print_columndata(*result->columnMetadata());
-
       variables_to_unreplace.clear();
-      int64_t x = result->affectedRows();
-      if (x >= 0)
-        std::cout << x << " rows affected\n";
-      else
-        std::cout << "command ok\n";
-      if (result->lastInsertId() > 0)
-        std::cout << "last insert id: " << result->lastInsertId() << "\n";
-      if (!result->infoMessage().empty())
-        std::cout << result->infoMessage() << "\n";
+
+      print_result_set(*result, columns, value_callback, quiet);
+      if (!quiet)
       {
-        std::vector<mysqlx::Result::Warning> warnings(result->getWarnings());
-        if (!warnings.empty())
-          std::cout << "Warnings generated:\n";
-        for (std::vector<mysqlx::Result::Warning>::const_iterator w = warnings.begin();
-            w != warnings.end(); ++w)
+        if (print_colinfo)
+          print_columndata(*result->columnMetadata());
+
+        int64_t x = result->affectedRows();
+        if (x >= 0)
+          std::cout << x << " rows affected\n";
+        else
+          std::cout << "command ok\n";
+        if (result->lastInsertId() > 0)
+          std::cout << "last insert id: " << result->lastInsertId() << "\n";
+        if (!result->infoMessage().empty())
+          std::cout << result->infoMessage() << "\n";
         {
-          std::cout << (w->is_note ? "NOTE" : "WARNING") << " | " << w->code << " | " << w->text << "\n";
+          std::vector<mysqlx::Result::Warning> warnings(result->getWarnings());
+          if (!warnings.empty())
+            std::cout << "Warnings generated:\n";
+          for (std::vector<mysqlx::Result::Warning>::const_iterator w = warnings.begin();
+              w != warnings.end(); ++w)
+          {
+            std::cout << (w->is_note ? "NOTE" : "WARNING") << " | " << w->code << " | " << w->text << "\n";
+          }
         }
       }
-
       if (!OPT_expect_error->check_ok())
         return Stop_with_failure;
     }
@@ -2103,7 +2108,8 @@ static void print_columndata(const std::vector<mysqlx::ColumnMetadata> &meta)
   }
 }
 
-static void print_result_set(mysqlx::Result &result, const std::vector<std::string> &columns, Value_callback value_callback)
+static void print_result_set(mysqlx::Result &result, const std::vector<std::string> &columns,
+                             Value_callback value_callback, bool quiet)
 {
   boost::shared_ptr<std::vector<mysqlx::ColumnMetadata> > meta(result.columnMetadata());
   std::vector<int> column_indexes;
@@ -2116,7 +2122,9 @@ static void print_result_set(mysqlx::Result &result, const std::vector<std::stri
     ++column_index;
 
     if (!first)
-      std::cout << "\t";
+    {
+      if (!quiet) std::cout << "\t";
+    }
     else
       first = false;
 
@@ -2124,9 +2132,9 @@ static void print_result_set(mysqlx::Result &result, const std::vector<std::stri
       continue;
 
     column_indexes.push_back(column_index);
-    std::cout << col->name;
+    if (!quiet) std::cout << col->name;
   }
-  std::cout << "\n";
+  if (!quiet) std::cout << "\n";
 
   for (;;)
   {
@@ -2139,7 +2147,7 @@ static void print_result_set(mysqlx::Result &result, const std::vector<std::stri
     {
       int field = (*i);
       if (field != 0)
-        std::cout << "\t";
+        if (!quiet) std::cout << "\t";
 
       std::string result = get_field_value(row, field, meta);
 
@@ -2148,9 +2156,9 @@ static void print_result_set(mysqlx::Result &result, const std::vector<std::stri
         value_callback(result);
         value_callback.clear();
       }
-      std::cout << result;
+      if (!quiet) std::cout << result;
     }
-    std::cout << "\n";
+    if (!quiet) std::cout << "\n";
   }
 }
 
@@ -2682,7 +2690,7 @@ public:
     std::cout << "  Encodes the text format protobuf message and sends it to the server (allows variables).\n";
     std::cout << "-->recv [quiet]\n";
     std::cout << "  Read and print (if not quiet) one message from the server\n";
-    std::cout << "-->recvresult [print-columnsinfo]\n";
+    std::cout << "-->recvresult [print-columnsinfo] [be-quiet]\n";
     std::cout << "  Read and print one resultset from the server; if print-columnsinfo is present also print short columns status\n";
     std::cout << "-->recvtovar <varname>\n";
     std::cout << "  Read and print one resultset from the server and sets the variable from first row\n";

@@ -191,7 +191,11 @@ Mysqlx.Sql.StmtExecute {
         }
     }
 }
--->recvresult
+# The kill operation can return an error here. If the thread being killed is in "kill immune" mode
+# its killing is delayed till it leaves that mode. This is temporary solution in the server for the DD opartions.
+# The kill immune mode is to be removed in the future.
+-->expecterror 0, 1095
+-->recvresult be-quiet
 
 -->setsession sess
 -->closesession abort
@@ -219,7 +223,11 @@ Mysqlx.Sql.StmtExecute {
         }
     }
 }
--->recvresult
+# The kill operation can return an error here. If the thread being killed is in "kill immune" mode
+# its killing is delayed till it leaves that mode. This is temporary solution in the server for the DD opartions.
+# The kill immune mode is to be removed in the future.
+-->expecterror 0, 1095
+-->recvresult be-quiet
 
 -->setsession sess
 
@@ -247,7 +255,11 @@ Mysqlx.Sql.StmtExecute {
         }
     }
 }
--->recvresult
+# The kill operation can return an error here. If the thread being killed is in "kill immune" mode
+# its killing is delayed till it leaves that mode. This is temporary solution in the server for the DD opartions.
+# The kill immune mode is to be removed in the future.
+-->expecterror 0, 1095
+-->recvresult be-quiet
 
 -->setsession sess
 -->expecterror 2006,2007
@@ -279,7 +291,11 @@ Mysqlx.Sql.StmtExecute {
         }
     }
 }
--->recvresult
+# The kill operation can return an error here. If the thread being killed is in "kill immune" mode
+# its killing is delayed till it leaves that mode. This is temporary solution in the server for the DD opartions.
+# The kill immune mode is to be removed in the future.
+-->expecterror 0, 1095
+-->recvresult be-quiet
 
 -->setsession sess
 -->recv quiet
