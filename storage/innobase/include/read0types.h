@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -161,7 +161,7 @@ public:
 	bool changes_visible(
 		trx_id_t		id,
 		const table_name_t&	name) const
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		ut_ad(id > 0);
 

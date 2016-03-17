@@ -3093,7 +3093,7 @@ extern "C"
 os_thread_ret_t
 DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 /*===============================================*/
-	void*	arg __attribute__((unused)))
+	void*	arg MY_ATTRIBUTE((unused)))
 			/*!< in: a dummy parameter required by
 			os_thread_create */
 {
@@ -3471,7 +3471,7 @@ extern "C"
 os_thread_ret_t
 DECLARE_THREAD(buf_flush_page_cleaner_worker)(
 /*==========================================*/
-	void*	arg __attribute__((unused)))
+	void*	arg MY_ATTRIBUTE((unused)))
 			/*!< in: a dummy parameter required by
 			os_thread_create */
 {

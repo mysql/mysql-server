@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ st_keycache_thread_var main_thread_keycache_var;
 /* Key used by myisamchk */
 thread_local_key_t keycache_tls_key;
 
-static int always_valid(const char *filename __attribute__((unused)))
+static int always_valid(const char *filename MY_ATTRIBUTE((unused)))
 {
   return 0;
 }

@@ -2259,7 +2259,7 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables)
       join state will not be reverted back to its initial state because we
       don't "pop" tables already present in the partial plan.
     */
-    bool is_interleave_error __attribute__((unused))= 
+    bool is_interleave_error MY_ATTRIBUTE((unused))= 
       check_interleaving_with_nj (best_table);
     /* This has been already checked by best_extension_by_limited_search */
     DBUG_ASSERT(!is_interleave_error);

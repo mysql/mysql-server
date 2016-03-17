@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -182,13 +182,13 @@ static const uchar sort_order_cp932[]=
                        (0x80<=(c) && (c)<=0xfc))
 
 
-static uint ismbchar_cp932(const CHARSET_INFO *cs __attribute__((unused)),
+static uint ismbchar_cp932(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 			 const char* p, const char *e)
 {
   return (iscp932head((uchar) *p) && (e-p)>1 && iscp932tail((uchar)p[1]) ? 2: 0);
 }
 
-static uint mbcharlen_cp932(const CHARSET_INFO *cs __attribute__((unused)),
+static uint mbcharlen_cp932(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                             uint c)
 {
   return (iscp932head((uchar) c) ? 2 : 1);
@@ -1742,7 +1742,7 @@ static int my_strnncoll_cp932_internal(const CHARSET_INFO *cs,
 }
 
 
-static int my_strnncoll_cp932(const CHARSET_INFO *cs __attribute__((unused)),
+static int my_strnncoll_cp932(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 			      const uchar *a, size_t a_length, 
 			      const uchar *b, size_t b_length,
                               my_bool b_is_prefix)
@@ -1755,11 +1755,11 @@ static int my_strnncoll_cp932(const CHARSET_INFO *cs __attribute__((unused)),
 
 
 static int my_strnncollsp_cp932(const CHARSET_INFO *cs
-                                __attribute__((unused)),
+                                MY_ATTRIBUTE((unused)),
                                 const uchar *a, size_t a_length, 
                                 const uchar *b, size_t b_length,
                                 my_bool diff_if_only_endspace_difference
-                                __attribute__((unused)))
+                                MY_ATTRIBUTE((unused)))
 {
   const uchar *a_end= a + a_length;
   const uchar *b_end= b + b_length;
@@ -34601,7 +34601,7 @@ static const uint16 unicode_to_cp932[65536]=
 */
 
 static int
-my_mb_wc_cp932(const CHARSET_INFO *cs  __attribute__((unused)),
+my_mb_wc_cp932(const CHARSET_INFO *cs  MY_ATTRIBUTE((unused)),
 	       my_wc_t *pwc, const uchar *s, const uchar *e){
   int hi;
 
@@ -34645,7 +34645,7 @@ my_mb_wc_cp932(const CHARSET_INFO *cs  __attribute__((unused)),
   @retval   MY_CS_ILUNI    If the Unicode character does not exist in CP932
 */
 static int
-my_wc_mb_cp932(const CHARSET_INFO *cs __attribute__((unused)),
+my_wc_mb_cp932(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 	       my_wc_t wc, uchar *s, uchar *e)
 {
   int code;
@@ -34685,7 +34685,7 @@ my_wc_mb_cp932(const CHARSET_INFO *cs __attribute__((unused)),
 
 
 static
-size_t my_numcells_cp932(const CHARSET_INFO *cs __attribute__((unused)),
+size_t my_numcells_cp932(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                       const char *str, const char *str_end)
 {
   size_t clen= 0;
@@ -34720,7 +34720,7 @@ size_t my_numcells_cp932(const CHARSET_INFO *cs __attribute__((unused)),
 
 static
 size_t my_well_formed_len_cp932(const CHARSET_INFO *cs
-                                __attribute__((unused)),
+                                MY_ATTRIBUTE((unused)),
                                 const char *b, const char *e,
                                 size_t pos, int *error)
 {

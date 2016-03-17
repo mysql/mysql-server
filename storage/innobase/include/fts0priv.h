@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -121,7 +121,7 @@ fts_parse_sql(
 	fts_table_t*	fts_table,	/*!< in: FTS aux table */
 	pars_info_t*	info,		/*!< in: info struct, or NULL */
 	const char*	sql)		/*!< in: SQL string to evaluate */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /******************************************************************//**
 Evaluate a parsed SQL statement
@@ -131,7 +131,7 @@ fts_eval_sql(
 /*=========*/
 	trx_t*		trx,		/*!< in: transaction */
 	que_t*		graph)		/*!< in: Parsed statement */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /******************************************************************//**
 Construct the name of an ancillary FTS table for the given table.
@@ -165,7 +165,7 @@ fts_get_select_columns_str(
 	dict_index_t*	index,		/*!< in: FTS index */
 	pars_info_t*	info,		/*!< in/out: parser info */
 	mem_heap_t*	heap)		/*!< in: memory heap */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** define for fts_doc_fetch_by_doc_id() "option" value, defines whether
 we want to get Doc whose ID is equal to or greater or smaller than supplied
@@ -213,7 +213,7 @@ fts_write_node(
 	fts_table_t*	fts_table,	/*!< in: the FTS aux index */
 	fts_string_t*	word,		/*!< in: word in UTF-8 */
 	fts_node_t*	node)		/*!< in: node columns */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Check fts token
 1. for ngram token, check whether the token contains any words in stopwords
@@ -274,7 +274,7 @@ fts_bsearch(
 	int		lower,		/*!< in: lower bound of array*/
 	int		upper,		/*!< in: upper bound of array*/
 	doc_id_t	doc_id)		/*!< in: doc id to lookup */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /******************************************************************//**
 Free document. */
 void
@@ -359,7 +359,7 @@ fts_parse_sql_no_dict_lock(
 	fts_table_t*	fts_table,	/*!< in: table with FTS index */
 	pars_info_t*	info,		/*!< in: parser info */
 	const char*	sql)		/*!< in: SQL string to evaluate */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /******************************************************************//**
 Get value from config table. The caller must ensure that enough
@@ -388,7 +388,7 @@ fts_config_get_index_value(
 					this parameter name */
 	fts_string_t*	value)		/*!< out: value read from
 					config table */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /******************************************************************//**
 Set the value in the config table for name.
@@ -413,7 +413,7 @@ fts_config_set_ulint(
 	fts_table_t*	fts_table,	/*!< in: the indexed FTS table */
 	const char*	name,		/*!< in: param name */
 	ulint		int_value)	/*!< in: value */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /******************************************************************//**
 Set the value specific to an FTS index in the config table.
@@ -427,7 +427,7 @@ fts_config_set_index_value(
 					this parameter name */
 	fts_string_t*	value)		/*!< out: value read from
 					config table */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /******************************************************************//**
 Increment the value in the config table for column name.
@@ -440,7 +440,7 @@ fts_config_increment_value(
 	const char*	name,		/*!< in: increment config value
 					for this parameter name */
 	ulint		delta)		/*!< in: increment by this much */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /******************************************************************//**
 Increment the per index value in the config table for column name.
@@ -464,7 +464,7 @@ fts_config_get_index_ulint(
 	dict_index_t*	index,		/*!< in: FTS index */
 	const char*	name,		/*!< in: param name */
 	ulint*		int_value)	/*!< out: value */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /******************************************************************//**
 Set an ulint value int the config table.
@@ -476,7 +476,7 @@ fts_config_set_index_ulint(
 	dict_index_t*	index,		/*!< in: FTS index */
 	const char*	name,		/*!< in: param name */
 	ulint		int_value)	/*!< in: value */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /******************************************************************//**
 Get an ulint value from the config table.
@@ -499,7 +499,7 @@ fts_cache_find_word(
 			index_cache,	/*!< in: cache to search */
 	const fts_string_t*
 			text)		/*!< in: word to search for */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /******************************************************************//**
 Check cache for deleted doc id.
@@ -510,7 +510,7 @@ fts_cache_is_deleted_doc_id(
 	const fts_cache_t*
 			cache,		/*!< in: cache ito search */
 	doc_id_t	doc_id)		/*!< in: doc id to search for */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /******************************************************************//**
 Append deleted doc ids to vector and sort the vector. */
@@ -543,7 +543,7 @@ fts_get_total_word_count(
 	trx_t*		trx,		/*!< in: transaction */
 	dict_index_t*	index,		/*!< in: for this index */
 	ulint*		total)		/*!< out: total words */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 #endif
 /******************************************************************//**
 Search the index specific cache for a particular FTS index.
@@ -555,7 +555,7 @@ fts_find_index_cache(
 			cache,		/*!< in: cache to search */
 	const dict_index_t*
 			index)		/*!< in: index to search for */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /******************************************************************//**
 Write the table id to the given buffer (including final NUL). Buffer must be
@@ -567,7 +567,7 @@ fts_write_object_id(
 /*================*/
 	ib_id_t		id,		/*!< in: a table/index id */
 	char*		str,		/*!< in: buffer to write the id to */
-	bool		hex_format __attribute__((unused)));
+	bool		hex_format MY_ATTRIBUTE((unused)));
 					/*!< in: true for fixed hex format,
 					false for old ambiguous format */
 
@@ -580,7 +580,7 @@ fts_read_object_id(
 /*===============*/
 	ib_id_t*	id,		/*!< out: a table id */
 	const char*	str)		/*!< in: buffer to read from */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /******************************************************************//**
 Get the table id.
@@ -593,7 +593,7 @@ fts_get_table_id(
 	char*		table_id)	/*!< out: table id, must be at least
 					FTS_AUX_MIN_TABLE_ID_LENGTH bytes
 					long */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /******************************************************************//**
 Add the table to add to the OPTIMIZER's list. */
@@ -617,7 +617,7 @@ fts_get_table_name_prefix(
 /*======================*/
 	const fts_table_t*
 			fts_table)	/*!< in: Auxiliary table type */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /******************************************************************//**
 Add node positions. */
@@ -637,7 +637,7 @@ fts_config_create_index_param_name(
 /*===============================*/
 	const char*		param,	/*!< in: base name of param */
 	const dict_index_t*	index)	/*!< in: index for config */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 #ifndef UNIV_NONINL
 #include "fts0priv.ic"

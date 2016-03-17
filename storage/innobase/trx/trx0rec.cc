@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1750,7 +1750,7 @@ trx_undo_rec_get_partial_row(
 /***********************************************************************//**
 Erases the unused undo log page end.
 @return TRUE if the page contained something, FALSE if it was empty */
-static __attribute__((nonnull))
+static MY_ATTRIBUTE((nonnull))
 ibool
 trx_undo_erase_page_end(
 /*====================*/
@@ -1775,7 +1775,7 @@ byte*
 trx_undo_parse_erase_page_end(
 /*==========================*/
 	byte*	ptr,	/*!< in: buffer */
-	byte*	end_ptr __attribute__((unused)), /*!< in: buffer end */
+	byte*	end_ptr MY_ATTRIBUTE((unused)), /*!< in: buffer end */
 	page_t*	page,	/*!< in: page or NULL */
 	mtr_t*	mtr)	/*!< in: mtr or NULL */
 {
@@ -2109,7 +2109,7 @@ Copies an undo record to heap.
 truncated and we cannot fetch the old version
 @retval false if the undo log record is available
 NOTE: the caller must have latches on the clustered index page. */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 bool
 trx_undo_get_undo_rec(
 /*==================*/
@@ -2138,7 +2138,7 @@ trx_undo_get_undo_rec(
 #ifdef UNIV_DEBUG
 #define ATTRIB_USED_ONLY_IN_DEBUG
 #else /* UNIV_DEBUG */
-#define ATTRIB_USED_ONLY_IN_DEBUG	__attribute__((unused))
+#define ATTRIB_USED_ONLY_IN_DEBUG	MY_ATTRIBUTE((unused))
 #endif /* UNIV_DEBUG */
 
 /*******************************************************************//**

@@ -1,7 +1,7 @@
 #ifndef SQL_EXECUTOR_INCLUDED
 #define SQL_EXECUTOR_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights
  * reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -264,7 +264,7 @@ private:
   /** Write function that would be used for saving records in tmp table. */
   Next_select_func write_func;
   enum_nested_loop_state put_record(bool end_of_records);
-  __attribute__((warn_unused_result))
+  MY_ATTRIBUTE((warn_unused_result))
   bool prepare_tmp_table();
 };
 
@@ -283,7 +283,7 @@ evaluate_join_record(JOIN *join, QEP_TAB *qep_tab, int error);
 
 
 
-__attribute__((warn_unused_result))
+MY_ATTRIBUTE((warn_unused_result))
 bool copy_fields(Temp_table_param *param, const THD *thd);
 
 bool copy_funcs(Func_ptr_array*, const THD *thd);

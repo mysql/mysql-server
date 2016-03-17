@@ -2527,7 +2527,7 @@ mysql_init(MYSQL *mysql)
   of st_mysql_extension structure). 
 */
 
-MYSQL_EXTENSION* mysql_extension_init(MYSQL *mysql __attribute__((unused)))
+MYSQL_EXTENSION* mysql_extension_init(MYSQL *mysql MY_ATTRIBUTE((unused)))
 {
   MYSQL_EXTENSION *ext;
 
@@ -2557,12 +2557,12 @@ void mysql_extension_free(struct st_mysql_extension* ext)
 */
 
 my_bool STDCALL
-mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
-	      const char *key __attribute__((unused)),
-	      const char *cert __attribute__((unused)),
-	      const char *ca __attribute__((unused)),
-	      const char *capath __attribute__((unused)),
-	      const char *cipher __attribute__((unused)))
+mysql_ssl_set(MYSQL *mysql MY_ATTRIBUTE((unused)) ,
+	      const char *key MY_ATTRIBUTE((unused)),
+	      const char *cert MY_ATTRIBUTE((unused)),
+	      const char *ca MY_ATTRIBUTE((unused)),
+	      const char *capath MY_ATTRIBUTE((unused)),
+	      const char *cipher MY_ATTRIBUTE((unused)))
 {
   my_bool result= 0;
   DBUG_ENTER("mysql_ssl_set");
@@ -2587,7 +2587,7 @@ mysql_ssl_set(MYSQL *mysql __attribute__((unused)) ,
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 
 static void
-mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
+mysql_ssl_free(MYSQL *mysql MY_ATTRIBUTE((unused)))
 {
   struct st_VioSSLFd *ssl_fd= (struct st_VioSSLFd*) mysql->connector_fd;
   DBUG_ENTER("mysql_ssl_free");
@@ -2636,7 +2636,7 @@ mysql_ssl_free(MYSQL *mysql __attribute__((unused)))
 */
 
 const char * STDCALL
-mysql_get_ssl_cipher(MYSQL *mysql __attribute__((unused)))
+mysql_get_ssl_cipher(MYSQL *mysql MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("mysql_get_ssl_cipher");
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
@@ -3411,7 +3411,7 @@ error:
 */
 static char *
 mysql_fill_packet_header(MYSQL *mysql, char *buff,
-                         size_t buff_size  __attribute__((unused)))
+                         size_t buff_size  MY_ATTRIBUTE((unused)))
 {
   NET *net= &mysql->net;
   char *end;
@@ -5073,8 +5073,8 @@ static void mysql_prune_stmt_list(MYSQL *mysql)
     should also be reflected there.
 */
 
-void mysql_detach_stmt_list(LIST **stmt_list __attribute__((unused)),
-                            const char *func_name __attribute__((unused)))
+void mysql_detach_stmt_list(LIST **stmt_list MY_ATTRIBUTE((unused)),
+                            const char *func_name MY_ATTRIBUTE((unused)))
 {
 #ifdef MYSQL_CLIENT
   /* Reset connection handle in all prepared statements. */
@@ -5849,7 +5849,7 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
 */
 uchar *
 get_attr_key(LEX_STRING *part, size_t *length,
-             my_bool not_used __attribute__((unused)))
+             my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= part[0].length;
   return (uchar *) part[0].str;

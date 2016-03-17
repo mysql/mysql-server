@@ -21,7 +21,7 @@ namespace keyring {
 extern PSI_memory_key key_memory_KEYRING;
 
 static uchar *get_hash_key(const uchar *key, size_t *length,
-                           my_bool not_used __attribute__((unused)))
+                           my_bool not_used MY_ATTRIBUTE((unused)))
 {
   std::string *key_signature= reinterpret_cast<const IKey *>(key)->get_key_signature();
   *length= key_signature->length();

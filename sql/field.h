@@ -2226,13 +2226,13 @@ public:
     return new Field_long(*this);
   }
   virtual uchar *pack(uchar* to, const uchar *from,
-                      uint max_length __attribute__((unused)),
+                      uint max_length MY_ATTRIBUTE((unused)),
                       bool low_byte_first)
   {
     return pack_int32(to, from, low_byte_first);
   }
   virtual const uchar *unpack(uchar* to, const uchar *from,
-                              uint param_data __attribute__((unused)),
+                              uint param_data MY_ATTRIBUTE((unused)),
                               bool low_byte_first)
   {
     return unpack_int32(to, from, low_byte_first);
@@ -2295,13 +2295,13 @@ public:
     return new Field_longlong(*this);
   }
   virtual uchar *pack(uchar* to, const uchar *from,
-                      uint max_length  __attribute__((unused)),
+                      uint max_length  MY_ATTRIBUTE((unused)),
                       bool low_byte_first)
   {
     return pack_int64(to, from, low_byte_first);
   }
   virtual const uchar *unpack(uchar* to, const uchar *from,
-                              uint param_data __attribute__((unused)),
+                              uint param_data MY_ATTRIBUTE((unused)),
                               bool low_byte_first)
   {
     return unpack_int64(to, from, low_byte_first);
@@ -2923,12 +2923,12 @@ public:
     return new Field_timestamp(*this);
   }
   uchar *pack(uchar *to, const uchar *from,
-              uint max_length __attribute__((unused)), bool low_byte_first)
+              uint max_length MY_ATTRIBUTE((unused)), bool low_byte_first)
   {
     return pack_int32(to, from, low_byte_first);
   }
   const uchar *unpack(uchar* to, const uchar *from,
-                      uint param_data __attribute__((unused)),
+                      uint param_data MY_ATTRIBUTE((unused)),
                       bool low_byte_first)
   {
     return unpack_int32(to, from, low_byte_first);
@@ -3359,12 +3359,12 @@ public:
     return new Field_datetime(*this);
   }
   uchar *pack(uchar* to, const uchar *from,
-              uint max_length __attribute__((unused)), bool low_byte_first)
+              uint max_length MY_ATTRIBUTE((unused)), bool low_byte_first)
   {
     return pack_int64(to, from, low_byte_first);
   }
   const uchar *unpack(uchar* to, const uchar *from,
-                      uint param_data __attribute__((unused)),
+                      uint param_data MY_ATTRIBUTE((unused)),
                       bool low_byte_first)
   {
     return unpack_int64(to, from, low_byte_first);

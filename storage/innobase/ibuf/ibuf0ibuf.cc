@@ -617,7 +617,7 @@ byte*
 ibuf_parse_bitmap_init(
 /*===================*/
 	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr __attribute__((unused)), /*!< in: buffer end */
+	byte*		end_ptr MY_ATTRIBUTE((unused)), /*!< in: buffer end */
 	buf_block_t*	block,	/*!< in: block or NULL */
 	mtr_t*		mtr)	/*!< in: mtr or NULL */
 {
@@ -2425,7 +2425,7 @@ ibuf_get_merge_page_nos_func(
 /*******************************************************************//**
 Get the matching records for space id.
 @return current rec or NULL */
-static	__attribute__((nonnull, warn_unused_result))
+static	MY_ATTRIBUTE((nonnull, warn_unused_result))
 const rec_t*
 ibuf_get_user_rec(
 /*===============*/
@@ -2447,7 +2447,7 @@ ibuf_get_user_rec(
 Reads page numbers for a space id from an ibuf tree.
 @return a lower limit for the combined volume of records which will be
 merged */
-static	__attribute__((nonnull, warn_unused_result))
+static	MY_ATTRIBUTE((nonnull, warn_unused_result))
 ulint
 ibuf_get_merge_pages(
 /*=================*/
@@ -2641,7 +2641,7 @@ ULINT_UNDEFINED for all tablespaces
 @return a lower limit for the combined size in bytes of entries which
 will be merged from ibuf trees to the pages read, 0 if ibuf is
 empty */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 ulint
 ibuf_merge(
 	ulint*		n_pages,
@@ -3344,7 +3344,7 @@ or clustered
 @param[in]	page_size	page size
 @param[in,out]	thr		query thread
 @return DB_SUCCESS, DB_STRONG_FAIL or other error */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 ibuf_insert_low(
 	ulint			mode,
@@ -3833,7 +3833,7 @@ skip_watch:
 During merge, inserts to an index page a secondary index entry extracted
 from the insert buffer.
 @return	newly inserted record */
-static __attribute__((nonnull))
+static MY_ATTRIBUTE((nonnull))
 rec_t*
 ibuf_insert_to_index_page_low(
 /*==========================*/
@@ -4238,7 +4238,7 @@ ibuf_delete(
 /*********************************************************************//**
 Restores insert buffer tree cursor position
 @return TRUE if the position was restored; FALSE if not */
-static __attribute__((nonnull))
+static MY_ATTRIBUTE((nonnull))
 ibool
 ibuf_restore_pos(
 /*=============*/
@@ -4290,7 +4290,7 @@ Deletes from ibuf the record on which pcur is positioned. If we have to
 resort to a pessimistic delete, this function commits mtr and closes
 the cursor.
 @return TRUE if mtr was committed and pcur closed in this operation */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 ibool
 ibuf_delete_rec(
 /*============*/

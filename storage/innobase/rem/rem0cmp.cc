@@ -1002,7 +1002,7 @@ Compare two physical record fields.
 @retval positive if rec1 field is greater than rec2
 @retval negative if rec1 field is less than rec2
 @retval 0 if rec1 field equals to rec2 */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 int
 cmp_rec_rec_simple_field(
 /*=====================*/

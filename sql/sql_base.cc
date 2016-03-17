@@ -501,7 +501,7 @@ size_t get_table_def_key(const TABLE_LIST *table_list, const char **key)
 *****************************************************************************/
 
 extern "C" uchar *table_def_key(const uchar *record, size_t *length,
-                               my_bool not_used __attribute__((unused)))
+                               my_bool not_used MY_ATTRIBUTE((unused)))
 {
   TABLE_SHARE *entry=(TABLE_SHARE*) record;
   *length= entry->table_cache_key.length;
@@ -5240,7 +5240,7 @@ end:
 }
 
 extern "C" uchar *schema_set_get_key(const uchar *record, size_t *length,
-                                     my_bool not_used __attribute__((unused)))
+                                     my_bool not_used MY_ATTRIBUTE((unused)))
 {
   TABLE_LIST *table=(TABLE_LIST*) record;
   *length= table->db_length;

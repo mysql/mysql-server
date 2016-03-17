@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -165,7 +165,7 @@ log_init(void);
 /******************************************************************//**
 Inits a log group to the log system.
 @return true if success, false if not */
-__attribute__((warn_unused_result))
+MY_ATTRIBUTE((warn_unused_result))
 bool
 log_group_init(
 /*===========*/

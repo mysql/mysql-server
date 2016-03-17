@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -218,14 +218,14 @@ const char* Mysql_connection_options::get_null_or_string(
 
 #ifdef _WIN32
 void Mysql_connection_options::pipe_protocol_callback(
-  char* not_used __attribute__((unused)))
+  char* not_used MY_ATTRIBUTE((unused)))
 {
   this->m_protocol= MYSQL_PROTOCOL_PIPE;
 }
 #endif
 
 void Mysql_connection_options::protocol_callback(
-  char* not_used __attribute__((unused)))
+  char* not_used MY_ATTRIBUTE((unused)))
 {
   this->m_protocol=
     find_type_or_exit(this->m_protocol_string.value().c_str(),
@@ -233,7 +233,7 @@ void Mysql_connection_options::protocol_callback(
 }
 
 void Mysql_connection_options::secure_auth_callback(
-  char* not_used __attribute__((unused)))
+  char* not_used MY_ATTRIBUTE((unused)))
 {
   /* --secure-auth is a zombie option. */
   if (!this->m_secure_auth)

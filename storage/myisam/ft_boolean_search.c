@@ -332,7 +332,7 @@ static int _ftb_parse_query(FTB *ftb, uchar *query, uint len,
 }
 
 
-static int _ftb_no_dupes_cmp(const void* not_used __attribute__((unused)),
+static int _ftb_no_dupes_cmp(const void* not_used MY_ATTRIBUTE((unused)),
                              const void *a,const void *b)
 {
   return CMP_NUM((*((my_off_t*)a)), (*((my_off_t*)b)));
@@ -644,7 +644,7 @@ typedef struct st_my_ftb_phrase_param
 
 static int ftb_phrase_add_word(MYSQL_FTPARSER_PARAM *param,
                                char *word, int word_len,
-    MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info __attribute__((unused)))
+    MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info MY_ATTRIBUTE((unused)))
 {
   MY_FTB_PHRASE_PARAM *phrase_param= param->mysql_ftparam;
   FT_WORD *w= (FT_WORD *)phrase_param->document->data;
@@ -905,7 +905,7 @@ typedef struct st_my_ftb_find_param
 
 static int ftb_find_relevance_add_word(MYSQL_FTPARSER_PARAM *param,
                                        char *word, int len,
-             MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info __attribute__((unused)))
+             MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info MY_ATTRIBUTE((unused)))
 {
   MY_FTB_FIND_PARAM *ftb_param= param->mysql_ftparam;
   FT_INFO *ftb= ftb_param->ftb;

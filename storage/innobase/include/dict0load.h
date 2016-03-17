@@ -270,7 +270,7 @@ dict_load_foreigns(
 						which must be loaded
 						subsequently to load all the
 						foreign key constraints. */
-	__attribute__((nonnull(1), warn_unused_result));
+	MY_ATTRIBUTE((nonnull(1), warn_unused_result));
 
 /********************************************************************//**
 This function opens a system table, and return the first record.

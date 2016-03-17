@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -294,8 +294,8 @@ static int add_collation(CHARSET_INFO *cs)
   Be silent by default: no warnings on the client side.
 */
 static void
-default_reporter(enum loglevel level  __attribute__ ((unused)),
-                 const char *format  __attribute__ ((unused)),
+default_reporter(enum loglevel level  MY_ATTRIBUTE ((unused)),
+                 const char *format  MY_ATTRIBUTE ((unused)),
                  ...)
 {
 }

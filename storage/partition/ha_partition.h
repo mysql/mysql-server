@@ -2,7 +2,7 @@
 #define HA_PARTITION_INCLUDED
 
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1151,7 +1151,7 @@ public:
   {
     Partition_helper::set_part_info_low(part_info, early);
   }
-  uint alter_flags(uint flags __attribute__((unused))) const
+  uint alter_flags(uint flags MY_ATTRIBUTE((unused))) const
   {
     return (HA_PARTITION_FUNCTION_SUPPORTED |
             HA_FAST_CHANGE_PARTITION);

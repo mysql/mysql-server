@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -190,9 +190,9 @@ static my_bool does_drive_exists(char drive_letter)
  
   @return TRUE if the file name is allowed, FALSE otherwise.
 */
-my_bool is_filename_allowed(const char *name __attribute__((unused)),
-                            size_t length __attribute__((unused)),
-                            my_bool allow_current_dir __attribute__((unused)))
+my_bool is_filename_allowed(const char *name MY_ATTRIBUTE((unused)),
+                            size_t length MY_ATTRIBUTE((unused)),
+                            my_bool allow_current_dir MY_ATTRIBUTE((unused)))
 {
   /* 
     For Windows, check if the file name contains : character.

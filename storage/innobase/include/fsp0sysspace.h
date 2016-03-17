@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -175,7 +175,7 @@ public:
 		bool	create_new_db,
 		ulint*	sum_new_sizes,
 		lsn_t*	flush_lsn)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 private:
 	/** Check the tablespace header for this tablespace.

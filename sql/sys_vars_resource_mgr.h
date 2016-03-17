@@ -1,7 +1,7 @@
 #ifndef SYS_VARS_RESOURCE_MGR_INCLUDED
 #define SYS_VARS_RESOURCE_MGR_INCLUDED
 #include <hash.h>
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -90,7 +90,7 @@ public:
   bool update(char **var, char *val, size_t val_len);
 
   static uchar *sysvars_mgr_get_key(const char *entry, size_t *length,
-                                    my_bool not_used __attribute__((unused)));
+                                    my_bool not_used MY_ATTRIBUTE((unused)));
 
   void claim_memory_ownership();
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -123,7 +123,7 @@ void ndb_opt_set_usage_funcs(void (*short_usage)(void),
                              void (*usage)(void));
 my_bool
 ndb_std_get_one_option(int optid,
-		       const struct my_option *opt __attribute__((unused)),
+		       const struct my_option *opt MY_ATTRIBUTE((unused)),
                        char *argument);
 
 void ndb_usage(void (*usagefunc)(void), const char *load_default_groups[],

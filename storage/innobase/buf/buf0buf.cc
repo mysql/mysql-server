@@ -2999,7 +2999,7 @@ when waked up either performs a resizing and sleeps again.
 extern "C"
 os_thread_ret_t
 DECLARE_THREAD(buf_resize_thread)(
-	void*	arg __attribute__((unused)))
+	void*	arg MY_ATTRIBUTE((unused)))
 {
 	my_thread_init();
 

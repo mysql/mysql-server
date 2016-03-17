@@ -118,7 +118,7 @@ os_thread_create_func(
 /** Exits the current thread. */
 void
 os_thread_exit()
-	UNIV_COLD __attribute__((noreturn));
+	UNIV_COLD MY_ATTRIBUTE((noreturn));
 
 /*****************************************************************//**
 Returns the thread identifier of current thread.

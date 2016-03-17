@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -358,7 +358,7 @@ void usage(const string &p)
 
 extern "C" my_bool
 my_arguments_get_one_option(int optid,
-                            const struct my_option *opt __attribute__((unused)),
+                            const struct my_option *opt MY_ATTRIBUTE((unused)),
                             char *argument)
 {
   switch(optid)
@@ -808,7 +808,7 @@ void create_ssl_policy(string *ssl_type, string *ssl_cipher,
 class SSL_generator_writer
 {
 public:
-  bool operator()(int fh __attribute__((unused)))
+  bool operator()(int fh MY_ATTRIBUTE((unused)))
   {
     return true;
   }

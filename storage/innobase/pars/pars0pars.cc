@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1857,7 +1857,7 @@ pars_create_table(
 	sym_node_t*	column_defs,	/*!< in: list of column names */
 	sym_node_t*	compact,	/* in: non-NULL if COMPACT table. */
 	sym_node_t*	block_size,	/* in: block size (can be NULL) */
-	void*		not_fit_in_memory __attribute__((unused)))
+	void*		not_fit_in_memory MY_ATTRIBUTE((unused)))
 					/*!< in: a non-NULL pointer means that
 					this is a table which in simulations
 					should be simulated as not fitting
@@ -2070,7 +2070,7 @@ parsed procedure tree, not via InnoDB SQL, so this function is not used.
 que_fork_t*
 pars_stored_procedure_call(
 /*=======================*/
-	sym_node_t*	sym_node __attribute__((unused)))
+	sym_node_t*	sym_node MY_ATTRIBUTE((unused)))
 					/*!< in: stored procedure name */
 {
 	ut_error;
@@ -2112,7 +2112,7 @@ Called by yyparse on error. */
 void
 yyerror(
 /*====*/
-	const char*	s __attribute__((unused)))
+	const char*	s MY_ATTRIBUTE((unused)))
 				/*!< in: error message string */
 {
 	ut_ad(s);

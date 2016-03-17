@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2275,8 +2275,8 @@ uchar *key_cache_read(KEY_CACHE *keycache,
                       st_keycache_thread_var *thread_var,
                       File file, my_off_t filepos, int level,
                       uchar *buff, uint length,
-                      uint block_length __attribute__((unused)),
-                      int return_buffer __attribute__((unused)))
+                      uint block_length MY_ATTRIBUTE((unused)),
+                      int return_buffer MY_ATTRIBUTE((unused)))
 {
   my_bool locked_and_incremented= FALSE;
   int error=0;
@@ -2752,7 +2752,7 @@ int key_cache_write(KEY_CACHE *keycache,
                     st_keycache_thread_var *thread_var,
                     File file, my_off_t filepos, int level,
                     uchar *buff, uint length,
-                    uint block_length  __attribute__((unused)),
+                    uint block_length  MY_ATTRIBUTE((unused)),
                     int dont_write)
 {
   my_bool locked_and_incremented= FALSE;
@@ -3964,7 +3964,7 @@ static int flush_all_key_blocks(KEY_CACHE *keycache,
     0 on success (always because it can't fail)
 */
 
-int reset_key_cache_counters(const char *name __attribute__((unused)),
+int reset_key_cache_counters(const char *name MY_ATTRIBUTE((unused)),
                              KEY_CACHE *key_cache)
 {
   DBUG_ENTER("reset_key_cache_counters");

@@ -1139,7 +1139,7 @@ row_merge_write_fts_node(
 /********************************************************************//**
 Insert processed FTS data to auxillary index tables.
 @return DB_SUCCESS if insertion runs fine */
-static __attribute__((nonnull))
+static MY_ATTRIBUTE((nonnull))
 dberr_t
 row_merge_write_fts_word(
 /*=====================*/

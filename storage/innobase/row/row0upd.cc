@@ -174,7 +174,7 @@ NOTE that this function will temporarily commit mtr and lose the
 pcur position!
 
 @return DB_SUCCESS or an error code */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_upd_check_references_constraints(
 /*=================================*/
@@ -554,7 +554,7 @@ row_upd_write_sys_vals_to_log(
 	roll_ptr_t	roll_ptr,/*!< in: roll ptr of the undo log record */
 	byte*		log_ptr,/*!< pointer to a buffer of size > 20 opened
 				in mlog */
-	mtr_t*		mtr __attribute__((unused))) /*!< in: mtr */
+	mtr_t*		mtr MY_ATTRIBUTE((unused))) /*!< in: mtr */
 {
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(mtr);
@@ -2073,7 +2073,7 @@ srv_mbr_print(const byte* data)
 Updates a secondary index entry of a row.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_upd_sec_index_entry(
 /*====================*/
@@ -2304,7 +2304,7 @@ Updates the secondary index record if it is changed in the row update or
 deletes it if this is a delete.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_upd_sec_step(
 /*=============*/
@@ -2422,7 +2422,7 @@ fields of the clustered index record change. This should be quite rare in
 database applications.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_upd_clust_rec_by_insert(
 /*========================*/
@@ -2549,7 +2549,7 @@ Updates a clustered index record of a row when the ordering fields do
 not change.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_upd_clust_rec(
 /*==============*/
@@ -2696,7 +2696,7 @@ func_exit:
 /***********************************************************//**
 Delete marks a clustered index record.
 @return DB_SUCCESS if operation successfully completed, else error code */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_upd_del_mark_clust_rec(
 /*=======================*/
@@ -2750,7 +2750,7 @@ row_upd_del_mark_clust_rec(
 Updates the clustered index record.
 @return DB_SUCCESS if operation successfully completed, DB_LOCK_WAIT
 in case of a lock wait, else error code */
-static __attribute__((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((nonnull, warn_unused_result))
 dberr_t
 row_upd_clust_step(
 /*===============*/

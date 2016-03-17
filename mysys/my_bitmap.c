@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -86,14 +86,14 @@ void create_last_word_mask(MY_BITMAP *map)
 }
 
 
-static inline void bitmap_lock(MY_BITMAP *map __attribute__((unused)))
+static inline void bitmap_lock(MY_BITMAP *map MY_ATTRIBUTE((unused)))
 {
   if (map->mutex)
     mysql_mutex_lock(map->mutex);
 }
 
 
-static inline void bitmap_unlock(MY_BITMAP *map __attribute__((unused)))
+static inline void bitmap_unlock(MY_BITMAP *map MY_ATTRIBUTE((unused)))
 {
   if (map->mutex)
     mysql_mutex_unlock(map->mutex);
@@ -141,7 +141,7 @@ static inline uint get_first_not_set(uint32 value, uint word_pos)
 
 
 my_bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
-		    my_bool thread_safe __attribute__((unused)))
+		    my_bool thread_safe MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("bitmap_init");
   if (!buf)

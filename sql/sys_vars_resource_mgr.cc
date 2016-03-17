@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -215,7 +215,7 @@ void Session_sysvar_resource_manager::deinit()
 
 uchar *Session_sysvar_resource_manager::sysvars_mgr_get_key(const char *entry,
 							    size_t *length,
-							    my_bool not_used __attribute__((unused)))
+							    my_bool not_used MY_ATTRIBUTE((unused)))
 {
   char *key;
   key= (char *) ((sys_var_ptr *) entry)->data;

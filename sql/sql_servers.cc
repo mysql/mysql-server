@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -72,7 +72,7 @@ enum enum_servers_table_field
 static bool get_server_from_table_to_cache(TABLE *table);
 
 static uchar *servers_cache_get_key(FOREIGN_SERVER *server, size_t *length,
-                                    my_bool not_used __attribute__((unused)))
+                                    my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= (uint) server->server_name_length;
   return (uchar*) server->server_name;
