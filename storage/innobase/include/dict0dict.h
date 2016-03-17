@@ -2124,8 +2124,8 @@ dict_table_is_table_buffer(
 	const dict_table_t*	table);
 
 /** Check if the table is in a shared tablespace (System or General).
-@param[in]	id	Space ID to check
-@return true if id is a shared tablespace, false if not. */
+@param[in]	table	table to check
+@return true if table is a shared tablespace, false if not. */
 UNIV_INLINE
 bool
 dict_table_in_shared_tablespace(
