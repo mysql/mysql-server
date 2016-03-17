@@ -5786,7 +5786,10 @@ innobase_build_v_templ(
 	s_templ->n_col = ncol;
 	s_templ->n_v_col = n_v_col;
 	s_templ->rec_len = table->s->reclength;
-	s_templ->default_rec = table->s->default_values;
+	s_templ->default_rec = static_cast<byte*>(
+		ut_malloc_nokey(table->s->reclength));
+	memcpy(s_templ->default_rec, table->s->default_values,
+	       table->s->reclength);
 
 	/* Mark those columns could be base columns */
 	for (ulint i = 0; i < ib_table->n_v_cols; i++) {

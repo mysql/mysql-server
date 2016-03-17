@@ -1978,6 +1978,7 @@ dict_free_vc_templ(
 				ut_free(vc_templ->vtempl[i]);
 			}
 		}
+		ut_free(vc_templ->default_rec);
 		ut_free(vc_templ->vtempl);
 		vc_templ->vtempl = NULL;
 	}
