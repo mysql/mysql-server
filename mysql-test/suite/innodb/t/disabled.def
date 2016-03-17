@@ -21,4 +21,3 @@ innodb.log_file         @windows  : Bug#22680868 2016-02-08 Erlend Failing too o
 innodb.log_corruption   @windows  : Bug#22680868 2016-02-08 Erlend Failing too often on PB2
 innodb.log_corruption_1 @windows  : Bug#22680868 2016-02-08 Erlend Failing too often on PB2
 analyze_table           @solaris  : Bug#22607584 2016-03-01 Shaohua Failing too often on PB2 due to timeout
-xplugin.client_close      : Bug#22924259 2016-03-16 Viswa failing too often on PB2
