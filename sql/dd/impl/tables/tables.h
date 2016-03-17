@@ -236,6 +236,9 @@ public:
   static Object_key *create_key_by_schema_id(
     Object_id schema_id);
 
+  static Object_key *create_key_by_tablespace_id(
+    Object_id tablespace_id);
+
   static bool max_se_private_id(
     Open_dictionary_tables_ctx *otx,
     const std::string &engine,

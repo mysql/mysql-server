@@ -64,6 +64,8 @@ public:
 
   virtual void debug_print(std::string &outb) const;
 
+  virtual bool is_empty(THD *thd, bool *empty) const;
+
 public:
   /////////////////////////////////////////////////////////////////////////
   // comment.

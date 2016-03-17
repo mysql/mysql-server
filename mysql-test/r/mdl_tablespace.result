@@ -528,7 +528,7 @@ CREATE TABLE t1 (pk INTEGER PRIMARY KEY) TABLESPACE ts1;
 #
 # Dropping ts1 should fail.
 DROP TABLESPACE ts1;
-ERROR HY000: Failed to drop TABLESPACE ts1
+ERROR HY000: Tablespace `ts1` is not empty.
 #
 # Initiate a drop of table t1 and park it after
 # acquiring IX lock on ts1.

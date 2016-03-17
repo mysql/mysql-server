@@ -716,7 +716,7 @@ CREATE TABLE t1 (pk INTEGER PRIMARY KEY) TABLESPACE ts1;
 
 --echo #
 --echo # Dropping ts1 should fail.
---error ER_DROP_FILEGROUP_FAILED
+--error ER_TABLESPACE_IS_NOT_EMPTY
 DROP TABLESPACE ts1;
 
 --echo #

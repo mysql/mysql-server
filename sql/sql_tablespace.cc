@@ -188,6 +188,7 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
       break;
 
     case DROP_TABLESPACE:
+    {
       if (thd->dd_client()->acquire<dd::Tablespace>(ts_info->tablespace_name,
                                                     &old_ts_def))
         DBUG_RETURN(true);
@@ -196,7 +197,17 @@ bool mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
         my_error(ER_TABLESPACE_MISSING_WITH_NAME, MYF(0), ts_info->tablespace_name);
         DBUG_RETURN(true);
       }
+
+      bool is_empty;
+      if (old_ts_def->is_empty(thd, &is_empty))
+        DBUG_RETURN(true);
+      if (!is_empty)
+      {
+        my_error(ER_TABLESPACE_IS_NOT_EMPTY, MYF(0), ts_info->tablespace_name);
+        DBUG_RETURN(true);
+      }
       break;
+    }
 
     case ALTER_TABLESPACE:
       if (thd->dd_client()->acquire<dd::Tablespace>(ts_info->tablespace_name,

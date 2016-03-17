@@ -95,6 +95,18 @@ Object_key *Tables::create_key_by_schema_id(
 
 ///////////////////////////////////////////////////////////////////////////
 
+Object_key *Tables::create_key_by_tablespace_id(
+  Object_id tablespace_id)
+{
+  // Use the index that is generated implicitly for the FK.
+  const int TABLESPACE_INDEX_ID= 5;
+  return new (std::nothrow) Parent_id_range_key(TABLESPACE_INDEX_ID,
+                                                FIELD_TABLESPACE_ID,
+                                                tablespace_id);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 ulonglong Tables::read_se_private_id(const Raw_record &r)
 {
   return r.read_uint(Tables::FIELD_SE_PRIVATE_ID, -1);
