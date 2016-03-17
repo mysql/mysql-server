@@ -15,14 +15,14 @@
 
 #include "key_spec.h"
 
+#include "derror.h"      // ER_THD
 #include "field.h"       // Create_field
 #include "mysqld.h"      // system_charset_info
-#include "sql_lex.h"     // FK_OPTION_SET_NULL
 
 #include <algorithm>
 
 KEY_CREATE_INFO default_key_create_info=
-  { HA_KEY_ALG_SE_SPECIFIC, false, 0, {NullS, 0}, {NullS, 0}, true };
+  { HA_KEY_ALG_SE_SPECIFIC, false, 0, {NullS, 0}, {NullS, 0} };
 
 bool Key_part_spec::operator==(const Key_part_spec& other) const
 {
@@ -31,130 +31,67 @@ bool Key_part_spec::operator==(const Key_part_spec& other) const
                         other.field_name.str);
 }
 
-/**
-  Construct an (almost) deep copy of this key. Only those
-  elements that are known to never change are not copied.
-  If out of memory, a partial copy is returned and an error is set
-  in THD.
-*/
 
-Key_spec::Key_spec(const Key_spec &rhs, MEM_ROOT *mem_root)
-  :type(rhs.type),
-  key_create_info(rhs.key_create_info),
-  columns(rhs.columns, mem_root),
-  name(rhs.name),
-  generated(rhs.generated)
-{
-  list_copy_and_replace_each_value(columns, mem_root);
-}
-
-
-/**
-  Construct an (almost) deep copy of this foreign key. Only those
-  elements that are known to never change are not copied.
-  If out of memory, a partial copy is returned and an error is set
-  in THD.
-*/
-
-Foreign_key_spec::Foreign_key_spec(const Foreign_key_spec &rhs,
-                                   MEM_ROOT *mem_root)
-  :Key_spec(rhs, mem_root),
-  ref_db(rhs.ref_db),
-  ref_table(rhs.ref_table),
-  ref_columns(rhs.ref_columns, mem_root),
-  delete_opt(rhs.delete_opt),
-  update_opt(rhs.update_opt),
-  match_opt(rhs.match_opt)
-{
-  list_copy_and_replace_each_value(ref_columns, mem_root);
-}
-
-/*
-  Test if a foreign key (= generated key) is a prefix of the given key
-  (ignoring key name, key type and order of columns)
-
-  NOTES:
-    This is only used to test if an index for a FOREIGN KEY exists
-
-  IMPLEMENTATION
-    We only compare field names
-
-  RETURN
-    0	Generated key is a prefix of other key
-    1	Not equal
-*/
-
-bool foreign_key_prefix(Key_spec *a, Key_spec *b)
+bool foreign_key_prefix(const Key_spec *a, const Key_spec *b)
 {
   /* Ensure that 'a' is the generated key */
   if (a->generated)
   {
-    if (b->generated && a->columns.elements > b->columns.elements)
+    if (b->generated && a->columns.size() > b->columns.size())
       std::swap(a, b);                       // Put shorter key in 'a'
   }
   else
   {
     if (!b->generated)
-      return TRUE;                              // No foreign key
+      return true;                              // No foreign key
     std::swap(a, b);                       // Put generated key in 'a'
   }
 
   /* Test if 'a' is a prefix of 'b' */
-  if (a->columns.elements > b->columns.elements)
-    return TRUE;                                // Can't be prefix
-
-  List_iterator<Key_part_spec> col_it1(a->columns);
-  List_iterator<Key_part_spec> col_it2(b->columns);
-  const Key_part_spec *col1, *col2;
+  if (a->columns.size() > b->columns.size())
+    return true;                                // Can't be prefix
 
 #ifdef ENABLE_WHEN_INNODB_CAN_HANDLE_SWAPED_FOREIGN_KEY_COLUMNS
   while ((col1= col_it1++))
   {
-    bool found= 0;
+    bool found= false;
     col_it2.rewind();
     while ((col2= col_it2++))
     {
       if (*col1 == *col2)
       {
-        found= TRUE;
+        found= true;
 	break;
       }
     }
     if (!found)
-      return TRUE;                              // Error
+      return true;                              // Error
   }
-  return FALSE;                                 // Is prefix
+  return false;                                 // Is prefix
 #else
-  while ((col1= col_it1++))
+  for (size_t i= 0; i < a->columns.size(); i++)
   {
-    col2= col_it2++;
-    if (!(*col1 == *col2))
-      return TRUE;
+    if (!(*(a->columns[i]) == (*b->columns[i])))
+      return true;
   }
-  return FALSE;                                 // Is prefix
+  return false;                                 // Is prefix
 #endif
 }
 
-/**
-  @brief  validate
-    Check if the foreign key options are compatible with columns
-    on which the FK is created.
 
-  @param table_fields         List of columns 
-
-  @return
-    false   Key valid
-  @return
-    true   Key invalid
- */
-bool Foreign_key_spec::validate(List<Create_field> &table_fields)
+bool Foreign_key_spec::validate(THD *thd, List<Create_field> &table_fields) const
 {
   Create_field  *sql_field;
-  Key_part_spec *column;
-  List_iterator<Key_part_spec> cols(columns);
   List_iterator<Create_field> it(table_fields);
   DBUG_ENTER("Foreign_key_spec::validate");
-  while ((column= cols++))
+  if (ref_columns.size() > 0 && ref_columns.size() != columns.size())
+  {
+    my_error(ER_WRONG_FK_DEF, MYF(0),
+             (name.str ? name.str : "foreign key without name"),
+             ER_THD(thd, ER_KEY_REF_DO_NOT_MATCH_TABLE_REF));
+    DBUG_RETURN(true);
+  }
+  for (const Key_part_spec *column : columns)
   {
     it.rewind();
     while ((sql_field= it++) &&
@@ -164,31 +101,31 @@ bool Foreign_key_spec::validate(List<Create_field> &table_fields)
     if (!sql_field)
     {
       my_error(ER_KEY_COLUMN_DOES_NOT_EXITS, MYF(0), column->field_name.str);
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
-    if (type == KEYTYPE_FOREIGN && sql_field->gcol_info)
+    if (sql_field->gcol_info)
     {
       if (delete_opt == FK_OPTION_SET_NULL)
       {
-        my_error(ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN, MYF(0), 
+        my_error(ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN, MYF(0),
                  "ON DELETE SET NULL");
-        DBUG_RETURN(TRUE);
+        DBUG_RETURN(true);
       }
       if (update_opt == FK_OPTION_SET_NULL)
       {
-        my_error(ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN, MYF(0), 
+        my_error(ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN, MYF(0),
                  "ON UPDATE SET NULL");
-        DBUG_RETURN(TRUE);
+        DBUG_RETURN(true);
       }
       if (update_opt == FK_OPTION_CASCADE)
       {
-        my_error(ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN, MYF(0), 
+        my_error(ER_WRONG_FK_OPTION_FOR_GENERATED_COLUMN, MYF(0),
                  "ON UPDATE CASCADE");
-        DBUG_RETURN(TRUE);
+        DBUG_RETURN(true);
       }
     }
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 

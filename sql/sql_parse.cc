@@ -5632,22 +5632,22 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
   }
   if (type_modifier & PRI_KEY_FLAG)
   {
-    Key_spec *key;
-    lex->col_list.push_back(new Key_part_spec(*field_name, 0));
-    key= new Key_spec(KEYTYPE_PRIMARY, null_lex_str,
-                      &default_key_create_info,
-                      0, lex->col_list);
-    lex->alter_info.key_list.push_back(key);
+    lex->col_list.push_back(new Key_part_spec(field_name_cstr, 0));
+    lex->alter_info.key_list.push_back(new Key_spec(thd->mem_root,
+                                                    KEYTYPE_PRIMARY,
+                                                    NULL_CSTR,
+                                                    &default_key_create_info,
+                                                    false, true, lex->col_list));
     lex->col_list.empty();
   }
   if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG))
   {
-    Key_spec *key;
-    lex->col_list.push_back(new Key_part_spec(*field_name, 0));
-    key= new Key_spec(KEYTYPE_UNIQUE, null_lex_str,
-                      &default_key_create_info, 0,
-                      lex->col_list);
-    lex->alter_info.key_list.push_back(key);
+    lex->col_list.push_back(new Key_part_spec(field_name_cstr, 0));
+    lex->alter_info.key_list.push_back(new Key_spec(thd->mem_root,
+                                                    KEYTYPE_UNIQUE,
+                                                    NULL_CSTR,
+                                                    &default_key_create_info,
+                                                    false, true, lex->col_list));
     lex->col_list.empty();
   }
 

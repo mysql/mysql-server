@@ -383,14 +383,12 @@ static bool add_create_index_prepare (LEX *lex, Table_ident *table)
   return FALSE;
 }
 
-static bool add_create_index (LEX *lex, keytype type,
-                              const LEX_STRING &name,
-                              KEY_CREATE_INFO *info= NULL, bool generated= 0)
+static bool add_create_index(THD *thd, keytype type, const LEX_STRING &name)
 {
-  Key_spec *key;
-  key= new Key_spec(type, name, info ? info : &lex->key_create_info,
-                    generated,
-                    lex->col_list);
+  LEX *lex= thd->lex;
+  const Key_spec *key= new Key_spec(thd->mem_root, type, to_lex_cstring(name),
+                                    &lex->key_create_info, false, true,
+                                    lex->col_list);
   if (key == NULL)
     return TRUE;
 
@@ -2315,7 +2313,7 @@ create:
           }
           '(' key_list ')' normal_key_options
           {
-            if (add_create_index(Lex, $2, $4))
+            if (add_create_index(YYTHD, $2, $4))
               MYSQL_YYABORT;
           }
           opt_index_lock_algorithm { }
@@ -2327,7 +2325,7 @@ create:
           }
           '(' key_list ')' fulltext_key_options
           {
-            if (add_create_index(Lex, $2, $4))
+            if (add_create_index(YYTHD, $2, $4))
               MYSQL_YYABORT;
           }
           opt_index_lock_algorithm { }
@@ -2339,7 +2337,7 @@ create:
           }
           '(' key_list ')' spatial_key_options
           {
-            if (add_create_index(Lex, $2, $4))
+            if (add_create_index(YYTHD, $2, $4))
               MYSQL_YYABORT;
           }
           opt_index_lock_algorithm { }
@@ -6264,32 +6262,34 @@ column_def:
 key_def:
           normal_key_type opt_ident key_alg '(' key_list ')' normal_key_options
           {
-            if (add_create_index (Lex, $1, $2))
+            if (add_create_index (YYTHD, $1, $2))
               MYSQL_YYABORT;
           }
         | fulltext opt_key_or_index opt_ident init_key_options
             '(' key_list ')' fulltext_key_options
           {
-            if (add_create_index (Lex, $1, $3))
+            if (add_create_index (YYTHD, $1, $3))
               MYSQL_YYABORT;
           }
         | spatial opt_key_or_index opt_ident init_key_options
             '(' key_list ')' spatial_key_options
           {
-            if (add_create_index (Lex, $1, $3))
+            if (add_create_index (YYTHD, $1, $3))
               MYSQL_YYABORT;
           }
         | opt_constraint constraint_key_type opt_ident key_alg
           '(' key_list ')' normal_key_options
           {
-            if (add_create_index (Lex, $2, $3.str ? $3 : $1))
+            if (add_create_index (YYTHD, $2, $3.str ? $3 : $1))
               MYSQL_YYABORT;
           }
         | opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
           {
             LEX *lex=Lex;
-            Key_spec *key=
-              new Foreign_key_spec($4.str ? $4 : $1, lex->col_list,
+            const Key_spec *key=
+              new Foreign_key_spec(YYTHD->mem_root,
+                                   to_lex_cstring($4.str ? $4 : $1),
+                                   lex->col_list,
                                    $8->db,
                                    $8->table,
                                    lex->ref_list,
@@ -6299,9 +6299,14 @@ key_def:
             if (key == NULL)
               MYSQL_YYABORT;
             lex->alter_info.key_list.push_back(key);
-            if (add_create_index (lex, KEYTYPE_MULTIPLE, $1.str ? $1 : $4,
-                                  &default_key_create_info, 1))
+            const Key_spec *backing_key=
+              new Key_spec(YYTHD->mem_root, KEYTYPE_MULTIPLE,
+                           to_lex_cstring($1.str ? $1 : $4),
+                           &default_key_create_info, true, true, lex->col_list);
+            if (backing_key == NULL)
               MYSQL_YYABORT;
+            lex->alter_info.key_list.push_back(backing_key);
+            lex->col_list.empty();
             /* Only used for ALTER TABLE. Ignored otherwise. */
             lex->alter_info.flags|= Alter_info::ADD_FOREIGN_KEY;
           }
@@ -7243,14 +7248,14 @@ opt_ref_list:
 ref_list:
           ref_list ',' ident
           {
-            Key_part_spec *key= new Key_part_spec($3, 0);
+            Key_part_spec *key= new Key_part_spec(to_lex_cstring($3), 0);
             if (key == NULL)
               MYSQL_YYABORT;
             Lex->ref_list.push_back(key);
           }
         | ident
           {
-            Key_part_spec *key= new Key_part_spec($1, 0);
+            Key_part_spec *key= new Key_part_spec(to_lex_cstring($1), 0);
             if (key == NULL)
               MYSQL_YYABORT;
             LEX *lex= Lex;
@@ -7417,7 +7422,8 @@ key_using_alg:
 all_key_opt:
           KEY_BLOCK_SIZE opt_equal ulong_num
           { Lex->key_create_info.block_size= $3; }
-        | COMMENT_SYM TEXT_STRING_sys { Lex->key_create_info.comment= $2; }
+        | COMMENT_SYM TEXT_STRING_sys
+          { Lex->key_create_info.comment= to_lex_cstring($2); }
         ;
 
 normal_key_opt:
@@ -7435,7 +7441,7 @@ fulltext_key_opt:
           {
             LEX_CSTRING plugin_name= {$3.str, $3.length};
             if (plugin_is_ready(plugin_name, MYSQL_FTPARSER_PLUGIN))
-              Lex->key_create_info.parser_name= $3;
+              Lex->key_create_info.parser_name= to_lex_cstring($3);
             else
             {
               my_error(ER_FUNCTION_NOT_DEFINED, MYF(0), $3.str);
@@ -7458,7 +7464,7 @@ key_list:
 key_part:
           ident
           {
-            $$= new Key_part_spec($1, 0);
+            $$= new Key_part_spec(to_lex_cstring($1), 0);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -7469,7 +7475,7 @@ key_part:
             {
               my_error(ER_KEY_PART_0, MYF(0), $1.str);
             }
-            $$= new Key_part_spec($1, (uint) key_part_len);
+            $$= new Key_part_spec(to_lex_cstring($1), (uint) key_part_len);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }

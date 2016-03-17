@@ -1220,7 +1220,6 @@ static bool fill_index_from_dd(TABLE_SHARE *share, const dd::Index *idx_obj,
       keyinfo->name= strmake_root(&share->mem_root,
                                   name.c_str(),
                                   name.length());
-      keyinfo->name[name.length()]= '\0';
       share->keynames.type_names[key_nr]= keyinfo->name; //Post processing ??
     }
     else

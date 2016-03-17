@@ -4481,8 +4481,6 @@ bool check_fk_parent_table_access(THD *thd,
                                   HA_CREATE_INFO *create_info,
                                   Alter_info *alter_info)
 {
-  Key_spec *key;
-  List_iterator<Key_spec> key_iterator(alter_info->key_list);
   handlerton *db_type= create_info->db_type ? create_info->db_type :
                                              ha_default_handlerton(thd);
 
@@ -4490,13 +4488,13 @@ bool check_fk_parent_table_access(THD *thd,
   if (!ha_check_storage_engine_flag(db_type, HTON_SUPPORTS_FOREIGN_KEYS))
     return false;
 
-  while ((key= key_iterator++))
+  for (const Key_spec *key : alter_info->key_list)
   {
     if (key->type == KEYTYPE_FOREIGN)
     {
       TABLE_LIST parent_table;
       bool is_qualified_table_name;
-      Foreign_key_spec *fk_key= down_cast<Foreign_key_spec*>(key);
+      const Foreign_key_spec *fk_key= down_cast<const Foreign_key_spec*>(key);
       LEX_STRING db_name;
       LEX_STRING table_name= { (char *) fk_key->ref_table.str,
                                fk_key->ref_table.length };

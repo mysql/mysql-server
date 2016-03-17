@@ -627,8 +627,8 @@ static void fill_dd_indexes_from_keyinfo(dd::Table *tab_obj,
     if (key->block_size)
       idx_options->set_uint32("block_size", key->block_size);
 
-    if (key->parser_name && key->parser_name->str)
-      idx_options->set("parser_name", key->parser_name->str);
+    if (key->parser_name.str)
+      idx_options->set("parser_name", key->parser_name.str);
 
     // Add Index elements
     fill_dd_index_elements_from_key_parts(tab_obj,

@@ -136,12 +136,6 @@ enum class enum_ha_read_modes;
 
 enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
 
-enum fk_match_opt { FK_MATCH_UNDEF, FK_MATCH_FULL,
-                    FK_MATCH_PARTIAL, FK_MATCH_SIMPLE};
-
-enum fk_option { FK_OPTION_UNDEF, FK_OPTION_RESTRICT, FK_OPTION_CASCADE,
-                 FK_OPTION_SET_NULL, FK_OPTION_NO_ACTION, FK_OPTION_DEFAULT};
-
 
 /**
   used by the parser to store internal variable name

@@ -20,17 +20,17 @@
 #include "error_handler.h"                   // Strict_error_handler
 #include "sql_table.h"                       // mysql_alter_table,
                                              // mysql_exchange_partition
-#include "sql_base.h"                        // open_temporary_tables
 #include "log.h"
 #include "sql_class.h"                       // THD
-#include "key_spec.h"                        // Key_spec
 #include "mysqld.h"                          // lower_case_table_names
 
+
 Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
-  :drop_list(rhs.drop_list, mem_root),
-  alter_list(rhs.alter_list, mem_root),
-  key_list(rhs.key_list, mem_root),
-  alter_rename_key_list(rhs.alter_rename_key_list, mem_root),
+ :drop_list(PSI_INSTRUMENT_ME, rhs.drop_list.begin(), rhs.drop_list.end()),
+  alter_list(PSI_INSTRUMENT_ME, rhs.alter_list.begin(), rhs.alter_list.end()),
+  key_list(PSI_INSTRUMENT_ME, rhs.key_list.begin(), rhs.key_list.end()),
+  alter_rename_key_list(PSI_INSTRUMENT_ME, rhs.alter_rename_key_list.begin(),
+                        rhs.alter_rename_key_list.end()),
   create_list(rhs.create_list, mem_root),
   flags(rhs.flags),
   keys_onoff(rhs.keys_onoff),
@@ -43,17 +43,16 @@ Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
   /*
     Make deep copies of used objects.
     This is not a fully deep copy - clone() implementations
-    of Alter_drop, Alter_column, Key, foreign_key, Key_part_spec
-    do not copy string constants. At the same length the only
+    of Create_list do not copy string constants. At the same length the only
     reason we make a copy currently is that ALTER/CREATE TABLE
     code changes input Alter_info definitions, but string
     constants never change.
   */
-  list_copy_and_replace_each_value(drop_list, mem_root);
-  list_copy_and_replace_each_value(alter_list, mem_root);
-  list_copy_and_replace_each_value(key_list, mem_root);
-  list_copy_and_replace_each_value(alter_rename_key_list, mem_root);
-  list_copy_and_replace_each_value(create_list, mem_root);
+  List_iterator<Create_field> it(create_list);
+  Create_field *el;
+  while ((el= it++))
+    it.replace(el->clone(mem_root));
+
   /* partition_names are not deeply copied currently */
 }
 

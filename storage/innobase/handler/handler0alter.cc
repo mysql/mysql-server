@@ -461,7 +461,6 @@ check_v_col_in_order(
 	for (ulint i = 0; i < table->s->fields; i++) {
 		Field*		field = table->s->field[i];
 		bool		dropped = false;
-		Alter_drop*	drop;
 
 		if (field->stored_in_db) {
 			continue;
@@ -470,10 +469,7 @@ check_v_col_in_order(
 		ut_ad(innobase_is_v_fld(field));
 
 		/* Check if this column is in drop list */
-		List_iterator_fast<Alter_drop> cf_it(
-			ha_alter_info->alter_info->drop_list);
-
-		while ((drop = (cf_it++)) != NULL) {
+		for (const Alter_drop *drop : ha_alter_info->alter_info->drop_list) {
 			if (my_strcasecmp(system_charset_info,
 					  field->field_name, drop->name) == 0) {
 				dropped = true;
@@ -899,7 +895,7 @@ innobase_init_foreign(
 /*==================*/
 	dict_foreign_t*	foreign,		/*!< in/out: structure to
 						initialize */
-	char*		constraint_name,	/*!< in/out: constraint name if
+	const char*	constraint_name,	/*!< in/out: constraint name if
 						exists */
 	dict_table_t*	table,			/*!< in: foreign table */
 	dict_index_t*	index,			/*!< in: foreign key index */
@@ -1054,7 +1050,7 @@ bool
 innobase_set_foreign_key_option(
 /*============================*/
 	dict_foreign_t*	foreign,	/*!< in:InnoDB Foreign key */
-	Foreign_key_spec*	fk_key)	/*!< in: Foreign key info from
+	const Foreign_key_spec*	fk_key)	/*!< in: Foreign key info from
 					MySQL */
 {
 	ut_ad(!foreign->type);
@@ -1071,6 +1067,8 @@ innobase_set_foreign_key_option(
 	case FK_OPTION_SET_NULL:
 		foreign->type = DICT_FOREIGN_ON_DELETE_SET_NULL;
 		break;
+	case FK_OPTION_UNDEF:
+		break;
 	}
 
 	switch (fk_key->update_opt) {
@@ -1084,6 +1082,8 @@ innobase_set_foreign_key_option(
 		break;
 	case FK_OPTION_SET_NULL:
 		foreign->type |= DICT_FOREIGN_ON_UPDATE_SET_NULL;
+		break;
+	case FK_OPTION_UNDEF:
 		break;
 	}
 
@@ -1223,8 +1223,7 @@ innobase_get_foreign_key_info(
 					constraints added */
 	const trx_t*	trx)		/*!< in: user transaction */
 {
-	Key_spec*	key;
-	Foreign_key_spec*	fk_key;
+	const Foreign_key_spec*	fk_key;
 	dict_table_t*	referenced_table = NULL;
 	char*		referenced_table_name = NULL;
 	ulint		num_fk = 0;
@@ -1234,9 +1233,7 @@ innobase_get_foreign_key_info(
 
 	*n_add_fk = 0;
 
-	List_iterator<Key_spec> key_iterator(alter_info->key_list);
-
-	while ((key=key_iterator++)) {
+	for (const Key_spec *key : alter_info->key_list) {
 		if (key->type != KEYTYPE_FOREIGN) {
 			continue;
 		}
@@ -1255,18 +1252,15 @@ innobase_get_foreign_key_info(
 		char		db_name[MAX_DATABASE_NAME_LEN];
 		char		tbl_name[MAX_TABLE_NAME_LEN];
 
-		fk_key = static_cast<Foreign_key_spec*>(key);
+		fk_key = down_cast<const Foreign_key_spec*>(key);
 
-		if (fk_key->columns.elements > 0) {
-			ulint	i = 0;
-			Key_part_spec* column;
-			List_iterator<Key_part_spec> key_part_iterator(
-				fk_key->columns);
+		if (fk_key->columns.size() > 0) {
+			size_t	i = 0;
 
 			/* Get all the foreign key column info for the
 			current table */
-			while ((column = key_part_iterator++)) {
-				column_names[i] = column->field_name.str;
+			while (i < fk_key->columns.size()) {
+				column_names[i] = fk_key->columns[i]->field_name.str;
 				ut_ad(i < MAX_NUM_FK_COLUMNS);
 				i++;
 			}
@@ -1359,15 +1353,12 @@ innobase_get_foreign_key_info(
 			goto err_exit;
 		}
 
-		if (fk_key->ref_columns.elements > 0) {
-			ulint	i = 0;
-			Key_part_spec* column;
-			List_iterator<Key_part_spec> key_part_iterator(
-				fk_key->ref_columns);
+		if (fk_key->ref_columns.size() > 0) {
+			size_t	i = 0;
 
-			while ((column = key_part_iterator++)) {
+			while (i < fk_key->ref_columns.size()) {
 				referenced_column_names[i] =
-					column->field_name.str;
+					fk_key->ref_columns[i]->field_name.str;
 				ut_ad(i < MAX_NUM_FK_COLUMNS);
 				i++;
 			}
@@ -3518,14 +3509,12 @@ prepare_inplace_drop_virtual(
 	const TABLE*		table)
 {
 	ha_innobase_inplace_ctx*	ctx;
-	ulint				i = 0;
 	ulint				j = 0;
-	Alter_drop *drop;
 
 	ctx = static_cast<ha_innobase_inplace_ctx*>
 		(ha_alter_info->handler_ctx);
 
-	ctx->num_to_drop_vcol = ha_alter_info->alter_info->drop_list.elements;
+	ctx->num_to_drop_vcol = ha_alter_info->alter_info->drop_list.size();
 
 	ctx->drop_vcol = static_cast<dict_v_col_t*>(
 		 mem_heap_alloc(ctx->heap, ctx->num_to_drop_vcol
@@ -3534,10 +3523,7 @@ prepare_inplace_drop_virtual(
 		 mem_heap_alloc(ctx->heap, ctx->num_to_drop_vcol
 				* sizeof *ctx->drop_vcol_name));
 
-	List_iterator_fast<Alter_drop> cf_it(
-		ha_alter_info->alter_info->drop_list);
-
-	while ((drop = (cf_it++)) != NULL) {
+	for (const Alter_drop *drop : ha_alter_info->alter_info->drop_list) {
 		const Field* field;
 		ulint	old_i;
 
@@ -3550,8 +3536,6 @@ prepare_inplace_drop_virtual(
 				break;
 			}
 		}
-
-		i++;
 
 		if (!table->field[old_i]) {
 			continue;
@@ -5400,7 +5384,7 @@ err_exit_no_heap:
 			const char* name = 0;
 
 			cf_it.rewind();
-			while (Create_field* cf = cf_it++) {
+			while (const Create_field* cf = cf_it++) {
 				if (cf->field == *fp) {
 					name = cf->field_name;
 					goto check_if_ok_to_rename;
@@ -5546,18 +5530,15 @@ check_if_ok_to_rename:
 
 	if (ha_alter_info->handler_flags
 	    & Alter_inplace_info::DROP_FOREIGN_KEY) {
-		DBUG_ASSERT(ha_alter_info->alter_info->drop_list.elements > 0);
+		DBUG_ASSERT(ha_alter_info->alter_info->drop_list.size() > 0);
 
 		drop_fk = static_cast<dict_foreign_t**>(
 			mem_heap_alloc(
 				heap,
-				ha_alter_info->alter_info->drop_list.elements
+				ha_alter_info->alter_info->drop_list.size()
 				* sizeof(dict_foreign_t*)));
 
-		List_iterator<Alter_drop> drop_it(
-			ha_alter_info->alter_info->drop_list);
-
-		while (Alter_drop* drop = drop_it++) {
+		for (const Alter_drop *drop : ha_alter_info->alter_info->drop_list) {
 			if (drop->type != Alter_drop::FOREIGN_KEY) {
 				continue;
 			}
@@ -5593,7 +5574,7 @@ found_fk:
 		DBUG_ASSERT(n_drop_fk > 0);
 
 		DBUG_ASSERT(n_drop_fk
-			    == ha_alter_info->alter_info->drop_list.elements);
+			    == ha_alter_info->alter_info->drop_list.size());
 	} else {
 		drop_fk = NULL;
 	}
@@ -5762,7 +5743,7 @@ check_if_can_drop_indexes:
 		add_fk = static_cast<dict_foreign_t**>(
 			mem_heap_zalloc(
 				heap,
-				ha_alter_info->alter_info->key_list.elements
+				ha_alter_info->alter_info->key_list.size()
 				* sizeof(dict_foreign_t*)));
 
 		if (!innobase_get_foreign_key_info(
@@ -6699,7 +6680,7 @@ innobase_rename_columns_try(
 		}
 
 		cf_it.rewind();
-		while (Create_field* cf = cf_it++) {
+		while (const Create_field* cf = cf_it++) {
 			if (cf->field == *fp) {
 				ulint	col_n = is_virtual
 						? dict_create_v_col_pos(
@@ -6866,7 +6847,7 @@ innobase_enlarge_columns_try(
 		}
 
 		cf_it.rewind();
-		while (Create_field* cf = cf_it++) {
+		while (const Create_field* cf = cf_it++) {
 			if (cf->field == *fp) {
 				if ((*fp)->is_equal(cf)
 				    == IS_EQUAL_PACK_LENGTH
@@ -6912,7 +6893,7 @@ innobase_rename_or_enlarge_columns_cache(
 		bool	is_virtual = innobase_is_v_fld(*fp);
 
 		cf_it.rewind();
-		while (Create_field* cf = cf_it++) {
+		while (const Create_field* cf = cf_it++) {
 			if (cf->field != *fp) {
 				continue;
 			}
@@ -7514,9 +7495,9 @@ commit_try_norebuild(
 		      & Alter_inplace_info::DROP_FOREIGN_KEY)
 		    || ctx->num_to_drop_fk > 0);
 	DBUG_ASSERT(ctx->num_to_drop_fk
-		    == ha_alter_info->alter_info->drop_list.elements
+		    == ha_alter_info->alter_info->drop_list.size()
 		    || ctx->num_to_drop_vcol
-		       == ha_alter_info->alter_info->drop_list.elements);
+		       == ha_alter_info->alter_info->drop_list.size());
 
 	for (ulint i = 0; i < ctx->num_to_add_index; i++) {
 		dict_index_t*	index = ctx->add_index[i];

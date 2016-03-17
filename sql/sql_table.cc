@@ -78,9 +78,6 @@ using binary_log::checksum_crc32;
 
 const char *primary_key_name="PRIMARY";
 
-/* special marker for keys to be ignored */
-static char ignore_key[1];
-
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
 static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
 static int copy_data_between_tables(THD *thd,
@@ -3442,7 +3439,7 @@ bool prepare_sp_create_field(THD *thd,
     cs                        Character set
 */
 
-const CHARSET_INFO* get_sql_field_charset(Create_field *sql_field,
+const CHARSET_INFO* get_sql_field_charset(const Create_field *sql_field,
                                           const HA_CREATE_INFO *create_info)
 {
   const CHARSET_INFO *cs= sql_field->charset;
@@ -4041,27 +4038,28 @@ static void calculate_field_offsets(List<Create_field> *create_list)
    @param[in,out] key_list  List of keys to count and possibly mark as ignored.
    @param[out] key_count    Returned number of keys counted.
    @param[out] key_parts    Returned number of key segments.
+   @param[in,out] redundant_keys  Array where keys to be ignored will be marked.
 */
 
-static void count_keys(List<Key_spec> *key_list,
-                       uint *key_count, uint *key_parts)
+static void count_keys(const Prealloced_array<const Key_spec*, 1> &key_list,
+                       uint *key_count, uint *key_parts,
+                       Mem_root_array<bool> *redundant_keys)
 {
-  DBUG_ASSERT(key_list);
   *key_count= 0;
   *key_parts= 0;
 
-  Key_spec *key;
-  List_iterator<Key_spec> key_iterator(*key_list);
-  while ((key=key_iterator++))
+  for (size_t key_counter= 0; key_counter < key_list.size(); key_counter++)
   {
+    const Key_spec *key= key_list[key_counter];
     // Skip foreign keys - we don't make KEYs for them.
     if (key->type == KEYTYPE_FOREIGN)
       continue;
 
-    List_iterator<Key_spec> key_iterator2(*key_list);
-    Key_spec *key2;
-    while ((key2 = key_iterator2++) != key)
+    for (size_t key2_counter= 0;
+         key2_counter < key_list.size() && key_list[key2_counter] != key;
+         key2_counter++)
     {
+      const Key_spec *key2= key_list[key2_counter];
       /*
         foreign_key_prefix(key, key2) returns 0 if key or key2, or both, is
         'generated', and a generated key is a prefix of the other key.
@@ -4074,28 +4072,28 @@ static void count_keys(List<Key_spec> *key_list,
       if ((key2->type != KEYTYPE_FOREIGN &&
            key2->type != KEYTYPE_SPATIAL &&
            key2->type != KEYTYPE_FULLTEXT &&
-           key2->name.str != ignore_key &&
+           !redundant_keys->at(key2_counter) &&
            !foreign_key_prefix(key, key2)))
       {
         /* TODO: issue warning message */
         /* mark that the generated key should be ignored */
         if (!key2->generated ||
-            (key->generated && key->columns.elements <
-             key2->columns.elements))
-          key->name.str= ignore_key;
+            (key->generated &&
+             key->columns.size() < key2->columns.size()))
+          (*redundant_keys)[key_counter]= true;
         else
         {
-          key2->name.str= ignore_key;
-          (*key_parts)-= key2->columns.elements;
+          (*redundant_keys)[key2_counter]= true;
+          (*key_parts)-= key2->columns.size();
           (*key_count)--;
         }
         break;
       }
     }
-    if (key->name.str != ignore_key)
+    if (!redundant_keys->at(key_counter))
     {
       (*key_count)++;
-      (*key_parts)+= key->columns.elements;
+      (*key_parts)+= key->columns.size();
     }
   }
 }
@@ -4103,8 +4101,9 @@ static void count_keys(List<Key_spec> *key_list,
 
 static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
                                List<Create_field> *create_list,
-                               Key_spec *key, Key_part_spec *column,
-                               const uint column_nr, KEY *key_info,
+                               const Key_spec *key,
+                               const Key_part_spec *column,
+                               const size_t column_nr, KEY *key_info,
                                KEY_PART_INFO *key_part_info,
                                const handler *file, int *auto_increment,
                                const CHARSET_INFO **ft_key_charset)
@@ -4172,10 +4171,10 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
   /*
     Check for duplicate columns.
   */
-  List_iterator<Key_part_spec> cols2(key->columns);
-  Key_part_spec *dup_column;
-  while ((dup_column= cols2++) != column)
+  for (const Key_part_spec *dup_column : key->columns)
   {
+    if (dup_column == column)
+      break;
     if (!my_strcasecmp(system_charset_info,
                        column->field_name.str, dup_column->field_name.str))
     {
@@ -4184,6 +4183,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
     }
   }
 
+  uint column_length;
   if (key->type == KEYTYPE_FULLTEXT)
   {
     if ((sql_field->sql_type != MYSQL_TYPE_STRING &&
@@ -4204,15 +4204,15 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
       with length (unlike blobs, where ft code takes data length from a
       data prefix, ignoring column->length).
     */
-    column->length= MY_TEST(is_blob(sql_field->sql_type));
+    column_length= MY_TEST(is_blob(sql_field->sql_type));
   }
   else
   {
-    column->length*= sql_field->charset->mbmaxlen;
+    column_length= column->length * sql_field->charset->mbmaxlen;
 
     if (key->type == KEYTYPE_SPATIAL)
     {
-      if (column->length)
+      if (column_length)
       {
         my_error(ER_WRONG_SUB_KEY, MYF(0));
         DBUG_RETURN(true);
@@ -4226,7 +4226,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
         4 is: (Xmin,Xmax,Ymin,Ymax), this is for 2D case
         Lately we'll extend this code to support more dimensions
       */
-      column->length= 4*sizeof(double);
+      column_length= 4*sizeof(double);
     }
 
     if (is_blob(sql_field->sql_type) ||
@@ -4240,8 +4240,8 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
       }
       if (sql_field->sql_type == MYSQL_TYPE_GEOMETRY &&
           sql_field->geom_type == Field::GEOM_POINT)
-        column->length= MAX_LEN_GEOM_POINT_FIELD;
-      if (!column->length)
+        column_length= MAX_LEN_GEOM_POINT_FIELD;
+      if (!column_length)
       {
         my_error(ER_BLOB_KEY_WITHOUT_LENGTH, MYF(0), column->field_name.str);
         DBUG_RETURN(true);
@@ -4325,11 +4325,11 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
 
   size_t key_part_length= sql_field->key_length;
 
-  if (column->length)
+  if (column_length)
   {
     if (is_blob(sql_field->sql_type))
     {
-      key_part_length= column->length;
+      key_part_length= column_length;
       /*
         There is a possibility that the given prefix length is less
         than the engine max key part length, but still greater
@@ -4370,9 +4370,9 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
     // Catch invalid use of partial keys
     else if (sql_field->sql_type != MYSQL_TYPE_GEOMETRY &&
              // is the key partial?
-             column->length != key_part_length &&
+             column_length != key_part_length &&
              // is prefix length bigger than field length?
-             (column->length > key_part_length ||
+             (column_length > key_part_length ||
               // can the field have a partial key?
               !Field::type_can_have_key_part (sql_field->sql_type) ||
               // does the storage engine allow prefixed search?
@@ -4384,8 +4384,8 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_RETURN(TRUE);
     }
     else if (!(file->ha_table_flags() & HA_NO_PREFIX_CHAR_KEYS))
-      key_part_length= column->length;
-  } // column->length
+      key_part_length= column_length;
+  } // column_length
   else if (key_part_length == 0)
   {
     my_error(ER_WRONG_KEY_COLUMN, MYF(0), column->field_name.str);
@@ -4464,7 +4464,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
 
 
 static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
-                        List<Create_field> *create_list, Key_spec *key,
+                        List<Create_field> *create_list, const Key_spec *key,
                         KEY **key_info_buffer, KEY *key_info,
                         KEY_PART_INFO **key_part_info,
                         Mem_root_array<const KEY *, true> &keys_to_check,
@@ -4478,14 +4478,13 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
     General checks.
   */
 
-  if (key->columns.elements > file->max_key_parts() && key->type != KEYTYPE_SPATIAL)
+  if (key->columns.size() > file->max_key_parts() && key->type != KEYTYPE_SPATIAL)
   {
     my_error(ER_TOO_MANY_KEY_PARTS,MYF(0), file->max_key_parts());
     DBUG_RETURN(true);
   }
 
-  LEX_CSTRING key_name_cstr= {key->name.str, key->name.length};
-  if (check_string_char_length(key_name_cstr, "", NAME_CHAR_LEN,
+  if (check_string_char_length(key->name, "", NAME_CHAR_LEN,
                                system_charset_info, 1))
   {
     my_error(ER_TOO_LONG_IDENT, MYF(0), key->name.str);
@@ -4501,12 +4500,12 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
 
   /* Create the key name based on the first column (if not given) */
   if (key->type == KEYTYPE_PRIMARY)
-    key_info->name= const_cast<char*>(primary_key_name);
+    key_info->name= primary_key_name;
   else if (key->name.str)
     key_info->name= key->name.str;
   else
   {
-    Key_part_spec *first_col= key->columns.head();
+    const Key_part_spec *first_col= key->columns[0];
     List_iterator<Create_field> it(*create_list);
     Create_field *sql_field;
     while ((sql_field= it++) &&
@@ -4562,10 +4561,13 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_RETURN(true);
     }
     key_info->flags= HA_FULLTEXT;
-    if ((key_info->parser_name= &key->key_create_info.parser_name)->str)
+    if (key->key_create_info.parser_name.str)
+    {
+      key_info->parser_name= key->key_create_info.parser_name;
       key_info->flags|= HA_USES_PARSER;
+    }
     else
-      key_info->parser_name= NULL;
+      key_info->parser_name= NULL_CSTR;
     break;
   case KEYTYPE_SPATIAL:
     if (!(file->ha_table_flags() & HA_CAN_RTREEKEYS))
@@ -4573,7 +4575,7 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
       my_error(ER_TABLE_CANT_HANDLE_SPKEYS, MYF(0));
       DBUG_RETURN(true);
     }
-    if (key->columns.elements != 1)
+    if (key->columns.size() != 1)
     {
       my_error(ER_TOO_MANY_KEY_PARTS, MYF(0), 1);
       DBUG_RETURN(true);
@@ -4592,7 +4594,7 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
     key_info->flags|= HA_GENERATED_KEY;
 
   key_info->algorithm=              key->key_create_info.algorithm;
-  key_info->user_defined_key_parts= key->columns.elements;
+  key_info->user_defined_key_parts= key->columns.size();
   key_info->actual_key_parts=       key_info->user_defined_key_parts;
   key_info->key_part=               *key_part_info;
   key_info->usable_key_parts=       key_number;
@@ -4685,13 +4687,14 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
   if (key_info->block_size)
     key_info->flags|= HA_USES_BLOCK_SIZE;
 
-  List_iterator<Key_part_spec> cols(key->columns);
   const CHARSET_INFO *ft_key_charset= NULL;  // for FULLTEXT
   key_info->key_length= 0;
-  Key_part_spec *column;
-  for (uint column_nr= 0 ; (column=cols++) ; column_nr++, (*key_part_info)++)
+  for (size_t column_nr= 0 ;
+       column_nr < key->columns.size() ;
+       column_nr++, (*key_part_info)++)
   {
-    if (prepare_key_column(thd, create_info, create_list, key, column,
+    if (prepare_key_column(thd, create_info, create_list, key,
+                           key->columns[column_nr],
                            column_nr, key_info, *key_part_info, file,
                            auto_increment, &ft_key_charset))
       DBUG_RETURN(true);
@@ -4721,7 +4724,7 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
     perform check later when we properly construct KEY objects for all
     keys.
   */
-  if (key->key_create_info.check_for_duplicate_indexes &&
+  if (key->check_for_duplicate_indexes &&
       !key->generated && key->type != KEYTYPE_PRIMARY)
   {
     if (keys_to_check.push_back(key_info))
@@ -4889,7 +4892,9 @@ static bool mysql_prepare_create_table(THD *thd,
     Also mark redundant keys to be ignored.
   */
   uint key_parts;
-  count_keys(&alter_info->key_list, key_count, &key_parts);
+  Mem_root_array<bool> redundant_keys(thd->mem_root,
+                                      alter_info->key_list.size(), false);
+  count_keys(alter_info->key_list, key_count, &key_parts, &redundant_keys);
   if (*key_count > file->max_keys())
   {
     my_error(ER_TOO_MANY_KEYS,MYF(0), file->max_keys());
@@ -4910,32 +4915,22 @@ static bool mysql_prepare_create_table(THD *thd,
   if (keys_to_check.reserve(*key_count))
     DBUG_RETURN(true);				// Out of memory
 
-  Key_spec *key;
-  List_iterator<Key_spec> key_iterator(alter_info->key_list);
   uint key_number= 0;
   bool primary_key= false;
-  for (; (key=key_iterator++) ; key_number++)
+  for (size_t i= 0; i < alter_info->key_list.size(); i++, key_number++)
   {
-    if (key->name.str == ignore_key)
+    if (redundant_keys[i])
     {
       key_number--; // Skip redundant keys
       continue;
     }
 
+    const Key_spec *key= alter_info->key_list[i];
     if (key->type == KEYTYPE_FOREIGN)
     {
-      if (down_cast<Foreign_key_spec*>(key)->validate(alter_info->create_list))
+      if (down_cast<const Foreign_key_spec*>(key)->validate(thd,
+                                                            alter_info->create_list))
         DBUG_RETURN(TRUE);
-      Foreign_key_spec *fk_key= down_cast<Foreign_key_spec*>(key);
-      if (fk_key->ref_columns.elements &&
-	  fk_key->ref_columns.elements != fk_key->columns.elements)
-      {
-        my_error(ER_WRONG_FK_DEF, MYF(0),
-                 (fk_key->name.str ? fk_key->name.str :
-                                     "foreign key without name"),
-                 ER_THD(thd, ER_KEY_REF_DO_NOT_MATCH_TABLE_REF));
-	DBUG_RETURN(true);
-      }
       key_number--; // Skip foreign keys
       continue;
     }
@@ -5335,7 +5330,6 @@ bool create_table_impl(THD *thd,
       this information in the default_db_type variable, it is either
       DB_TYPE_DEFAULT or the engine set in the ALTER TABLE command.
     */
-    Key_spec *key;
     handlerton *part_engine_type= create_info->db_type;
     char *part_syntax_buf;
     uint syntax_len;
@@ -5535,8 +5529,7 @@ bool create_table_impl(THD *thd,
     */
     if (is_ha_partition_handlerton(create_info->db_type))
     {
-      List_iterator_fast<Key_spec> key_iterator(alter_info->key_list);
-      while ((key= key_iterator++))
+      for (const Key_spec *key : alter_info->key_list)
       {
         if (key->type == KEYTYPE_FOREIGN)
         {
@@ -6599,11 +6592,11 @@ static bool is_candidate_key(KEY *key)
   @param idx         Field index.
 */
 
-static Create_field *get_field_by_index(Alter_info *alter_info, uint idx)
+static const Create_field *get_field_by_index(Alter_info *alter_info, uint idx)
 {
   List_iterator_fast<Create_field> field_it(alter_info->create_list);
   uint field_idx= 0;
-  Create_field *field;
+  const Create_field *field;
 
   while ((field= field_it++) && field_idx < idx)
   { field_idx++; }
@@ -6874,10 +6867,10 @@ static bool fill_alter_inplace_info(THD *thd,
           (KEY**) thd->alloc(sizeof(KEY*) * table->s->keys)) ||
       ! (ha_alter_info->index_add_buffer=
           (uint*) thd->alloc(sizeof(uint) *
-                            alter_info->key_list.elements)) ||
+                             alter_info->key_list.size())) ||
       ! (ha_alter_info->index_rename_buffer=
           (KEY_PAIR*) thd->alloc(sizeof(KEY_PAIR) *
-                                 alter_info->alter_rename_key_list.elements)))
+                                 alter_info->alter_rename_key_list.size())))
     DBUG_RETURN(true);
 
   /* First we setup ha_alter_flags based on what was detected by parser. */
@@ -7167,11 +7160,7 @@ static bool fill_alter_inplace_info(THD *thd,
        new_key < new_key_end; new_key++)
     new_key->flags&= ~HA_KEY_RENAMED;
 
-  List_iterator_fast<Alter_rename_key> rename_key_it(alter_info->
-                                                     alter_rename_key_list);
-  Alter_rename_key *rename_key;
-
-  while ((rename_key= rename_key_it++))
+  for (const Alter_rename_key *rename_key : alter_info->alter_rename_key_list)
   {
     table_key= find_key_ci(rename_key->old_name, table->key_info, table_key_end);
     new_key= find_key_ci(rename_key->new_name, ha_alter_info->key_info_buffer,
@@ -7481,7 +7470,7 @@ bool mysql_compare_tables(TABLE *table,
   for (Field **f_ptr= table->field; *f_ptr; f_ptr++)
   {
     Field *field= *f_ptr;
-    Create_field *tmp_new_field= tmp_new_field_it++;
+    const Create_field *tmp_new_field= tmp_new_field_it++;
 
     /* Check that NULL behavior is the same. */
     if ((tmp_new_field->flags & NOT_NULL_FLAG) !=
@@ -7729,7 +7718,7 @@ static bool mysql_inplace_alter_table(THD *thd,
   handlerton *db_type= table->s->db_type();
   MDL_ticket *mdl_ticket= table->mdl_ticket;
   HA_CREATE_INFO *create_info= ha_alter_info->create_info;
-  Alter_info *alter_info= ha_alter_info->alter_info;
+  const Alter_info *alter_info= ha_alter_info->alter_info;
   bool reopen_tables= false;
 
   DBUG_ENTER("mysql_inplace_alter_table");
@@ -8244,21 +8233,18 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   /* New column definitions are added here */
   List<Create_field> new_create_list;
   /* New key definitions are added here */
-  List<Key_spec> new_key_list;
+  Mem_root_array<const Key_spec*> new_key_list(thd->mem_root);
   // DROP instructions for foreign keys and virtual generated columns
-  List<Alter_drop> new_drop_list;
+  Mem_root_array<const Alter_drop*> new_drop_list(thd->mem_root);
 
   /*
     Alter_info::alter_rename_key_list is also used by fill_alter_inplace_info()
     call. So this function should not modify original list but rather work with
     its copy.
   */
-  List<Alter_rename_key> rename_key_list(alter_info->alter_rename_key_list,
-                                         thd->mem_root);
-  List_iterator<Alter_drop> drop_it(alter_info->drop_list);
+  Prealloced_array<const Alter_rename_key*, 1>
+    rename_key_list(alter_info->alter_rename_key_list);
   List_iterator<Create_field> def_it(alter_info->create_list);
-  List_iterator<Alter_column> alter_it(alter_info->alter_list);
-  List_iterator<Key_spec> key_it(alter_info->key_list);
   List_iterator<Create_field> find_it(new_create_list);
   List_iterator<Create_field> field_it(new_create_list);
   List<Key_part_spec> key_parts;
@@ -8314,10 +8300,10 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   for (f_ptr=table->field ; (field= *f_ptr) ; f_ptr++)
   {
     /* Check if field should be dropped */
-    Alter_drop *drop;
-    drop_it.rewind();
-    while ((drop=drop_it++))
+    size_t i= 0;
+    while (i < alter_info->drop_list.size())
     {
+      const Alter_drop *drop= alter_info->drop_list[i];
       if (drop->type == Alter_drop::COLUMN &&
 	  !my_strcasecmp(system_charset_info,field->field_name, drop->name))
       {
@@ -8347,10 +8333,11 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
           new_drop_list.push_back(drop);
 	break; // Column was found.
       }
+      i++;
     }
-    if (drop)
+    if (i < alter_info->drop_list.size())
     {
-      drop_it.remove();
+      alter_info->drop_list.erase(i);
       continue;
     }
     /* Check if field is changed */
@@ -8413,14 +8400,17 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       */
       def= new Create_field(field, field);
       new_create_list.push_back(def);
-      alter_it.rewind();			// Change default if ALTER
-      Alter_column *alter;
-      while ((alter=alter_it++))
+      // Change default if ALTER
+      size_t i= 0;
+      const Alter_column *alter= NULL;
+      while (i < alter_info->alter_list.size())
       {
+        alter= alter_info->alter_list[i];
 	if (!my_strcasecmp(system_charset_info,field->field_name, alter->name))
 	  break;
+        i++;
       }
-      if (alter)
+      if (i < alter_info->alter_list.size())
       {
 	if (def->flags & BLOB_FLAG)
 	{
@@ -8446,7 +8436,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
         else
           def->flags|= NO_DEFAULT_VALUE_FLAG;
 
-	alter_it.remove();
+	alter_info->alter_list.erase(i);
       }
     }
   }
@@ -8500,7 +8490,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       new_create_list.push_back(def);
     else
     {
-      Create_field *find;
+      const Create_field *find;
       if (def->change)
       {
         find_it.rewind();
@@ -8543,10 +8533,10 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       }
     }
   }
-  if (alter_info->alter_list.elements)
+  if (alter_info->alter_list.size() > 0)
   {
     my_error(ER_BAD_FIELD_ERROR, MYF(0),
-             alter_info->alter_list.head()->name, table->s->table_name.str);
+             alter_info->alter_list[0]->name, table->s->table_name.str);
     goto err;
   }
   if (!new_create_list.elements)
@@ -8564,17 +8554,18 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   {
     const char *key_name= key_info->name;
     bool index_column_dropped= false;
-    Alter_drop *drop;
-    drop_it.rewind();
-    while ((drop=drop_it++))
+    size_t drop_idx= 0;
+    while (drop_idx < alter_info->drop_list.size())
     {
+      const Alter_drop *drop= alter_info->drop_list[drop_idx];
       if (drop->type == Alter_drop::KEY &&
 	  !my_strcasecmp(system_charset_info,key_name, drop->name))
 	break;
+      drop_idx++;
     }
-    if (drop)
+    if (drop_idx < alter_info->drop_list.size())
     {
-      drop_it.remove();
+      alter_info->drop_list.erase(drop_idx);
       continue;
     }
 
@@ -8585,7 +8576,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       if (!key_part->field)
 	continue;				// Wrong field (from UNIREG)
       const char *key_part_name=key_part->field->field_name;
-      Create_field *cfield;
+      const Create_field *cfield;
       field_it.rewind();
       while ((cfield=field_it++))
       {
@@ -8644,23 +8635,19 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 	  key_part_length= 0;			// Use whole field
       }
       key_part_length /= key_part->field->charset()->mbmaxlen;
-      key_parts.push_back(new Key_part_spec(cfield->field_name,
-                                            strlen(cfield->field_name),
-					    key_part_length));
+      key_parts.push_back(new Key_part_spec(to_lex_cstring(cfield->field_name),
+                                            key_part_length));
     }
     if (key_parts.elements)
     {
       KEY_CREATE_INFO key_create_info;
-      Key_spec *key;
       keytype key_type;
       memset(&key_create_info, 0, sizeof(key_create_info));
 
       /* If this index is to stay in the table check if it has to be renamed. */
-      List_iterator<Alter_rename_key> rename_key_it(rename_key_list);
-      Alter_rename_key *rename_key;
-
-      while ((rename_key= rename_key_it++))
+      for (size_t rename_idx= 0; rename_idx < rename_key_list.size(); rename_idx++)
       {
+        const Alter_rename_key *rename_key= rename_key_list[rename_idx];
         if (! my_strcasecmp(system_charset_info, key_name,
                             rename_key->old_name))
         {
@@ -8678,7 +8665,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
           }
 
           key_name= rename_key->new_name;
-          rename_key_it.remove();
+          rename_key_list.erase(rename_idx);
           /*
             If the user has explicitly renamed the key, we should no longer
             treat it as generated. Otherwise this key might be automatically
@@ -8712,7 +8699,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       if (key_info->flags & HA_USES_BLOCK_SIZE)
         key_create_info.block_size= key_info->block_size;
       if (key_info->flags & HA_USES_PARSER)
-        key_create_info.parser_name= *plugin_name(key_info->parser);
+        key_create_info.parser_name=
+          to_lex_cstring(*plugin_name(key_info->parser));
       if (key_info->flags & HA_USES_COMMENT)
         key_create_info.comment= key_info->comment;
 
@@ -8729,51 +8717,35 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
         key_type= KEYTYPE_FULLTEXT;
       else
         key_type= KEYTYPE_MULTIPLE;
-      
-      if (index_column_dropped)
-      {
-        /*
-           We have dropped a column associated with an index,
-           this warrants a check for duplicate indexes
-        */
-        key_create_info.check_for_duplicate_indexes= true;
-      }
 
-      key= new Key_spec(key_type, key_name, strlen(key_name),
-                        &key_create_info,
-                        MY_TEST(key_info->flags & HA_GENERATED_KEY),
-                        key_parts);
-      new_key_list.push_back(key);
+      /*
+        If we have dropped a column associated with an index,
+        this warrants a check for duplicate indexes
+      */
+      new_key_list.push_back(new Key_spec(thd->mem_root, key_type,
+                                          to_lex_cstring(key_name),
+                                          &key_create_info,
+                                          MY_TEST(key_info->flags & HA_GENERATED_KEY),
+                                          index_column_dropped,
+                                          key_parts));
     }
   }
   {
-    Key_spec *key;
-    while ((key=key_it++))			// Add new keys
-    {
-      if (key->type == KEYTYPE_FOREIGN &&
-          (down_cast<Foreign_key_spec*>(key))->validate(new_create_list))
-        goto err;
-      new_key_list.push_back(key);
-      if (key->name.str &&
-	  !my_strcasecmp(system_charset_info, key->name.str, primary_key_name))
-      {
-	my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), key->name.str);
-        goto err;
-      }
-    }
+    new_key_list.reserve(new_key_list.size() + alter_info->key_list.size());
+    for (size_t i= 0; i < alter_info->key_list.size(); i++)
+      new_key_list.push_back(alter_info->key_list[i]); // Add new keys
   }
 
-  if (alter_info->drop_list.elements)
+  if (alter_info->drop_list.size() > 0)
   {
     // Now this contains only DROP for foreign keys and not-found objects
-    Alter_drop *drop;
-    drop_it.rewind();
-    while ((drop=drop_it++)) {
+    for (const Alter_drop *drop : alter_info->drop_list)
+    {
       switch (drop->type) {
       case Alter_drop::KEY:
       case Alter_drop::COLUMN:
         my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0),
-                 alter_info->drop_list.head()->name);
+                 alter_info->drop_list[0]->name);
         goto err;
       case Alter_drop::FOREIGN_KEY:
         break;
@@ -8783,11 +8755,13 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       }
     }
     // new_drop_list has DROP for virtual generated columns; add foreign keys:
-    new_drop_list.concat(&alter_info->drop_list);
+    new_drop_list.reserve(new_drop_list.size() + alter_info->drop_list.size());
+    for (const Alter_drop *drop : alter_info->drop_list)
+      new_drop_list.push_back(drop);
   }
-  if (rename_key_list.elements)
+  if (rename_key_list.size() > 0)
   {
-    my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), rename_key_list.head()->old_name,
+    my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), rename_key_list[0]->old_name,
              table->s->table_name.str);
     goto err;
   }
@@ -8837,8 +8811,12 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 
   rc= false;
   alter_info->create_list.swap(new_create_list);
-  alter_info->key_list.swap(new_key_list);
-  alter_info->drop_list.swap(new_drop_list);
+  alter_info->key_list.clear();
+  alter_info->key_list.resize(new_key_list.size());
+  std::copy(new_key_list.begin(), new_key_list.end(), alter_info->key_list.begin());
+  alter_info->drop_list.clear();
+  alter_info->drop_list.resize(new_drop_list.size());
+  std::copy(new_drop_list.begin(), new_drop_list.end(), alter_info->drop_list.begin());
 err:
   DBUG_RETURN(rc);
 }
@@ -8855,11 +8833,11 @@ err:
            not present in new version of table.
 */
 
-static Create_field *get_field_by_old_name(Alter_info *alter_info,
-                                           const char *old_name)
+static const Create_field *get_field_by_old_name(Alter_info *alter_info,
+                                                 const char *old_name)
 {
   List_iterator_fast<Create_field> new_field_it(alter_info->create_list);
-  Create_field *new_field;
+  const Create_field *new_field;
 
   while ((new_field= new_field_it++))
   {
@@ -8916,7 +8894,7 @@ fk_check_column_changes(THD *thd, Alter_info *alter_info,
 
   while ((column= column_it++))
   {
-    Create_field *new_field= get_field_by_old_name(alter_info, column->str);
+    const Create_field *new_field= get_field_by_old_name(alter_info, column->str);
 
     if (new_field)
     {
@@ -9020,10 +8998,7 @@ static bool fk_check_copy_alter_table(THD *thd, TABLE *table,
 
   while ((f_key= fk_parent_key_it++))
   {
-    Alter_drop *drop;
-    List_iterator_fast<Alter_drop> drop_it(alter_info->drop_list);
-
-    while ((drop= drop_it++))
+    for (const Alter_drop *drop : alter_info->drop_list)
     {
       /*
         InnoDB treats foreign key names in case-insensitive fashion.
@@ -9101,10 +9076,7 @@ static bool fk_check_copy_alter_table(THD *thd, TABLE *table,
 
   while ((f_key= fk_key_it++))
   {
-    Alter_drop *drop;
-    List_iterator_fast<Alter_drop> drop_it(alter_info->drop_list);
-
-    while ((drop= drop_it++))
+    for (const Alter_drop *drop : alter_info->drop_list)
     {
       /* Names of foreign keys in InnoDB are case-insensitive. */
       if ((drop->type == Alter_drop::FOREIGN_KEY) &&
@@ -10592,7 +10564,7 @@ copy_data_between_tables(THD * thd,
   save_sql_mode= thd->variables.sql_mode;
 
   List_iterator<Create_field> it(create);
-  Create_field *def;
+  const Create_field *def;
   copy_end=copy;
   for (Field **ptr=to->field ; *ptr ; ptr++)
   {
