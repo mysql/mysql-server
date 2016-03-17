@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1011,7 +1011,7 @@ static void uf_zerofill_normal(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *
 }
 
 static void uf_constant(MI_COLUMNDEF *rec,
-			MI_BIT_BUFF *bit_buff __attribute__((unused)),
+			MI_BIT_BUFF *bit_buff MY_ATTRIBUTE((unused)),
 			uchar *to,
 			uchar *end)
 {
@@ -1029,8 +1029,8 @@ static void uf_intervall(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff, uchar *to,
 
 
 /*ARGSUSED*/
-static void uf_zero(MI_COLUMNDEF *rec __attribute__((unused)),
-		    MI_BIT_BUFF *bit_buff __attribute__((unused)),
+static void uf_zero(MI_COLUMNDEF *rec MY_ATTRIBUTE((unused)),
+		    MI_BIT_BUFF *bit_buff MY_ATTRIBUTE((unused)),
 		    uchar *to, uchar *end)
 {
   memset(to, 0, (end-to));
@@ -1060,7 +1060,7 @@ static void uf_blob(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
 
 
 static void uf_varchar1(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
-		       uchar *to, uchar *end __attribute__((unused)))
+		       uchar *to, uchar *end MY_ATTRIBUTE((unused)))
 {
   if (get_bit(bit_buff))
     to[0]= 0;				/* Zero lengths */
@@ -1074,7 +1074,7 @@ static void uf_varchar1(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
 
 
 static void uf_varchar2(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
-		       uchar *to, uchar *end __attribute__((unused)))
+		       uchar *to, uchar *end MY_ATTRIBUTE((unused)))
 {
   if (get_bit(bit_buff))
     to[0]=to[1]=0;				/* Zero lengths */
@@ -1606,7 +1606,7 @@ static int _mi_read_mempack_record(MI_INFO *info, my_off_t filepos, uchar *buf)
 static int _mi_read_rnd_mempack_record(MI_INFO *info, uchar *buf,
 				       my_off_t filepos,
 				       my_bool skip_deleted_blocks
-				       __attribute__((unused)))
+				       MY_ATTRIBUTE((unused)))
 {
   MI_BLOCK_INFO block_info;
   MYISAM_SHARE *share=info->s;

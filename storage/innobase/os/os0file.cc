@@ -330,7 +330,7 @@ public:
 		void*		buf,
 		os_offset_t	offset,
 		ulint		len)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** @return number of reserved slots */
 	ulint pending_io_count() const;
@@ -339,7 +339,7 @@ public:
 	@param[in]	index	Index of the slot in the array
 	@return pointer to slot */
 	const Slot* at(ulint i) const
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		ut_a(i < m_slots.size());
 
@@ -348,7 +348,7 @@ public:
 
 	/** Non const version */
 	Slot* at(ulint i)
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		ut_a(i < m_slots.size());
 
@@ -369,14 +369,14 @@ public:
 
 	/** @return the number of slots per segment */
 	ulint slots_per_segment() const
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return(m_slots.size() / m_n_segments);
 	}
 
 	/** @return accessor for n_segments */
 	ulint get_n_segments() const
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return(m_n_segments);
 	}
@@ -384,7 +384,7 @@ public:
 #ifdef UNIV_DEBUG
 	/** @return true if the thread owns the mutex */
 	bool is_mutex_owned() const
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return(mutex_own(&m_mutex));
 	}
@@ -411,13 +411,13 @@ public:
 	@param[in,out]	slot	an already reserved slot
 	@return true on success. */
 	bool linux_dispatch(Slot* slot)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Accessor for an AIO event
 	@param[in]	index	Index into the array
 	@return the event at the index */
 	io_event* io_events(ulint index)
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		ut_a(index < m_events.size());
 
@@ -428,7 +428,7 @@ public:
 	@param[in]	segment	Segment for which to get the context
 	@return the AIO context for the segment */
 	io_context* io_ctx(ulint segment)
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		ut_ad(segment < get_n_segments());
 
@@ -440,7 +440,7 @@ public:
 	@param[out]	io_ctx		io_ctx to initialize.
 	@return true on success. */
 	static bool linux_create_io_ctx(ulint max_events, io_context_t* io_ctx)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Checks if the system supports native linux aio. On some kernel
 	versions where native aio is supported it won't work on tmpfs. In such
@@ -448,7 +448,7 @@ public:
 	and native aio.
 	@return true if supported, false otherwise. */
 	static bool is_linux_native_aio_supported()
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 #endif /* LINUX_NATIVE_AIO */
 
 #ifdef WIN_ASYNC_IO
@@ -490,7 +490,7 @@ public:
 	/** The non asynchronous IO array.
 	@return the synchronous AIO array instance. */
 	static AIO* sync_array()
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return(s_sync);
 	}
@@ -500,7 +500,7 @@ public:
 	@param[in]	segment		The local segment.
 	@return the handles for the segment. */
 	HANDLE* handles(ulint segment)
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		ut_ad(segment < m_handles->size() / slots_per_segment());
 
@@ -509,7 +509,7 @@ public:
 
 	/** @return true if no slots are reserved */
 	bool is_empty() const
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		ut_ad(is_mutex_owned());
 		return(m_n_reserved == 0);
@@ -525,7 +525,7 @@ public:
 		latch_id_t	id,
 		ulint		n_slots,
 		ulint		segments)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Initializes the asynchronous io system. Creates one array each
 	for ibuf and log I/O. Also creates one array each for read and write
@@ -544,7 +544,7 @@ public:
 		ulint		n_readers,
 		ulint		n_writers,
 		ulint		n_slots_sync)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Free the AIO arrays */
 	static void shutdown();
@@ -561,7 +561,7 @@ public:
 	static ulint get_array_and_local_segment(
 		AIO**		array,
 		ulint		segment)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Select the IO slot array
 	@param[in]	type		Type of IO, READ or WRITE
@@ -572,7 +572,7 @@ public:
 		IORequest&	type,
 		bool		read_only,
 		ulint		mode)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Calculates segment number for a slot.
 	@param[in]	array		AIO wait array
@@ -582,7 +582,7 @@ public:
 	static ulint get_segment_no_from_slot(
 		const AIO*	array,
 		const Slot*	slot)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Wakes up a simulated AIO I/O-handler thread if it has something
 	to do.
@@ -594,7 +594,7 @@ public:
 	@param[in]	aio		The AIO instance to check
 	@return true if the AIO instance is for reading. */
 	static bool is_read(const AIO* aio)
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		return(s_reads == aio);
 	}
@@ -618,7 +618,7 @@ private:
 	/** Initialise the slots
 	@return DB_SUCCESS or error code */
 	dberr_t init_slots()
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Wakes up a simulated AIO I/O-handler thread if it has something
 	to do for a local segment in the AIO array.
@@ -641,7 +641,7 @@ private:
 	/** Initialise the Linux native AIO data structures
 	@return DB_SUCCESS or error code */
 	dberr_t init_linux_native_aio()
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 #endif /* LINUX_NATIVE_AIO */
 
 private:
@@ -5329,7 +5329,7 @@ NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
 @param[in]	n		number of bytes to read, starting from offset
 @param[out]	err		DB_SUCCESS or error code
 @return number of bytes read/written, -1 if error */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 ssize_t
 os_file_io(
 	const IORequest&in_type,
@@ -5462,7 +5462,7 @@ os_file_io(
 @param[in]	offset		file offset from the start where to read
 @param[out]	err		DB_SUCCESS or error code
 @return number of bytes written, -1 if error */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 ssize_t
 os_file_pwrite(
 	IORequest&	type,
@@ -5494,7 +5494,7 @@ os_file_pwrite(
 @param[in]	offset		file offset from the start where to read
 @param[in]	n		number of bytes to read, starting from offset
 @return DB_SUCCESS if request was successful, false if fail */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 os_file_write_page(
 	IORequest&	type,
@@ -5547,7 +5547,7 @@ os_file_write_page(
 @param[in]	n		number of bytes to read, starting from offset
 @param[out]	err		DB_SUCCESS or error code
 @return number of bytes read, -1 if error */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 ssize_t
 os_file_pread(
 	IORequest&	type,
@@ -5580,7 +5580,7 @@ os_file_pread(
 @param[out]	o		number of bytes actually read
 @param[in]	exit_on_err	if true then exit on error
 @return DB_SUCCESS or error code */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 os_file_read_page(
 	IORequest&	type,
@@ -5682,7 +5682,7 @@ and the error type, if should_exit is true then on_error_silent is ignored.
 @param[in]	on_error_silent	if true then don't print any message to the log
 				iff it is an unknown non-fatal error
 @return true if we should retry the operation */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 bool
 os_file_handle_error_cond_exit(
 	const char*	name,
@@ -5803,9 +5803,9 @@ os_file_handle_error_no_exit(
 				message */
 void
 os_file_set_nocache(
-	int		fd		__attribute__((unused)),
-	const char*	file_name	__attribute__((unused)),
-	const char*	operation_name	__attribute__((unused)))
+	int		fd		MY_ATTRIBUTE((unused)),
+	const char*	file_name	MY_ATTRIBUTE((unused)),
+	const char*	operation_name	MY_ATTRIBUTE((unused)))
 {
 	/* some versions of Solaris may not have DIRECTIO_ON */
 #if defined(UNIV_SOLARIS) && defined(DIRECTIO_ON)
@@ -7581,7 +7581,7 @@ public:
 	all data, and perform the I/O
 	@return the length of the buffer */
 	ulint allocate_buffer()
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		ulint	len;
 		Slot*	slot = first_slot();
@@ -7671,7 +7671,7 @@ public:
 
 	/** @return the first slot in the consecutive array */
 	Slot* first_slot()
-		__attribute__((warn_unused_result))
+		MY_ATTRIBUTE((warn_unused_result))
 	{
 		ut_a(m_n_elems > 0);
 
@@ -7685,7 +7685,7 @@ public:
 	ulint check_pending(
 		ulint		global_segment,
 		os_event_t	event)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 private:
 
 	/** Do the file read

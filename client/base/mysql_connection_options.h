@@ -111,10 +111,10 @@ private:
    */
   void db_error(MYSQL* connection, const char* when);
 #ifdef _WIN32
-  void pipe_protocol_callback(char* not_used __attribute__((unused)));
+  void pipe_protocol_callback(char* not_used MY_ATTRIBUTE((unused)));
 #endif
-  void protocol_callback(char* not_used __attribute__((unused)));
-  void secure_auth_callback(char* argument __attribute__((unused)));
+  void protocol_callback(char* not_used MY_ATTRIBUTE((unused)));
+  void secure_auth_callback(char* argument MY_ATTRIBUTE((unused)));
 
   static bool mysql_inited;
 

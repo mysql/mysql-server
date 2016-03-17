@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -590,7 +590,7 @@ bool hostname_requires_resolving(const char *hostname)
 
 
 static uchar* get_key_column(GRANT_COLUMN *buff, size_t *length,
-                             my_bool not_used __attribute__((unused)))
+                             my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length=buff->key_length;
   return (uchar*) buff->column;
@@ -598,7 +598,7 @@ static uchar* get_key_column(GRANT_COLUMN *buff, size_t *length,
 
 
 uchar* get_grant_table(GRANT_NAME *buff, size_t *length,
-                       my_bool not_used __attribute__((unused)))
+                       my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length=buff->key_length;
   return (uchar*) buff->hash_key;
@@ -948,7 +948,7 @@ acl_find_proxy_user(const char *user, const char *host, const char *ip,
 
 
 static uchar* acl_entry_get_key(acl_entry *entry, size_t *length,
-                                my_bool not_used __attribute__((unused)))
+                                my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length=(uint) entry->length;
   return (uchar*) entry->key;
@@ -956,7 +956,7 @@ static uchar* acl_entry_get_key(acl_entry *entry, size_t *length,
 
 
 static uchar* check_get_key(ACL_USER *buff, size_t *length,
-                            my_bool not_used __attribute__((unused)))
+                            my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length=buff->host.get_host_len();
   return (uchar*) buff->host.get_host();

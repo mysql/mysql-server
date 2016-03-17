@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by the
@@ -43,7 +43,7 @@ namespace messages = rewriter_messages;
 
 /** Functions used in the hash */
 uchar *get_rule_hash_code(const uchar *entry, size_t *length,
-                          my_bool __attribute__((unused)))
+                          my_bool MY_ATTRIBUTE((unused)))
 {
   const Rule *rule= pointer_cast<const Rule*>(entry);
   *length= PARSER_SERVICE_DIGEST_LENGTH;

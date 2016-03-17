@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -88,24 +88,24 @@ void (*fatal_error_handler_hook)(uint error, const char *str, myf MyFlags)=
 void (*local_message_hook)(enum loglevel ll, const char *format, va_list args)=
   my_message_local_stderr;
 
-static void enter_cond_dummy(void *a __attribute__((unused)),
-                             mysql_cond_t *b __attribute__((unused)),
-                             mysql_mutex_t *c __attribute__((unused)),
-                             const PSI_stage_info *d __attribute__((unused)),
-                             PSI_stage_info *e __attribute__((unused)),
-                             const char *f __attribute__((unused)),
-                             const char *g __attribute__((unused)),
-                             int h __attribute__((unused)))
+static void enter_cond_dummy(void *a MY_ATTRIBUTE((unused)),
+                             mysql_cond_t *b MY_ATTRIBUTE((unused)),
+                             mysql_mutex_t *c MY_ATTRIBUTE((unused)),
+                             const PSI_stage_info *d MY_ATTRIBUTE((unused)),
+                             PSI_stage_info *e MY_ATTRIBUTE((unused)),
+                             const char *f MY_ATTRIBUTE((unused)),
+                             const char *g MY_ATTRIBUTE((unused)),
+                             int h MY_ATTRIBUTE((unused)))
 { };
 
-static void exit_cond_dummy(void *a __attribute__((unused)),
-                            const PSI_stage_info *b __attribute__((unused)),
-                            const char *c __attribute__((unused)),
-                            const char *d __attribute__((unused)),
-                            int e __attribute__((unused)))
+static void exit_cond_dummy(void *a MY_ATTRIBUTE((unused)),
+                            const PSI_stage_info *b MY_ATTRIBUTE((unused)),
+                            const char *c MY_ATTRIBUTE((unused)),
+                            const char *d MY_ATTRIBUTE((unused)),
+                            int e MY_ATTRIBUTE((unused)))
 { };
 
-static int is_killed_dummy(const void *a __attribute__((unused)))
+static int is_killed_dummy(const void *a MY_ATTRIBUTE((unused)))
 {
   return 0;
 }

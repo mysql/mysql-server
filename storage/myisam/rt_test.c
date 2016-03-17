@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -76,7 +76,7 @@ static double rt_data[]=
   -1
 };
 
-int main(int argc __attribute__((unused)),char *argv[] __attribute__((unused)))
+int main(int argc MY_ATTRIBUTE((unused)),char *argv[] MY_ATTRIBUTE((unused)))
 {
   MY_INIT(argv[0]);
   exit(run_test("rt_test"));
@@ -364,7 +364,7 @@ static int read_with_pos (MI_INFO * file,int silent)
 
 
 static void print_record(uchar * record,
-			 my_off_t offs __attribute__((unused)),
+			 my_off_t offs MY_ATTRIBUTE((unused)),
 			 const char * tail)
 {
   int i;
@@ -417,7 +417,7 @@ static void create_record(uchar *record,uint rownr)
 }
 
 #else
-int main(int argc __attribute__((unused)),char *argv[] __attribute__((unused)))
+int main(int argc MY_ATTRIBUTE((unused)),char *argv[] MY_ATTRIBUTE((unused)))
 {
   exit(0);
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License as
@@ -118,9 +118,9 @@ mysql_socket_set_address(
   const struct sockaddr *addr,
   socklen_t addr_len
 #else
-  MYSQL_SOCKET socket __attribute__ ((unused)),
-  const struct sockaddr *addr __attribute__ ((unused)),
-  socklen_t addr_len __attribute__ ((unused))
+  MYSQL_SOCKET socket MY_ATTRIBUTE ((unused)),
+  const struct sockaddr *addr MY_ATTRIBUTE ((unused)),
+  socklen_t addr_len MY_ATTRIBUTE ((unused))
 #endif
 )
 {
@@ -139,7 +139,7 @@ mysql_socket_set_thread_owner(
 #ifdef HAVE_PSI_SOCKET_INTERFACE
 MYSQL_SOCKET socket
 #else
-MYSQL_SOCKET socket __attribute__ ((unused))
+MYSQL_SOCKET socket MY_ATTRIBUTE ((unused))
 #endif
 )
 {

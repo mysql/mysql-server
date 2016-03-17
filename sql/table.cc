@@ -237,7 +237,7 @@ GRANT_INFO::GRANT_INFO()
 /* Get column name from column hash */
 
 static uchar *get_field_name(Field **buff, size_t *length,
-                             my_bool not_used __attribute__((unused)))
+                             my_bool not_used MY_ATTRIBUTE((unused)))
 {
   *length= strlen((*buff)->field_name);
   return (uchar*) (*buff)->field_name;
@@ -4661,7 +4661,7 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   /* Tables may be reused in a sub statement. */
   DBUG_ASSERT(!file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
   
-  bool error __attribute__((unused))= refix_gc_items(thd);
+  bool error MY_ATTRIBUTE((unused))= refix_gc_items(thd);
   DBUG_ASSERT(!error);
 }
 

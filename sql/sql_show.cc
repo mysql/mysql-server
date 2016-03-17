@@ -383,7 +383,7 @@ void ignore_db_dirs_init()
 
 static uchar *
 db_dirs_hash_get_key(const uchar *data, size_t *len_ret,
-                     my_bool __attribute__((unused)))
+                     my_bool MY_ATTRIBUTE((unused)))
 {
   LEX_STRING *e= (LEX_STRING *) data;
 

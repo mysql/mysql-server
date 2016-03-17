@@ -1,5 +1,4 @@
-/* Copyright (c) 2000-2006 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,9 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-void _mi_report_crashed(MI_INFO *file __attribute__((unused)),
-                        const char *message __attribute__((unused)),
-                        const char *sfile __attribute__((unused)),
-                        uint sline __attribute__((unused)))
+void _mi_report_crashed(MI_INFO *file MY_ATTRIBUTE((unused)),
+                        const char *message MY_ATTRIBUTE((unused)),
+                        const char *sfile MY_ATTRIBUTE((unused)),
+                        uint sline MY_ATTRIBUTE((unused)))
 {
 }

@@ -209,8 +209,8 @@ my_bool Buffered_file_io::remove_backup()
 }
 
 
-my_bool Buffered_file_io::flush_to_keyring(IKey *key /*=NULL*/__attribute__((unused)),
-                                           Flush_operation operation /*= STORE_KEY*/__attribute__((unused)))
+my_bool Buffered_file_io::flush_to_keyring(IKey *key /*=NULL*/MY_ATTRIBUTE((unused)),
+                                           Flush_operation operation /*= STORE_KEY*/MY_ATTRIBUTE((unused)))
 {
   return flush_to_file(&keyring_file_data_key, &keyring_filename);
 }

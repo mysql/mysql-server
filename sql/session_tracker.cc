@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -174,7 +174,7 @@ public:
   void mark_as_changed(THD *thd, LEX_CSTRING *tracked_item_name);
   /* callback */
   static uchar *sysvars_get_key(const char *entry, size_t *length,
-                                my_bool not_used __attribute__((unused)));
+                                my_bool not_used MY_ATTRIBUTE((unused)));
 
   virtual void claim_memory_ownership()
   {
@@ -762,7 +762,7 @@ void Session_sysvars_tracker::mark_as_changed(THD *thd, LEX_CSTRING *tracked_ite
 
 uchar *Session_sysvars_tracker::sysvars_get_key(const char *entry,
                                                 size_t *length,
-                                                my_bool not_used __attribute__((unused)))
+                                                my_bool not_used MY_ATTRIBUTE((unused)))
 {
   char *key;
   key= ((sysvar_node_st *) entry)->m_sysvar_name.str;
@@ -860,7 +860,7 @@ bool Current_schema_tracker::store(THD *thd, String &buf)
 
 void Current_schema_tracker::mark_as_changed(THD *thd,
                                              LEX_CSTRING *tracked_item_name
-                                             __attribute__((unused)))
+                                             MY_ATTRIBUTE((unused)))
 {
   m_changed= true;
   thd->lex->safe_to_cache_query= 0;
@@ -1224,7 +1224,7 @@ bool Transaction_state_tracker::store(THD *thd, String &buf)
 
 void Transaction_state_tracker::mark_as_changed(THD *thd,
                                                 LEX_CSTRING *tracked_item_name
-                                                __attribute__((unused)))
+                                                MY_ATTRIBUTE((unused)))
 {
   m_changed                    = true;
 }
@@ -1774,9 +1774,9 @@ bool Session_gtids_tracker::store(THD *thd, String &buf)
   @return void
 */
 
-void Session_gtids_tracker::mark_as_changed(THD *thd __attribute__((unused)),
+void Session_gtids_tracker::mark_as_changed(THD *thd MY_ATTRIBUTE((unused)),
                                             LEX_CSTRING *tracked_item_name
-                                            __attribute__((unused)))
+                                            MY_ATTRIBUTE((unused)))
 {
   m_changed= true;
 }

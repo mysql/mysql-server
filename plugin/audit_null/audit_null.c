@@ -164,7 +164,7 @@ static MYSQL_THDVAR_STR(event_record,
     1                    failure (cannot happen)
 */
 
-static int audit_null_plugin_init(void *arg __attribute__((unused)))
+static int audit_null_plugin_init(void *arg MY_ATTRIBUTE((unused)))
 {
   struct st_mysql_show_var *var;
 
@@ -190,7 +190,7 @@ static int audit_null_plugin_init(void *arg __attribute__((unused)))
 
 */
 
-static int audit_null_plugin_deinit(void *arg __attribute__((unused)))
+static int audit_null_plugin_deinit(void *arg MY_ATTRIBUTE((unused)))
 {
   return(0);
 }

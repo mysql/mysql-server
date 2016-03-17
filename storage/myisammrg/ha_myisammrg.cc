@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -345,7 +345,7 @@ extern "C" int myisammrg_parent_open_callback(void *callback_param,
   and adds a child list of TABLE_LIST to the parent handler.
 */
 
-int ha_myisammrg::open(const char *name, int mode __attribute__((unused)),
+int ha_myisammrg::open(const char *name, int mode MY_ATTRIBUTE((unused)),
                        uint test_if_locked_arg)
 {
   DBUG_ENTER("ha_myisammrg::open");
@@ -1186,8 +1186,8 @@ int ha_myisammrg::index_last(uchar * buf)
 }
 
 int ha_myisammrg::index_next_same(uchar * buf,
-                                  const uchar *key __attribute__((unused)),
-                                  uint length __attribute__((unused)))
+                                  const uchar *key MY_ATTRIBUTE((unused)),
+                                  uint length MY_ATTRIBUTE((unused)))
 {
   int error;
   DBUG_ASSERT(this->file->children_attached);

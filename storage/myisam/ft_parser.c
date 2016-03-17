@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -259,7 +259,7 @@ void ft_parse_init(TREE *wtree, const CHARSET_INFO *cs)
 
 static int ft_add_word(MYSQL_FTPARSER_PARAM *param,
                        char *word, int word_len,
-             MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info __attribute__((unused)))
+             MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info MY_ATTRIBUTE((unused)))
 {
   TREE *wtree;
   FT_WORD w;

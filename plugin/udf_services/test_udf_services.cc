@@ -70,9 +70,9 @@ mysql_declare_plugin_end;
   @retval     TRUE      Failure. Error in the message argument
 */
 PLUGIN_EXPORT my_bool
-test_udf_services_udf_init(UDF_INIT *initid __attribute__((unused)),
-                           UDF_ARGS *args __attribute__((unused)),
-                           char *message __attribute__((unused)))
+test_udf_services_udf_init(UDF_INIT *initid MY_ATTRIBUTE((unused)),
+                           UDF_ARGS *args MY_ATTRIBUTE((unused)),
+                           char *message MY_ATTRIBUTE((unused)))
 {
   return FALSE;
 }
@@ -87,10 +87,10 @@ test_udf_services_udf_init(UDF_INIT *initid __attribute__((unused)),
   @param[out] error     On error store 1 here
 */
 PLUGIN_EXPORT longlong
-test_udf_services_udf(UDF_INIT *initid __attribute__((unused)),
-                      UDF_ARGS *args __attribute__((unused)),
-                      char *is_null __attribute__((unused)),
-                      char *error __attribute__((unused)))
+test_udf_services_udf(UDF_INIT *initid MY_ATTRIBUTE((unused)),
+                      UDF_ARGS *args MY_ATTRIBUTE((unused)),
+                      char *is_null MY_ATTRIBUTE((unused)),
+                      char *error MY_ATTRIBUTE((unused)))
 {
   char buffer[10];
   *is_null= 0;

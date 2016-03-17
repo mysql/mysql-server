@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -77,13 +77,13 @@ protected:
 
 protected:
   void log_verbose(unsigned verbose_level, const char* fmt, ...)
-    __attribute__((format(printf, 3, 4)));
+    MY_ATTRIBUTE((format(printf, 3, 4)));
   void log_error(const char *fmt, ...)
-    __attribute__((format(printf, 2, 3)));
+    MY_ATTRIBUTE((format(printf, 2, 3)));
   void log_warning(const char *fmt, ...)
-    __attribute__((format(printf, 2, 3)));
+    MY_ATTRIBUTE((format(printf, 2, 3)));
   void log_info(const char *fmt, ...)
-    __attribute__((format(printf, 2, 3)));
+    MY_ATTRIBUTE((format(printf, 2, 3)));
 
 private:
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -900,7 +900,7 @@ static int write_merge_key_varlen(MI_SORT_PARAM *info,
 }
 
 
-static int write_merge_key(MI_SORT_PARAM *info __attribute__((unused)),
+static int write_merge_key(MI_SORT_PARAM *info MY_ATTRIBUTE((unused)),
                            IO_CACHE *to_file, uchar *key,
                            uint sort_length, uint count)
 {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -844,21 +844,21 @@ extern Slow_log_throttle log_throttle_qni;
    @see error_log_print
 */
 void sql_print_error(const char *format, ...)
-  __attribute__((format(printf, 1, 2)));
+  MY_ATTRIBUTE((format(printf, 1, 2)));
 
 /**
    Prints a printf style warning message to the error log.
    @see error_log_print
 */
 void sql_print_warning(const char *format, ...)
-  __attribute__((format(printf, 1, 2)));
+  MY_ATTRIBUTE((format(printf, 1, 2)));
 
 /**
    Prints a printf style information message to the error log.
    @see error_log_print
 */
 void sql_print_information(const char *format, ...)
-  __attribute__((format(printf, 1, 2)));
+  MY_ATTRIBUTE((format(printf, 1, 2)));
 
 /**
    Prints a printf style message to the error log.
@@ -870,7 +870,7 @@ void sql_print_information(const char *format, ...)
    @param args           va_list list of arguments for the message
 */
 void error_log_print(enum loglevel level, const char *format, va_list args)
-  __attribute__((format(printf, 2, 0)));
+  MY_ATTRIBUTE((format(printf, 2, 0)));
 
 /**
   Initialize structures (e.g. mutex) needed by the error log.
