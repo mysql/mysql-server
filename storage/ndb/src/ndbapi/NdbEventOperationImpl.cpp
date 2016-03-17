@@ -1435,7 +1435,7 @@ NdbEventBuffer::~NdbEventBuffer()
     memset(mem_block, 0x11, unmap_sz);
 #endif
 
-#if defined(USE_MAP)
+#if defined(USE_MMAP)
     require(my_munmap(mem_block, unmap_sz) == 0);
 #else
     NdbMem_Free(mem_block);
