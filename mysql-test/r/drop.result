@@ -109,21 +109,6 @@ ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
 unlock tables;
 drop table t1,t2;
 End of 5.0 tests
-# --
-# -- Bug#29958: Weird message on DROP DATABASE if mysql.proc does not
-# -- exist.
-# --
-CREATE DATABASE mysql_test;
-RENAME TABLE mysql.proc TO mysql.proc_bkp;
-FLUSH TABLES;
-DROP DATABASE mysql_test;
-Warnings:
-Error	1146	Table 'mysql.proc' doesn't exist
-RENAME TABLE mysql.proc_bkp TO mysql.proc;
-
-# --
-# -- End of Bug#29958.
-# --
 
 create database mysqltestbug26703;
 use mysqltestbug26703;

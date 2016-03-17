@@ -32,6 +32,7 @@ extern PSI_thread_key KEY_thread_x_acceptor;
 extern PSI_mutex_key KEY_mutex_x_lock_list_access;
 extern PSI_mutex_key KEY_mutex_x_scheduler_dynamic_task_pending;
 extern PSI_mutex_key KEY_mutex_x_scheduler_dynamic_thread_exit;
+extern PSI_mutex_key KEY_mutex_x_scheduler_dynamic_post;
 
 extern PSI_cond_key KEY_cond_x_scheduler_dynamic_task_pending;
 extern PSI_cond_key KEY_cond_x_scheduler_dynamic_thread_exit;

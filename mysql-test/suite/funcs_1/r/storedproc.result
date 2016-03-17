@@ -1776,49 +1776,49 @@ Testcase 4.1.9:
 ---------------
 drop procedure
 --------------------------------------------------------------------------------
-SELECT * from mysql.proc where specific_name='sp9';
-db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
+SELECT * from information_schema.routines where specific_name='sp9';
+SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 DROP PROCEDURE IF EXISTS sp9;
-SELECT * from mysql.proc where specific_name='sp9';
-db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
+SELECT * from information_schema.routines where specific_name='sp9';
+SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 CREATE PROCEDURE sp9()SELECT * from t1;
-SELECT * from mysql.proc where specific_name='sp9';
-db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
-db_storedproc	sp9	PROCEDURE	sp9	SQL	CONTAINS_SQL	NO	DEFINER			SELECT * from t1	root@localhost	created	modified	NO_ENGINE_SUBSTITUTION		latin1	latin1_swedish_ci	latin1_swedish_ci	SELECT * from t1
+SELECT * from information_schema.routines where specific_name='sp9';
+SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
+sp9	def	db_storedproc	sp9	PROCEDURE		NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	SQL	SELECT * from t1	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	<created>	<modified>	NO_ENGINE_SUBSTITUTION		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE sp9;
-SELECT * from mysql.proc where specific_name='sp9';
-db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
+SELECT * from information_schema.routines where specific_name='sp9';
+SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 CREATE PROCEDURE sp9()SELECT * from t1;
-SELECT * from mysql.proc where specific_name='sp9';
-db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
-db_storedproc	sp9	PROCEDURE	sp9	SQL	CONTAINS_SQL	NO	DEFINER			SELECT * from t1	root@localhost	created	modified	NO_ENGINE_SUBSTITUTION		latin1	latin1_swedish_ci	latin1_swedish_ci	SELECT * from t1
+SELECT * from information_schema.routines where specific_name='sp9';
+SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
+sp9	def	db_storedproc	sp9	PROCEDURE		NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	SQL	SELECT * from t1	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	<created>	<modified>	NO_ENGINE_SUBSTITUTION		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP PROCEDURE IF EXISTS sp9;
-SELECT * from mysql.proc where specific_name='sp9';
-db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
+SELECT * from information_schema.routines where specific_name='sp9';
+SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 
 Testcase 4.1.10:
 ----------------
 DROP FUNCTION
 --------------------------------------------------------------------------------
-SELECT * from mysql.proc where specific_name='fn10' and type='function';
-db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
+SELECT * from information_schema.routines where specific_name='fn10' and routine_type='FUNCTION';
+SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 DROP FUNCTION IF EXISTS fn10;
-SELECT * from mysql.proc where specific_name='fn10' and type='function';
-db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
+SELECT * from information_schema.routines where specific_name='fn10' and routine_type='FUNCTION';
+SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 CREATE FUNCTION fn10() returns int return 100;
-SELECT * from mysql.proc where specific_name='fn10' and type='function';
-db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
-db_storedproc	fn10	FUNCTION	fn10	SQL	CONTAINS_SQL	NO	DEFINER		int(11)	return 100	root@localhost	created	modified	NO_ENGINE_SUBSTITUTION		latin1	latin1_swedish_ci	latin1_swedish_ci	return 100
+SELECT * from information_schema.routines where specific_name='fn10' and routine_type='FUNCTION';
+SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
+fn10	def	db_storedproc	fn10	FUNCTION	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	SQL	return 100	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	<created>	<modified>	NO_ENGINE_SUBSTITUTION		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP FUNCTION fn10;
-SELECT * from mysql.proc where specific_name='fn10' and type='function';
-db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
+SELECT * from information_schema.routines where specific_name='fn10' and routine_type='FUNCTION';
+SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 CREATE FUNCTION fn10() returns int return 100;
-SELECT * from mysql.proc where specific_name='fn10' and type='function';
-db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
-db_storedproc	fn10	FUNCTION	fn10	SQL	CONTAINS_SQL	NO	DEFINER		int(11)	return 100	root@localhost	created	modified	NO_ENGINE_SUBSTITUTION		latin1	latin1_swedish_ci	latin1_swedish_ci	return 100
+SELECT * from information_schema.routines where specific_name='fn10' and routine_type='FUNCTION';
+SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
+fn10	def	db_storedproc	fn10	FUNCTION	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	SQL	return 100	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	<created>	<modified>	NO_ENGINE_SUBSTITUTION		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP FUNCTION IF EXISTS fn10;
-SELECT * from mysql.proc where specific_name='fn10' and type='function';
-db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
+SELECT * from information_schema.routines where specific_name='fn10' and routine_type='FUNCTION';
+SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 
 Testcase 4.1.11:
 ----------------
@@ -1835,7 +1835,7 @@ DROP PROCEDURE IF EXISTS sp11;
 Warnings:
 Note	1305	PROCEDURE db_storedproc.sp11 does not exist
 CREATE PROCEDURE sp11() insert into mysql.t1 values('a');
-SELECT security_type from mysql.proc where specific_name='sp11';
+SELECT security_type from information_schema.routines where specific_name='sp11';
 security_type
 DEFINER
 	
@@ -1845,7 +1845,7 @@ USE db_storedproc;
 	
 root@localhost	db_storedproc
 alter procedure sp11 sql security invoker;
-SELECT security_type from mysql.proc where specific_name='sp11';
+SELECT security_type from information_schema.routines where specific_name='sp11';
 security_type
 INVOKER
 	
@@ -1857,7 +1857,7 @@ commit work;
 	
 root@localhost	db_storedproc
 alter procedure sp11 sql security DEFINER;
-SELECT security_type from mysql.proc where specific_name='sp11';
+SELECT security_type from information_schema.routines where specific_name='sp11';
 security_type
 DEFINER
 CALL sp11();
@@ -1871,21 +1871,21 @@ alter function
 --------------------------------------------------------------------------------
 CREATE FUNCTION fn12() returns int
 return 100;
-SELECT security_type from mysql.proc where specific_name='fn12';
+SELECT security_type from information_schema.routines where specific_name='fn12';
 security_type
 DEFINER
 SELECT fn12();
 fn12()
 100
 alter function fn12 sql security invoker;
-SELECT security_type from mysql.proc where specific_name='fn12';
+SELECT security_type from information_schema.routines where specific_name='fn12';
 security_type
 INVOKER
 SELECT fn12();
 fn12()
 100
 alter function fn12 sql security DEFINER;
-SELECT security_type from mysql.proc where specific_name='fn12';
+SELECT security_type from information_schema.routines where specific_name='fn12';
 security_type
 DEFINER
 SELECT fn12();
@@ -1902,13 +1902,11 @@ Warnings:
 Note	1305	PROCEDURE db_storedproc.sp11 does not exist
 CREATE PROCEDURE sp11()
 SELECT * from t1;
-SELECT comment from mysql.proc where specific_name='sp11';
-comment
-
+SELECT comment from information_schema.routines where specific_name='sp11';
+ERROR 42S22: Unknown column 'comment' in 'field list'
 alter procedure sp11 comment 'this is simple';
-SELECT comment from mysql.proc where specific_name='sp11';
-comment
-this is simple
+SELECT comment from information_schema.routines where specific_name='sp11';
+ERROR 42S22: Unknown column 'comment' in 'field list'
 DROP PROCEDURE sp11;
 
 Testcase 4.1.14:
@@ -1920,12 +1918,12 @@ Warnings:
 Note	1305	FUNCTION db_storedproc.fn12 does not exist
 CREATE FUNCTION fn12() returns int
 return 100;
-SELECT comment from mysql.proc where specific_name='fn12';
-comment
+SELECT routine_comment from information_schema.routines where specific_name='fn12';
+routine_comment
 
 alter function fn12 comment 'this is simple';
-SELECT comment from mysql.proc where specific_name='fn12';
-comment
+SELECT routine_comment from information_schema.routines where specific_name='fn12';
+routine_comment
 this is simple
 DROP FUNCTION fn12;
 
@@ -3500,13 +3498,15 @@ Note	1008	Can't drop database 'db1'; database doesn't exist
 CREATE DATABASE db1;
 USE db1;
 alter procedure db_storedproc.sp1 sql security invoker;
-SELECT name, type, security_type from mysql.proc where db LIKE 'db_storedproc%' and specific_name='sp1';
-name	type	security_type
+SELECT routine_name, routine_type, security_type from information_schema.routines
+where routine_schema like 'db_storedproc%' and routine_name='sp1';
+routine_name	routine_type	security_type
 sp1	FUNCTION	DEFINER
 sp1	PROCEDURE	INVOKER
 alter function db_storedproc.sp1 sql security invoker;
-SELECT name, type, security_type from mysql.proc where db LIKE 'db_storedproc%' and specific_name='sp1';
-name	type	security_type
+SELECT routine_name, routine_type, security_type from information_schema.routines
+where routine_schema like 'db_storedproc%' and routine_name='sp1';
+routine_name	routine_type	security_type
 sp1	FUNCTION	INVOKER
 sp1	PROCEDURE	INVOKER
 CALL db_storedproc.sp1();
@@ -3524,8 +3524,9 @@ SELECT db_storedproc.sp1();
 db_storedproc.sp1()
 2
 alter function sp1 sql security DEFINER;
-SELECT name, type, security_type from mysql.proc where db LIKE 'db_storedproc%' and specific_name='sp1';
-name	type	security_type
+SELECT routine_name, routine_type, security_type from information_schema.routines
+where routine_schema like 'db_storedproc%' and routine_name='sp1';
+routine_name	routine_type	security_type
 sp1	FUNCTION	DEFINER
 sp1	PROCEDURE	DEFINER
 CALL db_storedproc.sp1();
@@ -3589,12 +3590,13 @@ db_storedproc.sp1()
 4.4
 ALTER PROCEDURE db_storedproc_3122.sp1 SQL SECURITY INVOKER;
 ALTER FUNCTION sp1 SQL SECURITY INVOKER;
-SELECT db, name, type, security_type FROM mysql.proc WHERE db LIKE 'db_storedproc%' AND specific_name='sp1';
-db	name	type	security_type
-db_storedproc	sp1	FUNCTION	DEFINER
-db_storedproc	sp1	PROCEDURE	DEFINER
-db_storedproc_3122	sp1	FUNCTION	INVOKER
-db_storedproc_3122	sp1	PROCEDURE	INVOKER
+SELECT routine_name, routine_type, security_type from information_schema.routines
+where routine_schema like 'db_storedproc%' and routine_name='sp1';
+routine_name	routine_type	security_type
+sp1	FUNCTION	DEFINER
+sp1	FUNCTION	INVOKER
+sp1	PROCEDURE	DEFINER
+sp1	PROCEDURE	INVOKER
 CALL db_storedproc.sp1();
 @x
 1
@@ -16193,16 +16195,16 @@ create table t43(a char(5), b char(10));
 insert into t43 values('abcde', 'a!@#$%^&*(');
 CREATE PROCEDURE d1.sp4()
 SELECT * from d1.t43;
-SELECT * from mysql.proc where specific_name = 'sp4';
-db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
-d1	sp4	PROCEDURE	sp4	SQL	CONTAINS_SQL	NO	DEFINER			SELECT * from d1.t43	root@localhost	modified	created	NO_ENGINE_SUBSTITUTION		latin1	latin1_swedish_ci	latin1_swedish_ci	SELECT * from d1.t43
+SELECT * from information_schema.routines where specific_name = 'sp4';
+SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
+sp4	def	d1	sp4	PROCEDURE		NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	SQL	SELECT * from d1.t43	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	modified	created	NO_ENGINE_SUBSTITUTION		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 USE db_storedproc;
 DROP DATABASE d1;
 CREATE DATABASE d1;
 USE d1;
 create table t44(a char(5), b char(10));
-SELECT * from mysql.proc where specific_name = 'sp4';
-db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
+SELECT * from information_schema.routines where specific_name = 'sp4';
+SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 USE db_storedproc;
 DROP DATABASE d1;
 
@@ -16212,8 +16214,8 @@ USE db_storedproc;
 DROP PROCEDURE IF EXISTS sp5;
 CREATE PROCEDURE sp5()
 SELECT * from db_storedproc.t4 limit 0, 10;
-SELECT db from mysql.proc where specific_name = 'sp5';
-db
+SELECT routine_schema from information_schema.routines where specific_name = 'sp5';
+routine_schema
 db_storedproc
 DROP PROCEDURE sp5;
 
@@ -16226,8 +16228,8 @@ create table t46(f1 char(20), f2 char(20));
 insert into t46 values ('abcd', 'wxyz');
 CREATE PROCEDURE db_storedproc.sp6()
 SELECT * from db_storedproc.t4 limit 0, 10;
-SELECT db from mysql.proc where specific_name = 'sp6';
-db
+SELECT routine_schema from information_schema.routines where specific_name = 'sp6';
+routine_schema
 db_storedproc
 drop table t46;
 DROP PROCEDURE sp6;
@@ -16243,9 +16245,9 @@ CREATE PROCEDURE sp8 ( n char(20) ) sql security DEFINER comment 'initial'
   SELECT * from t1 where t1.f1 = n;
 USE d2;
 alter procedure d1.sp8 sql security DEFINER comment 'updated';
-SELECT * from mysql.proc where specific_name='sp8' and db='d1';
-db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
-d1	sp8	PROCEDURE	sp8	SQL	CONTAINS_SQL	NO	DEFINER	 n char(20) 		SELECT * from t1 where t1.f1 = n	root@localhost	modified	created	NO_ENGINE_SUBSTITUTION	updated	latin1	latin1_swedish_ci	latin1_swedish_ci	SELECT * from t1 where t1.f1 = n
+SELECT * from information_schema.routines where specific_name = 'sp8' and routine_schema = 'd1';
+SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
+sp8	def	d1	sp8	PROCEDURE		NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	SQL	SELECT * from t1 where t1.f1 = n	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	modified	created	NO_ENGINE_SUBSTITUTION	updated	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 
 Testcase 4.4.9:
 --------------------------------------------------------------------------------
@@ -16260,17 +16262,13 @@ return a;
 END//
 USE d2;
 alter function d1.fn2 sql security DEFINER comment 'updated';
-SELECT * from mysql.proc where specific_name='fn2' and db='d1';
-db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
-d1	fn2	FUNCTION	fn2	SQL	CONTAINS_SQL	NO	DEFINER	n int	int(11)	BEGIN
+SELECT * from information_schema.routines where specific_name = 'fn2' and routine_schema = 'd1';
+SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
+fn2	def	d1	fn2	FUNCTION	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	SQL	BEGIN
 declare a int;
 set a = 0.9 * n;
 return a;
-END	root@localhost	modified	created	NO_ENGINE_SUBSTITUTION	updated	latin1	latin1_swedish_ci	latin1_swedish_ci	BEGIN
-declare a int;
-set a = 0.9 * n;
-return a;
-END
+END	NULL	NULL	SQL	NO	CONTAINS SQL	NULL	DEFINER	modified	created	NO_ENGINE_SUBSTITUTION	updated	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 
 Testcase 4.4.10:
 --------------------------------------------------------------------------------
@@ -16279,8 +16277,8 @@ CREATE PROCEDURE sp9 ( n char(20) )
 SELECT * from t1 where t1.f1 = n;
 USE d2;
 DROP PROCEDURE d1.sp9;
-SELECT * from mysql.proc where specific_name='sp9' and db='d1';
-db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
+SELECT * from information_schema.routines where specific_name = 'sp9' and routine_schema = 'd1';
+SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 
 Testcase 4.4.11:
 --------------------------------------------------------------------------------
@@ -16293,8 +16291,8 @@ return a;
 END//
 USE d2;
 DROP FUNCTION d1.fn3;
-SELECT * from mysql.proc where specific_name='fn3' and db='d1';
-db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
+SELECT * from information_schema.routines where specific_name = 'fn3' and routine_schema = 'd1';
+SPECIFIC_NAME	ROUTINE_CATALOG	ROUTINE_SCHEMA	ROUTINE_NAME	ROUTINE_TYPE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_BODY	ROUTINE_DEFINITION	EXTERNAL_NAME	EXTERNAL_LANGUAGE	PARAMETER_STYLE	IS_DETERMINISTIC	SQL_DATA_ACCESS	SQL_PATH	SECURITY_TYPE	CREATED	LAST_ALTERED	SQL_MODE	ROUTINE_COMMENT	DEFINER	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
 USE db_storedproc;
 DROP DATABASE d1;
 DROP DATABASE d2;

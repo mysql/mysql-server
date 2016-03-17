@@ -31,6 +31,9 @@ class Object_type;
 class Primary_id_key;
 class Table;
 class View;
+class Event;
+class Function;
+class Procedure;
 class Void_key;
 
 namespace tables {
@@ -92,6 +95,12 @@ public:
   virtual void set_last_altered(ulonglong last_altered) = 0;
 
 public:
+  virtual Event *create_event(THD *thd) const = 0;
+
+  virtual Function *create_function(THD *thd) const = 0;
+
+  virtual Procedure *create_procedure(THD *thd) const = 0;
+
   virtual Table *create_table(THD *thd) const = 0;
 
   virtual View *create_view(THD *thd) const = 0;

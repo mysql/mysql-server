@@ -564,7 +564,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
     // Call after-parsing callback.
     parsing_failed= on_after_expr_parsing(thd);
 
-    if (sp->m_type == SP_TYPE_TRIGGER)
+    if (sp->m_type == enum_sp_type::TRIGGER)
     {
       /*
         Also let us bind these objects to Field objects in table being opened.
@@ -755,7 +755,7 @@ void sp_lex_instr::cleanup_before_parsing(THD *thd)
   // Remove previously stored trigger-field items.
   sp_head *sp= thd->sp_runtime_ctx->sp;
 
-  if (sp->m_type == SP_TYPE_TRIGGER)
+  if (sp->m_type == enum_sp_type::TRIGGER)
     m_trig_field_list.empty();
 }
 

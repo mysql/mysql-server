@@ -744,3 +744,75 @@ Diff: EXPLAIN NORMAL vs OTHER
 -          "attached_condition": "(`test`.`t2`.`a` is not null)"
 +          ]
          }
+QUERY: SELECT DISTINCT   alias2.col_int AS field1 , alias2.col_int AS field2 FROM  a1 AS alias1 LEFT  JOIN aa1 AS alias2 ON  alias1.pk =  alias2.pk WHERE ( alias1.col_int = 8 OR alias1 .pk <= alias1.col_int ) GROUP BY field1, field2  ORDER BY field1, field2 DESC
+STATUS: EQUAL
+QUERY: SELECT DISTINCT   alias1.pk AS field1 FROM  f1 AS alias1 LEFT  JOIN a2 AS alias2 ON  alias1.col_varchar_1024_latin1_key =  alias2 .col_varchar_10_utf8_key WHERE alias1.pk  IN (5, 5) GROUP BY field1 HAVING field1 <= 3
+STATUS:NOT_EQUAL
+SYNC_POINT:before_reset_query_plan
+Diff: EXPLAIN NORMAL vs OTHER
+@@ -47,3 +47,4 @@
+             "filtered": "100.00",
+-            "index_condition": "(`test`.`alias1`.`pk` in (5,5))",
++            "index_condition": true,
++            "using_where": true,
+             "cost_info": {
+@@ -57,4 +58,3 @@
+               "pk"
+-            ],
+-            "attached_condition": "(`field1` <= 3)"
++            ]
+           }
+QUERY: SELECT alias1.pk AS field1 FROM  h2 AS alias1 LEFT  JOIN aa3 AS alias2 ON  alias1.pk =  alias2.col_int_key WHERE alias1.pk <> 9 GROUP BY field1 ORDER BY field1 LIMIT 1 OFFSET 3
+STATUS:NOT_EQUAL
+SYNC_POINT:before_reset_query_plan
+Diff: EXPLAIN NORMAL vs OTHER
+@@ -27,2 +27,3 @@
+               "filtered": "100.00",
++              "using_where": true,
+               "using_index": true,
+@@ -36,4 +37,3 @@
+                 "pk"
+-              ],
+-              "attached_condition": "(`test`.`alias1`.`pk` <> 9)"
++              ]
+             }
+QUERY: SELECT    alias1.pk AS field1 FROM  e1 AS alias1 RIGHT  JOIN cc2 AS alias2 ON  alias1.col_int =  alias2.col_int WHERE alias1.col_int_key  IN (8) 
+STATUS:NOT_EQUAL
+SYNC_POINT:before_reset_query_plan
+Diff: EXPLAIN NORMAL vs OTHER
+@@ -44,4 +44,5 @@
+           "rows_examined_per_scan": 2,
+-          "rows_produced_per_join": 1,
+-          "filtered": "50.00",
++          "rows_produced_per_join": 2,
++          "filtered": "100.00",
++          "using_where": true,
+           "using_join_buffer": "Block Nested Loop",
+@@ -49,5 +50,5 @@
+             "read_cost": "1.00",
+-            "eval_cost": "0.20",
++            "eval_cost": "0.40",
+             "prefix_cost": "2.60",
+-            "data_read_per_join": "8"
++            "data_read_per_join": "16"
+           },
+@@ -55,4 +56,3 @@
+             "col_int"
+-          ],
+-          "attached_condition": "(`test`.`alias2`.`col_int` = `test`.`alias1`.`col_int`)"
++          ]
+         }
+QUERY: SELECT DISTINCT alias2.pk AS field1, alias2.pk AS field2, alias2.pk AS field3 FROM t1 AS alias1 RIGHT JOIN t2 AS alias2  ON  alias1.col_varchar_key =  alias2.col_varchar_key WHERE alias1.col_int >alias1.col_int HAVING field3 = 7 ORDER BY field1, field2, field3 LIMIT 10 OFFSET 1
+STATUS:NOT_EQUAL
+SYNC_POINT:before_reset_query_plan
+Diff: EXPLAIN NORMAL vs OTHER
+@@ -27,2 +27,3 @@
+               "filtered": "100.00",
++              "using_where": true,
+               "cost_info": {
+@@ -37,4 +38,3 @@
+                 "col_varchar_key"
+-              ],
+-              "attached_condition": "((`test`.`alias1`.`col_int` > `test`.`alias1`.`col_int`) and (`test`.`alias1`.`col_varchar_key` is not null))"
++              ]
+             }

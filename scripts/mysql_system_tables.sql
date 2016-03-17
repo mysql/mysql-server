@@ -60,121 +60,6 @@ FOREIGN KEY (connection_collation_id) REFERENCES collations(id),
 FOREIGN KEY (schema_collation_id) REFERENCES collations(id)
 ) ENGINE=INNODB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0;
 
-# Adding return type same for column type.
-CREATE TABLE IF NOT EXISTS routines (
-id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-schema_id BIGINT UNSIGNED NOT NULL,
-name VARCHAR(64) NOT NULL COLLATE utf8_general_ci,
-type ENUM('FUNCTION', 'PROCEDURE') NOT NULL,
-result_data_type ENUM(
-'MYSQL_TYPE_DECIMAL', 'MYSQL_TYPE_TINY', 'MYSQL_TYPE_SHORT',  'MYSQL_TYPE_LONG',
-'MYSQL_TYPE_FLOAT',  'MYSQL_TYPE_DOUBLE', 'MYSQL_TYPE_NULL,   MYSQL_TYPE_TIMESTAMP',
-'MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24', 'MYSQL_TYPE_DATE',   'MYSQL_TYPE_TIME',
-'MYSQL_TYPE_DATETIME', 'MYSQL_TYPE_YEAR', 'MYSQL_TYPE_NEWDATE', 'MYSQL_TYPE_VARCHAR',
-'MYSQL_TYPE_BIT', 'MYSQL_TYPE_TIMESTAMP2', 'MYSQL_TYPE_DATETIME2', 'MYSQL_TYPE_TIME2',
-'MYSQL_TYPE_NEWDECIMAL', 'MYSQL_TYPE_ENUM', 'MYSQL_TYPE_SET', 'MYSQL_TYPE_TINY_BLOB',
-'MYSQL_TYPE_MEDIUM_BLOB', 'MYSQL_TYPE_LONG_BLOB', 'MYSQL_TYPE_BLOB', 'MYSQL_TYPE_VAR_STRING',
-'MYSQL_TYPE_STRING', 'MYSQL_TYPE_GEOMETRY'
-),
-result_is_zerofill BOOL,
-result_is_unsigned BOOL,
-result_char_length INT UNSIGNED,
-result_numeric_precision INT UNSIGNED,
-result_numeric_scale INT UNSIGNED,
-result_datetime_precision INT UNSIGNED,
-result_collation_id BIGINT UNSIGNED,
-definition LONGBLOB,
-definition_utf8 LONGTEXT,
-is_deterministic BOOL NOT NULL,
-sql_data_access ENUM('CONTAINS_SQL', 'NO_SQL', 'READS_SQL_DATA',
-'MODIFIES_SQL_DATA') NOT NULL,
-security_type ENUM('INVOKER', 'DEFINER') NOT NULL,
-definer VARCHAR(77) NOT NULL,
-client_collation_id BIGINT UNSIGNED NOT NULL,
-connection_collation_id BIGINT UNSIGNED NOT NULL,
-schema_collation_id BIGINT UNSIGNED NOT NULL,
-created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-last_altered TIMESTAMP NOT NULL DEFAULT NOW(),
-comment VARCHAR(2048) NOT NULL,
-PRIMARY KEY(id),
-UNIQUE KEY (schema_id, name, type),
-FOREIGN KEY (schema_id) REFERENCES schemata(id),
-FOREIGN KEY (result_collation_id) REFERENCES collations(id),
-FOREIGN KEY (client_collation_id) REFERENCES collations(id),
-FOREIGN KEY (connection_collation_id) REFERENCES collations(id),
-FOREIGN KEY (schema_collation_id) REFERENCES collations(id)
-) ENGINE=INNODB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0;
-
-CREATE TABLE IF NOT EXISTS parameters (
-id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-routine_id BIGINT UNSIGNED NOT NULL,
-ordinal_position INT UNSIGNED NOT NULL,
-mode ENUM('IN','OUT','INOUT') NOT NULL,
-name VARCHAR(64) NOT NULL COLLATE utf8_general_ci,
-data_type ENUM(
-'MYSQL_TYPE_DECIMAL', 'MYSQL_TYPE_TINY', 'MYSQL_TYPE_SHORT',  'MYSQL_TYPE_LONG',
-'MYSQL_TYPE_FLOAT',  'MYSQL_TYPE_DOUBLE', 'MYSQL_TYPE_NULL,   MYSQL_TYPE_TIMESTAMP',
-'MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24', 'MYSQL_TYPE_DATE',   'MYSQL_TYPE_TIME',
-'MYSQL_TYPE_DATETIME', 'MYSQL_TYPE_YEAR', 'MYSQL_TYPE_NEWDATE', 'MYSQL_TYPE_VARCHAR',
-'MYSQL_TYPE_BIT', 'MYSQL_TYPE_TIMESTAMP2', 'MYSQL_TYPE_DATETIME2', 'MYSQL_TYPE_TIME2',
-'MYSQL_TYPE_NEWDECIMAL', 'MYSQL_TYPE_ENUM', 'MYSQL_TYPE_SET', 'MYSQL_TYPE_TINY_BLOB',
-'MYSQL_TYPE_MEDIUM_BLOB', 'MYSQL_TYPE_LONG_BLOB', 'MYSQL_TYPE_BLOB', 'MYSQL_TYPE_VAR_STRING',
-'MYSQL_TYPE_STRING', 'MYSQL_TYPE_GEOMETRY'
-) NOT NULL,
-is_zerofill BOOL,
-is_unsigned BOOL,
-char_length INT UNSIGNED,
-numeric_precision INT UNSIGNED,
-numeric_scale INT UNSIGNED,
-datetime_precision INT UNSIGNED,
-collation_id BIGINT UNSIGNED,
-PRIMARY KEY(id),
-UNIQUE KEY(routine_id, ordinal_position),
-FOREIGN KEY (routine_id) REFERENCES routines(id),
-FOREIGN KEY (collation_id) REFERENCES collations(id)
-) ENGINE=INNODB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0;
-
-CREATE TABLE IF NOT EXISTS events (
-id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-schema_id BIGINT UNSIGNED NOT NULL,
-name VARCHAR(64) NOT NULL COLLATE utf8_general_ci,
-definer VARCHAR(77) NOT NULL,
-time_zone VARCHAR(64) NOT NULL,
-definition LONGBLOB NOT NULL,
-definition_utf8 LONGTEXT NOT NULL,
-execute_at DATETIME,
-interval_value INT,
-interval_field ENUM('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND'),
-sql_mode SET(
-'MODE_REAL_AS_FLOAT', 'MODE_PIPES_AS_CONCAT', 'MODE_ANSI_QUOTES', 'MODE_IGNORE_SPACE',
-'MODE_NOT_USED', 'MODE_ONLY_FULL_GROUP_BY', 'MODE_NO_UNSIGNED_SUBTRACTION', 'MODE_NO_DIR_IN_CREATE',
-'MODE_POSTGRESQL', 'MODE_ORACLE', 'MODE_MSSQL', 'MODE_DB2', 'MODE_MAXDB', 'MODE_NO_KEY_OPTIONS',
-'MODE_NO_TABLE_OPTIONS', 'MODE_NO_FIELD_OPTIONS', 'MODE_MYSQL323', 'MODE_MYSQL40', 'MODE_ANSI',
-'MODE_NO_AUTO_VALUE_ON_ZERO', 'MODE_NO_BACKSLASH_ESCAPES', 'MODE_STRICT_TRANS_TABLES',
-'MODE_STRICT_ALL_TABLES', 'MODE_NO_ZERO_IN_DATE', 'MODE_NO_ZERO_DATE', 'MODE_INVALID_DATES',
-'MODE_ERROR_FOR_DIVISION_BY_ZERO', 'MODE_TRADITIONAL', 'MODE_NO_AUTO_CREATE_USER',
-'MODE_HIGH_NOT_PRECEDENCE', 'MODE_NO_ENGINE_SUBSTITUTION', 'MODE_PAD_CHAR_TO_FULL_LENGTH'
-) NOT NULL,
-starts DATETIME,
-ends DATETIME,
-status ENUM('ENABLED','DISABLED','SLAVESIDE_DISABLED') NOT NULL,
-on_completion ENUM('DROP','PRESERVE') NOT NULL,
-created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-last_altered TIMESTAMP NOT NULL DEFAULT NOW(),
-last_executed DATETIME,
-comment VARCHAR(2048) NOT NULL,
-originator INT UNSIGNED NOT NULL,
-client_collation_id BIGINT UNSIGNED NOT NULL,
-connection_collation_id BIGINT UNSIGNED NOT NULL,
-schema_collation_id BIGINT UNSIGNED NOT NULL,
-PRIMARY KEY(id),
-UNIQUE KEY(schema_id, name),
-FOREIGN KEY (schema_id) REFERENCES schemata(id),
-FOREIGN KEY (client_collation_id) REFERENCES collations(id),
-FOREIGN KEY (connection_collation_id) REFERENCES collations(id),
-FOREIGN KEY (schema_collation_id) REFERENCES collations(id)
-) ENGINE=INNODB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0;
-
 --
 -- New DD schema end
 --
@@ -234,8 +119,6 @@ CREATE TABLE IF NOT EXISTS time_zone_transition_type (   Time_zone_id int unsign
 CREATE TABLE IF NOT EXISTS time_zone_leap_second (   Transition_time bigint signed NOT NULL, Correction int signed NOT NULL, PRIMARY KEY TranTime (Transition_time) ) engine=INNODB STATS_PERSISTENT=0 CHARACTER SET utf8   comment='Leap seconds information for time zones';
 
 
-CREATE TABLE IF NOT EXISTS proc (db char(64) collate utf8_bin DEFAULT '' NOT NULL, name char(64) DEFAULT '' NOT NULL, type enum('FUNCTION','PROCEDURE') NOT NULL, specific_name char(64) DEFAULT '' NOT NULL, language enum('SQL') DEFAULT 'SQL' NOT NULL, sql_data_access enum( 'CONTAINS_SQL', 'NO_SQL', 'READS_SQL_DATA', 'MODIFIES_SQL_DATA') DEFAULT 'CONTAINS_SQL' NOT NULL, is_deterministic enum('YES','NO') DEFAULT 'NO' NOT NULL, security_type enum('INVOKER','DEFINER') DEFAULT 'DEFINER' NOT NULL, param_list blob NOT NULL, returns longblob DEFAULT '' NOT NULL, body longblob NOT NULL, definer char(77) collate utf8_bin DEFAULT '' NOT NULL, created timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, modified timestamp NOT NULL DEFAULT '0000-00-00 00:00:00', sql_mode set( 'REAL_AS_FLOAT', 'PIPES_AS_CONCAT', 'ANSI_QUOTES', 'IGNORE_SPACE', 'NOT_USED', 'ONLY_FULL_GROUP_BY', 'NO_UNSIGNED_SUBTRACTION', 'NO_DIR_IN_CREATE', 'POSTGRESQL', 'ORACLE', 'MSSQL', 'DB2', 'MAXDB', 'NO_KEY_OPTIONS', 'NO_TABLE_OPTIONS', 'NO_FIELD_OPTIONS', 'MYSQL323', 'MYSQL40', 'ANSI', 'NO_AUTO_VALUE_ON_ZERO', 'NO_BACKSLASH_ESCAPES', 'STRICT_TRANS_TABLES', 'STRICT_ALL_TABLES', 'NO_ZERO_IN_DATE', 'NO_ZERO_DATE', 'INVALID_DATES', 'ERROR_FOR_DIVISION_BY_ZERO', 'TRADITIONAL', 'NO_AUTO_CREATE_USER', 'HIGH_NOT_PRECEDENCE', 'NO_ENGINE_SUBSTITUTION', 'PAD_CHAR_TO_FULL_LENGTH') DEFAULT '' NOT NULL, comment text collate utf8_bin NOT NULL, character_set_client char(32) collate utf8_bin, collation_connection char(32) collate utf8_bin, db_collation char(32) collate utf8_bin, body_utf8 longblob, PRIMARY KEY (db,name,type)) engine=MyISAM character set utf8 comment='Stored Procedures';
-
 CREATE TABLE IF NOT EXISTS procs_priv ( Host char(60) binary DEFAULT '' NOT NULL, Db char(64) binary DEFAULT '' NOT NULL, User char(32) binary DEFAULT '' NOT NULL, Routine_name char(64) COLLATE utf8_general_ci DEFAULT '' NOT NULL, Routine_type enum('FUNCTION','PROCEDURE') NOT NULL, Grantor char(77) DEFAULT '' NOT NULL, Proc_priv set('Execute','Alter Routine','Grant') COLLATE utf8_general_ci DEFAULT '' NOT NULL, Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (Host,Db,User,Routine_name,Routine_type), KEY Grantor (Grantor) ) engine=InnoDB STATS_PERSISTENT=0 CHARACTER SET utf8 COLLATE utf8_bin   comment='Procedure privileges';
 
 -- Create general_log
@@ -243,8 +126,6 @@ CREATE TABLE IF NOT EXISTS general_log (event_time TIMESTAMP(6) NOT NULL DEFAULT
 
 -- Create slow_log
 CREATE TABLE IF NOT EXISTS slow_log (start_time TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6), user_host MEDIUMTEXT NOT NULL, query_time TIME(6) NOT NULL, lock_time TIME(6) NOT NULL, rows_sent INTEGER NOT NULL, rows_examined INTEGER NOT NULL, db VARCHAR(512) NOT NULL, last_insert_id INTEGER NOT NULL, insert_id INTEGER NOT NULL, server_id INTEGER UNSIGNED NOT NULL, sql_text MEDIUMBLOB NOT NULL, thread_id BIGINT(21) UNSIGNED NOT NULL) engine=CSV CHARACTER SET utf8 comment="Slow log";
-
-CREATE TABLE IF NOT EXISTS event ( db char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '', name char(64) CHARACTER SET utf8 NOT NULL default '', body longblob NOT NULL, definer char(77) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '', execute_at DATETIME default NULL, interval_value int(11) default NULL, interval_field ENUM('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND') default NULL, created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, modified TIMESTAMP NOT NULL DEFAULT '0000-00-00 00:00:00', last_executed DATETIME default NULL, starts DATETIME default NULL, ends DATETIME default NULL, status ENUM('ENABLED','DISABLED','SLAVESIDE_DISABLED') NOT NULL default 'ENABLED', on_completion ENUM('DROP','PRESERVE') NOT NULL default 'DROP', sql_mode  set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH') DEFAULT '' NOT NULL, comment char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '', originator INTEGER UNSIGNED NOT NULL, time_zone char(64) CHARACTER SET latin1 NOT NULL DEFAULT 'SYSTEM', character_set_client char(32) collate utf8_bin, collation_connection char(32) collate utf8_bin, db_collation char(32) collate utf8_bin, body_utf8 longblob, PRIMARY KEY (db, name) ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT 'Events';
 
 CREATE TABLE IF NOT EXISTS ndb_binlog_index (Position BIGINT UNSIGNED NOT NULL, File VARCHAR(255) NOT NULL, epoch BIGINT UNSIGNED NOT NULL, inserts INT UNSIGNED NOT NULL, updates INT UNSIGNED NOT NULL, deletes INT UNSIGNED NOT NULL, schemaops INT UNSIGNED NOT NULL, orig_server_id INT UNSIGNED NOT NULL, orig_epoch BIGINT UNSIGNED NOT NULL, gci INT UNSIGNED NOT NULL, next_position BIGINT UNSIGNED NOT NULL, next_file VARCHAR(255) NOT NULL, PRIMARY KEY(epoch, orig_server_id, orig_epoch)) ENGINE=MYISAM;
 
@@ -424,9 +305,9 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-SET @broken_routines = (select count(*) from mysql.proc where db='performance_schema');
+SET @broken_routines = (select count(*) from information_schema.routines where routine_schema='performance_schema');
 
-SET @broken_events = (select count(*) from mysql.event where db='performance_schema');
+SET @broken_events = (select count(*) from information_schema.events where event_schema='performance_schema');
 
 SET @broken_pfs= (select @broken_tables + @broken_views + @broken_routines + @broken_events);
 

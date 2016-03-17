@@ -181,9 +181,7 @@ public:
   }
   /**
     Construct a deep copy of the argument in memory root mem_root.
-    The elements themselves are copied by pointer. If you also
-    need to copy elements by value, you should employ
-    list_copy_and_replace_each_value after creating a copy.
+    The elements themselves are copied by pointer.
   */
   base_list(const base_list &rhs, MEM_ROOT *mem_root);
   inline base_list(bool error) { }
@@ -804,32 +802,6 @@ public:
   inline T* operator++(int) { return base_ilist_iterator<T>::next(); }
 };
 
-/**
-  Make a deep copy of each list element.
-
-  @note A template function and not a template method of class List
-  is employed because of explicit template instantiation:
-  in server code there are explicit instantiations of List<T> and
-  an explicit instantiation of a template requires that any method
-  of the instantiated class used in the template can be resolved.
-  Evidently not all template arguments have clone() method with
-  the right signature.
-
-  You must query the error state in THD for out-of-memory
-  situation after calling this function.
-*/
-
-template <typename T>
-inline
-void
-list_copy_and_replace_each_value(List<T> &list, MEM_ROOT *mem_root)
-{
-  /* Make a deep copy of each element */
-  List_iterator<T> it(list);
-  T *el;
-  while ((el= it++))
-    it.replace(el->clone(mem_root));
-}
 
 void free_list(I_List <i_string_pair> *list);
 void free_list(I_List <i_string> *list);

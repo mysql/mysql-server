@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -887,6 +887,8 @@ struct SysIndexCallback {
 @param[in]	ifield		index field
 @param[in]	thd		MySQL thread handle
 @param[in,out]	mysql_table	mysql table object
+@param[in]	old_table	during ALTER TABLE, this is the old table
+				or NULL.
 @return the field filled with computed value */
 dfield_t*
 innobase_get_computed_value(
@@ -897,7 +899,8 @@ innobase_get_computed_value(
 	mem_heap_t*		heap,
 	const dict_field_t*	ifield,
 	THD*			thd,
-	TABLE*			mysql_table);
+	TABLE*			mysql_table,
+	const dict_table_t*	old_table);
 
 #define ROW_PREBUILT_FETCH_MAGIC_N	465765687
 

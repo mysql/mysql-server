@@ -605,7 +605,7 @@ row_merge_buf_add(
 				row_field = innobase_get_computed_value(
 					row, v_col, clust_index,
 					v_heap, NULL, ifield, trx->mysql_thd,
-					my_table);
+					my_table, old_table);
 
 				if (row_field == NULL) {
 					*err = DB_COMPUTE_VALUE_FAILED;

@@ -19,6 +19,7 @@
 
 #include "my_global.h"
 
+#include "prealloced_array.h" // Prealloced_array
 #include "sql_cmd.h"  // Sql_cmd
 #include "sql_list.h" // List
 
@@ -35,22 +36,18 @@ typedef struct st_mysql_lex_string LEX_STRING;
   clauses in ALTER TABLE statement.
 */
 
-class Alter_drop :public Sql_alloc {
+class Alter_drop : public Sql_alloc
+{
 public:
   enum drop_type {KEY, COLUMN, FOREIGN_KEY };
   const char *name;
-  enum drop_type type;
-  Alter_drop(enum drop_type par_type,const char *par_name)
+  drop_type type;
+
+  Alter_drop(drop_type par_type, const char *par_name)
     :name(par_name), type(par_type)
   {
     DBUG_ASSERT(par_name != NULL);
   }
-  /**
-    Used to make a clone of this object for ALTER/CREATE TABLE
-    @sa comment for Key_part_spec::clone
-  */
-  Alter_drop *clone(MEM_ROOT *mem_root) const
-    { return new (mem_root) Alter_drop(*this); }
 };
 
 
@@ -59,18 +56,15 @@ public:
   ALTER TABLE statement.
 */
 
-class Alter_column :public Sql_alloc {
+class Alter_column : public Sql_alloc
+{
 public:
   const char *name;
   Item *def;
-  Alter_column(const char *par_name,Item *literal)
-    :name(par_name), def(literal) {}
-  /**
-    Used to make a clone of this object for ALTER/CREATE TABLE
-    @sa comment for Key_part_spec::clone
-  */
-  Alter_column *clone(MEM_ROOT *mem_root) const
-    { return new (mem_root) Alter_column(*this); }
+
+  Alter_column(const char *par_name, Item *literal)
+    :name(par_name), def(literal)
+  { }
 };
 
 
@@ -79,7 +73,8 @@ public:
   ALTER TABLE statement.
 */
 
-class Alter_rename_key :public Sql_alloc {
+class Alter_rename_key : public Sql_alloc
+{
 public:
   const char *old_name;
   const char *new_name;
@@ -87,13 +82,6 @@ public:
   Alter_rename_key(const char *old_name_arg, const char *new_name_arg)
     : old_name(old_name_arg), new_name(new_name_arg)
   { }
-
-  /**
-    Used to make a clone of this object for ALTER/CREATE TABLE
-    @sa comment for Key_part_spec::clone
-  */
-  Alter_rename_key *clone(MEM_ROOT *mem_root) const
-  { return new (mem_root) Alter_rename_key(*this); }
 };
 
 
@@ -268,13 +256,13 @@ public:
      virtual generated columns to be dropped. This information is necessary
      for the storage engine to do in-place alter.
   */
-  List<Alter_drop>              drop_list;
+  Prealloced_array<const Alter_drop*, 1>       drop_list;
   // Columns for ALTER_COLUMN_CHANGE_DEFAULT.
-  List<Alter_column>            alter_list;
+  Prealloced_array<const Alter_column*, 1>     alter_list;
   // List of keys, used by both CREATE and ALTER TABLE.
-  List<Key_spec>                key_list;
+  Prealloced_array<const Key_spec*, 1>         key_list;
   // Keys to be renamed.
-  List<Alter_rename_key>        alter_rename_key_list;
+  Prealloced_array<const Alter_rename_key*, 1> alter_rename_key_list;
   // List of columns, used by both CREATE and ALTER TABLE.
   List<Create_field>            create_list;
   // Type of ALTER TABLE operation.
@@ -296,6 +284,10 @@ public:
   enum_with_validation          with_validation;
 
   Alter_info() :
+    drop_list(PSI_INSTRUMENT_ME),
+    alter_list(PSI_INSTRUMENT_ME),
+    key_list(PSI_INSTRUMENT_ME),
+    alter_rename_key_list(PSI_INSTRUMENT_ME),
     flags(0),
     keys_onoff(LEAVE_AS_IS),
     num_parts(0),
@@ -306,10 +298,10 @@ public:
 
   void reset()
   {
-    drop_list.empty();
-    alter_list.empty();
-    key_list.empty();
-    alter_rename_key_list.empty();
+    drop_list.clear();
+    alter_list.clear();
+    key_list.clear();
+    alter_rename_key_list.clear();
     create_list.empty();
     flags= 0;
     keys_onoff= LEAVE_AS_IS;

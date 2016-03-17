@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -169,13 +169,6 @@ void Mysqldump_tool_chain_maker_options::process_positional_options(
       "mysql", "procs_priv"));
     m_object_filter.m_tables_excluded.push_back(std::make_pair(
       "mysql", "proxies_priv"));
-    /*
-      Since we dump CREATE EVENT/FUNCTION/PROCEDURE statement skip this table.
-    */
-    m_object_filter.m_tables_excluded.push_back(std::make_pair(
-      "mysql", "event"));
-    m_object_filter.m_tables_excluded.push_back(std::make_pair(
-      "mysql", "proc"));
   }
   if (m_object_filter.m_databases_excluded.size() > 0 ||
     m_object_filter.m_databases_included.size() == 0)

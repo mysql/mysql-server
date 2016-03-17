@@ -274,8 +274,6 @@ st_handler_tablename mysqld_system_tables[]= {
   {mysqld_system_database, "user"},
   {mysqld_system_database, "host"},
   {mysqld_system_database, "func"},
-  {mysqld_system_database, "proc"},
-  {mysqld_system_database, "event"},
   {mysqld_system_database, "plugin"},
   {mysqld_system_database, "servers"},
   {mysqld_system_database, "procs_priv"},

@@ -21,8 +21,7 @@
 #define _XPL_EXPR_GENERATOR_H_
 
 #include "query_string_builder.h"
-#include "mysqlx_expr.pb.h"
-#include "mysqlx_datatypes.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 #include <stdexcept>
 
 

@@ -497,6 +497,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(ibuf_mutex),
 	PSI_KEY(ibuf_pessimistic_insert_mutex),
 	PSI_KEY(log_sys_mutex),
+	PSI_KEY(log_sys_write_mutex),
 	PSI_KEY(mutex_list_mutex),
 	PSI_KEY(page_zip_stat_per_index_mutex),
 	PSI_KEY(purge_sys_pq_mutex),
@@ -2488,7 +2489,9 @@ bool
 Compression::is_none(const char* algorithm)
 {
 	/* NULL is the same as NONE */
-	if (algorithm == NULL || innobase_strcasecmp(algorithm, "none") == 0) {
+	if (algorithm == NULL
+	    || *algorithm == 0
+	    || innobase_strcasecmp(algorithm, "none") == 0) {
 		return(true);
 	}
 
@@ -5786,7 +5789,10 @@ innobase_build_v_templ(
 	s_templ->n_col = ncol;
 	s_templ->n_v_col = n_v_col;
 	s_templ->rec_len = table->s->reclength;
-	s_templ->default_rec = table->s->default_values;
+	s_templ->default_rec = static_cast<byte*>(
+		ut_malloc_nokey(table->s->reclength));
+	memcpy(s_templ->default_rec, table->s->default_values,
+	       table->s->reclength);
 
 	/* Mark those columns could be base columns */
 	for (ulint i = 0; i < ib_table->n_v_cols; i++) {
@@ -6552,38 +6558,30 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 
 	info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
-	/* We don't support compression for the system tablespace and
-	the temporary tablespace. Only because they are shared tablespaces.
-	There is no other technical reason. */
 
-	if (m_prebuilt->table != NULL
-	    && !m_prebuilt->table->ibd_file_missing
-	    && !is_shared_tablespace(m_prebuilt->table->space)) {
+	dberr_t	err = fil_set_compression(m_prebuilt->table,
+					  table->s->compress.str);
 
-		dberr_t	err = fil_set_compression(
-			m_prebuilt->table->space, table->s->compress.str);
+	switch (err) {
+	case DB_NOT_FOUND:
+	case DB_UNSUPPORTED:
+		/* We will do another check before the create
+		table and push the error to the client there. */
+		break;
 
-		switch (err) {
-		case DB_NOT_FOUND:
-		case DB_UNSUPPORTED:
-			/* We will do another check before the create
-			table and push the error to the client there. */
-			break;
+	case DB_IO_NO_PUNCH_HOLE_TABLESPACE:
+		/* We did the check in the 'if' above. */
 
-		case DB_IO_NO_PUNCH_HOLE_TABLESPACE:
-			/* We did the check in the 'if' above. */
+	case DB_IO_NO_PUNCH_HOLE_FS:
+		/* During open we can't check whether the FS supports
+		punch hole or not, at least on Linux. */
+		break;
 
-		case DB_IO_NO_PUNCH_HOLE_FS:
-			/* During open we can't check whether the FS supports
-			punch hole or not, at least on Linux. */
-			break;
+	default:
+		ut_error;
 
-		default:
-			ut_error;
-
-		case DB_SUCCESS:
-			break;
-		}
+	case DB_SUCCESS:
+		break;
 	}
 
 	DBUG_RETURN(0);
@@ -10365,7 +10363,7 @@ err_col:
 
 	} else {
 
-                const char*     algorithm = m_create_info->compress.str;
+		const char*	algorithm = m_create_info->compress.str;
 
 		err = DB_SUCCESS;
 
@@ -10390,7 +10388,7 @@ err_col:
 			   || m_create_info->key_block_size > 0) {
 
 			algorithm = NULL;
-                }
+		}
 
 		const char*	encrypt = m_create_info->encrypt_type.str;
 
@@ -10430,7 +10428,7 @@ err_col:
 
 		if (err == DB_IO_NO_PUNCH_HOLE_FS) {
 
-			ut_ad(!is_shared_tablespace(table->space));
+			ut_ad(!dict_table_in_shared_tablespace(table));
 
 			push_warning_printf(
 				m_thd,
@@ -10836,7 +10834,9 @@ validate_tablespace_name(
 bool
 create_table_info_t::create_option_tablespace_is_valid()
 {
-	ut_ad(m_use_shared_space);
+	if (!m_use_shared_space) {
+		return(true);
+	}
 
 	if (0 != validate_tablespace_name(m_create_info->tablespace, true)) {
 		return(false);
@@ -10955,6 +10955,75 @@ create_table_info_t::create_option_tablespace_is_valid()
 	return(true);
 }
 
+/** Validate the COPMRESSION option.
+@return true if valid, false if not. */
+bool
+create_table_info_t::create_option_compression_is_valid()
+{
+	dberr_t		err;
+	Compression	compression;
+
+	if (m_create_info->compress.length == 0) {
+		return(true);
+	}
+
+	err = Compression::check(m_create_info->compress.str, &compression);
+
+	if (err == DB_UNSUPPORTED) {
+		push_warning_printf(
+			m_thd,
+			Sql_condition::SL_WARNING,
+			ER_UNSUPPORTED_EXTENSION,
+			"InnoDB: Unsupported compression algorithm '%s'",
+			m_create_info->compress.str);
+		return(false);
+	}
+
+	/* Allow Compression=NONE on any tablespace or row format. */
+	if (compression.m_type == Compression::NONE) {
+		return(true);
+	}
+
+	static char intro[] = "InnoDB: Page Compression is not supported";
+
+	if (m_create_info->key_block_size != 0
+	    || m_create_info->row_type == ROW_TYPE_COMPRESSED) {
+		push_warning_printf(
+			m_thd, Sql_condition::SL_WARNING,
+			ER_UNSUPPORTED_EXTENSION,
+			"%s with row_format=compressed or"
+			" key_block_size > 0", intro);
+		return(false);
+	}
+
+	if (m_create_info->options & HA_LEX_CREATE_TMP_TABLE) {
+		push_warning_printf(
+			m_thd, Sql_condition::SL_WARNING,
+			HA_ERR_UNSUPPORTED,
+			"%s for temporary tables", intro);
+		return(false);
+	}
+
+	if (tablespace_is_general_space(m_create_info)) {
+		push_warning_printf(
+			m_thd, Sql_condition::SL_WARNING,
+			HA_ERR_UNSUPPORTED,
+			"%s for shared general tablespaces", intro);
+		return(false);
+	}
+
+	/* The only non-file-per-table tablespace left is the system space. */
+	if (!m_use_file_per_table) {
+		push_warning_printf(
+			m_thd, Sql_condition::SL_WARNING,
+			HA_ERR_UNSUPPORTED,
+			"%s for the system tablespace", intro);
+		return(false);
+	}
+
+	return(true);
+}
+
 /** Validate the create options. Check that the options KEY_BLOCK_SIZE,
 ROW_FORMAT, DATA DIRECTORY, TEMPORARY & TABLESPACE are compatible with
 each other and other settings.  These CREATE OPTIONS are not validated
@@ -10978,17 +11047,18 @@ create_table_info_t::create_options_are_invalid()
 	non-strict-mode.  If it is incorrect or is incompatible with other
 	options, then we will return an error. Make sure the tablespace exists
 	and is compatible with this table */
-	if (m_use_shared_space
-	    && !create_option_tablespace_is_valid()) {
+	if (!create_option_tablespace_is_valid()) {
 		return("TABLESPACE");
 	}
 
-	/* If innodb_strict_mode is not set don't do any more validation. */
+	/* If innodb_strict_mode is not set don't do any more validation.
+	Also, if this table is being put into a shared general tablespace
+	we ALWAYS act like strict mode is ON. */
 	if (!m_use_shared_space && !(THDVAR(m_thd, strict_mode))) {
 		return(NULL);
 	}
 
-	/* First check if a non-zero KEY_BLOCK_SIZE was specified. */
+	/* Check if a non-zero KEY_BLOCK_SIZE was specified. */
 	if (has_key_block_size) {
 		if (is_temp) {
 			my_error(ER_UNSUPPORT_COMPRESSED_TEMPORARY_TABLE,
@@ -11123,40 +11193,9 @@ create_table_info_t::create_options_are_invalid()
 		}
 	}
 
-	/* Note: Currently the max length is 4: ZLIB, LZ4, NONE. */
-
-	if (ret == NULL && m_create_info->compress.length > 0) {
-
-		dberr_t		err;
-		Compression	compression;
-
-		err = Compression::check(
-			m_create_info->compress.str, &compression);
-
-		if (err == DB_UNSUPPORTED) {
-
-			push_warning_printf(
-				m_thd,
-				Sql_condition::SL_WARNING,
-				ER_UNSUPPORTED_EXTENSION,
-				"InnoDB: Unsupported compression algorithm '"
-				"%s'",
-				m_create_info->compress.str);
-
-			ret = "COMPRESSION";
-
-		} else if (m_create_info->key_block_size > 0
-			   && compression.m_type != Compression::NONE) {
-
-			push_warning_printf(
-				m_thd,
-				Sql_condition::SL_WARNING,
-				ER_UNSUPPORTED_EXTENSION,
-				"InnODB: Attribute not supported with row "
-				"format compressed or key block size > 0");
-
-			ret = "COMPRESSION";
-		}
+	/* Validate the page compression parameter. */
+	if (!create_option_compression_is_valid()) {
+		return("COMPRESSION");
 	}
 
 	/* Check the encryption option. */
@@ -11166,7 +11205,7 @@ create_table_info_t::create_options_are_invalid()
 		err = Encryption::validate(m_create_info->encrypt_type.str);
 
 		if (err == DB_UNSUPPORTED) {
-                        my_error(ER_INVALID_ENCRYPTION_OPTION, MYF(0));
+			my_error(ER_INVALID_ENCRYPTION_OPTION, MYF(0));
 			ret = "ENCRYPTION";
 		}
 	}
@@ -11255,6 +11294,10 @@ static const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("table_partitions", 6),
 	INNODB_DD_TABLE("table_partition_values", 1),
 	INNODB_DD_TABLE("index_partitions", 3),
+        INNODB_DD_TABLE("events", 5),
+        INNODB_DD_TABLE("routines", 6),
+        INNODB_DD_TABLE("parameters", 3),
+        INNODB_DD_TABLE("parameter_type_elements", 1),
 	INNODB_DD_TABLE("innodb_table_stats", 1),
 	INNODB_DD_TABLE("innodb_index_stats", 1)
 };
@@ -11501,6 +11544,36 @@ create_table_info_t::innobase_table_flags()
 	m_flags = 0;
 	m_flags2 = 0;
 
+	/* Validate the page compression parameter. */
+	if (!create_option_compression_is_valid()) {
+		/* No need to do anything. Warnings were issued.
+		The compresion setting will be ignored later.
+		If inodb_strict_mode=ON, this is called twice unless
+		there was a problem before.
+		If inodb_strict_mode=OFF, this is the only call. */
+	}
+
+	/* Validate the page encryption parameter. */
+	if (m_create_info->encrypt_type.length > 0) {
+
+		const char* encryption = m_create_info->encrypt_type.str;
+
+		if (Encryption::validate(encryption) != DB_SUCCESS) {
+			/* Incorrect encryption option */
+			my_error(ER_INVALID_ENCRYPTION_OPTION, MYF(0));
+			DBUG_RETURN(false);
+		}
+
+		if (m_use_shared_space
+		    || (m_create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
+			if (!Encryption::is_none(encryption)) {
+				/* Can't encrypt shared tablespace */
+				my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
+				DBUG_RETURN(false);
+			}
+		}
+	}
+
 	/* Check if there are any FTS indexes defined on this table. */
 	for (uint i = 0; i < m_form->s->keys; i++) {
 		const KEY*	key = &m_form->key_info[i];
@@ -11591,51 +11664,6 @@ index_bad:
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: ignoring KEY_BLOCK_SIZE=%lu.",
 				m_create_info->key_block_size);
-		}
-
-	} else if (m_create_info->compress.length > 0) {
-
-		if (m_use_shared_space
-		    || (m_create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
-
-			push_warning_printf(
-				m_thd,
-				Sql_condition::SL_WARNING,
-				HA_ERR_UNSUPPORTED,
-				"InnoDB: Cannot compress pages of shared "
-				"tablespaces");
-		}
-
-		const char*     compression = m_create_info->compress.str;
-
-		if (Compression::validate(compression) != DB_SUCCESS) {
-
-			push_warning_printf(
-				m_thd,
-				Sql_condition::SL_WARNING,
-				HA_ERR_UNSUPPORTED,
-				"InnoDB: Unsupported compression "
-				"algorithm '%s'",
-				compression);
-		}
-
-	} else if (m_create_info->encrypt_type.length > 0) {
-
-		const char*     encryption = m_create_info->encrypt_type.str;
-
-		if (Encryption::validate(encryption) != DB_SUCCESS) {
-			/* Incorrect encryption option */
-                        my_error(ER_INVALID_ENCRYPTION_OPTION, MYF(0));
-			DBUG_RETURN(false);
-		}
-
-		if (m_use_shared_space
-		    || (m_create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
-			if (!Encryption::is_none(encryption)) {
-				/* Can't encrypt shared tablespace */
-				my_error(ER_TABLESPACE_CANNOT_ENCRYPT, MYF(0));
-				DBUG_RETURN(false);
-			}
 		}
 	}
 
@@ -19844,7 +19872,7 @@ static MYSQL_SYSVAR_BOOL(disable_background_merge,
 
 static MYSQL_SYSVAR_ENUM(compress_debug, srv_debug_compress,
   PLUGIN_VAR_RQCMDARG,
-  "Compress all tables, without specifying the COMRPESS table attribute",
+  "Compress all tables, without specifying the COMPRESS table attribute",
   NULL, NULL, Compression::NONE, &innodb_debug_compress_typelib);
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
@@ -20385,6 +20413,8 @@ innobase_init_vc_templ(
 @param[in]	ifield		index field
 @param[in]	thd		MySQL thread handle
 @param[in,out]	mysql_table	mysql table object
+@param[in]	old_table	during ALTER TABLE, this is the old table
+				or NULL.
 @return the field filled with computed value, or NULL if just want
 to store the value in passed in "my_rec" */
 dfield_t*
@@ -20396,7 +20426,8 @@ innobase_get_computed_value(
 	mem_heap_t*		heap,
 	const dict_field_t*	ifield,
 	THD*			thd,
-	TABLE*			mysql_table)
+	TABLE*			mysql_table,
+	const dict_table_t*	old_table)
 {
 	byte		rec_buf1[REC_VERSION_56_MAX_INDEX_COL_LEN];
 	byte		rec_buf2[REC_VERSION_56_MAX_INDEX_COL_LEN];
@@ -20404,7 +20435,11 @@ innobase_get_computed_value(
 	byte*		buf;
 	dfield_t*	field;
 	ulint		len;
-	const page_size_t page_size = dict_table_page_size(index->table);
+
+	const page_size_t page_size = (old_table == NULL)
+		? dict_table_page_size(index->table)
+		: dict_table_page_size(old_table);
+
 	ulint		ret = 0;
 
 	ut_ad(index->table->vc_templ);

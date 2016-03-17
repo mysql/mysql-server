@@ -49,7 +49,7 @@
 #include "sql_show.h"            // append_identifier
 #include "sql_time.h"            // TIME_from_longlong_packed
 #include "strfunc.h"             // find_type
-#include "item_json_func.h"      // Item_func_json_quote
+#include "json_dom.h"            // Json_wrapper
 #include "val_int_compare.h"
 
 #include <cfloat>                // DBL_DIG
@@ -8503,7 +8503,7 @@ bool Item_func_sp::itemize(Parse_context *pc, Item **res)
   }
 
   m_name->init_qname(thd);
-  sp_add_used_routine(lex, thd, m_name, SP_TYPE_FUNCTION);
+  sp_add_used_routine(lex, thd, m_name, enum_sp_type::FUNCTION);
 
   dummy_table= (TABLE*) sql_calloc(sizeof(TABLE)+ sizeof(TABLE_SHARE));
   if (dummy_table == NULL)
@@ -8603,7 +8603,7 @@ Item_func_sp::init_result_field(THD *thd)
   Internal_error_handler_holder<View_error_handler, TABLE_LIST>
     view_handler(thd, context->view_error_handler,
                  context->view_error_handler_arg);
-  if (!(m_sp= sp_find_routine(thd, SP_TYPE_FUNCTION, m_name,
+  if (!(m_sp= sp_find_routine(thd, enum_sp_type::FUNCTION, m_name,
                                &thd->sp_func_cache, TRUE)))
   {
     my_missing_function_error (m_name->m_name, m_name->m_qname.str);

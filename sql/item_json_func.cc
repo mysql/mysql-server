@@ -18,7 +18,6 @@
 
 #include "item_json_func.h"
 #include "current_thd.h"        // current_thd
-#include "derror.h"             // ER_THD
 #include "item_cmpfunc.h"       // Item_func_like
 #include "json_dom.h"
 #include "json_path.h"
@@ -640,9 +639,9 @@ static bool contains_wr(const THD *thd,
                         const Json_wrapper &containee_wr,
                         bool *result)
 {
-  if (doc_wrapper.type() == Json_dom::J_OBJECT)
+  if (doc_wrapper.type() == enum_json_type::J_OBJECT)
   {
-    if (containee_wr.type() != Json_dom::J_OBJECT ||
+    if (containee_wr.type() != enum_json_type::J_OBJECT ||
         containee_wr.length() > doc_wrapper.length())
     {
       *result= false;
@@ -654,7 +653,7 @@ static bool contains_wr(const THD *thd,
       auto c_elt= c_oi.elt();
       auto d_wr= doc_wrapper.lookup(c_elt.first.data(), c_elt.first.length());
 
-      if (d_wr.type() == Json_dom::J_ERROR)
+      if (d_wr.type() == enum_json_type::J_ERROR)
       {
         // No match for this key. Give up.
         *result= false;
@@ -677,12 +676,12 @@ static bool contains_wr(const THD *thd,
     return false;
   }
 
-  if (doc_wrapper.type() == Json_dom::J_ARRAY)
+  if (doc_wrapper.type() == enum_json_type::J_ARRAY)
   {
     const Json_wrapper *wr= &containee_wr;
     Json_wrapper a_wr;
 
-    if (containee_wr.type() != Json_dom::J_ARRAY)
+    if (containee_wr.type() != enum_json_type::J_ARRAY)
     {
       // auto-wrap scalar or object in an array for uniform treatment later
       Json_wrapper scalar= containee_wr;
@@ -710,7 +709,7 @@ static bool contains_wr(const THD *thd,
     for (size_t c_i= 0; c_i < c.size(); c_i++)
     {
       Json_wrapper candidate= (*wr)[c[c_i]];
-      if (candidate.type() == Json_dom::J_ARRAY)
+      if (candidate.type() == enum_json_type::J_ARRAY)
       {
         bool found= false;
         /*
@@ -723,7 +722,7 @@ static bool contains_wr(const THD *thd,
           const auto dtype= d_wr.type();
 
           // Skip past all non-arrays.
-          if (dtype < Json_dom::J_ARRAY)
+          if (dtype < enum_json_type::J_ARRAY)
           {
             /*
               Remember the position so that we don't need to skip past
@@ -737,7 +736,7 @@ static bool contains_wr(const THD *thd,
             No more potential matches for this candidate if we've
             moved past all the arrays.
           */
-          if (dtype > Json_dom::J_ARRAY)
+          if (dtype > enum_json_type::J_ARRAY)
             break;
 
           if (contains_wr(thd, d_wr, candidate, result))
@@ -764,7 +763,8 @@ static bool contains_wr(const THD *thd,
         {
           auto d_wr= doc_wrapper[d[tmp]];
           const auto dtype= d_wr.type();
-          if (dtype == Json_dom::J_ARRAY || dtype == Json_dom::J_OBJECT)
+          if (dtype == enum_json_type::J_ARRAY ||
+              dtype == enum_json_type::J_OBJECT)
           {
             if (contains_wr(thd, d_wr, candidate, result))
               return true;                    /* purecov: inspected */
@@ -1053,6 +1053,75 @@ bool get_json_wrapper(Item **args,
 
 }
 
+
+/**
+  Extended type ids so that JSON_TYPE() can give useful type
+  names to certain sub-types of J_OPAQUE.
+*/
+enum class enum_json_opaque_type
+{
+  J_OPAQUE_BLOB= static_cast<int>(enum_json_type::J_ERROR) + 1,
+  J_OPAQUE_BIT,
+  J_OPAQUE_GEOMETRY
+};
+
+/**
+  Maps the enumeration value of type enum_json_type into a string.
+  For example:
+  json_type_string_map[J_OBJECT] == "OBJECT"
+*/
+static const char *json_type_string_map[]=
+{
+  "NULL",
+  "DECIMAL",
+  "INTEGER",
+  "UNSIGNED INTEGER",
+  "DOUBLE",
+  "STRING",
+  "OBJECT",
+  "ARRAY",
+  "BOOLEAN",
+  "DATE",
+  "TIME",
+  "DATETIME",
+  "TIMESTAMP",
+  "OPAQUE",
+  "ERROR",
+
+  // OPAQUE types with special names
+  "BLOB",
+  "BIT",
+  "GEOMETRY",
+};
+
+/**
+  Compute the maximum length of the string representation of the Json type
+  literals which we use as output from JSON_TYPE.
+
+  @return the length of the longest literal + 1 (for terminating NUL).
+*/
+static uint32 compute_max_typelit()
+{
+  size_t maxl= 0;
+  for (auto s : json_type_string_map)
+    maxl= std::max(maxl, std::strlen(s));
+  return static_cast<uint32>(maxl + 1);
+}
+
+/**
+   The maximum length of a string in json_type_string_map including
+   a final zero char.
+*/
+static const uint32 typelit_max_length= compute_max_typelit();
+
+bool Item_func_json_type::resolve_type(THD *thd)
+{
+  maybe_null= true;
+  m_value.set_charset(&my_charset_utf8mb4_bin);
+  fix_length_and_charset(typelit_max_length, &my_charset_utf8mb4_bin);
+  return false;
+};
+
 /**
    Compute an index into json_type_string_map
    to be applied to certain sub-types of J_OPAQUE.
@@ -1063,8 +1132,6 @@ bool get_json_wrapper(Item **args,
 */
 static uint opaque_index(enum_field_types field_type)
 {
-  uint offset= 0;
-
   switch (field_type)
   {
   case MYSQL_TYPE_VARCHAR:
@@ -1074,16 +1141,10 @@ static uint opaque_index(enum_field_types field_type)
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_VAR_STRING:
   case MYSQL_TYPE_STRING:
-    {
-      offset= static_cast<uint>(Json_dom::J_OPAQUE_BLOB);
-      break;
-    }
+    return static_cast<uint>(enum_json_opaque_type::J_OPAQUE_BLOB);
 
   case MYSQL_TYPE_BIT:
-    {
-      offset= static_cast<uint>(Json_dom::J_OPAQUE_BIT);
-      break;
-    }
+    return static_cast<uint>(enum_json_opaque_type::J_OPAQUE_BIT);
 
   case MYSQL_TYPE_GEOMETRY:
     {
@@ -1098,18 +1159,13 @@ static uint opaque_index(enum_field_types field_type)
       */
       /* purecov: begin deadcode */
       DBUG_ABORT();
-      offset= static_cast<uint>(Json_dom::J_OPAQUE_GEOMETRY);
-      break;
+      return static_cast<uint>(enum_json_opaque_type::J_OPAQUE_GEOMETRY);
       /* purecov: end */
     }
 
   default:
-    {
-      return static_cast<uint>(Json_dom::J_OPAQUE);
-    }
+    return static_cast<uint>(enum_json_type::J_OPAQUE);
   }
-
-  return 1 + static_cast<uint>(Json_dom::J_ERROR) + offset;
 }
 
 String *Item_func_json_type::val_str(String *str)
@@ -1126,15 +1182,15 @@ String *Item_func_json_type::val_str(String *str)
       return NULL;
     }
 
-    const Json_dom::enum_json_type type= wr.type();
+    const enum_json_type type= wr.type();
     uint typename_idx= static_cast<uint>(type);
-    if (type == Json_dom::J_OPAQUE)
+    if (type == enum_json_type::J_OPAQUE)
     {
       typename_idx= opaque_index(wr.field_type());
     }
 
     m_value.length(0);
-    if (m_value.append(Json_dom::json_type_string_map[typename_idx]))
+    if (m_value.append(json_type_string_map[typename_idx]))
       return error_str();                     /* purecov: inspected */
 
   }
@@ -1180,7 +1236,7 @@ bool Item_json_func::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   if (null_value)
     return true;
 
-  return wr.coerce_date(ltime, fuzzydate, func_name());
+  return wr.coerce_date(ltime, func_name());
 }
 
 
@@ -1231,11 +1287,15 @@ my_decimal *Item_json_func::val_decimal(my_decimal *decimal_value)
   Json_wrapper wr;
 
   if (val_json(&wr))
+  {
+    my_decimal_set_zero(decimal_value);
     return decimal_value;
-
+  }
   if (null_value)
+  {
+    my_decimal_set_zero(decimal_value);
     return decimal_value;
-
+  }
   return wr.coerce_decimal(decimal_value, func_name());
 }
 
@@ -1912,7 +1972,7 @@ bool Item_func_json_keys::val_json(Json_wrapper *wr)
       wrapper.steal(&hits[0]);
     }
 
-    if (wrapper.type() != Json_dom::J_OBJECT)
+    if (wrapper.type() != enum_json_type::J_OBJECT)
     {
       null_value= true;
       return false;
@@ -2121,7 +2181,7 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr)
                                   &valuew))
           return error_json();
 
-        if ((*it)->json_type() == Json_dom::J_ARRAY)
+        if ((*it)->json_type() == enum_json_type::J_ARRAY)
         {
           Json_array *arr= down_cast<Json_array *>(*it);
           if (arr->append_alias(valuew.to_dom(thd)))
@@ -2271,7 +2331,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
         if (leg->get_type() == jpl_array_cell)
         {
           // We specified an array, what did we find at that position?
-          if ((*it)->json_type() == Json_dom::J_ARRAY)
+          if ((*it)->json_type() == enum_json_type::J_ARRAY)
           {
             Json_array *arr= down_cast<Json_array *>(*it);
             DBUG_ASSERT(leg->get_type() == jpl_array_cell);
@@ -2316,7 +2376,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
           }
         }
         else if (leg->get_type() == jpl_member &&
-                 (*it)->json_type() == Json_dom::J_OBJECT)
+                 (*it)->json_type() == enum_json_type::J_OBJECT)
         {
           Json_object *o= down_cast<Json_object *>(*it);
           const char *ename= leg->get_member_name();
@@ -2432,7 +2492,7 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr)
 
         // NOP if parent is not an array
 
-        if ((*it)->json_type() == Json_dom::J_ARRAY)
+        if ((*it)->json_type() == enum_json_type::J_ARRAY)
         {
           // Excellent. Insert the value at that location.
           Json_array *arr= down_cast<Json_array *>(*it);
@@ -2504,7 +2564,7 @@ static bool clone_without_autowrapping(Json_path *source_path,
       if (!hits.empty())
       {
         Json_dom *candidate= hits.at(0);
-        if (candidate->json_type() != Json_dom::J_ARRAY)
+        if (candidate->json_type() != enum_json_type::J_ARRAY)
         {
           /**
             pathExpression identifies a non-array value.
@@ -2608,7 +2668,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
           // We now have either an array or an object in the parent's path
           if (leg->get_type() == jpl_array_cell)
           {
-            if ((*it)->json_type() == Json_dom::J_ARRAY)
+            if ((*it)->json_type() == enum_json_type::J_ARRAY)
             {
               if (!m_json_set) // replace semantics, so skip if path not present
                 continue;
@@ -2673,7 +2733,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
             }
           }
           else if (leg->get_type() == jpl_member &&
-                   (*it)->json_type() == Json_dom::J_OBJECT)
+                   (*it)->json_type() == enum_json_type::J_OBJECT)
           {
             if (!m_json_set) // replace semantics, so skip if path not present
               continue;
@@ -2944,7 +3004,7 @@ static bool find_matches(const Json_wrapper &wrapper, Json_path *path,
 {
   switch (wrapper.type())
   {
-  case Json_dom::J_STRING:
+  case enum_json_type::J_STRING:
     {
       if (one_match && !matches->empty())
       {
@@ -2977,7 +3037,7 @@ static bool find_matches(const Json_wrapper &wrapper, Json_path *path,
       break;
     }
 
-  case Json_dom::J_OBJECT:
+  case enum_json_type::J_OBJECT:
     {
       for (Json_wrapper_object_iterator jwot(wrapper.object_iterator());
            !jwot.empty(); jwot.next())
@@ -2998,7 +3058,7 @@ static bool find_matches(const Json_wrapper &wrapper, Json_path *path,
       break;
     }
 
-  case Json_dom::J_ARRAY:
+  case enum_json_type::J_ARRAY:
     {
       for (size_t idx= 0; idx < wrapper.length(); idx++)
       {
@@ -3294,15 +3354,16 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr)
         continue;
       }
 
-      Json_dom::enum_json_type type= parent->json_type();
-      DBUG_ASSERT((type == Json_dom::J_OBJECT) || (type == Json_dom::J_ARRAY));
+      enum_json_type type= parent->json_type();
+      DBUG_ASSERT((type == enum_json_type::J_OBJECT) ||
+                  (type == enum_json_type::J_ARRAY));
 
-      if (type == Json_dom::J_OBJECT)
+      if (type == enum_json_type::J_OBJECT)
       {
         Json_object *object= down_cast<Json_object *>(parent);
         object->remove(child);
       }
-      else if (type == Json_dom::J_ARRAY)
+      else if (type == enum_json_type::J_ARRAY)
       {
         Json_array *array= down_cast<Json_array *>(parent);
         array->remove(child);
@@ -3524,7 +3585,7 @@ String *Item_func_json_unquote::val_str(String *str)
     /*
       Extract the internal string representation as a MySQL string
     */
-    DBUG_ASSERT(dom->json_type() == Json_dom::J_STRING);
+    DBUG_ASSERT(dom->json_type() == enum_json_type::J_STRING);
     Json_wrapper wr(dom);
     if (str->copy(wr.get_data(), wr.get_data_length(), collation.collation))
       return error_str();                     /* purecov: inspected */

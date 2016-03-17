@@ -1523,7 +1523,7 @@ public:
     Constraints and generation clause (default value, generation expression)
     are not checked by this function.
   */
-  virtual uint is_equal(Create_field *new_field);
+  virtual uint is_equal(const Create_field *new_field);
   /* convert decimal to longlong with overflow check */
   longlong convert_decimal2longlong(const my_decimal *val, bool unsigned_flag,
                                     bool *has_overflow);
@@ -1818,7 +1818,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   bool get_time(MYSQL_TIME *ltime);
-  uint is_equal(Create_field *new_field);
+  uint is_equal(const Create_field *new_field);
   uint row_pack_length() const { return pack_length(); }
   uint32 pack_length_from_metadata(uint field_metadata) {
     uint32 length= pack_length();
@@ -1870,7 +1870,7 @@ public:
   uint32 max_display_length() { return field_length; }
   friend class Create_field;
   virtual bool str_needs_quotes() { return TRUE; }
-  uint is_equal(Create_field *new_field);
+  uint is_equal(const Create_field *new_field);
 };
 
 
@@ -2032,7 +2032,7 @@ public:
   uint row_pack_length() const { return pack_length(); }
   bool compatible_field_size(uint field_metadata, Relay_log_info *,
                              uint16, int *order_var);
-  uint is_equal(Create_field *new_field);
+  uint is_equal(const Create_field *new_field);
   Field_new_decimal *clone(MEM_ROOT *mem_root) const { 
     DBUG_ASSERT(type() == MYSQL_TYPE_NEWDECIMAL);
     return new (mem_root) Field_new_decimal(*this);
@@ -2714,7 +2714,7 @@ public:
   virtual Item_result result_type() const { return STRING_RESULT; }
   virtual uint32 max_display_length() { return field_length; }
   virtual bool str_needs_quotes() { return TRUE; }
-  virtual uint is_equal(Create_field *new_field);
+  virtual uint is_equal(const Create_field *new_field);
   Item_result numeric_context_result_type() const
   {
     return dec ? DECIMAL_RESULT : INT_RESULT;
@@ -3649,7 +3649,7 @@ public:
     DBUG_ASSERT(real_type() == MYSQL_TYPE_VARCHAR);
     return new Field_varstring(*this);
   }
-  uint is_equal(Create_field *new_field);
+  uint is_equal(const Create_field *new_field);
   void hash(ulong *nr, ulong *nr2);
   void get_ptr(uchar **str)
   {
@@ -3863,7 +3863,7 @@ public:
   uint32 max_display_length();
   uint32 char_length();
   bool copy_blob_value(MEM_ROOT *mem_root);
-  uint is_equal(Create_field *new_field);
+  uint is_equal(const Create_field *new_field);
   inline bool in_read_set() { return bitmap_is_set(table->read_set, field_index); }
   inline bool in_write_set() { return bitmap_is_set(table->write_set, field_index); }
   virtual bool is_text_key_type() const { return binary() ? false : true; }
@@ -3937,7 +3937,7 @@ public:
     DBUG_ASSERT(type() == MYSQL_TYPE_GEOMETRY);
     return new Field_geom(*this);
   }
-  uint is_equal(Create_field *new_field);
+  uint is_equal(const Create_field *new_field);
 };
 
 
@@ -4039,7 +4039,7 @@ public:
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
   Field_json *clone(MEM_ROOT *mem_root) const;
   Field_json *clone() const;
-  uint is_equal(Create_field *new_field);
+  uint is_equal(const Create_field *new_field);
   Item_result cast_to_int_type () const { return INT_RESULT; }
   void make_sort_key(uchar *to, size_t length);
 
@@ -4114,7 +4114,7 @@ public:
 
 private:
   int do_save_field_metadata(uchar *first_byte);
-  uint is_equal(Create_field *new_field);
+  uint is_equal(const Create_field *new_field);
 };
 
 
@@ -4256,7 +4256,7 @@ public:
             bit_ptr == ((Field_bit *)field)->bit_ptr &&
             bit_ofs == ((Field_bit *)field)->bit_ofs);
   }
-  uint is_equal(Create_field *new_field);
+  uint is_equal(const Create_field *new_field);
   void move_field_offset(my_ptrdiff_t ptr_diff)
   {
     Field::move_field_offset(ptr_diff);

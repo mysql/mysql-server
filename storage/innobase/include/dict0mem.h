@@ -1195,7 +1195,7 @@ struct dict_vcol_templ_t {
 	ulint			rec_len;
 
 	/** default column value if any */
-	const byte*		default_rec;
+	byte*			default_rec;
 };
 
 /** The dirty status of tables, used to indicate if a table has some

@@ -43,7 +43,7 @@ truncate performance_schema.events_waits_history_long;
 
 # Check the configuration is ok
 show global variables like "performance_schema%";
-show global status like "performance_schema%";
+show global status like "performance_schema%_lost";
 
 echo "================== Step 1 ==================";
 call dump_thread();
@@ -542,5 +542,5 @@ execute dump_waits_table_lock;
 execute dump_objects_summary;
 
 # On test failures, may help to track the root cause
-show global status like "performance_schema%";
+show global status like "performance_schema%_lost";
 

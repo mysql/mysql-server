@@ -152,7 +152,7 @@ rollback;
 select * from t2;
 a
 insert into t2 (a) values (1015);
-show columns in mysql.proc where (f2(15) = 15);
+show columns in information_schema.routines where (f2(15) = 15);
 ERROR 23000: Duplicate entry '15' for key 'a'
 select * from t2;
 a
@@ -393,7 +393,7 @@ flush status;
 #
 select * from t1;
 a
-call p_verify_status_increment(1, 0, 2, 0);
+call p_verify_status_increment(2, 0, 2, 0);
 SUCCESS
 
 commit;
@@ -571,7 +571,7 @@ begin
 insert t2 set a=2;
 return 2;
 end|
-call p_verify_status_increment(0, 0, 2, 0);
+call p_verify_status_increment(3, 0, 2, 0);
 SUCCESS
 
 # 16. A function changes non-trans-table.
@@ -583,7 +583,7 @@ SUCCESS
 select f1();
 f1()
 2
-call p_verify_status_increment(1, 0, 2, 0);
+call p_verify_status_increment(2, 0, 2, 0);
 SUCCESS
 
 commit;

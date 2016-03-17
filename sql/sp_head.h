@@ -927,9 +927,8 @@ public:
     Check if a user has access right to a SP.
 
     @param      thd          Thread context.
-    @param[out] full_access  Set to 1 if the user has SELECT
-                             to the 'mysql.proc' table or is
-                             the owner of the stored program.
+    @param[out] full_access  Set to 1 if the user is the owner
+                             of the stored program.
 
     @return Error status.
   */

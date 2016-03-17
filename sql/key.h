@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,12 +18,14 @@
 
 #include "my_global.h"                          /* uchar */
 #include "my_base.h"                   /* ha_rows, ha_key_alg */
+#include "mysql/mysql_lex_string.h"    /* LEX_CSTRING */
 #include "sql_plugin_ref.h"            /* plugin_ref */
 
 class Field;
 class String;
 struct TABLE;
 typedef struct st_bitmap MY_BITMAP;
+typedef struct st_mysql_const_lex_string LEX_CSTRING;
 
 class KEY_PART_INFO {	/* Info about a key part */
 public:
@@ -111,16 +113,14 @@ typedef struct st_key {
     Note that parser is used when the table is opened for use, and
     parser_name is used when the table is being created.
   */
-  union
-  {
-    /** Fulltext [pre]parser */
-    plugin_ref parser;
-    /** Fulltext [pre]parser name */
-    LEX_STRING *parser_name;
-  };
+  /** Fulltext [pre]parser */
+  plugin_ref parser;
+  /** Fulltext [pre]parser name */
+  LEX_CSTRING parser_name;
+
   KEY_PART_INFO *key_part;
   /** Name of key */
-  char	*name;
+  const char *name;
 
   /**
     Array of AVG(number of records with the same field value) for 1st ... Nth key part.
@@ -155,7 +155,7 @@ public:
     int  bdb_return_if_eq;
   } handler;
   TABLE *table;
-  LEX_STRING comment;
+  LEX_CSTRING comment;
 
   /** 
     Check if records per key estimate is available for given key part.

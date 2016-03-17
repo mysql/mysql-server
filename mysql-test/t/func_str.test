@@ -1778,6 +1778,15 @@ SELECT insert(a,1,1,1) FROM t1;
 
 DROP TABLE t1;
 --echo #
+--echo # Bug#22888420 CONCAT_WS: ASSERTION FAILED: !S.USES_BUFFER_OWNED_BY(THIS)
+--echo #
+
+do concat('a',concat_ws('a', 0x2859, 'a' ,
+                        trim(period_add('a',1) from (1&''))
+                        )
+          );
+
+--echo #
 --echo # End of 5.6 tests
 --echo #
 
@@ -1839,6 +1848,15 @@ FROM ( SELECT repeat(_utf8mb4 0xE29883, 21844) AS data ) AS sub;
 SELECT length(repeat(_utf8mb4 0xE29883, 21846)) AS data;
 SELECT length(data) AS len
 FROM ( SELECT repeat(_utf8mb4 0xE29883, 21846) AS data ) AS sub;
+
+--echo #
+--echo # Bug #22884187 RTRIM GETS EXPONENTIALLY SLOWER ON LARGE STRINGS
+--echo #
+
+set names utf8;
+SELECT TRIM(BOTH 'å' FROM 'aæaå');
+set names default;
+SELECT HEX(TRIM(CONVERT(_gb18030 0x20202081408141208144202020 USING utf32)));
 
 --echo #
 --echo # Bug#21447969 FILTER USING TRIM RESULTS IN CORRECT
@@ -1957,3 +1975,13 @@ SELECT SUBSTRING_INDEX('www.mysql.com', '.', -2147483648);
 SELECT SUBSTRING_INDEX('www.mysql.com', '.', 2147483649);
 SELECT SUBSTRING_INDEX('www.mysql.com', '.', -2147483649);
 set names default;
+
+--echo #
+--echo # Bug#22882717 "BIN", "OCT" FUNCTION LEADS TO MANY VALGRIND ERRORS
+--echo #
+
+SELECT BIN(MID(REPEAT('b',64),21,229));
+SELECT BIN(MID(1.051098E+308,9,99));
+SELECT BIN(RIGHT(REPEAT('b',64),30));
+SELECT BIN(SUBSTRING(REPEAT('b',64),9));
+SELECT OCT(LEFT(REPEAT('b',64),15));

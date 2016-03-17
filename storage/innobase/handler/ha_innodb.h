@@ -26,10 +26,14 @@ extern const char innobase_index_reserve_name[];
 to explicitly create a file_per_table tablespace for the table. */
 extern const char reserved_file_per_table_space_name[];
 
-/* "innodb_system" tablespace name is reserved by InnoDB for the system tablespace
-which uses space_id 0 and stores extra types of system pages like UNDO
-and doublewrite. */
+/* "innodb_system" tablespace name is reserved by InnoDB for the
+system tablespace which uses space_id 0 and stores extra types of
+system pages like UNDO and doublewrite. */
 extern const char reserved_system_space_name[];
+
+/* "innodb_temporary" tablespace name is reserved by InnoDB for the
+predefined shared temporary tablespace. */
+extern const char reserved_temporary_space_name[];
 
 /* Structure defines translation table between mysql index and InnoDB
 index structures */
@@ -662,18 +666,37 @@ tablespace_is_file_per_table(
 			       reserved_file_per_table_space_name)));
 }
 
-/** Check if table will be put in an existing shared general tablespace.
+/** Check if table will be explicitly put in an existing shared general
+or system tablespace.
 @param[in]	create_info	Metadata for the table to create.
-@return true if the table will use an existing shared general tablespace. */
+@return true if the table will use a shared general or system tablespace. */
 UNIV_INLINE
 bool
 tablespace_is_shared_space(
-	const HA_CREATE_INFO*	create_info)
+const HA_CREATE_INFO*	create_info)
 {
 	return(create_info->tablespace != NULL
-	       && create_info->tablespace[0] != '\0'
-	       && (0 != strcmp(create_info->tablespace,
-			       reserved_file_per_table_space_name)));
+		&& create_info->tablespace[0] != '\0'
+		&& (0 != strcmp(create_info->tablespace,
+		reserved_file_per_table_space_name)));
+}
+
+/** Check if table will be explicitly put in a general tablespace.
+@param[in]	create_info	Metadata for the table to create.
+@return true if the table will use a general tablespace. */
+UNIV_INLINE
+bool
+tablespace_is_general_space(
+const HA_CREATE_INFO*	create_info)
+{
+	return(create_info->tablespace != NULL
+		&& create_info->tablespace[0] != '\0'
+		&& (0 != strcmp(create_info->tablespace,
+				reserved_file_per_table_space_name))
+		&& (0 != strcmp(create_info->tablespace,
+				reserved_temporary_space_name))
+		&& (0 != strcmp(create_info->tablespace,
+				reserved_system_space_name)));
 }
 
 /** Parse hint for table and its indexes, and update the information
@@ -739,8 +762,11 @@ public:
 	/** Validate TABLESPACE option. */
 	bool create_option_tablespace_is_valid();
 
+	/** Validate COMPRESSION option. */
+	bool create_option_compression_is_valid();
+
 	/** Prepare to create a table. */
-	int prepare_create_table(const char*		name);
+	int prepare_create_table(const char* name);
 
 	void allocate_trx();
 

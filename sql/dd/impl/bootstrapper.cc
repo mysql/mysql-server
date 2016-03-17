@@ -19,7 +19,6 @@
 #include "log.h"                              // sql_print_warning()
 #include "mysql/mysql_lex_string.h"           // LEX_STRING
 #include "sql_class.h"                        // THD
-#include "sql_db.h"                           // check_db_dir_existence
 #include "sql_prepare.h"                      // Ed_connection
 #include "transaction.h"                      // trans_rollback
 
@@ -800,21 +799,8 @@ bool restart(THD *thd)
     Start out by calling dict init to preserve old
     behavior.
   */
-  if (DDSE_dict_init(thd, DICT_INIT_CHECK_FILES, 0))
-    return true;
-
-  /*
-    Check for DD database directory existence explicitly and
-    quietly to avoid errors printed to stderr.
-  */
-  if (check_db_dir_existence(MYSQL_SCHEMA_NAME.str))
-  {
-    sql_print_error("System schema directory '%s' not found.",
-                    MYSQL_SCHEMA_NAME.str);
-    return true;
-  }
-
-  if (create_schema(thd) ||
+  if (DDSE_dict_init(thd, DICT_INIT_CHECK_FILES, 0) ||
+      create_schema(thd) ||
       create_tables(thd) ||
       read_meta_data(thd) ||
       DDSE_dict_recover(thd, DICT_RECOVERY_RESTART_SERVER,

@@ -383,14 +383,12 @@ static bool add_create_index_prepare (LEX *lex, Table_ident *table)
   return FALSE;
 }
 
-static bool add_create_index (LEX *lex, keytype type,
-                              const LEX_STRING &name,
-                              KEY_CREATE_INFO *info= NULL, bool generated= 0)
+static bool add_create_index(THD *thd, keytype type, const LEX_STRING &name)
 {
-  Key_spec *key;
-  key= new Key_spec(type, name, info ? info : &lex->key_create_info,
-                    generated,
-                    lex->col_list);
+  LEX *lex= thd->lex;
+  const Key_spec *key= new Key_spec(thd->mem_root, type, to_lex_cstring(name),
+                                    &lex->key_create_info, false, true,
+                                    lex->col_list);
   if (key == NULL)
     return TRUE;
 
@@ -427,7 +425,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %expect 121
 
 /*
-   Comments for TOKENS.
+   MAINTAINER:
+
+   1) Comments for TOKENS.
+
    For each token, please include in the same line a comment that contains
    the following tags:
    SQL-2003-R : Reserved keyword as per SQL-2003
@@ -441,6 +442,37 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
    FUTURE-USE : Reserved for futur use
 
    This makes the code grep-able, and helps maintenance.
+
+   2) About token values
+
+   Token values are assigned by bison, in order of declaration.
+
+   Token values are used in query DIGESTS.
+   To make DIGESTS stable, it is desirable to avoid changing token values.
+
+   In practice, this means adding new tokens at the end of the list,
+   in the current release section (5.8),
+   instead of adding them in the middle of the list.
+
+   Failing to comply with instructions below will trigger build failure,
+   as this process is enforced by gen_lex_token.
+
+   3) Instructions to add a new token:
+
+   Add the new token at the end of the list,
+   in the MySQL 5.8 section.
+
+   4) Instructions to remove an old token:
+
+   Do not remove the token, rename it as follows:
+   %token OBSOLETE_TOKEN_<NNN> / * was: TOKEN_FOO * /
+   where NNN is the token value (found in sql_yacc.h)
+
+   For example, see OBSOLETE_TOKEN_820
+*/
+
+/*
+   Tokens from MySQL 5.7, keep in alphabetical order.
 */
 
 %token  ABORT_SYM                     /* INTERNAL (used in lex) */
@@ -700,7 +732,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  ITERATE_SYM
 %token  JOIN_SYM                      /* SQL-2003-R */
 %token  JSON_SEPARATOR_SYM            /* MYSQL */
-%token  JSON_UNQUOTED_SEPARATOR_SYM   /* MYSQL */
 %token  JSON_SYM                      /* MYSQL */
 %token  KEYS
 %token  KEY_BLOCK_SIZE
@@ -1006,6 +1037,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  SYSDATE
 %token  TABLES
 %token  TABLESPACE_SYM
+%token  OBSOLETE_TOKEN_820            /* was: TABLE_REF_PRIORITY */
 %token  TABLE_SYM                     /* SQL-2003-R */
 %token  TABLE_CHECKSUM_SYM
 %token  TABLE_NAME_SYM                /* SQL-2003-N */
@@ -1092,6 +1124,12 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  YEAR_MONTH_SYM
 %token  YEAR_SYM                      /* SQL-2003-R */
 %token  ZEROFILL
+
+/*
+   Tokens from MySQL 5.8
+*/
+
+%token  JSON_UNQUOTED_SEPARATOR_SYM   /* MYSQL */
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -2275,7 +2313,7 @@ create:
           }
           '(' key_list ')' normal_key_options
           {
-            if (add_create_index(Lex, $2, $4))
+            if (add_create_index(YYTHD, $2, $4))
               MYSQL_YYABORT;
           }
           opt_index_lock_algorithm { }
@@ -2287,7 +2325,7 @@ create:
           }
           '(' key_list ')' fulltext_key_options
           {
-            if (add_create_index(Lex, $2, $4))
+            if (add_create_index(YYTHD, $2, $4))
               MYSQL_YYABORT;
           }
           opt_index_lock_algorithm { }
@@ -2299,7 +2337,7 @@ create:
           }
           '(' key_list ')' spatial_key_options
           {
-            if (add_create_index(Lex, $2, $4))
+            if (add_create_index(YYTHD, $2, $4))
               MYSQL_YYABORT;
           }
           opt_index_lock_algorithm { }
@@ -2317,7 +2355,7 @@ create:
           }
         | CREATE
           {
-            Lex->create_view_mode= VIEW_CREATE_NEW;
+            Lex->create_view_mode= enum_view_create_mode::VIEW_CREATE_NEW;
             Lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
             Lex->create_view_suid= TRUE;
           }
@@ -2541,7 +2579,7 @@ ev_sql_stmt:
             }
 
             sp_head *sp= sp_start_parsing(thd,
-                                          SP_TYPE_EVENT,
+                                          enum_sp_type::EVENT,
                                           lex->event_parse_data->identifier);
 
             if (!sp)
@@ -2660,7 +2698,7 @@ sp_c_chistics:
 /* Characteristics for both create and alter */
 sp_chistic:
           COMMENT_SYM TEXT_STRING_sys
-          { Lex->sp_chistics.comment= $2; }
+          { Lex->sp_chistics.comment= to_lex_cstring($2); }
         | LANGUAGE_SYM SQL_SYM
           { /* Just parse it, we only have one language for now. */ }
         | NO_SYM SQL_SYM
@@ -2701,7 +2739,7 @@ call:
             lex->sql_command= SQLCOM_CALL;
             lex->spname= $2;
             lex->call_value_list.empty();
-            sp_add_used_routine(lex, YYTHD, $2, SP_TYPE_PROCEDURE);
+            sp_add_used_routine(lex, YYTHD, $2, enum_sp_type::PROCEDURE);
           }
           opt_sp_cparam_list {}
         ;
@@ -2770,6 +2808,9 @@ sp_fdparam:
             LEX *lex= thd->lex;
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
 
+            if (sp_check_name(&$1))
+              MYSQL_YYABORT;
+
             if (pctx->find_variable($1, TRUE))
             {
               my_error(ER_SP_DUP_PARAM, MYF(0), $1.str);
@@ -2809,6 +2850,9 @@ sp_pdparam:
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
+
+            if (sp_check_name(&$3))
+              MYSQL_YYABORT;
 
             if (pctx->find_variable($3, TRUE))
             {
@@ -3733,7 +3777,7 @@ sp_proc_stmt_return:
 
             /* Check that this is a stored function. */
 
-            if (sp->m_type != SP_TYPE_FUNCTION)
+            if (sp->m_type != enum_sp_type::FUNCTION)
             {
               my_error(ER_SP_BADRETURN, MYF(0));
               MYSQL_YYABORT;
@@ -6218,32 +6262,34 @@ column_def:
 key_def:
           normal_key_type opt_ident key_alg '(' key_list ')' normal_key_options
           {
-            if (add_create_index (Lex, $1, $2))
+            if (add_create_index (YYTHD, $1, $2))
               MYSQL_YYABORT;
           }
         | fulltext opt_key_or_index opt_ident init_key_options
             '(' key_list ')' fulltext_key_options
           {
-            if (add_create_index (Lex, $1, $3))
+            if (add_create_index (YYTHD, $1, $3))
               MYSQL_YYABORT;
           }
         | spatial opt_key_or_index opt_ident init_key_options
             '(' key_list ')' spatial_key_options
           {
-            if (add_create_index (Lex, $1, $3))
+            if (add_create_index (YYTHD, $1, $3))
               MYSQL_YYABORT;
           }
         | opt_constraint constraint_key_type opt_ident key_alg
           '(' key_list ')' normal_key_options
           {
-            if (add_create_index (Lex, $2, $3.str ? $3 : $1))
+            if (add_create_index (YYTHD, $2, $3.str ? $3 : $1))
               MYSQL_YYABORT;
           }
         | opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
           {
             LEX *lex=Lex;
-            Key_spec *key=
-              new Foreign_key_spec($4.str ? $4 : $1, lex->col_list,
+            const Key_spec *key=
+              new Foreign_key_spec(YYTHD->mem_root,
+                                   to_lex_cstring($4.str ? $4 : $1),
+                                   lex->col_list,
                                    $8->db,
                                    $8->table,
                                    lex->ref_list,
@@ -6253,9 +6299,14 @@ key_def:
             if (key == NULL)
               MYSQL_YYABORT;
             lex->alter_info.key_list.push_back(key);
-            if (add_create_index (lex, KEYTYPE_MULTIPLE, $1.str ? $1 : $4,
-                                  &default_key_create_info, 1))
+            const Key_spec *backing_key=
+              new Key_spec(YYTHD->mem_root, KEYTYPE_MULTIPLE,
+                           to_lex_cstring($1.str ? $1 : $4),
+                           &default_key_create_info, true, true, lex->col_list);
+            if (backing_key == NULL)
               MYSQL_YYABORT;
+            lex->alter_info.key_list.push_back(backing_key);
+            lex->col_list.empty();
             /* Only used for ALTER TABLE. Ignored otherwise. */
             lex->alter_info.flags|= Alter_info::ADD_FOREIGN_KEY;
           }
@@ -7197,14 +7248,14 @@ opt_ref_list:
 ref_list:
           ref_list ',' ident
           {
-            Key_part_spec *key= new Key_part_spec($3, 0);
+            Key_part_spec *key= new Key_part_spec(to_lex_cstring($3), 0);
             if (key == NULL)
               MYSQL_YYABORT;
             Lex->ref_list.push_back(key);
           }
         | ident
           {
-            Key_part_spec *key= new Key_part_spec($1, 0);
+            Key_part_spec *key= new Key_part_spec(to_lex_cstring($1), 0);
             if (key == NULL)
               MYSQL_YYABORT;
             LEX *lex= Lex;
@@ -7371,7 +7422,8 @@ key_using_alg:
 all_key_opt:
           KEY_BLOCK_SIZE opt_equal ulong_num
           { Lex->key_create_info.block_size= $3; }
-        | COMMENT_SYM TEXT_STRING_sys { Lex->key_create_info.comment= $2; }
+        | COMMENT_SYM TEXT_STRING_sys
+          { Lex->key_create_info.comment= to_lex_cstring($2); }
         ;
 
 normal_key_opt:
@@ -7389,7 +7441,7 @@ fulltext_key_opt:
           {
             LEX_CSTRING plugin_name= {$3.str, $3.length};
             if (plugin_is_ready(plugin_name, MYSQL_FTPARSER_PLUGIN))
-              Lex->key_create_info.parser_name= $3;
+              Lex->key_create_info.parser_name= to_lex_cstring($3);
             else
             {
               my_error(ER_FUNCTION_NOT_DEFINED, MYF(0), $3.str);
@@ -7412,7 +7464,7 @@ key_list:
 key_part:
           ident
           {
-            $$= new Key_part_spec($1, 0);
+            $$= new Key_part_spec(to_lex_cstring($1), 0);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -7423,7 +7475,7 @@ key_part:
             {
               my_error(ER_KEY_PART_0, MYF(0), $1.str);
             }
-            $$= new Key_part_spec($1, (uint) key_part_len);
+            $$= new Key_part_spec(to_lex_cstring($1), (uint) key_part_len);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -7546,7 +7598,7 @@ alter:
               my_error(ER_SP_BADSTATEMENT, MYF(0), "ALTER VIEW");
               MYSQL_YYABORT;
             }
-            lex->create_view_mode= VIEW_ALTER;
+            lex->create_view_mode= enum_view_create_mode::VIEW_ALTER;
           }
           view_tail
           {}
@@ -7565,7 +7617,7 @@ alter:
               MYSQL_YYABORT;
             }
             lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
-            lex->create_view_mode= VIEW_ALTER;
+            lex->create_view_mode= enum_view_create_mode::VIEW_ALTER;
           }
           view_tail
           {}
@@ -14331,15 +14383,15 @@ handler_read_or_scan:
         ;
 
 handler_scan_function:
-          FIRST_SYM { $$= RFIRST; }
-        | NEXT_SYM  { $$= RNEXT;  }
+          FIRST_SYM { $$= enum_ha_read_modes::RFIRST; }
+        | NEXT_SYM  { $$= enum_ha_read_modes::RNEXT;  }
         ;
 
 handler_rkey_function:
-          FIRST_SYM { $$= RFIRST; }
-        | NEXT_SYM  { $$= RNEXT;  }
-        | PREV_SYM  { $$= RPREV;  }
-        | LAST_SYM  { $$= RLAST;  }
+          FIRST_SYM { $$= enum_ha_read_modes::RFIRST; }
+        | NEXT_SYM  { $$= enum_ha_read_modes::RNEXT;  }
+        | PREV_SYM  { $$= enum_ha_read_modes::RPREV;  }
+        | LAST_SYM  { $$= enum_ha_read_modes::RLAST;  }
         | handler_rkey_mode
           {
             YYTHD->m_parser_state->m_yacc.m_ha_rkey_mode= $1;
@@ -14348,7 +14400,7 @@ handler_rkey_function:
           {
             CONTEXTUALIZE($4);
             Lex->handler_insert_list= &$4->value;
-            $$= RKEY;
+            $$= enum_ha_read_modes::RKEY;
           }
         ;
 
@@ -15042,7 +15094,7 @@ view_replace_or_algorithm:
 
 view_replace:
           OR_SYM REPLACE
-          { Lex->create_view_mode= VIEW_CREATE_OR_REPLACE; }
+          { Lex->create_view_mode= enum_view_create_mode::VIEW_CREATE_OR_REPLACE; }
         ;
 
 view_algorithm:
@@ -15256,7 +15308,7 @@ trigger_tail:
               lex->trg_ordering_clause_end= @10.cpp.end;
             }
 
-            sp_head *sp= sp_start_parsing(thd, SP_TYPE_TRIGGER, $2);
+            sp_head *sp= sp_start_parsing(thd, enum_sp_type::TRIGGER, $2);
 
             if (!sp)
               MYSQL_YYABORT;
@@ -15367,7 +15419,7 @@ sf_tail:
               MYSQL_YYABORT;
             }
 
-            sp_head *sp= sp_start_parsing(thd, SP_TYPE_FUNCTION, lex->spname);
+            sp_head *sp= sp_start_parsing(thd, enum_sp_type::FUNCTION, lex->spname);
 
             if (!sp)
               MYSQL_YYABORT;
@@ -15493,7 +15545,7 @@ sp_tail:
 
             lex->stmt_definition_begin= @2.cpp.start;
 
-            sp_head *sp= sp_start_parsing(thd, SP_TYPE_PROCEDURE, $2);
+            sp_head *sp= sp_start_parsing(thd, enum_sp_type::PROCEDURE, $2);
 
             if (!sp)
               MYSQL_YYABORT;

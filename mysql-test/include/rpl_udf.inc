@@ -110,7 +110,9 @@ DROP TABLE t1;
 --enable_info
 CREATE FUNCTION myfuncsql_int(i INT) RETURNS INTEGER DETERMINISTIC RETURN i; 
 CREATE FUNCTION myfuncsql_double(d DOUBLE) RETURNS INTEGER DETERMINISTIC RETURN d * 2.00; 
-SELECT db, name, type,  param_list, body, comment FROM mysql.proc WHERE db = 'test' AND name LIKE 'myfuncsql%' ORDER BY name;
+SELECT routine_schema, routine_name, routine_type, routine_definition
+  FROM INFORMATION_SCHEMA.ROUTINES
+  WHERE routine_schema = 'test' AND routine_name LIKE 'myfuncsql%' ORDER BY routine_name;
 --disable_info
 
 sync_slave_with_master;
@@ -118,7 +120,9 @@ sync_slave_with_master;
 # Check to see that UDF CREATE statements were replicated
 --echo "Running on the slave"
 --enable_info
-SELECT db, name, type,  param_list, body, comment FROM mysql.proc WHERE db = 'test' AND name LIKE 'myfuncsql%' ORDER BY name;
+SELECT routine_schema, routine_name, routine_type, routine_definition
+  FROM INFORMATION_SCHEMA.ROUTINES
+  WHERE routine_schema = 'test' AND routine_name LIKE 'myfuncsql%' ORDER BY routine_name;
 --disable_info
 
 connection master;
@@ -149,7 +153,9 @@ connection master;
 --enable_info
 ALTER FUNCTION myfuncsql_int COMMENT "This was altered.";
 ALTER FUNCTION myfuncsql_double COMMENT "This was altered.";
-SELECT db, name, type,  param_list, body, comment FROM mysql.proc WHERE db = 'test' AND name LIKE 'myfuncsql%' ORDER BY name;
+SELECT routine_schema, routine_name, routine_type, routine_definition
+  FROM INFORMATION_SCHEMA.ROUTINES
+  WHERE routine_schema = 'test' AND routine_name LIKE 'myfuncsql%' ORDER BY routine_name;
 --disable_info
 
 sync_slave_with_master;
@@ -157,7 +163,9 @@ sync_slave_with_master;
 # Check to see if data was replicated
 --echo "Running on the slave"
 --enable_info
-SELECT db, name, type,  param_list, body, comment FROM mysql.proc WHERE db = 'test' AND name LIKE 'myfuncsql%' ORDER BY name;
+SELECT routine_schema, routine_name, routine_type, routine_definition
+  FROM INFORMATION_SCHEMA.ROUTINES
+  WHERE routine_schema = 'test' AND routine_name LIKE 'myfuncsql%' ORDER BY routine_name;
 
 # Check to see that the functions are available for execution on the slave
 SELECT myfuncsql_int(25);
@@ -171,7 +179,9 @@ connection master;
 --enable_info
 DROP FUNCTION myfuncsql_double;
 DROP FUNCTION myfuncsql_int;
-SELECT db, name, type,  param_list, body, comment FROM mysql.proc WHERE db = 'test' AND name LIKE 'myfuncsql%' ORDER BY name;
+SELECT routine_schema, routine_name, routine_type, routine_definition
+  FROM INFORMATION_SCHEMA.ROUTINES
+  WHERE routine_schema = 'test' AND routine_name LIKE 'myfuncsql%' ORDER BY routine_name;
 --disable_info
 
 sync_slave_with_master;
@@ -179,7 +189,9 @@ sync_slave_with_master;
 # Check to see if the UDFs were dropped on the slave
 --echo "Running on the slave"
 --enable_info
-SELECT db, name, type,  param_list, body, comment FROM mysql.proc WHERE db = 'test' AND name LIKE 'myfuncsql%' ORDER BY name;
+SELECT routine_schema, routine_name, routine_type, routine_definition
+  FROM INFORMATION_SCHEMA.ROUTINES
+  WHERE routine_schema = 'test' AND routine_name LIKE 'myfuncsql%' ORDER BY routine_name;
 --disable_info
 
 connection master;

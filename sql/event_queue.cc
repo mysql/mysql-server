@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 #include "event_db_repository.h"  // Event_db_repository
 #include "events.h"               // Events
+#include "lock.h"                 // lock_object_name
 #include "log.h"                  // sql_print_error
 #include "psi_memory_key.h"       // key_memory_Event_scheduler_scheduler_param
 #include "sql_audit.h"            // mysql_audit_release
@@ -54,9 +55,9 @@ Event_queue::Event_queue()
    mutex_last_locked_in_func("n/a"),
    mutex_last_unlocked_in_func("n/a"),
    mutex_last_attempted_lock_in_func("n/a"),
-   mutex_queue_data_locked(FALSE),
-   mutex_queue_data_attempting_lock(FALSE),
-   waiting_on_cond(FALSE)
+   mutex_queue_data_locked(false),
+   mutex_queue_data_attempting_lock(false),
+   waiting_on_cond(false)
 {
   mysql_mutex_init(key_LOCK_event_queue, &LOCK_event_queue, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_queue_state, &COND_queue_state);
@@ -83,8 +84,8 @@ Event_queue::~Event_queue()
     Event_queue::init()
 
   RETURN VALUE
-    FALSE  OK
-    TRUE   Error
+    false  OK
+    true   Error
 */
 
 bool
@@ -102,11 +103,11 @@ Event_queue::init_queue(THD *thd)
   }
 
   UNLOCK_QUEUE_DATA();
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 
 err:
   UNLOCK_QUEUE_DATA();
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
 
 
@@ -141,12 +142,12 @@ Event_queue::deinit_queue()
 
   @param[in]  thd      thread handle
   @param[in]  new_element a new element to add to the queue
-  @param[out] created  set to TRUE if no error and the element is
-                       added to the queue, FALSE otherwise
+  @param[out] created  set to true if no error and the element is
+                       added to the queue, false otherwise
 
-  @retval TRUE  an error occured. The value of created is undefined,
+  @retval true  an error occured. The value of created is undefined,
                 the element was not deleted.
-  @retval FALSE success
+  @retval false success
 */
 
 bool
@@ -155,15 +156,16 @@ Event_queue::create_event(THD *thd, Event_queue_element *new_element,
 {
   DBUG_ENTER("Event_queue::create_event");
   DBUG_PRINT("enter", ("thd: 0x%lx et=%s.%s", (long) thd,
-             new_element->dbname.str, new_element->name.str));
+                       new_element->m_schema_name.str,
+                       new_element->m_event_name.str));
 
   /* Will do nothing if the event is disabled */
   new_element->compute_next_execution_time(thd);
-  if (new_element->status != Event_parse_data::ENABLED)
+  if (new_element->m_status != Event_parse_data::ENABLED)
   {
     delete new_element;
-    *created= FALSE;
-    DBUG_RETURN(FALSE);
+    *created= false;
+    DBUG_RETURN(false);
   }
 
   DBUG_PRINT("info", ("new event in the queue: 0x%lx", (long) new_element));
@@ -197,8 +199,8 @@ Event_queue::update_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
   DBUG_ENTER("Event_queue::update_event");
   DBUG_PRINT("enter", ("thd: 0x%lx  et=[%s.%s]", (long) thd, dbname.str, name.str));
 
-  if ((new_element->status == Event_parse_data::DISABLED) ||
-      (new_element->status == Event_parse_data::SLAVESIDE_DISABLED))
+  if ((new_element->m_status == Event_parse_data::DISABLED) ||
+      (new_element->m_status == Event_parse_data::SLAVESIDE_DISABLED))
   {
     DBUG_PRINT("info", ("The event is disabled."));
     /*
@@ -288,7 +290,8 @@ Event_queue::drop_matching_events(THD *thd, LEX_STRING pattern,
   while (i < queue.size())
   {
     Event_queue_element *et= queue[i];
-    DBUG_PRINT("info", ("[%s.%s]?", et->dbname.str, et->name.str));
+    DBUG_PRINT("info", ("[%s.%s]?", et->m_schema_name.str,
+                        et->m_event_name.str));
     if (comparator(pattern, et))
     {
       /*
@@ -300,9 +303,9 @@ Event_queue::drop_matching_events(THD *thd, LEX_STRING pattern,
       queue.remove(i);
 #ifdef HAVE_PSI_SP_INTERFACE
       /* Drop statistics for this stored program from performance schema. */
-      MYSQL_DROP_SP(SP_TYPE_EVENT,
-                    et->dbname.str, et->dbname.length,
-                    et->name.str, et->name.length);
+      MYSQL_DROP_SP(to_uint(enum_sp_type::EVENT),
+                    et->m_schema_name.str, et->m_schema_name.length,
+                    et->m_event_name.str, et->m_event_name.length);
 #endif
       delete et;
     }
@@ -368,7 +371,8 @@ Event_queue::find_n_remove_event(LEX_STRING db, LEX_STRING name)
   {
     Event_queue_element *et= queue[i];
     DBUG_PRINT("info", ("[%s.%s]==[%s.%s]?", db.str, name.str,
-                        et->dbname.str, et->name.str));
+                        et->m_schema_name.str,
+                        et->m_event_name.str));
     if (event_basic_identifier_equal(db, name, et))
     {
       queue.remove(i);
@@ -418,7 +422,7 @@ Event_queue::recalculate_activation_times(THD *thd)
   for (size_t i= queue.size(); i > 0; i--)
   {
     Event_queue_element *element = queue[i - 1];
-    if (element->status != Event_parse_data::DISABLED)
+    if (element->m_status != Event_parse_data::DISABLED)
       break;
     /*
       This won't cause queue re-order, because we remove
@@ -426,17 +430,26 @@ Event_queue::recalculate_activation_times(THD *thd)
     */
     queue.remove(i - 1);
     /*
-      Dropping the event from mysql.event table
+      Dropping the event from Data Dictionary.
     */
-    if (element->dropped)
-      db_repository->drop_event(thd, element->dbname, element->name, false);
+    if (element->m_dropped)
+    {
+      // Acquire exclusive MDL lock.
+      if (lock_object_name(thd, MDL_key::EVENT, element->m_schema_name.str,
+                           element->m_event_name.str))
+        break;
+      db_repository->drop_event(thd, element->m_schema_name,
+                                element->m_event_name, false);
+    }
     delete element;
   }
+  // Release locks taken before drop_event()
+  thd->mdl_context.release_transactional_locks();
   UNLOCK_QUEUE_DATA();
 
   /*
     XXX: The events are dropped only from memory and not from disk
-         even if `drop_list[j]->dropped` is TRUE. There will be still on the
+         even if `drop_list[j]->dropped` is true. There will be still on the
          disk till next server restart.
          Please add code here to do it.
   */
@@ -490,15 +503,16 @@ Event_queue::dbug_dump_queue(time_t now)
   {
     Event_queue_element *et= queue[i];
     DBUG_PRINT("info", ("et: 0x%lx  name: %s.%s", (long) et,
-                        et->dbname.str, et->name.str));
+                        et->m_schema_name.str,
+                        et->m_event_name.str));
     DBUG_PRINT("info", ("exec_at: %lu  starts: %lu  ends: %lu  execs_so_far: %u  "
                         "expr: %ld  et.exec_at: %ld  now: %ld  "
                         "(et.exec_at - now): %d  if: %d",
-                        (long) et->execute_at, (long) et->starts,
-                        (long) et->ends, et->execution_count,
-                        (long) et->expression, (long) et->execute_at,
-                        (long) now, (int) (et->execute_at - now),
-                        et->execute_at <= now));
+                        (long) et->m_execute_at, (long) et->m_starts,
+                        (long) et->m_ends, et->m_execution_count,
+                        (long) et->m_expression, (long) et->m_execute_at,
+                        (long) now, (int) (et->m_execute_at - now),
+                        et->m_execute_at <= now));
   }
   DBUG_VOID_RETURN;
 #endif
@@ -515,16 +529,16 @@ Event_queue::dbug_dump_queue(time_t now)
       event_name [out] The object to execute
 
   RETURN VALUE
-    FALSE  No error. event_name != NULL
-    TRUE   Serious error
+    false  No error. event_name != NULL
+    true   Serious error
 */
 
 bool
 Event_queue::get_top_for_execution_if_time(THD *thd,
                 Event_queue_element_for_exec **event_name)
 {
-  bool ret= FALSE;
-  *event_name= NULL;
+  bool ret= false;
+  *event_name= nullptr;
   my_time_t last_executed= 0;
   int status= 0;
   DBUG_ENTER("Event_queue::get_top_for_execution_if_time");
@@ -532,7 +546,7 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
   LOCK_QUEUE_DATA();
   for (;;)
   {
-    Event_queue_element *top= NULL;
+    Event_queue_element *top= nullptr;
 
     /* Break loop if thd has been killed */
     if (thd->killed)
@@ -559,7 +573,7 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
 
     thd->set_current_time(); /* Get current time */
 
-    next_activation_at= top->execute_at;
+    next_activation_at= top->m_execute_at;
     if (next_activation_at > thd->query_start())
     {
       /*
@@ -576,42 +590,43 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
 
       continue;
     }
-
     if (!(*event_name= new Event_queue_element_for_exec()) ||
-        (*event_name)->init(top->dbname, top->name))
+        (*event_name)->init(top->m_schema_name, top->m_event_name))
     {
-      ret= TRUE;
+      ret= true;
       break;
     }
 
     DBUG_PRINT("info", ("Ready for execution"));
     top->mark_last_executed(thd);
     if (top->compute_next_execution_time(thd))
-      top->status= Event_parse_data::DISABLED;
-    DBUG_PRINT("info", ("event %s status is %d", top->name.str, top->status));
+      top->m_status= Event_parse_data::DISABLED;
+    DBUG_PRINT("info", ("event %s status is %d", top->m_event_name.str,
+                        top->m_status));
 
-    top->execution_count++;
-    (*event_name)->dropped= top->dropped;
+    top->m_execution_count++;
+    (*event_name)->dropped= top->m_dropped;
     /*
       Save new values of last_executed timestamp and event status on stack
       in order to be able to update event description in system table once
       QUEUE_DATA lock is released.
     */
-    last_executed= top->last_executed;
-    status= top->status;
+    last_executed= top->m_last_executed;
+    status= top->m_status;
 
-    if (top->status == Event_parse_data::DISABLED)
+    if (top->m_status == Event_parse_data::DISABLED)
     {
       DBUG_PRINT("info", ("removing from the queue"));
       sql_print_information("Event Scheduler: Last execution of %s.%s. %s",
-                            top->dbname.str, top->name.str,
-                            top->dropped? "Dropping.":"");
+                            top->m_schema_name.str,
+                            top->m_event_name.str,
+                            top->m_dropped? "Dropping.":"");
       delete top;
       queue.pop();
       /*
-       This event will get dropped from mysql.event table in
+       This event will get dropped from mysql.events table in
        Event_job_data::execute() function eventually.
-       So no need add check to drop it from mysql.event table here.
+       So no need add check to drop it from mysql.events table here.
       */
     }
     else
@@ -629,12 +644,20 @@ end:
   if (*event_name)
   {
     DBUG_PRINT("info", ("db: %s  name: %s",
-                        (*event_name)->dbname.str, (*event_name)->name.str));
+                        (*event_name)->dbname.str,
+                        (*event_name)->name.str));
+
+    // Acquire exclusive MDL lock on the event and it's parent schema.
+    if (lock_object_name(thd, MDL_key::EVENT, (*event_name)->dbname.str,
+                         (*event_name)->name.str))
+      DBUG_RETURN(true);
 
     Event_db_repository *db_repository= Events::get_db_repository();
     (void) db_repository->update_timing_fields_for_event(thd,
                             (*event_name)->dbname, (*event_name)->name,
                             last_executed, (ulonglong) status);
+
+    thd->mdl_context.release_transactional_locks();
   }
 
   DBUG_RETURN(ret);
@@ -658,15 +681,15 @@ Event_queue::lock_data(const char *func, uint line)
   DBUG_PRINT("enter", ("func=%s line=%u", func, line));
   mutex_last_attempted_lock_in_func= func;
   mutex_last_attempted_lock_at_line= line;
-  mutex_queue_data_attempting_lock= TRUE;
+  mutex_queue_data_attempting_lock= true;
   mysql_mutex_lock(&LOCK_event_queue);
   mutex_last_attempted_lock_in_func= "";
   mutex_last_attempted_lock_at_line= 0;
-  mutex_queue_data_attempting_lock= FALSE;
+  mutex_queue_data_attempting_lock= false;
 
   mutex_last_locked_in_func= func;
   mutex_last_locked_at_line= line;
-  mutex_queue_data_locked= TRUE;
+  mutex_queue_data_locked= true;
 
   DBUG_VOID_RETURN;
 }
@@ -688,7 +711,7 @@ Event_queue::unlock_data(const char *func, uint line)
   DBUG_ENTER("Event_queue::unlock_data");
   DBUG_PRINT("enter", ("func=%s line=%u", func, line));
   mutex_last_unlocked_at_line= line;
-  mutex_queue_data_locked= FALSE;
+  mutex_queue_data_locked= false;
   mutex_last_unlocked_in_func= func;
   mysql_mutex_unlock(&LOCK_event_queue);
   DBUG_VOID_RETURN;
@@ -712,9 +735,9 @@ Event_queue::cond_wait(THD *thd, struct timespec *abstime, const PSI_stage_info 
                        const char *src_func, const char *src_file, uint src_line)
 {
   DBUG_ENTER("Event_queue::cond_wait");
-  waiting_on_cond= TRUE;
+  waiting_on_cond= true;
   mutex_last_unlocked_at_line= src_line;
-  mutex_queue_data_locked= FALSE;
+  mutex_queue_data_locked= false;
   mutex_last_unlocked_in_func= src_func;
 
   thd->enter_cond(&COND_queue_state, &LOCK_event_queue, stage, NULL, src_func, src_file, src_line);
@@ -729,8 +752,8 @@ Event_queue::cond_wait(THD *thd, struct timespec *abstime, const PSI_stage_info 
 
   mutex_last_locked_in_func= src_func;
   mutex_last_locked_at_line= src_line;
-  mutex_queue_data_locked= TRUE;
-  waiting_on_cond= FALSE;
+  mutex_queue_data_locked= true;
+  waiting_on_cond= false;
 
   /*
     Need to unlock before exit_cond, so we need to relock.

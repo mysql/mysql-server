@@ -13,6 +13,8 @@
 let $oblf=`select @@SESSION.BINLOG_FORMAT`;
 let $otfc=`select @@log_bin_trust_function_creators`;
 
+create function fn16456_1() returns int  return 1;
+
 set global log_bin_trust_function_creators=0;
 
 
@@ -29,6 +31,12 @@ begin
        return unix_timestamp();
 end|
 delimiter ;|
+
+--error ER_BINLOG_UNSAFE_ROUTINE
+alter function fn16456_1 comment "fails" contains SQL;
+--error ER_BINLOG_UNSAFE_ROUTINE
+alter function fn16456_1 MODIFIES SQL DATA;
+drop function fn16456_1;
 
 
 

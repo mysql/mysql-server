@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,8 +18,12 @@
 
 #include "my_global.h"
 
+#include "m_ctype.h"
+
 #include "dd/object_id.h"        // dd::Object_id
 #include "dd/impl/object_key.h"  // dd::Object_key
+
+extern "C" MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
 namespace dd {
 
@@ -292,6 +296,61 @@ private:
 
   int m_second_column_no;
   ulonglong m_second_id;
+};
+
+///////////////////////////////////////////////////////////////////////////
+
+class Routine_name_key : public Object_key
+{
+public:
+  Routine_name_key()
+  { }
+
+  Routine_name_key(int container_id_column_no,
+                   Object_id container_id,
+                   int type_column_no,
+                   uint type,
+                   int name_column_no,
+                   const std::string &object_name)
+   :m_container_id_column_no(container_id_column_no),
+    m_type_column_no(type_column_no),
+    m_name_column_no(name_column_no),
+    m_container_id(container_id),
+    m_type(type),
+    m_object_name(object_name)
+  { }
+
+  // Update a preallocated instance.
+  void update(int container_id_column_no,
+              Object_id container_id,
+              int type_column_no,
+              uint type,
+              int name_column_no,
+              const std::string &object_name)
+  {
+    m_container_id_column_no= container_id_column_no;
+    m_type_column_no= type_column_no;
+    m_name_column_no= name_column_no;
+    m_container_id= container_id;
+    m_type= type;
+    m_object_name= object_name;
+  }
+
+public:
+  virtual Raw_key *create_access_key(Raw_table *db_table) const;
+
+  virtual std::string str() const;
+
+  bool operator <(const Routine_name_key &rhs) const;
+
+private:
+  int m_container_id_column_no;
+  int m_type_column_no;
+  int m_name_column_no;
+
+  Object_id m_container_id;
+  uint m_type;
+  std::string m_object_name;
 };
 
 ///////////////////////////////////////////////////////////////////////////

@@ -22,7 +22,9 @@
 #include "dd/impl/transaction_impl.h"    // dd::Transaction_ro
 #include "dd/impl/raw/raw_record_set.h"  // dd::Raw_record_set
 #include "dd/impl/raw/raw_table.h"       // dd::Raw_table
+#include "dd/types/event.h"              // dd::Event
 #include "dd/types/object_type.h"        // dd::Object_type
+#include "dd/types/routine.h"            // dd::Routine
 #include "dd/types/table.h"              // dd::Table
 #include "dd/types/view.h"               // dd::View
 
@@ -113,13 +115,11 @@ bool Dictionary_object_collection<Object_type>::fetch(
       return true;
     }
 
-    if (!o)
-    {
-      my_error(ER_INVALID_DD_OBJECT_ID, MYF(0), *it);
-      return true;
-    }
-
-    m_array.push_back(o);
+    // Since we don't have metadata lock, the object could have been
+    // deleted after we retrieved the IDs. So we need to check that
+    // the object still exists and it is not an error if it doesn't.
+    if (o)
+      m_array.push_back(o);
   }
 
   // Initialize the iterator.
@@ -137,5 +137,7 @@ template class Dictionary_object_collection<const Schema>;
 template class Dictionary_object_collection<const Table>;
 template class Dictionary_object_collection<const Tablespace>;
 template class Dictionary_object_collection<const View>;
+template class Dictionary_object_collection<const Event>;
+template class Dictionary_object_collection<const Routine>;
 
 }

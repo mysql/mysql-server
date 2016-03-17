@@ -21,7 +21,7 @@
 #include "callback_command_delegate.h"
 #include "sql_data_context.h"
 #include "protocol.h"
-#include "mysqlx_notice.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 #include "ngs/protocol_monitor.h"
 
 #include <boost/bind.hpp>

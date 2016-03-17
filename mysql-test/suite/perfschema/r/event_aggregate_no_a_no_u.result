@@ -35,7 +35,7 @@ event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	47
+wait/synch/rwlock/sql/LOCK_grant	63
 execute dump_waits_history;
 event_name	count(event_name)
 execute dump_stages_account;
@@ -126,7 +126,7 @@ event_name	count_star
 wait/io/file/sql/query_log	1
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	47
+wait/synch/rwlock/sql/LOCK_grant	63
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	1
@@ -230,7 +230,7 @@ event_name	count_star
 wait/io/file/sql/query_log	7
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	2
-wait/synch/rwlock/sql/LOCK_grant	49
+wait/synch/rwlock/sql/LOCK_grant	65
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	7
@@ -290,13 +290,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	1
+localhost	transaction	2
 execute dump_transactions_global;
 event_name	count_star
-transaction	1
+transaction	2
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	1
+transaction	2
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -336,7 +336,7 @@ event_name	count_star
 wait/io/file/sql/query_log	8
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	2
-wait/synch/rwlock/sql/LOCK_grant	49
+wait/synch/rwlock/sql/LOCK_grant	65
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	8
@@ -396,13 +396,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	1
+localhost	transaction	2
 execute dump_transactions_global;
 event_name	count_star
-transaction	1
+transaction	2
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	1
+transaction	2
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -454,7 +454,7 @@ event_name	count_star
 wait/io/file/sql/query_log	14
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	4
-wait/synch/rwlock/sql/LOCK_grant	51
+wait/synch/rwlock/sql/LOCK_grant	67
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	14
@@ -514,13 +514,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	2
+localhost	transaction	3
 execute dump_transactions_global;
 event_name	count_star
-transaction	2
+transaction	3
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	2
+transaction	3
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -563,7 +563,7 @@ event_name	count_star
 wait/io/file/sql/query_log	15
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	4
-wait/synch/rwlock/sql/LOCK_grant	51
+wait/synch/rwlock/sql/LOCK_grant	67
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	15
@@ -623,13 +623,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	2
+localhost	transaction	3
 execute dump_transactions_global;
 event_name	count_star
-transaction	2
+transaction	3
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	2
+transaction	3
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -684,7 +684,7 @@ event_name	count_star
 wait/io/file/sql/query_log	21
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	6
-wait/synch/rwlock/sql/LOCK_grant	53
+wait/synch/rwlock/sql/LOCK_grant	69
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	21
@@ -744,13 +744,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	3
+localhost	transaction	4
 execute dump_transactions_global;
 event_name	count_star
-transaction	3
+transaction	4
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	3
+transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -796,7 +796,7 @@ event_name	count_star
 wait/io/file/sql/query_log	22
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	6
-wait/synch/rwlock/sql/LOCK_grant	53
+wait/synch/rwlock/sql/LOCK_grant	69
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	22
@@ -856,13 +856,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	3
+localhost	transaction	4
 execute dump_transactions_global;
 event_name	count_star
-transaction	3
+transaction	4
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	3
+transaction	4
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -920,7 +920,7 @@ event_name	count_star
 wait/io/file/sql/query_log	28
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	55
+wait/synch/rwlock/sql/LOCK_grant	71
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	28
@@ -980,13 +980,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -1029,7 +1029,7 @@ event_name	count_star
 wait/io/file/sql/query_log	29
 wait/synch/mutex/sql/LOCK_connection_count	1
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	55
+wait/synch/rwlock/sql/LOCK_grant	71
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	29
@@ -1091,13 +1091,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -1137,7 +1137,7 @@ event_name	count_star
 wait/io/file/sql/query_log	30
 wait/synch/mutex/sql/LOCK_connection_count	2
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	55
+wait/synch/rwlock/sql/LOCK_grant	71
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	30
@@ -1199,13 +1199,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -1242,7 +1242,7 @@ event_name	count_star
 wait/io/file/sql/query_log	31
 wait/synch/mutex/sql/LOCK_connection_count	3
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	55
+wait/synch/rwlock/sql/LOCK_grant	71
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	31
@@ -1304,13 +1304,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -1344,7 +1344,7 @@ event_name	count_star
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	55
+wait/synch/rwlock/sql/LOCK_grant	71
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
@@ -1406,13 +1406,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -1447,7 +1447,7 @@ event_name	count_star
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	55
+wait/synch/rwlock/sql/LOCK_grant	71
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
@@ -1509,13 +1509,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -1550,7 +1550,7 @@ event_name	count_star
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	55
+wait/synch/rwlock/sql/LOCK_grant	71
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
@@ -1612,13 +1612,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -1653,7 +1653,7 @@ event_name	count_star
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	55
+wait/synch/rwlock/sql/LOCK_grant	71
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
@@ -1715,13 +1715,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -1756,7 +1756,7 @@ event_name	count_star
 wait/io/file/sql/query_log	32
 wait/synch/mutex/sql/LOCK_connection_count	4
 wait/synch/mutex/sql/LOCK_uuid_generator	8
-wait/synch/rwlock/sql/LOCK_grant	55
+wait/synch/rwlock/sql/LOCK_grant	71
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
@@ -1818,13 +1818,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -1859,7 +1859,7 @@ event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	47
+wait/synch/rwlock/sql/LOCK_grant	63
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
@@ -1921,13 +1921,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -1962,7 +1962,7 @@ event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	47
+wait/synch/rwlock/sql/LOCK_grant	63
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
@@ -2024,13 +2024,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -2065,7 +2065,7 @@ event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	47
+wait/synch/rwlock/sql/LOCK_grant	63
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
@@ -2127,13 +2127,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -2168,7 +2168,7 @@ event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	47
+wait/synch/rwlock/sql/LOCK_grant	63
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
@@ -2230,13 +2230,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -2271,7 +2271,7 @@ event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	47
+wait/synch/rwlock/sql/LOCK_grant	63
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
@@ -2333,13 +2333,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -2374,7 +2374,7 @@ event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	47
+wait/synch/rwlock/sql/LOCK_grant	63
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
@@ -2436,13 +2436,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -2477,7 +2477,7 @@ event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	47
+wait/synch/rwlock/sql/LOCK_grant	63
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
@@ -2539,13 +2539,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -2580,7 +2580,7 @@ event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	47
+wait/synch/rwlock/sql/LOCK_grant	63
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
@@ -2642,13 +2642,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -2683,7 +2683,7 @@ event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	47
+wait/synch/rwlock/sql/LOCK_grant	63
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
@@ -2745,13 +2745,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -2786,7 +2786,7 @@ event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	47
+wait/synch/rwlock/sql/LOCK_grant	63
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
@@ -2848,13 +2848,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -2889,7 +2889,7 @@ event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	47
+wait/synch/rwlock/sql/LOCK_grant	63
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
@@ -2951,13 +2951,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -2992,7 +2992,7 @@ event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	47
+wait/synch/rwlock/sql/LOCK_grant	63
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
@@ -3054,13 +3054,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -3095,7 +3095,7 @@ event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	47
+wait/synch/rwlock/sql/LOCK_grant	63
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
@@ -3157,13 +3157,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -3198,7 +3198,7 @@ event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	47
+wait/synch/rwlock/sql/LOCK_grant	63
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
@@ -3260,13 +3260,13 @@ execute dump_transactions_user;
 user	event_name	count_star
 execute dump_transactions_host;
 host	event_name	count_star
-localhost	transaction	4
+localhost	transaction	5
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -3301,7 +3301,7 @@ event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	47
+wait/synch/rwlock/sql/LOCK_grant	63
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
@@ -3366,10 +3366,10 @@ host	event_name	count_star
 localhost	transaction	0
 execute dump_transactions_global;
 event_name	count_star
-transaction	4
+transaction	5
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -3404,7 +3404,7 @@ event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	47
+wait/synch/rwlock/sql/LOCK_grant	63
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
@@ -3472,7 +3472,7 @@ event_name	count_star
 transaction	0
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -3507,7 +3507,7 @@ event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	47
+wait/synch/rwlock/sql/LOCK_grant	63
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
@@ -3575,7 +3575,7 @@ event_name	count_star
 transaction	0
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -3610,7 +3610,7 @@ event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	47
+wait/synch/rwlock/sql/LOCK_grant	63
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
@@ -3678,7 +3678,7 @@ event_name	count_star
 transaction	0
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;
@@ -3713,7 +3713,7 @@ event_name	count_star
 wait/io/file/sql/query_log	0
 wait/synch/mutex/sql/LOCK_connection_count	0
 wait/synch/mutex/sql/LOCK_uuid_generator	0
-wait/synch/rwlock/sql/LOCK_grant	47
+wait/synch/rwlock/sql/LOCK_grant	63
 execute dump_waits_history;
 event_name	count(event_name)
 wait/io/file/sql/query_log	32
@@ -3781,7 +3781,7 @@ event_name	count_star
 transaction	0
 execute dump_transactions_history;
 event_name	count(event_name)
-transaction	4
+transaction	5
 execute dump_accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 execute dump_users;

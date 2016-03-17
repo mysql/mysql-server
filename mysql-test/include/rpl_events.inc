@@ -31,7 +31,7 @@ CREATE EVENT test.justonce ON SCHEDULE EVERY 2 SECOND DO
 
 # Show the event is alive and present on master
 --echo "Checking event is active on master"
-SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'justonce';
+SELECT event_schema, event_name, status, originator FROM information_schema.events WHERE event_name = 'justonce';
 
 # Wait until event has fired. We know this because t1 will contain 
 # the row from the event.
@@ -54,7 +54,7 @@ eval SELECT count(*) - $events_done as ZERO FROM t1 id;
 --enable_query_log
 
 --echo "Checking event is inactive on slave"
-SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'justonce';
+SELECT event_name, status, originator FROM information_schema.events WHERE  event_name = 'justonce';
 
 # Create an event on the slave and check to see what the originator is.
 --echo "Dropping event test.slave_once on the slave"
@@ -68,7 +68,7 @@ CREATE EVENT test.slave_once ON SCHEDULE EVERY 5 MINUTE STARTS CURRENT_TIMESTAMP
   INSERT IGNORE INTO t1(id, c) VALUES (3, 'from slave_once');
 
 --echo "Checking event status on the slave for originator value = slave's server_id"
-SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'slave_once';
+SELECT event_name, status, originator FROM information_schema.events WHERE event_name = 'slave_once';
 
 --echo "Dropping event test.slave_once on the slave"
 --disable_warnings
@@ -91,12 +91,12 @@ CREATE EVENT test.er ON SCHEDULE EVERY 3 SECOND STARTS CURRENT_TIMESTAMP + INTER
   INSERT IGNORE INTO t1(id, c) VALUES (4, 'from er');
 
 --echo "Checking event status on the master"
-SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND name = 'er';
+SELECT event_name, status, originator, event_definition FROM information_schema.events WHERE  event_name = 'er';
 
 sync_slave_with_master;
 
 --echo "Checking event status on the slave"
-SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND name = 'er';
+SELECT event_name, status, originator, event_definition FROM information_schema.events WHERE event_name = 'er';
 
 connection master;
 --echo "Altering event test.er on the master"
@@ -104,26 +104,26 @@ ALTER EVENT test.er ON SCHEDULE EVERY 5 SECOND STARTS CURRENT_TIMESTAMP + INTERV
   INSERT IGNORE INTO t1(id, c) VALUES (5, 'from alter er');
 
 --echo "Checking event status on the master"
-SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND name = 'er';
+SELECT event_name, status, originator, event_definition FROM information_schema.events WHERE event_name = 'er';
 
 sync_slave_with_master;
 
 --echo "Checking event status on the slave"
-SELECT db, name, status, originator, body FROM mysql.event WHERE db = 'test' AND name = 'er';
+SELECT event_name, status, originator, event_definition FROM information_schema.events WHERE event_name = 'er';
 
 connection master;
 --echo "Dropping event test.er on the master"
 DROP EVENT test.er;
 
 --echo "Checking event status on the master"
-SELECT db, name, status, originator FROM mysql.event WHERE db = 'test';
+SELECT  event_name, status, originator FROM information_schema.events;
 
 --disable_info
 
 sync_slave_with_master;
 
 --echo "Checking event status on the slave"
-SELECT db, name, status, originator FROM mysql.event WHERE db = 'test';
+SELECT event_name, status, originator FROM information_schema.events;
 
 # test the DISABLE ON SLAVE for setting event SLAVESIDE_DISABLED as status
 # on CREATE EVENT
@@ -136,7 +136,7 @@ CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND STARTS CURRENT_TIME
   INSERT IGNORE INTO t1(id, c) VALUES (6, 'from slave_terminate');
 
 --echo "Checking event status on the slave"
-SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'slave_terminate';
+SELECT event_name, status, originator FROM information_schema.events WHERE event_name = 'slave_terminate';
 
 --echo "Dropping event test.slave_terminate on the slave"
 DROP EVENT test.slave_terminate;
@@ -146,7 +146,7 @@ CREATE EVENT test.slave_terminate ON SCHEDULE EVERY 3 SECOND DISABLE ON SLAVE DO
   INSERT IGNORE INTO t1(c) VALUES (7, 'from slave_terminate');
 
 --echo "Checking event status on the slave"
-SELECT db, name, status, originator FROM mysql.event WHERE db = 'test' AND name = 'slave_terminate';
+SELECT  event_name, status, originator FROM information_schema.events WHERE event_name = 'slave_terminate';
 
 --echo "Dropping event test.slave_terminate on the slave"
 DROP EVENT test.slave_terminate;

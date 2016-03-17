@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -152,10 +152,10 @@ bool Explain_format_traditional::push_select_type(List<Item> *items)
     if (buff.append(STRING_WITH_LEN("UNCACHEABLE "), system_charset_info))
       return true;
   }
-  const SELECT_LEX::type_enum sel_type= column_buffer.col_select_type.get();
+  const enum_explain_type sel_type= column_buffer.col_select_type.get();
   const char *type= (column_buffer.mod_type != MT_NONE &&
-                     (sel_type == SELECT_LEX::SLT_PRIMARY ||
-                      sel_type == SELECT_LEX::SLT_SIMPLE)) ?
+                     (sel_type == enum_explain_type::EXPLAIN_PRIMARY ||
+                      sel_type == enum_explain_type::EXPLAIN_SIMPLE)) ?
     mod_type_name[column_buffer.mod_type] :
     SELECT_LEX::get_type_str(sel_type);
 

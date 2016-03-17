@@ -204,8 +204,11 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   {
     if (!schema_exists)
     {
-      sql_print_warning("The system schema does not exist.");
-      my_error(ER_BAD_DB_ERROR, MYF(0), db);
+      sql_print_error("System schema directory does not exist.");
+      // Must set OK explicitly to avoid send_statement_status() failing.
+      // Calling my_error() does not set the error status this early in the
+      // server startup sequence.
+      my_ok(thd);
       DBUG_RETURN(true);
     }
   }
@@ -459,8 +462,11 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
   }
 
   /* Lock all tables and stored routines about to be dropped. */
-  if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout, 0) ||
-      lock_db_routines(thd, db.str))
+  if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout, 0)
+#ifndef EMBEDDED_LIBRARY
+      || Events::lock_schema_events(thd, db.str)
+#endif
+      || lock_db_routines(thd, db.str))
     DBUG_RETURN(true);
 
   /* mysql_ha_rm_tables() requires a non-null TABLE_LIST. */
@@ -501,20 +507,20 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
     */
 
     ha_drop_database(path);
+    thd->clear_error(); /* @todo Do not ignore errors */
     tmp_disable_binlog(thd);
     query_cache.invalidate(thd, db.str);
-    (void) sp_drop_db_routines(thd, db.str); /* @todo Do not ignore errors */
 #ifndef EMBEDDED_LIBRARY
-    Events::drop_schema_events(thd, db.str);
+    error= Events::drop_schema_events(thd, db.str);
 #endif
+    error= (error || (sp_drop_db_routines(thd, db.str) != SP_OK));
     reenable_binlog(thd);
-    thd->clear_error(); /* @todo Do not ignore errors */
 
     /*
       If the directory is a symbolic link, remove the link first, then
       remove the directory the symbolic link pointed at
     */
-    if (found_other_files)
+    if (error || found_other_files)
       error= true;
     else
       error= rm_dir_w_symlink(path, true);
@@ -1064,6 +1070,30 @@ cmp_db_names(const char *db1_name,
 
 
 /**
+  Check if there is a file system directory for the schema name.
+
+  @param db_name     Name of the schema to check.
+
+  @return            true if the directory does not exist; otherwise, false
+*/
+
+static bool check_db_dir_existence(const char *db_name)
+{
+  char db_dir_path[FN_REFLEN + 1];
+  size_t db_dir_path_len;
+
+  db_dir_path_len= build_table_filename(db_dir_path, sizeof(db_dir_path) - 1,
+                                        db_name, "", "", 0);
+
+  if (db_dir_path_len && db_dir_path[db_dir_path_len - 1] == FN_LIBCHAR)
+    db_dir_path[db_dir_path_len - 1]= 0;
+
+  /* Check access. */
+  return my_access(db_dir_path, F_OK);
+}
+
+
+/**
   @brief Change the current database and its attributes unconditionally.
 
   @param thd          thread handle
@@ -1121,8 +1151,8 @@ cmp_db_names(const char *db1_name,
   the stack address was long gone.
 
   @return Operation status
-    @retval FALSE Success
-    @retval TRUE  Error
+    @retval false Success
+    @retval true  Error
 */
 
 bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
@@ -1161,7 +1191,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
     {
       my_error(ER_NO_DB_ERROR, MYF(0));
 
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
   }
 
@@ -1187,7 +1217,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   new_db_file_name.length= new_db_name.length;
 
   if (new_db_file_name.str == NULL)
-    DBUG_RETURN(TRUE);                             /* the error is set */
+    DBUG_RETURN(true);                             /* the error is set */
 
   /*
     NOTE: if check_db_name() fails, we should throw an error in any case,
@@ -1204,7 +1234,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
 
     if (force_switch)
       mysql_change_db_impl(thd, NULL_CSTR, 0, thd->variables.collation_server);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   DBUG_PRINT("info",("Use database: %s", new_db_file_name.str));
@@ -1232,11 +1262,9 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
                                    sctx->priv_host().str,
                                    new_db_file_name.str);
     my_free(new_db_file_name.str);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 #endif
-
-  DEBUG_SYNC(thd, "before_db_dir_check");
 
   if (check_db_dir_existence(new_db_file_name.str))
   {
@@ -1265,13 +1293,14 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
 
       /* The operation failed. */
 
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
   }
 
   /*
-    NOTE: in mysql_change_db_impl() new_db_file_name is assigned to THD
-    attributes and will be freed in THD::~THD().
+    Note that checking for meta data existence is done implicitly
+    in get_default_db_collation(): If the meta data does not exist,
+    the collation is set to NULL.
   */
 
   if (get_default_db_collation(thd, new_db_file_name.str,
@@ -1279,11 +1308,15 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   {
     my_free(new_db_file_name.str);
     DBUG_ASSERT(thd->is_error() || thd->killed);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   db_default_cl= db_default_cl ? db_default_cl : thd->collation();
 
+  /*
+    NOTE: in mysql_change_db_impl() new_db_file_name is assigned to THD
+    attributes and will be freed in THD::~THD().
+  */
   new_db_file_name_cstr.str= new_db_file_name.str;
   new_db_file_name_cstr.length= new_db_file_name.length;
   mysql_change_db_impl(thd, new_db_file_name_cstr, db_access, db_default_cl);
@@ -1300,7 +1333,7 @@ done:
   }
   if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
     thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(thd, NULL);
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -1338,33 +1371,4 @@ bool mysql_opt_change_db(THD *thd,
   backup_current_db_name(thd, saved_db_name);
 
   return mysql_change_db(thd, new_db_name, force_switch);
-}
-
-
-/*
-  Check if there is directory for the database name.
-
-  SYNOPSIS
-    check_db_dir_existence()
-    db_name   database name
-
-  RETURN VALUES
-    FALSE   There is directory for the specified database name.
-    TRUE    The directory does not exist.
-*/
-
-bool check_db_dir_existence(const char *db_name)
-{
-  char db_dir_path[FN_REFLEN + 1];
-  size_t db_dir_path_len;
-
-  db_dir_path_len= build_table_filename(db_dir_path, sizeof(db_dir_path) - 1,
-                                        db_name, "", "", 0);
-
-  if (db_dir_path_len && db_dir_path[db_dir_path_len - 1] == FN_LIBCHAR)
-    db_dir_path[db_dir_path_len - 1]= 0;
-
-  /* Check access. */
-
-  return my_access(db_dir_path, F_OK);
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -1722,8 +1722,9 @@ int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
   table->field[2]->store(combo.user.str,combo.user.length, &my_charset_latin1);
   table->field[3]->store(routine_name, strlen(routine_name),
                          &my_charset_latin1);
-  table->field[4]->store((longlong)(is_proc ?
-                                    SP_TYPE_PROCEDURE : SP_TYPE_FUNCTION),
+  table->field[4]->store((is_proc ?
+                          to_longlong(enum_sp_type::PROCEDURE) :
+                          to_longlong(enum_sp_type::FUNCTION)),
                          TRUE);
   store_record(table,record[1]);                        // store at pos 1
 

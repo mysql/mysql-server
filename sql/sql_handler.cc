@@ -70,8 +70,17 @@
 
 #define HANDLER_TABLES_HASH_SIZE 120
 
-static enum enum_ha_read_modes rkey_to_rnext[]=
-{ RNEXT_SAME, RNEXT, RPREV, RNEXT, RPREV, RNEXT, RPREV, RPREV };
+static enum_ha_read_modes rkey_to_rnext[]=
+{
+  enum_ha_read_modes::RNEXT_SAME,
+  enum_ha_read_modes::RNEXT,
+  enum_ha_read_modes::RPREV,
+  enum_ha_read_modes::RNEXT,
+  enum_ha_read_modes::RPREV,
+  enum_ha_read_modes::RNEXT,
+  enum_ha_read_modes::RPREV,
+  enum_ha_read_modes::RPREV
+};
 
 static bool mysql_ha_open_table(THD *thd, TABLE_LIST *table);
 
@@ -472,7 +481,7 @@ bool Sql_cmd_handler_read::execute(THD *thd)
   SELECT_LEX    *select_lex= lex->select_lex;
   SELECT_LEX_UNIT *unit= lex->unit;
   TABLE_LIST    *tables= select_lex->get_table_list();
-  enum enum_ha_read_modes mode= m_read_mode;
+  enum_ha_read_modes mode= m_read_mode;
   Item          *cond= select_lex->where_cond();
   ha_rows select_limit_cnt, offset_limit_cnt;
   MDL_savepoint mdl_savepoint;
@@ -659,10 +668,10 @@ retry:
     /* Check if the same index involved. */
     if ((uint) keyno != table->file->get_index())
     {
-      if (mode == RNEXT)
-        mode= RFIRST;
-      else if (mode == RPREV)
-        mode= RLAST;
+      if (mode == enum_ha_read_modes::RNEXT)
+        mode= enum_ha_read_modes::RFIRST;
+      else if (mode == enum_ha_read_modes::RPREV)
+        mode= enum_ha_read_modes::RLAST;
     }
   }
 
@@ -695,7 +704,7 @@ retry:
   for (num_rows=0; num_rows < select_limit_cnt; )
   {
     switch (mode) {
-    case RNEXT:
+    case enum_ha_read_modes::RNEXT:
       if (m_key_name)
       {
         if (table->file->inited == handler::INDEX)
@@ -717,7 +726,7 @@ retry:
         natural order, or, vice versa, trying to read next row in natural
         order after reading previous rows in index order.
       */
-    case RFIRST:
+    case enum_ha_read_modes::RFIRST:
       if (m_key_name)
       {
         if (!(error= table->file->ha_index_or_rnd_end()) &&
@@ -730,9 +739,9 @@ retry:
             !(error= table->file->ha_rnd_init(1)))
           error= table->file->ha_rnd_next(table->record[0]);
       }
-      mode=RNEXT;
+      mode= enum_ha_read_modes::RNEXT;
       break;
-    case RPREV:
+    case enum_ha_read_modes::RPREV:
       DBUG_ASSERT(m_key_name != 0);
       /* Check if we read from the same index. */
       DBUG_ASSERT((uint) keyno == table->file->get_index());
@@ -742,19 +751,19 @@ retry:
         break;
       }
       /* else fall through, for more info, see comment before 'case RFIRST'. */
-    case RLAST:
+    case enum_ha_read_modes::RLAST:
       DBUG_ASSERT(m_key_name != 0);
       if (!(error= table->file->ha_index_or_rnd_end()) &&
           !(error= table->file->ha_index_init(keyno, 1)))
         error= table->file->ha_index_last(table->record[0]);
-      mode=RPREV;
+      mode= enum_ha_read_modes::RPREV;
       break;
-    case RNEXT_SAME:
+    case enum_ha_read_modes::RNEXT_SAME:
       /* Continue scan on "(keypart1,keypart2,...)=(c1, c2, ...)  */
       DBUG_ASSERT(table->file->inited == handler::INDEX);
       error= table->file->ha_index_next_same(table->record[0], key, key_len);
       break;
-    case RKEY:
+    case enum_ha_read_modes::RKEY:
     {
       DBUG_ASSERT(m_key_name != 0);
       KEY *keyinfo=table->key_info+keyno;

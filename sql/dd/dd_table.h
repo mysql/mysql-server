@@ -18,8 +18,10 @@
 
 #include "my_global.h"
 
+#include "binary_log_types.h"        // enum_field_types
 #include "handler.h"                 // legacy_db_type
 
+#include "dd/types/column.h"         // enum_column_types
 #include "dd/types/abstract_table.h" // enum_table_type
 
 #include <memory>                    // unique_ptr
@@ -38,6 +40,15 @@ namespace dd {
   }
 
 static const char FIELD_NAME_SEPARATOR_CHAR = ';';
+
+/**
+  Convert from old field type to new enum types for fields in DD framework.
+
+  @param type Old field type.
+
+  @retval New field type.
+*/
+dd::enum_column_types dd_get_new_field_type(enum_field_types type);
 
 /**
   Prepares a dd::Table object from mysql_prepare_create_table() output

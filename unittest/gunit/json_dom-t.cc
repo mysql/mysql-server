@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,7 +70,7 @@ TEST_F(JsonDomTest, BasicTest)
   const std::string std_s("abc");
   Json_string s(std_s);
   EXPECT_EQ(std_s, s.value());
-  EXPECT_EQ(Json_dom::J_STRING, s.json_type());
+  EXPECT_EQ(enum_json_type::J_STRING, s.json_type());
   EXPECT_TRUE(s.is_scalar());
   EXPECT_EQ(1U, s.depth());
   EXPECT_FALSE(s.is_number());
@@ -100,13 +100,13 @@ TEST_F(JsonDomTest, BasicTest)
 
   /* boolean scalar */
   const Json_boolean jb(true);
-  EXPECT_EQ(Json_dom::J_BOOLEAN, jb.json_type());
+  EXPECT_EQ(enum_json_type::J_BOOLEAN, jb.json_type());
   EXPECT_EQ(true, jb.value());
   EXPECT_EQ(std::string("true"), format(jb));
 
   /* Integer scalar */
   const Json_int ji(-123);
-  EXPECT_EQ(Json_dom::J_INT, ji.json_type());
+  EXPECT_EQ(enum_json_type::J_INT, ji.json_type());
   EXPECT_EQ(-123, ji.value());
   EXPECT_EQ(std::string("-123"), format(ji));
 
@@ -117,18 +117,18 @@ TEST_F(JsonDomTest, BasicTest)
   EXPECT_EQ(std::string("9223372036854775807"), format(max_64_int));
 
   const Json_uint max_64_uint(18446744073709551615ULL);
-  EXPECT_EQ(Json_dom::J_UINT, max_64_uint.json_type());
+  EXPECT_EQ(enum_json_type::J_UINT, max_64_uint.json_type());
   EXPECT_EQ(std::string("18446744073709551615"), format(max_64_uint));
 
   /* Double scalar */
   const Json_double jdb(-123.45);
-  EXPECT_EQ(Json_dom::J_DOUBLE, jdb.json_type());
+  EXPECT_EQ(enum_json_type::J_DOUBLE, jdb.json_type());
   EXPECT_EQ(-123.45, jdb.value());
   EXPECT_EQ(std::string("-123.45"), format(jdb));
 
   /* Simple array with strings */
   a.clear();
-  EXPECT_EQ(Json_dom::J_ARRAY, a.json_type());
+  EXPECT_EQ(enum_json_type::J_ARRAY, a.json_type());
   EXPECT_FALSE(a.is_scalar());
   EXPECT_EQ(0U, a.size());
   Json_string js4(std::string("val1"));
@@ -145,11 +145,11 @@ TEST_F(JsonDomTest, BasicTest)
 
   /* Simple object with string values, iterator and array cloning */
   Json_object o;
-  EXPECT_EQ(Json_dom::J_OBJECT, o.json_type());
+  EXPECT_EQ(enum_json_type::J_OBJECT, o.json_type());
   EXPECT_FALSE(a.is_scalar());
   EXPECT_EQ(0U, o.cardinality());
   Json_null null;
-  EXPECT_EQ(Json_dom::J_NULL, null.json_type());
+  EXPECT_EQ(enum_json_type::J_NULL, null.json_type());
   o.add_clone(std::string("key1"), &null);
   o.add_clone(std::string("key2"), &a);
 
@@ -194,7 +194,7 @@ TEST_F(JsonDomTest, BasicTest)
             format(elt));
 
   /* Object access: key look-up */
-  EXPECT_EQ(Json_dom::J_OBJECT, elt->json_type());
+  EXPECT_EQ(enum_json_type::J_OBJECT, elt->json_type());
   Json_object * const object_elt= down_cast<Json_object *>(elt);
   EXPECT_TRUE(object_elt != NULL);
   const Json_dom * const elt2= object_elt->get(std::string("key1"));
@@ -215,7 +215,7 @@ TEST_F(JsonDomTest, BasicTest)
   EXPECT_FALSE(double2my_decimal(0, 3.14, &m));
 
   const Json_decimal jd(m);
-  EXPECT_EQ(Json_dom::J_DECIMAL, jd.json_type());
+  EXPECT_EQ(enum_json_type::J_DECIMAL, jd.json_type());
   EXPECT_TRUE(jd.is_number());
   EXPECT_TRUE(jd.is_scalar());
   const my_decimal m_out= *jd.value();
@@ -264,7 +264,7 @@ TEST_F(JsonDomTest, BasicTest)
                                (my_time_flags_t)0,
                                &status));
   const Json_datetime scalar(dt, MYSQL_TYPE_DATETIME);
-  EXPECT_EQ(Json_dom::J_DATETIME, scalar.json_type());
+  EXPECT_EQ(enum_json_type::J_DATETIME, scalar.json_type());
 
   const MYSQL_TIME *dt_out= scalar.value();
 
@@ -290,7 +290,7 @@ TEST_F(JsonDomTest, BasicTest)
   char i_as_char[4];
   int4store(i_as_char, i);
   Json_opaque opaque(MYSQL_TYPE_TINY_BLOB, i_as_char, sizeof(i_as_char));
-  EXPECT_EQ(Json_dom::J_OPAQUE, opaque.json_type());
+  EXPECT_EQ(enum_json_type::J_OPAQUE, opaque.json_type());
   EXPECT_EQ(i, uint4korr(opaque.value()));
   EXPECT_EQ(MYSQL_TYPE_TINY_BLOB, opaque.type());
   EXPECT_EQ(sizeof(i_as_char), opaque.size());
@@ -441,7 +441,7 @@ TEST_F(JsonDomTest, WrapperTest)
   EXPECT_EQ(w_4.to_dom(thd), w_5.to_dom(thd));
 
   Json_wrapper w_6;
-  EXPECT_EQ(Json_dom::J_ERROR, w_6.type());
+  EXPECT_EQ(enum_json_type::J_ERROR, w_6.type());
   EXPECT_EQ(0U, w_6.length());
   EXPECT_EQ(0U, w_6.depth(thd));
 

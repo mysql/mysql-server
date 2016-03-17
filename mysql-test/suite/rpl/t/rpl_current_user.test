@@ -40,7 +40,7 @@ CREATE TABLE t1(c1 char(100));
 CREATE VIEW test.v_user AS SELECT * FROM mysql.user WHERE User LIKE 'bug48321%';
 CREATE VIEW test.v_tables_priv AS SELECT * FROM mysql.tables_priv WHERE User LIKE 'bug48321%';
 CREATE VIEW test.v_procs_priv AS SELECT * FROM mysql.procs_priv WHERE User LIKE 'bug48321%';
-CREATE VIEW test.v_event AS SELECT definer FROM mysql.event WHERE name = 'e1';
+CREATE VIEW test.v_event AS SELECT definer FROM information_schema.events WHERE event_name = 'e1';
 CREATE PROCEDURE p1() SELECT 1;
 --echo # bug48321_1-01234 has the max length(16) of user.
 set @orig_sql_mode= @@sql_mode;

@@ -424,8 +424,6 @@ user()
 root@localhost
 # - for use of t1 in routines and view:
 grant select on t1 to user1@localhost;
-# - for use of routines:
-grant select on mysql.proc to user1@localhost;
 # - for use of view:
 grant select, show view on v1 to user1@localhost;
 delete from t1 where a<>"first";
@@ -437,27 +435,12 @@ set optimizer_trace_offset=0,optimizer_trace_limit=100;
 call p1();
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
-call p1()	20	0
-set b@0 NULL	20	0
-jump_if_not 3(3) (select count(0) from `somedb`.`t1`)	706	0
-select 22 into b from dual	407	0
-select a into b from t1 limit 1	2164	0
-insert into t1 values(current_user())	20	0
+	0	1
 # Trace exposed body of routine, and content of t1, which we
 # could see anyway:
 show create procedure p1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
-    SQL SECURITY INVOKER
-begin
-declare b int;
-if (select count(*) from t1)
-then
-select 22 into b from dual;
-end if;
-select a into b from t1 limit 1;
-insert into t1 values(current_user());
-end	latin1	latin1_swedish_ci	latin1_swedish_ci
+p1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
 select * from t1 limit 1;
 a
 first
@@ -468,25 +451,12 @@ f1()
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 select f1()	214	0
-select f1()	413	0
-set b@0 NULL	20	0
-select 48 into b from dual	407	0
-select a into b from t1 limit 1	2164	0
-insert into t1 values(current_user())	20	0
-freturn 3 36	20	0
+	0	1
 # Trace exposed body of routine, and content of t1, which we
 # could see anyway:
 show create function f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
-    SQL SECURITY INVOKER
-begin
-declare b int;
-select 48 into b from dual;
-select a into b from t1 limit 1;
-insert into t1 values(current_user());
-return 36;
-end	latin1	latin1_swedish_ci	latin1_swedish_ci
+f1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 select * from v1;
 a
@@ -521,44 +491,6 @@ call p1();
 # Cannot see those substatements which use t1
 select QUERY, TRACE, INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	INSUFFICIENT_PRIVILEGES
-call p1()	{
-  "steps": [
-  ]
-}	0
-set b@0 NULL	{
-  "steps": [
-  ]
-}	0
-		1
-select 22 into b from dual	{
-  "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select 22 AS `22`"
-          }
-        ]
-      }
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
-        ]
-      }
-    },
-    {
-      "join_execution": {
-        "select#": 1,
-        "steps": [
-        ]
-      }
-    }
-  ]
-}	0
-		1
 		1
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 select f1();
@@ -568,25 +500,12 @@ f1()
 select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 select f1()	214	0
-select f1()	413	0
-set b@0 NULL	20	0
-select 48 into b from dual	407	0
 	0	1
-	0	1
-freturn 3 36	20	0
 # Trace exposed body of routine, which we could see anyway:
 set optimizer_trace="enabled=off";
 show create function f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`() RETURNS int(11)
-    SQL SECURITY INVOKER
-begin
-declare b int;
-select 48 into b from dual;
-select a into b from t1 limit 1;
-insert into t1 values(current_user());
-return 36;
-end	latin1	latin1_swedish_ci	latin1_swedish_ci
+f1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
 set optimizer_trace="enabled=on";
 set optimizer_trace_offset=0,optimizer_trace_limit=100;
 select * from v1;
@@ -601,72 +520,13 @@ QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 	0	1
 	0	1
 
-# C.2) remove table-level SELECT privilege on mysql.proc
+# C.2) remove table-level SELECT privilege on view
 
 select user();
 user()
 root@localhost
 # Put back privilege removed in C.1
 grant select on t1 to user1@localhost;
-# And remove a next one:
-revoke select on mysql.proc from user1@localhost;
-delete from t1 where a<>"first";
-
-select user();
-user()
-user1@localhost
-# We have no right to see routines' bodies:
-set optimizer_trace="enabled=off";
-show create procedure p1;
-Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
-show create function f1;
-Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
-# Verify that optimizer trace does not influence the privilege
-# checking in SHOW CREATE:
-set optimizer_trace="enabled=on";
-show create procedure p1;
-Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
-show create function f1;
-Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	NULL	latin1	latin1_swedish_ci	latin1_swedish_ci
-set optimizer_trace_offset=0,optimizer_trace_limit=100;
-call p1();
-# Cannot see anything as it would expose body of routine
-select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
-QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
-	0	1
-set optimizer_trace_offset=0,optimizer_trace_limit=100;
-select f1();
-f1()
-36
-select QUERY, TRACE, INSUFFICIENT_PRIVILEGES from information_schema.OPTIMIZER_TRACE;
-QUERY	TRACE	INSUFFICIENT_PRIVILEGES
-select f1()	{
-  "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select `f1`() AS `f1()`"
-          }
-        ]
-      }
-    }
-  ]
-}	0
-		1
-
-# C.3) remove table-level SELECT privilege on view
-
-select user();
-user()
-root@localhost
-# Put back privilege removed in C.2
-grant select on mysql.proc to user1@localhost;
 # And remove a next one:
 revoke select on v1 from user1@localhost;
 grant select (a) on v1 to user1@localhost;
@@ -686,7 +546,7 @@ QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 	0	1
 	0	1
 
-# C.4) remove SHOW VIEW privilege on view
+# C.3) remove SHOW VIEW privilege on view
 
 select user();
 user()

@@ -28,6 +28,7 @@
 #include "item_subselect.h"     // Item_subselect
 #include "item_sum.h"           // Item_sum_hybrid
 #include "item_json_func.h"     // json_value, get_json_atom_wrapper
+#include "json_dom.h"           // Json_scalar_holder
 #include "mysqld.h"             // log_10
 #include "opt_trace.h"          // Opt_trace_object
 #include "parse_tree_helpers.h" // PT_item_list
@@ -203,7 +204,7 @@ enum_field_types agg_field_type(Item **items, uint nitems)
   @param nitems            Number of items in the array
   @param skip_nulls        Don't collect types of NULL items if TRUE
 
-  @details
+  @note
     This function collects different result types for comparison of the first
     item in the list with each of the remaining items in the 'items' array.
 
@@ -4900,9 +4901,9 @@ cmp_item_row::~cmp_item_row()
 /**
   Allocate comparator objects
 
-  @param item Item to allocate comparator objects for
+  @param  item Item to allocate comparator objects for
 
-  @returns false on success, true on error (OOM)
+  @retval false on success, true on error (OOM)
 */
 
 bool cmp_item_row::alloc_comparators(Item *item)
@@ -6780,7 +6781,7 @@ Item_func_regex::fix_fields(THD *thd, Item **ref)
     {						// Will always return NULL
       maybe_null=1;
       fixed= 1;
-      return FALSE;
+      return thd->is_error();
     }
     else if (comp_res)
       return TRUE;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -401,7 +401,7 @@ bool PTI_simple_ident_q_2d::itemize(Parse_context *pc, Item **res)
     we can't meet simple_ident_nospvar in trigger now. But it
     should be changed in future.
   */
-  if (sp && sp->m_type == SP_TYPE_TRIGGER &&
+  if (sp && sp->m_type == enum_sp_type::TRIGGER &&
       (!my_strcasecmp(system_charset_info, table, "NEW") ||
        !my_strcasecmp(system_charset_info, table, "OLD")))
   {

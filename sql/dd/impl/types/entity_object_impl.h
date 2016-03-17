@@ -79,6 +79,7 @@ protected:
 
   bool store_id(Raw_record *r, int field_idx);
   bool store_name(Raw_record *r, int field_idx);
+  bool store_name(Raw_record *r, int field_idx, bool is_null);
 
 private:
   // NOTE: ID and Name attributes *must* remain private so that we can track

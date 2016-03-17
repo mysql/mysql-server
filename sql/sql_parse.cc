@@ -734,6 +734,12 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CREATE_VIEW]|=      CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_DROP_VIEW]|=        CF_NEEDS_AUTOCOMMIT_OFF;
   sql_command_flags[SQLCOM_ALTER_TABLESPACE]|= CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_CREATE_SPFUNCTION]|= CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_DROP_FUNCTION]|=     CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_ALTER_FUNCTION]|=    CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_CREATE_PROCEDURE]|=  CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_DROP_PROCEDURE]|=    CF_NEEDS_AUTOCOMMIT_OFF;
+  sql_command_flags[SQLCOM_ALTER_PROCEDURE]|=   CF_NEEDS_AUTOCOMMIT_OFF;
 }
 
 bool sqlcom_can_generate_row_events(enum enum_sql_command command)
@@ -4273,7 +4279,7 @@ end_with_restore_list:
       goto error;
 
     name= lex->sphead->name(&namelen);
-    if (lex->sphead->m_type == SP_TYPE_FUNCTION)
+    if (lex->sphead->m_type == enum_sp_type::FUNCTION)
     {
       udf_func *udf = find_udf(name, namelen);
 
@@ -4405,7 +4411,7 @@ end_with_restore_list:
         By this moment all needed SPs should be in cache so no need to look 
         into DB. 
       */
-      if (!(sp= sp_find_routine(thd, SP_TYPE_PROCEDURE, lex->spname,
+      if (!(sp= sp_find_routine(thd, enum_sp_type::PROCEDURE, lex->spname,
                                 &thd->sp_proc_cache, TRUE)))
       {
 	my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PROCEDURE",
@@ -4505,7 +4511,7 @@ end_with_restore_list:
         goto error;
 
       enum_sp_type sp_type= (lex->sql_command == SQLCOM_ALTER_PROCEDURE) ?
-                            SP_TYPE_PROCEDURE : SP_TYPE_FUNCTION;
+                            enum_sp_type::PROCEDURE : enum_sp_type::FUNCTION;
       /*
         Note that if you implement the capability of ALTER FUNCTION to
         alter the body of the function, this command should be made to
@@ -4513,8 +4519,9 @@ end_with_restore_list:
         already puts on CREATE FUNCTION.
       */
       /* Conditionally writes to binlog */
-      int sp_result= sp_update_routine(thd, sp_type, lex->spname,
-                                       &lex->sp_chistics);
+      enum_sp_return_code sp_result= sp_update_routine(thd, sp_type,
+                                                       lex->spname,
+                                                       &lex->sp_chistics);
       if (thd->killed)
         goto error;
       switch (sp_result)
@@ -4522,7 +4529,7 @@ end_with_restore_list:
       case SP_OK:
 	my_ok(thd);
 	break;
-      case SP_KEY_NOT_FOUND:
+      case SP_DOES_NOT_EXISTS:
 	my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
                  SP_COM_STRING(lex), lex->spname->m_qname.str);
 	goto error;
@@ -4585,10 +4592,11 @@ end_with_restore_list:
         goto error;
 
       enum_sp_type sp_type= (lex->sql_command == SQLCOM_DROP_PROCEDURE) ?
-                            SP_TYPE_PROCEDURE : SP_TYPE_FUNCTION;
+                            enum_sp_type::PROCEDURE : enum_sp_type::FUNCTION;
 
       /* Conditionally writes to binlog */
-      int sp_result= sp_drop_routine(thd, sp_type, lex->spname);
+      enum_sp_return_code sp_result= sp_drop_routine(thd, sp_type,
+                                                     lex->spname);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       /*
@@ -4609,7 +4617,7 @@ end_with_restore_list:
       DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
       close_thread_tables(thd);
 
-      if (sp_result != SP_KEY_NOT_FOUND &&
+      if (sp_result != SP_DOES_NOT_EXISTS &&
           sp_automatic_privileges && !opt_noacl &&
           sp_revoke_privileges(thd, db, name,
                                lex->sql_command == SQLCOM_DROP_PROCEDURE))
@@ -4627,7 +4635,7 @@ end_with_restore_list:
       case SP_OK:
 	my_ok(thd);
 	break;
-      case SP_KEY_NOT_FOUND:
+      case SP_DOES_NOT_EXISTS:
 	if (lex->drop_if_exists)
 	{
           res= write_bin_log(thd, true, thd->query().str, thd->query().length);
@@ -4651,13 +4659,13 @@ end_with_restore_list:
     }
   case SQLCOM_SHOW_CREATE_PROC:
     {
-      if (sp_show_create_routine(thd, SP_TYPE_PROCEDURE, lex->spname))
+      if (sp_show_create_routine(thd, enum_sp_type::PROCEDURE, lex->spname))
         goto error;
       break;
     }
   case SQLCOM_SHOW_CREATE_FUNC:
     {
-      if (sp_show_create_routine(thd, SP_TYPE_FUNCTION, lex->spname))
+      if (sp_show_create_routine(thd, enum_sp_type::FUNCTION, lex->spname))
 	goto error;
       break;
     }
@@ -4667,7 +4675,7 @@ end_with_restore_list:
 #ifndef DBUG_OFF
       sp_head *sp;
       enum_sp_type sp_type= (lex->sql_command == SQLCOM_SHOW_PROC_CODE) ?
-                            SP_TYPE_PROCEDURE : SP_TYPE_FUNCTION;
+                            enum_sp_type::PROCEDURE : enum_sp_type::FUNCTION;
 
       if (sp_cache_routine(thd, sp_type, lex->spname, false, &sp))
         goto error;
@@ -5378,12 +5386,18 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
   if (query_cache.send_result_to_client(thd, thd->query()) <= 0)
   {
     LEX *lex= thd->lex;
+    const char *found_semicolon= nullptr;
 
-    bool err= parse_sql(thd, parser_state, NULL);
+    bool err= thd->get_stmt_da()->is_error();
+
     if (!err)
-      err= invoke_post_parse_rewrite_plugins(thd, false);
+    {
+      err= parse_sql(thd, parser_state, NULL);
+      if (!err)
+        err= invoke_post_parse_rewrite_plugins(thd, false);
 
-    const char *found_semicolon= parser_state->m_lip.found_semicolon;
+      found_semicolon= parser_state->m_lip.found_semicolon;
+    }
 
     if (!err)
     {
@@ -5619,22 +5633,22 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
   }
   if (type_modifier & PRI_KEY_FLAG)
   {
-    Key_spec *key;
-    lex->col_list.push_back(new Key_part_spec(*field_name, 0));
-    key= new Key_spec(KEYTYPE_PRIMARY, null_lex_str,
-                      &default_key_create_info,
-                      0, lex->col_list);
-    lex->alter_info.key_list.push_back(key);
+    lex->col_list.push_back(new Key_part_spec(field_name_cstr, 0));
+    lex->alter_info.key_list.push_back(new Key_spec(thd->mem_root,
+                                                    KEYTYPE_PRIMARY,
+                                                    NULL_CSTR,
+                                                    &default_key_create_info,
+                                                    false, true, lex->col_list));
     lex->col_list.empty();
   }
   if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG))
   {
-    Key_spec *key;
-    lex->col_list.push_back(new Key_part_spec(*field_name, 0));
-    key= new Key_spec(KEYTYPE_UNIQUE, null_lex_str,
-                      &default_key_create_info, 0,
-                      lex->col_list);
-    lex->alter_info.key_list.push_back(key);
+    lex->col_list.push_back(new Key_part_spec(field_name_cstr, 0));
+    lex->alter_info.key_list.push_back(new Key_spec(thd->mem_root,
+                                                    KEYTYPE_UNIQUE,
+                                                    NULL_CSTR,
+                                                    &default_key_create_info,
+                                                    false, true, lex->col_list));
     lex->col_list.empty();
   }
 

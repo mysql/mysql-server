@@ -3704,7 +3704,7 @@ use test;
 #           defined by a different user
 #
 # Bug#22761 mysqldump reports no errors when using
-#           --routines without mysql.proc privileges
+#           --routines without proper privileges
 #
 create database mysqldump_test_db;
 grant all privileges on mysqldump_test_db.*  to user1;
@@ -4325,13 +4325,11 @@ DROP DATABASE mysqldump_test_db;
 # Bug#29938 wrong behavior of mysqldump --skip-events
 #           with --all-databases
 #
-TRUNCATE mysql.event;
 USE test;
 CREATE event e29938 ON SCHEDULE AT '2035-12-31 20:01:23' DO SET @bug29938=29938;
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 test	e29938	root@localhost	SYSTEM	ONE TIME	2035-12-31 20:01:23	NULL	NULL	NULL	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
-TRUNCATE mysql.event;
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 test	e29938	root@localhost	SYSTEM	ONE TIME	2035-12-31 20:01:23	NULL	NULL	NULL	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
@@ -4410,7 +4408,7 @@ count(*)
 drop table `load`;
 SET @@GLOBAL.CONCURRENT_INSERT = @OLD_CONCURRENT_INSERT;
 
-Bug #34861 - mysqldump with --tab gives weird output for triggers.
+Bug#34861 - mysqldump with --tab gives weird output for triggers.
 
 CREATE TABLE t1 (f1 INT);
 CREATE TRIGGER tr1 BEFORE UPDATE ON t1 FOR EACH ROW SET @f1 = 1;
@@ -4423,8 +4421,9 @@ tr1	UPDATE	t1	SET @f1 = 1	BEFORE	#		root@localhost	latin1	latin1_swedish_ci	lati
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 test	ev1	root@localhost	SYSTEM	ONE TIME	2030-01-01 00:00:00	NULL	NULL	NULL	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
-SELECT name,body FROM mysql.proc WHERE NAME = 'pr1';
-name	body
+SELECT routine_name, routine_definition FROM INFORMATION_SCHEMA.routines
+WHERE routine_name = 'pr1';
+routine_name	routine_definition
 pr1	SELECT "Meow"
 
 dump table; if anything goes to stdout, it ends up here: ---------------
@@ -4441,8 +4440,9 @@ Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_clie
 tr1	UPDATE	t1	SET @f1 = 1	BEFORE	#		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
-SELECT name,body FROM mysql.proc WHERE NAME = 'pr1';
-name	body
+SELECT routine_name, routine_definition FROM INFORMATION_SCHEMA.routines
+WHERE routine_name = 'pr1';
+routine_name	routine_definition
 
 reload db; this should restore routines and events
 SHOW TRIGGERS;
@@ -4451,8 +4451,9 @@ tr1	UPDATE	t1	SET @f1 = 1	BEFORE	#		root@localhost	latin1	latin1_swedish_ci	lati
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 test	ev1	root@localhost	SYSTEM	ONE TIME	2030-01-01 00:00:00	NULL	NULL	NULL	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
-SELECT name,body FROM mysql.proc WHERE NAME = 'pr1';
-name	body
+SELECT routine_name, routine_definition FROM INFORMATION_SCHEMA.routines
+WHERE routine_name = 'pr1';
+routine_name	routine_definition
 pr1	SELECT "Meow"
 
 cleanup
@@ -5473,16 +5474,16 @@ DROP DATABASE dump_generated;
 # Bug #21549860 MYSQLDUMP/MYSQLPUMP INCLUDES SYS SCHEMA STORED PROGRAMS
 #               EVEN IF SKIPPING SCHEMA
 #
-SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 COUNT(*)
 47
 DROP DATABASE sys;
-SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 COUNT(*)
 0
-SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 COUNT(*)
 0
-SELECT COUNT(*) FROM mysql.proc WHERE db = 'sys';
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.routines WHERE routine_schema = 'sys';
 COUNT(*)
 47

@@ -18,11 +18,18 @@
 
 #include "my_global.h"
 
+#include "dd/object_id.h"     // Object_id
+
+#include <string>
+
 class MDL_ticket;
 class THD;
 typedef struct st_ha_create_information HA_CREATE_INFO;
 
 namespace dd {
+  namespace cache {
+    class Dictionary_client;
+  }
 
 /**
   Check if given schema exists.
@@ -44,7 +51,6 @@ bool alter_schema(THD *thd, const char *schema_name,
 
 /** Remove schema metadata from dd.schemata. */
 bool drop_schema(THD *thd, const char *schema_name);
-
 
 /**
   RAII based class to acquire and release schema meta data locks.

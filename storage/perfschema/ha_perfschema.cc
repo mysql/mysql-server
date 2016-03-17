@@ -1227,6 +1227,8 @@ static struct st_mysql_show_var pfs_status_vars[]=
     (char*) &digest_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_session_connect_attrs_lost",
     (char*) &session_connect_attrs_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
+  {"Performance_schema_session_connect_attrs_longest_seen",
+   (char*) &session_connect_attrs_longest_seen, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_program_lost",
     (char*) &global_program_container.m_lost, SHOW_LONG, SHOW_SCOPE_GLOBAL},
   {"Performance_schema_nested_statement_lost",

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,22 @@
 #include "current_thd.h"
 #include "sql_class.h"
 
-bool 
+bool qep_row::mem_root_str::is_empty()
+{
+  if (deferred)
+  {
+    StringBuffer<128> buff(system_charset_info);
+    if (deferred->eval(&buff) || set(buff))
+    {
+      DBUG_ASSERT(!"OOM!");
+      return true; // ignore OOM
+    }
+    deferred= NULL; // prevent double evaluation, if any
+  }
+  return str == NULL;
+}
+
+bool
 qep_row::mem_root_str::set(const char *str_arg, size_t length_arg)
 {
   deferred= NULL;

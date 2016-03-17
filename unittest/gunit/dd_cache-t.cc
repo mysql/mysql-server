@@ -43,6 +43,8 @@
 #include "dd/impl/types/table_impl.h"
 #include "dd/impl/types/tablespace_impl.h"
 #include "dd/impl/types/view_impl.h"
+#include "dd/impl/types/event_impl.h"
+#include "dd/impl/types/procedure_impl.h"
 
 
 namespace dd {
@@ -209,7 +211,9 @@ typedef ::testing::Types
   dd::Schema_impl,
   dd::Table_impl,
   dd::Tablespace_impl,
-  dd::View_impl
+  dd::View_impl,
+  dd::Event_impl,
+  dd::Procedure_impl
 > DDTypes;
 TYPED_TEST_CASE(CacheTest, DDTypes);
 
@@ -488,6 +492,16 @@ TEST_F(CacheStorageTest, BasicStoreAndGetView)
   test_basic_store_and_get_with_schema<dd::View, dd::View_impl>(this, thd());
 }
 
+TEST_F(CacheStorageTest, BasicStoreAndGetEvent)
+{
+  test_basic_store_and_get_with_schema<dd::Event, dd::Event_impl>(this, thd());
+}
+
+TEST_F(CacheStorageTest, BasicStoreAndGetRoutine)
+{
+  test_basic_store_and_get_with_schema<dd::Procedure, dd::Procedure_impl>(this, thd());
+}
+
 
 TEST_F(CacheStorageTest, GetTableBySePrivateId)
 {
@@ -528,10 +542,6 @@ TEST_F(CacheStorageTest, GetTableBySePrivateId)
   {
     EXPECT_EQ(tab->name(), table_name);
     EXPECT_EQ(*obj, *tab);
-
-    // Get partition by ID
-    const dd::Partition *p= tab->get_partition_by_se_private_id(0xAFFF);
-    EXPECT_EQ(0xAFFFu, p->se_private_id());
 
     const dd::Table *obj2= NULL;
     EXPECT_FALSE(dc->acquire<dd::Table>("mysql", obj->name(), &obj2));

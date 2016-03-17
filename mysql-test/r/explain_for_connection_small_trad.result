@@ -174,3 +174,19 @@ QUERY: SELECT (SELECT rs.t2_id FROM t2 rs WHERE rs.t1_id= (SELECT lt.t1_id FROM 
 STATUS: EQUAL
 QUERY: UPDATE t1 join t2 on (t1.a=t2.a) set t1.id=t2.id 
 STATUS: EQUAL
+QUERY: SELECT DISTINCT   alias2.col_int AS field1 , alias2.col_int AS field2 FROM  a1 AS alias1 LEFT  JOIN aa1 AS alias2 ON  alias1.pk =  alias2.pk WHERE ( alias1.col_int = 8 OR alias1 .pk <= alias1.col_int ) GROUP BY field1, field2  ORDER BY field1, field2 DESC
+STATUS: EQUAL
+QUERY: SELECT DISTINCT   alias1.pk AS field1 FROM  f1 AS alias1 LEFT  JOIN a2 AS alias2 ON  alias1.col_varchar_1024_latin1_key =  alias2 .col_varchar_10_utf8_key WHERE alias1.pk  IN (5, 5) GROUP BY field1 HAVING field1 <= 3
+STATUS: EQUAL
+QUERY: SELECT alias1.pk AS field1 FROM  h2 AS alias1 LEFT  JOIN aa3 AS alias2 ON  alias1.pk =  alias2.col_int_key WHERE alias1.pk <> 9 GROUP BY field1 ORDER BY field1 LIMIT 1 OFFSET 3
+STATUS: EQUAL
+QUERY: SELECT    alias1.pk AS field1 FROM  e1 AS alias1 RIGHT  JOIN cc2 AS alias2 ON  alias1.col_int =  alias2.col_int WHERE alias1.col_int_key  IN (8) 
+STATUS:NOT_EQUAL
+SYNC_POINT:before_reset_query_plan
+Diff: EXPLAIN NORMAL vs OTHER
+@@ -2,2 +2,2 @@
+ 1	SIMPLE	alias1	NULL	ref	col_int_key	col_int_key	5	const	1	100.00	NULL
+-1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using join buffer (Block Nested Loop)
++1	SIMPLE	alias2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
+QUERY: SELECT DISTINCT alias2.pk AS field1, alias2.pk AS field2, alias2.pk AS field3 FROM t1 AS alias1 RIGHT JOIN t2 AS alias2  ON  alias1.col_varchar_key =  alias2.col_varchar_key WHERE alias1.col_int >alias1.col_int HAVING field3 = 7 ORDER BY field1, field2, field3 LIMIT 10 OFFSET 1
+STATUS: EQUAL

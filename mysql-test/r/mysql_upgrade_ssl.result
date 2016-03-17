@@ -5,8 +5,6 @@ mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
-mysql.event                                        OK
-mysql.events                                       OK
 mysql.func                                         OK
 mysql.general_log                                  OK
 mysql.gtid_executed                                OK
@@ -17,12 +15,9 @@ mysql.help_topic                                   OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
-mysql.parameters                                   OK
 mysql.plugin                                       OK
-mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
-mysql.routines                                     OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
@@ -70,8 +65,6 @@ mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
-mysql.event                                        OK
-mysql.events                                       OK
 mysql.func                                         OK
 mysql.general_log                                  OK
 mysql.gtid_executed                                OK
@@ -82,12 +75,9 @@ mysql.help_topic                                   OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
-mysql.parameters                                   OK
 mysql.plugin                                       OK
-mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
-mysql.routines                                     OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK

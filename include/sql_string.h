@@ -1,7 +1,7 @@
 #ifndef SQL_STRING_INCLUDED
 #define SQL_STRING_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -308,14 +308,14 @@ public:
   /*
     PMG 2004.11.12
     This is a method that works the same as perl's "chop". It simply
-    drops the last character of a string. This is useful in the case
+    drops the last byte of a string. This is useful in the case
     of the federated storage handler where I'm building a unknown
     number, list of values and fields to be used in a sql insert
     statement to be run on the remote server, and have a comma after each.
     When the list is complete, I "chop" off the trailing comma
 
-    ex. 
-      String stringobj; 
+    ex.
+      String stringobj;
       stringobj.append("VALUES ('foo', 'fi', 'fo',");
       stringobj.chop();
       stringobj.append(")");
@@ -325,13 +325,13 @@ public:
     VALUES ('foo', 'fi', 'fo',
     VALUES ('foo', 'fi', 'fo'
     VALUES ('foo', 'fi', 'fo')
-      
+
+    This is not safe to call when the string ends in a multi-byte character!
   */
   void chop()
   {
     m_length--;
     m_ptr[m_length]= '\0';
-    DBUG_ASSERT(strlen(m_ptr) == m_length);
   }
 
   void mem_claim()

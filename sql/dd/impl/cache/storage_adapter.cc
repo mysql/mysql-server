@@ -21,6 +21,9 @@
 #include "dd/types/abstract_table.h"          // Abstract_table
 #include "dd/types/charset.h"                 // Charset
 #include "dd/types/collation.h"               // Collation
+#include "dd/types/event.h"                   // Event
+#include "dd/types/function.h"                // Routine, Function
+#include "dd/types/procedure.h"               // Procedure
 #include "dd/types/schema.h"                  // Schema
 #include "dd/types/table.h"                   // Table
 #include "dd/types/tablespace.h"              // Tablespace
@@ -224,6 +227,31 @@ template bool Storage_adapter::get<Collation::aux_key_type, Collation>
         enum_tx_isolation, const Collation **);
 template bool Storage_adapter::drop(THD *, const Collation*);
 template bool Storage_adapter::store(THD *, Collation*);
+
+template bool Storage_adapter::get<Event::id_key_type, Event>
+(THD *, const Event::id_key_type &, enum_tx_isolation, const Event **);
+template bool Storage_adapter::get<Event::name_key_type, Event>
+(THD *, const Event::name_key_type &, enum_tx_isolation, const Event **);
+template bool Storage_adapter::get<Event::aux_key_type, Event>
+(THD *, const Event::aux_key_type &, enum_tx_isolation, const Event **);
+template bool Storage_adapter::drop(THD *, const Event*);
+template bool Storage_adapter::store(THD *, Event*);
+
+template bool Storage_adapter::get<Routine::id_key_type, Routine>
+       (THD *, const Routine::id_key_type &, enum_tx_isolation,
+        const Routine **);
+template bool Storage_adapter::get<Routine::name_key_type, Routine>
+       (THD *, const Routine::name_key_type &, enum_tx_isolation,
+        const Routine **);
+template bool Storage_adapter::get<Routine::aux_key_type, Routine>
+       (THD *, const Routine::aux_key_type &, enum_tx_isolation,
+        const Routine **);
+template bool Storage_adapter::drop(THD *, const Routine*);
+template bool Storage_adapter::store(THD *, Routine*);
+template bool Storage_adapter::drop(THD *, const Function*);
+template bool Storage_adapter::store(THD *, Function*);
+template bool Storage_adapter::drop(THD *, const Procedure*);
+template bool Storage_adapter::store(THD *, Procedure*);
 
 template bool Storage_adapter::get<Schema::id_key_type, Schema>
        (THD *, const Schema::id_key_type &,

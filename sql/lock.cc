@@ -941,6 +941,9 @@ bool lock_tablespace_names(
   other metadata locks already taken by the current connection,
   and we must not wait for MDL locks while holding locks.
 
+  @note name is converted to lowercase before the lock is acquired
+  since stored routine and event names are case insensitive.
+
   @retval FALSE  Success.
   @retval TRUE   Failure: we're in LOCK TABLES mode, or out of memory,
                  or this connection was killed.
@@ -961,6 +964,19 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
   }
 
   DBUG_ASSERT(name);
+  /*
+    Since name is converted to lowercase, check that this function
+    is only used for types which should be treated case insensitively.
+  */
+  DBUG_ASSERT(mdl_type == MDL_key::FUNCTION ||
+              mdl_type == MDL_key::PROCEDURE ||
+              mdl_type == MDL_key::EVENT);
+
+  char lc_name[NAME_LEN + 1];
+  my_stpncpy(lc_name, name, NAME_LEN);
+  my_casedn_str(system_charset_info, lc_name);
+  lc_name[NAME_LEN]= '\0';
+
   DEBUG_SYNC(thd, "before_wait_locked_pname");
 
   if (thd->global_read_lock.can_acquire_protection())
@@ -972,7 +988,7 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
                    MDL_key::SCHEMA, db, "", MDL_INTENTION_EXCLUSIVE,
                    MDL_TRANSACTION);
   MDL_REQUEST_INIT(&mdl_request,
-                   mdl_type, db, name, MDL_EXCLUSIVE, MDL_TRANSACTION);
+                   mdl_type, db, lc_name, MDL_EXCLUSIVE, MDL_TRANSACTION);
 
   mdl_requests.push_front(&mdl_request);
   mdl_requests.push_front(&schema_request);

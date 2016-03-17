@@ -210,6 +210,7 @@ Rsa_authentication_keys::read_key_file(RSA **key_ptr,
     }
 
     /* For public key, read key file content into a char buffer. */
+    bool read_error= false;
     if (!is_priv_key)
     {
       int filesize;
@@ -217,10 +218,18 @@ Rsa_authentication_keys::read_key_file(RSA **key_ptr,
       filesize= ftell(key_file);
       fseek(key_file, 0, SEEK_SET);
       *key_text_buffer= new char[filesize+1];
-      (void) fread(*key_text_buffer, filesize, 1, key_file);
+      int items_read= fread(*key_text_buffer, filesize, 1, key_file);
+      read_error= items_read != 1;
+      if (read_error)
+      {
+        char errbuf[MYSQL_ERRMSG_SIZE];
+        sql_print_error("Failure to read key file: %s",
+                        my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
+      }
       (*key_text_buffer)[filesize]= '\0';
     }
     fclose(key_file);
+    return read_error;
   }
   return false;
 }
@@ -831,10 +840,12 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio)
 
 static bool
 read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
-                          const CHARSET_INFO *from_cs)
+                          MPVIO_EXT *mpvio)
 {
   size_t length, length_length;
   char *ptr_save;
+  MYSQL_SERVER_AUTH_INFO *auth_info= &mpvio->auth_info;
+
   /* not enough bytes to hold the length */
   if (*max_bytes_available < 1)
     return true;
@@ -857,9 +868,19 @@ read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
     return true;
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  if (PSI_THREAD_CALL(set_thread_connect_attrs)(*ptr, length, from_cs))
-    sql_print_warning("Connection attributes of length %lu were truncated",
-                      (unsigned long) length);
+  int bytes_lost;
+  if ((bytes_lost= PSI_THREAD_CALL(set_thread_connect_attrs)(*ptr, length, mpvio->charset_adapter->charset())))
+    sql_print_warning("Connection attributes of length %lu were truncated "
+                      "(%d bytes lost) "
+                      "for connection %llu, user %s@%s (as %s), auth: %s",
+                      (unsigned long) length, (int) bytes_lost,
+                      (unsigned long long) mpvio->thread_id,
+                      (auth_info->user_name == NULL)
+                      ? ""
+                      : auth_info->user_name,
+                      auth_info->host_or_ip,
+                      auth_info->authenticated_as,
+                      mpvio->can_authenticate() ? "yes" : "no");
 #endif /* HAVE_PSI_THREAD_INTERFACE */
   return false;
 }
@@ -1095,8 +1116,7 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   size_t bytes_remaining_in_packet= end - ptr;
 
   if (protocol->has_client_capability(CLIENT_CONNECT_ATTRS) &&
-      read_client_connect_attrs(&ptr, &bytes_remaining_in_packet,
-                                mpvio->charset_adapter->charset()))
+      read_client_connect_attrs(&ptr, &bytes_remaining_in_packet, mpvio))
     DBUG_RETURN(MY_TEST(packet_error));
 
   DBUG_PRINT("info", ("client_plugin=%s, restart", client_plugin));
@@ -1570,11 +1590,6 @@ skip_to_ssl:
   if (client_plugin == NULL)
     client_plugin= &empty_c_string[0];
 
-  if ((protocol->has_client_capability(CLIENT_CONNECT_ATTRS)) &&
-      read_client_connect_attrs(&end, &bytes_remaining_in_packet,
-                                mpvio->charset_adapter->charset()))
-    return packet_error;
-
   char db_buff[NAME_LEN + 1];           // buffer to store db in utf8
   char user_buff[USERNAME_LENGTH + 1];  // buffer to store user in utf8
   uint dummy_errors;
@@ -1628,6 +1643,10 @@ skip_to_ssl:
   }
 
   if (find_mpvio_user(thd, mpvio))
+    return packet_error;
+
+  if (protocol->has_client_capability(CLIENT_CONNECT_ATTRS) &&
+      read_client_connect_attrs(&end, &bytes_remaining_in_packet, mpvio))
     return packet_error;
 
   if (!(protocol->has_client_capability(CLIENT_PLUGIN_AUTH)))
@@ -2205,7 +2224,8 @@ acl_authenticate(THD *thd, enum_server_command command)
     acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
       mpvio.auth_info.authenticated_as, mpvio.db.str, thd, command);
   }
-  if (!mpvio.can_authenticate() && res == CR_OK)
+  if (res == CR_OK &&
+      (!mpvio.can_authenticate() || thd->is_error()))
   {
     res= CR_ERROR;
   }
@@ -2262,6 +2282,9 @@ acl_authenticate(THD *thd, enum_server_command command)
       acl_log_connect(mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
         mpvio.auth_info.authenticated_as, mpvio.db.str, thd, command);
     }
+
+    if (thd->is_error())
+      DBUG_RETURN(1);
 
     if (is_proxy_user)
     {

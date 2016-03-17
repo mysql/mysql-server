@@ -111,3 +111,11 @@ SELECT '\t' REGEXP '[[:blank:]]';
 
 SELECT ' '  REGEXP '[[:space:]]';
 SELECT '\t' REGEXP '[[:space:]]';
+
+--echo #
+--echo # Bug#22836180: REGEXP, ASSERTION FAILED: !THD->IS_ERROR()
+--echo # IN SETUP_FIELDS()
+--echo #
+
+--error ER_WRONG_ARGUMENTS
+DO 1 regexp (multilinestring(point(1,1)));

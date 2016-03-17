@@ -33,7 +33,7 @@
 #include "ngs/ngs_error.h"
 
 #undef ERROR // Needed to avoid conflict with ERROR in mysqlx.pb.h
-#include "mysqlx.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 
 using namespace ngs;
 

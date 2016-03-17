@@ -203,7 +203,7 @@ end|
 #
 # Switch to connection 'con1'.
 # Cache all functions used in the tests below so statements
-# calling them won't need to open and lock mysql.proc table
+# calling them won't need to open and lock data dictionary table
 # and we can assume that each statement locks its tables
 # once during its execution.
 show create procedure p1;
@@ -653,9 +653,9 @@ SET DEBUG_SYNC="before_lock_tables_takes_lock SIGNAL drop WAIT_FOR query";
 DROP EVENT e1;;
 # Connection default
 SET DEBUG_SYNC="now WAIT_FOR drop";
-SELECT name FROM mysql.event, performance_schema.global_variables
+SELECT event_name FROM information_schema.events, performance_schema.global_variables
 WHERE definer = VARIABLE_VALUE;
-name
+event_name
 SET DEBUG_SYNC="now SIGNAL query";
 # Connection con1
 # Reaping: DROP EVENT t1

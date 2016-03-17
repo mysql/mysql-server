@@ -5623,8 +5623,8 @@ ER_SP_RECURSION_LIMIT
         eng "Recursive limit %d (as set by the max_sp_recursion_depth variable) was exceeded for routine %.192s"
         ger "Rekursionsgrenze %d (durch Variable max_sp_recursion_depth gegeben) wurde für Routine %.192s überschritten"
 ER_SP_PROC_TABLE_CORRUPT
-        eng "Failed to load routine %-.192s. The table mysql.proc is missing, corrupt, or contains bad data (internal code %d)"
-        ger "Routine %-.192s konnte nicht geladen werden. Die Tabelle mysql.proc fehlt, ist beschädigt, oder enthält fehlerhafte Daten (interner Code: %d)"
+        eng "Failed to load routine %-.192s. The data dictionary table missing, corrupt, or contains bad data (internal code %d)"
+        ger "Routine %-.192s konnte nicht geladen werden. Die data dictionary Tabelle fehlt, ist beschädigt, oder enthält fehlerhaften Daten (interner Code: %d)"
 ER_SP_WRONG_NAME 42000
         eng "Incorrect routine name '%-.192s'"
         ger "Ungültiger Routinenname '%-.192s'"
@@ -7682,6 +7682,12 @@ ER_INVALID_DD_OBJECT_NAME
 
 ER_TABLESPACE_MISSING_WITH_NAME
    eng "Tablespace %-.192s doesn't exist."
+
+ER_TOO_LONG_ROUTINE_COMMENT
+  eng "Comment for routine '%-.64s' is too long (max = %lu)"
+
+ER_SP_LOAD_FAILED
+  eng "Failed to load routine '%-.64s'."
 
 ER_TOO_LONG_TABLESPACE_COMMENT
   eng "Comment for tablespace '%-.64s' is too long (max = %lu)"

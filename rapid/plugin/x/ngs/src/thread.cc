@@ -23,13 +23,34 @@
 #endif // WIN32
 
 #include "ngs/thread.h"
+#include "my_thread.h"
 
 
-int ngs::thread_create(PSI_thread_key key, Thread_t *thread,
-                       const Thread_attr_t *attr,
-                       Start_routine_t func, void *arg)
+void ngs::thread_create(PSI_thread_key key, Thread_t *thread,
+                        const Thread_attr_t *attr,
+                        Start_routine_t func, void *arg)
 {
-  return mysql_thread_create(key, thread, attr, func, arg);
+  if (attr)
+  {
+    if (mysql_thread_create(key, thread, attr, func, arg))
+      throw std::runtime_error("Could not create a thread");
+
+    return;
+  }
+
+  size_t guardsize = 0;
+#if defined(__ia64__) || defined(__ia64)
+  /*
+  Peculiar things with ia64 platforms - it seems we only have half the
+  stack size in reality, so we have to double it here
+  */
+  guardsize = DEFAULT_THREAD_STACK;
+#endif
+  my_thread_attr_t connection_attrib;
+  (void)my_thread_attr_init(&connection_attrib);
+  my_thread_attr_setstacksize(&connection_attrib, DEFAULT_THREAD_STACK + guardsize);
+  if (mysql_thread_create(key, thread, &connection_attrib, func, arg))
+    throw std::runtime_error("Could not create a thread");
 }
 
 

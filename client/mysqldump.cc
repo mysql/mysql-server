@@ -2219,13 +2219,6 @@ static uint dump_events_for_db(char *db)
   print_comment(sql_file, 0,
                 "\n--\n-- Dumping events for database '%s'\n--\n", db);
 
-  /*
-    not using "mysql_query_with_error_report" because we may have not
-    enough privileges to lock mysql.events.
-  */
-  if (lock_tables)
-    mysql_query(mysql, "LOCK TABLES mysql.event READ");
-
   if (mysql_query_with_error_report(mysql, &event_list_res, "show events"))
     DBUG_RETURN(0);
 
@@ -2368,8 +2361,6 @@ static uint dump_events_for_db(char *db)
   }
   mysql_free_result(event_list_res);
 
-  if (lock_tables)
-    (void) mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES");
   DBUG_RETURN(0);
 }
 
@@ -3679,12 +3670,6 @@ static void dump_table(char *table, char *db)
       dynstr_append_checked(&query_string, " WHERE ");
       dynstr_append_checked(&query_string, where);
     }
-    else if ((!my_strcasecmp(charset_info, db, "mysql")) &&
-             (!my_strcasecmp(charset_info, table, "proc")) &&
-             opt_alldbs)
-    {
-      dynstr_append_checked(&query_string, " WHERE db != 'sys'");
-    }
 
     if (order_by)
     {
@@ -3714,16 +3699,6 @@ static void dump_table(char *table, char *db)
 
       dynstr_append_checked(&query_string, " WHERE ");
       dynstr_append_checked(&query_string, where);
-    }
-    /*
-      If table is mysql.proc then do not dump routines which belong
-      to sys schema
-    */
-    else if ((!my_strcasecmp(charset_info, db, "mysql")) &&
-             (!my_strcasecmp(charset_info, table, "proc")) &&
-             opt_alldbs)
-    {
-      dynstr_append_checked(&query_string, " WHERE db != 'sys'");
     }
     if (order_by)
     {

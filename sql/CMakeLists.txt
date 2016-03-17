@@ -62,6 +62,8 @@ IF(SSL_DEFINES)
 ENDIF()
 
 SET(DD_SOURCES
+  dd/dd_event.cc
+  dd/dd_routine.cc
   dd/dd_schema.cc
   dd/dd_table.cc
   dd/dd_tablespace.cc
@@ -93,11 +95,15 @@ SET(DD_SOURCES
   dd/impl/tables/collations.cc
   dd/impl/tables/columns.cc
   dd/impl/tables/column_type_elements.cc
+  dd/impl/tables/events.cc
   dd/impl/tables/foreign_key_column_usage.cc
   dd/impl/tables/foreign_keys.cc
   dd/impl/tables/index_column_usage.cc
   dd/impl/tables/indexes.cc
   dd/impl/tables/index_partitions.cc
+  dd/impl/tables/parameters.cc
+  dd/impl/tables/parameter_type_elements.cc
+  dd/impl/tables/routines.cc
   dd/impl/tables/schemata.cc
   dd/impl/tables/table_partitions.cc
   dd/impl/tables/table_partition_values.cc
@@ -114,13 +120,19 @@ SET(DD_SOURCES
   dd/impl/types/column_type_element_impl.cc
   dd/impl/types/dictionary_object_table_impl.cc
   dd/impl/types/entity_object_impl.cc
+  dd/impl/types/event_impl.cc
   dd/impl/types/foreign_key_element_impl.cc
   dd/impl/types/foreign_key_impl.cc
+  dd/impl/types/function_impl.cc
   dd/impl/types/index_element_impl.cc
   dd/impl/types/index_impl.cc
+  dd/impl/types/parameter_impl.cc
+  dd/impl/types/parameter_type_element_impl.cc
   dd/impl/types/partition_impl.cc
   dd/impl/types/partition_index_impl.cc
   dd/impl/types/partition_value_impl.cc
+  dd/impl/types/procedure_impl.cc
+  dd/impl/types/routine_impl.cc
   dd/impl/types/schema_impl.cc
   dd/impl/types/table_impl.cc
   dd/impl/types/tablespace_file_impl.cc
@@ -147,6 +159,7 @@ SET(SQL_SHARED_SOURCES
   bootstrap.cc
   conn_handler/connection_handler_manager.cc 
   current_thd.cc
+  dd_sp.cc
   dd_table_share.cc
   debug_sync.cc
   default_values.cc

@@ -7,8 +7,6 @@ mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
-mysql.event                                        OK
-mysql.events                                       OK
 mysql.func                                         OK
 mysql.general_log
 note     : The storage engine for the table doesn't support analyze
@@ -20,12 +18,9 @@ mysql.help_topic                                   OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
-mysql.parameters                                   OK
 mysql.plugin                                       OK
-mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
-mysql.routines                                     OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
@@ -56,10 +51,6 @@ status   : OK
 mysql.engine_cost
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
-mysql.event                                        OK
-mysql.events
-note     : Table does not support optimize, doing recreate + analyze instead
-status   : OK
 mysql.func                                         OK
 mysql.general_log
 note     : The storage engine for the table doesn't support optimize
@@ -86,20 +77,13 @@ mysql.innodb_table_stats
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.ndb_binlog_index                             OK
-mysql.parameters
-note     : Table does not support optimize, doing recreate + analyze instead
-status   : OK
 mysql.plugin
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
-mysql.proc                                         OK
 mysql.procs_priv
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.proxies_priv
-note     : Table does not support optimize, doing recreate + analyze instead
-status   : OK
-mysql.routines
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.server_cost
@@ -150,8 +134,6 @@ mysql.column_stats                                 OK
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.engine_cost                                  OK
-mysql.event                                        OK
-mysql.events                                       OK
 mysql.func                                         OK
 mysql.general_log
 note     : The storage engine for the table doesn't support analyze
@@ -163,12 +145,9 @@ mysql.help_topic                                   OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
-mysql.parameters                                   OK
 mysql.plugin                                       OK
-mysql.proc                                         OK
 mysql.procs_priv                                   OK
 mysql.proxies_priv                                 OK
-mysql.routines                                     OK
 mysql.server_cost                                  OK
 mysql.servers                                      OK
 mysql.slave_master_info                            OK
@@ -194,10 +173,6 @@ mysql.db
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.engine_cost
-note     : Table does not support optimize, doing recreate + analyze instead
-status   : OK
-mysql.event                                        Table is already up to date
-mysql.events
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.func                                         Table is already up to date
@@ -226,20 +201,13 @@ mysql.innodb_table_stats
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.ndb_binlog_index                             Table is already up to date
-mysql.parameters
-note     : Table does not support optimize, doing recreate + analyze instead
-status   : OK
 mysql.plugin
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
-mysql.proc                                         Table is already up to date
 mysql.procs_priv
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.proxies_priv
-note     : Table does not support optimize, doing recreate + analyze instead
-status   : OK
-mysql.routines
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
 mysql.server_cost

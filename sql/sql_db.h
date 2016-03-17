@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,7 +36,6 @@ bool mysql_opt_change_db(THD *thd,
                          LEX_STRING *saved_db_name,
                          bool force_switch,
                          bool *cur_db_changed);
-bool check_db_dir_existence(const char *db_name);
 bool get_default_db_collation(THD *thd,
                               const char *db_name,
                               const CHARSET_INFO **collation);

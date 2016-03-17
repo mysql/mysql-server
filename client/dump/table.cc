@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ Table::Table(uint64 id, const std::string& name, const std::string& schema,
   m_data_lenght(data_lenght)
 {
   using Detail::Pattern_matcher;
-
+  bool engine_line_read= false;
   std::vector<std::string> definition_lines;
   boost::split(definition_lines, sql_formatted_definition,
     boost::is_any_of("\n"), boost::token_compress_on);
@@ -40,7 +40,8 @@ Table::Table(uint64 id, const std::string& name, const std::string& schema,
     it != definition_lines.end(); ++it)
   {
     boost::trim_left(*it);
-    boost::trim_if(*it, boost::is_any_of(","));
+    if (!engine_line_read)
+      boost::trim_if(*it, boost::is_any_of(","));
     // TODO: Look up INFORMATION_SCHEMA and get the table details.
     if (boost::starts_with(*it, "KEY ")
       || boost::starts_with(*it, "INDEX ")
@@ -56,12 +57,13 @@ Table::Table(uint64 id, const std::string& name, const std::string& schema,
     }
     else
     {
-      if ((it+1) == definition_lines.end())
+      if (boost::starts_with(*it, ") ENGINE="))
       {
+        engine_line_read= true;
         std::string &sql_def = m_sql_definition_without_indexes;
         sql_def = boost::algorithm::replace_last_copy(sql_def, ",", "");
       }
-      else if (it != definition_lines.begin())
+      else if (it != definition_lines.begin() && !engine_line_read)
         *it+= ",";
       m_sql_definition_without_indexes+= *it + '\n';
     }

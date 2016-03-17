@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -229,7 +229,7 @@ private:
 
 template <size_t buf_size>
 const char *
-lex2str(const LEX_STRING& str, char (&buf)[buf_size])
+lex2str(const LEX_CSTRING& str, char (&buf)[buf_size])
 {
   my_snprintf(buf, buf_size, "%.*s", (int)str.length, str.str);
   return buf;
@@ -730,17 +730,16 @@ public:
   }
 
 
-  // Adaptor function for calling create() with List<key_part_spec>
+  // Adaptor function for calling create() with Mem_root_array<key_part_spec>
   bool create(NDBDICT *dict, const char* mock_name, const char* child_name,
-              List<Key_part_spec> key_part_list, const NDBCOL * col_types[])
+              const Mem_root_array<const Key_part_spec*> &key_part_list,
+              const NDBCOL * col_types[])
   {
     // Convert List<Key_part_spec> into null terminated const char* array
     const char* col_names[NDB_MAX_ATTRIBUTES_IN_INDEX + 1];
     {
       unsigned i = 0;
-      Key_part_spec* key = 0;
-      List_iterator<Key_part_spec> it1(key_part_list);
-      while ((key= it1++))
+      for (const Key_part_spec *key : key_part_list)
       {
         char col_name_buf[FN_REFLEN];
         const char* col_name = lex2str(key->field_name, col_name_buf);
@@ -1161,15 +1160,13 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
   char tmpbuf[FN_REFLEN];
 
   assert(thd->lex != 0);
-  Key_spec *key= 0;
-  List_iterator<Key_spec> key_iterator(thd->lex->alter_info.key_list);
-  while ((key=key_iterator++))
+  for (const Key_spec *key : thd->lex->alter_info.key_list)
   {
     if (key->type != KEYTYPE_FOREIGN)
       continue;
 
     NDBDICT *dict= ndb->getDictionary();
-    Foreign_key_spec * fk= down_cast<Foreign_key_spec*>(key);
+    const Foreign_key_spec * fk= down_cast<const Foreign_key_spec*>(key);
 
     /**
      * NOTE: we need to fetch also child table...
@@ -1199,9 +1196,7 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
     {
       unsigned pos= 0;
       const NDBTAB * tab= child_tab.get_table();
-      Key_part_spec* col= 0;
-      List_iterator<Key_part_spec> it1(fk->columns);
-      while ((col= it1++))
+      for (const Key_part_spec *col : fk->columns)
       {
         const NDBCOL * ndbcol= tab->getColumn(lex2str(col->field_name,
                                                       tmpbuf));
@@ -1332,9 +1327,7 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
     {
       unsigned pos= 0;
       const NDBTAB * tab= parent_tab.get_table();
-      Key_part_spec* col= 0;
-      List_iterator<Key_part_spec> it1(fk->ref_columns);
-      while ((col= it1++))
+      for (const Key_part_spec *col : fk->ref_columns)
       {
         const NDBCOL * ndbcol= tab->getColumn(lex2str(col->field_name,
                                                       tmpbuf));
@@ -2228,9 +2221,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
 
   // check if fk to drop exists
   {
-    Alter_drop * drop_item= 0;
-    List_iterator<Alter_drop> drop_iterator(thd->lex->alter_info.drop_list);
-    while ((drop_item=drop_iterator++))
+    for (const Alter_drop *drop_item : thd->lex->alter_info.drop_list)
     {
       if (drop_item->type != Alter_drop::FOREIGN_KEY)
         continue;
@@ -2285,9 +2276,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
         const char * name= fk_split_name(db_and_name,obj_list.elements[i].name);
 
         bool found= false;
-        Alter_drop * drop_item= 0;
-        List_iterator<Alter_drop> drop_iterator(thd->lex->alter_info.drop_list);
-        while ((drop_item=drop_iterator++))
+        for (const Alter_drop *drop_item : thd->lex->alter_info.drop_list)
         {
           if (drop_item->type != Alter_drop::FOREIGN_KEY)
             continue;
@@ -2501,9 +2490,7 @@ ha_ndbcluster::drop_fk_for_online_alter(THD * thd, Ndb* ndb, NDBDICT * dict,
     ERR_RETURN(dict->getNdbError());
   }
 
-  Alter_drop * drop_item= 0;
-  List_iterator<Alter_drop> drop_iterator(thd->lex->alter_info.drop_list);
-  while ((drop_item=drop_iterator++))
+  for (const Alter_drop *drop_item : thd->lex->alter_info.drop_list)
   {
     if (drop_item->type != Alter_drop::FOREIGN_KEY)
       continue;

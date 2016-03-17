@@ -46,9 +46,9 @@ namespace ngs
   typedef my_start_routine Start_routine_t;
 #endif
 
-  int thread_create(PSI_thread_key key, Thread_t *thread,
-                    const Thread_attr_t *attr,
-                    Start_routine_t func, void *arg);
+  void thread_create(PSI_thread_key key, Thread_t *thread,
+                     const Thread_attr_t *attr,
+                     Start_routine_t func, void *arg);
   int thread_join(Thread_t *thread, void *   *ret);
 
   class Mutex

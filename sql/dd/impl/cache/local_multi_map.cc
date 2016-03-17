@@ -1,4 +1,4 @@
-/* Copyright (c) 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 #include "dd/types/abstract_table.h"          // Abstract_table
 #include "dd/types/charset.h"                 // Charset
 #include "dd/types/collation.h"               // Collation
+#include "dd/types/event.h"                   // Event
+#include "dd/types/routine.h"                 // Routine
 #include "dd/types/schema.h"                  // Schema
 #include "dd/types/tablespace.h"              // Tablespace
 
@@ -87,6 +89,8 @@ void Local_multi_map<T>::remove(Cache_element<T> *element)
 template class Local_multi_map<Abstract_table>;
 template class Local_multi_map<Charset>;
 template class Local_multi_map<Collation>;
+template class Local_multi_map<Event>;
+template class Local_multi_map<Routine>;
 template class Local_multi_map<Schema>;
 template class Local_multi_map<Tablespace>;
 

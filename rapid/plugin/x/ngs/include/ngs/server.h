@@ -223,6 +223,8 @@ namespace ngs
     void start_client_supervision_timer(const time_duration &oldest_object_time_ms);
     void restart_client_supervision_timer();
 
+    bool on_check_terminated_workers();
+
     static void timeout_call(int sock, short which, void *arg);
   private:
     class Auth_key

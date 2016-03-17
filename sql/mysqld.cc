@@ -38,13 +38,13 @@
 /**
   @page PAGE_GET_STARTED Getting Started
 
+  - @ref start_source
+  - @subpage PAGE_CODING_GUIDELINES
+  - @ref start_debug
+
   @section start_source Build from source
 
   See https://dev.mysql.com/doc/refman/5.8/en/source-installation.html
-
-  @section start_coding_guidelines Coding guidelines
-
-  See http://dev.mysql.com/doc/internals/en/coding-guidelines.html
 
   @section start_debug Debugging
 
@@ -61,6 +61,12 @@
   - #dispatch_command
 
   Replace 'main.parser' with another test script, or write your own, to debug a specific area.
+*/
+
+/**
+  @page PAGE_CODING_GUIDELINES Coding guidelines
+
+  See http://dev.mysql.com/doc/internals/en/coding-guidelines.html
 */
 
 /**
@@ -2504,7 +2510,8 @@ void my_message_sql(uint error, const char *str, myf MyFlags)
   }
 
 #ifndef EMBEDDED_LIBRARY
-  mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_ERROR, error, str);
+  if (error != ER_STACK_OVERRUN_NEED_MORE)
+    mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_ERROR, error, str);
 #endif
 
   if (thd)

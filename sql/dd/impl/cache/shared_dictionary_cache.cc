@@ -1,4 +1,4 @@
-/* Copyright (c) 2016 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -156,6 +156,62 @@ template void Shared_dictionary_cache::put<Collation>(
     Cache_element<Collation>**);
 
 template bool Shared_dictionary_cache::
+   get<Event::id_key_type, Event>(
+     THD *thd, const Event::id_key_type&,
+     Cache_element<Event>**);
+template bool Shared_dictionary_cache::
+   get<Event::name_key_type, Event>(
+     THD *thd, const Event::name_key_type&,
+     Cache_element<Event>**);
+ template bool Shared_dictionary_cache::
+   get<Event::aux_key_type, Event>(
+     THD *thd, const Event::aux_key_type&,
+     Cache_element<Event>**);
+template bool Shared_dictionary_cache::
+   get_uncached<Event::id_key_type, Event>(
+     THD *thd, const Event::id_key_type&,
+     enum_tx_isolation, const Event**) const;
+template bool Shared_dictionary_cache::
+   get_uncached<Event::name_key_type, Event>(
+     THD *thd, const Event::name_key_type&,
+     enum_tx_isolation, const Event**) const;
+template bool Shared_dictionary_cache::
+   get_uncached<Event::aux_key_type, Event>(
+     THD *thd, const Event::aux_key_type&,
+     enum_tx_isolation, const Event**) const;
+template void Shared_dictionary_cache::put<Event>(
+     const Event*,
+     Cache_element<Event>**);
+
+template bool Shared_dictionary_cache::
+  get<Routine::id_key_type, Routine>(
+    THD *thd, const Routine::id_key_type&,
+    Cache_element<Routine>**);
+template bool Shared_dictionary_cache::
+  get<Routine::name_key_type, Routine>(
+    THD *thd, const Routine::name_key_type&,
+    Cache_element<Routine>**);
+template bool Shared_dictionary_cache::
+  get<Routine::aux_key_type, Routine>(
+    THD *thd, const Routine::aux_key_type&,
+    Cache_element<Routine>**);
+template bool Shared_dictionary_cache::
+  get_uncached<Routine::id_key_type, Routine>(
+    THD *thd, const Routine::id_key_type&,
+    enum_tx_isolation, const Routine**) const;
+template bool Shared_dictionary_cache::
+  get_uncached<Routine::name_key_type, Routine>(
+    THD *thd, const Routine::name_key_type&,
+    enum_tx_isolation, const Routine**) const;
+template bool Shared_dictionary_cache::
+  get_uncached<Routine::aux_key_type, Routine>(
+    THD *thd, const Routine::aux_key_type&,
+    enum_tx_isolation, const Routine**) const;
+template void Shared_dictionary_cache::put<Routine>(
+    const Routine*,
+    Cache_element<Routine>**);
+
+template bool Shared_dictionary_cache::
   get<Schema::id_key_type, Schema>(
     THD *thd, const Schema::id_key_type&,
     Cache_element<Schema>**);
@@ -210,6 +266,5 @@ template bool Shared_dictionary_cache::
 template void Shared_dictionary_cache::put<Tablespace>(
     const Tablespace*,
     Cache_element<Tablespace>**);
-
-} // namespace cache
+}
 } // namespace dd

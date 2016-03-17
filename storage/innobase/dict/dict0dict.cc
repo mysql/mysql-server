@@ -7215,6 +7215,10 @@ dict_space_get_id(
 				rec, DICT_FLD__SYS_TABLESPACES__SPACE, &len);
 			ut_ad(len == 4);
 			id = mach_read_from_4(field);
+
+			/* This is normally called by dict_getnext_system()
+			at the end of the index. */
+			btr_pcur_close(&pcur);
 			break;
 		}
 	}

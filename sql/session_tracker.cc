@@ -1076,7 +1076,6 @@ bool Transaction_state_tracker::store(THD *thd, String &buf)
 
         tx.append(STRING_WITH_LEN("SET TRANSACTION ISOLATION LEVEL "));
         tx.append(isol[tx_isol_level - 1].str, isol[tx_isol_level - 1].length);
-        tx.append(STRING_WITH_LEN("; "));
       }
 
       /*
@@ -1090,6 +1089,9 @@ bool Transaction_state_tracker::store(THD *thd, String &buf)
       */
       if ((tx_curr_state & TX_EXPLICIT) && !is_xa)
       {
+        if (tx.length() > 0)
+          tx.append(STRING_WITH_LEN("; "));
+
         tx.append(STRING_WITH_LEN("START TRANSACTION"));
 
         /*
@@ -1127,7 +1129,6 @@ bool Transaction_state_tracker::store(THD *thd, String &buf)
           else
             tx.append(STRING_WITH_LEN(" READ WRITE"));
         }
-        tx.append(STRING_WITH_LEN("; "));
       }
       else if (tx_read_flags != TX_READ_INHERIT)
       {
@@ -1137,11 +1138,14 @@ bool Transaction_state_tracker::store(THD *thd, String &buf)
           in START TRANSACTION, but for now, we'll resysynthesize the original
           command as closely as possible.
         */
+        if (tx.length() > 0)
+          tx.append(STRING_WITH_LEN("; "));
+
         tx.append(STRING_WITH_LEN("SET TRANSACTION "));
         if (tx_read_flags == TX_READ_ONLY)
-          tx.append(STRING_WITH_LEN("READ ONLY; "));
+          tx.append(STRING_WITH_LEN("READ ONLY"));
         else
-          tx.append(STRING_WITH_LEN("READ WRITE; "));
+          tx.append(STRING_WITH_LEN("READ WRITE"));
       }
 
       if ((tx_curr_state & TX_EXPLICIT) && is_xa)
@@ -1149,8 +1153,19 @@ bool Transaction_state_tracker::store(THD *thd, String &buf)
         XID *xid=thd->get_transaction()->xid_state()->get_xid();
         long glen, blen;
 
+        if (tx.length() > 0)
+          tx.append(STRING_WITH_LEN("; "));
+
         tx.append(STRING_WITH_LEN("XA START"));
 
+        /*
+          For now, we return the identifiers verbatim as at present,
+          there is no policy for XIDs. At a later date, we can convert
+          the XID to character_set_client here: that way, the load
+          balancer can (re-) send the string verbatim without having
+          to worry about charsets.  Alternatively, we could normalize
+          by using UTF-8.
+        */
         if ((glen= xid->get_gtrid_length()) > 0)
         {
           tx.append(STRING_WITH_LEN(" '"));
@@ -1169,13 +1184,10 @@ bool Transaction_state_tracker::store(THD *thd, String &buf)
             tx.append_ulonglong(xid->get_format_id());
           }
         }
-
-        tx.append(STRING_WITH_LEN("; "));
       }
 
-      // discard trailing space
       if (tx.length() > 0)
-        tx.chop();
+        tx.append(STRING_WITH_LEN(";"));
     }
 
     {

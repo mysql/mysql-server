@@ -62,6 +62,7 @@ Server::~Server()
 
   if (INVALID_SOCKET != m_tcp_socket)
     Connection_vio::close_socket(m_tcp_socket);
+
 //  stop();
 }
 
@@ -80,7 +81,7 @@ bool Server::setup_accept()
     return false;
   }
 
-  event_set(&m_tcp_event, m_tcp_socket, EV_READ|EV_PERSIST, &Server::on_accept, this);
+  event_set(&m_tcp_event, static_cast<int>(m_tcp_socket), EV_READ|EV_PERSIST, &Server::on_accept, this);
   event_base_set(m_evbase, &m_tcp_event);
 
   event_add(&m_tcp_event, NULL);
@@ -96,6 +97,7 @@ bool Server::prepare(const bool skip_networking, const bool skip_name_resolve)
   {
     if (!setup_accept())
       return false;
+    add_timer(1000, boost::bind(&Server::on_check_terminated_workers, this));
   }
   else
   {
@@ -167,7 +169,7 @@ NOTE: This method may only be called from the same thread as the event loop.
 void Server::add_timer(std::size_t delay_ms, boost::function<bool ()> callback)
 {
   Timer_data *data = new Timer_data();
-  data->tv.tv_sec = delay_ms / 1000;
+  data->tv.tv_sec = static_cast<long>(delay_ms / 1000);
   data->tv.tv_usec = (delay_ms % 1000) * 1000;
   data->callback = callback;
   data->self = this;
@@ -268,7 +270,7 @@ void Server::wait_for_clients_closure()
   {
     if (0 == --num_of_retries)
     {
-      const unsigned int num_of_clients = m_client_list.size();
+      const unsigned int num_of_clients = static_cast<unsigned int>(m_client_list.size());
 
       log_error("Detected %u/%u hanging client", num_of_clients, ngs::Client::num_of_instances.load());
       break;
@@ -398,6 +400,16 @@ void Server::on_accept(int sock, short what, void *ctx)
       Connection_vio::close_socket(nsock);
     }
   }
+}
+
+bool Server::on_check_terminated_workers()
+{
+  if (m_worker_scheduler)
+  {
+    m_worker_scheduler->join_terminating_workers();
+    return true;
+  }
+  return false;
 }
 
 boost::shared_ptr<Session> Server::create_session(boost::shared_ptr<Client> client,

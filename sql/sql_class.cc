@@ -426,6 +426,7 @@ THD::THD(bool enable_plugins)
                  global_system_variables.query_prealloc_size);
   stmt_arena= this;
   thread_stack= 0;
+  m_current_stage_key= 0;
   m_catalog.str= "std";
   m_catalog.length= 3;
   m_security_ctx= &m_main_security_ctx;

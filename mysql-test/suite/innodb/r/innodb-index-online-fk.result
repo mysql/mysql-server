@@ -36,6 +36,7 @@ mysql/index_partitions_ibfk_2	mysql/index_partitions	mysql/indexes	1	0
 mysql/index_partitions_ibfk_3	mysql/index_partitions	mysql/tablespaces	1	0
 mysql/parameters_ibfk_1	mysql/parameters	mysql/routines	1	0
 mysql/parameters_ibfk_2	mysql/parameters	mysql/collations	1	0
+mysql/parameter_type_elements_ibfk_1	mysql/parameter_type_elements	mysql/parameters	1	0
 mysql/routines_ibfk_1	mysql/routines	mysql/schemata	1	0
 mysql/routines_ibfk_2	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_3	mysql/routines	mysql/collations	1	0
@@ -81,6 +82,7 @@ mysql/index_partitions_ibfk_2	index_id	id	0
 mysql/index_partitions_ibfk_3	tablespace_id	id	0
 mysql/parameters_ibfk_1	routine_id	id	0
 mysql/parameters_ibfk_2	collation_id	id	0
+mysql/parameter_type_elements_ibfk_1	parameter_id	id	0
 mysql/routines_ibfk_1	schema_id	id	0
 mysql/routines_ibfk_2	result_collation_id	id	0
 mysql/routines_ibfk_3	client_collation_id	id	0
@@ -160,6 +162,7 @@ mysql/index_partitions_ibfk_2	mysql/index_partitions	mysql/indexes	1	0
 mysql/index_partitions_ibfk_3	mysql/index_partitions	mysql/tablespaces	1	0
 mysql/parameters_ibfk_1	mysql/parameters	mysql/routines	1	0
 mysql/parameters_ibfk_2	mysql/parameters	mysql/collations	1	0
+mysql/parameter_type_elements_ibfk_1	mysql/parameter_type_elements	mysql/parameters	1	0
 mysql/routines_ibfk_1	mysql/routines	mysql/schemata	1	0
 mysql/routines_ibfk_2	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_3	mysql/routines	mysql/collations	1	0
@@ -208,6 +211,7 @@ mysql/index_partitions_ibfk_2	index_id	id	0
 mysql/index_partitions_ibfk_3	tablespace_id	id	0
 mysql/parameters_ibfk_1	routine_id	id	0
 mysql/parameters_ibfk_2	collation_id	id	0
+mysql/parameter_type_elements_ibfk_1	parameter_id	id	0
 mysql/routines_ibfk_1	schema_id	id	0
 mysql/routines_ibfk_2	result_collation_id	id	0
 mysql/routines_ibfk_3	client_collation_id	id	0
@@ -286,6 +290,7 @@ mysql/index_partitions_ibfk_2	mysql/index_partitions	mysql/indexes	1	0
 mysql/index_partitions_ibfk_3	mysql/index_partitions	mysql/tablespaces	1	0
 mysql/parameters_ibfk_1	mysql/parameters	mysql/routines	1	0
 mysql/parameters_ibfk_2	mysql/parameters	mysql/collations	1	0
+mysql/parameter_type_elements_ibfk_1	mysql/parameter_type_elements	mysql/parameters	1	0
 mysql/routines_ibfk_1	mysql/routines	mysql/schemata	1	0
 mysql/routines_ibfk_2	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_3	mysql/routines	mysql/collations	1	0
@@ -335,6 +340,7 @@ mysql/index_partitions_ibfk_2	index_id	id	0
 mysql/index_partitions_ibfk_3	tablespace_id	id	0
 mysql/parameters_ibfk_1	routine_id	id	0
 mysql/parameters_ibfk_2	collation_id	id	0
+mysql/parameter_type_elements_ibfk_1	parameter_id	id	0
 mysql/routines_ibfk_1	schema_id	id	0
 mysql/routines_ibfk_2	result_collation_id	id	0
 mysql/routines_ibfk_3	client_collation_id	id	0
@@ -397,6 +403,7 @@ mysql/index_partitions
 mysql/indexes
 mysql/innodb_index_stats
 mysql/innodb_table_stats
+mysql/parameter_type_elements
 mysql/parameters
 mysql/plugin
 mysql/procs_priv
@@ -467,6 +474,7 @@ mysql/index_partitions_ibfk_2	mysql/index_partitions	mysql/indexes	1	0
 mysql/index_partitions_ibfk_3	mysql/index_partitions	mysql/tablespaces	1	0
 mysql/parameters_ibfk_1	mysql/parameters	mysql/routines	1	0
 mysql/parameters_ibfk_2	mysql/parameters	mysql/collations	1	0
+mysql/parameter_type_elements_ibfk_1	mysql/parameter_type_elements	mysql/parameters	1	0
 mysql/routines_ibfk_1	mysql/routines	mysql/schemata	1	0
 mysql/routines_ibfk_2	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_3	mysql/routines	mysql/collations	1	0
@@ -516,6 +524,7 @@ mysql/index_partitions_ibfk_2	index_id	id	0
 mysql/index_partitions_ibfk_3	tablespace_id	id	0
 mysql/parameters_ibfk_1	routine_id	id	0
 mysql/parameters_ibfk_2	collation_id	id	0
+mysql/parameter_type_elements_ibfk_1	parameter_id	id	0
 mysql/routines_ibfk_1	schema_id	id	0
 mysql/routines_ibfk_2	result_collation_id	id	0
 mysql/routines_ibfk_3	client_collation_id	id	0
@@ -584,6 +593,7 @@ mysql/index_partitions_ibfk_2	mysql/index_partitions	mysql/indexes	1	0
 mysql/index_partitions_ibfk_3	mysql/index_partitions	mysql/tablespaces	1	0
 mysql/parameters_ibfk_1	mysql/parameters	mysql/routines	1	0
 mysql/parameters_ibfk_2	mysql/parameters	mysql/collations	1	0
+mysql/parameter_type_elements_ibfk_1	mysql/parameter_type_elements	mysql/parameters	1	0
 mysql/routines_ibfk_1	mysql/routines	mysql/schemata	1	0
 mysql/routines_ibfk_2	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_3	mysql/routines	mysql/collations	1	0
@@ -633,6 +643,7 @@ mysql/index_partitions_ibfk_2	index_id	id	0
 mysql/index_partitions_ibfk_3	tablespace_id	id	0
 mysql/parameters_ibfk_1	routine_id	id	0
 mysql/parameters_ibfk_2	collation_id	id	0
+mysql/parameter_type_elements_ibfk_1	parameter_id	id	0
 mysql/routines_ibfk_1	schema_id	id	0
 mysql/routines_ibfk_2	result_collation_id	id	0
 mysql/routines_ibfk_3	client_collation_id	id	0
@@ -703,6 +714,7 @@ mysql/index_partitions_ibfk_2	mysql/index_partitions	mysql/indexes	1	0
 mysql/index_partitions_ibfk_3	mysql/index_partitions	mysql/tablespaces	1	0
 mysql/parameters_ibfk_1	mysql/parameters	mysql/routines	1	0
 mysql/parameters_ibfk_2	mysql/parameters	mysql/collations	1	0
+mysql/parameter_type_elements_ibfk_1	mysql/parameter_type_elements	mysql/parameters	1	0
 mysql/routines_ibfk_1	mysql/routines	mysql/schemata	1	0
 mysql/routines_ibfk_2	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_3	mysql/routines	mysql/collations	1	0
@@ -754,6 +766,7 @@ mysql/index_partitions_ibfk_2	index_id	id	0
 mysql/index_partitions_ibfk_3	tablespace_id	id	0
 mysql/parameters_ibfk_1	routine_id	id	0
 mysql/parameters_ibfk_2	collation_id	id	0
+mysql/parameter_type_elements_ibfk_1	parameter_id	id	0
 mysql/routines_ibfk_1	schema_id	id	0
 mysql/routines_ibfk_2	result_collation_id	id	0
 mysql/routines_ibfk_3	client_collation_id	id	0
@@ -832,6 +845,7 @@ mysql/index_partitions_ibfk_2	mysql/index_partitions	mysql/indexes	1	0
 mysql/index_partitions_ibfk_3	mysql/index_partitions	mysql/tablespaces	1	0
 mysql/parameters_ibfk_1	mysql/parameters	mysql/routines	1	0
 mysql/parameters_ibfk_2	mysql/parameters	mysql/collations	1	0
+mysql/parameter_type_elements_ibfk_1	mysql/parameter_type_elements	mysql/parameters	1	0
 mysql/routines_ibfk_1	mysql/routines	mysql/schemata	1	0
 mysql/routines_ibfk_2	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_3	mysql/routines	mysql/collations	1	0
@@ -877,6 +891,7 @@ mysql/index_partitions_ibfk_2	index_id	id	0
 mysql/index_partitions_ibfk_3	tablespace_id	id	0
 mysql/parameters_ibfk_1	routine_id	id	0
 mysql/parameters_ibfk_2	collation_id	id	0
+mysql/parameter_type_elements_ibfk_1	parameter_id	id	0
 mysql/routines_ibfk_1	schema_id	id	0
 mysql/routines_ibfk_2	result_collation_id	id	0
 mysql/routines_ibfk_3	client_collation_id	id	0
@@ -957,6 +972,7 @@ mysql/index_partitions_ibfk_2	mysql/index_partitions	mysql/indexes	1	0
 mysql/index_partitions_ibfk_3	mysql/index_partitions	mysql/tablespaces	1	0
 mysql/parameters_ibfk_1	mysql/parameters	mysql/routines	1	0
 mysql/parameters_ibfk_2	mysql/parameters	mysql/collations	1	0
+mysql/parameter_type_elements_ibfk_1	mysql/parameter_type_elements	mysql/parameters	1	0
 mysql/routines_ibfk_1	mysql/routines	mysql/schemata	1	0
 mysql/routines_ibfk_2	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_3	mysql/routines	mysql/collations	1	0
@@ -1001,6 +1017,7 @@ mysql/index_partitions_ibfk_2	index_id	id	0
 mysql/index_partitions_ibfk_3	tablespace_id	id	0
 mysql/parameters_ibfk_1	routine_id	id	0
 mysql/parameters_ibfk_2	collation_id	id	0
+mysql/parameter_type_elements_ibfk_1	parameter_id	id	0
 mysql/routines_ibfk_1	schema_id	id	0
 mysql/routines_ibfk_2	result_collation_id	id	0
 mysql/routines_ibfk_3	client_collation_id	id	0
@@ -1054,6 +1071,7 @@ mysql/index_partitions
 mysql/indexes
 mysql/innodb_index_stats
 mysql/innodb_table_stats
+mysql/parameter_type_elements
 mysql/parameters
 mysql/plugin
 mysql/procs_priv
@@ -1110,6 +1128,7 @@ mysql/index_partitions_ibfk_2	mysql/index_partitions	mysql/indexes	1	0
 mysql/index_partitions_ibfk_3	mysql/index_partitions	mysql/tablespaces	1	0
 mysql/parameters_ibfk_1	mysql/parameters	mysql/routines	1	0
 mysql/parameters_ibfk_2	mysql/parameters	mysql/collations	1	0
+mysql/parameter_type_elements_ibfk_1	mysql/parameter_type_elements	mysql/parameters	1	0
 mysql/routines_ibfk_1	mysql/routines	mysql/schemata	1	0
 mysql/routines_ibfk_2	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_3	mysql/routines	mysql/collations	1	0
@@ -1155,6 +1174,7 @@ mysql/index_partitions_ibfk_2	index_id	id	0
 mysql/index_partitions_ibfk_3	tablespace_id	id	0
 mysql/parameters_ibfk_1	routine_id	id	0
 mysql/parameters_ibfk_2	collation_id	id	0
+mysql/parameter_type_elements_ibfk_1	parameter_id	id	0
 mysql/routines_ibfk_1	schema_id	id	0
 mysql/routines_ibfk_2	result_collation_id	id	0
 mysql/routines_ibfk_3	client_collation_id	id	0
@@ -1209,6 +1229,7 @@ mysql/index_partitions
 mysql/indexes
 mysql/innodb_index_stats
 mysql/innodb_table_stats
+mysql/parameter_type_elements
 mysql/parameters
 mysql/plugin
 mysql/procs_priv
@@ -1276,6 +1297,7 @@ mysql/index_partitions_ibfk_2	mysql/index_partitions	mysql/indexes	1	0
 mysql/index_partitions_ibfk_3	mysql/index_partitions	mysql/tablespaces	1	0
 mysql/parameters_ibfk_1	mysql/parameters	mysql/routines	1	0
 mysql/parameters_ibfk_2	mysql/parameters	mysql/collations	1	0
+mysql/parameter_type_elements_ibfk_1	mysql/parameter_type_elements	mysql/parameters	1	0
 mysql/routines_ibfk_1	mysql/routines	mysql/schemata	1	0
 mysql/routines_ibfk_2	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_3	mysql/routines	mysql/collations	1	0
@@ -1321,6 +1343,7 @@ mysql/index_partitions_ibfk_2	index_id	id	0
 mysql/index_partitions_ibfk_3	tablespace_id	id	0
 mysql/parameters_ibfk_1	routine_id	id	0
 mysql/parameters_ibfk_2	collation_id	id	0
+mysql/parameter_type_elements_ibfk_1	parameter_id	id	0
 mysql/routines_ibfk_1	schema_id	id	0
 mysql/routines_ibfk_2	result_collation_id	id	0
 mysql/routines_ibfk_3	client_collation_id	id	0
@@ -1375,6 +1398,7 @@ mysql/index_partitions
 mysql/indexes
 mysql/innodb_index_stats
 mysql/innodb_table_stats
+mysql/parameter_type_elements
 mysql/parameters
 mysql/plugin
 mysql/procs_priv
@@ -1442,6 +1466,7 @@ mysql/index_partitions_ibfk_2	mysql/index_partitions	mysql/indexes	1	0
 mysql/index_partitions_ibfk_3	mysql/index_partitions	mysql/tablespaces	1	0
 mysql/parameters_ibfk_1	mysql/parameters	mysql/routines	1	0
 mysql/parameters_ibfk_2	mysql/parameters	mysql/collations	1	0
+mysql/parameter_type_elements_ibfk_1	mysql/parameter_type_elements	mysql/parameters	1	0
 mysql/routines_ibfk_1	mysql/routines	mysql/schemata	1	0
 mysql/routines_ibfk_2	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_3	mysql/routines	mysql/collations	1	0
@@ -1487,6 +1512,7 @@ mysql/index_partitions_ibfk_2	index_id	id	0
 mysql/index_partitions_ibfk_3	tablespace_id	id	0
 mysql/parameters_ibfk_1	routine_id	id	0
 mysql/parameters_ibfk_2	collation_id	id	0
+mysql/parameter_type_elements_ibfk_1	parameter_id	id	0
 mysql/routines_ibfk_1	schema_id	id	0
 mysql/routines_ibfk_2	result_collation_id	id	0
 mysql/routines_ibfk_3	client_collation_id	id	0
@@ -1541,6 +1567,7 @@ mysql/index_partitions
 mysql/indexes
 mysql/innodb_index_stats
 mysql/innodb_table_stats
+mysql/parameter_type_elements
 mysql/parameters
 mysql/plugin
 mysql/procs_priv
@@ -1634,6 +1661,7 @@ mysql/index_partitions_ibfk_2	mysql/index_partitions	mysql/indexes	1	0
 mysql/index_partitions_ibfk_3	mysql/index_partitions	mysql/tablespaces	1	0
 mysql/parameters_ibfk_1	mysql/parameters	mysql/routines	1	0
 mysql/parameters_ibfk_2	mysql/parameters	mysql/collations	1	0
+mysql/parameter_type_elements_ibfk_1	mysql/parameter_type_elements	mysql/parameters	1	0
 mysql/routines_ibfk_1	mysql/routines	mysql/schemata	1	0
 mysql/routines_ibfk_2	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_3	mysql/routines	mysql/collations	1	0
@@ -1680,6 +1708,7 @@ mysql/index_partitions_ibfk_2	index_id	id	0
 mysql/index_partitions_ibfk_3	tablespace_id	id	0
 mysql/parameters_ibfk_1	routine_id	id	0
 mysql/parameters_ibfk_2	collation_id	id	0
+mysql/parameter_type_elements_ibfk_1	parameter_id	id	0
 mysql/routines_ibfk_1	schema_id	id	0
 mysql/routines_ibfk_2	result_collation_id	id	0
 mysql/routines_ibfk_3	client_collation_id	id	0
@@ -1743,6 +1772,7 @@ mysql/index_partitions_ibfk_2	mysql/index_partitions	mysql/indexes	1	0
 mysql/index_partitions_ibfk_3	mysql/index_partitions	mysql/tablespaces	1	0
 mysql/parameters_ibfk_1	mysql/parameters	mysql/routines	1	0
 mysql/parameters_ibfk_2	mysql/parameters	mysql/collations	1	0
+mysql/parameter_type_elements_ibfk_1	mysql/parameter_type_elements	mysql/parameters	1	0
 mysql/routines_ibfk_1	mysql/routines	mysql/schemata	1	0
 mysql/routines_ibfk_2	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_3	mysql/routines	mysql/collations	1	0
@@ -1789,6 +1819,7 @@ mysql/index_partitions_ibfk_2	index_id	id	0
 mysql/index_partitions_ibfk_3	tablespace_id	id	0
 mysql/parameters_ibfk_1	routine_id	id	0
 mysql/parameters_ibfk_2	collation_id	id	0
+mysql/parameter_type_elements_ibfk_1	parameter_id	id	0
 mysql/routines_ibfk_1	schema_id	id	0
 mysql/routines_ibfk_2	result_collation_id	id	0
 mysql/routines_ibfk_3	client_collation_id	id	0
@@ -1855,6 +1886,7 @@ mysql/index_partitions_ibfk_2	mysql/index_partitions	mysql/indexes	1	0
 mysql/index_partitions_ibfk_3	mysql/index_partitions	mysql/tablespaces	1	0
 mysql/parameters_ibfk_1	mysql/parameters	mysql/routines	1	0
 mysql/parameters_ibfk_2	mysql/parameters	mysql/collations	1	0
+mysql/parameter_type_elements_ibfk_1	mysql/parameter_type_elements	mysql/parameters	1	0
 mysql/routines_ibfk_1	mysql/routines	mysql/schemata	1	0
 mysql/routines_ibfk_2	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_3	mysql/routines	mysql/collations	1	0
@@ -1904,6 +1936,7 @@ mysql/index_partitions_ibfk_2	index_id	id	0
 mysql/index_partitions_ibfk_3	tablespace_id	id	0
 mysql/parameters_ibfk_1	routine_id	id	0
 mysql/parameters_ibfk_2	collation_id	id	0
+mysql/parameter_type_elements_ibfk_1	parameter_id	id	0
 mysql/routines_ibfk_1	schema_id	id	0
 mysql/routines_ibfk_2	result_collation_id	id	0
 mysql/routines_ibfk_3	client_collation_id	id	0
@@ -1970,6 +2003,7 @@ mysql/index_partitions_ibfk_2	mysql/index_partitions	mysql/indexes	1	0
 mysql/index_partitions_ibfk_3	mysql/index_partitions	mysql/tablespaces	1	0
 mysql/parameters_ibfk_1	mysql/parameters	mysql/routines	1	0
 mysql/parameters_ibfk_2	mysql/parameters	mysql/collations	1	0
+mysql/parameter_type_elements_ibfk_1	mysql/parameter_type_elements	mysql/parameters	1	0
 mysql/routines_ibfk_1	mysql/routines	mysql/schemata	1	0
 mysql/routines_ibfk_2	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_3	mysql/routines	mysql/collations	1	0
@@ -2014,6 +2048,7 @@ mysql/index_partitions_ibfk_2	index_id	id	0
 mysql/index_partitions_ibfk_3	tablespace_id	id	0
 mysql/parameters_ibfk_1	routine_id	id	0
 mysql/parameters_ibfk_2	collation_id	id	0
+mysql/parameter_type_elements_ibfk_1	parameter_id	id	0
 mysql/routines_ibfk_1	schema_id	id	0
 mysql/routines_ibfk_2	result_collation_id	id	0
 mysql/routines_ibfk_3	client_collation_id	id	0
@@ -2076,6 +2111,7 @@ mysql/index_partitions_ibfk_2	mysql/index_partitions	mysql/indexes	1	0
 mysql/index_partitions_ibfk_3	mysql/index_partitions	mysql/tablespaces	1	0
 mysql/parameters_ibfk_1	mysql/parameters	mysql/routines	1	0
 mysql/parameters_ibfk_2	mysql/parameters	mysql/collations	1	0
+mysql/parameter_type_elements_ibfk_1	mysql/parameter_type_elements	mysql/parameters	1	0
 mysql/routines_ibfk_1	mysql/routines	mysql/schemata	1	0
 mysql/routines_ibfk_2	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_3	mysql/routines	mysql/collations	1	0
@@ -2123,6 +2159,7 @@ mysql/index_partitions_ibfk_2	index_id	id	0
 mysql/index_partitions_ibfk_3	tablespace_id	id	0
 mysql/parameters_ibfk_1	routine_id	id	0
 mysql/parameters_ibfk_2	collation_id	id	0
+mysql/parameter_type_elements_ibfk_1	parameter_id	id	0
 mysql/routines_ibfk_1	schema_id	id	0
 mysql/routines_ibfk_2	result_collation_id	id	0
 mysql/routines_ibfk_3	client_collation_id	id	0
@@ -2193,6 +2230,7 @@ mysql/index_partitions_ibfk_2	mysql/index_partitions	mysql/indexes	1	0
 mysql/index_partitions_ibfk_3	mysql/index_partitions	mysql/tablespaces	1	0
 mysql/parameters_ibfk_1	mysql/parameters	mysql/routines	1	0
 mysql/parameters_ibfk_2	mysql/parameters	mysql/collations	1	0
+mysql/parameter_type_elements_ibfk_1	mysql/parameter_type_elements	mysql/parameters	1	0
 mysql/routines_ibfk_1	mysql/routines	mysql/schemata	1	0
 mysql/routines_ibfk_2	mysql/routines	mysql/collations	1	0
 mysql/routines_ibfk_3	mysql/routines	mysql/collations	1	0
@@ -2239,6 +2277,7 @@ mysql/index_partitions_ibfk_2	index_id	id	0
 mysql/index_partitions_ibfk_3	tablespace_id	id	0
 mysql/parameters_ibfk_1	routine_id	id	0
 mysql/parameters_ibfk_2	collation_id	id	0
+mysql/parameter_type_elements_ibfk_1	parameter_id	id	0
 mysql/routines_ibfk_1	schema_id	id	0
 mysql/routines_ibfk_2	result_collation_id	id	0
 mysql/routines_ibfk_3	client_collation_id	id	0

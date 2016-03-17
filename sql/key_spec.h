@@ -19,6 +19,7 @@
 #include "my_global.h"
 #include "m_string.h"
 #include "my_base.h"
+#include "mem_root_array.h"
 #include "sql_alloc.h"
 #include "sql_list.h"
 
@@ -34,6 +35,22 @@ enum keytype {
   KEYTYPE_FOREIGN
 };
 
+enum fk_option {
+  FK_OPTION_UNDEF,
+  FK_OPTION_RESTRICT,
+  FK_OPTION_CASCADE,
+  FK_OPTION_SET_NULL,
+  FK_OPTION_NO_ACTION,
+  FK_OPTION_DEFAULT
+};
+
+enum fk_match_opt {
+  FK_MATCH_UNDEF,
+  FK_MATCH_FULL,
+  FK_MATCH_PARTIAL,
+  FK_MATCH_SIMPLE
+};
+
 
 typedef struct st_key_create_information
 {
@@ -44,114 +61,127 @@ typedef struct st_key_create_information
   */
   bool is_algorithm_explicit;
   ulong block_size;
-  LEX_STRING parser_name;
-  LEX_STRING comment;
+  LEX_CSTRING parser_name;
+  LEX_CSTRING comment;
+} KEY_CREATE_INFO;
+
+extern KEY_CREATE_INFO default_key_create_info;
+
+
+class Key_part_spec : public Sql_alloc
+{
+public:
+  const LEX_CSTRING field_name;
+  const uint length;
+
+  Key_part_spec(const LEX_CSTRING &name, uint len)
+    : field_name(name), length(len)
+  {}
+  bool operator==(const Key_part_spec& other) const;
+};
+
+
+class Key_spec : public Sql_alloc
+{
+public:
+  const keytype type;
+  const KEY_CREATE_INFO key_create_info;
+  Mem_root_array<const Key_part_spec*> columns;
+  const LEX_CSTRING name;
+  const bool generated;
   /**
     A flag to determine if we will check for duplicate indexes.
     This typically means that the key information was specified
     directly by the user (set by the parser) or a column
     associated with it was dropped.
   */
-  bool check_for_duplicate_indexes;
-} KEY_CREATE_INFO;
+  const bool check_for_duplicate_indexes;
 
-extern KEY_CREATE_INFO default_key_create_info;
-
-
-class Key_part_spec :public Sql_alloc {
-public:
-  LEX_STRING field_name;
-  uint length;
-  Key_part_spec(const LEX_STRING &name, uint len)
-    : field_name(name), length(len)
-  {}
-  Key_part_spec(const char *name, const size_t name_len, uint len)
-    : length(len)
-  { field_name.str= (char *)name; field_name.length= name_len; }
-  bool operator==(const Key_part_spec& other) const;
-  /**
-    Construct a copy of this Key_part_spec. field_name is copied
-    by-pointer as it is known to never change. At the same time
-    'length' may be reset in mysql_prepare_create_table, and this
-    is why we supply it with a copy.
-
-    @return If out of memory, 0 is returned and an error is set in
-    THD.
-  */
-  Key_part_spec *clone(MEM_ROOT *mem_root) const
-  { return new (mem_root) Key_part_spec(*this); }
-};
-
-
-class Key_spec :public Sql_alloc {
-public:
-  keytype type;
-  KEY_CREATE_INFO key_create_info;
-  List<Key_part_spec> columns;
-  LEX_STRING name;
-  bool generated;
-
-  Key_spec(keytype type_par, const LEX_STRING &name_arg,
-           KEY_CREATE_INFO *key_info_arg,
-           bool generated_arg, List<Key_part_spec> &cols)
-    :type(type_par), key_create_info(*key_info_arg), columns(cols),
-    name(name_arg), generated(generated_arg)
-  {}
-  Key_spec(keytype type_par, const char *name_arg, size_t name_len_arg,
-           KEY_CREATE_INFO *key_info_arg, bool generated_arg,
+  Key_spec(MEM_ROOT *mem_root,
+           keytype type_par,
+           const LEX_CSTRING &name_arg,
+           const KEY_CREATE_INFO *key_info_arg,
+           bool generated_arg,
+           bool check_for_duplicate_indexes_arg,
            List<Key_part_spec> &cols)
-    :type(type_par), key_create_info(*key_info_arg), columns(cols),
-    generated(generated_arg)
+    :type(type_par),
+    key_create_info(*key_info_arg),
+    columns(mem_root),
+    name(name_arg),
+    generated(generated_arg),
+    check_for_duplicate_indexes(check_for_duplicate_indexes_arg)
   {
-    name.str= (char *)name_arg;
-    name.length= name_len_arg;
+    columns.reserve(cols.elements);
+    List_iterator<Key_part_spec> it(cols);
+    const Key_part_spec *column;
+    while ((column= it++))
+      columns.push_back(column);
   }
-  Key_spec(const Key_spec &rhs, MEM_ROOT *mem_root);
-  virtual ~Key_spec() {}
 
-  /**
-    Used to make a clone of this object for ALTER/CREATE TABLE
-    @sa comment for Key_part_spec::clone
-  */
-  virtual Key_spec *clone(MEM_ROOT *mem_root) const
-  { return new (mem_root) Key_spec(*this, mem_root); }
+  virtual ~Key_spec() {}
 };
 
 
-class Foreign_key_spec: public Key_spec {
+class Foreign_key_spec: public Key_spec
+{
 public:
+  const LEX_CSTRING ref_db;
+  const LEX_CSTRING ref_table;
+  Mem_root_array<const Key_part_spec*> ref_columns;
+  const fk_option delete_opt;
+  const fk_option update_opt;
+  const fk_match_opt match_opt;
 
-  LEX_CSTRING ref_db;
-  LEX_CSTRING ref_table;
-  List<Key_part_spec> ref_columns;
-  uint delete_opt, update_opt, match_opt;
-  Foreign_key_spec(const LEX_STRING &name_arg, List<Key_part_spec> &cols,
+  Foreign_key_spec(MEM_ROOT *mem_root,
+                   const LEX_CSTRING &name_arg,
+                   List<Key_part_spec> &cols,
                    const LEX_CSTRING &ref_db_arg,
                    const LEX_CSTRING &ref_table_arg,
                    List<Key_part_spec> &ref_cols,
-                   uint delete_opt_arg, uint update_opt_arg, uint match_opt_arg)
-    :Key_spec(KEYTYPE_FOREIGN, name_arg, &default_key_create_info, 0, cols),
-    ref_db(ref_db_arg), ref_table(ref_table_arg), ref_columns(ref_cols),
-    delete_opt(delete_opt_arg), update_opt(update_opt_arg),
+                   fk_option delete_opt_arg,
+                   fk_option update_opt_arg,
+                   fk_match_opt match_opt_arg)
+    :Key_spec(mem_root, KEYTYPE_FOREIGN, name_arg,
+              &default_key_create_info, false,
+              false, // We don't check for duplicate FKs.
+              cols),
+    ref_db(ref_db_arg),
+    ref_table(ref_table_arg),
+    ref_columns(mem_root),
+    delete_opt(delete_opt_arg),
+    update_opt(update_opt_arg),
     match_opt(match_opt_arg)
   {
-    // We don't check for duplicate FKs.
-    key_create_info.check_for_duplicate_indexes= false;
+    ref_columns.reserve(ref_cols.elements);
+    List_iterator<Key_part_spec> it(ref_cols);
+    const Key_part_spec *ref_column;
+    while ((ref_column= it++))
+      ref_columns.push_back(ref_column);
   }
-  Foreign_key_spec(const Foreign_key_spec &rhs, MEM_ROOT *mem_root);
+
   /**
-    Used to make a clone of this object for ALTER/CREATE TABLE
-    @sa comment for Key_part_spec::clone
-  */
-  virtual Key_spec *clone(MEM_ROOT *mem_root) const
-  { return new (mem_root) Foreign_key_spec(*this, mem_root); }
-  /* Used to validate foreign key options */
-  bool validate(List<Create_field> &table_fields);
+    Check if the foreign key options are compatible with columns
+    on which the FK is created.
+
+    @param thd                  Thread handle
+    @param table_fields         List of columns
+
+    @retval false   Key valid
+    @retval true    Key invalid
+ */
+  bool validate(THD *thd, List<Create_field> &table_fields) const;
 };
 
-/* Equality comparison of keys (ignoring name) */
-bool foreign_key_prefix(Key_spec *a, Key_spec *b);
+/**
+  Test if a foreign key (= generated key) is a prefix of the given key
+  (ignoring key name, key type and order of columns)
 
+  @note This is only used to test if an index for a FOREIGN KEY exists.
+  We only compare field names.
 
+  @retval false   Generated key is a prefix of other key
+  @retval true    Not equal
+*/
+bool foreign_key_prefix(const Key_spec *a, const Key_spec *b);
 
 #endif  // KEY_SPEC_INCLUDED

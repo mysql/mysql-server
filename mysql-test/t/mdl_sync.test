@@ -5080,13 +5080,13 @@ connect (con2, localhost, root);
 
 --echo # Connection 1
 connection default;
---echo # Start CREATE PROCEDURE and open mysql.proc
-SET DEBUG_SYNC= 'after_open_table_mdl_shared SIGNAL table_opened WAIT_FOR grlwait';
+--echo # Start CREATE PROCEDURE
+SET DEBUG_SYNC= 'after_acquiring_mdl_lock_on_routine SIGNAL routine_locked WAIT_FOR grlwait';
 --send CREATE PROCEDURE p1() SELECT 1
 
 --echo # Connection 2
 connection con2;
-SET DEBUG_SYNC= 'now WAIT_FOR table_opened';
+SET DEBUG_SYNC= 'now WAIT_FOR routine_locked';
 --echo # Check that FLUSH must wait to get the GRL
 --echo # and let CREATE PROCEDURE continue
 SET DEBUG_SYNC= 'mdl_acquire_lock_wait SIGNAL grlwait';
@@ -5108,13 +5108,13 @@ SET DEBUG_SYNC= 'RESET';
 --echo # Test 2: DROP PROCEDURE
 
 connection default;
---echo # Start DROP PROCEDURE and open tables
-SET DEBUG_SYNC= 'after_open_table_mdl_shared SIGNAL table_opened WAIT_FOR grlwait';
+--echo # Start DROP PROCEDURE
+SET DEBUG_SYNC= 'after_acquiring_mdl_lock_on_routine SIGNAL routine_locked WAIT_FOR grlwait';
 --send DROP PROCEDURE p1
 
 --echo # Connection 2
 connection con2;
-SET DEBUG_SYNC= 'now WAIT_FOR table_opened';
+SET DEBUG_SYNC= 'now WAIT_FOR routine_locked';
 --echo # Check that FLUSH must wait to get the GRL
 --echo # and let DROP PROCEDURE continue
 SET DEBUG_SYNC= 'mdl_acquire_lock_wait SIGNAL grlwait';

@@ -105,7 +105,7 @@ bool Output_buffer::add_bytes(const char *data, size_t length)
     if ((size_t)size >= length)
     {
       memcpy(ptr, data, length);
-      BackUp(size - length);
+      BackUp(static_cast<int>(size - length));
       length = 0;
     }
     else

@@ -31,6 +31,7 @@
 
 #include "parse_tree_helpers.h"
 #include "item_geofunc_internal.h"
+#include "json_dom.h"     // Json_wrapper
 
 #include <cmath>          // isfinite
 #include <stack>
@@ -372,7 +373,7 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
     return NULL;
 
   // The root element must be a object, according to GeoJSON specification.
-  if (wr.type() != Json_dom::J_OBJECT)
+  if (wr.type() != enum_json_type::J_OBJECT)
   {
     my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
     return error_str();
@@ -501,8 +502,8 @@ parse_object(const Json_object *object, bool *rollback, String *buffer,
     be of string type.
   */
   const Json_dom *type_member= my_find_member_ncase(object, TYPE_MEMBER);
-  if (!is_member_valid(type_member, TYPE_MEMBER, Json_dom::J_STRING, false,
-                       NULL))
+  if (!is_member_valid(type_member, TYPE_MEMBER, enum_json_type::J_STRING,
+                       false, NULL))
   {
     return true;
   }
@@ -514,13 +515,13 @@ parse_object(const Json_object *object, bool *rollback, String *buffer,
   const Json_dom *crs_member= my_find_member_ncase(object, CRS_MEMBER);
   if (crs_member != NULL)
   {
-    if (crs_member->json_type() == Json_dom::J_OBJECT)
+    if (crs_member->json_type() == enum_json_type::J_OBJECT)
     {
       const Json_object *crs_obj= down_cast<const Json_object *>(crs_member);
       if (parse_crs_object(crs_obj))
         return true;
     }
-    else if (crs_member->json_type() != Json_dom::J_NULL)
+    else if (crs_member->json_type() != enum_json_type::J_NULL)
     {
       my_error(ER_INVALID_GEOJSON_WRONG_TYPE, MYF(0), func_name(),
                CRS_MEMBER, "object");
@@ -543,10 +544,10 @@ parse_object(const Json_object *object, bool *rollback, String *buffer,
                                                           GEOMETRY_MEMBER);
     const Json_dom *properties_member= my_find_member_ncase(object,
                                                             PROPERTIES_MEMBER);
-    if (!is_member_valid(geometry_member, GEOMETRY_MEMBER, Json_dom::J_OBJECT,
-                         true, rollback) ||
+    if (!is_member_valid(geometry_member, GEOMETRY_MEMBER,
+                         enum_json_type::J_OBJECT, true, rollback) ||
         !is_member_valid(properties_member, PROPERTIES_MEMBER,
-                         Json_dom::J_OBJECT, true, &dummy) || *rollback)
+                         enum_json_type::J_OBJECT, true, &dummy) || *rollback)
     {
       return true;
     }
@@ -567,8 +568,8 @@ parse_object(const Json_object *object, bool *rollback, String *buffer,
 
     // We will handle a FeatureCollection as a GeometryCollection.
     const Json_dom *features= my_find_member_ncase(object, FEATURES_MEMBER);
-    if (!is_member_valid(features, FEATURES_MEMBER, Json_dom::J_ARRAY, false,
-                         NULL))
+    if (!is_member_valid(features, FEATURES_MEMBER, enum_json_type::J_ARRAY,
+                         false, NULL))
     {
       return true;
     }
@@ -600,8 +601,8 @@ parse_object(const Json_object *object, bool *rollback, String *buffer,
         member_name= COORDINATES_MEMBER;
 
       const Json_dom *array_member= my_find_member_ncase(object, member_name);
-      if (!is_member_valid(array_member, member_name, Json_dom::J_ARRAY, false,
-                           NULL))
+      if (!is_member_valid(array_member, member_name, enum_json_type::J_ARRAY,
+                           false, NULL))
       {
         return true;
       }
@@ -756,7 +757,7 @@ parse_object_array(const Json_array *data_array, Geometry::wkbType type,
 
       for (size_t i= 0; i < data_array->size(); ++i)
       {
-        if ((*data_array)[i]->json_type() != Json_dom::J_OBJECT)
+        if ((*data_array)[i]->json_type() != enum_json_type::J_OBJECT)
         {
           my_error(ER_INVALID_GEOJSON_WRONG_TYPE, MYF(0), func_name(),
                    GEOMETRIES_MEMBER, "object array");
@@ -831,7 +832,7 @@ parse_object_array(const Json_array *data_array, Geometry::wkbType type,
 
       for (size_t i= 0; i < data_array->size(); ++i)
       {
-        if ((*data_array)[i]->json_type() != Json_dom::J_ARRAY)
+        if ((*data_array)[i]->json_type() != enum_json_type::J_ARRAY)
         {
           my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
           return true;
@@ -861,7 +862,7 @@ parse_object_array(const Json_array *data_array, Geometry::wkbType type,
       *geometry= multilinestring;
       for (size_t i= 0; i < data_array->size(); ++i)
       {
-        if ((*data_array)[i]->json_type() != Json_dom::J_ARRAY)
+        if ((*data_array)[i]->json_type() != enum_json_type::J_ARRAY)
         {
           my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
           return true;
@@ -896,7 +897,7 @@ parse_object_array(const Json_array *data_array, Geometry::wkbType type,
 
       for (size_t i= 0; i < data_array->size(); ++i)
       {
-        if ((*data_array)[i]->json_type() != Json_dom::J_ARRAY)
+        if ((*data_array)[i]->json_type() != enum_json_type::J_ARRAY)
         {
           my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
           return true;
@@ -941,7 +942,7 @@ Item_func_geomfromgeojson::get_linestring(const Json_array *data_array,
 
   for (size_t i= 0; i < data_array->size(); ++i)
   {
-    if ((*data_array)[i]->json_type() != Json_dom::J_ARRAY)
+    if ((*data_array)[i]->json_type() != enum_json_type::J_ARRAY)
     {
       my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
       return true;
@@ -981,7 +982,7 @@ bool Item_func_geomfromgeojson::get_polygon(const Json_array *data_array,
   for (size_t ring_count= 0; ring_count < data_array->size(); ++ring_count)
   {
     // Polygon rings must have at least four points, according to GeoJSON spec.
-    if ((*data_array)[ring_count]->json_type() != Json_dom::J_ARRAY)
+    if ((*data_array)[ring_count]->json_type() != enum_json_type::J_ARRAY)
     {
       my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
       return true;
@@ -998,7 +999,7 @@ bool Item_func_geomfromgeojson::get_polygon(const Json_array *data_array,
     polygon->inners().resize(ring_count);
     for (size_t i= 0; i < polygon_ring->size(); ++i)
     {
-      if ((*polygon_ring)[i]->json_type() != Json_dom::J_ARRAY)
+      if ((*polygon_ring)[i]->json_type() != enum_json_type::J_ARRAY)
       {
         my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
         return true;
@@ -1110,10 +1111,10 @@ parse_crs_object(const Json_object *crs_object)
   const Json_dom *type_member= my_find_member_ncase(crs_object, TYPE_MEMBER);
   const Json_dom *properties_member= my_find_member_ncase(crs_object,
                                                           PROPERTIES_MEMBER);
-  if (!is_member_valid(type_member, TYPE_MEMBER, Json_dom::J_STRING, false,
-                       NULL) ||
-      !is_member_valid(properties_member, PROPERTIES_MEMBER, Json_dom::J_OBJECT,
-                       false, NULL))
+  if (!is_member_valid(type_member, TYPE_MEMBER, enum_json_type::J_STRING,
+                       false, NULL) ||
+      !is_member_valid(properties_member, PROPERTIES_MEMBER,
+                       enum_json_type::J_OBJECT, false, NULL))
   {
     return true;
   }
@@ -1136,8 +1137,8 @@ parse_crs_object(const Json_object *crs_object)
     down_cast<const Json_object*>(properties_member);
   const Json_dom *crs_name_member= my_find_member_ncase(properties_member_obj,
                                                         CRS_NAME_MEMBER);
-  if (!is_member_valid(crs_name_member, CRS_NAME_MEMBER, Json_dom::J_STRING,
-                       false, NULL))
+  if (!is_member_valid(crs_name_member, CRS_NAME_MEMBER,
+                       enum_json_type::J_STRING, false, NULL))
   {
     return true;
   }
@@ -1239,7 +1240,7 @@ parse_crs_object(const Json_object *crs_object)
 */
 bool Item_func_geomfromgeojson::
 is_member_valid(const Json_dom *member, const char *member_name,
-                Json_dom::enum_json_type expected_type, bool allow_null,
+                enum_json_type expected_type, bool allow_null,
                 bool *was_null)
 {
   if (member == NULL)
@@ -1252,7 +1253,7 @@ is_member_valid(const Json_dom *member, const char *member_name,
   if (allow_null)
   {
     DBUG_ASSERT(was_null != NULL);
-    *was_null= member->json_type() == Json_dom::J_NULL;
+    *was_null= member->json_type() == enum_json_type::J_NULL;
     if (*was_null)
       return true;
   }
@@ -1262,13 +1263,13 @@ is_member_valid(const Json_dom *member, const char *member_name,
   {
     switch (expected_type)
     {
-    case Json_dom::J_OBJECT:
+    case enum_json_type::J_OBJECT:
       type_name= "object";
       break;
-    case Json_dom::J_ARRAY:
+    case enum_json_type::J_ARRAY:
       type_name= "array";
       break;
-    case Json_dom::J_STRING:
+    case enum_json_type::J_STRING:
       type_name= "string";
       break;
     default:
@@ -1283,12 +1284,6 @@ is_member_valid(const Json_dom *member, const char *member_name,
     return false;
   }
   return true;
-}
-
-
-bool Item_func_geomfromgeojson::resolve_type(THD *thd)
-{
-  return Item_geometry_func::resolve_type(thd);
 }
 
 
@@ -1327,10 +1322,7 @@ bool Item_func_geomfromgeojson::check_argument_valid_integer(Item *argument)
 }
 
 
-/**
-  Do type checking on all provided arguments, as well as settings maybe_null to
-  the appropriate value.
-*/
+/// Do type checking on all provided arguments.
 bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref)
 {
   if (Item_geometry_func::fix_fields(thd, ref))
@@ -1346,8 +1338,6 @@ bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref)
         my_error(ER_INCORRECT_TYPE, MYF(0), "SRID", func_name());
         return true;
       }
-      maybe_null= (args[0]->maybe_null || args[1]->maybe_null ||
-                   args[2]->maybe_null);
     }
   case 2:
     {
@@ -1357,7 +1347,6 @@ bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref)
         my_error(ER_INCORRECT_TYPE, MYF(0), "options", func_name());
         return true;
       }
-      maybe_null= (args[0]->maybe_null || args[1]->maybe_null);
     }
   case 1:
     {
@@ -1388,10 +1377,27 @@ bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref)
         my_error(ER_INCORRECT_TYPE, MYF(0), "geojson", func_name());
         return true;
       }
-      maybe_null= args[0]->maybe_null;
       break;
     }
   }
+
+  /*
+    We override the value of maybe_null set by Item_str_func::fix_fields(). This
+    is because Item_func_geomfromgeojson inherits from Item_geometry_func =>
+    Item_str_func => Item_func. Item_str_func::fix_fields() sets maybe_null to
+    true if strict mode is on.
+
+    The reason behind Item_str_func::fix_fields() setting maybe_null to true if
+    strict mode is on is because many of the string functions will call
+    check_well_formed_result(). This function may set maybe_null to true if
+    strict mode is on. However, the GeoJSON functions does not call
+    check_well_formed_result(), and we thus do NOT want to set maybe_null based
+    on strict mode.
+  */
+  maybe_null= false;
+  for (uint i= 0; i < arg_count; ++i)
+    maybe_null|= args[i]->maybe_null;
+
   return false;
 }
 

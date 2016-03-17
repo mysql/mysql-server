@@ -24,11 +24,15 @@
 #include "dd/impl/tables/collations.h"               // Collations
 #include "dd/impl/tables/column_type_elements.h"     // Column_type_elements
 #include "dd/impl/tables/columns.h"                  // Columns
+#include "dd/impl/tables/events.h"                   // Events
 #include "dd/impl/tables/foreign_key_column_usage.h" // Foreign_key_column_usage
 #include "dd/impl/tables/foreign_keys.h"             // Foreign_keys
 #include "dd/impl/tables/index_column_usage.h"       // Index_column_usage
 #include "dd/impl/tables/index_partitions.h"         // Index_partitions
 #include "dd/impl/tables/indexes.h"                  // Indexes
+#include "dd/impl/tables/parameters.h"               // Parameters
+#include "dd/impl/tables/parameter_type_elements.h"  // Parameter_type_elements
+#include "dd/impl/tables/routines.h"                 // Routines
 #include "dd/impl/tables/schemata.h"                 // Schemata
 #include "dd/impl/tables/table_partition_values.h"   // Table_partition_values
 #include "dd/impl/tables/table_partitions.h"         // Table_partitions
@@ -75,6 +79,10 @@ void System_tables::init()
   register_system_table<Table_partitions>();
   register_system_table<Table_partition_values>();
   register_system_table<Index_partitions>();
+  register_system_table<Events>();
+  register_system_table<Routines>();
+  register_system_table<Parameters>();
+  register_system_table<Parameter_type_elements>();
 }
 
 void System_views::init()

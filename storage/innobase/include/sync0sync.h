@@ -72,6 +72,7 @@ extern mysql_pfs_key_t	ibuf_mutex_key;
 extern mysql_pfs_key_t	ibuf_pessimistic_insert_mutex_key;
 extern mysql_pfs_key_t	lock_free_hash_mutex_key;
 extern mysql_pfs_key_t	log_sys_mutex_key;
+extern mysql_pfs_key_t	log_sys_write_mutex_key;
 extern mysql_pfs_key_t	log_cmdq_mutex_key;
 extern mysql_pfs_key_t	log_flush_order_mutex_key;
 extern mysql_pfs_key_t	mutex_list_mutex_key;

@@ -1,6 +1,4 @@
 drop table if exists t1, t2;
-SELECT * FROM mysql.proc INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/proc.txt';
-delete from mysql.proc;
 create procedure syntaxerror(t int)|
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 create procedure syntaxerror(t int)|
@@ -295,14 +293,6 @@ lock table t1 read|
 call p()|
 unlock tables|
 drop procedure p|
-lock tables t1 read, mysql.proc write|
-ERROR HY000: You can't combine write-locking of system tables with other tables or lock types
-lock tables mysql.proc write, mysql.user write|
-ERROR HY000: You can't combine write-locking of system tables with other tables or lock types
-lock tables t1 read, mysql.proc read|
-unlock tables|
-lock tables mysql.proc write|
-unlock tables|
 drop function if exists f1|
 create function f1(i int) returns int
 begin
@@ -505,16 +495,6 @@ ERROR 0A000: LOCK is not allowed in stored procedures
 create procedure bug6600()
 unlock table t1|
 ERROR 0A000: UNLOCK is not allowed in stored procedures
-drop procedure if exists bug9566|
-create procedure bug9566()
-begin
-select * from t1;
-end|
-lock table t1 read|
-alter procedure bug9566 comment 'Some comment'|
-ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
-unlock tables|
-drop procedure bug9566|
 drop procedure if exists bug7299|
 create procedure bug7299()
 begin
@@ -1093,7 +1073,7 @@ create procedure mysqltest2.p1() select version();
 create procedure p2() select version();
 ERROR 3D000: No database selected
 use mysqltest2;
-show procedure status;
+show procedure status like 'p1';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 mysqltest2	p1	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 drop database mysqltest2;
@@ -1171,7 +1151,7 @@ create procedure ` bug15658`() select 1;
 call ` bug15658`();
 1
 1
-show procedure status;
+show procedure status like '%bug15658';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 test	 bug15658	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 drop procedure ` bug15658`;
@@ -1650,7 +1630,6 @@ end|
 call p1(1);
 set @@max_sp_recursion_depth = @old_recursion_depth;
 drop procedure p1;
-LOAD DATA INFILE '../../tmp/proc.txt' INTO TABLE mysql.proc;
 CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 VALUES (1,1), (2,2);
 SELECT MAX (a) FROM t1 WHERE b = 999999;
@@ -2897,3 +2876,44 @@ drop function test.f111111111122222222223333333333444444444455555555556666666666
 ERROR 42000: Identifier name 'f111111111122222222223333333333444444444455555555556666666666777777777788888888889999999999aaaaaaaaa' is too long
 drop function mysqltest111111111122222222223333333333444444444455555555556666666666777777777788888888889999999999aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeffffffffffgggggggggghhhhhhhhhhiiiiiiiiiijjjj.test;
 ERROR 42000: Incorrect database name 'mysqltest111111111122222222223333333333444444444455555555556666666666777777777788888888889999999999a'
+#
+# WL#7897 -- Use DD API for Stored Routines.
+# Test cases to verify error scenarios.
+#
+# Case 1. Test case to verify length of stored routine name length.
+#         STORED PROCEDURE -- name with maximum length
+my_column
+1
+#         STORED PROCEDURE -- name with maximum length + 1 --> expect a fail
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+#         STORED FUNCTION -- name with maximum length
+my_column
+1
+#         STORED FUNCTION -- name with maximum length + 1 --> expect a fail
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+# Case 2: Test case to validate stored routine name.
+ERROR HY000: Invalid utf8 character string: 'test\xF0\x9D\x8C\x86'
+ERROR HY000: Invalid utf8 character string: 'test\xF0\x9D\x8C\x86'
+# Case 3: Test case to verify routine's parameter length.
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+ERROR 42000: Identifier name 'ooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo' is too long
+# Case 4: Test case to validate routine's parameter name.
+ERROR HY000: Invalid utf8 character string: 'test\xF0\x9D\x8C\x86'
+ERROR HY000: Invalid utf8 character string: 'test\xF0\x9D\x8C\x86'
+# Case 5: Test case to verify comment string length.
+ERROR HY000: Comment for routine 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' is too long (max = 65535)
+ERROR HY000: Comment for routine 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' is too long (max = 65535)
+ERROR HY000: Comment for routine 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' is too long (max = 65535)
+ERROR HY000: Comment for routine 'nnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn' is too long (max = 65535)
+# Case 6: Test case to validate comment string.
+ERROR HY000: Invalid utf8 character string: 'F09D8C'
+ERROR HY000: Invalid utf8 character string: 'F09D8C'
+ERROR HY000: Invalid utf8 character string: 'F09D8C'
+ERROR HY000: Invalid utf8 character string: 'F09D8C'
+# Cleanup

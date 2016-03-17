@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,9 +63,16 @@ bool Entity_object_impl::store_id(Raw_record *r, int field_idx)
 
 ///////////////////////////////////////////////////////////////////////////
 
+bool Entity_object_impl::store_name(Raw_record *r, int field_idx, bool is_null)
+{
+  return r->store(field_idx, m_name, is_null);
+}
+
+///////////////////////////////////////////////////////////////////////////
+
 bool Entity_object_impl::store_name(Raw_record *r, int field_idx)
 {
-  return r->store(field_idx, m_name);
+  return store_name(r, field_idx, false);
 }
 
 ///////////////////////////////////////////////////////////////////////////

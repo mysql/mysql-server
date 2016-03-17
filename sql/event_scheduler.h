@@ -148,9 +148,9 @@ private:
   ulonglong started_events;
 
 private:
-  /* Prevent use of these */
-  Event_scheduler(const Event_scheduler &);
-  void operator=(Event_scheduler &);
+   // Disallow copy construction and assignment.
+   Event_scheduler(const Event_scheduler &)= delete;
+   void operator=(Event_scheduler &)= delete;
 };
 
 /**

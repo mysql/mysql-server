@@ -28,7 +28,7 @@
 #include "ngs/scheduler.h"
 #include "notices.h"
 #include "ngs/ngs_error.h"
-#include "mysqlx.pb.h"
+#include "ngs_common/protocol_protobuf.h"
 
 #include <iostream>
 

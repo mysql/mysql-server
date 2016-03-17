@@ -1257,7 +1257,7 @@ os_file_compress_page(
 	ulint		compression_level = page_zip_level;
 	ulint		page_type = mach_read_from_2(src + FIL_PAGE_TYPE);
 
-	/* Must be divisible by the file system block size. */
+	/* The page size must be a multiple of the OS punch hole size. */
 	ut_ad(!(src_len % block_size));
 
 	/* Shouldn't compress an already compressed page. */
@@ -1270,8 +1270,7 @@ os_file_compress_page(
 
 	if (page_type == FIL_PAGE_RTREE
 	    || block_size == ULINT_UNDEFINED
-            || compression.m_type == Compression::NONE
-	    || block_size >= src_len
+	    || compression.m_type == Compression::NONE
 	    || src_len < block_size * 2) {
 
 		*dst_len = src_len;
@@ -5775,6 +5774,13 @@ os_file_punch_hole(
 	os_offset_t	off,
 	os_offset_t	len)
 {
+	/* In this debugging mode, we act as if punch hole is supported,
+	and then skip any calls to actually punch a hole here.
+	In this way, Transparent Page Compression is still being tested. */
+	DBUG_EXECUTE_IF("ignore_punch_hole",
+		return(DB_SUCCESS);
+	);
+
 #ifdef _WIN32
 	return(os_file_punch_hole_win32(fh, off, len));
 #else
@@ -5796,6 +5802,13 @@ Note: On Windows we use the name and on Unices we use the file handle.
 bool
 os_is_sparse_file_supported(const char* path, os_file_t fh)
 {
+	/* In this debugging mode, we act as if punch hole is supported,
+	then we skip any calls to actually punch a hole.  In this way,
+	Transparent Page Compression is still being tested. */
+	DBUG_EXECUTE_IF("ignore_punch_hole",
+		return(true);
+	);
+
 #ifdef _WIN32
 	return(os_is_sparse_file_supported_win32(path));
 #else

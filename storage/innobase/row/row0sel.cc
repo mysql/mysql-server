@@ -236,7 +236,7 @@ row_sel_sec_rec_is_for_clust_rec(
 					row, v_col, clust_index,
 					&heap, NULL, NULL,
 					thr_get_trx(thr)->mysql_thd,
-					thr->prebuilt->m_mysql_table);
+					thr->prebuilt->m_mysql_table, NULL);
 
 			clust_len = vfield->len;
 			clust_field = static_cast<byte*>(vfield->data);
@@ -3174,7 +3174,7 @@ row_sel_store_mysql_rec(
 					&heap, prebuilt->blob_heap,
 					NULL,
 					thr_get_trx(thr)->mysql_thd,
-					prebuilt->m_mysql_table);
+					prebuilt->m_mysql_table, NULL);
 			}
 
 			if (dfield->len == UNIV_SQL_NULL) {

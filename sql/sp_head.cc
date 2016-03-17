@@ -3349,10 +3349,10 @@ void sp_head::set_definer(const LEX_CSTRING &user_name,
 
 bool sp_head::show_create_routine(THD *thd, enum_sp_type type)
 {
-  const char *col1_caption= (type == SP_TYPE_PROCEDURE) ?
+  const char *col1_caption= (type == enum_sp_type::PROCEDURE) ?
                             "Procedure" : "Function";
 
-  const char *col3_caption= (type == SP_TYPE_PROCEDURE) ?
+  const char *col3_caption= (type == enum_sp_type::PROCEDURE) ?
                             "Create Procedure" : "Create Function";
 
   bool err_status;
@@ -3364,7 +3364,7 @@ bool sp_head::show_create_routine(THD *thd, enum_sp_type type)
 
   bool full_access;
 
-  DBUG_ASSERT(type == SP_TYPE_PROCEDURE || type == SP_TYPE_FUNCTION);
+  DBUG_ASSERT(type == enum_sp_type::PROCEDURE || type == enum_sp_type::FUNCTION);
 
   if (check_show_access(thd, &full_access))
     return true;
@@ -3437,7 +3437,7 @@ bool sp_head::add_instr(THD *thd, sp_instr *instr)
 {
   m_parser_data.process_new_sp_instr(thd, instr);
 
-  if (m_type == SP_TYPE_TRIGGER && m_cur_instr_trig_field_items.elements)
+  if (m_type == enum_sp_type::TRIGGER && m_cur_instr_trig_field_items.elements)
   {
     SQL_I_List<Item_trigger_field> *instr_trig_fld_list;
     /*
@@ -3785,21 +3785,27 @@ void sp_head::add_used_tables_to_table_list(THD *thd,
 
 bool sp_head::check_show_access(THD *thd, bool *full_access)
 {
-  TABLE_LIST tables;
-  memset(&tables, 0, sizeof(tables));
-  tables.db= (char*) "mysql";
-  tables.table_name= tables.alias= (char*) "proc";
-
+  /*
+    Before WL#7897 changes, full access to routine information is provided to
+    the definer of routine and to the user having SELECT privilege on
+    mysql.proc. But as part of WL#7897, mysql.proc table is removed. Now, non
+    definer user can not have full access on routine. So backup of routine or
+    getting exact create string of stored routine is not possible with this
+    change.
+    So as workaround for this issue, currently full access on stored routine
+    provided to any user having global SELECT privilege.
+    Correct solution to this issue will be provided with the WL#8131 and
+    WL#9049.
+  */
   *full_access=
-    ((!check_table_access(thd, SELECT_ACL, &tables, false, 1, true) &&
-      (tables.grant.privilege & SELECT_ACL) != 0) ||
+    (thd->security_context()->check_access(SELECT_ACL) ||
      (!strcmp(m_definer_user.str, thd->security_context()->priv_user().str) &&
       !strcmp(m_definer_host.str, thd->security_context()->priv_host().str)));
 
   return *full_access ?
          false :
          check_some_routine_access(thd, m_db.str, m_name.str,
-                                   m_type == SP_TYPE_PROCEDURE);
+                                   m_type == enum_sp_type::PROCEDURE);
 }
 
 
@@ -3826,7 +3832,7 @@ bool sp_head::set_security_ctx(THD *thd, Security_context **save_ctx)
 
   if (*save_ctx &&
       check_routine_access(thd, EXECUTE_ACL, m_db.str, m_name.str,
-                           m_type == SP_TYPE_PROCEDURE, false))
+                           m_type == enum_sp_type::PROCEDURE, false))
   {
     m_security_ctx.restore_security_context(thd, *save_ctx);
     *save_ctx= NULL;

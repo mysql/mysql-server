@@ -19,16 +19,16 @@
 #include "binlog.h"         // mysql_bin_log
 #include "derror.h"         // ER_THD
 #include "mysqld.h"         // stage_end reg_ext key_file_frm
-#include "opt_trace.h"      // Opt_trace_object
+#include "opt_trace.h"      // opt_trace_disable_if_no_view_access
 #include "sp_cache.h"       // sp_cache_invalidate
 #include "sql_base.h"       // get_table_def_key
 #include "sql_cache.h"      // query_cache
 #include "sql_class.h"      // THD
-#include "sql_db.h"         // check_db_dir_existence
 #include "sql_parse.h"      // create_default_definer
 #include "sql_show.h"       // append_identifier
 #include "sql_table.h"      // write_bin_log
 
+#include "dd/dd_schema.h"   // dd::schema_exists
 #include "dd/dd_table.h"    // dd::abstract_table_type
 #include "dd/dd_view.h"     // dd::create_view
 #include "dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
@@ -276,7 +276,7 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
                     &view->grant.m_internal,
                     0, 0) ||
        check_grant(thd, CREATE_VIEW_ACL, view, FALSE, 1, FALSE)) ||
-      (mode != VIEW_CREATE_NEW &&
+      (mode != enum_view_create_mode::VIEW_CREATE_NEW &&
        (check_access(thd, DROP_ACL, view->db,
                      &view->grant.privilege,
                      &view->grant.m_internal,
@@ -388,8 +388,8 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
 
   @note This function handles both create and alter view commands.
 
-  @retval FALSE Operation was a success.
-  @retval TRUE An error occured.
+  @retval false Operation was a success.
+  @retval true  An error occured.
 */
 
 bool mysql_create_view(THD *thd, TABLE_LIST *views,
@@ -406,7 +406,8 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   SELECT_LEX *sl;
 #endif
   SELECT_LEX_UNIT *const unit= lex->unit;
-  bool res= FALSE;
+  bool res= false;
+  bool exists= false;
   DBUG_ENTER("mysql_create_view");
 
   /* This is ensured in the parser. */
@@ -423,12 +424,15 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   if (thd->locked_tables_mode)
   {
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
-    res= TRUE;
+    res= true;
     goto err;
   }
 
-  if ((res= create_view_precheck(thd, tables, view, mode)))
+  if (create_view_precheck(thd, tables, view, mode))
+  {
+    res= true;
     goto err;
+  }
 
   lex->link_first_table_back(view, link_to_local);
   view->open_type= OT_BASE_ONLY;
@@ -449,25 +453,32 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   if (open_tables_for_query(thd, lex->query_tables, 0))
   {
     view= lex->unlink_first_table(&link_to_local);
-    res= TRUE;
+    res= true;
     goto err;
   }
 
   view= lex->unlink_first_table(&link_to_local);
 
   /*
-    Checking the existence of the database in which the view is to be created
+    Checking the existence of the database in which the view is to be created.
+    Errors will be reported in dd::schema_exists().
   */
-  if (check_db_dir_existence(view->db))
+  if (dd::schema_exists(thd, view->db, &exists))
+  {
+    res= true;
+    goto err;
+  }
+  else if (!exists)
   {
     my_error(ER_BAD_DB_ERROR, MYF(0), view->db);
-    res= TRUE;
+    res= true;
     goto err;
   }
 
-  if (mode == VIEW_ALTER && fill_defined_view_parts(thd, view))
+  if (mode == enum_view_create_mode::VIEW_ALTER &&
+      fill_defined_view_parts(thd, view))
   {
-    res= TRUE;
+    res= true;
     goto err;
   }
 
@@ -505,7 +516,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     if (!(thd->security_context()->check_access(SUPER_ACL)))
     {
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
-      res= TRUE;
+      res= true;
       goto err;
     }
     else
@@ -526,8 +537,8 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     check that tables are not temporary  and this VIEW do not used in query
     (it is possible with ALTERing VIEW).
     open_and_lock_tables can change the value of tables,
-    e.g. it may happen if before the function call tables was equal to 0. 
-  */ 
+    e.g. it may happen if before the function call tables was equal to 0.
+  */
   for (tbl= lex->query_tables; tbl; tbl= tbl->next_global)
   {
     /* is this table view and the same view which we creates now? */
@@ -536,7 +547,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
         strcmp(tbl->view_name.str, view->table_name) == 0)
     {
       my_error(ER_NO_SUCH_TABLE, MYF(0), tbl->view_db.str, tbl->view_name.str);
-      res= TRUE;
+      res= true;
       goto err;
     }
 
@@ -554,7 +565,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
           !tbl->schema_table)
       {
         my_error(ER_VIEW_SELECT_TMPTABLE, MYF(0), tbl->alias);
-        res= TRUE;
+        res= true;
         goto err;
       }
       /*
@@ -577,7 +588,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       some errors from prepare are reported to user, if is not then
       it will be checked after err: label
     */
-    res= TRUE;
+    res= true;
     goto err;
   }
 
@@ -592,7 +603,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     if (lex->view_list.elements != select_lex->item_list.elements)
     {
       my_error(ER_VIEW_WRONG_LIST, MYF(0));
-      res= TRUE;
+      res= true;
       goto err;
     }
     while ((item= it++, name= nm++))
@@ -612,7 +623,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   */
   if (check_duplicate_names(select_lex->item_list, 1))
   {
-    res= TRUE;
+    res= true;
     goto err;
   }
 
@@ -623,7 +634,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   if (select_lex->item_list.elements > MAX_FIELDS)
   {
     my_error(ER_TOO_MANY_FIELDS, MYF(0));
-    res= TRUE;
+    res= true;
     goto err;
   }
 
@@ -646,12 +657,12 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
    */
   {
     Item *report_item= NULL;
-    /* 
+    /*
        This will hold the intersection of the priviliges on all columns in the
        view.
      */
     uint final_priv= VIEW_ANY_ACL;
-    
+
     for (sl= select_lex; sl; sl= sl->next_select())
     {
       DBUG_ASSERT(view->db);                     /* Must be set in the parser */
@@ -674,7 +685,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
         }
       }
     }
-    
+
     if (!final_priv && report_item)
     {
       my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
@@ -682,7 +693,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
                thd->security_context()->priv_host().str,
                report_item->item_name.ptr(),
                view->table_name);
-      res= TRUE;
+      res= true;
       goto err;
     }
   }
@@ -707,8 +718,8 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
         { C_STRING_WITH_LEN("ALTER ") },
         { C_STRING_WITH_LEN("CREATE OR REPLACE ") }};
 
-      buff.append(command[thd->lex->create_view_mode].str,
-                  command[thd->lex->create_view_mode].length);
+      buff.append(command[static_cast<int>(thd->lex->create_view_mode)].str,
+                  command[static_cast<int>(thd->lex->create_view_mode)].length);
       view_store_options(thd, views, &buff);
       buff.append(STRING_WITH_LEN("VIEW "));
       /* Test if user supplied a db (ie: we did not use thd->db) */
@@ -737,15 +748,16 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       buff.append(STRING_WITH_LEN(" AS "));
       buff.append(views->source.str, views->source.length);
 
-      int errcode= query_error_code(thd, TRUE);
+      int errcode= query_error_code(thd, true);
       thd->add_to_binlog_accessed_dbs(views->db);
       if (thd->binlog_query(THD::STMT_QUERY_TYPE,
-                            buff.ptr(), buff.length(), FALSE, FALSE, FALSE, errcode))
-        res= TRUE;
+                            buff.ptr(), buff.length(), false, false,
+                            false, errcode))
+        res= true;
     }
   }
-  if (mode != VIEW_CREATE_NEW)
-    query_cache.invalidate(thd, view, FALSE);
+  if (mode != enum_view_create_mode::VIEW_CREATE_NEW)
+    query_cache.invalidate(thd, view, false);
   if (res)
     goto err;
 
@@ -923,7 +935,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
         goto err;
       }
 
-      if (mode == VIEW_CREATE_NEW)
+      if (mode == enum_view_create_mode::VIEW_CREATE_NEW)
       {
 	my_error(ER_TABLE_EXISTS_ERROR, MYF(0), view->alias);
         error= -1;
@@ -945,7 +957,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     }
     else
     {
-      if (mode == VIEW_ALTER)
+      if (mode == enum_view_create_mode::VIEW_ALTER)
       {
 	my_error(ER_NO_SUCH_TABLE, MYF(0), view->db, view->alias);
         error= -1;
@@ -1030,7 +1042,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     goto err;
   }
 
-  if (mode != VIEW_CREATE_NEW &&
+  if (mode != enum_view_create_mode::VIEW_CREATE_NEW &&
       dd::drop_table<dd::View>(thd, view->db, view->table_name, true))
   {
     error= 1;
@@ -1568,8 +1580,6 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
   if (view_ref->prelocking_placeholder)
     DBUG_RETURN(false);
 
-  old_lex->derived_tables|= (DERIVED_VIEW | view_lex->derived_tables);
-
   // Move SQL_NO_CACHE & Co to whole query
   old_lex->safe_to_cache_query&= view_lex->safe_to_cache_query;
 
@@ -1936,7 +1946,6 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref)
 
   SYNOPSIS
     insert_view_fields()
-    thd       thread handler
     list      list for insertion
     view      view for processing
 
@@ -1945,7 +1954,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref)
     TRUE  error (is not sent to cliet)
 */
 
-bool insert_view_fields(THD *thd, List<Item> *list, TABLE_LIST *view)
+bool insert_view_fields(List<Item> *list, TABLE_LIST *view)
 {
   Field_translator *trans_end;
   Field_translator *trans;
@@ -1974,7 +1983,6 @@ bool insert_view_fields(THD *thd, List<Item> *list, TABLE_LIST *view)
 
   SINOPSYS
     view_checksum()
-    thd     threar handler
     view    view for check
 
   RETUIRN
@@ -1983,7 +1991,7 @@ bool insert_view_fields(THD *thd, List<Item> *list, TABLE_LIST *view)
     HA_ADMIN_WRONG_CHECKSUM   check sum is wrong
 */
 
-int view_checksum(THD *thd, TABLE_LIST *view)
+int view_checksum(TABLE_LIST *view)
 {
   char md5[MD5_BUFF_LENGTH];
   if (!view->is_view() || view->md5.length != 32)

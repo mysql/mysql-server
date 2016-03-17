@@ -1,0 +1,214 @@
+#
+# WL#6378: New data dictionary.
+#
+# Replace usage of 'check_db_dir_existence()' by
+# 'dd::schema_exists()'. Error handling will be
+# slightly different in some situations. Below,
+# six test cases check the behavior.
+
+# Server restart requires pid file which is
+# not created by embedded server.
+--source include/not_embedded.inc
+
+--disable_query_log
+CALL mtr.add_suppression("InnoDB: Failed to find tablespace");
+CALL mtr.add_suppression("InnoDB: Ignoring tablespace");
+CALL mtr.add_suppression("InnoDB: Cannot rename");
+CALL mtr.add_suppression("InnoDB: Cannot calculate");
+CALL mtr.add_suppression("InnoDB: Cannot open datafile");
+CALL mtr.add_suppression("InnoDB: The error means the system cannot find");
+CALL mtr.add_suppression("InnoDB: File ./s/t_innodb.ibd");
+CALL mtr.add_suppression("InnoDB: Operating system error number");
+--enable_query_log
+
+# 1. Create schema, remove directory, then try schema statements.
+
+# Schema directory path.
+--let $MYSQL_DATA_DIR= `select @@datadir`
+--let $SCHEMA_DIR= $MYSQL_DATA_DIR/s
+
+# Create and remove schema directory.
+CREATE SCHEMA s;
+--rmdir $SCHEMA_DIR
+
+# SHOW CREATE SCHEMA accesses meta data only, and succeeds.
+SHOW CREATE SCHEMA s;
+
+# USE SCHEMA checks file system access, and fails.
+--error ER_BAD_DB_ERROR
+USE s;
+
+# ALTER SCHEMA is a meta data only operation, and succeeds.
+ALTER SCHEMA s DEFAULT COLLATE= utf8_general_ci;
+
+# SHOW CREATE SCHEMA accesses meta data only, and succeeds.
+SHOW CREATE SCHEMA s;
+
+# DROP SCHEMA verifies directory existence, and fails.
+--error ER_DB_DROP_EXISTS
+DROP SCHEMA s;
+
+# Re-create the directory, then DROP will work.
+--mkdir $SCHEMA_DIR
+DROP SCHEMA s;
+
+# 2. Create schema, remove directory, then try CREATE VIEW.
+
+# Schema directory path.
+--let $MYSQL_DATA_DIR= `select @@datadir`
+--let $SCHEMA_DIR= $MYSQL_DATA_DIR/s
+
+# Create and remove schema directory.
+CREATE SCHEMA s;
+--rmdir $SCHEMA_DIR
+
+# CREATE VIEW does not access the file system, and succeeds.
+CREATE VIEW s.v AS SELECT * FROM mysql.time_zone;
+
+# Re-create the directory, then DROP will work.
+--mkdir $SCHEMA_DIR
+DROP SCHEMA s;
+
+# 3. Create schema, remove directory, then try CREATE TABLE.
+
+# Schema directory path.
+--let $MYSQL_DATA_DIR= `select @@datadir`
+--let $SCHEMA_DIR= $MYSQL_DATA_DIR/s
+
+# Create and remove schema directory.
+CREATE SCHEMA s;
+--rmdir $SCHEMA_DIR
+
+# CREATE TABLE for MyISAM fails.
+--replace_result $MYSQL_DATA_DIR MYSQL_DATA_DIR/
+--error 1
+CREATE TABLE s.t (pk INTEGER PRIMARY KEY) ENGINE= MyISAM;
+
+# CREATE TABLE for InnoDB creates parent directory, and succeeds.
+CREATE TABLE s.t (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
+
+--list_files $SCHEMA_DIR
+
+# DROP will work here since InnoDB created the directory.
+DROP SCHEMA s;
+
+# 4. Create schema, create tables, remove directory, then try ALTER TABLE.
+
+# Schema directory path.
+--let $MYSQL_DATA_DIR= `select @@datadir`
+--let $SCHEMA_DIR= $MYSQL_DATA_DIR/s
+
+# CREATE SCHEMA.
+CREATE SCHEMA s;
+
+# CREATE TABLE for MyISAM and InnoDB.
+CREATE TABLE s.t_myisam (pk INTEGER PRIMARY KEY) ENGINE= MyISAM;
+CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
+
+# Shut server down.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+# Remove schema directory and files.
+--remove_files_wildcard $SCHEMA_DIR
+--rmdir $SCHEMA_DIR
+
+# Restart the server.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+# ALTER TABLE for MyISAM fails.
+--error ER_FILE_NOT_FOUND
+ALTER TABLE s.t_myisam ADD COLUMN c INTEGER;
+
+# ALTER TABLE for InnoDB fails differently depending on platform.
+--error ER_GET_ERRNO, ER_TABLESPACE_MISSING
+ALTER TABLE s.t_innodb ADD COLUMN c INTEGER;
+
+# Re-create the directory, then DROP will work.
+--mkdir $SCHEMA_DIR
+DROP SCHEMA s;
+
+# 5. Create schema, create tables, remove directory, then try SHOW CREATE TABLE.
+
+# Schema directory path.
+--let $MYSQL_DATA_DIR= `select @@datadir`
+--let $SCHEMA_DIR= $MYSQL_DATA_DIR/s
+
+# CREATE SCHEMA.
+CREATE SCHEMA s;
+
+# CREATE TABLE for MyISAM and InnoDB.
+CREATE TABLE s.t_myisam (pk INTEGER PRIMARY KEY) ENGINE= MyISAM;
+CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
+
+# Shut server down.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+# Remove schema directory and files.
+--remove_files_wildcard $SCHEMA_DIR
+--rmdir $SCHEMA_DIR
+
+# Restart the server.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+# SHOW CREATE TABLE for MyISAM fails.
+--error ER_FILE_NOT_FOUND
+SHOW CREATE TABLE s.t_myisam;
+
+# SHOW CREATE TABLE for InnoDB succeeds except on Windows.
+# Mute the statement due to platform dependent output.
+--disable_query_log
+--error 0, ER_TABLESPACE_MISSING
+SHOW CREATE TABLE s.t_innodb;
+--enable_query_log
+
+# Re-create the directory, then DROP will work.
+--mkdir $SCHEMA_DIR
+DROP SCHEMA s;
+
+# 6. Create schema, create tables, remove directory, then try DROP TABLE.
+
+# Schema directory path.
+--let $MYSQL_DATA_DIR= `select @@datadir`
+--let $SCHEMA_DIR= $MYSQL_DATA_DIR/s
+
+# CREATE SCHEMA.
+CREATE SCHEMA s;
+
+# CREATE TABLE for MyISAM and InnoDB.
+CREATE TABLE s.t_myisam (pk INTEGER PRIMARY KEY) ENGINE= MyISAM;
+CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
+
+# Shut server down.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+# Remove schema directory and files.
+--remove_files_wildcard $SCHEMA_DIR
+--rmdir $SCHEMA_DIR
+
+# Restart the server.
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+# DROP TABLE for MyISAM fails.
+--error ER_BAD_TABLE_ERROR
+DROP TABLE s.t_myisam;
+
+# DROP TABLE for InnoDB succeeds.
+DROP TABLE s.t_innodb;
+
+# Re-create the directory, then DROP will work.
+--mkdir $SCHEMA_DIR
+DROP SCHEMA s;
+
+# End of tests for WL#6378: New data dictionary.

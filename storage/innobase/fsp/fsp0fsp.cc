@@ -1143,7 +1143,11 @@ fsp_header_init(
 
 	fil_space_t*		space	= mtr_x_lock_space(space_id, mtr);
 
-	block = buf_page_create(space, 0, RW_SX_LATCH, mtr);
+	const page_id_t		page_id(space_id, 0);
+	const page_size_t	page_size(space->flags);
+
+	block = buf_page_create(page_id, page_size, mtr);
+	buf_page_get(page_id, page_size, RW_SX_LATCH, mtr);
 	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
 	space->size_in_header = size;
@@ -1183,8 +1187,7 @@ fsp_header_init(
 	/* For encryption tablespace, we need to save the encryption
 	info to the page 0. */
 	if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
-		ulint	offset = fsp_header_get_encryption_offset(
-			page_size_t(space->flags));
+		ulint	offset = fsp_header_get_encryption_offset(page_size);
 		byte	encryption_info[ENCRYPTION_INFO_SIZE];
 
 		if (offset == 0)
@@ -1723,8 +1726,14 @@ fsp_fill_free_list(
 			pages should be ignored. */
 
 			if (i > 0) {
-				block = buf_page_create(space, i,
-							RW_SX_LATCH, mtr);
+				const page_id_t	page_id(space->id, i);
+
+				block = buf_page_create(
+					page_id, page_size, mtr);
+
+				buf_page_get(
+					page_id, page_size, RW_SX_LATCH, mtr);
+
 				buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
 				fsp_init_file_page(block, mtr);
@@ -1750,9 +1759,16 @@ fsp_fill_free_list(
 						&ibuf_mtr, MTR_LOG_NO_REDO);
 				}
 
+				const page_id_t	page_id(
+					space->id,
+					i + FSP_IBUF_BITMAP_OFFSET);
+
 				block = buf_page_create(
-					space, i + FSP_IBUF_BITMAP_OFFSET,
-					RW_SX_LATCH, &ibuf_mtr);
+					page_id, page_size, &ibuf_mtr);
+
+				buf_page_get(
+					page_id, page_size, RW_SX_LATCH,
+					&ibuf_mtr);
 
 				buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
@@ -1882,12 +1898,12 @@ fsp_alloc_from_free_frag(
 	}
 }
 
-/** Get a buffer block for an allocated page.
+/** Gets a buffer block for an allocated page.
 NOTE: If init_mtr != mtr, the block will only be initialized if it was
 not previously x-latched. It is assumed that the block has been
 x-latched only by mtr, and freed in mtr in that case.
-@param[in,out]	space		tablespace
-@param[in]	offset		page number
+@param[in]	page_id		page id of the allocated page
+@param[in]	page_size	page size of the allocated page
 @param[in]	rw_latch	RW_SX_LATCH, RW_X_LATCH
 @param[in,out]	mtr		mini-transaction of the allocation
 @param[in,out]	init_mtr	mini-transaction for initializing the page
@@ -1896,14 +1912,35 @@ or rw_lock_x_lock_count(&block->lock) == 1 */
 static
 buf_block_t*
 fsp_page_create(
-	fil_space_t*		space,
-	page_no_t		offset,
+	const page_id_t&	page_id,
+	const page_size_t&	page_size,
 	rw_lock_type_t		rw_latch,
 	mtr_t*			mtr,
 	mtr_t*			init_mtr)
 {
-	buf_block_t*	block = buf_page_create(space, offset,
-						rw_latch, init_mtr);
+	buf_block_t*	block = buf_page_create(page_id, page_size, init_mtr);
+
+	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX)
+	      == rw_lock_own(&block->lock, RW_LOCK_X));
+
+	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_SX_FIX)
+	      == rw_lock_own(&block->lock, RW_LOCK_SX));
+
+	ut_ad(rw_latch == RW_X_LATCH || rw_latch == RW_SX_LATCH);
+
+	/* Mimic buf_page_get(), but avoid the buf_pool->page_hash lookup. */
+	if (rw_latch == RW_X_LATCH) {
+		rw_lock_x_lock(&block->lock);
+	} else {
+		rw_lock_sx_lock(&block->lock);
+	}
+	mutex_enter(&block->mutex);
+
+	buf_block_buf_fix_inc(block, __FILE__, __LINE__);
+
+	mutex_exit(&block->mutex);
+	mtr_memo_push(init_mtr, block, rw_latch == RW_X_LATCH
+		      ? MTR_MEMO_PAGE_X_FIX : MTR_MEMO_PAGE_SX_FIX);
 
 	if (init_mtr == mtr
 	    || (rw_latch == RW_X_LATCH
@@ -1924,9 +1961,9 @@ fsp_page_create(
 	return(block);
 }
 
-/** Allocate a single free page from a space.
+/** Allocates a single free page from a space.
 The page is marked as used.
-@param[in]	space		tablespace
+@param[in]	space		space id
 @param[in]	page_size	page size
 @param[in]	hint		hint of which page would be desirable
 @param[in]	rw_latch	RW_SX_LATCH, RW_X_LATCH
@@ -1940,29 +1977,28 @@ initialized (may be the same as mtr)
 static __attribute__((warn_unused_result))
 buf_block_t*
 fsp_alloc_free_page(
-	fil_space_t*		space,
+	ulint			space,
 	const page_size_t&	page_size,
-	page_no_t		hint,
+	ulint			hint,
 	rw_lock_type_t		rw_latch,
 	mtr_t*			mtr,
 	mtr_t*			init_mtr)
 {
-	fsp_header_t*		header;
-	fil_addr_t		first;
-	xdes_t*			descr;
-	page_no_t		page_no;
-	page_no_t		space_size;
-	const space_id_t	space_id	= space->id;
+	fsp_header_t*	header;
+	fil_addr_t	first;
+	xdes_t*		descr;
+	ulint		free;
+	ulint		page_no;
+	ulint		space_size;
 
 	ut_ad(mtr);
 	ut_ad(init_mtr);
 
-	ut_d(fsp_space_modify_check(space_id, mtr));
-	header = fsp_get_space_header(space_id, page_size, mtr);
+	ut_d(fsp_space_modify_check(space, mtr));
+	header = fsp_get_space_header(space, page_size, mtr);
 
 	/* Get the hinted descriptor */
-	descr = xdes_get_descriptor_with_space_hdr(
-		header, space_id, hint, mtr);
+	descr = xdes_get_descriptor_with_space_hdr(header, space, hint, mtr);
 
 	if (descr && (xdes_get_state(descr, mtr) == XDES_FREE_FRAG)) {
 		/* Ok, we can take this extent */
@@ -1978,7 +2014,7 @@ fsp_alloc_free_page(
 			FREE_FRAG list. But we will allocate our page from the
 			the free extent anyway. */
 
-			descr = fsp_alloc_free_extent(space_id, page_size,
+			descr = fsp_alloc_free_extent(space, page_size,
 						      hint, mtr);
 
 			if (descr == NULL) {
@@ -1991,7 +2027,7 @@ fsp_alloc_free_page(
 			flst_add_last(header + FSP_FREE_FRAG,
 				      descr + XDES_FLST_NODE, mtr);
 		} else {
-			descr = xdes_lst_get_descriptor(space_id, page_size,
+			descr = xdes_lst_get_descriptor(space, page_size,
 							first, mtr);
 		}
 
@@ -2002,31 +2038,39 @@ fsp_alloc_free_page(
 	/* Now we have in descr an extent with at least one free page. Look
 	for a free page in the extent. */
 
-	const page_no_t	free = xdes_find_bit(descr, XDES_FREE_BIT, true,
-						 hint % FSP_EXTENT_SIZE, mtr);
-	ut_a(free != FIL_NULL);
+	free = xdes_find_bit(descr, XDES_FREE_BIT, TRUE,
+			     hint % FSP_EXTENT_SIZE, mtr);
+	if (free == ULINT_UNDEFINED) {
+
+		ut_print_buf(stderr, ((byte*) descr) - 500, 1000);
+		putc('\n', stderr);
+
+		ut_error;
+	}
 
 	page_no = xdes_get_offset(descr) + free;
 
 	space_size = mach_read_from_4(header + FSP_SIZE);
-	ut_ad(space_size == space->size_in_header
-	      || (space_id == TRX_SYS_SPACE
+	ut_ad(space_size == fil_space_get(space)->size_in_header
+	      || (space == TRX_SYS_SPACE
 		  && srv_startup_is_before_trx_rollback_phase));
 
 	if (space_size <= page_no) {
-		/* It must be that we are extending a single-file tablespace
+		/* It must be that we are extending a single-table tablespace
 		whose size is still < 64 pages */
 
-		ut_a(space_id != TRX_SYS_SPACE);
+		ut_a(!is_system_tablespace(space));
 		if (page_no >= FSP_EXTENT_SIZE) {
-			ib::error() << "Cannot extend file '"
-				<< UT_LIST_GET_FIRST(space->chain)->name
-				<< "' by single pages; size="
-				<< space_size << ",page=" << page_no;
+			ib::error() << "Trying to extend a single-table"
+				" tablespace " << space << " , by single"
+				" page(s) though the space size " << space_size
+				<< ". Page no " << page_no << ".";
 			return(NULL);
 		}
 
-		if (!fsp_try_extend_data_file_with_pages(space, page_no,
+		fil_space_t*	fspace = fil_space_get(space);
+
+		if (!fsp_try_extend_data_file_with_pages(fspace, page_no,
 							 header, mtr)) {
 			/* No disk space left */
 			return(NULL);
@@ -2034,7 +2078,8 @@ fsp_alloc_free_page(
 	}
 
 	fsp_alloc_from_free_frag(header, descr, free, mtr);
-	return(fsp_page_create(space, page_no, rw_latch, mtr, init_mtr));
+	return(fsp_page_create(page_id_t(space, page_no), page_size,
+			       rw_latch, mtr, init_mtr));
 }
 
 /** Frees a single page of a space.
@@ -2260,36 +2305,33 @@ fsp_seg_inode_page_find_free(
 	return(ULINT_UNDEFINED);
 }
 
-/** Allocate a file segment inode page.
-@param[in,out]	space_header	tablespace header
-@param[in,out]	mtr		mini-transaction
-@retval	true	on success
-@retval	false	on failure */
+/**********************************************************************//**
+Allocates a new file segment inode page.
+@return TRUE if could be allocated */
 static
-bool
-fsp_alloc_seg_inode_page(fsp_header_t* space_header, mtr_t* mtr)
+ibool
+fsp_alloc_seg_inode_page(
+/*=====================*/
+	fsp_header_t*	space_header,	/*!< in: space header */
+	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 {
 	fseg_inode_t*	inode;
 	buf_block_t*	block;
 	page_t*		page;
+	ulint		space;
 
 	ut_ad(page_offset(space_header) == FSP_HEADER_OFFSET);
 
-	FilSpace	space(page_get_space_id(page_align(space_header)));
+	space = page_get_space_id(page_align(space_header));
 
-	if (space() == NULL) {
-		return(false);
-	}
+	const page_size_t	page_size(mach_read_from_4(FSP_SPACE_FLAGS
+							   + space_header));
 
-	const page_size_t	page_size(space()->flags);
-	ut_ad(mach_read_from_4(FSP_SPACE_FLAGS + space_header)
-	      == space()->flags);
-
-	block = fsp_alloc_free_page(space(), page_size,
-				    0, RW_SX_LATCH, mtr, mtr);
+	block = fsp_alloc_free_page(space, page_size, 0, RW_SX_LATCH, mtr, mtr);
 
 	if (block == NULL) {
-		return(false);
+
+		return(FALSE);
 	}
 
 	buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
@@ -2300,8 +2342,7 @@ fsp_alloc_seg_inode_page(fsp_header_t* space_header, mtr_t* mtr)
 	mlog_write_ulint(page + FIL_PAGE_TYPE, FIL_PAGE_INODE,
 			 MLOG_2BYTES, mtr);
 
-	for (page_no_t i = 0; i < FSP_SEG_INODES_PER_PAGE(page_size);
-	     i++) {
+	for (ulint i = 0; i < FSP_SEG_INODES_PER_PAGE(page_size); i++) {
 
 		inode = fsp_seg_inode_page_get_nth_inode(
 			page, i, page_size, mtr);
@@ -2313,7 +2354,7 @@ fsp_alloc_seg_inode_page(fsp_header_t* space_header, mtr_t* mtr)
 		space_header + FSP_SEG_INODES_FREE,
 		page + FSEG_INODE_PAGE_NODE, mtr);
 
-	return(true);
+	return(TRUE);
 }
 
 /**********************************************************************//**
@@ -3261,7 +3302,7 @@ take_hinted_page:
 		/* 6. We allocate an individual page from the space
 		===================================================*/
 		buf_block_t* block = fsp_alloc_free_page(
-			space, page_size, hint, rw_latch, mtr, init_mtr);
+			space_id, page_size, hint, rw_latch, mtr, init_mtr);
 
 		ut_ad(!has_done_reservation || block != NULL);
 
@@ -3353,7 +3394,8 @@ got_hinted_page:
 
 	ut_ad(space->flags
 	      == mach_read_from_4(FSP_SPACE_FLAGS + space_header));
-	return(fsp_page_create(space, ret_page, rw_latch, mtr, init_mtr));
+	return(fsp_page_create(page_id_t(space_id, ret_page), page_size,
+			       rw_latch, mtr, init_mtr));
 }
 
 /**********************************************************************//**

@@ -513,7 +513,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                      ER_THD(thd, ER_CHECK_NO_SUCH_TABLE));
       /* if it was a view will check md5 sum */
       if (table->is_view() &&
-          view_checksum(thd, table) == HA_ADMIN_WRONG_CHECKSUM)
+          view_checksum(table) == HA_ADMIN_WRONG_CHECKSUM)
         push_warning(thd, Sql_condition::SL_WARNING,
                      ER_VIEW_CHECKSUM,
                      ER_THD(thd, ER_VIEW_CHECKSUM));

@@ -3298,7 +3298,7 @@ bool Field_new_decimal::compatible_field_size(uint field_metadata,
 }
 
 
-uint Field_new_decimal::is_equal(Create_field *new_field)
+uint Field_new_decimal::is_equal(const Create_field *new_field)
 {
   return ((new_field->sql_type == real_type()) &&
           ((new_field->flags & UNSIGNED_FLAG) == 
@@ -5104,7 +5104,7 @@ my_time_flags_t Field_temporal::date_flags()
   return date_flags(table ? table->in_use : current_thd);
 }
 
-uint Field_temporal::is_equal(Create_field *new_field)
+uint Field_temporal::is_equal(const Create_field *new_field)
 {
   return new_field->sql_type == real_type() &&
          new_field->decimals == decimals();
@@ -7100,13 +7100,13 @@ bool Field::gcol_expr_is_equal(const Create_field *field) const
 }
 
 
-uint Field::is_equal(Create_field *new_field)
+uint Field::is_equal(const Create_field *new_field)
 {
   return (new_field->sql_type == real_type());
 }
 
 
-uint Field_str::is_equal(Create_field *new_field)
+uint Field_str::is_equal(const Create_field *new_field)
 {
   return ((new_field->sql_type == real_type()) &&
 	  new_field->charset == field_charset &&
@@ -7949,7 +7949,7 @@ Field *Field_varstring::new_key_field(MEM_ROOT *root,
 }
 
 
-uint Field_varstring::is_equal(Create_field *new_field)
+uint Field_varstring::is_equal(const Create_field *new_field)
 {
   if (new_field->sql_type == real_type() &&
       new_field->charset == field_charset)
@@ -8617,7 +8617,7 @@ uint Field_blob::max_packed_col_length()
 }
 
 
-uint Field_blob::is_equal(Create_field *new_field)
+uint Field_blob::is_equal(const Create_field *new_field)
 {
   return ((new_field->sql_type == get_blob_type_from_length(max_data_length()))
           && new_field->charset == field_charset &&
@@ -8771,7 +8771,7 @@ Field_geom::store_internal(const char *from, size_t length,
 }
 
 
-uint Field_geom::is_equal(Create_field *new_field)
+uint Field_geom::is_equal(const Create_field *new_field)
 {
   return new_field->sql_type == real_type() &&
          new_field->geom_type == get_geometry_type() &&
@@ -8811,7 +8811,7 @@ Field_json *Field_json::clone() const
   @param new_field  the new field
   @return true if new_field is compatible with this field, false otherwise
 */
-uint Field_json::is_equal(Create_field *new_field)
+uint Field_json::is_equal(const Create_field *new_field)
 {
   // All JSON fields are compatible with each other.
   return (new_field->sql_type == real_type());
@@ -9633,7 +9633,7 @@ bool Field_enum::eq_def(Field *field)
           IS_EQUAL_NO otherwise.
 */
 
-uint Field_enum::is_equal(Create_field *new_field)
+uint Field_enum::is_equal(const Create_field *new_field)
 {
   TYPELIB *values= new_field->interval;
 
@@ -9734,7 +9734,7 @@ bool Field_num::eq_def(Field *field)
   and retain the same pack length.
 */
 
-uint Field_num::is_equal(Create_field *new_field)
+uint Field_num::is_equal(const Create_field *new_field)
 {
   return ((new_field->sql_type == real_type()) &&
           ((new_field->flags & UNSIGNED_FLAG) == 
@@ -9860,7 +9860,7 @@ Field *Field_bit::new_key_field(MEM_ROOT *root,
 }
 
 
-uint Field_bit::is_equal(Create_field *new_field) 
+uint Field_bit::is_equal(const Create_field *new_field)
 {
   return (new_field->sql_type == real_type() &&
           new_field->length == max_display_length());

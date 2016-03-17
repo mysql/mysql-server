@@ -24,7 +24,6 @@
 #include <list>
 #include <vector>
 #include <boost/core/noncopyable.hpp>
-#include <boost/asio/buffer.hpp>
 #include "ngs/protocol/page_pool.h"
 #include "ngs_common/types.h"
 

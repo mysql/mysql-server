@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -243,6 +243,59 @@ std::string Composite_pk::str() const
   return ss.str();
 }
 /* purecov: end */
+
+///////////////////////////////////////////////////////////////////////////
+// Routine_name_key
+///////////////////////////////////////////////////////////////////////////
+
+Raw_key *Routine_name_key::create_access_key(Raw_table *db_table) const
+{
+  TABLE *t= db_table->get_table();
+
+  t->use_all_columns();
+
+  t->field[m_container_id_column_no]->store(m_container_id, true);
+
+  t->field[m_type_column_no]->store(m_type, true);
+
+  t->field[m_name_column_no]->store(m_object_name.c_str(),
+                                    m_object_name.length(),
+                                    &my_charset_bin);
+
+  KEY *key_info= t->key_info + 1 /* index_no */;
+
+  Raw_key *k= new (std::nothrow) Raw_key(1 /* index_no */,
+                                         key_info->key_length,
+                                         HA_WHOLE_KEY);
+
+  key_copy(k->key, t->record[0], key_info, k->key_len);
+
+  return k;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+/* purecov: begin inspected */
+std::string Routine_name_key::str() const
+{
+  std::stringstream ss;
+  ss << m_container_id << ":" << m_type << ":" << m_object_name;
+  return ss.str();
+}
+/* purecov: end */
+
+///////////////////////////////////////////////////////////////////////////
+
+bool Routine_name_key::operator <(const Routine_name_key &rhs) const
+{
+  if (m_container_id != rhs.m_container_id)
+    return m_container_id < rhs.m_container_id;
+  if (m_type != rhs.m_type)
+    return m_type < rhs.m_type;
+  // Case insensitive comparison
+  return my_strcasecmp(system_charset_info,
+                       m_object_name.c_str(), rhs.m_object_name.c_str()) < 0;
+}
 
 ///////////////////////////////////////////////////////////////////////////
 }

@@ -698,6 +698,7 @@ extern ulong events_transactions_history_per_thread;
 extern ulong locker_lost;
 extern ulong statement_lost;
 extern ulong session_connect_attrs_lost;
+extern ulong session_connect_attrs_longest_seen;
 extern ulong session_connect_attrs_size_per_thread;
 
 /* Exposing the data directly, for iterators. */

@@ -221,16 +221,6 @@ public:
   virtual const Partition *get_last_partition() const = 0;
 
   /**
-    @brief
-     Given a se_private_id of a partition, traverse and return
-     the partition with given se_private_id.
-
-    @param se_private_id - The se_private_id to be searched.
-  */
-  virtual const Partition *get_partition_by_se_private_id(
-                             Object_id se_private_id) const = 0;
-
-  /**
     Allocate a new object graph and invoke the copy contructor for
     each object.
 

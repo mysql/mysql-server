@@ -5728,17 +5728,17 @@ void pfs_end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
 
 static inline enum_object_type sp_type_to_object_type(uint sp_type)
 {
-  enum enum_sp_type value= static_cast<enum enum_sp_type> (sp_type);
+  enum_sp_type value= to_sp_type(sp_type);
 
   switch (value)
   {
-    case SP_TYPE_FUNCTION:
+    case enum_sp_type::FUNCTION:
       return OBJECT_TYPE_FUNCTION;
-    case SP_TYPE_PROCEDURE:
+    case enum_sp_type::PROCEDURE:
       return OBJECT_TYPE_PROCEDURE;
-    case SP_TYPE_TRIGGER:
+    case enum_sp_type::TRIGGER:
       return OBJECT_TYPE_TRIGGER;
-    case SP_TYPE_EVENT:
+    case enum_sp_type::EVENT:
       return OBJECT_TYPE_EVENT;
     default:
       DBUG_ASSERT(false);
@@ -6413,11 +6413,49 @@ int pfs_set_thread_connect_attrs_v1(const char *buffer, uint length,
     pfs_dirty_state dirty_state;
     const CHARSET_INFO *cs = static_cast<const CHARSET_INFO *> (from_cs);
 
-    /* copy from the input buffer as much as we can fit */
-    uint copy_size= (uint)(length < session_connect_attrs_size_per_thread ?
-                           length : session_connect_attrs_size_per_thread);
     thd->m_session_lock.allocated_to_dirty(& dirty_state);
-    memcpy(thd->m_session_connect_attrs, buffer, copy_size);
+
+    /* copy from the input buffer as much as we can fit */
+    uint copy_size, lost;
+
+    if (length > session_connect_attrs_longest_seen)
+      session_connect_attrs_longest_seen= length;
+
+    if (length <= session_connect_attrs_size_per_thread)
+    {
+      copy_size= length;
+      lost=      0;
+
+      memcpy(thd->m_session_connect_attrs, buffer, copy_size);
+    }
+    else
+    {
+      copy_size= session_connect_attrs_size_per_thread;
+      lost     = length - copy_size;
+
+      /* create warning */
+      const char *key= "_truncated";
+      char        val[7], warn_buf[64];
+      size_t      key_len= strlen(key), warning_size, val_len;
+
+      /* lost characters, factoring in warning attribute key/value */
+      lost += key_len + 1 + sizeof(val);
+
+      /* we want UTF-8, so my_convert() is not necessary here. */
+      val_len= my_snprintf(val, sizeof(val) - 1, "%d", lost);
+
+      warning_size= my_snprintf(warn_buf, sizeof(warn_buf),
+                                "%c%s%c%s", key_len, key, val_len, val);
+
+      if (warning_size <= copy_size)
+      {
+        size_t left= copy_size - warning_size;
+        memcpy(thd->m_session_connect_attrs, warn_buf, warning_size);
+        if (left > 0)
+          memcpy(thd->m_session_connect_attrs + warning_size, buffer, left);
+      }
+    }
+
     thd->m_session_connect_attrs_length= copy_size;
     thd->m_session_connect_attrs_cs_number= cs->number;
     thd->m_session_lock.dirty_to_allocated(& dirty_state);
@@ -6426,7 +6464,7 @@ int pfs_set_thread_connect_attrs_v1(const char *buffer, uint length,
       return 0;
 
     session_connect_attrs_lost++;
-    return 1;
+    return lost;
   }
   return 0;
 }
