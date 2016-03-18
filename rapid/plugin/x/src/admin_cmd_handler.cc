@@ -431,8 +431,9 @@ ngs::Error_code Admin_command_handler::kill_client(Session &session, Sql_data_co
 
 /* CreateCollection
 
-@param schema
-@param name
+Required arguments:
+- schema
+- name
 */
 ngs::Error_code Admin_command_handler::create_collection(Session &session, Sql_data_context &da, Session_options &options, const Argument_list &args)
 {
@@ -742,14 +743,15 @@ static std::string hash_column_name(const std::string& name)
 
 /* CreateCollectionIndex
 
-@param schema
-@param collection
-@param index_name
-@param unique: bool
+Required arguments:
+- schema
+- collection
+- index_name
+- unique: bool
 Repeated:
-@param required: bool
-@param document_path
-@param type: (text(length), int, float, datetime, time, date)
+- required: bool
+- document_path
+- type: (text(length), int, float, datetime, time, date)
 
 VARCHAR and CHAR are now indexable because:
 - varchar column needs to be created with a length, which would limit documents to have
@@ -958,9 +960,9 @@ ngs::Error_code Admin_command_handler::create_collection_index(Session &session,
 
 /** DropCollection
 
-@param schema
-@param table_or_collection
-
+Required arguments:
+- schema
+- table_or_collection
 */
 ngs::Error_code Admin_command_handler::drop_collection_or_table(Session &session, Sql_data_context &da, Session_options &options, const Argument_list &args)
 {
@@ -1054,9 +1056,10 @@ static ngs::Error_code get_index_virtual_column_names(
 
 /** DropCollectionIndex
 
-@param schema
-@param table_or_collection
-@param index_name
+Required arguments:
+- schema
+- table_or_collection
+- index_name
 
 */
 ngs::Error_code Admin_command_handler::drop_collection_index(Session &session, Sql_data_context &da, Session_options &options, const Argument_list &args)
