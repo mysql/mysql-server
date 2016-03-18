@@ -635,6 +635,7 @@ runListenEmptyEpochs(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
 
+  pNdb->setEventBufferQueueEmptyEpoch(true);
   if (result == NDBT_OK)
   {
     NdbEventOperation* evOp2 = createEventOperation(pNdb,
@@ -4559,7 +4560,17 @@ consumeEpochs(Ndb* ndb, Uint32 nEpochs)
       NdbDictionary::Event::TableEvent err_type;
       if ((pOp->isErrorEpoch(&err_type)) ||
           (pOp->getEventType2() == NdbDictionary::Event::TE_CLUSTER_FAILURE))
+      {
         errorEpochs++;
+        // After cluster failure, a new generation of epochs will start.
+        // Start the checks afresh.
+        curr_gci = 0;
+        break;
+      }
+      else if (pOp->getEventType2() == NdbDictionary::Event::TE_NODE_FAILURE)
+      {
+        errorEpochs++;
+      }
       else if (pOp->isEmptyEpoch())
       {
         emptyEpochs++;

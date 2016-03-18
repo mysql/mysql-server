@@ -776,6 +776,7 @@ public:
   Uint64 getLatestGCI();
   Uint32 getEventId(int bufferId);
   Uint64 getHighestQueuedEpoch();
+  void setEventBufferQueueEmptyEpoch(bool queue_empty_epoch);
 
   int pollEvents(Uint64 *HighestQueuedEpoch= NULL);
   int flushIncompleteEvents(Uint64 gci);
@@ -922,6 +923,8 @@ private:
   */
   EventMemoryBlock *m_mem_block_free;
   Uint32 m_mem_block_free_sz; //Total size of above
+
+  bool m_queue_empty_epoch;
 
   /*
     dropped event operations (dropEventOperation) that have not yet
