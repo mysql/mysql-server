@@ -77,6 +77,7 @@ DictTabInfo::TableMapping[] = {
   DTIMAP(Table, TableStorageType, TableStorageType),
   DTIMAP(Table, ExtraRowGCIBits, ExtraRowGCIBits),
   DTIMAP(Table, ExtraRowAuthorBits, ExtraRowAuthorBits),
+  DTIMAP(Table, ReadBackupFlag, ReadBackupFlag),
   DTIBREAK(AttributeName)
 };
 
@@ -192,6 +193,8 @@ DictTabInfo::Table::init(){
 
   ExtraRowGCIBits = 0;
   ExtraRowAuthorBits = 0;
+
+  ReadBackupFlag = 0;
 }
 
 void

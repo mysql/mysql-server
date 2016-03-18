@@ -734,6 +734,8 @@ ALTER TABLE categorylinks
         DROP INDEX cl_sortkey,
         ADD INDEX cl_sortkey (cl_to, cl_type, cl_sortkey, cl_from);
 
+--disable_warnings
 SHOW CREATE TABLE categorylinks;
+--enable_warnings
 
 DROP TABLE categorylinks;

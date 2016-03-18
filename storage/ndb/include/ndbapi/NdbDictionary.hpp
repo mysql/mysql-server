@@ -1076,7 +1076,10 @@ public:
 
     void setRowChecksumIndicator(bool value);
     bool getRowChecksumIndicator() const;
- 
+
+    void setReadBackupFlag(bool value);
+    bool getReadBackupFlag() const;
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     const char *getMysqlName() const;
 

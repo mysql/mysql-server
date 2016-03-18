@@ -85,6 +85,8 @@ static char* opt_ndb_recv_thread_cpu_mask;
 static char* opt_ndb_index_stat_option;
 static char* opt_ndb_connectstring;
 static uint opt_ndb_nodeid;
+static my_bool opt_ndb_read_backup;
+static ulong opt_ndb_data_node_neighbour;
 
 static MYSQL_THDVAR_UINT(
   autoincrement_prefetch_sz,         /* name */
@@ -9069,6 +9071,7 @@ static const
 struct NDB_Modifier ndb_table_modifiers[] =
 {
   { NDB_Modifier::M_BOOL, STRING_WITH_LEN("NOLOGGING"), 0, {0} },
+  { NDB_Modifier::M_BOOL, STRING_WITH_LEN("READ_BACKUP"), 0, {0} },
   { NDB_Modifier::M_STRING, STRING_WITH_LEN("FRAGMENT_COUNT_TYPE"), 0, {0} },
   { NDB_Modifier::M_BOOL, 0, 0, 0, {0} }
 };
@@ -10088,6 +10091,7 @@ void ha_ndbcluster::append_create_info(String *packet)
   const NdbDictionary::Table * tab = ndbtab_g.get_table();
   NdbDictionary::Object::FragmentCountType fctype = tab->getFragmentCountType();
   bool logged_table = tab->getLogging();
+  bool read_backup = tab->getReadBackupFlag();
 
   DBUG_PRINT("info", ("append_create_info: comment: %s, logged_table = %u,"
                       " fctype = %d",
@@ -10097,12 +10101,14 @@ void ha_ndbcluster::append_create_info(String *packet)
                       fctype));
   if (table_share->comment.length == 0 &&
       fctype == NdbDictionary::Object::FragmentCount_Specific &&
+      !read_backup &&
       logged_table)
   {
     /**
      * No comment set by user
      * The fragment count type is default and thus no need to set
      * The table is logged which is default and thus no need to set
+     * The table is not using read backup which is default
      */
     return;
   }
@@ -10116,8 +10122,11 @@ void ha_ndbcluster::append_create_info(String *packet)
     NdbDictionary::Object::FragmentCount_OnePerLDMPerNode;
 
   bool comment_fctype_set = false;
-  bool comment_logged_table = true;
   bool comment_logged_table_set = false;
+  bool comment_read_backup_set = false;
+
+  bool comment_logged_table = true;
+  bool comment_read_backup = false;
 
   if (table_share->comment.length)
   {
@@ -10126,6 +10135,7 @@ void ha_ndbcluster::append_create_info(String *packet)
     table_modifiers.parse(thd, "NDB_TABLE=", table_share->comment.str,
                           table_share->comment.length);
     const NDB_Modifier *mod_nologging = table_modifiers.get("NOLOGGING");
+    const NDB_Modifier *mod_read_backup = table_modifiers.get("READ_BACKUP");
     const NDB_Modifier *mod_frags = table_modifiers.get("FRAGMENT_COUNT_TYPE");
 
     if (mod_nologging->m_found)
@@ -10136,6 +10146,11 @@ void ha_ndbcluster::append_create_info(String *packet)
        */
       comment_logged_table = !mod_nologging->m_val_bool;
       comment_logged_table_set = true;
+    }
+    if (mod_read_backup->m_found)
+    {
+      comment_read_backup_set = true;
+      comment_read_backup = mod_read_backup->m_val_bool;
     }
     if (mod_frags->m_found)
     {
@@ -10163,12 +10178,45 @@ void ha_ndbcluster::append_create_info(String *packet)
       comment_fctype_set = true;
     }
   }
+  DBUG_PRINT("info", ("comment_read_backup_set: %u, comment_read_backup: %u",
+                      comment_read_backup_set,
+                      comment_read_backup));
   DBUG_PRINT("info", ("comment_logged_table_set: %u, comment_logged_table: %u",
                       comment_logged_table_set,
                       comment_logged_table));
   DBUG_PRINT("info", ("comment_fctype_set: %u, comment_fctype: %d",
                       comment_fctype_set,
                       comment_fctype));
+  if (!comment_read_backup_set)
+  {
+    if (read_backup)
+    {
+      /**
+       * No property was given in table comment, but table is using read backup
+       */
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_GET_ERRMSG,
+                          ER(ER_GET_ERRMSG),
+                          4502,
+                          "Table property is READ_BACKUP=1,"
+                          " but not in comment",
+                          "NDB");
+    }
+  }
+  else if (read_backup != comment_read_backup)
+  {
+    /**
+     * The table property and the comment property differs, we will
+     * print comment string as is and issue a warning to this effect.
+     */
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_GET_ERRMSG,
+                        ER(ER_GET_ERRMSG),
+                        4502,
+                        "Table property is not the same as in"
+                        " comment for READ_BACKUP property",
+                        "NDB");
+  }
   if (!comment_logged_table_set)
   {
     if (!logged_table)
@@ -10201,8 +10249,7 @@ void ha_ndbcluster::append_create_info(String *packet)
   }
   if (!comment_fctype_set)
   {
-    if (fctype != NdbDictionary::Object::FragmentCount_OnePerLDMPerNode &&
-        fctype != NdbDictionary::Object::FragmentCount_Specific)
+    if (fctype != NdbDictionary::Object::FragmentCount_Specific)
     {
       /**
        * There is a table property not reflected in the COMMENT string,
@@ -10210,19 +10257,41 @@ void ha_ndbcluster::append_create_info(String *packet)
        * string and hasn't changed this property in this comment string.
        * In this case the table property will stay, so we print this in
        * the SHOW CREATE TABLE comment string.
+       *
+       * The default fragment count type differs for tables with
+       * READ_BACKUP flag set. It is rather one per ldm per node group
+       * to avoid having too many fragments.
        */
       switch (fctype)
       {
+        case NdbDictionary::Object::FragmentCount_OnePerLDMPerNode:
+        {
+          if (read_backup)
+          {
+            push_warning_printf(thd, Sql_condition::SL_WARNING,
+              ER_GET_ERRMSG,
+              ER(ER_GET_ERRMSG),
+              4503,
+              "Table property is "
+              "FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE"
+              " but not in comment",
+              "NDB");
+          }
+          break;
+        }
         case NdbDictionary::Object::FragmentCount_OnePerLDMPerNodeGroup:
         {
-          push_warning_printf(thd, Sql_condition::SL_WARNING,
-            ER_GET_ERRMSG,
-            ER(ER_GET_ERRMSG),
-            4503,
-            "Table property is "
-            "FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE_GROUP"
-            " but not in comment",
-            "NDB");
+          if (!read_backup)
+          {
+            push_warning_printf(thd, Sql_condition::SL_WARNING,
+              ER_GET_ERRMSG,
+              ER(ER_GET_ERRMSG),
+              4503,
+              "Table property is "
+              "FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE_GROUP"
+              " but not in comment",
+              "NDB");
+          }
           break;
         }
         case NdbDictionary::Object::FragmentCount_OnePerNode:
@@ -10473,6 +10542,7 @@ int ha_ndbcluster::create(const char *name,
                         create_info->comment.length);
   const NDB_Modifier * mod_nologging = table_modifiers.get("NOLOGGING");
   const NDB_Modifier * mod_frags = table_modifiers.get("FRAGMENT_COUNT_TYPE");
+  const NDB_Modifier * mod_read_backup = table_modifiers.get("READ_BACKUP");
   NdbDictionary::Object::FragmentCountType fctype =
     NdbDictionary::Object::FragmentCount_OnePerLDMPerNode;
   if (parseFragmentCountType(thd /* for pushing warning */,
@@ -10493,6 +10563,21 @@ int ha_ndbcluster::create(const char *name,
     my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
              ndbcluster_hton_name,
              "FRAGMENT_COUNT_TYPE not supported by current data node versions");
+    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+  }
+
+  /* Verify we can support table property if set */
+  if ((mod_read_backup->m_found ||
+       opt_ndb_read_backup) &&
+      ndbd_support_read_backup(
+            ndb->getMinDbNodeVersion()) == 0)
+  {
+    /**
+     * NDB_TABLE=READ_BACKUP not supported by data nodes.
+     */
+    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+             ndbcluster_hton_name,
+             "READ_BACKUP not supported by current data node versions");
     DBUG_RETURN(HA_WRONG_CREATE_OPTION);
   }
 
@@ -10596,6 +10681,25 @@ int ha_ndbcluster::create(const char *name,
       DBUG_PRINT("info",
                  ("mod_nologging not found, getLogging()=%u",
                   tab.getLogging()));
+    }
+    if (mod_read_backup->m_found ||
+        opt_ndb_read_backup)
+    {
+      if (!mod_frags->m_found && !is_alter)
+      {
+        /**
+         * We change the default setting on read backup tables for
+         * fragment count type to one per ldm per node group to
+         * avoid using too many fragments on those tables.
+         *
+         * We won't do this for ALTER TABLE table algorithm=copy
+         * since the end result of an ALTER TABLE should not
+         * change by the algorithm. Also it makes no sense to
+         * change the table fragmentation silently.
+         */
+        fctype = NdbDictionary::Object::FragmentCount_OnePerLDMPerNodeGroup;
+      }
+      tab.setReadBackupFlag(TRUE);
     }
   }
   else
@@ -10867,10 +10971,7 @@ int ha_ndbcluster::create(const char *name,
      */
     tab.setFragmentCount(0);
     tab.setFragmentData(0, 0);
-    if (mod_frags->m_found)
-    {
-      tab.setFragmentCountType(fctype);
-    }
+    tab.setFragmentCountType(fctype);
   }
   else if (tab.getFragmentType() == NDBTAB::HashMapPartition)
   {
@@ -13648,7 +13749,8 @@ int ndbcluster_init(void* p)
                          (global_opti_node_select & 1),
                          opt_ndb_connectstring,
                          opt_ndb_nodeid,
-                         opt_ndb_recv_thread_activation_threshold))
+                         opt_ndb_recv_thread_activation_threshold,
+                         opt_ndb_data_node_neighbour))
   {
     ndbcluster_init_abort("Failed to initialize connection(s)");
   }
@@ -17943,6 +18045,7 @@ ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
                         create_info->comment.length);
   const NDB_Modifier* mod_nologging = table_modifiers.get("NOLOGGING");
   const NDB_Modifier* mod_frags = table_modifiers.get("FRAGMENT_COUNT_TYPE");
+  const NDB_Modifier* mod_read_backup = table_modifiers.get("READ_BACKUP");
   NdbDictionary::Object::FragmentCountType fct =
     NdbDictionary::Object::FragmentCount_OnePerLDMPerNode;
   if (parseFragmentCountType(thd /* for pushing warning */,
@@ -17974,6 +18077,31 @@ ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
       DBUG_RETURN(true);
     }
     new_tab->setLogging(!mod_nologging->m_val_bool);
+  }
+  if (mod_read_backup->m_found)
+  {
+    if (ndbd_support_read_backup(
+         get_thd_ndb(thd)->ndb->getMinDbNodeVersion()) == 0)
+    {
+      /**
+       * NDB_TABLE=READ_BACKUP not supported by data nodes.
+       */
+      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+               ndbcluster_hton_name,
+               "READ_BACKUP not supported by current data node versions");
+      DBUG_RETURN(true);
+    }
+    if (mod_read_backup->m_val_bool != new_tab->getReadBackupFlag())
+    {
+      /**
+       * Alter Table inplace of ReadBackup not yet supported.
+       */
+      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+               ndbcluster_hton_name,
+               "Cannot alter read backup inplace");
+      DBUG_RETURN(true);
+    }
+    new_tab->setReadBackupFlag(mod_read_backup->m_val_bool);
   }
   if (mod_frags->m_found)
   {
@@ -19607,6 +19735,32 @@ static MYSQL_SYSVAR_UINT(
 );
 
 
+static MYSQL_SYSVAR_BOOL(
+  read_backup,                       /* name */
+  opt_ndb_read_backup,               /* var  */
+  PLUGIN_VAR_OPCMDARG,
+  "Create tables with Read Backup flag set. Enables those tables to be"
+  " read from backup replicas as well as from primary replicas. Delays"
+  " commit acknowledge of write transactions to accomplish this.",
+  NULL,                              /* check func.  */
+  NULL,                              /* update func. */
+  0                                  /* default      */
+);
+
+static MYSQL_SYSVAR_ULONG(
+  data_node_neighbour,               /* name */
+  opt_ndb_data_node_neighbour,       /* var  */
+  PLUGIN_VAR_OPCMDARG,
+  "My closest data node, if 0 no closest neighbour, used to select"
+  " an appropriate data node to contact to run a transaction at.",
+  NULL,                              /* check func.  */
+  NULL,                              /* update func. */
+  0,                                 /* default      */
+  0,                                 /* min          */
+  MAX_NDB_NODES,                     /* max          */
+  0                                  /* block        */
+);
+
 my_bool opt_ndb_log_update_as_write;
 static MYSQL_SYSVAR_BOOL(
   log_update_as_write,               /* name */
@@ -19959,6 +20113,8 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(report_thresh_binlog_epoch_slip),
   MYSQL_SYSVAR(eventbuffer_max_alloc),
   MYSQL_SYSVAR(eventbuffer_free_percent),
+  MYSQL_SYSVAR(read_backup),
+  MYSQL_SYSVAR(data_node_neighbour),
   MYSQL_SYSVAR(log_update_as_write),
   MYSQL_SYSVAR(log_updated_only),
   MYSQL_SYSVAR(log_empty_update),

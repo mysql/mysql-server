@@ -1,5 +1,3 @@
--- source include/have_ndb.inc
-
 #
 # test fragment creation
 #
@@ -358,3 +356,40 @@ where fq_name = 'test/def/t2' order by node_id, fragment_num, block_instance;
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name like '%unique' order by node_id, fragment_num, block_instance;
 drop table t2;
+
+#A few tests with READ_BACKUP flag set
+create table t1 (a bigint primary key, b bigint unique) engine ndb
+  comment="NDB_TABLE=READ_BACKUP=1";
+show create table t1;
+select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
+select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
+where fq_name like '%unique' order by node_id, fragment_num, block_instance;
+
+--error 1478
+alter table t1 algorithm=inplace,
+  comment="NDB_TABLE=READ_BACKUP=0";
+alter table t1 algorithm=inplace,
+  comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+show create table t1;
+select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
+select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
+where fq_name like '%unique' order by node_id, fragment_num, block_instance;
+
+drop table t1;
+create table t1 (a bigint primary key, b bigint unique) engine ndb;
+select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
+alter table t1 algorithm=copy,
+  COMMENT="NDB_TABLE=READ_BACKUP=1";
+select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
+
+drop table t1;
+
+create table t1 (a bigint primary key) engine ndb
+partition by key();
+select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
+drop table t1;

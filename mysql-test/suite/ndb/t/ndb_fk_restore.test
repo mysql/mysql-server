@@ -192,7 +192,9 @@ drop table db1.t2, db1.t1, db2.t1;
 
 -- echo # verify the tables present
 show tables from db2;
+--disable_warnings
 show create table db2.t1;
+--enable_warnings
 drop table db2.t1;
 
 -- echo # restore particular table and check for fk problem
@@ -201,8 +203,10 @@ drop table db2.t1;
 -- echo # verify the tables present
 show tables from db1;
 show tables from db2;
+--disable_warnings
 show create table db1.t1;
 show create table db2.t1;
+--enable_warnings
 drop table db1.t1, db2.t1;
 
 --echo # verify that restoring table with FK whose parent doesn't exist, fails

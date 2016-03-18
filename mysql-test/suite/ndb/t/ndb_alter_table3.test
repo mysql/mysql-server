@@ -86,13 +86,17 @@ create table t2(
 )engine = ndb;
 
 --echo #t2 now has additional keys on col `a` and `b` to support fks.
+--disable_warnings
 show create table t2;
+--enable_warnings
 
 --echo #create an index on t2(a) using 'create index'
 create index id1 on t2(a);
 
 --echo #verify that the implicit key on col `a` is gone now and fk is intact.
+--disable_warnings
 show create table t2;
+--enable_warnings
 insert into t1 values (1,10), (2,20), (3,30), (4,40);
 insert into t2 values (1,10,100), (2,20,200);
 --error ER_NO_REFERENCED_ROW_2
@@ -108,7 +112,9 @@ create table t3(
 create unique index id2 on t2(b);
 
 --echo #verify that the implicit key on col `b` is also gone now.
+--disable_warnings
 show create table t2;
+--enable_warnings
 
 --echo #verify that the fks are intact in t2 and t3
 insert into t2 values (3,30,300), (4,40,400);

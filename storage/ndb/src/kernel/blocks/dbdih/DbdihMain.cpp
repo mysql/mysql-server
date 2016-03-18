@@ -13262,6 +13262,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
   const Uint32 newTableVersion = req->newTableVersion;
   AlterTabReq::RequestType requestType = 
     (AlterTabReq::RequestType) req->requestType;
+  D("ALTER_TAB_REQ(DIH)");
 
   TabRecordPtr tabPtr;
   tabPtr.i = tableId;

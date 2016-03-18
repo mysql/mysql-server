@@ -773,6 +773,8 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
 	!!(tablePtr.p->m_bits & TableRecord::TR_Temporary));
   w.add(DictTabInfo::ForceVarPartFlag,
 	!!(tablePtr.p->m_bits & TableRecord::TR_ForceVarPart));
+  w.add(DictTabInfo::ReadBackupFlag,
+	!!(tablePtr.p->m_bits & TableRecord::TR_ReadBackup));
 
   w.add(DictTabInfo::MinLoadFactor, tablePtr.p->minLoadFactor);
   w.add(DictTabInfo::MaxLoadFactor, tablePtr.p->maxLoadFactor);
@@ -5422,6 +5424,12 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
         strcpy(buf_ptr, fc_str);
         buf_ptr+= strlen(fc_str);
       }
+      if (c_tableDesc.ReadBackupFlag)
+      {
+        const char *rb_str = " RB";
+        strcpy(buf_ptr, rb_str);
+        buf_ptr+= strlen(rb_str);
+      }
       g_eventLogger->info("Dbdict: %u: create name=%s,id=%u,obj_ptr_i=%d%s",
                           __LINE__,
                           c_tableDesc.TableName,
@@ -5465,6 +5473,9 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
 #endif
   tablePtr.p->m_bits |=
     (c_tableDesc.ForceVarPartFlag ? TableRecord::TR_ForceVarPart : 0);
+  tablePtr.p->m_bits |=
+    (c_tableDesc.ReadBackupFlag ? TableRecord::TR_ReadBackup : 0);
+
   tablePtr.p->minLoadFactor = c_tableDesc.MinLoadFactor;
   tablePtr.p->maxLoadFactor = c_tableDesc.MaxLoadFactor;
   tablePtr.p->fragmentType = (DictTabInfo::FragmentType)c_tableDesc.FragmentType;
@@ -7347,6 +7358,7 @@ Dbdict::execDIADDTABCONF(Signal* signal)
   CreateTableRecPtr createTabPtr;
   findSchemaOp(op_ptr, createTabPtr, conf->senderData);
   ndbrequire(!op_ptr.isNull());
+  D("Commit (TAB_COMMITREQ) in LQH");
 
   signal->theData[0] = op_ptr.p->op_key;
   signal->theData[1] = reference();
@@ -7390,6 +7402,7 @@ Dbdict::execTAB_COMMITCONF(Signal* signal)
   if (refToBlock(signal->getSendersBlockRef()) == DBLQH)
   {
     jam();
+    D("Prepare (TC_SCHVERREQ) in SPJ");
     // prepare table in DBSPJ
     TcSchVerReq * req = (TcSchVerReq*)signal->getDataPtr();
     req->tableId = createTabPtr.p->m_request.tableId;
@@ -7401,6 +7414,7 @@ Dbdict::execTAB_COMMITCONF(Signal* signal)
     req->noOfPrimaryKeys = (Uint32)tabPtr.p->noOfPrimkey;
     req->singleUserMode = (Uint32)tabPtr.p->singleUserMode;
     req->userDefinedPartition = (tabPtr.p->fragmentType == DictTabInfo::UserDefined);
+    req->readBackup = (Uint32)!!(tabPtr.p->m_bits & TableRecord::TR_ReadBackup);
 
     if (DictTabInfo::isOrderedIndex(tabPtr.p->tableType))
     {
@@ -7420,6 +7434,7 @@ Dbdict::execTAB_COMMITCONF(Signal* signal)
   {
     jam();
     // commit table in DBSPJ
+    D("Commit (TAB_COMMITREQ) in SPJ");
     signal->theData[0] = op_ptr.p->op_key;
     signal->theData[1] = reference();
     signal->theData[2] = createTabPtr.p->m_request.tableId;
@@ -7431,6 +7446,7 @@ Dbdict::execTAB_COMMITCONF(Signal* signal)
   {
     jam();
     // commit table in DBTC
+    D("Commit (TAB_COMMITREQ) in TC");
     signal->theData[0] = op_ptr.p->op_key;
     signal->theData[1] = reference();
     signal->theData[2] = createTabPtr.p->m_request.tableId;
@@ -7441,6 +7457,7 @@ Dbdict::execTAB_COMMITCONF(Signal* signal)
   if (refToBlock(signal->getSendersBlockRef()) == DBTC)
   {
     jam();
+    D("Committed table in DIH, SPJ, TC");
     execute(signal, createTabPtr.p->m_callback, 0);
     return;
   }
@@ -7526,6 +7543,7 @@ Dbdict::createTab_activate(Signal* signal, SchemaOpPtr op_ptr,
   getOpRec(op_ptr, createTabPtr);
   createTabPtr.p->m_callback = * c;
 
+  D("Commit (TAB_COMMITREQ) in DIH");
   signal->theData[0] = op_ptr.p->op_key;
   signal->theData[1] = reference();
   signal->theData[2] = createTabPtr.p->m_request.tableId;
@@ -7549,6 +7567,7 @@ Dbdict::execTC_SCHVERCONF(Signal* signal)
     TableRecordPtr tabPtr;
     bool ok = find_object(tabPtr, createTabPtr.p->m_request.tableId);
     ndbrequire(ok);
+    D("Prepare (TC_SCHVERREQ) in TC");
 
     TcSchVerReq * req = (TcSchVerReq*)signal->getDataPtr();
     req->tableId = createTabPtr.p->m_request.tableId;
@@ -7560,6 +7579,7 @@ Dbdict::execTC_SCHVERCONF(Signal* signal)
     req->noOfPrimaryKeys = (Uint32)tabPtr.p->noOfPrimkey;
     req->singleUserMode = (Uint32)tabPtr.p->singleUserMode;
     req->userDefinedPartition = (tabPtr.p->fragmentType == DictTabInfo::UserDefined);
+    req->readBackup = (Uint32)!!(tabPtr.p->m_bits & TableRecord::TR_ReadBackup);
 
     if (DictTabInfo::isOrderedIndex(tabPtr.p->tableType))
     {
@@ -10118,7 +10138,7 @@ Dbdict::alterTable_toCommitComplete(Signal* signal,
                                     SchemaOpPtr op_ptr,
                                     Uint32 type)
 {
-  D("alterTable_toTupCommit");
+  D("alterTable_toCommitComplete");
 
   AlterTableRecPtr alterTabPtr;
   getOpRec(op_ptr, alterTabPtr);
@@ -10192,7 +10212,7 @@ Dbdict::alterTable_fromCommitComplete(Signal* signal,
                                       Uint32 op_key,
                                       Uint32 ret)
 {
-  D("alterTable_fromCommit");
+  D("alterTable_fromCommitComplete");
 
   SchemaOpPtr op_ptr;
   AlterTableRecPtr alterTabPtr;

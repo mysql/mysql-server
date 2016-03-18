@@ -38,5 +38,7 @@ drop table t1;
 
 # verify that we have a myisam table
 create temporary table t1 (a int key);
+--disable_warnings
 show create table t1;
+--enable_warnings
 drop table t1;

@@ -298,7 +298,8 @@ public:
       TR_RowGCI       = 0x2,
       TR_RowChecksum  = 0x4,
       TR_Temporary    = 0x8,
-      TR_ForceVarPart = 0x10
+      TR_ForceVarPart = 0x10,
+      TR_ReadBackup   = 0x20
     };
     Uint8 m_extra_row_gci_bits;
     Uint8 m_extra_row_author_bits;

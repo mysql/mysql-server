@@ -157,6 +157,8 @@ public:
     ExtraRowGCIBits    = 156,
     ExtraRowAuthorBits = 157,
 
+    ReadBackupFlag     = 158,
+
     TableEnd           = 999,
     
     AttributeName          = 1000, // String, Mandatory
@@ -402,6 +404,8 @@ public:
 
     Uint32 ExtraRowGCIBits;
     Uint32 ExtraRowAuthorBits;
+
+    Uint32 ReadBackupFlag;
 
     Table() {}
     void init();
