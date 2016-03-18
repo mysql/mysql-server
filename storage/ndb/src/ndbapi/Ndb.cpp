@@ -767,13 +767,25 @@ Ndb::startTransaction(const NdbDictionary::Table* table,
 
     Uint32 nodeId;
     const Uint16 *nodes;
+    bool readBackup = NdbTableImpl::getImpl(*table).m_read_backup;
     Uint32 cnt = NdbTableImpl::getImpl(* table).get_nodes(partitionId, 
                                                           &nodes);
     if(cnt)
       nodeId= nodes[0];
     else
       nodeId= 0;
-    
+    if (cnt && !readBackup)
+    {
+      nodeId = nodes[0]; // Choose primary replica
+    }
+    else if (cnt)
+    {
+      nodeId = theImpl->m_ndb_cluster_connection.select_node(nodes, cnt);
+    }
+    else
+    {
+      nodeId = 0;
+    }
     theImpl->incClientStat(TransStartCount, 1);
 
     NdbTransaction *trans= startTransactionLocal(0, nodeId, 0);
@@ -855,10 +867,19 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
       }
       
       const Uint16 *nodes;
+      bool readBackup = impl->m_read_backup;
       Uint32 cnt= impl->get_nodes(table->getPartitionId(hashValue),  &nodes);
-      if(cnt)
+      if (cnt && !readBackup)
       {
-        nodeId= nodes[0];
+        nodeId = nodes[0];
+      }
+      else if (cnt)
+      {
+        nodeId = theImpl->m_ndb_cluster_connection.select_node(nodes, cnt);
+      }
+      else
+      {
+        nodeId = 0;
       }
     }
 

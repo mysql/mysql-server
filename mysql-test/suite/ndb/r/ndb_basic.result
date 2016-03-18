@@ -123,6 +123,7 @@ ndb_clear_apply_status	#
 ndb_cluster_connection_pool	#
 ndb_cluster_connection_pool_nodeids	#
 ndb_connectstring	#
+ndb_data_node_neighbour	#
 ndb_deferred_constraints	#
 ndb_distribution	#
 ndb_eventbuffer_free_percent	#
@@ -146,6 +147,7 @@ ndb_mgmd_host	#
 ndb_nodeid	#
 ndb_optimization_delay	#
 ndb_optimized_node_selection	#
+ndb_read_backup	#
 ndb_recv_thread_activation_threshold	#
 ndb_recv_thread_cpu_mask	#
 ndb_report_thresh_binlog_epoch_slip	#
@@ -634,7 +636,8 @@ create table t1 (
 a1234567890123456789012345678901234567890 int primary key,
 a12345678901234567890123456789a1234567890 int,
 index(a12345678901234567890123456789a1234567890)
-) engine=ndb;
+) engine=ndb
+comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
 show tables;
 Tables_in_test
 t1
@@ -1008,13 +1011,15 @@ drop table t10,t20;
 CREATE TABLE `t1` (
 `id` int(11) NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8;
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8
+comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
 CREATE TABLE `t2` (
 `id` int(11) NOT NULL,
 `obj_id` int(11) DEFAULT NULL,
 UNIQUE KEY `id` (`id`),
 KEY `obj_id` (`obj_id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8;
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8
+comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
 # here we used to segv
 explain SELECT t1.id FROM t1 INNER JOIN t2 ON t1.id = t2.id WHERE t2.obj_id=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

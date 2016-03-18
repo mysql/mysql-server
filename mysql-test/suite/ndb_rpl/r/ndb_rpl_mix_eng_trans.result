@@ -21,8 +21,6 @@ Table	Create Table
 tndb	CREATE TABLE `tndb` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
-Warnings:
-Warning	1296	Got error 4502 'Table property is NOLOGGING=1, but not in comment' from NDB
 [on master]
 ==== Single-engine transactions ====
 ---- autocommitted ----

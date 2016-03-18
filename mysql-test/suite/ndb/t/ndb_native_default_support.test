@@ -2,6 +2,7 @@
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
+--source include/have_not_read_backup.inc
 
 #############################################################
 # Author: Guangbao Ni
@@ -223,8 +224,10 @@ USE test;
 --sorted_result
 SHOW TABLES;
 # SHOW CREATE TABLE t1; # Disabled til bug#53539 fixed as it show junk on big-endian
+--disable_warnings
 SHOW CREATE TABLE bit1;
 --replace_column 12 CURRENT_TIMESTAMP
+--enable_warnings
 SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;
 SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk;
 
@@ -241,7 +244,9 @@ ALTER TABLE t1 CHANGE COLUMN j j INT DEFAULT 6,
                PARTITION BY KEY () PARTITIONS 2;
 
 # Show that the MySQL defaults are now ok.
+--disable_warnings
 SHOW CREATE TABLE t1;
+--enable_warnings
 
 # Show that the defaults are now native
 --let $ndb_desc_opts= -d test t1
@@ -364,7 +369,9 @@ CREATE TABLE t1 (a int primary key,
                  engine = ndb
                  partition by key() partitions 8;
 
+--disable_warnings
 SHOW CREATE TABLE t1;
+--enable_warnings
 
 --let $ndb_desc_opts= -d test t1
 --source suite/ndb/include/ndb_desc_print.inc
@@ -381,7 +388,9 @@ CREATE TABLE variant (a int primary key,
                       b timestamp)
                       engine = ndb
                       partition by key() partitions 8;
+--disable_warnings
 SHOW CREATE TABLE variant;
+--enable_warnings
 --let $ndb_desc_opts= -d test variant
 --source suite/ndb/include/ndb_desc_print.inc
 INSERT INTO variant (a) VALUES (1);
@@ -394,7 +403,9 @@ CREATE TABLE variant (a int primary key,
                       b timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)
                       engine = ndb
                       partition by key() partitions 8;
+--disable_warnings
 SHOW CREATE TABLE variant;
+--enable_warnings
 --let $ndb_desc_opts= -d test variant
 --source suite/ndb/include/ndb_desc_print.inc
 INSERT INTO variant (a) VALUES (1);
@@ -407,7 +418,9 @@ CREATE TABLE variant (a int primary key,
                       b timestamp DEFAULT CURRENT_TIMESTAMP)
                       engine = ndb
                       partition by key() partitions 8;
+--disable_warnings
 SHOW CREATE TABLE variant;
+--enable_warnings
 --let $ndb_desc_opts= -d test variant
 --source suite/ndb/include/ndb_desc_print.inc
 INSERT INTO variant (a) VALUES (1);
@@ -421,7 +434,9 @@ CREATE TABLE variant (a int primary key,
                       c int)
                       engine = ndb
                       partition by key() partitions 8;
+--disable_warnings
 SHOW CREATE TABLE variant;
+--enable_warnings
 --let $ndb_desc_opts= -d test variant
 --source suite/ndb/include/ndb_desc_print.inc
 INSERT INTO variant (a,c) VALUES (1,1);
@@ -436,7 +451,9 @@ CREATE TABLE variant (a int primary key,
                       b timestamp DEFAULT 0)
                       engine = ndb
                       partition by key() partitions 8;
+--disable_warnings
 SHOW CREATE TABLE variant;
+--enable_warnings
 --let $ndb_desc_opts= -d test variant
 --source suite/ndb/include/ndb_desc_print.inc
 INSERT INTO variant (a) VALUES (1);
@@ -448,7 +465,9 @@ CREATE TABLE variant (a int primary key,
                       b timestamp DEFAULT 19770623000001)
                       engine = ndb
                       partition by key() partitions 8;
+--disable_warnings
 SHOW CREATE TABLE variant;
+--enable_warnings
 --let $ndb_desc_opts= -d test variant
 --source suite/ndb/include/ndb_desc_print.inc
 INSERT INTO variant (a) VALUES (1);
@@ -461,7 +480,9 @@ CREATE TABLE variant (a int primary key,
                       c timestamp DEFAULT CURRENT_TIMESTAMP)
                       engine = ndb
                       partition by key() partitions 8;
+--disable_warnings
 SHOW CREATE TABLE variant;
+--enable_warnings
 --let $ndb_desc_opts= -d test variant
 --source suite/ndb/include/ndb_desc_print.inc
 INSERT INTO variant (a) VALUES (1);
@@ -475,7 +496,9 @@ CREATE TABLE variant (a int primary key,
                       c timestamp ON UPDATE CURRENT_TIMESTAMP)
                       engine = ndb
                       partition by key() partitions 8;
+--disable_warnings
 SHOW CREATE TABLE variant;
+--enable_warnings
 --let $ndb_desc_opts= -d test variant
 --source suite/ndb/include/ndb_desc_print.inc
 INSERT INTO variant (a) VALUES (1);
@@ -491,7 +514,9 @@ CREATE TABLE variant (a int primary key,
                       c timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)
                       engine = ndb
                       partition by key() partitions 8;
+--disable_warnings
 SHOW CREATE TABLE variant;
+--enable_warnings
 --let $ndb_desc_opts= -d test variant
 --source suite/ndb/include/ndb_desc_print.inc
 INSERT INTO variant (a) VALUES (1);
@@ -504,7 +529,9 @@ CREATE TABLE variant (a int primary key,
                       b timestamp NULL)
                       engine = ndb
                       partition by key() partitions 8;
+--disable_warnings
 SHOW CREATE TABLE variant;
+--enable_warnings
 --let $ndb_desc_opts= -d test variant
 --source suite/ndb/include/ndb_desc_print.inc
 INSERT INTO variant (a) VALUES (1);
@@ -516,7 +543,9 @@ CREATE TABLE variant (a int primary key,
                       b timestamp NULL DEFAULT 0)
                       engine = ndb
                       partition by key() partitions 8;
+--disable_warnings
 SHOW CREATE TABLE variant;
+--enable_warnings
 --let $ndb_desc_opts= -d test variant
 --source suite/ndb/include/ndb_desc_print.inc
 INSERT INTO variant (a) VALUES (1);
@@ -528,7 +557,9 @@ CREATE TABLE variant (a int primary key,
                       b timestamp NULL DEFAULT 19770623000001)
                       engine = ndb
                       partition by key() partitions 8;
+--disable_warnings
 SHOW CREATE TABLE variant;
+--enable_warnings
 --let $ndb_desc_opts= -d test variant
 --source suite/ndb/include/ndb_desc_print.inc
 INSERT INTO variant (a) VALUES (1);
@@ -540,7 +571,9 @@ CREATE TABLE variant (a int primary key,
                       b timestamp NULL DEFAULT CURRENT_TIMESTAMP)
                       engine = ndb
                       partition by key() partitions 8;
+--disable_warnings
 SHOW CREATE TABLE variant;
+--enable_warnings
 --let $ndb_desc_opts= -d test variant
 --source suite/ndb/include/ndb_desc_print.inc
 INSERT INTO variant (a) VALUES (1);
@@ -554,7 +587,9 @@ CREATE TABLE variant (a int primary key,
                       c int)
                       engine = ndb
                       partition by key() partitions 8;
+--disable_warnings
 SHOW CREATE TABLE variant;
+--enable_warnings
 --let $ndb_desc_opts= -d test variant
 --source suite/ndb/include/ndb_desc_print.inc
 INSERT INTO variant (a,c) VALUES (1,1);
@@ -569,7 +604,9 @@ CREATE TABLE variant (a int primary key,
                       b timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)
                       engine = ndb
                       partition by key() partitions 8;
+--disable_warnings
 SHOW CREATE TABLE variant;
+--enable_warnings
 --let $ndb_desc_opts= -d test variant
 --source suite/ndb/include/ndb_desc_print.inc
 INSERT INTO variant (a) VALUES (1);
@@ -624,7 +661,9 @@ CREATE TABLE bit1 (
   PARTITION BY KEY() PARTITIONS 8;
 
 
+--disable_warnings
 SHOW CREATE TABLE t1;
+--enable_warnings
 
 --let $ndb_desc_opts= -d test t1
 --source suite/ndb/include/ndb_desc_print.inc

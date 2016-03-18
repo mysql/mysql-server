@@ -11,7 +11,8 @@ create table t1 (
   c2 char(255),
   key k1(b, c1, c2)
 )
-engine = ndb;
+engine = ndb
+comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
 
 insert into t1(a,b,c1,c2) values
 (0, 0, 0, 0),

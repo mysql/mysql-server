@@ -166,6 +166,12 @@ void Dbspj::execTC_SCHVERREQ(Signal* signal)
   ndbrequire(tablePtr.p->get_enabled() == false);
   new (tablePtr.p) TableRecord(req->tableVersion);
 
+  if (req->readBackup)
+  {
+    jam();
+    tablePtr.p->m_flags |= TableRecord::TR_READ_BACKUP;
+  }
+
   /**
    * NOTE: Even if there are more information, like 
    * 'tableType', 'noOfPrimaryKeys'etc available from
@@ -339,6 +345,7 @@ Dbspj::execALTER_TAB_REQ(Signal* signal)
   const Uint32 newTableVersion = req->newTableVersion;
   AlterTabReq::RequestType requestType = 
     (AlterTabReq::RequestType) req->requestType;
+  D("ALTER_TAB_REQ(SPJ)");
 
   DEBUG_DICT("Dbspj::execALTER_TAB_REQ"
      << ", tableId: " << tableId
@@ -4903,6 +4910,10 @@ Dbspj::computePartitionHash(Signal* signal,
 Uint32
 Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
 {
+  TableRecordPtr tablePtr;
+  tablePtr.i = tableId;
+  ptrCheckGuard(tablePtr, c_tabrecFilesize, m_tableRecord);
+
   DiGetNodesReq * req = (DiGetNodesReq *)&signal->theData[0];
   req->tableId = tableId;
   req->hashValue = dst.hashInfo[1];
@@ -4928,6 +4939,29 @@ Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
     jam();
     goto error;
   }
+
+  /**
+   * SPJ only does committed-read (for now)
+   *   so it's always ok to READ_BACKUP
+   *   if applicable
+   *
+   */
+  if (nodeId != getOwnNodeId() &&
+      tablePtr.p->m_flags & TableRecord::TR_READ_BACKUP)
+  {
+    Uint32 cnt = (Tdata2 & 3);
+    for (Uint32 i = 1; i < cnt; i++)
+    {
+      jam();
+      if (conf->nodes[i] == getOwnNodeId())
+      {
+        jam();
+        nodeId = getOwnNodeId();
+        break;
+      }
+    }
+  }
+
   dst.fragId = conf->fragId;
   dst.fragDistKey = (Tdata2 >> 16) & 255;
   dst.receiverRef = numberToRef(DBLQH, instanceKey, nodeId);
@@ -5995,6 +6029,12 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
   const Uint32 prunemask = TreeNode::T_PRUNE_PATTERN | TreeNode::T_CONST_PRUNE;
   bool pruned = (treeNodePtr.p->m_bits & prunemask) != 0;
 
+  TableRecordPtr tablePtr;
+  tablePtr.i = treeNodePtr.p->m_tableOrIndexId;
+  ptrCheckGuard(tablePtr, c_tabrecFilesize, m_tableRecord);
+  const bool readBackup =
+    !!(tablePtr.p->m_flags & TableRecord::TR_READ_BACKUP);
+
   Ptr<Request> requestPtr;
   m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
 
@@ -6027,7 +6067,7 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
             likely(m_scanfraghandle_pool.seize(requestPtr.p->m_arena, fragPtr)))
         {
           jam();
-          fragPtr.p->init(fragNo);
+          fragPtr.p->init(fragNo, readBackup);
           fragPtr.p->m_treeNodePtrI = treeNodePtr.i;
           list.addLast(fragPtr);
         }
@@ -6183,8 +6223,23 @@ Dbspj::scanindex_sendDihGetNodesReq(Signal* signal,
          * is used reorg moving flag.
          */
         jamEntry();
+        Uint32 cnt = (conf->reqinfo & 3);
         Uint32 instanceKey = (conf->reqinfo >> 24) & 127;
         NodeId nodeId = conf->nodes[0];
+        if (nodeId != getOwnNodeId() &&
+            fragPtr.p->m_readBackup)
+        {
+          for (Uint32 i = 1; i < cnt; i++)
+          {
+            jam();
+            if (conf->nodes[i] == getOwnNodeId())
+            {
+              jam();
+              nodeId = getOwnNodeId();
+              break;
+            }
+          }
+        }
         fragPtr.p->m_ref = numberToRef(DBLQH, instanceKey, nodeId);
       }
       else

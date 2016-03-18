@@ -231,6 +231,7 @@ public:
   bool m_row_checksum;
   bool m_force_var_part;
   bool m_has_default_values; 
+  bool m_read_backup;
   int m_kvalue;
   int m_minLoadFactor;
   int m_maxLoadFactor;

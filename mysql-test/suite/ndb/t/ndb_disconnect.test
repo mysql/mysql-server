@@ -26,7 +26,9 @@ source include/ndb_not_readonly.inc;
 --enable_result_log
 
 --echo "Mysqld connected to cluster. Now executing the show create table again."
+--disable_warnings
 show create table test.t1;
+--enable_warnings
 
 #Clean Up
 Drop table test.t1;

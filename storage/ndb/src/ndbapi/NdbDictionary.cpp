@@ -1002,6 +1002,16 @@ NdbDictionary::Table::getExtraRowAuthorBits() const
 }
 
 void
+NdbDictionary::Table::setReadBackupFlag(bool val){
+  m_impl.m_read_backup = val;
+}
+
+bool
+NdbDictionary::Table::getReadBackupFlag() const {
+  return m_impl.m_read_backup;
+}
+
+void
 NdbDictionary::Table::setForceVarPart(bool val){
   m_impl.m_force_var_part = val;
 }
@@ -4314,6 +4324,19 @@ NdbOut& operator <<(class NdbOut&, NdbDictionary::Table const& tab)
   ndbout << "ExtraRowGciBits: " << tab.getExtraRowGciBits() << endl;
   ndbout << "ExtraRowAuthorBits: " << tab.getExtraRowAuthorBits() << endl;
   ndbout << "TableStatus: " << tab.getObjectStatus() << endl;
+
+  ndbout << "Table options:";
+  bool first = true;
+  if (NdbTableImpl::getImpl(tab).m_read_backup) {
+    if (!first)
+      ndbout << ", ";
+    else
+      ndbout << " ";
+    ndbout << "readbackup";
+    first = false;
+  }
+  ndbout << endl;
+
   return ndbout;
 }
 

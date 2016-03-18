@@ -70,7 +70,9 @@ unlock tables;
 --connection another_con
 --reap
 
+--disable_warnings
 show create table t1;
+--enable_warnings
 
 --echo # Cleanup
 --connection default

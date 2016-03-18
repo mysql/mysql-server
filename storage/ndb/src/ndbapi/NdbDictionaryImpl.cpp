@@ -691,6 +691,18 @@ NdbTableImpl::init(){
   m_storageType = NDB_STORAGETYPE_DEFAULT;
   m_extra_row_gci_bits = 0;
   m_extra_row_author_bits = 0;
+  m_read_backup = 0;
+
+#ifdef VM_TRACE
+  {
+    char buf[100];
+    const char* b = NdbEnv_GetEnv("NDB_READ_BACKUP_TABLES", buf, sizeof(buf));
+    if (b)
+    {
+      m_read_backup = 1;
+    }
+  }
+#endif
 }
 
 bool
@@ -911,6 +923,14 @@ NdbTableImpl::equal(const NdbTableImpl& obj) const
     DBUG_RETURN(false);
   }
 
+  if (m_read_backup != obj.m_read_backup)
+  {
+    DBUG_PRINT("info",("m_read_backup %d != %d",
+                       (int32)m_read_backup,
+                       (int32)obj.m_read_backup));
+    DBUG_RETURN(false);
+  }
+
   DBUG_RETURN(true);
 }
 
@@ -1017,6 +1037,7 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_tablespace_id= org.m_tablespace_id;
   m_tablespace_version = org.m_tablespace_version;
   m_storageType = org.m_storageType;
+  m_read_backup = org.m_read_backup;
 
   m_hash_map_id = org.m_hash_map_id;
   m_hash_map_version = org.m_hash_map_version;
@@ -2941,6 +2962,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   impl->m_extra_row_author_bits = tableDesc->ExtraRowAuthorBits;
   impl->m_fragmentCountType =
     (NdbDictionary::Object::FragmentCountType)tableDesc->FragmentCountType;
+  impl->m_read_backup = tableDesc->ReadBackupFlag == 0 ? false : true;
 
   DBUG_PRINT("info", ("m_logging: %u, fragmentCountType: %d",
                       impl->m_logging,
@@ -3587,7 +3609,8 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
      impl.m_version != old_impl.m_version ||
      sz < old_sz ||
      impl.m_extra_row_gci_bits != old_impl.m_extra_row_gci_bits ||
-     impl.m_extra_row_author_bits != old_impl.m_extra_row_author_bits)
+     impl.m_extra_row_author_bits != old_impl.m_extra_row_author_bits ||
+     impl.m_read_backup != old_impl.m_read_backup)
   {
     DBUG_PRINT("info", ("Old and new table not compatible"));
     goto invalid_alter_table;
@@ -3868,6 +3891,7 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
   tmpTab->HashMapObjectId = impl.m_hash_map_id;
   tmpTab->HashMapVersion = impl.m_hash_map_version;
   tmpTab->TableStorageType = impl.m_storageType;
+  tmpTab->ReadBackupFlag = impl.m_read_backup ? 1 : 0;
 
   const char *tablespace_name= impl.m_tablespace_name.c_str();
 loop:

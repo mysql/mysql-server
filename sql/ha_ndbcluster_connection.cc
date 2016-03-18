@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -149,7 +149,8 @@ ndbcluster_connect(int (*connect_callback)(void),
                    bool optimized_node_select,
                    const char* connect_string,
                    uint force_nodeid,
-                   uint recv_thread_activation_threshold)
+                   uint recv_thread_activation_threshold,
+                   uint data_node_neighbour)
 {
 #ifndef EMBEDDED_LIBRARY
   const char mysqld_name[]= "mysqld";
@@ -200,6 +201,7 @@ ndbcluster_connect(int (*connect_callback)(void),
   g_ndb_cluster_connection->set_optimized_node_selection(optimized_node_select);
   g_ndb_cluster_connection->set_recv_thread_activation_threshold(
                                       recv_thread_activation_threshold);
+  g_ndb_cluster_connection->set_data_node_neighbour(data_node_neighbour);
 
   // Create a Ndb object to open the connection  to NDB
   if ( (g_ndb= new Ndb(g_ndb_cluster_connection, "sys")) == 0 )
@@ -269,6 +271,7 @@ ndbcluster_connect(int (*connect_callback)(void),
       }
       g_pool[i]->set_optimized_node_selection(optimized_node_select);
       g_pool[i]->set_recv_thread_activation_threshold(recv_thread_activation_threshold);
+      g_pool[i]->set_data_node_neighbour(data_node_neighbour);
     }
   }
 
