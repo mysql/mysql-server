@@ -145,7 +145,13 @@ public:
 
   void init()
   {
-    m_used = 0;
+    /**
+     * Alloc must start from an aligned memory addr, add padding if required.
+     * Assumes that EventMemoryBlock itself is correctly aligned.
+     */
+    const Uint32 data_offs =  my_offsetof(EventMemoryBlock, m_data);
+    const Uint32 pad = ALIGN_SIZE(data_offs) - data_offs;
+    m_used = pad;
     m_expiry_epoch = MonotonicEpoch::max;
     m_next = NULL;
   }
@@ -157,7 +163,7 @@ public:
       return NULL;
 
     char *mem = m_data + m_used;
-    m_used += size;
+    m_used += ALIGN_SIZE(size);  //Keep alignment for next object
     return (void*)mem;
   }
 
@@ -188,7 +194,7 @@ public:
    */
   MonotonicEpoch m_expiry_epoch;
 
-  EventMemoryBlock *m_next;  // Next memory block
+  EventMemoryBlock *m_next;   // Next memory block
 
   char m_data[1];
 
