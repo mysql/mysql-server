@@ -1378,6 +1378,7 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_last_log_time(NdbTick_getCurrentTicks()),
   m_mem_block_head(NULL), m_mem_block_tail(NULL),
   m_mem_block_free(NULL), m_mem_block_free_sz(0),
+  m_queue_empty_epoch(false),
   m_dropped_ev_op(0),
   m_active_op_count(0),
   m_add_drop_mutex(NULL),
@@ -2403,7 +2404,8 @@ NdbEventBuffer::complete_bucket(Gci_container* bucket)
   if (bucket_empty)
   {
     assert(type > 0);
-    complete_empty_bucket_using_exceptional_event(gci, type);
+    if (type != NdbDictionary::Event::_TE_EMPTY || m_queue_empty_epoch)
+      complete_empty_bucket_using_exceptional_event(gci, type);
   }
   else
   {
@@ -3095,6 +3097,14 @@ Uint64
 NdbEventBuffer::getHighestQueuedEpoch()
 {
   return m_latest_poll_GCI.getGCI();
+}
+
+void
+NdbEventBuffer::setEventBufferQueueEmptyEpoch(bool queue_empty_epoch)
+{
+  NdbMutex_Lock(m_mutex);
+  m_queue_empty_epoch = queue_empty_epoch;
+  NdbMutex_Unlock(m_mutex);
 }
 
 int
