@@ -481,13 +481,13 @@ Client_list::~Client_list()
 {
 }
 
-void Client_list::add(boost::shared_ptr<Client> client)
+void Client_list::add(Client_ptr client)
 {
   RWLock_writelock guard(m_clients_lock);
   m_clients.push_back(client);
 }
 
-void Client_list::remove(boost::shared_ptr<Client> client)
+void Client_list::remove(Client_ptr client)
 {
   RWLock_writelock guard(m_clients_lock);
   m_clients.remove(client);
