@@ -88,7 +88,7 @@ Got expected error:
 Mysqlx.Error {
   severity: ERROR
   code: 1095
-  msg: "Cannot kill client 1"
+  msg: "You are not owner of thread"
   sql_state: "HY000"
 }
 
