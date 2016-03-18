@@ -20,16 +20,6 @@
 
 /* Common defines for all clients */
 
-/*
-  This include needs to be before my_compiler.h (via my_global.h)
-  is included. This is because string conflicts with the define
-  of MY_ATTRIBUTE in my_compiler.h on Sun Studio x86.
-  TODO: Get rid of the MY_ATTRIBUTE define in my_compiler.h
-*/
-#ifdef __cplusplus
-#include <string>
-#endif
-
 #include <my_global.h>
 #include <my_sys.h>
 #include <m_string.h>

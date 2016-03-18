@@ -28,6 +28,8 @@
 #include <mysqld_error.h>                       /* to check server error codes */
 #include "mysql/service_mysql_alloc.h"
 
+#include <string>
+
 #define ADMIN_VERSION "8.42"
 #define MAX_MYSQL_VAR 512
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */

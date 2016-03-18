@@ -14,14 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
-  This include needs to be before my_compiler.h (via my_global.h)
-  is included. This is because string conflicts with the define
-  of MY_ATTRIBUTE in my_compiler.h on Sun Studio x86.
-  TODO: Get rid of the MY_ATTRIBUTE define in my_compiler.h
-*/
-#include <string>
-
 #include "log_event.h"
 
 #include "base64.h"            // base64_encode
@@ -79,6 +71,7 @@ slave_ignored_err_throttle(window_size,
 #include <base64.h>
 #include <my_bitmap.h>
 #include <map>
+#include <string>
 #include "rpl_utility.h"
 /* This is necessary for the List manipuation */
 #include "sql_list.h"                           /* I_List */

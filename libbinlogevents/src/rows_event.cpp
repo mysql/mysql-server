@@ -13,17 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
-  This include needs to be before my_compiler.h (via my_global.h)
-  is included. This is because string conflicts with the define
-  of MY_ATTRIBUTE in my_compiler.h on Sun Studio x86.
-  TODO: Get rid of the MY_ATTRIBUTE define in my_compiler.h
-*/
-#include <string>
 
 #include "rows_event.h"
 #include <stdlib.h>
 #include <cstring>
+#include <string>
 
 namespace binary_log
 {
