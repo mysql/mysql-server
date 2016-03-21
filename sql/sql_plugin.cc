@@ -583,8 +583,9 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     if ((sym= dlsym(plugin_dl.handle, list_of_services[i].name)))
     {
       uint ver= (uint)(intptr)*(void**)sym;
-      if (ver > list_of_services[i].version ||
-        (ver >> 8) < (list_of_services[i].version >> 8))
+      if ((*(void**)sym) != list_of_services[i].service && /* already replaced */
+          (ver > list_of_services[i].version ||
+           (ver >> 8) < (list_of_services[i].version >> 8)))
       {
         char buf[MYSQL_ERRMSG_SIZE];
         my_snprintf(buf, sizeof(buf),
