@@ -236,6 +236,7 @@ Relay_log_info::~Relay_log_info()
   }
 
   set_rli_description_event(NULL);
+  delete until_option;
 
   DBUG_VOID_RETURN;
 }
