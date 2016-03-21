@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -85,6 +85,11 @@ int main(int argc, const char** argv){
 
     NdbDictionary::Table newTable = *oldTable;
     newTable.setFragmentCount(_p);
+    if (_p != 0)
+    {
+      newTable.setFragmentCountType(
+        NdbDictionary::Object::FragmentCount_Specific);
+    }
 
     if (MyDic->beginSchemaTrans() != 0)
       goto err;
