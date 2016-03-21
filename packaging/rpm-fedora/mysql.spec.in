@@ -837,7 +837,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
-* Mon Mar 14 2015 Georgi Kodinov <georgi.kodinov@oracle.com> - 5.8.0-1
+* Mon Mar 14 2016 Georgi Kodinov <georgi.kodinov@oracle.com> - 5.8.0-1
 - Add test_udf_services.so plugin
 
 * Fri Jan 08 2016 Bjorn Munch <bjorn.munch@oracle.com> - 5.8.0-1
