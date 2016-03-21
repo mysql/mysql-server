@@ -1536,7 +1536,9 @@ void Dbacc::insertelementLab(Signal* signal,
                 idrPageptr,
                 tidrPageindex,
                 isforward,
-                conptr);
+                conptr,
+                Operationrec::ANY_SCANBITS,
+                false);
   c_tup->prepareTUPKEYREQ(localKey, localKey, fragrecptr.p->tupFragptr);
   sendAcckeyconf(signal);
   return;
@@ -2585,6 +2587,9 @@ void Dbacc::execACC_LOCKREQ(Signal* signal)
 /*               FRAGRECPTR                                                          */
 /*               IDR_OPERATION_REC_PTR                                               */
 /*               TIDR_KEY_LEN                                                        */
+/*               conScanMask - ANY_SCANBITS or scan bits container must              */
+/*                 have. Note elements inserted are never more scanned than          */
+/*                 container.                                                        */
 /*                                                                                   */
 /*       OUTPUT:                                                                     */
 /*               TIDR_PAGEINDEX (PAGE INDEX OF INSERTED ELEMENT)                     */
@@ -2597,14 +2602,17 @@ void Dbacc::insertElement(const Element   elem,
                           Page8Ptr&       pageptr,
                           Uint32&         conidx,
                           bool&           isforward,
-                          Uint32&         conptr)
+                          Uint32&         conptr,
+                          Uint16          conScanMask,
+                          const bool      newBucket)
 {
   Page8Ptr inrNewPageptr;
   Uint32 tidrResult;
   Uint16 scanmask;
+  bool newContainer = newBucket;
 
+  ContainerHeader containerhead;
   do {
-    ContainerHeader containerhead;
     insertContainer(elem,
                     oprecptr,
                     pageptr,
@@ -2612,8 +2620,11 @@ void Dbacc::insertElement(const Element   elem,
                     isforward,
                     conptr,
                     containerhead,
+                    conScanMask,
+                    newContainer,
                     tidrResult);
-    if (tidrResult != ZFALSE) {
+    if (tidrResult != ZFALSE)
+    {
       jam();
       return;
       /* INSERTION IS DONE, OR */
@@ -2642,6 +2653,8 @@ void Dbacc::insertElement(const Element   elem,
       scanmask = containerhead.getScanBits();
       break;
     }//if
+    // Only first container can be a new container
+    newContainer = false;
   } while (1);
   Uint32 newPageindex;;
   Uint32 newBuftype;
@@ -2683,15 +2696,39 @@ void Dbacc::insertElement(const Element   elem,
     ndbrequire(newBuftype == ZLEFT || newBuftype == ZRIGHT);
   }
   Uint32 containerptr = getContainerPtr(newPageindex, isforward);
-  ContainerHeader containerhead;
-  containerhead.initInUse();
-  containerhead.copyScanBits(scanmask);
-  inrNewPageptr.p->word32[containerptr] = containerhead;
+  ContainerHeader newcontainerhead;
+  newcontainerhead.initInUse();
+  Uint32 nextPtrI;
+  if (containerhead.haveNext())
+  {
+    nextPtrI = pageptr.p->word32[conptr+1];
+    newcontainerhead.setNext(containerhead.getNextEnd(),
+                          containerhead.getNextIndexNumber(),
+                          inrNewPageptr.i == nextPtrI);
+  }
+  else
+  {
+    nextPtrI = RNIL;
+    newcontainerhead.clearNext();
+  }
+  inrNewPageptr.p->word32[containerptr] = newcontainerhead;
+  inrNewPageptr.p->word32[containerptr + 1] = nextPtrI;
   addnewcontainer(pageptr, conptr, newPageindex,
     newBuftype, nextOnSamePage, inrNewPageptr.i);
-
   pageptr = inrNewPageptr;
   conidx = newPageindex;
+  if (conScanMask == Operationrec::ANY_SCANBITS)
+  {
+    /**
+     * ANY_SCANBITS indicates that this is an insert of a new element, not
+     * an insert from expand or shrink.  In that case the inserted element
+     * and the new container will inherit scan bits from previous container.
+     * This makes the element look as scanned as possible still preserving
+     * the invariant that containers and element towards the end of bucket
+     * has less scan bits set than those towards the beginning.
+     */
+    conScanMask = scanmask;
+  }
   insertContainer(elem,
                   oprecptr,
                   pageptr,
@@ -2699,44 +2736,50 @@ void Dbacc::insertElement(const Element   elem,
                   isforward,
                   conptr,
                   containerhead,
+                  conScanMask,
+                  true,
                   tidrResult);
   ndbrequire(tidrResult == ZTRUE);
 }//Dbacc::insertElement()
 
-/* --------------------------------------------------------------------------------- */
-/* INSERT_CONTAINER                                                                  */
-/*           INPUT:                                                                  */
-/*               IDR_PAGEPTR (POINTER TO THE ACTIVE PAGE REC)                        */
-/*               TIDR_PAGEINDEX (INDEX OF THE CONTAINER)                             */
-/*               TIDR_FORWARD (DIRECTION FORWARD OR BACKWARD)                        */
-/*               TIDR_ELEMHEAD (HEADER OF ELEMENT TO BE INSERTED                     */
-/*               CKEYS(ARRAY OF TUPLE KEYS)                                          */
-/*               CLOCALKEY(ARRAY 0F LOCAL KEYS).                                     */
-/*               TIDR_KEY_LEN                                                        */
-/*               FRAGRECPTR                                                          */
-/*               IDR_OPERATION_REC_PTR                                               */
-/*           OUTPUT:                                                                 */
-/*               TIDR_RESULT (ZTRUE FOR SUCCESS AND ZFALSE OTHERWISE)                */
-/*               containerhead (HEADER OF CONTAINER)                            */
-/*               TIDR_CONTAINERPTR (POINTER TO CONTAINER HEADER)                     */
-/*                                                                                   */
-/*           DESCRIPTION:                                                            */
-/*               THE FREE AREA OF THE CONTAINER WILL BE CALCULATED. IF IT IS         */
-/*               LARGER THAN OR EQUAL THE ELEMENT LENGTH. THE ELEMENT WILL BE        */
-/*               INSERT IN THE CONTAINER AND CONTAINER HEAD WILL BE UPDATED.         */
-/*               THIS ROUTINE ALWAYS DEALS WITH ONLY ONE CONTAINER AND DO NEVER      */
-/*               START ANYTHING OUTSIDE OF THIS CONTAINER.                           */
-/*                                                                                   */
-/*       SHORT FORM: IDR                                                             */
-/* --------------------------------------------------------------------------------- */
-void Dbacc::insertContainer(const Element    elem,
-                            OperationrecPtr  oprecptr,
-                            Page8Ptr&        pageptr,
-                            const Uint32     conidx,
-                            const bool       isforward,
-                            Uint32&          conptr,
-                            ContainerHeader& containerhead,
-                            Uint32&          result)
+/**
+ * insertContainer puts an element into a container if it has free space and
+ * the requested scan bits match.
+ *
+ * If it is a new element inserted the requested scan bits given by
+ * conScanMask can be ANY_SCANBITS or a valid set of bits.  If it is
+ * ANY_SCANBITS the containers scan bits are not checked.  If it is set to
+ * valid scan bits the container is a newly created empty container.
+ *
+ * The buckets header container may never be removed.  Nor should any scan
+ * bit of it be cleared, unless for expand there the first inserted element
+ * determines the bucket header containers scan bits.  newContainer indicates
+ * that that current insert is part of populating a new bucket with expand.
+ *
+ * In case the container is empty it is either the bucket header container
+ * or a new container created by caller (insertElement).
+ *
+ * @param[in]   elem
+ * @param[in]   oprecptr
+ * @param[in]   pageptr
+ * @param[in]   conidx
+ * @param[in]   isforward
+ * @param[out]  conptr
+ * @param[out]  containerhead
+ * @param[in]   conScanMask
+ * @param[in]   newContainer
+ * @param[out]  result
+ */
+void Dbacc::insertContainer(const Element          elem,
+                            const OperationrecPtr  oprecptr,
+                            const Page8Ptr         pageptr,
+                            const Uint32           conidx,
+                            const bool             isforward,
+                            Uint32&                conptr,
+                            ContainerHeader&       containerhead,
+                            Uint16                 conScanMask,
+                            const bool             newContainer,
+                            Uint32&                result)
 {
   Uint32 tidrContainerlen;
   Uint32 tidrConfreelen;
@@ -2767,7 +2810,32 @@ void Dbacc::insertContainer(const Element    elem,
     tidrIndex = (conptr - tidrContainerlen) +
                 (Container::HEADER_SIZE - fragrecptr.p->elementLength);
   }//if
-  if (tidrContainerlen > (ZBUF_SIZE - 3)) { // TODO: use elementLength
+  const Uint16 activeScanMask = fragrecptr.p->activeScanMask;
+  const Uint16 conscanmask = containerhead.getScanBits();
+  if(tidrContainerlen > Container::HEADER_SIZE || !newContainer)
+  {
+    if (conScanMask != Operationrec::ANY_SCANBITS &&
+        ((conscanmask & ~conScanMask) & activeScanMask) != 0)
+    {
+      /* Container have more scan bits set than requested */
+      /* Continue to next container. */
+      return;
+    }
+  }
+  if (tidrContainerlen == Container::HEADER_SIZE && newContainer)
+  {
+    /**
+     * Only the first header container in a bucket or a newly created bucket
+     * in insertElement can be empty.
+     *
+     * Set container scan bits as requested.
+     */
+    ndbrequire(conScanMask != Operationrec::ANY_SCANBITS);
+    containerhead.copyScanBits(conScanMask & activeScanMask);
+    pageptr.p->word32[conptr] = containerhead;
+  }
+  if (tidrContainerlen >= (ZBUF_SIZE - fragrecptr.p->elementLength))
+  {
     return;
   }//if
   tidrConfreelen = ZBUF_SIZE - tidrContainerlen;
@@ -5334,6 +5402,7 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
   Uint32 elemStep;
   const Uint32 elemLen = fragrecptr.p->elementLength;
   OperationrecPtr oprecptr;
+  bool newBucket = true;
  EXP_CONTAINER_LOOP:
   Uint32 conptr = getContainerPtr(conidx, isforward);
   if (isforward)
@@ -5442,10 +5511,13 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
                   idrPageptr,
                   tidrPageindex,
                   tidrIsforward,
-                  tidrContainerptr);
+                  tidrContainerptr,
+                  containerhead.getScanBits(),
+                  newBucket);
     fragrecptr.p->expReceiveIndex = tidrPageindex;
     fragrecptr.p->expReceivePageptr = idrPageptr.i;
     fragrecptr.p->expReceiveIsforward = tidrIsforward;
+    newBucket = false;
   }
  REMOVE_LAST_LOOP:
   jam();
@@ -5553,10 +5625,13 @@ void Dbacc::expandcontainer(Page8Ptr pageptr, Uint32 conidx)
                     idrPageptr,
                     tidrPageindex,
                     tidrIsforward,
-                    tidrContainerptr);
+                    tidrContainerptr,
+                    containerhead.getScanBits(),
+                    newBucket);
       fragrecptr.p->expReceiveIndex = tidrPageindex;
       fragrecptr.p->expReceivePageptr = idrPageptr.i;
       fragrecptr.p->expReceiveIsforward = tidrIsforward;
+      newBucket = false;
     }
     goto REMOVE_LAST_LOOP;
   }//if
@@ -6260,7 +6335,9 @@ void Dbacc::shrinkcontainer(Page8Ptr pageptr,
                   idrPageptr,
                   tidrPageindex,
                   tidrIsforward,
-                  tidrContainerptr);
+                  tidrContainerptr,
+                  ContainerHeader(pageptr.p->word32[conptr]).getScanBits(),
+                  false);
     /* --------------------------------------------------------------- */
     /*       TAKE CARE OF RESULT FROM INSERT_ELEMENT.                  */
     /* --------------------------------------------------------------- */
