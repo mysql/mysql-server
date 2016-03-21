@@ -842,14 +842,18 @@ private:
                      Page8Ptr& pageptr,
                      Uint32& conidx,
                      bool& isforward,
-                     Uint32& conptr);
+                     Uint32& conptr,
+                     Uint16 conScanMask,
+                     bool newBucket);
   void insertContainer(Element elem,
                        OperationrecPtr  oprecptr,
-                       Page8Ptr& pageptr,
+                       Page8Ptr pageptr,
                        Uint32 conidx,
                        bool isforward,
                        Uint32& conptr,
                        ContainerHeader& containerhead,
+                       Uint16 conScanMask,
+                       bool newContainer,
                        Uint32& result);
   void addnewcontainer(Page8Ptr pageptr, Uint32 conptr,
     Uint32 nextConidx, Uint32 nextContype, bool nextSamepage,
