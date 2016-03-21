@@ -179,10 +179,7 @@ SET DEBUG= '+d, fail_while_dropping_dd_object';
 DROP TABLE t1;
 SET DEBUG= '-d, fail_while_dropping_dd_object';
 --echo # Do it for real.
---echo # Note: The statement below fails, but the entry for t1
---echo #       in mysql.tables is removed.
---error ER_BAD_TABLE_ERROR
-DROP TABLE t1;
+DROP TABLE IF EXISTS t1;
 
 --echo ###################################################################
 --echo #

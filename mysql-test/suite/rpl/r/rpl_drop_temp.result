@@ -19,6 +19,7 @@ DROP TEMPORARY TABLE t1, t2;
 ERROR 42S02: Unknown table 'test.t2'
 DROP TEMPORARY TABLE tmp2;
 ERROR 42S02: Unknown table 'test.tmp2'
+DROP TEMPORARY TABLE t1;
 stop slave;
 **** On Master ****
 CREATE TEMPORARY TABLE tmp3 (a int);

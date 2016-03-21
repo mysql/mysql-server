@@ -9,6 +9,10 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 
+--disable_parsing
+# 
+# WL7743/TODO: Decide if this test is till relevant.
+#
 ###########################################################################
 --echo
 --echo # --
@@ -40,6 +44,7 @@ SET SESSION DEBUG = "-d,bug43138";
 --echo # --
 --echo # -- End of Bug#43138.
 --echo # --
+--enable_parsing
 
 ###########################################################################
 

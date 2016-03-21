@@ -7692,6 +7692,12 @@ ER_SP_LOAD_FAILED
 ER_TOO_LONG_TABLESPACE_COMMENT
   eng "Comment for tablespace '%-.64s' is too long (max = %lu)"
 
+ER_ENGINE_CANT_DROP_TABLE
+  eng "Storage engine can't drop table '%-.100s'"
+
+ER_ENGINE_CANT_DROP_MISSING_TABLE
+  eng "Storage engine can't drop table '%-.100s' because it is missing. Use DROP TABLE IF EXISTS to remove it from data-dictionary."
+
 #
 #  End of 5.8 error messages.
 #

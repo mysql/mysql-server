@@ -562,8 +562,9 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
     which can be done without mutex protection.
   */
   mysql_mutex_unlock(&LOCK_open);
-  DEBUG_SYNC(thd, "get_share_before_open");
 
+  if (!thd->is_attachable_ro_transaction_active())
+    DEBUG_SYNC(thd, "get_share_before_open");
 
   if (read_uncommitted)
   {
@@ -611,7 +612,8 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
     share->error= true; // Allow waiters to detect the error
     share->ref_count--;
     (void) my_hash_delete(&table_def_cache, (uchar*) share);
-    DEBUG_SYNC(thd, "get_share_after_destroy");
+    if (!thd->is_attachable_ro_transaction_active())
+      DEBUG_SYNC(thd, "get_share_after_destroy");
     DBUG_RETURN(NULL);
   }
 
@@ -634,7 +636,8 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
   DBUG_RETURN(share);
 
 found:
-  DEBUG_SYNC(thd, "get_share_found_share");
+  if (!thd->is_attachable_ro_transaction_active())
+    DEBUG_SYNC(thd, "get_share_found_share");
   /*
      We found an existing table definition. Return it if we didn't get
      an error when reading the table definition from file.
@@ -2236,44 +2239,27 @@ static TABLE *find_temporary_table(THD *thd,
 
 
 /**
-  Drop a temporary table.
+  Prepare for dropping temporary table.
 
-  Try to locate the table in the list of thd->temporary_tables.
-  If the table is found:
-   - if the table is being used by some outer statement, fail.
-   - if the table is locked with LOCK TABLES or by prelocking,
-   unlock it and remove it from the list of locked tables
-   (THD::lock). Currently only transactional temporary tables
-   are locked.
-   - Close the temporary table, remove its .FRM
-   - remove the table from the list of temporary tables
+  This function assumes that table to be dropped was pre-opened
+  using table list provided.
 
-  This function is used to drop user temporary tables, as well as
-  internal tables created in CREATE TEMPORARY TABLE ... SELECT
-  or ALTER TABLE. Even though part of the work done by this function
-  is redundant when the table is internal, as long as we
-  link both internal and user temporary tables into the same
-  thd->temporary_tables list, it's impossible to tell here whether
-  we're dealing with an internal or a user temporary table.
+  - If there is no temporary table associated with table list
+    element, report that table is not found.
+  - If the table is being used by some outer statement, fail.
 
   In is_trans out-parameter, we return the type of the table:
   either transactional (e.g. innodb) as TRUE or non-transactional
   (e.g. myisam) as FALSE.
 
-  This function assumes that table to be dropped was pre-opened
-  using table list provided.
-
-  @retval  0  the table was found and dropped successfully.
-  @retval  1  the table was not found in the list of temporary tables
-              of this thread
+  @retval  0  the table was found and and can be dropped successfully.
+  @retval  1  the table was not found/properly pre-opened.
   @retval -1  the table is in use by a outer query
 */
 
-int drop_temporary_table(THD *thd, TABLE_LIST *table_list, bool *is_trans)
+int prepare_drop_temporary_table(THD *thd, TABLE_LIST *table_list, bool *is_trans)
 {
-  DBUG_ENTER("drop_temporary_table");
-  DBUG_PRINT("tmptable", ("closing table: '%s'.'%s'",
-                          table_list->db, table_list->table_name));
+  DBUG_ENTER("prepare_drop_temporary_table");
 
   if (!is_temporary_table(table_list))
     DBUG_RETURN(1);
@@ -2289,6 +2275,36 @@ int drop_temporary_table(THD *thd, TABLE_LIST *table_list, bool *is_trans)
 
   *is_trans= table->file->has_transactions();
 
+  DBUG_RETURN(0);
+}
+
+
+/**
+  Drop a temporary table.
+
+  This function assumes that necessary checks were done by calling
+  prepare_drop_temporary_table().
+
+  - If the table is locked with LOCK TABLES or by prelocking,
+    unlock it and remove it from the list of locked tables
+    (THD::lock). Currently only transactional temporary tables
+    are locked.
+  - Close the temporary table.
+  - Remove the table from the list of temporary tables.
+*/
+
+void drop_temporary_table(THD *thd, TABLE_LIST *table_list)
+{
+  DBUG_ENTER("drop_temporary_table");
+  DBUG_PRINT("tmptable", ("closing table: '%s'.'%s'",
+                          table_list->db, table_list->table_name));
+
+  DBUG_ASSERT(is_temporary_table(table_list));
+
+  TABLE *table= table_list->table;
+
+  DBUG_ASSERT(!table->query_id || table->query_id == thd->query_id);
+
   /*
     If LOCK TABLES list is not empty and contains this table,
     unlock the table and remove the table from this list.
@@ -2297,8 +2313,9 @@ int drop_temporary_table(THD *thd, TABLE_LIST *table_list, bool *is_trans)
   close_temporary_table(thd, table, 1, 1);
   table_list->table= NULL;
 
-  DBUG_RETURN(0);
+  DBUG_VOID_RETURN;
 }
+
 
 /*
   unlink from thd->temporary tables and close temporary table

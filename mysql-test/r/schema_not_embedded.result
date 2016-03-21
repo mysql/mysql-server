@@ -38,6 +38,6 @@ CREATE SCHEMA s;
 CREATE TABLE s.t_myisam (pk INTEGER PRIMARY KEY) ENGINE= MyISAM;
 CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
 DROP TABLE s.t_myisam;
-ERROR 42S02: Unknown table 's.t_myisam'
+ERROR HY000: Storage engine can't drop table 's.t_myisam' because it is missing. Use DROP TABLE IF EXISTS to remove it from data-dictionary.
 DROP TABLE s.t_innodb;
 DROP SCHEMA s;

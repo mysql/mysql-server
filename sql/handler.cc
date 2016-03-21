@@ -2518,7 +2518,8 @@ public:
   The .frm file will be deleted only if we return 0 or ENOENT
 */
 int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
-                    const char *db, const char *alias, bool generate_warning)
+                    const char *db, const char *alias,
+                    const dd::Table *table_def, bool generate_warning)
 {
   handler *file;
   char tmp_path[FN_REFLEN];
@@ -2531,23 +2532,12 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
   memset(&dummy_share, 0, sizeof(dummy_share));
   dummy_table.s= &dummy_share;
 
-  dd::Dictionary *dict= dd::get_dictionary();
-  const dd::Table *table_def= 0;
-
-  if (! dict->is_dd_table_name(db, alias))
-  {
-    if (thd->dd_client()->acquire_uncached_uncommitted<dd::Table>(db, alias,
-                                                                  &table_def))
-      DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-  }
-
   /* DB_TYPE_UNKNOWN is used in ALTER TABLE when renaming only .frm files */
   if (table_type == NULL ||
       ! (file= get_new_handler((TABLE_SHARE*)0,
                  table_def->partition_type() != dd::Table::PT_NONE,
                  thd->mem_root, table_type)))
   {
-    delete table_def;
     DBUG_RETURN(ENOENT);
   }
 
@@ -2585,8 +2575,6 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
   }
 
   delete file;
-
-  delete table_def;
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely(error == 0))

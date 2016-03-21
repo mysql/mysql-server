@@ -1,28 +1,3 @@
-
-# --
-# -- Bug#43138: DROP DATABASE failure does not clean up message list.
-# --
-
-DROP DATABASE IF EXISTS mysql_test;
-
-CREATE DATABASE mysql_test;
-CREATE TABLE mysql_test.t1(a INT);
-CREATE TABLE mysql_test.t2(b INT);
-CREATE TABLE mysql_test.t3(c INT);
-
-SET SESSION DEBUG = "+d,bug43138";
-
-DROP DATABASE mysql_test;
-Warnings:
-Error	1051	Unknown table 't1'
-Error	1051	Unknown table 't2'
-Error	1051	Unknown table 't3'
-
-SET SESSION DEBUG = "-d,bug43138";
-
-# --
-# -- End of Bug#43138.
-# --
 #
 # Bug#21625393 : Assert condition (e->usage() == 1) failure in
 #                dd::cache::Shared_multi_map<T>::remove()

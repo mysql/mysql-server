@@ -201,16 +201,17 @@ RESET MASTER;
 CREATE TEMPORARY TABLE ttm1 (a INT) ENGINE=MyISAM;
 CREATE TEMPORARY TABLE tti1 (a INT) ENGINE=Innodb;
 
-# The query is logged in three parts where only
+# The query is logged in four parts where only
 # the first one is sequenced.
 # Such logging is caused by just one cache is used for logging.
+# WL7743/TODO: Updated the above comment.
 
 --echo *** The query is logged in three parts.
 
 DROP TABLE tm,t1,ttm1,tti1;
 
 
---let $logical_timestamps= 0 1;1 2;2 3;3 4;4 5
+--let $logical_timestamps= 0 1;1 2;2 3;3 4;4 5;5 6
 --source include/assert_logical_timestamps.inc
 
 #

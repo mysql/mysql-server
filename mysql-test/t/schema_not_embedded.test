@@ -201,7 +201,7 @@ CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
 --source include/wait_until_connected_again.inc
 
 # DROP TABLE for MyISAM fails.
---error ER_BAD_TABLE_ERROR
+--error ER_ENGINE_CANT_DROP_MISSING_TABLE
 DROP TABLE s.t_myisam;
 
 # DROP TABLE for InnoDB succeeds.

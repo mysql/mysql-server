@@ -113,6 +113,10 @@ bool drop_table(THD *thd,
                 const char *table_name,
                 bool commit_dd_changes);
 
+template <typename T>
+bool drop_table(THD *thd, const char *schema_name, const char *name,
+                const T *table_def, bool commit_dd_changes, bool uncached);
+
 /**
   Check if a table or view exists
 
@@ -227,6 +231,11 @@ bool table_legacy_db_type(THD *thd, const char *schema_name,
   @retval     false           Success
  */
 bool table_storage_engine(THD *thd, const TABLE_LIST *table_list,
+                          handlerton **hton);
+
+
+bool table_storage_engine(THD *thd, const char *schema_name,
+                          const char *table_name, const dd::Table *table,
                           handlerton **hton);
 
 /**

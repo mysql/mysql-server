@@ -63,6 +63,12 @@ template bool dd::drop_table<dd::View>(THD *thd,
                                        const char *schema_name,
                                        const char *name,
                                        bool commit_dd_changes);
+template bool dd::drop_table<dd::Table>(THD *thd,
+                                        const char *schema_name,
+                                        const char *name,
+                                        const dd::Table *table_def,
+                                        bool commit_dd_changes,
+                                        bool uncached);
 
 template bool dd::table_exists<dd::Abstract_table>(
                                       dd::cache::Dictionary_client *client,
@@ -1654,6 +1660,52 @@ bool drop_table(THD *thd, const char *schema_name, const char *name,
 
 
 template <typename T>
+bool drop_table(THD *thd, const char *schema_name, const char *name,
+                const T *table_def, bool commit_dd_changes, bool uncached)
+{
+  /*
+    WL7743/TODO: Find out why do we need this (main.lock fails
+                 with out but why)?
+  */
+  dd::Schema_MDL_locker mdl_locker(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Schema *sch= NULL;
+  if (mdl_locker.ensure_locked(schema_name) ||
+      thd->dd_client()->acquire<dd::Schema>(schema_name, &sch))
+  {
+    // Error is reported by the dictionary subsystem.
+    return true;
+  }
+
+  if (!sch)
+  {
+    my_error(ER_BAD_DB_ERROR, MYF(0), schema_name);
+    return true;
+  }
+
+
+  Disable_gtid_state_update_guard disabler(thd);
+
+  // Drop the table/view
+  if (dd::remove_sdi(thd, table_def, sch) ||
+      (uncached ? thd->dd_client()->drop_uncached(table_def) :
+                  thd->dd_client()->drop(table_def)))
+  {
+    if (commit_dd_changes)
+    {
+      trans_rollback_stmt(thd);
+      // Full rollback in case we have THD::transaction_rollback_request.
+      trans_rollback(thd);
+    }
+    return true;
+  }
+
+  return commit_dd_changes &&
+         (trans_commit_stmt(thd) || trans_commit(thd));
+}
+
+
+template <typename T>
 bool table_exists(dd::cache::Dictionary_client *client,
                   const char *schema_name, const char *name,
                   bool *exists)
@@ -1919,34 +1971,11 @@ bool table_legacy_db_type(THD *thd, const char *schema_name,
 /* purecov: end */
 
 
-bool table_storage_engine(THD *thd, const TABLE_LIST *table_list,
+bool table_storage_engine(THD *thd, const char *schema_name,
+                          const char *table_name, const dd::Table *table,
                           handlerton **hton)
 {
   DBUG_ENTER("dd::table_storage_engine");
-
-  // Define pointers to schema- and table name
-  DBUG_ASSERT(table_list);
-  const char *schema_name= table_list->db;
-  const char *table_name= table_list->table_name;
-
-  // There should be at least some lock on the table
-  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
-                                                           schema_name,
-                                                           table_name,
-                                                           MDL_SHARED));
-
-  /*
-    Get hold of the dd::Table object. Use uncommitted read, so this function
-    can be used by RENAME TABLES implementation even in cases when the same
-    table is renamed several times within the same statement.
-  */
-  std::unique_ptr<dd::Table> table;
-  if (!(table= acquire_uncached_uncommitted_table<dd::Table>(thd,
-                                                             schema_name,
-                                                             table_name)))
-  {
-    DBUG_RETURN(true);
-  }
 
   DBUG_ASSERT(hton);
 
@@ -1985,6 +2014,40 @@ bool table_storage_engine(THD *thd, const TABLE_LIST *table_list,
   DBUG_ASSERT(*hton && ha_storage_engine_is_enabled(*hton));
 
   DBUG_RETURN(false);
+}
+
+
+bool table_storage_engine(THD *thd, const TABLE_LIST *table_list,
+                          handlerton **hton)
+{
+  DBUG_ENTER("dd::table_storage_engine");
+
+  // Define pointers to schema- and table name
+  DBUG_ASSERT(table_list);
+  const char *schema_name= table_list->db;
+  const char *table_name= table_list->table_name;
+
+  // There should be at least some lock on the table
+  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                                           schema_name,
+                                                           table_name,
+                                                           MDL_SHARED));
+
+  /*
+    Get hold of the dd::Table object. Use uncommitted read, so this function
+    can be used by RENAME TABLES implementation even in cases when the same
+    table is renamed several times within the same statement.
+  */
+  std::unique_ptr<dd::Table> table;
+  if (!(table= acquire_uncached_uncommitted_table<dd::Table>(thd,
+                                                             schema_name,
+                                                             table_name)))
+  {
+    DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(table_storage_engine(thd, schema_name, table_name,
+                                   table.get(), hton));
 }
 
 

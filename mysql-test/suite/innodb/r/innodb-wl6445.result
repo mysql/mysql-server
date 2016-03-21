@@ -30,13 +30,13 @@ ERROR HY000: Table 'tables' is read only
 ALTER TABLE WL6445.t1 DROP INDEX sec_idx;
 ERROR HY000: Table 'tables' is read only
 DROP TABLE WL6445.t1;
-ERROR 42S02: Unknown table 'WL6445.t1'
+ERROR HY000: Storage engine can't drop table 'WL6445.t1'
 TRUNCATE TABLE WL6445.t1;
 ERROR HY000: Table 't1' is read only
 RENAME TABLE WL6445.t1 TO WL6444.t2;
 ERROR 42000: Unknown database 'WL6444'
 DROP DATABASE WL6445;
-ERROR 42S02: Unknown table 'WL6445.t1'
+ERROR HY000: Storage engine can't drop table 'WL6445.t1'
 SHOW CREATE TABLE WL6445.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

@@ -4533,7 +4533,8 @@ int ha_create_table(THD *thd, const char *path,
                     bool force_dd_commit);
 
 int ha_delete_table(THD *thd, handlerton *db_type, const char *path,
-                    const char *db, const char *alias, bool generate_warning);
+                    const char *db, const char *alias,
+                    const dd::Table *table_def, bool generate_warning);
 
 /* statistics and info */
 bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat);
