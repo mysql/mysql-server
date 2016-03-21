@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include "rpl_rli.h"          // Relay_log_info
 #include "rpl_utility.h"      // table_def
 #include "table.h"            // TABLE
+#include "template_utils.h"   // down_cast
 
 using std::min;
 using std::max;
@@ -348,6 +349,20 @@ unpack_row(Relay_log_info const *rli,
           my_error(ER_SLAVE_CORRUPT_EVENT, MYF(0));
           DBUG_RETURN(ER_SLAVE_CORRUPT_EVENT);
         }
+        /*
+          For a virtual generated column of blob type, we have to keep
+          both the old and new value for the blob since this might be
+          needed by the storage engine during updates.
+
+          The reason why this needs special handling is that the virtual
+          generated blobs are neither stored in the record buffers nor
+          stored by the storage engine. This special handling for blobs
+          is normally taken care of in update_generated_write_fields()
+          but this function is not called when applying updated records
+          in replication.
+        */
+        if (f->type() == MYSQL_TYPE_BLOB && f->is_virtual_gcol())
+          (down_cast<Field_blob*>(f))->keep_old_value();
         pack_ptr= f->unpack(f->ptr, pack_ptr, metadata, TRUE);
 	DBUG_PRINT("debug", ("Unpacked; metadata: 0x%x;"
                              " pack_ptr: 0x%lx; pack_ptr': 0x%lx; bytes: %d",
