@@ -8816,9 +8816,9 @@ static IO_CACHE *reopen_relay_log(Relay_log_info *rli, const char **errmsg)
 
 /**
   Reads next event from the relay log.  Should be called from the
-  slave IO thread.
+  slave SQL thread.
 
-  @param rli Relay_log_info structure for the slave IO thread.
+  @param rli Relay_log_info structure for the slave SQL thread.
 
   @return The event read, or NULL on error.  If an error occurs, the
   error is reported through the sql_print_information() or
@@ -8863,7 +8863,8 @@ static Log_event* next_event(Relay_log_info* rli)
         We just have a read only log that nobody else will be updating.
     */
     bool hot_log;
-    if ((hot_log = (cur_log != &rli->cache_buf)))
+    if ((hot_log = (cur_log != &rli->cache_buf)) ||
+        DBUG_EVALUATE_IF("force_sql_thread_error", 1, 0))
     {
       DBUG_ASSERT(rli->cur_log_fd == -1); // foreign descriptor
       mysql_mutex_lock(log_lock);
@@ -8872,7 +8873,8 @@ static Log_event* next_event(Relay_log_info* rli)
         Reading xxx_file_id is safe because the log will only
         be rotated when we hold relay_log.LOCK_log
       */
-      if (rli->relay_log.get_open_count() != rli->cur_log_old_open_count)
+      if (rli->relay_log.get_open_count() != rli->cur_log_old_open_count &&
+          DBUG_EVALUATE_IF("force_sql_thread_error", 0, 1))
       {
         // The master has switched to a new log file; Reopen the old log file
         cur_log=reopen_relay_log(rli, &errmsg);
@@ -8887,8 +8889,13 @@ static Log_event* next_event(Relay_log_info* rli)
       error during a write by the slave I/O thread may have closed it), we
       have to test it.
     */
-    if (!my_b_inited(cur_log))
+    if (!my_b_inited(cur_log) ||
+        DBUG_EVALUATE_IF("force_sql_thread_error", 1, 0))
+    {
+      if (hot_log)
+        mysql_mutex_unlock(log_lock);
       goto err;
+    }
 #ifndef DBUG_OFF
     {
       DBUG_PRINT("info", ("assertion skip %lu file pos %lu event relay log pos %lu file %s\n",
