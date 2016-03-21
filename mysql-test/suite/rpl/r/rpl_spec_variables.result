@@ -171,6 +171,7 @@ include/sync_slave_sql_with_master.inc
 SELECT COUNT(*)=2000 FROM t1 WHERE b='master' GROUP BY b ORDER BY b;
 COUNT(*)=2000
 1
+TRUNCATE TABLE t1;
 SELECT COUNT(*)<2000 AND COUNT(*)>0 FROM t1 WHERE b='slave' GROUP BY b ORDER BY b;
 COUNT(*)<2000 AND COUNT(*)>0
 1

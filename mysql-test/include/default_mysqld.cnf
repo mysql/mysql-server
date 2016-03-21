@@ -1,29 +1,19 @@
 # Default values that applies to all MySQL Servers
 [mysqld]
-open-files-limit=           1024
-local-infile
-character-set-server=      latin1
 
 # Increase default connect_timeout to avoid intermittent
 # disconnects when test servers are put under load see BUG#28359
 connect-timeout=            60
 
+# When binary logging is enabled, this variable controls whether
+# stored function creators can be trusted not to create stored
+# functions that will cause unsafe events to be written to the binary log.
+# Set it to 1 so that no restrictions are enforced on
+# stored function creation.
 log-bin-trust-function-creators=1
-key_buffer_size=            1M
-sort_buffer_size=           256K
-max_heap_table_size=        1M
 
-loose-innodb_data_file_path=      ibdata1:10M:autoextend
-loose-innodb_buffer_pool_size=    24M
-loose-innodb_lru_scan_depth=      100
-loose-innodb_write_io_threads=    2
-loose-innodb_read_io_threads=     2
-loose-innodb_log_buffer_size=     1M
-loose-innodb_log_file_size=       5M
-loose-innodb_log_files_in_group=  2
-
-slave-net-timeout=120
-
+# Set log-bin ON for replication tests that use multiple mysqld servers
+# and other tests that may have replication scenarios.
 log-bin=mysqld-bin
 
 # MAINTAINER:
@@ -83,4 +73,3 @@ loose-performance-schema-consumer-events-waits-history-long=ON
 loose-performance-schema-consumer-global-instrumentation=ON
 loose-performance-schema-consumer-thread-instrumentation=ON
 
-binlog-direct-non-transactional-updates

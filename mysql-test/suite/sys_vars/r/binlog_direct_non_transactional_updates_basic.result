@@ -1,6 +1,6 @@
 SELECT @@GLOBAL.binlog_direct_non_transactional_updates;
 @@GLOBAL.binlog_direct_non_transactional_updates
-1
+0
 '#---------------------BS_STVARS_002_01----------------------#'
 SET @start_value= @@global.binlog_direct_non_transactional_updates;
 SELECT COUNT(@@GLOBAL.binlog_direct_non_transactional_updates);

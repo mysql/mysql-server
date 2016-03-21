@@ -7,7 +7,7 @@ SELECT @@session.binlog_format;
 ROW
 SELECT @@session.binlog_direct_non_transactional_updates;
 @@session.binlog_direct_non_transactional_updates
-1
+0
 SELECT @@session.sql_log_bin;
 @@session.sql_log_bin
 1

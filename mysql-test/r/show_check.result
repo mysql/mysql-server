@@ -470,7 +470,7 @@ Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select @@max_heap_table_size;
 @@max_heap_table_size
-1048576
+16777216
 CREATE TABLE t1 (
 a int(11) default NULL,
 KEY a USING BTREE (a)

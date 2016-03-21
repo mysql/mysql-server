@@ -2629,7 +2629,7 @@ ON table2 .col_int_key = table1 .col_int_key
                 "key_length": 14,
                 "unique_constraint": false,
                 "location": "memory (heap)",
-                "row_limit_estimate": 80659
+                "row_limit_estimate": 1290555
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },

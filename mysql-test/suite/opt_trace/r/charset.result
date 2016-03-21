@@ -330,7 +330,7 @@ select * from v1 where v1.col = 'ÁÂÃÄÅ'	{
                 "key_length": 0,
                 "unique_constraint": false,
                 "location": "memory (heap)",
-                "row_limit_estimate": 149796
+                "row_limit_estimate": 2396745
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },

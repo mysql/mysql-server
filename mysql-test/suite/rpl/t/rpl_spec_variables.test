@@ -202,6 +202,10 @@ while ($counter) {
 SELECT COUNT(*)=2000 FROM t1;
 
 --source include/sync_slave_sql_with_master.inc
+SELECT COUNT(*)=2000 FROM t1 WHERE b='master' GROUP BY b ORDER BY b;
+# Truncate the table so that the slaves max_heap_table_size value takes effect on
+# the replicted table
+TRUNCATE TABLE t1;
 let $counter=2000;
 --disable_query_log
 while ($counter) {
@@ -220,7 +224,6 @@ while ($counter) {
 --enable_query_log
 # We don't know how many memory used and can't check exact values so need to check following 
 # conditions
-SELECT COUNT(*)=2000 FROM t1 WHERE b='master' GROUP BY b ORDER BY b;
 SELECT COUNT(*)<2000 AND COUNT(*)>0 FROM t1 WHERE b='slave' GROUP BY b ORDER BY b;
 SELECT COUNT(*)<2000 AND COUNT(*)>0 FROM t2 WHERE b='slave' GROUP BY b ORDER BY b;
 
