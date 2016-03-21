@@ -2483,6 +2483,7 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
   MYSQL_RES *master_res= NULL;
   MYSQL_ROW master_row= NULL;
   int ret= 0;
+  char query_buf[]= "SELECT @@GLOBAL.SERVER_UUID";
 
   DBUG_EXECUTE_IF("dbug.return_null_MASTER_UUID",
                   {
@@ -2505,7 +2506,13 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
                     DBUG_ASSERT(!debug_sync_set_action(current_thd,
                                                        STRING_WITH_LEN(act)));
                   };);
-  if (!mysql_real_query(mysql, STRING_WITH_LEN("SELECT @@GLOBAL.SERVER_UUID")) &&
+#ifndef DBUG_OFF
+  DBUG_EXECUTE_IF("dbug.simulate_no_such_var_server_uuid",
+		  {
+		    query_buf[strlen(query_buf) - 1]= '_'; // currupt the last char
+		  });
+#endif
+  if (!mysql_real_query(mysql, STRING_WITH_LEN(query_buf)) &&
       (master_res= mysql_store_result(mysql)) &&
       (master_row= mysql_fetch_row(master_res)))
   {
@@ -2532,7 +2539,7 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
       mi->master_uuid[UUID_LENGTH]= 0;
     }
   }
-  else if (mysql_errno(mysql))
+  else if (mysql_errno(mysql) != ER_UNKNOWN_SYSTEM_VARIABLE)
   {
     if (is_network_error(mysql_errno(mysql)))
     {
@@ -2552,7 +2559,7 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
       ret= 1;
     }
   }
-  else if (!master_row && master_res)
+  else
   {
     mi->master_uuid[0]= 0;
     mi->report(WARNING_LEVEL, ER_UNKNOWN_SYSTEM_VARIABLE,
@@ -2836,7 +2843,7 @@ not always make sense; please check the manual before using it).";
       goto err;
     }
   }
-  else if (mysql_errno(mysql))
+  else if (mysql_errno(mysql) != ER_UNKNOWN_SYSTEM_VARIABLE)
   {
     if (check_io_slave_killed(mi->info_thd, mi, NULL))
       goto slave_killed_err;
@@ -2853,7 +2860,7 @@ when it try to get the value of SERVER_ID variable from master.";
     sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
     goto err;
   }
-  else if (!master_row && master_res)
+  else
   {
     mi->report(WARNING_LEVEL, ER_UNKNOWN_SYSTEM_VARIABLE,
                "Unknown system variable 'SERVER_ID' on master, \

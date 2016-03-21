@@ -4840,6 +4840,7 @@ static bool update_last_insert_id(THD *thd, set_var *var)
   }
   thd->first_successful_insert_id_in_prev_stmt=
     var->save_result.ulonglong_value;
+  thd->substitute_null_with_insert_id= TRUE;
   return false;
 }
 static ulonglong read_last_insert_id(THD *thd)

@@ -12,7 +12,7 @@
 # --let $debug_point= debug_point
 # [--let $debug_point_silent= 1]
 # [--let $debug_type= GLOBAL | SESSION]
-# --source extra/rpl_tests/add_debug_point.inc
+# --source include/add_debug_point.inc
 #
 # Parameters:
 #   $debug_point
