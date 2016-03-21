@@ -1268,6 +1268,7 @@ bool Json_object::consume(Json_object *other)
       this_iter->second= merge_doms(this_iter->second, value);
       if (this_iter->second == NULL)
         return true;                          /* purecov: inspected */
+      this_iter->second->set_parent(this);
     }
   }
 
@@ -1279,7 +1280,10 @@ Json_dom *Json_object::get(const std::string &key) const
   const Json_object_map::const_iterator iter= m_map.find(key);
 
   if (iter != m_map.end())
+  {
+    DBUG_ASSERT(iter->second->parent() == this);
     return iter->second;
+  }
 
   return NULL;
 }
