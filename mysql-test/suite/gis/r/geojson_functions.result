@@ -478,11 +478,11 @@ ERROR 42000: Incorrect parameter count in the call to native function 'ST_ASGEOJ
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)"), 10, 0, 0);
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_ASGEOJSON'
 SELECT ST_ASGEOJSON(1);
-ERROR HY000: Incorrect type for argument geojson in function st_asgeojson.
+ERROR HY000: Incorrect type for argument geometry in function st_asgeojson.
 SELECT ST_ASGEOJSON(1, 2);
-ERROR HY000: Incorrect type for argument geojson in function st_asgeojson.
+ERROR HY000: Incorrect type for argument geometry in function st_asgeojson.
 SELECT ST_ASGEOJSON(1, 0, 1);
-ERROR HY000: Incorrect type for argument geojson in function st_asgeojson.
+ERROR HY000: Incorrect type for argument geometry in function st_asgeojson.
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 20)"), 2.1, 0);
 ERROR HY000: Incorrect type for argument max decimal digits in function st_asgeojson.
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 20)"), 10, 0.1);
@@ -4194,3 +4194,10 @@ INSERT INTO t VALUES (1), (2);
 SELECT DISTINCT SQL_BIG_RESULT ST_GeomFromGeoJSON('1', 1, ST_SRID(a)) FROM t;
 ERROR 22023: Invalid GIS data provided to function st_srid.
 DROP TABLE t;
+#
+# Bug#22912800 ST_ASGEOJSON() DOESN'T WORK WITH SESSION VARIABLES
+#
+SET @geometry := ST_GeomFromText("POINT(4.9 52.366667)");
+SELECT ST_AsGeoJSON(@geometry);
+ST_AsGeoJSON(@geometry)
+{"type": "Point", "coordinates": [4.9, 52.366667]}
