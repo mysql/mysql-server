@@ -592,6 +592,7 @@ public:
   */
   Json_dom *operator[](size_t index) const
   {
+    DBUG_ASSERT(m_v[index]->parent() == this);
     return m_v[index];
   }
 
