@@ -18112,7 +18112,7 @@ ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
     new_tab->setFragmentCount(0);
     new_tab->setFragmentData(0,0);
     new_tab->setFragmentCountType(fct);
-    DBUG_PRINT("info", ("parse_comment_changes: FragmentCounType: %s",
+    DBUG_PRINT("info", ("parse_comment_changes: FragmentCountType: %s",
                         new_tab->getFragmentCountTypeString()));
   }
   DBUG_RETURN(false);
