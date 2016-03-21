@@ -9134,6 +9134,15 @@ NDB_Modifiers::NDB_Modifiers(const NDB_Modifier modifiers[])
 
 NDB_Modifiers::~NDB_Modifiers()
 {
+  for (Uint32 i = 0; i < m_len; i++)
+  {
+    if (m_modifiers[i].m_type == NDB_Modifier::M_STRING &&
+        m_modifiers[i].m_val_str.str != NULL)
+    {
+      delete [] m_modifiers[i].m_val_str.str;
+      m_modifiers[i].m_val_str.str = NULL;
+    }
+  }
   delete [] m_modifiers;
 }
 
@@ -9186,11 +9195,24 @@ NDB_Modifiers::parse_modifier(THD *thd,
       break;
 
     str++;
-    m->m_val_str.str = str;
+    const char *start_str = str;
     while (!end_of_token(str))
       str++;
 
-    m->m_val_str.len = str - m->m_val_str.str;
+    Uint32 len = str - start_str;
+    char * tmp = new char[len+1];
+    if (tmp == 0)
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_ILLEGAL_HA_CREATE_OPTION,
+                          "%s : unable to parse due to out of memory",
+                          prefix);
+      return -1;
+    }
+    memcpy(tmp, start_str, len);
+    tmp[len] = 0; // Null terminate for safe printing
+    m->m_val_str.len = len;
+    m->m_val_str.str = tmp;
     goto found;
   }
   }
