@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -69,6 +69,10 @@ BEGIN
   -- Dump all databases, there should be none
   -- except those that was created during bootstrap
   SELECT * FROM INFORMATION_SCHEMA.SCHEMATA;
+
+  -- Dump all tablespaces, there should be none
+  SELECT * FROM INFORMATION_SCHEMA.FILES WHERE 
+    FILE_TYPE !='TEMPORARY' AND TABLE_SCHEMA='test' ORDER BY FILE_ID;
 
   -- The test database should not contain any tables
   SELECT table_name AS tables_in_test FROM INFORMATION_SCHEMA.TABLES
