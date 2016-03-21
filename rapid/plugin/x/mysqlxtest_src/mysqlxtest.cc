@@ -1040,11 +1040,10 @@ private:
 
       std::vector<std::string>::iterator i = std::find(columns.begin(), columns.end(), "print-columnsinfo");
       const bool print_colinfo = i != columns.end();
+      if (print_colinfo) columns.erase(i);
       i = std::find(columns.begin(), columns.end(), "be-quiet");
       const bool quiet = i != columns.end();
-
-      if (print_colinfo)
-        columns.erase(i);
+      if (quiet) columns.erase(i);
 
       result = context.connection()->recv_result();
       variables_to_unreplace.clear();
