@@ -3283,3 +3283,9 @@ Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in th
 Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the LEAST and GREATEST operators'
 Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the LEAST and GREATEST operators'
 Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the LEAST and GREATEST operators'
+#
+# Bug#22961128: WRONG RESULT WHEN MANIPULATING RESULT OF JSON_MERGE
+#
+SELECT JSON_SET(JSON_ARRAY(JSON_MERGE('{"a":1}', '{"a":2}')), '$[0].a', 123);
+JSON_SET(JSON_ARRAY(JSON_MERGE('{"a":1}', '{"a":2}')), '$[0].a', 123)
+[{"a": 123}]
