@@ -118,25 +118,11 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
   ADD_DEFINITIONS("-DUNIV_INNOCHECKSUM")
   SET(INNOBASE_SOURCES
       ../storage/innobase/buf/buf0checksum.cc
-      ../storage/innobase/ut/ut0crc32.cc
       ../storage/innobase/ut/ut0ut.cc
       ../storage/innobase/buf/buf0buf.cc
       ../storage/innobase/page/page0zip.cc
       ../storage/innobase/os/os0file.cc
      )
-
-  # Avoid generating Hardware Capabilities due to crc32 instructions
-  IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
-     CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-    INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-    MY_CHECK_CXX_COMPILER_FLAG("-Wa,-nH" HAVE_WA_NH)
-    IF(HAVE_WA_NH)
-      ADD_COMPILE_FLAGS(
-        ../storage/innobase/ut/ut0crc32.cc
-        COMPILE_FLAGS "-Wa,-nH"
-      )
-    ENDIF()
-  ENDIF()
 
   MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.cc ${INNOBASE_SOURCES})
   TARGET_LINK_LIBRARIES(innochecksum mysys mysys_ssl ${LZ4_LIBRARY})

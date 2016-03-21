@@ -133,7 +133,6 @@ SET(INNOBASE_SOURCES
 	trx/trx0undo.cc
 	usr/usr0sess.cc
 	ut/ut0byte.cc
-	ut/ut0crc32.cc
 	ut/ut0dbg.cc
 	ut/ut0list.cc
 	ut/ut0mem.cc
@@ -156,18 +155,6 @@ MYSQL_ADD_PLUGIN(innobase ${INNOBASE_SOURCES} STORAGE_ENGINE
 
 IF(WITH_INNOBASE_STORAGE_ENGINE)
   ADD_DEPENDENCIES(innobase GenError)
-ENDIF()
-
-# Avoid generating Hardware Capabilities due to crc32 instructions
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-  INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-  MY_CHECK_CXX_COMPILER_FLAG("-Wa,-nH" HAVE_WA_NH)
-  IF(HAVE_WA_NH)
-    ADD_COMPILE_FLAGS(
-      ut/ut0crc32.cc
-      COMPILE_FLAGS "-Wa,-nH"
-    )
-  ENDIF()
 ENDIF()
 
 # A GCC bug causes crash when compiling these files on ARM64 with -O1+

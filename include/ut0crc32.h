@@ -26,11 +26,15 @@ Created Aug 10, 2011 Vasil Dimov
 #ifndef ut0crc32_h
 #define ut0crc32_h
 
-#include "univ.i"
+#include <my_global.h>
 
 /********************************************************************//**
 Initializes the data structures used by ut_crc32*(). Does not do any
 allocations, would not hurt if called twice, but would be pointless. */
+/* from UNIV_INTERN in storage/innobase/include/univ.i */
+#if defined(__GNUC__) && (__GNUC__ >= 4) && !defined(sun) || defined(__INTEL_COMPILER)
+__attribute__((visibility ("hidden")))
+#endif
 void
 ut_crc32_init();
 /*===========*/
@@ -41,7 +45,7 @@ Calculates CRC32.
 @param len - data length in bytes.
 @return CRC32 (CRC-32C, using the GF(2) primitive polynomial 0x11EDC6F41,
 or 0x1EDC6F41 without the high-order bit) */
-typedef uint32_t	(*ut_crc32_func_t)(const byte* ptr, ulint len);
+typedef uint32_t	(*ut_crc32_func_t)(const uint8* ptr, my_ulonglong len);
 
 /** Pointer to CRC32 calculation function. */
 extern ut_crc32_func_t	ut_crc32;
@@ -55,6 +59,6 @@ but very slow). */
 extern ut_crc32_func_t	ut_crc32_byte_by_byte;
 
 /** Flag that tells whether the CPU supports CRC32 or not */
-extern bool		ut_crc32_sse2_enabled;
+extern my_bool		ut_crc32_sse2_enabled;
 
 #endif /* ut0crc32_h */

@@ -82,7 +82,6 @@ mysys/my_perf.c, contributed by Facebook under the following license.
 #include "my_config.h"
 #include <string.h>
 
-#include "univ.i"
 #include "ut0crc32.h"
 
 /** Pointer to CRC32 calculation function. */
@@ -100,9 +99,9 @@ ut_crc32_func_t	ut_crc32_byte_by_byte;
 @param[in]	i	8-byte integer
 @return 8-byte integer */
 inline
-uint64_t
+uint64
 ut_crc32_swap_byteorder(
-	uint64_t	i)
+	uint64	i)
 {
 	return(i << 56
 	       | (i & 0x000000000000FF00ULL) << 40
@@ -117,7 +116,7 @@ ut_crc32_swap_byteorder(
 /* CRC32 hardware implementation. */
 
 /* Flag that tells whether the CPU supports CRC32 or not */
-bool	ut_crc32_sse2_enabled = false;
+my_bool	ut_crc32_sse2_enabled = false;
 
 #if defined(__GNUC__) && defined(__x86_64__)
 /********************************************************************//**
@@ -126,14 +125,14 @@ static
 void
 ut_cpuid(
 /*=====*/
-	uint32_t	vend[3],	/*!< out: CPU vendor */
-	uint32_t*	model,		/*!< out: CPU model */
-	uint32_t*	family,		/*!< out: CPU family */
-	uint32_t*	stepping,	/*!< out: CPU stepping */
-	uint32_t*	features_ecx,	/*!< out: CPU features ecx */
-	uint32_t*	features_edx)	/*!< out: CPU features edx */
+	uint32	vend[3],	/*!< out: CPU vendor */
+	uint32*	model,		/*!< out: CPU model */
+	uint32*	family,		/*!< out: CPU family */
+	uint32*	stepping,	/*!< out: CPU stepping */
+	uint32*	features_ecx,	/*!< out: CPU features ecx */
+	uint32*	features_edx)	/*!< out: CPU features edx */
 {
-	uint32_t	sig;
+	uint32	sig;
 	asm("cpuid" : "=b" (vend[0]), "=c" (vend[2]), "=d" (vend[1]) : "a" (0));
 	asm("cpuid" : "=a" (sig), "=c" (*features_ecx), "=d" (*features_edx)
 	    : "a" (1)
@@ -160,9 +159,9 @@ with 1 byte
 inline
 void
 ut_crc32_8_hw(
-	uint32_t*	crc,
-	const byte**	data,
-	ulint*		len)
+	uint32*	crc,
+	const uint8**	data,
+	my_ulonglong*	len)
 {
 	asm("crc32b %1, %0"
 	    /* output operands */
@@ -179,12 +178,12 @@ ut_crc32_8_hw(
 @param[in]	data	data to be checksummed
 @return resulting checksum of crc + crc(data) */
 inline
-uint32_t
+uint32
 ut_crc32_64_low_hw(
-	uint32_t	crc,
-	uint64_t	data)
+	uint32	crc,
+	uint64	data)
 {
-	uint64_t	crc_64bit = crc;
+	uint64	crc_64bit = crc;
 
 	asm("crc32q %1, %0"
 	    /* output operands */
@@ -192,7 +191,7 @@ ut_crc32_64_low_hw(
 	    /* input operands */
 	    : "rm" (data));
 
-	return(static_cast<uint32_t>(crc_64bit));
+	return(static_cast<uint32>(crc_64bit));
 }
 
 /** Calculate CRC32 over 64-bit byte string using a hardware/CPU instruction.
@@ -204,11 +203,11 @@ with 8 bytes
 inline
 void
 ut_crc32_64_hw(
-	uint32_t*	crc,
-	const byte**	data,
-	ulint*		len)
+	uint32*	crc,
+	const uint8**	data,
+	my_ulonglong*	len)
 {
-	uint64_t	data_int = *reinterpret_cast<const uint64_t*>(*data);
+	uint64	data_int = *reinterpret_cast<const uint64*>(*data);
 
 #ifdef WORDS_BIGENDIAN
 	/* Currently we only support x86_64 (little endian) CPUs. In case
@@ -236,11 +235,11 @@ with 8 bytes
 inline
 void
 ut_crc32_64_legacy_big_endian_hw(
-	uint32_t*	crc,
-	const byte**	data,
-	ulint*		len)
+	uint32*	crc,
+	const uint8**	data,
+	my_ulonglong*	len)
 {
-	uint64_t	data_int = *reinterpret_cast<const uint64_t*>(*data);
+	uint64	data_int = *reinterpret_cast<const uint64*>(*data);
 
 #ifndef WORDS_BIGENDIAN
 	data_int = ut_crc32_swap_byteorder(data_int);
@@ -261,14 +260,14 @@ ut_crc32_64_legacy_big_endian_hw(
 @param[in]	buf	data over which to calculate CRC32
 @param[in]	len	data length
 @return CRC-32C (polynomial 0x11EDC6F41) */
-uint32_t
+uint32
 ut_crc32_hw(
-	const byte*	buf,
-	ulint		len)
+	const uint8*	buf,
+	my_ulonglong	len)
 {
-	uint32_t	crc = 0xFFFFFFFFU;
+	uint32	crc = 0xFFFFFFFFU;
 
-	ut_a(ut_crc32_sse2_enabled);
+	DBUG_ASSERT(ut_crc32_sse2_enabled);
 
 	/* Calculate byte-by-byte up to an 8-byte aligned address. After
 	this consume the input 8-bytes at a time. */
@@ -352,14 +351,14 @@ integers.
 @param[in]	buf	data over which to calculate CRC32
 @param[in]	len	data length
 @return CRC-32C (polynomial 0x11EDC6F41) */
-uint32_t
+uint32
 ut_crc32_legacy_big_endian_hw(
-	const byte*	buf,
-	ulint		len)
+	const uint8*	buf,
+	my_ulonglong	len)
 {
-	uint32_t	crc = 0xFFFFFFFFU;
+	uint32	crc = 0xFFFFFFFFU;
 
-	ut_a(ut_crc32_sse2_enabled);
+	DBUG_ASSERT(ut_crc32_sse2_enabled);
 
 	/* Calculate byte-by-byte up to an 8-byte aligned address. After
 	this consume the input 8-bytes at a time. */
@@ -404,14 +403,14 @@ not depend on the byte order of the machine.
 @param[in]	buf	data over which to calculate CRC32
 @param[in]	len	data length
 @return CRC-32C (polynomial 0x11EDC6F41) */
-uint32_t
+uint32
 ut_crc32_byte_by_byte_hw(
-	const byte*	buf,
-	ulint		len)
+	const uint8*	buf,
+	my_ulonglong	len)
 {
-	uint32_t	crc = 0xFFFFFFFFU;
+	uint32	crc = 0xFFFFFFFFU;
 
-	ut_a(ut_crc32_sse2_enabled);
+	DBUG_ASSERT(ut_crc32_sse2_enabled);
 
 	while (len > 0) {
 		ut_crc32_8_hw(&crc, &buf, &len);
@@ -425,7 +424,7 @@ ut_crc32_byte_by_byte_hw(
 
 /* Precalculated table used to generate the CRC32 if the CPU does not
 have support for it */
-static uint32_t	ut_crc32_slice8_table[8][256];
+static uint32	ut_crc32_slice8_table[8][256];
 static bool	ut_crc32_slice8_table_initialized = false;
 
 /********************************************************************//**
@@ -437,10 +436,10 @@ ut_crc32_slice8_table_init()
 /*========================*/
 {
 	/* bit-reversed poly 0x1EDC6F41 (from SSE42 crc32 instruction) */
-	static const uint32_t	poly = 0x82f63b78;
-	uint32_t		n;
-	uint32_t		k;
-	uint32_t		c;
+	static const uint32	poly = 0x82f63b78;
+	uint32		n;
+	uint32		k;
+	uint32		c;
 
 	for (n = 0; n < 256; n++) {
 		c = n;
@@ -470,9 +469,9 @@ with 1 byte
 inline
 void
 ut_crc32_8_sw(
-	uint32_t*	crc,
-	const byte**	data,
-	ulint*		len)
+	uint32*	crc,
+	const uint8**	data,
+	my_ulonglong*	len)
 {
 	const uint8_t	i = (*crc ^ (*data)[0]) & 0xFF;
 
@@ -487,12 +486,12 @@ ut_crc32_8_sw(
 @param[in]	data	data to be checksummed
 @return resulting checksum of crc + crc(data) */
 inline
-uint32_t
+uint32
 ut_crc32_64_low_sw(
-	uint32_t	crc,
-	uint64_t	data)
+	uint32	crc,
+	uint64	data)
 {
-	const uint64_t	i = crc ^ data;
+	const uint64	i = crc ^ data;
 
 	return(
 		ut_crc32_slice8_table[7][(i      ) & 0xFF] ^
@@ -515,11 +514,11 @@ with 8 bytes
 inline
 void
 ut_crc32_64_sw(
-	uint32_t*	crc,
-	const byte**	data,
-	ulint*		len)
+	uint32*	crc,
+	const uint8**	data,
+	my_ulonglong*	len)
 {
-	uint64_t	data_int = *reinterpret_cast<const uint64_t*>(*data);
+	uint64	data_int = *reinterpret_cast<const uint64*>(*data);
 
 #ifdef WORDS_BIGENDIAN
 	data_int = ut_crc32_swap_byteorder(data_int);
@@ -541,11 +540,11 @@ with 8 bytes
 inline
 void
 ut_crc32_64_legacy_big_endian_sw(
-	uint32_t*	crc,
-	const byte**	data,
-	ulint*		len)
+	uint32*	crc,
+	const uint8**	data,
+	my_ulonglong*	len)
 {
-	uint64_t	data_int = *reinterpret_cast<const uint64_t*>(*data);
+	uint64	data_int = *reinterpret_cast<const uint64*>(*data);
 
 #ifndef WORDS_BIGENDIAN
 	data_int = ut_crc32_swap_byteorder(data_int);
@@ -561,14 +560,14 @@ ut_crc32_64_legacy_big_endian_sw(
 @param[in]	buf	data over which to calculate CRC32
 @param[in]	len	data length
 @return CRC-32C (polynomial 0x11EDC6F41) */
-uint32_t
+uint32
 ut_crc32_sw(
-	const byte*	buf,
-	ulint		len)
+	const uint8*	buf,
+	my_ulonglong	len)
 {
-	uint32_t	crc = 0xFFFFFFFFU;
+	uint32	crc = 0xFFFFFFFFU;
 
-	ut_a(ut_crc32_slice8_table_initialized);
+	DBUG_ASSERT(ut_crc32_slice8_table_initialized);
 
 	/* Calculate byte-by-byte up to an 8-byte aligned address. After
 	this consume the input 8-bytes at a time. */
@@ -613,14 +612,14 @@ integers.
 @param[in]	buf	data over which to calculate CRC32
 @param[in]	len	data length
 @return CRC-32C (polynomial 0x11EDC6F41) */
-uint32_t
+uint32
 ut_crc32_legacy_big_endian_sw(
-	const byte*	buf,
-	ulint		len)
+	const uint8*	buf,
+	my_ulonglong	len)
 {
-	uint32_t	crc = 0xFFFFFFFFU;
+	uint32	crc = 0xFFFFFFFFU;
 
-	ut_a(ut_crc32_slice8_table_initialized);
+	DBUG_ASSERT(ut_crc32_slice8_table_initialized);
 
 	/* Calculate byte-by-byte up to an 8-byte aligned address. After
 	this consume the input 8-bytes at a time. */
@@ -665,14 +664,14 @@ not depend on the byte order of the machine.
 @param[in]	buf	data over which to calculate CRC32
 @param[in]	len	data length
 @return CRC-32C (polynomial 0x11EDC6F41) */
-uint32_t
+uint32
 ut_crc32_byte_by_byte_sw(
-	const byte*	buf,
-	ulint		len)
+	const uint8*	buf,
+	my_ulonglong	len)
 {
-	uint32_t	crc = 0xFFFFFFFFU;
+	uint32	crc = 0xFFFFFFFFU;
 
-	ut_a(ut_crc32_slice8_table_initialized);
+	DBUG_ASSERT(ut_crc32_slice8_table_initialized);
 
 	while (len > 0) {
 		ut_crc32_8_sw(&crc, &buf, &len);
@@ -689,12 +688,12 @@ ut_crc32_init()
 /*===========*/
 {
 #if defined(__GNUC__) && defined(__x86_64__)
-	uint32_t	vend[3];
-	uint32_t	model;
-	uint32_t	family;
-	uint32_t	stepping;
-	uint32_t	features_ecx;
-	uint32_t	features_edx;
+	uint32	vend[3];
+	uint32	model;
+	uint32	family;
+	uint32	stepping;
+	uint32	features_ecx;
+	uint32	features_edx;
 
 	ut_cpuid(vend, &model, &family, &stepping,
 		 &features_ecx, &features_edx);
