@@ -18,6 +18,8 @@
 
 #include "dd/iterator.h"
 
+#include <string>
+
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
@@ -27,8 +29,10 @@ class Charset;
 class Collation;
 class Column;
 class Column_type_element;
+class Dictionary_object;
 class Foreign_key_element;
 class Foreign_key;
+class Entity_object;
 class Index_element;
 class Index;
 class Object_table;
@@ -97,6 +101,13 @@ typedef Iterator<const Parameter>           Parameter_const_iterator;
 
 ///////////////////////////////////////////////////////////////////////////
 
+/*
+  Typedef to simplify the transition to a different underlying
+  type.
+*/
+typedef std::string sdi_t;
+
+///////////////////////////////////////////////////////////////////////////
 }
 
 #endif // DD__FWD_INCLUDED

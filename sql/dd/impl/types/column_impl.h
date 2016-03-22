@@ -67,9 +67,9 @@ public:
 
   virtual bool store_attributes(Raw_record *r);
 
-  void serialize(WriterVariant *wv) const;
+  void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const;
 
-  void deserialize(const RJ_Document *d);
+  bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
   void debug_print(std::string &outb) const;
 

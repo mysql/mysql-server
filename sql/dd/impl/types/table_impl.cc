@@ -20,6 +20,7 @@
 #include "dd/impl/collection_impl.h"                 // Collection
 #include "dd/impl/object_key.h"                      // Needed for destructor
 #include "dd/impl/properties_impl.h"                 // Properties_impl
+#include "dd/impl/sdi_impl.h"                        // sdi read/write functions
 #include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"                  // Raw_record
 #include "dd/impl/tables/foreign_keys.h"             // Foreign_keys
@@ -69,6 +70,7 @@ Table_impl::Table_impl()
   m_tablespace_id(INVALID_OBJECT_ID)
 {
 }
+
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -305,15 +307,68 @@ bool Table_impl::store_attributes(Raw_record *r)
 ///////////////////////////////////////////////////////////////////////////
 
 void
-Table_impl::serialize(WriterVariant *wv) const
+Table_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
 {
-
+  w->StartObject();
+  Abstract_table_impl::serialize(wctx, w);
+  write(w, m_hidden, STRING_WITH_LEN("hidden"));
+  write(w, m_se_private_id, STRING_WITH_LEN("se_private_id"));
+  write(w, m_engine, STRING_WITH_LEN("engine"));
+  write(w, m_comment, STRING_WITH_LEN("comment"));
+  write_properties(w, m_se_private_data, STRING_WITH_LEN("se_private_data"));
+  write_enum(w, m_partition_type, STRING_WITH_LEN("partition_type"));
+  write(w, m_partition_expression, STRING_WITH_LEN("partition_expression"));
+  write_enum(w, m_default_partitioning, STRING_WITH_LEN("default_partitioning"));
+  write_enum(w, m_subpartition_type, STRING_WITH_LEN("subpartition_type"));
+  write(w, m_subpartition_expression, STRING_WITH_LEN("subpartition_expression"));
+  write_enum(w, m_default_subpartitioning, STRING_WITH_LEN("default_subpartitioning"));
+  serialize_each(wctx, w, m_indexes.get(), STRING_WITH_LEN("indexes"));
+  serialize_each(wctx, w, m_foreign_keys.get(), STRING_WITH_LEN("foreign_keys"));
+  serialize_each(wctx, w, m_partitions.get(), STRING_WITH_LEN("partitions"));
+  write(w, m_collation_id, STRING_WITH_LEN("collation_id"));
+  serialize_tablespace_ref(wctx, w, m_tablespace_id,
+                           STRING_WITH_LEN("tablespace_ref"));
+  w->EndObject();
 }
 
-void
-Table_impl::deserialize(const RJ_Document *d)
-{
+///////////////////////////////////////////////////////////////////////////
 
+bool
+Table_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
+{
+  Abstract_table_impl::deserialize(rctx, val);
+  read(&m_hidden, val, "hidden");
+  read(&m_se_private_id, val, "se_private_id");
+  read(&m_engine, val, "engine");
+  read(&m_comment, val, "comment");
+  read_properties(&m_se_private_data, val, "se_private_data");
+  read_enum(&m_partition_type, val, "partition_type");
+  read(&m_partition_expression, val, "partition_expression");
+  read_enum(&m_default_partitioning, val, "default_partitioning");
+  read_enum(&m_subpartition_type, val, "subpartition_type");
+  read(&m_subpartition_expression, val, "subpartition_expression");
+  read_enum(&m_default_subpartitioning, val, "default_subpartitioning");
+
+  // Note! Deserialization of ordinal position cross-referenced
+  // objects (i.e. Index and Column) must happen before deserializing
+  // objects which refrence these objects:
+  // Foreign_key_element -> Column,
+  // Foreign_key         -> Index,
+  // Index_element       -> Column,
+  // Partition_index     -> Index
+  // Otherwise the cross-references will not be deserialized correctly
+  // (as we don't know the address of the referenced Column or Index
+  // object).
+
+  deserialize_each(rctx, [this] () { return add_index(); }, val,
+                   "indexes");
+
+  deserialize_each(rctx, [this] () { return add_foreign_key(); },
+                   val, "foreign_keys");
+  deserialize_each(rctx, [this] () { return add_partition(); }, val,
+                   "partitions");
+  read(&m_collation_id, val, "collation_id");
+  return deserialize_tablespace_ref(rctx, &m_tablespace_id, val, "tablespace_id");
 }
 
 ///////////////////////////////////////////////////////////////////////////

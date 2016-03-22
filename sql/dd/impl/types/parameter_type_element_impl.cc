@@ -105,22 +105,6 @@ void Parameter_type_element_impl::drop()
 ///////////////////////////////////////////////////////////////////////////
 
 /* purecov: begin deadcode */
-void
-Parameter_type_element_impl::serialize(WriterVariant *wv) const
-{
-
-}
-
-void
-Parameter_type_element_impl::deserialize(const RJ_Document *d)
-{
-
-}
-/* purecov: end */
-
-///////////////////////////////////////////////////////////////////////////
-
-/* purecov: begin deadcode */
 void Parameter_type_element_impl::debug_print(std::string &outb) const
 {
   char outbuf[1024];

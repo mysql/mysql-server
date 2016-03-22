@@ -42,6 +42,7 @@ SELECT * FROM emp;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE emp;
 --echo ---- MYSQLD_DATADIR/test
+--replace_regex /_[0-9]+\.SDI/_XXX.SDI/
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir_northeast
 --list_files $MYSQL_TMP_DIR/alt_dir_northeast
@@ -85,6 +86,7 @@ SELECT * FROM emp;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE emp;
 --echo ---- MYSQLD_DATADIR/test
+--replace_regex /_[0-9]+\.SDI/_XXX.SDI/
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir_northeast
 --list_files $MYSQL_TMP_DIR/alt_dir_northeast

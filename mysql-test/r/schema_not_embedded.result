@@ -16,7 +16,7 @@ CREATE VIEW s.v AS SELECT * FROM mysql.time_zone;
 DROP SCHEMA s;
 CREATE SCHEMA s;
 CREATE TABLE s.t (pk INTEGER PRIMARY KEY) ENGINE= MyISAM;
-ERROR HY000: Can't create/write to file 'MYSQL_DATA_DIR/s/t.MYI' (Errcode: 2 - No such file or directory)
+Got one of the listed errors
 CREATE TABLE s.t (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
 t.ibd
 DROP SCHEMA s;

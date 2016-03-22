@@ -233,23 +233,6 @@ bool Parameter_impl::store_attributes(Raw_record *r)
 
 ///////////////////////////////////////////////////////////////////////////
 
-/* purecov: begin deadcode */
-void
-Parameter_impl::serialize(WriterVariant *wv) const
-{
-
-}
-
-void
-Parameter_impl::deserialize(const RJ_Document *d)
-{
-
-}
-/* purecov: end */
-
-
-///////////////////////////////////////////////////////////////////////////
-
 void Parameter_impl::debug_print(std::string &outb) const
 {
   std::stringstream ss;

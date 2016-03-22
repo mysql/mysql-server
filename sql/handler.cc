@@ -52,6 +52,7 @@
 #include "auth_common.h"              // check_readonly() and SUPER_ACL
 
 #include "dd/dictionary.h"            // dd:acquire_shared_table_mdl
+#include "dd/sdi_file.h"              // dd::sdi_file::store
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -812,6 +813,18 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
     sql_print_error("Plugin '%s' init function returned error.",
                     plugin->name.str);
     goto err;  
+  }
+
+  if (hton->store_schema_sdi == nullptr)
+  {
+    DBUG_ASSERT(hton->db_type != DB_TYPE_INNODB);
+
+    DBUG_ASSERT(hton->store_table_sdi == nullptr);
+    DBUG_ASSERT(hton->remove_schema_sdi == nullptr);
+    DBUG_ASSERT(hton->remove_table_sdi == nullptr);
+
+    hton->store_table_sdi= dd::sdi_file::store;
+    hton->remove_table_sdi= dd::sdi_file::remove;
   }
 
   /*

@@ -100,6 +100,10 @@ template <typename T>
 class Collection : private Base_collection
 {
 public:
+  typedef T value_type;
+  typedef Iterator<T> iterator_type;
+  typedef Iterator<const T> const_iterator_type;
+
   static const bool SKIP_HIDDEN_ITEMS= false;
   static const bool INCLUDE_HIDDEN_ITEMS= true;
 

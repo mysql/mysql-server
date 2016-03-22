@@ -656,3 +656,4 @@ SELECT a, b FROM t1 WHERE my_cpp11_re_match(a, b) > 0;
 
 DROP FUNCTION my_cpp11_re_match;
 DROP TABLE t1;
+

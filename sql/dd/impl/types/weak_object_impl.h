@@ -19,7 +19,6 @@
 #include "my_global.h"
 
 #include "dd/object_id.h"          // Object_id
-#include "dd/impl/rj_fwd.h"        // RJ_Document
 #include "dd/types/weak_object.h"  // dd::Weak_object
 
 namespace dd {
@@ -94,13 +93,6 @@ public:
   virtual bool drop_children(Open_dictionary_tables_ctx *otx) const
   { return false; }
 
-  /* purecov: begin deadcode */
-  virtual void serialize(WriterVariant *wv) const
-  { }
-
-  virtual void deserialize(const RJ_Document *d)
-  { }
-  /* purecov: end */
 
   /**
     Indicates that object is guaranteed to have primary key value which

@@ -19,6 +19,7 @@
 
 #include "dd/impl/collection_impl.h"          // Collection
 #include "dd/impl/properties_impl.h"          // Properties_impl
+#include "dd/impl/sdi_impl.h"                 // sdi read/write functions
 #include "dd/impl/transaction_impl.h"         // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"           // Raw_record
 #include "dd/impl/tables/index_partitions.h"  // Index_partitions
@@ -26,6 +27,7 @@
 #include "dd/impl/types/table_impl.h"         // Table_impl
 
 #include <sstream>
+
 
 using dd::tables::Index_partitions;
 
@@ -173,17 +175,32 @@ bool Partition_index_impl::store_attributes(Raw_record *r)
 }
 
 ///////////////////////////////////////////////////////////////////////////
-
+static_assert(Index_partitions::FIELD_TABLESPACE_ID==4,
+              "Index_partitions definition has changed, review (de)ser memfuns!");
 void
-Partition_index_impl::serialize(WriterVariant *wv) const
+Partition_index_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
 {
+  w->StartObject();
+  write_properties(w, m_options, STRING_WITH_LEN("options"));
+  write_properties(w, m_se_private_data, STRING_WITH_LEN("se_private_data"));
+  write_opx_reference(w, m_index, STRING_WITH_LEN("index_opx"));
 
+  serialize_tablespace_ref(wctx, w, m_tablespace_id,
+                           STRING_WITH_LEN("tablespace_ref"));
+  w->EndObject();
 }
 
-void
-Partition_index_impl::deserialize(const RJ_Document *d)
-{
+///////////////////////////////////////////////////////////////////////////
 
+bool
+Partition_index_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
+{
+  read_properties(&m_options, val, "options");
+  read_properties(&m_se_private_data, val, "se_private_data");
+  read_opx_reference(rctx, &m_index, val, "index_opx");
+
+  return deserialize_tablespace_ref(rctx, &m_tablespace_id, val,
+                                    "tablespace_ref");
 }
 
 ///////////////////////////////////////////////////////////////////////////

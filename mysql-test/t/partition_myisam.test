@@ -192,6 +192,7 @@ PARTITION BY RANGE (a)
 # partition p1 is 't1#P#p1' + @002e * 20 = 107 characters + file ending
 # total path lenght of './test/t1#P#p1@002e@002e<...>@002e.MY[ID]' is 118 chars
 --echo # List of files in database `test`, all original t1-files here
+--replace_regex /_[0-9]+\.SDI/_XXX.SDI/
 --list_files $MYSQLD_DATADIR/test t1*
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
 --echo # Renaming to a file name where the first partition is 250 chars
@@ -203,10 +204,12 @@ RENAME TABLE t1 TO `t2_new..............................................end`;
 --echo # List of files in database `test`, should not be any t2-files here
 --list_files $MYSQLD_DATADIR/test t2*
 --echo # List of files in database `test`, should be all t1-files here
+--replace_regex /_[0-9]+\.SDI/_XXX.SDI/
 --list_files $MYSQLD_DATADIR/test t1*
 --sorted_result
 SELECT * FROM t1;
 --echo # List of files in database `test`, should be all t1-files here
+--replace_regex /_[0-9]+\.SDI/_XXX.SDI/
 --list_files $MYSQLD_DATADIR/test t1*
 --echo # Renaming to a file name where the first partition is 156 chars
 --echo # and the second partition is 256 chars
@@ -218,6 +221,7 @@ RENAME TABLE t1 TO `t2_............................_end`;
 --echo # List of files in database `test`, should not be any t2-files here
 --list_files $MYSQLD_DATADIR/test t2*
 --echo # List of files in database `test`, should be all t1-files here
+--replace_regex /_[0-9]+\.SDI/_XXX.SDI/
 --list_files $MYSQLD_DATADIR/test t1*
 --sorted_result
 SELECT * FROM t1;

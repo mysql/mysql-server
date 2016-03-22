@@ -86,10 +86,6 @@ public:
   virtual bool drop_children(Open_dictionary_tables_ctx *otx) const
   { return Weak_object_impl::drop_children(otx); }
 
-  void serialize(WriterVariant *wv) const;
-
-  void deserialize(const RJ_Document *d);
-
 public:
   class Factory : public Collection_item_factory
   {

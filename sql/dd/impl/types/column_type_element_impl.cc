@@ -18,10 +18,12 @@
 #include "mysqld_error.h"                         // ER_*
 
 #include "dd/impl/collection_impl.h"              // Collection
+#include "dd/impl/sdi_impl.h"                     // sdi read/write functions
 #include "dd/impl/transaction_impl.h"             // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"               // Raw_record
 #include "dd/impl/tables/column_type_elements.h"  // Column_type_elements
 #include "dd/impl/types/column_impl.h"            // Column_impl
+
 
 using dd::tables::Column_type_elements;
 
@@ -100,16 +102,26 @@ void Column_type_element_impl::drop()
 
 ///////////////////////////////////////////////////////////////////////////
 
+static_assert(Column_type_elements::FIELD_NAME==2,
+              "Column_type_elements definition has changed, review (de)ser memfuns!");
 void
-Column_type_element_impl::serialize(WriterVariant *wv) const
+Column_type_element_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
 {
-
+  w->StartObject();
+  // Binary value (VARBINARY)
+  write_binary(wctx, w, m_name, STRING_WITH_LEN("name"));
+  write(w, m_index, STRING_WITH_LEN("index"));
+  w->EndObject();
 }
 
-void
-Column_type_element_impl::deserialize(const RJ_Document *d)
-{
+///////////////////////////////////////////////////////////////////////////
 
+bool
+Column_type_element_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
+{
+  read_binary(rctx, &m_name, val, "name");
+  read(&m_index, val, "index");
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////

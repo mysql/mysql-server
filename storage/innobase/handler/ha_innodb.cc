@@ -61,6 +61,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "dd/iterator.h"
 #include "dd/properties.h"
+#include "dd/sdi_tablespace.h"    // dd::sdi_tablespace::store
 #include "dd/types/table.h"
 #include "dd/types/index.h"
 #include "dd/types/partition.h"
@@ -4140,6 +4141,12 @@ innodb_init(
 	innobase_hton->sdi_delete = innobase_sdi_delete;
 	innobase_hton->sdi_flush = innobase_sdi_flush;
 	innobase_hton->sdi_get_num_copies = innobase_sdi_get_num_copies;
+
+        innobase_hton->store_schema_sdi  = dd::sdi_tablespace::store;
+        innobase_hton->store_table_sdi   = dd::sdi_tablespace::store;
+        innobase_hton->remove_schema_sdi = dd::sdi_tablespace::remove;
+        innobase_hton->remove_table_sdi  = dd::sdi_tablespace::remove;
+
 	innobase_hton->rotate_encryption_master_key =
 		innobase_encryption_key_rotation;
 

@@ -81,7 +81,7 @@ CREATE SCHEMA s;
 
 # CREATE TABLE for MyISAM fails.
 --replace_result $MYSQL_DATA_DIR MYSQL_DATA_DIR/
---error 1
+--error 1,1
 CREATE TABLE s.t (pk INTEGER PRIMARY KEY) ENGINE= MyISAM;
 
 # CREATE TABLE for InnoDB creates parent directory, and succeeds.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,16 +36,17 @@ struct Delete_ptr
 
 class Properties;
 
+
 /**
   Escaping of a std::string. Escapable characters are '\', '=' and
-  ';'. Escape character is '\'. Iterate over all characters, precede all
-  escapable characters by the escape character. The source string is not
-  modified.
+  ';'. Escape character is '\'. Iterate over all characters of src,
+  precede all escapable characters by the escape character and append
+  to dst. The source string is not modified.
 
-  @param[in,out] src source string for escaping
-  @return            escaped string
+  @param[out] dst string to which escaped result will be appended.
+  @param[in] src source string for escaping
 */
-const std::string escape(const std::string &src);
+void escape(std::string *dst, const std::string &src);
 
 
 /**

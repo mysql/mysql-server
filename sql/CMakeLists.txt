@@ -78,6 +78,9 @@ SET(DD_SOURCES
   dd/impl/system_registry.cc
   dd/impl/transaction_impl.cc
   dd/impl/utils.cc
+  dd/impl/sdi.cc
+  dd/impl/sdi_file.cc
+  dd/impl/sdi_tablespace.cc
 
   dd/impl/cache/dictionary_client.cc
   dd/impl/cache/local_multi_map.cc
@@ -401,6 +404,7 @@ SET(SQL_BOOST_SOURCES
   item_geofunc_relchecks.cc
   item_geofunc_relchecks_bgwrap.cc
   item_geofunc_setops.cc
+  item_json_func.cc
   spatial.cc
 )
 

@@ -85,6 +85,7 @@ t1#P#p0.MYI
 t1#P#p1.MYD
 t1#P#p1.MYI
 t1.par
+t1_XXX.SDI
 ---- MYSQLTEST_VARDIR/mysql-test-data-dir
 t1#P#p0.MYD
 t1#P#p1.MYD

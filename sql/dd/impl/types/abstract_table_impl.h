@@ -48,6 +48,12 @@ public:
 
   virtual bool store_attributes(Raw_record *r);
 
+protected:
+  void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const;
+
+  bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
+
+public:
   virtual void debug_print(std::string &outb) const;
 
 public:

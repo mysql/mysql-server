@@ -28,8 +28,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -61,16 +63,20 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 # State after crash recovery
 t1@002fa@005cb@00232#P#p0.MYD
 t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -134,8 +140,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -167,16 +175,20 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 # State after crash recovery
 t1@002fa@005cb@00232#P#p0.MYD
 t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -240,8 +252,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -273,16 +287,20 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 # State after crash recovery
 t1@002fa@005cb@00232#P#p0.MYD
 t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -346,8 +364,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -381,14 +401,18 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
+t2_XXX.SDI
 # State after crash recovery
 t1@002fa@005cb@00232#P#p0.MYD
 t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -452,8 +476,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -487,14 +513,18 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
+t2_XXX.SDI
 # State after crash recovery
 t1@002fa@005cb@00232#P#p0.MYD
 t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -558,8 +588,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -591,16 +623,20 @@ ERROR HY000: Lost connection to MySQL server during query
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 # State after crash recovery
 t1@002fa@005cb@00232#P#p0.MYD
 t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -664,8 +700,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -697,16 +735,20 @@ ERROR HY000: Lost connection to MySQL server during query
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 # State after crash recovery
 t1@002fa@005cb@00232#P#p0.MYD
 t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -770,8 +812,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -803,16 +847,20 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 # State after crash recovery
 t1@002fa@005cb@00232#P#p0.MYD
 t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -876,8 +924,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -909,16 +959,20 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 # State after crash recovery
 t1@002fa@005cb@00232#P#p0.MYD
 t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -982,8 +1036,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -1015,8 +1071,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -1080,8 +1138,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -1113,8 +1173,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -1178,8 +1240,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -1211,8 +1275,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -1276,8 +1342,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -1309,8 +1377,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -1374,8 +1444,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -1407,8 +1479,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -1472,8 +1546,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -1505,8 +1581,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -1570,8 +1648,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -1603,8 +1683,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -1668,8 +1750,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -1701,8 +1785,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -1766,8 +1852,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (
@@ -1799,8 +1887,10 @@ t1@002fa@005cb@00232#P#p0.MYI
 t1@002fa@005cb@00232#P#p1.MYD
 t1@002fa@005cb@00232#P#p1.MYI
 t1@002fa@005cb@00232.par
+t1@002fa@005cb@00232_XXX.SDI
 t2.MYD
 t2.MYI
+t2_XXX.SDI
 SHOW CREATE TABLE `t1/a\b#2`;
 Table	Create Table
 t1/a\b#2	CREATE TABLE `t1/a\b#2` (

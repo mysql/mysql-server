@@ -527,17 +527,28 @@ INSERT INTO t2 SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
 FLUSH STATUS;
 # Under ps protocol HANDLER_COMMIT, HANDLER_READ_KEY, HANDLER_EXTERNAL_LOCK
 # has greater counts.
+
+## Need to change the query so that the variable name and value are
+## combined in a single column in order to do the necessary regexp
+## manipulations.
+let $get_handler_status_counts_save= $get_handler_status_counts;
+let $get_handler_status_counts= SELECT CONCAT(VARIABLE_NAME, ' ', VARIABLE_VALUE) AS 'VARIABLE_NAME  VARIABLE_VALUE' FROM information_schema.session_status
+WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
+
 CREATE TABLE t3 SELECT * FROM t1 PARTITION (pNeg,subp3,`p100-99999`);
 if (`SELECT $PS_PROTOCOL = 0`)
 {
-  --replace_regex /^7$/<handler_commit_count>/ /5/<handler_read_first_count>/ /12/<handler_read_key_count>/ /90/<handler_external_lock_count>/
+  --replace_regex /^HANDLER_COMMIT 8$/HANDLER_COMMIT <handler_commit_count>/ /5/<handler_read_first_count>/ /13/<handler_read_key_count>/ /94/<handler_external_lock_count>/
   --source include/get_handler_status_counts.inc
 }
 if (`SELECT $PS_PROTOCOL > 0`)
 {
-  --replace_regex /^8$/<handler_commit_count>/ /5/<handler_read_first_count>/ /13/<handler_read_key_count>/ /112/<handler_external_lock_count>/
+  --replace_regex /^HANDLER_COMMIT 9$/HANDLER_COMMIT <handler_commit_count>/ /5/<handler_read_first_count>/ /14/<handler_read_key_count>/ /116/<handler_external_lock_count>/
   --source include/get_handler_status_counts.inc
 }
+## Restore the original query
+let $get_handler_status_counts= $get_handler_status_counts_save;
+
 SHOW CREATE TABLE t1;
 SELECT * FROM t1;
 SHOW CREATE TABLE t2;

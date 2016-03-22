@@ -35,6 +35,8 @@
 
 #include "mysql/psi/psi_table.h"
 
+#include "dd/types/fwd.h"      // dd::Schema, dd::sdi_t
+
 #include <algorithm>
 #include <string>
 
@@ -1064,6 +1066,57 @@ typedef bool (*sdi_flush_t)(const dd::Tablespace &tablespace);
 */
 typedef uint32 (*sdi_get_num_copies_t)(const dd::Tablespace &tablespace);
 
+
+/**
+  Store sdi for a dd:Schema object associated with table
+  @param[in]  sdi sdi json string
+  @param[in]  schema dd object
+  @param[in]  table table with which schema is associated
+  @return error status
+    @retval false if successful.
+    @retval true otherwise.
+*/
+typedef bool (*store_schema_sdi_t)(THD *thd, handlerton *hton,
+                                   const dd::sdi_t &sdi,
+                                   const dd::Schema *schema,
+                                   const dd::Table *table);
+
+/**
+  Store sdi for a dd::Table object.
+  @param[in]  sdi sdi json string
+  @param[in]  table dd object
+  @return error status
+    @retval false if successful.
+    @retval true otherwise.
+*/
+typedef bool (*store_table_sdi_t)(THD *thd, handlerton *hton,
+                                  const dd::sdi_t &sdi,
+                                  const dd::Table *table,
+                                  const dd::Schema *schema);
+
+/**
+  Remove sdi for a dd::Schema object.
+  @param[in]  schema dd object
+  @return error status
+    @retval false if successful.
+    @retval true otherwise.
+*/
+typedef bool (*remove_schema_sdi_t)(THD *thd, handlerton *hton,
+                                    const dd::Schema *schema,
+                                    const dd::Table *table);
+
+
+/**
+  Remove sdi for a dd::Table object.
+  @param[in]  table dd object
+  @return error status
+    @retval false if successful.
+    @retval true otherwise.
+*/
+typedef bool (*remove_table_sdi_t)(THD *thd, handlerton *hton,
+                                   const dd::Table *table,
+                                   const dd::Schema *schema);
+
 /**
   Check if the DDSE is started in a way that leaves thd DD being read only.
 
@@ -1370,6 +1423,16 @@ struct handlerton
   sdi_delete_t sdi_delete;
   sdi_flush_t sdi_flush;
   sdi_get_num_copies_t sdi_get_num_copies;
+
+  /**
+    Function pointer variables for manipulating storing and removing SDI strings
+    in SE.
+   */
+  store_schema_sdi_t store_schema_sdi;
+  store_table_sdi_t store_table_sdi;
+
+  remove_schema_sdi_t remove_schema_sdi;
+  remove_table_sdi_t remove_table_sdi;
 
   /**
     Null-ended array of file extentions that exist for the storage engine.

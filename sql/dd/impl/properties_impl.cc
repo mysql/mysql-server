@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,14 +71,25 @@ Properties *Properties_impl::parse_properties(const std::string &raw_properties)
 const std::string Properties_impl::raw_string() const
 {
   std::string str("");
+  str.reserve(16*m_map->size());
 
   // Iterate over all map entries
-  for (Iterator it= m_map->begin(); it != m_map->end(); it++)
-    str+= escape(it->first) + "=" + escape(it->second) + ";";
-
+  const Const_iterator map_end= m_map->end();
+  for (Const_iterator it= m_map->begin(); it != map_end; ++it)
+  {
+    escape(&str, it->first);
+    str.append("=");
+    escape(&str, it->second);
+    str.append(";");
+  }
   return str;
 }
 
 ///////////////////////////////////////////////////////////////////////////
+
+Properties *parse_properties(const std::string &str)
+{
+  return Properties_impl::parse_properties(str);
+}
 
 }

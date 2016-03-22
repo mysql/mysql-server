@@ -9086,6 +9086,7 @@ PSI_file_key key_file_relaylog;
 PSI_file_key key_file_relaylog_cache;
 PSI_file_key key_file_relaylog_index;
 PSI_file_key key_file_relaylog_index_cache;
+PSI_file_key key_file_sdi;
 
 #ifndef EMBEDDED_LIBRARY
 static PSI_file_info all_server_files[]=
@@ -9119,7 +9120,8 @@ static PSI_file_info all_server_files[]=
   { &key_file_tclog, "tclog", 0},
   { &key_file_trg, "trigger_name", 0},
   { &key_file_trn, "trigger", 0},
-  { &key_file_init, "init", 0}
+  { &key_file_init, "init", 0},
+  { &key_file_sdi, "SDI", 0}
 };
 #endif /* !EMBEDDED_LIBRARY */
 #endif /* HAVE_PSI_INTERFACE */

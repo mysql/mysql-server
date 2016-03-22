@@ -19,6 +19,7 @@
 
 #include "dd/impl/collection_impl.h"                 // Collection
 #include "dd/impl/properties_impl.h"                 // Properties_impl
+#include "dd/impl/sdi_impl.h"                        // sdi read/write functions
 #include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"                  // Raw_record
 #include "dd/impl/tables/columns.h"                  // Colummns
@@ -27,7 +28,9 @@
 #include "dd/impl/types/column_type_element_impl.h"  // Column_type_element_impl
 #include "dd/types/column_type_element.h"            // Column_type_element
 
+#include <memory>
 #include <sstream>
+
 
 using dd::tables::Columns;
 using dd::tables::Column_type_elements;
@@ -314,19 +317,84 @@ bool Column_impl::store_attributes(Raw_record *r)
 }
 
 ///////////////////////////////////////////////////////////////////////////
-
+static_assert(Columns::FIELD_SE_PRIVATE_DATA==24,
+              "Columns definition has changed, review (de)ser memfuns!");
 void
-Column_impl::serialize(WriterVariant *wv) const
+Column_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
 {
+  w->StartObject();
+  Entity_object_impl::serialize(wctx, w);
+  write_enum(w, m_type, STRING_WITH_LEN("type"));
+  write(w, m_is_nullable, STRING_WITH_LEN("is_nullable"));
+  write(w, m_is_zerofill, STRING_WITH_LEN("is_zerofill"));
+  write(w, m_is_unsigned, STRING_WITH_LEN("is_unsigned"));
+  write(w, m_is_auto_increment, STRING_WITH_LEN("is_auto_increment"));
+  write(w, m_is_virtual, STRING_WITH_LEN("is_virtual"));
+  write(w, m_hidden, STRING_WITH_LEN("hidden"));
+  write(w, m_ordinal_position, STRING_WITH_LEN("ordinal_position"));
+  write(w, m_char_length, STRING_WITH_LEN("char_length"));
+  write(w, m_numeric_precision, STRING_WITH_LEN("numeric_precision"));
+  write(w, m_numeric_scale, STRING_WITH_LEN("numeric_scale"));
+  write(w, m_datetime_precision, STRING_WITH_LEN("datetime_precision"));
+  write(w, m_has_no_default, STRING_WITH_LEN("has_no_default"));
+  write(w, m_default_value_null, STRING_WITH_LEN("default_value_null"));
 
+  // Binary
+  write_binary(wctx, w, m_default_value, STRING_WITH_LEN("default_value"));
+  write(w, m_default_option, STRING_WITH_LEN("default_option"));
+  write(w, m_update_option, STRING_WITH_LEN("update_option"));
+  write(w, m_comment, STRING_WITH_LEN("comment"));
+  write(w, m_generation_expression, STRING_WITH_LEN("generation_expression"));
+  write(w, m_generation_expression_utf8, STRING_WITH_LEN("generation_expression_utf8"));
+  write_properties(w, m_options, STRING_WITH_LEN("options"));
+  write_properties(w, m_se_private_data, STRING_WITH_LEN("se_private_data"));
+  serialize_each(wctx, w, m_enum_elements.get(), STRING_WITH_LEN("enum_elements"));
+  serialize_each(wctx, w, m_set_elements.get(), STRING_WITH_LEN("set_elements"));
+  write(w, m_collation_id, STRING_WITH_LEN("collation_id"));
+  w->EndObject();
 }
 
-void
-Column_impl::deserialize(const RJ_Document *d)
+///////////////////////////////////////////////////////////////////////////
+
+bool
+Column_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
 {
+  Entity_object_impl::deserialize(rctx, val);
 
+  read_enum(&m_type, val, "type");
+  read(&m_is_nullable, val, "is_nullable");
+  read(&m_is_zerofill, val, "is_zerofill");
+  read(&m_is_unsigned, val, "is_unsigned");
+  read(&m_is_auto_increment, val, "is_auto_increment");
+  read(&m_is_virtual, val, "is_virtual");
+  read(&m_hidden, val, "hidden");
+  read(&m_ordinal_position, val, "ordinal_position");
+  read(&m_char_length, val, "char_length");
+  read(&m_numeric_precision, val, "numeric_precision");
+  read(&m_numeric_scale, val, "numeric_scale");
+  read(&m_datetime_precision, val, "datetime_precision");
+  read(&m_has_no_default, val, "has_no_default");
+  read(&m_default_value_null, val, "default_value_null");
+  read_binary(rctx, &m_default_value, val, "default_value");
+  read(&m_default_option, val, "default_option");
+  read(&m_update_option, val, "update_option");
+  read(&m_comment, val, "comment");
+  read(&m_generation_expression, val, "generation_expression");
+  read(&m_generation_expression_utf8, val, "generation_expression_utf8");
+  read_properties(&m_options, val, "options");
+  read_properties(&m_se_private_data, val, "se_private_data");
+
+  deserialize_each(rctx, [this] () { return add_enum_element(); },
+                   val, "enum_elements");
+  deserialize_each(rctx, [this] () { return add_set_element(); },
+                   val, "set_elements");
+
+  read(&m_collation_id, val, "collation_id");
+
+  track_object(rctx, this);
+
+  return false;
 }
-
 
 ///////////////////////////////////////////////////////////////////////////
 

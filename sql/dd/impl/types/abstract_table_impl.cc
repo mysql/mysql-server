@@ -20,6 +20,7 @@
 
 #include "dd/impl/collection_impl.h"        // Collection
 #include "dd/impl/properties_impl.h"        // Properties_impl
+#include "dd/impl/sdi_impl.h"               // sdi read/write functions
 #include "dd/impl/transaction_impl.h"       // Open_dictionary_tables_ctx
 #include "dd/impl/raw/object_keys.h"        // Primary_id_key
 #include "dd/impl/raw/raw_record.h"         // Raw_record
@@ -28,7 +29,9 @@
 #include "dd/impl/types/column_impl.h"      // Column_impl
 #include "dd/types/view.h"                  // View
 
+
 #include <sstream>
+
 
 using dd::tables::Columns;
 using dd::tables::Tables;
@@ -180,6 +183,41 @@ bool Abstract_table::update_id_key(id_key_type *key, Object_id id)
 {
   key->update(id);
   return false;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+static_assert(Tables::FIELD_VIEW_DEFINITION == 21,
+              "Tables definition has changed, review (de)ser member function"
+              "s (also in derived classes");
+
+void Abstract_table_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
+{
+  Entity_object_impl::serialize(wctx, w);
+
+  write(w, m_mysql_version_id, STRING_WITH_LEN("mysql_version_id"));
+  write(w, m_created, STRING_WITH_LEN("created"));
+  write(w, m_last_altered, STRING_WITH_LEN("last_altered"));
+  write_properties(w, m_options, STRING_WITH_LEN("options"));
+  serialize_each(wctx, w, m_columns.get(), STRING_WITH_LEN("columns"));
+  write(w, lookup_schema_name(wctx),
+        STRING_WITH_LEN("schema_ref"));
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+bool Abstract_table_impl::deserialize(Sdi_rcontext *rctx,
+                                      const RJ_Value &val)
+{
+  Entity_object_impl::deserialize(rctx, val);
+
+  read(&m_mysql_version_id, val, "mysql_version_id");
+  read(&m_created, val, "created");
+  read(&m_last_altered, val, "last_altered");
+  read_properties(&m_options, val, "options");
+  deserialize_each(rctx, [this] () { return add_column(); },
+                   val, "columns");
+  return deserialize_schema_ref(rctx, &m_schema_id, val, "schema_ref");
 }
 
 ///////////////////////////////////////////////////////////////////////////
