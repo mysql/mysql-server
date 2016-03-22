@@ -3939,14 +3939,14 @@ row_import_for_mysql(
 	if (dict_table_is_encrypted(table)) {
 		fil_space_t*	space;
 		mtr_t		mtr;
-		byte		encrypt_info[ENCRYPTION_INFO_SIZE];
+		byte		encrypt_info[ENCRYPTION_INFO_SIZE_V2];
 
 		mtr_start(&mtr);
 
 		mtr.set_named_space(table->space);
 		space = mtr_x_lock_space(table->space, &mtr);
 
-		memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
+		memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE_V2);
 
 		if (!fsp_header_rotate_encryption(space,
 						  encrypt_info,
