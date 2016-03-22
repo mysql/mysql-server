@@ -234,7 +234,11 @@ IF(NOT DISABLE_SHARED)
       OUTPUT_NAME mysqlclient 
       VERSION "${OS_SHARED_LIB_VERSION}" 
       SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
-    CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
+    IF(WITH_SYMVER16)
+      CONFIGURE_FILE(libmysql.ver16.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
+    ELSE()
+      CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
+    ENDIF()
 
     GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
     IF(NOT libmysql_link_flag)

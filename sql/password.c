@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -584,3 +584,18 @@ void make_password_from_salt(char *to, const uint8 *hash_stage2)
   octet2hex(to, (const char*) hash_stage2, SHA1_HASH_SIZE);
 }
 
+#if defined(EXPORT_SYMVER16)
+#ifndef EMBEDDED_LIBRARY
+
+// Hack to provide both libmysqlclient_16 and libmysqlclient_18 symbol versions
+
+#define SYM_16(_exportedsym) __asm__(".symver symver16_" #_exportedsym "," #_exportedsym "@libmysqlclient_16")
+
+void symver16_my_make_scrambled_password(char *to, const char *password, size_t pass_len)
+{
+  my_make_scrambled_password(to, password, pass_len);
+}
+SYM_16(my_make_scrambled_password);
+
+#endif
+#endif  /* EXPORT_SYMVER16 */
