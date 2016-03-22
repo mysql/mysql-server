@@ -461,10 +461,31 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
   Json_wrapper wr;
   if (get_json_wrapper(args, 0, buf, func_name(), &wr, true))
     return error_str();
-  if ((null_value= args[0]->null_value))
-    return NULL;
 
-  // The root element must be a object, according to GeoJSON specification.
+  /*
+    We will handle JSON NULL the same way as we handle SQL NULL. The reason
+    behind this is that we want the following SQL to return SQL NULL:
+
+      SELECT ST_GeomFromGeoJSON(
+        JSON_EXTRACT(
+          '{ "type": "Feature",
+             "geometry": null,
+             "properties": { "name": "Foo" }
+           }',
+        '$.geometry')
+      );
+
+    The function JSON_EXTRACT will return a JSON NULL, so if we don't handle
+    JSON NULL as SQL NULL the above SQL will raise an error since we would
+    expect a SQL NULL or a JSON object.
+  */
+  null_value= (args[0]->null_value || wr.type() == enum_json_type::J_NULL);
+  if (null_value)
+  {
+    DBUG_ASSERT(maybe_null);
+    return nullptr;
+  }
+
   if (wr.type() != enum_json_type::J_OBJECT)
   {
     my_error(ER_INVALID_GEOJSON_UNSPECIFIED, MYF(0), func_name());
@@ -515,8 +536,9 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
 
     if (rollback)
     {
+      DBUG_ASSERT(maybe_null);
       null_value= true;
-      return NULL;
+      return nullptr;
     }
     return error_str();
   }
@@ -1474,22 +1496,16 @@ bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref)
   }
 
   /*
-    We override the value of maybe_null set by Item_str_func::fix_fields(). This
-    is because Item_func_geomfromgeojson inherits from Item_geometry_func =>
-    Item_str_func => Item_func. Item_str_func::fix_fields() sets maybe_null to
-    true if strict mode is on.
+    Set maybe_null always to true. This is because the following GeoJSON input
+    will return SQL NULL:
 
-    The reason behind Item_str_func::fix_fields() setting maybe_null to true if
-    strict mode is on is because many of the string functions will call
-    check_well_formed_result(). This function may set maybe_null to true if
-    strict mode is on. However, the GeoJSON functions does not call
-    check_well_formed_result(), and we thus do NOT want to set maybe_null based
-    on strict mode.
+      {
+        "type": "Feature",
+        "geometry": null,
+        "properties": { "name": "Foo Bar" }
+      }
   */
-  maybe_null= false;
-  for (uint i= 0; i < arg_count; ++i)
-    maybe_null|= args[i]->maybe_null;
-
+  maybe_null= true;
   return false;
 }
 

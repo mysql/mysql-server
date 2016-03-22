@@ -4193,3 +4193,23 @@ SET @geometry := ST_GeomFromText("POINT(4.9 52.366667)");
 SELECT ST_AsGeoJSON(@geometry);
 ST_AsGeoJSON(@geometry)
 {"type": "Point", "coordinates": [4.9, 52.366667]}
+#
+# Bug#22930020 INVALID DATA FOR ST_GEOMFROMGEOJSON() IS HARD TO DIAGNOSE
+#
+CREATE TABLE t1 (col1 JSON);
+INSERT INTO t1 (col1) VALUES
+('{ "type": "Feature", "geometry": null, "properties": {} }');
+ALTER TABLE t1 ADD COLUMN `col2` geometry
+GENERATED ALWAYS AS (ST_GeomFromGeoJSON(col1->'$.geometry')) VIRTUAL;
+SELECT * FROM t1;
+col1	col2
+{"type": "Feature", "geometry": null, "properties": {}}	NULL
+SELECT ST_GeomFromGeoJSON(CAST('null' AS JSON));
+ST_GeomFromGeoJSON(CAST('null' AS JSON))
+NULL
+SELECT ST_GeomFromGeoJSON('null');
+ST_GeomFromGeoJSON('null')
+NULL
+SELECT ST_GeomFromGeoJSON('Null');
+ERROR 22032: Invalid JSON text in argument 1 to function st_geomfromgeojson: "Invalid value." at position 0.
+DROP TABLE t1;
