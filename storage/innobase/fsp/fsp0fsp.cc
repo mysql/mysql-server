@@ -874,7 +874,7 @@ fsp_header_get_encryption_offset(
 	left_size = page_size.physical() - FSP_HEADER_OFFSET - offset
 		- FIL_PAGE_DATA_END;
 
-	ut_ad(left_size >= ENCRYPTION_INFO_SIZE);
+	ut_ad(left_size >= ENCRYPTION_INFO_SIZE_V2);
 #endif
 
 	return offset;
@@ -889,24 +889,25 @@ fsp_header_fill_encryption_info(
 	fil_space_t*		space,
 	byte*			encrypt_info)
 {
-	byte*		ptr;
-	lint		elen;
-	ulint		master_key_id;
-	byte*		master_key;
-	byte		key_info[ENCRYPTION_KEY_LEN * 2];
-	ulint		crc;
+	byte*			ptr;
+	lint			elen;
+	ulint			master_key_id;
+	byte*			master_key;
+	byte			key_info[ENCRYPTION_KEY_LEN * 2];
+	ulint			crc;
+	Encryption::Version	version;
 #ifdef	UNIV_ENCRYPT_DEBUG
-	const byte*	data;
-	ulint		i;
+	const byte*		data;
+	ulint			i;
 #endif
 
 	/* Get master key from key ring */
-	Encryption::get_master_key(&master_key_id, &master_key);
+	Encryption::get_master_key(&master_key_id, &master_key, &version);
 	if (master_key == NULL) {
 		return(false);
 	}
 
-	memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
+	memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE_V2);
 	memset(key_info, 0, ENCRYPTION_KEY_LEN * 2);
 
 	/* Use the new master key to encrypt the tablespace
@@ -915,12 +916,22 @@ fsp_header_fill_encryption_info(
 	ptr = encrypt_info;
 
 	/* Write magic header. */
-	memcpy(ptr, ENCRYPTION_KEY_MAGIC, ENCRYPTION_MAGIC_SIZE);
+	if (version == Encryption::ENCRYPTION_VERSION_1) {
+		memcpy(ptr, ENCRYPTION_KEY_MAGIC_V1, ENCRYPTION_MAGIC_SIZE);
+	} else {
+		memcpy(ptr, ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE);
+	}
 	ptr += ENCRYPTION_MAGIC_SIZE;
 
 	/* Write master key id. */
 	mach_write_to_4(ptr, master_key_id);
 	ptr += sizeof(ulint);
+
+	/* Write server uuid. */
+	if (version == Encryption::ENCRYPTION_VERSION_2) {
+		memcpy(ptr, Encryption::uuid, ENCRYPTION_SERVER_UUID_LEN);
+		ptr += ENCRYPTION_SERVER_UUID_LEN;
+	}
 
 	/* Write tablespace key to temp space. */
 	memcpy(key_info,
@@ -1012,20 +1023,24 @@ fsp_header_rotate_encryption(
 
 	page = buf_block_get_frame(block);
 
-	/* If is in recovering, skip all master key id is rotated space. */
+	/* If is in recovering, skip all master key id is rotated
+	tablespaces. */
 	master_key_id = mach_read_from_4(
 		page + offset + ENCRYPTION_MAGIC_SIZE);
 	if (recv_recovery_is_on()
 	    && master_key_id == Encryption::master_key_id) {
 		ut_ad(memcmp(page + offset,
-			     ENCRYPTION_KEY_MAGIC,
-			     ENCRYPTION_MAGIC_SIZE) == 0);
+			     ENCRYPTION_KEY_MAGIC_V1,
+			     ENCRYPTION_MAGIC_SIZE) == 0
+		      || memcmp(page + offset,
+				ENCRYPTION_KEY_MAGIC_V2,
+				ENCRYPTION_MAGIC_SIZE) == 0);
 		return(true);
 	}
 
 	mlog_write_string(page + offset,
 			  encrypt_info,
-			  ENCRYPTION_INFO_SIZE,
+			  ENCRYPTION_INFO_SIZE_V2,
 			  mtr);
 
 	return(true);
@@ -1096,7 +1111,7 @@ fsp_header_init(
 	info to the page 0. */
 	if (FSP_FLAGS_GET_ENCRYPTION(space->flags)) {
 		ulint	offset = fsp_header_get_encryption_offset(page_size);
-		byte	encryption_info[ENCRYPTION_INFO_SIZE];
+		byte	encryption_info[ENCRYPTION_INFO_SIZE_V2];
 
 		if (offset == 0)
 			return(false);
@@ -1111,7 +1126,7 @@ fsp_header_init(
 
 		mlog_write_string(page + offset,
 				  encryption_info,
-				  ENCRYPTION_INFO_SIZE,
+				  ENCRYPTION_INFO_SIZE_V2,
 				  mtr);
 	}
 
@@ -1176,23 +1191,34 @@ fsp_header_decode_encryption_info(
 	byte*		iv,
 	byte*		encryption_info)
 {
-	byte*		ptr;
-	ulint		master_key_id;
-	byte*		master_key = NULL;
-	lint		elen;
-	byte		key_info[ENCRYPTION_KEY_LEN * 2];
-	ulint		crc1;
-	ulint		crc2;
+	byte*			ptr;
+	ulint			master_key_id;
+	byte*			master_key = NULL;
+	lint			elen;
+	byte			key_info[ENCRYPTION_KEY_LEN * 2];
+	ulint			crc1;
+	ulint			crc2;
+	char			srv_uuid[ENCRYPTION_SERVER_UUID_LEN + 1];
+	Encryption::Version	version;
 #ifdef	UNIV_ENCRYPT_DEBUG
-	const byte*	data;
-	ulint		i;
+	const byte*		data;
+	ulint			i;
 #endif
 
 	ptr = encryption_info;
 
+	/* For compatibility with 5.7.11, we need to handle the
+	encryption information which created in this old version. */
+	if (memcmp(ptr, ENCRYPTION_KEY_MAGIC_V1,
+		     ENCRYPTION_MAGIC_SIZE) == 0) {
+		version = Encryption::ENCRYPTION_VERSION_1;
+	} else {
+		version = Encryption::ENCRYPTION_VERSION_2;
+	}
+
 	/* Check magic. */
-	if (memcmp(ptr, ENCRYPTION_KEY_MAGIC,
-		     ENCRYPTION_MAGIC_SIZE) != 0) {
+	if (version == Encryption::ENCRYPTION_VERSION_2
+	    && memcmp(ptr, ENCRYPTION_KEY_MAGIC_V2, ENCRYPTION_MAGIC_SIZE) != 0) {
 		/* We ignore report error for recovery,
 		since the encryption info maybe hasn't writen
 		into datafile when the table is newly created. */
@@ -1208,9 +1234,20 @@ fsp_header_decode_encryption_info(
 	master_key_id = mach_read_from_4(ptr);
 	ptr += sizeof(ulint);
 
+	/* Get server uuid. */
+	if (version == Encryption::ENCRYPTION_VERSION_2) {
+		memset(srv_uuid, 0, ENCRYPTION_SERVER_UUID_LEN + 1);
+		memcpy(srv_uuid, ptr, ENCRYPTION_SERVER_UUID_LEN);
+		ptr += ENCRYPTION_SERVER_UUID_LEN;
+	}
+
 	/* Get master key by key id. */
 	memset(key_info, 0, ENCRYPTION_KEY_LEN * 2);
-	Encryption::get_master_key(master_key_id, &master_key);
+	if (version == Encryption::ENCRYPTION_VERSION_1) {
+		Encryption::get_master_key(master_key_id, NULL, &master_key);
+	} else {
+		Encryption::get_master_key(master_key_id, srv_uuid, &master_key);
+	}
         if (master_key == NULL) {
                 return(false);
         }
@@ -1270,6 +1307,7 @@ fsp_header_decode_encryption_info(
 
 	if (Encryption::master_key_id < master_key_id) {
 		Encryption::master_key_id = master_key_id;
+		memcpy(Encryption::uuid, srv_uuid, ENCRYPTION_SERVER_UUID_LEN);
 	}
 
 	return(true);

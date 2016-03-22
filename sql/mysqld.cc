@@ -3547,7 +3547,7 @@ int flush_auto_options(const char* fname)
   @todo consider to implement sql-query-able persistent storage by WL#5279.
   @return Return 0 or 1 if an error occurred.
  */
-static int init_server_auto_options(bool read_uuid)
+static int init_server_auto_options()
 {
   bool flush= false;
   char fname[FN_REFLEN];
@@ -3602,7 +3602,8 @@ static int init_server_auto_options(bool read_uuid)
     }
     strcpy(server_uuid, uuid);
   }
-  else if (!read_uuid) {
+  else
+  {
     DBUG_PRINT("info", ("generating server_uuid"));
     flush= TRUE;
     /* server_uuid will be set in the function */
@@ -4606,18 +4607,6 @@ int mysqld_main(int argc, char **argv)
   Service.SetSlowStarting(slow_start_timeout);
 #endif
 
-  /*
-    Read UUID if exist, we need it to recover TDE tablespaces.
-   */
-  if (init_server_auto_options(true))
-  {
-    sql_print_error("Initialization of the server's UUID failed because it could"
-                    " not be read from the auto.cnf file. If this is a new"
-                    " server, the initialization failed because it was not"
-                    " possible to generate a new UUID.");
-    unireg_abort(MYSQLD_ABORT_EXIT);
-  }
-
   if (init_server_components())
     unireg_abort(MYSQLD_ABORT_EXIT);
 
@@ -4625,7 +4614,7 @@ int mysqld_main(int argc, char **argv)
     Each server should have one UUID. We will create it automatically, if it
     does not exist.
    */
-  if (init_server_auto_options(false))
+  if (init_server_auto_options())
   {
     sql_print_error("Initialization of the server's UUID failed because it could"
                     " not be read from the auto.cnf file. If this is a new"
