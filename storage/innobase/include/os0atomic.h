@@ -54,7 +54,7 @@ typedef ulint	lock_word_t;
 
 #define IB_STRONG_MEMORY_MODEL
 
-#endif /* __i386__ || __x86_64__ || _M_IX86 || _M_X64 || __WIN__ */
+#endif /* __i386__ || __x86_64__ || _M_IX86 || _M_X64 || __WIN__ || __s390__ */
 
 /**********************************************************//**
 Atomic compare-and-swap and increment for InnoDB. */
