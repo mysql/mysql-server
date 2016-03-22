@@ -1568,6 +1568,9 @@ evaluate_join_record(JOIN *join, QEP_TAB *const qep_tab)
             DBUG_RETURN(NESTED_LOOP_OK);
           }
         }
+        /* check for errors evaluating the condition */
+        if (join->thd->is_error())
+          DBUG_RETURN(NESTED_LOOP_ERROR);
       }
       /*
         Check whether join_tab is not the last inner table
