@@ -24,6 +24,7 @@
 #include "rpl_master.h"              // opt_sporadic_binlog_dump_fail
 #include "rpl_reporting.h"           // MAX_SLAVE_ERRMSG
 #include "sql_class.h"               // THD
+#include "ut0crc32.h"                // checksum_crc32
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -31,7 +32,6 @@
 #ifndef DBUG_OFF
   static uint binlog_dump_count= 0;
 #endif
-using binary_log::checksum_crc32;
 
 const uint32 Binlog_sender::PACKET_MIN_SIZE= 4096;
 const uint32 Binlog_sender::PACKET_MAX_SIZE= UINT_MAX32;
@@ -886,8 +886,8 @@ int Binlog_sender::fake_rotate_event(const char *next_log_file,
 
 inline void Binlog_sender::calc_event_checksum(uchar *event_ptr, size_t event_len)
 {
-  ha_checksum crc= checksum_crc32(0L, NULL, 0);
-  crc= checksum_crc32(crc, event_ptr, event_len - BINLOG_CHECKSUM_LEN);
+  ha_checksum crc;
+  crc= ut_crc32(event_ptr, event_len - BINLOG_CHECKSUM_LEN);
   int4store(event_ptr + event_len - BINLOG_CHECKSUM_LEN, crc);
 }
 
