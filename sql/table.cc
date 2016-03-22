@@ -5397,6 +5397,7 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index)
 {
   DBUG_ENTER("update_generated_read_fields");
   DBUG_ASSERT(table && table->vfield);
+  DBUG_ASSERT(!table->in_use->is_error());
   if (active_index != MAX_KEY && table->key_read)
   {
     /*
@@ -5493,6 +5494,7 @@ bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table)
   int error= 0;
 
   DBUG_ASSERT(table->vfield);
+  DBUG_ASSERT(!table->in_use->is_error());
   /* Iterate over generated fields in the table */
   for (vfield_ptr= table->vfield; *vfield_ptr; vfield_ptr++)
   {

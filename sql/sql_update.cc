@@ -2622,6 +2622,9 @@ int Query_result_update::do_updates()
 	   copy_field_ptr++)
         copy_field_ptr->invoke_do_copy(copy_field_ptr);
 
+      if (table->in_use->is_error())
+        goto err;
+
       // The above didn't update generated columns
       if (table->vfield &&
           update_generated_write_fields(table->write_set, table))

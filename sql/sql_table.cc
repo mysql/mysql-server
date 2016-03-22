@@ -10671,6 +10671,17 @@ copy_data_between_tables(THD * thd,
     {
       copy_ptr->invoke_do_copy(copy_ptr);
     }
+    if (thd->is_error())
+    {
+      error= 1;
+      break;
+    }
+
+    /*
+      @todo After we evaluate what other return values from
+      save_in_field() that should be treated as errors, we can remove
+      to check thd->is_error() below.
+    */
     if ((to->vfield && update_generated_write_fields(to->write_set, to)) ||
       thd->is_error())
     {

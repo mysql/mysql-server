@@ -646,3 +646,37 @@ SELECT 1 FROM t WHERE c GROUP BY b;
 1
 COMMIT;
 DROP TABLE t;
+#
+# bug#21982792: TOO MUCH SPAM: 'GOT ERROR 1 WHEN READING TABLE'
+#
+CREATE TABLE t (
+a INT GENERATED ALWAYS AS (1) VIRTUAL NOT NULL,
+b DATE GENERATED ALWAYS AS (1) VIRTUAL NOT NULL,
+KEY(b)
+);
+SET @old_sql_mode=@@sql_mode;
+SET sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+INSERT INTO t VALUES();
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+SET sql_mode= STRICT_ALL_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+DELETE d2 FROM t AS d1, t AS d2 WHERE d1.a = d2.b;
+ERROR 22007: Incorrect date value: '1' for column 'b' at row 1
+DROP TABLE t;
+SET sql_mode=@old_sql_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TABLE t (
+a INT,
+b INT GENERATED ALWAYS AS (1),
+KEY i(a,b)
+);
+INSERT INTO t (a) VALUES(1), (2);
+SELECT 1 FROM t a RIGHT JOIN t USING(b)
+WHERE 1 NOT LIKE(SELECT a FROM t WHERE a.b);
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE t;

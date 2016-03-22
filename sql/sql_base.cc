@@ -9105,11 +9105,20 @@ bool fill_record(THD *thd, TABLE *table, List<Item> &fields,
 
     if (rfield == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
+    /*
+      We handle errors from save_in_field() by first checking the return
+      value and then testing thd->is_error(). thd->is_error() can be set
+      even when save_in_field() does not return a negative value.
+      @todo save_in_field returns an enum which should never be a negative
+      value. We should change this test to check for correct enum value.
+    */
     if (value->save_in_field(rfield, false) < 0)
     {
       my_error(ER_UNKNOWN_ERROR, MYF(0));
       goto err;
     }
+    if (thd->is_error())
+      goto err;
   }
 
   if (table->has_gcol() &&
@@ -9403,7 +9412,13 @@ bool fill_record(THD *thd, TABLE *table, Field **ptr, List<Item> &values,
 
     if (field == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
-    if (value->save_in_field(field, false) == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
+
+    /*
+      @todo We should evaluate what other return values from save_in_field()
+      that should be treated as errors instead of checking thd->is_error().
+    */
+    if (value->save_in_field(field, false) == TYPE_ERR_NULL_CONSTRAINT_VIOLATION ||
+        thd->is_error())
       goto err;
   }
 

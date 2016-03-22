@@ -4036,7 +4036,15 @@ cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref)
     if (!s_key)
       continue;
 
-    if (s_key->copy() & 1)
+    /*
+      copy() can return STORE_KEY_OK even when there are errors so need to
+      check thd->is_error().
+      @todo This is due to missing handling of error return value from
+      Field::store().
+      @todo Rewrite the below check to use the correct store_key_result enum
+      instead of doing bit wise AND on result.
+    */
+    if ((s_key->copy() & 1) || thd->is_error())
     {
       result= 1;
       break;
