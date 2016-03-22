@@ -291,29 +291,43 @@ struct Compression {
 };
 
 /** Encryption key length */
-#define ENCRYPTION_KEY_LEN	32
+static const ulint ENCRYPTION_KEY_LEN = 32;
 
 /** Encryption magic bytes size */
-#define ENCRYPTION_MAGIC_SIZE	3
+static const ulint ENCRYPTION_MAGIC_SIZE = 3;
 
-/** Encryption magic bytes, it's for checking the encryption information
-is corrupted or not. */
-static const char ENCRYPTION_KEY_MAGIC[ENCRYPTION_MAGIC_SIZE] = {
-	'l', 'C', 'A' };
+/** Encryption magic bytes for 5.7.11, it's for checking the encryption information
+version. */
+static const char ENCRYPTION_KEY_MAGIC_V1[] = "lCA";
+
+/** Encryption magic bytes for 5.7.12+, it's for checking the encryption information
+version. */
+static const char ENCRYPTION_KEY_MAGIC_V2[] = "lCB";
 
 /** Encryption master key prifix */
-#define ENCRYPTION_MASTER_KEY_PRIFIX	"INNODBKey"
+static const char ENCRYPTION_MASTER_KEY_PRIFIX[] = "INNODBKey";
 
 /** Encryption master key prifix size */
-#define ENCRYPTION_MASTER_KEY_PRIFIX_LEN	9
+static const ulint ENCRYPTION_MASTER_KEY_PRIFIX_LEN = 9;
 
 /** Encryption master key prifix size */
-#define ENCRYPTION_MASTER_KEY_NAME_MAX_LEN	100
+static const ulint ENCRYPTION_MASTER_KEY_NAME_MAX_LEN = 100;
+
+/** UUID of server instance, it's needed for composing master key name */
+static const ulint ENCRYPTION_SERVER_UUID_LEN = 36;
+
+/** Encryption information total size for 5.7.11: magic number + master_key_id +
+key + iv + checksum */
+static const ulint ENCRYPTION_INFO_SIZE_V1 = (ENCRYPTION_MAGIC_SIZE \
+					 + (ENCRYPTION_KEY_LEN * 2) \
+					 + 2 * sizeof(ulint));
 
 /** Encryption information total size: magic number + master_key_id +
-key + iv + checksum */
-#define	ENCRYPTION_INFO_SIZE	(ENCRYPTION_MAGIC_SIZE \
-				+ (ENCRYPTION_KEY_LEN * 2) + 2 * sizeof(ulint))
+key + iv + server_uuid + checksum */
+static const ulint ENCRYPTION_INFO_SIZE_V2 = (ENCRYPTION_MAGIC_SIZE \
+					 + (ENCRYPTION_KEY_LEN * 2) \
+					 + ENCRYPTION_SERVER_UUID_LEN \
+					 + 2 * sizeof(ulint));
 
 class IORequest;
 
@@ -328,6 +342,16 @@ struct Encryption {
 
 		/** Use AES */
 		AES = 1,
+	};
+
+	/** Encryption information format version */
+	enum Version {
+
+		/** Version in 5.7.11 */
+		ENCRYPTION_VERSION_1 = 0,
+
+		/** Version in > 5.7.11 */
+		ENCRYPTION_VERSION_2 = 1,
 	};
 
 	/** Default constructor */
@@ -394,21 +418,25 @@ struct Encryption {
         @param[in,out]	value	Encryption value */
 	static void random_value(byte* value);
 
-        /** Create new master key.
+	/** Create new master key for key rotation.
         @param[in,out]	master_key	master key */
 	static void create_master_key(byte** master_key);
 
         /** Get master key by key id.
         @param[in]	master_key_id	master key id
+	@param[in]	srv_uuid	uuid of server instance
         @param[in,out]	master_key	master key */
 	static void get_master_key(ulint master_key_id,
+				   char* srv_uuid,
 				   byte** master_key);
 
         /** Get current master key and key id.
         @param[in,out]	master_key_id	master key id
-        @param[in,out]	master_key	master key */
+        @param[in,out]	master_key	master key
+        @param[in,out]	version		encryption information version */
 	static void get_master_key(ulint* master_key_id,
-				   byte** master_key);
+				   byte** master_key,
+				   Encryption::Version*  version);
 
 	/** Encrypt the page data contents. Page type can't be
 	FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,
@@ -460,6 +488,9 @@ struct Encryption {
 
 	/** Current master key id */
 	static ulint		master_key_id;
+
+	/** Current uuid of server instance */
+	static char		uuid[ENCRYPTION_SERVER_UUID_LEN + 1];
 };
 
 /** Types for AIO operations @{ */
