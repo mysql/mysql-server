@@ -8236,6 +8236,7 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
 {
   DBUG_ENTER("my_eval_gcolumn_expr_helper");
   DBUG_ASSERT(table && table->vfield);
+  DBUG_ASSERT(!thd->is_error());
 
   uchar *old_buf= table->record[0];
   repoint_field_to_record(table, old_buf, record);
