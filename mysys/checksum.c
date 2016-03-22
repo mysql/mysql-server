@@ -16,7 +16,7 @@
 
 #include <my_global.h>
 #include <my_sys.h>
-#include <zlib.h>
+#include "ut0crc32.h"
 
 /*
   Calculate a long checksum for a memoryblock.
@@ -30,6 +30,6 @@
 
 ha_checksum my_checksum(ha_checksum crc, const uchar *pos, size_t length)
 {
-  return (ha_checksum)crc32((uint)crc, pos, (uint)length);
+  return (ha_checksum)ut_crc32_ex((uint)crc, pos, (uint)length);
 }
 
