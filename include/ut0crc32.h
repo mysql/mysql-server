@@ -59,6 +59,13 @@ extern ut_crc32_func_t	ut_crc32c_legacy_big_endian;
 but very slow). */
 extern ut_crc32_func_t	ut_crc32c_byte_by_byte;
 
+/* Pointer to CRC32 calculation function - polynominal 0x04C11DB7 */
+extern ut_crc32_func_t  ut_crc32;
+
+typedef uint32 (*ut_crc32_ex_func_t)(uint32, const uint8* ptr, my_ulonglong len);
+/* extended CRC32 function taking the partial CRC32 as an input */
+extern ut_crc32_ex_func_t        ut_crc32_ex;
+
 /** Flag that tells whether the CPU supports CRC32 or not */
 extern my_bool		ut_crc32_sse2_enabled;
 

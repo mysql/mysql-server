@@ -84,16 +84,22 @@ mysys/my_perf.c, contributed by Facebook under the following license.
 
 #include "ut0crc32.h"
 
-/** Pointer to CRC32 calculation function. */
+/** Pointer to CRC32C calculation function. */
 ut_crc32_func_t	ut_crc32c;
 
-/** Pointer to CRC32 calculation function, which uses big-endian byte order
+/** Pointer to CRC32C calculation function, which uses big-endian byte order
 when converting byte strings to integers internally. */
 ut_crc32_func_t	ut_crc32c_legacy_big_endian;
 
-/** Pointer to CRC32-byte-by-byte calculation function (byte order agnostic,
+/** Pointer to CRC32C-byte-by-byte calculation function (byte order agnostic,
 but very slow). */
 ut_crc32_func_t	ut_crc32c_byte_by_byte;
+
+/** Pointer to CRC32 calculation function. */
+ut_crc32_func_t ut_crc32;
+
+/** Pointer to extended CRC32 calculation function. */
+ut_crc32_ex_func_t ut_crc32_ex;
 
 /** Swap the byte order of an 8 byte integer.
 @param[in]	i	8-byte integer
@@ -426,6 +432,8 @@ ut_crc32c_byte_by_byte_hw(
 have support for it */
 static uint32	ut_crc32c_slice8_table[8][256];
 static bool	ut_crc32c_slice8_table_initialized = false;
+static uint32	ut_crc32_slice8_table[8][256];
+static bool	ut_crc32_slice8_table_initialized = false;
 
 /********************************************************************//**
 Initializes the table that is used to generate the CRC32 if the CPU does
@@ -464,6 +472,16 @@ ut_crc32c_slice8_table_init()
 	ut_crc32_slice8_table_init(0x82f63b78, ut_crc32c_slice8_table);
 
 	ut_crc32c_slice8_table_initialized = true;
+}
+
+static
+void
+ut_crc32_slice8_table_init()
+{
+	/* bit reversed poly 0x04C11DB7 for real CRC */
+	ut_crc32_slice8_table_init(0xEDB88320, ut_crc32_slice8_table);
+
+	ut_crc32_slice8_table_initialized = true;
 }
 
 /** Calculate CRC32 over 8-bit data using a software implementation.
@@ -630,6 +648,27 @@ ut_crc32c_sw(
 	return ut_crc32_slice8_common_sw(0UL, buf, len, ut_crc32c_slice8_table);
 }
 
+uint32
+ut_crc32_sw(
+	const uint8*	buf,
+	my_ulonglong	len)
+{
+	DBUG_ASSERT(ut_crc32_slice8_table_initialized);
+
+	return ut_crc32_slice8_common_sw(0UL, buf, len, ut_crc32_slice8_table);
+}
+
+uint32
+ut_crc32_ex_sw(
+	uint32 crc,
+	const uint8*	buf,
+	my_ulonglong	len)
+{
+	DBUG_ASSERT(ut_crc32_slice8_table_initialized);
+
+	return ut_crc32_slice8_common_sw(crc, buf, len, ut_crc32_slice8_table);
+}
+
 /** Calculates CRC32 in software, without using CPU instructions.
 This function uses big endian byte ordering when converting byte sequence to
 integers.
@@ -776,6 +815,10 @@ ut_crc32_init()
 		ut_crc32c = ut_crc32c_hw;
 		ut_crc32c_legacy_big_endian = ut_crc32c_legacy_big_endian_hw;
 		ut_crc32c_byte_by_byte = ut_crc32c_byte_by_byte_hw;
+
+		ut_crc32_slice8_table_init();
+		ut_crc32 = ut_crc32_sw;
+		ut_crc32_ex = ut_crc32_ex_sw;
 	}
 
 #endif /* defined(__GNUC__) && defined(__x86_64__) */
@@ -785,5 +828,9 @@ ut_crc32_init()
 		ut_crc32c = ut_crc32c_sw;
 		ut_crc32c_legacy_big_endian = ut_crc32c_legacy_big_endian_sw;
 		ut_crc32c_byte_by_byte = ut_crc32c_byte_by_byte_sw;
+
+		ut_crc32_slice8_table_init();
+		ut_crc32 = ut_crc32_sw;
+		ut_crc32_ex = ut_crc32_ex_sw;
 	}
 }
