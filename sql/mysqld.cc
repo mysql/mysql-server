@@ -3698,6 +3698,8 @@ static int init_server_components()
     We need to call each of these following functions to ensure that
     all things are initialized so that unireg_abort() doesn't fail
   */
+  ut_crc32_init();
+
   mdl_init();
   partitioning_init();
   if (table_def_init() | hostname_cache_init(host_cache_size))
@@ -4454,8 +4456,6 @@ int mysqld_main(int argc, char **argv)
 #endif /* HAVE_PSI_INTERFACE */
 
   init_error_log();
-
-  ut_crc32_init();
 
   /* Initialize audit interface globals. Audit plugins are inited later. */
   mysql_audit_initialize();
