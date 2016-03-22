@@ -11332,7 +11332,7 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
    * Section 1 : Optional KEYINFO section
    */
   const Uint32 numSections= signal->getNoOfSections();
-  bool isLongReq= ( numSections != 0 );
+  const bool isLongReq= ( numSections != 0 );
   
   SectionHandle handle(this, signal);
 
@@ -11505,7 +11505,7 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
       /**
        * Correlattion factor for SPJ
        */
-      Uint32 corrFactorHi = scanFragReq->variableData[1];
+      const Uint32 corrFactorHi = scanFragReq->variableData[1];
       regTcPtr->m_corrFactorLo = scanFragReq->variableData[0];
       regTcPtr->m_corrFactorHi = corrFactorHi;
     }
