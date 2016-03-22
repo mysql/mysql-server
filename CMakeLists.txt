@@ -439,6 +439,13 @@ IF(WITH_UNIT_TESTS)
  ENABLE_TESTING()
 ENDIF()
 
+OPTION(WITH_SYMVER16
+  "Export libmysqlclient_16 and libmysqlclient_18 symbol versions" OFF)
+
+IF(WITH_SYMVER16)
+  ADD_DEFINITIONS(-DEXPORT_SYMVER16)
+ENDIF()
+
 IF(NOT WITHOUT_SERVER)
   SET (MYSQLD_STATIC_PLUGIN_LIBS "" CACHE INTERNAL "")
   # Add storage engines and plugins.

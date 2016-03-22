@@ -1040,3 +1040,22 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info,
   *to= 0;
   return overflow ? (ulong)~0 : (ulong) (to - to_start);
 }
+
+#if defined(EXPORT_SYMVER16)
+#ifndef EMBEDDED_LIBRARY
+
+// Hack to provide Fedora symbols
+
+CHARSET_INFO *mysql_get_charset(uint cs_number, myf flags)
+{
+  return get_charset(cs_number, flags);
+}
+
+
+CHARSET_INFO * mysql_get_charset_by_csname(const char *cs_name, uint cs_flags, myf flags)
+{
+  return get_charset_by_csname(cs_name, cs_flags, flags);
+}
+
+#endif
+#endif  /* EXPORT_SYMVER16 */

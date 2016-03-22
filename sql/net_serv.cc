@@ -1047,3 +1047,17 @@ void my_net_set_write_timeout(NET *net, uint timeout)
   DBUG_VOID_RETURN;
 }
 
+#if defined(EXPORT_SYMVER16)
+#ifndef EMBEDDED_LIBRARY
+C_MODE_START
+
+// Hack to provide Fedora symbols
+
+my_bool mysql_net_realloc(NET *net, size_t length)
+{
+  return net_realloc(net, length);
+}
+
+C_MODE_END
+#endif
+#endif  // EXPORT_SYMVER16
