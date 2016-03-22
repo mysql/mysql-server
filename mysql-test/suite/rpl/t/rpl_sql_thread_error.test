@@ -27,7 +27,7 @@
 # Step 1) Set a simulation on Slave SQL thread so that it enters
 # into faulty code (before fix) path.
 --source include/rpl_connection_slave.inc
-CALL mtr.add_suppression("Slave SQL: Relay log read failure");
+CALL mtr.add_suppression("Relay log read failure");
 SET @save_debug=@@GLOBAL.debug;
 SET GLOBAL debug="d,force_sql_thread_error";
 
