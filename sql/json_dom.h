@@ -615,8 +615,13 @@ class Json_string : public Json_scalar
 private:
   std::string m_str; //!< holds the string
 public:
-  explicit Json_string(const std::string &value)
-    : Json_scalar(), m_str(value)
+  /*
+    Construct a Json_string object.
+    @param args any arguments accepted by std::string's constructors
+  */
+  template <typename... Args>
+  explicit Json_string(Args&&... args)
+    : Json_scalar(), m_str(std::forward<Args>(args)...)
   {}
   ~Json_string() {}
 
