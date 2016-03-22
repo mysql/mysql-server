@@ -47,16 +47,16 @@ Calculates CRC32.
 or 0x1EDC6F41 without the high-order bit) */
 typedef uint32_t	(*ut_crc32_func_t)(const uint8* ptr, my_ulonglong len);
 
-/** Pointer to CRC32 calculation function. */
-extern ut_crc32_func_t	ut_crc32;
+/** Pointer to CRC32C calculation function. */
+extern ut_crc32_func_t	ut_crc32c;
 
-/** Pointer to CRC32 calculation function, which uses big-endian byte order
+/** Pointer to CRC32C calculation function, which uses big-endian byte order
 when converting byte strings to integers internally. */
-extern ut_crc32_func_t	ut_crc32_legacy_big_endian;
+extern ut_crc32_func_t	ut_crc32c_legacy_big_endian;
 
-/** Pointer to CRC32-byte-by-byte calculation function (byte order agnostic,
+/** Pointer to CRC32C-byte-by-byte calculation function (byte order agnostic,
 but very slow). */
-extern ut_crc32_func_t	ut_crc32_byte_by_byte;
+extern ut_crc32_func_t	ut_crc32c_byte_by_byte;
 
 /** Flag that tells whether the CPU supports CRC32 or not */
 extern my_bool		ut_crc32_sse2_enabled;
