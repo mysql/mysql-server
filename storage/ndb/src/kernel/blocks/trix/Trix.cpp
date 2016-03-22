@@ -1061,7 +1061,7 @@ void Trix::startTableScan(Signal* signal, SubscriptionRecPtr subRecPtr)
   {
     jam();
     StatOp& stat = statOpGetPtr(subRecPtr.p->m_statPtrI);
-    StatOp::Clean clean = stat.m_clean;
+    StatOp::Clean& clean = stat.m_clean;
     orderPtr[1].p = clean.m_bound;
     orderPtr[1].sz = clean.m_boundSize;
     noOfSections = 2;
