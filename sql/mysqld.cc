@@ -65,6 +65,7 @@
                           // cached_table_definitions
 #include "sql_test.h"     // mysql_print_status
 #include "item_create.h"  // item_create_cleanup, item_create_init
+#include "ut0crc32.h"     // ut_crc32_init
 #include "sql_servers.h"  // servers_free, servers_init
 #include "init.h"         // unireg_init
 #include "derror.h"       // init_errmessage
@@ -4453,6 +4454,8 @@ int mysqld_main(int argc, char **argv)
 #endif /* HAVE_PSI_INTERFACE */
 
   init_error_log();
+
+  ut_crc32_init();
 
   /* Initialize audit interface globals. Audit plugins are inited later. */
   mysql_audit_initialize();

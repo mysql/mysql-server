@@ -28,13 +28,14 @@ Created Aug 10, 2011 Vasil Dimov
 
 #include <my_global.h>
 
+#ifdef  __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+
 /********************************************************************//**
 Initializes the data structures used by ut_crc32*(). Does not do any
 allocations, would not hurt if called twice, but would be pointless. */
 /* from UNIV_INTERN in storage/innobase/include/univ.i */
-#if defined(__GNUC__) && (__GNUC__ >= 4) && !defined(sun) || defined(__INTEL_COMPILER)
-__attribute__((visibility ("hidden")))
-#endif
 void
 ut_crc32_init();
 /*===========*/
@@ -60,5 +61,9 @@ extern ut_crc32_func_t	ut_crc32c_byte_by_byte;
 
 /** Flag that tells whether the CPU supports CRC32 or not */
 extern my_bool		ut_crc32_sse2_enabled;
+
+#ifdef  __cplusplus
+}
+#endif /* __cplusplus */
 
 #endif /* ut0crc32_h */
