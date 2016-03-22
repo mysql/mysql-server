@@ -156,10 +156,12 @@ struct my_aligned_storage
 # define __has_attribute(x) 0
 #endif
 
+#ifndef SUPPRESS_UBSAN
 #if __has_attribute(no_sanitize_undefined)
 # define SUPPRESS_UBSAN MY_ATTRIBUTE((no_sanitize_undefined))
 #else
 # define SUPPRESS_UBSAN
 #endif
+#endif  /* SUPPRESS_UBSAN */
 
 #endif /* MY_COMPILER_INCLUDED */
