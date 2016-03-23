@@ -3982,9 +3982,6 @@ innobase_change_buffering_inited_ok:
 
 	err = innobase_start_or_create_for_mysql();
 
-	/* Create mutex to protect encryption master_key_id. */
-	mutex_create(LATCH_ID_MASTER_KEY_ID_MUTEX, &master_key_id_mutex);
-
 	if (srv_buf_pool_size_org != 0) {
 		/* Set the original value back to show in help. */
 		srv_buf_pool_size_org =
@@ -3999,6 +3996,9 @@ innobase_change_buffering_inited_ok:
 	if (err != DB_SUCCESS) {
 		DBUG_RETURN(innobase_init_abort());
 	}
+
+	/* Create mutex to protect encryption master_key_id. */
+	mutex_create(LATCH_ID_MASTER_KEY_ID_MUTEX, &master_key_id_mutex);
 
 	/* Adjust the innodb_undo_logs config object */
 	innobase_undo_logs_init_default_max();
