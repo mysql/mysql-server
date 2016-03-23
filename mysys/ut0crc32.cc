@@ -84,6 +84,10 @@ mysys/my_perf.c, contributed by Facebook under the following license.
 
 #include "ut0crc32.h"
 
+#if defined(__linux__) && defined(__powerpc__)
+#include <sys/auxv.h>
+#endif
+
 /** Pointer to CRC32C calculation function. */
 ut_crc32_func_t	ut_crc32c;
 
@@ -433,6 +437,62 @@ static bool	ut_crc32c_slice8_table_initialized = false;
 static uint32	ut_crc32_slice8_table[8][256];
 static bool	ut_crc32_slice8_table_initialized = false;
 
+#if defined(__powerpc__)
+extern "C" {
+unsigned int crc32c_vpmsum(unsigned int crc, const unsigned char *p, unsigned long len);
+unsigned int crc32_vpmsum(unsigned int crc, const unsigned char *p, unsigned long len);
+};
+#endif /* __powerpc__ */
+
+inline
+uint32
+ut_crc32c_power8(
+/*===========*/
+	const uint8*	buf, /*!< in: data over which to calculate CRC32 */
+	my_ulonglong	len) /*!< in: data length */
+{
+#if defined(__powerpc__) && !defined(WORDS_BIGENDIAN)
+	return crc32c_vpmsum(0, buf, len);
+#else
+	MY_ASSERT_UNREACHABLE();
+	/* silence compiler warning about unused parameters */
+	return((uint32) buf[len]);
+#endif /* __powerpc__ */
+}
+
+inline
+uint32
+ut_crc32_power8(
+/*===========*/
+	const uint8*	buf, /*!< in: data over which to calculate CRC32 */
+	my_ulonglong	len) /*!< in: data length */
+{
+#if defined(__powerpc__) && !defined(WORDS_BIGENDIAN)
+	return crc32_vpmsum(0, buf, len);
+#else
+	MY_ASSERT_UNREACHABLE();
+	/* silence compiler warning about unused parameters */
+	return((uint32) buf[len]);
+#endif /* __powerpc__ */
+}
+
+inline
+uint32
+ut_crc32_ex_power8(
+/*===========*/
+	uint32		crc, /*!< in: crc so far which we are adding to */
+	const uint8*	buf, /*!< in: data over which to calculate CRC32 */
+	my_ulonglong	len) /*!< in: data length */
+{
+#if defined(__powerpc__) && !defined(WORDS_BIGENDIAN)
+	return crc32_vpmsum(crc, buf, len);
+#else
+	MY_ASSERT_UNREACHABLE();
+	/* silence compiler warning about unused parameters */
+	return((uint32) buf[len]);
+#endif /* __powerpc__ */
+}
+
 /********************************************************************//**
 Initializes the table that is used to generate the CRC32 if the CPU does
 not have support for it. */
@@ -778,7 +838,14 @@ void
 ut_crc32_init()
 /*===========*/
 {
-	my_bool ut_crc32_sse2_enabled = false;
+	my_bool ut_crc32_power8_enabled = false;
+
+#if defined(__linux__) && defined(__powerpc__) && defined(AT_HWCAP2) && \
+	 !defined(WORDS_BIGENDIAN)
+	if (getauxval(AT_HWCAP2) & PPC_FEATURE2_ARCH_2_07)
+		ut_crc32_power8_enabled = true;
+#endif /* defined(__linux__) && defined(__powerpc__) */
+
 #if defined(__GNUC__) && defined(__x86_64__)
 	uint32	vend[3];
 	uint32	model;
@@ -786,6 +853,7 @@ ut_crc32_init()
 	uint32	stepping;
 	uint32	features_ecx;
 	uint32	features_edx;
+	my_bool ut_crc32_sse2_enabled = false;
 
 	ut_cpuid(vend, &model, &family, &stepping,
 		 &features_ecx, &features_edx);
@@ -810,6 +878,7 @@ ut_crc32_init()
 	ut_crc32_sse2_enabled = (features_ecx >> 20) & 1;
 #endif /* UNIV_DEBUG_VALGRIND */
 
+
 	if (ut_crc32_sse2_enabled) {
 		ut_crc32c = ut_crc32c_hw;
 		ut_crc32c_legacy_big_endian = ut_crc32c_legacy_big_endian_hw;
@@ -819,11 +888,21 @@ ut_crc32_init()
 		ut_crc32 = ut_crc32_sw;
 		ut_crc32_ex = ut_crc32_ex_sw;
 		ut_crc32_implementation = "Using SSE2 crc32c instructions";
-	}
-
+	} else
 #endif /* defined(__GNUC__) && defined(__x86_64__) */
+	if (ut_crc32_power8_enabled) {
+		ut_crc32c = ut_crc32c_power8;
+		ut_crc32c_slice8_table_init();
+		ut_crc32c_legacy_big_endian = ut_crc32c_legacy_big_endian_sw;
+		ut_crc32c_byte_by_byte = ut_crc32c_byte_by_byte_sw;
 
-	if (!ut_crc32_sse2_enabled) {
+		ut_crc32 = ut_crc32_power8;
+		ut_crc32_ex = ut_crc32_ex_power8;
+		ut_crc32_implementation = "Using POWER8 crc32c instructions";
+		ut_crc32_ex = ut_crc32_ex_sw;
+		ut_crc32_implementation = "Using SSE2 crc32c instructions";
+
+	} else {
 		ut_crc32c_slice8_table_init();
 		ut_crc32c = ut_crc32c_sw;
 		ut_crc32c_legacy_big_endian = ut_crc32c_legacy_big_endian_sw;
