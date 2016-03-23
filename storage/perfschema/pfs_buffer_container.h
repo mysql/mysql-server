@@ -1141,7 +1141,6 @@ public:
 
   value_type *allocate(pfs_dirty_state *dirty_state, uint partition)
   {
-    DBUG_ASSERT(partition >= 0);
     DBUG_ASSERT(partition < PFS_PARTITION_COUNT);
 
     return m_partitions[partition]->allocate(dirty_state);
