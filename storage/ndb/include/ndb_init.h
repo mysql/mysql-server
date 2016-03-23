@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2004-2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +23,7 @@
 extern "C" {
 #endif
 /* call in main() - does not return on error */
-extern int ndb_init(void);
+extern void ndb_init(void);
 extern void ndb_end(int);
 #define NDB_INIT(prog_name) {my_progname=(prog_name); ndb_init();}
 #ifdef  __cplusplus

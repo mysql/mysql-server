@@ -376,6 +376,9 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
       case -2:
         desc.assfmt("Too large id used in bitmask, max is %llu", max);
         break;
+      case -3:
+        desc.assfmt("Empty bitmask not allowed");
+        break;
       default:
         break;
       }
