@@ -67,8 +67,8 @@ using std::min;
 using std::max;
 
 // ndb interface initialization/cleanup
-extern "C" void ndb_init_internal();
-extern "C" void ndb_end_internal();
+extern "C" void ndb_init_internal(Uint32);
+extern "C" void ndb_end_internal(Uint32);
 
 static const int DEFAULT_PARALLELISM= 0;
 static const ha_rows DEFAULT_AUTO_PREFETCH= 32;
@@ -13663,7 +13663,7 @@ extern int ndb_dictionary_is_mysqld;
 
 Uint32 recv_thread_num_cpus;
 static int ndb_recv_thread_cpu_mask_check_str(const char *str);
-static void ndb_recv_thread_cpu_mask_update();
+static int ndb_recv_thread_cpu_mask_update();
 handlerton* ndbcluster_hton;
 
 
@@ -13761,7 +13761,7 @@ int ndbcluster_init(void* p)
   }
 
   // Initialize NdbApi
-  ndb_init_internal();
+  ndb_init_internal(1);
 
   /* allocate connection resources and connect to cluster */
   const uint global_opti_node_select= THDVAR(NULL, optimized_node_selection);
@@ -13782,7 +13782,10 @@ int ndbcluster_init(void* p)
   {
     if (recv_thread_num_cpus)
     {
-      ndb_recv_thread_cpu_mask_update();
+      if (ndb_recv_thread_cpu_mask_update())
+      {
+        ndbcluster_init_abort("Failed to lock receive thread(s) to CPU(s)");
+      }
     }
   }
 
@@ -13920,7 +13923,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
   native_cond_destroy(&COND_ndb_setup_complete);
 
   // Cleanup NdbApi
-  ndb_end_internal();
+  ndb_end_internal(1);
 
   DBUG_RETURN(0);
 }
@@ -19633,11 +19636,11 @@ error:
 }
 
 static
-void
+int
 ndb_recv_thread_cpu_mask_update()
 {
-  ndb_set_recv_thread_cpu(recv_thread_cpuid_array,
-                          recv_thread_num_cpus);
+  return ndb_set_recv_thread_cpu(recv_thread_cpuid_array,
+                                 recv_thread_num_cpus);
 }
 
 static
@@ -19647,7 +19650,7 @@ ndb_recv_thread_cpu_mask_update_func(MYSQL_THD,
                                      void *var_ptr,
                                      const void *save)
 {
-  ndb_recv_thread_cpu_mask_update();
+  (void)ndb_recv_thread_cpu_mask_update();
 }
 
 static MYSQL_SYSVAR_STR(

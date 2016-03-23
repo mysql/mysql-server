@@ -440,15 +440,16 @@ int
 ndb_set_recv_thread_cpu(Uint16 *cpuid_array,
                         Uint32 cpuid_array_size)
 {
+  int ret_code = 0;
   Uint32 num_cpu_needed = g_pool_alloc;
 
   if (cpuid_array_size == 0)
   {
     for (Uint32 i = 0; i < g_pool_alloc; i++)
     {
-      g_pool[i]->unset_recv_thread_cpu(0);
+      ret_code = g_pool[i]->unset_recv_thread_cpu(0);
     }
-    return 0;
+    return ret_code;
   }
 
   if (cpuid_array_size < num_cpu_needed)
@@ -458,15 +459,15 @@ ndb_set_recv_thread_cpu(Uint16 *cpuid_array,
       "Ignored receive thread CPU mask, mask too short,"
       " %u CPUs needed in mask, only %u CPUs provided",
       num_cpu_needed, cpuid_array_size);
-    return 0;
+    return 1;
   }
   for (Uint32 i = 0; i < g_pool_alloc; i++)
   {
-    g_pool[i]->set_recv_thread_cpu(&cpuid_array[i],
+    ret_code = g_pool[i]->set_recv_thread_cpu(&cpuid_array[i],
                                    (Uint32)1,
                                    0);
   }
-  return 0;
+  return ret_code;
 }
 
 void ndb_get_connection_stats(Uint64* statsArr)

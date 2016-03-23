@@ -163,4 +163,8 @@
 #define NDB_FRAGMENT_COUNT_ONE_PER_NODE               ~Uint32(3)
 #define NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP         ~Uint32(4)
 
+#ifndef UINT32_MAX
+#define UINT32_MAX             (4294967295U)
+#endif
+
 #endif
