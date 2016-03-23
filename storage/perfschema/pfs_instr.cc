@@ -295,7 +295,7 @@ PFS_mutex* create_mutex(PFS_mutex_class *klass, const void *identity)
   PFS_mutex *pfs;
   pfs_dirty_state dirty_state;
 
-  pfs= global_mutex_container.allocate(& dirty_state);
+  pfs= global_mutex_container.allocate(& dirty_state, klass->m_volatility);
   if (pfs != NULL)
   {
     pfs->m_identity= identity;

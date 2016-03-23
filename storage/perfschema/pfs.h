@@ -61,5 +61,10 @@ extern thread_local_key_t THR_PFS_SBH; // status_by_account
 /** True when @c THR_PFS and all other Performance Schema TLS keys are initialized. */
 extern bool THR_PFS_initialized;
 
+#define PSI_VOLATILITY_UNKNOWN 0
+#define PSI_VOLATILITY_SESSION 1
+
+#define PSI_COUNT_VOLATILITY 2
+
 #endif
 
