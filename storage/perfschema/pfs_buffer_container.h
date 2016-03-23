@@ -1054,7 +1054,7 @@ template <class B, int PFS_PARTITION_COUNT>
 class PFS_partitioned_buffer_scalable_container
 {
 public:
-  friend PFS_partitioned_buffer_scalable_iterator<B, PFS_PARTITION_COUNT>;
+  friend class PFS_partitioned_buffer_scalable_iterator<B, PFS_PARTITION_COUNT>;
 
   typedef typename B::value_type value_type;
   typedef typename B::allocator_type allocator_type;
