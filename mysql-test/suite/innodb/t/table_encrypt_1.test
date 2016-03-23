@@ -150,6 +150,18 @@ SELECT * FROM t1 ORDER BY c1 LIMIT 10;
 
 DROP TABLE t1;
 
+CREATE TABLE t1 (c1 int) ENCRYPTION='N';
+
+--error ER_INVALID_ENCRYPTION_OPTION
+ALTER TABLE t1 ENCRYPTION='P',algorithm=copy;
+
+ALTER TABLE t1 ADD KEY k1 (c1) ,algorithm=inplace;
+
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER TABLE t1 ENCRYPTION='Y',algorithm=inplace;
+
+drop table t1;
+
 # Test compression + encryption.
 --disable_warnings
 CREATE TABLE t1(c1 INT PRIMARY KEY) COMPRESSION = "ZLIB" ENCRYPTION = "Y" ENGINE = InnoDB;
