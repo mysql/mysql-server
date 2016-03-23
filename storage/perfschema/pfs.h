@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -47,6 +47,11 @@ extern thread_local_key_t THR_PFS_SBH; // status_by_account
 
 /** True when @c THR_PFS and all other Performance Schema TLS keys are initialized. */
 extern bool THR_PFS_initialized;
+
+#define PSI_VOLATILITY_UNKNOWN 0
+#define PSI_VOLATILITY_SESSION 1
+
+#define PSI_COUNT_VOLATILITY 2
 
 #endif
 
