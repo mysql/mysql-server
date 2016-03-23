@@ -2212,10 +2212,10 @@ files_checked:
 	server could crash in middle of key rotation. Some tablespace
 	didn't complete key rotation. Here, we will resume the
 	rotation. */
-	if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
+	if (!srv_read_only_mode
+	    && srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
 		fil_encryption_rotate();
 	}
-
 
 	/* Create the SYS_VIRTUAL system table */
 	err = dict_create_or_check_sys_virtual();

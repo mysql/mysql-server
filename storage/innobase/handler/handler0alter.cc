@@ -556,17 +556,15 @@ ha_innobase::check_if_supported_inplace_alter(
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
-	if (ha_alter_info->create_info->encrypt_type.length > 0) {
-		char*	encryption =
-			ha_alter_info->create_info->encrypt_type.str;
-
-		if (DICT_TF2_FLAG_SET(m_prebuilt->table, DICT_TF2_ENCRYPTION)
-		    != Encryption::is_none(encryption)) {
-			ha_alter_info->unsupported_reason =
-				innobase_get_err_msg(
-					ER_INVALID_ENCRYPTION_OPTION);
-			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
-		}
+	/* We don't support change encryption attribute with
+	inplace algorithm. */
+	if (strncmp(this->table->s->encrypt_type.str,
+			altered_table->s->encrypt_type.str,
+			altered_table->s->encrypt_type.length) != 0) {
+		ha_alter_info->unsupported_reason =
+			innobase_get_err_msg(
+				ER_UNSUPPORTED_ALTER_ENCRYPTION_INPLACE);
+		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
 	update_thd();
