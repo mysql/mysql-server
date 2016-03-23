@@ -101,6 +101,9 @@ ut_crc32_func_t ut_crc32;
 /** Pointer to extended CRC32 calculation function. */
 ut_crc32_ex_func_t ut_crc32_ex;
 
+/** Text description of CRC32 implementation */
+const char *ut_crc32_implementation = NULL;
+
 /** Swap the byte order of an 8 byte integer.
 @param[in]	i	8-byte integer
 @return 8-byte integer */
@@ -120,9 +123,6 @@ ut_crc32_swap_byteorder(
 }
 
 /* CRC32 hardware implementation. */
-
-/* Flag that tells whether the CPU supports CRC32 or not */
-my_bool	ut_crc32_sse2_enabled = false;
 
 #if defined(__GNUC__) && defined(__x86_64__)
 /********************************************************************//**
@@ -272,8 +272,6 @@ ut_crc32c_hw(
 	my_ulonglong	len)
 {
 	uint32	crc = 0xFFFFFFFFU;
-
-	DBUG_ASSERT(ut_crc32_sse2_enabled);
 
 	/* Calculate byte-by-byte up to an 8-byte aligned address. After
 	this consume the input 8-bytes at a time. */
@@ -780,6 +778,7 @@ void
 ut_crc32_init()
 /*===========*/
 {
+	my_bool ut_crc32_sse2_enabled = false;
 #if defined(__GNUC__) && defined(__x86_64__)
 	uint32	vend[3];
 	uint32	model;
@@ -819,6 +818,7 @@ ut_crc32_init()
 		ut_crc32_slice8_table_init();
 		ut_crc32 = ut_crc32_sw;
 		ut_crc32_ex = ut_crc32_ex_sw;
+		ut_crc32_implementation = "Using SSE2 crc32c instructions";
 	}
 
 #endif /* defined(__GNUC__) && defined(__x86_64__) */
@@ -832,5 +832,6 @@ ut_crc32_init()
 		ut_crc32_slice8_table_init();
 		ut_crc32 = ut_crc32_sw;
 		ut_crc32_ex = ut_crc32_ex_sw;
+		ut_crc32_implementation = "Using generic slice8 crc32 implemenation";
 	}
 }

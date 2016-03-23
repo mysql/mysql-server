@@ -66,8 +66,8 @@ typedef uint32 (*ut_crc32_ex_func_t)(uint32, const uint8* ptr, my_ulonglong len)
 /* extended CRC32 function taking the partial CRC32 as an input */
 extern ut_crc32_ex_func_t        ut_crc32_ex;
 
-/** Flag that tells whether the CPU supports CRC32 or not */
-extern my_bool		ut_crc32_sse2_enabled;
+/** Text description of CRC32(C) implementation */
+extern const char *ut_crc32_implementation;
 
 #ifdef  __cplusplus
 }
