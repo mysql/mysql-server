@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@ struct PFS_file_class;
 struct PFS_table_share;
 struct PFS_thread_class;
 struct PFS_socket_class;
+class PFS_opaque_container_page;
 
 class THD;
 
@@ -77,6 +78,8 @@ struct PFS_instr
   bool m_enabled;
   /** Timed flag. */
   bool m_timed;
+  /** Container page. */
+  PFS_opaque_container_page *m_page;
 };
 
 /** Instrumented mutex implementation. @see PSI_mutex. */
@@ -240,6 +243,8 @@ public:
   PFS_TL_LOCK_TYPE m_internal_lock;
   /** Current external lock. */
   PFS_TL_LOCK_TYPE m_external_lock;
+  /** Container page. */
+  PFS_opaque_container_page *m_page;
 
 private:
   static void safe_aggregate_io(const TABLE_SHARE *optional_server_share,
