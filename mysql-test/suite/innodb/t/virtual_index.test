@@ -132,3 +132,22 @@ CREATE TABLE `ibstd_08` (
 ALTER TABLE ibstd_08  ADD COLUMN nc07006 BIGINT  AUTO_INCREMENT NOT NULL  , ADD KEY auto_nc07006(nc07006);
 
 DROP TABLE ibstd_08;
+
+--echo #
+--echo # Bug 22899305 - GCOLS: FAILING ASSERTION: !(COL->PRTYPE & 256)
+--echo # AND SEGFAULT
+--echo #
+set sql_mode="";
+create table t (a int) engine=innodb;
+create table s (
+b int generated always as (1) virtual,
+c int,
+d int generated always as (1) virtual not null,
+key (d)
+) engine=innodb;
+
+insert into t(a) values ((select d from s for update));
+insert into s(c) values ('');
+
+SET sql_mode = default;
+drop table if exists t,s;

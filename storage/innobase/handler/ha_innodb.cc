@@ -7581,6 +7581,9 @@ ha_innobase::build_template(
 				    && !dict_index_contains_col_or_prefix(
 					m_prebuilt->index, num_v, true))
 				{
+					/* Turn off ROW_MYSQL_WHOLE_ROW */
+					m_prebuilt->template_type =
+						 ROW_MYSQL_REC_FIELDS;
 					num_v++;
 					continue;
 				}
