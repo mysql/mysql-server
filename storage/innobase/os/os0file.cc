@@ -8066,7 +8066,7 @@ void Encryption::random_value(byte* value)
 	my_rand_buffer(value, ENCRYPTION_KEY_LEN);
 }
 
-/** Create new master key
+/** Create new master key for key rotation.
 @param[in,out]	master_key	master key */
 void
 Encryption::create_master_key(byte** master_key)
@@ -8076,11 +8076,16 @@ Encryption::create_master_key(byte** master_key)
 	char	key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
 	int	ret;
 
+	/* If uuid does not match with current server uuid,
+	set uuid as current server uuid. */
+	if (strcmp(uuid, server_uuid) != 0) {
+		memcpy(uuid, server_uuid, ENCRYPTION_SERVER_UUID_LEN);
+	}
 	memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
 
 	/* Generate new master key */
 	sprintf(key_name, "%s-%s-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
-		server_uuid, master_key_id + 1);
+		uuid, master_key_id + 1);
 
 	/* We call key ring API to generate master key here. */
 	ret = my_key_generate(key_name, "AES",
@@ -8104,9 +8109,11 @@ Encryption::create_master_key(byte** master_key)
 
 /** Get master key by key id.
 @param[in]	master_key_id	master key id
+@param[in]	srv_uuid	uuid of server instance
 @param[in,out]	master_key	master key */
 void
 Encryption::get_master_key(ulint master_key_id,
+			   char* srv_uuid,
 			   byte** master_key)
 {
 	char*	key_type = NULL;
@@ -8115,8 +8122,17 @@ Encryption::get_master_key(ulint master_key_id,
 	int	ret;
 
 	memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
-	sprintf(key_name, "%s-%s-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
-		server_uuid, master_key_id);
+
+	if (srv_uuid != NULL) {
+		sprintf(key_name, "%s-%s-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
+			srv_uuid, master_key_id);
+	} else {
+		/* For compitable with 5.7.11, we need to get master key with
+		server id. */
+		memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
+		sprintf(key_name, "%s-%lu-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
+			server_id, master_key_id);
+	}
 
 	/* We call key ring API to get master key here. */
 	ret = my_key_fetch(key_name, &key_type, NULL,
@@ -8125,21 +8141,6 @@ Encryption::get_master_key(ulint master_key_id,
 
 	if (key_type) {
 		my_free(key_type);
-	}
-
-	/* For compitable with 5.7.11, we need to try to get master key with
-	server id when get master key failure. */
-	if (ret || *master_key == NULL) {
-		memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
-		sprintf(key_name, "%s-%lu-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
-			server_id, master_key_id);
-
-		ret = my_key_fetch(key_name, &key_type, NULL,
-				   reinterpret_cast<void**>(master_key),
-				   &key_len);
-		if (key_type) {
-			my_free(key_type);
-		}
 	}
 
 	if (ret) {
@@ -8157,13 +8158,20 @@ Encryption::get_master_key(ulint master_key_id,
 #endif /* DEBUG_TDE */
 }
 
+/** Current master key id */
 ulint	Encryption::master_key_id = 0;
+
+/** Current uuid of server instance */
+char	Encryption::uuid[ENCRYPTION_SERVER_UUID_LEN + 1] = {0};
 
 /** Get current master key and master key id
 @param[in,out]	master_key_id	master key id
-@param[in,out]	master_key	master key */
+@param[in,out]	master_key	master key
+@param[in,out]	version		encryption information version */
 void
-Encryption::get_master_key(ulint* master_key_id, byte** master_key)
+Encryption::get_master_key(ulint* master_key_id,
+			   byte** master_key,
+			   Encryption::Version*  version)
 {
 	char*	key_type = NULL;
 	size_t	key_len;
@@ -8171,13 +8179,18 @@ Encryption::get_master_key(ulint* master_key_id, byte** master_key)
 	int	ret;
 
 	memset(key_name, 0, ENCRYPTION_KEY_LEN);
+	*version = Encryption::ENCRYPTION_VERSION_2;
 
 	if (Encryption::master_key_id == 0) {
 		/* If m_master_key is 0, means there's no encrypted
 		tablespace, we need to generate the first master key,
 		and store it to key ring. */
+		memset(uuid, 0, ENCRYPTION_SERVER_UUID_LEN + 1);
+		memcpy(uuid, server_uuid, ENCRYPTION_SERVER_UUID_LEN);
+
+		/* Prepare the server uuid. */
 		sprintf(key_name, "%s-%s-1", ENCRYPTION_MASTER_KEY_PRIFIX,
-			server_uuid);
+			uuid);
 
 		/* We call key ring API to generate master key here. */
 		ret = my_key_generate(key_name, "AES",
@@ -8203,7 +8216,7 @@ Encryption::get_master_key(ulint* master_key_id, byte** master_key)
 		*master_key_id = Encryption::master_key_id;
 
 		sprintf(key_name, "%s-%s-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
-			server_uuid, *master_key_id);
+			uuid, *master_key_id);
 
 		/* We call key ring API to get master key here. */
 		ret = my_key_fetch(key_name, &key_type, NULL,
@@ -8211,7 +8224,7 @@ Encryption::get_master_key(ulint* master_key_id, byte** master_key)
 				   &key_len);
 
 		/* For compitable with 5.7.11, we need to try to get master key with
-		server id when get master key failure. */
+		server id when get master key with server uuid failure. */
 		if (ret || *master_key == NULL) {
 			if (key_type) {
 				my_free(key_type);
@@ -8224,6 +8237,7 @@ Encryption::get_master_key(ulint* master_key_id, byte** master_key)
 			ret = my_key_fetch(key_name, &key_type, NULL,
 					   reinterpret_cast<void**>(master_key),
 					   &key_len);
+			*version = Encryption::ENCRYPTION_VERSION_1;
 		}
 #ifdef UNIV_ENCRYPT_DEBUG
 		if (!ret && *master_key) {

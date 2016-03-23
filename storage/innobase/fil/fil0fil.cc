@@ -6388,7 +6388,7 @@ fil_encryption_rotate()
 {
 	fil_space_t*	space;
 	mtr_t		mtr;
-	byte		encrypt_info[ENCRYPTION_INFO_SIZE];
+	byte		encrypt_info[ENCRYPTION_INFO_SIZE_V2];
 
 	for (space = UT_LIST_GET_FIRST(fil_system->space_list);
 	     space != NULL; ) {
@@ -6406,7 +6406,7 @@ fil_encryption_rotate()
 
 			space = mtr_x_lock_space(space->id, &mtr);
 
-			memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
+			memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE_V2);
 
 			if (!fsp_header_rotate_encryption(space,
 							  encrypt_info,
