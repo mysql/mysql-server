@@ -161,9 +161,6 @@ int NdbThread_SetScheduler(struct NdbThread*, my_bool rt_prio, my_bool high_prio
 /**
  * Set Thread priority for thread
  *
- * We either use a TID as input when the thread hasn't been started in the
- * NDB portability layer.
- *
  * SetThreadPrioNormal is equal to SetThreadPrio(thread, 5);
  *
  * Currently we support 11 levels from 0 to 10. 10 is a bit special level
@@ -173,9 +170,7 @@ int NdbThread_SetScheduler(struct NdbThread*, my_bool rt_prio, my_bool high_prio
 #define NO_THREAD_PRIO_USED 11
 #define MAX_THREAD_PRIO_NUMBER 10
 int NdbThread_SetThreadPrio(struct NdbThread*, unsigned int prio);
-int NdbThread_SetTidThreadPrio(THREAD_ID_TYPE tid, unsigned int prio);
 int NdbThread_SetThreadPrioNormal(struct NdbThread*);
-int NdbThread_SetTidThreadPrioNormal(THREAD_ID_TYPE tid);
 
 /**
  * Lock/Unlock Thread to CPU

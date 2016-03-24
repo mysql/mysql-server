@@ -602,29 +602,10 @@ NdbThread_yield_rt(struct NdbThread* pThread, my_bool high_prio)
   return 0;
 }
 
-#ifndef _WIN32
-int
-NdbThread_SetThreadPrio(struct NdbThread *pThread, unsigned int prio)
-{
-  return NdbThread_SetTidThreadPrio(pThread->tid, prio);
-}
-#endif
-
 int
 NdbThread_SetThreadPrioNormal(struct NdbThread *pThread)
 {
-  int ret_code = NdbThread_SetTidThreadPrio(pThread->tid, 5);
-  if (ret_code == SET_THREAD_PRIO_NOT_SUPPORTED_ERROR)
-  {
-    return 0;
-  }
-  return ret_code;
-}
-
-int
-NdbThread_SetTidThreadPrioNormal(THREAD_ID_TYPE tid)
-{
-  int ret_code = NdbThread_SetTidThreadPrio(tid, 5);
+  int ret_code = NdbThread_SetThreadPrio(pThread, 5);
   if (ret_code == SET_THREAD_PRIO_NOT_SUPPORTED_ERROR)
   {
     return 0;
@@ -705,9 +686,10 @@ NdbThread_SetScheduler(struct NdbThread* pThread,
  * priority.
  */
 int
-NdbThread_SetTidThreadPrio(THREAD_ID_TYPE tid,
-                           unsigned int prio)
+NdbThread_SetThreadPrio(struct NdbThread *pThread,
+                        unsigned int prio)
 {
+  THREAD_ID_TYPE tid = pThread->tid;
 #ifdef HAVE_PRIOCNTL
   /* Solaris */
   int ret;
