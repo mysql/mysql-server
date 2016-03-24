@@ -32,3 +32,4 @@ select HEX(f) from t4;
 
 drop table t3, t4, t03, t04;
 --echo End of 5.0 tests
+--remove_file $datadir/master-bin.saved

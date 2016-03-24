@@ -37,5 +37,5 @@ show tables;
 drop table t1;
 set @@global.binlog_checksum = @save_binlog_checksum;
 set @@global.master_verify_checksum = @save_master_verify_checksum;
-
+--remove_file $MYSQLD_DATADIR/master-bin.saved
 --echo End of the tests

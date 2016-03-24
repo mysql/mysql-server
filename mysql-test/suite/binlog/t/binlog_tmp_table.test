@@ -95,6 +95,7 @@ select * from foo;
 
 # clean up
 drop table foo;
+-- remove_file $MYSQLD_DATADIR/master-bin.saved35583
 
 #################################################################
 # BUG#51226
@@ -163,3 +164,4 @@ RESET MASTER;
 # assertion: assert that when replaying the binary log will succeed,
 #            instead of failing with "Table 'XXX.YYY' doesn't exist"
 -- exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.saved51226 | $MYSQL
+-- remove_file $MYSQLD_DATADIR/master-bin.saved51226

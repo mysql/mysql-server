@@ -34,3 +34,4 @@ SHOW TABLES;
 
 # Clean up
 DROP TABLE t1;
+--remove_file $datadir/master-bin.saved
