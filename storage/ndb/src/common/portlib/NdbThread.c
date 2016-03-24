@@ -602,11 +602,13 @@ NdbThread_yield_rt(struct NdbThread* pThread, my_bool high_prio)
   return 0;
 }
 
+#ifndef _WIN32
 int
 NdbThread_SetThreadPrio(struct NdbThread *pThread, unsigned int prio)
 {
   return NdbThread_SetTidThreadPrio(pThread->tid, prio);
 }
+#endif
 
 int
 NdbThread_SetThreadPrioNormal(struct NdbThread *pThread)
