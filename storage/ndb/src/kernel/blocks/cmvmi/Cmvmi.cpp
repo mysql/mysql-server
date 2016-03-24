@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1212,8 +1212,8 @@ void Cmvmi::execTAMPER_ORD(Signal* signal)
   }
   else if (errNo < 12000)
   {
-    // DBUTIL_REF ?
     jam();
+    tuserblockref = PGMAN_REF;
   }
   else if (errNo < 13000)
   {
@@ -1249,6 +1249,11 @@ void Cmvmi::execTAMPER_ORD(Signal* signal)
   {
     jam();
     tuserblockref = TRIX_REF;
+  }
+  else if (errNo < 20000)
+  {
+    jam();
+    tuserblockref = DBUTIL_REF;
   }
   else if (errNo < 30000)
   {
