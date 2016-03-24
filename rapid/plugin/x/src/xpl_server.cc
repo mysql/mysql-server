@@ -464,11 +464,7 @@ void xpl::Server::create_mysqlx_user(Sql_data_context &context)
   {
     context.switch_to_local_user("root");
 
-    // save original value of binary logging
-    sql_result.query("SET @MYSQLX_OLD_LOG_BIN=@@SQL_LOG_BIN");
-
-    // disable binary logging, so this won't replicate
-    sql_result.query("SET SESSION SQL_LOG_BIN=0;");
+    sql_result.disable_binlog();
 
     // pwd doesn't matter because the account is locked
     sql_result.query("CREATE USER IF NOT EXISTS " MYSQLXSYS_ACCOUNT " IDENTIFIED WITH mysql_native_password AS '*7CF5CA9067EC647187EB99FCC27548FBE4839AE3' ACCOUNT LOCK;");
@@ -488,11 +484,11 @@ void xpl::Server::create_mysqlx_user(Sql_data_context &context)
     sql_result.query("GRANT SUPER ON *.* TO " MYSQLXSYS_ACCOUNT);
     sql_result.query("FLUSH PRIVILEGES;");
 
-    sql_result.query("SET SESSION SQL_LOG_BIN=@MYSQLX_OLD_LOG_BIN;");
+    sql_result.restore_binlog();
   }
   catch (const ngs::Error_code &error)
   {
-    sql_result.query("SET SESSION SQL_LOG_BIN=@MYSQLX_OLD_LOG_BIN;");
+    sql_result.restore_binlog();
 
     if (ER_MUST_CHANGE_PASSWORD != error.error)
       throw error;
@@ -663,10 +659,22 @@ void xpl::Server::on_net_shutdown()
 
         sql_context.switch_to_local_user("root");
 
-        if (!sql_context.is_acl_disabled())
-          sql_result.query("DROP USER " MYSQLXSYS_ACCOUNT);
-        else
-          log_warning("Internal account %s can't be removed because server is running without user privileges (\"skip-grant-tables\" switch)", MYSQLXSYS_ACCOUNT);
+        sql_result.disable_binlog();
+
+        try
+        {
+          if (!sql_context.is_acl_disabled())
+            sql_result.query("DROP USER " MYSQLXSYS_ACCOUNT);
+          else
+            log_warning("Internal account %s can't be removed because server is running without user privileges (\"skip-grant-tables\" switch)", MYSQLXSYS_ACCOUNT);
+
+          sql_result.restore_binlog();
+        }
+        catch (const ngs::Error_code &error)
+        {
+          sql_result.restore_binlog();
+          throw error;
+        }
 
         sql_context.detach();
       }

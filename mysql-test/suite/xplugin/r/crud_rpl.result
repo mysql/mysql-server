@@ -294,6 +294,6 @@ Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JS
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
 DROP DATABASE IF EXISTS xplugintest;
+UNINSTALL PLUGIN mysqlx;
 include/sync_slave_sql_with_master.inc
 include/rpl_end.inc
-UNINSTALL PLUGIN mysqlx;
