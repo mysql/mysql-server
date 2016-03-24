@@ -328,9 +328,11 @@ SELECT * FROM xplugintest.table1;
 DROP DATABASE IF EXISTS xplugintest;
 ## Postamble
 
+UNINSTALL PLUGIN mysqlx;
+
 --source include/wait_until_count_sessions.inc
 --source include/sync_slave_sql_with_master.inc
 --source include/rpl_end.inc
 
-UNINSTALL PLUGIN mysqlx;
+
 
