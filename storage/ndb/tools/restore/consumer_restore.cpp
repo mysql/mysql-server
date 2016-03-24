@@ -1302,14 +1302,36 @@ BackupRestore::rebuild_indexes(const TableS& table)
     const NDB_TICKS start = NdbTick_getCurrentTicks();
     info << "Rebuilding index `" << idx_name << "` on table `"
       << tab_name << "` ..." << flush;
-    if ((dict->getIndex(idx_name, tab_name) == NULL)
-        && (dict->createIndex(* idx, 1) != 0))
+    bool done = false;
+    for(int retries = 0; retries<11; retries++)
+    {
+      if ((dict->getIndex(idx_name, tab_name) == NULL)
+          && (dict->createIndex(* idx, 1) != 0))
+      {
+        if(dict->getNdbError().status == NdbError::TemporaryError)
+        {
+          err << "retry sleep 50 ms on error " <<
+                      dict->getNdbError().code << endl;
+          NdbSleep_MilliSleep(50);
+          continue;  // retry on temporary error
+        }
+        else
+        {
+          break;
+        }
+      }
+      else
+      {
+        done = true;
+        break;
+      }
+    }
+    if(!done)
     {
       info << "FAIL!" << endl;
       err << "Rebuilding index `" << idx_name << "` on table `"
         << tab_name <<"` failed: ";
       err << dict->getNdbError() << endl;
-
       return false;
     }
     const NDB_TICKS stop = NdbTick_getCurrentTicks();
@@ -2933,13 +2955,32 @@ BackupRestore::endOfTables(){
     idx->setName(split_idx[3].c_str());
     if (m_restore_meta && !m_disable_indexes && !m_rebuild_indexes)
     {
-      if (dict->createIndex(* idx) != 0)
+      bool done = false;
+      for(unsigned int retries = 0; retries < 11; retries++)
+      {
+        if(dict->createIndex(* idx) == 0)
+        {
+          done = true;  // success
+          break;
+        }
+        else if(dict->getNdbError().status == NdbError::TemporaryError)
+        {
+          err << "retry sleep 50 ms on error " <<
+                      dict->getNdbError().code << endl;
+          NdbSleep_MilliSleep(50);
+          continue;  // retry on temporary error
+        }
+        else
+        {
+          break; // error out on permanent error
+        }
+      }
+      if(!done)
       {
         delete idx;
         err << "Failed to create index `" << split_idx[3].c_str()
             << "` on `" << table_name << "`" << endl
             << dict->getNdbError() << endl;
-
         return false;
       }
       info << "Successfully created index `" << split_idx[3].c_str()
