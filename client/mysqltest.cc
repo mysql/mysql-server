@@ -727,7 +727,7 @@ public:
 
   void flush()
   {
-    if (m_file)
+    if (m_file && m_file != stdout)
     {
       if (fflush(m_file))
         die("Failed to flush '%s', errno: %d", m_file_name, errno);
