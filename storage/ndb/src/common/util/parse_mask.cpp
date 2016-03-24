@@ -396,12 +396,12 @@ ParseThreadConfiguration::parse_unsigned(unsigned * dst)
   skipblank();
   char * endptr = 0;
   errno = 0;
-  long val = strtol(m_curr_str, &endptr, 0);
+  long long val = my_strtoll(m_curr_str, &endptr, 0);
   if (errno == ERANGE)
   {
     return -1;
   }
-  if (val < 0 || Int64(val) > Int64(UINT32_MAX))
+  if (val < 0 || val > Int64(UINT32_MAX))
   {
     return -1;
   }
