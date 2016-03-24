@@ -7671,6 +7671,26 @@ static bool is_inplace_alter_impossible(TABLE *table,
   if (!table->s->mysql_version)
     DBUG_RETURN(true);
 
+  /*
+    If default value is changed and the table includes or will include
+    generated columns that depend on the DEFAULT function, we cannot
+    do the operation inplace as indexes or value of stored generated
+    columns might become invalid.
+  */
+  if ((alter_info->flags &
+       (Alter_info::ALTER_CHANGE_COLUMN_DEFAULT |
+        Alter_info::ALTER_CHANGE_COLUMN)) &&
+       table->has_gcol())
+  {
+    for (Field **vfield= table->vfield; *vfield; vfield++)
+    {
+      if ((*vfield)->gcol_info->expr_item->walk(
+           &Item::check_gcol_depend_default_processor,
+           Item::WALK_POSTFIX, NULL))
+        DBUG_RETURN(true);
+    }
+  }
+
   DBUG_RETURN(false);
 }
 
