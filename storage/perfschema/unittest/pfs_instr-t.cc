@@ -289,6 +289,7 @@ static void test_with_instances()
   dummy_mutex_class.m_event_name_index= 0;
   dummy_mutex_class.m_flags= 0;
   dummy_mutex_class.m_enabled= true;
+  dummy_mutex_class.m_volatility= 0;
   dummy_rwlock_class.m_event_name_index= 1;
   dummy_rwlock_class.m_flags= 0;
   dummy_rwlock_class.m_enabled= true;
