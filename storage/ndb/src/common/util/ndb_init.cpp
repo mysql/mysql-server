@@ -113,7 +113,7 @@ ndb_init_internal(Uint32 caller)
   }
 }
 
-void
+int
 ndb_init()
 {
   if (ndb_init_called == 0)
@@ -136,7 +136,7 @@ ndb_init()
 
     ndb_init_internal(0);
   }
-  return;
+  return 0;
 }
 
 void

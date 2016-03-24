@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 /* call in main() - does not return on error */
-extern void ndb_init(void);
+extern int ndb_init(void);
 extern void ndb_end(int);
 #define NDB_INIT(prog_name) {my_progname=(prog_name); ndb_init();}
 #ifdef  __cplusplus
