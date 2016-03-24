@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,8 +57,13 @@ operator<<(NdbOut& out, const File_formats::Zero_page_header& obj)
     ndbGetVersionString(obj.m_ndb_version, 0, 0, buf, sizeof(buf)) << endl;
   out << "ndb node id: " << obj.m_node_id << endl;
   out << "file type:   " << obj.m_file_type << endl;
+
+  /**
+   *  m_time is 32bit, time_t may be bigger (64bit).
+   */
+  const time_t tm = obj.m_time;
   out << "time:        " << obj.m_time << ", " 
-      << ctime((time_t*)&obj.m_time)<< endl;
+      << ctime(&tm) << endl;
   return out;
 }
 
