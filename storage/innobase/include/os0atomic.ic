@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -152,7 +152,11 @@ os_atomic_test_and_set(
 	/* Silence a compiler warning about unused ptr. */
 	(void) ptr;
 
+#if defined(__powerpc__) || defined(__aarch64__)
+	__atomic_exchange(ptr, &new_val,  &ret, __ATOMIC_SEQ_CST);
+#else
 	__atomic_exchange(ptr, &new_val,  &ret, __ATOMIC_RELEASE);
+#endif
 
 	return(ret);
 }
@@ -172,8 +176,13 @@ os_atomic_val_compare_and_swap(
 	/* Silence a compiler warning about unused ptr. */
 	(void) ptr;
 
+#if defined(__powerpc__) || defined(__aarch64__)
+	__atomic_compare_exchange(ptr, &old_val, &new_val, false,
+				  __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+#else
 	__atomic_compare_exchange(ptr, &old_val, &new_val, false,
 				  __ATOMIC_RELEASE, __ATOMIC_ACQUIRE);
+#endif
 
 	return(old_val);
 }
