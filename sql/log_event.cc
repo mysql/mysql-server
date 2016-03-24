@@ -14,14 +14,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/*
-  This include needs to be before my_compiler.h (via my_global.h)
-  is included. This is because string conflicts with the define
-  of __attribute__ in my_compiler.h on Sun Studio x86.
-  TODO: Get rid of the __attribute__ define in my_compiler.h
-*/
-#include <string>
-
 #include "log_event.h"
 
 #include "base64.h"            // base64_encode
@@ -79,6 +71,7 @@ slave_ignored_err_throttle(window_size,
 #include <base64.h>
 #include <my_bitmap.h>
 #include <map>
+#include <string>
 #include "rpl_utility.h"
 /* This is necessary for the List manipuation */
 #include "sql_list.h"                           /* I_List */
@@ -1772,7 +1765,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
 
 void Log_event::print_header(IO_CACHE* file,
                              PRINT_EVENT_INFO* print_event_info,
-                             bool is_more __attribute__((unused)))
+                             bool is_more MY_ATTRIBUTE((unused)))
 {
   char llbuff[22];
   my_off_t hexdump_from= print_event_info->hexdump_from;
@@ -6626,6 +6619,7 @@ int Intvar_log_event::do_apply_event(Relay_log_info const *rli)
   switch (type) {
   case LAST_INSERT_ID_EVENT:
     thd->first_successful_insert_id_in_prev_stmt= val;
+    thd->substitute_null_with_insert_id= TRUE;
     break;
   case INSERT_ID_EVENT:
     thd->force_one_auto_inc_interval(val);

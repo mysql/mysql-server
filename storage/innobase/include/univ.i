@@ -264,7 +264,7 @@ appears close together improving code locality of non-cold parts of
 program.  The paths leading to call of cold functions within code are
 marked as unlikely by the branch prediction mechanism.  optimize a
 rarely invoked function for size instead for speed. */
-# define UNIV_COLD __attribute__((cold))
+# define UNIV_COLD MY_ATTRIBUTE((cold))
 #else
 # define UNIV_COLD /* empty */
 #endif
@@ -499,7 +499,7 @@ contains the sum of the following flag and the locally stored len. */
 
 #if defined(__GNUC__)
 /* Tell the compiler that variable/function is unused. */
-# define UNIV_UNUSED    __attribute__ ((unused))
+# define UNIV_UNUSED    MY_ATTRIBUTE ((unused))
 #else
 # define UNIV_UNUSED
 #endif /* CHECK FOR GCC VER_GT_2 */

@@ -614,16 +614,16 @@ struct st_replace *glob_replace= 0;
 void replace_strings_append(struct st_replace *rep, DYNAMIC_STRING* ds,
                             const char *from, size_t len);
 
-static void cleanup_and_exit(int exit_code) __attribute__((noreturn));
+static void cleanup_and_exit(int exit_code) MY_ATTRIBUTE((noreturn));
 
 void die(const char *fmt, ...)
-  __attribute__((format(printf, 1, 2))) __attribute__((noreturn));
+  MY_ATTRIBUTE((format(printf, 1, 2))) MY_ATTRIBUTE((noreturn));
 void abort_not_supported_test(const char *fmt, ...)
-  __attribute__((format(printf, 1, 2))) __attribute__((noreturn));
+  MY_ATTRIBUTE((format(printf, 1, 2))) MY_ATTRIBUTE((noreturn));
 void verbose_msg(const char *fmt, ...)
-  __attribute__((format(printf, 1, 2)));
+  MY_ATTRIBUTE((format(printf, 1, 2)));
 void log_msg(const char *fmt, ...)
-  __attribute__((format(printf, 1, 2)));
+  MY_ATTRIBUTE((format(printf, 1, 2)));
 
 VAR* var_from_env(const char *, const char *);
 VAR* var_init(VAR* v, const char *name, size_t name_len, const char *val,
@@ -4435,7 +4435,7 @@ static int do_echo(struct st_command *command)
 }
 
 
-static void do_wait_for_slave_to_stop(struct st_command *c __attribute__((unused)))
+static void do_wait_for_slave_to_stop(struct st_command *c MY_ATTRIBUTE((unused)))
 {
   static int SLAVE_POLL_INTERVAL= 300000;
   MYSQL* mysql = &cur_con->mysql;
@@ -8863,7 +8863,7 @@ void update_expected_errors(struct st_command* command)
 
 */
 
-static void mark_progress(struct st_command* command __attribute__((unused)),
+static void mark_progress(struct st_command* command MY_ATTRIBUTE((unused)),
                           int line)
 {
   static ulonglong progress_start= 0; // < Beware
@@ -9945,7 +9945,7 @@ typedef struct st_replace_found {
 
 void replace_strings_append(REPLACE *rep, DYNAMIC_STRING* ds,
                             const char *str,
-                            size_t len __attribute__((unused)))
+                            size_t len MY_ATTRIBUTE((unused)))
 {
   REPLACE *rep_pos;
   REPLACE_STRING *rep_str;

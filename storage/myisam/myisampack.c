@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include "mysys_err.h"
 #include <my_getopt.h>
 #include <assert.h>
+#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #if SIZEOF_LONG_LONG > 4
 #define BITS_SAVED 64
@@ -123,7 +124,7 @@ static void free_counts_and_tree_and_queue(HUFF_TREE *huff_trees,
 					   uint trees,
 					   HUFF_COUNTS *huff_counts,
 					   uint fields);
-static int compare_tree(const void* cmp_arg __attribute__((unused)),
+static int compare_tree(const void* cmp_arg MY_ATTRIBUTE((unused)),
 			const void *a, const void *b);
 static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts);
 static void check_counts(HUFF_COUNTS *huff_counts,uint trees,
@@ -305,9 +306,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts("Copyright 2002-2015 Oracle and/or its affiliates.");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,");
-  puts("and you are welcome to modify and redistribute it under the GPL license\n");
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2002"));
 
   puts("Pack a MyISAM-table to take much less space.");
   puts("Keys are not updated, you must run myisamchk -rq on the datafile");
@@ -322,7 +321,7 @@ static void usage(void)
 
 
 static my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument)
 {
   uint length;
@@ -1184,7 +1183,7 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
   DBUG_RETURN(error != HA_ERR_END_OF_FILE);
 }
 
-static int compare_huff_elements(void *not_used __attribute__((unused)),
+static int compare_huff_elements(void *not_used MY_ATTRIBUTE((unused)),
 				 uchar *a, uchar *b)
 {
   return *((my_off_t*) a) < *((my_off_t*) b) ? -1 :
@@ -1704,7 +1703,7 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts)
   return 0;
 }
 
-static int compare_tree(const void* cmp_arg __attribute__((unused)),
+static int compare_tree(const void* cmp_arg MY_ATTRIBUTE((unused)),
 			const void *a, const void *b)
 {
   uint length;

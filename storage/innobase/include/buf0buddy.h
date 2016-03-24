@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -54,7 +54,7 @@ buf_buddy_alloc(
 				       	storage was allocated from the
 				       	LRU list and buf_pool->mutex was
 				       	temporarily released */
-	__attribute__((malloc));
+	MY_ATTRIBUTE((malloc));
 
 /** Deallocate a block.
 @param[in,out]	buf_pool	buffer pool in which the block resides

@@ -855,7 +855,7 @@ bool Current_schema_tracker::store(THD *thd, String &buf)
 
 void Current_schema_tracker::mark_as_changed(THD *thd,
                                              LEX_CSTRING *tracked_item_name
-                                             __attribute__((unused)))
+                                             MY_ATTRIBUTE((unused)))
 {
   m_changed= true;
   thd->lex->safe_to_cache_query= 0;
@@ -1225,7 +1225,7 @@ bool Transaction_state_tracker::store(THD *thd, String &buf)
 
 void Transaction_state_tracker::mark_as_changed(THD *thd,
                                                 LEX_CSTRING *tracked_item_name
-                                                __attribute__((unused)))
+                                                MY_ATTRIBUTE((unused)))
 {
   m_changed                    = true;
 }
@@ -1759,9 +1759,9 @@ bool Session_gtids_tracker::store(THD *thd, String &buf)
   @param tracked_item_name          Always null.
 */
 
-void Session_gtids_tracker::mark_as_changed(THD *thd __attribute__((unused)),
+void Session_gtids_tracker::mark_as_changed(THD *thd MY_ATTRIBUTE((unused)),
                                             LEX_CSTRING *tracked_item_name
-                                            __attribute__((unused)))
+                                            MY_ATTRIBUTE((unused)))
 {
   m_changed= true;
 }

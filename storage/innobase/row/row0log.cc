@@ -210,7 +210,7 @@ struct row_log_t {
 /** Create the file or online log if it does not exist.
 @param[in,out] log     online rebuild log
 @return true if success, false if not */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 int
 row_log_tmpfile(
 	row_log_t*	log)
@@ -233,7 +233,7 @@ row_log_tmpfile(
 /** Allocate the memory for the log buffer.
 @param[in,out]	log_buf	Buffer used for log operation
 @return TRUE if success, false if not */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 bool
 row_log_block_allocate(
 	row_log_buf_t&	log_buf)
@@ -425,7 +425,7 @@ row_log_table_get_error(
 /******************************************************//**
 Starts logging an operation to a table that is being rebuilt.
 @return pointer to log, or NULL if no logging is necessary */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 byte*
 row_log_table_open(
 /*===============*/
@@ -1434,7 +1434,7 @@ row_log_table_blob_alloc(
 /******************************************************//**
 Converts a log record to a table row.
 @return converted row, or NULL if the conversion fails */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 const dtuple_t*
 row_log_table_apply_convert_mrec(
 /*=============================*/
@@ -1601,7 +1601,7 @@ blob_done:
 /******************************************************//**
 Replays an insert operation on a table that was rebuilt.
 @return DB_SUCCESS or error code */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_log_table_apply_insert_low(
 /*===========================*/
@@ -1679,7 +1679,7 @@ row_log_table_apply_insert_low(
 /******************************************************//**
 Replays an insert operation on a table that was rebuilt.
 @return DB_SUCCESS or error code */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_log_table_apply_insert(
 /*=======================*/
@@ -1731,7 +1731,7 @@ row_log_table_apply_insert(
 /******************************************************//**
 Deletes a record from a table that is being rebuilt.
 @return DB_SUCCESS or error code */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_log_table_apply_delete_low(
 /*===========================*/
@@ -1835,7 +1835,7 @@ flag_ok:
 /******************************************************//**
 Replays a delete operation on a table that was rebuilt.
 @return DB_SUCCESS or error code */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_log_table_apply_delete(
 /*=======================*/
@@ -1973,7 +1973,7 @@ all_done:
 /******************************************************//**
 Replays an update operation on a table that was rebuilt.
 @return DB_SUCCESS or error code */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_log_table_apply_update(
 /*=======================*/
@@ -2338,7 +2338,7 @@ func_exit_committed:
 Applies an operation to a table that was rebuilt.
 @return NULL on failure (mrec corruption) or when out of data;
 pointer to next record on success */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 const mrec_t*
 row_log_table_apply_op(
 /*===================*/
@@ -2733,7 +2733,7 @@ row_log_progress_inc_per_block()
 ALTER TABLE. If not NULL, then stage->inc() will be called for each block
 of log that is applied.
 @return DB_SUCCESS, or error code on failure */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 row_log_table_apply_ops(
 	que_thr_t*		thr,
@@ -3467,7 +3467,7 @@ func_exit:
 Applies an operation to a secondary index that was being created.
 @return NULL on failure (mrec corruption) or when out of data;
 pointer to next record on success */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 const mrec_t*
 row_log_apply_op(
 /*=============*/

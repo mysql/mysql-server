@@ -19,12 +19,17 @@
 
 #include "dd/properties.h"                           // Needed for destructor
 #include "dd/impl/collection_impl.h"                 // Collection
+#include "dd/impl/sdi_impl.h"                        // sdi read/write functions
 #include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"                  // Raw_record
 #include "dd/impl/tables/foreign_key_column_usage.h" // Foreign_key_column_usage
 #include "dd/impl/types/foreign_key_impl.h"          // Foreign_key_impl
 #include "dd/impl/types/table_impl.h"                // Table_impl
 #include "dd/types/column.h"                         // Column
+
+#include <memory>
+#include <sstream>
+
 
 using dd::tables::Foreign_key_column_usage;
 
@@ -134,16 +139,28 @@ bool Foreign_key_element_impl::store_attributes(Raw_record *r)
 
 ///////////////////////////////////////////////////////////////////////////
 
+static_assert(Foreign_key_column_usage::FIELD_REFERENCED_COLUMN_NAME==3,
+              "Foreign_key_column_usage definition has changed, review (de)ser memfuns!");
 void
-Foreign_key_element_impl::serialize(WriterVariant *wv) const
+Foreign_key_element_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
 {
-
+  w->StartObject();
+  write_opx_reference(w, m_column, STRING_WITH_LEN("column_opx"));
+  write(w, m_ordinal_position, STRING_WITH_LEN("ordinal_position"));
+  write(w, m_referenced_column_name, STRING_WITH_LEN("referenced_column_name"));
+  w->EndObject();
 }
 
-void
-Foreign_key_element_impl::deserialize(const RJ_Document *d)
-{
+///////////////////////////////////////////////////////////////////////////
 
+bool
+Foreign_key_element_impl::deserialize(Sdi_rcontext *rctx,
+                                      const RJ_Value &val)
+{
+  read_opx_reference(rctx, &m_column, val, "column_opx");
+  read(&m_ordinal_position, val, "ordinal_position");
+  read(&m_referenced_column_name, val, "referenced_column_name");
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////

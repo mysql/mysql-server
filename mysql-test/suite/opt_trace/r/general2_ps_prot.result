@@ -1113,7 +1113,7 @@ TRACE
                 "key_length": 0,
                 "unique_constraint": false,
                 "location": "memory (heap)",
-                "row_limit_estimate": 349525
+                "row_limit_estimate": 5592405
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
@@ -1398,7 +1398,7 @@ TRACE
                 "key_length": 0,
                 "unique_constraint": false,
                 "location": "memory (heap)",
-                "row_limit_estimate": 65536
+                "row_limit_estimate": 1048576
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
@@ -1414,7 +1414,7 @@ TRACE
                       "key_length": 5,
                       "unique_constraint": false,
                       "location": "memory (heap)",
-                      "row_limit_estimate": 47662
+                      "row_limit_estimate": 762600
                     } /* tmp_table_info */
                   } /* creating_tmp_table */
                 },
@@ -3892,7 +3892,7 @@ select 497, tmp.ID, NULL from (select 497 as ID, MAX(t3.DATA) as DATA      from 
                 "key_length": 0,
                 "unique_constraint": false,
                 "location": "memory (heap)",
-                "row_limit_estimate": 104857
+                "row_limit_estimate": 1677721
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
@@ -5076,7 +5076,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
                 "key_length": 4,
                 "unique_constraint": false,
                 "location": "memory (heap)",
-                "row_limit_estimate": 58254
+                "row_limit_estimate": 932067
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },

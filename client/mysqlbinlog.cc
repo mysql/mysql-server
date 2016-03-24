@@ -28,14 +28,6 @@
    Format_desc_of_slave, Rotate_of_master, Format_desc_of_master.
 */
 
-/*
-  This include needs to be before my_compiler.h (via my_global.h)
-  is included. This is because string conflicts with the define
-  of __attribute__ in my_compiler.h on Sun Studio x86.
-  TODO: Get rid of the __attribute__ define in my_compiler.h
-*/
-#include <string>
-
 #include "mysqlbinlog.h"
 
 #include "client_priv.h"

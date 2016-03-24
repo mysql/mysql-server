@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -108,7 +108,7 @@ private:
 // Temporary work-around for Bug #18055285 LOTS OF TESTS FAILS IN CLUB MADNESS WITH NEW GCC 4.8.2 -O3
 // disabling optimization for readWriteRequest() from gcc 4.8 and up
 #if (__GNUC__ * 1000 + __GNUC_MINOR__) >= 4008
-  void readWriteRequest(  int action, Signal * signal ) __attribute__((optimize(0)));
+  void readWriteRequest(  int action, Signal * signal ) MY_ATTRIBUTE((optimize(0)));
 #else
   void readWriteRequest(  int action, Signal * signal );
 #endif

@@ -140,7 +140,7 @@ row_merge_lock_table(
 	trx_t*		trx,		/*!< in/out: transaction */
 	dict_table_t*	table,		/*!< in: table to lock */
 	enum lock_mode	mode)		/*!< in: LOCK_X or LOCK_S */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Drop indexes that were created before an error occurred.
 The data dictionary must have been locked exclusively by the caller,
@@ -174,7 +174,7 @@ UNIV_PFS_IO defined, register the file descriptor with Performance Schema.
 int
 row_merge_file_create_low(
 	const char*	path)
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /*********************************************************************//**
 Destroy a merge file. And de-register the file from Performance Schema
@@ -208,7 +208,7 @@ row_merge_rename_tables_dict(
 					old_table->name */
 	const char*	tmp_name,	/*!< in: new name for old_table */
 	trx_t*		trx)		/*!< in/out: dictionary transaction */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /*********************************************************************//**
 Rename an index in the dictionary that was created. The data
@@ -311,7 +311,7 @@ row_merge_build_indexes(
 	ut_stage_alter_t*	stage,
 	const dict_add_v_col_t*	add_v,
 	struct TABLE*		eval_table)
-__attribute__((warn_unused_result));
+MY_ATTRIBUTE((warn_unused_result));
 
 /** Write a buffer to a block.
 @param[in]	buf	sorted buffer
@@ -348,7 +348,7 @@ row_merge_buf_t*
 row_merge_buf_empty(
 /*================*/
 	row_merge_buf_t*	buf)	/*!< in,own: sort buffer */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Create a merge file int the given location.
 @param[out]	merge_file	merge file structure
@@ -385,7 +385,7 @@ row_merge_buf_t*
 row_merge_buf_create(
 /*=================*/
 	dict_index_t*	index)	/*!< in: secondary index */
-	__attribute__((warn_unused_result, malloc));
+	MY_ATTRIBUTE((warn_unused_result, malloc));
 /*********************************************************************//**
 Deallocate a sort buffer. */
 void
@@ -425,5 +425,5 @@ row_merge_read_rec(
 					or NULL on end of list
 					(non-NULL on I/O error) */
 	ulint*			offsets)/*!< out: offsets of mrec */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 #endif /* row0merge.h */

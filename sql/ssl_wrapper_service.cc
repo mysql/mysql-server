@@ -33,7 +33,7 @@ using namespace yaSSL;
 namespace ssl_wrappe_service
 {
 
-int __attribute__((visibility("default")))
+int MY_ATTRIBUTE((visibility("default")))
 dummy_function_to_ensure_we_are_linked_into_the_server() { return 1; }
 
 } // namespace ssl_wrappe_service

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,12 +32,12 @@ extern Format_description_log_event* glob_description_event;
   rpl_gtid.h, hence the early forward declaration.
 */
 void error(const char *format, ...)
-  __attribute__((format(printf, 1, 2)));
+  MY_ATTRIBUTE((format(printf, 1, 2)));
 void warning(const char *format, ...)
-  __attribute__((format(printf, 1, 2)));
+  MY_ATTRIBUTE((format(printf, 1, 2)));
 void error_or_warning(const char *format, va_list args, const char *msg)
-  __attribute__((format(printf, 1, 0)));
+  MY_ATTRIBUTE((format(printf, 1, 0)));
 void sql_print_error(const char *format,...)
-  __attribute__((format(printf, 1, 2)));
+  MY_ATTRIBUTE((format(printf, 1, 2)));
 
 #endif  // MYSQLBINLOG_INCLUDED

@@ -155,7 +155,7 @@ extern CHARSET_INFO my_charset_utf8mb4_vietnamese_ci;
 extern CHARSET_INFO my_charset_gb18030_unicode_520_ci;
 
 
-my_bool init_compiled_charsets(myf flags __attribute__((unused)))
+my_bool init_compiled_charsets(myf flags MY_ATTRIBUTE((unused)))
 {
   CHARSET_INFO *cs;
 

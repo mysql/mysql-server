@@ -1,0 +1,571 @@
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+
+#ifndef DD_SERIALIZE_IMPL_H_INCLUDED
+#define	DD_SERIALIZE_IMPL_H_INCLUDED
+
+#include "my_global.h"
+
+#include "base64.h"           // base64_encode
+#include "m_string.h"         // STRING_WITH_LEN
+#include "prealloced_array.h" // Prealloced_array
+
+#include "dd/impl/types/weak_object_impl.h" // Weak_object_impl
+#include "dd/types/fwd.h"                   // sdi_t
+#include "dd/object_id.h"                   // Object_id typedef
+
+#define RAPIDJSON_NO_SIZETYPEDEFINE
+namespace rapidjson { typedef ::std::size_t SizeType; }
+#include <rapidjson/document.h>     // rapidjson::GenericValue
+#include <rapidjson/prettywriter.h> // rapidjson::PrettyWriter
+
+#include <memory>
+
+/**
+  @file
+  @ingroup SDI
+  Internal (private) header file for the (de)serialization code. This
+  file is made up of 5 parts:
+
+  @ref int_func_decl
+  @ref prealloced_typedefs
+  @ref value_overloads
+  @ref key_templates
+  @ref special_composite_templates
+*/
+
+/**
+  @defgroup int_func_decl Internal Sdi_context Functions
+  @ingroup sdi
+
+  Declarations of internal functions which operate on Sdi_context
+  objects. Conceptually these are member functions of Sdi_context,
+  but declaring them as such would mean that the definition of
+  Sdi_context would have had to be made available in every
+  translation unit where these functions get called (most data
+  dictionary object implementation files).
+
+  This is essentially a modification of the pimpl (Pointer to
+  IMPLementation) idiom where we avoid the need to create separate
+  api and implementation classes and avoid the extra indirection of
+  going through the pimpl pointer.
+
+  @{
+*/
+
+namespace dd {
+class Properties;
+/**
+   Factory function for creating a Property object from std::string.
+
+   @param str string representation of properties
+ */
+Properties *parse_properties(const std::string &str);
+
+class Sdi_wcontext;
+
+/**
+  Return a non-owning pointer to a char buffer which can be used
+  for e.g. base64 encoding.
+  @param wctx opaque context.
+  @param sz size of buffer.
+*/
+char *buf_handle(Sdi_wcontext *wctx, size_t sz);
+
+
+/**
+  Returns const reference to string holding schema name to use in SDI.
+  @param wctx opaque context.
+  @return schema name to use.
+*/
+
+const std::string &lookup_schema_name(Sdi_wcontext *wctx);
+
+/**
+  @param wctx opaque context
+  @param id tablespace id to look up
+  @return tablespace name
+*/
+
+const std::string &lookup_tablespace_name(Sdi_wcontext *wctx, dd::Object_id id);
+
+class Sdi_rcontext;
+
+
+/**
+  Register Column objects being deserialized so that it will be
+  possible to resolve references to it after deserialization has
+  finished.
+
+  @param rctx opaque context
+  @param column_object object which may be referenced by other objects.
+*/
+
+void track_object(Sdi_rcontext *rctx, Column *column_object);
+
+
+/**
+  Register Index objects being deserialized so that it will be
+  possible to resolve references to it after deserialization has
+  finished.
+
+  @param rctx opaque context
+  @param index_object object which may be referenced by other objects.
+*/
+
+void track_object(Sdi_rcontext *rctx, Index *index_object);
+
+
+/**
+  Update an Index reference variable from a deserialized ordinal position index.
+
+  @param rctx opaque context
+  @param index_var Index reference variable to update
+  @param opx ordinal position index
+*/
+
+void lookup_opx_reference(Sdi_rcontext *rctx, Index** index_var, uint opx);
+
+
+/**
+  Update a Column reference variable from a deserialized ordinal position index.
+
+  @param rctx opaque context
+  @param column_var column reference variable to update
+  @param opx ordinal position index
+*/
+
+void lookup_opx_reference(Sdi_rcontext *rctx, Column** column_var, uint opx);
+
+
+/**
+  Return a non-owning pointer to a char buffer which can be used
+  for e.g. base64 encoding.
+  @param rctx opaque context
+  @param sz size of buffer
+  @return non-owning pointer to buffer
+*/
+
+char *buf_handle(Sdi_rcontext *rctx, size_t sz);
+
+
+/**
+  Return the the Object_id of a schema name in the current data
+  dictionary. Used to recreate a reference to a schema during
+  deserialization.
+
+  @param rctx opaque context.
+  @param name schema name used as reference.
+  @param idp [OUT] pointer to Object_id variable where result is stored.
+  @return MySQL error handling.
+  */
+
+bool lookup_schema_ref(Sdi_rcontext *rctx, const std::string &name,
+                       Object_id *idp);
+
+/**
+  Return the the Object_id of a tablespace name in the current data
+  dictionary. Used to recreate a reference to a tablespace during
+  deserialization.
+
+  @param rctx opaque context.
+  @param name schema name used as reference.
+  @param idp [OUT] pointer to Object_id variable where result is stored.
+  @return MySQL error handling.
+
+  */
+
+bool lookup_tablespace_ref(Sdi_rcontext *rctx, const std::string &name,
+                           Object_id *idp);
+
+} // namespace dd
+
+/** @} */ // int_func_decl
+
+
+/**
+  @defgroup prealloced_typedefs Prealloced_array Typedefs
+  @ingroup sdi
+
+  Defines a sub-class of Prealloced_array and some useful typedefs for use in
+  (de)serialization code.
+  @{
+*/
+
+typedef std::string binary_t;
+template <typename T, size_t PREALLOC=16>
+struct dd_vector :
+  public Prealloced_array<T, PREALLOC,
+                          std::is_trivial<T>::value >
+{
+  dd_vector(PSI_memory_key psi_key = 0) :
+    Prealloced_array<T, PREALLOC, std::is_trivial<T>::value>(psi_key)
+  {}
+};
+
+typedef dd_vector<char, 32> Byte_buffer;
+
+/** @} */ // prealloced_typedefs
+
+/**
+  @defgroup value_overloads Value Function Overloads
+  @ingroup sdi
+
+  Defines function templates for writing a "bare" (without the key) json value.
+  Each definition is overloaded on the second argument (which isn't a template
+  argument) to handle each builtin type that has a corrsponding rapidjson type.
+  @{
+*/
+
+template <typename W>
+void write_value(W *w, bool a)
+{
+  w->Bool(a);
+}
+
+template <typename GV>
+bool read_value(bool *ap, const GV &gv)
+{
+  if (!gv.IsBool())
+  {
+    return true;
+  }
+  *ap= gv.GetBool();
+  return false;
+}
+
+template <typename W>
+void write_value(W *w, int a)
+{
+  w->Int(a);
+}
+
+template <typename GV>
+bool read_value(int *ap, const GV &gv)
+{
+  if (!gv.IsInt())
+  {
+    return true;
+  }
+  *ap= gv.GetInt();
+  return false;
+}
+
+template <typename W>
+void write_value(W *w, uint a)
+{
+  w->Uint(a);
+}
+
+template <typename GV>
+bool read_value(uint *ap, const GV &gv)
+{
+  if (!gv.IsUint())
+  {
+    return true;
+  }
+  *ap= gv.GetUint();
+  return false;
+}
+
+template <typename W>
+void write_value(W *w, ulong a)
+{
+  w->Uint64(a);
+}
+
+template <typename GV>
+bool read_value(ulong *ap, const GV &gv)
+{
+  if (!gv.IsUint64())
+  {
+    return true;
+  }
+  *ap= gv.GetUint64();
+  return false;
+}
+
+template <typename W>
+void write_value(W *w, ulonglong a)
+{
+  w->Uint64(a);
+}
+
+template <typename GV>
+bool read_value(ulonglong *ap, const GV &gv)
+{
+  if (!gv.IsUint64())
+  {
+    return true;
+  }
+  *ap= gv.GetUint64();
+  return false;
+}
+
+template <typename W>
+void write_value(W *w, const std::string &a)
+{
+  w->String(a.c_str(), a.size());
+}
+
+template <typename GV>
+bool read_value(std::string *ap, const GV &gv)
+{
+  if (!gv.IsString())
+  {
+    return true;
+  }
+  *ap= std::string(gv.GetString(), gv.GetStringLength());
+  return false;
+}
+/** @} */ // value_overloads
+
+
+/**
+  @defgroup key_templates Key-related Function Templates
+  @ingroup sdi
+
+  Defines wrapper function templates which handles the key part when
+  writing and writing json.
+
+  @{
+*/
+
+template <typename W, typename T>
+void write(W *w, const T &t, const char *key, size_t key_sz)
+{
+  w->String(key, key_sz);
+  write_value(w, t);
+}
+
+template <typename T, typename GV>
+bool read(T *ap, const GV &gv, const char *key)
+{
+  if (!gv.HasMember(key))
+  {
+    return true;
+  }
+
+  return read_value(ap, gv[key]);
+}
+
+/** @} */ // key_templates
+
+/**
+  @defgroup special_composite_templates Function Templates for Composite Types
+  @ingroup sdi
+
+  Defines function templates to handle types that do not map directly
+  to a rapidjson type, and require some amount of converson/adaptation.
+
+  @{
+*/
+
+template <typename W, typename ENUM_T>
+void write_enum(W *w, ENUM_T enum_val, const char *key, size_t keysz)
+{
+  write(w, static_cast<ulonglong>(enum_val), key, keysz);
+}
+
+template <typename ENUM_T, typename GV>
+bool read_enum(ENUM_T *ep, const GV &gv, const char *key)
+{
+  ulonglong v= 0;
+  if (read(&v, gv, key))
+  {
+    return true;
+  }
+  *ep= static_cast<ENUM_T>(v);
+  return false;
+}
+
+template <typename W>
+void write_binary(dd::Sdi_wcontext *wctx, W *w, const binary_t &b,
+                  const char *key, size_t keysz)
+{
+  int binsz= static_cast<int>(b.size());
+  int b64sz= base64_needed_encoded_length(binsz);
+
+  char *bp= dd::buf_handle(wctx, static_cast<size_t>(b64sz));
+  DBUG_ASSERT(bp);
+
+  base64_encode(b.c_str(), binsz, bp);
+  w->String(key, keysz);
+  w->String(bp);
+}
+
+template <typename GV>
+bool read_binary(dd::Sdi_rcontext *rctx, binary_t *b,
+                 const GV &gv, const char *key)
+{
+  if (!gv.HasMember(key))
+  {
+    return true;
+  }
+
+  const GV &a_gv= gv[key];
+
+  if (!a_gv.IsString())
+  {
+    return true;
+  }
+
+  const char *b64= a_gv.GetString();
+  size_t b64sz= a_gv.GetStringLength();
+  int binsz= base64_needed_decoded_length(b64sz);
+
+  char *bp= dd::buf_handle(rctx, static_cast<size_t>(binsz));
+  binsz= base64_decode(b64, b64sz, bp, NULL, 0);
+  *b= binary_t(bp, binsz);
+  return false;
+}
+
+
+template <typename W, typename PP>
+void write_properties(W *w, const PP &p, const char *key, size_t keysz)
+{
+  DBUG_ASSERT(p.get());
+  write(w, p->raw_string(), key, keysz);
+}
+
+template <typename PP, typename GV>
+bool read_properties(PP *p, const GV &gv, const char *key)
+{
+  std::string raw_string;
+  if (read(&raw_string, gv, key))
+  {
+    return true;
+  }
+  p->reset(dd::parse_properties(raw_string));
+  return false;
+}
+
+template <typename W, typename PP>
+void write_opx_reference(W *w, const PP &p, const char *key, size_t keysz)
+{
+  uint opx= 0;
+  if (p)
+  {
+    DBUG_ASSERT(p->ordinal_position() > 0);
+    opx= p->ordinal_position()-1;
+    write(w, opx, key, keysz);
+  }
+}
+
+
+template <typename PP, typename GV>
+bool read_opx_reference(dd::Sdi_rcontext *rctx, PP *p, const GV &gv,
+                        const char *key)
+{
+  uint opx= 0;
+  if (read(&opx, gv, key))
+  {
+    return true;
+  }
+  lookup_opx_reference(rctx, p, opx);
+  return false;
+}
+
+template <typename GV>
+bool deserialize_schema_ref(dd::Sdi_rcontext *rctx, dd::Object_id *p,
+                                  const GV &gv, const char *key)
+{
+  std::string schema_name;
+  return (read(&schema_name, gv, key) ||
+          lookup_schema_ref(rctx, schema_name, p));
+}
+
+template <typename W>
+void serialize_tablespace_ref(dd::Sdi_wcontext *wctx, W *w,
+                              dd::Object_id tablespace_id,
+                              const char *key, size_t keysz)
+{
+  if (tablespace_id == dd::INVALID_OBJECT_ID)
+  {
+    // There is no name to look up (will be the case for SEs not using
+    // tablespaces
+    return;
+  }
+  const std::string &tablespace_name=
+    lookup_tablespace_name(wctx, tablespace_id);
+  if (tablespace_name.empty())
+  {
+    return;
+  }
+  write(w, tablespace_name, key, keysz);
+}
+
+
+template <typename GV>
+bool deserialize_tablespace_ref(dd::Sdi_rcontext *rctx, dd::Object_id *p,
+                                const GV &gv, const char *key)
+{
+  std::string tablespace_name;
+  if (read(&tablespace_name, gv, key))
+  {
+    return false; // Ok not to have this
+  }
+  return lookup_tablespace_ref(rctx, tablespace_name, p);
+}
+
+
+template <typename W, typename C>
+void serialize_each(dd::Sdi_wcontext *wctx, W *w, const C *cp,
+                    const char *key, size_t keysz)
+{
+  w->String(key, keysz);
+  w->StartArray();
+  typedef typename C::const_iterator_type IT;
+  typedef typename C::value_type VT;
+  std::unique_ptr<IT> it(cp->const_iterator(true));
+  for (const VT *vp= it->next(); vp; vp= it->next())
+  {
+    vp->serialize(wctx, w);
+  }
+  w->EndArray(cp->size());
+}
+
+template <typename ADD_BINDER, typename GV>
+bool deserialize_each(dd::Sdi_rcontext *rctx, ADD_BINDER add_binder,
+                      const GV &obj_gv, const char *key)
+{
+  if (!obj_gv.HasMember(key))
+  {
+    return true;
+  }
+
+  const GV &array_gv= obj_gv[key];
+  if (!array_gv.IsArray())
+  {
+    return true;
+  }
+
+  const typename GV::ConstValueIterator end= array_gv.End();
+  for (typename GV::ConstValueIterator it= array_gv.Begin();
+       it != end; ++it)
+  {
+    if (add_binder()->deserialize(rctx, *it))
+    {
+      return true;
+    }
+  }
+  return false;
+}
+/** @} */ // special_composite_templates
+
+//} // namespace dd_sdi_impl
+
+
+#endif	/* DD_SERIALIZE_IMPL_H_INCLUDED */

@@ -457,8 +457,8 @@ static PSI_memory_info all_federated_memory[]=
 #ifdef HAVE_PSI_INTERFACE
 static void init_federated_psi_keys(void)
 {
-  const char* category __attribute__((unused)) = "federated";
-  int count __attribute__((unused));
+  const char* category MY_ATTRIBUTE((unused)) = "federated";
+  int count MY_ATTRIBUTE((unused));
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
   count= array_elements(all_federated_mutexes);
@@ -2755,7 +2755,7 @@ int ha_federated::read_next(uchar *buf, MYSQL_RES *result)
   @param[in]  record  record data (unused)
 */
 
-void ha_federated::position(const uchar *record __attribute__ ((unused)))
+void ha_federated::position(const uchar *record MY_ATTRIBUTE ((unused)))
 {
   DBUG_ENTER("ha_federated::position");
   

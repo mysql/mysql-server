@@ -46,6 +46,8 @@
 
 #include "dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
 #include "dd/dd_table.h"              // dd::acquire_uncache_uncommitted_table
+#include "dd/dd_schema.h"             // dd::Schema_MDL_locker
+#include "dd/sdi.h"                   // dd::store_sdi
 
 static bool check_view_insertability(THD *thd, TABLE_LIST *view,
                                      const TABLE_LIST *insert_table_ref);
@@ -3152,7 +3154,15 @@ void Query_result_create::drop_open_table()
 
       {
         Disable_gtid_state_update_guard disabler(thd);
+        dd::Schema_MDL_locker mdl_locker(thd);
+        dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+        const dd::Schema *sch_obj= NULL;
         thd->dd_client()->store(table_def.get());
+        if (!mdl_locker.ensure_locked(create_table->db) &&
+            !thd->dd_client()->acquire<dd::Schema>(create_table->db,
+                                                   &sch_obj) &&
+            sch_obj)
+          dd::store_sdi(thd, table_def.get(), sch_obj);
         trans_commit_stmt(thd);
         trans_commit(thd);
       }

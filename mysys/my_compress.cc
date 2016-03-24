@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -156,8 +156,8 @@ my_bool my_uncompress(uchar *packet, size_t len, size_t *complen)
 */
 /* purecov: begin deadcode */
 my_bool compress_serialized_meta_data(
-          uchar *meta_data __attribute__((unused)) ,
-          size_t meta_data_length __attribute__((unused)),
+          uchar *meta_data MY_ATTRIBUTE((unused)) ,
+          size_t meta_data_length MY_ATTRIBUTE((unused)),
           uchar **compressed_meta_data,
           size_t *compressed_meta_data_length)
 {
@@ -180,8 +180,8 @@ my_bool compress_serialized_meta_data(
   @param [out] meta_data_length            Length of meta data.
 */
 my_bool uncompress_serialized_meta_data(
-          uchar *compressed_meta_data __attribute__((unused)),
-          size_t compressed_meta_data_length __attribute__((unused)),
+          uchar *compressed_meta_data MY_ATTRIBUTE((unused)),
+          size_t compressed_meta_data_length MY_ATTRIBUTE((unused)),
           uchar **meta_data,
           size_t *meta_data_length)
 {

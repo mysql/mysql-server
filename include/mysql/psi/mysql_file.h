@@ -516,9 +516,9 @@ static inline void inline_mysql_file_register(
   PSI_file_info *info,
   int count
 #else
-  const char *category __attribute__ ((unused)),
-  void *info __attribute__ ((unused)),
-  int count __attribute__ ((unused))
+  const char *category MY_ATTRIBUTE ((unused)),
+  void *info MY_ATTRIBUTE ((unused)),
+  int count MY_ATTRIBUTE ((unused))
 #endif
 )
 {
@@ -635,7 +635,7 @@ inline_mysql_file_fputc(
 
 static inline int
 inline_mysql_file_fprintf(MYSQL_FILE *file, const char *format, ...)
-__attribute__((format(printf, 2, 3)));
+MY_ATTRIBUTE((format(printf, 2, 3)));
 
 static inline int
 inline_mysql_file_fprintf(MYSQL_FILE *file, const char *format, ...)
@@ -674,9 +674,9 @@ inline_mysql_file_vfprintf(
 #endif
   MYSQL_FILE *file, const char *format, va_list args)
 #ifdef HAVE_PSI_FILE_INTERFACE
-  __attribute__((format(printf, 4, 0)));
+  MY_ATTRIBUTE((format(printf, 4, 0)));
 #else
-  __attribute__((format(printf, 2, 0)));
+  MY_ATTRIBUTE((format(printf, 2, 0)));
 #endif
 
 static inline int

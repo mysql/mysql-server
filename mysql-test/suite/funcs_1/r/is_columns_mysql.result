@@ -100,7 +100,7 @@ def	mysql	ndb_binlog_index	updates	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	i
 def	mysql	plugin	dl	2		NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references		
 def	mysql	plugin	name	1		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI		select,insert,update,references		
 def	mysql	procs_priv	Db	2		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references		
-def	mysql	procs_priv	Grantor	6		NO	char	77	231	NULL	NULL	NULL	utf8	utf8_bin	char(77)	MUL		select,insert,update,references		
+def	mysql	procs_priv	Grantor	6		NO	char	93	279	NULL	NULL	NULL	utf8	utf8_bin	char(93)	MUL		select,insert,update,references		
 def	mysql	procs_priv	Host	1		NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references		
 def	mysql	procs_priv	Proc_priv	7		NO	set	27	81	NULL	NULL	NULL	utf8	utf8_general_ci	set('Execute','Alter Routine','Grant')			select,insert,update,references		
 def	mysql	procs_priv	Routine_name	4		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references		
@@ -188,7 +188,7 @@ def	mysql	slow_log	thread_id	12	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	big
 def	mysql	slow_log	user_host	2	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references		
 def	mysql	tables_priv	Column_priv	8		NO	set	31	93	NULL	NULL	NULL	utf8	utf8_general_ci	set('Select','Insert','Update','References')			select,insert,update,references		
 def	mysql	tables_priv	Db	2		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references		
-def	mysql	tables_priv	Grantor	5		NO	char	77	231	NULL	NULL	NULL	utf8	utf8_bin	char(77)	MUL		select,insert,update,references		
+def	mysql	tables_priv	Grantor	5		NO	char	93	279	NULL	NULL	NULL	utf8	utf8_bin	char(93)	MUL		select,insert,update,references		
 def	mysql	tables_priv	Host	1		NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)	PRI		select,insert,update,references		
 def	mysql	tables_priv	Table_name	4		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references		
 def	mysql	tables_priv	Table_priv	7		NO	set	98	294	NULL	NULL	NULL	utf8	utf8_general_ci	set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger')			select,insert,update,references		
@@ -215,7 +215,7 @@ def	mysql	triggers	action_timing	6	NULL	NO	enum	6	18	NULL	NULL	NULL	utf8	utf8_bi
 def	mysql	triggers	client_collation_id	14	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references		
 def	mysql	triggers	connection_collation_id	15	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references		
 def	mysql	triggers	created	10	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references		
-def	mysql	triggers	definer	13	NULL	NO	varchar	77	231	NULL	NULL	NULL	utf8	utf8_bin	varchar(77)			select,insert,update,references		
+def	mysql	triggers	definer	13	NULL	NO	varchar	93	279	NULL	NULL	NULL	utf8	utf8_bin	varchar(93)			select,insert,update,references		
 def	mysql	triggers	event_type	4	NULL	NO	enum	6	18	NULL	NULL	NULL	utf8	utf8_bin	enum('INSERT','UPDATE','DELETE')			select,insert,update,references		
 def	mysql	triggers	id	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI	auto_increment	select,insert,update,references		
 def	mysql	triggers	last_altered	11	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references		
@@ -442,7 +442,7 @@ NULL	mysql	ndb_binlog_index	next_position	bigint	NULL	NULL	NULL	NULL	bigint(20) 
 3.0000	mysql	procs_priv	User	char	32	96	utf8	utf8_bin	char(32)
 3.0000	mysql	procs_priv	Routine_name	char	64	192	utf8	utf8_general_ci	char(64)
 3.0000	mysql	procs_priv	Routine_type	enum	9	27	utf8	utf8_bin	enum('FUNCTION','PROCEDURE')
-3.0000	mysql	procs_priv	Grantor	char	77	231	utf8	utf8_bin	char(77)
+3.0000	mysql	procs_priv	Grantor	char	93	279	utf8	utf8_bin	char(93)
 3.0000	mysql	procs_priv	Proc_priv	set	27	81	utf8	utf8_general_ci	set('Execute','Alter Routine','Grant')
 NULL	mysql	procs_priv	Timestamp	timestamp	NULL	NULL	NULL	NULL	timestamp
 3.0000	mysql	proxies_priv	Host	char	60	180	utf8	utf8_bin	char(60)
@@ -528,7 +528,7 @@ NULL	mysql	slow_log	thread_id	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 3.0000	mysql	tables_priv	Db	char	64	192	utf8	utf8_bin	char(64)
 3.0000	mysql	tables_priv	User	char	32	96	utf8	utf8_bin	char(32)
 3.0000	mysql	tables_priv	Table_name	char	64	192	utf8	utf8_bin	char(64)
-3.0000	mysql	tables_priv	Grantor	char	77	231	utf8	utf8_bin	char(77)
+3.0000	mysql	tables_priv	Grantor	char	93	279	utf8	utf8_bin	char(93)
 NULL	mysql	tables_priv	Timestamp	timestamp	NULL	NULL	NULL	NULL	timestamp
 3.0000	mysql	tables_priv	Table_priv	set	98	294	utf8	utf8_general_ci	set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger')
 3.0000	mysql	tables_priv	Column_priv	set	31	93	utf8	utf8_general_ci	set('Select','Insert','Update','References')
@@ -558,7 +558,7 @@ NULL	mysql	triggers	action_order	int	NULL	NULL	NULL	NULL	int(10) unsigned
 NULL	mysql	triggers	created	timestamp	NULL	NULL	NULL	NULL	timestamp
 NULL	mysql	triggers	last_altered	timestamp	NULL	NULL	NULL	NULL	timestamp
 3.0000	mysql	triggers	sql_mode	set	638	1914	utf8	utf8_bin	set('MODE_REAL_AS_FLOAT','MODE_PIPES_AS_CONCAT','MODE_ANSI_QUOTES','MODE_IGNORE_SPACE','MODE_NOT_USED','MODE_ONLY_FULL_GROUP_BY','MODE_NO_UNSIGNED_SUBTRACTION','MODE_NO_DIR_IN_CREATE','MODE_POSTGRESQL','MODE_ORACLE','MODE_MSSQL','MODE_DB2','MODE_MAXDB','MODE_NO_KEY_OPTIONS','MODE_NO_TABLE_OPTIONS','MODE_NO_FIELD_OPTIONS','MODE_MYSQL323','MODE_MYSQL40','MODE_ANSI','MODE_NO_AUTO_VALUE_ON_ZERO','MODE_NO_BACKSLASH_ESCAPES','MODE_STRICT_TRANS_TABLES','MODE_STRICT_ALL_TABLES','MODE_NO_ZERO_IN_DATE','MODE_NO_ZERO_DATE','MODE_INVALID_DATES','MODE_ERROR_FOR_DIVISION_BY_ZERO','MODE_TRADITIONAL','MODE_NO_AUTO_CREATE_USER','MODE_HIGH_NOT_PRECEDENCE','MODE_NO_ENGINE_SUBSTITUTION','MODE_PAD_CHAR_TO_FULL_LENGTH')
-3.0000	mysql	triggers	definer	varchar	77	231	utf8	utf8_bin	varchar(77)
+3.0000	mysql	triggers	definer	varchar	93	279	utf8	utf8_bin	varchar(93)
 NULL	mysql	triggers	client_collation_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 NULL	mysql	triggers	connection_collation_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 NULL	mysql	triggers	schema_collation_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned

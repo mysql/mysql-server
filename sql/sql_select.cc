@@ -3333,7 +3333,7 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
     TRUE on error  
 */
 
-__attribute__((warn_unused_result))
+MY_ATTRIBUTE((warn_unused_result))
 bool JOIN::clear()
 {
   /* 

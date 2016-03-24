@@ -195,7 +195,7 @@ public:
 	@param[in]	strict	whether to issue error messages
 	@return DB_SUCCESS or error code */
 	dberr_t open_read_only(bool strict)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Open a data file in read-write mode during start-up so that
 	doublewrite pages can be restored and then it can be validated.
@@ -203,7 +203,7 @@ public:
 					are enforced.
 	@return DB_SUCCESS or error code */
 	dberr_t open_read_write(bool read_only_mode)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Initialize OS specific file info. */
 	void init_file_info();
@@ -247,7 +247,7 @@ public:
 		ulint		space_id,
 		ulint		flags,
 		bool		for_import)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Validates this datafile for the purpose of recovery.
 	The file should exist and be successfully opened. We initially
@@ -258,7 +258,7 @@ public:
 	@retval DB_SUCCESS if tablespace is valid, DB_ERROR if not.
 	m_is_valid is also set true on success, else false. */
 	dberr_t validate_for_recovery()
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Checks the consistency of the first page of a datafile when the
 	tablespace is opened.  This occurs before the fil_space_t is created
@@ -272,7 +272,7 @@ public:
 	@retval DB_TABLESPACE_EXISTS if there is a duplicate space_id */
 	dberr_t validate_first_page(lsn_t*	flush_lsn,
 				    bool	for_import)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Get Datafile::m_name.
 	@return m_name */
@@ -372,7 +372,7 @@ private:
 					are enforced.
 	@return DB_SUCCESS or error code */
 	dberr_t open_or_create(bool read_only_mode)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Reads a few significant fields from the first page of the
 	datafile, which must already be open.
@@ -380,7 +380,7 @@ private:
 					are enforced.
 	@return DB_SUCCESS or DB_IO_ERROR if page cannot be read */
 	dberr_t read_first_page(bool read_only_mode)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Free the first page from memory when it is no longer needed. */
 	void free_first_page();

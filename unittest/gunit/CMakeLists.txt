@@ -334,10 +334,10 @@ SET(SERVER_TESTS
   create_field
   dd_partitions
   dd_properties
+  dd_sdi
   dd_schema
   dd_table
   dd_cache
-  dd_serialize_interface
   debug_sync
   explain_filename
   field
@@ -415,6 +415,10 @@ IF (MERGE_UNITTESTS)
   ENDIF()
   ADD_COMPILE_FLAGS(
     ${MERGE_SMALL_TESTS}
+    COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+  )
+  ADD_COMPILE_FLAGS(
+    ${MERGE_LARGE_TESTS}
     COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
   )
   ## Merging unit tests on Windows gives so many sections in the object file
@@ -500,6 +504,11 @@ ENDIF(MERGE_UNITTESTS)
   )
   ADD_COMPILE_FLAGS(
     pump_object_filter-t.cc
+    COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
+  )
+
+  ADD_COMPILE_FLAGS(
+    dd_sdi-t.cc
     COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
   )
 

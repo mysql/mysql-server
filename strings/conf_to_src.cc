@@ -148,8 +148,8 @@ static int add_collation(CHARSET_INFO *cs)
 
 
 static void
-default_reporter(enum loglevel level  __attribute__ ((unused)),
-                 const char *format  __attribute__ ((unused)),
+default_reporter(enum loglevel level  MY_ATTRIBUTE ((unused)),
+                 const char *format  MY_ATTRIBUTE ((unused)),
                  ...)
 {
 }
@@ -299,7 +299,7 @@ fprint_copyright(FILE *file)
 
 
 int
-main(int argc, char **argv  __attribute__((unused)))
+main(int argc, char **argv  MY_ATTRIBUTE((unused)))
 {
   CHARSET_INFO  ncs;
   CHARSET_INFO  *cs;

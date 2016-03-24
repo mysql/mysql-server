@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -103,32 +103,32 @@ struct Compression {
 	@param[in]	page		Page contents
 	@return true if it is a compressed page */
 	static bool is_compressed_page(const byte* page)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
         /** Check wether the compression algorithm is supported.
         @param[in]      algorithm       Compression algorithm to check
         @param[out]     compression            The type that algorithm maps to
         @return DB_SUCCESS or error code */
 	static dberr_t check(const char* algorithm, Compression* compression)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
         /** Validate the algorithm string.
         @param[in]      algorithm       Compression algorithm to check
         @return DB_SUCCESS or error code */
 	static dberr_t validate(const char* algorithm)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
         /** Convert to a "string".
         @param[in]      type            The compression type
         @return the string representation */
         static const char* to_string(Type type)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
         /** Convert the meta data to a std::string.
         @param[in]      meta		Page Meta data
         @return the string representation */
         static std::string to_string(const meta_t& meta)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Deserizlise the page header compression meta-data
 	@param[in]	page		Pointer to the page header
@@ -141,7 +141,7 @@ struct Compression {
         @param[in]      algorithm       Compression algorithm to check
         @return true if no algorithm requested */
 	static bool is_none(const char* algorithm)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Decompress the page data contents. Page type must be
 	FIL_PAGE_COMPRESSED, if not then the source contents are
@@ -158,7 +158,7 @@ struct Compression {
 		byte*		src,
 		byte*		dst,
 		ulint		dst_len)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 	/** Compression type */
 	Type		m_type;

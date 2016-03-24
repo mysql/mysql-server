@@ -190,7 +190,7 @@ the DICT_TF_COMPACT bit set.
 bool
 fsp_flags_is_valid(
 	ulint	flags)
-	__attribute__((warn_unused_result, const));
+	MY_ATTRIBUTE((warn_unused_result, const));
 
 /** Check if tablespace is system temporary.
 @param[in]      space_id        verify is checksum is enabled for given space.

@@ -393,7 +393,7 @@ static inline void sleep(unsigned long seconds)
 #define compile_time_assert(X)                                              \
   do                                                                        \
   {                                                                         \
-    typedef char compile_time_assert[(X) ? 1 : -1] __attribute__((unused)); \
+    typedef char compile_time_assert[(X) ? 1 : -1] MY_ATTRIBUTE((unused)); \
   } while(0)
 
 /*

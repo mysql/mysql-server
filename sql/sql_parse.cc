@@ -1720,7 +1720,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
   {
     System_status_var current_global_status_var;
     ulong uptime;
-    size_t length __attribute__((unused));
+    size_t length MY_ATTRIBUTE((unused));
     ulonglong queries_per_second1000;
     char buff[250];
     size_t buff_len= sizeof(buff);
@@ -5010,9 +5010,9 @@ finish:
   {
     static unsigned long total_leaked_bytes= 0;
     unsigned long leaked= 0;
-    unsigned long dubious __attribute__((unused));
-    unsigned long reachable __attribute__((unused));
-    unsigned long suppressed __attribute__((unused));
+    unsigned long dubious MY_ATTRIBUTE((unused));
+    unsigned long reachable MY_ATTRIBUTE((unused));
+    unsigned long suppressed MY_ATTRIBUTE((unused));
     /*
       We could possibly use VALGRIND_DO_CHANGED_LEAK_CHECK here,
       but that is a fairly new addition to the Valgrind api.
@@ -5125,7 +5125,7 @@ long max_stack_used;
   - Passing to check_stack_overrun() prevents the compiler from removing it.
 */
 bool check_stack_overrun(const THD *thd, long margin,
-			 uchar *buf __attribute__((unused)))
+			 uchar *buf MY_ATTRIBUTE((unused)))
 {
   long stack_used;
   DBUG_ASSERT(thd == current_thd);
@@ -5489,7 +5489,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
             (char *) thd->security_context()->host_or_ip().str,
             0);
 
-          int error __attribute__((unused));
+          int error MY_ATTRIBUTE((unused));
           if (unlikely(thd->security_context()->password_expired() &&
                        lex->sql_command != SQLCOM_SET_PASSWORD &&
                        lex->sql_command != SQLCOM_SET_OPTION &&

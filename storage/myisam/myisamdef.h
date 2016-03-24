@@ -776,11 +776,11 @@ int mi_check_index_cond(MI_INFO *info, uint keynr, uchar *record);
     /* Functions needed by mi_check */
 volatile int *killed_ptr(MI_CHECK *param);
 void mi_check_print_error(MI_CHECK *param, const char *fmt,...)
-  __attribute__((format(printf, 2, 3)));
+  MY_ATTRIBUTE((format(printf, 2, 3)));
 void mi_check_print_warning(MI_CHECK *param, const char *fmt,...)
-  __attribute__((format(printf, 2, 3)));
+  MY_ATTRIBUTE((format(printf, 2, 3)));
 void mi_check_print_info(MI_CHECK *param, const char *fmt,...)
-  __attribute__((format(printf, 2, 3)));
+  MY_ATTRIBUTE((format(printf, 2, 3)));
 int flush_pending_blocks(MI_SORT_PARAM *param);
 int sort_ft_buf_flush(MI_SORT_PARAM *sort_param);
 int thr_write_keys(MI_SORT_PARAM *sort_param);

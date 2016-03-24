@@ -1827,7 +1827,7 @@ terminate_slave_thread(THD *thd,
       ESRCH: thread already killed (can happen, should be ignored)
     */
 #ifndef _WIN32
-    int err __attribute__((unused))= pthread_kill(thd->real_id, SIGUSR1);
+    int err MY_ATTRIBUTE((unused))= pthread_kill(thd->real_id, SIGUSR1);
     DBUG_ASSERT(err != EINVAL);
 #endif
     thd->awake(THD::NOT_KILLED);
@@ -2483,6 +2483,7 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
   MYSQL_RES *master_res= NULL;
   MYSQL_ROW master_row= NULL;
   int ret= 0;
+  char query_buf[]= "SELECT @@GLOBAL.SERVER_UUID";
 
   DBUG_EXECUTE_IF("dbug.return_null_MASTER_UUID",
                   {
@@ -2505,7 +2506,13 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
                     DBUG_ASSERT(!debug_sync_set_action(current_thd,
                                                        STRING_WITH_LEN(act)));
                   };);
-  if (!mysql_real_query(mysql, STRING_WITH_LEN("SELECT @@GLOBAL.SERVER_UUID")) &&
+#ifndef DBUG_OFF
+  DBUG_EXECUTE_IF("dbug.simulate_no_such_var_server_uuid",
+		  {
+		    query_buf[strlen(query_buf) - 1]= '_'; // currupt the last char
+		  });
+#endif
+  if (!mysql_real_query(mysql, STRING_WITH_LEN(query_buf)) &&
       (master_res= mysql_store_result(mysql)) &&
       (master_row= mysql_fetch_row(master_res)))
   {
@@ -2532,7 +2539,7 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
       mi->master_uuid[UUID_LENGTH]= 0;
     }
   }
-  else if (mysql_errno(mysql))
+  else if (mysql_errno(mysql) != ER_UNKNOWN_SYSTEM_VARIABLE)
   {
     if (is_network_error(mysql_errno(mysql)))
     {
@@ -2552,7 +2559,7 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
       ret= 1;
     }
   }
-  else if (!master_row && master_res)
+  else
   {
     mi->master_uuid[0]= 0;
     mi->report(WARNING_LEVEL, ER_UNKNOWN_SYSTEM_VARIABLE,
@@ -2836,7 +2843,7 @@ not always make sense; please check the manual before using it).";
       goto err;
     }
   }
-  else if (mysql_errno(mysql))
+  else if (mysql_errno(mysql) != ER_UNKNOWN_SYSTEM_VARIABLE)
   {
     if (check_io_slave_killed(mi->info_thd, mi, NULL))
       goto slave_killed_err;
@@ -2853,7 +2860,7 @@ when it try to get the value of SERVER_ID variable from master.";
     sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
     goto err;
   }
-  else if (!master_row && master_res)
+  else
   {
     mi->report(WARNING_LEVEL, ER_UNKNOWN_SYSTEM_VARIABLE,
                "Unknown system variable 'SERVER_ID' on master, \
@@ -8816,9 +8823,9 @@ static IO_CACHE *reopen_relay_log(Relay_log_info *rli, const char **errmsg)
 
 /**
   Reads next event from the relay log.  Should be called from the
-  slave IO thread.
+  slave SQL thread.
 
-  @param rli Relay_log_info structure for the slave IO thread.
+  @param rli Relay_log_info structure for the slave SQL thread.
 
   @return The event read, or NULL on error.  If an error occurs, the
   error is reported through the sql_print_information() or
@@ -8863,7 +8870,8 @@ static Log_event* next_event(Relay_log_info* rli)
         We just have a read only log that nobody else will be updating.
     */
     bool hot_log;
-    if ((hot_log = (cur_log != &rli->cache_buf)))
+    if ((hot_log = (cur_log != &rli->cache_buf)) ||
+        DBUG_EVALUATE_IF("force_sql_thread_error", 1, 0))
     {
       DBUG_ASSERT(rli->cur_log_fd == -1); // foreign descriptor
       mysql_mutex_lock(log_lock);
@@ -8872,7 +8880,8 @@ static Log_event* next_event(Relay_log_info* rli)
         Reading xxx_file_id is safe because the log will only
         be rotated when we hold relay_log.LOCK_log
       */
-      if (rli->relay_log.get_open_count() != rli->cur_log_old_open_count)
+      if (rli->relay_log.get_open_count() != rli->cur_log_old_open_count &&
+          DBUG_EVALUATE_IF("force_sql_thread_error", 0, 1))
       {
         // The master has switched to a new log file; Reopen the old log file
         cur_log=reopen_relay_log(rli, &errmsg);
@@ -8887,8 +8896,13 @@ static Log_event* next_event(Relay_log_info* rli)
       error during a write by the slave I/O thread may have closed it), we
       have to test it.
     */
-    if (!my_b_inited(cur_log))
+    if (!my_b_inited(cur_log) ||
+        DBUG_EVALUATE_IF("force_sql_thread_error", 1, 0))
+    {
+      if (hot_log)
+        mysql_mutex_unlock(log_lock);
       goto err;
+    }
 #ifndef DBUG_OFF
     {
       DBUG_PRINT("info", ("assertion skip %lu file pos %lu event relay log pos %lu file %s\n",

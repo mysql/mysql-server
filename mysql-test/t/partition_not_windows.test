@@ -98,18 +98,21 @@ set @@sql_mode=@org_mode;
 let $MYSQLD_DATADIR= `select @@datadir`;
 
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--replace_regex /(Incorrect path value: ).*/\1'MYSQLD_DATADIR\/test'/
 --error ER_WRONG_VALUE
 eval CREATE TABLE t1(a INT)
 PARTITION BY KEY (a)
 (PARTITION p0 DATA DIRECTORY '$MYSQLD_DATADIR/test');
 
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--replace_regex /(Incorrect path value: ).*/\1'MYSQLD_DATADIR\/test'/
 --error ER_WRONG_VALUE
 eval CREATE TABLE t1(a INT)
 PARTITION BY KEY (a)
 (PARTITION p0 INDEX DIRECTORY '$MYSQLD_DATADIR/test');
 
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--replace_regex  /(Incorrect path value: ).*/\1'MYSQLD_DATADIR\/test'/
 --error ER_WRONG_VALUE
 eval CREATE TABLE ts (id INT, purchased DATE)
 PARTITION BY RANGE(YEAR(purchased))
@@ -122,6 +125,7 @@ SUBPARTITION s0b
 ));
 
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--replace_regex  /(Incorrect path value: ).*/\1'MYSQLD_DATADIR\/test'/
 --error ER_WRONG_VALUE
 eval CREATE TABLE ts (id INT, purchased DATE)
 PARTITION BY RANGE(YEAR(purchased))

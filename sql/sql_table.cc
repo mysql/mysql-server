@@ -68,6 +68,7 @@
 #include "dd/types/schema.h"
 #include "dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
 #include "dd_table_share.h"
+#include "dd/sdi.h"                   // dd::remove_sdi
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -6077,14 +6078,26 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
   */
 
   // We must make sure the schema is released and unlocked in the right order.
+  dd::Schema_MDL_locker from_mdl_locker(thd);
   dd::Schema_MDL_locker to_mdl_locker(thd);
   // Check if destination schemas exist.
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  const dd::Schema *from_sch= NULL;
   const dd::Schema *to_sch= NULL;
 
-  if (thd->dd_client()->acquire<dd::Schema>(new_db, &to_sch))
+  if (from_mdl_locker.ensure_locked(old_db) ||
+      to_mdl_locker.ensure_locked(new_db) ||
+      thd->dd_client()->acquire<dd::Schema>(old_db, &from_sch) ||
+      thd->dd_client()->acquire<dd::Schema>(new_db, &to_sch))
   {
     // Error is reported by the dictionary subsystem.
+    DBUG_RETURN(true);
+  }
+
+  // We did not find old_db, so stop here.
+  if (!from_sch)
+  {
+    my_error(ER_BAD_DB_ERROR, MYF(0), old_db);
     DBUG_RETURN(true);
   }
 
@@ -6230,8 +6243,8 @@ mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
   }
   else
   {
-    if (dd::rename_table<dd::Table>(thd, from_table_def.get(),
-                                    to_table_def.get(),
+    if (dd::rename_table<dd::Table>(thd, from_sch, from_table_def.get(),
+                                    to_sch, to_table_def.get(),
                                     !(flags & NO_DD_COMMIT)))
     {
       /*
@@ -6507,7 +6520,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
           */
           create_info->used_fields|= HA_CREATE_USED_ENGINE;
 
-          int result __attribute__((unused))=
+          int result MY_ATTRIBUTE((unused))=
             store_create_info(thd, table, &query,
                               create_info, TRUE /* show_database */);
 
@@ -7986,8 +7999,8 @@ static bool mysql_inplace_alter_table(THD *thd,
   }
 
   {
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   dd::Schema_MDL_locker mdl_locker(thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   const dd::Table *old_table_def;
   if (mdl_locker.ensure_locked(table->s->db.str) ||
@@ -8134,13 +8147,41 @@ static bool mysql_inplace_alter_table(THD *thd,
   //
   if (!dd::get_dictionary()->is_dd_table_name(alter_ctx->db, alter_ctx->alias))
   {
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Schema *old_sch= NULL;
+    const dd::Schema *new_sch= NULL;
+
+    /*
+      Note that altered table definition was created in a new schema,
+      so typical roles are reversed here!
+    */
+    if (thd->dd_client()->acquire<dd::Schema>(alter_ctx->db, &old_sch) ||
+        thd->dd_client()->acquire<dd::Schema>(alter_ctx->new_db, &new_sch))
+      DBUG_RETURN(true);
+    if (!old_sch)
+    {
+      my_error(ER_BAD_DB_ERROR, MYF(0), alter_ctx->db);
+      DBUG_RETURN(true);
+    }
+    if (!new_sch)
+    {
+      my_error(ER_BAD_DB_ERROR, MYF(0), alter_ctx->new_db);
+      DBUG_RETURN(true);
+    }
+
+    dd::Sdi_updater update_sdi= make_sdi_updater(thd, altered_table_def.get(),
+                                                 new_sch);
+
     altered_table_def->set_schema_id(old_table_def->schema_id());
     altered_table_def->set_name(alter_ctx->alias);
 
-    if (thd->dd_client()->drop(const_cast<dd::Table*>(old_table_def)))
+    if (dd::remove_sdi(thd, old_table_def, old_sch) ||
+        thd->dd_client()->drop(old_table_def))
       DBUG_RETURN(true);
 
-    if (thd->dd_client()->update_uncached_and_invalidate(altered_table_def.get()))
+    if (thd->dd_client()->update_uncached_and_invalidate(
+                            altered_table_def.get()) ||
+        update_sdi(thd, altered_table_def.get(), old_sch))
       DBUG_RETURN(true);
   }
   else
@@ -8148,7 +8189,18 @@ static bool mysql_inplace_alter_table(THD *thd,
     // WL7743/TODO: Sivert's help is needed to handle this case.
     //              We need to be able to replace sticky table in the cache
     //              with an object which is not related to it.
-    if (thd->dd_client()->drop_uncached(altered_table_def.get()))
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Schema *new_sch= NULL;
+    if (thd->dd_client()->acquire<dd::Schema>(alter_ctx->new_db, &new_sch))
+      DBUG_RETURN(true);
+    if (!new_sch)
+    {
+      my_error(ER_BAD_DB_ERROR, MYF(0), alter_ctx->new_db);
+      DBUG_RETURN(true);
+    }
+
+    if (dd::remove_sdi(thd, altered_table_def.get(), new_sch) ||
+        thd->dd_client()->drop_uncached(altered_table_def.get()))
       DBUG_RETURN(true);
   }
 
@@ -10341,11 +10393,24 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
                                                CHF_DELETE_FLAG, NULL);
         delete file;
 
+        dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+        const dd::Schema *sch_obj;
+        if (thd->dd_client()->acquire<dd::Schema>(alter_ctx.new_db, &sch_obj))
+          goto err_new_table_cleanup;
+
+        if (!sch_obj)
+        {
+          my_error(ER_BAD_DB_ERROR, MYF(0), alter_ctx.new_db);
+          goto err_new_table_cleanup;
+        }
+
         /*
           We need to revert changes to data-dictionary but
           still commit statement in this case.
         */
-        thd->dd_client()->drop_uncached(altered_table_def.get());
+        if (dd::remove_sdi(thd, altered_table_def.get(), sch_obj) ||
+            thd->dd_client()->drop_uncached(altered_table_def.get()))
+          goto err_new_table_cleanup;
       }
       goto end_inplace_noop;
     }
@@ -11178,6 +11243,17 @@ copy_data_between_tables(THD * thd,
     {
       copy_ptr->invoke_do_copy(copy_ptr);
     }
+    if (thd->is_error())
+    {
+      error= 1;
+      break;
+    }
+
+    /*
+      @todo After we evaluate what other return values from
+      save_in_field() that should be treated as errors, we can remove
+      to check thd->is_error() below.
+    */
     if ((to->vfield && update_generated_write_fields(to->write_set, to)) ||
       thd->is_error())
     {

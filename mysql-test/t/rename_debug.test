@@ -1,0 +1,18 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--echo #
+--echo # Bug#22653180:ASSERT DD::CACHE::SHARED_MULTI_MAP<T>::
+--echo # PUT(CONST K*, CONST T*, DD::CACHE::CACHE
+--echo #
+
+CREATE TABLE t1(i int);
+--echo # Force rename_table to fail after update has been applied to dd cache
+SET SESSION debug="+d,abort_rename_after_update";
+
+--echo # rename table will fail with dummy error
+--error ER_ERROR_ON_WRITE
+RENAME TABLE t1 to t2;
+SELECT * FROM t1;
+
+DROP TABLE t1;

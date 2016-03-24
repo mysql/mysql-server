@@ -1150,7 +1150,7 @@ protected:
 
   <tr>
     <td>thread_id</td>
-    <td>unsigned int type variable</td>
+    <td>unsigned 8 byte integer</td>
     <td>The identifier for the thread executing the transaction.</td>
   </tr>
 
@@ -1234,7 +1234,10 @@ public:
 
 protected:
   const char *server_uuid;
-  unsigned int thread_id;
+  // Despite thread_id is 32 bits size maximum, to keep compatibility
+  // with MySQL 5.7 Transaction_context_event, which encodes it as a
+  // 64 bits integer, we use the same 64 bits size.
+  uint64_t thread_id;
   bool gtid_specified;
   const unsigned char *encoded_snapshot_version;
   uint32_t encoded_snapshot_version_length;

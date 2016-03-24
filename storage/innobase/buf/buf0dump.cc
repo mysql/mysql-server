@@ -104,7 +104,7 @@ SELECT variable_value FROM information_schema.global_status WHERE
 variable_name = 'INNODB_BUFFER_POOL_DUMP_STATUS';
 or by:
 SHOW STATUS LIKE 'innodb_buffer_pool_dump_status'; */
-static __attribute__((format(printf, 2, 3)))
+static MY_ATTRIBUTE((format(printf, 2, 3)))
 void
 buf_dump_status(
 /*============*/
@@ -147,7 +147,7 @@ SELECT variable_value FROM information_schema.global_status WHERE
 variable_name = 'INNODB_BUFFER_POOL_LOAD_STATUS';
 or by:
 SHOW STATUS LIKE 'innodb_buffer_pool_load_status'; */
-static __attribute__((format(printf, 2, 3)))
+static MY_ATTRIBUTE((format(printf, 2, 3)))
 void
 buf_load_status(
 /*============*/
@@ -758,7 +758,7 @@ extern "C"
 os_thread_ret_t
 DECLARE_THREAD(buf_dump_thread)(
 /*============================*/
-	void*	arg __attribute__((unused)))	/*!< in: a dummy parameter
+	void*	arg MY_ATTRIBUTE((unused)))	/*!< in: a dummy parameter
 						required by os_thread_create */
 {
 	ut_ad(!srv_read_only_mode);

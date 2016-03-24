@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -49,7 +49,7 @@ dtype_t*
 dfield_get_type(
 /*============*/
 	const dfield_t*	field)	/*!< in: SQL data field */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Gets pointer to the data in a field.
 @return pointer to data */
@@ -58,7 +58,7 @@ void*
 dfield_get_data(
 /*============*/
 	const dfield_t* field)	/*!< in: field */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 #else /* UNIV_DEBUG */
 # define dfield_get_type(field) (&(field)->type)
 # define dfield_get_data(field) ((field)->data)
@@ -81,7 +81,7 @@ ulint
 dfield_get_len(
 /*===========*/
 	const dfield_t* field)	/*!< in: field */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Sets length in a field.
 @param[in]	field	field
@@ -100,7 +100,7 @@ ulint
 dfield_is_null(
 /*===========*/
 	const dfield_t* field)	/*!< in: field */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Determines if a field is externally stored
 @return nonzero if externally stored */
@@ -109,7 +109,7 @@ ulint
 dfield_is_ext(
 /*==========*/
 	const dfield_t* field)	/*!< in: field */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Sets the "external storage" flag */
 UNIV_INLINE
@@ -212,7 +212,7 @@ dfield_datas_are_binary_equal(
 	const dfield_t*	field2,	/*!< in: field */
 	ulint		len)	/*!< in: maximum prefix to compare,
 				or 0 to compare the whole field length */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Tests if dfield data length and content is equal to the given.
 @return TRUE if equal */
@@ -223,7 +223,7 @@ dfield_data_is_binary_equal(
 	const dfield_t*	field,	/*!< in: field */
 	ulint		len,	/*!< in: data length or UNIV_SQL_NULL */
 	const byte*	data)	/*!< in: data */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Gets number of fields in a data tuple.
@@ -233,7 +233,7 @@ ulint
 dtuple_get_n_fields(
 /*================*/
 	const dtuple_t*	tuple)	/*!< in: tuple */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Gets number of virtual fields in a data tuple.
 @param[in]	tuple	dtuple to check
@@ -277,7 +277,7 @@ ulint
 dtuple_get_info_bits(
 /*=================*/
 	const dtuple_t*	tuple)	/*!< in: tuple */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Sets info bits in a data tuple.
 @param[in]	tuple		tuple
@@ -296,7 +296,7 @@ ulint
 dtuple_get_n_fields_cmp(
 /*====================*/
 	const dtuple_t*	tuple)	/*!< in: tuple */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Gets number of fields used in record comparisons.
 @param[in]	tuple		tuple
@@ -331,7 +331,7 @@ dtuple_create_from_mem(
 	ulint	buf_size,
 	ulint	n_fields,
 	ulint	n_v_fields)
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /**********************************************************//**
 Creates a data tuple to a memory heap. The default value for number
 of fields used in record comparisons for this tuple is n_fields.
@@ -344,7 +344,7 @@ dtuple_create(
 				is created, DTUPLE_EST_ALLOC(n_fields)
 				bytes will be allocated from this heap */
 	ulint		n_fields)/*!< in: number of fields */
-	__attribute__((malloc));
+	MY_ATTRIBUTE((malloc));
 
 /** Initialize the virtual field data in a dtuple_t
 @param[in,out]		vrow	dtuple contains the virtual fields */
@@ -400,7 +400,7 @@ dtuple_copy(
 	const dtuple_t*	tuple,	/*!< in: tuple to copy from */
 	mem_heap_t*	heap)	/*!< in: memory heap
 				where the tuple is created */
-	__attribute__((malloc));
+	MY_ATTRIBUTE((malloc));
 
 /** The following function returns the sum of data lengths of a tuple. The space
 occupied by the field structs or the tuple struct is not counted.
@@ -429,7 +429,7 @@ int
 dtuple_coll_cmp(
 	const dtuple_t*	tuple1,
 	const dtuple_t*	tuple2)
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Compute a hash value of a prefix of an index record.
 @param[in]	tuple		index record
@@ -444,7 +444,7 @@ dtuple_fold(
 	ulint		n_fields,
 	ulint		n_bytes,
 	ulint		fold)
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Sets types of fields binary in a tuple.
 @param[in]	tuple	data tuple
@@ -463,7 +463,7 @@ ibool
 dtuple_contains_null(
 /*=================*/
 	const dtuple_t*	tuple)	/*!< in: dtuple */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /**********************************************************//**
 Checks that a data field is typed. Asserts an error if not.
 @return TRUE if ok */
@@ -471,7 +471,7 @@ ibool
 dfield_check_typed(
 /*===============*/
 	const dfield_t*	field)	/*!< in: data field */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /**********************************************************//**
 Checks that a data tuple is typed. Asserts an error if not.
 @return TRUE if ok */
@@ -479,7 +479,7 @@ ibool
 dtuple_check_typed(
 /*===============*/
 	const dtuple_t*	tuple)	/*!< in: tuple */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 #ifdef UNIV_DEBUG
 /**********************************************************//**
 Validates the consistency of a tuple which must be complete, i.e,
@@ -489,7 +489,7 @@ ibool
 dtuple_validate(
 /*============*/
 	const dtuple_t*	tuple)	/*!< in: tuple */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 #endif /* UNIV_DEBUG */
 /*************************************************************//**
 Pretty prints a dfield value according to its data type. Also the hex string
@@ -551,7 +551,7 @@ dtuple_convert_big_rec(
 	dtuple_t*	entry,	/*!< in/out: index entry */
 	ulint*		n_ext)	/*!< in/out: number of
 				externally stored columns */
-	__attribute__((malloc, warn_unused_result));
+	MY_ATTRIBUTE((malloc, warn_unused_result));
 /**************************************************************//**
 Puts back to entry the data stored in vector. Note that to ensure the
 fields in entry can accommodate the data, vector must have been created

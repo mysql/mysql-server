@@ -117,9 +117,9 @@ mysql_socket_set_address(
   const struct sockaddr *addr,
   socklen_t addr_len
 #else
-  MYSQL_SOCKET socket __attribute__ ((unused)),
-  const struct sockaddr *addr __attribute__ ((unused)),
-  socklen_t addr_len __attribute__ ((unused))
+  MYSQL_SOCKET socket MY_ATTRIBUTE ((unused)),
+  const struct sockaddr *addr MY_ATTRIBUTE ((unused)),
+  socklen_t addr_len MY_ATTRIBUTE ((unused))
 #endif
 )
 {
@@ -138,7 +138,7 @@ mysql_socket_set_thread_owner(
 #ifdef HAVE_PSI_SOCKET_INTERFACE
 MYSQL_SOCKET socket
 #else
-MYSQL_SOCKET socket __attribute__ ((unused))
+MYSQL_SOCKET socket MY_ATTRIBUTE ((unused))
 #endif
 )
 {

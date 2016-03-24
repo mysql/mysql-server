@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -201,7 +201,7 @@ fts_ast_visit(
 						and ignored processing an
 						operator, currently we only
 						ignore FTS_IGNORE operator */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /********************************************************************
 Create a lex instance.*/
 fts_lexer_t*
@@ -210,7 +210,7 @@ fts_lexer_create(
 	ibool		boolean_mode,		/*!< in: query type */
 	const byte*	query,			/*!< in: query string */
 	ulint		query_len)		/*!< in: query string len */
-	__attribute__((malloc, warn_unused_result));
+	MY_ATTRIBUTE((malloc, warn_unused_result));
 /********************************************************************
 Free an fts_lexer_t instance.*/
 void

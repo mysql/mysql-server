@@ -10649,7 +10649,7 @@ template <class RowsEventT> Rows_log_event*
 THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
                                        size_t needed,
                                        bool is_transactional,
-				       RowsEventT *hint __attribute__((unused)),
+				       RowsEventT *hint MY_ATTRIBUTE((unused)),
                                        const uchar* extra_row_info)
 {
   DBUG_ENTER("binlog_prepare_pending_rows_event");

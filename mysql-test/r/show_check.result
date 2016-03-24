@@ -275,14 +275,16 @@ mysql	foreign_keys	0	0
 mysql	indexes	0	0
 mysql	foreign_key_column_usage	0	0
 mysql	column_type_elements	0	0
-mysql	table_partitions	0	0
+mysql	index_column_usage	0	0
 test	t1	0	0
 mysql	tables	0	0
 mysql	table_partition_values	0	0
-mysql	index_partitions	0	0
+mysql	tablespace_files	0	0
 mysql	general_log	0	0
 mysql	view_table_usage	0	0
-mysql	index_column_usage	0	0
+mysql	index_partitions	0	0
+mysql	table_partitions	0	0
+mysql	tablespaces	0	0
 drop table t1;
 create table t1 (a int not null, b VARCHAR(10), INDEX (b) ) AVG_ROW_LENGTH=10 CHECKSUM=1 COMMENT="test" ENGINE=MYISAM MIN_ROWS=10 MAX_ROWS=100 PACK_KEYS=1 DELAY_KEY_WRITE=1 ROW_FORMAT=fixed;
 show create table t1;
@@ -470,7 +472,7 @@ Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select @@max_heap_table_size;
 @@max_heap_table_size
-1048576
+16777216
 CREATE TABLE t1 (
 a int(11) default NULL,
 KEY a USING BTREE (a)

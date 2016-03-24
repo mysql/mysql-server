@@ -107,7 +107,7 @@ Routines::Routines()
                          "security_type ENUM('DEFAULT', 'INVOKER', 'DEFINER') NOT NULL");
   m_target_def.add_field(FIELD_DEFINER,
                          "FIELD_DEFINER",
-                         "definer VARCHAR(77) NOT NULL");
+                         "definer VARCHAR(93) NOT NULL");
   m_target_def.add_field(FIELD_SQL_MODE,
                          "FIELD_SQL_MODE",
                          "sql_mode SET( \n"

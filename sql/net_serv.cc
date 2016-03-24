@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -194,7 +194,7 @@ my_bool net_realloc(NET *net, size_t length)
 */
 
 void net_clear(NET *net,
-               my_bool check_buffer __attribute__((unused)))
+               my_bool check_buffer MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("net_clear");
 

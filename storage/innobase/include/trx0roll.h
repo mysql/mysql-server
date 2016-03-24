@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -84,7 +84,7 @@ extern "C"
 os_thread_ret_t
 DECLARE_THREAD(trx_rollback_or_clean_all_recovered)(
 /*================================================*/
-	void*	arg __attribute__((unused)));
+	void*	arg MY_ATTRIBUTE((unused)));
 			/*!< in: a dummy parameter required by
 			os_thread_create */
 /*********************************************************************//**
@@ -145,7 +145,7 @@ trx_rollback_to_savepoint_for_mysql(
 						information to remove the
 						binlog entries of the queries
 						executed after the savepoint */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*******************************************************************//**
 Creates a named savepoint. If the transaction is not yet started, starts it.
 If there is already a savepoint of the same name, this call erases that old
@@ -171,7 +171,7 @@ trx_release_savepoint_for_mysql(
 /*============================*/
 	trx_t*		trx,			/*!< in: transaction handle */
 	const char*	savepoint_name)		/*!< in: savepoint name */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*******************************************************************//**
 Frees savepoint structs starting from savep. */
 void

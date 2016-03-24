@@ -36,11 +36,13 @@
 # define __has_attribute(x) 0
 #endif
 
+#ifndef SUPPRESS_UBSAN
 #if __has_attribute(no_sanitize_undefined)
 # define SUPPRESS_UBSAN __attribute__((no_sanitize_undefined))
 #else
 # define SUPPRESS_UBSAN
 #endif
+#endif  /* SUPPRESS_UBSAN */
 
 namespace TaoCrypt {
 

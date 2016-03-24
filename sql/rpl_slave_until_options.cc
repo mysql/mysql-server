@@ -252,7 +252,7 @@ int Until_view_id::init(const char *view_id)
 {
   try
   {
-    m_view_id.append(view_id);
+    m_view_id.assign(view_id);
   }
   catch (...)
   {

@@ -54,8 +54,8 @@ my_bool create_keyring_dir_if_does_not_exist(const char *keyring_file_path)
   return FALSE;
 }
 
-int check_keyring_file_data(MYSQL_THD thd  __attribute__((unused)),
-                            struct st_mysql_sys_var *var  __attribute__((unused)),
+int check_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
+                            struct st_mysql_sys_var *var  MY_ATTRIBUTE((unused)),
                             void *save, st_mysql_value *value)
 {
   char            buff[FN_REFLEN+1];
@@ -152,7 +152,7 @@ static int keyring_init(MYSQL_PLUGIN plugin_info)
   }
 }
 
-int keyring_deinit(void *arg __attribute__((unused)))
+int keyring_deinit(void *arg MY_ATTRIBUTE((unused)))
 {
   //not taking a lock here as the calls to keyring_deinit are serialized by
   //the plugin framework

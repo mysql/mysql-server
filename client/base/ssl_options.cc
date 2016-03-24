@@ -78,7 +78,7 @@ void Mysql_connection_options::Ssl_options::create_options()
 
 
 void Mysql_connection_options::Ssl_options::ca_option_callback(
-  char *argument __attribute__((unused)))
+  char *argument MY_ATTRIBUTE((unused)))
 {
   if (!ssl_mode_set_explicitly)
     ::opt_ssl_mode= SSL_MODE_VERIFY_CA;
@@ -101,7 +101,7 @@ void Mysql_connection_options::Ssl_options::apply_for_connection(
 
 
 void Mysql_connection_options::Ssl_options::use_ssl_option_callback(
-  char *argument __attribute__((unused)))
+  char *argument MY_ATTRIBUTE((unused)))
 {
   CLIENT_WARN_DEPRECATED("--ssl", "--ssl-mode");
   if (!opt_use_ssl_arg)
@@ -112,7 +112,7 @@ void Mysql_connection_options::Ssl_options::use_ssl_option_callback(
 
 
 void Mysql_connection_options::Ssl_options::ssl_verify_server_cert_callback(
-  char *argument __attribute__((unused)))
+  char *argument MY_ATTRIBUTE((unused)))
 {
   CLIENT_WARN_DEPRECATED("--ssl-verify-server-cert",
                          "--ssl-mode=VERIFY_IDENTITY");

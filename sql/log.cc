@@ -204,7 +204,7 @@ class Query_log_table_intact : public Table_check_intact
 {
 protected:
   void report_error(uint, const char *fmt, ...)
-    __attribute__((format(printf, 3, 4)))
+    MY_ATTRIBUTE((format(printf, 3, 4)))
   {
     va_list args;
     va_start(args, fmt);

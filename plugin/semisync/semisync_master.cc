@@ -907,7 +907,7 @@ void ReplSemiSyncMaster::set_wait_no_slave(const void *val)
   }
   else
   {
-    if (!is_on())
+    if (!is_on() && getMasterEnabled())
       force_switch_on();
   }
   unlock();

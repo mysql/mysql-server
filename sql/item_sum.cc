@@ -3180,7 +3180,7 @@ int group_concat_key_cmp_with_order(const void* arg, const void* key1,
 */
 
 extern "C"
-int dump_leaf_key(void* key_arg, element_count count __attribute__((unused)),
+int dump_leaf_key(void* key_arg, element_count count MY_ATTRIBUTE((unused)),
                   void* item_arg)
 {
   Item_func_group_concat *item= (Item_func_group_concat *) item_arg;

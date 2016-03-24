@@ -19,6 +19,7 @@
 
 #include "dd/properties.h"                         // Needed for destructor
 #include "dd/impl/collection_impl.h"               // Collection
+#include "dd/impl/sdi_impl.h"                      // sdi read/write functions
 #include "dd/impl/transaction_impl.h"              // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"                // Raw_record
 #include "dd/impl/tables/table_partition_values.h" // Table_partition_values
@@ -124,16 +125,31 @@ bool Partition_value_impl::store_attributes(Raw_record *r)
 
 ///////////////////////////////////////////////////////////////////////////
 
+static_assert(Table_partition_values::FIELD_MAX_VALUE==4,
+              "Table_partition_value definition has changed, review (de)ser memfuns!");
 void
-Partition_value_impl::serialize(WriterVariant *wv) const
+Partition_value_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
 {
-
+  w->StartObject();
+  write(w, m_max_value, STRING_WITH_LEN("max_value"));
+  write(w, m_null_value, STRING_WITH_LEN("null_value"));
+  write(w, m_list_num, STRING_WITH_LEN("list_num"));
+  write(w, m_column_num, STRING_WITH_LEN("column_num"));
+  write(w, m_value_utf8, STRING_WITH_LEN("value_utf8"));
+  w->EndObject();
 }
 
-void
-Partition_value_impl::deserialize(const RJ_Document *d)
-{
+///////////////////////////////////////////////////////////////////////////
 
+bool
+Partition_value_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
+{
+  read(&m_max_value, val, "max_value");
+  read(&m_null_value, val, "null_value");
+  read(&m_list_num, val, "list_num");
+  read(&m_column_num, val, "column_num");
+  read(&m_value_utf8, val, "value_utf8");
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////

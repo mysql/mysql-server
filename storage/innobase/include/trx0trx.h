@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -413,7 +413,7 @@ enum trx_dict_op_t
 trx_get_dict_operation(
 /*===================*/
 	const trx_t*	trx)	/*!< in: transaction */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Flag a transaction a dictionary operation.
 @param[in,out]	trx	transaction
@@ -437,7 +437,7 @@ trx_state_eq(
 /*=========*/
 	const trx_t*	trx,	/*!< in: transaction */
 	trx_state_t	state)	/*!< in: state */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 # ifdef UNIV_DEBUG
 /**********************************************************************//**
 Asserts that a transaction has been started.
@@ -447,7 +447,7 @@ ibool
 trx_assert_started(
 /*===============*/
 	const trx_t*	trx)	/*!< in: transaction */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 # endif /* UNIV_DEBUG */
 
 /**********************************************************************//**

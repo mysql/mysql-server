@@ -1978,7 +1978,7 @@ drop schema if exists xtest;
 
 EOF
 
---replace_regex /([a-z0-9]+	localhost	)[0-9]+/\1$SESSION/
+--replace_regex /([a-z0-9]+	localhost	)[0-9]+/\1$SESSION/ /You are not owner of thread [0-9]+/You are not owner of thread/
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/admin_xkill.tmp 2>&1
 --replace_regex /([a-z0-9]+	localhost	)[0-9]+/\1$SESSION/
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/admin_xkill_invaliddtype.tmp 2>&1
@@ -2021,7 +2021,7 @@ drop user expire@localhost;
 set @@global.mysqlx_max_connections=100;
 show status like 'Mysqlx%client%';
 select sleep(0.5);
---replace_regex /([a-z0-9]+	localhost	)[0-9]+/\1$SESSION/
+--replace_regex /([a-z0-9]+	localhost	)[0-9]+/\1$SESSION/ /You are not owner of thread [0-9]+/You are not owner of thread/
 --exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/admin_xkill_compatibility_56_OFF.tmp 2>&1
 ##expect sum of all stats of kill_client,list_clients with native mysql clients as these are global to mysql client and local to mysqlx session
 ##seems to be it is not working that way

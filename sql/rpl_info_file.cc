@@ -441,7 +441,7 @@ bool Rpl_info_file::do_get_info(const int pos, float *value,
 }
 
 bool Rpl_info_file::do_get_info(const int pos, Server_ids *value,
-                                const Server_ids *default_value __attribute__((unused)))
+                                const Server_ids *default_value MY_ATTRIBUTE((unused)))
 {
   /*
     Static buffer to use most of the times. However, if it is not big

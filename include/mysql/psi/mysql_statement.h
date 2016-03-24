@@ -125,9 +125,9 @@ static inline void inline_mysql_statement_register(
   PSI_statement_info *info,
   int count
 #else
-  const char *category __attribute__ ((unused)),
-  void *info __attribute__ ((unused)),
-  int count __attribute__ ((unused))
+  const char *category MY_ATTRIBUTE ((unused)),
+  void *info MY_ATTRIBUTE ((unused)),
+  int count MY_ATTRIBUTE ((unused))
 #endif
   )
 {

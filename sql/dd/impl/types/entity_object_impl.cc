@@ -15,8 +15,10 @@
 
 #include "dd/impl/types/entity_object_impl.h"
 
+#include "dd/impl/sdi_impl.h"        // sdi read/write functions
 #include "dd/impl/raw/object_keys.h" // dd::Primary_id_key
 #include "dd/impl/raw/raw_record.h"  // dd::Raw_new_record
+
 
 namespace dd {
 
@@ -77,4 +79,17 @@ bool Entity_object_impl::store_name(Raw_record *r, int field_idx)
 
 ///////////////////////////////////////////////////////////////////////////
 
+void Entity_object_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
+{
+  write(w, m_name, STRING_WITH_LEN("name"));
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+bool Entity_object_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
+{
+  return read(&m_name, val, "name");
+}
+
+///////////////////////////////////////////////////////////////////////////
 }

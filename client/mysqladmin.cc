@@ -28,6 +28,8 @@
 #include <mysqld_error.h>                       /* to check server error codes */
 #include "mysql/service_mysql_alloc.h"
 
+#include <string>
+
 #define ADMIN_VERSION "8.42"
 #define MAX_MYSQL_VAR 512
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
@@ -250,7 +252,7 @@ static struct my_option my_long_options[] =
 static const char *load_default_groups[]= { "mysqladmin","client",0 };
 
 my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
 	       char *argument)
 {
   int error = 0;
@@ -537,7 +539,7 @@ int main(int argc,char *argv[])
 }
 
 
-void endprog(int signal_number __attribute__((unused)))
+void endprog(int signal_number MY_ATTRIBUTE((unused)))
 {
   interrupted=1;
 }
@@ -1399,7 +1401,7 @@ static void print_top(MYSQL_RES *result)
 
 /* 3.rd argument, uint row, is not in use. Don't remove! */
 static void print_row(MYSQL_RES *result, MYSQL_ROW cur,
-		      uint row __attribute__((unused)))
+		      uint row MY_ATTRIBUTE((unused)))
 {
   uint i,length;
   MYSQL_FIELD *field;
@@ -1434,7 +1436,7 @@ static void print_relative_row(MYSQL_RES *result, MYSQL_ROW cur, uint row)
 }
 
 
-static void print_relative_row_vert(MYSQL_RES *result __attribute__((unused)),
+static void print_relative_row_vert(MYSQL_RES *result MY_ATTRIBUTE((unused)),
 				    MYSQL_ROW cur,
 				    uint row)
 {

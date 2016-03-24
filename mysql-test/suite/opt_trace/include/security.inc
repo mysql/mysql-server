@@ -39,7 +39,7 @@ begin
   insert into t1 values(current_user());
   return 36;
 end|
-create trigger trg2 before insert on t2 for each row 
+create trigger trg2 before insert on t2 for each row
 begin
   insert into t3 select * from t3;
 end|
@@ -436,7 +436,7 @@ begin
   insert into t1 values(current_user());
   return 36;
 end|
-create trigger trg2 before insert on t2 for each row 
+create trigger trg2 before insert on t2 for each row
 begin
   insert into t3 select * from t3;
 end|

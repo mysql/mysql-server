@@ -119,6 +119,7 @@ ALTER TABLE t1 engine=MyISAM;
 SHOW CREATE TABLE t1;
 --echo # Verifying .par and MyISAM files (.MYD, MYI)
 --echo ---- MYSQLD_DATADIR/test
+--replace_regex /_[0-9]+\.SDI/_XXX.SDI/
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQLTEST_VARDIR/mysql-test-data-dir
 --list_files $MYSQLTEST_VARDIR/mysql-test-data-dir

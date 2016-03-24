@@ -19,6 +19,7 @@
 
 #include "dd/properties.h"                           // Needed for destructor
 #include "dd/impl/collection_impl.h"                 // Collection
+#include "dd/impl/sdi_impl.h"                        // sdi read/write functions
 #include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"                  // Raw_record
 #include "dd/impl/tables/foreign_keys.h"             // Foreign_keys
@@ -29,6 +30,7 @@
 #include "dd/types/column.h"                         // Column::name()
 
 #include <sstream>
+
 
 using dd::tables::Foreign_keys;
 using dd::tables::Foreign_key_column_usage;
@@ -62,6 +64,8 @@ Foreign_key_impl::Foreign_key_impl()
  :m_match_option(OPTION_NONE),
   m_update_rule(RULE_NO_ACTION),
   m_delete_rule(RULE_NO_ACTION),
+  m_unique_constraint(NULL),
+  m_table(NULL),
   m_elements(new Element_collection())
 { }
 
@@ -190,16 +194,46 @@ bool Foreign_key_impl::store_attributes(Raw_record *r)
 
 ///////////////////////////////////////////////////////////////////////////
 
+static_assert(Foreign_keys::FIELD_REFERENCED_TABLE==10,
+              "Foreign_keys definition has changed. Check (de)ser memfuns!");
 void
-Foreign_key_impl::serialize(WriterVariant *wv) const
+Foreign_key_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
 {
+  w->StartObject();
+  Entity_object_impl::serialize(wctx, w);
 
+  write_enum(w, m_match_option, STRING_WITH_LEN("match_option"));
+  write_enum(w, m_update_rule, STRING_WITH_LEN("update_rule"));
+  write_enum(w, m_delete_rule, STRING_WITH_LEN("delete_rule"));
+
+  write_opx_reference(w, m_unique_constraint, STRING_WITH_LEN("unique_constraint_opx"));
+
+  write(w, m_referenced_table_schema_name,
+        STRING_WITH_LEN("referenced_table_schema_name"));
+
+  write(w, m_referenced_table_name, STRING_WITH_LEN("referenced_table_name"));
+
+  serialize_each(wctx, w, m_elements.get(), STRING_WITH_LEN("elements"));
+  w->EndObject();
 }
 
-void
-Foreign_key_impl::deserialize(const RJ_Document *d)
-{
+///////////////////////////////////////////////////////////////////////////
 
+bool
+Foreign_key_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
+{
+  Entity_object_impl::deserialize(rctx,val);
+  read_enum(&m_match_option, val, "match_option");
+  read_enum(&m_update_rule, val, "update_rule");
+  read_enum(&m_delete_rule, val, "delete_rule");
+
+  read_opx_reference(rctx, &m_unique_constraint, val, "unique_constraint_opx");
+
+  read(&m_referenced_table_schema_name, val, "referenced_table_shema_name");
+  read(&m_referenced_table_name, val, "referenced_table_name");
+  deserialize_each(rctx, [this] () { return add_element(); },
+                   val, "elements");
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////

@@ -145,7 +145,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 expect Mysqlx.Sql.StmtExecuteOk
-Got expected error: Cannot kill client 1 (code 1095)
+Got expected error: You are not owner of thread (code 1095)
 expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=1 with session abc where list_clients and kill_client executed once
 RUN select sleep(0.5)
 sleep(0.5)
@@ -287,7 +287,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 expect Mysqlx.Sql.StmtExecuteOk
-Got expected error: Cannot kill client 1 (code 1095)
+Got expected error: You are not owner of thread (code 1095)
 checking list of clients after root user session killed by xplugin user
 send Mysqlx.Sql.StmtExecute {
   stmt: "list_clients"
@@ -2304,7 +2304,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 expect Mysqlx.Sql.StmtExecuteOk
-Got expected error: Cannot kill client 1 (code 1095)
+Got expected error: You are not owner of thread (code 1095)
 expect ERROR: SELECT command denied to user 'abc'@'localhost' for table 'session_status' (code 1142) for show status command
 RUN show status like 'Mysqlx%client%'
 Variable_name	Value
@@ -2412,7 +2412,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 expect Mysqlx.Sql.StmtExecuteOk
-Got expected error: Cannot kill client 1 (code 1095)
+Got expected error: You are not owner of thread (code 1095)
 RUN select sleep(0.5)
 sleep(0.5)
 0

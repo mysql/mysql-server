@@ -52,6 +52,7 @@
 #include "auth_common.h"              // check_readonly() and SUPER_ACL
 
 #include "dd/dictionary.h"            // dd:acquire_shared_table_mdl
+#include "dd/sdi_file.h"              // dd::sdi_file::store
 
 #include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"
@@ -79,6 +80,8 @@
 #include "dd/types/table.h"
 #include "dd/types/partition.h"
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
+#include "dd/dd_schema.h"             // dd::Schema_MDL_locker
+#include "dd/sdi.h"                   // dd::store_sdi
 
 /**
   @def MYSQL_TABLE_IO_WAIT
@@ -822,6 +825,18 @@ int ha_initialize_handlerton(st_plugin_int *plugin)
     sql_print_error("Plugin '%s' init function returned error.",
                     plugin->name.str);
     goto err;  
+  }
+
+  if (hton->store_schema_sdi == nullptr)
+  {
+    DBUG_ASSERT(hton->db_type != DB_TYPE_INNODB);
+
+    DBUG_ASSERT(hton->store_table_sdi == nullptr);
+    DBUG_ASSERT(hton->remove_schema_sdi == nullptr);
+    DBUG_ASSERT(hton->remove_table_sdi == nullptr);
+
+    hton->store_table_sdi= dd::sdi_file::store;
+    hton->remove_table_sdi= dd::sdi_file::remove;
   }
 
   /*
@@ -5128,8 +5143,39 @@ int ha_create_table(THD *thd, const char *path,
         error= 1;
       }
       else
-        error= (force_dd_commit &&
-                (trans_commit_stmt(thd) || trans_commit(thd)));
+      {
+        dd::Schema_MDL_locker mdl_locker(thd);
+        dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+        const dd::Schema *sch_obj;
+
+        if (mdl_locker.ensure_locked(db) ||
+            thd->dd_client()->acquire<dd::Schema>(db, &sch_obj))
+        {
+          if (force_dd_commit)
+          {
+            trans_rollback_stmt(thd);
+            // Full rollback in case we have THD::transaction_rollback_request.
+            trans_rollback(thd);
+          }
+          error= 1;
+        }
+        else if (!sch_obj ||
+                 dd::store_sdi(thd, table_def, sch_obj))
+        {
+          if (!sch_obj)
+            my_error(ER_BAD_DB_ERROR, MYF(0), db);
+          if (force_dd_commit)
+          {
+            trans_rollback_stmt(thd);
+            // Full rollback in case we have THD::transaction_rollback_request.
+            trans_rollback(thd);
+          }
+          error= 1;
+        }
+        else
+          error= (force_dd_commit &&
+                  (trans_commit_stmt(thd) || trans_commit(thd)));
+      }
     }
   }
   (void) closefrm(&table, 0);
@@ -6922,7 +6968,7 @@ end:
 ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows,
                                uint *bufsz, uint *flags, Cost_estimate *cost)
 {
-  ha_rows res __attribute__((unused));
+  ha_rows res MY_ATTRIBUTE((unused));
   uint def_flags= *flags;
   uint def_bufsz= *bufsz;
 
@@ -8337,6 +8383,7 @@ static bool my_eval_gcolumn_expr_helper(THD *thd, TABLE *table,
 {
   DBUG_ENTER("my_eval_gcolumn_expr_helper");
   DBUG_ASSERT(table && table->vfield);
+  DBUG_ASSERT(!thd->is_error());
 
   uchar *old_buf= table->record[0];
   repoint_field_to_record(table, old_buf, record);

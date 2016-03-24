@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 
 #include "my_global.h"
 
-enum __attribute__((__packed__)) my_lex_states
+enum MY_ATTRIBUTE((__packed__)) my_lex_states
 {
   MY_LEX_START, MY_LEX_CHAR, MY_LEX_IDENT,
   MY_LEX_IDENT_SEP, MY_LEX_IDENT_START,
@@ -41,7 +41,7 @@ enum __attribute__((__packed__)) my_lex_states
 };
 
 
-enum __attribute__((__packed__)) hint_lex_char_classes
+enum MY_ATTRIBUTE((__packed__)) hint_lex_char_classes
 {
   HINT_CHR_ASTERISK,                    // [*]
   HINT_CHR_AT,                          // [@]

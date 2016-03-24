@@ -19,6 +19,7 @@
 
 #include "dd/properties.h"                      // Needed for destructor
 #include "dd/impl/collection_impl.h"            // Collection
+#include "dd/impl/sdi_impl.h"                   // sdi read/write functions
 #include "dd/impl/transaction_impl.h"           // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"             // Raw_record
 #include "dd/impl/tables/index_column_usage.h"  // Index_column_usage
@@ -120,18 +121,32 @@ bool Index_element_impl::store_attributes(Raw_record *r)
          r->store(Index_column_usage::FIELD_HIDDEN, m_hidden) ||
          r->store(Index_column_usage::FIELD_ORDER, m_order);
 }
+
 ///////////////////////////////////////////////////////////////////////////
 
+static_assert(Index_column_usage::FIELD_HIDDEN==5,
+              "Index_column_usage definition has changed, review (de)ser memfuns!");
 void
-Index_element_impl::serialize(WriterVariant *wv) const
+Index_element_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
 {
-
+  w->StartObject();
+  write(w, m_ordinal_position, STRING_WITH_LEN("ordinal_position"));
+  write(w, m_length, STRING_WITH_LEN("length"));
+  write_enum(w, m_order, STRING_WITH_LEN("order"));
+  write_opx_reference(w, m_column,  STRING_WITH_LEN("column_opx"));
+  w->EndObject();
 }
 
-void
-Index_element_impl::deserialize(const RJ_Document *d)
-{
+///////////////////////////////////////////////////////////////////////////
 
+bool
+Index_element_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
+{
+  read(&m_ordinal_position, val, "ordinal_position");
+  read(&m_length, val, "length");
+  read_enum(&m_order, val, "order");
+  read_opx_reference(rctx, &m_column, val, "column_opx");
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////

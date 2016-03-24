@@ -32,7 +32,7 @@ select a into b from t1 limit 1;
 insert into t1 values(current_user());
 return 36;
 end|
-create trigger trg2 before insert on t2 for each row 
+create trigger trg2 before insert on t2 for each row
 begin
 insert into t3 select * from t3;
 end|
@@ -96,7 +96,7 @@ select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPT
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 insert into t2 values(current_user())	20	0
 insert into t2 values(current_user())	20	0
-insert into t3 select * from t3	2532	0
+insert into t3 select * from t3	2533	0
 
 # Show that really all global privileges are needed: let root
 # revoke just one from user1. Because user1 does not have all global
@@ -632,7 +632,7 @@ select a into b from t1 limit 1;
 insert into t1 values(current_user());
 return 36;
 end|
-create trigger trg2 before insert on t2 for each row 
+create trigger trg2 before insert on t2 for each row
 begin
 insert into t3 select * from t3;
 end|
@@ -803,12 +803,12 @@ select QUERY, length(TRACE), INSUFFICIENT_PRIVILEGES from information_schema.OPT
 QUERY	length(TRACE)	INSUFFICIENT_PRIVILEGES
 insert into t2 values(current_user())	20	0
 insert into t2 values(current_user())	20	0
-insert into t3 select * from t3	2532	0
+insert into t3 select * from t3	2533	0
 # Trace exposed body of trigger, and content of t2/t3, which we
 # could see anyway:
 show create trigger trg2;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-trg2	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`user1`@`localhost` trigger trg2 before insert on t2 for each row 
+trg2	ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`user1`@`localhost` trigger trg2 before insert on t2 for each row
 begin
 insert into t3 select * from t3;
 end	latin1	latin1_swedish_ci	latin1_swedish_ci	#

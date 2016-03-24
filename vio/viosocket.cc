@@ -39,7 +39,7 @@
 # include <sys/ioctl.h>
 #endif
 
-int vio_errno(Vio *vio __attribute__((unused)))
+int vio_errno(Vio *vio MY_ATTRIBUTE((unused)))
 {
   /* These transport types are not Winsock based. */
 #ifdef _WIN32
@@ -257,7 +257,7 @@ static int vio_set_blocking(Vio *vio, my_bool status)
 
 
 int vio_socket_timeout(Vio *vio,
-                       uint which __attribute__((unused)),
+                       uint which MY_ATTRIBUTE((unused)),
                        my_bool old_mode)
 {
   int ret= 0;

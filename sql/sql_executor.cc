@@ -497,7 +497,7 @@ init_tmptable_sum_functions(Item_sum **func_ptr)
 
 static void
 update_tmptable_sum_func(Item_sum **func_ptr,
-			 TABLE *tmp_table __attribute__((unused)))
+			 TABLE *tmp_table MY_ATTRIBUTE((unused)))
 {
   Item_sum *func;
   while ((func= *(func_ptr++)))
@@ -1568,6 +1568,9 @@ evaluate_join_record(JOIN *join, QEP_TAB *const qep_tab)
             DBUG_RETURN(NESTED_LOOP_OK);
           }
         }
+        /* check for errors evaluating the condition */
+        if (join->thd->is_error())
+          DBUG_RETURN(NESTED_LOOP_ERROR);
       }
       /*
         Check whether join_tab is not the last inner table
@@ -2290,7 +2293,7 @@ join_read_last_key(QEP_TAB *tab)
 
 	/* ARGSUSED */
 static int
-join_no_more_records(READ_RECORD *info __attribute__((unused)))
+join_no_more_records(READ_RECORD *info MY_ATTRIBUTE((unused)))
 {
   return -1;
 }
@@ -4036,7 +4039,15 @@ cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref)
     if (!s_key)
       continue;
 
-    if (s_key->copy() & 1)
+    /*
+      copy() can return STORE_KEY_OK even when there are errors so need to
+      check thd->is_error().
+      @todo This is due to missing handling of error return value from
+      Field::store().
+      @todo Rewrite the below check to use the correct store_key_result enum
+      instead of doing bit wise AND on result.
+    */
+    if ((s_key->copy() & 1) || thd->is_error())
     {
       result= 1;
       break;
@@ -4167,7 +4178,7 @@ setup_copy_fields(THD *thd, Temp_table_param *param,
   Item *pos;
   List_iterator_fast<Item> li(all_fields);
   Copy_field *copy= NULL;
-  Copy_field *copy_start __attribute__((unused));
+  Copy_field *copy_start MY_ATTRIBUTE((unused));
   res_selected_fields.empty();
   res_all_fields.empty();
   List_iterator_fast<Item> itr(res_all_fields);

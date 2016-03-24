@@ -39,7 +39,7 @@
 #endif
 
 #if defined __GNUC__
-# define ATTRIBUTE_FORMAT(style, m, n) __attribute__((format(style, m, n)))
+# define ATTRIBUTE_FORMAT(style, m, n) MY_ATTRIBUTE((format(style, m, n)))
 #else
 # define ATTRIBUTE_FORMAT(style, m, n)
 #endif
@@ -262,19 +262,19 @@ extern "C" {
 #endif
 
 /**
- *  __attribute__((noreturn)) was introduce in gcc 2.5
+ *  MY_ATTRIBUTE((noreturn)) was introduce in gcc 2.5
  */
 #ifdef __GNUC__
-#define ATTRIBUTE_NORETURN __attribute__((noreturn))
+#define ATTRIBUTE_NORETURN MY_ATTRIBUTE((noreturn))
 #else
 #define ATTRIBUTE_NORETURN
 #endif
 
 /**
- *  __attribute__((noinline)) was introduce in gcc 3.1
+ *  MY_ATTRIBUTE((noinline)) was introduce in gcc 3.1
  */
 #ifdef __GNUC__
-#define ATTRIBUTE_NOINLINE __attribute__((noinline))
+#define ATTRIBUTE_NOINLINE MY_ATTRIBUTE((noinline))
 #else
 #define ATTRIBUTE_NOINLINE
 #endif

@@ -1858,7 +1858,7 @@ rtr_estimate_n_rows_in_range(
 
 	/* Read mbr from tuple. */
 	const dfield_t*	dtuple_field;
-	ulint		dtuple_f_len __attribute__((unused));
+	ulint		dtuple_f_len MY_ATTRIBUTE((unused));
 	rtr_mbr_t	range_mbr;
 	double		range_area;
 	byte*		range_mbr_ptr;

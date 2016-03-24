@@ -37,7 +37,7 @@ private:
   /**
     @brief Blocked copy constructor (private).
   */
-  Audit_error_handler(const Audit_error_handler &obj __attribute__((unused))):
+  Audit_error_handler(const Audit_error_handler &obj MY_ATTRIBUTE((unused))):
     m_thd(NULL), m_warning_message(NULL),
     m_error_reported(false), m_active(false)
   {
@@ -185,10 +185,10 @@ public:
 
     @return This function always return false.
   */
-  virtual bool handle_condition(THD *thd __attribute__((unused)),
-            uint sql_errno __attribute__((unused)),
-            const char* sqlstate __attribute__((unused)),
-            Sql_condition::enum_severity_level *level __attribute__((unused)),
+  virtual bool handle_condition(THD *thd MY_ATTRIBUTE((unused)),
+            uint sql_errno MY_ATTRIBUTE((unused)),
+            const char* sqlstate MY_ATTRIBUTE((unused)),
+            Sql_condition::enum_severity_level *level MY_ATTRIBUTE((unused)),
             const char* msg)
   {
     sql_print_error("%s", msg);
@@ -1322,7 +1322,7 @@ static int event_class_dispatch_error(THD *thd,
 }
 
 /**  There's at least one active audit plugin tracking a specified class */
-bool is_audit_plugin_class_active(THD *thd __attribute__((unused)),
+bool is_audit_plugin_class_active(THD *thd MY_ATTRIBUTE((unused)),
                                   unsigned long event_class)
 {
   return mysql_global_audit_mask[event_class] != 0;

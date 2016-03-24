@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -39,7 +39,7 @@ external tools. */
 independently of any UNIV_ debugging conditions. */
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 # include <stdarg.h>
-__attribute__((format (printf, 1, 2)))
+MY_ATTRIBUTE((format (printf, 1, 2)))
 /**********************************************************************//**
 Report a failure to decompress or compress.
 @return number of characters printed */
@@ -91,8 +91,8 @@ static
 void
 page_zip_free(
 /*==========*/
-	void*	opaque __attribute__((unused)),	/*!< in: memory heap */
-	void*	address __attribute__((unused)))/*!< in: object to free */
+	void*	opaque MY_ATTRIBUTE((unused)),	/*!< in: memory heap */
+	void*	address MY_ATTRIBUTE((unused)))/*!< in: object to free */
 {
 }
 
@@ -133,7 +133,7 @@ page_zip_set_alloc(
 /**********************************************************************//**
 Populate the sparse page directory from the dense directory.
 @return TRUE on success, FALSE on failure */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 ibool
 page_zip_dir_decode(
 /*================*/

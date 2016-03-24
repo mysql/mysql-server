@@ -42,7 +42,7 @@ static my_thread_handle timer_notify_thread;
 */
 
 static void *
-timer_notify_thread_func(void *arg __attribute__((unused)))
+timer_notify_thread_func(void *arg MY_ATTRIBUTE((unused)))
 {
   my_timer_t *timer;
   struct kevent kev;

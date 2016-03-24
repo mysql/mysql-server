@@ -65,10 +65,6 @@ public:
 
   virtual bool restore_attributes(const Raw_record &r);
 
-  void serialize(WriterVariant *wv) const;
-
-  void deserialize(const RJ_Document *d);
-
   virtual void debug_print(std::string &outb) const;
 
 public:

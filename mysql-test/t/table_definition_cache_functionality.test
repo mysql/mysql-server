@@ -146,9 +146,8 @@ flush tables;
 flush status;
 
 # With new data dictionary (DD) introduced, the size of table definition cache
-# is bit more than expected. There are 11 DD table definitions opened
-# more than expected.
-set @dd_definitions = 11;
+# is bit more than expected. 
+set @dd_definitions = 13;
 
 --disable_warnings
 set @Open_table_definitions = (select variable_value from performance_schema.session_status where variable_name ='Open_table_definitions') + @dd_definitions;

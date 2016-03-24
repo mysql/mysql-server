@@ -1227,7 +1227,7 @@ static void copy_native_longlong(uchar *to, size_t to_length,
 
   @param[in,out] hash    The hash key of the JSON values in the current row.
 */
-static void __attribute__((noinline))
+static void MY_ATTRIBUTE((noinline))
 make_json_sort_key(Item *item, uchar *to, size_t length, ulonglong *hash)
 {
   DBUG_ASSERT(!item->maybe_null || to[-1] == 1);
@@ -1360,7 +1360,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
         if (sort_field->need_strxnfrm)
         {
           char *from=(char*) res->ptr();
-          size_t tmp_length __attribute__((unused));
+          size_t tmp_length MY_ATTRIBUTE((unused));
           if ((uchar*) from == to)
           {
             DBUG_ASSERT(sort_field->length >= length);

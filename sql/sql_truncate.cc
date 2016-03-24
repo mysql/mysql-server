@@ -32,6 +32,8 @@
 #include "dd/cache/dictionary_client.h"// dd::cache::Dictionary_client
 #include "dd/dd_table.h"    // dd::recreate_table
 #include "dd/types/abstract_table.h" // dd::enum_table_type
+#include "dd/dd_schema.h"   // dd::Schema_MDL_locker
+#include "dd/sdi.h"         // dd::store_sdi
 
 
 /**
@@ -291,13 +293,34 @@ Sql_cmd_truncate_table::handler_truncate(THD *thd, TABLE_LIST *table_ref,
       DBUG_RETURN(TRUNCATE_FAILED_BUT_BINLOG);
   }
   else if (!is_tmp_table &&
-           (table_ref->table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL) &&
-           thd->dd_client()->update_uncached_and_invalidate(non_tmp_table_def.get()))
+           (table_ref->table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL))
   {
+    if (thd->dd_client()->update_uncached_and_invalidate(
+                            non_tmp_table_def.get()))
+    {
+      /* Statement rollback will revert effect of handler::truncate() as well. */
+      DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
+    }
+
+    dd::Schema_MDL_locker mdl_locker(thd);
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Schema *sch_obj;
+
+     if (mdl_locker.ensure_locked(table_ref->db) ||
+        thd->dd_client()->acquire<dd::Schema>(table_ref->db, &sch_obj))
+      DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
+
+    if (!sch_obj)
+    {
+      my_error(ER_BAD_DB_ERROR, MYF(0), table_ref->db);
+      DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
+    }
+
+    if (dd::store_sdi(thd, non_tmp_table_def.get(), sch_obj))
+      DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
+
     // WL7743/TODO/QQ: Does change of DD object means we need to invalidate
     //                 TDC/TC too?
-    /* Statement rollback will revert effect of handler::truncate() as well. */
-    DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
   }
   DBUG_RETURN(TRUNCATE_OK);
 }

@@ -440,7 +440,7 @@ UNIV_INLINE
 ulint
 dict_table_get_n_sys_cols(
 /*======================*/
-	const dict_table_t*	table __attribute__((unused)))	/*!< in: table */
+	const dict_table_t*	table MY_ATTRIBUTE((unused)))	/*!< in: table */
 {
 	ut_ad(table);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);

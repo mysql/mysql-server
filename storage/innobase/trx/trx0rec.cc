@@ -1814,7 +1814,7 @@ byte*
 trx_undo_parse_erase_page_end(
 /*==========================*/
 	byte*	ptr,	/*!< in: buffer */
-	byte*	end_ptr __attribute__((unused)), /*!< in: buffer end */
+	byte*	end_ptr MY_ATTRIBUTE((unused)), /*!< in: buffer end */
 	page_t*	page,	/*!< in: page or NULL */
 	mtr_t*	mtr)	/*!< in: mtr or NULL */
 {
@@ -2114,7 +2114,7 @@ err_exit:
 Copies an undo record to heap. This function can be called if we know that
 the undo log record exists.
 @return own: copy of the record */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 trx_undo_rec_t*
 trx_undo_get_undo_rec_low(
 /*======================*/
@@ -2162,7 +2162,7 @@ Copies an undo record to heap.
 truncated and we cannot fetch the old version
 @retval false if the undo log record is available
 NOTE: the caller must have latches on the clustered index page. */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 bool
 trx_undo_get_undo_rec(
 /*==================*/
@@ -2191,7 +2191,7 @@ trx_undo_get_undo_rec(
 #ifdef UNIV_DEBUG
 #define ATTRIB_USED_ONLY_IN_DEBUG
 #else /* UNIV_DEBUG */
-#define ATTRIB_USED_ONLY_IN_DEBUG	__attribute__((unused))
+#define ATTRIB_USED_ONLY_IN_DEBUG	MY_ATTRIBUTE((unused))
 #endif /* UNIV_DEBUG */
 
 /** Build a previous version of a clustered index record. The caller must hold

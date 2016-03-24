@@ -357,7 +357,7 @@ NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL
 
 extern "C" {
 static
-int my_mb_wc_latin1(const CHARSET_INFO *cs  __attribute__((unused)),
+int my_mb_wc_latin1(const CHARSET_INFO *cs  MY_ATTRIBUTE((unused)),
 		    my_wc_t *wc,
 		    const uchar *str,
 		    const uchar *end)
@@ -370,7 +370,7 @@ int my_mb_wc_latin1(const CHARSET_INFO *cs  __attribute__((unused)),
 }
 
 static
-int my_wc_mb_latin1(const CHARSET_INFO *cs  __attribute__((unused)),
+int my_wc_mb_latin1(const CHARSET_INFO *cs  MY_ATTRIBUTE((unused)),
 		    my_wc_t wc,
 		    uchar *str,
 		    uchar *end)
@@ -551,7 +551,7 @@ static const uchar combo2map[]={
 
 extern "C" {
 static int my_strnncoll_latin1_de(const CHARSET_INFO *cs
-                                  __attribute__((unused)),
+                                  MY_ATTRIBUTE((unused)),
 				  const uchar *a, size_t a_length,
 				  const uchar *b, size_t b_length,
                                   my_bool b_is_prefix)
@@ -593,7 +593,7 @@ static int my_strnncoll_latin1_de(const CHARSET_INFO *cs
 
 
 static int my_strnncollsp_latin1_de(const CHARSET_INFO *cs
-                                    __attribute__((unused)),
+                                    MY_ATTRIBUTE((unused)),
 				    const uchar *a, size_t a_length,
 				    const uchar *b, size_t b_length,
                                     my_bool diff_if_only_endspace_difference)
@@ -687,7 +687,7 @@ my_strnxfrm_latin1_de(const CHARSET_INFO *cs,
 }
 
 
-static void my_hash_sort_latin1_de(const CHARSET_INFO *cs __attribute__((unused)),
+static void my_hash_sort_latin1_de(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                    const uchar *key, size_t len,
                                    ulong *nr1, ulong *nr2)
 {

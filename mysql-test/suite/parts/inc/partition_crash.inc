@@ -3,6 +3,7 @@
 --eval $create_statement
 --eval $insert_statement
 --echo # State before crash
+--replace_regex /_[0-9]+\.SDI/_XXX.SDI/
 --replace_result #p# #P# #sp# #SP#
 --list_files $DATADIR/test
 SHOW CREATE TABLE `t1/a\b#2`;
@@ -14,13 +15,14 @@ SELECT * FROM `t1/a\b#2`;
 --error 2013
 --eval $crash_statement
 --echo # State after crash (before recovery)
---replace_regex /sql.*\./sql-tmp./ /#p#/#P#/ /#sp#/#SP#/ /#tmp#/#TMP#/
+--replace_regex /sql.*\./sql-tmp./ /#p#/#P#/ /#sp#/#SP#/ /#tmp#/#TMP#/ /_[0-9]+\.SDI/_XXX.SDI/
 --list_files $DATADIR/test
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 let $WAIT_COUNT=6000;
 --source include/wait_time_until_connected_again.inc
 --echo # State after crash recovery
+--replace_regex /_[0-9]+\.SDI/_XXX.SDI/
 --replace_result #p# #P# #sp# #SP#
 --list_files $DATADIR/test
 SHOW CREATE TABLE `t1/a\b#2`;

@@ -85,6 +85,7 @@ t1#P#p0.MYI
 t1#P#p1.MYD
 t1#P#p1.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -561,6 +562,7 @@ t1#P#p3.MYI
 t1#P#p4.MYD
 t1#P#p4.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -1058,6 +1060,7 @@ t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -1547,6 +1550,7 @@ t1#P#parte.MYI
 t1#P#partf.MYD
 t1#P#partf.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -2034,6 +2038,7 @@ t1#P#partd#SP#partdsp0.MYI
 t1#P#partd#SP#partdsp1.MYD
 t1#P#partd#SP#partdsp1.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -2536,6 +2541,7 @@ t1#P#part4#SP#subpart41.MYI
 t1#P#part4#SP#subpart42.MYD
 t1#P#part4#SP#subpart42.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -3034,6 +3040,7 @@ t1#P#part4#SP#sp41.MYI
 t1#P#part4#SP#sp42.MYD
 t1#P#part4#SP#sp42.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -3526,6 +3533,7 @@ t1#P#part3#SP#part3sp1.MYI
 t1#P#part3#SP#part3sp2.MYD
 t1#P#part3#SP#part3sp2.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -3999,6 +4007,7 @@ t1#P#p0.MYI
 t1#P#p1.MYD
 t1#P#p1.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -4527,6 +4536,7 @@ t1#P#p3.MYI
 t1#P#p4.MYD
 t1#P#p4.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -5076,6 +5086,7 @@ t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -5617,6 +5628,7 @@ t1#P#parte.MYI
 t1#P#partf.MYD
 t1#P#partf.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -6156,6 +6168,7 @@ t1#P#partd#SP#partdsp0.MYI
 t1#P#partd#SP#partdsp1.MYD
 t1#P#partd#SP#partdsp1.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -6710,6 +6723,7 @@ t1#P#part4#SP#subpart41.MYI
 t1#P#part4#SP#subpart42.MYD
 t1#P#part4#SP#subpart42.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -7260,6 +7274,7 @@ t1#P#part4#SP#sp41.MYI
 t1#P#part4#SP#sp42.MYD
 t1#P#part4#SP#sp42.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -7804,6 +7819,7 @@ t1#P#part3#SP#part3sp1.MYI
 t1#P#part3#SP#part3sp2.MYD
 t1#P#part3#SP#part3sp2.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -8327,6 +8343,7 @@ t1#P#p0.MYI
 t1#P#p1.MYD
 t1#P#p1.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -8855,6 +8872,7 @@ t1#P#p3.MYI
 t1#P#p4.MYD
 t1#P#p4.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -9404,6 +9422,7 @@ t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -9945,6 +9964,7 @@ t1#P#parte.MYI
 t1#P#partf.MYD
 t1#P#partf.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -10484,6 +10504,7 @@ t1#P#partd#SP#partdsp0.MYI
 t1#P#partd#SP#partdsp1.MYD
 t1#P#partd#SP#partdsp1.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -11038,6 +11059,7 @@ t1#P#part4#SP#subpart41.MYI
 t1#P#part4#SP#subpart42.MYD
 t1#P#part4#SP#subpart42.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -11588,6 +11610,7 @@ t1#P#part4#SP#sp41.MYI
 t1#P#part4#SP#sp42.MYD
 t1#P#part4#SP#sp42.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -12132,6 +12155,7 @@ t1#P#part3#SP#part3sp1.MYI
 t1#P#part3#SP#part3sp2.MYD
 t1#P#part3#SP#part3sp2.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -12658,6 +12682,7 @@ t1#P#p0.MYI
 t1#P#p1.MYD
 t1#P#p1.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -13135,6 +13160,7 @@ t1#P#p3.MYI
 t1#P#p4.MYD
 t1#P#p4.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -13633,6 +13659,7 @@ t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -14123,6 +14150,7 @@ t1#P#parte.MYI
 t1#P#partf.MYD
 t1#P#partf.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -14615,6 +14643,7 @@ t1#P#partd#SP#partdsp0.MYI
 t1#P#partd#SP#partdsp1.MYD
 t1#P#partd#SP#partdsp1.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -15118,6 +15147,7 @@ t1#P#part4#SP#subpart41.MYI
 t1#P#part4#SP#subpart42.MYD
 t1#P#part4#SP#subpart42.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -15621,6 +15651,7 @@ t1#P#part4#SP#sp41.MYI
 t1#P#part4#SP#sp42.MYD
 t1#P#part4#SP#sp42.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -16114,6 +16145,7 @@ t1#P#part3#SP#part3sp1.MYI
 t1#P#part3#SP#part3sp2.MYD
 t1#P#part3#SP#part3sp2.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -16588,6 +16620,7 @@ t1#P#p0.MYI
 t1#P#p1.MYD
 t1#P#p1.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -17117,6 +17150,7 @@ t1#P#p3.MYI
 t1#P#p4.MYD
 t1#P#p4.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -17667,6 +17701,7 @@ t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -18209,6 +18244,7 @@ t1#P#parte.MYI
 t1#P#partf.MYD
 t1#P#partf.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -18753,6 +18789,7 @@ t1#P#partd#SP#partdsp0.MYI
 t1#P#partd#SP#partdsp1.MYD
 t1#P#partd#SP#partdsp1.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -19308,6 +19345,7 @@ t1#P#part4#SP#subpart41.MYI
 t1#P#part4#SP#subpart42.MYD
 t1#P#part4#SP#subpart42.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -19863,6 +19901,7 @@ t1#P#part4#SP#sp41.MYI
 t1#P#part4#SP#sp42.MYD
 t1#P#part4#SP#sp42.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -20408,6 +20447,7 @@ t1#P#part3#SP#part3sp1.MYI
 t1#P#part3#SP#part3sp2.MYD
 t1#P#part3#SP#part3sp2.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -20932,6 +20972,7 @@ t1#P#p0.MYI
 t1#P#p1.MYD
 t1#P#p1.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -21461,6 +21502,7 @@ t1#P#p3.MYI
 t1#P#p4.MYD
 t1#P#p4.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -22011,6 +22053,7 @@ t1#P#part_3.MYI
 t1#P#part_N.MYD
 t1#P#part_N.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -22553,6 +22596,7 @@ t1#P#parte.MYI
 t1#P#partf.MYD
 t1#P#partf.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -23097,6 +23141,7 @@ t1#P#partd#SP#partdsp0.MYI
 t1#P#partd#SP#partdsp1.MYD
 t1#P#partd#SP#partdsp1.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -23652,6 +23697,7 @@ t1#P#part4#SP#subpart41.MYI
 t1#P#part4#SP#subpart42.MYD
 t1#P#part4#SP#subpart42.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -24207,6 +24253,7 @@ t1#P#part4#SP#sp41.MYI
 t1#P#part4#SP#sp42.MYD
 t1#P#part4#SP#sp42.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1
@@ -24752,6 +24799,7 @@ t1#P#part3#SP#part3sp1.MYI
 t1#P#part3#SP#part3sp2.MYD
 t1#P#part3#SP#part3sp2.MYI
 t1.par
+t1_XXX.SDI
 
 # check prerequisites-1 success:    1
 # check COUNT(*) success:    1

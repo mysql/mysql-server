@@ -87,7 +87,6 @@ static void kill_completion_handler(void *ctx, unsigned int sql_errno, const cha
 
 bool Sql_data_context::kill()
 {
-  // we have to use COM_KILL in a new session here, because there's no public API for killing sessions
   if (srv_session_server_is_available())
   {
     log_debug("sqlsession init (for kill): %p [%i]", m_mysql_session, m_mysql_session ? srv_session_info_get_session_id(m_mysql_session) : -1);
@@ -108,9 +107,14 @@ bool Sql_data_context::kill()
         else
         {
           COM_DATA data;
-          data.com_kill.id= static_cast<unsigned long>(mysql_session_id());
           Callback_command_delegate deleg;
-          if (!command_service_run_command(session, COM_PROCESS_KILL, &data,
+          Query_string_builder qb;
+          qb.put("KILL ").put(mysql_session_id());
+
+          data.com_query.query = (char*)qb.get().c_str();
+          data.com_query.length = static_cast<unsigned int>(qb.get().length());
+
+          if (!command_service_run_command(session, COM_QUERY, &data,
                                            mysqld::get_charset_utf8mb4_general_ci(), deleg.callbacks(),
                                            deleg.representation(), &deleg))
           {
@@ -342,25 +346,11 @@ ngs::Error_code Sql_data_context::switch_to_user(const char *username, const cha
 
 ngs::Error_code Sql_data_context::execute_kill_sql_session(uint64_t mysql_session_id)
 {
-  COM_DATA data;
+  Query_string_builder qb;
+  qb.put("KILL ").put(mysql_session_id);
+  Sql_data_context::Result_info r_info;
 
-  data.com_kill.id= static_cast<unsigned long>(mysql_session_id);
-  Callback_command_delegate deleg;
-  if (command_service_run_command(m_mysql_session, COM_PROCESS_KILL, &data,
-                                  mysqld::get_charset_utf8mb4_general_ci(), deleg.callbacks(),
-                                  deleg.representation(), &deleg))
-  {
-    log_debug("Error running process_kill: %s %i", m_last_sql_error.c_str(), m_last_sql_errno);
-    return ngs::Error(m_last_sql_errno, "%s", m_last_sql_error.c_str());
-  }
-
-  if (m_last_sql_errno != 0)
-    log_info("running process_kill: %s %i", m_last_sql_error.c_str(), m_last_sql_errno);
-
-  if (is_killed())
-    throw ngs::Fatal(ER_QUERY_INTERRUPTED, "Query execution was interrupted");
-
-  return ngs::Success();
+  return execute_sql_no_result(qb.get(), r_info);
 }
 
 

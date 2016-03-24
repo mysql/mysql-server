@@ -155,8 +155,8 @@ bool rename_table(THD *thd,
 
 template <typename T>
 bool rename_table(THD *thd,
-                  const dd::Table *from_table_def,
-                  dd::Table *to_table_def,
+                  const dd::Schema *from_sch, const dd::Table *from_table_def,
+                  const dd::Schema *to_sch, dd::Table *to_table_def,
                   bool commit_dd_changes);
 
 //////////////////////////////////////////////////////////////////////////

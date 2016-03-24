@@ -4107,7 +4107,7 @@ EXPLAIN SELECT 1 FROM
                 "key_length": 0,
                 "unique_constraint": false,
                 "location": "memory (heap)",
-                "row_limit_estimate": 209715
+                "row_limit_estimate": 3355443
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },
@@ -4443,7 +4443,7 @@ EXPLAIN SELECT 1 FROM
                 "key_length": 0,
                 "unique_constraint": false,
                 "location": "memory (heap)",
-                "row_limit_estimate": 209715
+                "row_limit_estimate": 3355443
               } /* tmp_table_info */
             } /* creating_tmp_table */
           },

@@ -750,6 +750,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_test_plugin.so
 %attr(644, root, root) %{_libdir}/mysql/plugin/daemon_example.ini
 %attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/replication_observers_example_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_framework.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libtest_services.so
@@ -779,6 +780,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_test_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/test_udf_services.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/replication_observers_example_plugin.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_framework.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libtest_services.so
@@ -835,6 +837,9 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
+* Mon Mar 14 2016 Georgi Kodinov <georgi.kodinov@oracle.com> - 5.8.0-1
+- Add test_udf_services.so plugin
+
 * Fri Jan 08 2016 Bjorn Munch <bjorn.munch@oracle.com> - 5.8.0-1
 - Purge man page for mysql_install_db in preparation for its removal
 

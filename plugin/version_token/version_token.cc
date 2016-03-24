@@ -492,7 +492,7 @@ static struct st_mysql_audit version_token_descriptor=
 
 
 /** Plugin init. */
-static int version_tokens_init(void *arg __attribute__((unused)))
+static int version_tokens_init(void *arg MY_ATTRIBUTE((unused)))
 {
 #ifdef HAVE_PSI_INTERFACE
   // Initialize psi keys.
@@ -513,7 +513,7 @@ static int version_tokens_init(void *arg __attribute__((unused)))
 }
 
 /** Plugin deinit. */
-static int version_tokens_deinit(void *arg __attribute__((unused)))
+static int version_tokens_deinit(void *arg MY_ATTRIBUTE((unused)))
 {
   mysql_rwlock_wrlock(&LOCK_vtoken_hash);
   if (version_tokens_hash.records)

@@ -1127,7 +1127,7 @@ static inline void print_tree(String *out,
                               const char *tree_name,
                               SEL_TREE *tree,
                               const RANGE_OPT_PARAM *param,
-                              const bool print_full) __attribute__((unused));
+                              const bool print_full) MY_ATTRIBUTE((unused));
 
 void append_range(String *out,
                   const KEY_PART_INFO *key_parts,

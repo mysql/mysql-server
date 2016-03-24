@@ -182,13 +182,13 @@ static const uchar sort_order_cp932[]=
 
 
 extern "C" {
-static uint ismbchar_cp932(const CHARSET_INFO *cs __attribute__((unused)),
+static uint ismbchar_cp932(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 			 const char* p, const char *e)
 {
   return (iscp932head((uchar) *p) && (e-p)>1 && iscp932tail((uchar)p[1]) ? 2: 0);
 }
 
-static uint mbcharlen_cp932(const CHARSET_INFO *cs __attribute__((unused)),
+static uint mbcharlen_cp932(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                             uint c)
 {
   return (iscp932head((uchar) c) ? 2 : 1);
@@ -34604,7 +34604,7 @@ static const uint16 unicode_to_cp932[65536]=
 
 extern "C" {
 static int
-my_mb_wc_cp932(const CHARSET_INFO *cs  __attribute__((unused)),
+my_mb_wc_cp932(const CHARSET_INFO *cs  MY_ATTRIBUTE((unused)),
 	       my_wc_t *pwc, const uchar *s, const uchar *e){
   int hi;
 
@@ -34649,7 +34649,7 @@ my_mb_wc_cp932(const CHARSET_INFO *cs  __attribute__((unused)),
   @retval   MY_CS_ILUNI    If the Unicode character does not exist in CP932
 */
 static int
-my_wc_mb_cp932(const CHARSET_INFO *cs __attribute__((unused)),
+my_wc_mb_cp932(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 	       my_wc_t wc, uchar *s, uchar *e)
 {
   int code;
@@ -34689,7 +34689,7 @@ my_wc_mb_cp932(const CHARSET_INFO *cs __attribute__((unused)),
 
 
 static
-size_t my_numcells_cp932(const CHARSET_INFO *cs __attribute__((unused)),
+size_t my_numcells_cp932(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                       const char *str, const char *str_end)
 {
   size_t clen= 0;
@@ -34724,7 +34724,7 @@ size_t my_numcells_cp932(const CHARSET_INFO *cs __attribute__((unused)),
 
 static
 size_t my_well_formed_len_cp932(const CHARSET_INFO *cs
-                                __attribute__((unused)),
+                                MY_ATTRIBUTE((unused)),
                                 const char *b, const char *e,
                                 size_t pos, int *error)
 {

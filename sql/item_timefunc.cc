@@ -2013,7 +2013,7 @@ Item_func_now::save_in_field_inner(Field *to, bool no_conversions)
 */
 bool Item_func_sysdate_local::get_date(MYSQL_TIME *now_time,
                                        my_time_flags_t fuzzy_date
-                                       __attribute__((unused)))
+                                       MY_ATTRIBUTE((unused)))
 {
   THD *thd= current_thd;
   ulonglong tmp= my_micro_time();
@@ -2255,7 +2255,7 @@ bool Item_func_from_unixtime::resolve_type(THD *thd)
 
 bool Item_func_from_unixtime::get_date(MYSQL_TIME *ltime,
 				       my_time_flags_t fuzzy_date
-                                       __attribute__((unused)))
+                                       MY_ATTRIBUTE((unused)))
 {
   THD *thd= current_thd;
   lldiv_t lld;
@@ -2297,7 +2297,7 @@ bool Item_func_convert_tz::resolve_type(THD *thd)
 
 bool Item_func_convert_tz::get_date(MYSQL_TIME *ltime,
                                     my_time_flags_t fuzzy_date
-                                    __attribute__((unused)))
+                                    MY_ATTRIBUTE((unused)))
 {
   my_time_t my_time_tmp;
   String str;

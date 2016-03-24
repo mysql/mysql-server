@@ -23,6 +23,7 @@
 #include "dd/dictionary.h"                    // dd::Dictionary::is_dd_table...
 #include "dd/iterator.h"                      // dd::Iterator
 #include "dd/properties.h"                    // dd::Properties
+#include "dd/sdi.h"                           // dd::store_sdi
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/impl/system_registry.h"          // dd::System_tablespaces
 #include "dd/types/object_type.h"             // dd::Object_type
@@ -228,7 +229,8 @@ create_tablespace(THD *thd, st_alter_tablespace *ts_info,
   Disable_gtid_state_update_guard disabler(thd);
 
   // Write changes to dictionary.
-  if (thd->dd_client()->store(tablespace.get()))
+  if (thd->dd_client()->store(tablespace.get()) ||
+      dd::store_sdi(thd, tablespace.get()))
   {
     if (commit_dd_changes)
     {
@@ -255,8 +257,9 @@ bool drop_tablespace(THD *thd, const dd::Tablespace* tablespace,
   Disable_gtid_state_update_guard disabler(thd);
 
   // Drop tablespace
-  if (uncached ? thd->dd_client()->drop_uncached(tablespace) :
-                 thd->dd_client()->drop(tablespace))
+  if (remove_sdi(thd, tablespace) ||
+      (uncached ? thd->dd_client()->drop_uncached(tablespace) :
+                  thd->dd_client()->drop(tablespace)))
   {
     if (commit_dd_changes)
     {
@@ -279,7 +282,8 @@ bool update_tablespace(THD *thd, dd::Tablespace *tablespace,
 
   Disable_gtid_state_update_guard disabler(thd);
 
-  if (thd->dd_client()->update_uncached_and_invalidate(tablespace))
+  if (thd->dd_client()->update_uncached_and_invalidate(tablespace) ||
+      store_sdi(thd, tablespace))
   {
     if (commit_dd_changes)
     {

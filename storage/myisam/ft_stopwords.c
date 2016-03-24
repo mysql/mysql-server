@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ typedef struct st_ft_stopwords
 
 static TREE *stopwords3=NULL;
 
-static int FT_STOPWORD_cmp(const void* cmp_arg __attribute__((unused)),
+static int FT_STOPWORD_cmp(const void* cmp_arg MY_ATTRIBUTE((unused)),
 			   const void* a, const void* b)
 {
   FT_STOPWORD *w1= (FT_STOPWORD*)a;
@@ -41,7 +41,7 @@ static int FT_STOPWORD_cmp(const void* cmp_arg __attribute__((unused)),
 }
 
 static void FT_STOPWORD_free(FT_STOPWORD *w, TREE_FREE action,
-                             void *arg __attribute__((unused)))
+                             void *arg MY_ATTRIBUTE((unused)))
 {
   if (action == free_free)
     my_free((void*)w->pos);

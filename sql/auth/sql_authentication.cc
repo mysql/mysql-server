@@ -2626,9 +2626,9 @@ static int validate_sha256_password_hash(char* const inbuf, unsigned int buflen)
   return 1;
 }
 
-static int set_sha256_salt(const char* password __attribute__((unused)),
-                           unsigned int password_len __attribute__((unused)),
-                           unsigned char* salt __attribute__((unused)),
+static int set_sha256_salt(const char* password MY_ATTRIBUTE((unused)),
+                           unsigned int password_len MY_ATTRIBUTE((unused)),
+                           unsigned char* salt MY_ATTRIBUTE((unused)),
                            unsigned char *salt_len)
 {
   *salt_len= 0;

@@ -22,6 +22,7 @@
 
 #include "dd/dd.h"                         // create_object
 #include "dd/impl/dictionary_impl.h"       // Dictionary_impl
+#include "dd/impl/sdi_impl.h"              // sdi read/write functions
 #include "dd/impl/transaction_impl.h"      // Open_dictionary_tables_ctx
 #include "dd/impl/raw/object_keys.h"       // Primary_id_key
 #include "dd/impl/raw/raw_record.h"        // Raw_record
@@ -33,6 +34,7 @@
 #include "dd/types/view.h"                 // View
 
 #include <memory>
+
 
 using dd::tables::Schemata;
 using dd::tables::Tables;
@@ -107,17 +109,29 @@ bool Schema_impl::store_attributes(Raw_record *r)
 }
 
 ///////////////////////////////////////////////////////////////////////////
-
+static_assert(Schemata::FIELD_LAST_ALTERED==5,
+              "Schemata definition has changed. Review (de)ser memfuns!");
 void
-Schema_impl::serialize(WriterVariant *wv) const
+Schema_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
 {
-
+  w->StartObject();
+  Entity_object_impl::serialize(wctx, w);
+  write(w, m_default_collation_id, STRING_WITH_LEN("default_collation_id"));
+  write(w, m_created, STRING_WITH_LEN("created"));
+  write(w, m_last_altered, STRING_WITH_LEN("last_altered"));
+  w->EndObject();
 }
 
-void
-Schema_impl::deserialize(const RJ_Document *d)
-{
+///////////////////////////////////////////////////////////////////////////
 
+bool
+Schema_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
+{
+  Entity_object_impl::deserialize(rctx, val);
+  read(&m_default_collation_id, val, "default_collation_id");
+  read(&m_created, val, "created");
+  read(&m_last_altered, val, "last_altered");
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -254,7 +268,7 @@ View *Schema_impl::create_view(THD *thd) const
 
 ///////////////////////////////////////////////////////////////////////////
 
-View *Schema_impl::create_system_view(THD *thd __attribute__((unused))) const
+View *Schema_impl::create_system_view(THD *thd MY_ATTRIBUTE((unused))) const
 {
   // Creating system views requires an IX meta data lock on the schema name.
 #ifndef DBUG_OFF

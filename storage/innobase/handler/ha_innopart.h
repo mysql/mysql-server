@@ -604,7 +604,7 @@ public:
 
 	uint
 	alter_flags(
-		uint	flags __attribute__((unused))) const
+		uint	flags MY_ATTRIBUTE((unused))) const
 	{
 		return(HA_PARTITION_FUNCTION_SUPPORTED
 		       | HA_FAST_CHANGE_PARTITION);

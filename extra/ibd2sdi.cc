@@ -291,8 +291,8 @@ extern "C"
 my_bool
 ibd2sdi_get_one_option(
 	int			optid,
-	const struct my_option	*opt __attribute__((unused)),
-	char			*argument __attribute__((unused)))
+	const struct my_option	*opt MY_ATTRIBUTE((unused)),
+	char			*argument MY_ATTRIBUTE((unused)))
 {
 	switch (optid) {
 #ifndef DBUG_OFF

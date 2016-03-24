@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -433,7 +433,7 @@ const ha_rows num_rows= 100000;
 const ha_rows row_limit= 1;
 const int num_iterations= 1;
 
-inline int test_data(int ix __attribute__((unused)))
+inline int test_data(int ix MY_ATTRIBUTE((unused)))
 {
   return rand();
   // return 42;

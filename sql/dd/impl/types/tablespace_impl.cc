@@ -18,6 +18,7 @@
 #include "mysqld_error.h"                        // ER_*
 
 #include "dd/impl/properties_impl.h"             // Properties_impl
+#include "dd/impl/sdi_impl.h"                    // sdi read/write functions
 #include "dd/impl/transaction_impl.h"            // Open_dictionary_tables_ctx
 #include "dd/impl/raw/object_keys.h"             // Primary_id_key
 #include "dd/impl/raw/raw_record.h"              // Raw_record
@@ -181,16 +182,34 @@ bool Tablespace_impl::store_attributes(Raw_record *r)
 
 ///////////////////////////////////////////////////////////////////////////
 
+static_assert(Tablespaces::FIELD_ENGINE==5,
+              "Tablespaces definition has changed, review (de)ser memfuns!");
 void
-Tablespace_impl::serialize(WriterVariant *wv) const
+Tablespace_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
 {
-
+  w->StartObject();
+  Entity_object_impl::serialize(wctx, w);
+  write(w, m_comment, STRING_WITH_LEN("comment"));
+  write_properties(w, m_options, STRING_WITH_LEN("options"));
+  write_properties(w, m_se_private_data, STRING_WITH_LEN("se_private_data"));
+  write(w, m_engine, STRING_WITH_LEN("engine"));
+  serialize_each(wctx, w, m_files.get(), STRING_WITH_LEN("files"));
+  w->EndObject();
 }
 
-void
-Tablespace_impl::deserialize(const RJ_Document *d)
-{
+///////////////////////////////////////////////////////////////////////////
 
+bool
+Tablespace_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
+{
+  Entity_object_impl::deserialize(rctx, val);
+  read(&m_comment, val, "comment");
+  read_properties(&m_options, val, "options");
+  read_properties(&m_se_private_data, val, "se_private_data");
+  read(&m_engine, val, "engine");
+  deserialize_each(rctx, [this] () { return add_file(); }, val,
+                   "files");
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////

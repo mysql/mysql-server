@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,17 +21,17 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-const std::string escape(const std::string &src)
+void escape(std::string *sp, const std::string &src)
 {
-  std::string dest= src;
-  for (std::string::iterator d= dest.begin(); d != dest.end(); d++)
-    if (*d == '\\' || *d == '=' || *d == ';')
+  const std::string::const_iterator src_end= src.end();
+  for (std::string::const_iterator s= src.begin(); s != src_end; ++s)
+  {
+    if (*s == '\\' || *s == '=' || *s == ';')
     {
-      d= dest.insert(d, '\\');
-      // Advance to get past the escaped character
-      d++;
+      sp->append(1, '\\');
     }
-  return dest;
+    sp->append(1, *s);
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////

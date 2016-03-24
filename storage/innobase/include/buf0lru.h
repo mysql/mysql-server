@@ -99,7 +99,7 @@ buf_LRU_scan_and_free_block(
 	bool		scan_all)	/*!< in: scan whole LRU list
 					if true, otherwise scan only
 					'old' blocks. */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /******************************************************************//**
 Returns a free block from the buf_pool.  The block is taken off the
 free list.  If it is empty, returns NULL.
@@ -136,7 +136,7 @@ buf_block_t*
 buf_LRU_get_free_block(
 /*===================*/
 	buf_pool_t*	buf_pool)	/*!< in/out: buffer pool instance */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /******************************************************************//**
 Determines if the unzip_LRU list should be used for evicting a victim
 instead of the general LRU list.

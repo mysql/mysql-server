@@ -19,6 +19,7 @@
 
 #include "dd/impl/collection_impl.h"            // Collection
 #include "dd/impl/properties_impl.h"            // Properties_impl
+#include "dd/impl/sdi_impl.h"                   // sdi read/write functions
 #include "dd/impl/transaction_impl.h"           // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"             // Raw_record
 #include "dd/impl/tables/indexes.h"             // Indexes
@@ -28,6 +29,7 @@
 #include "dd/types/column.h"                    // Column::name()
 
 #include <sstream>
+
 
 using dd::tables::Indexes;
 using dd::tables::Index_column_usage;
@@ -232,18 +234,65 @@ bool Index_impl::store_attributes(Raw_record *r)
          r->store_ref_id(Indexes::FIELD_TABLESPACE_ID, m_tablespace_id) ||
          r->store(Indexes::FIELD_ENGINE, m_engine);
 }
+
 ///////////////////////////////////////////////////////////////////////////
-
+static_assert(Indexes::FIELD_ENGINE==13,
+              "Indexes definition has changed, review (de)ser memfuns!");
 void
-Index_impl::serialize(WriterVariant *wv) const
+Index_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
 {
+  w->StartObject();
+  Entity_object_impl::serialize(wctx, w);
 
+  write(w, m_hidden, STRING_WITH_LEN("hidden"));
+  write(w, m_is_generated, STRING_WITH_LEN("is_generated"));
+  write(w, m_ordinal_position, STRING_WITH_LEN("ordinal_position"));
+  write(w, m_comment, STRING_WITH_LEN("comment"));
+
+  write_properties(w, m_options, STRING_WITH_LEN("options"));
+  write_properties(w, m_se_private_data, STRING_WITH_LEN("se_private_data"));
+  write_enum(w, m_type, STRING_WITH_LEN("type"));
+  write_enum(w, m_algorithm, STRING_WITH_LEN("algorithm"));
+  write(w, m_is_algorithm_explicit, STRING_WITH_LEN("is_algorithm_explicit"));
+  write(w, m_engine, STRING_WITH_LEN("engine"));
+
+  serialize_each(wctx, w, m_elements.get(), STRING_WITH_LEN("elements"));
+
+  serialize_tablespace_ref(wctx, w, m_tablespace_id,
+                           STRING_WITH_LEN("tablespace_ref"));
+  w->EndObject();
 }
 
-void
-Index_impl::deserialize(const RJ_Document *d)
-{
+///////////////////////////////////////////////////////////////////////////
 
+bool
+Index_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
+{
+  Entity_object_impl::deserialize(rctx, val);
+
+  read(&m_hidden, val, "hidden");
+  read(&m_is_generated, val, "is_generated");
+  read(&m_ordinal_position, val, "ordinal_position");
+  read(&m_comment, val, "comment");
+  read_properties(&m_options, val, "options");
+  read_properties(&m_se_private_data, val, "se_private_data");
+  read_enum(&m_type, val, "type");
+  read_enum(&m_algorithm, val, "algorithm");
+  read(&m_is_algorithm_explicit, val, "is_algorithm_explicit");
+  read(&m_engine, val, "engine");
+
+  deserialize_each(rctx, [this] () { return add_element(nullptr); },
+                   val, "elements");
+
+  if (deserialize_tablespace_ref(rctx, &m_tablespace_id, val,
+                                 "tablespace_name"))
+  {
+    return true;
+  }
+
+  track_object(rctx, this);
+
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////

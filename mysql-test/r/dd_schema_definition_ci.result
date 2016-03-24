@@ -141,7 +141,7 @@ id	table_id	name	ordinal_position	type	is_nullable	is_zerofill	is_unsigned	char_
 56	8	view_is_updatable	25	MYSQL_TYPE_ENUM	1	0	0	9	0	NULL	0	83	NULL	NULL	0		0	NULL	NULL
 57	8	view_algorithm	26	MYSQL_TYPE_ENUM	1	0	0	27	0	NULL	0	83	NULL	NULL	0		0	NULL	NULL
 58	8	view_security_type	27	MYSQL_TYPE_ENUM	1	0	0	21	0	NULL	0	83	NULL	NULL	0		0	NULL	NULL
-59	8	view_definer	28	MYSQL_TYPE_VARCHAR	1	0	0	231	0	NULL	0	83	NULL	NULL	0		0	NULL	NULL
+59	8	view_definer	28	MYSQL_TYPE_VARCHAR	1	0	0	279	0	NULL	0	83	NULL	NULL	0		0	NULL	NULL
 60	8	view_client_collation_id	29	MYSQL_TYPE_LONGLONG	1	0	1	20	0	0	0	83	NULL	NULL	0		0	NULL	NULL
 61	8	view_connection_collation_id	30	MYSQL_TYPE_LONGLONG	1	0	1	20	0	0	0	83	NULL	NULL	0		0	NULL	NULL
 62	9	view_id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	0	0	0	83	NULL	NULL	0		0	NULL	NULL

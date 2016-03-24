@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -140,7 +140,7 @@ extern "C" void my_free(void *ptr)
 
 #else
 
-extern "C" void *my_malloc(PSI_memory_key key __attribute__((unused)),
+extern "C" void *my_malloc(PSI_memory_key key MY_ATTRIBUTE((unused)),
                            size_t size, myf my_flags)
 {
   return my_raw_malloc(size, my_flags);
@@ -148,13 +148,13 @@ extern "C" void *my_malloc(PSI_memory_key key __attribute__((unused)),
 
 static void *my_raw_realloc(void *oldpoint, size_t size, myf my_flags);
 
-extern "C" void *my_realloc(PSI_memory_key key __attribute__((unused)),
+extern "C" void *my_realloc(PSI_memory_key key MY_ATTRIBUTE((unused)),
                             void *ptr, size_t size, myf flags)
 {
   return my_raw_realloc(ptr, size, flags);
 }
 
-extern "C" void my_claim(const void *ptr __attribute__((unused)))
+extern "C" void my_claim(const void *ptr MY_ATTRIBUTE((unused)))
 {
   /* Empty */
 }

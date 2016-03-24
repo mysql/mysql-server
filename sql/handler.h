@@ -36,6 +36,8 @@
 #include "mysql/psi/psi_table.h"
 #include "dd/types/table.h"
 
+#include "dd/types/fwd.h"      // dd::Schema, dd::sdi_t
+
 #include <algorithm>
 #include <string>
 
@@ -1074,6 +1076,57 @@ typedef bool (*sdi_flush_t)(const dd::Tablespace &tablespace);
 */
 typedef uint32 (*sdi_get_num_copies_t)(const dd::Tablespace &tablespace);
 
+
+/**
+  Store sdi for a dd:Schema object associated with table
+  @param[in]  sdi sdi json string
+  @param[in]  schema dd object
+  @param[in]  table table with which schema is associated
+  @return error status
+    @retval false if successful.
+    @retval true otherwise.
+*/
+typedef bool (*store_schema_sdi_t)(THD *thd, handlerton *hton,
+                                   const dd::sdi_t &sdi,
+                                   const dd::Schema *schema,
+                                   const dd::Table *table);
+
+/**
+  Store sdi for a dd::Table object.
+  @param[in]  sdi sdi json string
+  @param[in]  table dd object
+  @return error status
+    @retval false if successful.
+    @retval true otherwise.
+*/
+typedef bool (*store_table_sdi_t)(THD *thd, handlerton *hton,
+                                  const dd::sdi_t &sdi,
+                                  const dd::Table *table,
+                                  const dd::Schema *schema);
+
+/**
+  Remove sdi for a dd::Schema object.
+  @param[in]  schema dd object
+  @return error status
+    @retval false if successful.
+    @retval true otherwise.
+*/
+typedef bool (*remove_schema_sdi_t)(THD *thd, handlerton *hton,
+                                    const dd::Schema *schema,
+                                    const dd::Table *table);
+
+
+/**
+  Remove sdi for a dd::Table object.
+  @param[in]  table dd object
+  @return error status
+    @retval false if successful.
+    @retval true otherwise.
+*/
+typedef bool (*remove_table_sdi_t)(THD *thd, handlerton *hton,
+                                   const dd::Table *table,
+                                   const dd::Schema *schema);
+
 /**
   Check if the DDSE is started in a way that leaves thd DD being read only.
 
@@ -1380,6 +1433,16 @@ struct handlerton
   sdi_delete_t sdi_delete;
   sdi_flush_t sdi_flush;
   sdi_get_num_copies_t sdi_get_num_copies;
+
+  /**
+    Function pointer variables for manipulating storing and removing SDI strings
+    in SE.
+   */
+  store_schema_sdi_t store_schema_sdi;
+  store_table_sdi_t store_table_sdi;
+
+  remove_schema_sdi_t remove_schema_sdi;
+  remove_table_sdi_t remove_table_sdi;
 
   /**
     Null-ended array of file extentions that exist for the storage engine.
@@ -4046,7 +4109,7 @@ private:
       @retval    0  Success.
       @retval != 0  Error code.
   */
-  virtual int write_row(uchar *buf __attribute__((unused)))
+  virtual int write_row(uchar *buf MY_ATTRIBUTE((unused)))
   {
     return HA_ERR_WRONG_COMMAND;
   }
@@ -4059,13 +4122,13 @@ private:
     the columns required for the error message are not read, the error
     message will contain garbage.
   */
-  virtual int update_row(const uchar *old_data __attribute__((unused)),
-                         uchar *new_data __attribute__((unused)))
+  virtual int update_row(const uchar *old_data MY_ATTRIBUTE((unused)),
+                         uchar *new_data MY_ATTRIBUTE((unused)))
   {
     return HA_ERR_WRONG_COMMAND;
   }
 
-  virtual int delete_row(const uchar *buf __attribute__((unused)))
+  virtual int delete_row(const uchar *buf MY_ATTRIBUTE((unused)))
   {
     return HA_ERR_WRONG_COMMAND;
   }
@@ -4099,8 +4162,8 @@ private:
     @return  non-0 in case of failure, 0 in case of success.
     When lock_type is F_UNLCK, the return value is ignored.
   */
-  virtual int external_lock(THD *thd __attribute__((unused)),
-                            int lock_type __attribute__((unused)))
+  virtual int external_lock(THD *thd MY_ATTRIBUTE((unused)),
+                            int lock_type MY_ATTRIBUTE((unused)))
   {
     return 0;
   }

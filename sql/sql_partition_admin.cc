@@ -27,6 +27,8 @@
 #include "sql_class.h"                      // THD
 #include "sql_cache.h"                      // query_cache
 #include "dd/cache/dictionary_client.h"     // dd::cache::Dictionary_client
+#include "dd/dd_schema.h"   // dd::Schema_MDL_locker
+#include "dd/sdi.h"         // dd::store_sdi
 
 
 bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd)
@@ -834,11 +836,23 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     */
     if (!error)
     {
-      if (thd->dd_client()->update_uncached_and_invalidate(table_def.get()))
+      dd::Schema_MDL_locker mdl_locker(thd);
+      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+      const dd::Schema *sch_obj;
+
+      if (thd->dd_client()->update_uncached_and_invalidate(table_def.get()) ||
+          write_bin_log(thd, true, thd->query().str, thd->query().length,
+                        true) ||
+          mdl_locker.ensure_locked(first_table->db) ||
+          thd->dd_client()->acquire<dd::Schema>(first_table->db, &sch_obj))
         error= 1;
+      else if (!sch_obj)
+      {
+        my_error(ER_BAD_DB_ERROR, MYF(0), first_table->db);
+        error= 1;
+      }
       else
-        error= write_bin_log(thd, true, thd->query().str, thd->query().length,
-                             true);
+        error= dd::store_sdi(thd, table_def.get(), sch_obj);
     }
   }
   else

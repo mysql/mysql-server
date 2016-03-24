@@ -30,6 +30,7 @@
 #include "dd/dictionary.h"                    // dd::Dictionary
 #include "dd/iterator.h"                      // dd::Iterator
 #include "dd/properties.h"                    // dd::Properties
+#include "dd/sdi.h"                           // dd::store_sdi
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
 #include "dd/types/column.h"                  // dd::Column
 #include "dd/types/column_type_element.h"     // dd::Column_type_element
@@ -43,6 +44,7 @@
 #include "dd/types/table.h"                   // dd::Table
 #include "dd/types/tablespace.h"              // dd::Tablespace
 #include "dd/types/view.h"                    // dd::View
+
 
 // TODO: Avoid exposing dd/impl headers in public files.
 #include "dd/impl/utils.h"                    // dd::escape
@@ -91,7 +93,9 @@ template bool dd::rename_table<dd::View>(THD *thd,
                                       const char *to_name,
                                       bool no_foreign_key_check);
 template bool dd::rename_table<dd::Table>(THD *thd,
+                                          const dd::Schema *from_sch,
                                           const dd::Table *from_table_def,
+                                          const dd::Schema *to_sch,
                                           dd::Table *to_table_def,
                                           bool commit_dd_changes);
 
@@ -776,7 +780,7 @@ static bool get_field_list_str(std::string &str, List<char> *name_list)
   uint i= 0, elements= name_list->elements;
   while ((name= it++))
   {
-    str.append(dd::escape(name));
+    dd::escape(&str, name);
     if (++i < elements)
       str.push_back(FIELD_NAME_SEPARATOR_CHAR);
   }
@@ -1507,7 +1511,8 @@ static std::unique_ptr<dd::Table> create_dd_user_table(THD *thd,
   Disable_gtid_state_update_guard disabler(thd);
 
   // Store info in DD tables.
-  if (thd->dd_client()->store(tab_obj.get()))
+  if (thd->dd_client()->store(tab_obj.get()) ||
+      dd::store_sdi(thd, tab_obj.get(), sch_obj))
   {
     if (commit_dd_changes)
     {
@@ -1631,7 +1636,8 @@ bool drop_table(THD *thd, const char *schema_name, const char *name,
   Disable_gtid_state_update_guard disabler(thd);
 
   // Drop the table/view
-  if (client->drop_uncached(table_def.get()))
+  if (dd::remove_sdi(thd, at, sch) ||
+      client->drop_uncached(table_def.get()))
   {
     if (commit_dd_changes)
     {
@@ -1730,7 +1736,8 @@ bool rename_table(THD *thd,
     /* This function can't properly handle sticky (i.e. system tables). */
     DBUG_ASSERT(! thd->dd_client()->is_sticky(to_tab));
 
-    if (thd->dd_client()->drop_uncached(to_tab))
+    if (dd::remove_sdi(thd, to_tab, to_sch) ||
+        thd->dd_client()->drop_uncached(to_tab))
     {
       if (commit_dd_changes)
       {
@@ -1743,6 +1750,7 @@ bool rename_table(THD *thd,
     }
   }
 
+  Sdi_updater update_sdi= make_sdi_updater(thd, from_tab.get(), from_sch);
 
   // Set schema id and table name.
   from_tab->set_schema_id(to_sch->id());
@@ -1760,21 +1768,11 @@ bool rename_table(THD *thd,
     return true;
   }
 
-  return commit_dd_changes &&
-         (trans_commit_stmt(thd) || trans_commit(thd));
-}
+  bool abort= false;
+  DBUG_EXECUTE_IF("abort_rename_after_update",
+                  abort= true;);
 
-
-template <typename T>
-bool rename_table(THD *thd,
-                  const dd::Table *from_table_def,
-                  dd::Table *to_table_def,
-                  bool commit_dd_changes)
-{
-  Disable_gtid_state_update_guard disabler(thd);
-
-  // Do the update. Errors will be reported by the dictionary subsystem.
-  if (thd->dd_client()->update_uncached_and_invalidate(to_table_def))
+  if (update_sdi(thd, from_tab.get(), to_sch) || abort)
   {
     if (commit_dd_changes)
     {
@@ -1782,6 +1780,53 @@ bool rename_table(THD *thd,
       // Full rollback in case we have THD::transaction_rollback_request.
       trans_rollback(thd);
     }
+
+#ifndef DBUG_OFF
+    if (abort)
+    {
+      my_error(ER_ERROR_ON_WRITE, MYF(0), "error inject", 42,
+               "simulated write error");
+    }
+#endif /* !DBUG_OFF */
+    return true;
+  }
+
+  return commit_dd_changes &&
+         (trans_commit_stmt(thd) || trans_commit(thd));
+}
+
+
+template <typename T>
+bool rename_table(THD *thd,
+                  const dd::Schema *from_sch, const dd::Table *from_table_def,
+                  const dd::Schema *to_sch, dd::Table *to_table_def,
+                  bool commit_dd_changes)
+{
+  Disable_gtid_state_update_guard disabler(thd);
+
+  Sdi_updater update_sdi= make_sdi_updater(thd, from_table_def, from_sch);
+
+  bool abort= false;
+  DBUG_EXECUTE_IF("abort_rename_after_update",
+                  abort= true;);
+
+  // Do the update. Errors will be reported by the dictionary subsystem.
+  if (thd->dd_client()->update_uncached_and_invalidate(to_table_def) ||
+      update_sdi(thd, to_table_def, to_sch) || abort)
+  {
+    if (commit_dd_changes)
+    {
+      trans_rollback_stmt(thd);
+      // Full rollback in case we have THD::transaction_rollback_request.
+      trans_rollback(thd);
+    }
+#ifndef DBUG_OFF
+    if (abort)
+    {
+      my_error(ER_ERROR_ON_WRITE, MYF(0), "error inject", 42,
+               "simulated write error");
+    }
+#endif /* !DBUG_OFF */
     return true;
   }
 

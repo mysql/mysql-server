@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2015 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,13 +46,13 @@ void Help_options::create_options()
     this, &Help_options::version_callback));
 }
 
-void Help_options::help_callback(char* argument __attribute__((unused)))
+void Help_options::help_callback(char* argument MY_ATTRIBUTE((unused)))
 {
   this->print_usage();
   exit(0);
 }
 
-void Help_options::version_callback(char* argument __attribute__((unused)))
+void Help_options::version_callback(char* argument MY_ATTRIBUTE((unused)))
 {
   this->print_version_line();
   exit(0);

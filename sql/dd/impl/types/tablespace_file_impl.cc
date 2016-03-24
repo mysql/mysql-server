@@ -19,6 +19,7 @@
 
 #include "dd/impl/collection_impl.h"         // Collection
 #include "dd/impl/properties_impl.h"         // Properties_impl
+#include "dd/impl/sdi_impl.h"                // sdi read/write functions
 #include "dd/impl/transaction_impl.h"        // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"          // Raw_record
 #include "dd/impl/tables/tablespace_files.h" // Tablespace_files
@@ -132,16 +133,27 @@ bool Tablespace_file_impl::store_attributes(Raw_record *r)
 
 ///////////////////////////////////////////////////////////////////////////
 
+static_assert(Tablespace_files::FIELD_SE_PRIVATE_DATA==3,
+              "Tablespace_files definition has changed, review (de)ser memfuns");
 void
-Tablespace_file_impl::serialize(WriterVariant *wv) const
+Tablespace_file_impl::serialize(Sdi_wcontext*, Sdi_writer *w) const
 {
-
+  w->StartObject();
+  write(w, m_ordinal_position, STRING_WITH_LEN("ordinal_position"));
+  write(w, m_filename, STRING_WITH_LEN("filename"));
+  write_properties(w, m_se_private_data, STRING_WITH_LEN("se_private_data"));
+  w->EndObject();
 }
 
-void
-Tablespace_file_impl::deserialize(const RJ_Document *d)
-{
+///////////////////////////////////////////////////////////////////////////
 
+bool
+Tablespace_file_impl::deserialize(Sdi_rcontext*, const RJ_Value &val)
+{
+  read(&m_ordinal_position, val, "ordinal_position");
+  read(&m_filename, val, "filename");
+  read_properties(&m_se_private_data, val, "se_private_data");
+  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////

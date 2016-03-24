@@ -48,7 +48,7 @@ extern  void _db_return_(unsigned int _line_, struct _db_stack_frame_ *_stack_fr
 extern  void _db_pargs_(unsigned int _line_,const char *keyword);
 extern  int _db_enabled_();
 extern  void _db_doprnt_(const char *format,...)
-  __attribute__((format(printf, 1, 2)));
+  MY_ATTRIBUTE((format(printf, 1, 2)));
 extern  void _db_dump_(unsigned int _line_,const char *keyword,
                        const unsigned char *memory, size_t length);
 extern  void _db_end_(void);
@@ -119,7 +119,7 @@ extern  const char* _db_get_func_(void);
 #ifdef _WIN32
 #define DBUG_SUICIDE() DBUG_ABORT()
 #else
-extern void _db_suicide_() __attribute__((noreturn));
+extern void _db_suicide_() MY_ATTRIBUTE((noreturn));
 extern void _db_flush_gcov_();
 #define DBUG_SUICIDE() (_db_flush_(), _db_suicide_())
 #endif

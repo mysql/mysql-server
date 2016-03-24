@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ mysql_mutex_t LOCK_manager;
 mysql_cond_t COND_manager;
 
 extern "C" {
-static void *handle_manager(void *arg __attribute__((unused)))
+static void *handle_manager(void *arg MY_ATTRIBUTE((unused)))
 {
   int error = 0;
   struct timespec abstime;

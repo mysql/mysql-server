@@ -188,7 +188,7 @@ public:
                                                    "'DEFINER')");
     m_target_def.add_field(FIELD_VIEW_DEFINER,
                            "FIELD_VIEW_DEFINER",
-                           "view_definer VARCHAR(77)");
+                           "view_definer VARCHAR(93)");
     m_target_def.add_field(FIELD_VIEW_CLIENT_COLLATION_ID,
                            "FIELD_VIEW_CLIENT_COLLATION_ID",
                            "view_client_collation_id BIGINT UNSIGNED");

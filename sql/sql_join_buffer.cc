@@ -2225,6 +2225,9 @@ enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr)
       return rc;
     }
   }
+  // error in condition evaluation
+  if (join->thd->is_error())
+    rc= NESTED_LOOP_ERROR;
   return rc;
 }
 

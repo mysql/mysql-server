@@ -1161,7 +1161,7 @@ public:
   {
     Partition_helper::set_part_info_low(part_info, early);
   }
-  uint alter_flags(uint flags __attribute__((unused))) const
+  uint alter_flags(uint flags MY_ATTRIBUTE((unused))) const
   {
     return (HA_PARTITION_FUNCTION_SUPPORTED |
             HA_FAST_CHANGE_PARTITION);

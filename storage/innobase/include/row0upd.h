@@ -116,7 +116,7 @@ upd_get_field_by_field_no(
 	const upd_t*	update,	/*!< in: update vector */
 	ulint		no,	/*!< in: field_no */
 	bool		is_virtual) /*!< in: if it is a virtual column */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Writes into the redo log the values of trx id and roll ptr and enough info
 to determine their positions within a clustered index record.
@@ -199,7 +199,7 @@ bool
 row_upd_changes_disowned_external(
 /*==============================*/
 	const upd_t*	update)	/*!< in: update vector */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Replaces the new column values stored in the update vector to the
@@ -230,7 +230,7 @@ row_upd_build_sec_rec_difference_binary(
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
 	const dtuple_t*	entry,	/*!< in: entry to insert */
 	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /** Builds an update vector from those fields, excluding the roll ptr and
 trx id fields, which in an index entry differ from a record that has
 the equal ordering fields. NOTE: we compare the fields as binary strings!
@@ -257,7 +257,7 @@ row_upd_build_difference_binary(
 	trx_t*		trx,
 	mem_heap_t*	heap,
 	TABLE*		mysql_table)
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /***********************************************************//**
 Replaces the new column values stored in the update vector to the index entry
 given. */
@@ -354,7 +354,7 @@ row_upd_changes_ord_field_binary_func(
 				stored columns in the old row */
 	ulint		flag)	/*!< in: ROW_BUILD_NORMAL,
 				ROW_BUILD_FOR_PURGE or ROW_BUILD_FOR_UNDO */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 #ifdef UNIV_DEBUG
 # define row_upd_changes_ord_field_binary(index,update,thr,row,ext)	\
 	row_upd_changes_ord_field_binary_func(index,update,thr,row,ext,0)
@@ -379,7 +379,7 @@ row_upd_changes_doc_id(
 /*===================*/
 	dict_table_t*	table,		/*!< in: table */
 	upd_field_t*	upd_field)	/*!< in: field to check */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /***********************************************************//**
 Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering

@@ -41,6 +41,9 @@ class Foreign_key_element_impl : public Weak_object_impl,
 /* purecov: begin deadcode */
 public:
   Foreign_key_element_impl()
+    : m_foreign_key(NULL),
+      m_column(NULL),
+      m_ordinal_position(0)
   { }
 
   virtual ~Foreign_key_element_impl()
@@ -56,9 +59,9 @@ public:
 
   virtual bool store_attributes(Raw_record *r);
 
-  void serialize(WriterVariant *wv) const;
+  void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const;
 
-  void deserialize(const RJ_Document *d);
+  bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
   void debug_print(std::string &outb) const;
 

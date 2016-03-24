@@ -34,7 +34,7 @@
 namespace rules_table_service
 {
 
-int __attribute__((visibility("default"))) 
+int MY_ATTRIBUTE((visibility("default"))) 
 dummy_function_to_ensure_we_are_linked_into_the_server() { return 1; }
 
 const char *db_name= "query_rewrite";

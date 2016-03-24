@@ -18,6 +18,7 @@
 
 #include "my_global.h"
 
+#include "dd/sdi_fwd.h"
 #include "dd/impl/types/weak_object_impl.h" // Weak_object_impl
 #include "dd/types/entity_object.h"         // Entity_object
 
@@ -80,6 +81,9 @@ protected:
   bool store_id(Raw_record *r, int field_idx);
   bool store_name(Raw_record *r, int field_idx);
   bool store_name(Raw_record *r, int field_idx, bool is_null);
+
+  void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const;
+  bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
 private:
   // NOTE: ID and Name attributes *must* remain private so that we can track

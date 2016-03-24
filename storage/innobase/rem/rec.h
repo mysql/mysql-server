@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -176,7 +176,7 @@ rec_get_offsets_func(
 	ulint			line,	/*!< in: line number where called */
 #endif /* UNIV_DEBUG */
 	mem_heap_t**		heap)	/*!< in/out: memory heap */
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /******************************************************//**
 The following function determines the offsets to each field
@@ -229,7 +229,7 @@ rec_get_bit_field_2(
 /******************************************************//**
 The following function retrieves the status bits of a new-style record.
 @return status bits */
-UNIV_INLINE __attribute__((warn_unused_result))
+UNIV_INLINE MY_ATTRIBUTE((warn_unused_result))
 ulint
 rec_get_status(
 /*===========*/
@@ -250,7 +250,7 @@ rec_get_status(
 The following function is used to get the number of fields
 in an old-style record.
 @return number of data fields */
-UNIV_INLINE __attribute__((warn_unused_result))
+UNIV_INLINE MY_ATTRIBUTE((warn_unused_result))
 ulint
 rec_get_n_fields_old(
 /*=================*/
@@ -327,7 +327,7 @@ rec_n_fields_is_sane(
 The following function returns the number of allocated elements
 for an array of offsets.
 @return number of elements */
-UNIV_INLINE __attribute__((warn_unused_result))
+UNIV_INLINE MY_ATTRIBUTE((warn_unused_result))
 ulint
 rec_offs_get_n_alloc(
 /*=================*/
@@ -379,7 +379,7 @@ rec_offs_set_n_fields(
 /**********************************************************//**
 The following function returns the number of fields in a record.
 @return number of fields */
-UNIV_INLINE __attribute__((warn_unused_result))
+UNIV_INLINE MY_ATTRIBUTE((warn_unused_result))
 ulint
 rec_offs_n_fields(
 /*==============*/
@@ -421,7 +421,7 @@ rec_init_offsets(
 /************************************************************//**
 Validates offsets returned by rec_get_offsets().
 @return TRUE if valid */
-UNIV_INLINE __attribute__((warn_unused_result))
+UNIV_INLINE MY_ATTRIBUTE((warn_unused_result))
 ibool
 rec_offs_validate(
 /*==============*/
@@ -619,7 +619,7 @@ resolved:
 The following function is used to test whether the data offsets in the record
 are stored in one-byte or two-byte format.
 @return TRUE if 1-byte form */
-UNIV_INLINE __attribute__((warn_unused_result))
+UNIV_INLINE MY_ATTRIBUTE((warn_unused_result))
 ibool
 rec_get_1byte_offs_flag(
 /*====================*/
@@ -639,7 +639,7 @@ Returns the offset of nth field end if the record is stored in the 1-byte
 offsets form. If the field is SQL null, the flag is ORed in the returned
 value.
 @return offset of the start of the field, SQL null flag ORed */
-UNIV_INLINE __attribute__((warn_unused_result))
+UNIV_INLINE MY_ATTRIBUTE((warn_unused_result))
 ulint
 rec_1_get_field_end_info(
 /*=====================*/
@@ -658,7 +658,7 @@ offsets form. If the field is SQL null, the flag is ORed in the returned
 value.
 @return offset of the start of the field, SQL null flag and extern
 storage flag ORed */
-UNIV_INLINE __attribute__((warn_unused_result))
+UNIV_INLINE MY_ATTRIBUTE((warn_unused_result))
 ulint
 rec_2_get_field_end_info(
 /*=====================*/

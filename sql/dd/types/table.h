@@ -19,6 +19,7 @@
 #include "my_global.h"
 
 #include "dd/types/abstract_table.h"   // dd::Abstract_table
+#include "dd/sdi_fwd.h"                // RJ_Document
 
 namespace dd {
 
@@ -228,6 +229,37 @@ public:
   */
   virtual Table *clone() const = 0;
 
+
+  /**
+    Converts *this into json.
+
+    Converts all member variables that are to be included in the sdi
+    into json by transforming them appropriately and passing them to
+    the rapidjson writer provided.
+
+    @param wctx opaque context for data needed by serialization
+    @param w rapidjson writer which will perform conversion to json
+
+  */
+
+  virtual void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const = 0;
+
+
+  /**
+    Re-establishes the state of *this by reading sdi information from
+    the rapidjson DOM subobject provided.
+
+    Cross-references encountered within this object are tracked in
+    sdictx, so that they can be updated when the entire object graph
+    has been established.
+
+    @param rctx stores book-keeping information for the
+    deserialization process
+    @param val subobject of rapidjson DOM containing json
+    representation of this object
+  */
+
+  virtual bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val) = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////

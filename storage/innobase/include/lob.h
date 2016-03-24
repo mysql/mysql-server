@@ -67,7 +67,7 @@ btr_store_big_rec_extern_fields(
 	const big_rec_t*	big_rec_vec,
 	mtr_t*			btr_mtr,
 	enum blob_op		op)
-	__attribute__((warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Copies an externally stored field of a record to mem heap.
 @param[in]	rec		record in a clustered index; must be

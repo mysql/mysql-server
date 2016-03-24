@@ -174,7 +174,7 @@ public:
 		bool	create_new_db,
 		ulint*	sum_new_sizes,
 		lsn_t*	flush_lsn)
-		__attribute__((warn_unused_result));
+		MY_ATTRIBUTE((warn_unused_result));
 
 private:
 	/** Check if the DDTableBuffer exists in this tablespace.

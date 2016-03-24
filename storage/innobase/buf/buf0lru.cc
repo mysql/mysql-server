@@ -142,7 +142,7 @@ If a compressed page is freed other compressed pages may be relocated.
 caller needs to free the page to the free list
 @retval false if BUF_BLOCK_ZIP_PAGE was removed from page_hash. In
 this case the block is already returned to the buddy allocator. */
-static __attribute__((warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 bool
 buf_LRU_block_remove_hashed(
 /*========================*/
@@ -419,7 +419,7 @@ If we have hogged the resources for too long then release the buffer
 pool and flush list mutex and do a thread yield. Set the current page
 to "sticky" so that it is not relocated during the yield.
 @return true if yielded */
-static	__attribute__((warn_unused_result))
+static	MY_ATTRIBUTE((warn_unused_result))
 bool
 buf_flush_try_yield(
 /*================*/
@@ -462,7 +462,7 @@ buf_flush_try_yield(
 Removes a single page from a given tablespace inside a specific
 buffer pool instance.
 @return true if page was removed. */
-static	__attribute__((warn_unused_result))
+static	MY_ATTRIBUTE((warn_unused_result))
 bool
 buf_flush_or_remove_page(
 /*=====================*/
@@ -548,7 +548,7 @@ the list as they age towards the tail of the LRU.
 @retval DB_SUCCESS if all freed
 @retval DB_FAIL if not all freed
 @retval DB_INTERRUPTED if the transaction was interrupted */
-static	__attribute__((warn_unused_result))
+static	MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 buf_flush_or_remove_pages(
 /*======================*/
