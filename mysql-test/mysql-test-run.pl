@@ -4810,6 +4810,7 @@ sub run_testcase ($) {
       # ----------------------------------------------------
       # It's not mysqltest that has exited, kill it
       # ----------------------------------------------------
+      mtr_report ("Killing mysqltest pid $test");
       $test->kill();
 
       report_failure_and_restart($tinfo);
@@ -4829,6 +4830,7 @@ sub run_testcase ($) {
     # ----------------------------------------------------
     # It's not mysqltest that has exited, kill it
     # ----------------------------------------------------
+    mtr_report ("Killing mysqltest pid $test");
     $test->kill();
 
     # ----------------------------------------------------
