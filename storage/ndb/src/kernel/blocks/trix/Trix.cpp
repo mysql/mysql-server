@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -701,6 +701,20 @@ void Trix::execUTIL_PREPARE_REF(Signal* signal)
   }
   subRecPtr.p = subRec;
   subRec->errorCode = (BuildIndxRef::ErrorCode)utilPrepareRef->errorCode;
+  switch (utilPrepareRef->errorCode) {
+  case UtilPrepareRef::PREPARE_SEIZE_ERROR:
+  case UtilPrepareRef::PREPARE_PAGES_SEIZE_ERROR:
+  case UtilPrepareRef::PREPARED_OPERATION_SEIZE_ERROR:
+  case UtilPrepareRef::DICT_TAB_INFO_ERROR:
+    subRec->errorCode = BuildIndxRef::UtilBusy;
+    break;
+  case UtilPrepareRef::MISSING_PROPERTIES_SECTION:
+    subRec->errorCode = BuildIndxRef::BadRequestType;
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
 
   UtilReleaseConf* conf = (UtilReleaseConf*)signal->getDataPtrSend();
   conf->senderData = subRecPtr.i;
