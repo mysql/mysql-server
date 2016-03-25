@@ -10704,7 +10704,8 @@ int ha_ndbcluster::create(const char *name,
                  ("mod_nologging not found, getLogging()=%u",
                   tab.getLogging()));
     }
-    if (mod_read_backup->m_found ||
+    if ((mod_read_backup->m_found &&
+         mod_read_backup->m_val_bool) ||
         opt_ndb_read_backup)
     {
       if (!mod_frags->m_found && !is_alter)
