@@ -49,12 +49,35 @@
 #endif /* HAVE OPENSSL && !HAVE_YASSL */
 
 
-/****************************************************************************
+/**
+   @file sql_authentication
+
    AUTHENTICATION CODE
+
    including initial connect handshake, invoking appropriate plugins,
    client-server plugin negotiation, COM_CHANGE_USER, and native
    MySQL authentication plugins.
-****************************************************************************/
+*/
+
+/**
+  @page protocol_connection_phase Connection Phase
+
+  The Connection Phase performs these tasks:
+    - exchange the capabilities of client and server
+    - setup SSL communication channel if requested
+    - authenticate the client against the server
+
+  It starts with the client connect()ing to the server which may send a
+  ERR packet and finish the handshake or send a Initial Handshake Packet
+  which the client answers with a Handshake Response Packet. At this stage
+  client can request SSL connection, in which case an SSL communication
+  channel is established before client sends its authentication response.
+
+  @note In case the server sent a ERR packet as first packet it will happen
+  before the client and server negotiated any capabilities.
+  Therefore the ERR packet will not contain the SQL-state.
+*/
+
 
 LEX_CSTRING native_password_plugin_name= {
   C_STRING_WITH_LEN("mysql_native_password")

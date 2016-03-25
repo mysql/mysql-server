@@ -14,10 +14,79 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-@file
+  @file
 
-Low level functions for storing data to be send to the MySQL client.
-The actual communication is handled by the net_xxx functions in net_serv.cc
+  Low level functions for storing data to be send to the MySQL client.
+  The actual communication is handled by the net_xxx functions in net_serv.cc
+*/
+
+/**
+  @page page_protocol_basics Protocol Basics
+
+  This is a description of the basic building blocks used by the MySQL protocol:
+  - @subpage page_protocol_basic_data_types
+  - @subpage page_protocol_basic_packets
+  - @subpage page_protocol_basic_response_packets
+*/
+
+
+/**
+  @page page_protocol_basic_data_types Basic Data Types
+
+  The protocol has a few basic types that are used throughout the protocol:
+  - @subpage page_protocol_basic_dt_integers
+  - @subpage page_protocol_basic_dt_strings
+*/
+
+/**
+  @page page_protocol_basic_dt_integers Integer Types
+
+  The MySQL %Protocol has a set of possible encodings for integers.
+
+  @section protocol_basic_dt_int_fixed Fixed-Length Integer Types
+
+  @subsection Protocol_FixedLengthInteger Protocol::FixedLengthInteger
+
+  A fixed-length integer stores its value in a series of bytes with the least
+  significant byte first.
+
+  The MySQL uses the following fixed-length integer variants:
+  - \anchor protocol_type_int1 int\<1>:
+    1 byte \ref Protocol_FixedLengthInteger.
+  - \anchor protocol_type_int2 int\<2\>:
+    2 byte \ref Protocol_FixedLengthInteger.  See int2store()
+  - \anchor protocol_type_int3 int\<3\>:
+    3 byte \ref Protocol_FixedLengthInteger.  See int3store()
+  - \anchor protocol_type_int4 int\<4\>:
+    4 byte \ref Protocol_FixedLengthInteger.  See int4store()
+  - \anchor protocol_type_int6 int\<6\>:
+    6 byte \ref Protocol_FixedLengthInteger.  See int6store()
+  - \anchor protocol_type_int8 int\<8\>:
+    8 byte \ref Protocol_FixedLengthInteger.  See int8store()
+
+  See int3store() for an example.
+*/
+
+
+/**
+  @page page_protocol_basic_packets MySQL Packets
+*/
+
+/**
+  @page page_protocol_basic_response_packets Generic Response Packets
+*/
+
+/**
+  @page page_protocol_connection_lifecycle Connection Lifecycle
+
+  The MySQL protocol is a stateful protocol. When a connection is established
+  the server initiates a \ref page_protocol_connection_phase. Once that is
+  performed the connection enters the \ref protocol_command_phase. The
+  \ref page_protocol_command_phase ends when the connection terminates.
+
+  Further reading:
+  - @subpage page_protocol_connection_phase
+  - @subpage page_protocol_command_phase
 */
 
 #include "protocol_classic.h"

@@ -115,8 +115,25 @@
 /**
   @page PAGE_PROTOCOL Client/Server Protocol
 
-  See #Protocol.
+  @section protocol_overview Overview
 
+  The MySQL protocol is used between MySQL Clients and a MySQL Server.
+  It is implemented by:
+    - Connectors (Connector/C, Connector/J, and so forth)
+    - MySQL Proxy
+    - Communication between master and slave replication servers
+
+  The protocol supports these features:
+    - Transparent encryption using SSL
+    - Transparent compression
+    - A @ref page_protocol_connection_phase where capabilities and
+      authentication data are exchanged
+    - A @ref page_protocol_command_phase which accepts commands
+      from the client and executes them
+
+  Further reading:
+    - @subpage page_protocol_basics
+    - @subpage page_protocol_connection_lifecycle
 */
 
 /**
