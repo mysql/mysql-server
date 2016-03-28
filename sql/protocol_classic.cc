@@ -47,10 +47,10 @@
 
   @subsection Protocol_FixedLengthInteger Protocol::FixedLengthInteger
 
-  A fixed-length integer stores its value in a series of bytes with the least
-  significant byte first.
+  A fixed-length unsigned integer stores its value in a series of 
+  bytes with the least significant byte first.
 
-  The MySQL uses the following fixed-length integer variants:
+  The MySQL uses the following fixed-length unsigned integer variants:
   - \anchor protocol_type_int1 int\<1>:
     1 byte \ref Protocol_FixedLengthInteger.
   - \anchor protocol_type_int2 int\<2\>:
@@ -67,6 +67,9 @@
   See int3store() for an example.
 */
 
+/**
+  @page page_protocol_basic_dt_strings String Types
+*/
 
 /**
   @page page_protocol_basic_packets MySQL Packets
@@ -77,11 +80,15 @@
 */
 
 /**
+@page page_protocol_command_phase Command Phase
+*/
+
+/**
   @page page_protocol_connection_lifecycle Connection Lifecycle
 
   The MySQL protocol is a stateful protocol. When a connection is established
   the server initiates a \ref page_protocol_connection_phase. Once that is
-  performed the connection enters the \ref protocol_command_phase. The
+  performed the connection enters the \ref page_protocol_command_phase. The
   \ref page_protocol_command_phase ends when the connection terminates.
 
   Further reading:

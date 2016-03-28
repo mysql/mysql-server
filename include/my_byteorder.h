@@ -79,7 +79,7 @@ static inline ulonglong uint6korr(const uchar *A)
 /**
   int3store
 
-  Stores an integer in a platform independent way
+  Stores an unsinged integer in a platform independent way
 
   @param T  The destination buffer. Must be at least 3 bytes long
   @param A  The integer to store.

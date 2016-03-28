@@ -50,7 +50,7 @@
 
 
 /**
-   @file sql_authentication
+   @file sql_authentication.cc
 
    AUTHENTICATION CODE
 
@@ -60,7 +60,7 @@
 */
 
 /**
-  @page protocol_connection_phase Connection Phase
+  @page page_protocol_connection_phase Connection Phase
 
   The Connection Phase performs these tasks:
     - exchange the capabilities of client and server
