@@ -84,14 +84,14 @@ ibool
 buf_dblwr_page_inside(
 /*==================*/
 	ulint	page_no);	/*!< in: page number */
-/********************************************************************//**
-Posts a buffer page for writing. If the doublewrite memory buffer is
-full, calls buf_dblwr_flush_buffered_writes and waits for for free
-space to appear. */
+
+/** Posts a buffer page for writing. If the doublewrite memory buffer
+is full, calls buf_dblwr_flush_buffered_writes and waits for for free
+space to appear.
+@param[in]	bpage	buffer block to write */
 void
 buf_dblwr_add_to_batch(
-/*====================*/
-	buf_page_t*	bpage);	/*!< in: buffer block to write */
+	buf_page_t*	bpage);
 
 /********************************************************************//**
 Flush a batch of writes to the datafiles that have already been

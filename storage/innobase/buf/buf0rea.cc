@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -121,6 +121,7 @@ buf_read_page_low(
 			      sync ? "sync" : "async"));
 
 	ut_ad(buf_page_in_file(bpage));
+	ut_ad(!mutex_own(&buf_pool_from_bpage(bpage)->LRU_list_mutex));
 
 	if (sync) {
 		thd_wait_begin(NULL, THD_WAIT_DISKIO);
@@ -236,11 +237,9 @@ buf_read_ahead_random(
 		return(0);
 	}
 
-	buf_pool_mutex_enter(buf_pool);
-
+	os_rmb;
 	if (buf_pool->n_pend_reads
 	    > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
-		buf_pool_mutex_exit(buf_pool);
 
 		return(0);
 	}
@@ -249,8 +248,12 @@ buf_read_ahead_random(
 	that is, reside near the start of the LRU list. */
 
 	for (i = low; i < high; i++) {
-		const buf_page_t*	bpage = buf_page_hash_get(
-			buf_pool, page_id_t(page_id.space(), i));
+
+		rw_lock_t*		hash_lock;
+		const buf_page_t*	bpage;
+
+		bpage = buf_page_hash_get_s_locked(
+			buf_pool, page_id_t(page_id.space(), i), &hash_lock);
 
 		if (bpage != NULL
 		    && buf_page_is_accessed(bpage)
@@ -261,13 +264,16 @@ buf_read_ahead_random(
 			if (recent_blocks
 			    >= BUF_READ_AHEAD_RANDOM_THRESHOLD(buf_pool)) {
 
-				buf_pool_mutex_exit(buf_pool);
+				rw_lock_s_unlock(hash_lock);
 				goto read_ahead;
 			}
 		}
+
+		if (bpage != NULL) {
+			rw_lock_s_unlock(hash_lock);
+		}
 	}
 
-	buf_pool_mutex_exit(buf_pool);
 	/* Do nothing */
 	return(0);
 
@@ -343,14 +349,8 @@ buf_read_page(
 	ulint		count;
 	dberr_t		err;
 
-	/* We do synchronous IO because our AIO completion code
-	is sub-optimal. See buf_page_io_complete(), we have to
-	acquire the buffer pool mutex before acquiring the block
-	mutex, required for updating the page state. The acquire
-	of the buffer pool mutex becomes an expensive bottleneck. */
-
 	count = buf_read_page_low(
-		&err, true,
+		&err, false,
 		0, BUF_READ_ANY_PAGE, page_id, page_size, false);
 
 	srv_stats.buf_pool_reads.add(count);
@@ -437,6 +437,7 @@ buf_read_ahead_linear(
 	buf_page_t*	bpage;
 	buf_frame_t*	frame;
 	buf_page_t*	pred_bpage	= NULL;
+	unsigned	pred_bpage_is_accessed = 0;
 	ulint		pred_offset;
 	ulint		succ_offset;
 	int		asc_or_desc;
@@ -485,7 +486,9 @@ buf_read_ahead_linear(
 	ulint	space_size;
 
 	if (fil_space_t* space = fil_space_acquire(page_id.space())) {
+
 		space_size = space->size;
+
 		fil_space_release(space);
 
 		if (high > space_size) {
@@ -496,11 +499,12 @@ buf_read_ahead_linear(
 		return(0);
 	}
 
-	buf_pool_mutex_enter(buf_pool);
+	/* Read memory barrier */
+
+	os_rmb;
 
 	if (buf_pool->n_pend_reads
 	    > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
-		buf_pool_mutex_exit(buf_pool);
 
 		return(0);
 	}
@@ -522,9 +526,13 @@ buf_read_ahead_linear(
 
 	fail_count = 0;
 
+	rw_lock_t*	hash_lock;
+
 	for (i = low; i < high; i++) {
-		bpage = buf_page_hash_get(buf_pool,
-					  page_id_t(page_id.space(), i));
+
+		bpage = buf_page_hash_get_s_locked(buf_pool,
+						   page_id_t(page_id.space(),
+							     i), &hash_lock);
 
 		if (bpage == NULL || !buf_page_is_accessed(bpage)) {
 			/* Not accessed */
@@ -541,7 +549,7 @@ buf_read_ahead_linear(
 			a little against this. */
 			int res = ut_ulint_cmp(
 				buf_page_is_accessed(bpage),
-				buf_page_is_accessed(pred_bpage));
+				pred_bpage_is_accessed);
 			/* Accesses not in the right order */
 			if (res != 0 && res != asc_or_desc) {
 				fail_count++;
@@ -550,22 +558,29 @@ buf_read_ahead_linear(
 
 		if (fail_count > threshold) {
 			/* Too many failures: return */
-			buf_pool_mutex_exit(buf_pool);
+			if (bpage) {
+				rw_lock_s_unlock(hash_lock);
+			}
 			return(0);
 		}
 
-		if (bpage && buf_page_is_accessed(bpage)) {
-			pred_bpage = bpage;
+		if (bpage) {
+			if (buf_page_is_accessed(bpage)) {
+				pred_bpage = bpage;
+				pred_bpage_is_accessed
+					= buf_page_is_accessed(bpage);
+			}
+
+			rw_lock_s_unlock(hash_lock);
 		}
 	}
 
 	/* If we got this far, we know that enough pages in the area have
 	been accessed in the right order: linear read-ahead can be sensible */
 
-	bpage = buf_page_hash_get(buf_pool, page_id);
+	bpage = buf_page_hash_get_s_locked(buf_pool, page_id, &hash_lock);
 
 	if (bpage == NULL) {
-		buf_pool_mutex_exit(buf_pool);
 
 		return(0);
 	}
@@ -591,7 +606,7 @@ buf_read_ahead_linear(
 	pred_offset = fil_page_get_prev(frame);
 	succ_offset = fil_page_get_next(frame);
 
-	buf_pool_mutex_exit(buf_pool);
+	rw_lock_s_unlock(hash_lock);
 
 	if ((page_id.page_no() == low)
 	    && (succ_offset == page_id.page_no() + 1)) {
@@ -727,6 +742,7 @@ buf_read_ibuf_merge_pages(
 			continue;
 		}
 
+		os_rmb;
 		while (buf_pool->n_pend_reads
 		       > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
 			os_thread_sleep(500000);
@@ -792,6 +808,7 @@ buf_read_recv_pages(
 		count = 0;
 
 		buf_pool = buf_pool_get(cur_page_id);
+		os_rmb;
 		while (buf_pool->n_pend_reads >= recv_n_pool_free_frames / 2) {
 
 			os_aio_simulated_wake_handler_threads();

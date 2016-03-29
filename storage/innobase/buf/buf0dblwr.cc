@@ -1079,16 +1079,16 @@ flush:
 	os_aio_simulated_wake_handler_threads();
 }
 
-/********************************************************************//**
-Posts a buffer page for writing. If the doublewrite memory buffer is
-full, calls buf_dblwr_flush_buffered_writes and waits for for free
-space to appear. */
+/** Posts a buffer page for writing. If the doublewrite memory buffer
+is full, calls buf_dblwr_flush_buffered_writes and waits for for free
+space to appear.
+@param[in]	bpage	buffer block to write */
 void
 buf_dblwr_add_to_batch(
-/*====================*/
-	buf_page_t*	bpage)	/*!< in: buffer block to write */
+	buf_page_t*	bpage)
 {
 	ut_a(buf_page_in_file(bpage));
+	ut_ad(!mutex_own(&buf_pool_from_bpage(bpage)->LRU_list_mutex));
 
 try_again:
 	mutex_enter(&buf_dblwr->mutex);

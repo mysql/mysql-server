@@ -501,7 +501,7 @@ lock_sys_resize(
 	for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
 		buf_pool_t*	buf_pool = buf_pool_from_array(i);
 
-		buf_pool_mutex_enter(buf_pool);
+		mutex_enter(&buf_pool->LRU_list_mutex);
 		buf_page_t*	bpage;
 		bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
 
@@ -519,7 +519,7 @@ lock_sys_resize(
 			}
 			bpage = UT_LIST_GET_NEXT(LRU, bpage);
 		}
-		buf_pool_mutex_exit(buf_pool);
+		mutex_exit(&buf_pool->LRU_list_mutex);
 	}
 
 	lock_mutex_exit();
