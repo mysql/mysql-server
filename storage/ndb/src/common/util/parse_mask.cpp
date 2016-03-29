@@ -65,16 +65,40 @@ ParseThreadConfiguration::read_params(ParamValue values[],
   if (m_num_parse_params != num_values)
   {
     *ret_code = -1;
-    goto error_return;
+    goto end_return;
   }
-  assert(m_curr_str != NULL);
   if (m_curr_str == NULL)
   {
-    *ret_code = -1;
-    goto error_return;
+    if (allow_empty)
+    {
+      *ret_code = 0;
+      goto end_return;
+    }
+    else
+    {
+      assert(false);
+      *ret_code = -1;
+      goto end_return;
+    }
   }
   if (m_first)
   {
+    skipblank();
+    if (*m_curr_str == 0)
+    {
+      if (allow_empty)
+      {
+        *ret_code = 0;
+        goto end_return;
+      }
+      else
+      {
+        *ret_code = -1;
+        m_err_msg.assfmt("empty thread specification");
+        goto end_return;
+      }
+      return 0;
+    }
     m_first = false;
   }
   else
@@ -83,26 +107,26 @@ ParseThreadConfiguration::read_params(ParamValue values[],
     if (loc_ret_code != 1)
     {
       *ret_code= loc_ret_code;
-      goto error_return;
+      goto end_return;
     }
   }
   loc_type = find_type();
   if (loc_type == PARSE_END_ENTRIES)
   {
     *ret_code = -1;
-    goto error_return;
+    goto end_return;
   }
   loc_ret_code = find_params(&start, &end);
   if (loc_ret_code == -1)
   {
     *ret_code= loc_ret_code;
-    goto error_return;
+    goto end_return;
   }
   if (loc_ret_code == 1 && !allow_empty)
   {
     m_err_msg.assfmt("Thread specification is required");
     *ret_code = -1;
-    goto error_return;
+    goto end_return;
   }
   if (loc_ret_code == 0)
   {
@@ -112,18 +136,18 @@ ParseThreadConfiguration::read_params(ParamValue values[],
     if (loc_ret_code != 0)
     {
       *ret_code = loc_ret_code;
-      goto error_return;
+      goto end_return;
     }
     m_curr_str++; /* Pass } character by */
   }
   *type = loc_type;
   *ret_code = 0;
   return 0;
-error_return:
-  return 1;
+end_return:
   free(m_save_str);
   m_save_str = NULL;
   m_curr_str = NULL;
+  return 1;
 }
 
 int
@@ -152,11 +176,7 @@ ParseThreadConfiguration::find_type()
   skipblank();
 
   char *name = m_curr_str;
-  if (name[0] == 0)
-  {
-    m_err_msg.assfmt("empty thread specification");
-    return PARSE_END_ENTRIES;
-  }
+  assert(name[0] != 0);
   char *end = name;
   while(isalpha(end[0]) ||
         end[0] == '_')
