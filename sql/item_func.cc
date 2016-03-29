@@ -1244,6 +1244,7 @@ void Item_func_num1::find_num_type()
     max_length= float_length(decimals);
     break;
   case DECIMAL_RESULT:
+    unsigned_flag= args[0]->unsigned_flag;
     break;
   default:
     DBUG_ASSERT(0);
@@ -3195,6 +3196,7 @@ void Item_func_int_val::find_num_type()
     if ((args[0]->max_length - args[0]->decimals) >=
         (DECIMAL_LONGLONG_DIGITS - 2))
     {
+      unsigned_flag= args[0]->unsigned_flag;
       hybrid_type= DECIMAL_RESULT;
     }
     else

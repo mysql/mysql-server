@@ -678,3 +678,9 @@ DELIMITER ;|
 
 CALL test_round_fn();
 DROP PROCEDURE test_round_fn;
+
+--echo #
+--echo # Bug#23013359 FUNCTION FLOOR(CEIL()) TRUNCATES BIGINT UNSIGNED
+--echo #
+
+SELECT floor(ceil(12345678901234567890));

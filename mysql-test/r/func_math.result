@@ -953,3 +953,9 @@ number	Round(number, num_digits) > 0	Round(number, 3) > 0
 1	1	1
 0	0	0
 DROP PROCEDURE test_round_fn;
+#
+# Bug#23013359 FUNCTION FLOOR(CEIL()) TRUNCATES BIGINT UNSIGNED
+#
+SELECT floor(ceil(12345678901234567890));
+floor(ceil(12345678901234567890))
+12345678901234567890
