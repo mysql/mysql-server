@@ -53,9 +53,9 @@ Created 10/25/1995 Heikki Tuuri
 # include "srv0srv.h"
 #endif /* !UNIV_HOTBACKUP */
 
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 #include <fstream>
-#endif /* !DBUG_OFF */
+#endif /* UNIV_DEBUG */
 
 /** Tries to close a file in the LRU list. The caller must hold the fil_sys
 mutex.
@@ -6606,7 +6606,7 @@ fil_space_t::release_free_extents(ulint	n_reserved)
 	n_reserved_extents -= n_reserved;
 }
 
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 /** Print the extent descriptor pages of this tablespace into
 the given file.
 @param[in]	filename	the output file name. */
@@ -6659,4 +6659,4 @@ finish:
 	mtr_commit(&mtr);
 	return(out);
 }
-#endif /* !DBUG_OFF */
+#endif /* UNIV_DEBUG */

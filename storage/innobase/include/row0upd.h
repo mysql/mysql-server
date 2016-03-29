@@ -636,14 +636,14 @@ struct upd_node_t{
 
 	ulint		magic_n;
 
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 	/** Print information about this object into the trace log file. */
 	void dbug_trace();
 
 	/** Ensure that the member cascade_upd_nodes has only one update node
 	for each of the tables.  This is useful for testing purposes. */
 	void check_cascade_only_once();
-#endif /* !DBUG_OFF */
+#endif /* UNIV_DEBUG */
 };
 
 #define	UPD_NODE_MAGIC_N	1579975

@@ -199,6 +199,13 @@ command. */
 #if defined HAVE_VALGRIND
 # define UNIV_DEBUG_VALGRIND
 #endif /* HAVE_VALGRIND */
+
+#ifdef DBUG_OFF
+# undef UNIV_DEBUG
+#elif !defined UNIV_DEBUG
+# define UNIV_DEBUG
+#endif
+
 #if 0
 #define UNIV_DEBUG_VALGRIND			/* Enable extra
 						Valgrind instrumentation */
@@ -210,8 +217,6 @@ command. */
 						debugging without UNIV_DEBUG */
 #define UNIV_BLOB_LIGHT_DEBUG			/* Enable off-page column
 						debugging without UNIV_DEBUG */
-#define UNIV_DEBUG				/* Enable ut_ad() assertions
-						and disable UNIV_INLINE */
 #define UNIV_DEBUG_LOCK_VALIDATE		/* Enable
 						ut_ad(lock_rec_validate_page())
 						assertions. */

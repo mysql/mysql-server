@@ -2297,9 +2297,9 @@ row_ins_index_entry_big_rec_func(
 	const big_rec_t*	big_rec,/*!< in: externally stored fields */
 	ulint*			offsets,/*!< in/out: rec offsets */
 	mem_heap_t**		heap,	/*!< in/out: memory heap */
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 	const THD*		thd,    /*!< in: connection, or NULL */
-#endif /* DBUG_OFF */
+#endif /* UNIV_DEBUG */
 	dict_index_t*		index)	/*!< in: index */
 {
 	mtr_t		mtr;
@@ -2339,13 +2339,13 @@ row_ins_index_entry_big_rec_func(
 	return(error);
 }
 
-#ifdef DBUG_OFF
+#ifndef UNIV_DEBUG
 # define row_ins_index_entry_big_rec(e,big,ofs,heap,index,thd) \
 	row_ins_index_entry_big_rec_func(e,big,ofs,heap,index)
-#else /* DBUG_OFF */
+#else /* UNIV_DEBUG */
 # define row_ins_index_entry_big_rec(e,big,ofs,heap,index,thd) \
 	row_ins_index_entry_big_rec_func(e,big,ofs,heap,thd,index)
-#endif /* DBUG_OFF */
+#endif /* UNIV_DEBUG */
 
 /***************************************************************//**
 Tries to insert an entry into a clustered index, ignoring foreign key

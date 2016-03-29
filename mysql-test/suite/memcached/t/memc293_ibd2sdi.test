@@ -10,11 +10,6 @@ source include/have_innodb.inc;
 source include/have_debug.inc;
 source include/have_ibd2sdi_debug.inc;
 
-if (`select count(*)=0 from performance_schema.global_variables where
-variable_name = 'INNODB_LIMIT_OPTIMISTIC_INSERT_DEBUG'`)
-{
-  --skip Test requires InnoDB built with UNIV_DEBUG definition.
-}
 set global innodb_limit_optimistic_insert_debug = 2;
 
 

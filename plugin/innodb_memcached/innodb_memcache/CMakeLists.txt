@@ -1,4 +1,4 @@
-# Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -42,8 +42,6 @@ ADD_LIBRARY(libmcd_util STATIC ${MCD__UTILITITY_SOURCES})
 SET(CMAKE_CPP_FLAGS "${CMAKE_CPP_FLAGS}
                      -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/innodb_memcache/include
                      -I${CMAKE_SOURCE_DIR}/plugin/innodb_memcached/innodb_memcache/cache-src")
-
-SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DUNIV_DEBUG")
 
 SET(INNODB_ENGINE_SOURCES
 		src/innodb_config.c

@@ -2307,7 +2307,7 @@ dict_table_remove_from_cache(
 	dict_table_remove_from_cache_low(table, FALSE);
 }
 
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 /** Removes a table object from the dictionary cache, for debug purpose
 @param[in,out]	table		table object
 @param[in]	lru_evict	true if table being evicted to make room
@@ -2319,7 +2319,7 @@ dict_table_remove_from_cache_debug(
 {
 	dict_table_remove_from_cache_low(table, lru_evict);
 }
-#endif /* DBUG_OFF */
+#endif /* UNIV_DEBUG */
 
 /****************************************************************//**
 If the given column name is reserved for InnoDB system columns, return

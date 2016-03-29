@@ -4515,7 +4515,7 @@ xdes_in_segment(
 	       && xdes_get_segment_id(descr, mtr) == seg_id);
 }
 
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 fsp_header_mem_t::fsp_header_mem_t(
 	const fsp_header_t*	header,
 	mtr_t*			mtr)
@@ -4637,4 +4637,4 @@ fsp_check_tablespace_size(ulint space_id)
 
 	return(true);
 }
-#endif /* !DBUG_OFF */
+#endif /* UNIV_DEBUG */

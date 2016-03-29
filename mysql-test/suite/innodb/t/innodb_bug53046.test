@@ -4,7 +4,7 @@
 #
 # This is a symbolic test, it would not fail if the bug is present.
 # Rather those SQL commands have been used during manual testing under
-# UNIV_DEBUG & UNIV_SYNC_DEBUG to test all changed codepaths for locking
+# innodb_sync_debug to test all changed codepaths for locking
 # correctness.
 #
 

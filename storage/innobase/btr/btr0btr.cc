@@ -4499,9 +4499,9 @@ btr_index_page_validate(
 {
 	page_cur_t	cur;
 	ibool		ret	= TRUE;
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 	ulint		nth	= 1;
-#endif /* !DBUG_OFF */
+#endif /* UNIV_DEBUG */
 
 	page_cur_set_before_first(block, &cur);
 

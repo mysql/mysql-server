@@ -446,7 +446,7 @@ dict_table_remove_from_cache(
 /*=========================*/
 	dict_table_t*	table);	/*!< in, own: table */
 
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 /** Removes a table object from the dictionary cache, for debug purpose
 @param[in,out]	table		table object
 @param[in]	lru_evict	true if table being evicted to make room
@@ -455,7 +455,7 @@ void
 dict_table_remove_from_cache_debug(
 	dict_table_t*	table,
 	bool		lru_evict);
-#endif /* DBUG_OFF */
+#endif /* UNIV_DEBUG */
 
 /**********************************************************************//**
 Renames a table object.

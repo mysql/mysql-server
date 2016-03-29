@@ -253,11 +253,11 @@ Ha_innopart_share::open_table_parts(
 	char	partition_name[FN_REFLEN];
 	bool	index_loaded = true;
 
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 	if (m_table_share->tmp_table == NO_TMP_TABLE) {
 		mysql_mutex_assert_owner(&m_table_share->LOCK_ha_data);
 	}
-#endif /* DBUG_OFF */
+#endif /* UNIV_DEBUG */
 	m_ref_count++;
 	if (m_table_parts != NULL) {
 		ut_ad(m_ref_count > 1);
@@ -414,11 +414,11 @@ err:
 void
 Ha_innopart_share::close_table_parts()
 {
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 	if (m_table_share->tmp_table == NO_TMP_TABLE) {
 		mysql_mutex_assert_owner(&m_table_share->LOCK_ha_data);
 	}
-#endif /* DBUG_OFF */
+#endif /* UNIV_DEBUG */
 	m_ref_count--;
 	if (m_ref_count != 0) {
 
@@ -842,7 +842,7 @@ ha_innopart::initialize_auto_increment(
 	ulonglong	auto_inc = 0;
 	const Field*	field = table->found_next_number_field;
 
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 	if (table_share->tmp_table == NO_TMP_TABLE)
 	{
 		mysql_mutex_assert_owner(m_part_share->auto_inc_mutex);

@@ -47,11 +47,6 @@ let NEW_CMD = $MYSQLD --no-defaults --initialize-insecure --lc_messages_dir=$MYS
 source include/memcache_config.inc;
 --enable_query_log
 
-if (`select count(*)=0 from performance_schema.global_variables where
-variable_name = 'INNODB_LIMIT_OPTIMISTIC_INSERT_DEBUG'`)
-{
-  --skip Test requires InnoDB built with UNIV_DEBUG definition.
-}
 set global innodb_limit_optimistic_insert_debug = 2;
 
 INSERT INTO cache_policies VALUES('cache_policy', 'innodb_only',

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -186,7 +186,7 @@ flst_validate(
 
 #endif /* !UNIV_HOTBACKUP */
 
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 /** In-memory representation of flst_base_node_t */
 struct flst_bnode_t
 {
@@ -221,5 +221,5 @@ std::ostream& operator<<(std::ostream& out, const flst_bnode_t& obj)
 {
 	return(obj.print(out));
 }
-#endif /* !DBUG_OFF */
+#endif /* UNIV_DEBUG */
 #endif

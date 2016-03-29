@@ -142,7 +142,6 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
     ${CMAKE_SOURCE_DIR}/storage/innobase/include
     ${CMAKE_SOURCE_DIR}/sql
   )
-  SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DUNIV_DEBUG")
 
   # We use the InnoDB code directly in case the code changes.
   MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.cc)

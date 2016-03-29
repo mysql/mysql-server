@@ -179,7 +179,7 @@ struct fil_space_t {
 
 	ulint		magic_n;/*!< FIL_SPACE_MAGIC_N */
 
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 	/** Print the extent descriptor pages of this tablespace into
 	the given output stream.
 	@param[in]	out	the output stream.
@@ -190,7 +190,7 @@ struct fil_space_t {
 	the given file.
 	@param[in]	filename	the output file name. */
 	void print_xdes_pages(const char* filename) const;
-#endif /* !DBUG_OFF */
+#endif /* UNIV_DEBUG */
 };
 
 /** Value of fil_space_t::magic_n */

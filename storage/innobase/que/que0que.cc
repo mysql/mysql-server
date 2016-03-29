@@ -904,7 +904,7 @@ que_node_get_containing_loop_node(
 	return(node);
 }
 
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 /** Gets information of an SQL query graph node.
 @return type description */
 static MY_ATTRIBUTE((warn_unused_result))
@@ -961,7 +961,7 @@ que_node_type_string(
 		return("UNKNOWN NODE TYPE");
 	}
 }
-#endif /* !DBUG_OFF */
+#endif /* UNIV_DEBUG */
 
 /**********************************************************************//**
 Performs an execution step on a query thread.
