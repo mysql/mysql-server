@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 # #############################################################
 # wl6747 : Set merge threshold at index level
 # Check with CREATE INDEX  on all datatypes

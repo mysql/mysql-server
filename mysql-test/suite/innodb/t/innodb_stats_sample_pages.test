@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 #
 # Test that the table option STATS_SAMPLE_PAGES=N|default is indeed
 # used by InnoDB

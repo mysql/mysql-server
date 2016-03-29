@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 #
 # Test fetching from stats tables after manual update (ie FLUSH TABLE
 # can be used to forcibly (re)fetch the stats from disk)

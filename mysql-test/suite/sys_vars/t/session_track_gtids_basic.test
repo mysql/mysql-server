@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 ######### mysql-test\suite\sys_vars\t\session_track_gtids_basic.test ##########
 #                                                                             #
 # Variable Name: session_track_gtids                                          #

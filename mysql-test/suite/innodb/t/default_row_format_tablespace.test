@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 # **************************************************************
 # wl8307 : Check Default_row_format functionality
 # case 1; Check with no tablespace (file_per_table=1)
