@@ -151,8 +151,7 @@ INSERT INTO nolink VALUES (1, 'no link file');
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQLD_DATADIR/test/wyn.ibd
 
 --echo # YWN; Move the file to default, wrong one to alt_dir
---copy_file $MYSQL_TMP_DIR/alt_dir/test/ywn.ibd $MYSQLD_DATADIR/test/ywn.ibd
---remove_file $MYSQL_TMP_DIR/alt_dir/test/ywn.ibd
+--move_file $MYSQL_TMP_DIR/alt_dir/test/ywn.ibd $MYSQLD_DATADIR/test/ywn.ibd
 #--copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQL_TMP_DIR/alt_dir/test/ywn.ibd
 
 --echo # NNN; Delete the tablespace

@@ -92,10 +92,8 @@ CREATE TABLE tab(a INT);
 ALTER TABLE tab DISCARD TABLESPACE;
 
 # Move the *.ibd,*.cfg file into orginal location
---copy_file $MYSQLD_TMPDIR/tab.cfg $MYSQLD_DATADIR/test/tab.cfg
---remove_file $MYSQLD_TMPDIR/tab.cfg
---copy_file $MYSQLD_TMPDIR/tab.ibd $MYSQLD_DATADIR/test/tab.ibd
---remove_file $MYSQLD_TMPDIR/tab.ibd
+--move_file $MYSQLD_TMPDIR/tab.cfg $MYSQLD_DATADIR/test/tab.cfg
+--move_file $MYSQLD_TMPDIR/tab.ibd $MYSQLD_DATADIR/test/tab.ibd
 
 --error ER_TABLE_SCHEMA_MISMATCH
 ALTER TABLE tab IMPORT TABLESPACE;
@@ -126,10 +124,8 @@ CREATE TABLE tab(a INT);
 ALTER TABLE tab DISCARD TABLESPACE;
 
 # Move the *ibd,*.cfg file into orginal location
---copy_file $MYSQLD_TMPDIR/tab.cfg $MYSQLD_DATADIR/test/tab.cfg
---remove_file $MYSQLD_TMPDIR/tab.cfg
---copy_file $MYSQLD_TMPDIR/tab.ibd $MYSQLD_DATADIR/test/tab.ibd
---remove_file $MYSQLD_TMPDIR/tab.ibd
+--move_file $MYSQLD_TMPDIR/tab.cfg $MYSQLD_DATADIR/test/tab.cfg
+--move_file $MYSQLD_TMPDIR/tab.ibd $MYSQLD_DATADIR/test/tab.ibd
 
 # Check import is successful (because same row_format)
 ALTER TABLE tab IMPORT TABLESPACE;
