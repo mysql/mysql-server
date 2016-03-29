@@ -3691,6 +3691,27 @@ private:
   */
   String old_value;
 
+  /**
+    Whether we need to move the content of 'value' to 'old_value' before
+    updating the BLOB stored in 'value'. This needs to be done for
+    updates of BLOB columns that are virtual since the storage engine
+    does not have its own copy of the old 'value'. This variable is set
+    to true when we read the data into 'value'. It is reset when we move
+    'value' to 'old_value'. The purpose of having this is to avoid that we
+    do the move operation from 'value' to 'old_value' more than one time per
+    record.
+    Currently, this variable is introduced because the following call in
+    sql_data_change.cc:
+    \/\**
+      @todo combine this call to update_generated_write_fields() with the one
+      in fill_record() to avoid updating virtual generated fields twice.
+    *\/
+     if (table->has_gcol())
+            update_generated_write_fields(table->write_set, table);
+     When the @todo is done, m_keep_old_value can be deleted.
+  */
+  bool m_keep_old_value;
+
 protected:
   /**
     Store ptr and length.
@@ -3710,7 +3731,7 @@ public:
 	     const CHARSET_INFO *cs, bool set_packlength)
     :Field_longstr((uchar*) 0, len_arg, maybe_null_arg ? (uchar*) "": 0, 0,
                    NONE, field_name_arg, cs),
-    packlength(4)
+    packlength(4), m_keep_old_value(false)
   {
     flags|= BLOB_FLAG;
     if (set_packlength)
@@ -3869,11 +3890,78 @@ public:
   virtual bool is_text_key_type() const { return binary() ? false : true; }
 
   /**
+    Mark that the BLOB stored in value should be copied before updating it.
+
+    When updating virtual generated columns we need to keep the old
+    'value' for BLOBs since this can be needed when the storage engine
+    does the update. During read of the record the old 'value' for the
+    BLOB is evaluated and stored in 'value'. This function is to be used
+    to specify that we need to copy this BLOB 'value' into 'old_value'
+    before we compute the new BLOB 'value'. For more information @see
+    Field_blob::keep_old_value().
+  */
+  void need_to_keep_old_value()
+  {
+    /*
+      We should only need to keep a copy of the blob 'value' in the case
+      where this is a virtual genarated column (that is indexed).
+    */
+    DBUG_ASSERT(is_virtual_gcol());
+
+    /*
+      Ensure that 'value' is copied to 'old_value' when keep_old_value() is
+      called.
+    */
+    m_keep_old_value= true;
+  }
+
+  /**
     Save the current BLOB value to avoid that it gets overwritten.
 
-    For details about the implementation, see field.cc.
+    This is used when updating virtual generated columns that are
+    BLOBs. Some storage engines require that we have both the old and
+    new BLOB value for virtual generated columns that are indexed in
+    order for the storage engine to be able to maintain the index. This
+    function will transfer the buffer storing the current BLOB value
+    from 'value' to 'old_value'. This avoids that the current BLOB value
+    is over-written when the new BLOB value is saved into this field.
+
+    The reason this requires special handling when updating/deleting
+    virtual columns of BLOB type is that the BLOB value is not known to
+    the storage engine. For stored columns, the "old" BLOB value is read
+    by the storage engine, Field_blob is made to point to the engine's
+    internal buffer; Field_blob's internal buffer (Field_blob::value)
+    isn't used and remains available to store the "new" value.  For
+    virtual generated columns, the "old" value is written directly into
+    Field_blob::value when reading the record to be
+    updated/deleted. This is done in update_generated_read_fields().
+    Since, in this case, the "old" value already occupies the place to
+    store the "new" value, we must call this function before we write
+    the "new" value into Field_blob::value object so that the "old"
+    value does not get over-written. The table->record[1] buffer will
+    have a pointer that points to the memory buffer inside
+    old_value. The storage engine will use table->record[1] to read the
+    old value for the BLOB and use table->record[0] to read the new
+    value.
+
+    This function must be called before we store the new BLOB value in
+    this field object.
   */
-  void keep_old_value();
+  void keep_old_value()
+  {
+    /*
+      We should only need to keep a copy of the blob value in the case
+      where this is a virtual genarated column (that is indexed).
+    */
+    DBUG_ASSERT(is_virtual_gcol());
+
+    // Transfer ownership of the current BLOB value to old_value
+    if (m_keep_old_value)
+    {
+      old_value.takeover(value);
+      m_keep_old_value= false;
+    }
+  }
 
   /**
     Use to store the blob value into an allocated space.

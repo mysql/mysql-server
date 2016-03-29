@@ -920,11 +920,11 @@ row_vers_old_has_index_entry(
 				NULL, NULL, NULL, &ext, heap);
 
 		if (dict_index_has_virtual(index)) {
-#ifdef DBUG_OFF
+#ifndef UNIV_DEBUG
 # define dbug_v_purge false
-#else /* DBUG_OFF */
+#else /* UNIV_DEBUG */
                         bool    dbug_v_purge = false;
-#endif /* DBUG_OFF */
+#endif /* UNIV_DEBUG */
 
 			DBUG_EXECUTE_IF(
 				"ib_purge_virtual_index_callback",

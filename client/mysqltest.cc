@@ -3584,6 +3584,63 @@ static void do_copy_file(struct st_command *command)
 
 /*
   SYNOPSIS
+  move_file_by_copy_delete
+  from  path of source
+  to    path of destination
+
+  DESCRIPTION
+  Move <from_file> to <to_file>
+  Auxiliary function for copying <from_file> to <to_file> followed by
+  deleting <to_file>.
+*/
+
+static int move_file_by_copy_delete(const char *from, const char *to)
+{
+  int error_copy,error_delete;
+  error_copy= (my_copy(from,to,
+                  MYF(MY_HOLD_ORIGINAL_MODES)) != 0);
+  /*
+    Some anti-virus programs hold access to files for a short time
+    even after the application/server quit. During testing, sleep
+    5 seconds and then retry once more to avoid spurious test failures.
+    Also on slow/loaded machines the file system may need to catch up.
+  */
+  if (error_copy)
+  {
+    my_sleep(5 * 1000 * 1000);
+    error_copy= (my_copy(from,to,
+                  MYF(MY_HOLD_ORIGINAL_MODES)) != 0);
+  }
+  if (error_copy)
+  {
+    return error_copy;
+  }
+
+  error_delete= my_delete(from, MYF(0)) != 0;
+  /*
+    Some anti-virus programs hold access to files for a short time
+    even after the application/server quit. During testing, sleep
+    5 seconds and then retry once more to avoid spurious test failures.
+    Also on slow/loaded machines the file system may need to catch up.
+  */
+  if (error_delete)
+  {
+    my_sleep(5 * 1000 * 1000);
+    error_delete= my_delete(from, MYF(0)) != 0;
+  }
+  /*
+    If deleting the source file fails, rollback by deleting the
+    redundant copy at the destinatiion.
+  */
+  if (error_delete)
+  {
+    my_delete(to, MYF(0));
+  }
+  return error_delete;
+}
+
+/*
+  SYNOPSIS
   do_move_file
   command	command handle
 
@@ -3612,16 +3669,30 @@ static void do_move_file(struct st_command *command)
   error= (my_rename(ds_from_file.str, ds_to_file.str,
                     MYF(0)) != 0);
   /*
-    Some anti-virus programs hold access to files for a short time
-    even after the application/server quit. During testing, sleep
-    5 seconds and then retry once more to avoid spurious test failures.
-    Also on slow/loaded machines the file system may need to catch up.
+    Use my_copy() followed by my_delete() for moving a file instead of
+    my_rename() when my_errno is EXDEV. This is because my_rename() fails
+    with the error "Invalid cross-device link" while moving a file between
+    locations having different filesystems in some operating systems.
   */
-  if (error)
+  if (error && (my_errno() == EXDEV))
   {
+    error= move_file_by_copy_delete(ds_from_file.str, ds_to_file.str);
+  }
+  else if (error)
+  {
+    /*
+      Some anti-virus programs hold access to files for a short time
+      even after the application/server quit. During testing, sleep
+      5 seconds and then retry once more to avoid spurious test failures.
+      Also on slow/loaded machines the file system may need to catch up.
+    */
     my_sleep(5 * 1000 * 1000);
     error= (my_rename(ds_from_file.str, ds_to_file.str,
                       MYF(0)) != 0);
+    if (error && (my_errno() == EXDEV))
+    {
+      error= move_file_by_copy_delete(ds_from_file.str, ds_to_file.str);
+    }
   }
   handle_command_error(command, error);
   dynstr_free(&ds_from_file);

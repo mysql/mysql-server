@@ -7099,9 +7099,9 @@ fts_check_and_drop_orphaned_tables(
 						DICT_TF2_FTS_AUX_HEX_NAME);
 				}
 			}
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 table_exit:
-#endif	/* !DBUG_OFF */
+#endif /* UNIV_DEBUG */
 
 			if (table != NULL) {
 				dict_table_close(table, TRUE, FALSE);

@@ -54,7 +54,7 @@ bool
 xdes_state_is_valid(ulint	state);
 #endif /* UNIV_DEBUG */
 
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 struct xdes_mem_t
 {
 	xdes_mem_t(const xdes_t*	xdes)
@@ -105,7 +105,7 @@ operator<<(std::ostream& out, const fsp_header_mem_t& obj)
 {
 	return(obj.print(out));
 }
-#endif /* !DBUG_OFF */
+#endif /* UNIV_DEBUG */
 
 /*			SPACE HEADER
 			============
@@ -862,7 +862,7 @@ xdes_get_state(
 	return(static_cast<xdes_state_t>(state));
 }
 
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 /** Print the extent descriptor page in user-friendly format.
 @param[in]	out	the output file stream
 @param[in]	xdes	the extent descriptor page
@@ -909,7 +909,7 @@ const char* xdes_mem_t::state_name() const
 	return("UNKNOWN");
 }
 
-#endif /* !DBUG_OFF */
+#endif /* UNIV_DEBUG */
 
 /** Update the tablespace size information and generate redo log for it.
 @param[in]	header	tablespace header.

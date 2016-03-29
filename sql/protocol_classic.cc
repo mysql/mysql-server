@@ -14,10 +14,147 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
-@file
+  @file
 
-Low level functions for storing data to be send to the MySQL client.
-The actual communication is handled by the net_xxx functions in net_serv.cc
+  Low level functions for storing data to be send to the MySQL client.
+  The actual communication is handled by the net_xxx functions in net_serv.cc
+*/
+
+/**
+  @page page_protocol_basics Protocol Basics
+
+  This is a description of the basic building blocks used by the MySQL protocol:
+  - @subpage page_protocol_basic_data_types
+  - @subpage page_protocol_basic_packets
+  - @subpage page_protocol_basic_response_packets
+*/
+
+
+/**
+  @page page_protocol_basic_data_types Basic Data Types
+
+  The protocol has a few basic types that are used throughout the protocol:
+  - @subpage page_protocol_basic_dt_integers
+  - @subpage page_protocol_basic_dt_strings
+*/
+
+/**
+  @page page_protocol_basic_dt_integers Integer Types
+
+  The MySQL %Protocol has a set of possible encodings for integers.
+
+  @section sect_protocol_basic_dt_int_fixed Protocol::FixedLengthInteger
+
+  Fixed-Length Integer Types
+  ============================
+
+  A fixed-length unsigned integer stores its value in a series of 
+  bytes with the least significant byte first.
+
+  The MySQL uses the following fixed-length unsigned integer variants:
+  - @anchor a_protocol_type_int1 int\<1>:
+    1 byte @ref sect_protocol_basic_dt_int_fixed.
+  - @anchor a_protocol_type_int2 int\<2\>:
+    2 byte @ref sect_protocol_basic_dt_int_fixed.  See int2store()
+  - @anchor a_protocol_type_int3 int\<3\>:
+    3 byte @ref sect_protocol_basic_dt_int_fixed.  See int3store()
+  - @anchor a_protocol_type_int4 int\<4\>:
+    4 byte @ref sect_protocol_basic_dt_int_fixed.  See int4store()
+  - @anchor a_protocol_type_int6 int\<6\>:
+    6 byte @ref sect_protocol_basic_dt_int_fixed.  See int6store()
+  - @anchor a_protocol_type_int8 int\<8\>:
+    8 byte @ref sect_protocol_basic_dt_int_fixed.  See int8store()
+
+  See int3store() for an example.
+
+
+  @section sect_protocol_basic_dt_int_le Protocol::LengthEncodedInteger
+
+  Length-Encoded Integer Type
+  ==============================
+
+  An integer that consumes 1, 3, 4, or 9 bytes, depending on its numeric value
+
+  To convert a number value into a length-encoded integer:
+
+  Greater or equal |     Lower than | Stored as
+  -----------------|----------------|-------------------------
+                 0 |            251 | `1-byte integer`
+               251 | 2<sup>16</sup> | `0xFC + 2-byte integer`
+    2<sup>16</sup> | 2<sup>24</sup> | `0xFD + 3-byte integer`
+    2<sup>24</sup> | 2<sup>64</sup> | `0xFE + 8-byte integer`
+
+   Similarly, to convert a length-encoded integer into its numeric value
+   check the first byte.
+
+   @warning
+   If the first byte of a packet is a length-encoded integer and
+   its byte value is `0xFE`, you must check the length of the packet to
+   verify that it has enough space for a 8-byte integer.
+   If not, it may be an EOF_Packet instead.
+*/
+
+/**
+  @page page_protocol_basic_dt_strings String Types
+
+  Strings are sequences of bytes and appear in a few forms in the protocol.
+
+  @section sect_protocol_basic_dt_string_fix Protocol::FixedLengthString
+
+  Fixed-length strings have a known, hardcoded length.
+
+  An example is the sql-state of the @ref page_protocol_basic_err_packet
+  which is always 5 bytes long.
+
+  @section sect_protocol_basic_dt_string_null Protocol::NullTerminatedString
+
+  Strings that are terminated by a `00` byte.
+
+  @section sect_protocol_basic_dt_string_var Protocol::VariableLengthString
+
+  The length of the string is determined by another field or is calculated
+  at runtime
+
+  @section sect_protocol_basic_dt_string_le Protocol::LengthEncodedString
+
+  A length encoded string is a string that is prefixed with length encoded
+  integer describing the length of the string.
+
+  It is a special case of @ref sect_protocol_basic_dt_string_var
+
+  @section sect_protocol_basic_dt_string_eof Protocol::RestOfPacketString
+
+  If a string is the last component of a packet, its length can be calculated
+  from the overall packet length minus the current position.
+*/
+
+/**
+  @page page_protocol_basic_response_packets Generic Response Packets
+
+  For most commands the client sends to the server, the server returns one
+  of these packets in response:
+  - @subpage page_protocol_basic_ok_packet
+  - @subpage page_protocol_basic_err_packet
+  - @subpage page_protocol_basic_eof_packet
+*/
+
+/**
+@page page_protocol_command_phase %Command Phase
+
+@todo Document it.
+*/
+
+/**
+  @page page_protocol_connection_lifecycle Connection Lifecycle
+
+  The MySQL protocol is a stateful protocol. When a connection is established
+  the server initiates a \ref page_protocol_connection_phase. Once that is
+  performed the connection enters the \ref page_protocol_command_phase. The
+  \ref page_protocol_command_phase ends when the connection terminates.
+
+  Further reading:
+  - @subpage page_protocol_connection_phase
+  - @subpage page_protocol_command_phase
 */
 
 #include "protocol_classic.h"
@@ -194,40 +331,182 @@ bool net_send_error(NET *net, uint sql_errno, const char *err)
 
 
 /**
+  @page page_protocol_basic_ok_packet OK_Packet
+
+  An OK packet is sent from the server to the client to signal successful
+  completion of a command. As of MySQL 5.7.5, OK packes are also used to
+  indicate EOF, and EOF packets are deprecated.
+
+  if ::CLIENT_PROTOCOL_41 is set, the packet contains a warning count.
+
+  <table>
+  <caption>The Payload of an OK Packet</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>header</td>
+      <td>`0x00` or `0xFE` the OK packet header</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
+      <td>affected_rows</td>
+      <td>affected rows</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
+      <td>last_insert_id</td>
+      <td>last insert-id</td></tr>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_PROTOCOL_41 {</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+      <td>status_flags</td>
+      <td>@ref SERVER_STATUS_flags_enum</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+      <td>warnings</td>
+      <td>number of warnings</td></tr>
+  <tr><td colspan="3">} else if capabilities @& ::CLIENT_TRANSACTIONS {</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+      <td>status_flags</td>
+      <td>@ref SERVER_STATUS_flags_enum</td></tr>
+  <tr><td colspan="3">}</td></tr>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_SESSION_TRACK</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+      <td>info</td>
+      <td>human readable status information</td></tr>
+  <tr><td colspan="3">  if status_flags @& ::SERVER_SESSION_STATE_CHANGED {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+      <td>session state info</td>
+      <td>@anchor a_protocol_basic_ok_packet_sessinfo
+          @ref sect_protocol_basic_ok_packet_sessinfo</td></tr>
+  <tr><td colspan="3">  }</td></tr>
+  <tr><td colspan="3">} else {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_eof "string&lt;EOF&gt;"</td>
+      <td>info</td>
+      <td>human readable status information</td></tr>
+  <tr><td colspan="3">}</td></tr>
+  </table>
+
+  These rules distinguish whether the packet represents OK or EOF:
+  - OK: header = 0 and length of packet > 7
+  - EOF: header = 0xfe and length of packet < 9
+
+  To ensure backward compatibility between old (prior to 5.7.5) and
+  new (5.7.5 and up) versions of MySQL, new clients advertise
+  the ::CLIENT_DEPRECATE_EOF flag:
+  - Old clients do not know about this flag and do not advertise it.
+    Consequently, the server does not send OK packets that represent EOF.
+    (Old servers never do this, anyway. New servers recognize the absence
+    of the flag to mean they should not.)
+  - New clients advertise this flag. Old servers do not know this flag and
+    do not send OK packets that represent EOF. New servers recognize the flag
+    and can send OK packets that represent EOF.
+
+  Example
+  =======
+
+  OK with ::CLIENT_PROTOCOL_41. 0 affected rows, last-insert-id was 0,
+  AUTOCOMMIT enabled, 0 warnings. No further info.
+
+  ~~~~~~~~~~~~~~~~~~~~~
+  07 00 00 02 00 00 00 02    00 00 00
+  ~~~~~~~~~~~~~~~~~~~~~
+
+  @section sect_protocol_basic_ok_packet_sessinfo Session State Information
+
+  State-change information is sent in the OK packet as a array of state-change
+  blocks which are made up of:
+
+  <table>
+  <caption>Layout of Session State Information</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>type</td>
+      <td>type of data. See enum_session_state_type</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+      <td>data</td>
+      <td>data of the changed session info</td></tr>
+  </table>
+
+  Interpretation of the data field depends on the type value:
+
+  @subsection sect_protocol_basic_ok_packet_sessinfo_SESSION_TRACK_SYSTEM_VARIABLES SESSION_TRACK_SYSTEM_VARIABLES
+
+  <table>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+      <td>name</td>
+      <td>name of the changed system variable</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+      <td>value</td>
+      <td>value of the changed system variable</td></tr>
+  </table>
+
+  Example:
+
+  After a SET autocommit = OFF statement:
+  <table><tr>
+  <td>
+  ~~~~~~~~~~~~~~~~~~~~~
+  00 0f1 0a 61 75 74 6f 63   6f 6d 6d 69 74 03 4f 46 46
+  ~~~~~~~~~~~~~~~~~~~~~
+  </td><td>
+  ~~~~~~~~~~~~~~~~~~~~~
+  ....autocommit.OFF
+  ~~~~~~~~~~~~~~~~~~~~~
+  </td></tr></table>
+
+  @subsection sect_protocol_basic_ok_packet_sessinfo_SESSION_TRACK_SCHEMA SESSION_TRACK_SCHEMA
+
+  <table>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+      <td>name</td>
+      <td>name of the changed system variable</td></tr>
+  </table>
+
+  Example:
+
+  After a USE test statement:
+
+  <table><tr>
+  <td>
+  ~~~~~~~~~~~~~~~~~~~~~
+  01 05 04 74 65 73 74
+  ~~~~~~~~~~~~~~~~~~~~~
+  </td><td>
+  ~~~~~~~~~~~~~~~~~~~~~
+  ...test
+  ~~~~~~~~~~~~~~~~~~~~~
+  </td></tr></table>
+
+  @subsection sect_protocol_basic_ok_packet_sessinfo_SESSION_TRACK_STATE_CHANGE SESSION_TRACK_STATE_CHANGE
+
+  A flag byte that indicates whether session state changes occurred.
+  This flag is represented as an ASCII value.
+
+  <table>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+  <td>is_tracked</td>
+  <td>`0x31` ("1") if state tracking got enabled.</td></tr>
+  </table>
+
+  Example:
+
+  After a SET SESSION session_track_state_change = 1 statement:
+
+  <table><tr>
+  <td>
+  ~~~~~~~~~~~~~~~~~~~~~
+  03 02 01 31
+  ~~~~~~~~~~~~~~~~~~~~~
+  </td><td>
+  ~~~~~~~~~~~~~~~~~~~~~
+  ...1
+  ~~~~~~~~~~~~~~~~~~~~~
+  </td></tr></table>
+
+  See also net_send_ok()
+*/
+
+/**
   Return OK to the client.
 
-  The OK packet has the following structure:
-
-  Here 'n' denotes the length of state change information.
-
-  Bytes                Name
-  -----                ----
-  1                    [00] or [FE] the OK header
-                       [FE] is used as header for result set rows
-  1-9 (lenenc-int)     affected rows
-  1-9 (lenenc-int)     last-insert-id
-
-  if capabilities & CLIENT_PROTOCOL_41 {
-    2                  status_flags; Copy of thd->server_status; Can be used
-                       by client to check if we are inside a transaction.
-    2                  warnings (New in 4.1 protocol)
-  } elseif capabilities & CLIENT_TRANSACTIONS {
-    2                  status_flags
-  }
-
-  if capabilities & CLIENT_ACCEPTS_SERVER_STATUS_CHANGE_INFO {
-    1-9(lenenc_str)    info (message); Stored as length of the message string +
-                       message.
-    if n > 0 {
-      1-9 (lenenc_int) total length of session state change
-                       information to follow (= n)
-      n                session state change information
-    }
-  }
-  else {
-    string[EOF]          info (message); Stored as packed length (1-9 bytes) +
-                         message. Is not stored if no message.
-  }
+  See @ref page_protocol_basic_ok_packet for the OK packet structure.
 
   @param thd                     Thread handler
   @param server_status           The server status
@@ -374,16 +653,54 @@ static uchar eof_buff[1]= { (uchar) 254 };      /* Marker for end of fields */
 
 
 /**
+  @page page_protocol_basic_eof_packet EOF_Packet
+
+  If ::CLIENT_PROTOCOL_41 is enabled, the EOF packet contains a
+  warning count and status flags.
+
+  @note
+  In the MySQL client/server protocol, the
+  @ref page_protocol_basic_eof_packet and
+  @ref page_protocol_basic_ok_packet packets serve
+  the same purpose, to mark the end of a query execution result.
+  Due to changes in MySQL 5.7 in
+  the @ref page_protocol_basic_ok_packet packets (such as session
+  state tracking), and to avoid repeating the changes in
+  the @ref page_protocol_basic_eof_packet packet, the
+  @ref page_protocol_basic_ok_packet is deprecated as of MySQL 5.7.5.
+
+  @warning
+  The @ref page_protocol_basic_eof_packet packet may appear in places where
+  a @ref sect_protocol_basic_dt_int_le "Protocol::LengthEncodedInteger"
+  may appear. You must check whether the packet length is less than 9 to
+  make sure that it is a @ref page_protocol_basic_eof_packet packet.
+
+  <table>
+  <caption>The Payload of an EOF Packet</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>header</td>
+      <td>`0xFE` EOF packet header</td></tr>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_PROTOCOL_41 {</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+      <td>warnings</td>
+      <td>number of warnings</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+      <td>status_flags</td>
+      <td>@ref SERVER_STATUS_flags_enum</td></tr>
+  </table>
+
+  See also net_send_eof().
+*/
+
+/**
   Send eof (= end of result set) to the client.
 
-  The eof packet has the following structure:
+  See @ref page_protocol_basic_eof_packet packet for the structure
+  of the packet.
 
-  - 254           : Marker (1 byte)
-  - warning_count : Stored in 2 bytes; New in 4.1 protocol
-  - status_flag   : Stored in 2 bytes;
-  For flags like SERVER_MORE_RESULTS_EXISTS.
-
-  Note that the warning count will not be sent if 'no_flush' is set as
+  note
+  The warning count will not be sent if 'no_flush' is set as
   we don't want to report the warning count until all data is sent to the
   client.
 
@@ -419,6 +736,8 @@ net_send_eof(THD *thd, uint server_status, uint statement_warn_count)
 /**
   Format EOF packet according to the current protocol and
   write it to the network output buffer.
+
+  See also @ref page_protocol_basic_err_packet
 
   @param thd The thread handler
   @param net The network handler
@@ -465,6 +784,15 @@ static bool write_eof_packet(THD *thd, NET *net,
 
 
 /**
+  @page page_protocol_basic_err_packet ERR_Packet
+
+  @todo: Document this
+
+  See also net_send_error_packet()
+*/
+
+
+/**
   @param thd          Thread handler
   @param sql_errno    The error code to send
   @param err          A pointer to the error message
@@ -473,6 +801,8 @@ static bool write_eof_packet(THD *thd, NET *net,
   @return
    @retval FALSE The message was successfully sent
    @retval TRUE  An error occurred and the messages wasn't sent properly
+
+  See also @ref page_protocol_basic_err_packet
 */
 
 bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,

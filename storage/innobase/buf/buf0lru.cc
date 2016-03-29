@@ -632,14 +632,6 @@ rescan:
 			processed = 0;
 		}
 
-#ifdef DBUG_OFF
-		if (flush) {
-			DBUG_EXECUTE_IF("ib_export_flush_crash",
-					static ulint	n_pages;
-					if (++n_pages == 4) {DBUG_SUICIDE();});
-		}
-#endif /* DBUG_OFF */
-
 		/* The check for trx is interrupted is expensive, we want
 		to check every N iterations. */
 		if (!processed && trx && trx_is_interrupted(trx)) {

@@ -318,11 +318,11 @@ starting from SRV_FORCE_IGNORE_CORRUPT, so that data can be recovered
 by SELECT or mysqldump. When this is nonzero, we do not allow any user
 modifications to the data. */
 ulong	srv_force_recovery;
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 /** Inject a crash at different steps of the recovery process.
 This is for testing and debugging only. */
 ulong	srv_force_recovery_crash;
-#endif /* !DBUG_OFF */
+#endif /* UNIV_DEBUG */
 
 /** Print all user-level transactions deadlocks to mysqld stderr */
 

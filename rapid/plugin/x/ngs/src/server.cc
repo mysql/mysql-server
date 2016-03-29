@@ -397,7 +397,6 @@ void Server::on_accept(int sock, short what, void *ctx)
     {
       self->m_delegate->did_reject_client(Server_delegate::TooManyConnections);
       log_warning("Unable to accept connection, disconnecting client");
-      Connection_vio::close_socket(nsock);
     }
   }
 }

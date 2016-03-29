@@ -184,7 +184,6 @@ static THD* init_new_thd(Channel_info *channel_info)
 
   thd->set_new_thread_id();
 
-  thd->start_utime= thd->thr_create_utime= my_micro_time();
   if (channel_info->get_prior_thr_create_utime() != 0)
   {
     /*
@@ -192,9 +191,9 @@ static THD* init_new_thd(Channel_info *channel_info)
       increment slow_launch_threads counter if it took more than
       slow_launch_time seconds to create the pthread.
     */
-    ulong launch_time= (ulong) (thd->thr_create_utime -
-                                channel_info->get_prior_thr_create_utime());
-    if (launch_time >= slow_launch_time * 1000000L)
+    ulonglong launch_time= thd->start_utime -
+      channel_info->get_prior_thr_create_utime();
+    if (launch_time >= slow_launch_time * 1000000ULL)
       Per_thread_connection_handler::slow_launch_threads++;
   }
   delete channel_info;

@@ -154,13 +154,13 @@ Please do NOT change this when server is running.
 FIXME: This should be removed away once we can upgrade for new DD. */
 extern bool	srv_missing_dd_table_buffer;
 
-#ifndef	DBUG_OFF
+#ifdef UNIV_DEBUG
 /** Return string name of the redo log record type.
 @param[in]	type	record log record enum
 @return string name of record log record */
 const char*
 get_mlog_string(mlog_id_t type);
-#endif /* !DBUG_OFF */
+#endif /* UNIV_DEBUG */
 
 /* prototypes */
 
@@ -1510,7 +1510,8 @@ fil_write_encryption_parse(
 
 	if (offset >= UNIV_PAGE_SIZE
 	    || len + offset > UNIV_PAGE_SIZE
-	    || len != ENCRYPTION_INFO_SIZE) {
+	    || (len != ENCRYPTION_INFO_SIZE_V1
+		&& len != ENCRYPTION_INFO_SIZE_V2)) {
 		recv_sys->found_corrupt_log = TRUE;
 		return(NULL);
 	}
@@ -1529,9 +1530,10 @@ fil_write_encryption_parse(
 			<< space_id << " is invalid";
 	}
 
-	ut_ad(len == ENCRYPTION_INFO_SIZE);
+	ut_ad(len == ENCRYPTION_INFO_SIZE_V1
+	      || len == ENCRYPTION_INFO_SIZE_V2);
 
-	ptr += ENCRYPTION_INFO_SIZE;
+	ptr += len;
 
 	if (space == NULL) {
 		if (is_new) {
@@ -4496,7 +4498,7 @@ recv_dblwr_t::find_page(ulint space_id, ulint page_no)
 	return(result);
 }
 
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 /** Return string name of the redo log record type.
 @param[in]	type	record log record enum
 @return string name of record log record */
@@ -4685,4 +4687,4 @@ get_mlog_string(mlog_id_t type)
 	DBUG_ASSERT(0);
 	return(NULL);
 }
-#endif /* !DBUG_OFF */
+#endif /* UNIV_DEBUG */

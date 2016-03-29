@@ -121,3 +121,23 @@ ALTER TABLE ibstd_08  ADD COLUMN nc07006 BIGINT  AUTO_INCREMENT NOT NULL  , ADD 
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 DROP TABLE ibstd_08;
+#
+# Bug 22899305 - GCOLS: FAILING ASSERTION: !(COL->PRTYPE & 256)
+# AND SEGFAULT
+#
+set sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+create table t (a int) engine=innodb;
+create table s (
+b int generated always as (1) virtual,
+c int,
+d int generated always as (1) virtual not null,
+key (d)
+) engine=innodb;
+insert into t(a) values ((select d from s for update));
+insert into s(c) values ('');
+Warnings:
+Warning	1366	Incorrect integer value: '' for column 'c' at row 1
+SET sql_mode = default;
+drop table if exists t,s;

@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 ###################### mysql-test\t\lc_time_names_basic.test ##################
 #                                                                             #
 # Variable Name: lc_time_names                                                #

@@ -92,7 +92,6 @@ void Server_initializer::SetUp()
   m_thd->thread_stack= (char*) &stack_thd;
   m_thd->store_globals();
   lex_start(m_thd);
-  m_thd->set_current_time();
 }
 
 void Server_initializer::TearDown()

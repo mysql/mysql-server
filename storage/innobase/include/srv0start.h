@@ -33,7 +33,7 @@ Created 10/10/1995 Heikki Tuuri
 // Forward declaration
 struct dict_table_t;
 
-#ifdef DBUG_OFF
+#ifndef UNIV_DEBUG
 # define RECOVERY_CRASH(x) do {} while(0)
 #else
 # define RECOVERY_CRASH(x) do {						\
@@ -44,7 +44,7 @@ struct dict_table_t;
 		_exit(3);						\
 	}								\
 } while (0)
-#endif /* DBUG_OFF */
+#endif /* UNIV_DEBUG */
 
 /** Log 'spaces' have id's >= this */
 #define SRV_LOG_SPACE_FIRST_ID		0xFFFFFFF0UL

@@ -790,7 +790,7 @@ str_to_time_with_warn(String *str, MYSQL_TIME *l_time)
 void time_to_datetime(THD *thd, const MYSQL_TIME *ltime, MYSQL_TIME *ltime2)
 {
   thd->variables.time_zone->gmt_sec_to_TIME(ltime2,
-    static_cast<my_time_t>(thd->query_start()));
+    static_cast<my_time_t>(thd->query_start_in_secs()));
   ltime2->hour= ltime2->minute= ltime2->second= ltime2->second_part= 0;
   ltime2->time_type= MYSQL_TIMESTAMP_DATE;
   mix_date_and_time(ltime2, ltime);

@@ -2230,12 +2230,12 @@ class thread_info : public Sql_alloc
 {
 public:
   thread_info()
-    : thread_id(0), start_time(0), command(0),
+    : thread_id(0), start_time_in_secs(0), command(0),
       user(NULL), host(NULL), db(NULL), proc_info(NULL), state_info(NULL)
   { }
 
   my_thread_id thread_id;
-  time_t start_time;
+  time_t start_time_in_secs;
   uint   command;
   const char *user,*host,*db,*proc_info,*state_info;
   CSET_STRING query_string;
@@ -2397,7 +2397,7 @@ public:
     mysql_mutex_unlock(&inspect_thd->LOCK_thd_query);
 
     /* MYSQL_TIME */
-    thd_info->start_time= inspect_thd->start_time.tv_sec;
+    thd_info->start_time_in_secs= inspect_thd->query_start_in_secs();
 
     m_thread_infos->push_back(thd_info);
   }
@@ -2454,8 +2454,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
       protocol->store(thd_info->proc_info, system_charset_info);
     else
       protocol->store(command_name[thd_info->command].str, system_charset_info);
-    if (thd_info->start_time)
-      protocol->store_long ((longlong) (now - thd_info->start_time));
+    if (thd_info->start_time_in_secs)
+      protocol->store_long ((longlong) (now - thd_info->start_time_in_secs));
     else
       protocol->store_null();
     protocol->store(thd_info->state_info, system_charset_info);
@@ -2600,9 +2600,10 @@ public:
     mysql_mutex_unlock(&inspect_thd->LOCK_thd_query);
 
     /* MYSQL_TIME */
-    if (inspect_thd->start_time.tv_sec)
+    if (inspect_thd->query_start_in_secs())
       table->field[5]->
-        store((longlong) (my_time(0) - inspect_thd->start_time.tv_sec), false);
+        store((longlong) (my_time(0) - inspect_thd->query_start_in_secs()),
+              false);
     else
       table->field[5]->store(0, false);
 

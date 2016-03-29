@@ -1563,7 +1563,7 @@ bool Item_func_unix_timestamp::val_timeval(struct timeval *tm)
   DBUG_ASSERT(fixed == 1);
   if (arg_count == 0)
   {
-    tm->tv_sec= current_thd->query_start();
+    tm->tv_sec= current_thd->query_start_in_secs();
     tm->tv_usec= 0;
     return false; // no args: null_value is set in constructor and is always 0.
   }

@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 ######### mysql-test\t\binlog_rows_query_log_events.test ########### 
 #                                                                             #
 # Variable Name: binlog_rows_query_log_events                      #

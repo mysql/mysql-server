@@ -874,7 +874,17 @@ Events::init(my_bool opt_noacl_or_bootstrap)
 
   DBUG_ENTER("Events::init");
 
-  /* We need a temporary THD during boot */
+  /*
+    We need a temporary THD during boot
+
+    Current time is stored in data member start_time of THD class
+    and initialized by THD::set_time() called by ctor->THD::init()
+    Subsequently, this value is used to check whether event was expired
+    when make loading events from storage. Check for event expiration time
+    is done at Event_queue_element::compute_next_execution_time() where
+    event's status set to Event_parse_data::DISABLED and dropped flag set
+    to true if event was expired.
+  */
   if (!(thd= new THD()))
   {
     res= true;
@@ -887,16 +897,6 @@ Events::init(my_bool opt_noacl_or_bootstrap)
   */
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
-  /*
-    Set current time for the thread that handles events.
-    Current time is stored in data member start_time of THD class.
-    Subsequently, this value is used to check whether event was expired
-    when make loading events from storage. Check for event expiration time
-    is done at Event_queue_element::compute_next_execution_time() where
-    event's status set to Event_parse_data::DISABLED and dropped flag set
-    to true if event was expired.
-  */
-  thd->set_time();
   /*
     We will need Event_db_repository anyway, even if the scheduler is
     disabled - to perform events DDL.

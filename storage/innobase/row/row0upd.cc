@@ -3335,8 +3335,7 @@ error_handling:
 	DBUG_RETURN(thr);
 }
 
-#ifndef DBUG_OFF
-
+#ifdef UNIV_DEBUG
 /** Ensure that the member cascade_upd_nodes has only one update node
 for each of the tables.  This is useful for testing purposes. */
 void upd_node_t::check_cascade_only_once()
@@ -3390,5 +3389,5 @@ void upd_node_t::dbug_trace()
 
 	DBUG_VOID_RETURN;
 }
-#endif /* !DBUG_OFF */
+#endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -141,10 +141,10 @@ static void test_no_instances()
 
   mutex= create_mutex(& dummy_mutex_class, NULL);
   ok(mutex == NULL, "no mutex");
-  ok(global_mutex_container.m_lost == 1, "lost 1");
+  ok(global_mutex_container.get_lost_counter() == 1, "lost 1");
   mutex= create_mutex(& dummy_mutex_class, NULL);
   ok(mutex == NULL, "no mutex");
-  ok(global_mutex_container.m_lost == 2, "lost 2");
+  ok(global_mutex_container.get_lost_counter() == 2, "lost 2");
 
   rwlock= create_rwlock(& dummy_rwlock_class, NULL);
   ok(rwlock == NULL, "no rwlock");
@@ -289,6 +289,7 @@ static void test_with_instances()
   dummy_mutex_class.m_event_name_index= 0;
   dummy_mutex_class.m_flags= 0;
   dummy_mutex_class.m_enabled= true;
+  dummy_mutex_class.m_volatility= 0;
   dummy_rwlock_class.m_event_name_index= 1;
   dummy_rwlock_class.m_flags= 0;
   dummy_rwlock_class.m_enabled= true;
@@ -307,17 +308,17 @@ static void test_with_instances()
 
   mutex_1= create_mutex(& dummy_mutex_class, NULL);
   ok(mutex_1 != NULL, "mutex");
-  ok(global_mutex_container.m_lost == 0, "not lost");
+  ok(global_mutex_container.get_lost_counter() == 0, "not lost");
   mutex_2= create_mutex(& dummy_mutex_class, NULL);
   ok(mutex_2 != NULL, "mutex");
-  ok(global_mutex_container.m_lost == 0, "not lost");
+  ok(global_mutex_container.get_lost_counter() == 0, "not lost");
   mutex_2= create_mutex(& dummy_mutex_class, NULL);
   ok(mutex_2 == NULL, "no mutex");
-  ok(global_mutex_container.m_lost == 1, "lost 1");
+  ok(global_mutex_container.get_lost_counter() == 1, "lost 1");
   destroy_mutex(mutex_1);
   mutex_2= create_mutex(& dummy_mutex_class, NULL);
   ok(mutex_2 != NULL, "mutex");
-  ok(global_mutex_container.m_lost == 1, "no new loss");
+  ok(global_mutex_container.get_lost_counter() == 1, "no new loss");
 
   rwlock_1= create_rwlock(& dummy_rwlock_class, NULL);
   ok(rwlock_1 != NULL, "rwlock");

@@ -7644,6 +7644,8 @@ ER_CANNOT_FIND_KEY_IN_KEYRING
 ER_CAPACITY_EXCEEDED_IN_PARSER
   eng "Parser bailed out for this query."
 
+ER_UNSUPPORTED_ALTER_ENCRYPTION_INPLACE
+  eng "Cannot alter encryption attribute by inplace algorithm."
 #
 #  End of 5.7 error messages.
 #

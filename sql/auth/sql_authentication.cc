@@ -49,12 +49,35 @@
 #endif /* HAVE OPENSSL && !HAVE_YASSL */
 
 
-/****************************************************************************
+/**
+   @file sql_authentication.cc
+
    AUTHENTICATION CODE
+
    including initial connect handshake, invoking appropriate plugins,
    client-server plugin negotiation, COM_CHANGE_USER, and native
    MySQL authentication plugins.
-****************************************************************************/
+*/
+
+/**
+  @page page_protocol_connection_phase Connection Phase
+
+  The Connection Phase performs these tasks:
+    - exchange the capabilities of client and server
+    - setup SSL communication channel if requested
+    - authenticate the client against the server
+
+  It starts with the client connect()ing to the server which may send a
+  ERR packet and finish the handshake or send a Initial Handshake Packet
+  which the client answers with a Handshake Response Packet. At this stage
+  client can request SSL connection, in which case an SSL communication
+  channel is established before client sends its authentication response.
+
+  @note In case the server sent a ERR packet as first packet it will happen
+  before the client and server negotiated any capabilities.
+  Therefore the ERR packet will not contain the SQL-state.
+*/
+
 
 LEX_CSTRING native_password_plugin_name= {
   C_STRING_WITH_LEN("mysql_native_password")
@@ -844,7 +867,6 @@ read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
 {
   size_t length, length_length;
   char *ptr_save;
-  MYSQL_SERVER_AUTH_INFO *auth_info= &mpvio->auth_info;
 
   /* not enough bytes to hold the length */
   if (*max_bytes_available < 1)
@@ -868,6 +890,7 @@ read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
     return true;
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
+  MYSQL_SERVER_AUTH_INFO *auth_info= &mpvio->auth_info;
   int bytes_lost;
   if ((bytes_lost= PSI_THREAD_CALL(set_thread_connect_attrs)(*ptr, length, mpvio->charset_adapter->charset())))
     sql_print_warning("Connection attributes of length %lu were truncated "
@@ -2027,7 +2050,7 @@ check_password_lifetime(THD *thd, const ACL_USER *acl_user)
 
     thd->set_time();
     thd->variables.time_zone->gmt_sec_to_TIME(&cur_time,
-      static_cast<my_time_t>(thd->query_start()));
+      static_cast<my_time_t>(thd->query_start_in_secs()));
     password_change_by= acl_user->password_last_changed;
     memset(&interval, 0, sizeof(interval));
 

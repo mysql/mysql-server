@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 ########### mysql-test\t\query_cache_wlock_invalidate_basic.test ##############
 #                                                                             #
 # Variable Name: query_cache_wlock_invalidate                                 #

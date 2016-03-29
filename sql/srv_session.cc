@@ -973,9 +973,6 @@ bool Srv_session::open()
 
   DBUG_PRINT("info", ("thread_id=%d", thd.thread_id()));
 
-  thd.set_time();
-  thd.thr_create_utime= thd.start_utime= my_micro_time();
-
   /*
     Disable QC - plugins will most probably install their own protocol
     and it won't be compatible with the QC. In addition, Protocol_error

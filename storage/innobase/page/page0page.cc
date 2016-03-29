@@ -853,9 +853,9 @@ page_copy_rec_list_start(
 		if (!page_zip_compress(new_page_zip, new_page, index,
 				       page_zip_level, mtr)) {
 			ulint	ret_pos;
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 zip_reorganize:
-#endif /* DBUG_OFF */
+#endif /* UNIV_DEBUG */
 			/* Before trying to reorganize the page,
 			store the number of preceding records on the page. */
 			ret_pos = page_rec_get_n_recs_before(ret);

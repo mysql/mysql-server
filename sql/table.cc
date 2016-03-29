@@ -5469,6 +5469,9 @@ bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index)
     if (!vfield->stored_in_db &&
         bitmap_is_set(table->read_set, vfield->field_index))
     {
+      if (vfield->type() == MYSQL_TYPE_BLOB)
+        (down_cast<Field_blob*>(vfield))->need_to_keep_old_value();
+
       error= vfield->gcol_info->expr_item->save_in_field(vfield, 0);
       DBUG_PRINT("info", ("field '%s' - updated", vfield->field_name));
       if (error && !table->in_use->is_error())

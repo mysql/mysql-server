@@ -50,8 +50,6 @@ bool One_thread_connection_handler::add_connection(Channel_info* channel_info)
 
   thd->set_new_thread_id();
 
-  thd->start_utime= thd->thr_create_utime= my_micro_time();
-
   /*
     handle_one_connection() is normally the only way a thread would
     start and would always be on the very high end of the stack ,

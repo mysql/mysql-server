@@ -2189,7 +2189,7 @@ trx_commit_low(
 	} else {
 		serialised = false;
 	}
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 	/* In case of this function is called from a stack executing
 	   THD::release_resources -> ...
               innobase_connection_close() ->

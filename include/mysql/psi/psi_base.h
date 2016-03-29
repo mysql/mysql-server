@@ -146,6 +146,14 @@ typedef unsigned int PSI_socket_key;
 */
 #define PSI_FLAG_TRANSFER (1 << 5)
 
+/**
+  Volatility flag.
+  This flag indicate that an instrumented object
+  has a volatility (life cycle) comparable
+  to the volatility of a session.
+*/
+#define PSI_FLAG_VOLATILITY_SESSION (1 << 6)
+
 struct PSI_placeholder
 {
   int m_placeholder;

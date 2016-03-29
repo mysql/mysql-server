@@ -302,7 +302,7 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
     thd_get_audit_query(thd, &event.general_query,
                         (const charset_info_st**)&event.general_charset);
 
-    event.general_time= thd->start_time.tv_sec;
+    event.general_time= thd->query_start_in_secs();
   }
   else
   {

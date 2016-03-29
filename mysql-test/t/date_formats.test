@@ -1,8 +1,6 @@
 
 #
 # Test of date format functions
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 --disable_warnings
 drop table if exists t1;
 --enable_warnings

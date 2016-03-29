@@ -3578,8 +3578,12 @@ innobase_encryption_key_rotation()
 	/* Check if keyring loaded and the currently master key
 	can be fetched. */
 	if (Encryption::master_key_id != 0) {
-		Encryption::get_master_key(Encryption::master_key_id,
-					   &master_key);
+		ulint			master_key_id;
+		Encryption::Version	version;
+
+		Encryption::get_master_key(&master_key_id,
+					   &master_key,
+					   &version);
 		if (master_key == NULL) {
 			mutex_exit(&master_key_id_mutex);
 			my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
@@ -5457,7 +5461,7 @@ create_table_info_t::normalize_table_name_low(
 	}
 }
 
-#if !defined(DBUG_OFF)
+#ifdef UNIV_DEBUG
 /*********************************************************************
 Test normalize_table_name_low(). */
 static
@@ -5583,7 +5587,7 @@ test_ut_format_name()
 		}
 	}
 }
-#endif /* !DBUG_OFF */
+#endif /* UNIV_DEBUG */
 
 /** Match index columns between MySQL and InnoDB.
 This function checks whether the index column information
@@ -7580,6 +7584,9 @@ ha_innobase::build_template(
 				    && !dict_index_contains_col_or_prefix(
 					m_prebuilt->index, num_v, true))
 				{
+					/* Turn off ROW_MYSQL_WHOLE_ROW */
+					m_prebuilt->template_type =
+						 ROW_MYSQL_REC_FIELDS;
 					num_v++;
 					continue;
 				}
@@ -10409,12 +10416,14 @@ err_col:
 
 		} else if (!Encryption::is_none(encrypt)) {
 			/* Set the encryption flag. */
-			byte*	master_key = NULL;
-			ulint	master_key_id;
+			byte*			master_key = NULL;
+			ulint			master_key_id;
+			Encryption::Version	version;
 
 			/* Check if keyring is ready. */
 			Encryption::get_master_key(&master_key_id,
-						   &master_key);
+						   &master_key,
+						   &version);
 
 			if (master_key == NULL) {
 				my_error(ER_CANNOT_FIND_KEY_IN_KEYRING,
@@ -11269,7 +11278,7 @@ innobase_fts_load_stopword(
 				 THDVAR(thd, ft_enable_stopword), FALSE));
 }
 
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 /** Hard-coded data dictionary information */
 struct innodb_dd_table_t {
 	/** Data dictionary table name */
@@ -11312,7 +11321,7 @@ static const innodb_dd_table_t innodb_dd_table[] = {
 /** Number of hard-coded data dictionary tables */
 static const uint innodb_dd_table_size
 	= (sizeof innodb_dd_table) / sizeof *innodb_dd_table;
-#endif /* !DBUG_OFF */
+#endif /* UNIV_DEBUG */
 
 /** Initialize InnoDB for being used to store the DD tables.
 Create the required files according to the dict_init_mode.
@@ -12478,7 +12487,7 @@ ha_innobase::get_se_private_data(
 	static uint	n_tables;
 	static uint	n_indexes;
 	static uint	n_pages;
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 	const uint	n_indexes_old = n_indexes;
 #endif
 
@@ -12489,7 +12498,7 @@ ha_innobase::get_se_private_data(
 		    == (dd_table->name() == innodb_dd_table[0].name));
 	DBUG_ASSERT((dd_version == 0) == (n_tables == 0));
 	DBUG_ASSERT(n_tables < innodb_dd_table_size);
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 	{
 		/* These tables must not be partitioned. */
 		std::unique_ptr<dd::Iterator<dd::Partition> > p(
@@ -19640,12 +19649,12 @@ static MYSQL_SYSVAR_ULONG(force_recovery, srv_force_recovery,
   "Helps to save your data in case the disk image of the database becomes corrupt.",
   NULL, NULL, 0, 0, 6, 0);
 
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_ULONG(force_recovery_crash, srv_force_recovery_crash,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Kills the server during crash recovery.",
   NULL, NULL, 0, 0, 100, 0);
-#endif /* !DBUG_OFF */
+#endif /* UNIV_DEBUG */
 
 static MYSQL_SYSVAR_ULONG(page_size, srv_page_size,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
@@ -20055,9 +20064,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(flush_log_at_trx_commit),
   MYSQL_SYSVAR(flush_method),
   MYSQL_SYSVAR(force_recovery),
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
   MYSQL_SYSVAR(force_recovery_crash),
-#endif /* !DBUG_OFF */
+#endif /* UNIV_DEBUG */
   MYSQL_SYSVAR(fill_factor),
   MYSQL_SYSVAR(ft_cache_size),
   MYSQL_SYSVAR(ft_total_cache_size),

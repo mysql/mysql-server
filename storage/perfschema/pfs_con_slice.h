@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@ struct PFS_stage_stat;
 struct PFS_statement_stat;
 struct PFS_transaction_stat;
 struct PFS_memory_stat;
+class PFS_opaque_container_page;
 
 /**
   @addtogroup Performance_schema_buffers
@@ -242,6 +243,9 @@ public:
     Aggregated status variables.
   */
   PFS_status_stats m_status_stats;
+
+  /** Container page. */
+  PFS_opaque_container_page *m_page;
 };
 
 /** @} */

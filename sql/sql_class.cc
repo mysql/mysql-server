@@ -431,7 +431,7 @@ THD::THD(bool enable_plugins)
   m_catalog.length= 3;
   m_security_ctx= &m_main_security_ctx;
   password= 0;
-  query_start_usec_used= 0;
+  query_start_usec_used= false;
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
   col_access=0;
@@ -721,7 +721,7 @@ struct timeval THD::query_start_timeval_trunc(uint decimals)
   {
     tv.tv_usec= start_time.tv_usec;
     my_timeval_trunc(&tv, decimals);
-    query_start_usec_used= 1;
+    query_start_usec_used= true;
   }
   else
   {

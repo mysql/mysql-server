@@ -1,5 +1,3 @@
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 -- source include/big_test.inc
 #Running this test with show_compatibility_56=ON until Bug#21783883 is fixed.
 select @@global.show_compatibility_56 into @show_compatibility_56_save;

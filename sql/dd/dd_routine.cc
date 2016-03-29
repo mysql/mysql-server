@@ -498,7 +498,8 @@ enum_sp_return_code alter_routine(THD *thd, const Routine *routine,
   std::unique_ptr<Routine> new_routine(routine->clone());
   // Set last altered time.
   MYSQL_TIME curtime;
-  thd->variables.time_zone->gmt_sec_to_TIME(&curtime, thd->query_start());
+  thd->variables.time_zone->gmt_sec_to_TIME(&curtime,
+                                            thd->query_start_in_secs());
   ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
   new_routine->set_last_altered(ull_curtime);
 

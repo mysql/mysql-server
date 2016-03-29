@@ -1,7 +1,7 @@
 #ifndef MY_BYTEORDER_INCLUDED
 #define MY_BYTEORDER_INCLUDED
 
-/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -76,6 +76,20 @@ static inline ulonglong uint6korr(const uchar *A)
     ;
 }
 
+/**
+  int3store
+
+  Stores an unsinged integer in a platform independent way
+
+  @param T  The destination buffer. Must be at least 3 bytes long
+  @param A  The integer to store.
+
+  _Example:_
+  A @ref a_protocol_type_int3 "int \<3\>" with the value 1 is stored as:
+  ~~~~~~~~~~~~~~~~~~~~~
+  01 00 00
+  ~~~~~~~~~~~~~~~~~~~~~
+*/
 static inline void int3store(uchar *T, uint A)
 {
   *(T)=   (uchar) (A);

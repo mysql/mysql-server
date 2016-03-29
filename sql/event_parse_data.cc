@@ -117,7 +117,7 @@ Event_parse_data::init_name(THD *thd, sp_name *spn)
 void
 Event_parse_data::check_if_in_the_past(THD *thd, my_time_t ltime_utc)
 {
-  if (ltime_utc >= (my_time_t) thd->query_start())
+  if (ltime_utc >= (my_time_t) thd->query_start_in_secs())
     return;
 
   /*
@@ -394,7 +394,7 @@ Event_parse_data::init_starts(THD *thd)
     goto wrong_value;
 
   DBUG_PRINT("info",("now: %ld  starts: %ld",
-                     (long) thd->query_start(), (long) ltime_utc));
+                     (long) thd->query_start_in_secs(), (long) ltime_utc));
 
   starts_null= false;
   starts= ltime_utc;

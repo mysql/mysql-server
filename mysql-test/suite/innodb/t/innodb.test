@@ -1,8 +1,8 @@
+# Performance Schema is partially supported by embedded server. Hence skip when test runs with embedded mode.
+-- source include/not_embedded.inc
+
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
-
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
 
 #######################################################################
 #                                                                     #

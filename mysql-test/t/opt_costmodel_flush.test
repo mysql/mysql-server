@@ -2,9 +2,6 @@
 # Test of the FLUSH OPTIMIZER_COSTS command
 #
 
-# Performance Schema is not supported by embedded server. Hence skip when test runs with embedded mode.
--- source include/not_embedded.inc
-
 # To get stable cost estimates, the test should only be run with 
 # 16K InnoDB page size.
 --source include/have_innodb_16k.inc

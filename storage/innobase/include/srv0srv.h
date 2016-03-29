@@ -343,9 +343,9 @@ extern ulong	srv_adaptive_flushing_lwm;
 extern ulong	srv_flushing_avg_loops;
 
 extern ulong	srv_force_recovery;
-#ifndef DBUG_OFF
+#ifdef UNIV_DEBUG
 extern ulong	srv_force_recovery_crash;
-#endif /* !DBUG_OFF */
+#endif /* UNIV_DEBUG */
 
 /** The value of the configuration parameter innodb_fast_shutdown,
 controlling the InnoDB shutdown.

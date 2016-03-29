@@ -115,8 +115,25 @@
 /**
   @page PAGE_PROTOCOL Client/Server Protocol
 
-  See #Protocol.
+  @section protocol_overview Overview
 
+  The MySQL protocol is used between MySQL Clients and a MySQL Server.
+  It is implemented by:
+    - Connectors (Connector/C, Connector/J, and so forth)
+    - MySQL Proxy
+    - Communication between master and slave replication servers
+
+  The protocol supports these features:
+    - Transparent encryption using SSL
+    - Transparent compression
+    - A @ref page_protocol_connection_phase where capabilities and
+      authentication data are exchanged
+    - A @ref page_protocol_command_phase which accepts commands
+      from the client and executes them
+
+  Further reading:
+    - @subpage page_protocol_basics
+    - @subpage page_protocol_connection_lifecycle
 */
 
 /**
@@ -3841,7 +3858,7 @@ static int flush_auto_options(const char* fname)
   @todo consider to implement sql-query-able persistent storage by WL#5279.
   @return Return 0 or 1 if an error occurred.
  */
-int init_server_auto_options(bool read_uuid)
+int init_server_auto_options()
 {
   bool flush= false;
   char fname[FN_REFLEN];
@@ -3896,7 +3913,8 @@ int init_server_auto_options(bool read_uuid)
     }
     strcpy(server_uuid, uuid);
   }
-  else if (!read_uuid) {
+  else
+  {
     DBUG_PRINT("info", ("generating server_uuid"));
     flush= TRUE;
     /* server_uuid will be set in the function */
@@ -5071,11 +5089,6 @@ int mysqld_main(int argc, char **argv)
   Service.SetSlowStarting(slow_start_timeout);
 #endif
 
-  /*
-    Read UUID if exist, we need it to recover TDE tablespaces.
-   */
-  init_server_auto_options(true);
-
   if (init_server_components())
     unireg_abort(MYSQLD_ABORT_EXIT);
 
@@ -5083,7 +5096,7 @@ int mysqld_main(int argc, char **argv)
     Each server should have one UUID. We will create it automatically, if it
     does not exist.
    */
-  if (init_server_auto_options(false))
+  if (init_server_auto_options())
   {
     sql_print_error("Initialization of the server's UUID failed because it could"
                     " not be read from the auto.cnf file. If this is a new"
@@ -6317,7 +6330,8 @@ static int show_starttime(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONGLONG;
   var->value= buff;
-  *((longlong *)buff)= (longlong) (thd->query_start() - server_start_time);
+  *((longlong *)buff)= (longlong) (thd->query_start_in_secs() -
+                                   server_start_time);
   return 0;
 }
 
@@ -6424,7 +6438,8 @@ static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONGLONG;
   var->value= buff;
-  *((longlong *)buff)= (longlong) (thd->query_start() - flush_status_time);
+  *((longlong *)buff)= (longlong) (thd->query_start_in_secs() -
+                                   flush_status_time);
   return 0;
 }
 #endif
@@ -8881,9 +8896,9 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_start_signal_handler, "LOCK_start_signal_handler", PSI_FLAG_GLOBAL},
 #endif
   { &key_LOCK_status, "LOCK_status", PSI_FLAG_GLOBAL},
-  { &key_LOCK_thd_data, "THD::LOCK_thd_data", 0},
-  { &key_LOCK_thd_query, "THD::LOCK_thd_query", 0},
-  { &key_LOCK_thd_sysvar, "THD::LOCK_thd_sysvar", 0},
+  { &key_LOCK_thd_data, "THD::LOCK_thd_data", PSI_FLAG_VOLATILITY_SESSION},
+  { &key_LOCK_thd_query, "THD::LOCK_thd_query", PSI_FLAG_VOLATILITY_SESSION},
+  { &key_LOCK_thd_sysvar, "THD::LOCK_thd_sysvar", PSI_FLAG_VOLATILITY_SESSION},
   { &key_LOCK_user_conn, "LOCK_user_conn", PSI_FLAG_GLOBAL},
   { &key_LOCK_uuid_generator, "LOCK_uuid_generator", PSI_FLAG_GLOBAL},
   { &key_LOCK_sql_rand, "LOCK_sql_rand", PSI_FLAG_GLOBAL},
@@ -8906,10 +8921,10 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_error_messages, "LOCK_error_messages", PSI_FLAG_GLOBAL},
   { &key_LOCK_log_throttle_qni, "LOCK_log_throttle_qni", PSI_FLAG_GLOBAL},
   { &key_gtid_ensure_index_mutex, "Gtid_state", PSI_FLAG_GLOBAL},
-  { &key_LOCK_query_plan, "THD::LOCK_query_plan", 0},
+  { &key_LOCK_query_plan, "THD::LOCK_query_plan", PSI_FLAG_VOLATILITY_SESSION},
   { &key_LOCK_cost_const, "Cost_constant_cache::LOCK_cost_const",
     PSI_FLAG_GLOBAL},  
-  { &key_LOCK_current_cond, "THD::LOCK_current_cond", 0},
+  { &key_LOCK_current_cond, "THD::LOCK_current_cond", PSI_FLAG_VOLATILITY_SESSION},
   { &key_mts_temp_table_LOCK, "key_mts_temp_table_LOCK", 0},
   { &key_LOCK_reset_gtid_table, "LOCK_reset_gtid_table", PSI_FLAG_GLOBAL},
   { &key_LOCK_compress_gtid_table, "LOCK_compress_gtid_table", PSI_FLAG_GLOBAL},
