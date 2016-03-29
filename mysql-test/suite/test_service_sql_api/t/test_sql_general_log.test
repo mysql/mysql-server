@@ -106,6 +106,7 @@ DROP TABLE t_int;
 DROP TABLE t_bigint;
 DROP TABLE t_real;
 DROP TABLE t_date;
+TRUNCATE TABLE mysql.general_log;
 
 --echo # Deleting log file created
 --remove_file $MYSQLTEST_VARDIR/log/test_sql_general.log
