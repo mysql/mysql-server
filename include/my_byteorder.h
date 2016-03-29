@@ -85,7 +85,7 @@ static inline ulonglong uint6korr(const uchar *A)
   @param A  The integer to store.
 
   _Example:_
-  A \ref protocol_type_int3 "int \<3\>" with the value 1 is stored as:
+  A @ref a_protocol_type_int3 "int \<3\>" with the value 1 is stored as:
   ~~~~~~~~~~~~~~~~~~~~~
   01 00 00
   ~~~~~~~~~~~~~~~~~~~~~

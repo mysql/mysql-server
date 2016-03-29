@@ -235,58 +235,64 @@
                                                & ~CLIENT_COMPRESS) \
                                                & ~CLIENT_SSL_VERIFY_SERVER_CERT)
 
-/**
-  Is raised when a multi-statement transaction
-  has been started, either explicitly, by means
-  of BEGIN or COMMIT AND CHAIN, or
-  implicitly, by the first transactional
-  statement, when autocommit=off.
-*/
-#define SERVER_STATUS_IN_TRANS     1
-#define SERVER_STATUS_AUTOCOMMIT   2	/* Server in auto_commit mode */
-#define SERVER_MORE_RESULTS_EXISTS 8    /* Multi query - next query exists */
-#define SERVER_QUERY_NO_GOOD_INDEX_USED 16
-#define SERVER_QUERY_NO_INDEX_USED      32
-/**
-  The server was able to fulfill the clients request and opened a
-  read-only non-scrollable cursor for a query. This flag comes
-  in reply to COM_STMT_EXECUTE and COM_STMT_FETCH commands.
-*/
-#define SERVER_STATUS_CURSOR_EXISTS 64
-/**
-  This flag is sent when a read-only cursor is exhausted, in reply to
-  COM_STMT_FETCH command.
-*/
-#define SERVER_STATUS_LAST_ROW_SENT 128
-#define SERVER_STATUS_DB_DROPPED        256 /* A database was dropped */
-#define SERVER_STATUS_NO_BACKSLASH_ESCAPES 512
-/**
-  Sent to the client if after a prepared statement reprepare
-  we discovered that the new statement returns a different 
-  number of result set columns.
-*/
-#define SERVER_STATUS_METADATA_CHANGED 1024
-#define SERVER_QUERY_WAS_SLOW          2048
+/** The status flags are a bit-field */
+enum SERVER_STATUS_flags_enum
+{
+  /**
+    Is raised when a multi-statement transaction
+    has been started, either explicitly, by means
+    of BEGIN or COMMIT AND CHAIN, or
+    implicitly, by the first transactional
+    statement, when autocommit=off.
+  */
+  SERVER_STATUS_IN_TRANS= 1,
+  SERVER_STATUS_AUTOCOMMIT= 2,	    /**< Server in auto_commit mode */
+  SERVER_MORE_RESULTS_EXISTS= 8,    /**< Multi query - next query exists */
+  SERVER_QUERY_NO_GOOD_INDEX_USED= 16,
+  SERVER_QUERY_NO_INDEX_USED= 32,
+  /**
+    The server was able to fulfill the clients request and opened a
+    read-only non-scrollable cursor for a query. This flag comes
+    in reply to COM_STMT_EXECUTE and COM_STMT_FETCH commands.
+    Used by Binary Protocol Resultset to signal that COM_STMT_FETCH
+    must be used to fetch the row-data.
+    @todo Refify "Binary Protocol Resultset" and "COM_STMT_FETCH".
+  */
+  SERVER_STATUS_CURSOR_EXISTS= 64,
+  /**
+    This flag is sent when a read-only cursor is exhausted, in reply to
+    COM_STMT_FETCH command.
+  */
+  SERVER_STATUS_LAST_ROW_SENT= 128,
+  SERVER_STATUS_DB_DROPPED= 256, /**< A database was dropped */
+  SERVER_STATUS_NO_BACKSLASH_ESCAPES= 512,
+  /**
+    Sent to the client if after a prepared statement reprepare
+    we discovered that the new statement returns a different
+    number of result set columns.
+  */
+  SERVER_STATUS_METADATA_CHANGED= 1024,
+  SERVER_QUERY_WAS_SLOW= 2048,
+  /**
+    To mark ResultSet containing output parameter values.
+  */
+  SERVER_PS_OUT_PARAMS= 4096,
 
-/**
-  To mark ResultSet containing output parameter values.
-*/
-#define SERVER_PS_OUT_PARAMS            4096
+  /**
+    Set at the same time as SERVER_STATUS_IN_TRANS if the started
+    multi-statement transaction is a read-only transaction. Cleared
+    when the transaction commits or aborts. Since this flag is sent
+    to clients in OK and EOF packets, the flag indicates the
+    transaction status at the end of command execution.
+  */
+  SERVER_STATUS_IN_TRANS_READONLY= 8192,
 
-/**
-  Set at the same time as SERVER_STATUS_IN_TRANS if the started
-  multi-statement transaction is a read-only transaction. Cleared
-  when the transaction commits or aborts. Since this flag is sent
-  to clients in OK and EOF packets, the flag indicates the
-  transaction status at the end of command execution.
-*/
-#define SERVER_STATUS_IN_TRANS_READONLY 8192
-
-/**
-  This status flag, when on, implies that one of the state information has
-  changed on the server because of the execution of the last statement.
-*/
-#define SERVER_SESSION_STATE_CHANGED (1UL << 14)
+  /**
+    This status flag, when on, implies that one of the state information has
+    changed on the server because of the execution of the last statement.
+  */
+  SERVER_SESSION_STATE_CHANGED= (1UL << 14)
+};
 
 /**
   Server status flags that must be cleared when starting
@@ -454,21 +460,23 @@ enum enum_mysql_set_option
   MYSQL_OPTION_MULTI_STATEMENTS_OFF
 };
 
-/*
+/**
   Type of state change information that the server can include in the Ok
   packet.
-  Note : 1) session_state_type shouldn't go past 255 (i.e. 1-byte boundary).
-         2) Modify the definition of SESSION_TRACK_END when a new member is
-	    added.
+
+  @note
+  Note:
+    - session_state_type shouldn't go past 255 (i.e. 1-byte boundary).
+    - Modify the definition of SESSION_TRACK_END when a new member is added.
 */
 enum enum_session_state_type
 {
-  SESSION_TRACK_SYSTEM_VARIABLES,                       /* Session system variables */
-  SESSION_TRACK_SCHEMA,                          /* Current schema */
-  SESSION_TRACK_STATE_CHANGE,                  /* track session state changes */
-  SESSION_TRACK_GTIDS,
-  SESSION_TRACK_TRANSACTION_CHARACTERISTICS,  /* Transaction chistics */
-  SESSION_TRACK_TRANSACTION_STATE             /* Transaction state */
+  SESSION_TRACK_SYSTEM_VARIABLES,             /**< Session system variables */
+  SESSION_TRACK_SCHEMA,                       /**< Current schema */
+  SESSION_TRACK_STATE_CHANGE,                 /**< track session state changes */
+  SESSION_TRACK_GTIDS,                        /**< See also: session_track_gtids */
+  SESSION_TRACK_TRANSACTION_CHARACTERISTICS,  /**< Transaction chistics */
+  SESSION_TRACK_TRANSACTION_STATE             /**< Transaction state */
 };
 
 #define SESSION_TRACK_BEGIN SESSION_TRACK_SYSTEM_VARIABLES
