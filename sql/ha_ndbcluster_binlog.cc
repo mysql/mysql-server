@@ -3032,7 +3032,7 @@ class Ndb_schema_event_handler {
       DBUG_VOID_RETURN;
     }
 
-    pthread_mutex_lock(&ndb_schema_object->mutex);
+    native_mutex_lock(&ndb_schema_object->mutex);
     DBUG_DUMP("ndb_schema_object->slock_bitmap.bitmap",
               (uchar*)ndb_schema_object->slock_bitmap.bitmap,
               no_bytes_in_map(&ndb_schema_object->slock_bitmap));
