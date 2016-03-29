@@ -867,7 +867,6 @@ read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
 {
   size_t length, length_length;
   char *ptr_save;
-  MYSQL_SERVER_AUTH_INFO *auth_info= &mpvio->auth_info;
 
   /* not enough bytes to hold the length */
   if (*max_bytes_available < 1)
@@ -891,6 +890,7 @@ read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
     return true;
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
+  MYSQL_SERVER_AUTH_INFO *auth_info= &mpvio->auth_info;
   int bytes_lost;
   if ((bytes_lost= PSI_THREAD_CALL(set_thread_connect_attrs)(*ptr, length, mpvio->charset_adapter->charset())))
     sql_print_warning("Connection attributes of length %lu were truncated "
