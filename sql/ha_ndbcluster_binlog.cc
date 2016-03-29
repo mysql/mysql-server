@@ -1622,7 +1622,7 @@ static void ndb_report_waiting(const char *key,
     sql_print_information("NDB %s:"
                           " waiting max %u sec for %s %s."
                           "  epochs: (%u/%u,%u/%u,%u/%u)"
-                          "  injector proc_info: %s map: %x%x"
+                          "  injector proc_info: %s map: %x%08x"
                           ,key, the_time, op, obj
                           ,(uint)(ndb_latest_handled_binlog_epoch >> 32)
                           ,(uint)(ndb_latest_handled_binlog_epoch)
@@ -1631,8 +1631,8 @@ static void ndb_report_waiting(const char *key,
                           ,(uint)(ndb_latest_epoch >> 32)
                           ,(uint)(ndb_latest_epoch)
                           ,proc_info
-                          ,map->bitmap[0]
                           ,map->bitmap[1]
+                          ,map->bitmap[0]
                           );
   }
 }
@@ -2006,7 +2006,7 @@ end:
 
   if (opt_ndb_extra_logging > 19)
   {
-    sql_print_information("NDB: distributed %s.%s(%u/%u) type: %s(%u) query: \'%s\' to %x%x",
+    sql_print_information("NDB: distributed %s.%s(%u/%u) type: %s(%u) query: \'%s\' to %x%08x",
                           db,
                           table_name,
                           ndb_table_id,
@@ -2014,8 +2014,8 @@ end:
                           get_schema_type_name(log_type),
                           log_type,
                           query,
-                          ndb_schema_object->slock_bitmap.bitmap[0],
-                          ndb_schema_object->slock_bitmap.bitmap[1]);
+                          ndb_schema_object->slock_bitmap.bitmap[1],
+                          ndb_schema_object->slock_bitmap.bitmap[0]);
   }
 
   /*
@@ -2234,6 +2234,8 @@ public:
 
   void init(Ndb_cluster_connection* cluster_connection)
   {
+    const uint own_nodeid = cluster_connection->node_id();
+
     // Initialize "g_node_id_map" which maps from nodeid to index in
     // subscriber bitmaps array. The mapping array is only used when
     // the NDB binlog thread handles events on the mysql.ndb_schema table
@@ -2255,7 +2257,8 @@ public:
                     (Uint32*)my_malloc(PSI_INSTRUMENT_ME,
                                        max_ndb_nodes/8, MYF(MY_WME)),
                     max_ndb_nodes, FALSE);
-        bitmap_clear_all(&subscriber_bitmap[i]);
+        DBUG_ASSERT(bitmap_is_clear_all(&subscriber_bitmap[i]));
+        bitmap_set_bit(&subscriber_bitmap[i], own_nodeid); //'self' is always active
       }
       // Remember the number of bitmaps allocated
       m_num_bitmaps = no_nodes;
@@ -2288,17 +2291,6 @@ public:
     m_prepared_rename_key = NULL;
   }
 
-  // Map from nodeid to position in subscriber bitmaps array
-  uint8 map2subscriber_bitmap_index(uint data_node_id) const
-  {
-    DBUG_ASSERT(data_node_id <
-                (sizeof(m_data_node_id_list)/sizeof(m_data_node_id_list[0])));
-    const uint8 bitmap_index = m_data_node_id_list[data_node_id];
-    DBUG_ASSERT(bitmap_index != 0xFF);
-    DBUG_ASSERT(bitmap_index < m_num_bitmaps);
-    return bitmap_index;
-  }
-
   void report_data_node_failure(unsigned data_node_id)
   {
     uint8 idx= map2subscriber_bitmap_index(data_node_id);
@@ -2307,7 +2299,7 @@ public:
     if (opt_ndb_extra_logging)
     {
       sql_print_information("NDB Schema dist: Data node: %d failed,"
-                            " subscriber bitmask %x%x",
+                            " subscriber bitmask %x%08x",
                             data_node_id,
                             subscriber_bitmap[idx].bitmap[1],
                             subscriber_bitmap[idx].bitmap[0]);
@@ -2325,13 +2317,13 @@ public:
     if (opt_ndb_extra_logging)
     {
       sql_print_information("NDB Schema dist: Data node: %d reports "
-                            "subscribe from node %d, subscriber bitmask %x%x",
+                            "subscribe from node %d, subscriber bitmask %x%08x",
                             data_node_id,
                             subscriber_node_id,
                             subscriber_bitmap[idx].bitmap[1],
                             subscriber_bitmap[idx].bitmap[0]);
     }
-    check_wakeup_clients();
+    //No 'wakeup_clients' now, as *adding* subscribers didn't complete anything
   }
 
   void report_unsubscribe(unsigned data_node_id, unsigned subscriber_node_id)
@@ -2344,7 +2336,7 @@ public:
     if (opt_ndb_extra_logging)
     {
       sql_print_information("NDB Schema dist: Data node: %d reports "
-                            "unsubscribe from node %d, subscriber bitmask %x%x",
+                            "unsubscribe from node %d, subscriber bitmask %x%08x",
                             data_node_id,
                             subscriber_node_id,
                             subscriber_bitmap[idx].bitmap[1],
@@ -2353,19 +2345,7 @@ public:
     check_wakeup_clients();
   }
 
-  void check_wakeup_clients()
-  {
-    // Build bitmask of current participants
-     uint32 participants_buf[256/32];
-     MY_BITMAP participants;
-     bitmap_init(&participants, participants_buf, 256, FALSE);
-     get_subscriber_bitmask(&participants);
-
-     // Check all Client's for wakeup
-     NDB_SCHEMA_OBJECT::check_waiters(participants);
-  }
-
-  void get_subscriber_bitmask(MY_BITMAP* servers)
+  void get_subscriber_bitmask(MY_BITMAP* servers) const
   {
     for (unsigned i= 0; i < m_num_bitmaps; i++)
     {
@@ -2373,17 +2353,43 @@ public:
     }
   }
 
-
   void save_prepared_rename_key(NDB_SHARE_KEY* key)
   {
     m_prepared_rename_key = key;
   }
 
-  NDB_SHARE_KEY* get_prepared_rename_key() const {
+  NDB_SHARE_KEY* get_prepared_rename_key() const
+  {
     return m_prepared_rename_key;
   }
 
-};
+private:
+
+  // Map from nodeid to position in subscriber bitmaps array
+  uint8 map2subscriber_bitmap_index(uint data_node_id) const
+  {
+    DBUG_ASSERT(data_node_id <
+                (sizeof(m_data_node_id_list)/sizeof(m_data_node_id_list[0])));
+    const uint8 bitmap_index = m_data_node_id_list[data_node_id];
+    DBUG_ASSERT(bitmap_index != 0xFF);
+    DBUG_ASSERT(bitmap_index < m_num_bitmaps);
+    return bitmap_index;
+  }
+
+  void check_wakeup_clients() const
+  {
+    // Build bitmask of current participants
+    uint32 participants_buf[256/32];
+    MY_BITMAP participants;
+    bitmap_init(&participants, participants_buf, 256, FALSE);
+    get_subscriber_bitmask(&participants);
+
+    // Check all Client's for wakeup
+    NDB_SCHEMA_OBJECT::check_waiters(participants);
+  }
+
+}; //class Ndb_schema_dist_data
+
 
 #include "ndb_local_schema.h"
 
@@ -2499,7 +2505,7 @@ class Ndb_schema_event_handler {
                           schema_op->type));
       DBUG_RETURN(schema_op);
     }
-  };
+  }; //class Ndb_schema_op
 
   static void
   print_could_not_discover_error(THD *thd,
@@ -2599,7 +2605,6 @@ class Ndb_schema_event_handler {
   }
 
 
-
   /*
     Acknowledge handling of schema operation
     - Inform the other nodes that schema op has
@@ -2607,9 +2612,13 @@ class Ndb_schema_event_handler {
       row for this op in ndb_schema table)
   */
   int
-  ack_schema_op(const char *db, const char *table_name,
-                uint32 table_id, uint32 table_version)
+  ack_schema_op(Ndb_schema_op *schema) const
   {
+    const char* const db = schema->db;
+    const char* const table_name = schema->name;
+    const uint32 table_id = schema->id;
+    const uint32 table_version = schema->version;
+
     DBUG_ENTER("ack_schema_op");
 
     const NdbError *ndb_error= 0;
@@ -2680,21 +2689,40 @@ class Ndb_schema_event_handler {
       if (trans->execute(NdbTransaction::NoCommit))
         goto err;
 
-      if (opt_ndb_extra_logging > 19)
+      char before_slock[32];
+      if (unlikely(opt_ndb_extra_logging > 19))
       {
-        uint32 copy[SCHEMA_SLOCK_SIZE/4];
-        memcpy(copy, bitbuf, sizeof(copy));
-        bitmap_clear_bit(&slock, own_nodeid());
-        sql_print_information("NDB: reply to %s.%s(%u/%u) from %x%x to %x%x",
+        /* Format 'before slock' into temp string */
+        my_snprintf(before_slock, sizeof(before_slock), "%x%08x",
+                    slock.bitmap[1], slock.bitmap[0]);
+      }
+
+      /**
+       * The coordinator (only) knows the relative order of subscribe
+       * events vs. other event ops. The subscribers known at the point
+       * in time when it acks its own distrubution req, are the
+       * participants in the schema distribution. Modify the initially
+       * 'all_set' slock bitmap with the participating servers.
+       */
+      if (schema->node_id == own_nodeid())
+      {
+        // Build bitmask of subscribers known to Coordinator
+        MY_BITMAP servers;
+        uint32 bitbuf[SCHEMA_SLOCK_SIZE/4];
+        bitmap_init(&servers, bitbuf, sizeof(bitbuf)*8, false);
+        m_schema_dist_data.get_subscriber_bitmask(&servers);
+        bitmap_intersect(&slock, &servers);
+      }
+      bitmap_clear_bit(&slock, own_nodeid());
+
+      if (unlikely(opt_ndb_extra_logging > 19))
+      {
+        sql_print_information("NDB: reply to %s.%s(%u/%u) from %s to %x%08x",
                               db, table_name,
                               table_id, table_version,
-                              copy[0], copy[1],
-                              slock.bitmap[0],
-                              slock.bitmap[1]);
-      }
-      else
-      {
-        bitmap_clear_bit(&slock, own_nodeid());
+                              before_slock,
+                              slock.bitmap[1],
+                              slock.bitmap[0]);
       }
 
       {
@@ -3004,38 +3032,38 @@ class Ndb_schema_event_handler {
       DBUG_VOID_RETURN;
     }
 
-    // Build bitmask of subscribers
-    MY_BITMAP servers;
-    bitmap_init(&servers, 0, 256, FALSE);
-    bitmap_clear_all(&servers);
-    bitmap_set_bit(&servers, own_nodeid()); // "we" are always alive
-    m_schema_dist_data.get_subscriber_bitmask(&servers);
-    assert(bitmap_is_set(&servers, schema->node_id)); // From known subscriber?
-
-    /*
-      Copy the latest slock info into the ndb_schema_object so that
-      waiter can check if all nodes it's waiting for has answered
-    */
-    native_mutex_lock(&ndb_schema_object->mutex);
-    if (opt_ndb_extra_logging > 19)
-    {
-      sql_print_information("NDB: CLEAR_SLOCK key: %s(%u/%u) from"
-                            " %x%x to %x%x",
-                            key, schema->id, schema->version,
-                            ndb_schema_object->slock[0],
-                            ndb_schema_object->slock[1],
-                            schema->slock_buf[0],
-                            schema->slock_buf[1]);
-    }
-    memcpy(ndb_schema_object->slock, schema->slock_buf,
-           sizeof(ndb_schema_object->slock));
+    pthread_mutex_lock(&ndb_schema_object->mutex);
     DBUG_DUMP("ndb_schema_object->slock_bitmap.bitmap",
               (uchar*)ndb_schema_object->slock_bitmap.bitmap,
               no_bytes_in_map(&ndb_schema_object->slock_bitmap));
 
-    /* remove any unsubscribed from ndb_schema_object->slock */
-    bitmap_intersect(&ndb_schema_object->slock_bitmap, &servers);
-    bitmap_free(&servers);
+    char before_slock[32];
+    if (unlikely(opt_ndb_extra_logging > 19))
+    {
+      /* Format 'before slock' into temp string */
+      my_snprintf(before_slock, sizeof(before_slock), "%x%08x",
+                  ndb_schema_object->slock[1],
+                  ndb_schema_object->slock[0]);
+    }
+
+    /**
+     * Remove any ack'ed schema-slocks. slock_bitmap is initially 'all-set'.
+     * 'schema->slock' replied from any participant will have cleared its
+     * own slock-bit. The Coordinator reply will in addition clear all bits
+     * for servers not participating in the schema distribution.
+     */
+    bitmap_intersect(&ndb_schema_object->slock_bitmap, &schema->slock);
+
+    if (unlikely(opt_ndb_extra_logging > 19))
+    {
+      /* Print updated slock together with before image of it */
+      sql_print_information("NDB: CLEAR_SLOCK key: %s(%u/%u) %x%08x, from %s to %x%08x",
+                            key, schema->id, schema->version, 
+                            schema->slock_buf[1], schema->slock_buf[0],
+                            before_slock,
+                            ndb_schema_object->slock[1],
+                            ndb_schema_object->slock[0]);
+    }
 
     DBUG_DUMP("ndb_schema_object->slock_bitmap.bitmap",
               (uchar*)ndb_schema_object->slock_bitmap.bitmap,
@@ -3589,15 +3617,15 @@ class Ndb_schema_event_handler {
 
       if (opt_ndb_extra_logging > 19)
       {
-        sql_print_information("NDB: got schema event on %s.%s(%u/%u) query: '%s' type: %s(%d) node: %u slock: %x%x",
+        sql_print_information("NDB: got schema event on %s.%s(%u/%u) query: '%s' type: %s(%d) node: %u slock: %x%08x",
                               schema->db, schema->name,
                               schema->id, schema->version,
                               schema->query,
                               get_schema_type_name(schema_type),
                               schema_type,
                               schema->node_id,
-                              schema->slock.bitmap[0],
-                              schema->slock.bitmap[1]);
+                              schema->slock.bitmap[1],
+                              schema->slock.bitmap[0]);
       }
 
       if ((schema->db[0] == 0) && (schema->name[0] == 0))
@@ -3680,8 +3708,7 @@ class Ndb_schema_event_handler {
       DBUG_DUMP("slock", (uchar*) schema->slock_buf, schema->slock_length);
       if (bitmap_is_set(&schema->slock, own_nodeid()))
       {
-        ack_schema_op(schema->db, schema->name,
-                      schema->id, schema->version);
+        ack_schema_op(schema);
       }
     }
     DBUG_RETURN(0);
@@ -3905,8 +3932,7 @@ public:
       */
       while ((schema= m_post_epoch_ack_list.pop()))
       {
-        ack_schema_op(schema->db, schema->name,
-                      schema->id, schema->version);
+        ack_schema_op(schema);
       }
     }
     // There should be no work left todo...
