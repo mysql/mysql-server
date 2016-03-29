@@ -40,5 +40,6 @@ SELECT hex(f1), f1 FROM t1;
 DROP PROCEDURE p1;
 DROP TABLE t1;
 DROP TABLE t2;
+--remove_file $MYSQLD_DATADIR/master-bin-gb18030.saved
 
 --source include/restore_default_binlog_format.inc
