@@ -4031,7 +4031,7 @@ cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref)
   enum enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->write_set);
-  bool result= 0;
+  bool result= false;
 
   for (uint part_no= 0; part_no < ref->key_parts; part_no++)
   {
@@ -4044,12 +4044,10 @@ cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref)
       check thd->is_error().
       @todo This is due to missing handling of error return value from
       Field::store().
-      @todo Rewrite the below check to use the correct store_key_result enum
-      instead of doing bit wise AND on result.
     */
-    if ((s_key->copy() & 1) || thd->is_error())
+    if (s_key->copy() != store_key::STORE_KEY_OK || thd->is_error())
     {
-      result= 1;
+      result= true;
       break;
     }
   }

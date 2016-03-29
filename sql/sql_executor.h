@@ -294,6 +294,17 @@ MY_ATTRIBUTE((warn_unused_result))
 bool copy_fields(Temp_table_param *param, const THD *thd);
 
 bool copy_funcs(Func_ptr_array*, const THD *thd);
+
+/**
+  Copy the lookup key into the table ref's key buffer.
+
+  @param thd   pointer to the THD object
+  @param table the table to read
+  @param ref   information about the index lookup key
+
+  @retval false ref key copied successfully
+  @retval true  error dectected during copying of key
+*/
 bool cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref);
 
 /** Help function when we get some an error from the table handler. */
