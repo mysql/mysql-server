@@ -18,7 +18,6 @@
 #include "mysys_err.h"
 #include <my_dir.h> /* for stat */
 #include <m_string.h>
-#include "mysys_err.h"
 #if defined(HAVE_UTIME_H)
 #include <utime.h>
 #elif defined(HAVE_SYS_UTIME_H)
