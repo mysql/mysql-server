@@ -389,3 +389,6 @@ perl;
   print "Occurances : $count_error\n";
   close(FILE);
 EOF
+
+--remove_file $MYSQLTEST_VARDIR/tmp/ctype_ldml_log.err
+FLUSH ERROR LOGS;
