@@ -257,51 +257,6 @@ net_should_retry(NET *net, uint *retry_count)
 }
 
 
-/**
-  @page page_protocol_basic_packets MySQL Packets
-
-  If a MySQL client or server wants to send data, it:
-  - Splits the data into packets of size 2<sup>24</sup> bytes
-  - Prepends to each chunk a packet header
-
-  @section sect_protocol_basic_packets_packet Protocol::Packet
-
-  Data between client and server is exchanged in packets of max 16MByte size.
-
-  <table>
-  <caption>Payload</caption>
-  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
-  <tr><td>@ref a_protocol_type_int1 "int&lt;3&gt;"</td>
-      <td>payload_length</td>
-      <td>Length of the payload. The number of bytes in the packet beyond
-          the initial 4 bytes that make up the packet header.</td></tr>
-  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
-      <td>sequence_id</td>
-      <td>Sequence id</td></tr>
-  <tr><td>@ref sect_protocol_basic_dt_string_var "string&lt;var&gt;"</td>
-      <td>payload</td>
-      <td>payload of the packet</td></tr>
-  </table>
-
-  Example:
-
-  @todo: Reference COM_QUIT
-  A COM_QUIT looks like this:
-  <table><tr>
-  <td>
-  ~~~~~~~~~~~~~~~~~~~~~
-  01 00 00 00 01
-  ~~~~~~~~~~~~~~~~~~~~~
-  </td><td>
-  - length: 1
-  - sequence_id: x00
-  - payload: 0x01
-  </td></tr></table>
-
-  @sa my_net_write(), net_write_command(), net_write_buff(), my_net_read(), net_send_ok()
-*/
-
-
 /*****************************************************************************
 ** Write something to server/client buffer
 *****************************************************************************/
