@@ -2,6 +2,9 @@
 # Run plugin
 ##########################################
 INSTALL PLUGIN test_session_in_thd SONAME 'TEST_SESSION_IN_THD';
+SELECT plugin_name FROM information_schema.plugins WHERE plugin_name LIKE 'test_session_in_thd';
+plugin_name
+test_session_in_thd
 ##########################################
 # Stop plugin
 ##########################################
