@@ -2197,14 +2197,14 @@ RecLock::make_trx_hit_list(
 	lock_t*		lock,
 	const lock_t*	conflict_lock)
 {
-	bool	found_lock = false;
-	for (const lock_t* next = conflict_lock; next != NULL; next = next->hash) {
+	const lock_t*	next;
+
+	for (next = conflict_lock; next != NULL; next = next->hash) {
 
 		/* All locks ahead in the queue are checked. */
 		if (next == lock) {
 
 			ut_ad(next->is_waiting());
-			found_lock = true;
 			break;
 		}
 
@@ -2258,7 +2258,7 @@ RecLock::make_trx_hit_list(
 		trx_mutex_exit(trx);
 	}
 
-	ut_ad(found_lock);
+	ut_ad(next == lock);
 }
 
 /*************************************************************//**
