@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -87,6 +87,12 @@ IF(UNIX)
       SET(COMMON_CXX_FLAGS                  "-std=c++11")
       # -std=c++11 must be set
       SET(CMAKE_CXX_FLAGS_RELEASE           "${CMAKE_CXX_FLAGS_RELEASE} -std=c++11")
+
+      SET(CMAKE_SHARED_LIBRARY_C_FLAGS
+        "${CMAKE_SHARED_LIBRARY_C_FLAGS} -lc")
+      SET(CMAKE_SHARED_LIBRARY_CXX_FLAGS
+        "${CMAKE_SHARED_LIBRARY_CXX_FLAGS} -lstdc++ -lgcc_s -lCrunG3 -lc")
+      SET(QUOTED_CMAKE_CXX_LINK_FLAGS "-lstdc++ -lgcc_s -lCrunG3 -lc")
 
       IF(CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
         SET(COMMON_C_FLAGS                   "-g -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic")
