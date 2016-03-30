@@ -48,14 +48,12 @@ usr/lib/mysql/plugin/audit_log.so
 usr/lib/mysql/plugin/authentication_pam.so
 usr/lib/mysql/plugin/keyring_okv.so
 usr/lib/mysql/plugin/openssl_udf.so
-usr/lib/mysql/plugin/rewrite_example.so
 usr/lib/mysql/plugin/thread_pool.so
 usr/lib/mysql/plugin/firewall.so
 usr/lib/mysql/plugin/debug/audit_log.so
 usr/lib/mysql/plugin/debug/authentication_pam.so
 usr/lib/mysql/plugin/debug/keyring_okv.so
 usr/lib/mysql/plugin/debug/openssl_udf.so
-usr/lib/mysql/plugin/debug/rewrite_example.so
 usr/lib/mysql/plugin/debug/thread_pool.so
 usr/lib/mysql/plugin/debug/firewall.so
 ")

@@ -20,9 +20,6 @@ debian/extra/mysql.conf.cnf  etc/mysql/conf.d/mysql.cnf
 usr/share/mysql/docs/INFO_SRC
 usr/share/mysql/docs/INFO_BIN
 usr/share/mysql/docs/ChangeLog
-# localized error msgs
-usr/share/mysql/*/errmsg.sys
-usr/share/mysql/errmsg-utf8.txt
 # charsets
 usr/share/mysql/charsets/*.xml
 usr/share/mysql/charsets/README
