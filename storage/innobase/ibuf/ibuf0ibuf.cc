@@ -2491,7 +2491,7 @@ ibuf_get_merge_pages(
 Contracts insert buffer trees by reading pages to the buffer pool.
 @return a lower limit for the combined size in bytes of entries which
 will be merged from ibuf trees to the pages read, 0 if ibuf is
-empty */
+empty or there are no pages to merge*/
 static
 ulint
 ibuf_merge_pages(
@@ -2549,17 +2549,23 @@ ibuf_merge_pages(
 	ibuf_mtr_commit(&mtr);
 	btr_pcur_close(&pcur);
 
+        if (*n_pages == 0) {
+              ut_ad(sum_sizes == 0);
+              return(0);
+        }
+
 	buf_read_ibuf_merge_pages(
 		sync, space_ids, page_nos, *n_pages);
 
-	return(sum_sizes + 1);
+	return(sum_sizes);
 }
 
 /*********************************************************************//**
 Contracts insert buffer trees by reading pages to the buffer pool.
 @return a lower limit for the combined size in bytes of entries which
 will be merged from ibuf trees to the pages read, 0 if ibuf is
-empty */
+empty or if there are no pages to merge */
+
 static
 ulint
 ibuf_merge_space(
@@ -2607,16 +2613,13 @@ ibuf_merge_space(
 			&pages[0], &spaces[0], n_pages,
 			&mtr);
 
-		++sum_sizes;
 	}
 
 	ibuf_mtr_commit(&mtr);
 
 	btr_pcur_close(&pcur);
 
-	if (sum_sizes > 0) {
-
-		ut_a(*n_pages > 0 || sum_sizes == 1);
+	if (*n_pages > 0) {
 
 		ut_ad(*n_pages <= UT_ARR_SIZE(pages));
 
