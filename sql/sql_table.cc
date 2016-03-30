@@ -9018,9 +9018,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     }
     if (key_parts.elements)
     {
-      KEY_CREATE_INFO key_create_info=
-        { HA_KEY_ALG_SE_SPECIFIC, false, 0, {NullS, 0}, {NullS, 0},
-          key_info->is_visible };
+      KEY_CREATE_INFO key_create_info(key_info->is_visible);
 
       keytype key_type;
 

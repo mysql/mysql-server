@@ -26,7 +26,7 @@
 class Create_field;
 class THD;
 typedef struct st_ha_create_information HA_CREATE_INFO;
-typedef struct st_key KEY;
+class KEY;
 template <class T> class List;
 
 namespace dd {

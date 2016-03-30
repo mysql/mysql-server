@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 
 
 struct st_columndef;
-struct st_key;
+class KEY;
 class Copy_field;
 class Item;
 
@@ -51,7 +51,7 @@ public:
     created depending on the purpose of the table - grouping,
     duplicate elimination, etc. There is at most one such index.
   */
-  st_key *keyinfo;
+  KEY *keyinfo;
   ha_rows end_write_records;
   /**
     Number of normal fields in the query, including those referred to
