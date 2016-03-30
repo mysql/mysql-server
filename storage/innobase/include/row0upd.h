@@ -446,7 +446,9 @@ struct upd_field_t{
 					the clustered index, but in updating
 					a secondary index record in btr0cur.cc
 					this is the position in the secondary
-					index */
+					index. If this field is a virtual
+					column, then field_no represents
+					the nth virtual	column in the table */
 #ifndef UNIV_HOTBACKUP
 	unsigned	orig_len:16;	/*!< original length of the locally
 					stored part of an externally stored
