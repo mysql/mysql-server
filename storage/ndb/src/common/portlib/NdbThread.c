@@ -156,6 +156,19 @@ void NdbThread_set_shm_sigmask(my_bool block)
 }
 #endif
 
+#if defined HAVE_LINUX_SCHEDULING
+#define THREAD_ID_TYPE pid_t
+#elif defined HAVE_CPUSET_SETAFFINITY
+#define THREAD_ID_TYPE id_t
+#elif defined HAVE_SOLARIS_AFFINITY
+#define THREAD_ID_TYPE id_t
+#elif defined _WIN32
+#define THREAD_ID_TYPE unsigned
+#else
+#define THREAD_ID_TYPE int
+#endif
+
+static
 THREAD_ID_TYPE
 NdbThread_GetMyThreadId()
 {

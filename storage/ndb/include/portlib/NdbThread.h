@@ -57,18 +57,6 @@ typedef size_t NDB_THREAD_STACKSIZE;
 
 struct NdbThread;
 
-#if defined HAVE_LINUX_SCHEDULING
-#define THREAD_ID_TYPE pid_t
-#elif defined HAVE_CPUSET_SETAFFINITY
-#define THREAD_ID_TYPE id_t
-#elif defined HAVE_SOLARIS_AFFINITY
-#define THREAD_ID_TYPE id_t
-#elif defined _WIN32
-#define THREAD_ID_TYPE unsigned
-#else
-#define THREAD_ID_TYPE int
-#endif
-
 /*
   Method to block/unblock thread from receiving KILL signal with
   signum set in g_ndb_shm_signum in a portable manner.
@@ -144,7 +132,6 @@ int NdbThread_SetConcurrencyLevel(int level);
  *   return -1, if not supported on platform
  */
 int NdbThread_GetTid(struct NdbThread*);
-THREAD_ID_TYPE NdbThread_GetMyThreadId();
 
 /**
  * Yield to normal time-share prio and back to real-time prio for
