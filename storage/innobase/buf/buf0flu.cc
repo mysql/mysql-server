@@ -2952,7 +2952,7 @@ pc_wait_finished(
 	return(all_succeeded);
 }
 
-#ifdef UNIV_LINUX
+#if defined(UNIV_LINUX) && defined(SET_PAGE_CLEANER_PRIORITY)
 /**
 Set priority for page_cleaner threads.
 @param[in]	priority	priority intended to set
@@ -2967,7 +2967,7 @@ buf_flush_page_cleaner_set_priority(
 	return(getpriority(PRIO_PROCESS, (pid_t)syscall(SYS_gettid))
 	       == priority);
 }
-#endif /* UNIV_LINUX */
+#endif /* UNIV_LINUX && SET_PAGE_CLEANER_PRIORITY */
 
 #ifdef UNIV_DEBUG
 /** Loop used to disable page cleaner threads. */
@@ -3113,7 +3113,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 		<< os_thread_pf(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
-#ifdef UNIV_LINUX
+#if defined(UNIV_LINUX) && defined(SET_PAGE_CLEANER_PRIORITY)
 	/* linux might be able to set different setting for each thread.
 	worth to try to set high priority for page cleaner threads */
 	if (buf_flush_page_cleaner_set_priority(
@@ -3126,7 +3126,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 		" page cleaner thread priority can be changed."
 		" See the man page of setpriority().";
 	}
-#endif /* UNIV_LINUX */
+#endif /* UNIV_LINUX && SET_PAGE_CLEANER_PRIORITY */
 
 	buf_page_cleaner_is_active = true;
 
@@ -3481,7 +3481,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_worker)(
 	page_cleaner->n_workers++;
 	mutex_exit(&page_cleaner->mutex);
 
-#ifdef UNIV_LINUX
+#if defined(UNIV_LINUX) && defined(SET_PAGE_CLEANER_PRIORITY)
 	/* linux might be able to set different setting for each thread
 	worth to try to set high priority for page cleaner threads */
 	if (buf_flush_page_cleaner_set_priority(
@@ -3490,7 +3490,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_worker)(
 		ib::info() << "page_cleaner worker priority: "
 			<< buf_flush_page_cleaner_priority;
 	}
-#endif /* UNIV_LINUX */
+#endif /* UNIV_LINUX && SET_PAGE_CLEANER_PRIORITY */
 
 	while (true) {
 		os_event_wait(page_cleaner->is_requested);
