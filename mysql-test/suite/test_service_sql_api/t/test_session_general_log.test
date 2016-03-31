@@ -18,11 +18,15 @@ SET GLOBAL general_log = 'ON';
 --replace_result $TEST_SESSION_IN_THD TEST_SESSION_IN_THD
 eval INSTALL PLUGIN test_session_in_thd SONAME '$TEST_SESSION_IN_THD';
 --sleep 5
+SELECT plugin_name FROM information_schema.plugins WHERE plugin_name LIKE 'test_session_in_thd';
 
 --echo ##########################################
 --echo # Stop plugin
 --echo ##########################################
 UNINSTALL PLUGIN test_session_in_thd;
+let $wait_condition=SELECT count(*)=0 FROM information_schema.plugins WHERE plugin_name LIKE 'test_session_in_thd';
+--source include/wait_condition.inc
+
 
 --echo ##########################################
 --echo # Plugin log
@@ -42,7 +46,7 @@ eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/log/test_session_general.log' INT
 
 SELECT count(*) FROM t1 WHERE c2 LIKE '%Connect%';
 SELECT count(*) FROM t1 WHERE c2 LIKE '%Quit%';
-SELECT count(*) FROM mysql.general_log WHERE command_type IN ('Connect','Quit');
+SELECT count(*) >= 36 FROM mysql.general_log WHERE command_type IN ('Connect','Quit');
 
 --echo ##########################################
 --echo # Cleanup
@@ -52,8 +56,9 @@ SELECT count(*) FROM mysql.general_log WHERE command_type IN ('Connect','Quit');
 DROP TABLE t1;
 
 --echo # Deleting log file created
-#--remove_file $MYSQLTEST_VARDIR/log/test_session_general.log
+--remove_file $MYSQLTEST_VARDIR/log/test_session_general.log
 
 SET GLOBAL log_output = @old_log_output;
 SET GLOBAL general_log = @old_general_log;
 SET GLOBAL general_log_file = @old_general_log_file;
+
