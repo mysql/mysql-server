@@ -531,6 +531,20 @@ err_exit:
 	row_log_table_close_func(log, size, avail)
 #endif /* UNIV_DEBUG */
 
+/** Check whether a virtual column is indexed in the new table being
+created during alter table
+@param[in]	index	cluster index
+@param[in]	v_no	virtual column number
+@return true if it is indexed, else false */
+bool
+row_log_col_is_indexed(
+	const dict_index_t*	index,
+	ulint			v_no)
+{
+	return(dict_table_get_nth_v_col(
+		index->online_log->table, v_no)->m_col.ord_part);
+}
+
 /******************************************************//**
 Logs a delete operation to a table that is being rebuilt.
 This will be merged in row_log_table_apply_delete(). */
@@ -661,7 +675,7 @@ row_log_table_delete(
 	if (ventry->n_v_fields > 0) {
 		ulint	v_extra;
 		mrec_size += rec_get_converted_size_temp(
-                        index, NULL, 0, ventry, &v_extra);
+                        new_index, NULL, 0, ventry, &v_extra);
         }
 
 	if (byte* b = row_log_table_open(index->online_log,
@@ -954,11 +968,11 @@ row_log_table_low(
 	if (ventry && ventry->n_v_fields > 0) {
 		ulint	v_extra = 0;
 		mrec_size += rec_get_converted_size_temp(
-			index, NULL, 0, ventry, &v_extra);
+			new_index, NULL, 0, ventry, &v_extra);
 
 		if (o_ventry) {
 			mrec_size += rec_get_converted_size_temp(
-				index, NULL, 0, o_ventry, &v_extra);
+				new_index, NULL, 0, o_ventry, &v_extra);
 		}
 	} else if (index->table->n_v_cols) {
 		/* Always leave 2 bytes length marker for virtual column

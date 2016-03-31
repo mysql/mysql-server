@@ -1346,7 +1346,16 @@ row_upd_replace_vcol(
 		/* If there is no index on the column, do not bother for
 		value update */
 		if (!col->m_col.ord_part) {
-			continue;
+			dict_index_t*	clust_index
+				= dict_table_get_first_index(table);
+
+			/* Skip the column if there is no online alter
+			table in progress or it is not being indexed
+			in new table */
+			if (!dict_index_is_online_ddl(clust_index)
+			    || !row_log_col_is_indexed(clust_index, col_no)) {
+				continue;
+			}
 		}
 
 		dfield = dtuple_get_nth_v_field(row, col_no);

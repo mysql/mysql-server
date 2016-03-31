@@ -107,6 +107,16 @@ row_log_table_get_error(
 					that is being rebuilt online */
 	MY_ATTRIBUTE((warn_unused_result));
 
+/** Check whether a virtual column is indexed in the new table being
+created during alter table
+@param[in]	index	cluster index
+@param[in]	v_no	virtual column number
+@return true if it is indexed, else false */
+bool
+row_log_col_is_indexed(
+	const dict_index_t*	index,
+	ulint			v_no);
+
 /******************************************************//**
 Logs a delete operation to a table that is being rebuilt.
 This will be merged in row_log_table_apply_delete(). */
