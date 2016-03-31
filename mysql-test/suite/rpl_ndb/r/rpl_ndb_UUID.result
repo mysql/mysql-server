@@ -34,6 +34,8 @@ t1	CREATE TABLE `t1` (
   `vchar_column` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Warnings:
+Warning	1296	Got error 4502 'Table property is NOLOGGING=1, but not in comment' from NDB
 DROP PROCEDURE test.p1;
 DROP FUNCTION test.fn1;
 DROP TABLE test.t1;

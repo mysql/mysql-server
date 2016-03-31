@@ -189,6 +189,7 @@ CREATE TABLE test.t3 (pk1 MEDIUMINT NOT NULL AUTO_INCREMENT, c2 VARCHAR(202) NOT
 
 CREATE TABLE test.t6 (pk1 MEDIUMINT NOT NULL AUTO_INCREMENT, c2 VARCHAR(220) NOT NULL, c3 INT NOT NULL, c4 BIT NOT NULL, PRIMARY KEY(pk1,c3))ENGINE=NDB PARTITION BY RANGE (pk1) PARTITIONS 2 (PARTITION x1 VALUES LESS THAN (333), PARTITION x2 VALUES LESS THAN (720));
 
+--disable_warnings
 SHOW CREATE TABLE test.t1;
 
 SHOW CREATE TABLE test.t2;
@@ -200,6 +201,7 @@ SHOW CREATE TABLE test.t4;
 SHOW CREATE TABLE test.t5;
 
 SHOW CREATE TABLE test.t6;
+--enable_warnings
 
 SELECT * FROM information_schema.partitions WHERE table_name= 't1'; 
 
@@ -280,6 +282,7 @@ ENGINE =NDB;
 -- source include/ndb_restore_master.inc
 
 
+--disable_warnings
 SHOW CREATE TABLE test.t1;
 
 SHOW CREATE TABLE test.t2;
@@ -291,6 +294,7 @@ SHOW CREATE TABLE test.t4;
 SHOW CREATE TABLE test.t5;
 
 SHOW CREATE TABLE test.t6;
+--enable_warnings
 
 --replace_column 13 0 14 0 15 0 16 NULL 18 0
 SELECT * FROM information_schema.partitions WHERE table_name= 't1'; 

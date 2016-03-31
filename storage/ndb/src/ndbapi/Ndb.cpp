@@ -767,13 +767,25 @@ Ndb::startTransaction(const NdbDictionary::Table* table,
 
     Uint32 nodeId;
     const Uint16 *nodes;
+    bool readBackup = NdbTableImpl::getImpl(*table).m_read_backup;
     Uint32 cnt = NdbTableImpl::getImpl(* table).get_nodes(partitionId, 
                                                           &nodes);
     if(cnt)
       nodeId= nodes[0];
     else
       nodeId= 0;
-    
+    if (cnt && !readBackup)
+    {
+      nodeId = nodes[0]; // Choose primary replica
+    }
+    else if (cnt)
+    {
+      nodeId = theImpl->m_ndb_cluster_connection.select_node(nodes, cnt);
+    }
+    else
+    {
+      nodeId = 0;
+    }
     theImpl->incClientStat(TransStartCount, 1);
 
     NdbTransaction *trans= startTransactionLocal(0, nodeId, 0);
@@ -855,10 +867,19 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
       }
       
       const Uint16 *nodes;
+      bool readBackup = impl->m_read_backup;
       Uint32 cnt= impl->get_nodes(table->getPartitionId(hashValue),  &nodes);
-      if(cnt)
+      if (cnt && !readBackup)
       {
-        nodeId= nodes[0];
+        nodeId = nodes[0];
+      }
+      else if (cnt)
+      {
+        nodeId = theImpl->m_ndb_cluster_connection.select_node(nodes, cnt);
+      }
+      else
+      {
+        nodeId = 0;
       }
     }
 
@@ -2219,83 +2240,35 @@ Ndb::printOverflowErrorAndExit()
 }
 
 int
-Ndb::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
+Ndb::pollEvents(int aMillisecondNumber, Uint64 *highestQueuedEpoch)
 {
-  /**
-   * aMillisecondNumber = 0 : one poll call
-   * else divide aMillisecondNumber into a 1-hour time slot
-   * and call poll with this time slot until it expires.
-   * Note: The else-part: it will cover aMillisecondNumber < 0,
-   * which is converted to unsigned and become large,
-   * as well as aMillisecondNumber > 0.
+  /* Look for already available events without polling transporter */
+  /** Note: pollEvents() does not call pollEvents2() as the other backward
+   * compatibility methods do, but directly call theEventBuffer->pollEvents.
+   * This is to simplify the code by avoiding the
+   * handling of negative aMillisecondNumber rejected by pollEvents2(),
+   * but accepted by pollEvents() as an *infinite* maxwait.
    */
-  const Uint32 waitSlot = 3600*1000; // in millisecs
-  const Uint32 totalWaitTime = (Uint32)aMillisecondNumber;
-  const NDB_TICKS startTime = NdbTick_getCurrentTicks();
-  Uint32 remaining = totalWaitTime;
-  Uint32 waited = 0;
-
-  do
+  int found = theEventBuffer->pollEvents(highestQueuedEpoch);
+  if (!found)
   {
-    const Uint32 pollTimeout = (remaining > waitSlot) ? waitSlot :
-      remaining;
-    const int res = pollEvents2((int)pollTimeout, latestGCI);
+    /**
+     * We need to poll the transporter, and possibly wait, to make sure
+     * that arrived events are delivered to their clients as soon as possible.
+     * ::trp_deliver_signal() will wakeup the client when event arrives,
+     * or a new (empty) epoch is completed
+     */
+    PollGuard poll_guard(* theImpl);
+    poll_guard.wait_n_unlock(aMillisecondNumber, 0, WAIT_EVENT);
+    // PollGuard ends here
 
-    if ((latestGCI) && (isExpectingHigherQueuedEpochs() == false))
-      *latestGCI= NDB_FAILURE_GCI;
+    found = theEventBuffer->pollEvents(highestQueuedEpoch);
+  }
 
-    if (res < 0)
-    {
-      return res;
-    }
+  if ((highestQueuedEpoch) && (isExpectingHigherQueuedEpochs() == false))
+    *highestQueuedEpoch= NDB_FAILURE_GCI;
 
-    if (res > 0)
-    {
-      EventBufData *data = theEventBuffer->m_available_data.m_head;
-      while (data)
-      {
-        // All including exceptional event data must have an associated buffer
-        assert(data->sdata);
-
-        const Uint32 type =
-          SubTableData::getOperation(data->sdata->requestInfo);
-
-        if ((type != NdbDictionary::Event::_TE_EMPTY))
-        {
-          /* res >0  will be returned here, making the consumer
-           * to call nextEvent().
-           * nextEvent() call will handle the new types:
-           * _TE_INCONSISTENT and _TE_OUT_OF_MEMORY:
-           *
-           * Consumer handles other types as usual.
-           */
-          return res;
-	}
-
-        // Consumer cannot handle the new type TE_EMPTY, filter it.
-        (void)nextEvent2();
-        data = theEventBuffer->m_available_data.m_head;
-      }
-      // Event queue is scanned and no regular event data is found
-      assert(data==NULL);
-
-      /* This is intentional: Return with 'no data' even
-       * if this epoch did not contain any data-events - Even
-       * if the specified wait time didn't expire. Reason is
-       * to give the client a chance to observe, and act on,
-       * possibly new epoch which has completed.
-       */
-      return 0;
-    }
-
-    waited =
-      (Uint32)NdbTick_Elapsed(startTime, NdbTick_getCurrentTicks()).milliSec();
-
-    remaining = totalWaitTime - waited;
-
-  } while (totalWaitTime > waited);
-
-  return 0;
+  return found;
 }
 
 int
@@ -2317,23 +2290,26 @@ NdbEventOperation *Ndb::nextEvent()
   NdbDictionary::Event::TableEvent errType;
 
   // Remove the event data from the head
-  NdbEventOperation *op = nextEvent2();
+  NdbEventOperation *op = theEventBuffer->nextEvent2();
+  if (op == NULL)
+    return NULL;
 
-  while (op)
+  if (unlikely(op->isErrorEpoch(&errType)))
   {
-    if (op->isErrorEpoch(&errType))
-    {
-      if (errType ==  NdbDictionary::Event::TE_INCONSISTENT)
-        return NULL;
+    if (errType ==  NdbDictionary::Event::TE_INCONSISTENT)
+      return NULL;
 
-      if (errType ==  NdbDictionary::Event::TE_OUT_OF_MEMORY)
-        printOverflowErrorAndExit();
-    }
+    if (errType ==  NdbDictionary::Event::TE_OUT_OF_MEMORY)
+      printOverflowErrorAndExit();
+  }
 
-    if (!op->isEmptyEpoch())
-      break; // return non-empty epoch
-
-    op = nextEvent2(); // remove empty epoch and check the next one
+  if (unlikely(op->isEmptyEpoch()))
+  {
+    g_eventLogger->error("Ndb::nextEvent: Found exceptional event type "
+                         "TE_EMPTY when using old event API. "
+                         "Turn off empty epoch queuing by "
+                         "setEventBufferQueueEmptyEpoch(false).");
+    exit(-1);
   }
   return op;
 }
@@ -2396,6 +2372,11 @@ void Ndb::setReportThreshEventFreeMem(unsigned thresh)
     theEventBuffer->m_min_free_thresh= thresh;
     theEventBuffer->m_max_free_thresh= 100;
   }
+}
+
+void Ndb::setEventBufferQueueEmptyEpoch(bool queue_empty_epoch)
+{
+  theEventBuffer->setEventBufferQueueEmptyEpoch(queue_empty_epoch);
 }
 
 Uint64 Ndb::allocate_transaction_id()

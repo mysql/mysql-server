@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -172,6 +172,40 @@ public:
       UserDefined = 7,
       HashMapPartition = 9
     };
+
+    /**
+     * This enum defines values that are usable with
+     *   Table::setFragmentCountType
+     */
+    enum FragmentCountType {
+      /**
+       * Use a specific value set using setFragmentCount
+       */
+      FragmentCount_Specific = NDB_FRAGMENT_COUNT_SPECIFIC,
+
+      /**
+       * Use one fragment per LDM per node
+       *   (current default)
+       */
+      FragmentCount_OnePerLDMPerNode = NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE,
+
+      /**
+       * Use one fragment per LDM per nodegroup
+       */
+      FragmentCount_OnePerLDMPerNodeGroup =
+        NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP,
+
+      /**
+       * Use one fragment per node
+       */
+      FragmentCount_OnePerNode = NDB_FRAGMENT_COUNT_ONE_PER_NODE,
+
+      /**
+       * Use one fragment per node group
+       */
+      FragmentCount_OnePerNodeGroup = NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP,
+    };
+
   private:
     Object&operator=(const Object&);
   };
@@ -879,6 +913,7 @@ public:
 
     /**
      * Set fragment count
+     *   also sets FragmentCount_Specific
      */
     void setFragmentCount(Uint32);
 
@@ -886,6 +921,21 @@ public:
      * Get fragment count
      */
     Uint32 getFragmentCount() const;
+
+    /**
+     * Set fragment count using cluster agnostics defines
+     */
+    void setFragmentCountType(NdbDictionary::Object::FragmentCountType);
+
+    /**
+     * Get fragment count type
+     */
+    NdbDictionary::Object::FragmentCountType getFragmentCountType() const;
+
+    /**
+     * Get fragment count type string
+     */
+    const char* getFragmentCountTypeString() const;
 
     /**
      * Set fragmentation type
@@ -1026,7 +1076,10 @@ public:
 
     void setRowChecksumIndicator(bool value);
     bool getRowChecksumIndicator() const;
- 
+
+    void setReadBackupFlag(bool value);
+    bool getReadBackupFlag() const;
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     const char *getMysqlName() const;
 

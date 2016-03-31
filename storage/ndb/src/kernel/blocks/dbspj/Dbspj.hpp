@@ -129,6 +129,7 @@ public:
       TR_ENABLED      = 1 << 0,
       TR_DROPPING     = 1 << 1,
       TR_PREPARED     = 1 << 2
+      ,TR_READ_BACKUP = (1 << 5)
     };
     Uint8 get_enabled()     const { return (m_flags & TR_ENABLED)      != 0; }
     Uint8 get_dropping()    const { return (m_flags & TR_DROPPING)     != 0; }
@@ -670,18 +671,21 @@ public:
       SFH_WAIT_CLOSE   = 4
     };
 
-    void init(Uint32 fid) {
+    void init(Uint32 fid, bool readBackup)
+    {
       m_ref = 0;
       m_fragId = fid;
       m_state = SFH_NOT_STARTED;
       m_rangePtrI = RNIL;
+      m_readBackup = readBackup;
       reset_ranges();
     }
 
     Uint32 m_magic;
     Uint32 m_treeNodePtrI;
     Uint16 m_fragId;
-    Uint16 m_state;
+    Uint8 m_state;
+    Uint8 m_readBackup;
     Uint32 m_ref;
 
     void reset_ranges() {

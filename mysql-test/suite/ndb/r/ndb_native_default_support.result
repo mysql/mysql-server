@@ -145,9 +145,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
@@ -184,9 +186,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 pk Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
@@ -253,9 +257,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+FragmentCountType: ONE_PER_LDM_PER_NODE
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 -- Attributes --
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 j Int NULL AT=FIXED ST=MEMORY
@@ -290,9 +296,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+FragmentCountType: ONE_PER_LDM_PER_NODE
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 -- Attributes --
 pk Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 b1 Bit(3) NULL AT=FIXED ST=MEMORY
@@ -372,9 +380,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 2
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-2
 -- Attributes --
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
@@ -463,9 +473,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
@@ -515,9 +527,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -559,9 +573,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -613,9 +629,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -661,9 +679,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -708,9 +728,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -755,9 +777,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -804,9 +828,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -856,9 +882,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -903,9 +931,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -952,9 +982,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1002,9 +1034,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1056,9 +1090,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1104,9 +1140,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1151,9 +1189,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1198,9 +1238,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1245,9 +1287,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1294,9 +1338,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1346,9 +1392,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
@@ -1439,9 +1487,11 @@ Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
 FragmentCount: 8
+FragmentCountType: SPECIFIC
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
+Table options:
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
