@@ -505,7 +505,7 @@ public:
 		m_max_recs_per_page(page_size.logical() / SDI_REC_SIZE),
 		m_sdi_copy_0(0),
 		m_sdi_copy_1(0),
-		m_last_page_num(0)
+		m_tot_pages(0)
 	{
 	}
 
@@ -531,7 +531,7 @@ public:
 		m_max_recs_per_page(copy.m_max_recs_per_page),
 		m_sdi_copy_0(copy.m_sdi_copy_0),
 		m_sdi_copy_1(copy.m_sdi_copy_1),
-		m_last_page_num(0)
+		m_tot_pages(copy.m_tot_pages)
 	{
 	}
 
@@ -549,9 +549,7 @@ public:
 			m_page_num_recs.size()
 			+ static_cast<size_t>(data_file.tot_num_of_pages),
 			0);
-
-		m_last_page_num = data_file.first_page_num
-			+ data_file.tot_num_of_pages - 1;
+		m_tot_pages += data_file.tot_num_of_pages;
 	}
 
 	/** Add the SDI root page numbers to tablespace.
@@ -715,13 +713,14 @@ public:
 		uint32_t&	copy_0,
 		uint32_t&	copy_1);
 
-	/** Return the last page number of a tablespace
-	@return the last page number of tablespace. */
+	/** Return the total number of pages of the tablespaces.
+	This includes pages of all datafiles (ibdata*)
+	@return total number of pages of tablespace */
 	inline
 	uint32_t
-	get_last_page_num() const
+	get_tot_pages() const
 	{
-		return(m_last_page_num);
+		return(m_tot_pages);
 	}
 
 private:
@@ -772,8 +771,8 @@ private:
 	/** Root page number of SDI copy 1. */
 	uint32_t		m_sdi_copy_1;
 
-	/** Last page number of tablespace. */
-	uint32_t		m_last_page_num;
+	/** Total number of pages of all data files. */
+	uint32_t		m_tot_pages;
 };
 
 /** Read page from file into memory. If page is compressed SDI page,
@@ -803,13 +802,13 @@ fetch_page(
 	ut_ad(ts->get_file_count() > 0);
 
 	DBUG_EXECUTE_IF("ib_invalid_page",
-			page_num = ts->get_last_page_num() + 1;);
+			page_num = ts->get_tot_pages(););
 
-	if (page_num > ts->get_last_page_num()) {
+	if (page_num >= ts->get_tot_pages()) {
 		ib::error() << "Read requested on invalid page number "
 			<< page_num << ". The maximum valid page number"
 			<< " in the tablespace is "
-			<< ts->get_last_page_num();
+			<< ts->get_tot_pages() - 1;
 		DBUG_RETURN(IB_ERROR);
 	}
 
