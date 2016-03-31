@@ -3168,10 +3168,16 @@ void Item_func_int_val::fix_num_length_and_dec()
 {
   ulonglong tmp_max_length= (ulonglong ) args[0]->max_length - 
     (args[0]->decimals ? args[0]->decimals + 1 : 0) + 2;
-  max_length= tmp_max_length > (ulonglong) 4294967295U ?
-    (uint32) 4294967295U : (uint32) tmp_max_length;
-  uint tmp= float_length(decimals);
-  set_if_smaller(max_length,tmp);
+  max_length= static_cast<uint32>(std::min(4294967295ULL, tmp_max_length));
+  /*
+    Avoid setting hybrid_type to INT_RESULT when we are in DECIMAL context.
+    See Item_func_int_val::find_num_type()
+  */
+  if (args[0]->result_type() != DECIMAL_RESULT)
+  {
+    uint tmp= float_length(decimals);
+    set_if_smaller(max_length,tmp);
+  }
   decimals= 0;
 }
 
