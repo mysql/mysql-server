@@ -220,7 +220,7 @@ create table ibstd_14 (a int not null, d int not null, b varchar(198) not null, 
 # Do an alter table rebuild table and also create a new index on this
 # non-indexed virtual column
 SET DEBUG_SYNC = 'innodb_inplace_alter_table_enter SIGNAL start_create WAIT_FOR go_ahead';
---send alter table ibstd_14  row_format=compressed key_block_size=8,add  key kn3 (d,c,vbcol,b);
+--send alter table ibstd_14  row_format=compressed key_block_size=4,add  key kn3 (d,c,vbcol,b);
 
 # Do a concurrent insert, and make sure this newly indexed virtual column
 # is also logged
