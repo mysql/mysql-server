@@ -151,3 +151,8 @@ remove_file $MYSQLD_DATADIR/test_sql_errors.log;
   }
   close(FILE);
 EOF
+# The below force start is giving warnings in the server logs hence disabling warnings specifically
+--disable_warnings
+--source include/force_restart.inc
+--enable_warnings
+
