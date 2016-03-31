@@ -1985,3 +1985,23 @@ SELECT BIN(MID(1.051098E+308,9,99));
 SELECT BIN(RIGHT(REPEAT('b',64),30));
 SELECT BIN(SUBSTRING(REPEAT('b',64),9));
 SELECT OCT(LEFT(REPEAT('b',64),15));
+
+--echo #
+--echo # Bug#22900560 CAST .. AS BINARY.. HEAP-USE-AFTER-FREE FROM ASAN
+--echo #
+
+do
+from_base64(aes_encrypt(right(cast((0x5d44f4d736397d92c8267c12)as decimal),1),
+                        rand(to_days('2028-12-04 15:50:01.284969'))));
+
+do from_base64(cast(right(11,1)as binary(24)));
+do convert(inet_aton(cast(left(-1,1)as binary(30))) using utf8);
+do from_base64(cast((left(collation(4097),((repeat('1',32))or((-18772)))))
+                    as binary(40)));
+
+do from_base64(cast((mid(17653,row('-688:20:12.162697',(null)) >=
+row(('*.)$'),(0xc254b6)),1))as binary(34)));
+
+do from_base64(cast((mid(uuid(),20,64)) as binary(55)));
+set @e:=_latin1'77';
+do inet_aton(aes_encrypt(left(@e,1),5));

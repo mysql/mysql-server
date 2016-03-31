@@ -175,6 +175,7 @@ public:
 
 class Item_func_aes_encrypt :public Item_str_func
 {
+  String tmp_value;
   typedef Item_str_func super;
 public:
   Item_func_aes_encrypt(const POS &pos, Item *a, Item *b)

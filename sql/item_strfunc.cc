@@ -507,19 +507,19 @@ String *Item_func_aes_encrypt::val_str(String *str)
     aes_length= my_aes_get_size(sptr->length(),
                                 (enum my_aes_opmode) aes_opmode);
 
-    str_value.set_charset(&my_charset_bin);
-    if (!str_value.alloc(aes_length))		// Ensure that memory is free
+    tmp_value.set_charset(&my_charset_bin);
+    if (!tmp_value.alloc(aes_length))		// Ensure that memory is free
     {
       // finally encrypt directly to allocated buffer.
       if (my_aes_encrypt((unsigned char *) sptr->ptr(), sptr->length(),
-                         (unsigned char *) str_value.ptr(),
+                         (unsigned char *) tmp_value.ptr(),
                          (unsigned char *) key->ptr(), key->length(),
                          (enum my_aes_opmode) aes_opmode,
                          iv_str) == aes_length)
       {
-	// We got the expected result length
-	str_value.length((uint) aes_length);
-        DBUG_RETURN(&str_value);
+        // We got the expected result length
+        tmp_value.length(static_cast<size_t>(aes_length));
+        DBUG_RETURN(&tmp_value);
       }
     }
   }
@@ -4742,8 +4742,9 @@ String *Item_char_typecast::val_str(String *str)
 
       if (!res->alloced_length())
       {                                         // Don't change const str
-        str_value= *res;                        // Not malloced string
-        res= &str_value;
+        DBUG_ASSERT(res != &tmp_value);
+        tmp_value= *res;                        // Not malloced string
+        res= &tmp_value;
       }
       ErrConvString err(res);
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
@@ -4757,9 +4758,18 @@ String *Item_char_typecast::val_str(String *str)
     {
       if (res->alloced_length() < (uint) cast_length)
       {
-        str_value.alloc(cast_length);
-        str_value.copy(*res);
-        res= &str_value;
+        if (res == &tmp_value)
+        {
+          if (tmp_value.reserve(cast_length - res->length()))
+            return error_str();
+        }
+        else
+        {
+          if (tmp_value.reserve(cast_length))
+            return error_str();
+          tmp_value.copy(*res);
+          res= &tmp_value;
+        }
       }
       memset(const_cast<char*>(res->ptr() + res->length()), 0,
              cast_length - res->length());
