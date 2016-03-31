@@ -244,6 +244,13 @@ select * from restart_info;
 desc tc_time_track_stats;
 select distinct node_id from tc_time_track_stats;
 
+desc threads;
+
+desc cpustat_50ms;
+desc cpustat_1sec;
+desc cpustat_20sec;
+desc cpustat;
+
 desc cluster_transactions;
 desc server_transactions;
 desc cluster_operations;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -231,11 +231,13 @@ public:
   bool m_row_checksum;
   bool m_force_var_part;
   bool m_has_default_values; 
+  bool m_read_backup;
   int m_kvalue;
   int m_minLoadFactor;
   int m_maxLoadFactor;
   Uint16 m_keyLenInWords;
   Uint16 m_fragmentCount;
+  NdbDictionary::Object::FragmentCountType m_fragmentCountType;
   Uint8 m_single_user_mode;
   Uint8 m_storageType;  // NDB_STORAGETYPE_MEMORY or _DISK or DEFAULT
   Uint8 m_extra_row_gci_bits;
@@ -763,7 +765,10 @@ public:
 					 NdbTableImpl* index_table,
 					 const NdbTableImpl* primary_table);
 
-  int create_hashmap(const NdbHashMapImpl&, NdbDictObjectImpl*, Uint32 flags);
+  int create_hashmap(const NdbHashMapImpl&,
+                     NdbDictObjectImpl*,
+                     Uint32 flags,
+                     Uint32 fragmentCount);
   int get_hashmap(NdbHashMapImpl&, Uint32 id);
   int get_hashmap(NdbHashMapImpl&, const char * name);
 

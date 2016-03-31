@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -532,6 +532,137 @@ DECLARE_NDBINFO_TABLE(CONFIG_VALUES,12) =
   }
 };
 
+DECLARE_NDBINFO_TABLE(THREADS, 4) =
+{ { "threads", 4, 0,
+    "Base table for threads" },
+  {
+    {"node_id",                                             Ndbinfo::Number,
+     "node_id" },
+    {"thr_no",                                              Ndbinfo::Number,
+     "thread number"},
+    {"thread_name",                                         Ndbinfo::String,
+     "thread_name"},
+    {"thread_description",                                  Ndbinfo::String,
+     "thread_description"},
+  }
+};
+
+DECLARE_NDBINFO_TABLE(CPUSTAT_50MS, 11) =
+{ { "cpustat_50ms", 11, 0,
+    "Thread CPU stats at 50 milliseconds intervals" },
+  {
+    {"node_id",                                             Ndbinfo::Number,
+     "node_id" },
+    {"thr_no",                                              Ndbinfo::Number,
+     "thread number"},
+    {"OS_user_time",                                        Ndbinfo::Number,
+     "User time n microseconds as reported by OS" },
+    {"OS_system_time",                                      Ndbinfo::Number,
+     "System time in microseconds as reported by OS" },
+    {"OS_idle_time",                                        Ndbinfo::Number,
+     "Idle time in microseconds as reported by OS" },
+    {"exec_time",                                           Ndbinfo::Number,
+     "Execution time in microseconds as calculated by thread" },
+    {"sleep_time",                                          Ndbinfo::Number,
+     "Sleep time in microseconds as calculated by thread" },
+    {"spin_time",                                          Ndbinfo::Number,
+     "Spin time in microseconds as calculated by thread" },
+    {"send_time",                                           Ndbinfo::Number,
+     "Send time in microseconds as calculated by thread" },
+    {"buffer_full_time",                                    Ndbinfo::Number,
+     "Time spent with buffer full in microseconds as calculated by thread" },
+    {"elapsed_time",                                        Ndbinfo::Number,
+     "Elapsed time in microseconds for measurement" },
+  }
+};
+
+DECLARE_NDBINFO_TABLE(CPUSTAT_1SEC, 11) =
+{ { "cpustat_1sec", 11, 0,
+    "Thread CPU stats at 1 second intervals" },
+  {
+    {"node_id",                                             Ndbinfo::Number,
+     "node_id" },
+    {"thr_no",                                              Ndbinfo::Number,
+     "thread number"},
+    {"OS_user_time",                                        Ndbinfo::Number,
+     "User time n microseconds as reported by OS" },
+    {"OS_system_time",                                      Ndbinfo::Number,
+     "System time in microseconds as reported by OS" },
+    {"OS_idle_time",                                        Ndbinfo::Number,
+     "Idle time in microseconds as reported by OS" },
+    {"exec_time",                                           Ndbinfo::Number,
+     "Execution time in microseconds as calculated by thread" },
+    {"sleep_time",                                          Ndbinfo::Number,
+     "Sleep time in microseconds as calculated by thread" },
+    {"spin_time",                                          Ndbinfo::Number,
+     "Spin time in microseconds as calculated by thread" },
+    {"send_time",                                           Ndbinfo::Number,
+     "Send time in microseconds as calculated by thread" },
+    {"buffer_full_time",                                    Ndbinfo::Number,
+     "Time spent with buffer full in microseconds as calculated by thread" },
+    {"elapsed_time",                                        Ndbinfo::Number,
+     "Elapsed time in microseconds for measurement" },
+  }
+};
+
+DECLARE_NDBINFO_TABLE(CPUSTAT_20SEC, 11) =
+{ { "cpustat_20sec", 11, 0,
+    "Thread CPU stats at 20 seconds intervals" },
+  {
+    {"node_id",                                             Ndbinfo::Number,
+     "node_id" },
+    {"thr_no",                                              Ndbinfo::Number,
+     "thread number"},
+    {"OS_user_time",                                        Ndbinfo::Number,
+     "User time n microseconds as reported by OS" },
+    {"OS_system_time",                                      Ndbinfo::Number,
+     "System time in microseconds as reported by OS" },
+    {"OS_idle_time",                                        Ndbinfo::Number,
+     "Idle time in microseconds as reported by OS" },
+    {"exec_time",                                           Ndbinfo::Number,
+     "Execution time in microseconds as calculated by thread" },
+    {"sleep_time",                                          Ndbinfo::Number,
+     "Sleep time in microseconds as calculated by thread" },
+    {"spin_time",                                          Ndbinfo::Number,
+     "Spin time in microseconds as calculated by thread" },
+    {"send_time",                                           Ndbinfo::Number,
+     "Send time in microseconds as calculated by thread" },
+    {"buffer_full_time",                                    Ndbinfo::Number,
+     "Time spent with buffer full in microseconds as calculated by thread" },
+    {"elapsed_time",                                        Ndbinfo::Number,
+     "Elapsed time in microseconds for measurement" },
+  }
+};
+
+DECLARE_NDBINFO_TABLE(CPUSTAT, 11) =
+{ { "cpustat", 11, 0,
+    "Thread CPU stats for last second" },
+  {
+    {"node_id",                                             Ndbinfo::Number,
+     "node_id" },
+    {"thr_no",                                              Ndbinfo::Number,
+     "thread number"},
+    {"OS_user",                                             Ndbinfo::Number,
+     "Percentage time spent in user mode as reported by OS" },
+    {"OS_system",                                           Ndbinfo::Number,
+     "Percentage time spent in system mode as reported by OS" },
+    {"OS_idle",                                             Ndbinfo::Number,
+     "Percentage time spent in idle mode as reported by OS" },
+    {"thread_exec",                                         Ndbinfo::Number,
+     "Percentage time spent executing as calculated by thread" },
+    {"thread_sleeping",                                     Ndbinfo::Number,
+     "Percentage time spent sleeping as calculated by thread" },
+    {"thread_spinning",                                     Ndbinfo::Number,
+     "Percentage time spent spinning as calculated by thread" },
+    {"thread_send",                                         Ndbinfo::Number,
+     "Percentage time spent sending as calculated by thread" },
+    {"thread_buffer_full",                                  Ndbinfo::Number,
+     "Percentage time spent in buffer full as calculated by thread" },
+    {"elapsed_time",                                        Ndbinfo::Number,
+     "Elapsed time in microseconds for measurement" },
+  }
+};
+
 #define DBINFOTBL(x) { Ndbinfo::x##_TABLEID, (Ndbinfo::Table*)&ndbinfo_##x }
 
 static
@@ -564,7 +695,12 @@ struct ndbinfo_table_list_entry {
   DBINFOTBL(FRAG_OPERATIONS),
   DBINFOTBL(RESTART_INFO),
   DBINFOTBL(TC_TIME_TRACK_STATS),
-  DBINFOTBL(CONFIG_VALUES)
+  DBINFOTBL(CONFIG_VALUES),
+  DBINFOTBL(THREADS),
+  DBINFOTBL(CPUSTAT_50MS),
+  DBINFOTBL(CPUSTAT_1SEC),
+  DBINFOTBL(CPUSTAT_20SEC),
+  DBINFOTBL(CPUSTAT)
 };
 
 static int no_ndbinfo_tables =

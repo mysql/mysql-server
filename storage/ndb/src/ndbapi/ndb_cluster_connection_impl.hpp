@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -101,8 +101,14 @@ private:
   int configure(Uint32 nodeid, const ndb_mgm_configuration &config);
   void connect_thread();
   void set_name(const char *name);
+  void set_data_node_neighbour(Uint32 neighbour_node);
   Uint32 get_db_nodes(Uint8 nodesarray[MAX_NDB_NODES]) const;
   Uint32 get_unconnected_nodes() const;
+
+  /**
+   * Select the "closest" node
+   */
+  Uint32 select_node(const Uint16* nodes, Uint32 cnt, Uint32 skip = 0);
 
   int connect(int no_retries,
               int retry_delay_in_seconds,
@@ -134,6 +140,9 @@ private:
   
   // keep initial transId's increasing...
   Uint32 m_max_trans_id;
+
+  // Closest data node neighbour
+  Uint32 m_data_node_neighbour;
 
   // Base offset for stats, from Ndb objects that are no 
   // longer with us

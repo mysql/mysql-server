@@ -590,8 +590,10 @@ i	i	9
 m	m	13
 v	v	22
 drop table t1, t2;
-create table t1 (pk int primary key, a int) engine=ndb;
-create table t2 (pk int primary key, a int) engine=ndb;
+create table t1 (pk int primary key, a int) engine=ndb
+comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
+create table t2 (pk int primary key, a int) engine=ndb
+comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
 insert into t2 values
 (0,0), (1,1), (2,2), (3,3), (4,4),
 (5,5), (6,6), (7,7), (8,8), (9,9);

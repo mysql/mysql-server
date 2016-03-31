@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -298,7 +298,8 @@ public:
       TR_RowGCI       = 0x2,
       TR_RowChecksum  = 0x4,
       TR_Temporary    = 0x8,
-      TR_ForceVarPart = 0x10
+      TR_ForceVarPart = 0x10,
+      TR_ReadBackup   = 0x20
     };
     Uint8 m_extra_row_gci_bits;
     Uint8 m_extra_row_author_bits;
@@ -418,6 +419,7 @@ public:
     RopeHandle ngData;
     RopeHandle rangeData;
 
+    Uint32 fragmentCountType;
     Uint32 fragmentCount;
     Uint32 m_tablespace_id;
 
@@ -4651,7 +4653,10 @@ public:
   Uint32 c_outstanding_sub_startstop;
   NdbNodeBitmask c_sub_startstop_lock;
 
-  Uint32 get_default_fragments(Signal*, Uint32 extra_nodegroups = 0);
+  Uint32 get_default_fragments(Signal*,
+                               Uint32 fragmentCountType =
+                                 NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE,
+                               Uint32 extra_nodegroups = 0);
   void wait_gcp(Signal* signal, SchemaOpPtr op_ptr, Uint32 flags);
 
   void block_substartstop(Signal* signal, SchemaOpPtr op_ptr);

@@ -18,6 +18,7 @@
 #include <ndb_global.h>
 #include <my_sys.h>
 #include <NdbMutex.h>
+#include <NdbLockCpuUtil.h>
 
 class EventLogger *g_eventLogger = NULL;
 
@@ -44,29 +45,72 @@ extern void NdbOut_Init();
 extern "C"
 {
 
+#define NORMAL_USER 0
+#define MYSQLD_USER 1
+#define THREAD_REGISTER_USER 2
 void
-ndb_init_internal()
+ndb_init_internal(Uint32 caller)
 {
-  NdbOut_Init();
-  NdbMutex_SysInit();
-  if (!g_ndb_connection_mutex)
-    g_ndb_connection_mutex = NdbMutex_Create();
-  if (!g_eventLogger)
-    g_eventLogger = create_event_logger();
-  if ((g_ndb_connection_mutex == NULL) || (g_eventLogger == NULL))
+  bool init_all = true;
+  if (caller != NORMAL_USER)
   {
+    /**
+     * This is called from MySQL Server, normally called
+     * from ndbcluster_init, but can also be called from
+     * thread_register plugin. In this case we can have
+     * two calls, they should not run concurrently, at
+     * startup all init calls comes from the init thread.
+     * At close down from end thread. If the thread
+     * register is dynamically loaded then the ndbcluster_init
+     * will have been called before. If no NDB storage engine
+     * is called then the thread register plugin might
+     * initialise and end multiple times.
+     */
+    Uint32 init_called = ndb_init_called;
+    ndb_init_called++;
+    if (init_called > 0)
     {
-      const char* err = "ndb_init() failed - exit\n";
+      if (caller == THREAD_REGISTER_USER)
+      {
+        return;
+      }
+      init_all = false;
+    }
+  }
+  if (caller != THREAD_REGISTER_USER)
+    NdbOut_Init();
+  if (init_all)
+    NdbMutex_SysInit();
+  if (caller != THREAD_REGISTER_USER)
+  {
+    if (!g_ndb_connection_mutex)
+      g_ndb_connection_mutex = NdbMutex_Create();
+    if (!g_eventLogger)
+      g_eventLogger = create_event_logger();
+    if ((g_ndb_connection_mutex == NULL) || (g_eventLogger == NULL))
+    {
+      {
+        const char* err = "ndb_init() failed - exit\n";
+        int res = (int)write(2, err, (unsigned)strlen(err));
+        (void)res;
+        exit(1);
+      }
+    }
+    NdbTick_Init();
+    NdbCondition_initialize();
+    NdbGetRUsage_Init();
+  }
+  if (init_all)
+  {
+    NdbThread_Init();
+    if (NdbLockCpu_Init() != 0)
+    {
+      const char* err = "ndbLockCpu_Init() failed - exit\n";
       int res = (int)write(2, err, (unsigned)strlen(err));
       (void)res;
       exit(1);
     }
   }
-  NdbTick_Init();
-  NdbCondition_initialize();
-  NdbThread_Init();
-  NdbGetRUsage_Init();
-  NdbLockCpu_Init();
 }
 
 int
@@ -90,26 +134,44 @@ ndb_init()
     */
     tzset();
 
-    ndb_init_internal();
+    ndb_init_internal(0);
   }
   return 0;
 }
 
 void
-ndb_end_internal()
+ndb_end_internal(Uint32 caller)
 {
-  if (g_ndb_connection_mutex) 
+  bool end_all = true;
+  if (caller != NORMAL_USER)
   {
-    NdbMutex_Destroy(g_ndb_connection_mutex);
-    g_ndb_connection_mutex=NULL;
+    ndb_init_called--;
+    if (ndb_init_called > 0)
+    {
+      if (caller == THREAD_REGISTER_USER)
+      {
+        return;
+      }
+      end_all = false;
+    }
   }
-  if (g_eventLogger)
-    destroy_event_logger(&g_eventLogger);
-
-  NdbGetRUsage_End();
-  NdbLockCpu_End();
-  NdbThread_End();
-  NdbMutex_SysEnd();
+  if (caller != THREAD_REGISTER_USER)
+  {
+    if (g_ndb_connection_mutex) 
+    {
+      NdbMutex_Destroy(g_ndb_connection_mutex);
+      g_ndb_connection_mutex=NULL;
+    }
+    if (g_eventLogger)
+      destroy_event_logger(&g_eventLogger);
+    NdbGetRUsage_End();
+  }
+  if (end_all)
+  {
+    NdbLockCpu_End();
+    NdbThread_End();
+    NdbMutex_SysEnd();
+  }
 }
 
 void
@@ -118,9 +180,8 @@ ndb_end(int flags)
   if (ndb_init_called == 1)
   {
     my_end(flags);
-    ndb_end_internal();
+    ndb_end_internal(0);
     ndb_init_called = 0;
   }
 }
-
 } /* extern "C" */

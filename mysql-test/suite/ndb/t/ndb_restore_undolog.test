@@ -448,6 +448,7 @@ DROP TABLE IF EXISTS t_num,t_datetime,t_string_1,t_string_2,t_gis,t_string_3,t_s
 --exec $NDB_RESTORE --no-defaults -b 1 -n 2 -r $backup_data_dir/51_undolog_le >> $NDB_TOOLS_OUTPUT
 --sorted_result
 SHOW TABLES;
+--disable_warnings
 SHOW CREATE TABLE t_num;
 SHOW CREATE TABLE t_datetime;
 SHOW CREATE TABLE t_string_1;
@@ -456,6 +457,7 @@ SHOW CREATE TABLE t_gis;
 SHOW CREATE TABLE t_string_3;
 SHOW CREATE TABLE t_string_4;
 SHOW CREATE TABLE t_string_5;
+--enable_warnings
 SELECT * FROM t_datetime ORDER by t_pk;
 SELECT t_pk,t_test,hex(t_bit),t_tinyint,t_bool,t_smallint,t_mediumint,t_int,t_bigint,t_float,t_double,t_decimal FROM t_num ORDER by t_pk;
 SELECT t_pk,t_test,t_char,t_varchar,hex(t_binary),hex(t_varbinary) FROM t_string_1 ORDER by t_pk;
@@ -488,6 +490,7 @@ USE test;
 --exec $NDB_RESTORE --no-defaults -b 1 -n 2 -r $backup_data_dir/51_undolog_be >> $NDB_TOOLS_OUTPUT
 --sorted_result
 SHOW TABLES;
+--disable_warnings
 SHOW CREATE TABLE t_num;
 SHOW CREATE TABLE t_datetime;
 SHOW CREATE TABLE t_string_1;
@@ -496,6 +499,7 @@ SHOW CREATE TABLE t_gis;
 SHOW CREATE TABLE t_string_3;
 SHOW CREATE TABLE t_string_4;
 SHOW CREATE TABLE t_string_5;
+--enable_warnings
 SELECT * FROM t_datetime ORDER by t_pk;
 SELECT t_pk,t_test,hex(t_bit),t_tinyint,t_bool,t_smallint,t_mediumint,t_int,t_bigint,t_float,t_double,t_decimal FROM t_num ORDER by t_pk;
 SELECT t_pk,t_test,t_char,t_varchar,hex(t_binary),hex(t_varbinary) FROM t_string_1 ORDER by t_pk;

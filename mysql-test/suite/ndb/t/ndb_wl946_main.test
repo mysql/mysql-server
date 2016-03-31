@@ -27,7 +27,9 @@ create table t1sum (
 --let $prec=(3)
 --let $frac=.123
 --source ndb_wl946_create.inc
+--disable_warnings
 show create table t1;
+--enable_warnings
 --source show_attributes.inc
 --source show_indexes.inc
 
@@ -71,7 +73,9 @@ drop table t1;
 --let $prec=(6)
 --let $frac=.123456
 --source ndb_wl946_create.inc
+--disable_warnings
 show create table t1;
+--enable_warnings
 --source show_attributes.inc
 --source show_indexes.inc
 
@@ -117,7 +121,9 @@ drop table t1;
 --let $prec=(3)
 --let $frac=.123
 --source ndb_wl946_create.inc
+--disable_warnings
 show create table t1;
+--enable_warnings
 --source show_attributes.inc
 --source show_indexes.inc
 
@@ -134,7 +140,9 @@ drop table t1;
 
 --echo # restore meta from backup
 --exec $NDB_RESTORE --no-defaults -b $backup_id_3 -n 1 -m --print-meta $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
+--disable_warnings
 show create table t1;
+--enable_warnings
 --source show_attributes.inc
 --source show_indexes.inc
 
@@ -152,7 +160,9 @@ drop table t1;
 --let $prec=(6)
 --let $frac=.123456
 --source ndb_wl946_create.inc
+--disable_warnings
 show create table t1;
+--enable_warnings
 --source show_attributes.inc
 --source show_indexes.inc
 
@@ -169,7 +179,9 @@ drop table t1;
 
 --echo # restore meta from backup
 --exec $NDB_RESTORE --no-defaults -b $backup_id_6 -n 1 -m --print-meta $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
+--disable_warnings
 show create table t1;
+--enable_warnings
 --source show_attributes.inc
 --source show_indexes.inc
 
@@ -209,7 +221,9 @@ drop table t1;
 --let $prec=(6)
 --let $frac=.123456
 --source ndb_wl946_create.inc
+--disable_warnings
 show create table t1;
+--enable_warnings
 --source show_attributes.inc
 --source show_indexes.inc
 
@@ -228,7 +242,9 @@ drop table t1;
 --let $prec=(3)
 --let $frac=.123
 --source ndb_wl946_create.inc
+--disable_warnings
 show create table t1;
+--enable_warnings
 --source show_attributes.inc
 --source show_indexes.inc
 

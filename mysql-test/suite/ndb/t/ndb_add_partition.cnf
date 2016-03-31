@@ -9,6 +9,7 @@
 # the create table stmt.
 #
 ThreadConfig=ldm={count=1}
+TimeBetweenGlobalCheckpoints=200
 
 [ENV]
 # Test will pass some table names that includes $ to command line interpreter.
