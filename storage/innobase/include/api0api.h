@@ -27,8 +27,13 @@ InnoDB Native API
 #ifndef api0api_h
 #define api0api_h
 
+#include "config.h"
 #include "db0err.h"
 #include <stdio.h>
+
+#if defined(WITH_INNODB_MEMCACHED) && !defined(DBUG_OFF)
+# define UNIV_MEMCACHED_SDI
+#endif
 
 typedef struct ib_sdi_key	ib_sdi_key_t;
 typedef struct ib_sdi_vector	ib_sdi_vector_t;
