@@ -53,12 +53,14 @@ ut_dbg_assertion_failed(
 #define ut_error						\
 	ut_dbg_assertion_failed(0, __FILE__, (ulint) __LINE__)
 
-/** Debug assertion */
-#define ut_ad(EXPR)	DBUG_ASSERT(EXPR)
 #ifdef UNIV_DEBUG
+/** Debug assertion. Does nothing unless UNIV_DEBUG is defined. */
+#define ut_ad(EXPR)	ut_a(EXPR)
 /** Debug statement. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_d(EXPR)	EXPR
 #else
+/** Debug assertion. Does nothing unless UNIV_DEBUG is defined. */
+#define ut_ad(EXPR)
 /** Debug statement. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_d(EXPR)
 #endif
