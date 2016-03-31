@@ -5928,24 +5928,6 @@ Warning	3156	Invalid JSON value for CAST to DOUBLE: '[1, 2, 3]' from j at row 1
 Warning	3156	Invalid JSON value for CAST to INTEGER: '[1, 2, 3]' from j at row 1
 Warning	1292	Truncated incorrect DOUBLE value: '[a,b,c]'
 # ----------------------------------------------------------------------
-# Test of aggregate function GROUP_CONCAT
-# ----------------------------------------------------------------------
-# TODO: innodb and ndb results differ
-select group_concat(j order by j), group_concat(distinct j order by j), group_concat(c order by c) from t;
-group_concat(j order by j)	group_concat(distinct j order by j)	group_concat(c order by c)
-[1, 2, 3],2,7	[1, 2, 3],2,7	2,7,[a,b,c]
-insert into t values (NULL, NULL);
-# TODO: ndb results are inconsistent
-# select group_concat(j order by j), group_concat(distinct j order by j), group_concat(c order by c) from t;
-create table t2(j json);
-Warnings:
-Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
-insert into t2 values (json_array(ST_GeomFromText('LineString(0 0, 1 1, 2 2)')));
-select group_concat(j order by j) from t2;
-group_concat(j order by j)
-[{"type": "LineString", "coordinates": [[0, 0], [1, 1], [2, 2]]}]
-drop table t2;
-# ----------------------------------------------------------------------
 # Test of aggregate function COUNT(DISTINCT) and unaggregated DISTINCT
 # ----------------------------------------------------------------------
 create table t_doc( bucket int, doc json);
@@ -6432,33 +6414,31 @@ coalesce(cast(1 as json), cast(2 as json))
 1
 select coalesce(j, cast(3 as json)) from t order by c;
 coalesce(j, cast(3 as json))
-3
 2
 7
 [1, 2, 3]
 select coalesce(j, 666) from t order by c;
 coalesce(j, 666)
-666
 2
 7
 [1, 2, 3]
 select json_type(coalesce(j, '[1,2,3]')) from t order by c;
 json_type(coalesce(j, '[1,2,3]'))
-ARRAY
 INTEGER
 INTEGER
 ARRAY
 select json_type(coalesce(j, 'abc')) from t;
-ERROR 22032: Invalid JSON text in argument 1 to function json_type: "Invalid value." at position 0 in 'abc'.
+json_type(coalesce(j, 'abc'))
+ARRAY
+INTEGER
+INTEGER
 select json_type(coalesce(j, cast('"arg2"' as json))) from t order by c;
 json_type(coalesce(j, cast('"arg2"' as json)))
-STRING
 INTEGER
 INTEGER
 ARRAY
 select json_type(coalesce(j, j)) from t order by c;
 json_type(coalesce(j, j))
-NULL
 INTEGER
 INTEGER
 ARRAY
@@ -6533,72 +6513,6 @@ NULL
 3
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'
-drop table t;
-create table t (c varchar(20));
-insert into t values ('\\');
-select char_length(c) from t;
-char_length(c)
-1
-insert into t values (X'0C');
-select sum(char_length(c)) from t;
-sum(char_length(c))
-2
-insert into t values ('"');
-select sum(char_length(c)) from t;
-sum(char_length(c))
-3
-insert into t values ('\a');
-select sum(char_length(c)) from t;
-sum(char_length(c))
-4
-insert into t values ('\b');
-select sum(char_length(c)) from t;
-sum(char_length(c))
-5
-insert into t values ('\t');
-select sum(char_length(c)) from t;
-sum(char_length(c))
-6
-insert into t values ('\n');
-select sum(char_length(c)) from t;
-sum(char_length(c))
-7
-insert into t values ('\r');
-select sum(char_length(c)) from t;
-sum(char_length(c))
-8
-insert into t values (X'10');
-select sum(char_length(c)) from t;
-sum(char_length(c))
-9
-select group_concat(c order by c) from t;
-group_concat(c order by c)
-,	,
-,,,,",a,\
-select char_length(group_concat(c)) from t;
-char_length(group_concat(c))
-17
-select json_quote(group_concat(c order by c)) from t;
-json_quote(group_concat(c order by c))
-"\b,\t,\n,\f,\r,\u0010,\",a,\\"
-select char_length(json_quote(group_concat(c))) from t;
-char_length(json_quote(group_concat(c)))
-31
-select convert(group_concat(c) using utf8mb4) =
-json_unquote(group_concat(c)) as should_be_equal from t;
-should_be_equal
-1
-delete from t;
-alter table t add column (j json);
-Warnings:
-Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'
-insert into t values (NULL, NULL);
-select json_quote(c), json_quote(j) from t;
-json_quote(c)	json_quote(j)
-NULL	NULL
-select json_unquote(c), json_unquote(j) from t;
-json_unquote(c)	json_unquote(j)
-NULL	NULL
 drop table t;
 #
 # Bug#21257946 JSON_TYPE(TEXT) OF TABLE COLUMN STICKS WITH NULL
