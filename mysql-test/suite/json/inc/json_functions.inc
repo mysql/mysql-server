@@ -289,7 +289,7 @@ INSERT INTO t(j) VALUES
 ('"abc"'), ('""'), ('"abcd"'), ('"bc"'),
 ('"abc\\u0000\\u0000"'), ('"abc\\u0000"'),
 ('0.0'), ('-0.0'), ('9223372036854776000'),
-('1e-15'), ('1.1e-15'), ('1e-16'), ('1.1e-16'),
+('1e-15'), ('1.1e-15'), ('1.1e-16'),
 (CAST(0.000000000000001 AS JSON)),
 (CAST(0.0000000000000011 AS JSON)),
 (CAST(0.0000000000000001 AS JSON)),
@@ -340,16 +340,16 @@ EXPLAIN SELECT j, COUNT(*) FROM t GROUP BY j WITH ROLLUP;
 # either '9223372036854775807.000' or '9223372036854775807' could be the name of the group
 # These issues are resolved by removing trailing zeros from decimals and replacing -0 with 0.
 # This also replaces .000010 with 010 and .000001 with 001 [because \s is not supported].
---replace_regex /\.000// /\.0// /0\.100/0.1/ /\-0/0/ /3\.130/3.13/ /3\.140/3.14/ /3\.150/3.15/ /9\.223372036854776e18/9223372036854776000/
+--replace_regex /0.010/0.01/ /\.000// /\.0// /0\.100/0.1/ /\-0/0/ /3\.130/3.13/ /3\.140/3.14/ /3\.150/3.15/ /9\.223372036854776e18/9223372036854776000/
 SELECT j, COUNT(*) FROM t GROUP BY j ORDER BY j;
 
---replace_regex /\.000// /\.0// /0\.100/0.1/ /\-0/0/ /3\.130/3.13/ /3\.140/3.14/ /3\.150/3.15/ /9\.223372036854776e18/9223372036854776000/
+--replace_regex /-0.010/-0.01/ /\.000// /\.0// /0\.100/0.1/ /\-0/0/ /3\.130/3.13/ /3\.140/3.14/ /3\.150/3.15/ /9\.223372036854776e18/9223372036854776000/
 SELECT JSON_EXTRACT(j, '$') AS je, COUNT(*) FROM t GROUP BY je ORDER BY je;
 
---replace_regex /\.000// /\.0// /0\.100/0.1/ /\-0/0/ /3\.130/3.13/ /3\.140/3.14/ /3\.150/3.15/ /9\.223372036854776e18/9223372036854776000/
+--replace_regex /-0.010/-0.01/ /\.000// /\.0// /0\.100/0.1/ /\-0/0/ /3\.130/3.13/ /3\.140/3.14/ /3\.150/3.15/ /9\.223372036854776e18/9223372036854776000/
 SELECT j, COUNT(*) FROM t GROUP BY j WITH ROLLUP;
 
---replace_regex /\.000// /\.0// /0\.100/0.1/ /\-0/0/ /3\.130/3.13/ /3\.140/3.14/ /3\.150/3.15/ /9\.223372036854776e18/9223372036854776000/
+--replace_regex /-0.010/-0.01/ /\.000// /\.0// /0\.100/0.1/ /\-0/0/ /3\.130/3.13/ /3\.140/3.14/ /3\.150/3.15/ /9\.223372036854776e18/9223372036854776000/
 SELECT JSON_EXTRACT(j, '$') AS je, COUNT(*) FROM t GROUP BY je WITH ROLLUP;
 
 DROP TABLE t, timestamps, datetimes, times, dates, signed_integers,
@@ -810,8 +810,8 @@ select i, json_keys(j) from keys1 order by i;
 
 delete from keys1;
 insert into keys1 values (0, NULL),
-                        (1, '{"a": 1, "b": {"e": "foo", "b": 3}}');
-select i, json_keys(j), json_keys(j, '$.b') from keys1;
+                         (1, '{"a": 1, "b": {"e": "foo", "b": 3}}');
+select i, json_keys(j), json_keys(j, '$.b') from keys1 order by i;
 select cast(j as char) from keys1 order by i;
 
 create table t(i int);
@@ -1470,8 +1470,10 @@ DROP TABLE bug20898238;
 create table t(j json, c varchar(20));
 insert into t values (cast('[1,2,3]' as json), '[a,b,c]');
 insert into t values (cast(7 as json), '7'),  (cast(2 as json), '2');
+--disable_warnings
 select sum(j), sum(cast(j as unsigned)), sum(c) from t;
 select avg(j), avg(cast(j as unsigned)), avg(c) from t;
+--enable_warnings
 
 --echo # ----------------------------------------------------------------------
 --echo # Test of aggregate function COUNT(DISTINCT) and unaggregated DISTINCT
