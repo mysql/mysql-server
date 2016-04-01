@@ -1,0 +1,14 @@
+#
+# Start of 5.5 tests
+#
+#
+# MDEV-9862 Illegal mix of collation, when comparing column with CASE expression
+#
+SET NAMES cp850;
+CREATE TABLE t1 (a CHAR(1) CHARACTER SET latin1);
+SELECT a FROM t1 WHERE CASE a WHEN 'aaaa' THEN 'Y' WHEN 'aaaa' THEN 'Y' ELSE NULL END <> a;
+a
+DROP TABLE t1;
+#
+# End of 5.5 tests
+#
