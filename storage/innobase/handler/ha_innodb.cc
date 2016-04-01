@@ -4450,7 +4450,10 @@ innobase_commit(
 
 	if (trx_in_innodb.is_aborted()) {
 
-		DBUG_RETURN(innobase_rollback(hton, thd, commit_trx));
+		innobase_rollback(hton, thd, commit_trx);
+
+		DBUG_RETURN(convert_error_code_to_mysql(
+			DB_FORCED_ABORT, 0, thd));
 	}
 
 	ut_ad(trx->dict_operation_lock_mode == 0);
@@ -4629,23 +4632,17 @@ innobase_rollback(
 		error = trx_rollback_for_mysql(trx);
 
 		if (trx->state == TRX_STATE_FORCED_ROLLBACK) {
-
+#ifdef UNIV_DEBUG
 			char	buffer[1024];
 
 			ib::info() << "Forced rollback : "
 				<< thd_security_context(thd, buffer,
 							sizeof(buffer), 512);
-
-			error = DB_FORCED_ABORT;
-
+#endif /* UNIV_DEBUG */
 			trx->state = TRX_STATE_NOT_STARTED;
 		}
 
 		trx_deregister_from_2pc(trx);
-
-	} else if (trx_in_innodb.is_aborted()) {
-
-		error = DB_FORCED_ABORT;
 
 	} else {
 
@@ -7786,7 +7783,10 @@ ha_innobase::write_row(
 	if (!dict_table_is_intrinsic(m_prebuilt->table)
 	    && trx_in_innodb.is_aborted()) {
 
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
+		innobase_rollback(ht, m_user_thd, false);
+
+		DBUG_RETURN(convert_error_code_to_mysql(
+			DB_FORCED_ABORT, 0, m_user_thd));
 	}
 
 	/* Validation checks before we commence write_row operation. */
@@ -8489,7 +8489,10 @@ ha_innobase::update_row(
 	if (!dict_table_is_intrinsic(m_prebuilt->table)
 	    && TrxInInnoDB::is_aborted(trx)) {
 
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
+		innobase_rollback(ht, m_user_thd, false);
+
+		DBUG_RETURN(convert_error_code_to_mysql(
+			DB_FORCED_ABORT, 0, m_user_thd));
 	}
 
 	/* This is not a delete */
@@ -8606,7 +8609,10 @@ ha_innobase::delete_row(
 	if (!dict_table_is_intrinsic(m_prebuilt->table)
 	    && trx_in_innodb.is_aborted()) {
 
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
+		innobase_rollback(ht, m_user_thd, false);
+
+		DBUG_RETURN(convert_error_code_to_mysql(
+			DB_FORCED_ABORT, 0, m_user_thd));
 	}
 
 	ut_a(m_prebuilt->trx == trx);
@@ -8978,8 +8984,10 @@ ha_innobase::index_read(
 
 			if (TrxInInnoDB::is_aborted(m_prebuilt->trx)) {
 
-				DBUG_RETURN(innobase_rollback(
-						ht, m_user_thd, false));
+				innobase_rollback(ht, m_user_thd, false);
+
+				DBUG_RETURN(convert_error_code_to_mysql(
+					DB_FORCED_ABORT, 0, m_user_thd));
 			}
 
 			m_prebuilt->ins_sel_stmt = thd_is_ins_sel_stmt(
@@ -9151,7 +9159,10 @@ ha_innobase::change_active_index(
 	if (!dict_table_is_intrinsic(m_prebuilt->table)
 	    && trx_in_innodb.is_aborted()) {
 
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
+		innobase_rollback(ht, m_user_thd, false);
+
+		DBUG_RETURN(convert_error_code_to_mysql(
+			DB_FORCED_ABORT, 0,  m_user_thd));
 	}
 
 	active_index = keynr;
@@ -9271,7 +9282,10 @@ ha_innobase::general_fetch(
 
 	if (!intrinsic && TrxInInnoDB::is_aborted(trx)) {
 
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
+		innobase_rollback(ht, m_user_thd, false);
+
+		DBUG_RETURN(convert_error_code_to_mysql(
+			DB_FORCED_ABORT, 0,  m_user_thd));
 	}
 
 	innobase_srv_conc_enter_innodb(m_prebuilt);
@@ -9617,9 +9631,13 @@ ha_innobase::ft_init_ext(
 
 	if (trx_in_innodb.is_aborted()) {
 
-		int	ret = innobase_rollback(ht, m_user_thd, false);
+		innobase_rollback(ht, m_user_thd, false);
 
-		my_error(ret, MYF(0));
+		int	err;
+		err = convert_error_code_to_mysql(
+			DB_FORCED_ABORT, 0, m_user_thd);
+
+		my_error(err, MYF(0));
 
 		return(NULL);
 	}
@@ -9764,7 +9782,10 @@ ha_innobase::ft_read(
 
 	if (trx_in_innodb.is_aborted()) {
 
-		return(innobase_rollback(ht, m_user_thd, false));
+		innobase_rollback(ht, m_user_thd, false);
+
+		return(convert_error_code_to_mysql(
+			DB_FORCED_ABORT, 0, m_user_thd));
 	}
 
 	row_prebuilt_t*	ft_prebuilt;
@@ -12745,7 +12766,10 @@ ha_innobase::discard_or_import_tablespace(
 
 	if (trx_in_innodb.is_aborted()) {
 
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
+		innobase_rollback(ht, m_user_thd, false);
+
+		DBUG_RETURN(convert_error_code_to_mysql(
+			DB_FORCED_ABORT, 0, m_user_thd));
 	}
 
 	trx_start_if_not_started(m_prebuilt->trx, true);
@@ -17438,7 +17462,10 @@ innobase_xa_prepare(
 
 	if (trx_in_innodb.is_aborted()) {
 
-		return(innobase_rollback(hton, thd, prepare_trx));
+		innobase_rollback(hton, thd, prepare_trx);
+
+		return(convert_error_code_to_mysql(
+			DB_FORCED_ABORT, 0, thd));
 	}
 
 	if (!trx_is_registered_for_2pc(trx) && trx_is_started(trx)) {
@@ -17460,7 +17487,11 @@ innobase_xa_prepare(
 		ut_ad(err == DB_SUCCESS || err == DB_FORCED_ABORT);
 
 		if (err == DB_FORCED_ABORT) {
-			return(innobase_rollback(hton, thd, prepare_trx));
+
+			innobase_rollback(hton, thd, prepare_trx);
+
+			return(convert_error_code_to_mysql(
+				DB_FORCED_ABORT, 0, thd));
 		}
 
 	} else {

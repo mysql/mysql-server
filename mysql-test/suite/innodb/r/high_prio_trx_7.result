@@ -205,5 +205,4 @@ UPDATE t1 SET col2 = 20 where col1 > 10 and col1 <30 and col2 = 30;
 COMMIT WORK;
 #connection 0
 ROLLBACK WORK;
-ERROR HY000: Got error 149 - 'Lock deadlock; Retry transaction' during ROLLBACK
 DROP TABLE t1;
