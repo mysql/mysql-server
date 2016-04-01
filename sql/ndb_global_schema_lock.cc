@@ -305,6 +305,7 @@ notify_mdl_lock(THD *thd, bool lock)
 }
 
 
+#ifndef DBUG_OFF
 static
 const char*
 mdl_namespace_name(const MDL_key* mdl_key)
@@ -331,6 +332,7 @@ mdl_namespace_name(const MDL_key* mdl_key)
     return "<unknown>";
   }
 }
+#endif
 
 
 /**
