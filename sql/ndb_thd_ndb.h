@@ -100,7 +100,7 @@ public:
       : m_thd_ndb(thd_ndb),
         m_save_options(thd_ndb->options)
     {
-      assert(sizeof(m_save_options) == sizeof(Thd_ndb::options));
+      assert(sizeof(m_save_options) == sizeof(thd_ndb->options));
     }
     ~Options_guard()
     {
