@@ -168,6 +168,10 @@ SET @@session.character_set_server = utf8;
 SELECT @@session.character_set_server;
 @@session.character_set_server
 utf8
+SET @@session.character_set_server = utf8mb4;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+utf8mb4
 SET @@session.character_set_server = ucs2;
 SELECT @@session.character_set_server;
 @@session.character_set_server
@@ -317,6 +321,10 @@ SET @@global.character_set_server = utf8;
 SELECT @@global.character_set_server;
 @@global.character_set_server
 utf8
+SET @@global.character_set_server = utf8mb4;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+utf8mb4
 SET @@global.character_set_server = ucs2;
 SELECT @@global.character_set_server;
 @@global.character_set_server

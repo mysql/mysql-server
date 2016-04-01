@@ -262,9 +262,7 @@ static int my_strnncoll_czech(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 static
 int my_strnncollsp_czech(const CHARSET_INFO *cs, 
                          const uchar *s, size_t slen, 
-                         const uchar *t, size_t tlen,
-                         my_bool diff_if_only_endspace_difference
-                         MY_ATTRIBUTE((unused)))
+                         const uchar *t, size_t tlen)
 {
   for ( ; slen && s[slen-1] == ' ' ; slen--);
   for ( ; tlen && t[tlen-1] == ' ' ; tlen--);

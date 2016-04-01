@@ -139,9 +139,6 @@ int my_strnncoll_simple(const CHARSET_INFO * cs, const uchar *s, size_t slen,
     a_length		Length of 'a'
     b			Second string to compare
     b_length		Length of 'b'
-    diff_if_only_endspace_difference
-		        Set to 1 if the strings should be regarded as different
-                        if they only difference in end space
 
   IMPLEMENTATION
     If one string is shorter as the other, then we space extend the other
@@ -160,16 +157,11 @@ int my_strnncoll_simple(const CHARSET_INFO * cs, const uchar *s, size_t slen,
 */
 
 int my_strnncollsp_simple(const CHARSET_INFO *cs, const uchar *a,
-                          size_t a_length, const uchar *b, size_t b_length,
-                          my_bool diff_if_only_endspace_difference)
+                          size_t a_length, const uchar *b, size_t b_length)
 {
   const uchar *map= cs->sort_order, *end;
   size_t length;
   int res;
-
-#ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
-  diff_if_only_endspace_difference= 0;
-#endif
 
   end= a + (length= MY_MIN(a_length, b_length));
   while (a < end)
@@ -181,8 +173,6 @@ int my_strnncollsp_simple(const CHARSET_INFO *cs, const uchar *a,
   if (a_length != b_length)
   {
     int swap= 1;
-    if (diff_if_only_endspace_difference)
-      res= 1;                                   /* Assume 'a' is bigger */
     /*
       Check the next not space character of the longer key. If it's < ' ',
       then it's smaller than the other key.

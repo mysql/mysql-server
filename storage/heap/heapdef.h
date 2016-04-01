@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -88,8 +88,7 @@ extern ulong hp_mask(ulong hashnr,ulong buffmax,ulong maxlength);
 extern void hp_movelink(HASH_INFO *pos,HASH_INFO *next_link,
 			 HASH_INFO *newlink);
 extern int hp_rec_key_cmp(HP_KEYDEF *keydef,const uchar *rec1,
-			  const uchar *rec2,
-                          my_bool diff_if_only_endspace_difference);
+			  const uchar *rec2);
 extern int hp_key_cmp(HP_KEYDEF *keydef,const uchar *rec,
 		      const uchar *key);
 extern void hp_make_key(HP_KEYDEF *keydef,uchar *key,const uchar *rec);

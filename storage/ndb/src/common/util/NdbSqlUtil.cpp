@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -464,7 +464,7 @@ NdbSqlUtil::cmpChar(const void* info, const void* p1, unsigned n1, const void* p
   const uchar* v2 = (const uchar*)p2;
   CHARSET_INFO* cs = (CHARSET_INFO*)info;
   // compare with space padding
-  int k = (*cs->coll->strnncollsp)(cs, v1, n1, v2, n2, false);
+  int k = (*cs->coll->strnncollsp)(cs, v1, n1, v2, n2);
   return k;
 }
 
@@ -480,7 +480,7 @@ NdbSqlUtil::cmpVarchar(const void* info, const void* p1, unsigned n1, const void
   require(lb + m1 <= n1 && lb + m2 <= n2);
   CHARSET_INFO* cs = (CHARSET_INFO*)info;
   // compare with space padding
-  int k = (*cs->coll->strnncollsp)(cs, v1 + lb, m1, v2 + lb, m2, false);
+  int k = (*cs->coll->strnncollsp)(cs, v1 + lb, m1, v2 + lb, m2);
   return k;
 }
 
@@ -654,7 +654,7 @@ NdbSqlUtil::cmpLongvarchar(const void* info, const void* p1, unsigned n1, const 
   require(lb + m1 <= n1 && lb + m2 <= n2);
   CHARSET_INFO* cs = (CHARSET_INFO*)info;
   // compare with space padding
-  int k = (*cs->coll->strnncollsp)(cs, v1 + lb, m1, v2 + lb, m2, false);
+  int k = (*cs->coll->strnncollsp)(cs, v1 + lb, m1, v2 + lb, m2);
   return k;
 }
 

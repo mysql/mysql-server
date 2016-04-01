@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -302,7 +302,7 @@ bool key_cmp_if_same(TABLE *table,const uchar *key,uint idx,uint key_length)
       }
       if (cs->coll->strnncollsp(cs,
                                 key, length,
-                                pos, char_length, 0))
+                                pos, char_length))
         return 1;
       continue;
     }

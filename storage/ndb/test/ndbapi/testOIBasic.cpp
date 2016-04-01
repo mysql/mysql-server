@@ -2166,7 +2166,7 @@ Val::cmpchars(Par par, const uchar* buf1, uint len1, const uchar* buf2, uint len
     require(n1 != -1 && n1 == n2);
     k = memcmp(x1, x2, n1);
   } else {
-    k = (*cs->coll->strnncollsp)(cs, buf1, len1, buf2, len2, false);
+    k = (*cs->coll->strnncollsp)(cs, buf1, len1, buf2, len2);
   }
   return k < 0 ? -1 : k > 0 ? +1 : 0;
 }

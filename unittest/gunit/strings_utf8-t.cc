@@ -1,4 +1,5 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -396,6 +397,96 @@ TEST_F(StringsUTF8mb4Test, MyIsmbcharUtf8mb4)
                                                     utf8_src, utf8_src + 4));
 
   /* Not testing for illegal charaters as same is tested in above test case */
+}
+
+class StringsUTF8mb4UCA800Test : public ::testing::Test
+{
+protected:
+  virtual void SetUp()
+  {
+    // Save global settings.
+    m_charset= system_charset_info;
+
+    system_charset_info= &my_charset_utf8mb4_800_ci_ai;
+  }
+
+  virtual void TearDown()
+  {
+    // Restore global settings.
+    system_charset_info= m_charset;
+  }
+
+private:
+  CHARSET_INFO *m_charset;
+};
+
+TEST_F(StringsUTF8mb4UCA800Test, MyUCA800Collate)
+{
+  char utf8mb4_src[8], utf8mb4_dst[8];
+
+  /* Test for string comparison */
+
+  /* U+00AD == U+0020 */
+  utf8mb4_src[0]= 0xc2;
+  utf8mb4_src[1]= 0xad;
+  utf8mb4_src[2]= 0;
+  utf8mb4_dst[0]= 0x20;
+  utf8mb4_dst[1]= 0;
+  EXPECT_FALSE(system_charset_info->cset->strnncollsp(system_charset_info,
+                                                      utf8mb4_src, 2,
+                                                      utf8mb4_dst, 1));
+  /* U+00AD == U+00A0 */
+  utf8mb4_src[0]= 0xc2;
+  utf8mb4_src[1]= 0xad;
+  utf8mb4_src[2]= 0;
+  utf8mb4_dst[0]= 0xc2;
+  utf8mb4_dst[1]= 0xa0;
+  utf8mb4_dst[2]= 0;
+  EXPECT_FALSE(system_charset_info->cset->strnncollsp(system_charset_info,
+                                                      utf8mb4_src, 2,
+                                                      utf8mb4_dst, 2));
+  /* U+00C6 != U+0041 */
+  utf8mb4_src[0]= 0xc3;
+  utf8mb4_src[1]= 0x86;
+  utf8mb4_src[2]= 0;
+  utf8mb4_dst[0]= 0x41;
+  utf8mb4_dst[1]= 0;
+  EXPECT_TRUE(system_charset_info->cset->strnncollsp(system_charset_info,
+                                                     utf8mb4_src, 2,
+                                                     utf8mb4_dst, 1));
+  /* U+00DF != U+0053 */
+  utf8mb4_src[0]= 0xc3;
+  utf8mb4_src[1]= 0x9F;
+  utf8mb4_src[2]= 0;
+  utf8mb4_dst[0]= 0x53;
+  utf8mb4_dst[1]= 0;
+  EXPECT_TRUE(system_charset_info->cset->strnncollsp(system_charset_info,
+                                                     utf8mb4_src, 2,
+                                                     utf8mb4_dst, 1));
+  /* U+A73A == U+A738 */
+  utf8mb4_src[0]= 0xea;
+  utf8mb4_src[1]= 0x9c;
+  utf8mb4_src[2]= 0xba;
+  utf8mb4_src[3]= 0;
+  utf8mb4_dst[0]= 0xea;
+  utf8mb4_dst[1]= 0x9c;
+  utf8mb4_dst[2]= 0xb8;
+  utf8mb4_dst[1]= 0;
+  EXPECT_FALSE(system_charset_info->cset->strnncollsp(system_charset_info,
+                                                      utf8mb4_src, 3,
+                                                      utf8mb4_dst, 3));
+  /* U+A73A == U+A738 */
+  utf8mb4_src[0]= 0xea;
+  utf8mb4_src[1]= 0x9c;
+  utf8mb4_src[2]= 0xbb;
+  utf8mb4_src[3]= 0;
+  utf8mb4_dst[0]= 0xea;
+  utf8mb4_dst[1]= 0x9c;
+  utf8mb4_dst[2]= 0xb9;
+  utf8mb4_dst[1]= 0;
+  EXPECT_FALSE(system_charset_info->cset->strnncollsp(system_charset_info,
+                                                      utf8mb4_src, 3,
+                                                      utf8mb4_dst, 3));
 }
 
 }

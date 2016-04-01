@@ -5312,7 +5312,7 @@ static int srtcmp_in(const void *cmp_arg, const void *a, const void *b)
   const String *y= pointer_cast<const String*>(b);
   return cs->coll->strnncollsp(cs,
                                (uchar *) x->ptr(),x->length(),
-                               (uchar *) y->ptr(),y->length(), 0);
+                               (uchar *) y->ptr(),y->length());
 }
 
 

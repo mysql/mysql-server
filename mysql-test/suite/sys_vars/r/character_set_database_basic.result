@@ -232,6 +232,12 @@ Warning	1681	Updating 'character_set_database' is deprecated. It will be made re
 SELECT @@session.character_set_database;
 @@session.character_set_database
 utf8
+SET @@session.character_set_database = utf8mb4;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@session.character_set_database;
+@@session.character_set_database
+utf8mb4
 SET @@session.character_set_database = ucs2;
 Warnings:
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
@@ -455,6 +461,12 @@ Warning	1681	Updating 'character_set_database' is deprecated. It will be made re
 SELECT @@global.character_set_database;
 @@global.character_set_database
 utf8
+SET @@global.character_set_database = utf8mb4;
+Warnings:
+Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
+SELECT @@global.character_set_database;
+@@global.character_set_database
+utf8mb4
 SET @@global.character_set_database = ucs2;
 Warnings:
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.

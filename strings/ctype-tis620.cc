@@ -557,17 +557,12 @@ int my_strnncoll_tis620(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 static
 int my_strnncollsp_tis620(const CHARSET_INFO * cs MY_ATTRIBUTE((unused)),
 			  const uchar *a0, size_t a_length, 
-			  const uchar *b0, size_t b_length,
-                          my_bool diff_if_only_endspace_difference)
+			  const uchar *b0, size_t b_length)
 {
   uchar	buf[80], *end, *a, *b, *alloced= NULL;
   size_t length;
   int res= 0;
 
-#ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
-  diff_if_only_endspace_difference= 0;
-#endif
-  
   a= buf;
   if ((a_length + b_length +2) > (int) sizeof(buf))
     alloced= a= (uchar*) my_str_malloc(a_length+b_length+2);
@@ -592,8 +587,6 @@ int my_strnncollsp_tis620(const CHARSET_INFO * cs MY_ATTRIBUTE((unused)),
   if (a_length != b_length)
   {
     int swap= 1;
-    if (diff_if_only_endspace_difference)
-      res= 1;                                   /* Assume 'a' is bigger */
     /*
       Check the next not space character of the longer key. If it's < ' ',
       then it's smaller than the other key.

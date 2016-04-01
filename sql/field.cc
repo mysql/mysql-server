@@ -7268,14 +7268,9 @@ int Field_string::cmp(const uchar *a_ptr, const uchar *b_ptr)
   }
   else
     a_len= b_len= field_length;
-  /*
-    We have to remove end space to be able to compare multi-byte-characters
-    like in latin_de 'ae' and 0xe4
-  */
   return field_charset->coll->strnncollsp(field_charset,
                                           a_ptr, a_len,
-                                          b_ptr, b_len,
-                                          0);
+                                          b_ptr, b_len);
 }
 
 
@@ -7679,7 +7674,7 @@ int Field_varstring::cmp_max(const uchar *a_ptr, const uchar *b_ptr,
                                          a_length,
                                          b_ptr+
                                          length_bytes,
-                                         b_length,0);
+                                         b_length);
   return diff;
 }
 
@@ -7702,7 +7697,7 @@ int Field_varstring::key_cmp(const uchar *key_ptr, uint max_key_length)
                                           length,
                                           key_ptr+
                                           HA_KEY_BLOB_LENGTH,
-                                          uint2korr(key_ptr), 0);
+                                          uint2korr(key_ptr));
 }
 
 
@@ -7720,8 +7715,7 @@ int Field_varstring::key_cmp(const uchar *a,const uchar *b)
                                           a + HA_KEY_BLOB_LENGTH,
                                           uint2korr(a),
                                           b + HA_KEY_BLOB_LENGTH,
-                                          uint2korr(b),
-                                          0);
+                                          uint2korr(b));
 }
 
 
@@ -8315,8 +8309,7 @@ int Field_blob::cmp(const uchar *a,uint32 a_length, const uchar *b,
 		    uint32 b_length)
 {
   return field_charset->coll->strnncollsp(field_charset, 
-                                          a, a_length, b, b_length,
-                                          0);
+                                          a, a_length, b, b_length);
 }
 
 

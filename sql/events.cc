@@ -113,7 +113,7 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue);
 int sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs)
 {
  return cs->coll->strnncollsp(cs, (uchar *) s.str,s.length,
-                                  (uchar *) t.str,t.length, 0);
+                                  (uchar *) t.str,t.length);
 }
 
 

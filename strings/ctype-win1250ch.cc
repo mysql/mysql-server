@@ -469,9 +469,7 @@ static int my_strnncoll_win1250ch(const CHARSET_INFO *cs
 static
 int my_strnncollsp_win1250ch(const CHARSET_INFO *cs, 
 			     const uchar *s, size_t slen, 
-			     const uchar *t, size_t tlen,
-                             my_bool diff_if_only_endspace_difference
-                             MY_ATTRIBUTE((unused)))
+			     const uchar *t, size_t tlen)
 {
   for ( ; slen && s[slen-1] == ' ' ; slen--);
   for ( ; tlen && t[tlen-1] == ' ' ; tlen--);

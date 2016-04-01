@@ -887,22 +887,15 @@ static int my_strnncoll_big5(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 
 static int my_strnncollsp_big5(const CHARSET_INFO* cs MY_ATTRIBUTE((unused)),
 			       const uchar *a, size_t a_length, 
-			       const uchar *b, size_t b_length,
-                               my_bool diff_if_only_endspace_difference)
+			       const uchar *b, size_t b_length)
 {
   size_t length= MY_MIN(a_length, b_length);
   int res= my_strnncoll_big5_internal(&a, &b, length);
-
-#ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
-  diff_if_only_endspace_difference= 0;
-#endif
 
   if (!res && a_length != b_length)
   {
     const uchar *end;
     int swap= 1;
-    if (diff_if_only_endspace_difference)
-      res= 1;                                   /* Assume 'a' is bigger */
     /*
       Check the next not space character of the longer key. If it's < ' ',
       then it's smaller than the other key.

@@ -862,7 +862,7 @@ int sortcmp(const String *s,const String *t, const CHARSET_INFO *cs)
 {
  return cs->coll->strnncollsp(cs,
                               (uchar *) s->ptr(),s->length(),
-                              (uchar *) t->ptr(),t->length(), 0);
+                              (uchar *) t->ptr(),t->length());
 }
 
 
