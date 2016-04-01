@@ -350,7 +350,7 @@ buf_read_page(
 	dberr_t		err;
 
 	count = buf_read_page_low(
-		&err, false,
+		&err, true,
 		0, BUF_READ_ANY_PAGE, page_id, page_size, false);
 
 	srv_stats.buf_pool_reads.add(count);
