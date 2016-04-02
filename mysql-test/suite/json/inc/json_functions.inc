@@ -289,11 +289,11 @@ INSERT INTO t(j) VALUES
 ('"abc"'), ('""'), ('"abcd"'), ('"bc"'),
 ('"abc\\u0000\\u0000"'), ('"abc\\u0000"'),
 ('0.0'), ('-0.0'), ('9223372036854776000'),
-('1e-15'), ('1.1e-15'), ('1.1e-16'),
+('1.0e-1'), ('1.0e-2'),
 (CAST(0.000000000000001 AS JSON)),
-(CAST(0.0000000000000011 AS JSON)),
+(CAST(0.00000000000000115 AS JSON)),
 (CAST(0.0000000000000001 AS JSON)),
-(CAST(0.00000000000000011 AS JSON)),
+(CAST(0.000000000000000116 AS JSON)),
 (CAST(0.0 AS JSON)),
 (CAST(-999999999999999999999999999999999999999999999999999999999999999999999999999999999 AS JSON)),
 (CAST(-999999999999999999999999999999999999999999999999999999999999999999999999999999998 AS JSON)),
@@ -340,16 +340,16 @@ EXPLAIN SELECT j, COUNT(*) FROM t GROUP BY j WITH ROLLUP;
 # either '9223372036854775807.000' or '9223372036854775807' could be the name of the group
 # These issues are resolved by removing trailing zeros from decimals and replacing -0 with 0.
 # This also replaces .000010 with 010 and .000001 with 001 [because \s is not supported].
---replace_regex /0.010/0.01/ /\.000// /\.0// /0\.100/0.1/ /\-0/0/ /3\.130/3.13/ /3\.140/3.14/ /3\.150/3.15/ /9\.223372036854776e18/9223372036854776000/
+--replace_regex /1\.0e\-1/0.1/ /1\.0e\-2/0.01/ /0\.010/0.01/ /\.000// /\.0// /0\.100/0.1/ /\-0/0/ /3\.130/3.13/ /3\.140/3.14/ /3\.150/3.15/ /9\.223372036854776e18/9223372036854776000/
 SELECT j, COUNT(*) FROM t GROUP BY j ORDER BY j;
 
---replace_regex /-0.010/-0.01/ /\.000// /\.0// /0\.100/0.1/ /\-0/0/ /3\.130/3.13/ /3\.140/3.14/ /3\.150/3.15/ /9\.223372036854776e18/9223372036854776000/
+--replace_regex /1\.0e\-1/0.1/ /1\.0e\-2/0.01/ /0\.010/0.01/ /\.000// /\.0// /0\.100/0.1/ /\-0/0/ /3\.130/3.13/ /3\.140/3.14/ /3\.150/3.15/ /9\.223372036854776e18/9223372036854776000/
 SELECT JSON_EXTRACT(j, '$') AS je, COUNT(*) FROM t GROUP BY je ORDER BY je;
 
---replace_regex /-0.010/-0.01/ /\.000// /\.0// /0\.100/0.1/ /\-0/0/ /3\.130/3.13/ /3\.140/3.14/ /3\.150/3.15/ /9\.223372036854776e18/9223372036854776000/
+--replace_regex /1\.0e\-1/0.1/ /1\.0e\-2/0.01/ /0\.010/0.01/ /\.000// /\.0// /0\.100/0.1/ /\-0/0/ /3\.130/3.13/ /3\.140/3.14/ /3\.150/3.15/ /9\.223372036854776e18/9223372036854776000/
 SELECT j, COUNT(*) FROM t GROUP BY j WITH ROLLUP;
 
---replace_regex /-0.010/-0.01/ /\.000// /\.0// /0\.100/0.1/ /\-0/0/ /3\.130/3.13/ /3\.140/3.14/ /3\.150/3.15/ /9\.223372036854776e18/9223372036854776000/
+--replace_regex /1\.0e\-1/0.1/ /1\.0e\-2/0.01/ /0\.010/0.01/ /\.000// /\.0// /0\.100/0.1/ /\-0/0/ /3\.130/3.13/ /3\.140/3.14/ /3\.150/3.15/ /9\.223372036854776e18/9223372036854776000/
 SELECT JSON_EXTRACT(j, '$') AS je, COUNT(*) FROM t GROUP BY je WITH ROLLUP;
 
 DROP TABLE t, timestamps, datetimes, times, dates, signed_integers,
@@ -1887,7 +1887,7 @@ select coalesce(cast(1 as json), cast(2 as json));
 select coalesce(j, cast(3 as json)) from t order by c;
 select coalesce(j, 666) from t order by c;
 select json_type(coalesce(j, '[1,2,3]')) from t order by c;
-select json_type(coalesce(j, 'abc')) from t;
+select json_type(coalesce(j, 'abc')) from t order by c;
 select json_type(coalesce(j, cast('"arg2"' as json))) from t order by c;
 select json_type(coalesce(j, j)) from t order by c;
 --echo inconsistent result: error message depends on the order of evaluation of rows
