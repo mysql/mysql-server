@@ -1006,3 +1006,113 @@ R
 select "a" as R;
 R
 R
+#
+# Bug#22224687 : MTR TEST UTILITY SCRIPT 'INCLUDE/SEARCH_PATTERN.INC' SHOULD BE EXTENDED
+#
+# SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = NONE
+Pattern "jan feb" found
+# SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = FIRST
+1: jan feb mar
+Pattern "jan feb" found
+# SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = ALL
+1: jan feb mar
+5: jan feb mar
+9: jan feb mar
+13: jan feb mar
+17: jan feb oct
+Pattern "jan feb" found
+# SEARCH_PATTERN = 'apr may', SEARCH_ECHO = FIRST, IGNORE_PATTERN = 'jun'
+Pattern "apr may" not found
+# SEARCH_PATTERN = 'apr may', SEARCH_ECHO = ALL, IGNORE_PATTERN = 'jun'
+Pattern "apr may" not found
+# SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = ALL, IGNORE_PATTERN = 'mar'
+17: jan feb oct
+Pattern "jan feb" found
+# SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = ALL, IGNORE_PATTERN = 'march'
+1: jan feb mar
+5: jan feb mar
+9: jan feb mar
+13: jan feb mar
+17: jan feb oct
+Pattern "jan feb" found
+# SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = FIRST, SEARCH_ECHO_CTX = 1
+1: jan feb mar
+2: apr may jun
+Pattern "jan feb" found
+# SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = FIRST, SEARCH_ECHO_CTX = 2
+1: jan feb mar
+2: apr may jun
+3: jul aug sept
+Pattern "jan feb" found
+# SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = ALL, SEARCH_ECHO_CTX = 3
+1: jan feb mar
+2: apr may jun
+3: jul aug sept
+4: oct nov dec
+---
+2: apr may jun
+3: jul aug sept
+4: oct nov dec
+5: jan feb mar
+6: apr may jun
+7: jul aug sept
+8: oct nov dec
+---
+6: apr may jun
+7: jul aug sept
+8: oct nov dec
+9: jan feb mar
+10: apr may jun
+11: jul aug sept
+12: oct nov dec
+---
+10: apr may jun
+11: jul aug sept
+12: oct nov dec
+13: jan feb mar
+14: apr may jun
+15: jul aug sept
+16: oct nov dec
+---
+14: apr may jun
+15: jul aug sept
+16: oct nov dec
+17: jan feb oct
+---
+Pattern "jan feb" found
+# SEARCH_PATTERN = 'nov dec', SEARCH_ECHO = FIRST, IGNORE_PATTERN = 'oct', SEARCH_ECHO_CTX = 3
+Pattern "nov dec" not found
+# SEARCH_PATTERN = 'nov dec', SEARCH_ECHO = ALL, IGNORE_PATTERN = 'oct', SEARCH_ECHO_CTX = 3
+Pattern "nov dec" not found
+# SEARCH_PATTERN = 'nov dec', SEARCH_ECHO = ALL, IGNORE_PATTERN = 'october', SEARCH_ECHO_CTX = 3
+1: jan feb mar
+2: apr may jun
+3: jul aug sept
+4: oct nov dec
+5: jan feb mar
+6: apr may jun
+7: jul aug sept
+---
+5: jan feb mar
+6: apr may jun
+7: jul aug sept
+8: oct nov dec
+9: jan feb mar
+10: apr may jun
+11: jul aug sept
+---
+9: jan feb mar
+10: apr may jun
+11: jul aug sept
+12: oct nov dec
+13: jan feb mar
+14: apr may jun
+15: jul aug sept
+---
+13: jan feb mar
+14: apr may jun
+15: jul aug sept
+16: oct nov dec
+17: jan feb oct
+---
+Pattern "nov dec" found

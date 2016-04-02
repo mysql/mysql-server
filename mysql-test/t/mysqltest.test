@@ -3025,3 +3025,129 @@ select "a" as a;
 
 --replace_regex /a$/R/
 select "a" as a;
+
+--echo #
+--echo # Bug#22224687 : MTR TEST UTILITY SCRIPT 'INCLUDE/SEARCH_PATTERN.INC' SHOULD BE EXTENDED
+--echo #
+
+--let $file= $MYSQLTEST_VARDIR/tmp/bug22224687.tmp
+--write_file $file
+jan feb mar
+apr may jun
+jul aug sept
+oct nov dec
+jan feb mar
+apr may jun
+jul aug sept
+oct nov dec
+jan feb mar
+apr may jun
+jul aug sept
+oct nov dec
+jan feb mar
+apr may jun
+jul aug sept
+oct nov dec
+jan feb oct
+EOF
+
+# No matches will be echoed to console.
+--echo # SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = NONE
+--let SEARCH_FILE=    $file
+--let SEARCH_PATTERN= jan feb
+--let SEARCH_ECHO=    NONE
+--source include/search_pattern.inc
+
+# First match is echoed to console.
+--echo # SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = FIRST
+--let SEARCH_FILE=    $file
+--let SEARCH_PATTERN= jan feb
+--let SEARCH_ECHO=    FIRST
+--source include/search_pattern.inc
+
+# ALL matches are echoed to console.
+--echo # SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = ALL
+--let SEARCH_FILE=    $file
+--let SEARCH_PATTERN= jan feb
+--let SEARCH_ECHO=    ALL
+--source include/search_pattern.inc
+
+# If a line matches search pattern and if it also matches
+# ignore pattern, then it will be ignored.
+--echo # SEARCH_PATTERN = 'apr may', SEARCH_ECHO = FIRST, IGNORE_PATTERN = 'jun'
+--let SEARCH_FILE=    $file
+--let SEARCH_PATTERN= apr may
+--let SEARCH_ECHO=    FIRST
+--let IGNORE_PATTERN= jun
+--source include/search_pattern.inc
+
+--echo # SEARCH_PATTERN = 'apr may', SEARCH_ECHO = ALL, IGNORE_PATTERN = 'jun'
+--let SEARCH_FILE=    $file
+--let SEARCH_PATTERN= apr may
+--let SEARCH_ECHO=    ALL
+--let IGNORE_PATTERN= jun
+--source include/search_pattern.inc
+
+# If a line matches search pattern and if it doesn't match the
+# ignore pattern, then it will be echoed to console.
+--echo # SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = ALL, IGNORE_PATTERN = 'mar'
+--let SEARCH_FILE=    $file
+--let SEARCH_PATTERN= jan feb
+--let SEARCH_ECHO=    ALL
+--let IGNORE_PATTERN= mar
+--source include/search_pattern.inc
+
+--echo # SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = ALL, IGNORE_PATTERN = 'march'
+--let SEARCH_FILE=    $file
+--let SEARCH_PATTERN= jan feb
+--let SEARCH_ECHO=    ALL
+--let IGNORE_PATTERN= march
+--source include/search_pattern.inc
+
+# If SEARCH_ECHO_CTX value is greater than 0, then succeding
+# number of lines and lines above the matching line (up to the
+# number specified by SEARCH_ECHO_CTX) will be echoed to console.
+--echo # SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = FIRST, SEARCH_ECHO_CTX = 1
+--let SEARCH_FILE=     $file
+--let SEARCH_PATTERN=  jan feb
+--let SEARCH_ECHO=     FIRST
+--let SEARCH_ECHO_CTX= 1
+--source include/search_pattern.inc
+
+--echo # SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = FIRST, SEARCH_ECHO_CTX = 2
+--let SEARCH_FILE=     $file
+--let SEARCH_PATTERN=  jan feb
+--let SEARCH_ECHO=     FIRST
+--let SEARCH_ECHO_CTX= 2
+--source include/search_pattern.inc
+
+--echo # SEARCH_PATTERN = 'jan feb', SEARCH_ECHO = ALL, SEARCH_ECHO_CTX = 3
+--let SEARCH_FILE=     $file
+--let SEARCH_PATTERN=  jan feb
+--let SEARCH_ECHO=     ALL
+--let SEARCH_ECHO_CTX= 3
+--source include/search_pattern.inc
+
+--echo # SEARCH_PATTERN = 'nov dec', SEARCH_ECHO = FIRST, IGNORE_PATTERN = 'oct', SEARCH_ECHO_CTX = 3
+--let SEARCH_FILE=     $file
+--let SEARCH_PATTERN=  nov dec
+--let SEARCH_ECHO=     FIRST
+--let IGNORE_PATTERN=  oct
+--let SEARCH_ECHO_CTX= 3
+--source include/search_pattern.inc
+
+--echo # SEARCH_PATTERN = 'nov dec', SEARCH_ECHO = ALL, IGNORE_PATTERN = 'oct', SEARCH_ECHO_CTX = 3
+--let SEARCH_FILE=     $file
+--let SEARCH_PATTERN=  nov dec
+--let SEARCH_ECHO=     ALL
+--let IGNORE_PATTERN=  oct
+--let SEARCH_ECHO_CTX= 3
+--source include/search_pattern.inc
+
+--echo # SEARCH_PATTERN = 'nov dec', SEARCH_ECHO = ALL, IGNORE_PATTERN = 'october', SEARCH_ECHO_CTX = 3
+--let SEARCH_FILE=     $file
+--let SEARCH_PATTERN=  nov dec
+--let SEARCH_ECHO=     ALL
+--let IGNORE_PATTERN=  october
+--let SEARCH_ECHO_CTX= 3
+--source include/search_pattern.inc

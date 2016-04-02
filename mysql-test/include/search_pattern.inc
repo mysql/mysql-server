@@ -19,15 +19,83 @@ perl;
     use strict;
     my $search_file=           $ENV{'SEARCH_FILE'}           or die "SEARCH_FILE not set";
     my $search_pattern=        $ENV{'SEARCH_PATTERN'}        or die "SEARCH_PATTERN not set";
-    open(FILE, "$search_file") or die("Unable to open '$search_file': $!\n");
-    while (<FILE>) {
-	if (m{$search_pattern}) {
-	    print "Pattern \"$search_pattern\" found\n";
-	    close(FILE);
-	    exit;
+    my $search_echo=           $ENV{'SEARCH_ECHO'}     || "NONE";
+    my $ignore_pattern=        $ENV{'IGNORE_PATTERN'}  || '';
+    my $search_echo_ctx=       $ENV{'SEARCH_ECHO_CTX'} || 0;
+
+    open(FILE, "< $search_file") or die("Unable to open '$search_file': $!\n");
+    my @lines= <FILE>;
+    my $flag= 0;
+
+    for (my $i= 0; $i<= $#lines; $i++)
+    {
+        my $line= $lines[$i];
+	if ($line =~ /$search_pattern/)
+        {
+            if (!(length $ignore_pattern) or !($line =~ /$ignore_pattern/))
+            {
+                $flag= 1;
+                if ($search_echo eq 'FIRST')
+                {
+                    print_previous_n_lines($i, $search_echo_ctx);
+                    print_succeding_n_lines($i, $search_echo_ctx);
+                    last;
+                }
+                elsif ($search_echo eq 'ALL')
+                {
+                    print_previous_n_lines($i, $search_echo_ctx);
+                    print_succeding_n_lines($i, $search_echo_ctx);
+
+                    # Separate each matching line
+                    if ($search_echo_ctx > 0)
+                    {
+                        print "---\n";
+                    }
+                }
+            }
 	}
     }
 
+    if ($flag == 1)
+    {
+        print "Pattern \"$search_pattern\" found\n";
+    }
+    else
+    {
+        print "Pattern \"$search_pattern\" not found\n";
+    }
     close(FILE);
-    print "Pattern \"$search_pattern\" not found\n";
+
+    sub print_previous_n_lines()
+    {
+        my ($i, $search_echo_ctx)= @_;
+
+        for (my $j= 0; $j< $search_echo_ctx; $j++)
+        {
+            my $index= $i+$j-$search_echo_ctx;
+            if ($index >= 0)
+            {
+                print "@{[$i+$j-$search_echo_ctx+1]}: $lines[$index]";
+            }
+        }
+    }
+
+    sub print_succeding_n_lines()
+    {
+        my ($i, $search_echo_ctx)= @_;
+
+        for (my $j= 0; $j<= $search_echo_ctx; $j++)
+        {
+            if ($lines[$i+$j])
+            {
+                print "@{[$i+$j+1]}: $lines[$i+$j]";
+             }
+        }
+    }
+
 EOF
+
+# Setting the env vars to default value
+--let SEARCH_ECHO=     "NONE"
+--let IGNORE_PATTERN=  ''
+--let SEARCH_ECHO_CTX= 0
