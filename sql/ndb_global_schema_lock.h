@@ -19,6 +19,6 @@
 #define NDB_GLOBAL_SCHEMA_LOCK_H
 
 void ndbcluster_global_schema_lock_init(struct handlerton*);
-void ndbcluster_global_schema_lock_deinit(void);
+void ndbcluster_global_schema_lock_deinit(struct handlerton*);
 
 #endif

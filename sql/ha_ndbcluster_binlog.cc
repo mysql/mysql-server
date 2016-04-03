@@ -1052,17 +1052,6 @@ ndb_schema_table__create(THD *thd)
   DBUG_RETURN(res);
 }
 
-class Thd_ndb_options_guard
-{
-public:
-  Thd_ndb_options_guard(Thd_ndb *thd_ndb)
-    : m_val(thd_ndb->options), m_save_val(thd_ndb->options) {}
-  ~Thd_ndb_options_guard() { m_val= m_save_val; }
-  void set(uint32 flag) { m_val|= flag; }
-private:
-  uint32 &m_val;
-  uint32 m_save_val;
-};
 
 extern int ndb_setup_complete;
 extern native_cond_t COND_ndb_setup_complete;
@@ -1082,6 +1071,22 @@ static void ndb_notify_tables_writable()
 }
 
 
+/**
+  Utility class encapsulating the code which setup the 'ndb binlog thread'
+  to be "connected" to the cluster.
+  This involves:
+   - synchronizing the local mysqld data dictionary with that in NDB
+   - subscribing to changes that happen in NDB, thus allowing:
+    -- local mysqld data dictionary to be kept in synch
+    -- binlog of changes in NDB to be written
+
+*/
+
+class Ndb_binlog_setup {
+
+  THD* const m_thd;
+  Thd_ndb* const m_thd_ndb;
+
 /*
   Clean-up any stray files for non-existing NDB tables
   - "stray" means that there is a .frm + .ndb file on disk
@@ -1090,9 +1095,9 @@ static void ndb_notify_tables_writable()
     what's in NDB.
 */
 static
-void clean_away_stray_files(THD *thd)
+void clean_away_stray_files(THD *thd, Thd_ndb* thd_ndb)
 {
-  DBUG_ENTER("clean_away_stray_files");
+  DBUG_ENTER("Ndb_binlog_setup::clean_away_stray_files");
 
   // Populate list of databases
   Ndb_find_files_list db_names(thd);
@@ -1119,16 +1124,15 @@ void clean_away_stray_files(THD *thd)
       /* Require that no binlog setup is attempted yet, that will come later
        * right now we just want to get rid of stray frms et al
        */
+      Thd_ndb::Options_guard thd_ndb_options(thd_ndb);
+      thd_ndb_options.set(Thd_ndb::SKIP_BINLOG_SETUP_IN_FIND_FILES);
 
-      Thd_ndb *thd_ndb= get_thd_ndb(thd);
-      thd_ndb->set_skip_binlog_setup_in_find_files(true);
       Ndb_find_files_list tab_names(thd);
       if (!tab_names.find_tables(db_name->str, path))
       {
         thd->clear_error();
         DBUG_PRINT("info", ("Failed to find tables"));
       }
-      thd_ndb->set_skip_binlog_setup_in_find_files(false);
     }
   }
   DBUG_VOID_RETURN;
@@ -1142,29 +1146,30 @@ void clean_away_stray_files(THD *thd)
   the correct state w.r.t created databases using the information in
   that table.
 */
-static int ndbcluster_find_all_databases(THD *thd)
+static
+int find_all_databases(THD *thd, Thd_ndb* thd_ndb)
 {
-  Ndb *ndb= check_ndb_in_thd(thd);
-  Thd_ndb *thd_ndb= get_thd_ndb(thd);
-  Thd_ndb_options_guard thd_ndb_options(thd_ndb);
+  Ndb *ndb= thd_ndb->ndb;
   NDBDICT *dict= ndb->getDictionary();
   NdbTransaction *trans= NULL;
   NdbError ndb_error;
   int retries= 100;
   int retry_sleep= 30; /* 30 milliseconds, transaction */
-  DBUG_ENTER("ndbcluster_find_all_databases");
+  DBUG_ENTER("Ndb_binlog_setup::find_all_databases");
 
   /*
     Function should only be called while ndbcluster_global_schema_lock
     is held, to ensure that ndb_schema table is not being updated while
     scanning.
   */
-  if (!thd_ndb->has_required_global_schema_lock("ndbcluster_find_all_databases"))
+  if (!thd_ndb->has_required_global_schema_lock("Ndb_binlog_setup::find_all_databases"))
     DBUG_RETURN(1);
 
   ndb->setDatabaseName(NDB_REP_DB);
-  thd_ndb_options.set(TNO_NO_LOG_SCHEMA_OP);
-  thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
+
+  Thd_ndb::Options_guard thd_ndb_options(thd_ndb);
+  thd_ndb_options.set(Thd_ndb::NO_LOG_SCHEMA_OP);
+  thd_ndb_options.set(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK);
   while (1)
   {
     char db_buffer[FN_REFLEN];
@@ -1316,18 +1321,13 @@ static int ndbcluster_find_all_databases(THD *thd)
   find all tables in ndb and discover those needed
 */
 static
-int ndbcluster_find_all_files(THD *thd)
+int find_all_files(THD *thd, Ndb* ndb)
 {
-  Ndb* ndb;
   char key[FN_REFLEN + 1];
-  NDBDICT *dict;
   int unhandled= 0, retries= 5, skipped= 0;
-  DBUG_ENTER("ndbcluster_find_all_files");
+  DBUG_ENTER("Ndb_binlog_setup::find_all_files");
 
-  if (!(ndb= check_ndb_in_thd(thd)))
-    DBUG_RETURN(HA_ERR_NO_CONNECTION);
-
-  dict= ndb->getDictionary();
+  NDBDICT* dict= ndb->getDictionary();
 
   do
   {
@@ -1446,9 +1446,21 @@ int ndbcluster_find_all_files(THD *thd)
   DBUG_RETURN(-(skipped + unhandled));
 }
 
+  Ndb_binlog_setup(const Ndb_binlog_setup&); // Not copyable
+  Ndb_binlog_setup operator=(const Ndb_binlog_setup&); // Not assignable
+
+public:
+
+  Ndb_binlog_setup(THD* thd) :
+    m_thd(thd),
+    m_thd_ndb(get_thd_ndb(thd))
+  {
+    // Ndb* object in Thd_ndb should've been assigned
+    assert(m_thd_ndb->ndb);
+  }
 
 bool
-ndb_binlog_setup(THD *thd)
+setup(void)
 {
   if (ndb_binlog_tables_inited)
     return true; // Already setup -> OK
@@ -1483,19 +1495,19 @@ ndb_binlog_setup(THD *thd)
      * to be atomic. This make sure that the schema does not change without 
      * being distributed to other mysqld's.
      */
-    Ndb_global_schema_lock_guard global_schema_lock_guard(thd);
-    if (global_schema_lock_guard.lock(false, false))
+    Ndb_global_schema_lock_guard global_schema_lock_guard(m_thd);
+    if (global_schema_lock_guard.lock(false))
     {
       break;
     }
 
     /* Give additional 'binlog_setup rights' to this Thd_ndb */
-    Thd_ndb_options_guard thd_ndb_options(get_thd_ndb(thd));
-    thd_ndb_options.set(TNO_ALLOW_BINLOG_SETUP);
+    Thd_ndb::Options_guard thd_ndb_options(m_thd_ndb);
+    thd_ndb_options.set(Thd_ndb::ALLOW_BINLOG_SETUP);
 
-    if (ndb_create_table_from_engine(thd, NDB_REP_DB, NDB_SCHEMA_TABLE))
+    if (ndb_create_table_from_engine(m_thd, NDB_REP_DB, NDB_SCHEMA_TABLE))
     {
-      if (ndb_schema_table__create(thd))
+      if (ndb_schema_table__create(m_thd))
         break;
     }
     if (ndb_schema_share == NULL)  //Needed for 'ndb_schema_dist_is_ready()'
@@ -1522,21 +1534,21 @@ ndb_binlog_setup(THD *thd)
       break;
     });
 
-    if (ndb_create_table_from_engine(thd, NDB_REP_DB, NDB_APPLY_TABLE))
+    if (ndb_create_table_from_engine(m_thd, NDB_REP_DB, NDB_APPLY_TABLE))
     {
-      if (ndb_apply_table__create(thd))
+      if (ndb_apply_table__create(m_thd))
         break;
     }
     /* Note: Failure of creating APPLY_TABLE eventOp is retried
        by find_all_files(), and eventually failed.
     */
 
-    clean_away_stray_files(thd);
+    clean_away_stray_files(m_thd, m_thd_ndb);
 
-    if (ndbcluster_find_all_databases(thd))
+    if (find_all_databases(m_thd, m_thd_ndb))
       break;
 
-    if (ndbcluster_find_all_files(thd))
+    if (find_all_files(m_thd, m_thd_ndb->ndb))
       break;
 
     /* Shares w/ eventOp subscr. for NDB_SCHEMA_TABLE and NDB_APPLY_TABLE created? */
@@ -1566,6 +1578,17 @@ ndb_binlog_setup(THD *thd)
   DBUG_ASSERT(!ndb_schema_dist_is_ready());
   return false;
 }
+
+}; // class Ndb_binlog_setup
+
+
+bool
+ndb_binlog_setup(THD *thd)
+{
+  Ndb_binlog_setup binlog_setup(thd);
+  return binlog_setup.setup();
+}
+
 
 /*
   Defines and struct for schema table.
@@ -1661,10 +1684,10 @@ int ndbcluster_log_schema_op(THD *thd,
     thd_set_thd_ndb(thd, thd_ndb);
   }
 
-  DBUG_PRINT("enter",
-             ("query: %s  db: %s  table_name: %s  thd_ndb->options: %d",
-              query, db, table_name, thd_ndb->options));
-  if (!ndb_schema_share || thd_ndb->options & TNO_NO_LOG_SCHEMA_OP)
+  DBUG_PRINT("enter", ("query: %s  db: %s  table_name: %s",
+                       query, db, table_name));
+  if (!ndb_schema_share ||
+      thd_ndb->check_option(Thd_ndb::NO_LOG_SCHEMA_OP))
   {
     if (thd->slave_thread)
       update_slave_api_stats(thd_ndb->ndb);
@@ -3269,6 +3292,9 @@ class Ndb_schema_event_handler {
 
     write_schema_op_to_binlog(m_thd, schema);
 
+    // Participant never takes GSL
+    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
+
     Ndb_local_schema::Table tab(m_thd, schema->db, schema->name);
     if (tab.is_local_table())
     {
@@ -3358,6 +3384,9 @@ class Ndb_schema_event_handler {
 
     write_schema_op_to_binlog(m_thd, schema);
 
+    // Participant never takes GSL
+    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
+
     Ndb_local_schema::Table from(m_thd, schema->db, schema->name);
     if (from.is_local_table())
     {
@@ -3433,11 +3462,8 @@ class Ndb_schema_event_handler {
 
     write_schema_op_to_binlog(m_thd, schema);
 
-    Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
-    Thd_ndb_options_guard thd_ndb_options(thd_ndb);
-    // Set NO_LOCK_SCHEMA_OP before 'check_if_local_tables_indb'
-    // until ndbcluster_find_files does not take GSL
-    thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
+    // Participant never takes GSL
+    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
 
     if (check_if_local_tables_in_db(schema->db))
     {
@@ -3542,9 +3568,9 @@ class Ndb_schema_event_handler {
 
     write_schema_op_to_binlog(m_thd, schema);
 
-    Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
-    Thd_ndb_options_guard thd_ndb_options(thd_ndb);
-    thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
+    // Participant never takes GSL
+    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
+
     const int no_print_error[1]= {0};
     run_query(m_thd, schema->query,
               schema->query + schema->query_length,
@@ -3566,9 +3592,9 @@ class Ndb_schema_event_handler {
 
     write_schema_op_to_binlog(m_thd, schema);
 
-    Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
-    Thd_ndb_options_guard thd_ndb_options(thd_ndb);
-    thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
+    // Participant never takes GSL
+    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
+
     const int no_print_error[1]= {0};
     run_query(m_thd, schema->query,
               schema->query + schema->query_length,
@@ -3595,9 +3621,9 @@ class Ndb_schema_event_handler {
                             "flushing privileges",
                             get_schema_type_name(schema->type));
 
-    Thd_ndb *thd_ndb= get_thd_ndb(m_thd);
-    Thd_ndb_options_guard thd_ndb_options(thd_ndb);
-    thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
+    // Participant never takes GSL
+    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK));
+
     const int no_print_error[1]= {0};
     char *cmd= (char *) "flush privileges";
     run_query(m_thd, cmd,
@@ -4723,10 +4749,10 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
     DBUG_RETURN(-1);
   }
 
-  // Before 'schema_dist_is_ready', TNO_ALLOW_BINLOG_SETUP is required
+  // Before 'schema_dist_is_ready', Thd_ndb::ALLOW_BINLOG_SETUP is required
   int ret= 0;
   if (ndb_schema_dist_is_ready() ||
-      get_thd_ndb(thd)->options & TNO_ALLOW_BINLOG_SETUP)
+      get_thd_ndb(thd)->check_option(Thd_ndb::ALLOW_BINLOG_SETUP))
   {
     ret= ndbcluster_create_binlog_setup(thd, ndb, share);
   }
@@ -5160,7 +5186,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra  use_count: %u",
                              share->key_string(), share->use_count));
     (void) native_cond_signal(&injector_cond);
-    DBUG_ASSERT(get_thd_ndb(thd)->options & TNO_ALLOW_BINLOG_SETUP);
+    DBUG_ASSERT(get_thd_ndb(thd)->check_option(Thd_ndb::ALLOW_BINLOG_SETUP));
   }
   else if (do_ndb_schema_share)
   {
@@ -5169,7 +5195,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra  use_count: %u",
                              share->key_string(), share->use_count));
     (void) native_cond_signal(&injector_cond);
-    DBUG_ASSERT(get_thd_ndb(thd)->options & TNO_ALLOW_BINLOG_SETUP);
+    DBUG_ASSERT(get_thd_ndb(thd)->check_option(Thd_ndb::ALLOW_BINLOG_SETUP));
   }
 
   DBUG_PRINT("info",("%s share->op: 0x%lx  share->use_count: %u",
@@ -6578,7 +6604,15 @@ restart_cluster_failure:
 
     DBUG_ASSERT(ndbcluster_hton->slot != ~(uint)0);
     thd_set_thd_ndb(thd, thd_ndb);
-    thd_ndb->options|= TNO_NO_LOG_SCHEMA_OP;
+
+    thd_ndb->set_option(Thd_ndb::NO_LOG_SCHEMA_OP);
+
+    /*
+      Prevent schema dist participant from (implicitly)
+      taking GSL lock as part of taking MDL lock
+    */
+    thd_ndb->set_option(Thd_ndb::NO_GLOBAL_SCHEMA_LOCK);
+
     thd->query_id= 0; // to keep valgrind quiet
   }
 
