@@ -130,6 +130,20 @@ Thd_ndb::init_open_tables()
 }
 
 
+bool
+Thd_ndb::check_option(Options option) const
+{
+  return (options & option);
+}
+
+
+void
+Thd_ndb::set_option(Options option)
+{
+  options |= option;
+}
+
+
 /*
   Used for every additional row operation, to update the guesstimate
   of pending bytes to send, and to check if it is now time to flush a batch.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -425,9 +425,6 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
   bool binlog_stmt;
   DBUG_ENTER("Sql_cmd_truncate_table::truncate_table");
 
-#ifndef MCP_GLOBAL_SCHEMA_LOCK
-  Ha_global_schema_lock_guard global_schema_lock_guard(thd);
-#endif
   DBUG_ASSERT((!table_ref->table) ||
               (table_ref->table && table_ref->table->s));
 
@@ -471,10 +468,6 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
   }
   else /* It's not a temporary table. */
   {
-#ifndef MCP_GLOBAL_SCHEMA_LOCK
-    global_schema_lock_guard.lock();
-#endif
-
     bool hton_can_recreate;
 
     if (lock_table(thd, table_ref, &hton_can_recreate))

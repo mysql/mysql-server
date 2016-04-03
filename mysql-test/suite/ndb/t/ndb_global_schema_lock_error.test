@@ -6,7 +6,7 @@
 -- source include/have_ndb.inc
 
 # Test will produce this error in server log file -> ignore
-call mtr.add_suppression("Could not acquire global schema lock");
+call mtr.add_suppression("Failed to acquire global schema lock");
 
 #
 # Run all the commands which should take the global schema lock
@@ -24,8 +24,8 @@ DROP DATABASE test2;
 
 # Table DDL, works since they don't work with NDB tables
 # but generate warnings about failure to acquire global schema lock
-# NOTE! The CREATE's all generate three warnings each, global
-# schema lock, ha_discover and ha_table_exists_in_engine
+# NOTE! The CREATE's all generate three warnings each, ha_discover,
+# global schema lock and ha_table_exists_in_engine
 # NOTE2! When using ps protocol a fourth warning pops up due to different
 # code path -> turn ps off
 #
