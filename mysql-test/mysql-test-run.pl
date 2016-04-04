@@ -2818,6 +2818,11 @@ sub environment_setup {
   # to detect that valgrind is being used from test cases
   $ENV{'VALGRIND_TEST'}= $opt_valgrind;
 
+  # Create an environment variable to make it possible
+  # to detect if valgrind is being used on the server
+  # for test cases
+  $ENV{'VALGRIND_SERVER_TEST'}= $opt_valgrind_mysqld;
+
   # Ask UBSAN to print stack traces
   $ENV{'UBSAN_OPTIONS'}= "print_stacktrace=1" if $opt_sanitize;
 
