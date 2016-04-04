@@ -18063,7 +18063,7 @@ bool
 ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
                                      HA_CREATE_INFO *create_info,
                                      THD *thd,
-                                     bool & max_rows_changed)
+                                     bool & max_rows_changed) const
 {
   DBUG_ENTER("ha_ndbcluster::parse_comment_changes");
   NDB_Modifiers table_modifiers(ndb_table_modifiers);
