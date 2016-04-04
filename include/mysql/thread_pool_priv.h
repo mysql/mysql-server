@@ -41,10 +41,6 @@
 #include "sql_thd_internal_api.h"
 #include <set>
 
-#include <field.h>
-
-typedef std::set<THD*>::iterator Thread_iterator;
-
 #ifdef __cplusplus
 extern "C" {
 #endif
