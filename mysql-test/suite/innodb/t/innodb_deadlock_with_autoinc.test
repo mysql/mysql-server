@@ -1,0 +1,47 @@
+--source include/have_debug.inc
+--source include/have_innodb.inc
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+
+--echo #
+--echo # Bug #21983865  UNEXPECTED DEADLOCK WITH INNODB_AUTOINC_LOCK_MODE=0
+--echo #
+
+create table t1(f1 int not null auto_increment primary key) engine=innodb;
+
+--echo # Hold autoinc_lock on table t1 from connection con1
+connect (con1, localhost, root);
+set debug_sync='ib_after_row_insert SIGNAL others WAIT_FOR continue_others';
+--send insert into t1 values(NULL)
+
+connection default;
+--echo # Create 40 connections and make it to wait for autoinc_lock on table t1.
+--disable_query_log
+set debug_sync='now WAIT_FOR others';
+let $1=2;
+while ($1 < 40) {
+ connect (con$1,localhost,root);
+ --send insert into t1 values(NULL)
+ inc $1;
+ connection default;
+}
+
+connect (con40,localhost,root);
+--enable_query_log
+--echo # Release the auto_inc lock on table t1 for connection con1
+set debug_sync='now SIGNAL continue_others';
+
+--echo # Now all 40 connections can finish the insert operation on t1.
+let $1=1;
+connection default;
+disconnect con40;
+while ($1 < 40) {
+ connection con$1;
+ --reap
+ connection default;
+ disconnect con$1;
+ inc $1;
+}
+
+drop table t1;
+--source include/wait_until_count_sessions.inc
