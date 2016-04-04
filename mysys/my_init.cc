@@ -460,21 +460,21 @@ PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
 
 static PSI_mutex_info all_mysys_mutexes[]=
 {
-  { &key_BITMAP_mutex, "BITMAP::mutex", 0},
-  { &key_IO_CACHE_append_buffer_lock, "IO_CACHE::append_buffer_lock", 0},
-  { &key_IO_CACHE_SHARE_mutex, "IO_CACHE::SHARE_mutex", 0},
-  { &key_KEY_CACHE_cache_lock, "KEY_CACHE::cache_lock", 0},
-  { &key_THR_LOCK_charset, "THR_LOCK_charset", PSI_FLAG_GLOBAL},
-  { &key_THR_LOCK_heap, "THR_LOCK_heap", PSI_FLAG_GLOBAL},
-  { &key_THR_LOCK_lock, "THR_LOCK_lock", PSI_FLAG_GLOBAL},
-  { &key_THR_LOCK_malloc, "THR_LOCK_malloc", PSI_FLAG_GLOBAL},
-  { &key_THR_LOCK_mutex, "THR_LOCK::mutex", 0},
-  { &key_THR_LOCK_myisam, "THR_LOCK_myisam", PSI_FLAG_GLOBAL},
-  { &key_THR_LOCK_net, "THR_LOCK_net", PSI_FLAG_GLOBAL},
-  { &key_THR_LOCK_open, "THR_LOCK_open", PSI_FLAG_GLOBAL},
-  { &key_THR_LOCK_threads, "THR_LOCK_threads", PSI_FLAG_GLOBAL},
-  { &key_TMPDIR_mutex, "TMPDIR_mutex", PSI_FLAG_GLOBAL},
-  { &key_THR_LOCK_myisam_mmap, "THR_LOCK_myisam_mmap", PSI_FLAG_GLOBAL}
+  { &key_BITMAP_mutex, "BITMAP::mutex", 0, 0},
+  { &key_IO_CACHE_append_buffer_lock, "IO_CACHE::append_buffer_lock", 0, 0},
+  { &key_IO_CACHE_SHARE_mutex, "IO_CACHE::SHARE_mutex", 0, 0},
+  { &key_KEY_CACHE_cache_lock, "KEY_CACHE::cache_lock", 0, 0},
+  { &key_THR_LOCK_charset, "THR_LOCK_charset", PSI_FLAG_GLOBAL, 0},
+  { &key_THR_LOCK_heap, "THR_LOCK_heap", PSI_FLAG_GLOBAL, 0},
+  { &key_THR_LOCK_lock, "THR_LOCK_lock", PSI_FLAG_GLOBAL, 0},
+  { &key_THR_LOCK_malloc, "THR_LOCK_malloc", PSI_FLAG_GLOBAL, 0},
+  { &key_THR_LOCK_mutex, "THR_LOCK::mutex", 0, 0},
+  { &key_THR_LOCK_myisam, "THR_LOCK_myisam", PSI_FLAG_GLOBAL, 0},
+  { &key_THR_LOCK_net, "THR_LOCK_net", PSI_FLAG_GLOBAL, 0},
+  { &key_THR_LOCK_open, "THR_LOCK_open", PSI_FLAG_GLOBAL, 0},
+  { &key_THR_LOCK_threads, "THR_LOCK_threads", PSI_FLAG_GLOBAL, 0},
+  { &key_TMPDIR_mutex, "TMPDIR_mutex", PSI_FLAG_GLOBAL, 0},
+  { &key_THR_LOCK_myisam_mmap, "THR_LOCK_myisam_mmap", PSI_FLAG_GLOBAL, 0}
 };
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -126,8 +126,8 @@ static PSI_mutex_key csv_key_mutex_tina, csv_key_mutex_TINA_SHARE_mutex;
 
 static PSI_mutex_info all_tina_mutexes[]=
 {
-  { &csv_key_mutex_tina, "tina", PSI_FLAG_GLOBAL},
-  { &csv_key_mutex_TINA_SHARE_mutex, "TINA_SHARE::mutex", 0}
+  { &csv_key_mutex_tina, "tina", PSI_FLAG_GLOBAL, 0},
+  { &csv_key_mutex_TINA_SHARE_mutex, "TINA_SHARE::mutex", 0, 0}
 };
 
 static PSI_file_key csv_key_file_metadata, csv_key_file_data,

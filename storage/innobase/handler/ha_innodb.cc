@@ -451,6 +451,7 @@ const struct _ft_vft_ext ft_vft_ext_result = {innobase_fts_get_version,
 
 #ifdef HAVE_PSI_INTERFACE
 # define PSI_KEY(n) {&n##_key, #n, 0}
+# define PSI_MUTEX_KEY(n, P1, P2) {&n##_key, #n, P1, P2}
 /* All RWLOCK used in Innodb are SX-locks */
 # define PSI_RWLOCK_KEY(n) {&n##_key, #n, PSI_RWLOCK_FLAG_SX}
 
@@ -461,8 +462,8 @@ static mysql_pfs_key_t	commit_cond_mutex_key;
 static mysql_pfs_key_t	commit_cond_key;
 
 static PSI_mutex_info	all_pthread_mutexes[] = {
-	PSI_KEY(commit_cond_mutex),
-	PSI_KEY(innobase_share_mutex)
+	PSI_MUTEX_KEY(commit_cond_mutex, 0, 0),
+	PSI_MUTEX_KEY(innobase_share_mutex, 0, 0)
 };
 
 static PSI_cond_info	all_innodb_conds[] = {
@@ -474,73 +475,73 @@ static PSI_cond_info	all_innodb_conds[] = {
 performance schema instrumented if "UNIV_PFS_MUTEX"
 is defined */
 static PSI_mutex_info all_innodb_mutexes[] = {
-	PSI_KEY(autoinc_mutex),
-	PSI_KEY(autoinc_persisted_mutex),
+	PSI_MUTEX_KEY(autoinc_mutex, 0, 0),
+	PSI_MUTEX_KEY(autoinc_persisted_mutex, 0, 0),
 #  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
-	PSI_KEY(buffer_block_mutex),
+	PSI_MUTEX_KEY(buffer_block_mutex, 0, 0),
 #  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
-	PSI_KEY(buf_pool_flush_state_mutex),
-	PSI_KEY(buf_pool_LRU_list_mutex),
-	PSI_KEY(buf_pool_free_list_mutex),
-	PSI_KEY(buf_pool_zip_free_mutex),
-	PSI_KEY(buf_pool_zip_hash_mutex),
-	PSI_KEY(buf_pool_zip_mutex),
-	PSI_KEY(cache_last_read_mutex),
-	PSI_KEY(dict_foreign_err_mutex),
-	PSI_KEY(dict_persist_dirty_tables_mutex),
-	PSI_KEY(dict_sys_mutex),
-	PSI_KEY(recalc_pool_mutex),
-	PSI_KEY(fil_system_mutex),
-	PSI_KEY(flush_list_mutex),
-	PSI_KEY(fts_bg_threads_mutex),
-	PSI_KEY(fts_delete_mutex),
-	PSI_KEY(fts_optimize_mutex),
-	PSI_KEY(fts_doc_id_mutex),
-	PSI_KEY(log_flush_order_mutex),
-	PSI_KEY(hash_table_mutex),
-	PSI_KEY(ibuf_bitmap_mutex),
-	PSI_KEY(ibuf_mutex),
-	PSI_KEY(ibuf_pessimistic_insert_mutex),
-	PSI_KEY(log_sys_mutex),
-	PSI_KEY(log_sys_write_mutex),
-	PSI_KEY(mutex_list_mutex),
-	PSI_KEY(page_zip_stat_per_index_mutex),
-	PSI_KEY(purge_sys_pq_mutex),
-	PSI_KEY(recv_sys_mutex),
-	PSI_KEY(recv_writer_mutex),
-	PSI_KEY(redo_rseg_mutex),
-	PSI_KEY(noredo_rseg_mutex),
+	PSI_MUTEX_KEY(buf_pool_flush_state_mutex, 0, 0),
+	PSI_MUTEX_KEY(buf_pool_LRU_list_mutex, 0, 0),
+	PSI_MUTEX_KEY(buf_pool_free_list_mutex, 0, 0),
+	PSI_MUTEX_KEY(buf_pool_zip_free_mutex, 0, 0),
+	PSI_MUTEX_KEY(buf_pool_zip_hash_mutex, 0, 0),
+	PSI_MUTEX_KEY(buf_pool_zip_mutex, 0, 0),
+	PSI_MUTEX_KEY(cache_last_read_mutex, 0, 0),
+	PSI_MUTEX_KEY(dict_foreign_err_mutex, 0, 0),
+	PSI_MUTEX_KEY(dict_persist_dirty_tables_mutex, 0, 0),
+	PSI_MUTEX_KEY(dict_sys_mutex, 0, 0),
+	PSI_MUTEX_KEY(recalc_pool_mutex, 0, 0),
+	PSI_MUTEX_KEY(fil_system_mutex, 0, 0),
+	PSI_MUTEX_KEY(flush_list_mutex, 0, 0),
+	PSI_MUTEX_KEY(fts_bg_threads_mutex, 0, 0),
+	PSI_MUTEX_KEY(fts_delete_mutex, 0, 0),
+	PSI_MUTEX_KEY(fts_optimize_mutex, 0, 0),
+	PSI_MUTEX_KEY(fts_doc_id_mutex, 0, 0),
+	PSI_MUTEX_KEY(log_flush_order_mutex, 0, 0),
+	PSI_MUTEX_KEY(hash_table_mutex, 0, 0),
+	PSI_MUTEX_KEY(ibuf_bitmap_mutex, 0, 0),
+	PSI_MUTEX_KEY(ibuf_mutex, 0, 0),
+	PSI_MUTEX_KEY(ibuf_pessimistic_insert_mutex, 0, 0),
+	PSI_MUTEX_KEY(log_sys_mutex, 0, 0),
+	PSI_MUTEX_KEY(log_sys_write_mutex, 0, 0),
+	PSI_MUTEX_KEY(mutex_list_mutex, 0, 0),
+	PSI_MUTEX_KEY(page_zip_stat_per_index_mutex, 0, 0),
+	PSI_MUTEX_KEY(purge_sys_pq_mutex, 0, 0),
+	PSI_MUTEX_KEY(recv_sys_mutex, 0, 0),
+	PSI_MUTEX_KEY(recv_writer_mutex, 0, 0),
+	PSI_MUTEX_KEY(redo_rseg_mutex, 0, 0),
+	PSI_MUTEX_KEY(noredo_rseg_mutex, 0, 0),
 #  ifdef UNIV_DEBUG
-	PSI_KEY(rw_lock_debug_mutex),
+	PSI_MUTEX_KEY(rw_lock_debug_mutex, 0, 0),
 #  endif /* UNIV_DEBUG */
-	PSI_KEY(rw_lock_list_mutex),
-	PSI_KEY(rw_lock_mutex),
-	PSI_KEY(srv_dict_tmpfile_mutex),
-	PSI_KEY(srv_innodb_monitor_mutex),
-	PSI_KEY(srv_misc_tmpfile_mutex),
-	PSI_KEY(srv_monitor_file_mutex),
+	PSI_MUTEX_KEY(rw_lock_list_mutex, 0, 0),
+	PSI_MUTEX_KEY(rw_lock_mutex, 0, 0),
+	PSI_MUTEX_KEY(srv_dict_tmpfile_mutex, 0, 0),
+	PSI_MUTEX_KEY(srv_innodb_monitor_mutex, 0, 0),
+	PSI_MUTEX_KEY(srv_misc_tmpfile_mutex, 0, 0),
+	PSI_MUTEX_KEY(srv_monitor_file_mutex, 0, 0),
 #  ifdef UNIV_DEBUG
-	PSI_KEY(sync_thread_mutex),
+	PSI_MUTEX_KEY(sync_thread_mutex, 0, 0),
 #  endif /* UNIV_DEBUG */
-	PSI_KEY(buf_dblwr_mutex),
-	PSI_KEY(trx_undo_mutex),
-	PSI_KEY(trx_pool_mutex),
-	PSI_KEY(trx_pool_manager_mutex),
-	PSI_KEY(srv_sys_mutex),
-	PSI_KEY(lock_mutex),
-	PSI_KEY(lock_wait_mutex),
-	PSI_KEY(trx_mutex),
-	PSI_KEY(srv_threads_mutex),
+	PSI_MUTEX_KEY(buf_dblwr_mutex, 0, 0),
+	PSI_MUTEX_KEY(trx_undo_mutex, 0, 0),
+	PSI_MUTEX_KEY(trx_pool_mutex, 0, 0),
+	PSI_MUTEX_KEY(trx_pool_manager_mutex, 0, 0),
+	PSI_MUTEX_KEY(srv_sys_mutex, 0, 0),
+	PSI_MUTEX_KEY(lock_mutex, 0, 0),
+	PSI_MUTEX_KEY(lock_wait_mutex, 0, 0),
+	PSI_MUTEX_KEY(trx_mutex, 0, 0),
+	PSI_MUTEX_KEY(srv_threads_mutex, 0, 0),
 #  ifndef PFS_SKIP_EVENT_MUTEX
-	PSI_KEY(event_mutex),
+	PSI_MUTEX_KEY(event_mutex, 0, 0),
 #  endif /* PFS_SKIP_EVENT_MUTEX */
-	PSI_KEY(rtr_active_mutex),
-	PSI_KEY(rtr_match_mutex),
-	PSI_KEY(rtr_path_mutex),
-	PSI_KEY(rtr_ssn_mutex),
-	PSI_KEY(trx_sys_mutex),
-	PSI_KEY(zip_pad_mutex),
-	PSI_KEY(master_key_id_mutex),
+	PSI_MUTEX_KEY(rtr_active_mutex, 0, 0),
+	PSI_MUTEX_KEY(rtr_match_mutex, 0, 0),
+	PSI_MUTEX_KEY(rtr_path_mutex, 0, 0),
+	PSI_MUTEX_KEY(rtr_ssn_mutex, 0, 0),
+	PSI_MUTEX_KEY(trx_sys_mutex, 0, 0),
+	PSI_MUTEX_KEY(zip_pad_mutex, 0, 0),
+	PSI_MUTEX_KEY(master_key_id_mutex, 0, 0),
 };
 # endif /* UNIV_PFS_MUTEX */
 

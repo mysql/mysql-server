@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -377,7 +377,7 @@ static PSI_mutex_key bh_key_mutex_blackhole;
 
 static PSI_mutex_info all_blackhole_mutexes[]=
 {
-  { &bh_key_mutex_blackhole, "blackhole", PSI_FLAG_GLOBAL}
+  { &bh_key_mutex_blackhole, "blackhole", PSI_FLAG_GLOBAL, 0}
 };
 
 static PSI_memory_info all_blackhole_memory[]=

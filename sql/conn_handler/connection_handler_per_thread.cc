@@ -67,7 +67,7 @@ static PSI_mutex_key key_LOCK_thread_cache;
 
 static PSI_mutex_info all_per_thread_mutexes[]=
 {
-  { &key_LOCK_thread_cache, "LOCK_thread_cache", PSI_FLAG_GLOBAL}
+  { &key_LOCK_thread_cache, "LOCK_thread_cache", PSI_FLAG_GLOBAL, 0}
 };
 
 static PSI_cond_key key_COND_thread_cache;

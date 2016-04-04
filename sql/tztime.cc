@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1558,7 +1558,7 @@ static PSI_mutex_key key_tz_LOCK;
 
 static PSI_mutex_info all_tz_mutexes[]=
 {
-  { & key_tz_LOCK, "tz_LOCK", PSI_FLAG_GLOBAL}
+  { & key_tz_LOCK, "tz_LOCK", PSI_FLAG_GLOBAL, 0}
 };
 
 static PSI_memory_info all_tz_memory[]=

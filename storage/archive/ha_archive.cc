@@ -157,7 +157,7 @@ PSI_mutex_key az_key_mutex_Archive_share_mutex;
 
 static PSI_mutex_info all_archive_mutexes[]=
 {
-  { &az_key_mutex_Archive_share_mutex, "Archive_share::mutex", 0}
+  { &az_key_mutex_Archive_share_mutex, "Archive_share::mutex", 0, 0}
 };
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 

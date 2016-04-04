@@ -1,5 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -507,8 +507,8 @@ PSI_mutex_key key_ss_mutex_Ack_receiver_mutex;
 
 static PSI_mutex_info all_semisync_mutexes[]=
 {
-  { &key_ss_mutex_LOCK_binlog_, "LOCK_binlog_", 0},
-  { &key_ss_mutex_Ack_receiver_mutex, "Ack_receiver::m_mutex", 0}
+  { &key_ss_mutex_LOCK_binlog_, "LOCK_binlog_", 0, 0},
+  { &key_ss_mutex_Ack_receiver_mutex, "Ack_receiver::m_mutex", 0, 0}
 };
 
 PSI_cond_key key_ss_cond_COND_binlog_send_;

@@ -21,7 +21,6 @@
   Generic buffer container.
 */
 #include "my_global.h"
-#include "pfs.h" // PSI_COUNT_VOLATILITY
 #include "pfs_lock.h"
 #include "pfs_instr.h"
 #include "pfs_setup_actor.h"
@@ -1337,7 +1336,7 @@ private:
 
 #ifdef USE_SCALABLE
 typedef PFS_buffer_scalable_container<PFS_mutex, 1024, 1024> PFS_mutex_basic_container;
-typedef PFS_partitioned_buffer_scalable_container<PFS_mutex_basic_container, PSI_COUNT_VOLATILITY> PFS_mutex_container;
+typedef PFS_partitioned_buffer_scalable_container<PFS_mutex_basic_container, PFS_MUTEX_PARTITIONS> PFS_mutex_container;
 #else
 typedef PFS_buffer_container<PFS_mutex> PFS_mutex_container;
 #endif

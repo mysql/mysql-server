@@ -135,6 +135,7 @@ struct PSI_mutex_info_v1
     @sa PSI_FLAG_GLOBAL
   */
   int m_flags;
+  int m_volatility;
 };
 typedef struct PSI_mutex_info_v1 PSI_mutex_info_v1;
 

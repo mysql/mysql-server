@@ -34,6 +34,7 @@ struct PSI_mutex_info_v1
   PSI_mutex_key *m_key;
   const char *m_name;
   int m_flags;
+  int m_volatility;
 };
 typedef struct PSI_mutex_info_v1 PSI_mutex_info_v1;
 struct PSI_mutex_locker_state_v1

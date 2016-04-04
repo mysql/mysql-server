@@ -89,9 +89,9 @@ static PSI_mutex_key key_LOCK_thread_ids;
 
 static PSI_mutex_info all_thd_manager_mutexes[]=
 {
-  { &key_LOCK_thd_list, "LOCK_thd_list", PSI_FLAG_GLOBAL},
-  { &key_LOCK_thd_remove, "LOCK_thd_remove", PSI_FLAG_GLOBAL},
-  { &key_LOCK_thread_ids, "LOCK_thread_ids", PSI_FLAG_GLOBAL }
+  { &key_LOCK_thd_list, "LOCK_thd_list", PSI_FLAG_GLOBAL, 0},
+  { &key_LOCK_thd_remove, "LOCK_thd_remove", PSI_FLAG_GLOBAL, 0},
+  { &key_LOCK_thread_ids, "LOCK_thread_ids", PSI_FLAG_GLOBAL, 0}
 };
 
 static PSI_cond_key key_COND_thd_list;

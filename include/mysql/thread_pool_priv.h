@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -40,6 +40,10 @@
 #include "field.h"
 #include "sql_thd_internal_api.h"
 #include <set>
+
+#include <field.h>
+
+typedef std::set<THD*>::iterator Thread_iterator;
 
 #ifdef __cplusplus
 extern "C" {

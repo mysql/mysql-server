@@ -193,6 +193,8 @@ struct PFS_instr_class
 
 struct PFS_mutex;
 
+#define PFS_MUTEX_PARTITIONS 2
+
 /** Instrumentation metadata for a MUTEX. */
 struct PFS_ALIGNED PFS_mutex_class : public PFS_instr_class
 {
@@ -526,33 +528,33 @@ int init_memory_class(uint memory_class_sizing);
 void cleanup_memory_class();
 
 PFS_sync_key register_mutex_class(const char *name, uint name_length,
-                                  int flags);
+                                  PSI_mutex_info *info);
 
 PFS_sync_key register_rwlock_class(const char *name, uint name_length,
-                                   int flags);
+                                   PSI_rwlock_info *info);
 
 PFS_sync_key register_cond_class(const char *name, uint name_length,
-                                 int flags);
+                                 PSI_cond_info *info);
 
 PFS_thread_key register_thread_class(const char *name, uint name_length,
-                                     int flags);
+                                     PSI_thread_info *info);
 
 PFS_file_key register_file_class(const char *name, uint name_length,
-                                 int flags);
+                                 PSI_file_info *info);
 
 PFS_stage_key register_stage_class(const char *name,
                                    uint prefix_length,
                                    uint name_length,
-                                   int flags);
+                                   PSI_stage_info *info);
 
 PFS_statement_key register_statement_class(const char *name, uint name_length,
-                                           int flags);
+                                           PSI_statement_info *info);
 
 PFS_socket_key register_socket_class(const char *name, uint name_length,
-                                     int flags);
+                                     PSI_socket_info *info);
 
 PFS_memory_key register_memory_class(const char *name, uint name_length,
-                                     int flags);
+                                     PSI_memory_info *info);
 
 PFS_mutex_class *find_mutex_class(PSI_mutex_key key);
 PFS_mutex_class *sanitize_mutex_class(PFS_mutex_class *unsafe);

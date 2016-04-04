@@ -1051,7 +1051,7 @@ static void configure_instr_class(PFS_instr_class *entry)
     if ((entry->m_name_length == NAME_LENGTH) &&                       \
         (strncmp(entry->m_name, NAME, NAME_LENGTH) == 0))              \
     {                                                                  \
-      DBUG_ASSERT(entry->m_flags == flags);                            \
+      DBUG_ASSERT(entry->m_flags == info->m_flags);                    \
       return (INDEX + 1);                                              \
     }                                                                  \
   }
@@ -1060,11 +1060,11 @@ static void configure_instr_class(PFS_instr_class *entry)
   Register a mutex instrumentation metadata.
   @param name                         the instrumented name
   @param name_length                  length in bytes of name
-  @param flags                        the instrumentation flags
+  @param info                         the instrumentation properties
   @return a mutex instrumentation key
 */
 PFS_sync_key register_mutex_class(const char *name, uint name_length,
-                                  int flags)
+                                  PSI_mutex_info *info)
 {
   uint32 index;
   PFS_mutex_class *entry;
@@ -1105,12 +1105,26 @@ PFS_sync_key register_mutex_class(const char *name, uint name_length,
         in INSTALL PLUGIN.
     */
     entry= &mutex_class_array[index];
-    init_instr_class(entry, name, name_length, flags, PFS_CLASS_MUTEX);
+    init_instr_class(entry, name, name_length, info->m_flags, PFS_CLASS_MUTEX);
     entry->m_mutex_stat.reset();
     entry->m_event_name_index= mutex_class_start + index;
     entry->m_singleton= NULL;
     entry->m_enabled= false; /* disabled by default */
     entry->m_timed= false;
+
+    /*
+      There are 9 volatility defined in psi.h,
+      but since most are still unused,
+      mapping this to only 2 PFS_MUTEX_PARTITIONS.
+    */
+    if (info->m_volatility >= PSI_VOLATILITY_SESSION)
+    {
+      entry->m_volatility= 1;
+    }
+    else
+    {
+      entry->m_volatility= 0;
+    }
 
     /* Set user-defined configuration options for this instrument */
     configure_instr_class(entry);
@@ -1154,11 +1168,11 @@ PFS_sync_key register_mutex_class(const char *name, uint name_length,
   Register a rwlock instrumentation metadata.
   @param name                         the instrumented name
   @param name_length                  length in bytes of name
-  @param flags                        the instrumentation flags
+  @param info                         the instrumentation properties
   @return a rwlock instrumentation key
 */
 PFS_sync_key register_rwlock_class(const char *name, uint name_length,
-                                   int flags)
+                                   PSI_rwlock_info *info)
 {
   /* See comments in register_mutex_class */
   uint32 index;
@@ -1172,7 +1186,7 @@ PFS_sync_key register_rwlock_class(const char *name, uint name_length,
   if (index < rwlock_class_max)
   {
     entry= &rwlock_class_array[index];
-    init_instr_class(entry, name, name_length, flags, PFS_CLASS_RWLOCK);
+    init_instr_class(entry, name, name_length, info->m_flags, PFS_CLASS_RWLOCK);
     entry->m_rwlock_stat.reset();
     entry->m_event_name_index= rwlock_class_start + index;
     entry->m_singleton= NULL;
@@ -1193,11 +1207,11 @@ PFS_sync_key register_rwlock_class(const char *name, uint name_length,
   Register a condition instrumentation metadata.
   @param name                         the instrumented name
   @param name_length                  length in bytes of name
-  @param flags                        the instrumentation flags
+  @param info                         the instrumentation properties
   @return a condition instrumentation key
 */
 PFS_sync_key register_cond_class(const char *name, uint name_length,
-                                 int flags)
+                                 PSI_cond_info *info)
 {
   /* See comments in register_mutex_class */
   uint32 index;
@@ -1211,7 +1225,7 @@ PFS_sync_key register_cond_class(const char *name, uint name_length,
   if (index < cond_class_max)
   {
     entry= &cond_class_array[index];
-    init_instr_class(entry, name, name_length, flags, PFS_CLASS_COND);
+    init_instr_class(entry, name, name_length, info->m_flags, PFS_CLASS_COND);
     entry->m_event_name_index= cond_class_start + index;
     entry->m_singleton= NULL;
     entry->m_enabled= false; /* disabled by default */
@@ -1281,11 +1295,11 @@ PFS_cond_class *sanitize_cond_class(PFS_cond_class *unsafe)
   Register a thread instrumentation metadata.
   @param name                         the instrumented name
   @param name_length                  length in bytes of name
-  @param flags                        the instrumentation flags
+  @param info                         the instrumentation properties
   @return a thread instrumentation key
 */
 PFS_thread_key register_thread_class(const char *name, uint name_length,
-                                     int flags)
+                                     PSI_thread_info *info)
 {
   /* See comments in register_mutex_class */
   uint32 index;
@@ -1337,11 +1351,11 @@ PFS_thread_class *sanitize_thread_class(PFS_thread_class *unsafe)
   Register a file instrumentation metadata.
   @param name                         the instrumented name
   @param name_length                  length in bytes of name
-  @param flags                        the instrumentation flags
+  @param info                         the instrumentation properties
   @return a file instrumentation key
 */
 PFS_file_key register_file_class(const char *name, uint name_length,
-                                 int flags)
+                                 PSI_file_info *info)
 {
   /* See comments in register_mutex_class */
   uint32 index;
@@ -1355,7 +1369,7 @@ PFS_file_key register_file_class(const char *name, uint name_length,
   if (index < file_class_max)
   {
     entry= &file_class_array[index];
-    init_instr_class(entry, name, name_length, flags, PFS_CLASS_FILE);
+    init_instr_class(entry, name, name_length, info->m_flags, PFS_CLASS_FILE);
     entry->m_event_name_index= file_class_start + index;
     entry->m_singleton= NULL;
     entry->m_enabled= true; /* enabled by default */
@@ -1377,13 +1391,13 @@ PFS_file_key register_file_class(const char *name, uint name_length,
   @param name                         the instrumented name
   @param prefix_length                length in bytes of the name prefix
   @param name_length                  length in bytes of name
-  @param flags                        the instrumentation flags
+  @param info                         the instrumentation properties
   @return a stage instrumentation key
 */
 PFS_stage_key register_stage_class(const char *name,
                                    uint prefix_length,
                                    uint name_length,
-                                   int flags)
+                                   PSI_stage_info *info)
 {
   /* See comments in register_mutex_class */
   uint32 index;
@@ -1397,11 +1411,11 @@ PFS_stage_key register_stage_class(const char *name,
   if (index < stage_class_max)
   {
     entry= &stage_class_array[index];
-    init_instr_class(entry, name, name_length, flags, PFS_CLASS_STAGE);
+    init_instr_class(entry, name, name_length, info->m_flags, PFS_CLASS_STAGE);
     entry->m_prefix_length= prefix_length;
     entry->m_event_name_index= index;
 
-    if (flags & PSI_FLAG_STAGE_PROGRESS)
+    if (info->m_flags & PSI_FLAG_STAGE_PROGRESS)
     {
       /* Stages with progress information are enabled and timed by default */
       entry->m_enabled= true;
@@ -1430,11 +1444,11 @@ PFS_stage_key register_stage_class(const char *name,
   Register a statement instrumentation metadata.
   @param name                         the instrumented name
   @param name_length                  length in bytes of name
-  @param flags                        the instrumentation flags
+  @param info                         the instrumentation properties
   @return a statement instrumentation key
 */
 PFS_statement_key register_statement_class(const char *name, uint name_length,
-                                           int flags)
+                                           PSI_statement_info *info)
 {
   /* See comments in register_mutex_class */
   uint32 index;
@@ -1448,7 +1462,7 @@ PFS_statement_key register_statement_class(const char *name, uint name_length,
   if (index < statement_class_max)
   {
     entry= &statement_class_array[index];
-    init_instr_class(entry, name, name_length, flags, PFS_CLASS_STATEMENT);
+    init_instr_class(entry, name, name_length, info->m_flags, PFS_CLASS_STATEMENT);
     entry->m_event_name_index= index;
     entry->m_enabled= true; /* enabled by default */
     entry->m_timed= true;
@@ -1513,11 +1527,11 @@ PFS_statement_class *sanitize_statement_class(PFS_statement_class *unsafe)
   Register a socket instrumentation metadata.
   @param name                         the instrumented name
   @param name_length                  length in bytes of name
-  @param flags                        the instrumentation flags
+  @param info                         the instrumentation properties
   @return a socket instrumentation key
 */
 PFS_socket_key register_socket_class(const char *name, uint name_length,
-                                     int flags)
+                                     PSI_socket_info *info)
 {
   /* See comments in register_mutex_class */
   uint32 index;
@@ -1531,7 +1545,7 @@ PFS_socket_key register_socket_class(const char *name, uint name_length,
   if (index < socket_class_max)
   {
     entry= &socket_class_array[index];
-    init_instr_class(entry, name, name_length, flags, PFS_CLASS_SOCKET);
+    init_instr_class(entry, name, name_length, info->m_flags, PFS_CLASS_SOCKET);
     entry->m_event_name_index= socket_class_start + index;
     entry->m_singleton= NULL;
     entry->m_enabled= false; /* disabled by default */
@@ -1566,11 +1580,11 @@ PFS_socket_class *sanitize_socket_class(PFS_socket_class *unsafe)
   Register a memory instrumentation metadata.
   @param name                         the instrumented name
   @param name_length                  length in bytes of name
-  @param flags                        the instrumentation flags
+  @param info                         the instrumentation properties
   @return a memory instrumentation key
 */
 PFS_memory_key register_memory_class(const char *name, uint name_length,
-                                     int flags)
+                                     PSI_memory_info *info)
 {
   /* See comments in register_mutex_class */
   uint32 index;
@@ -1584,7 +1598,7 @@ PFS_memory_key register_memory_class(const char *name, uint name_length,
   if (index < memory_class_max)
   {
     entry= &memory_class_array[index];
-    init_instr_class(entry, name, name_length, flags, PFS_CLASS_MEMORY);
+    init_instr_class(entry, name, name_length, info->m_flags, PFS_CLASS_MEMORY);
     entry->m_event_name_index= index;
     entry->m_enabled= false; /* disabled by default */
     /* Set user-defined configuration options for this instrument */
