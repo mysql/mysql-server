@@ -7046,7 +7046,7 @@ DeadlockChecker::get_next_lock(const lock_t* lock, ulint heap_no) const
 			ut_ad(heap_no == ULINT_UNDEFINED);
 			ut_ad(lock_get_type_low(lock) == LOCK_TABLE);
 
-			lock = UT_LIST_GET_PREV(
+			lock = UT_LIST_GET_NEXT(
 				un_member.tab_lock.locks, lock);
 		}
 
@@ -7109,7 +7109,8 @@ DeadlockChecker::get_first_lock(ulint* heap_no) const
 		/* Table locks don't care about the heap_no. */
 		*heap_no = ULINT_UNDEFINED;
 		ut_ad(lock_get_type_low(lock) == LOCK_TABLE);
-		lock = UT_LIST_GET_PREV(un_member.tab_lock.locks, lock);
+		dict_table_t*	table = lock->un_member.tab_lock.table;
+		lock = UT_LIST_GET_FIRST(table->locks);
 	}
 
 	/* Must find at least two locks, otherwise there cannot be a
