@@ -1965,7 +1965,7 @@ lock_rec_has_to_wait_in_queue(
 	heap_no = lock_rec_find_set_bit(wait_lock);
 
 	bit_offset = heap_no / 8;
-	bit_mask = static_cast<ulint>(1 << (heap_no % 8));
+	bit_mask = static_cast<ulint>(1) << (heap_no % 8);
 
 	hash = lock_hash_get(wait_lock->type_mode);
 

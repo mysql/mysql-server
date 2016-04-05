@@ -1410,8 +1410,8 @@ row_fts_build_sel_tree_level(
 	ulint	i;
 	ulint	num_item;
 
-	start = static_cast<ulint>((1 << level) - 1);
-	num_item = static_cast<ulint>(1 << level);
+	num_item = static_cast<ulint>(1) << level;
+	start = num_item - 1;
 
 	for (i = 0; i < num_item;  i++) {
 		child_left = sel_tree[(start + i) * 2 + 1];

@@ -238,7 +238,8 @@ zblob_writer_t::write_one_blob(int blob_j)
 
 		const ulint	commit_freq = 4;
 
-		err = write_single_blob_page(blob_j, field, nth_blob_page);
+		err = write_single_blob_page(
+			blob_j, field, static_cast<int>(nth_blob_page));
 
 		if (nth_blob_page % commit_freq == 0) {
 			m_ctx->check_redolog();
@@ -451,7 +452,7 @@ zblob_writer_t::write()
 
 		ut_d(m_dir.clear(););
 		DBUG_LOG("blob", "Writing blob: " << i);
-		m_status = write_one_blob(i);
+		m_status = write_one_blob(static_cast<int>(i));
 
 		DBUG_LOG("blob", "BLOB directory: " << m_dir);
 	}

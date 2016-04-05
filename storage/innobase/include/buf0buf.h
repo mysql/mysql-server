@@ -1562,7 +1562,7 @@ struct buf_block_t{
 					used in debugging */
 	ibool		in_withdraw_list;
 #endif /* UNIV_DEBUG */
-	uint32_t	lock_hash_val;	/*!< hashed value of the page address
+	unsigned	lock_hash_val:32;/*!< hashed value of the page address
 					in the record lock hash table;
 					protected by buf_block_t::lock
 					(or buf_block_t::mutex in
