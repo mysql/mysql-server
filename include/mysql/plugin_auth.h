@@ -1,5 +1,5 @@
 #ifndef MYSQL_PLUGIN_AUTH_INCLUDED
-/* Copyright (c) 2010, 2015 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
 
 #define MYSQL_AUTHENTICATION_INTERFACE_VERSION 0x0101
 
-#include <mysql/plugin_auth_common.h>
+#include "plugin_auth_common.h"
 
 /* defines for MYSQL_SERVER_AUTH_INFO.password_used */
 
