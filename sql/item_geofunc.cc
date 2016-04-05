@@ -43,9 +43,11 @@ static int check_geometry_valid(Geometry *geom);
   Check if a Item is considered to be a SQL NULL value.
 
   This includes NULL in the following forms:
+    @verbatim
     - Literal NULL (e.g. SELECT NULL;)
     - NULL in a user-defined variable (SET @foo = NULL;)
     - NULL in prepared statements (PREPARE stmt FROM 'SELECT ?';).
+    @endverbatim
 
   If a SQL NULL is provided via an user-defined variable, it will be detected
   as a FUNC_ITEM with MYSQL_TYPE_MEDIUM_BLOB as the field type.
