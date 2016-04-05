@@ -4,4 +4,3 @@
 # Do not use any TAB characters for whitespace.
 # If the test is disabled due to a bug, start the comment with BUG#<bugnumber>
 
-bug_22241015_rpl: crud_rpl crashes while executing UPDATE on slave mysqld (Bug#22241015)
