@@ -7071,21 +7071,19 @@ create_func_cast(THD *thd, const POS &pos, Item *a, const Cast_type *type)
   }
   case ITEM_CAST_CHAR:
   {
-    int len= -1;
+    longlong len= -1;
     const CHARSET_INFO *cs= type->charset;
     const CHARSET_INFO *real_cs=
       (cs ? cs : thd->variables.collation_connection);
     if (c_len)
     {
-      ulong decoded_size;
-      errno= 0;
-      decoded_size= strtoul(c_len, NULL, 10);
-      if ((errno != 0) || (decoded_size > MAX_FIELD_BLOBLENGTH))
+      int error;
+      len= my_strtoll10(c_len, NULL, &error);
+      if ((error != 0) || (len > MAX_FIELD_BLOBLENGTH))
       {
         my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), "cast as char", MAX_FIELD_BLOBLENGTH);
-        return NULL;
+        return nullptr;
       }
-      len= (int) decoded_size;
     }
     res= new (thd->mem_root) Item_char_typecast(POS(), a, len, real_cs);
     break;

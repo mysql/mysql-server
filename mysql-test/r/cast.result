@@ -488,6 +488,28 @@ a
 DROP TABLE t1;
 End of 5.1 tests
 #
+# Bug#22885819: CAST( .. AS BINARY(N)) GETS UNEXPECTED NULL
+#
+SELECT CAST( 'a' AS BINARY(429496729));
+CAST( 'a' AS BINARY(429496729))
+NULL
+Warnings:
+Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (4194304) - truncated
+SELECT CAST( 'a' AS BINARY(4294967294));
+CAST( 'a' AS BINARY(4294967294))
+NULL
+Warnings:
+Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (4194304) - truncated
+SELECT CAST( 'a' AS BINARY(4294967295));
+CAST( 'a' AS BINARY(4294967295))
+NULL
+Warnings:
+Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (4194304) - truncated
+SELECT CAST( 'a' AS BINARY(4294967296));
+ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)
+SELECT CAST( 'a' AS BINARY(4294967296784564));
+ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)
+#
 # Bug#13581962 HIGH MEMORY USAGE ATTEMPT, THEN CRASH WITH LONGTEXT, UNION, USER VARIABLE
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
