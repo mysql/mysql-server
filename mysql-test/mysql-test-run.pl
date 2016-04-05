@@ -3844,7 +3844,8 @@ sub mysql_install_db {
   # overwrite innodb_autoextend_increment to 8 for reducing the ibdata1 file size
   mtr_add_arg($args, "--innodb_autoextend_increment=8");
   # overwrite the buffer size to 24M for certain tests to pass
-
+  mtr_add_arg($args, "--innodb_buffer_pool_size=24M");
+  mtr_add_arg($args, "--innodb-log-file-size=5M");
   if ( $opt_embedded_server )
   {
     # Do not create performance_schema tables for embedded
