@@ -1,4 +1,7 @@
 
+# Skipping the test when log-bin is enabled due to Bug#22472365
+--source include/not_log_bin.inc
+
 --echo #
 --echo # wl#6711:User can choose tmp table engine between MyISAM and InnoDB
 --echo #

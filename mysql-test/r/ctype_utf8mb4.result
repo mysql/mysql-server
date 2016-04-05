@@ -2205,9 +2205,9 @@ Warnings:
 Warning	1366	Incorrect string value: '\xF4\x90\x80\x80' for column 'utf8mb4' at row 1
 select hex(utf8mb4) from t1;
 hex(utf8mb4)
+
 F4808080
 F48F8080
-
 drop table t1;
 #
 # Check strnxfrm() with odd length

@@ -1366,6 +1366,7 @@ DROP USER u2@l;
 # Suppress server log like "Did not write failed 'GRANT SELECT ON ...' into
 # binary log while granting/revoking privileges in databases.
 call mtr.add_suppression("Did not write failed .*");
+call mtr.add_suppression("REVOKE/GRANT failed .* An incident event has been written to the binary log which will stop the slaves.");
 
 # NO_AUTO_CREATE_USER defines if the GRANT statement creates non-existing users
 # automatically or not. Unless NO_AUTO_CREATE_USER is set, it is not possible

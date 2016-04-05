@@ -1077,9 +1077,11 @@ SET @@session.large_pages= true;
 SET @@global.large_pages= true;
 #
 --echo #
+--replace_column 2 #
 SHOW VARIABLES like 'log_bin';
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT @@session.log_bin;
+--replace_column 1 #
 SELECT @@global.log_bin;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@session.log_bin= true;

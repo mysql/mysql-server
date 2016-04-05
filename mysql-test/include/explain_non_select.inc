@@ -245,7 +245,15 @@ CREATE TABLE t1 (i INT, j INT);
 INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
 --let $query =  DELETE FROM t1
 --let $select = SELECT * FROM t1
+# Disabling binary logging temporarily as optimized delete is not used when log-bin is enabled in row mode
+--disable_query_log
+SET @save_log_bin= @@sql_log_bin;
+SET SQL_LOG_BIN=0;
+--enable_query_log
 --source include/explain_utils.inc
+--disable_query_log
+SET SQL_LOG_BIN=@save_log_bin;
+--enable_query_log
 DROP TABLE t1;
 
 --echo #24
@@ -827,7 +835,11 @@ CREATE PROCEDURE p9() BEGIN EXPLAIN UPDATE t1 SET i = 10;END|
 CREATE PROCEDURE p10() BEGIN         UPDATE t1 SET i = 10;END|
 CREATE PROCEDURE p11() BEGIN EXPLAIN UPDATE t1,t2 SET t1.i = 10 WHERE t1.i = t2.i ;END|
 CREATE PROCEDURE p12() BEGIN         UPDATE t1,t2 SET t1.i = 10 WHERE t1.i = t2.i ;END|
-CREATE PROCEDURE p13() BEGIN EXPLAIN DELETE FROM t1;END|
+CREATE PROCEDURE p13() BEGIN
+# Disabling binary logging temporarily as optimized delete is not used when log-bin is enabled in row mode
+SET @save_log_bin= @@sql_log_bin;SET SQL_LOG_BIN=0;
+EXPLAIN DELETE FROM t1;
+SET SQL_LOG_BIN=@save_log_bin; END|
 CREATE PROCEDURE p14() BEGIN         DELETE FROM t1;END|
 CREATE PROCEDURE p15() BEGIN EXPLAIN DELETE FROM t1 USING t1;END|
 CREATE PROCEDURE p16() BEGIN         DELETE FROM t1 USING t1;END|

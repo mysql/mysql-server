@@ -4,6 +4,9 @@
 # MERGE tables require MyISAM tables
 --source include/have_myisam.inc 
 
+# Skip the test when log-bin is enabled due to presence of many unsafe statements
+--source include/not_log_bin.inc
+
 # Set session binlog_format to STATEMENT to avoid BUG#20574550
 --disable_query_log
 SET binlog_format=STATEMENT;

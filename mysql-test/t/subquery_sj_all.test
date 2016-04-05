@@ -3,6 +3,9 @@
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
 
+# Skipping the test when log-bin is enabled due to Bug#22841208
+--source include/not_log_bin.inc
+
 # 
 # Run subquery_sj.inc with all of the so-called 6.0 features.
 #

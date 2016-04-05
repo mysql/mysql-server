@@ -3,6 +3,10 @@
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
 
+# Test is skipped with log-bin enabled as the count of commit and prepare handlers
+# increase when binary logging is enabled.
+--source include/not_log_bin.inc
+
 #
 # test of updating of keys
 #

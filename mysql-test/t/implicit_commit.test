@@ -3,7 +3,6 @@ source include/not_embedded.inc;
 source include/have_profiling.inc;
 
 SET GLOBAL EVENT_SCHEDULER = OFF;
-SET BINLOG_FORMAT = STATEMENT;
 
 LET $OLD_DB= `SELECT DATABASE()`;
 
