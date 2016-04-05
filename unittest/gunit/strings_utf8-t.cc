@@ -471,12 +471,11 @@ TEST_F(StringsUTF8mb4UCA800Test, MyUCA800Collate)
   utf8mb4_dst[0]= 0xea;
   utf8mb4_dst[1]= 0x9c;
   utf8mb4_dst[2]= 0xb8;
-  utf8mb4_dst[1]= 0;
-  // ???
-  EXPECT_TRUE(system_charset_info->coll->strnncollsp(system_charset_info,
+  utf8mb4_dst[3]= 0;
+  EXPECT_FALSE(system_charset_info->coll->strnncollsp(system_charset_info,
                                                       utf8mb4_src, 3,
                                                       utf8mb4_dst, 3));
-  /* U+A73A == U+A738 */
+  /* U+A73B == U+A739 */
   utf8mb4_src[0]= 0xea;
   utf8mb4_src[1]= 0x9c;
   utf8mb4_src[2]= 0xbb;
@@ -484,9 +483,8 @@ TEST_F(StringsUTF8mb4UCA800Test, MyUCA800Collate)
   utf8mb4_dst[0]= 0xea;
   utf8mb4_dst[1]= 0x9c;
   utf8mb4_dst[2]= 0xb9;
-  utf8mb4_dst[1]= 0;
-  // ???
-  EXPECT_TRUE(system_charset_info->coll->strnncollsp(system_charset_info,
+  utf8mb4_dst[3]= 0;
+  EXPECT_FALSE(system_charset_info->coll->strnncollsp(system_charset_info,
                                                       utf8mb4_src, 3,
                                                       utf8mb4_dst, 3));
 }
