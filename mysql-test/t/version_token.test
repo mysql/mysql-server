@@ -215,6 +215,45 @@ connection default;
 --echo # Next statement goes through as it is from a different connection.
 select 1;
 
+--echo # Tests related to locking
+CONNECT (vtcon1, localhost, root,,);
+CONNECT (vtcon2, localhost, root,,);
+CONNECT (vtcon3, localhost, root,,);
+
+-- echo # Connection: vtcon1 
+CONNECTION vtcon1;
+SELECT version_tokens_set("a=aa;b=bb;c=cc");
+set @@version_tokens_session= "a=aa";
+--send SELECT sleep(5); # sleep for 5 seconds in background.
+
+-- echo # Connection: vtcon2
+CONNECTION vtcon2;
+--let $t1_vtcon2 = `SELECT sysdate()`
+SELECT version_tokens_lock_exclusive("b",20);
+--let $t2_vtcon2 = `SELECT sysdate()`
+--let $t3_vtcon2 = `SELECT time_format(timediff("$t2_vtcon2","$t1_vtcon2"),'%S')`
+if ($t3_vtcon2 >= "03") {
+--echo vtcon2 - Time difference should not be there or very close to max 3 seconds because no waiting time required to acquire lock on b
+}
+
+-- echo # Connection: vtcon3
+CONNECTION vtcon3;
+--let $t1_vtcon3 = `SELECT sysdate()`
+SELECT version_tokens_lock_exclusive("a",20);
+--let $t2_vtcon3 = `SELECT sysdate()`
+--let $t3_vtcon3 = `SELECT time_format(timediff("$t2_vtcon3","$t1_vtcon3"),'%S')`
+if ($t3_vtcon3 <= "04") {
+--echo vtcon2 - Time difference should be not less than 4 seconds, waited till lock on a is released by default connection
+}
+SELECT version_tokens_unlock();
+-- echo # Connection: vtcon1
+CONNECTION vtcon1;
+--reap
+disconnect vtcon1;
+disconnect vtcon2;
+connection vtcon3;
+
+
 -- echo
 UNINSTALL PLUGIN version_tokens;
 --disable_result_log
