@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -107,6 +107,8 @@ void Mysql_object_reader::read_table_rows_task(
   /* remove last comma from column_names */
   column_names= boost::algorithm::replace_last_copy(column_names, ",", "");
 
+  Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&columns);
+
   Rows_fetching_context* row_fetching_context=
     new Rows_fetching_context(this, item_to_process, has_generated_columns);
 
@@ -121,6 +123,7 @@ void Mysql_object_reader::read_table_rows_task(
   row_fetching_context->process_buffer();
   if (row_fetching_context->is_all_rows_processed())
     delete row_fetching_context;
+  delete runner;
 }
 
 void Mysql_object_reader::format_rows(Item_processing_data* item_to_process,

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,3 +22,8 @@ using namespace Mysql::Tools::Dump;
 Table_definition_dump_task::Table_definition_dump_task(Table* related_table)
   : Abstract_table_dump_task(related_table)
 {}
+
+Table_definition_dump_task::~Table_definition_dump_task()
+{
+  delete (Table*)this->get_related_db_object();
+}
