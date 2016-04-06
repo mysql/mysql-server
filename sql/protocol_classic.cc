@@ -184,7 +184,8 @@ bool Protocol_classic::net_store_data(const uchar *from, size_t length)
       packet->mem_realloc(packet_length+9+length))
     return 1;
   uchar *to= net_store_length((uchar *) packet->ptr()+packet_length, length);
-  memcpy(to,from,length);
+  if (length > 0)
+    memcpy(to,from,length);
   packet->length((uint) (to+length-(uchar *) packet->ptr()));
   return 0;
 }
