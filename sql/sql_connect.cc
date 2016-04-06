@@ -819,7 +819,7 @@ static void prepare_new_connection_state(THD* thd)
   */
   thd->proc_info= 0;
   thd->set_command(COM_SLEEP);
-  thd->init_for_queries();
+  thd->init_query_mem_roots();
 
   if (opt_init_connect.length && !(sctx->check_access(SUPER_ACL)))
   {
@@ -862,7 +862,7 @@ static void prepare_new_connection_state(THD* thd)
     }
 
     thd->proc_info=0;
-    thd->init_for_queries();
+    thd->init_query_mem_roots();
   }
 }
 

@@ -16395,9 +16395,9 @@ Ndb_util_thread::do_run()
   }
   mysql_mutex_unlock(&LOCK_server_started);
 
-  // Defer call of THD::init_for_query until after mysqld_server_started
+  // Defer call of THD::init_query_mem_roots until after mysqld_server_started
   // to ensure that the parts of MySQL Server it uses has been created
-  thd->init_for_queries();
+  thd->init_query_mem_roots();
 
   log_info("Wait for cluster to start");
   /*

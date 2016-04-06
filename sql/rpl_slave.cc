@@ -6057,7 +6057,11 @@ static void *handle_slave_worker(void *arg)
     goto err;
   }
   thd->rli_slave= w;
-  thd->init_for_queries(w);
+  thd->init_query_mem_roots();
+  if ((w->deferred_events_collecting= rpl_filter->is_on()))
+    w->deferred_events= new Deferred_log_events(w);
+  DBUG_ASSERT(thd->rli_slave->info_thd == thd);
+
   /* Set applier thread InnoDB priority */
   set_thd_tx_priority(thd, rli->get_thd_tx_priority());
 
@@ -7096,7 +7100,12 @@ extern "C" void *handle_slave_sql(void *arg)
                 "Failed during slave thread initialization");
     goto err;
   }
-  thd->init_for_queries(rli);
+  thd->init_query_mem_roots();
+  if ((rli->deferred_events_collecting= rpl_filter->is_on()))
+    rli->deferred_events= new Deferred_log_events(rli);
+  thd->rli_slave= rli;
+  DBUG_ASSERT(thd->rli_slave->info_thd == thd);
+
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   set_thd_in_use_temporary_tables(rli);   // (re)set sql_thd in use for saved temp tables
   /* Set applier thread InnoDB priority */

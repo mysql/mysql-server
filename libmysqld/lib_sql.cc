@@ -729,7 +729,7 @@ void *create_embedded_thd(int client_flag)
   thd->proc_info=0;				// Remove 'login'
   thd->set_command(COM_SLEEP);
   thd->set_time();
-  thd->init_for_queries();
+  thd->init_query_mem_roots();
   thd->get_protocol_classic()->set_client_capabilities(client_flag);
   thd->real_id= my_thread_self();
 

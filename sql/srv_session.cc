@@ -981,7 +981,7 @@ bool Srv_session::open()
   thd.variables.query_cache_type = 0;
 
   thd.set_command(COM_SLEEP);
-  thd.init_for_queries();
+  thd.init_query_mem_roots();
 
   Global_THD_manager::get_instance()->add_thd(&thd);
 
