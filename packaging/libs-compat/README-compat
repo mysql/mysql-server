@@ -1,0 +1,40 @@
+
+README-compat
+
+2016-Apr-06, Jörg Brühe <joerg.bruehe@fromdual.com>
+
+To upgrade the MySQL packages which are pre-installed by a distribution,
+"compatibility libraries" may be needed which satisfy application dependencies.
+A typical case is RedHat, the distribution contains (and installs) a "postfix"
+package whose binaries depend on the MySQL client library. That library will
+be that of an older MySQL version.
+
+Installing newer MySQL packages will run into file conflicts with that old
+"mysql-libs" package which cannot be removed, because the new "libs" have
+a newer .so version, so they do not satisfy "postfix"s requirements.
+
+The solution is a separate "libs-compat" package which contains the library
+with the old API (as indicated by the .so version).
+
+In MySQL AB times, it was called "MySQL-shared-compat", contained various
+"libmysqlclient.so.*" only and did not depend on any other package.
+This may have been wrong, because the client libary may need to access the
+character set definitions ("/usr/lib/mysql/charset/*") for some rare ODBC calls.
+
+Oracle changed that by creating "mysql-libs-compat" packages which depend on
+the current "mysql-common" because that package contains the charset files.
+IMO, this is not perfect either, because it may introduce some nasty conflicts
+in case the user wants to change the MySQL server or client programs.
+Also, it is based on the assumption that the names and formats of these files
+remain unchanged across several MySQL release series.
+
+For the "mysql-wsrep" packages whose spec file I am writing, I changed that:
+When building the compatibility library, the old version's sources are patched
+so that the files are searched in "/usr/lib/mysql/charset-VERSION/".
+Then, the charset files get included in "libs-compat" and will properly
+be installed in that location.
+
+This directory "packaging/libs-compat" contains the patch files for the old
+sources. The installation part is handled in the packaging files, like
+"packaging/rpm-oel/mysql-wsrep.spec.in".
+
