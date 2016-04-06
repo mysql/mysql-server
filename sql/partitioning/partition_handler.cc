@@ -382,6 +382,24 @@ int Partition_handler::change_partitions(HA_CREATE_INFO *create_info,
 }
 
 
+int Partition_handler::exchange_partition(const char *partition_path,
+                                          const char *swap_table_path,
+                                          uint part_id,
+                                          dd::Table *part_table_def,
+                                          dd::Table *swap_table_def)
+{
+  handler *file= get_handler();
+  if (!file)
+  {
+    return HA_ERR_WRONG_COMMAND;
+  }
+  DBUG_ASSERT(file->table_share->tmp_table != NO_TMP_TABLE ||
+              file->m_lock_type != F_UNLCK);
+  file->mark_trx_read_write();
+  return exchange_partition_low(partition_path, swap_table_path, part_id,
+                                part_table_def, swap_table_def);
+}
+
 
 /*
   Implementation of Partition_helper class.

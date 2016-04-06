@@ -29,6 +29,7 @@
 #include "dd/cache/dictionary_client.h"     // dd::cache::Dictionary_client
 #include "dd/dd_schema.h"   // dd::Schema_MDL_locker
 #include "dd/sdi.h"         // dd::store_sdi
+#include "transaction.h"    // trans_commit_stmt
 
 
 bool Sql_cmd_alter_table_exchange_partition::execute(THD *thd)
@@ -479,10 +480,7 @@ bool Sql_cmd_alter_table_exchange_partition::
   uint swap_part_id;
   size_t part_file_name_len;
   Alter_table_prelocking_strategy alter_prelocking_strategy;
-  MDL_ticket *swap_table_mdl_ticket= NULL;
-  MDL_ticket *part_table_mdl_ticket= NULL;
   uint table_counter;
-  bool error= TRUE;
   DBUG_ENTER("mysql_exchange_partition");
   DBUG_ASSERT(alter_info->flags & Alter_info::ALTER_EXCHANGE_PARTITION);
 
@@ -595,8 +593,16 @@ bool Sql_cmd_alter_table_exchange_partition::
     Get exclusive mdl lock on both tables, alway the non partitioned table
     first. Remember the tickets for downgrading locks later.
   */
-  swap_table_mdl_ticket= swap_table->mdl_ticket;
-  part_table_mdl_ticket= part_table->mdl_ticket;
+  auto downgrade_mdl_lambda =
+    [thd](MDL_ticket *ticket)
+    {
+      if (thd->locked_tables_mode)
+        ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+    };
+  std::unique_ptr<MDL_ticket, decltype(downgrade_mdl_lambda)>
+    swap_tab_downgrade_mdl_guard(swap_table->mdl_ticket, downgrade_mdl_lambda);
+  std::unique_ptr<MDL_ticket, decltype(downgrade_mdl_lambda)>
+    part_tab_downgrade_mdl_guard(part_table->mdl_ticket, downgrade_mdl_lambda);
 
   /*
     No need to set used_partitions to only propagate
@@ -606,54 +612,195 @@ bool Sql_cmd_alter_table_exchange_partition::
   */
   if (wait_while_table_is_used(thd, swap_table, HA_EXTRA_PREPARE_FOR_RENAME) ||
       wait_while_table_is_used(thd, part_table, HA_EXTRA_PREPARE_FOR_RENAME))
-    goto err;
+    DBUG_RETURN(true);
 
   DEBUG_SYNC(thd, "swap_partition_after_wait");
 
-  close_all_tables_for_name(thd, swap_table->s, false, NULL);
-  close_all_tables_for_name(thd, part_table->s, false, NULL);
+  Partition_handler *part_handler;
 
-  DEBUG_SYNC(thd, "swap_partition_before_rename");
-
-  if (exchange_name_with_ddl_log(thd, swap_file_name, part_file_name,
-                                 temp_file_name, table_hton))
-    goto err;
-
-  /*
-    Reopen tables under LOCK TABLES. Ignore the return value for now. It's
-    better to keep master/slave in consistent state. Alternative would be to
-    try to revert the exchange operation and issue error.
-  */
-  (void) thd->locked_tables_list.reopen_tables(thd);
-
-  if ((error= write_bin_log(thd, true, thd->query().str, thd->query().length)))
+  if (!(part_handler= part_table->file->get_partition_handler()))
   {
-    /*
-      The error is reported in write_bin_log().
-      We try to revert to make it easier to keep the master/slave in sync.
-    */
-    (void) exchange_name_with_ddl_log(thd, part_file_name, swap_file_name,
-                                      temp_file_name, table_hton);
+    my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
+    DBUG_RETURN(true);
   }
 
-err:
-  if (thd->locked_tables_mode)
+  std::unique_ptr<dd::Table> part_table_def, swap_table_def;
+
   {
-    if (swap_table_mdl_ticket)
-      swap_table_mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
-    if (part_table_mdl_ticket)
-      part_table_mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+    // Ensure that we release cached objects before we invalidate cache below.
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Table *old_part_table_def, *old_swap_table_def;
+
+    if (thd->dd_client()->acquire<dd::Table>(table_list->db,
+                                             table_list->table_name,
+                                             &old_part_table_def) ||
+        thd->dd_client()->acquire<dd::Table>(swap_table_list->db,
+                                             swap_table_list->table_name,
+                                             &old_swap_table_def))
+      DBUG_RETURN(true);
+
+    if (!old_part_table_def)
+    {
+      /* Impossible since table was successfully opened above. */
+      DBUG_ASSERT(0);
+      my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db,
+               table_list->table_name);
+      DBUG_RETURN(true);
+    }
+
+    if (!old_swap_table_def)
+    {
+      /* Impossible since table was successfully opened above. */
+      DBUG_ASSERT(0);
+      my_error(ER_NO_SUCH_TABLE, MYF(0), swap_table_list->db,
+               swap_table_list->table_name);
+      DBUG_RETURN(true);
+    }
+
+    part_table_def= std::unique_ptr<dd::Table>(old_part_table_def->clone());
+    swap_table_def= std::unique_ptr<dd::Table>(old_swap_table_def->clone());
   }
 
-  if (!error)
-    my_ok(thd);
+  int ha_error= part_handler->exchange_partition(part_file_name,
+                                                 swap_file_name,
+                                                 swap_part_id,
+                                                 part_table_def.get(),
+                                                 swap_table_def.get());
 
-  // For query cache
+  // Play safe. Invalidate query cache even in case of failure.
   table_list->table= NULL;
   table_list->next_local->table= NULL;
   query_cache.invalidate(thd, table_list, FALSE);
 
-  DBUG_RETURN(error);
+
+  if (ha_error == HA_ERR_WRONG_COMMAND)
+  {
+    // WL7743/TODO Non-native partitioning. Legacy code to be removed
+    // once partitioning handler is removed.
+    DEBUG_SYNC(thd, "swap_partition_before_rename");
+
+    close_all_tables_for_name(thd, swap_table->s, false, NULL);
+    close_all_tables_for_name(thd, part_table->s, false, NULL);
+
+    if (exchange_name_with_ddl_log(thd, swap_file_name, part_file_name,
+                                   temp_file_name, table_hton))
+      DBUG_RETURN(true);
+
+    /*
+      Reopen tables under LOCK TABLES. Ignore the return value for now. It's
+      better to keep master/slave in consistent state. Alternative would be to
+      try to revert the exchange operation and issue error.
+    */
+    (void) thd->locked_tables_list.reopen_tables(thd);
+
+    if (write_bin_log(thd, true, thd->query().str, thd->query().length))
+    {
+      /*
+        The error is reported in write_bin_log().
+        We try to revert to make it easier to keep the master/slave in sync.
+      */
+      (void) exchange_name_with_ddl_log(thd, part_file_name, swap_file_name,
+                                        temp_file_name, table_hton);
+      DBUG_RETURN(true);
+    }
+  }
+  else if (ha_error)
+  {
+    part_table->file->print_error(ha_error, MYF(0));
+    // Close TABLE instances which marked as old earlier.
+    close_all_tables_for_name(thd, swap_table->s, false, NULL);
+    close_all_tables_for_name(thd, part_table->s, false, NULL);
+    /*
+      Rollback all possible changes to data-dictionary and SE which
+      Partition_handler::exchange_partitions() might have done before
+      reporting an error.
+      Do this before we downgrade metadata locks.
+    */
+    (void) trans_rollback_stmt(thd);
+    (void) thd->locked_tables_list.reopen_tables(thd);
+    DBUG_RETURN(true);
+  }
+  else
+  {
+    if (part_table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL)
+    {
+      dd::Schema_MDL_locker part_mdl_locker(thd);
+      dd::Schema_MDL_locker swap_mdl_locker(thd);
+      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+      const dd::Schema *part_sch_obj= NULL;
+      const dd::Schema *swap_sch_obj= NULL;
+
+      // Close TABLE instances which marked as old earlier.
+      close_all_tables_for_name(thd, swap_table->s, false, NULL);
+      close_all_tables_for_name(thd, part_table->s, false, NULL);
+
+      // Ensure that we re-open tables even in case of error.
+      auto rollback_reopen_lambda =
+        [](THD *thd)
+        {
+          /*
+            Rollback all possible changes to data-dictionary and SE which
+            Partition_handler::exchange_partitions() might have done before
+            reporting an error. Do this before we downgrade metadata locks.
+          */
+          (void) trans_rollback_stmt(thd);
+          (void) thd->locked_tables_list.reopen_tables(thd);
+        };
+
+      std::unique_ptr<THD, decltype(rollback_reopen_lambda)>
+        rollback_reopen_guard(thd, rollback_reopen_lambda);
+
+      if (!thd->dd_client()->update_uncached_and_invalidate(
+                               part_table_def.get()) &&
+          !write_bin_log(thd, true, thd->query().str, thd->query().length,
+                         true) &&
+          !part_mdl_locker.ensure_locked(table_list->db) &&
+          !thd->dd_client()->acquire<dd::Schema>(table_list->db,
+                                                 &part_sch_obj) &&
+          part_sch_obj &&
+          !swap_mdl_locker.ensure_locked(swap_table_list->db) &&
+          !thd->dd_client()->acquire<dd::Schema>(swap_table_list->db,
+                                                 &swap_sch_obj) &&
+          swap_sch_obj)
+      {
+        if (dd::store_sdi(thd, part_table_def.get(), part_sch_obj) ||
+            dd::store_sdi(thd, swap_table_def.get(), swap_sch_obj))
+          DBUG_RETURN(true);
+
+        if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
+          DBUG_RETURN(true);
+      }
+      else
+      {
+        if (!part_sch_obj)
+          my_error(ER_BAD_DB_ERROR, MYF(0), table_list->db);
+        else if (swap_sch_obj)
+          my_error(ER_BAD_DB_ERROR, MYF(0), swap_table_list->db);
+        DBUG_RETURN(true);
+      }
+    }
+    else
+    {
+      /*
+        Close TABLE instances which were marked as old earlier and reopen
+        tables. Ignore the fact that the statement might fail due to binlog
+        write failure.
+
+        WL7743/TODO/QQ: Should we revert exchange like old code did in this
+                        case (might be a bit complicated!).
+      */
+      close_all_tables_for_name(thd, swap_table->s, false, NULL);
+      close_all_tables_for_name(thd, part_table->s, false, NULL);
+      (void) thd->locked_tables_list.reopen_tables(thd);
+
+      if (write_bin_log(thd, true, thd->query().str, thd->query().length))
+        DBUG_RETURN(true);
+    }
+  }
+
+  my_ok(thd);
+
+  DBUG_RETURN(false);
 }
 
 

@@ -291,6 +291,34 @@ public:
                         ulonglong * const deleted);
 
   /**
+    Exchange partition.
+
+    @param[in]      part_table_path   Path to partition in partitioned table
+                                      to be exchanged.
+    @param[in]      swap_table_path   Path to non-partitioned table to be
+                                      exchanged with partition.
+    @param[in]      part_id           Id of partition to be exchanged.
+    @param[in/out]  part_table_def    dd::Table object for partitioned table.
+    @param[in/out]  swap_table_def    dd::Table object for non-partitioned
+                                      table.
+
+    @note   Both tables are locked in exclusive mode.
+
+    @note   Changes to dd::Table object done by this method will be saved
+            to data-dictionary only if storage engine supporting atomic
+            DDL (i.e. with HTON_SUPPORTS_ATOMIC_DDL flag).
+
+    @return Operation status.
+      @retval    0  Success.
+      @retval != 0  Error code.
+  */
+  int exchange_partition(const char *part_table_path,
+                         const char *swap_table_path,
+                         uint part_id,
+                         dd::Table *part_table_def,
+                         dd::Table *swap_table_def);
+
+  /**
     Alter flags.
 
     Given a set of alter table flags, return which is supported.
@@ -338,6 +366,23 @@ private:
     my_error(ER_ILLEGAL_HA, MYF(0), create_info->alias);
     return HA_ERR_WRONG_COMMAND;
   }
+
+  /**
+    Exchange partition.
+
+    Low-level primitive which implementation to be provided by SE.
+
+    @return Operation status.
+      @retval    0  Success.
+      @retval != 0  Error code.
+  */
+  virtual int exchange_partition_low(const char *part_table_path,
+                                     const char *swap_table_path,
+                                     uint part_id,
+                                     dd::Table *part_table_def,
+                                     dd::Table *swap_table_def)
+  { return HA_ERR_WRONG_COMMAND; }
+
   /**
     Return the table handler.
 
