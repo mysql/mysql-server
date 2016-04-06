@@ -421,3 +421,8 @@ Sql_formatter::Sql_formatter(I_connection_provider* connection_provider,
 {
   m_escaping_runner= this->get_runner();
 }
+
+Sql_formatter::~Sql_formatter()
+{
+  delete m_escaping_runner;
+}
