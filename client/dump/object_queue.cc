@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -147,6 +147,7 @@ Object_queue::~Object_queue()
 {
   m_is_queue_running= false;
   m_thread_group.join_all();
+  delete m_thread_callback;
 }
 
 Object_queue::Object_queue(

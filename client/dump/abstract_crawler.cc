@@ -30,6 +30,15 @@ Abstract_crawler::Abstract_crawler(
   : Abstract_chain_element(message_handler, object_id_generator)
 {}
 
+Abstract_crawler::~Abstract_crawler()
+{
+  for (std::vector<I_dump_task*>::iterator it= m_dump_tasks_created.begin();
+    it != m_dump_tasks_created.end(); ++it)
+  {
+    delete *it;
+  }
+}
+
 void Abstract_crawler::register_chain_maker(I_chain_maker* new_chain_maker)
 {
   m_chain_makers.push_back(new_chain_maker);
@@ -41,7 +50,7 @@ void Abstract_crawler::process_dump_task(I_dump_task* new_dump_task)
 
   Item_processing_data* main_item_processing_data=
     this->new_task_created(new_dump_task);
-  bool delete_me= true;
+
   this->object_processing_starts(main_item_processing_data);
 
   for (std::vector<I_chain_maker*>::iterator it= m_chain_makers.begin();
@@ -53,7 +62,6 @@ void Abstract_crawler::process_dump_task(I_dump_task* new_dump_task)
     I_object_reader* chain= (*it)->create_chain(chain_data, new_dump_task);
     if (chain != NULL)
     {
-      delete_me= false;
       main_item_processing_data->set_chain(chain_data);
       chain->read_object(
         this->new_chain_created(
@@ -65,8 +73,6 @@ void Abstract_crawler::process_dump_task(I_dump_task* new_dump_task)
     }
   }
   this->object_processing_ends(main_item_processing_data);
-  if (delete_me)
-    delete main_item_processing_data;
 }
 
 void Abstract_crawler::wait_for_tasks_completion()
