@@ -477,7 +477,7 @@ static PSI_mutex_key key_debug_sync_globals_ds_mutex;
 
 static PSI_mutex_info all_debug_sync_mutexes[]=
 {
-  { &key_debug_sync_globals_ds_mutex, "DEBUG_SYNC::mutex", PSI_FLAG_GLOBAL}
+  { &key_debug_sync_globals_ds_mutex, "DEBUG_SYNC::mutex", PSI_FLAG_GLOBAL, 0}
 };
 
 static PSI_cond_key key_debug_sync_globals_ds_cond;

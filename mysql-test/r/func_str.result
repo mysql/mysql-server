@@ -1416,7 +1416,7 @@ Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 delete from t1 order by (inet_ntoa(a)) desc limit 10;
 Warnings:
-Warning	1411	Incorrect integer value: '4294967296' for function inet_ntoa
+Warning	1411	Incorrect integer value: '`test`.`t1`.`a`' for function inet_ntoa
 SET SQL_MODE=@orig_sql_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
@@ -2462,35 +2462,35 @@ SELECT UNHEX('G');
 UNHEX('G')
 NULL
 Warnings:
-Warning	1411	Incorrect string value: 'G' for function unhex
+Warning	1411	Incorrect string value: ''G'' for function unhex
 SELECT UNHEX('G') IS NULL;
 UNHEX('G') IS NULL
 1
 Warnings:
-Warning	1411	Incorrect string value: 'G' for function unhex
+Warning	1411	Incorrect string value: ''G'' for function unhex
 DO UNHEX(-1);
 Warnings:
-Warning	1411	Incorrect string value: '-1' for function unhex
+Warning	1411	Incorrect string value: '-(1)' for function unhex
 SHOW warnings;
 Level	Code	Message
-Warning	1411	Incorrect string value: '-1' for function unhex
+Warning	1411	Incorrect string value: '-(1)' for function unhex
 DO UNHEX(-182680438);
 Warnings:
-Warning	1411	Incorrect string value: '-182680438' for function unhex
+Warning	1411	Incorrect string value: '-(182680438)' for function unhex
 SHOW warnings;
 Level	Code	Message
-Warning	1411	Incorrect string value: '-182680438' for function unhex
+Warning	1411	Incorrect string value: '-(182680438)' for function unhex
 DO UNHEX(-2251799813685249);
 Warnings:
-Warning	1411	Incorrect string value: '-2251799813685249' for function unhex
+Warning	1411	Incorrect string value: '-(2251799813685249)' for function unhex
 SHOW warnings;
 Level	Code	Message
-Warning	1411	Incorrect string value: '-2251799813685249' for function unhex
+Warning	1411	Incorrect string value: '-(2251799813685249)' for function unhex
 select unhex('5078-04-25');
 unhex('5078-04-25')
 NULL
 Warnings:
-Warning	1411	Incorrect string value: '5078-04-25' for function unhex
+Warning	1411	Incorrect string value: ''5078-04-25'' for function unhex
 SELECT INSERT('abc', 3, 3, '1234');
 INSERT('abc', 3, 3, '1234')
 ab1234
@@ -5038,3 +5038,25 @@ OCT(LEFT(REPEAT('b',64),15))
 0
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: 'bbbbbbbbbbbbbbb'
+#
+# Bug#22900560 CAST .. AS BINARY.. HEAP-USE-AFTER-FREE FROM ASAN
+#
+do
+from_base64(aes_encrypt(right(cast((0x5d44f4d736397d92c8267c12)as decimal),1),
+rand(to_days('2028-12-04 15:50:01.284969'))));
+Warnings:
+Warning	1292	Truncated incorrect BINARY value: 'x'5d44f4d736397d92c8267c12''
+Warning	1264	Out of range value for column '(null)' at row 1
+do from_base64(cast(right(11,1)as binary(24)));
+do convert(inet_aton(cast(left(-1,1)as binary(30))) using utf8);
+Warnings:
+Warning	1411	Incorrect string value: 'cast(left(-(1),1) as char(30) charset binary)' for function inet_aton
+do from_base64(cast((left(collation(4097),((repeat('1',32))or((-18772)))))
+as binary(40)));
+do from_base64(cast((mid(17653,row('-688:20:12.162697',(null)) >=
+row(('*.)$'),(0xc254b6)),1))as binary(34)));
+do from_base64(cast((mid(uuid(),20,64)) as binary(55)));
+set @e:=_latin1'77';
+do inet_aton(aes_encrypt(left(@e,1),5));
+Warnings:
+Warning	1411	Incorrect string value: 'aes_encrypt(left((@`e`),1),5)' for function inet_aton

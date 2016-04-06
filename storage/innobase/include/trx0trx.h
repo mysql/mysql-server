@@ -1549,18 +1549,30 @@ private:
 	{
 		ut_ad(trx_mutex_own(trx));
 
+		ulint	loop_count = 0;
+		/* start with optimistic sleep time - 20 micro seconds. */
+		ulint	sleep_time = 20;
+
 		while (is_forced_rollback(trx)) {
-
-			if (!is_started(trx)) {
-
-				return;
-			}
 
 			/* Wait for the async rollback to complete */
 
 			trx_mutex_exit(trx);
 
-			os_thread_sleep(20);
+			loop_count++;
+			/* If the wait is long, don't hog the cpu. */
+			if (loop_count < 100) {
+				/* 20 microseconds */
+				sleep_time = 20;
+			} else if (loop_count < 1000) {
+				/* 1 millisecond */
+				sleep_time = 1000;
+			} else {
+				/* 100 milliseconds */
+				sleep_time = 100000;
+			}
+
+			os_thread_sleep(sleep_time);
 
 			trx_mutex_enter(trx);
 		}

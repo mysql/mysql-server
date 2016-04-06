@@ -150,6 +150,7 @@ utf8mb4_german2_ci	utf8mb4	244		#	#
 utf8mb4_croatian_ci	utf8mb4	245		#	#
 utf8mb4_unicode_520_ci	utf8mb4	246		#	#
 utf8mb4_vietnamese_ci	utf8mb4	247		#	#
+utf8mb4_800_ci_ai	utf8mb4	255		#	#
 cp1251_bulgarian_ci	cp1251	14		#	#
 cp1251_ukrainian_ci	cp1251	23		#	#
 cp1251_bin	cp1251	50		#	#

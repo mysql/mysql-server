@@ -1,4 +1,9 @@
 
+# The test contains queries which are impossible to write to binary log if binlog-format is row (which
+# is the default) and has tables which use a storage engine limited to statement-based logging. Hence,
+# it is skipped when log-bin is enabled.
+--source include/not_log_bin.inc
+
 --source include/not_windows_embedded.inc
 --source include/have_example_plugin.inc
 --source include/have_debug_sync.inc

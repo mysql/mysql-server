@@ -380,7 +380,7 @@ static PSI_mutex_key bh_key_mutex_blackhole;
 
 static PSI_mutex_info all_blackhole_mutexes[]=
 {
-  { &bh_key_mutex_blackhole, "blackhole", PSI_FLAG_GLOBAL}
+  { &bh_key_mutex_blackhole, "blackhole", PSI_FLAG_GLOBAL, 0}
 };
 
 static PSI_memory_info all_blackhole_memory[]=

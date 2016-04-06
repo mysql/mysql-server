@@ -443,9 +443,7 @@ btr_cur_optimistic_latch_leaves(
 			if (btr_page_get_prev(buf_block_get_frame(block), mtr)
 			    == left_page_no) {
 				/* adjust buf_fix_count */
-				buf_page_mutex_enter(block);
 				buf_block_buf_fix_dec(block);
-				buf_page_mutex_exit(block);
 
 				*latch_mode = mode;
 				return(true);
@@ -462,9 +460,7 @@ btr_cur_optimistic_latch_leaves(
 		}
 unpin_failed:
 		/* unpin the block */
-		buf_page_mutex_enter(block);
 		buf_block_buf_fix_dec(block);
-		buf_page_mutex_exit(block);
 
 		return(false);
 
@@ -6532,45 +6528,54 @@ btr_blob_get_next_page_no(
 	return(mach_read_from_4(blob_header + BTR_BLOB_HDR_NEXT_PAGE_NO));
 }
 
-/*******************************************************************//**
-Deallocate a buffer block that was reserved for a BLOB part. */
+/** Deallocate a buffer block that was reserved for a BLOB part.
+@param[in]	index	index
+@param[in]	block	buffer block
+@param[in]	all	flag whether remove the compressed page
+			if there is one
+@param[in]	mtr	mini-transaction to commit */
 void
 btr_blob_free(
-/*==========*/
-	dict_index_t*	index,	/*!< in: index */
-	buf_block_t*	block,	/*!< in: buffer block */
-	bool		all,	/*!< in: TRUE=remove also the compressed page
-				if there is one */
-	mtr_t*		mtr)	/*!< in: mini-transaction to commit */
+	dict_index_t*	index,
+	buf_block_t*	block,
+	bool		all,
+	mtr_t*		mtr)
 {
 	buf_pool_t*	buf_pool = buf_pool_from_block(block);
-	ulint		space = block->page.id.space();
-	ulint		page_no	= block->page.id.page_no();
+	page_id_t	page_id(block->page.id.space(),
+				block->page.id.page_no());
+	bool	freed	= false;
 
 	ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
 
 	mtr_commit(mtr);
 
-	buf_pool_mutex_enter(buf_pool);
+	mutex_enter(&buf_pool->LRU_list_mutex);
+	buf_page_mutex_enter(block);
 
 	/* Only free the block if it is still allocated to
 	the same file page. */
 
-	if (buf_block_get_state(block)
-	    == BUF_BLOCK_FILE_PAGE
-	    && block->page.id.space() == space
-	    && block->page.id.page_no() == page_no) {
+	if (buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE
+	    && page_id.equals_to(block->page.id)) {
 
-		if (!buf_LRU_free_page(&block->page, all)
-		    && all && block->page.zip.data) {
+		freed = buf_LRU_free_page(&block->page, all);
+
+		if (!freed && all && block->page.zip.data
+		    && buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE
+		    && page_id.equals_to(block->page.id)) {
+
 			/* Attempt to deallocate the uncompressed page
 			if the whole block cannot be deallocted. */
 
-			buf_LRU_free_page(&block->page, false);
+			freed = buf_LRU_free_page(&block->page, false);
 		}
 	}
 
-	buf_pool_mutex_exit(buf_pool);
+	if (!freed) {
+		mutex_exit(&buf_pool->LRU_list_mutex);
+		buf_page_mutex_exit(block);
+	}
 }
 
 /*******************************************************************//**

@@ -150,6 +150,7 @@ extern CHARSET_INFO my_charset_utf8mb4_croatian_uca_ci;
 extern CHARSET_INFO my_charset_utf8mb4_sinhala_uca_ci;
 extern CHARSET_INFO my_charset_utf8mb4_unicode_520_ci;
 extern CHARSET_INFO my_charset_utf8mb4_vietnamese_ci;
+extern CHARSET_INFO my_charset_utf8mb4_800_ci_ai;
 
 
 extern CHARSET_INFO my_charset_gb18030_unicode_520_ci;
@@ -284,6 +285,7 @@ my_bool init_compiled_charsets(myf flags MY_ATTRIBUTE((unused)))
   add_compiled_collation(&my_charset_utf8mb4_sinhala_uca_ci);
   add_compiled_collation(&my_charset_utf8mb4_unicode_520_ci);
   add_compiled_collation(&my_charset_utf8mb4_vietnamese_ci);
+  add_compiled_collation(&my_charset_utf8mb4_800_ci_ai);
 
 
   add_compiled_collation(&my_charset_utf16_general_ci);

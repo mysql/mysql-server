@@ -1038,7 +1038,31 @@ trx_undo_page_report_modify(
 			return(0);
 		}
 
-		ptr += mach_write_compressed(ptr, upd_get_n_fields(update));
+		ulint	n_updated = upd_get_n_fields(update);
+
+		/* If this is an online update while an inplace alter table
+		is in progress and the table has virtual column, we will
+		need to double check if there are any non-indexed columns
+		being registered in update vector in case they will be indexed
+		in new table */
+		if (dict_index_is_online_ddl(index)
+		    && index->table->n_v_cols > 0) {
+			for (i = 0; i < upd_get_n_fields(update); i++) {
+				upd_field_t*	fld = upd_get_nth_field(
+					update, i);
+				ulint		pos = fld->field_no;
+
+				/* These columns must not have an index
+				on them */
+				if (upd_fld_is_virtual_col(fld)
+				    && dict_table_get_nth_v_col(
+					table, pos)->v_indexes->empty()) {
+					n_updated--;
+				}
+			}
+		}
+
+		ptr += mach_write_compressed(ptr, n_updated);
 
 		for (i = 0; i < upd_get_n_fields(update); i++) {
 			upd_field_t*	fld = upd_get_nth_field(update, i);
@@ -1054,8 +1078,17 @@ trx_undo_page_report_modify(
 				return(0);
 			}
 
-			/* add REC_MAX_N_FIELDS to mark this is a virtaul col */
 			if (is_virtual) {
+				/* Skip the non-indexed column, during
+				an online alter table */
+				if (dict_index_is_online_ddl(index)
+				    && dict_table_get_nth_v_col(
+					table, pos)->v_indexes->empty()) {
+					continue;
+				}
+
+				/* add REC_MAX_N_FIELDS to mark this
+				is a virtual col */
 				pos += REC_MAX_N_FIELDS;
 			}
 

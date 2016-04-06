@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ int heap_update(HP_INFO *info, const uchar *old, const uchar *heap_new)
   p_lastinx= share->keydef + info->lastinx;
   for (keydef= share->keydef, end= keydef + share->keys; keydef < end; keydef++)
   {
-    if (hp_rec_key_cmp(keydef, old, heap_new, 0))
+    if (hp_rec_key_cmp(keydef, old, heap_new))
     {
       if ((*keydef->delete_key)(info, keydef, old, pos, keydef == p_lastinx) ||
           (*keydef->write_key)(info, keydef, heap_new, pos))
@@ -73,7 +73,7 @@ int heap_update(HP_INFO *info, const uchar *old, const uchar *heap_new)
     }
     while (keydef >= share->keydef)
     {
-      if (hp_rec_key_cmp(keydef, old, heap_new, 0))
+      if (hp_rec_key_cmp(keydef, old, heap_new))
       {
 	if ((*keydef->delete_key)(info, keydef, heap_new, pos, 0) ||
 	    (*keydef->write_key)(info, keydef, old, pos))

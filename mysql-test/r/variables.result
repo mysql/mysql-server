@@ -1256,12 +1256,12 @@ ERROR HY000: Variable 'large_pages' is a read only variable
 #
 SHOW VARIABLES like 'log_bin';
 Variable_name	Value
-log_bin	OFF
+log_bin	#
 SELECT @@session.log_bin;
 ERROR HY000: Variable 'log_bin' is a GLOBAL variable
 SELECT @@global.log_bin;
 @@global.log_bin
-0
+#
 SET @@session.log_bin= true;
 ERROR HY000: Variable 'log_bin' is a read only variable
 SET @@global.log_bin= true;

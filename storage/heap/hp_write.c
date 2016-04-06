@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -385,7 +385,7 @@ int hp_write_key(HP_INFO *info, HP_KEYDEF *keyinfo,
       pos=empty;
       do
       {
-	if (! hp_rec_key_cmp(keyinfo, record, pos->ptr_to_rec, 1))
+	if (! hp_rec_key_cmp(keyinfo, record, pos->ptr_to_rec))
 	{
           set_my_errno(HA_ERR_FOUND_DUPP_KEY);
 	  DBUG_RETURN(HA_ERR_FOUND_DUPP_KEY);

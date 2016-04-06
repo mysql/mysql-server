@@ -1,6 +1,9 @@
 
 --source include/no_valgrind_without_big.inc
 
+# Skipping the test when log-bin is enabled due to Bug#22164698
+--source include/not_log_bin.inc
+
 #
 # Test of refering to old values
 #

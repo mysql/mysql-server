@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -513,7 +513,7 @@ Val::cmp(const Val& val2, uint numattrs, uint* num_eq) const
       const uint l1 = (uint)c[0];
       const uint l2 = (uint)val2.c[0];
       require(l1 <= g_charlen && l2 <= g_charlen);
-      k = g_cs->coll->strnncollsp(g_cs, s1, l1, s2, l2, 0);
+      k = g_cs->coll->strnncollsp(g_cs, s1, l1, s2, l2);
     } else if (! c_null) {
       k = +1;
     } else if (! val2.c_null) {

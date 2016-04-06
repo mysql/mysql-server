@@ -437,6 +437,167 @@ public:
 };
 
 
+/**
+  This class handles two forms of the same function:
+
+  @<string@> = ST_GEOHASH(@<point@>, @<maxlength@>);
+  @<string@> = ST_GEOHASH(@<longitude@>, @<latitude@>, @<maxlength@>)
+
+  It returns an encoded geohash string, no longer than @<maxlength@> characters
+  long. Note that it might be shorter than @<maxlength@>.
+*/
+class Item_func_geohash :public Item_str_ascii_func
+{
+private:
+  /// The latitude argument supplied by the user (directly or by a POINT).
+  double latitude;
+  /// The longitude argument supplied by the user (directly or by a POINT).
+  double longitude;
+  /// The maximum output length of the geohash, supplied by the user.
+  uint geohash_max_output_length;
+
+  /**
+    The maximum input latitude. For now, this is set to 90.0. It can be
+    changed to support a different range than the normal [90, -90].
+  */
+  const double max_latitude;
+
+  /**
+    The minimum input latitude. For now, this is set to -90.0. It can be
+    changed to support a different range than the normal [90, -90].
+  */
+  const double min_latitude;
+
+  /**
+    The maximum input longitude. For now, this is set to 180.0. It can be
+    changed to support a different range than the normal [180, -180].
+  */
+  const double max_longitude;
+
+  /**
+    The minimum input longitude. For now, this is set to -180.0. It can be
+    changed to support a different range than the normal [180, -180].
+  */
+  const double min_longitude;
+
+  /**
+    The absolute upper limit of geohash output length. User will get an error
+    if they supply a max geohash length argument greater than this.
+  */
+  const uint upper_limit_output_length;
+public:
+  Item_func_geohash(const POS &pos, Item *point, Item *length)
+    :Item_str_ascii_func(pos, point, length), max_latitude(90.0),
+    min_latitude(-90.0), max_longitude(180.0), min_longitude(-180.0),
+    upper_limit_output_length(100)
+  {}
+  Item_func_geohash(const POS &pos, Item *longitude, Item *latitude,
+                    Item *length)
+    :Item_str_ascii_func(pos, longitude, latitude, length), max_latitude(90.0),
+    min_latitude(-90.0), max_longitude(180.0), min_longitude(-180.0),
+    upper_limit_output_length(100)
+  {}
+  String *val_str_ascii(String *);
+  virtual bool resolve_type(THD *thd);
+  bool fix_fields(THD *thd, Item **ref);
+  const char *func_name() const { return "st_geohash"; }
+  char char_to_base32(char char_input);
+  void encode_bit(double *upper_value, double *lower_value,
+                  double target_value, char *char_value, int bit_number);
+  bool fill_and_check_fields();
+  bool check_valid_latlong_type(Item *ref);
+};
+
+
+/**
+  This is a superclass for Item_func_longfromgeohash and
+  Item_func_latfromgeohash, since they share almost all code.
+*/
+class Item_func_latlongfromgeohash :public Item_real_func
+{
+private:
+  /**
+   The lower limit for latitude output value. Normally, this will be
+   set to -90.0.
+  */
+  const double lower_latitude;
+
+  /**
+   The upper limit for latitude output value. Normally, this will be
+   set to 90.0.
+  */
+  const double upper_latitude;
+
+  /**
+   The lower limit for longitude output value. Normally, this will
+   be set to -180.0.
+  */
+  const double lower_longitude;
+
+  /**
+   The upper limit for longitude output value. Normally, this will
+   be set to 180.0.
+  */
+  const double upper_longitude;
+
+  /**
+   If this is set to TRUE the algorithm will start decoding on the first bit,
+   which decodes a longitude value. If it is FALSE, it will start on the
+   second bit which decodes a latitude value.
+  */
+  const bool start_on_even_bit;
+public:
+  Item_func_latlongfromgeohash(const POS &pos, Item *a,
+                               double lower_latitude, double upper_latitude,
+                               double lower_longitude, double upper_longitude,
+                               bool start_on_even_bit_arg)
+    :Item_real_func(pos, a), lower_latitude(lower_latitude),
+    upper_latitude(upper_latitude), lower_longitude(lower_longitude),
+    upper_longitude(upper_longitude), start_on_even_bit(start_on_even_bit_arg)
+  {}
+  double val_real();
+  virtual bool resolve_type(THD *thd);
+  bool fix_fields(THD *thd, Item **ref);
+  static bool decode_geohash(String *geohash, double upper_latitude,
+                             double lower_latitude, double upper_longitude,
+                             double lower_longitude, double *result_latitude,
+                             double *result_longitude);
+  static double round_latlongitude(double latlongitude, double error_range,
+                                   double lower_limit, double upper_limit);
+  static bool check_geohash_argument_valid_type(Item *item);
+};
+
+
+/**
+  This handles the @<double@> = ST_LATFROMGEOHASH(@<string@>) function.
+  It returns the latitude-part of a geohash, in the range of [-90, 90].
+*/
+class Item_func_latfromgeohash :public Item_func_latlongfromgeohash
+{
+public:
+  Item_func_latfromgeohash(const POS &pos, Item *a)
+    :Item_func_latlongfromgeohash(pos, a, -90.0, 90.0, -180.0, 180.0, false)
+  {}
+
+  const char *func_name() const { return "ST_LATFROMGEOHASH"; }
+};
+
+
+/**
+  This handles the @<double@> = ST_LONGFROMGEOHASH(@<string@>) function.
+  It returns the longitude-part of a geohash, in the range of [-180, 180].
+*/
+class Item_func_longfromgeohash :public Item_func_latlongfromgeohash
+{
+public:
+  Item_func_longfromgeohash(const POS &pos, Item *a)
+    :Item_func_latlongfromgeohash(pos, a, -90.0, 90.0, -180.0, 180.0, true)
+  {}
+
+  const char *func_name() const { return "ST_LONGFROMGEOHASH"; }
+};
+
+
 class Item_func_centroid: public Item_geometry_func
 {
   BG_result_buf_mgr bg_resbuf_mgr;

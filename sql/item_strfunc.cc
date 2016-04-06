@@ -507,19 +507,19 @@ String *Item_func_aes_encrypt::val_str(String *str)
     aes_length= my_aes_get_size(sptr->length(),
                                 (enum my_aes_opmode) aes_opmode);
 
-    str_value.set_charset(&my_charset_bin);
-    if (!str_value.alloc(aes_length))		// Ensure that memory is free
+    tmp_value.set_charset(&my_charset_bin);
+    if (!tmp_value.alloc(aes_length))		// Ensure that memory is free
     {
       // finally encrypt directly to allocated buffer.
       if (my_aes_encrypt((unsigned char *) sptr->ptr(), sptr->length(),
-                         (unsigned char *) str_value.ptr(),
+                         (unsigned char *) tmp_value.ptr(),
                          (unsigned char *) key->ptr(), key->length(),
                          (enum my_aes_opmode) aes_opmode,
                          iv_str) == aes_length)
       {
-	// We got the expected result length
-	str_value.length((uint) aes_length);
-        DBUG_RETURN(&str_value);
+        // We got the expected result length
+        tmp_value.length(static_cast<size_t>(aes_length));
+        DBUG_RETURN(&tmp_value);
       }
     }
   }
@@ -779,149 +779,43 @@ String *Item_func_from_base64::val_str(String *str)
 /**
   Concatenate args with the following premises:
   If only one arg (which is ok), return value of arg;
-  Don't reallocate val_str() if not absolute necessary.
 */
 
 String *Item_func_concat::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *res,*res2,*use_as_buff;
-  uint i;
-  bool is_const= 0;
+  String *res;
 
-  null_value=0;
-  if (!(res=args[0]->val_str(str)))
-    goto null;
-  use_as_buff= &tmp_value;
-  /* Item_subselect in --ps-protocol mode will state it as a non-const */
-  is_const= args[0]->const_item() || !args[0]->used_tables();
-  for (i=1 ; i < arg_count ; i++)
+  THD *thd= current_thd;
+  null_value= false;
+  tmp_value.length(0);
+  for (uint i= 0; i < arg_count; ++i)
   {
-    if (res->length() == 0)
+    if (!(res= args[i]->val_str(str)))
     {
-      if (!(res=args[i]->val_str(str)))
-	goto null;
-      /*
-       CONCAT accumulates its result in the result of its the first
-       non-empty argument. Because of this we need is_const to be 
-       evaluated only for it.
-      */
-      is_const= args[i]->const_item() || !args[i]->used_tables();
+      if (thd->is_error())
+        return error_str();
+
+      DBUG_ASSERT(maybe_null);
+      null_value= true;
+      return nullptr;
     }
-    else
+    if (res->length() + tmp_value.length() > thd->variables.max_allowed_packet)
     {
-      if (!(res2=args[i]->val_str(use_as_buff)))
-	goto null;
-      if (res2->length() == 0)
-	continue;
-      if (res->length()+res2->length() >
-	  current_thd->variables.max_allowed_packet)
-      {
-	push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-			    ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			    ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
-                            func_name(),
-			    current_thd->variables.max_allowed_packet);
-	goto null;
-      }
-      if (!is_const && res->alloced_length() >= res->length()+res2->length())
-      {						// Use old buffer
-	res->append(*res2);
-      }
-      else if (str->alloced_length() >= res->length()+res2->length())
-      {
-	if (str->ptr() == res2->ptr())
-	  str->replace(0,0,*res);
-	else
-	{
-          // If res2 is a substring of str, then clone it first.
-          char buff[STRING_BUFFER_USUAL_SIZE];
-          String res2_clone(buff, sizeof(buff), system_charset_info);
-          if (res2->uses_buffer_owned_by(str))
-          {
-            if (res2_clone.copy(*res2))
-              goto null;
-            res2= &res2_clone;
-          }
- 	  str->copy(*res);
-	  str->append(*res2);
-	}
-        res= str;
-        use_as_buff= &tmp_value;
-      }
-      else if (res == &tmp_value)
-      {
-	if (res->append(*res2))			// Must be a blob
-	  goto null;
-      }
-      else if (res2 == &tmp_value)
-      {						// This can happend only 1 time
-	if (tmp_value.replace(0,0,*res))
-	  goto null;
-	res= &tmp_value;
-	use_as_buff=str;			// Put next arg here
-      }
-      else if (tmp_value.is_alloced() && res2->ptr() >= tmp_value.ptr() &&
-	       res2->ptr() <= tmp_value.ptr() + tmp_value.alloced_length())
-      {
-	/*
-	  This happens really seldom:
-	  In this case res2 is sub string of tmp_value.  We will
-	  now work in place in tmp_value to set it to res | res2
-	*/
-	/* Chop the last characters in tmp_value that isn't in res2 */
-	tmp_value.length((uint32) (res2->ptr() - tmp_value.ptr()) +
-			 res2->length());
-	/* Place res2 at start of tmp_value, remove chars before res2 */
-	if (tmp_value.replace(0,(uint32) (res2->ptr() - tmp_value.ptr()),
-			      *res))
-	  goto null;
-	res= &tmp_value;
-	use_as_buff=str;			// Put next arg here
-      }
-      else
-      {						// Two big const strings
-        /*
-          NOTE: We should be prudent in the initial allocation unit -- the
-          size of the arguments is a function of data distribution, which
-          can be any. Instead of overcommitting at the first row, we grow
-          the allocated amount by the factor of 2. This ensures that no
-          more than 25% of memory will be overcommitted on average.
-        */
-
-        size_t concat_len= res->length() + res2->length();
-
-        if (tmp_value.alloced_length() < concat_len)
-        {
-          if (tmp_value.alloced_length() == 0)
-          {
-            if (tmp_value.alloc(concat_len))
-              goto null;
-          }
-          else
-          {
-            size_t new_len = max(tmp_value.alloced_length() * 2, concat_len);
-
-            if (tmp_value.mem_realloc(new_len))
-              goto null;
-          }
-        }
-
-	if (tmp_value.copy(*res) || tmp_value.append(*res2))
-	  goto null;
-
-	res= &tmp_value;
-	use_as_buff=str;
-      }
-      is_const= 0;
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+                          ER_THD(thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+                          func_name(),
+                          current_thd->variables.max_allowed_packet);
+      null_value= true;
+      return nullptr;
     }
+    if (tmp_value.append(*res))
+      return error_str();
   }
+  res= &tmp_value;
   res->set_charset(collation.collation);
   return res;
-
-null:
-  null_value=1;
-  return 0;
 }
 
 
@@ -1138,152 +1032,61 @@ String *Item_func_concat_ws::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   char tmp_str_buff[10];
-  String tmp_sep_str(tmp_str_buff, sizeof(tmp_str_buff),default_charset_info),
-         *sep_str, *res, *res2,*use_as_buff;
+  String tmp_sep_str(tmp_str_buff, sizeof(tmp_str_buff),default_charset_info);
+  String *sep_str, *res= nullptr, *res2;
   uint i;
-  bool is_const= 0;
 
-  null_value=0;
+  THD *thd= current_thd;
+  null_value= false;
   if (!(sep_str= args[0]->val_str(&tmp_sep_str)))
-    goto null;
+  {
+    if (thd->is_error())
+      return error_str();
 
-  use_as_buff= &tmp_value;
-  str->length(0);				// QQ; Should be removed
-  res=str;
+    DBUG_ASSERT(maybe_null);
+    null_value= true;
+    return nullptr;
+  }
+  tmp_value.length(0);
 
   // Skip until non-null argument is found.
   // If not, return the empty string
   for (i=1; i < arg_count; i++)
     if ((res= args[i]->val_str(str)))
     {
-      is_const= args[i]->const_item() || !args[i]->used_tables();
       break;
     }
 
   if (i ==  arg_count)
     return make_empty_result();
 
+  if (tmp_value.append(*res))
+    return error_str();
+
   for (i++; i < arg_count ; i++)
   {
-    if (!(res2= args[i]->val_str(use_as_buff)))
+    if (!(res2= args[i]->val_str(str)))
       continue;					// Skip NULL
 
-    if (res->length() + sep_str->length() + res2->length() >
-	current_thd->variables.max_allowed_packet)
+    if (tmp_value.length() + sep_str->length() + res2->length() >
+        thd->variables.max_allowed_packet)
     {
-      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-			  ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			  ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+                          ER_THD(thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
                           func_name(),
-			  current_thd->variables.max_allowed_packet);
-      goto null;
+                          thd->variables.max_allowed_packet);
+      null_value= true;
+      return nullptr;
     }
-    if (!is_const && res->alloced_length() >=
-	res->length() + sep_str->length() + res2->length())
-    {						// Use old buffer
-      res->append(*sep_str);			// res->length() > 0 always
-      res->append(*res2);
-    }
-    else if (str->alloced_length() >=
-	     res->length() + sep_str->length() + res2->length())
-    {
-      /* We have room in str;  We can't get any errors here */
-      if (str->ptr() == res2->ptr())
-      {						// This is quite uncommon!
-	str->replace(0,0,*sep_str);
-	str->replace(0,0,*res);
-      }
-      else
-      {
-        // If res2 is a substring of str, then clone it first.
-        char buff[STRING_BUFFER_USUAL_SIZE];
-        String res2_clone(buff, sizeof(buff), system_charset_info);
-        if (res2->uses_buffer_owned_by(str))
-        {
-          if (res2_clone.copy(*res2))
-            goto null;
-          res2= &res2_clone;
-        }
-	str->copy(*res);
-	str->append(*sep_str);
-	str->append(*res2);
-      }
-      res=str;
-      use_as_buff= &tmp_value;
-    }
-    else if (res == &tmp_value)
-    {
-      if (res->append(*sep_str) || res->append(*res2))
-	goto null; // Must be a blob
-    }
-    else if (res2 == &tmp_value)
-    {						// This can happend only 1 time
-      if (tmp_value.replace(0,0,*sep_str) || tmp_value.replace(0,0,*res))
-	goto null;
-      res= &tmp_value;
-      use_as_buff=str;				// Put next arg here
-    }
-    else if (tmp_value.is_alloced() && res2->ptr() >= tmp_value.ptr() &&
-	     res2->ptr() < tmp_value.ptr() + tmp_value.alloced_length())
-    {
-      /*
-	This happens really seldom:
-	In this case res2 is sub string of tmp_value.  We will
-	now work in place in tmp_value to set it to res | sep_str | res2
-      */
-      /* Chop the last characters in tmp_value that isn't in res2 */
-      tmp_value.length((uint32) (res2->ptr() - tmp_value.ptr()) +
-		       res2->length());
-      /* Place res2 at start of tmp_value, remove chars before res2 */
-      if (tmp_value.replace(0,(uint32) (res2->ptr() - tmp_value.ptr()),
-			    *res) ||
-	  tmp_value.replace(res->length(),0, *sep_str))
-	goto null;
-      res= &tmp_value;
-      use_as_buff=str;			// Put next arg here
-    }
-    else
-    {						// Two big const strings
-      /*
-        NOTE: We should be prudent in the initial allocation unit -- the
-        size of the arguments is a function of data distribution, which can
-        be any. Instead of overcommitting at the first row, we grow the
-        allocated amount by the factor of 2. This ensures that no more than
-        25% of memory will be overcommitted on average.
-      */
-
-      size_t concat_len= res->length() + sep_str->length() + res2->length();
-
-      if (tmp_value.alloced_length() < concat_len)
-      {
-        if (tmp_value.alloced_length() == 0)
-        {
-          if (tmp_value.alloc(concat_len))
-            goto null;
-        }
-        else
-        {
-          size_t new_len = max(tmp_value.alloced_length() * 2, concat_len);
-
-          if (tmp_value.mem_realloc(new_len))
-            goto null;
-        }
-      }
-
-      if (tmp_value.copy(*res) ||
-	  tmp_value.append(*sep_str) ||
-	  tmp_value.append(*res2))
-	goto null;
-      res= &tmp_value;
-      use_as_buff=str;
-    }
+    if (tmp_value.append(*sep_str))
+      return error_str();
+    if (tmp_value.append(*res2))
+      return error_str();
   }
+  res= &tmp_value;
   res->set_charset(collation.collation);
   return res;
-
-null:
-  null_value=1;
-  return 0;
 }
 
 
@@ -2743,441 +2546,6 @@ String *Item_func_soundex::val_str(String *str)
 }
 
 
-bool Item_func_geohash::resolve_type(THD *thd)
-{
-  fix_length_and_charset(Item_func_geohash::upper_limit_output_length,
-                         default_charset());
-  return false;
-}
-
-
-/**
-  Here we check for valid types. We have to accept geometry of any type,
-  and determine if it's really a POINT in val_str(). 
-*/
-bool Item_func_geohash::fix_fields(THD *thd, Item **ref)
-{
-  if (Item_str_func::fix_fields(thd, ref))
-    return true;
-
-  int geohash_length_arg_index;
-  if (arg_count == 2)
-  {
-    /*
-      First argument expected to be a point and second argument is expected
-      to be geohash output length.
-
-      PARAM_ITEM and the binary charset checks are to allow prepared statements
-      and usage of user-defined variables.
-    */
-    geohash_length_arg_index= 1;
-    maybe_null= (args[0]->maybe_null || args[1]->maybe_null);
-    if (!is_item_null(args[0]) &&
-        args[0]->field_type() != MYSQL_TYPE_GEOMETRY &&
-        args[0]->type() != PARAM_ITEM &&
-        args[0]->collation.collation != &my_charset_bin)
-    {
-      my_error(ER_INCORRECT_TYPE, MYF(0), "point", func_name());
-      return true;
-    }
-  }
-  else if (arg_count == 3)
-  {
-    /*
-      First argument is expected to be longitude, second argument is expected
-      to be latitude and third argument is expected to be geohash
-      output length.
-    */
-    geohash_length_arg_index= 2;
-    maybe_null= (args[0]->maybe_null || args[1]->maybe_null ||
-                 args[2]->maybe_null);
-    if (!check_valid_latlong_type(args[0]))
-    {
-      my_error(ER_INCORRECT_TYPE, MYF(0), "longitude", func_name());
-      return true;
-    }
-    else if (!check_valid_latlong_type(args[1]))
-    {
-      my_error(ER_INCORRECT_TYPE, MYF(0), "latitude", func_name());
-      return true;
-    }
-  }
-  else
-  {
-    /*
-      This should never happen, since function
-      only supports two or three arguments.
-    */
-    DBUG_ASSERT(false);
-    return true;
-  }
-
-
-  /*
-    Check if geohash length argument is of valid type.
-
-    PARAM_ITEM is to allow parameter marker during PREPARE, and INT_ITEM is to
-    allow EXECUTE of prepared statements and usage of user-defined variables.
-  */
-  if (is_item_null(args[geohash_length_arg_index]))
-    return false;
-
-  bool is_binary_charset=
-    (args[geohash_length_arg_index]->collation.collation == &my_charset_bin);
-  bool is_parameter=
-    (args[geohash_length_arg_index]->type() == PARAM_ITEM ||
-     args[geohash_length_arg_index]->type() == INT_ITEM);
-
-  switch (args[geohash_length_arg_index]->field_type())
-  {
-  case MYSQL_TYPE_TINY:
-  case MYSQL_TYPE_SHORT:
-  case MYSQL_TYPE_LONG:
-  case MYSQL_TYPE_LONGLONG:
-  case MYSQL_TYPE_INT24:
-  case MYSQL_TYPE_VARCHAR:
-  case MYSQL_TYPE_STRING:
-  case MYSQL_TYPE_VAR_STRING:
-  case MYSQL_TYPE_TINY_BLOB:
-  case MYSQL_TYPE_MEDIUM_BLOB:
-  case MYSQL_TYPE_LONG_BLOB:
-  case MYSQL_TYPE_BLOB:
-    if (is_binary_charset && !is_parameter)
-    {
-      my_error(ER_INCORRECT_TYPE, MYF(0), "geohash max length", func_name());
-      return true;
-    }
-    break;
-  default:
-    my_error(ER_INCORRECT_TYPE, MYF(0), "geohash max length", func_name());
-    return true;
-  }
-  return false;
-}
-
-
-/**
-  Checks if supplied item is a valid latitude or longitude, based on which
-  type it is. Implemented as a whitelist of allowed types, where binary data is
-  not allowed.
-
-  @param arg Item to check for valid latitude/longitude.
-  @return false if item is not valid, true otherwise.
-*/
-bool Item_func_geohash::check_valid_latlong_type(Item *arg)
-{
-  if (is_item_null(arg))
-    return true;
-
-  /*
-    is_field_type_valid will be true if the item is a constant or a field of
-    valid type.
-  */
-  bool is_binary_charset= (arg->collation.collation == &my_charset_bin);
-  bool is_field_type_valid= false;
-  switch (arg->field_type())
-  {
-  case MYSQL_TYPE_DECIMAL:
-  case MYSQL_TYPE_NEWDECIMAL:
-  case MYSQL_TYPE_TINY:
-  case MYSQL_TYPE_SHORT:
-  case MYSQL_TYPE_LONG:
-  case MYSQL_TYPE_FLOAT:
-  case MYSQL_TYPE_DOUBLE:
-  case MYSQL_TYPE_LONGLONG:
-  case MYSQL_TYPE_INT24:
-  case MYSQL_TYPE_VARCHAR:
-  case MYSQL_TYPE_STRING:
-  case MYSQL_TYPE_VAR_STRING:
-  case MYSQL_TYPE_TINY_BLOB:
-  case MYSQL_TYPE_MEDIUM_BLOB:
-  case MYSQL_TYPE_LONG_BLOB:
-  case MYSQL_TYPE_BLOB:
-    is_field_type_valid= !is_binary_charset;
-    break;
-  default:
-    is_field_type_valid= false;
-    break;
-  }
-
-  /*
-    Parameters and parameter markers always have
-    field_type() == MYSQL_TYPE_VARCHAR. type() is dependent on if it's a
-    parameter marker or parameter (PREPARE or EXECUTE, respectively).
-  */
-  bool is_parameter= (arg->type() == INT_ITEM || arg->type() == DECIMAL_ITEM ||
-                      arg->type() == REAL_ITEM || arg->type() == STRING_ITEM) &&
-                     (arg->field_type() == MYSQL_TYPE_VARCHAR);
-  bool is_parameter_marker= (arg->type() == PARAM_ITEM &&
-                             arg->field_type() == MYSQL_TYPE_VARCHAR);
-
-  if (is_field_type_valid || is_parameter_marker || is_parameter)
-    return true;
-  return false;
-}
-
-
-/**
-  Check if a Item is NULL. This includes NULL in the form of literal
-  NULL, NULL in a user-defined variable and NULL in prepared statements.
-
-  Note that it will return true for MEDIUM_BLOB for FUNC_ITEM as well, in order
-  to allow NULL in user-defined variables.
-
-  @param item The item to check for NULL.
-
-  @return true if the item is NULL, false otherwise.
-*/
-bool Item_func_geohash::is_item_null(Item *item)
-{
-  if (item->field_type() == MYSQL_TYPE_NULL || item->type() == NULL_ITEM)
-    return true;
-
-  // The following will allow the usage of NULL in user-defined variables.
-  bool is_binary_charset= (item->collation.collation == &my_charset_bin);
-  if (is_binary_charset && item->type() == FUNC_ITEM &&
-      item->field_type() == MYSQL_TYPE_MEDIUM_BLOB)
-  {
-    return true;
-  }
-  return false;
-}
-
-
-/**
-  Populate member variables with values from arguments.
-
-  In this function we populate the member variables 'latitude', 'longitude'
-  and 'geohash_length' with values from the arguments supplied by the user.
-  We also do type checking on the geometry object, as well as out-of-range
-  check for both longitude, latitude and geohash length.
-
-  If an expection is raised, null_value will not be set. If a null argument
-  was detected, null_value will be set to true.
-
-  @return false if class variables was populated, or true if the function
-          failed to populate them.
-*/
-bool Item_func_geohash::fill_and_check_fields()
-{
-  longlong geohash_length_arg= -1;
-  if (arg_count == 2)
-  {
-    // First argument is point, second argument is geohash output length.
-    String string_buffer;
-    String *swkb= args[0]->val_str(&string_buffer);
-    geohash_length_arg= args[1]->val_int();
-
-    if ((null_value= args[0]->null_value || args[1]->null_value || !swkb))
-    {
-      return true;
-    }
-    else
-    {
-      Geometry *geom;
-      Geometry_buffer geometry_buffer;
-      if (!(geom= Geometry::construct(&geometry_buffer, swkb)))
-      {
-        my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-        return true;
-      }
-      else if (geom->get_type() != Geometry::wkb_point ||
-               geom->get_x(&longitude) || geom->get_y(&latitude))
-      {
-        my_error(ER_INCORRECT_TYPE, MYF(0), "point", func_name());
-        return true;
-      }
-    }
-  }
-  else if (arg_count == 3)
-  {
-    /*
-      First argument is longitude, second argument is latitude
-      and third argument is geohash output length.
-    */
-    longitude= args[0]->val_real();
-    latitude= args[1]->val_real();
-    geohash_length_arg= args[2]->val_int();
-
-    if ((null_value= args[0]->null_value || args[1]->null_value || 
-         args[2]->null_value))
-      return true;
-  }
-
-  // Check if supplied arguments are within allowed range.
-  if (longitude > max_longitude || longitude < min_longitude)
-  {
-    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "longitude", func_name());
-    return true;
-  }
-  else if (latitude > max_latitude || latitude < min_latitude)
-  {
-    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "latitude", func_name());
-    return true;
-  }
-
-  if (geohash_length_arg <= 0 ||
-      geohash_length_arg > upper_limit_output_length)
-  {
-    char geohash_length_string[MAX_BIGINT_WIDTH + 1];
-    llstr(geohash_length_arg, geohash_length_string);
-    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "max geohash length", func_name());
-    return true;
-  }
-
-  geohash_max_output_length= static_cast<uint>(geohash_length_arg);
-  return false;
-}
-
-
-/**
-  Encodes a pair of longitude and latitude values into a geohash string.
-  The length of the output string will be no longer than the value of
-  geohash_max_output_length member variable, but it might be shorter. The stop
-  condition is the following:
-
-  After appending a character to the output string, check if the encoded values
-  of latitude and longitude matches the input arguments values. If so, return
-  the result to the user.
-
-  It does exist latitudes/longitude values which will cause the algorithm to
-  loop until MAX(max_geohash_length, upper_geohash_limit), no matter how large
-  these arguments are (eg. SELECT GEOHASH(0.01, 1, 100); ). It is thus
-  important to supply an reasonable max geohash length argument.
-*/
-String *Item_func_geohash::val_str_ascii(String *str)
-{
-  DBUG_ASSERT(fixed == TRUE);
-
-  if (fill_and_check_fields())
-  {
-    if (null_value)
-    {
-      return NULL;
-    }
-    else
-    {
-      /*
-        Since null_value == false, my_error() was raised inside
-        fill_and_check_fields().
-      */
-      return error_str();
-    }
-  }
-
-  // Allocate one extra byte, for trailing '\0'.
-  if (str->alloc(geohash_max_output_length + 1))
-    return make_empty_result();
-  str->length(0);
-
-  double upper_latitude= max_latitude;
-  double lower_latitude= min_latitude;
-  double upper_longitude= max_longitude;
-  double lower_longitude= min_longitude;
-  bool even_bit= true;
-
-  for (uint i= 0; i < geohash_max_output_length; i++)
-  {
-    /*
-      We must encode in blocks of five bits, so we don't risk stopping
-      in the middle of a character. If we stop in the middle of a character,
-      some encoded geohash values will differ from geohash.org.
-    */
-    char current_char= 0;
-    for (uint bit_number= 0; bit_number < 5; bit_number++)
-    {
-      if (even_bit)
-      {
-        // Encode one longitude bit.
-        encode_bit(&upper_longitude, &lower_longitude, longitude,
-                   &current_char, bit_number);
-      }
-      else
-      {
-        // Encode one latitude bit.
-        encode_bit(&upper_latitude, &lower_latitude, latitude,
-                   &current_char, bit_number);
-      }
-      even_bit = !even_bit;
-    }
-    str->q_append(char_to_base32(current_char));
-
-    /*
-      If encoded values of latitude and longitude matches the supplied
-      arguments, there is no need to do more calculation.
-    */
-    if (latitude == (lower_latitude + upper_latitude) / 2.0 &&
-        longitude == (lower_longitude + upper_longitude) / 2.0)
-      break;
-  }
-  return str;
-}
-
-
-/**
-  Sets the bit number in char_value, determined by following formula:
-
-  IF target_value < (middle between lower_value and upper_value)
-  set bit to 0
-  ELSE
-  set bit to 1
-
-  When the function returns, upper_value OR lower_value are adjusted
-  to the middle value between lower and upper.
-
-  @param upper_value The upper error range for latitude or longitude.
-  @param lower_value The lower error range for latitude or longitude.
-  @param target_value Latitude or longitude value supplied as argument
-  by the user.
-  @param char_value The character we want to set the bit on.
-  @param bit_number Wich bit number in char_value to set.
-*/
-void Item_func_geohash::encode_bit(double *upper_value, double *lower_value,
-                                   double target_value, char *char_value,
-                                   int bit_number)
-{
-  DBUG_ASSERT(bit_number >= 0 && bit_number <= 4);
-
-  double middle_value= (*upper_value + *lower_value) / 2.0;
-  if (target_value < middle_value)
-  {
-    *upper_value= middle_value;
-    *char_value |= 0 << (4 - bit_number);
-  }
-  else
-  {
-    *lower_value= middle_value;
-    *char_value |= 1 << (4 - bit_number);
-  }
-}
-
-/**
-  Converts a char value to it's base32 representation, where 0 = a,
-  1 = b, ... , 30 = y, 31 = z.
-
-  The function expects that the input character is within allowed range.
-
-  @param char_input The value to convert.
-
-  @return the ASCII equivalent.
-*/
-char Item_func_geohash::char_to_base32(char char_input)
-{
-  DBUG_ASSERT(char_input <= 31);
-
-  if (char_input < 10)
-    return char_input + '0';
-  else if (char_input < 17)
-    return char_input + ('b' - 10);
-  else if (char_input < 19)
-    return char_input + ('b' - 10 + 1);
-  else if (char_input < 21)
-    return char_input + ('b' - 10 + 2);
-  else
-    return char_input + ('b' - 10 + 3);
-}
-
-
 /**
   Change a number to format '3,333,333,333.000'.
 
@@ -4604,11 +3972,14 @@ String *Item_func_unhex::val_str(String *str)
   return &tmp_value;
 
 err:
-  ErrConvString err(res);
+  char buf[256];
+  String err(buf, sizeof(buf), system_charset_info);
+  err.length(0);
+  args[0]->print(&err, QT_NO_DATA_EXPANSION);
   push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                       ER_WRONG_VALUE_FOR_TYPE,
                       ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE),
-                      "string", err.ptr(), func_name());
+                      "string", err.c_ptr_safe(), func_name());
 
   return NULL;
 }
@@ -4739,8 +4110,9 @@ String *Item_char_typecast::val_str(String *str)
 
       if (!res->alloced_length())
       {                                         // Don't change const str
-        str_value= *res;                        // Not malloced string
-        res= &str_value;
+        DBUG_ASSERT(res != &tmp_value);
+        tmp_value= *res;                        // Not malloced string
+        res= &tmp_value;
       }
       ErrConvString err(res);
       push_warning_printf(current_thd, Sql_condition::SL_WARNING,
@@ -4754,9 +4126,18 @@ String *Item_char_typecast::val_str(String *str)
     {
       if (res->alloced_length() < (uint) cast_length)
       {
-        str_value.alloc(cast_length);
-        str_value.copy(*res);
-        res= &str_value;
+        if (res == &tmp_value)
+        {
+          if (tmp_value.reserve(cast_length - res->length()))
+            return error_str();
+        }
+        else
+        {
+          if (tmp_value.reserve(cast_length))
+            return error_str();
+          tmp_value.copy(*res);
+          res= &tmp_value;
+        }
       }
       memset(const_cast<char*>(res->ptr() + res->length()), 0,
              cast_length - res->length());

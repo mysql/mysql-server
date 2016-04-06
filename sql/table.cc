@@ -1307,8 +1307,11 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     if (new_field == NULL)
       goto err;
     new_field->init(outparam);
-    new_field->move_field_offset((my_ptrdiff_t) (outparam->record[0] -
-                                                 outparam->s->default_values));
+    new_field->
+      move_field_offset((my_ptrdiff_t)
+                        (reinterpret_cast<longlong>(outparam->record[0]) -
+                         reinterpret_cast<longlong>(outparam
+                                                    ->s->default_values)));
     /* Check if FTS_DOC_ID column is present in the table */
     if (outparam->file &&
         (outparam->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) &&

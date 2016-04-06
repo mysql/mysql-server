@@ -1,0 +1,104 @@
+--source include/no_valgrind_without_big.inc
+--source include/have_myisam.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo #
+--echo # Start of 5.8 tests
+--echo #
+
+--echo #
+--echo # WL#9125: Add utf8mb4_800_ci_ai
+--echo #
+
+SET NAMES utf8mb4 COLLATE utf8mb4_800_ci_ai;
+
+SET @test_character_set= 'utf8mb4';
+SET @test_collation= 'utf8mb4_800_ci_ai';
+-- source include/ctype_common.inc
+
+SET NAMES utf8mb4 COLLATE utf8mb4_800_ci_ai;
+-- source include/ctype_filesort.inc
+-- source include/ctype_innodb_like.inc
+-- source include/ctype_like_escape.inc
+-- source include/ctype_ascii_order.inc
+
+# Test some conversions
+SET NAMES utf8mb4 COLLATE utf8mb4_800_ci_ai;
+SELECT HEX(CONVERT(_utf8mb4 0xF091AB9B41 USING ucs2));
+SELECT HEX(CONVERT(_utf8mb4 0xF091AB9B41 USING utf16));
+SELECT HEX(CONVERT(_utf8mb4 0xF091AB9B41 USING utf32));
+SELECT HEX(CONVERT(_ucs2 0xF8FF USING utf8mb4));
+SELECT HEX(CONVERT(_utf16 0xF8FF USING utf8mb4));
+SELECT HEX(CONVERT(_utf32 0xF8FF USING utf8mb4));
+--ERROR ER_INVALID_CHARACTER_STRING
+SELECT HEX(CONVERT(_utf8mb4 0x8F USING ucs2));
+--ERROR ER_INVALID_CHARACTER_STRING
+SELECT HEX(CONVERT(_utf8mb4 0xC230 USING ucs2));
+--ERROR ER_INVALID_CHARACTER_STRING
+SELECT HEX(CONVERT(_utf8mb4 0xE234F1 USING ucs2));
+--ERROR ER_INVALID_CHARACTER_STRING
+SELECT HEX(CONVERT(_utf8mb4 0xF4E25634 USING ucs2));
+
+# Test some string functions
+SELECT ASCII('ABC');
+SELECT BIT_LENGTH('a');
+SELECT BIT_LENGTH('À');
+SELECT BIT_LENGTH('テ');
+SELECT BIT_LENGTH('𝌆');
+SELECT CHAR_LENGTH('𝌆テÀa');
+SELECT LENGTH('𝌆テÀa');
+SELECT FIELD('a', '𝌆テÀa');
+SELECT HEX('𝌆テÀa');
+SELECT INSERT('𝌆テÀa', 2, 2, 'テb');
+SELECT LOWER('𝌆テÀBcd');
+SELECT ORD('𝌆');
+SELECT UPPER('𝌆テàbCD');
+SELECT LOCATE(_utf8mb4 0xF091AB9B41, _utf8mb4 0xF091AB9B42F091AB9B41F091AB9B43);
+SELECT HEX(REVERSE(_utf8mb4 0xF091AB9B41F091AB9B42F091AB9B43));
+SELECT HEX(SUBSTRING(_utf8mb4 0xF091AB9B41F091AB9B42F091AB9B43, 1, 2));
+SELECT HEX(SUBSTRING(_utf8mb4 0xF091AB9B41F091AB9B42F091AB9B43, -3, 2));
+SELECT HEX(TRIM(_utf8mb4 0x2020F091AB9B4120F091AB9B4120202020));
+
+
+# Test maximum buffer necessary for WEIGHT_STRING
+SELECT HEX(WEIGHT_STRING('aA'));
+SELECT HEX(WEIGHT_STRING(CAST(_utf32 x'337F' AS CHAR)));
+SELECT HEX(WEIGHT_STRING(CAST(_utf32 x'FDFA' AS CHAR)));
+
+# Test WEIGHT_STRING, LOWER, UPPER
+--source include/weight_string.inc
+--source include/weight_string_euro.inc
+--source include/weight_string_l1.inc
+--source include/ctype_unicode800.inc
+
+SELECT 'a' = 'a ';
+SELECT 'a\0' < 'a';
+SELECT 'a\0' < 'a ';
+SELECT 'a\t' < 'a';
+SELECT 'a\t' < 'a ';
+
+SELECT 'a' LIKE 'a';
+SELECT 'A' LIKE 'a';
+SELECT _utf8mb4 0xD0B0D0B1D0B2 LIKE CONCAT(_utf8mb4'%',_utf8mb4 0xD0B1,_utf8mb4 '%');
+
+--source include/ctype_inet.inc
+
+CREATE TABLE t1 (c VARCHAR(10) CHARACTER SET utf8mb4);
+INSERT INTO t1 VALUES (_utf8mb4 0xF09090A7), (_utf8mb4 0xEA8B93), (_utf8mb4 0xC4BC), (_utf8mb4 0xC6AD), (_utf8mb4 0xF090918F), (_utf8mb4 0xEAAD8B);
+
+SELECT HEX(ANY_VALUE(c)), COUNT(c) FROM t1 GROUP BY c COLLATE utf8mb4_800_ci_ai;
+DROP TABLE t1;
+
+CREATE TABLE t1 (a VARCHAR(10), b VARCHAR(10)) COLLATE utf8mb4_800_ci_ai;
+INSERT INTO t1 VALUES(_utf16 0xAC00, _utf16 0x326E), (_utf16 0xAD, _utf16 0xA0),
+(_utf16 0xC6, _utf16 0x41), (_utf16 0xC6, _utf16 0xAA), (_utf16 0xA73A, _utf16 0xA738);
+
+SELECT a = b FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # End of 5.8 tests
+--echo #

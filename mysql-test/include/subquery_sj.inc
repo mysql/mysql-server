@@ -167,10 +167,13 @@ while ($i)
          SELECT * FROM t1 WHERE (t1.i) IN 
            (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
          eval EXPLAIN $query;
+         --sorted_result
          eval $query;
 
          eval PREPARE stmt FROM "$query";
+         --sorted_result
          EXECUTE stmt;
+         --sorted_result
          EXECUTE stmt;
          DEALLOCATE PREPARE stmt;
 
@@ -178,10 +181,13 @@ while ($i)
          SELECT * FROM t1 WHERE (t1.i) IN 
            (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
          eval EXPLAIN $query;
+         --sorted_result
          eval $query;
 
          eval PREPARE stmt FROM "$query";
+         --sorted_result
          EXECUTE stmt;
+         --sorted_result
          EXECUTE stmt;
          DEALLOCATE PREPARE stmt;
 
@@ -189,36 +195,42 @@ while ($i)
          SELECT * FROM t1 WHERE (t1.i) IN 
            (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
          eval EXPLAIN $query;
+         --sorted_result
          eval $query;
 
          let $query=
          SELECT * FROM t1 WHERE (t1.i) IN 
            (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
          eval EXPLAIN $query;
+         --sorted_result
          eval $query;
 
          let $query=
          SELECT * FROM t1 WHERE (11) IN 
            (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
          eval EXPLAIN $query;
+         --sorted_result
          eval $query;
 
          let $query=
          SELECT * FROM t1 WHERE (11) IN 
            (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
          eval EXPLAIN $query;
+         --sorted_result
          eval $query;
 
          let $query=
          SELECT * FROM t1 WHERE (11) IN 
            (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
          eval EXPLAIN $query;
+         --sorted_result
          eval $query;
 
          let $query=
          SELECT * FROM t1 WHERE (11) IN 
            (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
          eval EXPLAIN $query;
+         --sorted_result
          eval $query;
 
 	 dec $k;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,7 +55,7 @@ PSI_mutex_key key_mutex_LOCK_load_client_plugin;
 
 static PSI_mutex_info all_client_plugin_mutexes[]=
 {
-  {&key_mutex_LOCK_load_client_plugin, "LOCK_load_client_plugin", PSI_FLAG_GLOBAL}
+  {&key_mutex_LOCK_load_client_plugin, "LOCK_load_client_plugin", PSI_FLAG_GLOBAL, 0}
 };
 
 static PSI_memory_info all_client_plugin_memory[]=

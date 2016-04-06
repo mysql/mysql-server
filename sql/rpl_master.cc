@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -86,7 +86,7 @@ static PSI_mutex_key key_LOCK_slave_list;
 
 static PSI_mutex_info all_slave_list_mutexes[]=
 {
-  { &key_LOCK_slave_list, "LOCK_slave_list", PSI_FLAG_GLOBAL}
+  { &key_LOCK_slave_list, "LOCK_slave_list", PSI_FLAG_GLOBAL, 0}
 };
 
 static void init_all_slave_list_mutexes(void)

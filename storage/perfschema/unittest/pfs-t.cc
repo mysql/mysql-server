@@ -407,7 +407,7 @@ static void test_bad_registration()
   PSI_mutex_key dummy_mutex_key= 9999;
   PSI_mutex_info bad_mutex_1[]=
   {
-    { & dummy_mutex_key, "X", 0}
+    { & dummy_mutex_key, "X", 0, 0}
   };
 
   mutex_service->register_mutex("/", bad_mutex_1, 1);
@@ -441,7 +441,7 @@ static void test_bad_registration()
       "12345678901234567890123456789012345678901234567890"
       "12345678901234567890123456789012345678901234567890"
       "1234567890",
-      0}
+      0, 0}
   };
 
   mutex_service->register_mutex("X", bad_mutex_2, 1);
@@ -455,7 +455,7 @@ static void test_bad_registration()
       "12345678901234567890123456789012345678901234567890"
       "12345678901234567890123456789012345678901234567890"
       "123456789",
-      0}
+      0, 0}
   };
 
   mutex_service->register_mutex("XX", bad_mutex_3, 1);
@@ -852,7 +852,7 @@ static void test_init_disabled()
   PSI_mutex_key mutex_key_A;
   PSI_mutex_info all_mutex[]=
   {
-    { & mutex_key_A, "M-A", 0}
+    { & mutex_key_A, "M-A", 0, 0}
   };
 
   PSI_rwlock_key rwlock_key_A;
@@ -1303,7 +1303,7 @@ static void test_locker_disabled()
   PSI_mutex_key mutex_key_A;
   PSI_mutex_info all_mutex[]=
   {
-    { & mutex_key_A, "M-A", 0}
+    { & mutex_key_A, "M-A", 0, 0}
   };
 
   PSI_rwlock_key rwlock_key_A;
@@ -1744,8 +1744,8 @@ static void test_enabled()
   PSI_mutex_key mutex_key_B;
   PSI_mutex_info all_mutex[]=
   {
-    { & mutex_key_A, "M-A", 0},
-    { & mutex_key_B, "M-B", 0}
+    { & mutex_key_A, "M-A", 0, 0},
+    { & mutex_key_B, "M-B", 0, 0}
   };
 
   PSI_rwlock_key rwlock_key_A;
@@ -1910,8 +1910,8 @@ static void test_event_name_index()
   PSI_mutex_key dummy_mutex_key_2;
   PSI_mutex_info dummy_mutexes[]=
   {
-    { & dummy_mutex_key_1, "M-1", 0},
-    { & dummy_mutex_key_2, "M-2", 0}
+    { & dummy_mutex_key_1, "M-1", 0, 0},
+    { & dummy_mutex_key_2, "M-2", 0, 0}
   };
 
   mutex_service->register_mutex("X", dummy_mutexes, 2);

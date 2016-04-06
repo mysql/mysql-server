@@ -93,7 +93,7 @@ BuildRequires:  libnuma-devel
 BuildRequires:  ncurses-devel
 BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
-%{?sles11:BuildRequires: gcc47 gcc47-c++}
+%{?sles11:BuildRequires: gcc48 gcc48-c++}
 %if 0%{?systemd}
 BuildRequires:  systemd
 BuildRequires:  pkgconfig(systemd)
@@ -360,8 +360,8 @@ if [ "x$(id -u)" = "x0" ] ; then
 fi
 %endif
 
-%{?sles11:export CC=/usr/bin/gcc-4.7}
-%{?sles11:export CXX=/usr/bin/g++-4.7}
+%{?sles11:export CC=/usr/bin/gcc-4.8}
+%{?sles11:export CXX=/usr/bin/g++-4.8}
 
 # Build debug versions of mysqld and libmysqld.a
 mkdir debug

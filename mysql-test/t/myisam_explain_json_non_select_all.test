@@ -3,6 +3,9 @@
 # Test is temporarily run with show_compatibility_56=ON until Bug#21783883 is fixed.
 select @@global.show_compatibility_56 into @show_compatibility_56_save;
 set @@global.show_compatibility_56=ON;
+# Skipping the test with log-bin enabled due to Bug#22508362
+--source include/not_log_bin.inc
+
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
 --source include/have_64bit.inc

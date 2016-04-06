@@ -440,8 +440,8 @@ static PSI_mutex_key fe_key_mutex_federated, fe_key_mutex_FEDERATED_SHARE_mutex;
 
 static PSI_mutex_info all_federated_mutexes[]=
 {
-  { &fe_key_mutex_federated, "federated", PSI_FLAG_GLOBAL},
-  { &fe_key_mutex_FEDERATED_SHARE_mutex, "FEDERATED_SHARE::mutex", 0}
+  { &fe_key_mutex_federated, "federated", PSI_FLAG_GLOBAL, 0},
+  { &fe_key_mutex_FEDERATED_SHARE_mutex, "FEDERATED_SHARE::mutex", 0, 0}
 };
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 

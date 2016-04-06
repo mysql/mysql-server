@@ -122,9 +122,7 @@ static size_t my_lengthsp_binary(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 extern "C" {
 static int my_strnncollsp_binary(const CHARSET_INFO *cs,
                                  const uchar *s, size_t slen,
-                                 const uchar *t, size_t tlen,
-                                 my_bool diff_if_only_endspace_difference
-                                 MY_ATTRIBUTE((unused)))
+                                 const uchar *t, size_t tlen)
 {
   return my_strnncoll_binary(cs,s,slen,t,tlen,0);
 }
@@ -152,9 +150,6 @@ static int my_strnncoll_8bit_bin(const CHARSET_INFO *cs
     slen		Length of 's'
     t			String to compare
     tlen		Length of 't'
-    diff_if_only_endspace_difference
-		        Set to 1 if the strings should be regarded as different
-                        if they only difference in end space
 
   NOTE
    This function is used for character strings with binary collations.
@@ -170,16 +165,11 @@ static int my_strnncoll_8bit_bin(const CHARSET_INFO *cs
 static int my_strnncollsp_8bit_bin(const CHARSET_INFO *cs
                                    MY_ATTRIBUTE((unused)),
                                    const uchar *a, size_t a_length, 
-                                   const uchar *b, size_t b_length,
-                                   my_bool diff_if_only_endspace_difference)
+                                   const uchar *b, size_t b_length)
 {
   const uchar *end;
   size_t length;
   int res;
-
-#ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
-  diff_if_only_endspace_difference= 0;
-#endif
 
   end= a + (length= MY_MIN(a_length, b_length));
   while (a < end)
@@ -195,8 +185,6 @@ static int my_strnncollsp_8bit_bin(const CHARSET_INFO *cs
       Check the next not space character of the longer key. If it's < ' ',
       then it's smaller than the other key.
     */
-    if (diff_if_only_endspace_difference)
-      res= 1;                                   /* Assume 'a' is bigger */
     if (a_length < b_length)
     {
       /* put shorter key in s */

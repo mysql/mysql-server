@@ -7,10 +7,14 @@
 --replace_result $TEST_SESSION_IN_THD TEST_SESSION_IN_THD
 eval INSTALL PLUGIN test_session_in_thd SONAME '$TEST_SESSION_IN_THD';
 
+SELECT plugin_name FROM information_schema.plugins WHERE plugin_name LIKE 'test_session_in_thd';
+
 --echo ##########################################
 --echo # Stop plugin
 --echo ##########################################
 UNINSTALL PLUGIN test_session_in_thd;
+let $wait_condition=SELECT count(*)=0 FROM information_schema.plugins WHERE plugin_name LIKE 'test_session_in_thd';
+--source include/wait_condition.inc
 
 --echo ##########################################
 --echo # Run audit_log plugin

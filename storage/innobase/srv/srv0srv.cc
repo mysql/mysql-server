@@ -240,7 +240,7 @@ ulong	srv_n_page_hash_locks = 16;
 ulong	srv_LRU_scan_depth	= 1024;
 /** Whether or not to flush neighbors of a block */
 ulong	srv_flush_neighbors	= 1;
-/** Previously requested size */
+/** Previously requested size. Accesses protected by memory barriers. */
 ulint	srv_buf_pool_old_size	= 0;
 /** Current size as scaling factor for the other components */
 ulint	srv_buf_pool_base_size	= 0;

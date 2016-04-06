@@ -26,6 +26,7 @@ Created 1/30/1994 Heikki Tuuri
 #include "ha_prototypes.h"
 
 #include "ut0dbg.h"
+#include "log.h"
 
 /*************************************************************//**
 Report a failed assertion. */
@@ -36,21 +37,12 @@ ut_dbg_assertion_failed(
 	const char* file,	/*!< in: source file containing the assertion */
 	ulint line)		/*!< in: line number of the assertion */
 {
-	ut_print_timestamp(stderr);
-#ifdef UNIV_HOTBACKUP
-	fprintf(stderr, "  InnoDB: Assertion failure in file %s line %lu\n",
-		file, line);
-#else /* UNIV_HOTBACKUP */
-	fprintf(stderr,
-		"  InnoDB: Assertion failure in thread " ULINTPF
-		" in file %s line " ULINTPF "\n",
-		os_thread_pf(os_thread_get_curr_id()),
-		innobase_basename(file), line);
-#endif /* UNIV_HOTBACKUP */
-	if (expr) {
-		fprintf(stderr,
-			"InnoDB: Failing assertion: %s\n", expr);
-	}
+	sql_print_error("InnoDB: Assertion failure: %s:" ULINTPF "%s%s\n"
+			"InnoDB: thread " ULINTPF,
+			innobase_basename(file), line,
+			expr != nullptr ? ":" : "",
+			expr != nullptr ? expr : "",
+			os_thread_pf(os_thread_get_curr_id()));
 
 	fputs("InnoDB: We intentionally generate a memory trap.\n"
 	      "InnoDB: Submit a detailed bug report"

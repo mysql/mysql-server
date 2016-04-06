@@ -34,32 +34,25 @@ Created December 2006 by Marko Makela
 #include "univ.i"
 #include "buf0types.h"
 
-/**********************************************************************//**
-Allocate a block.  The thread calling this function must hold
-buf_pool->mutex and must not hold buf_pool->zip_mutex or any
-block->mutex.  The buf_pool->mutex may be released and reacquired.
-This function should only be used for allocating compressed page frames.
+/** Allocate a block. This function should only be used for allocating
+compressed page frames. The thread calling this function must hold
+buf_pool->LRU_list_mutex and must not hold buf_pool->zip_mutex or any
+block->mutex.
+@param[in,out]	buf_pool	buffer pool in which the page resides
+@param[in]	size		compressed page size, between
+				UNIV_ZIP_SIZE_MIN and UNIV_PAGE_SIZE
 @return allocated block, never NULL */
 UNIV_INLINE
 byte*
 buf_buddy_alloc(
-/*============*/
-	buf_pool_t*	buf_pool,	/*!< in/out: buffer pool in which
-					the page resides */
-	ulint		size,		/*!< in: compressed page size
-					(between UNIV_ZIP_SIZE_MIN and
-					UNIV_PAGE_SIZE) */
-	ibool*		lru)		/*!< in: pointer to a variable
-					that will be assigned TRUE if
-				       	storage was allocated from the
-				       	LRU list and buf_pool->mutex was
-				       	temporarily released */
+	buf_pool_t*	buf_pool,
+	ulint		size)
 	MY_ATTRIBUTE((malloc));
 
 /** Deallocate a block.
 @param[in,out]	buf_pool	buffer pool in which the block resides
-@param[in]	buf		block to be freed, must not be pointed to by
-				the buffer pool
+@param[in]	buf		block to be freed, must not be pointed to
+				by the buffer pool
 @param[in]	size		block size, up to UNIV_PAGE_SIZE */
 UNIV_INLINE
 void
@@ -68,11 +61,12 @@ buf_buddy_free(
 	void*		buf,
 	ulint		size);
 
-/** Reallocate a block.
+/** Try to reallocate a block.
 @param[in]	buf_pool	buffer pool instance
 @param[in]	buf		block to be reallocated, must be pointed
 to by the buffer pool
 @param[in]	size		block size, up to UNIV_PAGE_SIZE
+@retval true	if succeeded or if failed because the block was fixed
 @retval false	if failed because of no free blocks. */
 bool
 buf_buddy_realloc(

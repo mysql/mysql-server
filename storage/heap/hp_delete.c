@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -123,7 +123,7 @@ int hp_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo,
 
   while (pos->ptr_to_rec != recpos)
   {
-    if (flag && !hp_rec_key_cmp(keyinfo, record, pos->ptr_to_rec, 0))
+    if (flag && !hp_rec_key_cmp(keyinfo, record, pos->ptr_to_rec))
       last_ptr=pos;				/* Previous same key */
     gpos=pos;
     if (!(pos=pos->next_key))

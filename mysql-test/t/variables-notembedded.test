@@ -5,6 +5,11 @@
 
 source include/not_embedded.inc;
 
+# When log-bin, skip-log-bin and binlog-format options are specified, mask the warning
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] You need to use --log-bin to make --binlog-format work.");
+--enable_query_log
+
 --echo ---- Init ----
 # Backup global variables so they can be restored at end of test.
 set @my_slave_net_timeout         =@@global.slave_net_timeout;

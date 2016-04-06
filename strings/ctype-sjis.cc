@@ -1128,21 +1128,14 @@ static int my_strnncoll_sjis(const CHARSET_INFO *cs,
 
 static int my_strnncollsp_sjis(const CHARSET_INFO *cs,
 			       const uchar *a, size_t a_length, 
-			       const uchar *b, size_t b_length,
-                               my_bool diff_if_only_endspace_difference)
+			       const uchar *b, size_t b_length)
 {
   const uchar *a_end= a + a_length, *b_end= b + b_length;
   int res= my_strnncoll_sjis_internal(cs, &a, a_length, &b, b_length);
 
-#ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
-  diff_if_only_endspace_difference= 0;
-#endif
-
   if (!res && (a != a_end || b != b_end))
   {
     int swap= 1;
-    if (diff_if_only_endspace_difference)
-      res= 1;                                   /* Assume 'a' is bigger */
     /*
       Check the next not space character of the longer key. If it's < ' ',
       then it's smaller than the other key.

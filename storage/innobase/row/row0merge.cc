@@ -731,7 +731,8 @@ row_merge_buf_add(
 					len = dfield_get_len(field);
 				}
 			}
-		} else {
+		} else if (!dict_col_is_virtual(col)) {
+			/* Only non-virtual column are stored externally */
 			const byte*	buf = row_ext_lookup(ext, col_no,
 							     &len);
 			if (UNIV_LIKELY_NULL(buf)) {

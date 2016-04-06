@@ -501,9 +501,6 @@ my_strnncoll_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
     slen		Length of 's'
     t			String to compare
     tlen		Length of 't'
-    diff_if_only_endspace_difference
-		        Set to 1 if the strings should be regarded as different
-                        if they only difference in end space
 
   NOTE
    This function is used for character strings with binary collations.
@@ -519,17 +516,12 @@ my_strnncoll_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 int
 my_strnncollsp_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                       const uchar *a, size_t a_length, 
-                      const uchar *b, size_t b_length,
-                      my_bool diff_if_only_endspace_difference)
+                      const uchar *b, size_t b_length)
 {
   const uchar *end;
   size_t length;
   int res;
 
-#ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
-  diff_if_only_endspace_difference= 0;
-#endif
-  
   end= a + (length= MY_MIN(a_length, b_length));
   while (a < end)
   {
@@ -540,8 +532,6 @@ my_strnncollsp_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   if (a_length != b_length)
   {
     int swap= 1;
-    if (diff_if_only_endspace_difference)
-      res= 1;                                   /* Assume 'a' is bigger */
     /*
       Check the next not space character of the longer key. If it's < ' ',
       then it's smaller than the other key.

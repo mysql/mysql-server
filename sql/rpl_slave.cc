@@ -4317,12 +4317,12 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
   uchar* command_buffer= NULL;
   ushort binlog_flags= 0;
 
+  *suppress_warnings= false;
   if (RUN_HOOK(binlog_relay_io,
                before_request_transmit,
                (thd, mi, binlog_flags)))
     goto err;
 
-  *suppress_warnings= false;
   if (command == COM_BINLOG_DUMP_GTID)
   {
     // get set of GTIDs

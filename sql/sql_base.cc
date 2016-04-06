@@ -200,7 +200,7 @@ mysql_cond_t COND_open;
 static PSI_mutex_key key_LOCK_open;
 static PSI_cond_key key_COND_open;
 static PSI_mutex_info all_tdc_mutexes[]= {
-  { &key_LOCK_open, "LOCK_open", PSI_FLAG_GLOBAL }
+  { &key_LOCK_open, "LOCK_open", PSI_FLAG_GLOBAL, 0}
 };
 static PSI_cond_info all_tdc_conds[]= {
   { &key_COND_open, "COND_open", 0 }

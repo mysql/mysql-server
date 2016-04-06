@@ -37,7 +37,7 @@ static PSI_mutex_key key_MDL_wait_LOCK_wait_status;
 
 static PSI_mutex_info all_mdl_mutexes[]=
 {
-  { &key_MDL_wait_LOCK_wait_status, "MDL_wait::LOCK_wait_status", 0}
+  { &key_MDL_wait_LOCK_wait_status, "MDL_wait::LOCK_wait_status", 0, 0}
 };
 
 static PSI_rwlock_key key_MDL_lock_rwlock;

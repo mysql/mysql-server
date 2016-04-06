@@ -22053,9 +22053,6 @@ my_strnncoll_gb18030(const CHARSET_INFO *cs,
   @param[in] s_length length of the first string
   @param[in] t        start of the second string
   @param[in] t_length length of the second string
-  @param[in] diff_if_only_endspace_difference
-                      TRUE if we treat two strings with only different
-                      trailing spaces as different, otherwise FALSE
   @retval             0 if two strings are equal
                       1 if the first string is bigger
                       -1 if the second string is bigger
@@ -22063,21 +22060,14 @@ my_strnncoll_gb18030(const CHARSET_INFO *cs,
 static int
 my_strnncollsp_gb18030(const CHARSET_INFO *cs,
                        const uchar *s, size_t s_length,
-                       const uchar *t, size_t t_length,
-                       my_bool diff_if_only_endspace_difference)
+                       const uchar *t, size_t t_length)
 {
   const uchar *se= s + s_length, *te= t + t_length;
   int res= my_strnncoll_gb18030_internal(cs, &s, s_length, &t, t_length);
 
-#ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
-  diff_if_only_endspace_difference= 0;
-#endif
-
   if (!res && (s != se || t != te))
   {
     int swap= 1;
-    if (diff_if_only_endspace_difference)
-      res= 1;                        /* Always assume s is bigger than t */
 
     /* Put longer key in s */
     if (s_length < t_length)

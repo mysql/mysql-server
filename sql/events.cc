@@ -113,7 +113,7 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue);
 int sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs)
 {
  return cs->coll->strnncollsp(cs, (uchar *) s.str,s.length,
-                                  (uchar *) t.str,t.length, 0);
+                                  (uchar *) t.str,t.length);
 }
 
 
@@ -984,8 +984,8 @@ PSI_mutex_key key_LOCK_event_queue,
 
 static PSI_mutex_info all_events_mutexes[]=
 {
-  { &key_LOCK_event_queue, "LOCK_event_queue", PSI_FLAG_GLOBAL},
-  { &key_event_scheduler_LOCK_scheduler_state, "Event_scheduler::LOCK_scheduler_state", PSI_FLAG_GLOBAL}
+  { &key_LOCK_event_queue, "LOCK_event_queue", PSI_FLAG_GLOBAL, 0},
+  { &key_event_scheduler_LOCK_scheduler_state, "Event_scheduler::LOCK_scheduler_state", PSI_FLAG_GLOBAL, 0}
 };
 
 PSI_cond_key key_event_scheduler_COND_state, key_COND_queue_state;

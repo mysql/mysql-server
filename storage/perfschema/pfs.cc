@@ -1594,7 +1594,7 @@ static int build_prefix(const LEX_STRING *prefix, const char *category,
     if (likely(full_length <= PFS_MAX_INFO_NAME_LENGTH))                    \
     {                                                                       \
       memcpy(formatted_name + prefix_length, info->m_name, len);            \
-      key= REGISTER_FUNC(formatted_name, (uint)full_length, info->m_flags); \
+      key= REGISTER_FUNC(formatted_name, (uint)full_length, info);          \
     }                                                                       \
     else                                                                    \
     {                                                                       \
@@ -1665,7 +1665,7 @@ void pfs_register_rwlock_v1(const char *category,
       if (likely(full_length <= PFS_MAX_INFO_NAME_LENGTH))
       {
         memcpy(sx_formatted_name + sx_prefix_length, info->m_name, len);
-        key= register_rwlock_class(sx_formatted_name, (uint)full_length, info->m_flags);
+        key= register_rwlock_class(sx_formatted_name, (uint)full_length, info);
       }
       else
       {
@@ -1680,7 +1680,7 @@ void pfs_register_rwlock_v1(const char *category,
       if (likely(full_length <= PFS_MAX_INFO_NAME_LENGTH))
       {
         memcpy(rw_formatted_name + rw_prefix_length, info->m_name, len);
-        key= register_rwlock_class(rw_formatted_name, (uint)full_length, info->m_flags);
+        key= register_rwlock_class(rw_formatted_name, (uint)full_length, info);
       }
       else
       {
@@ -1768,7 +1768,7 @@ void pfs_register_stage_v1(const char *category,
       info->m_key= register_stage_class(formatted_name,
                                         (uint)prefix_length,
                                         (uint)full_length,
-                                        info->m_flags);
+                                        info);
     }
     else
     {
@@ -1808,7 +1808,7 @@ void pfs_register_statement_v1(const char *category,
     if (likely(full_length <= PFS_MAX_INFO_NAME_LENGTH))
     {
       memcpy(formatted_name + prefix_length, info->m_name, len);
-      info->m_key= register_statement_class(formatted_name, (uint)full_length, info->m_flags);
+      info->m_key= register_statement_class(formatted_name, (uint)full_length, info);
     }
     else
     {
@@ -1829,15 +1829,6 @@ void pfs_register_socket_v1(const char *category,
                    register_socket_class)
 }
 
-#define INIT_BODY_V1(T, KEY, ID)                                            \
-  PFS_##T##_class *klass;                                                   \
-  PFS_##T *pfs;                                                             \
-  klass= find_##T##_class(KEY);                                             \
-  if (unlikely(klass == NULL))                                              \
-    return NULL;                                                            \
-  pfs= create_##T(klass, ID);                                               \
-  return reinterpret_cast<PSI_##T *> (pfs)
-
 /**
   Implementation of the mutex instrumentation interface.
   @sa PSI_v1::init_mutex.
@@ -1845,7 +1836,13 @@ void pfs_register_socket_v1(const char *category,
 PSI_mutex*
 pfs_init_mutex_v1(PSI_mutex_key key, const void *identity)
 {
-  INIT_BODY_V1(mutex, key, identity);
+  PFS_mutex_class *klass;
+  PFS_mutex *pfs;
+  klass= find_mutex_class(key);
+  if (unlikely(klass == NULL))
+    return NULL;
+  pfs= create_mutex(klass, identity);
+  return reinterpret_cast<PSI_mutex *> (pfs);
 }
 
 /**
@@ -1868,7 +1865,13 @@ void pfs_destroy_mutex_v1(PSI_mutex* mutex)
 PSI_rwlock*
 pfs_init_rwlock_v1(PSI_rwlock_key key, const void *identity)
 {
-  INIT_BODY_V1(rwlock, key, identity);
+  PFS_rwlock_class *klass;
+  PFS_rwlock *pfs;
+  klass= find_rwlock_class(key);
+  if (unlikely(klass == NULL))
+    return NULL;
+  pfs= create_rwlock(klass, identity);
+  return reinterpret_cast<PSI_rwlock *> (pfs);
 }
 
 /**
@@ -1891,7 +1894,13 @@ void pfs_destroy_rwlock_v1(PSI_rwlock* rwlock)
 PSI_cond*
 pfs_init_cond_v1(PSI_cond_key key, const void *identity)
 {
-  INIT_BODY_V1(cond, key, identity);
+  PFS_cond_class *klass;
+  PFS_cond *pfs;
+  klass= find_cond_class(key);
+  if (unlikely(klass == NULL))
+    return NULL;
+  pfs= create_cond(klass, identity);
+  return reinterpret_cast<PSI_cond *> (pfs);
 }
 
 /**

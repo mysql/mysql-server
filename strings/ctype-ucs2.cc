@@ -1323,8 +1323,6 @@ my_strnncoll_utf16(const CHARSET_INFO *cs,
   @param  slen      Length of 's'.
   @param  t         Second string to compare.
   @param  tlen      Length of 't'.
-  @param  diff_if_only_endspace_difference
-                    Whether the end spaces impact the comparison.
 
   IMPLEMENTATION
 
@@ -1337,8 +1335,7 @@ my_strnncoll_utf16(const CHARSET_INFO *cs,
 static int
 my_strnncollsp_utf16(const CHARSET_INFO *cs,
                      const uchar *s, size_t slen,
-                     const uchar *t, size_t tlen,
-                     my_bool diff_if_only_endspace_difference)
+                     const uchar *t, size_t tlen)
 {
   int res;
   my_wc_t s_wc= 0, t_wc= 0;
@@ -1347,10 +1344,6 @@ my_strnncollsp_utf16(const CHARSET_INFO *cs,
 
   DBUG_ASSERT((slen % 2) == 0);
   DBUG_ASSERT((tlen % 2) == 0);
-
-#ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
-  diff_if_only_endspace_difference= FALSE;
-#endif
 
   while (s < se && t < te)
   {
@@ -1382,8 +1375,6 @@ my_strnncollsp_utf16(const CHARSET_INFO *cs,
   if (slen != tlen)
   {
     int s_res, swap= 1;
-    if (diff_if_only_endspace_difference)
-      res= 1;                                   /* Assume 's' is bigger */
     if (slen < tlen)
     {
       slen= tlen;
@@ -1537,8 +1528,7 @@ my_strnncoll_utf16_bin(const CHARSET_INFO *cs,
 static int
 my_strnncollsp_utf16_bin(const CHARSET_INFO *cs,
                          const uchar *s, size_t slen,
-                         const uchar *t, size_t tlen,
-                         my_bool diff_if_only_endspace_difference)
+                         const uchar *t, size_t tlen)
 {
   int res;
   my_wc_t s_wc= 0, t_wc= 0;
@@ -1546,10 +1536,6 @@ my_strnncollsp_utf16_bin(const CHARSET_INFO *cs,
 
   DBUG_ASSERT((slen % 2) == 0);
   DBUG_ASSERT((tlen % 2) == 0);
-
-#ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
-  diff_if_only_endspace_difference= FALSE;
-#endif
 
   while (s < se && t < te)
   {
@@ -1578,8 +1564,6 @@ my_strnncollsp_utf16_bin(const CHARSET_INFO *cs,
   if (slen != tlen)
   {
     int s_res, swap= 1;
-    if (diff_if_only_endspace_difference)
-      res= 1;                                   /* Assume 's' is bigger */
     if (slen < tlen)
     {
       slen= tlen;
@@ -2145,8 +2129,6 @@ my_strnncoll_utf32(const CHARSET_INFO *cs,
   @param  slen      Length of 's'.
   @param  t         Second string to compare.
   @param  tlen      Length of 't'.
-  @param  diff_if_only_endspace_difference
-                    Whether the end spaces impact the comparison.
 
   IMPLEMENTATION
 
@@ -2160,8 +2142,7 @@ my_strnncoll_utf32(const CHARSET_INFO *cs,
 static int
 my_strnncollsp_utf32(const CHARSET_INFO *cs,
                      const uchar *s, size_t slen,
-                     const uchar *t, size_t tlen,
-                     my_bool diff_if_only_endspace_difference)
+                     const uchar *t, size_t tlen)
 {
   int res;
   my_wc_t s_wc= 0, t_wc= 0;
@@ -2170,10 +2151,6 @@ my_strnncollsp_utf32(const CHARSET_INFO *cs,
 
   DBUG_ASSERT((slen % 4) == 0);
   DBUG_ASSERT((tlen % 4) == 0);
-
-#ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
-  diff_if_only_endspace_difference= FALSE;
-#endif
 
   while ( s < se && t < te )
   {
@@ -2205,8 +2182,6 @@ my_strnncollsp_utf32(const CHARSET_INFO *cs,
   if (slen != tlen)
   {
     int s_res, swap= 1;
-    if (diff_if_only_endspace_difference)
-      res= 1;                                   /* Assume 's' is bigger */
     if (slen < tlen)
     {
       slen= tlen;
@@ -2683,9 +2658,7 @@ extern "C" {
 static int
 my_strnncollsp_utf32_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), 
                          const uchar *s, size_t slen, 
-                         const uchar *t, size_t tlen,
-                         my_bool diff_if_only_endspace_difference
-                         MY_ATTRIBUTE((unused)))
+                         const uchar *t, size_t tlen)
 {
   const uchar *se, *te;
   size_t minlen;
@@ -3153,9 +3126,7 @@ static int my_strnncoll_ucs2(const CHARSET_INFO *cs,
 
 static int my_strnncollsp_ucs2(const CHARSET_INFO *cs,
                                const uchar *s, size_t slen,
-                               const uchar *t, size_t tlen,
-                               my_bool diff_if_only_endspace_difference
-			       MY_ATTRIBUTE((unused)))
+                               const uchar *t, size_t tlen)
 {
   const uchar *se, *te;
   size_t minlen;
@@ -3307,9 +3278,7 @@ int my_strnncoll_ucs2_bin(const CHARSET_INFO *cs,
 static int my_strnncollsp_ucs2_bin(const CHARSET_INFO *cs
                                    MY_ATTRIBUTE((unused)),
                                    const uchar *s, size_t slen, 
-                                   const uchar *t, size_t tlen,
-                                   my_bool diff_if_only_endspace_difference
-                                   MY_ATTRIBUTE((unused)))
+                                   const uchar *t, size_t tlen)
 {
   const uchar *se, *te;
   size_t minlen;

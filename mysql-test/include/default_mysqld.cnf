@@ -16,6 +16,8 @@ log-bin-trust-function-creators=1
 # and other tests that may have replication scenarios.
 log-bin=mysqld-bin
 
+innodb-buffer-pool-size=24M
+innodb-log-file-size=5M
 # MAINTAINER:
 # the loose- syntax is to make sure the cnf file is also
 # valid when building without the performance schema.

@@ -75,9 +75,10 @@ extern MY_UNICASE_INFO my_unicase_default;
 extern MY_UNICASE_INFO my_unicase_turkish;
 extern MY_UNICASE_INFO my_unicase_mysql500;
 extern MY_UNICASE_INFO my_unicase_unicode520;
+extern MY_UNICASE_INFO my_unicase_unicode800;
 
 #define MY_UCA_MAX_CONTRACTION 6
-#define MY_UCA_MAX_WEIGHT_SIZE 8
+#define MY_UCA_MAX_WEIGHT_SIZE 24
 #define MY_UCA_WEIGHT_LEVELS   1
 
 typedef struct my_contraction_t
@@ -179,6 +180,7 @@ extern MY_UNI_CTYPE my_uni_ctype[256];
 #define MY_CS_NONASCII  8192   /* if not ASCII-compatible        */
 #define MY_CS_UNICODE_SUPPLEMENT 16384 /* Non-BMP Unicode characters */
 #define MY_CS_LOWER_SORT 32768 /* If use lower case as weight   */
+#define MY_CS_UCA_800 65536 /* If use UCA 8.0.0   */
 #define MY_CHARSET_UNDEFINED 0
 
 /* Character repertoire flags */
@@ -258,8 +260,7 @@ typedef struct my_collation_handler_st
   int     (*strnncoll)(const struct charset_info_st *,
 		       const uchar *, size_t, const uchar *, size_t, my_bool);
   int     (*strnncollsp)(const struct charset_info_st *,
-                         const uchar *, size_t, const uchar *, size_t,
-                         my_bool diff_if_only_endspace_difference);
+                         const uchar *, size_t, const uchar *, size_t);
   size_t  (*strnxfrm)(const struct charset_info_st *,
                       uchar *dst, size_t dstlen, uint nweights,
                       const uchar *src, size_t srclen, uint flags);
@@ -467,6 +468,7 @@ extern CHARSET_INFO my_charset_utf8_general_mysql500_ci;
 extern CHARSET_INFO my_charset_utf8mb4_bin;
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO my_charset_utf8mb4_general_ci;
 extern CHARSET_INFO my_charset_utf8mb4_unicode_ci;
+extern CHARSET_INFO my_charset_utf8mb4_800_ci_ai;
 #define MY_UTF8MB3                 "utf8"
 #define MY_UTF8MB4                 "utf8mb4"
 
@@ -480,8 +482,7 @@ extern int  my_strnncoll_simple(const CHARSET_INFO *, const uchar *, size_t,
 				const uchar *, size_t, my_bool);
 
 extern int  my_strnncollsp_simple(const CHARSET_INFO *, const uchar *, size_t,
-                                  const uchar *, size_t,
-                                  my_bool diff_if_only_endspace_difference);
+                                  const uchar *, size_t);
 
 extern void my_hash_sort_simple(const CHARSET_INFO *cs,
 				const uchar *key, size_t len,
@@ -633,8 +634,7 @@ int my_strnncoll_mb_bin(const CHARSET_INFO * cs,
 
 int my_strnncollsp_mb_bin(const CHARSET_INFO *cs,
                           const uchar *a, size_t a_length,
-                          const uchar *b, size_t b_length,
-                          my_bool diff_if_only_endspace_difference);
+                          const uchar *b, size_t b_length);
 
 int my_wildcmp_mb_bin(const CHARSET_INFO *cs,
                       const char *str,const char *str_end,

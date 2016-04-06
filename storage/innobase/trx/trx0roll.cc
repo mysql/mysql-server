@@ -204,8 +204,7 @@ trx_rollback_low(
 	case TRX_STATE_NOT_STARTED:
 		trx->will_lock = 0;
 		ut_ad(trx->in_mysql_trx_list);
-		return(trx->state == TRX_STATE_NOT_STARTED
-		       ? DB_SUCCESS : DB_FORCED_ABORT);
+		return(DB_SUCCESS);
 
 	case TRX_STATE_ACTIVE:
 		ut_ad(trx->in_mysql_trx_list);
@@ -289,11 +288,6 @@ trx_rollback_for_mysql(
 
 		TrxInInnoDB	trx_in_innodb(trx, true);
 
-		if (trx_in_innodb.is_aborted()) {
-
-			return(DB_FORCED_ABORT);
-		}
-
 		return(trx_rollback_low(trx));
 	}
 }
@@ -316,8 +310,6 @@ trx_rollback_last_sql_stat_for_mysql(
 
 	switch (trx->state) {
 	case TRX_STATE_FORCED_ROLLBACK:
-		return(DB_FORCED_ABORT);
-
 	case TRX_STATE_NOT_STARTED:
 		return(DB_SUCCESS);
 

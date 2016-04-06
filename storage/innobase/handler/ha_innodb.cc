@@ -451,6 +451,7 @@ const struct _ft_vft_ext ft_vft_ext_result = {innobase_fts_get_version,
 
 #ifdef HAVE_PSI_INTERFACE
 # define PSI_KEY(n) {&n##_key, #n, 0}
+# define PSI_MUTEX_KEY(n, P1, P2) {&n##_key, #n, P1, P2}
 /* All RWLOCK used in Innodb are SX-locks */
 # define PSI_RWLOCK_KEY(n) {&n##_key, #n, PSI_RWLOCK_FLAG_SX}
 
@@ -461,8 +462,8 @@ static mysql_pfs_key_t	commit_cond_mutex_key;
 static mysql_pfs_key_t	commit_cond_key;
 
 static PSI_mutex_info	all_pthread_mutexes[] = {
-	PSI_KEY(commit_cond_mutex),
-	PSI_KEY(innobase_share_mutex)
+	PSI_MUTEX_KEY(commit_cond_mutex, 0, 0),
+	PSI_MUTEX_KEY(innobase_share_mutex, 0, 0)
 };
 
 static PSI_cond_info	all_innodb_conds[] = {
@@ -474,69 +475,73 @@ static PSI_cond_info	all_innodb_conds[] = {
 performance schema instrumented if "UNIV_PFS_MUTEX"
 is defined */
 static PSI_mutex_info all_innodb_mutexes[] = {
-	PSI_KEY(autoinc_mutex),
-	PSI_KEY(autoinc_persisted_mutex),
+	PSI_MUTEX_KEY(autoinc_mutex, 0, 0),
+	PSI_MUTEX_KEY(autoinc_persisted_mutex, 0, 0),
 #  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
-	PSI_KEY(buffer_block_mutex),
+	PSI_MUTEX_KEY(buffer_block_mutex, 0, 0),
 #  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
-	PSI_KEY(buf_pool_mutex),
-	PSI_KEY(buf_pool_zip_mutex),
-	PSI_KEY(cache_last_read_mutex),
-	PSI_KEY(dict_foreign_err_mutex),
-	PSI_KEY(dict_persist_dirty_tables_mutex),
-	PSI_KEY(dict_sys_mutex),
-	PSI_KEY(recalc_pool_mutex),
-	PSI_KEY(fil_system_mutex),
-	PSI_KEY(flush_list_mutex),
-	PSI_KEY(fts_bg_threads_mutex),
-	PSI_KEY(fts_delete_mutex),
-	PSI_KEY(fts_optimize_mutex),
-	PSI_KEY(fts_doc_id_mutex),
-	PSI_KEY(log_flush_order_mutex),
-	PSI_KEY(hash_table_mutex),
-	PSI_KEY(ibuf_bitmap_mutex),
-	PSI_KEY(ibuf_mutex),
-	PSI_KEY(ibuf_pessimistic_insert_mutex),
-	PSI_KEY(log_sys_mutex),
-	PSI_KEY(log_sys_write_mutex),
-	PSI_KEY(mutex_list_mutex),
-	PSI_KEY(page_zip_stat_per_index_mutex),
-	PSI_KEY(purge_sys_pq_mutex),
-	PSI_KEY(recv_sys_mutex),
-	PSI_KEY(recv_writer_mutex),
-	PSI_KEY(redo_rseg_mutex),
-	PSI_KEY(noredo_rseg_mutex),
+	PSI_MUTEX_KEY(buf_pool_flush_state_mutex, 0, 0),
+	PSI_MUTEX_KEY(buf_pool_LRU_list_mutex, 0, 0),
+	PSI_MUTEX_KEY(buf_pool_free_list_mutex, 0, 0),
+	PSI_MUTEX_KEY(buf_pool_zip_free_mutex, 0, 0),
+	PSI_MUTEX_KEY(buf_pool_zip_hash_mutex, 0, 0),
+	PSI_MUTEX_KEY(buf_pool_zip_mutex, 0, 0),
+	PSI_MUTEX_KEY(cache_last_read_mutex, 0, 0),
+	PSI_MUTEX_KEY(dict_foreign_err_mutex, 0, 0),
+	PSI_MUTEX_KEY(dict_persist_dirty_tables_mutex, 0, 0),
+	PSI_MUTEX_KEY(dict_sys_mutex, 0, 0),
+	PSI_MUTEX_KEY(recalc_pool_mutex, 0, 0),
+	PSI_MUTEX_KEY(fil_system_mutex, 0, 0),
+	PSI_MUTEX_KEY(flush_list_mutex, 0, 0),
+	PSI_MUTEX_KEY(fts_bg_threads_mutex, 0, 0),
+	PSI_MUTEX_KEY(fts_delete_mutex, 0, 0),
+	PSI_MUTEX_KEY(fts_optimize_mutex, 0, 0),
+	PSI_MUTEX_KEY(fts_doc_id_mutex, 0, 0),
+	PSI_MUTEX_KEY(log_flush_order_mutex, 0, 0),
+	PSI_MUTEX_KEY(hash_table_mutex, 0, 0),
+	PSI_MUTEX_KEY(ibuf_bitmap_mutex, 0, 0),
+	PSI_MUTEX_KEY(ibuf_mutex, 0, 0),
+	PSI_MUTEX_KEY(ibuf_pessimistic_insert_mutex, 0, 0),
+	PSI_MUTEX_KEY(log_sys_mutex, 0, 0),
+	PSI_MUTEX_KEY(log_sys_write_mutex, 0, 0),
+	PSI_MUTEX_KEY(mutex_list_mutex, 0, 0),
+	PSI_MUTEX_KEY(page_zip_stat_per_index_mutex, 0, 0),
+	PSI_MUTEX_KEY(purge_sys_pq_mutex, 0, 0),
+	PSI_MUTEX_KEY(recv_sys_mutex, 0, 0),
+	PSI_MUTEX_KEY(recv_writer_mutex, 0, 0),
+	PSI_MUTEX_KEY(redo_rseg_mutex, 0, 0),
+	PSI_MUTEX_KEY(noredo_rseg_mutex, 0, 0),
 #  ifdef UNIV_DEBUG
-	PSI_KEY(rw_lock_debug_mutex),
+	PSI_MUTEX_KEY(rw_lock_debug_mutex, 0, 0),
 #  endif /* UNIV_DEBUG */
-	PSI_KEY(rw_lock_list_mutex),
-	PSI_KEY(rw_lock_mutex),
-	PSI_KEY(srv_dict_tmpfile_mutex),
-	PSI_KEY(srv_innodb_monitor_mutex),
-	PSI_KEY(srv_misc_tmpfile_mutex),
-	PSI_KEY(srv_monitor_file_mutex),
+	PSI_MUTEX_KEY(rw_lock_list_mutex, 0, 0),
+	PSI_MUTEX_KEY(rw_lock_mutex, 0, 0),
+	PSI_MUTEX_KEY(srv_dict_tmpfile_mutex, 0, 0),
+	PSI_MUTEX_KEY(srv_innodb_monitor_mutex, 0, 0),
+	PSI_MUTEX_KEY(srv_misc_tmpfile_mutex, 0, 0),
+	PSI_MUTEX_KEY(srv_monitor_file_mutex, 0, 0),
 #  ifdef UNIV_DEBUG
-	PSI_KEY(sync_thread_mutex),
+	PSI_MUTEX_KEY(sync_thread_mutex, 0, 0),
 #  endif /* UNIV_DEBUG */
-	PSI_KEY(buf_dblwr_mutex),
-	PSI_KEY(trx_undo_mutex),
-	PSI_KEY(trx_pool_mutex),
-	PSI_KEY(trx_pool_manager_mutex),
-	PSI_KEY(srv_sys_mutex),
-	PSI_KEY(lock_mutex),
-	PSI_KEY(lock_wait_mutex),
-	PSI_KEY(trx_mutex),
-	PSI_KEY(srv_threads_mutex),
+	PSI_MUTEX_KEY(buf_dblwr_mutex, 0, 0),
+	PSI_MUTEX_KEY(trx_undo_mutex, 0, 0),
+	PSI_MUTEX_KEY(trx_pool_mutex, 0, 0),
+	PSI_MUTEX_KEY(trx_pool_manager_mutex, 0, 0),
+	PSI_MUTEX_KEY(srv_sys_mutex, 0, 0),
+	PSI_MUTEX_KEY(lock_mutex, 0, 0),
+	PSI_MUTEX_KEY(lock_wait_mutex, 0, 0),
+	PSI_MUTEX_KEY(trx_mutex, 0, 0),
+	PSI_MUTEX_KEY(srv_threads_mutex, 0, 0),
 #  ifndef PFS_SKIP_EVENT_MUTEX
-	PSI_KEY(event_mutex),
+	PSI_MUTEX_KEY(event_mutex, 0, 0),
 #  endif /* PFS_SKIP_EVENT_MUTEX */
-	PSI_KEY(rtr_active_mutex),
-	PSI_KEY(rtr_match_mutex),
-	PSI_KEY(rtr_path_mutex),
-	PSI_KEY(rtr_ssn_mutex),
-	PSI_KEY(trx_sys_mutex),
-	PSI_KEY(zip_pad_mutex),
-	PSI_KEY(master_key_id_mutex),
+	PSI_MUTEX_KEY(rtr_active_mutex, 0, 0),
+	PSI_MUTEX_KEY(rtr_match_mutex, 0, 0),
+	PSI_MUTEX_KEY(rtr_path_mutex, 0, 0),
+	PSI_MUTEX_KEY(rtr_ssn_mutex, 0, 0),
+	PSI_MUTEX_KEY(trx_sys_mutex, 0, 0),
+	PSI_MUTEX_KEY(zip_pad_mutex, 0, 0),
+	PSI_MUTEX_KEY(master_key_id_mutex, 0, 0),
 };
 # endif /* UNIV_PFS_MUTEX */
 
@@ -4449,7 +4454,10 @@ innobase_commit(
 
 	if (trx_in_innodb.is_aborted()) {
 
-		DBUG_RETURN(innobase_rollback(hton, thd, commit_trx));
+		innobase_rollback(hton, thd, commit_trx);
+
+		DBUG_RETURN(convert_error_code_to_mysql(
+			DB_FORCED_ABORT, 0, thd));
 	}
 
 	ut_ad(trx->dict_operation_lock_mode == 0);
@@ -4628,23 +4636,17 @@ innobase_rollback(
 		error = trx_rollback_for_mysql(trx);
 
 		if (trx->state == TRX_STATE_FORCED_ROLLBACK) {
-
+#ifdef UNIV_DEBUG
 			char	buffer[1024];
 
 			ib::info() << "Forced rollback : "
 				<< thd_security_context(thd, buffer,
 							sizeof(buffer), 512);
-
-			error = DB_FORCED_ABORT;
-
+#endif /* UNIV_DEBUG */
 			trx->state = TRX_STATE_NOT_STARTED;
 		}
 
 		trx_deregister_from_2pc(trx);
-
-	} else if (trx_in_innodb.is_aborted()) {
-
-		error = DB_FORCED_ABORT;
 
 	} else {
 
@@ -7785,7 +7787,10 @@ ha_innobase::write_row(
 	if (!dict_table_is_intrinsic(m_prebuilt->table)
 	    && trx_in_innodb.is_aborted()) {
 
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
+		innobase_rollback(ht, m_user_thd, false);
+
+		DBUG_RETURN(convert_error_code_to_mysql(
+			DB_FORCED_ABORT, 0, m_user_thd));
 	}
 
 	/* Validation checks before we commence write_row operation. */
@@ -8145,12 +8150,34 @@ calc_row_difference(
 			}
 		}
 
+#ifdef UNIV_DEBUG
+		bool	online_ord_part = false;
+#endif
+
 		if (is_virtual) {
 			/* If the virtual column is not indexed,
 			we shall ignore it for update */
 			if (!col->ord_part) {
-			       num_v++;
-			       continue;
+				/* Check whether there is a table-rebuilding
+				online ALTER TABLE in progress, and this
+				virtual column could be newly indexed, thus
+				it will be materialized. Then we will have
+				to log its update.
+				Note, we do not support online dropping virtual
+				column while adding new index, nor with
+				online alter column order while adding index,
+				so the virtual column sequence must not change
+				if it is online operation */
+				if (dict_index_is_online_ddl(clust_index)
+				    && row_log_col_is_indexed(clust_index,
+							      num_v)) {
+#ifdef UNIV_DEBUG
+					online_ord_part = true;
+#endif
+				} else {
+				       num_v++;
+				       continue;
+				}
 			}
 
 			if (!uvect->old_vrow) {
@@ -8226,7 +8253,7 @@ calc_row_difference(
 				upd_fld_set_virtual_col(ufield);
 				ufield->field_no = num_v;
 
-				ut_ad(col->ord_part);
+				ut_ad(col->ord_part || online_ord_part);
 				ufield->old_v_val = static_cast<dfield_t*>(
 					mem_heap_alloc(
 						uvect->heap,
@@ -8303,7 +8330,7 @@ calc_row_difference(
 				prebuilt, vfield, o_len,
 				col, old_mysql_row_col,
 				col_pack_len, buf);
-			ut_ad(col->ord_part);
+			ut_ad(col->ord_part || online_ord_part);
 			num_v++;
 		}
 	}
@@ -8466,7 +8493,10 @@ ha_innobase::update_row(
 	if (!dict_table_is_intrinsic(m_prebuilt->table)
 	    && TrxInInnoDB::is_aborted(trx)) {
 
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
+		innobase_rollback(ht, m_user_thd, false);
+
+		DBUG_RETURN(convert_error_code_to_mysql(
+			DB_FORCED_ABORT, 0, m_user_thd));
 	}
 
 	/* This is not a delete */
@@ -8583,7 +8613,10 @@ ha_innobase::delete_row(
 	if (!dict_table_is_intrinsic(m_prebuilt->table)
 	    && trx_in_innodb.is_aborted()) {
 
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
+		innobase_rollback(ht, m_user_thd, false);
+
+		DBUG_RETURN(convert_error_code_to_mysql(
+			DB_FORCED_ABORT, 0, m_user_thd));
 	}
 
 	ut_a(m_prebuilt->trx == trx);
@@ -8955,8 +8988,10 @@ ha_innobase::index_read(
 
 			if (TrxInInnoDB::is_aborted(m_prebuilt->trx)) {
 
-				DBUG_RETURN(innobase_rollback(
-						ht, m_user_thd, false));
+				innobase_rollback(ht, m_user_thd, false);
+
+				DBUG_RETURN(convert_error_code_to_mysql(
+					DB_FORCED_ABORT, 0, m_user_thd));
 			}
 
 			m_prebuilt->ins_sel_stmt = thd_is_ins_sel_stmt(
@@ -9128,7 +9163,10 @@ ha_innobase::change_active_index(
 	if (!dict_table_is_intrinsic(m_prebuilt->table)
 	    && trx_in_innodb.is_aborted()) {
 
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
+		innobase_rollback(ht, m_user_thd, false);
+
+		DBUG_RETURN(convert_error_code_to_mysql(
+			DB_FORCED_ABORT, 0,  m_user_thd));
 	}
 
 	active_index = keynr;
@@ -9248,7 +9286,10 @@ ha_innobase::general_fetch(
 
 	if (!intrinsic && TrxInInnoDB::is_aborted(trx)) {
 
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
+		innobase_rollback(ht, m_user_thd, false);
+
+		DBUG_RETURN(convert_error_code_to_mysql(
+			DB_FORCED_ABORT, 0,  m_user_thd));
 	}
 
 	innobase_srv_conc_enter_innodb(m_prebuilt);
@@ -9594,9 +9635,13 @@ ha_innobase::ft_init_ext(
 
 	if (trx_in_innodb.is_aborted()) {
 
-		int	ret = innobase_rollback(ht, m_user_thd, false);
+		innobase_rollback(ht, m_user_thd, false);
 
-		my_error(ret, MYF(0));
+		int	err;
+		err = convert_error_code_to_mysql(
+			DB_FORCED_ABORT, 0, m_user_thd);
+
+		my_error(err, MYF(0));
 
 		return(NULL);
 	}
@@ -9741,7 +9786,10 @@ ha_innobase::ft_read(
 
 	if (trx_in_innodb.is_aborted()) {
 
-		return(innobase_rollback(ht, m_user_thd, false));
+		innobase_rollback(ht, m_user_thd, false);
+
+		return(convert_error_code_to_mysql(
+			DB_FORCED_ABORT, 0, m_user_thd));
 	}
 
 	row_prebuilt_t*	ft_prebuilt;
@@ -12727,7 +12775,10 @@ ha_innobase::discard_or_import_tablespace(
 
 	if (trx_in_innodb.is_aborted()) {
 
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
+		innobase_rollback(ht, m_user_thd, false);
+
+		DBUG_RETURN(convert_error_code_to_mysql(
+			DB_FORCED_ABORT, 0, m_user_thd));
 	}
 
 	trx_start_if_not_started(m_prebuilt->trx, true);
@@ -17435,7 +17486,10 @@ innobase_xa_prepare(
 
 	if (trx_in_innodb.is_aborted()) {
 
-		return(innobase_rollback(hton, thd, prepare_trx));
+		innobase_rollback(hton, thd, prepare_trx);
+
+		return(convert_error_code_to_mysql(
+			DB_FORCED_ABORT, 0, thd));
 	}
 
 	if (!trx_is_registered_for_2pc(trx) && trx_is_started(trx)) {
@@ -17457,7 +17511,11 @@ innobase_xa_prepare(
 		ut_ad(err == DB_SUCCESS || err == DB_FORCED_ABORT);
 
 		if (err == DB_FORCED_ABORT) {
-			return(innobase_rollback(hton, thd, prepare_trx));
+
+			innobase_rollback(hton, thd, prepare_trx);
+
+			return(convert_error_code_to_mysql(
+				DB_FORCED_ABORT, 0, thd));
 		}
 
 	} else {
@@ -17805,7 +17863,7 @@ innodb_buffer_pool_size_update(
 	void*				var_ptr,
 	const void*			save)
 {
-        longlong	in_val = *static_cast<const longlong*>(save);
+	longlong	in_val = *static_cast<const longlong*>(save);
 
 	ut_snprintf(export_vars.innodb_buffer_pool_resize_status,
 	        sizeof(export_vars.innodb_buffer_pool_resize_status),
@@ -18487,21 +18545,19 @@ innodb_srv_buf_dump_filename_validate(
 #ifdef UNIV_DEBUG
 static char* srv_buffer_pool_evict;
 
-/****************************************************************//**
-Evict all uncompressed pages of compressed tables from the buffer pool.
+/** Evict all uncompressed pages of compressed tables from the buffer pool.
 Keep the compressed pages in the buffer pool.
 @return whether all uncompressed pages were evicted */
 static MY_ATTRIBUTE((warn_unused_result))
 bool
 innodb_buffer_pool_evict_uncompressed(void)
-/*=======================================*/
 {
 	bool	all_evicted = true;
 
 	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
 		buf_pool_t*	buf_pool = &buf_pool_ptr[i];
 
-		buf_pool_mutex_enter(buf_pool);
+		mutex_enter(&buf_pool->LRU_list_mutex);
 
 		for (buf_block_t* block = UT_LIST_GET_LAST(
 			     buf_pool->unzip_LRU);
@@ -18513,14 +18569,32 @@ innodb_buffer_pool_evict_uncompressed(void)
 			ut_ad(block->in_unzip_LRU_list);
 			ut_ad(block->page.in_LRU_list);
 
-			if (!buf_LRU_free_page(&block->page, false)) {
+			rw_lock_t* hash_lock
+				= buf_page_hash_lock_get(buf_pool,
+							 block->page.id);
+			rw_lock_x_lock(hash_lock);
+			mutex_enter(&block->mutex);
+
+			if (!buf_page_can_relocate(&block->page)
+			    || block->page.oldest_modification) {
+
+				rw_lock_x_unlock(hash_lock);
+
+				mutex_exit(&block->mutex);
+
 				all_evicted = false;
+
+			} else {
+
+				btr_search_drop_page_hash_index(block);
+
+				buf_LRU_free_one_page(&block->page, false, true);
 			}
 
 			block = prev_block;
 		}
 
-		buf_pool_mutex_exit(buf_pool);
+		mutex_exit(&buf_pool->LRU_list_mutex);
 	}
 
 	return(all_evicted);
@@ -20913,17 +20987,14 @@ innodb_buffer_pool_size_validate(
 
 	value->val_int(value, &intbuf);
 
-	buf_pool_mutex_enter_all();
+	os_rmb;
 
 	if (srv_buf_pool_old_size != srv_buf_pool_size) {
-		buf_pool_mutex_exit_all();
 		my_error(ER_BUFPOOL_RESIZE_INPROGRESS, MYF(0));
 		return(1);
 	}
 
 	if (srv_buf_pool_instances > 1 && intbuf < BUF_POOL_SIZE_THRESHOLD) {
-		buf_pool_mutex_exit_all();
-
 		push_warning_printf(thd, Sql_condition::SL_WARNING,
 				    ER_WRONG_ARGUMENTS,
 				    "Cannot update innodb_buffer_pool_size"
@@ -20938,13 +21009,12 @@ innodb_buffer_pool_size_validate(
 	*static_cast<longlong*>(save) = requested_buf_pool_size;
 
 	if (srv_buf_pool_size == requested_buf_pool_size) {
-		buf_pool_mutex_exit_all();
 		/* nothing to do */
 		return(0);
 	}
 
 	srv_buf_pool_size = requested_buf_pool_size;
-	buf_pool_mutex_exit_all();
+	os_wmb;
 
 	if (intbuf != static_cast<longlong>(requested_buf_pool_size)) {
 		char	buf[64];

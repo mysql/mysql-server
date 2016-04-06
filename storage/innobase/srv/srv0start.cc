@@ -276,7 +276,7 @@ DECLARE_THREAD(io_handler_thread)(
 {
 	ulint	segment;
 
-        my_thread_init();
+	my_thread_init();
 
 	segment = *((ulint*) arg);
 
@@ -316,6 +316,8 @@ DECLARE_THREAD(io_handler_thread)(
 	       || !os_aio_all_slots_free()) {
 		fil_aio_wait(segment);
 	}
+
+	my_thread_end();
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit.

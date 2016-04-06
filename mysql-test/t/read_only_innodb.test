@@ -1,3 +1,7 @@
+
+# Skipping the test when binlog format is mix/statement due to Bug#22173401
+--source include/have_binlog_format_row.inc
+
 # should work with embedded server after mysqltest is fixed
 -- source include/not_embedded.inc
 -- source include/have_innodb.inc

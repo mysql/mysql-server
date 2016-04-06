@@ -595,16 +595,11 @@ static int my_strnncoll_latin1_de(const CHARSET_INFO *cs
 static int my_strnncollsp_latin1_de(const CHARSET_INFO *cs
                                     MY_ATTRIBUTE((unused)),
 				    const uchar *a, size_t a_length,
-				    const uchar *b, size_t b_length,
-                                    my_bool diff_if_only_endspace_difference)
+				    const uchar *b, size_t b_length)
 {
   const uchar *a_end= a + a_length, *b_end= b + b_length;
   uchar a_char, a_extend= 0, b_char, b_extend= 0;
   int res;
-
-#ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
-  diff_if_only_endspace_difference= 0;
-#endif
 
   while ((a < a_end || a_extend) && (b < b_end || b_extend))
   {
@@ -641,8 +636,6 @@ static int my_strnncollsp_latin1_de(const CHARSET_INFO *cs
   if (a != a_end || b != b_end)
   {
     int swap= 1;
-    if (diff_if_only_endspace_difference)
-      res= 1;                                   /* Assume 'a' is bigger */
     /*
       Check the next not space character of the longer key. If it's < ' ',
       then it's smaller than the other key.

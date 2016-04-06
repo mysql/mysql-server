@@ -1107,7 +1107,15 @@ bool SELECT_LEX::setup_wild(THD *thd)
       const uint elem= fields_list.elements;
       const bool any_privileges= item_field->any_privileges;
       Item_subselect *subsel= master_unit()->item;
-      if (subsel && subsel->substype() == Item_subselect::EXISTS_SUBS)
+
+      /*
+        In case of EXISTS(SELECT * ... HAVING ...), don't use this
+        transformation. The columns in HAVING will need to resolve to the
+        select list. Replacing * with 1 effectively eliminates this
+        possibility.
+      */
+      if (subsel && subsel->substype() == Item_subselect::EXISTS_SUBS &&
+          !having_cond())
       {
         /*
           It is EXISTS(SELECT * ...) and we can replace * by any constant.

@@ -62,6 +62,16 @@ IF(NOT SYSTEM_TYPE)
   ENDIF()
 ENDIF()
 
+# Add explicit dependencies when building shared libraries
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+  IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
+      SET(CMAKE_SHARED_LIBRARY_C_FLAGS
+        "${CMAKE_SHARED_LIBRARY_C_FLAGS} -lc")
+      SET(CMAKE_SHARED_LIBRARY_CXX_FLAGS
+        "${CMAKE_SHARED_LIBRARY_CXX_FLAGS} -lstdc++ -lgcc_s -lCrunG3 -lc")
+  ENDIF()
+ENDIF()
+
 # Check to see if we are using LLVM's libc++ rather than e.g. libstd++
 # Can then check HAVE_LLBM_LIBCPP later without including e.g. ciso646.
 CHECK_CXX_SOURCE_RUNS("

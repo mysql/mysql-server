@@ -649,10 +649,6 @@ typedef void* os_thread_ret_t;
 extern ulong	srv_page_size_shift;
 extern ulong	srv_page_size;
 
-#if defined(WITH_INNODB_MEMCACHED) && defined(UNIV_DEBUG)
-#define UNIV_MEMCACHED_SDI
-#endif
-
 static const size_t UNIV_SECTOR_SIZE = 512;
 
 /* Dimension of spatial object we support so far. It has its root in

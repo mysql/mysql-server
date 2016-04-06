@@ -146,13 +146,17 @@ typedef unsigned int PSI_socket_key;
 */
 #define PSI_FLAG_TRANSFER (1 << 5)
 
-/**
-  Volatility flag.
-  This flag indicate that an instrumented object
-  has a volatility (life cycle) comparable
-  to the volatility of a session.
-*/
-#define PSI_FLAG_VOLATILITY_SESSION (1 << 6)
+#define PSI_VOLATILITY_UNKNOWN 0
+#define PSI_VOLATILITY_PERMANENT 1
+#define PSI_VOLATILITY_PROVISIONING 2
+#define PSI_VOLATILITY_DDL 3
+#define PSI_VOLATILITY_ACCOUNT 4
+#define PSI_VOLATILITY_SESSION 5
+#define PSI_VOLATILITY_TRANSACTION 6
+#define PSI_VOLATILITY_QUERY 7
+#define PSI_VOLATILITY_INTRA_QUERY 8
+
+#define PSI_COUNT_VOLATILITY 9
 
 struct PSI_placeholder
 {

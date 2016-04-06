@@ -79,9 +79,9 @@ ha_heap::ha_heap(handlerton *hton, TABLE_SHARE *table_arg)
 
 /*
   Hash index statistics is updated (copied from HP_KEYDEF::hash_buckets to 
-  rec_per_key) after 1/HEAP_STATS_UPDATE_THRESHOLD fraction of table records 
-  have been inserted/updated/deleted. delete_all_rows() and table flush cause 
-  immediate update.
+  records_per_key) after 1/HEAP_STATS_UPDATE_THRESHOLD fraction of table
+  records have been inserted/updated/deleted. delete_all_rows() and table flush
+  cause immediate update.
 
   NOTE
    hash index statistics must be updated when number of table records changes
@@ -199,6 +199,10 @@ void ha_heap::set_keys_for_scanning(void)
 }
 
 
+/**
+  Update index statistics for the table.
+*/
+
 void ha_heap::update_key_stats()
 {
   for (uint i= 0; i < table->s->keys; i++)
@@ -207,19 +211,20 @@ void ha_heap::update_key_stats()
 
     key->set_in_memory_estimate(1.0);           // Index is in memory
 
-    if (!key->rec_per_key)
+    if (!key->supports_records_per_key())
       continue;
     if (key->algorithm != HA_KEY_ALG_BTREE)
     {
       if (key->flags & HA_NOSAME)
-        key->rec_per_key[key->user_defined_key_parts - 1]= 1;
+        key->set_records_per_key(key->user_defined_key_parts - 1, 1.0f);
       else
       {
-        ha_rows hash_buckets= file->s->keydef[i].hash_buckets;
-        uint no_records= hash_buckets ? (uint) (file->s->records/hash_buckets) : 2;
-        if (no_records < 2)
-          no_records= 2;
-        key->rec_per_key[key->user_defined_key_parts - 1]= no_records;
+        const ha_rows hash_buckets= file->s->keydef[i].hash_buckets;
+        rec_per_key_t rec_per_key= hash_buckets ?
+          static_cast<rec_per_key_t>(file->s->records) / hash_buckets : 2.0f;
+        if (rec_per_key < 2.0f)
+          rec_per_key= 2.0f;
+        key->set_records_per_key(key->user_defined_key_parts - 1, rec_per_key);
       }
     }
   }
@@ -645,7 +650,9 @@ ha_rows ha_heap::records_in_range(uint inx, key_range *min_key,
 
   /* Assert that info() did run. We need current statistics here. */
   DBUG_ASSERT(key_stat_version == file->s->key_stat_version);
-  return key->rec_per_key[key->user_defined_key_parts - 1];
+  const ha_rows rec_in_range=
+    static_cast<ha_rows>(key->records_per_key(key->user_defined_key_parts - 1));
+  return rec_in_range;
 }
 
 

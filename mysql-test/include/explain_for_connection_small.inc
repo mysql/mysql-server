@@ -15,13 +15,14 @@
 
   set default_storage_engine= myisam;
   let $point=   before_reset_query_plan;
-
+  SET @save_log_bin= @@sql_log_bin;
+  SET SQL_LOG_BIN=0;
   create table t1 (a char(10) character set koi8r) ;
   insert ignore into t1 values ('ÔÅÓÔ') ;
   let $point=   before_reset_query_plan;let $query=  DELETE from t1 ;
   --source include/explain_for_connection.inc
   drop table t1 ;
-
+  SET SQL_LOG_BIN=@save_log_bin;
   CREATE TABLE t1 (a int not null,b int not null) ;
   CREATE TABLE t2 (a int not null, b int not null, primary key (a,b)) ;
   CREATE TABLE t3 (a int not null, b int not null, primary key (a,b)) ;

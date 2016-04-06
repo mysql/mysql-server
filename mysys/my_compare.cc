@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@ int ha_compare_text(const CHARSET_INFO *charset_info, uchar *a, uint a_length,
 {
   if (!part_key)
     return charset_info->coll->strnncollsp(charset_info, a, a_length,
-                                           b, b_length, (my_bool)!skip_end_space);
+                                           b, b_length);
   return charset_info->coll->strnncoll(charset_info, a, a_length,
                                        b, b_length, part_key);
 }

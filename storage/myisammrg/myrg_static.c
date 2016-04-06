@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@ PSI_mutex_key rg_key_mutex_MYRG_INFO_mutex;
 
 static PSI_mutex_info all_myisammrg_mutexes[]=
 {
-  { &rg_key_mutex_MYRG_INFO_mutex, "MYRG_INFO::mutex", 0}
+  { &rg_key_mutex_MYRG_INFO_mutex, "MYRG_INFO::mutex", 0, 0}
 };
 
 PSI_file_key rg_key_file_MRG;

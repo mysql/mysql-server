@@ -98,9 +98,9 @@ PSI_mutex_key mi_key_mutex_MYISAM_SHARE_intern_lock,
 
 static PSI_mutex_info all_myisam_mutexes[]=
 {
-  { &mi_key_mutex_MI_SORT_INFO_mutex, "MI_SORT_INFO::mutex", 0},
-  { &mi_key_mutex_MYISAM_SHARE_intern_lock, "MYISAM_SHARE::intern_lock", 0},
-  { &mi_key_mutex_MI_CHECK_print_msg, "MI_CHECK::print_msg", 0}
+  { &mi_key_mutex_MI_SORT_INFO_mutex, "MI_SORT_INFO::mutex", 0, 0},
+  { &mi_key_mutex_MYISAM_SHARE_intern_lock, "MYISAM_SHARE::intern_lock", 0, 0},
+  { &mi_key_mutex_MI_CHECK_print_msg, "MI_CHECK::print_msg", 0, 0}
 };
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 
