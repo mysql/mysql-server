@@ -224,7 +224,7 @@ CONNECT (vtcon3, localhost, root,,);
 CONNECTION vtcon1;
 SELECT version_tokens_set("a=aa;b=bb;c=cc");
 set @@version_tokens_session= "a=aa";
---send SELECT sleep(5); # sleep for 5 seconds in background.
+--send SELECT sleep(8); # sleep for 8 seconds in background.
 
 -- echo # Connection: vtcon2
 CONNECTION vtcon2;
