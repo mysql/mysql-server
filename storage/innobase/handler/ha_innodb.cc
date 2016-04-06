@@ -15771,6 +15771,11 @@ ha_innobase::end_stmt()
 
 	/* This transaction had called ha_innobase::start_stmt() */
 	trx_t*	trx = m_prebuilt->trx;
+
+	if (trx != thd_to_trx(ha_thd())) {
+		return(0);
+	}
+
 	ut_ad(trx->duplicates == 0);
 
 	if (trx->lock.start_stmt) {
