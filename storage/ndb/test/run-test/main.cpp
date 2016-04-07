@@ -1,6 +1,6 @@
 
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1083,14 +1083,64 @@ start_process(atrt_process & proc){
     return false;
   }
   
+  /**
+   * For MySQL server program we need to pass the correct basedir.
+   */
+  const bool mysqld = proc.m_type & atrt_process::AP_MYSQLD;
+  if (mysqld)
+  {
+    BaseString basedir;
+    /**
+     * If MYSQL_BASE_DIR is set use that for basedir.
+     */
+    ssize_t pos = proc.m_proc.m_env.indexOf("MYSQL_BASE_DIR=");
+    if (pos > 0)
+    {
+      pos = proc.m_proc.m_env.indexOf(" MYSQL_BASE_DIR=");
+      if (pos != -1) pos ++;
+    }
+    if (pos >= 0)
+    {
+      pos += strlen("MYSQL_BASE_DIR=");
+      ssize_t endpos = proc.m_proc.m_env.indexOf(' ', pos);
+      if (endpos == -1) endpos = proc.m_proc.m_env.length();
+      basedir = proc.m_proc.m_env.substr(pos, endpos);
+    }
+    else
+    {
+      /**
+       * If no MYSQL_BASE_DIR set, derive basedir from program path.
+       * Assumming that program path is on the form
+       *   <basedir>/{bin,sql}/mysqld
+       */
+      const BaseString sep("/");
+      Vector<BaseString> dir_parts;
+      int num_of_parts = proc.m_proc.m_path.split(dir_parts, sep);
+      dir_parts.erase(num_of_parts - 1); // remove trailing /mysqld
+      dir_parts.erase(num_of_parts - 2); // remove trailing /bin
+      num_of_parts -= 2;
+      basedir.assign(dir_parts, sep);
+    }
+    proc.m_proc.m_args.appfmt(" --basedir=%s", basedir.c_str());
+    g_logger.info("appended '--basedir=%s' to mysqld process", basedir.c_str());
+  }
+  BaseString save_args(proc.m_proc.m_args);
   {
     Properties reply;
     if(proc.m_host->m_cpcd->define_process(proc.m_proc, reply) != 0){
       BaseString msg;
       reply.get("errormessage", msg);
-      g_logger.error("Unable to define process: %s", msg.c_str());      
+      g_logger.error("Unable to define process: %s", msg.c_str());
+      if (mysqld)
+      {
+        proc.m_proc.m_args = save_args; /* restore args */
+      }
       return false;
     }
+  }
+  if (mysqld)
+  {
+    proc.m_proc.m_args = save_args; /* restore args */
   }
   {
     Properties reply;
