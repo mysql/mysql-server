@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -426,7 +426,8 @@ Tsman::execCREATE_FILEGROUP_IMPL_REQ(Signal* signal)
       break;
     }
 
-    if (!m_tablespace_pool.seize(ptr))
+    if (unlikely(ERROR_INSERTED(16001)) ||
+        !m_tablespace_pool.seize(ptr))
     {
       jam();
       err = CreateFilegroupImplRef::OutOfFilegroupRecords;
@@ -509,6 +510,13 @@ Tsman::execDROP_FILEGROUP_IMPL_REQ(Signal* signal)
       break;
     case DropFilegroupImplReq::Commit:
       jam();
+      /** Change the state for the case where CREATE_FILEGROUP_IMPL_REQ
+       * aborts (due to another participant fail creating FG)
+       * by sending DropFilegroupImplReq::Commit to cleanup this
+       * participant without sending DropFilegroupImplReq::Prepare first.
+       */
+      ptr.p->m_state = Tablespace::TS_DROPPING;
+      
       if (ptr.p->m_ref_count)
       {
         jam();

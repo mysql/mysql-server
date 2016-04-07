@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -1153,7 +1153,8 @@ Lgman::execCREATE_FILEGROUP_IMPL_REQ(Signal* signal){
 
     new (ptr.p) Logfile_group(req);
     
-    if (!alloc_logbuffer_memory(ptr, req->logfile_group.buffer_size))
+    if (unlikely(ERROR_INSERTED(15001)) ||
+        !alloc_logbuffer_memory(ptr, req->logfile_group.buffer_size))
     {
       jam();
       err= CreateFilegroupImplRef::OutOfLogBufferMemory;
