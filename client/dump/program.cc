@@ -158,7 +158,6 @@ int Program::execute(std::vector<std::string> positional_options)
   {
     std::cerr << "Server version is not compatible. Server version should "
                  "be 5.7.8 or above.";
-    delete runner;
     delete message_handler;
     delete connection_provider;
     return 0;
@@ -195,13 +194,11 @@ int Program::execute(std::vector<std::string> positional_options)
 
   crawler->enumerate_objects();
 
-  delete runner;
   delete crawler;
   if (progress_watcher != NULL)
     delete progress_watcher;
   delete id_generator;
   delete connection_provider;
-  delete message_handler;
 
   std::cerr << "Dump completed in " <<
     boost::chrono::duration_cast<boost::chrono::milliseconds>(

@@ -22,8 +22,3 @@ using namespace Mysql::Tools::Dump;
 Database_end_dump_task::Database_end_dump_task(Database* related_database)
   : Abstract_database_dump_task(related_database)
 {}
-
-Database_end_dump_task::~Database_end_dump_task()
-{
-  delete (Database*)this->get_related_db_object();
-}

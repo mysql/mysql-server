@@ -32,7 +32,6 @@ public:
   }
 
   void join_all();
-  ~thread_group();
 private:
   std::vector<my_boost::thread*> m_threads;
 };

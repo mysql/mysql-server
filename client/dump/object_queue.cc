@@ -147,7 +147,6 @@ Object_queue::~Object_queue()
 {
   m_is_queue_running= false;
   m_thread_group.join_all();
-  delete m_thread_callback;
 }
 
 Object_queue::Object_queue(
