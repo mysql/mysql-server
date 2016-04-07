@@ -1522,11 +1522,12 @@ sub command_line_setup {
     mtr_error("0 or negative parallel value makes no sense, use 'auto' or positive number");
   }
 
-  if ($opt_parallel > 1 && $opt_valgrind)
+  my $max_para_hack = 4;
+  if ($opt_parallel > $max_para_hack && $opt_valgrind)
   {
     # Temporarily hack mtr.pl to try and get a usable report.
-    mtr_report("Decreasing --parallel to 1 when valgrinding");
-    $opt_parallel = 1;
+    mtr_report("Decreasing --parallel to $max_para_hack when valgrinding");
+    $opt_parallel = $max_para_hack;
   }
 
   # --------------------------------------------------------------------------
