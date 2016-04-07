@@ -2942,6 +2942,14 @@ err:
                                    error_code);
       }
     }
+    else if (error)
+    {
+      /*
+        We do not care the returned value, since it goes ahead
+        with error branch in any case.
+      */
+      (void) commit_owned_gtid_by_partial_command(thd);
+    }
   }
 
   if (!drop_temporary)

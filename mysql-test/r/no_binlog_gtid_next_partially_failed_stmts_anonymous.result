@@ -1,0 +1,41 @@
+RESET MASTER;
+SET GTID_NEXT = 'ANONYMOUS';
+CREATE TABLE t1 (a int);
+SET GTID_NEXT = 'ANONYMOUS';
+#
+# Execute a partially failed DROP TABLE statement.
+#
+DROP TABLE t1, t2;
+ERROR 42S02: Unknown table 'test.t2'
+#
+# The table t1 was dropped, which means DROP TABLE
+# can be failed partially.
+#
+SHOW CREATE TABLE t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+#
+# When binlog is disabled, verify that we can set
+# GTID_NEXT to 'ANONYMOUS' after the partially failed
+# DROP TABLE statement consumed its 'ANONYMOUS' gtid.
+#
+SET GTID_NEXT = 'ANONYMOUS';
+CREATE USER u1@h;
+SET GTID_NEXT = 'ANONYMOUS';
+DROP USER u1@h, u2@h;
+ERROR HY000: Operation DROP USER failed for 'u2'@'h'
+#
+# When binlog is disabled, verify that we can set
+# GTID_NEXT to 'ANONYMOUS' after the partially failed
+# DROP USER statement consumed its 'ANONYMOUS' gtid.
+#
+SET GTID_NEXT = 'ANONYMOUS';
+CREATE VIEW v1 as SELECT 1;
+SET GTID_NEXT = 'ANONYMOUS';
+DROP VIEW v1, v2;
+ERROR 42S02: Unknown table 'test.v2'
+#
+# When binlog is disabled, verify that we can set
+# GTID_NEXT to 'ANONYMOUS' after the partially failed
+# DROP USER statement consumed its 'ANONYMOUS' gtid.
+#
+SET GTID_NEXT = 'ANONYMOUS';

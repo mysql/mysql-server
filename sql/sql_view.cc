@@ -1799,8 +1799,12 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views)
   if (error || wrong_object_name || non_existant_views.length())
   {
     if (some_views_deleted)
-      (void) write_bin_log(thd, false, thd->query().str,
-                           thd->query().length);
+    {
+      int ret= commit_owned_gtid_by_partial_command(thd);
+      if (ret == 1)
+        (void) write_bin_log(thd, false, thd->query().str,
+                             thd->query().length);
+    }
 
     DBUG_RETURN(true);
   }
