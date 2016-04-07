@@ -6275,7 +6275,8 @@ ha_innobase::open(const char* name, int, uint)
 	file can't be retrieved properly, mark it as corrupted. */
 	if (ib_table != NULL
 	    && dict_table_is_encrypted(ib_table)
-	    && ib_table->ibd_file_missing) {
+	    && ib_table->ibd_file_missing
+	    && !dict_table_is_discarded(ib_table)) {
 
 		/* Mark this table as corrupted, so the drop table
 		or force recovery can still use it, but not others. */

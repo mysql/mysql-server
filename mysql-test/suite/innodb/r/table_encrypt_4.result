@@ -3,6 +3,7 @@ SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
 1
+# Create a table with encryption
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -38,6 +39,7 @@ c1	c2
 7	hhhhh
 8	iiiii
 9	jjjjj
+# Test export/import encrypted tablespace.
 FLUSH TABLES test.t1 FOR EXPORT;
 UNLOCK TABLES;
 ALTER TABLE test.t1 DISCARD TABLESPACE;
@@ -63,6 +65,21 @@ c1	c2
 7	hhhhh
 8	iiiii
 9	jjjjj
+SELECT * FROM test.t1 LIMIT 10;
+c1	c2
+0	aaaaa
+1	bbbbb
+2	ccccc
+3	ddddd
+4	eeeee
+5	fffff
+6	ggggg
+7	hhhhh
+8	iiiii
+9	jjjjj
+ALTER TABLE test.t1 DISCARD TABLESPACE;
+# Try import in another session.
+ALTER TABLE test.t1 IMPORT TABLESPACE;
 SELECT * FROM test.t1 LIMIT 10;
 c1	c2
 0	aaaaa
