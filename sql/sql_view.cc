@@ -1818,11 +1818,18 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   something_wrong= error || wrong_object_name || non_existant_views.length();
   if (some_views_deleted || !something_wrong)
   {
-    /* if something goes wrong, bin-log with possible error code,
-       otherwise bin-log with error code cleared.
-     */
-    if (write_bin_log(thd, !something_wrong,
-                      thd->query().str, thd->query().length))
+    int ret= commit_owned_gtid_by_partial_command(thd);
+    if (ret == 1)
+    {
+      /*
+        If something goes wrong, bin-log with possible error code,
+        otherwise bin-log with error code cleared.
+      */
+      if (write_bin_log(thd, !something_wrong,
+                        thd->query().str, thd->query().length))
+        something_wrong= 1;
+    }
+    else if (ret == -1)
       something_wrong= 1;
   }
 
