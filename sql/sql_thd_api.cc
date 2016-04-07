@@ -629,7 +629,7 @@ extern "C"
 int thd_killed(const MYSQL_THD thd)
 {
   if (thd == NULL)
-    return current_thd->killed;
+    return current_thd != NULL ? current_thd->killed : 0;
   return thd->killed;
 }
 
