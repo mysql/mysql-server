@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2160,8 +2160,30 @@ runCreateLogfileGroup(NDBT_Context* ctx, NDBT_Step* step){
   lg.setName("DEFAULT-LG");
   lg.setUndoBufferSize(8*1024*1024);
   
-  int res;
-  res = pNdb->getDictionary()->createLogfileGroup(lg);
+  int oneDictParticipantFail = ctx->getProperty("OneDictParticipantFail",
+                                                (Uint32)0);
+  if (oneDictParticipantFail)
+  {
+    NdbRestarter restarter;
+    const int anyDbNodeId = restarter.getNode(NdbRestarter::NS_RANDOM);
+    restarter.insertErrorInNode(anyDbNodeId, 15001);
+
+    if ((pNdb->getDictionary()->createLogfileGroup(lg)) == 0)
+    {
+      g_err << "Error: Should have failed to create logfilegroup"
+            << " due to error insertion" << endl;
+
+      // Leave the data nodes error-free before failing
+      restarter.insertErrorInNode(anyDbNodeId, 0);
+      return NDBT_FAILED;
+    }
+
+    restarter.insertErrorInNode(anyDbNodeId, 0); // clear error
+
+    // Recreate LFG below
+  }
+
+  int res = pNdb->getDictionary()->createLogfileGroup(lg);
   if(res != 0){
     g_err << "Failed to create logfilegroup:"
 	  << endl << pNdb->getDictionary()->getNdbError() << endl;
@@ -2202,8 +2224,32 @@ runCreateTablespace(NDBT_Context* ctx, NDBT_Step* step){
   lg.setExtentSize(1024*1024);
   lg.setDefaultLogfileGroup("DEFAULT-LG");
 
-  int res;
-  res = pNdb->getDictionary()->createTablespace(lg);
+  int oneDictParticipantFail = ctx->getProperty("OneDictParticipantFail",
+                                                (Uint32)0);
+
+  if (oneDictParticipantFail)
+  {
+    NdbRestarter restarter;
+    const int anyDbNodeId = restarter.getNode(NdbRestarter::NS_RANDOM);
+
+    restarter.insertErrorInNode(anyDbNodeId, 16001);
+
+    if ((pNdb->getDictionary()->createTablespace(lg)) == 0)
+    {
+      g_err << "Error: Should have failed to createTablespace"
+            << " due to error insertion." << endl;
+
+      // Leave the data nodes error-free before failing
+      restarter.insertErrorInNode(anyDbNodeId, 0);
+      return NDBT_FAILED;
+    }
+
+    restarter.insertErrorInNode(anyDbNodeId, 0); // clear error
+
+    // recreate TS below.
+  }
+
+  int res = pNdb->getDictionary()->createTablespace(lg);
   if(res != 0){
     g_err << "Failed to create tablespace:"
 	  << endl << pNdb->getDictionary()->getNdbError() << endl;
@@ -2221,9 +2267,40 @@ runCreateTablespace(NDBT_Context* ctx, NDBT_Step* step){
 	  << endl << pNdb->getDictionary()->getNdbError() << endl;
     return NDBT_FAILED;
   }
-
   return NDBT_OK;
 }
+
+int
+runDropTableSpaceLogFileGroup(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+
+  if (pNdb->getDictionary()->dropDatafile(
+      pNdb->getDictionary()->getDatafile(0, "datafile01.dat")) != 0)
+  {
+    g_err << "Error: Failed to drop datafile: "
+          << pNdb->getDictionary()->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (pNdb->getDictionary()->dropTablespace(pNdb->getDictionary()->
+                                            getTablespace("DEFAULT-TS")) != 0)
+  {
+    g_err << "Error: Failed to drop tablespace: "
+          << pNdb->getDictionary()->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (pNdb->getDictionary()->dropLogfileGroup(
+      pNdb->getDictionary()->getLogfileGroup("DEFAULT-LG")) != 0)
+  {
+    g_err << "Error: Drop of LFG Failed"
+          << endl << pNdb->getDictionary()->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
 int
 runCreateDiskTable(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);  
@@ -11493,7 +11570,22 @@ TESTCASE("DictionaryPerf",
 TESTCASE("CreateLogfileGroup", ""){
   INITIALIZER(runCreateLogfileGroup);
 }
-TESTCASE("CreateTablespace", ""){
+TESTCASE("CreateLogfileGroupWithFailure",
+         "Create a log file group where a dict participant"
+         " fails to create log buffer"){
+  TC_PROPERTY("OneDictParticipantFail", 1);
+  INITIALIZER(runCreateLogfileGroup);
+}
+TESTCASE("CreateTablespaceWithFailure",
+         "Create a log file group where a dict participant"
+         " fails to create log buffer"){
+  TC_PROPERTY("OneDictParticipantFail", 1);
+  STEP(runCreateTablespace);
+  FINALIZER(runDropTableSpaceLogFileGroup);
+}
+TESTCASE("CreateTablespace",
+         "Create a table space where a dict participant"
+         " fails to create log buffer"){
   INITIALIZER(runCreateTablespace);
 }
 TESTCASE("CreateDiskTable", ""){

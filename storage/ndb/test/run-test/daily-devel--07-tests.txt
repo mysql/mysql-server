@@ -51,3 +51,15 @@ cmd: testNdbApi
 args: -n GetNdbIndexOperationParallelDroppingTest I3
 max-time : 300
 
+# The follwing two tests are atomic, should be run in the same order,
+# since the second one depends on the first one.
+# CreateTableSpaceWithFailure drops the TS and LFG created,
+# so no tests expecting that they are there should not follow it.
+cmd: testDict
+args: -n CreateLogfileGroupWithFailure T1
+max-time : 180
+
+cmd: testDict
+args: -n CreateTableSpaceWithFailure T1
+max-time : 180
+
