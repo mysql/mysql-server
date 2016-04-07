@@ -31,6 +31,8 @@ class Table_definition_dump_task : public Abstract_table_dump_task
 {
 public:
   Table_definition_dump_task(Table* related_table);
+
+  ~Table_definition_dump_task();
 };
 
 }

@@ -36,6 +36,7 @@ public:
    */
   virtual void register_chain_maker(I_chain_maker* new_chain_maker);
 
+  ~Abstract_crawler();
 protected:
   Abstract_crawler(
     Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
