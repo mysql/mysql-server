@@ -74,6 +74,7 @@ public:
     @param program Pointer to main program class.
    */
   Mysql_connection_options(Abstract_program *program);
+  ~Mysql_connection_options();
 
   /**
     Creates all options that will be provided.
@@ -117,6 +118,12 @@ private:
 
   static bool mysql_inited;
 
+  /*
+   List of created connections. As we don't have memory management for
+   C structs we must clear it by options provider destruction.
+   */
+  std::vector<MYSQL*> m_allocated_connections;
+  my_boost::mutex m_connection_mutex;
   Ssl_options m_ssl_options_provider;
   Abstract_program *m_program;
   Nullable<std::string> m_protocol_string;

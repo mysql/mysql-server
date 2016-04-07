@@ -42,16 +42,13 @@ Mysql::Tools::Base::Mysql_query_runner*
       message_handler)
 {
   MYSQL* connection= m_connection_factory->create_connection();
-  Message_handler_wrapper* message_wrapper=
-    new Message_handler_wrapper(message_handler);
-  I_callable<int64, const Mysql::Tools::Base::Message_data&>* callback
-    = new Mysql::Instance_callback_own<
+  return &((new Mysql::Tools::Base::Mysql_query_runner(connection))
+    ->add_message_callback(
+    new Mysql::Instance_callback<
     int64, const Mysql::Tools::Base::Message_data&,
     Message_handler_wrapper>(
-      message_wrapper, &Message_handler_wrapper::pass_message);
-
-  return &((new Mysql::Tools::Base::Mysql_query_runner(connection))
-    ->add_message_callback(callback));
+    new Message_handler_wrapper(message_handler),
+    &Message_handler_wrapper::pass_message)));
 }
 
 Abstract_connection_provider::Abstract_connection_provider(

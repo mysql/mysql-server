@@ -20,8 +20,6 @@
 
 #include "abstract_connection_provider.h"
 #include "thread_specific_ptr.h"
-#include "base/mutex.h"
-#include <vector>
 
 namespace Mysql{
 namespace Tools{
@@ -32,7 +30,6 @@ class Thread_specific_connection_provider : public Abstract_connection_provider
 public:
   Thread_specific_connection_provider(
     Mysql::Tools::Base::I_connection_factory* connection_factory);
-  ~Thread_specific_connection_provider();
 
   virtual Mysql::Tools::Base::Mysql_query_runner* get_runner(
     Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
@@ -41,9 +38,6 @@ public:
 private:
   my_boost::thread_specific_ptr<Mysql::Tools::Base::Mysql_query_runner>
     m_runner;
-
-  std::vector<Mysql::Tools::Base::Mysql_query_runner*> m_runners_created;
-  my_boost::mutex m_runners_created_lock;
 };
 
 }
