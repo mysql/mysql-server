@@ -31,26 +31,26 @@ AND name IN ('innodb_table_stats',
 'version'))
 ORDER BY id;
 id	name	type	engine	collation_id	comment	hidden	options	se_private_data	se_private_id	tablespace_id
-1	version	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=0;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	11	NULL
-3	collations	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	13	NULL
-4	tablespaces	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	14	NULL
-5	tablespace_files	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	15	NULL
-6	catalogs	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	16	NULL
-7	schemata	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	17	NULL
-8	tables	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	18	NULL
-9	view_table_usage	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	19	NULL
-10	columns	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	20	NULL
-11	indexes	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	21	NULL
-12	index_column_usage	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=0;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	22	NULL
-13	column_type_elements	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	23	NULL
-14	foreign_keys	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	24	NULL
-15	foreign_key_column_usage	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	25	NULL
-16	table_partitions	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	26	NULL
-17	table_partition_values	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	27	NULL
-18	index_partitions	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	28	NULL
+1	version	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=0;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	11	NULL
+3	collations	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	13	NULL
+4	tablespaces	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	14	NULL
+5	tablespace_files	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	15	NULL
+6	catalogs	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	16	NULL
+7	schemata	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	17	NULL
+8	tables	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	18	NULL
+9	view_table_usage	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	19	NULL
+10	columns	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	20	NULL
+11	indexes	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	21	NULL
+12	index_column_usage	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=0;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	22	NULL
+13	column_type_elements	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	23	NULL
+14	foreign_keys	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	24	NULL
+15	foreign_key_column_usage	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	25	NULL
+16	table_partitions	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	26	NULL
+17	table_partition_values	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	27	NULL
+18	index_partitions	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	28	NULL
 23	innodb_table_stats	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	33	NULL
 24	innodb_index_stats	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	34	NULL
-25	character_sets	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=0;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	NULL	NULL
+25	character_sets	BASE TABLE	InnoDB	83		0	avg_row_length=0;checksum=0;delay_key_write=0;key_block_size=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	NULL	NULL
 #
 # Subset of definitions from columns, not including
 # default_values.
