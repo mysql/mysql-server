@@ -29,6 +29,8 @@ class Database_end_dump_task : public Abstract_database_dump_task
 {
 public:
   Database_end_dump_task(Database* related_database);
+
+  ~Database_end_dump_task();
 };
 
 }

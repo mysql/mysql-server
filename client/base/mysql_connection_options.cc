@@ -50,19 +50,6 @@ Mysql_connection_options::Mysql_connection_options(Abstract_program *program)
   this->add_provider(&this->m_ssl_options_provider);
 }
 
-Mysql_connection_options::~Mysql_connection_options()
-{
-  my_boost::mutex::scoped_lock lock(m_connection_mutex);
-  for (vector<MYSQL*>::iterator it= this->m_allocated_connections.begin();
-    it != this->m_allocated_connections.end(); it++)
-  {
-    if (*it)
-    {
-      mysql_close(*it);
-    }
-  }
-}
-
 void Mysql_connection_options::create_options()
 {
   this->create_new_option(&this->m_bind_addr, "bind-address",
@@ -129,13 +116,7 @@ void Mysql_connection_options::create_options()
 
 MYSQL* Mysql_connection_options::create_connection()
 {
-  MYSQL *connection = new MYSQL;
-
-  {
-  my_boost::mutex::scoped_lock lock(m_connection_mutex);
-  this->m_allocated_connections.push_back(connection);
-  }
-  mysql_init(connection);
+  MYSQL *connection= mysql_init(NULL);
   if (this->m_compress)
     mysql_options(connection, MYSQL_OPT_COMPRESS, NullS);
 
@@ -184,6 +165,7 @@ MYSQL* Mysql_connection_options::create_connection()
     this->get_null_or_string(this->m_mysql_unix_port), 0))
   {
     this->db_error(connection, "while connecting to the MySQL server");
+    mysql_close(connection);
     return NULL;
   }
 

@@ -1,6 +1,5 @@
 
 -- source include/not_embedded.inc
--- source include/not_valgrind.inc
 
 --echo #
 --echo # WL#7755  mysqlpump: Extend mysqldump functionalities

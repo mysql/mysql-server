@@ -50,6 +50,8 @@ public:
       message_handler, Simple_id_generator* object_id_generator,
       const Sql_formatter_options* options);
 
+    ~Sql_formatter();
+
   /**
     Creates string representation for output of DB object related to specified
     dump task object.
