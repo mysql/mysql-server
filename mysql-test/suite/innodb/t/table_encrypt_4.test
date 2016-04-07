@@ -32,7 +32,7 @@ let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 
-# Create a table with encryption
+--echo # Create a table with encryption
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 
 SHOW CREATE TABLE t1;
@@ -55,7 +55,7 @@ INSERT INTO t1 select * from t1;
 
 SELECT * FROM t1 LIMIT 10;
 
-# Test export/import encrypted tablespace.
+--echo # Test export/import encrypted tablespace.
 let $MYSQLD_DATADIR = `SELECT @@datadir`;
 
 if(!$source_db) {
@@ -104,6 +104,23 @@ if($source_db != $dest_db) {
 
 --source include/wait_until_connected_again.inc
 --disable_reconnect
+
+eval SELECT * FROM $dest_db.t1 LIMIT 10;
+
+eval ALTER TABLE $dest_db.t1 DISCARD TABLESPACE;
+
+--copy_file $MYSQLD_DATADIR/t1.cfg_back $MYSQLD_DATADIR/$dest_db/t1.cfg
+--copy_file $MYSQLD_DATADIR/t1.cfp_back $MYSQLD_DATADIR/$dest_db/t1.cfp
+--copy_file $MYSQLD_DATADIR/t1.ibd_back $MYSQLD_DATADIR/$dest_db/t1.ibd
+
+--echo # Try import in another session.
+connect (con1,localhost,root);
+--disable_warnings
+eval ALTER TABLE $dest_db.t1 IMPORT TABLESPACE;
+--enable_warnings
+disconnect con1;
+
+connection default;
 
 eval SELECT * FROM $dest_db.t1 LIMIT 10;
 
