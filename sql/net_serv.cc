@@ -264,7 +264,8 @@ net_should_retry(NET *net, uint *retry_count)
   - Splits the data into packets of size 2<sup>24</sup> bytes
   - Prepends to each chunk a packet header
 
-  @section sect_protocol_basic_packets_packet Protocol::Packet
+  Protocol::Packet
+  ----------------
 
   Data between client and server is exchanged in packets of max 16MByte size.
 
@@ -299,6 +300,29 @@ net_should_retry(NET *net, uint *retry_count)
   </td></tr></table>
 
   @sa my_net_write(), net_write_command(), net_write_buff(), my_net_read(), net_send_ok()
+
+  @section sect_protocol_basic_packets_describing_packets Describing Packets
+
+  In this document we describe each packet by first defining its payload and
+  provide an example showing each packet that is sent, including its packet header:
+  <pre>
+  &lt;packetname&gt;
+    &lt;description&gt;
+
+    direction: client -&gt; server
+    response: &lt;response&gt;
+
+    payload:
+      &lt;type&gt;        &lt;description&gt;
+  </pre>
+
+  Example:
+  ~~~~~~~~~~~~~~~~~~~~~
+  01 00 00 00 01
+  ~~~~~~~~~~~~~~~~~~~~~
+
+  @note Some packets have optional fields or a different layout depending on
+  the @ref group_cs_capabilities_flags.
 */
 
 

@@ -157,6 +157,14 @@
   - @subpage page_protocol_command_phase
 */
 
+/**
+  @defgroup group_cs Client/Server Protocol
+
+  Client/server protocol related structures,
+  macros, globals and functions
+*/
+
+
 #include "protocol_classic.h"
 #include "item_func.h"                          // Item_func_set_user_var
 #include "sql_class.h"                          // THD

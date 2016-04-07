@@ -154,33 +154,192 @@
 #define REFRESH_FOR_EXPORT      0x100000L /* FLUSH TABLES ... FOR EXPORT */
 #define REFRESH_OPTIMIZER_COSTS 0x200000L /* FLUSH OPTIMIZER_COSTS */
 
-#define CLIENT_LONG_PASSWORD	1	/* new more secure passwords */
-#define CLIENT_FOUND_ROWS	2	/* Found instead of affected rows */
-#define CLIENT_LONG_FLAG	4	/* Get all column flags */
-#define CLIENT_CONNECT_WITH_DB	8	/* One can specify db on connect */
-#define CLIENT_NO_SCHEMA	16	/* Don't allow database.table.column */
-#define CLIENT_COMPRESS		32	/* Can use compression protocol */
-#define CLIENT_ODBC		64	/* Odbc client */
-#define CLIENT_LOCAL_FILES	128	/* Can use LOAD DATA LOCAL */
-#define CLIENT_IGNORE_SPACE	256	/* Ignore spaces before '(' */
-#define CLIENT_PROTOCOL_41	512	/* New 4.1 protocol */
-#define CLIENT_INTERACTIVE	1024	/* This is an interactive client */
-#define CLIENT_SSL              2048	/* Switch to SSL after handshake */
-#define CLIENT_IGNORE_SIGPIPE   4096    /* IGNORE sigpipes */
-#define CLIENT_TRANSACTIONS	8192	/* Client knows about transactions */
-#define CLIENT_RESERVED         16384   /* Old flag for 4.1 protocol  */
-#define CLIENT_RESERVED2        32768   /* Old flag for 4.1 authentication */
-#define CLIENT_MULTI_STATEMENTS (1UL << 16) /* Enable/disable multi-stmt support */
-#define CLIENT_MULTI_RESULTS    (1UL << 17) /* Enable/disable multi-results */
-#define CLIENT_PS_MULTI_RESULTS (1UL << 18) /* Multi-results in PS-protocol */
+/**
+   @defgroup group_cs_capabilities_flags Capabilities Flags
+   @ingroup group_cs
 
-#define CLIENT_PLUGIN_AUTH  (1UL << 19) /* Client supports plugin authentication */
-#define CLIENT_CONNECT_ATTRS (1UL << 20) /* Client supports connection attributes */
+   @brief Values for the capabilities flag bitmask used by @ref PAGE_PROTOCOL
 
-/* Enable authentication response packet to be larger than 255 bytes. */
+   Currently need to fit into 32 bits.
+
+   Each bit represents an optional feature of the protocol.
+
+   Both the client and the server are sending these.
+
+   The intersection of the two determines whast optional parts of the
+   protocol will be used.
+*/
+
+/**
+  @addtogroup group_cs_capabilities_flags
+  @{
+*/
+
+/**
+  Use the improved version of Old Password Authentication.
+
+  @note Assumed to be set since 4.1.1.
+*/
+#define CLIENT_LONG_PASSWORD	1
+/**
+  Send found rows instead of affected rows in @ref page_protocol_basic_eof_packet
+*/
+#define CLIENT_FOUND_ROWS	2
+/**
+  @brief Get all column flags
+
+  Longer flags in Protocol::ColumnDefinition320.
+
+  @todo Reference Protocol::ColumnDefinition320
+
+  Server
+  ------
+
+  Supports longer flags.
+
+  Client
+  ------
+
+  Expects longer flags.
+*/
+#define CLIENT_LONG_FLAG	4
+/**
+  Database (schema) name can be specified on connect in Handshake Response Packet.
+
+  @todo Reference Handshake Response Packet.
+
+  Server
+  ------
+
+  Supports schema-name in Handshake Response Packet.
+
+  Client
+  ------
+
+  Handshake Response Packet contains a schema-name.
+
+  @sa send_client_reply_packet()
+*/
+#define CLIENT_CONNECT_WITH_DB	8
+#define CLIENT_NO_SCHEMA	16	/*!< Don't allow database.table.column */
+/**
+  Compression protocol supported.
+
+  @todo Reference Compression
+
+  Server
+  ------
+
+  Supports compression.
+
+  Client
+  ------
+
+  Switches to Compression compressed protocol after successful authentication.
+*/
+#define CLIENT_COMPRESS		32
+/**
+  Special handling of ODBC behavior.
+
+  @note No special behavior since 3.22.
+*/
+#define CLIENT_ODBC		64
+/**
+  Can use LOAD DATA LOCAL.
+
+  Server
+  ------
+
+  Enables the LOCAL INFILE request of LOAD DATA|XML.
+
+  Client
+  ------
+
+  Will handle LOCAL INFILE request.
+*/
+#define CLIENT_LOCAL_FILES	128
+/**
+  Ignore spaces before '('
+
+  Server
+  ------
+
+  Parser can ignore spaces before '('.
+
+  Client
+  ------
+
+  Let the parser ignore spaces before '('.
+*/
+#define CLIENT_IGNORE_SPACE	256
+/**
+  New 4.1 protocol
+
+  @todo Reference the new 4.1 protocol
+
+  Server
+  ------
+
+  Supports the 4.1 protocol.
+
+  Client
+  ------
+
+  Uses the 4.1 protocol.
+
+  @note this value was CLIENT_CHANGE_USER in 3.22, unused in 4.0
+*/
+#define CLIENT_PROTOCOL_41	512
+/**
+  This is an interactive client
+
+  Use @ref System_variables::net_wait_timeout
+  versus @ref System_variables::net_interactive_timeout.
+
+  Server
+  ------
+
+  Supports interactive and noninteractive clients.
+
+  Client
+  ------
+
+  Client is interactive.
+
+  @sa mysql_real_connect()
+*/
+#define CLIENT_INTERACTIVE	1024
+/**
+  Use SSL encryption for the session
+
+  @todo Reference SSL
+
+  Server
+  ------
+
+  Supports SSL
+
+  Client
+  ------
+
+  Switch to SSL after sending the capability-flags.
+*/
+#define CLIENT_SSL              2048
+#define CLIENT_IGNORE_SIGPIPE   4096    /*!< IGNORE sigpipes */
+#define CLIENT_TRANSACTIONS	8192	/*!< Client knows about transactions */
+#define CLIENT_RESERVED         16384   /*!< DEPRECATED: Old flag for 4.1 protocol  */
+#define CLIENT_RESERVED2        32768   /*!< DEPRECATED: Old flag for 4.1 authentication */
+#define CLIENT_MULTI_STATEMENTS (1UL << 16) /*!< Enable/disable multi-stmt support */
+#define CLIENT_MULTI_RESULTS    (1UL << 17) /*!< Enable/disable multi-results */
+#define CLIENT_PS_MULTI_RESULTS (1UL << 18) /*!< Multi-results in PS-protocol */
+
+#define CLIENT_PLUGIN_AUTH  (1UL << 19) /*<! Client supports plugin authentication */
+#define CLIENT_CONNECT_ATTRS (1UL << 20) /*<! Client supports connection attributes */
+
+/** Enable authentication response packet to be larger than 255 bytes. */
 #define CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA (1UL << 21)
 
-/* Don't close the connection for a connection with expired password. */
+/** Don't close the connection for a connection with expired password. */
 #define CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS (1UL << 22)
 
 /**
@@ -188,11 +347,16 @@
   server to include the state change information in Ok packet.
 */
 #define CLIENT_SESSION_TRACK (1UL << 23)
-/* Client no longer needs EOF packet */
+/**
+  Client no longer needs EOF packet.
+  @sa net_send_ok(), page_protocol_basic_ok_packet
+*/
 #define CLIENT_DEPRECATE_EOF (1UL << 24)
-
+/** Client only flag. Deprecated. Verify server certificate. */
 #define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
+/** Client only flag. Don't reset the options after an unsuccessful connect */
 #define CLIENT_REMEMBER_OPTIONS (1UL << 31)
+/** @}*/
 
 #define CAN_CLIENT_COMPRESS CLIENT_COMPRESS
 
