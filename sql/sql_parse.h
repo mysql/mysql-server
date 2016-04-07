@@ -47,7 +47,8 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
                            TABLE_LIST *create_table);
 bool check_fk_parent_table_access(THD *thd,
                                   HA_CREATE_INFO *create_info,
-                                  Alter_info *alter_info);
+                                  Alter_info *alter_info,
+                                  const char* create_db);
 
 bool parse_sql(THD *thd,
                Parser_state *parser_state,

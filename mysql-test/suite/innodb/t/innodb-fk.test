@@ -124,3 +124,44 @@ show warnings;
 
 drop table t2;
 drop table t1;
+
+#
+# MDEV-9142 :Adding Constraint with no database reference
+# results in ERROR 1046 (3D000) at line 13: No database selected
+#
+CREATE DATABASE kg_test1;
+CREATE DATABASE kg_test2;
+
+CREATE TABLE `kg_test1`.`group` (
+  Id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `kg_test1`.`person` (
+`Id` INT(11) NOT NULL AUTO_INCREMENT,
+`Name` VARCHAR(50) NOT NULL,
+PRIMARY KEY (`Id`),
+CONSTRAINT `fk_person_group` FOREIGN KEY (`Id`) REFERENCES `group` (`Id`)
+) ENGINE=INNODB DEFAULT CHARSET=utf8;
+
+show create table `kg_test1`.`person`;
+
+--error 1005
+CREATE TABLE `kg_test2`.`person2` (
+`Id` INT(11) NOT NULL AUTO_INCREMENT,
+`Name` VARCHAR(50) NOT NULL,
+PRIMARY KEY (`Id`),
+CONSTRAINT `fk_person_group` FOREIGN KEY (`Id`) REFERENCES `group` (`Id`)
+) ENGINE=INNODB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `kg_test2`.`person2` (
+`Id` INT(11) NOT NULL AUTO_INCREMENT,
+`Name` VARCHAR(50) NOT NULL,
+PRIMARY KEY (`Id`),
+CONSTRAINT `fk_person_group` FOREIGN KEY (`Id`) REFERENCES  `kg_test1`.`group` (`Id`)
+) ENGINE=INNODB DEFAULT CHARSET=utf8;
+
+show create table `kg_test2`.`person2`;
+
+SHOW WARNINGS;
+DROP DATABASE kg_test2;
+DROP DATABASE kg_test1;
