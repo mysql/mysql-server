@@ -26,11 +26,3 @@ void my_boost::thread_group::join_all()
   }
 }
 
-my_boost::thread_group::~thread_group()
-{
-  for (std::vector<my_boost::thread*>::iterator it= m_threads.begin();
-    it != m_threads.end(); ++it)
-  {
-    delete *it;
-  }
-}

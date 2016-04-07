@@ -59,6 +59,11 @@ bool Item_processing_data::end_processing()
 {
   if (--m_active_executions == 0)
   {
+    if (m_completion_callback != NULL)
+    {
+      (*m_completion_callback)(this);
+      m_completion_callback= NULL;
+    }
     return true;
   }
   return false;
@@ -92,18 +97,4 @@ void Item_processing_data::set_had_chain_created()
 void Item_processing_data::set_chain(Chain_data* chain_data)
 {
   m_chain_data= chain_data;
-}
-
-bool Item_processing_data::call_completion_callback_at_end()
-{
-  if (m_active_executions == 0)
-  {
-    if (m_completion_callback != NULL)
-    {
-      (*m_completion_callback)(this);
-      m_completion_callback= NULL;
-    }
-    return true;
-  }
-  return false;
 }

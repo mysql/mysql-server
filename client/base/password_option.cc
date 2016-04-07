@@ -61,9 +61,6 @@ void Password_option::password_callback(char* argument)
   }
   else
   {
-    char *password= ::get_tty_password(NULL);
-    *this->m_destination_value = Nullable<string>(password);
-    my_free(password);
-
+    *this->m_destination_value = Nullable<string>(::get_tty_password(NULL));
   }
 }
