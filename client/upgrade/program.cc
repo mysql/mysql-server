@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -450,8 +450,6 @@ public:
 
     /* Create a file indicating upgrade has been performed */
     this->create_mysql_upgrade_info_file();
-
-    mysql_close(this->m_mysql_connection);
 
     return 0;
   }

@@ -36,6 +36,7 @@ public:
    */
   virtual void register_chain_maker(I_chain_maker* new_chain_maker);
 
+
   // Fix "inherits ... via dominance" warnings
   void register_progress_watcher(I_progress_watcher* new_progress_watcher)
   { Abstract_chain_element::register_progress_watcher(new_progress_watcher); }
@@ -43,6 +44,9 @@ public:
   // Fix "inherits ... via dominance" warnings
   uint64 get_id() const
   { return Abstract_chain_element::get_id(); }
+
+
+  ~Abstract_crawler();
 
 protected:
   Abstract_crawler(

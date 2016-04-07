@@ -28,6 +28,7 @@ using std::string;
 
 Mysql_query_runner::Mysql_query_runner(MYSQL* connection)
   : m_is_processing(new my_boost::atomic<bool>(false)),
+  m_is_original_runner(true),
   m_connection(connection)
 {}
 
@@ -35,8 +36,30 @@ Mysql_query_runner::Mysql_query_runner(const Mysql_query_runner& source)
   : m_result_callbacks(source.m_result_callbacks),
   m_message_callbacks(source.m_message_callbacks),
   m_is_processing(source.m_is_processing),
+  m_is_original_runner(false),
   m_connection(source.m_connection)
 {
+}
+
+Mysql_query_runner::~Mysql_query_runner()
+{
+  if (m_is_original_runner)
+  {
+    for (std::vector<I_callable<int64, const Row&>*>::iterator
+      it= m_result_callbacks.begin(); it != m_result_callbacks.end(); ++it)
+    {
+      delete *it;
+    }
+    for (std::vector<I_callable<int64, const Message_data&>*>::iterator
+      it= m_message_callbacks.begin(); it != m_message_callbacks.end(); ++it)
+    {
+      delete *it;
+    }
+
+    delete m_is_processing;
+
+    mysql_close(this->m_connection);
+  }
 }
 
 Mysql_query_runner& Mysql_query_runner::add_result_callback(
