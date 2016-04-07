@@ -1014,13 +1014,14 @@ NdbThread_SetScheduler(struct NdbThread* pThread,
     windows_prio = THREAD_PRIORITY_NORMAL;
   }
   const BOOL ret = SetThreadPriority(pThread->thread_handle, windows_prio);
-  int error_no = 0;
-  if (ret)
+  if (ret == 0)
   {
-    error_no = GetLastError();
-    return error_no;
+    // Failed to set thread priority
+    const DWORD error_no = GetLastError();
+    return (int)error_no;
   }
-  return error_no;
+
+  return 0;
 }
 
 int
@@ -1057,13 +1058,13 @@ NdbThread_SetThreadPrio(struct NdbThread *pThread,
       require(FALSE);
   }
   const BOOL ret = SetThreadPriority(pThread->thread_handle, windows_prio);
-  int error_no = 0;
-  if (ret)
+  if (ret == 0)
   {
-    error_no = GetLastError();
-    return error_no;
+    // Failed to set thread group affinity
+    const DWORD error_no = GetLastError();
+    return (int)error_no;
   }
-  return error_no;
+  return 0;
 }
 
 void
@@ -1093,17 +1094,20 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
 
   new_affinity.Mask = pThread->oldProcessorMask;
   new_affinity.Group = pThread->oldProcessorGroupNumber;
-  
+
+  pThread->cpu_set_key = NULL;
+
   const BOOL ret = SetThreadGroupAffinity(pThread->thread_handle,
                                           &new_affinity,
                                           NULL);
-  int error_no = 0;
-  if (ret)
+  if (ret == 0)
   {
-    error_no = GetLastError();
+    // Failed to set thread group affinity
+    const DWORD error_no = GetLastError();
+    return (int)error_no;
   }
-  pThread->cpu_set_key = NULL;
-  return error_no;
+
+  return 0;
 }
 
 int
@@ -1136,18 +1140,18 @@ NdbThread_LockCPU(struct NdbThread* pThread,
   const BOOL ret = SetThreadGroupAffinity(pThread->thread_handle,
                                           &new_affinity,
                                           &old_affinity);
-  int error_no = 0;
-  if (!ret)
+  if (ret == 0)
   {
-    error_no = GetLastError();
+    // Failed to set thread group affinity
+    const DWORD error_no = GetLastError();
+    return (int)error_no;
   }
-  if (!error_no)
-  {
-    pThread->cpu_set_key = cpu_set_key;
-    pThread->oldProcessorMask = old_affinity.Mask;
-    pThread->oldProcessorGroupNumber = old_affinity.Group;
-  }
-  return error_no;
+
+  pThread->cpu_set_key = cpu_set_key;
+  pThread->oldProcessorMask = old_affinity.Mask;
+  pThread->oldProcessorGroupNumber = old_affinity.Group;
+
+  return 0;
 }
 
 int
@@ -1264,25 +1268,24 @@ NdbThread_LockCPUSet(struct NdbThread* pThread,
 
   new_affinity.Mask = mask;
   new_affinity.Group = used_processor_group;
-  
+
   const BOOL ret = SetThreadGroupAffinity(pThread->thread_handle,
                                           &new_affinity,
                                           &old_affinity);
-  int error_no = 0;
-  if (!ret)
+  if (ret == 0)
   {
-    error_no = GetLastError();
+    // Failed to set thread group affinity
+    const DWORD error_no = GetLastError();
+    return (int)error_no;
   }
 
-  if (!error_no)
-  {
-    cpu_set_ptr[2 + used_processor_group]++;
-    pThread->cpu_set_key = cpu_set_key;
-    pThread->usedProcessorGroupNumber = used_processor_group;
-    pThread->oldProcessorMask = old_affinity.Mask;
-    pThread->oldProcessorGroupNumber = old_affinity.Group;
-  }
-  return error_no;
+  cpu_set_ptr[2 + used_processor_group]++;
+  pThread->cpu_set_key = cpu_set_key;
+  pThread->usedProcessorGroupNumber = used_processor_group;
+  pThread->oldProcessorMask = old_affinity.Mask;
+  pThread->oldProcessorGroupNumber = old_affinity.Group;
+
+  return 0;
 }
 
 int
