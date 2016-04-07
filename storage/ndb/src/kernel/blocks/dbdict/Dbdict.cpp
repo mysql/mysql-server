@@ -23240,7 +23240,8 @@ Dbdict::createFilegroup_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
     op_ptr.p->m_callback = c;
 
     send_drop_fg(signal, op_ptr.p->op_key, impl_req->filegroup_id,
-                 DropFilegroupImplReq::Prepare);
+                 DropFilegroupImplReq::Commit);
+    return; // wait for reply from lgman
   }
 
   sendTransConf(signal, op_ptr);

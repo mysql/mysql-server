@@ -27,8 +27,8 @@ Next BACKUP 10042
 Next PGMAN 11010
 Next DBTUX 12010
 Next SUMA 13049
-Next LGMAN 15001
-Next TSMAN 16001
+Next LGMAN 15002
+Next TSMAN 16002
 Next DBSPJ 17000
 Next TRIX 18000
 Next DBUTIL 19001
@@ -786,11 +786,15 @@ SUMA:
 
 LGMAN:
 -----
-15000: Fail to create log file
+15000: Fail to create log file CreateFileImplRef::FileSizeTooLarge
+15001: Fail to create file group due to
+       CreateFilegroupImplRef::OutOfLogBufferMemory
 
 TSMAN:
 -----
 16000: Fail to create data file
+16001: Fail to create file group due to
+       CreateFilegroupImplRef::OutOfFilegroupRecords
 
 ACC bug#34348
 -------------
