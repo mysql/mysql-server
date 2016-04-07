@@ -32,17 +32,25 @@
   When the parser accepts the following syntax:
     SHOW GLOBAL STATUS
   the parsed tree built for this query is in fact:
-    SELECT VARIABLE_NAME as Variable_name,
-           VARIABLE_VALUE as Value
-           FROM performance_schema.global_status
+    SELECT * FROM
+             (SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value
+              FROM performance_schema.global_status) derived_table
 
   Likewise, the query:
     SHOW GLOBAL STATUS LIKE "<value>"
   is built as:
-    SELECT VARIABLE_NAME as Variable_name,
-           VARIABLE_VALUE as Value
-           FROM performance_schema.global_status
-           WHERE Variable_name LIKE "<value>"
+    SELECT * FROM
+             (SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value
+              FROM performance_schema.global_status) derived_table
+              WHERE Variable_name LIKE "<value>"
+
+  Likewise, the query:
+    SHOW GLOBAL STATUS where <where_clause>
+  is built as:
+    SELECT * FROM
+             (SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value
+              FROM performance_schema.global_status) derived_table
+              WHERE <where_clause>
 */
 static SELECT_LEX*
 build_query(const POS &pos,
@@ -65,6 +73,9 @@ build_query(const POS &pos,
   static const LEX_STRING col_value= { C_STRING_WITH_LEN("VARIABLE_VALUE")};
   static const LEX_STRING as_value= { C_STRING_WITH_LEN("Value")};
   static const LEX_STRING pfs= { C_STRING_WITH_LEN("performance_schema")};
+
+  static LEX_STRING dtn= { C_STRING_WITH_LEN("derived_table")};
+  static const LEX_STRING star= { C_STRING_WITH_LEN("*")};
 
   static const Query_options options=
   {
@@ -142,6 +153,60 @@ build_query(const POS &pos,
   if (table_reference_list == NULL)
     return NULL;
 
+
+  /* Form subquery */
+  /* SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value FROM performance_schema.<table_name> */
+  PT_select_part2 *select_part2;
+  select_part2= new (thd->mem_root) PT_select_part2(options_and_item_list,
+                                                    table_reference_list,
+                                                    NULL);
+  if (select_part2 == NULL)
+    return NULL;
+
+  PT_query_primary *query_primary=
+    new (thd->mem_root) PT_query_specification(select_part2);
+  if (query_primary == NULL)
+    return NULL;
+
+  PT_query_expression_body_primary *query_expression_body=
+    new (thd->mem_root) PT_query_expression_body_primary(query_primary);
+  if (query_expression_body == NULL)
+    return NULL;
+
+   PT_query_expression *query_expression=
+     new (thd->mem_root) PT_query_expression(query_expression_body);
+   if (query_expression == NULL)
+     return NULL;
+
+   PT_subquery *sub_query;
+   sub_query= new (thd->mem_root) PT_subquery(pos, query_expression);
+
+   PT_derived_table *derived_table;
+   derived_table= new (thd->mem_root) PT_derived_table(sub_query, &dtn);
+
+   PT_table_reference_list *table_reference_list1;
+   table_reference_list1= new (thd->mem_root) PT_table_reference_list(pos, derived_table);
+   if (table_reference_list1 == NULL)
+     return NULL;
+
+
+  /* SELECT * ... */
+  PTI_simple_ident_ident *ident_star;
+  ident_star= new (thd->mem_root) PTI_simple_ident_ident(pos, star);
+
+  PT_select_item_list *item_list1;
+  item_list1= new (thd->mem_root) PT_select_item_list();
+  if (item_list1 == NULL)
+    return NULL;
+  item_list1->push_back(ident_star);
+
+  PT_select_options_and_item_list *options_and_item_list1;
+  options_and_item_list1= new (thd->mem_root) PT_select_options_and_item_list(options, item_list1);
+  if (options_and_item_list1 == NULL)
+    return NULL;
+
+
+  /* Process where clause */
   Item *where_clause= NULL;
 
   if (wild != NULL)
@@ -183,33 +248,33 @@ build_query(const POS &pos,
     where_clause= where_cond;
   }
 
-  /* SELECT ... [ WHERE Variable_name LIKE <value> ] */
-  /* SELECT ... [ WHERE <cond> ] */
-  PT_select_part2 *select_part2;
-  select_part2= new (thd->mem_root) PT_select_part2(options_and_item_list,
-                                                    table_reference_list,
-                                                    where_clause);
-  if (select_part2 == NULL)
+  /* SELECT * FROM (SELECT ...) derived_table [ WHERE Variable_name LIKE <value> ] */
+  /* SELECT * FROM (SELECT ...) derived_table [ WHERE <cond> ] */
+  PT_select_part2 *select_part22;
+  select_part22= new (thd->mem_root) PT_select_part2(options_and_item_list1,
+                                                     table_reference_list1,
+                                                     where_clause);
+  if (select_part22 == NULL)
     return NULL;
 
-  PT_query_primary *query_primary=
-    new (thd->mem_root) PT_query_specification(select_part2);
-  if (query_primary == NULL)
+  PT_query_primary *query_primary2=
+    new (thd->mem_root) PT_query_specification(select_part22);
+  if (query_primary2 == NULL)
     return NULL;
 
-  PT_query_expression_body_primary *query_expression_body=
-    new (thd->mem_root) PT_query_expression_body_primary(query_primary);
-  if (query_expression_body == NULL)
+  PT_query_expression_body_primary *query_expression_body2=
+    new (thd->mem_root) PT_query_expression_body_primary(query_primary2);
+  if (query_expression_body2 == NULL)
     return NULL;
 
-   PT_query_expression *query_expression=
-     new (thd->mem_root) PT_query_expression(query_expression_body);
-   if (query_expression == NULL)
+   PT_query_expression *query_expression2=
+     new (thd->mem_root) PT_query_expression(query_expression_body2);
+   if (query_expression2 == NULL)
      return NULL;
 
-  PT_select_stmt *select;
-  select= new (thd->mem_root) PT_select_stmt(query_expression);
-  if (select == NULL)
+  PT_select_stmt *select2;
+  select2= new (thd->mem_root) PT_select_stmt(query_expression2);
+  if (select2 == NULL)
     return NULL;
 
   LEX *lex= thd->lex;
@@ -218,7 +283,7 @@ build_query(const POS &pos,
   if (thd->is_error())
     return NULL;
 
-  if (select->contextualize(&pc))
+  if (select2->contextualize(&pc))
     return NULL;
 
   /* contextualize sets to COM_SELECT */
