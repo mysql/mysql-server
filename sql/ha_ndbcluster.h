@@ -378,6 +378,17 @@ private:
   void prepare_drop_index(uint key_num);
   int final_drop_index(TABLE *table_arg);
 
+  char reason_buf[NAME_LEN+256];
+  inline enum_alter_inplace_result
+  inplace_unsupported(Alter_inplace_info *alter_info,
+                      const char* reason)
+  {
+    DBUG_ENTER("inplace_unsupported");
+    DBUG_PRINT("info", ("%s", reason));
+    alter_info->unsupported_reason = reason;
+    DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+  }
+
   enum_alter_inplace_result
     check_inplace_alter_supported(TABLE *altered_table,
                                   Alter_inplace_info *ha_alter_info);
