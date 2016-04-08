@@ -411,7 +411,6 @@ extern PSI_cond_key key_COND_thr_lock;
 extern PSI_cond_key key_cond_slave_worker_hash;
 extern PSI_cond_key key_commit_order_manager_cond;
 #endif
-extern PSI_thread_key key_thread_daemon_plugin;
 extern PSI_thread_key key_thread_bootstrap;
 extern PSI_thread_key key_thread_handle_manager;
 extern PSI_thread_key key_thread_one_connection;

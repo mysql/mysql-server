@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -60,7 +60,6 @@ public:
 
   /**
     Initializes the current physical thread for use with this class.
-    The used PSI key is key_thread_daemon_plugin
 
     @param plugin Pointer to the plugin structure, passed to the plugin over
                   the plugin init function.

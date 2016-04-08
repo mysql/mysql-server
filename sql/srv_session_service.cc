@@ -40,8 +40,7 @@ extern "C"
 {
 
 /**
-  Initializes physical thread to use with session service. The used
-  PSI key is key_thread_daemon_plugin
+  Initializes physical thread to use with session service.
 
   @return
     0  success
