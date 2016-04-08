@@ -22,6 +22,7 @@
 #include "mysqld.h"                    // opt_relay_logname
 #include "tc_log.h"                    // TC_LOG
 #include "atomic_class.h"
+#include "rpl_gtid.h"                  // Gtid_set, Sid_map
 
 class Relay_log_info;
 class Master_info;
@@ -918,6 +919,23 @@ public:
   mysql_mutex_t* get_binlog_end_pos_lock() { return &LOCK_binlog_end_pos; }
   void lock_binlog_end_pos() { mysql_mutex_lock(&LOCK_binlog_end_pos); }
   void unlock_binlog_end_pos() { mysql_mutex_unlock(&LOCK_binlog_end_pos); }
+
+  /**
+    Deep copy global_sid_map to @param sid_map and
+    gtid_state->get_executed_gtids() to @param gtid_set.
+    Both operations are done under LOCK_commit and global_sid_lock
+    protection.
+
+    @param[out] sid_map  The Sid_map to which global_sid_map will
+                         be copied.
+    @param[out] gtid_set The Gtid_set to which gtid_executed will
+                         be copied.
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error
+  */
+  int get_gtid_executed(Sid_map *sid_map, Gtid_set *gtid_set);
 };
 
 typedef struct st_load_file_info
