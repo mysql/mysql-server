@@ -43,12 +43,14 @@
 %global compatver             5.0.96
 %global compatlib             15
 %global compatsrc             http://downloads.mysql.com/archives/mysql-5.0/mysql-%{compatver}.tar.gz
+%global compatch              mysql-5096-charset-dir.patch
 %endif
 
 %if 0%{?rhel} == 6
 %global compatver             5.1.72
 %global compatlib             16
 %global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.1/mysql-%{compatver}.tar.gz
+%global compatch              mysql-5172-charset-dir.patch
 %endif
 
 # multiarch
@@ -64,6 +66,10 @@
 %endif
 %endif
 
+# Support building for RHEL on CentOS: CentOS 7 would force ".el7.centos", we want to avoid that.
+%if 0%{?rhel} == 7
+  %define dist .el7
+%endif
 %global src_dir               %{src_base}-%{version}
 
 # No debuginfo for now, ships /usr/sbin/mysqld-debug and libmysqlcliet-debug.a
@@ -347,7 +353,6 @@ Obsoletes:      mysql-community-libs-compat < %{version}-%{release}
 Requires:       mysql-commercial-libs%{?_isa} = %{version}-%{release}
 %else
 Provides:       MySQL-shared-compat%{?_isa} = %{version}-%{release}
-Requires:       mysql-community-libs%{?_isa} = %{version}-%{release}
 %endif
 Obsoletes:      MySQL-shared-compat < %{version}-%{release}
 %if 0%{?rhel} > 5
@@ -434,6 +439,12 @@ package has been split into several subpackages.
 %prep
 %if 0%{?compatlib}
 %setup -q -T -a 0 -a 7 -c -n %{src_dir}
+# -q = quiet,  -T = no default unpack,  -a = unpack after cd,  -c = create,  -n = source dir name
+# https://docs.fedoraproject.org/ro/Fedora_Draft_Documentation/0.1/html/RPM_Guide/ch09s04.html
+# http://rpm.org/max-rpm-snapshot/s1-rpm-inside-macros.html
+pushd mysql-%{compatver}
+patch -p 1 < ../%{src_dir}/packaging/libs-compat/%{compatch}
+popd
 %else
 %setup -q -T -a 0 -c -n %{src_dir}
 %endif # 0%{?compatlib}
@@ -554,6 +565,9 @@ for dir in libmysql libmysql_r ; do
     popd
 done
 rm -f %{buildroot}%{_libdir}/mysql/libmysqlclient{,_r}.{a,la,so}
+# "charsets/"
+install -d -m 0755 %{buildroot}/usr/share/mysql/charsets-%{compatver}/
+install -m 644 mysql-%{compatver}/sql/share/charsets/* %{buildroot}/usr/share/mysql/charsets-%{compatver}/
 %endif # 0%{?compatlib}
 
 MBD=$RPM_BUILD_DIR/%{src_dir}
@@ -908,6 +922,9 @@ fi
 %{_libdir}/mysql/libmysqlclient.so.%{compatlib}.0.0
 %{_libdir}/mysql/libmysqlclient_r.so.%{compatlib}
 %{_libdir}/mysql/libmysqlclient_r.so.%{compatlib}.0.0
+%dir %attr(755, root, root) %{_datadir}/mysql/
+%dir %attr(755, root, root) %{_datadir}/mysql/charsets-%{compatver}/
+%attr(644, root, root) %{_datadir}/mysql/charsets-%{compatver}/*
 %endif
 
 %files test
@@ -949,6 +966,15 @@ fi
 %endif
 
 %changelog
+* Wed Apr 06 2016 Joerg Bruehe <joerg.bruehe@fromdual.com> - 5.6.30
+  The fix for bug#80981, provided under OCA:
+- Make the "libs-compat" subpackage stand-alone, drop its "requires"
+  (which were wrong anyway, should have been to "common" rather than "libs"),
+  by including the "charsets/" directory and its files in the subpackage;
+  name conflicts are avoided by the name patch "/usr/share/mysql/charsets-%%{compatver}/".
+- Store those patch files in "packaging/libs-compat/" and apply them directly
+  from there during build, avoid a separate source (patch) file.
+
 * Tue Sep 29 2015 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.6.28-1
 - Added conflicts to mysql-connector-c-shared dependencies
 

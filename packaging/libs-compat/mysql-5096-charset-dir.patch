@@ -1,0 +1,12 @@
+diff -ur a/include/m_ctype.h b/include/m_ctype.h
+--- a/include/m_ctype.h	2015-03-10 12:35:31.499107653 +0100
++++ b/include/m_ctype.h	2015-03-10 12:35:59.357103239 +0100
+@@ -36,7 +36,7 @@
+ #define MY_CS_SORT_ORDER_TABLE_SIZE	256
+ #define MY_CS_TO_UNI_TABLE_SIZE		256
+ 
+-#define CHARSET_DIR	"charsets/"
++#define CHARSET_DIR	"charsets-5.0.96/"
+ 
+ #define my_wc_t ulong
+ 
