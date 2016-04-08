@@ -21,6 +21,7 @@
 #include <UtilTransactions.hpp>
 #include <NdbRestarter.hpp>
 #include <signaldata/DictTabInfo.hpp>
+#include <signaldata/DbspjErr.hpp>
 #include <Bitmask.hpp>
 #include <random.h>
 #include <HugoQueryBuilder.hpp>
@@ -32,7 +33,7 @@ static int faultToInject = 0;
 
 enum faultsToInject {
   FI_START = 17001,
-  FI_END = 17521
+  FI_END = 17530
 };
 
 int
@@ -319,12 +320,51 @@ runJoin(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int
+runAbortedJoin(NDBT_Context* ctx, NDBT_Step* step){
+  int loops = ctx->getNumLoops();
+  int joinlevel = ctx->getProperty("JoinLevel", 3);
+  int records = ctx->getNumRecords();
+  int queries = records/joinlevel;
+  int until_stopped = ctx->getProperty("UntilStopped", (Uint32)0);
+  Uint32 stepNo = step->getStepNo();
+  int i = 0;
+
+  HugoQueryBuilder qb2(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_LOOKUP);
+  qb2.setJoinLevel(joinlevel);
+  const NdbQueryDef * q2 = qb2.createQuery();
+  HugoQueries hugoTrans2(* q2, 1); //maxRetry==1 -> Don't retry temp errors
+  NdbRestarter restarter;
+
+  while ((i<loops || until_stopped) && !ctx->isTestStopped())
+  {
+    g_info << i << ": ";
+    if (hugoTrans2.runLookupQuery(GETNDB(step), queries))
+    {
+      const NdbError err = hugoTrans2.getNdbError();
+
+      // Test pass as long as we don't get errors 'promoted' to nodeFailures
+      if (err.code == DbspjErr::NodeFailure)  //NodeFailure == 20016
+      {
+        g_info << endl;
+        return NDBT_FAILED;
+      }
+    }
+    i++;
+    addMask(ctx, (1 << stepNo), "Running");
+  }
+  g_info << endl;
+  return NDBT_OK;
+}
+
+
+int
 runRestarter(NDBT_Context* ctx, NDBT_Step* step)
 {
   int result = NDBT_OK;
   int loops = ctx->getNumLoops();
   int waitprogress = ctx->getProperty("WaitProgress", (unsigned)0);
   int randnode = ctx->getProperty("RandNode", (unsigned)0);
+  int inject_err = ctx->getProperty("RestartWithErrorCode");
   NdbRestarter restarter;
   int i = 0;
   int lastId = 0;
@@ -404,6 +444,15 @@ runRestarter(NDBT_Context* ctx, NDBT_Step* step)
       }
     }
 
+    if (inject_err)
+    {
+      ndbout << "RestartWithErrorCode: (" << inject_err << ")" << endl;
+      if (restarter.insertErrorInNode(nodeId, inject_err) != 0){
+        g_info << "Could not insert error in node " << nodeId <<endl;
+        return NDBT_FAILED;
+      }
+    }
+
     if (restarter.startNodes(&nodeId, 1))
     {
       g_err << "Failed to start node" << endl;
@@ -442,6 +491,14 @@ runRestarter(NDBT_Context* ctx, NDBT_Step* step)
     ok2:
         g_err << "Progress made!! " << endl;
         ctx->setProperty("Running", (Uint32)0);
+      }
+    }
+
+    if (inject_err)
+    {
+      if (restarter.insertErrorInNode(nodeId, 0) != 0){
+        g_info << "Could not clear error in node " << nodeId <<endl;
+        return NDBT_FAILED;
       }
     }
 
@@ -1441,7 +1498,18 @@ TESTCASE("NF_Join", ""){
   STEP(runRestarter);
   FINALIZER(runClearTable);
 }
-
+TESTCASE("bug#23049170",
+         "Test abort() when partially connected after a node restart. "
+         "Should not see misreported 'NodeFailure' error (20016) due to bug#23049170")
+{
+  TC_PROPERTY("UntilStopped", 1);
+  TC_PROPERTY("WaitProgress", 20);
+  TC_PROPERTY("RestartWithErrorCode", 17530); //OJA, note -> restarter set it
+  INITIALIZER(runLoadTable);
+  STEPS(runAbortedJoin, 6);
+  STEP(runRestarter);
+  FINALIZER(runClearTable);
+}
 TESTCASE("LookupJoinError", ""){
   INITIALIZER(runLoadTable);
   STEP(runLookupJoinError);
