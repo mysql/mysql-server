@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -520,7 +520,7 @@ update(Ndb::Free_list_usage* curr,
        const char * name)
 {
   curr->m_name = name;
-  curr->m_created = list.m_alloc_cnt;
+  curr->m_created = list.m_used_cnt+list.m_free_cnt;
   curr->m_free = list.m_free_cnt;
   curr->m_sizeof = sizeof(T);
   return curr;
@@ -536,66 +536,64 @@ Ndb::get_free_list_usage(Ndb::Free_list_usage* curr)
 
   if(curr->m_name == 0)
   {
-    update(curr, theImpl->theConIdleList, "NdbTransaction");
+    return update(curr, theImpl->theConIdleList, "NdbTransaction");
   }
   else if(!strcmp(curr->m_name, "NdbTransaction"))
   {
-    update(curr, theImpl->theOpIdleList, "NdbOperation");
+    return update(curr, theImpl->theConIdleList, curr->m_name);
   }
   else if(!strcmp(curr->m_name, "NdbOperation"))
   {
-    update(curr, theImpl->theScanOpIdleList, "NdbIndexScanOperation");
+    return update(curr, theImpl->theOpIdleList, curr->m_name);
   }
   else if(!strcmp(curr->m_name, "NdbIndexScanOperation"))
   {
-    update(curr, theImpl->theIndexOpIdleList, "NdbIndexOperation");
+    return update(curr, theImpl->theScanOpIdleList, curr->m_name);
   }
   else if(!strcmp(curr->m_name, "NdbIndexOperation"))
   {
-    update(curr, theImpl->theRecAttrIdleList, "NdbRecAttr");
+    return update(curr, theImpl->theIndexOpIdleList, curr->m_name);
   }
   else if(!strcmp(curr->m_name, "NdbRecAttr"))
   {
-    update(curr, theImpl->theSignalIdleList, "NdbApiSignal");
+    return update(curr, theImpl->theRecAttrIdleList, curr->m_name);
   }
   else if(!strcmp(curr->m_name, "NdbApiSignal"))
   {
-    update(curr, theImpl->theLabelList, "NdbLabel");
+    return update(curr, theImpl->theSignalIdleList, curr->m_name);
   }
   else if(!strcmp(curr->m_name, "NdbLabel"))
   {
-    update(curr, theImpl->theBranchList, "NdbBranch");
+    return update(curr, theImpl->theLabelList, curr->m_name);
   }
   else if(!strcmp(curr->m_name, "NdbBranch"))
   {
-    update(curr, theImpl->theSubroutineList, "NdbSubroutine");
+    return update(curr, theImpl->theBranchList, curr->m_name);
   }
   else if(!strcmp(curr->m_name, "NdbSubroutine"))
   {
-    update(curr, theImpl->theCallList, "NdbCall");
+    return update(curr, theImpl->theSubroutineList, curr->m_name);
   }
   else if(!strcmp(curr->m_name, "NdbCall"))
   {
-    update(curr, theImpl->theNdbBlobIdleList, "NdbBlob");
+    return update(curr, theImpl->theCallList, curr->m_name);
   }
   else if(!strcmp(curr->m_name, "NdbBlob"))
   {
-    update(curr, theImpl->theScanList, "NdbReceiver");
+    return update(curr, theImpl->theNdbBlobIdleList, curr->m_name);
   }
   else if(!strcmp(curr->m_name, "NdbReceiver"))
   {
-    update(curr, theImpl->theLockHandleList, "NdbLockHandle");
+    return update(curr, theImpl->theScanList, curr->m_name);
   }
   else if(!strcmp(curr->m_name, "NdbLockHandle"))
   {
-    return 0;
+    return update(curr, theImpl->theLockHandleList, curr->m_name);
   }
   else
   {
-    update(curr, theImpl->theConIdleList, "NdbTransaction");
+    return update(curr, theImpl->theConIdleList, "NdbTransaction");
   }
-
-  return curr;
 }
 
 #define TI(T) \
