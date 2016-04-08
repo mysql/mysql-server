@@ -502,7 +502,7 @@ i	j	f	d
 * Test that online alter of default values fails
 *************************************************************
 ALTER TABLE t2 algorithm=inplace, MODIFY COLUMN j INT DEFAULT 888;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Altering default value is not supported. Try ALGORITHM=COPY.
 DROP TABLE IF EXISTS t2;
 **************************************************************
 * Test not null-after-defaults example that failed previously

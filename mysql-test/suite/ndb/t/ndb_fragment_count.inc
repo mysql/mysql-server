@@ -266,7 +266,7 @@ drop table t1;
 create table t1 (a bigint, b bigint, c bigint, d bigint, primary key (a,b,c,d))
   engine=ndb comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
 
---error 1845
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 alter table t1 algorithm=inplace,
   comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP";
 

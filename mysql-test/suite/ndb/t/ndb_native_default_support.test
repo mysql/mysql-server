@@ -320,7 +320,7 @@ SELECT * FROM t2 ORDER BY i;
 --echo *************************************************************
 --echo * Test that online alter of default values fails
 --echo *************************************************************
---error ER_ALTER_OPERATION_NOT_SUPPORTED 
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t2 algorithm=inplace, MODIFY COLUMN j INT DEFAULT 888;
 
 DROP TABLE IF EXISTS t2;
