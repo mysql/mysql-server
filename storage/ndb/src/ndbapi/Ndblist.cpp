@@ -536,64 +536,66 @@ Ndb::get_free_list_usage(Ndb::Free_list_usage* curr)
 
   if(curr->m_name == 0)
   {
-    return update(curr, theImpl->theConIdleList, "NdbTransaction");
+    update(curr, theImpl->theConIdleList, "NdbTransaction");
   }
   else if(!strcmp(curr->m_name, "NdbTransaction"))
   {
-    return update(curr, theImpl->theConIdleList, curr->m_name);
+    update(curr, theImpl->theOpIdleList, "NdbOperation");
   }
   else if(!strcmp(curr->m_name, "NdbOperation"))
   {
-    return update(curr, theImpl->theOpIdleList, curr->m_name);
+    update(curr, theImpl->theScanOpIdleList, "NdbIndexScanOperation");
   }
   else if(!strcmp(curr->m_name, "NdbIndexScanOperation"))
   {
-    return update(curr, theImpl->theScanOpIdleList, curr->m_name);
+    update(curr, theImpl->theIndexOpIdleList, "NdbIndexOperation");
   }
   else if(!strcmp(curr->m_name, "NdbIndexOperation"))
   {
-    return update(curr, theImpl->theIndexOpIdleList, curr->m_name);
+    update(curr, theImpl->theRecAttrIdleList, "NdbRecAttr");
   }
   else if(!strcmp(curr->m_name, "NdbRecAttr"))
   {
-    return update(curr, theImpl->theRecAttrIdleList, curr->m_name);
+    update(curr, theImpl->theSignalIdleList, "NdbApiSignal");
   }
   else if(!strcmp(curr->m_name, "NdbApiSignal"))
   {
-    return update(curr, theImpl->theSignalIdleList, curr->m_name);
+    update(curr, theImpl->theLabelList, "NdbLabel");
   }
   else if(!strcmp(curr->m_name, "NdbLabel"))
   {
-    return update(curr, theImpl->theLabelList, curr->m_name);
+    update(curr, theImpl->theBranchList, "NdbBranch");
   }
   else if(!strcmp(curr->m_name, "NdbBranch"))
   {
-    return update(curr, theImpl->theBranchList, curr->m_name);
+    update(curr, theImpl->theSubroutineList, "NdbSubroutine");
   }
   else if(!strcmp(curr->m_name, "NdbSubroutine"))
   {
-    return update(curr, theImpl->theSubroutineList, curr->m_name);
+    update(curr, theImpl->theCallList, "NdbCall");
   }
   else if(!strcmp(curr->m_name, "NdbCall"))
   {
-    return update(curr, theImpl->theCallList, curr->m_name);
+    update(curr, theImpl->theNdbBlobIdleList, "NdbBlob");
   }
   else if(!strcmp(curr->m_name, "NdbBlob"))
   {
-    return update(curr, theImpl->theNdbBlobIdleList, curr->m_name);
+    update(curr, theImpl->theScanList, "NdbReceiver");
   }
   else if(!strcmp(curr->m_name, "NdbReceiver"))
   {
-    return update(curr, theImpl->theScanList, curr->m_name);
+    update(curr, theImpl->theLockHandleList, "NdbLockHandle");
   }
   else if(!strcmp(curr->m_name, "NdbLockHandle"))
   {
-    return update(curr, theImpl->theLockHandleList, curr->m_name);
+    return 0;
   }
   else
   {
-    return update(curr, theImpl->theConIdleList, "NdbTransaction");
+    update(curr, theImpl->theConIdleList, "NdbTransaction");
   }
+
+  return curr;
 }
 
 #define TI(T) \

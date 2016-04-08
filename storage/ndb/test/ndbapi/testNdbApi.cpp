@@ -280,10 +280,15 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
   Uint32 freeOperations = 0;
   {
     Ndb::Free_list_usage usage_stat;
-    usage_stat.m_name = "NdbOperation";
-    pNdb->get_free_list_usage(&usage_stat);
-    assert(strcmp(usage_stat.m_name, "NdbOperation") == 0);
-    hiFreeOperations = usage_stat.m_free;
+    usage_stat.m_name= NULL;
+    while (pNdb->get_free_list_usage(&usage_stat))
+    {
+      if (strcmp(usage_stat.m_name, "NdbOperation") == 0)
+      {
+        hiFreeOperations = usage_stat.m_free;
+        break;
+      }
+    }
   }
 
   maxOpsLimit = 100;
@@ -317,11 +322,17 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
 
     {
       Ndb::Free_list_usage usage_stat;
-      usage_stat.m_name = "NdbOperation";
-      pNdb->get_free_list_usage(&usage_stat);
-      assert(strcmp(usage_stat.m_name, "NdbOperation") == 0);
-      freeOperations = usage_stat.m_free;
-      ndbout << usage_stat.m_name << ", free: " << usage_stat.m_free << endl;
+      usage_stat.m_name= NULL;
+      while (pNdb->get_free_list_usage(&usage_stat))
+      {
+        if (strcmp(usage_stat.m_name, "NdbOperation") == 0)
+        {
+          freeOperations = usage_stat.m_free;
+          ndbout << usage_stat.m_name << ", free: " << usage_stat.m_free
+                 << endl;
+          break;
+        }
+      }
     }
   } //while (coolDownLoops...
 
