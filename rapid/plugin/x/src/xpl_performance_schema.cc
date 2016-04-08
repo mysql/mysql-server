@@ -28,9 +28,11 @@
 #ifdef HAVE_PSI_INTERFACE
 
 PSI_thread_key KEY_thread_x_acceptor = PSI_NOT_INSTRUMENTED;
+PSI_thread_key KEY_thread_x_worker = PSI_NOT_INSTRUMENTED;
 
 static PSI_thread_info all_x_threads[] = {
   { &KEY_thread_x_acceptor, "acceptor_network", 0 },
+  { &KEY_thread_x_worker,   "worker", 0 },
 };
 
 PSI_mutex_key KEY_mutex_x_lock_list_access = PSI_NOT_INSTRUMENTED;

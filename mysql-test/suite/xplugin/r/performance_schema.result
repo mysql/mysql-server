@@ -22,6 +22,7 @@ Rows matched: 3  Changed: 0  Warnings: 0
 0 rows affected
 name
 thread/mysqlx/acceptor_network
+thread/mysqlx/worker
 0 rows affected
 name
 wait/synch/mutex/mysqlx/lock_list_access
@@ -170,6 +171,7 @@ Got expected error: SELECT, LOCK TABLES command denied to user 'root'@'localhost
 0 rows affected
 name
 thread/mysqlx/acceptor_network
+thread/mysqlx/worker
 command ok
 name
 wait/synch/mutex/mysqlx/lock_list_access

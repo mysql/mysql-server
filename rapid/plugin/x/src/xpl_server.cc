@@ -49,7 +49,7 @@ class Session_scheduler : public ngs::Scheduler_dynamic
 {
 public:
   Session_scheduler(const char* name, void *plugin)
-  : ngs::Scheduler_dynamic(name), m_plugin_ptr(plugin)
+  : ngs::Scheduler_dynamic(name, KEY_thread_x_worker), m_plugin_ptr(plugin)
   {
   }
 
@@ -299,7 +299,7 @@ int xpl::Server::main(MYSQL_PLUGIN p)
     xpl::Plugin_system_variables::registry_callback(boost::bind(&Server::plugin_system_variables_changed, instance));
 
     thread_create(KEY_thread_x_acceptor, &instance->m_acceptor_thread,
-                  NULL, &Server::net_thread, instance);
+                  &Server::net_thread, instance);
 
     instance_rwl.unlock();
     my_plugin_log_message(&xpl::plugin_handle, MY_INFORMATION_LEVEL, "X plugin initialization successes");
