@@ -138,7 +138,7 @@ static MYSQL_THDVAR_BOOL(
   use_copying_alter_table,           /* name */
   PLUGIN_VAR_OPCMDARG,
   "Force ndbcluster to always copy tables at alter table (should "
-  "only be used if on-line alter table fails).",
+  "only be used if online alter table fails).",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
   0                                  /* default */
@@ -11405,7 +11405,7 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
 }
 
 /*
- Prepare for an on-line alter table
+ Prepare for an online alter table
 */ 
 void ha_ndbcluster::prepare_for_alter()
 {
@@ -17695,6 +17695,7 @@ enum_alter_inplace_result
     Alter_inplace_info::DROP_INDEX |
     Alter_inplace_info::DROP_UNIQUE_INDEX;
 
+  enum_alter_inplace_result result= HA_ALTER_INPLACE_SHARED_LOCK;
 
   DBUG_ENTER("ha_ndbcluster::check_if_supported_inplace_alter");
   partition_info *part_info= altered_table->part_info;
@@ -17767,18 +17768,18 @@ enum_alter_inplace_result
   if (alter_flags & Alter_inplace_info::ALTER_COLUMN_DEFAULT &&
       !(alter_flags & Alter_inplace_info::ADD_COLUMN))
   {
-    DBUG_PRINT("info", ("Altering default value is not supported"));
-    DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+    DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                    "Altering default value is not supported"));
   }
 
   if (alter_flags & not_supported)
   {
-    DBUG_PRINT("info", ("Detected unsupported change: 0x%llx",
-                        alter_flags & not_supported));
-    DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+    char reason_buf[256];
+    my_snprintf(reason_buf, sizeof(reason_buf),
+                "Detected unsupported change: 0x%llx",  alter_flags & not_supported);
+    DBUG_RETURN(inplace_unsupported(ha_alter_info, reason_buf));
   }
 
-  enum_alter_inplace_result result= HA_ALTER_INPLACE_SHARED_LOCK;
   if (alter_flags & Alter_inplace_info::ADD_COLUMN ||
       alter_flags & Alter_inplace_info::ADD_PARTITION ||
       alter_flags & Alter_inplace_info::ALTER_TABLE_REORG ||
@@ -17811,8 +17812,9 @@ enum_alter_inplace_result
        add_column|= Alter_inplace_info::ALTER_COLUMN_COLUMN_FORMAT;
        if (alter_flags & ~add_column)
        {
-         DBUG_PRINT("info", ("Only add column exclusively can be performed on-line"));
-         DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+         DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                         "Only add column exclusively can be "
+                                         "performed online"));
        }
        /*
          Check for extra fields for hidden primary key
@@ -17821,7 +17823,11 @@ enum_alter_inplace_result
        if (table_share->primary_key == MAX_KEY ||
            part_info->part_type != HASH_PARTITION ||
            !part_info->list_of_part_fields)
-         DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+       {
+         DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                         "Found hidden primary key or "
+                                         "user defined partitioning"));
+       }
 
        /* Find the new fields */
        for (uint i= table->s->fields; i < altered_table->s->fields; i++)
@@ -17838,8 +17844,9 @@ enum_alter_inplace_result
            if ((! field->is_real_null(src_offset)) ||
                ((field->flags & NOT_NULL_FLAG)))
            {
-             DBUG_PRINT("info",("Adding column with non-null default value is not supported on-line"));
-             DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+             DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                             "Adding column with non-null default value "
+                                             "is not supported online"));
            }
          }
          /* Create new field to check if it can be added */
@@ -17880,7 +17887,8 @@ enum_alter_inplace_result
      if (comment_changed &&
          parse_comment_changes(&new_tab, create_info, thd, max_rows_changed))
      {
-       DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+       DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                       "Unsupported table modifiers"));
      }
      else if (max_rows_changed)
      {
@@ -17896,8 +17904,9 @@ enum_alter_inplace_result
        }
        if (reported_frags < old_tab->getFragmentCount())
        {
-         DBUG_PRINT("info", ("Online reduction in number of fragments not supported"));
-         DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+         DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                         "Online reduction in number of fragments "
+                                         "not supported"));
        }
        new_tab.setFragmentCount(reported_frags);
        new_tab.setDefaultNoPartitionsFlag(false);
@@ -17907,12 +17916,12 @@ enum_alter_inplace_result
 
      if (dict->supportedAlterTable(*old_tab, new_tab))
      {
-       DBUG_PRINT("info", ("Adding column(s) supported on-line"));
+       DBUG_PRINT("info", ("Adding column(s) or add/reorganize partition supported online"));
      }
      else
      {
-       DBUG_PRINT("info",("Adding column not supported on-line"));
-       DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+       DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                       "Adding column(s) or add/reorganize partition not supported online"));
      }
   }
 
@@ -17924,8 +17933,8 @@ enum_alter_inplace_result
     if (((altered_table->s->keys - table->s->keys) != 1) ||
         (alter_flags & dropping))
     {
-       DBUG_PRINT("info",("Only one index can be added on-line"));
-       DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+      DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                      "Only one index can be added online"));
     }
   }
 
@@ -17937,8 +17946,8 @@ enum_alter_inplace_result
     if (((table->s->keys - altered_table->s->keys) != 1) ||
         (alter_flags & adding))
     {
-       DBUG_PRINT("info",("Only one index can be dropped on-line"));
-       DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+      DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                      "Only one index can be dropped online"));
     }
   }
 
@@ -18003,7 +18012,10 @@ enum_alter_inplace_result
     {
       if (field->field_storage_type() == HA_SM_DISK)
       {
-        DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+        char reason_buf[NAME_LEN+256];
+        my_snprintf(reason_buf, sizeof(reason_buf),
+                    "Found change of COLUMN_STORAGE to disk for column %s", field->field_name);
+        DBUG_RETURN(inplace_unsupported(ha_alter_info, reason_buf));
       }
       new_col.setStorageType(NdbDictionary::Column::StorageTypeMemory);
     }
@@ -18018,21 +18030,22 @@ enum_alter_inplace_result
 
     if (col->getStorageType() != new_col.getStorageType())
     {
-      DBUG_PRINT("info", ("Column storage media is changed"));
-      DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+      DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                      "Column storage media is changed"));
     }
 
     if (field->flags & FIELD_IS_RENAMED)
     {
-      DBUG_PRINT("info", ("Field has been renamed, copy table"));
-      DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+      DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                      "Field has been renamed, copy table"));
     }
 
     if ((field->flags & FIELD_IN_ADD_INDEX) &&
         (col->getStorageType() == NdbDictionary::Column::StorageTypeDisk))
     {
-      DBUG_PRINT("info", ("add/drop index not supported for disk stored column"));
-      DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+      DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                      "Add/drop index not supported for disk "
+                                      "stored column"));
     }
   }
 
@@ -18041,8 +18054,8 @@ enum_alter_inplace_result
   {
     if (create_info->used_fields ^ ~HA_CREATE_USED_AUTO)
     {
-      DBUG_PRINT("info", ("Not only auto_increment value changed"));
-      DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+      DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                      "Not only auto_increment value changed"));
     }
   }
   else
@@ -18051,11 +18064,12 @@ enum_alter_inplace_result
     if (create_info->used_fields & HA_CREATE_USED_AUTO &&
         get_row_type() != create_info->row_type)
     {
-      DBUG_PRINT("info", ("Row format changed"));
-      DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+      DBUG_RETURN(inplace_unsupported(ha_alter_info, "Row format changed"));
     }
   }
-  DBUG_PRINT("info", ("Ndb supports ALTER on-line"));
+
+  DBUG_ASSERT(result != HA_ALTER_INPLACE_NOT_SUPPORTED);
+  DBUG_PRINT("info", ("Ndb supports ALTER online"));
   DBUG_RETURN(result);
 }
 
@@ -18291,7 +18305,7 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
        }
        /*
          If the user has not specified the field format
-         make it dynamic to enable on-line add attribute
+         make it dynamic to enable online add attribute
        */
        if (field->column_format() == COLUMN_FORMAT_TYPE_DEFAULT &&
            create_info->row_type == ROW_TYPE_DEFAULT &&
@@ -18300,7 +18314,7 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
          push_warning_printf(thd, Sql_condition::SL_WARNING,
                              ER_ILLEGAL_HA_CREATE_OPTION,
                              "Converted FIXED field '%s' to DYNAMIC "
-                             "to enable on-line ADD COLUMN",
+                             "to enable online ADD COLUMN",
                              field->field_name);
        }
        new_tab->addColumn(col);
@@ -18444,7 +18458,7 @@ int ha_ndbcluster::alter_frm(const char *file,
     new_tab->setFrm(pack_data, (Uint32)pack_length);
     if (dict->alterTableGlobal(*old_tab, *new_tab))
     {
-      DBUG_PRINT("info", ("On-line alter of table %s failed", m_tabname));
+      DBUG_PRINT("info", ("Online alter of table %s failed", m_tabname));
       error= ndb_to_mysql_error(&dict->getNdbError());
       my_error(error, MYF(0), m_tabname);
     }
