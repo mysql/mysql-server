@@ -88,6 +88,32 @@ static uint opt_ndb_nodeid;
 static my_bool opt_ndb_read_backup;
 static ulong opt_ndb_data_node_neighbour;
 
+#define MYSQL_VERSION_NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC 50711
+enum ndb_default_colum_format_enum {
+  NDB_DEFAULT_COLUMN_FORMAT_FIXED= 0,
+  NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC= 1
+};
+static const char* default_column_format_names[]= { "FIXED", "DYNAMIC", NullS };
+static ulong opt_ndb_default_column_format;
+static TYPELIB default_column_format_typelib= {
+  array_elements(default_column_format_names) - 1,
+  "",
+  default_column_format_names,
+  NULL
+};
+static MYSQL_SYSVAR_ENUM(
+  default_column_format,               /* name */
+  opt_ndb_default_column_format,       /* var */
+  PLUGIN_VAR_RQCMDARG,
+  "Change COLUMN_FORMAT DEFAULT (fixed or dynamic) "
+  "for backward compatibility. Also affects the default "
+  "for ROW_FORMAT.",
+  NULL,                                /* check func. */
+  NULL,                                /* update func. */
+  NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC,   /* default */
+  &default_column_format_typelib       /* typelib */
+);
+
 static MYSQL_THDVAR_UINT(
   autoincrement_prefetch_sz,         /* name */
   PLUGIN_VAR_RQCMDARG,
@@ -9406,6 +9432,90 @@ const Uint32 OLD_NDB_MAX_TUPLE_SIZE_IN_WORDS = 2013;
 const Uint32 OLD_NDB_MAX_TUPLE_SIZE_IN_WORDS = NDB_MAX_TUPLE_SIZE_IN_WORDS;
 #endif
 
+static bool
+ndb_column_is_dynamic(THD *thd,
+                      Field *field,
+                      HA_CREATE_INFO *create_info,
+                      column_format_type default_format,
+                      NDBCOL::StorageType type)
+{
+  DBUG_ENTER("ndb_column_is_dynamic");
+  /*
+    Check if COLUMN_FORMAT is declared FIXED or DYNAMIC.
+    The COLUMN_FORMAT for all non-pk columns defaults to DYNAMIC,
+    unless ROW_FORMAT is explictly defined.
+    If an explicit declaration of ROW_FORMAT as FIXED contradicts
+    with a dynamic COLUMN_FORMAT a warning will be issued.
+    the COLUMN_FORMAT can also be overridden with the configuration option
+    --ndb-default-column-format.
+    For COLUMN_STORAGE defined as DISK dynamic COLUMN_FORMAT is not supported
+    and a warning will be issued if explicitly declared.
+   */
+  const bool default_is_fixed= ((opt_ndb_default_column_format ==
+                                 NDB_DEFAULT_COLUMN_FORMAT_FIXED) ||
+                                (field->table->s->mysql_version <
+                                 MYSQL_VERSION_NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC));
+  bool dynamic=
+    (default_is_fixed || (field->flags & PRI_KEY_FLAG)) ? FALSE : TRUE;
+
+  switch (field->column_format()) {
+  case(COLUMN_FORMAT_TYPE_FIXED):
+    dynamic= FALSE;
+    break;
+  case(COLUMN_FORMAT_TYPE_DYNAMIC):
+    dynamic= TRUE;
+    break;
+  case(COLUMN_FORMAT_TYPE_DEFAULT):
+  default:
+    if (create_info->row_type == ROW_TYPE_DEFAULT)
+      dynamic= (default_is_fixed || (field->flags & PRI_KEY_FLAG)) ?
+        default_format : TRUE;
+    else
+      dynamic= (create_info->row_type == ROW_TYPE_DYNAMIC);
+    break;
+  }
+  if (type == NDBCOL::StorageTypeDisk)
+  {
+    if (dynamic)
+    {
+      DBUG_PRINT("info", ("Dynamic disk stored column %s changed to static",
+                          field->field_name));
+      dynamic= false;
+    }
+    if (thd && field->column_format() == COLUMN_FORMAT_TYPE_DYNAMIC)
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_ILLEGAL_HA_CREATE_OPTION,
+                          "DYNAMIC column %s with "
+                          "STORAGE DISK is not supported, "
+                          "column will become FIXED",
+                          field->field_name);
+    }
+  }
+
+  switch (create_info->row_type) {
+  case ROW_TYPE_FIXED:
+    if (thd && (dynamic || field_type_forces_var_part(field->type())))
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_ILLEGAL_HA_CREATE_OPTION,
+                          "Row format FIXED incompatible with "
+                          "dynamic attribute %s",
+                          field->field_name);
+    }
+    break;
+  case ROW_TYPE_DYNAMIC:
+    /*
+      Columns will be dynamic unless explictly specified FIXED
+    */
+    break;
+  default:
+    break;
+  }
+
+  DBUG_RETURN(dynamic);
+}
+
 static int
 create_ndb_column(THD *thd,
                   NDBCOL &col,
@@ -9413,11 +9523,9 @@ create_ndb_column(THD *thd,
                   HA_CREATE_INFO *create_info,
                   column_format_type default_format= COLUMN_FORMAT_TYPE_DEFAULT)
 {
-  NDBCOL::StorageType type= NDBCOL::StorageTypeMemory;
-  bool dynamic= FALSE;
-
-  char buf[MAX_ATTR_DEFAULT_VALUE_SIZE];
   DBUG_ENTER("create_ndb_column");
+  NDBCOL::StorageType type= NDBCOL::StorageTypeMemory;
+  char buf[MAX_ATTR_DEFAULT_VALUE_SIZE];
   // Set name
   if (col.setName(field->field_name))
   {
@@ -9805,62 +9913,8 @@ create_ndb_column(THD *thd,
     break;
   }
 
-  switch (field->column_format()) {
-  case(COLUMN_FORMAT_TYPE_FIXED):
-    dynamic= FALSE;
-    break;
-  case(COLUMN_FORMAT_TYPE_DYNAMIC):
-    dynamic= TRUE;
-    break;
-  case(COLUMN_FORMAT_TYPE_DEFAULT):
-  default:
-    if (create_info->row_type == ROW_TYPE_DEFAULT)
-      dynamic= default_format;
-    else
-      dynamic= (create_info->row_type == ROW_TYPE_DYNAMIC);
-    break;
-  }
-  DBUG_PRINT("info", ("Column %s is declared %s", field->field_name,
-                      (dynamic) ? "dynamic" : "static"));
-  if (type == NDBCOL::StorageTypeDisk)
-  {
-    if (dynamic)
-    {
-      DBUG_PRINT("info", ("Dynamic disk stored column %s changed to static",
-                          field->field_name));
-      dynamic= false;
-    }
-
-    if (thd && field->column_format() == COLUMN_FORMAT_TYPE_DYNAMIC)
-    {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_ILLEGAL_HA_CREATE_OPTION,
-                          "DYNAMIC column %s with "
-                          "STORAGE DISK is not supported, "
-                          "column will become FIXED",
-                          field->field_name);
-    }
-  }
-
-  switch (create_info->row_type) {
-  case ROW_TYPE_FIXED:
-    if (thd && (dynamic || field_type_forces_var_part(field->type())))
-    {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_ILLEGAL_HA_CREATE_OPTION,
-                          "Row format FIXED incompatible with "
-                          "dynamic attribute %s",
-                          field->field_name);
-    }
-    break;
-  case ROW_TYPE_DYNAMIC:
-    /*
-      Future: make columns dynamic in this case
-    */
-    break;
-  default:
-    break;
-  }
+  const bool
+    dynamic= ndb_column_is_dynamic(thd, field, create_info, default_format, type);
 
   DBUG_PRINT("info", ("Format %s, Storage %s", (dynamic)?"dynamic":"fixed",(type == NDBCOL::StorageTypeDisk)?"disk":"memory"));
   col.setStorageType(type);
@@ -10409,30 +10463,6 @@ int ha_ndbcluster::create(const char *name,
     DBUG_RETURN(HA_WRONG_CREATE_OPTION);
   }
 
-  const bool is_alter= (thd->lex->sql_command == SQLCOM_ALTER_TABLE);
-  if (is_alter)
-  {
-    DBUG_PRINT("info", ("Detected copying ALTER TABLE"));
-
-    // Check that the table name is temporary ie. starts with #sql
-    DBUG_ASSERT(!is_user_table(form));
-    DBUG_ASSERT(is_prefix(form->s->table_name.str, tmp_file_prefix));
-
-    if (!THDVAR(thd, allow_copying_alter_table) &&
-        (thd->lex->alter_info.requested_algorithm ==
-         Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT))
-    {
-      // Copying alter table is not allowed and user
-      // have not specified ALGORITHM=COPY
-
-      DBUG_PRINT("info", ("Refusing implicit copying alter table"));
-      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
-              "Implicit copying alter", "ndb_allow_copying_alter_table=0",
-              "ALGORITHM=COPY to force the alter");
-      DBUG_RETURN(HA_WRONG_CREATE_OPTION);
-    }
-  }
-
   DBUG_ASSERT(*fn_rext((char*)name) == 0);
   set_dbname(name);
   set_tabname(name);
@@ -10485,6 +10515,36 @@ int ha_ndbcluster::create(const char *name,
 
 
     DBUG_RETURN(my_errno());
+  }
+
+  /*
+    Check if the create table is part of a copying alter table.
+    Note, this has to be done after the check for auto-discovering
+    tables since a table being altered might not be known to the
+    mysqld issuing the alter statement.
+   */
+  const bool is_alter= (thd->lex->sql_command == SQLCOM_ALTER_TABLE);
+  if (is_alter)
+  {
+    DBUG_PRINT("info", ("Detected copying ALTER TABLE"));
+
+    // Check that the table name is temporary ie. starts with #sql
+    DBUG_ASSERT(!is_user_table(form));
+    DBUG_ASSERT(is_prefix(form->s->table_name.str, tmp_file_prefix));
+
+    if (!THDVAR(thd, allow_copying_alter_table) &&
+        (thd->lex->alter_info.requested_algorithm ==
+         Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT))
+    {
+      // Copying alter table is not allowed and user
+      // have not specified ALGORITHM=COPY
+
+      DBUG_PRINT("info", ("Refusing implicit copying alter table"));
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
+              "Implicit copying alter", "ndb_allow_copying_alter_table=0",
+              "ALGORITHM=COPY to force the alter");
+      DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+    }
   }
 
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
@@ -17657,13 +17717,91 @@ inplace_unsupported(Alter_inplace_info *alter_info,
   DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 }
 
+void
+ha_ndbcluster::check_implicit_column_format_change(TABLE *altered_table,
+                                                   Alter_inplace_info *ha_alter_info)
+{
+  /*
+    We need to check if the table was defined when the default COLUMN_FORMAT
+    was FIXED and will now be become DYNAMIC.
+    We need to warn the user if the ALTER TABLE isn't defined to be INPLACE
+    and the column which will change isn't about to be dropped.
+  */
+  DBUG_ENTER("ha_ndbcluster::check_implicit_column_format_change");
+  DBUG_PRINT("info", ("Checking table with version %lu",
+                      table->s->mysql_version));
+  Alter_inplace_info::HA_ALTER_FLAGS alter_flags=
+    ha_alter_info->handler_flags;
+
+  /* Find the old fields */
+  for (uint i= 0; i < table->s->fields; i++)
+  {
+    Field *field= table->field[i];
+
+    /*
+      Find fields that are not part of the primary key
+      and that have a default COLUMN_FORMAT.
+    */
+    if ((! (field->flags & PRI_KEY_FLAG)) &&
+        field->column_format() == COLUMN_FORMAT_TYPE_DEFAULT)
+    {
+      DBUG_PRINT("info", ("Found old non-pk field %s", field->field_name));
+      bool modified_explicitly= false;
+      bool dropped= false;
+      /*
+        If the field is dropped or
+        modified with and explicit COLUMN_FORMAT (FIXED or DYNAMIC)
+        we don't need to warn the user about that field.
+      */
+      if (alter_flags & Alter_inplace_info::DROP_COLUMN ||
+          alter_flags & Alter_inplace_info::ALTER_COLUMN_COLUMN_FORMAT)
+      {
+        if (alter_flags & Alter_inplace_info::DROP_COLUMN)
+          dropped= true;
+        /* Find the fields in modified table*/
+        for (uint j= 0; j < altered_table->s->fields; j++)
+        {
+          Field *field2= altered_table->field[j];
+          if (!my_strcasecmp(system_charset_info,
+                             field->field_name, field2->field_name))
+          {
+            dropped= false;
+            if (field2->column_format() != COLUMN_FORMAT_TYPE_DEFAULT)
+            {
+              modified_explicitly= true;
+            }
+          }
+        }
+        if (dropped)
+          DBUG_PRINT("info", ("Field %s is to be dropped", field->field_name));
+        if (modified_explicitly)
+          DBUG_PRINT("info", ("Field  %s is modified with explicit COLUMN_FORMAT",
+                              field->field_name));
+      }
+      if ((! dropped) && (! modified_explicitly))
+      {
+        // push a warning of COLUMN_FORMAT change
+        push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                            ER_ALTER_INFO,
+                            "check_if_supported_inplace_alter: "
+                            "field %s has default COLUMN_FORMAT fixed "
+                            "which will be changed to dynamic "
+                            "unless explicitly defined as COLUMN_FORMAT FIXED",
+                            field->field_name);
+      }
+    }
+  }
+
+  DBUG_VOID_RETURN;
+}
 
 enum_alter_inplace_result
-  ha_ndbcluster::check_if_supported_inplace_alter(TABLE *altered_table,
-                                                  Alter_inplace_info *ha_alter_info)
+ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
+                                             Alter_inplace_info *ha_alter_info)
 {
   THD *thd= current_thd;
   HA_CREATE_INFO *create_info= ha_alter_info->create_info;
+  Alter_info *alter_info= ha_alter_info->alter_info;
   Alter_inplace_info::HA_ALTER_FLAGS alter_flags=
       ha_alter_info->handler_flags;
   const Alter_inplace_info::HA_ALTER_FLAGS supported=
@@ -17697,12 +17835,12 @@ enum_alter_inplace_result
 
   enum_alter_inplace_result result= HA_ALTER_INPLACE_SHARED_LOCK;
 
-  DBUG_ENTER("ha_ndbcluster::check_if_supported_inplace_alter");
+  DBUG_ENTER("ha_ndbcluster::check_inplace_alter_supported");
   partition_info *part_info= altered_table->part_info;
   const NDBTAB *old_tab= m_table;
 
   if (THDVAR(thd, use_copying_alter_table) &&
-      (thd->lex->alter_info.requested_algorithm ==
+      (alter_info->requested_algorithm ==
        Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT))
   {
     // Usage of copying alter has been forced and user has not specified
@@ -18068,8 +18206,40 @@ enum_alter_inplace_result
     }
   }
 
+  // All unsupported cases should have returned directly
   DBUG_ASSERT(result != HA_ALTER_INPLACE_NOT_SUPPORTED);
   DBUG_PRINT("info", ("Ndb supports ALTER online"));
+  DBUG_RETURN(result);
+}
+
+enum_alter_inplace_result
+ha_ndbcluster::check_if_supported_inplace_alter(TABLE *altered_table,
+                                                Alter_inplace_info *ha_alter_info)
+{
+  DBUG_ENTER("ha_ndbcluster::check_if_supported_inplace_alter");
+  Alter_info *alter_info= ha_alter_info->alter_info;
+
+  enum_alter_inplace_result result=
+    check_inplace_alter_supported(altered_table,
+                                  ha_alter_info);
+
+  if (result == HA_ALTER_INPLACE_NOT_SUPPORTED)
+  {
+    /*
+      The ALTER TABLE is not supported inplace and will fall back
+      to use copying ALTER TABLE. If --ndb-default-column-format is dynamic (default),
+      the table is created in an older mysql version and the algorithm for the alter
+      table is not specified to be inplace then then heck for implicit changes and
+      print warnings.
+    */
+    if ((opt_ndb_default_column_format ==
+         NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC) &&
+        (table->s->mysql_version < MYSQL_VERSION_NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC) &&
+        (alter_info->requested_algorithm != Alter_info::ALTER_TABLE_ALGORITHM_INPLACE))
+    {
+      check_implicit_column_format_change(altered_table, ha_alter_info);
+    }
+  }
   DBUG_RETURN(result);
 }
 
@@ -20194,6 +20364,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(version_string),
   MYSQL_SYSVAR(show_foreign_key_mock_tables),
   MYSQL_SYSVAR(slave_conflict_role),
+  MYSQL_SYSVAR(default_column_format),
   NULL
 };
 
