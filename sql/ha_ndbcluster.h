@@ -377,6 +377,13 @@ private:
   void prepare_for_alter();
   void prepare_drop_index(uint key_num);
   int final_drop_index(TABLE *table_arg);
+
+  enum_alter_inplace_result
+    check_inplace_alter_supported(TABLE *altered_table,
+                                  Alter_inplace_info *ha_alter_info);
+  void
+    check_implicit_column_format_change(TABLE *altered_table,
+                                        Alter_inplace_info *ha_alter_info);
   
   bool abort_inplace_alter_table(TABLE *altered_table,
                                  Alter_inplace_info *ha_alter_info);

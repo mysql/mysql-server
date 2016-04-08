@@ -478,7 +478,7 @@ let $separator=;
 let $sql=create table t1 (;
 while ($i)
 {
-  let $sql=$sql$separator c$i char(255);
+  let $sql=$sql$separator c$i char(255) column_format fixed;
   let $separator=,;
   dec $i;
 }
