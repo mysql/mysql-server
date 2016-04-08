@@ -39,7 +39,7 @@ using namespace ngs;
 const uint64_t MILLI_TO_NANO = 1000000;
 
 
-Scheduler_dynamic::Scheduler_dynamic(const char* name)
+Scheduler_dynamic::Scheduler_dynamic(const char* name, PSI_thread_key thread_key)
 : m_name(name),
   m_task_pending_mutex(KEY_mutex_x_scheduler_dynamic_task_pending),
   m_task_pending_cond(KEY_cond_x_scheduler_dynamic_task_pending),
@@ -50,7 +50,8 @@ Scheduler_dynamic::Scheduler_dynamic(const char* name)
   m_min_workers_count(1),
   m_workers_count(0),
   m_tasks_count(0),
-  m_idle_worker_timeout(60 * 1000)
+  m_idle_worker_timeout(60 * 1000),
+  m_thread_key(thread_key)
 {
 }
 
@@ -214,6 +215,12 @@ void *Scheduler_dynamic::worker_proxy(void *data)
   return reinterpret_cast<Scheduler_dynamic*>(data)->worker();
 }
 
+void Scheduler_dynamic::thread_end()
+{
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_THREAD_CALL(delete_current_thread)();
+#endif
+}
 
 void *Scheduler_dynamic::worker()
 {
@@ -293,19 +300,17 @@ void Scheduler_dynamic::join_terminating_workers()
   }
 }
 
-
 void Scheduler_dynamic::create_thread()
 {
   if (is_running())
   {
     Thread_t thread;
 
-    ngs::thread_create(0, &thread, NULL, worker_proxy, this);
+    ngs::thread_create(m_thread_key, &thread, worker_proxy, this);
     increase_workers_count();
     m_threads.push(thread);
   }
 }
-
 
 bool Scheduler_dynamic::is_running()
 {
