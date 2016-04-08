@@ -17706,17 +17706,6 @@ public:
   is not supported.
 */
 
-static inline
-enum_alter_inplace_result
-inplace_unsupported(Alter_inplace_info *alter_info,
-                    const char* reason)
-{
-  DBUG_ENTER("inplace_unsupported");
-  DBUG_PRINT("info", ("%s", reason));
-  alter_info->unsupported_reason = reason;
-  DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
-}
-
 void
 ha_ndbcluster::check_implicit_column_format_change(TABLE *altered_table,
                                                    Alter_inplace_info *ha_alter_info)
@@ -17912,7 +17901,6 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
 
   if (alter_flags & not_supported)
   {
-    char reason_buf[256];
     my_snprintf(reason_buf, sizeof(reason_buf),
                 "Detected unsupported change: 0x%llx",  alter_flags & not_supported);
     DBUG_RETURN(inplace_unsupported(ha_alter_info, reason_buf));
@@ -18150,7 +18138,6 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
     {
       if (field->field_storage_type() == HA_SM_DISK)
       {
-        char reason_buf[NAME_LEN+256];
         my_snprintf(reason_buf, sizeof(reason_buf),
                     "Found change of COLUMN_STORAGE to disk for column %s", field->field_name);
         DBUG_RETURN(inplace_unsupported(ha_alter_info, reason_buf));
