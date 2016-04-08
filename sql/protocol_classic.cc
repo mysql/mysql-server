@@ -27,6 +27,7 @@
   - @subpage page_protocol_basic_data_types
   - @subpage page_protocol_basic_packets
   - @subpage page_protocol_basic_response_packets
+  - @subpage page_protocol_basic_character_set
 */
 
 
@@ -155,6 +156,48 @@
   Further reading:
   - @subpage page_protocol_connection_phase
   - @subpage page_protocol_command_phase
+*/
+
+/**
+  @page page_protocol_basic_character_set Character Set
+
+  MySQL has a very flexible character set support as documented in
+  [Character Set Support](http://dev.mysql.com/doc/refman/5.7/en/charset.html).
+  The list of character sets and their IDs can be queried as follows:
+
+<pre>
+  SELECT id, collation_name FROM information_schema.collations ORDER BY id;
+  +----+-------------------+
+  | id | collation_name    |
+  +----+-------------------+
+  |  1 | big5_chinese_ci   |
+  |  2 | latin2_czech_cs   |
+  |  3 | dec8_swedish_ci   |
+  |  4 | cp850_general_ci  |
+  |  5 | latin1_german1_ci |
+  |  6 | hp8_english_ci    |
+  |  7 | koi8r_general_ci  |
+  |  8 | latin1_swedish_ci |
+  |  9 | latin2_general_ci |
+  | 10 | swe7_swedish_ci   |
+  +----+-------------------+
+</pre>
+
+  The following table shows a few common character sets.
+
+  Number |  Hex  | Character Set Name
+  -------|-------|-------------------
+       8 |  0x08 | @ref my_charset_latin1 "latin1_swedish_ci"
+      33 |  0x21 | @ref my_charset_utf8_general_ci "utf8_general_ci"
+      63 |  0x3f | @ref my_charset_bin "binary"
+
+
+  @anchor a_protocol_character_set Protocol::CharacterSet
+  ----------------------
+
+  A character set is defined in the protocol as a integer.
+  Fields:
+     - charset_nr (2) -- number of the character set and collation
 */
 
 /**
@@ -699,7 +742,22 @@ static uchar eof_buff[1]= { (uchar) 254 };      /* Marker for end of fields */
       <td>@ref SERVER_STATUS_flags_enum</td></tr>
   </table>
 
-  See also net_send_eof().
+  Example:
+
+  A MySQL 4.1 EOF packet with: 0 warnings, AUTOCOMMIT enabled.
+
+  <table><tr>
+  <td>
+  ~~~~~~~~~~~~~~~~~~~~~
+  05 00 00 05 fe 00 00 02 00
+  ~~~~~~~~~~~~~~~~~~~~~
+  </td><td>
+  ~~~~~~~~~~~~~~~~~~~~~
+  ..........
+  ~~~~~~~~~~~~~~~~~~~~~
+  </td></tr></table>
+
+  @sa net_send_eof().
 */
 
 /**
@@ -795,9 +853,49 @@ static bool write_eof_packet(THD *thd, NET *net,
 /**
   @page page_protocol_basic_err_packet ERR_Packet
 
-  @todo: Document this
+  This packet signals that an error occurred. It contains a SQL state value
+  if ::CLIENT_PROTOCOL_41 is enabled.
 
-  See also net_send_error_packet()
+  Error texts cannot exceed ::MYSQL_ERRMSG_SIZE
+
+  <table>
+  <caption>The Payload of an ERR Packet</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+  <td>header</td>
+  <td>`0xFF` ERR packet header</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+  <td>error_code</td>
+  <td>error-code</td></tr>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_PROTOCOL_41 {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_fix "string[1]"</td>
+  <td>sql_state_marker</td>
+  <td># marker of the SQL state</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_fix "string[5]"</td>
+  <td>sql_state</td>
+  <td>SQL state</td></tr>
+  <tr><td colspan="3">  }</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_eof "string&lt;EOF&gt;"</td>
+  <td>error_message</td>
+  <td>human readable error message</td></tr>
+  </table>
+
+  Example:
+
+  <table><tr>
+  <td>
+  ~~~~~~~~~~~~~~~~~~~~~
+  17 00 00 01 ff 48 04 23    48 59 30 30 30 4e 6f 20
+  74 61 62 6c 65 73 20 75    73 65 64
+  ~~~~~~~~~~~~~~~~~~~~~
+  </td><td>
+  ~~~~~~~~~~~~~~~~~~~~~
+  .....H.#HY000No
+  tables used
+  ~~~~~~~~~~~~~~~~~~~~~
+  </td></tr></table>
+
+  @sa net_send_error_packet()
 */
 
 
@@ -837,6 +935,8 @@ bool net_send_error_packet(THD *thd, uint sql_errno, const char *err,
   @return
    @retval FALSE The message was successfully sent
    @retval TRUE  An error occurred and the messages wasn't sent properly
+
+  See also @ref page_protocol_basic_err_packet
 */
 
 static bool net_send_error_packet(NET* net, uint sql_errno, const char *err,
