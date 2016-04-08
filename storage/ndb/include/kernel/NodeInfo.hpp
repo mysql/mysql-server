@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,14 @@
 
 class NodeInfo {
 public:
-  NodeInfo();
+  NodeInfo()
+  : m_version(0),
+    m_mysql_version(0),
+    m_lqh_workers(0),
+    m_type(INVALID),
+    m_connectCount(0),
+    m_connected(FALSE)
+  {}
 
   /**
    * NodeType
@@ -50,15 +57,6 @@ public:
   friend NdbOut & operator<<(NdbOut&, const NodeInfo&); 
 };
 
-
-inline
-NodeInfo::NodeInfo(){
-  m_version = 0;
-  m_mysql_version = 0;
-  m_lqh_workers = 0;
-  m_type = INVALID;
-  m_connectCount = 0;
-}
 
 inline
 NodeInfo::NodeType
