@@ -17700,11 +17700,22 @@ public:
   Uint32 old_table_version;
 };
 
-
+static char reason_buf[NAME_LEN+256];
 /*
   Utility function to use when reporting that inplace alter
   is not supported.
 */
+
+static inline
+enum_alter_inplace_result
+inplace_unsupported(Alter_inplace_info *alter_info,
+                    const char* reason)
+{
+  DBUG_ENTER("inplace_unsupported");
+  DBUG_PRINT("info", ("%s", reason));
+  alter_info->unsupported_reason = reason;
+  DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+}
 
 void
 ha_ndbcluster::check_implicit_column_format_change(TABLE *altered_table,
