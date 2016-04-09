@@ -68,8 +68,9 @@ int          g_restart = 0;
 const char * g_cwd = 0;
 const char * g_basedir = 0;
 const char * g_my_cnf = 0;
-const char * g_prefix = 0;
-const char * g_prefix1 = 0;
+const char * g_prefix = NULL;
+const char * g_prefix0 = NULL;
+const char * g_prefix1 = NULL;
 const char * g_clusters = 0;
 const char * g_site = NULL;
 BaseString g_replicate;
@@ -152,8 +153,11 @@ static struct my_option g_options[] =
   { "baseport", 256, "Base port",
     (uchar **) &g_baseport, (uchar **) &g_baseport,
     0, GET_INT, REQUIRED_ARG, g_baseport, 0, 0, 0, 0, 0},
-  { "prefix", 256, "mysql install dir",
+  { "prefix", 256, "atrt install dir",
     (uchar **) &g_prefix, (uchar **) &g_prefix,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  { "prefix0", 256, "mysql install dir",
+    (uchar **) &g_prefix0, (uchar **) &g_prefix0,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "prefix1", 256, "mysql install dir 1",
     (uchar **) &g_prefix1, (uchar **) &g_prefix1,
@@ -746,9 +750,28 @@ parse_args(int argc, char** argv)
     g_logger.info("basedir, %s", g_basedir);
   }
 
-  if (!g_prefix)
+  const char* default_prefix;
+  if (g_prefix != NULL)
+  {
+    default_prefix = g_prefix;
+  }
+  else if (g_prefix0 != NULL)
+  {
+    default_prefix = g_prefix0;
+  }
+  else
+  {
+    default_prefix = DEFAULT_PREFIX;
+  }
+
+  if (g_prefix == NULL)
   {
     g_prefix = DEFAULT_PREFIX;
+  }
+
+  if (g_prefix0 == NULL)
+  {
+    g_prefix0 = DEFAULT_PREFIX;
   }
 
   /**
@@ -839,8 +862,6 @@ parse_args(int argc, char** argv)
     g_my_cnf = strdup(mycnf.c_str());
   }
   
-  g_logger.info("Using --prefix=\"%s\"", g_prefix);
-
   if (g_prefix1)
   {
     g_logger.info("Using --prefix1=\"%s\"", g_prefix1);
@@ -1641,7 +1662,7 @@ deploy(int d, atrt_config & config)
 
     if (d & 2)
     {
-      if (!do_rsync(g_prefix, config.m_hosts[i]->m_hostname.c_str()))
+      if (!do_rsync(g_prefix0, config.m_hosts[i]->m_hostname.c_str()))
         return false;
     
       if (g_prefix1 && 
