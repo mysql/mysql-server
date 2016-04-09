@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -143,8 +142,8 @@ do_change_version(atrt_config& config, SqlResultSet& command,
   }
   atrt_process& proc= *config.m_processes[process_id];
 
-  const char* new_prefix= g_prefix1 ? g_prefix1 : g_prefix;
-  const char* old_prefix= g_prefix;
+  const char* new_prefix= g_prefix1 ? g_prefix1 : g_prefix0;
+  const char* old_prefix= g_prefix0;
   const char *start= strstr(proc.m_proc.m_path.c_str(), old_prefix);
   if (!start){
     /* Process path does not contain old prefix.  
