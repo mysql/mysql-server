@@ -125,6 +125,11 @@ public:
     std::cout << "Usage: " << get_name() <<" [OPTIONS]" << std::endl;
   }
 
+  int get_error_code()
+  {
+    return 0;
+  }
+
   /**
     Error codes:
     EXIT_INIT_ERROR - Initialization error.

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "tables_definition_ready_dump_task.h"
 #include "simple_id_generator.h"
 #include "base/message_data.h"
+#include "base/abstract_program.h"
 
 namespace Mysql{
 namespace Tools{
@@ -49,7 +50,8 @@ public:
     I_connection_provider* connection_provider,
     Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
       message_handler, Simple_id_generator* object_id_generator,
-      Mysql_chain_element_options* options);
+      Mysql_chain_element_options* options,
+      Mysql::Tools::Base::Abstract_program* program);
   /**
     Enumerates all objects it can access, gets chains from all registered
     chain_maker for each object and then execute each chain.
