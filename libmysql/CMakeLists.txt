@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -146,20 +146,36 @@ CACHE INTERNAL "Functions exported by client API"
 
 )
 
-# Below list will have all the undocumented C API symbols but still exported.
+# Below lists will have all the undocumented C API symbols but still exported.
 # Once the decision is taken to have documentation we need to move them to
 # CLIENT_API_FUNCTIONS list.
-SET(CLIENT_API_FUNCTIONS_UNDOCUMENTED
+SET(CLIENT_API_FUNCTIONS_UNDOCUMENTED_20_0
 get_tty_password
 # my_load_defaults is a wrapper for load_defaults and it is not documented. We
 # will have a FR to replace this for decent name/functionality and document it.
 my_load_defaults
 handle_options
 
-CACHE INTERNAL "Undocumented Functions exported by client API"
+CACHE INTERNAL "Undocumented functions exported by client API in version 20.0"
 
 )
 
+SET(CLIENT_API_FUNCTIONS_UNDOCUMENTED_20_3
+  # pure-ftpd 1.0.42 needs either my_make_scrambled_password (preferred)
+  # or make_scrambled_password.
+  my_make_scrambled_password
+
+  CACHE INTERNAL "Undocumented functions exported by client API in version 20.3"
+
+)
+
+SET(CLIENT_API_FUNCTIONS_UNDOCUMENTED
+  ${CLIENT_API_FUNCTIONS_UNDOCUMENTED_20_0}
+  ${CLIENT_API_FUNCTIONS_UNDOCUMENTED_20_3}
+
+  CACHE INTERNAL "Undocumented functions exported by client API"
+
+)
 
 SET(CLIENT_SOURCES
   get_password.c 
