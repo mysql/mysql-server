@@ -30,27 +30,48 @@
 /**
   Build a replacement query for SHOW STATUS.
   When the parser accepts the following syntax:
+
+  <code>
     SHOW GLOBAL STATUS
+  </code>
+
   the parsed tree built for this query is in fact:
+
+  <code>
     SELECT * FROM
              (SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value
               FROM performance_schema.global_status) derived_table
+  </code>
 
   Likewise, the query:
+
+  <code>
     SHOW GLOBAL STATUS LIKE "<value>"
+  </code>
+
   is built as:
+
+  <code>
     SELECT * FROM
              (SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value
               FROM performance_schema.global_status) derived_table
               WHERE Variable_name LIKE "<value>"
+  </code>
 
   Likewise, the query:
-    SHOW GLOBAL STATUS where <where_clause>
+
+  <code>
+    SHOW GLOBAL STATUS where @<where_clause@>
+  </code>
+
   is built as:
+
+  <code>
     SELECT * FROM
              (SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value
               FROM performance_schema.global_status) derived_table
-              WHERE <where_clause>
+              WHERE @<where_clause@>
+  </code>
 */
 static SELECT_LEX*
 build_query(const POS &pos,
