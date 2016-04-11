@@ -15,7 +15,7 @@
 
 #include "mysys_priv.h"
 #include "mysys_err.h"
-
+#include "m_string.h"
 #ifndef SHARED_LIBRARY
 
 const char *globerrs[GLOBERRS]=
@@ -128,6 +128,7 @@ void wait_for_free_space(const char *filename, int errors)
                  });
 
   (void) sleep(time_to_sleep);
+  DEBUG_SYNC_C("disk_full_reached");
 }
 
 const char **get_global_errmsgs()
