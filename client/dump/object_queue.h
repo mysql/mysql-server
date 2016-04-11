@@ -58,13 +58,12 @@ public:
   uint64 get_id() const
   { return Abstract_chain_element::get_id(); }
 
+  void stop_queue();
+
 protected:
   // Fix "inherits ... via dominance" warnings
   void item_completion_in_child_callback(Item_processing_data* item_processed)
   { Abstract_chain_element::item_completion_in_child_callback(item_processed); }
-
-  void stop_queue();
-
 
 private:
   void queue_thread();
