@@ -36,8 +36,9 @@ using namespace Mysql::Tools::Dump;
 Mysql_crawler::Mysql_crawler(I_connection_provider* connection_provider,
   Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
     message_handler, Simple_id_generator* object_id_generator,
-  Mysql_chain_element_options* options)
-  : Abstract_crawler(message_handler, object_id_generator),
+  Mysql_chain_element_options* options,
+  Mysql::Tools::Base::Abstract_program* program)
+  : Abstract_crawler(message_handler, object_id_generator, program),
   Abstract_mysql_chain_element_extension(
   connection_provider, message_handler, options)
 {}
