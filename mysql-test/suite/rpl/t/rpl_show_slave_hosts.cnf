@@ -16,7 +16,6 @@ report-user=
 [mysqld.3]
 server_id=3
 report-host=slave2
-slave-net-timeout=5
 loose-innodb_write_io_threads=    2
 loose-innodb_read_io_threads=     2
 
