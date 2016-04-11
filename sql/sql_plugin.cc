@@ -47,6 +47,118 @@
 
 #include "mysql/psi/mysql_memory.h"
 
+
+/**
+  @page page_ext_plugins Plugins
+
+  The Big Picture
+  ----------------
+
+  @startuml
+  actor "SQL client" as client
+  box "MySQL Server" #LightBlue
+    participant "Server Code" as server
+    participant "Plugin" as plugin
+  endbox
+
+
+  activate server
+  server -> plugin : initialize
+  activate plugin
+  plugin --> server : initialization done
+  deactivate plugin
+  deactivate server
+  loop many
+    client -> server : SQL command
+    activate server
+    server -> server : Add reference for Plugin if absent
+    loop one or many
+      server -> plugin : plugin API call
+      activate plugin
+      plugin --> server : plugin API call result
+      deactivate plugin
+    end
+    server -> server : Optionally release reference for Plugin
+    server -> client : SQL command reply
+    deactivate server
+  end
+  activate server
+  server -> plugin : deinitialize
+  activate plugin
+  plugin --> server : deinitialization done
+  deactivate plugin
+  deactivate server
+  @enduml
+
+  @sa Sql_cmd_install_plugin, Sql_cmd_uninstall_plugin.
+*/
+
+/**
+  @page page_ext_plugin_services Plugin Services
+
+  Adding Plugin Services Into The Big Picture
+  ------------------------------------
+
+  You probably remember the big picture for @ref page_ext_plugins.
+  Below is an extended version of it with plugin services added.
+
+  @startuml
+
+  actor "SQL client" as client
+  box "MySQL Server" #LightBlue
+    participant "Server Code" as server
+    participant "Plugin" as plugin
+  endbox
+
+
+  server -> plugin : initialize
+  activate server
+  activate plugin
+  loop zero or many
+    plugin -> server : service API call
+    activate server
+    server --> plugin : service API result
+    deactivate server
+  end
+  plugin --> server : initialization done
+  deactivate plugin
+  deactivate server
+  loop many
+    client -> server : SQL command
+    activate server
+    server -> server : Add reference for Plugin if absent
+    loop one or many
+      server -> plugin : plugin API call
+      activate plugin
+      loop zero or many
+        plugin -> server : service API call
+        activate server
+        server --> plugin : service API result
+        deactivate server
+      end
+      plugin --> server : plugin API call result
+      deactivate plugin
+    end
+    server -> server : Optionally release reference for Plugin
+    server -> client : SQL command reply
+    deactivate server
+  end
+  server -> plugin : deinitialize
+  activate plugin
+  activate server
+  loop zero or many
+    plugin -> server : service API call
+    activate server
+    server --> plugin : service API result
+    deactivate server
+  end
+  plugin --> server : deinitialization done
+  deactivate plugin
+  deactivate server
+  @enduml
+*/
+
+
 #ifndef EMBEDDED_LIBRARY
 #include "srv_session.h"       // Srv_session::check_for_stale_threads()
 #endif
