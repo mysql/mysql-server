@@ -1807,6 +1807,17 @@ union YYSTYPE {
   delete_option_enum opt_delete_option;
   class PT_hint_list *optimizer_hints;
   enum alter_instance_action_enum alter_instance_action;
+  class PT_index_definition_stmt *index_definition_stmt;
+  class PT_table_constraint_def *inline_index_definition;
+  Key_spec *index_definition;
+  List<Key_part_spec> *index_column_list;
+  struct {
+    LEX_STRING name;
+    class PT_base_index_option *type;
+  } index_name_and_type;
+  class PT_base_index_option *index_option;
+  Mem_root_array_YY<PT_base_index_option *> index_options;
+  PT_base_index_option *index_type;
 };
 
 #endif
@@ -3126,7 +3137,6 @@ public:
   */
   LEX_USER *definer;
 
-  List<Key_part_spec> col_list;
   List<Key_part_spec> ref_list;
   List<String>	      interval_list;
   List<LEX_USER>      users_list;

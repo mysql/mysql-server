@@ -178,6 +178,14 @@ int yylex(void *yylval, void *yythd);
 #define YYDEBUG 0
 #endif
 
+/**
+  The word DEFAULT is a reserved word, but it is treated as an identifier by
+  both parser and the AST. In order to make the interfaces match up, there has
+  to be a LEX_STRING for DEFAULT.
+*/
+static const LEX_STRING default_word =
+{ STRING_WITH_LEN(const_cast<char*>("DEFAULT")) };
+
 
 /**
   @brief Bison callback to report a syntax/OOM error
@@ -368,35 +376,6 @@ static void case_stmt_action_end_case(LEX *lex, bool simple)
 }
 
 
-static bool add_create_index_prepare (LEX *lex, Table_ident *table)
-{
-  lex->sql_command= SQLCOM_CREATE_INDEX;
-  if (!lex->current_select()->add_table_to_list(lex->thd, table, NULL,
-                                              TL_OPTION_UPDATING,
-                                              TL_READ_NO_INSERT,
-                                              MDL_SHARED_UPGRADABLE))
-    return TRUE;
-  lex->alter_info.reset();
-  lex->alter_info.flags= Alter_info::ALTER_ADD_INDEX;
-  lex->col_list.empty();
-  lex->change= NullS;
-  return FALSE;
-}
-
-static bool add_create_index(THD *thd, keytype type, const LEX_STRING &name)
-{
-  LEX *lex= thd->lex;
-  const Key_spec *key= new Key_spec(thd->mem_root, type, to_lex_cstring(name),
-                                    &lex->key_create_info, false, true,
-                                    lex->col_list);
-  if (key == NULL)
-    return TRUE;
-
-  lex->alter_info.key_list.push_back(key);
-  lex->col_list.empty();
-  return FALSE;
-}
-
 static void init_index_hints(List<Index_hint> *hints, index_hint_type type,
                              index_clause_map clause)
 {
@@ -421,8 +400,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %parse-param { class THD *YYTHD }
 %lex-param { class THD *YYTHD }
 %pure-parser                                    /* We have threads */
+
 /* We should not introduce new conflicts any more. */
-%expect 121
+%expect 119
 
 /*
    MAINTAINER:
@@ -1266,10 +1246,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         option_type opt_var_type opt_var_ident_type
 
 %type <key_type>
-        normal_key_type opt_unique constraint_key_type fulltext spatial
+        normal_key_type opt_unique constraint_key_type spatial
 
 %type <key_alg>
-        btree_or_rtree
+        index_type
 
 %type <string_list>
         using_list opt_use_partition use_partition
@@ -1321,7 +1301,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         reset purge begin commit rollback savepoint release
         slave master_def master_defs master_file_def slave_until_opts
         repair analyze check start checksum filter_def filter_defs
-        field_list field_list_item field_spec kill column_def key_def
+        field_list field_list_item field_spec kill column_def
         keycache_list keycache_list_or_parts assign_to_keycache
         assign_to_keycache_parts
         preload_list preload_list_or_parts preload_keys preload_keys_parts
@@ -1333,7 +1313,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         varchar nchar nvarchar
         table_list table_name
         opt_place
-        opt_attribute opt_attribute_list attribute column_list column_list_id
+        opt_column_attribute_list column_attribute_list column_attribute column_list column_list_id
         opt_column_list grant_privileges grant_ident grant_list grant_option
         object_privilege object_privilege_list user_list rename_list
         clear_privileges flush_options flush_option
@@ -1355,10 +1335,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         view_check_option trigger_tail
         sp_tail sf_tail udf_tail event_tail
         install uninstall partition_entry binlog_base64_event
-        init_key_options normal_key_options normal_key_opts all_key_opt
-        spatial_key_options fulltext_key_options normal_key_opt
-        fulltext_key_opt spatial_key_opt fulltext_key_opts spatial_key_opts
-        key_using_alg
         part_column_list
         server_options_list server_option
         definer_opt no_definer definer get_diagnostics
@@ -1576,6 +1552,23 @@ END_OF_INPUT
 
 %type <alter_instance_action> alter_instance_action
 
+%type <index_definition_stmt> index_definition_stmt
+
+%type <index_column_list> key_list
+
+%type <index_options> opt_index_options index_options  opt_fulltext_index_options
+          fulltext_index_options opt_spatial_index_options spatial_index_options
+          opt_index_lock_and_algorithm
+
+%type <index_option> index_option common_index_option fulltext_index_option
+          spatial_index_option alter_algorithm_option alter_lock_option
+
+
+%type <index_type> index_type_clause
+
+%type <inline_index_definition> table_constraint_def
+
+%type <index_name_and_type> index_name_and_type
 
 %%
 
@@ -2278,7 +2271,6 @@ create:
             */
             lex->query_tables->open_strategy= TABLE_LIST::OPEN_FOR_CREATE;
             lex->alter_info.reset();
-            lex->col_list.empty();
             lex->change=NullS;
             memset(&lex->create_info, 0, sizeof(lex->create_info));
             lex->create_info.options=$2 | $4;
@@ -2306,41 +2298,7 @@ create:
             }
             create_table_set_open_action_and_adjust_tables(lex);
           }
-        | CREATE opt_unique INDEX_SYM ident key_alg ON table_ident
-          {
-            if (add_create_index_prepare(Lex, $7))
-              MYSQL_YYABORT;
-          }
-          '(' key_list ')' normal_key_options
-          {
-            if (add_create_index(YYTHD, $2, $4))
-              MYSQL_YYABORT;
-          }
-          opt_index_lock_algorithm { }
-        | CREATE fulltext INDEX_SYM ident init_key_options ON
-          table_ident
-          {
-            if (add_create_index_prepare(Lex, $7))
-              MYSQL_YYABORT;
-          }
-          '(' key_list ')' fulltext_key_options
-          {
-            if (add_create_index(YYTHD, $2, $4))
-              MYSQL_YYABORT;
-          }
-          opt_index_lock_algorithm { }
-        | CREATE spatial INDEX_SYM ident init_key_options ON
-          table_ident
-          {
-            if (add_create_index_prepare(Lex, $7))
-              MYSQL_YYABORT;
-          }
-          '(' key_list ')' spatial_key_options
-          {
-            if (add_create_index(YYTHD, $2, $4))
-              MYSQL_YYABORT;
-          }
-          opt_index_lock_algorithm { }
+        | index_definition_stmt { CONTEXTUALIZE($1); }
         | CREATE DATABASE opt_if_not_exists ident
           {
             Lex->create_info.default_table_charset= NULL;
@@ -2384,6 +2342,28 @@ create:
             Lex->server_options.set_scheme($7);
             Lex->m_sql_cmd=
               new (YYTHD->mem_root) Sql_cmd_create_server(&Lex->server_options);
+          }
+        ;
+
+index_definition_stmt:
+          CREATE opt_unique INDEX_SYM index_name_and_type
+          ON table_ident '(' key_list ')' opt_index_options
+          opt_index_lock_and_algorithm
+          {
+            $$= NEW_PTN PT_index_definition_stmt($2, $4.name, $4.type, $6, $8,
+                                                 $10, $11);
+          }
+        | CREATE FULLTEXT_SYM INDEX_SYM ident ON table_ident
+          '(' key_list ')' opt_fulltext_index_options opt_index_lock_and_algorithm
+          {
+            $$= NEW_PTN PT_index_definition_stmt(KEYTYPE_FULLTEXT, $4, NULL,
+                                                 $6, $8, $10, $11);
+          }
+        | CREATE SPATIAL_SYM INDEX_SYM ident ON table_ident
+          '(' key_list ')' opt_spatial_index_options opt_index_lock_and_algorithm
+          {
+            $$= NEW_PTN PT_index_definition_stmt(KEYTYPE_SPATIAL, $4, NULL, $6,
+                                                 $8, $10, $11);
           }
         ;
 
@@ -6248,71 +6228,53 @@ field_list:
 
 field_list_item:
           column_def
-        | key_def
+        | table_constraint_def
+          {
+            if ($1 != NULL)
+              CONTEXTUALIZE($1);
+          }
         ;
 
 column_def:
           field_spec opt_check_constraint
         | field_spec references
-          {
-            Lex->col_list.empty(); /* Alloced by sql_alloc */
-          }
         ;
 
-key_def:
-          normal_key_type opt_ident key_alg '(' key_list ')' normal_key_options
+table_constraint_def:
+          normal_key_type index_name_and_type '(' key_list ')'
+          opt_index_options
           {
-            if (add_create_index (YYTHD, $1, $2))
-              MYSQL_YYABORT;
+            $$= NEW_PTN PT_inline_index_definition($1, $2.name, $2.type, $4,
+                                                   $6);
           }
-        | fulltext opt_key_or_index opt_ident init_key_options
-            '(' key_list ')' fulltext_key_options
+        | FULLTEXT_SYM opt_key_or_index opt_ident '(' key_list ')'
+          opt_fulltext_index_options
           {
-            if (add_create_index (YYTHD, $1, $3))
-              MYSQL_YYABORT;
+            $$= NEW_PTN PT_inline_index_definition(KEYTYPE_FULLTEXT, $3, NULL,
+                                                   $5, $7);
           }
-        | spatial opt_key_or_index opt_ident init_key_options
-            '(' key_list ')' spatial_key_options
+        | spatial opt_key_or_index opt_ident '(' key_list ')'
+          opt_spatial_index_options
           {
-            if (add_create_index (YYTHD, $1, $3))
-              MYSQL_YYABORT;
+            $$= NEW_PTN PT_inline_index_definition($1, $3, NULL, $5, $7);
           }
-        | opt_constraint constraint_key_type opt_ident key_alg
-          '(' key_list ')' normal_key_options
+        | opt_constraint constraint_key_type index_name_and_type
+          '(' key_list ')' opt_index_options
           {
-            if (add_create_index (YYTHD, $2, $3.str ? $3 : $1))
-              MYSQL_YYABORT;
+            /*
+              Constraint-implementing indexes are named by the constraint type
+              by default.
+            */
+            const LEX_STRING name= $3.name.str != NULL ? $3.name : $1;
+            $$= NEW_PTN PT_inline_index_definition($2, name, $3.type, $5, $7);
           }
         | opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
           {
-            LEX *lex=Lex;
-            const Key_spec *key=
-              new Foreign_key_spec(YYTHD->mem_root,
-                                   to_lex_cstring($4.str ? $4 : $1),
-                                   lex->col_list,
-                                   $8->db,
-                                   $8->table,
-                                   lex->ref_list,
-                                   lex->fk_delete_opt,
-                                   lex->fk_update_opt,
-                                   lex->fk_match_option);
-            if (key == NULL)
-              MYSQL_YYABORT;
-            lex->alter_info.key_list.push_back(key);
-            const Key_spec *backing_key=
-              new Key_spec(YYTHD->mem_root, KEYTYPE_MULTIPLE,
-                           to_lex_cstring($1.str ? $1 : $4),
-                           &default_key_create_info, true, true, lex->col_list);
-            if (backing_key == NULL)
-              MYSQL_YYABORT;
-            lex->alter_info.key_list.push_back(backing_key);
-            lex->col_list.empty();
-            /* Only used for ALTER TABLE. Ignored otherwise. */
-            lex->alter_info.flags|= Alter_info::ADD_FOREIGN_KEY;
+            $$= NEW_PTN PT_foreign_key_definition($1, $4, $6, $8);
           }
         | opt_constraint check_constraint
           {
-            Lex->col_list.empty(); /* Alloced by sql_alloc */
+            $$= NULL;
           }
         ;
 
@@ -6364,7 +6326,7 @@ field_spec:
         ;
 
 field_def:
-          type opt_attribute {}
+          type opt_column_attribute_list {}
         | type opt_collate_explicit opt_generated_always
           AS '(' generated_column_func ')' opt_stored_attribute
           opt_gcol_attribute_list
@@ -6871,17 +6833,17 @@ opt_precision:
         | precision
         ;
 
-opt_attribute:
+opt_column_attribute_list:
           /* empty */ {}
-        | opt_attribute_list {}
+        | column_attribute_list {}
         ;
 
-opt_attribute_list:
-          opt_attribute_list attribute {}
-        | attribute
+column_attribute_list:
+          column_attribute_list column_attribute {}
+        | column_attribute
         ;
 
-attribute:
+column_attribute:
           NULL_SYM
           {
             Lex->type&= ~ NOT_NULL_FLAG;
@@ -7348,10 +7310,6 @@ opt_unique:
         | UNIQUE_SYM   { $$= KEYTYPE_UNIQUE; }
         ;
 
-fulltext:
-          FULLTEXT_SYM { $$= KEYTYPE_FULLTEXT;}
-        ;
-
 spatial:
           SPATIAL_SYM
           {
@@ -7359,106 +7317,148 @@ spatial:
           }
         ;
 
-init_key_options:
+opt_fulltext_index_options:
+          /* Empty. */ { $$.init(YYTHD->mem_root); }
+        | fulltext_index_options
+        ;
+
+fulltext_index_options:
+          fulltext_index_option
           {
-            Lex->key_create_info= default_key_create_info;
+            $$.init(YYTHD->mem_root);
+            if ($$.push_back($1))
+              MYSQL_YYABORT; // OOM
+          }
+        | fulltext_index_options fulltext_index_option
+          {
+            if ($1.push_back($2))
+              MYSQL_YYABORT; // OOM
+            $$= $1;
           }
         ;
 
-/*
-  For now, key_alg initializies lex->key_create_info.
-  In the future, when all key options are after key definition,
-  we can remove key_alg and move init_key_options to key_options
-*/
-
-key_alg:
-          init_key_options
-        | init_key_options key_using_alg
-        ;
-
-normal_key_options:
-          /* empty */ {}
-        | normal_key_opts
-        ;
-
-fulltext_key_options:
-          /* empty */ {}
-        | fulltext_key_opts
-        ;
-
-spatial_key_options:
-          /* empty */ {}
-        | spatial_key_opts
-        ;
-
-normal_key_opts:
-          normal_key_opt
-        | normal_key_opts normal_key_opt
-        ;
-
-spatial_key_opts:
-          spatial_key_opt
-        | spatial_key_opts spatial_key_opt
-        ;
-
-fulltext_key_opts:
-          fulltext_key_opt
-        | fulltext_key_opts fulltext_key_opt
-        ;
-
-key_using_alg:
-          USING btree_or_rtree
-          {
-            Lex->key_create_info.algorithm= $2;
-            Lex->key_create_info.is_algorithm_explicit= true;
-          }
-        | TYPE_SYM btree_or_rtree
-          {
-            Lex->key_create_info.algorithm= $2;
-            Lex->key_create_info.is_algorithm_explicit= true;
-          }
-        ;
-
-all_key_opt:
-          KEY_BLOCK_SIZE opt_equal ulong_num
-          { Lex->key_create_info.block_size= $3; }
-        | COMMENT_SYM TEXT_STRING_sys
-          { Lex->key_create_info.comment= to_lex_cstring($2); }
-        ;
-
-normal_key_opt:
-          all_key_opt
-        | key_using_alg
-        ;
-
-spatial_key_opt:
-          all_key_opt
-        ;
-
-fulltext_key_opt:
-          all_key_opt
+fulltext_index_option:
+          common_index_option
         | WITH PARSER_SYM IDENT_sys
           {
             LEX_CSTRING plugin_name= {$3.str, $3.length};
-            if (plugin_is_ready(plugin_name, MYSQL_FTPARSER_PLUGIN))
-              Lex->key_create_info.parser_name= to_lex_cstring($3);
-            else
+            if (!plugin_is_ready(plugin_name, MYSQL_FTPARSER_PLUGIN))
             {
               my_error(ER_FUNCTION_NOT_DEFINED, MYF(0), $3.str);
               MYSQL_YYABORT;
             }
+            else
+              $$= NEW_PTN PT_fulltext_index_parser_name(to_lex_cstring($3));
           }
         ;
 
-btree_or_rtree:
+opt_spatial_index_options:
+          /* Empty. */ { $$.init(YYTHD->mem_root); }
+        | spatial_index_options
+        ;
+
+spatial_index_options:
+          spatial_index_option
+          {
+            $$.init(YYTHD->mem_root);
+            if ($$.push_back($1))
+              MYSQL_YYABORT; // OOM
+          }
+        | spatial_index_options spatial_index_option
+          {
+            if ($1.push_back($2))
+              MYSQL_YYABORT; // OOM
+            $$= $1;
+          }
+        ;
+
+spatial_index_option:
+          common_index_option
+        ;
+
+opt_index_options:
+          /* Empty. */ { $$.init(YYTHD->mem_root); }
+        | index_options
+        ;
+
+index_options:
+          index_option
+          {
+            $$.init(YYTHD->mem_root);
+            if ($$.push_back($1))
+              MYSQL_YYABORT; // OOM
+          }
+        | index_options index_option
+          {
+            if ($1.push_back($2))
+              MYSQL_YYABORT; // OOM
+            $$= $1;
+          }
+        ;
+
+index_option:
+          common_index_option { $$= $1; }
+        | index_type_clause { $$= $1; }
+        ;
+
+// These options are common for all index types.
+common_index_option:
+          KEY_BLOCK_SIZE opt_equal ulong_num { $$= NEW_PTN PT_block_size($3); }
+        | COMMENT_SYM TEXT_STRING_sys
+          {
+            $$= NEW_PTN PT_index_comment(to_lex_cstring($2));
+          }
+        ;
+
+/*
+  The syntax for defining an index is:
+
+    ... INDEX [index_name] [USING|TYPE] <index_type> ...
+
+  The problem is that whereas USING is a reserved word, TYPE is not. We can
+  still handle it if an index name is supplied, i.e.:
+
+    ... INDEX type TYPE <index_type> ...
+
+  here the index's name is unmbiguously 'type', but for this:
+
+    ... INDEX TYPE <index_type> ...
+
+  it's impossible to know what this actually mean - is 'type' the name or the
+  type? For this reason we accept the TYPE syntax only if a name is supplied.
+*/
+index_name_and_type:
+          opt_ident                  { $$= {$1, NULL}; }
+        | opt_ident USING index_type { $$= {$1, NEW_PTN PT_index_type($3)}; }
+        | ident TYPE_SYM index_type  { $$= {$1, NEW_PTN PT_index_type($3)}; }
+        ;
+
+index_type_clause:
+          USING index_type    { $$= NEW_PTN PT_index_type($2); }
+        | TYPE_SYM index_type { $$= NEW_PTN PT_index_type($2); }
+        ;
+
+index_type:
           BTREE_SYM { $$= HA_KEY_ALG_BTREE; }
         | RTREE_SYM { $$= HA_KEY_ALG_RTREE; }
         | HASH_SYM  { $$= HA_KEY_ALG_HASH; }
         ;
 
 key_list:
-          key_list ',' key_part order_dir { Lex->col_list.push_back($3); }
-        | key_part order_dir { Lex->col_list.push_back($1); }
+          key_list ',' key_part order_dir
+          {
+            // The order is ignored.
+            if ($1->push_back($3))
+              MYSQL_YYABORT; // OOM
+            $$= $1;
+          }
+        | key_part order_dir
+          {
+            // The order is ignored.
+            $$= new List<Key_part_spec>;
+            if ($$ == NULL || $$->push_back($1))
+              MYSQL_YYABORT; // OOM
+          }
         ;
 
 key_part:
@@ -7513,7 +7513,6 @@ alter:
                                                     TL_READ_NO_INSERT,
                                                     MDL_SHARED_UPGRADABLE))
               MYSQL_YYABORT;
-            lex->col_list.empty();
             lex->select_lex->init_order();
             lex->select_lex->db=
                     const_cast<char*>((lex->select_lex->table_list.first)->db);
@@ -8155,8 +8154,9 @@ alter_list_item:
           {
             Lex->create_last_non_select_table= Lex->last_table();
           }
-        | ADD key_def
+        | ADD table_constraint_def
           {
+            CONTEXTUALIZE($2);
             Lex->create_last_non_select_table= Lex->last_table();
             Lex->alter_info.flags|= Alter_info::ALTER_ADD_INDEX;
           }
@@ -8358,47 +8358,58 @@ alter_list_item:
         ;
 
 alter_commands_modifier:
-          alter_algorithm_option
-        | alter_lock_option
+          alter_algorithm_option { CONTEXTUALIZE($1); }
+        | alter_lock_option { CONTEXTUALIZE($1); }
         | alter_opt_validation
         ;
 
-opt_index_lock_algorithm:
-          /* empty */
+opt_index_lock_and_algorithm:
+          /* Empty. */ { $$.init(YYTHD->mem_root); }
         | alter_lock_option
+          {
+            $$.init(YYTHD->mem_root);
+            if ($$.push_back($1))
+              MYSQL_YYABORT; // OOM
+          }
         | alter_algorithm_option
+          {
+            $$.init(YYTHD->mem_root);
+            if ($$.push_back($1))
+              MYSQL_YYABORT; // OOM
+          }
         | alter_lock_option alter_algorithm_option
+          {
+            $$.init(YYTHD->mem_root);
+            if ($$.push_back($1) || $$.push_back($2))
+              MYSQL_YYABORT; // OOM
+          }
         | alter_algorithm_option alter_lock_option
+          {
+            $$.init(YYTHD->mem_root);
+            if ($$.push_back($1) || $$.push_back($2))
+              MYSQL_YYABORT; // OOM
+          }
+        ;
 
 alter_algorithm_option:
           ALGORITHM_SYM opt_equal DEFAULT
           {
-            Lex->alter_info.requested_algorithm=
-              Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT;
+            $$= NEW_PTN PT_requested_algorithm(default_word);
           }
         | ALGORITHM_SYM opt_equal ident
           {
-            if (Lex->alter_info.set_requested_algorithm(&$3))
-            {
-              my_error(ER_UNKNOWN_ALTER_ALGORITHM, MYF(0), $3.str);
-              MYSQL_YYABORT;
-            }
+            $$= NEW_PTN PT_requested_algorithm($3);
           }
         ;
 
 alter_lock_option:
           LOCK_SYM opt_equal DEFAULT
           {
-            Lex->alter_info.requested_lock=
-              Alter_info::ALTER_TABLE_LOCK_DEFAULT;
+            $$= NEW_PTN PT_requested_lock(default_word);
           }
         | LOCK_SYM opt_equal ident
           {
-            if (Lex->alter_info.set_requested_lock(&$3))
-            {
-              my_error(ER_UNKNOWN_ALTER_LOCK, MYF(0), $3.str);
-              MYSQL_YYABORT;
-            }
+            $$= NEW_PTN PT_requested_lock($3);
           }
         ;
 
@@ -11403,7 +11414,12 @@ drop:
                                                         MDL_SHARED_UPGRADABLE))
               MYSQL_YYABORT;
           }
-          opt_index_lock_algorithm {}
+          opt_index_lock_and_algorithm
+          {
+            Parse_context pc(YYTHD, Select);
+            if (YYTHD->is_error() || contextualize_nodes($8, &pc))
+              MYSQL_YYABORT;
+          }
         | DROP DATABASE if_exists ident
           {
             LEX *lex=Lex;

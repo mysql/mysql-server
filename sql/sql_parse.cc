@@ -5632,23 +5632,31 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
   }
   if (type_modifier & PRI_KEY_FLAG)
   {
-    lex->col_list.push_back(new Key_part_spec(field_name_cstr, 0));
-    lex->alter_info.key_list.push_back(new Key_spec(thd->mem_root,
-                                                    KEYTYPE_PRIMARY,
-                                                    NULL_CSTR,
-                                                    &default_key_create_info,
-                                                    false, true, lex->col_list));
-    lex->col_list.empty();
+    List<Key_part_spec> key_parts;
+    auto key_part_spec= new Key_part_spec(field_name_cstr, 0);
+    if (key_part_spec == NULL || key_parts.push_back(key_part_spec))
+      DBUG_RETURN(true);
+    Key_spec *key= new Key_spec(thd->mem_root,
+                                KEYTYPE_PRIMARY,
+                                NULL_CSTR,
+                                &default_key_create_info,
+                                false, true, key_parts);
+    if (key == NULL || lex->alter_info.key_list.push_back(key))
+      DBUG_RETURN(true);
   }
   if (type_modifier & (UNIQUE_FLAG | UNIQUE_KEY_FLAG))
   {
-    lex->col_list.push_back(new Key_part_spec(field_name_cstr, 0));
-    lex->alter_info.key_list.push_back(new Key_spec(thd->mem_root,
-                                                    KEYTYPE_UNIQUE,
-                                                    NULL_CSTR,
-                                                    &default_key_create_info,
-                                                    false, true, lex->col_list));
-    lex->col_list.empty();
+    List<Key_part_spec> key_parts;
+    auto key_part_spec= new Key_part_spec(field_name_cstr, 0);
+    if (key_part_spec == NULL || key_parts.push_back(key_part_spec))
+      DBUG_RETURN(true);
+    Key_spec *key= new Key_spec(thd->mem_root,
+                                KEYTYPE_UNIQUE,
+                                NULL_CSTR,
+                                &default_key_create_info,
+                                false, true, key_parts);
+    if (key == NULL || lex->alter_info.key_list.push_back(key))
+      DBUG_RETURN(true);
   }
 
   if (default_value)
