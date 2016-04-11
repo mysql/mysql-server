@@ -37,7 +37,7 @@
 #endif /* HAVE_REPLICATION */
 
 /**
-  @addtogroup Performance_schema_tables
+  @addtogroup performance_schema_tables
   @{
 */
 

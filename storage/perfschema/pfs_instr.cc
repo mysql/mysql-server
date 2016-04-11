@@ -37,7 +37,7 @@
 ulong nested_statement_lost= 0;
 
 /**
-  @addtogroup Performance_schema_buffers
+  @addtogroup performance_schema_buffers
   @{
 */
 

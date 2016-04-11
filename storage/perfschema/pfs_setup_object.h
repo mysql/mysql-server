@@ -29,7 +29,7 @@ struct PFS_global_param;
 class PFS_opaque_container_page;
 
 /**
-  @addtogroup Performance_schema_buffers
+  @addtogroup performance_schema_buffers
   @{
 */
 

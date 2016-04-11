@@ -60,7 +60,7 @@ extern PFS_single_stat *thread_instr_class_waits_array_end;
 extern my_bool show_compatibility_56;
 
 /**
-  @addtogroup Performance_schema_buffers
+  @addtogroup performance_schema_buffers
   @{
 */
 

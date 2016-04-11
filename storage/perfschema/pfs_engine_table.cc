@@ -380,7 +380,7 @@
 */
 
 /**
-  @addtogroup Performance_schema_engine
+  @addtogroup performance_schema_engine
   @{
 */
 
