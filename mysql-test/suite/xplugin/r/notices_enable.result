@@ -7778,10 +7778,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Resultset.ColumnMetaData {
   type: BYTES
   name: "Variable_name"
-  original_name: "VARIABLE_NAME"
+  original_name: "Variable_name"
   table: "session_variables"
   original_table: "session_variables"
-  schema: "performance_schema"
+  schema: ""
   catalog: "def"
   collation: 33
   fractional_digits: 0
@@ -7792,10 +7792,10 @@ Mysqlx.Resultset.ColumnMetaData {
 Mysqlx.Resultset.ColumnMetaData {
   type: BYTES
   name: "Value"
-  original_name: "VARIABLE_VALUE"
+  original_name: "Value"
   table: "session_variables"
   original_table: "session_variables"
-  schema: "performance_schema"
+  schema: ""
   catalog: "def"
   collation: 33
   fractional_digits: 0
@@ -7823,10 +7823,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Resultset.ColumnMetaData {
   type: BYTES
   name: "Variable_name"
-  original_name: "VARIABLE_NAME"
+  original_name: "Variable_name"
   table: "session_variables"
   original_table: "session_variables"
-  schema: "performance_schema"
+  schema: ""
   catalog: "def"
   collation: 33
   fractional_digits: 0
@@ -7837,10 +7837,10 @@ Mysqlx.Resultset.ColumnMetaData {
 Mysqlx.Resultset.ColumnMetaData {
   type: BYTES
   name: "Value"
-  original_name: "VARIABLE_VALUE"
+  original_name: "Value"
   table: "session_variables"
   original_table: "session_variables"
-  schema: "performance_schema"
+  schema: ""
   catalog: "def"
   collation: 33
   fractional_digits: 0
@@ -7872,10 +7872,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Resultset.ColumnMetaData {
   type: BYTES
   name: "Variable_name"
-  original_name: "VARIABLE_NAME"
+  original_name: "Variable_name"
   table: "session_variables"
   original_table: "session_variables"
-  schema: "performance_schema"
+  schema: ""
   catalog: "def"
   collation: 33
   fractional_digits: 0
@@ -7886,10 +7886,10 @@ Mysqlx.Resultset.ColumnMetaData {
 Mysqlx.Resultset.ColumnMetaData {
   type: BYTES
   name: "Value"
-  original_name: "VARIABLE_VALUE"
+  original_name: "Value"
   table: "session_variables"
   original_table: "session_variables"
-  schema: "performance_schema"
+  schema: ""
   catalog: "def"
   collation: 33
   fractional_digits: 0
@@ -7921,10 +7921,10 @@ send Mysqlx.Sql.StmtExecute {
 Mysqlx.Resultset.ColumnMetaData {
   type: BYTES
   name: "Variable_name"
-  original_name: "VARIABLE_NAME"
+  original_name: "Variable_name"
   table: "session_variables"
   original_table: "session_variables"
-  schema: "performance_schema"
+  schema: ""
   catalog: "def"
   collation: 33
   fractional_digits: 0
@@ -7935,10 +7935,10 @@ Mysqlx.Resultset.ColumnMetaData {
 Mysqlx.Resultset.ColumnMetaData {
   type: BYTES
   name: "Value"
-  original_name: "VARIABLE_VALUE"
+  original_name: "Value"
   table: "session_variables"
   original_table: "session_variables"
-  schema: "performance_schema"
+  schema: ""
   catalog: "def"
   collation: 33
   fractional_digits: 0

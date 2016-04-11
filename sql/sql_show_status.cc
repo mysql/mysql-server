@@ -28,14 +28,14 @@
   the parsed tree built for this query is in fact:
   SELECT * FROM
            (SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value
-            FROM performance_schema.global_status) derived_table
+            FROM performance_schema.global_status) global_status
 
   Likewise, the query:
     SHOW GLOBAL STATUS LIKE "<value>"
   is built as:
   SELECT * FROM
            (SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value
-            FROM performance_schema.global_status) derived_table
+            FROM performance_schema.global_status) global_status
             WHERE Variable_name LIKE "<value>"
 
   Likewise, the query:
@@ -43,7 +43,7 @@
   is built as:
     SELECT * FROM
              (SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value
-              FROM performance_schema.global_status) derived_table
+              FROM performance_schema.global_status) global_status
               WHERE <where_clause>
 */
 SELECT_LEX*
@@ -67,7 +67,6 @@ build_query(const POS &pos,
   static const LEX_STRING col_value= { C_STRING_WITH_LEN("VARIABLE_VALUE")};
   static const LEX_STRING as_value= { C_STRING_WITH_LEN("Value")};
   static const LEX_STRING pfs= { C_STRING_WITH_LEN("performance_schema")};
-  static const LEX_STRING dt_name= { C_STRING_WITH_LEN("derived_table")};
 
   static const Query_options options=
   {
@@ -206,12 +205,12 @@ build_query(const POS &pos,
     return NULL;
 
   /* ... derived_table ... */
-  LEX_STRING dt_table_name;
-  if (!thd->make_lex_string(&dt_table_name, dt_name.str, dt_name.length, false))
+  LEX_STRING derived_table_name;
+  if (!thd->make_lex_string(&derived_table_name, table_name.str, table_name.length, false))
     return NULL;
 
   PT_table_factor_parenthesis *table_factor_parenthesis;
-  table_factor_parenthesis= new (thd->mem_root) PT_table_factor_parenthesis(select_derived_union_select, &dt_table_name, pos);
+  table_factor_parenthesis= new (thd->mem_root) PT_table_factor_parenthesis(select_derived_union_select, &derived_table_name, pos);
   if (table_factor_parenthesis == NULL)
     return NULL;
 
