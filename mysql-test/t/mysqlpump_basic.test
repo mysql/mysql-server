@@ -356,13 +356,15 @@ DROP DATABASE db4_basic;
 
 # default parallelism > 1
 --error 1
---exec $MYSQL_PUMP --add-locks
+--exec $MYSQL_PUMP --add-locks > $MYSQLTEST_VARDIR/tmp/db1_basic.sql
 --error 1
---exec $MYSQL_PUMP --add-locks --parallel-schemas=1:db1
+--exec $MYSQL_PUMP --add-locks --parallel-schemas=1:db1 > $MYSQLTEST_VARDIR/tmp/db1_basic.sql
 
 # parallel schema threads > 1
 --error 1
---exec $MYSQL_PUMP --add-locks --parallel-schemas=5:db1 --default-parallelism=0
+--exec $MYSQL_PUMP --add-locks --parallel-schemas=5:db1 --default-parallelism=0 > $MYSQLTEST_VARDIR/tmp/db1_basic.sql
+
+--remove_file $MYSQLTEST_VARDIR/tmp/db1_basic.sql
 
 #echo
 #echo Bug #21644479 MYSQLPUMP DECOMPRESSION UTILITIES NOT BUILT

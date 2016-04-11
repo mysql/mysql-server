@@ -22,6 +22,7 @@
 #include "abstract_chain_element.h"
 #include "i_chain_maker.h"
 #include "i_dump_task.h"
+#include "base/abstract_program.h"
 
 namespace Mysql{
 namespace Tools{
@@ -51,7 +52,8 @@ public:
 protected:
   Abstract_crawler(
     Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
-      message_handler, Simple_id_generator* object_id_generator);
+      message_handler, Simple_id_generator* object_id_generator,
+      Mysql::Tools::Base::Abstract_program* program);
   /**
     Routine for performing common work on each enumerated DB object.
    */
@@ -65,6 +67,8 @@ protected:
   void item_completion_in_child_callback(Item_processing_data* item_processed)
   { Abstract_chain_element::item_completion_in_child_callback(item_processed); }
 
+  Mysql::Tools::Base::Abstract_program* get_program();
+
 private:
   std::vector<I_chain_maker*> m_chain_makers;
   std::vector<I_dump_task*> m_dump_tasks_created;
@@ -72,6 +76,7 @@ private:
     Stores next chain ID to be used. Used as ID generator.
    */
   static my_boost::atomic_uint64_t next_chain_id;
+  Mysql::Tools::Base::Abstract_program* m_program;
 };
 
 }
