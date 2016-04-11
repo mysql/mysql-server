@@ -40,7 +40,7 @@
   <code>
     SELECT * FROM
              (SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value
-              FROM performance_schema.global_status) derived_table
+              FROM performance_schema.global_status) global_status
   </code>
 
   Likewise, the query:
@@ -54,7 +54,7 @@
   <code>
     SELECT * FROM
              (SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value
-              FROM performance_schema.global_status) derived_table
+              FROM performance_schema.global_status) global_status
               WHERE Variable_name LIKE "<value>"
   </code>
 
@@ -69,7 +69,7 @@
   <code>
     SELECT * FROM
              (SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value
-              FROM performance_schema.global_status) derived_table
+              FROM performance_schema.global_status) global_status
               WHERE @<where_clause@>
   </code>
 */
@@ -95,7 +95,6 @@ build_query(const POS &pos,
   static const LEX_STRING as_value= { C_STRING_WITH_LEN("Value")};
   static const LEX_STRING pfs= { C_STRING_WITH_LEN("performance_schema")};
 
-  static LEX_STRING dtn= { C_STRING_WITH_LEN("derived_table")};
   static const LEX_STRING star= { C_STRING_WITH_LEN("*")};
 
   static const Query_options options=
@@ -174,46 +173,55 @@ build_query(const POS &pos,
   if (table_reference_list == NULL)
     return NULL;
 
-
   /* Form subquery */
   /* SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value FROM performance_schema.<table_name> */
   PT_select_part2 *select_part2;
   select_part2= new (thd->mem_root) PT_select_part2(options_and_item_list,
-                                                    table_reference_list,
-                                                    NULL);
+                                                    table_reference_list,  // from
+                                                    NULL,                  // where
+                                                    NULL,                  // group
+                                                    NULL);                 // having
   if (select_part2 == NULL)
     return NULL;
 
-  PT_query_primary *query_primary=
-    new (thd->mem_root) PT_query_specification(select_part2);
-  if (query_primary == NULL)
+  PT_query_specification *query_specification;
+  query_specification= new (thd->mem_root) PT_query_specification(select_part2);
+  if (query_specification == NULL)
     return NULL;
 
-  PT_query_expression_body_primary *query_expression_body=
-    new (thd->mem_root) PT_query_expression_body_primary(query_primary);
-  if (query_expression_body == NULL)
+  PT_query_expression_body_primary *query_expression_body_primary;
+  query_expression_body_primary= new (thd->mem_root) PT_query_expression_body_primary(query_specification);
+  if (query_expression_body_primary == NULL)
     return NULL;
 
-   PT_query_expression *query_expression=
-     new (thd->mem_root) PT_query_expression(query_expression_body);
-   if (query_expression == NULL)
-     return NULL;
+  PT_query_expression *query_expression;
+  query_expression= new (thd->mem_root) PT_query_expression(query_expression_body_primary);
+  if (query_expression == NULL)
+    return NULL;
 
-   PT_subquery *sub_query;
-   sub_query= new (thd->mem_root) PT_subquery(pos, query_expression);
+  PT_subquery *sub_query;
+  sub_query= new (thd->mem_root) PT_subquery(pos, query_expression);
+  if (sub_query == NULL)
+    return NULL;
 
-   PT_derived_table *derived_table;
-   derived_table= new (thd->mem_root) PT_derived_table(sub_query, &dtn);
+  LEX_STRING derived_table_name;
+  if (!thd->make_lex_string(&derived_table_name, table_name.str, table_name.length, false))
+    return NULL;
+  PT_derived_table *derived_table;
+  derived_table= new (thd->mem_root) PT_derived_table(sub_query, &derived_table_name);
+  if (derived_table == NULL)
+   return NULL;
 
-   PT_table_reference_list *table_reference_list1;
-   table_reference_list1= new (thd->mem_root) PT_table_reference_list(pos, derived_table);
-   if (table_reference_list1 == NULL)
-     return NULL;
-
+  PT_table_reference_list *table_reference_list1;
+  table_reference_list1= new (thd->mem_root) PT_table_reference_list(pos, derived_table);
+  if (table_reference_list1 == NULL)
+    return NULL;
 
   /* SELECT * ... */
   PTI_simple_ident_ident *ident_star;
   ident_star= new (thd->mem_root) PTI_simple_ident_ident(pos, star);
+  if (ident_star == NULL)
+    return NULL;
 
   PT_select_item_list *item_list1;
   item_list1= new (thd->mem_root) PT_select_item_list();
@@ -273,25 +281,27 @@ build_query(const POS &pos,
   /* SELECT * FROM (SELECT ...) derived_table [ WHERE <cond> ] */
   PT_select_part2 *select_part22;
   select_part22= new (thd->mem_root) PT_select_part2(options_and_item_list1,
-                                                     table_reference_list1,
-                                                     where_clause);
+                                                     table_reference_list1,         // from
+                                                     where_clause,                  // where
+                                                     NULL,                          // group
+                                                     NULL);                         // having
   if (select_part22 == NULL)
     return NULL;
 
-  PT_query_primary *query_primary2=
-    new (thd->mem_root) PT_query_specification(select_part22);
-  if (query_primary2 == NULL)
+  PT_query_specification *query_specification2;
+  query_specification2= new (thd->mem_root) PT_query_specification(select_part22);
+  if (query_specification2 == NULL)
     return NULL;
 
-  PT_query_expression_body_primary *query_expression_body2=
-    new (thd->mem_root) PT_query_expression_body_primary(query_primary2);
-  if (query_expression_body2 == NULL)
+  PT_query_expression_body_primary *query_expression_body_primary2;
+  query_expression_body_primary2= new (thd->mem_root) PT_query_expression_body_primary(query_specification2);
+  if (query_expression_body_primary2 == NULL)
     return NULL;
 
-   PT_query_expression *query_expression2=
-     new (thd->mem_root) PT_query_expression(query_expression_body2);
-   if (query_expression2 == NULL)
-     return NULL;
+  PT_query_expression *query_expression2;
+  query_expression2= new (thd->mem_root) PT_query_expression(query_expression_body_primary2);
+  if (query_expression2 == NULL)
+    return NULL;
 
   PT_select_stmt *select2;
   select2= new (thd->mem_root) PT_select_stmt(query_expression2);
