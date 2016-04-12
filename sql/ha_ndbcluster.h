@@ -422,17 +422,17 @@ private:
                    NDB_INDEX_TYPE idx_type, uint idx_no) const;
 // Index list management
   int create_indexes(THD *thd, Ndb *ndb, TABLE *tab) const;
-  int open_indexes(THD *thd, Ndb *ndb, TABLE *tab, bool ignore_error);
+  int open_indexes(Ndb *ndb, TABLE *tab, bool ignore_error);
   void renumber_indexes(uint dropped_index_num);
   int drop_indexes(Ndb *ndb, TABLE *tab);
-  int add_index_handle(THD *thd, NdbDictionary::Dictionary *dict,
+  int add_index_handle(NdbDictionary::Dictionary *dict,
                        KEY *key_info, const char *key_name, uint index_no);
   int add_table_ndb_record(NdbDictionary::Dictionary *dict);
   int add_hidden_pk_ndb_record(NdbDictionary::Dictionary *dict);
   int add_index_ndb_record(NdbDictionary::Dictionary *dict,
                            KEY *key_info, uint index_no);
   int get_fk_data(THD *thd, Ndb *ndb);
-  void release_fk_data(THD *thd);
+  void release_fk_data();
   int create_fks(THD *thd, Ndb *ndb);
   int copy_fk_for_offline_alter(THD * thd, Ndb*, NdbDictionary::Table* _dsttab);
   int drop_fk_for_online_alter(THD*, Ndb*, NdbDictionary::Dictionary*,
