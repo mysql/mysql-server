@@ -1813,6 +1813,9 @@ public:
   */
   static const HA_ALTER_FLAGS CHANGE_INDEX_OPTION        = 1LL << 41;
 
+  // Rebuild partition
+  static const HA_ALTER_FLAGS ALTER_REBUILD_PARTITION    = 1ULL << 42;
+
   /**
     Create options (like MAX_ROWS) for the new version of table.
 
