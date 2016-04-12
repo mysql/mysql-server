@@ -155,11 +155,13 @@ get_tty_password
 # will have a FR to replace this for decent name/functionality and document it.
 my_load_defaults
 handle_options
+# pure-ftpd 1.0.42 needs either my_make_scrambled_password (preferred)
+# or make_scrambled_password.
+my_make_scrambled_password
 
-CACHE INTERNAL "Undocumented Functions exported by client API"
+CACHE INTERNAL "Undocumented functions exported by client API"
 
 )
-
 
 SET(CLIENT_SOURCES
   get_password.c 
