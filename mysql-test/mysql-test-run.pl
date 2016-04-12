@@ -2737,6 +2737,9 @@ sub environment_setup {
   # to detect that valgrind is being used from test cases
   $ENV{'VALGRIND_TEST'}= $opt_valgrind;
 
+  # Make sure LeakSanitizer exits if leaks are found
+  $ENV{'LSAN_OPTIONS'}= "exitcode=42";
+
   # Add dir of this perl to aid mysqltest in finding perl
   my $perldir= dirname($^X);
   my $pathsep= ":";
