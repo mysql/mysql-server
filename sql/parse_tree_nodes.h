@@ -2775,7 +2775,7 @@ class PT_base_index_option : public Parse_tree_node {};
 
 /**
   Parse tree node that calls a setter function in thd->lex->alter_info for
-  setting an <alter option>.
+  setting an `<alter option>`.
 
   @tparam Setter Pointer-to-member-function for the setter in Alter_info.
   @tparam Error_code The error code to use for illegal values of option_value.
@@ -2815,7 +2815,7 @@ PT_requested_lock;
 
 
 /**
-  A template for options that set a single <alter option> value in
+  A template for options that set a single `<alter option>` value in
   thd->lex->key_create_info.
 
   @tparam Option_type The data type of the option.
@@ -2875,9 +2875,9 @@ PT_fulltext_index_parser_name;
   The data structure (B-tree, Hash, etc) used for an index is called
   'index_type' in the manual. Internally, this is stored in
   KEY_CREATE_INFO::algorithm, while what the manual calls 'algorithm' is
-  stored in partition_info::key_algorithm. In an <index_definition_stmt> it's
-  ignored. The terminology is somewhat confusing, but we stick to the manual
-  in the parser.
+  stored in partition_info::key_algorithm. In an `<index_definition_stmt>`
+  it's ignored. The terminology is somewhat confusing, but we stick to the
+  manual in the parser.
 */
 typedef PT_traceable_index_option<ha_key_alg, &KEY_CREATE_INFO::algorithm,
                                   &KEY_CREATE_INFO::is_algorithm_explicit>
