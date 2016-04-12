@@ -1543,7 +1543,11 @@ private:
   {
     std::string s = args;
     std::string user, pass, db, name;
+
+    replace_variables(s);
+
     std::string::size_type p = s.find(CMD_ARG_SEPARATOR);
+
     if (p != std::string::npos)
     {
       name = s.substr(0, p);

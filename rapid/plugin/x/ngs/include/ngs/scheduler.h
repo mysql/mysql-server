@@ -67,7 +67,7 @@ namespace ngs
     bool is_worker_thread(my_thread_t thread_id);
     bool is_running();
     void join_terminating_workers();
-    
+
   private:
     template<typename Element_type>
     class lock_list
@@ -138,14 +138,15 @@ namespace ngs
       return thread.thread == id;
     }
 
+    bool wait_if_idle_then_delete_worker();
     int32 increase_workers_count();
     int32 decrease_workers_count();
     int32 increase_tasks_count();
     int32 decrease_tasks_count();
 
     const std::string m_name;
-    Mutex m_task_pending_mutex;
-    Cond m_task_pending_cond;
+    Mutex m_worker_pending_mutex;
+    Cond m_worker_pending_cond;
     Mutex m_thread_exit_mutex;
     Cond m_thread_exit_cond;
     Mutex m_post_mutex;
