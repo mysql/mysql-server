@@ -13,8 +13,8 @@
 update performance_schema.setup_instruments set ENABLED='YES' where NAME like '%mysqlx%';
 
 update performance_schema.setup_instruments set ENABLED='NO' where NAME like 'wait/synch/mutex/mysqlx/lock_list_access';
-update performance_schema.setup_instruments set ENABLED='NO' where NAME like 'wait/synch/mutex/mysqlx/scheduler_dynamic_task_pending';
-update performance_schema.setup_instruments set ENABLED='NO' where NAME like 'wait/synch/cond/mysqlx/scheduler_dynamic_task_pending';
+update performance_schema.setup_instruments set ENABLED='NO' where NAME like 'wait/synch/mutex/mysqlx/scheduler_dynamic_worker_pending';
+update performance_schema.setup_instruments set ENABLED='NO' where NAME like 'wait/synch/cond/mysqlx/scheduler_dynamic_worker_pending';
 
 update performance_schema.setup_consumers set ENABLED='YES' where NAME like 'events_waits%';
 
@@ -505,4 +505,4 @@ where EVENT_NAME rlike '^wait/synch/(cond|mutex)/mysqlx/(queue|client_session|ob
 ## Postamble
 UNINSTALL PLUGIN mysqlx;
 update performance_schema.setup_instruments set ENABLED='YES'
-where NAME rlike '^wait/synch/(cond|mutex)/mysqlx/(lock_list_access|scheduler_dynamic_task_pending)$';
+where NAME rlike '^wait/synch/(cond|mutex)/mysqlx/(lock_list_access|scheduler_dynamic_worker_pending)$';
