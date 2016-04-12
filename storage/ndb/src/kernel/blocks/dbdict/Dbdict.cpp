@@ -158,6 +158,8 @@ do_swap(Uint32 & v0, Uint32 & v1)
   v1 = save;
 }
 
+static const Uint32 SuspectGETTABINFOREQMillis = 5000;
+
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */
 /* MODULE:          GENERAL MODULE -------------------------------- */
@@ -258,6 +260,64 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
               c_sub_startstop_lock.getText(buf));
   }
 
+  if (signal->theData[0] == DumpStateOrd::DictDumpGetTabInfoQueue && g_trace >= 2)
+  {
+    jam();
+    Uint64 currElapsed = 0;
+    /* Dump GETTABINFOREQ stats */
+    g_eventLogger->info("DICT GETTABINFOREQ stats");
+    g_eventLogger->info("c_retrieveRecord totalRequests :  %llu "
+                        "busyState : %u",
+                        c_retrieveRecord.totalRequests,
+                        c_retrieveRecord.busyState);
+    g_eventLogger->info("totalWaiters : %llu totalBusy : %llu "
+                        "longestWaitMillis : %llu",
+                        c_retrieveRecord.totalWaiters,
+                        c_retrieveRecord.totalBusy,
+                        c_retrieveRecord.longestWaitMillis);
+    g_eventLogger->info("longestProcessTimeMillis : %llu",
+                        c_retrieveRecord.longestProcessTimeMillis);
+    if (c_retrieveRecord.busyState)
+    {
+      jam();
+      g_eventLogger->info("Busy : requestType : %u  tableId : %u, "
+                          "type : %u, ref : %x",
+                          c_retrieveRecord.requestType,
+                          c_retrieveRecord.tableId,
+                          c_retrieveRecord.m_table_type,
+                          c_retrieveRecord.blockRef);
+      currElapsed = NdbTick_Elapsed(c_retrieveRecord.startProcessTime,
+                                    NdbTick_getCurrentTicks()).milliSec();
+      g_eventLogger->info("Elapsed processing millis : %llu",
+                          currElapsed);
+    }
+    /* Dump GETTABINFOREQ queueing info */
+    c_gettabinforeq_q.dumpInfo();
+
+    if (signal->getLength() == 2)
+    {
+      jam();
+      ndbrequire(c_retrieveRecord.monitorRunning);
+
+      /* Monitoring signal, should we stop? */
+      if (currElapsed > SuspectGETTABINFOREQMillis)
+      {
+        jam();
+
+        sendSignalWithDelay(reference(),
+                            GSN_DUMP_STATE_ORD,
+                            signal,
+                            2000,
+                            signal->getLength());
+      }
+      else
+      {
+        jam();
+        g_eventLogger->info("GETTABINFOREQ : Monitoring stopped");
+        c_retrieveRecord.monitorRunning = false;
+      }
+    }
+  }
   if (signal->theData[0] == 8004)
   {
     infoEvent("DICT: c_counterMgr size: %u free: %u",
@@ -287,6 +347,7 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
     RSS_AP_SNAPSHOT_CHECK(c_hash_map_pool);
     RSS_AP_SNAPSHOT_CHECK(g_hash_map);
   }
+
 
   return;
 
@@ -508,6 +569,18 @@ void Dbdict::execCONTINUEB(Signal* signal)
   switch (signal->theData[0]) {
   case ZPACK_TABLE_INTO_PAGES :
     jam();
+    if (ERROR_INSERTED(6800))
+    {
+      jam();
+      g_eventLogger->info("Stall serialisation of a table record "
+                          "until error insert cleared");
+      sendSignalWithDelay(reference(),
+                          GSN_CONTINUEB,
+                          signal,
+                          1000,
+                          signal->getLength());
+      return;
+    }
     packTableIntoPages(signal);
     break;
 
@@ -2456,6 +2529,18 @@ void Dbdict::initWriteSchemaRecord()
 void Dbdict::initRetrieveRecord(Signal* signal, Uint32 i, Uint32 returnCode)
 {
   jam();
+
+  if (NdbTick_IsValid(c_retrieveRecord.startProcessTime))
+  {
+    // Completed the job...
+    const Uint64 durationMillis = NdbTick_Elapsed(c_retrieveRecord.startProcessTime,
+                                            NdbTick_getCurrentTicks()).milliSec();
+    if (durationMillis > c_retrieveRecord.longestProcessTimeMillis)
+      c_retrieveRecord.longestProcessTimeMillis = durationMillis;
+
+    NdbTick_Invalidate(&c_retrieveRecord.startProcessTime);
+  }
+
   c_retrieveRecord.blockRef = 0;
   c_retrieveRecord.m_senderData = RNIL;
   c_retrieveRecord.tableId = RNIL;
@@ -10572,6 +10657,8 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     NodeInfo sendersNI = getNodeInfo(refToNode(req->senderRef));
     bool internalReq = (sendersNI.m_type == NodeInfo::DB);
 
+    c_retrieveRecord.totalWaiters++;
+
     /* Queue request
      * Will be processed later when current requests + queue are completed
      */
@@ -10588,9 +10675,30 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
       SectionHandle handle(this, signal);
       releaseSections(handle);
 
+      c_retrieveRecord.totalBusy++;
       sendGET_TABINFOREF(signal, req, GetTabInfoRef::Busy, __LINE__);
     }
 
+    if (!c_retrieveRecord.monitorRunning)
+    {
+      if ( NdbTick_IsValid(c_retrieveRecord.startProcessTime) &&
+           NdbTick_Elapsed(c_retrieveRecord.startProcessTime,
+                           NdbTick_getCurrentTicks()).milliSec()
+           > SuspectGETTABINFOREQMillis)
+      {
+        jam();
+
+        /* Start monitoring */
+        c_retrieveRecord.monitorRunning = true;
+        signal->theData[0] = DumpStateOrd::DictDumpGetTabInfoQueue;
+        signal->theData[1] = 0;
+        sendSignal(reference(),
+                   GSN_DUMP_STATE_ORD,
+                   signal,
+                   2,
+                   JBB);
+      }
+    }
     return;
   }
 
@@ -10606,6 +10714,9 @@ Dbdict::doGET_TABINFOREQ(Signal* signal)
   jam();
   GetTabInfoReq * const req = (GetTabInfoReq *)&signal->theData[0];
   SectionHandle handle(this, signal);
+
+  c_retrieveRecord.totalRequests++;
+  c_retrieveRecord.startProcessTime = NdbTick_getCurrentTicks();
 
   const bool useLongSig = (req->requestType & GetTabInfoReq::LongSignalConf);
   const bool byName = (req->requestType & GetTabInfoReq::RequestByName);
@@ -32710,7 +32821,11 @@ Dbdict::startNextGetTabInfoReq(Signal* signal)
    * Prefer internalQueue, but give externalQueue entries
    * a proportional share to avoid starvation.
    */
-  ndbrequire(c_gettabinforeq_q.deqReq(signal));
+  Uint64 waitMillis = 0;
+  ndbrequire(c_gettabinforeq_q.deqReq(signal, waitMillis));
+
+  if (waitMillis > c_retrieveRecord.longestWaitMillis)
+    c_retrieveRecord.longestWaitMillis = waitMillis;
 
   signal->header.theLength = GetTabInfoReq::SignalLength;
 
@@ -32721,6 +32836,27 @@ Dbdict::startNextGetTabInfoReq(Signal* signal)
    * we are starting in trace file
    */
   doGET_TABINFOREQ(signal);
+
+  if (!c_retrieveRecord.monitorRunning)
+  {
+    if (NdbTick_IsValid(c_retrieveRecord.startProcessTime) &&
+        NdbTick_Elapsed(c_retrieveRecord.startProcessTime,
+                        NdbTick_getCurrentTicks()).milliSec()
+        > SuspectGETTABINFOREQMillis)
+    {
+      jam();
+
+      /* Start monitoring */
+      c_retrieveRecord.monitorRunning = true;
+      signal->theData[0] = DumpStateOrd::DictDumpGetTabInfoQueue;
+      signal->theData[1] = 0;
+      sendSignal(reference(),
+                 GSN_DUMP_STATE_ORD,
+                 signal,
+                 2,
+                 JBB);
+    }
+  }
 
   if (!c_retrieveRecord.busyState)
   {
