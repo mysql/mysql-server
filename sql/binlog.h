@@ -941,7 +941,7 @@ public:
 
   /**
     Deep copy global_sid_map to @param sid_map and
-    gtid_state->get_executed_gtids() to @param gtid_set.
+    gtid_state->get_executed_gtids() to @param gtid_set
     Both operations are done under LOCK_commit and global_sid_lock
     protection.
 
