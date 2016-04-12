@@ -31,6 +31,7 @@ insert into d1.t1 values (null);
 commit;
 *** Coordinator must be in waiting for a Worker to unassign from a partition ***
 rollback;
+include/sync_slave_sql_with_master.inc
 select count(*) from d1.t1 into @d1;
 select count(*) from d2.t1 into @d2;
 select count(*) from d3.t1 into @d3;
