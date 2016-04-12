@@ -1,0 +1,79 @@
+CALL mtr.add_suppression("innodb_open_files should not be greater than the open_files_limit.");
+CALL mtr.add_suppression("You must raise the value of innodb_open_files in my.cnf! Remember that InnoDB keeps all");
+CALL mtr.add_suppression("log files and all system tablespace files open for the whole time mysqld is running, and");
+CALL mtr.add_suppression("needs to open also some .ibd files if the file-per-table storage model is used. Current open files .*, max allowed open files 1.");
+CALL mtr.add_suppression("Too many (.*) files stay open while the maximum allowed value would be 1. You may need to raise the value of innodb_open_files in my.cnf.");
+CALL mtr.add_suppression("Cannot close file ./mysql/tables.ibd, because modification");
+CALL mtr.add_suppression("Open files .* exceeds the limit 1");
+CALL mtr.add_suppression("InnoDB: Cannot close file");
+DROP TABLE IF EXISTS `t1`;
+# Bug#46922: crash when adding partitions and open_files_limit is reached
+CREATE TABLE t1 (a INT PRIMARY KEY) 
+PARTITION BY KEY () PARTITIONS 1;
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11);
+ALTER TABLE t1 ADD PARTITION PARTITIONS 50;
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#p10.ibd
+t1#P#p11.ibd
+t1#P#p12.ibd
+t1#P#p13.ibd
+t1#P#p14.ibd
+t1#P#p15.ibd
+t1#P#p16.ibd
+t1#P#p17.ibd
+t1#P#p18.ibd
+t1#P#p19.ibd
+t1#P#p2.ibd
+t1#P#p20.ibd
+t1#P#p21.ibd
+t1#P#p22.ibd
+t1#P#p23.ibd
+t1#P#p24.ibd
+t1#P#p25.ibd
+t1#P#p26.ibd
+t1#P#p27.ibd
+t1#P#p28.ibd
+t1#P#p29.ibd
+t1#P#p3.ibd
+t1#P#p30.ibd
+t1#P#p31.ibd
+t1#P#p32.ibd
+t1#P#p33.ibd
+t1#P#p34.ibd
+t1#P#p35.ibd
+t1#P#p36.ibd
+t1#P#p37.ibd
+t1#P#p38.ibd
+t1#P#p39.ibd
+t1#P#p4.ibd
+t1#P#p40.ibd
+t1#P#p41.ibd
+t1#P#p42.ibd
+t1#P#p43.ibd
+t1#P#p44.ibd
+t1#P#p45.ibd
+t1#P#p46.ibd
+t1#P#p47.ibd
+t1#P#p48.ibd
+t1#P#p49.ibd
+t1#P#p5.ibd
+t1#P#p50.ibd
+t1#P#p6.ibd
+t1#P#p7.ibd
+t1#P#p8.ibd
+t1#P#p9.ibd
+SELECT * FROM t1;
+a
+1
+10
+11
+2
+3
+4
+5
+6
+7
+8
+9
+DROP TABLE t1;
