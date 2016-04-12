@@ -2205,7 +2205,7 @@ int ha_ndbcluster::get_metadata(THD *thd, const char *path)
   m_bytes_per_write= 12 + tab->getRowSizeInBytes() + 4 * tab->getNoOfColumns();
 
   /* Open indexes */
-  if ((error= open_indexes(ndb, table, FALSE)) != 0)
+  if ((error= open_indexes(ndb, table)) != 0)
     goto err;
 
   /* Read foreign keys where this table is child or parent */
@@ -2673,8 +2673,7 @@ ha_ndbcluster::add_index_ndb_record(NDBDICT *dict, KEY *key_info, uint index_no)
 /*
   Associate index handles for each index of a table
 */
-int ha_ndbcluster::open_indexes(Ndb *ndb, TABLE *tab,
-                                bool ignore_error)
+int ha_ndbcluster::open_indexes(Ndb *ndb, TABLE *tab)
 {
   uint i;
   int error= 0;
@@ -2688,10 +2687,7 @@ int ha_ndbcluster::open_indexes(Ndb *ndb, TABLE *tab,
   {
     if ((error= add_index_handle(dict, key_info, *key_name, i)))
     {
-      if (ignore_error)
-        m_index[i].index= m_index[i].unique_index= NULL;
-      else
-        break;
+      break;
     }
     m_index[i].null_in_unique_index= FALSE;
     if (check_index_fields_not_null(key_info))
@@ -2701,7 +2697,7 @@ int ha_ndbcluster::open_indexes(Ndb *ndb, TABLE *tab,
       btree_keys.set_bit(i);
   }
 
-  if (error && !ignore_error)
+  if (error)
   {
     while (i > 0)
     {
