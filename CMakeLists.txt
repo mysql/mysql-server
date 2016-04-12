@@ -200,6 +200,8 @@ IF(BUILD_CONFIG)
   ${CMAKE_SOURCE_DIR}/cmake/build_configurations/${BUILD_CONFIG}.cmake)
 ENDIF()
 
+OPTION(INSTALL_STATIC_LIBRARIES "Install static libraries" ON)
+
 #cmake on 64bit windows/mac/solaris doesn't set CMAKE_SYSTEM_PROCESSOR correctly
 SET(MYSQL_MACHINE_TYPE ${CMAKE_SYSTEM_PROCESSOR})
 
