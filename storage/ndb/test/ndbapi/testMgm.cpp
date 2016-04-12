@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3515,7 +3515,7 @@ int runTestNdbApiConfig(NDBT_Context* ctx, NDBT_Step* step)
   };
   // Catch if new members are added to NdbApiConfig,
   // if so add tests and adjust expected size
-  NDB_STATIC_ASSERT(sizeof(NdbApiConfig) == 6 * sizeof(Uint32));
+  NDB_STATIC_ASSERT(sizeof(NdbApiConfig) == 7 * sizeof(Uint32));
 
   Config savedconf;
   if (!mgmd.get_config(savedconf))

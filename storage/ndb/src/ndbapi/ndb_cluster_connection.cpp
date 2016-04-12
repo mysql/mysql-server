@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -836,6 +836,13 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
     {
       m_config.m_default_hashmap_size = default_hashmap_size;
     }
+
+    Uint32 verbose= 0;
+    if (!iter.get(CFG_API_VERBOSE, &verbose))
+    {
+      m_config.m_verbose = verbose;
+    }
+
     // If DefaultHashmapSize is not set or zero, use the minimum
     // value set (not zero) for any other node, since this size
     // should be supported by the other nodes.  Also this allows
