@@ -69,7 +69,7 @@ public:
     const ParserRow<T> * m_currentCmd;
     const ParserRow<T> * m_currentArg;
     char * m_currentToken;
-    STATIC_CONST(MaxParseBytes = 8192);
+    STATIC_CONST(MaxParseBytes = 512);
     char m_tokenBuffer[ MaxParseBytes ];
     NdbMutex *m_mutex;
 
@@ -101,7 +101,7 @@ template<class T>
 struct ParserRow {
 public:
   enum Type { Cmd, Arg, CmdAlias, ArgAlias, End }; // Put new types before end
-  enum ArgType { String, Int, Properties };
+  enum ArgType { String, Int, Properties, LongString };
   enum ArgRequired { Mandatory, Optional };
   enum ArgMinMax { CheckMinMax, IgnoreMinMax };
   
