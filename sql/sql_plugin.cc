@@ -61,33 +61,27 @@
     participant "Plugin" as plugin
   endbox
 
-
-  activate server
+  == INSTALL PLUGIN ==
   server -> plugin : initialize
   activate plugin
   plugin --> server : initialization done
-  deactivate plugin
-  deactivate server
+
+  == CLIENT SESSION ==
   loop many
     client -> server : SQL command
-    activate server
     server -> server : Add reference for Plugin if absent
     loop one or many
       server -> plugin : plugin API call
-      activate plugin
       plugin --> server : plugin API call result
-      deactivate plugin
     end
     server -> server : Optionally release reference for Plugin
-    server -> client : SQL command reply
-    deactivate server
+    server --> client : SQL command reply
   end
-  activate server
+
+  == UNINSTALL PLUGIN ==
   server -> plugin : deinitialize
-  activate plugin
   plugin --> server : deinitialization done
   deactivate plugin
-  deactivate server
   @enduml
 
   @sa Sql_cmd_install_plugin, Sql_cmd_uninstall_plugin.
@@ -110,51 +104,40 @@
     participant "Plugin" as plugin
   endbox
 
-
+  == INSTALL PLUGIN ==
   server -> plugin : initialize
-  activate server
   activate plugin
+
   loop zero or many
     plugin -> server : service API call
-    activate server
     server --> plugin : service API result
-    deactivate server
   end
   plugin --> server : initialization done
-  deactivate plugin
-  deactivate server
+
+  == CLIENT SESSION ==
   loop many
     client -> server : SQL command
-    activate server
     server -> server : Add reference for Plugin if absent
     loop one or many
       server -> plugin : plugin API call
-      activate plugin
       loop zero or many
         plugin -> server : service API call
-        activate server
         server --> plugin : service API result
-        deactivate server
       end
       plugin --> server : plugin API call result
-      deactivate plugin
     end
     server -> server : Optionally release reference for Plugin
-    server -> client : SQL command reply
-    deactivate server
+    server --> client : SQL command reply
   end
+
+  == UNINSTALL PLUGIN ==
   server -> plugin : deinitialize
-  activate plugin
-  activate server
   loop zero or many
     plugin -> server : service API call
-    activate server
     server --> plugin : service API result
-    deactivate server
   end
   plugin --> server : deinitialization done
   deactivate plugin
-  deactivate server
   @enduml
 */
 
