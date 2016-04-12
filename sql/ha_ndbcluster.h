@@ -422,7 +422,7 @@ private:
                    NDB_INDEX_TYPE idx_type, uint idx_no) const;
 // Index list management
   int create_indexes(THD *thd, Ndb *ndb, TABLE *tab) const;
-  int open_indexes(Ndb *ndb, TABLE *tab, bool ignore_error);
+  int open_indexes(Ndb *ndb, TABLE *tab);
   void renumber_indexes(uint dropped_index_num);
   int drop_indexes(Ndb *ndb, TABLE *tab);
   int add_index_handle(NdbDictionary::Dictionary *dict,
