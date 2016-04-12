@@ -93,6 +93,9 @@
 #include <signaldata/DropFK.hpp>
 #include <signaldata/DropFKImpl.hpp>
 
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
+
 #define JAM_FILE_ID 464
 
 #ifdef DBDICT_C
@@ -1199,11 +1202,50 @@ private:
    * when a file is being read from disk
    ****************************************************************************/
   struct RetrieveRecord {
-    RetrieveRecord():
-      busyState(false) {};
+    RetrieveRecord()
+    {
+      totalRequests = 0;
+      totalWaiters = 0;
+      totalBusy = 0;
+      longestWaitMillis = 0;
+      longestProcessTimeMillis = 0;
+      NdbTick_Invalidate(&startProcessTime);
+      monitorRunning = false;
+      busyState = false;
+    }
 
     /**    Only one retrieve table definition at a time       */
     bool busyState;
+
+     /**
+     *  Total requests
+     */
+    Uint64 totalRequests;
+
+    /**
+     * Total num made to wait
+     */
+    Uint64 totalWaiters;
+
+    /**
+     * Total num told 'busy'
+     */
+    Uint64 totalBusy;
+
+    /**
+     * Longest wait in millis
+     */
+    Uint64 longestWaitMillis;
+
+
+    /**
+     * Longest req processing in millis
+     */
+    Uint64 longestProcessTimeMillis;
+
+    NDB_TICKS startProcessTime;
+
+    bool monitorRunning;
 
     /**    Block Reference of retriever       */
     BlockReference blockRef;
@@ -1307,13 +1349,19 @@ private:
                    Signal* signal)
     {
       thrjam(m_jamBuffer);
-      /* Put data inline in signal buffer for atomic enq */
-      signal->theData[GetTabInfoReq::SignalLength] =
-        signal->header.m_noOfSections;
+      Uint32 sigLen = GetTabInfoReq::SignalLength;
 
-      memcpy(&signal->theData[GetTabInfoReq::SignalLength+1],
+      /* Put data inline in signal buffer for atomic enq */
+      signal->theData[sigLen] = signal->header.m_noOfSections;
+      sigLen++;
+
+      memcpy(&signal->theData[sigLen],
              signal->m_sectionPtrI,
              3 * sizeof(Uint32));
+      sigLen += 3;
+
+      /* Record start-wait time */
+      setTicks(NdbTick_getCurrentTicks(), &signal->theData[sigLen]);
 
       LocalSegmentList& reqQueue = internal?
         m_internalQueue:
@@ -1333,7 +1381,7 @@ private:
         return false;
       }
 
-      assert(ElementLen == 9);   /* Just in case someone adds words...*/
+      assert(ElementLen == 11);   /* Just in case someone adds words...*/
 
       if (reqQueue.enqWords(signal->theData,
                             ElementLen))
@@ -1355,7 +1403,7 @@ private:
      * object with signal data (and sections if appropriate)
      * Assumes that there is some next request to be processed.
      */
-    bool deqReq(Signal* signal)
+    bool deqReq(Signal* signal, Uint64 &waitMillis)
     {
       assert(signal->header.m_noOfSections == 0);
       assert(!isEmpty());
@@ -1367,19 +1415,50 @@ private:
       assert(getNumReqs(reqQueue) > 0);
 
       Uint32 noOfSections;
+      Uint32 startTime[2];
 
       /* Restore signal context from queue...*/
       if (reqQueue.deqWords(signal->theData, GetTabInfoReq::SignalLength) &&
           reqQueue.deqWords(&noOfSections, 1) &&
-          reqQueue.deqWords(signal->m_sectionPtrI, 3))
+          reqQueue.deqWords(signal->m_sectionPtrI, 3) &&
+          reqQueue.deqWords((Uint32*)(&startTime[0]), 2))
       {
         signal->header.m_noOfSections = (Uint8) noOfSections;
+        const NDB_TICKS start(getTicks(startTime));
+        waitMillis = NdbTick_Elapsed(start, NdbTick_getCurrentTicks()).milliSec();
         return true;
       }
       return false;
     }
+    void dumpInfo()
+    {
+      g_eventLogger->info("Dumping GET_TABINFOREQ queue info");
+      g_eventLogger->info("m_consecutiveInternalReqCount = %u "
+                          "number of reqs in internal queue = %u "
+                          "max reqs in internal queue = %u "
+                          "number of reqs in external queue = %u "
+                          "max reqs in external queue = %u "
+                          "internal segment pool size = %u",
+                           m_consecutiveInternalReqCount,
+                           getNumReqs(m_internalQueue), MaxInternalReqs,
+                           getNumReqs(m_externalQueue), MaxExternalReqs,
+                           InternalSegmentPoolSize
+                         );
+    }
 
   private:
+
+    Uint64 getTicks(const Uint32* words)
+    {
+      return (Uint64(words[0]) << 32) + words[1];
+    }
+
+    void setTicks(const NDB_TICKS& ticks, Uint32* words)
+    {
+      words[0] = (ticks.getUint64() >> 32);
+      words[1] = (ticks.getUint64() & 0xffffffff);
+    }
+
     /**
      * isInternalQueueNext
      *
@@ -1422,7 +1501,7 @@ private:
     };
 
     /* Length of GetTabInfoReq queue elements */
-    static const Uint32 ElementLen = GetTabInfoReq::SignalLength + 1 + 3;
+    static const Uint32 ElementLen = GetTabInfoReq::SignalLength + 1 + 3 + 2;
 
     /**
      * Pessimistic estimate of worst-case internally sourced
