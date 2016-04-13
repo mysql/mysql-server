@@ -32,7 +32,7 @@ class PFS_opaque_container_page;
 #define ROLENAME_LENGTH 64
 
 /**
-  @addtogroup Performance_schema_buffers
+  @addtogroup performance_schema_buffers
   @{
 */
 

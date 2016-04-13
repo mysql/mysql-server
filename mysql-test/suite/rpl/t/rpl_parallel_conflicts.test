@@ -105,6 +105,12 @@ source include/wait_until_rows_count.inc;
 # release the Worker
 rollback;
 
+# Bug#21461991 : RPL.RPL_PARALLEL_CONFLICTS FAILS SPORADICALLY
+# ON DAILY AND WEEKLY TRUNK
+# Waits until the slave SQL thread has been synced with master
+connection master;
+--source include/sync_slave_sql_with_master.inc
+
 let $count= 2;
 let $table= d1.t1;
 source include/wait_until_rows_count.inc;

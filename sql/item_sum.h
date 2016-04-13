@@ -864,17 +864,44 @@ class Item_sum_count :public Item_sum_int
 /* Item to get the value of a stored sum function */
 
 class Item_sum_avg;
+class Item_sum_bit;
+
+
+/**
+  This is used in connection which a parent Item_sum:
+  - which can produce different result types (is "hybrid")
+  - which stores function's value into a temporary table's column (one
+  row per group).
+  - which stores in the column some internal piece of information which should
+  not be returned to the user, so special implementations are needed.
+*/
+class Item_sum_hybrid_field: public Item_result_field
+{
+protected:
+  /// The tmp table's column containing the value of the set function.
+  Field *field;
+  /// Stores the Item's result type.
+  Item_result hybrid_type;
+public:
+  enum Item_result result_type () const { return hybrid_type; }
+  bool mark_field_in_map(uchar *arg)
+  {
+    /*
+      Filesort (find_all_keys) over a temporary table collects the columns it
+      needs.
+    */
+    return Item::mark_field_in_map(pointer_cast<Mark_field *>(arg), field);
+  }
+};
+
 
 /**
   Common abstract class for:
     Item_avg_field
     Item_variance_field
 */
-class Item_sum_num_field: public Item_result_field
+class Item_sum_num_field: public Item_sum_hybrid_field
 {
-protected:
-  Field *field;
-  Item_result hybrid_type;
 public:
   longlong val_int()
   {
@@ -894,7 +921,6 @@ public:
     return hybrid_type == DECIMAL_RESULT ?
       MYSQL_TYPE_NEWDECIMAL : MYSQL_TYPE_DOUBLE;
   }
-  enum Item_result result_type () const { return hybrid_type; }
   bool is_null() { update_null_value(); return null_value; }
 };
 
@@ -911,6 +937,31 @@ public:
   String *val_str(String*);
   virtual bool resolve_type(THD *thd) { return false; }
   const char *func_name() const { DBUG_ASSERT(0); return "avg_field"; }
+};
+
+
+/// This is used in connection with an Item_sum_bit, @see Item_sum_hybrid_field
+class Item_sum_bit_field :public Item_sum_hybrid_field
+{
+protected:
+  ulonglong reset_bits;
+public:
+  Item_sum_bit_field(Item_result res_type, Item_sum_bit *item,
+                     ulonglong reset_bits);
+  longlong val_int();
+  double val_real();
+  my_decimal *val_decimal(my_decimal *);
+  String *val_str(String*);
+  bool resolve_type(THD *thd) { return false; }
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);
+  enum Type type() const { return FIELD_BIT_ITEM; }
+  enum_field_types field_type() const
+  {
+    return hybrid_type == INT_RESULT ?
+      MYSQL_TYPE_LONGLONG : MYSQL_TYPE_VAR_STRING;
+  }
+  const char *func_name() const { DBUG_ASSERT(0); return "sum_bit_field"; }
 };
 
 
@@ -1175,39 +1226,65 @@ public:
 };
 
 
-class Item_sum_bit :public Item_sum_int
+/**
+  Base class used to implement BIT_AND, BIT_OR and BIT_XOR set functions.
+ */
+class Item_sum_bit :public Item_sum
 {
 protected:
-  ulonglong reset_bits,bits;
-
+  /// Stores the neutral element for function
+  ulonglong reset_bits;
+  /// Stores the result value for the INT_RESULT
+  ulonglong bits;
+  /// Stores the result value for the STRING_RESULT
+  String value_buff;
+  /// Stores the Item's result type. Can only be INT_RESULT or STRING_RESULT
+  Item_result hybrid_type;
+  /// Buffer used to avoid String allocation in the constructor
+  char initial_value_buff_storage[1];
 public:
-  Item_sum_bit(const POS &pos, Item *item_par,ulonglong reset_arg)
-    :Item_sum_int(pos, item_par), reset_bits(reset_arg), bits(reset_arg)
+  Item_sum_bit(const POS &pos, Item *item_par, ulonglong reset_arg)
+    :Item_sum(pos, item_par), reset_bits(reset_arg), bits(reset_arg),
+     value_buff(initial_value_buff_storage, 1, &my_charset_bin)
   {}
 
-  Item_sum_bit(THD *thd, Item_sum_bit *item)
-    :Item_sum_int(thd, item), reset_bits(item->reset_bits), bits(item->bits)
-  {}
+  /// Copy constructor, used for executing subqueries with temporary tables
+  Item_sum_bit(THD *thd, Item_sum_bit *item):
+    Item_sum(thd, item), reset_bits(item->reset_bits), bits(item->bits),
+    value_buff(initial_value_buff_storage, 1, &my_charset_bin),
+    hybrid_type(item->hybrid_type)
+  {
+    /**
+      This constructor should only be called during the Optimize stage.
+      Asserting that the item was not evaluated yet.
+    */
+    DBUG_ASSERT(item->value_buff.length() == 1);
+    DBUG_ASSERT(item->bits == item->reset_bits);
+  }
+
+  Item *result_item(Field *field)
+  { return new Item_sum_bit_field(hybrid_type, this, reset_bits); }
+
   enum Sumfunctype sum_func () const {return SUM_BIT_FUNC;}
+  enum Item_result result_type () const { return hybrid_type; }
   void clear();
   longlong val_int();
+  double val_real();
+  String *val_str(String *str);
+  my_decimal *val_decimal(my_decimal *decimal_value);
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate);
+  bool get_time(MYSQL_TIME *ltime);
   void reset_field();
   void update_field();
-  virtual bool resolve_type(THD *thd)
-  {
-    decimals= 0;
-    max_length= 21;
-    unsigned_flag= true;
-    maybe_null= false;
-    null_value= FALSE;
-    check_deprecated_bin_op(args[0], NULL);
-    return false;
-  }
+  virtual bool resolve_type(THD *thd);
+  bool fix_fields(THD *thd, Item **ref);
   void cleanup()
   {
     bits= reset_bits;
-    Item_sum_int::cleanup();
+    Item_sum::cleanup();
   }
+  template<class Char_op, class Int_op>
+  bool eval_op(Char_op char_op, Int_op int_op);
 };
 
 

@@ -134,6 +134,14 @@
 /**
   @page PAGE_PFS_NEW_TABLE Implementing a new performance_schema table
 
+  To implement a new performance schema table,
+  two independent problems need to be resolved:
+  - HOW to expose the data as a SQL table, usable to user queries.
+  - WHAT data to expose, and where is this data coming from.
+
+  The storage engine interface is used to implement the former.
+  Various design patterns can be used to resolve the later.
+
   @section NEW_TABLE_INTERFACE Storage engine interface
 
   @startuml
@@ -172,6 +180,13 @@
 
   @enduml
 
+  The performance schema engine, @c ha_perfschema,
+  exposes performance schema tables to the MySQL server.
+  Tables are implemented by sub classing @c PFS_engine_table.
+
+  The access pattern is always the same for all performance schema tables,
+  and does not depend on what data is exposed, only on how it is exposed.
+
   @section NEW_TABLE_APPLICATION Application query
 
   @startuml
@@ -190,6 +205,9 @@
   client <-- server : query end
 
   @enduml
+
+  An application query in general just executes code in the server.
+  Data may of may not be collected in this code path, see next for possible patterns.
 
   @section NEW_TABLE_STATIC Table exposing static data
 
@@ -226,6 +244,11 @@
   deactivate pfs_table
 
   @enduml
+
+  Static data does not need to be collected, because it is already known.
+  In this simple case, the table implementation just exposes some internal structure.
+
+  An example of table using this pattern is @c table_setup_consumers.
 
   @section NEW_TABLE_COLLECTED Table exposing collected data
 
@@ -297,6 +320,22 @@
   mon <-- server_m : performance schema query end
 
   @enduml
+
+  When a table implementation exposes collected data:
+  - a memory buffer is used to represent the data
+  - the server code path is modified, calls instrumentation points,
+  that feed the memory buffer,
+  - the performance schema table implementation reads from the memory buffer.
+
+  Note that access to the internal buffer is lock-free.
+
+  This pattern:
+  - creates memory overhead, for the memory buffer
+  - creates CPU overhead, with the instrumentation points.
+
+  This pattern should be used only when data is not available by other means.
+
+  An example of table using this pattern is @c table_mutex_instances.
 
   @section NEW_TABLE_INTERNAL Table exposing server internal data
 
@@ -377,10 +416,32 @@
   mon <-- server_m : performance schema query end
 
   @enduml
+
+  When a table implementation exposes internal state:
+  - some structure in the server already exists and contains the data,
+  - the server code path is not modified,
+  as it already maintains the data structure during the normal server operation,
+  - access to the structure is most likely protected by locks,
+  to maintain integrity,
+  - the performance schema table implementation reads directly from the server internal memory,
+  by inspecting it, using locks if necessary.
+
+  This pattern:
+  - creates no memory overhead,
+  - creates no CPU overhead,
+  - may cause a performance schema query to stall a client application query
+
+  To prevent stalls, by locking the server structure for a long time,
+  the data is typically copied once (the table is 'materialized') before iterating on it.
+
+  If this pattern is possible (aka, the data already exists and can be inspected),
+  is it the preferred implementation, which results in the least overhead.
+
+  An example of table using this pattern is @c table_host_cache.
 */
 
 /**
-  @addtogroup Performance_schema_engine
+  @addtogroup performance_schema_engine
   @{
 */
 

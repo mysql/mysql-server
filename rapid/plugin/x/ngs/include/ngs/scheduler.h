@@ -48,7 +48,7 @@ namespace ngs
 
     typedef boost::function<void()> Task;
 
-    Scheduler_dynamic(const char* name);
+    Scheduler_dynamic(const char* name, PSI_thread_key thread_key = PSI_NOT_INSTRUMENTED);
     virtual ~Scheduler_dynamic();
 
     virtual void launch();
@@ -60,14 +60,14 @@ namespace ngs
     bool post_and_wait(const Task& task);
 
     virtual bool thread_init() { return true; }
-    virtual void thread_end() {}
+    virtual void thread_end();
 
     void set_monitor(Monitor *monitor);
 
     bool is_worker_thread(my_thread_t thread_id);
     bool is_running();
     void join_terminating_workers();
-
+    
   private:
     template<typename Element_type>
     class lock_list
@@ -159,6 +159,7 @@ namespace ngs
     lock_list<Thread_t> m_threads;
     lock_list<my_thread_t> m_terminating_workers;
     boost::scoped_ptr<Monitor> m_monitor;
+    PSI_thread_key m_thread_key;
   };
 }
 

@@ -36,8 +36,9 @@ using namespace Mysql::Tools::Dump;
 Mysql_crawler::Mysql_crawler(I_connection_provider* connection_provider,
   Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
     message_handler, Simple_id_generator* object_id_generator,
-  Mysql_chain_element_options* options)
-  : Abstract_crawler(message_handler, object_id_generator),
+  Mysql_chain_element_options* options,
+  Mysql::Tools::Base::Abstract_program* program)
+  : Abstract_crawler(message_handler, object_id_generator, program),
   Abstract_mysql_chain_element_extension(
   connection_provider, message_handler, options)
 {}
@@ -107,6 +108,7 @@ void Mysql_crawler::enumerate_objects()
   this->report_crawler_completed(this);
 
   this->wait_for_tasks_completion();
+  delete runner;
 }
 
 void Mysql_crawler::enumerate_database_objects(const Database& db)
@@ -208,6 +210,7 @@ void Mysql_crawler::enumerate_tables(const Database& db)
     this->process_dump_task(indexes_task);
   }
   Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&tables);
+  delete runner;
 }
 
 void Mysql_crawler::enumerate_views(const Database& db)
@@ -260,6 +263,7 @@ void Mysql_crawler::enumerate_views(const Database& db)
     Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&check_view);
   }
   Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&tables);
+  delete runner;
 }
 
 template<typename TObject>
@@ -288,6 +292,7 @@ void Mysql_crawler::enumerate_functions(const Database& db, std::string type)
     this->process_dump_task(function);
   }
   Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&functions);
+  delete runner;
 }
 
 void Mysql_crawler::enumerate_event_scheduler_events(const Database& db)
@@ -324,6 +329,7 @@ void Mysql_crawler::enumerate_event_scheduler_events(const Database& db)
     this->process_dump_task(event);
   }
   Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&events);
+  delete runner;
 }
 
 void Mysql_crawler::enumerate_users()
@@ -371,6 +377,7 @@ void Mysql_crawler::enumerate_users()
     Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&user_grants);
   }
   Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&users);
+  delete runner;
 }
 
 void Mysql_crawler::enumerate_table_triggers(
@@ -405,6 +412,7 @@ void Mysql_crawler::enumerate_table_triggers(
     this->process_dump_task(trigger);
   }
   Mysql::Tools::Base::Mysql_query_runner::cleanup_result(&triggers);
+  delete runner;
 }
 
 

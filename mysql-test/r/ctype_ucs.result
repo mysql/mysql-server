@@ -1506,7 +1506,7 @@ create table t1 as select concat(bit_count(12)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(2) CHARACTER SET ucs2 DEFAULT NULL
+  `c1` varchar(21) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(2<<1));

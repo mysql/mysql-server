@@ -128,6 +128,7 @@ public:
     m_target_def.add_option("ENGINE=INNODB DEFAULT");
     m_target_def.add_option("CHARSET=utf8");
     m_target_def.add_option("COLLATE=utf8_bin");
+    m_target_def.add_option("ROW_FORMAT=DYNAMIC");
     m_target_def.add_option("STATS_PERSISTENT=0");
   }
 

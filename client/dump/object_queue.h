@@ -21,6 +21,7 @@
 #include "i_object_reader.h"
 #include "abstract_object_reader_wrapper.h"
 #include "abstract_dump_task.h"
+#include "base/abstract_program.h"
 #include "thread_group.h"
 #include "base/mutex.h"
 #include "base/atomic.h"
@@ -42,7 +43,8 @@ public:
   Object_queue(
     Mysql::I_callable<bool, const Mysql::Tools::Base::Message_data&>*
       message_handler, Simple_id_generator* object_id_generator,
-    uint threads_count, Mysql::I_callable<void, bool>* thread_callback);
+    uint threads_count, Mysql::I_callable<void, bool>* thread_callback,
+    Mysql::Tools::Base::Abstract_program* program);
 
   ~Object_queue();
 
@@ -55,6 +57,8 @@ public:
   // Fix "inherits ... via dominance" warnings
   uint64 get_id() const
   { return Abstract_chain_element::get_id(); }
+
+  void stop_queue();
 
 protected:
   // Fix "inherits ... via dominance" warnings
@@ -97,6 +101,7 @@ private:
     of true is used for thread start, false for thread exit.
   */
   Mysql::I_callable<void, bool>* m_thread_callback;
+  Mysql::Tools::Base::Abstract_program* m_program;
 };
 
 }

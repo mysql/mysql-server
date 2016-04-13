@@ -122,7 +122,7 @@ static bool handle_bootstrap_impl(THD *thd)
     thd->get_protocol_classic()->add_client_capability(
     CLIENT_MULTI_RESULTS);
 
-  thd->init_for_queries();
+  thd->init_query_mem_roots();
 
   if (opt_initialize)
     Command_iterator::current_iterator= &comp_iter;

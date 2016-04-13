@@ -27,6 +27,20 @@
 #include "sql_admin.h"               // Sql_cmd_shutdown etc.
 
 
+/**
+  Calls contextualize() on every node in the array.
+*/
+template<class Node_type>
+bool contextualize_nodes(Mem_root_array_YY<Node_type *> nodes,
+                         Parse_context *pc)
+{
+  for (Node_type *i : nodes)
+    if (i->contextualize(pc))
+      return true;
+  return false;
+}
+
+
 template<enum_parsing_context Context> class PTI_context;
 
 
@@ -2750,5 +2764,212 @@ public:
   virtual Sql_cmd *make_cmd(THD *thd);
   virtual bool contextualize(Parse_context *pc);
 };
+
+
+/**
+  A template-free base class for index options that we can predeclare in
+  sql_lex.h
+*/
+class PT_base_index_option : public Parse_tree_node {};
+
+
+/**
+  Parse tree node that calls a setter function in thd->lex->alter_info for
+  setting an <alter option>.
+
+  @tparam Setter Pointer-to-member-function for the setter in Alter_info.
+  @tparam Error_code The error code to use for illegal values of option_value.
+*/
+template<bool (Alter_info::*Setter)(const st_mysql_lex_string*),
+         int Error_code>
+class PT_alter_option : public PT_base_index_option
+{
+public:
+  /// @param option_value The value of the option.
+  PT_alter_option(const LEX_STRING &option_value) :
+    m_option_value(option_value)
+  {}
+
+  bool contextualize(Parse_context *pc)
+  {
+    if ((pc->thd->lex->alter_info.*Setter)(&m_option_value))
+    {
+      my_error(Error_code, MYF(0), m_option_value.str);
+      return true;
+    }
+    return false;
+  }
+
+private:
+  const LEX_STRING m_option_value;
+};
+
+
+typedef PT_alter_option<&Alter_info::set_requested_algorithm,
+                        ER_UNKNOWN_ALTER_ALGORITHM>
+PT_requested_algorithm;
+
+typedef PT_alter_option<&Alter_info::set_requested_lock,
+                        ER_UNKNOWN_ALTER_LOCK>
+PT_requested_lock;
+
+
+/**
+  A template for options that set a single <alter option> value in
+  thd->lex->key_create_info.
+
+  @tparam Option_type The data type of the option.
+  @tparam Property Pointer-to-member for the option om KEY_CREATE_INFO.
+*/
+template<typename Option_type, Option_type KEY_CREATE_INFO::*Property>
+class PT_index_option : public PT_base_index_option
+{
+public:
+  /// @param option_value The value of the option.
+  PT_index_option(Option_type option_value) : m_option_value(option_value) {}
+
+  bool contextualize(Parse_context *pc)
+  {
+    pc->thd->lex->key_create_info.*Property= m_option_value;
+    return false;
+  }
+
+private:
+  Option_type m_option_value;
+};
+
+
+/**
+  A template for options that set a single property in a KEY_CREATE_INFO, and
+  also records if the option was explicitly set.
+*/
+template<typename Option_type, Option_type KEY_CREATE_INFO::*Property,
+         bool KEY_CREATE_INFO::*Property_is_explicit>
+class PT_traceable_index_option : public PT_base_index_option
+{
+public:
+  PT_traceable_index_option(Option_type option_value) :
+    m_option_value(option_value)
+  {}
+
+  bool contextualize(Parse_context *pc)
+  {
+    pc->thd->lex->key_create_info.*Property= m_option_value;
+    pc->thd->lex->key_create_info.*Property_is_explicit= true;
+    return false;
+  }
+
+private:
+  Option_type m_option_value;
+};
+
+
+typedef Mem_root_array_YY<PT_base_index_option *> Index_options;
+typedef PT_index_option<ulong, &KEY_CREATE_INFO::block_size> PT_block_size;
+typedef PT_index_option<LEX_CSTRING, &KEY_CREATE_INFO::comment> PT_index_comment;
+typedef PT_index_option<LEX_CSTRING, &KEY_CREATE_INFO::parser_name>
+PT_fulltext_index_parser_name;
+
+
+/**
+  The data structure (B-tree, Hash, etc) used for an index is called
+  'index_type' in the manual. Internally, this is stored in
+  KEY_CREATE_INFO::algorithm, while what the manual calls 'algorithm' is
+  stored in partition_info::key_algorithm. In an <index_definition_stmt> it's
+  ignored. The terminology is somewhat confusing, but we stick to the manual
+  in the parser.
+*/
+typedef PT_traceable_index_option<ha_key_alg, &KEY_CREATE_INFO::algorithm,
+                                  &KEY_CREATE_INFO::is_algorithm_explicit>
+PT_index_type;
+
+/**
+  Base class for parse tree nodes that define an index,
+  i.e. PT_index_definition_stmt and PT_inline_index_definition.
+*/
+class PT_index_definition : public Parse_tree_node {};
+
+class PT_index_definition_stmt : public PT_index_definition
+{
+public:
+  PT_index_definition_stmt(keytype type_par,
+                           const LEX_STRING name_arg,
+                           PT_base_index_option *type,
+                           Table_ident *table_ident,
+                           List<Key_part_spec> *cols,
+                           Index_options options,
+                           Index_options lock_and_algorithm_options)
+    : m_keytype(type_par),
+      m_name(name_arg),
+      m_type(type),
+      m_table_ident(table_ident),
+      m_columns(cols),
+      m_options(options),
+      m_lock_and_algorithm_options(lock_and_algorithm_options)
+  {}
+
+  bool contextualize(Parse_context *pc);
+
+private:
+  keytype m_keytype;
+  const LEX_STRING m_name;
+  PT_base_index_option *m_type;
+  Table_ident *m_table_ident;
+  List<Key_part_spec> *m_columns;
+  Index_options m_options;
+  Index_options m_lock_and_algorithm_options;
+};
+
+
+class PT_table_constraint_def : public Parse_tree_node {};
+
+class PT_inline_index_definition : public PT_table_constraint_def
+{
+public:
+  PT_inline_index_definition(keytype type_par,
+                             const LEX_STRING name_arg,
+                             PT_base_index_option *type,
+                             List<Key_part_spec> *cols,
+                             Index_options options)
+    : m_keytype(type_par),
+      m_name(name_arg),
+      m_type(type),
+      m_columns(cols),
+      m_options(options)
+  {}
+
+ bool contextualize(Parse_context *pc);
+
+private:
+  keytype m_keytype;
+  const LEX_STRING m_name;
+  PT_base_index_option *m_type;
+  List<Key_part_spec> *m_columns;
+  Index_options m_options;
+};
+
+
+class PT_foreign_key_definition : public PT_table_constraint_def
+{
+public:
+  PT_foreign_key_definition(const LEX_STRING constraint_name,
+                            const LEX_STRING key_name,
+                            List<Key_part_spec> *columns,
+                            Table_ident *referenced_table)
+    : m_constraint_name(constraint_name),
+      m_key_name(key_name),
+      m_columns(columns),
+      m_referenced_table(referenced_table)
+  {}
+
+ bool contextualize(Parse_context *pc);
+
+private:
+  const LEX_STRING m_constraint_name;
+  const LEX_STRING m_key_name;
+  List<Key_part_spec> *m_columns;
+  Table_ident *m_referenced_table;
+};
+
 
 #endif /* PARSE_TREE_NODES_INCLUDED */

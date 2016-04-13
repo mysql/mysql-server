@@ -1535,11 +1535,15 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list, bool if_exists)
 
   if (some_users_deleted || if_exists)
   {
-    result|=
-      write_bin_log_n_handle_any_error(thd, thd->query().str,
-                                       thd->query().length,
-                                       transactional_tables,
-                                       &rollback_whole_statement);
+    int ret= commit_owned_gtid_by_partial_command(thd);
+    if (ret == 1)
+      result|=
+        write_bin_log_n_handle_any_error(thd, thd->query().str,
+                                         thd->query().length,
+                                         transactional_tables,
+                                         &rollback_whole_statement);
+    else if (ret == -1)
+      result |= -1;
   }
 
   lock.unlock();

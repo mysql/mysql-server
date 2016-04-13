@@ -264,7 +264,8 @@ net_should_retry(NET *net, uint *retry_count)
   - Splits the data into packets of size 2<sup>24</sup> bytes
   - Prepends to each chunk a packet header
 
-  @section sect_protocol_basic_packets_packet Protocol::Packet
+  Protocol::Packet
+  ----------------
 
   Data between client and server is exchanged in packets of max 16MByte size.
 
@@ -277,7 +278,7 @@ net_should_retry(NET *net, uint *retry_count)
           the initial 4 bytes that make up the packet header.</td></tr>
   <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
       <td>sequence_id</td>
-      <td>Sequence id</td></tr>
+      <td>@ref sect_protocol_basic_packets_sequence_id</td></tr>
   <tr><td>@ref sect_protocol_basic_dt_string_var "string&lt;var&gt;"</td>
       <td>payload</td>
       <td>payload of the packet</td></tr>
@@ -298,7 +299,55 @@ net_should_retry(NET *net, uint *retry_count)
   - payload: 0x01
   </td></tr></table>
 
-  @sa my_net_write(), net_write_command(), net_write_buff(), my_net_read(), net_send_ok()
+  @sa my_net_write(), net_write_command(), net_write_buff(), my_net_read(),
+  net_send_ok()
+
+  @section sect_protocol_basic_packets_sending_mt_16mb Sending More Than 16Mb
+
+  If the payload is larger than or equal to 2<sup>24</sup>-1 bytes the length
+  is set to 2<sup>24</sup>-1 (`ff ff ff`) and a additional packets are sent
+  with the rest of the payload until the payload of a packet is less
+  than 2<sup>24</sup>-1 bytes.
+
+  Sending a payload of 16 777 215 (2<sup>24</sup>-1) bytes looks like:
+
+  ~~~~~~~~~~~~~~~~
+  ff ff ff 00 ...
+  00 00 00 01
+  ~~~~~~~~~~~~~~~~
+
+  @section sect_protocol_basic_packets_sequence_id Sequence ID
+
+  The sequence-id is incremented with each packet and may wrap around.
+  It starts at 0 and is reset to 0 when a new command begins in the
+  @ref page_protocol_command_phase.
+
+  @section sect_protocol_basic_packets_describing_packets Describing Packets
+
+  In this document we describe each packet by first defining its payload and
+  provide an example showing each packet that is sent, including its packet
+  header:
+  <pre>
+  &lt;packetname&gt;
+    &lt;description&gt;
+
+    direction: client -&gt; server
+    response: &lt;response&gt;
+
+    payload:
+      &lt;type&gt;        &lt;description&gt;
+  </pre>
+
+  Example:
+  ~~~~~~~~~~~~~~~~~~~~~
+  01 00 00 00 01
+  ~~~~~~~~~~~~~~~~~~~~~
+
+  @note Some packets have optional fields or a different layout depending on
+  the @ref group_cs_capabilities_flags.
+
+  If a field has a fixed value, its description shows it as a hex value in
+  brackets like this: `[00]`
 */
 
 

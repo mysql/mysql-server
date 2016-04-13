@@ -13345,26 +13345,16 @@ Transaction_context_log_event(const char *server_uuid_arg,
   sid_map= new Sid_map(NULL);
   snapshot_version= new Gtid_set(sid_map);
 
-  global_sid_lock->wrlock();
   /*
-    Copy global_sid_map to a local copy to avoid that all
-    certification operations on top of this snapshot version do
-    require that global_sid_lock is acquired.
+    Copy global_sid_map to a local copy to avoid the acquisition
+    of the global_sid_lock for operations on top of this snapshot
+    version.
+    The Sid_map and Gtid_executed must be read under the protection
+    of MYSQL_BIN_LOG.LOCK_commit to avoid race conditions between
+    ordered commits in the storage engine and gtid_state update.
   */
-  enum_return_status return_status= global_sid_map->copy(sid_map);
-  if (return_status != RETURN_STATUS_OK)
-  {
-    global_sid_lock->unlock();
+  if (mysql_bin_log.get_gtid_executed(sid_map, snapshot_version))
     goto err;
-  }
-
-  return_status= snapshot_version->add_gtid_set(gtid_state->get_executed_gtids());
-  if (return_status != RETURN_STATUS_OK)
-  {
-    global_sid_lock->unlock();
-    goto err;
-  }
-  global_sid_lock->unlock();
 
   server_uuid= my_strdup(key_memory_log_event, server_uuid_arg, MYF(MY_WME));
   if (server_uuid == NULL)

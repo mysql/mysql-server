@@ -6278,7 +6278,8 @@ ha_innobase::open(const char* name, int, uint, const dd::Table* dd_tab)
 	file can't be retrieved properly, mark it as corrupted. */
 	if (ib_table != NULL
 	    && dict_table_is_encrypted(ib_table)
-	    && ib_table->ibd_file_missing) {
+	    && ib_table->ibd_file_missing
+	    && !dict_table_is_discarded(ib_table)) {
 
 		/* Mark this table as corrupted, so the drop table
 		or force recovery can still use it, but not others. */
@@ -15794,6 +15795,11 @@ ha_innobase::end_stmt()
 
 	/* This transaction had called ha_innobase::start_stmt() */
 	trx_t*	trx = m_prebuilt->trx;
+
+	if (trx != thd_to_trx(ha_thd())) {
+		return(0);
+	}
+
 	ut_ad(trx->duplicates == 0);
 
 	if (trx->lock.start_stmt) {

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -100,6 +100,10 @@ void Abstract_chain_element::object_processing_ends(
   if (processed_item != NULL && processed_item->end_processing())
   {
     this->report_object_processing_ended(processed_item);
+    if (processed_item->call_completion_callback_at_end())
+    {
+      delete processed_item;
+    }
   }
 }
 

@@ -4058,27 +4058,28 @@ void Item_char_typecast::print(String *str, enum_query_type query_type)
 
 String *Item_char_typecast::val_str(String *str)
 {
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(fixed);
+  THD *thd= current_thd;
   uint32 length;
 
   if (cast_length >= 0 &&
-      ((unsigned) cast_length) > current_thd->variables.max_allowed_packet)
+      static_cast<ulonglong>(cast_length) > thd->variables.max_allowed_packet)
   {
-    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
-			ER_THD(current_thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
-			cast_cs == &my_charset_bin ?
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_WARN_ALLOWED_PACKET_OVERFLOWED,
+                        ER_THD(thd, ER_WARN_ALLOWED_PACKET_OVERFLOWED),
+                        cast_cs == &my_charset_bin ?
                         "cast_as_binary" : func_name(),
-                        current_thd->variables.max_allowed_packet);
-    null_value= 1;
-    return 0;
+                        thd->variables.max_allowed_packet);
+    null_value= true;
+    return nullptr;
   }
 
   String *res= args[0]->val_str(str);
-  if (res == NULL)
+  if (res == nullptr)
   {
     null_value= true;
-    return 0;
+    return nullptr;
   }
   /*
     Convert character set if differ
@@ -4115,16 +4116,17 @@ String *Item_char_typecast::val_str(String *str)
         res= &tmp_value;
       }
       ErrConvString err(res);
-      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_TRUNCATED_WRONG_VALUE,
-                          ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE),
+                          ER_THD(thd, ER_TRUNCATED_WRONG_VALUE),
                           char_type,
                           err.ptr());
       res->length(length);
     }
-    else if (cast_cs == &my_charset_bin && res->length() < (uint) cast_length)
+    else if (cast_cs == &my_charset_bin &&
+             res->length() < static_cast<ulonglong>(cast_length))
     {
-      if (res->alloced_length() < (uint) cast_length)
+      if (res->alloced_length() < static_cast<ulonglong>(cast_length))
       {
         if (res == &tmp_value)
         {
@@ -4144,7 +4146,7 @@ String *Item_char_typecast::val_str(String *str)
       res->length(cast_length);
     }
   }
-  null_value= 0;
+  null_value= false;
   return res;
 }
 

@@ -207,13 +207,33 @@
 /**
   @page PAGE_EXTENDING Extending MySQL
 
-  @section extending_plugin Plugins
+  Plugins and Services
+  --------------------
 
-  See #Sql_cmd_install_plugin, #Sql_cmd_uninstall_plugin.
+  As of MySQL 5.1 the server functionality can be extended through
+  installing (dynamically or statically linked) extra code modules.
 
-  @section extending_udf User Defined Functions
+  The server defines a set of well known plugin APIs that the modules
+  can implement.
 
-  See #add_udf, #del_udf.
+  To allow plugins to reuse server code the server exposes a pre-defined
+  set of functions to plugins called plugin services.
+
+  See the following for more details:
+  - @subpage page_ext_plugins
+  - @subpage page_ext_plugin_services
+
+
+  User Defined Functions
+  ----------------------
+
+  Native code user defined functions can be added to MySQL server using
+  the CREATE FUNCTION ... SONAME syntax.
+
+  These can co-exit with @ref page_ext_plugins or reside in their own
+  separate binaries.
+
+  To learn how to create these user defined functions see @subpage page_ext_udf
 */
 
 
@@ -9053,7 +9073,6 @@ PSI_thread_key key_thread_handle_manager;
 PSI_thread_key key_thread_one_connection;
 PSI_thread_key key_thread_compress_gtid_table;
 PSI_thread_key key_thread_parser_service;
-PSI_thread_key key_thread_daemon_plugin;
 
 #ifndef EMBEDDED_LIBRARY
 static PSI_thread_info all_server_threads[]=
@@ -9071,7 +9090,6 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_signal_hand, "signal_handler", PSI_FLAG_GLOBAL},
   { &key_thread_compress_gtid_table, "compress_gtid_table", PSI_FLAG_GLOBAL},
   { &key_thread_parser_service, "parser_service", PSI_FLAG_GLOBAL},
-  { &key_thread_daemon_plugin, "daemon_plugin", PSI_FLAG_GLOBAL}
 };
 #endif // !EMBEDDED_LIBRARY
 

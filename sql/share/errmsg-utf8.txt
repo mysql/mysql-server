@@ -7691,6 +7691,12 @@ ER_TOO_LONG_ROUTINE_COMMENT
 ER_SP_LOAD_FAILED
   eng "Failed to load routine '%-.64s'."
 
+ER_INVALID_BITWISE_OPERANDS_SIZE
+  eng "Binary operands of bitwise operators must be of equal length"
+
+ER_INVALID_BITWISE_AGGREGATE_OPERANDS_SIZE
+  eng "Aggregate bitwise functions cannot accept arguments longer than 511 bytes; consider using the SUBSTRING() function"
+
 ER_TOO_LONG_TABLESPACE_COMMENT
   eng "Comment for tablespace '%-.64s' is too long (max = %lu)"
 

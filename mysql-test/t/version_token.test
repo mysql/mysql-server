@@ -224,7 +224,8 @@ CONNECT (vtcon3, localhost, root,,);
 CONNECTION vtcon1;
 SELECT version_tokens_set("a=aa;b=bb;c=cc");
 set @@version_tokens_session= "a=aa";
---send SELECT sleep(5); # sleep for 5 seconds in background.
+--let $t1_vtcon1 = `SELECT sysdate()`
+--send SELECT sleep(6); # sleep for 6 seconds in background.
 
 -- echo # Connection: vtcon2
 CONNECTION vtcon2;
@@ -238,12 +239,11 @@ if ($t3_vtcon2 >= "03") {
 
 -- echo # Connection: vtcon3
 CONNECTION vtcon3;
---let $t1_vtcon3 = `SELECT sysdate()`
 SELECT version_tokens_lock_exclusive("a",20);
 --let $t2_vtcon3 = `SELECT sysdate()`
---let $t3_vtcon3 = `SELECT time_format(timediff("$t2_vtcon3","$t1_vtcon3"),'%S')`
-if ($t3_vtcon3 <= "04") {
---echo vtcon2 - Time difference should be not less than 4 seconds, waited till lock on a is released by default connection
+--let $t3_vtcon3 = `SELECT time_format(timediff("$t2_vtcon3","$t1_vtcon1"),'%S')`
+if ($t3_vtcon3 < "06") {
+--echo vtcon2 - Time difference should be not less than 6 seconds, waited till lock on a is released by vtcon1
 }
 SELECT version_tokens_unlock();
 -- echo # Connection: vtcon1

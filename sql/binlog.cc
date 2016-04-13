@@ -7208,6 +7208,33 @@ uint MYSQL_BIN_LOG::next_file_id()
 }
 
 
+int MYSQL_BIN_LOG::get_gtid_executed(Sid_map *sid_map, Gtid_set *gtid_set)
+{
+  DBUG_ENTER("MYSQL_BIN_LOG::get_gtid_executed");
+  int error= 0;
+
+  mysql_mutex_lock(&mysql_bin_log.LOCK_commit);
+  global_sid_lock->wrlock();
+
+  enum_return_status return_status= global_sid_map->copy(sid_map);
+  if (return_status != RETURN_STATUS_OK)
+  {
+    error= 1;
+    goto end;
+  }
+
+  return_status= gtid_set->add_gtid_set(gtid_state->get_executed_gtids());
+  if (return_status != RETURN_STATUS_OK)
+    error= 1;
+
+end:
+  global_sid_lock->unlock();
+  mysql_mutex_unlock(&mysql_bin_log.LOCK_commit);
+
+  DBUG_RETURN(error);
+}
+
+
 /**
   Auxiliary function to read a page from the cache and set the given
   buffer pointer to point to the beginning of the page and the given

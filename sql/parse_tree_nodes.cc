@@ -20,6 +20,7 @@
 #include "sql_insert.h"     // Sql_cmd_insert...
 #include "mysqld.h"         // global_system_variables
 #include "sp_pcontext.h"
+#include "key_spec.h"
 
 
 /**
@@ -1181,6 +1182,106 @@ bool PT_alter_instance::contextualize(Parse_context *pc)
 
   LEX *lex= pc->thd->lex;
   lex->no_write_to_binlog= false;
+
+  return false;
+}
+
+
+static bool setup_index(keytype key_type,
+                        const LEX_STRING name,
+                        PT_base_index_option *type,
+                        List<Key_part_spec> *columns,
+                        Index_options options,
+                        Index_options lock_and_algorithm_options,
+                        Parse_context *pc)
+{
+  THD *thd= pc->thd;
+  LEX *lex= thd->lex;
+
+  lex->key_create_info= default_key_create_info;
+
+  if (type != NULL && type->contextualize(pc))
+    return true;
+
+  if (contextualize_nodes(options, pc) ||
+      contextualize_nodes(lock_and_algorithm_options, pc))
+    return true;
+
+  Key_spec *key=
+    new Key_spec(thd->mem_root, key_type, to_lex_cstring(name),
+                 &lex->key_create_info, false, true, *columns);
+  if (key == NULL || lex->alter_info.key_list.push_back(key))
+    return true;
+
+  return false;
+}
+
+
+bool PT_index_definition_stmt::contextualize(Parse_context *pc)
+{
+  THD *thd= pc->thd;
+  LEX *lex= thd->lex;
+  SELECT_LEX *select_lex= lex->current_select();
+
+  lex->sql_command= SQLCOM_CREATE_INDEX;
+
+  if (select_lex->add_table_to_list(thd, m_table_ident, NULL,
+                                    TL_OPTION_UPDATING,
+                                    TL_READ_NO_INSERT,
+                                    MDL_SHARED_UPGRADABLE) == NULL)
+    return true;
+
+  lex->alter_info.reset();
+  lex->alter_info.flags= Alter_info::ALTER_ADD_INDEX;
+
+  lex->change= NullS;
+
+  return setup_index(m_keytype, m_name, m_type, m_columns, m_options,
+                     m_lock_and_algorithm_options, pc);
+}
+
+
+bool PT_inline_index_definition::contextualize(Parse_context *pc)
+{
+  Index_options empty_lock_and_algorithm_options;
+  empty_lock_and_algorithm_options.init(pc->thd->mem_root);
+  return setup_index(m_keytype, m_name, m_type, m_columns, m_options,
+                     empty_lock_and_algorithm_options, pc);
+}
+
+
+bool PT_foreign_key_definition::contextualize(Parse_context *pc)
+{
+  THD *thd= pc->thd;
+  LEX *lex= thd->lex;
+
+  lex->key_create_info= default_key_create_info;
+
+  const LEX_STRING used_name= m_key_name.str ? m_key_name : m_constraint_name;
+  Key_spec *foreign_key=
+    new Foreign_key_spec(thd->mem_root,
+                         to_lex_cstring(used_name),
+                         *m_columns,
+                         m_referenced_table->db,
+                         m_referenced_table->table,
+                         lex->ref_list,
+                         lex->fk_delete_opt,
+                         lex->fk_update_opt,
+                         lex->fk_match_option);
+  if (foreign_key == NULL || lex->alter_info.key_list.push_back(foreign_key))
+    return true;
+  /* Only used for ALTER TABLE. Ignored otherwise. */
+  lex->alter_info.flags|= Alter_info::ADD_FOREIGN_KEY;
+
+  const LEX_CSTRING index_name=
+    to_lex_cstring(m_constraint_name.str ? m_constraint_name : m_key_name);
+
+  Key_spec *key=
+    new Key_spec(thd->mem_root, KEYTYPE_MULTIPLE, index_name,
+                 &default_key_create_info, true, true, *m_columns);
+  if (key == NULL || lex->alter_info.key_list.push_back(key))
+    return true;
+
   return false;
 }
 

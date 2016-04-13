@@ -2371,18 +2371,18 @@ private:
   bool cleanup_done;
   void cleanup(void);
 
-public:
   void init(void);
-  /*
+public:
+  /**
     Initialize memory roots necessary for query processing and (!)
     pre-allocate memory for it. We can't do that in THD constructor because
     there are use cases (acl_init, watcher threads,
     killing mysqld) where it's vital to not allocate excessive and not used
-    memory. Note, that we still don't return error from init_for_queries():
+    memory. Note, that we still don't return error from init_query_mem_roots()
     if preallocation fails, we should notice that at the first call to
-    alloc_root. 
+    alloc_root.
   */
-  void init_for_queries(Relay_log_info *rli= NULL);
+  void init_query_mem_roots();
   void cleanup_connection(void);
   void cleanup_after_query();
   bool store_globals();

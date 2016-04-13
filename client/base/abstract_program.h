@@ -83,6 +83,10 @@ public:
    Prints program invocation message.
   */
   virtual void short_usage()= 0;
+  /**
+   Return error code
+  */
+  virtual int get_error_code()= 0;
 
 protected:
   Abstract_program();

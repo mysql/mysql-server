@@ -202,7 +202,7 @@ SELECT version_tokens_set("a=aa;b=bb;c=cc");
 version_tokens_set("a=aa;b=bb;c=cc")
 3 version tokens set.
 set @@version_tokens_session= "a=aa";
-SELECT sleep(5); # sleep for 5 seconds in background.;
+SELECT sleep(6); # sleep for 6 seconds in background.;
 # Connection: vtcon2
 SELECT version_tokens_lock_exclusive("b",20);
 version_tokens_lock_exclusive("b",20)
@@ -215,7 +215,7 @@ SELECT version_tokens_unlock();
 version_tokens_unlock()
 1
 # Connection: vtcon1
-sleep(5)
+sleep(6)
 0
 
 UNINSTALL PLUGIN version_tokens;

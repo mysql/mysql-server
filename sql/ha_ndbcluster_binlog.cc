@@ -649,7 +649,7 @@ ndb_create_thd(char * stackptr)
     DBUG_RETURN(0);
   }
 
-  thd->init_for_queries();
+  thd->init_query_mem_roots();
   thd_set_command(thd, COM_DAEMON);
   thd->system_thread= SYSTEM_THREAD_NDBCLUSTER_BINLOG;
 #ifndef NDB_THD_HAS_NO_VERSION
@@ -6466,9 +6466,9 @@ restart_cluster_failure:
   }
   mysql_mutex_unlock(&LOCK_server_started);
 
-  // Defer call of THD::init_for_query until after mysqld_server_started
+  // Defer call of THD::init_query_mem_roots until after mysqld_server_started
   // to ensure that the parts of MySQL Server it uses has been created
-  thd->init_for_queries();
+  thd->init_query_mem_roots();
 
   log_verbose(1, "Check for incidents");
 

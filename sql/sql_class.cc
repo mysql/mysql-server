@@ -860,34 +860,12 @@ void THD::init(void)
 }
 
 
-/*
-  Init THD for query processing.
-  This has to be called once before we call mysql_parse.
-  See also comments in sql_class.h.
-*/
-
-void THD::init_for_queries(Relay_log_info *rli)
+void THD::init_query_mem_roots()
 {
-  set_time(); 
-  ha_enable_transaction(this,TRUE);
-
   reset_root_defaults(mem_root, variables.query_alloc_block_size,
                       variables.query_prealloc_size);
   get_transaction()->init_mem_root_defaults(variables.trans_alloc_block_size,
                                             variables.trans_prealloc_size);
-  get_transaction()->xid_state()->reset();
-#if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
-  if (rli)
-  {
-    if ((rli->deferred_events_collecting= rpl_filter->is_on()))
-    {
-      rli->deferred_events= new Deferred_log_events(rli);
-    }
-    rli_slave= rli;
-
-    DBUG_ASSERT(rli_slave->info_thd == this && slave_thread);
-  }
-#endif
 }
 
 

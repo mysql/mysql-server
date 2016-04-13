@@ -376,6 +376,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
     /* Fall through */
   case Item::COND_ITEM:
   case Item::FIELD_AVG_ITEM:
+  case Item::FIELD_BIT_ITEM:
   case Item::FIELD_STD_ITEM:
   case Item::FIELD_VARIANCE_ITEM:
   case Item::SUBSELECT_ITEM:

@@ -21,6 +21,7 @@
 #include "my_decimal.h" // string2my_decimal
 #include "set_var.h"    // enum_var_type
 #include "sql_udf.h"    // udf_handler
+#include <functional>
 
 #include <cmath>        // isfinite
 
@@ -1521,50 +1522,124 @@ public:
 
 /* Base class for all bit functions: '~', '|', '^', '&', '>>', '<<' */
 
-class Item_func_bit: public Item_int_func
+class Item_func_bit: public Item_func
 {
 protected:
-  /// @returns Second arg which check_deprecated_bin_op() should check.
-  virtual Item* check_deprecated_second_arg() const= 0;
+  /// Stores the Item's result type. Can only be INT_RESULT or STRING_RESULT
+  Item_result hybrid_type;
+  /// Buffer storing the determined value
+  String tmp_value;
+  /**
+     @returns true if the second argument should be of binary type for the
+     result to be of binary type.
+  */
+  virtual bool binary_result_requires_binary_second_arg() const= 0;
 public:
-  Item_func_bit(Item *a, Item *b) :Item_int_func(a, b) {}
-  Item_func_bit(const POS &pos, Item *a, Item *b) :Item_int_func(pos, a, b) {}
+  Item_func_bit(const POS &pos, Item *a, Item *b) :Item_func(pos, a, b) {}
+  Item_func_bit(const POS &pos, Item *a) :Item_func(pos, a) {}
 
-  Item_func_bit(Item *a) :Item_int_func(a) {}
-  Item_func_bit(const POS &pos, Item *a) :Item_int_func(pos, a) {}
+  virtual bool resolve_type(THD *thd);
+  enum Item_result result_type () const { return hybrid_type; }
 
-  virtual bool resolve_type(THD *thd)
-  {
-    unsigned_flag= 1;
-    check_deprecated_bin_op(args[0], check_deprecated_second_arg());
-    return false;
-  }
+  virtual longlong val_int();
+  virtual String *val_str(String *str);
+  virtual double val_real();
+  virtual my_decimal *val_decimal(my_decimal *decimal_value);
 
   virtual inline void print(String *str, enum_query_type query_type)
   {
     print_op(str, query_type);
   }
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+  {
+    if (hybrid_type == INT_RESULT)
+      return get_date_from_int(ltime, fuzzydate);
+    else
+      return get_date_from_string(ltime, fuzzydate);
+  }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    if (hybrid_type == INT_RESULT)
+      return get_time_from_int(ltime);
+    else
+      return get_time_from_string(ltime);
+  }
+private:
+  /**
+    @brief Performs the operation on integers to produce a result of type
+    INT_RESULT.
+    @return The result of the operation.
+ */
+  virtual longlong int_op()= 0;
+
+  /**
+    @brief Performs the operation on binary strings to produce a result of
+    type STRING_RESULT.
+    @return The result of the operation.
+  */
+  virtual String *str_op(String *)= 0;
 };
 
-class Item_func_bit_or :public Item_func_bit
+
+/**
+  Base class for all the bit functions that work with two binary
+  arguments: '&', '|', '^'.
+*/
+
+class Item_func_bit_two_param: public Item_func_bit
 {
-  Item *check_deprecated_second_arg() const { return args[1]; }
+protected:
+  bool binary_result_requires_binary_second_arg() const { return true; }
+  template<class Char_func, class Int_func>
+  String * eval_str_op(String *str, Char_func char_func, Int_func int_func);
+  template<class Int_func> longlong eval_int_op(Int_func int_func);
 public:
-  Item_func_bit_or(const POS &pos, Item *a, Item *b) :Item_func_bit(pos, a, b)
+  Item_func_bit_two_param(const POS &pos, Item *a, Item *b)
+    :Item_func_bit(pos, a, b)
   {}
-  longlong val_int();
+};
+
+
+class Item_func_bit_or :public Item_func_bit_two_param
+{
+public:
+  Item_func_bit_or(const POS &pos, Item *a, Item *b)
+    :Item_func_bit_two_param(pos, a, b)
+  {}
   const char *func_name() const { return "|"; }
+private:
+  longlong int_op() { return eval_int_op(std::bit_or<ulonglong>()); }
+  String *str_op(String *str)
+  { return eval_str_op(str, std::bit_or<char>(), std::bit_or<ulonglong>()); }
 };
 
-class Item_func_bit_and :public Item_func_bit
+class Item_func_bit_and :public Item_func_bit_two_param
 {
-  Item *check_deprecated_second_arg() const { return args[1]; }
 public:
-  Item_func_bit_and(const POS &pos, Item *a, Item *b) :Item_func_bit(pos, a, b)
+  Item_func_bit_and(const POS &pos, Item *a, Item *b)
+    :Item_func_bit_two_param(pos, a, b)
   {}
-  longlong val_int();
   const char *func_name() const { return "&"; }
+private:
+  longlong int_op() { return eval_int_op(std::bit_and<ulonglong>()); }
+  String *str_op(String *str)
+  { return eval_str_op(str, std::bit_and<char>(), std::bit_and<ulonglong>()); }
 };
+
+
+class Item_func_bit_xor : public Item_func_bit_two_param
+{
+public:
+  Item_func_bit_xor(const POS &pos, Item *a, Item *b)
+    :Item_func_bit_two_param(pos, a, b)
+  {}
+  const char *func_name() const { return "^"; }
+private:
+  longlong int_op() { return eval_int_op(std::bit_xor<ulonglong>()); }
+  String *str_op(String *str)
+  { return eval_str_op(str, std::bit_xor<char>(), std::bit_xor<ulonglong>()); }
+};
+
 
 class Item_func_bit_count :public Item_int_func
 {
@@ -1574,46 +1649,64 @@ public:
   const char *func_name() const { return "bit_count"; }
   virtual bool resolve_type(THD *thd)
   {
-    max_length= 2;
-    check_deprecated_bin_op(args[0], NULL);
+    max_length= MAX_BIGINT_WIDTH + 1;
     return false;
   }
 };
 
-class Item_func_shift_left :public Item_func_bit
+
+class Item_func_shift :public Item_func_bit
 {
-  Item *check_deprecated_second_arg() const { return NULL; }
+protected:
+  bool binary_result_requires_binary_second_arg() const { return false; }
+  template<bool to_left> longlong eval_int_op();
+  template<bool to_left> String *eval_str_op(String *str);
 public:
-  Item_func_shift_left(const POS &pos, Item *a, Item *b)
+  Item_func_shift(const POS &pos, Item *a, Item *b)
     :Item_func_bit(pos, a, b)
   {}
-  longlong val_int();
-  const char *func_name() const { return "<<"; }
 };
 
-class Item_func_shift_right :public Item_func_bit
+class Item_func_shift_left :public Item_func_shift
 {
-  Item *check_deprecated_second_arg() const { return NULL; }
+public:
+  Item_func_shift_left(const POS &pos, Item *a, Item *b)
+    :Item_func_shift(pos, a, b)
+  {}
+  const char *func_name() const { return "<<"; }
+private:
+  longlong int_op() { return eval_int_op<true>(); }
+  String *str_op(String *str) { return eval_str_op<true>(str); }
+};
+
+
+class Item_func_shift_right :public Item_func_shift
+{
 public:
   Item_func_shift_right(const POS &pos, Item *a, Item *b)
-    :Item_func_bit(pos, a, b)
+    :Item_func_shift(pos, a, b)
   {}
-  longlong val_int();
   const char *func_name() const { return ">>"; }
+private:
+  longlong int_op() { return eval_int_op<false>(); }
+  String *str_op(String *str) { return eval_str_op<false>(str); }
 };
+
 
 class Item_func_bit_neg :public Item_func_bit
 {
-  Item *check_deprecated_second_arg() const { return NULL; }
+protected:
+  bool binary_result_requires_binary_second_arg() const { return false; }
 public:
   Item_func_bit_neg(const POS &pos, Item *a) :Item_func_bit(pos, a) {}
-  longlong val_int();
   const char *func_name() const { return "~"; }
-
   virtual inline void print(String *str, enum_query_type query_type)
   {
     Item_func::print(str, query_type);
   }
+private:
+  longlong int_op();
+  String *str_op(String *str);
 };
 
 
@@ -2797,16 +2890,6 @@ private:
   }
 };
 
-
-class Item_func_bit_xor : public Item_func_bit
-{
-  Item *check_deprecated_second_arg() const { return args[1]; }
-public:
-  Item_func_bit_xor(const POS &pos, Item *a, Item *b) :Item_func_bit(pos, a, b)
-  {}
-  longlong val_int();
-  const char *func_name() const { return "^"; }
-};
 
 class Item_func_is_free_lock :public Item_int_func
 {

@@ -14,13 +14,6 @@ innodb.log_file_size_1                       : Bug#19442959 2015-11-05 jhauglid
 innodb.log_file_system                       : Bug#19442959 2015-11-05 jhauglid
 innodb.temporary_table                       : Bug#19442959 2015-11-05 jhauglid
 innodb.table_encrypt_2                       : Bug#21237667 2016-02-05 hvadodar
-main.mysqlpump_basic                         : Bug#21697494 2015-11-05 jhauglid
-main.mysqlpump_charset                       : Bug#21697494 2015-11-05 jhauglid
-main.mysqlpump_concurrency                   : Bug#21697494 2015-11-05 jhauglid
-main.mysqlpump_extended                      : Bug#21697494 2015-11-05 jhauglid
-main.mysqlpump                               : Bug#21697494 2015-11-30 jhauglid
-main.mysqlpump_filters                       : Bug#21697494 2015-11-30 jhauglid
-main.mysqlpump_multi_thread                  : Bug#21697494 2015-11-30 jhauglid
 rpl.rpl_row_001                              : Bug#22607168 2016-01-27 jhauglid
 rpl.rpl_row_reset_slave                      : Bug#22607168 2016-01-27 jhauglid
 rpl.rpl_stm_reset_slave                      : Bug#22607168 2016-01-27 jhauglid

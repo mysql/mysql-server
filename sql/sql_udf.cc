@@ -49,6 +49,13 @@
 #include <dlfcn.h>
 #endif
 
+/**
+  @page page_ext_udf User Defined Functions
+
+  @todo Document me
+
+  @sa add_udf, del_udf.
+*/
 
 static bool initialized = 0;
 static MEM_ROOT mem;

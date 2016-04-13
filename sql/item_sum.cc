@@ -1265,6 +1265,157 @@ Item_sum_num::fix_fields(THD *thd, Item **ref)
   return false;
 }
 
+bool
+Item_sum_bit::fix_fields(THD *thd, Item **ref)
+{
+  DBUG_ASSERT(!fixed);
+
+  if (init_sum_func_check(thd))
+    return true;
+
+  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
+
+  for (uint i= 0 ; i < arg_count ; i++)
+  {
+    if ((!args[i]->fixed && args[i]->fix_fields(current_thd, args + i)) ||
+        args[i]->check_cols(1))
+      return true;
+  }
+
+  if (resolve_type(thd))
+    return true;
+
+  if (thd->is_error())
+    return true;
+
+  if (check_sum_func(thd, ref))
+    return true;
+
+  fixed= true;
+  return false;
+}
+
+
+bool Item_sum_bit::resolve_type(THD *thd)
+{
+  max_length= 0;
+  if (bit_func_returns_binary(args[0], nullptr))
+  {
+    hybrid_type= STRING_RESULT;
+    for (uint i= 0 ; i < arg_count ; i++)
+      max_length= std::max(max_length, args[i]->max_length);
+    if (max_length > (CONVERT_IF_BIGGER_TO_BLOB - 1))
+    {
+      /*
+        Implementation of Item_sum_bit_field expects that "result_field" is
+        Field_varstring, not Field_blob, so that the buffer's content is easily
+        modifiable.
+        The above check guarantees that the tmp table code will choose a
+        Field_varstring over a Field_blob, and an assertion is present in the
+        constructor of Item_sum_bit_field to verify the Field.
+      */
+      my_error(ER_INVALID_BITWISE_AGGREGATE_OPERANDS_SIZE, MYF(0), func_name());
+      return true;
+    }
+    /*
+     One extra byte needed to store a per-group boolean flag
+     if Item_sum_bit_field is used.
+    */
+    max_length++;
+  }
+  else
+  {
+    hybrid_type= INT_RESULT;
+    max_length= MAX_BIGINT_WIDTH + 1;
+  }
+
+  maybe_null= false;
+  null_value= false;
+  result_field= nullptr;
+  decimals= 0;
+  unsigned_flag= true;
+
+  return reject_geometry_args(arg_count, args, this);
+}
+
+/**
+   Executes the requested bitwise operation, taking args[0] as argument.
+   If the result type is 'binary string':
+   - takes value_buff as second argument and stores the result in value_buff.
+   - sets the last character of value_buff to be a 'char' equal to
+   1 if at least one non-NULL value has been seen for this group, to 0
+   otherwise.
+   If the result type is integer:
+   - takes 'bits' as second argument and stores the result in 'bits'.
+*/
+template<class Char_op, class Int_op> bool
+Item_sum_bit::eval_op(Char_op char_op, Int_op int_op)
+{
+  if (hybrid_type == STRING_RESULT)
+  {
+    String tmp_str;
+    const String *s1= args[0]->val_str(&tmp_str);
+
+    if (!s1 || args[0]->null_value)
+      return false;
+
+    // See if there has been a non-NULL value in this group:
+    const bool non_nulls= value_buff.ptr()[value_buff.length() - 1];
+    if (!non_nulls)
+    {
+      // Allocate length of argument + one extra byte for non_nulls
+      value_buff.alloc(s1->length() + 1);
+      value_buff.length(s1->length() + 1);
+      // This is the first non-NULL value of the group, accumulate it.
+      std::memcpy(value_buff.c_ptr(), s1->ptr(), s1->length());
+      // Store that a non-NULL value has been seen.
+      const_cast<char *>(value_buff.ptr())[s1->length()]= 1;
+
+      return false;
+    }
+
+    DBUG_ASSERT(value_buff.length() > 0);
+    size_t buff_length= value_buff.length() - 1;
+    /*
+      If current value's length is different from the length of the
+      accumulated value for this group, return error.
+     */
+    if (buff_length != s1->length())
+    {
+      my_error(ER_INVALID_BITWISE_OPERANDS_SIZE, MYF(0), func_name());
+      return false;
+    }
+
+    // At this point the values should be not-null and have the same size.
+    const uchar *s1_c_p= pointer_cast<const uchar *>(s1->ptr());
+    uchar *str_bits=
+      pointer_cast<uchar *>(const_cast<char *>(value_buff.ptr()));
+    size_t i= 0;
+    // Execute the bitwise operation.
+    while (i + sizeof(longlong) <= buff_length)
+    {
+      int8store(&str_bits[i],
+                int_op(uint8korr(&s1_c_p[i]), uint8korr(&str_bits[i])));
+      i+= sizeof(longlong);
+    }
+    while (i < buff_length)
+    {
+      str_bits[i]= char_op(s1_c_p[i], str_bits[i]);
+      i++;
+    }
+
+    return false;
+  } // end hybrid_type == STRING_RESULT
+  else // hybrid_type == INT_RESULT
+  {
+    ulonglong value= (ulonglong) args[0]->val_int();
+    if (!args[0]->null_value)
+      bits= int_op(bits, value);
+  }
+
+  return false;
+}
+
 
 bool
 Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
@@ -2239,18 +2390,99 @@ bool Item_sum_max::add()
 }
 
 
+String *Item_sum_bit::val_str(String *str)
+{
+  if (hybrid_type == INT_RESULT)
+    return val_string_from_int(str);
+
+  DBUG_ASSERT(value_buff.length() > 0);
+  const bool non_nulls= value_buff.ptr()[value_buff.length() - 1];
+  // If the group has no non-NULLs repeat the default value max_length times.
+  if (!non_nulls)
+  {
+    if (str->alloc(max_length - 1))
+      return nullptr;
+    std::memset(const_cast<char *>(str->ptr()),
+                static_cast<int>(reset_bits), max_length - 1);
+    str->length(max_length - 1);
+  }
+  else
+    // Remove the flag from result
+    str->set(value_buff, 0, value_buff.length() - 1);
+
+  str->set_charset(&my_charset_bin);
+  return str;
+}
+
+
+bool Item_sum_bit::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+{
+  if (hybrid_type == INT_RESULT)
+    return get_date_from_int(ltime, fuzzydate);
+  else
+    return get_date_from_string(ltime, fuzzydate);
+}
+
+
+bool Item_sum_bit::get_time(MYSQL_TIME *ltime)
+{
+  if (hybrid_type == INT_RESULT)
+    return get_time_from_int(ltime);
+  else
+    return get_time_from_string(ltime);
+}
+
+
+my_decimal *Item_sum_bit::val_decimal(my_decimal *dec_buf)
+{
+  if (hybrid_type == INT_RESULT)
+    return val_decimal_from_int(dec_buf);
+  else
+    return val_decimal_from_string(dec_buf);
+}
+
+
+
+double Item_sum_bit::val_real()
+{
+  DBUG_ASSERT(fixed);
+  if (hybrid_type == INT_RESULT)
+    return bits;
+  String *res;
+  if (!(res= val_str(&str_value)))
+    return 0.0;
+
+  int ovf_error;
+  char *from= const_cast<char *>(res->ptr());
+  size_t len= res->length();
+  char *end= from + len;
+  return my_strtod(from, &end, &ovf_error);
+}
 /* bit_or and bit_and */
 
 longlong Item_sum_bit::val_int()
 {
-  DBUG_ASSERT(fixed == 1);
-  return (longlong) bits;
+  DBUG_ASSERT(fixed);
+  if (hybrid_type == INT_RESULT)
+    return (longlong) bits;
+
+  String *res;
+  if (!(res= val_str(&str_value)))
+    return 0;
+
+  int ovf_error;
+  char *from= const_cast<char *>(res->ptr());
+  size_t len= res->length();
+  char *end= from + len;
+  return my_strtoll10(from, &end, &ovf_error);
 }
 
 
 void Item_sum_bit::clear()
 {
   bits= reset_bits;
+  value_buff.length(1);
+  const_cast<char *>(value_buff.ptr())[0]= 0;
 }
 
 Item *Item_sum_or::copy_or_same(THD* thd)
@@ -2261,10 +2493,7 @@ Item *Item_sum_or::copy_or_same(THD* thd)
 
 bool Item_sum_or::add()
 {
-  ulonglong value= (ulonglong) args[0]->val_int();
-  if (!args[0]->null_value)
-    bits|=value;
-  return 0;
+  return eval_op(std::bit_or<char>(), std::bit_or<ulonglong>());
 }
 
 Item *Item_sum_xor::copy_or_same(THD* thd)
@@ -2275,10 +2504,7 @@ Item *Item_sum_xor::copy_or_same(THD* thd)
 
 bool Item_sum_xor::add()
 {
-  ulonglong value= (ulonglong) args[0]->val_int();
-  if (!args[0]->null_value)
-    bits^=value;
-  return 0;
+  return eval_op(std::bit_xor<char>(), std::bit_xor<ulonglong>());
 }
 
 Item *Item_sum_and::copy_or_same(THD* thd)
@@ -2289,10 +2515,7 @@ Item *Item_sum_and::copy_or_same(THD* thd)
 
 bool Item_sum_and::add()
 {
-  ulonglong value= (ulonglong) args[0]->val_int();
-  if (!args[0]->null_value)
-    bits&=value;
-  return 0;
+  return eval_op(std::bit_and<char>(), std::bit_and<ulonglong>());
 }
 
 /************************************************************************
@@ -2491,15 +2714,35 @@ void Item_sum_avg::reset_field()
 void Item_sum_bit::reset_field()
 {
   reset_and_add();
-  int8store(result_field->ptr, bits);
+  if (hybrid_type == INT_RESULT)
+    // Store the result in result_field
+    result_field->store(bits, unsigned_flag);
+  else
+    result_field->store(value_buff.ptr(), value_buff.length(),
+                        value_buff.charset());
 }
 
 void Item_sum_bit::update_field()
 {
-  uchar *res=result_field->ptr;
-  bits= uint8korr(res);
-  add();
-  int8store(res, bits);
+  if (hybrid_type == INT_RESULT)
+  {
+    // Restore previous value to bits
+    bits= result_field->val_int();
+    // Add the current value to the group determined value.
+    add();
+    // Store the value in the result_field
+    result_field->store(bits, unsigned_flag);
+  }
+  else // hybrid_type == STRING_RESULT
+  {
+    // Restore previous value to result_field
+    result_field->val_str(&value_buff);
+    // Add the current value to the previously determined one
+    add();
+    // Store the value in the result_field
+    result_field->store((char*) value_buff.ptr(), value_buff.length(),
+                        default_charset());
+  }
 }
 
 
@@ -2804,6 +3047,114 @@ String *Item_avg_field::val_str(String *str)
   return val_string_from_real(str);
 }
 
+
+Item_sum_bit_field::Item_sum_bit_field(Item_result res_type,
+                                       Item_sum_bit *item,
+                                       ulonglong neutral_element)
+{
+  reset_bits= neutral_element;
+  item_name= item->item_name;
+  decimals= item->decimals;
+  max_length= item->max_length;
+  unsigned_flag= item->unsigned_flag;
+  field= item->result_field;
+  maybe_null= false;
+  hybrid_type= res_type;
+  // Implementation requires a non-Blob for string results.
+  DBUG_ASSERT(hybrid_type != STRING_RESULT ||
+              field->type() == MYSQL_TYPE_VARCHAR);
+}
+
+longlong Item_sum_bit_field::val_int()
+{
+  if (hybrid_type == INT_RESULT)
+    return uint8korr(field->ptr);
+  else
+  {
+    String *res;
+    if (!(res= val_str(&str_value)))
+      return 0;
+
+    int ovf_error;
+    char *from= const_cast<char *>(res->ptr());
+    size_t len= res->length();
+    char *end= from + len;
+    return my_strtoll10(from, &end, &ovf_error);
+  }
+}
+
+
+double Item_sum_bit_field::val_real()
+{
+  if (hybrid_type == INT_RESULT)
+  {
+    ulonglong result= uint8korr(field->ptr);
+    return result;
+  }
+  else
+  {
+    String *res;
+    if (!(res= val_str(&str_value)))
+      return 0.0;
+
+    int ovf_error;
+    char *from= const_cast<char *>(res->ptr());
+    size_t len= res->length();
+    char *end= from + len;
+
+    return my_strtod(from, &end, &ovf_error);
+  }
+}
+
+
+my_decimal *Item_sum_bit_field::val_decimal(my_decimal *dec_buf)
+{
+  if (hybrid_type == INT_RESULT)
+    return val_decimal_from_int(dec_buf);
+  else
+    return val_decimal_from_string(dec_buf);
+}
+
+
+/// @see Item_sum_bit::val_str()
+String *Item_sum_bit_field::val_str(String *str)
+{
+  if (hybrid_type == INT_RESULT)
+    return val_string_from_int(str);
+  else
+  {
+    String *res_str= field->val_str(str);
+    const bool non_nulls= res_str->ptr()[res_str->length() - 1];
+    if (!non_nulls)
+    {
+      DBUG_EXECUTE_IF("simulate_sum_out_of_memory", {return nullptr;});
+      if (res_str->alloc(max_length - 1))
+        return nullptr;
+      std::memset(const_cast<char *>(res_str->ptr()),
+                  static_cast<int>(reset_bits), max_length - 1);
+      res_str->length(max_length - 1);
+      res_str->set_charset(&my_charset_bin);
+    }
+    else
+      res_str->length(res_str->length() - 1);
+    return res_str;
+  }
+}
+
+bool Item_sum_bit_field::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+{
+  if (hybrid_type == INT_RESULT)
+    return get_date_from_decimal(ltime, fuzzydate);
+  else
+    return get_date_from_string(ltime, fuzzydate);
+}
+bool Item_sum_bit_field::get_time(MYSQL_TIME *ltime)
+{
+  if (hybrid_type == INT_RESULT)
+    return get_time_from_numeric(ltime);
+  else
+    return get_time_from_string(ltime);
+}
 
 Item_std_field::Item_std_field(Item_sum_std *item)
   : Item_variance_field(item)

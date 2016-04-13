@@ -741,13 +741,13 @@ static inline int mysql_mutex_lock(...)
   object "PFS_wait_locker (T-D, M-2)" as TDM2
 
   object "PFS_mutex (M-1)" as M1
-  M1:m_wait_stat
+  M1 : m_wait_stat
 
   object "PFS_mutex (M-2)" as M2
-  M2:m_wait_stat
+  M2 : m_wait_stat
 
   object "PFS_mutex_class (M)" as M
-  M:m_wait_stat
+  M : m_wait_stat
 
   M <-- M1
   M1 <-- TAM1
