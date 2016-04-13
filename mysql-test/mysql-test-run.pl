@@ -2826,6 +2826,9 @@ sub environment_setup {
   # Ask UBSAN to print stack traces
   $ENV{'UBSAN_OPTIONS'}= "print_stacktrace=1" if $opt_sanitize;
 
+  # Make sure LeakSanitizer exits if leaks are found
+  $ENV{'LSAN_OPTIONS'}= "exitcode=42" if $opt_sanitize;
+
   # Add dir of this perl to aid mysqltest in finding perl
   my $perldir= dirname($^X);
   my $pathsep= ":";
