@@ -116,7 +116,7 @@ if (!`select version() like '%embedded%'`)
 {
   # Restore value of show_compatibility_56
   --disable_query_log ONCE
-  set @@global.show_compatibility_56=ON;
+  set @@global.show_compatibility_56=default;
 }
 
 
