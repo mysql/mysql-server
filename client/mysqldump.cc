@@ -5994,7 +5994,10 @@ int main(int argc, char **argv)
     if (flush_logs || opt_delete_master_logs)
     {
       if (mysql_refresh(mysql, REFRESH_LOG))
+      {
+        DB_error(mysql, "when doing refresh");
         goto err;
+      }
       verbose_msg("-- main : logs flushed successfully!\n");
     }
 
