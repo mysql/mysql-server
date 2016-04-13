@@ -4681,9 +4681,10 @@ static int init_server_components()
 
   proc_info_hook= set_thd_stage_info;
 
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   /*
-    Parsing the performance schema command line option may have reported
+    Parsing the performance schema command line option and
+    adjusting the values for options such as "open_files_limit",
+    "max_connections", and "table_cache_size" may have reported
     warnings/information messages.
     Now that the logger is finally available, and redirected
     to the proper file when the --log--error option is used,
@@ -4691,7 +4692,6 @@ static int init_server_components()
   */
   buffered_logs.print();
   buffered_logs.cleanup();
-#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
   /*
     Now that the logger is available, redirect character set
