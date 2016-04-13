@@ -1241,7 +1241,7 @@ protected:
   /// Stores the Item's result type. Can only be INT_RESULT or STRING_RESULT
   Item_result hybrid_type;
   /// Buffer used to avoid String allocation in the constructor
-  char initial_value_buff_storage[1];
+  const char initial_value_buff_storage[1] = {0};
 public:
   Item_sum_bit(const POS &pos, Item *item_par, ulonglong reset_arg)
     :Item_sum(pos, item_par), reset_bits(reset_arg), bits(reset_arg),
