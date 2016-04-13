@@ -752,6 +752,8 @@ bool Sql_cmd_alter_table_exchange_partition::
 
       if (!thd->dd_client()->update_uncached_and_invalidate(
                                part_table_def.get()) &&
+          !thd->dd_client()->update_uncached_and_invalidate(
+                               swap_table_def.get()) &&
           !write_bin_log(thd, true, thd->query().str, thd->query().length,
                          true) &&
           !part_mdl_locker.ensure_locked(table_list->db) &&
