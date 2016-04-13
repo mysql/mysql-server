@@ -1,0 +1,3 @@
+call mtr.add_suppression("option 'innodb-buffer-pool-size': unsigned value 4294967296 adjusted to 2146435072");
+SET GLOBAL innodb_buffer_pool_size=4294967296;
+ERROR 42000: Variable 'innodb_buffer_pool_size can't be over 4GB  on 32-bit systems so ' can't be set to the value of '4294967296'
