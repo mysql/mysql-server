@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -31,6 +31,7 @@ extern ulong	srv_n_spin_wait_rounds;
 extern ulong	srv_force_recovery_crash;
 
 #ifdef UNIV_LIBRARY
+/* Mutexes are disabled under UNIV_LIBRARY */
 #define mutex_create(I, M)		(void)M
 #define mutex_enter(M)			(void)M
 #define mutex_enter_nospin(M)		(void)M
@@ -40,7 +41,9 @@ extern ulong	srv_force_recovery_crash;
 
 #ifdef UNIV_DEBUG
 #define mutex_validate(M)		(M)
-#define mutex_own(M)			(M) ? true : false
+/* Since mutexes are disabled under UNIV_LIBRARY, the following is OK
+and necessary to suppress compiler warnings. */
+#define mutex_own(M)			((M) || false)
 #endif /* UNIV_DEBUG */
 typedef OSMutex	SysMutex;
 typedef OSMutex ib_mutex_t;
