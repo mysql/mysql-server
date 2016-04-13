@@ -2836,9 +2836,14 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
       goto end;
     }
 
-    if (!combo->uses_identified_by_clause &&
-        !combo->uses_identified_with_clause &&
-        !combo->uses_identified_by_password_clause)
+    if ((!combo->uses_identified_by_clause &&
+         !combo->uses_identified_with_clause &&
+         !combo->uses_identified_by_password_clause) ||
+        (combo->uses_identified_with_clause &&
+         (!my_strcasecmp(system_charset_info, combo->plugin.str,
+                         native_password_plugin_name.str) ||
+          !my_strcasecmp(system_charset_info, combo->plugin.str,
+                         old_password_plugin_name.str))))
     {
       if (check_password_policy(NULL))
       {
