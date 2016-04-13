@@ -224,10 +224,11 @@ SET DEBUG_SYNC = 'ib_after_row_insert WAIT_FOR go_ahead';
 connection con2;
 --error ER_WRONG_VALUE_COUNT_ON_ROW
 INSERT INTO t1 VALUES(70, 80);
-
---echo # Connection default
-connection default;
 SET DEBUG_SYNC= 'now SIGNAL go_ahead';
+
+--echo # Connection con1
+connection con1;
+--reap
 DROP TABLE t1;
 DROP TABLE t2;
 
