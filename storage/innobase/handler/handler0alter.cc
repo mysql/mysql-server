@@ -5864,7 +5864,8 @@ err_exit:
 	}
 
 	/* See if an AUTO_INCREMENT column was added. */
-	uint i = 0;
+	uint	i = 0;
+	ulint	num_v = 0;
 	List_iterator_fast<Create_field> cf_it(
 		ha_alter_info->alter_info->create_list);
 	while (const Create_field* new_field = cf_it++) {
@@ -5895,12 +5896,18 @@ err_exit:
 				my_error(ER_WRONG_AUTO_KEY, MYF(0));
 				goto err_exit;
 			}
-			add_autoinc_col_no = i;
+
+			/* Get the col no of the old table non-virtual column array */
+			add_autoinc_col_no = i - num_v;
 
 			autoinc_col_max_value =
 				field->get_max_int_value();
 		}
 found_col:
+		if (innobase_is_v_fld(new_field)) {
+			++num_v;
+		}
+
 		i++;
 	}
 
