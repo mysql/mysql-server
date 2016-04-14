@@ -1987,7 +1987,7 @@ wait_again:
 		/* Sync fts cache for other fts indexes to keep all
 		fts indexes consistent in sync_doc_id. */
 		err = fts_sync_table(const_cast<dict_table_t*>(new_table),
-				     false, true);
+				     false, true, false);
 
 		if (err == DB_SUCCESS) {
 			fts_update_next_doc_id(
