@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -376,12 +376,13 @@ TEST_F(JsonDomTest, BasicTest)
   const char *half_object_item= "{\"label\": ";
   dom.reset(Json_dom::parse(half_object_item, std::strlen(half_object_item),
                             &msg, &msg_offset));
-  EXPECT_EQ(NULL, dom.get());
+  const Json_dom *null_dom= NULL;
+  EXPECT_EQ(null_dom, dom.get());
 
   const char *half_array_item= "[1,";
   dom.reset(Json_dom::parse(half_array_item, std::strlen(half_array_item),
                             &msg, &msg_offset));
-  EXPECT_EQ(NULL, dom.get());
+  EXPECT_EQ(null_dom, dom.get());
 }
 
 void vet_wrapper_length(char * text, size_t expected_length )
