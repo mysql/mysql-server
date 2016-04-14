@@ -239,6 +239,9 @@ if ($t3_vtcon2 >= "03") {
 
 -- echo # Connection: vtcon3
 CONNECTION vtcon3;
+let $wait_condition= SELECT COUNT(*) > 0 FROM information_schema.processlist
+                     WHERE info like '%select sleep%' AND state='User sleep';
+source include/wait_condition.inc;
 SELECT version_tokens_lock_exclusive("a",20);
 --let $t2_vtcon3 = `SELECT sysdate()`
 --let $t3_vtcon3 = `SELECT time_format(timediff("$t2_vtcon3","$t1_vtcon1"),'%S')`
