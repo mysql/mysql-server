@@ -763,12 +763,11 @@ fts_savepoint_release(
 	trx_t*		trx,			/*!< in: transaction */
 	const char*	name);			/*!< in: savepoint name */
 
-/*********************************************************************//**
-Clear cache. */
+/** Clear cache.
+@param[in,out]	cache	fts cache */
 void
 fts_cache_clear(
-/*============*/
-	fts_cache_t*	cache);			/*!< in: cache */
+	fts_cache_t*	cache);
 
 /*********************************************************************//**
 Initialize things in cache. */
@@ -804,12 +803,15 @@ FTS auxiliary INDEX table and clear the cache at the end.
 @param[in,out]	table		fts table
 @param[in]	unlock_cache	whether unlock cache when write node
 @param[in]	wait		whether wait for existing sync to finish
+@param[in]	has_dict	whether has dict operation lock, if true
+				unlock it before return
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t
 fts_sync_table(
 	dict_table_t*	table,
 	bool		unlock_cache,
-	bool		wait);
+	bool		wait,
+	bool		has_dict);
 
 /****************************************************************//**
 Free the query graph but check whether dict_sys->mutex is already

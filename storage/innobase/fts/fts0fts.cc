@@ -200,13 +200,15 @@ FTS auxiliary INDEX table and clear the cache at the end.
 @param[in,out]	sync		sync state
 @param[in]	unlock_cache	whether unlock cache lock when write node
 @param[in]	wait		whether wait when a sync is in progress
+@param[in]	background	whether sync in background
 @return DB_SUCCESS if all OK */
 static
 dberr_t
 fts_sync(
 	fts_sync_t*	sync,
 	bool		unlock_cache,
-	bool		wait);
+	bool		wait,
+	bool		background);
 
 /****************************************************************//**
 Release all resources help by the words rb tree e.g., the node ilist. */
@@ -1059,14 +1061,15 @@ fts_words_free(
 	}
 }
 
-/*********************************************************************//**
-Clear cache. */
+/** Clear cache.
+@param[in,out]	cache	fts cache */
 void
 fts_cache_clear(
-/*============*/
-	fts_cache_t*	cache)		/*!< in: cache */
+	fts_cache_t*	cache)
 {
 	ulint		i;
+
+	rw_lock_x_lock(&cache->init_lock);
 
 	for (i = 0; i < ib_vector_size(cache->indexes); ++i) {
 		ulint			j;
@@ -1104,6 +1107,8 @@ fts_cache_clear(
 
 		index_cache->doc_stats = NULL;
 	}
+
+	rw_lock_x_unlock(&cache->init_lock);
 
 	mem_heap_free(static_cast<mem_heap_t*>(cache->sync_heap->arg));
 	cache->sync_heap->arg = NULL;
@@ -3492,7 +3497,7 @@ fts_add_doc_from_tuple(
 
 			if (cache->total_size > fts_max_cache_size / 5
 			    || fts_need_sync) {
-				fts_sync(cache->sync, true, false);
+				fts_sync(cache->sync, true, false, false);
 			}
 
 			mtr_start(&mtr);
@@ -3670,7 +3675,7 @@ fts_add_doc_by_id(
 
 				DBUG_EXECUTE_IF(
 					"fts_instrument_sync_debug",
-					fts_sync(cache->sync, true, true);
+					fts_sync(cache->sync, true, true, false);
 				);
 
 				DEBUG_SYNC_C("fts_instrument_sync_request");
@@ -4311,6 +4316,8 @@ fts_sync_rollback(
 	trx_t*		trx = sync->trx;
 	fts_cache_t*	cache = sync->table->fts->cache;
 
+	rw_lock_x_lock(&cache->init_lock);
+
 	for (ulint i = 0; i < ib_vector_size(cache->indexes); ++i) {
 		ulint			j;
 		fts_index_cache_t*	index_cache;
@@ -4340,6 +4347,7 @@ fts_sync_rollback(
 		}
 	}
 
+	rw_lock_x_unlock(&cache->init_lock);
 	rw_lock_x_unlock(&cache->lock);
 
 	fts_sql_rollback(trx);
@@ -4351,17 +4359,22 @@ FTS auxiliary INDEX table and clear the cache at the end.
 @param[in,out]	sync		sync state
 @param[in]	unlock_cache	whether unlock cache lock when write node
 @param[in]	wait		whether wait when a sync is in progress
+@param[in]	has_dict	whether has dict operation lock, if true,
+				unlock it before return.
 @return DB_SUCCESS if all OK */
 static
 dberr_t
 fts_sync(
 	fts_sync_t*	sync,
 	bool		unlock_cache,
-	bool		wait)
+	bool		wait,
+	bool		has_dict)
 {
 	ulint		i;
 	dberr_t		error = DB_SUCCESS;
 	fts_cache_t*	cache = sync->table->fts->cache;
+
+	ut_ad(!(has_dict & wait));
 
 	rw_lock_x_lock(&cache->lock);
 
@@ -4374,6 +4387,10 @@ fts_sync(
 		if (wait) {
 			os_event_wait(sync->event);
 		} else {
+			if (has_dict) {
+				rw_lock_s_unlock(dict_operation_lock);
+			}
+
 			return(DB_SUCCESS);
 		}
 
@@ -4432,7 +4449,15 @@ begin_sync:
 end_sync:
 	if (error == DB_SUCCESS && !sync->interrupted) {
 		error = fts_sync_commit(sync);
+
+		if (has_dict) {
+			rw_lock_s_unlock(dict_operation_lock);
+		}
 	} else {
+		if (has_dict) {
+			rw_lock_s_unlock(dict_operation_lock);
+		}
+
 		fts_sync_rollback(sync);
 	}
 
@@ -4460,12 +4485,15 @@ FTS auxiliary INDEX table and clear the cache at the end.
 @param[in,out]	table		fts table
 @param[in]	unlock_cache	whether unlock cache when write node
 @param[in]	wait		whether wait for existing sync to finish
+@param[in]	has_dict	whether has dict operation lock, if true
+				unlock it before return
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t
 fts_sync_table(
 	dict_table_t*	table,
 	bool		unlock_cache,
-	bool		wait)
+	bool		wait,
+	bool		has_dict)
 {
 	dberr_t	err = DB_SUCCESS;
 
@@ -4473,7 +4501,10 @@ fts_sync_table(
 
 	if (!dict_table_is_discarded(table) && table->fts->cache
 	    && !dict_table_is_corrupted(table)) {
-		err = fts_sync(table->fts->cache->sync, unlock_cache, wait);
+		err = fts_sync(
+			table->fts->cache->sync, unlock_cache, wait, has_dict);
+	} else if (has_dict) {
+			rw_lock_s_unlock(dict_operation_lock);
 	}
 
 	return(err);

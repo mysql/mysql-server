@@ -2964,14 +2964,28 @@ fts_optimize_sync_table(
 {
 	dict_table_t*   table = NULL;
 
+	/* Prevent DROP INDEX etc. from running when we are syncing
+	cache in background. */
+	if (!rw_lock_s_lock_nowait(dict_operation_lock, __FILE__, __LINE__)) {
+		/* Exit when fail to get dict operation lock. */
+		return;
+	}
+
+	bool	has_dict_lock = true;
+
 	table = dict_table_open_on_id(table_id, FALSE, DICT_TABLE_OP_NORMAL);
 
 	if (table) {
 		if (dict_table_has_fts_index(table) && table->fts->cache) {
-			fts_sync_table(table, true, false);
+			fts_sync_table(table, true, false, true);
+			has_dict_lock = false;
 		}
 
 		dict_table_close(table, FALSE, FALSE);
+	}
+
+	if (has_dict_lock) {
+		rw_lock_s_unlock(dict_operation_lock);
 	}
 }
 
