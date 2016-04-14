@@ -577,7 +577,6 @@ struct TABLE_SHARE
   HASH	name_hash;			/* hash of field names */
   MEM_ROOT mem_root;
   TYPELIB keynames;			/* Pointers to keynames */
-  TYPELIB fieldnames;			/* Pointer to fieldnames */
   TYPELIB *intervals;			/* pointer to interval info */
   mysql_mutex_t LOCK_ha_data;           /* To protect access to ha_data */
   TABLE_SHARE *next, **prev;            /* Link to unused shares */

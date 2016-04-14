@@ -1010,21 +1010,6 @@ static bool fill_columns_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
   memset(share->field, 0, fields_size);
   share->vfields= 0;
 
-  // Allocate space for field names in TABLE_SHARE.
-  uint type_names_size= (sizeof(char*) * (share->fields+1));
-  uint type_lengths_size= (sizeof(uint) * (share->fields+1));
-  share->fieldnames.type_names=
-    (const char **) alloc_root(&share->mem_root, type_names_size);
-  memset(share->fieldnames.type_names, 0, type_names_size);
-
-  share->fieldnames.type_lengths=
-    (uint *) alloc_root(&share->mem_root, type_lengths_size);
-  memset(share->fieldnames.type_lengths, 0, type_lengths_size);
-
-  share->fieldnames.name= NULL;
-  share->fieldnames.count= share->fields;
-  share->fieldnames.type_names[share->fields]= 0;
-
   // Iterate through all the columns.
   std::unique_ptr<dd::Column_const_iterator> it(tab_obj->user_columns());
   const dd::Column *col_obj;
@@ -1037,15 +1022,6 @@ static bool fill_columns_from_dd(TABLE_SHARE *share, const dd::Table *tab_obj)
   bool has_vgc= false;
   while ((col_obj= it->next()))
   {
-    // Read the field name into TYPELIB.
-    share->fieldnames.type_lengths[field_nr]=
-      static_cast<uint>(col_obj->name().length());
-
-    share->fieldnames.type_names[field_nr]= strmake_root(
-                                                &share->mem_root,
-                                                col_obj->name().c_str(),
-                                                col_obj->name().length());
-
     /*
       Fill details of each column.
 
