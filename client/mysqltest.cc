@@ -3255,9 +3255,9 @@ static void do_exec(struct st_command *command)
 #ifdef WIN32
   // Open pipe in binary mode as part of handling Microsoft _read bug.
   // See bug#22608247 and bug#22811243
-  char *mode = "rb";
+  const char *mode = "rb";
 #else
-  char *mode = "r";
+  const char *mode = "r";
 #endif
   if (!(res_file= my_popen(&ds_cmd, mode, command)) && command->abort_on_error)
   {
