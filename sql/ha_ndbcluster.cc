@@ -2242,6 +2242,22 @@ int ha_ndbcluster::get_metadata(THD *thd, const char *path)
   DBUG_RETURN(0);
 
 err:
+  // Function failed, release all resources allocated by this function
+  // before returning
+  release_indexes(dict, 1 /* invalidate */);
+
+  // Release NdbRecord's allocated for the table
+  if (m_ndb_record != NULL)
+  {
+    dict->releaseRecord(m_ndb_record);
+    m_ndb_record= NULL;
+  }
+  if (m_ndb_hidden_key_record != NULL)
+  {
+    dict->releaseRecord(m_ndb_hidden_key_record);
+    m_ndb_hidden_key_record= NULL;
+  }
+
   ndbtab_g.invalidate();
   m_table= NULL;
   DBUG_RETURN(error);
@@ -2665,49 +2681,60 @@ ha_ndbcluster::add_index_ndb_record(NDBDICT *dict, KEY *key_info, uint index_no)
 */
 int ha_ndbcluster::open_indexes(Ndb *ndb, TABLE *tab)
 {
-  uint i;
-  int error= 0;
+
   NDBDICT *dict= ndb->getDictionary();
   KEY* key_info= tab->key_info;
   const char **key_name= tab->s->keynames.type_names;
   DBUG_ENTER("ha_ndbcluster::open_indexes");
   m_has_unique_index= FALSE;
   btree_keys.clear_all();
-  for (i= 0; i < tab->s->keys; i++, key_info++, key_name++)
+
+  for (uint i= 0; i < tab->s->keys; i++, key_info++, key_name++)
   {
-    if ((error= add_index_handle(dict, key_info, *key_name, i)))
+    const int error= add_index_handle(dict, key_info, *key_name, i);
+    if (error)
     {
-      break;
+      DBUG_RETURN(error);
     }
+
     m_index[i].null_in_unique_index= FALSE;
     if (check_index_fields_not_null(key_info))
       m_index[i].null_in_unique_index= TRUE;
 
-    assert(error == 0); // Can never be != 0 here
     if (MY_TEST(index_flags(i, 0, 0) & HA_READ_RANGE))
       btree_keys.set_bit(i);
   }
 
-  if (error)
-  {
-    while (i > 0)
-    {
-      i--;
-      if (m_index[i].index)
-      {
-         dict->removeIndexGlobal(*m_index[i].index, 1);
-         m_index[i].index= NULL;
-      }
-      if (m_index[i].unique_index)
-      {
-         dict->removeIndexGlobal(*m_index[i].unique_index, 1);
-         m_index[i].unique_index= NULL;
-      }
-    }
-  }
-
-  DBUG_RETURN(error);
+  DBUG_RETURN(0);
 }
+
+
+
+void
+ha_ndbcluster::release_indexes(NdbDictionary::Dictionary *dict,
+                               int invalidate)
+{
+  DBUG_ENTER("ha_ndbcluster::release_indexes");
+  DBUG_ASSERT(m_table); // Should still be "open" when calling this function
+
+  for (uint i= 0; i < MAX_KEY; i++)
+  {
+    NDB_INDEX_DATA& index = m_index[i];
+    if (index.unique_index)
+    {
+      // Release reference to index in NdbAPI
+      dict->removeIndexGlobal(*index.unique_index, invalidate);
+    }
+    if (index.index)
+    {
+      // Release reference to index in NdbAPI
+      dict->removeIndexGlobal(*index.index, invalidate);
+    }
+    ndb_clear_index(dict, index);
+  }
+  DBUG_VOID_RETURN;
+}
+
 
 /*
   Renumber indexes in index list by shifting out
@@ -2840,8 +2867,6 @@ bool ha_ndbcluster::check_index_fields_not_null(KEY* key_info) const
 
 void ha_ndbcluster::release_metadata(THD *thd, Ndb *ndb)
 {
-  uint i;
-
   DBUG_ENTER("release_metadata");
   DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
 
@@ -2874,21 +2899,7 @@ void ha_ndbcluster::release_metadata(THD *thd, Ndb *ndb)
   DBUG_ASSERT(m_table_info == NULL);
   m_table_info= NULL;
 
-  // Release index list 
-  for (i= 0; i < MAX_KEY; i++)
-  {
-    if (m_index[i].unique_index)
-    {
-      DBUG_ASSERT(m_table != NULL);
-      dict->removeIndexGlobal(*m_index[i].unique_index, invalidate_indexes);
-    }
-    if (m_index[i].index)
-    {
-      DBUG_ASSERT(m_table != NULL);
-      dict->removeIndexGlobal(*m_index[i].index, invalidate_indexes);
-    }
-    ndb_clear_index(dict, m_index[i]);
-  }
+  release_indexes(dict, invalidate_indexes);
 
   // Release FK data
   release_fk_data();
