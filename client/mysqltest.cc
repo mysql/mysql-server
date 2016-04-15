@@ -3163,7 +3163,30 @@ static int replace(DYNAMIC_STRING *ds_str,
   return 0;
 }
 
+#ifdef _WIN32
+/**
+ Replace CRLF sequence with LF in place.
 
+ This function is required as a workaround for a bug in the Microsoft
+ C runtime library introduced in Visual Studio 2015.
+ See bug#22608247 and bug#22811243
+
+ @param buf  Null terminated buffer.
+*/
+static void replace_crlf_with_lf(char *buf)
+{
+  char *replace = buf;
+  while (*buf)
+  {
+    *replace = *buf++;
+    if (!((*replace == '\x0D') && (*buf == '\x0A')))
+    {
+      replace++;
+    }
+  }
+  *replace = '\x0';
+}
+#endif
 /*
   Execute given command.
 
@@ -3229,7 +3252,14 @@ static void do_exec(struct st_command *command)
   DBUG_PRINT("info", ("Executing '%s' as '%s'",
                       command->first_argument, ds_cmd.str));
 
-  if (!(res_file= my_popen(&ds_cmd, "r", command)) && command->abort_on_error)
+#ifdef WIN32
+  // Open pipe in binary mode as part of handling Microsoft _read bug.
+  // See bug#22608247 and bug#22811243
+  char *mode = "rb";
+#else
+  char *mode = "r";
+#endif
+  if (!(res_file= my_popen(&ds_cmd, mode, command)) && command->abort_on_error)
   {
     dynstr_free(&ds_cmd);
     die("popen(\"%s\", \"r\") failed", command->first_argument);
@@ -3237,6 +3267,12 @@ static void do_exec(struct st_command *command)
 
   while (fgets(buf, sizeof(buf), res_file))
   {
+#ifdef WIN32
+    // Replace CRLF char with LF.
+    // See bug#22608247 and bug#22811243
+    DBUG_ASSERT(!strcmp(mode, "rb"));
+    replace_crlf_with_lf(buf);
+#endif
     if (trace_exec)
     {
       fprintf(stdout, "%s", buf);
