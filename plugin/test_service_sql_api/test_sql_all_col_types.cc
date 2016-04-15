@@ -81,7 +81,7 @@ struct st_plugin_ctx
   char sql_str_value[64][64][SIZEOF_SQL_STR_VALUE];
   size_t sql_str_len[64][64];
   /* get_integer */
-  longlong sql_int_value[64][64];
+  int sql_int_value[64][64];
   /* get_longlong */
   longlong sql_longlong_value[64][64];
   uint sql_is_unsigned[64][64];
@@ -99,8 +99,8 @@ struct st_plugin_ctx
 
   uint server_status;
   uint warn_count;
-  ulonglong affected_rows;
-  ulonglong last_insert_id;
+  uint affected_rows;
+  uint last_insert_id;
   char message[1024];
 
   uint sql_errno;
@@ -264,7 +264,7 @@ static int sql_get_integer(void * ctx, longlong value)
   uint col= pctx->current_col;
   pctx->current_col++;
 
-  size_t len= my_snprintf(buffer, sizeof(buffer), "%lld", value);
+  size_t len= my_snprintf(buffer, sizeof(buffer), "%d", value);
 
   strncpy(pctx->sql_str_value[row][col], buffer, len);
   pctx->sql_str_len[row][col]= len;
@@ -668,8 +668,8 @@ static void get_data_bin(struct st_plugin_ctx *pctx)
       case MYSQL_TYPE_SHORT:
       case MYSQL_TYPE_TINY:
         {
-          longlong temp_int= pctx->sql_int_value[row][col]*10;
-          WRITE_VAL2("%lld*10=%lld  ", pctx->sql_int_value[row][col], temp_int);
+          int temp_int= pctx->sql_int_value[row][col]*10;
+          WRITE_VAL2("%d*10=%d  ", pctx->sql_int_value[row][col], temp_int);
           break;
         }
       case MYSQL_TYPE_LONGLONG:
