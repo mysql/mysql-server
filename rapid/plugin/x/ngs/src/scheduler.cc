@@ -230,6 +230,9 @@ bool Scheduler_dynamic::wait_if_idle_then_delete_worker()
   if (!is_running())
     return false;
 
+  if (!m_tasks.empty())
+    return false;
+
   int result = m_worker_pending_cond.timed_wait(m_worker_pending_mutex,
                                      m_idle_worker_timeout * MILLI_TO_NANO);
 
