@@ -400,9 +400,11 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %parse-param { class THD *YYTHD }
 %lex-param { class THD *YYTHD }
 %pure-parser                                    /* We have threads */
-
-/* We should not introduce new conflicts any more. */
-%expect 119
+/*
+  1. We do not accept any reduce/reduce conflicts
+  2. We should not introduce new shift/reduce conflicts any more.
+*/
+%expect 115
 
 /*
    MAINTAINER:
@@ -1173,6 +1175,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         opt_ev_status opt_ev_on_completion ev_on_completion opt_ev_comment
         ev_alter_on_schedule_completion opt_ev_rename_to opt_ev_sql_stmt
         trg_action_time trg_event field_def
+        view_check_option
 
 /*
   Bit field of MYSQL_START_TRANS_OPT_* flags.
@@ -1320,7 +1323,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         opt_flush_lock flush_options_list
         equal optional_braces
         opt_mi_check_type opt_to mi_check_types
-        table_to_table_list table_to_table opt_table_list opt_as
+        table_to_table_list table_to_table opt_table_list
         opt_and charset
         help
         opt_extended_describe
@@ -1332,7 +1335,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         view_algorithm view_or_trigger_or_sp_or_event
         definer_tail no_definer_tail
         view_suid view_tail view_list_opt view_list view_select
-        view_check_option trigger_tail
+        trigger_tail
         sp_tail sf_tail udf_tail event_tail
         install uninstall partition_entry binlog_base64_event
         part_column_list
@@ -1425,12 +1428,13 @@ END_OF_INPUT
 %type <select_options> select_option select_option_list select_options
         empty_select_options
 
-%type <node> order_or_limit
-          option_value union_opt
+%type <node>
+          option_value
 
 %type <join_table> joined_table joined_table_parens
 
 %type <table_reference_list> opt_from_clause from_clause from_tables
+        table_reference_list table_reference_list_parens
 
 %type <olap_type> olap_opt
 
@@ -1444,14 +1448,8 @@ END_OF_INPUT
 
 %type <select_lock_type> opt_select_lock_type
 
-%type <union_order_or_limit> union_order_or_limit
-
-%type <table_expression> table_expression
-
 %type <table_reference> table_reference esc_table_reference
-          table_reference_list table_reference_list_parens
-
-%type <table_factor> table_factor single_table single_table_parens
+        table_factor single_table single_table_parens
 
 %type <query_expression_body> query_expression_body
 
@@ -1477,8 +1475,6 @@ END_OF_INPUT
 
 %type <set> set
 
-%type <union_list> union_list opt_union_clause
-
 %type <line_separators> line_term line_term_list opt_line_term
 
 %type <field_separators> field_term field_term_list opt_field_term
@@ -1489,17 +1485,10 @@ END_OF_INPUT
 
 %type <select_var_list> select_var_list
 
-%type <select_options_and_item_list> select_options_and_item_list
-
-%type <select_part2> select_part2
-
 %type <query_primary> query_primary  query_specification
 
-%type <select_paren> select_paren
-
-%type <select_init> select_init
-
 %type <query_expression> query_expression query_expression_parens
+        query_expression_or_parens
 
 %type <subquery> subquery row_subquery table_subquery
 
@@ -1536,11 +1525,7 @@ END_OF_INPUT
         update_list
         opt_insert_update_list
 
-%type <create_select> create_select
-
 %type <values_list> values_list insert_values
-
-%type <insert_from_subquery> insert_from_subquery
 
 %type <insert_query_expression> insert_query_expression
 
@@ -5049,10 +5034,8 @@ size_number:
 */
 
 create2:
-          '(' create2a {}
-        | opt_create_table_options
-          opt_create_partitioning
-          create3 {}
+          '(' create_field_list ')' opt_create_table_options_etc
+        | opt_create_table_options_etc
         | LIKE table_ident
           {
             THD *thd= YYTHD;
@@ -5085,65 +5068,76 @@ create2:
           }
         ;
 
-/**
-  @todo: Make this rule produce query_expression instead of create_select and
-  union_opt.
+/*
+  To avoid grammar conflicts, we introduce the next few rules in very details:
+  we workaround empty rules for optional AS and DUPLICATE clauses by expanding
+  them in place of the caller rule:
+
+  opt_create_table_options_etc ::=
+    create_table_options opt_create_partitioning_etc
+  | opt_create_partitioning_etc
+
+  opt_create_partitioning_etc ::=
+    create_partitioning [opt_duplicate_as_qe] | [opt_duplicate_as_qe]
+
+  opt_duplicate_as_qe ::=
+    duplicate as_create_query_expression
+  | as_create_query_expression
+
+  as_create_query_expression ::=
+    AS create_query_expression
+  | create_query_expression
+
 */
-create2a:
-          create_field_list ')' opt_create_table_options
-          opt_create_partitioning
-          create3 {}
-        |  opt_create_partitioning
-           create_select ')'
-           {
-             CONTEXTUALIZE($2);
-             Select->set_braces(1);
-           }
-           union_opt
-           {
-             if ($5 != NULL)
-               CONTEXTUALIZE($5);
-           }
+
+opt_create_table_options_etc:
+          create_table_options opt_create_partitioning_etc
+        | opt_create_partitioning_etc
         ;
 
-/**
-  @todo: Make this rule produce query_expression instead of create_select and
-  opt_union_clause or union_opt.
-*/
-create3:
-          /* empty */ {}
-        | opt_duplicate opt_as create_select
-          {
-            CONTEXTUALIZE($3);
-            Select->set_braces(0);
-          }
-          opt_union_clause
-          {
-            if ($5 != NULL)
-              CONTEXTUALIZE($5);
-          }
-        | opt_duplicate opt_as '(' create_select ')'
-          {
-            CONTEXTUALIZE($4);
-            Select->set_braces(1);
-          }
-          union_opt
-          {
-             if ($7 != NULL)
-               CONTEXTUALIZE($7);
-          }
+opt_create_partitioning_etc:
+          create_partitioning opt_duplicate_as_qe
+        | opt_duplicate_as_qe
         ;
 
-opt_create_partitioning:
-          opt_partitioning
+opt_duplicate_as_qe:
+          /* empty */
+        | duplicate as_create_query_expression
+        | as_create_query_expression
+        ;
+
+as_create_query_expression:
+          AS create_query_expression
+        | create_query_expression
+        ;
+
+create_query_expression:
+          query_expression_or_parens
           {
             /*
-              Remove all tables used in PARTITION clause from the global table
-              list. Partitioning with subqueries is not allowed anyway.
+              In CREATE TABLE t ... SELECT the table_list initially contains
+              here a table entry for the destination table `t'.
+              Backup it and clean the table list for the processing of
+              the query expression and push `t' back to the beginning of the
+              table_list finally.
+
+              @todo: Don't save the CREATE destination table in
+                     SELECT_LEX::table_list and remove this backup & restore.
+
+              The following work only with the local list, the global list
+              is created correctly in this case
             */
-            TABLE_LIST *last_non_sel_table= Lex->create_last_non_select_table;
-            last_non_sel_table->next_global= 0;
-            Lex->query_tables_last= &last_non_sel_table->next_global;
+            SQL_I_List<TABLE_LIST> save_list;
+            SELECT_LEX * const save_select= Select;
+            save_select->table_list.save_and_clear(&save_list);
+
+            CONTEXTUALIZE($1);
+
+            /*
+              The following work only with the local list, the global list
+              is created correctly in this case
+            */
+            save_select->table_list.push_front(&save_list);
           }
         ;
 
@@ -5171,9 +5165,17 @@ opt_create_partitioning:
  is necessary to ensure we can also handle errors when calling the parser
  from the openfrm function.
 */
-opt_partitioning:
-          /* empty */ {}
-        | partitioning
+create_partitioning:
+          partitioning
+          {
+            /*
+              Remove all tables used in PARTITION clause from the global table
+              list. Partitioning with subqueries is not allowed anyway.
+            */
+            TABLE_LIST *last_non_sel_table= Lex->create_last_non_select_table;
+            last_non_sel_table->next_global= 0;
+            Lex->query_tables_last= &last_non_sel_table->next_global;
+          }
         ;
 
 partitioning:
@@ -5827,18 +5829,6 @@ opt_part_option:
  End of partition parser part
 */
 
-create_select:
-          SELECT_SYM select_options select_item_list table_expression
-          {
-            $$= NEW_PTN PT_create_select($1, $2, $3, $4);
-          }
-        ;
-
-opt_as:
-          /* empty */ {}
-        | AS {}
-        ;
-
 opt_create_database_options:
           /* empty */ {}
         | create_database_options {}
@@ -5871,11 +5861,6 @@ table_option:
 opt_if_not_exists:
           /* empty */ { $$= 0; }
         | IF not EXISTS { $$=HA_LEX_CREATE_IF_NOT_EXISTS; }
-        ;
-
-opt_create_table_options:
-          /* empty */
-        | create_table_options
         ;
 
 create_table_options_space_separated:
@@ -9081,21 +9066,6 @@ select_stmt_with_into:
           }
         ;
 
-/*
-  Need first branch for subselects.
-  todo: Remove this rule and replace uses of it with query_expression.
-*/
-select_init:
-          SELECT_SYM select_part2 opt_union_clause
-          {
-            $$= NEW_PTN PT_select_init2($1, $2, $3);
-          }
-        | '(' select_paren ')' union_opt
-          {
-            $$= NEW_PTN PT_select_init_parenthesis($2, $4);
-          }
-        ;
-
 /**
   A <query_expression> within parentheses can be used as an <expr>. Now,
   because both a <query_expression> and an <expr> can appear syntactically
@@ -9140,7 +9110,7 @@ query_expression:
               MYSQL_YYABORT;
             }
 
-            $$= NEW_PTN PT_query_expression($1, $2, @$, $3, $4, $5);
+            $$= NEW_PTN PT_query_expression($1, $2, $3, $4, $5);
           }
         | query_expression_parens
           order_clause
@@ -9156,7 +9126,7 @@ query_expression:
               NEW_PTN PT_nested_query_expression($1);
             PT_query_expression_body_primary *body=
               NEW_PTN PT_query_expression_body_primary(nested);
-            $$= NEW_PTN PT_query_expression(body, $2, @$, $3, $4, $5);
+            $$= NEW_PTN PT_query_expression(body, $2, $3, $4, $5);
           }
         | query_expression_parens
           limit_clause
@@ -9167,7 +9137,7 @@ query_expression:
               MYSQL_YYABORT; // OOM
             if ($1->is_union() && $3 != NULL)
               my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "UNION");
-            $$= NEW_PTN PT_query_expression($1, NULL, @$, $2, $3, $4);
+            $$= NEW_PTN PT_query_expression($1->body(), NULL, $2, $3, $4);
           }
         ;
 
@@ -9249,119 +9219,48 @@ query_primary:
           }
         ;
 
-select_paren:
-          SELECT_SYM select_part2
-          {
-            $$= NEW_PTN PT_select_paren($1, $2);
-          }
-        | '(' select_paren ')' { $$= $2; }
-        ;
-
-/*
-  Theoretically we can merge all 3 right hand sides of the select_part2
-  rule into one, however such a transformation adds one shift/reduce
-  conflict more.
-*/
-select_part2:
-          select_options_and_item_list
-          opt_order_clause
-          opt_limit_clause
-          opt_select_lock_type
-          {
-            $$= NEW_PTN PT_select_part2($1, NULL, NULL, NULL, NULL, NULL,
-                                        $2, $3, NULL, $4);
-          }
-        | select_options_and_item_list into_clause opt_select_lock_type
-          {
-            $$= NEW_PTN PT_select_part2($1, $2, NULL, NULL, NULL, NULL, NULL,
-                                        NULL, NULL, $3);
-          }
-        | select_options_and_item_list  /* #1 */
-          from_clause                   /* #2 */
-          opt_where_clause              /* #3 */
-          opt_group_clause              /* #4 */
-          opt_having_clause             /* #5 */
-          opt_order_clause              /* #6 */
-          opt_limit_clause              /* #7 */
-          opt_procedure_analyse_clause  /* #8 */
-          opt_select_lock_type          /* #9 */
-          {
-            $$= NEW_PTN PT_select_part2($1, NULL, $2, $3, $4, $5, $6, $7, $8,
-                                        $9);
-          }
-        ;
-
 query_specification:
           SELECT_SYM
-          select_options_and_item_list
+          select_options
+          select_item_list
           into_clause
           opt_from_clause
           opt_where_clause
           opt_group_clause
           opt_having_clause
           {
-            PT_select_part2 *select_part2=
-              NEW_PTN PT_select_part2($2,  // select_options_and_item_list
-                                      $3,  // into_clause
-                                      $4,  // from
-                                      $5,  // where
-                                      $6,  // group
-                                      $7); // having
-
-            $$= NEW_PTN PT_query_specification($1, select_part2);
+            $$= NEW_PTN PT_query_specification(
+                                      $1,  // SELECT_SYM
+                                      $2,  // select_options
+                                      $3,  // select_item_list
+                                      $4,  // into_clause
+                                      $5,  // from
+                                      $6,  // where
+                                      $7,  // group
+                                      $8); // having
           }
         | SELECT_SYM
-          select_options_and_item_list
+          select_options
+          select_item_list
           opt_from_clause
           opt_where_clause
           opt_group_clause
           opt_having_clause
           {
-            PT_select_part2 *select_part2=
-              NEW_PTN PT_select_part2($2,  // select_options_and_item_list
-                                      $3,  // from
-                                      $4,  // where
-                                      $5,  // group
-                                      $6); // having
-
-            $$= NEW_PTN PT_query_specification($1, select_part2);
-          }
-        ;
-
-select_options_and_item_list:
-          {
-            /*
-              TODO: remove this semantic action (currently this removal
-              adds shift/reduce conflict)
-
-              The new rules, i.e. query_expression et. al are not afflicted by
-              this problem, so when select_part2 has been fully replaced, we
-              can remove it.
-            */
-          }
-          select_options select_item_list
-          {
-            $$= NEW_PTN PT_select_options_and_item_list($2, $3);
-          }
-        ;
-
-
-table_expression:
-          opt_from_clause               /* #1 */
-          opt_where_clause              /* #2 */
-          opt_group_clause              /* #3 */
-          opt_having_clause             /* #4 */
-          opt_order_clause              /* #5 */
-          opt_limit_clause              /* #6 */
-          opt_procedure_analyse_clause  /* #7 */
-          opt_select_lock_type          /* #8 */
-          {
-            $$= NEW_PTN PT_table_expression($1, $2, $3, $4, $5, $6, $7, $8);
+            $$= NEW_PTN PT_query_specification(
+                                      $1,  // SELECT_SYM
+                                      $2,  // select_options
+                                      $3,  // select_item_list
+                                      NULL,// no INTO clause
+                                      $4,  // from
+                                      $5,  // where
+                                      $6,  // group
+                                      $7); // having
           }
         ;
 
 opt_from_clause:
-          /* Empty. */ %prec EMPTY_FROM_CLAUSE { $$= NULL; }
+          /* Empty. */ %prec EMPTY_FROM_CLAUSE { $$.init(YYTHD->mem_root); }
         | from_clause
         ;
 
@@ -9370,18 +9269,22 @@ from_clause:
         ;
 
 from_tables:
-          DUAL_SYM { $$= NULL; }
+          DUAL_SYM { $$.init(YYTHD->mem_root); }
         | table_reference_list
-          {
-            $$= NEW_PTN PT_table_reference_list(@$, $1);
-          }
         ;
 
 table_reference_list:
           table_reference
+          {
+            $$.init(YYTHD->mem_root);
+            if ($$.push_back($1))
+              MYSQL_YYABORT; // OOM
+          }
         | table_reference_list ',' table_reference
           {
-            $$= NEW_PTN PT_derived_table_list(@$, $1, $3);
+            $$= $1;
+            if ($$.push_back($3))
+              MYSQL_YYABORT; // OOM
           }
         ;
 
@@ -10605,10 +10508,7 @@ when_list:
 
 table_reference:
           table_factor { $$= $1; }
-        | joined_table
-          {
-            $$= NEW_PTN PT_table_ref_joined_table($1);
-          }
+        | joined_table { $$= $1; }
         | '{' ident esc_table_reference '}' { $$= $3; }
         ;
 
@@ -10621,10 +10521,7 @@ table_reference:
 */
 esc_table_reference:
           table_factor { $$= $1; }
-        | joined_table
-          {
-            $$= NEW_PTN PT_table_ref_joined_table($1);
-          }
+        | joined_table { $$= $1; }
         ;
 /*
   Join operations are normally left-associative, as in
@@ -10727,19 +10624,10 @@ joined_table:
           {
             auto this_cross_join= NEW_PTN PT_cross_join($1, @2, $2, NULL);
 
-            PT_table_ref_joined_table *this_table_ref=
-              NEW_PTN PT_table_ref_joined_table(this_cross_join);
-
             if ($3 == NULL)
               MYSQL_YYABORT; // OOM
 
-            PT_table_ref_joined_table *new_root=
-              $3->add_cross_join(this_table_ref);
-
-            if (new_root == NULL)
-              MYSQL_YYABORT; // OOM
-
-            $$= new_root->get_joined_table();
+            $$= $3->add_cross_join(this_cross_join);
           }
         | table_reference natural_join_type table_factor
           {
@@ -10819,18 +10707,16 @@ table_factor:
         | joined_table_parens
           { $$= NEW_PTN PT_table_factor_joined_table($1); }
         | table_reference_list_parens
-          {
-            if ($1 == NULL)
-              MYSQL_YYABORT; // OOM
-            $1->nest();
-          }
+          { $$= NEW_PTN PT_table_reference_list_parens($1); }
         ;
 
 table_reference_list_parens:
           '(' table_reference_list_parens ')' { $$= $2; }
         | '(' table_reference_list ',' table_reference ')'
           {
-            $$= NEW_PTN PT_derived_table_list(@$, $2, $4);
+            $$= $2;
+            if ($$.push_back($4))
+              MYSQL_YYABORT; // OOM
           }
         ;
 
@@ -11368,9 +11254,7 @@ do_stmt:
             $$= NEW_PTN PT_select_stmt(SQLCOM_DO,
                   NEW_PTN PT_query_expression(
                     NEW_PTN PT_query_expression_body_primary(
-                      NEW_PTN PT_query_specification(
-                        NEW_PTN PT_select_part2(
-                          NEW_PTN PT_select_options_and_item_list($2, $3))))));
+                      NEW_PTN PT_query_specification($2, $3))));
           }
         ;
 
@@ -11639,7 +11523,7 @@ insert_stmt:
           opt_INTO                     /* #4 */
           table_ident                  /* #5 */
           opt_use_partition            /* #6 */
-          insert_from_subquery         /* #7 */
+          insert_query_expression      /* #7 */
           opt_insert_update_list       /* #8 */
           {
             $$= NEW_PTN PT_insert(false, $1, $2, $3, $5, $6,
@@ -11683,7 +11567,7 @@ replace_stmt:
           opt_INTO                      /* #3 */
           table_ident                   /* #4 */
           opt_use_partition             /* #5 */
-          insert_from_subquery          /* #6 */
+          insert_query_expression       /* #6 */
           {
             $$= NEW_PTN PT_insert(true, $1, $2, false, $4, $5,
                                   $6.column_list, NULL,
@@ -11743,18 +11627,18 @@ insert_from_constructor:
           }
         ;
 
-insert_from_subquery:
-          insert_query_expression
+insert_query_expression:
+          query_expression_or_parens
           {
             $$.column_list= NEW_PTN PT_item_list;
             $$.insert_query_expression= $1;
           }
-        | '(' ')' insert_query_expression
+        | '(' ')' query_expression_or_parens
           {
             $$.column_list= NEW_PTN PT_item_list;
             $$.insert_query_expression= $3;
           }
-        | '(' fields ')' insert_query_expression
+        | '(' fields ')' query_expression_or_parens
           {
             $$.column_list= $2;
             $$.insert_query_expression= $4;
@@ -11783,15 +11667,9 @@ insert_values:
           }
         ;
 
-insert_query_expression:
-          create_select opt_union_clause
-          {
-            $$= NEW_PTN PT_insert_query_expression(false, $1, $2);
-          }
-        | '(' create_select ')' union_opt
-          {
-            $$= NEW_PTN PT_insert_query_expression(true, $2, $4);
-          }
+query_expression_or_parens:
+          query_expression
+        | query_expression_parens
         ;
 
 value_or_values:
@@ -11935,7 +11813,7 @@ delete_stmt:
           opt_order_clause
           opt_simple_limit
           {
-            $$= NEW_PTN PT_delete(YYTHD->mem_root, $1, $2, $4, $5, $6, $7, $8);
+            $$= NEW_PTN PT_delete($1, $2, $4, $5, $6, $7, $8);
           }
         | DELETE_SYM
           opt_delete_options
@@ -11944,8 +11822,7 @@ delete_stmt:
           table_reference_list
           opt_where_clause
           {
-            auto *trl= NEW_PTN PT_table_reference_list(@$, $5);
-            $$= NEW_PTN PT_delete($1, $2, $3, trl, $6);
+            $$= NEW_PTN PT_delete($1, $2, $3, $5, $6);
           }
         | DELETE_SYM
           opt_delete_options
@@ -11955,8 +11832,7 @@ delete_stmt:
           table_reference_list
           opt_where_clause
           {
-            auto *trl= NEW_PTN PT_table_reference_list(@$, $6);
-            $$= NEW_PTN PT_delete($1, $2, $4, trl, $7);
+            $$= NEW_PTN PT_delete($1, $2, $4, $6, $7);
           }
         ;
 
@@ -12894,7 +12770,11 @@ load_data_lock:
 
 opt_duplicate:
           /* empty */ { Lex->duplicates=DUP_ERROR; }
-        | REPLACE { Lex->duplicates=DUP_REPLACE; }
+        | duplicate
+        ;
+
+duplicate:
+          REPLACE { Lex->duplicates=DUP_REPLACE; }
         | IGNORE_SYM { Lex->set_ignore(true); }
         ;
 
@@ -14958,39 +14838,6 @@ release:
 */
 
 
-opt_union_clause:
-          /* empty */ { $$= NULL; }
-        | union_list
-        ;
-
-union_list:
-          UNION_SYM union_option select_init
-          {
-            $$= NEW_PTN PT_union_list($2, $3);
-          }
-        ;
-
-union_opt:
-          /* Empty */          { $$= NULL; }
-        | union_list           { $$= $1; }
-        | union_order_or_limit { $$= $1; }
-        ;
-
-union_order_or_limit:
-          order_or_limit
-          {
-            $$= NEW_PTN PT_union_order_or_limit($1);
-          }
-        ;
-
-order_or_limit:
-          order_clause opt_limit_clause
-          {
-            $$= NEW_PTN PT_order_or_limit_order($1, $2);
-          }
-        | limit_clause { $$= $1; }
-        ;
-
 union_option:
           /* empty */ { $$=1; }
         | DISTINCT  { $$=1; }
@@ -15168,94 +15015,63 @@ view_list:
         ;
 
 view_select:
+          query_expression_or_parens view_check_option
           {
+            THD *thd= YYTHD;
             LEX *lex= Lex;
             lex->parsing_options.allows_variable= FALSE;
             lex->parsing_options.allows_select_into= FALSE;
             lex->parsing_options.allows_select_procedure= FALSE;
-          }
-          view_select_aux view_check_option
-          {
-            THD *thd= YYTHD;
-            LEX *lex= Lex;
 
-            lex->create_view_select.str= const_cast<char *>(@2.cpp.start);
-            size_t len= @3.cpp.end - lex->create_view_select.str;
-            void *create_view_select= thd->memdup(lex->create_view_select.str, len);
+            /*
+              In CREATE VIEW v ... the table_list initially contains
+              here a table entry for the destination "table" `v'.
+              Backup it and clean the table list for the processing of
+              the query expression and push `v' back to the beginning of the
+              table_list finally.
+
+              @todo: Don't save the CREATE destination table in
+                     SELECT_LEX::table_list and remove this backup & restore.
+
+              The following work only with the local list, the global list
+              is created correctly in this case
+            */
+            SQL_I_List<TABLE_LIST> save_list;
+            SELECT_LEX * const save_select= Select;
+            save_select->table_list.save_and_clear(&save_list);
+
+            CONTEXTUALIZE($1);
+
+            /*
+              The following work only with the local list, the global list
+              is created correctly in this case
+            */
+            save_select->table_list.push_front(&save_list);
+
+            Lex->create_view_check= $2;
+
+            /*
+              It's simpler to use @$ to grab the whole rule text, OTOH  it's
+              also simple to lose something that way when changing this rule,
+              so let use explicit @1 and @2 to memdup this view definition:
+            */
+            const size_t len= @2.cpp.end - @1.cpp.start;
+            lex->create_view_select.str=
+              static_cast<char *>(thd->memdup(@1.cpp.start, len));
             lex->create_view_select.length= len;
-            lex->create_view_select.str= (char *) create_view_select;
             trim_whitespace(thd->charset(), &lex->create_view_select);
+
             lex->parsing_options.allows_variable= TRUE;
             lex->parsing_options.allows_select_into= TRUE;
             lex->parsing_options.allows_select_procedure= TRUE;
           }
         ;
 
-
-/// @todo: Make this rule produce query_expression instead.
-view_select_aux:
-          create_view_select
-          {
-            if (Lex->current_select()->set_braces(0))
-            {
-              my_syntax_error(ER_THD(YYTHD, ER_SYNTAX_ERROR));
-              MYSQL_YYABORT;
-            }
-            /*
-              For statment as "CREATE VIEW v1 AS SELECT1 UNION SELECT2",
-              parsing of Select query (SELECT1) is completed and UNION_CLAUSE
-              is not yet parsed. So check for
-              Lex->current_select()->master_unit()->first_select()->braces
-              (as its done in "PT_select_init2::contextualize()) is not
-              done here.
-            */
-          }
-          opt_union_clause
-          {
-            if ($3 != NULL)
-              CONTEXTUALIZE($3);
-          }
-        | '(' create_view_select_paren ')' union_opt
-          {
-            if ($4 != NULL)
-              CONTEXTUALIZE($4);
-          }
-        ;
-
-create_view_select_paren:
-          {
-            Lex->current_select()->set_braces(true);
-          }
-          create_view_select
-          {
-            if (setup_select_in_parentheses(Select))
-              MYSQL_YYABORT;
-          }
-        | '(' create_view_select_paren ')'
-        ;
-
-create_view_select:
-          SELECT_SYM
-          {
-            Lex->current_select()->table_list.save_and_clear(&Lex->save_list);
-          }
-          select_part2
-          {
-            CONTEXTUALIZE($3);
-
-            Lex->current_select()->table_list.push_front(&Lex->save_list);
-          }
-        ;
-
 view_check_option:
-          /* empty */
-          { Lex->create_view_check= VIEW_CHECK_NONE; }
-        | WITH CHECK_SYM OPTION
-          { Lex->create_view_check= VIEW_CHECK_CASCADED; }
-        | WITH CASCADED CHECK_SYM OPTION
-          { Lex->create_view_check= VIEW_CHECK_CASCADED; }
-        | WITH LOCAL_SYM CHECK_SYM OPTION
-          { Lex->create_view_check= VIEW_CHECK_LOCAL; }
+          /* empty */                     { $$= VIEW_CHECK_NONE; }
+        | WITH CHECK_SYM OPTION           { $$= VIEW_CHECK_CASCADED; }
+        | WITH CASCADED CHECK_SYM OPTION  { $$= VIEW_CHECK_CASCADED; }
+        | WITH LOCAL_SYM CHECK_SYM OPTION { $$= VIEW_CHECK_LOCAL; }
         ;
 
 /**************************************************************************

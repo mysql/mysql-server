@@ -21,44 +21,20 @@
 #include "mysqld.h"         // global_system_variables
 #include "sp_pcontext.h"
 #include "key_spec.h"
+#include "derror.h"         // ER_THD
 
 
-/**
-  Gcc can't or won't allow a pure virtual destructor without an implementation.
-*/
-PT_joined_table::~PT_joined_table() {}
-
-
-PT_table_ref_joined_table
-*PT_table_factor::add_cross_join(PT_table_ref_joined_table *cj)
+PT_joined_table *PT_table_reference::add_cross_join(PT_cross_join* cj)
 {
   cj->add_rhs(this);
   return cj;
 }
 
 
-bool PT_table_ref_joined_table::contextualize(Parse_context *pc)
-{
-  if (super::contextualize(pc) || join_table->contextualize(pc))
-    return true;
-
-  value= pc->select->nest_last_join(pc->thd);
-  return value == NULL;
-}
-
-
-PT_table_ref_joined_table
-*PT_table_ref_joined_table::add_cross_join(PT_table_ref_joined_table *cj)
-{
-  join_table->add_cross_join_left(cj);
-  return this;
-}
-
-
-void PT_table_ref_joined_table::add_rhs(PT_table_reference *table)
-{
-  join_table->add_rhs(table);
-}
+/**
+  Gcc can't or won't allow a pure virtual destructor without an implementation.
+*/
+PT_joined_table::~PT_joined_table() {}
 
 
 bool PT_option_value_no_option_type_charset:: contextualize(Parse_context *pc)
@@ -673,8 +649,14 @@ bool PT_delete::contextualize(Parse_context *pc)
   yyps->m_lock_type= TL_READ_DEFAULT;
   yyps->m_mdl_type= MDL_SHARED_READ;
 
-  if (is_multitable() && join_table_list->contextualize(pc))
-    return true;
+  if (is_multitable())
+  {
+    if (contextualize_array(pc, &join_table_list))
+      return true;
+    pc->select->context.table_list=
+      pc->select->context.first_name_resolution_table=
+        pc->select->table_list.first;
+  }
 
   if (opt_where_clause != NULL &&
       opt_where_clause->itemize(pc, &opt_where_clause))
@@ -726,7 +708,8 @@ bool PT_update::contextualize(Parse_context *pc)
   lex->duplicates= DUP_ERROR;
 
   lex->set_ignore(opt_ignore);
-  if (join_table_list->contextualize(pc))
+
+  if (contextualize_array(pc, &join_table_list))
     return true;
   pc->select->parsing_place= CTX_UPDATE_VALUE_LIST;
 
@@ -796,56 +779,6 @@ Sql_cmd *PT_update::make_cmd(THD *thd)
 }
 
 
-bool PT_create_select::contextualize(Parse_context *pc)
-{
-  if (super::contextualize(pc))
-    return true;
-
-  LEX *lex= pc->thd->lex;
-  if (lex->sql_command == SQLCOM_INSERT)
-    lex->sql_command= SQLCOM_INSERT_SELECT;
-  else if (lex->sql_command == SQLCOM_REPLACE)
-    lex->sql_command= SQLCOM_REPLACE_SELECT;
-  /*
-    The following work only with the local list, the global list
-    is created correctly in this case
-  */
-  DBUG_ASSERT(pc->select == lex->current_select());
-  SQL_I_List<TABLE_LIST> save_list;
-  pc->select->table_list.save_and_clear(&save_list);
-  pc->select->parsing_place= CTX_SELECT_LIST;
-
-  if (options.query_spec_options & SELECT_HIGH_PRIORITY)
-  {
-    Yacc_state *yyps= &pc->thd->m_parser_state->m_yacc;
-    yyps->m_lock_type= TL_READ_HIGH_PRIORITY;
-    yyps->m_mdl_type= MDL_SHARED_READ;
-  }
-  if (options.save_to(pc))
-    return true;
-
-  if (item_list->contextualize(pc))
-    return true;
-
-  // Ensure we're resetting parsing context of the right select
-  DBUG_ASSERT(pc->select->parsing_place == CTX_SELECT_LIST);
-  pc->select->parsing_place= CTX_NONE;
-
-  if (table_expression->contextualize(pc))
-    return true;
-  /*
-    The following work only with the local list, the global list
-    is created correctly in this case
-  */
-  pc->select->table_list.push_front(&save_list);
-
-  if (opt_hints != NULL && opt_hints->contextualize(pc))
-    return true;
-
-  return false;
-}
-
-
 bool PT_insert_values_list::contextualize(Parse_context *pc)
 {
   if (super::contextualize(pc))
@@ -868,34 +801,21 @@ bool PT_insert_values_list::contextualize(Parse_context *pc)
 }
 
 
-bool PT_insert_query_expression::contextualize(Parse_context *pc)
-{
-  if (super::contextualize(pc) || create_select->contextualize(pc))
-    return true;
-
-  pc->select->set_braces(braces);
-
-  if (opt_union != NULL && opt_union->contextualize(pc))
-    return true;
-
-  return false;
-}
-
-
 bool PT_insert::contextualize(Parse_context *pc)
 {
   if (super::contextualize(pc))
     return true;
 
-  LEX *lex= pc->thd->lex;
+  LEX * const lex= pc->thd->lex;
+
   if (is_replace)
   {
-    lex->sql_command = SQLCOM_REPLACE;
+    lex->sql_command = has_select() ? SQLCOM_REPLACE_SELECT : SQLCOM_REPLACE;
     lex->duplicates= DUP_REPLACE;
   }
   else
   {
-    lex->sql_command= SQLCOM_INSERT;
+    lex->sql_command= has_select() ? SQLCOM_INSERT_SELECT : SQLCOM_INSERT;
     lex->duplicates= DUP_ERROR;
     lex->set_ignore(ignore);
   }
@@ -919,8 +839,32 @@ bool PT_insert::contextualize(Parse_context *pc)
 
   if (has_select())
   {
+    /*
+      In INSERT/REPLACE INTO t ... SELECT the table_list initially contains
+      here a table entry for the destination table `t'.
+      Backup it and clean the table list for the processing of
+      the query expression and push `t' back to the beginning of the
+      table_list finally.
+
+      @todo: Don't save the INSERT/REPLACE destination table in
+             SELECT_LEX::table_list and remove this backup & restore.
+
+      The following work only with the local list, the global list
+      is created correctly in this case
+    */
+    SQL_I_List<TABLE_LIST> save_list;
+    SELECT_LEX * const save_select= pc->select;
+    save_select->table_list.save_and_clear(&save_list);
+
     if (insert_query_expression->contextualize(pc))
       return true;
+
+    /*
+      The following work only with the local list, the global list
+      is created correctly in this case
+    */
+    save_select->table_list.push_front(&save_list);
+
     lex->bulk_insert_row_cnt= 0;
   }
   else
@@ -992,13 +936,42 @@ Sql_cmd *PT_insert::make_cmd(THD *thd)
 }
 
 
-bool PT_select_part2::contextualize(Parse_context *pc)
+bool PT_query_specification::contextualize(Parse_context *pc)
 {
-  if (super::contextualize(pc) ||
-      select_options_and_item_list->contextualize(pc) ||
-      contextualize_safe(pc, opt_into1) ||
-      contextualize_safe(pc, from_clause) ||
-      itemize_safe(pc, &opt_where_clause) ||
+  if (super::contextualize(pc))
+    return true;
+
+  pc->select->parsing_place= CTX_SELECT_LIST;
+
+  if (options.query_spec_options & SELECT_HIGH_PRIORITY)
+  {
+    Yacc_state *yyps= &pc->thd->m_parser_state->m_yacc;
+    yyps->m_lock_type= TL_READ_HIGH_PRIORITY;
+    yyps->m_mdl_type= MDL_SHARED_READ;
+  }
+  if (options.save_to(pc))
+    return true;
+
+  if (item_list->contextualize(pc))
+    return true;
+
+  // Ensure we're resetting parsing place of the right select
+  DBUG_ASSERT(pc->select->parsing_place == CTX_SELECT_LIST);
+  pc->select->parsing_place= CTX_NONE;
+
+  if (contextualize_safe(pc, opt_into1))
+    return true;
+
+  if (!from_clause.empty())
+  {
+    if (contextualize_array(pc, &from_clause))
+      return true;
+    pc->select->context.table_list=
+      pc->select->context.first_name_resolution_table=
+        pc->select->table_list.first;
+  }
+
+  if (itemize_safe(pc, &opt_where_clause) ||
       contextualize_safe(pc, opt_group_clause) ||
       itemize_safe(pc, &opt_having_clause))
     return true;
@@ -1006,20 +979,18 @@ bool PT_select_part2::contextualize(Parse_context *pc)
   pc->select->set_where_cond(opt_where_clause);
   pc->select->set_having_cond(opt_having_clause);
 
-  if (contextualize_safe(pc, opt_order_clause) ||
-      contextualize_safe(pc, opt_limit_clause) ||
-      contextualize_safe(pc, opt_procedure_analyse_clause))
-    return true;
-
-  DBUG_ASSERT(opt_procedure_analyse_clause == NULL || opt_into1 == NULL);
-
-  if (opt_select_lock_type.is_set)
+  if (opt_hints != NULL)
   {
-    pc->select->set_lock_for_tables(opt_select_lock_type.lock_type);
-    pc->thd->lex->safe_to_cache_query=
-      opt_select_lock_type.is_safe_to_cache_query;
+    if (pc->thd->lex->sql_command == SQLCOM_CREATE_VIEW)
+    { // Currently this also affects ALTER VIEW.
+      push_warning_printf(pc->thd, Sql_condition::SL_WARNING,
+                          ER_WARN_UNSUPPORTED_HINT,
+                          ER_THD(pc->thd, ER_WARN_UNSUPPORTED_HINT),
+                          "CREATE or ALTER VIEW");
+    }
+    else if (opt_hints->contextualize(pc))
+      return true;
   }
-
   return false;
 }
 
@@ -1058,7 +1029,8 @@ bool PT_derived_table::contextualize(Parse_context *pc)
                                        TL_READ, MDL_SHARED_READ);
   if (value == NULL)
     return true;
-  pc->select->add_joined_table(value);
+  if (pc->select->add_joined_table(value))
+    return true;
 
   return false;
 }
@@ -1075,20 +1047,12 @@ bool PT_table_factor_joined_table::contextualize(Parse_context *pc)
 
   if (m_joined_table->contextualize(pc))
     return true;
+  value= m_joined_table->value;
 
-  value= pc->select->nest_last_join(pc->thd);
-
-  outer_select->end_nested_join(pc->thd);
+  if (outer_select->end_nested_join(pc->thd) == NULL)
+    return true;
 
   return false;
-}
-
-
-PT_table_ref_joined_table
-*PT_table_factor_joined_table::add_cross_join(PT_table_ref_joined_table* cj)
-{
-  cj->add_rhs(this);
-  return cj;
 }
 
 
@@ -1108,9 +1072,6 @@ PT_table_ref_joined_table
 bool PT_union::contextualize(Parse_context *pc)
 {
   THD *thd= pc->thd;
-
-  if (pc->is_top_level && m_lhs->is_union() && m_lhs->has_parentheses())
-    thd->parse_error_at(m_lhs_pos, NULL);
 
   if (PT_query_expression_body::contextualize(pc))
     return true;

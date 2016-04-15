@@ -5908,7 +5908,8 @@ a	b
 SELECT 1 UNION ( SELECT 1 UNION SELECT 1 );
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 )' at line 1
 ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 ) UNION SELECT 1' at line 1
+1
+1
 SELECT ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 ) )' at line 1
 SELECT ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;

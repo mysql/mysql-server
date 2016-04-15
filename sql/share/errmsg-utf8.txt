@@ -7696,6 +7696,10 @@ ER_INVALID_BITWISE_OPERANDS_SIZE
 
 ER_INVALID_BITWISE_AGGREGATE_OPERANDS_SIZE
   eng "Aggregate bitwise functions cannot accept arguments longer than 511 bytes; consider using the SUBSTRING() function"
+
+ER_WARN_UNSUPPORTED_HINT
+  eng "Hints aren't supported in %s"
+
 #
 #  End of 5.8 error messages.
 #

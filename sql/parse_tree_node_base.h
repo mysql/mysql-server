@@ -86,15 +86,7 @@ struct Parse_context {
   MEM_ROOT *mem_root;           ///< Current MEM_ROOT
   SELECT_LEX * select;          ///< Current SELECT_LEX object
 
-  /**
-    Sometimes in the contextualization process we need to keep track of
-    whether the current query expression is nested or top level.
-  */
-  bool is_top_level;
-
-  Parse_context(THD *thd, SELECT_LEX *sl) : Parse_context(thd, sl, true) {}
-
-  Parse_context(THD *const thd_arg, SELECT_LEX *sl_arg, bool is_top_level_arg);
+  Parse_context(THD *thd, SELECT_LEX *sl);
 };
 
 
