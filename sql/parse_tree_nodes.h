@@ -1517,8 +1517,11 @@ public:
   Default_constructible_locking_clause(const Select_lock_type &slt)
   {
     is_set= slt.is_set;
-    lock_type= slt.lock_type;
-    is_safe_to_cache_query= slt.is_safe_to_cache_query;
+    if (is_set) // to make memory sanitizers happy
+    {
+      lock_type= slt.lock_type;
+      is_safe_to_cache_query= slt.is_safe_to_cache_query;
+    }
   }
 };
 
