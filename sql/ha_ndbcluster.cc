@@ -59,6 +59,7 @@
 #include "ndb_tdc.h"
 #include "ndb_log.h"
 #include "ndb_name_util.h"
+#include "ndb_bitmap.h"
 #include "../storage/ndb/src/common/util/parse_mask.hpp"
 #include "../storage/ndb/include/util/SparseBitmask.hpp"
 #include "m_ctype.h"
@@ -2184,11 +2185,8 @@ int ha_ndbcluster::get_metadata(THD *thd, const char *path)
   DBUG_PRINT("info", ("fetched table %s", tab->getName()));
   m_table= tab;
 
-  if (bitmap_init(&m_bitmap, m_bitmap_buf, table_share->fields, 0))
-  {
-    error= HA_ERR_OUT_OF_MEM;
-    goto err;
-  }
+  ndb_bitmap_init(m_bitmap, m_bitmap_buf, table_share->fields);
+
   if (table_share->primary_key == MAX_KEY)
   {
     /* Hidden primary key. */
