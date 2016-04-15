@@ -2379,7 +2379,7 @@ int ha_ndbcluster::add_index_handle(NDBDICT *dict, KEY *key_info,
   char index_name[FN_LEN + 1];
   int error= 0;
 
-  NDB_INDEX_TYPE idx_type= get_index_type_from_table(index_no);
+  const NDB_INDEX_TYPE idx_type= get_index_type_from_table(index_no);
   m_index[index_no].type= idx_type;
   DBUG_ENTER("ha_ndbcluster::add_index_handle");
   DBUG_PRINT("enter", ("table %s", m_tabname));
@@ -2388,24 +2388,20 @@ int ha_ndbcluster::add_index_handle(NDBDICT *dict, KEY *key_info,
   if (idx_type != PRIMARY_KEY_INDEX && idx_type != UNIQUE_INDEX)
   {
     DBUG_PRINT("info", ("Get handle to index %s", index_name));
-    const NDBINDEX *index;
-    do
-    {
-      index= dict->getIndexGlobal(index_name, *m_table);
-      if (!index)
-        ERR_RETURN(dict->getNdbError());
-      DBUG_PRINT("info", ("index: 0x%lx  id: %d  version: %d.%d  status: %d",
-                          (long) index,
-                          index->getObjectId(),
-                          index->getObjectVersion() & 0xFFFFFF,
-                          index->getObjectVersion() >> 24,
-                          index->getObjectStatus()));
-      DBUG_ASSERT(index->getObjectStatus() ==
-                  NdbDictionary::Object::Retrieved);
-      break;
-    } while (1);
+    const NDBINDEX *index= dict->getIndexGlobal(index_name, *m_table);
+    if (!index)
+      ERR_RETURN(dict->getNdbError());
+    DBUG_PRINT("info", ("index: 0x%lx  id: %d  version: %d.%d  status: %d",
+                        (long) index,
+                        index->getObjectId(),
+                        index->getObjectVersion() & 0xFFFFFF,
+                        index->getObjectVersion() >> 24,
+                        index->getObjectStatus()));
+    DBUG_ASSERT(index->getObjectStatus() ==
+                NdbDictionary::Object::Retrieved);
     m_index[index_no].index= index;
   }
+
   if (idx_type == UNIQUE_ORDERED_INDEX || idx_type == UNIQUE_INDEX)
   {
     char unique_index_name[FN_LEN + 1];
@@ -2413,22 +2409,18 @@ int ha_ndbcluster::add_index_handle(NDBDICT *dict, KEY *key_info,
     m_has_unique_index= TRUE;
     strxnmov(unique_index_name, FN_LEN, index_name, unique_suffix, NullS);
     DBUG_PRINT("info", ("Get handle to unique_index %s", unique_index_name));
-    const NDBINDEX *index;
-    do
-    {
-      index= dict->getIndexGlobal(unique_index_name, *m_table);
-      if (!index)
-        ERR_RETURN(dict->getNdbError());
-      DBUG_PRINT("info", ("index: 0x%lx  id: %d  version: %d.%d  status: %d",
-                          (long) index,
-                          index->getObjectId(),
-                          index->getObjectVersion() & 0xFFFFFF,
-                          index->getObjectVersion() >> 24,
-                          index->getObjectStatus()));
-      DBUG_ASSERT(index->getObjectStatus() ==
-                  NdbDictionary::Object::Retrieved);
-      break;
-    } while (1);
+    const NDBINDEX *index =
+        dict->getIndexGlobal(unique_index_name, *m_table);
+    if (!index)
+      ERR_RETURN(dict->getNdbError());
+    DBUG_PRINT("info", ("index: 0x%lx  id: %d  version: %d.%d  status: %d",
+                        (long) index,
+                        index->getObjectId(),
+                        index->getObjectVersion() & 0xFFFFFF,
+                        index->getObjectVersion() >> 24,
+                        index->getObjectStatus()));
+    DBUG_ASSERT(index->getObjectStatus() ==
+                NdbDictionary::Object::Retrieved);
     m_index[index_no].unique_index= index;
     error= fix_unique_index_attr_order(m_index[index_no], index, key_info);
   }
