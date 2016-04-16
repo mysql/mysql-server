@@ -1091,7 +1091,7 @@ sysdate-is-now FALSE
 table-cache 400
 table-definition-cache 400
 table-open-cache 400
-tc-heuristic-recover COMMIT
+tc-heuristic-recover OFF
 thread-cache-size 0
 thread-stack 294912
 time-format %H:%i:%s
