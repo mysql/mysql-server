@@ -7800,6 +7800,7 @@ mysqld_get_one_option(int optid,
 
 
   case OPT_IGNORE_DB_DIRECTORY:
+    opt_ignore_db_dirs= NULL; // will be set in ignore_db_dirs_process_additions
     if (*argument == 0)
       ignore_db_dirs_reset();
     else
