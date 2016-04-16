@@ -90,3 +90,14 @@ SELECT DATE_FORMAT('2001-01-07', '%w %a %W');
 DATE_FORMAT('2001-01-07', '%w %a %W')
 0 Du Duminică
 End of 5.4 tests
+SET NAMES utf8;
+SET lc_time_names=de_AT;
+SELECT monthname('2001-01-01');
+monthname('2001-01-01')
+Jänner
+SELECT monthname('2001-02-01');
+monthname('2001-02-01')
+Februar
+SELECT monthname('2001-03-01');
+monthname('2001-03-01')
+März
