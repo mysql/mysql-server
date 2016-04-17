@@ -14544,6 +14544,14 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
   Field *new_field;
   LINT_INIT(new_field);
 
+  /*
+    To preserve type or DATE/TIME and GEOMETRY fields,
+    they need to be handled separately.
+  */
+  if (item->cmp_type() == TIME_RESULT ||
+      item->field_type() == MYSQL_TYPE_GEOMETRY)
+    new_field= item->tmp_table_field_from_field_type(table, 1);
+  else
   switch (item->result_type()) {
   case REAL_RESULT:
     new_field= new Field_double(item->max_length, maybe_null,
@@ -14566,18 +14574,11 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
   case STRING_RESULT:
     DBUG_ASSERT(item->collation.collation);
   
-    /*
-      DATE/TIME and GEOMETRY fields have STRING_RESULT result type. 
-      To preserve type they needed to be handled separately.
-    */
-    if (item->cmp_type() == TIME_RESULT ||
-        item->field_type() == MYSQL_TYPE_GEOMETRY)
-      new_field= item->tmp_table_field_from_field_type(table, 1);
     /* 
       Make sure that the blob fits into a Field_varstring which has 
       2-byte lenght. 
     */
-    else if (item->max_length/item->collation.collation->mbmaxlen > 255 &&
+    if (item->max_length/item->collation.collation->mbmaxlen > 255 &&
              convert_blob_length <= Field_varstring::MAX_SIZE && 
              convert_blob_length)
       new_field= new Field_varstring(convert_blob_length, maybe_null,

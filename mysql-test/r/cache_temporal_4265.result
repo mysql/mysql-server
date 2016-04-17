@@ -7,4 +7,17 @@ a
 2002-03-04
 Warnings:
 Note	1003	2000-01-01
+set debug_dbug='';
+drop table t1;
+create table t1 (id int not null, ut timestamp(6) not null);
+insert into t1 values(1, '2001-01-01 00:00:00.2');
+insert into t1 values(1, '2001-01-01 00:00:00.1');
+select * from t1;
+id	ut
+1	2001-01-01 00:00:00.200000
+1	2001-01-01 00:00:00.100000
+select (select max(m2.ut) from t1 m2 where m1.id <> 0) from t1 m1;
+(select max(m2.ut) from t1 m2 where m1.id <> 0)
+2001-01-01 00:00:00.200000
+2001-01-01 00:00:00.200000
 drop table t1;

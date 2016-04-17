@@ -7,5 +7,16 @@ create table t1 (a date);
 insert t1 values ('2000-01-02'), ('2001-02-03'), ('2002-03-04');
 set debug_dbug='d,str_to_datetime_warn';
 select * from t1 where a > date_add('2000-01-01', interval 5 day);
+set debug_dbug='';
+drop table t1;
+
+#
+# MDEV-9707 MAX(timestamp(6) column) in correlated sub-query returns non-existent row data in original table
+#
+create table t1 (id int not null, ut timestamp(6) not null);
+insert into t1 values(1, '2001-01-01 00:00:00.2');
+insert into t1 values(1, '2001-01-01 00:00:00.1');
+select * from t1;
+select (select max(m2.ut) from t1 m2 where m1.id <> 0) from t1 m1;
 drop table t1;
 
