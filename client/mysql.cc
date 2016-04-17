@@ -95,9 +95,16 @@ extern "C" {
 #endif
 }
 
-#if !defined(HAVE_VIDATTR)
-#undef vidattr
-#define vidattr(A) {}			// Can't get this to work
+#ifdef HAVE_VIDATTR
+static int have_curses= 0;
+static void my_vidattr(chtype attrs)
+{
+  if (have_curses)
+    vidattr(attrs);
+}
+#else
+#undef HAVE_SETUPTERM
+#define my_vidattr(A) {}              // Can't get this to work
 #endif
 
 #ifdef FN_NO_CASE_SENSE
@@ -4726,9 +4733,9 @@ com_status(String *buffer __attribute__((unused)),
 
   if (skip_updates)
   {
-    vidattr(A_BOLD);
+    my_vidattr(A_BOLD);
     tee_fprintf(stdout, "\nAll updates ignored to this database\n");
-    vidattr(A_NORMAL);
+    my_vidattr(A_NORMAL);
   }
 #ifdef USE_POPEN
   tee_fprintf(stdout, "Current pager:\t\t%s\n", pager);
@@ -4796,9 +4803,9 @@ com_status(String *buffer __attribute__((unused)),
   }
   if (safe_updates)
   {
-    vidattr(A_BOLD);
+    my_vidattr(A_BOLD);
     tee_fprintf(stdout, "\nNote that you are running in safe_update_mode:\n");
-    vidattr(A_NORMAL);
+    my_vidattr(A_NORMAL);
     tee_fprintf(stdout, "\
 UPDATEs and DELETEs that don't use a key in the WHERE clause are not allowed.\n\
 (One can force an UPDATE/DELETE by adding LIMIT # at the end of the command.)\n\
@@ -4891,9 +4898,10 @@ put_info(const char *str,INFO_TYPE info_type, uint error, const char *sqlstate)
   {
     if (!inited)
     {
+      int errret;
       inited=1;
 #ifdef HAVE_SETUPTERM
-      (void) setupterm((char *)0, 1, (int *) 0);
+      have_curses= setupterm((char *)0, 1, &errret) != ERR;
 #endif
     }
     if (info_type == INFO_ERROR)
@@ -4906,7 +4914,7 @@ put_info(const char *str,INFO_TYPE info_type, uint error, const char *sqlstate)
         putchar('\a');		      	/* This should make a bell */
 #endif
       }
-      vidattr(A_STANDOUT);
+      my_vidattr(A_STANDOUT);
       if (error)
       {
 	if (sqlstate)
@@ -4925,9 +4933,9 @@ put_info(const char *str,INFO_TYPE info_type, uint error, const char *sqlstate)
       tee_fputs(": ", file);
     }
     else
-      vidattr(A_BOLD);
+      my_vidattr(A_BOLD);
     (void) tee_puts(str, file);
-    vidattr(A_NORMAL);
+    my_vidattr(A_NORMAL);
   }
   if (unbuffered)
     fflush(file);
