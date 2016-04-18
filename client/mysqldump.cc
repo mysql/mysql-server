@@ -5112,29 +5112,45 @@ static int do_show_slave_status(MYSQL *mysql_con)
   }
   else
   {
+    const int n_master_host= 1;
+    const int n_master_port= 3;
+    const int n_master_log_file= 9;
+    const int n_master_log_pos= 21;
+    const int n_channel_name= 55;
     MYSQL_ROW row= mysql_fetch_row(slave);
-    if (row && row[9] && row[21])
+    /* Since 5.7 is is possible that SSS returns multiple channels */
+    while (row)
     {
-      /* SHOW MASTER STATUS reports file and position */
-      if (opt_comments)
-        fprintf(md_result_file,
-                "\n--\n-- Position to start replication or point-in-time "
-                "recovery from (the master of this slave)\n--\n\n");
-
-      fprintf(md_result_file, "%sCHANGE MASTER TO ", comment_prefix);
-
-      if (opt_include_master_host_port)
+      if (row[n_master_log_file] && row[n_master_log_pos])
       {
-        if (row[1])
-          fprintf(md_result_file, "MASTER_HOST='%s', ", row[1]);
-        if (row[3])
-          fprintf(md_result_file, "MASTER_PORT=%s, ", row[3]);
-      }
-      fprintf(md_result_file,
-              "MASTER_LOG_FILE='%s', MASTER_LOG_POS=%s;\n", row[9], row[21]);
+        /* SHOW MASTER STATUS reports file and position */
+        if (opt_comments)
+          fprintf(md_result_file,
+                  "\n--\n-- Position to start replication or point-in-time "
+                  "recovery from (the master of this slave)\n--\n\n");
 
-      check_io(md_result_file);
+        fprintf(md_result_file, "%sCHANGE MASTER TO ", comment_prefix);
+
+        if (opt_include_master_host_port)
+        {
+          if (row[n_master_host])
+            fprintf(md_result_file, "MASTER_HOST='%s', ", row[n_master_host]);
+          if (row[n_master_port])
+            fprintf(md_result_file, "MASTER_PORT=%s, ", row[n_master_port]);
+        }
+        fprintf(md_result_file,
+                "MASTER_LOG_FILE='%s', MASTER_LOG_POS=%s",
+                row[n_master_log_file], row[n_master_log_pos]);
+
+        /* Only print the FOR CHANNEL if there is more than one channel */
+        if (slave->row_count > 1)
+          fprintf(md_result_file, " FOR CHANNEL '%s'", row[n_channel_name]);
+
+        fprintf(md_result_file, ";\n");
+      }
+      row= mysql_fetch_row(slave);
     }
+    check_io(md_result_file);
     mysql_free_result(slave);
   }
   return 0;
