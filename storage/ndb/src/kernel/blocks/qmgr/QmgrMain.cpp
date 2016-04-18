@@ -4270,8 +4270,11 @@ void Qmgr::handleApiCloseComConf(Signal* signal)
          */
         jam();
         sendApiFailReq(signal, nodeId, false); // !sumaOnly
-        arbitRec.code = ArbitCode::ApiFail;
-        handleArbitApiFail(signal, nodeId);
+        if(arbitRec.node == nodeId)
+        {
+          arbitRec.code = ArbitCode::ApiFail;
+          handleArbitApiFail(signal, nodeId);
+        }
       }
       else
       {
