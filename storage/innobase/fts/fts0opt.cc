@@ -2971,22 +2971,17 @@ fts_optimize_sync_table(
 		return;
 	}
 
-	bool	has_dict_lock = true;
-
 	table = dict_table_open_on_id(table_id, FALSE, DICT_TABLE_OP_NORMAL);
 
 	if (table) {
 		if (dict_table_has_fts_index(table) && table->fts->cache) {
-			fts_sync_table(table, true, false, true);
-			has_dict_lock = false;
+			fts_sync_table(table, true, false);
 		}
 
 		dict_table_close(table, FALSE, FALSE);
 	}
 
-	if (has_dict_lock) {
-		rw_lock_s_unlock(dict_operation_lock);
-	}
+	rw_lock_s_unlock(dict_operation_lock);
 }
 
 /**********************************************************************//**
