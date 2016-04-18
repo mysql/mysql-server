@@ -2633,11 +2633,25 @@ dict_index_add_to_cache_w_vcol(
 		const dict_field_t*	field
 			= dict_index_get_nth_field(new_index, i);
 
-		field->col->ord_part = 1;
-
-		if (field->prefix_len > field->col->max_prefix) {
+		/* Check the column being added in the index for
+		the first time and flag the ordering column. */
+		if (field->col->ord_part == 0 ) {
+			field->col->max_prefix = field->prefix_len;
+			field->col->ord_part = 1;
+		} else if (field->prefix_len == 0) {
+			/* Set the max_prefix for a column to 0 if
+			its prefix length is 0 (for this index)
+			even if it was a part of any other index
+			with some prefix length. */
+			field->col->max_prefix = 0;
+		} else if (field->col->max_prefix != 0
+			   && field->prefix_len
+			   > field->col->max_prefix) {
+			/* Set the max_prefix value based on the
+			prefix_len. */
 			field->col->max_prefix = field->prefix_len;
 		}
+		ut_ad(field->col->ord_part == 1);
 	}
 
 	new_index->stat_n_diff_key_vals =
