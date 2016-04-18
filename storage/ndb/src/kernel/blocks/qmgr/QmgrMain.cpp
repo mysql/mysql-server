@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4319,6 +4319,20 @@ void Qmgr::execCLOSE_COMCONF(Signal* signal)
   if (requestType == CloseComReqConf::RT_API_FAILURE)
   {
     jam();
+    if (ERROR_INSERTED(945))
+    {
+      if (arbitRec.code != ArbitCode::WinChoose)
+      {
+        // Delay API failure handling until arbitration in WinChoose
+        sendSignalWithDelay(reference(),
+                            GSN_CLOSE_COMCONF,
+                            signal,
+                            10,
+                            signal->getLength());
+        return;
+      }
+      CLEAR_ERROR_INSERT_VALUE;
+    }
     handleApiCloseComConf(signal);
     return;
   }
@@ -5473,6 +5487,11 @@ Qmgr::runArbitThread(Signal* signal)
     break;
   case ARBIT_CHOOSE:		// partitition thread
     jam();
+    if (ERROR_INSERTED(945) && arbitRec.code == ArbitCode::WinChoose)
+    {
+      // Delay ARBIT_CHOOSE until NdbAPI node is disconnected
+      break;
+    }
     stateArbitChoose(signal);
     break;
   case ARBIT_CRASH:
