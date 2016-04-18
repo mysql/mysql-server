@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@
 
 #include <ndb_global.h>
 
-#include <NdbMain.h>
 #include <NdbOut.hpp>
 
 #define JAM_FILE_ID 358
@@ -211,8 +210,9 @@ print(const char *filename, Uint32 *buf, Uint32 size)
   }
 }
 
-NDB_COMMAND(printSysfile, 
-	    "printFragfile", "printFragfile file", "Prints a fragfile", 65536){ 
+
+int main(int argc, char** argv)
+{
   ndb_init();
   if(argc != 2){
     usage(argv[0]);
