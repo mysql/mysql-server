@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -208,7 +208,7 @@ trp_client::getWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio,
     m_send_nodes_cnt = cnt + 1;
   }
 
-  TFPage* page = m_facade->alloc_sb_page();
+  TFPage* page = m_facade->alloc_sb_page(node);
   if (likely(page != 0))
   {
     page->init();
