@@ -78,6 +78,11 @@ TransporterFacade::reportError(NodeId nodeId,
   if(errorCode & TE_DO_DISCONNECT) {
     ndbout_c("reportError (%d, %d) %s", (int)nodeId, (int)errorCode,
 	     info ? info : "");
+    if (nodeId == ownId())
+    {
+      ndbout_c("Fatal error on Loopback transporter, aborting.");
+      abort();
+    }
     doDisconnect(nodeId);
   }
 }
@@ -1087,6 +1092,7 @@ TransporterFacade::configure(NodeId nodeId,
     Uint32 total_send_buffer = 0;
     Uint64 total_send_buffer64;
     size_t total_send_buffer_size_t;
+    size_t reserved_send_buffer_size_t;
     iter.get(CFG_TOTAL_SEND_BUFFER_MEMORY, &total_send_buffer);
 
     total_send_buffer64 = total_send_buffer;
@@ -1099,6 +1105,19 @@ TransporterFacade::configure(NodeId nodeId,
     iter.get(CFG_EXTRA_SEND_BUFFER_MEMORY, &extra_send_buffer);
 
     total_send_buffer64 += extra_send_buffer;
+
+    /**
+     * Reserved area for send-to-self
+     * We will grab 16 pages, (@32kB/page : 512kB)
+     * Gives space for at least 16 signals @ 1/page.
+     * If signals are better packed then less pages
+     * are needed.
+     */
+    const Uint32 pagesize = m_send_buffer.get_page_size();
+    const Uint64 reserved_send_buffer = 16 * pagesize;
+    
+    total_send_buffer64 += reserved_send_buffer;
+    
 #if SIZEOF_CHARP == 4
     /* init method can only handle 32-bit sizes on 32-bit platforms */
     if (total_send_buffer64 > 0xFFFFFFFF)
@@ -1107,7 +1126,9 @@ TransporterFacade::configure(NodeId nodeId,
     }
 #endif
     total_send_buffer_size_t = (size_t)total_send_buffer64;
-    if (!m_send_buffer.init(total_send_buffer_size_t))
+    reserved_send_buffer_size_t = (size_t)reserved_send_buffer;
+    if (!m_send_buffer.init(total_send_buffer_size_t,
+                            reserved_send_buffer_size_t))
     {
       ndbout << "Unable to allocate "
              << total_send_buffer_size_t
@@ -2867,7 +2888,7 @@ TransporterFacade::do_send_buffer(Uint32 node, struct TFSendBuffer *b)
   {
     if (b->m_out_buffer.m_head != NULL)
     {
-      m_send_buffer.release(b->m_out_buffer.m_head, b->m_out_buffer.m_tail);
+      m_send_buffer.release_list(b->m_out_buffer.m_head);
       b->m_out_buffer.clear();
     }
     b->m_reset = false;
@@ -2912,6 +2933,7 @@ TransporterFacade::bytes_sent(NodeId node, Uint32 bytes)
   TFBuffer *b = &m_send_buffers[node].m_out_buffer;
   TFBufferGuard g0(* b);
   Uint32 used_bytes = b->m_bytes_in_buffer;
+  Uint32 page_count = 0;
 
   if (bytes == 0)
   {
@@ -2929,11 +2951,12 @@ TransporterFacade::bytes_sent(NodeId node, Uint32 bytes)
     prev = page;
     bytes -= page->m_bytes;
     page = page->m_next;
+    page_count++;
   }
 
   if (used_bytes == 0)
   {
-    m_send_buffer.release(b->m_head, b->m_tail);
+    m_send_buffer.release(b->m_head, b->m_tail, page_count);
     b->m_head = 0;
     b->m_tail = 0;
   }
@@ -2941,7 +2964,7 @@ TransporterFacade::bytes_sent(NodeId node, Uint32 bytes)
   {
     if (prev)
     {
-      m_send_buffer.release(b->m_head, prev);
+      m_send_buffer.release(b->m_head, prev, page_count);
     }
 
     page->m_start += bytes;
@@ -2980,7 +3003,7 @@ TransporterFacade::reset_send_buffer(NodeId node, bool should_be_empty)
     if (b->m_head != 0)
     {
       assert(!should_be_empty);
-      m_send_buffer.release(b->m_head, b->m_tail);
+      m_send_buffer.release_list(b->m_head);
       b->clear();
     }
   }
@@ -2991,7 +3014,7 @@ TransporterFacade::reset_send_buffer(NodeId node, bool should_be_empty)
     if (b->m_head != 0)
     {
       assert(!should_be_empty);
-      m_send_buffer.release(b->m_head, b->m_tail);
+      m_send_buffer.release_list(b->m_head);
       b->clear();
     }
     m_send_buffers[node].m_reset = false;
@@ -3363,3 +3386,65 @@ TransporterFacade::reportWakeup()
     dozer->trp_wakeup();
   };
 }
+
+#ifdef ERROR_INSERT
+
+/* Test methods to consume sendbuffer */
+static TFPage* consumed_sendbuff = 0;
+
+void 
+TransporterFacade::consume_sendbuffer(Uint32 bytes_remain)
+{
+  if (consumed_sendbuff)
+  {
+    ndbout_c("SendBuff already consumed, release first");
+    return;
+  }
+
+  Uint64 tot_size = m_send_buffer.get_total_send_buffer_size();
+  Uint64 used = m_send_buffer.get_total_used_send_buffer_size();
+  Uint32 page_count = 0;
+
+  while (tot_size - used > bytes_remain)
+  {
+    TFPage* p = m_send_buffer.try_alloc(1);
+    
+    if (p)
+    {
+      p->init();
+      p->m_next = consumed_sendbuff;
+      consumed_sendbuff = p;
+      page_count++;
+    }
+    else
+    {
+      break;
+    }
+    used = m_send_buffer.get_total_used_send_buffer_size();
+  }
+    
+  ndbout_c("Consumed %u pages, remaining bytes : %llu",
+           page_count,
+           m_send_buffer.get_total_send_buffer_size() - 
+           m_send_buffer.get_total_used_send_buffer_size());
+}
+
+void
+TransporterFacade::release_consumed_sendbuffer()
+{
+  if (!consumed_sendbuff)
+  {
+    ndbout_c("No sendbuffer consumed");
+    return;
+  }
+  
+  m_send_buffer.release_list(consumed_sendbuff);
+  
+  consumed_sendbuff = NULL;
+
+  ndbout_c("Remaining bytes : %llu",
+           m_send_buffer.get_total_send_buffer_size() - 
+           m_send_buffer.get_total_used_send_buffer_size());
+}
+
+#endif
