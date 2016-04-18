@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -147,7 +147,7 @@ public:
   TFPool():
     m_alloc_ptr(0),
     m_tot_send_buffer_pages(0),
-    m_pagesize(0),
+    m_pagesize(SENDBUFFER_DEFAULT_PAGE_SIZE),
     m_free_send_buffer_pages(0),
     m_reserved_send_buffer_pages(0),
     m_first_free(0)
@@ -157,7 +157,7 @@ public:
 
   bool init(size_t total_memory, 
             size_t reserved_memory = 0,
-            size_t page_sz = 32768);
+            size_t page_sz = SENDBUFFER_DEFAULT_PAGE_SIZE);
   bool inited() const { return m_alloc_ptr != 0;}
 
   TFPage* try_alloc(Uint32 N, bool reserved = false); // Return linked list of most N pages
@@ -179,6 +179,9 @@ public:
   {
     return m_pagesize;
   }
+
+protected:
+  STATIC_CONST( SENDBUFFER_DEFAULT_PAGE_SIZE = 32*1024 );
 };
 
 class TFMTPool : private TFPool
@@ -189,7 +192,7 @@ public:
 
   bool init(size_t total_memory, 
             size_t reserved_memory = 0, 
-            size_t page_sz = 32768) {
+            size_t page_sz = SENDBUFFER_DEFAULT_PAGE_SIZE) {
     return TFPool::init(total_memory, 
                         reserved_memory,
                         page_sz);
