@@ -557,9 +557,8 @@ static void init_check_host(void);
 static void rebuild_check_host(void);
 static ACL_USER *find_acl_user(const char *host, const char *user,
                                my_bool exact);
-static bool update_user_table(THD *thd, TABLE *table, const char *host,
-                              const char *user, const char *new_password,
-                              uint new_password_len);
+static bool update_user_table(THD *, TABLE *, const char *, const char *, const
+                              char *, uint, bool);
 static my_bool acl_load(THD *thd, TABLE_LIST *tables);
 static my_bool grant_load(THD *thd, TABLE_LIST *tables);
 static inline void get_grantor(THD *thd, char* grantor);
@@ -1912,6 +1911,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   bool save_binlog_row_based;
   uint new_password_len= (uint) strlen(new_password);
   bool result= 1;
+  bool use_salt= 0;
   DBUG_ENTER("change_password");
   DBUG_PRINT("enter",("host: '%s'  user: '%s'  new_password: '%s'",
 		      host,user,new_password));
@@ -1967,6 +1967,7 @@ bool change_password(THD *thd, const char *host, const char *user,
     acl_user->auth_string.length= new_password_len;
     set_user_salt(acl_user, new_password, new_password_len);
     set_user_plugin(acl_user, new_password_len);
+    use_salt= 1;
   }
   else
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
@@ -1975,7 +1976,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (update_user_table(thd, table,
 			acl_user->host.hostname ? acl_user->host.hostname : "",
 			acl_user->user ? acl_user->user : "",
-			new_password, new_password_len))
+			new_password, new_password_len, use_salt))
   {
     mysql_mutex_unlock(&acl_cache->lock); /* purecov: deadcode */
     goto end;
@@ -2223,7 +2224,8 @@ bool hostname_requires_resolving(const char *hostname)
 
 static bool update_user_table(THD *thd, TABLE *table,
                               const char *host, const char *user,
-			      const char *new_password, uint new_password_len)
+			      const char *new_password, uint new_password_len,
+                              bool reset_plugin)
 {
   char user_key[MAX_KEY_LENGTH];
   int error;
@@ -2246,6 +2248,11 @@ static bool update_user_table(THD *thd, TABLE *table,
   }
   store_record(table,record[1]);
   table->field[2]->store(new_password, new_password_len, system_charset_info);
+  if (reset_plugin && table->s->fields >= 41)
+  {
+    table->field[40]->reset();
+    table->field[41]->reset();
+  }
   if ((error=table->file->ha_update_row(table->record[1],table->record[0])) &&
       error != HA_ERR_RECORD_IS_THE_SAME)
   {
