@@ -23,7 +23,6 @@
 #include <my_dir.h>
 #include <my_thread_local.h>
 
-#include <NdbMain.h>
 #include <NdbOut.hpp>
 #include "SchemaFile.hpp"
 #include <kernel_types.h>
@@ -209,9 +208,9 @@ print(const char * filename, const SchemaFile * xsf, Uint32 sz)
   return retcode;
 }
 
-NDB_COMMAND(printSchemafile, 
-	    "printSchemafile", "printSchemafile", "Prints a schemafile", 16384)
-{ 
+
+int main(int argc, char** argv)
+{
   ndb_init();
   progname = argv[0];
   int exitcode = 0;
