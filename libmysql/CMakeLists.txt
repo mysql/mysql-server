@@ -251,6 +251,25 @@ SET(CLIENT_API_FUNCTIONS
 )
 
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux") 
+  IF (NOT DISABLE_LIBMYSQLCLIENT_SYMBOL_VERSIONING)
+
+    INCLUDE (CheckCSourceCompiles)
+    FILE(WRITE "${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeTmp/src.ld"
+      "VERSION {\nlibmysqlclient_18 {\nglobal: *;\n};\n}\n")
+    SET(CMAKE_REQUIRED_LIBRARIES "-Wl,src.ld")
+    CHECK_C_SOURCE_COMPILES("int main() { return 0; }"
+      SUPPORTS_VERSION_IN_LINK_SCRIPT)
+    SET(CMAKE_REQUIRED_LIBRARIES)
+
+    IF (NOT SUPPORTS_VERSION_IN_LINK_SCRIPT)
+      # https://sourceware.org/bugzilla/show_bug.cgi?id=16895
+      MESSAGE(SEND_ERROR "Your current linker does not support VERSION "
+        "command in linker scripts like a GNU ld or any compatible linker "
+        "should. Perhaps you're using gold? Either switch to GNU ld compatible "
+        "linker or run cmake with -DDISABLE_LIBMYSQLCLIENT_SYMBOL_VERSIONING=TRUE "
+        "to be able to complete the build")
+    ENDIF (NOT SUPPORTS_VERSION_IN_LINK_SCRIPT)
+
   # When building RPM, or DEB package on Debian, use ELF symbol versioning
   # for compatibility with distribution packages, so client shared library can 
   # painlessly replace the one supplied by the distribution.
@@ -335,14 +354,26 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
     make_scrambled_password_323
   )
 
-  # Linker script to version symbols in Fedora- and Debian- compatible way, MDEV-5529
-  SET(VERSION_SCRIPT_TEMPLATE ${CMAKE_CURRENT_SOURCE_DIR}/libmysql_versions.ld.in)
-
   # Generate version script.  
   # Create semicolon separated lists of functions to export from 
   # Since RPM packages use separate versioning for 5.1 API
   # and 5.5 API (libmysqlclient_16 vs libmysqlclient_18), 
   # we need 2 lists.
+  SET (VERSION_HEADER
+"VERSION {
+  libmysqlclient_18 {
+    global:")
+  SET (VERSION_FOOTER
+"    local:
+      *;
+  };
+
+  libmysqlclient_16 {
+    /* empty here. aliases are added above */
+  };
+}
+")
+
   SET (CLIENT_API_5_1_LIST)
   SET (CLIENT_API_5_1_ALIASES)
   FOREACH (f ${CLIENT_API_FUNCTIONS_5_1} ${CLIENT_API_5_1_EXTRA})
@@ -355,6 +386,13 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
     SET(CLIENT_API_5_5_LIST "${CLIENT_API_5_5_LIST}\t${f};\n")
   ENDFOREACH()
 
+  ELSE (NOT DISABLE_LIBMYSQLCLIENT_SYMBOL_VERSIONING)
+    SET (CLIENT_API_5_1_ALIASES "/* Versioning disabled per user request. MDEV-5982 */")
+  ENDIF (NOT DISABLE_LIBMYSQLCLIENT_SYMBOL_VERSIONING)
+
+  # Linker script to version symbols in Fedora- and Debian- compatible way, MDEV-5529
+  SET(VERSION_SCRIPT_TEMPLATE ${CMAKE_CURRENT_SOURCE_DIR}/libmysql_versions.ld.in)
+
   CONFIGURE_FILE(
     ${VERSION_SCRIPT_TEMPLATE}
     ${CMAKE_CURRENT_BINARY_DIR}/libmysql_versions.ld
@@ -363,7 +401,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   SET(VERSION_SCRIPT_LINK_FLAGS 
     "-Wl,${CMAKE_CURRENT_BINARY_DIR}/libmysql_versions.ld")
 
-ENDIF()
+ENDIF(CMAKE_SYSTEM_NAME MATCHES "Linux")
 
 
 SET(CLIENT_SOURCES

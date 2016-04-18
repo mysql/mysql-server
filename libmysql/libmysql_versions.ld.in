@@ -27,19 +27,7 @@ mysql_get_charset_by_csname = get_charset_by_csname;
 mysql_net_realloc = net_realloc;
 mysql_client_errors = client_errors;
 
-VERSION {
-
-libmysqlclient_18 {
-  global:
+@VERSION_HEADER@
 @CLIENT_API_5_1_LIST@
 @CLIENT_API_5_5_LIST@
-
-  local:
-	*;
-};
-
-libmysqlclient_16 {
-  /* empty here. aliases are added above */
-};
-
-}
+@VERSION_FOOTER@
