@@ -2558,10 +2558,7 @@ bool Item_func_ifnull::date_op(MYSQL_TIME *ltime, uint fuzzydate)
   DBUG_ASSERT(fixed == 1);
   if (!args[0]->get_date(ltime, fuzzydate & ~TIME_FUZZY_DATES))
     return (null_value= false);
-  if (!args[1]->get_date(ltime, fuzzydate & ~TIME_FUZZY_DATES))
-    return (null_value= false);
-  bzero((char*) ltime,sizeof(*ltime));
-  return null_value= !(fuzzydate & TIME_FUZZY_DATES);
+  return (null_value= args[1]->get_date(ltime, fuzzydate & ~TIME_FUZZY_DATES));
 }
 
 
@@ -3311,15 +3308,12 @@ double Item_func_coalesce::real_op()
 bool Item_func_coalesce::date_op(MYSQL_TIME *ltime,uint fuzzydate)
 {
   DBUG_ASSERT(fixed == 1);
-  null_value= 0;
   for (uint i= 0; i < arg_count; i++)
   {
-    bool res= args[i]->get_date(ltime, fuzzydate & ~TIME_FUZZY_DATES);
-    if (!args[i]->null_value)
-      return res;
+    if (!args[i]->get_date(ltime, fuzzydate & ~TIME_FUZZY_DATES))
+      return (null_value= false);
   }
-  bzero((char*) ltime,sizeof(*ltime));
-  return null_value|= !(fuzzydate & TIME_FUZZY_DATES);
+  return (null_value= true);
 }
 
 

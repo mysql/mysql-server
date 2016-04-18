@@ -440,3 +440,38 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 select 1 from t1 as t1_0 inner join t1 as t2 on (t1_0.a <=> now()) join t1 on 1;
 1
 drop table t1;
+#
+# MDEV-9521 Least function returns 0000-00-00 for null date columns instead of null
+#
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+date_debut DATE NOT NULL,
+date_fin DATE DEFAULT NULL);
+CREATE TABLE t2(
+id BIGINT NOT NULL,
+date_debut DATE NOT NULL,
+date_fin DATE DEFAULT NULL);
+INSERT INTO t1 VALUES (1,'2016-01-01','2016-01-31');
+INSERT INTO t1 VALUES (2,'2016-02-01',null);
+INSERT INTO t1 VALUES (3,'2016-03-01','2016-03-31');
+INSERT INTO t1 VALUES (4,'2016-04-01',null);
+INSERT INTO t2 VALUES (1,'2016-01-01','2016-01-31');
+INSERT INTO t2 VALUES (2,'2016-02-01','2016-01-28');
+INSERT INTO t2 VALUES (3,'2016-03-01',null);
+INSERT INTO t2 VALUES (4,'2016-04-01',null);
+SELECT t1.id,
+GREATEST(t2.date_debut, t1.date_debut) AS date_debut,
+LEAST(IFNULL(t2.date_fin, IFNULL(t1.date_fin, NULL)),
+IFNULL(t1.date_fin, IFNULL(t2.date_fin, NULL))) AS date_fin
+FROM t1 LEFT JOIN t2 ON (t1.id=t2.id);
+id	date_debut	date_fin
+1	2016-01-01	2016-01-31 00:00:00
+2	2016-02-01	2016-01-28 00:00:00
+3	2016-03-01	2016-03-31 00:00:00
+4	2016-04-01	NULL
+DROP TABLE t1,t2;
+SELECT
+LEAST(COALESCE(DATE(NULL), DATE(NULL)), COALESCE(DATE(NULL), DATE(NULL))) AS d0,
+LEAST(IFNULL(DATE(NULL), DATE(NULL)), IFNULL(DATE(NULL), DATE(NULL))) AS d1;
+d0	d1
+NULL	NULL
