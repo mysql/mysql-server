@@ -1081,6 +1081,7 @@ enum_sp_return_code sp_drop_db_routines(THD *thd, const char *db)
 
     DBUG_EXECUTE_IF("fail_drop_db_routines",
                     { my_error(ER_SP_DROP_FAILED, MYF(0), "ROUTINE", "");
+                      delete_container_pointers(routines);
                       DBUG_RETURN(SP_DROP_FAILED);} );
 
     ret_code= dd::remove_routine(thd, routine2);
