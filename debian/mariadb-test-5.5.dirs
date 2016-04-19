@@ -50,8 +50,6 @@ usr/share/mysql/mysql-test/suite/ndb
 usr/share/mysql/mysql-test/suite/ndb/t
 usr/share/mysql/mysql-test/suite/ndb/r
 usr/share/mysql/mysql-test/suite/maria
-usr/share/mysql/mysql-test/suite/maria/t
-usr/share/mysql/mysql-test/suite/maria/r
 usr/share/mysql/mysql-test/suite/funcs_2
 usr/share/mysql/mysql-test/suite/funcs_2/lib
 usr/share/mysql/mysql-test/suite/funcs_2/t
