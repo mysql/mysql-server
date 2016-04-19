@@ -10,7 +10,7 @@ create table t2 (a int);
 insert into t2 values (2), (3);
 
 set session join_cache_level=3;
-set @@debug_dbug= 'd:t:O,/tmp/trace.out';
+set @@debug_dbug= 'd,opt';
 
 explain select t1.b from t1,t2 where t1.b=t2.a;
 select t1.b from t1,t2 where t1.b=t2.a;
