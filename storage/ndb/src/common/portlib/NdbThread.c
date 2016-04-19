@@ -19,7 +19,6 @@
 #include <ndb_global.h>
 #include <NdbThread.h>
 #include <my_thread.h>
-#include <NdbMem.h>
 #include <NdbMutex.h>
 #include <NdbCondition.h>
 
@@ -299,7 +298,7 @@ NdbThread_CreateObject(const char * name)
     DBUG_RETURN(g_main_thread);
   }
 
-  tmpThread = (struct NdbThread*)NdbMem_Allocate(sizeof(struct NdbThread));
+  tmpThread = (struct NdbThread*)malloc(sizeof(struct NdbThread));
   if (tmpThread == NULL)
     DBUG_RETURN(NULL);
 
@@ -355,7 +354,7 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   if (p_thread_func == NULL)
     DBUG_RETURN(NULL);
 
-  tmpThread = (struct NdbThread*)NdbMem_Allocate(sizeof(struct NdbThread));
+  tmpThread = (struct NdbThread*)malloc(sizeof(struct NdbThread));
   if (tmpThread == NULL)
     DBUG_RETURN(NULL);
 
@@ -400,7 +399,7 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
 
   if (result != 0)
   {
-    NdbMem_Free(tmpThread);
+    free(tmpThread);
     NdbMutex_Unlock(ndb_thread_mutex);
     DBUG_RETURN(0);
   }
@@ -433,7 +432,7 @@ NdbThread_CreateLockObject(int tid)
   struct NdbThread* tmpThread;
   DBUG_ENTER("NdbThread_CreateLockObject");
 
-  tmpThread = (struct NdbThread*)NdbMem_Allocate(sizeof(struct NdbThread));
+  tmpThread = (struct NdbThread*)malloc(sizeof(struct NdbThread));
   if (tmpThread == NULL)
     DBUG_RETURN(NULL);
 
@@ -481,7 +480,7 @@ void NdbThread_Destroy(struct NdbThread** p_thread)
       CloseHandle(thread_handle);
 #endif
     DBUG_PRINT("enter",("*p_thread: 0x%lx", (long) *p_thread));
-    NdbMem_Free(* p_thread); 
+    free(* p_thread);
     * p_thread = 0;
   }
   DBUG_VOID_RETURN;
@@ -933,8 +932,7 @@ is_cpu_locking_supported_on_windows()
     return FALSE;
   }
 
-  num_processors_per_group = NdbMem_Allocate(num_processor_groups *
-                                             sizeof(unsigned int));
+  num_processors_per_group = malloc(num_processor_groups * sizeof(unsigned int));
   if (num_processors_per_group == NULL)
   {
     return FALSE;
@@ -1187,10 +1185,8 @@ NdbThread_LockCreateCPUSet(const Uint32 *cpu_ids,
    * Based on this static and dynamic information we can calculate where to
    * place the next thread (in which processor group).
    */
-  unsigned int *cpu_set_ptr = NdbMem_Allocate( (num_cpu_ids +
-                                                2 +
-                                               (num_processor_groups * 2))
-                                               * sizeof(unsigned int));
+  unsigned int *cpu_set_ptr =
+    malloc( (num_cpu_ids + 2 + (num_processor_groups * 2)) * sizeof(unsigned int));
   if (!cpu_set_ptr)
   {
     int error_no = GetLastError();
@@ -1636,10 +1632,10 @@ NdbThread_LockCreateCPUSet(const Uint32 *cpu_ids,
   Uint32 i;
 #if defined(HAVE_LINUX_SCHEDULING)
   /* Linux */
-  cpu_set_t *cpu_set_ptr = NdbMem_Allocate(sizeof(cpu_set_t));
+  cpu_set_t *cpu_set_ptr = malloc(sizeof(cpu_set_t));
 #elif defined(HAVE_CPUSET_SETAFFINITY)
   /* FreeBSD */
-  cpuset_t *cpu_set_ptr = NdbMem_Allocate(sizeof(cpuset_t));
+  cpuset_t *cpu_set_ptr = malloc(sizeof(cpuset_t));
 #endif
 
   if (!cpu_set_ptr)
@@ -1660,7 +1656,7 @@ NdbThread_LockCreateCPUSet(const Uint32 *cpu_ids,
   /* New interface added in Solaris 11.2 */
   int error_no;
   Uint32 i;
-  id_t *cpu_set_ptr = NdbMem_Allocate((num_cpu_ids + 1) * sizeof(id_t));
+  id_t *cpu_set_ptr = malloc((num_cpu_ids + 1) * sizeof(id_t));
   if (!cpu_set_ptr)
   {
     error_no = errno;
@@ -1693,7 +1689,7 @@ NdbThread_LockCreateCPUSetExclusive(const Uint32 *cpu_ids,
   int ret;
   int error_no;
   Uint32 i;
-  psetid_t *cpu_set_ptr = NdbMem_Allocate(sizeof(psetid_t));
+  psetid_t *cpu_set_ptr = malloc(sizeof(psetid_t));
 
   if (!cpu_set_ptr)
   {
@@ -1721,7 +1717,7 @@ NdbThread_LockCreateCPUSetExclusive(const Uint32 *cpu_ids,
 late_error:
   pset_destroy(*cpu_set_ptr);
 error:
-  NdbMem_Free(cpu_set_ptr);
+  free(cpu_set_ptr);
 end_error:
   *cpu_set = NULL;
   return error_no;
@@ -1794,7 +1790,7 @@ NdbThread_LockDestroyCPUSet(struct NdbCpuSet *cpu_set)
 {
   if (cpu_set != NULL)
   {
-    NdbMem_Free(cpu_set);
+    free(cpu_set);
   }
 }
 
@@ -1807,7 +1803,7 @@ NdbThread_LockDestroyCPUSetExclusive(struct NdbCpuSet *cpu_set)
     /* Solaris */
     pset_destroy(*((psetid_t*)cpu_set));
 #endif
-    NdbMem_Free(cpu_set);
+    free(cpu_set);
   }
 }
 
@@ -1872,7 +1868,7 @@ NdbThread_End()
 
   if (g_main_thread)
   {
-    NdbMem_Free(g_main_thread);
+    free(g_main_thread);
     g_main_thread = 0;
   }
 }
@@ -1915,7 +1911,7 @@ NdbThread_SetHighPrioProperties(const char * spec)
     /**
      * extra prio??
      */
-    NdbMem_Free(copy);
+    free(copy);
     return -1;
   }
 
@@ -1937,7 +1933,7 @@ NdbThread_SetHighPrioProperties(const char * spec)
 #endif
   if (!found)
   {
-    NdbMem_Free(copy);
+    free(copy);
     return -1;
   }
 
@@ -1948,13 +1944,13 @@ NdbThread_SetHighPrioProperties(const char * spec)
     long p = strtol(prio, &endptr, 10);
     if (prio == endptr)
     {
-      NdbMem_Free(copy);
+      free(copy);
       return -1;
     }
     f_high_prio_prio = (int)p;
   }
   f_high_prio_set = 1;
-  NdbMem_Free(copy);
+  free(copy);
   return 0;
 #else
   return 0;

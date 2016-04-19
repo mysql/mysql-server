@@ -20,7 +20,7 @@
 #include <Configuration.hpp>
 #include <kernel_types.h>
 #include <NdbOut.hpp>
-#include <NdbMem.h>
+#include <portlib/NdbMem.h>
 #include <NdbTick.h>
 #include <util/ConfigValues.hpp>
 
