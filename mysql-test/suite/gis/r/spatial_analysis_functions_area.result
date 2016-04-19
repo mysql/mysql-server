@@ -286,11 +286,9 @@ ST_AREA(g)
 # ST_AREA(geometry) with different SRID values
 #####################################################################################
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_center,-1024));
-ST_AREA(ST_GEOMFROMTEXT(@star_center,-1024))
-0
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_all_points,-1));
-ST_AREA(ST_GEOMFROMTEXT(@star_all_points,-1))
-0
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_top_to_center,0));
 ST_AREA(ST_GEOMFROMTEXT(@star_top_to_center,0))
 0
@@ -304,11 +302,9 @@ SELECT ST_AREA(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295));
 ST_AREA(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295))
 200
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_of_elems,4294967296));
-ST_AREA(ST_GEOMFROMTEXT(@star_of_elems,4294967296))
-377.5
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000));
-ST_AREA(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000))
-665
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 #####################################################################################
 # Invalid function calls
 #####################################################################################

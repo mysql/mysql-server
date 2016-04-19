@@ -137,6 +137,43 @@ bool is_colinear(const Point_range &ls)
 }
 
 
+/**
+  Get an SRID from an item and check that it's within bounds.
+
+  If the item is NULL, set null_value.
+
+  The value must be representable as a 32 bit unsigned integer. If the
+  value is outside this range, an error is flagged.
+
+  @param[in] arg Item that holds the SRID
+  @param[out] srid Where to store the SRID
+  @param[out] null_value Where to store the null_value
+  @param[in] func_name Function name to use in error messages
+
+  @retval true An error has occurred
+  @retval false Success
+*/
+static bool validate_srid_arg(Item *arg, Geometry::srid_t *srid,
+                              my_bool *null_value, const char *func_name)
+{
+  longlong arg_srid= arg->val_int();
+
+  if ((*null_value= arg->null_value))
+  {
+    return false;
+  }
+
+  if (arg_srid < 0 || arg_srid > UINT_MAX32)
+  {
+    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "SRID", func_name);
+    return true;
+  }
+
+  *srid= static_cast<Geometry::srid_t>(arg_srid);
+  return false;
+}
+
+
 Item_geometry_func::Item_geometry_func(const POS &pos, PT_item_list *list)
   :Item_str_func(pos, list)
 {}
@@ -190,25 +227,25 @@ String *Item_func_geometry_from_text::val_str(String *str)
   String *wkt= args[0]->val_str_ascii(&arg_val);
 
   if ((null_value= (!wkt || args[0]->null_value)))
-    return 0;
+    return nullptr;
 
   Gis_read_stream trs(wkt->charset(), wkt->ptr(), wkt->length());
-  uint32 srid= 0;
+  Geometry::srid_t srid= 0;
 
   if (arg_count == 2)
   {
-    if ((null_value= args[1]->null_value))
+    if (validate_srid_arg(args[1], &srid, &null_value, func_name()))
+      return error_str();
+    if (null_value)
     {
       DBUG_ASSERT(maybe_null);
-      return NULL;
+      return nullptr;
     }
-    else
-      srid= (uint32)args[1]->val_int();
   }
 
   str->set_charset(&my_charset_bin);
-  if ((null_value= str->reserve(GEOM_HEADER_SIZE, 512)))
-    return 0;
+  if (str->reserve(GEOM_HEADER_SIZE, 512))
+    return error_str();
   str->length(0);
   str->q_append(srid);
   if (!Geometry::create_from_wkt(&buffer, &trs, str, 0))
@@ -243,19 +280,25 @@ bool Item_func_geometry_from_wkb::itemize(Parse_context *pc, Item **res)
 String *Item_func_geometry_from_wkb::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *wkb= NULL;
-  uint32 srid= 0;
+  Geometry::srid_t srid= 0;
 
   if (arg_count == 2)
   {
-    srid= static_cast<uint32>(args[1]->val_int());
-    if ((null_value= args[1]->null_value))
-      return NULL;
+    if (validate_srid_arg(args[1], &srid, &null_value, func_name()))
+      return error_str();
+    if (null_value)
+    {
+      DBUG_ASSERT(maybe_null);
+      return nullptr;
+    }
   }
 
-  wkb= args[0]->val_str(&tmp_value);
+  String *wkb= args[0]->val_str(&tmp_value);
   if ((null_value= (!wkb || args[0]->null_value)))
-    return NULL;
+  {
+    DBUG_ASSERT(maybe_null);
+    return nullptr;
+  }
 
   /*
     GeometryFromWKB(wkb [,srid]) understands both WKB (without SRID) and
@@ -269,7 +312,7 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
   if (args[0]->field_type() == MYSQL_TYPE_GEOMETRY)
   {
     Geometry_buffer buff;
-    if (Geometry::construct(&buff, wkb->ptr(), wkb->length()) == NULL)
+    if (Geometry::construct(&buff, wkb->ptr(), wkb->length()) == nullptr)
     {
       my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
       return error_str();
@@ -288,8 +331,8 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
       because wkb can point to some value that we should not touch,
       e.g. to a SP variable value. So we need to copy to "str".
     */
-    if ((null_value= str->copy(*wkb)))
-      return NULL;
+    if (str->copy(*wkb))
+      return error_str();
     str->write_at_position(0, srid);
     return str;
   }
@@ -297,8 +340,7 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
   str->set_charset(&my_charset_bin);
   if (str->reserve(GEOM_HEADER_SIZE, 512))
   {
-    null_value= true;                           /* purecov: inspected */
-    return NULL;                                   /* purecov: inspected */
+    return error_str();
   }
   str->length(0);
   str->q_append(srid);
@@ -405,28 +447,15 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
       Check and parse the SRID parameter. If this is set to a valid value,
       any CRS member in the GeoJSON document will be ignored.
     */
-    longlong srid_argument= args[2]->val_int();
-    if ((null_value= args[2]->null_value))
-      return NULL;
-
-    // Only allow unsigned 32 bits integer as SRID.
-    if (srid_argument < 0 || srid_argument > UINT_MAX32)
-    {
-      char srid_string[MAX_BIGINT_WIDTH + 1];
-      if (args[2]->unsigned_flag)
-        ullstr(srid_argument, srid_string);
-      else
-        llstr(srid_argument, srid_string);
-
-      my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "SRID", srid_string,
-               func_name());
+    if (validate_srid_arg(args[2], &m_user_srid, &null_value, func_name()))
       return error_str();
-    }
-    else
+    if (null_value)
     {
-      m_user_srid= static_cast<Geometry::srid_t>(srid_argument);
-      m_user_provided_srid= true;
+      DBUG_ASSERT(maybe_null);
+      return nullptr;
     }
+
+    m_user_provided_srid= true;
   }
 
   Json_wrapper wr;
@@ -4128,20 +4157,14 @@ String *Item_func_pointfromgeohash::val_str(String *str)
 
   String argument_value;
   String *geohash= args[0]->val_str_ascii(&argument_value);
-  longlong srid_input= args[1]->val_int();
+  Geometry::srid_t srid;
+
+  if (validate_srid_arg(args[1], &srid, &null_value, func_name()))
+    return error_str();
 
   // Return null if one or more of the input arguments is null.
   if ((null_value= (args[0]->null_value || args[1]->null_value)))
     return NULL;
-
-  // Only allow unsigned 32 bits integer as SRID.
-  if (srid_input < 0 || srid_input > UINT_MAX32)
-  {
-    char srid_string[MAX_BIGINT_WIDTH + 1];
-    llstr(srid_input, srid_string);
-    my_error(ER_WRONG_VALUE_FOR_TYPE, MYF(0), "SRID", srid_string, func_name());
-    return error_str();
-  }
 
   if (str->mem_realloc(GEOM_HEADER_SIZE + POINT_DATA_SIZE))
     return make_empty_result();
@@ -4155,7 +4178,6 @@ String *Item_func_pointfromgeohash::val_str(String *str)
 
   double latitude= 0.0;
   double longitude= 0.0;
-  uint32 srid= static_cast<uint32>(srid_input);
   if (Item_func_latlongfromgeohash::decode_geohash(geohash, upper_latitude,
                                                    lower_latitude,
                                                    upper_longitude,

@@ -268,8 +268,10 @@ SELECT ST_ASTEXT(ST_CENTROID(g)) FROM gis_geometrycollection WHERE fid=115;
 --echo # ST_CENTROID(geometry) with different SRID values
 --echo #####################################################################################
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_center,-1024)));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_all_points,-1)));
 
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_top_to_center,0)));
@@ -280,8 +282,10 @@ SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star,123456789)));
 
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295)));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_of_elems,4294967296)));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000)));
 
 --echo #####################################################################################

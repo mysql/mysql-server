@@ -2435,7 +2435,7 @@ ERROR HY000: Incorrect arguments to st_makeenvelope
 # BUG#20406722 : ST_ISVALID() DOES NOT PRINT THE FUNCTION NAME IN THE ERROR MESSAGE
 ######################################################################################################
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', -1));
-ERROR HY000: Incorrect arguments to st_isvalid
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 1));
 ERROR HY000: Incorrect arguments to st_isvalid
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 1000));
@@ -2446,18 +2446,18 @@ ERROR HY000: Incorrect arguments to st_isvalid
 SET @star_center= 'POINT(15 10)';
 SET @star_all_points= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_center,-1024));
-ERROR HY000: Incorrect arguments to st_isvalid
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_all_points,-1));
-ERROR HY000: Incorrect arguments to st_isvalid
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 ######################################################################################################
 # BUG#20414966 : WL#8034 : CRASH WITH ST_VAIDATE() IN ITEM_FUNC_VALIDATE::VAL_STR
 ######################################################################################################
 SET @star_center= 'POINT(15 10)';
 SET @star_all_points= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
 SELECT ST_VALIDATE(ST_GEOMFROMTEXT(@star_center,-1024));
-ERROR HY000: Incorrect arguments to st_validate
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_VALIDATE(ST_GEOMFROMTEXT(@star_all_points,-1));
-ERROR HY000: Incorrect arguments to st_validate
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 ######################################################################################################
 # BUG#20430521 : WL#8034 : CRASH WITH ST_SIMPLIFY() IN ITEM_FUNC_SIMPLIFY::VAL_STR
 ######################################################################################################

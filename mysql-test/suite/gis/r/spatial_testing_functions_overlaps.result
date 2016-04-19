@@ -2005,14 +2005,11 @@ SELECT MBROVERLAPS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_c
 MBROVERLAPS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295))
 0
 SELECT MBROVERLAPS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
-MBROVERLAPS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1))
-0
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT MBROVERLAPS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
-MBROVERLAPS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024))
-0
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT MBROVERLAPS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
-MBROVERLAPS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000))
-0
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 #====================================================================================
 # ST_OVERLAPS(g1,g2)
 #====================================================================================
@@ -2035,14 +2032,11 @@ SELECT ST_OVERLAPS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_c
 ST_OVERLAPS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295))
 0
 SELECT ST_OVERLAPS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
-ST_OVERLAPS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1))
-0
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_OVERLAPS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
-ST_OVERLAPS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024))
-0
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_OVERLAPS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
-ST_OVERLAPS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000))
-0
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 #####################################################################################
 # Invalid function calls
 #####################################################################################

@@ -1974,14 +1974,11 @@ SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_cen
 MBRWITHIN(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295))
 0
 SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
-MBRWITHIN(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1))
-0
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
-MBRWITHIN(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024))
-0
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT MBRWITHIN(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
-MBRWITHIN(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000))
-0
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 #====================================================================================
 # ST_WITHIN(g1,g2)
 #====================================================================================
@@ -2004,14 +2001,11 @@ SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_cen
 ST_WITHIN(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295))
 0
 SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
-ST_WITHIN(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1))
-0
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
-ST_WITHIN(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024))
-0
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_WITHIN(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
-ST_WITHIN(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000))
-0
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 #####################################################################################
 # Invalid function calls
 #####################################################################################

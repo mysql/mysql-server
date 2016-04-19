@@ -168,20 +168,16 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 0), 100, 2);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 0), 100, 2)
 {"type": "Point", "coordinates": [10, 11]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", -1), 100, 4);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", -1), 100, 4)
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4294967295"}}, "type": "Point", "coordinates": [10, 11]}
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", -1000), 100, 6);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", -1000), 100, 6)
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4294966296"}}, "type": "Point", "coordinates": [10, 11]}
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4294967295), 100, 6);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4294967295), 100, 6)
 {"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4294967295"}}, "type": "Point", "coordinates": [10, 11]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4294967296), 100, 6);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4294967296), 100, 6)
-{"type": "Point", "coordinates": [10, 11]}
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4294967295123), 100, 7);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", 4294967295123), 100, 7)
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4294966419"}}, "bbox": [10, 11, 10, 11], "type": "Point", "coordinates": [10, 11]}
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 12), 0, 0);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10.123456789 11.123456789)", 12), 0, 0)
 {"type": "Point", "coordinates": [10, 11]}
@@ -237,20 +233,16 @@ SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "0"), 100, 1);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "0"), 100, 1)
 {"bbox": [10, 11, 10, 11], "type": "Point", "coordinates": [10, 11]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "-1"), 100, 2);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "-1"), 100, 2)
-{"crs": {"type": "name", "properties": {"name": "EPSG:4294967295"}}, "type": "Point", "coordinates": [10, 11]}
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "-1000"), 100, 3);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "-1000"), 100, 3)
-{"crs": {"type": "name", "properties": {"name": "EPSG:4294966296"}}, "bbox": [10, 11, 10, 11], "type": "Point", "coordinates": [10, 11]}
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "4294967295"), 100, 4);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "4294967295"), 100, 4)
 {"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4294967295"}}, "type": "Point", "coordinates": [10, 11]}
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "4294967296"), 100, 5);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "4294967296"), 100, 5)
-{"bbox": [10, 11, 10, 11], "type": "Point", "coordinates": [10, 11]}
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "4294967295123"), 100, 6);
-ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", "4294967295123"), 100, 6)
-{"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::4294966419"}}, "type": "Point", "coordinates": [10, 11]}
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", (CAST(10 AS CHAR))), 100, 7);
 ST_ASGEOJSON(ST_GEOMFROMTEXT("POINT(10 11)", (CAST(10 AS CHAR))), 100, 7)
 {"crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::10"}}, "bbox": [10, 11, 10, 11], "type": "Point", "coordinates": [10, 11]}
@@ -2247,11 +2239,11 @@ ERROR HY000: Incorrect option value: '9223372036854775807' for function st_geomf
 SELECT ST_GEOMFROMGEOJSON("", 9223372036854775808);
 ERROR HY000: Incorrect option value: '9223372036854775808' for function st_geomfromgeojson
 SELECT ST_GEOMFROMGEOJSON("", 1, -9223372036854775808);
-ERROR HY000: Incorrect SRID value: '-9223372036854775808' for function st_geomfromgeojson
+ERROR 22003: SRID value is out of range in 'st_geomfromgeojson'
 SELECT ST_GEOMFROMGEOJSON("", 1, 9223372036854775807);
-ERROR HY000: Incorrect SRID value: '9223372036854775807' for function st_geomfromgeojson
+ERROR 22003: SRID value is out of range in 'st_geomfromgeojson'
 SELECT ST_GEOMFROMGEOJSON("", 1, 9223372036854775808);
-ERROR HY000: Incorrect SRID value: '9223372036854775808' for function st_geomfromgeojson
+ERROR 22003: SRID value is out of range in 'st_geomfromgeojson'
 # Checking invalid/incorrect option parameter input
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [10, 15] }", 0));
@@ -2304,28 +2296,28 @@ ERROR 42S22: Unknown column 'a' in 'field list'
 # Checking invalid/incorrect ST_SRID parameter input
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [10, 15] }", 1, -1));
-ERROR HY000: Incorrect SRID value: '-1' for function st_geomfromgeojson
+ERROR 22003: SRID value is out of range in 'st_geomfromgeojson'
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [10, 15] }", 1, -1000));
-ERROR HY000: Incorrect SRID value: '-1000' for function st_geomfromgeojson
+ERROR 22003: SRID value is out of range in 'st_geomfromgeojson'
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [10, 15] }", 1, 4294967296));
-ERROR HY000: Incorrect SRID value: '4294967296' for function st_geomfromgeojson
+ERROR 22003: SRID value is out of range in 'st_geomfromgeojson'
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [10, 15] }", 1, 4294967295000));
-ERROR HY000: Incorrect SRID value: '4294967295000' for function st_geomfromgeojson
+ERROR 22003: SRID value is out of range in 'st_geomfromgeojson'
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [10, 15] }", 1, "-1"));
-ERROR HY000: Incorrect SRID value: '-1' for function st_geomfromgeojson
+ERROR 22003: SRID value is out of range in 'st_geomfromgeojson'
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [10, 15] }", 1, "-1000"));
-ERROR HY000: Incorrect SRID value: '-1000' for function st_geomfromgeojson
+ERROR 22003: SRID value is out of range in 'st_geomfromgeojson'
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [10, 15] }", 1, "4294967296"));
-ERROR HY000: Incorrect SRID value: '4294967296' for function st_geomfromgeojson
+ERROR 22003: SRID value is out of range in 'st_geomfromgeojson'
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [10, 15] }", 1, "4294967295000"));
-ERROR HY000: Incorrect SRID value: '4294967295000' for function st_geomfromgeojson
+ERROR 22003: SRID value is out of range in 'st_geomfromgeojson'
 SELECT ST_ASTEXT(ST_GEOMFROMGEOJSON(
 "{ \"type\": \"Point\", \"coordinates\": [10, 15] }", 1, 1.1));
 ERROR HY000: Incorrect type for argument SRID in function st_geomfromgeojson.
@@ -4107,11 +4099,11 @@ ERROR HY000: Incorrect max decimal digits value: '18446744073709551615' for func
 SELECT ST_ASGEOJSON(POINT(1, 1), 10, 18446744073709551615);
 ERROR HY000: Incorrect options value: '18446744073709551615' for function st_asgeojson
 SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', 1, -9223372036854775808);
-ERROR HY000: Incorrect SRID value: '-9223372036854775808' for function st_geomfromgeojson
+ERROR 22003: SRID value is out of range in 'st_geomfromgeojson'
 SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', -9223372036854775808);
 ERROR HY000: Incorrect option value: '-9223372036854775808' for function st_geomfromgeojson
 SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', 1, 18446744073709551615);
-ERROR HY000: Incorrect SRID value: '18446744073709551615' for function st_geomfromgeojson
+ERROR 22003: SRID value is out of range in 'st_geomfromgeojson'
 SELECT ST_GEOMFROMGEOJSON('{"type":"Point", "coordinates":[10, 20]}', 18446744073709551615);
 ERROR HY000: Incorrect option value: '18446744073709551615' for function st_geomfromgeojson
 SELECT ST_ASGEOJSON(POINT(1, 1), -9223372036854775809);

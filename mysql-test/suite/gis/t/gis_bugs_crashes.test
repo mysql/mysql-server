@@ -2209,7 +2209,7 @@ SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 0), ST_GEOMFROMTE
 --echo # BUG#20406722 : ST_ISVALID() DOES NOT PRINT THE FUNCTION NAME IN THE ERROR MESSAGE
 --echo ######################################################################################################
 
---error ER_WRONG_ARGUMENTS
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', -1));
 
 --error ER_WRONG_ARGUMENTS
@@ -2225,10 +2225,10 @@ SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 1000));
 SET @star_center= 'POINT(15 10)';
 SET @star_all_points= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
 
---error ER_WRONG_ARGUMENTS
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_center,-1024));
 
---error ER_WRONG_ARGUMENTS
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_all_points,-1));
 
 --echo ######################################################################################################
@@ -2238,10 +2238,10 @@ SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_all_points,-1));
 SET @star_center= 'POINT(15 10)';
 SET @star_all_points= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
 
---error ER_WRONG_ARGUMENTS
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_VALIDATE(ST_GEOMFROMTEXT(@star_center,-1024));
 
---error ER_WRONG_ARGUMENTS
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_VALIDATE(ST_GEOMFROMTEXT(@star_all_points,-1));
 
 --echo ######################################################################################################

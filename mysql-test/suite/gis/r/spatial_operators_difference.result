@@ -946,14 +946,11 @@ SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROM
 ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295)))
 POINT(15 25)
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1)));
-ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1)))
-POINT(15 25)
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024)));
-ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024)))
-POINT(15 25)
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000)));
-ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000)))
-POINT(15 25)
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 #####################################################################################
 # Invalid function calls
 #####################################################################################
@@ -971,8 +968,7 @@ SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@sta
 ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0)))
 POINT(15 25)
 SELECT ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1)));
-ST_ASTEXT(ST_DIFFERENCE(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1)))
-POINT(15 25)
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ASTEXT(ST_DIFFERENCE(NULL,ST_GEOMFROMTEXT(@star_top)));
 ST_ASTEXT(ST_DIFFERENCE(NULL,ST_GEOMFROMTEXT(@star_top)))
 NULL

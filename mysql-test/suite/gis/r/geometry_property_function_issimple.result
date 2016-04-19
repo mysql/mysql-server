@@ -452,11 +452,9 @@ ST_ISSIMPLE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0),'
 # ST_ISSIMPLE(geometry) with different SRID values
 #####################################################################################
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_center,-1024));
-ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_center,-1024))
-1
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_all_points,-1));
-ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_all_points,-1))
-1
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_top_to_center,0));
 ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_top_to_center,0))
 1
@@ -470,11 +468,9 @@ SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295));
 ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295))
 1
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_of_elems,4294967296));
-ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_of_elems,4294967296))
-1
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000));
-ST_ISSIMPLE(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000))
-1
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 #####################################################################################
 # Invalid function calls
 #####################################################################################

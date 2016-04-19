@@ -888,14 +888,11 @@ SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295)))
 MULTIPOINT((15 10),(15 25))
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1)));
-ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1)))
-MULTIPOINT((15 10),(15 25))
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024)));
-ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024)))
-MULTIPOINT((15 10),(15 25))
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000)));
-ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000)))
-MULTIPOINT((15 10),(15 25))
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 #####################################################################################
 # Invalid function calls
 #####################################################################################
@@ -913,8 +910,7 @@ SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_cen
 ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0)))
 MULTIPOINT((15 10),(15 25))
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1)));
-ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1)))
-MULTIPOINT((15 10),(15 25))
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ASTEXT(ST_UNION(NULL,ST_GEOMFROMTEXT(@star_top)));
 ST_ASTEXT(ST_UNION(NULL,ST_GEOMFROMTEXT(@star_top)))
 NULL

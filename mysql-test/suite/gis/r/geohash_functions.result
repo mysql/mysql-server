@@ -678,25 +678,25 @@ ERROR HY000: Incorrect type for argument SRID in function st_pointfromgeohash.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("rzzzzzzzzzzzzzzzzzzz", 12345.67890));
 ERROR HY000: Incorrect type for argument SRID in function st_pointfromgeohash.
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("zzzzzzzzzzzzzzzzzzzz", 4294967296));
-ERROR HY000: Incorrect SRID value: '4294967296' for function st_pointfromgeohash
+ERROR 22003: SRID value is out of range in 'st_pointfromgeohash'
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("bpbpbpbpbpbpbpbpbpbp", 10000000000));
-ERROR HY000: Incorrect SRID value: '10000000000' for function st_pointfromgeohash
+ERROR 22003: SRID value is out of range in 'st_pointfromgeohash'
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("pbpbpbpbpbpbpbpbpbpb", 4294967295000));
-ERROR HY000: Incorrect SRID value: '4294967295000' for function st_pointfromgeohash
+ERROR 22003: SRID value is out of range in 'st_pointfromgeohash'
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("gzzzzzzzzzzzzzzzzzzz", -1));
-ERROR HY000: Incorrect SRID value: '-1' for function st_pointfromgeohash
+ERROR 22003: SRID value is out of range in 'st_pointfromgeohash'
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("5bpbpbpbpbpbpbpbpbpb", -1024));
-ERROR HY000: Incorrect SRID value: '-1024' for function st_pointfromgeohash
+ERROR 22003: SRID value is out of range in 'st_pointfromgeohash'
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("7zzzzzzzzzzzzzzzzzzz", -04294967295));
-ERROR HY000: Incorrect SRID value: '-4294967295' for function st_pointfromgeohash
+ERROR 22003: SRID value is out of range in 'st_pointfromgeohash'
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("00000000000000000000", "4294967296"));
-ERROR HY000: Incorrect SRID value: '4294967296' for function st_pointfromgeohash
+ERROR 22003: SRID value is out of range in 'st_pointfromgeohash'
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("00000000000000000000", "10000000000"));
-ERROR HY000: Incorrect SRID value: '10000000000' for function st_pointfromgeohash
+ERROR 22003: SRID value is out of range in 'st_pointfromgeohash'
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("00000000000000000000", "-1"));
-ERROR HY000: Incorrect SRID value: '-1' for function st_pointfromgeohash
+ERROR 22003: SRID value is out of range in 'st_pointfromgeohash'
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("00000000000000000000", "-1024"));
-ERROR HY000: Incorrect SRID value: '-1024' for function st_pointfromgeohash
+ERROR 22003: SRID value is out of range in 'st_pointfromgeohash'
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH("123",));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '))' at line 1
 SELECT ST_ASTEXT(ST_POINTFROMGEOHASH(,"456"));

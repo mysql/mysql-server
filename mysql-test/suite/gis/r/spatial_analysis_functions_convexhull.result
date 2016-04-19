@@ -331,11 +331,9 @@ POLYGON((0 15,5 0,25 0,30 15,15 25,0 15))
 # ST_CONVEXHULL(geometry) with different SRID values
 #####################################################################################
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_center,-1024)));
-ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_center,-1024)))
-POINT(15 10)
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_all_points,-1)));
-ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_all_points,-1)))
-POLYGON((5 0,25 0,15 25,5 0))
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_top_to_center,0)));
 ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_top_to_center,0)))
 LINESTRING(15 10,15 25)
@@ -349,11 +347,9 @@ SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295)))
 ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295)))
 POLYGON((5 0,25 0,15 25,5 0))
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_of_elems,4294967296)));
-ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_of_elems,4294967296)))
-POLYGON((0 15,5 0,25 0,30 15,15 25,0 15))
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000)));
-ST_ASTEXT(ST_CONVEXHULL(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000)))
-POLYGON((0 15,5 0,25 0,30 15,15 25,0 15))
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 #####################################################################################
 # Invalid function calls
 #####################################################################################

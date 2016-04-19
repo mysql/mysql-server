@@ -1543,14 +1543,11 @@ SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_c
 ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295))
 15
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
-ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1))
-15
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
-ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024))
-15
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
-ST_DISTANCE(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000))
-15
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 #####################################################################################
 # Invalid function calls
 #####################################################################################
