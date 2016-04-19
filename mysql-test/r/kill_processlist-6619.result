@@ -1,8 +1,4 @@
 connect  con1,localhost,root,,;
-SHOW PROCESSLIST;
-Id	User	Host	db	Command	Time	State	Info	Progress
-#	root	#	test	Sleep	#	#	NULL	0.000
-#	root	#	test	Query	#	#	SHOW PROCESSLIST	0.000
 connection default;
 KILL QUERY con_id;
 connection con1;
