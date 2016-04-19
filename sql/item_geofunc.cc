@@ -4157,7 +4157,7 @@ String *Item_func_pointfromgeohash::val_str(String *str)
 
   String argument_value;
   String *geohash= args[0]->val_str_ascii(&argument_value);
-  Geometry::srid_t srid;
+  Geometry::srid_t srid= 0;
 
   if (validate_srid_arg(args[1], &srid, &null_value, func_name()))
     return error_str();
