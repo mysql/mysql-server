@@ -456,14 +456,8 @@ int runTestMgmApiEventTimeout(NDBT_Context* ctx, NDBT_Step* step)
                      1, NDB_MGM_EVENT_CATEGORY_STARTUP,
                      0 };
 
-    NDB_SOCKET_TYPE my_fd;
-#ifdef NDB_WIN
-    SOCKET fd= ndb_mgm_listen_event(h, filter);
-    my_fd.s= fd;
-#else
-    int fd= ndb_mgm_listen_event(h, filter);
-    my_fd.fd= fd;
-#endif
+    ndb_native_socket_t fd= ndb_mgm_listen_event(h, filter);
+    ndb_socket_t my_fd = ndb_socket_create_from_native(fd);
 
     if(!my_socket_valid(my_fd))
     {
