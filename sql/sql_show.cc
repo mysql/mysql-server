@@ -6177,14 +6177,13 @@ static int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
 
   // Fetch all schemas from the catalog.
   dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
-  std::unique_ptr<dd::Iterator<const dd::Schema> > schemas;
+  std::vector<const dd::Schema*> schemas;
   if ((res= thd->dd_client()->fetch_catalog_components(&schemas)))
     goto err;
 
   // Loop through all the schemas
   {
-    const dd::Schema *schema= NULL;
-    while ((schema= schemas->next()) != NULL)
+    for (const dd::Schema *schema : schemas)
     {
       /*
         We must make sure the schema is released and unlocked in the right
@@ -6205,14 +6204,12 @@ static int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
         Fill all stored routines information in I_S.ROUTINES/I_S.PARAMETERS
         table.
       */
-      std::unique_ptr<dd::Iterator<const dd::Routine> > routine_iterator;
-      if ((res= thd->dd_client()->fetch_schema_components(schema,
-                                                          &routine_iterator)))
+      std::vector<const dd::Routine*> routines;
+      if ((res= thd->dd_client()->fetch_schema_components(schema, &routines)))
         goto err;
 
       LEX_CSTRING db_name= { schema->name().c_str(), schema->name().length() };
-      const dd::Routine *routine= NULL;
-      while ((routine= routine_iterator->next()) != NULL)
+      for (const dd::Routine *routine :routines)
       {
         // Fill I_S.ROUTINES/I_S.PARAMETERS table.
         if (get_schema_table_idx(tables->schema_table) == SCH_PROCEDURES)
@@ -6223,9 +6220,15 @@ static int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
                                    routine, wild, definer);
 
         if (res)
+        {
+          delete_container_pointers(routines);
           goto err;
+        }
       }
+      delete_container_pointers(routines);
     }
+
+    delete_container_pointers(schemas);
   }
 
 err:

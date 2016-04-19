@@ -1139,22 +1139,20 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue)
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   // Fetch all Schemas
-  std::unique_ptr<dd::Iterator<const dd::Schema> > schema_iter;
-  if (thd->dd_client()->fetch_global_components(&schema_iter))
+  std::vector<const dd::Schema*> schemas;
+  if (thd->dd_client()->fetch_global_components(&schemas))
     DBUG_RETURN(true);
 
   std::vector<std::pair<const dd::Schema*, const dd::Event*> > drop_events_vector;
 
-  const dd::Schema *schema_obj;
-  while ((schema_obj= schema_iter->next()) != nullptr)
+  for (const dd::Schema *schema_obj : schemas)
   {
     // Fetch all events in a schema
-    std::unique_ptr<dd::Iterator<const dd::Event> > events_iter;
-    if (thd->dd_client()->fetch_schema_components(schema_obj, &events_iter))
+    std::vector<const dd::Event*> events;
+    if (thd->dd_client()->fetch_schema_components(schema_obj, &events))
       DBUG_RETURN(true);
 
-    const dd::Event *ev_obj;
-    while ((ev_obj= events_iter->next()) != nullptr)
+    for (const dd::Event *ev_obj : events)
     {
       Event_queue_element *et= new (std::nothrow) Event_queue_element;
       if (et == nullptr)
@@ -1194,7 +1192,11 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue)
         drop_events_vector.push_back(std::make_pair(schema_obj, ev_obj));
       }
     }
+
+    delete_container_pointers(events);
   }
+
+  delete_container_pointers(schemas);
 
   for (auto event_info : drop_events_vector)
   {

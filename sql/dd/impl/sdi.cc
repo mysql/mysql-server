@@ -523,14 +523,13 @@ static bool update_sdi(THD *thd, const dd::Schema *s)
   dd::cache::Dictionary_client *dc= thd->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(dc);
 
-  std::unique_ptr<dd::Iterator<const dd::Abstract_table> > iter;
-  if (dc->fetch_schema_components(s, &iter))
+  std::vector<const dd::Abstract_table*> tables;
+  if (dc->fetch_schema_components(s, &tables))
   {
     return checked_return(true);
   }
 
-  const dd::Abstract_table *at;
-  while ((at= iter->next()) != nullptr)
+  for (const dd::Abstract_table *at : tables)
   {
     const Table *tbl= dynamic_cast<const Table*>(at);
     if (!tbl)
@@ -550,6 +549,9 @@ static bool update_sdi(THD *thd, const dd::Schema *s)
       return checked_return(true);
     }
   }
+
+  delete_container_pointers(tables);
+
   // Finally, update SDI file
   return checked_return(sdi_file::store(thd, sdi, s));
 }
@@ -583,14 +585,13 @@ bool remove_sdi(THD *thd, const dd::Schema *s)
   cache::Dictionary_client *dc= thd->dd_client();
   cache::Dictionary_client::Auto_releaser releaser(dc);
 
-  std::unique_ptr<dd::Iterator<const dd::Abstract_table> > iter;
-  if (dc->fetch_schema_components(s, &iter))
+  std::vector<const dd::Abstract_table*> tables;
+  if (dc->fetch_schema_components(s, &tables))
   {
     return checked_return(true);
   }
 
-  const dd::Abstract_table *at;
-  while ((at= iter->next()) != nullptr)
+  for (const dd::Abstract_table *at : tables)
   {
     const Table *tbl= dynamic_cast<const Table*>(at);
     if (!tbl)
@@ -605,6 +606,9 @@ bool remove_sdi(THD *thd, const dd::Schema *s)
       return checked_return(true);
     }
   }
+
+  delete_container_pointers(tables);
+
   // Finally, remove SDI file
   return checked_return(sdi_file::remove(thd, s));
 }

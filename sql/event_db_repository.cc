@@ -84,8 +84,8 @@ static bool index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
   if (sch_obj == nullptr)
     DBUG_RETURN(false);
 
-  std::unique_ptr<dd::Iterator<const dd::Event> > events_iter;
-  if (thd->dd_client()->fetch_schema_components(sch_obj, &events_iter))
+  std::vector<const dd::Event*> events;
+  if (thd->dd_client()->fetch_schema_components(sch_obj, &events))
   {
     /*
       Ignore any error so that information schema displays a empty row.
@@ -95,8 +95,7 @@ static bool index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
     DBUG_RETURN(false);
   }
 
-  const dd::Event *event_obj;
-  while ((event_obj= events_iter->next()) != nullptr)
+  for (const dd::Event *event_obj : events)
   {
     /*
       Fill meta information from the DD Event object
@@ -113,6 +112,8 @@ static bool index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
       thd->clear_error();
     }
   }
+
+  delete_container_pointers(events);
 
   DBUG_RETURN(false);
 }
@@ -134,20 +135,18 @@ static bool table_scan_all_for_i_s(THD *thd, TABLE *schema_table)
   DBUG_ENTER("table_scan_all_for_i_s");
 
   // Fetch all Schemas
-  std::unique_ptr<dd::Iterator<const dd::Schema> > schema_iter;
-  if (thd->dd_client()->fetch_global_components(&schema_iter))
+  std::vector<const dd::Schema*> schemas;
+  if (thd->dd_client()->fetch_global_components(&schemas))
     DBUG_RETURN(true);
 
-  const dd::Schema *schema_obj;
-  while ((schema_obj= schema_iter->next()) != nullptr)
+  for (const dd::Schema *schema_obj : schemas)
   {
     // Fetch all DD Event Objects.
-    std::unique_ptr<dd::Iterator<const dd::Event> > events_iter;
-    if (thd->dd_client()->fetch_schema_components(schema_obj, &events_iter))
+    std::vector<const dd::Event*> events;
+    if (thd->dd_client()->fetch_schema_components(schema_obj, &events))
       DBUG_RETURN(true);
 
-    const dd::Event *event_obj;
-    while ((event_obj= events_iter->next()) != nullptr)
+    for (const dd::Event *event_obj : events)
     {
       /*
         Fill meta information from the DD Event object
@@ -165,7 +164,11 @@ static bool table_scan_all_for_i_s(THD *thd, TABLE *schema_table)
         thd->clear_error();
       }
     }
+
+    delete_container_pointers(events);
   }
+
+  delete_container_pointers(schemas);
 
   DBUG_RETURN(false);
 }
@@ -406,12 +409,11 @@ Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
     DBUG_RETURN(true);
   }
 
-  std::unique_ptr<dd::Iterator<const dd::Event> > events_iter;
-  if (thd->dd_client()->fetch_schema_components(sch_obj, &events_iter))
+  std::vector<const dd::Event*> events;
+  if (thd->dd_client()->fetch_schema_components(sch_obj, &events))
     DBUG_RETURN(true);
 
-  const dd::Event *event_obj;
-  while ((event_obj = events_iter->next()) != nullptr)
+  for (const dd::Event *event_obj : events)
   {
      /*
        TODO: This extra acquire is required for now as Dictionary_client::drop()
@@ -431,6 +433,8 @@ Event_db_repository::drop_schema_events(THD *thd, LEX_STRING schema)
       DBUG_RETURN(true);
     }
   }
+
+  delete_container_pointers(events);
 
   DBUG_RETURN(false);
 }

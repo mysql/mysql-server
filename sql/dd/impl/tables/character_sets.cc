@@ -19,7 +19,6 @@
 
 #include "dd/dd.h"                                // dd::create_object
 #include "dd/cache/dictionary_client.h"           // dd::cache::Dictionary_...
-#include "dd/impl/dictionary_object_collection.h" // Dictionary_object_coll...
 #include "dd/impl/raw/object_keys.h"              // Global_name_key
 
 namespace dd {
@@ -33,13 +32,12 @@ namespace tables {
 bool Character_sets::populate(THD *thd) const
 {
   // Obtain a list of the previously stored charsets.
-  std::unique_ptr<dd::Iterator<const Charset> > prev_cset_iter;
-  if (thd->dd_client()->fetch_global_components(&prev_cset_iter))
+  std::vector<const Charset*> prev_cset;
+  if (thd->dd_client()->fetch_global_components(&prev_cset))
     return true;
 
   std::set<Object_id> prev_cset_ids;
-  for (const Charset *cset= prev_cset_iter->next(); cset != NULL;
-       cset= prev_cset_iter->next())
+  for (const Charset *cset : prev_cset)
     prev_cset_ids.insert(cset->id());
 
   // We have an outer loop identifying the primary collations, i.e.,
@@ -100,6 +98,8 @@ bool Character_sets::populate(THD *thd) const
     if (thd->dd_client()->drop(const_cast<Charset*>(del_cset)))
       return true;
   }
+
+  delete_container_pointers(prev_cset);
 
   return error;
 }

@@ -19,7 +19,6 @@
 
 #include "dd/dd.h"                                // dd::create_object
 #include "dd/cache/dictionary_client.h"           // dd::cache::Dictionary_...
-#include "dd/impl/dictionary_object_collection.h" // Dictionary_object_coll...
 #include "dd/impl/raw/object_keys.h"              // Global_name_key
 
 namespace dd {
@@ -33,13 +32,12 @@ namespace tables {
 bool Collations::populate(THD *thd) const
 {
   // Obtain a list of the previously stored collations.
-  std::unique_ptr<dd::Iterator<const Collation> > prev_coll_iter;
-  if (thd->dd_client()->fetch_global_components(&prev_coll_iter))
+  std::vector<const Collation*> prev_coll;
+  if (thd->dd_client()->fetch_global_components(&prev_coll))
     return true;
 
   std::set<Object_id> prev_coll_ids;
-  for (const Collation *coll= prev_coll_iter->next(); coll != NULL;
-       coll= prev_coll_iter->next())
+  for (const Collation *coll : prev_coll)
     prev_coll_ids.insert(coll->id());
 
   // We have an outer loop identifying the primary collations, i.e.,
@@ -117,6 +115,8 @@ bool Collations::populate(THD *thd) const
     if (thd->dd_client()->drop(const_cast<Collation*>(del_coll)))
       return true;
   }
+
+  delete_container_pointers(prev_coll);
 
   return error;
 }

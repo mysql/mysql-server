@@ -592,56 +592,51 @@ public:
 
 
   /**
-    Fetch all the components in the schema.
+    Fetch all components in the schema.
 
-    @tparam        Iterator_type  Type of iterator to get.
+    @tparam        T              Type of components to get.
     @param         schema         Schema for which to get components.
-    @param   [out] iter           Dictionary_object_collection
-                                  containing all objects.
+    @param   [out] coll           An std::vector containing all components.
 
     @return      true   Failure (error is reported).
     @return      false  Success.
   */
 
-  template <typename Iterator_type>
+  template <typename T>
   bool fetch_schema_components(
     const Schema *schema,
-    std::unique_ptr<Iterator_type> *iter) const;
+    std::vector<const T*> *coll) const;
 
 
   /**
-    Fetch all the objects of the given type in the default catalog.
+    Fetch all components of the given type in the default catalog.
 
     The signature may be extended with a catalog parameter if that
     will be supported. The key created requires a catalog parameter.
 
-    @tparam        Iterator_type  Type of iterator to get.
-    @param   [out] iter           Dictionary_object_collection that
-                                  contains all the fetched objects.
+    @tparam        T              Type of components to get.
+    @param   [out] coll           An std::vector containing all components.
 
     @return      true   Failure (error is reported).
     @return      false  Success.
   */
 
-  template <typename Iterator_type>
-  bool fetch_catalog_components(
-    std::unique_ptr<Iterator_type> *iter) const;
+  template <typename T>
+  bool fetch_catalog_components(std::vector<const T*> *coll) const;
 
 
   /**
-    Fetch all the global objects of the given type.
+    Fetch all global components of the given type.
 
-    @tparam        Iterator_type  Type of iterator to get.
-    @param   [out] iter           Dictionary_object_collection that
-                                  contains all the fetched objects.
+    @tparam        T              Type of components to get.
+    @param   [out] coll           An std::vector containing all components.
 
     @return      true   Failure (error is reported).
     @return      false  Success.
   */
 
-  template <typename Iterator_type>
-  bool fetch_global_components(
-    std::unique_ptr<Iterator_type> *iter) const;
+  template <typename T>
+  bool fetch_global_components(std::vector<const T*> *coll) const;
 
 
   /**
