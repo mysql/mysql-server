@@ -67,10 +67,10 @@ select /*2*/ user, host, db, command, state, info
 select release_lock("test_lock2");
 drop event закачка;
 
-# Wait for release_lock("test_lock2") to complete,
+# Wait for get_lock("test_lock2") to complete,
 # to avoid polluting the next test information_schema.processlist
 let $wait_condition= select count(*) = 0 from information_schema.processlist
-  where (state like 'User lock%' AND info like 'select get_lock%');
+  where info='select get_lock("test_lock2", 20)';
 --source include/wait_condition.inc
 
 
