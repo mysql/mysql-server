@@ -31,7 +31,6 @@
 #include <NdbError.hpp>
 #include <BaseString.hpp>
 #include <UtilBuffer.hpp>
-#include <portlib/NdbMem.h>
 #include <signaldata/AlterTable.hpp>
 #include "ndb_internal.hpp"
 
@@ -40,7 +39,7 @@ extern EventLogger * g_eventLogger;
 
 /**
  * Page allocation of memory (mmap) depends on MAP_ANONYMOUS being available
- * on the platform, else plain NdbMem_Allocate will be used (Windows, osx).
+ * on the platform, else plain malloc will be used (Windows, osx).
  */
 #if defined(MAP_ANONYMOUS)
 #define USE_MMAP 1
@@ -1423,7 +1422,7 @@ NdbEventBuffer::~NdbEventBuffer()
 #if defined(USE_MMAP)
     require(my_munmap(mem_block, unmap_sz) == 0);
 #else
-    NdbMem_Free(mem_block);
+    free(mem_block);
 #endif
   }
   while ((mem_block = m_mem_block_free) != NULL)
@@ -1439,7 +1438,7 @@ NdbEventBuffer::~NdbEventBuffer()
 #if defined(USE_MMAP)
     require(my_munmap(mem_block, unmap_sz) == 0);
 #else
-    NdbMem_Free(mem_block);
+    free(mem_block);
 #endif
   }
   assert(m_mem_block_free_sz == 0);
@@ -3426,7 +3425,7 @@ NdbEventBuffer::expand_memory_blocks()
                            MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
     if (unlikely(memptr == MAP_FAILED))
 #else
-    void *memptr = NdbMem_Allocate(sz);
+    void *memptr = malloc(sz);
     if (unlikely(memptr == NULL))
 #endif
     {
@@ -3523,7 +3522,7 @@ void NdbEventBuffer::remove_consumed_memory(MonotonicEpoch consumed_epoch)  //Ne
 #if defined(USE_MMAP)
       require(my_munmap(mem_block, alloced_sz) == 0);
 #else
-      NdbMem_Free(mem_block);
+      free(mem_block);
 #endif
     }
   }

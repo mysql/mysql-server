@@ -19,7 +19,6 @@
 #include <ndb_global.h>
 #include <NdbThread.h>
 #include <NdbLockCpuUtil.h>
-#include <NdbMem.h>
 #include <NdbMutex.h>
 
 #define UNDEFINED_PROCESSOR_SET 0xFFFF
@@ -158,8 +157,8 @@ use_processor_set(const Uint32 *cpu_ids,
      * The current array of processor set handlers is too small, double its
      * size and try again.
      */
-    new_proc_set_array = NdbMem_Allocate(2 * num_processor_sets *
-                                         sizeof(struct processor_set_handler));
+    new_proc_set_array = malloc(2 * num_processor_sets *
+                                sizeof(struct processor_set_handler));
 
     if (new_proc_set_array == NULL)
     {
@@ -174,7 +173,7 @@ use_processor_set(const Uint32 *cpu_ids,
       init_handler(&new_proc_set_array[i], i);
     }
 
-    NdbMem_Free(proc_set_array);
+    free(proc_set_array);
     proc_set_array = new_proc_set_array;
     num_processor_sets *= 2;
   }
@@ -263,8 +262,8 @@ int
 NdbLockCpu_Init()
 {
   Uint32 i;
-  proc_set_array = NdbMem_Allocate(num_processor_sets *
-                            sizeof(struct processor_set_handler));
+  proc_set_array = malloc(num_processor_sets *
+                          sizeof(struct processor_set_handler));
 
   if (proc_set_array == NULL)
   {
@@ -278,7 +277,7 @@ NdbLockCpu_Init()
   ndb_lock_cpu_mutex = NdbMutex_Create();
   if (ndb_lock_cpu_mutex == NULL)
   {
-    NdbMem_Free(proc_set_array);
+    free(proc_set_array);
     return 1;
   }
   return 0;
@@ -300,7 +299,7 @@ NdbLockCpu_End()
       abort();
     }
   }
-  NdbMem_Free(proc_set_array);
+  free(proc_set_array);
   proc_set_array = NULL;
   NdbMutex_Unlock(ndb_lock_cpu_mutex);
   NdbMutex_Destroy(ndb_lock_cpu_mutex);
