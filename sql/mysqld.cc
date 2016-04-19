@@ -5437,13 +5437,14 @@ int mysqld_main(int argc, char **argv)
   */
   set_super_read_only_post_init();
 
-  (void) RUN_HOOK(server_state, before_handle_connection, (NULL));
-
   DBUG_PRINT("info", ("Block, listening for incoming connections"));
 
   (void)MYSQL_SET_STAGE(0 ,__FILE__, __LINE__);
 
   server_operational_state= SERVER_OPERATING;
+
+  (void) RUN_HOOK(server_state, before_handle_connection, (NULL));
+
 #if defined(_WIN32)
   setup_conn_event_handler_threads();
 #else
