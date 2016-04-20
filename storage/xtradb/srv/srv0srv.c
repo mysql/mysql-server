@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2013, 2014, SkySQL Ab. All Rights Reserved.
@@ -2902,6 +2902,8 @@ exit_func:
 /*********************************************************************//**
 A thread which prints warnings about semaphore waits which have lasted
 too long. These can be used to track bugs which cause hangs.
+Note: In order to make sync_arr_wake_threads_if_sema_free work as expected,
+we should avoid waiting any mutexes in this function!
 @return	a dummy parameter */
 UNIV_INTERN
 os_thread_ret_t
@@ -2939,24 +2941,21 @@ loop:
 
 	/* Try to track a strange bug reported by Harald Fuchs and others,
 	where the lsn seems to decrease at times */
+	if (log_peek_lsn(&new_lsn)) {
+		if (new_lsn < old_lsn) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: Error: old log sequence number %llu"
+				" was greater\n"
+				"InnoDB: than the new log sequence number %llu!\n"
+				"InnoDB: Please submit a bug report"
+				" to http://bugs.mysql.com\n",
+				old_lsn, new_lsn);
+			ut_ad(0);
+		}
 
-        /* We have to use nowait to ensure we don't block */
-	new_lsn= log_get_lsn_nowait();
-
-	if (new_lsn && new_lsn < old_lsn) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Error: old log sequence number %llu"
-			" was greater\n"
-			"InnoDB: than the new log sequence number %llu!\n"
-			"InnoDB: Please submit a bug report"
-			" to http://bugs.mysql.com\n",
-			old_lsn, new_lsn);
-		ut_ad(0);
-	}
-
-        if (new_lsn)
 		old_lsn = new_lsn;
+	}
 
 	if (difftime(time(NULL), srv_last_monitor_time) > 60) {
 		/* We referesh InnoDB Monitor values so that averages are
