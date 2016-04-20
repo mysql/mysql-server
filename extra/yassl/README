@@ -12,6 +12,12 @@ before calling SSL_new();
 
 *** end Note ***
 
+yaSSL Release notes, version 2.3.9b (2/03/2016)
+    This release of yaSSL fixes the OpenSSL compatibility function
+    X509_NAME_get_index_by_NID() to use the actual index of the common name
+    instead of searching on the format prefix.  Thanks for the report from
+    yashwant.sahu@oracle.com  .  Anyone using this function should update.
+
 yaSSL Release notes, version 2.3.9 (12/01/2015)
     This release of yaSSL fixes two client side Diffie-Hellman problems.
     yaSSL was only handling the cases of zero or one leading zeros for the key

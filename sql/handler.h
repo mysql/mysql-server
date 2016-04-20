@@ -1,8 +1,8 @@
 #ifndef HANDLER_INCLUDED
 #define HANDLER_INCLUDED
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2009-2011 Monty Program Ab
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -333,6 +333,7 @@
 /* Flags for method is_fatal_error */
 #define HA_CHECK_DUP_KEY 1
 #define HA_CHECK_DUP_UNIQUE 2
+#define HA_CHECK_FK_ERROR 4
 #define HA_CHECK_DUP (HA_CHECK_DUP_KEY + HA_CHECK_DUP_UNIQUE)
 
 enum legacy_db_type
@@ -2023,7 +2024,10 @@ public:
         ((flags & HA_CHECK_DUP_KEY) &&
          (error == HA_ERR_FOUND_DUPP_KEY ||
           error == HA_ERR_FOUND_DUPP_UNIQUE)) ||
-        error == HA_ERR_AUTOINC_ERANGE)
+        error == HA_ERR_AUTOINC_ERANGE ||
+        ((flags & HA_CHECK_FK_ERROR) &&
+         (error == HA_ERR_ROW_IS_REFERENCED ||
+          error == HA_ERR_NO_REFERENCED_ROW)))
       return FALSE;
     return TRUE;
   }
@@ -3105,4 +3109,7 @@ inline const char *table_case_name(HA_CREATE_INFO *info, const char *name)
 {
   return ((lower_case_table_names == 2 && info->alias) ? info->alias : name);
 }
-#endif
+
+void warn_fk_constraint_violation(THD *thd, TABLE *table, int error);
+
+#endif /* HANDLER_INCLUDED */

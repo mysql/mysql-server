@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
-   Copyright (c) 2009, 2014, SkySQL Ab.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -769,7 +769,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     goto end;
 
   table->use_all_columns();
-  (void) my_init_dynamic_array(&acl_hosts,sizeof(ACL_HOST),20,50);
   while (!(read_record_info.read_record(&read_record_info)))
   {
     ACL_HOST host;
@@ -826,7 +825,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     goto end;
 
   table->use_all_columns();
-  (void) my_init_dynamic_array(&acl_users,sizeof(ACL_USER),50,100);
   username_char_length= min(table->field[1]->char_length(), USERNAME_CHAR_LENGTH);
   password_length= table->field[2]->field_length /
     table->field[2]->charset()->mbmaxlen;
@@ -1029,7 +1027,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     goto end;
 
   table->use_all_columns();
-  (void) my_init_dynamic_array(&acl_dbs,sizeof(ACL_DB),50,100);
   while (!(read_record_info.read_record(&read_record_info)))
   {
     ACL_DB db;
@@ -1091,8 +1088,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   end_read_record(&read_record_info);
   freeze_size(&acl_dbs);
 
-  (void) my_init_dynamic_array(&acl_proxy_users, sizeof(ACL_PROXY_USER), 
-                               50, 100);
   if (tables[3].table)
   {
     init_read_record(&read_record_info, thd, table= tables[3].table, NULL, 1, 
@@ -1128,6 +1123,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   return_val= FALSE;
 
 end:
+  end_read_record(&read_record_info);
   thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(return_val);
 }
@@ -1142,12 +1138,12 @@ void acl_free(bool end)
   delete_dynamic(&acl_wild_hosts);
   delete_dynamic(&acl_proxy_users);
   my_hash_free(&acl_check_hosts);
-  plugin_unlock(0, native_password_plugin);
-  plugin_unlock(0, old_password_plugin);
   if (!end)
     acl_cache->clear(1); /* purecov: inspected */
   else
   {
+    plugin_unlock(0, native_password_plugin);
+    plugin_unlock(0, old_password_plugin);
     delete acl_cache;
     acl_cache=0;
   }
@@ -1221,6 +1217,10 @@ my_bool acl_reload(THD *thd)
   old_acl_users= acl_users;
   old_acl_proxy_users= acl_proxy_users;
   old_acl_dbs= acl_dbs;
+  my_init_dynamic_array(&acl_hosts, sizeof(ACL_HOST), 20, 50);
+  my_init_dynamic_array(&acl_users, sizeof(ACL_USER), 50, 100);
+  my_init_dynamic_array(&acl_dbs, sizeof(ACL_DB), 50, 100);
+  my_init_dynamic_array(&acl_proxy_users, sizeof(ACL_PROXY_USER), 50, 100);
   old_mem= mem;
   delete_dynamic(&acl_wild_hosts);
   my_hash_free(&acl_check_hosts);

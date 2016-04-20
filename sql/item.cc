@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates.
    Copyright (c) 2010, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
@@ -1272,6 +1272,11 @@ Item *Item_param::safe_charset_converter(CHARSET_INFO *tocs)
   {
     uint cnv_errors;
     String *ostr= val_str(&cnvstr);
+    if (null_value)
+    {
+      Item_null *n= new Item_null();
+      return n ? n->safe_charset_converter(tocs) : NULL;
+    }
     cnvitem->str_value.copy(ostr->ptr(), ostr->length(),
                             ostr->charset(), tocs, &cnv_errors);
     if (cnv_errors)
@@ -3888,7 +3893,7 @@ Item_param::eq(const Item *arg, bool binary_cmp) const
 
 void Item_param::print(String *str, enum_query_type query_type)
 {
-  if (state == NO_VALUE)
+  if (state == NO_VALUE || query_type & QT_NO_DATA_EXPANSION)
   {
     str->append('?');
   }
@@ -6753,7 +6758,8 @@ Item *Item_field::update_value_transformer(uchar *select_arg)
 
 void Item_field::print(String *str, enum_query_type query_type)
 {
-  if (field && field->table->const_table)
+  if (field && field->table->const_table &&
+      !(query_type & QT_NO_DATA_EXPANSION))
   {
     print_value(str);
     return;
