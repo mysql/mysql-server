@@ -446,4 +446,12 @@ SELECT MAX(ts) = '2011-01-06 12:34:30' FROM t1;
 SELECT MAX(dt) = '2011-01-06 12:34:30' FROM t1;
 DROP TABLE t1;
 
+--echo #
+--echo # MDEV-9413 "datetime >= coalesce(c1(NULL))" doesn't return expected NULL
+--echo #
+CREATE TABLE t1(c1 TIMESTAMP(6) NULL DEFAULT NULL);
+INSERT INTO t1 VALUES(NULL);
+SELECT c1, '2016-06-13 20:00:00.000003' >= COALESCE( c1 ) FROM t1;
+DROP TABLE t1;
+
 --echo End of 5.5 tests
