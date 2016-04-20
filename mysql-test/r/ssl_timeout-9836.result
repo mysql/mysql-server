@@ -1,0 +1,7 @@
+SET @@net_read_timeout=1;
+SELECT 1;
+1
+1
+SELECT 1;
+1
+1

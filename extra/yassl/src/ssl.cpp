@@ -1471,10 +1471,6 @@ int SSL_peek(SSL* ssl, void* buffer, int sz)
 
 int SSL_pending(SSL* ssl)
 {
-    // Just in case there's pending data that hasn't been processed yet...
-    char c;
-    SSL_peek(ssl, &c, 1);
-    
     return ssl->bufferedData();
 }
 

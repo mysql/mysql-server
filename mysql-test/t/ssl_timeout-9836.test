@@ -1,0 +1,11 @@
+#
+# MDEV-9836 Connection lost when using SSL
+#
+-- source include/have_ssl_communication.inc
+connect(con1,localhost,root,,,,,SSL);
+SET @@net_read_timeout=1;
+SELECT 1;
+# MDEV-9836 - YASSL bug - SSL connection lost if it has been idle, for longer than net_read_timeout
+-- sleep 2
+SELECT 1;
+disconnect con1;
