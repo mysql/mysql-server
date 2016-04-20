@@ -39,6 +39,13 @@ protected:
     0 means get this number from first argument
   */
   uint allowed_arg_cols;
+
+  void count_only_length(Item **item, uint nitems);
+  void count_real_length(Item **item, uint nitems);
+  void count_decimal_length(Item **item, uint nitems);
+  void count_datetime_length(Item **item, uint nitems);
+  bool count_string_result_length(enum_field_types field_type,
+                                  Item **item, uint nitems);
 public:
   uint arg_count;
   table_map used_tables_cache, not_null_tables_cache;
@@ -146,16 +153,10 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   void print_op(String *str, enum_query_type query_type);
   void print_args(String *str, uint from, enum_query_type query_type);
-  void count_only_length(Item **item, uint nitems);
-  void count_real_length();
-  void count_decimal_length();
   inline bool get_arg0_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
   {
     return (null_value=args[0]->get_date(ltime, fuzzy_date));
   }
-  void count_datetime_length(Item **item, uint nitems);
-  bool count_string_result_length(enum_field_types field_type,
-                                  Item **item, uint nitems);
   inline bool get_arg0_time(MYSQL_TIME *ltime)
   {
     null_value= args[0]->get_time(ltime);
@@ -436,7 +437,7 @@ class Item_func_hybrid_result_type: public Item_func
   }
 protected:
   Item_result cached_result_type;
-
+  void fix_attributes(Item **item, uint nitems);
 public:
   Item_func_hybrid_result_type() :Item_func(), cached_result_type(REAL_RESULT)
   { collation.set_numeric(); }

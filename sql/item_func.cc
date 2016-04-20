@@ -641,16 +641,16 @@ void Item_func::count_datetime_length(Item **item, uint nitems)
   result length/precision depends on argument ones.
 */
 
-void Item_func::count_decimal_length()
+void Item_func::count_decimal_length(Item **item, uint nitems)
 {
   int max_int_part= 0;
   decimals= 0;
   unsigned_flag= 1;
-  for (uint i=0 ; i < arg_count ; i++)
+  for (uint i=0 ; i < nitems ; i++)
   {
-    set_if_bigger(decimals, args[i]->decimals);
-    set_if_bigger(max_int_part, args[i]->decimal_int_part());
-    set_if_smaller(unsigned_flag, args[i]->unsigned_flag);
+    set_if_bigger(decimals, item[i]->decimals);
+    set_if_bigger(max_int_part, item[i]->decimal_int_part());
+    set_if_smaller(unsigned_flag, item[i]->unsigned_flag);
   }
   int precision= min(max_int_part + decimals, DECIMAL_MAX_PRECISION);
   fix_char_length(my_decimal_precision_to_length_no_truncation(precision,
@@ -681,19 +681,19 @@ void Item_func::count_only_length(Item **item, uint nitems)
   result length/precision depends on argument ones.
 */
 
-void Item_func::count_real_length()
+void Item_func::count_real_length(Item **item, uint nitems)
 {
   uint32 length= 0;
   decimals= 0;
   max_length= 0;
-  for (uint i=0 ; i < arg_count ; i++)
+  for (uint i=0 ; i < nitems ; i++)
   {
     if (decimals != NOT_FIXED_DEC)
     {
-      set_if_bigger(decimals, args[i]->decimals);
-      set_if_bigger(length, (args[i]->max_length - args[i]->decimals));
+      set_if_bigger(decimals, item[i]->decimals);
+      set_if_bigger(length, (item[i]->max_length - item[i]->decimals));
     }
-    set_if_bigger(max_length, args[i]->max_length);
+    set_if_bigger(max_length, item[i]->max_length);
   }
   if (decimals != NOT_FIXED_DEC)
   {
@@ -811,7 +811,7 @@ void Item_num_op::fix_length_and_dec(void)
   if (r0 == REAL_RESULT || r1 == REAL_RESULT ||
       r0 == STRING_RESULT || r1 ==STRING_RESULT)
   {
-    count_real_length();
+    count_real_length(args, arg_count);
     max_length= float_length(decimals);
     cached_result_type= REAL_RESULT;
   }
