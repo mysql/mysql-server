@@ -3102,20 +3102,20 @@ static bool cmp_field_value(Field *field, my_ptrdiff_t diff)
     1) NULL flags aren't the same
     2) length isn't the same
     3) data isn't the same
-    */
-  if (field->is_real_null() != field->is_real_null(diff))   // 1
-    return true;
+  */
+  const bool value1_isnull= field->is_real_null();
+  const bool value2_isnull= field->is_real_null(diff);
 
-  const size_t src_len= field->data_length();
-  const size_t dst_len= field->data_length(diff);
+  if (value1_isnull != value2_isnull)   // 1
+    return true;
+  if (value1_isnull)
+    return false; // Both values are null, no need to proceed.
+
+  const size_t value1_length= field->data_length();
+  const size_t value2_length= field->data_length(diff);
 
   if (field->type() == MYSQL_TYPE_JSON)
   {
-    if (field->is_real_null())
-    {
-      return false;
-    }
-
     Field_json *json_field= down_cast<Field_json *>(field);
 
     // Fetch the JSON value on the left side of the comparison.
@@ -3135,11 +3135,11 @@ static bool cmp_field_value(Field *field, my_ptrdiff_t diff)
   }
 
   // Trailing space can't be skipped and length is different
-  if (!field->is_text_key_type() && src_len != dst_len)     // 2
+  if (!field->is_text_key_type() && value1_length != value2_length)     // 2
     return true;
 
   if (field->cmp_max(field->ptr, field->ptr + diff,       // 3
-                     std::max(src_len, dst_len)))
+                     std::max(value1_length, value2_length)))
     return true;
 
   return false;

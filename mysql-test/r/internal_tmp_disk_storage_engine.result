@@ -3131,3 +3131,24 @@ set @@global.internal_tmp_disk_storage_engine= @old_internal_tmp_disk_storage_en
 set big_tables= @old_big_tables;
 set optimizer_switch= @old_optimizer_switch;
 #
+#
+# Bug #22343910: SELECT DISTINCT NOT RETURNING DISTINCT ROWS IN 5.7
+#
+CREATE TABLE test_distinct (c1 VARCHAR(1000),
+c2 CHAR(5) DEFAULT 'xxxxx');
+INSERT INTO test_distinct VALUES ('a',null),  ('a',null);
+SET global internal_tmp_disk_storage_engine=MYISAM;
+SELECT DISTINCT c1, c2 FROM test_distinct;
+c1	c2
+a	NULL
+SELECT c1, c2 FROM test_distinct GROUP BY c1, c2;
+c1	c2
+a	NULL
+SET global internal_tmp_disk_storage_engine=INNODB;
+SELECT DISTINCT c1, c2 FROM test_distinct;
+c1	c2
+a	NULL
+SELECT c1, c2 FROM test_distinct GROUP BY c1, c2;
+c1	c2
+a	NULL
+DROP TABLE test_distinct;
