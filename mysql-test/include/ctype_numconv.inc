@@ -1795,6 +1795,12 @@ DROP FUNCTION f1;
 DROP TABLE t1;
 
 --echo #
+--echo # MDEV-9662 Assertion `precision || !scale' failed in my_decimal_precision_to_length_no_truncation(uint, uint8, bool)
+--echo #
+SELECT @@collation_connection;
+SELECT CASE 1 WHEN 2 THEN ( - '3' ) END;
+
+--echo #
 --echo # MDEV-5702 Incorrect results are returned with NULLIF()
 --echo #
 CREATE TABLE t1 (d DATE);
