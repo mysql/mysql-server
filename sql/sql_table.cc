@@ -4880,8 +4880,10 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   /*
     We have to write the query before we unlock the tables.
   */
-  if (!thd->is_current_stmt_binlog_disabled() &&
-      thd->is_current_stmt_binlog_format_row())
+  if (thd->is_current_stmt_binlog_disabled())
+    goto err;
+
+  if (thd->is_current_stmt_binlog_format_row())
   {
     /*
        Since temporary tables are not replicated under row-based
