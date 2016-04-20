@@ -335,6 +335,7 @@
 #define HA_CHECK_DUP_UNIQUE 2
 #define HA_CHECK_FK_ERROR 4
 #define HA_CHECK_DUP (HA_CHECK_DUP_KEY + HA_CHECK_DUP_UNIQUE)
+#define HA_CHECK_ALL (~0U)
 
 enum legacy_db_type
 {
@@ -3109,7 +3110,5 @@ inline const char *table_case_name(HA_CREATE_INFO *info, const char *name)
 {
   return ((lower_case_table_names == 2 && info->alias) ? info->alias : name);
 }
-
-void warn_fk_constraint_violation(THD *thd, TABLE *table, int error);
 
 #endif /* HANDLER_INCLUDED */

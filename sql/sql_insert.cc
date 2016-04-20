@@ -1609,9 +1609,10 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
       else
         table->file->insert_id_for_cur_row= insert_id_for_cur_row;
       bool is_duplicate_key_error;
-      if (table->file->is_fatal_error(error, HA_CHECK_DUP | HA_CHECK_FK_ERROR))
+      if (table->file->is_fatal_error(error, HA_CHECK_ALL))
 	goto err;
-      is_duplicate_key_error= table->file->is_fatal_error(error, 0);
+      is_duplicate_key_error=
+        table->file->is_fatal_error(error, HA_CHECK_ALL & ~HA_CHECK_DUP);
       if (!is_duplicate_key_error)
       {
         /*
@@ -1712,8 +1713,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
               error != HA_ERR_RECORD_IS_THE_SAME)
           {
             if (info->ignore &&
-                !table->file->is_fatal_error(error, HA_CHECK_DUP_KEY |
-                                                    HA_CHECK_FK_ERROR))
+                !table->file->is_fatal_error(error, HA_CHECK_ALL))
             {
               if (!(thd->variables.old_behavior &
                     OLD_MODE_NO_DUP_KEY_WARNINGS_WITH_IGNORE))
@@ -1845,7 +1845,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
   {
     DEBUG_SYNC(thd, "write_row_noreplace");
     if (!info->ignore ||
-        table->file->is_fatal_error(error, HA_CHECK_DUP | HA_CHECK_FK_ERROR))
+        table->file->is_fatal_error(error, HA_CHECK_ALL))
       goto err;
     if (!(thd->variables.old_behavior &
           OLD_MODE_NO_DUP_KEY_WARNINGS_WITH_IGNORE))
@@ -1866,9 +1866,6 @@ ok_or_after_trg_err:
     my_safe_afree(key,table->s->max_unique_length,MAX_KEY_LENGTH);
   if (!table->file->has_transactions())
     thd->transaction.stmt.modified_non_trans_table= TRUE;
-  if (info->ignore &&
-      !table->file->is_fatal_error(error, HA_CHECK_FK_ERROR))
-    warn_fk_constraint_violation(thd, table, error);
   DBUG_RETURN(trg_error);
 
 err:
