@@ -17700,7 +17700,6 @@ public:
   Uint32 old_table_version;
 };
 
-static char reason_buf[NAME_LEN+256];
 /*
   Utility function to use when reporting that inplace alter
   is not supported.
@@ -17912,9 +17911,15 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
 
   if (alter_flags & not_supported)
   {
-    my_snprintf(reason_buf, sizeof(reason_buf),
-                "Detected unsupported change: 0x%llx",  alter_flags & not_supported);
-    DBUG_RETURN(inplace_unsupported(ha_alter_info, reason_buf));
+    if (alter_info->requested_algorithm ==
+        Alter_info::ALTER_TABLE_ALGORITHM_INPLACE)
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_ALTER_INFO,
+                          "Detected unsupported change: "
+                          "HA_ALTER_FLAGS = 0x%llx",
+                          alter_flags & not_supported);
+    DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                    "Detected unsupported change"));
   }
 
   if (alter_flags & Alter_inplace_info::ADD_COLUMN ||
@@ -18149,9 +18154,8 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
     {
       if (field->field_storage_type() == HA_SM_DISK)
       {
-        my_snprintf(reason_buf, sizeof(reason_buf),
-                    "Found change of COLUMN_STORAGE to disk for column %s", field->field_name);
-        DBUG_RETURN(inplace_unsupported(ha_alter_info, reason_buf));
+           DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                           "Found change of COLUMN_STORAGE to disk"));
       }
       new_col.setStorageType(NdbDictionary::Column::StorageTypeMemory);
     }

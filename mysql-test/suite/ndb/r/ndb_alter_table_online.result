@@ -210,7 +210,7 @@ ndb_show_tables completed.....
 
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 ALTER TABLE t1 algorithm=inplace, ADD d INT AFTER b;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change: 0x10000. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
 
 ndb_show_tables completed.....
 
@@ -401,26 +401,26 @@ Primary keys:
 $PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 PRIMARY KEY($PK) - UniqueHashIndex
 ALTER TABLE t1 algorithm=inplace, ADD PRIMARY KEY (a);
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change: 0x10. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
 ALTER TABLE t1 algorithm=copy, ADD PRIMARY KEY (a);
 Primary keys:
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
 ALTER TABLE t1 algorithm=inplace, DROP PRIMARY KEY;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change: 0x20. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
 ALTER TABLE t1 algorithm=copy, DROP PRIMARY KEY;
 Primary keys:
 $PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 PRIMARY KEY($PK) - UniqueHashIndex
 CREATE UNIQUE INDEX pk ON t1(a) algorithm=inplace;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change: 0x10. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
 CREATE UNIQUE INDEX pk ON t1(a) algorithm=copy;
 Primary keys:
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 PRIMARY KEY(a) - UniqueHashIndex
 ALTER TABLE t1 algorithm=inplace, DROP INDEX PK;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change: 0x20. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
 ALTER TABLE t1 algorithm=copy, DROP INDEX PK;
 Primary keys:
 $PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
@@ -434,7 +434,7 @@ Primary keys:
 $PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 PRIMARY KEY($PK) - UniqueHashIndex
 ALTER TABLE t1 algorithm=inplace, ADD c INT NOT NULL UNIQUE;
-ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change: 0x10. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Detected unsupported change. Try ALGORITHM=COPY.
 ALTER TABLE t1 algorithm=copy, ADD c INT NOT NULL UNIQUE;
 Primary keys:
 c Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
