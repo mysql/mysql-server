@@ -37,7 +37,7 @@ using namespace ngs;
 
 
 const uint64_t MILLI_TO_NANO = 1000000;
-
+const ulonglong TIME_VALUE_NOT_VALID = 0;
 
 Scheduler_dynamic::Scheduler_dynamic(const char* name, PSI_thread_key thread_key)
 : m_name(name),
@@ -223,9 +223,14 @@ void Scheduler_dynamic::thread_end()
 #endif
 }
 
-bool Scheduler_dynamic::wait_if_idle_then_delete_worker()
+bool Scheduler_dynamic::wait_if_idle_then_delete_worker(ulonglong &thread_waiting_started)
 {
   Mutex_lock lock(m_worker_pending_mutex);
+
+  if (TIME_VALUE_NOT_VALID == thread_waiting_started)
+  {
+    thread_waiting_started = my_timer_milliseconds();
+  }
 
   if (!is_running())
     return false;
@@ -233,13 +238,22 @@ bool Scheduler_dynamic::wait_if_idle_then_delete_worker()
   if (!m_tasks.empty())
     return false;
 
-  int result = m_worker_pending_cond.timed_wait(m_worker_pending_mutex,
-                                     m_idle_worker_timeout * MILLI_TO_NANO);
+  const int64 thread_waiting_for_delta_ms = my_timer_milliseconds() - thread_waiting_started;
 
-  const bool timeout = ETIMEDOUT == result || ETIME == result;
+  if (thread_waiting_for_delta_ms < m_idle_worker_timeout)
+  {
+    // Some implementations may signal a condition variable without
+    // any reason. We need to write the time when the thread went to idle state
+    // state and monitor it!
+    const int result = m_worker_pending_cond.timed_wait(m_worker_pending_mutex,
+                                       (m_idle_worker_timeout - thread_waiting_for_delta_ms) *
+                                       MILLI_TO_NANO);
 
-  if (!timeout)
-    return false;
+    const bool timeout = ETIMEDOUT == result || ETIME == result;
+
+    if (!timeout)
+      return false;
+  }
 
   if (my_atomic_load32(&m_workers_count) >
       my_atomic_load32(&m_min_workers_count))
@@ -256,13 +270,14 @@ void *Scheduler_dynamic::worker()
   bool worker_active = true;
   if (thread_init())
   {
+    ulonglong thread_waiting_time = TIME_VALUE_NOT_VALID;
     while (is_running())
     {
       bool task_available = false;
 
       try
       {
-        Task* task = NULL;
+        Task *task = NULL;
 
         while (is_running() &&
                m_tasks.empty() == false && task_available == false)
@@ -273,6 +288,7 @@ void *Scheduler_dynamic::worker()
         if (task_available && task)
         {
           Memory_new<Task>::Unique_ptr task_ptr(task);
+          thread_waiting_time = TIME_VALUE_NOT_VALID;
 
           (*task_ptr)();
         }
@@ -284,10 +300,12 @@ void *Scheduler_dynamic::worker()
       }
 
       if (task_available)
+      {
         decrease_tasks_count();
+      }
       else
       {
-        if (wait_if_idle_then_delete_worker())
+        if (wait_if_idle_then_delete_worker(thread_waiting_time))
         {
           worker_active = false;
 

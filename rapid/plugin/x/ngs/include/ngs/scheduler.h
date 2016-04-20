@@ -138,7 +138,7 @@ namespace ngs
       return thread.thread == id;
     }
 
-    bool wait_if_idle_then_delete_worker();
+    bool wait_if_idle_then_delete_worker(ulonglong &thread_waiting_started);
     int32 increase_workers_count();
     int32 decrease_workers_count();
     int32 increase_tasks_count();
