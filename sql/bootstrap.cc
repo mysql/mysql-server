@@ -101,17 +101,9 @@ static void handle_bootstrap_impl(THD *thd)
   thd->init_for_queries();
 
   if (opt_initialize)
-  {
     Command_iterator::current_iterator= &comp_iter;
-    /* Disable binary logging during compiled statements */
-    thd->variables.option_bits&= ~OPTION_BIN_LOG;
-  }
   else
-  {
     Command_iterator::current_iterator= &file_iter;
-    /* Re-enable binary logging during init-file statements */
-    thd->variables.option_bits|= OPTION_BIN_LOG;
-  }
 
   Command_iterator::current_iterator->begin();
   for ( ; ; )
