@@ -1083,6 +1083,22 @@ ha_innobase::final_add_index(
 
 	trx_free_for_mysql(trx);
 
+	/* Rebuild index translation table now for temporary tables if we are
+	restoring secondary keys, as ha_innobase::open will not be called for
+	the next access. */
+	if (add->indexed_table == prebuilt->table
+	    && dict_table_is_temporary(prebuilt->table))
+	{
+		if (!innobase_build_index_translation(add_arg->table,
+						      prebuilt->table, share))
+		{
+			/* We don't know whether index translation build failed
+			because of DD mismatch or OOM, return non-specific
+			error code. */
+			err = -1;
+		}
+	}
+
 	/* There might be work for utility threads.*/
 	srv_active_wake_master_thread();
 

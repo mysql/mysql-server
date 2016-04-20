@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
-   Copyright (c) 2009, 2014, SkySQL Ab.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -557,9 +557,8 @@ static void init_check_host(void);
 static void rebuild_check_host(void);
 static ACL_USER *find_acl_user(const char *host, const char *user,
                                my_bool exact);
-static bool update_user_table(THD *thd, TABLE *table, const char *host,
-                              const char *user, const char *new_password,
-                              uint new_password_len);
+static bool update_user_table(THD *, TABLE *, const char *, const char *, const
+                              char *, uint, bool);
 static my_bool acl_load(THD *thd, TABLE_LIST *tables);
 static my_bool grant_load(THD *thd, TABLE_LIST *tables);
 static inline void get_grantor(THD *thd, char* grantor);
@@ -770,7 +769,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     goto end;
 
   table->use_all_columns();
-  (void) my_init_dynamic_array(&acl_hosts,sizeof(ACL_HOST),20,50);
   while (!(read_record_info.read_record(&read_record_info)))
   {
     ACL_HOST host;
@@ -827,7 +825,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     goto end;
 
   table->use_all_columns();
-  (void) my_init_dynamic_array(&acl_users,sizeof(ACL_USER),50,100);
   username_char_length= min(table->field[1]->char_length(), USERNAME_CHAR_LENGTH);
   password_length= table->field[2]->field_length /
     table->field[2]->charset()->mbmaxlen;
@@ -1030,7 +1027,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     goto end;
 
   table->use_all_columns();
-  (void) my_init_dynamic_array(&acl_dbs,sizeof(ACL_DB),50,100);
   while (!(read_record_info.read_record(&read_record_info)))
   {
     ACL_DB db;
@@ -1092,8 +1088,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   end_read_record(&read_record_info);
   freeze_size(&acl_dbs);
 
-  (void) my_init_dynamic_array(&acl_proxy_users, sizeof(ACL_PROXY_USER), 
-                               50, 100);
   if (tables[3].table)
   {
     init_read_record(&read_record_info, thd, table= tables[3].table, NULL, 1, 
@@ -1129,6 +1123,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   return_val= FALSE;
 
 end:
+  end_read_record(&read_record_info);
   thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(return_val);
 }
@@ -1143,12 +1138,12 @@ void acl_free(bool end)
   delete_dynamic(&acl_wild_hosts);
   delete_dynamic(&acl_proxy_users);
   my_hash_free(&acl_check_hosts);
-  plugin_unlock(0, native_password_plugin);
-  plugin_unlock(0, old_password_plugin);
   if (!end)
     acl_cache->clear(1); /* purecov: inspected */
   else
   {
+    plugin_unlock(0, native_password_plugin);
+    plugin_unlock(0, old_password_plugin);
     delete acl_cache;
     acl_cache=0;
   }
@@ -1222,6 +1217,10 @@ my_bool acl_reload(THD *thd)
   old_acl_users= acl_users;
   old_acl_proxy_users= acl_proxy_users;
   old_acl_dbs= acl_dbs;
+  my_init_dynamic_array(&acl_hosts, sizeof(ACL_HOST), 20, 50);
+  my_init_dynamic_array(&acl_users, sizeof(ACL_USER), 50, 100);
+  my_init_dynamic_array(&acl_dbs, sizeof(ACL_DB), 50, 100);
+  my_init_dynamic_array(&acl_proxy_users, sizeof(ACL_PROXY_USER), 50, 100);
   old_mem= mem;
   delete_dynamic(&acl_wild_hosts);
   my_hash_free(&acl_check_hosts);
@@ -1912,6 +1911,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   bool save_binlog_row_based;
   uint new_password_len= (uint) strlen(new_password);
   bool result= 1;
+  bool use_salt= 0;
   DBUG_ENTER("change_password");
   DBUG_PRINT("enter",("host: '%s'  user: '%s'  new_password: '%s'",
 		      host,user,new_password));
@@ -1967,6 +1967,7 @@ bool change_password(THD *thd, const char *host, const char *user,
     acl_user->auth_string.length= new_password_len;
     set_user_salt(acl_user, new_password, new_password_len);
     set_user_plugin(acl_user, new_password_len);
+    use_salt= 1;
   }
   else
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
@@ -1975,7 +1976,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (update_user_table(thd, table,
 			acl_user->host.hostname ? acl_user->host.hostname : "",
 			acl_user->user ? acl_user->user : "",
-			new_password, new_password_len))
+			new_password, new_password_len, use_salt))
   {
     mysql_mutex_unlock(&acl_cache->lock); /* purecov: deadcode */
     goto end;
@@ -2223,7 +2224,8 @@ bool hostname_requires_resolving(const char *hostname)
 
 static bool update_user_table(THD *thd, TABLE *table,
                               const char *host, const char *user,
-			      const char *new_password, uint new_password_len)
+			      const char *new_password, uint new_password_len,
+                              bool reset_plugin)
 {
   char user_key[MAX_KEY_LENGTH];
   int error;
@@ -2246,6 +2248,11 @@ static bool update_user_table(THD *thd, TABLE *table,
   }
   store_record(table,record[1]);
   table->field[2]->store(new_password, new_password_len, system_charset_info);
+  if (reset_plugin && table->s->fields >= 41)
+  {
+    table->field[40]->reset();
+    table->field[41]->reset();
+  }
   if ((error=table->file->ha_update_row(table->record[1],table->record[0])) &&
       error != HA_ERR_RECORD_IS_THE_SAME)
   {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1140,7 +1140,7 @@ dict_create_index_step(
 			>= DICT_TF_FORMAT_ZIP);
 
 		node->index = dict_index_get_if_in_cache_low(index_id);
-		ut_a(err == DB_SUCCESS ? node->index != NULL : node->index == NULL);
+		ut_a((node->index == NULL) == (err != DB_SUCCESS));
 
 		if (err != DB_SUCCESS) {
 

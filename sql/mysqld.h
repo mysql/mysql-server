@@ -1,5 +1,5 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates.
-   Copyright (c) 2010, 2015, MariaDB
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2016, MariaDB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -427,7 +427,13 @@ enum enum_query_type
   /// Without character set introducers.
   QT_WITHOUT_INTRODUCERS= (1 << 1),
   /// view internal representation (like QT_ORDINARY except ORDER BY clause)
-  QT_VIEW_INTERNAL= (1 << 2)
+  QT_VIEW_INTERNAL= (1 << 2),
+  /**
+    If an expression is constant, print the expression, not the value
+    it evaluates to. Should be used for error messages, so that they
+    don't reveal values.
+  */
+  QT_NO_DATA_EXPANSION= (1 << 9),
 };
 
 /* query_id */

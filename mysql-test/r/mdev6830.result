@@ -1,5 +1,4 @@
-drop table if exists t1,t2,t3;
-drop view if exists v2,v3;
+set @@debug_dbug= 'd,opt';
 CREATE TABLE t1 (pk INT PRIMARY KEY) ENGINE=MyISAM;
 CREATE TABLE t2 (
 f1 DATE,

@@ -484,6 +484,14 @@ SELECT -a FROM t1;
 --error ER_DATA_OUT_OF_RANGE
 SELECT -b FROM t1;
 
+# try with two rows now
+INSERT INTO t1 VALUES(0,0);
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT -a FROM t1;
+--error ER_DATA_OUT_OF_RANGE
+SELECT -b FROM t1;
+
 DROP TABLE t1;
 
 # Decimal overflows

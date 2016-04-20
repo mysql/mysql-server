@@ -1,0 +1,43 @@
+--source include/have_innodb.inc
+
+#
+# MDEV-8979 IGNORE does not ignore the error 1452
+#
+
+--echo #
+--echo # BUG#22037930: INSERT IGNORE FAILS TO IGNORE
+--echo #               FOREIGN KEY CONSTRAINT
+
+--echo # Setup.
+CREATE TABLE t1 (fld1 INT PRIMARY KEY) ENGINE=INNODB;
+CREATE TABLE t2 (fld2 INT, FOREIGN KEY (fld2) REFERENCES t1 (fld1))
+ENGINE=INNODB;
+INSERT INTO t1 VALUES(0);
+INSERT INTO t2 VALUES(0);
+
+--echo # Without fix, an error is reported.
+INSERT IGNORE INTO t2 VALUES(1);
+UPDATE IGNORE t2 SET fld2=20 WHERE fld2=0;
+UPDATE IGNORE t1 SET fld1=20 WHERE fld1=0;
+
+--echo # Test for multi update.
+UPDATE IGNORE t1, t2 SET t2.fld2= t2.fld2 + 3;
+UPDATE IGNORE t1, t2 SET t1.fld1= t1.fld1 + 3;
+
+--echo # Reports an error since IGNORE is not used.
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO t2 VALUES(1);
+
+--error ER_NO_REFERENCED_ROW_2
+UPDATE t2 SET fld2=20 WHERE fld2=0;
+
+--error ER_ROW_IS_REFERENCED_2
+UPDATE t1 SET fld1=20 WHERE fld1=0;
+
+--error ER_NO_REFERENCED_ROW_2
+UPDATE t1, t2 SET t2.fld2= t2.fld2 + 3;
+
+--error ER_ROW_IS_REFERENCED_2
+UPDATE t1, t2 SET t1.fld1= t1.fld1 + 3;
+
+DROP TABLE t2, t1;
