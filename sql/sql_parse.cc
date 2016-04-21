@@ -6005,7 +6005,8 @@ TABLE_LIST *SELECT_LEX::end_nested_join(THD *thd)
     join_list->pop();
     embedded->join_list= join_list;
     embedded->embedding= embedding;
-    join_list->push_front(embedded);
+    if (join_list->push_front(embedded))
+      DBUG_RETURN(NULL);
     ptr= embedded;
   }
   else if (nested_join->join_list.elements == 0)
@@ -6018,18 +6019,21 @@ TABLE_LIST *SELECT_LEX::end_nested_join(THD *thd)
 
 
 /**
-  Nest last join operation.
+  Nest last join operations.
 
-    The function nest last join operation as if it was enclosed in braces.
+  The function nest last table_cnt join operations as if they were
+  the components of a cross join operation.
 
   @param thd         current thread
+  @param table_cnt   2 for regular joins: t1 JOIN t2.
+                     N for the MySQL join-like extension: (t1, t2, ... tN).
 
   @return Pointer to TABLE_LIST element created for the new nested join
   @retval
     0  Error
 */
 
-TABLE_LIST *SELECT_LEX::nest_last_join(THD *thd)
+TABLE_LIST *SELECT_LEX::nest_last_join(THD *thd, size_t table_cnt)
 {
   DBUG_ENTER("nest_last_join");
 
@@ -6041,24 +6045,17 @@ TABLE_LIST *SELECT_LEX::nest_last_join(THD *thd)
 
   List<TABLE_LIST> *const embedded_list= &ptr->nested_join->join_list;
 
-  for (uint i=0; i < 2; i++)
+  for (uint i=0; i < table_cnt; i++)
   {
     TABLE_LIST *table= join_list->pop();
     table->join_list= embedded_list;
     table->embedding= ptr;
     embedded_list->push_back(table);
     if (table->natural_join)
-    {
       ptr->is_natural_join= TRUE;
-      /*
-        If this is a JOIN ... USING, move the list of joined fields to the
-        table reference that describes the join.
-      */
-      if (prev_join_using)
-        ptr->join_using_fields= prev_join_using;
-    }
   }
-  join_list->push_front(ptr);
+  if (join_list->push_front(ptr))
+    DBUG_RETURN(NULL);
 
   DBUG_RETURN(ptr);
 }
@@ -6072,16 +6069,19 @@ TABLE_LIST *SELECT_LEX::nest_last_join(THD *thd)
     Thus, joined tables are put into this list in the reverse order
     (the most outer join operation follows first).
 
-  @param table       the table to add
+  @param table       The table to add.
+
+  @returns false if success, true if error (OOM).
 */
 
-void SELECT_LEX::add_joined_table(TABLE_LIST *table)
+bool SELECT_LEX::add_joined_table(TABLE_LIST *table)
 {
   DBUG_ENTER("add_joined_table");
-  join_list->push_front(table);
+  if (join_list->push_front(table))
+    DBUG_RETURN(true);
   table->join_list= join_list;
   table->embedding= embedding;
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(false);
 }
 
 
@@ -6120,8 +6120,8 @@ TABLE_LIST *SELECT_LEX::convert_right_join()
   TABLE_LIST *tab1= join_list->pop();
   DBUG_ENTER("convert_right_join");
 
-  join_list->push_front(tab2);
-  join_list->push_front(tab1);
+  if (join_list->push_front(tab2) || join_list->push_front(tab1))
+    DBUG_RETURN(NULL);
   tab1->outer_join|= JOIN_TYPE_RIGHT;
 
   DBUG_RETURN(tab1);
@@ -6288,48 +6288,6 @@ void add_join_on(TABLE_LIST *b, Item *expr)
     }
     b->join_cond()->top_level_item();
   }
-}
-
-
-/**
-  Mark that there is a NATURAL JOIN or JOIN ... USING between two
-  tables.
-
-    This function marks that table b should be joined with a either via
-    a NATURAL JOIN or via JOIN ... USING. Both join types are special
-    cases of each other, so we treat them together. The function
-    setup_conds() creates a list of equal condition between all fields
-    of the same name for NATURAL JOIN or the fields in 'using_fields'
-    for JOIN ... USING. The list of equality conditions is stored
-    either in b->join_cond(), or in JOIN::conds, depending on whether there
-    was an outer join.
-
-  EXAMPLE
-  @verbatim
-    SELECT * FROM t1 NATURAL LEFT JOIN t2
-     <=>
-    SELECT * FROM t1 LEFT JOIN t2 ON (t1.i=t2.i and t1.j=t2.j ... )
-
-    SELECT * FROM t1 NATURAL JOIN t2 WHERE <some_cond>
-     <=>
-    SELECT * FROM t1, t2 WHERE (t1.i=t2.i and t1.j=t2.j and <some_cond>)
-
-    SELECT * FROM t1 JOIN t2 USING(j) WHERE <some_cond>
-     <=>
-    SELECT * FROM t1, t2 WHERE (t1.j=t2.j and <some_cond>)
-   @endverbatim
-
-  @param a            Left join argument.
-  @param b            Right join argument.
-  @param using_fields Column names from USING clause.
-  @param lex          Current lex.
-*/
-
-void add_join_natural(TABLE_LIST *a, TABLE_LIST *b, List<String> *using_fields,
-                      SELECT_LEX *lex)
-{
-  b->natural_join= a;
-  lex->prev_join_using= using_fields;
 }
 
 

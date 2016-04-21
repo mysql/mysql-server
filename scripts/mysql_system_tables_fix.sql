@@ -535,23 +535,43 @@ SET GLOBAL automatic_sp_privileges = @global_automatic_sp_privileges;
 UPDATE user SET host=LOWER( host ) WHERE LOWER( host ) <> host;
 
 #
-# mysql.ndb_binlog_index
+# Alter mysql.ndb_binlog_index only if it exists already.
 #
+
+SET @have_ndb_binlog_index= (select count(*) from information_schema.tables where table_schema='mysql' and table_name='ndb_binlog_index');
+
 # Change type from BIGINT to INT
-ALTER TABLE ndb_binlog_index
+SET @cmd="ALTER TABLE ndb_binlog_index
   MODIFY inserts INT UNSIGNED NOT NULL,
   MODIFY updates INT UNSIGNED NOT NULL,
   MODIFY deletes INT UNSIGNED NOT NULL,
-  MODIFY schemaops INT UNSIGNED NOT NULL;
+  MODIFY schemaops INT UNSIGNED NOT NULL";
+
+SET @str = IF(@have_ndb_binlog_index = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 # Add new columns
-ALTER TABLE ndb_binlog_index
+SET @cmd="ALTER TABLE ndb_binlog_index
   ADD orig_server_id INT UNSIGNED NOT NULL,
   ADD orig_epoch BIGINT UNSIGNED NOT NULL,
-  ADD gci INT UNSIGNED NOT NULL;
+  ADD gci INT UNSIGNED NOT NULL";
+
+SET @str = IF(@have_ndb_binlog_index = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 # New primary key
-ALTER TABLE ndb_binlog_index
+SET @cmd="ALTER TABLE ndb_binlog_index
   DROP PRIMARY KEY,
-  ADD PRIMARY KEY(epoch, orig_server_id, orig_epoch);
+  ADD PRIMARY KEY(epoch, orig_server_id, orig_epoch)";
+
+SET @str = IF(@have_ndb_binlog_index = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
 --
 -- Check for accounts with old pre-4.1 passwords and issue a warning
@@ -660,12 +680,24 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 #
-# ndb_binlog_index table
+# Alter mysql.ndb_binlog_index only if it exists already.
 #
-ALTER TABLE ndb_binlog_index
-  ADD COLUMN next_position BIGINT UNSIGNED NOT NULL;
-ALTER TABLE ndb_binlog_index
-  ADD COLUMN next_file VARCHAR(255) NOT NULL;
+
+SET @cmd="ALTER TABLE ndb_binlog_index
+  ADD COLUMN next_position BIGINT UNSIGNED NOT NULL";
+
+SET @str = IF(@have_ndb_binlog_index = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd="ALTER TABLE ndb_binlog_index
+  ADD COLUMN next_file VARCHAR(255) NOT NULL";
+
+SET @str = IF(@have_ndb_binlog_index = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
 
 --
 -- Check for non-empty host table and issue a warning

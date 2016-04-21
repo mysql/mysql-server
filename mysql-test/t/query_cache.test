@@ -181,16 +181,13 @@ reset query cache;
 #
 # Query bigger then query_cache_limit
 #
-insert into t2 select * from t1;
-insert into t1 select * from t2;
-insert into t2 select * from t1;
-insert into t1 select * from t2;
-insert into t2 select * from t1;
-insert into t1 select * from t2;
-insert into t2 select * from t1;
-insert into t1 select * from t2;
-insert into t2 select * from t1;
-insert into t1 select * from t2;
+insert into t2 select * from t1; #4181
+insert into t1 select * from t2; #8362
+insert into t2 select * from t1; #12543
+insert into t1 select * from t2; #20905
+insert into t2 select * from t1; #33448
+insert into t1 select * from t2; #54353
+# The above query results in the query cache getting filled.
 disable_result_log;
 select * from t1;
 enable_result_log;

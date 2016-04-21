@@ -235,7 +235,7 @@ struct st_mysql_client_plugin
   int type; unsigned int interface_version; const char *name; const char *author; const char *desc; unsigned int version[3]; const char *license; void *mysql_api; int (*init)(char *, size_t, int, va_list); int (*deinit)(void); int (*options)(const char *option, const void *);
 };
 struct st_mysql;
-#include <mysql/plugin_auth_common.h>
+#include "plugin_auth_common.h"
 typedef struct st_plugin_vio_info
 {
   enum { MYSQL_VIO_INVALID, MYSQL_VIO_TCP, MYSQL_VIO_SOCKET,
@@ -271,7 +271,7 @@ int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
                          const char *option, const void *value);
 #include "typelib.h"
 #include "my_alloc.h"
-#include <mysql/psi/psi_memory.h>
+#include "mysql/psi/psi_memory.h"
 typedef unsigned int PSI_memory_key;
 typedef struct st_used_mem
 {

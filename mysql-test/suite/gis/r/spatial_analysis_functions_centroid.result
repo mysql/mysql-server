@@ -314,11 +314,9 @@ POINT(15.265664160401002 10.463659147869674)
 # ST_CENTROID(geometry) with different SRID values
 #####################################################################################
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_center,-1024)));
-ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_center,-1024)))
-POINT(15 10)
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_all_points,-1)));
-ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_all_points,-1)))
-POINT(15 8.75)
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_top_to_center,0)));
 ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_top_to_center,0)))
 POINT(15 17.5)
@@ -332,11 +330,9 @@ SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295)));
 ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295)))
 POINT(15 10)
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_of_elems,4294967296)));
-ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_of_elems,4294967296)))
-POINT(15.64459161147903 10.20971302428256)
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000)));
-ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000)))
-POINT(15.265664160401002 10.463659147869674)
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 #####################################################################################
 # Invalid function calls
 #####################################################################################

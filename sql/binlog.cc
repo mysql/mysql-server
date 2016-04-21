@@ -6808,6 +6808,13 @@ bool MYSQL_BIN_LOG::append_buffer(const char* buf, uint len, Master_info *mi)
     sufficient to block SQL thread when IO thread is updating relay log here.
   */
   mysql_mutex_unlock(&mi->data_lock);
+  DBUG_EXECUTE_IF("simulate_io_thd_wait_for_disk_space",
+                  {
+                  const char act[]= "disk_full_reached SIGNAL parked";
+                  DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                  DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                     STRING_WITH_LEN(act)));
+                  };);
   // write data
   bool error= false;
   if (my_b_append(&log_file,(uchar*) buf,len) == 0)

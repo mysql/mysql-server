@@ -1,3 +1,5 @@
+include/master-slave.inc
+[connection master]
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
 CALL mtr.add_suppression("Failed to open the existing info file");
 CALL mtr.add_suppression("Error while reading from master info file");
@@ -108,4 +110,4 @@ purge master logs before now();
 Warnings:
 Warning	1868	file slave-bin.000001 was not purged because it is the active log file.
 End of 5.0 tests
-include/stop_slave.inc
+include/rpl_end.inc

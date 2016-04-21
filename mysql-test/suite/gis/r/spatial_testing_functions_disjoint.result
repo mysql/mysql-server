@@ -1612,14 +1612,11 @@ SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_c
 MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295))
 1
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
-MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1))
-1
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
-MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024))
-1
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
-MBRDISJOINT(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000))
-1
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 #====================================================================================
 # ST_DISJOINT(g1,g2)
 #====================================================================================
@@ -1642,14 +1639,11 @@ SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_c
 ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295))
 1
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
-ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1))
-1
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
-ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024))
-1
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000));
-ST_DISJOINT(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_center,4294967295000))
-1
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 #####################################################################################
 # Invalid function calls
 #####################################################################################

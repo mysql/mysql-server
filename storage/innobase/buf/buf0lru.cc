@@ -2111,7 +2111,7 @@ buf_LRU_block_free_non_file_page(
 	}
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-	ut_a(block->n_pointers == 0);
+	ut_a(block->n_pointers == 0 || !btr_search_enabled);
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	ut_ad(!block->page.in_free_list);
 	ut_ad(!block->page.in_flush_list);

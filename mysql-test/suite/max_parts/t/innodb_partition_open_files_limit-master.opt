@@ -1,0 +1,1 @@
+--innodb_file_per_table --open-files-limit=5 --max_connections=2 --table_open_cache=1

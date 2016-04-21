@@ -73,7 +73,6 @@ SET(DD_SOURCES
   dd/impl/collection_impl.cc
   dd/impl/dd.cc
   dd/impl/dictionary_impl.cc
-  dd/impl/dictionary_object_collection.cc
   dd/impl/properties_impl.cc
   dd/impl/system_registry.cc
   dd/impl/transaction_impl.cc

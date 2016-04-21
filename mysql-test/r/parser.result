@@ -1327,6 +1327,12 @@ ERROR 42000: Table 't1' from one of the SELECTs cannot be used in global ORDER c
 SELECT 1 UNION ( SELECT 1 UNION SELECT 1 );
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 )' at line 1
 ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
+1
+1
+( (SELECT 1 UNION SELECT 1 ) UNION SELECT 1 ) UNION SELECT 1;
+1
+1
+( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '( SELECT 1 UNION SELECT 1 ) UNION SELECT 1' at line 1
 SELECT a FROM t1 ORDER BY a UNION SELECT a FROM t1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT a FROM t1' at line 1
@@ -1626,7 +1632,8 @@ SELECT * FROM  (  t1,   (t2) );
 a	a
 1	2
 ((SELECT 1 UNION SELECT 1) UNION SELECT 1);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(SELECT 1 UNION SELECT 1) UNION SELECT 1)' at line 1
+1
+1
 SELECT * FROM ((SELECT 1 UNION SELECT 1) UNION SELECT 1) a;
 1
 1
@@ -2063,3 +2070,29 @@ t1	1	m_index	1	m	A	0	NULL	NULL	YES	BTREE
 t1	1	n_index	1	n	A	0	NULL	NULL	YES	BTREE		
 t1	1	o_index	1	o	A	0	NULL	NULL	YES	BTREE		
 DROP TABLE t1;
+#
+# WL#8907: Parser refactoring: merge all SELECT rules into one.
+#
+# Warning on hints in CREATE or ALTER VIEW:
+CREATE VIEW v1 AS SELECT /*+ QB_NAME(a) */ 1;
+Warnings:
+Warning	3515	Hints aren't supported in CREATE or ALTER VIEW
+ALTER VIEW v1 AS SELECT /*+ QB_NAME(a) */ 1;
+Warnings:
+Warning	3515	Hints aren't supported in CREATE or ALTER VIEW
+SELECT * FROM v1;
+1
+1
+DROP VIEW v1;
+# The "Hints aren't supported in CREATE or ALTER VIEW" warning is masked:
+CREATE VIEW v1 AS SELECT /*+ BAD_HINT */ 1;
+Warnings:
+Warning	1064	Optimizer hint syntax error near 'BAD_HINT */ 1' at line 1
+ALTER VIEW v1 AS SELECT /*+ BAD_HINT */ 1;
+Warnings:
+Warning	1064	Optimizer hint syntax error near 'BAD_HINT */ 1' at line 1
+SELECT * FROM v1;
+1
+1
+DROP VIEW v1;
+#

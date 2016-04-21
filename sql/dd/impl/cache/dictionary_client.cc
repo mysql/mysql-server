@@ -36,7 +36,6 @@
 #include "dd/types/tablespace.h"             // Tablespace
 #include "dd/types/view.h"                   // View
 #include "dd/impl/bootstrapper.h"            // bootstrap_stage
-#include "dd/impl/dictionary_object_collection.h" // Dictionary_object_coll...
 #include "dd/impl/transaction_impl.h"        // Transaction_ro
 #include "dd/impl/raw/object_keys.h"         // Primary_id_key, ...
 #include "dd/impl/raw/raw_record_set.h"      // Raw_record_set
@@ -1356,80 +1355,151 @@ bool Dictionary_client::fetch_schema_component_names(
 }
 
 
-// Fetch all the components in the schema.
-template <typename Iterator_type>
-bool Dictionary_client::fetch_schema_components(
-    const Schema *schema,
-    std::unique_ptr<Iterator_type> *iter) const
-{
-  std::unique_ptr<Dictionary_object_collection<
-    typename Iterator_type::Object_type> > c(
-      new (std::nothrow) Dictionary_object_collection<
-        typename Iterator_type::Object_type>(m_thd));
-  {
-    std::unique_ptr<Object_key> k(
-      Iterator_type::Object_type::cache_partition_table_type::
-        create_key_by_schema_id(schema->id()));
+/**
+  Fetch objects from DD tables that match the supplied key.
 
-    if (c->fetch(k.get()))
+  @tparam Object_type Type of object to fetch.
+  @param thd          Thread handle
+  @param coll         Vector to fill with objects.
+  @param object_key   The search key. If key is not supplied, then
+                      we do full index scan.
+
+  @return false       Success.
+  @return true        Failure (error is reported).
+*/
+
+template <typename Object_type>
+bool fetch(THD *thd, std::vector<const Object_type*> *coll,
+           const Object_key *object_key)
+{
+  // Since we clear the vector on failure, it should be empty
+  // when we start.
+  DBUG_ASSERT(coll->empty());
+
+  std::vector<Object_id> ids;
+
+  {
+    Transaction_ro trx(thd, ISO_READ_COMMITTED);
+    trx.otx.register_tables<Object_type>();
+    Raw_table *table= trx.otx.get_table<Object_type>();
+    DBUG_ASSERT(table);
+
+    if (trx.otx.open_tables())
     {
-      DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
-      iter->reset(NULL);
+      DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
       return true;
     }
+
+    // Retrieve list of object ids. Do this in a nested scope to make sure
+    // the record set is deleted before the transaction is committed (a
+    // dependency in the Raw_record_set destructor.
+    {
+      std::unique_ptr<Raw_record_set> rs;
+      if (table->open_record_set(object_key, rs))
+      {
+        DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
+        return true;
+      }
+
+      Raw_record *r= rs->current_record();
+      while (r)
+      {
+        ids.push_back(r->read_int(0)); // Read ID, which is always 1st field.
+
+        if (rs->next(r))
+        {
+          DBUG_ASSERT(thd->is_system_thread() ||
+                      thd->killed || thd->is_error());
+          return true;
+        }
+      }
+    }
+
+    // Close the scope to end DD transaction. This allows to avoid
+    // nested DD transaction when loading objects.
   }
-  iter->reset(c.release());
+
+  // Load objects by id. This must be done without caching the
+  // objects since the dictionary object collection is used in
+  // situations where we do not have an MDL lock (e.g. a SHOW statement).
+  for (Object_id id : ids)
+  {
+    const Object_type *o= NULL;
+    if (thd->dd_client()->acquire_uncached(id, &o))
+    {
+      DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
+      // Delete objects already created.
+      for (const Object_type *comp : *coll)
+        delete comp;
+      coll->clear();
+      return true;
+    }
+
+    // Since we don't have metadata lock, the object could have been
+    // deleted after we retrieved the IDs. So we need to check that
+    // the object still exists and it is not an error if it doesn't.
+    if (o)
+      coll->push_back(o);
+  }
 
   return false;
 }
 
 
-// Fetch all the objects of the given type in the default catalog.
-/* purecov: begin deadcode */
-template <typename Iterator_type>
-bool Dictionary_client::fetch_catalog_components(
-    std::unique_ptr<Iterator_type> *iter) const
+// Fetch all components in the schema.
+template <typename T>
+bool Dictionary_client::fetch_schema_components(
+    const Schema *schema,
+    std::vector<const T*> *coll) const
 {
-  std::unique_ptr<Dictionary_object_collection
-    <typename Iterator_type::Object_type> > c(
-      new (std::nothrow) Dictionary_object_collection
-        <typename Iterator_type::Object_type>(m_thd));
+  std::unique_ptr<Object_key> k(
+    T::cache_partition_table_type::create_key_by_schema_id(schema->id()));
+
+  if (fetch(m_thd, coll, k.get()))
   {
-    std::unique_ptr<Object_key> k(
-      Iterator_type::Object_type::cache_partition_table_type::
-        create_key_by_catalog_id(1));
-    if (c->fetch(k.get()))
-    {
-      DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
-      iter->reset(NULL);
-      return true;
-    }
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(coll->empty());
+    return true;
   }
 
-  iter->reset(c.release());
+  return false;
+}
+
+
+// Fetch all components of the given type in the default catalog.
+/* purecov: begin deadcode */
+template <typename T>
+bool Dictionary_client::fetch_catalog_components(
+    std::vector<const T*> *coll) const
+{
+  std::unique_ptr<Object_key> k(
+    T::cache_partition_table_type::create_key_by_catalog_id(1));
+
+  if (fetch(m_thd, coll, k.get()))
+  {
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(coll->empty());
+    return true;
+  }
+
   return false;
 }
 /* purecov: end */
 
 
-// Fetch all the global objects of the given type.
+// Fetch all global components of the given type.
 /* purecov: begin deadcode */
-template <typename Iterator_type>
+template <typename T>
 bool Dictionary_client::fetch_global_components(
-    std::unique_ptr<Iterator_type> *iter) const
+    std::vector<const T*> *coll) const
 {
-  std::unique_ptr<Dictionary_object_collection
-    <typename Iterator_type::Object_type> > c(
-      new (std::nothrow) Dictionary_object_collection
-        <typename Iterator_type::Object_type>(m_thd));
-  if (c->fetch(NULL))
+  if (fetch(m_thd, coll, NULL))
   {
     DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
-    iter->reset(NULL);
+    DBUG_ASSERT(coll->empty());
     return true;
   }
 
-  iter->reset(c.release());
   return false;
 }
 /* purecov: end */
@@ -1727,40 +1797,41 @@ void Dictionary_client::dump() const
 // Explicitly instantiate the types for the various usages.
 template bool Dictionary_client::fetch_schema_components(
     const Schema*,
-    std::unique_ptr<Abstract_table_const_iterator>*) const;
+    std::vector<const Abstract_table*>*) const;
 
 template bool Dictionary_client::fetch_schema_components(
     const Schema*,
-    std::unique_ptr<Table_const_iterator>*) const;
+    std::vector<const Table*>*) const;
 
 template bool Dictionary_client::fetch_schema_components(
     const Schema*,
-    std::unique_ptr<View_const_iterator>*) const;
+    std::vector<const View*>*) const;
 
 template bool Dictionary_client::fetch_schema_components(
     const Schema*,
-    std::unique_ptr<Event_const_iterator>*) const;
+    std::vector<const Event*>*) const;
 
 template bool Dictionary_client::fetch_schema_components(
     const Schema*,
-    std::unique_ptr<Routine_const_iterator>*) const;
+    std::vector<const Routine*>*) const;
 
 template bool Dictionary_client::fetch_catalog_components(
-    std::unique_ptr<Schema_const_iterator>*) const;
+    std::vector<const Schema*>*) const;
 
 template bool Dictionary_client::fetch_global_components(
-    std::unique_ptr<Charset_const_iterator>*) const;
+    std::vector<const Charset*>*) const;
 
 template bool Dictionary_client::fetch_global_components(
-    std::unique_ptr<Collation_const_iterator>*) const;
+    std::vector<const Collation*>*) const;
 
 template bool Dictionary_client::fetch_global_components(
-    std::unique_ptr<Tablespace_const_iterator>*) const;
-template bool Dictionary_client::fetch_global_components(
-    std::unique_ptr<Event_const_iterator>*) const;
+    std::vector<const Tablespace*>*) const;
 
 template bool Dictionary_client::fetch_global_components(
-     std::unique_ptr<Schema_const_iterator>*) const;
+    std::vector<const Event*>*) const;
+
+template bool Dictionary_client::fetch_global_components(
+    std::vector<const Schema*>*) const;
 
 template bool Dictionary_client::fetch_schema_component_names<Abstract_table>(
     const Schema*,

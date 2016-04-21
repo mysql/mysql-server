@@ -135,12 +135,6 @@ build_query(const POS &pos,
   item_list->push_back(expr_name);
   item_list->push_back(expr_value);
 
-  /* SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value ... */
-  PT_select_options_and_item_list *options_and_item_list;
-  options_and_item_list= new (thd->mem_root) PT_select_options_and_item_list(options, item_list);
-  if (options_and_item_list == NULL)
-    return NULL;
-
   /*
     make_table_list() might alter the database and table name strings. Create
     copies and leave the original values unaltered.
@@ -168,24 +162,18 @@ build_query(const POS &pos,
   if (table_factor == NULL)
     return NULL;
 
-  PT_table_reference_list *table_reference_list;
-  table_reference_list= new (thd->mem_root) PT_table_reference_list(pos, table_factor);
-  if (table_reference_list == NULL)
+  Mem_root_array_YY<PT_table_reference *> table_reference_list;
+  table_reference_list.init(thd->mem_root);
+  if (table_reference_list.push_back(table_factor))
     return NULL;
 
   /* Form subquery */
   /* SELECT VARIABLE_NAME as Variable_name, VARIABLE_VALUE as Value FROM performance_schema.<table_name> */
-  PT_select_part2 *select_part2;
-  select_part2= new (thd->mem_root) PT_select_part2(options_and_item_list,
-                                                    table_reference_list,  // from
-                                                    NULL,                  // where
-                                                    NULL,                  // group
-                                                    NULL);                 // having
-  if (select_part2 == NULL)
-    return NULL;
-
-  PT_query_specification *query_specification;
-  query_specification= new (thd->mem_root) PT_query_specification(select_part2);
+  PT_query_primary *query_specification;
+  query_specification= new (thd->mem_root) PT_query_specification(options,
+                                                                  item_list,
+                                                                  table_reference_list,  // from
+                                                                  NULL);                 // where
   if (query_specification == NULL)
     return NULL;
 
@@ -212,9 +200,9 @@ build_query(const POS &pos,
   if (derived_table == NULL)
    return NULL;
 
-  PT_table_reference_list *table_reference_list1;
-  table_reference_list1= new (thd->mem_root) PT_table_reference_list(pos, derived_table);
-  if (table_reference_list1 == NULL)
+  Mem_root_array_YY<PT_table_reference *> table_reference_list1;
+  table_reference_list1.init(thd->mem_root);
+  if (table_reference_list1.push_back(derived_table))
     return NULL;
 
   /* SELECT * ... */
@@ -228,12 +216,6 @@ build_query(const POS &pos,
   if (item_list1 == NULL)
     return NULL;
   item_list1->push_back(ident_star);
-
-  PT_select_options_and_item_list *options_and_item_list1;
-  options_and_item_list1= new (thd->mem_root) PT_select_options_and_item_list(options, item_list1);
-  if (options_and_item_list1 == NULL)
-    return NULL;
-
 
   /* Process where clause */
   Item *where_clause= NULL;
@@ -279,17 +261,11 @@ build_query(const POS &pos,
 
   /* SELECT * FROM (SELECT ...) derived_table [ WHERE Variable_name LIKE <value> ] */
   /* SELECT * FROM (SELECT ...) derived_table [ WHERE <cond> ] */
-  PT_select_part2 *select_part22;
-  select_part22= new (thd->mem_root) PT_select_part2(options_and_item_list1,
-                                                     table_reference_list1,         // from
-                                                     where_clause,                  // where
-                                                     NULL,                          // group
-                                                     NULL);                         // having
-  if (select_part22 == NULL)
-    return NULL;
-
   PT_query_specification *query_specification2;
-  query_specification2= new (thd->mem_root) PT_query_specification(select_part22);
+  query_specification2= new (thd->mem_root) PT_query_specification(options,
+                                                                   item_list1,
+                                                                   table_reference_list1,  // from
+                                                                   where_clause);          // where
   if (query_specification2 == NULL)
     return NULL;
 

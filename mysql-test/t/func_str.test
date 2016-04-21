@@ -1547,7 +1547,7 @@ format(rpad('111111111.1',
              '999999999999999999999999999999999999999999'),0,'be_BY')
 ;
 
---error ER_GIS_INVALID_DATA
+--error ER_DATA_OUT_OF_RANGE
 DO
 round(
   concat( (

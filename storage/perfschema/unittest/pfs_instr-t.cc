@@ -95,6 +95,27 @@ static void test_no_instances()
   PFS_table *table;
   PFS_global_param param;
 
+  dummy_mutex_class.m_event_name_index = 0;
+  dummy_mutex_class.m_flags = 0;
+  dummy_mutex_class.m_enabled = true;
+  dummy_mutex_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
+  dummy_rwlock_class.m_event_name_index = 1;
+  dummy_rwlock_class.m_flags = 0;
+  dummy_rwlock_class.m_enabled = true;
+  dummy_rwlock_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
+  dummy_cond_class.m_event_name_index = 2;
+  dummy_cond_class.m_flags = 0;
+  dummy_cond_class.m_enabled = true;
+  dummy_cond_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
+  dummy_file_class.m_event_name_index = 3;
+  dummy_file_class.m_flags = 0;
+  dummy_file_class.m_enabled = true;
+  dummy_file_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
+  dummy_socket_class.m_event_name_index = 4;
+  dummy_socket_class.m_flags = 0;
+  dummy_socket_class.m_enabled = true;
+  dummy_socket_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
+
   memset(& param, 0xFF, sizeof(param));
   param.m_enabled= true;
   param.m_mutex_class_sizing= 1;
@@ -289,19 +310,23 @@ static void test_with_instances()
   dummy_mutex_class.m_event_name_index= 0;
   dummy_mutex_class.m_flags= 0;
   dummy_mutex_class.m_enabled= true;
-  dummy_mutex_class.m_volatility= 0;
+  dummy_mutex_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
   dummy_rwlock_class.m_event_name_index= 1;
   dummy_rwlock_class.m_flags= 0;
   dummy_rwlock_class.m_enabled= true;
+  dummy_rwlock_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
   dummy_cond_class.m_event_name_index= 2;
   dummy_cond_class.m_flags= 0;
   dummy_cond_class.m_enabled= true;
+  dummy_cond_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
   dummy_file_class.m_event_name_index= 3;
   dummy_file_class.m_flags= 0;
   dummy_file_class.m_enabled= true;
+  dummy_file_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
   dummy_socket_class.m_event_name_index= 4;
   dummy_socket_class.m_flags= 0;
   dummy_socket_class.m_enabled= true;
+  dummy_socket_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
 
   dummy_table_share.m_enabled= true;
   dummy_table_share.m_timed= true;

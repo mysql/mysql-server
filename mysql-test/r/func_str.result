@@ -3084,7 +3084,7 @@ sha1('P'),
 )
 )
 );
-ERROR 22023: Invalid GIS data provided to function st_geometryfromwkb.
+ERROR 22003: SRID value is out of range in 'st_geometryfromwkb'
 SET @@global.max_allowed_packet:= @tmp_max;
 #
 # End of 5.5 tests

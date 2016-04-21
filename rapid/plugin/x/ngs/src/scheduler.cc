@@ -41,11 +41,10 @@ const uint64_t MILLI_TO_NANO = 1000000;
 
 Scheduler_dynamic::Scheduler_dynamic(const char* name, PSI_thread_key thread_key)
 : m_name(name),
-  m_task_pending_mutex(KEY_mutex_x_scheduler_dynamic_task_pending),
-  m_task_pending_cond(KEY_cond_x_scheduler_dynamic_task_pending),
+  m_worker_pending_mutex(KEY_mutex_x_scheduler_dynamic_worker_pending),
+  m_worker_pending_cond(KEY_cond_x_scheduler_dynamic_worker_pending),
   m_thread_exit_mutex(KEY_mutex_x_scheduler_dynamic_thread_exit),
   m_thread_exit_cond(KEY_cond_x_scheduler_dynamic_thread_exit),
-  m_post_mutex(KEY_mutex_x_scheduler_dynamic_post),
   m_is_running(0),
   m_min_workers_count(1),
   m_workers_count(0),
@@ -75,6 +74,8 @@ void Scheduler_dynamic::launch()
 
 void Scheduler_dynamic::create_min_num_workers()
 {
+  Mutex_lock lock(m_worker_pending_mutex);
+
   while (is_running() &&
          my_atomic_load32(&m_workers_count) < my_atomic_load32(&m_min_workers_count))
   {
@@ -105,7 +106,7 @@ unsigned int Scheduler_dynamic::set_num_workers(unsigned int n)
 void Scheduler_dynamic::set_idle_worker_timeout(unsigned long long milliseconds)
 {
   my_atomic_store64(&m_idle_worker_timeout, milliseconds);
-  m_task_pending_cond.broadcast(m_task_pending_mutex);
+  m_worker_pending_cond.broadcast(m_worker_pending_mutex);
 }
 
 
@@ -122,7 +123,7 @@ void Scheduler_dynamic::stop()
         delete task;
     }
 
-    m_task_pending_cond.broadcast(m_task_pending_mutex);
+    m_worker_pending_cond.broadcast(m_worker_pending_mutex);
 
     {
       Mutex_lock lock(m_thread_exit_mutex);
@@ -149,7 +150,7 @@ bool Scheduler_dynamic::post(Task* task)
     return false;
 
   {
-    Mutex_lock lock(m_post_mutex);
+    Mutex_lock lock(m_worker_pending_mutex);
 
     if (increase_tasks_count() >= my_atomic_load32(&m_workers_count))
     {
@@ -164,7 +165,7 @@ bool Scheduler_dynamic::post(Task* task)
   }
 
   while (m_tasks.push(task) == false) {}
-  m_task_pending_cond.signal(m_task_pending_mutex);
+  m_worker_pending_cond.signal(m_worker_pending_mutex);
 
   return true;
 }
@@ -222,13 +223,40 @@ void Scheduler_dynamic::thread_end()
 #endif
 }
 
+bool Scheduler_dynamic::wait_if_idle_then_delete_worker()
+{
+  Mutex_lock lock(m_worker_pending_mutex);
+
+  if (!is_running())
+    return false;
+
+  if (!m_tasks.empty())
+    return false;
+
+  int result = m_worker_pending_cond.timed_wait(m_worker_pending_mutex,
+                                     m_idle_worker_timeout * MILLI_TO_NANO);
+
+  const bool timeout = ETIMEDOUT == result || ETIME == result;
+
+  if (!timeout)
+    return false;
+
+  if (my_atomic_load32(&m_workers_count) >
+      my_atomic_load32(&m_min_workers_count))
+  {
+    decrease_workers_count();
+    return true;
+  }
+
+  return false;
+}
+
 void *Scheduler_dynamic::worker()
 {
-  bool worker_timed_out = false;
-
+  bool worker_active = true;
   if (thread_init())
   {
-    while (is_running() && worker_timed_out == false)
+    while (is_running())
     {
       bool task_available = false;
 
@@ -259,26 +287,22 @@ void *Scheduler_dynamic::worker()
         decrease_tasks_count();
       else
       {
-        ulonglong wait_start = my_timer_milliseconds();
-        Mutex_lock lock(m_task_pending_mutex);
+        if (wait_if_idle_then_delete_worker())
+        {
+          worker_active = false;
 
-        if (is_running())
-          m_task_pending_cond.timed_wait(m_task_pending_mutex,
-                                         my_atomic_load64(&m_idle_worker_timeout) * MILLI_TO_NANO);
-
-        if (my_atomic_load32(&m_workers_count) >
-            my_atomic_load32(&m_min_workers_count) &&
-            int64(my_timer_milliseconds() - wait_start) >=
-            my_atomic_load64(&m_idle_worker_timeout))
-          worker_timed_out = true;
+          break;
+        }
       }
     }
     thread_end();
   }
 
   {
-    Mutex_lock lock(m_thread_exit_mutex);
-    decrease_workers_count();
+    Mutex_lock lock_exit(m_thread_exit_mutex);
+    Mutex_lock lock_workers(m_worker_pending_mutex);
+    if (worker_active)
+      decrease_workers_count();
     m_thread_exit_cond.signal();
   }
 

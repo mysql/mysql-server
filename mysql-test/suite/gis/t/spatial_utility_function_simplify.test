@@ -404,8 +404,10 @@ SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
 --echo # ST_ASTEXT(ST_SIMPLIFY(geometry) with different SRID values
 --echo #####################################################################################
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_center,-1024), 1));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_all_points,-1), 1));
 
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_top_to_center,0), 1));
@@ -416,8 +418,10 @@ SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star,123456789), 1));
 
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295), 1));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_of_elems,4294967296), 1));
 
+--error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000), 1));
 
 --echo #####################################################################################

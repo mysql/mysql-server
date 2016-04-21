@@ -1,4 +1,4 @@
-show tables;
+show tables where Tables_in_db != 'ndb_binlog_index';
 Tables_in_db
 column_stats
 columns_priv
@@ -13,7 +13,6 @@ help_relation
 help_topic
 innodb_index_stats
 innodb_table_stats
-ndb_binlog_index
 plugin
 procs_priv
 proxies_priv

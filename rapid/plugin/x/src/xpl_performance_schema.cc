@@ -36,22 +36,20 @@ static PSI_thread_info all_x_threads[] = {
 };
 
 PSI_mutex_key KEY_mutex_x_lock_list_access = PSI_NOT_INSTRUMENTED;
-PSI_mutex_key KEY_mutex_x_scheduler_dynamic_task_pending = PSI_NOT_INSTRUMENTED;
+PSI_mutex_key KEY_mutex_x_scheduler_dynamic_worker_pending = PSI_NOT_INSTRUMENTED;
 PSI_mutex_key KEY_mutex_x_scheduler_dynamic_thread_exit = PSI_NOT_INSTRUMENTED;
-PSI_mutex_key KEY_mutex_x_scheduler_dynamic_post = PSI_NOT_INSTRUMENTED;
 
 static PSI_mutex_info all_x_mutexes[] = {
   { &KEY_mutex_x_lock_list_access, "lock_list_access", 0, 0},
-  { &KEY_mutex_x_scheduler_dynamic_task_pending, "scheduler_dynamic_task_pending", 0, 0},
+  { &KEY_mutex_x_scheduler_dynamic_worker_pending, "scheduler_dynamic_worker_pending", 0, 0},
   { &KEY_mutex_x_scheduler_dynamic_thread_exit, "scheduler_dynamic_thread_exit", 0, 0},
-  { &KEY_mutex_x_scheduler_dynamic_post, "scheduler_dynamic_post", 0, 0}
 };
 
-PSI_cond_key KEY_cond_x_scheduler_dynamic_task_pending = PSI_NOT_INSTRUMENTED;
+PSI_cond_key KEY_cond_x_scheduler_dynamic_worker_pending = PSI_NOT_INSTRUMENTED;
 PSI_cond_key KEY_cond_x_scheduler_dynamic_thread_exit = PSI_NOT_INSTRUMENTED;
 
 static PSI_cond_info all_x_conds[] = {
-  { &KEY_cond_x_scheduler_dynamic_task_pending, "scheduler_dynamic_task_pending", 0 },
+  { &KEY_cond_x_scheduler_dynamic_worker_pending, "scheduler_dynamic_worker_pending", 0 },
   { &KEY_cond_x_scheduler_dynamic_thread_exit, "scheduler_dynamic_thread_exit", 0 },
 };
 

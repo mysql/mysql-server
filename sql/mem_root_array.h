@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,6 +55,15 @@ public:
     DBUG_ASSERT(root != NULL);
 
     m_root= root;
+    m_array= NULL;
+    m_size= 0;
+    m_capacity= 0;
+  }
+
+  /// Initialize empty array that we aren't going to grow
+  void init_empty_const()
+  {
+    m_root= NULL;
     m_array= NULL;
     m_size= 0;
     m_capacity= 0;

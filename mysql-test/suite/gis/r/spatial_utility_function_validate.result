@@ -381,9 +381,9 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT ST_ASTEXT(ST_VALIDATE(ST_GEOMFROMTEXT('POLYGON((12,34 0,10 10,10 0,0 0))')));
 ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_ASTEXT(ST_VALIDATE(ST_GEOMFROMTEXT(@star_center,-1024)));
-ERROR HY000: Incorrect arguments to st_validate
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ASTEXT(ST_VALIDATE(ST_GEOMFROMTEXT(@star_all_points,-1)));
-ERROR HY000: Incorrect arguments to st_validate
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ASTEXT(ST_VALIDATE(ST_GEOMFROMTEXT(@star_lines_near_vertical,4236)));
 ERROR HY000: Incorrect arguments to st_validate
 SELECT ST_ASTEXT(ST_VALIDATE(ST_GEOMFROMTEXT(@star,123456789)));
@@ -391,9 +391,9 @@ ERROR HY000: Incorrect arguments to st_validate
 SELECT ST_ASTEXT(ST_VALIDATE(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295)));
 ERROR HY000: Incorrect arguments to st_validate
 SELECT ST_ASTEXT(ST_VALIDATE(ST_GEOMFROMTEXT(@star_of_elems,4294967297)));
-ERROR HY000: Incorrect arguments to st_validate
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ASTEXT(ST_VALIDATE(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000)));
-ERROR HY000: Incorrect arguments to st_validate
+ERROR 22003: SRID value is out of range in 'st_geometryfromtext'
 SELECT ST_ASTEXT(ST_VALIDATE(0x000000000200000000000000000000000000000000));
 ERROR HY000: Geometry byte string must be little endian.
 SELECT ST_ASTEXT(ST_VALIDATE(0x010100000001000000010100000000000000000000));

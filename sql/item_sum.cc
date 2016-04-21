@@ -1359,6 +1359,7 @@ Item_sum_bit::eval_op(Char_op char_op, Int_op int_op)
     if (!s1 || args[0]->null_value)
       return false;
 
+    DBUG_ASSERT(value_buff.length() > 0);
     // See if there has been a non-NULL value in this group:
     const bool non_nulls= value_buff.ptr()[value_buff.length() - 1];
     if (!non_nulls)
@@ -1367,9 +1368,9 @@ Item_sum_bit::eval_op(Char_op char_op, Int_op int_op)
       value_buff.alloc(s1->length() + 1);
       value_buff.length(s1->length() + 1);
       // This is the first non-NULL value of the group, accumulate it.
-      std::memcpy(value_buff.c_ptr(), s1->ptr(), s1->length());
+      std::memcpy(value_buff.c_ptr_quick(), s1->ptr(), s1->length());
       // Store that a non-NULL value has been seen.
-      const_cast<char *>(value_buff.ptr())[s1->length()]= 1;
+      value_buff.c_ptr_quick()[s1->length()]= 1;
 
       return false;
     }
@@ -2480,9 +2481,11 @@ longlong Item_sum_bit::val_int()
 
 void Item_sum_bit::clear()
 {
-  bits= reset_bits;
-  value_buff.length(1);
-  const_cast<char *>(value_buff.ptr())[0]= 0;
+  if (hybrid_type == INT_RESULT)
+    bits= reset_bits;
+  else
+    // Prepare value_buff for a new group.
+    value_buff.set(initial_value_buff_storage, 1, &my_charset_bin);
 }
 
 Item *Item_sum_or::copy_or_same(THD* thd)

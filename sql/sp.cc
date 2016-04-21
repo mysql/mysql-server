@@ -981,16 +981,15 @@ bool lock_db_routines(THD *thd, const char *db)
     DBUG_RETURN(true);
   }
 
-  // Iterator for the stored routines of the schema.
-  std::unique_ptr<dd::Iterator<const dd::Routine> > routine_iterator;
+  // Vector for the stored routines of the schema.
+  std::vector<const dd::Routine*> routines;
 
   // Fetch stored routines of the schema.
-  if (thd->dd_client()->fetch_schema_components(sch, &routine_iterator))
+  if (thd->dd_client()->fetch_schema_components(sch, &routines))
     DBUG_RETURN(true);
 
   MDL_request_list mdl_requests;
-  const dd::Routine *routine= NULL;
-  while ((routine= routine_iterator->next()) != NULL)
+  for (const dd::Routine *routine : routines)
   {
     /*
       Routine names are case insensitive. While acquiring MDL locks on routines
@@ -1010,6 +1009,8 @@ bool lock_db_routines(THD *thd, const char *db)
                      MDL_EXCLUSIVE, MDL_TRANSACTION);
     mdl_requests.push_front(mdl_request);
   }
+
+  delete_container_pointers(routines);
 
   /* We should already hold a global IX lock and a schema X lock. */
   DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL,
@@ -1052,16 +1053,15 @@ enum_sp_return_code sp_drop_db_routines(THD *thd, const char *db)
     DBUG_RETURN(SP_NO_DB_ERROR);
   }
 
-  // Iterator for the stored routines of the schema.
-  std::unique_ptr<dd::Iterator<const dd::Routine> > routine_iterator;
+  // Vector for the stored routines of the schema.
+  std::vector<const dd::Routine*> routines;
 
   // Fetch stored routines of the schema.
-  if (thd->dd_client()->fetch_schema_components(sch, &routine_iterator))
+  if (thd->dd_client()->fetch_schema_components(sch, &routines))
     DBUG_RETURN(SP_INTERNAL_ERROR);
 
   enum_sp_return_code ret_code= SP_OK;
-  const dd::Routine *routine= NULL;
-  while ((routine= routine_iterator->next()) != NULL)
+  for (const dd::Routine *routine : routines)
   {
     // TODO: This extra acquire is required for now as Dictionary_client::drop()
     // requires the object to be present in the DD cache. Since fetch_schema_components()
@@ -1081,6 +1081,7 @@ enum_sp_return_code sp_drop_db_routines(THD *thd, const char *db)
 
     DBUG_EXECUTE_IF("fail_drop_db_routines",
                     { my_error(ER_SP_DROP_FAILED, MYF(0), "ROUTINE", "");
+                      delete_container_pointers(routines);
                       DBUG_RETURN(SP_DROP_FAILED);} );
 
     ret_code= dd::remove_routine(thd, routine2);
@@ -1100,6 +1101,8 @@ enum_sp_return_code sp_drop_db_routines(THD *thd, const char *db)
                   routine->name().c_str(), routine->name().length());
 #endif
   }
+
+  delete_container_pointers(routines);
 
   // Invalidate the sp cache.
   if (is_routine_dropped)
@@ -2225,8 +2228,9 @@ uint sp_get_flags_for_command(LEX *lex)
 
 bool sp_check_name(LEX_STRING *ident)
 {
-  if (!ident || !ident->str || !ident->str[0] ||
-      ident->str[ident->length-1] == ' ')
+  DBUG_ASSERT(ident != NULL && ident->str != NULL);
+
+  if (!ident->str[0] || ident->str[ident->length-1] == ' ')
   {
     my_error(ER_SP_WRONG_NAME, MYF(0), ident->str);
     return true;

@@ -16066,6 +16066,14 @@ ha_innobase::external_lock(
 		    && sql_command == SQLCOM_FLUSH
 		    && lock_type == F_RDLCK) {
 
+			if (dict_table_is_discarded(m_prebuilt->table)) {
+				ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+					    ER_TABLESPACE_DISCARDED,
+					    table->s->table_name.str);
+
+				DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
+			}
+
 			row_quiesce_table_start(m_prebuilt->table, trx);
 
 			/* Use the transaction instance to track UNLOCK

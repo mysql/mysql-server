@@ -24,6 +24,7 @@ debian/extra/auth_test_plugin-plugin
 debian/extra/ha_example-plugin
 debian/extra/innodb_engine-plugin
 debian/extra/keyring_file-plugin
+debian/extra/keyring_udf-plugin
 debian/extra/libdaemon_example-plugin
 debian/extra/libmemcached-plugin
 debian/extra/libpluginmecab-plugin

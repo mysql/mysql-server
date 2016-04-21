@@ -767,12 +767,11 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
 
   DBUG_ASSERT(sch_obj);
 
-  std::unique_ptr<dd::Iterator<const dd::Abstract_table> > iter;
-  if (thd->dd_client()->fetch_schema_components(sch_obj, &iter))
+  std::vector<const dd::Abstract_table*> sch_tables;
+  if (thd->dd_client()->fetch_schema_components(sch_obj, &sch_tables))
     DBUG_RETURN(true);
 
-  const dd::Abstract_table *table;
-  while ((table= iter->next()) != NULL)
+  for (const dd::Abstract_table *table : sch_tables)
   {
     TABLE_LIST *table_list=(TABLE_LIST*)
       thd->mem_calloc(sizeof(*table_list));
@@ -804,6 +803,8 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
     tot_list_next_local= &table_list->next_local;
     tot_list_next_global= &table_list->next_global;
   }
+
+  delete_container_pointers(sch_tables);
 
   *tables= tot_list;
   DBUG_RETURN(false);

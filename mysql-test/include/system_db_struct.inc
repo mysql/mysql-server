@@ -3,7 +3,7 @@
 #
 
 -- replace_result Tables_in_mysql Tables_in_db Tables_in_test Tables_in_db
-show tables;
+show tables where Tables_in_mysql != 'ndb_binlog_index';
 show create table db;
 show create table user;
 show create table func;

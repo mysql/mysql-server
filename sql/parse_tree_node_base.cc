@@ -19,12 +19,10 @@
 #include "sql_parse.h"
 
 
-Parse_context::Parse_context(THD *const thd_arg, SELECT_LEX *sl_arg,
-                             bool is_top_level_arg)
+Parse_context::Parse_context(THD *const thd_arg, SELECT_LEX *sl_arg)
   : thd(thd_arg),
     mem_root(thd->mem_root),
-    select(sl_arg),
-    is_top_level(is_top_level_arg)
+    select(sl_arg)
 {}
 
 

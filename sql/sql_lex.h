@@ -1111,20 +1111,6 @@ public:
   /// Allow merge of immediate unnamed derived tables
   bool allow_merge_derived;
   /**
-    This is a copy of the original JOIN USING list that comes from
-    the parser. The parser :
-      1. Sets the natural_join of the second TABLE_LIST in the join
-         and the SELECT_LEX::prev_join_using.
-      2. Makes a parent TABLE_LIST and sets its is_natural_join/
-       join_using_fields members.
-      3. Uses the wrapper TABLE_LIST as a table in the upper level.
-    We cannot assign directly to join_using_fields in the parser because
-    at stage (1.) the parent TABLE_LIST is not constructed yet and
-    the assignment will override the JOIN USING fields of the lower level
-    joins on the right.
-  */
-  List<String> *prev_join_using;
-  /**
     The set of those tables whose fields are referenced in the select list of
     this select level.
   */
@@ -1233,8 +1219,8 @@ public:
   TABLE_LIST* get_table_list() const { return table_list.first; }
   bool init_nested_join(THD *thd);
   TABLE_LIST *end_nested_join(THD *thd);
-  TABLE_LIST *nest_last_join(THD *thd);
-  void add_joined_table(TABLE_LIST *table);
+  TABLE_LIST *nest_last_join(THD *thd, size_t table_cnt= 2);
+  bool add_joined_table(TABLE_LIST *table);
   TABLE_LIST *convert_right_join();
   List<Item>* get_item_list() { return &item_list; }
 
@@ -1733,21 +1719,15 @@ union YYSTYPE {
   Query_options select_options;
   class PT_limit_clause *limit_clause;
   Parse_tree_node *node;
-  class PT_select_part2_derived *select_part2_derived;
   enum olap_type olap_type;
   class PT_group *group;
   class PT_order *order;
   struct Proc_analyse_params procedure_analyse_params;
   class PT_procedure_analyse *procedure_analyse;
   Select_lock_type select_lock_type;
-  class PT_union_order_or_limit *union_order_or_limit;
-  class PT_table_expression *table_expression;
   class PT_table_reference *table_reference;
-  class PT_table_factor *table_factor;
   class PT_joined_table *join_table;
   enum PT_joined_table_type join_type;
-  class PT_select_paren_derived *select_paren_derived;
-  class PT_select_lex *select_lex2;
   class PT_internal_variable_name *internal_variable_name;
   class PT_option_value_following_option_type *option_value_following_option_type;
   class PT_option_value_no_option_type *option_value_no_option_type;
@@ -1759,18 +1739,12 @@ union YYSTYPE {
   class PT_start_option_value_list_following_option_type
     *start_option_value_list_following_option_type;
   class PT_set *set;
-  class PT_union_list *union_list;
   Line_separators line_separators;
   Field_separators field_separators;
   class PT_into_destination *into_destination;
   class PT_select_var *select_var_ident;
   class PT_select_var_list *select_var_list;
-  class PT_select_options_and_item_list *select_options_and_item_list;
-  class PT_select_part2 *select_part2;
-  class PT_table_reference_list *table_reference_list;
-  class PT_select_paren *select_paren;
-  class PT_select_init *select_init;
-  class PT_select_init2 *select_init2;
+  Mem_root_array_YY<PT_table_reference *> table_reference_list;
   class PT_select_stmt *select_stmt;
   class Item_param *param_marker;
   class PTI_text_literal *text_literal;
@@ -1796,11 +1770,9 @@ union YYSTYPE {
   } column_row_value_list_pair;
   struct {
     class PT_item_list *column_list;
-    class PT_insert_query_expression *insert_query_expression;
-  } insert_from_subquery;
-  class PT_create_select *create_select;
+    class PT_query_expression *insert_query_expression;
+  } insert_query_expression;
   class PT_insert_values_list *values_list;
-  class PT_insert_query_expression *insert_query_expression;
   class PT_statement *statement;
   class Table_ident *table_ident;
   Mem_root_array_YY<Table_ident *> table_ident_list;

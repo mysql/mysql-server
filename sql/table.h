@@ -577,7 +577,6 @@ struct TABLE_SHARE
   HASH	name_hash;			/* hash of field names */
   MEM_ROOT mem_root;
   TYPELIB keynames;			/* Pointers to keynames */
-  TYPELIB fieldnames;			/* Pointer to fieldnames */
   TYPELIB *intervals;			/* pointer to interval info */
   mysql_mutex_t LOCK_ha_data;           /* To protect access to ha_data */
   TABLE_SHARE *next, **prev;            /* Link to unused shares */
@@ -2256,6 +2255,37 @@ struct TABLE_LIST
     return tbl;
   }
 
+  /**
+    Mark that there is a NATURAL JOIN or JOIN ... USING between two tables.
+
+      This function marks that table b should be joined with a either via
+      a NATURAL JOIN or via JOIN ... USING. Both join types are special
+      cases of each other, so we treat them together. The function
+      setup_conds() creates a list of equal condition between all fields
+      of the same name for NATURAL JOIN or the fields in
+      TABLE_LIST::join_using_fields for JOIN ... USING.
+      The list of equality conditions is stored
+      either in b->join_cond(), or in JOIN::conds, depending on whether there
+      was an outer join.
+
+    EXAMPLE
+    @verbatim
+      SELECT * FROM t1 NATURAL LEFT JOIN t2
+       <=>
+      SELECT * FROM t1 LEFT JOIN t2 ON (t1.i=t2.i and t1.j=t2.j ... )
+
+      SELECT * FROM t1 NATURAL JOIN t2 WHERE <some_cond>
+       <=>
+      SELECT * FROM t1, t2 WHERE (t1.i=t2.i and t1.j=t2.j and <some_cond>)
+
+      SELECT * FROM t1 JOIN t2 USING(j) WHERE <some_cond>
+       <=>
+      SELECT * FROM t1, t2 WHERE (t1.j=t2.j and <some_cond>)
+     @endverbatim
+
+    @param b            Right join argument.
+  */
+  void add_join_natural(TABLE_LIST *b) { b->natural_join= this; }
 
   /**
     Set granted privileges for a table.

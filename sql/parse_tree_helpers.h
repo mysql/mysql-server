@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 
 #include "item_func.h"      // Item etc.
 #include "set_var.h"        // enum_var_type
+#include "mem_root_array.h"
 
 class SELECT_LEX;
 
@@ -102,6 +103,28 @@ public:
     return value.pop();
   }
 };
+
+
+/**
+  Contextualize a Mem_root_array of parse tree nodes of the type PTN
+
+  @tparam PTN           Common type of parse tree nodes in the array.
+
+  @param[in,out] pc     Parse context.
+  @param[in,out] array  Array of nodes to contextualize.
+
+  @return false on success.
+*/
+template<class PTN>
+bool contextualize_array(Parse_context *pc, Mem_root_array_YY<PTN *> *array)
+{
+  for (auto it : *array)
+  {
+    if (it->contextualize(pc))
+      return true;
+  }
+  return false;
+}
 
 
 /**

@@ -763,12 +763,11 @@ fts_savepoint_release(
 	trx_t*		trx,			/*!< in: transaction */
 	const char*	name);			/*!< in: savepoint name */
 
-/*********************************************************************//**
-Clear cache. */
+/** Clear cache.
+@param[in,out]	cache	fts cache */
 void
 fts_cache_clear(
-/*============*/
-	fts_cache_t*	cache);			/*!< in: cache */
+	fts_cache_t*	cache);
 
 /*********************************************************************//**
 Initialize things in cache. */

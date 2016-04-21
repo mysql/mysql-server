@@ -1417,10 +1417,17 @@ SELECT 1 UNION (SELECT 2 FROM t1 ORDER BY a LIMIT 1);
 (SELECT a FROM t1 LIMIT 1) UNION ALL (SELECT a FROM t1 ORDER BY a LIMIT 2)
   ORDER BY t1.b;
 
+# Generally speaking, we don't support nested unions:
 --error ER_PARSE_ERROR
 SELECT 1 UNION ( SELECT 1 UNION SELECT 1 );
---error ER_PARSE_ERROR
+# OTOH union expressions are left-associative by their nature,
+# so "s1 UNION s2 UNION ..." and "(s1 UNION s2) UNION ..." are same,
+# thus the parser accepts nested query expressions at the left hand side:
 ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
+( (SELECT 1 UNION SELECT 1 ) UNION SELECT 1 ) UNION SELECT 1;
+# But:
+--error ER_PARSE_ERROR
+( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1;
 
 --error ER_PARSE_ERROR
 SELECT a FROM t1 ORDER BY a UNION SELECT a FROM t1;
@@ -1615,7 +1622,6 @@ SELECT * FROM  (((t1)),  t2  );
 SELECT * FROM  ( (t1),  (t2) );
 SELECT * FROM  (  t1,   (t2) );
 
---error ER_PARSE_ERROR
 ((SELECT 1 UNION SELECT 1) UNION SELECT 1);
 SELECT * FROM ((SELECT 1 UNION SELECT 1) UNION SELECT 1) a;
 
@@ -1921,3 +1927,23 @@ CREATE        INDEX o_index USING rtree ON t1( o ) USING btree;
 SHOW INDEXES FROM t1;
 
 DROP TABLE t1;
+
+--echo #
+--echo # WL#8907: Parser refactoring: merge all SELECT rules into one.
+--echo #
+
+--echo # Warning on hints in CREATE or ALTER VIEW:
+
+CREATE VIEW v1 AS SELECT /*+ QB_NAME(a) */ 1;
+ALTER VIEW v1 AS SELECT /*+ QB_NAME(a) */ 1;
+SELECT * FROM v1;
+DROP VIEW v1;
+
+--echo # The "Hints aren't supported in CREATE or ALTER VIEW" warning is masked:
+
+CREATE VIEW v1 AS SELECT /*+ BAD_HINT */ 1;
+ALTER VIEW v1 AS SELECT /*+ BAD_HINT */ 1;
+SELECT * FROM v1;
+DROP VIEW v1;
+
+--echo #

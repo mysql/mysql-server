@@ -940,8 +940,7 @@ public:
   void unlock_binlog_end_pos() { mysql_mutex_unlock(&LOCK_binlog_end_pos); }
 
   /**
-    Deep copy global_sid_map to @param sid_map and
-    gtid_state->get_executed_gtids() to @param gtid_set.
+    Deep copy global_sid_map and gtid_executed.
     Both operations are done under LOCK_commit and global_sid_lock
     protection.
 

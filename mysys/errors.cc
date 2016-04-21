@@ -21,6 +21,7 @@
 #include "mysys_err.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
+#include "m_string.h"
 
 const char *globerrs[GLOBERRS]=
 {
@@ -93,6 +94,7 @@ void wait_for_free_space(const char *filename, int errors)
                  });
 
   (void) sleep(time_to_sleep);
+  DEBUG_SYNC_C("disk_full_reached");
 }
 
 const char *get_global_errmsg(int nr)
