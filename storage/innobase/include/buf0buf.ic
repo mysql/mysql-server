@@ -1008,7 +1008,6 @@ ulint
 buf_block_unfix(
 	buf_page_t*	bpage)
 {
-	ut_ad(!mutex_own(buf_page_get_mutex(bpage)));
 	ulint	count = os_atomic_decrement_uint32(&bpage->buf_fix_count, 1);
 	ut_ad(count + 1 != 0);
 	return(count);
