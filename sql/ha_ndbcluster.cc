@@ -14041,6 +14041,7 @@ void ha_ndbcluster::print_error(int error, myf errflag)
   }
 
   handler::print_error(error, errflag);
+  DBUG_VOID_RETURN;
 }
 
 
