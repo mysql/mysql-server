@@ -131,7 +131,7 @@ bool Function_impl::update_routine_name_key(name_key_type *key,
                                             Object_id schema_id,
                                             const std::string &name) const
 {
-  return update_name_key(key, schema_id, name);
+  return Function::update_name_key(key, schema_id, name);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -189,7 +189,7 @@ void Function_type::register_tables(Open_dictionary_tables_ctx *otx) const
 ///////////////////////////////////////////////////////////////////////////
 
 Function_impl::Function_impl(const Function_impl &src)
-  :Weak_object(src), Entity_object_impl(src), Routine_impl(src),
+  :Weak_object(src), Routine_impl(src),
    m_result_data_type(src.m_result_data_type),
    m_result_data_type_null(src.m_result_data_type_null),
    m_result_is_zerofill(src.m_result_is_zerofill),

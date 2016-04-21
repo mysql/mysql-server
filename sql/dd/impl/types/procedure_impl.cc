@@ -41,7 +41,7 @@ bool Procedure_impl::update_routine_name_key(name_key_type *key,
                                              Object_id schema_id,
                                              const std::string &name) const
 {
-  return update_name_key(key, schema_id, name);
+  return Procedure::update_name_key(key, schema_id, name);
 }
 
 
@@ -89,7 +89,7 @@ void Procedure_type::register_tables(Open_dictionary_tables_ctx *otx) const
 ///////////////////////////////////////////////////////////////////////////
 
 Procedure_impl::Procedure_impl(const Procedure_impl &src)
-  :Weak_object(src), Entity_object_impl(src), Routine_impl(src)
+  :Weak_object(src), Routine_impl(src)
 { }
 
 ///////////////////////////////////////////////////////////////////////////

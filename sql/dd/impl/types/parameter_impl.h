@@ -37,9 +37,9 @@ template <typename T> class Collection;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Parameter_impl : virtual public Entity_object_impl,
-                       virtual public Parameter,
-                       virtual public Collection_item
+class Parameter_impl : public Entity_object_impl,
+                       public Parameter,
+                       public Collection_item
 {
 public:
   typedef Collection<Parameter_type_element> Parameter_type_element_collection;
@@ -251,6 +251,20 @@ public:
   virtual Parameter_type_element_iterator *set_elements();
 
   virtual size_t set_elements_count() const;
+
+  // Fix "inherits ... via dominance" warnings
+  virtual Weak_object_impl *impl()
+  { return Weak_object_impl::impl(); }
+  virtual const Weak_object_impl *impl() const
+  { return Weak_object_impl::impl(); }
+  virtual Object_id id() const
+  { return Entity_object_impl::id(); }
+  virtual bool is_persistent() const
+  { return Entity_object_impl::is_persistent(); }
+  virtual const std::string &name() const
+  { return Entity_object_impl::name(); }
+  virtual void set_name(const std::string &name)
+  { Entity_object_impl::set_name(name); }
 
 public:
   class Factory : public Collection_item_factory

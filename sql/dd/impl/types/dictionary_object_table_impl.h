@@ -45,6 +45,8 @@ public:
   virtual const Object_table_definition *table_definition(
                   THD *thd MY_ATTRIBUTE((unused))) const
   { return Object_table_impl::table_definition(thd); }
+  virtual uint default_dd_version(THD *thd) const
+  { return Object_table_impl::default_dd_version(thd); }
 
   virtual bool populate(THD *thd) const
   { return Object_table_impl::populate(thd); }
