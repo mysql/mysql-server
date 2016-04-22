@@ -80,8 +80,6 @@ void
 buf_buddy_condense_free(
 	buf_pool_t*	buf_pool);
 
-#ifndef UNIV_NONINL
-# include "buf0buddy.ic"
-#endif
+#include "buf0buddy.ic"
 
 #endif /* buf0buddy_h */

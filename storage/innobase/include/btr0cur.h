@@ -1246,8 +1246,6 @@ extern ulint	btr_cur_n_sea_old;
 extern uint	btr_cur_limit_optimistic_insert_debug;
 #endif /* UNIV_DEBUG */
 
-#ifndef UNIV_NONINL
 #include "btr0cur.ic"
-#endif
 
 #endif

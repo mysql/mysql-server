@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,11 +24,6 @@ Created 5/11/1994 Heikki Tuuri
 *************************************************************************/
 
 #include "ut0mem.h"
-
-#ifdef UNIV_NONINL
-#include "ut0mem.ic"
-#endif
-
 #ifndef UNIV_HOTBACKUP
 # include "os0thread.h"
 # include "srv0srv.h"

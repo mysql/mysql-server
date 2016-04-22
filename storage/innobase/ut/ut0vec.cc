@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,9 +24,6 @@ Created 4/6/2006 Osku Salerma
 ************************************************************************/
 
 #include "ut0vec.h"
-#ifdef UNIV_NONINL
-#include "ut0vec.ic"
-#endif
 #include "mem0mem.h"
 
 /********************************************************************

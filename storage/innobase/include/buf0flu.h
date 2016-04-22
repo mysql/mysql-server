@@ -413,8 +413,6 @@ private:
 
 #endif /* !UNIV_HOTBACKUP */
 
-#ifndef UNIV_NONINL
 #include "buf0flu.ic"
-#endif
 
 #endif

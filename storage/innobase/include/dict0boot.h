@@ -355,8 +355,6 @@ two) is assigned, the field DICT_HDR_ROW_ID on the dictionary header page is
 updated */
 #define DICT_HDR_ROW_ID_WRITE_MARGIN	256
 
-#ifndef UNIV_NONINL
 #include "dict0boot.ic"
-#endif
 
 #endif

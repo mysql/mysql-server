@@ -36,10 +36,6 @@ Created 5/11/1994 Heikki Tuuri
 #include "os0thread.h"
 #include "ut0ut.h"
 
-#ifdef UNIV_NONINL
-#include "ut0ut.ic"
-#endif
-
 #ifndef UNIV_HOTBACKUP
 # include "trx0trx.h"
 #endif /* !UNIV_HOTBACKUP */

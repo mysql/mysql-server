@@ -400,8 +400,6 @@ dict_get_v_col_pos(
 #define	INDEX_CREATE_INDEX_TREE	3
 #define	INDEX_ADD_TO_CACHE	4
 
-#ifndef UNIV_NONINL
 #include "dict0crea.ic"
-#endif
 
 #endif

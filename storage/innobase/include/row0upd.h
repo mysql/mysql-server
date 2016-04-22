@@ -676,8 +676,6 @@ struct upd_node_t{
 
 #endif /* !UNIV_HOTBACKUP */
 
-#ifndef UNIV_NONINL
 #include "row0upd.ic"
-#endif
 
 #endif

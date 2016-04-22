@@ -24,11 +24,6 @@ Created 3/14/1997 Heikki Tuuri
 *******************************************************/
 
 #include "row0purge.h"
-
-#ifdef UNIV_NONINL
-#include "row0purge.ic"
-#endif
-
 #include "fsp0fsp.h"
 #include "mach0data.h"
 #include "trx0rseg.h"

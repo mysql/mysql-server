@@ -552,8 +552,6 @@ fts_config_create_index_param_name(
 	const dict_index_t*	index)	/*!< in: index for config */
 	MY_ATTRIBUTE((warn_unused_result));
 
-#ifndef UNIV_NONINL
 #include "fts0priv.ic"
-#endif
 
 #endif /* INNOBASE_FTS0PRIV_H */

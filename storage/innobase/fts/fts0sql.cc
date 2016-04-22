@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -29,11 +29,6 @@ Created 2007-03-27 Sunny Bains
 #include "dict0dict.h"
 #include "fts0types.h"
 #include "fts0priv.h"
-
-#ifdef UNIV_NONINL
-#include "fts0types.ic"
-#include "fts0vlc.ic"
-#endif
 
 /** SQL statements for creating the ancillary FTS tables. */
 

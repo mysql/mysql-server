@@ -24,11 +24,6 @@ Created 2011-05-26 Marko Makela
 *******************************************************/
 
 #include "row0log.h"
-
-#ifdef UNIV_NONINL
-#include "row0log.ic"
-#endif
-
 #include "row0row.h"
 #include "row0ins.h"
 #include "row0upd.h"

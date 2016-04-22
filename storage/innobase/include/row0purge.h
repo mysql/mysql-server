@@ -128,8 +128,6 @@ struct purge_node_t{
 #endif
 };
 
-#ifndef UNIV_NONINL
 #include "row0purge.ic"
-#endif
 
 #endif

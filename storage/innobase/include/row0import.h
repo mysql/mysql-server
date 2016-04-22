@@ -80,8 +80,7 @@ row_import_update_index_root(
 						caller already owns the
 						dict_sys_t:: mutex. */
 	MY_ATTRIBUTE((warn_unused_result));
-#ifndef UNIV_NONINL
+
 #include "row0import.ic"
-#endif
 
 #endif /* row0import_h */

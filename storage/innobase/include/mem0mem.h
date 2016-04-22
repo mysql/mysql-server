@@ -422,9 +422,7 @@ struct mem_block_info_t {
 #define MEM_BLOCK_HEADER_SIZE	ut_calc_align(sizeof(mem_block_info_t),\
 							UNIV_MEM_ALIGNMENT)
 
-#ifndef UNIV_NONINL
 #include "mem0mem.ic"
-#endif
 
 /** A C++ wrapper class to the mem_heap_t routines, so that it can be used
 as an STL allocator */

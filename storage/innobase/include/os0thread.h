@@ -130,8 +130,6 @@ bool
 os_thread_active();
 /*==============*/
 
-#ifndef UNIV_NONINL
 #include "os0thread.ic"
-#endif
 
 #endif

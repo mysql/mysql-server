@@ -26,11 +26,6 @@ Created 5/30/1994 Heikki Tuuri
 #include "ha_prototypes.h"
 
 #include "data0data.h"
-
-#ifdef UNIV_NONINL
-#include "data0data.ic"
-#endif
-
 #ifndef UNIV_HOTBACKUP
 #include "rem0rec.h"
 #include "rem0cmp.h"

@@ -383,9 +383,7 @@ fts_select_index(
 	const byte*		str,
 	ulint			len);
 
-#ifndef UNIV_NONINL
 #include "fts0types.ic"
 #include "fts0vlc.ic"
-#endif
 
 #endif /* INNOBASE_FTS0TYPES_H */

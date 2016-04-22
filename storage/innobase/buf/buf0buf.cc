@@ -34,10 +34,6 @@ Created 11/5/1995 Heikki Tuuri
 
 #include "page0size.h"
 #include "buf0buf.h"
-
-#ifdef UNIV_NONINL
-#include "buf0buf.ic"
-#endif
 #include "mem0mem.h"
 #include "btr0btr.h"
 #include "fil0fil.h"

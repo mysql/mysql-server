@@ -919,9 +919,7 @@ innobase_get_computed_value(
 #define ROW_READ_TRY_SEMI_CONSISTENT	1
 #define ROW_READ_DID_SEMI_CONSISTENT	2
 
-#ifndef UNIV_NONINL
 #include "row0mysql.ic"
-#endif
 
 #ifdef UNIV_DEBUG
 /** Wait for the background drop list to become empty. */

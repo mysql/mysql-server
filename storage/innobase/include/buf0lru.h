@@ -288,9 +288,7 @@ Increments the I/O counter in buf_LRU_stat_cur. */
 Increments the page_zip_decompress() counter in buf_LRU_stat_cur. */
 #define buf_LRU_stat_inc_unzip() buf_LRU_stat_cur.unzip++
 
-#ifndef UNIV_NONINL
 #include "buf0lru.ic"
-#endif
 
 #endif /* !UNIV_HOTBACKUP */
 

@@ -31,11 +31,6 @@ Created 9/20/1997 Heikki Tuuri
 #include <string>
 
 #include "log0recv.h"
-
-#ifdef UNIV_NONINL
-#include "log0recv.ic"
-#endif
-
 #include <my_aes.h>
 
 #include "mem0mem.h"

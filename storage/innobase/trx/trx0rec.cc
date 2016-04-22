@@ -24,11 +24,6 @@ Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
 #include "trx0rec.h"
-
-#ifdef UNIV_NONINL
-#include "trx0rec.ic"
-#endif
-
 #include "fsp0fsp.h"
 #include "mach0data.h"
 #include "trx0undo.h"

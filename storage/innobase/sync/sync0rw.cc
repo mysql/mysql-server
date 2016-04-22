@@ -31,11 +31,6 @@ Created 9/11/1995 Heikki Tuuri
 *******************************************************/
 
 #include "sync0rw.h"
-#ifdef UNIV_NONINL
-#include "sync0rw.ic"
-#include "sync0arr.ic"
-#endif
-
 #include "ha_prototypes.h"
 
 #include "os0thread.h"

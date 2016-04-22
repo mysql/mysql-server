@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,11 +26,6 @@ Created 4/20/1996 Heikki Tuuri
 #include "ha_prototypes.h"
 
 #include "row0row.h"
-
-#ifdef UNIV_NONINL
-#include "row0row.ic"
-#endif
-
 #include "data0type.h"
 #include "dict0dict.h"
 #include "dict0boot.h"

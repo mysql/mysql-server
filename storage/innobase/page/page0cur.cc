@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -27,10 +27,6 @@ Created 10/4/1994 Heikki Tuuri
 #include "ha_prototypes.h"
 
 #include "page0cur.h"
-#ifdef UNIV_NONINL
-#include "page0cur.ic"
-#endif
-
 #include "page0zip.h"
 #include "btr0btr.h"
 #include "mtr0log.h"

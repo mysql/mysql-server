@@ -839,9 +839,7 @@ fsp_sdi_write_root_to_page(
 	ulint			root_page_num_1,
 	mtr_t*			mtr);
 
-#ifndef UNIV_NONINL
 #include "fsp0fsp.ic"
-#endif
 
 /** Get the state of an xdes.
 @param[in]	descr	extent descriptor

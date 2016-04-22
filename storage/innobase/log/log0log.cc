@@ -34,11 +34,6 @@ Created 12/9/1995 Heikki Tuuri
 #include <debug_sync.h>
 
 #include "log0log.h"
-
-#ifdef UNIV_NONINL
-#include "log0log.ic"
-#endif
-
 #ifndef UNIV_HOTBACKUP
 #include "mem0mem.h"
 #include "buf0buf.h"

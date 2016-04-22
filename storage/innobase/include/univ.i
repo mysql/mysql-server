@@ -274,19 +274,7 @@ rarely invoked function for size instead for speed. */
 # define UNIV_COLD /* empty */
 #endif
 
-#ifndef UNIV_MUST_NOT_INLINE
-/* Definition for inline version */
-
 #define UNIV_INLINE static inline
-
-#else /* !UNIV_MUST_NOT_INLINE */
-/* If we want to compile a noninlined version we use the following macro
-definitions: */
-
-#define UNIV_NONINL
-#define UNIV_INLINE
-
-#endif /* !UNIV_MUST_NOT_INLINE */
 
 #ifdef _WIN32
 # ifdef _WIN64

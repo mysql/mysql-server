@@ -677,9 +677,6 @@ struct big_rec_t {
 		ulint		n_fld);
 };
 
-
-#ifndef UNIV_NONINL
 #include "data0data.ic"
-#endif
 
 #endif

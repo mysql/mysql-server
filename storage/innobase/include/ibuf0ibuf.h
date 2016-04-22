@@ -442,8 +442,6 @@ for the file segment from which the pages for the ibuf tree are allocated */
 #define IBUF_HEADER		PAGE_DATA
 #define	IBUF_TREE_SEG_HEADER	0	/* fseg header for ibuf tree */
 
-#ifndef UNIV_NONINL
 #include "ibuf0ibuf.ic"
-#endif
 
 #endif

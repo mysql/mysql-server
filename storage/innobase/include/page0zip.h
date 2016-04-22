@@ -486,8 +486,6 @@ page_zip_reset_stat_per_index();
 # define UNIV_INLINE	UNIV_INLINE_ORIGINAL
 #endif
 
-#ifndef UNIV_NONINL
 # include "page0zip.ic"
-#endif
 
 #endif /* page0zip_h */

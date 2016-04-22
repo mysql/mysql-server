@@ -35,11 +35,6 @@ Created 1/8/1996 Heikki Tuuri
 #include <algorithm>
 #include <string>
 
-#ifdef UNIV_NONINL
-#include "dict0dict.ic"
-#include "dict0priv.ic"
-#endif
-
 #include "row0sel.h"
 #include "que0types.h"
 

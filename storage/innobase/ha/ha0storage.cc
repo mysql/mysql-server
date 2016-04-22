@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,10 +30,6 @@ Created September 22, 2007 Vasil Dimov
 #include "hash0hash.h"
 #include "mem0mem.h"
 #include "ut0rnd.h"
-
-#ifdef UNIV_NONINL
-#include "ha0storage.ic"
-#endif
 
 /*******************************************************************//**
 Retrieves a data from a storage. If it is present, a pointer to the

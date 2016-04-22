@@ -24,11 +24,6 @@ Created 2/25/1997 Heikki Tuuri
 *******************************************************/
 
 #include "row0uins.h"
-
-#ifdef UNIV_NONINL
-#include "row0uins.ic"
-#endif
-
 #include "dict0dict.h"
 #include "dict0boot.h"
 #include "dict0crea.h"

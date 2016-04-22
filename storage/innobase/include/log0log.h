@@ -798,8 +798,6 @@ log_group_calc_lsn_offset(
 	lsn_t			lsn,
 	const log_group_t*	group);
 
-#ifndef UNIV_NONINL
 #include "log0log.ic"
-#endif
 
 #endif

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -110,8 +110,6 @@ struct row_ext_t{
 	ulint		len[1];	/*!< prefix lengths; 0 if not cached */
 };
 
-#ifndef UNIV_NONINL
 #include "row0ext.ic"
-#endif
 
 #endif

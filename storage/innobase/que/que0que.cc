@@ -26,11 +26,6 @@ Created 5/27/1996 Heikki Tuuri
 #include "ha_prototypes.h"
 
 #include "que0que.h"
-
-#ifdef UNIV_NONINL
-#include "que0que.ic"
-#endif
-
 #include "usr0sess.h"
 #include "trx0trx.h"
 #include "trx0roll.h"
