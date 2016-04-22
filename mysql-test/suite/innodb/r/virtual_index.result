@@ -188,6 +188,8 @@ Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 ALTER TABLE t1 ADD COLUMN col7a INT GENERATED ALWAYS AS (col5x % col6x)
 VIRTUAL, ADD FULLTEXT KEY ftidx ( col9 ), algorithm=inplace;
+Warnings:
+Warning	1831	Duplicate index 'ftidx' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 DROP TABLE t1;
 CREATE TABLE t1 (
 col1 int(11) NOT NULL,
