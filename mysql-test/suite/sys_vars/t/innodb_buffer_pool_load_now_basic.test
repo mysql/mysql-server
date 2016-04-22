@@ -3,6 +3,7 @@
 #
 
 -- source include/have_innodb.inc
+--source include/not_embedded.inc
 
 # Check the default value
 SET @orig = @@global.innodb_buffer_pool_load_now;
@@ -24,10 +25,14 @@ let $wait_condition =
 -- let $file = `SELECT CONCAT(@@datadir, @@global.innodb_buffer_pool_filename)`
 -- file_exists $file
 
+SET GLOBAL innodb_fast_shutdown=0;
+--source include/restart_mysqld.inc
+
 # Load the dump
 SET GLOBAL innodb_buffer_pool_load_now = ON;
 
 # Wait for the load to complete
+let $wait_timeout = 900;
 let $wait_condition =
   SELECT SUBSTR(variable_value, 1, 33) = 'Buffer pool(s) load completed at '
   FROM information_schema.global_status
