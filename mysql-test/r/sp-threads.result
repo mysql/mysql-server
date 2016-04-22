@@ -32,12 +32,9 @@ update t1, t2 set val= 1 where id1=id2;
 call bug9486();
 lock tables t2 write;
 call bug9486();
-show processlist;
-Id	User	Host	db	Command	Time	State	Info	Progress
-#	root	localhost	test	Sleep	#		NULL	0.000
-#	root	localhost	test	Query	#	Waiting for table metadata lock	update t1, t2 set val= 1 where id1=id2	0.000
-#	root	localhost	test	Query	#	NULL	show processlist	0.000
-#	root	localhost	test	Sleep	#		NULL	0.000
+SELECT state,info FROM information_schema.processlist WHERE id=con1root_id;
+state	info
+Waiting for table metadata lock	update t1, t2 set val= 1 where id1=id2
 unlock tables;
 drop procedure bug9486;
 drop table t1, t2;
