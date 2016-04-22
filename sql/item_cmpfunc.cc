@@ -160,10 +160,11 @@ static int cmp_row_type(Item* item1, Item* item2)
 
 static int agg_cmp_type(Item_result *type, Item **items, uint nitems)
 {
-  uint i;
+  uint unsigned_count= items[0]->unsigned_flag;
   type[0]= items[0]->cmp_type();
-  for (i= 1 ; i < nitems ; i++)
+  for (uint i= 1 ; i < nitems ; i++)
   {
+    unsigned_count+= items[i]->unsigned_flag;
     type[0]= item_cmp_type(type[0], items[i]->cmp_type());
     /*
       When aggregating types of two row expressions we have to check
@@ -175,6 +176,12 @@ static int agg_cmp_type(Item_result *type, Item **items, uint nitems)
     if (type[0] == ROW_RESULT && cmp_row_type(items[0], items[i]))
       return 1;     // error found: invalid usage of rows
   }
+  /**
+    If all arguments are of INT type but have different unsigned_flag values,
+    switch to DECIMAL_RESULT.
+  */
+  if (type[0] == INT_RESULT && unsigned_count != nitems && unsigned_count != 0)
+    type[0]= DECIMAL_RESULT;
   return 0;
 }
 
