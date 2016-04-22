@@ -4247,7 +4247,6 @@ innobase_init_files(
 	case DICT_INIT_CHECK_FILES:
 		create_new_db = false;
 		break;
-	case DICT_INIT_CREATE_MISSING_FILES:
 	case DICT_INIT_IGNORE_FILES:
 		/* Unused modes. */
 		create_new_db = false;
