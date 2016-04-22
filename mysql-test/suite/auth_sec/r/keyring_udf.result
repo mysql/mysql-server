@@ -419,6 +419,7 @@ ERROR HY000: Function 'keyring_key_store' failed because underlying keyring serv
 select keyring_key_generate('roots_key', 'AES',16);
 keyring_key_generate('roots_key', 'AES',16)
 0
+create definer=root@localhost procedure shared_key() select keyring_key_fetch('roots_key');
 CREATE USER user_execute_test@localhost;
 select keyring_key_generate('Rob_DSA_no_privilege','DSA',384);
 ERROR HY000: Can't initialize function 'keyring_key_generate'; The user is not privileged to execute this function. User needs to have EXECUTE 
@@ -432,6 +433,11 @@ keyring_key_generate('another_Rob_DSA_no_privilege','DSA',384)
 #Check if user you can access another user's keys
 select keyring_key_remove('roots_key');
 ERROR HY000: Function 'keyring_key_remove' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
+#Check that the user is able to access the key via procedure
+call shared_key();
+keyring_key_fetch('roots_key')
+#
+DROP PROCEDURE shared_key;
 #Check if a user can create a key with id that already exist but belongs
 #to another user.
 select keyring_key_generate('Rob_DSA_no_privilege','DSA',384);
