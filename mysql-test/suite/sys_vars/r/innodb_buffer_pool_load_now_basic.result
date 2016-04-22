@@ -3,6 +3,8 @@ SELECT @orig;
 @orig
 0
 SET GLOBAL innodb_buffer_pool_dump_now = ON;
+SET GLOBAL innodb_fast_shutdown=0;
+# restart
 SET GLOBAL innodb_buffer_pool_load_now = ON;
 SELECT variable_value
 FROM information_schema.global_status
