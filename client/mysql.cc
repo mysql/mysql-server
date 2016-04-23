@@ -4898,11 +4898,11 @@ put_info(const char *str,INFO_TYPE info_type, uint error, const char *sqlstate)
   {
     if (!inited)
     {
-      int errret;
-      inited=1;
 #ifdef HAVE_SETUPTERM
+      int errret;
       have_curses= setupterm((char *)0, 1, &errret) != ERR;
 #endif
+      inited=1;
     }
     if (info_type == INFO_ERROR)
     {
