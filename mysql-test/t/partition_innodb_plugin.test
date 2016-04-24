@@ -124,12 +124,8 @@ SEND;
 UPDATE `t``\""e` SET a = 12 WHERE a = 0;
 --echo # default connection
 connection default;
-let $wait_timeout= 2;
-let $wait_condition= SELECT 1 FROM INFORMATION_SCHEMA.PROCESSLIST
-WHERE ID = $id_1 AND STATE = 'Searching rows for update';
+let $wait_condition= SELECT COUNT(*)=2 FROM INFORMATION_SCHEMA.INNODB_LOCKS;
 --source include/wait_condition.inc
-#--echo # tested wait condition $wait_condition_reps times
-# INNODB_LOCKS only exists in innodb_plugin
 --sorted_result
 SELECT lock_table, COUNT(*) FROM INFORMATION_SCHEMA.INNODB_LOCKS
 GROUP BY lock_table;
