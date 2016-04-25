@@ -1523,10 +1523,6 @@ bool plugin_register_early_plugins(int *argc, char **argv, int flags)
   if ((retval= plugin_init_internals()))
     DBUG_RETURN(retval);
 
-  /* --early-plugin-load will not work with --initialize */
-  if (opt_initialize)
-    DBUG_RETURN(retval);
-
   /* Allocate the temporary mem root, will be freed before returning */
   MEM_ROOT tmp_root;
   init_alloc_root(key_memory_plugin_init_tmp, &tmp_root, 4096, 4096);
