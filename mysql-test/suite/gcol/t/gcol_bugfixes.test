@@ -652,3 +652,11 @@ INSERT INTO t (a) VALUES(1), (2);
 SELECT 1 FROM t a RIGHT JOIN t USING(b)
 WHERE 1 NOT LIKE(SELECT a FROM t WHERE a.b);
 DROP TABLE t;
+
+--echo # Bug#2748217 gcols: assert in Item_func_in::resolve_type
+
+SET sql_mode="";
+CREATE TABLE t (a TIMESTAMP AS (0) VIRTUAL) engine=innodb;
+--error ER_TRUNCATED_WRONG_VALUE
+ALTER TABLE t ADD COLUMN b JSON AS (a NOT IN (1,1)) STORED;
+DROP TABLE t;

@@ -5549,7 +5549,14 @@ bool Item_func_in::resolve_type(THD *thd)
       if (array == NULL)
         return true;
     }
-    DBUG_ASSERT(!thd->is_error());
+    /*
+      convert_constant_item() or one of its descendants might set an error
+      without correct propagation of return value. Bail out if error.
+      (Should be an assert).
+    */
+    if (thd->is_error())
+      return true;
+
     uint j=0;
     for (uint i=1 ; i < arg_count ; i++)
     {
