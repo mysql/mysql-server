@@ -239,6 +239,8 @@ select keyring_key_store('','AES', '0123456789012345');
 
 select keyring_key_generate('roots_key', 'AES',16);
 
+create definer=root@localhost procedure shared_key() select keyring_key_fetch('roots_key');
+
 CREATE USER user_execute_test@localhost;
 connect(conn_no_execute, localhost, user_execute_test);
 
@@ -258,7 +260,13 @@ select keyring_key_generate('another_Rob_DSA_no_privilege','DSA',384);
 --error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
 select keyring_key_remove('roots_key');
 
+--echo #Check that the user is able to access the key via procedure
+--replace_column 1 #
+call shared_key();
+
 connection default;
+
+DROP PROCEDURE shared_key;
 
 --echo #Check if a user can create a key with id that already exist but belongs
 --echo #to another user.
