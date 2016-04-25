@@ -48,6 +48,7 @@ public:
     my_atomic_store64(&m_expect_open, 0);
     my_atomic_store64(&m_expect_close, 0);
     my_atomic_store64(&m_stmt_create_collection, 0);
+    my_atomic_store64(&m_stmt_ensure_collection, 0);
     my_atomic_store64(&m_stmt_create_collection_index, 0);
     my_atomic_store64(&m_stmt_drop_collection, 0);
     my_atomic_store64(&m_stmt_drop_collection_index, 0);
@@ -169,9 +170,21 @@ public:
   }
 
 
+  void inc_stmt_ensure_collection()
+  {
+    my_atomic_add64(&m_stmt_ensure_collection, 1);
+  }
+
+
   long long get_stmt_create_collection() const
   {
     return my_atomic_load64(&m_stmt_create_collection);
+  }
+
+
+  long long get_stmt_ensure_collection() const
+  {
+    return my_atomic_load64(&m_stmt_ensure_collection);
   }
 
 
@@ -379,6 +392,7 @@ private:
   mutable volatile int64 m_expect_open;
   mutable volatile int64 m_expect_close;
   mutable volatile int64 m_stmt_create_collection;
+  mutable volatile int64 m_stmt_ensure_collection;
   mutable volatile int64 m_stmt_create_collection_index;
   mutable volatile int64 m_stmt_drop_collection;
   mutable volatile int64 m_stmt_drop_collection_index;

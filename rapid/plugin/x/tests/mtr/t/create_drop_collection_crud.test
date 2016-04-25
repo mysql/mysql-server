@@ -731,6 +731,69 @@ DROP DATABASE xplugintest;
 --remove_file $MYSQL_TMP_DIR/mysqlx-out2.tmp
 --remove_file $MYSQL_TMP_DIR/mysqlx-out.tmp
 
+
+perl;
+ my $dir = $ENV{'MYSQL_TMP_DIR'};
+ open ( OUTPUT, ">$dir/mysqlx-in.tmp") ;
+ $message = <<"END_MESSAGE";
+Mysqlx.Sql.StmtExecute {
+  stmt: "ensure_collection"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "xplugintest"
+      }
+    }
+  }
+  args {
+    type: SCALAR
+    scalar {
+      type: V_STRING
+      v_string {
+        value: "table_name"
+      }
+    }
+  }
+  namespace: "xplugin"
+}
+END_MESSAGE
+
+ print OUTPUT "-->sql\n";
+ print OUTPUT "CREATE DATABASE xplugintest;\n";
+ print OUTPUT "USE xplugintest;\n";
+ print OUTPUT "CREATE TABLE test_table ( col1 INT );\n";
+  
+ print OUTPUT "-->endsql\n";
+ for ($i=1;$i<=30;$i++) {
+    if ($i%5 == 0) {
+       print OUTPUT "-->sql\n";
+       print OUTPUT "CREATE TABLE tab_".$i." (_id VARCHAR(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED NOT NULL,doc JSON ); ". "\n";
+       print OUTPUT "-->endsql\n";
+    }else {
+       $str = $message;
+       $replace = "tab_".$i;
+       $find = "table_name";
+       $str =~ s/$find/$replace/g;
+       print OUTPUT "$str\n";
+       print OUTPUT "-->recv\n";
+    }
+ } 
+ print OUTPUT "-->sql\n";
+ print OUTPUT "INSERT INTO xplugintest.test_table VALUES (1);\n";
+ print OUTPUT "-->endsql\n";
+ close (OUTPUT);
+EOF
+--exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out.tmp 2>&1 &
+--exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out2.tmp 2>&1
+let $wait_condition= select count(*)=2 from xplugintest.test_table;
+--source include/wait_condition.inc
+DROP DATABASE xplugintest;
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--remove_file $MYSQL_TMP_DIR/mysqlx-out2.tmp
+--remove_file $MYSQL_TMP_DIR/mysqlx-out.tmp
+
 #
 ## Postamble
 UNINSTALL PLUGIN mysqlx;
