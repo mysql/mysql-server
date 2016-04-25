@@ -88,7 +88,112 @@
 */
 
 /**
-  @page page_ext_plugin_api_dosanddonts Plugin services API DosAndDonts
+  @page page_ext_plugin_api_goodservices What defines a "good" plugin service ?
+
+  The following is an attempt to explain what is a good plugin service.
+  It is also an attempt to mention some bad practices that should be
+  avoided. The text is in no way conclusive and is a constant work in progress
+  to keep it updated.
+
+
+  Avoid exposing the definitions of complex server structure
+  ----------------------------------------------------------
+
+  @ref page_ext_plugin_svc_new_service_howto states that the service header
+  should be self-contained, i.e. all data structures used by the API need to be
+  defined by the service header.
+
+  The service headers are considered "public" and are packaged into the binary
+  packages for users of these binary packages to use when developing plugins
+  that are using the service.
+
+  When you combine the two together it becomes evident that complex server data
+  structures should definitely be avoided as parts of the API.
+
+  The main inconvenience is that a complex structure's definition should be
+  copied into the service's header. And if that is a frequently changed structure
+  all plugins using it will need to be recompiled every time it changes.
+
+  That is the reason why it is always better to pass individual members of
+  these structures that are simpler. Even if this means passing more than just
+  a single argument.
+
+  If you absolutely must pass references to complex structure instances it is
+  better to do it as a "handle", i.e. a `void *`. For convenience, you can have
+  a named class for that, e.g.
+  ~~~~
+  typedef void *my_new_handle_t;
+  ~~~~
+
+  This isolates the layout of the server structure from the plugin code while
+  still allowing the plugins to operate on it via accessor and mutator methods.
+
+  Strive to make reusable services
+  --------------------------------
+
+  Services have some extra processing associated with them. So they should be
+  used only for functionality that more than one plugin will probably use.
+
+  How do we know if a service is reusable ?
+
+  If a service deals with complex structures related to a specific plugin API
+  or does not provide a logically complete set of operations chances are that
+  there will not be much re-use of this service.
+
+  Keep the identifier namespace clean
+  -----------------------------------
+
+  As discussed in @ref page_ext_plugin_svc_anathomy each function of each
+  service API is added to the global C/C++ namespace for all plugins via a set
+  of preprocessor defines.
+
+  So if you name your plugin service functions after single common words, e.g.
+  `get` or `put` etc you will strongly pollute the namespace that the plugin
+  authors will use. They will either have to refrain from using such methods or
+  go to the extra trouble of using either preprocessor or C++ namespace tricks.
+
+  Thus, prefix your APIs. We typically use the `my_` prefix for all MySQL
+  exported functions (note that the `mysql_` prefix is reserved for the C API
+  functions, e.g. ::mysql_real_connect()). We also add a subsystem prefix, e.g.
+  ::my_plugin_log_message() is the service API name for plugins to log messages
+  to the server's error log.
+
+  Use services for "published" APIs only
+  --------------------------------------
+
+  Plugin services are an element of the binary APIs that must be kept stable
+  to keep existing plugins operating.
+  Plugin service APIs are thus versioned to allow the server to check if the
+  plugins are using the right version of the particular service API.
+  The server's build scripts also package the service API headers in a
+  designated directory and are documented in a specific service API document.
+
+  This stability comes at a price. All of the above should be observed and the
+  versions should be increased accoringly.
+
+  Major should be bumped (and the minor reset) when there are incompatible
+  changes: signature change, meaning change etc.
+
+  Minor should be bumped when there are backward compatible changes: adding
+  new functions at the end of the API, adding new named constants to be used
+  by the API etc.
+
+  Use services to make plugins "clean"
+  ------------------------------------
+
+  A clean plugin is one that does not need to reference the symbols of the
+  server binary that loads it. Such plugin can be loaded by any binary and
+  it is guaranteed to operate in a predictable way as long as the right
+  plugin APIs are called and the relevant plugin service APIs are defined
+  by the loading binary.
+
+  Always make fully-formed plugin service APIs
+  --------------------------------------------
+
+  Follow strictly and completely the steps defined in
+  @ref page_ext_plugin_svc_new_service_howto.
+
+  Don't skip steps or you'll be decresing the usability of the service API.
 */
 
 /**

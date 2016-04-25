@@ -143,7 +143,7 @@
   See also:
    - @subpage page_ext_plugin_svc_anathomy
    - @subpage page_ext_plugin_svc_new_service_howto
-   - @subpage page_ext_plugin_api_dosanddonts
+   - @subpage page_ext_plugin_api_goodservices
    - @ref group_ext_plugin_services
 */
 
@@ -152,7 +152,10 @@
 
   A "service" is a struct of C function pointers.
 
-  The server has all these structs defined and initialized so
+  It is a tool to expose a pre-exitsing set of server functions to plugins.
+  You need the actual server functions as a starting point.
+
+  The server has all service structs defined and initialized so
   that the the function pointers point to the actual service implementation
   functions.
 

@@ -934,6 +934,7 @@ EXCLUDE                = cmd-line-utils \
                          source_downloads \
                          sql/sql_hints.cc \
                          sql/sql_yacc.cc \
+                         sql/examples \
                          storage/innobase/include/fts0blex.h \
                          storage/innobase/include/fts0tlex.h \
                          storage/innobase/fts/fts0blex.cc \
