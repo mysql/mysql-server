@@ -3851,6 +3851,15 @@ Locked_tables_list::reopen_tables(THD *thd)
   MYSQL_LOCK *lock;
   MYSQL_LOCK *merged_lock;
 
+  /*
+    DDL statements routinely call this method after reporting error.
+    OTOH some code (e.g. fix_partitioning_func()) which is invoked
+    while opening tables might fail in the presence of error status.
+    To avoid problems we hide error status by installing temporary DA.
+  */
+  Diagnostics_area tmp_da(false);
+  thd->push_diagnostics_area(&tmp_da, false);
+
   for (TABLE_LIST *table_list= m_locked_tables;
        table_list; table_list= table_list->next_global)
   {
@@ -3861,6 +3870,15 @@ Locked_tables_list::reopen_tables(THD *thd)
     if (open_table(thd, table_list, &ot_ctx))
     {
       unlink_all_closed_tables(thd, 0, reopen_count);
+      thd->pop_diagnostics_area();
+      if (!thd->get_stmt_da()->is_error() && tmp_da.is_error())
+      {
+        // Copy the exception condition information.
+        thd->get_stmt_da()->set_error_status(tmp_da.mysql_errno(),
+                                             tmp_da.message_text(),
+                                             tmp_da.returned_sqlstate());
+      }
+      thd->get_stmt_da()->copy_sql_conditions_from_da(thd, &tmp_da);
       return TRUE;
     }
     table_list->table->pos_in_locked_tables= table_list;
@@ -3870,6 +3888,9 @@ Locked_tables_list::reopen_tables(THD *thd)
     DBUG_ASSERT(reopen_count < m_locked_tables_count);
     m_reopen_array[reopen_count++]= table_list->table;
   }
+
+  thd->pop_diagnostics_area();
+
   if (reopen_count)
   {
     thd->in_lock_tables= 1;
