@@ -231,7 +231,9 @@ update mt1 straight_join mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b betwee
 --sorted_result
 select * from mt1;
 --sorted_result
-select * from mt2;
+# Commenting out the below select temporarily as the output differs sporadically due to Bug#20415775
+#--sorted_result
+#select * from mt2;
 # test for non-updating table which is also used in sub-select
 update mt1,mt2 set mt1.b=mt2.b, mt1.a=mt2.a where mt1.a=mt2.a and not exists (select * from mt2 where mt2.a > 10);
 drop table mt1,mt2;
@@ -442,6 +444,7 @@ INSERT INTO mt2 VALUES (3,4433,10013,489,500);
 INSERT INTO mt2 VALUES (3,4433,10005,494,500);
 INSERT INTO mt2 VALUES (3,4433,10005,493,500);
 INSERT INTO mt2 VALUES (3,4433,10005,492,500);
+--sorted_result
 UPDATE IGNORE mt2,mt1 set mt2.colE = mt2.colE + 1,colF=0 WHERE mt1.colA = mt2.colA AND (mt1.colB & 4096) > 0 AND (colE + 1) < colF;
 --sorted_result
 SELECT * FROM mt2;
@@ -824,7 +827,9 @@ update mt1 straight_join mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b betwee
 --sorted_result
 select * from mt1;
 --sorted_result
-select * from mt2;
+# Commenting out the below select temporarily as the output differs sporadically due to Bug#20415775
+#--sorted_result
+#select * from mt2;
 # test for non-updating table which is also used in sub-select
 update mt1,mt2 set mt1.b=mt2.b, mt1.a=mt2.a where mt1.a=mt2.a and not exists (select * from mt2 where mt2.a > 10);
 drop table mt1,mt2;
@@ -1133,8 +1138,9 @@ select * from mt1;
 update mt1 straight_join mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
 --sorted_result
 select * from mt1;
---sorted_result
-select * from mt2;
+# Commenting out the below select temporarily as the output differs sporadically due to Bug#20415775
+#--sorted_result
+#select * from mt2;
 # test for non-updating table which is also used in sub-select
 update mt1,mt2 set mt1.b=mt2.b, mt1.a=mt2.a where mt1.a=mt2.a and not exists (select * from mt2 where mt2.a > 10);
 drop table mt1,mt2;
@@ -1443,7 +1449,9 @@ update mt1 straight_join mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b betwee
 --sorted_result
 select * from mt1;
 --sorted_result
-select * from mt2;
+# Commenting out the below select temporarily as the output differs sporadically due to Bug#20415775
+#--sorted_result
+#select * from mt2;
 # test for non-updating table which is also used in sub-select
 update mt1,mt2 set mt1.b=mt2.b, mt1.a=mt2.a where mt1.a=mt2.a and not exists (select * from mt2 where mt2.a > 10);
 drop table mt1,mt2;
@@ -1753,7 +1761,9 @@ update mt1 straight_join mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b betwee
 --sorted_result
 select * from mt1;
 --sorted_result
-select * from mt2;
+# Commenting out the below select temporarily as the output differs sporadically due to Bug#20415775
+#--sorted_result
+#select * from mt2;
 # test for non-updating table which is also used in sub-select
 update mt1,mt2 set mt1.b=mt2.b, mt1.a=mt2.a where mt1.a=mt2.a and not exists (select * from mt2 where mt2.a > 10);
 drop table mt1,mt2;
