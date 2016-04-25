@@ -1918,10 +1918,10 @@ BLOCK::addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal f, bool force){ \
 
 #ifdef ERROR_INSERT
 #define RSS_AP_SNAPSHOT(x) Uint32 rss_##x
-#define RSS_AP_SNAPSHOT_SAVE(x) rss_##x = x.getNoOfFree()
-#define RSS_AP_SNAPSHOT_CHECK(x) ndbrequire(rss_##x == x.getNoOfFree())
-#define RSS_AP_SNAPSHOT_SAVE2(x,y) rss_##x = x.getNoOfFree()+(y)
-#define RSS_AP_SNAPSHOT_CHECK2(x,y) ndbrequire(rss_##x == x.getNoOfFree()+(y))
+#define RSS_AP_SNAPSHOT_SAVE(x) rss_##x = x.getUsed()
+#define RSS_AP_SNAPSHOT_CHECK(x) ndbrequire(rss_##x == x.getUsed())
+#define RSS_AP_SNAPSHOT_SAVE2(x,y) rss_##x = x.getUsed()-(y)
+#define RSS_AP_SNAPSHOT_CHECK2(x,y) ndbrequire(rss_##x == x.getUsed()-(y))
 
 #define RSS_OP_COUNTER(x) Uint32 x
 #define RSS_OP_COUNTER_INIT(x) x = 0
