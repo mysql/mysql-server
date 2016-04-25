@@ -17,9 +17,98 @@
 #include <service_versions.h>
 #include "mysql/services.h"
 
-struct st_service_ref {
+/**
+  @page page_ext_plugin_svc_new_service_howto How to add a new service
+
+  A "plugin service" is in its core a C struct containing one or more function
+  pointers.
+
+  If you want to export C++ class you need to provide an
+  extern "C" function that will create a new instance of your class,
+  and put it in a service. But be careful to also provide a destructor
+  method since the heaps of the server and the plugin may be different.
+
+  Data structures are not part of the service structure, but they are part
+  of the API you create and usually need to be declared in the same
+  service_*.h file.
+
+  To turn a **pre-existing** set of functions (foo_func1, foo_func2)
+  into a service "foo" you need to:
+
+  <ol>
+  <li>
+  Create a new file include/mysql/service_foo.h
+
+  The template is:
+
+  @include service_foo.h
+
+  The service_foo.h file should be self-contained, if it needs system headers -
+  include them in it, e.g. if you use `size_t`
+
+  ~~~~
+  #include <stdlib.h>
+  ~~~~
+
+  It should also declare all the accompanying data structures, as necessary
+  (e.g. ::thd_alloc_service declares ::MYSQL_LEX_STRING).
+</li><li>
+  Add the new file to include/mysql/services.h
+</li><li>
+  Increase the minor plugin ABI version in include/mysql/plugin.h:
+     ::MYSQL_PLUGIN_INTERFACE_VERSION = ::MYSQL_PLUGIN_INTERFACE_VERSION + 1
+</li><li>
+  Add the version of your service to include/service_versions.h:
+  ~~~~
+      #define VERSION_foo 0x0100
+  ~~~~
+</li><li>
+  Create a new file `libservices/foo_service.c` using the following template:
+  @include service_foo.c
+</li><li>
+  Add the new file to libservices/CMakeLists.txt (MYSQLSERVICES_SOURCES)
+</li><li>
+  And finally, register your service for dynamic linking in
+      sql/sql_plugin_services.h
+  <ul><li>
+  Fill in the service structure:
+  ~~~
+    static struct foo_service_st foo_handler = {
+      foo_func1,
+      foo_func2
+    }
+  ~~~
+  </li><li>
+  Add it to the ::list_of_services
+
+  ~~~
+      { "foo_service", VERSION_foo, &foo_handler }
+  ~~~
+  </li></ul></li></ol>
+*/
+
+/**
+  @page page_ext_plugin_api_dosanddonts Plugin services API DosAndDonts
+*/
+
+/**
+  @defgroup group_ext_plugin_services MySQL Server Plugin Services
+
+  This is a group of all plugin service APIs.
+*/
+
+/**
+  A server-side reference to a plugin service.
+
+  @sa plugin_add, list_of_services
+*/
+struct st_service_ref
+{
+  /** The name of the service pointer symbol exported by the plugin */
   const char *name;
+  /** The service version provided by the server */
   uint version;
+  /** The actual server side service structure pointer */
   void *service;
 };
 
