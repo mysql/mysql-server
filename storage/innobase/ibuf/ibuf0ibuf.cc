@@ -2674,11 +2674,9 @@ ibuf_merge_space(
 				&pcur, space, IBUF_MAX_N_PAGES_MERGED,
 				&pages[0], &spaces[0], &versions[0], &n_pages,
 				&mtr);
-#ifdef UNIV_DEBUG
 		ib_logf(IB_LOG_LEVEL_INFO,"\n Size of pages merged %lu"
                         ,sum_sizes);
 
-#endif
 	}
 
 	ibuf_mtr_commit(&mtr);
