@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -88,6 +88,7 @@ enum options_client
   OPT_DEFAULT_AUTH,
   OPT_DEFAULT_PLUGIN,
   OPT_ENABLE_CLEARTEXT_PLUGIN,
+  OPT_SSL_MODE,
   OPT_MAX_CLIENT_OPTION
 };
 
@@ -111,3 +112,36 @@ enum options_client
 */
 #define PERFORMANCE_SCHEMA_DB_NAME "performance_schema"
 
+/**
+  Wrapper for mysql_real_connect() that checks if SSL connection is establised.
+
+  The function calls mysql_real_connect() first, then if given ssl_required==TRUE
+  argument (i.e. --ssl-mode=REQUIRED option used) checks current SSL chiper to
+  ensure that SSL is used for current connection.
+  Otherwise it returns NULL and sets errno to CR_SSL_CONNECTION_ERROR.
+
+  All clients (except mysqlbinlog which disregards SSL options) use this function
+  instead of mysql_real_connect() to handle --ssl-mode=REQUIRED option.
+*/
+MYSQL *mysql_connect_ssl_check(MYSQL *mysql_arg, const char *host,
+                               const char *user, const char *passwd,
+                               const char *db, uint port,
+                               const char *unix_socket, ulong client_flag,
+                               my_bool ssl_required __attribute__((unused)))
+{
+  MYSQL *mysql= mysql_real_connect(mysql_arg, host, user, passwd, db, port,
+                                   unix_socket, client_flag);
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+  if (mysql &&                                   /* connection established. */
+      ssl_required &&                            /* --ssl-mode=REQUIRED. */
+      !mysql_get_ssl_cipher(mysql))              /* non-SSL connection. */
+  {
+    NET *net= &mysql->net;
+    net->last_errno= CR_SSL_CONNECTION_ERROR;
+    strmov(net->last_error, "--ssl-mode=REQUIRED option forbids non SSL connections");
+    strmov(net->sqlstate, "HY000");
+    return NULL;
+  }
+#endif
+  return mysql;
+}

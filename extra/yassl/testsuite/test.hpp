@@ -470,10 +470,28 @@ inline void showPeer(SSL* ssl)
         char* issuer  = X509_NAME_oneline(X509_get_issuer_name(peer), 0, 0);
         char* subject = X509_NAME_oneline(X509_get_subject_name(peer), 0, 0);
 
-        printf("peer's cert info:\n issuer : %s\n subject: %s\n", issuer,
-                                                                  subject);
+        X509_NAME_ENTRY* se = NULL;
+        ASN1_STRING*     sd = NULL;
+        char*            subCN = NULL;
+
+        X509_NAME* sub = X509_get_subject_name(peer);
+        int lastpos = -1;
+        if (sub)
+            lastpos = X509_NAME_get_index_by_NID(sub, NID_commonName, lastpos);
+        if (lastpos >= 0) {
+            se = X509_NAME_get_entry(sub, lastpos);
+            if (se)
+                sd = X509_NAME_ENTRY_get_data(se);
+            if (sd)
+                subCN = (char*)ASN1_STRING_data(sd);
+        }
+
+        printf("peer's cert info:\n issuer : %s\n subject: %s\n"
+               " subject cn: %s\n", issuer, subject, subCN);
+
         free(subject);
         free(issuer);
+
     }
     else
         printf("peer has no cert!\n");

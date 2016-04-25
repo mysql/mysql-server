@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -817,7 +817,8 @@ int mysql_update(THD *thd,
             error= 0;
 	}
  	else if (!ignore ||
-                 table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+                 table->file->is_fatal_error(error, HA_CHECK_DUP_KEY |
+                                                    HA_CHECK_FK_ERROR))
 	{
           /*
             If (ignore && error is ignorable) we don't have to
@@ -825,7 +826,8 @@ int mysql_update(THD *thd,
           */
           myf flags= 0;
 
-          if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+          if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY |
+                                                 HA_CHECK_FK_ERROR))
             flags|= ME_FATALERROR; /* Other handler errors are fatal */
 
           prepare_record_for_error_message(error, table);
@@ -833,6 +835,9 @@ int mysql_update(THD *thd,
 	  error= 1;
 	  break;
 	}
+        else if (ignore && !table->file->is_fatal_error(error,
+                                                        HA_CHECK_FK_ERROR))
+          warn_fk_constraint_violation(thd, table, error);
       }
 
       if (table->triggers &&
@@ -1981,7 +1986,8 @@ bool multi_update::send_data(List<Item> &not_used_values)
         {
           updated--;
           if (!ignore ||
-              table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+              table->file->is_fatal_error(error, HA_CHECK_DUP_KEY |
+                                                 HA_CHECK_FK_ERROR))
           {
             /*
               If (ignore && error == is ignorable) we don't have to
@@ -1989,13 +1995,17 @@ bool multi_update::send_data(List<Item> &not_used_values)
             */
             myf flags= 0;
 
-            if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+            if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY |
+                                                   HA_CHECK_FK_ERROR))
               flags|= ME_FATALERROR; /* Other handler errors are fatal */
 
             prepare_record_for_error_message(error, table);
             table->file->print_error(error,MYF(flags));
             DBUG_RETURN(1);
           }
+          else if (ignore && !table->file->is_fatal_error(error,
+                                                          HA_CHECK_FK_ERROR))
+            warn_fk_constraint_violation(thd, table, error);
         }
         else
         {
@@ -2236,8 +2246,12 @@ int multi_update::do_updates()
             local_error != HA_ERR_RECORD_IS_THE_SAME)
 	{
 	  if (!ignore ||
-              table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY))
+              table->file->is_fatal_error(local_error, HA_CHECK_DUP_KEY |
+                                                       HA_CHECK_FK_ERROR))
 	    goto err;
+          else if (ignore && !table->file->is_fatal_error(local_error,
+                                                          HA_CHECK_FK_ERROR))
+            warn_fk_constraint_violation(thd, table, local_error);
 	}
         if (local_error != HA_ERR_RECORD_IS_THE_SAME)
           updated++;
