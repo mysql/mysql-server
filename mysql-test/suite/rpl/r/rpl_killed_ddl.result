@@ -56,6 +56,10 @@ CREATE VIEW v1 AS SELECT a FROM t1 WHERE a < 100;
 CREATE DATABASE d2;
 source include/kill_query.inc;
 include/rpl_diff.inc
+ALTER DATABASE d1
+DEFAULT CHARACTER SET = 'utf8';
+source include/kill_query.inc;
+include/rpl_diff.inc
 DROP DATABASE d1;
 source include/kill_query.inc;
 include/rpl_diff.inc
@@ -83,6 +87,9 @@ include/rpl_diff.inc
 DROP FUNCTION f1;
 source include/kill_query.inc;
 include/rpl_diff.inc
+DROP FUNCTION IF EXISTS f2;
+source include/kill_query.inc;
+include/rpl_diff.inc
 CREATE PROCEDURE p2 (OUT rows INT)
 BEGIN
 SELECT COUNT(*) INTO rows FROM t2;
@@ -94,6 +101,9 @@ ALTER PROCEDURE p1 SQL SECURITY INVOKER COMMENT 'return rows of table t1';
 source include/kill_query.inc;
 include/rpl_diff.inc
 DROP PROCEDURE p1;
+source include/kill_query.inc;
+include/rpl_diff.inc
+DROP PROCEDURE IF EXISTS p2;
 source include/kill_query.inc;
 include/rpl_diff.inc
 CREATE TABLE t2 (b int);

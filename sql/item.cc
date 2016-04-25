@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -926,14 +926,31 @@ Item *Item_param::safe_charset_converter(CHARSET_INFO *tocs)
 {
   if (const_item())
   {
-    uint cnv_errors;
-    String *ostr= val_str(&cnvstr);
-    cnvitem->str_value.copy(ostr->ptr(), ostr->length(),
-                            ostr->charset(), tocs, &cnv_errors);
-    if (cnv_errors)
-       return NULL;
-    cnvitem->str_value.mark_as_const();
-    cnvitem->max_length= cnvitem->str_value.numchars() * tocs->mbmaxlen;
+    Item *cnvitem;
+    String tmp, cstr, *ostr= val_str(&tmp);
+
+    if (null_value)
+    {
+      cnvitem= new Item_null();
+      if (cnvitem == NULL)
+        return NULL;
+
+      cnvitem->collation.set(tocs);
+    }
+    else
+    {
+      uint conv_errors;
+      cstr.copy(ostr->ptr(), ostr->length(), ostr->charset(), tocs,
+                &conv_errors);
+
+      if (conv_errors || !(cnvitem= new Item_string(cstr.ptr(), cstr.length(),
+                                                    cstr.charset(),
+                                                    collation.derivation)))
+        return NULL;
+
+      cnvitem->str_value.copy();
+      cnvitem->str_value.mark_as_const();
+    }
     return cnvitem;
   }
   return Item::safe_charset_converter(tocs);
@@ -2795,8 +2812,6 @@ Item_param::Item_param(uint pos_in_query_arg) :
     value is set.
   */
   maybe_null= 1;
-  cnvitem= new Item_string("", 0, &my_charset_bin, DERIVATION_COERCIBLE);
-  cnvstr.set(cnvbuf, sizeof(cnvbuf), &my_charset_bin);
 }
 
 
@@ -3456,7 +3471,7 @@ Item_param::eq(const Item *arg, bool binary_cmp) const
 
 void Item_param::print(String *str, enum_query_type query_type)
 {
-  if (state == NO_VALUE)
+  if (state == NO_VALUE || query_type & QT_NO_DATA_EXPANSION)
   {
     str->append('?');
   }
@@ -6197,7 +6212,8 @@ Item *Item_field::update_value_transformer(uchar *select_arg)
 
 void Item_field::print(String *str, enum_query_type query_type)
 {
-  if (field && field->table->const_table)
+  if (field && field->table->const_table &&
+      !(query_type & QT_NO_DATA_EXPANSION))
   {
     char buff[MAX_FIELD_WIDTH];
     String tmp(buff,sizeof(buff),str->charset());
