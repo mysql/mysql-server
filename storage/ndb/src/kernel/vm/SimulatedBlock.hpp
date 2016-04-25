@@ -1279,7 +1279,7 @@ public:
     bool seize(ActiveMutexPtr& ptr);
     void release(Uint32 activeMutexPtrI);
     
-    void getPtr(ActiveMutexPtr& ptr);
+    void getPtr(ActiveMutexPtr& ptr) const;
     
     void create(Signal*, ActiveMutexPtr&);
     void destroy(Signal*, ActiveMutexPtr&);

@@ -99,7 +99,7 @@ private:
   
   bool seize(ActiveCounterPtr& ptr);
   void release(ActiveCounterPtr& ptr);
-  void getPtr(ActiveCounterPtr& ptr, Uint32 ptrI);
+  void getPtr(ActiveCounterPtr& ptr, Uint32 ptrI) const;
 
   SimulatedBlock & m_block;
   ArrayPool<ActiveCounter> m_counterPool;

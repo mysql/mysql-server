@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -196,7 +196,7 @@ struct PoolImpl
   
   bool seize(Ptr<void>&);
   void release(Ptr<void>);
-  void * getPtr(Uint32 i);
+  void * getPtr(Uint32 i) const;
 };
 #endif
 
@@ -216,19 +216,19 @@ public:
   /**
    * Update p value for ptr according to i value 
    */
-  void getPtr(Ptr<T> &);
+  void getPtr(Ptr<T> &) const;
   void getPtr(ConstPtr<T> &) const;
   
   /**
    * Get pointer for i value
    */
-  T * getPtr(Uint32 i);
+  T * getPtr(Uint32 i) const;
   const T * getConstPtr(Uint32 i) const;
 
   /**
    * Update p & i value for ptr according to <b>i</b> value 
    */
-  void getPtr(Ptr<T> &, Uint32 i);
+  void getPtr(Ptr<T> &, Uint32 i) const;
   void getPtr(ConstPtr<T> &, Uint32 i) const;
 
   /**
@@ -327,7 +327,7 @@ RecordPool<T, P>::~RecordPool()
 template <typename T, typename P>
 inline
 void
-RecordPool<T, P>::getPtr(Ptr<T> & ptr)
+RecordPool<T, P>::getPtr(Ptr<T> & ptr) const
 {
   ptr.p = static_cast<T*>(m_pool.getPtr(ptr.i));
 }
@@ -343,7 +343,7 @@ RecordPool<T, P>::getPtr(ConstPtr<T> & ptr) const
 template <typename T, typename P>
 inline
 void
-RecordPool<T, P>::getPtr(Ptr<T> & ptr, Uint32 i)
+RecordPool<T, P>::getPtr(Ptr<T> & ptr, Uint32 i) const
 {
   ptr.i = i;
   ptr.p = static_cast<T*>(m_pool.getPtr(ptr.i));  
@@ -361,7 +361,7 @@ RecordPool<T, P>::getPtr(ConstPtr<T> & ptr, Uint32 i) const
 template <typename T, typename P>
 inline
 T * 
-RecordPool<T, P>::getPtr(Uint32 i)
+RecordPool<T, P>::getPtr(Uint32 i) const
 {
   return static_cast<T*>(m_pool.getPtr(i));  
 }

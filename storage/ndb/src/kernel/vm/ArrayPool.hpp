@@ -115,26 +115,26 @@ public:
   /**
    * Update p value for ptr according to i value 
    */
-  void getPtr(Ptr<T> &);
+  void getPtr(Ptr<T> &) const;
   void getPtr(ConstPtr<T> &) const;
-  void getPtr(Ptr<T> &, bool CrashOnBoundaryError);
+  void getPtr(Ptr<T> &, bool CrashOnBoundaryError) const;
   void getPtr(ConstPtr<T> &, bool CrashOnBoundaryError) const;
-  void getPtrIgnoreAlloc(Ptr<T> &);
+  void getPtrIgnoreAlloc(Ptr<T> &) const;
   
   /**
    * Get pointer for i value
    */
-  T * getPtr(Uint32 i);
+  T * getPtr(Uint32 i) const;
   const T * getConstPtr(Uint32 i) const;
-  T * getPtr(Uint32 i, bool CrashOnBoundaryError);
+  T * getPtr(Uint32 i, bool CrashOnBoundaryError) const;
   const T * getConstPtr(Uint32 i, bool CrashOnBoundaryError) const;
 
   /**
    * Update p & i value for ptr according to <b>i</b> value 
    */
-  void getPtr(Ptr<T> &, Uint32 i);
+  void getPtr(Ptr<T> &, Uint32 i) const;
   void getPtr(ConstPtr<T> &, Uint32 i) const;
-  void getPtr(Ptr<T> &, Uint32 i, bool CrashOnBoundaryError);
+  void getPtr(Ptr<T> &, Uint32 i, bool CrashOnBoundaryError) const;
   void getPtr(ConstPtr<T> &, Uint32 i, bool CrashOnBoundaryError) const;
 
   /**
@@ -495,7 +495,8 @@ ArrayPool<T>::set(T* ptr, Uint32 cnt, bool align){
 template <class T>
 inline
 void
-ArrayPool<T>::getPtr(Ptr<T> & ptr){
+ArrayPool<T>::getPtr(Ptr<T> & ptr) const
+{
   Uint32 i = ptr.i;
   if(likely (i < size)){
     ptr.p = &theArray[i];
@@ -518,7 +519,8 @@ ArrayPool<T>::getPtr(Ptr<T> & ptr){
 template <class T>
 inline
 void
-ArrayPool<T>::getPtr(ConstPtr<T> & ptr) const {
+ArrayPool<T>::getPtr(ConstPtr<T> & ptr) const
+{
   Uint32 i = ptr.i;
   if(likely(i < size)){
     ptr.p = &theArray[i];
@@ -541,7 +543,8 @@ ArrayPool<T>::getPtr(ConstPtr<T> & ptr) const {
 template <class T>
 inline
 void
-ArrayPool<T>::getPtr(Ptr<T> & ptr, Uint32 i){
+ArrayPool<T>::getPtr(Ptr<T> & ptr, Uint32 i) const
+{
   ptr.i = i;
   if(likely(i < size)){
     ptr.p = &theArray[i];
@@ -564,7 +567,8 @@ ArrayPool<T>::getPtr(Ptr<T> & ptr, Uint32 i){
 template <class T>
 inline
 void
-ArrayPool<T>::getPtr(ConstPtr<T> & ptr, Uint32 i) const {
+ArrayPool<T>::getPtr(ConstPtr<T> & ptr, Uint32 i) const
+{
   ptr.i = i;
   if(likely(i < size)){
     ptr.p = &theArray[i];
@@ -587,7 +591,8 @@ ArrayPool<T>::getPtr(ConstPtr<T> & ptr, Uint32 i) const {
 template <class T>
 inline
 T * 
-ArrayPool<T>::getPtr(Uint32 i){
+ArrayPool<T>::getPtr(Uint32 i) const
+{
   if(likely(i < size)){
 #ifdef ARRAY_GUARD
     if (theAllocatedBitmask)
@@ -635,7 +640,8 @@ ArrayPool<T>::getConstPtr(Uint32 i) const {
 template <class T>
 inline
 void
-ArrayPool<T>::getPtr(Ptr<T> & ptr, bool CrashOnBoundaryError){
+ArrayPool<T>::getPtr(Ptr<T> & ptr, bool CrashOnBoundaryError) const
+{
   Uint32 i = ptr.i;
   if(likely(i < size)){
     ptr.p = &theArray[i];
@@ -658,7 +664,8 @@ ArrayPool<T>::getPtr(Ptr<T> & ptr, bool CrashOnBoundaryError){
 template <class T>
 inline
 void
-ArrayPool<T>::getPtr(ConstPtr<T> & ptr, bool CrashOnBoundaryError) const {
+ArrayPool<T>::getPtr(ConstPtr<T> & ptr, bool CrashOnBoundaryError) const
+{
   Uint32 i = ptr.i;
   if(likely(i < size)){
     ptr.p = &theArray[i];
@@ -681,7 +688,8 @@ ArrayPool<T>::getPtr(ConstPtr<T> & ptr, bool CrashOnBoundaryError) const {
 template <class T>
 inline
 void
-ArrayPool<T>::getPtr(Ptr<T> & ptr, Uint32 i, bool CrashOnBoundaryError){
+ArrayPool<T>::getPtr(Ptr<T> & ptr, Uint32 i, bool CrashOnBoundaryError) const
+{
   ptr.i = i;
   if(likely(i < size)){
     ptr.p = &theArray[i];
@@ -704,8 +712,10 @@ ArrayPool<T>::getPtr(Ptr<T> & ptr, Uint32 i, bool CrashOnBoundaryError){
 template <class T>
 inline
 void
-ArrayPool<T>::getPtr(ConstPtr<T> & ptr, Uint32 i, 
-		     bool CrashOnBoundaryError) const {
+ArrayPool<T>::getPtr(ConstPtr<T> & ptr,
+                     Uint32 i,
+                     bool CrashOnBoundaryError) const
+{
   ptr.i = i;
   if(likely(i < size)){
     ptr.p = &theArray[i];
@@ -728,7 +738,8 @@ ArrayPool<T>::getPtr(ConstPtr<T> & ptr, Uint32 i,
 template <class T>
 inline
 T * 
-ArrayPool<T>::getPtr(Uint32 i, bool CrashOnBoundaryError){
+ArrayPool<T>::getPtr(Uint32 i, bool CrashOnBoundaryError) const
+{
   if(likely(i < size)){
 #ifdef ARRAY_GUARD
     if (theAllocatedBitmask)
@@ -782,7 +793,8 @@ ArrayPool<T>::getConstPtr(Uint32 i, bool CrashOnBoundaryError) const {
 template <class T>
 inline
 void
-ArrayPool<T>::getPtrIgnoreAlloc(Ptr<T> & ptr){
+ArrayPool<T>::getPtrIgnoreAlloc(Ptr<T> & ptr) const
+{
   Uint32 i = ptr.i;
   if(likely (i < size)){
     ptr.p = &theArray[i];
@@ -1514,18 +1526,19 @@ public:
    * Update p value for ptr according to i value 
    *   ignore if it's allocated or not
    */
-  void getPtrForce(Ptr<T> &);
+  void getPtrForce(Ptr<T> &) const;
   void getPtrForce(ConstPtr<T> &) const;
-  T * getPtrForce(Uint32 i);
+  T * getPtrForce(Uint32 i) const;
   const T * getConstPtrForce(Uint32 i) const;
-  void getPtrForce(Ptr<T> &, Uint32 i);
+  void getPtrForce(Ptr<T> &, Uint32 i) const;
   void getPtrForce(ConstPtr<T> &, Uint32 i) const;
 };
 
 template <class T>
 inline
 void 
-UnsafeArrayPool<T>::getPtrForce(Ptr<T> & ptr){
+UnsafeArrayPool<T>::getPtrForce(Ptr<T> & ptr) const
+{
   Uint32 i = ptr.i;
   if(likely(i < this->size)){
     ptr.p = &this->theArray[i];
@@ -1538,7 +1551,8 @@ UnsafeArrayPool<T>::getPtrForce(Ptr<T> & ptr){
 template <class T>
 inline
 void 
-UnsafeArrayPool<T>::getPtrForce(ConstPtr<T> & ptr) const{
+UnsafeArrayPool<T>::getPtrForce(ConstPtr<T> & ptr) const
+{
   Uint32 i = ptr.i;
   if(likely(i < this->size)){
     ptr.p = &this->theArray[i];
@@ -1551,7 +1565,8 @@ UnsafeArrayPool<T>::getPtrForce(ConstPtr<T> & ptr) const{
 template <class T>
 inline
 T * 
-UnsafeArrayPool<T>::getPtrForce(Uint32 i){
+UnsafeArrayPool<T>::getPtrForce(Uint32 i) const
+{
   if(likely(i < this->size)){
     return &this->theArray[i];
   } else {
@@ -1564,7 +1579,8 @@ UnsafeArrayPool<T>::getPtrForce(Uint32 i){
 template <class T>
 inline
 const T * 
-UnsafeArrayPool<T>::getConstPtrForce(Uint32 i) const {
+UnsafeArrayPool<T>::getConstPtrForce(Uint32 i) const
+{
   if(likely(i < this->size)){
     return &this->theArray[i];
   } else {
@@ -1577,7 +1593,8 @@ UnsafeArrayPool<T>::getConstPtrForce(Uint32 i) const {
 template <class T>
 inline
 void 
-UnsafeArrayPool<T>::getPtrForce(Ptr<T> & ptr, Uint32 i){
+UnsafeArrayPool<T>::getPtrForce(Ptr<T> & ptr, Uint32 i) const
+{
   ptr.i = i;
   if(likely(i < this->size)){
     ptr.p = &this->theArray[i];
@@ -1591,7 +1608,8 @@ UnsafeArrayPool<T>::getPtrForce(Ptr<T> & ptr, Uint32 i){
 template <class T>
 inline
 void 
-UnsafeArrayPool<T>::getPtrForce(ConstPtr<T> & ptr, Uint32 i) const{
+UnsafeArrayPool<T>::getPtrForce(ConstPtr<T> & ptr, Uint32 i) const
+{
   ptr.i = i;
   if(likely(i < this->size)){
     ptr.p = &this->theArray[i];
