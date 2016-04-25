@@ -169,7 +169,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   c_defaults.m_o_direct = true;
   c_defaults.m_backup_disk_write_pct = 50;
 
-  Uint32 noBackups = 0, noTables = 0, noAttribs = 0, noFrags = 0;
+  Uint32 noBackups = 0, noTables = 0, noFrags = 0;
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, 
 					&c_defaults.m_diskless));
   ndb_mgm_get_int_parameter(p, CFG_DB_O_DIRECT,
@@ -205,10 +205,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_PARALLEL_BACKUPS, &noBackups);
   //  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES, &noTables));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DICT_TABLE, &noTables));
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DB_NO_ATTRIBUTES, &noAttribs));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_DIH_FRAG_CONNECT, &noFrags));
-
-  noAttribs++; //RT 527 bug fix
 
   c_nodePool.setSize(MAX_NDB_NODES);
   c_backupPool.setSize(noBackups + 1);
