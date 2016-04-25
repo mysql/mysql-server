@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,7 +82,7 @@ public:
 
   bool seize(ArenaHead&, Ptr<void>&);
   void release(Ptr<void>);
-  void * getPtr(Uint32 i);
+  void * getPtr(Uint32 i) const;
 
 private:
   void handle_invalid_release(Ptr<void>) ATTRIBUTE_NORETURN;
@@ -101,12 +101,12 @@ public:
 
   bool seize(Ptr<void> & ptr) { return m_pool.seize(m_head, ptr); }
   void release(Ptr<void> ptr) { m_pool.release(ptr); }
-  void * getPtr(Uint32 i) { return m_pool.getPtr(i); }
+  void * getPtr(Uint32 i) const { return m_pool.getPtr(i); }
 };
 
 inline
 void*
-ArenaPool::getPtr(Uint32 i)
+ArenaPool::getPtr(Uint32 i) const
 {
   return m_allocator->m_pool.getPtr(m_record_info, i);
 }

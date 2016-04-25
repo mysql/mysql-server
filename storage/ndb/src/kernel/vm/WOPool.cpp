@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -106,7 +106,7 @@ WOPool::handle_invalid_release(Ptr<void> ptr)
 }
 
 void
-WOPool::handle_invalid_get_ptr(Uint32 ptrI)
+WOPool::handle_invalid_get_ptr(Uint32 ptrI) const
 {
   char buf[255];
 
