@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -216,6 +216,16 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
         }
     }
 
+    protected void handleError(Object object, Dictionary ndbDictionary) {
+        if (object != null) {
+            return;
+        } else {
+            NdbErrorConst ndbError = ndbDictionary.getNdbError();
+            String detail = getNdbErrorDetail(ndbError);
+            Utility.throwError(null, ndbError, detail);
+        }
+    }
+
     public boolean isRetriable(ClusterJDatastoreException ex) {
         return Utility.isRetriable(ex);
     }
@@ -240,7 +250,7 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
         int keyPartsSize = keyParts.size();
         NdbTransaction ndbTransaction = null;
         TableConst table = ndbDictionary.getTable(tableName);
-        handleError(table, ndb);
+        handleError(table, ndbDictionary);
         Key_part_ptrArray key_part_ptrArray = null;
         if (keyPartsSize == 1) {
             // extract the ByteBuffer and length from the keyPart
