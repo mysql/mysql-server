@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -368,9 +368,9 @@ private:
   };
 
   typedef DLCHashTable<Page_entry> Page_hashlist;
-  typedef DLCFifoList<Page_entry, Page_entry_stack_ptr> Page_stack;
-  typedef DLCFifoList<Page_entry, Page_entry_queue_ptr> Page_queue;
-  typedef DLCFifoList<Page_entry, Page_entry_sublist_ptr> Page_sublist;
+  typedef DLCFifoList<Page_entry, ArrayPool<Page_entry>, Page_entry_stack_ptr> Page_stack;
+  typedef DLCFifoList<Page_entry, ArrayPool<Page_entry>, Page_entry_queue_ptr> Page_queue;
+  typedef DLCFifoList<Page_entry, ArrayPool<Page_entry>, Page_entry_sublist_ptr> Page_sublist;
 
   class Dbtup *c_tup;
   class Lgman *c_lgman;
