@@ -1,0 +1,3 @@
+set global log_warnings=2;
+set @@wait_timeout=1;
+set global log_warnings=@@log_warnings;

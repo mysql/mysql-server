@@ -1092,7 +1092,8 @@ void end_connection(THD *thd)
   }
 
   if (!thd->killed && (net->error && net->vio != 0))
-    thd->print_aborted_warning(1, ER(ER_UNKNOWN_ERROR));
+    thd->print_aborted_warning(1,
+      thd->stmt_da->is_error() ? thd->stmt_da->message() : ER(ER_UNKNOWN_ERROR));
 }
 
 
