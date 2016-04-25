@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -312,14 +312,14 @@ class Local##prefix##ListImpl : public IntrusiveList<T, P, prefix##Head, LM>::Lo
 public: Local##prefix##ListImpl(P& pool, prefix##Head::POD& head): IntrusiveList<T, P, prefix##Head, LM>::Local(pool, head) { } \
 }; \
  \
-template <typename T, typename U = T, typename LM = Default##links##LinkMethods<T, U> > \
-class prefix##List : public IntrusiveList<T, ArrayPool<T>, prefix##Head, LM> { \
-public: prefix##List(ArrayPool<T>& pool): IntrusiveList<T, ArrayPool<T>, prefix##Head, LM>(pool) { } \
+template <typename T, typename P = ArrayPool<T>, typename U = T, typename LM = Default##links##LinkMethods<T, U> > \
+class prefix##List : public IntrusiveList<T, P, prefix##Head, LM> { \
+public: prefix##List(P& pool): IntrusiveList<T, P, prefix##Head, LM>(pool) { } \
 }; \
  \
-template <typename T, typename U = T, typename LM = Default##links##LinkMethods<T, U> > \
-class Local##prefix##List : public IntrusiveList<T, ArrayPool<T>, prefix##Head, LM>::Local { \
-public: Local##prefix##List(ArrayPool<T>& pool, prefix##Head::POD& head): IntrusiveList<T, ArrayPool<T>, prefix##Head, LM>::Local(pool, head) { } \
+template <typename T, typename P = ArrayPool<T>, typename U = T, typename LM = Default##links##LinkMethods<T, U> > \
+class Local##prefix##List : public IntrusiveList<T, P, prefix##Head, LM>::Local { \
+public: Local##prefix##List(P& pool, prefix##Head::POD& head): IntrusiveList<T, P, prefix##Head, LM>::Local(pool, head) { } \
 }
 
 typedef ListHead<FirstLink, NoLastLink, NoCount> SLHead;
