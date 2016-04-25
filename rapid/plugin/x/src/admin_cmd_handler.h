@@ -54,6 +54,8 @@ namespace xpl
     static ngs::Error_code kill_client(Session &session, Sql_data_context &da, Session_options &options, const Argument_list &args);
 
     static ngs::Error_code create_collection(Session &session, Sql_data_context &da, Session_options &options, const Argument_list &args);
+    static ngs::Error_code ensure_collection(Session &session, Sql_data_context &da, Session_options &options, const Argument_list &args);
+
     static ngs::Error_code create_collection_index(Session &session, Sql_data_context &da, Session_options &options, const Argument_list &args);
 
     static ngs::Error_code drop_collection_or_table(Session &session, Sql_data_context &da, Session_options &options, const Argument_list &args);
@@ -64,7 +66,6 @@ namespace xpl
     static ngs::Error_code enable_notices(Session &session, Sql_data_context &da, Session_options &options, const Argument_list &args);
     static ngs::Error_code disable_notices(Session &session, Sql_data_context &da, Session_options &options, const Argument_list &args);
     static ngs::Error_code list_notices(Session &session, Sql_data_context &da, Session_options &options, const Argument_list &args);
-
   };
 }
 

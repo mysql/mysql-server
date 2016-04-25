@@ -23,6 +23,7 @@
 #include "query_string_builder.h"
 #include "mysql/service_my_snprintf.h"
 #include "ngs/protocol/row_builder.h"
+#include "sql_data_result.h"
 
 #include "ngs_common/protocol_protobuf.h"
 
@@ -247,6 +248,7 @@ Admin_command_handler::Command_handler_map_init::Command_handler_map_init()
   m_command_handlers["kill_client"] = &Admin_command_handler::kill_client;
 
   m_command_handlers["create_collection"] = &Admin_command_handler::create_collection;
+  m_command_handlers["ensure_collection"] = &Admin_command_handler::ensure_collection;
   m_command_handlers["create_collection_index"] = &Admin_command_handler::create_collection_index;
   m_command_handlers["drop_collection"] = &Admin_command_handler::drop_collection_or_table;
   m_command_handlers["drop_collection_index"] = &Admin_command_handler::drop_collection_index;
@@ -429,8 +431,26 @@ ngs::Error_code Admin_command_handler::kill_client(Session &session, Sql_data_co
   return ngs::Success();
 }
 
-/* CreateCollection
 
+static ngs::Error_code create_collection_impl(Sql_data_context &da, const std::string &schema, const std::string &name)
+{
+  Query_string_builder qb;
+  qb.put("CREATE TABLE ");
+  if (!schema.empty())
+    qb.quote_identifier(schema).dot();
+  qb.quote_identifier(name)
+    .put(" (doc JSON,"
+         "_id VARCHAR(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY"
+         ") CHARSET utf8mb4 ENGINE=InnoDB;");
+
+  Sql_data_context::Result_info info;
+  const std::string &tmp(qb.get());
+  log_debug("CreateCollection: %s", tmp.c_str());
+  return da.execute_sql_no_result(tmp, info);
+}
+
+
+/* CreateCollection
 Required arguments:
 - schema
 - name
@@ -457,18 +477,7 @@ ngs::Error_code Admin_command_handler::create_collection(Session &session, Sql_d
   if (memchr(name.data(), 0, name.length()))
     return ngs::Error_code(ER_X_BAD_TABLE, "Invalid collection name");
 
-  Query_string_builder qb;
-
-  qb.put("CREATE TABLE ")
-      .quote_identifier(schema).dot().quote_identifier(name)
-      .put(" (doc JSON,"
-           "_id VARCHAR(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY"
-           ") CHARSET utf8mb4 ENGINE=InnoDB;");
-
-  Sql_data_context::Result_info info;
-  const std::string &tmp(qb.get());
-  log_debug("CreateCollection: %s", tmp.c_str());
-  error = da.execute_sql_no_result(tmp, info);
+  error = create_collection_impl(da, schema, name);
   if (error)
     return error;
   da.proto().send_exec_ok();
@@ -1355,6 +1364,82 @@ ngs::Error_code Admin_command_handler::list_objects(Session &session, Sql_data_c
     begin_list_objects_row(&row, da.proto(), &header_sent);
 
   da.proto().send_result_fetch_done();
+  da.proto().send_exec_ok();
+  return ngs::Success();
+}
+
+
+static bool is_collection(Session &session, Sql_data_context &da, Session_options &options,
+                          const std::string &schema, const std::string &name)
+{
+  Query_string_builder qb;
+  qb.put(
+      "SELECT COUNT(*) AS cnt,"
+      "COUNT(CASE WHEN (column_name = 'doc' AND data_type = 'json') THEN 1 ELSE NULL END) AS doc,"
+      "COUNT(CASE WHEN (column_name = '_id' AND generation_expression = 'json_unquote(json_extract(`doc`,''$._id''))') THEN 1 ELSE NULL END) AS id,"
+      "COUNT(CASE WHEN (column_name != '_id' AND generation_expression "
+      "RLIKE '^(json_unquote[[.(.]])?json_extract[[.(.]]`doc`,''[[.$.]]([[...]][^[:space:][...]]+)+''[[.).]]{1,2}$') THEN 1 ELSE NULL END) AS gen "
+      "FROM information_schema.columns "
+      "WHERE table_name = ").quote_string(name).put(" AND table_schema = ");
+  if (schema.empty())
+    qb.put("schema()");
+  else
+    qb.quote_string(schema);
+
+  Sql_data_result result(da);
+  try
+  {
+    result.query(qb.get());
+    if (result.size() != 1)
+    {
+      log_debug("Unable to recognize '%s' as a collection; query result size: %lu",
+                std::string(schema.empty() ? name : schema + "." + name).c_str(), result.size());
+      return false;
+    }
+    long int cnt = 0, doc = 0, id = 0, gen = 0;
+    result.get(cnt).get(doc).get(id).get(gen);
+    return doc == 1 && id == 1 && (cnt == gen + doc + id);
+  }
+  catch (const ngs::Error_code &e)
+  {
+    log_debug("Unable to recognize '%s' as a collection; exception message '%s'",
+              std::string(schema.empty() ? name : schema + "." + name).c_str(), e.message.c_str());
+    return false;
+  }
+}
+
+
+/* EnsureCollection
+Required arguments:
+- schema (optional)
+- name
+*/
+ngs::Error_code Admin_command_handler::ensure_collection(Session &session, Sql_data_context &da,
+                                                         Session_options &options, const Argument_list &args)
+{
+  xpl::Server::update_status_variable<&Common_status_variables::inc_stmt_ensure_collection>(session.get_status_variables());
+  std::string schema;
+  std::string name;
+
+  ngs::Error_code error = Argument_extractor(args)
+    .string_arg("schema", schema, true)
+    .string_arg("name", name).end();
+  if (error)
+    return error;
+
+  if (name.empty())
+    return ngs::Error_code(ER_X_BAD_TABLE, "Invalid collection name");
+
+  error = create_collection_impl(da, schema, name);
+  if (error)
+  {
+    if (error.error != ER_TABLE_EXISTS_ERROR)
+      return error;
+    if (!is_collection(session, da, options, schema, name))
+      return ngs::Error(ER_X_INVALID_COLLECTION,
+                        "Table '%s' exists but is not a collection",
+                        (schema.empty() ? name : schema +'.'+name).c_str());
+  }
   da.proto().send_exec_ok();
   return ngs::Success();
 }

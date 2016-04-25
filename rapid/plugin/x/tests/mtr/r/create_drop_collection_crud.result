@@ -738,4 +738,5 @@ Mysqlx.Ok {
 }
 ok
 DROP DATABASE xplugintest;
+DROP DATABASE xplugintest;
 UNINSTALL PLUGIN mysqlx;
