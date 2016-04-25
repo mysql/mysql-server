@@ -25771,17 +25771,17 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
             row.write_uint64(useStat.m_queuedScanCount);
 
             row.write_uint32(LocalDLCList<ScanRecord>
-                             (c_scanRecordPool, frag->m_activeScans).count());
+                             (c_scanRecordPool, frag->m_activeScans).getCount());
 
             row.write_uint32(LocalDLCFifoList<ScanRecord>
-                             (c_scanRecordPool, frag->m_queuedScans).count());
+                             (c_scanRecordPool, frag->m_queuedScans).getCount());
 
             row.write_uint32(LocalDLCFifoList<ScanRecord>
-                             (c_scanRecordPool, frag->m_queuedTupScans).count());
+                             (c_scanRecordPool, frag->m_queuedTupScans).getCount());
 
             row.write_uint32(LocalDLCFifoList<ScanRecord> 
                              (c_scanRecordPool, 
-                              frag->m_queuedAccScans).count());
+                              frag->m_queuedAccScans).getCount());
             
             row.write_uint64(commitCount);
             ndbinfo_send_row(signal, req, row, rl);
@@ -26776,7 +26776,7 @@ Dblqh::closeFile_cache(Signal* signal,
   jam();
 
   filePtr.p->logFileStatus = LogFileRecord::CLOSING_EXEC_LOG_CACHED;
-  if (m_redo_open_file_cache.m_lru.count() >= MAX_CACHED_OPEN_FILES)
+  if (m_redo_open_file_cache.m_lru.getCount() >= MAX_CACHED_OPEN_FILES)
   {
     jam();
     Ptr<LogFileRecord> evictPtr;

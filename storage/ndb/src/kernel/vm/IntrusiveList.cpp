@@ -142,7 +142,7 @@ static unsigned scale = 100;
 
 #define LIST_COUNT_TEST(pool, list, head, value) \
   { \
-    Uint32 c = list.count(); \
+    Uint32 c = list.getCount(); \
     ok(c == value, "count %u (%u)", c, value); \
   }
 
@@ -326,7 +326,7 @@ void testConcat(Pool& pool)
       list.seizeFirst(p);
       p.p->key = c_seized + 1;
     }
-    ok(list.count() == 1 * scale, "slc.count %u (%u)", list.count(), 1 * scale);
+    ok(list.getCount() == 1 * scale, "slc.count %u (%u)", list.getCount(), 1 * scale);
   } /* slc: 300-201 */
   {
     LocalDLCFifoList<T, Pool, DL> list(pool, dlchead);
@@ -335,12 +335,12 @@ void testConcat(Pool& pool)
       list.seizeFirst(p);
       p.p->key = c_seized + 1;
     }
-    ok(list.count() == 1 * scale, "dlc.count %u (%u)", list.count(), 1 * scale);
+    ok(list.getCount() == 1 * scale, "dlc.count %u (%u)", list.getCount(), 1 * scale);
   } /* dlc: 400-301 */
   {
     LocalSLCFifoList<T, Pool, SL> list(pool, slchead);
     list.appendList(dlchead);
-    ok(list.count() == 2 * scale, "slc.append(dlc) %u (%u) items", list.count(), 2 * scale);
+    ok(list.getCount() == 2 * scale, "slc.append(dlc) %u (%u) items", list.getCount(), 2 * scale);
   } /* slc: 300-201, 400-301 */
   {
     LocalSLFifoList<T, Pool, SL> list(pool, slhead);

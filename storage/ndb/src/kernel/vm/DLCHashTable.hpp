@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 #define JAM_FILE_ID 257
 
 
-// Adds "count" to DLHashTable
+// Adds "getCount" to DLHashTable
 template <class T, class U = T>
 class DLCHashTable : public DLHashTable<T, U> {
 public:
@@ -35,7 +35,7 @@ public:
   {}
   
   // Get count
-  Uint32 count() const { return m_count; }
+  Uint32 getCount() const { return m_count; }
 
   // Redefine methods which do add or remove
 

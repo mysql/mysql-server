@@ -2021,7 +2021,7 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
     {
       jam();
       c_gcp_list.first(gcp);
-      infoEvent("Waiting for acknowledge of epoch %llu, buffering %u epochs", gcp.p->m_gci, c_gcp_list.count());
+      infoEvent("Waiting for acknowledge of epoch %llu, buffering %u epochs", gcp.p->m_gci, c_gcp_list.getCount());
       NodeBitmask subs = gcp.p->m_subscribers;
       for(Uint32 nodeId = 0; nodeId < MAX_NODES; nodeId++)
       {
@@ -4966,7 +4966,7 @@ Suma::checkMaxBufferedEpochs(Signal *signal)
             c_maxBufferedEpochs, m_max_seen_gci,
             m_last_complete_gci, gcp.p->m_gci);
   }
-  else if (c_gcp_list.count() < c_maxBufferedEpochs)
+  else if (c_gcp_list.getCount() < c_maxBufferedEpochs)
   {
     return;
   }
@@ -4991,7 +4991,7 @@ Suma::checkMaxBufferedEpochs(Signal *signal)
       signal->theData[2] = nodeId;
       signal->theData[3] = (Uint32) gcp.p->m_gci;
       signal->theData[4] = (Uint32) (gcp.p->m_gci >> 32);
-      signal->theData[5] = (Uint32) c_gcp_list.count();
+      signal->theData[5] = (Uint32) c_gcp_list.getCount();
       signal->theData[6] = c_maxBufferedEpochs;
       sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 8, JBB);
       
