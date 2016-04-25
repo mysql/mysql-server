@@ -364,23 +364,31 @@ void
 ibuf_delete_for_discarded_space(
 /*============================*/
 	ulint	space);	/*!< in: space id */
-/*********************************************************************//**
-Contracts insert buffer trees by reading pages to the buffer pool.
+/** Contract the change buffer by reading pages to the buffer pool.
+@param[in]	full		If true, do a full contraction based
+on PCT_IO(100). If false, the size of contract batch is determined
+based on the current size of the change buffer.
 @return a lower limit for the combined size in bytes of entries which
 will be merged from ibuf trees to the pages read, 0 if ibuf is
 empty */
 UNIV_INTERN
 ulint
-ibuf_contract_in_background(
-/*========================*/
-	table_id_t	table_id,	/*!< in: if merge should be done only
-					for a specific table, for all tables
-					this should be 0 */
-	ibool		full);		/*!< in: TRUE if the caller wants to
-					do a full contract based on PCT_IO(100).
-					If FALSE then the size of contract
-					batch is determined based on the
-					current size of the ibuf tree. */
+ibuf_merge_in_background(
+	bool	full);	/*!< in: TRUE if the caller wants to
+			do a full contract based on PCT_IO(100).
+			If FALSE then the size of contract
+			batch is determined based on the
+			current size of the ibuf tree. */
+
+/** Contracts insert buffer trees by reading pages referring to space_id
+to the buffer pool.
+@returns number of pages merged.*/
+UNIV_INTERN
+ulint
+ibuf_merge_space(
+/*=============*/
+	ulint	space);	/*!< in: space id */
+
 #endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Parses a redo log record of an ibuf bitmap page init.
