@@ -92,7 +92,7 @@
  *   void release(Ptr<T> p);
  *
  * These methods needs a counter in head
- *   Uint32 count() const;
+ *   Uint32 getCount() const;
  **/
 
 #include <ndb_limits.h>
@@ -253,7 +253,7 @@ public:
   template<class OtherList>  void prependList(OtherList& other);
   template<class OtherList>  void appendList(OtherList& other);
   bool isEmpty() const;
-  Uint32 count() const;
+  Uint32 getCount() const;
   bool first(Ptr<T>& p) const;
   bool last(Ptr<T>& p) const;
 public:
@@ -589,7 +589,7 @@ inline bool IntrusiveList<T, Pool, THead, LM>::isEmpty() const
 }
 
 template<typename T, class Pool, typename THead, class LM>
-inline Uint32 IntrusiveList<T, Pool, THead, LM>::count() const
+inline Uint32 IntrusiveList<T, Pool, THead, LM>::getCount() const
 {
   return m_head.getCount();
 }
