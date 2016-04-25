@@ -786,7 +786,7 @@ row_quiesce_table_start(
 	}
 
 	for (ulint count = 0;
-	     ibuf_merge_in_background(true, table->space) != 0
+	     ibuf_merge_space(table->space) != 0
 	     && !trx_is_interrupted(trx);
 	     ++count) {
 		if (!(count % 20)) {
