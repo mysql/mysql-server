@@ -15,3 +15,15 @@ CREATE TABLE t1(a VARCHAR(2) CHARACTER SET big5 COLLATE big5_chinese_ci,
 FULLTEXT(a));
 INSERT INTO t1 VALUES(0xA3C2);
 DROP TABLE t1;
+create table t1 (
+id varchar(255),
+business_name text null collate utf8mb4_unicode_ci,
+street_address text,
+fulltext index ft (business_name),
+fulltext index ft2 (street_address)
+);
+select * from t1 where match (business_name, street_address) against ('some business name and address here');
+ERROR HY000: Can't find FULLTEXT index matching the column list
+select * from t1 where match (business_name, street_address) against ('some business name and address here' in boolean mode);
+id	business_name	street_address
+drop table t1;

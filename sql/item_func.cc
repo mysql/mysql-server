@@ -6366,6 +6366,8 @@ bool Item_func_match::fix_index()
 
   for (i=1; i < arg_count; i++)
   {
+    if (args[i]->type() != FIELD_ITEM)
+      goto err;
     item=(Item_field*)args[i];
     for (keynr=0 ; keynr < fts ; keynr++)
     {
