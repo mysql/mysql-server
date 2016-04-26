@@ -2689,3 +2689,12 @@ SET position = (SELECT COUNT(t2.position) + 1
 WHERE id = 3;
 
 DROP TABLE users;
+
+--echo # Bug#22783011 assertion failed: base_select != removed_select &&
+--echo #              aggr_select != removed_select
+
+CREATE TABLE t(a INTEGER) engine=innodb;
+INSERT INTO t VALUES(1);
+--error ER_INVALID_GROUP_FUNC_USE
+SELECT (SELECT 1 FROM (SELECT 1 FROM t WHERE SUM(1)) AS t);
+DROP TABLE t;

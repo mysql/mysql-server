@@ -3874,3 +3874,10 @@ WHERE t2.position < users.position)
 WHERE id = 3;
 ERROR HY000: You can't specify target table 'users' for update in FROM clause
 DROP TABLE users;
+# Bug#22783011 assertion failed: base_select != removed_select &&
+#              aggr_select != removed_select
+CREATE TABLE t(a INTEGER) engine=innodb;
+INSERT INTO t VALUES(1);
+SELECT (SELECT 1 FROM (SELECT 1 FROM t WHERE SUM(1)) AS t);
+ERROR HY000: Invalid use of group function
+DROP TABLE t;

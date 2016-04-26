@@ -63,6 +63,13 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
     DBUG_RETURN(true);              /* purecov: inspected */
 
   /*
+    Since derived tables do not allow outer references, they cannot allow
+    aggregation to occur in any outer query blocks.
+  */
+  nesting_map allow_sum_func_saved= thd->lex->allow_sum_func;
+  thd->lex->allow_sum_func= 0;
+
+  /*
     Prepare the underlying query expression of the derived table.
     The SELECT_STRAIGHT_JOIN option prevents semi-join transformation.
   */
@@ -84,6 +91,8 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
   if (is_derived())
     set_privileges(SELECT_ACL);
 #endif
+
+  thd->lex->allow_sum_func= allow_sum_func_saved;
 
   thd->derived_tables_processing= derived_tables_saved;
 
