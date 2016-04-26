@@ -459,9 +459,6 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 	PSI_RWLOCK_KEY(index_online_log),
 	PSI_RWLOCK_KEY(dict_table_stats),
 	PSI_RWLOCK_KEY(hash_table_locks),
-#  ifdef UNIV_DEBUG
-	PSI_RWLOCK_KEY(buf_chunk_map_latch)
-#  endif /* UNIV_DEBUG */
 };
 # endif /* UNIV_PFS_RWLOCK */
 
@@ -3388,8 +3385,12 @@ innobase_encryption_key_rotation()
 	/* Check if keyring loaded and the currently master key
 	can be fetched. */
 	if (Encryption::master_key_id != 0) {
-		Encryption::get_master_key(Encryption::master_key_id,
-					   &master_key);
+		ulint			master_key_id;
+		Encryption::Version	version;
+
+		Encryption::get_master_key(&master_key_id,
+					   &master_key,
+					   &version);
 		if (master_key == NULL) {
 			mutex_exit(&master_key_id_mutex);
 			my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
@@ -3897,6 +3898,15 @@ innobase_change_buffering_inited_ok:
 			innobase_open_files = table_cache_size;
 		}
 	}
+
+	if (innobase_open_files > (long) open_files_limit) {
+		ib::warn() << "innodb_open_files should not be greater"
+                       " than the open_files_limit.\n";
+		if (innobase_open_files > (long) table_cache_size) {
+			innobase_open_files = table_cache_size;
+		}
+	}
+
 	srv_max_n_open_files = (ulint) innobase_open_files;
 	srv_innodb_status = (ibool) innobase_create_status_file;
 
@@ -10045,12 +10055,14 @@ err_col:
 
 		} else if (!Encryption::is_none(encrypt)) {
 			/* Set the encryption flag. */
-			byte*	master_key = NULL;
-			ulint	master_key_id;
+			byte*			master_key = NULL;
+			ulint			master_key_id;
+			Encryption::Version	version;
 
 			/* Check if keyring is ready. */
 			Encryption::get_master_key(&master_key_id,
-						   &master_key);
+						   &master_key,
+						   &version);
 
 			if (master_key == NULL) {
 				my_error(ER_CANNOT_FIND_KEY_IN_KEYRING,
@@ -14147,7 +14159,7 @@ ha_innobase::optimize(
 	if (innodb_optimize_fulltext_only) {
 		if (m_prebuilt->table->fts && m_prebuilt->table->fts->cache
 		    && !dict_table_is_discarded(m_prebuilt->table)) {
-			fts_sync_table(m_prebuilt->table);
+			fts_sync_table(m_prebuilt->table, false, true);
 			fts_optimize_table(m_prebuilt->table);
 		}
 		return(HA_ADMIN_OK);

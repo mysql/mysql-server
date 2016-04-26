@@ -61,6 +61,7 @@
 #    [--let $rpl_group_replication= 1]
 #    [--let $rpl_gtid_utils= 1]
 #    [--let $rpl_set_gtid_next_anonymous_in_new_connection= 1]
+#    [--let $rpl_skip_log_bin= 1]
 #    --source include/rpl_init.inc
 #
 #    Parameters:
@@ -139,6 +140,9 @@
 #    $rpl_set_gtid_next_anonymous_in_new_connection
 #       Executes SET GTID_NEXT = 'ANONYMOUS' in each new connection.
 #
+#    $rpl_skip_log_bin
+#      Bypasses the binlog related checking to allow testing --skip-log-bin
+#      servers.
 #
 # ==== Side effects ====
 #
@@ -179,9 +183,11 @@
 #
 #
 
-
---source include/have_log_bin.inc
-
+if (!$rpl_skip_log_bin)
+{
+  # The default behaviour is to run the binlog checking
+  --source include/have_log_bin.inc
+}
 
 --let $include_filename= rpl_init.inc [topology=$rpl_topology]
 --source include/begin_include_file.inc

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1281,6 +1281,12 @@ int MYSQLlex(YYSTYPE *yylval, YYLTYPE *yylloc, THD *thd)
 {
   Lex_input_stream *lip= & thd->m_parser_state->m_lip;
   int token;
+
+  if (thd->is_error())
+  {
+    if (thd->get_parser_da()->has_sql_condition(ER_CAPACITY_EXCEEDED))
+      return ABORT_SYM;
+  }
 
   if (lip->lookahead_token >= 0)
   {
@@ -2876,26 +2882,46 @@ static void print_join(THD *thd,
   /* List is reversed => we should reverse it before using */
   List_iterator_fast<TABLE_LIST> ti(*tables);
   TABLE_LIST **table;
-  uint non_const_tables= 0;
+
+  /*
+    If the QT_NO_DATA_EXPANSION flag is specified, we print the
+    original table list, including constant tables that have been
+    optimized away, as the constant tables may be referenced in the
+    expression printed by Item_field::print() when this flag is given.
+    Otherwise, only non-const tables are printed.
+
+    Example:
+
+    Original SQL:
+    select * from (select 1) t
+
+    Printed without QT_NO_DATA_EXPANSION:
+    select '1' AS `1` from dual
+
+    Printed with QT_NO_DATA_EXPANSION:
+    select `t`.`1` from (select 1 AS `1`) `t`
+  */
+  const bool print_const_tables= (query_type & QT_NO_DATA_EXPANSION);
+  size_t tables_to_print= 0;
 
   for (TABLE_LIST *t= ti++; t ; t= ti++)
-    if (!t->optimized_away)
-      non_const_tables++;
-  if (!non_const_tables)
+    if (print_const_tables || !t->optimized_away)
+      tables_to_print++;
+  if (tables_to_print == 0)
   {
     str->append(STRING_WITH_LEN("dual"));
     return; // all tables were optimized away
   }
   ti.rewind();
 
-  if (!(table= (TABLE_LIST **)thd->alloc(sizeof(TABLE_LIST*) *
-                                                non_const_tables)))
+  if (!(table= static_cast<TABLE_LIST **>(thd->alloc(sizeof(TABLE_LIST*) *
+                                                     tables_to_print))))
     return;  // out of memory
 
-  TABLE_LIST *tmp, **t= table + (non_const_tables - 1);
+  TABLE_LIST *tmp, **t= table + (tables_to_print - 1);
   while ((tmp= ti++))
   {
-    if (tmp->optimized_away)
+    if (tmp->optimized_away && !print_const_tables)
       continue;
     *t--= tmp;
   }
@@ -2907,7 +2933,7 @@ static void print_join(THD *thd,
   */
   if ((*table)->sj_cond())
   {
-    TABLE_LIST **end= table + non_const_tables;
+    TABLE_LIST **end= table + tables_to_print;
     for (TABLE_LIST **t2= table; t2!=end; t2++)
     {
       if (!(*t2)->sj_cond())
@@ -2919,8 +2945,8 @@ static void print_join(THD *thd,
       }
     }
   }
-  DBUG_ASSERT(non_const_tables >= 1);
-  print_table_array(thd, str, table, table + non_const_tables, query_type);
+  DBUG_ASSERT(tables_to_print >= 1);
+  print_table_array(thd, str, table, table + tables_to_print, query_type);
 }
 
 

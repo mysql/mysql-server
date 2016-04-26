@@ -681,5 +681,5 @@ drop table t1;
 include/sync_slave_sql_with_master.inc
 stop slave;
 set global slave_allow_batching=OFF;
-start slave;
+include/start_slave.inc
 include/rpl_end.inc

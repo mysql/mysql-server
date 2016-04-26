@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3192,28 +3192,24 @@ int Json_wrapper::compare(const Json_wrapper &other) const
   Push a warning about a problem encountered when coercing a JSON
   value to some other data type.
 
-  @param[in] wrapper      the JSON value begin coerced
   @param[in] target_type  the name of the target type of the coercion
   @param[in] error_code   the error code to use for the warning
   @param[in] msgnam       the name of the field/expression being coerced
 */
-static void push_json_coercion_warning(const Json_wrapper *wrapper,
-                                       const char *target_type,
+static void push_json_coercion_warning(const char *target_type,
                                        int error_code,
                                        const char *msgnam)
 {
-  char offending_value_buff[MAX_FIELD_WIDTH];
-  String ov_str(offending_value_buff, sizeof(offending_value_buff),
-                &my_charset_utf8mb4_bin);
-  ov_str.length(0);
-  wrapper->to_string(&ov_str, true, msgnam);
-  ErrConvString err(ov_str.ptr(), ov_str.length());
+  /*
+    One argument is no longer used (the empty string), but kept to avoid
+    changing error message format.
+  */
   push_warning_printf(current_thd,
                       Sql_condition::SL_WARNING,
                       error_code,
                       ER_THD(current_thd, error_code),
                       target_type,
-                      err.ptr(),
+                      "",
                       msgnam,
                       current_thd->get_stmt_da()->current_row_for_condition());
 }
@@ -3246,7 +3242,7 @@ longlong Json_wrapper::coerce_int(const char *msgnam) const
         int code= (error == MY_ERRNO_ERANGE ?
                    ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE :
                    ER_INVALID_JSON_VALUE_FOR_CAST);
-        push_json_coercion_warning(this, "INTEGER", code, msgnam);
+        push_json_coercion_warning("INTEGER", code, msgnam);
       }
 
       return value;
@@ -3285,14 +3281,14 @@ longlong Json_wrapper::coerce_int(const char *msgnam) const
         return (longlong) rint(j);
       }
 
-      push_json_coercion_warning(this, "INTEGER",
+      push_json_coercion_warning("INTEGER",
                                  ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
       return res;
     }
   default:;
   }
 
-  push_json_coercion_warning(this, "INTEGER", ER_INVALID_JSON_VALUE_FOR_CAST,
+  push_json_coercion_warning("INTEGER", ER_INVALID_JSON_VALUE_FOR_CAST,
                              msgnam);
   return 0;
 }
@@ -3330,7 +3326,7 @@ double Json_wrapper::coerce_real(const char *msgnam) const
         int code= (error == EOVERFLOW ?
                    ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE :
                    ER_INVALID_JSON_VALUE_FOR_CAST);
-        push_json_coercion_warning(this, "DOUBLE", code, msgnam);
+        push_json_coercion_warning("DOUBLE", code, msgnam);
       }
       return value;
     }
@@ -3345,7 +3341,7 @@ double Json_wrapper::coerce_real(const char *msgnam) const
   default:;
   }
 
-  push_json_coercion_warning(this, "DOUBLE", ER_INVALID_JSON_VALUE_FOR_CAST,
+  push_json_coercion_warning("DOUBLE", ER_INVALID_JSON_VALUE_FOR_CAST,
                              msgnam);
   return 0.0;
 }
@@ -3373,28 +3369,28 @@ my_decimal
         int code= (err == E_DEC_OVERFLOW ?
                    ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE :
                    ER_INVALID_JSON_VALUE_FOR_CAST);
-        push_json_coercion_warning(this, "DECIMAL", code, msgnam);
+        push_json_coercion_warning("DECIMAL", code, msgnam);
       }
       return decimal_value;
     }
   case Json_dom::J_DOUBLE:
     if (double2my_decimal(E_DEC_FATAL_ERROR, get_double(), decimal_value))
     {
-      push_json_coercion_warning(this, "DECIMAL",
+      push_json_coercion_warning("DECIMAL",
                                  ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
     }
     return decimal_value;
   case Json_dom::J_INT:
     if (longlong2decimal(get_int(), decimal_value))
     {
-      push_json_coercion_warning(this, "DECIMAL",
+      push_json_coercion_warning("DECIMAL",
                                  ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
     }
     return decimal_value;
   case Json_dom::J_UINT:
     if (longlong2decimal(get_uint(), decimal_value))
     {
-      push_json_coercion_warning(this, "DECIMAL",
+      push_json_coercion_warning("DECIMAL",
                                  ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
     }
     return decimal_value;
@@ -3406,7 +3402,7 @@ my_decimal
   default:;
   }
 
-  push_json_coercion_warning(this, "DECIMAL", ER_INVALID_JSON_VALUE_FOR_CAST,
+  push_json_coercion_warning("DECIMAL", ER_INVALID_JSON_VALUE_FOR_CAST,
                              msgnam);
 
   my_decimal_set_zero(decimal_value);
@@ -3443,7 +3439,7 @@ bool Json_wrapper::coerce_time(MYSQL_TIME *ltime,
     get_datetime(ltime);
     return false;
   default:
-    push_json_coercion_warning(this, "DATE/TIME/DATETIME/TIMESTAMP",
+    push_json_coercion_warning("DATE/TIME/DATETIME/TIMESTAMP",
                                ER_INVALID_JSON_VALUE_FOR_CAST, msgnam);
     return true;
   }

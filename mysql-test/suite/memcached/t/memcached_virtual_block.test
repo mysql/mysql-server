@@ -56,7 +56,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11212" ],
+  'servers' => [ "127.0.0.1:11295" ],
   'connect_timeout' => 20,
   'select_timeout' => 20
 };
@@ -73,7 +73,7 @@ perl;
 use DBI;
 use Cache::Memcached;
 my $memd = new Cache::Memcached {
-  'servers' => [ "127.0.0.1:11212" ],
+  'servers' => [ "127.0.0.1:11295" ],
   'connect_timeout' => 20,
   'select_timeout' => 20
 };

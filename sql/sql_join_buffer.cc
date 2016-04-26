@@ -470,9 +470,79 @@ bool JOIN_CACHE::alloc_buffer()
   return buff == NULL;
 }
 
+
+/**
+  Filter base columns of virtual generated columns that might not be read
+  by a dynamic range scan.
+
+  A dynamic range scan will read the data from a table using either a
+  table scan, a range scan on a covering index, or a range scan on a
+  non-covering index. The table's read set contains all columns that
+  will be read by the table scan. This might be base columns that are
+  used to evaluate virtual column values that are part of an
+  index. When the table is read using a table scan, these base columns
+  will be read from the storage engine, but when a index/range scan on
+  a covering index is used, the base columns will not be read by the
+  storage engine. To avoid that these potentially un-read columns are
+  inserted into the join buffer, we need to adjust the read set to
+  only contain columns that are read independently of which access
+  method that is used: these are the only columns needed in the join
+  buffer for the query.
+
+  This function does the following manipulations of table's read_set:
+
+  * if one or more of the alternative range scan indexes are covering,
+    then the table's read_set is intersected with the read_set for
+    each of the covering indexes.
+
+  For potential range indexes that are not covering, no adjustment to
+  the read_set is done.
+
+  @note The table->read_set will be changed by this function. It is
+  the caller's responsibility to save a copy of this in
+  table->tmp_set.
+
+  @param tab the query execution tab
+*/
+
+static void filter_gcol_for_dynamic_range_scan(QEP_TAB *const tab)
+{
+  TABLE *table= tab->table();
+  DBUG_ASSERT(tab->dynamic_range() && table->vfield);
+
+  for (uint key= 0; key < table->s->keys; ++key)
+  {
+    /*
+      We only need to consider indexes that are:
+      1. Candidates for being used for range scan.
+      2. A covering index for the query.
+    */
+    if (tab->keys().is_set(key) && table->covering_keys.is_set(key))
+    {
+      my_bitmap_map bitbuf[(bitmap_buffer_size(MAX_FIELDS) /
+                            sizeof(my_bitmap_map)) + 1];
+      MY_BITMAP range_read_set;
+      bitmap_init(&range_read_set, bitbuf, table->s->fields, FALSE);
+
+      // Make a bitmap of which fields this covering index can read
+      table->mark_columns_used_by_index_no_reset(key, &range_read_set,
+                                                 UINT_MAX);
+
+      // Compute the minimal read_set that must be included in the join buffer
+      bitmap_intersect(table->read_set, &range_read_set);
+    }
+  }
+}
+
+
 /**
   Filter the base columns of virtual generated columns if using a covering index
   scan.
+
+  When setting up the join buffer, adjust read_set temporarily so that
+  only contains the columns that are needed in the join operation and
+  afterwards. Afterwards, the regular contents are restored (the
+  columns to be read from input tables).
 
   For a virtual generated column, all base columns are added to the read_set
   of the table. The storage engine will then copy all base column values so
@@ -519,6 +589,14 @@ void JOIN_CACHE::filter_virtual_gcol_base_cols()
                                                    table->read_set);
       bitmap_intersect(table->read_set, &table->tmp_set);
     }
+    else if (tab->dynamic_range())
+    {
+      DBUG_ASSERT(bitmap_is_clear_all(&table->tmp_set));
+      // Keep table->read_set in tmp_set so that it can be restored
+      bitmap_copy(&table->tmp_set, table->read_set);
+
+      filter_gcol_for_dynamic_range_scan(tab);
+    }
   }
 }
 
@@ -533,6 +611,9 @@ void JOIN_CACHE::restore_virtual_gcol_base_cols()
   for (QEP_TAB *tab= qep_tab - tables; tab < qep_tab; tab++)
   {
     TABLE *table= tab->table();
+    if (table->vfield == NULL)
+      continue;
+
     if (!bitmap_is_clear_all(&table->tmp_set))
     {
       bitmap_copy(table->read_set, &table->tmp_set);

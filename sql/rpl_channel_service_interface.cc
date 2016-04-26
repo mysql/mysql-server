@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -243,7 +243,7 @@ int channel_create(const char* channel,
   /* Get the Master_info of the channel */
   mi= channel_map.get_mi(channel);
 
-    /* create a new channel if doesn't exist */
+  /* create a new channel if doesn't exist */
   if (!mi)
   {
     if ((error= add_new_channel(&mi, channel,
@@ -701,6 +701,31 @@ long long channel_get_last_delivered_gno(const char* channel, int sidno)
   DBUG_RETURN(last_gno);
 }
 
+int channel_add_executed_gtids_to_received_gtids(const char* channel)
+{
+  DBUG_ENTER("channel_add_executed_gtids_to_received_gtids(channel)");
+
+  channel_map.rdlock();
+  Master_info *mi= channel_map.get_mi(channel);
+  if (mi == NULL)
+  {
+    channel_map.unlock();
+    DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
+  }
+
+  mi->channel_rdlock();
+  channel_map.unlock();
+  global_sid_lock->wrlock();
+
+  enum_return_status return_status=
+      mi->rli->add_gtid_set(gtid_state->get_executed_gtids());
+
+  global_sid_lock->unlock();
+  mi->channel_unlock();
+
+  DBUG_RETURN(return_status != RETURN_STATUS_OK);
+}
+
 int channel_queue_packet(const char* channel,
                          const char* buf,
                          unsigned long event_len)
@@ -739,10 +764,12 @@ int channel_wait_until_apply_queue_applied(char* channel, long long timeout)
     DBUG_RETURN(RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR);
   }
 
+  mi->inc_reference();
   channel_map.unlock();
 
   int error = mi->rli->wait_for_gtid_set(current_thd, mi->rli->get_gtid_set(),
                                          timeout);
+  mi->dec_reference();
 
   if (error == -1)
     DBUG_RETURN(REPLICATION_THREAD_WAIT_TIMEOUT_ERROR);

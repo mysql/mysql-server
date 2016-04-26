@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -445,12 +445,13 @@ bool set_and_validate_user_attributes(THD *thd,
       }
     }
     /*
-      if there is a plugin specified with no auth string, then set
-      the account as expired.
+      if there is a plugin specified with no auth string, and that
+      plugin supports password expiration then set the account as expired.
     */
     if (Str->uses_identified_with_clause &&
         !(Str->uses_identified_by_clause ||
-        Str->uses_authentication_string_clause))
+        Str->uses_authentication_string_clause) &&
+        auth_plugin_supports_expiration(Str->plugin.str))
     {
       Str->alter_status.update_password_expired_column= true;
       what_to_set|= PASSWORD_EXPIRE_ATTR;
@@ -1243,6 +1244,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists)
   ulong what_to_update= 0;
   bool is_anonymous_user= false;
   bool rollback_whole_statement= false;
+  std::set<LEX_USER *> users_not_to_log;
   DBUG_ENTER("mysql_create_user");
 
   /*
@@ -1307,9 +1309,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists)
         result= true;
         break;
       }
-      else if (if_not_exists &&
-               (opt_general_log_raw
-               || !user_name->uses_identified_by_clause))
+      else if (if_not_exists)
       {
         String warn_user;
         append_user(thd, &warn_user, user_name, FALSE, FALSE);
@@ -1317,6 +1317,12 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists)
                             ER_USER_ALREADY_EXISTS,
                             ER_THD(thd, ER_USER_ALREADY_EXISTS),
                             warn_user.c_ptr_safe());
+        try
+        {
+          users_not_to_log.insert(tmp_user_name);
+        }
+        catch (...) {}
+        continue;
       }
      else
       {
@@ -1340,11 +1346,12 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists)
       my_error(ER_CANNOT_USER, MYF(0), "CREATE USER", wrong_users.c_ptr_safe());
   }
 
-  if (some_users_created || if_not_exists)
+  if (some_users_created ||
+      (if_not_exists && users_not_to_log.size() < list.elements))
   {
     String *rlb= &thd->rewritten_query;
     rlb->mem_free();
-    mysql_rewrite_create_alter_user(thd, rlb);
+    mysql_rewrite_create_alter_user(thd, rlb, &users_not_to_log);
 
     if (!thd->rewritten_query.length())
       result|= write_bin_log(thd, false, thd->query().str, thd->query().length,
@@ -1647,6 +1654,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
   bool save_binlog_row_based;
   bool is_privileged_user= false;
   bool rollback_whole_statement= false;
+  std::set<LEX_USER *> users_not_to_log;
 
   DBUG_ENTER("mysql_alter_user");
 
@@ -1715,8 +1723,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
     if (!(acl_user= find_acl_user(user_from->host.str,
                                    user_from->user.str, TRUE)))
     {
-      if (if_exists && (opt_general_log_raw
-          || !user_from->uses_identified_by_clause))
+      if (if_exists)
       {
         String warn_user;
         append_user(thd, &warn_user, user_from, FALSE, FALSE);
@@ -1724,6 +1731,11 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
           ER_USER_DOES_NOT_EXIST,
           ER_THD(thd, ER_USER_DOES_NOT_EXIST),
           warn_user.c_ptr_safe());
+        try
+        {
+          users_not_to_log.insert(tmp_user_from);
+        }
+        catch (...) {}
       }
       else
       {
@@ -1734,6 +1746,9 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
 
       continue;
     }
+
+    if (user_from && user_from->plugin.str)
+      optimize_plugin_compare_by_pointer(&user_from->plugin);
 
     /* copy password expire attributes to individual lex user */
     user_from->alter_status= thd->lex->alter_password;
@@ -1799,12 +1814,13 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
       my_error(ER_CANNOT_USER, MYF(0), "ALTER USER", wrong_users.c_ptr_safe());
   }
 
-  if (some_user_altered || if_exists)
+  if (some_user_altered ||
+      (if_exists && users_not_to_log.size() < list.elements))
   {
     /* do query rewrite for ALTER USER */
     String *rlb= &thd->rewritten_query;
     rlb->mem_free();
-    mysql_rewrite_create_alter_user(thd, rlb);
+    mysql_rewrite_create_alter_user(thd, rlb, &users_not_to_log);
 
     result|= (write_bin_log(thd, false,
                             thd->rewritten_query.c_ptr_safe(),

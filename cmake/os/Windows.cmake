@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -98,18 +98,20 @@ IF(MSVC)
   FOREACH(lang C CXX)
     SET(CMAKE_${lang}_FLAGS_RELEASE "${CMAKE_${lang}_FLAGS_RELEASE} /Z7")
   ENDFOREACH()
-  FOREACH(flag 
-   CMAKE_C_FLAGS_RELEASE    CMAKE_C_FLAGS_RELWITHDEBINFO 
-   CMAKE_C_FLAGS_DEBUG      CMAKE_C_FLAGS_DEBUG_INIT 
-   CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO
-   CMAKE_CXX_FLAGS_DEBUG    CMAKE_CXX_FLAGS_DEBUG_INIT)
-   STRING(REPLACE "/MD"  "/MT" "${flag}" "${${flag}}")
-   STRING(REPLACE "/Zi"  "/Z7" "${flag}" "${${flag}}")
-   IF (NOT WIN_DEBUG_NO_INLINE)
-     STRING(REPLACE "/Ob0"  "/Ob1" "${flag}" "${${flag}}")
-   ENDIF()
-   SET("${flag}" "${${flag}} /EHsc")
-  ENDFOREACH()
+  IF(NOT WINDOWS_RUNTIME_MD)
+    FOREACH(flag 
+     CMAKE_C_FLAGS_RELEASE    CMAKE_C_FLAGS_RELWITHDEBINFO 
+     CMAKE_C_FLAGS_DEBUG      CMAKE_C_FLAGS_DEBUG_INIT 
+     CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO
+     CMAKE_CXX_FLAGS_DEBUG    CMAKE_CXX_FLAGS_DEBUG_INIT)
+     STRING(REPLACE "/MD"  "/MT" "${flag}" "${${flag}}")
+     STRING(REPLACE "/Zi"  "/Z7" "${flag}" "${${flag}}")
+     IF (NOT WIN_DEBUG_NO_INLINE)
+       STRING(REPLACE "/Ob0"  "/Ob1" "${flag}" "${${flag}}")
+     ENDIF()
+     SET("${flag}" "${${flag}} /EHsc")
+    ENDFOREACH()
+  ENDIF()
   
   # Fix CMake's predefined huge stack size
   FOREACH(type EXE SHARED MODULE)

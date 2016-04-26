@@ -57,6 +57,8 @@ mysql_no_login     plugin/mysql_no_login      MYSQL_NO_LOGIN    mysql_no_login
 group_replication  plugin/group_replication   GROUP_REPLICATION
 locking_service    sql                        LOCKING_SERVICE
 version_token      plugin/version_token       VERSION_TOKEN
+mysqlx             plugin/x                   MYSQLXPLUGIN
+# Test services framework
 libtest_services   plugin/test_services TESTSERVICES
 libtest_services_threaded  plugin/test_services TESTSERVICESTHREADED
 # Test session API

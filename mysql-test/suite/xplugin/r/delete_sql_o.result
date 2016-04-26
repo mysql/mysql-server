@@ -1,0 +1,354 @@
+==============================================
+SQL DELETE SCENARIOS
+==============================================
+
+================================================================================
+PREAMBLE
+================================================================================
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+CREATE USER deletesqluser@localhost  identified by 'deletesqluser';
+GRANT ALL ON *.* TO deletesqluser@localhost;
+================================================================================
+TEST START
+================================================================================
+RUN DROP SCHEMA if EXISTS MySQLXplugin
+
+0 rows affected
+RUN CREATE SCHEMA MySQLXplugin DEFAULT CHARSET='utf8'
+
+1 rows affected
+RUN USE MySQLXplugin
+
+0 rows affected
+RUN CREATE TABLE Categories (
+ CategoryID int NOT NULL AUTO_INCREMENT,
+ CategoryName varchar(100),
+ CategoryDescription varchar(200),
+ CategoryIMEI tinyint,	  
+ CategoryDecimal decimal(5,2),
+ PRIMARY key (CategoryID)
+ )
+
+0 rows affected
+RUN INSERT INTO Categories(CategoryID, CategoryName, CategoryDescription, CategoryIMEI, CategoryDecimal)
+ VALUES
+ (1,'Sports','Sports related category',1,235.15),
+ (2,'Entertaiment','Entertaiment related category',2,235.15),
+ (3, 'Home','Home related category',3,235.15),
+ (4, 'Kitchen','Kitchen related category',4,235.15)
+
+4 rows affected
+last insert id: 4
+Records: 4  Duplicates: 0  Warnings: 0
+RUN CREATE TABLE ExtraCategoryInfo (
+ ExtraCategoryInfoID int NOT NULL AUTO_INCREMENT,
+ CategoryID int NOT NULL,
+ MainParentCategoryName varchar(100),
+ PRIMARY key (ExtraCategoryInfoID)
+ )
+
+0 rows affected
+RUN INSERT INTO ExtraCategoryInfo(ExtraCategoryInfoID, CategoryID, MainParentCategoryName)
+ VALUES
+ (1,1,'People'),
+ (2,2,'People'),
+ (3,2,'House'),
+ (4,3,'House')
+
+4 rows affected
+last insert id: 4
+Records: 4  Duplicates: 0  Warnings: 0
+RUN SET SQL_SAFE_UPDATES = 1
+
+0 rows affected
+RUN DELETE FROM ExtraCategoryInfo WHERE ExtraCategoryInfoID in (2,3) AND CategoryID = 2 LIMIT 1
+
+1 rows affected
+RUN DELETE FROM ExtraCategoryInfo WHERE ExtraCategoryInfoID = 1
+
+1 rows affected
+RUN DELETE FROM ExtraCategoryInfo WHERE MainParentCategoryName = 'People'
+While executing DELETE FROM ExtraCategoryInfo WHERE MainParentCategoryName = 'People':
+Got expected error: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column (code 1175)
+RUN DELETE FROM ExtraCategoryInfo WHERE MainParentCategoryName = 'House' AND CategoryID in (4)
+While executing DELETE FROM ExtraCategoryInfo WHERE MainParentCategoryName = 'House' AND CategoryID in (4):
+Got expected error: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column (code 1175)
+RUN DELETE FROM Categories WHERE CategoryIMEI = 1
+While executing DELETE FROM Categories WHERE CategoryIMEI = 1:
+Got expected error: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column (code 1175)
+RUN DELETE FROM ExtraCategoryInfo WHERE EXISTS 
+  (SELECT * FROM Categories WHERE Categories.CategoryID = ExtraCategoryInfo.CategoryID 
+  AND ExtraCategoryInfo.MainParentCategoryName = 'People' )
+While executing DELETE FROM ExtraCategoryInfo WHERE EXISTS 
+  (SELECT * FROM Categories WHERE Categories.CategoryID = ExtraCategoryInfo.CategoryID 
+  AND ExtraCategoryInfo.MainParentCategoryName = 'People' ):
+Got expected error: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column (code 1175)
+RUN SELECT * FROM ExtraCategoryInfo
+ExtraCategoryInfoID	CategoryID	MainParentCategoryName
+3	2	House
+4	3	House
+0 rows affected
+RUN START TRANSACTION
+
+0 rows affected
+RUN INSERT INTO ExtraCategoryInfo(ExtraCategoryInfoID, CategoryID, MainParentCategoryName)
+ VALUES
+ (5,4,'Hotel'),
+ (6,4,'Hotel')
+
+2 rows affected
+last insert id: 6
+Records: 2  Duplicates: 0  Warnings: 0
+RUN SELECT * FROM ExtraCategoryInfo
+ExtraCategoryInfoID	CategoryID	MainParentCategoryName
+3	2	House
+4	3	House
+5	4	Hotel
+6	4	Hotel
+0 rows affected
+RUN DELETE FROM ExtraCategoryInfo WHERE ExtraCategoryInfoID = 5
+
+1 rows affected
+RUN SELECT * FROM ExtraCategoryInfo
+ExtraCategoryInfoID	CategoryID	MainParentCategoryName
+3	2	House
+4	3	House
+6	4	Hotel
+0 rows affected
+RUN COMMIT
+
+0 rows affected
+RUN INSERT INTO ExtraCategoryInfo(ExtraCategoryInfoID, CategoryID, MainParentCategoryName)
+ VALUES
+ (7,1,'GROUND'),
+ (8,1,'GROUND')
+
+2 rows affected
+last insert id: 8
+Records: 2  Duplicates: 0  Warnings: 0
+RUN SELECT * FROM ExtraCategoryInfo
+ExtraCategoryInfoID	CategoryID	MainParentCategoryName
+3	2	House
+4	3	House
+6	4	Hotel
+7	1	GROUND
+8	1	GROUND
+0 rows affected
+RUN START TRANSACTION
+
+0 rows affected
+RUN DELETE FROM ExtraCategoryInfo WHERE ExtraCategoryInfoID = 7
+
+1 rows affected
+RUN SELECT * FROM ExtraCategoryInfo
+ExtraCategoryInfoID	CategoryID	MainParentCategoryName
+3	2	House
+4	3	House
+6	4	Hotel
+8	1	GROUND
+0 rows affected
+RUN ROLLBACK
+
+0 rows affected
+RUN SELECT * FROM ExtraCategoryInfo
+ExtraCategoryInfoID	CategoryID	MainParentCategoryName
+3	2	House
+4	3	House
+6	4	Hotel
+7	1	GROUND
+8	1	GROUND
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+.
+#---------- SAFE MODE OFF ----------#
+.
+RUN USE MySQLXplugin
+
+0 rows affected
+RUN SET SQL_SAFE_UPDATES = 0
+
+0 rows affected
+RUN SELECT COUNT(*) FROM ExtraCategoryInfo
+COUNT(*)
+5
+0 rows affected
+RUN DELETE FROM ExtraCategoryInfo
+
+5 rows affected
+RUN SELECT COUNT(*) FROM ExtraCategoryInfo
+COUNT(*)
+0
+0 rows affected
+RUN INSERT INTO ExtraCategoryInfo(ExtraCategoryInfoID, CategoryID, MainParentCategoryName)
+ VALUES
+ (1,1,'People'),
+ (2,2,'People'),
+ (3,2,'House'),
+ (4,3,'House')
+
+4 rows affected
+last insert id: 4
+Records: 4  Duplicates: 0  Warnings: 0
+RUN SELECT COUNT(*) FROM ExtraCategoryInfo
+COUNT(*)
+4
+0 rows affected
+RUN DELETE FROM ExtraCategoryInfo WHERE MainParentCategoryName = 'People'
+
+2 rows affected
+RUN DELETE FROM ExtraCategoryInfo WHERE MainParentCategoryName = 'House' AND CategoryID in (4)
+
+0 rows affected
+RUN DELETE FROM Categories WHERE CategoryIMEI = 1
+
+1 rows affected
+RUN SELECT COUNT(*) FROM ExtraCategoryInfo
+COUNT(*)
+2
+0 rows affected
+RUN DELETE FROM ExtraCategoryInfo WHERE EXISTS 
+  (SELECT * FROM Categories WHERE Categories.CategoryID = ExtraCategoryInfo.CategoryID 
+  AND ExtraCategoryInfo.MainParentCategoryName = 'House' )
+
+2 rows affected
+RUN SELECT COUNT(*) FROM ExtraCategoryInfo
+COUNT(*)
+0
+0 rows affected
+RUN SELECT * FROM Categories
+CategoryID	CategoryName	CategoryDescription	CategoryIMEI	CategoryDecimal
+2	Entertaiment	Entertaiment related category	2	235.15
+3	Home	Home related category	3	235.15
+4	Kitchen	Kitchen related category	4	235.15
+0 rows affected
+RUN DELETE QUICK FROM Categories ORDER BY CategoryName DESC LIMIT 2
+
+2 rows affected
+RUN SELECT * FROM Categories
+CategoryID	CategoryName	CategoryDescription	CategoryIMEI	CategoryDecimal
+2	Entertaiment	Entertaiment related category	2	235.15
+0 rows affected
+RUN DELETE LOW_PRIORITY FROM Categories
+
+1 rows affected
+RUN DELETE FROM ExtraCategoryInfo
+
+0 rows affected
+RUN INSERT INTO Categories(CategoryID, CategoryName, CategoryDescription, CategoryIMEI, CategoryDecimal)
+ VALUES
+ (1,'Sports','Sports related category',1,235.15),
+ (2,'Entertaiment','Entertaiment related category',2,235.15),
+ (3, 'Home','Home related category',3,235.15),
+ (4, 'Kitchen','Kitchen related category',4,235.15),
+ (5, 'Office','office related category',5,235.15)
+
+5 rows affected
+last insert id: 5
+Records: 5  Duplicates: 0  Warnings: 0
+RUN INSERT INTO ExtraCategoryInfo(ExtraCategoryInfoID, CategoryID, MainParentCategoryName)
+ VALUES
+ (1,1,'People'),
+ (2,2,'People'),
+ (3,2,'House'),
+ (4,3,'House'),
+ (5,4,'Hotel'),
+ (6,4,'Hotel'),
+ (7,7,'Hotel'),
+ (8,8,'Hotel'),
+ (9,9,'Hotel')
+
+9 rows affected
+last insert id: 9
+Records: 9  Duplicates: 0  Warnings: 0
+RUN ALTER TABLE ExtraCategoryInfo
+    PARTITION BY RANGE (ExtraCategoryInfoID) (
+      PARTITION p0 VALUES LESS THAN (8),
+      PARTITION p1 VALUES LESS THAN (10)
+    )
+
+9 rows affected
+Records: 9  Duplicates: 0  Warnings: 0
+RUN SELECT * FROM Categories
+CategoryID	CategoryName	CategoryDescription	CategoryIMEI	CategoryDecimal
+1	Sports	Sports related category	1	235.15
+2	Entertaiment	Entertaiment related category	2	235.15
+3	Home	Home related category	3	235.15
+4	Kitchen	Kitchen related category	4	235.15
+5	Office	office related category	5	235.15
+0 rows affected
+RUN SELECT * FROM ExtraCategoryInfo
+ExtraCategoryInfoID	CategoryID	MainParentCategoryName
+1	1	People
+2	2	People
+3	2	House
+4	3	House
+5	4	Hotel
+6	4	Hotel
+7	7	Hotel
+8	8	Hotel
+9	9	Hotel
+0 rows affected
+RUN DELETE FROM ExtraCategoryInfo PARTITION (p1) LIMIT 1
+
+1 rows affected
+RUN SELECT * FROM ExtraCategoryInfo
+ExtraCategoryInfoID	CategoryID	MainParentCategoryName
+1	1	People
+2	2	People
+3	2	House
+4	3	House
+5	4	Hotel
+6	4	Hotel
+7	7	Hotel
+9	9	Hotel
+0 rows affected
+RUN DELETE FROM ExtraCategoryInfo PARTITION (p1)
+
+1 rows affected
+RUN SELECT * FROM ExtraCategoryInfo
+ExtraCategoryInfoID	CategoryID	MainParentCategoryName
+1	1	People
+2	2	People
+3	2	House
+4	3	House
+5	4	Hotel
+6	4	Hotel
+7	7	Hotel
+0 rows affected
+RUN DELETE FROM Categories,ExtraCategoryInfo USING Categories INNER JOIN ExtraCategoryInfo
+ WHERE Categories.CategoryID=ExtraCategoryInfo.CategoryID
+
+10 rows affected
+RUN SELECT * FROM Categories
+CategoryID	CategoryName	CategoryDescription	CategoryIMEI	CategoryDecimal
+5	Office	office related category	5	235.15
+0 rows affected
+RUN SELECT * FROM ExtraCategoryInfo
+ExtraCategoryInfoID	CategoryID	MainParentCategoryName
+7	7	Hotel
+0 rows affected
+================================================================================
+CLEAN UP
+================================================================================
+RUN DROP SCHEMA if EXISTS MySQLXplugin
+
+2 rows affected
+RUN DROP USER deletesqluser@localhost
+
+0 rows affected
+RUN SET SQL_SAFE_UPDATES = 1
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+================================================================================
+POSTAMBLE
+================================================================================
+UNINSTALL PLUGIN mysqlx;

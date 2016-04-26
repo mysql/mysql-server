@@ -1,0 +1,1494 @@
+==============================================
+CRUD FIND CONDITIONAL CLAUSES SCENARIOS
+==============================================
+
+================================================================================
+PREAMBLE
+================================================================================
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+create user crudfinduser@localhost identified by 'crudfinduser';
+grant all on *.* to crudfinduser@localhost;
+================================================================================
+TEST START
+================================================================================
+RUN DROP SCHEMA if EXISTS minisakila
+
+0 rows affected
+RUN CREATE SCHEMA minisakila
+
+1 rows affected
+RUN USE minisakila
+
+0 rows affected
+RUN CREATE TABLE actor (
+  actor_id int unsigned NOT NULL AUTO_INCREMENT,
+  first_name varchar(45) NOT NULL,
+  last_name varchar(45) NOT NULL,
+  is_active bit(1) NOT NULL,
+  PRIMARY KEY (actor_id)
+)
+
+0 rows affected
+RUN INSERT INTO actor VALUES
+(NULL,'Victor','Otero',true),
+(NULL,'Gonzalo','Crhystens',false),
+(NULL,'Abraham','Vega',true),
+(NULL,'Jennifer','Leon',false),
+(NULL,'Jhonny','Test',true)
+
+5 rows affected
+last insert id: 1
+Records: 5  Duplicates: 0  Warnings: 0
+Table based scenarios
+Find all the rows including all the metadata
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: UINT
+  name: "actor_id"
+  original_name: "actor_id"
+  table: "actor"
+  original_table: "actor"
+  schema: "minisakila"
+  catalog: "def"
+  collation: 0
+  fractional_digits: 0
+  length: 10
+  flags: 304
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  name: "first_name"
+  original_name: "first_name"
+  table: "actor"
+  original_table: "actor"
+  schema: "minisakila"
+  catalog: "def"
+  collation: 8
+  fractional_digits: 0
+  length: 45
+  flags: 16
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  name: "last_name"
+  original_name: "last_name"
+  table: "actor"
+  original_table: "actor"
+  schema: "minisakila"
+  catalog: "def"
+  collation: 8
+  fractional_digits: 0
+  length: 45
+  flags: 16
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BIT
+  name: "is_active"
+  original_name: "is_active"
+  table: "actor"
+  original_table: "actor"
+  schema: "minisakila"
+  catalog: "def"
+  collation: 0
+  fractional_digits: 0
+  length: 1
+  flags: 16
+}
+
+Mysqlx.Resultset.Row {
+  field: "\001"
+  field: "Victor\000"
+  field: "Otero\000"
+  field: "\001"
+}
+
+Mysqlx.Resultset.Row {
+  field: "\002"
+  field: "Gonzalo\000"
+  field: "Crhystens\000"
+  field: "\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "\003"
+  field: "Abraham\000"
+  field: "Vega\000"
+  field: "\001"
+}
+
+Mysqlx.Resultset.Row {
+  field: "\004"
+  field: "Jennifer\000"
+  field: "Leon\000"
+  field: "\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "\005"
+  field: "Jhonny\000"
+  field: "Test\000"
+  field: "\001"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+Find all the rows without the metadata
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+}
+
+actor_id	first_name	last_name	is_active
+1	Victor	Otero	1
+2	Gonzalo	Crhystens	0
+3	Abraham	Vega	1
+4	Jennifer	Leon	0
+5	Jhonny	Test	1
+command ok
+ Find with limit row count and offset
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  limit {
+    row_count: 1
+    offset: 3
+  }
+}
+
+actor_id	first_name	last_name	is_active
+4	Jennifer	Leon	0
+command ok
+Find with limit row count
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  limit {
+    row_count: 4
+  }
+}
+
+actor_id	first_name	last_name	is_active
+1	Victor	Otero	1
+2	Gonzalo	Crhystens	0
+3	Abraham	Vega	1
+4	Jennifer	Leon	0
+command ok
+Find specific row with == Operator
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "actor_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 1
+        }
+      }
+    }
+  }
+}
+
+actor_id	first_name	last_name	is_active
+1	Victor	Otero	1
+command ok
+Find specific row with != Operator
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "!="
+      param {
+        type: IDENT
+        identifier {
+          name: "actor_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 1
+        }
+      }
+    }
+  }
+}
+
+actor_id	first_name	last_name	is_active
+2	Gonzalo	Crhystens	0
+3	Abraham	Vega	1
+4	Jennifer	Leon	0
+5	Jhonny	Test	1
+command ok
+Find specific row with like Operator
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "like"
+      param {
+        type: IDENT
+        identifier {
+          name: "first_name"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "%on%"
+          }
+        }
+      }
+    }
+  }
+}
+
+actor_id	first_name	last_name	is_active
+2	Gonzalo	Crhystens	0
+5	Jhonny	Test	1
+command ok
+Find specific row with && and like Operators
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "&&"
+      param {
+        type: OPERATOR
+        operator {
+          name: "like"
+          param {
+            type: IDENT
+            identifier {
+              name: "first_name"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_OCTETS
+              v_octets {
+                value: "%on%"
+              }
+            }
+          }
+        }
+      }
+      param {
+        type: OPERATOR
+        operator {
+          name: "like"
+          param {
+            type: IDENT
+            identifier {
+              name: "last_name"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_OCTETS
+              v_octets {
+                value: "%ns%"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+actor_id	first_name	last_name	is_active
+2	Gonzalo	Crhystens	0
+command ok
+Find specific row with || and in Operators
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "||"
+      param {
+        type: OPERATOR
+        operator {
+          name: "in"
+          param {
+            type: IDENT
+            identifier {
+              name: "actor_id"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 1
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 2
+            }
+          }
+        }
+      }
+      param {
+        type: OPERATOR
+        operator {
+          name: "like"
+          param {
+            type: IDENT
+            identifier {
+              name: "first_name"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_OCTETS
+              v_octets {
+                value: "%ham%"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+actor_id	first_name	last_name	is_active
+1	Victor	Otero	1
+2	Gonzalo	Crhystens	0
+3	Abraham	Vega	1
+command ok
+Find specific row with not_in Operators
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "||"
+      param {
+        type: OPERATOR
+        operator {
+          name: "not_in"
+          param {
+            type: IDENT
+            identifier {
+              name: "actor_id"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 1
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 2
+            }
+          }
+        }
+      }
+      param {
+        type: OPERATOR
+        operator {
+          name: "like"
+          param {
+            type: IDENT
+            identifier {
+              name: "first_name"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_OCTETS
+              v_octets {
+                value: "%ham%"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+actor_id	first_name	last_name	is_active
+3	Abraham	Vega	1
+4	Jennifer	Leon	0
+5	Jhonny	Test	1
+command ok
+Find specific row with &&, <= and >= Operators
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "&&"
+      param {
+        type: OPERATOR
+        operator {
+          name: "<="
+          param {
+            type: IDENT
+            identifier {
+              name: "actor_id"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 4
+            }
+          }
+        }
+      }
+      param {
+        type: OPERATOR
+        operator {
+          name: ">="
+          param {
+            type: IDENT
+            identifier {
+              name: "actor_id"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 2
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+actor_id	first_name	last_name	is_active
+2	Gonzalo	Crhystens	0
+3	Abraham	Vega	1
+4	Jennifer	Leon	0
+command ok
+Find specific row with &&, < and > Operators
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "&&"
+      param {
+        type: OPERATOR
+        operator {
+          name: "<"
+          param {
+            type: IDENT
+            identifier {
+              name: "actor_id"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 4
+            }
+          }
+        }
+      }
+      param {
+        type: OPERATOR
+        operator {
+          name: ">"
+          param {
+            type: IDENT
+            identifier {
+              name: "actor_id"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 2
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+actor_id	first_name	last_name	is_active
+3	Abraham	Vega	1
+command ok
+Find specific row with like Operator using string
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "like"
+      param {
+        type: IDENT
+        identifier {
+          name: "first_name"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_STRING
+          v_string {
+            value: "%on%"
+          }
+        }
+      }
+    }
+  }
+}
+
+actor_id	first_name	last_name	is_active
+2	Gonzalo	Crhystens	0
+5	Jhonny	Test	1
+command ok
+Find specific row with != Operator with order desc
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "!="
+      param {
+        type: IDENT
+        identifier {
+          name: "first_name"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_STRING
+          v_string {
+            value: "Omar"
+          }
+        }
+      }
+    }
+  }
+  order {
+    expr {
+      type: IDENT
+      identifier {
+        name: "last_name"
+      }
+    }
+    direction: DESC
+  }
+}
+
+actor_id	first_name	last_name	is_active
+3	Abraham	Vega	1
+5	Jhonny	Test	1
+1	Victor	Otero	1
+4	Jennifer	Leon	0
+2	Gonzalo	Crhystens	0
+command ok
+Find specific row with != Operator with order asc
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "!="
+      param {
+        type: IDENT
+        identifier {
+          name: "first_name"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_STRING
+          v_string {
+            value: "Omar"
+          }
+        }
+      }
+    }
+  }
+  order {
+    expr {
+      type: IDENT
+      identifier {
+        name: "last_name"
+      }
+    }
+    direction: ASC
+  }
+}
+
+actor_id	first_name	last_name	is_active
+2	Gonzalo	Crhystens	0
+4	Jennifer	Leon	0
+1	Victor	Otero	1
+5	Jhonny	Test	1
+3	Abraham	Vega	1
+command ok
+Find using not available schema name
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "noavailableschema"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "actor_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 1
+        }
+      }
+    }
+  }
+}
+
+Got expected error: Table 'noavailableschema.actor' doesn't exist (code 1146)
+Find using not available table name
+send Mysqlx.Crud.Find {
+  collection {
+    name: "notavailableatable"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "actor_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 1
+        }
+      }
+    }
+  }
+}
+
+Got expected error: Table 'minisakila.notavailableatable' doesn't exist (code 1146)
+Find using not available column name
+send Mysqlx.Crud.Find {
+  collection {
+    name: "actor"
+    schema: "minisakila"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "notavailablecolumn"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 1
+        }
+      }
+    }
+  }
+}
+
+Got expected error: Unknown column 'notavailablecolumn' in 'where clause' (code 1054)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+RUN DROP SCHEMA if EXISTS mysqlxcoll
+
+0 rows affected
+RUN CREATE SCHEMA mysqlxcoll
+
+1 rows affected
+RUN USE mysqlxcoll
+
+0 rows affected
+RUN CREATE TABLE maincoll (doc JSON, _id VARCHAR(32) NOT NULL PRIMARY KEY)
+
+0 rows affected
+RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "1", "name": "Victor", "last_name": "Otero","amount": 4.99}',json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "2", "name": "Gonzalo", "last_name": "Crhystens","amount": 120.57}',json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "3", "name": "Abraham", "last_name": "Vega","amount": 74.56}',json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "4", "name": "Jennifer", "last_name": "Leon","amount": 387.14}',json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+RUN INSERT INTO maincoll (doc, _id) values ('{"_id": "5", "name": "Jhonny", "last_name": "Test","amount": 125.45}',json_unquote(json_extract(doc, '$._id')))
+
+1 rows affected
+Collection based scenarios
+Find all the rows including all metadata
+send Mysqlx.Crud.Find {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  name: "doc"
+  original_name: "doc"
+  table: "maincoll"
+  original_table: "maincoll"
+  schema: "mysqlxcoll"
+  catalog: "def"
+  collation: 63
+  fractional_digits: 0
+  length: 4294967295
+  flags: 0
+  content_type: 2
+}
+
+Mysqlx.Resultset.Row {
+  field: "{\"_id\": \"1\", \"name\": \"Victor\", \"amount\": 4.99, \"last_name\": \"Otero\"}\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "{\"_id\": \"2\", \"name\": \"Gonzalo\", \"amount\": 120.57, \"last_name\": \"Crhystens\"}\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "{\"_id\": \"3\", \"name\": \"Abraham\", \"amount\": 74.56, \"last_name\": \"Vega\"}\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "{\"_id\": \"4\", \"name\": \"Jennifer\", \"amount\": 387.14, \"last_name\": \"Leon\"}\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "{\"_id\": \"5\", \"name\": \"Jhonny\", \"amount\": 125.45, \"last_name\": \"Test\"}\000"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
+Find all the rows without all metadata
+send Mysqlx.Crud.Find {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+}
+
+doc
+{"_id": "1", "name": "Victor", "amount": 4.99, "last_name": "Otero"}
+{"_id": "2", "name": "Gonzalo", "amount": 120.57, "last_name": "Crhystens"}
+{"_id": "3", "name": "Abraham", "amount": 74.56, "last_name": "Vega"}
+{"_id": "4", "name": "Jennifer", "amount": 387.14, "last_name": "Leon"}
+{"_id": "5", "name": "Jhonny", "amount": 125.45, "last_name": "Test"}
+command ok
+ Find with limit row count and offset
+send Mysqlx.Crud.Find {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+  limit {
+    row_count: 2
+    offset: 3
+  }
+}
+
+doc
+{"_id": "4", "name": "Jennifer", "amount": 387.14, "last_name": "Leon"}
+{"_id": "5", "name": "Jhonny", "amount": 125.45, "last_name": "Test"}
+command ok
+ Find with limit row count
+send Mysqlx.Crud.Find {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+  limit {
+    row_count: 3
+  }
+}
+
+doc
+{"_id": "1", "name": "Victor", "amount": 4.99, "last_name": "Otero"}
+{"_id": "2", "name": "Gonzalo", "amount": 120.57, "last_name": "Crhystens"}
+{"_id": "3", "name": "Abraham", "amount": 74.56, "last_name": "Vega"}
+command ok
+Find specific row with == Operator
+send Mysqlx.Crud.Find {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+}
+
+doc
+{"_id": "1", "name": "Victor", "amount": 4.99, "last_name": "Otero"}
+command ok
+Find specific row with != Operator
+send Mysqlx.Crud.Find {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "!="
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "name"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "Jhonny"
+          }
+        }
+      }
+    }
+  }
+}
+
+doc
+{"_id": "1", "name": "Victor", "amount": 4.99, "last_name": "Otero"}
+{"_id": "2", "name": "Gonzalo", "amount": 120.57, "last_name": "Crhystens"}
+{"_id": "3", "name": "Abraham", "amount": 74.56, "last_name": "Vega"}
+{"_id": "4", "name": "Jennifer", "amount": 387.14, "last_name": "Leon"}
+command ok
+Find specific row with like Operator
+send Mysqlx.Crud.Find {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "like"
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "name"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "%er%"
+          }
+        }
+      }
+    }
+  }
+}
+
+doc
+{"_id": "4", "name": "Jennifer", "amount": 387.14, "last_name": "Leon"}
+command ok
+Find specific row with && and like Operators
+send Mysqlx.Crud.Find {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "&&"
+      param {
+        type: OPERATOR
+        operator {
+          name: "like"
+          param {
+            type: IDENT
+            identifier {
+              document_path {
+                type: MEMBER
+                value: "name"
+              }
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_OCTETS
+              v_octets {
+                value: "%er%"
+              }
+            }
+          }
+        }
+      }
+      param {
+        type: OPERATOR
+        operator {
+          name: "like"
+          param {
+            type: IDENT
+            identifier {
+              document_path {
+                type: MEMBER
+                value: "last_name"
+              }
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_OCTETS
+              v_octets {
+                value: "%on%"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+doc
+{"_id": "4", "name": "Jennifer", "amount": 387.14, "last_name": "Leon"}
+command ok
+Find specific row with || and in Operators
+send Mysqlx.Crud.Find {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "||"
+      param {
+        type: OPERATOR
+        operator {
+          name: "in"
+          param {
+            type: IDENT
+            identifier {
+              name: "_id"
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 3
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_SINT
+              v_signed_int: 4
+            }
+          }
+        }
+      }
+      param {
+        type: OPERATOR
+        operator {
+          name: "like"
+          param {
+            type: IDENT
+            identifier {
+              document_path {
+                type: MEMBER
+                value: "name"
+              }
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_OCTETS
+              v_octets {
+                value: "Gonzalo"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+doc
+{"_id": "2", "name": "Gonzalo", "amount": 120.57, "last_name": "Crhystens"}
+{"_id": "3", "name": "Abraham", "amount": 74.56, "last_name": "Vega"}
+{"_id": "4", "name": "Jennifer", "amount": 387.14, "last_name": "Leon"}
+command ok
+Find specific row with not_in Operators
+send Mysqlx.Crud.Find {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "not_in"
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "2"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "3"
+          }
+        }
+      }
+    }
+  }
+}
+
+doc
+{"_id": "4", "name": "Jennifer", "amount": 387.14, "last_name": "Leon"}
+{"_id": "5", "name": "Jhonny", "amount": 125.45, "last_name": "Test"}
+command ok
+Find specific row with &&, <= and >= Operators
+send Mysqlx.Crud.Find {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "&&"
+      param {
+        type: OPERATOR
+        operator {
+          name: "<="
+          param {
+            type: IDENT
+            identifier {
+              document_path {
+                type: MEMBER
+                value: "amount"
+              }
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_DOUBLE
+              v_double: 120.57
+            }
+          }
+        }
+      }
+      param {
+        type: OPERATOR
+        operator {
+          name: ">="
+          param {
+            type: IDENT
+            identifier {
+              document_path {
+                type: MEMBER
+                value: "amount"
+              }
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_DOUBLE
+              v_double: 4.99
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+doc
+{"_id": "1", "name": "Victor", "amount": 4.99, "last_name": "Otero"}
+{"_id": "2", "name": "Gonzalo", "amount": 120.57, "last_name": "Crhystens"}
+{"_id": "3", "name": "Abraham", "amount": 74.56, "last_name": "Vega"}
+command ok
+Find specific row with &&, < and > Operators
+send Mysqlx.Crud.Find {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "&&"
+      param {
+        type: OPERATOR
+        operator {
+          name: "<"
+          param {
+            type: IDENT
+            identifier {
+              document_path {
+                type: MEMBER
+                value: "amount"
+              }
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_DOUBLE
+              v_double: 120.57
+            }
+          }
+        }
+      }
+      param {
+        type: OPERATOR
+        operator {
+          name: ">"
+          param {
+            type: IDENT
+            identifier {
+              document_path {
+                type: MEMBER
+                value: "amount"
+              }
+            }
+          }
+          param {
+            type: LITERAL
+            literal {
+              type: V_DOUBLE
+              v_double: 4.99
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+doc
+{"_id": "3", "name": "Abraham", "amount": 74.56, "last_name": "Vega"}
+command ok
+Find with not available schema name
+send Mysqlx.Crud.Find {
+  collection {
+    name: "maincoll"
+    schema: "notavailableschema"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "not_in"
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "=="
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+}
+
+Got expected error: Table 'notavailableschema.maincoll' doesn't exist (code 1146)
+Find with not available table name
+send Mysqlx.Crud.Find {
+  collection {
+    name: "notavailabletable"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+}
+
+Got expected error: Table 'mysqlxcoll.notavailabletable' doesn't exist (code 1146)
+Find with not available column name
+send Mysqlx.Crud.Find {
+  collection {
+    name: "maincoll"
+    schema: "mysqlxcoll"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "notavailablecolumn"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {
+            value: "1"
+          }
+        }
+      }
+    }
+  }
+}
+
+doc
+command ok
+================================================================================
+CLEAN UP
+================================================================================
+RUN DROP SCHEMA IF EXISTS minisakila
+
+1 rows affected
+RUN DROP SCHEMA IF EXISTS mysqlxcoll
+
+1 rows affected
+RUN DROP USER crudfinduser@localhost
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+================================================================================
+POSTAMBLE
+================================================================================
+uninstall plugin mysqlx;

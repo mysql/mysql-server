@@ -806,7 +806,7 @@ XA END     'one_phase_trx_4';
 XA COMMIT  'one_phase_trx_4' ONE PHASE;
 DROP TABLE t;
 DROP VIEW v_processlist;
-include/assert.inc [committed gno 130]
+include/assert.inc [committed gno 131]
 All transactions must be completed, to empty-list the following:
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data

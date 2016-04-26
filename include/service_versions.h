@@ -35,4 +35,4 @@
 #define VERSION_locking_service 0x0100
 #define VERSION_srv_session_info_service 0x0100
 #define VERSION_srv_session_service      0x0100
-#define VERSION_mysql_keyring_file_service 0x0100
+#define VERSION_mysql_keyring_service 0x0100

@@ -2,7 +2,7 @@
 SET @@session.range_optimizer_max_mem_size = DEFAULT;
 SELECT @@session.range_optimizer_max_mem_size;
 @@session.range_optimizer_max_mem_size
-1536000
+8388608
 # Change the value of range_optimizer_max_mem_size to a valid
 # value for SESSION Scope
 SET @@session.range_optimizer_max_mem_size = 4000;
@@ -30,7 +30,7 @@ SET @@session.range_optimizer_max_mem_size = DEFAULT;
 SELECT * FROM INFORMATION_SCHEMA.SESSION_VARIABLES
 WHERE VARIABLE_NAME='range_optimizer_max_mem_size';
 VARIABLE_NAME	VARIABLE_VALUE
-RANGE_OPTIMIZER_MAX_MEM_SIZE	1536000
+RANGE_OPTIMIZER_MAX_MEM_SIZE	8388608
 # Check if TRUE and FALSE values can be used on variable
 SET @@session.range_optimizer_max_mem_size = TRUE;
 SELECT @@session.range_optimizer_max_mem_size;
@@ -44,5 +44,5 @@ SELECT @@session.range_optimizer_max_mem_size;
 SET @@session.range_optimizer_max_mem_size = DEFAULT;
 SELECT @@session.range_optimizer_max_mem_size;
 @@session.range_optimizer_max_mem_size
-1536000
+8388608
 # END OF range_optimizer_max_mem_size TESTS

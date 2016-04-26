@@ -80,7 +80,7 @@ my_bool Keys_container::store_key(IKeyring_io* keyring_io, IKey* key)
   keyring_io->open(&keyring_storage_url);
   if (flush_to_backup(keyring_io) || store_key_in_hash(key))
     return TRUE;//keyring_io destructor will take care of removing the backup(if exists)
-  if (flush_to_keyring(keyring_io) || keyring_io->close())
+  if (flush_to_keyring(keyring_io, key, STORE_KEY) || keyring_io->close())
   {
     remove_key_from_hash(key);
     return TRUE;
@@ -133,7 +133,7 @@ my_bool Keys_container::remove_key(IKeyring_io *keyring_io, IKey *key)
     return TRUE;
   if (flush_to_backup(keyring_io) || remove_key_from_hash(fetched_key_to_delete))
     return TRUE;//keyring_io destructor will take care of removing the backup(if exists)
-  if (flush_to_keyring(keyring_io) || keyring_io->close())
+  if (flush_to_keyring(keyring_io, fetched_key_to_delete, REMOVE_KEY) || keyring_io->close())
   {
     //reinsert the key
     store_key_in_hash(fetched_key_to_delete);
@@ -168,7 +168,7 @@ my_bool Keys_container::load_keys_from_keyring_storage(IKeyring_io *keyring_io)
   if(was_error)
   {
     logger->log(MY_ERROR_LEVEL, "Error while loading keyring content. "
-                                "The keyring file might be malformed");
+                                "The keyring might be malformed");
     memory_needed_to_flush_to_disk= 0;
   }
   delete key_loaded;
@@ -192,9 +192,11 @@ my_bool Keys_container::upload_keys_into_output_buffer(IKeyring_io *keyring_io)
   return FALSE;
 }
 
-my_bool Keys_container::flush_to_keyring(IKeyring_io *keyring_io)
+my_bool Keys_container::flush_to_keyring(IKeyring_io *keyring_io, IKey *key,
+                                         Flush_operation operation)
 {
-  if(flush_by(keyring_io, &IKeyring_io::flush_to_keyring))
+  if (upload_keys_into_output_buffer(keyring_io) ||
+      keyring_io->flush_to_keyring(key, operation))
   {
     logger->log(MY_ERROR_LEVEL, "Could not flush keys to keyring");
     return TRUE;
@@ -204,19 +206,13 @@ my_bool Keys_container::flush_to_keyring(IKeyring_io *keyring_io)
 
 my_bool Keys_container::flush_to_backup(IKeyring_io *keyring_io)
 {
-  if(flush_by(keyring_io, &IKeyring_io::flush_to_backup))
+  if (upload_keys_into_output_buffer(keyring_io) ||
+      keyring_io->flush_to_backup())
   {
     logger->log(MY_ERROR_LEVEL, "Could not flush keys to keyring's backup");
     return TRUE;
   }
   return FALSE;
-}
-
-my_bool Keys_container::flush_by(IKeyring_io *keyring_io, my_bool (IKeyring_io::*flush)())
-{
-  if (upload_keys_into_output_buffer(keyring_io))
-    return TRUE;
-  return (keyring_io->*flush)();
 }
 
 } //namespace keyring

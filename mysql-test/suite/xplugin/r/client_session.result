@@ -1,0 +1,11 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+call mtr.add_suppression("Plugin mysqlx reported: .*Could not open internal MySQL session.");
+call mtr.add_suppression("Plugin mysqlx reported: ..: Error initializing session for connection: Could not open session.");
+call mtr.add_suppression("Plugin mysqlx reported: .Kill client: 1040 Too many connections.");
+SET @max = @@GLOBAL.MAX_CONNECTIONS;
+SET @@GLOBAL.MAX_CONNECTIONS=3;
+SET @@GLOBAL.MYSQLX_MAX_CONNECTIONS=30;
+SET @@GLOBAL.MAX_CONNECTIONS=@max;
+UNINSTALL PLUGIN mysqlx;

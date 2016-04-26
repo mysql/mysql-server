@@ -1,0 +1,33 @@
+# We currently only have shm support on windows, so in order
+# to optimize things we skip this test on all other platforms
+--source include/windows.inc
+--source include/not_embedded.inc
+--source include/have_shm.inc
+
+let $shm_name= query_get_value("SHOW GLOBAL VARIABLES LIKE 'shared_memory_base_name'", Value, 1);
+
+# Connect using SHM for testing
+connect(shm_con,localhost,root,,,,$shm_name,SHM);
+
+connection default;
+
+# Disconnect shared memory connection prior to restarting server to avoid
+# shared memory reconnect bug.
+disconnect shm_con;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+# Restart server
+--exec echo "restart" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+# Restarting server above will fail when Bug #22646779 is not fixed
+
+# Connect using SHM for testing
+connect(shm_con,localhost,root,,,,$shm_name,SHM);
+connection shm_con;
+
+SELECT 100;

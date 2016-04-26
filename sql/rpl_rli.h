@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -295,6 +295,16 @@ public:
     gtid_set.ensure_sidno(sidno);
     gtid_set._add_gtid(sidno, gno);
   }
+
+  /**
+    Adds a GTID set to received GTID set.
+
+    @param gtid_set the gtid_set to add
+
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
+  enum_return_status add_gtid_set(const Gtid_set *gtid_set);
+
   const Gtid_set *get_gtid_set() const { return &gtid_set; }
 
   int init_relay_log_pos(const char* log,
@@ -1086,6 +1096,11 @@ public:
     with several warning messages.
   */
   bool reported_unsafe_warning;
+
+  /*
+    'sql_thread_kill_accepted is set to TRUE when killed status is recognized.
+  */
+  bool sql_thread_kill_accepted;
 
   time_t get_row_stmt_start_timestamp()
   {

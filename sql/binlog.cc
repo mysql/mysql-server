@@ -2241,7 +2241,11 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
 end:
   /* Deferred xa rollback to engines */
   if (!error && thd->lex->sql_command == SQLCOM_XA_ROLLBACK)
+  {
     error= ha_rollback_low(thd, all);
+    /* Successful XA-rollback commits the new gtid_state */
+    gtid_state->update_on_commit(thd);
+  }
   /*
     When a statement errors out on auto-commit mode it is rollback
     implicitly, so the same should happen to its GTID.

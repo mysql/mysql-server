@@ -96,6 +96,8 @@ SELECT @@null_audit_event_order_check;
 @@null_audit_event_order_check
 EVENT-ORDER-OK
 # SHOW GLOBAL VARIABLE
+SET @old_show_compatibility_56=@@global.show_compatibility_56;
+SET @@global.show_compatibility_56=ON;
 SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
                                      'MYSQL_AUDIT_PARSE_PREPARSE;;;'
                                      'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
@@ -111,6 +113,23 @@ EVENT-ORDER-ABORT
 SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
 Variable_name	Value
 null_audit_abort_value	1
+SET @@global.show_compatibility_56=OFF;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                     'MYSQL_AUDIT_QUERY_START;sql_command_id="15";;'
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;<IGNORE>;ABORT_RET',
+@@null_audit_event_order_check_exact = 1;
+SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_GLOBAL_VARIABLE_GET';1).
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
+Variable_name	Value
+null_audit_abort_value	1
+SET @@global.show_compatibility_56=@old_show_compatibility_56;
 # SHOW GLOBAL VARIABLE
 SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
                                           'MYSQL_AUDIT_PARSE_PREPARSE;;;'
@@ -1579,7 +1598,7 @@ SELECT USER(), CURRENT_USER();
 USER()	CURRENT_USER()
 user1@localhost	user1@%
 # Try to change user for a given connection (user and database specified)
-mysqltest: At line 1: change user failed: Access denied for user 'user2'@'%' to database 'mysql'
+ERROR 42000: Access denied for user 'user2'@'%' to database 'mysql'
 SELECT USER(), CURRENT_USER();
 USER()	CURRENT_USER()
 user1@localhost	user1@%
@@ -1614,18 +1633,19 @@ SET @@GLOBAL.null_audit_event_order_check = NULL,
 #--COM_CHANGE_USER
 SET @@GLOBAL.null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="17";ABORT_RET';
 # Try to change user for a given connection (user and database specified)
-mysqltest: At line 1: change user failed: Aborted by Audit API ('MYSQL_AUDIT_COMMAND_START';1).
+ERROR 42000: Access denied for user 'user2'@'%' to database 'mysql'
 # Allow 'user2' to use 'mysql' database.
 GRANT ALL ON mysql.* TO user2;
 # Change user with 'mysql' as initial database
+ERROR HY000: Aborted by Audit API ('MYSQL_AUDIT_COMMAND_START';1).
 SELECT USER(), CURRENT_USER();
 USER()	CURRENT_USER()
-user2@localhost	user2@%
+user1@localhost	user1@%
 # Reset connection
 SET @@GLOBAL.null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="31";ABORT_RET';
 SELECT USER(), CURRENT_USER();
 USER()	CURRENT_USER()
-user2@localhost	user2@%
+user1@localhost	user1@%
 ## Should no take any effect. COM_QUIT should be possible.
 SET @@GLOBAL.null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="1";ABORT_RET';
 SET @@GLOBAL.null_audit_event_order_check = NULL;

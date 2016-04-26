@@ -55,8 +55,7 @@ protected:
   my_bool store_key_in_hash(IKey *key);
   my_bool remove_key_from_hash(IKey *key);
   virtual my_bool flush_to_backup(IKeyring_io *keyring_io);
-  virtual my_bool flush_to_keyring(IKeyring_io *keyring_io);
-  my_bool flush_by(IKeyring_io *keyring_io, my_bool (IKeyring_io::*flush)());
+  virtual my_bool flush_to_keyring(IKeyring_io *keyring_io,IKey *key, Flush_operation operation);
 
   HASH keys_hash;
   size_t memory_needed_to_flush_to_disk;

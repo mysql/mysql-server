@@ -604,4 +604,18 @@ void Master_info::channel_wrlock()
   channel_map.assert_some_lock();
   m_channel_lock->wrlock();
 }
+
+void Master_info::wait_until_no_reference(THD *thd)
+{
+  PSI_stage_info *old_stage= NULL;
+
+  thd->enter_stage(&stage_waiting_for_no_channel_reference,
+                   old_stage, __func__, __FILE__, __LINE__);
+
+  while (references.atomic_get() != 0)
+    my_sleep(10000);
+
+  THD_STAGE_INFO(thd, *old_stage);
+}
+
 #endif /* HAVE_REPLICATION */
