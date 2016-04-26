@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -262,6 +262,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   {
     DBUG_RETURN(TRUE);
   }
+  THD_STAGE_INFO(thd, stage_executing);
   /*
     Let us emit an error if we are loading data to table which is used
     in subselect in SET clause like we do it for INSERT.

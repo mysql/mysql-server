@@ -25,6 +25,14 @@
 -- source include/not_embedded.inc
 -- source include/have_innodb_16k.inc
 
+CALL mtr.add_suppression("innodb_open_files should not be greater than the open_files_limit.");
+CALL mtr.add_suppression("Warning: you must raise the value of ");
+CALL mtr.add_suppression("  InnoDB: Warning: too many (.*) files stay open");
+CALL mtr.add_suppression(" while the maximum");
+CALL mtr.add_suppression("InnoDB: allowed value would be 1.");
+CALL mtr.add_suppression("InnoDB: You may need to raise the value of");
+CALL mtr.add_suppression(" innodb_open_files in");
+CALL mtr.add_suppression("InnoDB: my.cnf.");
 if (`select $PS_PROTOCOL != 0`)
 {
    --skip Test requires: ps-protocol disabled

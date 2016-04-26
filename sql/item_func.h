@@ -1,7 +1,7 @@
 #ifndef ITEM_FUNC_INCLUDED
 #define ITEM_FUNC_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -238,7 +238,7 @@ public:
     char buf[256];
     String str(buf, sizeof(buf), system_charset_info);
     str.length(0);
-    print(&str, QT_ORDINARY);
+    print(&str, QT_NO_DATA_EXPANSION);
     my_error(ER_DATA_OUT_OF_RANGE, MYF(0), type_name, str.c_ptr_safe());
   }
   inline double raise_float_overflow()

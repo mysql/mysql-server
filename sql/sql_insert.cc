@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1676,7 +1676,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
       else
         table->file->insert_id_for_cur_row= insert_id_for_cur_row;
       bool is_duplicate_key_error;
-      if (table->file->is_fatal_error(error, HA_CHECK_DUP))
+      if (table->file->is_fatal_error(error, HA_CHECK_DUP | HA_CHECK_FK_ERROR))
 	goto err;
       is_duplicate_key_error= table->file->is_fatal_error(error, 0);
       if (!is_duplicate_key_error)
@@ -1814,7 +1814,8 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
               error != HA_ERR_RECORD_IS_THE_SAME)
           {
             if (ignore_errors &&
-                !table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
+                !table->file->is_fatal_error(error, HA_CHECK_DUP_KEY |
+                                                    HA_CHECK_FK_ERROR))
             {
               goto ok_or_after_trg_err;
             }
@@ -1922,7 +1923,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
   {
     DEBUG_SYNC(thd, "write_row_noreplace");
     if (!ignore_errors ||
-        table->file->is_fatal_error(error, HA_CHECK_DUP))
+        table->file->is_fatal_error(error, HA_CHECK_DUP | HA_CHECK_FK_ERROR))
       goto err;
     table->file->restore_auto_increment(prev_insert_id);
     goto ok_or_after_trg_err;
@@ -1940,6 +1941,9 @@ ok_or_after_trg_err:
     my_safe_afree(key,table->s->max_unique_length,MAX_KEY_LENGTH);
   if (!table->file->has_transactions())
     thd->transaction.stmt.mark_modified_non_trans_table();
+  if (ignore_errors &&
+      !table->file->is_fatal_error(error, HA_CHECK_FK_ERROR))
+    warn_fk_constraint_violation(thd, table, error);
   DBUG_RETURN(trg_error);
 
 err:

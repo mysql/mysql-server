@@ -1,0 +1,45 @@
+# positive client tests
+# mysql
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-SHA
+Variable_name	Value
+Ssl_cipher	DHE-RSA-AES256-SHA
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(0);
+# mysqldump
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+INSERT INTO `t1` VALUES (0);
+# mysqladmin
+Warning: Using a password on the command line interface can be insecure.
+mysqld is alive
+# mysqlcheck
+test.t1                                            OK
+# mysqlimport
+CREATE TABLE words(a VARCHAR(255));
+test.words: Records: 70  Deleted: 0  Skipped: 0  Warnings: 0
+DROP TABLE words;
+# mysqlshow
+Database: test
++--------+
+| Tables |
++--------+
+| t1     |
++--------+
+# mysqlslap
+# mysqltest
+Output from mysqltest-x.inc
+DROP TABLE t1;
+# negative client tests
+# mysql
+Unknown value to --ssl-mode: ''. Use --ssl-mode=REQUIRED
+Unknown value to --ssl-mode: 'DERIUQER'. Use --ssl-mode=REQUIRED
+ERROR 2026 (HY000): --ssl-mode=REQUIRED option forbids non SSL connections
+ERROR 2026 (HY000): --ssl-mode=REQUIRED option forbids non SSL connections
+ERROR 2026 (HY000): --ssl-mode=REQUIRED option forbids non SSL connections
+
+End of tests

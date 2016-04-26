@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -369,6 +369,7 @@ static const uint MYSQL_START_TRANS_OPT_READ_WRITE         = 4;
 /* Flags for method is_fatal_error */
 #define HA_CHECK_DUP_KEY 1
 #define HA_CHECK_DUP_UNIQUE 2
+#define HA_CHECK_FK_ERROR 4
 #define HA_CHECK_DUP (HA_CHECK_DUP_KEY + HA_CHECK_DUP_UNIQUE)
 
 enum legacy_db_type
@@ -2153,7 +2154,10 @@ public:
     if (!error ||
         ((flags & HA_CHECK_DUP_KEY) &&
          (error == HA_ERR_FOUND_DUPP_KEY ||
-          error == HA_ERR_FOUND_DUPP_UNIQUE)))
+          error == HA_ERR_FOUND_DUPP_UNIQUE)) ||
+        ((flags & HA_CHECK_FK_ERROR) &&
+         (error == HA_ERR_ROW_IS_REFERENCED ||
+          error == HA_ERR_NO_REFERENCED_ROW)))
       return FALSE;
     return TRUE;
   }
@@ -3507,5 +3511,6 @@ inline const char *table_case_name(HA_CREATE_INFO *info, const char *name)
 
 void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag);
 void print_keydup_error(TABLE *table, KEY *key, myf errflag);
+void warn_fk_constraint_violation(THD *thd, TABLE *table, int error);
 
 #endif /* HANDLER_INCLUDED */

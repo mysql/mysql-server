@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1986,7 +1986,8 @@ wait_again:
 	if (max_doc_id && err == DB_SUCCESS) {
 		/* Sync fts cache for other fts indexes to keep all
 		fts indexes consistent in sync_doc_id. */
-		err = fts_sync_table(const_cast<dict_table_t*>(new_table));
+		err = fts_sync_table(const_cast<dict_table_t*>(new_table),
+				     false, true);
 
 		if (err == DB_SUCCESS) {
 			fts_update_next_doc_id(
