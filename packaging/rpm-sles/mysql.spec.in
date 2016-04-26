@@ -565,8 +565,13 @@ fi
 %attr(644, root, root) %{_mandir}/man1/myisamlog.1*
 %attr(644, root, root) %{_mandir}/man1/myisampack.1*
 %attr(644, root, root) %{_mandir}/man8/mysqld.8*
+%if 0%{?systemd}
+%exclude %{_mandir}/man1/mysqld_multi.1*
+%exclude %{_mandir}/man1/mysqld_safe.1*
+%else
 %attr(644, root, root) %{_mandir}/man1/mysqld_multi.1*
 %attr(644, root, root) %{_mandir}/man1/mysqld_safe.1*
+%endif
 %attr(644, root, root) %{_mandir}/man1/mysqldumpslow.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_secure_installation.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_upgrade.1*
@@ -685,6 +690,7 @@ fi
 %attr(644, root, root) %{_datadir}/mysql/magic
 %if 0%{?systemd}
 %attr(644, root, root) %{_unitdir}/mysql.service
+%attr(644, root, root) %{_unitdir}/mysql@.service
 %attr(644, root, root) %{_tmpfilesdir}/mysql.conf
 %else
 %attr(755, root, root) %{_sysconfdir}/init.d/mysql
