@@ -271,7 +271,6 @@ my @mysqld_rules=
  { 'ssl-cert' => \&fix_ssl_server_cert },
  { 'ssl-key' => \&fix_ssl_server_key },
  { 'loose-sha256_password_auto_generate_rsa_keys' => "0"},
- { 'early_plugin_load' => "" },
   );
 
 if (IS_WINDOWS)
@@ -499,12 +498,21 @@ sub resolve_at_variable {
   my $group_name=  join('.', @parts);
 
   $group_name =~ s/^\@//; # Remove at
-
-  my $from_group= $config->group($group_name)
-    or croak "There is no group named '$group_name' that ",
-      "can be used to resolve '$option_name'";
-
-  my $from= $from_group->value($option_name);
+  my $from;
+  
+  if ($group_name =~ "env")
+  {
+    $from = $ENV{$option_name};
+  } 
+  else
+  {
+    my $from_group= $config->group($group_name)
+      or croak "There is no group named '$group_name' that ",
+        "can be used to resolve '$option_name'";
+  
+    $from= $from_group->value($option_name);
+   }
+   
   $config->insert($group->name(), $option->name(), $from)
 }
 

@@ -1,0 +1,29 @@
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+--source include/no_protocol.inc
+--source include/not_windows.inc
+
+# Bug#79784 update setup_instruments do not affect the global
+# mutex/rwlock/cond
+
+# Verify instruments are off by default, per *.opt file
+select count(*) from performance_schema.setup_instruments
+  where enabled='YES'
+  and name like "wait/%";
+
+# Verify that we have instrumented objects
+select count(*) > 0 from performance_schema.mutex_instances;
+select count(*) > 0 from performance_schema.rwlock_instances;
+select count(*) > 0 from performance_schema.cond_instances;
+select count(*) > 0 from performance_schema.socket_instances;
+
+# Check for some known global objects.
+select NAME from performance_schema.mutex_instances
+  where NAME = "wait/synch/mutex/sql/LOCK_gdl";
+select NAME from performance_schema.rwlock_instances
+  where NAME = "wait/synch/rwlock/sql/LOCK_system_variables_hash";
+select NAME from performance_schema.cond_instances
+  where NAME = "wait/synch/cond/sql/COND_server_started";
+select EVENT_NAME from performance_schema.socket_instances
+  where EVENT_NAME = "wait/io/socket/sql/client_connection";

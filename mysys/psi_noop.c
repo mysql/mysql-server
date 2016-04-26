@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -812,11 +812,13 @@ static void register_memory_noop(const char *category NNN,
 
 static PSI_memory_key memory_alloc_noop(PSI_memory_key key NNN, size_t size NNN, struct PSI_thread ** owner NNN)
 {
+  *owner= NULL;
   return PSI_NOT_INSTRUMENTED;
 }
 
 static PSI_memory_key memory_realloc_noop(PSI_memory_key key NNN, size_t old_size NNN, size_t new_size NNN, struct PSI_thread ** owner NNN)
 {
+  *owner= NULL;
   return PSI_NOT_INSTRUMENTED;
 }
 

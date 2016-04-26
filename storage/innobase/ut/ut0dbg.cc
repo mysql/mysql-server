@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -42,8 +42,8 @@ ut_dbg_assertion_failed(
 		file, line);
 #else /* UNIV_HOTBACKUP */
 	fprintf(stderr,
-		"  InnoDB: Assertion failure in thread %lu"
-		" in file %s line %lu\n",
+		"  InnoDB: Assertion failure in thread " ULINTPF
+		" in file %s line " ULINTPF "\n",
 		os_thread_pf(os_thread_get_curr_id()),
 		innobase_basename(file), line);
 #endif /* UNIV_HOTBACKUP */

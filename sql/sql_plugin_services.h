@@ -153,7 +153,7 @@ static struct security_context_service_st security_context_handler={
 };
 #endif
 
-static struct mysql_keyring_file_service_st mysql_keyring_file_handler= {
+static struct mysql_keyring_service_st mysql_keyring_handler= {
   my_key_store,
   my_key_fetch,
   my_key_remove,
@@ -189,6 +189,6 @@ static struct st_service_ref list_of_services[]=
     VERSION_security_context_service, &security_context_handler },
 #endif
   { "mysql_locking_service", VERSION_locking_service, &locking_service_handler },
-  { "mysql_keyring_service", VERSION_mysql_keyring_file_service, &mysql_keyring_file_handler}
+  { "mysql_keyring_service", VERSION_mysql_keyring_service, &mysql_keyring_handler}
 };
 

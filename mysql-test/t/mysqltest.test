@@ -709,7 +709,7 @@ remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 
 # Too many errorcodes specified
 --error 1
---exec echo "--error 1,2,3,4,5,6,7,8,9,10,11" | $MYSQL_TEST 2>&1
+--exec echo "--error 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21" | $MYSQL_TEST 2>&1
 
 # Bug#22135383 MYSQLTEST FAILS TO PROPERLY GROUP AN EXPECTED ERROR
 #              CLAUSE AND ITS QUERY
@@ -742,6 +742,19 @@ if (1)
     DROP TABLE table_does_not_exist;
   }
 }
+
+# BUG#13687542 MTR BEHAVES WRONG WHEN EXECUTING 'ERROR $VAR' IN A LOOP
+--let $i= 0
+--let $error= 0
+while ($i < 3)
+{
+  --error $error
+  CREATE TABLE t1 (a INT);
+  --let $error= 1050
+  --inc $i
+}
+
+DROP TABLE t1;
 
 # ----------------------------------------------------------------------------
 # Test echo command
@@ -2871,14 +2884,14 @@ drop table t1;
 # Test change_user command
 # ----------------------------------------------------------------------------
 
---error 1
---exec echo "--change_user root,,inexistent" | $MYSQL_TEST 2>&1
+--error ER_BAD_DB_ERROR
+--change_user root,,inexistent
 
---error 1
---exec echo "--change_user inexistent,,test" | $MYSQL_TEST 2>&1
+--error ER_ACCESS_DENIED_ERROR
+--change_user inexistent,,test
 
---error 1
---exec echo "--change_user root,inexistent,test" | $MYSQL_TEST 2>&1
+--error ER_ACCESS_DENIED_ERROR
+--change_user root,inexistent,test
 
 --change_user
 --change_user root

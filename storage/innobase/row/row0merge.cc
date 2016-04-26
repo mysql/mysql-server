@@ -2631,7 +2631,8 @@ wait_again:
 	if (max_doc_id && err == DB_SUCCESS) {
 		/* Sync fts cache for other fts indexes to keep all
 		fts indexes consistent in sync_doc_id. */
-		err = fts_sync_table(const_cast<dict_table_t*>(new_table));
+		err = fts_sync_table(const_cast<dict_table_t*>(new_table),
+				     false, true);
 
 		if (err == DB_SUCCESS) {
 			fts_update_next_doc_id(
@@ -2821,9 +2822,9 @@ row_merge_blocks_copy(
 
 	DBUG_ENTER("row_merge_blocks_copy");
 	DBUG_PRINT("ib_merge_sort",
-		   ("fd=%d,%lu to fd=%d,%lu",
-		    file->fd, ulong(foffs0),
-		    of->fd, ulong(of->offset)));
+		   ("fd=%d," ULINTPF " to fd=%d," ULINTPF,
+		    file->fd, *foffs0,
+		    of->fd, of->offset));
 
 	heap = row_merge_heap_create(index, &buf, &offsets0, &offsets1);
 

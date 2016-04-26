@@ -644,7 +644,7 @@ SELECT _jsn | 2147483647 FROM at;
 _jsn | 2147483647
 2147483647
 Warnings:
-Warning	3156	Invalid JSON value for CAST to INTEGER: '{"a": 3}' from _jsn at row 1
+Warning	3156	Invalid JSON value for CAST to INTEGER from column _jsn at row 1
 SELECT _chr | 2147483647 FROM at;
 _chr | 2147483647
 2147483647
@@ -759,7 +759,7 @@ SELECT _jsn & 2147483647 FROM at;
 _jsn & 2147483647
 0
 Warnings:
-Warning	3156	Invalid JSON value for CAST to INTEGER: '{"a": 3}' from _jsn at row 1
+Warning	3156	Invalid JSON value for CAST to INTEGER from column _jsn at row 1
 SELECT _chr & 2147483647 FROM at;
 _chr & 2147483647
 0
@@ -874,7 +874,7 @@ SELECT _jsn ^ 2147483647 FROM at;
 _jsn ^ 2147483647
 2147483647
 Warnings:
-Warning	3156	Invalid JSON value for CAST to INTEGER: '{"a": 3}' from _jsn at row 1
+Warning	3156	Invalid JSON value for CAST to INTEGER from column _jsn at row 1
 SELECT _chr ^ 2147483647 FROM at;
 _chr ^ 2147483647
 2147483647
@@ -992,7 +992,7 @@ SELECT _jsn | x'cafebabe' FROM at;
 _jsn | x'cafebabe'
 3405691582
 Warnings:
-Warning	3156	Invalid JSON value for CAST to INTEGER: '{"a": 3}' from _jsn at row 1
+Warning	3156	Invalid JSON value for CAST to INTEGER from column _jsn at row 1
 SELECT _chr | x'cafebabe' FROM at;
 _chr | x'cafebabe'
 3405691582
@@ -1119,7 +1119,7 @@ SELECT _jsn & x'cafebabe' FROM at;
 _jsn & x'cafebabe'
 0
 Warnings:
-Warning	3156	Invalid JSON value for CAST to INTEGER: '{"a": 3}' from _jsn at row 1
+Warning	3156	Invalid JSON value for CAST to INTEGER from column _jsn at row 1
 SELECT _chr & x'cafebabe' FROM at;
 _chr & x'cafebabe'
 0
@@ -1246,7 +1246,7 @@ SELECT _jsn ^ x'cafebabe' FROM at;
 _jsn ^ x'cafebabe'
 3405691582
 Warnings:
-Warning	3156	Invalid JSON value for CAST to INTEGER: '{"a": 3}' from _jsn at row 1
+Warning	3156	Invalid JSON value for CAST to INTEGER from column _jsn at row 1
 SELECT _chr ^ x'cafebabe' FROM at;
 _chr ^ x'cafebabe'
 3405691582

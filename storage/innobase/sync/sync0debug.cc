@@ -1538,10 +1538,6 @@ sync_latch_meta_init()
 	LATCH_ADD(HASH_TABLE_RW_LOCK, SYNC_BUF_PAGE_HASH,
 		  hash_table_locks_key);
 
-#ifdef UNIV_DEBUG
-	LATCH_ADD(BUF_CHUNK_MAP_LATCH, SYNC_ANY_LATCH, buf_chunk_map_latch_key);
-#endif /* UNIV_DEBUG */
-
 	LATCH_ADD(SYNC_DEBUG_MUTEX, SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
 
 	LATCH_ADD(MASTER_KEY_ID_MUTEX, SYNC_NO_ORDER_CHECK, master_key_id_mutex_key);

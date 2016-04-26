@@ -142,6 +142,9 @@ SELECT @@null_audit_abort_value;
 SELECT @@null_audit_event_order_check;
 
 --echo # SHOW GLOBAL VARIABLE
+
+SET @old_show_compatibility_56=@@global.show_compatibility_56;
+SET @@global.show_compatibility_56=ON;
 SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
                                      'MYSQL_AUDIT_PARSE_PREPARSE;;;'
                                      'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
@@ -154,6 +157,25 @@ SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;
 SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
 SELECT @@null_audit_event_order_check;
 SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
+
+# With show_compatibility_56=0 we get audit notifications for all variables
+# and there's no stable order. So we just wait for the first and ignore the name
+SET @@global.show_compatibility_56=OFF;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                     'MYSQL_AUDIT_QUERY_START;sql_command_id="15";;'
+                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;<IGNORE>;ABORT_RET',
+         @@null_audit_event_order_check_exact = 1;
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_AUDIT_API_ABORT
+SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
+SELECT @@null_audit_event_order_check;
+SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
+
+SET @@global.show_compatibility_56=@old_show_compatibility_56;
+
 
 --echo # SHOW GLOBAL VARIABLE
 eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
@@ -1527,8 +1549,8 @@ CREATE USER user2;
 SELECT USER(), CURRENT_USER();
 
 --echo # Try to change user for a given connection (user and database specified)
---error 1
---exec echo "--change_user user2,,mysql" | $MYSQL_TEST 2>&1
+--error ER_DBACCESS_DENIED_ERROR
+--change_user user2,,mysql
 SELECT USER(), CURRENT_USER();
 
 connection default;
@@ -1578,8 +1600,8 @@ connection default;
 SET @@GLOBAL.null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="17";ABORT_RET';
 connection user1_con;
 --echo # Try to change user for a given connection (user and database specified)
---error 1
---exec echo "--change_user user2,,mysql" | $MYSQL_TEST 2>&1
+--error ER_DBACCESS_DENIED_ERROR
+--change_user user2,,mysql
 
 
 connection default;

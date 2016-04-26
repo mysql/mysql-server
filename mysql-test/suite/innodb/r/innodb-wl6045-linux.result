@@ -73,13 +73,13 @@ InnoDB File Checksum Utility.
 Filename = a.ibd
 Innochecksum: checking pages in range # to #
 page::#; log sequence number:first = #; second = #
-page::#; crc32 calculated = #; recorded checksum field# = # recorded checksum field# =#
+page::#; crc32 calculated = #; recorded checksum field# = # recorded checksum field# = #
 page::#; log sequence number:first = #; second = #
-page::#; crc32 calculated = #; recorded checksum field# = # recorded checksum field# =#
+page::#; crc32 calculated = #; recorded checksum field# = # recorded checksum field# = #
 page::#; log sequence number:first = #; second = #
-page::#; crc32 calculated = #; recorded checksum field# = # recorded checksum field# =#
+page::#; crc32 calculated = #; recorded checksum field# = # recorded checksum field# = #
 page::#; log sequence number:first = #; second = #
-page::#; crc32 calculated = #; recorded checksum field# = # recorded checksum field# =#
+page::#; crc32 calculated = #; recorded checksum field# = # recorded checksum field# = #
 page::#; log sequence number:first = #; second = #
 Page::# is empty and uncorrupted
 page::#; log sequence number:first = #; second = #

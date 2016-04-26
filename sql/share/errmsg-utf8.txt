@@ -7502,16 +7502,17 @@ ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
    eng "%-.192s cannot be performed on channel '%-.192s'."
 
 ER_INVALID_JSON_TEXT 22032
-  eng "Invalid JSON text: \"%s\" at position %u in value (or column) '%-.200s'."
+  eng "Invalid JSON text: \"%s\" at position %u in value for column '%-.200s'."
 
+# The last parameter is now always empty but kept for backward compatibility
 ER_INVALID_JSON_TEXT_IN_PARAM 22032
-  eng "Invalid JSON text in argument %u to function %s: \"%s\" at position %u in '%-.200s'."
+  eng "Invalid JSON text in argument %u to function %s: \"%s\" at position %u.%-.0s"
 
 ER_INVALID_JSON_BINARY_DATA
   eng "The JSON binary value contains invalid data."
 
 ER_INVALID_JSON_PATH 42000
-  eng "Invalid JSON path expression. The error is around character position %u in '%-.200s'."
+  eng "Invalid JSON path expression. The error is around character position %u.%-.200s"
 
 ER_INVALID_JSON_CHARSET 22032
   eng "Cannot create a JSON value from a string with CHARACTER SET '%s'."
@@ -7546,11 +7547,13 @@ ER_JSON_VACUOUS_PATH 42000
 ER_JSON_BAD_ONE_OR_ALL_ARG 42000
   eng "The oneOrAll argument to %s may take these values: 'one' or 'all'."
 
+# The second parameter is now always empty but kept for backward compatibility
 ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE 22003
-  eng "Out of range JSON value for CAST to %s: '%-.192s' from %s at row %ld"
+  eng "Out of range JSON value for CAST to %s%-.0s from column %s at row %ld"
 
+# The second parameter is now always empty but kept for backward compatibility
 ER_INVALID_JSON_VALUE_FOR_CAST 22018
-  eng "Invalid JSON value for CAST to %s: '%-.192s' from %s at row %ld"
+  eng "Invalid JSON value for CAST to %s%-.0s from column %s at row %ld"
 
 ER_JSON_DOCUMENT_TOO_DEEP 22032
   eng "The JSON document exceeds the maximum depth."
@@ -7638,6 +7641,10 @@ ER_INVALID_ENCRYPTION_OPTION
 
 ER_CANNOT_FIND_KEY_IN_KEYRING
   eng "Can't find master key from keyring, please check keyring plugin is loaded."
+
+ER_CAPACITY_EXCEEDED_IN_PARSER
+  eng "Parser bailed out for this query."
+
 #
 #  End of 5.7 error messages.
 #

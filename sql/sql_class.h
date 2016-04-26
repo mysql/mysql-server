@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -454,6 +454,7 @@ typedef struct system_variables
   ulong net_write_timeout;
   ulong optimizer_prune_level;
   ulong optimizer_search_depth;
+  ulonglong parser_max_mem_size;
   ulong range_optimizer_max_mem_size;
   ulong preload_buff_size;
   ulong profiling_history_size;
@@ -1761,7 +1762,9 @@ public:
     explicit Query_plan(THD *thd_arg)
       : thd(thd_arg),
         sql_command(SQLCOM_END),
-        modification_plan(NULL)
+        lex(NULL),
+        modification_plan(NULL),
+        is_ps(false)
     {}
 
     /**
@@ -1982,11 +1985,9 @@ public:
                 current_stmt_binlog_format == BINLOG_FORMAT_ROW);
     return current_stmt_binlog_format == BINLOG_FORMAT_ROW;
   }
-  /** Determine if binlogging is disabled for this session */
-  inline bool is_current_stmt_binlog_disabled() const
-  {
-    return (!(variables.option_bits & OPTION_BIN_LOG));
-  }
+
+  bool is_current_stmt_binlog_disabled() const;
+
   /** Tells whether the given optimizer_switch flag is on */
   inline bool optimizer_switch_flag(ulonglong flag) const
   {
@@ -2124,7 +2125,77 @@ public:
 private:
   std::auto_ptr<Transaction_ctx> m_transaction;
 
-  class Attachable_trx;
+  /** An utility struct for @c Attachable_trx */
+  struct Transaction_state
+  {
+    void backup(THD *thd);
+    void restore(THD *thd);
+
+    /// SQL-command.
+    enum_sql_command m_sql_command;
+
+    Query_tables_list m_query_tables_list;
+
+    /// Open-tables state.
+    Open_tables_backup m_open_tables_state;
+
+    /// SQL_MODE.
+    sql_mode_t m_sql_mode;
+
+    /// Transaction isolation level.
+    enum_tx_isolation m_tx_isolation;
+
+    /// Ha_data array.
+    Ha_data m_ha_data[MAX_HA];
+
+    /// Transaction_ctx instance.
+    Transaction_ctx *m_trx;
+
+    /// Transaction read-only state.
+    my_bool m_tx_read_only;
+
+    /// THD options.
+    ulonglong m_thd_option_bits;
+
+    /// Current transaction instrumentation.
+    PSI_transaction_locker *m_transaction_psi;
+
+    /// Server status flags.
+    uint m_server_status;
+  };
+
+  /**
+    Class representing read-only attachable transaction, encapsulates
+    knowledge how to backup state of current transaction, start
+    read-only attachable transaction in SE, finalize it and then restore
+    state of original transaction back. Also serves as a base class for
+    read-write attachable transaction implementation.
+  */
+  class Attachable_trx
+  {
+  public:
+    Attachable_trx(THD *thd);
+    virtual ~Attachable_trx();
+    virtual bool is_read_only() const { return true; }
+  protected:
+    /// THD instance.
+    THD *m_thd;
+
+    /// Transaction state data.
+    Transaction_state m_trx_state;
+
+  private:
+    Attachable_trx(const Attachable_trx &);
+    Attachable_trx &operator =(const Attachable_trx &);
+  };
+
+  /*
+    Forward declaration of a read-write attachable transaction class.
+    Its exact definition is located in the gtid module that proves its
+    safe usage. Any potential customer to the class must beware of a danger
+    of screwing the global transaction state through ha_commit_{stmt,trans}.
+  */
+  class Attachable_trx_rw;
 
   Attachable_trx *m_attachable_trx;
 
@@ -3449,25 +3520,39 @@ public:
 
 public:
   /**
-    Start an InnoDB attachable transaction.
-
+    Start a read-only attachable transaction.
     There must be no active attachable transactions (in other words, there can
     be only one active attachable transaction at a time).
   */
-  void begin_attachable_transaction();
+  void begin_attachable_ro_transaction();
 
   /**
-    End an active attachable transaction.
+    Start a read-write attachable transaction.
+    All the read-only class' requirements apply.
+    Additional requirements are documented along the class
+    declaration.
+  */
+  void begin_attachable_rw_transaction();
 
-    There must be active attachable transaction.
+  /**
+    End an active attachable transaction. Applies to both the read-only
+    and the read-write versions.
+    Note, that the read-write attachable transaction won't be terminated
+    inside this method.
+    To invoke the function there must be active attachable transaction.
   */
   void end_attachable_transaction();
 
   /**
     @return true if there is an active attachable transaction.
   */
-  bool is_attachable_transaction_active() const
-  { return m_attachable_trx != NULL; }
+  bool is_attachable_ro_transaction_active() const
+  { return m_attachable_trx != NULL && m_attachable_trx->is_read_only(); }
+
+  /**
+    @return true if there is an active rw attachable transaction.
+  */
+  bool is_attachable_rw_transaction_active() const;
 
 public:
   /*

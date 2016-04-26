@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -170,4 +170,23 @@ enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid &sid)
 
   BINLOG_ERROR(("Out of memory."), (ER_OUT_OF_RESOURCES, MYF(0)));
   RETURN_REPORTED_ERROR;
+}
+
+
+enum_return_status Sid_map::copy(Sid_map *dest)
+{
+  DBUG_ENTER("Sid_map::copy(Sid_map)");
+  enum_return_status return_status= RETURN_STATUS_OK;
+
+  rpl_sidno max_sidno= get_max_sidno();
+  for (rpl_sidno sidno= 1;
+       sidno <= max_sidno && return_status == RETURN_STATUS_OK;
+       sidno++)
+  {
+    rpl_sid sid;
+    sid.copy_from(sidno_to_sid(sidno));
+    return_status= dest->add_node(sidno, sid);
+  }
+
+  DBUG_RETURN(return_status);
 }

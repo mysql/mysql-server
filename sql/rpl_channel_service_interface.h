@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -244,6 +244,17 @@ int channel_get_thread_id(const char* channel,
     @retval >0 the gno
 */
 long long channel_get_last_delivered_gno(const char* channel, int sidno);
+
+/**
+  Adds server executed GTID set to channel received GTID set.
+
+  @param channel the channel name
+
+  @return the operation status
+    @retval 0      OK
+    @retval != 0   Error
+*/
+int channel_add_executed_gtids_to_received_gtids(const char* channel);
 
 /**
   Queues a event packet into the current active channel.

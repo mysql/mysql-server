@@ -23,14 +23,74 @@
 #define MYSQL_DEFAULT_KEYRINGFILE MYSQL_KEYRINGDIR"/keyring"
 #endif
 
-static int check_keyring_file_data(MYSQL_THD thd  __attribute__((unused)),
-                    struct st_mysql_sys_var *var  __attribute__((unused)),
-                    void *save, st_mysql_value *value)
-{
-  Buffered_file_io keyring_io(logger.get());
+using keyring::Buffered_file_io;
+using keyring::Key;
+using keyring::Keys_container;
+using keyring::Logger;
 
+my_bool create_keyring_dir_if_does_not_exist(const char *keyring_file_path)
+{
+  if (!keyring_file_path || strlen(keyring_file_path) == 0)
+    return TRUE;
+  char keyring_dir[FN_REFLEN];
+  size_t keyring_dir_length;
+  dirname_part(keyring_dir, keyring_file_path, &keyring_dir_length);
+  if (keyring_dir_length > 1 && (keyring_dir[keyring_dir_length-1] == FN_LIBCHAR ||
+                                 keyring_dir[keyring_dir_length-1] == FN_LIBCHAR2) )
+  {
+    keyring_dir[keyring_dir_length-1]= '\0';
+    --keyring_dir_length;
+  }
+  int flags=
+#ifdef _WIN32
+    0
+#else
+    S_IRWXU | S_IRGRP | S_IXGRP
+#endif
+    ;
+  if (strlen(keyring_dir) == 0)
+    return TRUE;
+  my_mkdir(keyring_dir, flags, MYF(0));
+  return FALSE;
+}
+
+int check_keyring_file_data(MYSQL_THD thd  __attribute__((unused)),
+                            struct st_mysql_sys_var *var  __attribute__((unused)),
+                            void *save, st_mysql_value *value)
+{
+  char            buff[FN_REFLEN+1];
+  const char      *keyring_filename;
+  int             len = sizeof(buff);
+  Buffered_file_io keyring_io(logger.get());
   boost::movelib::unique_ptr<IKeys_container> new_keys(new Keys_container(logger.get()));
-  return check_keyring_file_data(&keyring_io, ::boost::move(new_keys), thd, var, save, value);
+
+  (*(const char **) save)= NULL;
+  keyring_filename= value->val_str(value, buff, &len);
+  mysql_rwlock_wrlock(&LOCK_keyring);
+  if (create_keyring_dir_if_does_not_exist(keyring_filename))
+  {
+    mysql_rwlock_unlock(&LOCK_keyring);
+    logger->log(MY_ERROR_LEVEL, "keyring_file_data cannot be set to new value"
+      " as the keyring file cannot be created/accessed in the provided path");
+    return 1;
+  }
+  try
+  {
+    if (new_keys->init(&keyring_io, keyring_filename))
+    {
+      mysql_rwlock_unlock(&LOCK_keyring);
+      return 1;
+    }
+    *reinterpret_cast<IKeys_container **>(save)= new_keys.get();
+    new_keys.release();
+    mysql_rwlock_unlock(&LOCK_keyring);
+  }
+  catch (...)
+  {
+    mysql_rwlock_unlock(&LOCK_keyring);
+    return 1;
+  }
+  return(0);
 }
 
 static char *keyring_file_data_value= NULL;
@@ -44,7 +104,7 @@ static MYSQL_SYSVAR_STR(
   MYSQL_DEFAULT_KEYRINGFILE                                    /* default    */
 );
 
-static struct st_mysql_sys_var *keyring_system_variables[]= {
+static struct st_mysql_sys_var *keyring_file_system_variables[]= {
   MYSQL_SYSVAR(data),
   NULL
 };
@@ -85,37 +145,43 @@ static int keyring_init(MYSQL_PLUGIN plugin_info)
   }
   catch (...)
   {
+    if (logger != NULL)
+      logger->log(MY_ERROR_LEVEL, "keyring_file initialization failure due to internal"
+                                  " exception inside the plugin");
     return TRUE;
   }
+}
+
+int keyring_deinit(void *arg __attribute__((unused)))
+{
+  //not taking a lock here as the calls to keyring_deinit are serialized by
+  //the plugin framework
+  keys.reset();
+  logger.reset();
+  keyring_file_data.reset();
+  mysql_rwlock_destroy(&LOCK_keyring);
+  return 0;
+}
+
+my_bool mysql_key_fetch(const char *key_id, char **key_type, const char *user_id,
+                        void **key, size_t *key_len)
+{
+  return mysql_key_fetch<Buffered_file_io, Key>(key_id, key_type, user_id, key,
+                                                key_len);
 }
 
 my_bool mysql_key_store(const char *key_id, const char *key_type,
                         const char *user_id, const void *key, size_t key_len)
 {
-  try
-  {
-    Buffered_file_io keyring_io(logger.get());
-    return mysql_key_store(&keyring_io, key_id, key_type, user_id, key,
-                           key_len);
-  }
-  catch (...)
-  {
-    return TRUE;
-  }
+  return mysql_key_store<Buffered_file_io, Key>(key_id, key_type, user_id, key,
+                                                key_len);
 }
 
 my_bool mysql_key_remove(const char *key_id, const char *user_id)
 {
-  try
-  {
-    Buffered_file_io keyring_io(logger.get());
-    return mysql_key_remove(&keyring_io, key_id, user_id);
-  }
-  catch (...)
-  {
-    return TRUE;
-  }
+  return mysql_key_remove<Buffered_file_io, Key>(key_id, user_id);
 }
+
 
 my_bool mysql_key_generate(const char *key_id, const char *key_type,
                            const char *user_id, size_t key_len)
@@ -123,17 +189,28 @@ my_bool mysql_key_generate(const char *key_id, const char *key_type,
   try
   {
     Buffered_file_io keyring_io(logger.get());
-    return mysql_key_generate(&keyring_io, key_id, key_type, user_id, key_len);
+    boost::movelib::unique_ptr<IKey> key_candidate(new Key(key_id, key_type, user_id, NULL, 0));
+
+    boost::movelib::unique_ptr<uchar[]> key(new uchar[key_len]);
+    if (key.get() == NULL)
+      return TRUE;
+    memset(key.get(), 0, key_len);
+    if (is_keys_container_initialized == FALSE || check_key_for_writting(key_candidate.get(), "generating") ||
+        my_rand_buffer(key.get(), key_len))
+      return TRUE;
+
+    return mysql_key_store(key_id, key_type, user_id, key.get(), key_len) == TRUE;
   }
   catch (...)
   {
+    if (logger != NULL)
+      logger->log(MY_ERROR_LEVEL, "Failed to generate a key due to internal exception inside keyring_file plugin");
     return TRUE;
   }
-
 }
 
 /* Plugin type-specific descriptor */
-static struct st_mysql_keyring_file keyring_descriptor=
+static struct st_mysql_keyring keyring_descriptor=
 {
   MYSQL_KEYRING_INTERFACE_VERSION,
   mysql_key_store,
@@ -154,7 +231,7 @@ mysql_declare_plugin(keyring_file)
   keyring_deinit,                                         /*   deinit function (when unloaded) */
   0x0100,                                                 /*   version                         */
   NULL,                                                   /*   status variables                */
-  keyring_system_variables,                               /*   system variables                */
+  keyring_file_system_variables,                          /*   system variables                */
   NULL,
   0,
 }

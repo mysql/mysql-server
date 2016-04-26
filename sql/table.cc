@@ -6173,9 +6173,26 @@ void TABLE::mark_columns_used_by_index(uint index)
 
 /*
   mark columns used by key, but don't reset other fields
-  @param  index     index number
-  @param  bitmap    bitmap to mark
-  @param  key_parts Number of leading key parts to mark. Default is UINT_MAX.
+
+  The parameter key_parts is used for controlling how many of the
+  key_parts that will be marked in the bitmap. It has the following
+  interpretation:
+
+  = 0:                 Use all regular key parts from the key 
+                       (user_defined_key_parts)
+  >= actual_key_parts: Use all regular and extended columns
+  < actual_key_parts:  Use this exact number of key parts
+ 
+  To use all regular key parts, the caller can use the default value (0).
+  To use all regular and extended key parts, use UINT_MAX. 
+
+  @note The bit map is not cleared by this function. Only bits
+  corresponding to a column used by the index will be set. Bits
+  representing columns not used by the index will not be changed.
+
+  @param index     index number
+  @param bitmap    bitmap to mark
+  @param key_parts number of leading key parts to mark. Default is 0.
 
   @todo consider using actual_key_parts(key_info[index]) instead of
   key_info[index].user_defined_key_parts: if the PK suffix of a secondary
@@ -6186,10 +6203,14 @@ void TABLE::mark_columns_used_by_index_no_reset(uint index,
                                                 MY_BITMAP *bitmap,
                                                 uint key_parts)
 {
+  // If key_parts has the default value, then include user defined key parts
+  if (key_parts == 0)
+    key_parts= key_info[index].user_defined_key_parts;
+  else if (key_parts > key_info[index].actual_key_parts)
+    key_parts= key_info[index].actual_key_parts;
+
   KEY_PART_INFO *key_part= key_info[index].key_part;
-  KEY_PART_INFO *key_part_end=
-    key_part +
-    std::min(key_info[index].user_defined_key_parts, key_parts);
+  KEY_PART_INFO *key_part_end= key_part + key_parts;
   for (;key_part != key_part_end; key_part++)
     bitmap_set_bit(bitmap, key_part->fieldnr-1);
 }

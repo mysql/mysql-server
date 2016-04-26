@@ -15,6 +15,11 @@
 --echo #
 --echo # Bug#21074643: SERVER SETS OPEN_FILES_LIMIT UNCONDITIONALLY
 --echo #
+--echo # Filtering out the warning since platforms Solaris and osx set the
+--echo # open_files_limit to too low a value after setrlimit fails to set
+--echo # open_files_limit to 1000000
+
+CALL mtr.add_suppression("innodb_open_files should not be greater than the open_files_limit.");
 
 # .opt file tries to set limit to 1000000, but this should not work
 # so that the SELECT below should return 0.

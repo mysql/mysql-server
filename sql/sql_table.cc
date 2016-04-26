@@ -2727,7 +2727,13 @@ err:
                                    is_drop_tmp_if_exists_with_no_defaultdb/*suppress_use*/,
                                    0/*errcode*/);
       }
-      if (non_tmp_table_deleted)
+      /*
+        When the DROP TABLE command is used to drop a single table and if that
+        command fails then the query cannot generate 'partial results'. In
+        that case the query will not be written to the binary log.
+      */
+      if (non_tmp_table_deleted &&
+          (thd->lex->select_lex->table_list.elements > 1 || !error))
       {
         /// @see comment for mysql_bin_log.commit above.
         if (non_trans_tmp_table_deleted || trans_tmp_table_deleted ||
@@ -5773,7 +5779,8 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   /*
     We have to write the query before we unlock the tables.
   */
-  if (thd->is_current_stmt_binlog_format_row())
+  if (!thd->is_current_stmt_binlog_disabled() &&
+      thd->is_current_stmt_binlog_format_row())
   {
     /*
        Since temporary tables are not replicated under row-based
@@ -5821,6 +5828,21 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
               goto err;
             new_table= TRUE;
           }
+
+          /*
+            After opening a MERGE table add the children to the query list of
+            tables, so that children tables info can be used on "CREATE TABLE"
+            statement generation by the binary log.
+            Note that placeholders don't have the handler open.
+          */
+          if (table->table->file->extra(HA_EXTRA_ADD_CHILDREN_LIST))
+            goto err;
+
+          /*
+            As the reference table is temporary and may not exist on slave, we must
+            force the ENGINE to be present into CREATE TABLE.
+          */
+          create_info->used_fields|= HA_CREATE_USED_ENGINE;
 
           int result __attribute__((unused))=
             store_create_info(thd, table, &query,

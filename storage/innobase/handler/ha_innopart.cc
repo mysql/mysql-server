@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -227,14 +227,13 @@ Ha_innopart_share::set_v_templ(
 
 	if (ib_table->n_v_cols > 0) {
 		for (ulint i = 0; i < m_tot_parts; i++) {
-			if (m_table_parts[i]->vc_templ != NULL
-			    && m_table_parts[i]->get_ref_count() == 1) {
-				/* Clean and refresh the template */
-				dict_free_vc_templ(m_table_parts[i]->vc_templ);
-				m_table_parts[i]->vc_templ->vtempl = NULL;
-			} else {
+			if (m_table_parts[i]->vc_templ == NULL) {
 				m_table_parts[i]->vc_templ
 					= UT_NEW_NOKEY(dict_vcol_templ_t());
+				m_table_parts[i]->vc_templ->vtempl = NULL;
+			} else if (m_table_parts[i]->get_ref_count() == 1) {
+				/* Clean and refresh the template */
+				dict_free_vc_templ(m_table_parts[i]->vc_templ);
 				m_table_parts[i]->vc_templ->vtempl = NULL;
 			}
 
@@ -244,7 +243,6 @@ Ha_innopart_share::set_v_templ(
 					m_table_parts[i]->vc_templ,
 					NULL, true, name);
 			}
-
 		}
 	}
 }

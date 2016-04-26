@@ -2341,7 +2341,7 @@ a
 BB
 EXPLAIN SELECT a FROM t1 WHERE a='AA' GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	PRIMARY	PRIMARY	7	const	3	100.00	Using index
+1	SIMPLE	t1	NULL	range	PRIMARY	PRIMARY	7	NULL	1	100.00	Using where; Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` = 'AA') group by `test`.`t1`.`a`
 EXPLAIN SELECT a FROM t1 WHERE a='BB' GROUP BY a;
@@ -3762,3 +3762,35 @@ SELECT 1 FROM t WHERE b IN ('') GROUP BY  b ;
 1
 DROP TABLE t;
 # End of test#18486293.
+#
+# Bug#18109609: LOOSE INDEX SCAN IS NOT USED WHEN IT SHOULD
+#
+CREATE TABLE t1 (
+id INT AUTO_INCREMENT PRIMARY KEY,
+c1 INT,
+c2 INT,
+KEY(c1,c2));
+INSERT INTO t1(c1,c2) VALUES
+(1, 1), (1,2), (2,1), (2,2), (3,1), (3,2), (3,3), (4,1), (4,2), (4,3),
+(4,4), (4,5), (4,6), (4,7), (4,8), (4,9), (4,10), (4,11), (4,12), (4,13),
+(4,14), (4,15), (4,16), (4,17), (4,18), (4,19), (4,20),(5,5);
+EXPLAIN SELECT MAX(c2), c1 FROM t1 WHERE c1 = 4 GROUP BY c1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	c1	c1	5	NULL	7	100.00	Using where; Using index for group-by
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`c2`) AS `MAX(c2)`,`test`.`t1`.`c1` AS `c1` from `test`.`t1` where (`test`.`t1`.`c1` = 4) group by `test`.`t1`.`c1`
+FLUSH STATUS;
+SELECT MAX(c2), c1 FROM t1 WHERE c1 = 4 GROUP BY c1;
+MAX(c2)	c1
+20	4
+SHOW SESSION STATUS LIKE 'Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	3
+Handler_read_last	1
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+DROP TABLE t1;
+# End of test for Bug#18109609

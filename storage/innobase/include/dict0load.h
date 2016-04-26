@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -183,6 +183,14 @@ dict_save_data_dir_path(
 /*====================*/
 	dict_table_t*	table,		/*!< in/out: table */
 	char*		filepath);	/*!< in: filepath of tablespace */
+
+/** Get the first filepath from SYS_DATAFILES for a given space_id.
+@param[in]	space_id	Tablespace ID
+@return First filepath (caller must invoke ut_free() on it)
+@retval NULL if no SYS_DATAFILES entry was found. */
+char*
+dict_get_first_path(
+	ulint	space_id);
 
 /** Make sure the data_file_name is saved in dict_table_t if needed.
 Try to read it from the fil_system first, then from SYS_DATAFILES.

@@ -538,7 +538,7 @@ struct st_match_err
 
 struct st_expected_errors
 {
-  struct st_match_err err[10];
+  struct st_match_err err[20];
   uint count;
 };
 static struct st_expected_errors saved_expected_errors;
@@ -4272,7 +4272,12 @@ void do_change_user(struct st_command *command)
                       cur_con->name, ds_user.str, ds_passwd.str, ds_db.str));
 
   if (mysql_change_user(mysql, ds_user.str, ds_passwd.str, ds_db.str))
-    die("change user failed: %s", mysql_error(mysql));
+  {
+    handle_error(curr_command, mysql_errno(mysql), mysql_error(mysql),
+                 mysql_sqlstate(mysql), &ds_res);
+    mysql->reconnect= 1;
+    mysql_reconnect(&cur_con->mysql);
+  }
 
   dynstr_free(&ds_user);
   dynstr_free(&ds_passwd);
@@ -8793,6 +8798,13 @@ void get_command_type(struct st_command* command)
           "use # if you intended to write a comment");
     }
   }
+  DBUG_VOID_RETURN;
+}
+
+
+void update_expected_errors(struct st_command* command)
+{
+  DBUG_ENTER("update_expected_errors");
 
   /* Set expected error on command */
   memcpy(&command->expected_errors, &saved_expected_errors,
@@ -9172,6 +9184,9 @@ int main(int argc, char **argv)
     int current_line_inc = 1, processed = 0;
     if (command->type == Q_UNKNOWN || command->type == Q_COMMENT_WITH_COMMAND)
       get_command_type(command);
+
+    if(saved_expected_errors.count > 0)
+      update_expected_errors(command);
 
     if (parsing_disabled &&
         command->type != Q_ENABLE_PARSING &&

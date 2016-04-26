@@ -1429,3 +1429,26 @@ SELECT 1 FROM t WHERE b IN ('') GROUP BY  b ;
 DROP TABLE t;
 --echo # End of test#18486293.
 
+--echo #
+--echo # Bug#18109609: LOOSE INDEX SCAN IS NOT USED WHEN IT SHOULD
+--echo #
+
+CREATE TABLE t1 (
+id INT AUTO_INCREMENT PRIMARY KEY,
+c1 INT,
+c2 INT,
+KEY(c1,c2));
+
+INSERT INTO t1(c1,c2) VALUES
+(1, 1), (1,2), (2,1), (2,2), (3,1), (3,2), (3,3), (4,1), (4,2), (4,3),
+(4,4), (4,5), (4,6), (4,7), (4,8), (4,9), (4,10), (4,11), (4,12), (4,13),
+(4,14), (4,15), (4,16), (4,17), (4,18), (4,19), (4,20),(5,5);
+
+EXPLAIN SELECT MAX(c2), c1 FROM t1 WHERE c1 = 4 GROUP BY c1;
+FLUSH STATUS;
+SELECT MAX(c2), c1 FROM t1 WHERE c1 = 4 GROUP BY c1;
+SHOW SESSION STATUS LIKE 'Handler_read%';
+
+DROP TABLE t1;
+
+--echo # End of test for Bug#18109609

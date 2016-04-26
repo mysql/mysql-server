@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -453,7 +453,8 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd)
   DBUG_ASSERT(gtid_next->type != AUTOMATIC_GROUP ||
               thd->owned_gtid.is_empty());
 
-  if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_BEGIN) &&
+  if ((stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_BEGIN) ||
+       thd->lex->sql_command == SQLCOM_BEGIN) &&
       thd->in_active_multi_stmt_transaction() &&
       gtid_next->type == GTID_GROUP)
   {

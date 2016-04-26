@@ -449,7 +449,7 @@ bool trans_commit_stmt(THD *thd)
     Some code in MYSQL_BIN_LOG::commit and ha_commit_low() is not safe
     for attachable transactions.
   */
-  DBUG_ASSERT(!thd->is_attachable_transaction_active());
+  DBUG_ASSERT(!thd->is_attachable_ro_transaction_active());
 
   thd->get_transaction()->merge_unsafe_rollback_flags();
 
@@ -499,7 +499,7 @@ bool trans_rollback_stmt(THD *thd)
     Some code in MYSQL_BIN_LOG::rollback and ha_rollback_low() is not safe
     for attachable transactions.
   */
-  DBUG_ASSERT(!thd->is_attachable_transaction_active());
+  DBUG_ASSERT(!thd->is_attachable_ro_transaction_active());
 
   thd->get_transaction()->merge_unsafe_rollback_flags();
 
@@ -563,7 +563,7 @@ bool trans_commit_attachable(THD *thd)
   int res= 0;
 
   /* This function only handles attachable transactions. */
-  DBUG_ASSERT(thd->is_attachable_transaction_active());
+  DBUG_ASSERT(thd->is_attachable_ro_transaction_active());
 
   /*
     Since the attachable transaction is AUTOCOMMIT we only need to commit

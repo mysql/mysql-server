@@ -478,6 +478,38 @@ INSERT INTO t2 SET b=1;
 UPDATE t1, t2 SET t1.a=10, t2.a=20;
 DROP TABLE t1,t2;
 
+
+#
+# Bug#20836250 MYSQLBINLOG --VERBOSE FOR BINARY DATATYPE NOT SKIPPING '
+# (QUOTE) & \(BACKSLASH)
+#
+# Binary and Varbinary types in mysqlbinlog --verbose are displayed
+# as string types. Single quote(0x27) and back slash (0x5c)
+# should not be converted to it's string equalents (' and \ ) as
+# it confuses users with bad binary data output.
+#
+CREATE TABLE t1(a BINARY(16), b VARBINARY(32));
+INSERT INTO t1 VALUES (0x275c275c3132,0x5c78276566);
+UPDATE t1 SET a= 0x5c27;
+DELETE FROM t1 where b=0x5c78276566;
+DROP TABLE t1;
+
+# Since binlog content does not differntiate between binary and
+# non-binary data types, even the data in string data types also
+# will be affected by this patch. Now 'a''b' will now be seen
+# in mysqlbinlog -v -v as 'a\x27b' instead 'a'b' and 'a\x5cb'
+# instead of 'a\b'.
+
+CREATE TABLE t1(i INT, a CHAR(16), b VARCHAR(32));
+INSERT INTO t1 VALUES(1, 'a''b', 'a''b');
+INSERT INTO t1 VALUES(2, 'a\\b', 'a\\b');
+UPDATE t1 SET a='a\\b', b='a\\b'  WHERE i=1;
+UPDATE t1 SET a='a''b', b='a''b'  WHERE i=2;
+DELETE FROM t1 WHERE a='a''b' AND b='a''b';
+DELETE FROM t1 WHERE a='a\\b' AND b='a\\b';
+DROP TABLE t1;
+# End of Testing for Bug#20836250
+
 flush logs;
 
 let $MYSQLD_DATADIR= `select @@datadir`;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -888,11 +888,12 @@ public:
   */
   enum Type { IMPOSSIBLE, ALWAYS, MAYBE, KEY, KEY_SMALLER } type;
 
-  SEL_TREE(enum Type type_arg) :type(type_arg), n_ror_scans(0) {}
-  SEL_TREE() :type(KEY), n_ror_scans(0)
-  {
-    memset(keys, 0, sizeof(keys));
-  }
+  SEL_TREE(enum Type type_arg, MEM_ROOT *root, size_t num_keys)
+    : type(type_arg), keys(root, num_keys), n_ror_scans(0)
+  { }
+  SEL_TREE(MEM_ROOT *root, size_t num_keys) :
+    type(KEY), keys(root, num_keys), n_ror_scans(0)
+  { }
   /**
     Constructor that performs deep-copy of the SEL_ARG trees in
     'keys[]' and the index merge alternatives in 'merges'.
@@ -924,7 +925,7 @@ public:
     merit in range analyzer functions (e.g. get_mm_parts) returning a
     pointer to such SEL_TREE instead of NULL)
   */
-  SEL_ARG *keys[MAX_KEY];
+  Mem_root_array<SEL_ARG *, true> keys;
   key_map keys_map;        /* bitmask of non-NULL elements in keys */
 
   /*
@@ -1124,7 +1125,15 @@ void append_range(String *out,
 
 static SEL_TREE *tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
 static SEL_TREE *tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2);
-static SEL_TREE null_sel_tree(SEL_TREE::IMPOSSIBLE);
+/*
+  A null_sel_tree is used in get_func_mm_tree_from_in_predicate to pass
+  as an argument to tree_or. It is used only to influence the return
+  value from tree_or function.
+*/
+
+static MEM_ROOT null_root;
+static SEL_TREE null_sel_tree(SEL_TREE::IMPOSSIBLE, &null_root, 0);
+
 
 static SEL_ARG *sel_add(SEL_ARG *key1,SEL_ARG *key2);
 static SEL_ARG *key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2);
@@ -1293,11 +1302,11 @@ int SEL_IMERGE::or_sel_imerge_with_checks(RANGE_OPT_PARAM *param, SEL_IMERGE* im
 
 
 SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param):
-  Sql_alloc(), n_ror_scans(0)
+  Sql_alloc(), keys(param->mem_root, param->keys), n_ror_scans(0)
 {
   keys_map= arg->keys_map;
   type= arg->type;
-  for (uint idx= 0; idx < MAX_KEY; idx++)
+  for (uint idx= 0; idx < param->keys; idx++)
   {
     if (arg->keys[idx])
     {
@@ -5423,7 +5432,7 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
   {
     Cost_estimate sweep_cost;
     JOIN *join= info->param->thd->lex->select_lex->join;
-    const bool is_interrupted= join && join->tables == 1;
+    const bool is_interrupted= join && join->tables != 1;
 
     get_sweep_read_cost(info->param->table, double2rows(info->out_rows),
                         is_interrupted, &sweep_cost);
@@ -5759,8 +5768,8 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
                                        bool update_tbl_stats,
                                        const Cost_estimate *cost_est)
 {
-  uint idx;
-  SEL_ARG **key,**end, **key_to_read= NULL;
+  uint idx, best_idx;
+  SEL_ARG *key, *key_to_read= NULL;
   ha_rows best_records= 0;              /* protected by key_to_read */
   uint    best_mrr_flags= 0, best_buf_size= 0;
   TRP_RANGE* read_plan= NULL;
@@ -5778,16 +5787,17 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
 
   tree->ror_scans_map.clear_all();
   tree->n_ror_scans= 0;
-  for (idx= 0,key=tree->keys, end=key+param->keys; key != end; key++,idx++)
+  for (idx= 0; idx < param->keys; idx++)
   {
-    if (*key)
+    key= tree->keys[idx];
+    if (key)
     {
       ha_rows found_records;
       Cost_estimate cost;
       uint mrr_flags, buf_size;
       uint keynr= param->real_keynr[idx];
-      if ((*key)->type == SEL_ARG::MAYBE_KEY ||
-          (*key)->maybe_flag)
+      if (key->type == SEL_ARG::MAYBE_KEY ||
+          key->maybe_flag)
         param->needed_reg->set_bit(keynr);
 
       bool read_index_only= index_read_must_be_used ? TRUE :
@@ -5796,7 +5806,7 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
       Opt_trace_object trace_idx(trace);
       trace_idx.add_utf8("index", param->table->key_info[keynr].name);
 
-      found_records= check_quick_select(param, idx, read_index_only, *key,
+      found_records= check_quick_select(param, idx, read_index_only, key,
                                         update_tbl_stats, &mrr_flags,
                                         &buf_size, &cost);
 
@@ -5813,7 +5823,7 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
         String range_info;
         range_info.set_charset(system_charset_info);
         append_range_all_keyparts(&trace_range, NULL, &range_info,
-                                  *key, key_part, false);
+                                  key, key_part, false);
         trace_range.end(); // NOTE: ends the tracing scope
 
         trace_idx.add("index_dives_for_eq_ranges", !param->use_index_statistics).
@@ -5838,6 +5848,7 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
         read_cost= cost;
         best_records= found_records;
         key_to_read=  key;
+        best_idx= idx;
         best_mrr_flags= mrr_flags;
         best_buf_size=  buf_size;
       }
@@ -5845,7 +5856,7 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
       {
         trace_idx.add("chosen", false);
         if (found_records == HA_POS_ERROR)
-          if ((*key)->type == SEL_ARG::MAYBE_KEY)
+          if (key->type == SEL_ARG::MAYBE_KEY)
             trace_idx.add_alnum("cause", "depends_on_unread_values");
           else
             trace_idx.add_alnum("cause", "unknown");
@@ -5860,17 +5871,16 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
                                       "ROR scans"););
   if (key_to_read)
   {
-    idx= key_to_read - tree->keys;
-    if ((read_plan= new (param->mem_root) TRP_RANGE(*key_to_read, idx,
+    if ((read_plan= new (param->mem_root) TRP_RANGE(key_to_read, best_idx,
                                                     best_mrr_flags)))
     {
       read_plan->records= best_records;
-      read_plan->is_ror= tree->ror_scans_map.is_set(idx);
+      read_plan->is_ror= tree->ror_scans_map.is_set(best_idx);
       read_plan->cost_est= read_cost;
       read_plan->mrr_buf_size= best_buf_size;
       DBUG_PRINT("info",
                 ("Returning range plan for key %s, cost %g, records %lu",
-                 param->table->key_info[param->real_keynr[idx]].name,
+                 param->table->key_info[param->real_keynr[best_idx]].name,
                  read_plan->cost_est.total_cost(), (ulong) read_plan->records));
     }
   }
@@ -6673,8 +6683,10 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     */
     MEM_ROOT *tmp_root= param->mem_root;
     param->thd->mem_root= param->old_root;
-    tree= cond->val_int() ? new(tmp_root) SEL_TREE(SEL_TREE::ALWAYS) :
-                            new(tmp_root) SEL_TREE(SEL_TREE::IMPOSSIBLE);
+    const SEL_TREE::Type type=
+      cond->val_int() ? SEL_TREE::ALWAYS : SEL_TREE::IMPOSSIBLE;
+    tree= new (tmp_root) SEL_TREE(type, tmp_root, param->keys);
+
     param->thd->mem_root= tmp_root;
     if (param->has_errors())
       DBUG_RETURN(NULL);
@@ -6691,7 +6703,8 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     if ((ref_tables & param->current_table) ||
 	(ref_tables & ~(param->prev_tables | param->read_tables)))
       DBUG_RETURN(0);
-    DBUG_RETURN(new (param->mem_root) SEL_TREE(SEL_TREE::MAYBE));
+    DBUG_RETURN(new (param->mem_root)
+                SEL_TREE(SEL_TREE::MAYBE, param->mem_root, param->keys));
   }
 
   Item_func *cond_func= (Item_func*) cond;
@@ -7009,7 +7022,8 @@ get_mm_parts(RANGE_OPT_PARAM *param, Item_func *cond_func, Field *field,
         continue;
 
       SEL_ARG *sel_arg=0;
-      if (!tree && !(tree=new (param->mem_root) SEL_TREE()))
+      if (!tree && !(tree=new (param->mem_root)
+                     SEL_TREE(param->mem_root, param->keys)))
         DBUG_RETURN(0); // OOM
       if (!value || !(value->used_tables() & ~param->read_tables))
       {
@@ -7703,10 +7717,12 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
   key_map  result_keys;
   
   /* Join the trees key per key */
-  SEL_ARG **key1,**key2,**end;
-  for (key1= tree1->keys,key2= tree2->keys,end=key1+param->keys ;
-       key1 != end ; key1++,key2++)
+  SEL_ARG **key1,**key2;
+  for (uint idx=0; idx< param->keys; idx++)
   {
+    key1= &tree1->keys[idx];
+    key2= &tree2->keys[idx];
+
     uint flag=0;
     if (*key1 || *key2)
     {
@@ -7714,7 +7730,7 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
 	flag|=CLONE_KEY1_MAYBE;
       if (*key2 && !(*key2)->simple_key())
 	flag|=CLONE_KEY2_MAYBE;
-      *key1=key_and(param, *key1, *key2, flag);
+      *key1= key_and(param, *key1, *key2, flag);
       if (*key1)
       {
         if ((*key1)->type == SEL_ARG::IMPOSSIBLE)
@@ -7722,9 +7738,14 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
           tree1->type= SEL_TREE::IMPOSSIBLE;
           DBUG_RETURN(tree1);
         }
-        result_keys.set_bit(key1 - tree1->keys);
+        result_keys.set_bit(idx);
 #ifndef DBUG_OFF
-        (*key1)->test_use_count(*key1);
+        /*
+          Do not test use_count if there is a large range tree created.
+          It takes too much time to traverse the tree.
+        */
+        if (param->mem_root->allocated_size < 2097152)
+          (*key1)->test_use_count(*key1);
 #endif
       }
 
@@ -7758,15 +7779,15 @@ bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2,
     DBUG_RETURN(FALSE);
 
   /* trees have a common key, check if they refer to same key part */
-  SEL_ARG **key1,**key2;
+  SEL_ARG *key1,*key2;
   for (uint key_no=0; key_no < param->keys; key_no++)
   {
     if (common_keys.is_set(key_no))
     {
-      key1= tree1->keys + key_no;
-      key2= tree2->keys + key_no;
+      key1= tree1->keys[key_no];
+      key2= tree2->keys[key_no];
       /* GIS_OPTIMIZER_FIXME: temp solution. key1 could be all nulls */
-      if (*key1 && *key2 && (*key1)->part == (*key2)->part)
+      if (key1 && key2 && key1->part == key2->part)
         DBUG_RETURN(TRUE);
     }
   }
@@ -7908,17 +7929,23 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
   if (sel_trees_can_be_ored(tree1, tree2, param))
   {
     /* Join the trees key per key */
-    SEL_ARG **key1,**key2,**end;
-    for (key1= tree1->keys,key2= tree2->keys,end= key1+param->keys ;
-         key1 != end ; key1++,key2++)
+    SEL_ARG **key1,**key2;
+    for (uint idx=0; idx < param->keys; idx++)
     {
-      *key1=key_or(param, *key1, *key2);
+      key1= &tree1->keys[idx];
+      key2= &tree2->keys[idx];
+      *key1= key_or(param, *key1, *key2);
       if (*key1)
       {
         result=tree1;				// Added to tree1
-        result_keys.set_bit(key1 - tree1->keys);
+        result_keys.set_bit(idx);
 #ifndef DBUG_OFF
-        (*key1)->test_use_count(*key1);
+        /*
+          Do not test use count if there is a large range tree created.
+          It takes too much time to traverse the tree.
+        */
+        if (param->mem_root->allocated_size < 2097152)
+          (*key1)->test_use_count(*key1);
 #endif
       }
     }
@@ -7935,11 +7962,13 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
         bool no_trees= remove_nonrange_trees(param, tree1);
         no_trees= no_trees || remove_nonrange_trees(param, tree2);
         if (no_trees)
-          DBUG_RETURN(new (param->mem_root) SEL_TREE(SEL_TREE::ALWAYS));
+          DBUG_RETURN(new (param->mem_root)
+                      SEL_TREE(SEL_TREE::ALWAYS, param->mem_root, param->keys));
       }
       SEL_IMERGE *merge;
       /* both trees are "range" trees, produce new index merge structure */
-      if (!(result= new (param->mem_root) SEL_TREE()) ||
+      if (!(result= new (param->mem_root)
+            SEL_TREE(param->mem_root, param->keys)) ||
           !(merge= new (param->mem_root) SEL_IMERGE()) ||
           (result->merges.push_back(merge)) ||
           (merge->or_sel_tree(param, tree1)) ||
@@ -7951,7 +7980,8 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
     else if (!tree1->merges.is_empty() && !tree2->merges.is_empty())
     {
       if (imerge_list_or_list(param, &tree1->merges, &tree2->merges))
-        result= new (param->mem_root) SEL_TREE(SEL_TREE::ALWAYS);
+        result= new (param->mem_root)
+          SEL_TREE(SEL_TREE::ALWAYS, param->mem_root, param->keys);
       else
         result= tree1;
     }
@@ -7962,10 +7992,12 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
         swap_variables(SEL_TREE*, tree1, tree2);
       
       if (param->remove_jump_scans && remove_nonrange_trees(param, tree2))
-         DBUG_RETURN(new (param->mem_root) SEL_TREE(SEL_TREE::ALWAYS));
+         DBUG_RETURN(new (param->mem_root)
+                     SEL_TREE(SEL_TREE::ALWAYS, param->mem_root, param->keys));
       /* add tree2 to tree1->merges, checking if it collapses to ALWAYS */
       if (imerge_list_or_tree(param, &tree1->merges, tree2))
-        result= new (param->mem_root) SEL_TREE(SEL_TREE::ALWAYS);
+        result= new (param->mem_root)
+          SEL_TREE(SEL_TREE::ALWAYS, param->mem_root, param->keys);
       else
         result= tree1;
     }
@@ -10494,7 +10526,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   quick->records= records;
 
   if ((cp_buffer_from_ref(thd, table, ref) && thd->is_fatal_error) ||
-      !(range= new(alloc) QUICK_RANGE()))
+      !(range= new (alloc) QUICK_RANGE()))
     goto err;                                   // out of memory
 
   range->min_key= range->max_key= ref->key_buff;
@@ -14336,16 +14368,12 @@ static bool eq_ranges_exceeds_limit(SEL_ARG *keypart_root, uint* count, uint lim
 static void print_sel_tree(PARAM *param, SEL_TREE *tree, key_map *tree_map,
                            const char *msg)
 {
-  SEL_ARG **key,**end;
-  int idx;
   char buff[1024];
   DBUG_ENTER("print_sel_tree");
 
   String tmp(buff,sizeof(buff),&my_charset_bin);
   tmp.length(0);
-  for (idx= 0,key=tree->keys, end=key+param->keys ;
-       key != end ;
-       key++,idx++)
+  for (uint idx= 0; idx < param->keys; idx++)
   {
     if (tree_map->is_set(idx))
     {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -40,6 +40,8 @@ ha_innodb.cc:12251: error: cannot convert 'srv_checksum_algorithm_t*' to
   'long unsigned int*' in initialization */
 ulong	srv_checksum_algorithm = SRV_CHECKSUM_ALGORITHM_INNODB;
 
+/** set if we have found pages matching legacy big endian checksum */
+bool	legacy_big_endian_checksum = false;
 /** Calculates the CRC32 checksum of a page. The value is stored to the page
 when it is written to a file and also checked for a match when reading from
 the file. When reading we allow both normal CRC32 and CRC-legacy-big-endian

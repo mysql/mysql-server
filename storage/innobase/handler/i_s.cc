@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -8457,7 +8457,17 @@ i_s_dict_fill_sys_tablespaces(
 	OK(field_store_string(fields[SYS_TABLESPACES_SPACE_TYPE],
 			      space_type));
 
-	char*	filename = fil_make_filepath(NULL, name, IBD, false);
+	char*	filepath = NULL;
+	if (FSP_FLAGS_HAS_DATA_DIR(flags)
+	    || FSP_FLAGS_GET_SHARED(flags)) {
+		mutex_enter(&dict_sys->mutex);
+		filepath = dict_get_first_path(space);
+		mutex_exit(&dict_sys->mutex);
+	}
+
+	if (filepath == NULL) {
+		filepath = fil_make_filepath(NULL, name, IBD, false);
+	}
 
 	os_file_stat_t	stat;
 	os_file_size_t	file;
@@ -8465,17 +8475,17 @@ i_s_dict_fill_sys_tablespaces(
 	memset(&file, 0xff, sizeof(file));
 	memset(&stat, 0x0, sizeof(stat));
 
-	if (filename != NULL) {
+	if (filepath != NULL) {
 
-		file = os_file_get_size(filename);
+		file = os_file_get_size(filepath);
 
 		/* Get the file system (or Volume) block size. */
-		dberr_t	err = os_file_get_status(filename, &stat, false, false);
+		dberr_t	err = os_file_get_status(filepath, &stat, false, false);
 
 		switch(err) {
 		case DB_FAIL:
 			ib::warn()
-				<< "File '" << filename << "', failed to get "
+				<< "File '" << filepath << "', failed to get "
 				<< "stats";
 			break;
 
@@ -8485,12 +8495,18 @@ i_s_dict_fill_sys_tablespaces(
 
 		default:
 			ib::error()
-				<< "File '" << filename << "' "
+				<< "File '" << filepath << "' "
 				<< ut_strerr(err);
 			break;
 		}
 
-		ut_free(filename);
+		ut_free(filepath);
+	}
+
+	if (file.m_total_size == static_cast<os_offset_t>(~0)) {
+		stat.block_size = 0;
+		file.m_total_size = 0;
+		file.m_alloc_size = 0;
 	}
 
 	OK(fields[SYS_TABLESPACES_FS_BLOCK_SIZE]->store(stat.block_size, true));
