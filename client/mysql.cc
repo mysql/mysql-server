@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1486,8 +1486,9 @@ sig_handler handle_kill_signal(int sig)
   mysql_options(kill_mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(kill_mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
                  "program_name", "mysql");
-  if (!mysql_real_connect(kill_mysql,current_host, current_user, opt_password,
-                          "", opt_mysql_port, opt_mysql_unix_port,0))
+  if (!mysql_connect_ssl_check(kill_mysql, current_host, current_user,
+                               opt_password, "", opt_mysql_port,
+                               opt_mysql_unix_port, 0, opt_ssl_required))
   {
     tee_fprintf(stdout, "%s -- sorry, cannot connect to server to kill query, giving up ...\n", reason);
     goto err;
@@ -4815,9 +4816,10 @@ sql_real_connect(char *host,char *database,char *user,char *password,
                  "program_name", "mysql");
   mysql_options(&mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &handle_expired);
 
-  if (!mysql_real_connect(&mysql, host, user, password,
-                          database, opt_mysql_port, opt_mysql_unix_port,
-                          connect_flag | CLIENT_MULTI_STATEMENTS))
+  if (!mysql_connect_ssl_check(&mysql, host, user, password,
+                               database, opt_mysql_port, opt_mysql_unix_port,
+                               connect_flag | CLIENT_MULTI_STATEMENTS,
+                               opt_ssl_required))
   {
     if (!silent ||
 	(mysql_errno(&mysql) != CR_CONN_HOST_ERROR &&
