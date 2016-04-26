@@ -1,7 +1,7 @@
 #ifndef SSLOPT_VARS_INCLUDED
 #define SSLOPT_VARS_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,8 +30,13 @@ SSL_STATIC char *opt_ssl_cipher  = 0;
 SSL_STATIC char *opt_ssl_key     = 0;
 SSL_STATIC char *opt_ssl_crl     = 0;
 SSL_STATIC char *opt_ssl_crlpath = 0;
+
 #ifdef MYSQL_CLIENT
 SSL_STATIC my_bool opt_ssl_verify_server_cert= 0;
-#endif
-#endif
+SSL_STATIC my_bool opt_ssl_required= 0;
+#endif /* MYSQL_CLIENT */
+#else /* HAVE_OPENSSL */
+#define opt_ssl_required 0
+#endif /* HAVE_OPENSSL */
+
 #endif /* SSLOPT_VARS_INCLUDED */

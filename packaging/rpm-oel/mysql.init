@@ -3,7 +3,7 @@
 # mysqld	This shell script takes care of starting and stopping
 #		the MySQL subsystem (mysqld).
 #
-# chkconfig: - 64 36
+# chkconfig: 345 64 36
 # description:	MySQL database server.
 # processname: mysqld
 # config: /etc/my.cnf

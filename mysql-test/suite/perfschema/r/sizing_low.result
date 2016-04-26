@@ -67,3 +67,4 @@ Performance_schema_table_instances_lost	0
 Performance_schema_thread_classes_lost	0
 Performance_schema_thread_instances_lost	0
 Performance_schema_users_lost	0
+CALL mtr.add_suppression("innodb_open_files should not be greater than the open_files_limit.");
