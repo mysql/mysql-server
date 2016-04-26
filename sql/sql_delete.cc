@@ -756,12 +756,6 @@ int Sql_cmd_delete_multi::mysql_multi_delete_prepare(THD *thd,
   }
   *table_count= 0;
 
-  /*
-    Multi-delete can't be constructed over-union => we always have
-    single SELECT on top and have to check underlying SELECTs of it
-  */
-  select->exclude_from_table_unique_test= true;
-
   // Check the list of tables to be deleted from
   for (TABLE_LIST *delete_target= lex->auxiliary_table_list.first;
        delete_target;
@@ -798,24 +792,7 @@ int Sql_cmd_delete_multi::mysql_multi_delete_prepare(THD *thd,
 
     // Enable the following code if allowing LIMIT with multi-table DELETE
     DBUG_ASSERT(select->select_limit == 0);
-
-    /*
-      Check that table from which we delete is not used somewhere
-      inside subqueries/view.
-    */
-    TABLE_LIST *duplicate= unique_table(thd, table_ref->updatable_base_table(),
-                                        lex->query_tables, false);
-    if (duplicate)
-    {
-      update_non_unique_table_error(table_ref, "DELETE", duplicate);
-      DBUG_RETURN(true);
-    }
   }
-  /*
-    Reset the exclude flag to false so it doesn't interfare
-    with further calls to unique_table
-  */
-  select->exclude_from_table_unique_test= false;
 
   DBUG_RETURN(false);
 }
@@ -837,13 +814,43 @@ int Query_result_delete::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   DBUG_ENTER("Query_result_delete::prepare");
   unit= u;
   do_delete= true;
-  /* Don't use KEYREAD optimization on this table */
+  /*
+    Multi-delete can't be constructed over-union => we always have
+    single SELECT on top and have to check underlying SELECTs of it
+  */
+  SELECT_LEX *const select= unit->first_select();
+  select->exclude_from_table_unique_test= true;
+
   for (TABLE_LIST *walk= delete_tables; walk; walk= walk->next_local)
-    if (walk->correspondent_table)
+  {
+    if (walk->correspondent_table == NULL)
+      continue;
+
+    TABLE_LIST *ref= walk->correspondent_table->updatable_base_table();
+
+    // Don't use KEYREAD optimization on this table
+    ref->table->no_keyread= true;
+
+    /*
+      Check that table from which we delete is not used somewhere
+      inside subqueries/view.
+    */
+    TABLE_LIST *duplicate= unique_table(thd, ref,
+                                        thd->lex->query_tables, false);
+    if (duplicate)
     {
-      TABLE_LIST *ref= walk->correspondent_table->updatable_base_table();
-      ref->table->no_keyread= true;
+      update_non_unique_table_error(walk->correspondent_table,
+                                    "DELETE", duplicate);
+      DBUG_RETURN(1);
     }
+  }
+
+  /*
+    Reset the exclude flag to false so it doesn't interfer
+    with further calls to unique_table
+  */
+  select->exclude_from_table_unique_test= false;
+
   THD_STAGE_INFO(thd, stage_deleting_from_main_table);
   DBUG_RETURN(0);
 }

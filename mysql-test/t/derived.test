@@ -2689,3 +2689,13 @@ SET position = (SELECT COUNT(t2.position) + 1
 WHERE id = 3;
 
 DROP TABLE users;
+
+--echo # Bug#23074801: Delete from joined tables with where using derived table
+--echo #               fails with error 1093
+
+CREATE TABLE t1 (id INTEGER, d1 INTEGER);
+CREATE TABLE t2 (id INTEGER, d2 INTEGER);
+DELETE t1, t2
+FROM t1 LEFT JOIN t2 ON t1.id = t2.id
+WHERE t1.id IN (SELECT * FROM (SELECT id FROM t1) AS t1sub);
+DROP TABLE t1, t2;
