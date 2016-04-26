@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -150,15 +150,6 @@ CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_hints.yy.h
    ${PACKAGE_DIR}/sql/sql_hints.yy.h COPYONLY)
 CONFIGURE_FILE(${CMAKE_BINARY_DIR}/sql/sql_hints.yy.cc
    ${PACKAGE_DIR}/sql/sql_hints.yy.cc COPYONLY)
-
-# Copy spec files
-SET(SPECFILENAME "mysql.${VERSION}.spec")
-IF("${VERSION}" MATCHES "-ndb-")
-  STRING(REGEX REPLACE "^.*-ndb-" "" NDBVERSION "${VERSION}")
-  SET(SPECFILENAME "mysql-cluster-${NDBVERSION}.spec")
-ENDIF()
-CONFIGURE_FILE(${CMAKE_BINARY_DIR}/support-files/${SPECFILENAME}
-   ${PACKAGE_DIR}/support-files/${SPECFILENAME} COPYONLY)
 
 # Add documentation, if user has specified where to find them
 IF(MYSQL_DOCS_LOCATION)
