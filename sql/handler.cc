@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -337,7 +337,7 @@ redo:
   if ((plugin= my_plugin_lock_by_name(thd, name, MYSQL_STORAGE_ENGINE_PLUGIN)))
   {
     handlerton *hton= plugin_data(plugin, handlerton *);
-    if (!(hton->flags & HTON_NOT_USER_SELECTABLE))
+    if (hton && !(hton->flags & HTON_NOT_USER_SELECTABLE))
       return plugin;
       
     /*
@@ -2385,7 +2385,8 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 #ifdef HAVE_PSI_TABLE_INTERFACE
   if (likely(error == 0))
   {
-    my_bool temp_table= (my_bool)is_prefix(alias, tmp_file_prefix);
+    /* Table share not available, so check path for temp table prefix. */
+    bool temp_table = (strstr(path, tmp_file_prefix) != NULL);
     PSI_TABLE_CALL(drop_table_share)
       (temp_table, db, strlen(db), alias, strlen(alias));
   }
@@ -4733,12 +4734,12 @@ int ha_create_table(THD *thd, const char *path,
   const char *name;
   TABLE_SHARE share;
   bool saved_abort_on_warning;
-  DBUG_ENTER("ha_create_table");
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  my_bool temp_table= (my_bool)is_temp_table ||
-               (my_bool)is_prefix(table_name, tmp_file_prefix) ||
-               (create_info->options & HA_LEX_CREATE_TMP_TABLE ? TRUE : FALSE);
+  bool temp_table = is_temp_table ||
+    (create_info->options & HA_LEX_CREATE_TMP_TABLE) ||
+    (strstr(path, tmp_file_prefix) != NULL);
 #endif
+  DBUG_ENTER("ha_create_table");
   
   init_tmp_table_share(thd, &share, db, 0, table_name, path);
   if (open_table_def(thd, &share, 0))
@@ -4750,7 +4751,13 @@ int ha_create_table(THD *thd, const char *path,
 
   if (open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
                             TRUE))
+  {
+#ifdef HAVE_PSI_TABLE_INTERFACE
+    PSI_TABLE_CALL(drop_table_share)
+      (temp_table, db, strlen(db), table_name, strlen(table_name));
+#endif
     goto err;
+  }
 
   if (update_create_info)
     update_create_info_from_table(create_info, &table);
@@ -6719,13 +6726,30 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
 
     DBUG_PRINT("info",("sweep: nblocks=%g, busy_blocks=%g", n_blocks,
                        busy_blocks));
-    if (interrupted)
-      cost->add_io(busy_blocks * Cost_estimate::IO_BLOCK_READ_COST());
-    else
+    /*
+      The random access cost for reading the data pages will be the
+      upper limit for the sweep_cost.
+    */
+    cost->add_io(busy_blocks * Cost_estimate::IO_BLOCK_READ_COST());
+
+    if (!interrupted)
+    {
       /* Assume reading is done in one 'sweep' */
-      cost->add_io(busy_blocks * 
+      Cost_estimate sweep_cost;
+      sweep_cost.add_io(busy_blocks *
                    (DISK_SEEK_BASE_COST +
                     DISK_SEEK_PROP_COST * n_blocks / busy_blocks));
+      /*
+        For some cases, ex: when only few blocks need to be read
+        and the seek distance becomes very large, the sweep cost
+        model can produce a cost estimate that is larger than the
+        cost of random access.  To handle this case, we use the
+        sweep cost only when it is less than the random access
+        cost.
+      */
+      if (sweep_cost.get_io_cost() < cost->get_io_cost())
+        *cost= sweep_cost;
+    }
   }
   DBUG_PRINT("info",("returning cost=%g", cost->total_cost()));
   DBUG_VOID_RETURN;
@@ -7690,3 +7714,28 @@ fl_create_iterator(enum handler_iterator_type type,
   }
 }
 #endif /*TRANS_LOG_MGM_EXAMPLE_CODE*/
+
+
+/**
+   Report a warning for FK constraint violation.
+
+   @param  thd     Thread handle.
+   @param  table   table on which the operation is performed.
+   @param  error   handler error number.
+*/
+void warn_fk_constraint_violation(THD *thd,TABLE *table, int error)
+{
+  String str;
+  switch(error) {
+  case HA_ERR_ROW_IS_REFERENCED:
+    table->file->get_error_message(error, &str);
+    push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+                 ER_ROW_IS_REFERENCED_2, str.c_ptr_safe());
+    break;
+  case HA_ERR_NO_REFERENCED_ROW:
+    table->file->get_error_message(error, &str);
+    push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+                 ER_NO_REFERENCED_ROW_2, str.c_ptr_safe());
+    break;
+  }
+}

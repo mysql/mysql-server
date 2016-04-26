@@ -710,6 +710,18 @@ remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 --error 1
 --exec echo "--error 1,2,3,4,5,6,7,8,9,10,11" | $MYSQL_TEST 2>&1
 
+# BUG#13687542 MTR BEHAVES WRONG WHEN EXECUTING 'ERROR $VAR' IN A LOOP
+--let $i= 0
+--let $error= 0
+while ($i < 3)
+{
+  --error $error
+  CREATE TABLE t1 (a INT);
+  --let $error= 1050
+  --inc $i
+}
+
+DROP TABLE t1;
 
 # ----------------------------------------------------------------------------
 # Test echo command

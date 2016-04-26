@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights
  * reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -5234,7 +5234,7 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
   {
     Cost_estimate sweep_cost;
     JOIN *join= info->param->thd->lex->select_lex.join;
-    const bool is_interrupted= join && join->tables == 1;
+    const bool is_interrupted= join && join->tables != 1;
     get_sweep_read_cost(info->param->table, double2rows(info->out_rows),
                         is_interrupted, &sweep_cost);
     info->total_cost += sweep_cost.total_cost();

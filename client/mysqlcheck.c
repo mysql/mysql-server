@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -924,8 +924,10 @@ static int dbConnect(char *host, char *user, char *passwd)
   mysql_options(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(&mysql_connection, MYSQL_OPT_CONNECT_ATTR_ADD,
                  "program_name", "mysqlcheck");
-  if (!(sock = mysql_real_connect(&mysql_connection, host, user, passwd,
-         NULL, opt_mysql_port, opt_mysql_unix_port, 0)))
+  if (!(sock = mysql_connect_ssl_check(&mysql_connection, host, user, passwd,
+                                       NULL, opt_mysql_port,
+                                       opt_mysql_unix_port, 0,
+                                       opt_ssl_required)))
   {
     DBerror(&mysql_connection, "when trying to connect");
     DBUG_RETURN(1);

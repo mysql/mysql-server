@@ -1,0 +1,23 @@
+# negative client tests
+# mysql
+ERROR 2026 (HY000): --ssl-mode=REQUIRED option forbids non SSL connections
+ERROR 2026 (HY000): --ssl-mode=REQUIRED option forbids non SSL connections
+ERROR 2026 (HY000): --ssl-mode=REQUIRED option forbids non SSL connections
+ERROR 2026 (HY000): --ssl-mode=REQUIRED option forbids non SSL connections
+# mysqldump
+mysqldump: Got error: 2026: --ssl-mode=REQUIRED option forbids non SSL connections when trying to connect
+# mysqladmin
+Warning: Using a password on the command line interface can be insecure.
+mysqladmin: error: '--ssl-mode=REQUIRED option forbids non SSL connections'
+# mysqlcheck
+mysqlcheck: Got error: 2026: --ssl-mode=REQUIRED option forbids non SSL connections when trying to connect
+# mysqlimport
+mysqlimport: Error: 2026 --ssl-mode=REQUIRED option forbids non SSL connections
+# mysqlshow
+mysqlshow: --ssl-mode=REQUIRED option forbids non SSL connections
+# mysqlslap
+mysqlslap: Error when connecting to server: --ssl-mode=REQUIRED option forbids non SSL connections
+# mysqltest
+mysqltest: Could not open connection 'default': 2026 --ssl-mode=REQUIRED option forbids non SSL connections
+
+End of tests

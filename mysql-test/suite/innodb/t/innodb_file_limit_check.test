@@ -1,0 +1,31 @@
+--source include/have_innodb.inc
+--source include/not_embedded.inc
+--source include/big_test.inc
+
+CALL mtr.add_suppression("innodb_open_files should not be greater than the open_files_limit.");
+
+CREATE TABLE t1 (a INT)ENGINE=INNODB PARTITION BY HASH(a) PARTITIONS 1024;
+
+let $innodb_file_limit= `SELECT @@open_files_limit`;
+inc $innodb_file_limit;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+
+--exec echo "restart: --innodb_open_files=$innodb_file_limit --no-console --log-error=$MYSQLTEST_VARDIR/tmp/innodb_file_limit.err" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/tmp/innodb_file_limit.err;
+let SEARCH_PATTERN= innodb_open_files should not be greater than the open_files_limit.;
+--source include/search_pattern_in_file.inc
+
+SELECT 1 UNION SELECT * FROM t1  UNION SELECT * FROM t1  UNION
+SELECT * FROM t1  UNION SELECT * FROM t1  UNION SELECT * FROM
+t1;
+
+DROP TABLE t1;

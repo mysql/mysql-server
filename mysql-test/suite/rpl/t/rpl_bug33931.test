@@ -32,11 +32,14 @@ start slave;
 # but there won't be any crashes nor asserts hit.
 #
 
-# 1593 = ER_SLAVE_FATAL_ERROR 
---let $slave_sql_errno= 1593
+# Wait for the SQL thread error
+--let $slave_sql_errno= convert_error(ER_SLAVE_FATAL_ERROR)
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
 
+# In 5.6 servers, there would be no I/O thread failure reported
+# on SHOW SLAVE STATUS. We should just wait for the IO thread to stop.
+--source include/wait_for_slave_io_to_stop.inc
 #
 # Cleanup
 #

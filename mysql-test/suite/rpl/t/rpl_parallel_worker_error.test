@@ -1,3 +1,6 @@
+# Inorder to grep a specific error pattern in error log a fresh error log
+# needs to be generated.
+--source include/force_restart.inc
 --source include/master-slave.inc
 --source include/have_binlog_format_statement.inc
 --source include/only_mts_slave_parallel_workers.inc
@@ -54,5 +57,19 @@ DROP TABLE t;
 DROP TABLE t;
 --source include/sync_slave_sql_with_master.inc
 
+# Bug#21198611: MULTI-THREADED SLAVE LOG SPAMMING ON FAILURE
+# When a multi-threaded slave stops with an error, the same error message is
+# printed three times.
+
+# Steps that are executed above ensure that MTS slave stops with an error.
+# Following lines check that "The slave coordinator and worker threads are
+# stopped..." error message is printed only once in the error log.
+
+--let $expected_errno= convert_error(ER_MTS_INCONSISTENT_DATA)
+--replace_result $expected_errno ER_MTS_INCONSISTENT_DATA
+--replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} [0-9]+/--TIME--/
+--let GREP_FILE=$MYSQLTEST_VARDIR/tmp/slave.err
+--let GREP_PATTERN=The slave coordinator and worker threads are stopped
+--source extra/rpl_tests/grep_pattern.inc
 
 --source include/rpl_end.inc

@@ -1,0 +1,41 @@
+-- source include/not_embedded.inc
+
+--echo # negative client tests
+--echo # mysql
+--error 1
+--exec $MYSQL test --ssl-mode=REQUIRED 2>&1
+--error 1
+--exec $MYSQL test --ssl-mode=REQUIRED --ssl 2>&1
+--error 1
+--exec $MYSQL test --ssl-mode=REQUIRED --ssl-cipher=DHE-RSA-AES256-SHA 2>&1
+--error 1
+--exec $MYSQL test --ssl-mode=REQUIRED --ssl --ssl-cipher=DHE-RSA-AES256-SHA 2>&1
+--echo # mysqldump
+--error 2
+--exec $MYSQL_DUMP --ssl-mode=REQUIRED test 2>&1
+--echo # mysqladmin
+--replace_regex /.*mysqladmin.*/mysqladmin: /
+--error 1
+--exec $MYSQLADMIN --ssl-mode=REQUIRED -S $MASTER_MYSOCK -P $MASTER_MYPORT -u root --password= ping 2>&1
+--echo # mysqlcheck
+--replace_regex /.*mysqlcheck(\.exe)*/mysqlcheck/
+--error 2
+--exec $MYSQL_CHECK --ssl-mode=REQUIRED test 2>&1
+--echo # mysqlimport
+--replace_regex /.*mysqlimport(\.exe)*/mysqlimport/
+--error 1
+--exec $MYSQL_IMPORT --ssl-mode=REQUIRED test $MYSQLTEST_VARDIR/tmp/t1.txt 2>&1
+--echo # mysqlshow
+--replace_regex /.*mysqlshow(\.exe)*/mysqlshow/
+--error 1
+--exec $MYSQL_SHOW --ssl-mode=REQUIRED test 2>&1
+--echo # mysqlslap
+--replace_regex /.*mysqlslap(\.exe)*/mysqlslap/
+--error 1
+--exec $MYSQL_SLAP --ssl-mode=REQUIRED 2>&1
+--echo # mysqltest
+--error 1
+--exec $MYSQL_TEST --ssl-mode=REQUIRED -x $MYSQL_TEST_DIR/include/mysqltest-x.inc 2>&1
+
+--echo
+--echo End of tests

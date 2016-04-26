@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -260,16 +260,18 @@ static const char* fts_config_table_insert_values_sql =
 	"INSERT INTO \"%s\" VALUES ('"
 		FTS_TABLE_STATE "', '0');\n";
 
-/****************************************************************//**
-Run SYNC on the table, i.e., write out data from the cache to the
+/** Run SYNC on the table, i.e., write out data from the cache to the
 FTS auxiliary INDEX table and clear the cache at the end.
-@return DB_SUCCESS if all OK  */
+@param[in,out]	sync		sync state
+@param[in]	unlock_cache	whether unlock cache lock when write node
+@param[in]	wait		whether wait when a sync is in progress
+@return DB_SUCCESS if all OK */
 static
 dberr_t
 fts_sync(
-/*=====*/
-	fts_sync_t*	sync)		/*!< in: sync state */
-	__attribute__((nonnull));
+	fts_sync_t*	sync,
+	bool		unlock_cache,
+	bool		wait);
 
 /****************************************************************//**
 Release all resources help by the words rb tree e.g., the node ilist. */
@@ -653,6 +655,7 @@ fts_cache_create(
 		mem_heap_zalloc(heap, sizeof(fts_sync_t)));
 
 	cache->sync->table = table;
+	cache->sync->event = os_event_create();
 
 	/* Create the index cache vector that will hold the inverted indexes. */
 	cache->indexes = ib_vector_create(
@@ -1207,6 +1210,7 @@ fts_cache_destroy(
 	mutex_free(&cache->optimize_lock);
 	mutex_free(&cache->deleted_lock);
 	mutex_free(&cache->doc_id_lock);
+	os_event_free(cache->sync->event);
 
 	if (cache->stopword_info.cached_stopword) {
 		rbt_free(cache->stopword_info.cached_stopword);
@@ -1435,7 +1439,7 @@ fts_cache_add_doc(
 				ib_vector_last(word->nodes));
 		}
 
-		if (fts_node == NULL
+		if (fts_node == NULL || fts_node->synced
 		    || fts_node->ilist_size > FTS_ILIST_MAX_SIZE
 		    || doc_id < fts_node->last_doc_id) {
 
@@ -2886,35 +2890,28 @@ fts_doc_ids_free(
 }
 
 /*********************************************************************//**
-Do commit-phase steps necessary for the insertion of a new row.
-@return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
-dberr_t
+Do commit-phase steps necessary for the insertion of a new row. */
+void
 fts_add(
 /*====*/
 	fts_trx_table_t*ftt,			/*!< in: FTS trx table */
 	fts_trx_row_t*	row)			/*!< in: row */
 {
 	dict_table_t*	table = ftt->table;
-	dberr_t		error = DB_SUCCESS;
 	doc_id_t	doc_id = row->doc_id;
 
 	ut_a(row->state == FTS_INSERT || row->state == FTS_MODIFY);
 
 	fts_add_doc_by_id(ftt, doc_id, row->fts_indexes);
 
-	if (error == DB_SUCCESS) {
-		mutex_enter(&table->fts->cache->deleted_lock);
-		++table->fts->cache->added;
-		mutex_exit(&table->fts->cache->deleted_lock);
+	mutex_enter(&table->fts->cache->deleted_lock);
+	++table->fts->cache->added;
+	mutex_exit(&table->fts->cache->deleted_lock);
 
-		if (!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
-		    && doc_id >= table->fts->cache->next_doc_id) {
-			table->fts->cache->next_doc_id = doc_id + 1;
-		}
+	if (!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
+	    && doc_id >= table->fts->cache->next_doc_id) {
+		table->fts->cache->next_doc_id = doc_id + 1;
 	}
-
-	return(error);
 }
 
 /*********************************************************************//**
@@ -3025,7 +3022,7 @@ fts_modify(
 	error = fts_delete(ftt, row);
 
 	if (error == DB_SUCCESS) {
-		error = fts_add(ftt, row);
+		fts_add(ftt, row);
 	}
 
 	return(error);
@@ -3114,7 +3111,7 @@ fts_commit_table(
 
 		switch (row->state) {
 		case FTS_INSERT:
-			error = fts_add(ftt, row);
+			fts_add(ftt, row);
 			break;
 
 		case FTS_MODIFY:
@@ -3553,16 +3550,34 @@ fts_add_doc_by_id(
 					get_doc->index_cache,
 					doc_id, doc.tokens);
 
+				bool	need_sync = false;
+				if ((cache->total_size > fts_max_cache_size / 10
+				     || fts_need_sync)
+				    && !cache->sync->in_progress) {
+					need_sync = true;
+				}
+
 				rw_lock_x_unlock(&table->fts->cache->lock);
 
 				DBUG_EXECUTE_IF(
 					"fts_instrument_sync",
-					fts_sync(cache->sync);
+					fts_optimize_request_sync_table(table);
+					os_event_wait(cache->sync->event);
 				);
 
-				if (cache->total_size > fts_max_cache_size
-				    || fts_need_sync) {
-					fts_sync(cache->sync);
+				DBUG_EXECUTE_IF(
+					"fts_instrument_sync_debug",
+					fts_sync(cache->sync, true, true);
+				);
+
+				DEBUG_SYNC_C("fts_instrument_sync_request");
+				DBUG_EXECUTE_IF(
+					"fts_instrument_sync_request",
+					fts_optimize_request_sync_table(table);
+				);
+
+				if (need_sync) {
+					fts_optimize_request_sync_table(table);
 				}
 
 				mtr_start(&mtr);
@@ -3933,16 +3948,17 @@ fts_sync_add_deleted_cache(
 	return(error);
 }
 
-/*********************************************************************//**
-Write the words and ilist to disk.
+/** Write the words and ilist to disk.
+@param[in,out]	trx		transaction
+@param[in]	index_cache	index cache
+@param[in]	unlock_cache	whether unlock cache when write node
 @return DB_SUCCESS if all went well else error code */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 fts_sync_write_words(
-/*=================*/
-	trx_t*		trx,			/*!< in: transaction */
-	fts_index_cache_t*
-			index_cache)		/*!< in: index cache */
+	trx_t*			trx,
+	fts_index_cache_t*	index_cache,
+	bool			unlock_cache)
 {
 	fts_table_t	fts_table;
 	ulint		n_nodes = 0;
@@ -3950,8 +3966,8 @@ fts_sync_write_words(
 	const ib_rbt_node_t* rbt_node;
 	dberr_t		error = DB_SUCCESS;
 	ibool		print_error = FALSE;
-#ifdef FTS_DOC_STATS_DEBUG
 	dict_table_t*	table = index_cache->index->table;
+#ifdef FTS_DOC_STATS_DEBUG
 	ulint		n_new_words = 0;
 #endif /* FTS_DOC_STATS_DEBUG */
 
@@ -3964,7 +3980,7 @@ fts_sync_write_words(
 	since we want to free the memory used during caching. */
 	for (rbt_node = rbt_first(index_cache->words);
 	     rbt_node;
-	     rbt_node = rbt_first(index_cache->words)) {
+	     rbt_node = rbt_next(index_cache->words, rbt_node)) {
 
 		ulint			i;
 		ulint			selected;
@@ -3997,26 +4013,46 @@ fts_sync_write_words(
 		}
 #endif /* FTS_DOC_STATS_DEBUG */
 
-		n_nodes += ib_vector_size(word->nodes);
-
-		/* We iterate over all the nodes even if there was an error,
-		this is to free the memory of the fts_node_t elements. */
+		/* We iterate over all the nodes even if there was an error */
 		for (i = 0; i < ib_vector_size(word->nodes); ++i) {
 
 			fts_node_t* fts_node = static_cast<fts_node_t*>(
 				ib_vector_get(word->nodes, i));
 
+			if (fts_node->synced) {
+				continue;
+			} else {
+				fts_node->synced = true;
+			}
+
+			/*FIXME: we need to handle the error properly. */
 			if (error == DB_SUCCESS) {
+				if (unlock_cache) {
+					rw_lock_x_unlock(
+						&table->fts->cache->lock);
+				}
 
 				error = fts_write_node(
 					trx,
 					&index_cache->ins_graph[selected],
 					&fts_table, &word->text, fts_node);
-			}
 
-			ut_free(fts_node->ilist);
-			fts_node->ilist = NULL;
+				DEBUG_SYNC_C("fts_write_node");
+				DBUG_EXECUTE_IF("fts_write_node_crash",
+					DBUG_SUICIDE(););
+
+				DBUG_EXECUTE_IF("fts_instrument_sync_sleep",
+					os_thread_sleep(1000000);
+				);
+
+				if (unlock_cache) {
+					rw_lock_x_lock(
+						&table->fts->cache->lock);
+				}
+			}
 		}
+
+		n_nodes += ib_vector_size(word->nodes);
 
 		if (error != DB_SUCCESS && !print_error) {
 			ut_print_timestamp(stderr);
@@ -4026,9 +4062,6 @@ fts_sync_write_words(
 
 			print_error = TRUE;
 		}
-
-		/* NOTE: We are responsible for free'ing the node */
-		ut_free(rbt_remove_node(index_cache->words, rbt_node));
 	}
 
 #ifdef FTS_DOC_STATS_DEBUG
@@ -4329,7 +4362,7 @@ fts_sync_index(
 
 	ut_ad(rbt_validate(index_cache->words));
 
-	error = fts_sync_write_words(trx, index_cache);
+	error = fts_sync_write_words(sync->trx, index_cache, sync->unlock_cache);
 
 #ifdef FTS_DOC_STATS_DEBUG
 	/* FTS_RESOLVE: the word counter info in auxiliary table "DOC_ID"
@@ -4343,6 +4376,36 @@ fts_sync_index(
 #endif /* FTS_DOC_STATS_DEBUG */
 
 	return(error);
+}
+
+/** Check if index cache has been synced completely
+@param[in,out]	sync		sync state
+@param[in,out]	index_cache	index cache
+@return true if index is synced, otherwise false. */
+static
+bool
+fts_sync_index_check(
+	fts_sync_t*		sync,
+	fts_index_cache_t*	index_cache)
+{
+	const ib_rbt_node_t*	rbt_node;
+
+	for (rbt_node = rbt_first(index_cache->words);
+	     rbt_node != NULL;
+	     rbt_node = rbt_next(index_cache->words, rbt_node)) {
+
+		fts_tokenizer_word_t*	word;
+		word = rbt_value(fts_tokenizer_word_t, rbt_node);
+
+		fts_node_t*	fts_node;
+		fts_node = static_cast<fts_node_t*>(ib_vector_last(word->nodes));
+
+		if (!fts_node->synced) {
+			return(false);
+		}
+	}
+
+	return(true);
 }
 
 /*********************************************************************//**
@@ -4421,21 +4484,53 @@ fts_sync_rollback(
 	trx_t*		trx = sync->trx;
 	fts_cache_t*	cache = sync->table->fts->cache;
 
+	for (ulint i = 0; i < ib_vector_size(cache->indexes); ++i) {
+		ulint			j;
+		fts_index_cache_t*	index_cache;
+
+		index_cache = static_cast<fts_index_cache_t*>(
+			ib_vector_get(cache->indexes, i));
+
+		for (j = 0; fts_index_selector[j].value; ++j) {
+
+			if (index_cache->ins_graph[j] != NULL) {
+
+				fts_que_graph_free_check_lock(
+					NULL, index_cache,
+					index_cache->ins_graph[j]);
+
+				index_cache->ins_graph[j] = NULL;
+			}
+
+			if (index_cache->sel_graph[j] != NULL) {
+
+				fts_que_graph_free_check_lock(
+					NULL, index_cache,
+					index_cache->sel_graph[j]);
+
+				index_cache->sel_graph[j] = NULL;
+			}
+		}
+	}
+
 	rw_lock_x_unlock(&cache->lock);
 
 	fts_sql_rollback(trx);
 	trx_free_for_background(trx);
 }
 
-/****************************************************************//**
-Run SYNC on the table, i.e., write out data from the cache to the
+/** Run SYNC on the table, i.e., write out data from the cache to the
 FTS auxiliary INDEX table and clear the cache at the end.
+@param[in,out]	sync		sync state
+@param[in]	unlock_cache	whether unlock cache lock when write node
+@param[in]	wait		whether wait when a sync is in progress
 @return DB_SUCCESS if all OK */
 static
 dberr_t
 fts_sync(
-/*=====*/
-	fts_sync_t*	sync)		/*!< in: sync state */
+	fts_sync_t*	sync,
+	bool		unlock_cache,
+	bool		wait)
 {
 	ulint		i;
 	dberr_t		error = DB_SUCCESS;
@@ -4443,7 +4538,34 @@ fts_sync(
 
 	rw_lock_x_lock(&cache->lock);
 
+	/* Check if cache is being synced.
+	Note: we release cache lock in fts_sync_write_words() to
+	avoid long wait for the lock by other threads. */
+	while (sync->in_progress) {
+		rw_lock_x_unlock(&cache->lock);
+
+		if (wait) {
+			os_event_wait(sync->event);
+		} else {
+			return(DB_SUCCESS);
+		}
+
+		rw_lock_x_lock(&cache->lock);
+	}
+
+	sync->unlock_cache = unlock_cache;
+	sync->in_progress = true;
+
+	DEBUG_SYNC_C("fts_sync_begin");
 	fts_sync_begin(sync);
+
+begin_sync:
+	if (cache->total_size > fts_max_cache_size) {
+		/* Avoid the case: sync never finish when
+		insert/update keeps comming. */
+		ut_ad(sync->unlock_cache);
+		sync->unlock_cache = false;
+	}
 
 	for (i = 0; i < ib_vector_size(cache->indexes); ++i) {
 		fts_index_cache_t*	index_cache;
@@ -4459,20 +4581,42 @@ fts_sync(
 
 		if (error != DB_SUCCESS && !sync->interrupted) {
 
-			break;
+			goto end_sync;
 		}
 	}
 
 	DBUG_EXECUTE_IF("fts_instrument_sync_interrupted",
 			sync->interrupted = true;
 			error = DB_INTERRUPTED;
+			goto end_sync;
 	);
 
+	/* Make sure all the caches are synced. */
+	for (i = 0; i < ib_vector_size(cache->indexes); ++i) {
+		fts_index_cache_t*	index_cache;
+
+		index_cache = static_cast<fts_index_cache_t*>(
+			ib_vector_get(cache->indexes, i));
+
+		if (index_cache->index->to_be_dropped
+		    || fts_sync_index_check(sync, index_cache)) {
+			continue;
+		}
+
+		goto begin_sync;
+	}
+
+end_sync:
 	if (error == DB_SUCCESS && !sync->interrupted) {
 		error = fts_sync_commit(sync);
 	}  else {
 		fts_sync_rollback(sync);
 	}
+
+	rw_lock_x_lock(&cache->lock);
+	sync->in_progress = false;
+	os_event_set(sync->event);
+	rw_lock_x_unlock(&cache->lock);
 
 	/* We need to check whether an optimize is required, for that
 	we make copies of the two variables that control the trigger. These
@@ -4488,21 +4632,25 @@ fts_sync(
 	return(error);
 }
 
-/****************************************************************//**
-Run SYNC on the table, i.e., write out data from the cache to the
-FTS auxiliary INDEX table and clear the cache at the end. */
+/** Run SYNC on the table, i.e., write out data from the cache to the
+FTS auxiliary INDEX table and clear the cache at the end.
+@param[in,out]	table		fts table
+@param[in]	unlock_cache	whether unlock cache when write node
+@param[in]	wait		whether wait for existing sync to finish
+@return DB_SUCCESS on success, error code on failure. */
 UNIV_INTERN
 dberr_t
 fts_sync_table(
-/*===========*/
-	dict_table_t*	table)		/*!< in: table */
+	dict_table_t*	table,
+	bool		unlock_cache,
+	bool		wait)
 {
 	dberr_t	err = DB_SUCCESS;
 
 	ut_ad(table->fts);
 
 	if (!dict_table_is_discarded(table) && table->fts->cache) {
-		err = fts_sync(table->fts->cache->sync);
+		err = fts_sync(table->fts->cache->sync, unlock_cache, wait);
 	}
 
 	return(err);
