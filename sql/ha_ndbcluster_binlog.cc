@@ -4005,229 +4005,229 @@ struct ndb_binlog_index_row {
 class Ndb_binlog_index_table_util
 {
 
-/*
-  Open the ndb_binlog_index table for writing
-*/
-static int
-ndb_binlog_index_table__open(THD *thd,
-                             TABLE **ndb_binlog_index)
-{
-  const char *save_proc_info=
-    thd_proc_info(thd, "Opening " NDB_REP_DB "." NDB_REP_TABLE);
-
-  TABLE_LIST tables;
-  tables.init_one_table(STRING_WITH_LEN(NDB_REP_DB),    // db
-                        STRING_WITH_LEN(NDB_REP_TABLE), // name
-                        NDB_REP_TABLE,                  // alias
-                        TL_WRITE);                      // for write
-
-  /* Only allow real table to be opened */
-  tables.required_type= FRMTYPE_TABLE;
-
-  const uint flags =
-    MYSQL_LOCK_IGNORE_TIMEOUT; /* Wait for lock "infinitely" */
-  if (open_and_lock_tables(thd, &tables, flags))
-  {
-    if (thd->killed)
-      DBUG_PRINT("error", ("NDB Binlog: Opening ndb_binlog_index: killed"));
-    else
-      sql_print_error("NDB Binlog: Opening ndb_binlog_index: %d, '%s'",
-                      thd->get_stmt_da()->mysql_errno(),
-                      thd->get_stmt_da()->message_text());
-    thd_proc_info(thd, save_proc_info);
-    return -1;
-  }
-  *ndb_binlog_index= tables.table;
-  thd_proc_info(thd, save_proc_info);
-  return 0;
-}
-
-
-/*
-  Write rows to the ndb_binlog_index table
-*/
-static int
-ndb_binlog_index_table__write_rows(THD *thd,
-                                   ndb_binlog_index_row *row)
-{
-  int error= 0;
-  ndb_binlog_index_row *first= row;
-  TABLE *ndb_binlog_index= 0;
-
   /*
-    Assume this function is not called with an error set in thd
-    (but clear for safety in release version)
-   */
-  assert(!thd->is_error());
-  thd->clear_error();
-
-  /*
-    Turn of binlogging to prevent the table changes to be written to
-    the binary log.
+    Open the ndb_binlog_index table for writing
   */
-  tmp_disable_binlog(thd);
-
-  if (ndb_binlog_index_table__open(thd, &ndb_binlog_index))
+  static int
+  open_binlog_index_table(THD *thd,
+                          TABLE **ndb_binlog_index)
   {
-    if (thd->killed)
-      DBUG_PRINT("error", ("NDB Binlog: Unable to lock table ndb_binlog_index, killed"));
-    else
-      sql_print_error("NDB Binlog: Unable to lock table ndb_binlog_index");
-    error= -1;
-    goto add_ndb_binlog_index_err;
+    const char *save_proc_info=
+      thd_proc_info(thd, "Opening " NDB_REP_DB "." NDB_REP_TABLE);
+
+    TABLE_LIST tables;
+    tables.init_one_table(STRING_WITH_LEN(NDB_REP_DB),    // db
+                          STRING_WITH_LEN(NDB_REP_TABLE), // name
+                          NDB_REP_TABLE,                  // alias
+                          TL_WRITE);                      // for write
+
+    /* Only allow real table to be opened */
+    tables.required_type= FRMTYPE_TABLE;
+
+    const uint flags =
+      MYSQL_LOCK_IGNORE_TIMEOUT; /* Wait for lock "infinitely" */
+    if (open_and_lock_tables(thd, &tables, flags))
+    {
+      if (thd->killed)
+        DBUG_PRINT("error", ("NDB Binlog: Opening ndb_binlog_index: killed"));
+      else
+        sql_print_error("NDB Binlog: Opening ndb_binlog_index: %d, '%s'",
+                        thd->get_stmt_da()->mysql_errno(),
+                        thd->get_stmt_da()->message_text());
+      thd_proc_info(thd, save_proc_info);
+      return -1;
+    }
+    *ndb_binlog_index= tables.table;
+    thd_proc_info(thd, save_proc_info);
+    return 0;
   }
 
-  // Set all columns to be written
-  ndb_binlog_index->use_all_columns();
 
-  do
+  /*
+    Write rows to the ndb_binlog_index table
+  */
+  static int
+  write_rows_impl(THD *thd,
+                  ndb_binlog_index_row *row)
   {
-    ulonglong epoch= 0, orig_epoch= 0;
-    uint orig_server_id= 0;
+    int error= 0;
+    ndb_binlog_index_row *first= row;
+    TABLE *ndb_binlog_index= 0;
 
-    // Intialize ndb_binlog_index->record[0]
-    empty_record(ndb_binlog_index);
+    /*
+      Assume this function is not called with an error set in thd
+      (but clear for safety in release version)
+     */
+    assert(!thd->is_error());
+    thd->clear_error();
 
-    ndb_binlog_index->field[NBICOL_START_POS]
-      ->store(first->start_master_log_pos, true);
-    ndb_binlog_index->field[NBICOL_START_FILE]
-      ->store(first->start_master_log_file,
-              (uint)strlen(first->start_master_log_file),
-              &my_charset_bin);
-    ndb_binlog_index->field[NBICOL_EPOCH]
-      ->store(epoch= first->epoch, true);
-    if (ndb_binlog_index->s->fields > NBICOL_ORIG_SERVERID)
+    /*
+      Turn off binlogging to prevent the table changes to be written to
+      the binary log.
+    */
+    tmp_disable_binlog(thd);
+
+    if (open_binlog_index_table(thd, &ndb_binlog_index))
     {
-      /* Table has ORIG_SERVERID / ORIG_EPOCH columns.
-       * Write rows with different ORIG_SERVERID / ORIG_EPOCH
-       * separately
-       */
-      ndb_binlog_index->field[NBICOL_NUM_INSERTS]
-        ->store(row->n_inserts, true);
-      ndb_binlog_index->field[NBICOL_NUM_UPDATES]
-        ->store(row->n_updates, true);
-      ndb_binlog_index->field[NBICOL_NUM_DELETES]
-        ->store(row->n_deletes, true);
-      ndb_binlog_index->field[NBICOL_NUM_SCHEMAOPS]
-        ->store(row->n_schemaops, true);
-      ndb_binlog_index->field[NBICOL_ORIG_SERVERID]
-        ->store(orig_server_id= row->orig_server_id, true);
-      ndb_binlog_index->field[NBICOL_ORIG_EPOCH]
-        ->store(orig_epoch= row->orig_epoch, true);
-      ndb_binlog_index->field[NBICOL_GCI]
-        ->store(first->gci, true);
-
-      if (ndb_binlog_index->s->fields > NBICOL_NEXT_POS)
-      {
-        /* Table has next log pos fields, fill them in */
-        ndb_binlog_index->field[NBICOL_NEXT_POS]
-          ->store(first->next_master_log_pos, true);
-        ndb_binlog_index->field[NBICOL_NEXT_FILE]
-          ->store(first->next_master_log_file,
-                  (uint)strlen(first->next_master_log_file),
-                  &my_charset_bin);
-      }
-      row= row->next;
-    }
-    else
-    {
-      /* Old schema : Table has no separate
-       * ORIG_SERVERID / ORIG_EPOCH columns.
-       * Merge operation counts and write one row
-       */
-      while ((row= row->next))
-      {
-        first->n_inserts+= row->n_inserts;
-        first->n_updates+= row->n_updates;
-        first->n_deletes+= row->n_deletes;
-        first->n_schemaops+= row->n_schemaops;
-      }
-      ndb_binlog_index->field[NBICOL_NUM_INSERTS]
-        ->store((ulonglong)first->n_inserts, true);
-      ndb_binlog_index->field[NBICOL_NUM_UPDATES]
-        ->store((ulonglong)first->n_updates, true);
-      ndb_binlog_index->field[NBICOL_NUM_DELETES]
-        ->store((ulonglong)first->n_deletes, true);
-      ndb_binlog_index->field[NBICOL_NUM_SCHEMAOPS]
-        ->store((ulonglong)first->n_schemaops, true);
-    }
-
-    error= ndb_binlog_index->file->ha_write_row(ndb_binlog_index->record[0]);
-
-    /* Fault injection to test logging */
-    DBUG_EXECUTE_IF("ndb_injector_binlog_index_write_fail_random",
-                    {
-                      if ((((uint32) rand()) % 10) == 9)
-                      {
-                        sql_print_error("NDB Binlog: Injecting random write failure");
-                        error= ndb_binlog_index->file->ha_write_row(ndb_binlog_index->record[0]);
-                      }
-                    });
-    
-    if (error)
-    {
-      sql_print_error("NDB Binlog: Failed writing to ndb_binlog_index for epoch %u/%u "
-                      " orig_server_id %u orig_epoch %u/%u "
-                      "with error %d.",
-                      uint(epoch >> 32), uint(epoch),
-                      orig_server_id,
-                      uint(orig_epoch >> 32), uint(orig_epoch),
-                      error);
-      
-      bool seen_error_row = false;
-      ndb_binlog_index_row* cursor= first;
-      do
-      {
-        char tmp[128];
-        if (ndb_binlog_index->s->fields > NBICOL_ORIG_SERVERID)
-          my_snprintf(tmp, sizeof(tmp), "%u/%u,%u,%u/%u",
-                      uint(epoch >> 32), uint(epoch),
-                      uint(cursor->orig_server_id),
-                      uint(cursor->orig_epoch >> 32), 
-                      uint(cursor->orig_epoch));
-        
-        else
-          my_snprintf(tmp, sizeof(tmp), "%u/%u", uint(epoch >> 32), uint(epoch));
-        
-        bool error_row = (row == (cursor->next));
-        sql_print_error("NDB Binlog: Writing row (%s) to ndb_binlog_index - %s",
-                        tmp,
-                        (error_row?"ERROR":
-                         (seen_error_row?"Discarded":
-                          "OK")));
-        seen_error_row |= error_row;
-
-      } while ((cursor = cursor->next));
-      
+      if (thd->killed)
+        DBUG_PRINT("error", ("NDB Binlog: Unable to lock table ndb_binlog_index, killed"));
+      else
+        sql_print_error("NDB Binlog: Unable to lock table ndb_binlog_index");
       error= -1;
       goto add_ndb_binlog_index_err;
     }
-  } while (row);
 
-add_ndb_binlog_index_err:
-  /*
-    Explicitly commit or rollback the writes(although we normally
-    use a non transactional engine for the ndb_binlog_index table)
-  */
-  thd->get_stmt_da()->set_overwrite_status(true);
-  thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
-  thd->get_stmt_da()->set_overwrite_status(false);
+    // Set all columns to be written
+    ndb_binlog_index->use_all_columns();
 
-  // Close the tables this thread has opened
-  close_thread_tables(thd);
+    do
+    {
+      ulonglong epoch= 0, orig_epoch= 0;
+      uint orig_server_id= 0;
 
-  /*
-    There should be no need for rolling back transaction due to deadlock
-    (since ndb_binlog_index is non transactional).
-  */
-  DBUG_ASSERT(! thd->transaction_rollback_request);
+      // Intialize ndb_binlog_index->record[0]
+      empty_record(ndb_binlog_index);
 
-  // Release MDL locks on the opened table
-  thd->mdl_context.release_transactional_locks();
+      ndb_binlog_index->field[NBICOL_START_POS]
+        ->store(first->start_master_log_pos, true);
+      ndb_binlog_index->field[NBICOL_START_FILE]
+        ->store(first->start_master_log_file,
+                (uint)strlen(first->start_master_log_file),
+                &my_charset_bin);
+      ndb_binlog_index->field[NBICOL_EPOCH]
+        ->store(epoch= first->epoch, true);
+      if (ndb_binlog_index->s->fields > NBICOL_ORIG_SERVERID)
+      {
+        /* Table has ORIG_SERVERID / ORIG_EPOCH columns.
+         * Write rows with different ORIG_SERVERID / ORIG_EPOCH
+         * separately
+         */
+        ndb_binlog_index->field[NBICOL_NUM_INSERTS]
+          ->store(row->n_inserts, true);
+        ndb_binlog_index->field[NBICOL_NUM_UPDATES]
+          ->store(row->n_updates, true);
+        ndb_binlog_index->field[NBICOL_NUM_DELETES]
+          ->store(row->n_deletes, true);
+        ndb_binlog_index->field[NBICOL_NUM_SCHEMAOPS]
+          ->store(row->n_schemaops, true);
+        ndb_binlog_index->field[NBICOL_ORIG_SERVERID]
+          ->store(orig_server_id= row->orig_server_id, true);
+        ndb_binlog_index->field[NBICOL_ORIG_EPOCH]
+          ->store(orig_epoch= row->orig_epoch, true);
+        ndb_binlog_index->field[NBICOL_GCI]
+          ->store(first->gci, true);
 
-  reenable_binlog(thd);
-  return error;
-}
+        if (ndb_binlog_index->s->fields > NBICOL_NEXT_POS)
+        {
+          /* Table has next log pos fields, fill them in */
+          ndb_binlog_index->field[NBICOL_NEXT_POS]
+            ->store(first->next_master_log_pos, true);
+          ndb_binlog_index->field[NBICOL_NEXT_FILE]
+            ->store(first->next_master_log_file,
+                    (uint)strlen(first->next_master_log_file),
+                    &my_charset_bin);
+        }
+        row= row->next;
+      }
+      else
+      {
+        /* Old schema : Table has no separate
+         * ORIG_SERVERID / ORIG_EPOCH columns.
+         * Merge operation counts and write one row
+         */
+        while ((row= row->next))
+        {
+          first->n_inserts+= row->n_inserts;
+          first->n_updates+= row->n_updates;
+          first->n_deletes+= row->n_deletes;
+          first->n_schemaops+= row->n_schemaops;
+        }
+        ndb_binlog_index->field[NBICOL_NUM_INSERTS]
+          ->store((ulonglong)first->n_inserts, true);
+        ndb_binlog_index->field[NBICOL_NUM_UPDATES]
+          ->store((ulonglong)first->n_updates, true);
+        ndb_binlog_index->field[NBICOL_NUM_DELETES]
+          ->store((ulonglong)first->n_deletes, true);
+        ndb_binlog_index->field[NBICOL_NUM_SCHEMAOPS]
+          ->store((ulonglong)first->n_schemaops, true);
+      }
+
+      error= ndb_binlog_index->file->ha_write_row(ndb_binlog_index->record[0]);
+
+      /* Fault injection to test logging */
+      DBUG_EXECUTE_IF("ndb_injector_binlog_index_write_fail_random",
+                      {
+                        if ((((uint32) rand()) % 10) == 9)
+                        {
+                          sql_print_error("NDB Binlog: Injecting random write failure");
+                          error= ndb_binlog_index->file->ha_write_row(ndb_binlog_index->record[0]);
+                        }
+                      });
+    
+      if (error)
+      {
+        sql_print_error("NDB Binlog: Failed writing to ndb_binlog_index for epoch %u/%u "
+                        " orig_server_id %u orig_epoch %u/%u "
+                        "with error %d.",
+                        uint(epoch >> 32), uint(epoch),
+                        orig_server_id,
+                        uint(orig_epoch >> 32), uint(orig_epoch),
+                        error);
+      
+        bool seen_error_row = false;
+        ndb_binlog_index_row* cursor= first;
+        do
+        {
+          char tmp[128];
+          if (ndb_binlog_index->s->fields > NBICOL_ORIG_SERVERID)
+            my_snprintf(tmp, sizeof(tmp), "%u/%u,%u,%u/%u",
+                        uint(epoch >> 32), uint(epoch),
+                        uint(cursor->orig_server_id),
+                        uint(cursor->orig_epoch >> 32), 
+                        uint(cursor->orig_epoch));
+        
+          else
+            my_snprintf(tmp, sizeof(tmp), "%u/%u", uint(epoch >> 32), uint(epoch));
+        
+          bool error_row = (row == (cursor->next));
+          sql_print_error("NDB Binlog: Writing row (%s) to ndb_binlog_index - %s",
+                          tmp,
+                          (error_row?"ERROR":
+                           (seen_error_row?"Discarded":
+                            "OK")));
+          seen_error_row |= error_row;
+
+        } while ((cursor = cursor->next));
+      
+        error= -1;
+        goto add_ndb_binlog_index_err;
+      }
+    } while (row);
+
+  add_ndb_binlog_index_err:
+    /*
+      Explicitly commit or rollback the writes(although we normally
+      use a non transactional engine for the ndb_binlog_index table)
+    */
+    thd->get_stmt_da()->set_overwrite_status(true);
+    thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
+    thd->get_stmt_da()->set_overwrite_status(false);
+
+    // Close the tables this thread has opened
+    close_thread_tables(thd);
+
+    /*
+      There should be no need for rolling back transaction due to deadlock
+      (since ndb_binlog_index is non transactional).
+    */
+    DBUG_ASSERT(! thd->transaction_rollback_request);
+
+    // Release MDL locks on the opened table
+    thd->mdl_context.release_transactional_locks();
+
+    reenable_binlog(thd);
+    return error;
+  }
 
   /*
     Write rows to the ndb_binlog_index table using a separate THD
@@ -4248,7 +4248,7 @@ add_ndb_binlog_index_err:
     new_thd->set_current_stmt_binlog_format_row();
 
     // Retry the write
-    const int retry_result = ndb_binlog_index_table__write_rows(new_thd, rows);
+    const int retry_result = write_rows_impl(new_thd, rows);
     if (retry_result)
     {
       sql_print_error("NDB Binlog: Failed writing to ndb_binlog_index table "
@@ -4269,7 +4269,7 @@ public:
   int write_rows(THD *thd,
                  ndb_binlog_index_row *rows)
   {
-    return ndb_binlog_index_table__write_rows(thd, rows);
+    return write_rows_impl(thd, rows);
   }
 
 
