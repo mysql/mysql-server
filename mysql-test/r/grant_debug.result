@@ -1,0 +1,33 @@
+call mtr.add_suppression("Did not write failed .* ");
+#
+# WL#9262: All system tables should support 32 character length user names
+#
+CREATE USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+GRANT ALL PRIVILEGES ON *.* TO user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char WITH GRANT OPTION;
+CREATE USER user_name_robert_golebiowski1234@localhost;
+GRANT ALL PRIVILEGES ON *.* TO user_name_robert_golebiowski1234@localhost WITH GRANT OPTION;
+CREATE USER some_user@localhost;
+# This will change CURRENT_USER from user_name_robert_golebiowski1234@localhost to
+# user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+# We have to do this in the server code as we are not able to simulate connecting to
+# such a host from MTR
+SET DEBUG='+d,wl_9262_set_max_length_hostname';
+FLUSH PRIVILEGES;
+SET DEBUG='-d,wl_9262_set_max_length_hostname';
+SELECT CURRENT_USER();
+CURRENT_USER()
+user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+CREATE DATABASE db_1;
+CREATE TABLE db_1.test_table(ID INT);
+# This should just work and Grantor should not be truncated
+GRANT SELECT ON db_1.test_table TO some_user@localhost;
+SELECT Grantor FROM mysql.tables_priv WHERE USER = 'some_user';
+Grantor
+user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+SELECT LENGTH(Grantor) FROM mysql.tables_priv WHERE USER = 'some_user';
+LENGTH(Grantor)
+93
+DROP USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+DROP USER user_name_robert_golebiowski1234@localhost;
+DROP USER some_user@localhost;
+DROP DATABASE db_1;
