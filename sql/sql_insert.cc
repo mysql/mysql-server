@@ -1675,16 +1675,25 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
         insert_id_for_cur_row= table->file->insert_id_for_cur_row;
       else
         table->file->insert_id_for_cur_row= insert_id_for_cur_row;
-      bool is_duplicate_key_error;
-      if (table->file->is_fatal_error(error, HA_CHECK_DUP | HA_CHECK_FK_ERROR))
+
+      /*
+        If it is a FK constraint violation and 'ignore' flag is set,
+        report a warning instead of error.
+      */
+      if (ignore_errors && !table->file->is_fatal_error(error,
+                                                        HA_CHECK_FK_ERROR))
+        goto ok_or_after_trg_err;
+
+      if (table->file->is_fatal_error(error, HA_CHECK_DUP))
 	goto err;
-      is_duplicate_key_error= table->file->is_fatal_error(error, 0);
-      if (!is_duplicate_key_error)
+
+      if (!table->file->is_fatal_error(error, 0))
       {
         /*
-          We come here when we had an ignorable error which is not a duplicate
-          key error. In this we ignore error if ignore flag is set, otherwise
-          report error as usual. We will not do any duplicate key processing.
+          We come here when we have an ignorable error which is not a duplicate
+          key error or FK error(Ex: Partition related errors). In this case we
+          ignore the error if ignore flag is set, otherwise report error as usual.
+          We will not do any duplicate key processing.
         */
         if (ignore_errors)
           goto ok_or_after_trg_err; /* Ignoring a not fatal error, return 0 */
