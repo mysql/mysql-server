@@ -64,6 +64,7 @@ DROP PROCEDURE p;
 --echo #
 CREATE TABLE t1(txt TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin);
 INSERT INTO t1 VALUES ('not JSON');
+--replace_regex /#sql-[0-9a-f_]*/#sql-temporary/
 --error ER_INVALID_JSON_TEXT
 ALTER TABLE t1 MODIFY COLUMN txt JSON;
 SELECT * FROM t1;
@@ -75,6 +76,7 @@ CREATE TABLE t3 (j JSON);
 INSERT INTO t3 VALUES (JSON_OBJECT('a', 'b'));
 CREATE TABLE t4 AS SELECT UPPER(j) AS jj FROM t3;
 INSERT INTO t4 VALUES ('not JSON');
+--replace_regex /#sql-[0-9a-f_]*/#sql-temporary/
 --error ER_INVALID_JSON_TEXT
 ALTER TABLE t4 MODIFY COLUMN jj JSON;
 SELECT * FROM t4 order by jj;

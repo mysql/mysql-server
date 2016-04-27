@@ -25,15 +25,15 @@ CREATE TABLE t(id INT, j JSON,
 gc INT GENERATED ALWAYS AS (JSON_EXTRACT(j, '$[0]')));
 INSERT INTO t(id, j) VALUES (0, '"5"'), (1, '[]'), (2, '[1,2]'), (3, '5');
 INSERT INTO t(j) VALUES ('{}');
-ERROR 22018: Invalid JSON value for CAST to INTEGER: '{}' from json_extract at row 1
+ERROR 22018: Invalid JSON value for CAST to INTEGER from column json_extract at row 1
 INSERT INTO t(j) VALUES ('{"a":1}');
-ERROR 22018: Invalid JSON value for CAST to INTEGER: '{"a": 1}' from json_extract at row 1
+ERROR 22018: Invalid JSON value for CAST to INTEGER from column json_extract at row 1
 INSERT INTO t(j) VALUES ('"abc"');
-ERROR 22018: Invalid JSON value for CAST to INTEGER: '"abc"' from json_extract at row 1
+ERROR 22018: Invalid JSON value for CAST to INTEGER from column json_extract at row 1
 INSERT INTO t(j) VALUES ('');
-ERROR 22032: Invalid JSON text: "The document is empty." at position 0 in value (or column) ''.
+ERROR 22032: Invalid JSON text: "The document is empty." at position 0 in value for column 't.j'.
 INSERT INTO t(j) VALUES ('[');
-ERROR 22032: Invalid JSON text: "Invalid value." at position 1 in value (or column) '['.
+ERROR 22032: Invalid JSON text: "Invalid value." at position 1 in value for column 't.j'.
 SELECT * FROM t ORDER BY id;
 id	j	gc
 0	"5"	5
@@ -48,16 +48,16 @@ id	j	gc
 2	[123]	123
 3	[123]	123
 UPDATE t SET j = '[';
-ERROR 22032: Invalid JSON text: "Invalid value." at position 1 in value (or column) '['.
+ERROR 22032: Invalid JSON text: "Invalid value." at position 1 in value for column 't.j'.
 DROP TABLE t;
 CREATE TABLE t(id INT, j JSON,
 gc JSON GENERATED ALWAYS AS (JSON_ARRAY(j)));
 INSERT INTO t(id, j)
 VALUES (1, '1'), (2, '[true, false]'), (3, '{"a":1,"b":2}');
 INSERT INTO t(j) VALUES ('');
-ERROR 22032: Invalid JSON text: "The document is empty." at position 0 in value (or column) ''.
+ERROR 22032: Invalid JSON text: "The document is empty." at position 0 in value for column 't.j'.
 INSERT INTO t(j) VALUES ('[');
-ERROR 22032: Invalid JSON text: "Invalid value." at position 1 in value (or column) '['.
+ERROR 22032: Invalid JSON text: "Invalid value." at position 1 in value for column 't.j'.
 SELECT * FROM t ORDER BY id;
 id	j	gc
 1	1	[1]
@@ -70,7 +70,7 @@ id	j	gc
 2	"abc"	["abc"]
 3	"abc"	["abc"]
 UPDATE t SET j = '[';
-ERROR 22032: Invalid JSON text: "Invalid value." at position 1 in value (or column) '['.
+ERROR 22032: Invalid JSON text: "Invalid value." at position 1 in value for column 't.j'.
 DROP TABLE t;
 CREATE TABLE t(ts TIMESTAMP, j JSON AS (CAST(ts AS JSON)));
 INSERT INTO t(ts) VALUES ('2000-01-01 00:00:00');
