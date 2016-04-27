@@ -7918,3 +7918,21 @@ def	test	p1	3	OUT	c	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)	PROCEDURE
 ALTER FUNCTION f1 READS SQL DATA;
 DROP FUNCTION f1;
 DROP PROCEDURE p1;
+#
+# WL#9262: All system tables should support 32 character length user names
+#
+#This should just work with username + hostname of length 93 as DEFINER
+CREATE USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+#For procedure
+CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char PROCEDURE test.proc_test() SELECT CURRENT_USER();
+#and for function
+CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char FUNCTION test.f_test() RETURNS INT RETURN 1;
+SHOW PROCEDURE STATUS LIKE 'proc_test';
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	proc_test	PROCEDURE	user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+DROP PROCEDURE test.proc_test;
+SHOW FUNCTION STATUS LIKE 'f_test';
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	f_test	FUNCTION	user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char	#	#	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+DROP FUNCTION test.f_test;
+DROP USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
