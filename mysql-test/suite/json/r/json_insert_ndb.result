@@ -86,32 +86,32 @@ i	LENGTH(j)	j
 CREATE TABLE auxtbl(ts TIMESTAMP);
 INSERT INTO auxtbl VALUES ('2015-02-24 18:52:00');
 INSERT INTO t1(j) VALUES ('');
-ERROR 22032: Invalid JSON text: "The document is empty." at position 0 in value (or column) ''.
+ERROR 22032: Invalid JSON text: "The document is empty." at position 0 in value for column 't1.j'.
 INSERT INTO t1(j) VALUES ('[');
-ERROR 22032: Invalid JSON text: "Invalid value." at position 1 in value (or column) '['.
+ERROR 22032: Invalid JSON text: "Invalid value." at position 1 in value for column 't1.j'.
 INSERT INTO t1(j) VALUES (x'cafebabe');
 ERROR 22032: Cannot create a JSON value from a string with CHARACTER SET 'binary'.
 INSERT INTO t1(j) VALUES (ST_GeomFromText('POINT(1 1)'));
 ERROR 22032: Cannot create a JSON value from a string with CHARACTER SET 'binary'.
 INSERT INTO t1(j) VALUES (-1);
-ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value (or column) 'column t1.j'.
+ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 't1.j'.
 INSERT INTO t1(j) VALUES (CAST(1 AS UNSIGNED));
-ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value (or column) 'column t1.j'.
+ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 't1.j'.
 INSERT INTO t1(j) VALUES (3.14);
-ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value (or column) 'column t1.j'.
+ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 't1.j'.
 INSERT INTO t1(j) VALUES (3.14E30);
-ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value (or column) 'column t1.j'.
+ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 't1.j'.
 INSERT INTO t1(j) VALUES (PI());
-ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value (or column) 'column t1.j'.
+ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 't1.j'.
 INSERT INTO t1(j) select ts from auxtbl;
-ERROR 22032: Invalid JSON text: "The document root must not follow by other values." at position 4 in value (or column) '2015-02-24 18:52:00'.
+ERROR 22032: Invalid JSON text: "The document root must not follow by other values." at position 4 in value for column 't1.j'.
 DROP TABLE auxtbl;
 INSERT INTO t1(j) VALUES (CAST('15:52:00' as TIME));
-ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value (or column) 'column t1.j'.
+ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 't1.j'.
 INSERT INTO t1(j) VALUES (CAST('2015-02-24' as DATE));
-ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value (or column) 'column t1.j'.
+ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 't1.j'.
 INSERT INTO t1(j) VALUES (TIMESTAMP '2015-02-24 15:52:00');
-ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value (or column) 'column t1.j'.
+ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 't1.j'.
 # ----------------------------------------------------------------------
 # INSERT using prepared statement (PS)
 # ----------------------------------------------------------------------
@@ -136,18 +136,18 @@ execute ps1 using @c;
 execute ps1 using @d;
 execute ps1 using @e;
 execute ps1 using @f;
-ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document root must not follow by other values." at position 4 in '2010-12-01 18:44:25'.
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document root must not follow by other values." at position 4.
 execute ps1 using @g;
 execute ps2 using @a;
-ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value (or column) 'column pt2.j'.
+ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 'pt2.j'.
 execute ps2 using @b;
 execute ps2 using @c;
-ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value (or column) 'column pt2.j'.
+ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 'pt2.j'.
 execute ps2 using @d;
-ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value (or column) 'column pt2.j'.
+ERROR 22032: Invalid JSON text: "not a JSON text, may need CAST" at position 0 in value for column 'pt2.j'.
 execute ps2 using @e;
 execute ps2 using @f;
-ERROR 22032: Invalid JSON text: "The document root must not follow by other values." at position 4 in value (or column) '2010-12-01 18:44:25'.
+ERROR 22032: Invalid JSON text: "The document root must not follow by other values." at position 4 in value for column 'pt2.j'.
 execute ps2 using @g;
 select json_type(j), j from pt1 order by j;
 json_type(j)	j

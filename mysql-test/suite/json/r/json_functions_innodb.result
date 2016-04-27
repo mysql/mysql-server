@@ -104,22 +104,22 @@ i	c1	c2	c3	c4	c5	c6	c7	c8	c9	c10	c11	c12	c13	c14	c15	c16	c17	c18	c19
 Warnings:
 Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the IN operator'
 Warning	1235	This version of MySQL doesn't yet support 'comparison of JSON in the IN operator'
-Warning	3156	Invalid JSON value for CAST to DOUBLE: '{"a": 2}' from j at row 2
-Warning	3156	Invalid JSON value for CAST to DOUBLE: '[1, 2]' from j at row 34
-Warning	3156	Invalid JSON value for CAST to DOUBLE: '{"a": "b", "c": "d", "ab": "abc", "bc": ["x", "y"]}' from j at row 35
-Warning	3156	Invalid JSON value for CAST to DOUBLE: '["here", ["I", "am"], "!!!"]' from j at row 36
-Warning	3156	Invalid JSON value for CAST to DOUBLE: '"scalar string"' from j at row 37
-Warning	3156	Invalid JSON value for CAST to DOUBLE: 'null' from j at row 40
-Warning	3156	Invalid JSON value for CAST to DOUBLE: '{}' from j at row 54
-Warning	3156	Invalid JSON value for CAST to DOUBLE: '[]' from j at row 55
-Warning	3156	Invalid JSON value for CAST to DOUBLE: '"2015-01-15 23:24:25.000000"' from j at row 56
-Warning	3156	Invalid JSON value for CAST to DOUBLE: '"23:24:25.000000"' from j at row 57
-Warning	3156	Invalid JSON value for CAST to DOUBLE: '"2015-01-15"' from j at row 58
-Warning	3156	Invalid JSON value for CAST to DOUBLE: '"2015-01-15 23:24:25.000000"' from j at row 59
-Warning	3156	Invalid JSON value for CAST to DOUBLE: '{"type": "Point", "coordinates": [1, 1]}' from j at row 60
-Warning	3156	Invalid JSON value for CAST to DOUBLE: '[]' from j at row 61
-Warning	3156	Invalid JSON value for CAST to DOUBLE: '"base64:type16:yv4="' from j at row 62
-Warning	3156	Invalid JSON value for CAST to DOUBLE: '"base64:type16:yv66vg=="' from j at row 63
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 2
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 34
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 35
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 36
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 37
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 40
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 54
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 55
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 56
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 57
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 58
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 59
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 60
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 61
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 62
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 63
 SELECT i FROM t1
 WHERE j = CAST(CAST(j AS CHAR CHARACTER SET 'utf8') AS JSON)
 ORDER BY i;
@@ -1320,9 +1320,9 @@ DROP TABLE numbers;
 CREATE TABLE t(txt TEXT);
 INSERT INTO t VALUES ('');
 SELECT COUNT(*) FROM t WHERE JSON_EXTRACT(txt, '$') = 5;
-ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "The document is empty." at position 0 in ''.
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "The document is empty." at position 0.
 SELECT COUNT(*) FROM t WHERE 5 = JSON_EXTRACT(txt, '$');
-ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "The document is empty." at position 0 in ''.
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "The document is empty." at position 0.
 DROP TABLE t;
 #
 # WL#8539 - Ordering of scalar JSON values
@@ -3983,22 +3983,22 @@ true
 10
 "10"
 Warnings:
-Warning	3156	Invalid JSON value for CAST to DOUBLE: 'null' from j at row 1
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 1
 DROP TABLE t;
 CREATE TABLE t(vc varchar(10));
 INSERT INTO t VALUES ('["abc"]'), ('[1');
 SELECT * FROM t ORDER BY CAST(vc AS JSON);
-ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Missing a comma or ']' after an array element." at position 2 in '[1'.
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Missing a comma or ']' after an array element." at position 2.
 SELECT * FROM t ORDER BY JSON_EXTRACT(vc, '$[0]');
-ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Missing a comma or ']' after an array element." at position 2 in '[1'.
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Missing a comma or ']' after an array element." at position 2.
 SELECT CAST(vc AS JSON) AS j FROM t ORDER BY j;
-ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Missing a comma or ']' after an array element." at position 2 in '[1'.
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Missing a comma or ']' after an array element." at position 2.
 SELECT JSON_EXTRACT(vc, '$[0]') AS j FROM t ORDER BY j;
-ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Missing a comma or ']' after an array element." at position 2 in '[1'.
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Missing a comma or ']' after an array element." at position 2.
 SELECT CAST(vc AS JSON) FROM t ORDER BY 1;
-ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Missing a comma or ']' after an array element." at position 2 in '[1'.
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Missing a comma or ']' after an array element." at position 2.
 SELECT JSON_EXTRACT(vc, '$[0]') FROM t ORDER BY 1;
-ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Missing a comma or ']' after an array element." at position 2 in '[1'.
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "Missing a comma or ']' after an array element." at position 2.
 DROP TABLE t;
 #
 # Internal ordering of arrays and objects. Ordered by cardinality.
@@ -4644,7 +4644,7 @@ a	c	json_length( c )
 
 # invalid json text
 select a, c, json_length( c ) from utf8_mj_length where a = 3;
-ERROR 22032: Invalid JSON text in argument 1 to function json_length: "Invalid value." at position 0 in 'abc'.
+ERROR 22032: Invalid JSON text in argument 1 to function json_length: "Invalid value." at position 0.
 select a, c, json_length( c ) from utf8_mj_length where a = 4;
 a	c	json_length( c )
 4	"abc"	1
@@ -4679,7 +4679,7 @@ a	c	json_length( c, '$' )
 
 # invalid json text
 select a, c, json_length( c, '$' ) from utf8_mj_length where a = 3;
-ERROR 22032: Invalid JSON text in argument 1 to function json_length: "Invalid value." at position 0 in 'abc'.
+ERROR 22032: Invalid JSON text in argument 1 to function json_length: "Invalid value." at position 0.
 select a, c, json_length( c, '$' ) from utf8_mj_length where a = 4;
 a	c	json_length( c, '$' )
 4	"abc"	1
@@ -5029,9 +5029,9 @@ select cast(c1 as json) from t1;
 cast(c1 as json)
 [1, 2]
 select cast(c2 as json) from t1;
-ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Missing a comma or ']' after an array element." at position 5 in '[1,2 '.
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Missing a comma or ']' after an array element." at position 5.
 select cast(c2 as json) is null from t1;
-ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Missing a comma or ']' after an array element." at position 5 in '[1,2 '.
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Missing a comma or ']' after an array element." at position 5.
 drop table t1;
 create table t2(x int);
 insert into t2 values (1), (2);
@@ -5506,10 +5506,10 @@ json_type(ifnull(cast(3 as json), NULL))
 INTEGER
 SELECT JSON_TYPE(IFNULL(JSON_EXTRACT(CONCAT(t1.j, 'abc'), '$'), t2.j))
 FROM t t1, t t2;
-ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "The document root must not follow by other values." at position 9 in '[3, 4, 5]abc'.
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "The document root must not follow by other values." at position 9.
 SELECT JSON_TYPE(IFNULL(t1.j, JSON_EXTRACT(CONCAT(t2.j, 'abc'), '$')))
 FROM t t1, t t2;
-ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "The document root must not follow by other values." at position 9 in '[3, 4, 5]abc'.
+ERROR 22032: Invalid JSON text in argument 1 to function json_extract: "The document root must not follow by other values." at position 9.
 # ----------------------------------------------------------------------
 # Json values used in text contexts
 # ----------------------------------------------------------------------
@@ -5683,7 +5683,7 @@ CREATE FUNCTION func_that_fails() RETURNS JSON
 LANGUAGE SQL DETERMINISTIC NO SQL
 RETURN '[not valid json]';
 SELECT JSON_EXTRACT(func_that_fails(), '$');
-ERROR 22032: Invalid JSON text: "Invalid value." at position 2 in value (or column) '[not valid json]'.
+ERROR 22032: Invalid JSON text: "Invalid value." at position 2 in value for column '.func_that_fails()'.
 DROP FUNCTION func_that_fails;
 create function get_types( input_value json )
 returns json
@@ -7591,7 +7591,7 @@ FROM t1 JOIN t2
 HAVING field1 = 7;
 field1
 Warnings:
-Warning	3156	Invalid JSON value for CAST to DOUBLE: '[]' from ? at row 2
+Warning	3156	Invalid JSON value for CAST to DOUBLE from column ? at row 2
 drop table t1;
 drop table t2;
 # ----------------------------------------------------------------------
@@ -9017,7 +9017,7 @@ SET NAMES latin1;
 CREATE TABLE t (j JSON);
 INSERT INTO t VALUES ('{}');
 UPDATE t SET j='1', j='1111-11-11', j=('1' NOT BETWEEN j AND '1');
-ERROR 22032: Invalid JSON text: "The document root must not follow by other values." at position 4 in value (or column) '1111-11-11'.
+ERROR 22032: Invalid JSON text: "The document root must not follow by other values." at position 4 in value for column 't.j'.
 SELECT * FROM t;
 j
 {}
@@ -9034,11 +9034,11 @@ ERROR 42000: Result consisted of more than one row
 set @initialized_21602361 = '$';
 select json_length('{}',@initialized_21602361)
 from t group by b into @initialized_21602361;
-ERROR 42000: Invalid JSON path expression. The error is around character position 1 in '0'.
+ERROR 42000: Invalid JSON path expression. The error is around character position 1.
 set @error_value_21602361 = '$[';
 select json_length('{}',@error_value_21602361)
 from t group by b into @error_value_21602361;
-ERROR 42000: Invalid JSON path expression. The error is around character position 2 in '$['.
+ERROR 42000: Invalid JSON path expression. The error is around character position 2.
 set @valid_path_21602361 = '$';
 select concat( '$[', json_length('{}',@valid_path_21602361), ']' )
 from t group by b into @valid_path_21602361;
@@ -9158,9 +9158,9 @@ INSERT INTO t VALUES (JSON_OBJECT('a', 'b')), (JSON_OBJECT('a', 'b'));
 DELETE FROM t WHERE j IN (SELECT CAST(NULL AS JSON) FROM DUAL);
 DELETE FROM t WHERE j IN (SELECT CAST(NULL AS JSON) FROM DUAL WHERE 1);
 DELETE FROM t WHERE j IN (SELECT CAST('not json' AS JSON) FROM DUAL);
-ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Invalid value." at position 1 in 'not json'.
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Invalid value." at position 1.
 DELETE FROM t WHERE j IN (SELECT CAST('not json' AS JSON) FROM DUAL WHERE 1);
-ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Invalid value." at position 1 in 'not json'.
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Invalid value." at position 1.
 SELECT * FROM t;
 j
 {"a": "b"}
