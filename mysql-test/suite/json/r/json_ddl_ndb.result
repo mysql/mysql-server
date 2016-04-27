@@ -79,8 +79,8 @@ Warning	1478	Table storage engine 'ndbcluster' does not support the create optio
 INSERT INTO t4 VALUES ('not JSON');
 ALTER TABLE t4 MODIFY COLUMN jj JSON;
 ERROR 22032: Invalid JSON text: "Invalid value." at position 1 in value (or column) 'not JSON'.
-SELECT * FROM t4;
+SELECT * FROM t4 order by jj;
 jj
-{"A": "B"}
 not JSON
+{"A": "B"}
 DROP TABLE t1, t2, t3, t4;
