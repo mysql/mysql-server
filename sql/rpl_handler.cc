@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -125,15 +125,17 @@ int get_user_var_str(const char *name, char *value,
 
 int delegates_init()
 {
-  static my_aligned_storage<sizeof(Trans_delegate), MY_ALIGNOF(long)> trans_mem;
+  static my_aligned_storage<sizeof(Trans_delegate),
+                            MY_ALIGNOF(longlong)> trans_mem;
   static my_aligned_storage<sizeof(Binlog_storage_delegate),
-                            MY_ALIGNOF(long)> storage_mem;
-  static my_aligned_storage<sizeof(Server_state_delegate), MY_ALIGNOF(long)> server_state_mem;
+                            MY_ALIGNOF(longlong)> storage_mem;
+  static my_aligned_storage<sizeof(Server_state_delegate),
+                            MY_ALIGNOF(longlong)> server_state_mem;
 #ifdef HAVE_REPLICATION
   static my_aligned_storage<sizeof(Binlog_transmit_delegate),
-                            MY_ALIGNOF(long)> transmit_mem;
+                            MY_ALIGNOF(longlong)> transmit_mem;
   static my_aligned_storage<sizeof(Binlog_relay_IO_delegate),
-                            MY_ALIGNOF(long)> relay_io_mem;
+                            MY_ALIGNOF(longlong)> relay_io_mem;
 #endif
 
   void *place_trans_mem= trans_mem.data;

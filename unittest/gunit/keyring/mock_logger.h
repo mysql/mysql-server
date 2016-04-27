@@ -16,6 +16,7 @@
 #ifndef MOCKLOGGER_H
 #define MOCKLOGGER_H
 
+#include <gmock/gmock.h>
 #include "logger.h"
 
 namespace keyring

@@ -1046,8 +1046,6 @@ RemoteDatafile::create_link_file(
 	const char*	filepath,
 	bool		is_shared)
 {
-	os_file_t	file;
-	bool		success;
 	dberr_t		err = DB_SUCCESS;
 	char*		link_filepath = NULL;
 	char*		prev_filepath = NULL;
@@ -1096,14 +1094,26 @@ RemoteDatafile::create_link_file(
 		}
 	}
 
-	file = os_file_create_simple_no_error_handling(
-		innodb_data_file_key, link_filepath,
-		OS_FILE_CREATE, OS_FILE_READ_WRITE,
-		srv_read_only_mode, &success);
+	/** Check if the file already exists. */
+	FILE*			file = NULL;
+	bool			exists;
+	os_file_type_t		ftype;
 
-	if (!success) {
-		/* This call will print its own error message */
-		ulint	error = os_file_get_last_error(true);
+        bool success = os_file_status(link_filepath, &exists, &ftype);
+
+	ulint error = 0;
+	if (success && !exists) {
+
+		file = fopen(link_filepath, "w");
+		if (file == NULL) {
+			/* This call will print its own error message */
+			error = os_file_get_last_error(true);
+		}
+	} else {
+		error = OS_FILE_ALREADY_EXISTS;
+        }
+
+	if (error != 0) {
 
 		ib::error() << "Cannot create file " << link_filepath << ".";
 
@@ -1124,18 +1134,17 @@ RemoteDatafile::create_link_file(
 		return(err);
 	}
 
-	IORequest	request(IORequest::WRITE);
+	ulint rbytes = fwrite(filepath, 1, strlen(filepath), file);
+	if (rbytes != strlen(filepath)) {
 
-	/* Note: The pages are written out as uncompressed because we don't
-	have the compression algorithm information at this point. */
-
-	request.disable_compression();
-
-	err = os_file_write(
-		request, link_filepath, file, filepath, 0, strlen(filepath));
+		os_file_get_last_error(true);
+                ib::error() << "Cannot write link file "
+				<< link_filepath << ".";
+		err = DB_ERROR;
+        }
 
 	/* Close the file, we only need it at startup */
-	os_file_close(file);
+	fclose(file);
 
 	ut_free(link_filepath);
 

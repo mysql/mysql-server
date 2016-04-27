@@ -31,7 +31,6 @@
 
 #include <ndb_global.h>
 
-#include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <NdbApi.hpp>
 #include <NdbTest.hpp>
@@ -558,7 +557,7 @@ testcase(Ndb_cluster_connection&cc, int flag)
     return 0;
 }
 
-NDB_COMMAND(testDataBuffers, "testDataBuffers", "testDataBuffers", "testDataBuffers", 65535)
+int main(int argc, char** argv)
 {
     int i;
     ndb_init();

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #include "pfs.h"
 #include "pfs_global.h"
 #include "pfs_visitor.h"
+#include "sql_audit.h"                      // audit_global_variable_get
 
 /**
   CLASS PFS_system_variable_cache
@@ -532,7 +533,7 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var,
 
   /* Get the value of the system variable. */
   const char *value;
-  value= get_one_variable_ext(current_thd, target_thd, show_var, query_scope, show_var_type,
+  value= get_one_variable_ext(current_thread, target_thd, show_var, query_scope, show_var_type,
                               NULL, &m_charset, m_value_str, &m_value_length);
 
   m_value_length= MY_MIN(m_value_length, SHOW_VAR_FUNC_BUFF_SIZE);
@@ -545,6 +546,15 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var,
   mysql_mutex_unlock(&LOCK_global_system_variables);
   if (target_thd != current_thread)
     mysql_mutex_unlock(&target_thd->LOCK_thd_sysvar);
+
+#ifndef EMBEDDED_LIBRARY
+  if (show_var_type != SHOW_FUNC && query_scope == OPT_GLOBAL &&
+      mysql_audit_notify(current_thread,
+                         AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_GET),
+                         m_name, value, m_value_length))
+    return;
+#endif
+
 
   m_initialized= true;
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -177,8 +177,7 @@ bool Sql_cmd_delete::mysql_delete(THD *thd, ha_rows limit)
   if (!using_limit && const_cond_result &&
       !(specialflag & SPECIAL_NO_NEW_FUNC) &&
       ((!thd->is_current_stmt_binlog_format_row() ||   /* not ROW binlog-format */
-        thd->is_current_stmt_binlog_disabled() || /* no binlog for this command */
-        !mysql_bin_log.is_open()) &&                   /* binary log is not opened */
+        thd->is_current_stmt_binlog_disabled()) && /* no binlog for this command */
        !(table->triggers && table->triggers->has_delete_triggers())))
   {
     /* Update the table->file->stats.records number */

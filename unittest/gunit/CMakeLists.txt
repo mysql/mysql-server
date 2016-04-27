@@ -212,9 +212,6 @@ IF (WITH_SSL STREQUAL "bundled")
   ADD_SUBDIRECTORY(yassl)
 ENDIF()
 
-ADD_SUBDIRECTORY(innodb)
-ADD_SUBDIRECTORY(keyring) 
-
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
@@ -491,3 +488,6 @@ ENDIF(MERGE_UNITTESTS)
 
 ## Most executables depend on libeay32.dll (through mysys_ssl).
 COPY_OPENSSL_DLLS(copy_openssl_gunit)
+
+ADD_SUBDIRECTORY(innodb)
+ADD_SUBDIRECTORY(keyring)

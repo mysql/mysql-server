@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 #include "my_global.h"
 #include "mysql/plugin_audit.h"
 #include "mysql/service_rules_table.h"
+#include "mysql/service_ssl_wrapper.h"
 #include "sql_cache.h"
 #include "sql_error.h"
 #include "sql_parse.h"
@@ -104,6 +105,13 @@ bool invoke_post_parse_rewrite_plugins(THD *thd, my_bool is_prepared)
     int dummy= 
 #endif
       rules_table_service::
+      dummy_function_to_ensure_we_are_linked_into_the_server();
+    DBUG_ASSERT(dummy == 1);
+
+#ifndef DBUG_OFF
+    dummy=
+#endif
+      ssl_wrappe_service::
       dummy_function_to_ensure_we_are_linked_into_the_server();
     DBUG_ASSERT(dummy == 1);
   }

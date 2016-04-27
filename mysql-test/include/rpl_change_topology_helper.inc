@@ -105,7 +105,7 @@ if (!$_rpl_change_topology_helper_skip)
   --replace_regex /[0-9]{4}/####/
     if (!$rpl_multi_source)
     {
-      eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $_rpl_change_topology_helper_port, MASTER_USER = 'root', $_rpl_change_topology_helper_position MASTER_CONNECT_RETRY = 1;
+      eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $_rpl_change_topology_helper_port, MASTER_USER = 'root', $_rpl_change_topology_helper_position MASTER_CONNECT_RETRY = 1 FOR CHANNEL '';
     }
     if ($rpl_multi_source)
     {
@@ -123,7 +123,7 @@ if ($_rpl_change_topology_helper_skip)
       {
         if (!$rpl_multi_source)
         {
-          CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+          CHANGE MASTER TO MASTER_AUTO_POSITION= 0 FOR CHANNEL '';
         }
         if ($rpl_multi_source)
         {

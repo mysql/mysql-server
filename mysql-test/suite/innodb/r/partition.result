@@ -940,3 +940,31 @@ test/t1#p#p6	General	ts1
 DROP TABLE t1;
 DROP TABLESPACE ts1;
 DROP TABLESPACE ts2;
+#
+# Bug#22444530 - GCOLS + PARTITIONED TABLE, CRASH IN
+#
+set sql_mode='';
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+create table t (
+a int not null,
+b int generated always as (1) virtual not null,
+c int generated always as (1) virtual not null,
+key (c)
+) engine=innodb partition by key (a) partitions 2;
+insert into t(a) values(1);
+select b from t group by c;
+b
+1
+drop table t;
+create table t (
+a int not null,
+b blob generated always as ("a") virtual not null,
+c int generated always as (1) virtual not null,
+key (c)
+) engine=innodb partition by key (a) partitions 2;
+insert into t(a) values(1);
+select b from t group by c;
+b
+a
+drop table t;

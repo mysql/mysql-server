@@ -1009,9 +1009,9 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   m_open_close_mutex = NdbMutex_Create();
   for (Uint32 i = 0; i < NDB_ARRAY_SIZE(m_send_buffers); i++)
   {
-    BaseString n;
-    n.assfmt("sendbuffer:%u", i);
-    NdbMutex_InitWithName(&m_send_buffers[i].m_mutex, n.c_str());
+    char name_buf[32];
+    BaseString::snprintf(name_buf, sizeof(name_buf), "sendbuffer:%u", i);
+    NdbMutex_InitWithName(&m_send_buffers[i].m_mutex, name_buf);
   }
 
   m_send_thread_cond = NdbCondition_Create();

@@ -1,0 +1,272 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+call mtr.add_suppression("Unsuccessful login attempt");
+RUN ALTER USER 'mysqlxsys'@'localhost' ACCOUNT UNLOCK
+
+0 rows affected
+RUN SET PASSWORD FOR 'mysqlxsys'@'localhost' = PASSWORD('')
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+RUN SELECT USER()
+USER()
+mysqlxsys@localhost
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+GRANT ALL ON *.* TO mysqlxsys@localhost;
+ALTER USER mysqlxsys@localhost IDENTIFIED WITH 'sha256_password' BY 'auth_string'
+           WITH MAX_QUERIES_PER_HOUR 330 MAX_USER_CONNECTIONS 500
+PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;
+SELECT user,plugin,authentication_string,ssl_type,
+ssl_cipher,x509_issuer,x509_subject,max_user_connections,
+max_questions,max_updates,max_connections,password_expired,account_locked
+FROM mysql.user WHERE USER='mysqlxsys';
+user	mysqlxsys
+plugin	sha256_password
+authentication_string	#
+ssl_type	
+ssl_cipher	
+x509_issuer	
+x509_subject	
+max_user_connections	500
+max_questions	330
+max_updates	0
+max_connections	0
+password_expired	N
+account_locked	N
+SELECT USER();
+USER()
+mysqlxsys@localhost
+ALTER USER mysqlxsys@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string';
+SELECT USER();
+USER()
+mysqlxsys@localhost
+# System Variables Testing
+show variables like 'mysqlx_idle_worker_thread_timeout';
+Variable_name	Value
+mysqlx_idle_worker_thread_timeout	60
+SET GLOBAL mysqlx_idle_worker_thread_timeout=7;
+SET @@global.mysqlx_idle_worker_thread_timeout=7;
+show variables like 'mysqlx_idle_worker_thread_timeout';
+Variable_name	Value
+mysqlx_idle_worker_thread_timeout	7
+SET @@global.mysqlx_idle_worker_thread_timeout=3600;
+show variables like 'mysqlx_idle_worker_thread_timeout';
+Variable_name	Value
+mysqlx_idle_worker_thread_timeout	3600
+SET mysqlx_idle_worker_thread_timeout=7;
+ERROR HY000: Variable 'mysqlx_idle_worker_thread_timeout' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@local.mysqlx_idle_worker_thread_timeout=7;
+ERROR HY000: Variable 'mysqlx_idle_worker_thread_timeout' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@mysqlx_idle_worker_thread_timeout=7;
+ERROR HY000: Variable 'mysqlx_idle_worker_thread_timeout' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@session.mysqlx_idle_worker_thread_timeout=7;
+ERROR HY000: Variable 'mysqlx_idle_worker_thread_timeout' is a GLOBAL variable and should be set with SET GLOBAL
+SET SESSION mysqlx_idle_worker_thread_timeout=7;
+ERROR HY000: Variable 'mysqlx_idle_worker_thread_timeout' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@global.mysqlx_idle_worker_thread_timeout=3601;
+Warnings:
+Warning	1292	Truncated incorrect mysqlx_idle_worker_thread_timeou value: '3601'
+SET GLOBAL mysqlx_idle_worker_thread_timeout=0;
+SET GLOBAL mysqlx_idle_worker_thread_timeout=-1;
+Warnings:
+Warning	1292	Truncated incorrect mysqlx_idle_worker_thread_timeou value: '-1'
+SET GLOBAL mysqlx_idle_worker_thread_timeout='invaid%char';
+ERROR 42000: Incorrect argument type to variable 'mysqlx_idle_worker_thread_timeout'
+show variables like 'mysqlx_idle_worker_thread_timeout';
+Variable_name	Value
+mysqlx_idle_worker_thread_timeout	0
+SET GLOBAL mysqlx_idle_worker_thread_timeout=60;
+show variables like 'mysqlx_max_allowed_packet';
+Variable_name	Value
+mysqlx_max_allowed_packet	1048576
+SET GLOBAL mysqlx_max_allowed_packet=5000000;
+SET @@global.mysqlx_max_allowed_packet=7000000;
+show variables like 'mysqlx_max_allowed_packet';
+Variable_name	Value
+mysqlx_max_allowed_packet	7000000
+SET mysqlx_max_allowed_packet=5000000;
+ERROR HY000: Variable 'mysqlx_max_allowed_packet' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@local.mysqlx_max_allowed_packet=5000000;
+ERROR HY000: Variable 'mysqlx_max_allowed_packet' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@mysqlx_max_allowed_packet=5000000;
+ERROR HY000: Variable 'mysqlx_max_allowed_packet' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@session.mysqlx_max_allowed_packet=5000000;
+ERROR HY000: Variable 'mysqlx_max_allowed_packet' is a GLOBAL variable and should be set with SET GLOBAL
+SET SESSION mysqlx_max_allowed_packet=5000000;
+ERROR HY000: Variable 'mysqlx_max_allowed_packet' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@global.mysqlx_max_allowed_packet=0;
+Warnings:
+Warning	1292	Truncated incorrect mysqlx_max_allowed_packet value: '0'
+RUN SELECT USER()
+USER()
+mysqlxsys@localhost
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+SET @@global.mysqlx_max_allowed_packet=-123;
+Warnings:
+Warning	1292	Truncated incorrect mysqlx_max_allowed_packet value: '-123'
+SET @@global.mysqlx_max_allowed_packet='crash#$%';
+ERROR 42000: Incorrect argument type to variable 'mysqlx_max_allowed_packet'
+show variables like 'mysqlx_max_allowed_packet';
+Variable_name	Value
+mysqlx_max_allowed_packet	512
+SET @@global.mysqlx_max_allowed_packet=1048576;
+show variables like 'mysqlx_max_connections';
+Variable_name	Value
+mysqlx_max_connections	100
+SET GLOBAL mysqlx_max_connections=150;
+show variables like 'mysqlx_max_connections';
+Variable_name	Value
+mysqlx_max_connections	150
+SET @@global.mysqlx_max_connections=500;
+show variables like 'mysqlx_max_connections';
+Variable_name	Value
+mysqlx_max_connections	500
+SET mysqlx_max_connections=150;
+ERROR HY000: Variable 'mysqlx_max_connections' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@local.mysqlx_max_connections=150;
+ERROR HY000: Variable 'mysqlx_max_connections' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@mysqlx_max_connections=150;
+ERROR HY000: Variable 'mysqlx_max_connections' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@session.mysqlx_max_connections=150;
+ERROR HY000: Variable 'mysqlx_max_connections' is a GLOBAL variable and should be set with SET GLOBAL
+SET SESSION mysqlx_max_connections=150;
+ERROR HY000: Variable 'mysqlx_max_connections' is a GLOBAL variable and should be set with SET GLOBAL
+SET GLOBAL mysqlx_max_connections=0;
+Warnings:
+Warning	1292	Truncated incorrect mysqlx_max_connections value: '0'
+RUN SELECT USER()
+USER()
+mysqlxsys@localhost
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+SET GLOBAL mysqlx_max_connections=-848;
+Warnings:
+Warning	1292	Truncated incorrect mysqlx_max_connections value: '-848'
+SET GLOBAL mysqlx_max_connections='%45*#in';
+ERROR 42000: Incorrect argument type to variable 'mysqlx_max_connections'
+show variables like 'mysqlx_max_connections';
+Variable_name	Value
+mysqlx_max_connections	1
+SET @@global.mysqlx_max_connections=151;
+show variables like 'mysqlx_min_worker_threads';
+Variable_name	Value
+mysqlx_min_worker_threads	2
+SET GLOBAL mysqlx_min_worker_threads=150;
+Warnings:
+Warning	1292	Truncated incorrect mysqlx_min_worker_threads value: '150'
+SET @@global.mysqlx_min_worker_threads=15;
+show variables like 'mysqlx_min_worker_threads';
+Variable_name	Value
+mysqlx_min_worker_threads	15
+SET mysqlx_min_worker_threads=15;
+ERROR HY000: Variable 'mysqlx_min_worker_threads' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@local.mysqlx_min_worker_threads=15;
+ERROR HY000: Variable 'mysqlx_min_worker_threads' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@mysqlx_min_worker_threads=15;
+ERROR HY000: Variable 'mysqlx_min_worker_threads' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@session.mysqlx_min_worker_threads=15;
+ERROR HY000: Variable 'mysqlx_min_worker_threads' is a GLOBAL variable and should be set with SET GLOBAL
+SET SESSION mysqlx_min_worker_threads=15;
+ERROR HY000: Variable 'mysqlx_min_worker_threads' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@global.mysqlx_min_worker_threads=0;
+Warnings:
+Warning	1292	Truncated incorrect mysqlx_min_worker_threads value: '0'
+SET @@global.mysqlx_min_worker_threads=-4324;
+Warnings:
+Warning	1292	Truncated incorrect mysqlx_min_worker_threads value: '-4324'
+SET GLOBAL mysqlx_min_worker_threads=+23766;
+Warnings:
+Warning	1292	Truncated incorrect mysqlx_min_worker_threads value: '23766'
+SET GLOBAL mysqlx_min_worker_threads='USDSI75u';
+ERROR 42000: Incorrect argument type to variable 'mysqlx_min_worker_threads'
+show variables like 'mysqlx_min_worker_threads';
+Variable_name	Value
+mysqlx_min_worker_threads	100
+SET GLOBAL mysqlx_min_worker_threads=10;
+show variables like 'mysqlx_connect_timeout';
+Variable_name	Value
+mysqlx_connect_timeout	30
+SET GLOBAL mysqlx_connect_timeout=20;
+SET @@global.mysqlx_connect_timeout=500;
+show variables like 'mysqlx_connect_timeout';
+Variable_name	Value
+mysqlx_connect_timeout	500
+SET mysqlx_connect_timeout=20;
+ERROR HY000: Variable 'mysqlx_connect_timeout' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@local.mysqlx_connect_timeout=20;
+ERROR HY000: Variable 'mysqlx_connect_timeout' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@mysqlx_connect_timeout=20;
+ERROR HY000: Variable 'mysqlx_connect_timeout' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@session.mysqlx_connect_timeout=20;
+ERROR HY000: Variable 'mysqlx_connect_timeout' is a GLOBAL variable and should be set with SET GLOBAL
+SET SESSION mysqlx_connect_timeout=20;
+ERROR HY000: Variable 'mysqlx_connect_timeout' is a GLOBAL variable and should be set with SET GLOBAL
+SET GLOBAL mysqlx_connect_timeout=0;
+Warnings:
+Warning	1292	Truncated incorrect mysqlx_connect_timeout value: '0'
+SET GLOBAL mysqlx_connect_timeout=1;
+SET GLOBAL mysqlx_connect_timeout=-4686234;
+Warnings:
+Warning	1292	Truncated incorrect mysqlx_connect_timeout value: '-4686234'
+SET GLOBAL mysqlx_connect_timeout='gduges7';
+ERROR 42000: Incorrect argument type to variable 'mysqlx_connect_timeout'
+RUN SELECT USER()
+USER()
+mysqlxsys@localhost
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+show variables like 'mysqlx_connect_timeout';
+Variable_name	Value
+mysqlx_connect_timeout	1
+SET GLOBAL mysqlx_connect_timeout=300;
+SET GLOBAL mysqlx_port=33060;
+ERROR HY000: Variable 'mysqlx_port' is a read only variable
+RUN SET GLOBAL mysqlx_idle_worker_thread_timeout=7
+
+0 rows affected
+RUN SET @@global.mysqlx_idle_worker_thread_timeout=7
+
+0 rows affected
+RUN SET GLOBAL mysqlx_max_allowed_packet=5000000
+
+0 rows affected
+RUN SET @@global.mysqlx_max_allowed_packet=7000000
+
+0 rows affected
+RUN SET GLOBAL mysqlx_max_connections=150
+
+0 rows affected
+RUN SET @@global.mysqlx_max_connections=500
+
+0 rows affected
+RUN SET GLOBAL mysqlx_min_worker_threads=15
+
+0 rows affected
+RUN SET @@global.mysqlx_min_worker_threads=15
+
+0 rows affected
+RUN SET GLOBAL mysqlx_connect_timeout=20
+
+0 rows affected
+RUN SET @@global.mysqlx_connect_timeout=500
+
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+UNINSTALL PLUGIN mysqlx;
+SELECT user FROM mysql.user WHERE USER='mysqlxsys';

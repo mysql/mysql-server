@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -1805,8 +1805,6 @@ void pfs_register_socket_v1(const char *category,
   klass= find_##T##_class(KEY);                                             \
   if (unlikely(klass == NULL))                                              \
     return NULL;                                                            \
-  if (! klass->m_enabled)                                                   \
-    return NULL;                                                            \
   pfs= create_##T(klass, ID);                                               \
   return reinterpret_cast<PSI_##T *> (pfs)
 
@@ -2067,8 +2065,6 @@ pfs_init_socket_v1(PSI_socket_key key, const my_socket *fd,
   PFS_socket *pfs;
   klass= find_socket_class(key);
   if (unlikely(klass == NULL))
-    return NULL;
-  if (! klass->m_enabled)
     return NULL;
   pfs= create_socket(klass, fd, addr, addr_len);
   return reinterpret_cast<PSI_socket *> (pfs);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -432,6 +432,17 @@ public:
     message text.
   */
   bool has_sql_condition(const char *message_text, size_t message_length) const;
+
+  /**
+    Checks if the condition list contains SQL-condition with the given error
+    code.
+
+    @param sql_errno    Error code
+
+    @return true if the condition list contains an SQL-condition with the given
+    error code.
+  */
+  bool has_sql_condition(uint sql_errno) const;
 
   /**
     Reset the current condition information stored in the Diagnostics Area.

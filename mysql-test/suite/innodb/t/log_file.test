@@ -7,7 +7,7 @@ let bugdir= $MYSQLTEST_VARDIR/tmp/log_file;
 --mkdir $bugdir
 
 let SEARCH_FILE = $bugdir/my_restart.err;
-let $args=--defaults-file=$bugdir/my.cnf --datadir=$bugdir --loose-console --core-file --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --secure-file-priv="" --early_plugin_load="" > $SEARCH_FILE 2>&1 ;
+let $args=--defaults-file=$bugdir/my.cnf --datadir=$bugdir --loose-console --core-file --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --secure-file-priv="" > $SEARCH_FILE 2>&1 ;
 
 --echo # Write tmp/log_file/my.cnf
 --write_file $bugdir/my.cnf

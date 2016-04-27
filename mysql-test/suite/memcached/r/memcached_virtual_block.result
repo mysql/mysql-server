@@ -17,7 +17,7 @@ INSERT INTO t1(c1, c2) VALUES("Stark", 2);
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 show variables like 'daemon_memcached_option';
 Variable_name	Value
-daemon_memcached_option	-m128 -p11212
+daemon_memcached_option	-m128 -p11295
 SELECT c1,c2 FROM t1;
 c1	c2
 Stark	2

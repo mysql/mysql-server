@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -981,11 +981,11 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
         overestimating the total cost of scanning, the heuristic used
         here has to assume that the ratio is 1. A more fine-grained
         cost comparison will be done later in this function.
-    (2) This doesn't hold: the best way to perform table scan is to to perform
-        'range' access using index IDX, and the best way to perform 'ref'
-        access is to use the same index IDX, with the same or more key parts.
-        (note: it is not clear how this rule is/should be extended to
-        index_merge quick selects)
+    (2) The best way to perform table or index scan is to use 'range' access
+        using index IDX. If it is a 'tight range' scan (i.e not a loose index
+        scan' or 'index merge'), then ref access on the same index will
+        perform equal or better if ref access can use the same or more number
+        of key parts.
     (3) See above note about InnoDB.
     (4) NOT ("FORCE INDEX(...)" is used for table and there is 'ref' access
              path, but there is no quick select)
@@ -1015,7 +1015,9 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
   }
   else if (tab->quick() && best_ref &&                              // (2)
       tab->quick()->index == best_ref->key &&                       // (2)
-      (used_key_parts >= table->quick_key_parts[best_ref->key]))  // (2)
+      (used_key_parts >= table->quick_key_parts[best_ref->key]) &&  // (2)
+      (tab->quick()->get_type() !=
+       QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX))                      // (2)
   {
     trace_access_scan.add_alnum("access_type", "range");
     tab->quick()->trace_quick_description(trace);

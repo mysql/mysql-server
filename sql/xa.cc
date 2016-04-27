@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -274,6 +274,8 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
 {
   bool res= true;
   XID_STATE *xid_state= thd->get_transaction()->xid_state();
+  bool gtid_error= false, need_clear_owned_gtid= false;
+
   DBUG_ENTER("trans_xa_commit");
 
   DBUG_ASSERT(!thd->slave_thread || xid_state->get_xid()->is_null() ||
@@ -321,11 +323,18 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
         xid_state->set_binlogged();
       else
         xid_state->unset_binlogged();
+      /* Do not execute gtid wrapper whenever 'res' is true (rm error) */
+      gtid_error= MY_TEST(commit_owned_gtids(thd,
+                                             true, &need_clear_owned_gtid));
+      if (gtid_error)
+        my_error(ER_XA_RBROLLBACK, MYF(0));
+      res= res || gtid_error;
       // todo xa framework: return an error
       ha_commit_or_rollback_by_xid(thd, m_xid, !res);
       xid_state->unset_binlogged();
 
       transaction_cache_delete(transaction);
+      gtid_state_commit_or_rollback(thd, need_clear_owned_gtid, !gtid_error);
     }
     DBUG_RETURN(res);
   }
@@ -358,9 +367,23 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
                      MDL_key::COMMIT, "", "", MDL_INTENTION_EXCLUSIVE,
                      MDL_TRANSACTION);
 
-    if (thd->mdl_context.acquire_lock(&mdl_request,
-                                      thd->variables.lock_wait_timeout))
+    gtid_error= MY_TEST(commit_owned_gtids(thd, true, &need_clear_owned_gtid));
+    if (gtid_error || thd->mdl_context.acquire_lock(&mdl_request,
+                                             thd->variables.lock_wait_timeout))
     {
+      res= true;
+      /*
+        Failure to store gtid is regarded as a unilateral one of the
+        resource manager therefore the transaction is to be rolled back.
+        The specified error is the same as @c xa_trans_force_rollback.
+        The prepared XA will be rolled back along and so will do Gtid state,
+        see ha_rollback_trans().
+
+        Todo/fixme: fix binlogging, "XA rollback" event could be missed out.
+        Todo/fixme: as to XAER_RMERR, should not it be XA_RBROLLBACK?
+                    Rationale: there's no consistency concern after rollback,
+                    unlike what XAER_RMERR suggests.
+      */
       ha_rollback_trans(thd, true);
       my_error(ER_XAER_RMERR, MYF(0));
     }
@@ -375,7 +398,7 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
         res= MY_TEST(ha_commit_low(thd, /* all */ true));
 
       if (res)
-        my_error(ER_XAER_RMERR, MYF(0));
+        my_error(ER_XAER_RMERR, MYF(0)); // todo/fixme: consider to rollback it
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
       else
       {
@@ -391,10 +414,12 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
   }
   else
   {
+    DBUG_ASSERT(!need_clear_owned_gtid);
+
     my_error(ER_XAER_RMFAIL, MYF(0), xid_state->state_name());
     DBUG_RETURN(true);
   }
-
+  gtid_state_commit_or_rollback(thd, need_clear_owned_gtid, !gtid_error);
   cleanup_trans_state(thd);
 
   xid_state->set_state(XID_STATE::XA_NOTR);
@@ -437,6 +462,8 @@ bool Sql_cmd_xa_commit::execute(THD *thd)
 bool Sql_cmd_xa_rollback::trans_xa_rollback(THD *thd)
 {
   XID_STATE *xid_state= thd->get_transaction()->xid_state();
+  bool need_clear_owned_gtid= false;
+
   DBUG_ENTER("trans_xa_rollback");
 
   if (!xid_state->has_same_xid(m_xid))
@@ -454,8 +481,15 @@ bool Sql_cmd_xa_rollback::trans_xa_rollback(THD *thd)
       my_error(ER_XAER_NOTA, MYF(0));
     else
     {
-      DBUG_ASSERT(xs->is_in_recovery());
+      bool gtid_error= false;
 
+      DBUG_ASSERT(xs->is_in_recovery());
+      /*
+        Like in the commit case a failure to store gtid is regarded
+        as the resource manager issue.
+      */
+      if ((gtid_error= commit_owned_gtids(thd, true, &need_clear_owned_gtid)))
+        my_error(ER_XA_RBROLLBACK, MYF(0));
       xs->xa_trans_rolled_back();
       if (xs->is_binlogged())
         xid_state->set_binlogged();
@@ -464,7 +498,9 @@ bool Sql_cmd_xa_rollback::trans_xa_rollback(THD *thd)
       ha_commit_or_rollback_by_xid(thd, m_xid, false);
       xid_state->unset_binlogged();
       transaction_cache_delete(transaction);
+      gtid_state_commit_or_rollback(thd, need_clear_owned_gtid, !gtid_error);
     }
+
     DBUG_RETURN(thd->is_error());
   }
 
@@ -475,7 +511,17 @@ bool Sql_cmd_xa_rollback::trans_xa_rollback(THD *thd)
     DBUG_RETURN(true);
   }
 
-  bool res= xa_trans_force_rollback(thd);
+  bool gtid_error= MY_TEST(commit_owned_gtids(thd, true,
+                                              &need_clear_owned_gtid));
+  bool res= xa_trans_force_rollback(thd) || gtid_error;
+  gtid_state_commit_or_rollback(thd, need_clear_owned_gtid, !gtid_error);
+  // todo: report a bug in that the raised rm_error in this branch
+  //       is masked unlike the "external" rollback branch above.
+  DBUG_EXECUTE_IF("simulate_xa_rm_error",
+                  {
+                    my_error(ER_XA_RBROLLBACK, MYF(0));
+                    res= true;
+                  });
 
   cleanup_trans_state(thd);
 
@@ -763,6 +809,7 @@ bool Sql_cmd_xa_recover::execute(THD *thd)
 
 bool XID_STATE::xa_trans_rolled_back()
 {
+  DBUG_EXECUTE_IF("simulate_xa_rm_error", rm_error= true;);
   if (rm_error)
   {
     switch (rm_error)

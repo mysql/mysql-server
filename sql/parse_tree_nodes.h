@@ -683,7 +683,12 @@ public:
          opt_procedure_analyse->contextualize(pc)))
       return true;
 
-    if (opt_select_lock_type.is_set)
+    /*
+      @todo: explain should not affect how we construct the query data
+      structure. Instead, consider to let lock_tables() adjust lock
+      requests according to the explain flag.
+    */
+    if (opt_select_lock_type.is_set && !pc->thd->lex->is_explain())
     {
       pc->select->set_lock_for_tables(opt_select_lock_type.lock_type);
       pc->thd->lex->safe_to_cache_query=
@@ -2256,7 +2261,12 @@ public:
     DBUG_ASSERT(opt_procedure_analyse_clause == NULL ||
                 (opt_into1 == NULL && opt_into2 == NULL));
 
-    if (opt_select_lock_type.is_set)
+    /*
+      @todo: explain should not affect how we construct the query data
+      structure. Instead, consider to let lock_tables() adjust lock
+      requests according to the explain flag.
+    */
+    if (opt_select_lock_type.is_set && !pc->thd->lex->is_explain())
     {
       pc->select->set_lock_for_tables(opt_select_lock_type.lock_type);
       pc->thd->lex->safe_to_cache_query=

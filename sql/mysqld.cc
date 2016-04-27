@@ -2762,18 +2762,10 @@ int init_common_variables()
                      SQLCOM_END + 7);
 #endif
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-
-  if (strlen(DEFAULT_EARLY_PLUGIN_LOAD))
-  {
-    i_string *default_early_plugin= new i_string(DEFAULT_EARLY_PLUGIN_LOAD);
-    opt_early_plugin_load_list_ptr->push_back(default_early_plugin);
-  }
-
-#endif /* NO_EMBEDDED_ACCESS_CHECKS */
-
   if (get_options(&remaining_argc, &remaining_argv))
     return 1;
+
+  update_parser_max_mem_size();
 
   if (log_syslog_init())
     opt_log_syslog_enable= 0;
@@ -3460,6 +3452,7 @@ static int generate_server_uuid()
                     " to allocate the THD.");
     return 1;
   }
+
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
 
@@ -4294,6 +4287,16 @@ static void test_lc_time_sz()
 }
 #endif//DBUG_OFF
 
+/*
+  @brief : Set opt_super_readonly to user supplied value before
+           enabling communication channels to accept user connections
+*/
+
+static void set_super_read_only_post_init()
+{
+  opt_super_readonly= super_read_only;
+}
+
 #ifdef _WIN32
 int win_main(int argc, char **argv)
 #else
@@ -4606,10 +4609,6 @@ int mysqld_main(int argc, char **argv)
   if (init_server_components())
     unireg_abort(MYSQLD_ABORT_EXIT);
 
-  if (mysql_audit_notify(MYSQL_AUDIT_SERVER_STARTUP_STARTUP,
-                         (const char**)argv, argc))
-    unireg_abort(MYSQLD_ABORT_EXIT);
-
   /*
     Each server should have one UUID. We will create it automatically, if it
     does not exist.
@@ -4888,6 +4887,14 @@ int mysqld_main(int argc, char **argv)
       unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
+  /*
+    Event must be invoked after error_handler_hook is assigned to
+    my_message_sql, otherwise my_message will not cause the event to abort.
+  */
+  if (mysql_audit_notify(AUDIT_EVENT(MYSQL_AUDIT_SERVER_STARTUP_STARTUP),
+                         (const char **) argv, argc))
+    unireg_abort(MYSQLD_ABORT_EXIT);
+
 #ifdef _WIN32
   create_shutdown_thread();
 #endif
@@ -4920,6 +4927,13 @@ int mysqld_main(int argc, char **argv)
                       opt_ndb_wait_setup);
   }
 #endif
+
+  /*
+    Set opt_super_readonly here because if opt_super_readonly is set
+    in get_option, it will create problem while setting up event scheduler.
+  */
+  set_super_read_only_post_init();
+
   (void) RUN_HOOK(server_state, before_handle_connection, (NULL));
 
   DBUG_PRINT("info", ("Block, listening for incoming connections"));
@@ -7721,6 +7735,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
     return 1;
   }
 
+  /* If --super-read-only was specified, set read_only to 1 */
+  read_only= super_read_only ? super_read_only : read_only;
   opt_readonly= read_only;
 
   return 0;
@@ -8781,6 +8797,7 @@ PSI_stage_info stage_worker_waiting_for_its_turn_to_commit= { 0, "Waiting for pr
 PSI_stage_info stage_worker_waiting_for_commit_parent= { 0, "Waiting for dependent transaction to commit", 0};
 PSI_stage_info stage_suspending= { 0, "Suspending", 0};
 PSI_stage_info stage_starting= { 0, "starting", 0};
+PSI_stage_info stage_waiting_for_no_channel_reference= { 0, "Waiting for no channel reference.", 0};
 
 #ifdef HAVE_PSI_INTERFACE
 
@@ -8890,7 +8907,8 @@ PSI_stage_info *all_server_stages[]=
   & stage_worker_waiting_for_its_turn_to_commit,
   & stage_worker_waiting_for_commit_parent,
   & stage_suspending,
-  & stage_starting
+  & stage_starting,
+  & stage_waiting_for_no_channel_reference
 };
 
 PSI_socket_key key_socket_tcpip, key_socket_unix, key_socket_client_connection;

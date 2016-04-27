@@ -12,9 +12,9 @@ insert into t1 values (5,5),(6,6);
 update t1 set b = 0 where a = 6;
 ALTER TABLE t1 ADD c CHAR(19), ADD d VARCHAR(255), ADD e char(255);
 Warnings:
-Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable on-line ADD COLUMN
-Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable on-line ADD COLUMN
-Warning	1478	Converted FIXED field 'e' to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable online ADD COLUMN
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+Warning	1478	Converted FIXED field 'e' to DYNAMIC to enable online ADD COLUMN
 update t1 set b = 0 where a = 2;
 update t1 set b = 0 where a = 4;
 update t1 set b = 0 where a = 5;
@@ -44,9 +44,9 @@ insert into t1 values (5,5),(6,6);
 update t1 set b = 0 where a = 6;
 ALTER TABLE t1 ADD c CHAR(19), ADD d VARCHAR(255), ADD e char(255);
 Warnings:
-Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable on-line ADD COLUMN
-Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable on-line ADD COLUMN
-Warning	1478	Converted FIXED field 'e' to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable online ADD COLUMN
+Warning	1478	Converted FIXED field 'd' to DYNAMIC to enable online ADD COLUMN
+Warning	1478	Converted FIXED field 'e' to DYNAMIC to enable online ADD COLUMN
 update t1 set b = 0 where a = 2;
 update t1 set b = 0 where a = 4;
 update t1 set b = 0 where a = 5;

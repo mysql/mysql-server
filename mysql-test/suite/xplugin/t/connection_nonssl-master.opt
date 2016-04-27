@@ -1,0 +1,2 @@
+--plugin_dir=$MYSQLXPLUGIN_DIR
+--skip-ssl

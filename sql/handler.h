@@ -4125,4 +4125,6 @@ bool ha_notify_exclusive_mdl(THD *thd, const MDL_key *mdl_key,
 bool ha_notify_alter_table(THD *thd, const MDL_key *mdl_key,
                            ha_notification_type notification_type);
 
+int commit_owned_gtids(THD *thd, bool all, bool *need_clear_ptr);
+
 #endif /* HANDLER_INCLUDED */

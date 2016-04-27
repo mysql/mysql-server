@@ -19,7 +19,6 @@
 #include <ndb_global.h>
 #include <NdbThread.h>
 #include <my_thread.h>
-#include <NdbMem.h>
 #include <NdbMutex.h>
 #include <NdbCondition.h>
 
@@ -299,7 +298,7 @@ NdbThread_CreateObject(const char * name)
     DBUG_RETURN(g_main_thread);
   }
 
-  tmpThread = (struct NdbThread*)NdbMem_Allocate(sizeof(struct NdbThread));
+  tmpThread = (struct NdbThread*)malloc(sizeof(struct NdbThread));
   if (tmpThread == NULL)
     DBUG_RETURN(NULL);
 
@@ -355,7 +354,7 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   if (p_thread_func == NULL)
     DBUG_RETURN(NULL);
 
-  tmpThread = (struct NdbThread*)NdbMem_Allocate(sizeof(struct NdbThread));
+  tmpThread = (struct NdbThread*)malloc(sizeof(struct NdbThread));
   if (tmpThread == NULL)
     DBUG_RETURN(NULL);
 
@@ -400,7 +399,7 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
 
   if (result != 0)
   {
-    NdbMem_Free(tmpThread);
+    free(tmpThread);
     NdbMutex_Unlock(ndb_thread_mutex);
     DBUG_RETURN(0);
   }
@@ -433,7 +432,7 @@ NdbThread_CreateLockObject(int tid)
   struct NdbThread* tmpThread;
   DBUG_ENTER("NdbThread_CreateLockObject");
 
-  tmpThread = (struct NdbThread*)NdbMem_Allocate(sizeof(struct NdbThread));
+  tmpThread = (struct NdbThread*)malloc(sizeof(struct NdbThread));
   if (tmpThread == NULL)
     DBUG_RETURN(NULL);
 
@@ -481,7 +480,7 @@ void NdbThread_Destroy(struct NdbThread** p_thread)
       CloseHandle(thread_handle);
 #endif
     DBUG_PRINT("enter",("*p_thread: 0x%lx", (long) *p_thread));
-    NdbMem_Free(* p_thread); 
+    free(* p_thread);
     * p_thread = 0;
   }
   DBUG_VOID_RETURN;
@@ -885,42 +884,10 @@ NdbThread_SetThreadPrio(struct NdbThread *pThread,
  * is_cpu_locking_supported_on_windows() that will tell us if we have proper
  * support to use CPU locking on Windows.
  *
- * The work done here means that the windows functions are called by
- * cpu_bind_windows(tid, affinity_struct, *affinity_struct)
- * get_active_processor_groups()
- * AND
- * get_active_processors_in_group(group_number)
  */
-#define cpu_bind_windows(a, b, c) (*fn_SetThreadGroupAffinity)(a,b,c)
-typedef BOOL (*SetThreadGroupAffinity_FunctionType)(
-  HANDLE hThread,
-  const GROUP_AFFINITY affinity,
-  PGROUP_AFFINITY prev_affinity
-);
-static SetThreadGroupAffinity_FunctionType fn_SetThreadGroupAffinity;
-
-#define get_active_processors_in_group(a) (*fn_GetActiveProcessorCount)(a)
-typedef DWORD (*GetActiveProcessorCount_FunctionType)(
-  WORD GroupNumber
-);
-static GetActiveProcessorCount_FunctionType fn_GetActiveProcessorCount;
-
-#define get_active_processor_groups() (*fn_GetActiveProcessorGroupCount)()
-typedef WORD (*GetActiveProcessorGroupCount_FunctionType)(
-  void
-);
-static GetActiveProcessorGroupCount_FunctionType fn_GetActiveProcessorGroupCount;
-
-#define set_thread_priority(a, b) (*fn_SetThreadPriority)(a,b)
-typedef BOOL (*SetThreadPriority_FunctionType)(
-  HANDLE hThread,
-  int    priority
-);
-static SetThreadPriority_FunctionType fn_SetThreadPriority;
 
 static unsigned int num_processor_groups = 0;
 static unsigned int *num_processors_per_group = NULL;
-static my_bool windows_scheduling_supported = FALSE;
 static my_bool inited = FALSE;
 static my_bool support_cpu_locking_on_windows = FALSE;
 
@@ -950,79 +917,41 @@ static my_bool support_cpu_locking_on_windows = FALSE;
 #define GET_PROCESSOR_ID(a) ((a) & 63)
 #define NOT_ASSIGNED_TO_PROCESSOR_GROUP 0xFFFF0000
 
-my_bool is_cpu_locking_supported_on_windows()
+static my_bool
+is_cpu_locking_supported_on_windows()
 {
   if (inited)
   {
     return support_cpu_locking_on_windows;
   }
   inited = TRUE;
-  support_cpu_locking_on_windows = FALSE;
-  windows_scheduling_supported = FALSE;
-  fn_SetThreadGroupAffinity =
-    (SetThreadGroupAffinity_FunctionType)
-    (void*)GetProcAddress(LoadLibrary("kernel32"),
-                          "SetThreadGroupAffinity");
 
-  fn_GetActiveProcessorGroupCount =
-    (GetActiveProcessorGroupCount_FunctionType)
-    (void*)GetProcAddress(LoadLibrary("kernel32"),
-                          "GetActiveProcessorGroupCount");
-
-  fn_GetActiveProcessorCount =
-    (GetActiveProcessorCount_FunctionType)
-    (void*)GetProcAddress(LoadLibrary("kernel32"),
-                          "GetActiveProcessorCount");
-
-  fn_SetThreadPriority =
-    (SetThreadPriority_FunctionType)
-    (void*)GetProcAddress(LoadLibrary("kernel32"),
-                          "SetThreadPriority");
-
-  if (fn_SetThreadGroupAffinity &&
-      fn_GetActiveProcessorGroupCount &&
-      fn_GetActiveProcessorCount)
+  num_processor_groups = GetActiveProcessorGroupCount();
+  if (num_processor_groups == 0)
   {
-    support_cpu_locking_on_windows = TRUE;
-    num_processor_groups = get_active_processor_groups();
-    if (num_processor_groups == 0)
+    return FALSE;
+  }
+
+  num_processors_per_group = malloc(num_processor_groups * sizeof(unsigned int));
+  if (num_processors_per_group == NULL)
+  {
+    return FALSE;
+  }
+
+  for (Uint32 i = 0; i < num_processor_groups; i++)
+  {
+    num_processors_per_group[i] = GetActiveProcessorCount((WORD)i);
+    if (num_processors_per_group[i] == 0)
     {
-      support_cpu_locking_on_windows = FALSE;
       return FALSE;
     }
-    num_processors_per_group = NdbMem_Allocate(num_processor_groups *
-                                               sizeof(unsigned int));
-    if (num_processors_per_group == NULL)
-    {
-      support_cpu_locking_on_windows = FALSE;
-      return FALSE;
-    }
-    for (Uint32 i = 0; i < num_processor_groups; i++)
-    {
-      num_processors_per_group[i] = get_active_processors_in_group((WORD)i);
-      if (num_processors_per_group[i] == 0)
-      {
-        support_cpu_locking_on_windows = FALSE;
-        return FALSE;
-      }
-    }
   }
-  if (fn_SetThreadPriority)
-  {
-    windows_scheduling_supported = TRUE;
-  }
+
+  // Initialization successful -> cpu locking supported!
+  support_cpu_locking_on_windows = TRUE;
   return support_cpu_locking_on_windows;
 }
 
-my_bool is_windows_scheduling_supported()
-{
-  if (inited)
-  {
-    return windows_scheduling_supported;
-  }
-  (void)is_cpu_locking_supported_on_windows();
-  return windows_scheduling_supported;
-}
 
 static my_bool
 is_cpu_available(unsigned int cpu_id)
@@ -1082,14 +1011,15 @@ NdbThread_SetScheduler(struct NdbThread* pThread,
   {
     windows_prio = THREAD_PRIORITY_NORMAL;
   }
-  my_bool ret = set_thread_priority(pThread->thread_handle, windows_prio);
-  int error_no = 0;
-  if (ret)
+  const BOOL ret = SetThreadPriority(pThread->thread_handle, windows_prio);
+  if (ret == 0)
   {
-    error_no = GetLastError();
-    return error_no;
+    // Failed to set thread priority
+    const DWORD error_no = GetLastError();
+    return (int)error_no;
   }
-  return error_no;
+
+  return 0;
 }
 
 int
@@ -1097,10 +1027,6 @@ NdbThread_SetThreadPrio(struct NdbThread *pThread,
                         unsigned int prio)
 {
   int windows_prio;
-  if (!is_windows_scheduling_supported())
-  {
-    return SET_THREAD_PRIO_NOT_SUPPORTED_ERROR;
-  }
   switch (prio)
   {
     case 0:
@@ -1129,14 +1055,14 @@ NdbThread_SetThreadPrio(struct NdbThread *pThread,
       /* Impossible to reach */
       require(FALSE);
   }
-  my_bool ret = set_thread_priority(pThread->thread_handle, windows_prio);
-  int error_no = 0;
-  if (ret)
+  const BOOL ret = SetThreadPriority(pThread->thread_handle, windows_prio);
+  if (ret == 0)
   {
-    error_no = GetLastError();
-    return error_no;
+    // Failed to set thread group affinity
+    const DWORD error_no = GetLastError();
+    return (int)error_no;
   }
-  return error_no;
+  return 0;
 }
 
 void
@@ -1166,15 +1092,20 @@ NdbThread_UnlockCPU(struct NdbThread* pThread)
 
   new_affinity.Mask = pThread->oldProcessorMask;
   new_affinity.Group = pThread->oldProcessorGroupNumber;
-  
-  my_bool ret = cpu_bind_windows(pThread->thread_handle, new_affinity, NULL);
-  int error_no = 0;
-  if (ret)
-  {
-    error_no = GetLastError();
-  }
+
   pThread->cpu_set_key = NULL;
-  return error_no;
+
+  const BOOL ret = SetThreadGroupAffinity(pThread->thread_handle,
+                                          &new_affinity,
+                                          NULL);
+  if (ret == 0)
+  {
+    // Failed to set thread group affinity
+    const DWORD error_no = GetLastError();
+    return (int)error_no;
+  }
+
+  return 0;
 }
 
 int
@@ -1204,21 +1135,21 @@ NdbThread_LockCPU(struct NdbThread* pThread,
   new_affinity.Mask = (cpu0 << GET_PROCESSOR_ID(cpu_id));
   new_affinity.Group = GET_PROCESSOR_GROUP(cpu_id);
 
-  my_bool ret = cpu_bind_windows(pThread->thread_handle,
-                                 new_affinity,
-                                 &old_affinity);
-  int error_no = 0;
-  if (!ret)
+  const BOOL ret = SetThreadGroupAffinity(pThread->thread_handle,
+                                          &new_affinity,
+                                          &old_affinity);
+  if (ret == 0)
   {
-    error_no = GetLastError();
+    // Failed to set thread group affinity
+    const DWORD error_no = GetLastError();
+    return (int)error_no;
   }
-  if (!error_no)
-  {
-    pThread->cpu_set_key = cpu_set_key;
-    pThread->oldProcessorMask = old_affinity.Mask;
-    pThread->oldProcessorGroupNumber = old_affinity.Group;
-  }
-  return error_no;
+
+  pThread->cpu_set_key = cpu_set_key;
+  pThread->oldProcessorMask = old_affinity.Mask;
+  pThread->oldProcessorGroupNumber = old_affinity.Group;
+
+  return 0;
 }
 
 int
@@ -1254,10 +1185,8 @@ NdbThread_LockCreateCPUSet(const Uint32 *cpu_ids,
    * Based on this static and dynamic information we can calculate where to
    * place the next thread (in which processor group).
    */
-  unsigned int *cpu_set_ptr = NdbMem_Allocate( (num_cpu_ids +
-                                                2 +
-                                               (num_processor_groups * 2))
-                                               * sizeof(unsigned int));
+  unsigned int *cpu_set_ptr =
+    malloc( (num_cpu_ids + 2 + (num_processor_groups * 2)) * sizeof(unsigned int));
   if (!cpu_set_ptr)
   {
     int error_no = GetLastError();
@@ -1335,23 +1264,24 @@ NdbThread_LockCPUSet(struct NdbThread* pThread,
 
   new_affinity.Mask = mask;
   new_affinity.Group = used_processor_group;
-  
-  my_bool ret = cpu_bind_windows(pThread->thread_handle, new_affinity, &old_affinity);
-  int error_no = 0;
-  if (!ret)
+
+  const BOOL ret = SetThreadGroupAffinity(pThread->thread_handle,
+                                          &new_affinity,
+                                          &old_affinity);
+  if (ret == 0)
   {
-    error_no = GetLastError();
+    // Failed to set thread group affinity
+    const DWORD error_no = GetLastError();
+    return (int)error_no;
   }
 
-  if (!error_no)
-  {
-    cpu_set_ptr[2 + used_processor_group]++;
-    pThread->cpu_set_key = cpu_set_key;
-    pThread->usedProcessorGroupNumber = used_processor_group;
-    pThread->oldProcessorMask = old_affinity.Mask;
-    pThread->oldProcessorGroupNumber = old_affinity.Group;
-  }
-  return error_no;
+  cpu_set_ptr[2 + used_processor_group]++;
+  pThread->cpu_set_key = cpu_set_key;
+  pThread->usedProcessorGroupNumber = used_processor_group;
+  pThread->oldProcessorMask = old_affinity.Mask;
+  pThread->oldProcessorGroupNumber = old_affinity.Group;
+
+  return 0;
 }
 
 int
@@ -1702,10 +1632,10 @@ NdbThread_LockCreateCPUSet(const Uint32 *cpu_ids,
   Uint32 i;
 #if defined(HAVE_LINUX_SCHEDULING)
   /* Linux */
-  cpu_set_t *cpu_set_ptr = NdbMem_Allocate(sizeof(cpu_set_t));
+  cpu_set_t *cpu_set_ptr = malloc(sizeof(cpu_set_t));
 #elif defined(HAVE_CPUSET_SETAFFINITY)
   /* FreeBSD */
-  cpuset_t *cpu_set_ptr = NdbMem_Allocate(sizeof(cpuset_t));
+  cpuset_t *cpu_set_ptr = malloc(sizeof(cpuset_t));
 #endif
 
   if (!cpu_set_ptr)
@@ -1726,7 +1656,7 @@ NdbThread_LockCreateCPUSet(const Uint32 *cpu_ids,
   /* New interface added in Solaris 11.2 */
   int error_no;
   Uint32 i;
-  id_t *cpu_set_ptr = NdbMem_Allocate((num_cpu_ids + 1) * sizeof(id_t));
+  id_t *cpu_set_ptr = malloc((num_cpu_ids + 1) * sizeof(id_t));
   if (!cpu_set_ptr)
   {
     error_no = errno;
@@ -1759,7 +1689,7 @@ NdbThread_LockCreateCPUSetExclusive(const Uint32 *cpu_ids,
   int ret;
   int error_no;
   Uint32 i;
-  psetid_t *cpu_set_ptr = NdbMem_Allocate(sizeof(psetid_t));
+  psetid_t *cpu_set_ptr = malloc(sizeof(psetid_t));
 
   if (!cpu_set_ptr)
   {
@@ -1787,7 +1717,7 @@ NdbThread_LockCreateCPUSetExclusive(const Uint32 *cpu_ids,
 late_error:
   pset_destroy(*cpu_set_ptr);
 error:
-  NdbMem_Free(cpu_set_ptr);
+  free(cpu_set_ptr);
 end_error:
   *cpu_set = NULL;
   return error_no;
@@ -1860,7 +1790,7 @@ NdbThread_LockDestroyCPUSet(struct NdbCpuSet *cpu_set)
 {
   if (cpu_set != NULL)
   {
-    NdbMem_Free(cpu_set);
+    free(cpu_set);
   }
 }
 
@@ -1873,7 +1803,7 @@ NdbThread_LockDestroyCPUSetExclusive(struct NdbCpuSet *cpu_set)
     /* Solaris */
     pset_destroy(*((psetid_t*)cpu_set));
 #endif
-    NdbMem_Free(cpu_set);
+    free(cpu_set);
   }
 }
 
@@ -1938,7 +1868,7 @@ NdbThread_End()
 
   if (g_main_thread)
   {
-    NdbMem_Free(g_main_thread);
+    free(g_main_thread);
     g_main_thread = 0;
   }
 }
@@ -1981,7 +1911,7 @@ NdbThread_SetHighPrioProperties(const char * spec)
     /**
      * extra prio??
      */
-    NdbMem_Free(copy);
+    free(copy);
     return -1;
   }
 
@@ -2003,7 +1933,7 @@ NdbThread_SetHighPrioProperties(const char * spec)
 #endif
   if (!found)
   {
-    NdbMem_Free(copy);
+    free(copy);
     return -1;
   }
 
@@ -2014,13 +1944,13 @@ NdbThread_SetHighPrioProperties(const char * spec)
     long p = strtol(prio, &endptr, 10);
     if (prio == endptr)
     {
-      NdbMem_Free(copy);
+      free(copy);
       return -1;
     }
     f_high_prio_prio = (int)p;
   }
   f_high_prio_set = 1;
-  NdbMem_Free(copy);
+  free(copy);
   return 0;
 #else
   return 0;

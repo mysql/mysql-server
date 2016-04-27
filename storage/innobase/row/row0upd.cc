@@ -399,6 +399,13 @@ row_upd_changes_field_size_or_external(
 	for (i = 0; i < n_fields; i++) {
 		upd_field = upd_get_nth_field(update, i);
 
+		/* We should ignore virtual field if the index is not
+		a virtual index */
+		if (upd_fld_is_virtual_col(upd_field)
+		    && dict_index_has_virtual(index) != DICT_VIRTUAL) {
+			continue;
+		}
+
 		new_val = &(upd_field->new_val);
 		new_len = dfield_get_len(new_val);
 
@@ -644,7 +651,13 @@ row_upd_index_write_log(
 
 		len = dfield_get_len(new_val);
 
-		log_ptr += mach_write_compressed(log_ptr, upd_field->field_no);
+		/* If this is a virtual column, mark it using special
+		field_no */
+		ulint	field_no = upd_fld_is_virtual_col(upd_field)
+				   ? REC_MAX_N_FIELDS + upd_field->field_no
+				   : upd_field->field_no;
+
+		log_ptr += mach_write_compressed(log_ptr, field_no);
 		log_ptr += mach_write_compressed(log_ptr, len);
 
 		if (len != UNIV_SQL_NULL) {
@@ -718,6 +731,13 @@ row_upd_index_parse(
 		if (ptr == NULL) {
 
 			return(NULL);
+		}
+
+		/* Check if this is a virtual column, mark the prtype
+		if that is the case */
+		if (field_no >= REC_MAX_N_FIELDS) {
+			new_val->type.prtype |= DATA_VIRTUAL;
+			field_no -= REC_MAX_N_FIELDS;
 		}
 
 		upd_field->field_no = field_no;

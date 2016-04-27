@@ -793,7 +793,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "27.87"
+      "query_cost": "11.35"
     },
     "table": {
       "table_name": "t1",
@@ -810,9 +810,9 @@ EXPLAIN
       "rows_produced_per_join": 4,
       "filtered": "100.00",
       "cost_info": {
-        "read_cost": "27.07",
+        "read_cost": "10.55",
         "eval_cost": "0.80",
-        "prefix_cost": "27.87",
+        "prefix_cost": "11.35",
         "data_read_per_join": "4K"
       },
       "used_columns": [

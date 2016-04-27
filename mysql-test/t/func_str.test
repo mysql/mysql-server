@@ -1186,6 +1186,21 @@ SELECT UNHEX('G');
 SELECT UNHEX('G') IS NULL;
 
 #
+# Bug #22358933: UNHEX WITH INVALID ARGUMENT LEAD TO VALGRIND ERROR
+#
+DO UNHEX(-1);
+SHOW warnings;
+DO UNHEX(-182680438);
+SHOW warnings;
+DO UNHEX(-2251799813685249);
+SHOW warnings;
+
+#
+# Bug #19642015 UNHEX() RUNTIME ERROR: LEFT SHIFT OF NEGATIVE VALUE -1
+#
+select unhex('5078-04-25');
+
+#
 # Bug #26281: INSERT() function mishandles NUL on boundary condition
 #
 SELECT INSERT('abc', 3, 3, '1234');
@@ -1816,6 +1831,15 @@ FROM ( SELECT repeat(_utf8mb4 0xE29883, 21844) AS data ) AS sub;
 SELECT length(repeat(_utf8mb4 0xE29883, 21846)) AS data;
 SELECT length(data) AS len
 FROM ( SELECT repeat(_utf8mb4 0xE29883, 21846) AS data ) AS sub;
+
+--echo #
+--echo # Bug #22884187 RTRIM GETS EXPONENTIALLY SLOWER ON LARGE STRINGS
+--echo #
+
+set names utf8;
+SELECT TRIM(BOTH 'å' FROM 'aæaå');
+set names default;
+SELECT HEX(TRIM(CONVERT(_gb18030 0x20202081408141208144202020 USING utf32)));
 
 --echo #
 --echo # Bug#21447969 FILTER USING TRIM RESULTS IN CORRECT

@@ -1,0 +1,15 @@
+## Very simple test. First to be run in the suite.
+## Just a check that that we are in business.
+##
+
+--source suite/xplugin/include/xplugin_preamble.inc
+## Test starts here
+--write_file $MYSQL_TMP_DIR/mysqlx-1st.tmp
+-->sql
+SELECT plugin_name,plugin_status,plugin_type FROM information_schema.plugins WHERE plugin_name LIKE '%mysqlx%';
+-->endsql
+EOF
+--exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-1st.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-1st.tmp
+## Postamble
+uninstall plugin mysqlx;

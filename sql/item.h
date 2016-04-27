@@ -2539,6 +2539,12 @@ public:
     return value_item->send(protocol, str);
   }
 
+  virtual bool cache_const_expr_analyzer(uchar **arg)
+  {
+    // Item_name_const always wraps a literal, so there is no need to cache it.
+    return false;
+  }
+
 protected:
   type_conversion_status save_in_field_inner(Field *field, bool no_conversions)
   {
@@ -3079,10 +3085,6 @@ class Item_param :public Item,
                   private Settable_routine_parameter
 {
   typedef Item super;
-
-  char cnvbuf[MAX_FIELD_WIDTH];
-  String cnvstr;
-  Item *cnvitem;
 
 protected:
   type_conversion_status save_in_field_inner(Field *field, bool no_conversions);

@@ -1,0 +1,9 @@
+#
+# Bug #22142209: MY_MESSAGE FAILS TO ABORT MYSQL_AUDIT_SERVER_STARTUP_CLASS EVENT
+#
+# Shutdown the server
+# Load the plugin at startup and abort on STARTUP with default message
+# Search for default abort message
+# Load the plugin at startup and abort on STARTUP event with custom message
+# Search for custom abort message
+# Startup the server

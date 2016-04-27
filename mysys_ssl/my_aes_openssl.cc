@@ -21,6 +21,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <openssl/aes.h>
 #include <openssl/evp.h>
 #include <openssl/err.h>
+#include <openssl/bio.h>
+
+/*
+  xplugin needs BIO_new_bio_pair, but the server does not.
+  Add an explicit dependency here, so that it is available when loading
+  the plugin.
+ */
+int dummy_function_needed_by_xplugin()
+{
+  BIO *bio1;
+  BIO *bio2;
+  return BIO_new_bio_pair(&bio1, 42U, &bio2, 42U);
+}
 
 
 /* keep in sync with enum my_aes_opmode in my_aes.h */

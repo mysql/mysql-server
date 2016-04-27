@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #include "log.h"
 #include "mysqld.h"                             // sql_statement_names
 #include "sql_class.h"                          // THD
+#include "sql_thd_internal_api.h"               // create_thd / destroy_thd
 #include "sql_plugin.h"                         // my_plugin_foreach
 #include "sql_rewrite.h"                        // mysql_rewrite_query
 
@@ -144,6 +145,55 @@ private:
 
   /** Handler has been activated. */
   const bool m_active;
+};
+
+/**
+  Self destroying THD.
+*/
+class Auto_THD : public Internal_error_handler
+{
+public:
+  /**
+    Create THD object and initialize internal variables.
+  */
+  Auto_THD() :
+    thd(create_thd(false, true, false, 0))
+  {
+    thd->push_internal_handler(this);
+  }
+
+  /**
+    Deinitialize THD.
+  */
+  virtual ~Auto_THD()
+  {
+    thd->pop_internal_handler();
+    destroy_thd(thd);
+  }
+
+  /**
+    Error handler that prints error message on to the error log.
+
+    @param thd       Current THD.
+    @param sql_errno Error id.
+    @param sqlstate  State of the SQL error.
+    @param level     Error level.
+    @param msg       Message to be reported.
+
+    @return This function always return false.
+  */
+  virtual bool handle_condition(THD *thd __attribute__((unused)),
+            uint sql_errno __attribute__((unused)),
+            const char* sqlstate __attribute__((unused)),
+            Sql_condition::enum_severity_level *level __attribute__((unused)),
+            const char* msg)
+  {
+    sql_print_error("%s", msg);
+    return false;
+  }
+
+  /** Thd associated with the object. */
+  THD *thd;
 };
 
 struct st_mysql_event_generic
@@ -599,20 +649,23 @@ int mysql_audit_notify(THD *thd, mysql_event_global_variable_subclass_t subclass
 }
 
 int mysql_audit_notify(mysql_event_server_startup_subclass_t subclass,
+                       const char *subclass_name,
                        const char **argv,
                        unsigned int argc)
 {
   mysql_event_server_startup event;
+  Auto_THD thd;
 
-  if (mysql_audit_acquire_plugins(0, MYSQL_AUDIT_SERVER_STARTUP_CLASS,
-                                   static_cast<unsigned long>(subclass)))
+  if (mysql_audit_acquire_plugins(thd.thd, MYSQL_AUDIT_SERVER_STARTUP_CLASS,
+                                  static_cast<unsigned long>(subclass)))
     return 0;
 
   event.event_subclass= subclass;
   event.argv= argv;
   event.argc= argc;
 
-  return event_class_dispatch(0, MYSQL_AUDIT_SERVER_STARTUP_CLASS, &event);
+  return event_class_dispatch_error(thd.thd, MYSQL_AUDIT_SERVER_STARTUP_CLASS,
+                                    subclass_name, &event);
 }
 
 int mysql_audit_notify(mysql_event_server_shutdown_subclass_t subclass,
