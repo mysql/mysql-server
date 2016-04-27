@@ -3151,3 +3151,31 @@ EOF
 --let IGNORE_PATTERN=  october
 --let SEARCH_ECHO_CTX= 3
 --source include/search_pattern.inc
+
+--echo #
+--echo # Bug#17944190 : MYSQLTEST CANNOT PARSE PERL BLOCK INSIDE IF THAT EVALUATES TO FALSE
+--echo #
+
+if(1) {
+  --perl
+  # True block
+  print "True block\n";
+  EOF
+}
+
+if(0) {
+  --perl
+  # False block
+  print "False block\n";
+  EOF
+}
+
+--let $i = 2
+while($i) {
+  --dec $i
+  if (!$i) {
+    --perl
+    print "Hello\n";
+    EOF
+  }
+}

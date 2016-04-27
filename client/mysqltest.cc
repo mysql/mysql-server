@@ -9377,6 +9377,9 @@ int main(int argc, char **argv)
       }
     }
 
+    if (command->type == Q_PERL)
+      do_perl(command);
+
     if (ok_to_do)
     {
       command->last_argument= command->first_argument;
@@ -9471,7 +9474,6 @@ int main(int argc, char **argv)
       case Q_COPY_FILE: do_copy_file(command); break;
       case Q_MOVE_FILE: do_move_file(command); break;
       case Q_CHMOD_FILE: do_chmod_file(command); break;
-      case Q_PERL: do_perl(command); break;
       case Q_RESULT_FORMAT_VERSION: do_result_format_version(command); break;
       case Q_DELIMITER:
         do_delimiter(command);
