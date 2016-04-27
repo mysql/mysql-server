@@ -11160,6 +11160,13 @@ bool JOIN::optimize_rollup()
     These are updated by rollup_make_fields()
   */
   tmp_table_param.group_parts= send_group_parts;
+  /*
+    substitute_gc() might substitute an expression in the GROUP BY list with
+    a generated column. In such case the GC is added to the all_fields as a
+    hidden field. In total, all_fields list could be grown by up to
+    send_group_parts columns. Reserve space for them here.
+  */
+  const uint ref_array_size= all_fields.elements + send_group_parts;
 
   Item_null_result **null_items=
     static_cast<Item_null_result**>(thd->alloc(sizeof(Item*)*send_group_parts));
@@ -11168,7 +11175,7 @@ bool JOIN::optimize_rollup()
   rollup.ref_pointer_arrays=
     static_cast<Ref_ptr_array*>
     (thd->alloc((sizeof(Ref_ptr_array) +
-                 all_fields.elements * sizeof(Item*)) * send_group_parts));
+                 ref_array_size * sizeof(Item*)) * send_group_parts));
   rollup.fields=
     static_cast<List<Item>*>(thd->alloc(sizeof(List<Item>) * send_group_parts));
 
@@ -11191,8 +11198,8 @@ bool JOIN::optimize_rollup()
       return true;           /* purecov: inspected */
     List<Item> *rollup_fields= &rollup.fields[i];
     rollup_fields->empty();
-    rollup.ref_pointer_arrays[i]= Ref_ptr_array(ref_array, all_fields.elements);
-    ref_array+= all_fields.elements;
+    rollup.ref_pointer_arrays[i]= Ref_ptr_array(ref_array, ref_array_size);
+    ref_array+= ref_array_size;
   }
   for (uint i= 0; i < send_group_parts; i++)
   {

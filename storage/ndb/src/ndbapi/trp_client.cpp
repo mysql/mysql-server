@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2016 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,7 +17,6 @@
 
 #include "trp_client.hpp"
 #include "TransporterFacade.hpp"
-#include <NdbMem.h>
 
 trp_client::trp_client()
   : m_blockNo(~Uint32(0)), m_facade(0)
@@ -70,8 +69,8 @@ trp_client::open(TransporterFacade* tf, int blockNo,
     {
       m_poll.m_lock_array_size = 16;
     }
-    m_poll.m_locked_clients = (trp_client**)
-      NdbMem_Allocate(sizeof(trp_client**) * m_poll.m_lock_array_size);
+    m_poll.m_locked_clients =
+      (trp_client**) malloc(sizeof(trp_client**) * m_poll.m_lock_array_size);
     if (m_poll.m_locked_clients == NULL)
     {
       return 0;
@@ -83,7 +82,7 @@ trp_client::open(TransporterFacade* tf, int blockNo,
     }
     else
     {
-      NdbMem_Free(m_poll.m_locked_clients);
+      free(m_poll.m_locked_clients);
       m_poll.m_locked_clients = NULL;
       m_facade = 0;
     }
@@ -108,7 +107,7 @@ trp_client::close()
     m_blockNo = ~Uint32(0);
     if (m_poll.m_locked_clients)
     {
-      NdbMem_Free(m_poll.m_locked_clients);
+      free(m_poll.m_locked_clients);
       m_poll.m_locked_clients = NULL;
     }
   }

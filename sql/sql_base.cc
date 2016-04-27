@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -766,7 +766,8 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
   }
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  share->m_psi= PSI_TABLE_CALL(get_table_share)(false, share);
+  share->m_psi=
+     PSI_TABLE_CALL(get_table_share)((share->tmp_table != NO_TMP_TABLE), share);
 #else
   share->m_psi= NULL;
 #endif
@@ -1513,6 +1514,23 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
   }
 }
 
+/**
+  Performance Schema tables must be accessible independently of the LOCK TABLE
+  mode. These macros handle the special case of P_S tables being used under
+  LOCK TABLE mode.
+*/
+
+/* Check if we are under LOCK TABLE mode and not prelocking. */
+#define UNDER_LTM(thd) \
+  (thd->locked_tables_mode == LTM_LOCK_TABLES || \
+   thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES)
+
+/* Check if the table belongs to the P_S, excluding setup and threads tables. */
+#define BELONGS_TO_P_S_UNDER_LTM(thd, tl) \
+   (UNDER_LTM(thd) && \
+    (!strcmp("performance_schema", tl->db) && \
+     strcmp(tl->table_name, "threads") && \
+     strstr(tl->table_name, "setup_") == NULL))
 
 /*
   Close all tables used by the current substatement, or all tables
@@ -1607,6 +1625,35 @@ void close_thread_tables(THD *thd)
 
   if (thd->locked_tables_mode)
   {
+    /* Close P_S tables opened implicilty under LOCK TABLE mode. */
+    if (UNDER_LTM(thd))
+    {
+      for (TABLE **prev= &thd->open_tables; *prev; )
+      {
+        TABLE *table= *prev;
+
+        /* Ignore tables locked explicitly by LOCK TABLE. */
+        if (!table->pos_in_locked_tables)
+        {
+          /* Close P_S tables unless the query is inside of a SP/trigger. */
+          if (!thd->in_sub_stmt &&
+              BELONGS_TO_P_S_UNDER_LTM(thd, table->pos_in_table_list))
+          {
+            if (!table->s->tmp_table)
+            {
+              table->file->ha_index_or_rnd_end();
+              table->set_keyread(FALSE);
+              table->open_by_handler= 0;
+              table->file->ha_external_lock(thd, F_UNLCK);
+              close_thread_table(thd, prev);
+              continue;
+            }
+          }
+
+        }
+        prev= &table->next;
+      }
+    }
 
     /* Ensure we are calling ha_reset() for all used tables */
     mark_used_tables_as_free_for_reuse(thd, thd->open_tables);
@@ -2982,14 +3029,15 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
     TODO: move this block into a separate function.
   */
   if (thd->locked_tables_mode &&
-      ! (flags & MYSQL_OPEN_GET_NEW_TABLE))
-  {						// Using table locks
+      !(flags & MYSQL_OPEN_GET_NEW_TABLE) &&
+      !BELONGS_TO_P_S_UNDER_LTM(thd, table_list))
+  {   // Using table locks
     TABLE *best_table= 0;
     int best_distance= INT_MIN;
     for (table=thd->open_tables; table ; table=table->next)
     {
       if (table->s->table_cache_key.length == key_length &&
-	  !memcmp(table->s->table_cache_key.str, key, key_length))
+          !memcmp(table->s->table_cache_key.str, key, key_length))
       {
         if (!my_strcasecmp(system_charset_info, table->alias, alias) &&
             table->query_id != thd->query_id && /* skip tables already used */
@@ -3554,6 +3602,13 @@ table_found:
   }
 
   table->init(thd, table_list);
+
+  /* Request a read lock for implicitly opened P_S tables. */
+  if (BELONGS_TO_P_S_UNDER_LTM(thd, table_list) &&
+      table_list->table->file->get_lock_type() == F_UNLCK)
+  {
+    table_list->table->file->ha_external_lock(thd, F_RDLCK);
+  }
 
   DBUG_RETURN(FALSE);
 
@@ -6361,8 +6416,15 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables, uint flags,
   /*
     open_and_lock_tables() must not be used to open system tables. There must
     be no active attachable transaction when open_and_lock_tables() is called.
+    Exception is made to the read-write attachables with explicitly specified
+    in the assert table.
+    Callers in the read-write case must make sure no side effect to
+    the global transaction state is inflicted when the attachable one
+    will commmit.
   */
-  DBUG_ASSERT(!thd->is_attachable_transaction_active());
+  DBUG_ASSERT(!thd->is_attachable_ro_transaction_active() &&
+              (!thd->is_attachable_rw_transaction_active() ||
+               !strcmp(tables->table_name, "gtid_executed")));
 
   if (open_tables(thd, &tables, &counter, flags, prelocking_strategy))
     goto err;
@@ -9932,11 +9994,11 @@ bool open_trans_system_tables_for_read(THD *thd, TABLE_LIST *table_list)
 
   DBUG_ENTER("open_trans_system_tables_for_read");
 
-  DBUG_ASSERT(!thd->is_attachable_transaction_active());
+  DBUG_ASSERT(!thd->is_attachable_ro_transaction_active());
 
   // Begin attachable transaction.
 
-  thd->begin_attachable_transaction();
+  thd->begin_attachable_ro_transaction();
 
   // Open tables.
 

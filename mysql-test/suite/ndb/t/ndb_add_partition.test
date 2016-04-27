@@ -200,7 +200,7 @@ show warnings;
 alter table t3 algorithm=inplace, max_rows=50000000;
 alter table t4 algorithm=inplace, reorganize partition;
 
---error ER_ALTER_OPERATION_NOT_SUPPORTED
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 alter table t5 algorithm=inplace partition by key() partitions 6;
 
 let $t1_part_count_now = query_get_value(select count(*) as Value from information_schema.partitions where table_schema = 'test' and table_name = 't1', Value, 1);

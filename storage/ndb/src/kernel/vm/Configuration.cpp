@@ -25,7 +25,6 @@
 #include <ConfigRetriever.hpp>
 #include <IPCConfig.hpp>
 #include <ndb_version.h>
-#include <NdbMem.h>
 #include <NdbOut.hpp>
 #include <WatchDog.hpp>
 #include <NdbConfig.h>

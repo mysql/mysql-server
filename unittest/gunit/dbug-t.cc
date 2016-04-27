@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -74,7 +74,7 @@ TEST(DebugFlushGcov, FlushGcovParallel)
 #endif
 
 
-#if !defined(DBUG_OFF)
+#if !defined(DBUG_OFF) && !defined(HAVE_ASAN)
 TEST(DebugPrintTest, PrintEval)
 {
   int y= 0;

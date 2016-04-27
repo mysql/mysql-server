@@ -35,7 +35,9 @@
 --let $post_restart_conn_number=10
 
 # Counter to be used in GTID consistency check.
-# It's incremented per each non-XA transaction commit.
+# It's incremented per each non-XA transaction commit, including DDL calls and
+# also by any DML  quieries like CALL mtr.add_suppression() that are added to
+# the top level file of this test.
 --let $not_xa_trans_committed = 0
 # Local to this file variable to control one-phase commit loop
 --let $one_phase_number = 5
@@ -57,6 +59,7 @@ CREATE VIEW v_processlist  as SELECT * FROM performance_schema.threads where typ
 --inc $not_xa_trans_committed
 --eval call mtr.add_suppression("Found $prepared_at_server_restart prepared XA transactions")
 # Caused by bug#79416 fixes, see below.
+--inc $not_xa_trans_committed
 call mtr.add_suppression("Found 1 prepared XA transactions");
 
 --inc $not_xa_trans_committed

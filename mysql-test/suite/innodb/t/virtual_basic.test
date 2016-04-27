@@ -1484,4 +1484,16 @@ SELECT * FROM t;
 
 DROP TABLE t;
 
+--echo #
+--echo # Bug #22162200 MEMORY LEAK IN HA_INNOPART_SHARE
+--echo # ::SET_V_TEMPL PARTITIONED ON VIRTUAL COLUMN
+--echo #
+create table t (
+  c tinyint,
+  d longblob generated always as (c) virtual
+) engine=innodb partition by key (c) partitions 2;
+
+select d in(select d from t)from t group by d;
+drop table t;
+
 --source include/wait_until_count_sessions.inc

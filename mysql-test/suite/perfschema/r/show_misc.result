@@ -50,6 +50,45 @@ Variable_name	Value
 Created_tmp_tables	0
 
 ================================================================================
+Bug#21789221 SHOW STATUS FAILS WITH LOCK TABLES AND SHOW_COMPATIBILITY_56=OFF
+================================================================================
+Verify that SHOW STATUS and SHOW VARIABLES works under LOCK TABLES mode
+
+CREATE TABLE test.t1 (s1 INT);
+LOCK TABLE test.t1 READ;
+
+SHOW GLOBAL STATUS WHERE VARIABLE_NAME LIKE "foo";
+Variable_name	Value
+
+SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE "foo";
+Variable_name	Value
+
+SHOW GLOBAL VARIABLES WHERE VARIABLE_NAME LIKE "foo";
+Variable_name	Value
+
+SHOW SESSION VARIABLES WHERE VARIABLE_NAME LIKE "foo";
+Variable_name	Value
+
+UNLOCK TABLES;
+
+LOCK TABLE test.t1 WRITE;
+
+SHOW GLOBAL STATUS WHERE VARIABLE_NAME LIKE "foo";
+Variable_name	Value
+
+SHOW SESSION STATUS WHERE VARIABLE_NAME LIKE "foo";
+Variable_name	Value
+
+SHOW GLOBAL VARIABLES WHERE VARIABLE_NAME LIKE "foo";
+Variable_name	Value
+
+SHOW SESSION VARIABLES WHERE VARIABLE_NAME LIKE "foo";
+Variable_name	Value
+
+UNLOCK TABLES;
+DROP TABLE test.t1;
+
+================================================================================
 CLEAN UP
 ================================================================================
 set @@global.show_compatibility_56 = @show_compatibility_56_save;

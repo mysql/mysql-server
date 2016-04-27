@@ -252,6 +252,12 @@ DROP TABLE table_does_not_exist;
 ERROR 42S02: Unknown table 'test.table_does_not_exist'
 DROP TABLE table_does_not_exist;
 ERROR 42S02: Unknown table 'test.table_does_not_exist'
+CREATE TABLE t1 (a INT);
+CREATE TABLE t1 (a INT);
+ERROR 42S01: Table 't1' already exists
+CREATE TABLE t1 (a INT);
+ERROR 42S01: Table 't1' already exists
+DROP TABLE t1;
 MySQL
 "MySQL"
 MySQL: The world''s most popular open source database
@@ -937,9 +943,9 @@ a	int(11)	YES		NULL
 b	varchar(255)	YES		NULL	
 c	datetime	YES		NULL	
 drop table t1;
-mysqltest: At line 1: change user failed: Unknown database 'inexistent'
-mysqltest: At line 1: change user failed: Access denied for user 'inexistent'@'localhost' (using password: NO)
-mysqltest: At line 1: change user failed: Access denied for user 'root'@'localhost' (using password: YES)
+ERROR 42000: Unknown database 'inexistent'
+ERROR 28000: Access denied for user 'inexistent'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'root'@'localhost' (using password: YES)
 REPLACED_FILE1.txt
 file1.txt
 file2.txt

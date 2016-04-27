@@ -1,0 +1,60 @@
+################################################################################
+#
+# BUG#22305605    STOP SLAVE IO THREAD PRINTS WRONG LOST CONNECTION MESSAGE
+# IN ERROR LOG FILE.
+
+# Problem:
+# STOP SLAVE IO_THREAD closes socket communication between Master and Slave.
+# This prints an ERROR message in the error log
+#    [ERROR] Error reading packet from server: Lost connection to MySQL server
+#      during query (server_errno=2013).
+# Here the socket closed intentionally by the DBA using command 'STOP SLAVE IO_THREAD'.
+# Hence no need to print the message [ERROR] that says "Lost connection" which will
+# confusion the users/DBAs.
+
+# Steps to Reproduce:
+# 1) Execute some dummy statements to make sure replication is working fine.
+# 2) Stop I/O thread and see that there is no panic message printed in log file.
+# 3) Stop SQL thread and see that there is no panic message printed in log file.
+# 4) Stop both I/O and SQL threads and see that there is no panic message printed
+#    in log file.
+#
+################################################################################
+
+--source include/master-slave.inc
+
+# Execute dummy statements on Master and sync with Slave.
+CREATE TABLE t1(i INT);
+DROP TABLE t1;
+--source include/sync_slave_sql_with_master.inc
+
+# Case:1  Stop and Start slave IO thread
+--source include/stop_slave_io.inc
+--source include/start_slave_io.inc
+
+# Make sure that there is no "Lost connection" error found in error log file
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/tmp/slave_log.err
+--let SEARCH_PATTERN=Lost connection to MySQL server during query
+--source include/search_pattern.inc
+
+# Case:2 Stop and Start slave SQL thread
+--source include/stop_slave_sql.inc
+--source include/start_slave_sql.inc
+
+# Make sure that there is no "Lost connection" error found in error log file
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/tmp/slave_log.err
+--let SEARCH_PATTERN=Lost connection to MySQL server during query
+--source include/search_pattern.inc
+
+# Case:3 Stop and start slave IO and SQL thread
+--source include/stop_slave.inc
+--source include/start_slave.inc
+
+# Make sure that there is no "Lost connection" error found in error log file
+--let SEARCH_FILE=$MYSQLTEST_VARDIR/tmp/slave_log.err
+--let SEARCH_PATTERN=Lost connection to MySQL server during query
+--source include/search_pattern.inc
+
+--remove_file $MYSQLTEST_VARDIR/tmp/slave_log.err
+--source include/rpl_end.inc
+

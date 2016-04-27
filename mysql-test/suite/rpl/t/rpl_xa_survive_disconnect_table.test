@@ -1,0 +1,9 @@
+# ==== Purpose ====
+# 'rpl_xa_survive_disconnect_table' verifies the same properties as the sourced file
+# in condition of the relay-log-info repository is TABLE and flush relay log to disk as
+# agressive as one.
+# Specifically the test proves once running this test case with MTS
+# configuration: Bug #20988291 XA+MTS: SQL_THREAD FAILS WITH ER1756
+# 'ERROR WRITING SLAVE WORKER CONFIGURATION' is fixed.
+
+--source ./rpl_xa_survive_disconnect.test

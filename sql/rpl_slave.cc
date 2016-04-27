@@ -955,6 +955,13 @@ find_first_relay_log_with_rotate_from_master(Relay_log_info* rli)
   char master_log_file[FN_REFLEN];
   my_off_t master_log_pos= 0;
 
+  if (channel_map.is_group_replication_channel_name(rli->get_channel()))
+  {
+    sql_print_information("Relay log recovery skipped for group replication "
+                          "channel.");
+    goto err;
+  }
+
   for (pos= rli->relay_log.find_log_pos(&linfo, NULL, true);
        !pos;
        pos= rli->relay_log.find_next_log(&linfo, true))
@@ -1111,10 +1118,14 @@ int init_recovery(Master_info* mi, const char** errmsg)
   /*
     Clear the retrieved GTID set so that events that are written partially
     will be fetched again.
-    */
-  global_sid_lock->wrlock();
-  (const_cast<Gtid_set *>(rli->get_gtid_set()))->clear();
-  global_sid_lock->unlock();
+  */
+  if (!channel_map.is_group_replication_channel_name(rli->get_channel()))
+  {
+    global_sid_lock->wrlock();
+    (const_cast<Gtid_set *>(rli->get_gtid_set()))->clear();
+    global_sid_lock->unlock();
+  }
+
   DBUG_RETURN(error);
 }
 
@@ -2015,16 +2026,18 @@ static bool io_slave_killed(THD* thd, Master_info* mi)
 */
 bool sql_slave_killed(THD* thd, Relay_log_info* rli)
 {
-  bool ret= FALSE;
   bool is_parallel_warn= FALSE;
 
   DBUG_ENTER("sql_slave_killed");
 
   DBUG_ASSERT(rli->info_thd == thd);
   DBUG_ASSERT(rli->slave_running == 1);
+  if (rli->sql_thread_kill_accepted)
+    DBUG_RETURN(true);
   if (abort_loop || thd->killed || rli->abort_slave)
   {
-    is_parallel_warn= (rli->is_parallel_exec() && 
+    rli->sql_thread_kill_accepted= true;
+    is_parallel_warn= (rli->is_parallel_exec() &&
                        (rli->is_mts_in_group() || thd->killed));
     /*
       Slave can execute stop being in one of two MTS or Single-Threaded mode.
@@ -2054,7 +2067,6 @@ bool sql_slave_killed(THD* thd, Relay_log_info* rli)
         "In such cases you have to examine your data (see documentation for "
         "details).";
 
-      ret= TRUE;
       if (rli->abort_slave)
       {
         DBUG_PRINT("info", ("Request to stop slave SQL Thread received while "
@@ -2074,14 +2086,16 @@ bool sql_slave_killed(THD* thd, Relay_log_info* rli)
 
         if (rli->last_event_start_time == 0)
           rli->last_event_start_time= my_time(0);
-        ret= difftime(my_time(0), rli->last_event_start_time) <=
-          SLAVE_WAIT_GROUP_DONE ? FALSE : TRUE;
+        rli->sql_thread_kill_accepted= difftime(my_time(0),
+                                               rli->last_event_start_time) <=
+                                               SLAVE_WAIT_GROUP_DONE ?
+                                               FALSE : TRUE;
 
-        DBUG_EXECUTE_IF("stop_slave_middle_group", 
+        DBUG_EXECUTE_IF("stop_slave_middle_group",
                         DBUG_EXECUTE_IF("incomplete_group_in_relay_log",
-                                        ret= TRUE;);); // time is over
+                                        rli->sql_thread_kill_accepted= TRUE;);); // time is over
 
-        if (!ret && !rli->reported_unsafe_warning)
+        if (!rli->sql_thread_kill_accepted && !rli->reported_unsafe_warning)
         {
           rli->report(WARNING_LEVEL, 0,
                       !is_parallel_warn ?
@@ -2095,8 +2109,13 @@ bool sql_slave_killed(THD* thd, Relay_log_info* rli)
           rli->reported_unsafe_warning= true;
         }
       }
-      if (ret)
+      if (rli->sql_thread_kill_accepted)
       {
+        rli->last_event_start_time= 0;
+        if (rli->mts_group_status == Relay_log_info::MTS_IN_GROUP)
+        {
+          rli->mts_group_status= Relay_log_info::MTS_KILLED_GROUP;
+        }
         if (is_parallel_warn)
           rli->report(!rli->is_error() ? ERROR_LEVEL :
                       WARNING_LEVEL,    // an error was reported by Worker
@@ -2108,21 +2127,8 @@ bool sql_slave_killed(THD* thd, Relay_log_info* rli)
                       ER(ER_SLAVE_FATAL_ERROR), msg_stopped);
       }
     }
-    else
-    {
-      ret= TRUE;
-    }
   }
-  if (ret)
-  {
-    rli->last_event_start_time= 0;
-    if (rli->mts_group_status == Relay_log_info::MTS_IN_GROUP)
-    {
-      rli->mts_group_status= Relay_log_info::MTS_KILLED_GROUP;
-    }
-  }
-  
-  DBUG_RETURN(ret);
+  DBUG_RETURN(rli->sql_thread_kill_accepted);
 }
 
 
@@ -4313,7 +4319,7 @@ static ulong read_event(MYSQL* mysql, Master_info *mi, bool* suppress_warnings)
     }
     else
     {
-      if (!mi->rli->abort_slave) 
+      if (!mi->abort_slave)
       {
         sql_print_error("Error reading packet from server%s: %s (server_errno=%d)",
                         mi->get_for_channel_str(), mysql_error(mysql),
@@ -6940,6 +6946,7 @@ extern "C" void *handle_slave_sql(void *arg)
   rli->slave_run_id++;
   rli->slave_running = 1;
   rli->reported_unsafe_warning= false;
+  rli->sql_thread_kill_accepted= false;
 
   if (init_slave_thread(thd, SLAVE_THD_SQL))
   {
@@ -11063,6 +11070,58 @@ err:
 }
 
 /**
+   Method used to check if the user is trying to update any other option for
+   the change master apart from the MASTER_USER and MASTER_PASSWORD.
+   In case user tries to update any other parameter apart from these two,
+   this method will return error.
+
+   @param  lex_mi structure that holds all change master options given on
+           the change master command.
+
+   @retval TRUE - The CHANGE MASTER is updating a unsupported parameter for the
+                  recovery channel.
+
+   @retval FALSE - Everything is fine. The CHANGE MASTER can execute with the
+                   given option(s) for the recovery channel.
+*/
+static bool is_invalid_change_master_for_group_replication_recovery(const
+                                                                    LEX_MASTER_INFO*
+                                                                    lex_mi)
+{
+  DBUG_ENTER("is_invalid_change_master_for_group_replication_recovery");
+  bool have_extra_option_received= false;
+
+  /* Check if *at least one* receive/execute option is given on change master command*/
+  if (lex_mi->host ||
+      lex_mi->log_file_name ||
+      lex_mi->pos ||
+      lex_mi->bind_addr ||
+      lex_mi->port ||
+      lex_mi->connect_retry ||
+      lex_mi->server_id ||
+      lex_mi->auto_position != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->ssl_verify_server_cert != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->retry_count_opt !=  LEX_MASTER_INFO::LEX_MI_UNCHANGED ||
+      lex_mi->ssl_key ||
+      lex_mi->ssl_cert ||
+      lex_mi->ssl_ca ||
+      lex_mi->ssl_capath ||
+      lex_mi->tls_version ||
+      lex_mi->ssl_cipher ||
+      lex_mi->ssl_crl ||
+      lex_mi->ssl_crlpath ||
+      lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE ||
+      lex_mi->relay_log_name ||
+      lex_mi->relay_log_pos ||
+      lex_mi->sql_delay != -1)
+    have_extra_option_received= true;
+
+  DBUG_RETURN(have_extra_option_received);
+}
+
+/**
   Entry point for the CHANGE MASTER command. Function
   decides to create a new channel or create an existing one.
 
@@ -11090,12 +11149,27 @@ bool change_master_cmd(THD *thd)
     goto err;
   }
 
-  //If the chosen name is a group replication reserved name abort
-  if (channel_map.is_group_replication_channel_name(lex->mi.channel))
+  //If the chosen name is for group_replication_applier channel we abort
+  if (channel_map.is_group_replication_channel_name(lex->mi.channel, true))
   {
     my_error(ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG, MYF(0));
     res= true;
     goto err;
+  }
+
+  // If the channel being used is group_replication_recovery we allow the
+  // channel creation based on the check as to which field is being updated.
+  if (channel_map.is_group_replication_channel_name(lex->mi.channel) &&
+      !channel_map.is_group_replication_channel_name(lex->mi.channel, true))
+  {
+    LEX_MASTER_INFO* lex_mi= &thd->lex->mi;
+    if (is_invalid_change_master_for_group_replication_recovery(lex_mi))
+    {
+      my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
+               "CHANGE MASTER with the given parameters", lex->mi.channel);
+      res= true;
+      goto err;
+    }
   }
 
   /*
@@ -11115,8 +11189,12 @@ bool change_master_cmd(THD *thd)
   /* create a new channel if doesn't exist */
   if (!mi && strcmp(lex->mi.channel, channel_map.get_default_channel()))
   {
+    enum_channel_type channel_type= SLAVE_REPLICATION_CHANNEL;
+    if (channel_map.is_group_replication_channel_name(lex->mi.channel))
+      channel_type= GROUP_REPLICATION_CHANNEL;
+
     /* The mi will be returned holding mi->channel_lock for writing */
-    if (add_new_channel(&mi, lex->mi.channel))
+    if (add_new_channel(&mi, lex->mi.channel, channel_type))
       goto err;
   }
 

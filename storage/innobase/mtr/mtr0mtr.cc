@@ -111,6 +111,67 @@ struct Find {
 	const void*	m_object;
 };
 
+/** Find a page frame */
+struct FindPage
+{
+	/** Constructor
+	@param[in]	ptr	pointer to within a page frame
+	@param[in]	flags	MTR_MEMO flags to look for */
+	FindPage(const void* ptr, ulint flags)
+		: m_ptr(ptr), m_flags(flags), m_slot(NULL)
+	{
+		/* We can only look for page-related flags. */
+		ut_ad(!(flags & ~(MTR_MEMO_PAGE_S_FIX
+				  | MTR_MEMO_PAGE_X_FIX
+				  | MTR_MEMO_PAGE_SX_FIX
+				  | MTR_MEMO_BUF_FIX
+				  | MTR_MEMO_MODIFY)));
+	}
+
+	/** Visit a memo entry.
+	@param[in]	slot	memo entry to visit
+	@retval	false	if a page was found
+	@retval	true	if the iteration should continue */
+	bool operator()(mtr_memo_slot_t* slot)
+	{
+		ut_ad(m_slot == NULL);
+
+		if (!(m_flags & slot->type) || slot->object == NULL) {
+			return(true);
+		}
+
+		buf_block_t* block = reinterpret_cast<buf_block_t*>(
+			slot->object);
+
+		if (m_ptr < block->frame
+		    || m_ptr >= block->frame + block->page.size.logical()) {
+			return(true);
+		}
+
+		m_slot = slot;
+		return(false);
+	}
+
+	/** @return the slot that was found */
+	mtr_memo_slot_t* get_slot() const
+	{
+		ut_ad(m_slot != NULL);
+		return(m_slot);
+	}
+	/** @return the block that was found */
+	buf_block_t* get_block() const
+	{
+		return(reinterpret_cast<buf_block_t*>(get_slot()->object));
+	}
+private:
+	/** Pointer inside a page frame to look for */
+	const void*const	m_ptr;
+	/** MTR_MEMO flags to look for */
+	const ulint		m_flags;
+	/** The slot corresponding to m_ptr */
+	mtr_memo_slot_t*	m_slot;
+};
+
 /** Release latches and decrement the buffer fix count.
 @param slot	memo slot */
 static
@@ -707,6 +768,31 @@ mtr_t::memo_release(const void* object, ulint type)
 	return(false);
 }
 
+/** Release a page latch.
+@param[in]	ptr	pointer to within a page frame
+@param[in]	type	object type: MTR_MEMO_PAGE_X_FIX, ... */
+void
+mtr_t::release_page(const void* ptr, mtr_memo_type_t type)
+{
+	ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
+	ut_ad(is_active());
+
+	/* We cannot release a page that has been written to in the
+	middle of a mini-transaction. */
+	ut_ad(!m_impl.m_modifications || type != MTR_MEMO_PAGE_X_FIX);
+
+	FindPage		find(ptr, type);
+	Iterate<FindPage>	iterator(find);
+
+	if (!m_impl.m_memo.for_each_block_in_reverse(iterator)) {
+		memo_slot_release(find.get_slot());
+		return;
+	}
+
+	/* The page was not found! */
+	ut_ad(0);
+}
+
 /** Prepare to write the mini-transaction log to the redo log buffer.
 @return number of bytes to write in finish_write() */
 ulint
@@ -933,17 +1019,6 @@ mtr_t::memo_contains(
 	return(!memo->for_each_block_in_reverse(iterator));
 }
 
-/** Check if memo contains the given page.
-@param memo		info
-@param ptr		record
-@param type		type of
-@return	true if contains */
-bool
-mtr_t::memo_contains_page(mtr_buf_t* memo, const byte* ptr, ulint type)
-{
-	return(memo_contains(memo, buf_block_align(ptr), type));
-}
-
 /** Debug check for flags */
 struct FlaggedCheck {
 	FlaggedCheck(const void* ptr, ulint flags)
@@ -985,16 +1060,35 @@ mtr_t::memo_contains_flagged(const void* ptr, ulint flags) const
 }
 
 /** Check if memo contains the given page.
-@param ptr		buffer frame
-@param flags		specify types of object with OR of
+@param[in]	ptr	pointer to within buffer frame
+@param[in]	flags	specify types of object with OR of
 			MTR_MEMO_PAGE_S_FIX... values
-@return true if contains */
-bool
+@return	the block
+@retval	NULL	if not found */
+buf_block_t*
 mtr_t::memo_contains_page_flagged(
 	const byte*	ptr,
 	ulint		flags) const
 {
-	return(memo_contains_flagged(buf_block_align(ptr), flags));
+	FindPage		check(ptr, flags);
+	Iterate<FindPage>	iterator(check);
+
+	return(m_impl.m_memo.for_each_block_in_reverse(iterator)
+	       ? NULL : check.get_block());
+}
+
+/** Mark the given latched page as modified.
+@param[in]	ptr	pointer to within buffer frame */
+void
+mtr_t::memo_modify_page(const byte* ptr)
+{
+	buf_block_t*	block = memo_contains_page_flagged(
+		ptr, MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX);
+	ut_ad(block != NULL);
+
+	if (!memo_contains(get_memo(), block, MTR_MEMO_MODIFY)) {
+		memo_push(block, MTR_MEMO_MODIFY);
+	}
 }
 
 /** Print info of an mtr handle. */

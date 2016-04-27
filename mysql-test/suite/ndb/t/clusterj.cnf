@@ -6,3 +6,5 @@
 # and thus needs an increased IndexMemory setting
 #
 IndexMemory=16M
+MaxNoOfOrderedIndexes = 140
+#

@@ -23,7 +23,6 @@
 #include <AttributeHeader.hpp>
 #include <my_sys.h>
 #include <NdbEnv.h>
-#include <NdbMem.h>
 #include <util/version.h>
 #include <NdbSleep.h>
 #include <signaldata/IndexStatSignal.hpp>
@@ -2496,6 +2495,23 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
       DBUG_RETURN(0);
     }
     
+    if(m_impl->get_ndbapi_config_parameters().m_verbose >= 2)
+    {
+      if (m_error.code == 0)
+      {
+        g_eventLogger->info("dictSignal() request gsn %u to 0x%x on node %u "
+                            "with %u sections failed with no error",
+                            sig->theVerId_signalNumber,
+                            sig->theReceiversBlockNumber,
+                            node,
+                            secs);
+        g_eventLogger->info("dictSignal() poll_guard.wait_n_unlock() "
+                            "returned %d, state is %u",
+                            ret_val,
+                            m_impl->theWaiter.get_state());
+      }
+    }
+
     /**
      * Handle error codes
      */
@@ -2507,6 +2523,15 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
     if(m_impl->theWaiter.get_state() == WST_WAIT_TIMEOUT)
     {
       DBUG_PRINT("info", ("dictSignal caught time-out"));
+      if(m_impl->get_ndbapi_config_parameters().m_verbose >= 2)
+      {
+        g_eventLogger->info("NdbDictionaryImpl::dictSignal() WST_WAIT_TIMEOUT for gsn %u"
+                            "to 0x%x on node %u with %u sections.",
+                            sig->theVerId_signalNumber,
+                            sig->theReceiversBlockNumber,
+                            node,
+                            secs);
+      }
       m_error.code = 4008;
       DBUG_RETURN(-1);
     }
@@ -2858,7 +2883,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   SimpleProperties::UnpackStatus s;
   DBUG_ENTER("NdbDictInterface::parseTableInfo");
 
-  tableDesc = (DictTabInfo::Table*)NdbMem_Allocate(sizeof(DictTabInfo::Table));
+  tableDesc = (DictTabInfo::Table*)malloc(sizeof(DictTabInfo::Table));
   if (!tableDesc)
   {
     DBUG_RETURN(4000);
@@ -2870,7 +2895,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 			       true, true);
   
   if(s != SimpleProperties::Break){
-    NdbMem_Free((void*)tableDesc);
+    free(tableDesc);
     DBUG_RETURN(703);
   }
   const char * internalName = tableDesc->TableName;
@@ -2996,7 +3021,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 				 true, true);
     if(s != SimpleProperties::Break){
       delete impl;
-      NdbMem_Free((void*)tableDesc);
+      free(tableDesc);
       DBUG_RETURN(703);
     }
     
@@ -3008,7 +3033,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     if (! attrDesc.translateExtType()) {
       delete col;
       delete impl;
-      NdbMem_Free((void*)tableDesc);
+      free(tableDesc);
       DBUG_RETURN(703);
     }
     col->m_type = (NdbDictionary::Column::Type)attrDesc.AttributeExtType;
@@ -3021,7 +3046,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     if (col->getCharType() != (cs_number != 0)) {
       delete col;
       delete impl;
-      NdbMem_Free((void*)tableDesc);
+      free(tableDesc);
       DBUG_RETURN(703);
     }
     if (col->getCharType()) {
@@ -3029,7 +3054,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
       if (col->m_cs == NULL) {
         delete col;
         delete impl;
-        NdbMem_Free((void*)tableDesc);
+        free(tableDesc);
         DBUG_RETURN(743);
       }
     }
@@ -3053,7 +3078,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
         col->m_blobVersion = NDB_BLOB_V2;
       else {
         delete impl;
-        NdbMem_Free((void*)tableDesc);
+        free(tableDesc);
         DBUG_RETURN(4263);
       }
     }
@@ -3149,7 +3174,8 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 
   * ret = impl;
 
-  NdbMem_Free((void*)tableDesc);
+  free(tableDesc);
+
   if (version < MAKE_VERSION(5,1,3))
   {
     ;
@@ -3790,9 +3816,7 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
   //validate();
   //aggregate();
 
-  DictTabInfo::Table *tmpTab;
-
-  tmpTab = (DictTabInfo::Table*)NdbMem_Allocate(sizeof(DictTabInfo::Table));
+  DictTabInfo::Table *tmpTab = (DictTabInfo::Table*)malloc(sizeof(DictTabInfo::Table));
   if (!tmpTab)
   {
     m_error.code = 4000;
@@ -3807,7 +3831,7 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
     const NdbColumnImpl * col = impl.m_columns[i];
     if (col == NULL) {
       m_error.code = 4272;
-      NdbMem_Free((void*)tmpTab);
+      free(tmpTab);
       DBUG_RETURN(-1);
     }
     if (col->m_distributionKey)
@@ -3816,7 +3840,7 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
       if (!col->m_pk)
       {
         m_error.code = 4327;
-        NdbMem_Free((void*)tmpTab);
+        free(tmpTab);
         DBUG_RETURN(-1);
       }
     }
@@ -3829,7 +3853,7 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
   // Check max length of frm data
   if (impl.m_frm.length() > MAX_FRM_DATA_SIZE){
     m_error.code= 1229;
-    NdbMem_Free((void*)tmpTab);
+    free(tmpTab);
     DBUG_RETURN(-1);
   }
   /*
@@ -3915,7 +3939,7 @@ loop:
       if (m_error.code == 723)
 	m_error.code = 755;
       
-      NdbMem_Free((void*)tmpTab);
+      free(tmpTab);
       DBUG_RETURN(-1);
     }
   } 
@@ -3941,7 +3965,7 @@ loop:
   if(s != SimpleProperties::Eof){
     abort();
   }
-  NdbMem_Free((void*)tmpTab);
+  free(tmpTab);
   
   DBUG_PRINT("info",("impl.m_noOfDistributionKeys: %d impl.m_noOfKeys: %d distKeys: %d",
 		     impl.m_noOfDistributionKeys, impl.m_noOfKeys, distKeys));
@@ -7888,9 +7912,8 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
       const NdbDictionary::RecordSpecification_v1* oldRecordSpec =
           (const NdbDictionary::RecordSpecification_v1*) recSpec;
 
-      newRecordSpec =(NdbDictionary::RecordSpecification*)
-                      NdbMem_Allocate(length *
-                        sizeof(NdbDictionary::RecordSpecification));
+      newRecordSpec = (NdbDictionary::RecordSpecification*)
+                         malloc(length * sizeof(NdbDictionary::RecordSpecification));
       if(newRecordSpec == NULL)
       {
         m_error.code= 4000;
@@ -7921,7 +7944,7 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
                                            elemSize,
                                            flags,
                                            defaultRecord);
-  NdbMem_Free((void*)newRecordSpec);
+  free(newRecordSpec);
   return ndbRec;
 }
 

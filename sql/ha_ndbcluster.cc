@@ -59,6 +59,7 @@
 #include "ndb_tdc.h"
 #include "ndb_log.h"
 #include "ndb_name_util.h"
+#include "ndb_bitmap.h"
 #include "../storage/ndb/src/common/util/parse_mask.hpp"
 #include "../storage/ndb/include/util/SparseBitmask.hpp"
 #include "m_ctype.h"
@@ -87,6 +88,32 @@ static char* opt_ndb_connectstring;
 static uint opt_ndb_nodeid;
 static my_bool opt_ndb_read_backup;
 static ulong opt_ndb_data_node_neighbour;
+
+#define MYSQL_VERSION_NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC 50711
+enum ndb_default_colum_format_enum {
+  NDB_DEFAULT_COLUMN_FORMAT_FIXED= 0,
+  NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC= 1
+};
+static const char* default_column_format_names[]= { "FIXED", "DYNAMIC", NullS };
+static ulong opt_ndb_default_column_format;
+static TYPELIB default_column_format_typelib= {
+  array_elements(default_column_format_names) - 1,
+  "",
+  default_column_format_names,
+  NULL
+};
+static MYSQL_SYSVAR_ENUM(
+  default_column_format,               /* name */
+  opt_ndb_default_column_format,       /* var */
+  PLUGIN_VAR_RQCMDARG,
+  "Change COLUMN_FORMAT DEFAULT (fixed or dynamic) "
+  "for backward compatibility. Also affects the default "
+  "for ROW_FORMAT.",
+  NULL,                                /* check func. */
+  NULL,                                /* update func. */
+  NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC,   /* default */
+  &default_column_format_typelib       /* typelib */
+);
 
 static MYSQL_THDVAR_UINT(
   autoincrement_prefetch_sz,         /* name */
@@ -138,7 +165,7 @@ static MYSQL_THDVAR_BOOL(
   use_copying_alter_table,           /* name */
   PLUGIN_VAR_OPCMDARG,
   "Force ndbcluster to always copy tables at alter table (should "
-  "only be used if on-line alter table fails).",
+  "only be used if online alter table fails).",
   NULL,                              /* check func. */
   NULL,                              /* update func. */
   0                                  /* default */
@@ -2160,11 +2187,8 @@ int ha_ndbcluster::get_metadata(THD *thd, const char *path)
   DBUG_PRINT("info", ("fetched table %s", tab->getName()));
   m_table= tab;
 
-  if (bitmap_init(&m_bitmap, m_bitmap_buf, table_share->fields, 0))
-  {
-    error= HA_ERR_OUT_OF_MEM;
-    goto err;
-  }
+  ndb_bitmap_init(m_bitmap, m_bitmap_buf, table_share->fields);
+
   if (table_share->primary_key == MAX_KEY)
   {
     /* Hidden primary key. */
@@ -2181,7 +2205,7 @@ int ha_ndbcluster::get_metadata(THD *thd, const char *path)
   m_bytes_per_write= 12 + tab->getRowSizeInBytes() + 4 * tab->getNoOfColumns();
 
   /* Open indexes */
-  if ((error= open_indexes(thd, ndb, table, FALSE)) != 0)
+  if ((error= open_indexes(ndb, table)) != 0)
     goto err;
 
   /* Read foreign keys where this table is child or parent */
@@ -2220,6 +2244,22 @@ int ha_ndbcluster::get_metadata(THD *thd, const char *path)
   DBUG_RETURN(0);
 
 err:
+  // Function failed, release all resources allocated by this function
+  // before returning
+  release_indexes(dict, 1 /* invalidate */);
+
+  // Release NdbRecord's allocated for the table
+  if (m_ndb_record != NULL)
+  {
+    dict->releaseRecord(m_ndb_record);
+    m_ndb_record= NULL;
+  }
+  if (m_ndb_hidden_key_record != NULL)
+  {
+    dict->releaseRecord(m_ndb_hidden_key_record);
+    m_ndb_hidden_key_record= NULL;
+  }
+
   ndbtab_g.invalidate();
   m_table= NULL;
   DBUG_RETURN(error);
@@ -2351,13 +2391,13 @@ void ndb_protect_char(const char* from, char* to, uint to_length, char protect)
   Associate a direct reference to an index handle
   with an index (for faster access)
  */
-int ha_ndbcluster::add_index_handle(THD *thd, NDBDICT *dict, KEY *key_info,
+int ha_ndbcluster::add_index_handle(NDBDICT *dict, KEY *key_info,
                                     const char *key_name, uint index_no)
 {
   char index_name[FN_LEN + 1];
   int error= 0;
 
-  NDB_INDEX_TYPE idx_type= get_index_type_from_table(index_no);
+  const NDB_INDEX_TYPE idx_type= get_index_type_from_table(index_no);
   m_index[index_no].type= idx_type;
   DBUG_ENTER("ha_ndbcluster::add_index_handle");
   DBUG_PRINT("enter", ("table %s", m_tabname));
@@ -2366,24 +2406,20 @@ int ha_ndbcluster::add_index_handle(THD *thd, NDBDICT *dict, KEY *key_info,
   if (idx_type != PRIMARY_KEY_INDEX && idx_type != UNIQUE_INDEX)
   {
     DBUG_PRINT("info", ("Get handle to index %s", index_name));
-    const NDBINDEX *index;
-    do
-    {
-      index= dict->getIndexGlobal(index_name, *m_table);
-      if (!index)
-        ERR_RETURN(dict->getNdbError());
-      DBUG_PRINT("info", ("index: 0x%lx  id: %d  version: %d.%d  status: %d",
-                          (long) index,
-                          index->getObjectId(),
-                          index->getObjectVersion() & 0xFFFFFF,
-                          index->getObjectVersion() >> 24,
-                          index->getObjectStatus()));
-      DBUG_ASSERT(index->getObjectStatus() ==
-                  NdbDictionary::Object::Retrieved);
-      break;
-    } while (1);
+    const NDBINDEX *index= dict->getIndexGlobal(index_name, *m_table);
+    if (!index)
+      ERR_RETURN(dict->getNdbError());
+    DBUG_PRINT("info", ("index: 0x%lx  id: %d  version: %d.%d  status: %d",
+                        (long) index,
+                        index->getObjectId(),
+                        index->getObjectVersion() & 0xFFFFFF,
+                        index->getObjectVersion() >> 24,
+                        index->getObjectStatus()));
+    DBUG_ASSERT(index->getObjectStatus() ==
+                NdbDictionary::Object::Retrieved);
     m_index[index_no].index= index;
   }
+
   if (idx_type == UNIQUE_ORDERED_INDEX || idx_type == UNIQUE_INDEX)
   {
     char unique_index_name[FN_LEN + 1];
@@ -2391,22 +2427,18 @@ int ha_ndbcluster::add_index_handle(THD *thd, NDBDICT *dict, KEY *key_info,
     m_has_unique_index= TRUE;
     strxnmov(unique_index_name, FN_LEN, index_name, unique_suffix, NullS);
     DBUG_PRINT("info", ("Get handle to unique_index %s", unique_index_name));
-    const NDBINDEX *index;
-    do
-    {
-      index= dict->getIndexGlobal(unique_index_name, *m_table);
-      if (!index)
-        ERR_RETURN(dict->getNdbError());
-      DBUG_PRINT("info", ("index: 0x%lx  id: %d  version: %d.%d  status: %d",
-                          (long) index,
-                          index->getObjectId(),
-                          index->getObjectVersion() & 0xFFFFFF,
-                          index->getObjectVersion() >> 24,
-                          index->getObjectStatus()));
-      DBUG_ASSERT(index->getObjectStatus() ==
-                  NdbDictionary::Object::Retrieved);
-      break;
-    } while (1);
+    const NDBINDEX *index =
+        dict->getIndexGlobal(unique_index_name, *m_table);
+    if (!index)
+      ERR_RETURN(dict->getNdbError());
+    DBUG_PRINT("info", ("index: 0x%lx  id: %d  version: %d.%d  status: %d",
+                        (long) index,
+                        index->getObjectId(),
+                        index->getObjectVersion() & 0xFFFFFF,
+                        index->getObjectVersion() >> 24,
+                        index->getObjectStatus()));
+    DBUG_ASSERT(index->getObjectStatus() ==
+                NdbDictionary::Object::Retrieved);
     m_index[index_no].unique_index= index;
     error= fix_unique_index_attr_order(m_index[index_no], index, key_info);
   }
@@ -2649,54 +2681,62 @@ ha_ndbcluster::add_index_ndb_record(NDBDICT *dict, KEY *key_info, uint index_no)
 /*
   Associate index handles for each index of a table
 */
-int ha_ndbcluster::open_indexes(THD *thd, Ndb *ndb, TABLE *tab,
-                                bool ignore_error)
+int ha_ndbcluster::open_indexes(Ndb *ndb, TABLE *tab)
 {
-  uint i;
-  int error= 0;
+
   NDBDICT *dict= ndb->getDictionary();
   KEY* key_info= tab->key_info;
   const char **key_name= tab->s->keynames.type_names;
   DBUG_ENTER("ha_ndbcluster::open_indexes");
   m_has_unique_index= FALSE;
   btree_keys.clear_all();
-  for (i= 0; i < tab->s->keys; i++, key_info++, key_name++)
+
+  for (uint i= 0; i < tab->s->keys; i++, key_info++, key_name++)
   {
-    if ((error= add_index_handle(thd, dict, key_info, *key_name, i)))
+    const int error= add_index_handle(dict, key_info, *key_name, i);
+    if (error)
     {
-      if (ignore_error)
-        m_index[i].index= m_index[i].unique_index= NULL;
-      else
-        break;
+      DBUG_RETURN(error);
     }
+
     m_index[i].null_in_unique_index= FALSE;
     if (check_index_fields_not_null(key_info))
       m_index[i].null_in_unique_index= TRUE;
 
-    if (error == 0 && MY_TEST(index_flags(i, 0, 0) & HA_READ_RANGE))
+    if (MY_TEST(index_flags(i, 0, 0) & HA_READ_RANGE))
       btree_keys.set_bit(i);
   }
 
-  if (error && !ignore_error)
-  {
-    while (i > 0)
-    {
-      i--;
-      if (m_index[i].index)
-      {
-         dict->removeIndexGlobal(*m_index[i].index, 1);
-         m_index[i].index= NULL;
-      }
-      if (m_index[i].unique_index)
-      {
-         dict->removeIndexGlobal(*m_index[i].unique_index, 1);
-         m_index[i].unique_index= NULL;
-      }
-    }
-  }
-
-  DBUG_RETURN(error);
+  DBUG_RETURN(0);
 }
+
+
+
+void
+ha_ndbcluster::release_indexes(NdbDictionary::Dictionary *dict,
+                               int invalidate)
+{
+  DBUG_ENTER("ha_ndbcluster::release_indexes");
+  DBUG_ASSERT(m_table); // Should still be "open" when calling this function
+
+  for (uint i= 0; i < MAX_KEY; i++)
+  {
+    NDB_INDEX_DATA& index = m_index[i];
+    if (index.unique_index)
+    {
+      // Release reference to index in NdbAPI
+      dict->removeIndexGlobal(*index.unique_index, invalidate);
+    }
+    if (index.index)
+    {
+      // Release reference to index in NdbAPI
+      dict->removeIndexGlobal(*index.index, invalidate);
+    }
+    ndb_clear_index(dict, index);
+  }
+  DBUG_VOID_RETURN;
+}
+
 
 /*
   Renumber indexes in index list by shifting out
@@ -2829,8 +2869,6 @@ bool ha_ndbcluster::check_index_fields_not_null(KEY* key_info) const
 
 void ha_ndbcluster::release_metadata(THD *thd, Ndb *ndb)
 {
-  uint i;
-
   DBUG_ENTER("release_metadata");
   DBUG_PRINT("enter", ("m_tabname: %s", m_tabname));
 
@@ -2863,24 +2901,10 @@ void ha_ndbcluster::release_metadata(THD *thd, Ndb *ndb)
   DBUG_ASSERT(m_table_info == NULL);
   m_table_info= NULL;
 
-  // Release index list 
-  for (i= 0; i < MAX_KEY; i++)
-  {
-    if (m_index[i].unique_index)
-    {
-      DBUG_ASSERT(m_table != NULL);
-      dict->removeIndexGlobal(*m_index[i].unique_index, invalidate_indexes);
-    }
-    if (m_index[i].index)
-    {
-      DBUG_ASSERT(m_table != NULL);
-      dict->removeIndexGlobal(*m_index[i].index, invalidate_indexes);
-    }
-    ndb_clear_index(dict, m_index[i]);
-  }
+  release_indexes(dict, invalidate_indexes);
 
   // Release FK data
-  release_fk_data(thd);
+  release_fk_data();
 
   m_table= NULL;
   DBUG_VOID_RETURN;
@@ -9408,6 +9432,90 @@ const Uint32 OLD_NDB_MAX_TUPLE_SIZE_IN_WORDS = 2013;
 const Uint32 OLD_NDB_MAX_TUPLE_SIZE_IN_WORDS = NDB_MAX_TUPLE_SIZE_IN_WORDS;
 #endif
 
+static bool
+ndb_column_is_dynamic(THD *thd,
+                      Field *field,
+                      HA_CREATE_INFO *create_info,
+                      column_format_type default_format,
+                      NDBCOL::StorageType type)
+{
+  DBUG_ENTER("ndb_column_is_dynamic");
+  /*
+    Check if COLUMN_FORMAT is declared FIXED or DYNAMIC.
+    The COLUMN_FORMAT for all non-pk columns defaults to DYNAMIC,
+    unless ROW_FORMAT is explictly defined.
+    If an explicit declaration of ROW_FORMAT as FIXED contradicts
+    with a dynamic COLUMN_FORMAT a warning will be issued.
+    the COLUMN_FORMAT can also be overridden with the configuration option
+    --ndb-default-column-format.
+    For COLUMN_STORAGE defined as DISK dynamic COLUMN_FORMAT is not supported
+    and a warning will be issued if explicitly declared.
+   */
+  const bool default_is_fixed= ((opt_ndb_default_column_format ==
+                                 NDB_DEFAULT_COLUMN_FORMAT_FIXED) ||
+                                (field->table->s->mysql_version <
+                                 MYSQL_VERSION_NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC));
+  bool dynamic=
+    (default_is_fixed || (field->flags & PRI_KEY_FLAG)) ? FALSE : TRUE;
+
+  switch (field->column_format()) {
+  case(COLUMN_FORMAT_TYPE_FIXED):
+    dynamic= FALSE;
+    break;
+  case(COLUMN_FORMAT_TYPE_DYNAMIC):
+    dynamic= TRUE;
+    break;
+  case(COLUMN_FORMAT_TYPE_DEFAULT):
+  default:
+    if (create_info->row_type == ROW_TYPE_DEFAULT)
+      dynamic= (default_is_fixed || (field->flags & PRI_KEY_FLAG)) ?
+        default_format : TRUE;
+    else
+      dynamic= (create_info->row_type == ROW_TYPE_DYNAMIC);
+    break;
+  }
+  if (type == NDBCOL::StorageTypeDisk)
+  {
+    if (dynamic)
+    {
+      DBUG_PRINT("info", ("Dynamic disk stored column %s changed to static",
+                          field->field_name));
+      dynamic= false;
+    }
+    if (thd && field->column_format() == COLUMN_FORMAT_TYPE_DYNAMIC)
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_ILLEGAL_HA_CREATE_OPTION,
+                          "DYNAMIC column %s with "
+                          "STORAGE DISK is not supported, "
+                          "column will become FIXED",
+                          field->field_name);
+    }
+  }
+
+  switch (create_info->row_type) {
+  case ROW_TYPE_FIXED:
+    if (thd && (dynamic || field_type_forces_var_part(field->type())))
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_ILLEGAL_HA_CREATE_OPTION,
+                          "Row format FIXED incompatible with "
+                          "dynamic attribute %s",
+                          field->field_name);
+    }
+    break;
+  case ROW_TYPE_DYNAMIC:
+    /*
+      Columns will be dynamic unless explictly specified FIXED
+    */
+    break;
+  default:
+    break;
+  }
+
+  DBUG_RETURN(dynamic);
+}
+
 static int
 create_ndb_column(THD *thd,
                   NDBCOL &col,
@@ -9415,11 +9523,9 @@ create_ndb_column(THD *thd,
                   HA_CREATE_INFO *create_info,
                   column_format_type default_format= COLUMN_FORMAT_TYPE_DEFAULT)
 {
-  NDBCOL::StorageType type= NDBCOL::StorageTypeMemory;
-  bool dynamic= FALSE;
-
-  char buf[MAX_ATTR_DEFAULT_VALUE_SIZE];
   DBUG_ENTER("create_ndb_column");
+  NDBCOL::StorageType type= NDBCOL::StorageTypeMemory;
+  char buf[MAX_ATTR_DEFAULT_VALUE_SIZE];
   // Set name
   if (col.setName(field->field_name))
   {
@@ -9815,62 +9921,8 @@ create_ndb_column(THD *thd,
     break;
   }
 
-  switch (field->column_format()) {
-  case(COLUMN_FORMAT_TYPE_FIXED):
-    dynamic= FALSE;
-    break;
-  case(COLUMN_FORMAT_TYPE_DYNAMIC):
-    dynamic= TRUE;
-    break;
-  case(COLUMN_FORMAT_TYPE_DEFAULT):
-  default:
-    if (create_info->row_type == ROW_TYPE_DEFAULT)
-      dynamic= default_format;
-    else
-      dynamic= (create_info->row_type == ROW_TYPE_DYNAMIC);
-    break;
-  }
-  DBUG_PRINT("info", ("Column %s is declared %s", field->field_name,
-                      (dynamic) ? "dynamic" : "static"));
-  if (type == NDBCOL::StorageTypeDisk)
-  {
-    if (dynamic)
-    {
-      DBUG_PRINT("info", ("Dynamic disk stored column %s changed to static",
-                          field->field_name));
-      dynamic= false;
-    }
-
-    if (thd && field->column_format() == COLUMN_FORMAT_TYPE_DYNAMIC)
-    {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_ILLEGAL_HA_CREATE_OPTION,
-                          "DYNAMIC column %s with "
-                          "STORAGE DISK is not supported, "
-                          "column will become FIXED",
-                          field->field_name);
-    }
-  }
-
-  switch (create_info->row_type) {
-  case ROW_TYPE_FIXED:
-    if (thd && (dynamic || field_type_forces_var_part(field->type())))
-    {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_ILLEGAL_HA_CREATE_OPTION,
-                          "Row format FIXED incompatible with "
-                          "dynamic attribute %s",
-                          field->field_name);
-    }
-    break;
-  case ROW_TYPE_DYNAMIC:
-    /*
-      Future: make columns dynamic in this case
-    */
-    break;
-  default:
-    break;
-  }
+  const bool
+    dynamic= ndb_column_is_dynamic(thd, field, create_info, default_format, type);
 
   DBUG_PRINT("info", ("Format %s, Storage %s", (dynamic)?"dynamic":"fixed",(type == NDBCOL::StorageTypeDisk)?"disk":"memory"));
   col.setStorageType(type);
@@ -10419,30 +10471,6 @@ int ha_ndbcluster::create(const char *name,
     DBUG_RETURN(HA_WRONG_CREATE_OPTION);
   }
 
-  const bool is_alter= (thd->lex->sql_command == SQLCOM_ALTER_TABLE);
-  if (is_alter)
-  {
-    DBUG_PRINT("info", ("Detected copying ALTER TABLE"));
-
-    // Check that the table name is temporary ie. starts with #sql
-    DBUG_ASSERT(!is_user_table(form));
-    DBUG_ASSERT(is_prefix(form->s->table_name.str, tmp_file_prefix));
-
-    if (!THDVAR(thd, allow_copying_alter_table) &&
-        (thd->lex->alter_info.requested_algorithm ==
-         Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT))
-    {
-      // Copying alter table is not allowed and user
-      // have not specified ALGORITHM=COPY
-
-      DBUG_PRINT("info", ("Refusing implicit copying alter table"));
-      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
-              "Implicit copying alter", "ndb_allow_copying_alter_table=0",
-              "ALGORITHM=COPY to force the alter");
-      DBUG_RETURN(HA_WRONG_CREATE_OPTION);
-    }
-  }
-
   DBUG_ASSERT(*fn_rext((char*)name) == 0);
   set_dbname(name);
   set_tabname(name);
@@ -10495,6 +10523,36 @@ int ha_ndbcluster::create(const char *name,
 
 
     DBUG_RETURN(my_errno());
+  }
+
+  /*
+    Check if the create table is part of a copying alter table.
+    Note, this has to be done after the check for auto-discovering
+    tables since a table being altered might not be known to the
+    mysqld issuing the alter statement.
+   */
+  const bool is_alter= (thd->lex->sql_command == SQLCOM_ALTER_TABLE);
+  if (is_alter)
+  {
+    DBUG_PRINT("info", ("Detected copying ALTER TABLE"));
+
+    // Check that the table name is temporary ie. starts with #sql
+    DBUG_ASSERT(!is_user_table(form));
+    DBUG_ASSERT(is_prefix(form->s->table_name.str, tmp_file_prefix));
+
+    if (!THDVAR(thd, allow_copying_alter_table) &&
+        (thd->lex->alter_info.requested_algorithm ==
+         Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT))
+    {
+      // Copying alter table is not allowed and user
+      // have not specified ALGORITHM=COPY
+
+      DBUG_PRINT("info", ("Refusing implicit copying alter table"));
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
+              "Implicit copying alter", "ndb_allow_copying_alter_table=0",
+              "ALGORITHM=COPY to force the alter");
+      DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+    }
   }
 
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
@@ -11416,7 +11474,7 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
 }
 
 /*
- Prepare for an on-line alter table
+ Prepare for an online alter table
 */ 
 void ha_ndbcluster::prepare_for_alter()
 {
@@ -13946,51 +14004,54 @@ void ha_ndbcluster::print_error(int error, myf errflag)
   DBUG_PRINT("enter", ("error: %d", error));
 
   if (error == HA_ERR_NO_PARTITION_FOUND)
-    m_part_info->print_no_partition_found(table);
-  else
   {
-    if (error == HA_ERR_NO_CONNECTION)
-    {
-      handler::print_error(4009, errflag);
-      DBUG_VOID_RETURN;
-    }
-    if (error == HA_ERR_FOUND_DUPP_KEY &&
-        (table == NULL || table->file == NULL))
-    {
-      /*
-        This is a sideffect of 'ndbcluster_print_error' (called from
-        'ndbcluster_commit' and 'ndbcluster_rollback') which realises
-        that it "knows nothing" and creates a brand new ha_ndbcluster
-        in order to be able to call the print_error() function.
-        Unfortunately the new ha_ndbcluster hasn't been open()ed
-        and thus table pointer etc. is not set. Since handler::print_error()
-        will use that pointer without checking for NULL(it naturally
-        assumes an error can only be returned when the handler is open)
-        this would crash the mysqld unless it's handled here.
-      */
-      my_error(ER_DUP_KEY, errflag, table_share->table_name.str, error);
-      DBUG_VOID_RETURN;
-    }
-    if (error == ER_CANT_DROP_FIELD_OR_KEY)
-    {
-      /*
-        Called on drop unknown FK by server when algorithm=copy or
-        by handler when algorithm=inplace.  In both cases the error
-        was already printed in ha_ndb_ddl_fk.cc.
-      */
-      THD* thd= NULL;
-      if (table != NULL &&
-          (thd= table->in_use) != NULL &&
-          thd->lex != NULL &&
-          thd->lex->sql_command == SQLCOM_ALTER_TABLE)
-      {
-        DBUG_VOID_RETURN;
-      }
-      DBUG_ASSERT(false);
-    }
-
-    handler::print_error(error, errflag);
+    m_part_info->print_no_partition_found(table);
+    DBUG_VOID_RETURN;
   }
+
+  if (error == HA_ERR_NO_CONNECTION)
+  {
+    handler::print_error(4009, errflag);
+    DBUG_VOID_RETURN;
+  }
+
+  if (error == HA_ERR_FOUND_DUPP_KEY &&
+      (table == NULL || table->file == NULL))
+  {
+    /*
+      This is a sideffect of 'ndbcluster_print_error' (called from
+      'ndbcluster_commit' and 'ndbcluster_rollback') which realises
+      that it "knows nothing" and creates a brand new ha_ndbcluster
+      in order to be able to call the print_error() function.
+      Unfortunately the new ha_ndbcluster hasn't been open()ed
+      and thus table pointer etc. is not set. Since handler::print_error()
+      will use that pointer without checking for NULL(it naturally
+      assumes an error can only be returned when the handler is open)
+      this would crash the mysqld unless it's handled here.
+    */
+    my_error(ER_DUP_KEY, errflag, table_share->table_name.str, error);
+    DBUG_VOID_RETURN;
+  }
+
+  if (error == ER_CANT_DROP_FIELD_OR_KEY)
+  {
+    /*
+      Called on drop unknown FK by server when algorithm=copy or
+      by handler when algorithm=inplace.  In both cases the error
+      was already printed in ha_ndb_ddl_fk.cc.
+    */
+    THD* thd= NULL;
+    if (table != NULL &&
+        (thd= table->in_use) != NULL &&
+        thd->lex != NULL &&
+        thd->lex->sql_command == SQLCOM_ALTER_TABLE)
+    {
+      DBUG_VOID_RETURN;
+    }
+    DBUG_ASSERT(false);
+  }
+
+  handler::print_error(error, errflag);
   DBUG_VOID_RETURN;
 }
 
@@ -17651,7 +17712,6 @@ public:
   Uint32 old_table_version;
 };
 
-
 /*
   Utility function to use when reporting that inplace alter
   is not supported.
@@ -17668,13 +17728,91 @@ inplace_unsupported(Alter_inplace_info *alter_info,
   DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 }
 
+void
+ha_ndbcluster::check_implicit_column_format_change(TABLE *altered_table,
+                                                   Alter_inplace_info *ha_alter_info)
+{
+  /*
+    We need to check if the table was defined when the default COLUMN_FORMAT
+    was FIXED and will now be become DYNAMIC.
+    We need to warn the user if the ALTER TABLE isn't defined to be INPLACE
+    and the column which will change isn't about to be dropped.
+  */
+  DBUG_ENTER("ha_ndbcluster::check_implicit_column_format_change");
+  DBUG_PRINT("info", ("Checking table with version %lu",
+                      table->s->mysql_version));
+  Alter_inplace_info::HA_ALTER_FLAGS alter_flags=
+    ha_alter_info->handler_flags;
+
+  /* Find the old fields */
+  for (uint i= 0; i < table->s->fields; i++)
+  {
+    Field *field= table->field[i];
+
+    /*
+      Find fields that are not part of the primary key
+      and that have a default COLUMN_FORMAT.
+    */
+    if ((! (field->flags & PRI_KEY_FLAG)) &&
+        field->column_format() == COLUMN_FORMAT_TYPE_DEFAULT)
+    {
+      DBUG_PRINT("info", ("Found old non-pk field %s", field->field_name));
+      bool modified_explicitly= false;
+      bool dropped= false;
+      /*
+        If the field is dropped or
+        modified with and explicit COLUMN_FORMAT (FIXED or DYNAMIC)
+        we don't need to warn the user about that field.
+      */
+      if (alter_flags & Alter_inplace_info::DROP_COLUMN ||
+          alter_flags & Alter_inplace_info::ALTER_COLUMN_COLUMN_FORMAT)
+      {
+        if (alter_flags & Alter_inplace_info::DROP_COLUMN)
+          dropped= true;
+        /* Find the fields in modified table*/
+        for (uint j= 0; j < altered_table->s->fields; j++)
+        {
+          Field *field2= altered_table->field[j];
+          if (!my_strcasecmp(system_charset_info,
+                             field->field_name, field2->field_name))
+          {
+            dropped= false;
+            if (field2->column_format() != COLUMN_FORMAT_TYPE_DEFAULT)
+            {
+              modified_explicitly= true;
+            }
+          }
+        }
+        if (dropped)
+          DBUG_PRINT("info", ("Field %s is to be dropped", field->field_name));
+        if (modified_explicitly)
+          DBUG_PRINT("info", ("Field  %s is modified with explicit COLUMN_FORMAT",
+                              field->field_name));
+      }
+      if ((! dropped) && (! modified_explicitly))
+      {
+        // push a warning of COLUMN_FORMAT change
+        push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                            ER_ALTER_INFO,
+                            "check_if_supported_inplace_alter: "
+                            "field %s has default COLUMN_FORMAT fixed "
+                            "which will be changed to dynamic "
+                            "unless explicitly defined as COLUMN_FORMAT FIXED",
+                            field->field_name);
+      }
+    }
+  }
+
+  DBUG_VOID_RETURN;
+}
 
 enum_alter_inplace_result
-  ha_ndbcluster::check_if_supported_inplace_alter(TABLE *altered_table,
-                                                  Alter_inplace_info *ha_alter_info)
+ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
+                                             Alter_inplace_info *ha_alter_info)
 {
   THD *thd= current_thd;
   HA_CREATE_INFO *create_info= ha_alter_info->create_info;
+  Alter_info *alter_info= ha_alter_info->alter_info;
   Alter_inplace_info::HA_ALTER_FLAGS alter_flags=
       ha_alter_info->handler_flags;
   const Alter_inplace_info::HA_ALTER_FLAGS supported=
@@ -17706,13 +17844,14 @@ enum_alter_inplace_result
     Alter_inplace_info::DROP_INDEX |
     Alter_inplace_info::DROP_UNIQUE_INDEX;
 
+  enum_alter_inplace_result result= HA_ALTER_INPLACE_SHARED_LOCK;
 
-  DBUG_ENTER("ha_ndbcluster::check_if_supported_inplace_alter");
+  DBUG_ENTER("ha_ndbcluster::check_inplace_alter_supported");
   partition_info *part_info= altered_table->part_info;
   const NDBTAB *old_tab= m_table;
 
   if (THDVAR(thd, use_copying_alter_table) &&
-      (thd->lex->alter_info.requested_algorithm ==
+      (alter_info->requested_algorithm ==
        Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT))
   {
     // Usage of copying alter has been forced and user has not specified
@@ -17778,18 +17917,23 @@ enum_alter_inplace_result
   if (alter_flags & Alter_inplace_info::ALTER_COLUMN_DEFAULT &&
       !(alter_flags & Alter_inplace_info::ADD_COLUMN))
   {
-    DBUG_PRINT("info", ("Altering default value is not supported"));
-    DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+    DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                    "Altering default value is not supported"));
   }
 
   if (alter_flags & not_supported)
   {
-    DBUG_PRINT("info", ("Detected unsupported change: 0x%llx",
-                        alter_flags & not_supported));
-    DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+    if (alter_info->requested_algorithm ==
+        Alter_info::ALTER_TABLE_ALGORITHM_INPLACE)
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_ALTER_INFO,
+                          "Detected unsupported change: "
+                          "HA_ALTER_FLAGS = 0x%llx",
+                          alter_flags & not_supported);
+    DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                    "Detected unsupported change"));
   }
 
-  enum_alter_inplace_result result= HA_ALTER_INPLACE_SHARED_LOCK;
   if (alter_flags & Alter_inplace_info::ADD_COLUMN ||
       alter_flags & Alter_inplace_info::ADD_PARTITION ||
       alter_flags & Alter_inplace_info::ALTER_TABLE_REORG ||
@@ -17822,8 +17966,9 @@ enum_alter_inplace_result
        add_column|= Alter_inplace_info::ALTER_COLUMN_COLUMN_FORMAT;
        if (alter_flags & ~add_column)
        {
-         DBUG_PRINT("info", ("Only add column exclusively can be performed on-line"));
-         DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+         DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                         "Only add column exclusively can be "
+                                         "performed online"));
        }
        /*
          Check for extra fields for hidden primary key
@@ -17832,7 +17977,11 @@ enum_alter_inplace_result
        if (table_share->primary_key == MAX_KEY ||
            part_info->part_type != HASH_PARTITION ||
            !part_info->list_of_part_fields)
-         DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+       {
+         DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                         "Found hidden primary key or "
+                                         "user defined partitioning"));
+       }
 
        /* Find the new fields */
        for (uint i= table->s->fields; i < altered_table->s->fields; i++)
@@ -17849,8 +17998,9 @@ enum_alter_inplace_result
            if ((! field->is_real_null(src_offset)) ||
                ((field->flags & NOT_NULL_FLAG)))
            {
-             DBUG_PRINT("info",("Adding column with non-null default value is not supported on-line"));
-             DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+             DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                             "Adding column with non-null default value "
+                                             "is not supported online"));
            }
          }
          /* Create new field to check if it can be added */
@@ -17891,7 +18041,8 @@ enum_alter_inplace_result
      if (comment_changed &&
          parse_comment_changes(&new_tab, create_info, thd, max_rows_changed))
      {
-       DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+       DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                       "Unsupported table modifiers"));
      }
      else if (max_rows_changed)
      {
@@ -17907,8 +18058,9 @@ enum_alter_inplace_result
        }
        if (reported_frags < old_tab->getFragmentCount())
        {
-         DBUG_PRINT("info", ("Online reduction in number of fragments not supported"));
-         DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+         DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                         "Online reduction in number of fragments "
+                                         "not supported"));
        }
        new_tab.setFragmentCount(reported_frags);
        new_tab.setDefaultNoPartitionsFlag(false);
@@ -17918,12 +18070,12 @@ enum_alter_inplace_result
 
      if (dict->supportedAlterTable(*old_tab, new_tab))
      {
-       DBUG_PRINT("info", ("Adding column(s) supported on-line"));
+       DBUG_PRINT("info", ("Adding column(s) or add/reorganize partition supported online"));
      }
      else
      {
-       DBUG_PRINT("info",("Adding column not supported on-line"));
-       DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+       DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                       "Adding column(s) or add/reorganize partition not supported online"));
      }
   }
 
@@ -17935,8 +18087,8 @@ enum_alter_inplace_result
     if (((altered_table->s->keys - table->s->keys) != 1) ||
         (alter_flags & dropping))
     {
-       DBUG_PRINT("info",("Only one index can be added on-line"));
-       DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+      DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                      "Only one index can be added online"));
     }
   }
 
@@ -17948,8 +18100,8 @@ enum_alter_inplace_result
     if (((table->s->keys - altered_table->s->keys) != 1) ||
         (alter_flags & adding))
     {
-       DBUG_PRINT("info",("Only one index can be dropped on-line"));
-       DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+      DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                      "Only one index can be dropped online"));
     }
   }
 
@@ -18014,7 +18166,8 @@ enum_alter_inplace_result
     {
       if (field->field_storage_type() == HA_SM_DISK)
       {
-        DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+           DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                           "Found change of COLUMN_STORAGE to disk"));
       }
       new_col.setStorageType(NdbDictionary::Column::StorageTypeMemory);
     }
@@ -18029,21 +18182,22 @@ enum_alter_inplace_result
 
     if (col->getStorageType() != new_col.getStorageType())
     {
-      DBUG_PRINT("info", ("Column storage media is changed"));
-      DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+      DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                      "Column storage media is changed"));
     }
 
     if (field->flags & FIELD_IS_RENAMED)
     {
-      DBUG_PRINT("info", ("Field has been renamed, copy table"));
-      DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+      DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                      "Field has been renamed, copy table"));
     }
 
     if ((field->flags & FIELD_IN_ADD_INDEX) &&
         (col->getStorageType() == NdbDictionary::Column::StorageTypeDisk))
     {
-      DBUG_PRINT("info", ("add/drop index not supported for disk stored column"));
-      DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+      DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                      "Add/drop index not supported for disk "
+                                      "stored column"));
     }
   }
 
@@ -18052,8 +18206,8 @@ enum_alter_inplace_result
   {
     if (create_info->used_fields ^ ~HA_CREATE_USED_AUTO)
     {
-      DBUG_PRINT("info", ("Not only auto_increment value changed"));
-      DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+      DBUG_RETURN(inplace_unsupported(ha_alter_info,
+                                      "Not only auto_increment value changed"));
     }
   }
   else
@@ -18062,11 +18216,44 @@ enum_alter_inplace_result
     if (create_info->used_fields & HA_CREATE_USED_AUTO &&
         get_row_type() != create_info->row_type)
     {
-      DBUG_PRINT("info", ("Row format changed"));
-      DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+      DBUG_RETURN(inplace_unsupported(ha_alter_info, "Row format changed"));
     }
   }
-  DBUG_PRINT("info", ("Ndb supports ALTER on-line"));
+
+  // All unsupported cases should have returned directly
+  DBUG_ASSERT(result != HA_ALTER_INPLACE_NOT_SUPPORTED);
+  DBUG_PRINT("info", ("Ndb supports ALTER online"));
+  DBUG_RETURN(result);
+}
+
+enum_alter_inplace_result
+ha_ndbcluster::check_if_supported_inplace_alter(TABLE *altered_table,
+                                                Alter_inplace_info *ha_alter_info)
+{
+  DBUG_ENTER("ha_ndbcluster::check_if_supported_inplace_alter");
+  Alter_info *alter_info= ha_alter_info->alter_info;
+
+  enum_alter_inplace_result result=
+    check_inplace_alter_supported(altered_table,
+                                  ha_alter_info);
+
+  if (result == HA_ALTER_INPLACE_NOT_SUPPORTED)
+  {
+    /*
+      The ALTER TABLE is not supported inplace and will fall back
+      to use copying ALTER TABLE. If --ndb-default-column-format is dynamic (default),
+      the table is created in an older mysql version and the algorithm for the alter
+      table is not specified to be inplace then then heck for implicit changes and
+      print warnings.
+    */
+    if ((opt_ndb_default_column_format ==
+         NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC) &&
+        (table->s->mysql_version < MYSQL_VERSION_NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC) &&
+        (alter_info->requested_algorithm != Alter_info::ALTER_TABLE_ALGORITHM_INPLACE))
+    {
+      check_implicit_column_format_change(altered_table, ha_alter_info);
+    }
+  }
   DBUG_RETURN(result);
 }
 
@@ -18074,7 +18261,7 @@ bool
 ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
                                      HA_CREATE_INFO *create_info,
                                      THD *thd,
-                                     bool & max_rows_changed)
+                                     bool & max_rows_changed) const
 {
   DBUG_ENTER("ha_ndbcluster::parse_comment_changes");
   NDB_Modifiers table_modifiers(ndb_table_modifiers);
@@ -18302,7 +18489,7 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
        }
        /*
          If the user has not specified the field format
-         make it dynamic to enable on-line add attribute
+         make it dynamic to enable online add attribute
        */
        if (field->column_format() == COLUMN_FORMAT_TYPE_DEFAULT &&
            create_info->row_type == ROW_TYPE_DEFAULT &&
@@ -18311,7 +18498,7 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
          push_warning_printf(thd, Sql_condition::SL_WARNING,
                              ER_ILLEGAL_HA_CREATE_OPTION,
                              "Converted FIXED field '%s' to DYNAMIC "
-                             "to enable on-line ADD COLUMN",
+                             "to enable online ADD COLUMN",
                              field->field_name);
        }
        new_tab->addColumn(col);
@@ -18455,7 +18642,7 @@ int ha_ndbcluster::alter_frm(const char *file,
     new_tab->setFrm(pack_data, (Uint32)pack_length);
     if (dict->alterTableGlobal(*old_tab, *new_tab))
     {
-      DBUG_PRINT("info", ("On-line alter of table %s failed", m_tabname));
+      DBUG_PRINT("info", ("Online alter of table %s failed", m_tabname));
       error= ndb_to_mysql_error(&dict->getNdbError());
       my_error(error, MYF(0), m_tabname);
     }
@@ -20191,6 +20378,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(version_string),
   MYSQL_SYSVAR(show_foreign_key_mock_tables),
   MYSQL_SYSVAR(slave_conflict_role),
+  MYSQL_SYSVAR(default_column_format),
   NULL
 };
 

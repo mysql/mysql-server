@@ -53,6 +53,19 @@ Created 10/25/1995 Heikki Tuuri
 #include "trx0purge.h"
 #include "ut0new.h"
 
+/** Tries to close a file in the LRU list. The caller must hold the fil_sys
+mutex.
+@return true if success, false if should retry later; since i/o's
+generally complete in < 100 ms, and as InnoDB writes at most 128 pages
+from the buffer pool in a batch, and then immediately flushes the
+files, there is a good chance that the next time we find a suitable
+node from the LRU list.
+@param[in] print_info	if true, prints information why it
+                        cannot close a file */
+static
+bool
+fil_try_to_close_file_in_LRU(bool print_info);
+
 /*
 		IMPLEMENTATION OF THE TABLESPACE MEMORY CACHE
 		=============================================
@@ -699,13 +712,18 @@ fil_node_open_file(
 		file read function os_file_read() in Windows to read
 		from a file opened for async I/O! */
 
+retry:
 		node->handle = os_file_create_simple_no_error_handling(
 			innodb_data_file_key, node->name, OS_FILE_OPEN,
 			OS_FILE_READ_ONLY, read_only_mode, &success);
 
 		if (!success) {
 			/* The following call prints an error message */
-			os_file_get_last_error(true);
+			ulint err = os_file_get_last_error(true);
+			if (err == EMFILE + 100) {
+				if (fil_try_to_close_file_in_LRU(true))
+					goto retry;
+                       }
 
 			ib::warn() << "Cannot open '" << node->name << "'."
 				" Have you deleted .ibd files under a"
@@ -810,9 +828,7 @@ fil_node_open_file(
 		encrytion key and iv(initial vector) is readed. */
 		if (FSP_FLAGS_GET_ENCRYPTION(flags)
 		    && !recv_recovery_is_on()) {
-			if (space->encryption_key == NULL
-			    || space->encryption_iv == NULL
-			    || space->encryption_type != Encryption::AES) {
+			if (space->encryption_type != Encryption::AES) {
 				ib::error()
 					<< "Can't read encryption"
 					<< " key from file "
@@ -920,20 +936,20 @@ fil_node_close_file(
 	}
 }
 
-/********************************************************************//**
-Tries to close a file in the LRU list. The caller must hold the fil_sys
+/** Tries to close a file in the LRU list. The caller must hold the fil_sys
 mutex.
 @return true if success, false if should retry later; since i/o's
 generally complete in < 100 ms, and as InnoDB writes at most 128 pages
 from the buffer pool in a batch, and then immediately flushes the
 files, there is a good chance that the next time we find a suitable
-node from the LRU list */
+node from the LRU list.
+@param[in] print_info	if true, prints information why it
+			cannot close a file*/
 static
 bool
 fil_try_to_close_file_in_LRU(
-/*=========================*/
-	bool	print_info)	/*!< in: if true, prints information why it
-				cannot close a file */
+
+	bool	print_info)
 {
 	fil_node_t*	node;
 
@@ -7234,7 +7250,7 @@ fil_encryption_rotate()
 {
 	fil_space_t*	space;
 	mtr_t		mtr;
-	byte		encrypt_info[ENCRYPTION_INFO_SIZE];
+	byte		encrypt_info[ENCRYPTION_INFO_SIZE_V2];
 
 	for (space = UT_LIST_GET_FIRST(fil_system->space_list);
 	     space != NULL; ) {
@@ -7252,7 +7268,7 @@ fil_encryption_rotate()
 
 			space = mtr_x_lock_space(space->id, &mtr);
 
-			memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
+			memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE_V2);
 
 			if (!fsp_header_rotate_encryption(space,
 							  encrypt_info,

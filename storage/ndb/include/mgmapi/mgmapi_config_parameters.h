@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -300,6 +300,7 @@
 #define CFG_DEFAULT_HASHMAP_SIZE      806
 #define CFG_CONNECT_BACKOFF_MAX_TIME 807
 #define CFG_START_CONNECT_BACKOFF_MAX_TIME 808
+#define CFG_API_VERBOSE               809
 
 /**
  * Internal

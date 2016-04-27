@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -720,23 +720,6 @@ buf_frame_align(
 
         return(frame);
 }
-
-#ifndef UNIV_HOTBACKUP
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
-/*********************************************************************//**
-Gets the compressed page descriptor corresponding to an uncompressed page
-if applicable.
-@return compressed page descriptor, or NULL */
-UNIV_INLINE
-const page_zip_des_t*
-buf_frame_get_page_zip(
-/*===================*/
-	const byte*	ptr)	/*!< in: pointer to the page */
-{
-	return(buf_block_get_page_zip(buf_block_align(ptr)));
-}
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
-#endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************************//**
 Gets the space id, page offset, and byte offset within page of a

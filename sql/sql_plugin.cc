@@ -899,9 +899,13 @@ static bool plugin_add(MEM_ROOT *tmp_root,
   st_mysql_plugin *plugin;
   DBUG_ENTER("plugin_add");
   LEX_CSTRING name_cstr= {name->str, name->length};
+
+  mysql_mutex_assert_owner(&LOCK_plugin);
   if (plugin_find_internal(name_cstr, MYSQL_ANY_PLUGIN))
   {
+    mysql_mutex_unlock(&LOCK_plugin);
     report_error(report, ER_UDF_EXISTS, name->str);
+    mysql_mutex_lock(&LOCK_plugin);
     DBUG_RETURN(TRUE);
   }
   /* Clear the whole struct to catch future extensions. */
@@ -928,7 +932,9 @@ static bool plugin_add(MEM_ROOT *tmp_root,
         strxnmov(buf, sizeof(buf) - 1, "API version for ",
                  plugin_type_names[plugin->type].str,
                  " plugin is too different", NullS);
+        mysql_mutex_unlock(&LOCK_plugin);
         report_error(report, ER_CANT_OPEN_LIBRARY, dl->str, 0, buf);
+        mysql_mutex_lock(&LOCK_plugin);
         goto err;
       }
       tmp.plugin= plugin;
@@ -960,7 +966,9 @@ static bool plugin_add(MEM_ROOT *tmp_root,
       DBUG_RETURN(FALSE);
     }
   }
+  mysql_mutex_unlock(&LOCK_plugin);
   report_error(report, ER_CANT_FIND_DL_ENTRY, name->str);
+  mysql_mutex_lock(&LOCK_plugin);
 err:
   plugin_dl_del(dl);
   DBUG_RETURN(TRUE);
@@ -2134,16 +2142,19 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   if (!(plugin= plugin_find_internal(name_cstr, MYSQL_ANY_PLUGIN)) ||
       plugin->state & (PLUGIN_IS_UNINITIALIZED | PLUGIN_IS_DYING))
   {
+    mysql_mutex_unlock(&LOCK_plugin);
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PLUGIN", name->str);
     goto err;
   }
   if (!plugin->plugin_dl)
   {
+    mysql_mutex_unlock(&LOCK_plugin);
     my_error(ER_PLUGIN_DELETE_BUILTIN, MYF(0));
     goto err;
   }
   if (plugin->load_option == PLUGIN_FORCE_PLUS_PERMANENT)
   {
+    mysql_mutex_unlock(&LOCK_plugin);
     my_error(ER_PLUGIN_IS_PERMANENT, MYF(0), name->str);
     goto err;
   }
@@ -2154,6 +2165,7 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
    */
   if (plugin->plugin->flags & PLUGIN_OPT_NO_UNINSTALL)
   {
+    mysql_mutex_unlock(&LOCK_plugin);
     my_error(ER_PLUGIN_NO_UNINSTALL, MYF(0), plugin->plugin->name);
     goto err;
   }
@@ -2178,6 +2190,7 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
                      buff, OPT_DEFAULT, &buff_length) &&
       strcmp(buff,"0") )
   {
+    mysql_mutex_unlock(&LOCK_plugin);
     my_error(ER_PLUGIN_CANNOT_BE_UNINSTALLED, MYF(0), name->str,
              "Stop any active semisynchronous slaves of this master first.");
     goto err;
@@ -2194,6 +2207,7 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
                      buff, OPT_DEFAULT, &buff_length) &&
       !strcmp(buff,"ON") )
   {
+    mysql_mutex_unlock(&LOCK_plugin);
     my_error(ER_PLUGIN_CANNOT_BE_UNINSTALLED, MYF(0), name->str,
              "Stop any active semisynchronous I/O threads on this slave first.");
     goto err;
@@ -2243,7 +2257,6 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
 
   DBUG_RETURN(error);
 err:
-  mysql_mutex_unlock(&LOCK_plugin);
   trans_rollback_stmt(thd);
   close_mysql_tables(thd);
 

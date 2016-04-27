@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,11 +21,12 @@
 #include <NdbTick.h>
 #include "../../src/ndbapi/NdbQueryOperation.hpp"
 
-HugoQueries::HugoQueries(const NdbQueryDef & query)
+HugoQueries::HugoQueries(const NdbQueryDef & query, int retryMax)
+ : m_query_def(&query),
+   m_ops(query.getNoOfOperations()),
+   m_retryMax(retryMax),
+   m_error()
 {
-  m_retryMax = 100;
-  m_query_def = &query;
-
   for (Uint32 i = 0; i<query.getNoOfOperations(); i++)
   {
     struct Op op;
@@ -175,11 +176,13 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
 
       if (err.status == NdbError::TemporaryError){
         NDB_ERR(err);
+        setNdbError(err);
         NdbSleep_MilliSleep(50);
         retryAttempt++;
         continue;
       }
       NDB_ERR(err);
+      setNdbError(err);
       return NDBT_FAILED;
     }
 
@@ -194,6 +197,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
       {
         const NdbError err = pTrans->getNdbError();
         NDB_ERR(err);
+        setNdbError(err);
         return NDBT_FAILED;
       }
 
@@ -210,6 +214,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
     {
       const NdbError err = pTrans->getNdbError();
       NDB_ERR(err);
+      setNdbError(err);
       if (err.status == NdbError::TemporaryError){
         pTrans->close();
         NdbSleep_MilliSleep(50);
@@ -231,6 +236,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
       if (err.code)
       {
         NDB_ERR(err);
+        setNdbError(err);
         ndbout_c("API INCONSISTENCY: NdbTransaction returned NdbError even if ::execute() succeeded");
         pTrans->close();
         return NDBT_FAILED;
@@ -253,6 +259,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
       if (err.code)
       {
         NDB_ERR(err);
+        setNdbError(err);
         if (err.status == NdbError::TemporaryError){
           pTrans->close();
           retry = true;
@@ -283,6 +290,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
       {
         const NdbError& err = query->getNdbError();
         NDB_ERR(err);
+        setNdbError(err);
         if (err.status == NdbError::TemporaryError){
           pTrans->close();
           retry = true;
@@ -330,6 +338,7 @@ HugoQueries::runScanQuery(Ndb * pNdb,
     {
       const NdbError err = pNdb->getNdbError();
       NDB_ERR(err);
+      setNdbError(err);
       if (err.status == NdbError::TemporaryError){
         NdbSleep_MilliSleep(50);
         retryAttempt++;
@@ -348,6 +357,7 @@ HugoQueries::runScanQuery(Ndb * pNdb,
     {
       const NdbError err = pTrans->getNdbError();
       NDB_ERR(err);
+      setNdbError(err);
       return NDBT_FAILED;
     }
 
@@ -362,6 +372,7 @@ HugoQueries::runScanQuery(Ndb * pNdb,
     {
       const NdbError err = pTrans->getNdbError();
       NDB_ERR(err);
+      setNdbError(err);
       if (err.status == NdbError::TemporaryError){
         pTrans->close();
         NdbSleep_MilliSleep(50);
@@ -383,6 +394,7 @@ HugoQueries::runScanQuery(Ndb * pNdb,
       if (err.code)
       {
         NDB_ERR(err);
+        setNdbError(err);
         ndbout_c("API INCONSISTENCY: NdbTransaction returned NdbError even if ::execute() succeeded");
         pTrans->close();
         return NDBT_FAILED;
@@ -399,6 +411,7 @@ HugoQueries::runScanQuery(Ndb * pNdb,
       if (err.code)
       {
         NDB_ERR(err);
+        setNdbError(err);
         if (err.status == NdbError::TemporaryError){
           pTrans->close();
           NdbSleep_MilliSleep(50);
@@ -453,6 +466,7 @@ HugoQueries::runScanQuery(Ndb * pNdb,
     if (res == NdbQuery::NextResult_error)
     {
       NDB_ERR(err);
+      setNdbError(err);
       if (err.status == NdbError::TemporaryError)
       {
         NdbSleep_MilliSleep(50);
@@ -470,6 +484,19 @@ HugoQueries::runScanQuery(Ndb * pNdb,
   }
 
   return NDBT_OK;
+}
+
+void
+HugoQueries::setNdbError(const NdbError& error)
+{
+  assert(error.code != 0);
+  m_error = error;
+}
+
+const NdbError& 
+HugoQueries::getNdbError() const
+{
+  return m_error;
 }
 
 template class Vector<HugoQueries::Op>;

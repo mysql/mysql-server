@@ -93,19 +93,11 @@ ndb_mgm_create_logevent_handle(NdbMgmHandle mh,
 }
 
 extern "C"
-#ifdef NDB_WIN
-SOCKET
+ndb_native_socket_t
 ndb_logevent_get_fd(const NdbLogEventHandle h)
 {
-  return h->socket.s;
+  return ndb_socket_get_native(h->socket);
 }
-#else
-int
-ndb_logevent_get_fd(const NdbLogEventHandle h)
-{
-  return h->socket.fd;
-}
-#endif
 
 extern "C"
 void ndb_mgm_destroy_logevent_handle(NdbLogEventHandle * h)

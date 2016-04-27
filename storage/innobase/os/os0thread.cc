@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -188,13 +188,9 @@ os_thread_create_func(
 	}
 }
 
-/*****************************************************************//**
-Exits the current thread. */
+/** Exits the current thread. */
 void
-os_thread_exit(
-/*===========*/
-	void*	exit_value)	/*!< in: exit value; in Windows this void*
-				is cast as a DWORD */
+os_thread_exit()
 {
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	ib::info() << "Thread exits, id "
@@ -218,11 +214,11 @@ os_thread_exit(
 
 	mutex_exit(&thread_mutex);
 
-	ExitThread((DWORD) exit_value);
+	ExitThread(0);
 #else
 	mutex_exit(&thread_mutex);
 	pthread_detach(pthread_self());
-	pthread_exit(exit_value);
+	pthread_exit(NULL);
 #endif
 }
 

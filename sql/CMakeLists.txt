@@ -73,6 +73,7 @@ SET(SQL_SHARED_SOURCES
   auth/sql_security_ctx.cc
   auth/service_security_context.cc
   keyring_service.cc
+  ssl_wrapper_service.cc
   bootstrap.cc
   conn_handler/connection_handler_manager.cc 
   datadict.cc
@@ -312,6 +313,12 @@ ADD_COMPILE_FLAGS(
   COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
 )
 
+# Fixes "C1128: number of sections exceeded object file format limit" in MSVC /MD
+# The flag /bigobj is not added if the build is not WINDOWS_RUNTIME_MD (/MD)
+IF(WINDOWS_RUNTIME_MD AND CMAKE_SIZEOF_VOID_P MATCHES 8)
+  ADD_COMPILE_FLAGS(item_geofunc_setops.cc COMPILE_FLAGS "/bigobj")
+ENDIF()
+
 # Boost source has unused local typedefs.
 MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
 IF(HAVE_NO_UNUSED_TYPEDEFS)
@@ -451,8 +458,14 @@ IF(NOT WITHOUT_DYNAMIC_PLUGINS)
     # incremental appears to crash from time to time,if used with /DEF option
     SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "${mysqld_link_flags} /DEF:mysqld.def /INCREMENTAL:NO")
 
-    FOREACH (CORELIB sql binlog slave mysys mysys_ssl dbug strings binlogevents_static)
+    FOREACH (CORELIB sql binlog slave mysys mysys_ssl dbug regex strings
+        vio binlogevents_static)
       GET_TARGET_PROPERTY(LOC ${CORELIB} LOCATION)
+      IF (NOT LOC)
+        GET_TARGET_PROPERTY(LOC ${CORELIB} IMPORTED_LOCATION)
+      ENDIF()
+
+
       FILE(TO_NATIVE_PATH ${LOC} LOC)
       SET (LIB_LOCATIONS ${LIB_LOCATIONS} ${LOC}) 
     ENDFOREACH (CORELIB ${MYSQLD_CORE_LIBS})

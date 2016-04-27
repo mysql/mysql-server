@@ -33,6 +33,58 @@ static bool should_compress= false;
 const LEX_STRING Gtid_table_access_context::TABLE_NAME= {C_STRING_WITH_LEN("gtid_executed")};
 const LEX_STRING Gtid_table_access_context::DB_NAME= {C_STRING_WITH_LEN("mysql")};
 
+/**
+  A derived from THD::Attachable_trx class allows updates in
+  the attachable transaction. Callers of the class methods must
+  make sure the attachable_rw won't cause deadlock with the main transaction.
+  The destructor does not invoke ha_commit_{stmt,trans} nor ha_rollback_trans
+  on purpose.
+  Burden to terminate the read-write instance also lies on the caller!
+  In order to use this interface it *MUST* prove that no side effect to
+  the global transaction state can be inflicted by a chosen method.
+*/
+
+class THD::Attachable_trx_rw : public THD::Attachable_trx
+{
+public:
+  bool is_read_only() const { return false; }
+  Attachable_trx_rw(THD *thd) : THD::Attachable_trx(thd)
+  {
+    m_thd->tx_read_only= false;
+    m_thd->lex->sql_command= SQLCOM_END;
+    m_xa_state_saved= m_thd->get_transaction()->xid_state()->get_state();
+    thd->get_transaction()->xid_state()->set_state(XID_STATE::XA_NOTR);
+  }
+  ~Attachable_trx_rw()
+  {
+    /* The attachable transaction has been already committed */
+    DBUG_ASSERT(!m_thd->get_transaction()->is_active(Transaction_ctx::STMT)
+                && !m_thd->get_transaction()->is_active(Transaction_ctx::SESSION));
+
+    m_thd->get_transaction()->xid_state()->set_state(m_xa_state_saved);
+    m_thd->tx_read_only= true;
+  }
+
+private:
+  XID_STATE::xa_states m_xa_state_saved;
+  Attachable_trx_rw(const Attachable_trx_rw &);
+  Attachable_trx_rw &operator =(const Attachable_trx_rw &);
+};
+
+
+bool THD::is_attachable_rw_transaction_active() const
+{
+  return m_attachable_trx != NULL && !m_attachable_trx->is_read_only();
+}
+
+
+void THD::begin_attachable_rw_transaction()
+{
+  DBUG_ASSERT(!m_attachable_trx);
+
+  m_attachable_trx= new Attachable_trx_rw(this);
+}
+
 
 /**
   Initialize a new THD.
@@ -114,6 +166,22 @@ bool Gtid_table_access_context::init(THD **thd, TABLE **table, bool is_write)
     m_tmp_disable_binlog__save_options= (*thd)->variables.option_bits;
     (*thd)->variables.option_bits&= ~OPTION_BIN_LOG;
   }
+
+  if (!(*thd)->get_transaction()->xid_state()->has_state(XID_STATE::XA_NOTR))
+  {
+    /*
+      This type of caller of Attachable_trx_rw is deadlock-free with
+      the main transaction thanks to rejection to update
+      'mysql.gtid_executed' by XA main transaction.
+    */
+    DBUG_ASSERT((*thd)->get_transaction()->xid_state()->
+                has_state(XID_STATE::XA_IDLE) ||
+                (*thd)->get_transaction()->xid_state()->
+                has_state(XID_STATE::XA_PREPARED));
+
+    (*thd)->begin_attachable_rw_transaction();
+  }
+
   (*thd)->is_operating_gtid_table_implicitly= true;
   bool ret= this->open_table(*thd, DB_NAME, TABLE_NAME,
                              Gtid_table_persistor::number_fields,
@@ -130,6 +198,17 @@ void Gtid_table_access_context::deinit(THD *thd, TABLE *table,
   DBUG_ENTER("Gtid_table_access_context::deinit");
 
   this->close_table(thd, table, &m_backup, 0 != error, need_commit);
+
+  /*
+    If Gtid is inserted through Attachable_trx_rw its has been done
+    in the above close_table() through ha_commit_trans().
+    It does not have any side effect to the global transaction state
+    as the only vulnerable part there relates to gtid (and is blocked
+    from recursive invocation).
+  */
+  if (thd->is_attachable_rw_transaction_active())
+    thd->end_attachable_transaction();
+
   thd->is_operating_gtid_table_implicitly= false;
   /* Reenable binlog */
   if (m_is_write)

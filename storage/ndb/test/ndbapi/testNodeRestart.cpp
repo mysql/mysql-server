@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,6 @@
 #include <RefConvert.hpp>
 #include <NdbEnv.h>
 #include <NdbMgmd.hpp>
-#include <NdbMem.h>
 #include <my_sys.h>
 #include <ndb_rand.h>
 #include <BlockNumbers.h>
@@ -7552,6 +7551,111 @@ int waitAndCheckLMBUsage(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int runArbitrationWithApiNodeFailure(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * Check that arbitration do not fail with non arbitrator api node
+   * failure.
+   */
+
+  NdbRestarter restarter;
+
+  /**
+   * Bug#23006431 UNRELATED API FAILURE DURING ARBITRATION CAUSES
+   *              ARBITRATION FAILURE
+   *
+   * If a data node that have won the arbitration get a api failure it
+   * could trample the arbitration state and result in arbitration failure
+   * before the win was effectuated.
+   *
+   * 1. connect api node
+   * 2. error insert in next master to delay win after api node failure
+   * 3. kill master
+   * 4. disconnect api node
+   * 5. next master should survive
+   *
+   */
+
+  /**
+   * 1. connect new api node
+   */
+  Ndb_cluster_connection* cluster_connection = new Ndb_cluster_connection();
+  if (cluster_connection->connect() != 0)
+  {
+    g_err << "ERROR: connect failure." << endl;
+    return NDBT_FAILED;
+  }
+  Ndb* ndb = new Ndb(cluster_connection, "TEST_DB");
+  if (ndb->init() != 0 || ndb->waitUntilReady(30) != 0)
+  {
+    g_err << "ERROR: Ndb::init failure." << endl;
+    return NDBT_FAILED;
+  }
+
+  /**
+   * 2. error insert in next master to delay arbitration win after api
+   *    node failure
+   */
+  const int master = restarter.getMasterNodeId();
+  const int nextMaster = restarter.getNextMasterNodeId(master);
+  if (restarter.insertErrorInNode(nextMaster, 945) != 0)
+  {
+    g_err << "ERROR: inserting error 945 into next master " << nextMaster
+          << endl;
+    return NDBT_FAILED;
+  }
+
+  /**
+   * 3. kill master
+   */
+  if (restarter.restartOneDbNode2(master,
+                                  NdbRestarter::NRRF_NOSTART |
+                                  NdbRestarter::NRRF_ABORT) != 0)
+  {
+    g_err << "ERROR: stopping old master " << master << endl;
+    return NDBT_FAILED;
+  }
+
+  /**
+   * 4. disconnect api node
+   */
+  delete ndb;
+  delete cluster_connection;
+
+  /**
+   * 5. next master should survive
+   *
+   * Verify cluster up with correct master.
+   */
+
+  if (restarter.waitNodesNoStart(&master, 1) != 0)
+  {
+    g_err << "ERROR: old master " << master << " not stopped" << endl;
+    return NDBT_FAILED;
+  }
+
+  if (restarter.startNodes(&master, 1) != 0)
+  {
+    g_err << "ERROR: restarting old master " << master << " failed" << endl;
+    return NDBT_FAILED;
+  }
+
+  if (restarter.waitClusterStarted() != 0)
+  {
+    g_err << "ERROR: wait cluster start failed" << endl;
+    return NDBT_FAILED;
+  }
+
+  const int newMaster = restarter.getMasterNodeId();
+  if (newMaster != nextMaster)
+  {
+    g_err << "ERROR: wrong master, got " << newMaster << " expected "
+          << nextMaster << endl;
+    return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
@@ -8227,6 +8331,12 @@ TESTCASE("LCPLMBLeak",
   STEP(runLCP);
   STEP(waitAndCheckLMBUsage);
   FINALIZER(dropManyTables);
+}
+TESTCASE("ArbitrationWithApiNodeFailure",
+         "Check that arbitration do not fail with non arbitrator api node "
+         "failure.");
+{
+  STEP(runArbitrationWithApiNodeFailure);
 }
 
 NDBT_TESTSUITE_END(testNodeRestart);

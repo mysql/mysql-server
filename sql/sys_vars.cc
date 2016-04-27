@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2055,24 +2055,8 @@ static bool fix_syslog(sys_var *self, THD *thd, enum_var_type type)
 
 static bool check_syslog_tag(sys_var *self, THD *THD, set_var *var)
 {
-  bool ret;
-  char *old= opt_log_syslog_tag;
-  opt_log_syslog_tag= (var->value) ? var->save_result.string_value.str : NULL;
-  ret= log_syslog_update_settings();
-  opt_log_syslog_tag= old;
-  return ret;
-}
-
-static bool check_syslog_enable(sys_var *self, THD *THD, set_var *var)
-{
-  my_bool save= opt_log_syslog_enable;
-  opt_log_syslog_enable= var->save_result.ulonglong_value;
-  if (log_syslog_update_settings())
-  {
-    opt_log_syslog_enable= save;
-    return true;
-  }
-  return false;
+  return ((var->value != NULL) &&
+          (strchr(var->save_result.string_value.str, FN_LIBCHAR) != NULL));
 }
 
 static Sys_var_mybool Sys_log_syslog_enable(
@@ -2089,7 +2073,7 @@ static Sys_var_mybool Sys_log_syslog_enable(
        DEFAULT(TRUE),
 #endif
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_syslog_enable), ON_UPDATE(0));
+       ON_CHECK(0), ON_UPDATE(fix_syslog));
 
 
 static Sys_var_charptr Sys_log_syslog_tag(
@@ -2685,8 +2669,73 @@ static Sys_var_ulong Sys_range_optimizer_max_mem_size(
       "does not have any cap on memory. ",
       SESSION_VAR(range_optimizer_max_mem_size),
       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, ULONG_MAX),
-      DEFAULT(1536000),
+      DEFAULT(8388608),
       BLOCK_SIZE(1));
+
+static bool
+limit_parser_max_mem_size(sys_var *self, THD *thd, set_var *var)
+{
+  if (var->type == OPT_GLOBAL)
+    return false;
+  ulonglong val= var->save_result.ulonglong_value;
+  if (val > global_system_variables.parser_max_mem_size)
+  {
+    if (thd->security_context()->check_access(SUPER_ACL))
+      return false;
+    var->save_result.ulonglong_value=
+      global_system_variables.parser_max_mem_size;
+    return throw_bounds_warning(thd, "parser_max_mem_size",
+                                true, // fixed
+                                true, // is_unsigned
+                                val);
+  }
+  return false;
+}
+
+// Similar to what we do for the intptr typedef.
+#if SIZEOF_CHARP == SIZEOF_INT
+static unsigned int max_mem_sz = ~0;
+#elif SIZEOF_CHARP == SIZEOF_LONG
+static unsigned long max_mem_sz = ~0;
+#elif SIZEOF_CHARP == SIZEOF_LONG_LONG
+static unsigned long long max_mem_sz = ~0;
+#endif
+
+/*
+  Need at least 400Kb to get through bootstrap.
+  Need at least 8Mb to get through mtr check testcase, which does
+    SELECT * FROM INFORMATION_SCHEMA.VIEWS
+*/
+static Sys_var_ulonglong Sys_parser_max_mem_size(
+      "parser_max_mem_size",
+      "Maximum amount of memory available to the parser",
+      SESSION_VAR(parser_max_mem_size),
+      CMD_LINE(REQUIRED_ARG),
+      VALID_RANGE(10 * 1000 * 1000, max_mem_sz),
+      DEFAULT(max_mem_sz),
+      BLOCK_SIZE(1),
+      NO_MUTEX_GUARD, NOT_IN_BINLOG,
+      ON_CHECK(limit_parser_max_mem_size),
+      ON_UPDATE(NULL));
+
+/*
+  There is no call on Sys_var_integer::do_check() for 'set xxx=default';
+  The predefined default for parser_max_mem_size is "infinite".
+  Update it in case we have seen option maximum-parser-max-mem-size
+  Also update global_system_variables, so 'SELECT parser_max_mem_size'
+  reports correct data.
+*/
+export void update_parser_max_mem_size()
+{
+  const ulonglong max_max= max_system_variables.parser_max_mem_size;
+  if (max_max == max_mem_sz)
+    return;
+  // In case parser-max-mem-size is also set:
+  const ulonglong new_val=
+    std::min(max_max, global_system_variables.parser_max_mem_size);
+  Sys_parser_max_mem_size.update_default(new_val);
+  global_system_variables.parser_max_mem_size= new_val;
+}
 
 static const char *optimizer_switch_names[]=
 {

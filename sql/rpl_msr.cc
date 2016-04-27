@@ -159,6 +159,8 @@ void Multisource_info::delete_mi(const char* channel_name)
   if (mi)
   {
     mi->channel_assert_some_wrlock();
+    mi->wait_until_no_reference(current_thd);
+
     if(mi->rli)
     {
       delete mi->rli;

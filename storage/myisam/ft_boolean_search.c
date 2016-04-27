@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -199,7 +199,8 @@ static int ftb_query_add_word(MYSQL_FTPARSER_PARAM *param,
       ftbw= (FTB_WORD *)alloc_root(&ftb_param->ftb->mem_root,
                                    sizeof(FTB_WORD) +
                                    (info->trunc ? MI_MAX_KEY_BUFF :
-                                    word_len * ftb_param->ftb->charset->mbmaxlen +
+                                    (word_len + 1) *
+                                    ftb_param->ftb->charset->mbmaxlen +
                                     HA_FT_WLEN +
                                     ftb_param->ftb->info->s->rec_reflength));
       ftbw->len= word_len + 1;
@@ -362,6 +363,8 @@ static int _ft2_search_no_lock(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
   MI_INFO *info=ftb->info;
   uint off= 0, extra= HA_FT_WLEN + info->s->rec_reflength;
   uchar *lastkey_buf=ftbw->word+ftbw->off;
+  uint max_word_length= (ftbw->flags & FTB_FLAG_TRUNC) ? MI_MAX_KEY_BUFF :
+                        ((ftbw->len) * ftb->charset->mbmaxlen) + extra;
 
   if (ftbw->flags & FTB_FLAG_TRUNC)
     lastkey_buf+=ftbw->len;
@@ -421,7 +424,7 @@ static int _ft2_search_no_lock(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
              (my_bool) (ftbw->flags & FTB_FLAG_TRUNC),0);
   }
 
-  if (r) /* not found */
+  if (r || info->lastkey_length > max_word_length) /* not found */
   {
     if (!ftbw->off || !(ftbw->flags & FTB_FLAG_TRUNC))
     {

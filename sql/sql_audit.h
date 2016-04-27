@@ -1,7 +1,7 @@
 #ifndef SQL_AUDIT_INCLUDED
 #define SQL_AUDIT_INCLUDED
 
-/* Copyright (c) 2007, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -189,12 +189,14 @@ int mysql_audit_notify(THD *thd, mysql_event_global_variable_subclass_t subclass
   Call audit plugins of SERVER STARTUP audit class.
 
   @param[in] subclass Type of the server startup audit event.
+  @param[in] subclass_name Name of the subclass.
   @param[in] argv     Array of program arguments.
   @parma[in] argc     Program arguments array length.
 
   @result 0 - continue server start, otherwise abort.
 */
 int mysql_audit_notify(mysql_event_server_startup_subclass_t subclass,
+                       const char *subclass_name,
                        const char **argv,
                        unsigned int argc);
 

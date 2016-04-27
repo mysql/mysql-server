@@ -23,7 +23,6 @@
 
 #include <ndb_global.h>
 
-#include <NdbMain.h>
 #include <NdbOut.hpp>
 #include <NdbApi.hpp>
 #include <NdbTest.hpp>

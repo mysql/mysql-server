@@ -18,7 +18,6 @@
 
 #include <Ndb.hpp>
 #include <NdbError.hpp>
-#include <portlib/NdbMem.h>
 #include "NdbEventOperationImpl.hpp"
 #include "NdbDictionaryImpl.hpp"
 #include <EventLogger.hpp>

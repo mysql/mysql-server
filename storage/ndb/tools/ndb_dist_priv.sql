@@ -108,12 +108,12 @@ begin
      like mysql.proxies_priv;
 
    if distributed_privileges = 0 then
-     alter table mysql.ndb_user_backup engine = ndbcluster;
-     alter table mysql.ndb_db_backup engine = ndbcluster;
-     alter table mysql.ndb_tables_priv_backup engine = ndbcluster;
-     alter table mysql.ndb_columns_priv_backup engine = ndbcluster;
-     alter table mysql.ndb_procs_priv_backup engine = ndbcluster;
-     alter table mysql.ndb_proxies_priv_backup engine = ndbcluster;
+     alter table mysql.ndb_user_backup algorithm = copy, engine = ndbcluster;
+     alter table mysql.ndb_db_backup algorithm = copy, engine = ndbcluster;
+     alter table mysql.ndb_tables_priv_backup algorithm = copy, engine = ndbcluster;
+     alter table mysql.ndb_columns_priv_backup algorithm = copy, engine = ndbcluster;
+     alter table mysql.ndb_procs_priv_backup algorithm = copy, engine = ndbcluster;
+     alter table mysql.ndb_proxies_priv_backup algorithm = copy, engine = ndbcluster;
    end if;
  else
    truncate mysql.ndb_user_backup;
@@ -242,12 +242,12 @@ begin
  if distributed_privileges = 0 then
   begin
    declare exit handler for sqlexception set revert = 1;
-   alter table mysql.user engine = ndb;
-   alter table mysql.db engine = ndb;
-   alter table mysql.tables_priv engine = ndb;
-   alter table mysql.columns_priv engine = ndb;
-   alter table mysql.procs_priv engine = ndb;
-   alter table mysql.proxies_priv engine = ndb;
+   alter table mysql.user algorithm = copy, engine = ndb;
+   alter table mysql.db algorithm = copy, engine = ndb;
+   alter table mysql.tables_priv algorithm = copy, engine = ndb;
+   alter table mysql.columns_priv algorithm = copy, engine = ndb;
+   alter table mysql.procs_priv algorithm = copy, engine = ndb;
+   alter table mysql.proxies_priv algorithm = copy, engine = ndb;
   end;
  end if;
  if revert = 1 then

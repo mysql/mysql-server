@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1991,27 +1991,50 @@ String *Item_func_trim::val_str(String *str)
     }
     if (m_trim_trailing)
     {
-      bool found;
-      const char *p= ptr;
-      do
+      // Optimize a common case, removing 0x20
+      if (remove_length == 1)
       {
-        found= false;
-        while (ptr + remove_length < end)
+        const char *save_ptr= ptr;
+        const char *new_end= ptr;
+        const char chr= (*remove_str)[0];
+        while (ptr < end)
         {
           uint32 l;
           if ((l= my_ismbchar(res->charset(), ptr, end)))
+          {
             ptr+= l;
-          else
-            ++ptr;
+            new_end= ptr;
+          }
+          else if (*ptr++ != chr)
+            new_end= ptr;
         }
-        if (ptr + remove_length == end && !memcmp(ptr, r_ptr, remove_length))
-        {
-          end-= remove_length;
-          found= true;
-        }
-        ptr= p;
+        end= new_end;
+        ptr= save_ptr;
       }
-      while (found);
+      else
+      {
+        bool found;
+        const char *save_ptr= ptr;
+        do
+        {
+          found= false;
+          while (ptr + remove_length < end)
+          {
+            uint32 l;
+            if ((l= my_ismbchar(res->charset(), ptr, end)))
+              ptr+= l;
+            else
+              ++ptr;
+          }
+          if (ptr + remove_length == end && !memcmp(ptr, r_ptr, remove_length))
+          {
+            end-= remove_length;
+            found= true;
+          }
+          ptr= save_ptr;
+        }
+        while (found);
+      }
     }
   }
   else
@@ -4329,23 +4352,24 @@ String *Item_func_unhex::val_str(String *str)
 
   from= res->ptr();
   tmp_value.length(length);
-  to= (char*) tmp_value.ptr();
+  to= const_cast<char*>(tmp_value.ptr());
   if (res->length() % 2)
   {
-    int hex_char;
-    *to++= hex_char= hexchar_to_int(*from++);
+    int hex_char= hexchar_to_int(*from++);
     if (hex_char == -1)
       goto err;
+    *to++= static_cast<char>(hex_char);
   }
-  for (end=res->ptr()+res->length(); from < end ; from+=2, to++)
+  for (end= res->ptr() + res->length(); from < end ; from+= 2, to++)
   {
-    int hex_char;
-    *to= (hex_char= hexchar_to_int(from[0])) << 4;
+    int hex_char= hexchar_to_int(from[0]);
     if (hex_char == -1)
       goto err;
-    *to|= hex_char= hexchar_to_int(from[1]);
+    *to= static_cast<char>(hex_char << 4);
+    hex_char= hexchar_to_int(from[1]);
     if (hex_char == -1)
       goto err;
+    *to|= hex_char;
   }
   null_value= false;
   return &tmp_value;
@@ -4355,7 +4379,7 @@ err:
   push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                       ER_WRONG_VALUE_FOR_TYPE,
                       ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE),
-                      "string", res->ptr(), func_name());
+                      "string", err.ptr(), func_name());
 
   return NULL;
 }

@@ -1,5 +1,7 @@
+call mtr.add_suppression("The transaction owned GTID is already in the gtid_executed table");
 include/rpl_init.inc [topology=none]
 include/rpl_default_connections.inc
+call mtr.add_suppression("Found 1 prepared XA transactions");
 include/rpl_set_gtid_mode.inc [ON_PERMISSIVE on servers 1]
 CREATE TABLE t1 (a INT);
 ---- XID 1, COMMIT: AUTOMATIC + AUTOMATIC ----
@@ -16,7 +18,7 @@ include/assert.inc [No thread should hold anonymous ownership.]
 [connection master]
 error=0
 SET GTID_NEXT= 'AUTOMATIC';
-XA COMMIT '1';
+XA COMMIT '1' ;
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
@@ -36,7 +38,7 @@ include/assert.inc [No thread should hold anonymous ownership.]
 [connection master]
 error=0
 SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
-XA COMMIT '2';
+XA COMMIT '2' ;
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
@@ -56,7 +58,7 @@ include/assert.inc [No thread should hold anonymous ownership.]
 [connection master]
 error=0
 SET GTID_NEXT= 'ANONYMOUS';
-XA COMMIT '3';
+XA COMMIT '3' ;
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
@@ -75,7 +77,7 @@ include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
 [connection master]
 error=0
-XA COMMIT '4';
+XA COMMIT '4' ;
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
@@ -95,7 +97,7 @@ include/assert.inc [No thread should hold anonymous ownership.]
 [connection master]
 error=0
 SET GTID_NEXT= 'AUTOMATIC';
-XA COMMIT '5';
+XA COMMIT '5' ;
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
@@ -115,7 +117,7 @@ include/assert.inc [No thread should hold anonymous ownership.]
 [connection master]
 error=0
 SET GTID_NEXT= 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:6';
-XA COMMIT '6';
+XA COMMIT '6' ;
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
@@ -135,7 +137,7 @@ include/assert.inc [No thread should hold anonymous ownership.]
 [connection master]
 error=0
 SET GTID_NEXT= 'ANONYMOUS';
-XA COMMIT '7';
+XA COMMIT '7' ;
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
@@ -161,7 +163,7 @@ include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
 [connection master]
 SET GTID_NEXT = 'AUTOMATIC';
-XA COMMIT '8';
+XA COMMIT '8' ;
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
@@ -181,7 +183,7 @@ include/assert.inc [No thread should hold anonymous ownership.]
 [connection master]
 error=0
 SET GTID_NEXT= 'AUTOMATIC';
-XA COMMIT '9';
+XA COMMIT '9' ;
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
@@ -201,7 +203,7 @@ include/assert.inc [No thread should hold anonymous ownership.]
 [connection master]
 error=0
 SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:10';
-XA COMMIT '10';
+XA COMMIT '10' ;
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
@@ -221,7 +223,7 @@ include/assert.inc [No thread should hold anonymous ownership.]
 [connection master]
 error=0
 SET GTID_NEXT= 'ANONYMOUS';
-XA COMMIT '11';
+XA COMMIT '11' ;
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
@@ -240,75 +242,75 @@ include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
 [connection master]
 error=0
-XA COMMIT '12';
+XA COMMIT '12' ;
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
----- XID 13, ROLLBACK: AUTOMATIC + AUTOMATIC ----
+---- XID 13, COMMIT: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:13 + bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:13 ----
 [connection master]
-SET GTID_NEXT= 'AUTOMATIC';
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:13';
 XA START '13';
 INSERT INTO t1 VALUES(13);
 XA END '13';
-XA PREPARE '13';
-include/assert.inc [Thread should not own any GTID.]
-[connection master1]
-include/assert.inc [No thread should own any GTID.]
-include/assert.inc [No thread should hold anonymous ownership.]
-[connection master]
-error=0
-SET GTID_NEXT= 'AUTOMATIC';
-XA ROLLBACK '13';
+XA COMMIT '13' one phase;
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
----- XID 14, ROLLBACK: AUTOMATIC + aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:14 ----
+SET @@SESSION.innodb_lock_wait_timeout = 1;
+---- XID 14, COMMIT: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:14 + bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:14 ----
 [connection master]
-SET GTID_NEXT= 'AUTOMATIC';
+SET GTID_NEXT= 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:14';
 XA START '14';
 INSERT INTO t1 VALUES(14);
 XA END '14';
-XA PREPARE '14';
-include/assert.inc [Thread should not own any GTID.]
-[connection master1]
-include/assert.inc [No thread should own any GTID.]
-include/assert.inc [No thread should hold anonymous ownership.]
-[connection master]
-error=0
-SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:14';
-XA ROLLBACK '14';
+SET @@SESSION.debug = "+d,simulate_xa_rm_error";
+XA COMMIT '14' one phase;
+ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
+SET @@SESSION.debug = "-d,simulate_xa_rm_error";
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
 ROLLBACK;
+SET @@SESSION.innodb_lock_wait_timeout = @@SESSION.innodb_lock_wait_timeout;
 SET GTID_NEXT = 'AUTOMATIC';
----- XID 15, ROLLBACK: AUTOMATIC + ANONYMOUS ----
+SET @@SESSION.innodb_lock_wait_timeout = 1;
+---- XID 15, COMMIT: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:15 + bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:15 ----
 [connection master]
-SET GTID_NEXT= 'AUTOMATIC';
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:15';
+SET @@SESSION.debug = "+d,simulate_xa_failure_prepare";
 XA START '15';
 INSERT INTO t1 VALUES(15);
 XA END '15';
 XA PREPARE '15';
+ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
+[connection master]
+SHOW WARNINGS;
+Level	Code	Message
+Error	1402	XA_RBROLLBACK: Transaction branch was rolled back
+SET @@SESSION.debug = "-d,simulate_xa_failure_prepare";
 include/assert.inc [Thread should not own any GTID.]
 [connection master1]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
 [connection master]
-error=0
-SET GTID_NEXT= 'ANONYMOUS';
-XA ROLLBACK '15';
+error=
+SET GTID_NEXT= 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:15';
+XA COMMIT '15' ;
+ERROR XAE04: XAER_NOTA: Unknown XID
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
 ROLLBACK;
+SET @@SESSION.innodb_lock_wait_timeout = @@SESSION.innodb_lock_wait_timeout;
 SET GTID_NEXT = 'AUTOMATIC';
----- XID 16, ROLLBACK: AUTOMATIC + none ----
+SET @@SESSION.innodb_lock_wait_timeout = 1;
+---- XID 16, COMMIT: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:16 + bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:16 ----
 [connection master]
-SET GTID_NEXT= 'AUTOMATIC';
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:16';
 XA START '16';
 INSERT INTO t1 VALUES(16);
 XA END '16';
@@ -318,14 +320,20 @@ include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
 [connection master]
-error=0
-XA ROLLBACK '16';
+error=
+SET GTID_NEXT= 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:16';
+SET @@SESSION.debug = "+d,simulate_xa_rm_error";
+XA COMMIT '16' ;
+ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
+SET @@SESSION.debug = "-d,simulate_xa_rm_error";
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
 ROLLBACK;
+SET @@SESSION.innodb_lock_wait_timeout = @@SESSION.innodb_lock_wait_timeout;
 SET GTID_NEXT = 'AUTOMATIC';
----- XID 17, ROLLBACK: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:17 + AUTOMATIC ----
+SET @@SESSION.innodb_lock_wait_timeout = 1;
+---- XID 17, COMMIT: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:17 + bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:17 ----
 [connection master]
 SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:17';
 XA START '17';
@@ -336,18 +344,34 @@ include/assert.inc [Thread should not own any GTID.]
 [connection master1]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
+include/rpl_restart_server.inc [server_number=1]
+include/rpl_set_gtid_mode.inc [ON_PERMISSIVE on servers 1]
 [connection master]
-error=0
-SET GTID_NEXT= 'AUTOMATIC';
-XA ROLLBACK '17';
+SET @@SESSION.innodb_lock_wait_timeout = 1;
+SELECT count(*) as one FROM mysql.gtid_executed WHERE source_uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' AND interval_start = 17 AND interval_end = 17;
+one
+0
+SELECT count(*) FROM mysql.gtid_executed FOR UPDATE;
+count(*)
+7
+Warnings:
+Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
+[connection master]
+error=
+SET GTID_NEXT= 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:17';
+SET @@SESSION.debug = "+d,simulate_xa_rm_error";
+XA COMMIT '17' ;
+ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
+SET @@SESSION.debug = "-d,simulate_xa_rm_error";
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
 ROLLBACK;
+SET @@SESSION.innodb_lock_wait_timeout = @@SESSION.innodb_lock_wait_timeout;
 SET GTID_NEXT = 'AUTOMATIC';
----- XID 18, ROLLBACK: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:18 + bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:18 ----
+---- XID 18, ROLLBACK: AUTOMATIC + AUTOMATIC ----
 [connection master]
-SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:18';
+SET GTID_NEXT= 'AUTOMATIC';
 XA START '18';
 INSERT INTO t1 VALUES(18);
 XA END '18';
@@ -358,16 +382,16 @@ include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
 [connection master]
 error=0
-SET GTID_NEXT= 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:18';
-XA ROLLBACK '18';
+SET GTID_NEXT= 'AUTOMATIC';
+XA ROLLBACK '18' ;
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
----- XID 19, ROLLBACK: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:19 + ANONYMOUS ----
+---- XID 19, ROLLBACK: AUTOMATIC + aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:19 ----
 [connection master]
-SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:19';
+SET GTID_NEXT= 'AUTOMATIC';
 XA START '19';
 INSERT INTO t1 VALUES(19);
 XA END '19';
@@ -378,16 +402,16 @@ include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
 [connection master]
 error=0
-SET GTID_NEXT= 'ANONYMOUS';
-XA ROLLBACK '19';
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:19';
+XA ROLLBACK '19' ;
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
----- XID 20, ROLLBACK: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:20 + none ----
+---- XID 20, ROLLBACK: AUTOMATIC + ANONYMOUS ----
 [connection master]
-SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:20';
+SET GTID_NEXT= 'AUTOMATIC';
 XA START '20';
 INSERT INTO t1 VALUES(20);
 XA END '20';
@@ -397,23 +421,17 @@ include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
 [connection master]
-error=1837
-XA ROLLBACK '20';
-ERROR HY000: When @@SESSION.GTID_NEXT is set to a GTID, you must explicitly set it to a different value after a COMMIT or ROLLBACK. Please check GTID_NEXT variable manual page for detailed explanation. Current @@SESSION.GTID_NEXT is 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:20'.
-[connection master1]
-include/assert.inc [No thread should own any GTID.]
-include/assert.inc [No thread should hold anonymous ownership.]
-[connection master]
-SET GTID_NEXT = 'AUTOMATIC';
-XA ROLLBACK '20';
+error=0
+SET GTID_NEXT= 'ANONYMOUS';
+XA ROLLBACK '20' ;
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
----- XID 21, ROLLBACK: ANONYMOUS + AUTOMATIC ----
+---- XID 21, ROLLBACK: AUTOMATIC + none ----
 [connection master]
-SET GTID_NEXT= 'ANONYMOUS';
+SET GTID_NEXT= 'AUTOMATIC';
 XA START '21';
 INSERT INTO t1 VALUES(21);
 XA END '21';
@@ -424,16 +442,15 @@ include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
 [connection master]
 error=0
-SET GTID_NEXT= 'AUTOMATIC';
-XA ROLLBACK '21';
+XA ROLLBACK '21' ;
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
----- XID 22, ROLLBACK: ANONYMOUS + aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:22 ----
+---- XID 22, ROLLBACK: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:22 + AUTOMATIC ----
 [connection master]
-SET GTID_NEXT= 'ANONYMOUS';
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:22';
 XA START '22';
 INSERT INTO t1 VALUES(22);
 XA END '22';
@@ -444,16 +461,16 @@ include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
 [connection master]
 error=0
-SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:22';
-XA ROLLBACK '22';
+SET GTID_NEXT= 'AUTOMATIC';
+XA ROLLBACK '22' ;
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
----- XID 23, ROLLBACK: ANONYMOUS + ANONYMOUS ----
+---- XID 23, ROLLBACK: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:23 + bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:23 ----
 [connection master]
-SET GTID_NEXT= 'ANONYMOUS';
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:23';
 XA START '23';
 INSERT INTO t1 VALUES(23);
 XA END '23';
@@ -464,16 +481,16 @@ include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
 [connection master]
 error=0
-SET GTID_NEXT= 'ANONYMOUS';
-XA ROLLBACK '23';
+SET GTID_NEXT= 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:23';
+XA ROLLBACK '23' ;
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
----- XID 24, ROLLBACK: ANONYMOUS + none ----
+---- XID 24, ROLLBACK: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:24 + ANONYMOUS ----
 [connection master]
-SET GTID_NEXT= 'ANONYMOUS';
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:24';
 XA START '24';
 INSERT INTO t1 VALUES(24);
 XA END '24';
@@ -484,11 +501,238 @@ include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
 [connection master]
 error=0
-XA ROLLBACK '24';
+SET GTID_NEXT= 'ANONYMOUS';
+XA ROLLBACK '24' ;
 include/assert.inc [Thread should not own any GTID.]
 include/assert.inc [No thread should own any GTID.]
 include/assert.inc [No thread should hold anonymous ownership.]
 ROLLBACK;
+SET GTID_NEXT = 'AUTOMATIC';
+---- XID 25, ROLLBACK: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:25 + none ----
+[connection master]
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:25';
+XA START '25';
+INSERT INTO t1 VALUES(25);
+XA END '25';
+XA PREPARE '25';
+include/assert.inc [Thread should not own any GTID.]
+[connection master1]
+include/assert.inc [No thread should own any GTID.]
+include/assert.inc [No thread should hold anonymous ownership.]
+[connection master]
+error=1837
+XA ROLLBACK '25';
+ERROR HY000: When @@SESSION.GTID_NEXT is set to a GTID, you must explicitly set it to a different value after a COMMIT or ROLLBACK. Please check GTID_NEXT variable manual page for detailed explanation. Current @@SESSION.GTID_NEXT is 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:25'.
+[connection master1]
+include/assert.inc [No thread should own any GTID.]
+include/assert.inc [No thread should hold anonymous ownership.]
+[connection master]
+SET GTID_NEXT = 'AUTOMATIC';
+XA ROLLBACK '25' ;
+include/assert.inc [Thread should not own any GTID.]
+include/assert.inc [No thread should own any GTID.]
+include/assert.inc [No thread should hold anonymous ownership.]
+ROLLBACK;
+SET GTID_NEXT = 'AUTOMATIC';
+---- XID 26, ROLLBACK: ANONYMOUS + AUTOMATIC ----
+[connection master]
+SET GTID_NEXT= 'ANONYMOUS';
+XA START '26';
+INSERT INTO t1 VALUES(26);
+XA END '26';
+XA PREPARE '26';
+include/assert.inc [Thread should not own any GTID.]
+[connection master1]
+include/assert.inc [No thread should own any GTID.]
+include/assert.inc [No thread should hold anonymous ownership.]
+[connection master]
+error=0
+SET GTID_NEXT= 'AUTOMATIC';
+XA ROLLBACK '26' ;
+include/assert.inc [Thread should not own any GTID.]
+include/assert.inc [No thread should own any GTID.]
+include/assert.inc [No thread should hold anonymous ownership.]
+ROLLBACK;
+SET GTID_NEXT = 'AUTOMATIC';
+---- XID 27, ROLLBACK: ANONYMOUS + aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:27 ----
+[connection master]
+SET GTID_NEXT= 'ANONYMOUS';
+XA START '27';
+INSERT INTO t1 VALUES(27);
+XA END '27';
+XA PREPARE '27';
+include/assert.inc [Thread should not own any GTID.]
+[connection master1]
+include/assert.inc [No thread should own any GTID.]
+include/assert.inc [No thread should hold anonymous ownership.]
+[connection master]
+error=0
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:27';
+XA ROLLBACK '27' ;
+include/assert.inc [Thread should not own any GTID.]
+include/assert.inc [No thread should own any GTID.]
+include/assert.inc [No thread should hold anonymous ownership.]
+ROLLBACK;
+SET GTID_NEXT = 'AUTOMATIC';
+---- XID 28, ROLLBACK: ANONYMOUS + ANONYMOUS ----
+[connection master]
+SET GTID_NEXT= 'ANONYMOUS';
+XA START '28';
+INSERT INTO t1 VALUES(28);
+XA END '28';
+XA PREPARE '28';
+include/assert.inc [Thread should not own any GTID.]
+[connection master1]
+include/assert.inc [No thread should own any GTID.]
+include/assert.inc [No thread should hold anonymous ownership.]
+[connection master]
+error=0
+SET GTID_NEXT= 'ANONYMOUS';
+XA ROLLBACK '28' ;
+include/assert.inc [Thread should not own any GTID.]
+include/assert.inc [No thread should own any GTID.]
+include/assert.inc [No thread should hold anonymous ownership.]
+ROLLBACK;
+SET GTID_NEXT = 'AUTOMATIC';
+---- XID 29, ROLLBACK: ANONYMOUS + none ----
+[connection master]
+SET GTID_NEXT= 'ANONYMOUS';
+XA START '29';
+INSERT INTO t1 VALUES(29);
+XA END '29';
+XA PREPARE '29';
+include/assert.inc [Thread should not own any GTID.]
+[connection master1]
+include/assert.inc [No thread should own any GTID.]
+include/assert.inc [No thread should hold anonymous ownership.]
+[connection master]
+error=0
+XA ROLLBACK '29' ;
+include/assert.inc [Thread should not own any GTID.]
+include/assert.inc [No thread should own any GTID.]
+include/assert.inc [No thread should hold anonymous ownership.]
+ROLLBACK;
+SET GTID_NEXT = 'AUTOMATIC';
+---- XID 30, ROLLBACK: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:30 + bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:30 ----
+[connection master]
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:30';
+XA START '30';
+INSERT INTO t1 VALUES(30);
+XA END '30';
+XA ROLLBACK '30' ;
+include/assert.inc [Thread should not own any GTID.]
+include/assert.inc [No thread should own any GTID.]
+include/assert.inc [No thread should hold anonymous ownership.]
+ROLLBACK;
+SET GTID_NEXT = 'AUTOMATIC';
+SET @@SESSION.innodb_lock_wait_timeout = 1;
+---- XID 31, ROLLBACK: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:31 + bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:31 ----
+[connection master]
+SET GTID_NEXT= 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:31';
+XA START '31';
+INSERT INTO t1 VALUES(31);
+XA END '31';
+SET @@SESSION.debug = "+d,simulate_xa_rm_error";
+XA ROLLBACK '31' ;
+ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
+SET @@SESSION.debug = "-d,simulate_xa_rm_error";
+include/assert.inc [Thread should not own any GTID.]
+include/assert.inc [No thread should own any GTID.]
+include/assert.inc [No thread should hold anonymous ownership.]
+ROLLBACK;
+SET @@SESSION.innodb_lock_wait_timeout = @@SESSION.innodb_lock_wait_timeout;
+SET GTID_NEXT = 'AUTOMATIC';
+SET @@SESSION.innodb_lock_wait_timeout = 1;
+---- XID 32, ROLLBACK: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:32 + bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:32 ----
+[connection master]
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:32';
+SET @@SESSION.debug = "+d,simulate_xa_failure_prepare";
+XA START '32';
+INSERT INTO t1 VALUES(32);
+XA END '32';
+XA PREPARE '32';
+ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
+[connection master]
+SHOW WARNINGS;
+Level	Code	Message
+Error	1402	XA_RBROLLBACK: Transaction branch was rolled back
+SET @@SESSION.debug = "-d,simulate_xa_failure_prepare";
+include/assert.inc [Thread should not own any GTID.]
+[connection master1]
+include/assert.inc [No thread should own any GTID.]
+include/assert.inc [No thread should hold anonymous ownership.]
+[connection master]
+error=
+SET GTID_NEXT= 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:32';
+XA ROLLBACK '32' ;
+ERROR XAE04: XAER_NOTA: Unknown XID
+include/assert.inc [Thread should not own any GTID.]
+include/assert.inc [No thread should own any GTID.]
+include/assert.inc [No thread should hold anonymous ownership.]
+ROLLBACK;
+SET @@SESSION.innodb_lock_wait_timeout = @@SESSION.innodb_lock_wait_timeout;
+SET GTID_NEXT = 'AUTOMATIC';
+SET @@SESSION.innodb_lock_wait_timeout = 1;
+---- XID 33, ROLLBACK: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:33 + bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:33 ----
+[connection master]
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:33';
+XA START '33';
+INSERT INTO t1 VALUES(33);
+XA END '33';
+XA PREPARE '33';
+include/assert.inc [Thread should not own any GTID.]
+[connection master1]
+include/assert.inc [No thread should own any GTID.]
+include/assert.inc [No thread should hold anonymous ownership.]
+[connection master]
+error=
+SET GTID_NEXT= 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:33';
+SET @@SESSION.debug = "+d,simulate_xa_rm_error";
+XA ROLLBACK '33' ;
+ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
+SET @@SESSION.debug = "-d,simulate_xa_rm_error";
+include/assert.inc [Thread should not own any GTID.]
+include/assert.inc [No thread should own any GTID.]
+include/assert.inc [No thread should hold anonymous ownership.]
+ROLLBACK;
+SET @@SESSION.innodb_lock_wait_timeout = @@SESSION.innodb_lock_wait_timeout;
+SET GTID_NEXT = 'AUTOMATIC';
+SET @@SESSION.innodb_lock_wait_timeout = 1;
+---- XID 34, ROLLBACK: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:34 + bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:34 ----
+[connection master]
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:34';
+XA START '34';
+INSERT INTO t1 VALUES(34);
+XA END '34';
+XA PREPARE '34';
+include/assert.inc [Thread should not own any GTID.]
+[connection master1]
+include/assert.inc [No thread should own any GTID.]
+include/assert.inc [No thread should hold anonymous ownership.]
+include/rpl_restart_server.inc [server_number=1]
+include/rpl_set_gtid_mode.inc [ON_PERMISSIVE on servers 1]
+[connection master]
+SET @@SESSION.innodb_lock_wait_timeout = 1;
+SELECT count(*) as one FROM mysql.gtid_executed WHERE source_uuid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' AND interval_start = 34 AND interval_end = 34;
+one
+0
+SELECT count(*) FROM mysql.gtid_executed FOR UPDATE;
+count(*)
+16
+Warnings:
+Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
+[connection master]
+error=
+SET GTID_NEXT= 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb:34';
+SET @@SESSION.debug = "+d,simulate_xa_rm_error";
+XA ROLLBACK '34' ;
+ERROR XA100: XA_RBROLLBACK: Transaction branch was rolled back
+SET @@SESSION.debug = "-d,simulate_xa_rm_error";
+include/assert.inc [Thread should not own any GTID.]
+include/assert.inc [No thread should own any GTID.]
+include/assert.inc [No thread should hold anonymous ownership.]
+ROLLBACK;
+SET @@SESSION.innodb_lock_wait_timeout = @@SESSION.innodb_lock_wait_timeout;
 SET GTID_NEXT = 'AUTOMATIC';
 DROP TABLE t1;
 include/rpl_set_gtid_mode.inc [OFF on servers 1]

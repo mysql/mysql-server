@@ -2,7 +2,7 @@ ALTER TABLE t1
 algorithm=inplace,
 add column c int;
 Warnings:
-Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'c' to DYNAMIC to enable online ADD COLUMN
 set @@ndb_use_copying_alter_table = 1;
 ALTER TABLE t1
 add column d int;
@@ -12,5 +12,5 @@ ALTER TABLE t1
 algorithm=inplace,
 add column e int;
 Warnings:
-Warning	1478	Converted FIXED field 'e' to DYNAMIC to enable on-line ADD COLUMN
+Warning	1478	Converted FIXED field 'e' to DYNAMIC to enable online ADD COLUMN
 set @@ndb_use_copying_alter_table = default;

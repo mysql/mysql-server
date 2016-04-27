@@ -44,6 +44,7 @@ let $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
 set global innodb_file_per_table=1;
 CREATE TABLE t1(a INT, KEY (a)) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 ENGINE=Innodb;
 INSERT INTO t1 VALUES (1), (2);
+--replace_regex /Cardinality=[^ ]*/Cardinality="filtered"/gc
 --exec $MYSQL_DUMP --skip-create-options --skip-comments -X test t1
 DROP TABLE t1;
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;

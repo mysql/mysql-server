@@ -84,6 +84,8 @@ call mtr.add_suppression("Slave SQL for channel '': Error in Xid_log_event: Comm
                          "be completed, 'Got error -1 from storage engine', "
                          "Error_code: 1030");
 call mtr.add_suppression("Slave: Got error -1 from storage engine Error_code: 1030");
+call mtr.add_suppression("Slave: An error occured at storing the GTID value");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped");
 
 --let $assert_text= committed gtids MASTER_UUID:$gno_root:$gno_1-$gno_2
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$expected_gtid"
@@ -207,7 +209,9 @@ SET @@GLOBAL.DEBUG= '+d,simulate_err_on_write_gtid_into_table';
 --connection master
 INSERT INTO t3 VALUES(1);
 --connection slave
---let $slave_sql_errno=convert_error(ER_GET_ERRNO)
+--let $errno_sts=convert_error(ER_GET_ERRNO),
+--let $errno_mts=convert_error(ER_MTS_INCONSISTENT_DATA)
+--let $slave_sql_errno=$errno_sts,$errno_mts
 --source include/wait_for_slave_sql_error.inc
 SET GLOBAL DEBUG= @debug_save;
 --source include/stop_slave_io.inc
