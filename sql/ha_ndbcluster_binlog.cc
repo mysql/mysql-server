@@ -3998,6 +3998,13 @@ struct ndb_binlog_index_row {
 };
 
 
+/**
+  Utility class encapsulating the code which open and writes
+  to the mysql.ndb_binlog_index table
+*/
+class Ndb_binlog_index_table_util
+{
+
 /*
   Open the ndb_binlog_index table for writing
 */
@@ -4221,6 +4228,76 @@ add_ndb_binlog_index_err:
   reenable_binlog(thd);
   return error;
 }
+
+  /*
+    Write rows to the ndb_binlog_index table using a separate THD
+    to avoid the write being killed
+  */
+  static
+  void write_rows_with_new_thd(ndb_binlog_index_row *rows)
+  {
+    // Create a new THD and retry the write
+    THD* new_thd = new THD;
+    new_thd->set_new_thread_id();
+    new_thd->thread_stack = (char*)&new_thd;
+    new_thd->store_globals();
+    thd_set_command(new_thd, COM_DAEMON);
+    new_thd->system_thread = SYSTEM_THREAD_NDBCLUSTER_BINLOG;
+    new_thd->get_protocol_classic()->set_client_capabilities(0);
+    new_thd->security_context()->skip_grants();
+    new_thd->set_current_stmt_binlog_format_row();
+
+    // Retry the write
+    const int retry_result = ndb_binlog_index_table__write_rows(new_thd, rows);
+    if (retry_result)
+    {
+      sql_print_error("NDB Binlog: Failed writing to ndb_binlog_index table "
+                      "while retrying after kill during shutdown");
+      DBUG_ASSERT(false); // Crash in debug compile
+    }
+
+    new_thd->restore_globals();
+    delete new_thd;
+  }
+
+public:
+
+  /*
+    Write rows to the ndb_binlog_index table
+  */
+  static inline
+  int write_rows(THD *thd,
+                 ndb_binlog_index_row *rows)
+  {
+    return ndb_binlog_index_table__write_rows(thd, rows);
+  }
+
+
+  /*
+    Retry write rows to the ndb_binlog_index table after the THD
+    has been killed (which should only happen during mysqld shutdown).
+
+    NOTE! The reason that the session(aka. THD) is being killed is that
+    it's in the global list of session and mysqld thus ask it to stop
+    during shutdown by setting the "killed" flag. It's not possible to
+    prevent the THD from being killed and instead a brand new THD is
+    used which is not in the global list of sessions. Furthermore it's
+    a feature to have the THD in the list of global session since it
+    should show up in SHOW PROCESSLIST.
+  */
+  static
+  void write_rows_retry_after_kill(THD* orig_thd, ndb_binlog_index_row *rows)
+  {
+    // Should only be called when original THD has been killed
+    DBUG_ASSERT(orig_thd->is_killed());
+
+    write_rows_with_new_thd(rows);
+
+    // Relink this thread with original THD
+    orig_thd->store_globals();
+  }
+};
+
 
 /*********************************************************************
   Functions for start, stop, wait for ndbcluster binlog thread
@@ -7240,25 +7317,16 @@ restart_cluster_failure:
           DBUG_PRINT("info", ("COMMIT epoch: %lu", (ulong) current_epoch));
           if (opt_ndb_log_binlog_index)
           {
-            if (ndb_binlog_index_table__write_rows(thd, rows))
+            if (Ndb_binlog_index_table_util::write_rows(thd, rows))
             {
               /* 
-                 Writing to ndb_binlog_index failed, check if we are
-                 being killed and retry
+                 Writing to ndb_binlog_index failed, check if it's because THD have
+                 been killed and retry in such case
               */
               if (thd->killed)
               {
                 DBUG_PRINT("error", ("Failed to write to ndb_binlog_index at shutdown, retrying"));
-                mysql_mutex_lock(&thd->LOCK_thd_data);
-                const THD::killed_state save_killed= thd->killed;
-                /* We are cleaning up, allow for flushing last epoch */
-                thd->killed= THD::NOT_KILLED;
-                /* also clear error from last failing write */
-                thd->clear_error();
-                ndb_binlog_index_table__write_rows(thd, rows);
-                /* Restore kill flag */
-                thd->killed= save_killed;
-                mysql_mutex_unlock(&thd->LOCK_thd_data);
+                Ndb_binlog_index_table_util::write_rows_retry_after_kill(thd, rows);
               }
             }
           }
