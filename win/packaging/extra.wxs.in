@@ -542,17 +542,6 @@
             Value="utf8" />
       </Component>
 
-      <!--- Grant service account permission to the database folder (Windows 7 and later) -->
-      <Component Id="C.serviceaccount.permission" Guid="*" Directory='DATADIR' Transitive='yes'>
-        <Condition><![CDATA[SERVICENAME AND (VersionNT > 600)]]></Condition>
-        <RegistryValue Root='HKLM'
-             Key='SOFTWARE\@MANUFACTURER@\@CPACK_WIX_PACKAGE_NAME@'
-             Name='servicepermission' Value='1' Type='string' KeyPath='yes'/>
-        <CreateFolder>
-          <util:PermissionEx User="NT SERVICE\[SERVICENAME]" GenericAll="yes" />
-        </CreateFolder>
-      </Component>
-
       <!-- Shortcuts in program menu (mysql client etc) -->
       <Component Id="c.shortcuts" Guid="*" Directory="ShortcutFolder">
         <!-- shortcut to my.ini-->
