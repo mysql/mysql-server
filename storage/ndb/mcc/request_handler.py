@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -228,6 +228,23 @@ def handle_appendFileReq(req, body):
 
     return make_rep(req)
 
+def handle_checkFileReq(req, body):
+    """Handler function for checkFileReq commands. Check if a file exists on a remote host.
+    req - top level message object
+    body - shortcut to the body part of the message
+    """
+    
+    (user, pwd) = get_cred(body)
+    f = body['file']
+
+    with produce_ABClusterHost(f['hostName'], user, pwd) as ch:
+        sp = ch.path_module.join(f['path'], f['name'])
+        
+        assert (ch.file_exists(sp)), 'File ' + sp + ' does not exist on host ' + ch.host        
+                
+    _logger.debug('pathname ' + sp + ' checked')
+
+    return  make_rep(req)
 
 def handle_shutdownServerReq(req, body):
     """x"""
