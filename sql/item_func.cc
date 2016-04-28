@@ -239,6 +239,16 @@ Item_func::fix_fields(THD *thd, Item **ref)
 void Item_func::fix_after_pullout(st_select_lex *parent_select,
                                   st_select_lex *removed_select)
 {
+  if (const_item())
+  {
+    /*
+      Pulling out a const item changes nothing to it. Moreover, some items may
+      have decided that they're const by some other logic than the generic
+      one below, and we must preserve that decision.
+    */
+    return;
+  }
+
   Item **arg,**arg_end;
 
   used_tables_cache= get_initial_pseudo_tables();
