@@ -232,14 +232,17 @@ public:
 
 class Item_func_concat :public Item_str_func
 {
-  String tmp_value;
+  String tmp_value { "", 0, collation.collation }; // Initialize to empty
 public:
   Item_func_concat(const POS &pos, PT_item_list *opt_list)
-    :Item_str_func(pos, opt_list)
+    : Item_str_func(pos, opt_list)
   {}
-
-  Item_func_concat(Item *a,Item *b) :Item_str_func(a,b) {}
-  Item_func_concat(const POS &pos, Item *a,Item *b) :Item_str_func(pos, a,b) {}
+  Item_func_concat(Item *a, Item *b)
+    : Item_str_func(a,b)
+  {}
+  Item_func_concat(const POS &pos, Item *a,Item *b)
+    : Item_str_func(pos, a,b)
+  {}
 
   String *val_str(String *);
   virtual bool resolve_type(THD *thd);
@@ -248,12 +251,15 @@ public:
 
 class Item_func_concat_ws :public Item_str_func
 {
-  String tmp_value;
+  String tmp_value { "", 0, collation.collation }; // Initialize to empty
 public:
-  Item_func_concat_ws(List<Item> &list) :Item_str_func(list) {}
-  Item_func_concat_ws(const POS &pos, PT_item_list *opt_list)
-    :Item_str_func(pos, opt_list)
+  Item_func_concat_ws(List<Item> &list)
+    : Item_str_func(list)
   {}
+  Item_func_concat_ws(const POS &pos, PT_item_list *opt_list)
+    : Item_str_func(pos, opt_list)
+  {}
+
   String *val_str(String *);
   virtual bool resolve_type(THD *thd);
   const char *func_name() const { return "concat_ws"; }

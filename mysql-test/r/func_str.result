@@ -5060,3 +5060,16 @@ set @e:=_latin1'77';
 do inet_aton(aes_encrypt(left(@e,1),5));
 Warnings:
 Warning	1411	Incorrect string value: 'aes_encrypt(left((@`e`),1),5)' for function inet_aton
+#
+# Bug#23194118 WEIGHT_STRING: ASSERTION FAILED:
+#              SRC, FILE .\STRINGS\CTYPE-UTF8.CC, LINE 8686
+#
+SET NAMES utf8;
+CREATE TABLE t(a INT) engine=innodb;
+INSERT INTO t VALUES(1);
+SELECT 1 FROM t WHERE WEIGHT_STRING(CONCAT_WS('1',''));
+1
+SELECT 1 FROM t WHERE WEIGHT_STRING(CONCAT('',''));
+1
+SET NAMES DEFAULT;
+DROP TABLE t;
