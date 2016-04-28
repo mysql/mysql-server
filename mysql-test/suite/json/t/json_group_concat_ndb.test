@@ -1,0 +1,24 @@
+########### suite/json/t/json_group_concat_ndb.test                  #
+# Tests group_concat json function using the ndb storage engine      #
+#                                                                    #
+# This test copies some tests originally in json.test                #
+######################################################################
+# Set the session storage engine
+--source include/have_ndb.inc
+set default_storage_engine=ndb;
+
+--source suite/json/inc/json_group_concat.inc
+
+# These tests differ between innodb and ndb
+create table t(j json, c varchar(20));
+show create table t;
+insert into t values (cast('[1,2,3]' as json), '[a,b,c]');
+insert into t values (cast(7 as json), '7'),  (cast(2 as json), '2');
+insert into t values (cast(7 as json), '7'),  (cast(2 as json), '2');
+
+select group_concat(j order by j), group_concat(distinct j order by j), group_concat(c order by c) from t;
+insert into t values (NULL, NULL);
+
+# This test is disabled until bug 22353594 is resolved
+#select group_concat(j order by j), group_concat(distinct j order by j), group_concat(c order by c) from t;
+drop table t;
