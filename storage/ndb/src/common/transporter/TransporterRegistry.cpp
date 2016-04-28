@@ -120,6 +120,12 @@ SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
 }
 
 TransporterReceiveData::TransporterReceiveData()
+  : m_transporters(),
+    m_recv_transporters(),
+    m_has_data_transporters(),
+    m_handled_transporters(),
+    m_bad_data_transporters(),
+    m_last_nodeId(0)
 {
   /**
    * With multi receiver threads
@@ -127,7 +133,6 @@ TransporterReceiveData::TransporterReceiveData()
    */
   m_transporters.set();            // Handle all
   m_transporters.clear(Uint32(0)); // Except wakeup socket...
-  m_handled_transporters.clear();
 
 #if defined(HAVE_EPOLL_CREATE)
   m_epoll_fd = -1;
@@ -1498,9 +1503,9 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
    *  CLOSE_COMCONF was sent. For the moment the risk of taking
    *  advantage of this small optimization is not worth the risk.
    */
-  for(Uint32 id = recvdata.m_has_data_transporters.find_first();
-      id != BitmaskImpl::NotFound && !stopReceiving;
-      id = recvdata.m_has_data_transporters.find_next(id + 1))
+  Uint32 id = recvdata.m_last_nodeId;
+  while ((id = recvdata.m_has_data_transporters.find_next(id + 1)) !=
+	 BitmaskImpl::NotFound)
   {
     bool hasdata = false;
     TCP_Transporter * t = (TCP_Transporter*)theTransporters[id];
@@ -1531,6 +1536,12 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
     // If transporter still have data, make sure that it's remember to next time
     recvdata.m_has_data_transporters.set(id, hasdata);
     recvdata.m_handled_transporters.set(id, hasdata);
+
+    if (unlikely(stopReceiving))
+    {
+      recvdata.m_last_nodeId = id;  //Resume from node after 'last_node'
+      return 1;
+    }
   }
 #endif
   
@@ -1588,6 +1599,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
   }
 #endif
   recvdata.m_handled_transporters.clear();
+  recvdata.m_last_nodeId = 0;
   return 0;
 }
 
@@ -1997,6 +2009,7 @@ TransporterRegistry::report_disconnect(TransporterReceiveHandle& recvdata,
   recvdata.m_has_data_transporters.clear(node_id);
   recvdata.m_handled_transporters.clear(node_id);
   recvdata.m_bad_data_transporters.clear(node_id);
+  recvdata.m_last_nodeId = 0;
   recvdata.reportDisconnect(node_id, errnum);
   DBUG_VOID_RETURN;
 }
