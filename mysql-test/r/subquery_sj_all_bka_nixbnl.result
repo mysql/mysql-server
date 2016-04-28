@@ -10698,5 +10698,102 @@ DROP TABLE t1,t2;
 # End of test for Bug#21184091
 set @@optimizer_switch=@old_opt_switch;
 # End of 5.6 tests
+# Bug#21139722: Assertion failed: !(used_tables() & ((table_map) 1) ...
+CREATE TABLE t1(a INTEGER) engine=innodb;
+CREATE TABLE t2(b INTEGER) engine=innodb;
+explain SELECT 1
+FROM (SELECT 1 IN (SELECT 1
+FROM t1
+WHERE (SELECT 1 FROM t2 HAVING b) NOT IN (SELECT 1 FROM t2)
+)
+FROM t2
+) AS z;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	1	NULL
+3	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	1	Using where
+5	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where
+4	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	NULL
+SELECT 1
+FROM (SELECT 1 IN (SELECT 1
+FROM t1
+WHERE (SELECT 1 FROM t2 HAVING b) NOT IN (SELECT 1 FROM t2)
+)
+FROM t2
+) AS z;
+1
+DROP TABLE t1, t2;
+CREATE TABLE t1(a INTEGER) engine=innodb;
+explain SELECT (SELECT a
+FROM t1 AS t2
+WHERE a IN (SELECT t1.a+t2.a
+FROM t1 AS t3))
+FROM t1 AS t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	1	NULL
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	FirstMatch(t2)
+SELECT (SELECT a
+FROM t1 AS t2
+WHERE a IN (SELECT t1.a+t2.a
+FROM t1 AS t3))
+FROM t1 AS t1;
+(SELECT a
+FROM t1 AS t2
+WHERE a IN (SELECT t1.a+t2.a
+FROM t1 AS t3))
+DROP TABLE t1;
+# End of test for Bug#21139722
+#
+# Bug#21139402 ASSERTION FAILED: LENGTH > 0 && KEYPARTS != 0, CRASH IN JOIN::OPTIMIZE_KEYUSE
+#
+CREATE TABLE t1 (a INT, b INT, PRIMARY KEY(a));
+CREATE TABLE t2 (c INT PRIMARY KEY);
+EXPLAIN SELECT 1
+FROM t1
+WHERE 1 IN (SELECT (c IS NULL) IN (SELECT a
+FROM t1
+WHERE b)
+FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT 1
+FROM t1
+WHERE 1 IN (SELECT (c IS NULL) IN (SELECT a
+FROM t1
+WHERE b)
+FROM t2);
+1
+DROP TABLE t1,t2;
+#
+# Bug #22305361: QUERY WITH MATERIALIZED TABLE RETURNS INCORRECT
+#                RESULTS IN 5.6
+#
+CREATE TABLE t(a INT,b INT);
+INSERT INTO t VALUES (1,0),(1,0),(1,0),(1,0),(1,1);
+EXPLAIN extended SELECT *
+FROM t AS t1
+WHERE t1.a IN (SELECT t2.a
+FROM t AS t2
+WHERE CONCAT(t2.a,'') NOT IN (SELECT t3.a
+FROM t AS t3
+WHERE t3.b=1));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+1	PRIMARY	<subquery2>	eq_ref	<auto_key>	<auto_key>	5	test.t1.a	1	100.00	NULL
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+3	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t` `t1` semi join (`test`.`t` `t2`) where ((`<subquery2>`.`a` = `test`.`t1`.`a`) and (not(<in_optimizer>(concat(`test`.`t2`.`a`,''),<exists>(/* select#3 */ select 1 from `test`.`t` `t3` where ((`test`.`t3`.`b` = 1) and <if>(outer_field_is_not_null, ((<cache>(concat(`test`.`t2`.`a`,'')) = `test`.`t3`.`a`) or isnull(`test`.`t3`.`a`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`a`), true))))))
+SELECT *
+FROM t AS t1
+WHERE t1.a IN (SELECT t2.a
+FROM t AS t2
+WHERE CONCAT(t2.a,'') NOT IN (SELECT t3.a
+FROM t AS t3
+WHERE t3.b=1));
+a	b
+DROP TABLE t;
 set optimizer_switch=default;
 set optimizer_switch=default;
