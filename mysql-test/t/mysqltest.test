@@ -3152,6 +3152,9 @@ EOF
 --let SEARCH_ECHO_CTX= 3
 --source include/search_pattern.inc
 
+# clean up
+--remove_file $file
+
 --echo #
 --echo # Bug#17944190 : MYSQLTEST CANNOT PARSE PERL BLOCK INSIDE IF THAT EVALUATES TO FALSE
 --echo #
