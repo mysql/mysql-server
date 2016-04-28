@@ -692,7 +692,7 @@ bool Item_bool_func2::resolve_type(THD *thd)
     if (convert_constant_arg(thd, args[0], &args[1], &cvt1) ||
         convert_constant_arg(thd, args[1], &args[0], &cvt2))
       DBUG_RETURN(true);
-    if (cvt1 || cvt1)
+    if (cvt1 || cvt2)
       DBUG_RETURN(false);
   }
   if (set_cmp_func())
