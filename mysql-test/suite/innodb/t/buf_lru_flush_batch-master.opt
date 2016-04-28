@@ -1,0 +1,4 @@
+--innodb_buffer_pool_size=5M
+--innodb_monitor_enable=module_buffer
+--innodb_stats_persistent=OFF
+--innodb_fill_factor=10

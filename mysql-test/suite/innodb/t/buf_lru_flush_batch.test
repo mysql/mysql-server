@@ -1,0 +1,36 @@
+--source include/have_innodb.inc
+--source include/have_innodb_max_16k.inc
+--source include/big_test.inc
+
+DELIMITER |;
+CREATE PROCEDURE populate_t1(load_even INT)
+BEGIN
+        DECLARE i int DEFAULT 1;
+
+        START TRANSACTION;
+        WHILE (i <= 200000) DO
+                INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+                SET i = i + 1;
+        END WHILE;
+        COMMIT;
+END|
+DELIMITER ;|
+
+CREATE TABLE t1(
+        class   INT,
+        id      INT,
+        title   VARCHAR(100)
+) ENGINE=InnoDB;
+
+-- disable_query_log
+CALL populate_t1(1);
+-- enable_query_log
+
+SELECT NAME, SUBSYSTEM FROM INFORMATION_SCHEMA.INNODB_METRICS
+WHERE NAME="buffer_LRU_batch_flush_total_pages" AND COUNT > 0;
+
+SELECT COUNT(*) FROM t1;
+
+DROP TABLE t1;
+
+DROP PROCEDURE populate_t1;
