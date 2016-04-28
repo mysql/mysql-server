@@ -80,7 +80,7 @@ void Item_subselect::init(SELECT_LEX *select_lex,
   */
 
   DBUG_ENTER("Item_subselect::init");
-  DBUG_PRINT("enter", ("select_lex: 0x%lx", (long) select_lex));
+  DBUG_PRINT("enter", ("select_lex: %p", select_lex));
   unit= select_lex->master_unit();
 
   if (unit->item)

@@ -154,8 +154,8 @@ int init_io_cache_ext(IO_CACHE *info, File file, size_t cachesize,
   my_off_t pos;
   my_off_t end_of_file= ~(my_off_t) 0;
   DBUG_ENTER("init_io_cache_ext");
-  DBUG_PRINT("enter",("cache: 0x%lx  type: %d  pos: %ld",
-             (ulong) info, (int) type, (ulong) seek_offset));
+  DBUG_PRINT("enter",("cache: %p  type: %d  pos: %ld",
+             info, (int) type, (ulong) seek_offset));
 
   info->file= file;
   info->file_key= file_key;
@@ -314,8 +314,8 @@ my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
 			pbool clear_cache)
 {
   DBUG_ENTER("reinit_io_cache");
-  DBUG_PRINT("enter",("cache: 0x%lx type: %d  seek_offset: %lu  clear_cache: %d",
-		      (ulong) info, type, (ulong) seek_offset,
+  DBUG_PRINT("enter",("cache: %p type: %d  seek_offset: %lu  clear_cache: %d",
+		      info, type, (ulong) seek_offset,
 		      (int) clear_cache));
 
   /* One can't do reinit with the following types */
@@ -634,10 +634,10 @@ void init_io_cache_share(IO_CACHE *read_cache, IO_CACHE_SHARE *cshare,
                          IO_CACHE *write_cache, uint num_threads)
 {
   DBUG_ENTER("init_io_cache_share");
-  DBUG_PRINT("io_cache_share", ("read_cache: 0x%lx  share: 0x%lx  "
-                                "write_cache: 0x%lx  threads: %u",
-                                (long) read_cache, (long) cshare,
-                                (long) write_cache, num_threads));
+  DBUG_PRINT("io_cache_share", ("read_cache: %p  share: %p  "
+                                "write_cache: %p  threads: %u",
+                                read_cache, cshare,
+                                write_cache, num_threads));
 
   DBUG_ASSERT(num_threads > 1);
   DBUG_ASSERT(read_cache->type == READ_CACHE);
@@ -698,9 +698,9 @@ void remove_io_thread(IO_CACHE *cache)
     flush_io_cache(cache);
 
   mysql_mutex_lock(&cshare->mutex);
-  DBUG_PRINT("io_cache_share", ("%s: 0x%lx",
+  DBUG_PRINT("io_cache_share", ("%s: %p",
                                 (cache == cshare->source_cache) ?
-                                "writer" : "reader", (long) cache));
+                                "writer" : "reader", cache));
 
   /* Remove from share. */
   total= --cshare->total_threads;
@@ -774,9 +774,9 @@ static int lock_io_cache(IO_CACHE *cache, my_off_t pos)
   /* Enter the lock. */
   mysql_mutex_lock(&cshare->mutex);
   cshare->running_threads--;
-  DBUG_PRINT("io_cache_share", ("%s: 0x%lx  pos: %lu  running: %u",
+  DBUG_PRINT("io_cache_share", ("%s: %p  pos: %lu  running: %u",
                                 (cache == cshare->source_cache) ?
-                                "writer" : "reader", (long) cache, (ulong) pos,
+                                "writer" : "reader", cache, (ulong) pos,
                                 cshare->running_threads));
 
   if (cshare->source_cache)
@@ -913,10 +913,10 @@ static void unlock_io_cache(IO_CACHE *cache)
 {
   IO_CACHE_SHARE *cshare= cache->share;
   DBUG_ENTER("unlock_io_cache");
-  DBUG_PRINT("io_cache_share", ("%s: 0x%lx  pos: %lu  running: %u",
+  DBUG_PRINT("io_cache_share", ("%s: %p  pos: %lu  running: %u",
                                 (cache == cshare->source_cache) ?
                                 "writer" : "reader",
-                                (long) cache, (ulong) cshare->pos_in_file,
+                                cache, (ulong) cshare->pos_in_file,
                                 cshare->total_threads));
 
   cshare->running_threads= cshare->total_threads;
@@ -1513,7 +1513,7 @@ int my_b_flush_io_cache(IO_CACHE *info,
   my_off_t pos_in_file;
   my_bool append_cache= (info->type == SEQ_READ_APPEND);
   DBUG_ENTER("my_b_flush_io_cache");
-  DBUG_PRINT("enter", ("cache: 0x%lx", (long) info));
+  DBUG_PRINT("enter", ("cache: %p", info));
 
   DBUG_EXECUTE_IF("simulate_error_during_flush_cache_to_file",
                   {
@@ -1610,7 +1610,7 @@ int end_io_cache(IO_CACHE *info)
   int error=0;
   IO_CACHE_CALLBACK pre_close;
   DBUG_ENTER("end_io_cache");
-  DBUG_PRINT("enter",("cache: 0x%lx", (ulong) info));
+  DBUG_PRINT("enter",("cache: %p", info));
 
   /*
     Every thread must call remove_io_thread(). The last one destroys

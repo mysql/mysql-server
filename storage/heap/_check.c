@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -121,8 +121,8 @@ static int check_one_key(HP_KEYDEF *keydef, uint keynr, ulong records,
 	if (i != (rec_link= hp_mask(hash_info->hash, blength, records)))
 	{
 	  DBUG_PRINT("error",
-                     ("Record in wrong link: Link %lu  Record: 0x%lx  Record-link %lu",
-                      i, (long) hash_info->ptr_to_rec, rec_link));
+                     ("Record in wrong link: Link %lu  Record: %p  Record-link %lu",
+                      i, hash_info->ptr_to_rec, rec_link));
 	  error=1;
 	}
 	else
@@ -179,8 +179,8 @@ static int check_one_rb_key(HP_INFO *info, uint keynr, ulong records,
 		     key_length, SEARCH_FIND | SEARCH_SAME, not_used))
       {
 	error= 1;
-	DBUG_PRINT("error",("Record in wrong link:  key: %u  Record: 0x%lx\n", 
-			    keynr, (long) recpos));
+	DBUG_PRINT("error",("Record in wrong link:  key: %u  Record: %p\n", 
+			    keynr, recpos));
       }
       else
 	found++;

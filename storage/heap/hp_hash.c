@@ -119,7 +119,7 @@ uchar *hp_search(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *key,
       {
 	switch (nextflag) {
 	case 0:					/* Search after key */
-	  DBUG_PRINT("exit", ("found key at 0x%lx", (long) pos->ptr_to_rec));
+	  DBUG_PRINT("exit", ("found key at %p", pos->ptr_to_rec));
 	  info->current_hash_ptr=pos;
 	  DBUG_RETURN(info->current_ptr= pos->ptr_to_rec);
 	case 1:					/* Search next */

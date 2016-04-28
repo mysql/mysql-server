@@ -148,8 +148,8 @@ size_t vio_read_buff(Vio *vio, uchar* buf, size_t size)
   size_t rc;
 #define VIO_UNBUFFERED_READ_MIN_SIZE 2048
   DBUG_ENTER("vio_read_buff");
-  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u",
-             mysql_socket_getfd(vio->mysql_socket), (long)buf, (uint)size));
+  DBUG_PRINT("enter", ("sd: %d  buf: %p  size: %u",
+             mysql_socket_getfd(vio->mysql_socket), buf, (uint)size));
 
   if (vio->read_pos < vio->read_end)
   {

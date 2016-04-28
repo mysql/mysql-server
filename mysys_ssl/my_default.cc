@@ -211,8 +211,8 @@ fn_expand(const char *filename, char *result_buf)
   char dir[FN_REFLEN];
   const int flags= MY_UNPACK_FILENAME | MY_SAFE_PATH | MY_RELATIVE_PATH;
   DBUG_ENTER("fn_expand");
-  DBUG_PRINT("enter", ("filename: %s, result_buf: 0x%lx",
-                       filename, (unsigned long) result_buf));
+  DBUG_PRINT("enter", ("filename: %s, result_buf: %p",
+                       filename, result_buf));
   if (my_getwd(dir, sizeof(dir), MYF(0)))
     DBUG_RETURN(3);
   DBUG_PRINT("debug", ("dir: %s", dir));

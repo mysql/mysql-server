@@ -376,11 +376,11 @@ int init_key_cache(KEY_CACHE *keycache, ulonglong key_cache_block_size,
     keycache->waiting_for_hash_link.last_thread= NULL;
     keycache->waiting_for_block.last_thread= NULL;
     DBUG_PRINT("exit",
-	       ("disk_blocks: %d  block_root: 0x%lx  hash_entries: %d\
- hash_root: 0x%lx  hash_links: %d  hash_link_root: 0x%lx",
-		keycache->disk_blocks,  (long) keycache->block_root,
-		keycache->hash_entries, (long) keycache->hash_root,
-		keycache->hash_links,   (long) keycache->hash_link_root));
+	       ("disk_blocks: %d  block_root: %p  hash_entries: %d\
+ hash_root: %p  hash_links: %d  hash_link_root: %p",
+		keycache->disk_blocks,  keycache->block_root,
+		keycache->hash_entries, keycache->hash_root,
+		keycache->hash_links,   keycache->hash_link_root));
     memset(keycache->changed_blocks, 0,
 	  sizeof(keycache->changed_blocks[0]) * CHANGED_BLOCKS_HASH);
     memset(keycache->file_blocks, 0,
@@ -618,7 +618,7 @@ static void change_key_cache_param(KEY_CACHE *keycache,
 void end_key_cache(KEY_CACHE *keycache, my_bool cleanup)
 {
   DBUG_ENTER("end_key_cache");
-  DBUG_PRINT("enter", ("key_cache: 0x%lx", (long) keycache));
+  DBUG_PRINT("enter", ("key_cache: %p", keycache));
 
   if (!keycache->key_cache_inited)
     DBUG_VOID_RETURN;
@@ -3797,7 +3797,7 @@ int flush_key_blocks(KEY_CACHE *keycache,
 {
   int res= 0;
   DBUG_ENTER("flush_key_blocks");
-  DBUG_PRINT("enter", ("keycache: 0x%lx", (long) keycache));
+  DBUG_PRINT("enter", ("keycache: %p", keycache));
 
   if (!keycache->key_cache_inited)
     DBUG_RETURN(0);
@@ -3994,11 +3994,11 @@ int reset_key_cache_counters(const char *name MY_ATTRIBUTE((unused)),
 
 static int fail_block(BLOCK_LINK *block)
 {
-  F_B_PRT("block->next_used:    %lx\n", (ulong) block->next_used);
-  F_B_PRT("block->prev_used:    %lx\n", (ulong) block->prev_used);
-  F_B_PRT("block->next_changed: %lx\n", (ulong) block->next_changed);
-  F_B_PRT("block->prev_changed: %lx\n", (ulong) block->prev_changed);
-  F_B_PRT("block->hash_link:    %lx\n", (ulong) block->hash_link);
+  F_B_PRT("block->next_used:    %p\n", block->next_used);
+  F_B_PRT("block->prev_used:    %p\n", block->prev_used);
+  F_B_PRT("block->next_changed: %p\n", block->next_changed);
+  F_B_PRT("block->prev_changed: %p\n", block->prev_changed);
+  F_B_PRT("block->hash_link:    %p\n", block->hash_link);
   F_B_PRT("block->status:       %u\n", block->status);
   F_B_PRT("block->length:       %u\n", block->length);
   F_B_PRT("block->offset:       %u\n", block->offset);
@@ -4009,9 +4009,9 @@ static int fail_block(BLOCK_LINK *block)
 
 static int fail_hlink(HASH_LINK *hlink)
 {
-  F_B_PRT("hlink->next:    %lx\n", (ulong) hlink->next);
-  F_B_PRT("hlink->prev:    %lx\n", (ulong) hlink->prev);
-  F_B_PRT("hlink->block:   %lx\n", (ulong) hlink->block);
+  F_B_PRT("hlink->next:    %p\n", hlink->next);
+  F_B_PRT("hlink->prev:    %p\n", hlink->prev);
+  F_B_PRT("hlink->block:   %p\n", hlink->block);
   F_B_PRT("hlink->diskpos: %lu\n", (ulong) hlink->diskpos);
   F_B_PRT("hlink->file:    %d\n", hlink->file);
   return 0; /* Let the assert fail. */

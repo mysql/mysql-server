@@ -83,8 +83,8 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
   unsigned int null_bits= (1U << 8) - 1;
   // Mask to mask out the correct but among the null bits
   unsigned int null_mask= 1U;
-  DBUG_PRINT("debug", ("null ptr: 0x%lx; row start: %p; null bytes: %d",
-                       (ulong) null_ptr, row_data, null_byte_count));
+  DBUG_PRINT("debug", ("null ptr: %p; row start: %p; null bytes: %d",
+                       null_ptr, row_data, null_byte_count));
   DBUG_DUMP("cols", (uchar*) cols->bitmap, cols->last_word_ptr - cols->bitmap + 1);
   for ( ; (field= *p_field) ; p_field++)
   {
@@ -115,10 +115,10 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
 #endif
         pack_ptr= field->pack(pack_ptr, field->ptr + offset,
                               field->max_data_length(), TRUE);
-        DBUG_PRINT("debug", ("field: %s; real_type: %d, pack_ptr: 0x%lx;"
-                             " pack_ptr':0x%lx; bytes: %d",
+        DBUG_PRINT("debug", ("field: %s; real_type: %d, pack_ptr: %p;"
+                             " pack_ptr':%p; bytes: %d",
                              field->field_name, field->real_type(),
-                             (ulong) old_pack_ptr, (ulong) pack_ptr,
+                             old_pack_ptr, pack_ptr,
                              (int) (pack_ptr - old_pack_ptr)));
         DBUG_DUMP("packed_data", old_pack_ptr, pack_ptr - old_pack_ptr);
       }
@@ -367,8 +367,8 @@ unpack_row(Relay_log_info const *rli,
           (down_cast<Field_blob*>(f))->keep_old_value();
         pack_ptr= f->unpack(f->ptr, pack_ptr, metadata, TRUE);
 	DBUG_PRINT("debug", ("Unpacked; metadata: 0x%x;"
-                             " pack_ptr: 0x%lx; pack_ptr': 0x%lx; bytes: %d",
-                             metadata, (ulong) old_pack_ptr, (ulong) pack_ptr,
+                             " pack_ptr: %p; pack_ptr': %p; bytes: %d",
+                             metadata, old_pack_ptr, pack_ptr,
                              (int) (pack_ptr - old_pack_ptr)));
 
         /*

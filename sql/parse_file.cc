@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -211,9 +211,9 @@ sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
   size_t path_end;
   File_option *param;
   DBUG_ENTER("sql_create_definition_file");
-  DBUG_PRINT("enter", ("Dir: %s, file: %s, base 0x%lx",
+  DBUG_PRINT("enter", ("Dir: %s, file: %s, base %p",
 		       dir ? dir->str : "(null)",
-                       file_name->str, (ulong) base));
+                       file_name->str, base));
 
   if (dir)
   {

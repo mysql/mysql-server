@@ -91,7 +91,7 @@ void init_tree(TREE *tree, size_t default_alloc_size, ulong memory_limit,
 	       tree_element_free free_element, const void *custom_arg)
 {
   DBUG_ENTER("init_tree");
-  DBUG_PRINT("enter",("tree: 0x%lx  size: %d", (long) tree, size));
+  DBUG_PRINT("enter",("tree: %p  size: %d", tree, size));
 
   if (default_alloc_size < DEFAULT_ALLOC_SIZE)
     default_alloc_size= DEFAULT_ALLOC_SIZE;
@@ -140,7 +140,7 @@ void init_tree(TREE *tree, size_t default_alloc_size, ulong memory_limit,
 static void free_tree(TREE *tree, myf free_flags)
 {
   DBUG_ENTER("free_tree");
-  DBUG_PRINT("enter",("tree: 0x%lx", (long) tree));
+  DBUG_PRINT("enter",("tree: %p", tree));
 
   if (tree->root)				/* If initialized */
   {

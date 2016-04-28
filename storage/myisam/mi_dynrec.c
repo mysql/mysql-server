@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1336,8 +1336,8 @@ ulong _mi_rec_unpack(MI_INFO *info, uchar *to, uchar *from,
 
 err:
   set_my_errno(HA_ERR_WRONG_IN_RECORD);
-  DBUG_PRINT("error",("to_end: 0x%lx -> 0x%lx  from_end: 0x%lx -> 0x%lx",
-		      (long) to, (long) to_end, (long) from, (long) from_end));
+  DBUG_PRINT("error",("to_end: %p -> %p  from_end: %p -> %p",
+		      to, to_end, from, from_end));
   DBUG_DUMP("from",(uchar*) info->rec_buff,info->s->base.min_pack_length);
   DBUG_RETURN(MY_FILE_ERROR);
 } /* _mi_rec_unpack */

@@ -1134,7 +1134,7 @@ static bool load_events_from_db(THD *thd, Event_queue *event_queue)
 {
   bool res= false;
   DBUG_ENTER("Events::load_events_from_db");
-  DBUG_PRINT("enter", ("thd: 0x%lx", (long) thd));
+  DBUG_PRINT("enter", ("thd: %p", thd));
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 

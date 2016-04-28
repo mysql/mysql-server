@@ -9402,8 +9402,8 @@ bool SEL_ARG::test_use_count(SEL_ARG *root)
       ulong count=count_key_part_usage(root,pos->next_key_part);
       if (count > pos->next_key_part->use_count)
       {
-        sql_print_information("Use_count: Wrong count for key at 0x%lx, %lu "
-                              "should be %lu", (long unsigned int)pos,
+        sql_print_information("Use_count: Wrong count for key at %p, %lu "
+                              "should be %lu", pos,
                               pos->next_key_part->use_count, count);
         // DBUG_ASSERT(false); // Todo - enable and clean up mess
 	return true;
@@ -9413,8 +9413,8 @@ bool SEL_ARG::test_use_count(SEL_ARG *root)
   }
   if (e_count != elements)
   {
-    sql_print_warning("Wrong use count: %u (should be %u) for tree at 0x%lx",
-                      e_count, elements, (long unsigned int) this);
+    sql_print_warning("Wrong use count: %u (should be %u) for tree at %p",
+                      e_count, elements, this);
     // DBUG_ASSERT(false); // Todo - enable and clean up mess
     return true;
   }

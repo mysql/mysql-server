@@ -62,7 +62,7 @@ void init_alloc_root(PSI_memory_key key,
 		     size_t pre_alloc_size MY_ATTRIBUTE((unused)))
 {
   DBUG_ENTER("init_alloc_root");
-  DBUG_PRINT("enter",("root: 0x%lx", (long) mem_root));
+  DBUG_PRINT("enter",("root: %p", mem_root));
 
   mem_root->free= mem_root->used= mem_root->pre_alloc= 0;
   mem_root->min_malloc= 32;
@@ -239,7 +239,7 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
   USED_MEM *next= 0;
   USED_MEM **prev;
   DBUG_ENTER("alloc_root");
-  DBUG_PRINT("enter",("root: 0x%lx", (long) mem_root));
+  DBUG_PRINT("enter",("root: %p", mem_root));
   DBUG_ASSERT(alloc_root_inited(mem_root));
 
   DBUG_EXECUTE_IF("simulate_out_of_memory",
@@ -304,7 +304,7 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
     mem_root->used= next;
     mem_root->first_block_usage= 0;
   }
-  DBUG_PRINT("exit",("ptr: 0x%lx", (ulong) point));
+  DBUG_PRINT("exit",("ptr: %p", point));
   DBUG_RETURN((void*) point);
 #endif
 }
@@ -394,7 +394,7 @@ void claim_root(MEM_ROOT *root)
 {
   USED_MEM *next,*old;
   DBUG_ENTER("claim_root");
-  DBUG_PRINT("enter",("root: 0x%lx", (long) root));
+  DBUG_PRINT("enter",("root: %p", root));
 
   for (next=root->used; next ;)
   {
@@ -435,7 +435,7 @@ void free_root(MEM_ROOT *root, myf MyFlags)
 {
   USED_MEM *next,*old;
   DBUG_ENTER("free_root");
-  DBUG_PRINT("enter",("root: 0x%lx  flags: %u", (long) root, (uint) MyFlags));
+  DBUG_PRINT("enter",("root: %p  flags: %u", root, (uint) MyFlags));
 
   if (MyFlags & MY_MARK_BLOCKS_FREE)
   {

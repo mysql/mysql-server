@@ -2492,9 +2492,9 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     const char *db= table->db;
     size_t db_len= table->db_length;
 
-    DBUG_PRINT("table", ("table_l: '%s'.'%s'  table: 0x%lx  s: 0x%lx",
-                         table->db, table->table_name, (long) table->table,
-                         table->table ? (long) table->table->s : (long) -1));
+    DBUG_PRINT("table", ("table_l: '%s'.'%s'  table: %p  s: %p",
+                         table->db, table->table_name, table->table,
+                         table->table ? table->table->s : 0));
 
     /*
       If we are in locked tables mode and are dropping a temporary table,
@@ -2769,8 +2769,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       wrong_tables.append('.');
       wrong_tables.append(String(table->table_name,system_charset_info));
     }
-    DBUG_PRINT("table", ("table: 0x%lx  s: 0x%lx", (long) table->table,
-                         table->table ? (long) table->table->s : (long) -1));
+    DBUG_PRINT("table", ("table: %p  s: %p", table->table,
+                         table->table ? table->table->s : 0));
 
     DBUG_EXECUTE_IF("bug43138",
                     my_printf_error(ER_BAD_TABLE_ERROR,

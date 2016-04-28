@@ -9104,7 +9104,7 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
     would save binlog space. TODO
   */
   DBUG_ENTER("Rows_log_event::do_add_row_data");
-  DBUG_PRINT("enter", ("row_data: 0x%lx  length: %lu", (ulong) row_data,
+  DBUG_PRINT("enter", ("row_data: %p  length: %lu", row_data,
                        (ulong) length));
 
   /*
@@ -9721,8 +9721,8 @@ void Rows_log_event::do_post_row_operations(Relay_log_info const *rli, int error
     m_curr_row_end.
   */
 
-  DBUG_PRINT("info", ("curr_row: 0x%lu; curr_row_end: 0x%lu; rows_end: 0x%lu",
-                      (ulong) m_curr_row, (ulong) m_curr_row_end, (ulong) m_rows_end));
+  DBUG_PRINT("info", ("curr_row: %p; curr_row_end: %p; rows_end: %p",
+                      m_curr_row, m_curr_row_end, m_rows_end));
 
   if (!m_curr_row_end && !error)
   {
@@ -10823,7 +10823,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     table= 
     m_table= const_cast<Relay_log_info*>(rli)->m_table_map.get_table(m_table_id);
 
-  DBUG_PRINT("debug", ("m_table: 0x%lx, m_table_id: %llu", (ulong) m_table,
+  DBUG_PRINT("debug", ("m_table: %p, m_table_id: %llu", m_table,
                        m_table_id.id()));
 
   /*

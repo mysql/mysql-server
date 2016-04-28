@@ -441,10 +441,10 @@ copy_extra_record_fields(TABLE *table,
                          my_ptrdiff_t master_fields)
 {
   DBUG_ENTER("copy_extra_record_fields(table, master_reclen, master_fields)");
-  DBUG_PRINT("info", ("Copying to 0x%lx "
+  DBUG_PRINT("info", ("Copying to %p "
                       "from field %lu at offset %lu "
                       "to field %d at offset %lu",
-                      (long) table->record[0],
+                      table->record[0],
                       (ulong) master_fields, (ulong) master_reclength,
                       table->s->fields, table->s->reclength));
   /*
@@ -726,8 +726,8 @@ replace_record(THD *thd, TABLE *table,
 static int find_and_fetch_row(TABLE *table, uchar *key)
 {
   DBUG_ENTER("find_and_fetch_row(TABLE *table, uchar *key, uchar *record)");
-  DBUG_PRINT("enter", ("table: 0x%lx, key: 0x%lx  record: 0x%lx",
-           (long) table, (long) key, (long) table->record[1]));
+  DBUG_PRINT("enter", ("table: %p, key: %p  record: %p",
+           table, key, table->record[1]));
 
   DBUG_ASSERT(table->in_use != NULL);
 
@@ -1449,7 +1449,7 @@ int Old_rows_log_event::do_add_row_data(uchar *row_data, size_t length)
     would save binlog space. TODO
   */
   DBUG_ENTER("Old_rows_log_event::do_add_row_data");
-  DBUG_PRINT("enter", ("row_data: 0x%lx  length: %lu", (ulong) row_data,
+  DBUG_PRINT("enter", ("row_data: %p  length: %lu", row_data,
                        (ulong) length));
   DBUG_DUMP("row_data", row_data, min<size_t>(length, 32));
 
@@ -1744,8 +1744,8 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       */ 
    
       DBUG_PRINT("info", ("error: %d", error));
-      DBUG_PRINT("info", ("curr_row: 0x%lu; curr_row_end: 0x%lu; rows_end: 0x%lu",
-                          (ulong) m_curr_row, (ulong) m_curr_row_end, (ulong) m_rows_end));
+      DBUG_PRINT("info", ("curr_row: %p; curr_row_end: %p; rows_end: %p",
+                          m_curr_row, m_curr_row_end, m_rows_end));
 
       if (!m_curr_row_end && !error)
         unpack_current_row(rli);

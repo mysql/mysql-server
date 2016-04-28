@@ -539,7 +539,7 @@ bool lex_start(THD *thd)
 void lex_end(LEX *lex)
 {
   DBUG_ENTER("lex_end");
-  DBUG_PRINT("enter", ("lex: 0x%lx", (long) lex));
+  DBUG_PRINT("enter", ("lex: %p", lex));
 
   /* release used plugins */
   if (!lex->plugins.empty()) /* No function call and no mutex if no plugins. */
@@ -2628,7 +2628,7 @@ void SELECT_LEX::add_order_to_list(ORDER *order)
 bool SELECT_LEX::add_item_to_list(THD *thd, Item *item)
 {
   DBUG_ENTER("SELECT_LEX::add_item_to_list");
-  DBUG_PRINT("info", ("Item: 0x%lx", (long) item));
+  DBUG_PRINT("info", ("Item: %p", item));
   DBUG_RETURN(item_list.push_back(item));
 }
 
