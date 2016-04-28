@@ -1559,6 +1559,7 @@ static bool field_type_forces_var_part(enum_field_types type)
   case MYSQL_TYPE_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
+  case MYSQL_TYPE_JSON:
   case MYSQL_TYPE_GEOMETRY:
     return FALSE;
   default:
@@ -2009,6 +2010,7 @@ type_supports_default_value(enum_field_types mysql_type)
               mysql_type != MYSQL_TYPE_TINY_BLOB &&
               mysql_type != MYSQL_TYPE_MEDIUM_BLOB &&
               mysql_type != MYSQL_TYPE_LONG_BLOB &&
+              mysql_type != MYSQL_TYPE_JSON &&
               mysql_type != MYSQL_TYPE_GEOMETRY);
 
   return ret;
@@ -9847,6 +9849,14 @@ create_ndb_column(THD *thd,
       col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safty */ 13));
     }
     break;
+  // MySQL 5.7 binary-encoded JSON type
+  case MYSQL_TYPE_JSON:
+    col.setType(NDBCOL::Blob);
+    col.setInlineSize(NDB_JSON_INLINE_SIZE); // defined in ha_ndbcluster.h
+    col.setPartSize(NDB_JSON_PART_SIZE);     // defined in ha_ndbcluster.h
+    col.setStripeSize(ndb_blob_striping() ? 16 : 0);
+    break;
+
   // Other types
   case MYSQL_TYPE_ENUM:
     col.setType(NDBCOL::Char);
@@ -10972,6 +10982,7 @@ int ha_ndbcluster::create(const char *name,
     case MYSQL_TYPE_BLOB:    
     case MYSQL_TYPE_MEDIUM_BLOB:   
     case MYSQL_TYPE_LONG_BLOB: 
+    case MYSQL_TYPE_JSON:
     {
       NdbDictionary::Column * column= tab.getColumn(i);
       unsigned size= pk_length + (column->getPartSize()+3)/4 + 7;
