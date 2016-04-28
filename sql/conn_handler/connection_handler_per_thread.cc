@@ -303,7 +303,7 @@ extern "C" void *handle_connection(void *arg)
       }
       end_connection(thd);
     }
-    close_connection(thd);
+    close_connection(thd, 0, false, false);
 
     thd->get_stmt_da()->reset_diagnostics_area();
     thd->release_resources();
