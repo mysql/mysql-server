@@ -320,6 +320,9 @@ int mysql_audit_notify(THD *thd, mysql_event_general_subclass_t subclass,
     event.general_time= my_time(0);
   }
 
+  DBUG_EXECUTE_IF("audit_log_negative_general_error_code",
+                  event.general_error_code*= -1;);
+
   event.general_command.str= msg;
   event.general_command.length= msg_len;
 
