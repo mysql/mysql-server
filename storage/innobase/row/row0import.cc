@@ -38,6 +38,7 @@ Created 2012-02-08 by Sunny Bains.
 #include "row0quiesce.h"
 #include "ut0new.h"
 #include "dict0crea.h"
+#include "lob0lob.h"
 
 #include <vector>
 
@@ -1739,7 +1740,7 @@ PageConverter::adjust_cluster_index_blob_column(
 		return(DB_CORRUPTION);
 	}
 
-	field += BTR_EXTERN_SPACE_ID - BTR_EXTERN_FIELD_REF_SIZE + len;
+	field += lob::BTR_EXTERN_SPACE_ID - BTR_EXTERN_FIELD_REF_SIZE + len;
 
 	if (is_compressed_table()) {
 		mach_write_to_4(field, get_space_id());

@@ -50,7 +50,7 @@ Created 12/27/1996 Heikki Tuuri
 #include "trx0rec.h"
 #include "fts0fts.h"
 #include "fts0types.h"
-#include "lob.h"
+#include "lob0lob.h"
 #include <algorithm>
 #include "current_thd.h"
 
@@ -477,7 +477,7 @@ row_upd_changes_disowned_external(
 
 		ut_ad(dfield_get_len(new_val) >= BTR_EXTERN_FIELD_REF_SIZE);
 
-		blobref_t ref(new_val->blobref());
+		lob::ref_t ref(new_val->blobref());
 
 		if (!ref.is_owner()) {
 			return(true);
@@ -1052,7 +1052,7 @@ row_upd_ext_fetch_func(
 {
 	byte*	buf = static_cast<byte*>(mem_heap_alloc(heap, *len));
 
-	*len = btr_copy_externally_stored_field_prefix(
+	*len = lob::btr_copy_externally_stored_field_prefix(
 		buf, *len, page_size, data, is_sdi, local_len);
 
 	/* We should never update records containing a half-deleted BLOB. */
@@ -1639,7 +1639,7 @@ row_upd_changes_ord_field_binary_func(
 					dfield_get_data(dfield));
 				temp_heap = mem_heap_create(1000);
 
-				dptr = btr_copy_externally_stored_field(
+				dptr = lob::btr_copy_externally_stored_field(
 					&dlen, dptr,
 					page_size,
 					flen,
@@ -1681,7 +1681,7 @@ row_upd_changes_ord_field_binary_func(
 					temp_heap = mem_heap_create(1000);
 				}
 
-				dptr = btr_copy_externally_stored_field(
+				dptr = lob::btr_copy_externally_stored_field(
 					&dlen, dptr,
 					page_size,
 					flen,
@@ -2429,7 +2429,7 @@ row_upd_clust_rec_by_insert_inherit_func(
 			continue;
 		}
 
-		blobref_t ref(dfield->blobref());
+		lob::ref_t ref(dfield->blobref());
 
 #ifdef UNIV_DEBUG
 		if (UNIV_LIKELY(rec != NULL)) {
@@ -2442,7 +2442,7 @@ row_upd_clust_rec_by_insert_inherit_func(
 			rec_data += len - BTR_EXTERN_FIELD_REF_SIZE;
 
 			/* The pointer must not be zero. */
-			ut_ad(!ref.is_zero());
+			ut_ad(!ref.is_null());
 
 			/* The BLOB must be owned. */
 			ut_ad(ref.is_owner());
@@ -2454,7 +2454,7 @@ row_upd_clust_rec_by_insert_inherit_func(
 		ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
 
 		/* The pointer must not be zero. */
-		ut_a(!ref.is_zero());
+		ut_a(!ref.is_null());
 
 		/* The BLOB must be owned, unless we are resuming from
 		a lock wait and we already had disowned the BLOB. */
@@ -2571,10 +2571,12 @@ err_exit:
 				insert down below to inherit them.  But if the
 				insert fails, then this disown will be undone
 				when the operation is rolled back. */
-				btr_cur_disown_inherited_fields(
-					btr_cur_get_page_zip(btr_cur),
-					rec, index, offsets, node->update,
-					mtr);
+
+				lob::BtrContext btr_ctx(
+					mtr, pcur, index, rec, offsets,
+					btr_cur_get_block(btr_cur));
+
+				btr_ctx.disown_inherited_fields(node->update);
 			}
 		}
 check_fk:
@@ -2820,10 +2822,10 @@ row_upd_clust_rec(
 		ut_a(err == DB_SUCCESS);
 
 		DEBUG_SYNC_C("before_row_upd_extern");
-		err = btr_store_big_rec_extern_fields(
+		err = lob::btr_store_big_rec_extern_fields(
 			pcur, node->update, offsets, big_rec,
 			autoinc_mtr.get_mtr(),
-			BTR_STORE_UPDATE);
+			lob::OPCODE_UPDATE);
 		DEBUG_SYNC_C("after_row_upd_extern");
 	}
 

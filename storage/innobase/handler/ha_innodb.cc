@@ -120,6 +120,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0xa.h"
 #include "ut0mem.h"
 #include "row0ext.h"
+#include "lob0lob.h"
 
 #include "ha_innodb.h"
 #include "i_s.h"
@@ -20589,7 +20590,7 @@ innobase_get_computed_value(
 				*local_heap = mem_heap_create(UNIV_PAGE_SIZE);
 			}
 
-			data = btr_copy_externally_stored_field(
+			data = lob::btr_copy_externally_stored_field(
 				&len, data, page_size,
 				dfield_get_len(row_field), false, *local_heap);
 		}

@@ -39,7 +39,7 @@ Full Text Search interface
 #include "btr0pcur.h"
 #include "sync0sync.h"
 #include "ut0new.h"
-#include "lob.h"
+#include "lob0lob.h"
 
 static const ulint FTS_MAX_ID_LEN = 32;
 
@@ -3336,7 +3336,7 @@ fts_fetch_doc_from_rec(
 
 		if (rec_offs_nth_extern(offsets, clust_pos)) {
 			doc->text.f_str =
-				btr_rec_copy_externally_stored_field(
+				lob::btr_rec_copy_externally_stored_field(
 					clust_rec, offsets,
 					dict_table_page_size(table),
 					clust_pos, &doc->text.f_len,
@@ -7552,7 +7552,7 @@ fts_init_recover_doc(
 		if (dfield_is_ext(dfield)) {
 			dict_table_t*	table = cache->sync->table;
 
-			doc.text.f_str = btr_copy_externally_stored_field(
+			doc.text.f_str = lob::btr_copy_externally_stored_field(
 				&doc.text.f_len,
 				static_cast<byte*>(dfield_get_data(dfield)),
 				dict_table_page_size(table), len, false,

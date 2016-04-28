@@ -36,6 +36,7 @@ Created Jan 06, 2010 Vasil Dimov
 #include "dict0stats.h"
 #include "ha_prototypes.h"
 #include "ut0new.h"
+#include "lob0lob.h"
 #include <mysql_com.h>
 
 #include <algorithm>
@@ -1234,7 +1235,7 @@ dict_stats_scan_page(
 				      ULINT_UNDEFINED, &heap);
 
 	if (should_count_external_pages) {
-		*n_external_pages += btr_rec_get_externally_stored_len(
+		*n_external_pages += lob::btr_rec_get_externally_stored_len(
 			rec, offsets_rec);
 	}
 
@@ -1287,7 +1288,7 @@ dict_stats_scan_page(
 		}
 
 		if (should_count_external_pages) {
-			*n_external_pages += btr_rec_get_externally_stored_len(
+			*n_external_pages += lob::btr_rec_get_externally_stored_len(
 				rec, offsets_rec);
 		}
 

@@ -28,7 +28,7 @@ Created 03/11/2014 Shaohua Wang
 #include "btr0cur.h"
 #include "btr0pcur.h"
 #include "ibuf0ibuf.h"
-#include "lob.h"
+#include "lob0lob.h"
 
 /** Innodb B-tree index fill factor for bulk load. */
 long	innobase_fill_factor;
@@ -564,9 +564,9 @@ PageBulk::storeExt(
 	page_cur->offsets = offsets;
 	page_cur->block = m_block;
 
-	dberr_t	err = btr_store_big_rec_extern_fields(
+	dberr_t	err = lob::btr_store_big_rec_extern_fields(
 		&btr_pcur, NULL, offsets, big_rec, m_mtr,
-		BTR_STORE_INSERT_BULK);
+		lob::OPCODE_INSERT_BULK);
 
 	ut_ad(page_offset(m_cur_rec) == page_offset(page_cur->rec));
 

@@ -45,6 +45,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "zlib.h"
 #include "btr0cur.h"
 #include "my_dir.h"
+#include "lob0lob.h"
 #include <iostream>
 
 typedef enum {
@@ -2448,7 +2449,7 @@ ibd2sdi::parse_fields_in_rec(
 			inline */
 			rec_data_length = mach_read_from_8(
 				rec + REC_OFF_DATA_VARCHAR
-				+ rec_data_in_page_len + BTR_EXTERN_LEN);
+				+ rec_data_in_page_len + lob::BTR_EXTERN_LEN);
 
 			rec_data_length += rec_data_in_page_len;
 		} else {
@@ -2481,7 +2482,7 @@ ibd2sdi::parse_fields_in_rec(
 		uint32_t	first_blob_page_num = mach_read_from_4(
 			rec + REC_OFF_DATA_VARCHAR
 			+ rec_data_in_page_len
-			+ BTR_EXTERN_PAGE_NO);
+			+ lob::BTR_EXTERN_PAGE_NO);
 
 		uint64_t	blob_len_retrieved;
 		if (page_size.is_compressed()) {

@@ -40,6 +40,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "row0row.h"
 #include "fsp0sysspace.h"
 #include "row0mysql.h"
+#include "lob0lob.h"
 
 /*=========== UNDO LOG RECORD CREATION AND DECODING ====================*/
 
@@ -744,7 +745,7 @@ trx_undo_page_fetch_ext_func(
 	ulint*			len)
 {
 	/* Fetch the BLOB. */
-	ulint	ext_len = btr_copy_externally_stored_field_prefix(
+	ulint	ext_len = lob::btr_copy_externally_stored_field_prefix(
 		ext_buf, prefix_len, page_size, field, is_sdi, *len);
 
 	/* BLOBs should always be nonempty. */
@@ -854,7 +855,7 @@ trx_undo_get_mbr_from_ext(
 	ulint		dlen;
 	mem_heap_t*	heap = mem_heap_create(100);
 
-	dptr = btr_copy_externally_stored_field(
+	dptr = lob::btr_copy_externally_stored_field(
 		&dlen, field, page_size, *len, false, heap);
 
 	if (dlen <= GEO_DATA_HEADER_SIZE) {
@@ -2401,7 +2402,8 @@ trx_undo_prev_version_build(
 
 		entry = row_rec_to_index_entry(
 			rec, index, offsets, &n_ext, heap);
-		n_ext += btr_push_update_extern_fields(entry, update, heap);
+		n_ext += lob::btr_push_update_extern_fields(
+			entry, update, heap);
 		/* The page containing the clustered index record
 		corresponding to entry is latched in mtr.  Thus the
 		following call is safe. */

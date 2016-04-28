@@ -44,7 +44,7 @@ Created 3/14/1997 Heikki Tuuri
 #include "handler.h"
 #include "ha_innodb.h"
 #include "mysqld.h"
-#include "lob.h"
+#include "lob0lob.h"
 
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
@@ -802,19 +802,15 @@ skip_secondaries:
 				+ dfield_get_len(&ufield->new_val)
 				- BTR_EXTERN_FIELD_REF_SIZE;
 
-			if (ext_page_size.is_compressed()) {
+			lob::BtrContext	btr_ctx(
+				&mtr, NULL, index, NULL, NULL, NULL);
 
-				blob_delete_context_t	ctx(
-                                        field_ref, index, NULL, NULL, NULL,
-                                        0, false, &mtr);
+			lob::DeleteContext ctx(btr_ctx,
+				field_ref, 0, false);
 
-				zblob_delete_t	free_blob(ctx);
-				free_blob.destroy();
-			} else {
-				btr_free_externally_stored_field(
-					index, field_ref, NULL, NULL, NULL,
-					0, false, &mtr);
-			}
+			lob::Deleter	free_blob(ctx);
+			free_blob.destroy();
+
 			mtr_commit(&mtr);
 		}
 	}
