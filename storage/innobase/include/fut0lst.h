@@ -180,9 +180,7 @@ flst_validate(
 	const flst_base_node_t*	base,	/*!< in: pointer to base node of list */
 	mtr_t*			mtr1);	/*!< in: mtr */
 
-#ifndef UNIV_NONINL
 #include "fut0lst.ic"
-#endif
 
 #endif /* !UNIV_HOTBACKUP */
 

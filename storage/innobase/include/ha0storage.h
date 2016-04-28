@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -132,8 +132,6 @@ ha_storage_get_size(
 /*================*/
 	const ha_storage_t*	storage);	/*!< in: hash storage */
 
-#ifndef UNIV_NONINL
 #include "ha0storage.ic"
-#endif
 
 #endif /* ha0storage_h */

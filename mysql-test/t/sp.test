@@ -9158,3 +9158,25 @@ ALTER FUNCTION f1 READS SQL DATA;
 # Cleanup
 DROP FUNCTION f1;
 DROP PROCEDURE p1;
+
+--echo #
+--echo # WL#9262: All system tables should support 32 character length user names
+--echo #
+
+--echo #This should just work with username + hostname of length 93 as DEFINER
+CREATE USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+--echo #For procedure
+CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char PROCEDURE test.proc_test() SELECT CURRENT_USER();
+--echo #and for function
+CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char FUNCTION test.f_test() RETURNS INT RETURN 1;
+
+--replace_column 5 # 6 #
+SHOW PROCEDURE STATUS LIKE 'proc_test';
+DROP PROCEDURE test.proc_test;
+
+--replace_column 5 # 6 #
+SHOW FUNCTION STATUS LIKE 'f_test';
+DROP FUNCTION test.f_test;
+
+DROP USER user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
+

@@ -25,11 +25,6 @@ Created 6/2/1994 Heikki Tuuri
 *******************************************************/
 
 #include "btr0btr.h"
-
-#ifdef UNIV_NONINL
-#include "btr0btr.ic"
-#endif
-
 #include "fsp0sysspace.h"
 #include "page0page.h"
 #include "page0zip.h"

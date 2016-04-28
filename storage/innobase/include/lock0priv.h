@@ -1158,8 +1158,6 @@ lock_table_has(
 	const dict_table_t*	table,
 	enum lock_mode		mode);
 
-#ifndef UNIV_NONINL
 #include "lock0priv.ic"
-#endif
 
 #endif /* lock0priv_h */

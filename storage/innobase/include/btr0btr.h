@@ -709,8 +709,6 @@ btr_sdi_create_indexes(
 #define BTR_TOTAL_SIZE		2
 #endif /* !UNIV_HOTBACKUP */
 
-#ifndef UNIV_NONINL
 #include "btr0btr.ic"
-#endif
 
 #endif

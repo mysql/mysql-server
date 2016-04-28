@@ -190,9 +190,7 @@ dict_stats_rename_index(
 	const char*		new_index_name)	/*!< in: new index name */
 	MY_ATTRIBUTE((warn_unused_result));
 
-#ifndef UNIV_NONINL
 #include "dict0stats.ic"
-#endif
 
 #ifdef UNIV_ENABLE_UNIT_TEST_DICT_STATS
 void test_dict_stats_all();

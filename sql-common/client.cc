@@ -1897,6 +1897,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
           my_free(options->ssl_cipher);
           options->ssl_cipher= my_strdup(key_memory_mysql_options,
                                          opt_arg, MYF(MY_WME));
+          break;
         case OPT_tls_version:
           EXTENSION_SET_SSL_STRING(options, tls_version, opt_arg, SSL_MODE_PREFERRED);
           break;

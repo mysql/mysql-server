@@ -143,8 +143,6 @@ DECLARE_THREAD(dict_stats_thread)(
 void
 dict_stats_shutdown();
 
-# ifndef UNIV_NONINL
-#  include "dict0stats_bg.ic"
-# endif
+# include "dict0stats_bg.ic"
 
 #endif /* dict0stats_bg_h */

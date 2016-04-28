@@ -27,9 +27,6 @@ Created 4/24/1996 Heikki Tuuri
 #include "ha_prototypes.h"
 
 #include "dict0load.h"
-#ifdef UNIV_NONINL
-#include "dict0load.ic"
-#endif
 
 #include "mysql_version.h"
 #include "btr0pcur.h"

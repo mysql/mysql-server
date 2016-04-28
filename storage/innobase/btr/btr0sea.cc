@@ -31,10 +31,6 @@ Created 2/17/1996 Heikki Tuuri
 *************************************************************************/
 
 #include "btr0sea.h"
-#ifdef UNIV_NONINL
-#include "btr0sea.ic"
-#endif /* UNIV_NOINL */
-
 #include "buf0buf.h"
 #include "page0page.h"
 #include "page0cur.h"

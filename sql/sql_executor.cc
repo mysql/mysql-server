@@ -2054,6 +2054,13 @@ join_read_key(QEP_TAB *tab)
 
   if (!table->file->inited)
   {
+    /*
+      Disable caching for inner table of outer join, since setting the NULL
+      property on the table will overwrite NULL bits and hence destroy the
+      current row for later use as a cached row.
+    */
+    if (tab->table_ref->is_inner_table_of_outer_join())
+      table_ref->disable_cache= true;
     DBUG_ASSERT(!tab->use_order()); //Don't expect sort req. for single row.
     if ((error= table->file->ha_index_init(table_ref->key, tab->use_order())))
     {

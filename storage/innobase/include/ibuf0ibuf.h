@@ -356,15 +356,21 @@ ibuf_delete_for_discarded_space(
 @param[in]	full		If true, do a full contraction based
 on PCT_IO(100). If false, the size of contract batch is determined
 based on the current size of the change buffer.
-@param[in]	space_id	tablespace for which to contract, or
-ULINT_UNDEFINED to contract for all tablespaces
 @return a lower limit for the combined size in bytes of entries which
 will be merged from ibuf trees to the pages read, 0 if ibuf is
 empty */
 ulint
 ibuf_merge_in_background(
-	bool	full,
-	ulint	space_id);
+	bool	full);
+
+/** Contracts insert buffer trees by reading pages referring to space_id
+to the buffer pool.
+@returns number of pages merged.*/
+ulint
+ibuf_merge_space(
+/*=============*/
+	ulint	space);	/*!< in: space id */
+
 #endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Parses a redo log record of an ibuf bitmap page init.
@@ -442,8 +448,6 @@ for the file segment from which the pages for the ibuf tree are allocated */
 #define IBUF_HEADER		PAGE_DATA
 #define	IBUF_TREE_SEG_HEADER	0	/* fseg header for ibuf tree */
 
-#ifndef UNIV_NONINL
 #include "ibuf0ibuf.ic"
-#endif
 
 #endif

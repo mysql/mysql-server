@@ -28,13 +28,6 @@ Created 9/7/2013 Jimmy Yang
 #include "lock0lock.h"
 #include "lock0priv.h"
 #include "lock0prdt.h"
-
-#ifdef UNIV_NONINL
-#include "lock0lock.ic"
-#include "lock0priv.ic"
-#include "lock0prdt.ic"
-#endif
-
 #include "ha_prototypes.h"
 #include "usr0sess.h"
 #include "trx0purge.h"

@@ -496,8 +496,6 @@ row_sel_field_store_in_mysql_format_func(
         const byte*     data,   /*!< in: data to store */
         ulint           len);    /*!< in: length of the data */
 
-#ifndef UNIV_NONINL
 #include "row0sel.ic"
-#endif
 
 #endif

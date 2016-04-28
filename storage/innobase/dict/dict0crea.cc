@@ -26,11 +26,6 @@ Created 1/8/1996 Heikki Tuuri
 #include "ha_prototypes.h"
 
 #include "dict0crea.h"
-
-#ifdef UNIV_NONINL
-#include "dict0crea.ic"
-#endif
-
 #include "btr0pcur.h"
 #include "btr0btr.h"
 #include "page0page.h"

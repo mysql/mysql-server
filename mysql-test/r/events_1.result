@@ -197,6 +197,20 @@ create event ðóóò21 on schedule every '50:23:59:95' day_second COMMENT 'òîâà å 1
 SHOW CREATE EVENT ðóóò21;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
 ðóóò21	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `Ñ€ÑƒÑƒÑ‚21` ON SCHEDULE EVERY '51 0:0:35' DAY_SECOND STARTS '#' ON COMPLETION NOT PRESERVE ENABLE COMMENT 'Ñ‚Ð¾Ð²Ð° Ðµ 1251 ÐºÐ¾Ð¼ÐµÐ½Ñ‚Ð°Ñ€' DO select 1	cp1251	cp1251_general_ci	latin1_swedish_ci
+#
+# WL#9262: All system tables should support 32 character length user names
+#
+#This should just work with username + hostname of length 93 as DEFINER
+CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char EVENT event_test ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO SELECT CURRENT_USER();
+Warnings:
+Note	1449	The user specified as a definer ('user_name_robert_golebiowski1234'@'oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char') does not exist
+SHOW EVENTS LIKE 'event_test';
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+events_test	event_test	user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char	SYSTEM	ONE TIME	#	NULL	NULL	#	#	ENABLED	1	cp1251	cp1251_general_ci	latin1_swedish_ci
+SELECT DEFINER FROM information_schema.EVENTS WHERE EVENT_NAME='event_test';
+DEFINER
+user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char
+DROP EVENT event_test;
 
 # 
 # End of tests

@@ -680,3 +680,11 @@ SELECT 1 FROM t a RIGHT JOIN t USING(b)
 WHERE 1 NOT LIKE(SELECT a FROM t WHERE a.b);
 ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t;
+# Bug#2748217 gcols: assert in Item_func_in::resolve_type
+SET sql_mode="";
+Warnings:
+Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE TABLE t (a TIMESTAMP AS (0) VIRTUAL) engine=innodb;
+ALTER TABLE t ADD COLUMN b JSON AS (a NOT IN (1,1)) STORED;
+ERROR 22007: Incorrect datetime value: '1' for column 'a' at row 1
+DROP TABLE t;

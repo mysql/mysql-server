@@ -26,11 +26,6 @@ Created 2/6/1997 Heikki Tuuri
 #include "ha_prototypes.h"
 
 #include "row0vers.h"
-
-#ifdef UNIV_NONINL
-#include "row0vers.ic"
-#endif
-
 #include "dict0dict.h"
 #include "dict0boot.h"
 #include "btr0btr.h"

@@ -26,11 +26,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "ha_prototypes.h"
 
 #include "trx0roll.h"
-
-#ifdef UNIV_NONINL
-#include "trx0roll.ic"
-#endif
-
 #include "fsp0fsp.h"
 #include "lock0lock.h"
 #include "mach0data.h"

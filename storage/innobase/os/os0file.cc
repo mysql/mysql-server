@@ -36,11 +36,6 @@ Created 10/21/1995 Heikki Tuuri
 #include "sql_const.h"
 
 #include "os0file.h"
-
-#ifdef UNIV_NONINL
-#include "os0file.ic"
-#endif
-
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "fil0fil.h"

@@ -1,5 +1,5 @@
 /*****************************************************************************
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -326,8 +326,6 @@ amount to decrement. */
 	"Memory barrier is not used"
 #endif
 
-#ifndef UNIV_NONINL
 #include "os0atomic.ic"
-#endif /* UNIV_NOINL */
 
 #endif /* !os0atomic_h */

@@ -24,11 +24,6 @@ Created 5/30/1994 Heikki Tuuri
 *************************************************************************/
 
 #include "rem0rec.h"
-
-#ifdef UNIV_NONINL
-#include "rem0rec.ic"
-#endif
-
 #include "page0page.h"
 #include "mtr0mtr.h"
 #include "mtr0log.h"

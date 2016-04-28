@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -127,8 +127,6 @@ UNIV_INLINE
 sync_array_t*
 sync_array_get();
 
-#ifndef UNIV_NONINL
 #include "sync0arr.ic"
-#endif /* UNIV_NOINL */
 
 #endif /* sync0arr_h */

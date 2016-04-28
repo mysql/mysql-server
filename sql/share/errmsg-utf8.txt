@@ -7650,6 +7650,9 @@ ER_UNSUPPORTED_ALTER_ENCRYPTION_INPLACE
 ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
   eng "Function '%s' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using."
 
+ER_USER_COLUMN_OLD_LENGTH
+  eng "It seems that your db schema is old. The %s column is 77 characters long and should be 93 characters long. Please run mysql_upgrade."
+
 #
 #  End of 5.7 error messages.
 #

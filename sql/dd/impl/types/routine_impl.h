@@ -31,7 +31,7 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Routine_impl : virtual public Entity_object_impl,
+class Routine_impl : public Entity_object_impl,
                      virtual public Routine
 {
 public:
@@ -232,6 +232,20 @@ public:
 
   Parameter_collection *parameter_collection()
   { return m_parameters.get(); }
+
+  // Fix "inherits ... via dominance" warnings
+  virtual Weak_object_impl *impl()
+  { return Weak_object_impl::impl(); }
+  virtual const Weak_object_impl *impl() const
+  { return Weak_object_impl::impl(); }
+  virtual Object_id id() const
+  { return Entity_object_impl::id(); }
+  virtual bool is_persistent() const
+  { return Entity_object_impl::is_persistent(); }
+  virtual const std::string &name() const
+  { return Entity_object_impl::name(); }
+  virtual void set_name(const std::string &name)
+  { Entity_object_impl::set_name(name); }
 
 private:
   enum_routine_type         m_routine_type;

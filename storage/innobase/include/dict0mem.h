@@ -2142,8 +2142,6 @@ dict_col_get_spatial_status(
 	return(spatial_status);
 }
 
-#ifndef UNIV_NONINL
 #include "dict0mem.ic"
-#endif
 
 #endif /* dict0mem_h */

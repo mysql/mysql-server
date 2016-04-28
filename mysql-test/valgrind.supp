@@ -433,6 +433,17 @@
    fun:dl_open_worker
 }
 
+# strdup can be inlined
+{
+   libc pthread_exit 9
+   Memcheck:Leak
+   fun:malloc
+   ...
+   fun:expand_dynamic_string_token
+   fun:_dl_map_object
+   fun:dl_open_worker
+}
+
 #
 # This is seen internally in the system libraries on 64-bit RHAS3.
 #

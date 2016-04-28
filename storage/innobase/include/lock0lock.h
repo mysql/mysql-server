@@ -1016,8 +1016,6 @@ extern lock_sys_t*	lock_sys;
 	lock_sys->wait_mutex.exit();		\
 } while (0)
 
-#ifndef UNIV_NONINL
 #include "lock0lock.ic"
-#endif
 
 #endif

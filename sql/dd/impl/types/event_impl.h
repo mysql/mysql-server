@@ -27,8 +27,8 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Event_impl : virtual public Entity_object_impl,
-                   virtual public Event
+class Event_impl : public Entity_object_impl,
+                   public Event
 {
 public:
   Event_impl();
@@ -296,6 +296,20 @@ public:
 
   virtual void set_schema_collation_id(Object_id schema_collation_id)
   { m_schema_collation_id= schema_collation_id; }
+
+  // Fix "inherits ... via dominance" warnings
+  virtual Weak_object_impl *impl()
+  { return Weak_object_impl::impl(); }
+  virtual const Weak_object_impl *impl() const
+  { return Weak_object_impl::impl(); }
+  virtual Object_id id() const
+  { return Entity_object_impl::id(); }
+  virtual bool is_persistent() const
+  { return Entity_object_impl::is_persistent(); }
+  virtual const std::string &name() const
+  { return Entity_object_impl::name(); }
+  virtual void set_name(const std::string &name)
+  { Entity_object_impl::set_name(name); }
 
 private:
   enum_interval_field m_interval_field;

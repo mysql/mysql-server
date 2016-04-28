@@ -35,10 +35,6 @@ Created 11/26/1995 Heikki Tuuri
 #include "log0recv.h"
 #include "fsp0sysspace.h"
 
-#ifdef UNIV_NONINL
-#include "mtr0mtr.ic"
-#endif /* UNIV_NONINL */
-
 /** Iterate over a memo block in reverse. */
 template <typename Functor>
 struct Iterate {

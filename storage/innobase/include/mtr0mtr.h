@@ -687,8 +687,6 @@ private:
 	fil_space_t*	space(ulint space_id) const;
 };
 
-#ifndef UNIV_NONINL
 #include "mtr0mtr.ic"
-#endif /* UNIV_NOINL */
 
 #endif /* mtr0mtr_h */

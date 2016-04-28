@@ -44,9 +44,14 @@ enum plugin_log_level
 extern "C" {
 #endif
 
+/**
+   @ingroup group_ext_plugin_services
+
+   Enables plugins to log messages into the server's error log.
+*/
 extern struct my_plugin_log_service
 {
-  /** write a message to the log */
+  /** Write a message to the log */
   int (*my_plugin_log_message)(MYSQL_PLUGIN *, enum plugin_log_level, const char *, ...)
     MY_ATTRIBUTE((format(printf, 3, 4)));
 } *my_plugin_log_service;

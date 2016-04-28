@@ -337,8 +337,6 @@ dict_replace_tablespace_and_filepath(
 	const char*	filepath,
 	ulint		fsp_flags);
 
-#ifndef UNIV_NONINL
 #include "dict0load.ic"
-#endif
 
 #endif

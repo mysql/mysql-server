@@ -24,10 +24,6 @@ Created 11/5/1995 Heikki Tuuri
 *******************************************************/
 
 #include "buf0lru.h"
-#ifdef UNIV_NONINL
-#include "buf0lru.ic"
-#endif /* UNIV_NOINL */
-
 #ifndef UNIV_HOTBACKUP
 #include "ut0byte.h"
 #include "ut0rnd.h"

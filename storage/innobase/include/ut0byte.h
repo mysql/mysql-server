@@ -116,8 +116,6 @@ ut_bit_set_nth(
 	ulint	n,
 	ibool	val);
 
-#ifndef UNIV_NONINL
 #include "ut0byte.ic"
-#endif
 
 #endif

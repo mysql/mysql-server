@@ -859,9 +859,7 @@ void
 srv_mon_default_on(void);
 /*====================*/
 
-#ifndef UNIV_NONINL
-#include "srv0mon.ic"
-#endif
+# include "srv0mon.ic"
 #else /* !UNIV_HOTBACKUP */
 # define MONITOR_INC(x)		((void) 0)
 # define MONITOR_DEC(x)		((void) 0)

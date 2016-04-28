@@ -30,11 +30,6 @@ Created 9/17/2000 Heikki Tuuri
 #include <spatial.h>
 
 #include "row0mysql.h"
-
-#ifdef UNIV_NONINL
-#include "row0mysql.ic"
-#endif
-
 #include "btr0sea.h"
 #include "dict0boot.h"
 #include "dict0crea.h"

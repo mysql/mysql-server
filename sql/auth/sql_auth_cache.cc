@@ -1472,6 +1472,18 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   bool is_old_db_layout= false;
   DBUG_ENTER("acl_load");
 
+  DBUG_EXECUTE_IF("wl_9262_set_max_length_hostname",
+                    thd->security_context()->assign_priv_host(
+                      "oh_my_gosh_this_is_a_long_"
+                      "hostname_look_at_it_it_has_60"
+                      "_char", 60);
+                    thd->security_context()->assign_host(
+                      "oh_my_gosh_this_is_a_long_"
+                      "hostname_look_at_it_it_has_60"
+                      "_char", 60);
+                    thd->security_context()->set_host_or_ip_ptr();
+                    );
+
   thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
 
   grant_version++; /* Privileges updated */

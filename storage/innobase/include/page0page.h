@@ -1127,8 +1127,6 @@ page_size_validate(
 #define UNIV_INLINE  UNIV_INLINE_ORIGINAL
 #endif
 
-#ifndef UNIV_NONINL
 #include "page0page.ic"
-#endif
 
 #endif

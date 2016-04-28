@@ -43,11 +43,6 @@ Created 10/16/1994 Heikki Tuuri
 *******************************************************/
 
 #include "btr0cur.h"
-
-#ifdef UNIV_NONINL
-#include "btr0cur.ic"
-#endif
-
 #include "row0upd.h"
 #ifndef UNIV_HOTBACKUP
 #include "mtr0log.h"
@@ -443,7 +438,9 @@ btr_cur_optimistic_latch_leaves(
 			if (btr_page_get_prev(buf_block_get_frame(block), mtr)
 			    == left_page_no) {
 				/* adjust buf_fix_count */
+				buf_page_mutex_enter(block);
 				buf_block_buf_fix_dec(block);
+				buf_page_mutex_exit(block);
 
 				*latch_mode = mode;
 				return(true);
@@ -460,7 +457,9 @@ btr_cur_optimistic_latch_leaves(
 		}
 unpin_failed:
 		/* unpin the block */
+		buf_page_mutex_enter(block);
 		buf_block_buf_fix_dec(block);
+		buf_page_mutex_exit(block);
 
 		return(false);
 

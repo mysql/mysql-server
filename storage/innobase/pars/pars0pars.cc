@@ -29,11 +29,6 @@ on 1/27/1998 */
 #include "ha_prototypes.h"
 
 #include "pars0pars.h"
-
-#ifdef UNIV_NONINL
-#include "pars0pars.ic"
-#endif
-
 #include "row0sel.h"
 #include "row0ins.h"
 #include "row0upd.h"

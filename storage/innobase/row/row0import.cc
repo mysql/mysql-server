@@ -26,11 +26,6 @@ Created 2012-02-08 by Sunny Bains.
 #include "ha_prototypes.h"
 
 #include "row0import.h"
-
-#ifdef UNIV_NONINL
-#include "row0import.ic"
-#endif
-
 #include "btr0pcur.h"
 #include "que0que.h"
 #include "dict0boot.h"

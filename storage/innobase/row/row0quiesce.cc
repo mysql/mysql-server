@@ -26,10 +26,6 @@ Created 2012-02-08 by Sunny Bains.
 #include "ha_prototypes.h"
 
 #include "row0quiesce.h"
-#ifdef UNIV_NONINL
-#include "row0quiesce.ic"
-#endif
-
 #include "row0mysql.h"
 #include "ibuf0ibuf.h"
 #include "srv0start.h"
@@ -790,7 +786,7 @@ row_quiesce_table_start(
 	}
 
 	for (ulint count = 0;
-	     ibuf_merge_in_background(true, table->space) != 0
+	     ibuf_merge_space(table->space) != 0
 	     && !trx_is_interrupted(trx);
 	     ++count) {
 		if (!(count % 20)) {

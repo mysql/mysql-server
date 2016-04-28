@@ -2355,8 +2355,6 @@ dict_sdi_get_copy_num(
 
 #endif /* !UNIV_HOTBACKUP */
 
-#ifndef UNIV_NONINL
 #include "dict0dict.ic"
-#endif
 
 #endif

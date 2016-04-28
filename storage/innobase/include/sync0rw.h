@@ -967,9 +967,7 @@ pfs_rw_lock_free_func(
 #endif  /* UNIV_PFS_RWLOCK */
 
 
-#ifndef UNIV_NONINL
 #include "sync0rw.ic"
-#endif /* !UNIV_NONINL */
 
 #endif /* !UNIV_HOTBACKUP */
 

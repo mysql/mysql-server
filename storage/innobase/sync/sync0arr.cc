@@ -33,10 +33,6 @@ Created 9/5/1995 Heikki Tuuri
 #include "ha_prototypes.h"
 
 #include "sync0arr.h"
-#ifdef UNIV_NONINL
-#include "sync0arr.ic"
-#endif
-
 #include "sync0sync.h"
 #include "lock0lock.h"
 #include "sync0rw.h"

@@ -195,6 +195,19 @@ create event руут21 on schedule every '50:23:59:95' day_second COMMENT 'това е 1
 --replace_regex /STARTS '[^']+'/STARTS '#'/
 SHOW CREATE EVENT руут21;
 
+--echo #
+--echo # WL#9262: All system tables should support 32 character length user names
+--echo #
+
+--echo #This should just work with username + hostname of length 93 as DEFINER
+CREATE DEFINER=user_name_robert_golebiowski1234@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char EVENT event_test ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR DO SELECT CURRENT_USER();
+
+--replace_column 6 # 9 # 10 #
+SHOW EVENTS LIKE 'event_test';
+
+SELECT DEFINER FROM information_schema.EVENTS WHERE EVENT_NAME='event_test';
+
+DROP EVENT event_test;
 --echo
 --echo # 
 --echo # End of tests

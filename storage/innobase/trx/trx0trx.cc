@@ -26,11 +26,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "ha_prototypes.h"
 
 #include "trx0trx.h"
-
-#ifdef UNIV_NONINL
-#include "trx0trx.ic"
-#endif
-
 #include "btr0sea.h"
 #include "lock0lock.h"
 #include "log0log.h"

@@ -1116,3 +1116,8 @@ Pattern "nov dec" not found
 17: jan feb oct
 ---
 Pattern "nov dec" found
+#
+# Bug#17944190 : MYSQLTEST CANNOT PARSE PERL BLOCK INSIDE IF THAT EVALUATES TO FALSE
+#
+True block
+Hello

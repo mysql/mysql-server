@@ -1837,8 +1837,6 @@ is_absolute_path(
 	return(false);
 }
 
-#ifndef UNIV_NONINL
 #include "os0file.ic"
-#endif /* UNIV_NONINL */
 
 #endif /* os0file_h */

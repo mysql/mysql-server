@@ -34,9 +34,9 @@ template <typename T> class Collection;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Parameter_type_element_impl : virtual public Weak_object_impl,
-                                    virtual public Parameter_type_element,
-                                    virtual public Collection_item
+class Parameter_type_element_impl : public Weak_object_impl,
+                                    public Parameter_type_element,
+                                    public Collection_item
 {
 public:
   Parameter_type_element_impl()
@@ -125,6 +125,12 @@ public:
 
   virtual uint index() const
   { return m_index; }
+
+  // Fix "inherits ... via dominance" warnings
+  virtual Weak_object_impl *impl()
+  { return Weak_object_impl::impl(); }
+  virtual const Weak_object_impl *impl() const
+  { return Weak_object_impl::impl(); }
 
 public:
   virtual void debug_print(std::string &outb) const;

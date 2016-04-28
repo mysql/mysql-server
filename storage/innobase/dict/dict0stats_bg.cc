@@ -30,10 +30,6 @@ Created Apr 25, 2012 Vasil Dimov
 #include "srv0start.h"
 #include "ut0new.h"
 
-#ifdef UNIV_NONINL
-# include "dict0stats_bg.ic"
-#endif
-
 #include <vector>
 
 /** Minimum time interval between stats recalc for a given table */

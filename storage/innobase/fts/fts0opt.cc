@@ -38,11 +38,6 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 #include "ut0list.h"
 #include "zlib.h"
 
-#ifdef UNIV_NONINL
-#include "fts0types.ic"
-#include "fts0vlc.ic"
-#endif
-
 /** The FTS optimize thread's work queue. */
 static ib_wqueue_t* fts_optimize_wq;
 

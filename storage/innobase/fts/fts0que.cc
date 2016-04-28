@@ -37,11 +37,6 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 #include "fts0plugin.h"
 #include "ut0new.h"
 
-#ifdef UNIV_NONINL
-#include "fts0types.ic"
-#include "fts0vlc.ic"
-#endif
-
 #include <iomanip>
 #include <vector>
 

@@ -130,9 +130,6 @@ ut_fold_binary(
 	ulint		len)	/*!< in: length */
 	MY_ATTRIBUTE((pure));
 
-
-#ifndef UNIV_NONINL
 #include "ut0rnd.ic"
-#endif
 
 #endif

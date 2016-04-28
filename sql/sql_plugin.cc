@@ -139,8 +139,76 @@
   plugin --> server : deinitialization done
   deactivate plugin
   @enduml
+
+  See also:
+   - @subpage page_ext_plugin_svc_anathomy
+   - @subpage page_ext_plugin_svc_new_service_howto
+   - @subpage page_ext_plugin_api_dosanddonts
+   - @ref group_ext_plugin_services
 */
 
+/**
+  @page page_ext_plugin_svc_anathomy Plugin Service Anathomy
+
+  A "service" is a struct of C function pointers.
+
+  The server has all these structs defined and initialized so
+  that the the function pointers point to the actual service implementation
+  functions.
+
+  The server also keeps a global list of the plugin service reference
+  structures called ::list_of_services.
+
+  See ::st_service_ref for details of what a service reference is.
+
+  The server copies of all plugin structures are filled in at compile time
+  with the function pointers of the actual server functions that implement
+  the service functions. References to them are stored into the relevant
+  element of ::list_of_services.
+
+  Each plugin must export pointer symbols for every plugin service that
+  the server knows about.
+
+  The plugin service pointers are initialized with the version of the plugin
+  service that the plugin expects.
+
+  When a dynamic plugin shared object is loaded by ::plugin_dl_add it will
+  iterate over ::list_of_services, find the plugin symbol by name,
+  check the service version stored in that symbol against the one stored into
+  ::st_service_ref and then will replace the version stored in plugin's struct
+  pointer with the actual pointer of the server's copy of the same structure.
+
+  When that is filled in the plugin can use the newly set server structure
+  through its local pointer to call into the service method pointers that point
+  to the server implementaiton functions.
+
+  Once set to the server's structure, the plugin's service pointer value is
+  never reset back to service version.
+
+  The plugin service header also defines a set of convenience macros
+  that replace top level plugin service calls with the corresponding function
+  pointer call, i.e. for service foo:
+
+  ~~~~
+  struct foo_service_st {
+     int (*foo_mtd_1)(int a);
+  }
+
+  struct foo_service_st *foo_service;
+  ~~~~
+
+  a convenience macro is defined for `foo_mtd_1` as follows:
+
+  ~~~~
+  #define foo_mtd_1(a)  foo_service->foo_mtd_1(a)
+  ~~~~
+
+  This trick allows plugin service functions to look as top level function
+  calls inside the plugin code.
+
+  @sa plugin_add, plugin_del, plugin_dl_add, plugin_dl_del, list_of_services,
+    st_service_ref
+*/
 
 #ifndef EMBEDDED_LIBRARY
 #include "srv_session.h"       // Srv_session::check_for_stale_threads()
@@ -581,7 +649,19 @@ static inline void free_plugin_mem(st_plugin_dl *p)
     my_free(p->plugins);
 }
 
+/**
+  Loads a dynamic plugin
 
+  Fills in a ::st_plugin_dl structure.
+  Initializes the plugin services pointer inside the plugin.
+  Does not initialize the individual plugins.
+
+  @arg dl      The path to the plugin binary to load
+  @arg report  a bitmask that's passed down to report_error()
+
+  @return      A plugin reference.
+  @retval      NULL      failed to load the plugin
+*/
 static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
 {
   char dlpath[FN_REFLEN];
@@ -1521,10 +1601,6 @@ bool plugin_register_early_plugins(int *argc, char **argv, int flags)
 
   /* Make sure the internals are initialized */
   if ((retval= plugin_init_internals()))
-    DBUG_RETURN(retval);
-
-  /* --early-plugin-load will not work with --initialize */
-  if (opt_initialize)
     DBUG_RETURN(retval);
 
   /* Allocate the temporary mem root, will be freed before returning */

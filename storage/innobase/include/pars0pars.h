@@ -740,8 +740,6 @@ struct col_assign_node_t{
 					e.g., := */
 /* @} */
 
-#ifndef UNIV_NONINL
 #include "pars0pars.ic"
-#endif
 
 #endif

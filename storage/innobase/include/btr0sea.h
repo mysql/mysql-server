@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -352,8 +352,6 @@ over calls from MySQL. If we notice someone waiting for the latch, we
 again set this much timeout. This is to reduce contention. */
 #define BTR_SEA_TIMEOUT			10000
 
-#ifndef UNIV_NONINL
 #include "btr0sea.ic"
-#endif
 
 #endif

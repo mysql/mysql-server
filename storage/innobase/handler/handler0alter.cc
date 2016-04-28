@@ -644,6 +644,8 @@ ha_innobase::check_if_supported_inplace_alter(
 		}
 	}
 
+	bool	add_drop_v_cols = false;
+
 	/* If there is add or drop virtual columns, we will support operations
 	with these 2 options alone with inplace interface for now */
 	if (ha_alter_info->handler_flags
@@ -678,6 +680,8 @@ ha_innobase::check_if_supported_inplace_alter(
 				ER_UNSUPPORTED_ALTER_INPLACE_ON_VIRTUAL_COLUMN);
 			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 		}
+
+		add_drop_v_cols = true;
 	}
 
 	/* We should be able to do the operation in-place.
@@ -692,6 +696,17 @@ ha_innobase::check_if_supported_inplace_alter(
 	     new_key < ha_alter_info->key_info_buffer
 		     + ha_alter_info->key_count;
 	     new_key++) {
+
+		/* Do not support adding/droping a vritual column, while
+		there is a table rebuild caused by adding a new FTS_DOC_ID */
+		if ((new_key->flags & HA_FULLTEXT) && add_drop_v_cols
+		    && !DICT_TF2_FLAG_IS_SET(m_prebuilt->table,
+					     DICT_TF2_FTS_HAS_DOC_ID)) {
+			ha_alter_info->unsupported_reason =
+				innobase_get_err_msg(
+				ER_UNSUPPORTED_ALTER_INPLACE_ON_VIRTUAL_COLUMN);
+			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+		}
 
 		for (KEY_PART_INFO* key_part = new_key->key_part;
 		     key_part < new_key->key_part + new_key->user_defined_key_parts;

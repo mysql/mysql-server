@@ -59,12 +59,6 @@ The parts not included are excluded by #ifndef UNIV_INNOCHECKSUM. */
 #include "mach0data.h"			/* mach_read_from_4() */
 #include "ut0crc32.h"			/* ut_crc32_init() */
 
-#ifdef UNIV_NONINL
-# include "fsp0fsp.ic"
-# include "mach0data.ic"
-# include "ut0rnd.ic"
-#endif
-
 /* Global variables */
 static bool			verbose;
 static bool			just_count;

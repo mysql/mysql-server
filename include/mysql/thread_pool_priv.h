@@ -162,7 +162,8 @@ void mysql_audit_release(THD *thd);
 /* Check if connection is still alive */
 bool thd_connection_alive(THD *thd);
 /* Close connection with possible error code */
-void close_connection(THD *thd, uint sql_errno, bool server_shutdown);
+void close_connection(THD *thd, uint sql_errno,
+                      bool server_shutdown, bool generate_event);
 /* End the connection before closing it */
 void end_connection(THD *thd);
 /* Reset thread globals */

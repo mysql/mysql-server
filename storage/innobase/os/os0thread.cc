@@ -27,11 +27,6 @@ Created 9/8/1995 Heikki Tuuri
 
 #include "os0thread.h"
 #include "ut0new.h"
-
-#ifdef UNIV_NONINL
-#include "os0thread.ic"
-#endif
-
 #ifndef UNIV_HOTBACKUP
 #include "srv0srv.h"
 #include "os0event.h"

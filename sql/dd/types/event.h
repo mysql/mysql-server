@@ -37,7 +37,7 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Event : public virtual Dictionary_object
+class Event : public Dictionary_object
 {
 public:
   static const Object_type &TYPE();
