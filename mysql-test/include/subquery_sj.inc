@@ -7149,6 +7149,7 @@ WHERE t1.a IN (SELECT t2.a
                                              FROM t AS t3
                                              WHERE t3.b=1));
 
+ANALYZE TABLE t;
 eval EXPLAIN extended $query;
 eval $query;
 

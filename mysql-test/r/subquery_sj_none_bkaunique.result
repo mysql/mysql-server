@@ -12319,6 +12319,9 @@ drop table cc;
 #
 CREATE TABLE t(a INT,b INT);
 INSERT INTO t VALUES (1,0),(1,0),(1,0),(1,0),(1,1);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
 EXPLAIN extended SELECT *
 FROM t AS t1
 WHERE t1.a IN (SELECT t2.a
