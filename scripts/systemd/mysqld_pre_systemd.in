@@ -23,7 +23,7 @@ get_option () {
     local option=$2
     local default=$3
     local instance=$4
-    ret=$(@bindir@/my_print_defaults  ${instance:+--defaults-group-suffix=.$instance} $section | \
+    ret=$(@bindir@/my_print_defaults  ${instance:+--defaults-group-suffix=@$instance} $section | \
 	      grep '^--'${option}'=' | cut -d= -f2- | tail -n 1)
     [ -z "$ret" ] && ret=$default
     echo $ret
@@ -74,7 +74,7 @@ install_db () {
 
     # Create initial db and install validate_password plugin
     initfile="$(install_validate_password_sql_file)"
-    @libexecdir@/mysqld ${instance:+--defaults-group-suffix=.$instance} --initialize \
+    @libexecdir@/mysqld ${instance:+--defaults-group-suffix=@$instance} --initialize \
 		     --datadir="$datadir" --user=@MYSQLD_USER@ --init-file="$initfile"
     rm -f "$initfile"
 
