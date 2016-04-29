@@ -10499,27 +10499,11 @@ static bool have_change_master_execute_option(const LEX_MASTER_INFO* lex_mi,
 */
 
 static int change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
-                                  Master_info* mi, bool need_relay_log_purge)
+                                  Master_info* mi)
 {
   int ret= 0; /* return value. Set if there is an error. */
 
   DBUG_ENTER("change_receive_options");
-
-  /*
-    We want to save the old receive configurations so that we can use them to
-    print the changes in these configurations (from-to form). This is used in
-    sql_print_information() later.
-  */
-  char saved_host[HOSTNAME_LENGTH + 1], saved_bind_addr[HOSTNAME_LENGTH + 1];
-  uint saved_port= 0;
-  char saved_log_name[FN_REFLEN];
-  my_off_t saved_log_pos= 0;
-
-  strmake(saved_host, mi->host, HOSTNAME_LENGTH);
-  strmake(saved_bind_addr, mi->bind_addr, HOSTNAME_LENGTH);
-  saved_port= mi->port;
-  strmake(saved_log_name, mi->get_master_log_name(), FN_REFLEN - 1);
-  saved_log_pos= mi->get_master_log_pos();
 
   /*
     If the user specified host or port without binlog or position,
@@ -10685,46 +10669,6 @@ static int change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
                  ER_SLAVE_IGNORED_SSL_PARAMS, ER(ER_SLAVE_IGNORED_SSL_PARAMS));
 #endif
 
-  /*
-    If user did specify neither host nor port nor any log name nor any log
-    pos, i.e. he specified only user/password/master_connect_retry, he probably
-    wants replication to resume from where it had left, i.e. from the
-    coordinates of the **SQL** thread (imagine the case where the I/O is ahead
-    of the SQL; restarting from the coordinates of the I/O would lose some
-    events which is probably unwanted when you are just doing minor changes
-    like changing master_connect_retry).
-    A side-effect is that if only the I/O thread was started, this thread may
-    restart from ''/4 after the CHANGE MASTER. That's a minor problem (it is a
-    much more unlikely situation than the one we are fixing here).
-    Note: coordinates of the SQL thread must be read here, before the
-    'if (need_relay_log_purge)' block which resets them.
-  */
-  if (!lex_mi->host && !lex_mi->port &&
-      !lex_mi->log_file_name && !lex_mi->pos &&
-      need_relay_log_purge)
-  {
-    /*
-      Sometimes mi->rli->master_log_pos == 0 (it happens when the SQL thread is
-      not initialized), so we use a max().
-      What happens to mi->rli->master_log_pos during the initialization stages
-      of replication is not 100% clear, so we guard against problems using
-      max().
-    */
-    mi->set_master_log_pos(max<ulonglong>(BIN_LOG_HEADER_SIZE,
-                                          mi->rli->get_group_master_log_pos()));
-    mi->set_master_log_name(mi->rli->get_group_master_log_name());
-  }
-
-  sql_print_information("'CHANGE MASTER TO%s executed'. "
-    "Previous state master_host='%s', master_port= %u, master_log_file='%s', "
-    "master_log_pos= %ld, master_bind='%s'. "
-    "New state master_host='%s', master_port= %u, master_log_file='%s', "
-    "master_log_pos= %ld, master_bind='%s'.",
-    mi->get_for_channel_str(true),
-    saved_host, saved_port, saved_log_name, (ulong) saved_log_pos,
-    saved_bind_addr, mi->host, mi->port, mi->get_master_log_name(),
-    (ulong) mi->get_master_log_pos(), mi->bind_addr);
-
 err:
   DBUG_RETURN(ret);
 }
@@ -10740,9 +10684,6 @@ err:
 
   @param lex_mi structure that holds all change master options given on the
                 change master command.
-                Coming from the an executing statement or set directly this
-                shall contain connection settings like hostname, user, password
-                and other settings like the number of connection retries.
 
   @param mi     Pointer to Master_info object belonging to the slave's IO
                 thread.
@@ -10823,6 +10764,16 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
     options are not used.
   */
   bool need_relay_log_purge= 1;
+
+  /*
+    We want to save the old receive configurations so that we can use them to
+    print the changes in these configurations (from-to form). This is used in
+    sql_print_information() later.
+  */
+  char saved_host[HOSTNAME_LENGTH + 1], saved_bind_addr[HOSTNAME_LENGTH + 1];
+  uint saved_port= 0;
+  char saved_log_name[FN_REFLEN];
+  my_off_t saved_log_pos= 0;
 
   DBUG_ENTER("change_master");
 
@@ -11031,11 +10982,62 @@ int change_master(THD* thd, Master_info* mi, LEX_MASTER_INFO* lex_mi,
 
   if (have_receive_option)
   {
-    if ((error= change_receive_options(thd, lex_mi, mi, need_relay_log_purge)))
+    strmake(saved_host, mi->host, HOSTNAME_LENGTH);
+    strmake(saved_bind_addr, mi->bind_addr, HOSTNAME_LENGTH);
+    saved_port= mi->port;
+    strmake(saved_log_name, mi->get_master_log_name(), FN_REFLEN - 1);
+    saved_log_pos= mi->get_master_log_pos();
+
+    if ((error= change_receive_options(thd, lex_mi, mi)))
     {
       goto err;
     }
   }
+
+  /*
+    If user didn't specify neither host nor port nor any log name nor any log
+    pos, i.e. he specified only user/password/master_connect_retry, master_delay,
+    he probably  wants replication to resume from where it had left, i.e. from the
+    coordinates of the **SQL** thread (imagine the case where the I/O is ahead
+    of the SQL; restarting from the coordinates of the I/O would lose some
+    events which is probably unwanted when you are just doing minor changes
+    like changing master_connect_retry).
+    Note: coordinates of the SQL thread must be read before the block which
+    resets them.
+  */
+  if (need_relay_log_purge)
+  {
+    /*
+      A side-effect is that if only the I/O thread was started, this thread may
+      restart from ''/4 after the CHANGE MASTER. That's a minor problem (it is a
+      much more unlikely situation than the one we are fixing here).
+    */
+    if (!lex_mi->host && !lex_mi->port &&
+        !lex_mi->log_file_name && !lex_mi->pos)
+    {
+      /*
+        Sometimes mi->rli->master_log_pos == 0 (it happens when the SQL thread is
+        not initialized), so we use a max().
+        What happens to mi->rli->master_log_pos during the initialization stages
+        of replication is not 100% clear, so we guard against problems using
+        max().
+      */
+      mi->set_master_log_pos(max<ulonglong>(BIN_LOG_HEADER_SIZE,
+                                            mi->rli->get_group_master_log_pos()));
+      mi->set_master_log_name(mi->rli->get_group_master_log_name());
+    }
+  }
+
+  if (have_receive_option)
+    sql_print_information("'CHANGE MASTER TO%s executed'. "
+      "Previous state master_host='%s', master_port= %u, master_log_file='%s', "
+      "master_log_pos= %ld, master_bind='%s'. "
+      "New state master_host='%s', master_port= %u, master_log_file='%s', "
+      "master_log_pos= %ld, master_bind='%s'.",
+      mi->get_for_channel_str(true),
+      saved_host, saved_port, saved_log_name, (ulong) saved_log_pos,
+      saved_bind_addr, mi->host, mi->port, mi->get_master_log_name(),
+      (ulong) mi->get_master_log_pos(), mi->bind_addr);
 
   if (have_execute_option)
     change_execute_options(lex_mi, mi);
