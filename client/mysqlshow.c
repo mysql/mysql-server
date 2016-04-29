@@ -678,7 +678,7 @@ list_table_status(MYSQL *mysql,const char *db,const char *wild)
   len= sizeof(query);
   len-= my_snprintf(query, len, "show table status from `%s`", db);
   if (wild && wild[0] && len)
-    strxnmov(query + strlen(query), len, " like '", wild, "'", NullS);
+    strxnmov(query + strlen(query), len - 1, " like '", wild, "'", NullS);
   if (mysql_query(mysql,query) || !(result=mysql_store_result(mysql)))
   {
     fprintf(stderr,"%s: Cannot get status for db: %s, table: %s: %s\n",
@@ -711,7 +711,7 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
 	    const char *wild)
 {
   char query[NAME_LEN + 100];
-  int len;
+  size_t len;
   MYSQL_RES *result;
   MYSQL_ROW row;
   ulong UNINIT_VAR(rows);
@@ -741,7 +741,7 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
   len-= my_snprintf(query, len, "show /*!32332 FULL */ columns from `%s`",
                     table);
   if (wild && wild[0] && len)
-    strxnmov(query + strlen(query), len, " like '", wild, "'", NullS);
+    strxnmov(query + strlen(query), len - 1, " like '", wild, "'", NullS);
   if (mysql_query(mysql,query) || !(result=mysql_store_result(mysql)))
   {
     fprintf(stderr,"%s: Cannot list columns in db: %s, table: %s: %s\n",
