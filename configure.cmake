@@ -62,6 +62,12 @@ IF(NOT SYSTEM_TYPE)
   ENDIF()
 ENDIF()
 
+# Probobuf 2.6.1 on Sparc. Both gcc and Solaris Studio need this.
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
+    SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
+  ADD_DEFINITIONS(-DSOLARIS_64BIT_ENABLED)
+ENDIF()
+
 # The default C++ library for SunPro is really old, and not standards compliant.
 # http://www.oracle.com/technetwork/server-storage/solaris10/cmp-stlport-libcstd-142559.html
 # Use stlport rather than Rogue Wave,
