@@ -524,7 +524,7 @@ thd_requested_durability(
 buffer pool size.
 @param[in]	buf_pool_size	given value of buffer pool size.*/
 void
-innodb_set_buf_pool_size(ulonglong buf_pool_size);
+innodb_set_buf_pool_size(ulint buf_pool_size);
 
 #endif /* !UNIV_HOTBACKUP */
 #endif /* HA_INNODB_PROTOTYPES_H */
