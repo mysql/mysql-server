@@ -603,7 +603,6 @@ sub run_test_server ($$$) {
   my $max_ndb= $ENV{MTR_MAX_NDB} || $childs / 2;
   $max_ndb = $childs if $max_ndb > $childs;
   $max_ndb = 1 if $max_ndb < 1;
-
   my $num_ndb_tests= 0;
 
   my $completed= [];
@@ -1537,14 +1536,6 @@ sub command_line_setup {
   if ($opt_parallel ne "auto" && $opt_parallel < 1)
   {
     mtr_error("0 or negative parallel value makes no sense, use 'auto' or positive number");
-  }
-
-  my $max_para_hack = 4;
-  if ($opt_parallel > $max_para_hack && $opt_valgrind)
-  {
-    # Temporarily hack mtr.pl to try and get a usable report.
-    mtr_report("Decreasing --parallel to $max_para_hack when valgrinding");
-    $opt_parallel = $max_para_hack;
   }
 
   # --------------------------------------------------------------------------
