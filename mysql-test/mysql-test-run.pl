@@ -6233,6 +6233,7 @@ sub stop_servers($$) {
     delete $server->{'started_tinfo'};
     delete $server->{'started_opts'};
     delete $server->{'started_cnf'};
+    delete $server->{'restart_opts'};
   }
 }
 
