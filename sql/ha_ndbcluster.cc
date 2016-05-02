@@ -9849,13 +9849,29 @@ create_ndb_column(THD *thd,
       col.setPartSize(4 * (NDB_MAX_TUPLE_SIZE_IN_WORDS - /* safty */ 13));
     }
     break;
+
   // MySQL 5.7 binary-encoded JSON type
   case MYSQL_TYPE_JSON:
+  {
+    /*
+      JSON columns are just like LONG BLOB columns except for inline size
+      and part size. Inline size is chosen to accommodate a large number
+      of embedded json documents without spilling over to the part table.
+      The tradeoff is that only three JSON columns can be defined in a table
+      due to the large inline size. Part size is chosen to optimize use of
+      pages in the part table. Note that much of the JSON functionality is
+      available by storing JSON documents in VARCHAR columns, including
+      extracting keys from documents to be used as indexes.
+     */
+    const int NDB_JSON_INLINE_SIZE = 4000;
+    const int NDB_JSON_PART_SIZE = 8100;
+
     col.setType(NDBCOL::Blob);
-    col.setInlineSize(NDB_JSON_INLINE_SIZE); // defined in ha_ndbcluster.h
-    col.setPartSize(NDB_JSON_PART_SIZE);     // defined in ha_ndbcluster.h
+    col.setInlineSize(NDB_JSON_INLINE_SIZE);
+    col.setPartSize(NDB_JSON_PART_SIZE);
     col.setStripeSize(ndb_blob_striping() ? 16 : 0);
     break;
+  }
 
   // Other types
   case MYSQL_TYPE_ENUM:
