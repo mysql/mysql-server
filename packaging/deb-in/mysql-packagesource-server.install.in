@@ -59,6 +59,7 @@ usr/share/man/man1/resolve_stack_dump.1
 usr/share/man/man8/mysqld.8
 # confguration files
 debian/extra/mysql.cnf  etc/mysql/
+debian/extra/mysqld.cnf /etc/mysql/mysql.conf.d/
 # app armor profile
 @DEB_INSTALL_SERVER_APPARMOR@
 # SQL files

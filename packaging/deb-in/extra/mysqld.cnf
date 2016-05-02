@@ -26,9 +26,3 @@ datadir		= /var/lib/mysql
 log-error	= /var/log/mysql/error.log
 # Disabling symbolic-links is recommended to prevent assorted security risks
 symbolic-links=0
-
-# * IMPORTANT: Additional settings that can override those from this file!
-#   The files must end with '.cnf', otherwise they'll be ignored.
-#
-!includedir /etc/mysql/conf.d/
-!includedir /etc/mysql/mysql.conf.d/

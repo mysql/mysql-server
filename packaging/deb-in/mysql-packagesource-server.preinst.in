@@ -83,7 +83,7 @@ case "$1" in
 		then
 			mkdir ${MYSQLFILES}
 			chown mysql:mysql ${MYSQLFILES}
-			chmod 750 ${MYSQLFILES}
+			chmod 770 ${MYSQLFILES}
 		fi
 
 		if [ ! -d ${MYSQLKEYRING} -a ! -L ${MYSQLKEYRING} ];
