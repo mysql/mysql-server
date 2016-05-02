@@ -1845,7 +1845,10 @@ Item_splocal::this_item_addr(THD *thd, Item **)
 
 bool Item_splocal::val_json(Json_wrapper *result)
 {
-  return this_item()->val_json(result);
+  Item *it= this_item();
+  bool ret= it->val_json(result);
+  null_value= it->null_value;
+  return ret;
 }
 
 

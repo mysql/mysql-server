@@ -13834,3 +13834,10 @@ WHERE e.a
 );
 ERROR 42000: Invalid JSON path expression. The error is around character position 0.
 DROP TABLE t;
+#
+# Bug#23209914: ASSERTION FAILED: THIS_TYPE != ENUM_JSON_TYPE::J_ERROR
+#
+CREATE PROCEDURE p(a JSON) SELECT 1 WHERE a = 1;
+CALL p(NULL);
+1
+DROP PROCEDURE p;
