@@ -1,5 +1,4 @@
 # BUG 14695968 - If a table has a tinyblob column and one uses 'ndb_desc -pb' to dump both extra information about partitions and blob tables, ndb_desc crashes.
--- source include/have_not_read_backup.inc
 -- echo # bug#14695968
 
 --echo "ndb_desc -pb with tinyblob column"
