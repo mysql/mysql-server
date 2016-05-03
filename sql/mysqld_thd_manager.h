@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,8 +27,8 @@ class THD;
 #ifdef __cplusplus
 extern "C" {
 #endif
-void thd_lock_thread_count(THD *thd);
-void thd_unlock_thread_count(THD *thd);
+void thd_lock_thread_count();
+void thd_unlock_thread_count();
 #ifdef __cplusplus
 }
 #endif
@@ -80,11 +80,10 @@ public:
 class Find_thd_with_id: public Find_THD_Impl
 {
 public:
-  Find_thd_with_id(ulong value): m_id(value) {}
+  Find_thd_with_id(my_thread_id value): m_thread_id(value) {}
   virtual bool operator()(THD *thd);
 
-private:
-  ulong m_id;
+  const my_thread_id m_thread_id;
 };
 
 
@@ -216,29 +215,29 @@ public:
   void set_thread_id_counter(my_thread_id new_id);
 
   /**
-    Retrieves total number of items in global THD list.
-    @return uint Returns the count of items in global THD list
-    @note        This is a dirty read.
+    Retrieves total number of items in global THD lists (all partitions).
+    @return uint Returns the count of items in global THD lists.
   */
-  uint get_thd_count() const { return global_thd_count; }
+  static uint get_thd_count() { return atomic_global_thd_count; }
 
   /**
-    Waits until all thd are removed from global THD list. In other words,
-    get_thd_count to become zero.
+    Waits until all THDs are removed from global THD lists (all partitions).
+    In other words, get_thd_count() to become zero.
   */
   void wait_till_no_thd();
 
   /**
-    This function calls func() for all thds in thd list after
-    taking local copy of thd list. It acquires LOCK_thd_remove
-    to prevent removal from thd list.
+    This function calls func() for all THDs in every thd list partition
+    after taking local copy of the THD list partition. It acquires
+    LOCK_thd_remove to prevent removal of the THD.
     @param func Object of class which overrides operator()
   */
   void do_for_all_thd_copy(Do_THD_Impl *func);
 
   /**
-    This function calls func() for all thds in thd list.
+    This function calls func() for all THDs in all THD list partitions.
     @param func Object of class which overrides operator()
+    @note One list partition is unlocked before the next partition is locked.
   */
   void do_for_all_thd(Do_THD_Impl *func);
 
@@ -247,12 +246,17 @@ public:
     @param func Object of class which overrides operator()
     @return THD
       @retval THD* Matching THD
-      @retval NULL When THD is not found in the list
+      @retval NULL When THD is not found
   */
   THD* find_thd(Find_THD_Impl *func);
 
+  THD* find_thd(Find_thd_with_id *func);
+
   // Declared static as it is referenced in handle_fatal_signal()
-  static int global_thd_count;
+  static std::atomic<uint> atomic_global_thd_count;
+
+  // Number of THD list partitions.
+  static const int NUM_PARTITIONS= 8;
 
 private:
   Global_THD_manager();
@@ -262,19 +266,19 @@ private:
   static Global_THD_manager *thd_manager;
 
   // Array of current THDs. Protected by LOCK_thd_list.
-  typedef Prealloced_array<THD*, 500, true> THD_array;
-  THD_array thd_list;
+  typedef Prealloced_array<THD*, 60, true> THD_array;
+  THD_array thd_list[NUM_PARTITIONS];
 
   // Array of thread ID in current use. Protected by LOCK_thread_ids.
   typedef Prealloced_array<my_thread_id, 1000, true> Thread_id_array;
   Thread_id_array thread_ids;
 
-  mysql_cond_t COND_thd_list;
+  mysql_cond_t COND_thd_list[NUM_PARTITIONS];
 
-  // Mutex that guards thd_list
-  mysql_mutex_t LOCK_thd_list;
-  // Mutex used to guard removal of elements from thd list.
-  mysql_mutex_t LOCK_thd_remove;
+  // Mutexes that guard thd_list partitions
+  mysql_mutex_t LOCK_thd_list[NUM_PARTITIONS];
+  // Mutexes used to guard removal of elements from thd_list partitions.
+  mysql_mutex_t LOCK_thd_remove[NUM_PARTITIONS];
   // Mutex protecting thread_ids
   mysql_mutex_t LOCK_thread_ids;
 
@@ -290,8 +294,8 @@ private:
   // Used during unit test to bypass creating real THD object.
   bool unit_test;
 
-  friend void thd_lock_thread_count(THD *);
-  friend void thd_unlock_thread_count(THD *);
+  friend void thd_lock_thread_count();
+  friend void thd_unlock_thread_count();
 };
 
 #endif /* MYSQLD_INCLUDED */

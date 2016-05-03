@@ -23,15 +23,22 @@
 #include <functional>
 #include <algorithm>
 
-int Global_THD_manager::global_thd_count= 0;
+
+std::atomic<uint> Global_THD_manager::atomic_global_thd_count { 0U };
 Global_THD_manager *Global_THD_manager::thd_manager = NULL;
+
+
+static inline int thd_partition(my_thread_id thread_id)
+{
+  return thread_id % Global_THD_manager::NUM_PARTITIONS;
+}
 
 
 bool Find_thd_with_id::operator()(THD *thd)
 {
   if (thd->get_command() == COM_DAEMON)
     return false;
-  if (thd->thread_id() == m_id)
+  if (thd->thread_id() == m_thread_id)
   {
     mysql_mutex_lock(&thd->LOCK_thd_data);
     return true;
@@ -89,8 +96,8 @@ static PSI_mutex_key key_LOCK_thread_ids;
 
 static PSI_mutex_info all_thd_manager_mutexes[]=
 {
-  { &key_LOCK_thd_list, "LOCK_thd_list", PSI_FLAG_GLOBAL, 0},
-  { &key_LOCK_thd_remove, "LOCK_thd_remove", PSI_FLAG_GLOBAL, 0},
+  { &key_LOCK_thd_list, "LOCK_thd_list", 0, 0},
+  { &key_LOCK_thd_remove, "LOCK_thd_remove", 0, 0},
   { &key_LOCK_thread_ids, "LOCK_thread_ids", PSI_FLAG_GLOBAL, 0}
 };
 
@@ -98,7 +105,7 @@ static PSI_cond_key key_COND_thd_list;
 
 static PSI_cond_info all_thd_manager_conds[]=
 {
-  { &key_COND_thd_list, "COND_thd_list", PSI_FLAG_GLOBAL}
+  { &key_COND_thd_list, "COND_thd_list", 0 }
 };
 #endif // HAVE_PSI_INTERFACE
 
@@ -106,7 +113,16 @@ static PSI_cond_info all_thd_manager_conds[]=
 const my_thread_id Global_THD_manager::reserved_thread_id= 0;
 
 Global_THD_manager::Global_THD_manager()
-  : thd_list(PSI_INSTRUMENT_ME),
+  : thd_list {
+      THD_array(PSI_INSTRUMENT_ME),
+      THD_array(PSI_INSTRUMENT_ME),
+      THD_array(PSI_INSTRUMENT_ME),
+      THD_array(PSI_INSTRUMENT_ME),
+      THD_array(PSI_INSTRUMENT_ME),
+      THD_array(PSI_INSTRUMENT_ME),
+      THD_array(PSI_INSTRUMENT_ME),
+      THD_array(PSI_INSTRUMENT_ME),
+    },
     thread_ids(PSI_INSTRUMENT_ME),
     atomic_num_thread_running(0),
     atomic_thread_created(0),
@@ -121,13 +137,17 @@ Global_THD_manager::Global_THD_manager()
   mysql_cond_register("sql", all_thd_manager_conds, count);
 #endif
 
-  mysql_mutex_init(key_LOCK_thd_list, &LOCK_thd_list,
-                   MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(key_LOCK_thd_remove,
-                   &LOCK_thd_remove, MY_MUTEX_INIT_FAST);
+  for (int i= 0; i < NUM_PARTITIONS; i++)
+  {
+    mysql_mutex_init(key_LOCK_thd_list,
+                     &LOCK_thd_list[i], MY_MUTEX_INIT_FAST);
+    mysql_mutex_init(key_LOCK_thd_remove,
+                     &LOCK_thd_remove[i], MY_MUTEX_INIT_FAST);
+    mysql_cond_init(key_COND_thd_list, &COND_thd_list[i]);
+  }
+
   mysql_mutex_init(key_LOCK_thread_ids,
                    &LOCK_thread_ids, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_COND_thd_list, &COND_thd_list);
 
   // The reserved thread ID should never be used by normal threads,
   // so mark it as in-use. This ID is used by temporary THDs never
@@ -139,12 +159,15 @@ Global_THD_manager::Global_THD_manager()
 Global_THD_manager::~Global_THD_manager()
 {
   thread_ids.erase_unique(reserved_thread_id);
-  DBUG_ASSERT(thd_list.empty());
+  for (int i= 0; i < NUM_PARTITIONS; i++)
+  {
+    DBUG_ASSERT(thd_list[i].empty());
+    mysql_mutex_destroy(&LOCK_thd_list[i]);
+    mysql_mutex_destroy(&LOCK_thd_remove[i]);
+    mysql_cond_destroy(&COND_thd_list[i]);
+  }
   DBUG_ASSERT(thread_ids.empty());
-  mysql_mutex_destroy(&LOCK_thd_list);
-  mysql_mutex_destroy(&LOCK_thd_remove);
   mysql_mutex_destroy(&LOCK_thread_ids);
-  mysql_cond_destroy(&COND_thd_list);
 }
 
 
@@ -172,28 +195,26 @@ void Global_THD_manager::add_thd(THD *thd)
   DBUG_PRINT("info", ("Global_THD_manager::add_thd %p", thd));
   // Should have an assigned ID before adding to the list.
   DBUG_ASSERT(thd->thread_id() != reserved_thread_id);
-  mysql_mutex_lock(&LOCK_thd_list);
+  const int partition= thd_partition(thd->thread_id());
+  Mutex_lock lock_list(&LOCK_thd_list[partition]);
   // Technically it is not supported to compare pointers, but it works.
   std::pair<THD_array::iterator, bool> insert_result=
-    thd_list.insert_unique(thd);
+    thd_list[partition].insert_unique(thd);
   if (insert_result.second)
-  {
-    ++global_thd_count;
-  }
+    ++atomic_global_thd_count;
   // Adding the same THD twice is an error.
   DBUG_ASSERT(insert_result.second);
-  mysql_mutex_unlock(&LOCK_thd_list);
 }
 
 
 void Global_THD_manager::remove_thd(THD *thd)
 {
   DBUG_PRINT("info", ("Global_THD_manager::remove_thd %p", thd));
-  mysql_mutex_lock(&LOCK_thd_remove);
-  mysql_mutex_lock(&LOCK_thd_list);
+  const int partition= thd_partition(thd->thread_id());
+  Mutex_lock lock_remove(&LOCK_thd_remove[partition]);
+  Mutex_lock lock_list(&LOCK_thd_list[partition]);
 
-  if (!unit_test)
-    DBUG_ASSERT(thd->release_resources_done());
+  DBUG_ASSERT(unit_test || thd->release_resources_done());
 
   /*
     Used by binlog_reset_master.  It would be cleaner to use
@@ -202,14 +223,12 @@ void Global_THD_manager::remove_thd(THD *thd)
   */
   DBUG_EXECUTE_IF("sleep_after_lock_thread_count_before_delete_thd", sleep(5););
 
-  const size_t num_erased= thd_list.erase_unique(thd);
+  const size_t num_erased= thd_list[partition].erase_unique(thd);
   if (num_erased == 1)
-    --global_thd_count;
+    --atomic_global_thd_count;
   // Removing a THD that was never added is an error.
   DBUG_ASSERT(1 == num_erased);
-  mysql_mutex_unlock(&LOCK_thd_remove);
-  mysql_cond_broadcast(&COND_thd_list);
-  mysql_mutex_unlock(&LOCK_thd_list);
+  mysql_cond_broadcast(&COND_thd_list[partition]);
 }
 
 
@@ -246,13 +265,16 @@ void Global_THD_manager::set_thread_id_counter(my_thread_id new_id)
 
 void Global_THD_manager::wait_till_no_thd()
 {
-  mysql_mutex_lock(&LOCK_thd_list);
-  while (get_thd_count() > 0)
+  for (int i= 0; i < NUM_PARTITIONS; i++)
   {
-    mysql_cond_wait(&COND_thd_list, &LOCK_thd_list);
-    DBUG_PRINT("quit", ("One thread died (count=%u)", get_thd_count()));
+    Mutex_lock lock(&LOCK_thd_list[i]);
+    while (thd_list[i].size() > 0)
+    {
+      mysql_cond_wait(&COND_thd_list[i], &LOCK_thd_list[i]);
+      DBUG_PRINT("quit", ("One thread died (count=%u)",
+                          get_thd_count()));
+    }
   }
-  mysql_mutex_unlock(&LOCK_thd_list);
 }
 
 
@@ -260,46 +282,69 @@ void Global_THD_manager::do_for_all_thd_copy(Do_THD_Impl *func)
 {
   Do_THD doit(func);
 
-  mysql_mutex_lock(&LOCK_thd_remove);
-  mysql_mutex_lock(&LOCK_thd_list);
+  for (int i= 0; i < NUM_PARTITIONS; i++)
+  {
+    Mutex_lock lock_remove(&LOCK_thd_remove[i]);
+    mysql_mutex_lock(&LOCK_thd_list[i]);
 
-  /* Take copy of global_thread_list. */
-  THD_array thd_list_copy(thd_list);
+    /* Take copy of global_thread_list. */
+    THD_array thd_list_copy(thd_list[i]);
 
-  /*
-    Allow inserts to global_thread_list. Newly added thd
-    will not be accounted for when executing func.
-  */
-  mysql_mutex_unlock(&LOCK_thd_list);
+    /*
+      Allow inserts to global_thread_list. Newly added thd
+      will not be accounted for when executing func.
+    */
+    mysql_mutex_unlock(&LOCK_thd_list[i]);
 
-  /* Execute func for all existing threads. */
-  std::for_each(thd_list_copy.begin(), thd_list_copy.end(), doit);
+    /* Execute func for all existing threads. */
+    std::for_each(thd_list_copy.begin(), thd_list_copy.end(), doit);
 
-  DEBUG_SYNC_C("inside_do_for_all_thd_copy");
-  mysql_mutex_unlock(&LOCK_thd_remove);
+    DEBUG_SYNC_C("inside_do_for_all_thd_copy");
+  }
 }
 
 
 void Global_THD_manager::do_for_all_thd(Do_THD_Impl *func)
 {
   Do_THD doit(func);
-  mysql_mutex_lock(&LOCK_thd_list);
-  std::for_each(thd_list.begin(), thd_list.end(), doit);
-  mysql_mutex_unlock(&LOCK_thd_list);
+  for (int i= 0; i < NUM_PARTITIONS; i++)
+  {
+    Mutex_lock lock(&LOCK_thd_list[i]);
+    std::for_each(thd_list[i].begin(), thd_list[i].end(), doit);
+  }
 }
 
 
 THD* Global_THD_manager::find_thd(Find_THD_Impl *func)
 {
   Find_THD find_thd(func);
-  mysql_mutex_lock(&LOCK_thd_list);
+  for (int i= 0; i < NUM_PARTITIONS; i++)
+  {
+    Mutex_lock lock(&LOCK_thd_list[i]);
+    THD_array::const_iterator it=
+      std::find_if(thd_list[i].begin(), thd_list[i].end(), find_thd);
+    if (it != thd_list[i].end())
+      return (*it);
+  }
+  return NULL;
+}
+
+
+// Optimized version of the above function for when we know
+// the thread_id of the THD we are looking for.
+THD* Global_THD_manager::find_thd(Find_thd_with_id *func)
+{
+  Find_THD find_thd(func);
+  // Since we know the thread_id, we can check the correct
+  // partition directly.
+  const int partition= thd_partition(func->m_thread_id);
+  Mutex_lock lock(&LOCK_thd_list[partition]);
   THD_array::const_iterator it=
-    std::find_if(thd_list.begin(), thd_list.end(), find_thd);
-  THD* ret= NULL;
-  if (it != thd_list.end())
-    ret= *it;
-  mysql_mutex_unlock(&LOCK_thd_list);
-  return ret;
+    std::find_if(thd_list[partition].begin(),
+                 thd_list[partition].end(), find_thd);
+  if (it != thd_list[partition].end())
+    return (*it);
+  return NULL;
 }
 
 
@@ -309,17 +354,21 @@ void inc_thread_created()
 }
 
 
-void thd_lock_thread_count(THD *)
+void thd_lock_thread_count()
 {
-  mysql_mutex_lock(&Global_THD_manager::get_instance()->LOCK_thd_list);
+  for (int i= 0; i < Global_THD_manager::NUM_PARTITIONS; i++)
+    mysql_mutex_lock(&Global_THD_manager::get_instance()->LOCK_thd_list[i]);
 }
 
 
-void thd_unlock_thread_count(THD *)
+void thd_unlock_thread_count()
 {
   Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
-  mysql_cond_broadcast(&thd_manager->COND_thd_list);
-  mysql_mutex_unlock(&thd_manager->LOCK_thd_list);
+  for (int i= 0; i < Global_THD_manager::NUM_PARTITIONS; i++)
+  {
+    mysql_cond_broadcast(&thd_manager->COND_thd_list[i]);
+    mysql_mutex_unlock(&thd_manager->LOCK_thd_list[i]);
+  }
 }
 
 

@@ -3088,11 +3088,6 @@ void alloc_and_copy_thd_dynamic_variables(THD *thd, bool global_lock)
 
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
 
-  if (global_lock)
-    mysql_mutex_lock(&LOCK_global_system_variables);
-
-  mysql_mutex_assert_owner(&LOCK_global_system_variables);
-
   /*
     MAINTAINER:
     The following assert is wrong on purpose, useful to debug
@@ -3105,6 +3100,11 @@ void alloc_and_copy_thd_dynamic_variables(THD *thd, bool global_lock)
                thd->variables.dynamic_variables_ptr,
                global_variables_dynamic_size,
                MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
+
+  if (global_lock)
+    mysql_mutex_lock(&LOCK_global_system_variables);
+
+  mysql_mutex_assert_owner(&LOCK_global_system_variables);
 
   /*
     Debug hook which allows tests to check that this code is not
@@ -3251,6 +3251,7 @@ void plugin_thdvar_init(THD *thd, bool enable_plugins)
   thd->variables.temp_table_plugin= NULL;
   cleanup_variables(thd, &thd->variables);
   
+  mysql_mutex_lock(&LOCK_global_system_variables);
   thd->variables= global_system_variables;
   thd->variables.table_plugin= NULL;
   thd->variables.temp_table_plugin= NULL;
@@ -3270,6 +3271,7 @@ void plugin_thdvar_init(THD *thd, bool enable_plugins)
     intern_plugin_unlock(NULL, old_temp_table_plugin);
     mysql_mutex_unlock(&LOCK_plugin);
   }
+  mysql_mutex_unlock(&LOCK_global_system_variables);
 
   /* Initialize all Sys_var_charptr variables here. */
 

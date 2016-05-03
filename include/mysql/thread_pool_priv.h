@@ -96,8 +96,8 @@ void dec_connection_count();
 */
 void inc_thread_created();
 
-void thd_lock_thread_count(THD *thd);
-void thd_unlock_thread_count(THD *thd);
+void thd_lock_thread_count();
+void thd_unlock_thread_count();
 
 #ifdef __cplusplus
 }
