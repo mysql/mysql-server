@@ -4339,6 +4339,12 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(1);
   }
 
+  /*
+    Needs to be done before dd::init() which runs DDL commands (for real)
+    during instance initialization.
+  */
+  init_update_queries();
+
   /* Initialize DD, plugin_register_dynamic_and_init_all() needs it */
   if (!opt_help && dd::init(opt_initialize))
   {
@@ -4591,7 +4597,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   ft_init_stopwords();
 
   init_max_user_conn();
-  init_update_queries();
 
   DBUG_RETURN(0);
 }
