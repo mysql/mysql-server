@@ -420,7 +420,7 @@ create table t1 (a bigint, b bigint, c bigint, d bigint, primary key (a,b,c,d))
 engine=ndb comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
 alter table t1 algorithm=inplace,
 comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP";
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding column(s) or add/reorganize partition not supported online. Try ALGORITHM=COPY.
 alter table t1 algorithm=copy,
 comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP,NOLOGGING=1";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
