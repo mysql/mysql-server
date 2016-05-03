@@ -1,3 +1,5 @@
+set @save_ndb_read_backup = @@global.ndb_read_backup;
+set @@global.ndb_read_backup = ON;
 create table t1 (a bigint, primary key (a)) engine=ndb;
 create table t2 (a bigint, primary key (a)) engine=ndb
 comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_LDM_PER_NODE";
@@ -141,3 +143,4 @@ PRIMARY(a) - OrderedIndex
 NDBT_ProgramExit: 0 - OK
 
 drop table t1, t2, t3, t4, t5;
+set @@global.ndb_read_backup = @save_ndb_read_backup;
