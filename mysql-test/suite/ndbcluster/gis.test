@@ -1,4 +1,5 @@
 --source include/have_ndb.inc
+--source include/have_not_read_backup.inc
 SET default_storage_engine=ndbcluster;
 SET ndb_use_exact_count=1;
 --source include/gis_generic.inc

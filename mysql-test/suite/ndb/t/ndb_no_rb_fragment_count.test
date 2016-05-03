@@ -1,2 +1,3 @@
 --source include/have_ndb.inc
+--source include/have_not_read_backup.inc
 --source suite/ndb/t/ndb_fragment_count.inc
