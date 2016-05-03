@@ -3931,6 +3931,24 @@ int init_server_auto_options()
       sql_print_error("The server_uuid stored in auto.cnf file is not a valid UUID.");
       goto err;
     }
+    /*
+      Uuid::is_valid() cannot do strict check on the length as it will be
+      called by GTID::is_valid() as well (GTID = UUID:seq_no). We should
+      explicitly add the *length check* here in this function.
+
+      If UUID length is less than '36' (UUID_LENGTH), that error case would have
+      got caught in above is_valid check. The below check is to make sure that
+      length is not greater than UUID_LENGTH i.e., there are no extra characters
+      (Garbage) at the end of the valid UUID.
+    */
+    if (strlen(uuid) > UUID_LENGTH)
+    {
+      sql_print_error("Garbage characters found at the end of the server_uuid "
+                      "value in auto.cnf file. It should be of length '%d' "
+                      "(UUID_LENGTH). Clear it and restart the server. ",
+                      UUID_LENGTH);
+      goto err;
+    }
     strcpy(server_uuid, uuid);
   }
   else
