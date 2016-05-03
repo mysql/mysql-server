@@ -1,13 +1,6 @@
-######################################################################
-# Test various issues ndb_restore had at some time
-######################################################################
-
 -- source include/have_ndb.inc
--- source include/have_not_read_backup.inc
-#-- source include/ndb_default_cluster.inc
 
-# Directory containing the saved backup files
-let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
+--source suite/ndb/include/turn_off_ndb_read_backup.inc
 
 create table t1 (a bigint, primary key (a)) engine=ndb;
 create table t2 (a bigint, primary key (a)) engine=ndb
@@ -23,3 +16,5 @@ create table t5 (a bigint, primary key (a)) engine=ndb
 --source suite/ndb/include/ndb_desc_print.inc
 
 drop table t1, t2, t3, t4, t5;
+
+--source suite/ndb/include/restore_ndb_read_backup.inc

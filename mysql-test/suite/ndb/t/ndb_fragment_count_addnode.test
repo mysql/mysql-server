@@ -1,6 +1,7 @@
 -- source include/have_ndb.inc
--- source include/have_not_read_backup.inc
 -- source include/not_embedded.inc
+
+--source suite/ndb/include/turn_off_ndb_read_backup.inc
 
 create table t1 (id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
@@ -113,3 +114,5 @@ select @cnt_t4_1 > @cnt_t4_0;
 select @cnt_t5_1 > @cnt_t5_0;
 
 drop table t1,t2,t3,t4,t5;
+
+--source suite/ndb/include/restore_ndb_read_backup.inc
