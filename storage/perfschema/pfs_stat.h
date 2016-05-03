@@ -1058,6 +1058,10 @@ struct PFS_memory_stat
     {
       m_alloc_size_capacity-= size;
     }
+    else
+    {
+      m_alloc_size_capacity= 0;
+    }
 
     return;
   }
@@ -1079,6 +1083,10 @@ struct PFS_memory_stat
     if (m_free_size_capacity >= size)
     {
       m_free_size_capacity-= size;
+    }
+    else
+    {
+      m_free_size_capacity= 0;
     }
 
     return;
