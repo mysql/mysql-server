@@ -3,6 +3,8 @@
 ######################################################################
 
 -- source include/have_ndb.inc
+-- source include/have_read_backup.inc
+#-- source include/ndb_default_cluster.inc
 
 # Directory containing the saved backup files
 let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
