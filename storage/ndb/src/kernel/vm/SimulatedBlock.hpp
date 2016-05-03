@@ -582,7 +582,9 @@ private:
     Uint32 m_cnt;
     Uint32 nextPool;
   };
-  ArrayPool<SyncThreadRecord> c_syncThreadPool;
+  typedef ArrayPool<SyncThreadRecord> SyncThreadRecord_pool;
+
+  SyncThreadRecord_pool c_syncThreadPool;
   void execSYNC_THREAD_REQ(Signal*);
   void execSYNC_THREAD_CONF(Signal*);
 
@@ -924,7 +926,9 @@ protected:
               ( m_sectionPtrI[2] == RNIL ) );
     }
   }; // sizeof() = 32 bytes
-  
+  typedef ArrayPool<FragmentInfo> FragmentInfo_pool;
+  typedef DLHashTable<FragmentInfo_pool, FragmentInfo> FragmentInfo_hash;
+
   /**
    * Struct used when sending fragmented signals
    */
@@ -963,6 +967,8 @@ protected:
     };
     Uint32 prevList;
   };
+  typedef ArrayPool<FragmentSendInfo> FragmentSendInfo_pool;
+  typedef DLList<FragmentSendInfo, FragmentSendInfo_pool> FragmentSendInfo_list;
   
   /**
    * sendFirstFragment
@@ -1237,13 +1243,13 @@ private:
   NodeState theNodeState;
 
   Uint32 c_fragmentIdCounter;
-  ArrayPool<FragmentInfo> c_fragmentInfoPool;
-  DLHashTable<FragmentInfo> c_fragmentInfoHash;
+  FragmentInfo_pool c_fragmentInfoPool;
+  FragmentInfo_hash c_fragmentInfoHash;
   
   bool c_fragSenderRunning;
-  ArrayPool<FragmentSendInfo> c_fragmentSendPool;
-  DLList<FragmentSendInfo> c_linearFragmentSendList;
-  DLList<FragmentSendInfo> c_segmentedFragmentSendList;
+  FragmentSendInfo_pool c_fragmentSendPool;
+  FragmentSendInfo_list c_linearFragmentSendList;
+  FragmentSendInfo_list c_segmentedFragmentSendList;
 
 protected:
   Uint32 debugPrintFragmentCounts();
@@ -1275,6 +1281,8 @@ public:
       Uint32 prevList;
     };
     typedef Ptr<ActiveMutex> ActiveMutexPtr;
+    typedef ArrayPool<ActiveMutex> ActiveMutex_pool;
+    typedef DLList<ActiveMutex, ActiveMutex_pool> ActiveMutex_list;
     
     bool seize(ActiveMutexPtr& ptr);
     void release(Uint32 activeMutexPtrI);
@@ -1297,8 +1305,8 @@ public:
     void execUTIL_UNLOCK_CONF(Signal* signal);
     
     SimulatedBlock & m_block;
-    ArrayPool<ActiveMutex> m_mutexPool;
-    DLList<ActiveMutex> m_activeMutexes;
+    ActiveMutex_pool m_mutexPool;
+    ActiveMutex_list m_activeMutexes;
     
     BlockReference reference() const;
     void progError(int line,
@@ -1969,8 +1977,9 @@ struct Hash2FragmentMap
   Uint32 nextPool;
   Uint32 m_object_id;
 };
+typedef ArrayPool<Hash2FragmentMap> Hash2FragmentMap_pool;
 
-extern ArrayPool<Hash2FragmentMap> g_hash_map;
+extern Hash2FragmentMap_pool g_hash_map;
 
 /**
  * Guard class for auto release of segmentedsectionptr's

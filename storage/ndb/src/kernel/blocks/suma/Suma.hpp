@@ -158,6 +158,9 @@ public:
     union { Uint32 nextPool; Uint32 prevList; };
   };
   typedef Ptr<Subscriber> SubscriberPtr;
+  typedef ArrayPool<Subscriber> Subscriber_pool;
+  typedef DLList<Subscriber, Subscriber_pool> Subscriber_list;
+  typedef LocalDLList<Subscriber, Subscriber_pool> Local_Subscriber_list;
 
   struct Table;
   friend struct Table;
@@ -226,6 +229,10 @@ public:
     Uint32 prevList; Uint32 ptrI;
     union { Uint32 nextPool; Uint32 nextList; };
   };
+  typedef ArrayPool<SyncRecord> SyncRecord_pool;
+  typedef SLList<SyncRecord, SyncRecord_pool> SyncRecord_sllist;
+  typedef DLList<SyncRecord, SyncRecord_pool> SyncRecord_dllist;
+  typedef LocalDLList<SyncRecord, SyncRecord_pool> Local_SyncRecord_dllist;
   friend struct SyncRecord;
 
   struct SubOpRecord
@@ -254,6 +261,9 @@ public:
       Uint32 nextPool;
     };
   };
+  typedef ArrayPool<SubOpRecord> SubOpRecord_pool;
+  typedef DLFifoList<SubOpRecord, SubOpRecord_pool> SubOpRecord_fifo;
+  typedef LocalDLFifoList<SubOpRecord, SubOpRecord_pool> Local_SubOpRecord_fifo;
   friend struct SubOpRecord;
 
   struct Subscription
@@ -289,11 +299,11 @@ public:
     State m_state;
     TriggerState m_trigger_state;
 
-    DLList<Subscriber>::Head m_subscribers;
-    DLFifoList<SubOpRecord>::Head m_create_req;
-    DLFifoList<SubOpRecord>::Head m_start_req;
-    DLFifoList<SubOpRecord>::Head m_stop_req;
-    DLList<SyncRecord>::Head m_syncRecords;
+    Subscriber_list::Head m_subscribers;
+    SubOpRecord_fifo::Head m_create_req;
+    SubOpRecord_fifo::Head m_start_req;
+    SubOpRecord_fifo::Head m_stop_req;
+    SyncRecord_dllist::Head m_syncRecords;
     
     Uint32 m_errorCode;
     Uint32 m_outstanding_trigger;
@@ -320,12 +330,17 @@ public:
     Uint32 m_table_ptrI;
   };
   typedef Ptr<Subscription> SubscriptionPtr;
+  typedef ArrayPool<Subscription> Subscription_pool;
+  typedef DLList<Subscription, Subscription_pool> Subscription_list;
+  typedef LocalDLList<Subscription, Subscription_pool> Local_Subscription_list;
+  typedef DLHashTable<Subscription_pool, Subscription> Subscription_hash;
+  typedef KeyTable<Subscription_pool, Subscription> Subscription_keyhash;
 
   struct Table {
     Table() { m_tableId = ~0; }
     void release(Suma&);
 
-    DLList<Subscription>::Head m_subscriptions;
+    Subscription_list::Head m_subscriptions;
 
     enum State {
       UNDEFINED,
@@ -365,7 +380,8 @@ public:
     // copy from Subscription
     Uint32 m_schemaTransId;
   };
-
+  typedef ArrayPool<Table> Table_pool;
+  typedef KeyTable<Table_pool, Table> Table_keyhash;
   /**
    * 
    */
@@ -373,18 +389,18 @@ public:
   /**
    * Lists
    */
-  KeyTable<Table> c_tables;
-  DLHashTable<Subscription> c_subscriptions;
+  Table_keyhash c_tables;
+  Subscription_hash c_subscriptions;
   
   /**
    * Pools
    */
-  ArrayPool<Subscriber> c_subscriberPool;
-  ArrayPool<Table> c_tablePool;
-  ArrayPool<Subscription> c_subscriptionPool;
-  ArrayPool<SyncRecord> c_syncPool;
+  Subscriber_pool c_subscriberPool;
+  Table_pool c_tablePool;
+  Subscription_pool c_subscriptionPool;
+  SyncRecord_pool c_syncPool;
   DataBuffer<15>::DataBufferPool c_dataBufferPool;
-  ArrayPool<SubOpRecord> c_subOpPool;
+  SubOpRecord_pool c_subOpPool;
 
   Uint32 c_maxBufferedEpochs;
 
@@ -405,7 +421,7 @@ public:
                             Ptr<SubOpRecord> subOpPtr,
                             Ptr<Subscriber> ptr,
                             bool report,
-                            LocalDLList<Subscriber>& list);
+                            Local_Subscriber_list& list);
 
   void sendSubSyncRef(Signal* signal, Uint32 errorCode);  
   void sendSubRemoveRef(Signal* signal, const SubRemoveReq& ref,
@@ -418,7 +434,7 @@ public:
                                  Ptr<Subscriber> ptr,
                                  NdbDictionary::Event::_TableEvent event,
                                  bool report,
-                                 LocalDLList<Subscriber>& list);
+                                 Local_Subscriber_list& list);
   
   Uint32 getFirstGCI(Signal* signal);
 
@@ -498,7 +514,7 @@ public:
 
   void execSTOP_ME_REQ(Signal*);
 
-  void copySubscription(Signal* signal, DLHashTable<Subscription>::Iterator);
+  void copySubscription(Signal* signal, Subscription_hash::Iterator);
   void sendSubCreateReq(Signal* signal, Ptr<Subscription>);
   void copySubscriber(Signal*, Ptr<Subscription>, Ptr<Subscriber>);
   void abort_start_me(Signal*, Ptr<Subscription>, bool lockowner);
@@ -654,6 +670,7 @@ private:
     Uint32 m_max_gci_lo;     //
     Uint32 m_data[DATA_WORDS];
   };
+  typedef ArrayPool<Buffer_page> Buffer_page_pool;
   
   STATIC_CONST( NO_OF_BUCKETS = 24 ); // 24 = 4*3*2*1! 
   Uint32 c_no_of_buckets;
@@ -698,8 +715,10 @@ private:
     };
     Uint32 prevList;
   };
-  ArrayPool<Gcp_record> c_gcp_pool;
-  DLCFifoList<Gcp_record> c_gcp_list;
+  typedef ArrayPool<Gcp_record> Gcp_record_pool;
+  typedef DLCFifoList<Gcp_record, Gcp_record_pool> Gcp_record_fifo;
+  Gcp_record_pool c_gcp_pool;
+  Gcp_record_fifo c_gcp_list;
 
   struct Page_chunk
   {
@@ -715,10 +734,11 @@ private:
     };
     Uint32 prevList;
   };
+  typedef ArrayPool<Page_chunk> Page_chunk_pool;
 
   Uint32 m_first_free_page;
-  ArrayPool<Page_chunk> c_page_chunk_pool;
-  ArrayPool<Buffer_page> c_page_pool;
+  Page_chunk_pool c_page_chunk_pool;
+  Buffer_page_pool c_page_pool;
 
 #ifdef VM_TRACE
   Uint64 m_gcp_monitor;

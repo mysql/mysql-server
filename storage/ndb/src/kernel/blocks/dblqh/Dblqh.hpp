@@ -24,6 +24,7 @@
 #include <SimulatedBlock.hpp>
 #include <SectionReader.hpp>
 #include <IntrusiveList.hpp>
+#include "ArrayPool.hpp"
 #include <DLHashTable.hpp>
 
 #include <NodeBitmask.hpp>
@@ -592,6 +593,12 @@ public:
     Uint8 prioAFlag;
   };
   typedef Ptr<ScanRecord> ScanRecordPtr;
+  typedef ArrayPool<ScanRecord> ScanRecord_pool;
+  typedef DLCList<ScanRecord, ScanRecord_pool> ScanRecord_list;
+  typedef LocalDLCList<ScanRecord, ScanRecord_pool> Local_ScanRecord_list;
+  typedef DLCFifoList<ScanRecord, ScanRecord_pool> ScanRecord_fifo;
+  typedef LocalDLCFifoList<ScanRecord, ScanRecord_pool> Local_ScanRecord_fifo;
+  typedef DLHashTable<ScanRecord_pool, ScanRecord> ScanRecord_hash;
 
 /**
  * Constants for scan_direct_count
@@ -716,10 +723,10 @@ public:
 
     typedef Bitmask<8> ScanNumberMask; // Max 255 KeyInfo20::ScanNo
     ScanNumberMask m_scanNumberMask;
-    DLCList<ScanRecord>::Head m_activeScans;
-    DLCFifoList<ScanRecord>::Head m_queuedScans;
-    DLCFifoList<ScanRecord>::Head m_queuedTupScans;
-    DLCFifoList<ScanRecord>::Head m_queuedAccScans;
+    ScanRecord_list::Head m_activeScans;
+    ScanRecord_fifo::Head m_queuedScans;
+    ScanRecord_fifo::Head m_queuedTupScans;
+    ScanRecord_fifo::Head m_queuedAccScans;
 
     Uint16 srLqhLognode[4];
     /**
@@ -994,6 +1001,9 @@ public:
     UsageStat m_useStat;
   };
   typedef Ptr<Fragrecord> FragrecordPtr;
+  typedef ArrayPool<Fragrecord> Fragrecord_pool;
+  typedef SLList<Fragrecord, Fragrecord_pool> Fragrecord_list;
+  typedef DLFifoList<Fragrecord, Fragrecord_pool> Fragrecord_fifo;
   
   /* $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ */
   /* $$$$$$$                GLOBAL CHECKPOINT RECORD                  $$$$$$ */
@@ -1855,7 +1865,9 @@ public:
 #endif
   }; // Size 288 bytes
   typedef Ptr<LogFileRecord> LogFileRecordPtr;
-  
+  typedef ArrayPool<LogFileRecord> LogFileRecord_pool;
+  typedef DLCFifoList<LogFileRecord, LogFileRecord_pool> LogFileRecord_fifo;
+
   /* $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ */
   /* $$$$$$$                      LOG OPERATION RECORD                $$$$$$$ */
   /* $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ */
@@ -3056,7 +3068,7 @@ private:
 
 // Configurable
   FragrecordPtr fragptr;
-  ArrayPool<Fragrecord> c_fragment_pool;
+  Fragrecord_pool c_fragment_pool;
   RSS_AP_SNAPSHOT(c_fragment_pool);
 
 #define ZGCPREC_FILE_SIZE 1
@@ -3116,10 +3128,10 @@ private:
   UintR cpageRefFileSize;
 
 // Configurable
-  ArrayPool<ScanRecord> c_scanRecordPool;
+  ScanRecord_pool c_scanRecordPool;
   ScanRecordPtr scanptr;
   Uint32 cscanrecFileSize;
-  DLList<ScanRecord> m_reserved_scans; // LCP + NR
+  ScanRecord_list m_reserved_scans; // LCP + NR
 
 // Configurable
   Tablerec *tablerec;
@@ -3228,10 +3240,10 @@ private:
 /*THIS VARIABLE IS THE HEAD OF A LINKED LIST OF FRAGMENTS WAITING TO BE      */
 /*RESTORED FROM DISK.                                                        */
 /* ------------------------------------------------------------------------- */
-  DLFifoList<Fragrecord> c_lcp_waiting_fragments;  // StartFragReq'ed
-  DLFifoList<Fragrecord> c_lcp_restoring_fragments; // Restoring as we speek
-  DLFifoList<Fragrecord> c_lcp_complete_fragments;  // Restored
-  DLFifoList<Fragrecord> c_queued_lcp_frag_ord;     //Queue for LCP_FRAG_ORDs
+  Fragrecord_fifo c_lcp_waiting_fragments;  // StartFragReq'ed
+  Fragrecord_fifo c_lcp_restoring_fragments; // Restoring as we speek
+  Fragrecord_fifo c_lcp_complete_fragments;  // Restored
+  Fragrecord_fifo c_queued_lcp_frag_ord;     //Queue for LCP_FRAG_ORDs
   
 /* ------------------------------------------------------------------------- */
 /*USED DURING SYSTEM RESTART, INDICATES THE OLDEST GCI THAT CAN BE RESTARTED */
@@ -3382,13 +3394,17 @@ private:
       return (m_part_no << 24) + (m_file_no << 16) + m_page_no;
     }
   };
+  typedef ArrayPool<RedoCacheLogPageRecord> RedoCacheLogPageRecord_pool;
+  typedef DLHashTable<RedoCacheLogPageRecord_pool, RedoCacheLogPageRecord> RedoCacheLogPageRecord_hash;
+  typedef DLCFifoList<RedoCacheLogPageRecord, RedoCacheLogPageRecord_pool> RedoCacheLogPageRecord_fifo;
+
   struct RedoPageCache
   {
     RedoPageCache() : m_hash(m_pool), m_lru(m_pool),
                       m_hits(0),m_multi_page(0), m_multi_miss(0) {}
-    DLHashTable<RedoCacheLogPageRecord> m_hash;
-    DLCFifoList<RedoCacheLogPageRecord> m_lru;
-    ArrayPool<RedoCacheLogPageRecord> m_pool;
+    RedoCacheLogPageRecord_hash m_hash;
+    RedoCacheLogPageRecord_fifo m_lru;
+    RedoCacheLogPageRecord_pool m_pool;
     Uint32 m_hits;
     Uint32 m_multi_page;
     Uint32 m_multi_miss;
@@ -3408,8 +3424,8 @@ private:
   {
     RedoOpenFileCache() : m_lru(m_pool), m_hits(0), m_close_cnt(0) {}
 
-    DLCFifoList<LogFileRecord> m_lru;
-    ArrayPool<LogFileRecord> m_pool;
+    LogFileRecord_fifo m_lru;
+    LogFileRecord_pool m_pool;
     Uint32 m_hits;
     Uint32 m_close_cnt;
   } m_redo_open_file_cache;
@@ -3453,9 +3469,12 @@ public:
   };
 
   typedef Ptr<CommitAckMarker> CommitAckMarkerPtr;
-  ArrayPool<CommitAckMarker>   m_commitAckMarkerPool;
-  DLHashTable<CommitAckMarker> m_commitAckMarkerHash;
-  typedef DLHashTable<CommitAckMarker>::Iterator CommitAckMarkerIterator;
+  typedef ArrayPool<CommitAckMarker> CommitAckMarker_pool;
+  typedef DLHashTable<CommitAckMarker_pool, CommitAckMarker> CommitAckMarker_hash;
+
+  CommitAckMarker_pool m_commitAckMarkerPool;
+  CommitAckMarker_hash m_commitAckMarkerHash;
+  typedef CommitAckMarker_hash::Iterator CommitAckMarkerIterator;
   void execREMOVE_MARKER_ORD(Signal* signal);
   void scanMarkers(Signal* signal, Uint32 tcNodeFail, Uint32 bucket, Uint32 i);
   bool check_tc_and_update_max_instance(BlockReference ref,
@@ -3577,7 +3596,7 @@ public:
     return getNodeState().startLevel < NodeState::SL_STOPPING_3;
   }
 
-  DLHashTable<ScanRecord> c_scanTakeOverHash;
+  ScanRecord_hash c_scanTakeOverHash;
 
   inline bool TRACE_OP_CHECK(const TcConnectionrec* regTcPtr);
 #ifdef ERROR_INSERT

@@ -2175,7 +2175,7 @@ Backup::CompoundState::forceState(State newState)
 #endif
 }
 
-Backup::Table::Table(ArrayPool<Fragment> & fh)
+Backup::Table::Table(Fragment_pool & fh)
   : fragments(fh)
 {
   triggerIds[0] = ILLEGAL_TRIGGER_ID;

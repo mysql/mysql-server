@@ -4612,7 +4612,7 @@ void Dbtc::releaseTcCon()
 
   if (!regTcPtr->thePendingTriggers.isEmpty())
   {
-    LocalDLFifoList<TcFiredTriggerData>
+    Local_TcFiredTriggerData_fifo
       list(c_theFiredTriggerPool, regTcPtr->thePendingTriggers);
     releaseFiredTriggerData(&list);
   }
@@ -9381,7 +9381,7 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
       ptr.p->scanFragState = ScanFragRec::COMPLETED;
       ptr.p->stopFragTimer();
       {
-        ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+        Local_ScanFragRec_dllist run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
         run.release(ptr);
       }
     }
@@ -9752,7 +9752,7 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
     if (scanptr.p->scanState != ScanRecord::IDLE){
       jam();
       ScanFragRecPtr ptr;
-      ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+      Local_ScanFragRec_dllist run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
       
       for(run.first(ptr); !ptr.isNull(); ){
 	jam();
@@ -9769,7 +9769,7 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
 	}
       }
 
-      ScanFragList deliv(c_scan_frag_pool, scanptr.p->m_delivered_scan_frags);
+      Local_ScanFragRec_dllist deliv(c_scan_frag_pool, scanptr.p->m_delivered_scan_frags);
       for(deliv.first(ptr); !ptr.isNull(); deliv.next(ptr))
       {
 	jam();
@@ -9873,7 +9873,7 @@ void
 Dbtc::checkScanFragList(Signal* signal,
 			Uint32 failedNodeId,
 			ScanRecord * scanP, 
-			ScanFragList::Head & head){
+                        Local_ScanFragRec_dllist::Head & head){
   
   DEBUG("checkScanActiveInFailedLqh: scanFragError");
 }
@@ -12433,7 +12433,7 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
   scanptr.p->scanKeyInfoPtr = RNIL;
   scanptr.p->scanAttrInfoPtr = RNIL;
 
-  ScanFragList list(c_scan_frag_pool, 
+  Local_ScanFragRec_dllist list(c_scan_frag_pool,
 		    scanptr.p->m_running_scan_frags);
   for (Uint32 i = 0; i < scanParallel; i++) {
     jam();
@@ -12745,7 +12745,7 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal,
   /** Need own local scope of list(...,m_running_scan_frags) */
   {
     ScanFragRecPtr ptr;
-    ScanFragList list(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+    Local_ScanFragRec_dllist list(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
 
     /**
      * Initially list(...,m_running_scan_frags) contains an 'IDLE' entry
@@ -12770,7 +12770,7 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal,
      * Any remaining fragments, not allowed to execute in parallel, are
      * put into the 'queued-list' until they can be executed.
      */
-    ScanFragList queued(c_scan_frag_pool, scanptr.p->m_queued_scan_frags);
+    Local_ScanFragRec_dllist queued(c_scan_frag_pool, scanptr.p->m_queued_scan_frags);
     for (; !ptr.isNull();)
     {
       jam();
@@ -12817,7 +12817,7 @@ void Dbtc::sendDihGetNodesReq(Signal* signal, ScanRecordPtr scanptr)
   do
   {
     { // running-list scope
-      ScanFragList list(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+      Local_ScanFragRec_dllist list(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
 
       /**
        * Since we have to leave the running-list scope for the list while
@@ -12939,8 +12939,8 @@ void Dbtc::releaseScanResources(Signal* signal,
   if (not_started)
   {
     jam();
-    ScanFragList run(c_scan_frag_pool, scanPtr.p->m_running_scan_frags);
-    ScanFragList queue(c_scan_frag_pool, scanPtr.p->m_queued_scan_frags);
+    Local_ScanFragRec_dllist run(c_scan_frag_pool, scanPtr.p->m_running_scan_frags);
+    Local_ScanFragRec_dllist queue(c_scan_frag_pool, scanPtr.p->m_queued_scan_frags);
     ScanFragRecPtr ptr;
     bool found = run.first(ptr);
     while (found)
@@ -13036,7 +13036,7 @@ bool Dbtc::startFragScanLab(Signal* signal,
     scanFragP.p->scanFragState = ScanFragRec::COMPLETED;
     scanFragP.p->stopFragTimer();
     {
-      ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+      Local_ScanFragRec_dllist run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
       run.release(scanFragP);
     }
     scanError(signal, scanptr, ZGET_DATAREC_ERROR);
@@ -13096,7 +13096,7 @@ bool Dbtc::startFragScanLab(Signal* signal,
     }
     {
       scanFragP.p->scanFragState = ScanFragRec::COMPLETED;
-      ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+      Local_ScanFragRec_dllist run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
       run.release(scanFragP);
     }
     scanError(signal, scanptr, err);
@@ -13151,7 +13151,7 @@ bool Dbtc::startFragScanLab(Signal* signal,
     updateBuddyTimer(apiConnectptr);
     {
       scanFragP.p->scanFragState = ScanFragRec::COMPLETED;
-      ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+      Local_ScanFragRec_dllist run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
       run.release(scanFragP);
     }
     close_scan_req_send_conf(signal, scanptr);
@@ -13239,7 +13239,7 @@ void Dbtc::execSCAN_FRAGREF(Signal* signal)
   scanFragptr.p->stopFragTimer();
   time_track_complete_scan_frag_error(scanFragptr.p);
   {
-    ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+    Local_ScanFragRec_dllist run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
     run.release(scanFragptr);
   }    
   scanError(signal, scanptr, errCode);
@@ -13344,7 +13344,7 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
       scanFragptr.p->stopFragTimer();
       scanFragptr.p->scanFragState = ScanFragRec::COMPLETED;
       {
-        ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+        Local_ScanFragRec_dllist run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
         run.release(scanFragptr);
       }
     }
@@ -13381,8 +13381,8 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
   }
  */ 
   {
-    ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
-    ScanFragList queued(c_scan_frag_pool, scanptr.p->m_queued_scan_frags);
+    Local_ScanFragRec_dllist run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
+    Local_ScanFragRec_dllist queued(c_scan_frag_pool, scanptr.p->m_queued_scan_frags);
     
     run.remove(scanFragptr);
     queued.addFirst(scanFragptr);
@@ -13563,8 +13563,8 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
     scanFragptr.p->m_ops = 0;
 
     {
-      ScanFragList running(c_scan_frag_pool, scanP->m_running_scan_frags);
-      ScanFragList delivered(c_scan_frag_pool, scanP->m_delivered_scan_frags);
+      Local_ScanFragRec_dllist running(c_scan_frag_pool, scanP->m_running_scan_frags);
+      Local_ScanFragRec_dllist delivered(c_scan_frag_pool, scanP->m_delivered_scan_frags);
       delivered.remove(scanFragptr);
       running.addFirst(scanFragptr);
     }
@@ -13634,9 +13634,9 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
   
   {
     ScanFragRecPtr ptr;
-    ScanFragList running(c_scan_frag_pool, scanP->m_running_scan_frags);
-    ScanFragList delivered(c_scan_frag_pool, scanP->m_delivered_scan_frags);
-    ScanFragList queued(c_scan_frag_pool, scanP->m_queued_scan_frags);
+    Local_ScanFragRec_dllist running(c_scan_frag_pool, scanP->m_running_scan_frags);
+    Local_ScanFragRec_dllist delivered(c_scan_frag_pool, scanP->m_delivered_scan_frags);
+    Local_ScanFragRec_dllist queued(c_scan_frag_pool, scanP->m_queued_scan_frags);
     
     // Close running
     for(running.first(ptr); !ptr.isNull(); ){
@@ -13983,8 +13983,8 @@ void Dbtc::sendScanTabConf(Signal* signal, ScanRecordPtr scanPtr) {
   conf->transId2 = apiConnectptr.p->transid[1];
   ScanFragRecPtr ptr;
   {
-    ScanFragList queued(c_scan_frag_pool, scanPtr.p->m_queued_scan_frags);
-    ScanFragList delivered(c_scan_frag_pool,scanPtr.p->m_delivered_scan_frags);
+    Local_ScanFragRec_dllist queued(c_scan_frag_pool, scanPtr.p->m_queued_scan_frags);
+    Local_ScanFragRec_dllist delivered(c_scan_frag_pool, scanPtr.p->m_delivered_scan_frags);
     for(queued.first(ptr); !ptr.isNull(); ){
       ndbrequire(ptr.p->scanFragState == ScanFragRec::QUEUED_FOR_DELIVERY);
       ScanFragRecPtr curr = ptr; // Remove while iterating...
@@ -15054,7 +15054,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
       // Request dump of ScanFragRec
       ScanFragRecPtr sfptr;
 #define DUMP_SFR(x){\
-      ScanFragList list(c_scan_frag_pool, x);\
+      Local_ScanFragRec_dllist list(c_scan_frag_pool, x);\
       for(list.first(sfptr); !sfptr.isNull(); list.next(sfptr)){\
 	dumpState->args[0] = DumpStateOrd::TcDumpOneScanFragRec; \
 	dumpState->args[1] = sfptr.i;\
@@ -16896,7 +16896,7 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
       opPtr.p->triggerExecutionCount++; // Default 1 LQHKEYREQ per trigger
       // Insert fired trigger in execution queue
       {
-        LocalDLFifoList<TcFiredTriggerData>
+        Local_TcFiredTriggerData_fifo
           list(c_theFiredTriggerPool, opPtr.p->thePendingTriggers);
         list.addLast(trigPtr);
       }
@@ -20040,7 +20040,7 @@ Dbtc::fk_readFromParentTable(Signal* signal,
   regApiPtr->immediateTriggerId = RNIL;
 }
 
-void Dbtc::releaseFiredTriggerData(DLFifoList<TcFiredTriggerData>* triggers)
+void Dbtc::releaseFiredTriggerData(TcFiredTriggerData_fifo* triggers)
 {
   FiredTriggerPtr trigPtr;
 
@@ -20062,7 +20062,7 @@ void Dbtc::releaseFiredTriggerData(DLFifoList<TcFiredTriggerData>* triggers)
   while (triggers->releaseFirst());
 }
 
-void Dbtc::releaseFiredTriggerData(LocalDLFifoList<TcFiredTriggerData>*
+void Dbtc::releaseFiredTriggerData(Local_TcFiredTriggerData_fifo*
                                    triggers)
 {
   FiredTriggerPtr trigPtr;

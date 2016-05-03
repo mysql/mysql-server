@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -94,7 +94,7 @@ Dbtup::alloc_fix_rec(EmulatedJamBuffer* jamBuf,
       convertThPage((Fix_page*)pagePtr.p, regTabPtr, MM);
       pagePtr.p->page_state = ZTH_MM_FREE;
       
-      LocalDLFifoList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);
+      Local_Page_fifo free_pages(c_page_pool, regFragPtr->thFreeFirst);
       free_pages.addFirst(pagePtr);
     } else {
       thrjam(jamBuf);
@@ -178,7 +178,7 @@ Dbtup::alloc_tuple_from_page(Fragrecord* const regFragPtr,
 /*       ARE MAINTAINED EVEN AFTER A SYSTEM CRASH.                  */
 /* ---------------------------------------------------------------- */
     ndbrequire(regPagePtr->page_state == ZTH_MM_FREE);
-    LocalDLFifoList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);    
+    Local_Page_fifo free_pages(c_page_pool, regFragPtr->thFreeFirst);
     free_pages.remove((Page*)regPagePtr);
     regPagePtr->page_state = ZTH_MM_FULL;
   }
@@ -200,7 +200,7 @@ void Dbtup::free_fix_rec(Fragrecord* regFragPtr,
   if(free == 1)
   {
     jam();
-    LocalDLFifoList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);    
+    Local_Page_fifo free_pages(c_page_pool, regFragPtr->thFreeFirst);
     ndbrequire(regPagePtr->page_state == ZTH_MM_FULL);
     regPagePtr->page_state = ZTH_MM_FREE;
     free_pages.addLast(pagePtr);
@@ -210,7 +210,7 @@ void Dbtup::free_fix_rec(Fragrecord* regFragPtr,
   {
     jam();
     Uint32 page_no = pagePtr.p->frag_page_id;
-    LocalDLFifoList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);    
+    Local_Page_fifo free_pages(c_page_pool, regFragPtr->thFreeFirst);
     free_pages.remove(pagePtr);
     releaseFragPage(regFragPtr, page_no, pagePtr);
   }
@@ -234,7 +234,7 @@ Dbtup::alloc_fix_rowid(Uint32 * err,
 
   c_page_pool.getPtr(pagePtr);
   Uint32 state = pagePtr.p->page_state;
-  LocalDLFifoList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);
+  Local_Page_fifo free_pages(c_page_pool, regFragPtr->thFreeFirst);
   switch(state){
   case ZTH_MM_FREE:
     if (((Fix_page*)pagePtr.p)->alloc_record(idx) != idx)

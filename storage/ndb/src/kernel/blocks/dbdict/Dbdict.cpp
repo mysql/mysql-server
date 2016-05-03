@@ -33526,7 +33526,7 @@ Dbdict::findCallback(Callback& callback, Uint32 any_key)
 
 // MODULE: CreateHashMap
 
-ArrayPool<Hash2FragmentMap> g_hash_map;
+Hash2FragmentMap_pool g_hash_map;
 
 const Dbdict::OpInfo
 Dbdict::CreateHashMapRec::g_opInfo = {

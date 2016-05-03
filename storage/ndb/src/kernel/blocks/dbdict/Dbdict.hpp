@@ -761,7 +761,7 @@ public:
   typedef ArrayPool<DictObject> DictObject_pool;
   typedef DLMHashTable<DictObject_pool, DictObject, HashedByName<DictObject> > DictObjectName_hash;
   typedef DLMHashTable<DictObject_pool, DictObject, HashedById<DictObject> > DictObjectId_hash;
-  typedef SLList<DictObject> DictObject_list;
+  typedef SLList<DictObject, DictObject_pool> DictObject_list;
 
   DictObjectName_hash c_obj_name_hash; // Name (not temporary TableRecords)
   DictObjectId_hash c_obj_id_hash; // Schema file id / Trigger id
@@ -4376,10 +4376,10 @@ private:
   OpRecordUnion_pool c_opRecordPool;
 
   // Operation records
-  typedef KeyTable2C<OpCreateEvent, OpRecordUnion> OpCreateEvent_pool;
-  typedef KeyTable2C<OpSubEvent, OpRecordUnion> OpSubEvent_pool;
-  typedef KeyTable2C<OpDropEvent, OpRecordUnion> OpDropEvent_pool;
-  typedef KeyTable2C<OpSignalUtil, OpRecordUnion> OpSignalUtil_pool;
+  typedef KeyTable2C<OpRecordUnion_pool, OpCreateEvent, OpRecordUnion> OpCreateEvent_pool;
+  typedef KeyTable2C<OpRecordUnion_pool, OpSubEvent, OpRecordUnion> OpSubEvent_pool;
+  typedef KeyTable2C<OpRecordUnion_pool, OpDropEvent, OpRecordUnion> OpDropEvent_pool;
+  typedef KeyTable2C<OpRecordUnion_pool, OpSignalUtil, OpRecordUnion> OpSignalUtil_pool;
   OpCreateEvent_pool c_opCreateEvent;
   OpSubEvent_pool c_opSubEvent;
   OpDropEvent_pool c_opDropEvent;

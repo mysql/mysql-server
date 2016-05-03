@@ -473,6 +473,11 @@ public:
     Uint32 m_data[GLOBAL_PAGE_SIZE_WORDS - 7];
     STATIC_CONST( SIZE = GLOBAL_PAGE_SIZE_WORDS - 7 );
   };
+  typedef ArrayPool<RowPage> RowPage_pool;
+  typedef SLList<RowPage, RowPage_pool> RowPage_list;
+  typedef LocalSLList<RowPage, RowPage_pool> Local_RowPage_list;
+  typedef DLFifoList<RowPage, RowPage_pool> RowPage_fifo;
+  typedef LocalDLFifoList<RowPage, RowPage_pool> Local_RowPage_fifo;
 
   typedef Tup_varsize_page Var_page;
 
@@ -481,11 +486,11 @@ public:
     enum Buffer_type m_type;
 
     RowBuffer() : m_type(BUFFER_VOID) {}
-    DLFifoList<RowPage>::Head m_page_list;
+    RowPage_fifo::Head m_page_list;
 
     void init(enum Buffer_type type)
     {
-      new (&m_page_list) DLFifoList<RowPage>::Head();
+      new (&m_page_list) RowPage_fifo::Head();
       m_type = type;
       reset();
     }
@@ -1542,8 +1547,8 @@ private:
   void releasePage(Ptr<RowPage>);
   void releasePages(Uint32 first, Ptr<RowPage> last);
   void releaseGlobal(Signal*);
-  SLList<RowPage>::Head m_free_page_list;
-  ArrayPool<RowPage> m_page_pool;
+  RowPage_list::Head m_free_page_list;
+  RowPage_pool m_page_pool;
 
   /* Random fault injection */
 
