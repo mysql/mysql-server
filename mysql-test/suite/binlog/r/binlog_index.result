@@ -350,7 +350,7 @@ master-bin.000019	#
 master-bin.000020	#
 SET GLOBAL binlog_error_action='IGNORE_ERROR';
 FLUSH LOGS;
-ERROR HY000: Can't open file: './master-bin.000021' (errno: 1 - Operation not permitted)
+ERROR HY000: Can't open file: 'master-bin.000021' (errno: 1 - Operation not permitted)
 SHOW BINARY LOGS;
 ERROR HY000: You are not using binary logging
 # restart
@@ -371,7 +371,7 @@ SET GLOBAL binlog_error_action='IGNORE_ERROR';
 SET SESSION debug="+d,force_index_file_delete_failure";
 SET SESSION debug="+d,force_rotate";
 INSERT INTO t1 VALUES (12);
-ERROR HY000: Can't open file: './master-bin.000022' (errno: 1 - Operation not permitted)
+ERROR HY000: Can't open file: 'master-bin.000022' (errno: 1 - Operation not permitted)
 SHOW BINARY LOGS;
 ERROR HY000: You are not using binary logging
 # restart
