@@ -2761,7 +2761,7 @@ SimulatedBlock::doCleanupFragInfo(Uint32 failedNodeId,
                                   Uint32& elementsCleaned)
 {
   jam();
-  DLHashTable<FragmentInfo>::Iterator iter;
+  FragmentInfo_hash::Iterator iter;
   
   c_fragmentInfoHash.next(cursor, iter);
 
@@ -2821,11 +2821,11 @@ SimulatedBlock::doCleanupFragSend(Uint32 failedNodeId,
   const Uint32 NumSendLists = 2;
   ndbrequire(cursor < NumSendLists);
 
-  DLList<FragmentSendInfo>* fragSendLists[ NumSendLists ] =
+  FragmentSendInfo_list* fragSendLists[ NumSendLists ] =
     { &c_segmentedFragmentSendList,
       &c_linearFragmentSendList };
   
-  DLList<FragmentSendInfo>* list = fragSendLists[ cursor ];
+  FragmentSendInfo_list* list = fragSendLists[ cursor ];
   
   list->first(fragPtr);  
   for(; !fragPtr.isNull();){
@@ -2964,7 +2964,7 @@ Uint32
 SimulatedBlock::debugPrintFragmentCounts()
 {
   const char* blockName = getBlockName(theNumber);
-  DLHashTable<FragmentInfo>::Iterator iter;
+  FragmentInfo_hash::Iterator iter;
   Uint32 fragmentInfoCount = 0;
   c_fragmentInfoHash.first(iter);
   

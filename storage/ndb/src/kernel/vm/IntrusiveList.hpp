@@ -35,7 +35,7 @@
  * For each XXList there are also
  * XXListImpl
  * LocalXXListImpl
- * LocalXXList which as XXList uses ArrayPool<T> as pool type
+ * LocalXXList
  * XXHead - XXList::Head
  *
  * The LocalXX classes are used in local scope to tell the compiler
@@ -96,8 +96,8 @@
  **/
 
 #include <ndb_limits.h>
+#include <ArrayPool.hpp>
 #include <Pool.hpp>
-#include "ArrayPool.hpp"
 
 #define JAM_FILE_ID 298
 
@@ -312,14 +312,19 @@ class Local##prefix##ListImpl : public IntrusiveList<T, P, prefix##Head, LM>::Lo
 public: Local##prefix##ListImpl(P& pool, prefix##Head::POD& head): IntrusiveList<T, P, prefix##Head, LM>::Local(pool, head) { } \
 }; \
  \
-template <typename T, typename P = ArrayPool<T>, typename U = T, typename LM = Default##links##LinkMethods<T, U> > \
+template <typename T, typename P, typename U = T, typename LM = Default##links##LinkMethods<T, U> > \
 class prefix##List : public IntrusiveList<T, P, prefix##Head, LM> { \
 public: prefix##List(P& pool): IntrusiveList<T, P, prefix##Head, LM>(pool) { } \
 }; \
  \
-template <typename T, typename P = ArrayPool<T>, typename U = T, typename LM = Default##links##LinkMethods<T, U> > \
+template <typename T, typename P, typename U = T, typename LM = Default##links##LinkMethods<T, U> > \
 class Local##prefix##List : public IntrusiveList<T, P, prefix##Head, LM>::Local { \
 public: Local##prefix##List(P& pool, prefix##Head::POD& head): IntrusiveList<T, P, prefix##Head, LM>::Local(pool, head) { } \
+}; \
+ \
+template <typename T, typename P, typename U = T, typename LM = Default##links##LinkMethods<T, U> > \
+class ConstLocal##prefix##List : public IntrusiveList<T, P, const prefix##Head::POD&, LM> { \
+public: ConstLocal##prefix##List(P& pool, const prefix##Head::POD& head): IntrusiveList<T, P, const prefix##Head::POD&, LM>(pool, head) { } \
 }
 
 typedef ListHead<FirstLink, NoLastLink, NoCount> SLHead;

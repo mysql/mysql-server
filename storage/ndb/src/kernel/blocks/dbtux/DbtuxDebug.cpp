@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -431,8 +431,8 @@ operator<<(NdbOut& out, const Dbtux::ScanOp& scan)
   if (globalData.isNdbMtLqh)//TODO
     return out;
   {
-    DLFifoList<Dbtux::ScanLock>::Head head = scan.m_accLockOps;
-    LocalDLFifoList<Dbtux::ScanLock> list(tux->c_scanLockPool, head);
+    Dbtux::ScanLock_fifo::Head head = scan.m_accLockOps;
+    Dbtux::Local_ScanLock_fifo list(tux->c_scanLockPool, head);
     Dbtux::ScanLockPtr lockPtr;
     list.first(lockPtr);
     while (lockPtr.i != RNIL) {

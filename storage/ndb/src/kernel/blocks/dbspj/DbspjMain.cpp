@@ -2343,7 +2343,7 @@ Dbspj::releaseRow(RowCollection& collection, RowRef pos)
   if (free_space == Var_page::DATA_WORDS - 1)
   {
     jam();
-    LocalDLFifoList<RowPage> list(m_page_pool,
+    Local_RowPage_fifo list(m_page_pool,
                                   rowBuffer.m_page_list);
     const bool last = list.hasNext(ptr) == false;
     list.remove(ptr);
@@ -2375,7 +2375,7 @@ Dbspj::releaseRow(RowCollection& collection, RowRef pos)
   else if (free_space > rowBuffer.m_var.m_free)
   {
     jam();
-    LocalDLFifoList<RowPage> list(m_page_pool,
+    Local_RowPage_fifo list(m_page_pool,
                                   rowBuffer.m_page_list);
     list.remove(ptr);
     list.addLast(ptr);
@@ -2394,7 +2394,7 @@ Dbspj::releaseRequestBuffers(Ptr<Request> requestPtr)
    */
   {
     {
-      LocalSLList<RowPage> freelist(m_page_pool, m_free_page_list);
+      Local_RowPage_list freelist(m_page_pool, m_free_page_list);
       freelist.prependList(requestPtr.p->m_rowBuffer.m_page_list);
     }
     requestPtr.p->m_rowBuffer.reset();
@@ -3480,7 +3480,7 @@ Uint32 *
 Dbspj::stackAlloc(RowBuffer & buffer, RowRef& dst, Uint32 sz)
 {
   Ptr<RowPage> ptr;
-  LocalDLFifoList<RowPage> list(m_page_pool, buffer.m_page_list);
+  Local_RowPage_fifo list(m_page_pool, buffer.m_page_list);
 
   Uint32 pos = buffer.m_stack.m_pos;
   const Uint32 SIZE = RowPage::SIZE;
@@ -3514,7 +3514,7 @@ Uint32 *
 Dbspj::varAlloc(RowBuffer & buffer, RowRef& dst, Uint32 sz)
 {
   Ptr<RowPage> ptr;
-  LocalDLFifoList<RowPage> list(m_page_pool, buffer.m_page_list);
+  Local_RowPage_fifo list(m_page_pool, buffer.m_page_list);
 
   Uint32 free_space = buffer.m_var.m_free;
   if (list.isEmpty() || free_space < (sz + 1))
@@ -3593,7 +3593,7 @@ Dbspj::allocPage(Ptr<RowPage> & ptr)
   else
   {
     jam();
-    LocalSLList<RowPage> list(m_page_pool, m_free_page_list);
+    Local_RowPage_list list(m_page_pool, m_free_page_list);
     bool ret = list.removeFirst(ptr);
     ndbrequire(ret);
     return ret;
@@ -3603,7 +3603,7 @@ Dbspj::allocPage(Ptr<RowPage> & ptr)
 void
 Dbspj::releasePage(Ptr<RowPage> ptr)
 {
-  LocalSLList<RowPage> list(m_page_pool, m_free_page_list);
+  Local_RowPage_list list(m_page_pool, m_free_page_list);
   list.addFirst(ptr);
 }
 
@@ -3611,7 +3611,7 @@ void
 Dbspj::releaseGlobal(Signal * signal)
 {
   Uint32 delay = 100;
-  LocalSLList<RowPage> list(m_page_pool, m_free_page_list);
+  Local_RowPage_list list(m_page_pool, m_free_page_list);
   if (list.isEmpty())
   {
     jam();

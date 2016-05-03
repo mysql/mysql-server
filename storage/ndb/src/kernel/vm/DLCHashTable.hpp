@@ -25,12 +25,12 @@
 
 
 // Adds "getCount" to DLHashTable
-template <class T, class U = T>
-class DLCHashTable : public DLHashTable<T, U> {
+template <class P, class T, class U = T>
+class DLCHashTable : public DLHashTable<P, T, U> {
 public:
   // Ctor
-  DLCHashTable(ArrayPool<T> & thePool) :
-    DLHashTable<T, U>(thePool),
+  DLCHashTable(P & thePool) :
+    DLHashTable<P, T, U>(thePool),
     m_count(0)
   {}
   
@@ -40,42 +40,42 @@ public:
   // Redefine methods which do add or remove
 
   void add(Ptr<T>& ptr) {
-    DLHashTable<T, U>::add(ptr);
+    DLHashTable<P, T, U>::add(ptr);
     m_count++;
   }
   
   void remove(Ptr<T>& ptr, const T & key) {
-    DLHashTable<T, U>::remove(ptr, key);
+    DLHashTable<P, T, U>::remove(ptr, key);
     m_count--;
   }
 
   void remove(Uint32 i) {
-    DLHashTable<T, U>::remove(i);
+    DLHashTable<P, T, U>::remove(i);
     m_count--;
   }
 
   void remove(Ptr<T>& ptr) {
-    DLHashTable<T, U>::remove(ptr);
+    DLHashTable<P, T, U>::remove(ptr);
     m_count--;
   }
 
   void removeAll() {
-    DLHashTable<T, U>::removeAll();
+    DLHashTable<P, T, U>::removeAll();
     m_count = 0;
   }
   
   void release(Ptr<T>& ptr, const T & key) {
-    DLHashTable<T, U>::release(ptr, key);
+    DLHashTable<P, T, U>::release(ptr, key);
     m_count--;
   }
 
   void release(Uint32 i) {
-    DLHashTable<T, U>::release(i);
+    DLHashTable<P, T, U>::release(i);
     m_count--;
   }
 
   void release(Ptr<T>& ptr) {
-    DLHashTable<T, U>::release(ptr);
+    DLHashTable<P, T, U>::release(ptr);
     m_count--;
   }
   

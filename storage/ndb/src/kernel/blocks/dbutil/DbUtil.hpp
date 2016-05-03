@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -159,6 +159,7 @@ public:
     };
     Uint32  nextPool;                  // Note: This used as data when seized
   };
+  typedef ArrayPool<Page32> Page32_pool;
 
   /**
    * @struct  Prepare
@@ -169,7 +170,7 @@ public:
    * information.
    */
   struct Prepare {
-    Prepare(ArrayPool<Page32> & ap) : preparePages(ap) {}
+    Prepare(Page32_pool & ap) : preparePages(ap) {}
 
     /*** Client info ***/
     Uint32 clientRef;
@@ -204,7 +205,10 @@ public:
 	     << "]" << endl;
     }
   };
-    
+  typedef ArrayPool<Prepare> Prepare_pool;
+  typedef SLList<Prepare, Prepare_pool> Prepare_sllist;
+  typedef DLList<Prepare, Prepare_pool> Prepare_dllist;
+
   /**
    * @struct  PreparedOperation
    * @brief   Contains instantiated TcKeyReq signaldata for operation
@@ -282,7 +286,9 @@ public:
       ndbout << "]]]]" << endl;
     }
   };
-  
+  typedef ArrayPool<PreparedOperation> PreparedOperation_pool;
+  typedef SLList<PreparedOperation, PreparedOperation_pool> PreparedOperation_list;
+
   /**
    * @struct  Operation
    * @brief   Used in execution (contains resultset and buffers for result)
@@ -324,13 +330,15 @@ public:
       ndbout << "]]" << endl;
     }
   };
+  typedef ArrayPool<Operation> Operation_pool;
+  typedef SLList<Operation, Operation_pool> Operation_list;
 
   /**
    * @struct  Transaction
    * @brief   Used in execution (contains list of operations)
    */
   struct Transaction {
-    Transaction(ArrayPool<Page32> & ap, ArrayPool<Operation> & op) :
+    Transaction(Page32_pool & ap, Operation_pool & op) :
       executePages(ap), operations(op) {}
 
     Uint32 clientRef;
@@ -351,7 +359,7 @@ public:
     Uint32 connectPtr;
     Uint32 connectRef;
     Uint32 transId[2];
-    SLList<Operation> operations;
+    Operation_list operations;
 
     Uint32 errorCode;
     Uint32 noOfRetries;
@@ -386,6 +394,9 @@ public:
       ndbout << "]" << endl;
     }
   };
+  typedef ArrayPool<Transaction> Transaction_pool;
+  typedef SLList<Transaction, Transaction_pool> Transaction_sllist;
+  typedef DLList<Transaction, Transaction_pool> Transaction_dllist;
 
   typedef Ptr<Page32>             Page32Ptr;
   typedef Ptr<Prepare>            PreparePtr;
@@ -394,17 +405,17 @@ public:
   typedef Ptr<PreparedOperation>  PreparedOperationPtr;
 
   Uint32                          c_transId[2];
-  ArrayPool<Page32>               c_pagePool;
-  ArrayPool<Prepare>              c_preparePool;
-  ArrayPool<Operation>            c_operationPool;
-  ArrayPool<PreparedOperation>    c_preparedOperationPool;
-  ArrayPool<Transaction>          c_transactionPool;
+  Page32_pool               c_pagePool;
+  Prepare_pool              c_preparePool;
+  Operation_pool            c_operationPool;
+  PreparedOperation_pool    c_preparedOperationPool;
+  Transaction_pool          c_transactionPool;
 
   DataBuffer<1>::DataBufferPool   c_attrMappingPool;
   DataBuffer<11>::DataBufferPool  c_dataBufPool;
-  DLList<Prepare>                 c_runningPrepares;
-  DLList<Transaction>             c_seizingTransactions; // Being seized at TC
-  DLList<Transaction>             c_runningTransactions; // Seized and now exec.
+  Prepare_dllist                  c_runningPrepares;
+  Transaction_dllist              c_seizingTransactions; // Being seized at TC
+  Transaction_dllist              c_runningTransactions; // Seized and now exec.
   
   void getTransId(Transaction *);
   void initResultSet(ResultSetBuffer &, const ResultSetInfoBuffer &);
@@ -463,9 +474,12 @@ public:
     }
   };
   typedef Ptr<LockQueueInstance> LockQueuePtr;
-  
-  ArrayPool<LockQueueInstance> c_lockQueuePool;
-  KeyTable<LockQueueInstance> c_lockQueues;
+  typedef ArrayPool<LockQueueInstance> LockQueueInstance_pool;
+  typedef KeyTable<LockQueueInstance_pool, LockQueueInstance> LockQueueInstance_keyhash;
+  typedef DLHashTable<LockQueueInstance_pool, LockQueueInstance> LockQueueInstance_hash;
+
+  LockQueueInstance_pool c_lockQueuePool;
+  LockQueueInstance_keyhash c_lockQueues;
   LockQueue::Pool c_lockElementPool;
   
   void execUTIL_CREATE_LOCK_REQ(Signal* signal);
