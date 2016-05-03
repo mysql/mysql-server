@@ -1,3 +1,5 @@
+set @save_ndb_read_backup = @@global.ndb_read_backup;
+set @@global.ndb_read_backup = OFF;
 SET default_storage_engine=ndbcluster;
 SET ndb_use_exact_count=1;
 DROP TABLE IF EXISTS t1, gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
@@ -1133,3 +1135,4 @@ MBROverlaps(@horiz1, @point2)
 NULL
 DROP TABLE t1;
 End of 5.0 tests
+set @@global.ndb_read_backup = @save_ndb_read_backup;
