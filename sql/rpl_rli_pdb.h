@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -395,12 +395,6 @@ public:
 
   virtual ~Slave_worker();
 
-  /*
-    index value of some outstanding slots of info_slave_worker_fields
-  */
-  enum {
-    LINE_FOR_CHANNEL= 12
-  };
   Slave_jobs_queue jobs;   // assignment queue containing events to execute
   mysql_mutex_t jobs_lock; // mutex for the jobs queue
   mysql_cond_t  jobs_cond; // condition variable for the jobs queue
@@ -673,6 +667,16 @@ private:
   void assign_partition_db(Log_event *ev);
 
   void reset_order_commit_deadlock() { m_order_commit_deadlock= false; }
+public:
+  /**
+     Returns an array with the expected column numbers of the primary key
+     fields of the table repository.
+  */
+  static const uint *get_table_pk_field_indexes();
+  /**
+     Returns the index of the Channel_name field of the table repository.
+  */
+  static uint get_channel_field_index();
 };
 
 void * head_queue(Slave_jobs_queue *jobs, Slave_job_item *ret);

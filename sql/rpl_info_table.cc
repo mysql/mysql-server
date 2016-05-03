@@ -24,7 +24,9 @@
 
 Rpl_info_table::Rpl_info_table(uint nparam,
                                const char* param_schema,
-                               const char *param_table)
+                               const char *param_table,
+                               const uint param_n_pk_fields,
+                               const uint *param_pk_field_indexes)
 :Rpl_info_handler(nparam), is_transactional(FALSE)
 {
   str_schema.str= str_table.str= NULL;
@@ -54,6 +56,9 @@ Rpl_info_table::Rpl_info_table(uint nparam,
     pos= my_stpcpy(pos, ".");
     pos= my_stpcpy(pos, param_table);
   }
+
+  m_n_pk_fields= param_n_pk_fields;
+  m_pk_field_indexes= param_pk_field_indexes;
 
   access= new Rpl_info_table_access();
 }
@@ -100,6 +105,9 @@ int Rpl_info_table::do_init_info(enum_find_method method, uint instance)
   if (access->open_table(thd, str_schema, str_table,
                          get_number_info(), TL_WRITE,
                          &table, &backup))
+    goto end;
+
+  if (verify_table_primary_key_fields(table))
     goto end;
 
   /*
@@ -368,11 +376,8 @@ int Rpl_info_table::do_reset_info(uint nparam,
     */
     DBUG_ASSERT(strcmp(info->str_table.str, "slave_worker_info") == 0);
 
-    if (!key_info || key_info->user_defined_key_parts == 0 ||
-        key_info->key_part[0].field != table->field[channel_field_idx])
+    if (info->verify_table_primary_key_fields(table))
     {
-      sql_print_error("Corrupted table %s.%s. Check out table definition.",
-                      info->str_schema.str, info->str_table.str);
       error= 1;
       table->file->ha_index_end();
       goto end;
@@ -504,6 +509,12 @@ enum_return_check Rpl_info_table::do_check_info(uint instance)
                       "'%s.%s' cannot be opened.", str_schema.str,
                       str_table.str);
 
+    return_check= ERROR_CHECKING_REPOSITORY;
+    goto end;
+  }
+
+  if (verify_table_primary_key_fields(table))
+  {
     return_check= ERROR_CHECKING_REPOSITORY;
     goto end;
   }
@@ -785,5 +796,52 @@ end:
   reenable_binlog(thd);
   thd->variables.sql_mode= saved_mode;
   access->drop_thd(thd);
+  DBUG_RETURN(error);
+}
+
+bool Rpl_info_table::verify_table_primary_key_fields(TABLE *table)
+{
+  DBUG_ENTER("Rpl_info_table::verify_table_primary_key_fields");
+  KEY *key_info= table->key_info;
+  bool error;
+
+  /*
+    If the table has no keys or has less key fields than expected,
+    it must be corrupted.
+  */
+  if ((error= !key_info ||
+              key_info->user_defined_key_parts == 0 ||
+              (m_n_pk_fields > 0 &&
+               key_info->user_defined_key_parts != m_n_pk_fields)))
+  {
+    sql_print_error("Corrupted table %s.%s. Check out table definition.",
+                    str_schema.str, str_table.str);
+  }
+
+  if (!error && m_n_pk_fields && m_pk_field_indexes)
+  {
+    /*
+      If any of its primary key fields are not at the expected position,
+      the table must be corrupted.
+    */
+    for (uint idx= 0; idx < m_n_pk_fields; idx++)
+    {
+      if (key_info->key_part[idx].field != table->field[m_pk_field_indexes[idx]])
+      {
+        const char *key_field_name= key_info->key_part[idx].field->field_name;
+        const char *table_field_name= table->field[m_pk_field_indexes[idx]]->field_name;
+        sql_print_error("Info table has a problem with its key field(s). "
+                        "Table '%s.%s' expected field #%u to be '%s' but "
+                        "found '%s' instead.",
+                        str_schema.str, str_table.str,
+                        m_pk_field_indexes[idx],
+                        key_field_name,
+                        table_field_name);
+        error= true;
+        break;
+      }
+    }
+  }
+
   DBUG_RETURN(error);
 }

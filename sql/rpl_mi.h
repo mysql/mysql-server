@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -322,6 +322,18 @@ public:
      from the slave repostiory tables. See rpl_info_factory.cc
   */
   static uint get_channel_field_num();
+
+  /**
+     Returns an array with the expected column names of the primary key
+     fields of the table repository.
+  */
+  static const char **get_table_pk_field_names();
+
+  /**
+     Returns an array with the expected column numbers of the primary key
+     fields of the table repository.
+  */
+  static const uint *get_table_pk_field_indexes();
 
   bool is_auto_position()
   {
