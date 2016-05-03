@@ -42,7 +42,6 @@
 
 #include "rpl_gtid.h"
 #include "log_event.h"
-#include "log_event_old.h"
 #include "sql_common.h"
 #include "my_dir.h"
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
@@ -1532,9 +1531,6 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
     case binary_log::WRITE_ROWS_EVENT_V1:
     case binary_log::UPDATE_ROWS_EVENT_V1:
     case binary_log::DELETE_ROWS_EVENT_V1:
-    case binary_log::PRE_GA_WRITE_ROWS_EVENT:
-    case binary_log::PRE_GA_DELETE_ROWS_EVENT:
-    case binary_log::PRE_GA_UPDATE_ROWS_EVENT:
     {
       bool stmt_end= FALSE;
       Table_map_log_event *ignored_map= NULL;
@@ -1549,15 +1545,6 @@ static Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *
         if (new_ev->get_flags(Rows_log_event::STMT_END_F))
           stmt_end= TRUE;
         ignored_map= print_event_info->m_table_map_ignored.get_table(new_ev->get_table_id());
-      }
-      else if (ev_type == binary_log::PRE_GA_WRITE_ROWS_EVENT ||
-               ev_type == binary_log::PRE_GA_DELETE_ROWS_EVENT ||
-               ev_type == binary_log::PRE_GA_UPDATE_ROWS_EVENT)
-      {
-        Old_rows_log_event *old_ev= (Old_rows_log_event*) ev;
-        if (old_ev->get_flags(Rows_log_event::STMT_END_F))
-          stmt_end= TRUE;
-        ignored_map= print_event_info->m_table_map_ignored.get_table(old_ev->get_table_id());
       }
 
       bool skip_event= (ignored_map != NULL);

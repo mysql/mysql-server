@@ -3670,8 +3670,6 @@ protected:
 };
 
 
-#include "log_event_old.h"
-
 /**
   @class Incident_log_event
 

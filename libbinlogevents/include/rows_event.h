@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -634,12 +634,9 @@ public:
     Constructs an event directly. The members are assigned default values.
 
     @param type_arg          Type of ROW_EVENT. Expected types are:
-                             - WRITE_ROWS_EVENT, WRITE_ROWS_EVENT_V1,
-                               PRE_GA_WRITE_ROWS_EVENT,
-                             - UPDATE_ROWS_EVENT, UPDATE_ROWS_EVENT_V1,
-                               PRE_GA_UPDATE_ROWS_EVENT,
-                             - DELETE_ROWS_EVENT, DELETE_ROWS_EVENT_V1,
-                               PRE_GA_DELETE_ROWS_EVENT
+                             - WRITE_ROWS_EVENT, WRITE_ROWS_EVENT_V1
+                             - UPDATE_ROWS_EVENT, UPDATE_ROWS_EVENT_V1
+                             - DELETE_ROWS_EVENT, DELETE_ROWS_EVENT_V1
   */
   explicit Rows_event(Log_event_type type_arg)
     : Binary_log_event(type_arg),
