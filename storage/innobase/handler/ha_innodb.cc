@@ -7209,6 +7209,7 @@ dberr_t
 ha_innobase::innobase_lock_autoinc(void)
 /*====================================*/
 {
+	DBUG_ENTER("ha_innobase::innobase_lock_autoinc");
 	dberr_t		error = DB_SUCCESS;
 	long		lock_mode = innobase_autoinc_lock_mode;
 
@@ -7252,6 +7253,8 @@ ha_innobase::innobase_lock_autoinc(void)
 		/* Fall through to old style locking. */
 
 	case AUTOINC_OLD_STYLE_LOCKING:
+		DBUG_EXECUTE_IF("die_if_autoinc_old_lock_style_used",
+				ut_ad(0););
 		error = row_lock_table_autoinc_for_mysql(m_prebuilt);
 
 		if (error == DB_SUCCESS) {
@@ -7265,7 +7268,7 @@ ha_innobase::innobase_lock_autoinc(void)
 		ut_error;
 	}
 
-	return(error);
+	DBUG_RETURN(error);
 }
 
 /********************************************************************//**
