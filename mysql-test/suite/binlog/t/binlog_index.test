@@ -447,7 +447,8 @@ file_exists $MYSQLD_DATADIR/master-bin.000014;
 # When index file cannot be recreated during FLUSH LOGS command,
 # it should throw error and binary logging should be disabled.
 SET GLOBAL binlog_error_action='IGNORE_ERROR';
---replace_regex /\.[\\\/]master/master/
+# normalize strerror message for solaris10-sparc-64bit as long as errno is OK
+--replace_regex /\.[\\\/]master/master/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
 --error ER_CANT_OPEN_FILE
 FLUSH LOGS;
 
@@ -463,7 +464,8 @@ SET SESSION debug="+d,force_rotate";
 # When index file cannot be recreated during DML command which
 # is trying to rotate the binary log, it should throw error and
 # binary logging should be disabled.
---replace_regex /\.[\\\/]master/master/
+# normalize strerror message for solaris10-sparc-64bit as long as errno is OK
+--replace_regex /\.[\\\/]master/master/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
 --error ER_CANT_OPEN_FILE
 INSERT INTO t1 VALUES (12);
 
