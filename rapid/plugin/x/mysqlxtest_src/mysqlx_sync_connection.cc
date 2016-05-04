@@ -64,7 +64,11 @@ Mysqlx_sync_connection::Mysqlx_sync_connection(const char *ssl_key,
 
   m_vioSslFd = new_VioSSLConnectorFd(ssl_key, ssl_cert, ssl_ca, ssl_ca_path, ssl_cipher, &m_ssl_init_error, NULL, NULL, ssl_ctx_flags);
 
-  m_ssl = ssl_key || ssl_cert;
+  m_ssl = NULL != ssl_key ||
+      NULL != ssl_cert ||
+      NULL != ssl_ca ||
+      NULL != ssl_ca_path ||
+      NULL != ssl_cipher;
 }
 
 Mysqlx_sync_connection::~Mysqlx_sync_connection()

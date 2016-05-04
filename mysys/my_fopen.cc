@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,7 +82,7 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags)
       my_file_total_opened++;
       my_file_info[filedesc].type= STREAM_BY_FOPEN;
       mysql_mutex_unlock(&THR_LOCK_open);
-      DBUG_PRINT("exit",("stream: 0x%lx", (long) fd));
+      DBUG_PRINT("exit",("stream: %p", fd));
       DBUG_RETURN(fd);
     }
     (void) my_fclose(fd,MyFlags);
@@ -185,7 +185,7 @@ int my_fclose(FILE *fd, myf MyFlags)
 {
   int err,file;
   DBUG_ENTER("my_fclose");
-  DBUG_PRINT("my",("stream: 0x%lx  MyFlags: %d", (long) fd, MyFlags));
+  DBUG_PRINT("my",("stream: %p  MyFlags: %d", fd, MyFlags));
 
   mysql_mutex_lock(&THR_LOCK_open);
   file= my_fileno(fd);
@@ -263,7 +263,7 @@ FILE *my_fdopen(File Filedes, const char *name, int Flags, myf MyFlags)
     mysql_mutex_unlock(&THR_LOCK_open);
   }
 
-  DBUG_PRINT("exit",("stream: 0x%lx", (long) fd));
+  DBUG_PRINT("exit",("stream: %p", fd));
   DBUG_RETURN(fd);
 } /* my_fdopen */
 

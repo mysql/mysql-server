@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -245,8 +245,11 @@ namespace binary_log
 enum Log_event_type
 {
   /**
-    Every time you update this enum (when you add a type), you have to
-    fix Format_description_event::Format_description_event().
+    Every time you add a type, you have to
+    - Assign it a number explicitly. Otherwise it will cause trouble
+      if a event type before is deprecated and removed directly from
+      the enum.
+    - Fix Format_description_event::Format_description_event().
   */
   UNKNOWN_EVENT= 0,
   START_EVENT_V3= 1,
@@ -276,15 +279,7 @@ enum Log_event_type
   TABLE_MAP_EVENT = 19,
 
   /**
-    The PRE_GA event numbers were used for 5.1.0 to 5.1.15 and are
-    therefore obsolete.
-   */
-  PRE_GA_WRITE_ROWS_EVENT = 20,
-  PRE_GA_UPDATE_ROWS_EVENT = 21,
-  PRE_GA_DELETE_ROWS_EVENT = 22,
-
-  /**
-    The V1 event numbers are used from 5.1.16 until mysql-trunk-xx
+    The V1 event numbers are used from 5.1.16 until mysql-5.6.
   */
   WRITE_ROWS_EVENT_V1 = 23,
   UPDATE_ROWS_EVENT_V1 = 24,

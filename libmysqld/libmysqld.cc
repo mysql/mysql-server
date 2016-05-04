@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -176,7 +176,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     }
   }
 
-  DBUG_PRINT("exit",("Mysql handler: 0x%lx", (long) mysql));
+  DBUG_PRINT("exit",("Mysql handler: %p", mysql));
   DBUG_RETURN(mysql);
 
 error:

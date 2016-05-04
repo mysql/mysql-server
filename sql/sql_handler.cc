@@ -523,9 +523,9 @@ retry:
                                                  strlen(tables->alias) + 1)))
   {
     table= hash_tables->table;
-    DBUG_PRINT("info-in-hash",("'%s'.'%s' as '%s' table: 0x%lx",
+    DBUG_PRINT("info-in-hash",("'%s'.'%s' as '%s' table: %p",
                                hash_tables->db, hash_tables->table_name,
-                               hash_tables->alias, (long) table));
+                               hash_tables->alias, table));
     if (!table)
     {
       /*

@@ -359,8 +359,8 @@ MY_STAT *my_stat(const char *path, MY_STAT *stat_area, myf my_flags)
 {
   const int m_used= (stat_area == NULL);
   DBUG_ENTER("my_stat");
-  DBUG_PRINT("my", ("path: '%s'  stat_area: 0x%lx  MyFlags: %d", path,
-                    (long) stat_area, my_flags));
+  DBUG_PRINT("my", ("path: '%s'  stat_area: %p  MyFlags: %d", path,
+                    stat_area, my_flags));
 
   if (m_used)
     if (!(stat_area= (MY_STAT *) my_malloc(key_memory_MY_STAT,

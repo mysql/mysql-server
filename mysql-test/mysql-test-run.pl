@@ -5841,6 +5841,11 @@ sub mysqld_start ($$) {
 		$path_vardir_trace, $mysqld->name());
   }
 
+  if (IS_WINDOWS)
+  {
+    mtr_add_arg($args, "--enable-named-pipe");
+  }
+
   if ( $opt_gdb || $opt_manual_gdb )
   {
     gdb_arguments(\$args, \$exe, $mysqld->name());
@@ -5885,11 +5890,6 @@ sub mysqld_start ($$) {
   $mysqld_logs{$output}= 1 if $opt_valgrind or $opt_sanitize;
   # Remember data dir for gmon.out files if using gprof
   $gprof_dirs{$mysqld->value('datadir')}= 1 if $opt_gprof;
-
-  if (IS_WINDOWS)
-  {
-    mtr_add_arg($args, "--enable-named-pipe");
-  }
 
   if ( defined $exe )
   {
@@ -6233,6 +6233,7 @@ sub stop_servers($$) {
     delete $server->{'started_tinfo'};
     delete $server->{'started_opts'};
     delete $server->{'started_cnf'};
+    delete $server->{'restart_opts'};
   }
 }
 

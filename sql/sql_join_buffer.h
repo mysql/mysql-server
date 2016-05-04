@@ -1,7 +1,7 @@
 #ifndef SQL_JOIN_CACHE_INCLUDED
 #define SQL_JOIN_CACHE_INCLUDED
 
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -349,7 +349,7 @@ protected:
   /* Shall calculate how much space is remaining in the join buffer */ 
   virtual ulong rem_space() 
   { 
-    return std::max<ulong>(buff_size-(end_pos-buff)-aux_buff_size, 0UL);
+    return std::max(static_cast<ulong>(buff_size-(end_pos-buff)-aux_buff_size), 0UL);
   }
 
   /* Shall skip record from the join buffer if its match flag is on */

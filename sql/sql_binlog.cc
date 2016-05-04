@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -72,9 +72,6 @@ static int check_event_type(int type, Relay_log_info *rli)
   case binary_log::WRITE_ROWS_EVENT_V1:
   case binary_log::UPDATE_ROWS_EVENT_V1:
   case binary_log::DELETE_ROWS_EVENT_V1:
-  case binary_log::PRE_GA_WRITE_ROWS_EVENT:
-  case binary_log::PRE_GA_UPDATE_ROWS_EVENT:
-  case binary_log::PRE_GA_DELETE_ROWS_EVENT:
     /*
       Row events are only allowed if a Format_description_event has
       already been seen.
@@ -190,8 +187,8 @@ void mysql_client_binlog_statement(THD* thd)
                                      MY_BASE64_DECODE_ALLOW_MULTIPLE_CHUNKS);
 
     DBUG_PRINT("info",
-               ("bytes_decoded: %lld  strptr: 0x%lx  endptr: 0x%lx ('%c':%d)",
-                bytes_decoded, (long) strptr, (long) endptr, *endptr,
+               ("bytes_decoded: %lld  strptr: %p  endptr: %p ('%c':%d)",
+                bytes_decoded, strptr, endptr, *endptr,
                 *endptr));
 
     if (bytes_decoded < 0)

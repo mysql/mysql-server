@@ -82,7 +82,6 @@ MYSQL_ADD_EXECUTABLE(mysqlbinlog mysqlbinlog.cc)
 SET(MYSQLBINLOG_LIB_SOURCES
   ${CMAKE_SOURCE_DIR}/strings/decimal.cc
   ${CMAKE_SOURCE_DIR}/sql/log_event.cc
-  ${CMAKE_SOURCE_DIR}/sql/log_event_old.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_utility.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_sid_map.cc
   ${CMAKE_SOURCE_DIR}/sql/rpl_gtid_misc.cc

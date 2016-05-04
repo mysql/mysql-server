@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
 LIST *list_add(LIST *root, LIST *element)
 {
   DBUG_ENTER("list_add");
-  DBUG_PRINT("enter",("root: 0x%lx  element: 0x%lx", (long) root, (long) element));
+  DBUG_PRINT("enter",("root: %p  element: %p", root, element));
   if (root)
   {
     if (root->prev)			/* If add in mid of list */

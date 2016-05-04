@@ -143,7 +143,7 @@
   See also:
    - @subpage page_ext_plugin_svc_anathomy
    - @subpage page_ext_plugin_svc_new_service_howto
-   - @subpage page_ext_plugin_api_dosanddonts
+   - @subpage page_ext_plugin_api_goodservices
    - @ref group_ext_plugin_services
 */
 
@@ -152,7 +152,10 @@
 
   A "service" is a struct of C function pointers.
 
-  The server has all these structs defined and initialized so
+  It is a tool to expose a pre-exitsing set of server functions to plugins.
+  You need the actual server functions as a starting point.
+
+  The server has all service structs defined and initialized so
   that the the function pointers point to the actual service implementation
   functions.
 
@@ -3085,11 +3088,6 @@ void alloc_and_copy_thd_dynamic_variables(THD *thd, bool global_lock)
 
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
 
-  if (global_lock)
-    mysql_mutex_lock(&LOCK_global_system_variables);
-
-  mysql_mutex_assert_owner(&LOCK_global_system_variables);
-
   /*
     MAINTAINER:
     The following assert is wrong on purpose, useful to debug
@@ -3102,6 +3100,11 @@ void alloc_and_copy_thd_dynamic_variables(THD *thd, bool global_lock)
                thd->variables.dynamic_variables_ptr,
                global_variables_dynamic_size,
                MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
+
+  if (global_lock)
+    mysql_mutex_lock(&LOCK_global_system_variables);
+
+  mysql_mutex_assert_owner(&LOCK_global_system_variables);
 
   /*
     Debug hook which allows tests to check that this code is not
@@ -3248,6 +3251,7 @@ void plugin_thdvar_init(THD *thd, bool enable_plugins)
   thd->variables.temp_table_plugin= NULL;
   cleanup_variables(thd, &thd->variables);
   
+  mysql_mutex_lock(&LOCK_global_system_variables);
   thd->variables= global_system_variables;
   thd->variables.table_plugin= NULL;
   thd->variables.temp_table_plugin= NULL;
@@ -3267,6 +3271,7 @@ void plugin_thdvar_init(THD *thd, bool enable_plugins)
     intern_plugin_unlock(NULL, old_temp_table_plugin);
     mysql_mutex_unlock(&LOCK_plugin);
   }
+  mysql_mutex_unlock(&LOCK_global_system_variables);
 
   /* Initialize all Sys_var_charptr variables here. */
 
@@ -3362,8 +3367,8 @@ static void plugin_vars_free_values(sys_var *vars)
     {
       /* Free the string from global_system_variables. */
       char **valptr= (char**) piv->real_value_ptr(NULL, OPT_GLOBAL);
-      DBUG_PRINT("plugin", ("freeing value for: '%s'  addr: 0x%lx",
-                            var->name.str, (long) valptr));
+      DBUG_PRINT("plugin", ("freeing value for: '%s'  addr: %p",
+                            var->name.str, valptr));
       my_free(*valptr);
       *valptr= NULL;
     }

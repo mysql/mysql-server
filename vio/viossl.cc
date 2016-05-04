@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -394,8 +394,8 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
 #endif
 
   DBUG_ENTER("ssl_do");
-  DBUG_PRINT("enter", ("ptr: 0x%lx, sd: %d  ctx: 0x%lx",
-                       (long) ptr, sd, (long) ptr->ssl_context));
+  DBUG_PRINT("enter", ("ptr: %p, sd: %d  ctx: %p",
+                       ptr, sd, ptr->ssl_context));
 
   if (!(ssl= SSL_new(ptr->ssl_context)))
   {
@@ -403,7 +403,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
     *ssl_errno_holder= ERR_get_error();
     DBUG_RETURN(1);
   }
-  DBUG_PRINT("info", ("ssl: 0x%lx timeout: %ld", (long) ssl, timeout));
+  DBUG_PRINT("info", ("ssl: %p timeout: %ld", ssl, timeout));
   SSL_clear(ssl);
   SSL_SESSION_set_timeout(SSL_get_session(ssl), timeout);
   SSL_set_fd(ssl, sd);

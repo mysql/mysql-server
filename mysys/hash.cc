@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -137,7 +137,7 @@ static inline void my_hash_free_elements(HASH *hash)
 void my_hash_claim(HASH *hash)
 {
   DBUG_ENTER("my_hash_claim");
-  DBUG_PRINT("enter",("hash: 0x%lx", (long) hash));
+  DBUG_PRINT("enter",("hash: %p", hash));
 
   my_hash_claim_elements(hash);
   claim_dynamic(&hash->array);
@@ -158,7 +158,7 @@ void my_hash_claim(HASH *hash)
 void my_hash_free(HASH *hash)
 {
   DBUG_ENTER("my_hash_free");
-  DBUG_PRINT("enter",("hash: 0x%lx", (long) hash));
+  DBUG_PRINT("enter",("hash: %p", hash));
 
   my_hash_free_elements(hash);
   hash->free_element= nullptr;
@@ -179,7 +179,7 @@ void my_hash_free(HASH *hash)
 void my_hash_reset(HASH *hash)
 {
   DBUG_ENTER("my_hash_reset");
-  DBUG_PRINT("enter",("hash: 0x%lxd", (long) hash));
+  DBUG_PRINT("enter",("hash: %p", hash));
 
   my_hash_free_elements(hash);
   reset_dynamic(&hash->array);
@@ -764,8 +764,8 @@ my_bool my_hash_check(HASH *hash)
                                         blength, records)) != i)
 	{
           DBUG_PRINT("error", ("Record in wrong link at %d: Start %d  "
-                               "Record: 0x%lx  Record-link %d",
-                               idx, i, (long) hash_info->data, rec_link));
+                               "Record: %p  Record-link %d",
+                               idx, i, hash_info->data, rec_link));
 	  error=1;
 	}
 	else

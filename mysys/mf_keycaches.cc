@@ -161,7 +161,7 @@ static uchar *safe_hash_search(SAFE_HASH *hash, const uchar *key, uint length)
     result= hash->default_value;
   else
     result= ((SAFE_HASH_ENTRY*) result)->data;
-  DBUG_PRINT("exit",("data: 0x%lx", (long) result));
+  DBUG_PRINT("exit",("data: %p", result));
   DBUG_RETURN(result);
 }
 
@@ -192,7 +192,7 @@ static my_bool safe_hash_set(SAFE_HASH *hash, const uchar *key, uint length,
   SAFE_HASH_ENTRY *entry;
   my_bool error= 0;
   DBUG_ENTER("safe_hash_set");
-  DBUG_PRINT("enter",("key: %.*s  data: 0x%lx", length, key, (long) data));
+  DBUG_PRINT("enter",("key: %.*s  data: %p", length, key, data));
 
   mysql_rwlock_wrlock(&hash->lock);
   entry= (SAFE_HASH_ENTRY*) my_hash_search(&hash->hash, key, length);

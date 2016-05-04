@@ -324,7 +324,7 @@ int ha_myisammrg::open(const char *name, int mode MY_ATTRIBUTE((unused)),
                        uint test_if_locked_arg, const dd::Table *)
 {
   DBUG_ENTER("ha_myisammrg::open");
-  DBUG_PRINT("myrg", ("name: '%s'  table: 0x%lx", name, (long) table));
+  DBUG_PRINT("myrg", ("name: '%s'  table: %p", name, table));
   DBUG_PRINT("myrg", ("test_if_locked_arg: %u", test_if_locked_arg));
 
   /* Must not be used when table is open. */
@@ -377,8 +377,8 @@ int ha_myisammrg::open(const char *name, int mode MY_ATTRIBUTE((unused)),
     DBUG_RETURN(my_errno() ? my_errno() : -1);
     /* purecov: end */
   }
-  DBUG_PRINT("myrg", ("MYRG_INFO: 0x%lx  child tables: %u",
-                      (long) file, file->tables));
+  DBUG_PRINT("myrg", ("MYRG_INFO: %p  child tables: %u",
+                      file, file->tables));
   DBUG_RETURN(0);
 }
 
@@ -404,8 +404,8 @@ int ha_myisammrg::add_children_list(void)
   List_iterator_fast<Mrg_child_def> it(child_def_list);
   Mrg_child_def *mrg_child_def;
   DBUG_ENTER("ha_myisammrg::add_children_list");
-  DBUG_PRINT("myrg", ("table: '%s'.'%s' 0x%lx", this->table->s->db.str,
-                      this->table->s->table_name.str, (long) this->table));
+  DBUG_PRINT("myrg", ("table: '%s'.'%s' %p", this->table->s->db.str,
+                      this->table->s->table_name.str, this->table));
 
   /* Must call this with open table. */
   DBUG_ASSERT(this->file);
@@ -654,12 +654,12 @@ extern "C" MI_INFO *myisammrg_attach_children_callback(void *callback_param)
   if ((child->file->ht->db_type != DB_TYPE_MYISAM) ||
       !(myisam= ((ha_myisam*) child->file)->file_ptr()))
   {
-    DBUG_PRINT("error", ("no MyISAM handle for child table: '%s'.'%s' 0x%lx",
+    DBUG_PRINT("error", ("no MyISAM handle for child table: '%s'.'%s' %p",
                          child->s->db.str, child->s->table_name.str,
-                         (long) child));
+                         child));
   }
 
-  DBUG_PRINT("myrg", ("MyISAM handle: 0x%lx", (long) myisam));
+  DBUG_PRINT("myrg", ("MyISAM handle: %p", myisam));
 
  end:
 
@@ -767,8 +767,8 @@ int ha_myisammrg::attach_children(void)
   int           error;
   Mrg_attach_children_callback_param param(parent_l, this->children_l, child_def_list);
   DBUG_ENTER("ha_myisammrg::attach_children");
-  DBUG_PRINT("myrg", ("table: '%s'.'%s' 0x%lx", table->s->db.str,
-                      table->s->table_name.str, (long) table));
+  DBUG_PRINT("myrg", ("table: '%s'.'%s' %p", table->s->db.str,
+                      table->s->table_name.str, table));
   DBUG_PRINT("myrg", ("test_if_locked: %u", this->test_if_locked));
 
   /* Must call this with open table. */

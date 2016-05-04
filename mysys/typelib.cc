@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -77,7 +77,7 @@ int find_type(const char *x, const TYPELIB *typelib, uint flags)
   const char *i;
   const char *j;
   DBUG_ENTER("find_type");
-  DBUG_PRINT("enter",("x: '%s'  lib: 0x%lx", x, (long) typelib));
+  DBUG_PRINT("enter",("x: '%s'  lib: %p", x, typelib));
 
   DBUG_ASSERT(!(flags & ~(FIND_TYPE_NO_PREFIX | FIND_TYPE_ALLOW_NUMBER |
                           FIND_TYPE_NO_OVERWRITE | FIND_TYPE_COMMA_TERM)));
@@ -179,7 +179,7 @@ my_ulonglong find_typeset(char *x, TYPELIB *lib, int *err)
   int find;
   char *i;
   DBUG_ENTER("find_set");
-  DBUG_PRINT("enter",("x: '%s'  lib: 0x%lx", x, (long) lib));
+  DBUG_PRINT("enter",("x: '%s'  lib: %p", x, lib));
 
   if (!lib->count)
   {

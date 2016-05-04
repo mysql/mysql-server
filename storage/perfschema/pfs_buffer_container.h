@@ -448,12 +448,21 @@ public:
       }
       /* Bounded allocation. */
       m_full= false;
+
+      if (m_max_page_count > PFS_PAGE_COUNT)
+      {
+        m_max_page_count= PFS_PAGE_COUNT;
+        m_last_page_size= PFS_PAGE_SIZE;
+      }
     }
     else
     {
       /* max_size = -1 means unbounded allocation */
       m_full= false;
     }
+
+    DBUG_ASSERT(m_max_page_count <= PFS_PAGE_COUNT);
+    DBUG_ASSERT(m_last_page_size <= PFS_PAGE_SIZE);
 
     native_mutex_init(& m_critical_section, NULL);
     return 0;

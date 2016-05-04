@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -466,7 +466,7 @@ int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo,
   uchar *endpos, *prev_key;
   MI_KEY_PARAM s_temp;
   DBUG_ENTER("_mi_insert");
-  DBUG_PRINT("enter",("key_pos: 0x%lx", (long) key_pos));
+  DBUG_PRINT("enter",("key_pos: %p", key_pos));
   DBUG_EXECUTE("key",_mi_print_key(DBUG_FILE,keyinfo->seg,key,USE_WHOLE_KEY););
 
   nod_flag=mi_test_if_nod(anc_buff);
@@ -487,8 +487,8 @@ int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo,
   {
     DBUG_PRINT("test",("t_length: %d  ref_len: %d",
 		       t_length,s_temp.ref_length));
-    DBUG_PRINT("test",("n_ref_len: %d  n_length: %d  key_pos: 0x%lx",
-		       s_temp.n_ref_length,s_temp.n_length, (long) s_temp.key));
+    DBUG_PRINT("test",("n_ref_len: %d  n_length: %d  key_pos: %p",
+		       s_temp.n_ref_length,s_temp.n_length, s_temp.key));
   }
 #endif
   if (t_length > 0)
@@ -687,8 +687,8 @@ uchar *_mi_find_half_pos(uint nod_flag, MI_KEYDEF *keyinfo, uchar *page,
   } while (page < end);
   *return_key_length=length;
   *after_key=page;
-  DBUG_PRINT("exit",("returns: 0x%lx  page: 0x%lx  half: 0x%lx",
-                     (long) lastpos, (long) page, (long) end));
+  DBUG_PRINT("exit",("returns: %p  page: %p  half: %p",
+                     lastpos, page, end));
   DBUG_RETURN(lastpos);
 } /* _mi_find_half_pos */
 
@@ -741,8 +741,8 @@ static uchar *_mi_find_last_pos(MI_KEYDEF *keyinfo, uchar *page,
   }
   *return_key_length=last_length;
   *after_key=lastpos;
-  DBUG_PRINT("exit",("returns: 0x%lx  page: 0x%lx  end: 0x%lx",
-                     (long) prevpos,(long) page,(long) end));
+  DBUG_PRINT("exit",("returns: %p  page: %p  end: %p",
+                     prevpos, page, end));
   DBUG_RETURN(prevpos);
 } /* _mi_find_last_pos */
 

@@ -791,7 +791,6 @@ Sql_condition* THD::raise_condition(uint sql_errno,
 
 void THD::init(void)
 {
-  mysql_mutex_lock(&LOCK_global_system_variables);
   plugin_thdvar_init(this, m_enable_plugins);
   /*
     variables= global_system_variables above has reset
@@ -799,7 +798,6 @@ void THD::init(void)
     avoid temporary tables replication failure.
   */
   variables.pseudo_thread_id= m_thread_id;
-  mysql_mutex_unlock(&LOCK_global_system_variables);
 
   /*
     NOTE: reset_connection command will reset the THD to its default state.

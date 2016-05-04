@@ -182,8 +182,8 @@ vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file,
                    enum enum_ssl_init_error* error)
 {
   DBUG_ENTER("vio_set_cert_stuff");
-  DBUG_PRINT("enter", ("ctx: 0x%lx  cert_file: %s  key_file: %s",
-		       (long) ctx, cert_file, key_file));
+  DBUG_PRINT("enter", ("ctx: %p  cert_file: %s  key_file: %s",
+		       ctx, cert_file, key_file));
 
   if (!cert_file &&  key_file)
     cert_file= key_file;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -116,7 +116,8 @@ extern "C" void handle_fatal_signal(int sig)
 #endif
   my_safe_printf_stderr("max_threads=%u\n", max_threads);
 
-  my_safe_printf_stderr("thread_count=%u\n", Global_THD_manager::global_thd_count);
+  my_safe_printf_stderr("thread_count=%u\n",
+                        Global_THD_manager::get_thd_count());
 
   my_safe_printf_stderr("connection_count=%u\n",
                         Connection_handler_manager::connection_count);

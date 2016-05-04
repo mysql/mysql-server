@@ -736,9 +736,9 @@ Event_queue_element::compute_next_execution_time(THD *thd)
 {
   my_time_t time_now;
   DBUG_ENTER("Event_queue_element::compute_next_execution_time");
-  DBUG_PRINT("enter", ("starts: %lu  ends: %lu  last_executed: %lu  this: 0x%lx",
+  DBUG_PRINT("enter", ("starts: %lu  ends: %lu  last_executed: %lu  this: %p",
                        (long) m_starts, (long) m_ends, (long) m_last_executed,
-                       (long) this));
+                       this));
 
   if (m_status != Event_parse_data::ENABLED)
   {

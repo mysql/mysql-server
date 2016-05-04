@@ -1116,8 +1116,8 @@ static st_debug_sync_action *debug_sync_get_action(THD *thd,
   }
   DBUG_ASSERT(action >= ds_control->ds_action);
   DBUG_ASSERT(action < ds_control->ds_action + ds_control->ds_active);
-  DBUG_PRINT("debug_sync", ("action: 0x%lx  array: 0x%lx  count: %u",
-                            (long) action, (long) ds_control->ds_action,
+  DBUG_PRINT("debug_sync", ("action: %p  array: %p  count: %u",
+                            action, ds_control->ds_action,
                             ds_control->ds_active));
 
   DBUG_RETURN(action);

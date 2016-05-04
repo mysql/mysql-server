@@ -51,8 +51,8 @@ size_t my_fread(FILE *stream, uchar *Buffer, size_t Count, myf MyFlags)
 {
   size_t readbytes;
   DBUG_ENTER("my_fread");
-  DBUG_PRINT("my",("stream: 0x%lx  Buffer: 0x%lx  Count: %u  MyFlags: %d",
-		   (long) stream, (long) Buffer, (uint) Count, MyFlags));
+  DBUG_PRINT("my",("stream: %p  Buffer: %p  Count: %u  MyFlags: %d",
+		   stream, Buffer, (uint) Count, MyFlags));
 
   if ((readbytes= fread(Buffer, sizeof(char), Count, stream)) != Count)
   {
@@ -105,8 +105,8 @@ size_t my_fwrite(FILE *stream, const uchar *Buffer, size_t Count, myf MyFlags)
   my_off_t seekptr;
 
   DBUG_ENTER("my_fwrite");
-  DBUG_PRINT("my",("stream: 0x%lx  Buffer: 0x%lx  Count: %u  MyFlags: %d",
-		   (long) stream, (long) Buffer, (uint) Count, MyFlags));
+  DBUG_PRINT("my",("stream: %p  Buffer: %p  Count: %u  MyFlags: %d",
+		   stream, Buffer, (uint) Count, MyFlags));
   DBUG_EXECUTE_IF("simulate_fwrite_error",  DBUG_RETURN(-1););
 
   seekptr= ftell(stream);
@@ -158,8 +158,8 @@ size_t my_fwrite(FILE *stream, const uchar *Buffer, size_t Count, myf MyFlags)
 my_off_t my_fseek(FILE *stream, my_off_t pos, int whence)
 {
   DBUG_ENTER("my_fseek");
-  DBUG_PRINT("my",("stream: 0x%lx  pos: %lu  whence: %d" ,
-                   (long) stream, (long) pos, whence));
+  DBUG_PRINT("my",("stream: %p  pos: %lu  whence: %d" ,
+                   stream, (long) pos, whence));
   DBUG_RETURN(fseek(stream, (off_t) pos, whence) ?
 	      MY_FILEPOS_ERROR : (my_off_t) ftell(stream));
 } /* my_seek */
@@ -171,7 +171,7 @@ my_off_t my_ftell(FILE *stream)
 {
   off_t pos;
   DBUG_ENTER("my_ftell");
-  DBUG_PRINT("my",("stream: 0x%lx", (long) stream));
+  DBUG_PRINT("my",("stream: %p", stream));
   pos=ftell(stream);
   DBUG_PRINT("exit",("ftell: %lu",(ulong) pos));
   DBUG_RETURN((my_off_t) pos);

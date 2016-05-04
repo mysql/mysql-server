@@ -456,7 +456,7 @@ Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname,
   const dd::Event *event_obj= nullptr;
 
   DBUG_ENTER("Event_db_repository::load_named_event");
-  DBUG_PRINT("enter",("thd: 0x%lx  name: %*s", (long) thd,
+  DBUG_PRINT("enter",("thd: %p  name: %*s", thd,
                       (int) name.length, name.str));
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());

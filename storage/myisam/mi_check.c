@@ -2917,8 +2917,8 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
     */
     sort_param[i].read_cache= ((rep_quick || !i) ? param->read_cache :
                                new_data_cache);
-    DBUG_PRINT("io_cache_share", ("thread: %u  read_cache: 0x%lx",
-                                  i, (long) &sort_param[i].read_cache));
+    DBUG_PRINT("io_cache_share", ("thread: %u  read_cache: %p",
+                                  i, &sort_param[i].read_cache));
 
     sort_param[i].sortbuff_size=
       param->sort_buffer_length/sort_info.total_keys;

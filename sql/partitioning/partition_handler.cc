@@ -1943,8 +1943,8 @@ int Partition_helper::ph_rnd_init(bool scan)
   set_partition_read_set();
 
   /* Now we see what the index of our first important partition is */
-  DBUG_PRINT("info", ("m_part_info->read_partitions: 0x%lx",
-                      (long) m_part_info->read_partitions.bitmap));
+  DBUG_PRINT("info", ("m_part_info->read_partitions: %p",
+                      m_part_info->read_partitions.bitmap));
   part_id= m_part_info->get_first_used_partition();
   DBUG_PRINT("info", ("m_part_spec.start_part %d", part_id));
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,8 +27,8 @@ int mi_close_share(register MI_INFO *info, my_bool *closed_share)
   int error=0,flag;
   MYISAM_SHARE *share=info->s;
   DBUG_ENTER("mi_close_share");
-  DBUG_PRINT("enter",("base: 0x%lx  reopen: %u  locks: %u",
-		      (long) info, (uint) share->reopen,
+  DBUG_PRINT("enter",("base: %p  reopen: %u  locks: %u",
+		      info, (uint) share->reopen,
                       (uint) share->tot_locks));
 
   if (info->open_list.data)

@@ -469,7 +469,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         }
       }
     }
-    DBUG_PRINT("admin", ("table: 0x%lx", (long) table->table));
+    DBUG_PRINT("admin", ("table: %p", table->table));
 
     if (prepare_func)
     {

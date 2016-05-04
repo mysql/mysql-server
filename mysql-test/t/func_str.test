@@ -2005,3 +2005,16 @@ row(('*.)$'),(0xc254b6)),1))as binary(34)));
 do from_base64(cast((mid(uuid(),20,64)) as binary(55)));
 set @e:=_latin1'77';
 do inet_aton(aes_encrypt(left(@e,1),5));
+
+--echo #
+--echo # Bug#23194118 WEIGHT_STRING: ASSERTION FAILED:
+--echo #              SRC, FILE .\STRINGS\CTYPE-UTF8.CC, LINE 8686
+--echo #
+
+SET NAMES utf8;
+CREATE TABLE t(a INT) engine=innodb;
+INSERT INTO t VALUES(1);
+SELECT 1 FROM t WHERE WEIGHT_STRING(CONCAT_WS('1',''));
+SELECT 1 FROM t WHERE WEIGHT_STRING(CONCAT('',''));
+SET NAMES DEFAULT;
+DROP TABLE t;

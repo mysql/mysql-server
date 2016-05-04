@@ -668,9 +668,6 @@ const char* Log_event::get_type_str(Log_event_type type)
   case binary_log::USER_VAR_EVENT: return "User var";
   case binary_log::FORMAT_DESCRIPTION_EVENT: return "Format_desc";
   case binary_log::TABLE_MAP_EVENT: return "Table_map";
-  case binary_log::PRE_GA_WRITE_ROWS_EVENT: return "Write_rows_event_old";
-  case binary_log::PRE_GA_UPDATE_ROWS_EVENT: return "Update_rows_event_old";
-  case binary_log::PRE_GA_DELETE_ROWS_EVENT: return "Delete_rows_event_old";
   case binary_log::WRITE_ROWS_EVENT_V1: return "Write_rows_v1";
   case binary_log::UPDATE_ROWS_EVENT_V1: return "Update_rows_v1";
   case binary_log::DELETE_ROWS_EVENT_V1: return "Delete_rows_v1";
@@ -1630,15 +1627,6 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev = new Format_description_log_event(buf, event_len, description_event);
       break;
 #if defined(HAVE_REPLICATION)
-    case binary_log::PRE_GA_WRITE_ROWS_EVENT:
-      ev = new Write_rows_log_event_old(buf, event_len, description_event);
-      break;
-    case binary_log::PRE_GA_UPDATE_ROWS_EVENT:
-      ev = new Update_rows_log_event_old(buf, event_len, description_event);
-      break;
-    case binary_log::PRE_GA_DELETE_ROWS_EVENT:
-      ev = new Delete_rows_log_event_old(buf, event_len, description_event);
-      break;
     case binary_log::WRITE_ROWS_EVENT_V1:
       if (!(description_event->post_header_len.empty()))
         ev = new Write_rows_log_event(buf, event_len, description_event);
@@ -9104,7 +9092,7 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
     would save binlog space. TODO
   */
   DBUG_ENTER("Rows_log_event::do_add_row_data");
-  DBUG_PRINT("enter", ("row_data: 0x%lx  length: %lu", (ulong) row_data,
+  DBUG_PRINT("enter", ("row_data: %p  length: %lu", row_data,
                        (ulong) length));
 
   /*
@@ -9721,8 +9709,8 @@ void Rows_log_event::do_post_row_operations(Relay_log_info const *rli, int error
     m_curr_row_end.
   */
 
-  DBUG_PRINT("info", ("curr_row: 0x%lu; curr_row_end: 0x%lu; rows_end: 0x%lu",
-                      (ulong) m_curr_row, (ulong) m_curr_row_end, (ulong) m_rows_end));
+  DBUG_PRINT("info", ("curr_row: %p; curr_row_end: %p; rows_end: %p",
+                      m_curr_row, m_curr_row_end, m_rows_end));
 
   if (!m_curr_row_end && !error)
   {
@@ -10823,7 +10811,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     table= 
     m_table= const_cast<Relay_log_info*>(rli)->m_table_map.get_table(m_table_id);
 
-  DBUG_PRINT("debug", ("m_table: 0x%lx, m_table_id: %llu", (ulong) m_table,
+  DBUG_PRINT("debug", ("m_table: %p, m_table_id: %llu", m_table,
                        m_table_id.id()));
 
   /*
@@ -11085,8 +11073,6 @@ AFTER_MAIN_EXEC_ROW_LOOP:
     /*
       @todo We should probably not call
       reset_current_stmt_binlog_format_row() from here.
-
-      Note: this applies to log_event_old.cc too.
       /Sven
     */
     thd->reset_current_stmt_binlog_format_row();
@@ -11190,8 +11176,6 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD * thd)
     /*
       @todo We should probably not call
       reset_current_stmt_binlog_format_row() from here.
-
-      Note: this applies to log_event_old.cc too
 
       Btw, the previous comment about transactional engines does not
       seem related to anything that happens here.

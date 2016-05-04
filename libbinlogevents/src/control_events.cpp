@@ -133,15 +133,9 @@ Format_description_event::Format_description_event(uint8_t binlog_ver,
       BEGIN_LOAD_QUERY_HEADER_LEN,
       EXECUTE_LOAD_QUERY_HEADER_LEN,
       TABLE_MAP_HEADER_LEN,
-      /*
-       The PRE_GA events are never be written to any binlog, but
-       their lengths are included in Format_description_log_event.
-       Hence, we need to be assign some value here, to avoid reading
-       uninitialized memory when the array is written to disk.
-      */
-      0,                                       /* PRE_GA_WRITE_ROWS_EVENT */
-      0,                                       /* PRE_GA_UPDATE_ROWS_EVENT*/
-      0,                                       /* PRE_GA_DELETE_ROWS_EVENT*/
+      0,
+      0,
+      0,
       ROWS_HEADER_LEN_V1,                      /* WRITE_ROWS_EVENT_V1*/
       ROWS_HEADER_LEN_V1,                      /* UPDATE_ROWS_EVENT_V1*/
       ROWS_HEADER_LEN_V1,                      /* DELETE_ROWS_EVENT_V1*/
@@ -445,9 +439,6 @@ Format_description_event(const char* buf, unsigned int event_len,
         RAND_EVENT, USER_VAR_EVENT,
         FORMAT_DESCRIPTION_EVENT,
         TABLE_MAP_EVENT,
-        PRE_GA_WRITE_ROWS_EVENT,
-        PRE_GA_UPDATE_ROWS_EVENT,
-        PRE_GA_DELETE_ROWS_EVENT,
         XID_EVENT,
         BEGIN_LOAD_QUERY_EVENT,
         EXECUTE_LOAD_QUERY_EVENT,

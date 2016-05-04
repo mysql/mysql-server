@@ -1223,8 +1223,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   Field **field_ptr, **vfield_ptr= NULL;
   Field *fts_doc_id_field = NULL;
   DBUG_ENTER("open_table_from_share");
-  DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx", share->db.str,
-                      share->table_name.str, (long) outparam));
+  DBUG_PRINT("enter",("name: '%s.%s'  form: %p", share->db.str,
+                      share->table_name.str, outparam));
 
   error= 1;
   memset(outparam, 0, sizeof(*outparam));
@@ -1670,7 +1670,7 @@ int closefrm(TABLE *table, bool free_share)
 {
   int error=0;
   DBUG_ENTER("closefrm");
-  DBUG_PRINT("enter", ("table: 0x%lx", (long) table));
+  DBUG_PRINT("enter", ("table: %p", table));
 
   if (table->db_stat)
     error=table->file->ha_close();

@@ -1913,7 +1913,7 @@ buf_flush_batch(
 	switch (flush_type) {
 	case BUF_FLUSH_LRU:
 		mutex_enter(&buf_pool->LRU_list_mutex);
-		buf_do_LRU_batch(buf_pool, min_n);
+		count = buf_do_LRU_batch(buf_pool, min_n);
 		mutex_exit(&buf_pool->LRU_list_mutex);
 		break;
 	case BUF_FLUSH_LIST:

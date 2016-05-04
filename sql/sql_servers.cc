@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -346,8 +346,8 @@ static bool get_server_from_table_to_cache(TABLE *table)
   DBUG_PRINT("info", ("server->socket %s", server->socket));
   if (my_hash_insert(&servers_cache, (uchar*) server))
   {
-    DBUG_PRINT("info", ("had a problem inserting server %s at %lx",
-                        server->server_name, (long unsigned int) server));
+    DBUG_PRINT("info", ("had a problem inserting server %s at %p",
+                        server->server_name, server));
     // error handling needed here
     DBUG_RETURN(TRUE);
   }

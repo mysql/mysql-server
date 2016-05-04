@@ -502,9 +502,9 @@ Event_parse_data::check_parse_data(THD *thd)
 {
   bool ret;
   DBUG_ENTER("Event_parse_data::check_parse_data");
-  DBUG_PRINT("info", ("execute_at: 0x%lx  expr=0x%lx  starts=0x%lx  ends=0x%lx",
-                      (long) item_execute_at, (long) item_expression,
-                      (long) item_starts, (long) item_ends));
+  DBUG_PRINT("info", ("execute_at: %p  expr=%p  starts=%p  ends=%p",
+                      item_execute_at, item_expression,
+                      item_starts, item_ends));
 
   init_name(thd, identifier);
 
@@ -537,9 +537,9 @@ Event_parse_data::init_definer(THD *thd)
   size_t  definer_user_len= thd->lex->definer->user.length;
   size_t  definer_host_len= thd->lex->definer->host.length;
 
-  DBUG_PRINT("info",("init definer_user thd->mem_root: 0x%lx  "
-                     "definer_user: 0x%lx", (long) thd->mem_root,
-                     (long) definer_user));
+  DBUG_PRINT("info",("init definer_user thd->mem_root: %p  "
+                     "definer_user: %p", thd->mem_root,
+                     definer_user));
 
   /* + 1 for @ */
   DBUG_PRINT("info",("init definer as whole"));

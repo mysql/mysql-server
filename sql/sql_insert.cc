@@ -1229,8 +1229,8 @@ bool Sql_cmd_insert_base::mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
   const bool insert_into_view= table_list->is_view();
   bool res= false;
 
-  DBUG_PRINT("enter", ("table_list 0x%lx, view %d",
-                       (ulong)table_list,
+  DBUG_PRINT("enter", ("table_list %p, view %d",
+                       table_list,
                        (int)insert_into_view));
   /*
     For subqueries in VALUES() we should not see the table in which we are
@@ -3017,8 +3017,8 @@ void Query_result_create::send_error(uint errcode,const char *err)
              ("Current statement %s row-based",
               thd->is_current_stmt_binlog_format_row() ? "is" : "is NOT"));
   DBUG_PRINT("info",
-             ("Current table (at 0x%lu) %s a temporary (or non-existant) table",
-              (ulong) table,
+             ("Current table (at %p) %s a temporary (or non-existant) table",
+              table,
               table && !table->s->tmp_table ? "is NOT" : "is"));
   /*
     This will execute any rollbacks that are necessary before writing

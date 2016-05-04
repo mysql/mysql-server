@@ -240,6 +240,7 @@ bool Scheduler_dynamic::wait_if_idle_then_delete_worker(ulonglong &thread_waitin
 
   const int64 thread_waiting_for_delta_ms = my_timer_milliseconds() - thread_waiting_started;
 
+
   if (thread_waiting_for_delta_ms < m_idle_worker_timeout)
   {
     // Some implementations may signal a condition variable without
@@ -253,6 +254,12 @@ bool Scheduler_dynamic::wait_if_idle_then_delete_worker(ulonglong &thread_waitin
 
     if (!timeout)
       return false;
+  }
+  else
+  {
+    // Lets invalidate the timeout, if the thread won't die
+    // in next iteration then we should reinitialize the start-of-idle value
+    thread_waiting_started = TIME_VALUE_NOT_VALID;
   }
 
   if (my_atomic_load32(&m_workers_count) >

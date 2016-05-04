@@ -1600,7 +1600,7 @@ void STDCALL
 mysql_free_result(MYSQL_RES *result)
 {
   DBUG_ENTER("mysql_free_result");
-  DBUG_PRINT("enter",("mysql_res: 0x%lx", (long) result));
+  DBUG_PRINT("enter",("mysql_res: %p", result));
   if (result)
   {
     MYSQL *mysql= result->handle;
@@ -4290,7 +4290,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		 ("host: '%s'  socket: '%s'  shared memory: %s  have_tcpip: %d",
 		  host ? host : "<null>",
 		  unix_socket ? unix_socket : "<null>",
-		  (int) mysql->options.shared_memory_base_name,
+		  mysql->options.shared_memory_base_name,
 		  (int) have_tcpip));
       if (mysql->options.protocol == MYSQL_PROTOCOL_MEMORY)
 	goto error;
@@ -4883,7 +4883,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   }
 #endif
 
-  DBUG_PRINT("exit", ("Mysql handler: 0x%lx", (long) mysql));
+  DBUG_PRINT("exit", ("Mysql handler: %p", mysql));
   DBUG_RETURN(mysql);
 
 error:

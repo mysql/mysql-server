@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,8 +51,8 @@ int my_getwd(char * buf, size_t size, myf MyFlags)
 {
   char * pos;
   DBUG_ENTER("my_getwd");
-  DBUG_PRINT("my",("buf: 0x%lx  size: %u  MyFlags %d",
-                   (long) buf, (uint) size, MyFlags));
+  DBUG_PRINT("my",("buf: %p  size: %u  MyFlags %d",
+                   buf, (uint) size, MyFlags));
 
   if (size < 1)
     DBUG_RETURN(-1);

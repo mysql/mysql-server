@@ -331,6 +331,11 @@ void Connection::enable_tls()
 
   if (ec)
   {
+    // If ssl activation failed then
+    // server and client are in different states
+    // lets force disconnect
+    set_closed();
+
     if (boost::system::errc::not_supported == ec.value())
       throw Error(CR_SSL_CONNECTION_ERROR, "SSL not configured");
 

@@ -617,7 +617,7 @@ public:
   {
     DBUG_ASSERT(sliceno > 0 && sliceno < 5 &&
                 ref_items[sliceno].is_null());
-    uint count= ref_items[0].size();
+    size_t count= ref_items[0].size();
     Item **slice= pointer_cast<Item **>(thd->alloc(sizeof(Item *) * count));
     if (slice == NULL)
       return true;

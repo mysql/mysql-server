@@ -624,8 +624,8 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
   share->m_psi= NULL;
 #endif
 
-  DBUG_PRINT("exit", ("share: 0x%lx  ref_count: %u",
-                      (ulong) share, share->ref_count));
+  DBUG_PRINT("exit", ("share: %p  ref_count: %u",
+                      share, share->ref_count));
 
   /* If debug, assert that the share is actually present in the cache */
 #ifndef DBUG_OFF
@@ -678,8 +678,8 @@ found:
          oldest_unused_share->next)
     my_hash_delete(&table_def_cache, (uchar*) oldest_unused_share);
 
-  DBUG_PRINT("exit", ("share: 0x%lx  ref_count: %u",
-                      (ulong) share, share->ref_count));
+  DBUG_PRINT("exit", ("share: %p ref_count: %u",
+                      share, share->ref_count));
   DBUG_RETURN(share);
 }
 
@@ -791,8 +791,8 @@ void release_table_share(TABLE_SHARE *share)
 {
   DBUG_ENTER("release_table_share");
   DBUG_PRINT("enter",
-             ("share: 0x%lx  table: %s.%s  ref_count: %u  version: %lu",
-              (ulong) share, share->db.str, share->table_name.str,
+             ("share: %p  table: %s.%s  ref_count: %u  version: %lu",
+              share, share->db.str, share->table_name.str,
               share->ref_count, share->version));
 
   mysql_mutex_assert_owner(&LOCK_open);
@@ -938,10 +938,10 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
 void intern_close_table(TABLE *table)
 {						// Free all structures
   DBUG_ENTER("intern_close_table");
-  DBUG_PRINT("tcache", ("table: '%s'.'%s' 0x%lx",
+  DBUG_PRINT("tcache", ("table: '%s'.'%s' %p",
                         table->s ? table->s->db.str : "?",
                         table->s ? table->s->table_name.str : "?",
-                        (long) table));
+                        table));
 
   free_io_cache(table);
   delete table->triggers;
@@ -1281,7 +1281,7 @@ static void close_open_tables(THD *thd)
 {
   mysql_mutex_assert_not_owner(&LOCK_open);
 
-  DBUG_PRINT("info", ("thd->open_tables: 0x%lx", (long) thd->open_tables));
+  DBUG_PRINT("info", ("thd->open_tables: %p", thd->open_tables));
 
   while (thd->open_tables)
     close_thread_table(thd, &thd->open_tables);
@@ -2325,9 +2325,9 @@ void close_temporary_table(THD *thd, TABLE *table,
                            bool free_share, bool delete_table)
 {
   DBUG_ENTER("close_temporary_table");
-  DBUG_PRINT("tmptable", ("closing table: '%s'.'%s' 0x%lx  alias: '%s'",
+  DBUG_PRINT("tmptable", ("closing table: '%s'.'%s' %p  alias: '%s'",
                           table->s->db.str, table->s->table_name.str,
-                          (long) table, table->alias));
+                          table, table->alias));
 
   if (table->prev)
   {
@@ -2442,8 +2442,8 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
                               enum ha_extra_function function)
 {
   DBUG_ENTER("wait_while_table_is_used");
-  DBUG_PRINT("enter", ("table: '%s'  share: 0x%lx  db_stat: %u  version: %lu",
-                       table->s->table_name.str, (ulong) table->s,
+  DBUG_PRINT("enter", ("table: '%s'  share: %p  db_stat: %u  version: %lu",
+                       table->s->table_name.str, table->s,
                        table->db_stat, table->s->version));
 
   if (thd->mdl_context.upgrade_shared_lock(
@@ -6812,8 +6812,8 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 
   tmp_table->set_created();
 
-  DBUG_PRINT("tmptable", ("opened table: '%s'.'%s' 0x%lx", tmp_table->s->db.str,
-                          tmp_table->s->table_name.str, (long) tmp_table));
+  DBUG_PRINT("tmptable", ("opened table: '%s'.'%s' %p", tmp_table->s->db.str,
+                          tmp_table->s->table_name.str, tmp_table));
   DBUG_RETURN(tmp_table);
 }
 
@@ -7039,8 +7039,8 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
 {
   DBUG_ENTER("find_field_in_view");
   DBUG_PRINT("enter",
-             ("view: '%s', field name: '%s', item name: '%s', ref 0x%lx",
-              table_list->alias, name, item_name, (ulong) ref));
+             ("view: '%s', field name: '%s', item name: '%s', ref %p",
+              table_list->alias, name, item_name, ref));
   Field_iterator_view field_it;
   field_it.set(table_list);
 
@@ -7132,8 +7132,8 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
   Natural_join_column *nj_col, *curr_nj_col;
   Field *found_field= NULL;
   DBUG_ENTER("find_field_in_natural_join");
-  DBUG_PRINT("enter", ("field name: '%s', ref 0x%lx",
-		       name, (ulong) ref));
+  DBUG_PRINT("enter", ("field name: '%s', ref %p",
+		       name, ref));
   DBUG_ASSERT(table_ref->is_natural_join && table_ref->join_columns);
   DBUG_ASSERT(*actual_table == NULL);
 
@@ -7363,8 +7363,8 @@ find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
   DBUG_ASSERT(name);
   DBUG_ASSERT(item_name);
   DBUG_PRINT("enter",
-             ("table: '%s'  field name: '%s'  item name: '%s'  ref 0x%lx",
-              table_list->alias, name, item_name, (ulong) ref));
+             ("table: '%s'  field name: '%s'  item name: '%s'  ref %p",
+              table_list->alias, name, item_name, ref));
 
   /*
     Check that the table and database that qualify the current field name
@@ -8880,7 +8880,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 {
   char name_buff[NAME_LEN+1];
   DBUG_ENTER("insert_fields");
-  DBUG_PRINT("arena", ("stmt arena: 0x%lx", (ulong)thd->stmt_arena));
+  DBUG_PRINT("arena", ("stmt arena: %p", thd->stmt_arena));
 
   if (db_name && lower_case_table_names)
   {

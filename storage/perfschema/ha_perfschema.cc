@@ -1079,11 +1079,20 @@ static bool pfs_show_status(handlerton *hton, THD *thd,
       size= digest_max * pfs_max_digest_length;
       total_memory+= size;
       break;
+    case 228:
+      name= "(pfs_buffer_scalable_container).count";
+      size= builtin_memory_scalable_buffer.m_stat.m_alloc_count - builtin_memory_scalable_buffer.m_stat.m_free_count;
+      break;
+    case 229:
+      name= "(pfs_buffer_scalable_container).memory";
+      size= builtin_memory_scalable_buffer.m_stat.m_alloc_size - builtin_memory_scalable_buffer.m_stat.m_free_size;
+      total_memory+= size;
+      break;
     /*
       This case must be last,
       for aggregation in total_memory.
     */
-    case 228:
+    case 230:
       name= "performance_schema.memory";
       size= total_memory;
       break;

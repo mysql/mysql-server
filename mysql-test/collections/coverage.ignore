@@ -5,3 +5,4 @@
 
 rapid/plugin/x/mysqlxtest_src
 rapid/unittest/gunit/xplugin
+extra/protobuf

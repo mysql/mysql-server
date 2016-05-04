@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@ int heap_rkey(HP_INFO *info, uchar *record, int inx, const uchar *key,
   HP_SHARE *share= info->s;
   HP_KEYDEF *keyinfo= share->keydef + inx;
   DBUG_ENTER("heap_rkey");
-  DBUG_PRINT("enter",("info: 0x%lx  inx: %d", (long) info, inx));
+  DBUG_PRINT("enter",("info: %p  inx: %d", info, inx));
 
   if ((uint) inx >= share->keys)
   {

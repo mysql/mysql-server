@@ -3670,8 +3670,6 @@ protected:
 };
 
 
-#include "log_event_old.h"
-
 /**
   @class Incident_log_event
 
@@ -4383,7 +4381,7 @@ public:
   /**
     Return the id of the committing thread.
    */
-  my_thread_id get_thread_id() { return thread_id; }
+  my_thread_id get_thread_id() { return static_cast<my_thread_id>(thread_id); }
 
   /**
    Return true if transaction has GTID_NEXT specified, false otherwise.

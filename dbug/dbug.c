@@ -1453,8 +1453,8 @@ void _db_dump_(uint _line_, const char *keyword,
     {
       fprintf(cs->stack->out_file, "%s: ", cs->func);
     }
-    (void) fprintf(cs->stack->out_file, "%s: Memory: 0x%lx  Bytes: (%ld)\n",
-            keyword, (ulong) memory, (long) length);
+    (void) fprintf(cs->stack->out_file, "%s: Memory: %p  Bytes: (%ld)\n",
+            keyword, memory, (long) length);
 
     pos=0;
     while (length-- > 0)

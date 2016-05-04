@@ -231,7 +231,7 @@ int command_service_run_command(MYSQL_SESSION session,
 #include <mysql/service_my_snprintf.h>
 extern struct my_snprintf_service_st {
   size_t (*my_snprintf_type)(char*, size_t, const char*, ...);
-  size_t (*my_vsnprintf_type)(char *, size_t, const char*, va_list);
+  size_t (*my_vsnprintf_type)(char *to, size_t n, const char* fmt, va_list ap);
 } *my_snprintf_service;
 size_t my_snprintf(char* to, size_t n, const char* fmt, ...);
 size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap);
