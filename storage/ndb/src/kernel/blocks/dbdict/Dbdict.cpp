@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2008,6 +2008,7 @@ Dbdict::Dbdict(Block_context& ctx):
   c_opSignalUtil(c_opRecordPool),
   c_opRecordSequence(0),
   c_restart_enable_fks(false),
+  c_nr_upgrade_fks_done(false),
   c_at_restart_skip_indexes(0),
   c_at_restart_skip_fks(0)
 {
@@ -2144,6 +2145,7 @@ Dbdict::Dbdict(Block_context& ctx):
   addRecSignal(GSN_WAIT_GCP_CONF, &Dbdict::execWAIT_GCP_CONF);
 
   addRecSignal(GSN_LIST_TABLES_REQ, &Dbdict::execLIST_TABLES_REQ);
+  addRecSignal(GSN_LIST_TABLES_CONF, &Dbdict::execLIST_TABLES_CONF);
 
   addRecSignal(GSN_DROP_TABLE_REQ, &Dbdict::execDROP_TABLE_REQ);
 
@@ -3440,6 +3442,170 @@ Dbdict::rebuildIndex_fromEndTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
   rebuildIndexes(signal, id + 1);
 }
 
+void
+Dbdict::checkFkTriggerIds(Signal* signal)
+{
+  jam();
+  
+  BlockReference dictMasterRef = calcDictBlockRef(c_masterNodeId);
+  ListTablesReq* ltr = (ListTablesReq*) signal->getDataPtr();
+
+  /**
+   * Ask DICT master for everything
+   * TODO : Consider FK parents + children separately to reduce
+   * data volume
+   */
+  ltr->init();
+  ltr->senderData = RNIL; /* Marker */
+  ltr->senderRef = reference();
+  ltr->data.setListNames(1);
+  ltr->data.setTableId(RNIL);
+  ltr->data.setTableType(0);
+
+  sendSignal(dictMasterRef, 
+             GSN_LIST_TABLES_REQ,
+             signal,
+             ListTablesReq::SignalLength,
+             JBB);
+}
+
+void
+Dbdict::execLIST_TABLES_CONF(Signal* signal)
+{
+  jam();
+
+  /* Signal can arrive in chunks, not a conventional
+   * fragmented signal - chunks contain correlated 
+   * subsets of two sections rather than maximal
+   * amount of any remaining...
+   */
+
+  SectionHandle handle(this, signal);
+  
+  const ListTablesConf* ltc = (const ListTablesConf*) signal->getDataPtr();
+  ndbrequire(ltc->senderData == RNIL);
+
+  bool finished = 
+    (signal->header.m_fragmentInfo == 0) |
+    (signal->header.m_fragmentInfo == 3);
+
+  /* Clear for safety */
+  signal->header.m_fragmentInfo = 0; 
+ 
+  Uint32 numObjectsInSignal = ltc->noOfTables;
+  ndbrequire(handle.m_cnt == 2);
+  SectionReader data(handle.m_ptr[ListTablesConf::TABLE_DATA],
+                     getSectionSegmentPool());
+  SectionReader names(handle.m_ptr[ListTablesConf::TABLE_NAMES],
+                      getSectionSegmentPool());
+
+  ndbassert((sizeof(ListTablesData) % sizeof(Uint32)) == 0);
+  const Uint32 ltdWords = sizeof(ListTablesData) / sizeof(Uint32);
+  
+  while (numObjectsInSignal--)
+  {
+    jam();
+
+    /* Get object info from the long sections */
+    ListTablesData ltd;
+    Uint32 nameByteLen;
+    char nameBuff[256];
+
+    ndbrequire(data.getWords((Uint32*) &ltd, ltdWords));
+    ndbrequire(names.getWord(&nameByteLen));
+    Uint32 nameWordLen = (nameByteLen + 3) / 4;
+    ndbrequire(names.getWords((Uint32*) nameBuff, nameWordLen));
+
+    /* Process object */
+    switch(ltd.getTableType())
+    {
+    case DictTabInfo::FKParentTrigger:
+    {
+      jam();
+      /* NDB$FK_<fkId>_PARENT_<parentTableId> */
+      
+      /* Extract details... */
+      Vector<BaseString> components;
+      BaseString trigName(nameBuff);
+      ndbrequire(trigName.split(components, BaseString("_")) == 4);
+      ndbrequire(strcmp(components[0].c_str(), "NDB$FK") == 0);
+      ndbrequire(strcmp(components[2].c_str(), "PARENT") == 0);
+      Uint32 fkID= atoi(components[1].c_str());
+      Uint32 pTID= atoi(components[3].c_str());
+      
+      /* Now, check parent table id + update parent triggerId in FK */
+      Ptr<ForeignKeyRec> fk_ptr;
+      ndbrequire(find_object(fk_ptr, fkID));
+      ndbrequire(fk_ptr.p->m_parentTableId == pTID);
+
+      /* Todo : Check trigger id not found... */
+      
+      g_eventLogger->info("DICT : Setting FK %u parent trigger id to %u (%u) ",
+                          fkID,
+                          ltd.getTableId(),
+                          fk_ptr.p->m_parentTriggerId);
+
+      fk_ptr.p->m_parentTriggerId = ltd.getTableId();
+      break;
+    }
+    case DictTabInfo::FKChildTrigger:
+    {
+      jam();
+      /* NDB$FK_<fkId>_CHILD_<childTableId> */
+
+      /* Extract details... */
+      Vector<BaseString> components;
+      BaseString trigName(nameBuff);
+      ndbrequire(trigName.split(components, BaseString("_")) == 4);
+      ndbrequire(strcmp(components[0].c_str(), "NDB$FK") == 0);
+      ndbrequire(strcmp(components[2].c_str(), "CHILD") == 0);
+      Uint32 fkID= atoi(components[1].c_str());
+      Uint32 cTID= atoi(components[3].c_str());
+
+      /* Now, check child table id + update child triggerId in FK */
+      Ptr<ForeignKeyRec> fk_ptr;
+      ndbrequire(find_object(fk_ptr, fkID));
+      ndbrequire(fk_ptr.p->m_childTableId == cTID);
+
+      /* Todo : Check trigger id not found... */
+      
+      g_eventLogger->info("DICT : Setting FK %u child trigger id to %u (%u)",
+                          fkID,
+                          ltd.getTableId(),
+                          fk_ptr.p->m_childTriggerId);
+
+      fk_ptr.p->m_childTriggerId = ltd.getTableId();
+      break;
+    }
+    case DictTabInfo::ForeignKey:
+    {
+      jam();
+      /* <parentTableId>/<childTableId>/<fk_name> */
+
+      /* Ignore, don't need the info, and the format is only
+       * stable since 7.3.6. (bug#18824753)
+       */
+      break;
+    }
+    default:
+      jam();
+      /* Ignore */
+      break;
+    }
+  }
+
+  releaseSections(handle);
+
+  if (finished)
+  {
+    /* Option, check all FK triggers are != RNIL */
+
+    g_eventLogger->info("DICT : Checking FK trigger ids complete");
+
+    enableFKs(signal, 0);
+  }
+}
+
 /*
  * Activate FKs i.e. create child and parent triggers.
  * This is done as a local trans in both NR and SR.
@@ -3453,6 +3619,25 @@ Dbdict::enableFKs(Signal* signal, Uint32 id)
   if (id == 0)
   {
     D("enableFKs start");
+
+    /* Handle problem where NR does not use the
+     * same trigger id as the running cluster
+     */
+    if (/* TODO add version check if/when fixed  */
+        /* TODO only do this if we have FKs */
+        (c_initialNodeRestart ||
+         c_nodeRestart) &&
+        !c_nr_upgrade_fks_done)
+    {
+      jam();
+      g_eventLogger->info("DICT : Checking FK trigger ids");
+      
+      c_nr_upgrade_fks_done = true;
+
+      checkFkTriggerIds(signal);
+      return;
+    }
+
     ndbrequire(c_restart_enable_fks == false);
     c_restart_enable_fks = true;
   }
@@ -25199,6 +25384,8 @@ Dbdict::createFK_parse(Signal* signal, bool master,
   fk_ptr.p->m_parentIndexId = fk.ParentIndexId;
   fk_ptr.p->m_childIndexId = fk.ChildIndexId;
   fk_ptr.p->m_bits = bits;
+  fk_ptr.p->m_parentTriggerId = RNIL;
+  fk_ptr.p->m_childTriggerId = RNIL;
   fk_ptr.p->m_columnCount = (fk.ParentColumnsLength / 4);
 
   for (Uint32 i = 0; i < fk_ptr.p->m_columnCount; i++)
@@ -25458,16 +25645,19 @@ Dbdict::createFK_toCreateTrigger(Signal* signal,
 
   Uint32 tableId = RNIL;
   Uint32 indexId = RNIL;
+  Uint32 triggerId = RNIL;
   Uint32 triggerNo = RNIL;
   switch(createFKPtr.p->m_sub_create_trigger) {
   case 0:
     tableId = fk_ptr.p->m_parentTableId;
     indexId = fk_ptr.p->m_parentIndexId;
+    triggerId = fk_ptr.p->m_parentTriggerId;
     triggerNo = 0;
     break;
   case 1:
     tableId = fk_ptr.p->m_childTableId;
     indexId = fk_ptr.p->m_childIndexId;
+    triggerId = fk_ptr.p->m_childTriggerId;
     triggerNo = 1;
     break;
   default:
@@ -25492,7 +25682,7 @@ Dbdict::createFK_toCreateTrigger(Signal* signal,
   req->indexId = fk_ptr.p->m_fk_id;
   req->indexVersion = fk_ptr.p->m_version;
   req->triggerNo = triggerNo;
-  req->forceTriggerId = RNIL;
+  req->forceTriggerId = triggerId;
 
   if ((fk_ptr.p->m_bits & CreateFKImplReq::FK_ACTION_MASK) == 0)
   {

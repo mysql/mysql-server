@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -898,6 +898,7 @@ private:
   void execWAIT_GCP_CONF(Signal* signal);
 
   void execLIST_TABLES_REQ(Signal* signal);
+  void execLIST_TABLES_CONF(Signal* signal);
 
   // Index signals
   void execCREATE_INDX_REQ(Signal* signal);
@@ -4403,11 +4404,13 @@ private:
   void rebuildIndex_fromBuildIndex(Signal*, Uint32 tx_key, Uint32 ret);
   void rebuildIndex_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
   // FK re-enable (create triggers) on start up
+  void checkFkTriggerIds(Signal*);
   void enableFKs(Signal* signal, Uint32 i);
   void enableFK_fromBeginTrans(Signal*, Uint32 tx_key, Uint32 ret);
   void enableFK_fromCreateFK(Signal*, Uint32 tx_key, Uint32 ret);
   void enableFK_fromEndTrans(Signal*, Uint32 tx_key, Uint32 ret);
   bool c_restart_enable_fks;
+  bool c_nr_upgrade_fks_done;
   Uint32 c_at_restart_skip_indexes;
   Uint32 c_at_restart_skip_fks;
 
