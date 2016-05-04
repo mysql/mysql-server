@@ -35,8 +35,8 @@ my_bool create_keyring_dir_if_does_not_exist(const char *keyring_file_path)
   char keyring_dir[FN_REFLEN];
   size_t keyring_dir_length;
   dirname_part(keyring_dir, keyring_file_path, &keyring_dir_length);
-  if (keyring_dir_length > 1 && (keyring_dir[keyring_dir_length-1] == FN_LIBCHAR ||
-                                 keyring_dir[keyring_dir_length-1] == FN_LIBCHAR2) )
+  if (keyring_dir_length > 1 &&
+      is_directory_separator(keyring_dir[keyring_dir_length-1]))
   {
     keyring_dir[keyring_dir_length-1]= '\0';
     --keyring_dir_length;

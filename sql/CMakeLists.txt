@@ -448,6 +448,14 @@ IF(HAVE_DEPRECATED_DECLARATIONS)
                     COMPILE_FLAGS "-Wno-deprecated-declarations")
 ENDIF()
 
+# Boost source has misleading indentation
+MY_CHECK_CXX_COMPILER_FLAG("-Wmisleading-indentation"
+                           HAVE_MISLEADING_INDENTATION)
+IF(HAVE_MISLEADING_INDENTATION)
+  ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
+                    COMPILE_FLAGS "-Wno-misleading-indentation")
+ENDIF()
+
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 # See comments in filesort_compare-t.cc about __builtin_memcmp
 IF(HAVE_NO_BUILTIN_MEMCMP)

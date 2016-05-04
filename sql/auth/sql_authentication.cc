@@ -158,8 +158,11 @@ Rsa_authentication_keys::get_key_file_path(char *key, String *key_file_path)
      If a fully qualified path is entered use that, else assume the keys are 
      stored in the data directory.
    */
-  if (strchr(key, FN_LIBCHAR) != NULL ||
-      strchr(key, FN_LIBCHAR2) != NULL)
+  if (strchr(key, FN_LIBCHAR) != NULL
+#ifdef _WIN32
+      || strchr(key, FN_LIBCHAR2) != NULL
+#endif
+     )
     key_file_path->set_quick(key, strlen(key), system_charset_info);
   else
   {

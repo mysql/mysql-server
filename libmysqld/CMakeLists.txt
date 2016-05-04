@@ -185,6 +185,14 @@ IF(HAVE_DEPRECATED_DECLARATIONS)
                     COMPILE_FLAGS "-Wno-deprecated-declarations")
 ENDIF()
 
+# Boost source has misleading indentation
+MY_CHECK_CXX_COMPILER_FLAG("-Wmisleading-indentation"
+                           HAVE_MISLEADING_INDENTATION)
+IF(HAVE_MISLEADING_INDENTATION)
+  ADD_COMPILE_FLAGS(${LIBMYSQLD_BOOST_SOURCES}
+                    COMPILE_FLAGS "-Wno-misleading-indentation")
+ENDIF()
+
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 
 # there

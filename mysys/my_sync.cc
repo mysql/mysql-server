@@ -126,10 +126,6 @@ int my_sync(File fd, myf my_flags)
     0 if ok, !=0 if error
 */
 
-#ifdef __linux
-static const char cur_dir_name[]= {FN_CURLIB, 0};
-#endif
-
 int my_sync_dir(const char *dir_name MY_ATTRIBUTE((unused)),
                 myf my_flags MY_ATTRIBUTE((unused)))
 {
@@ -138,6 +134,7 @@ int my_sync_dir(const char *dir_name MY_ATTRIBUTE((unused)),
   file creation/deletion/renaming in(from,to) this directory durable.
 */
 #ifdef __linux__
+  static const char cur_dir_name[]= {FN_CURLIB, 0};
   File dir_fd;
   int res= 0;
   const char *correct_dir_name;

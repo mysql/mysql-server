@@ -126,7 +126,11 @@ size_t vio_read(Vio *vio, uchar *buf, size_t size)
     int error= socket_errno;
 
     /* The operation would block? */
+#if SOCKET_EAGAIN == SOCKET_EWOULDBLOCK
+    if (error != SOCKET_EAGAIN)
+#else
     if (error != SOCKET_EAGAIN && error != SOCKET_EWOULDBLOCK)
+#endif
       break;
 
     /* Wait for input data to become available. */
@@ -204,7 +208,11 @@ size_t vio_write(Vio *vio, const uchar* buf, size_t size)
     int error= socket_errno;
 
     /* The operation would block? */
+#if SOCKET_EAGAIN == SOCKET_EWOULDBLOCK
+    if (error != SOCKET_EAGAIN)
+#else
     if (error != SOCKET_EAGAIN && error != SOCKET_EWOULDBLOCK)
+#endif
       break;
 
     /* Wait for the output buffer to become writable.*/

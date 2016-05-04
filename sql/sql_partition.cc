@@ -2073,8 +2073,10 @@ void truncate_partition_filename(MEM_ROOT *root, const char **path)
   {
     const char* last_slash= strrchr(*path, FN_LIBCHAR);
 
+#ifdef _WIN32
     if (!last_slash)
       last_slash= strrchr(*path, FN_LIBCHAR2);
+#endif
 
     if (last_slash)
     {

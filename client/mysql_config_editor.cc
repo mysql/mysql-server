@@ -750,7 +750,7 @@ static my_bool check_and_create_login_file(void)
 
     dirname_part(login_dir, my_login_file, &size);
     /* Remove the trailing '\' */
-    if (login_dir[-- size] == FN_LIBCHAR)
+    if (is_directory_separator(login_dir[-- size]))
       login_dir[size]= 0;
 
     /* Now check if directory exists? */
