@@ -10382,11 +10382,9 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       DBUG_RETURN(-1);
     }
 
-    if (is_write &&
-        lex->sql_command != SQLCOM_END /* rows-event applying by slave */)
+    if (is_write)
     {
       /*
-        Master side of DML in the STMT format events parallelization.
         All involving table db:s are stored in a abc-ordered name list.
         In case the number of databases exceeds MAX_DBS_IN_EVENT_MTS maximum
         the list gathering breaks since it won't be sent to the slave.
