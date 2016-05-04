@@ -129,7 +129,7 @@ row_mysql_read_geometry(
 					MySQL format */
 	ulint		col_len)	/*!< in: BLOB reference length
 					(not BLOB length) */
-	MY_ATTRIBUTE((nonnull(1,2), warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /**************************************************************//**
 Pad a column with spaces. */
 void
@@ -188,8 +188,7 @@ row_mysql_handle_errors(
 				during the function entry */
 	trx_t*		trx,	/*!< in: transaction */
 	que_thr_t*	thr,	/*!< in: query thread, or NULL */
-	trx_savept_t*	savept)	/*!< in: savepoint, or NULL */
-	MY_ATTRIBUTE((nonnull(1,2)));
+	trx_savept_t*	savept);	/*!< in: savepoint, or NULL */
 /********************************************************************//**
 Create a prebuilt struct for a MySQL table handle.
 @return own: a prebuilt struct */
@@ -227,7 +226,7 @@ row_lock_table_autoinc_for_mysql(
 /*=============================*/
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in the MySQL
 					table handle */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /*********************************************************************//**
 Sets a table lock on the table mentioned in prebuilt.
@@ -241,9 +240,8 @@ row_lock_table_for_mysql(
 					if prebuilt->table should be
 					locked as
 					prebuilt->select_lock_type */
-	ulint		mode)		/*!< in: lock mode of table
+	ulint		mode);		/*!< in: lock mode of table
 					(ignored if table==NULL) */
-	MY_ATTRIBUTE((nonnull(1)));
 
 /** Does an insert for MySQL.
 @param[in]	mysql_rec	row in the MySQL format
@@ -464,7 +462,7 @@ row_mysql_lock_table(
 	dict_table_t*	table,		/*!< in: table to lock */
 	enum lock_mode	mode,		/*!< in: LOCK_X or LOCK_S */
 	const char*	op_info)	/*!< in: string for trx->op_info */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /*********************************************************************//**
 Truncates a table for MySQL.
@@ -474,7 +472,7 @@ row_truncate_table_for_mysql(
 /*=========================*/
 	dict_table_t*	table,	/*!< in: table handle */
 	trx_t*		trx)	/*!< in: transaction handle */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*********************************************************************//**
 Drops a table for MySQL.  If the data dictionary was not already locked
 by the transaction, the transaction will be committed.  Otherwise, the
@@ -507,7 +505,7 @@ row_discard_tablespace_for_mysql(
 /*=============================*/
 	const char*	name,	/*!< in: table name */
 	trx_t*		trx)	/*!< in: transaction handle */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /*****************************************************************//**
 Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary.
@@ -517,7 +515,7 @@ row_import_tablespace_for_mysql(
 /*============================*/
 	dict_table_t*	table,		/*!< in/out: table */
 	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL */
-        MY_ATTRIBUTE((nonnull, warn_unused_result));
+        MY_ATTRIBUTE((warn_unused_result));
 
 /** Drop a database for MySQL.
 @param[in]	name	database name which ends at '/'
@@ -540,7 +538,7 @@ row_rename_table_for_mysql(
 	const char*	new_name,	/*!< in: new table name */
 	trx_t*		trx,		/*!< in/out: transaction */
 	bool		commit)		/*!< in: whether to commit trx */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /** Renames a partitioned table for MySQL.
 @param[in]	old_name	Old table name.
@@ -552,7 +550,7 @@ row_rename_partitions_for_mysql(
 	const char*	old_name,
 	const char*	new_name,
 	trx_t*		trx)
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 
 /*********************************************************************//**
 Scans an index for either COOUNT(*) or CHECK TABLE.
@@ -593,7 +591,7 @@ row_mysql_table_id_reassign(
 	dict_table_t*	table,	/*!< in/out: table */
 	trx_t*		trx,	/*!< in/out: transaction */
 	table_id_t*	new_id) /*!< out: new table id */
-        MY_ATTRIBUTE((nonnull, warn_unused_result));
+        MY_ATTRIBUTE((warn_unused_result));
 
 /* A struct describing a place for an individual column in the MySQL
 row format which is presented to the table handler in ha_innobase.

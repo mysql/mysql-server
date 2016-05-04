@@ -220,7 +220,7 @@ trx_undo_add_page(
 					a latch to any undo log page;
 					the caller must have reserved
 					the rollback segment mutex */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /********************************************************************//**
 Frees the last undo log page.
 The caller must hold the rollback segment mutex. */
@@ -231,10 +231,9 @@ trx_undo_free_last_page_func(
 	const trx_t*	trx,	/*!< in: transaction */
 #endif /* UNIV_DEBUG */
 	trx_undo_t*	undo,	/*!< in/out: undo log memory copy */
-	mtr_t*		mtr)	/*!< in/out: mini-transaction which does not
+	mtr_t*		mtr);	/*!< in/out: mini-transaction which does not
 				have a latch to any undo log page or which
 				has allocated the undo log page */
-	MY_ATTRIBUTE((nonnull));
 #ifdef UNIV_DEBUG
 # define trx_undo_free_last_page(trx,undo,mtr)	\
 	trx_undo_free_last_page_func(trx,undo,mtr)
@@ -253,9 +252,8 @@ trx_undo_truncate_end_func(
 	const trx_t*	trx,	/*!< in: transaction whose undo log it is */
 #endif /* UNIV_DEBUG */
 	trx_undo_t*	undo,	/*!< in/out: undo log */
-	undo_no_t	limit)	/*!< in: all undo records with undo number
+	undo_no_t	limit);	/*!< in: all undo records with undo number
 				>= this value should be truncated */
-	MY_ATTRIBUTE((nonnull));
 #ifdef UNIV_DEBUG
 # define trx_undo_truncate_end(trx,undo,limit)		\
 	trx_undo_truncate_end_func(trx,undo,limit)
@@ -301,7 +299,7 @@ trx_undo_assign_undo(
 					referred rollback segment. */
 	ulint		type)		/*!< in: TRX_UNDO_INSERT or
 					TRX_UNDO_UPDATE */
-	MY_ATTRIBUTE((nonnull, warn_unused_result));
+	MY_ATTRIBUTE((warn_unused_result));
 /******************************************************************//**
 Sets the state of the undo log segment at a transaction finish.
 @return undo log segment header page, x-latched */
@@ -358,7 +356,7 @@ void
 trx_undo_free_prepared(
 /*===================*/
 	trx_t*	trx)	/*!< in/out: PREPARED transaction */
-	UNIV_COLD MY_ATTRIBUTE((nonnull));
+	UNIV_COLD;
 
 /* Forward declaration. */
 namespace undo {
