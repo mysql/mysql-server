@@ -276,7 +276,6 @@ row_fts_merge_insert(
 	dict_index_t*	index,		/*!< in: index */
 	dict_table_t*	table,		/*!< in: new table */
 	fts_psort_t*	psort_info,	/*!< parallel sort info */
-	ulint		id)		/* !< in: which auxiliary table's data
+	ulint		id);		/* !< in: which auxiliary table's data
 					to insert to */
-	MY_ATTRIBUTE((nonnull));
 #endif /* row0ftsort_h */

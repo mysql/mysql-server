@@ -47,7 +47,7 @@ buf_buddy_alloc_low(
 					allocated from the LRU list and
 					buf_pool->mutex was temporarily
 					released */
-	MY_ATTRIBUTE((malloc, nonnull));
+	MY_ATTRIBUTE((malloc));
 
 /**********************************************************************//**
 Deallocate a block. */
@@ -57,9 +57,8 @@ buf_buddy_free_low(
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	void*		buf,		/*!< in: block to be freed, must not be
 					pointed to by the buffer pool */
-	ulint		i)		/*!< in: index of buf_pool->zip_free[],
+	ulint		i);		/*!< in: index of buf_pool->zip_free[],
 					or BUF_BUDDY_SIZES */
-	MY_ATTRIBUTE((nonnull));
 
 /**********************************************************************//**
 Get the index of buf_pool->zip_free[] for a given block size.

@@ -160,6 +160,21 @@ IF(HAVE_NO_UNUSED_TYPEDEFS)
   )
 ENDIF()
 
+# Boost source has misleading indentation
+MY_CHECK_CXX_COMPILER_FLAG("-Wmisleading-indentation"
+                           HAVE_MISLEADING_INDENTATION)
+IF(HAVE_MISLEADING_INDENTATION)
+  ADD_COMPILE_FLAGS(
+    ../sql/geometry_rtree.cc
+    ../sql/item_geofunc.cc
+    ../sql/item_geofunc_buffer.cc
+    ../sql/item_geofunc_internal.cc
+    ../sql/item_geofunc_relchecks.cc
+    ../sql/item_geofunc_relchecks_bgwrap.cc
+    ../sql/item_geofunc_setops.cc    
+    COMPILE_FLAGS "-Wno-misleading-indentation")
+ENDIF()
+
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 
 # there

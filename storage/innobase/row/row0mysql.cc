@@ -4957,7 +4957,7 @@ row_mysql_drop_temp_tables(void)
 Drop all foreign keys in a database, see Bug#18942.
 Called at the end of row_drop_database_for_mysql().
 @return error code or DB_SUCCESS */
-static MY_ATTRIBUTE((nonnull, warn_unused_result))
+static MY_ATTRIBUTE((warn_unused_result))
 dberr_t
 drop_all_foreign_keys_in_db(
 /*========================*/
