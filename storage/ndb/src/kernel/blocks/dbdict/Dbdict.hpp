@@ -31,7 +31,6 @@
 #include <CArray.hpp>
 #include <KeyTable.hpp>
 #include <KeyTable2.hpp>
-#include <KeyTable2Ref.hpp>
 #include <SimulatedBlock.hpp>
 #include <SimpleProperties.hpp>
 #include <SignalCounter.hpp>
