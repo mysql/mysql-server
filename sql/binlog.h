@@ -690,7 +690,7 @@ typedef struct st_load_file_info
 extern MYSQL_PLUGIN_IMPORT MYSQL_BIN_LOG mysql_bin_log;
 
 bool trans_has_updated_trans_table(const THD* thd);
-bool stmt_has_updated_trans_table(const THD *thd);
+bool stmt_has_updated_trans_table(Ha_trx_info* ha_list);
 bool ending_trans(THD* thd, const bool all);
 bool ending_single_stmt_trans(THD* thd, const bool all);
 bool trans_cannot_safely_rollback(const THD* thd);
