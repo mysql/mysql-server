@@ -231,8 +231,6 @@ dict_col_get_index_pos(
 {
 	ulint	i;
 
-	ut_ad(col);
-
 	for (i = 0; i < index->n_def; i++) {
 		const dict_field_t*	field = &index->fields[i];
 
