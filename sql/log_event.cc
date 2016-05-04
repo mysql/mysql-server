@@ -3995,7 +3995,8 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   if (cmd_can_generate_row_events)
   {
     cmd_must_go_to_trx_cache= cmd_must_go_to_trx_cache || using_trans;
-    if (cmd_must_go_to_trx_cache || stmt_has_updated_trans_table(thd) ||
+    if (cmd_must_go_to_trx_cache ||
+        stmt_has_updated_trans_table(thd->get_transaction()->ha_trx_info(Transaction_ctx::STMT)) ||
         thd->lex->is_mixed_stmt_unsafe(thd->in_multi_stmt_transaction_mode(),
                                        thd->variables.binlog_direct_non_trans_update,
                                        trans_has_updated_trans_table(thd),

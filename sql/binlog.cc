@@ -2683,16 +2683,15 @@ trans_has_updated_trans_table(const THD* thd)
   This function checks if a transactional table was updated by the
   current statement.
 
-  @param thd The client thread that executed the current statement.
+  @param ha_list Registered storage engine handler list.
   @return
     @c true if a transactional table was updated, @c false otherwise.
 */
 bool
-stmt_has_updated_trans_table(const THD *thd)
+stmt_has_updated_trans_table(Ha_trx_info* ha_list)
 {
   const Ha_trx_info *ha_info;
-  for (ha_info= thd->get_transaction()->ha_trx_info(Transaction_ctx::STMT);
-       ha_info; ha_info= ha_info->next())
+  for (ha_info= ha_list; ha_info; ha_info= ha_info->next())
   {
     if (ha_info->is_trx_read_write() && ha_info->ht() != binlog_hton)
       return (TRUE);

@@ -1764,7 +1764,8 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
       DEBUG_SYNC(thd, "ha_commit_trans_after_acquire_commit_lock");
     }
 
-    if (rw_trans && check_readonly(thd, true))
+    if (rw_trans && stmt_has_updated_trans_table(ha_info)
+        && check_readonly(thd, true))
     {
       ha_rollback_trans(thd, all);
       error= 1;
