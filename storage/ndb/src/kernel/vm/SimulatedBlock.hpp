@@ -40,7 +40,6 @@
 #include <ErrorHandlingMacros.hpp>
 
 #include "IntrusiveList.hpp"
-#include "ArrayPool.hpp"
 #include "DLHashTable.hpp"
 #include "WOPool.hpp"
 #include "RWPool.hpp"
@@ -1222,8 +1221,8 @@ private:
   Uint16       theBATSize;     /* # entries in BAT */
 
 protected:  
-  SafeArrayPool<GlobalPage>& m_global_page_pool;
-  ArrayPool<GlobalPage>& m_shared_page_pool;
+  GlobalPage_safepool& m_global_page_pool;
+  GlobalPage_pool& m_shared_page_pool;
   
   void execNDB_TAMPER(Signal * signal);
   void execNODE_STATE_REP(Signal* signal);
