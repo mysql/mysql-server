@@ -23,7 +23,7 @@ extern EventLogger * g_eventLogger;
 
 // Static function.
 void 
-SectionSegmentPool::handleOutOfSegments(ArrayPool<SectionSegment>& pool)
+SectionSegmentPool::handleOutOfSegments(SectionSegment_basepool& pool)
 {
   g_eventLogger
     ->warning("The long message buffer is out of free elements. This may "
