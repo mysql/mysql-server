@@ -5056,7 +5056,7 @@ static void abort_process(int pid, const char *path)
       /* Make sure "/mysqld.nnnnnnnnnn.dmp" fits */
       if ((end - name) < (sizeof(name) - 23))
       {
-        if (end[-1] != FN_LIBCHAR && end[-1] != FN_LIBCHAR2)
+        if (!is_directory_separator(end[-1]))
         {
           end[0]= FN_LIBCHAR2;   // datadir path normally uses '/'.
           end++;
