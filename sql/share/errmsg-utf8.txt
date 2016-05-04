@@ -7657,6 +7657,9 @@ ER_USER_COLUMN_OLD_LENGTH
 ER_CANT_RESET_MASTER
   eng "RESET MASTER is not allowed because %-.384s."
 
+ER_GROUP_REPLICATION_MAX_GROUP_SIZE
+  eng "The START GROUP_REPLICATION command failed since the group already has 9 members."
+
 #
 #  End of 5.7 error messages.
 #
