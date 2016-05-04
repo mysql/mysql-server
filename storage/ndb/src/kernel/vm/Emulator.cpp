@@ -428,7 +428,7 @@ static const char* const jamFileNames[] =
    "DynArr256.hpp",                      // 299
    "LongSignal_mt.cpp",                  // 300
    "Configuration.cpp",                  // 301
-   "WaitQueue.hpp",                      // 302
+   "WaitQueue.hpp",                      // 302 DELETED FILE
    "WOPool.hpp",                         // 303
    "CountingPool.cpp",                   // 304
    "TransporterCallbackKernel.hpp",      // 305
