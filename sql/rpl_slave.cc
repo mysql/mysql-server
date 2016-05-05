@@ -7389,7 +7389,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
 
   (void) RUN_HOOK(binlog_relay_io, applier_stop,
                   (thd, rli->mi,
-                   (abort_loop || thd->killed || rli->abort_slave)));
+                   !rli->sql_thread_kill_accepted));
 
   slave_stop_workers(rli, &mts_inited); // stopping worker pool
   delete rli->current_mts_submode;
