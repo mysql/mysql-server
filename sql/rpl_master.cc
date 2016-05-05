@@ -31,6 +31,7 @@
 #include "rpl_filter.h"                         // binlog_filter
 #include "rpl_handler.h"                        // RUN_HOOK
 #include "sql_class.h"                          // THD
+#include "rpl_group_replication.h"              // is_group_replication_running
 #include "current_thd.h"
 #include "template_utils.h"
 
@@ -542,6 +543,13 @@ void kill_zombie_dump_threads(String *slave_uuid)
 bool reset_master(THD* thd)
 {
   bool ret= false;
+
+  if (is_group_replication_running())
+  {
+    my_error(ER_CANT_RESET_MASTER, MYF(0), "Group Replication is running");
+    return true;
+  }
+
   if (mysql_bin_log.is_open())
   {
     /*
