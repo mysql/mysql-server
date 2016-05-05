@@ -2033,7 +2033,8 @@ btr_parse_page_reorganize(
 {
 	ulint	level;
 
-	ut_ad(ptr && end_ptr);
+	ut_ad(ptr != NULL);
+	ut_ad(end_ptr != NULL);
 
 	/* If dealing with a compressed page the record has the
 	compression level used during original compression written in
@@ -3371,7 +3372,8 @@ btr_level_list_remove_func(
 	ulint	prev_page_no;
 	ulint	next_page_no;
 
-	ut_ad(page && mtr);
+	ut_ad(page != NULL);
+	ut_ad(mtr != NULL);
 	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(space == page_get_space_id(page));
 	/* Get the previous and next page numbers of page */

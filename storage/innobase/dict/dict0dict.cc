@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -5783,7 +5783,7 @@ dict_set_corrupted_index_cache_only(
 	dict_index_t*	index,		/*!< in/out: index */
 	dict_table_t*	table)		/*!< in/out: table */
 {
-	ut_ad(index);
+	ut_ad(index != NULL);
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(!dict_table_is_comp(dict_sys->sys_tables));
 	ut_ad(!dict_table_is_comp(dict_sys->sys_indexes));
@@ -5793,8 +5793,9 @@ dict_set_corrupted_index_cache_only(
 	if (dict_index_is_clust(index)) {
 		dict_table_t*	corrupt_table;
 
-		corrupt_table = table ? table : index->table;
-		ut_ad(!index->table || !table || index->table  == table);
+		corrupt_table = (table != NULL) ? table : index->table;
+		ut_ad((index->table != NULL) || (table != NULL)
+		      || index->table  == table);
 
 		if (corrupt_table) {
 			corrupt_table->corrupted = TRUE;
@@ -5873,11 +5874,6 @@ dict_table_get_index_on_name(
 	const char*	name)	/*!< in: name of the index to find */
 {
 	dict_index_t*	index;
-
-	/* If name is NULL, just return */
-	if (!name) {
-		return(NULL);
-	}
 
 	index = dict_table_get_first_index(table);
 

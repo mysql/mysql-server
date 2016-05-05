@@ -2497,7 +2497,8 @@ row_upd(
 {
 	dberr_t		err	= DB_SUCCESS;
 
-	ut_ad(node && thr);
+	ut_ad(node != NULL);
+	ut_ad(thr != NULL);
 
 	if (UNIV_LIKELY(node->in_mysql_interface)) {
 
