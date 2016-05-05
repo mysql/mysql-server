@@ -76,8 +76,8 @@ my_bool Keys_container::store_key_in_hash(IKey *key)
 
 my_bool Keys_container::store_key(IKeyring_io* keyring_io, IKey* key)
 {
-  keyring_io->open(&keyring_storage_url);
-  if (flush_to_backup(keyring_io) || store_key_in_hash(key))
+  if (keyring_io->open(&keyring_storage_url) || flush_to_backup(keyring_io) ||
+      store_key_in_hash(key))
     return TRUE;//keyring_io destructor will take care of removing the backup(if exists)
   if (flush_to_keyring(keyring_io, key, STORE_KEY) || keyring_io->close())
   {
@@ -126,9 +126,8 @@ my_bool Keys_container::remove_key_from_hash(IKey *key)
 
 my_bool Keys_container::remove_key(IKeyring_io *keyring_io, IKey *key)
 {
-  keyring_io->open(&keyring_storage_url);
   IKey* fetched_key_to_delete= get_key_from_hash(key);
-  if(fetched_key_to_delete == NULL)
+  if(fetched_key_to_delete == NULL || keyring_io->open(&keyring_storage_url))
     return TRUE;
   if (flush_to_backup(keyring_io) || remove_key_from_hash(fetched_key_to_delete))
     return TRUE;//keyring_io destructor will take care of removing the backup(if exists)

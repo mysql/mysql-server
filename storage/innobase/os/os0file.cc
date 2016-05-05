@@ -8090,13 +8090,14 @@ Encryption::create_master_key(byte** master_key)
 	ret = my_key_fetch(key_name, &key_type, NULL,
 			   reinterpret_cast<void**>(master_key), &key_len);
 
-	if (ret) {
+	if (ret || *master_key == NULL) {
 		ib::error() << "Encryption can't find master key, please check"
 				" the keyring plugin is loaded.";
 		*master_key = NULL;
+	} else {
+		master_key_id++;
 	}
 
-	master_key_id++;
 	if (key_type) {
 		my_free(key_type);
 	}
