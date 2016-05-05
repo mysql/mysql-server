@@ -1163,6 +1163,58 @@ bool Partition_helper::print_partition_error(int error, myf errflag)
     @retval != 0 Failure
 */
 
+void Partition_helper::prepare_change_partitions()
+{
+  List_iterator<partition_element> part_it(m_part_info->partitions);
+  uint num_subparts= m_part_info->is_sub_partitioned() ?
+                     m_part_info->num_subparts : 1;
+  uint temp_partitions= m_part_info->temp_partitions.elements;
+  bool first= true;
+  uint i= 0;
+  partition_element *part_elem;
+
+  /*
+    Use the read_partitions bitmap for reorganized partitions,
+    i.e. what to copy.
+  */
+  bitmap_clear_all(&m_part_info->read_partitions);
+
+  while ((part_elem= part_it++) != NULL)
+  {
+    if (part_elem->part_state == PART_CHANGED ||
+        part_elem->part_state == PART_REORGED_DROPPED)
+    {
+      for (uint sp = 0; sp < num_subparts; sp++)
+      {
+        bitmap_set_bit(&m_part_info->read_partitions, i * num_subparts + sp);
+      }
+      DBUG_ASSERT(first);
+    }
+    else if (first && temp_partitions &&
+             part_elem->part_state == PART_TO_BE_ADDED)
+    {
+      /*
+        When doing an ALTER TABLE REORGANIZE PARTITION a number of
+        partitions is to be reorganized into a set of new partitions.
+        The reorganized partitions are in this case in the temp_partitions
+        list. We mark all of them in one batch and thus we only do this
+        until we find the first partition with state PART_TO_BE_ADDED
+        since this is where the new partitions go in and where the old
+        ones used to be.
+      */
+      first= false;
+      DBUG_ASSERT(((i*num_subparts) + temp_partitions * num_subparts) <=
+                  m_tot_parts);
+      for (uint sp = 0; sp < temp_partitions * num_subparts; sp++)
+      {
+        bitmap_set_bit(&m_part_info->read_partitions, i * num_subparts + sp);
+      }
+    }
+
+    ++i;
+  }
+}
+
 int Partition_helper::change_partitions(HA_CREATE_INFO *create_info,
                                         const char *path,
                                         ulonglong * const copied,
@@ -1180,16 +1232,9 @@ int Partition_helper::change_partitions(HA_CREATE_INFO *create_info,
   uint num_remain_partitions;
   uint num_reorged_parts;
   int error= 1;
-  bool first;
   uint temp_partitions= m_part_info->temp_partitions.elements;
   THD *thd= get_thd();
   DBUG_ENTER("Partition_helper::change_partitions");
-
-  /*
-    Use the read_partitions bitmap for reorganized partitions,
-    i.e. what to copy.
-  */
-  bitmap_clear_all(&m_part_info->read_partitions);
 
   /*
     Assert that it works without HA_FILE_BASED and lower_case_table_name = 2.
@@ -1250,44 +1295,7 @@ int Partition_helper::change_partitions(HA_CREATE_INFO *create_info,
     Step 3:
       Set the read_partition bit for all partitions to be copied.
   */
-  if (num_reorged_parts)
-  {
-    i= 0;
-    first= true;
-    part_it.rewind();
-    do
-    {
-      partition_element *part_elem= part_it++;
-      if (part_elem->part_state == PART_CHANGED ||
-          part_elem->part_state == PART_REORGED_DROPPED)
-      {
-        for (uint sp = 0; sp < num_subparts; sp++)
-        {
-          bitmap_set_bit(&m_part_info->read_partitions, i * num_subparts + sp);
-        }
-        DBUG_ASSERT(first);
-      }
-      else if (first && temp_partitions &&
-               part_elem->part_state == PART_TO_BE_ADDED)
-      {
-        /*
-          When doing an ALTER TABLE REORGANIZE PARTITION a number of
-          partitions is to be reorganized into a set of new partitions.
-          The reorganized partitions are in this case in the temp_partitions
-          list. We mark all of them in one batch and thus we only do this
-          until we find the first partition with state PART_TO_BE_ADDED
-          since this is where the new partitions go in and where the old
-          ones used to be.
-        */
-        first= false;
-        DBUG_ASSERT(((i*num_subparts) + num_reorged_parts) <= m_tot_parts);
-        for (uint sp = 0; sp < num_reorged_parts; sp++)
-        {
-          bitmap_set_bit(&m_part_info->read_partitions, i * num_subparts + sp);
-        }
-      }
-    } while (++i < num_parts);
-  }
+  prepare_change_partitions();
 
   /*
     Step 4:

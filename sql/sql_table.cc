@@ -10736,11 +10736,12 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   }
 
   bool partition_changed= false;
+  bool fast_alter_part_table= false;
   partition_info *new_part_info= NULL;
   {
     if (prep_alter_part_table(thd, table, alter_info, create_info,
                               &alter_ctx, &partition_changed,
-                              &new_part_info))
+                              &fast_alter_part_table, &new_part_info))
     {
       DBUG_RETURN(true);
     }
@@ -10771,7 +10772,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   if (set_table_default_charset(thd, create_info, alter_ctx.db))
     DBUG_RETURN(true);
 
-  if (new_part_info)
+  if (fast_alter_part_table)
   {
     /*
       ALGORITHM and LOCK clauses are generally not allowed by the
@@ -10825,15 +10826,17 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     - Or if in-place is impossible for given operation.
     - Changes to partitioning which were not handled by fast_alter_part_table()
       needs to be handled using table copying algorithm unless the engine
-      supports auto-partitioning as such engines can do some changes
-      using in-place API.
+      supports auto-partitioning (as such engines can do some changes
+      using in-place API) or engine supports partitioning changes through
+      in-place API but still relies on mark-up in partition_info object.
   */
   if ((thd->variables.old_alter_table &&
        alter_info->requested_algorithm !=
        Alter_info::ALTER_TABLE_ALGORITHM_INPLACE)
       || is_inplace_alter_impossible(table, create_info, alter_info)
       || (partition_changed &&
-          !(table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION))
+          !(table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION) &&
+          !new_part_info)
      )
   {
     if (alter_info->requested_algorithm ==

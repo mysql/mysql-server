@@ -44,21 +44,13 @@ static const uint NO_CURRENT_PART_ID= UINT_MAX32;
   supported at all.
   HA_FAST_CHANGE_PARTITION means that optimized variants of the changes
   exists but they are not necessarily done online.
-
-  HA_ONLINE_DOUBLE_WRITE means that the handler supports writing to both
-  the new partition and to the old partitions when updating through the
-  old partitioning schema while performing a change of the partitioning.
-  This means that we can support updating of the table while performing
-  the copy phase of the change. For no lock at all also a double write
-  from new to old must exist and this is not required when this flag is
-  set.
-  This is actually removed even before it was introduced the first time.
-  The new idea is that handlers will handle the lock level already in
-  store_lock for ALTER TABLE partitions.
-  TODO: Implement this via the alter-inplace api.
+  HA_INPLACE_CHANGE_PARTITION means that changes to partitioning can be done
+  through in-place ALTER TABLE API but special mark-up in partition_info
+  object is required for this.
 */
 #define HA_PARTITION_FUNCTION_SUPPORTED         (1L << 0)
 #define HA_FAST_CHANGE_PARTITION                (1L << 1)
+#define HA_INPLACE_CHANGE_PARTITION             (1L << 2)
 
 enum enum_part_operation {
   OPTIMIZE_PARTS= 0,
@@ -666,6 +658,7 @@ public:
                                               ha_checksum *check_sum,
                                               uint part_id);
 
+  void prepare_change_partitions();
   /**
     Implement the partition changes defined by ALTER TABLE of partitions.
 

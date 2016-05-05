@@ -4938,8 +4938,12 @@ bool compare_partition_options(HA_CREATE_INFO *table_create_info,
   @param[in,out] create_info     Create info for CREATE TABLE
   @param[in]  alter_ctx          ALTER TABLE runtime context
   @param[out] partition_changed  Boolean indicating whether partition changed
+  @param[out] fast_alter_part_table  Indicates that fast partition alter
+                                     is possible.
   @param[out] new_part_info      New partition_info object if fast partition
-                                 alter is possible. (NULL if not possible).
+                                 alter or in-place alter which requires mark-up
+                                 in partition_info is possible (NULL if neither
+                                 is possible).
 
   @return Operation status
     @retval TRUE                 Error
@@ -4959,6 +4963,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            HA_CREATE_INFO *create_info,
                            Alter_table_ctx *alter_ctx,
                            bool *partition_changed,
+                           bool *fast_alter_part_table,
                            partition_info **new_part_info)
 {
   DBUG_ENTER("prep_alter_part_table");
@@ -5073,8 +5078,9 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
           without any changes at all.
         */
         flags= part_handler->alter_flags(alter_info->flags);
-        if ((flags & HA_FAST_CHANGE_PARTITION) != 0)
+        if (flags & (HA_FAST_CHANGE_PARTITION | HA_INPLACE_CHANGE_PARTITION))
         {
+          *fast_alter_part_table= (flags & HA_FAST_CHANGE_PARTITION);
           *new_part_info= tab_part_info;
           /* Force table re-open for consistency with the main case. */
           table->m_needs_reopen= true;
@@ -5107,14 +5113,15 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       my_error(ER_PARTITION_FUNCTION_FAILURE, MYF(0));
       goto err;
     }
-    if ((flags & HA_FAST_CHANGE_PARTITION) != 0)
+    if (flags & (HA_FAST_CHANGE_PARTITION | HA_INPLACE_CHANGE_PARTITION))
     {
       /*
-        "Fast" change of partitioning is supported in this case.
-        We will change TABLE::part_info (as this is how we pass
+        "Fast" or "inplace" change of partitioning is supported in this
+        case. We will change TABLE::part_info (as this is how we pass
         information to storage engine in this case), so the table
         must be reopened.
       */
+      *fast_alter_part_table= (flags & HA_FAST_CHANGE_PARTITION);
       *new_part_info= tab_part_info;
       table->m_needs_reopen= true;
     }

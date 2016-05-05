@@ -155,6 +155,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                            HA_CREATE_INFO *create_info,
                            Alter_table_ctx *alter_ctx,
                            bool *partition_changed,
+                           bool *fast_alter_part_table,
                            partition_info **new_part_info);
 int expr_to_string(String *val_conv,
                    Item *item_expr, 
