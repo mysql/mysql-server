@@ -155,8 +155,8 @@ keyring_file	Oracle Corporation
 keyring_udf	Oracle Corporation
 select keyring_key_generate('Rob_AES_128','AES',16);
 keyring_key_generate('Rob_AES_128','AES',16)
-0
-set @x= keyring_key_fetch('Rob_AES_128');
+1
+select keyring_key_fetch('Rob_AES_128') into @x;
 select LENGTH(@x);
 LENGTH(@x)
 16
@@ -168,11 +168,11 @@ keyring_key_length_fetch('Rob_AES_128')
 16
 select keyring_key_remove('Rob_AES_128');
 keyring_key_remove('Rob_AES_128')
-0
+1
 select keyring_key_store('Rob_AES_128','AES',"0123456789012345");
 keyring_key_store('Rob_AES_128','AES',"0123456789012345")
-0
-set @x= keyring_key_fetch('Rob_AES_128');
+1
+select keyring_key_fetch('Rob_AES_128') into @x;
 select LENGTH(@x);
 LENGTH(@x)
 16
@@ -184,11 +184,11 @@ keyring_key_length_fetch('Rob_AES_128')
 16
 select keyring_key_remove('Rob_AES_128');
 keyring_key_remove('Rob_AES_128')
-0
+1
 select keyring_key_generate('Rob_AES_192','AES',24);
 keyring_key_generate('Rob_AES_192','AES',24)
-0
-set @x= keyring_key_fetch('Rob_AES_192');
+1
+select keyring_key_fetch('Rob_AES_192') into @x;
 select LENGTH(@x);
 LENGTH(@x)
 24
@@ -200,11 +200,11 @@ keyring_key_length_fetch('Rob_AES_192')
 24
 select keyring_key_remove('Rob_AES_192');
 keyring_key_remove('Rob_AES_192')
-0
+1
 select keyring_key_store('Rob_AES_192','AES',"012345678901234567890%@3");
 keyring_key_store('Rob_AES_192','AES',"012345678901234567890%@3")
-0
-set @x= keyring_key_fetch('Rob_AES_192');
+1
+select keyring_key_fetch('Rob_AES_192') into @x;
 select LENGTH(@x);
 LENGTH(@x)
 24
@@ -216,11 +216,11 @@ keyring_key_length_fetch('Rob_AES_192')
 24
 select keyring_key_remove('Rob_AES_192');
 keyring_key_remove('Rob_AES_192')
-0
+1
 select keyring_key_generate('Rob_AES_256','AES',32);
 keyring_key_generate('Rob_AES_256','AES',32)
-0
-set @x= keyring_key_fetch('Rob_AES_256');
+1
+select keyring_key_fetch('Rob_AES_256') into @x;
 select LENGTH(@x);
 LENGTH(@x)
 32
@@ -232,11 +232,11 @@ keyring_key_length_fetch('Rob_AES_256')
 32
 select keyring_key_remove('Rob_AES_256');
 keyring_key_remove('Rob_AES_256')
-0
+1
 select keyring_key_store('Rob_AES_256','AES',"01234567890123456789012345678901");
 keyring_key_store('Rob_AES_256','AES',"01234567890123456789012345678901")
-0
-set @x= keyring_key_fetch('Rob_AES_256');
+1
+select keyring_key_fetch('Rob_AES_256') into @x;
 select LENGTH(@x);
 LENGTH(@x)
 32
@@ -248,11 +248,11 @@ keyring_key_length_fetch('Rob_AES_256')
 32
 select keyring_key_remove('Rob_AES_256');
 keyring_key_remove('Rob_AES_256')
-0
+1
 select keyring_key_generate('Rob_RSA_1024','RSA',128);
 keyring_key_generate('Rob_RSA_1024','RSA',128)
-0
-set @x= keyring_key_fetch('Rob_RSA_1024');
+1
+select keyring_key_fetch('Rob_RSA_1024') into @x;
 select LENGTH(@x);
 LENGTH(@x)
 128
@@ -264,11 +264,11 @@ keyring_key_length_fetch('Rob_RSA_1024')
 128
 select keyring_key_remove('Rob_RSA_1024');
 keyring_key_remove('Rob_RSA_1024')
-0
+1
 select keyring_key_store('Rob_RSA_1024','RSA',"01234567890123456789012345678901234567890123456789012345678901230123456789012345678901234567890123456789012345678901234567890123");
 keyring_key_store('Rob_RSA_1024','RSA',"01234567890123456789012345678901234567890123456789012345678901230123456789012345678901234567890123456789012345678901234567890123")
-0
-set @x= keyring_key_fetch('Rob_RSA_1024');
+1
+select keyring_key_fetch('Rob_RSA_1024') into @x;
 select LENGTH(@x);
 LENGTH(@x)
 128
@@ -280,11 +280,11 @@ keyring_key_length_fetch('Rob_RSA_1024')
 128
 select keyring_key_remove('Rob_RSA_1024');
 keyring_key_remove('Rob_RSA_1024')
-0
+1
 select keyring_key_generate('Rob_RSA_2048','RSA',256);
 keyring_key_generate('Rob_RSA_2048','RSA',256)
-0
-set @x= keyring_key_fetch('Rob_RSA_2048');
+1
+select keyring_key_fetch('Rob_RSA_2048') into @x;
 select keyring_key_type_fetch('Rob_RSA_2048');
 keyring_key_type_fetch('Rob_RSA_2048')
 RSA
@@ -296,11 +296,11 @@ LENGTH(@x)
 256
 select keyring_key_remove('Rob_RSA_2048');
 keyring_key_remove('Rob_RSA_2048')
-0
+1
 select keyring_key_generate('Rob_RSA_4096','RSA',512);
 keyring_key_generate('Rob_RSA_4096','RSA',512)
-0
-set @x= keyring_key_fetch('Rob_RSA_4096');
+1
+select keyring_key_fetch('Rob_RSA_4096') into @x;
 select keyring_key_type_fetch('Rob_RSA_4096');
 keyring_key_type_fetch('Rob_RSA_4096')
 RSA
@@ -312,11 +312,11 @@ LENGTH(@x)
 512
 select keyring_key_remove('Rob_RSA_4096');
 keyring_key_remove('Rob_RSA_4096')
-0
+1
 select keyring_key_generate('Rob_DSA_1024','DSA',128);
 keyring_key_generate('Rob_DSA_1024','DSA',128)
-0
-set @x= keyring_key_fetch('Rob_DSA_1024');
+1
+select keyring_key_fetch('Rob_DSA_1024') into @x;
 select LENGTH(@x);
 LENGTH(@x)
 128
@@ -328,11 +328,11 @@ keyring_key_length_fetch('Rob_DSA_1024')
 128
 select keyring_key_remove('Rob_DSA_1024');
 keyring_key_remove('Rob_DSA_1024')
-0
+1
 select keyring_key_store('Rob_DSA_1024','DSA',"01234567890123456789012345678901234567890123456789012345678901230123456789012345678901234567890123456789012345678901234567890123");
 keyring_key_store('Rob_DSA_1024','DSA',"01234567890123456789012345678901234567890123456789012345678901230123456789012345678901234567890123456789012345678901234567890123")
-0
-set @x= keyring_key_fetch('Rob_DSA_1024');
+1
+select keyring_key_fetch('Rob_DSA_1024') into @x;
 select LENGTH(@x);
 LENGTH(@x)
 128
@@ -344,11 +344,11 @@ keyring_key_length_fetch('Rob_DSA_1024')
 128
 select keyring_key_remove('Rob_DSA_1024');
 keyring_key_remove('Rob_DSA_1024')
-0
+1
 select keyring_key_generate('Rob_DSA_2048','DSA',256);
 keyring_key_generate('Rob_DSA_2048','DSA',256)
-0
-set @x= keyring_key_fetch('Rob_DSA_2048');
+1
+select keyring_key_fetch('Rob_DSA_2048') into @x;
 select LENGTH(@x);
 LENGTH(@x)
 256
@@ -360,11 +360,11 @@ keyring_key_length_fetch('Rob_DSA_2048')
 256
 select keyring_key_remove('Rob_DSA_2048');
 keyring_key_remove('Rob_DSA_2048')
-0
+1
 select keyring_key_generate('Rob_DSA_3072','DSA',384);
 keyring_key_generate('Rob_DSA_3072','DSA',384)
-0
-set @x= keyring_key_fetch('Rob_DSA_3072');
+1
+select keyring_key_fetch('Rob_DSA_3072') into @x;
 select LENGTH(@x);
 LENGTH(@x)
 384
@@ -376,18 +376,30 @@ keyring_key_length_fetch('Rob_DSA_3072')
 384
 select keyring_key_remove('Rob_DSA_3072');
 keyring_key_remove('Rob_DSA_3072')
-0
+1
+select keyring_key_fetch('key') into @x;
+select @x;
+@x
+NULL
+select keyring_key_type_fetch('key') into @x;
+select @x;
+@x
+NULL
+select keyring_key_length_fetch('key') into @x;
+select @x;
+@x
+NULL
 #Testing with AES_ENCRYPT/AES_DECRYPT
 select keyring_key_generate('AES_128','AES',16);
 keyring_key_generate('AES_128','AES',16)
-0
-set @cipher= AES_ENCRYPT('secret message', keyring_key_fetch('AES_128'));
+1
+select AES_ENCRYPT('secret message', keyring_key_fetch('AES_128')) into @cipher;
 select AES_DECRYPT(@cipher, keyring_key_fetch('AES_128'));
 AES_DECRYPT(@cipher, keyring_key_fetch('AES_128'))
 secret message
 select keyring_key_remove('AES_128');
 keyring_key_remove('AES_128')
-0
+1
 select keyring_key_fetch('Rob1');
 keyring_key_fetch('Rob1')
 NULL
@@ -397,28 +409,55 @@ NULL
 select keyring_key_length_fetch('Rob1');
 keyring_key_length_fetch('Rob1')
 NULL
-select keyring_key_fetch('');
+select keyring_key_fetch('') into @x;
 ERROR HY000: Function 'keyring_key_fetch' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
-select keyring_key_length_fetch('');
+select @x;
+@x
+NULL
+select keyring_key_length_fetch('') into @x;
 ERROR HY000: Function 'keyring_key_length_fetch' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
-select keyring_key_type_fetch('');
+select @x;
+@x
+NULL
+select keyring_key_type_fetch('') into @x;
 ERROR HY000: Function 'keyring_key_type_fetch' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
-select keyring_key_remove('Rob_not_existing');
+select @x;
+@x
+NULL
+select keyring_key_remove('Rob_not_existing') into @x;
 ERROR HY000: Function 'keyring_key_remove' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
-select keyring_key_remove('');
+select @x;
+@x
+NULL
+select keyring_key_remove('') into @x;
 ERROR HY000: Function 'keyring_key_remove' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
-select keyring_key_generate('Wrong_type','xxx', 16);
+select @x;
+@x
+NULL
+select keyring_key_generate('Wrong_type','xxx', 16) into @x;
 ERROR HY000: Function 'keyring_key_generate' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
-select keyring_key_generate('','AES', 16);
+select @x;
+@x
+NULL
+select keyring_key_generate('','AES', 16) into @x;
 ERROR HY000: Function 'keyring_key_generate' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
-select keyring_key_store('Wrong_type','xxx', '0123456789012345');
+select @x;
+@x
+NULL
+select keyring_key_store('Wrong_type','xxx', '0123456789012345') into @x;
 ERROR HY000: Function 'keyring_key_store' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
-select keyring_key_store('','AES', '0123456789012345');
+select @x;
+@x
+NULL
+select keyring_key_store('','AES', '0123456789012345') into @x;
 ERROR HY000: Function 'keyring_key_store' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
+select @x;
+@x
+NULL
 # Testing privileges
 select keyring_key_generate('roots_key', 'AES',16);
 keyring_key_generate('roots_key', 'AES',16)
-0
+1
 create definer=root@localhost procedure shared_key() select keyring_key_fetch('roots_key');
 CREATE USER user_execute_test@localhost;
 select keyring_key_generate('Rob_DSA_no_privilege','DSA',384);
@@ -426,10 +465,10 @@ ERROR HY000: Can't initialize function 'keyring_key_generate'; The user is not p
 GRANT EXECUTE ON *.* TO 'user_execute_test'@'localhost';
 select keyring_key_generate('Rob_DSA_no_privilege','DSA',384);
 keyring_key_generate('Rob_DSA_no_privilege','DSA',384)
-0
+1
 select keyring_key_generate('another_Rob_DSA_no_privilege','DSA',384);
 keyring_key_generate('another_Rob_DSA_no_privilege','DSA',384)
-0
+1
 #Check if user you can access another user's keys
 select keyring_key_remove('roots_key');
 ERROR HY000: Function 'keyring_key_remove' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
@@ -442,27 +481,27 @@ DROP PROCEDURE shared_key;
 #to another user.
 select keyring_key_generate('Rob_DSA_no_privilege','DSA',384);
 keyring_key_generate('Rob_DSA_no_privilege','DSA',384)
-0
+1
 #Check if user with larger privileges can access another user's key
 select keyring_key_remove('another_Rob_DSA_no_privilege');
 ERROR HY000: Function 'keyring_key_remove' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using.
 #Cleanup
 select keyring_key_remove('Rob_DSA_no_privilege');
 keyring_key_remove('Rob_DSA_no_privilege')
-0
+1
 select keyring_key_remove('roots_key');
 keyring_key_remove('roots_key')
-0
+1
 select keyring_key_remove('Rob_DSA_no_privilege');
 keyring_key_remove('Rob_DSA_no_privilege')
-0
+1
 select keyring_key_remove('another_Rob_DSA_no_privilege');
 keyring_key_remove('another_Rob_DSA_no_privilege')
-0
+1
 DROP USER 'user_execute_test'@'localhost';
 select keyring_key_generate('Rob_AES_512','AES',64);
 keyring_key_generate('Rob_AES_512','AES',64)
-0
+1
 set @x= keyring_key_fetch('Rob_AES_512');
 select LENGTH(@x);
 LENGTH(@x)
@@ -475,10 +514,10 @@ keyring_key_length_fetch('Rob_AES_512')
 64
 select keyring_key_remove('Rob_AES_512');
 keyring_key_remove('Rob_AES_512')
-0
+1
 select keyring_key_store('Rob_AES_512','AES',"0123456789012345678901234567890123456789012345678901234567890123");
 keyring_key_store('Rob_AES_512','AES',"0123456789012345678901234567890123456789012345678901234567890123")
-0
+1
 set @x= keyring_key_fetch('Rob_AES_512');
 select LENGTH(@x);
 LENGTH(@x)
@@ -491,10 +530,10 @@ keyring_key_length_fetch('Rob_AES_512')
 64
 select keyring_key_remove('Rob_AES_512');
 keyring_key_remove('Rob_AES_512')
-0
+1
 select keyring_key_generate('Rob_DSA_4096','DSA',512);
 keyring_key_generate('Rob_DSA_4096','DSA',512)
-0
+1
 set @x= keyring_key_fetch('Rob_DSA_4096');
 select LENGTH(@x);
 LENGTH(@x)
@@ -507,7 +546,7 @@ keyring_key_length_fetch('Rob_DSA_4096')
 512
 select keyring_key_remove('Rob_DSA_4096');
 keyring_key_remove('Rob_DSA_4096')
-0
+1
 UNINSTALL PLUGIN keyring_file;
 # Test cases for keyring_udf loaded and keyring_file plugin not loaded
 #The keyring plugin was uninstalled, the keyring_udf functions should fail with
