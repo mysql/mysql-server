@@ -322,6 +322,7 @@ drop table t1;
 create table t1 (a int generated always as (PI()) virtual);
 drop table t1;
 
+if(! $testing_ndb) {
 --echo # bug#21098119: GCOL WITH MATCH/AGAINST -->
 --echo # ASSERTION FAILED: TR && TR->TABLE->FILE
 --echo #
@@ -330,3 +331,4 @@ create table t1 (a int);
 alter table t1 add column r blob generated always
 as (match(a) against ('' in boolean mode)) virtual;
 drop table t1;
+}
