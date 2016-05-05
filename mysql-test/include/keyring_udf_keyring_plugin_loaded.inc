@@ -98,42 +98,42 @@ select PLUGIN_NAME,PLUGIN_AUTHOR from information_schema.plugins where PLUGIN_NA
 # AES
 # Generate AES_128
 select keyring_key_generate('Rob_AES_128','AES',16);
-set @x= keyring_key_fetch('Rob_AES_128');
+select keyring_key_fetch('Rob_AES_128') into @x;
 select LENGTH(@x);
 select keyring_key_type_fetch('Rob_AES_128');
 select keyring_key_length_fetch('Rob_AES_128');
 select keyring_key_remove('Rob_AES_128');
 # Store AES_128
 select keyring_key_store('Rob_AES_128','AES',"0123456789012345");
-set @x= keyring_key_fetch('Rob_AES_128');
+select keyring_key_fetch('Rob_AES_128') into @x;
 select LENGTH(@x);
 select keyring_key_type_fetch('Rob_AES_128');
 select keyring_key_length_fetch('Rob_AES_128');
 select keyring_key_remove('Rob_AES_128');
 # Generate AES_192
 select keyring_key_generate('Rob_AES_192','AES',24);
-set @x= keyring_key_fetch('Rob_AES_192');
+select keyring_key_fetch('Rob_AES_192') into @x;
 select LENGTH(@x);
 select keyring_key_type_fetch('Rob_AES_192');
 select keyring_key_length_fetch('Rob_AES_192');
 select keyring_key_remove('Rob_AES_192');
 # Store AES_192
 select keyring_key_store('Rob_AES_192','AES',"012345678901234567890%@3");
-set @x= keyring_key_fetch('Rob_AES_192');
+select keyring_key_fetch('Rob_AES_192') into @x;
 select LENGTH(@x);
 select keyring_key_type_fetch('Rob_AES_192');
 select keyring_key_length_fetch('Rob_AES_192');
 select keyring_key_remove('Rob_AES_192');
 # Generate AES_256
 select keyring_key_generate('Rob_AES_256','AES',32);
-set @x= keyring_key_fetch('Rob_AES_256');
+select keyring_key_fetch('Rob_AES_256') into @x;
 select LENGTH(@x);
 select keyring_key_type_fetch('Rob_AES_256');
 select keyring_key_length_fetch('Rob_AES_256');
 select keyring_key_remove('Rob_AES_256');
 # Store AES_256
 select keyring_key_store('Rob_AES_256','AES',"01234567890123456789012345678901");
-set @x= keyring_key_fetch('Rob_AES_256');
+select keyring_key_fetch('Rob_AES_256') into @x;
 select LENGTH(@x);
 select keyring_key_type_fetch('Rob_AES_256');
 select keyring_key_length_fetch('Rob_AES_256');
@@ -141,28 +141,28 @@ select keyring_key_remove('Rob_AES_256');
 # RSA
 # Generate RSA_1024
 select keyring_key_generate('Rob_RSA_1024','RSA',128);
-set @x= keyring_key_fetch('Rob_RSA_1024');
+select keyring_key_fetch('Rob_RSA_1024') into @x;
 select LENGTH(@x);
 select keyring_key_type_fetch('Rob_RSA_1024');
 select keyring_key_length_fetch('Rob_RSA_1024');
 select keyring_key_remove('Rob_RSA_1024');
 # Store RSA_1024
 select keyring_key_store('Rob_RSA_1024','RSA',"01234567890123456789012345678901234567890123456789012345678901230123456789012345678901234567890123456789012345678901234567890123");
-set @x= keyring_key_fetch('Rob_RSA_1024');
+select keyring_key_fetch('Rob_RSA_1024') into @x;
 select LENGTH(@x);
 select keyring_key_type_fetch('Rob_RSA_1024');
 select keyring_key_length_fetch('Rob_RSA_1024');
 select keyring_key_remove('Rob_RSA_1024');
 #Generate RSA_2048
 select keyring_key_generate('Rob_RSA_2048','RSA',256);
-set @x= keyring_key_fetch('Rob_RSA_2048');
+select keyring_key_fetch('Rob_RSA_2048') into @x;
 select keyring_key_type_fetch('Rob_RSA_2048');
 select keyring_key_length_fetch('Rob_RSA_2048');
 select LENGTH(@x);
 select keyring_key_remove('Rob_RSA_2048');
 #Generate RSA_4098
 select keyring_key_generate('Rob_RSA_4096','RSA',512);
-set @x= keyring_key_fetch('Rob_RSA_4096');
+select keyring_key_fetch('Rob_RSA_4096') into @x;
 select keyring_key_type_fetch('Rob_RSA_4096');
 select keyring_key_length_fetch('Rob_RSA_4096');
 select LENGTH(@x);
@@ -170,37 +170,45 @@ select keyring_key_remove('Rob_RSA_4096');
 # DSA
 # Generate DSA 1024
 select keyring_key_generate('Rob_DSA_1024','DSA',128);
-set @x= keyring_key_fetch('Rob_DSA_1024');
+select keyring_key_fetch('Rob_DSA_1024') into @x;
 select LENGTH(@x);
 select keyring_key_type_fetch('Rob_DSA_1024');
 select keyring_key_length_fetch('Rob_DSA_1024');
 select keyring_key_remove('Rob_DSA_1024');
 # Store DSA 1024
 select keyring_key_store('Rob_DSA_1024','DSA',"01234567890123456789012345678901234567890123456789012345678901230123456789012345678901234567890123456789012345678901234567890123");
-set @x= keyring_key_fetch('Rob_DSA_1024');
+select keyring_key_fetch('Rob_DSA_1024') into @x;
 select LENGTH(@x);
 select keyring_key_type_fetch('Rob_DSA_1024');
 select keyring_key_length_fetch('Rob_DSA_1024');
 select keyring_key_remove('Rob_DSA_1024');
 # Generate DSA 2048
 select keyring_key_generate('Rob_DSA_2048','DSA',256);
-set @x= keyring_key_fetch('Rob_DSA_2048');
+select keyring_key_fetch('Rob_DSA_2048') into @x;
 select LENGTH(@x);
 select keyring_key_type_fetch('Rob_DSA_2048');
 select keyring_key_length_fetch('Rob_DSA_2048');
 select keyring_key_remove('Rob_DSA_2048');
 # Generate DSA 3072
 select keyring_key_generate('Rob_DSA_3072','DSA',384);
-set @x= keyring_key_fetch('Rob_DSA_3072');
+select keyring_key_fetch('Rob_DSA_3072') into @x;
 select LENGTH(@x);
 select keyring_key_type_fetch('Rob_DSA_3072');
 select keyring_key_length_fetch('Rob_DSA_3072');
 select keyring_key_remove('Rob_DSA_3072');
 
+# Fetch not existing:
+select keyring_key_fetch('key') into @x;
+select @x;
+select keyring_key_type_fetch('key') into @x;
+select @x;
+select keyring_key_length_fetch('key') into @x;
+select @x;
+
 --echo #Testing with AES_ENCRYPT/AES_DECRYPT
 
 select keyring_key_generate('AES_128','AES',16);
-set @cipher= AES_ENCRYPT('secret message', keyring_key_fetch('AES_128'));
+select AES_ENCRYPT('secret message', keyring_key_fetch('AES_128')) into @cipher;
 select AES_DECRYPT(@cipher, keyring_key_fetch('AES_128'));
 
 select keyring_key_remove('AES_128');
@@ -214,26 +222,35 @@ select keyring_key_length_fetch('Rob1');
 
 # Errors comming from keyring
 --error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
-select keyring_key_fetch('');
+select keyring_key_fetch('') into @x;
+select @x;
 --error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
-select keyring_key_length_fetch('');
+select keyring_key_length_fetch('') into @x;
+select @x;
 --error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
-select keyring_key_type_fetch('');
+select keyring_key_type_fetch('') into @x;
+select @x;
 # Remove not existing
 --error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
-select keyring_key_remove('Rob_not_existing');
+select keyring_key_remove('Rob_not_existing') into @x;
+select @x;
 --error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
-select keyring_key_remove('');
+select keyring_key_remove('') into @x;
+select @x;
 # Generate wrong key type
 --error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
-select keyring_key_generate('Wrong_type','xxx', 16);
+select keyring_key_generate('Wrong_type','xxx', 16) into @x;
+select @x;
 --error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
-select keyring_key_generate('','AES', 16);
+select keyring_key_generate('','AES', 16) into @x;
+select @x;
 # Store wrong key type
 --error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
-select keyring_key_store('Wrong_type','xxx', '0123456789012345');
+select keyring_key_store('Wrong_type','xxx', '0123456789012345') into @x;
+select @x;
 --error ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
-select keyring_key_store('','AES', '0123456789012345');
+select keyring_key_store('','AES', '0123456789012345') into @x;
+select @x;
 
 --echo # Testing privileges
 
