@@ -2912,6 +2912,8 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
       impl->m_range.assign((Int32*)tableDesc->RangeListData,
                            /* yuck */tableDesc->RangeListDataLen / 4))
   {
+    delete impl;
+    free(tableDesc);
     DBUG_RETURN(4000);
   }
 
@@ -2924,7 +2926,11 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     Uint32 cnt = tableDesc->FragmentDataLen / 2;
     for (Uint32 i = 0; i<cnt; i++)
       if (impl->m_fd.push_back((Uint32)tableDesc->FragmentData[i]))
+      {
+        delete impl;
+        free(tableDesc);
         DBUG_RETURN(4000);
+      }
   }
 
   impl->m_fragmentCount = tableDesc->FragmentCount;
@@ -3006,6 +3012,8 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
       Ndb::externalizeTableName(tableDesc->PrimaryTable, fullyQualifiedNames);
     if (!impl->m_primaryTable.assign(externalPrimary))
     {
+      delete impl;
+      free(tableDesc);
       DBUG_RETURN(4000);
     }
     columnsIndexSourced= true;
@@ -3077,6 +3085,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
       else if (col->m_arrayType == NDB_ARRAYTYPE_MEDIUM_VAR)
         col->m_blobVersion = NDB_BLOB_V2;
       else {
+        delete col;
         delete impl;
         free(tableDesc);
         DBUG_RETURN(4263);
@@ -3104,6 +3113,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
         {
           delete col;
           delete impl;
+          free(tableDesc);
           DBUG_RETURN(4000);
         }
         
@@ -3126,6 +3136,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     col->m_column_no = impl->m_columns.size();
     impl->m_columns.push_back(col);
     it.next();
+    delete col;
   }
 
   impl->computeAggregates();
@@ -3146,9 +3157,10 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
       pos++; // skip logpart
       for (Uint32 j = 0; j<(Uint32)replicaCount; j++)
       {
-	if (impl->m_fragments.push_back(ntohs(tableDesc->ReplicaData[pos++])))
-	{
-          delete impl;
+        if (impl->m_fragments.push_back(ntohs(tableDesc->ReplicaData[pos++])))
+	 {
+	   delete impl;
+          free(tableDesc);
           DBUG_RETURN(4000);
         }
       }
@@ -3174,8 +3186,6 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 
   * ret = impl;
 
-  free(tableDesc);
-
   if (version < MAKE_VERSION(5,1,3))
   {
     ;
@@ -3184,6 +3194,8 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   {
     DBUG_ASSERT(impl->m_fragmentCount > 0);
   }
+  delete impl;
+  free(tableDesc);
   DBUG_RETURN(0);
 }
 
