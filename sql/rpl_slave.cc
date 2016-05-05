@@ -11302,12 +11302,11 @@ static int check_slave_sql_config_conflict(const Relay_log_info *rli)
   {
     const char* channel= const_cast<Relay_log_info*>(rli)->get_channel();
     if (slave_parallel_workers > 0 &&
-        channel_mts_submode != MTS_PARALLEL_TYPE_LOGICAL_CLOCK &&
         channel_map.is_group_replication_channel_name(channel, true))
     {
         my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
-                 "START SLAVE SQL_THREAD when SLAVE_PARALLEL_WORKERS > 0 "
-                 "and SLAVE_PARALLEL_TYPE != LOGICAL_CLOCK", channel);
+                 "START SLAVE SQL_THREAD when SLAVE_PARALLEL_WORKERS > 0",
+                 channel);
         return ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED;
     }
   }
