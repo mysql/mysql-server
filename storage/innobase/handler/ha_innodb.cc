@@ -124,6 +124,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ha_innodb.h"
 #include "i_s.h"
 #include "sync0sync.h"
+
 /* for ha_innopart, Native InnoDB Partitioning. */
 #include "ha_innopart.h"
 
@@ -157,6 +158,7 @@ static long innobase_open_files;
 static long innobase_autoinc_lock_mode;
 static ulong innobase_commit_concurrency = 0;
 
+static long long innobase_buffer_pool_size;
 static ulong		innodb_log_buffer_size;
 static ulonglong	innodb_log_file_size;
 
@@ -3697,7 +3699,7 @@ innodb_buffer_pool_size_init()
 	}
 
 	srv_buf_pool_size = buf_pool_size_align(srv_buf_pool_size);
-	srv_buf_pool_curr_size = srv_buf_pool_size;
+	innobase_buffer_pool_size = static_cast<long long>(srv_buf_pool_size);
 }
 
 /** Initialize, validate and normalize the InnoDB startup parameters.
@@ -3714,6 +3716,17 @@ innodb_init_params()
 	static char	current_dir[3];
 	char		*default_path;
 	ulong		num_pll_degree;
+
+	/* Check that values don't overflow on 32-bit systems. */
+	if (sizeof(ulint) == 4) {
+		if (innobase_buffer_pool_size > UINT_MAX32) {
+			sql_print_error(
+				"innodb_buffer_pool_size can't be over 4GB"
+				" on 32-bit systems");
+
+			DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+		}
+	}
 
 	/* First calculate the default path for innodb_data_home_dir etc.,
 	in case the user has not given any value.
@@ -3868,7 +3881,7 @@ innodb_init_params()
 		}
 	}
 
-	srv_buf_pool_size = srv_buf_pool_curr_size;
+	srv_buf_pool_size = (ulint) innobase_buffer_pool_size;
 
 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
 
@@ -4046,8 +4059,8 @@ innodb_init_params()
 	if (srv_buf_pool_size_org != 0) {
 		srv_buf_pool_size_org =
 			buf_pool_size_align(srv_buf_pool_size_org);
-		srv_buf_pool_curr_size =
-			srv_buf_pool_size_org;
+		innobase_buffer_pool_size =
+			static_cast<long long>(srv_buf_pool_size_org);
 	}
 
 	if (srv_n_page_cleaners > srv_buf_pool_instances) {
@@ -14205,16 +14218,16 @@ longlong
 ha_innobase::get_memory_buffer_size() const
 /*=======================================*/
 {
-	return(srv_buf_pool_curr_size);
+	return(innobase_buffer_pool_size);
 }
 
 /** Update the system variable with the given value of the InnoDB
 buffer pool size.
 @param[in]	buf_pool_size	given value of buffer pool size.*/
 void
-innodb_set_buf_pool_size(ulint buf_pool_size)
+innodb_set_buf_pool_size(ulonglong buf_pool_size)
 {
-	srv_buf_pool_curr_size = buf_pool_size;
+	innobase_buffer_pool_size = buf_pool_size;
 }
 
 /*********************************************************************//**
@@ -19518,14 +19531,14 @@ BUF_POOL_SIZE_THRESHOLD (srv/srv0start.cc), then srv_buf_pool_instances_default
 can be removed and 8 used instead. The problem with the current setup is that
 with 128MiB default buffer pool size and 8 instances by default we would emit
 a warning when no options are specified. */
-static MYSQL_SYSVAR_ULONG(buffer_pool_size, srv_buf_pool_curr_size,
+static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   PLUGIN_VAR_RQCMDARG,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
   innodb_buffer_pool_size_validate,
   innodb_buffer_pool_size_update,
-  srv_buf_pool_def_size,
-  srv_buf_pool_min_size,
-  LONG_MAX, 1024*1024);
+  static_cast<longlong>(srv_buf_pool_def_size),
+  static_cast<longlong>(srv_buf_pool_min_size),
+  LLONG_MAX, 1024*1024L);
 
 static MYSQL_SYSVAR_ULONG(buffer_pool_chunk_size, srv_buf_pool_chunk_unit,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -20982,20 +20995,6 @@ innodb_buffer_pool_size_validate(
 				    " to less than 1GB if"
 				    " innodb_buffer_pool_instances > 1.");
 		return(1);
-	}
-
-	if (sizeof(ulint) == 4) {
-		if (intbuf > UINT_MAX32) {
-			const char*	intbuf_char;
-			char            buff[1024];
-			int             len = sizeof(buff);
-
-			intbuf_char = value->val_str(value, buff, &len);
-
-			my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0),
-			"innodb_buffer_pool_size", intbuf_char);
-			return(1);
-		}
 	}
 
 	ulint	requested_buf_pool_size
