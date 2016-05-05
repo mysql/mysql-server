@@ -41,6 +41,7 @@ static int after_engine_recovery_call= 0;
 static int after_recovery_call= 0;
 static int before_server_shutdown_call= 0;
 static int after_server_shutdown_call= 0;
+static bool thread_aborted= false;
 
 static void dump_server_state_calls()
 {
@@ -414,7 +415,7 @@ static int binlog_relay_applier_stop(Binlog_relay_IO_param *param,
                                      bool aborted)
 {
   binlog_relay_applier_stop_call++;
-
+  thread_aborted = aborted;
   return 0;
 }
 
@@ -691,11 +692,16 @@ int test_channel_service_interface()
     DBUG_ASSERT(*applier_id > 0);
     my_free(applier_id);
 
+    DBUG_ASSERT(binlog_relay_applier_stop_call==0);
+
     //Stop the channel applier
     error= channel_stop(interface_channel,
                         3,
                         10000);
     DBUG_ASSERT(!error);
+
+    DBUG_ASSERT(binlog_relay_applier_stop_call>0);
+    DBUG_ASSERT(!thread_aborted);
 
     //Assert that the applier thread is not running
     running= channel_is_active(interface_channel, CHANNEL_APPLIER_THREAD);
