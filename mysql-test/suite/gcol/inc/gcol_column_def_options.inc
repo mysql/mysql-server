@@ -24,13 +24,13 @@ create table t1 (a int, b int generated always as (a+1) virtual not null);
 --error 1048
 insert into t1(a) values(null);
 insert into t1(a) values(1);
-select * from t1;
+select * from t1 order by a;
 drop table t1;
 create table t1 (a int, b int generated always as (a+1) stored not null);
 --error 1048
 insert into t1(a) values(null);
 insert into t1(a) values(1);
-select * from t1;
+select * from t1 order by a;
 drop table t1;
 create table t1 (a int);
 alter table t1 add column b int generated always as (a+1) virtual not null;
@@ -78,7 +78,7 @@ create table t1 (a int, b int generated always as (a+1) virtual key);
 }
 create table t1 (a int, b int generated always as (a+1) stored key);
 insert into t1 (a) values (3),(1),(2);
-select * from t1;
+select * from t1 order by b;
 drop table t1;
 if ($support_virtual_index)
 {
@@ -87,7 +87,7 @@ create table t1 (a int, b int generated always as (a+1) virtual primary key);
 }
 create table t1 (a int, b int generated always as (a+1) stored primary key);
 insert into t1 (a) values (3),(1),(2);
-select * from t1;
+select * from t1 order by b;
 drop table t1;
 create table t1 (a int);
 if ($support_virtual_index)
@@ -121,14 +121,14 @@ describe t1;
 insert into t1 (a) values (1);
 select * from t1;
 insert into t1 values (2,default);
-select a,b from t1;
+select a,b from t1 order by a;
 create table t2 like t1;
 show create table t2;
 describe t2;
 insert into t2 (a) values (1);
 select * from t2;
 insert into t2 values (2,default);
-select a,b from t2;
+select a,b from t2 order by a;
 drop table t2;
 drop table t1;
 
@@ -138,7 +138,7 @@ describe t1;
 insert into t1 (a) values (1);
 select * from t1;
 insert into t1 values (2,default);
-select a,b from t1;
+select a,b from t1 order by a;
 drop table t1;
 
 
@@ -192,11 +192,11 @@ drop table t1;
 --echo Test generated columns referencing other generated columns
 create table t1 (a int unique, b int generated always as(-a) virtual, c int generated always as (b + 1) virtual);
 insert into t1 (a) values (1), (2);
-select * from t1;
+select * from t1 order by c;
 insert into t1(a) values (1) on duplicate key update a=3;
-select * from t1;
+select * from t1 order by a;
 update t1 set a=4 where a=2;
-select * from t1;
+select * from t1 order by a;
 drop table t1;
 
 --error ER_GENERATED_COLUMN_NON_PRIOR
@@ -210,8 +210,8 @@ CREATE TABLE t1 (pk INTEGER AUTO_INCREMENT, col_int_nokey INTEGER GENERATED ALWA
 create table t1 (a int, b int generated always as(-a) virtual, c int generated always as (b + 1) stored);
 insert into t1(a) values(1),(2);
 create table tt as select * from t1;
-select * from t1;
-select * from tt;
+select * from t1 order by a;
+select * from tt order by a;
 drop table t1,tt;
 
 if (!$support_virtual_index)
