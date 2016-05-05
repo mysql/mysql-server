@@ -6419,7 +6419,7 @@ fts_fake_hex_to_dec(
 #ifdef _WIN32
 	ret = sscanf(tmp_id, "%016llu", &dec_id);
 #else
-	ret = sscanf(tmp_id, "%016"PRIu64, &dec_id);
+	ret = sscanf(tmp_id, "%016" PRIu64, &dec_id);
 #endif /* _WIN32 */
 	ut_ad(ret == 1);
 
