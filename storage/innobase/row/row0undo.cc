@@ -257,7 +257,8 @@ row_undo(
 	roll_ptr_t	roll_ptr;
 	ibool		locked_data_dict;
 
-	ut_ad(node && thr);
+	ut_ad(node != NULL);
+	ut_ad(thr != NULL);
 
 	trx = node->trx;
 
