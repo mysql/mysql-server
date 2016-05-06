@@ -519,7 +519,21 @@ class Item_func_distance: public Item_real_func
   Gcalc_function func;
   Gcalc_scan_iterator scan_it;
 public:
-  Item_func_distance(Item *a, Item *b): Item_real_func(a, b) {}
+  Item_func_distance(Item *a, Item *b): Item_real_func(a, b)
+  {
+    /*
+      Distance could be NULL, if either of the operands are
+      not geometries.
+    */
+    maybe_null= true;
+  }
+
+  void fix_length_and_dec()
+  {
+    Item_real_func::fix_length_and_dec();
+    maybe_null= true;
+  }
+
   double val_real();
   const char *func_name() const { return "st_distance"; }
 };
