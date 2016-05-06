@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,6 +24,7 @@ Created 5/11/1994 Heikki Tuuri
 ********************************************************************/
 
 #include "ut0rnd.h"
+#include <my_thread_local.h>
 
 #ifdef UNIV_NONINL
 #include "ut0rnd.ic"
@@ -36,9 +37,8 @@ Created 5/11/1994 Heikki Tuuri
 #define UT_RANDOM_3	1.0132677
 /*@}*/
 
-/** Seed value of ut_rnd_gen_ulint(). */
-ulint	ut_rnd_ulint_counter = 65654363;
-
+/** Key for thread local variable ut_rnd_ulint_counter */
+thread_local_key_t   ut_rnd_ulint_counter_key;
 /***********************************************************//**
 Looks for a prime number slightly greater than the given argument.
 The prime is chosen so that it is not near any power of 2.
