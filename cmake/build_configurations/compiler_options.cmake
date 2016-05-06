@@ -104,7 +104,7 @@ IF(UNIX)
         ENDIF()
       ELSE() 
         # Assume !x86 is SPARC
-        SET(COMMON_C_FLAGS                 "-g -Xa -xstrconst -mt")
+        SET(COMMON_C_FLAGS                 "-g -xstrconst -mt")
         SET(COMMON_CXX_FLAGS               "-g0 -mt ${COMMON_CXX_FLAGS}")
         IF(32BIT)
           SET(COMMON_C_FLAGS               "${COMMON_C_FLAGS} -xarch=sparc")
