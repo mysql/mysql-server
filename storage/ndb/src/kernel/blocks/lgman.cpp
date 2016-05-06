@@ -3892,7 +3892,7 @@ Lgman::init_run_undo_log(Signal* signal)
   Logfile_group_list::Head tmpHead;
   bool found_any = false;
   {
-    Logfile_group_list::Local tmp(m_logfile_group_pool, tmpHead);
+    Local_logfile_group_list tmp(m_logfile_group_pool, tmpHead);
 
     list.first(group);
     while (!group.isNull())

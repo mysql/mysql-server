@@ -2694,7 +2694,7 @@ operator<<(NdbOut& out, Ptr<Pgman::Page_request> ptr)
 NdbOut&
 operator<<(NdbOut& out, Ptr<Pgman::Page_entry> ptr)
 {
-  const Pgman::Page_entry pe = *ptr.p;
+  const Pgman::Page_entry& pe = *ptr.p;
   Uint32 list_no = Pgman::get_sublist_no(pe.m_state);
   out << "PE [" << dec << ptr.i << "]";
   out << " state=" << hex << pe.m_state;
