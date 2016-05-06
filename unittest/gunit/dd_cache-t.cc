@@ -585,20 +585,10 @@ TEST_F(CacheStorageTest, TestRename)
       temp_table->set_name("updated_table_name");
 
       // Change name of columns and indexes
-      std::unique_ptr<dd::Iterator<dd::Column> > it_col(temp_table->columns());
-      dd::Column *c= it_col->next();
-      while (c)
-      {
-        c->set_name(c->name() + "_changed");
-        c= it_col->next();
-      }
-      std::unique_ptr<dd::Iterator<dd::Index> > it_idx(temp_table->indexes());
-      dd::Index *i= it_idx->next();
-      while (i)
-      {
+      for (const dd::Column *c : temp_table->columns())
+        const_cast<dd::Column*>(c)->set_name(c->name() + "_changed");
+      for (dd::Index *i : *temp_table->indexes())
         i->set_name(i->name() + "_changed");
-        i= it_idx->next();
-      }
 
       // Store the object.
       lock_object(*temp_table);

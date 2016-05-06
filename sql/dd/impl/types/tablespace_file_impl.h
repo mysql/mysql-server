@@ -18,7 +18,6 @@
 
 #include "my_global.h"
 
-#include "dd/impl/collection_item.h"        // dd::Collection_item
 #include "dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
 #include "dd/types/object_type.h"           // dd::Object_type
 #include "dd/types/tablespace_file.h"       // dd::Tablespace_file
@@ -35,11 +34,15 @@ class Tablespace_impl;
 ///////////////////////////////////////////////////////////////////////////
 
 class Tablespace_file_impl : public Weak_object_impl,
-                             public Tablespace_file,
-                             public Collection_item
+                             public Tablespace_file
 {
 public:
   Tablespace_file_impl();
+
+  Tablespace_file_impl(Tablespace_impl *tablespace);
+
+  Tablespace_file_impl(const Tablespace_file_impl &src,
+                       Tablespace_impl *parent);
 
   virtual ~Tablespace_file_impl()
   { }
@@ -60,36 +63,12 @@ public:
 
   virtual void debug_print(std::string &outb) const;
 
-public:
-  // Required by Collection_item.
-  virtual bool store(Open_dictionary_tables_ctx *otx)
-  { return Weak_object_impl::store(otx); }
-
-  // Required by Collection_item.
-  virtual bool drop(Open_dictionary_tables_ctx *otx) const
-  { return Weak_object_impl::drop(otx); }
-
-  virtual void drop();
-
-  // Required by Collection_item.
-  virtual bool restore_children(Open_dictionary_tables_ctx *otx)
-  { return Weak_object_impl::restore_children(otx); }
-
-  // Required by Collection_item.
-  virtual bool drop_children(Open_dictionary_tables_ctx *otx) const
-  { return Weak_object_impl::drop_children(otx); }
-
-  // Required by Collection_item.
-  virtual void set_ordinal_position(uint ordinal_position)
+  void set_ordinal_position(uint ordinal_position)
   { m_ordinal_position= ordinal_position; }
-
-  // Required by Collection_item.
-  virtual bool is_hidden() const
-  { return false; }
 
 public:
   /////////////////////////////////////////////////////////////////////////
-  // ordinal_position - Also used by Collection_item
+  // ordinal_position.
   /////////////////////////////////////////////////////////////////////////
 
   virtual uint ordinal_position() const
@@ -109,7 +88,8 @@ public:
   // se_private_data.
   /////////////////////////////////////////////////////////////////////////
 
-  using Tablespace_file::se_private_data;
+  virtual const Properties &se_private_data() const
+  { return *m_se_private_data; }
 
   virtual Properties &se_private_data()
   { return *m_se_private_data; }
@@ -127,23 +107,21 @@ public:
   // tablespace.
   /////////////////////////////////////////////////////////////////////////
 
-  using Tablespace_file::tablespace;
+  virtual const Tablespace &tablespace() const;
 
   virtual Tablespace &tablespace();
 
 public:
-  class Factory : public Collection_item_factory
+  static Tablespace_file_impl *restore_item(Tablespace_impl *ts)
   {
-  public:
-    Factory(Tablespace_impl *ts)
-     :m_ts(ts)
-    { }
+    return new (std::nothrow) Tablespace_file_impl(ts);
+  }
 
-    virtual Collection_item *create_item() const;
-
-  private:
-    Tablespace_impl *m_ts;
-  };
+  static Tablespace_file_impl *clone(const Tablespace_file_impl &other,
+                                     Tablespace_impl *ts)
+  {
+    return new (std::nothrow) Tablespace_file_impl(other, ts);
+  }
 
 public:
   virtual Object_key *create_primary_key() const;
@@ -158,15 +136,6 @@ private:
 
   // References to other objects
   Tablespace_impl *m_tablespace;
-
-  Tablespace_file_impl(const Tablespace_file_impl &src,
-                       Tablespace_impl *parent);
-
-public:
-  Tablespace_file_impl *clone(Tablespace_impl *parent) const
-  {
-    return new Tablespace_file_impl(*this, parent);
-  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

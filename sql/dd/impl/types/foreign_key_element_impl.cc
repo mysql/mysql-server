@@ -18,7 +18,6 @@
 #include "mysqld_error.h"                            // ER_*
 
 #include "dd/properties.h"                           // Needed for destructor
-#include "dd/impl/collection_impl.h"                 // Collection
 #include "dd/impl/sdi_impl.h"                        // sdi read/write functions
 #include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"                  // Raw_record
@@ -58,16 +57,14 @@ const Object_type &Foreign_key_element::TYPE()
 
 // Foreign keys not supported in the Global DD yet
 /* purecov: begin deadcode */
-Foreign_key &Foreign_key_element_impl::foreign_key()
+const Foreign_key &Foreign_key_element_impl::foreign_key() const
 {
   return *m_foreign_key;
 }
 
-///////////////////////////////////////////////////////////////////////////
-
-void Foreign_key_element_impl::drop()
+Foreign_key &Foreign_key_element_impl::foreign_key()
 {
-  m_foreign_key->element_collection()->remove(this);
+  return *m_foreign_key;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -183,15 +180,6 @@ void Foreign_key_element_impl::debug_print(std::string &outb) const
 ///////////////////////////////////////////////////////////////////////////
 
 /* purecov: begin deadcode */
-Collection_item *Foreign_key_element_impl::Factory::create_item() const
-{
-  Foreign_key_element_impl *e= new (std::nothrow) Foreign_key_element_impl();
-  e->m_foreign_key= m_fk;
-  return e;
-}
-
-///////////////////////////////////////////////////////////////////////////
-
 Object_key *Foreign_key_element_impl::create_primary_key() const
 {
   return Foreign_key_column_usage::create_primary_key(
@@ -204,6 +192,14 @@ bool Foreign_key_element_impl::has_new_primary_key() const
 }
 
 ///////////////////////////////////////////////////////////////////////////
+
+Foreign_key_element_impl*
+Foreign_key_element_impl::clone(const Foreign_key_element_impl &other,
+                                Foreign_key_impl *fk)
+{
+  return new Foreign_key_element_impl(other, fk,
+                                      fk->table_impl().get_column(other.column().name()));
+}
 
 Foreign_key_element_impl::
 Foreign_key_element_impl(const Foreign_key_element_impl &src,

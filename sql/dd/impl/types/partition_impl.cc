@@ -17,7 +17,6 @@
 
 #include "mysqld_error.h"                          // ER_*
 
-#include "dd/impl/collection_impl.h"               // Collection
 #include "dd/impl/properties_impl.h"               // Properties_impl
 #include "dd/impl/sdi_impl.h"                      // sdi read/write functions
 #include "dd/impl/transaction_impl.h"              // Open_dictionary_tables_ctx
@@ -65,12 +64,33 @@ Partition_impl::Partition_impl()
   m_options(new Properties_impl()),
   m_se_private_data(new Properties_impl()),
   m_table(NULL),
-  m_values(new Value_collection()),
-  m_indexes(new Index_collection()),
+  m_values(),
+  m_indexes(),
   m_tablespace_id(INVALID_OBJECT_ID)
 { }
 
+Partition_impl::Partition_impl(Table_impl *table)
+ :m_level(-1),
+  m_number(-1),
+  m_se_private_id((ulonglong)-1),
+  m_options(new Properties_impl()),
+  m_se_private_data(new Properties_impl()),
+  m_table(table),
+  m_values(),
+  m_indexes(),
+  m_tablespace_id(INVALID_OBJECT_ID)
+{ }
+
+
+Partition_impl::~Partition_impl()
+{ }
+
 ///////////////////////////////////////////////////////////////////////////
+
+const Table &Partition_impl::table() const
+{
+  return *m_table;
+}
 
 Table &Partition_impl::table()
 {
@@ -161,16 +181,15 @@ bool Partition_impl::validate() const
 
 bool Partition_impl::restore_children(Open_dictionary_tables_ctx *otx)
 {
-
-  return m_values->restore_items(
-           Partition_value_impl::Factory(this),
+  return m_values.restore_items(
+           this,
            otx,
            otx->get_table<Partition_value>(),
            Table_partition_values::create_key_by_partition_id(this->id())) ||
-         m_indexes->restore_items(
+         m_indexes.restore_items(
            // Index will be resolved in restore_attributes()
            // called from Collection::restore_items().
-           Partition_index_impl::Factory(this, NULL),
+           this,
            otx,
            otx->get_table<Partition_index>(),
            Index_partitions::create_key_by_partition_id(this->id()));
@@ -180,19 +199,19 @@ bool Partition_impl::restore_children(Open_dictionary_tables_ctx *otx)
 
 bool Partition_impl::store_children(Open_dictionary_tables_ctx *otx)
 {
-  return m_values->store_items(otx) ||
-         m_indexes->store_items(otx);
+  return m_values.store_items(otx) ||
+         m_indexes.store_items(otx);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 bool Partition_impl::drop_children(Open_dictionary_tables_ctx *otx) const
 {
-  return m_values->drop_items(
+  return m_values.drop_items(
            otx,
            otx->get_table<Partition_value>(),
            Table_partition_values::create_key_by_partition_id(this->id())) ||
-         m_indexes->drop_items(
+         m_indexes.drop_items(
            otx,
            otx->get_table<Partition_index>(),
            Index_partitions::create_key_by_partition_id(this->id()));
@@ -258,8 +277,8 @@ Partition_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
   write(w, m_comment, STRING_WITH_LEN("comment"));
   write_properties(w, m_options, STRING_WITH_LEN("options"));
   write_properties(w, m_se_private_data, STRING_WITH_LEN("se_private_data"));
-  serialize_each(wctx, w, m_values.get(), STRING_WITH_LEN("values"));
-  serialize_each(wctx, w, m_indexes.get(), STRING_WITH_LEN("indexes"));
+  serialize_each(wctx, w, m_values, STRING_WITH_LEN("values"));
+  serialize_each(wctx, w, m_indexes, STRING_WITH_LEN("indexes"));
   serialize_tablespace_ref(wctx, w, m_tablespace_id,
                            STRING_WITH_LEN("tablespace_ref"));
   w->EndObject();
@@ -305,19 +324,12 @@ void Partition_impl::debug_print(std::string &outb) const
     << "m_se_private_data " << m_se_private_data->raw_string() << "; "
     << "m_se_private_id: {OID: " << m_se_private_id << "}; "
     << "m_tablespace: {OID: " << m_tablespace_id << "}; "
-    << "m_values: " << m_values->size()
+    << "m_values: " << m_values.size()
     << " [ ";
 
   {
-    std::unique_ptr<Partition_value_const_iterator> it(values());
-
-    while (true)
+    for (const Partition_value *c : values())
     {
-      const Partition_value *c= it->next();
-
-      if (!c)
-        break;
-
       std::string ob;
       c->debug_print(ob);
       ss << ob;
@@ -325,19 +337,12 @@ void Partition_impl::debug_print(std::string &outb) const
   }
   ss << "] ";
 
-  ss << "m_indexes: " << m_indexes->size()
+  ss << "m_indexes: " << m_indexes.size()
     << " [ ";
 
   {
-    std::unique_ptr<Partition_index_const_iterator> it(indexes());
-
-    while (true)
+    for (const Partition_index *i : indexes())
     {
-      const Partition_index *i= it->next();
-
-      if (!i)
-        break;
-
       std::string ob;
       i->debug_print(ob);
       ss << ob;
@@ -352,66 +357,20 @@ void Partition_impl::debug_print(std::string &outb) const
 
 /////////////////////////////////////////////////////////////////////////
 
-void Partition_impl::drop()
-{
-  m_table->partition_collection()->remove(this);
-}
-
-/////////////////////////////////////////////////////////////////////////
-
 Partition_value *Partition_impl::add_value()
 {
-  return
-    m_values->add(
-      Partition_value_impl::Factory(this));
+  Partition_value_impl *e= new (std::nothrow) Partition_value_impl(this);
+  m_values.push_back(e);
+  return e;
 }
 
 ///////////////////////////////////////////////////////////////////////////
-
-Partition_value_const_iterator *Partition_impl::values() const
-{
-  return m_values->const_iterator();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Partition_value_iterator *Partition_impl::values()
-{
-  return m_values->iterator();
-}
-
-/////////////////////////////////////////////////////////////////////////
 
 Partition_index *Partition_impl::add_index(Index *idx)
 {
-  return
-    m_indexes->add(
-      Partition_index_impl::Factory(this, idx));
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Partition_index_const_iterator *Partition_impl::indexes() const
-{
-  return m_indexes->const_iterator();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Partition_index_iterator *Partition_impl::indexes()
-{
-  return m_indexes->iterator();
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Partition_impl::Factory implementation.
-///////////////////////////////////////////////////////////////////////////
-
-Collection_item *Partition_impl::Factory::create_item() const
-{
-  Partition_impl *i= new (std::nothrow) Partition_impl();
-  i->m_table= m_table;
-  return i;
+  Partition_index_impl *e= new (std::nothrow) Partition_index_impl(this, idx);
+  m_indexes.push_back(e);
+  return e;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -426,29 +385,12 @@ Partition_impl::Partition_impl(const Partition_impl &src,
     m_se_private_data(Properties_impl::
                       parse_properties(src.m_se_private_data->raw_string())),
     m_table(parent),
-    m_values(new Value_collection()),
-    m_indexes(new Index_collection()),
+    m_values(),
+    m_indexes(),
     m_tablespace_id(src.m_tablespace_id)
 {
-  typedef Base_collection::Array::const_iterator i_type;
-  i_type end= src.m_values->aref().end();
-  m_values->aref().reserve(src.m_values->size());
-  for (i_type i= src.m_values->aref().begin(); i != end; ++i)
-  {
-    m_values->aref().push_back(dynamic_cast<Partition_value_impl*>(*i)->
-                                 clone(this));
-  }
-
-  end= src.m_indexes->aref().end();
-  m_indexes->aref().reserve(src.m_indexes->size());
-  for (i_type i= src.m_indexes->aref().begin(); i != end; ++i)
-  {
-    Index *dstix= NULL;
-    const Index &srcix= dynamic_cast<Partition_index_impl*>(*i)->index();
-    dstix= parent->get_index(srcix.id());
-    m_indexes->aref().push_back(dynamic_cast<Partition_index_impl*>(*i)->
-                                clone(this, dstix));
-  }
+  m_values.deep_copy(src.m_values, this);
+  m_indexes.deep_copy(src.m_indexes, this);
 }
 
 ///////////////////////////////////////////////////////////////////////////

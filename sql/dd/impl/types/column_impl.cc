@@ -17,7 +17,6 @@
 
 #include "mysqld_error.h"                            // ER_*
 
-#include "dd/impl/collection_impl.h"                 // Collection
 #include "dd/impl/properties_impl.h"                 // Properties_impl
 #include "dd/impl/sdi_impl.h"                        // sdi read/write functions
 #include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
@@ -77,12 +76,42 @@ Column_impl::Column_impl()
   m_options(new Properties_impl()),
   m_se_private_data(new Properties_impl()),
   m_table(NULL),
-  m_enum_elements(new Column_type_element_collection()),
-  m_set_elements(new Column_type_element_collection()),
+  m_elements(),
   m_collation_id(INVALID_OBJECT_ID)
 { }
 
+Column_impl::Column_impl(Abstract_table_impl *table)
+ :m_type(enum_column_types::LONG),
+  m_is_nullable(true),
+  m_is_zerofill(false),
+  m_is_unsigned(false),
+  m_is_auto_increment(false),
+  m_is_virtual(false),
+  m_hidden(false),
+  m_ordinal_position(0),
+  m_char_length(0),
+  m_numeric_precision(0),
+  m_numeric_scale(0),
+  m_numeric_scale_null(true),
+  m_datetime_precision(0),
+  m_has_no_default(false),
+  m_default_value_null(true),
+  m_options(new Properties_impl()),
+  m_se_private_data(new Properties_impl()),
+  m_table(table),
+  m_elements(),
+  m_collation_id(INVALID_OBJECT_ID)
+{ }
+
+Column_impl::~Column_impl()
+{ }
+
 ///////////////////////////////////////////////////////////////////////////
+
+const Abstract_table &Column_impl::table() const
+{
+  return *m_table;
+}
 
 Abstract_table &Column_impl::table()
 {
@@ -139,20 +168,14 @@ bool Column_impl::validate() const
     return true;
   }
 
-  if (type() == enum_column_types::ENUM && m_enum_elements->is_empty())
+  if ((type() == enum_column_types::ENUM ||
+       type() == enum_column_types::ENUM) &&
+      m_elements.is_empty())
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
              Column_impl::OBJECT_TABLE().name().c_str(),
-             "There are no ENUM elements supplied.");
-    return true;
-  }
-  else if (type() == enum_column_types::SET && m_set_elements->is_empty())
-  {
-    my_error(ER_INVALID_DD_OBJECT,
-             MYF(0),
-             Column_impl::OBJECT_TABLE().name().c_str(),
-             "There are no SET elements supplied.");
+             "There are no elements supplied.");
     return true;
   }
 
@@ -166,17 +189,10 @@ bool Column_impl::restore_children(Open_dictionary_tables_ctx *otx)
   switch (type())
   {
     case enum_column_types::ENUM:
-      return
-        m_enum_elements->restore_items(
-          Column_type_element_impl::Factory(this, m_enum_elements.get()),
-          otx,
-          otx->get_table<Column_type_element>(),
-          Column_type_elements::create_key_by_column_id(this->id()));
-
     case enum_column_types::SET:
       return
-        m_set_elements->restore_items(
-          Column_type_element_impl::Factory(this, m_set_elements.get()),
+        m_elements.restore_items(
+          this,
           otx,
           otx->get_table<Column_type_element>(),
           Column_type_elements::create_key_by_column_id(this->id()));
@@ -190,8 +206,7 @@ bool Column_impl::restore_children(Open_dictionary_tables_ctx *otx)
 
 bool Column_impl::store_children(Open_dictionary_tables_ctx *otx)
 {
-  return m_enum_elements->store_items(otx) ||
-         m_set_elements->store_items(otx);
+  return m_elements.store_items(otx);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -200,12 +215,7 @@ bool Column_impl::drop_children(Open_dictionary_tables_ctx *otx) const
 {
   if (type() == enum_column_types::ENUM ||
       type() == enum_column_types::SET)
-    return m_enum_elements->drop_items(
-             otx,
-             otx->get_table<Column_type_element>(),
-             Column_type_elements::create_key_by_column_id(this->id()))
-           ||
-           m_set_elements->drop_items(
+    return m_elements.drop_items(
              otx,
              otx->get_table<Column_type_element>(),
              Column_type_elements::create_key_by_column_id(this->id()));
@@ -348,8 +358,7 @@ Column_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
   write(w, m_generation_expression_utf8, STRING_WITH_LEN("generation_expression_utf8"));
   write_properties(w, m_options, STRING_WITH_LEN("options"));
   write_properties(w, m_se_private_data, STRING_WITH_LEN("se_private_data"));
-  serialize_each(wctx, w, m_enum_elements.get(), STRING_WITH_LEN("enum_elements"));
-  serialize_each(wctx, w, m_set_elements.get(), STRING_WITH_LEN("set_elements"));
+  serialize_each(wctx, w, m_elements, STRING_WITH_LEN("elements"));
   write(w, m_collation_id, STRING_WITH_LEN("collation_id"));
   w->EndObject();
 }
@@ -384,10 +393,8 @@ Column_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
   read_properties(&m_options, val, "options");
   read_properties(&m_se_private_data, val, "se_private_data");
 
-  deserialize_each(rctx, [this] () { return add_enum_element(); },
-                   val, "enum_elements");
-  deserialize_each(rctx, [this] () { return add_set_element(); },
-                   val, "set_elements");
+  deserialize_each(rctx, [this] () { return add_element(); },
+                   val, "elements");
 
   read(&m_collation_id, val, "collation_id");
 
@@ -428,39 +435,12 @@ void Column_impl::debug_print(std::string &outb) const
     << "m_hidden: " << m_hidden << "; "
     << "m_options: " << m_options->raw_string() << "; ";
 
-  if (m_type == enum_column_types::ENUM)
+  if (m_type == enum_column_types::ENUM || m_type == enum_column_types::SET)
   {
-    ss << "m_enum_elements: [ ";
+    ss << "m_elements: [ ";
 
-    std::unique_ptr<Column_type_element_const_iterator> it(enum_elements());
-
-    while (true)
+    for (const Column_type_element *e : elements())
     {
-      const Column_type_element *e= it->next();
-
-      if (!e)
-        break;
-
-      std::string ob;
-      e->debug_print(ob);
-      ss << ob;
-    }
-
-    ss << " ]";
-  }
-  else if(m_type == enum_column_types::SET)
-  {
-    ss << "m_set_elements: [ ";
-
-    std::unique_ptr<Column_type_element_const_iterator> it(set_elements());
-
-    while (true)
-    {
-      const Column_type_element *e= it->next();
-
-      if (!e)
-        break;
-
       std::string ob;
       e->debug_print(ob);
       ss << ob;
@@ -475,96 +455,18 @@ void Column_impl::debug_print(std::string &outb) const
 }
 
 ///////////////////////////////////////////////////////////////////////////
+// Elements.
+///////////////////////////////////////////////////////////////////////////
 
-/* purecov: begin deadcode */
-void Column_impl::drop()
+Column_type_element *Column_impl::add_element()
 {
-  m_table->column_collection()->remove(this);
-}
-/* purecov: end */
+  DBUG_ASSERT(type() == enum_column_types::ENUM ||
+              type() == enum_column_types::SET);
 
-///////////////////////////////////////////////////////////////////////////
-// Enum-elements.
-///////////////////////////////////////////////////////////////////////////
-
-Column_type_element *Column_impl::add_enum_element()
-{
-  if (type() != enum_column_types::ENUM)
-    return NULL;
-
-  return
-    m_enum_elements->add(
-      Column_type_element_impl::Factory(this, m_enum_elements.get()));
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Column_type_element_const_iterator *Column_impl::enum_elements() const
-{
-  return type() == enum_column_types::ENUM ?
-    m_enum_elements->const_iterator() : NULL;
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Column_type_element_iterator *Column_impl::enum_elements()
-{
-  return type() == enum_column_types::ENUM ?
-    m_enum_elements->iterator() : NULL;
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-size_t Column_impl::enum_elements_count() const
-{
-  return m_enum_elements->size();
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Set-elements.
-///////////////////////////////////////////////////////////////////////////
-
-Column_type_element *Column_impl::add_set_element()
-{
-  if (type() != enum_column_types::SET)
-    return NULL;
-
-  return
-    m_set_elements->add(
-      Column_type_element_impl::Factory(this, m_set_elements.get()));
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Column_type_element_const_iterator *Column_impl::set_elements() const
-{
-  return type() == enum_column_types::SET ?
-    m_set_elements->const_iterator() : NULL;
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Column_type_element_iterator *Column_impl::set_elements()
-{
-  return type() == enum_column_types::SET ?
-    m_set_elements->iterator() : NULL;
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-size_t Column_impl::set_elements_count() const
-{
-  return m_set_elements->size();
-}
-
-///////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////
-
-Collection_item *Column_impl::Factory::create_item() const
-{
-  Column_impl *c= new (std::nothrow) Column_impl();
-  c->m_table= m_table;
-  return c;
+  Column_type_element_impl *e=
+    new (std::nothrow) Column_type_element_impl(this);
+  m_elements.push_back(e);
+  return e;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -591,26 +493,10 @@ Column_impl::Column_impl(const Column_impl &src, Abstract_table_impl *parent)
     m_options(Properties_impl::parse_properties(src.m_options->raw_string())),
     m_se_private_data(Properties_impl::
                       parse_properties(src.m_se_private_data->raw_string())),
-    m_table(parent), m_enum_elements(new Column_type_element_collection()),
-    m_set_elements(new Column_type_element_collection()),
+    m_table(parent), m_elements(),
     m_collation_id(src.m_collation_id)
 {
-  typedef Base_collection::Array::const_iterator i_type;
-  i_type end= src.m_enum_elements->aref().end();
-  m_enum_elements->aref().reserve(src.m_enum_elements->size());
-  for (i_type i= src.m_enum_elements->aref().begin(); i != end; ++i)
-  {
-    m_enum_elements->aref().push_back(dynamic_cast<Column_type_element_impl*>(*i)->
-                                      clone(this, m_enum_elements.get()));
-  }
-
-  end= src.m_set_elements->aref().end();
-  m_set_elements->aref().reserve(src.m_set_elements->size());
-  for (i_type i= src.m_set_elements->aref().begin(); i != end; ++i)
-  {
-    m_set_elements->aref().push_back(dynamic_cast<Column_type_element_impl*>(*i)->
-                                     clone(this, m_set_elements.get()));
-  }
+  m_elements.deep_copy(src.m_elements, this);
 }
 
 ///////////////////////////////////////////////////////////////////////////

@@ -16,8 +16,6 @@
 #ifndef DD__SDI_TABLESPACE_INCLUDED
 #define DD__SDI_TABLESPACE_INCLUDED
 
-#include "dd/types/fwd.h"   // dd::Schema
-
 class THD;
 struct handlerton;
 

@@ -18,7 +18,6 @@
 
 #include "my_global.h"
 
-#include "dd/impl/collection_item.h"        // dd::Collection_item
 #include "dd/impl/types/index_impl.h"       // dd::Index_impl
 #include "dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
 #include "dd/types/index_element.h"         // dd::Index_element
@@ -29,14 +28,14 @@ namespace dd {
 ///////////////////////////////////////////////////////////////////////////
 
 class Index;
+class Index_impl;
 class Raw_record;
 class Open_dictionary_tables_ctx;
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Index_element_impl : public Weak_object_impl,
-                           public Index_element,
-                           public Collection_item
+                           public Index_element
 {
 public:
   Index_element_impl()
@@ -46,6 +45,21 @@ public:
     m_hidden(false),
     m_index(NULL),
     m_column(NULL)
+  { }
+
+  Index_element_impl(Index_impl *index, Column *column)
+   :m_ordinal_position(0),
+    m_length(-1),
+    m_order(Index_element::ORDER_ASC),
+    m_hidden(false),
+    m_index(index),
+    m_column(column)
+  { }
+
+  Index_element_impl(const Index_element_impl &src, Index_impl *parent,
+                     Column *column);
+
+  virtual ~Index_element_impl()
   { }
 
 public:
@@ -62,27 +76,7 @@ public:
 
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
-public:
-  // Required by Collection_item.
-  virtual bool store(Open_dictionary_tables_ctx *otx)
-  { return Weak_object_impl::store(otx); }
-
-  // Required by Collection_item.
-  virtual bool drop(Open_dictionary_tables_ctx *otx) const
-  { return Weak_object_impl::drop(otx); }
-
-  virtual void drop();
-
-  // Required by Collection_item.
-  virtual bool restore_children(Open_dictionary_tables_ctx *otx)
-  { return Weak_object_impl::restore_children(otx); }
-
-  // Required by Collection_item.
-  virtual bool drop_children(Open_dictionary_tables_ctx *otx) const
-  { return Weak_object_impl::drop_children(otx); }
-
-  // Required by Collection_item.
-  virtual void set_ordinal_position(uint ordinal_position)
+  void set_ordinal_position(uint ordinal_position)
   { m_ordinal_position= ordinal_position; }
 
 public:
@@ -90,21 +84,24 @@ public:
   // index.
   /////////////////////////////////////////////////////////////////////////
 
-  using Index_element::index;
+  virtual const Index &index() const
+  { return *m_index; }
 
-  virtual Index &index();
+  virtual Index &index()
+  { return *m_index; }
 
   /////////////////////////////////////////////////////////////////////////
   // column.
   /////////////////////////////////////////////////////////////////////////
 
-  using Index_element::column;
+  virtual const Column &column() const
+  { return *m_column; }
 
   virtual Column &column()
   { return *m_column; }
 
   /////////////////////////////////////////////////////////////////////////
-  // ordinal_position - Also used by Collection_item
+  // ordinal_position.
   /////////////////////////////////////////////////////////////////////////
 
   virtual uint ordinal_position() const
@@ -127,17 +124,14 @@ public:
   { return m_length == (uint) -1; }
 
   /////////////////////////////////////////////////////////////////////////
-  // is_hidden. Also required by Collection_item
+  // is_hidden.
   /////////////////////////////////////////////////////////////////////////
 
   virtual bool is_hidden() const
   { return m_hidden; }
 
   virtual void set_hidden(bool hidden)
-  {
-    m_index->invalidate_user_elements_count_cache();
-    m_hidden= hidden;
-  }
+  { m_hidden= hidden; }
 
   /////////////////////////////////////////////////////////////////////////
   // order.
@@ -149,15 +143,6 @@ public:
   virtual void set_order(enum_index_element_order order)
   { m_order= order; }
 
-
-  /////////////////////////////////////////////////////////////////////////
-  // Make a clone of this object.  (Renamed to factory_clone to avoid
-  // clashing with virtual clone() needed for unit testing)
-  /////////////////////////////////////////////////////////////////////////
-
-  virtual Index_element_impl *factory_clone() const
-  { return new (std::nothrow) Index_element_impl(*this); }
-
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()
   { return Weak_object_impl::impl(); }
@@ -165,35 +150,13 @@ public:
   { return Weak_object_impl::impl(); }
 
 public:
-  class Factory : public Collection_item_factory
+  static Index_element_impl *restore_item(Index_impl *index)
   {
-  public:
-    Factory(Index_impl *index, Column *column)
-     :m_index(index),
-      m_column(column)
-    { }
+    return new (std::nothrow) Index_element_impl(index, NULL);
+  }
 
-    virtual Collection_item *create_item() const;
-
-  private:
-    Index_impl *m_index;
-    Column *m_column;
-  };
-
-  class Factory_clone : public Collection_item_factory
-  {
-  public:
-    Factory_clone(Index_impl *index, const Index_element &element)
-     :m_index(index),
-      m_element(element)
-    { }
-
-    virtual Collection_item *create_item() const;
-
-  private:
-    Index_impl *m_index;
-    const Index_element &m_element;
-  };
+  static Index_element_impl *clone(const Index_element_impl &other,
+                                   Index_impl *index);
 
 public:
   virtual void debug_print(std::string &outb) const;
@@ -201,20 +164,6 @@ public:
 public:
   virtual Object_key *create_primary_key() const;
   virtual bool has_new_primary_key() const;
-
-private:
-  Index_element_impl(const Index_element_impl &e)
-    :Weak_object(),
-     m_ordinal_position(e.m_ordinal_position),
-     m_length(e.m_length),
-     m_order(e.m_order),
-     m_hidden(e.m_hidden),
-     m_index(e.m_index),
-     m_column(e.m_column)
-  { }
-
-  virtual ~Index_element_impl()
-  { }
 
 private:
   // Fields
@@ -228,15 +177,6 @@ private:
   // References to other objects
   Index_impl *m_index;
   Column *m_column;
-
-  Index_element_impl(const Index_element_impl &src, Index_impl *parent,
-                     Column *column);
-
-public:
-  Index_element_impl *clone(Index_impl *parent, Column *column) const
-  {
-    return new Index_element_impl(*this, parent, column);
-  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

@@ -18,7 +18,6 @@
 
 #include "dd/dd_event.h"
 #include "dd/cache/dictionary_client.h" // fetch_schema_components
-#include "dd/iterator.h"
 #include "dd/dd_schema.h"
 
 #include "sql_base.h"                   // close_thread_tables

@@ -35,8 +35,6 @@
 
 #include "mysql/psi/psi_table.h"
 
-#include "dd/types/fwd.h"      // dd::Schema, dd::sdi_t
-
 #include <algorithm>
 #include <string>
 
@@ -60,10 +58,12 @@ typedef struct xid_t XID;
 struct MDL_key;
 
 namespace dd {
+  class  Schema;
   class  Table;
   class  Tablespace;
   typedef struct sdi_key sdi_key_t;
   typedef struct sdi_vector sdi_vector_t;
+  typedef std::string sdi_t;
 };
 
 typedef my_bool (*qc_engine_callback)(THD *thd, const char *table_key,

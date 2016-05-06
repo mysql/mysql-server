@@ -17,7 +17,6 @@
 
 #include "mysqld_error.h"                    // ER_*
 
-#include "dd/impl/collection_impl.h"         // Collection
 #include "dd/impl/properties_impl.h"         // Properties_impl
 #include "dd/impl/sdi_impl.h"                // sdi read/write functions
 #include "dd/impl/transaction_impl.h"        // Open_dictionary_tables_ctx
@@ -57,18 +56,22 @@ Tablespace_file_impl::Tablespace_file_impl()
   m_se_private_data(new Properties_impl())
 { } /* purecov: tested */
 
+Tablespace_file_impl::Tablespace_file_impl(Tablespace_impl *tablespace)
+ :m_ordinal_position(0),
+  m_se_private_data(new Properties_impl()),
+  m_tablespace(tablespace)
+{ }
+
 ///////////////////////////////////////////////////////////////////////////
 
-Tablespace &Tablespace_file_impl::tablespace()
+const Tablespace &Tablespace_file_impl::tablespace() const
 {
   return *m_tablespace;
 }
 
-///////////////////////////////////////////////////////////////////////////
-
-void Tablespace_file_impl::drop()
+Tablespace &Tablespace_file_impl::tablespace()
 {
-  m_tablespace->file_collection()->remove(this);
+  return *m_tablespace;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -182,17 +185,6 @@ Object_key *Tablespace_file_impl::create_primary_key() const
 bool Tablespace_file_impl::has_new_primary_key() const
 {
   return m_tablespace->has_new_primary_key();
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Tablespace_file_impl::Factory implementation.
-///////////////////////////////////////////////////////////////////////////
-
-Collection_item *Tablespace_file_impl::Factory::create_item() const
-{
-  Tablespace_file_impl *f= new (std::nothrow) Tablespace_file_impl();
-  f->m_tablespace= m_ts;
-  return f;
 }
 
 ///////////////////////////////////////////////////////////////////////////

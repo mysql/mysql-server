@@ -18,21 +18,20 @@
 
 #include "my_global.h"
 
-#include "dd/types/entity_object.h"  // dd::Entity_object
+#include "dd/collection.h"           // dd::Collection
 #include "dd/sdi_fwd.h"              // RJ_Document
+#include "dd/types/entity_object.h"  // dd::Entity_object
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Abstract_table;
+class Column_impl;
 class Column_type_element;
 class Object_table;
 class Object_type;
 class Properties;
-template <typename I> class Iterator;
-typedef Iterator<Column_type_element> Column_type_element_iterator;
-typedef Iterator<const Column_type_element> Column_type_element_const_iterator;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -77,6 +76,8 @@ class Column : virtual public Entity_object
 public:
   static const Object_type &TYPE();
   static const Object_table &OBJECT_TABLE();
+  typedef Collection<Column_type_element*> Column_type_element_collection;
+  typedef Column_impl Impl;
 
   virtual ~Column()
   { };
@@ -85,8 +86,7 @@ public:
   // Table.
   /////////////////////////////////////////////////////////////////////////
 
-  const Abstract_table &table() const
-  { return const_cast<Column *> (this)->table(); }
+  virtual const Abstract_table &table() const = 0;
 
   virtual Abstract_table &table() = 0;
 
@@ -246,8 +246,7 @@ public:
   // Options.
   /////////////////////////////////////////////////////////////////////////
 
-  const Properties &options() const
-  { return const_cast<Column *> (this)->options(); }
+  virtual const Properties &options() const = 0;
 
   virtual Properties &options() = 0;
   virtual bool set_options_raw(const std::string &options_raw) = 0;
@@ -256,42 +255,20 @@ public:
   // se_private_data.
   /////////////////////////////////////////////////////////////////////////
 
-  const Properties &se_private_data() const
-  { return const_cast<Column *> (this)->se_private_data(); }
+  virtual const Properties &se_private_data() const = 0;
 
   virtual Properties &se_private_data() = 0;
   virtual bool set_se_private_data_raw(const std::string &se_private_data_raw) = 0;
 
   /////////////////////////////////////////////////////////////////////////
-  // Enum-elements.
+  // Elements.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Column_type_element *add_enum_element() = 0;
+  virtual Column_type_element *add_element() = 0;
 
-  virtual Column_type_element_const_iterator *enum_elements() const = 0;
+  virtual const Column_type_element_collection &elements() const = 0;
 
-  virtual Column_type_element_iterator *enum_elements() = 0;
-
-  virtual size_t enum_elements_count() const = 0;
-
-  /////////////////////////////////////////////////////////////////////////
-  // Set-elements.
-  /////////////////////////////////////////////////////////////////////////
-
-  virtual Column_type_element *add_set_element() = 0;
-
-  virtual Column_type_element_const_iterator *set_elements() const = 0;
-
-  virtual Column_type_element_iterator *set_elements() = 0;
-
-  virtual size_t set_elements_count() const = 0;
-
-  /////////////////////////////////////////////////////////////////////////
-  // Drop this column from the collection.
-  /////////////////////////////////////////////////////////////////////////
-
-  virtual void drop() = 0; /* purecov: deadcode */
-
+  virtual size_t elements_count() const = 0;
 
   /**
     Converts *this into json.

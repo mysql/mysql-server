@@ -28,7 +28,6 @@
 #include "dd/dd.h"                            // dd::get_dictionary
 #include "dd/dd_schema.h"                     // dd::Schema_MDL_locker
 #include "dd/dictionary.h"                    // dd::Dictionary
-#include "dd/iterator.h"                      // dd::Iterator
 #include "dd/properties.h"                    // dd::Properties
 #include "dd/sdi.h"                           // dd::store_sdi
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
@@ -432,15 +431,10 @@ fill_dd_columns_from_create_fields(THD *thd,
         //
         // Create enum/set object
         //
-        dd::Column_type_element *elem_obj= NULL;
-
         DBUG_ASSERT(col_obj->type() == dd::enum_column_types::SET ||
                     col_obj->type() == dd::enum_column_types::ENUM);
 
-        if (col_obj->type() == dd::enum_column_types::SET)
-          elem_obj= col_obj->add_set_element();
-        else if (col_obj->type() == dd::enum_column_types::ENUM)
-          elem_obj= col_obj->add_enum_element();
+        dd::Column_type_element *elem_obj= col_obj->add_element();
 
         //  Copy type_lengths[i] bytes including '\0'
         //  This helps store typelib names that are of different charsets.
@@ -541,14 +535,23 @@ fill_dd_index_elements_from_key_parts(const dd::Table *tab_obj,
     // Get reference to column object
     //
 
-    const dd::Column *key_col_obj;
+    const dd::Column *key_col_obj= nullptr;
 
     {
-      std::unique_ptr<dd::Column_const_iterator> it(tab_obj->user_columns());
       int i= 0;
+      for (const dd::Column *c : tab_obj->columns())
+      {
+        // Skip hidden columns
+        if (c->is_hidden())
+          continue;
 
-      while ((key_col_obj= it->next()) != NULL && i < key_part->fieldnr)
+        if (i == key_part->fieldnr)
+        {
+          key_col_obj= c;
+          break;
+        }
         i++;
+      }
     }
     DBUG_ASSERT(key_col_obj);
 
@@ -1162,10 +1165,7 @@ static bool fill_dd_partition_from_create_info(THD *thd,
               If table is subpartitioned for each subpartition, index pair
               we need to create Partition_index object.
             */
-            std::unique_ptr<dd::Index_iterator> idx_it(tab_obj->indexes());
-            dd::Index *idx;
-
-            while ((idx= idx_it->next()) != NULL)
+            for (dd::Index *idx : *tab_obj->indexes())
               sub_obj->add_index(idx);
 
             sub_part_num++;
@@ -1177,10 +1177,7 @@ static bool fill_dd_partition_from_create_info(THD *thd,
             If table is not subpartitioned then Partition_index object is
             required for each partition, index pair.
             */
-          std::unique_ptr<dd::Index_iterator> idx_it(tab_obj->indexes());
-          dd::Index *idx;
-
-          while ((idx= idx_it->next()) != NULL)
+          for (dd::Index *idx : *tab_obj->indexes())
             part_obj->add_index(idx);
         }
 

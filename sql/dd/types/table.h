@@ -29,12 +29,6 @@ class Foreign_key;
 class Index;
 class Object_type;
 class Partition;
-typedef Iterator<Foreign_key>         Foreign_key_iterator;
-typedef Iterator<const Foreign_key>   Foreign_key_const_iterator;
-typedef Iterator<Index>               Index_iterator;
-typedef Iterator<const Index>         Index_const_iterator;
-typedef Iterator<Partition>           Partition_iterator;
-typedef Iterator<const Partition>     Partition_const_iterator;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -42,6 +36,9 @@ class Table : virtual public Abstract_table
 {
 public:
   static const Object_type &TYPE();
+  typedef Collection<Index*> Index_collection;
+  typedef Collection<Foreign_key*> Foreign_key_collection;
+  typedef Collection<Partition*> Partition_collection;
 
   // We need a set of functions to update a preallocated se private id key,
   // which requires special handling for table objects.
@@ -135,8 +132,7 @@ public:
   // se_private_data.
   /////////////////////////////////////////////////////////////////////////
 
-  const Properties &se_private_data() const
-  { return const_cast<Table *> (this)->se_private_data(); }
+  virtual const Properties &se_private_data() const = 0;
 
   virtual Properties &se_private_data() = 0;
   virtual bool set_se_private_data_raw(const std::string &se_private_data_raw) = 0;
@@ -184,13 +180,9 @@ public:
 
   virtual Index *add_first_index() = 0;
 
-  virtual Index_const_iterator *indexes() const = 0;
+  virtual const Index_collection &indexes() const = 0;
 
-  virtual Index_iterator *indexes() = 0;
-
-  virtual Index_const_iterator *user_indexes() const = 0;
-
-  virtual Index_iterator *user_indexes() = 0;
+  virtual Index_collection *indexes() = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Foreign key collection.
@@ -198,9 +190,7 @@ public:
 
   virtual Foreign_key *add_foreign_key() = 0;
 
-  virtual Foreign_key_const_iterator *foreign_keys() const = 0;
-
-  virtual Foreign_key_iterator *foreign_keys() = 0;
+  virtual const Foreign_key_collection &foreign_keys() const = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Partition collection.
@@ -208,11 +198,7 @@ public:
 
   virtual Partition *add_partition() = 0;
 
-  virtual Partition_const_iterator *partitions() const = 0;
-
-  virtual Partition_iterator *partitions() = 0;
-
-  virtual const Partition *get_last_partition() const = 0;
+  virtual const Partition_collection &partitions() const = 0;
 
   /**
     Allocate a new object graph and invoke the copy contructor for

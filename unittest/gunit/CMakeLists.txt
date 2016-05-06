@@ -332,7 +332,6 @@ ENDIF()
 SET(SERVER_TESTS
   copy_info
   create_field
-  dd_partitions
   dd_properties
   dd_sdi
   dd_schema

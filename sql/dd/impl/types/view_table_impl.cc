@@ -18,7 +18,6 @@
 #include "mysqld_error.h"                     // ER_*
 
 #include "dd/properties.h"                    // Needed for destructor
-#include "dd/impl/collection_impl.h"          // Collection
 #include "dd/impl/transaction_impl.h"         // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"           // Raw_record
 #include "dd/impl/tables/view_table_usage.h"  // View_table_usage
@@ -52,18 +51,20 @@ const Object_type &View_table::TYPE()
 View_table_impl::View_table_impl()
 { }
 
+View_table_impl::View_table_impl(View_impl *view)
+ :m_view(view)
+{ }
+
 ///////////////////////////////////////////////////////////////////////////
 
-View &View_table_impl::view()
+const View &View_table_impl::view() const
 {
   return *m_view;
 }
 
-///////////////////////////////////////////////////////////////////////////
-
-void View_table_impl::drop()
+View &View_table_impl::view()
 {
-  m_view->table_collection()->remove(this);
+  return *m_view;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -135,17 +136,6 @@ Object_key *View_table_impl::create_primary_key() const
 bool View_table_impl::has_new_primary_key() const
 {
   return m_view->has_new_primary_key();
-}
-
-///////////////////////////////////////////////////////////////////////////
-// View_table_impl::Factory implementation.
-///////////////////////////////////////////////////////////////////////////
-
-Collection_item *View_table_impl::Factory::create_item() const
-{
-  View_table_impl *vt= new (std::nothrow) View_table_impl();
-  vt->m_view= m_ts;
-  return vt;
 }
 
 ///////////////////////////////////////////////////////////////////////////

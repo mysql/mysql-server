@@ -17,7 +17,6 @@
 
 #include "mysqld_error.h"                     // ER_*
 
-#include "dd/impl/collection_impl.h"          // Collection
 #include "dd/impl/properties_impl.h"          // Properties_impl
 #include "dd/impl/sdi_impl.h"                 // sdi read/write functions
 #include "dd/impl/transaction_impl.h"         // Open_dictionary_tables_ctx
@@ -62,7 +61,21 @@ Partition_index_impl::Partition_index_impl()
   m_tablespace_id(INVALID_OBJECT_ID)
 { }
 
+Partition_index_impl::Partition_index_impl(Partition_impl *partition,
+                                           Index *index)
+ :m_options(new Properties_impl()),
+  m_se_private_data(new Properties_impl()),
+  m_partition(partition),
+  m_index(index),
+  m_tablespace_id(INVALID_OBJECT_ID)
+{ }
+
 ///////////////////////////////////////////////////////////////////////////
+
+const Partition &Partition_index_impl::partition() const
+{
+  return *m_partition;
+}
 
 Partition &Partition_index_impl::partition()
 {
@@ -70,6 +83,11 @@ Partition &Partition_index_impl::partition()
 }
 
 ///////////////////////////////////////////////////////////////////////////
+
+const Index &Partition_index_impl::index() const
+{
+  return *m_index;
+}
 
 Index &Partition_index_impl::index()
 {
@@ -221,13 +239,6 @@ void Partition_index_impl::debug_print(std::string &outb) const
   outb= ss.str();
 }
 
-/////////////////////////////////////////////////////////////////////////
-
-void Partition_index_impl::drop()
-{
-  m_partition->index_collection()->remove(this);
-}
-
 ///////////////////////////////////////////////////////////////////////////
 
 Object_key *Partition_index_impl::create_primary_key() const
@@ -255,19 +266,13 @@ bool Partition_index_impl::has_new_primary_key() const
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Partition_index_impl::Factory implementation.
-///////////////////////////////////////////////////////////////////////////
 
-Collection_item *Partition_index_impl::Factory::create_item() const
+Partition_index_impl *Partition_index_impl::clone(const Partition_index_impl &other,
+                                                  Partition_impl *partition)
 {
-  Partition_index_impl *e= new (std::nothrow) Partition_index_impl();
-  e->m_partition= m_partition;
-  e->m_index= m_index;
-
-  return e;
+  Index *dstix= partition->table_impl().get_index(other.m_index->id());
+  return new Partition_index_impl(other, partition, dstix);
 }
-
-///////////////////////////////////////////////////////////////////////////
 
 Partition_index_impl::
 Partition_index_impl(const Partition_index_impl &src,

@@ -37,7 +37,6 @@
 #include <dd/impl/types/entity_object_impl.h>
 #include "../../sql/dd/impl/types/column_impl.h"
 #include "../../sql/dd/impl/types/index_impl.h"
-#include "../../sql/dd/impl/collection_impl.h"
 
 
 #include <m_string.h>
@@ -110,8 +109,7 @@ void mock_dd_obj(dd::Column *c)
 
   for (int i= 0; i < FANOUT; ++i)
   {
-    mock_dd_obj(c->add_enum_element());
-    mock_dd_obj(c->add_set_element());
+    mock_dd_obj(c->add_element());
   }
   if (c->ordinal_position() == 0)
   {

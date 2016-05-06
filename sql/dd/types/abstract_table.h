@@ -18,6 +18,7 @@
 
 #include "my_global.h"
 
+#include "dd/collection.h"                // dd::Collection
 #include "dd/object_id.h"                 // dd::Object_id
 #include "dd/types/dictionary_object.h"   // dd::Dictionary_object
 
@@ -31,10 +32,6 @@ class Object_type;
 class Primary_id_key;
 class Properties;
 class Se_private_id_key;
-
-template <typename I> class Iterator;
-typedef Iterator<const Column> Column_const_iterator;
-typedef Iterator<Column> Column_iterator;
 
 namespace tables {
   class Tables;
@@ -74,6 +71,7 @@ public:
   typedef Primary_id_key id_key_type;
   typedef Item_name_key name_key_type;
   typedef Se_private_id_key aux_key_type;
+  typedef Collection<Column*> Column_collection;
 
   // We need a set of functions to update a preallocated key.
   virtual bool update_id_key(id_key_type *key) const
@@ -113,8 +111,7 @@ public:
   // options.
   /////////////////////////////////////////////////////////////////////////
 
-  const Properties &options() const
-  { return const_cast<Abstract_table *> (this)->options(); }
+  virtual const Properties &options() const = 0;
 
   virtual Properties &options() = 0;
   virtual bool set_options_raw(const std::string &options_raw) = 0;
@@ -141,13 +138,7 @@ public:
 
   virtual Column *add_column() = 0;
 
-  virtual Column_const_iterator *columns() const = 0;
-
-  virtual Column_iterator *columns() = 0;
-
-  virtual Column_const_iterator *user_columns() const = 0;
-
-  virtual Column_iterator *user_columns() = 0;
+  virtual const Column_collection &columns() const = 0;
 
   virtual const Column *get_column(const std::string name) const = 0;
 

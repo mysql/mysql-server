@@ -18,9 +18,9 @@
 
 #include "my_global.h"
 
-#include "dd/impl/collection_item.h"          // dd::Collection_item
 #include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
 #include "dd/types/foreign_key.h"             // dd::Foreign_key
+#include "dd/types/foreign_key_element.h"     // dd::Foreign_key_element
 #include "dd/types/object_type.h"             // dd::Object_type
 
 #include <memory>     // std::unique_ptr
@@ -33,21 +33,21 @@ class Raw_record;
 class Table;
 class Table_impl;
 class Open_dictionary_tables_ctx;
-template <typename T> class Collection;
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Foreign_key_impl : public Entity_object_impl,
-                         public Foreign_key,
-                         public Collection_item
+                         public Foreign_key
 {
 // Foreign keys not supported in the Global DD yet
 /* purecov: begin deadcode */
 public:
-  typedef Collection<Foreign_key_element> Element_collection;
-
-public:
   Foreign_key_impl();
+
+  Foreign_key_impl(Table_impl *table);
+
+  Foreign_key_impl(const Foreign_key_impl &src,
+                   Table_impl *parent, Index *unique_constraint);
 
   virtual ~Foreign_key_impl()
   { }
@@ -75,35 +75,18 @@ public:
   void debug_print(std::string &outb) const;
 
 public:
-  virtual void drop();
-
-public:
-  // Required by Collection_item.
-  virtual void set_ordinal_position(uint ordinal_position)
+  void set_ordinal_position(uint ordinal_position)
   { }
 
-  // Required by Collection_item.
   virtual uint ordinal_position() const
   { return -1; }
-
-  // Required by Collection_item.
-  virtual bool is_hidden() const
-  { return false; }
-
-  // Required by Collection_item.
-  virtual bool store(Open_dictionary_tables_ctx *otx)
-  { return Entity_object_impl::store(otx); }
-
-  // Required by Collection_item.
-  virtual bool drop(Open_dictionary_tables_ctx *otx) const
-  { return Entity_object_impl::drop(otx); }
 
 public:
   /////////////////////////////////////////////////////////////////////////
   // parent table.
   /////////////////////////////////////////////////////////////////////////
 
-  using Foreign_key::table;
+  virtual const Table &table() const;
 
   virtual Table &table();
 
@@ -117,7 +100,8 @@ public:
   // unique_constraint
   /////////////////////////////////////////////////////////////////////////
 
-  using Foreign_key::unique_constraint;
+  virtual const Index &unique_constraint() const
+  { return *m_unique_constraint; }
 
   virtual Index &unique_constraint()
   { return *m_unique_constraint; }
@@ -188,12 +172,8 @@ public:
 
   virtual Foreign_key_element *add_element();
 
-  virtual Foreign_key_element_const_iterator *elements() const;
-
-  virtual Foreign_key_element_iterator *elements();
-
-  Element_collection *element_collection()
-  { return m_elements.get(); }
+  virtual const Foreign_key_elements &elements() const
+  { return m_elements; }
 
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()
@@ -210,18 +190,13 @@ public:
   { Entity_object_impl::set_name(name); }
 
 public:
-  class Factory : public Collection_item_factory
+  static Foreign_key_impl *restore_item(Table_impl *table)
   {
-  public:
-    Factory(Table_impl *table)
-     :m_table(table)
-    { }
+    return new (std::nothrow) Foreign_key_impl(table);
+  }
 
-    virtual Collection_item *create_item() const;
-
-  private:
-    Table_impl *m_table;
-  };
+  static Foreign_key_impl *clone(const Foreign_key_impl &other,
+                                 Table_impl *table);
 
 private:
   enum_match_option m_match_option;
@@ -238,16 +213,7 @@ private:
 
   // Collections.
 
-  std::unique_ptr<Element_collection> m_elements;
-
-  Foreign_key_impl(const Foreign_key_impl &src,
-                   Table_impl *parent, Index *unique_constraint);
-
-public:
-  Foreign_key_impl *clone(Table_impl *parent, Index *unique_constraint) const
-  {
-    return new Foreign_key_impl(*this, parent, unique_constraint);
-  }
+  Foreign_key_elements m_elements;
 /* purecov: end */
 };
 

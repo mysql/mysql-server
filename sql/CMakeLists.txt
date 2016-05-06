@@ -62,6 +62,7 @@ IF(SSL_DEFINES)
 ENDIF()
 
 SET(DD_SOURCES
+  dd/collection.cc
   dd/dd_event.cc
   dd/dd_routine.cc
   dd/dd_schema.cc
@@ -70,7 +71,6 @@ SET(DD_SOURCES
   dd/dd_view.cc
 
   dd/impl/bootstrapper.cc
-  dd/impl/collection_impl.cc
   dd/impl/dd.cc
   dd/impl/dictionary_impl.cc
   dd/impl/properties_impl.cc

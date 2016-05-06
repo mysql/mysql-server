@@ -16,11 +16,11 @@
 #ifndef DD__SDI_FILE_INCLUDED
 #define DD__SDI_FILE_INCLUDED
 
-#include "dd/types/fwd.h"   // dd::Schema
-
 class THD;
 
 namespace dd {
+  class Entity_object;
+  class Schema;
 namespace sdi_file {
 std::string sdi_filename(const dd::Entity_object *eo,
                          const std::string &schema);

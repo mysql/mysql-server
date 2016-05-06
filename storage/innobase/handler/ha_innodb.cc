@@ -59,7 +59,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <dd/types/tablespace.h>
 #include <dd/properties.h>
 
-#include "dd/iterator.h"
 #include "dd/properties.h"
 #include "dd/sdi_tablespace.h"    // dd::sdi_tablespace::store
 #include "dd/types/table.h"
@@ -12574,9 +12573,7 @@ ha_innobase::get_se_private_data(
 #ifdef UNIV_DEBUG
 	{
 		/* These tables must not be partitioned. */
-		std::unique_ptr<dd::Iterator<dd::Partition> > p(
-			dd_table->partitions());
-		DBUG_ASSERT(!p->next());
+		DBUG_ASSERT(dd_table->partitions().is_empty());
 	}
 
 	const innodb_dd_table_t&	data = innodb_dd_table[n_tables];
@@ -12586,9 +12583,7 @@ ha_innobase::get_se_private_data(
 
 	dd_table->set_se_private_id(++n_tables + DICT_HDR_FIRST_ID);
 
-	std::unique_ptr<dd::Iterator<dd::Index> > it(dd_table->indexes());
-
-	while (dd::Index* i = it->next()) {
+	for (dd::Index *i : *dd_table->indexes()) {
 		uint32	root_page = 270 + n_pages++;
 		n_indexes++;
 		i->se_private_data().set_uint32("root", root_page);

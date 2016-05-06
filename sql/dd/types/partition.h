@@ -28,15 +28,12 @@ namespace dd {
 class Index;
 class Object_table;
 class Object_type;
+class Partition_impl;
 class Partition_index;
 class Partition_value;
 class Properties;
 class Table;
-template <typename I> class Iterator;
-typedef Iterator<Partition_index>        Partition_index_iterator;
-typedef Iterator<const Partition_index>  Partition_index_const_iterator;
-typedef Iterator<Partition_value>        Partition_value_iterator;
-typedef Iterator<const Partition_value>  Partition_value_const_iterator;
+template <typename T> class Collection;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -45,6 +42,9 @@ class Partition : virtual public Entity_object
 public:
   static const Object_type &TYPE();
   static const Object_table &OBJECT_TABLE();
+  typedef Collection<Partition_index*> Partition_indexes;
+  typedef Collection<Partition_value*> Partition_values;
+  typedef Partition_impl Impl;
 
 public:
   virtual ~Partition()
@@ -54,8 +54,7 @@ public:
   // Table.
   /////////////////////////////////////////////////////////////////////////
 
-  const Table &table() const
-  { return const_cast<Partition *> (this)->table(); }
+  virtual const Table &table() const = 0;
 
   virtual Table &table() = 0;
 
@@ -91,8 +90,7 @@ public:
   // Options.
   /////////////////////////////////////////////////////////////////////////
 
-  const Properties &options() const
-  { return const_cast<Partition *> (this)->options(); }
+  virtual const Properties &options() const = 0;
 
   virtual Properties &options() = 0;
   virtual bool set_options_raw(const std::string &options_raw) = 0;
@@ -101,8 +99,7 @@ public:
   // se_private_data.
   /////////////////////////////////////////////////////////////////////////
 
-  const Properties &se_private_data() const
-  { return const_cast<Partition *> (this)->se_private_data(); }
+  virtual const Properties &se_private_data() const = 0;
 
   virtual Properties &se_private_data() = 0;
 
@@ -131,9 +128,7 @@ public:
 
   virtual Partition_value *add_value() = 0;
 
-  virtual Partition_value_const_iterator *values() const = 0;
-
-  virtual Partition_value_iterator *values() = 0;
+  virtual const Partition_values &values() const = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Partition-index collection.
@@ -141,16 +136,7 @@ public:
 
   virtual Partition_index *add_index(Index *idx) = 0;
 
-  virtual Partition_index_const_iterator *indexes() const = 0;
-
-  virtual Partition_index_iterator *indexes() = 0;
-
-  /////////////////////////////////////////////////////////////////////////
-  // Drop this partition from the collection.
-  /////////////////////////////////////////////////////////////////////////
-
-  virtual void drop() = 0;
-
+  virtual const Partition_indexes &indexes() const = 0;
 
   /**
     Converts *this into json.

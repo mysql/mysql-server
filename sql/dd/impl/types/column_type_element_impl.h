@@ -18,7 +18,6 @@
 
 #include "my_global.h"
 
-#include "dd/impl/collection_item.h"          // dd::Collection_item
 #include "dd/impl/types/weak_object_impl.h"   // dd::Weak_object_impl
 #include "dd/types/column_type_element.h"     // dd::Column_type_element
 #include "dd/types/object_type.h"             // dd::Object_type
@@ -30,18 +29,24 @@ namespace dd {
 class Raw_record;
 class Open_dictionary_tables_ctx;
 class Column_impl;
-template <typename T> class Collection;
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Column_type_element_impl : public Weak_object_impl,
-                                 public Column_type_element,
-                                 public Collection_item
+                                 public Column_type_element
 {
 public:
   Column_type_element_impl()
    :m_index(0)
   { }
+
+  Column_type_element_impl(Column_impl *column)
+   :m_index(0),
+    m_column(column)
+  { }
+
+  Column_type_element_impl(const Column_type_element_impl &src,
+                           Column_impl *parent);
 
   virtual ~Column_type_element_impl()
   { }
@@ -56,55 +61,27 @@ public:
 
   virtual bool restore_attributes(const Raw_record &r);
 
-  // Required by Collection_item.
-  virtual void set_ordinal_position(uint ordinal_position)
+  void set_ordinal_position(uint ordinal_position)
   { m_index= ordinal_position; }
 
-  // Required by Collection_item.
   virtual uint ordinal_position() const
   { return index(); }
-
-  // Required by Collection_item.
-  virtual bool is_hidden() const
-  { return false; }
-
-  // Required by Collection_item.
-  virtual bool store(Open_dictionary_tables_ctx *otx)
-  { return Weak_object_impl::store(otx); }
-
-  // Required by Collection_item.
-  virtual bool drop(Open_dictionary_tables_ctx *otx) const
-  { return Weak_object_impl::drop(otx); }
-
-  virtual void drop();
-
-  // Required by Collection_item.
-  virtual bool restore_children(Open_dictionary_tables_ctx *otx)
-  { return Weak_object_impl::restore_children(otx); }
-
-  // Required by Collection_item.
-  virtual bool drop_children(Open_dictionary_tables_ctx *otx) const
-  { return Weak_object_impl::drop_children(otx); }
 
   void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const;
 
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
 public:
-  class Factory : public Collection_item_factory
+  static Column_type_element_impl *restore_item(Column_impl *column)
   {
-  public:
-    Factory(Column_impl *c, Collection<Column_type_element> *collection)
-     :m_column(c),
-      m_collection(collection)
-    { }
+    return new (std::nothrow) Column_type_element_impl(column);
+  }
 
-    virtual Collection_item *create_item() const;
-
-  private:
-    Column_impl *m_column;
-    Collection<Column_type_element> *m_collection;
-  };
+  static Column_type_element_impl *clone(const Column_type_element_impl &other,
+                                         Column_impl *column)
+  {
+    return new (std::nothrow) Column_type_element_impl(other, column);
+  }
 
 public:
   /////////////////////////////////////////////////////////////////////////
@@ -150,20 +127,6 @@ protected:
 
   // References to other objects
   Column_impl *m_column;
-
-  // A pointer to the collection owning this item.
-  Collection<Column_type_element> *m_collection;
-
-  Column_type_element_impl(const Column_type_element_impl &src,
-                           Column_impl *parent,
-                           Collection<Column_type_element> *owner);
-
-public:
-  Column_type_element_impl *clone(Column_impl *parent,
-                                  Collection<Column_type_element> *owner) const
-  {
-    return new Column_type_element_impl(*this, parent, owner);
-  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

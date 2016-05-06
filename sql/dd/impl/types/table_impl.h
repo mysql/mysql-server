@@ -20,6 +20,9 @@
 
 #include "dd/impl/types/abstract_table_impl.h" // dd::Abstract_table_impl
 #include "dd/types/dictionary_object_table.h"  // dd::Dictionary_object_table
+#include "dd/types/foreign_key.h"              // dd::Foreign_key
+#include "dd/types/index.h"                    // dd::Index
+#include "dd/types/partition.h"                // dd::Partition
 #include "dd/types/table.h"                    // dd:Table
 
 namespace dd {
@@ -30,14 +33,9 @@ class Table_impl : public Abstract_table_impl,
                    public Table
 {
 public:
-  typedef Collection<Index> Index_collection;
-  typedef Collection<Foreign_key> Foreign_key_collection;
-  typedef Collection<Partition> Partition_collection;
-
-public:
   Table_impl();
-  virtual ~Table_impl()
-  { }
+
+  virtual ~Table_impl();
 
 public:
   /////////////////////////////////////////////////////////////////////////
@@ -124,7 +122,8 @@ public:
   //se_private_data.
   /////////////////////////////////////////////////////////////////////////
 
-  using Table::se_private_data;
+  virtual const Properties &se_private_data() const
+  { return *m_se_private_data; }
 
   virtual Properties &se_private_data()
   { return *m_se_private_data; }
@@ -216,21 +215,16 @@ public:
 
   virtual Index *add_first_index();
 
-  virtual Index_const_iterator *indexes() const;
+  virtual const Index_collection &indexes() const
+  { return m_indexes; }
 
-  virtual Index_iterator *indexes();
-
-  virtual Index_const_iterator *user_indexes() const;
-
-  virtual Index_iterator *user_indexes();
+  virtual Index_collection *indexes()
+  { return &m_indexes; }
 
   const Index *get_index(Object_id index_id) const
   { return const_cast<Table_impl *> (this)->get_index(index_id); }
 
   Index *get_index(Object_id index_id);
-
-  Index_collection *index_collection()
-  { return m_indexes.get(); }
 
   /////////////////////////////////////////////////////////////////////////
   // Foreign key collection.
@@ -238,12 +232,8 @@ public:
 
   virtual Foreign_key *add_foreign_key();
 
-  virtual Foreign_key_const_iterator *foreign_keys() const;
-
-  virtual Foreign_key_iterator *foreign_keys();
-
-  Foreign_key_collection *foreign_key_collection()
-  { return m_foreign_keys.get(); }
+  virtual const Foreign_key_collection &foreign_keys() const
+  { return m_foreign_keys; }
 
   /////////////////////////////////////////////////////////////////////////
   // Partition collection.
@@ -251,19 +241,13 @@ public:
 
   virtual Partition *add_partition();
 
-  virtual Partition_const_iterator *partitions() const;
-
-  virtual Partition_iterator *partitions();
+  virtual const Partition_collection &partitions() const
+  { return m_partitions; }
 
   const Partition *get_partition(Object_id partition_id) const
   { return const_cast<Table_impl *> (this)->get_partition(partition_id); }
 
   Partition *get_partition(Object_id partition_id);
-
-  const Partition *get_last_partition() const;
-
-  Partition_collection *partition_collection()
-  { return m_partitions.get(); }
 
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()
@@ -284,6 +268,8 @@ public:
   { Abstract_table_impl::set_schema_id(schema_id); }
   virtual uint mysql_version_id() const
   { return Abstract_table_impl::mysql_version_id(); }
+  virtual const Properties &options() const
+  { return Abstract_table_impl::options(); }
   virtual Properties &options()
   { return Abstract_table_impl::options(); }
   virtual bool set_options_raw(const std::string &options_raw)
@@ -298,14 +284,8 @@ public:
   { Abstract_table_impl::set_last_altered(last_altered); }
   virtual Column *add_column()
   { return Abstract_table_impl::add_column(); }
-  virtual Column_const_iterator *columns() const
+  virtual const Column_collection &columns() const
   { return Abstract_table_impl::columns(); }
-  virtual Column_iterator *columns()
-  { return Abstract_table_impl::columns(); }
-  virtual Column_const_iterator *user_columns() const
-  { return Abstract_table_impl::user_columns(); }
-  virtual Column_iterator *user_columns()
-  { return Abstract_table_impl::user_columns(); }
   const Column *get_column(Object_id column_id) const
   { return Abstract_table_impl::get_column(column_id); }
   Column *get_column(Object_id column_id)
@@ -340,9 +320,9 @@ private:
 
   // References to tightly-coupled objects.
 
-  std::unique_ptr<Index_collection> m_indexes;
-  std::unique_ptr<Foreign_key_collection> m_foreign_keys;
-  std::unique_ptr<Partition_collection> m_partitions;
+  Index_collection m_indexes;
+  Foreign_key_collection m_foreign_keys;
+  Partition_collection m_partitions;
 
   // References to other objects.
 

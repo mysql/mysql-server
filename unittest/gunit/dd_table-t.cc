@@ -19,7 +19,6 @@
 #include <vector>
 
 #include "../sql/dd/properties.h"
-#include "../sql/dd/impl/collection_impl.h"
 #include "../sql/dd/impl/types/table_impl.h"
 #include "../sql/dd/types/column.h"
 #include "../sql/dd/dd.h"
@@ -29,7 +28,7 @@ namespace dd_columns_unittest {
 class ColumnsTest: public ::testing::Test
 {
 protected:
-  typedef dd::Collection<dd::Column> Column_collection;
+  typedef dd::Collection<dd::Column*> Column_collection;
   Column_collection m_columns;
   dd::Table_impl *m_table;
 

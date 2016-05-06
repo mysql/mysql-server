@@ -20,21 +20,18 @@
 
 #include "dd/types/abstract_table.h"          // dd::Abstract_table
 #include "dd/types/object_type.h"             // dd::Object_type
+#include "dd/impl/types/column_impl.h"        // dd::Column_impl
 #include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
 
 #include <memory>   // std::unique_ptr
 
 namespace dd {
-template <typename T> class Collection;
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Abstract_table_impl : public Entity_object_impl,
                             virtual public Abstract_table
 {
-public:
-  typedef Collection<Column> Column_collection;
-
 public:
   virtual bool validate() const;
 
@@ -87,7 +84,8 @@ public:
   // options.
   /////////////////////////////////////////////////////////////////////////
 
-  using Abstract_table::options;
+  virtual const Properties &options() const
+  { return *m_options; }
 
   virtual Properties &options()
   { return *m_options; }
@@ -121,26 +119,16 @@ public:
 
   virtual Column *add_column();
 
-  virtual Column_const_iterator *columns() const;
+  virtual const Column_collection &columns() const
+  { return m_columns; }
 
-  virtual Column_iterator *columns();
-
-  virtual Column_const_iterator *user_columns() const;
-
-  virtual Column_iterator *user_columns();
-
-  const Column *get_column(Object_id column_id) const
-  { return const_cast<Abstract_table_impl *> (this)->get_column(column_id); }
+  const Column *get_column(Object_id column_id) const;
 
   Column *get_column(Object_id column_id);
 
-  const Column *get_column(const std::string name) const
-  { return const_cast<Abstract_table_impl *> (this)->get_column(name); }
+  const Column *get_column(const std::string name) const;
 
   Column *get_column(const std::string name);
-
-  Column_collection *column_collection()
-  { return m_columns.get(); }
 
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()
@@ -177,7 +165,7 @@ private:
 
   // References to tightly-coupled objects.
 
-  std::unique_ptr<Column_collection> m_columns;
+  Column_collection m_columns;
 
   // References to other objects.
 

@@ -18,6 +18,7 @@
 
 #include "my_global.h"
 
+#include "dd/collection.h"             // dd::Collection
 #include "dd/types/entity_object.h"    // dd::Entity_object
 
 namespace dd {
@@ -25,14 +26,12 @@ namespace dd {
 ///////////////////////////////////////////////////////////////////////////
 
 class Column;
+class Index_impl;
 class Index_element;
 class Object_table;
 class Object_type;
 class Properties;
 class Table;
-template <typename I> class Iterator;
-typedef Iterator<Index_element>       Index_element_iterator;
-typedef Iterator<const Index_element> Index_element_const_iterator;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -41,6 +40,8 @@ class Index : virtual public Entity_object
 public:
   static const Object_type &TYPE();
   static const Object_table &OBJECT_TABLE();
+  typedef Collection<Index_element*> Index_elements;
+  typedef Index_impl Impl;
 
 public:
   enum enum_index_type // similar to Keytype in sql_class.h but w/o FOREIGN_KEY
@@ -69,8 +70,7 @@ public:
   // Table.
   /////////////////////////////////////////////////////////////////////////
 
-  const Table &table() const
-  { return const_cast<Index *> (this)->table(); }
+  virtual const Table &table() const = 0;
 
   virtual Table &table() = 0;
 
@@ -99,8 +99,7 @@ public:
   // Options.
   /////////////////////////////////////////////////////////////////////////
 
-  const Properties &options() const
-  { return const_cast<Index *> (this)->options(); }
+  virtual const Properties &options() const = 0;
 
   virtual Properties &options() = 0;
   virtual bool set_options_raw(const std::string &options_raw) = 0;
@@ -109,8 +108,7 @@ public:
   // se_private_data.
   /////////////////////////////////////////////////////////////////////////
 
-  const Properties &se_private_data() const
-  { return const_cast<Index *> (this)->se_private_data(); }
+  virtual const Properties &se_private_data() const = 0;
 
   virtual Properties &se_private_data() = 0;
   virtual bool set_se_private_data_raw(const std::string &se_private_data_raw) = 0;
@@ -153,27 +151,11 @@ public:
 
   virtual Index_element *add_element(Column *c) = 0;
 
-  virtual Index_element *add_element(const Index_element &e) = 0;
-
-  virtual Index_element_const_iterator *elements() const = 0;
-
-  virtual Index_element_iterator *elements() = 0;
-
-  virtual Index_element_const_iterator *user_elements() const = 0;
-
-  virtual Index_element_iterator *user_elements() = 0;
-
-  virtual uint user_elements_count() const = 0;
+  virtual const Index_elements &elements() const = 0;
 
   virtual void set_ordinal_position(uint ordinal_position) = 0;
 
   virtual uint ordinal_position() const = 0;
-
-  /////////////////////////////////////////////////////////////////////////
-  // Drop this index from the collection.
-  /////////////////////////////////////////////////////////////////////////
-
-  virtual void drop() = 0;
 
 
   /**

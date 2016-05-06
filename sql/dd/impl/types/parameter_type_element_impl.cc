@@ -15,7 +15,6 @@
 
 #include "dd/impl/types/parameter_type_element_impl.h"
 
-#include "dd/impl/collection_impl.h"               // Collection
 #include "dd/impl/transaction_impl.h"              // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"                // Raw_record
 #include "dd/impl/tables/parameter_type_elements.h"// Parameter_type_elements
@@ -96,15 +95,6 @@ bool Parameter_type_element_impl::store_attributes(Raw_record *r)
 ///////////////////////////////////////////////////////////////////////////
 
 /* purecov: begin deadcode */
-void Parameter_type_element_impl::drop()
-{
-  m_collection->remove(this);
-}
-/* purecov: end */
-
-///////////////////////////////////////////////////////////////////////////
-
-/* purecov: begin deadcode */
 void Parameter_type_element_impl::debug_print(std::string &outb) const
 {
   char outbuf[1024];
@@ -131,25 +121,12 @@ bool Parameter_type_element_impl::has_new_primary_key() const
 }
 
 ///////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////
-
-Collection_item *Parameter_type_element_impl::Factory::create_item() const
-{
-  Parameter_type_element_impl *e= new (std::nothrow) Parameter_type_element_impl();
-  e->m_parameter= m_parameter;
-  e->m_collection= m_collection;
-  return e;
-}
-
-///////////////////////////////////////////////////////////////////////////
 
 Parameter_type_element_impl::
 Parameter_type_element_impl(const Parameter_type_element_impl &src,
-                         Parameter_impl *parent,
-                         Collection<Parameter_type_element> *owner)
+                            Parameter_impl *parent)
   : Weak_object(src),
-    m_name(src.m_name), m_index(src.m_index), m_parameter(parent),
-    m_collection(owner)
+    m_name(src.m_name), m_index(src.m_index), m_parameter(parent)
 {}
 
 ///////////////////////////////////////////////////////////////////////////

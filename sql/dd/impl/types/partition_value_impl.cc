@@ -18,7 +18,6 @@
 #include "mysqld_error.h"                          // ER_*
 
 #include "dd/properties.h"                         // Needed for destructor
-#include "dd/impl/collection_impl.h"               // Collection
 #include "dd/impl/sdi_impl.h"                      // sdi read/write functions
 #include "dd/impl/transaction_impl.h"              // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"                // Raw_record
@@ -50,16 +49,14 @@ const Object_type &Partition_value::TYPE()
 // Partition_value_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-Partition &Partition_value_impl::partition()
+const Partition &Partition_value_impl::partition() const
 {
   return *m_partition;
 }
 
-///////////////////////////////////////////////////////////////////////////
-
-void Partition_value_impl::drop()
+Partition &Partition_value_impl::partition()
 {
-  return m_partition->value_collection()->remove(this);
+  return *m_partition;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -182,18 +179,6 @@ Object_key *Partition_value_impl::create_primary_key() const
 bool Partition_value_impl::has_new_primary_key() const
 {
   return m_partition->has_new_primary_key();
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Partition_value_impl::Factory implementation.
-///////////////////////////////////////////////////////////////////////////
-
-Collection_item *Partition_value_impl::Factory::create_item() const
-{
-  Partition_value_impl *e= new (std::nothrow) Partition_value_impl();
-  e->m_partition= m_partition;
-
-  return e;
 }
 
 ///////////////////////////////////////////////////////////////////////////

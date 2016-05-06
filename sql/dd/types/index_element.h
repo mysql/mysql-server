@@ -27,6 +27,7 @@ namespace dd {
 
 class Column;
 class Index;
+class Index_element_impl;
 class Object_type;
 
 ///////////////////////////////////////////////////////////////////////////
@@ -36,6 +37,7 @@ class Index_element : virtual public Weak_object
 public:
   static const Object_type &TYPE();
   static const Object_table &OBJECT_TABLE();
+  typedef Index_element_impl Impl;
 
 public:
   enum enum_index_element_order
@@ -52,8 +54,7 @@ public:
   // index.
   /////////////////////////////////////////////////////////////////////////
 
-  const Index &index() const
-  { return const_cast<Index_element *> (this)->index(); }
+  virtual const Index &index() const = 0;
 
   virtual Index &index() = 0;
 
@@ -61,8 +62,7 @@ public:
   // column.
   /////////////////////////////////////////////////////////////////////////
 
-  const Column &column() const
-  { return const_cast<Index_element *> (this)->column(); }
+  virtual const Column &column() const = 0;
 
   virtual Column &column() = 0;
 
@@ -93,18 +93,6 @@ public:
 
   virtual bool is_hidden() const = 0;
   virtual void set_hidden(bool hidden) = 0;
-
-  /////////////////////////////////////////////////////////////////////////
-  // Make a clone of this object.
-  /////////////////////////////////////////////////////////////////////////
-
-  virtual class Index_element_impl *factory_clone() const = 0;
-
-  /////////////////////////////////////////////////////////////////////////
-  // Drop this Index-element from the collection.
-  /////////////////////////////////////////////////////////////////////////
-
-  virtual void drop() = 0;
 
 
   /**

@@ -18,7 +18,6 @@
 
 #include "my_global.h"
 
-#include "dd/impl/collection_item.h"            // dd::Collection_item
 #include "dd/impl/types/weak_object_impl.h"     // dd::Weak_object_impl
 #include "dd/types/object_type.h"               // dd::Object_type
 #include "dd/types/partition_index.h"           // dd::Partition_index
@@ -36,11 +35,15 @@ class Open_dictionary_tables_ctx;
 ///////////////////////////////////////////////////////////////////////////
 
 class Partition_index_impl : public Weak_object_impl,
-                             public Partition_index,
-                             public Collection_item
+                             public Partition_index
 {
 public:
   Partition_index_impl();
+
+  Partition_index_impl(Partition_impl *partition, Index *index);
+
+  Partition_index_impl(const Partition_index_impl &src,
+                       Partition_impl *parent, Index *index);
 
   virtual ~Partition_index_impl()
   { }
@@ -61,43 +64,18 @@ public:
 
   void debug_print(std::string &outb) const;
 
-public:
-  // Required by Collection_item.
-  virtual bool store(Open_dictionary_tables_ctx *otx)
-  { return Weak_object_impl::store(otx); }
-
-  // Required by Collection_item.
-  virtual bool drop(Open_dictionary_tables_ctx *otx) const
-  { return Weak_object_impl::drop(otx); }
-
-  virtual void drop();
-
-  // Required by Collection_item.
-  virtual bool restore_children(Open_dictionary_tables_ctx *otx)
-  { return Weak_object_impl::restore_children(otx); }
-
-  // Required by Collection_item.
-  virtual bool drop_children(Open_dictionary_tables_ctx *otx) const
-  { return Weak_object_impl::drop_children(otx); }
-
-  // Required by Collection_item.
-  virtual void set_ordinal_position(uint ordinal_position)
+  void set_ordinal_position(uint ordinal_position)
   { }
 
-  // Required by Collection_item.
   virtual uint ordinal_position() const
   { return -1; }
-
-  // Required by Collection_item.
-  virtual bool is_hidden() const
-  { return false; }
 
 public:
   /////////////////////////////////////////////////////////////////////////
   // Partition.
   /////////////////////////////////////////////////////////////////////////
 
-  using Partition_index::partition;
+  virtual const Partition &partition() const;
 
   virtual Partition &partition();
 
@@ -108,7 +86,7 @@ public:
   // Index.
   /////////////////////////////////////////////////////////////////////////
 
-  using Partition_index::index;
+  virtual const Index &index() const;
 
   virtual Index &index();
 
@@ -116,9 +94,10 @@ public:
   // Options.
   /////////////////////////////////////////////////////////////////////////
 
-  using Partition_index::options;
+  virtual const Properties &options() const
+  { return *m_options; }
 
-  Properties &options()
+  virtual Properties &options()
   { return *m_options; }
 
   virtual bool set_options_raw(const std::string &options_raw);
@@ -127,7 +106,8 @@ public:
   // se_private_data.
   /////////////////////////////////////////////////////////////////////////
 
-  using Partition_index::se_private_data;
+  virtual const Properties &se_private_data() const
+  { return *m_se_private_data; }
 
   virtual Properties &se_private_data()
   { return *m_se_private_data; }
@@ -153,20 +133,13 @@ public:
   { return Weak_object_impl::impl(); }
 
 public:
-  class Factory : public Collection_item_factory
+  static Partition_index_impl *restore_item(Partition_impl *partition)
   {
-  public:
-    Factory(Partition_impl *partition, Index *idx)
-     :m_partition(partition),
-      m_index(idx)
-    { }
+    return new (std::nothrow) Partition_index_impl(partition, NULL);
+  }
 
-    virtual Collection_item *create_item() const;
-
-  private:
-    Partition_impl *m_partition;
-    Index *m_index;
-  };
+  static Partition_index_impl *clone(const Partition_index_impl &other,
+                                     Partition_impl *partition);
 
 public:
   virtual Object_key *create_primary_key() const;
@@ -186,15 +159,6 @@ private:
   // References to loosely-coupled objects.
 
   Object_id m_tablespace_id;
-
-  Partition_index_impl(const Partition_index_impl &src,
-                       Partition_impl *parent, Index *index);
-
-public:
-  Partition_index_impl *clone(Partition_impl *parent, Index *index) const
-  {
-    return new Partition_index_impl(*this, parent, index);
-  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

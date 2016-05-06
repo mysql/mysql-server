@@ -57,8 +57,11 @@ const Object_type &Tablespace::TYPE()
 Tablespace_impl::Tablespace_impl()
  :m_options(new Properties_impl()),
   m_se_private_data(new Properties_impl()),
-  m_files(new Tablespace_file_collection())
+  m_files()
 { } /* purecov: tested */
+
+Tablespace_impl::~Tablespace_impl()
+{ }
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -93,7 +96,7 @@ bool Tablespace_impl::set_se_private_data_raw(
 
 bool Tablespace_impl::validate() const
 {
-  if (m_files->is_empty())
+  if (m_files.is_empty())
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
@@ -118,8 +121,8 @@ bool Tablespace_impl::validate() const
 
 bool Tablespace_impl::restore_children(Open_dictionary_tables_ctx *otx)
 {
-  return m_files->restore_items(
-    Tablespace_file_impl::Factory(this),
+  return m_files.restore_items(
+    this,
     otx,
     otx->get_table<Tablespace_file>(),
     Tablespace_files::create_key_by_tablespace_id(this->id()));
@@ -129,14 +132,14 @@ bool Tablespace_impl::restore_children(Open_dictionary_tables_ctx *otx)
 
 bool Tablespace_impl::store_children(Open_dictionary_tables_ctx *otx)
 {
-  return m_files->store_items(otx);
+  return m_files.store_items(otx);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 bool Tablespace_impl::drop_children(Open_dictionary_tables_ctx *otx) const
 {
-  return m_files->drop_items(
+  return m_files.drop_items(
     otx,
     otx->get_table<Tablespace_file>(),
     Tablespace_files::create_key_by_tablespace_id(this->id()));
@@ -189,7 +192,7 @@ Tablespace_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
   write_properties(w, m_options, STRING_WITH_LEN("options"));
   write_properties(w, m_se_private_data, STRING_WITH_LEN("se_private_data"));
   write(w, m_engine, STRING_WITH_LEN("engine"));
-  serialize_each(wctx, w, m_files.get(), STRING_WITH_LEN("files"));
+  serialize_each(wctx, w, m_files, STRING_WITH_LEN("files"));
   w->EndObject();
 }
 
@@ -235,17 +238,10 @@ void Tablespace_impl::debug_print(std::string &outb) const
     << "m_options " << m_options->raw_string() << "; "
     << "m_se_private_data " << m_se_private_data->raw_string() << "; "
     << "m_engine: " << m_engine << "; "
-    << "m_files: " << m_files->size() << " [ ";
+    << "m_files: " << m_files.size() << " [ ";
 
-  std::unique_ptr<Tablespace_file_const_iterator> it(files());
-
-  while (true)
+  for (const Tablespace_file *f : files())
   {
-    const Tablespace_file *f= it->next();
-
-    if (!f)
-      break;
-
     std::string ob;
     f->debug_print(ob);
     ss << ob;
@@ -260,41 +256,25 @@ void Tablespace_impl::debug_print(std::string &outb) const
 
 Tablespace_file *Tablespace_impl::add_file()
 {
-  return m_files->add(
-    Tablespace_file_impl::Factory(this));
+  Tablespace_file_impl *f= new (std::nothrow) Tablespace_file_impl(this);
+  m_files.push_back(f);
+  return f;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 bool Tablespace_impl::remove_file(std::string data_file)
 {
-  std::unique_ptr<dd::Tablespace_file_iterator> it(files());
-  Tablespace_file *tsf;
-
-  while ((tsf= it->next()) != NULL)
+  for (Tablespace_file *tsf : m_files)
   {
     if (!strcmp(tsf->filename().c_str(), data_file.c_str()))
     {
-      m_files->remove(dynamic_cast<Tablespace_file_impl*>(tsf));
+      m_files.remove(dynamic_cast<Tablespace_file_impl*>(tsf));
       return false;
     }
   }
 
   return true;
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Tablespace_file_const_iterator *Tablespace_impl::files() const
-{
-  return m_files->const_iterator();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Tablespace_file_iterator *Tablespace_impl::files()
-{
-  return m_files->iterator();
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -316,16 +296,9 @@ Tablespace_impl::Tablespace_impl(const Tablespace_impl &src)
     m_se_private_data(Properties_impl::
                       parse_properties(src.m_se_private_data->raw_string())),
     m_engine(src.m_engine),
-    m_files(new Tablespace_file_collection())
+    m_files()
 {
-  typedef Base_collection::Array::const_iterator i_type;
-  i_type end= src.m_files->aref().end();
-  m_files->aref().reserve(src.m_files->size());
-  for (i_type i= src.m_files->aref().begin(); i != end; ++i)
-  {
-    m_files->aref().push_back(dynamic_cast<Tablespace_file_impl*>(*i)->
-                              clone(this));
-  }
+  m_files.deep_copy(src.m_files, this);
 }
 
 ///////////////////////////////////////////////////////////////////////////

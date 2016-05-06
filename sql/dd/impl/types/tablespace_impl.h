@@ -18,11 +18,11 @@
 
 #include "my_global.h"
 
-#include "dd/impl/collection_impl.h"          // dd::Collection
 #include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
 #include "dd/types/dictionary_object_table.h" // dd::Dictionary_object_table
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/tablespace.h"              // dd::Tablespace
+#include "dd/types/tablespace_file.h"         // dd::Tablespace_file
 
 #include <memory>   // std::unique_ptr
 
@@ -34,13 +34,9 @@ class Tablespace_impl : public Entity_object_impl,
                         public Tablespace
 {
 public:
-  typedef Collection<Tablespace_file> Tablespace_file_collection;
-
-public:
   Tablespace_impl();
 
-  virtual ~Tablespace_impl()
-  { }
+  virtual ~Tablespace_impl();
 
 public:
   virtual const Dictionary_object_table &object_table() const
@@ -79,7 +75,8 @@ public:
   // options.
   /////////////////////////////////////////////////////////////////////////
 
-  using Tablespace::options;
+  virtual const Properties &options() const
+  { return *m_options; }
 
   virtual Properties &options()
   { return *m_options; }
@@ -90,7 +87,8 @@ public:
   // se_private_data.
   /////////////////////////////////////////////////////////////////////////
 
-  using Tablespace::se_private_data;
+  virtual const Properties &se_private_data() const
+  { return *m_se_private_data; }
 
   virtual Properties &se_private_data()
   { return *m_se_private_data; }
@@ -115,12 +113,8 @@ public:
 
   virtual bool remove_file(std::string data_file);
 
-  virtual Tablespace_file_const_iterator *files() const;
-
-  virtual Tablespace_file_iterator *files();
-
-  Tablespace_file_collection *file_collection()
-  { return m_files.get(); }
+  virtual const Tablespace_file_collection &files() const
+  { return m_files; }
 
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()
@@ -146,7 +140,7 @@ private:
 
   // Collections.
 
-  std::unique_ptr<Tablespace_file_collection> m_files;
+  Tablespace_file_collection m_files;
 
   Tablespace_impl(const Tablespace_impl &src);
 

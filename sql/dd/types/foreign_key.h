@@ -18,6 +18,7 @@
 
 #include "my_global.h"
 
+#include "dd/collection.h"             // dd::Collection
 #include "dd/sdi_fwd.h"                // dd::Sdi_wcontext
 #include "dd/types/entity_object.h"    // dd::Entity_object
 
@@ -26,12 +27,10 @@ namespace dd {
 ///////////////////////////////////////////////////////////////////////////
 
 class Foreign_key_element;
+class Foreign_key_impl;
 class Index;
 class Object_type;
 class Table;
-template <typename I> class Iterator;
-typedef Iterator<Foreign_key_element>       Foreign_key_element_iterator;
-typedef Iterator<const Foreign_key_element> Foreign_key_element_const_iterator;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -40,6 +39,8 @@ class Foreign_key : virtual public Entity_object
 public:
   static const Object_type &TYPE();
   static const Object_table &OBJECT_TABLE();
+  typedef Collection<Foreign_key_element*> Foreign_key_elements;
+  typedef Foreign_key_impl Impl;
 
 public:
   enum enum_rule
@@ -66,8 +67,7 @@ public:
   // parent table.
   /////////////////////////////////////////////////////////////////////////
 
-  const Table &table() const
-  { return const_cast<Foreign_key *> (this)->table(); }
+  virtual const Table &table() const = 0;
 
   virtual Table &table() = 0;
 
@@ -75,8 +75,7 @@ public:
   // unique_constraint
   /////////////////////////////////////////////////////////////////////////
 
-  const Index &unique_constraint() const
-  { return const_cast<Foreign_key *> (this)->unique_constraint(); }
+  virtual const Index &unique_constraint() const = 0;
 
   virtual Index &unique_constraint() = 0;
 
@@ -121,15 +120,7 @@ public:
 
   virtual Foreign_key_element *add_element() = 0;
 
-  virtual Foreign_key_element_const_iterator *elements() const = 0;
-
-  virtual Foreign_key_element_iterator *elements() = 0;
-
-  /////////////////////////////////////////////////////////////////////////
-  // Drop this FK from the collection.
-  /////////////////////////////////////////////////////////////////////////
-
-  virtual void drop() = 0;
+  virtual const Foreign_key_elements &elements() const = 0;
 
 
   /**

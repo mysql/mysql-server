@@ -20,7 +20,6 @@
 
 #include "dd/dd.h"                            // dd::create_object
 #include "dd/dictionary.h"                    // dd::Dictionary::is_dd_table...
-#include "dd/iterator.h"                      // dd::Iterator
 #include "dd/properties.h"                    // dd::Properties
 #include "dd/sdi.h"                           // dd::store_sdi
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
@@ -76,11 +75,8 @@ fill_table_and_parts_tablespace_names(THD *thd,
   if (table_obj->partition_type() != dd::Table::PT_NONE)
   {
     // Iterate through tablespace names used by partition.
-    std::unique_ptr<dd::Partition_const_iterator>
-      part_it(table_obj->partitions());
-    const dd::Partition *part_obj;
     std::string ts_name;
-    while ((part_obj= part_it->next()) != NULL)
+    for (const dd::Partition *part_obj : table_obj->partitions())
     {
       const char *tablespace= NULL;
       if(!get_tablespace_name<dd::Partition>(

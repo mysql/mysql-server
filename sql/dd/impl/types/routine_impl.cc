@@ -60,11 +60,14 @@ Routine_impl::Routine_impl()
   m_sql_mode(0),
   m_created(0),
   m_last_altered(0),
-  m_parameters(new Parameter_collection),
+  m_parameters(),
   m_schema_id(INVALID_OBJECT_ID),
   m_client_collation_id(INVALID_OBJECT_ID),
   m_connection_collation_id(INVALID_OBJECT_ID),
   m_schema_collation_id(INVALID_OBJECT_ID)
+{ }
+
+Routine_impl::~Routine_impl()
 { }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -87,8 +90,8 @@ bool Routine_impl::validate() const
 
 bool Routine_impl::restore_children(Open_dictionary_tables_ctx *otx)
 {
-  return m_parameters->restore_items(
-    Parameter_impl::Factory(this),
+  return m_parameters.restore_items(
+    this,
     otx,
     otx->get_table<Parameter>(),
     Parameters::create_key_by_routine_id(this->id()));
@@ -98,14 +101,14 @@ bool Routine_impl::restore_children(Open_dictionary_tables_ctx *otx)
 
 bool Routine_impl::store_children(Open_dictionary_tables_ctx *otx)
 {
-  return m_parameters->store_items(otx);
+  return m_parameters.store_items(otx);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 bool Routine_impl::drop_children(Open_dictionary_tables_ctx *otx) const
 {
-  return m_parameters->drop_items(
+  return m_parameters.drop_items(
     otx,
     otx->get_table<Parameter>(),
     Parameters::create_key_by_routine_id(this->id()));
@@ -233,17 +236,10 @@ void Routine_impl::debug_print(std::string &outb) const
   << "m_client_collation_id: " << m_client_collation_id << "; "
   << "m_connection_collation_id: " << m_connection_collation_id << "; "
   << "m_schema_collation_id: " << m_schema_collation_id << "; "
-  << "m_parameters: " << m_parameters->size() << " [ ";
+  << "m_parameters: " << m_parameters.size() << " [ ";
 
-  std::unique_ptr<Parameter_const_iterator> it(parameters());
-
-  while (true)
+  for (const Parameter *f : parameters())
   {
-    const Parameter *f= it->next();
-
-    if (!f)
-      break;
-
     std::string ob;
     f->debug_print(ob);
     ss << ob;
@@ -258,33 +254,10 @@ void Routine_impl::debug_print(std::string &outb) const
 
 Parameter *Routine_impl::add_parameter()
 {
-  return m_parameters->add(Parameter_impl::Factory(this));
+  Parameter_impl *p= new (std::nothrow) Parameter_impl(this);
+  m_parameters.push_back(p);
+  return p;
 }
-
-///////////////////////////////////////////////////////////////////////////
-
-/* purecov: begin deadcode */
-Parameter *Routine_impl::add_first_parameter()
-{
-  return m_parameters->add_first(Parameter_impl::Factory(this));
-}
-/* purecov: end */
-
-///////////////////////////////////////////////////////////////////////////
-
-Parameter_const_iterator *Routine_impl::parameters() const
-{
-  return m_parameters->const_iterator();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-/* purecov: begin deadcode */
-Parameter_iterator *Routine_impl::parameters()
-{
-  return m_parameters->iterator();
-}
-/* purecov: end */
 
 ///////////////////////////////////////////////////////////////////////////
 // Routine_type implementation.
@@ -314,20 +287,13 @@ Routine_impl::Routine_impl(const Routine_impl &src)
    m_definer_user(src.m_definer_user),
    m_definer_host(src.m_definer_host),
    m_comment(src.m_comment),
-   m_parameters(new Parameter_collection()),
+   m_parameters(),
    m_schema_id(src.m_schema_id),
    m_client_collation_id(src.m_client_collation_id),
    m_connection_collation_id(src.m_connection_collation_id),
    m_schema_collation_id(src.m_schema_collation_id)
 {
-  typedef Base_collection::Array::const_iterator i_type;
-  i_type end= src.m_parameters->aref().end();
-  m_parameters->aref().reserve(src.m_parameters->size());
-  for (i_type i= src.m_parameters->aref().begin(); i != end; ++i)
-  {
-    m_parameters->aref().push_back(
-      dynamic_cast<Parameter_impl*>(*i)->clone(this));
-  }
+  m_parameters.deep_copy(src.m_parameters, this);
 }
 
 ///////////////////////////////////////////////////////////////////////////

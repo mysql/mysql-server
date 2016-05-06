@@ -21,7 +21,6 @@
 #include "dd/impl/types/weak_object_impl.h"  // dd::Weak_object_impl
 #include "dd/types/foreign_key_element.h"    // dd::Foreign_key_element
 #include "dd/types/object_type.h"            // dd::Object_id
-#include "dd/impl/collection_item.h"         // dd::Collection_item
 
 namespace dd {
 
@@ -34,8 +33,7 @@ class Open_dictionary_tables_ctx;
 ///////////////////////////////////////////////////////////////////////////
 
 class Foreign_key_element_impl : public Weak_object_impl,
-                                 public Foreign_key_element,
-                                 public Collection_item
+                                 public Foreign_key_element
 {
 // Foreign keys not supported in the Global DD yet
 /* purecov: begin deadcode */
@@ -45,6 +43,15 @@ public:
       m_column(NULL),
       m_ordinal_position(0)
   { }
+
+  Foreign_key_element_impl(Foreign_key_impl *foreign_key)
+    : m_foreign_key(foreign_key),
+      m_column(NULL),
+      m_ordinal_position(0)
+  { }
+
+  Foreign_key_element_impl(const Foreign_key_element_impl &src,
+                           Foreign_key_impl *parent, Column *column);
 
   virtual ~Foreign_key_element_impl()
   { }
@@ -65,40 +72,15 @@ public:
 
   void debug_print(std::string &outb) const;
 
-public:
-  // Required by Collection_item.
-  virtual bool store(Open_dictionary_tables_ctx *otx)
-  { return Weak_object_impl::store(otx); }
-
-  // Required by Collection_item.
-  virtual bool drop(Open_dictionary_tables_ctx *otx) const
-  { return Weak_object_impl::drop(otx); }
-
-  // Required by Collection_item, Foreign_key_element.
-  virtual void drop();
-
-  // Required by Collection_item.
-  virtual bool restore_children(Open_dictionary_tables_ctx *otx)
-  { return Weak_object_impl::restore_children(otx); }
-
-  // Required by Collection_item.
-  virtual bool drop_children(Open_dictionary_tables_ctx *otx) const
-  { return Weak_object_impl::drop_children(otx); }
-
-  // Required by Collection_item.
-  virtual void set_ordinal_position(uint ordinal_position)
+  void set_ordinal_position(uint ordinal_position)
   { m_ordinal_position= ordinal_position; }
-
-  // Required by Collection_item.
-  virtual bool is_hidden() const
-  { return false; }
 
 public:
   /////////////////////////////////////////////////////////////////////////
   // Foreign key.
   /////////////////////////////////////////////////////////////////////////
 
-  using Foreign_key_element::foreign_key;
+  virtual const Foreign_key &foreign_key() const;
 
   virtual Foreign_key &foreign_key();
 
@@ -106,13 +88,14 @@ public:
   // column.
   /////////////////////////////////////////////////////////////////////////
 
-  using Foreign_key_element::column;
+  virtual const Column &column() const
+  { return *m_column; }
 
   virtual Column &column()
   { return *m_column; }
 
   /////////////////////////////////////////////////////////////////////////
-  // ordinal_position. - Also required by Collection_item
+  // ordinal_position.
   /////////////////////////////////////////////////////////////////////////
 
   virtual uint ordinal_position() const
@@ -135,18 +118,13 @@ public:
   { return Weak_object_impl::impl(); }
 
 public:
-  class Factory : public Collection_item_factory
+  static Foreign_key_element_impl *restore_item(Foreign_key_impl *fk)
   {
-  public:
-    Factory(Foreign_key_impl *fk)
-     :m_fk(fk)
-    { }
+    return new (std::nothrow) Foreign_key_element_impl(fk);
+  }
 
-    virtual Collection_item *create_item() const;
-
-  private:
-    Foreign_key_impl *m_fk;
-  };
+  static Foreign_key_element_impl *clone(const Foreign_key_element_impl &other,
+                                         Foreign_key_impl *fk);
 
 public:
   virtual Object_key *create_primary_key() const;
@@ -157,16 +135,6 @@ private:
   Column *m_column;
   uint m_ordinal_position;
   std::string m_referenced_column_name;
-
-  Foreign_key_element_impl(const Foreign_key_element_impl &src,
-                           Foreign_key_impl *parent, Column *column);
-
-public:
-  Foreign_key_element_impl *clone(Foreign_key_impl *parent,
-                                  Column *column) const
-  {
-    return new Foreign_key_element_impl(*this, parent, column);
-  }
 /* purecov: end */
 };
 

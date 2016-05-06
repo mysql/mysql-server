@@ -18,7 +18,6 @@
 #include "mysqld_error.h"                            // ER_*
 
 #include "dd/properties.h"                           // Needed for destructor
-#include "dd/impl/collection_impl.h"                 // Collection
 #include "dd/impl/sdi_impl.h"                        // sdi read/write functions
 #include "dd/impl/transaction_impl.h"                // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"                  // Raw_record
@@ -66,10 +65,24 @@ Foreign_key_impl::Foreign_key_impl()
   m_delete_rule(RULE_NO_ACTION),
   m_unique_constraint(NULL),
   m_table(NULL),
-  m_elements(new Element_collection())
+  m_elements()
+{ }
+
+Foreign_key_impl::Foreign_key_impl(Table_impl *table)
+ :m_match_option(OPTION_NONE),
+  m_update_rule(RULE_NO_ACTION),
+  m_delete_rule(RULE_NO_ACTION),
+  m_unique_constraint(NULL),
+  m_table(table),
+  m_elements()
 { }
 
 ///////////////////////////////////////////////////////////////////////////
+
+const Table &Foreign_key_impl::table() const
+{
+  return *m_table;
+}
 
 Table &Foreign_key_impl::table()
 {
@@ -132,9 +145,8 @@ bool Foreign_key_impl::validate() const
 
 bool Foreign_key_impl::restore_children(Open_dictionary_tables_ctx *otx)
 {
-
-  return m_elements->restore_items(
-    Foreign_key_element_impl::Factory(this),
+  return m_elements.restore_items(
+    this,
     otx,
     otx->get_table<Foreign_key_element>(),
     Foreign_key_column_usage::create_key_by_foreign_key_id(this->id()));
@@ -144,14 +156,14 @@ bool Foreign_key_impl::restore_children(Open_dictionary_tables_ctx *otx)
 
 bool Foreign_key_impl::store_children(Open_dictionary_tables_ctx *otx)
 {
-  return m_elements->store_items(otx);
+  return m_elements.store_items(otx);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 bool Foreign_key_impl::drop_children(Open_dictionary_tables_ctx *otx) const
 {
-  return m_elements->drop_items(
+  return m_elements.drop_items(
     otx,
     otx->get_table<Foreign_key_element>(),
     Foreign_key_column_usage::create_key_by_foreign_key_id(this->id()));
@@ -213,7 +225,7 @@ Foreign_key_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
 
   write(w, m_referenced_table_name, STRING_WITH_LEN("referenced_table_name"));
 
-  serialize_each(wctx, w, m_elements.get(), STRING_WITH_LEN("elements"));
+  serialize_each(wctx, w, m_elements, STRING_WITH_LEN("elements"));
   w->EndObject();
 }
 
@@ -252,15 +264,8 @@ void Foreign_key_impl::debug_print(std::string &outb) const
     << "m_delete_rule: " << m_delete_rule << "; ";
 
   {
-    std::unique_ptr<Foreign_key_element_const_iterator> it(elements());
-
-    while (true)
+    for (const Foreign_key_element *e : elements())
     {
-      const Foreign_key_element *e= it->next();
-
-      if (!e)
-        break;
-
       std::string ob;
       e->debug_print(ob);
       ss << ob;
@@ -278,42 +283,21 @@ void Foreign_key_impl::debug_print(std::string &outb) const
 /* purecov: begin deadcode */
 Foreign_key_element *Foreign_key_impl::add_element()
 {
-  return m_elements->add(
-    Foreign_key_element_impl::Factory(this));
+  Foreign_key_element_impl *e= new (std::nothrow) Foreign_key_element_impl(this);
+  m_elements.push_back(e);
+  return e;
 }
 
 /////////////////////////////////////////////////////////////////////////
 
-Foreign_key_element_const_iterator *Foreign_key_impl::elements() const
+Foreign_key_impl *Foreign_key_impl::clone(const Foreign_key_impl &other,
+                                          Table_impl *table)
 {
-  return m_elements->const_iterator();
+  return new (std::nothrow)
+    Foreign_key_impl(other, table,
+                     table->get_index(other.unique_constraint().id()));
 }
 
-/////////////////////////////////////////////////////////////////////////
-
-Foreign_key_element_iterator *Foreign_key_impl::elements()
-{
-  return m_elements->iterator();
-}
-
-/////////////////////////////////////////////////////////////////////////
-
-void Foreign_key_impl::drop()
-{
-  m_table->foreign_key_collection()->remove(this);
-}
-
-///////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////
-
-Collection_item *Foreign_key_impl::Factory::create_item() const
-{
-  Foreign_key_impl *fk= new (std::nothrow) Foreign_key_impl();
-  fk->m_table= m_table;
-  return fk;
-}
-
-///////////////////////////////////////////////////////////////////////////
 
 Foreign_key_impl::Foreign_key_impl(const Foreign_key_impl &src,
                                    Table_impl *parent,
@@ -326,16 +310,9 @@ Foreign_key_impl::Foreign_key_impl(const Foreign_key_impl &src,
     m_referenced_table_schema_name(src.m_referenced_table_schema_name),
     m_referenced_table_name(src.m_referenced_table_name),
     m_table(parent),
-    m_elements(new Element_collection())
+    m_elements()
 {
-  typedef Base_collection::Array::const_iterator i_type;
-  i_type end= src.m_elements->aref().end();
-  m_elements->aref().reserve(src.m_elements->size());
-  for (i_type i= src.m_elements->aref().begin(); i != end; ++i)
-  {
-    Foreign_key_element_impl &src_fke= *dynamic_cast<Foreign_key_element_impl*>(*i);
-    m_elements->aref().push_back(src_fke.clone(this, parent->get_column(src_fke.column().name())));
-  }
+  m_elements.deep_copy(src.m_elements, this);
 }
 /* purecov: end */
 

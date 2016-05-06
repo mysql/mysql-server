@@ -25,9 +25,8 @@ namespace dd {
 ///////////////////////////////////////////////////////////////////////////
 
 class Object_type;
+class View_impl;
 class View_table;
-typedef Iterator<View_table>          View_table_iterator;
-typedef Iterator<const View_table>    View_table_const_iterator;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -35,6 +34,8 @@ class View : virtual public Abstract_table
 {
 public:
   static const Object_type &TYPE();
+  typedef Collection<View_table*> View_tables;
+  typedef View_impl Impl;
 
 public:
   enum enum_check_option // VIEW_CHECK_NONE, VIEW_CHECK_LOCAL, VIEW_CHECK_CASCADED
@@ -134,9 +135,7 @@ public:
 
   virtual View_table *add_table() = 0;
 
-  virtual View_table_const_iterator *tables() const = 0;
-
-  virtual View_table_iterator *tables() = 0;
+  virtual const View_tables &tables() const = 0;
 
   /**
     Allocate a new object graph and invoke the copy contructor for

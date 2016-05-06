@@ -17,12 +17,12 @@
 #define DD__SDI_INCLUDED
 
 #include "my_global.h"
-#include "dd/types/fwd.h"
 
 #include <string>
 
 class THD;
 struct handlerton;
+
 /**
   @file
   @ingroup sdi
@@ -32,6 +32,11 @@ struct handlerton;
 */
 
 namespace dd {
+class Schema;
+class Table;
+class Tablespace;
+class View;
+typedef std::string sdi_t;
 
 /**
   Serialize a Schema object.

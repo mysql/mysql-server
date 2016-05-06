@@ -19,7 +19,6 @@
 #include "mysqld_error.h"                     // ER_*
 
 #include "dd/properties.h"                    // Needed for destructor
-#include "dd/impl/collection_impl.h"          // Collection
 #include "dd/impl/transaction_impl.h"         // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"           // Raw_record
 #include "dd/impl/tables/tables.h"            // Tables
@@ -63,7 +62,7 @@ View_impl::View_impl()
   m_check_option(CO_NONE),
   m_algorithm(VA_UNDEFINED),
   m_security_type(ST_INVOKER),
-  m_tables(new View_table_collection()),
+  m_tables(),
   m_client_collation_id(INVALID_OBJECT_ID),
   m_connection_collation_id(INVALID_OBJECT_ID)
 { }
@@ -102,8 +101,8 @@ bool View_impl::restore_children(Open_dictionary_tables_ctx *otx)
 {
   return
     Abstract_table_impl::restore_children(otx) ||
-    m_tables->restore_items(
-      View_table_impl::Factory(this),
+    m_tables.restore_items(
+      this,
       otx,
       otx->get_table<View_table>(),
       View_table_usage::create_key_by_view_id(this->id()));
@@ -114,14 +113,14 @@ bool View_impl::restore_children(Open_dictionary_tables_ctx *otx)
 bool View_impl::store_children(Open_dictionary_tables_ctx *otx)
 {
   return Abstract_table_impl::store_children(otx) ||
-         m_tables->store_items(otx);
+         m_tables.store_items(otx);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 bool View_impl::drop_children(Open_dictionary_tables_ctx *otx) const
 {
-  return m_tables->drop_items(
+  return m_tables.drop_items(
            otx,
            otx->get_table<View_table>(),
            View_table_usage::create_key_by_view_id(this->id())) ||
@@ -229,17 +228,10 @@ void View_impl::debug_print(std::string &outb) const
     << "m_definer_host: " << m_definer_host << "; "
     << "m_client_collation: {OID: " << m_client_collation_id << "}; "
     << "m_connection_collation: {OID: " << m_connection_collation_id << "}; "
-    << "m_tables: " << m_tables->size() << " [ ";
+    << "m_tables: " << m_tables.size() << " [ ";
 
-  std::unique_ptr<View_table_const_iterator> it(tables());
-
-  while (true)
+  for (const View_table *f : tables())
   {
-    const View_table *f= it->next();
-
-    if (!f)
-      break;
-
     std::string ob;
     f->debug_print(ob);
     ss << ob;
@@ -255,22 +247,9 @@ void View_impl::debug_print(std::string &outb) const
 
 View_table *View_impl::add_table()
 {
-  return m_tables->add(
-    View_table_impl::Factory(this));
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-View_table_const_iterator *View_impl::tables() const
-{
-  return m_tables->const_iterator();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-View_table_iterator *View_impl::tables()
-{
-  return m_tables->iterator();
+  View_table_impl *vt= new (std::nothrow) View_table_impl(this);
+  m_tables.push_back(vt);
+  return vt;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -294,18 +273,11 @@ View_impl::View_impl(const View_impl &src)
     m_security_type(src.m_security_type), m_definition(src.m_definition),
     m_definition_utf8(src.m_definition_utf8),
     m_definer_user(src.m_definer_user), m_definer_host(src.m_definer_host),
-    m_tables(new View_table_collection()),
+    m_tables(),
     m_client_collation_id(src.m_client_collation_id),
     m_connection_collation_id(src.m_connection_collation_id)
 {
-  typedef Base_collection::Array::const_iterator i_type;
-  i_type end= src.m_tables->aref().end();
-  m_tables->aref().reserve(src.m_tables->size());
-  for (i_type i= src.m_tables->aref().begin(); i != end; ++i)
-  {
-    m_tables->aref().push_back(dynamic_cast<View_table_impl*>(*i)->
-                               clone(this));
-  }
+  m_tables.deep_copy(src.m_tables, this);
 }
 
 ///////////////////////////////////////////////////////////////////////////

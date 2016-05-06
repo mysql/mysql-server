@@ -18,9 +18,9 @@
 
 #include "my_global.h"
 
-#include "dd/impl/collection_item.h"          // dd::Collection_item
 #include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
 #include "dd/types/index.h"                   // dd::Index
+#include "dd/types/index_element.h"           // dd::Index_element
 #include "dd/types/object_type.h"             // dd::Object_type
 
 #include <memory>
@@ -32,22 +32,20 @@ namespace dd {
 class Raw_record;
 class Table_impl;
 class Open_dictionary_tables_ctx;
-template <typename T> class Collection;
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Index_impl : public Entity_object_impl,
-                   public Index,
-                   public Collection_item
+                   public Index
 {
-public:
-  typedef Collection<Index_element> Element_collection;
-
 public:
   Index_impl();
 
-  virtual ~Index_impl()
-  { }
+  Index_impl(Table_impl *table);
+
+  Index_impl(const Index_impl &src, Table_impl *parent);
+
+  virtual ~Index_impl();
 
 public:
   virtual const Object_table &object_table() const
@@ -71,32 +69,18 @@ public:
 
   void debug_print(std::string &outb) const;
 
-public:
-  // Required by Collection_item.
-  virtual bool store(Open_dictionary_tables_ctx *otx)
-  { return Entity_object_impl::store(otx); }
-
-  // Required by Collection_item.
-  virtual bool drop(Open_dictionary_tables_ctx *otx) const
-  { return Entity_object_impl::drop(otx); }
-
-  // Required by Collection_item.
   virtual void set_ordinal_position(uint ordinal_position)
   { m_ordinal_position= ordinal_position; }
 
-  // Required by Collection_item.
   virtual uint ordinal_position() const
   { return m_ordinal_position; }
-
-public:
-  virtual void drop();
 
 public:
   /////////////////////////////////////////////////////////////////////////
   // Table.
   /////////////////////////////////////////////////////////////////////////
 
-  using Index::table;
+  virtual const Table &table() const;
 
   virtual Table &table();
 
@@ -117,7 +101,7 @@ public:
   { m_is_generated= generated; }
 
   /////////////////////////////////////////////////////////////////////////
-  // is_hidden. Also required by Collection_item
+  // is_hidden.
   /////////////////////////////////////////////////////////////////////////
 
   virtual bool is_hidden() const
@@ -140,9 +124,10 @@ public:
   // Options.
   /////////////////////////////////////////////////////////////////////////
 
-  using Index::options;
+  virtual const Properties &options() const
+  { return *m_options; }
 
-  Properties &options()
+  virtual Properties &options()
   { return *m_options; }
 
   virtual bool set_options_raw(const std::string &options_raw);
@@ -151,7 +136,8 @@ public:
   // se_private_data.
   /////////////////////////////////////////////////////////////////////////
 
-  using Index::se_private_data;
+  virtual const Properties &se_private_data() const
+  { return *m_se_private_data; }
 
   virtual Properties &se_private_data()
   { return *m_se_private_data; }
@@ -211,25 +197,8 @@ public:
 
   virtual Index_element *add_element(Column *c);
 
-  virtual Index_element *add_element(const Index_element &e);
-
-  virtual Index_element_const_iterator *elements() const;
-
-  virtual Index_element_iterator *elements();
-
-  virtual Index_element_const_iterator *user_elements() const;
-
-  virtual Index_element_iterator *user_elements();
-
-  virtual uint user_elements_count() const;
-
-  Element_collection *element_collection()
-  { return m_elements.get(); }
-
-  void invalidate_user_elements_count_cache()
-  {
-    m_user_elements_count_cache= static_cast<uint>(-1);
-  }
+  virtual const Index_elements &elements() const
+  { return m_elements; }
 
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()
@@ -246,18 +215,16 @@ public:
   { Entity_object_impl::set_name(name); }
 
 public:
-  class Factory : public Collection_item_factory
+  static Index_impl *restore_item(Table_impl *table)
   {
-  public:
-    Factory(Table_impl *table)
-     :m_table(table)
-    { }
+    return new (std::nothrow) Index_impl(table);
+  }
 
-    virtual Collection_item *create_item() const;
-
-  private:
-    Table_impl *m_table;
-  };
+  static Index_impl *clone(const Index_impl &other,
+                           Table_impl *table)
+  {
+    return new (std::nothrow) Index_impl(other, table);
+  }
 
 private:
   // Fields.
@@ -281,27 +248,11 @@ private:
 
   Table_impl *m_table;
 
-  std::unique_ptr<Element_collection> m_elements;
+  Index_elements m_elements;
 
   // References to loosely-coupled objects.
 
   Object_id m_tablespace_id;
-
-  /** Cached value of user_elements_count() method. */
-  mutable uint m_user_elements_count_cache;
-  /**
-    Value which we use as indication that no value is cached in
-    m_user_elements_count_cache member.
-  */
-  static const uint INVALID_USER_ELEMENTS_COUNT= static_cast<uint>(-1);
-
-  Index_impl(const Index_impl &src, Table_impl *parent);
-
-public:
-  Index_impl *clone(Table_impl *parent) const
-  {
-    return new Index_impl(*this, parent);
-  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

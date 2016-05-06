@@ -44,7 +44,6 @@
 #include "dd/dd.h"                      // dd::get_dictionary()
 #include "dd/dd_schema.h"               // dd::create_schema
 #include "dd/dictionary.h"              // dd::Dictionary
-#include "dd/iterator.h"                // dd::Iterator
 #include "dd/cache/dictionary_client.h" // Dictionary_client
 
 #ifdef _WIN32

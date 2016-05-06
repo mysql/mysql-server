@@ -63,7 +63,6 @@
 #include "dd/dd_table.h"                    // dd::abstract_table_type
 #include "dd/dd_schema.h"                   // dd::Schema_MDL_locker
 #include "dd/dictionary.h"                  // dd::Dictionary
-#include "dd/iterator.h"                    // dd::Iterator
 #include "dd/cache/dictionary_client.h"     // dd::cache::Dictionary_client
 #include "dd/types/object_table.h"          // dd:Object_table
 #include "dd/types/function.h"              // dd::Function

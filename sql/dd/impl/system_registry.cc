@@ -17,7 +17,6 @@
 
 #include "table.h"                                   // MYSQL_SYSTEM_SCHEMA
 
-#include "dd/iterator.h"                             // dd::Iterator
 #include "dd/properties.h"                           // Needed for destructor
 #include "dd/impl/tables/catalogs.h"                 // Catalog
 #include "dd/impl/tables/character_sets.h"           // Character_sets
