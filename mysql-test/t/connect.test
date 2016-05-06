@@ -6,9 +6,6 @@
 # This test makes no sense with the embedded server
 --source include/not_embedded.inc
 
-# Skipping the test when log-bin is enabled due to Bug#22157118
---source include/not_log_bin.inc
-
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
