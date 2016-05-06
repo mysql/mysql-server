@@ -205,6 +205,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
   GET_FILENAME_COMPONENT(CXX_REALPATH ${CMAKE_CXX_COMPILER} REALPATH)
 
   # CC -V yields
+  # CC: Studio 12.5 Sun C++ 5.14 SunOS_sparc Dodona 2016/04/04
   # CC: Sun C++ 5.13 SunOS_sparc Beta 2014/03/11
   # CC: Sun C++ 5.11 SunOS_sparc 2010/08/13
 
@@ -219,7 +220,16 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
   ENDIF()
 
   STRING(REGEX MATCH "CC: Sun C\\+\\+ 5\\.([0-9]+)" VERSION_STRING ${stderr})
+  IF (CMAKE_MATCH_1 STREQUAL "")
+    STRING(REGEX MATCH "CC: Studio 12\\.5 Sun C\\+\\+ 5\\.([0-9]+)"
+      VERSION_STRING ${stderr})
+  ENDIF()
   SET(CC_MINOR_VERSION ${CMAKE_MATCH_1})
+
+  IF(${CC_MINOR_VERSION} EQUAL 14)
+    MESSAGE(FATAL_ERROR
+      "Please run cmake with -DCMAKE_CXX_FLAGS=-std=c++03 for ${stderr}")
+  ENDIF()
 
   IF(${CC_MINOR_VERSION} EQUAL 13)
     SET(STLPORT_SUFFIX "lib/compilers/stlport4")
@@ -334,9 +344,12 @@ IF(UNIX)
     MY_SEARCH_LIBS(clock_gettime rt LIBRT)
   ENDIF()
   MY_SEARCH_LIBS(timer_create rt LIBRT)
+  MY_SEARCH_LIBS(atomic_thread_fence atomic LIBATOMIC)
 
   SET(CMAKE_REQUIRED_LIBRARIES 
-    ${LIBM} ${LIBNSL} ${LIBBIND} ${LIBCRYPT} ${LIBSOCKET} ${LIBDL} ${CMAKE_THREAD_LIBS_INIT} ${LIBRT})
+    ${LIBM} ${LIBNSL} ${LIBBIND} ${LIBCRYPT} ${LIBSOCKET} ${LIBDL}
+    ${CMAKE_THREAD_LIBS_INIT} ${LIBRT} ${LIBATOMIC}
+  )
   # Need explicit pthread for gcc -fsanitize=address
   IF(CMAKE_C_FLAGS MATCHES "-fsanitize=")
     SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} pthread)
