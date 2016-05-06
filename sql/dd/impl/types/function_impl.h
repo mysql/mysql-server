@@ -226,9 +226,7 @@ public:
   { Routine_impl::set_comment(comment); }
   virtual Parameter *add_parameter()
   { return Routine_impl::add_parameter(); }
-  virtual Parameter_const_iterator *parameters() const
-  { return Routine_impl::parameters(); }
-  virtual Parameter_iterator *parameters()
+  virtual const Parameter_collection &parameters() const
   { return Routine_impl::parameters(); }
   virtual bool update_name_key(name_key_type *key) const
   { return Function::update_name_key(key); }

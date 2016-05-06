@@ -17,7 +17,6 @@
 
 #include "mysqld_error.h"                         // ER_*
 
-#include "dd/impl/collection_impl.h"              // Collection
 #include "dd/impl/sdi_impl.h"                     // sdi read/write functions
 #include "dd/impl/transaction_impl.h"             // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"               // Raw_record
@@ -95,13 +94,6 @@ bool Column_type_element_impl::store_attributes(Raw_record *r)
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Column_type_element_impl::drop()
-{
-  m_collection->remove(this);
-}
-
-///////////////////////////////////////////////////////////////////////////
-
 static_assert(Column_type_elements::FIELD_NAME==2,
               "Column_type_elements definition has changed, review (de)ser memfuns!");
 void
@@ -149,24 +141,12 @@ bool Column_type_element_impl::has_new_primary_key() const
 }
 
 ///////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////
-
-Collection_item *Column_type_element_impl::Factory::create_item() const
-{
-  Column_type_element_impl *e= new (std::nothrow) Column_type_element_impl();
-  e->m_column= m_column;
-  e->m_collection= m_collection;
-  return e;
-}
-
-///////////////////////////////////////////////////////////////////////////
 
 Column_type_element_impl::
 Column_type_element_impl(const Column_type_element_impl &src,
-                         Column_impl *parent, Collection<Column_type_element> *owner)
+                         Column_impl *parent)
   : Weak_object(src),
-    m_name(src.m_name), m_index(src.m_index), m_column(parent),
-    m_collection(owner)
+    m_name(src.m_name), m_index(src.m_index), m_column(parent)
 {}
 
 ///////////////////////////////////////////////////////////////////////////

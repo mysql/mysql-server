@@ -17,7 +17,6 @@
 
 #include "mysqld_error.h"                            // ER_*
 
-#include "dd/impl/collection_impl.h"                 // Collection
 #include "dd/impl/object_key.h"                      // Needed for destructor
 #include "dd/impl/properties_impl.h"                 // Properties_impl
 #include "dd/impl/sdi_impl.h"                        // sdi read/write functions
@@ -63,14 +62,16 @@ Table_impl::Table_impl()
   m_default_partitioning(DP_NONE),
   m_subpartition_type(ST_NONE),
   m_default_subpartitioning(DP_NONE),
-  m_indexes(new Index_collection()),
-  m_foreign_keys(new Foreign_key_collection()),
-  m_partitions(new Partition_collection()),
+  m_indexes(),
+  m_foreign_keys(),
+  m_partitions(),
   m_collation_id(INVALID_OBJECT_ID),
   m_tablespace_id(INVALID_OBJECT_ID)
 {
 }
 
+Table_impl::~Table_impl()
+{ }
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -134,20 +135,20 @@ bool Table_impl::restore_children(Open_dictionary_tables_ctx *otx)
   return
     Abstract_table_impl::restore_children(otx)
     ||
-    m_indexes->restore_items(
-      Index_impl::Factory(this),
+    m_indexes.restore_items(
+      this,
       otx,
       otx->get_table<Index>(),
       Indexes::create_key_by_table_id(this->id()))
     ||
-    m_foreign_keys->restore_items(
-      Foreign_key_impl::Factory(this),
+    m_foreign_keys.restore_items(
+      this,
       otx,
       otx->get_table<Foreign_key>(),
       Foreign_keys::create_key_by_table_id(this->id()))
     ||
-    m_partitions->restore_items(
-      Partition_impl::Factory(this),
+    m_partitions.restore_items(
+      this,
       otx,
       otx->get_table<Partition>(),
       Table_partitions::create_key_by_table_id(this->id()));
@@ -162,14 +163,14 @@ bool Table_impl::store_children(Open_dictionary_tables_ctx *otx)
 
   // Note that indexes has to be stored first, as
   // partitions refer indexes.
-  bool ret= m_indexes->store_items(otx);
+  bool ret= m_indexes.store_items(otx);
   if (!ret)
   {
-    ret= m_foreign_keys->store_items(otx);
+    ret= m_foreign_keys.store_items(otx);
   }
   if (!ret)
   {
-    ret= m_partitions->store_items(otx);
+    ret= m_partitions.store_items(otx);
   }
   return ret;
 }
@@ -182,15 +183,15 @@ bool Table_impl::drop_children(Open_dictionary_tables_ctx *otx) const
   // as it has foreign key to indexes.
 
   return
-    m_partitions->drop_items(otx,
+    m_partitions.drop_items(otx,
       otx->get_table<Partition>(),
       Table_partitions::create_key_by_table_id(this->id()))
     ||
-    m_foreign_keys->drop_items(otx,
+    m_foreign_keys.drop_items(otx,
       otx->get_table<Foreign_key>(),
       Foreign_keys::create_key_by_table_id(this->id()))
     ||
-    m_indexes->drop_items(otx,
+    m_indexes.drop_items(otx,
       otx->get_table<Index>(),
       Indexes::create_key_by_table_id(this->id()))
     ||
@@ -322,9 +323,9 @@ Table_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
   write_enum(w, m_subpartition_type, STRING_WITH_LEN("subpartition_type"));
   write(w, m_subpartition_expression, STRING_WITH_LEN("subpartition_expression"));
   write_enum(w, m_default_subpartitioning, STRING_WITH_LEN("default_subpartitioning"));
-  serialize_each(wctx, w, m_indexes.get(), STRING_WITH_LEN("indexes"));
-  serialize_each(wctx, w, m_foreign_keys.get(), STRING_WITH_LEN("foreign_keys"));
-  serialize_each(wctx, w, m_partitions.get(), STRING_WITH_LEN("partitions"));
+  serialize_each(wctx, w, m_indexes, STRING_WITH_LEN("indexes"));
+  serialize_each(wctx, w, m_foreign_keys, STRING_WITH_LEN("foreign_keys"));
+  serialize_each(wctx, w, m_partitions, STRING_WITH_LEN("partitions"));
   write(w, m_collation_id, STRING_WITH_LEN("collation_id"));
   serialize_tablespace_ref(wctx, w, m_tablespace_id,
                            STRING_WITH_LEN("tablespace_ref"));
@@ -395,54 +396,33 @@ void Table_impl::debug_print(std::string &outb) const
     << "m_subpartition_type " << m_subpartition_type << "; "
     << "m_default_subpartitioning " << m_default_subpartitioning << "; "
     << "m_subpartition_expression " << m_subpartition_expression << "; "
-    << "m_partitions: " << m_partitions->size() << " [ ";
+    << "m_partitions: " << m_partitions.size() << " [ ";
 
   {
-    std::unique_ptr<Partition_const_iterator> it(partitions());
-
-    while (true)
+    for (const Partition *i : partitions())
     {
-      const Partition *i= it->next();
-
-      if (!i)
-        break;
-
       std::string s;
       i->debug_print(s);
       ss << s << " | ";
     }
   }
 
-  ss << "] m_indexes: " << m_indexes->size() << " [ ";
+  ss << "] m_indexes: " << m_indexes.size() << " [ ";
 
   {
-    std::unique_ptr<Index_const_iterator> it(indexes());
-
-    while (true)
+    for (const Index *i : indexes())
     {
-      const Index *i= it->next();
-
-      if (!i)
-        break;
-
       std::string s;
       i->debug_print(s);
       ss << s << " | ";
     }
   }
 
-  ss << "] m_foreign_keys: " << m_foreign_keys->size() << " [ ";
+  ss << "] m_foreign_keys: " << m_foreign_keys.size() << " [ ";
 
   {
-    std::unique_ptr<Foreign_key_const_iterator> it(foreign_keys());
-
-    while (true)
+    for (const Foreign_key *fk : foreign_keys())
     {
-      const Foreign_key *fk= it->next();
-
-      if (!fk)
-        break;
-
       std::string s;
       fk->debug_print(s);
       ss << s << " | ";
@@ -461,60 +441,26 @@ void Table_impl::debug_print(std::string &outb) const
 
 Index *Table_impl::add_index()
 {
-  return
-    m_indexes->add(
-      Index_impl::Factory(this));
+  Index_impl *i= new (std::nothrow) Index_impl(this);
+  m_indexes.push_back(i);
+  return i;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 Index *Table_impl::add_first_index()
 {
-  return m_indexes->add_first(
-      Index_impl::Factory(this));
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Index_const_iterator *Table_impl::indexes() const
-{
-  return m_indexes->const_iterator();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Index_iterator *Table_impl::indexes()
-{
-  return m_indexes->iterator();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Index_const_iterator *Table_impl::user_indexes() const
-{
-  return m_indexes->const_iterator(Collection<Index>::SKIP_HIDDEN_ITEMS);
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Index_iterator *Table_impl::user_indexes()
-{
-  return m_indexes->iterator(Collection<Index>::SKIP_HIDDEN_ITEMS);
+  Index_impl *i= new (std::nothrow) Index_impl(this);
+  m_indexes.push_front(i);
+  return i;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 Index *Table_impl::get_index(Object_id index_id)
 {
-  std::unique_ptr<Index_iterator> it(indexes());
-
-  while (true)
+  for (Index *i : m_indexes)
   {
-    Index *i= it->next();
-
-    if (!i)
-      break;
-
     if (i->id() == index_id)
       return i;
   }
@@ -528,23 +474,9 @@ Index *Table_impl::get_index(Object_id index_id)
 
 Foreign_key *Table_impl::add_foreign_key()
 {
-  return
-    m_foreign_keys->add(
-      Foreign_key_impl::Factory(this));
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Foreign_key_const_iterator *Table_impl::foreign_keys() const
-{
-  return m_foreign_keys->const_iterator();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Foreign_key_iterator *Table_impl::foreign_keys()
-{
-  return m_foreign_keys->iterator();
+  Foreign_key_impl *fk= new (std::nothrow) Foreign_key_impl(this);
+  m_foreign_keys.push_back(fk);
+  return fk;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -553,60 +485,22 @@ Foreign_key_iterator *Table_impl::foreign_keys()
 
 Partition *Table_impl::add_partition()
 {
-  return
-    m_partitions->add(
-      Partition_impl::Factory(this));
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Partition_const_iterator *Table_impl::partitions() const
-{
-  Partition_type::Partition_order_comparator
-    p= Partition_type::Partition_order_comparator();
-
-  m_partitions->sort_items(p);
-
-  return m_partitions->const_iterator();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Partition_iterator *Table_impl::partitions()
-{
-  Partition_type::Partition_order_comparator
-    p= Partition_type::Partition_order_comparator();
-
-  m_partitions->sort_items(p);
-
-  return m_partitions->iterator();
+  Partition_impl *i= new (std::nothrow) Partition_impl(this);
+  m_partitions.push_back(i);
+  return i;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 Partition *Table_impl::get_partition(Object_id partition_id)
 {
-  std::unique_ptr<Partition_iterator> it(partitions());
-
-  while (true)
+  for (Partition *i : m_partitions)
   {
-    Partition *i= it->next();
-
-    if (!i)
-      break;
-
     if (i->id() == partition_id)
       return i;
   }
 
   return NULL;
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-const Partition *Table_impl::get_last_partition() const
-{
-  return m_partitions->back();
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -650,35 +544,13 @@ Table_impl::Table_impl(const Table_impl &src)
     m_subpartition_type(src.m_subpartition_type),
     m_subpartition_expression(src.m_subpartition_expression),
     m_default_subpartitioning(src.m_default_subpartitioning),
-    m_indexes(new Index_collection()),
-    m_foreign_keys(new Foreign_key_collection()),
-    m_partitions(new Partition_collection()),
+    m_indexes(),
+    m_foreign_keys(),
+    m_partitions(),
     m_collation_id(src.m_collation_id), m_tablespace_id(src.m_tablespace_id)
 {
-  typedef Base_collection::Array::const_iterator i_type;
-  i_type end= src.m_indexes->aref().end();
-  m_indexes->aref().reserve(src.m_indexes->size());
-  for (i_type i= src.m_indexes->aref().begin(); i != end; ++i)
-  {
-    m_indexes->aref().push_back(dynamic_cast<Index_impl*>(*i)->
-                                clone(this));
-  }
-
-  end= src.m_foreign_keys->aref().end();
-  m_foreign_keys->aref().reserve(src.m_foreign_keys->size());
-  for (i_type i= src.m_foreign_keys->aref().begin(); i != end; ++i)
-  {
-    Foreign_key_impl &src_fk= *dynamic_cast<Foreign_key_impl*>(*i);
-    m_foreign_keys->aref().
-      push_back(src_fk.clone(this, get_index(src_fk.unique_constraint().id())));
-  }
-
-  end= src.m_partitions->aref().end();
-  m_partitions->aref().reserve(src.m_partitions->size());
-  for (i_type i= src.m_partitions->aref().begin(); i != end; ++i)
-  {
-    m_partitions->aref().push_back(dynamic_cast<Partition_impl*>(*i)->
-                                   clone(this));
-  }
+  m_indexes.deep_copy(src.m_indexes, this);
+  m_foreign_keys.deep_copy(src.m_foreign_keys, this);
+  m_partitions.deep_copy(src.m_partitions, this);
 }
 }

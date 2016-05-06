@@ -26,12 +26,9 @@ namespace dd {
 ///////////////////////////////////////////////////////////////////////////
 
 class Routine;
+class Parameter_impl;
 class Parameter_type_element;
 class Object_type;
-template <typename I> class Iterator;
-typedef Iterator<Parameter_type_element> Parameter_type_element_iterator;
-typedef Iterator<const Parameter_type_element>
-          Parameter_type_element_const_iterator;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -40,6 +37,8 @@ class Parameter : virtual public Entity_object
 public:
   static const Object_type &TYPE();
   static const Object_table &OBJECT_TABLE();
+  typedef Collection<Parameter_type_element*> Parameter_type_element_collection;
+  typedef Parameter_impl Impl;
 
 public:
   virtual ~Parameter()
@@ -66,8 +65,7 @@ public:
   // Routine.
   /////////////////////////////////////////////////////////////////////////
 
-  const Routine &routine() const
-  { return const_cast<Parameter *> (this)->routine(); }
+  virtual const Routine &routine() const = 0;
 
   virtual Routine &routine() = 0;
 
@@ -148,41 +146,20 @@ public:
   // Options.
   /////////////////////////////////////////////////////////////////////////
 
-  const Properties &options() const
-  { return const_cast<Parameter *> (this)->options(); }
+  virtual const Properties &options() const = 0;
 
   virtual Properties &options() = 0;
   virtual bool set_options_raw(const std::string &options_raw) = 0;
 
   /////////////////////////////////////////////////////////////////////////
-  // Enum-elements.
+  // Elements.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Parameter_type_element *add_enum_element() = 0;
+  virtual Parameter_type_element *add_element() = 0;
 
-  virtual Parameter_type_element_const_iterator *enum_elements() const = 0;
+  virtual const Parameter_type_element_collection &elements() const = 0;
 
-  virtual Parameter_type_element_iterator *enum_elements() = 0;
-
-  virtual size_t enum_elements_count() const = 0;
-
-  /////////////////////////////////////////////////////////////////////////
-  // Set-elements.
-  /////////////////////////////////////////////////////////////////////////
-
-  virtual Parameter_type_element *add_set_element() = 0;
-
-  virtual Parameter_type_element_const_iterator *set_elements() const = 0;
-
-  virtual Parameter_type_element_iterator *set_elements() = 0;
-
-  virtual size_t set_elements_count() const = 0;
-
-  /////////////////////////////////////////////////////////////////////////
-  // Drop this parameter from the collection.
-  /////////////////////////////////////////////////////////////////////////
-
-  virtual void drop() = 0;
+  virtual size_t elements_count() const = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////

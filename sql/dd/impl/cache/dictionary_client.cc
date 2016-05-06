@@ -29,7 +29,6 @@
 #include "dd/types/collation.h"              // Collation
 #include "dd/types/event.h"                  // Event
 #include "dd/types/function.h"               // Function
-#include "dd/types/fwd.h"                    // Schema_const_iterator
 #include "dd/types/procedure.h"              // Procedure
 #include "dd/types/schema.h"                 // Schema
 #include "dd/types/table.h"                  // Table

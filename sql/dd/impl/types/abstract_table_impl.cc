@@ -18,7 +18,6 @@
 #include "mysqld_error.h"                   // ER_*
 #include "mysql_version.h"                  // MYSQL_VERSION_ID
 
-#include "dd/impl/collection_impl.h"        // Collection
 #include "dd/impl/properties_impl.h"        // Properties_impl
 #include "dd/impl/sdi_impl.h"               // sdi read/write functions
 #include "dd/impl/transaction_impl.h"       // Open_dictionary_tables_ctx
@@ -62,7 +61,7 @@ Abstract_table_impl::Abstract_table_impl()
   m_created(0),
   m_last_altered(0),
   m_options(new Properties_impl()),
-  m_columns(new Column_collection()),
+  m_columns(),
   m_schema_id(INVALID_OBJECT_ID)
 {
 }
@@ -101,8 +100,8 @@ bool Abstract_table_impl::validate() const
 
 bool Abstract_table_impl::restore_children(Open_dictionary_tables_ctx *otx)
 {
-  return m_columns->restore_items(
-    Column_impl::Factory(this),
+  return m_columns.restore_items(
+    this,
     otx,
     otx->get_table<Column>(),
     Columns::create_key_by_table_id(this->id()));
@@ -112,14 +111,14 @@ bool Abstract_table_impl::restore_children(Open_dictionary_tables_ctx *otx)
 
 bool Abstract_table_impl::store_children(Open_dictionary_tables_ctx *otx)
 {
-  return m_columns->store_items(otx);
+  return m_columns.store_items(otx);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 bool Abstract_table_impl::drop_children(Open_dictionary_tables_ctx *otx) const
 {
-  return m_columns->drop_items(
+  return m_columns.drop_items(
     otx,
     otx->get_table<Column>(),
     Columns::create_key_by_table_id(this->id()));
@@ -199,7 +198,7 @@ void Abstract_table_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
   write(w, m_created, STRING_WITH_LEN("created"));
   write(w, m_last_altered, STRING_WITH_LEN("last_altered"));
   write_properties(w, m_options, STRING_WITH_LEN("options"));
-  serialize_each(wctx, w, m_columns.get(), STRING_WITH_LEN("columns"));
+  serialize_each(wctx, w, m_columns, STRING_WITH_LEN("columns"));
   write(w, lookup_schema_name(wctx),
         STRING_WITH_LEN("schema_ref"));
 }
@@ -241,18 +240,11 @@ void Abstract_table_impl::debug_print(std::string &outb) const
     << "m_options " << m_options->raw_string() << "; "
     << "m_created: " << m_created << "; "
     << "m_last_altered: " << m_last_altered << "; "
-    << "m_columns: " << m_columns->size() << " [ ";
+    << "m_columns: " << m_columns.size() << " [ ";
 
   {
-    std::unique_ptr<Column_const_iterator> it(columns());
-
-    while (true)
+    for (const Column *c : m_columns)
     {
-      const Column *c= it->next();
-
-      if (!c)
-        break;
-
       std::string s;
       c->debug_print(s);
       ss << s << " | ";
@@ -271,52 +263,30 @@ void Abstract_table_impl::debug_print(std::string &outb) const
 
 Column *Abstract_table_impl::add_column()
 {
-  return
-    m_columns->add(
-      Column_impl::Factory(this));
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Column_const_iterator *Abstract_table_impl::columns() const
-{
-  return m_columns->const_iterator();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Column_iterator *Abstract_table_impl::columns()
-{
-  return m_columns->iterator();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Column_const_iterator *Abstract_table_impl::user_columns() const
-{
-  return m_columns->const_iterator(Collection<Column>::SKIP_HIDDEN_ITEMS);
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Column_iterator *Abstract_table_impl::user_columns()
-{
-  return m_columns->iterator(Collection<Column>::SKIP_HIDDEN_ITEMS);
+  Column_impl *c= new (std::nothrow) Column_impl(this);
+  m_columns.push_back(c);
+  return c;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 Column *Abstract_table_impl::get_column(Object_id column_id)
 {
-  std::unique_ptr<Column_iterator> it(columns());
-
-  while (true)
+  for (Column *c : m_columns)
   {
-    Column *c= it->next();
+    if (c->id() == column_id)
+      return c;
+  }
 
-    if (!c)
-      break;
+  return NULL;
+}
 
+///////////////////////////////////////////////////////////////////////////
+
+const Column *Abstract_table_impl::get_column(Object_id column_id) const
+{
+  for (const Column *c : m_columns)
+  {
     if (c->id() == column_id)
       return c;
   }
@@ -328,15 +298,21 @@ Column *Abstract_table_impl::get_column(Object_id column_id)
 
 Column *Abstract_table_impl::get_column(const std::string name)
 {
-  std::unique_ptr<Column_iterator> it(columns());
-
-  while (true)
+  for (Column *c : m_columns)
   {
-    Column *c= it->next();
+    if (!strcmp(name.c_str(), c->name().c_str()))
+      return c;
+  }
 
-    if (!c)
-      break;
+  return NULL;
+}
 
+///////////////////////////////////////////////////////////////////////////
+
+const Column *Abstract_table_impl::get_column(const std::string name) const
+{
+  for (const Column *c : m_columns)
+  {
     if (!strcmp(name.c_str(), c->name().c_str()))
       return c;
   }
@@ -362,16 +338,9 @@ Abstract_table_impl::Abstract_table_impl(const Abstract_table_impl &src)
     m_created(src.m_created),
     m_last_altered(src.m_last_altered),
     m_options(Properties_impl::parse_properties(src.m_options->raw_string())),
-    m_columns(new Column_collection()),
+    m_columns(),
     m_schema_id(src.m_schema_id)
 {
-  typedef Base_collection::Array::const_iterator i_type;
-  i_type end= src.m_columns->aref().end();
-  m_columns->aref().reserve(src.m_columns->size());
-  for (i_type i= src.m_columns->aref().begin(); i != end; ++i)
-  {
-    m_columns->aref().push_back(dynamic_cast<Column_impl*>(*i)->
-                                clone(this));
-  }
+  m_columns.deep_copy(src.m_columns, this);
 }
 }

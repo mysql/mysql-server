@@ -912,6 +912,23 @@ namespace keyring__keys_container_unittest
   }
 #endif  // HAVE_UBSAN
 
+  TEST_F(Keys_container_with_mocked_io_test, ErrorFromIOFlushWhileOpenningIOForKeyStore)
+  {
+    keyring_io= new Mock_keyring_io();
+    ILogger *logger= new Mock_logger();
+    keys_container= new Keys_container(logger);
+    expect_calls_on_init();
+    EXPECT_EQ(keys_container->init(keyring_io, file_name), 0);
+
+    EXPECT_CALL(*keyring_io, open(Pointee(StrEq(file_name)))).WillOnce(Return(1));
+
+    EXPECT_EQ(keys_container->store_key(keyring_io, sample_key), 1);
+    ASSERT_TRUE(keys_container->get_number_of_keys() == 0);
+    delete logger;
+    delete keyring_io;
+    delete sample_key;
+  }
+
   int main(int argc, char **argv) {
     if (mysql_rwlock_init(key_LOCK_keyring, &LOCK_keyring))
       return TRUE;

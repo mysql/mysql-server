@@ -45,6 +45,7 @@ Created 4/20/1996 Heikki Tuuri
 #include "ut0mem.h"
 #include "gis0geo.h"
 #include "row0mysql.h"
+#include "lob0lob.h"
 
 /*****************************************************************//**
 When an insert or purge to a table is performed, this function builds
@@ -234,7 +235,7 @@ row_build_index_entry_low(
 						: dict_table_page_size(
 							index->table);
 
-					dptr = btr_copy_externally_stored_field(
+					dptr = lob::btr_copy_externally_stored_field(
 						&dlen, dptr,
 						page_size,
 						flen,

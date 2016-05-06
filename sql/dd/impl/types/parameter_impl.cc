@@ -15,7 +15,6 @@
 
 #include "dd/impl/types/parameter_impl.h"
 
-#include "dd/impl/collection_impl.h"                  // Collection
 #include "dd/impl/properties_impl.h"                  // Properties_impl
 #include "dd/impl/transaction_impl.h"                 // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"                   // Raw_record
@@ -65,16 +64,39 @@ Parameter_impl::Parameter_impl()
   m_numeric_scale(0),
   m_numeric_scale_null(true),
   m_datetime_precision(0),
-  m_enum_elements(new Parameter_type_element_collection()),
-  m_set_elements(new Parameter_type_element_collection()),
+  m_elements(),
   m_options(new Properties_impl()),
   m_routine(NULL),
+  m_collation_id(INVALID_OBJECT_ID)
+{ }
+
+Parameter_impl::Parameter_impl(Routine_impl *routine)
+ :m_is_name_null(false),
+  m_parameter_mode(PM_IN),
+  m_parameter_mode_null(false),
+  m_data_type(enum_column_types::LONG),
+  m_is_zerofill(false),
+  m_is_unsigned(false),
+  m_ordinal_position(0),
+  m_char_length(0),
+  m_numeric_precision(0),
+  m_numeric_scale(0),
+  m_numeric_scale_null(true),
+  m_datetime_precision(0),
+  m_elements(),
+  m_options(new Properties_impl()),
+  m_routine(routine),
   m_collation_id(INVALID_OBJECT_ID)
 { }
 
 ///////////////////////////////////////////////////////////////////////////
 
 /* purecov: begin deadcode */
+const Routine &Parameter_impl::routine() const
+{
+  return *m_routine;
+}
+
 Routine &Parameter_impl::routine()
 {
   return *m_routine;
@@ -127,17 +149,10 @@ bool Parameter_impl::restore_children(Open_dictionary_tables_ctx *otx)
   switch (data_type())
   {
   case enum_column_types::ENUM:
-      return
-        m_enum_elements->restore_items(
-          Parameter_type_element_impl::Factory(this, m_enum_elements.get()),
-          otx,
-          otx->get_table<Parameter_type_element>(),
-          Parameter_type_elements::create_key_by_parameter_id(this->id()));
-
   case enum_column_types::SET:
       return
-        m_set_elements->restore_items(
-          Parameter_type_element_impl::Factory(this, m_set_elements.get()),
+        m_elements.restore_items(
+          this,
           otx,
           otx->get_table<Parameter_type_element>(),
           Parameter_type_elements::create_key_by_parameter_id(this->id()));
@@ -153,8 +168,7 @@ bool Parameter_impl::restore_children(Open_dictionary_tables_ctx *otx)
 
 bool Parameter_impl::store_children(Open_dictionary_tables_ctx *otx)
 {
-  return m_enum_elements->store_items(otx) ||
-         m_set_elements->store_items(otx);
+  return m_elements.store_items(otx);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -163,12 +177,7 @@ bool Parameter_impl::drop_children(Open_dictionary_tables_ctx *otx) const
 {
   if (data_type() == enum_column_types::ENUM ||
       data_type() == enum_column_types::SET)
-    return m_enum_elements->drop_items(
-             otx,
-             otx->get_table<Parameter_type_element>(),
-             Parameter_type_elements::create_key_by_parameter_id(this->id()))
-           ||
-           m_set_elements->drop_items(
+    return m_elements.drop_items(
              otx,
              otx->get_table<Parameter_type_element>(),
              Parameter_type_elements::create_key_by_parameter_id(this->id()));
@@ -256,42 +265,14 @@ void Parameter_impl::debug_print(std::string &outb) const
     << "m_collation_id: {OID: " << m_collation_id << "}; "
     << "m_options: " << m_options->raw_string() << "; ";
 
-  if (data_type() == enum_column_types::ENUM)
+  if (data_type() == enum_column_types::ENUM ||
+      data_type() == enum_column_types::SET)
   {
     /* purecov: begin inspected */
-    ss << "m_enum_elements: [ ";
+    ss << "m_elements: [ ";
 
-    std::unique_ptr<Parameter_type_element_const_iterator> it(enum_elements());
-
-    while (true)
+    for (const Parameter_type_element *e : elements())
     {
-      const Parameter_type_element *e= it->next();
-
-      if (!e)
-        break;
-
-      std::string ob;
-      e->debug_print(ob);
-      ss << ob;
-    }
-
-    ss << " ]";
-    /* purecov: end */
-  }
-  else if(data_type() == enum_column_types::SET)
-  {
-    /* purecov: begin inspected */
-    ss << "m_set_elements: [ ";
-
-    std::unique_ptr<Parameter_type_element_const_iterator> it(set_elements());
-
-    while (true)
-    {
-      const Parameter_type_element *e= it->next();
-
-      if (!e)
-        break;
-
       std::string ob;
       e->debug_print(ob);
       ss << ob;
@@ -305,99 +286,18 @@ void Parameter_impl::debug_print(std::string &outb) const
 }
 
 ///////////////////////////////////////////////////////////////////////////
-
-/* purecov: begin deadcode */
-void Parameter_impl::drop()
-{
-  m_routine->parameter_collection()->remove(this);
-}
-/* purecov: end */
-
-///////////////////////////////////////////////////////////////////////////
 // Enum-elements.
 ///////////////////////////////////////////////////////////////////////////
 
-Parameter_type_element *Parameter_impl::add_enum_element()
+Parameter_type_element *Parameter_impl::add_element()
 {
-  if (data_type() != enum_column_types::ENUM)
-    return NULL;
+  DBUG_ASSERT(data_type() == enum_column_types::ENUM ||
+              data_type() == enum_column_types::SET);
 
-  return
-    m_enum_elements->add(
-      Parameter_type_element_impl::Factory(this, m_enum_elements.get()));
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Parameter_type_element_const_iterator *Parameter_impl::enum_elements() const
-{
-  return data_type() == enum_column_types::ENUM ?
-                          m_enum_elements->const_iterator() : NULL;
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-/* purecov: begin deadcode */
-Parameter_type_element_iterator *Parameter_impl::enum_elements()
-{
-  return data_type() == enum_column_types::ENUM ?
-                          m_enum_elements->iterator() : NULL;
-}
-/* purecov: end */
-
-///////////////////////////////////////////////////////////////////////////
-
-size_t Parameter_impl::enum_elements_count() const
-{
-  return m_enum_elements->size();
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Set-elements.
-///////////////////////////////////////////////////////////////////////////
-
-Parameter_type_element *Parameter_impl::add_set_element()
-{
-  if (data_type() != enum_column_types::SET)
-    return NULL;
-
-  return
-    m_set_elements->add(
-      Parameter_type_element_impl::Factory(this, m_set_elements.get()));
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Parameter_type_element_const_iterator *Parameter_impl::set_elements() const
-{
-  return data_type() == enum_column_types::SET ?
-                          m_set_elements->const_iterator() : NULL;
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-/* purecov: begin deadcode */
-Parameter_type_element_iterator *Parameter_impl::set_elements()
-{
-  return data_type() == enum_column_types::SET ?
-                          m_set_elements->iterator() : NULL;
-}
-/* purecov: end */
-
-///////////////////////////////////////////////////////////////////////////
-
-size_t Parameter_impl::set_elements_count() const
-{
-  return m_set_elements->size();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Collection_item *Parameter_impl::Factory::create_item() const
-{
-  Parameter_impl *p= new (std::nothrow) Parameter_impl();
-  p->m_routine= m_rt;
-  return p;
+  Parameter_type_element_impl *e=
+    new (std::nothrow) Parameter_type_element_impl(this);
+  m_elements.push_back(e);
+  return e;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -417,28 +317,12 @@ Parameter_impl::Parameter_impl(const Parameter_impl &src,
     m_numeric_scale(src.m_numeric_scale),
     m_numeric_scale_null(src.m_numeric_scale_null),
     m_datetime_precision(src.m_datetime_precision),
-    m_enum_elements(new Parameter_type_element_collection()),
-    m_set_elements(new Parameter_type_element_collection()),
+    m_elements(),
     m_options(Properties_impl::parse_properties(src.m_options->raw_string())),
     m_routine(parent),
     m_collation_id(src.m_collation_id)
 {
-  typedef Base_collection::Array::const_iterator i_type;
-  i_type end= src.m_enum_elements->aref().end();
-  m_enum_elements->aref().reserve(src.m_enum_elements->size());
-  for (i_type i= src.m_enum_elements->aref().begin(); i != end; ++i)
-  {
-    m_enum_elements->aref().push_back(dynamic_cast<Parameter_type_element_impl*>(*i)->
-                                      clone(this, m_enum_elements.get()));
-  }
-
-  end= src.m_set_elements->aref().end();
-  m_set_elements->aref().reserve(src.m_set_elements->size());
-  for (i_type i= src.m_set_elements->aref().begin(); i != end; ++i)
-  {
-    m_set_elements->aref().push_back(dynamic_cast<Parameter_type_element_impl*>(*i)->
-                                     clone(this, m_set_elements.get()));
-  }
+  m_elements.deep_copy(src.m_elements, this);
 }
 
 ///////////////////////////////////////////////////////////////////////////

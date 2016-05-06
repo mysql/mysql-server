@@ -17,7 +17,6 @@
 
 #include "mysqld_error.h"                       // ER_*
 
-#include "dd/impl/collection_impl.h"            // Collection
 #include "dd/impl/properties_impl.h"            // Properties_impl
 #include "dd/impl/sdi_impl.h"                   // sdi read/write functions
 #include "dd/impl/transaction_impl.h"           // Open_dictionary_tables_ctx
@@ -67,12 +66,33 @@ Index_impl::Index_impl()
   m_algorithm(IA_BTREE),
   m_is_algorithm_explicit(false),
   m_table(NULL),
-  m_elements(new (std::nothrow) Element_collection()),
-  m_tablespace_id(INVALID_OBJECT_ID),
-  m_user_elements_count_cache(INVALID_USER_ELEMENTS_COUNT)
+  m_elements(),
+  m_tablespace_id(INVALID_OBJECT_ID)
+{ }
+
+Index_impl::Index_impl(Table_impl *table)
+ :m_hidden(false),
+  m_is_generated(false),
+  m_ordinal_position(0),
+  m_options(new (std::nothrow) Properties_impl()),
+  m_se_private_data(new (std::nothrow) Properties_impl()),
+  m_type(IT_MULTIPLE),
+  m_algorithm(IA_BTREE),
+  m_is_algorithm_explicit(false),
+  m_table(table),
+  m_elements(),
+  m_tablespace_id(INVALID_OBJECT_ID)
+{ }
+
+Index_impl::~Index_impl()
 { }
 
 ///////////////////////////////////////////////////////////////////////////
+
+const Table &Index_impl::table() const
+{
+  return *m_table;
+}
 
 Table &Index_impl::table()
 {
@@ -133,7 +153,7 @@ bool Index_impl::validate() const
     return true;
   }
 
-  if (m_elements->is_empty())
+  if (m_elements.is_empty())
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
@@ -149,11 +169,10 @@ bool Index_impl::validate() const
 
 bool Index_impl::restore_children(Open_dictionary_tables_ctx *otx)
 {
-
-  return m_elements->restore_items(
+  return m_elements.restore_items(
     // Column will be resolved in restore_attributes() called from
     // Collection::restore_items().
-    Index_element_impl::Factory(this, NULL),
+    this,
     otx,
     otx->get_table<Index_element>(),
     Index_column_usage::create_key_by_index_id(this->id()));
@@ -163,14 +182,14 @@ bool Index_impl::restore_children(Open_dictionary_tables_ctx *otx)
 
 bool Index_impl::store_children(Open_dictionary_tables_ctx *otx)
 {
-  return m_elements->store_items(otx);
+  return m_elements.store_items(otx);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 bool Index_impl::drop_children(Open_dictionary_tables_ctx *otx) const
 {
-  return m_elements->drop_items(
+  return m_elements.drop_items(
     otx,
     otx->get_table<Index_element>(),
     Index_column_usage::create_key_by_index_id(this->id()));
@@ -256,7 +275,7 @@ Index_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
   write(w, m_is_algorithm_explicit, STRING_WITH_LEN("is_algorithm_explicit"));
   write(w, m_engine, STRING_WITH_LEN("engine"));
 
-  serialize_each(wctx, w, m_elements.get(), STRING_WITH_LEN("elements"));
+  serialize_each(wctx, w, m_elements, STRING_WITH_LEN("elements"));
 
   serialize_tablespace_ref(wctx, w, m_tablespace_id,
                            STRING_WITH_LEN("tablespace_ref"));
@@ -316,19 +335,12 @@ void Index_impl::debug_print(std::string &outb) const
     << "m_se_private_data " << m_se_private_data->raw_string() << "; "
     << "m_tablespace {OID: " << m_tablespace_id << "}; "
     << "m_engine: "<< m_engine << "; "
-    << "m_elements: " << m_elements->size()
+    << "m_elements: " << m_elements.size()
     << " [ ";
 
   {
-    std::unique_ptr<Index_element_const_iterator> it(elements());
-
-    while (true)
+    for (const Index_element *c : elements())
     {
-      const Index_element *c= it->next();
-
-      if (!c)
-        break;
-
       std::string ob;
       c->debug_print(ob);
       ss << ob;
@@ -343,82 +355,11 @@ void Index_impl::debug_print(std::string &outb) const
 
 /////////////////////////////////////////////////////////////////////////
 
-void Index_impl::drop()
-{
-  m_table->index_collection()->remove(this);
-}
-
-/////////////////////////////////////////////////////////////////////////
-
 Index_element *Index_impl::add_element(Column *c)
 {
-  invalidate_user_elements_count_cache();
-  return m_elements->add(Index_element_impl::Factory(this, c));
-}
-
-/////////////////////////////////////////////////////////////////////////
-
-Index_element *Index_impl::add_element(const Index_element &e)
-{
-  invalidate_user_elements_count_cache();
-  return m_elements->add(Index_element_impl::Factory_clone(this, e));
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Index_element_const_iterator *Index_impl::elements() const
-{
-  return m_elements->const_iterator();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Index_element_iterator *Index_impl::elements()
-{
-  return m_elements->iterator();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Index_element_const_iterator *Index_impl::user_elements() const
-{
-  return m_elements->const_iterator(Collection<Index_element>::SKIP_HIDDEN_ITEMS);
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-Index_element_iterator *Index_impl::user_elements()
-{
-  return m_elements->iterator(Collection<Index_element>::SKIP_HIDDEN_ITEMS);
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-uint Index_impl::user_elements_count() const
-{
-
-  if (m_user_elements_count_cache == INVALID_USER_ELEMENTS_COUNT)
-  {
-    uint count= 0;
-    std::unique_ptr<Index_element_const_iterator> it(user_elements());
-
-    while ((it->next()!= NULL))
-      count++;
-    m_user_elements_count_cache= count;
-  }
-
-  return m_user_elements_count_cache;
-}
-
-///////////////////////////////////////////////////////////////////////////
-// Index_impl::Factory implementation.
-///////////////////////////////////////////////////////////////////////////
-
-Collection_item *Index_impl::Factory::create_item() const
-{
-  Index_impl *i= new (std::nothrow) Index_impl();
-  i->m_table= m_table;
-  return i;
+  Index_element_impl *e= new (std::nothrow) Index_element_impl(this, c);
+  m_elements.push_back(e);
+  return e;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -434,21 +375,11 @@ Index_impl::Index_impl(const Index_impl &src, Table_impl *parent)
     m_type(src.m_type), m_algorithm(src.m_algorithm),
     m_is_algorithm_explicit(src.m_is_algorithm_explicit),
     m_engine(src.m_engine),
-    m_table(parent), m_elements(new Element_collection()),
-    m_tablespace_id(src.m_tablespace_id),
-    m_user_elements_count_cache(src.m_user_elements_count_cache)
+    m_table(parent),
+    m_elements(),
+    m_tablespace_id(src.m_tablespace_id)
 {
-  typedef Base_collection::Array::const_iterator i_type;
-  i_type end= src.m_elements->aref().end();
-  m_elements->aref().reserve(src.m_elements->size());
-  for (i_type i= src.m_elements->aref().begin(); i != end; ++i)
-  {
-    Column *dstcol= NULL;
-    const Column &srccol= dynamic_cast<Index_element_impl*>(*i)->column();
-    dstcol= parent->get_column(srccol.name());
-    m_elements->aref().push_back(dynamic_cast<Index_element_impl*>(*i)->
-                                 clone(this, dstcol));
-  }
+  m_elements.deep_copy(src.m_elements, this);
 }
 
 ///////////////////////////////////////////////////////////////////////////

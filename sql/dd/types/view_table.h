@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,8 +24,9 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class View;
 class Object_type;
+class View;
+class View_table_impl;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -34,6 +35,7 @@ class View_table : virtual public Weak_object
 public:
   static const Object_type &TYPE();
   static const Object_table &OBJECT_TABLE();
+  typedef View_table_impl Impl;
 
 public:
   virtual ~View_table()
@@ -65,16 +67,9 @@ public:
   // Parent view.
   /////////////////////////////////////////////////////////////////////////
 
-  const View &view() const
-  { return const_cast<View_table *> (this)->view(); }
+  virtual const View &view() const = 0;
 
   virtual View &view() = 0;
-
-  /////////////////////////////////////////////////////////////////////////
-  // Drop this view-table from the collection.
-  /////////////////////////////////////////////////////////////////////////
-
-  virtual void drop() = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////

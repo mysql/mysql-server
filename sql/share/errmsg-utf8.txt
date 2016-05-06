@@ -7653,6 +7653,12 @@ ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
 ER_USER_COLUMN_OLD_LENGTH
   eng "It seems that your db schema is old. The %s column is 77 characters long and should be 93 characters long. Please run mysql_upgrade."
 
+ER_CANT_RESET_MASTER
+  eng "RESET MASTER is not allowed because %-.384s."
+
+ER_GROUP_REPLICATION_MAX_GROUP_SIZE
+  eng "The START GROUP_REPLICATION command failed since the group already has 9 members."
+
 #
 #  End of 5.7 error messages.
 #

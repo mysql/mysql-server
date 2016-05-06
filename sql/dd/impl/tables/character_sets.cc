@@ -95,7 +95,7 @@ bool Character_sets::populate(THD *thd) const
       return true;
 
     DBUG_ASSERT(del_cset);
-    if (thd->dd_client()->drop(const_cast<Charset*>(del_cset)))
+    if (thd->dd_client()->drop(del_cset))
       return true;
   }
 

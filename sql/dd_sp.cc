@@ -19,7 +19,6 @@
 #include "sp.h"                                // SP_DEFAULT_ACCESS_MAPPING
 #include "sql_class.h"                         // THD
 
-#include "dd/iterator.h"                       // dd::Iterator
 #include "dd/properties.h"                     // Properties
 #include "dd/types/parameter.h"                // dd::Parameter
 #include "dd/types/parameter_type_element.h"   // dd::Parameter_type_element
@@ -103,9 +102,7 @@ static void prepare_type_string_from_dd_param(THD *thd,
       param->data_type() == dd::enum_column_types::SET)
   {
     // Allocate space for interval.
-    uint interval_parts=
-      (param->data_type() == dd::enum_column_types::ENUM) ?
-      param->enum_elements_count() : param->set_elements_count();
+    size_t interval_parts= param->elements_count();
 
     interval= static_cast<TYPELIB *>(alloc_root(thd->mem_root,
                                                 sizeof(TYPELIB)));
@@ -121,14 +118,7 @@ static void prepare_type_string_from_dd_param(THD *thd,
     interval->count= interval_parts;
     interval->name= NULL;
 
-    std::unique_ptr<dd::Parameter_type_element_const_iterator> pte_iter;
-    if (param->data_type() == dd::enum_column_types::ENUM)
-      pte_iter.reset(param->enum_elements());
-    else
-      pte_iter.reset(param->set_elements());
-
-    const dd::Parameter_type_element *pe;
-    while ((pe= pte_iter->next()))
+    for (const dd::Parameter_type_element *pe : param->elements())
     {
       // Read the enum/set element name
       std::string element_name= pe->name();
@@ -202,12 +192,11 @@ void prepare_return_type_string_from_dd_routine(THD *thd,
   */
   if (routine->type() == dd::Routine::RT_FUNCTION)
   {
-    std::unique_ptr<dd::Parameter_const_iterator>
-      param_it(routine->parameters());
-    const dd::Parameter *param= param_it->next();
+    const dd::Routine::Parameter_collection &parameters= routine->parameters();
 
-    if (param != NULL)
+    if (!parameters.is_empty())
     {
+      const dd::Parameter *param= *parameters.begin();
       DBUG_ASSERT(param->ordinal_position() == 1);
 
       String type_str(64);
@@ -230,11 +219,9 @@ void prepare_params_string_from_dd_routine(THD *thd,
 
   *params_str= "";
 
-  std::unique_ptr<dd::Parameter_const_iterator> param_it(routine->parameters());
-  const dd::Parameter *param= NULL;
   std::stringstream params_ss;
 
-  while((param= param_it->next()))
+  for (const dd::Parameter *param : routine->parameters())
   {
     /*
       Return type of stored function is stored as the first parameter. So skip

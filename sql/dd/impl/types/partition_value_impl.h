@@ -18,7 +18,6 @@
 
 #include "my_global.h"
 
-#include "dd/impl/collection_item.h"         // dd::Collection_item
 #include "dd/impl/types/weak_object_impl.h"  // dd::Weak_object_impl
 #include "dd/types/object_type.h"            // dd::Object_type
 #include "dd/types/partition_value.h"        // dd::Partition_value
@@ -34,8 +33,7 @@ class Open_dictionary_tables_ctx;
 ///////////////////////////////////////////////////////////////////////////
 
 class Partition_value_impl : public Weak_object_impl,
-                             public Partition_value,
-                             public Collection_item
+                             public Partition_value
 {
 public:
   Partition_value_impl()
@@ -45,6 +43,17 @@ public:
     m_column_num(0),
     m_partition(NULL)
   { }
+
+  Partition_value_impl(Partition_impl *partition)
+   :m_max_value(false),
+    m_null_value(false),
+    m_list_num(0),
+    m_column_num(0),
+    m_partition(partition)
+  { }
+
+  Partition_value_impl(const Partition_value_impl &src,
+                       Partition_impl *parent);
 
   virtual ~Partition_value_impl()
   { }
@@ -63,43 +72,18 @@ public:
 
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
-public:
-  // Required by Collection_item.
-  virtual bool store(Open_dictionary_tables_ctx *otx)
-  { return Weak_object_impl::store(otx); }
-
-  // Required by Collection_item.
-  virtual bool drop(Open_dictionary_tables_ctx *otx) const
-  { return Weak_object_impl::drop(otx); }
-
-  virtual void drop();
-
-  // Required by Collection_item.
-  virtual bool restore_children(Open_dictionary_tables_ctx *otx)
-  { return Weak_object_impl::restore_children(otx); }
-
-  // Required by Collection_item.
-  virtual bool drop_children(Open_dictionary_tables_ctx *otx) const
-  { return Weak_object_impl::drop_children(otx); }
-
-  // Required by Collection_item.
-  virtual void set_ordinal_position(uint ordinal_position)
+  void set_ordinal_position(uint ordinal_position)
   { }
 
-  // Required by Collection_item.
   virtual uint ordinal_position() const
   { return -1; }
-
-  // Required by Collection_item.
-  virtual bool is_hidden() const
-  { return false; }
 
 public:
   /////////////////////////////////////////////////////////////////////////
   // index.
   /////////////////////////////////////////////////////////////////////////
 
-  using Partition_value::partition;
+  virtual const Partition &partition() const;
 
   virtual Partition &partition();
 
@@ -160,19 +144,18 @@ public:
   { return Weak_object_impl::impl(); }
 
   /////////////////////////////////////////////////////////////////////////
+
 public:
-  class Factory : public Collection_item_factory
+  static Partition_value_impl *restore_item(Partition_impl *partition)
   {
-  public:
-    Factory(Partition_impl *partition)
-     :m_partition(partition)
-    { }
+    return new (std::nothrow) Partition_value_impl(partition);
+  }
 
-    virtual Collection_item *create_item() const;
-
-  private:
-    Partition_impl *m_partition;
-  };
+  static Partition_value_impl *clone(const Partition_value_impl &other,
+                                     Partition_impl *partition)
+  {
+    return new (std::nothrow) Partition_value_impl(other, partition);
+  }
 
 public:
   virtual void debug_print(std::string &outb) const;
@@ -193,15 +176,6 @@ private:
 
   // References to other objects
   Partition_impl *m_partition;
-
-  Partition_value_impl(const Partition_value_impl &src,
-                       Partition_impl *parent);
-
-public:
-  Partition_value_impl *clone(Partition_impl *parent) const
-  {
-    return new Partition_value_impl(*this, parent);
-  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

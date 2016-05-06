@@ -27,6 +27,7 @@ namespace dd {
 
 class Column;
 class Foreign_key;
+class Foreign_key_element_impl;
 class Object_type;
 
 ///////////////////////////////////////////////////////////////////////////
@@ -36,6 +37,7 @@ class Foreign_key_element : virtual public Weak_object
 public:
   static const Object_type &TYPE();
   static const Object_table &OBJECT_TABLE();
+  typedef Foreign_key_element_impl Impl;
 
 public:
   virtual ~Foreign_key_element()
@@ -45,8 +47,7 @@ public:
   // Foreign key.
   /////////////////////////////////////////////////////////////////////////
 
-  const Foreign_key &foreign_key() const
-  { return const_cast<Foreign_key_element *> (this)->foreign_key(); }
+  virtual const Foreign_key &foreign_key() const = 0;
 
   virtual Foreign_key &foreign_key() = 0;
 
@@ -54,8 +55,7 @@ public:
   // column.
   /////////////////////////////////////////////////////////////////////////
 
-  const Column &column() const
-  { return const_cast<Foreign_key_element *> (this)->column(); }
+  virtual const Column &column() const = 0;
 
   virtual Column &column() = 0;
 
@@ -71,12 +71,6 @@ public:
 
   virtual const std::string &referenced_column_name() const = 0;
   virtual void referenced_column_name(const std::string &name) = 0;
-
-  /////////////////////////////////////////////////////////////////////////
-  // Drop this FK-element from the collection.
-  /////////////////////////////////////////////////////////////////////////
-
-  virtual void drop() = 0;
 
 
   /**

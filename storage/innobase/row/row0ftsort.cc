@@ -34,6 +34,7 @@ Created 10/13/2010 Jimmy Yang
 #include "btr0cur.h"
 #include "btr0bulk.h"
 #include "fts0plugin.h"
+#include "lob0lob.h"
 
 /** Read the next record to buffer N.
 @param N index into array of merge info structure */
@@ -801,7 +802,7 @@ loop:
 
 			if (dfield_is_ext(dfield)) {
 				doc.text.f_str =
-					btr_copy_externally_stored_field(
+					lob::btr_copy_externally_stored_field(
 						&doc.text.f_len, data,
 						page_size, data_len, false,
 						blob_heap);

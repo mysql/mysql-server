@@ -18,10 +18,11 @@
 
 #include "my_global.h"
 
-#include "dd/impl/collection_item.h"           // dd::Collection_item
 #include "dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
 #include "dd/types/object_type.h"              // dd::Object_type
 #include "dd/types/partition.h"                // dd::Partition
+#include "dd/types/partition_index.h"          // dd::Partition_index
+#include "dd/types/partition_value.h"          // dd::Partition_value
 
 #include <memory>
 
@@ -32,23 +33,20 @@ namespace dd {
 class Raw_record;
 class Table_impl;
 class Open_dictionary_tables_ctx;
-template <typename T> class Collection;
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Partition_impl : public Entity_object_impl,
-                       public Partition,
-                       public Collection_item
+                       public Partition
 {
-public:
-  typedef Collection<Partition_value> Value_collection;
-  typedef Collection<Partition_index> Index_collection;
-
 public:
   Partition_impl();
 
-  virtual ~Partition_impl()
-  { }
+  Partition_impl(Table_impl *table);
+
+  Partition_impl(const Partition_impl &src, Table_impl *parent);
+
+  virtual ~Partition_impl();
 
 public:
   virtual const Object_table &object_table() const
@@ -72,36 +70,18 @@ public:
 
   void debug_print(std::string &outb) const;
 
-public:
-  // Required by Collection_item.
-  virtual bool store(Open_dictionary_tables_ctx *otx)
-  { return Entity_object_impl::store(otx); }
-
-  // Required by Collection_item.
-  virtual bool drop(Open_dictionary_tables_ctx *otx) const
-  { return Entity_object_impl::drop(otx); }
-
-  // Required by Collection_item.
-  virtual void set_ordinal_position(uint ordinal_position)
+  void set_ordinal_position(uint ordinal_position)
   { }
 
-  // Required by Collection_item.
   virtual uint ordinal_position() const
   { return -1; }
-
-  // Required by Collection_item.
-  virtual bool is_hidden() const
-  { return false; }
-
-public:
-  virtual void drop();
 
 public:
   /////////////////////////////////////////////////////////////////////////
   // Table.
   /////////////////////////////////////////////////////////////////////////
 
-  using Partition::table;
+  virtual const Table &table() const;
 
   virtual Table &table();
 
@@ -155,9 +135,10 @@ public:
   // Options.
   /////////////////////////////////////////////////////////////////////////
 
-  using Partition::options;
+  virtual const Properties &options() const
+  { return *m_options; }
 
-  Properties &options()
+  virtual Properties &options()
   { return *m_options; }
 
   virtual bool set_options_raw(const std::string &options_raw);
@@ -166,7 +147,8 @@ public:
   // se_private_data.
   /////////////////////////////////////////////////////////////////////////
 
-  using Partition::se_private_data;
+  virtual const Properties &se_private_data() const
+  { return *m_se_private_data; }
 
   virtual Properties &se_private_data()
   { return *m_se_private_data; }
@@ -201,12 +183,8 @@ public:
 
   virtual Partition_value *add_value();
 
-  virtual Partition_value_const_iterator *values() const;
-
-  virtual Partition_value_iterator *values();
-
-  Value_collection *value_collection()
-  { return m_values.get(); }
+  virtual const Partition_values &values() const
+  { return m_values; }
 
   /////////////////////////////////////////////////////////////////////////
   // Partition-index collection
@@ -214,12 +192,8 @@ public:
 
   virtual Partition_index *add_index(Index *idx);
 
-  virtual Partition_index_const_iterator *indexes() const;
-
-  virtual Partition_index_iterator *indexes();
-
-  Index_collection *index_collection()
-  { return m_indexes.get(); }
+  virtual const Partition_indexes &indexes() const
+  { return m_indexes; }
 
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()
@@ -236,18 +210,16 @@ public:
   { Entity_object_impl::set_name(name); }
 
 public:
-  class Factory : public Collection_item_factory
+  static Partition_impl *restore_item(Table_impl *table)
   {
-  public:
-    Factory(Table_impl *table)
-     :m_table(table)
-    { }
+    return new (std::nothrow) Partition_impl(table);
+  }
 
-    virtual Collection_item *create_item() const;
-
-  private:
-    Table_impl *m_table;
-  };
+  static Partition_impl *clone(const Partition_impl &other,
+                               Table_impl *table)
+  {
+    return new (std::nothrow) Partition_impl(other, table);
+  }
 
 private:
   // Fields.
@@ -265,20 +237,12 @@ private:
 
   Table_impl *m_table;
 
-  std::unique_ptr<Value_collection> m_values;
-  std::unique_ptr<Index_collection> m_indexes;
+  Partition_values m_values;
+  Partition_indexes m_indexes;
 
   // References to loosely-coupled objects.
 
   Object_id m_tablespace_id;
-
-  Partition_impl(const Partition_impl &src, Table_impl *parent);
-
-public:
-  Partition_impl *clone(Table_impl *parent) const
-  {
-    return new Partition_impl(*this, parent);
-  }
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -288,21 +252,6 @@ class Partition_type : public Object_type
 {
 public:
   virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-public:
-  // Used to compare two partition elements by Collection
-  // sort interface.
-  struct Partition_order_comparator
-  {
-    inline bool operator() (const Partition* p1,
-                            const Partition* p2)
-    {
-      if (p1->level() == p2->level())
-        return p1->number() < p2->number();
-
-      return p1->level() < p2->level();
-    }
-  };
 
   virtual Weak_object *create_object() const
   { return new (std::nothrow) Partition_impl(); }

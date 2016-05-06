@@ -63,7 +63,6 @@
 #include "dd/dictionary.h"            // dd::Dictionary
 #include "dd/types/table.h"           // dd::Table
 #include "dd/impl/types/table_impl.h"
-#include "dd/impl/collection_impl.h"
 #include "dd/impl/properties_impl.h"
 #include "dd/types/schema.h"
 #include "dd/cache/dictionary_client.h"// dd::cache::Dictionary_client

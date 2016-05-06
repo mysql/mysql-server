@@ -23,10 +23,8 @@
 #include "transaction.h"                      // trans_rollback
 
 #include "dd/dd.h"                            // dd::create_object
-#include "dd/iterator.h"                      // dd::Iterator
 #include "dd/properties.h"                    // dd::Properties
 #include "dd/cache/dictionary_client.h"       // dd::cache::Dictionary_client
-#include "dd/impl/collection_impl.h"          // dd::Collection_impl
 #include "dd/impl/dictionary_impl.h"          // dd::Dictionary_impl
 #include "dd/impl/system_registry.h"          // dd::System_tables
 #include "dd/impl/cache/storage_adapter.h"    // dd::cache::Storage_adapter

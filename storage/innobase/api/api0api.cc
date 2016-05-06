@@ -47,7 +47,7 @@ InnoDB Native API
 #include "fsp0fsp.h"
 #include <dd/types/tablespace.h>
 #include <dd/properties.h>
-#include "lob.h"
+#include "lob0lob.h"
 
 /** configure variable for binlog option with InnoDB APIs */
 my_bool ib_binlog_enabled = FALSE;
@@ -398,7 +398,7 @@ ib_read_tuple(
 			const page_size_t	page_size(
 				dict_table_page_size(index->table));
 
-			data = btr_rec_copy_externally_stored_field(
+			data = lob::btr_rec_copy_externally_stored_field(
 				copy, offsets, page_size, i, &len,
 				dict_index_is_sdi(index),
 				tuple->heap);

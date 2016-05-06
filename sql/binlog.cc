@@ -2683,16 +2683,15 @@ trans_has_updated_trans_table(const THD* thd)
   This function checks if a transactional table was updated by the
   current statement.
 
-  @param thd The client thread that executed the current statement.
+  @param ha_list Registered storage engine handler list.
   @return
     @c true if a transactional table was updated, @c false otherwise.
 */
 bool
-stmt_has_updated_trans_table(const THD *thd)
+stmt_has_updated_trans_table(Ha_trx_info* ha_list)
 {
   const Ha_trx_info *ha_info;
-  for (ha_info= thd->get_transaction()->ha_trx_info(Transaction_ctx::STMT);
-       ha_info; ha_info= ha_info->next())
+  for (ha_info= ha_list; ha_info; ha_info= ha_info->next())
   {
     if (ha_info->is_trx_read_write() && ha_info->ht() != binlog_hton)
       return (TRUE);
@@ -8240,6 +8239,8 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
                                 max_binlog_stmt_cache_size))))
     {
       ha_rollback_low(thd, all);
+      gtid_state->update_on_rollback(thd);
+      thd_get_cache_mngr(thd)->reset();
       //Reset the thread OK status before changing the outcome.
       if (thd->get_stmt_da()->is_ok())
         thd->get_stmt_da()->reset_diagnostics_area();
@@ -8253,6 +8254,8 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
     if (thd->get_transaction()->get_rpl_transaction_ctx()->is_transaction_rollback())
     {
       ha_rollback_low(thd, all);
+      gtid_state->update_on_rollback(thd);
+      thd_get_cache_mngr(thd)->reset();
       if (thd->get_stmt_da()->is_ok())
         thd->get_stmt_da()->reset_diagnostics_area();
       my_error(ER_TRANSACTION_ROLLBACK_DURING_COMMIT, MYF(0));

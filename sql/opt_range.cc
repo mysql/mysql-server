@@ -7568,14 +7568,20 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
 
   switch (type) {
   case Item_func::LT_FUNC:
-    /* Don't use open ranges for partial key_segments */
-    if ((!(key_part->flag & HA_PART_KEY_SEG)) &&
-        stored_field_cmp_to_item(param->thd, field, value) == 0)
-      tree->max_flag=NEAR_MAX;
-    /* fall through */
   case Item_func::LE_FUNC:
+    /* Don't use open ranges for partial key_segments */
+    if (!(key_part->flag & HA_PART_KEY_SEG))
+    {
+      /*
+        Set NEAR_MAX to read values lesser than the stored value.
+      */
+      const int cmp_value= stored_field_cmp_to_item(param->thd, field, value);
+      if ((type == Item_func::LT_FUNC && cmp_value >= 0) ||
+          (type == Item_func::LE_FUNC && cmp_value > 0))
+        tree->max_flag= NEAR_MAX;
+    }
     if (!maybe_null)
-      tree->min_flag=NO_MIN_RANGE;		/* From start */
+      tree->min_flag= NO_MIN_RANGE;		/* From start */
     else
     {						// > NULL
       if (!(tree->min_value=
@@ -7583,22 +7589,24 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
         goto end;
       TRASH(tree->min_value, key_part->store_length + 1);
       memcpy(tree->min_value, is_null_string, sizeof(is_null_string));
-      tree->min_flag=NEAR_MIN;
+      tree->min_flag= NEAR_MIN;
     }
     break;
   case Item_func::GT_FUNC:
-    /* Don't use open ranges for partial key_segments */
-    if ((!(key_part->flag & HA_PART_KEY_SEG)) &&
-        (stored_field_cmp_to_item(param->thd, field, value) <= 0))
-      tree->min_flag=NEAR_MIN;
-    tree->max_flag= NO_MAX_RANGE;
-    break;
   case Item_func::GE_FUNC:
     /* Don't use open ranges for partial key_segments */
-    if ((!(key_part->flag & HA_PART_KEY_SEG)) &&
-        (stored_field_cmp_to_item(param->thd, field, value) < 0))
-      tree->min_flag= NEAR_MIN;
-    tree->max_flag=NO_MAX_RANGE;
+    if (!(key_part->flag & HA_PART_KEY_SEG))
+    {
+      /*
+        Set NEAR_MIN to read values greater than the stored value.
+      */
+      const int cmp_value= stored_field_cmp_to_item(param->thd, field,
+                                                        value);
+      if ((type == Item_func::GT_FUNC && cmp_value <= 0) ||
+          (type == Item_func::GE_FUNC && cmp_value < 0))
+        tree->min_flag= NEAR_MIN;
+    }
+    tree->max_flag= NO_MAX_RANGE;
     break;
   case Item_func::SP_EQUALS_FUNC:
     tree->set_gis_index_read_function(HA_READ_MBR_EQUAL);

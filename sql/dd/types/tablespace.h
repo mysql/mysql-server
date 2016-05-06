@@ -19,27 +19,25 @@
 #include "my_global.h"
 #include <vector>
 
-#include "dd/types/dictionary_object.h"   // dd::Dictionary_object
+#include "dd/collection.h"                // dd::Collection
 #include "dd/sdi_fwd.h"                   // RJ_Document
+#include "dd/types/dictionary_object.h"   // dd::Dictionary_object
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Object_type;
-class Tablespace_file;
-class Primary_id_key;
 class Global_name_key;
-class Void_key;
+class Object_type;
+class Primary_id_key;
 class Properties;
+class Tablespace_impl;
+class Tablespace_file;
+class Void_key;
 
 namespace tables {
   class Tablespaces;
 }
-
-template <typename I> class Iterator;
-typedef Iterator<Tablespace_file>        Tablespace_file_iterator;
-typedef Iterator<const Tablespace_file>  Tablespace_file_const_iterator;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -54,6 +52,7 @@ public:
   typedef Primary_id_key id_key_type;
   typedef Global_name_key name_key_type;
   typedef Void_key aux_key_type;
+  typedef Collection<Tablespace_file*> Tablespace_file_collection;
 
   // We need a set of functions to update a preallocated key.
   virtual bool update_id_key(id_key_type *key) const
@@ -97,8 +96,7 @@ public:
   // options.
   /////////////////////////////////////////////////////////////////////////
 
-  const Properties &options() const
-  { return const_cast<Tablespace *> (this)->options(); }
+  virtual const Properties &options() const = 0;
 
   virtual Properties &options() = 0;
   virtual bool set_options_raw(const std::string &options_raw) = 0;
@@ -107,8 +105,7 @@ public:
   // se_private_data.
   /////////////////////////////////////////////////////////////////////////
 
-  const Properties &se_private_data() const
-  { return const_cast<Tablespace *> (this)->se_private_data(); }
+  virtual const Properties &se_private_data() const = 0;
 
   virtual Properties &se_private_data() = 0;
   virtual bool set_se_private_data_raw(const std::string &se_private_data_raw) = 0;
@@ -128,9 +125,7 @@ public:
 
   virtual bool remove_file(std::string data_file) = 0;
 
-  virtual Tablespace_file_const_iterator *files() const = 0;
-
-  virtual Tablespace_file_iterator *files() = 0;
+  virtual const Tablespace_file_collection &files() const = 0;
 
   /**
     Allocate a new object graph and invoke the copy contructor for

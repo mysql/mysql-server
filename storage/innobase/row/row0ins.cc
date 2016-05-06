@@ -49,7 +49,7 @@ Created 4/20/1996 Heikki Tuuri
 #include "fts0types.h"
 #include "m_string.h"
 #include "gis0geo.h"
-#include "lob.h"
+#include "lob0lob.h"
 
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
@@ -404,9 +404,9 @@ row_ins_clust_index_entry_by_modify(
 			ut_a(err == DB_SUCCESS);
 
 			DEBUG_SYNC_C("before_row_ins_upd_extern");
-			err = btr_store_big_rec_extern_fields(
+			err = lob::btr_store_big_rec_extern_fields(
 				pcur, update, *offsets, big_rec, mtr,
-				BTR_STORE_INSERT_UPDATE);
+				lob::OPCODE_INSERT_UPDATE);
 			DEBUG_SYNC_C("after_row_ins_upd_extern");
 			dtuple_big_rec_free(big_rec);
 		}
@@ -2317,8 +2317,8 @@ row_ins_index_entry_big_rec_func(
 				  ULINT_UNDEFINED, heap);
 
 	DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern");
-	error = btr_store_big_rec_extern_fields(
-		&pcur, 0, offsets, big_rec, &mtr, BTR_STORE_INSERT);
+	error = lob::btr_store_big_rec_extern_fields(
+		&pcur, 0, offsets, big_rec, &mtr, lob::OPCODE_INSERT);
 	DEBUG_SYNC_C_IF_THD(thd, "after_row_ins_extern");
 
 	if (error == DB_SUCCESS

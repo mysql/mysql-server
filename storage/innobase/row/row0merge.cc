@@ -45,7 +45,7 @@ Completed by Sunny Bains and Marko Makela
 #include "fsp0sysspace.h"
 #include "ut0new.h"
 #include "ut0stage.h"
-#include "lob.h"
+#include "lob0lob.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
 #if defined _WIN32
@@ -466,7 +466,7 @@ row_merge_buf_redundant_convert_func(
 		ut_a(memcmp(field_data + field_len - BTR_EXTERN_FIELD_REF_SIZE,
 			    field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE));
 
-		byte*	data = btr_copy_externally_stored_field(
+		byte*	data = lob::btr_copy_externally_stored_field(
 			&ext_len, field_data, page_size, field_len, is_sdi,
 			heap);
 
@@ -3152,11 +3152,11 @@ row_merge_copy_blobs_func(
 				     field_ref_zero,
 				     BTR_EXTERN_FIELD_REF_SIZE));
 
-			data = btr_copy_externally_stored_field(
+			data = lob::btr_copy_externally_stored_field(
 				&len, field_data, page_size, field_len, is_sdi,
 				heap);
 		} else {
-			data = btr_rec_copy_externally_stored_field(
+			data = lob::btr_rec_copy_externally_stored_field(
 				mrec, offsets, page_size, i, &len,
 				is_sdi, heap);
 		}

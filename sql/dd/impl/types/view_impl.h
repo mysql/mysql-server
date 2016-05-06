@@ -21,6 +21,7 @@
 #include "dd/impl/types/abstract_table_impl.h" // dd::Abstract_table_impl
 #include "dd/types/dictionary_object_table.h"  // dd::Dictionary_object_table
 #include "dd/types/view.h"                     // dd::View
+#include "dd/types/view_table.h"               // dd::View_table
 
 #include <memory>   // std::unique_ptr
 
@@ -33,9 +34,6 @@ namespace dd {
 class View_impl : public Abstract_table_impl,
                   public View
 {
-public:
-  typedef Collection<View_table> View_table_collection;
-
 public:
   View_impl();
 
@@ -174,12 +172,8 @@ public:
 
   virtual View_table *add_table();
 
-  virtual View_table_const_iterator *tables() const;
-
-  virtual View_table_iterator *tables();
-
-  View_table_collection *table_collection()
-  { return m_tables.get(); }
+  virtual const View_tables &tables() const
+  { return m_tables; }
 
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()
@@ -200,6 +194,8 @@ public:
   { Abstract_table_impl::set_schema_id(schema_id); }
   virtual uint mysql_version_id() const
   { return Abstract_table_impl::mysql_version_id(); }
+  virtual const Properties &options() const
+  { return Abstract_table_impl::options(); }
   virtual Properties &options()
   { return Abstract_table_impl::options(); }
   virtual bool set_options_raw(const std::string &options_raw)
@@ -214,14 +210,8 @@ public:
   { Abstract_table_impl::set_last_altered(last_altered); }
   virtual Column *add_column()
   { return Abstract_table_impl::add_column(); }
-  virtual Column_const_iterator *columns() const
+  virtual const Column_collection &columns() const
   { return Abstract_table_impl::columns(); }
-  virtual Column_iterator *columns()
-  { return Abstract_table_impl::columns(); }
-  virtual Column_const_iterator *user_columns() const
-  { return Abstract_table_impl::user_columns(); }
-  virtual Column_iterator *user_columns()
-  { return Abstract_table_impl::user_columns(); }
   const Column *get_column(const std::string name) const
   { return Abstract_table_impl::get_column(name); }
   Column *get_column(const std::string name)
@@ -241,7 +231,7 @@ private:
 
   // Collections.
 
-  std::unique_ptr<View_table_collection> m_tables;
+  View_tables m_tables;
 
   // References.
 

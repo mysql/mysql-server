@@ -16,7 +16,6 @@
 #ifndef DD__VIEW_TABLE_IMPL_INCLUDED
 #define DD__VIEW_TABLE_IMPL_INCLUDED
 
-#include "dd/impl/collection_item.h"         // dd::Collection_item
 #include "dd/impl/types/weak_object_impl.h"  // dd::Weak_object_impl
 #include "dd/types/object_type.h"            // dd::Object_type
 #include "dd/types/view_table.h"             // dd::View_table
@@ -31,11 +30,14 @@ class View_impl;
 ///////////////////////////////////////////////////////////////////////////
 
 class View_table_impl : public Weak_object_impl,
-                        public View_table,
-                        public Collection_item
+                        public View_table
 {
 public:
   View_table_impl();
+
+  View_table_impl(View_impl *view);
+
+  View_table_impl(const View_table_impl &src, View_impl *parent);
 
   virtual ~View_table_impl()
   { }
@@ -52,36 +54,11 @@ public:
 
   virtual void debug_print(std::string &outb) const;
 
-public:
-  // Required by Collection_item.
-  virtual bool store(Open_dictionary_tables_ctx *otx)
-  { return Weak_object_impl::store(otx); }
-
-  // Required by Collection_item.
-  virtual bool drop(Open_dictionary_tables_ctx *otx) const
-  { return Weak_object_impl::drop(otx); }
-
-  virtual void drop();
-
-  // Required by Collection_item.
-  virtual bool restore_children(Open_dictionary_tables_ctx *otx)
-  { return Weak_object_impl::restore_children(otx); }
-
-  // Required by Collection_item.
-  virtual bool drop_children(Open_dictionary_tables_ctx *otx) const
-  { return Weak_object_impl::drop_children(otx); }
-
-  // Required by Collection_item.
-  virtual void set_ordinal_position(uint ordinal_position)
+  void set_ordinal_position(uint ordinal_position)
   { }
 
-  // Required by Collection_item.
   virtual uint ordinal_position() const
   { return -1; }
-
-  // Required by Collection_item.
-  virtual bool is_hidden() const
-  { return false; }
 
 public:
   /////////////////////////////////////////////////////////////////////////
@@ -118,7 +95,7 @@ public:
   //view.
   /////////////////////////////////////////////////////////////////////////
 
-  using View_table::view;
+  virtual const View &view() const;
 
   virtual View &view();
 
@@ -129,18 +106,16 @@ public:
   { return Weak_object_impl::impl(); }
 
 public:
-  class Factory : public Collection_item_factory
+  static View_table_impl *restore_item(View_impl *view)
   {
-  public:
-    Factory(View_impl *ts)
-     :m_ts(ts)
-    { }
+    return new (std::nothrow) View_table_impl(view);
+  }
 
-    virtual Collection_item *create_item() const;
-
-  private:
-    View_impl *m_ts;
-  };
+  static View_table_impl *clone(const View_table_impl &other,
+                                View_impl *view)
+  {
+    return new (std::nothrow) View_table_impl(other, view);
+  }
 
 public:
   virtual Object_key *create_primary_key() const;
@@ -153,15 +128,6 @@ private:
 
   // References to other objects
   View_impl *m_view;
-
-  View_table_impl(const View_table_impl &src,
-                  View_impl *parent);
-
-public:
-  View_table_impl *clone(View_impl *parent) const
-  {
-    return new View_table_impl(*this, parent);
-  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

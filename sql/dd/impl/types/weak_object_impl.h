@@ -61,7 +61,7 @@ public:
   // (object id is assigned using auto-increment).
   virtual bool store(Open_dictionary_tables_ctx *otx);
 
-  virtual bool drop(Open_dictionary_tables_ctx *otx) const;
+  bool drop(Open_dictionary_tables_ctx *otx) const;
 
 public:
   virtual bool restore_attributes(const Raw_record &r) = 0;

@@ -3795,3 +3795,57 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 DROP TABLE t1;
 # End of test for Bug#18109609
+#
+# Bug#22661012 - "USING INDEX FOR GROUP-BY" QUERIES CAN RETURN
+#                NO DATA WITH LE/LEQ AND ROUNDING
+#
+CREATE TABLE t1 (a INT, b INT, KEY(a,b));
+INSERT INTO t1 VALUES (1,1000), (1,1001), (1,2000),
+(1,2001), (1,3000), (1,3002);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b < 1999.5 GROUP BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a	a	10	NULL	1	100.00	Using where; Using index for group-by
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1` where ((`test`.`t1`.`a` = 1) and (`test`.`t1`.`b` < 1999.5)) group by `test`.`t1`.`a`
+SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b < 1999.5 GROUP BY a;
+a	MAX(b)
+1	1001
+EXPLAIN SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b <= 1999.5 GROUP BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a	a	10	NULL	1	100.00	Using where; Using index for group-by
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1` where ((`test`.`t1`.`a` = 1) and (`test`.`t1`.`b` <= 1999.5)) group by `test`.`t1`.`a`
+SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b <= 1999.5 GROUP BY a;
+a	MAX(b)
+1	1001
+EXPLAIN SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b between 0 and 1999.5
+GROUP BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a	a	10	NULL	1	100.00	Using where; Using index for group-by
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1` where ((`test`.`t1`.`a` = 1) and (`test`.`t1`.`b` between 0 and 1999.5)) group by `test`.`t1`.`a`
+SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b between 0 and 1999.5
+GROUP BY a;
+a	MAX(b)
+1	1001
+EXPLAIN SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b > 2000.1 GROUP BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a	a	10	NULL	1	100.00	Using where; Using index for group-by
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,min(`test`.`t1`.`b`) AS `MIN(b)` from `test`.`t1` where ((`test`.`t1`.`a` = 1) and (`test`.`t1`.`b` > 2000.1)) group by `test`.`t1`.`a`
+SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b > 2000.1 GROUP BY a;
+a	MIN(b)
+1	2001
+EXPLAIN SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b >= 2000.1 GROUP BY a;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a	a	10	NULL	1	100.00	Using where; Using index for group-by
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,min(`test`.`t1`.`b`) AS `MIN(b)` from `test`.`t1` where ((`test`.`t1`.`a` = 1) and (`test`.`t1`.`b` >= 2000.1)) group by `test`.`t1`.`a`
+SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b >= 2000.1 GROUP BY a;
+a	MIN(b)
+1	2001
+DROP TABLE t1;
+# End of test for Bug#22661012

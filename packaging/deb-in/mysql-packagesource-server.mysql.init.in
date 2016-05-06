@@ -99,18 +99,18 @@ verify_server () {
 	return 1
 }
 
+MYSQLRUN=/var/run/mysqld
+MYSQLDATA=$(get_mysql_option mysqld datadir "/var/lib/mysql")
+MYSQLFILES=/var/lib/mysql-files
+MYSQLKEYRING=/var/lib/mysql-keyring
+MYSQLLOG=/var/log/mysql
+
 case "$1" in
   'start')
 	if [ "$(get_running)" -eq 1 ];
 	then
 		log_action_msg "A MySQL Server is already started"
 	else
-		MYSQLRUN=/var/run/mysqld
-		MYSQLDATA=$(get_mysql_option mysqld datadir "/var/lib/mysql")
-		MYSQLFILES=/var/lib/mysql-files
-		MYSQLKEYRING=/var/lib/mysql-keyring
-		MYSQLLOG=/var/log/mysql
-
 		if [ ! -d ${MYSQLDATA} -a ! -L ${MYSQLDATA} ];
 		then
 			mkdir ${MYSQLDATA}
@@ -122,7 +122,7 @@ case "$1" in
 		then
 			mkdir ${MYSQLFILES}
 			chown mysql:mysql ${MYSQLFILES}
-			chmod 750 ${MYSQLFILES}
+			chmod 770 ${MYSQLFILES}
 		fi
 
 		if [ ! -d ${MYSQLKEYRING} -a ! -L ${MYSQLKEYRING} ];

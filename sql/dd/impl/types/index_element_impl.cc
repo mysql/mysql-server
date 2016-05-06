@@ -18,7 +18,6 @@
 #include "mysqld_error.h"                       // ER_*
 
 #include "dd/properties.h"                      // Needed for destructor
-#include "dd/impl/collection_impl.h"            // Collection
 #include "dd/impl/sdi_impl.h"                   // sdi read/write functions
 #include "dd/impl/transaction_impl.h"           // Open_dictionary_tables_ctx
 #include "dd/impl/raw/raw_record.h"             // Raw_record
@@ -49,21 +48,6 @@ const Object_type &Index_element::TYPE()
 
 ///////////////////////////////////////////////////////////////////////////
 // Index_element_impl implementation.
-///////////////////////////////////////////////////////////////////////////
-
-Index &Index_element_impl::index()
-{
-  return *m_index;
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-void Index_element_impl::drop()
-{
-  m_index->invalidate_user_elements_count_cache();
-  return m_index->element_collection()->remove(this);
-}
-
 ///////////////////////////////////////////////////////////////////////////
 
 bool Index_element_impl::validate() const
@@ -182,29 +166,13 @@ bool Index_element_impl::has_new_primary_key() const
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Index_element_impl::Factory implementation.
-///////////////////////////////////////////////////////////////////////////
 
-Collection_item *Index_element_impl::Factory::create_item() const
+Index_element_impl *Index_element_impl::clone(const Index_element_impl &other,
+                                              Index_impl *index)
 {
-  Index_element_impl *e= new (std::nothrow) Index_element_impl();
-  e->m_index= m_index;
-  e->m_column= m_column;
-  return e;
+  return new Index_element_impl(other, index,
+                                index->table_impl().get_column(other.column().name()));
 }
-
-///////////////////////////////////////////////////////////////////////////
-// Index_element_impl::Factory_clone implementation.
-///////////////////////////////////////////////////////////////////////////
-
-Collection_item *Index_element_impl::Factory_clone::create_item() const
-{
-  Index_element_impl *e= m_element.factory_clone();
-  e->m_index= m_index;
-  return e;
-}
-
-///////////////////////////////////////////////////////////////////////////
 
 Index_element_impl::Index_element_impl(const Index_element_impl &src,
                                        Index_impl *parent, Column *column)

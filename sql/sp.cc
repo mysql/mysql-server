@@ -44,7 +44,6 @@
 
 #include "dd/dd_schema.h"                      // dd::schema_exists
 #include "dd/dd_routine.h"                     // dd routine methods.
-#include "dd/iterator.h"                       // dd::Iterator
 #include "dd/cache/dictionary_client.h"        // dd::cache::Dictionary_client
 #include "dd/types/function.h"                 // dd::Function
 #include "dd/types/procedure.h"                // dd::Procedure

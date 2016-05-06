@@ -1462,3 +1462,39 @@ SHOW SESSION STATUS LIKE 'Handler_read%';
 DROP TABLE t1;
 
 --echo # End of test for Bug#18109609
+
+--echo #
+--echo # Bug#22661012 - "USING INDEX FOR GROUP-BY" QUERIES CAN RETURN
+--echo #                NO DATA WITH LE/LEQ AND ROUNDING
+--echo #
+
+CREATE TABLE t1 (a INT, b INT, KEY(a,b));
+INSERT INTO t1 VALUES (1,1000), (1,1001), (1,2000),
+                      (1,2001), (1,3000), (1,3002);
+
+ANALYZE TABLE t1;
+
+let query= SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b < 1999.5 GROUP BY a;
+eval EXPLAIN $query;
+eval $query;
+
+let query= SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b <= 1999.5 GROUP BY a;
+eval EXPLAIN $query;
+eval $query;
+
+let query= SELECT a, MAX(b) FROM t1 WHERE a = 1 AND b between 0 and 1999.5
+           GROUP BY a;
+eval EXPLAIN $query;
+eval $query;
+
+let query= SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b > 2000.1 GROUP BY a;
+eval EXPLAIN $query;
+eval $query;
+
+let query= SELECT a, MIN(b) FROM t1 WHERE a = 1 AND b >= 2000.1 GROUP BY a;
+eval EXPLAIN $query;
+eval $query;
+
+DROP TABLE t1;
+
+--echo # End of test for Bug#22661012

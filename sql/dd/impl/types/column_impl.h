@@ -19,9 +19,9 @@
 #include "my_global.h"
 
 #include "dd/properties.h"                    // dd::Properties
-#include "dd/impl/collection_item.h"          // dd::Collection_item
 #include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
 #include "dd/types/column.h"                  // dd::Column
+#include "dd/types/column_type_element.h"     // dd::Column_type_element
 #include "dd/types/object_type.h"             // dd::Object_type
 
 #include <memory>   // std::unique_ptr
@@ -31,25 +31,22 @@ namespace dd {
 ///////////////////////////////////////////////////////////////////////////
 
 class Abstract_table_impl;
-class Column_type_element;
 class Raw_record;
 class Open_dictionary_tables_ctx;
-template <typename T> class Collection;
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Column_impl : public Entity_object_impl,
-                    public Column,
-                    public Collection_item
+                    public Column
 {
-public:
-  typedef Collection<Column_type_element> Column_type_element_collection;
-
 public:
   Column_impl();
 
-  virtual ~Column_impl()
-  { }
+  Column_impl(Abstract_table_impl *table);
+
+  Column_impl(const Column_impl &src, Abstract_table_impl *parent);
+
+  virtual ~Column_impl();
 
 public:
   virtual const Object_table &object_table() const
@@ -73,28 +70,15 @@ public:
 
   void debug_print(std::string &outb) const;
 
-public:
-  // Required by Collection_item.
-  virtual bool store(Open_dictionary_tables_ctx *otx)
-  { return Entity_object_impl::store(otx); }
-
-  // Required by Collection_item.
-  virtual bool drop(Open_dictionary_tables_ctx *otx) const
-  { return Entity_object_impl::drop(otx); }
-
-  // Required by Collection_item.
-  virtual void set_ordinal_position(uint ordinal_position)
+  void set_ordinal_position(uint ordinal_position)
   { m_ordinal_position= ordinal_position; }
-
-  // Required by Collection_item, Column.
-  virtual void drop(); /* purecov: deadcode */
 
 public:
   /////////////////////////////////////////////////////////////////////////
   // table.
   /////////////////////////////////////////////////////////////////////////
 
-  using Column::table;
+  virtual const Abstract_table &table() const;
 
   virtual Abstract_table &table();
 
@@ -159,7 +143,7 @@ public:
   { m_is_auto_increment= auto_increment; }
 
   /////////////////////////////////////////////////////////////////////////
-  // ordinal_position. - Also required by Collection_item
+  // ordinal_position.
   /////////////////////////////////////////////////////////////////////////
 
   virtual uint ordinal_position() const
@@ -312,7 +296,7 @@ public:
   { m_comment= comment; }
 
   /////////////////////////////////////////////////////////////////////////
-  // is_hidden. Also required by Collection_item
+  // is_hidden.
   /////////////////////////////////////////////////////////////////////////
 
   virtual bool is_hidden() const
@@ -325,7 +309,8 @@ public:
   // Options.
   /////////////////////////////////////////////////////////////////////////
 
-  using Column::options;
+  virtual const Properties &options() const
+  { return *m_options; }
 
   virtual Properties &options()
   { return *m_options; }
@@ -336,7 +321,8 @@ public:
   // se_private_data.
   /////////////////////////////////////////////////////////////////////////
 
-  using Column::se_private_data;
+  virtual const Properties &se_private_data() const
+  { return *m_se_private_data; }
 
   virtual Properties &se_private_data()
   { return *m_se_private_data; }
@@ -344,28 +330,20 @@ public:
   virtual bool set_se_private_data_raw(const std::string &se_private_data_raw);
 
   /////////////////////////////////////////////////////////////////////////
-  // Enum-elements.
+  // Elements.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Column_type_element *add_enum_element();
+  virtual Column_type_element *add_element();
 
-  virtual Column_type_element_const_iterator *enum_elements() const;
+  virtual const Column_type_element_collection &elements() const
+  {
+    DBUG_ASSERT(type() == enum_column_types::ENUM ||
+                type() == enum_column_types::SET);
+    return m_elements;
+  }
 
-  virtual Column_type_element_iterator *enum_elements();
-
-  virtual size_t enum_elements_count() const;
-
-  /////////////////////////////////////////////////////////////////////////
-  // Set-elements.
-  /////////////////////////////////////////////////////////////////////////
-
-  virtual Column_type_element *add_set_element();
-
-  virtual Column_type_element_const_iterator *set_elements() const;
-
-  virtual Column_type_element_iterator *set_elements();
-
-  virtual size_t set_elements_count() const;
+  virtual size_t elements_count() const
+  { return m_elements.size(); }
 
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()
@@ -382,18 +360,16 @@ public:
   { Entity_object_impl::set_name(name); }
 
 public:
-  class Factory : public Collection_item_factory
+  static Column_impl *restore_item(Abstract_table_impl *table)
   {
-  public:
-    Factory(Abstract_table_impl *table)
-     :m_table(table)
-    { }
+    return new (std::nothrow) Column_impl(table);
+  }
 
-    virtual Collection_item *create_item() const;
-
-  private:
-    Abstract_table_impl *m_table;
-  };
+  static Column_impl *clone(const Column_impl &other,
+                            Abstract_table_impl *table)
+  {
+    return new (std::nothrow) Column_impl(other, table);
+  }
 
 private:
   // Fields.
@@ -433,8 +409,7 @@ private:
 
   Abstract_table_impl *m_table;
 
-  std::unique_ptr<Column_type_element_collection> m_enum_elements;
-  std::unique_ptr<Column_type_element_collection> m_set_elements;
+  Column_type_element_collection m_elements;
 
   // References to loosely-coupled objects.
 
@@ -442,14 +417,6 @@ private:
 
   // TODO-WIKI21 should the columns.name be defined utf8_general_cs ?
   // instead of utf8_general_ci.
-
-  Column_impl(const Column_impl &src, Abstract_table_impl *parent);
-
-public:
-  Column_impl *clone(Abstract_table_impl *parent) const
-  {
-    return new Column_impl(*this, parent);
-  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

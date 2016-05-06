@@ -8294,7 +8294,7 @@ static char *get_relative_path(const char *path)
       strcmp(DEFAULT_MYSQL_HOME,FN_ROOTDIR))
   {
     path+= strlen(DEFAULT_MYSQL_HOME);
-    while (*path == FN_LIBCHAR || *path == FN_LIBCHAR2)
+    while (is_directory_separator(*path))
       path++;
   }
   return (char*) path;

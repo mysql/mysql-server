@@ -112,7 +112,7 @@ bool Collations::populate(THD *thd) const
       return true;
 
     DBUG_ASSERT(del_coll);
-    if (thd->dd_client()->drop(const_cast<Collation*>(del_coll)))
+    if (thd->dd_client()->drop(del_coll))
       return true;
   }
 

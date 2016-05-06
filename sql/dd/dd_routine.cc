@@ -210,12 +210,7 @@ static bool fill_parameter_info_from_field(Create_field *field,
     for (uint i=0; *pos != NULL; pos++, i++)
     {
       // Create enum/set object.
-      Parameter_type_element  *elem_obj= NULL;
-
-      if (field->sql_type == MYSQL_TYPE_ENUM)
-        elem_obj= param->add_enum_element();
-      else if (field->sql_type == MYSQL_TYPE_SET)
-        elem_obj= param->add_set_element();
+      Parameter_type_element  *elem_obj= param->add_element();
 
       std::string interval_name(*pos, field->interval->type_lengths[i]);
 

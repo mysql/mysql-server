@@ -1225,10 +1225,149 @@ ibd2sdi: [ERROR] unknown variable 'tpe=0'
 # 25.3 with empty file
 [ERROR] ibd2sdi:  Unable to read the page header of 1024 bytes.
 [ERROR] ibd2sdi:  Bytes read was 0.
-# restart: --datadir=MYSQLD_DATADIR1 --innodb_data_file_path=ibdata1:16M;ibdata2:20M:autoextend --innodb_log_file_size=5M --innodb_log_files_in_group=2 --innodb_undo_tablespaces=0
-DROP TABLE t1;
-UNINSTALL PLUGIN daemon_memcached;
-DROP DATABASE innodb_memcache;
-SET GLOBAL tx_isolation = default;
-SET GLOBAL innodb_file_per_table = default;
+#
+# Bug#23036141 - IBD2SDI DOESN'T WORK IF ANY DATAFILE IS SMALLER THAN PREVIOUS DATAFILE
+#
+# restart: --datadir=MYSQLD_DATADIR1 --innodb_data_file_path=ibdata1:16M;ibdata2:2M:autoextend --innodb_log_file_size=5M --innodb_log_files_in_group=2 --innodb_undo_tablespaces=0
+INSERT INTO cache_policies VALUES('cache_policy', 'innodb_only',
+'innodb_only', 'innodb_only', 'innodb_only');
+INSERT INTO config_options VALUES('separator', '|');
+INSERT INTO containers VALUES ('desc_t1', 'test', 't1',
+'c1', 'c2', '0', '0', '0', 'PRIMARY');
+SET GLOBAL innodb_file_per_table=OFF;
+USE test;
+CREATE TABLE t1(c1 VARCHAR(32),
+c2 TEXT,
+primary key(c1))
+ENGINE = INNODB;
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+# Section I: Test options
+# 1. Read from copy 0 with long option
+# 2. Read from copy 1 with short option
+# 3. Read from copy 0 with specific id & type (long option)
+[
+ ["ibd2sdi", {"id":3, "type":3}],
+ [abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz]
+],
+# 4. Read from copy 1 with specific id & type (short option)
+# 5. Read from copy 0 & skip data
+# 6. Read from copy 0 and dump into FILE
+# 7. Read from copy 0 and dump into FILE using short option
+# 8. Print all records matching type (short option)
+# 9. Print all records matching id (long option)
+# 10. Print version
+IBD2SDI Extract Serialized Dictionary Info (SDI) from an InnoDB Datafile (IBD); Ver #.#.#
+# 11. Print help
+IBD2SDI Extract Serialized Dictionary Info (SDI) from an InnoDB Datafile (IBD); Ver #.#.#
+Copyright (c) YEAR, YEAR, Oracle and/or its affiliates. All rights reserved.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+IBD2SDI [-v] [-c <strict-check>] [-d <dump file name>] [-n] filename1 [filenames]
+See http://dev.mysql.com/doc/refman/5.8/en/ibd2sdi.html for usage hints.
+  -h, --help          Display this help and exit.
+  -v, --version       Display version information and exit.
+  -d, --dump-file=name 
+                      Dump the tablespace SDI into the file passed by user.
+                      Without the filename, it will default to stdout
+  -r, --read=#        Read from this Copy of SDI in tablespace.
+  -s, --skip-data     Skip retrieving data from SDI records. Retrieve only id
+                      and type.
+  -i, --id=#          Retrieve the SDI record matching the id passed by user.
+  -t, --type=#        Retrieve the SDI records matching the type passed by
+                      user.
+  -c, --strict-check=name 
+                      Specify the strict checksum algorithm by the user.
+                      Allowed values are innodb, crc32, none.
+  -n, --no-check      Ignore the checksum verification.
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+dump-file                         (No default value)
+read                              0
+skip-data                         FALSE
+id                                0
+type                              0
+strict-check                      crc32
+no-check                          FALSE
+# 12. Print all records
+# 13. Retrieve explicit id & type
+[
+ ["ibd2sdi", {"id":3, "type":3}],
+ [abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz]
+],
+# 14. Skip data and retrieve
+# 15. Dump all records into outfile
+# 16. Print all records matching type (short option)
+[
+ ["ibd2sdi", {"id":0, "type":0}],
+ [abcdefghijklmnopqrstuvwxyz]
+],
+# 17. Print all records matching id (long option)
+[
+ ["ibd2sdi", {"id":3, "type":3}],
+ [abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz]
+],
+# 18. Pass --no-check & --strict-check together
+[ERROR] ibd2sdi: Invalid combination of options. Cannot use --no-check & --strict-check together.
+# 19. Test for reading form more than one copy example (invalid): -r 0,1
+ibd2sdi: [ERROR] Unknown suffix ',' used for variable 'read' (value '0,1')
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '0,1' to 'read'
+# 20. Test for Test for invalid values for -r or --read like
+# 20.1 non numeric/Alphanumeric
+ibd2sdi: [ERROR] Unknown suffix 'a' used for variable 'read' (value 'a')
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value 'a' to 'read'
+# 20.2 numbers with +/-
+# 20.3 with special characters
+ibd2sdi: [ERROR] Unknown suffix '@' used for variable 'read' (value '@')
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '@' to 'read'
+ibd2sdi: [ERROR] Unknown suffix '@' used for variable 'type' (value '@')
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '@' to 'type'
+ibd2sdi: [ERROR] Unknown suffix '=' used for variable 'type' (value '=')
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '=' to 'type'
+# 20.4 with no permitted values
+# 20.5 with very long value
+ibd2sdi: [ERROR] Incorrect unsigned integer value: '14324932470234893204293032'
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '14324932470234893204293032' to 'read'
+# 20.6 with blank value
+ibd2sdi: [ERROR] IBD2SDI: Empty value for 'read' specified
+# 20.7 value with spaces
+ibd2sdi: [ERROR] IBD2SDI: Empty value for 'read' specified
+# 21. With misspelled --read
+ibd2sdi: [ERROR] unknown variable 'red=0'
+# 22. Test --type option with
+# 22.1 non numeric/Alphanumeric
+ibd2sdi: [ERROR] Unknown suffix 'a' used for variable 'type' (value 'a')
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value 'a' to 'type'
+ibd2sdi: [ERROR] Unknown suffix 'b' used for variable 'type' (value 'b')
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value 'b' to 'type'
+# 22.2 numbers with +/-
+# 22.4 with no permitted values
+# 22.5 with very long value
+ibd2sdi: [ERROR] Incorrect unsigned integer value: '14324932470234893204293032'
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '14324932470234893204293032' to 'type'
+# 22.6 with blank value
+ibd2sdi: [ERROR] IBD2SDI: Empty value for 'type' specified
+# 22.7 value with spaces
+ibd2sdi: [ERROR] IBD2SDI: Empty value for 'type' specified
+# 23. Test for reading form more than type example (invalid): -t 0,1
+ibd2sdi: [ERROR] Unknown suffix ',' used for variable 'type' (value '0,1')
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '0,1' to 'type'
+ibd2sdi: [ERROR] Unknown suffix ',' used for variable 'type' (value '2,3')
+ibd2sdi: [ERROR] IBD2SDI: Error while setting value '2,3' to 'type'
+# 24. With misspelled --type
+ibd2sdi: [ERROR] unknown variable 'tpe=0'
+# 25. With Invalid file types
+# 25.1 With non IBD file
+[ERROR] ibd2sdi:  Unable to read the page header of 1024 bytes.
+[ERROR] ibd2sdi:  Bytes read was 5.
+# 25.2 with non existant file
+[ERROR] ibd2sdi: Unable to get file stats non_existant_file.txt.
+[ERROR] ibd2sdi: File doesn't exist.
+# 25.3 with empty file
+[ERROR] ibd2sdi:  Unable to read the page header of 1024 bytes.
+[ERROR] ibd2sdi:  Bytes read was 0.
 # restart

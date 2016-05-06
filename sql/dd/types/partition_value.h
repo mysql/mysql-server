@@ -28,6 +28,7 @@ namespace dd {
 class Column;
 class Object_type;
 class Partition;
+class Partition_value_impl;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -36,6 +37,7 @@ class Partition_value : virtual public Weak_object
 public:
   static const Object_type &TYPE();
   static const Object_table &OBJECT_TABLE();
+  typedef Partition_value_impl Impl;
 
 public:
   virtual ~Partition_value()
@@ -45,8 +47,7 @@ public:
   // Partition.
   /////////////////////////////////////////////////////////////////////////
 
-  const Partition &partition() const
-  { return const_cast<Partition_value *> (this)->partition(); }
+  virtual const Partition &partition() const = 0;
 
   virtual Partition &partition() = 0;
 
@@ -84,12 +85,6 @@ public:
 
   virtual bool is_value_null() const = 0;
   virtual void set_value_null(bool is_null) = 0;
-
-  /////////////////////////////////////////////////////////////////////////
-  // Drop this Partition-value from the collection.
-  /////////////////////////////////////////////////////////////////////////
-
-  virtual void drop() = 0;
 
 
   /**

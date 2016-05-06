@@ -39,7 +39,6 @@
 
 #include "dd/dd_schema.h"               // dd::Schema_MDL_locker
 #include "dd/dd_event.h"
-#include "dd/iterator.h"                // dd::Iterator
 #include "dd/cache/dictionary_client.h"
 
 #include "mysql/psi/mysql_sp.h"

@@ -226,7 +226,7 @@ void keyring_key_store_deinit(UDF_INIT *initid)
 /**
   Implementation of the UDF:
   INT keyring_key_store(STRING key_id, STRING key_type, STRING key)
-  @return 0 on success, NULL on failure
+  @return 1 on success, NULL and error on failure
 */
 PLUGIN_EXPORT
 long long keyring_key_store(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
@@ -237,7 +237,7 @@ long long keyring_key_store(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
   if(get_current_user(&current_user))
   {
     *error= 1;
-    return 1;
+    return 0;
   }
 
   if(my_key_store(args->args[0], args->args[1], current_user.c_str(),
@@ -245,9 +245,11 @@ long long keyring_key_store(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
   {
     my_error(ER_KEYRING_UDF_KEYRING_SERVICE_ERROR, MYF(0), "keyring_key_store");
     *error= 1;
+    return 0;
   }
 
-  return *error;
+  // For the UDF 1 == success, 0 == failure.
+  return 1;
 }
 
 static my_bool fetch(const char* function_name, char *key_id, char **a_key,
@@ -431,7 +433,8 @@ long long keyring_key_length_fetch(UDF_INIT *initid, UDF_ARGS *args, char *is_nu
   if(key != NULL)
     my_free(key);
 
-  return key_len;
+  // For the UDF 0 == failure.
+  return (*error) ? 0 : key_len;
 }
 
 PLUGIN_EXPORT
@@ -448,7 +451,7 @@ void keyring_key_remove_deinit(UDF_INIT *initid)
 /**
   Implementation of the UDF:
   INT keyring_key_remove(STRING key_id)
-  @return 0 on success, NULL on failure
+  @return 1 on success, NULL on failure
 */
 PLUGIN_EXPORT
 long long keyring_key_remove(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
@@ -458,17 +461,16 @@ long long keyring_key_remove(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
   if (get_current_user(&current_user))
   {
     *error=1;
-    return 1;
+    return 0;
   }
   if (my_key_remove(args->args[0], current_user.c_str()))
   {
     my_error(ER_KEYRING_UDF_KEYRING_SERVICE_ERROR, MYF(0), "keyring_key_remove");
-
     *error= 1;
-    return 1;
+    return 0;
   }
   *error= 0;
-  return 0;
+  return 1;
 }
 
 PLUGIN_EXPORT
@@ -486,7 +488,7 @@ void keyring_key_generate_deinit(UDF_INIT *initid)
 /**
   Implementation of the UDF:
   STRING keyring_key_generate(STRING key_id, STRING key_type, INTEGER key_length)
-  @return ASCII representation of the generated key on success, NULL on failure
+  @return 1 on success, NULL and error on failure
 */
 PLUGIN_EXPORT
 long long keyring_key_generate(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
@@ -494,7 +496,7 @@ long long keyring_key_generate(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
 {
   std::string current_user;
   if (get_current_user(&current_user))
-    return 1;
+    return 0;
 
   long long key_length= *reinterpret_cast<long long*>(args->args[2]);
 
@@ -502,9 +504,9 @@ long long keyring_key_generate(UDF_INIT *initid, UDF_ARGS *args, char *is_null,
                       key_length))
   {
     my_error(ER_KEYRING_UDF_KEYRING_SERVICE_ERROR, MYF(0), "keyring_key_generate");
-
     *error= 1;
-    return 1;
+    // For the UDF 1 == success, 0 == failure.
+    return 0;
   }
-  return 0;
+  return 1;
 }

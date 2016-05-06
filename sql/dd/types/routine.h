@@ -32,12 +32,10 @@ class Parameter;
 class Properties;
 class Routine_name_key;
 
-typedef Iterator<Parameter>           Parameter_iterator;
-typedef Iterator<const Parameter>     Parameter_const_iterator;
-
 namespace tables {
   class Routines;
 }
+
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -61,6 +59,7 @@ public:
   typedef Primary_id_key id_key_type;
   typedef Routine_name_key name_key_type;
   typedef Void_key aux_key_type;
+  typedef Collection<Parameter *> Parameter_collection;
 
   // We need a set of functions to update a preallocated key.
   virtual bool update_id_key(id_key_type *key) const
@@ -206,9 +205,7 @@ public:
 
   virtual Parameter *add_parameter() = 0;
 
-  virtual Parameter_const_iterator *parameters() const = 0;
-
-  virtual Parameter_iterator *parameters() = 0;
+  virtual const Parameter_collection &parameters() const = 0;
 
   /**
     Allocate a new object graph and invoke the copy contructor for

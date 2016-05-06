@@ -29,6 +29,7 @@ class Object_type;
 class Object_table;
 class Properties;
 class Tablespace;
+class Tablespace_file_impl;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -37,6 +38,7 @@ class Tablespace_file : virtual public Weak_object
 public:
   static const Object_type &TYPE();
   static const Object_table &OBJECT_TABLE();
+  typedef Tablespace_file_impl Impl;
 
 public:
   virtual ~Tablespace_file()
@@ -59,8 +61,7 @@ public:
   // se_private_data.
   /////////////////////////////////////////////////////////////////////////
 
-  const Properties &se_private_data() const
-  { return const_cast<Tablespace_file *> (this)->se_private_data(); }
+  virtual const Properties &se_private_data() const = 0;
 
   virtual Properties &se_private_data() = 0;
   virtual bool set_se_private_data_raw(const std::string &se_private_data_raw) = 0;
@@ -69,16 +70,9 @@ public:
   // tablespace.
   /////////////////////////////////////////////////////////////////////////
 
-  const Tablespace &tablespace() const
-  { return const_cast<Tablespace_file *> (this)->tablespace(); }
+  virtual const Tablespace &tablespace() const = 0;
 
   virtual Tablespace &tablespace() = 0;
-
-  /////////////////////////////////////////////////////////////////////////
-  // Drop this tablespace-file from the collection.
-  /////////////////////////////////////////////////////////////////////////
-
-  virtual void drop() = 0;
 
 
   /**

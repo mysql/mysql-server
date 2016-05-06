@@ -29,9 +29,9 @@ namespace dd {
 class Index;
 class Object_type;
 class Partition;
-class Tablespace;
-
+class Partition_index_impl;
 class Properties;
+class Tablespace;
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -40,6 +40,7 @@ class Partition_index : virtual public Weak_object
 public:
   static const Object_type &TYPE();
   static const Object_table &OBJECT_TABLE();
+  typedef Partition_index_impl Impl;
 
 public:
   virtual ~Partition_index()
@@ -49,8 +50,7 @@ public:
   // Partition.
   /////////////////////////////////////////////////////////////////////////
 
-  const Partition &partition() const
-  { return const_cast<Partition_index *> (this)->partition(); }
+  virtual const Partition &partition() const = 0;
 
   virtual Partition &partition() = 0;
 
@@ -58,8 +58,7 @@ public:
   // Index.
   /////////////////////////////////////////////////////////////////////////
 
-  const Index &index() const
-  { return const_cast<Partition_index *> (this)->index(); }
+  virtual const Index &index() const = 0;
 
   virtual Index &index() = 0;
 
@@ -70,8 +69,7 @@ public:
   // Options.
   /////////////////////////////////////////////////////////////////////////
 
-  const Properties &options() const
-  { return const_cast<Partition_index *> (this)->options(); }
+  virtual const Properties &options() const = 0;
 
   virtual Properties &options() = 0;
   virtual bool set_options_raw(const std::string &options_raw) = 0;
@@ -80,8 +78,7 @@ public:
   // se_private_data.
   /////////////////////////////////////////////////////////////////////////
 
-  const Properties &se_private_data() const
-  { return const_cast<Partition_index *> (this)->se_private_data(); }
+  virtual const Properties &se_private_data() const = 0;
 
   virtual Properties &se_private_data() = 0;
   virtual bool set_se_private_data_raw(
@@ -95,12 +92,6 @@ public:
 
   virtual Object_id tablespace_id() const = 0;
   virtual void set_tablespace_id(Object_id tablespace_id) = 0;
-
-  /////////////////////////////////////////////////////////////////////////
-  // Drop this partition_index from the collection.
-  /////////////////////////////////////////////////////////////////////////
-
-  virtual void drop() = 0;
 
 
   /**

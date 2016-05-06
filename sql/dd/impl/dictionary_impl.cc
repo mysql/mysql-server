@@ -20,7 +20,6 @@
 #include "opt_costconstantcache.h"         // init_optimizer_cost_module
 #include "sql_class.h"                     // THD
 
-#include "dd/iterator.h"                   // dd::Iterator
 #include "dd/cache/dictionary_client.h"    // dd::Dictionary_client
 #include "dd/impl/bootstrapper.h"          // dd::Bootstrapper
 #include "dd/impl/system_registry.h"       // dd::System_tables

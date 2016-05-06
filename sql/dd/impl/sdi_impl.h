@@ -23,7 +23,6 @@
 #include "prealloced_array.h" // Prealloced_array
 
 #include "dd/impl/types/weak_object_impl.h" // Weak_object_impl
-#include "dd/types/fwd.h"                   // sdi_t
 #include "dd/object_id.h"                   // Object_id typedef
 
 #define RAPIDJSON_NO_SIZETYPEDEFINE
@@ -66,7 +65,10 @@ namespace rapidjson { typedef ::std::size_t SizeType; }
 */
 
 namespace dd {
+class Column;
+class Index;
 class Properties;
+template <typename T> class Collection;
 /**
    Factory function for creating a Property object from std::string.
 
@@ -522,19 +524,16 @@ bool deserialize_tablespace_ref(dd::Sdi_rcontext *rctx, dd::Object_id *p,
 
 
 template <typename W, typename C>
-void serialize_each(dd::Sdi_wcontext *wctx, W *w, const C *cp,
+void serialize_each(dd::Sdi_wcontext *wctx, W *w, const dd::Collection<C*> &cp,
                     const char *key, size_t keysz)
 {
   w->String(key, keysz);
   w->StartArray();
-  typedef typename C::const_iterator_type IT;
-  typedef typename C::value_type VT;
-  std::unique_ptr<IT> it(cp->const_iterator(true));
-  for (const VT *vp= it->next(); vp; vp= it->next())
+  for (const C *vp : cp)
   {
     vp->serialize(wctx, w);
   }
-  w->EndArray(cp->size());
+  w->EndArray(cp.size());
 }
 
 template <typename ADD_BINDER, typename GV>

@@ -55,7 +55,7 @@ Created 12/19/1997 Heikki Tuuri
 #include "ha_prototypes.h"
 #include "srv0mon.h"
 #include "ut0new.h"
-#include "lob.h"
+#include "lob0lob.h"
 
 /* Maximum number of rows to prefetch; MySQL interface has another parameter */
 #define SEL_MAX_N_PREFETCH	16
@@ -123,7 +123,7 @@ row_sel_sec_rec_is_for_blob(
 		return(FALSE);
 	}
 
-	len = btr_copy_externally_stored_field_prefix(
+	len = lob::btr_copy_externally_stored_field_prefix(
 		buf, prefix_len, dict_tf_get_page_size(table->flags),
 		clust_field, dict_table_is_sdi(table->id), clust_len);
 
@@ -287,7 +287,7 @@ row_sel_sec_rec_is_for_clust_rec(
 			/* For externally stored field, we need to get full
 			geo data to generate the MBR for comparing. */
 			if (rec_offs_nth_extern(clust_offs, clust_pos)) {
-				dptr = btr_copy_externally_stored_field(
+				dptr = lob::btr_copy_externally_stored_field(
 					&clust_len, dptr,
 					dict_tf_get_page_size(
 						sec_index->table->flags),
@@ -511,7 +511,7 @@ row_sel_fetch_columns(
 
 				heap = mem_heap_create(1);
 
-				data = btr_rec_copy_externally_stored_field(
+				data = lob::btr_rec_copy_externally_stored_field(
 					rec, offsets,
 					dict_table_page_size(index->table),
 					field_no, &len,
@@ -2982,7 +2982,7 @@ row_sel_store_mysql_field_func(
 		already run out of memory in the next call, which
 		causes an assert */
 
-		data = btr_rec_copy_externally_stored_field(
+		data = lob::btr_rec_copy_externally_stored_field(
 			rec, offsets,
 			dict_table_page_size(prebuilt->table),
 			field_no, &len, dict_index_is_sdi(index), heap);

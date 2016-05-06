@@ -36,7 +36,6 @@ SET(INNOBASE_SOURCES
 	api/api0misc.cc
 	btr/btr0btr.cc
 	btr/btr0cur.cc
-	btr/lob.cc
 	btr/btr0pcur.cc
 	btr/btr0sea.cc
 	btr/btr0bulk.cc
@@ -85,6 +84,7 @@ SET(INNOBASE_SOURCES
 	handler/handler0alter.cc
 	handler/i_s.cc
 	ibuf/ibuf0ibuf.cc
+	lob/lob0lob.cc
 	lock/lock0iter.cc
 	lock/lock0prdt.cc
 	lock/lock0lock.cc

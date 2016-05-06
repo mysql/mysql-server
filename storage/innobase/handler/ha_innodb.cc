@@ -59,7 +59,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <dd/types/tablespace.h>
 #include <dd/properties.h>
 
-#include "dd/iterator.h"
 #include "dd/properties.h"
 #include "dd/sdi_tablespace.h"    // dd::sdi_tablespace::store
 #include "dd/types/table.h"
@@ -120,10 +119,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0xa.h"
 #include "ut0mem.h"
 #include "row0ext.h"
+#include "lob0lob.h"
 
 #include "ha_innodb.h"
 #include "i_s.h"
 #include "sync0sync.h"
+
 /* for ha_innopart, Native InnoDB Partitioning. */
 #include "ha_innopart.h"
 
@@ -157,8 +158,11 @@ static long innobase_open_files;
 static long innobase_autoinc_lock_mode;
 static ulong innobase_commit_concurrency = 0;
 
+static long long innobase_buffer_pool_size;
 static ulong		innodb_log_buffer_size;
 static ulonglong	innodb_log_file_size;
+
+extern thread_local_key_t ut_rnd_ulint_counter_key;
 
 /** Percentage of the buffer pool to reserve for 'old' blocks.
 Connected to buf_LRU_old_ratio. */
@@ -1331,6 +1335,7 @@ innodb_shutdown(
 		mysql_cond_destroy(&commit_cond);
 	}
 
+	my_delete_thread_local_key(ut_rnd_ulint_counter_key);
 	DBUG_RETURN(0);
 }
 
@@ -3699,7 +3704,7 @@ innodb_buffer_pool_size_init()
 	}
 
 	srv_buf_pool_size = buf_pool_size_align(srv_buf_pool_size);
-	srv_buf_pool_curr_size = srv_buf_pool_size;
+	innobase_buffer_pool_size = static_cast<long long>(srv_buf_pool_size);
 }
 
 /** Initialize, validate and normalize the InnoDB startup parameters.
@@ -3716,6 +3721,17 @@ innodb_init_params()
 	static char	current_dir[3];
 	char		*default_path;
 	ulong		num_pll_degree;
+
+	/* Check that values don't overflow on 32-bit systems. */
+	if (sizeof(ulint) == 4) {
+		if (innobase_buffer_pool_size > UINT_MAX32) {
+			sql_print_error(
+				"innodb_buffer_pool_size can't be over 4GB"
+				" on 32-bit systems");
+
+			DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+		}
+	}
 
 	/* First calculate the default path for innodb_data_home_dir etc.,
 	in case the user has not given any value.
@@ -3870,7 +3886,7 @@ innodb_init_params()
 		}
 	}
 
-	srv_buf_pool_size = srv_buf_pool_curr_size;
+	srv_buf_pool_size = (ulint) innobase_buffer_pool_size;
 
 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
 
@@ -4048,8 +4064,8 @@ innodb_init_params()
 	if (srv_buf_pool_size_org != 0) {
 		srv_buf_pool_size_org =
 			buf_pool_size_align(srv_buf_pool_size_org);
-		srv_buf_pool_curr_size =
-			srv_buf_pool_size_org;
+		innobase_buffer_pool_size =
+			static_cast<long long>(srv_buf_pool_size_org);
 	}
 
 	if (srv_n_page_cleaners > srv_buf_pool_instances) {
@@ -4075,6 +4091,11 @@ innodb_init(
 	void	*p)
 {
 	DBUG_ENTER("innodb_init");
+
+	/* Create key for setting ut_rnd_ulint_counter for spin lock
+	delay as thread local. */
+	my_create_thread_local_key(&ut_rnd_ulint_counter_key,NULL);
+
 	handlerton* innobase_hton= (handlerton*) p;
 	innodb_hton_ptr = innobase_hton;
 
@@ -4219,11 +4240,26 @@ innobase_init_files(
 	dict_init_mode_t	dict_init_mode)
 {
 	DBUG_ENTER("innobase_init_files");
-	bool	create_new_db = false;
+
+	bool create_new_db = false;
+
+	switch (dict_init_mode) {
+	case DICT_INIT_CREATE_FILES:
+		create_new_db = true;
+		break;
+	case DICT_INIT_CHECK_FILES:
+		create_new_db = false;
+		break;
+	case DICT_INIT_CREATE_MISSING_FILES:
+	case DICT_INIT_IGNORE_FILES:
+		/* Unused modes. */
+		create_new_db = false;
+		ut_error;
+	}
 
 	/* Check if the data files exist or not. */
 	dberr_t	err = srv_sys_space.check_file_spec(
-		&create_new_db, MIN_EXPECTED_TABLESPACE_SIZE);
+		create_new_db, MIN_EXPECTED_TABLESPACE_SIZE);
 
 	if (err != DB_SUCCESS) {
 		DBUG_RETURN(innodb_init_abort());
@@ -7642,6 +7678,7 @@ dberr_t
 ha_innobase::innobase_lock_autoinc(void)
 /*====================================*/
 {
+	DBUG_ENTER("ha_innobase::innobase_lock_autoinc");
 	dberr_t		error = DB_SUCCESS;
 	long		lock_mode = innobase_autoinc_lock_mode;
 
@@ -7685,6 +7722,8 @@ ha_innobase::innobase_lock_autoinc(void)
 		/* Fall through to old style locking. */
 
 	case AUTOINC_OLD_STYLE_LOCKING:
+		DBUG_EXECUTE_IF("die_if_autoinc_old_lock_style_used",
+				ut_ad(0););
 		error = row_lock_table_autoinc_for_mysql(m_prebuilt);
 
 		if (error == DB_SUCCESS) {
@@ -7698,7 +7737,7 @@ ha_innobase::innobase_lock_autoinc(void)
 		ut_error;
 	}
 
-	return(error);
+	DBUG_RETURN(error);
 }
 
 /********************************************************************//**
@@ -11489,7 +11528,7 @@ innobase_dict_init(
 	tablespaces->push_back(&innodb_sys);
 	tablespaces->push_back(&mysql_dd);
 
-	DBUG_RETURN(innobase_init_files(DICT_INIT_IGNORE_FILES));
+	DBUG_RETURN(innobase_init_files(dict_init_mode));
 }
 
 /** Parse the table name into normal name and remote path if needed.
@@ -12537,9 +12576,7 @@ ha_innobase::get_se_private_data(
 #ifdef UNIV_DEBUG
 	{
 		/* These tables must not be partitioned. */
-		std::unique_ptr<dd::Iterator<dd::Partition> > p(
-			dd_table->partitions());
-		DBUG_ASSERT(!p->next());
+		DBUG_ASSERT(dd_table->partitions().is_empty());
 	}
 
 	const innodb_dd_table_t&	data = innodb_dd_table[n_tables];
@@ -12549,9 +12586,7 @@ ha_innobase::get_se_private_data(
 
 	dd_table->set_se_private_id(++n_tables + DICT_HDR_FIRST_ID);
 
-	std::unique_ptr<dd::Iterator<dd::Index> > it(dd_table->indexes());
-
-	while (dd::Index* i = it->next()) {
+	for (dd::Index *i : *dd_table->indexes()) {
 		uint32	root_page = 270 + n_pages++;
 		n_indexes++;
 		i->se_private_data().set_uint32("root", root_page);
@@ -14225,16 +14260,16 @@ longlong
 ha_innobase::get_memory_buffer_size() const
 /*=======================================*/
 {
-	return(srv_buf_pool_curr_size);
+	return(innobase_buffer_pool_size);
 }
 
 /** Update the system variable with the given value of the InnoDB
 buffer pool size.
 @param[in]	buf_pool_size	given value of buffer pool size.*/
 void
-innodb_set_buf_pool_size(ulint buf_pool_size)
+innodb_set_buf_pool_size(ulonglong buf_pool_size)
 {
-	srv_buf_pool_curr_size = buf_pool_size;
+	innobase_buffer_pool_size = buf_pool_size;
 }
 
 /*********************************************************************//**
@@ -19538,14 +19573,14 @@ BUF_POOL_SIZE_THRESHOLD (srv/srv0start.cc), then srv_buf_pool_instances_default
 can be removed and 8 used instead. The problem with the current setup is that
 with 128MiB default buffer pool size and 8 instances by default we would emit
 a warning when no options are specified. */
-static MYSQL_SYSVAR_ULONG(buffer_pool_size, srv_buf_pool_curr_size,
+static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   PLUGIN_VAR_RQCMDARG,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
   innodb_buffer_pool_size_validate,
   innodb_buffer_pool_size_update,
-  srv_buf_pool_def_size,
-  srv_buf_pool_min_size,
-  LONG_MAX, 1024*1024);
+  static_cast<longlong>(srv_buf_pool_def_size),
+  static_cast<longlong>(srv_buf_pool_min_size),
+  LLONG_MAX, 1024*1024L);
 
 static MYSQL_SYSVAR_ULONG(buffer_pool_chunk_size, srv_buf_pool_chunk_unit,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -20573,7 +20608,7 @@ innobase_get_computed_value(
 				*local_heap = mem_heap_create(UNIV_PAGE_SIZE);
 			}
 
-			data = btr_copy_externally_stored_field(
+			data = lob::btr_copy_externally_stored_field(
 				&len, data, page_size,
 				dfield_get_len(row_field), false, *local_heap);
 		}
@@ -21002,20 +21037,6 @@ innodb_buffer_pool_size_validate(
 				    " to less than 1GB if"
 				    " innodb_buffer_pool_instances > 1.");
 		return(1);
-	}
-
-	if (sizeof(ulint) == 4) {
-		if (intbuf > UINT_MAX32) {
-			const char*	intbuf_char;
-			char            buff[1024];
-			int             len = sizeof(buff);
-
-			intbuf_char = value->val_str(value, buff, &len);
-
-			my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0),
-			"innodb_buffer_pool_size", intbuf_char);
-			return(1);
-		}
 	}
 
 	ulint	requested_buf_pool_size

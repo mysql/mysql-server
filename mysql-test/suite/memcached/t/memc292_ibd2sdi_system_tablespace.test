@@ -122,22 +122,74 @@ SET GLOBAL innodb_limit_optimistic_insert_debug = default;
 --echo # Section I: Test options
 --source ../include/ibd2sdi_common.inc
 
-# Start server
+--echo #
+--echo # Bug#23036141 - IBD2SDI DOESN'T WORK IF ANY DATAFILE IS SMALLER THAN PREVIOUS DATAFILE
+--echo #
+
+let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1/;
+perl;
+use File::Path;
+my $tempdir= $ENV{'CLEANUP_FOLDER'};
+die "usage: $0 dir ..\n" unless $tempdir;
+foreach $dir ($tempdir) {
+    rmtree($dir);
+}
+EOF
+
+--mkdir $MYSQL_TMP_DIR/datadir1
+
+# Create bootstrap file
+write_file $BOOTSTRAP_SQL;
+CREATE DATABASE test;
+EOF
+
+let $BOOTSTRAP_CMD = $MYSQLD --no-defaults --initialize-insecure --lc_messages_dir=$MYSQL_SHAREDIR  --innodb_data_file_path="ibdata1:16M;ibdata2:2M:autoextend" --datadir=$MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2 --init-file=$BOOTSTRAP_SQL --innodb_undo_tablespaces=0 --innodb-page-size=$start_page_size </dev/null>$MYSQLTEST_VARDIR/tmp/bootstrap.log 2>&1;
+
+# Run the bootstrap command
+--exec $BOOTSTRAP_CMD
+
+--remove_file $BOOTSTRAP_SQL
+
+# Start the DB server
 --replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--let $restart_parameters="restart: --datadir=$MYSQLD_DATADIR1 --innodb_data_file_path='ibdata1:16M;ibdata2:2M:autoextend' --innodb_log_file_size=5M --innodb_log_files_in_group=2 --innodb_undo_tablespaces=0"
 --source include/start_mysqld.inc
 
-DROP TABLE t1;
+--disable_query_log
+source include/memcache_config.inc;
+--enable_query_log
 
-# Stop plugin befor innodb_memcached configuration
-UNINSTALL PLUGIN daemon_memcached;
+INSERT INTO cache_policies VALUES('cache_policy', 'innodb_only',
+				  'innodb_only', 'innodb_only', 'innodb_only');
 
-DROP DATABASE innodb_memcache;
-SET GLOBAL tx_isolation = default;
-SET GLOBAL innodb_file_per_table = default;
+INSERT INTO config_options VALUES('separator', '|');
+
+# describe table for memcache
+INSERT INTO containers VALUES ('desc_t1', 'test', 't1',
+			       'c1', 'c2', '0', '0', '0', 'PRIMARY');
+
+SET GLOBAL innodb_file_per_table=OFF;
+USE test;
+CREATE TABLE t1(c1 VARCHAR(32),
+	c2 TEXT,
+	primary key(c1))
+ENGINE = INNODB;
+
+# Tables must exist before plugin can be started!
+INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
+
+--source ../include/create_ibd2sdi_data_large.inc
+
+# Shutdown server
+--source include/shutdown_mysqld.inc
+
+--echo # Section I: Test options
+--source ../include/ibd2sdi_common.inc
+
 --remove_file $DUMP_FILE
 --remove_file $MYSQLTEST_VARDIR/log/large_ibd2sdi.err
 let $restart_parameters=;
---source include/restart_mysqld.inc
+--source include/start_mysqld.inc
 let CLEANUP_FOLDER=$MYSQL_TMP_DIR/datadir1/;
 perl;
 use File::Path;

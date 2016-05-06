@@ -36,7 +36,7 @@ Created 2011-05-26 Marko Makela
 #include "ut0new.h"
 #include "ut0stage.h"
 #include "trx0rec.h"
-#include "lob.h"
+#include "lob0lob.h"
 
 #include <algorithm>
 #include <map>
@@ -1138,7 +1138,7 @@ row_log_table_get_pk_col(
 		blob_field = static_cast<byte*>(
 			mem_heap_alloc(heap, field_len));
 
-		len = btr_copy_externally_stored_field_prefix(
+		len = lob::btr_copy_externally_stored_field_prefix(
 			blob_field, field_len, page_size, field, false, len);
 
 		if (len >= max_len + 1) {
@@ -1519,7 +1519,7 @@ row_log_table_apply_convert_mrec(
 
 				ulint	page_no = mach_read_from_4(
 					data + len - (BTR_EXTERN_FIELD_REF_SIZE
-						      - BTR_EXTERN_PAGE_NO));
+						      - lob::BTR_EXTERN_PAGE_NO));
 				page_no_map::const_iterator p = blobs->find(
 					page_no);
 				if (p != blobs->end()
@@ -1533,7 +1533,7 @@ row_log_table_apply_convert_mrec(
 				}
 			}
 
-			data = btr_rec_copy_externally_stored_field(
+			data = lob::btr_rec_copy_externally_stored_field(
 				mrec, offsets,
 				dict_table_page_size(index->table),
 				i, &len, false, heap);
@@ -2270,9 +2270,9 @@ func_exit_committed:
 
 	if (big_rec) {
 		if (error == DB_SUCCESS) {
-			error = btr_store_big_rec_extern_fields(
+			error = lob::btr_store_big_rec_extern_fields(
 				&pcur, update, cur_offsets, big_rec, &mtr,
-				BTR_STORE_UPDATE);
+				lob::OPCODE_UPDATE);
 		}
 
 		dtuple_big_rec_free(big_rec);

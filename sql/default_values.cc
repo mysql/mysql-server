@@ -23,7 +23,6 @@
 #include "sql_class.h"         // THD
 #include "sql_list.h"          // List
 
-#include "dd/iterator.h"       // dd::Iterator
 #include "dd/properties.h"     // dd::Properties
 #include "dd/types/column.h"   // dd::Column
 #include "dd/types/table.h"    // dd::Table
@@ -64,10 +63,10 @@ static size_t column_pack_length(const dd::Column &col_obj)
                                   col_obj.char_length());
     break;
   case dd::enum_column_types::ENUM:
-    pack_length= get_enum_pack_length(col_obj.enum_elements_count());
+    pack_length= get_enum_pack_length(col_obj.elements_count());
     break;
   case dd::enum_column_types::SET:
-    pack_length= get_set_pack_length(col_obj.set_elements_count());
+    pack_length= get_set_pack_length(col_obj.elements_count());
     break;
   case dd::enum_column_types::BIT:
     {
@@ -133,10 +132,12 @@ static bool find_record_length(const dd::Table &table, size_t min_length,
   ulong leftover_bits= pack_record ? 0 : 1;
 
   // Loop over columns, count nullable and bit fields and find record length.
-  std::unique_ptr<dd::Column_const_iterator> col_it(table.user_columns());
-  for (const dd::Column *col_obj= col_it->next(); col_obj != NULL;
-       col_obj= col_it->next(), share->fields++)
+  for (const dd::Column *col_obj : table.columns())
   {
+    // Skip hidden columns
+    if (col_obj->is_hidden())
+      continue;
+
     // Check if the field may be NULL.
     if (col_obj->is_nullable())
       share->null_fields++;
@@ -155,6 +156,7 @@ static bool find_record_length(const dd::Table &table, size_t min_length,
 
     // Increment record length.
     share->reclength+= column_pack_length(*col_obj);
+    share->fields++;
   }
 
   // Find preamble length and add it to the total record length.

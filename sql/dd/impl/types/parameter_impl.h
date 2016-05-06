@@ -19,10 +19,10 @@
 #include "my_global.h"
 
 #include "dd/properties.h"                    // dd::Properties
-#include "dd/impl/collection_item.h"          // dd::Collection_item
 #include "dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
 #include "dd/types/object_type.h"             // dd::Object_type
 #include "dd/types/parameter.h"               // dd::Parameter
+#include "dd/types/parameter_type_element.h"  // dd::Parameter_type_element
 
 #include <memory>   // std::unique_ptr
 
@@ -32,19 +32,18 @@ namespace dd {
 
 class Routine;
 class Routine_impl;
-class Parameter_type_element;
-template <typename T> class Collection;
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Parameter_impl : public Entity_object_impl,
-                       public Parameter,
-                       public Collection_item
+                       public Parameter
 {
 public:
-  typedef Collection<Parameter_type_element> Parameter_type_element_collection;
-
   Parameter_impl();
+
+  Parameter_impl(Routine_impl *routine);
+
+  Parameter_impl(const Parameter_impl &src, Routine_impl *parent);
 
   virtual ~Parameter_impl()
   { }
@@ -67,24 +66,8 @@ public:
 
   virtual void debug_print(std::string &outb) const;
 
-public:
-  // Required by Collection_item.
-  virtual bool store(Open_dictionary_tables_ctx *otx)
-  { return Weak_object_impl::store(otx); }
-
-  // Required by Collection_item.
-  virtual bool drop(Open_dictionary_tables_ctx *otx) const
-  { return Weak_object_impl::drop(otx); }
-
-  virtual void drop();
-
-  // Required by Collection_item.
-  virtual void set_ordinal_position(uint ordinal_position)
+  void set_ordinal_position(uint ordinal_position)
   { m_ordinal_position= ordinal_position; }
-
-  // Required by Collection_item.
-  virtual bool is_hidden() const
-  { return false; }
 
 public:
   /////////////////////////////////////////////////////////////////////////
@@ -98,7 +81,7 @@ public:
   { return m_is_name_null; }
 
   /////////////////////////////////////////////////////////////////////////
-  // ordinal_position - Also used by Collection_item
+  // ordinal_position.
   /////////////////////////////////////////////////////////////////////////
 
   virtual uint ordinal_position() const
@@ -213,7 +196,8 @@ public:
   // Options.
   /////////////////////////////////////////////////////////////////////////
 
-  using Parameter::options;
+  virtual const Properties &options() const
+  { return *m_options; }
 
   virtual Properties &options()
   { return *m_options; }
@@ -224,33 +208,25 @@ public:
   // routine.
   /////////////////////////////////////////////////////////////////////////
 
-  using Parameter::routine;
+  virtual const Routine &routine() const;
 
   virtual Routine &routine();
 
   /////////////////////////////////////////////////////////////////////////
-  // Enum-elements.
+  // Elements.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Parameter_type_element *add_enum_element();
+  virtual Parameter_type_element *add_element();
 
-  virtual Parameter_type_element_const_iterator *enum_elements() const;
+  virtual const Parameter_type_element_collection &elements() const
+  {
+    DBUG_ASSERT(data_type() == enum_column_types::ENUM ||
+                data_type() == enum_column_types::SET);
+    return m_elements;
+  }
 
-  virtual Parameter_type_element_iterator *enum_elements();
-
-  virtual size_t enum_elements_count() const;
-
-  /////////////////////////////////////////////////////////////////////////
-  // Set-elements.
-  /////////////////////////////////////////////////////////////////////////
-
-  virtual Parameter_type_element *add_set_element();
-
-  virtual Parameter_type_element_const_iterator *set_elements() const;
-
-  virtual Parameter_type_element_iterator *set_elements();
-
-  virtual size_t set_elements_count() const;
+  virtual size_t elements_count() const
+  { return m_elements.size(); }
 
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()
@@ -267,18 +243,16 @@ public:
   { Entity_object_impl::set_name(name); }
 
 public:
-  class Factory : public Collection_item_factory
+  static Parameter_impl *restore_item(Routine_impl *routine)
   {
-  public:
-    Factory(Routine_impl *routine)
-     :m_rt(routine)
-    { }
+    return new (std::nothrow) Parameter_impl(routine);
+  }
 
-    virtual Collection_item *create_item() const;
-
-  private:
-    Routine_impl *m_rt;
-  };
+  static Parameter_impl *clone(const Parameter_impl &other,
+                               Routine_impl *routine)
+  {
+    return new (std::nothrow) Parameter_impl(other, routine);
+  }
 
 private:
   // Fields
@@ -298,8 +272,7 @@ private:
   bool m_numeric_scale_null;
   uint m_datetime_precision;
 
-  std::unique_ptr<Parameter_type_element_collection> m_enum_elements;
-  std::unique_ptr<Parameter_type_element_collection> m_set_elements;
+  Parameter_type_element_collection m_elements;
 
   std::unique_ptr<Properties> m_options;
 
@@ -309,14 +282,6 @@ private:
   // References to loosely-coupled objects.
 
   Object_id m_collation_id;
-
-  Parameter_impl(const Parameter_impl &src, Routine_impl *parent);
-
-public:
-  Parameter_impl *clone(Routine_impl *parent) const
-  {
-    return new Parameter_impl(*this, parent);
-  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

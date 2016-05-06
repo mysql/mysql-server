@@ -3995,7 +3995,8 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   if (cmd_can_generate_row_events)
   {
     cmd_must_go_to_trx_cache= cmd_must_go_to_trx_cache || using_trans;
-    if (cmd_must_go_to_trx_cache || stmt_has_updated_trans_table(thd) ||
+    if (cmd_must_go_to_trx_cache ||
+        stmt_has_updated_trans_table(thd->get_transaction()->ha_trx_info(Transaction_ctx::STMT)) ||
         thd->lex->is_mixed_stmt_unsafe(thd->in_multi_stmt_transaction_mode(),
                                        thd->variables.binlog_direct_non_trans_update,
                                        trans_has_updated_trans_table(thd),
@@ -11184,6 +11185,12 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD * thd)
     thd->reset_current_stmt_binlog_format_row();
 
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, 0);
+
+    /*
+      Clean sql_command value
+    */
+    thd->lex->sql_command= SQLCOM_END;
+
   }
   return error;
 }
@@ -11954,6 +11961,11 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
   if (get_flags(STMT_END_F))
     thd->status_var.com_stat[SQLCOM_INSERT]++;
 
+  /*
+    Let storage engines treat this event as an INSERT command
+  */
+  thd->lex->sql_command= SQLCOM_INSERT;
+
   /**
      todo: to introduce a property for the event (handler?) which forces
      applying the event in the replace (idempotent) fashion.
@@ -12451,6 +12463,12 @@ Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability
    */
   if (get_flags(STMT_END_F))
     thd->status_var.com_stat[SQLCOM_DELETE]++;
+
+  /*
+    Let storage engines treat this event as a DELETE command
+  */
+  thd->lex->sql_command= SQLCOM_DELETE;
+
   error= row_operations_scan_and_key_setup();
   DBUG_RETURN(error);
 
@@ -12572,6 +12590,12 @@ Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability
   */
   if (get_flags(STMT_END_F))
     thd->status_var.com_stat[SQLCOM_UPDATE]++;
+
+  /*
+    Let storage engines treat this event as an UPDATE command
+   */
+  thd->lex->sql_command= SQLCOM_UPDATE;
+
   error= row_operations_scan_and_key_setup();
   DBUG_RETURN(error);
 

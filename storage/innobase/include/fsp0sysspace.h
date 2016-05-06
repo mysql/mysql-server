@@ -98,13 +98,13 @@ public:
 	bool parse_params(const char* filepath_spec, bool supports_raw);
 
 	/** Check the data file specification.
-	@param[out]	create_new_db		true if a new database
+	@param[in]	create_new_db		true if a new database
 	is to be created
 	@param[in]	min_expected_size	expected tablespace
 	size in bytes
 	@return DB_SUCCESS if all OK else error code */
 	dberr_t check_file_spec(
-		bool*	create_new_db,
+		bool	create_new_db,
 		ulint	min_expected_size);
 
 	/** Free the memory allocated by parse() */
@@ -189,14 +189,13 @@ private:
 
 	/** Note that the data file was not found.
 	@param[in]	file		data file object
-	@param[out]	create_new_db	true if a new instance to be created
+	@param[in]	create_new_db	true if a new instance to be created
 	@return DB_SUCCESS or error code */
-	dberr_t file_not_found(Datafile& file, bool* create_new_db);
+	dberr_t file_not_found(Datafile& file, bool create_new_db);
 
 	/** Note that the data file was found.
-	@param[in,out]	file	data file object
-	@return true if a new instance to be created */
-	bool file_found(Datafile& file);
+	@param[in,out]	file	data file object */
+	void file_found(Datafile& file);
 
 	/** Create a data file.
 	@param[in,out]	file	data file object

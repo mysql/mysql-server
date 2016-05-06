@@ -62,6 +62,12 @@ IF(NOT SYSTEM_TYPE)
   ENDIF()
 ENDIF()
 
+# Probobuf 2.6.1 on Sparc. Both gcc and Solaris Studio need this.
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
+    SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
+  ADD_DEFINITIONS(-DSOLARIS_64BIT_ENABLED)
+ENDIF()
+
 # Add explicit dependencies when building shared libraries
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
   IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")

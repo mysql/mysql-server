@@ -62,6 +62,7 @@ IF(SSL_DEFINES)
 ENDIF()
 
 SET(DD_SOURCES
+  dd/collection.cc
   dd/dd_event.cc
   dd/dd_routine.cc
   dd/dd_schema.cc
@@ -70,7 +71,6 @@ SET(DD_SOURCES
   dd/dd_view.cc
 
   dd/impl/bootstrapper.cc
-  dd/impl/collection_impl.cc
   dd/impl/dd.cc
   dd/impl/dictionary_impl.cc
   dd/impl/properties_impl.cc
@@ -446,6 +446,14 @@ MY_CHECK_CXX_COMPILER_FLAG("-Wdeprecated-declarations"
 IF(HAVE_DEPRECATED_DECLARATIONS)
   ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
                     COMPILE_FLAGS "-Wno-deprecated-declarations")
+ENDIF()
+
+# Boost source has misleading indentation
+MY_CHECK_CXX_COMPILER_FLAG("-Wmisleading-indentation"
+                           HAVE_MISLEADING_INDENTATION)
+IF(HAVE_MISLEADING_INDENTATION)
+  ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
+                    COMPILE_FLAGS "-Wno-misleading-indentation")
 ENDIF()
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)

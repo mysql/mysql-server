@@ -36,6 +36,7 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 #include "fts0types.h"
 #include "fts0plugin.h"
 #include "ut0new.h"
+#include "lob0lob.h"
 
 #include <iomanip>
 #include <vector>
@@ -1987,7 +1988,8 @@ fts_query_fetch_document(
 				local_len -= BTR_EXTERN_FIELD_REF_SIZE;
 
 				field_len = mach_read_from_4(
-					data + local_len + BTR_EXTERN_LEN + 4);
+					data + local_len
+					+ lob::BTR_EXTERN_LEN + 4);
 			} else {
 				field_len = dfield_get_len(dfield);
 			}
@@ -2016,7 +2018,7 @@ fts_query_fetch_document(
 		ulint		cur_len;
 
 		if (dfield_is_ext(dfield)) {
-			data = btr_copy_externally_stored_field(
+			data = lob::btr_copy_externally_stored_field(
 				&cur_len, data, phrase->page_size,
 				dfield_get_len(dfield), false, phrase->heap);
 		} else {

@@ -18,10 +18,10 @@
 
 #include "my_global.h"
 
-#include "dd/impl/collection_impl.h"           // dd::Collection
 #include "dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
 #include "dd/types/dictionary_object_table.h"  // dd::Dictionary_object_table
 #include "dd/types/object_type.h"              // dd::Object_type
+#include "dd/types/parameter.h"                // dd::Parameter
 #include "dd/types/routine.h"                  // dd::Routine
 
 #include <memory>                              // std::unique_ptr
@@ -35,13 +35,9 @@ class Routine_impl : public Entity_object_impl,
                      virtual public Routine
 {
 public:
-  typedef Collection<Parameter> Parameter_collection;
-
-public:
   Routine_impl();
 
-  virtual ~Routine_impl()
-  { }
+  virtual ~Routine_impl();
 
 public:
   virtual const Dictionary_object_table &object_table() const
@@ -223,15 +219,8 @@ public:
 
   virtual Parameter *add_parameter();
 
-  // non virtual
-  Parameter *add_first_parameter();
-
-  virtual Parameter_const_iterator *parameters() const;
-
-  virtual Parameter_iterator *parameters();
-
-  Parameter_collection *parameter_collection()
-  { return m_parameters.get(); }
+  virtual const Parameter_collection &parameters() const
+  { return m_parameters; }
 
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()
@@ -267,7 +256,7 @@ private:
 
   // Collections.
 
-  std::unique_ptr<Parameter_collection> m_parameters;
+  Parameter_collection m_parameters;
 
   // References.
 

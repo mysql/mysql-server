@@ -24,6 +24,12 @@ Created September 2006 Marko Makela
 *******************************************************/
 
 #include "row0ext.h"
+#include "lob0lob.h"
+
+#ifdef UNIV_NONINL
+#include "row0ext.ic"
+#endif
+
 #include "btr0cur.h"
 
 #ifdef UNIV_DEBUG
@@ -55,14 +61,14 @@ row_ext_cache_fill_func(
 					dfield_get_data(dfield));
 	ulint		f_len	= dfield_get_len(dfield);
 	byte*		buf	= ext->buf + i * ext->max_len;
-	blobref_t	blobref(dfield->blobref());
+	lob::ref_t	blobref(dfield->blobref());
 
 	ut_ad(ext->max_len > 0);
 	ut_ad(i < ext->n_ext);
 	ut_ad(dfield_is_ext(dfield));
 	ut_a(f_len >= BTR_EXTERN_FIELD_REF_SIZE);
 
-	if (blobref.is_zero()) {
+	if (blobref.is_null()) {
 		/* The BLOB pointer is not set: we cannot fetch it */
 		ext->len[i] = 0;
 	} else {
@@ -85,7 +91,7 @@ row_ext_cache_fill_func(
 			access a half-deleted BLOB if the server previously
 			crashed during the execution of
 			btr_free_externally_stored_field(). */
-			ext->len[i] = btr_copy_externally_stored_field_prefix(
+			ext->len[i] = lob::btr_copy_externally_stored_field_prefix(
 				buf, ext->max_len, page_size, field, is_sdi,
 				f_len);
 		}
