@@ -162,6 +162,8 @@ static long long innobase_buffer_pool_size;
 static ulong		innodb_log_buffer_size;
 static ulonglong	innodb_log_file_size;
 
+extern thread_local_key_t ut_rnd_ulint_counter_key;
+
 /** Percentage of the buffer pool to reserve for 'old' blocks.
 Connected to buf_LRU_old_ratio. */
 static uint innobase_old_blocks_pct;
@@ -1325,6 +1327,7 @@ innodb_shutdown(
 		mysql_cond_destroy(&commit_cond);
 	}
 
+	my_delete_thread_local_key(ut_rnd_ulint_counter_key);
 	DBUG_RETURN(0);
 }
 
@@ -4086,6 +4089,11 @@ innodb_init(
 	void	*p)
 {
 	DBUG_ENTER("innodb_init");
+
+	/* Create key for setting ut_rnd_ulint_counter for spin lock
+	delay as thread local. */
+	my_create_thread_local_key(&ut_rnd_ulint_counter_key,NULL);
+
 	handlerton* innobase_hton= (handlerton*) p;
 	innodb_hton_ptr = innobase_hton;
 
