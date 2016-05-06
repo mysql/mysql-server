@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,6 +27,10 @@ IF(NOT FORCE_UNSUPPORTED_COMPILER)
       MESSAGE(FATAL_ERROR "GCC 4.4 or newer is required!")
     ENDIF()
   ELSEIF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
+    # CC -V yields
+    # CC: Studio 12.5 Sun C++ 5.14 SunOS_sparc Dodona 2016/04/04
+    # CC: Sun C++ 5.13 SunOS_sparc Beta 2014/03/11
+    # CC: Sun C++ 5.11 SunOS_sparc 2010/08/13
     EXECUTE_PROCESS(
       COMMAND ${CMAKE_CXX_COMPILER} "-V"
       OUTPUT_VARIABLE stdout
@@ -34,6 +38,10 @@ IF(NOT FORCE_UNSUPPORTED_COMPILER)
       RESULT_VARIABLE result
     )
     STRING(REGEX MATCH "CC: Sun C\\+\\+ 5\\.([0-9]+)" VERSION_STRING ${stderr})
+    IF (CMAKE_MATCH_1 STREQUAL "")
+      STRING(REGEX MATCH "CC: Studio 12\\.5 Sun C\\+\\+ 5\\.([0-9]+)"
+        VERSION_STRING ${stderr})
+    ENDIF()
     SET(CC_MINOR_VERSION ${CMAKE_MATCH_1})
     IF(${CC_MINOR_VERSION} LESS 11)
       MESSAGE(FATAL_ERROR "SunStudio 12u2 or newer is required!")
