@@ -106,6 +106,7 @@ template<class FirstLink, class LastLink, class Count> class ListHeadPOD
 : public FirstLink, public LastLink, public Count
 {
 public:
+typedef ListHeadPOD<FirstLink,LastLink,Count> POD;
   void init()
   {
     FirstLink::setFirst(RNIL);
@@ -126,7 +127,11 @@ public:
 #if defined VM_TRACE || defined ERROR_INSERT
   bool in_use;
 #endif
+//  ListHeadPOD() { }
+//  ~ListHeadPOD() { }
 private:
+//  ListHeadPOD(const ListHeadPOD&); // deleted - not copy constructable
+//  ListHeadPOD& operator = (const ListHeadPOD&); // deleted - not copyable
 };
 
 template<class FirstLink, class LastLink, class Count> class ListHead
@@ -136,9 +141,11 @@ public:
   typedef ListHeadPOD<FirstLink, LastLink, Count> POD;
   ListHead() { POD::init(); }
   ~ListHead() { }
-  ListHead(const ListHead& src): POD(src) { }
-  ListHead(const typename ListHead::POD& src): POD(src) { }
+//  ListHead(const ListHead& src): POD(src) { }
+//  ListHead(const typename ListHead::POD& src): POD(src) { }
 private:
+  ListHead(const ListHead&); // deleted
+  ListHead& operator = (const ListHead&); // deleted
 };
 
 class FirstLink
@@ -219,14 +226,23 @@ static void setPrev(U& t, Uint32 v) { t.prevList = v; }
 template<class T2> static void copyPrev(T& t, T2& t2) { setPrev(t, getPrev(t2)); }
 };
 
+template<typename T> struct remove_reference { typedef T type; };
+template<typename T> struct remove_reference<T&> { typedef T type; };
+template<typename T> struct pod { typedef typename T::POD type; };
+template<typename T> struct pod<T&> { typedef typename T::POD& type; };
+
 template<typename T, class Pool, typename THead, class LM = DefaultDoubleLinkMethods<T> > class IntrusiveList
 {
 public:
-typedef THead Head;
-typedef typename THead::POD HeadPOD;
+typedef typename remove_reference<THead>::type Head;
+typedef typename Head::POD HeadPOD;
+#if 0
 class Local;
+#endif
 public:
-  explicit IntrusiveList(Pool& pool, typename THead::POD head): m_pool(pool), m_head(head) { }
+//  explicit IntrusiveList(Pool& pool, typename pod<THead>::type head): m_pool(pool), m_head(head) { }
+//  explicit IntrusiveList(Pool& pool, typename THead::POD head): m_pool(pool), m_head(head) { }
+  explicit IntrusiveList(Pool& pool, THead head): m_pool(pool), m_head(head) { }
   explicit IntrusiveList(Pool& pool): m_pool(pool) { m_head.init(); }
   ~IntrusiveList() { }
 private:
@@ -272,6 +288,7 @@ protected:
   THead m_head;
 };
 
+#if 0
 template<typename T, class Pool, typename THead, class LM>
 class IntrusiveList<T, Pool, THead, LM>::Local: public IntrusiveList<T, Pool, THead, LM>
 {
@@ -298,6 +315,7 @@ private:
 private:
   typename THead::POD& m_src;
 };
+#endif
 
 /* Specialisations */
 
@@ -308,8 +326,8 @@ public: prefix##ListImpl(P& pool): IntrusiveList<T, P, prefix##Head, LM>(pool) {
 }; \
  \
 template <typename P, typename T, typename U = T, typename LM = Default##links##LinkMethods<T, U> > \
-class Local##prefix##ListImpl : public IntrusiveList<T, P, prefix##Head, LM>::Local { \
-public: Local##prefix##ListImpl(P& pool, prefix##Head::POD& head): IntrusiveList<T, P, prefix##Head, LM>::Local(pool, head) { } \
+class Local##prefix##ListImpl : public IntrusiveList<T, P, prefix##Head::POD&, LM> { \
+public: Local##prefix##ListImpl(P& pool, prefix##Head::POD& head): IntrusiveList<T, P, prefix##Head::POD&, LM>(pool, head) { } \
 }; \
  \
 template <typename T, typename P, typename U = T, typename LM = Default##links##LinkMethods<T, U> > \
@@ -318,8 +336,8 @@ public: prefix##List(P& pool): IntrusiveList<T, P, prefix##Head, LM>(pool) { } \
 }; \
  \
 template <typename T, typename P, typename U = T, typename LM = Default##links##LinkMethods<T, U> > \
-class Local##prefix##List : public IntrusiveList<T, P, prefix##Head, LM>::Local { \
-public: Local##prefix##List(P& pool, prefix##Head::POD& head): IntrusiveList<T, P, prefix##Head, LM>::Local(pool, head) { } \
+class Local##prefix##List : public IntrusiveList<T, P, prefix##Head::POD&, LM> { \
+public: Local##prefix##List(P& pool, prefix##Head::POD& head): IntrusiveList<T, P, prefix##Head::POD&, LM>(pool, head) { } \
 }; \
  \
 template <typename T, typename P, typename U = T, typename LM = Default##links##LinkMethods<T, U> > \

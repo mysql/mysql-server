@@ -431,8 +431,8 @@ operator<<(NdbOut& out, const Dbtux::ScanOp& scan)
   if (globalData.isNdbMtLqh)//TODO
     return out;
   {
-    Dbtux::ScanLock_fifo::Head head = scan.m_accLockOps;
-    Dbtux::Local_ScanLock_fifo list(tux->c_scanLockPool, head);
+    const Dbtux::ScanLock_fifo::Head& head = scan.m_accLockOps;
+    Dbtux::ConstLocal_ScanLock_fifo list(tux->c_scanLockPool, head);
     Dbtux::ScanLockPtr lockPtr;
     list.first(lockPtr);
     while (lockPtr.i != RNIL) {

@@ -339,7 +339,7 @@ private:
   void stop_run_undo_log(Signal* signal);
   void init_tail_ptr(Signal* signal, Ptr<Logfile_group> ptr);
 
-  bool find_file_by_id(Ptr<Undofile>&, Undofile_list::Head&, Uint32 id);
+  bool find_file_by_id(Ptr<Undofile>&, Local_undofile_list::Head&, Uint32 id);
   void create_file_commit(Signal* signal, Ptr<Logfile_group>, Ptr<Undofile>);
   void create_file_abort(Signal* signal, Ptr<Logfile_group>, Ptr<Undofile>);
 
