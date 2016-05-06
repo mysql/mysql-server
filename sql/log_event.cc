@@ -11962,7 +11962,12 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
     thd->status_var.com_stat[SQLCOM_INSERT]++;
 
   /*
-    Let storage engines treat this event as an INSERT command
+    Let storage engines treat this event as an INSERT command.
+
+    Set 'sql_command' as SQLCOM_INSERT after the tables are locked.
+    When locking the tables, it should be SQLCOM_END.
+    THD::decide_binlog_format which is called from "lock tables"
+    assumes that row_events will have 'sql_command' as SQLCOM_END.
   */
   thd->lex->sql_command= SQLCOM_INSERT;
 
@@ -12465,7 +12470,12 @@ Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability
     thd->status_var.com_stat[SQLCOM_DELETE]++;
 
   /*
-    Let storage engines treat this event as a DELETE command
+    Let storage engines treat this event as a DELETE command.
+
+    Set 'sql_command' as SQLCOM_UPDATE after the tables are locked.
+    When locking the tables, it should be SQLCOM_END.
+    THD::decide_binlog_format which is called from "lock tables"
+    assumes that row_events will have 'sql_command' as SQLCOM_END.
   */
   thd->lex->sql_command= SQLCOM_DELETE;
 
@@ -12592,7 +12602,12 @@ Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability
     thd->status_var.com_stat[SQLCOM_UPDATE]++;
 
   /*
-    Let storage engines treat this event as an UPDATE command
+    Let storage engines treat this event as an UPDATE command.
+
+    Set 'sql_command' as SQLCOM_UPDATE after the tables are locked.
+    When locking the tables, it should be SQLCOM_END.
+    THD::decide_binlog_format which is called from "lock tables"
+    assumes that row_events will have 'sql_command' as SQLCOM_END.
    */
   thd->lex->sql_command= SQLCOM_UPDATE;
 
