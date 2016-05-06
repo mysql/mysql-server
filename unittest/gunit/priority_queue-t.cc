@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -821,7 +821,7 @@ TEST_F(PriorityQueueTest, Decrease3)
 {
   Priority_queue<int> pqcopy= pq;
   const int old_priority= pq[3];
-  const int new_priority= old_priority - 10;
+  const int new_priority= old_priority - rand() / 2;
 
   pq.decrease(3, new_priority);
   pqcopy[3] = new_priority;
@@ -840,7 +840,7 @@ TEST_F(PriorityQueueTest, Increase4)
 {
   Priority_queue<int> pqcopy= pq;
   const int old_priority= pq[4];
-  const int new_priority= old_priority + 10;
+  const int new_priority= old_priority + rand() / 2;
 
   pq.increase(4, new_priority);
   pqcopy[4] = new_priority;
