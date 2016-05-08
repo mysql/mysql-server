@@ -654,7 +654,6 @@ btr_store_big_rec_extern_fields(
 	mtr_t*			btr_mtr,
 	opcode			op)
 {
-	ulint		i;
 	mtr_t		mtr;
 	mtr_t		mtr_bulk;
 	page_zip_des_t*	page_zip;
@@ -690,7 +689,7 @@ btr_store_big_rec_extern_fields(
 	/* All pointers to externally stored columns in the record
 	must either be zero or they must be pointers to inherited
 	columns, owned by this record or an earlier record version. */
-	for (i = 0; i < big_rec_vec->n_fields; i++) {
+	for (uint i = 0; i < big_rec_vec->n_fields; i++) {
 		byte* field_ref = btr_rec_get_field_ref(
 			rec, offsets, big_rec_vec->fields[i].field_no);
 
@@ -1286,9 +1285,6 @@ void BtrContext::free_updated_extern_fields(
 				m_rec, m_offsets, ufield->field_no, &len);
 			ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
 
-			const page_size_t	ext_page_size(
-				dict_table_page_size(m_index->table));
-
 			byte*	field_ref = data + len
 				- BTR_EXTERN_FIELD_REF_SIZE;
 
@@ -1480,9 +1476,6 @@ void BtrContext::free_externally_stored_fields(bool rollback)
 	ut_ad(dict_table_is_comp(m_index->table)
 	      == !!rec_offs_comp(m_offsets));
 	ulint n_fields = rec_offs_n_fields(m_offsets);
-
-	const page_size_t ext_page_size(
-		dict_table_page_size(m_index->table));
 
 	for (ulint i = 0; i < n_fields; i++) {
 		if (rec_offs_nth_extern(m_offsets, i)) {
