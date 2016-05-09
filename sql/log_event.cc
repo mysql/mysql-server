@@ -354,7 +354,7 @@ inline int idempotent_error_code(int err_code)
   Ignore error code specified on command line.
 */
 
-inline int ignored_error_code(int err_code)
+int ignored_error_code(int err_code)
 {
   return ((err_code == ER_SLAVE_IGNORED_TABLE) ||
           (use_slave_mask && bitmap_is_set(&slave_error_mask, err_code)));
@@ -10599,6 +10599,7 @@ end:
 int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 {
   DBUG_ENTER("Rows_log_event::do_apply_event(Relay_log_info*)");
+  TABLE *table= NULL;
   int error= 0;
 
   /*
@@ -10687,20 +10688,29 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       uint actual_error= thd->get_stmt_da()->mysql_errno();
       if (thd->is_slave_error || thd->is_fatal_error)
       {
-        /*
-          Error reporting borrowed from Query_log_event with many excessive
-          simplifications. 
-          We should not honour --slave-skip-errors at this point as we are
-          having severe errors which should not be skiped.
-        */
-        rli->report(ERROR_LEVEL, actual_error,
-                    "Error executing row event: '%s'",
-                    (actual_error ? thd->get_stmt_da()->message_text() :
-                     "unexpected success or fatal error"));
-        thd->is_slave_error= 1;
+        if (ignored_error_code(actual_error))
+        {
+          if (log_warnings > 1)
+            rli->report(WARNING_LEVEL, actual_error,
+                        "Error executing row event: '%s'",
+                        (actual_error ? thd->get_stmt_da()->message_text() :
+                         "unexpected success or fatal error"));
+          thd->get_stmt_da()->reset_condition_info(thd);
+          clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
+          error= 0;
+          goto end;
+        }
+        else
+        {
+          rli->report(ERROR_LEVEL, actual_error,
+                      "Error executing row event: '%s'",
+                      (actual_error ? thd->get_stmt_da()->message_text() :
+                       "unexpected success or fatal error"));
+          thd->is_slave_error= 1;
+          const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
+          DBUG_RETURN(actual_error);
+        }
       }
-      const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
-      DBUG_RETURN(actual_error);
     }
 
     /*
@@ -10763,13 +10773,18 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
           DBUG_PRINT("debug", ("Table: %s.%s is not compatible with master",
                                ptr->table->s->db.str,
                                ptr->table->s->table_name.str));
-          /*
-            We should not honour --slave-skip-errors at this point as we are
-            having severe errors which should not be skiped.
-          */
-          thd->is_slave_error= 1;
-          const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
-          DBUG_RETURN(ERR_BAD_TABLE_DEF);
+          if (thd->is_slave_error)
+          {
+            const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
+            DBUG_RETURN(ERR_BAD_TABLE_DEF);
+          }
+          else
+          {
+            thd->get_stmt_da()->reset_condition_info(thd);
+            clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
+            error= 0;
+            goto end;
+          }
         }
         DBUG_PRINT("debug", ("Table: %s.%s is compatible with master"
                              " - conv_table: %p",
@@ -10808,8 +10823,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     query_cache.invalidate_locked_for_write(thd, rli->tables_to_lock);
   }
 
-  TABLE* 
-    table= 
+  table=
     m_table= const_cast<Relay_log_info*>(rli)->m_table_map.get_table(m_table_id);
 
   DBUG_PRINT("debug", ("m_table: %p, m_table_id: %llu", m_table,
@@ -11081,15 +11095,30 @@ AFTER_MAIN_EXEC_ROW_LOOP:
     DBUG_RETURN(error);
   }
 
+end:
   if (get_flags(STMT_END_F))
   {
-   if((error= rows_event_stmt_cleanup(rli, thd)))
-    slave_rows_error_report(ERROR_LEVEL,
-                            thd->is_error() ? 0 : error,
-                            rli, thd, table,
-                            get_type_str(),
-                            const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
-                            (ulong) common_header->log_pos);
+    if((error= rows_event_stmt_cleanup(rli, thd)))
+    {
+      if (table)
+        slave_rows_error_report(ERROR_LEVEL,
+                                thd->is_error() ? 0 : error,
+                                rli, thd, table,
+                                get_type_str(),
+                                const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
+                                (ulong) common_header->log_pos);
+      else
+      {
+        rli->report(ERROR_LEVEL,
+                    thd->is_error() ? thd->get_stmt_da()->mysql_errno() : error,
+                    "Error in cleaning up after an event of type:%s; %s; the group"
+                    " log file/position: %s %lu", get_type_str(),
+                    thd->is_error() ? thd->get_stmt_da()->message_text() :
+                    "unexpected error",
+                    const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
+                    (ulong) common_header->log_pos);
+      }
+    }
    /* We are at end of the statement (STMT_END_F flag), lets clean
      the memory which was used from thd's mem_root now.
      This needs to be done only if we are here in SQL thread context.
@@ -11131,6 +11160,14 @@ Rows_log_event::do_shall_skip(Relay_log_info *rli)
 
 static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD * thd)
 {
+  DBUG_EXECUTE_IF("simulate_rows_event_cleanup_failure",
+                  {
+                  char errbuf[MYSQL_ERRMSG_SIZE];
+                  int err=149;
+                  my_error(ER_ERROR_DURING_COMMIT, MYF(0), err,
+                           my_strerror(errbuf, MYSQL_ERRMSG_SIZE, err));
+                  return (1);
+                  });
   int error;
   {
     /*
