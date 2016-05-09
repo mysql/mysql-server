@@ -502,7 +502,7 @@ SELECT vgc1 FROM t1;
 # Change expression of a stored generated column, with index
 ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 / col3) STORED;
 SELECT * FROM t1;
-SELECT sgc1 FROM t1;
+SELECT sgc1 FROM t1 order by sgc1;
 
 if ($support_virtual_index)
 {
@@ -528,12 +528,12 @@ ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 / col3) VIRTUAL;
 ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 / col3) STORED;
 
 ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 * col3) VIRTUAL;
-SELECT * FROM t1;
-SELECT vgc1 FROM t1;
+SELECT * FROM t1 order by col1;
+SELECT vgc1 FROM t1 order by col1;
 
 ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 * col3) STORED;
-SELECT * FROM t1;
-SELECT sgc1 FROM t1;
+SELECT * FROM t1 order by col1;
+SELECT sgc1 FROM t1 order by sgc1;
 
 # Change virtual generated column to become stored
 --error ER_UNSUPPORTED_ACTION_ON_GENERATED_COLUMN
@@ -545,11 +545,11 @@ ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 / col3) VIRTUAL;
 
 # Change base column to become stored generated column:
 ALTER TABLE t1 MODIFY COLUMN col4 INTEGER AS (col1 + col2 + col3) STORED;
-SELECT * FROM t1;
+SELECT * FROM t1 order by col1;
 
 # Change stored generated column to become base column:
 ALTER TABLE t1 MODIFY COLUMN col4 INTEGER;
-SELECT * FROM t1;
+SELECT * FROM t1 order by col1;
 
 DROP TABLE t1;
 
@@ -570,12 +570,12 @@ CREATE TABLE t1 (
 );
 INSERT INTO t1(a, b) values(1, 'bbbb'), (2, 'cc');
 SHOW CREATE TABLE t1;
-SELECT * FROM t1;
+SELECT * FROM t1 order by a;
 
 SET sql_mode= '';
 FLUSH TABLE t1;
 SHOW CREATE TABLE t1;
-SELECT * FROM t1;
+SELECT * FROM t1 order by a;
 DELETE FROM t1 where a= 2;
 
 SET sql_mode= @sql_mode_save;
