@@ -153,7 +153,7 @@ bool Index_impl::validate() const
     return true;
   }
 
-  if (m_elements.is_empty())
+  if (m_elements.empty())
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),

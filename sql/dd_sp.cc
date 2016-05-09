@@ -194,7 +194,7 @@ void prepare_return_type_string_from_dd_routine(THD *thd,
   {
     const dd::Routine::Parameter_collection &parameters= routine->parameters();
 
-    if (!parameters.is_empty())
+    if (!parameters.empty())
     {
       const dd::Parameter *param= *parameters.begin();
       DBUG_ASSERT(param->ordinal_position() == 1);

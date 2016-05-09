@@ -180,11 +180,23 @@ public:
     return iterator;
   }
 
-  bool is_empty() const
+  bool empty() const
   { return m_items.empty() && m_removed_items.empty(); }
 
   size_t size() const
   { return m_items.size(); }
+
+  const abstract_type*& at(size_t n) const;
+  T& at(size_t n);
+
+  const abstract_type*& front() const { return at(0); }
+  T& front()                          { return at(0); }
+
+  const abstract_type*& back() const  { return at(size() - 1); }
+  T& back()                           { return at(size() - 1); }
+
+  const abstract_type*& operator[] (size_t n) const { return at(n); }
+  T& operator[] (size_t n)                          { return at(n); }
 
   /**
     @brief

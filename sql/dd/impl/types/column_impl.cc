@@ -170,7 +170,7 @@ bool Column_impl::validate() const
 
   if ((type() == enum_column_types::ENUM ||
        type() == enum_column_types::ENUM) &&
-      m_elements.is_empty())
+      m_elements.empty())
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),

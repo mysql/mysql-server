@@ -1777,7 +1777,7 @@ static bool setup_partition_from_dd(THD *thd,
   {
 #ifndef DBUG_OFF
     DBUG_ASSERT(part_info->part_type == HASH_PARTITION);
-    DBUG_ASSERT(part_obj->values().is_empty());
+    DBUG_ASSERT(part_obj->values().empty());
 #endif
   }
   return false;

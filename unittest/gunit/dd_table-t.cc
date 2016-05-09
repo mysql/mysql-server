@@ -52,6 +52,11 @@ protected:
     return m_table->get_column(name);
   }
 
+  const Column_collection& columns()
+  {
+    return m_table->columns();
+  }
+
   ColumnsTest() {}
 private:
   GTEST_DISALLOW_COPY_AND_ASSIGN_(ColumnsTest);
@@ -82,6 +87,32 @@ TEST_F(ColumnsTest, ColumnsConstIterator)
   EXPECT_TRUE(found_c4 == c4);
   EXPECT_TRUE(found_c5 == c5);
 
+}
+
+TEST_F(ColumnsTest, Collection)
+{
+  dd::Column *c1= add_column();
+  c1->set_name("col1");
+
+  dd::Column *c2= add_column();
+  c2->set_name("col2");
+
+  dd::Column *c3= add_column();
+  c3->set_name("Col3");
+
+  dd::Column *c4= add_column();
+  c4->set_name("col3");
+
+  dd::Column *c5= add_column();
+  c5->set_name("col4");
+
+  EXPECT_EQ(c1, columns().front());
+  EXPECT_EQ(c5, columns().back());
+  EXPECT_EQ(c1, columns()[0]);
+  EXPECT_EQ(c2, columns()[1]);
+  EXPECT_EQ(c3, columns()[2]);
+  EXPECT_EQ(c4, columns()[3]);
+  EXPECT_EQ(c5, columns()[4]);
 }
 
 }

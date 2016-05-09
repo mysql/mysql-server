@@ -12572,7 +12572,7 @@ ha_innobase::get_se_private_data(
 #ifdef UNIV_DEBUG
 	{
 		/* These tables must not be partitioned. */
-		DBUG_ASSERT(dd_table->partitions().is_empty());
+		DBUG_ASSERT(dd_table->partitions().empty());
 	}
 
 	const innodb_dd_table_t&	data = innodb_dd_table[n_tables];

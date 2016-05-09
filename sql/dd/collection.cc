@@ -123,7 +123,7 @@ bool Collection<T>::restore_items(
   // for that transaction. Use Open_dictionary_tables_ctx::register_tables().
   DBUG_ASSERT(table);
 
-  DBUG_ASSERT(is_empty());
+  DBUG_ASSERT(empty());
 
   std::unique_ptr<Object_key> key_holder(key);
 
@@ -165,7 +165,7 @@ bool Collection<T>::store_items(Open_dictionary_tables_ctx *otx)
 {
   DBUG_ENTER("Collection::store_items");
 
-  if (is_empty())
+  if (empty())
     DBUG_RETURN(false);
 
   // Drop items from m_removed_items.
@@ -200,7 +200,7 @@ bool Collection<T>::drop_items(Open_dictionary_tables_ctx *otx,
   // Make sure key gets deleted
   std::unique_ptr<Object_key> key_holder(key);
 
-  if (is_empty())
+  if (empty())
     DBUG_RETURN(false);
 
   // Drop items
@@ -229,6 +229,26 @@ bool Collection<T>::drop_items(Open_dictionary_tables_ctx *otx,
   }
 
   DBUG_RETURN(false);
+}
+
+
+template <typename T>
+const typename Collection<T>::abstract_type*& Collection<T>::at(size_t n) const
+{
+  DBUG_ASSERT(n < size());
+  // Need a non-tmp placeholder of correct type since reference is returned.
+  static const abstract_type *m_current_obj;
+  return (m_current_obj= m_items[n]);
+}
+
+
+template <typename T>
+T& Collection<T>::at(size_t n)
+{
+  DBUG_ASSERT(n < size());
+  // Need a non-tmp placeholder of correct type since reference is returned.
+  static T m_current_obj;
+  return (m_current_obj= m_items[n]);
 }
 
 
@@ -429,6 +449,10 @@ template void Collection<Partition_index*>::remove(Partition_index_impl*);
 template void Collection<Partition_value*>::remove(Partition_value_impl*);
 template void Collection<Tablespace_file*>::remove(Tablespace_file_impl*);
 template void Collection<View_table*>::remove(View_table_impl*);
+
+template const Column*& Collection<Column*>::at(size_t) const;
+
+template Column*& Collection<Column*>::at(size_t);
 
 template void Collection<Column*>::
 deep_copy<Abstract_table_impl>(Collection<Column*> const&, Abstract_table_impl*);
