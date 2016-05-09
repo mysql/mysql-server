@@ -359,7 +359,7 @@ if (`select @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
   --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
   eval select
   (@a:=load_file("$MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output"))
-  is not null;
+  is not null AS Loaded;
   --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
   eval select
   @a like "%#%error_code=0%ROLLBACK\\n/*!*/;%" OR
