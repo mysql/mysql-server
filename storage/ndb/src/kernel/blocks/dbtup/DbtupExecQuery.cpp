@@ -331,6 +331,12 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
     if (! ((req_struct->m_reorg == ScanFragReq::REORG_NOT_MOVED && moved == 0) ||
            (req_struct->m_reorg == ScanFragReq::REORG_MOVED && moved != 0)))
     {
+      /**
+       * We're either scanning to only find moved rows (used when scanning
+       * for rows to delete in reorg delete phase or we're scanning for
+       * only non-moved rows and this happens also in reorg delete phase,
+       * but it is done for normal scans in this phase.
+       */
       terrorCode= ZTUPLE_DELETED_ERROR;
       return false;
     }
@@ -760,16 +766,16 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
      op_struct.op_bit_fields = regOperPtr->op_struct.op_bit_fields;
      const Uint32 TrequestInfo= tupKeyReq->request;
      const Uint32 disable_fk_checks = tupKeyReq->disable_fk_checks;
-     const Uint32 primaryReplica = tupKeyReq->primaryReplica;
+     const Uint32 triggers = tupKeyReq->triggers;
 
      regOperPtr->m_copy_tuple_location.setNull();
      op_struct.bit_field.delete_insert_flag = false;
-     op_struct.bit_field.tupVersion= ZNIL;
-     op_struct.bit_field.m_physical_only_op = 0;
      op_struct.bit_field.m_gci_written = 0;
+     op_struct.bit_field.m_triggers = triggers;
      op_struct.bit_field.m_disable_fk_checks = disable_fk_checks;
-     op_struct.bit_field.primary_replica= primaryReplica;
      op_struct.bit_field.m_reorg = TupKeyReq::getReorgFlag(TrequestInfo);
+     op_struct.bit_field.tupVersion= ZNIL;
+
      req_struct.m_prio_a_flag = TupKeyReq::getPrioAFlag(TrequestInfo);
      req_struct.m_reorg = TupKeyReq::getReorgFlag(TrequestInfo);
      regOperPtr->op_struct.op_bit_fields = op_struct.op_bit_fields;

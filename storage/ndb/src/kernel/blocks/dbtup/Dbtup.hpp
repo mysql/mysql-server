@@ -657,6 +657,7 @@ struct Fragrecord {
   } fragStatus;
   Uint32 fragTableId;
   Uint32 fragmentId;
+  Uint32 partitionId;
   Uint32 nextfreefrag;
   // +1 is as "full" pages are stored last
   DLList<Page>::Head free_var_page_array[MAX_FREE_LIST+1]; 
@@ -779,21 +780,29 @@ struct Operationrec {
     unsigned int m_reorg : 2;
     unsigned int in_active_list : 1;
     unsigned int delete_insert_flag : 1;
-    unsigned int primary_replica : 1;
     unsigned int m_disk_preallocated : 1;
     unsigned int m_load_diskpage_on_commit : 1;
     unsigned int m_wait_log_buffer : 1;
     unsigned int m_gci_written : 1;
-    /* If the op has no logical effect, it should not be logged
-     * or sent as an event. Example op is OPTIMIZE table,
-     * which uses ZUPDATE to move varpart values physically.
+
+    /**
+     * @see TupKeyReq
+     *
+     * 0 = non-primary replica, fire detached triggers
+     * 1 = primary replica, fire immediate and detached triggers
+     * 2 = no fire triggers
+     *     e.g If the op has no logical effect, it should not be
+     *         sent as an event. Example op is OPTIMIZE table,
+     *         which uses ZUPDATE to move varpart values physically.
      */
-    unsigned int m_physical_only_op : 1;
+
     /* No foreign keys should be checked for this operation.
      * No fk triggers will be fired.  
      */
+    unsigned int m_triggers : 2;
     unsigned int m_disable_fk_checks : 1;
   };
+
   union OpStruct {
     OpBitFields bit_field;
     Uint32 op_bit_fields;
@@ -2699,6 +2708,8 @@ private:
                           const Operationrec*) const;
 
   bool check_fire_reorg(const KeyReqStruct *, Fragrecord::FragState) const;
+  bool check_fire_fully_replicated(const KeyReqStruct *,
+                                   Fragrecord::FragState) const;
   bool check_fire_suma(const KeyReqStruct *,
                        const Operationrec*,
                        const Fragrecord*) const;

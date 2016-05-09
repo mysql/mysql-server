@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2325,7 +2325,8 @@ public:
       OP_SCANKEYINFOPOSSAVED    = 0x4,
       OP_DEFERRED_CONSTRAINTS   = 0x8,
       OP_NORMAL_PROTOCOL        = 0x10,
-      OP_DISABLE_FK             = 0x20
+      OP_DISABLE_FK             = 0x20,
+      OP_NO_TRIGGERS            = 0x40
     };
     Uint32 m_flags;
     Uint32 m_log_part_ptr_i;
@@ -2920,8 +2921,6 @@ protected:
   virtual bool getParam(const char* name, Uint32* count);
   
 private:
-  
-
   bool validate_filter(Signal*);
   bool match_and_print(Signal*, Ptr<TcConnectionrec>);
   void ndbinfo_write_op(Ndbinfo::Row&, TcConnectionrecPtr tcPtr);

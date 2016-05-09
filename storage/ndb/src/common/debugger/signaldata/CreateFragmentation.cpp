@@ -30,6 +30,7 @@ printCREATE_FRAGMENTATION_REQ(FILE * output, const Uint32 * theData,
     fprintf(output, " primaryTableId: none\n");
   else
     fprintf(output, " primaryTableId: %x\n", sig->primaryTableId);
+  fprintf(output, " realFragmentCount: %x\n", sig->realFragmentCount);
   return true;
 }
 

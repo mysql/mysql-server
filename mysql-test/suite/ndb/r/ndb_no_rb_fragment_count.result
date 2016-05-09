@@ -575,6 +575,7 @@ Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
+RealFragmentCount: 8
 FragmentCount: 8
 FragmentCountType: ONE_PER_LDM_PER_NODE
 ExtraRowGciBits: 0
@@ -596,7 +597,7 @@ NDBT_ProgramExit: 0 - OK
 drop table t1;
 create table t1 (a bigint primary key, b bigint storage disk) engine ndb
 comment="NDB_TABLE=NOLOGGING=1";
-ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
+ERROR HY000: Table storage engine 'NDBCLUSTER' found required create option missing
 create table t2 (a bigint primary key, b bigint unique) engine ndb
 comment="NDB_TABLE=FRAGMENT_COUNT_TYPE=ONE_PER_NODE_GROUP";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment

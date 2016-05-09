@@ -753,6 +753,57 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
   return 0;
 }
 
+Uint32
+NdbImpl::select_node(NdbTableImpl *table_impl,
+                     const Uint16 *nodes,
+                     Uint32 cnt)
+{
+  if (table_impl == NULL)
+  {
+    /**
+     * No table hint given, let caller select node.
+     */
+    return 0;
+  }
+
+  Uint32 nodeId;
+  bool readBackup = table_impl->m_read_backup;
+  bool fullyReplicated = table_impl->m_fully_replicated;
+
+  if (cnt && !readBackup && !fullyReplicated)
+  {
+    nodeId = nodes[0]; // Choose primary replica
+  }
+  else if (fullyReplicated)
+  {
+    /**
+     * Consider any fragment and any replica.
+     * Both for hinted and not hinted (cnt==0) select.
+     */
+    cnt = table_impl->m_fragments.size();
+    nodes = table_impl->m_fragments.getBase();
+    nodeId = m_ndb_cluster_connection.select_node(nodes, cnt);
+  }
+  else if (cnt == 0)
+  {
+    /**
+     * For unhinted select, let caller select node.
+     * Except for fully replicated tables, see above.
+     */
+    nodeId = 0;
+  }
+  else
+  {
+    /**
+     * Read backup tables.
+     * Consider one fragment and any replica for readBackup
+     */
+    require(readBackup);
+    nodeId = m_ndb_cluster_connection.select_node(nodes, cnt);
+  }
+  return nodeId;
+}
+
 NdbTransaction*
 Ndb::startTransaction(const NdbDictionary::Table* table,
                       Uint32 partitionId)
@@ -767,25 +818,10 @@ Ndb::startTransaction(const NdbDictionary::Table* table,
 
     Uint32 nodeId;
     const Uint16 *nodes;
-    bool readBackup = NdbTableImpl::getImpl(*table).m_read_backup;
-    Uint32 cnt = NdbTableImpl::getImpl(* table).get_nodes(partitionId, 
-                                                          &nodes);
-    if(cnt)
-      nodeId= nodes[0];
-    else
-      nodeId= 0;
-    if (cnt && !readBackup)
-    {
-      nodeId = nodes[0]; // Choose primary replica
-    }
-    else if (cnt)
-    {
-      nodeId = theImpl->m_ndb_cluster_connection.select_node(nodes, cnt);
-    }
-    else
-    {
-      nodeId = 0;
-    }
+    NdbTableImpl *impl =  & NdbTableImpl::getImpl(*table);
+    Uint32 cnt = impl->get_nodes(partitionId,
+                                 &nodes);
+    nodeId = theImpl->select_node(impl, nodes, cnt);
     theImpl->incClientStat(TransStartCount, 1);
 
     NdbTransaction *trans= startTransactionLocal(0, nodeId, 0);
@@ -867,20 +903,18 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
       }
       
       const Uint16 *nodes;
-      bool readBackup = impl->m_read_backup;
       Uint32 cnt= impl->get_nodes(table->getPartitionId(hashValue),  &nodes);
-      if (cnt && !readBackup)
+      nodeId = theImpl->select_node(impl, nodes, cnt);
+    }
+    else
+    {
+      /* No hint available, calling select_node with zero count */
+      NdbTableImpl* impl = NULL;
+      if (table != NULL)
       {
-        nodeId = nodes[0];
+        impl = &NdbTableImpl::getImpl(*table);
       }
-      else if (cnt)
-      {
-        nodeId = theImpl->m_ndb_cluster_connection.select_node(nodes, cnt);
-      }
-      else
-      {
-        nodeId = 0;
-      }
+      nodeId = theImpl->select_node(impl, NULL, 0);
     }
 
     /* TODO : Should call method above rather than duplicate call to

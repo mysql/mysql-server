@@ -1959,6 +1959,18 @@ Dblqh::sendAddAttrReq(Signal* signal)
 void Dblqh::execLQHFRAGREQ(Signal* signal)
 {
   jamEntry();
+  {
+    LqhFragReq  *req = (LqhFragReq*)signal->getDataPtr();
+    if (signal->length() == LqhFragReq::OldSignalLength)
+    {
+      jam();
+      /**
+       * Upgrade support to specify partitionId
+       */
+      req->partitionId = req->fragmentId;
+    }
+  }
+
   LqhFragReq copy = *(LqhFragReq*)signal->getDataPtr();
   LqhFragReq * req = &copy;
 
@@ -2200,6 +2212,7 @@ Dblqh::sendAddFragReq(Signal* signal)
     tupFragReq->minRowsHigh = addfragptr.p->m_lqhFragReq.minRowsHigh;
     tupFragReq->minRowsLow = addfragptr.p->m_lqhFragReq.minRowsLow;
     tupFragReq->changeMask = addfragptr.p->m_lqhFragReq.changeMask;
+    tupFragReq->partitionId = addfragptr.p->m_lqhFragReq.partitionId;
     sendSignal(fragptr.p->tupBlockref, GSN_TUPFRAGREQ,
                signal, TupFragReq::SignalLength, JBB);
     return;
@@ -5171,6 +5184,11 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     regTcPtr->m_flags |= TcConnectionrec::OP_NORMAL_PROTOCOL;
   }
 
+  if (isLongReq && LqhKeyReq::getNoTriggersFlag(Treqinfo))
+  {
+    regTcPtr->m_flags |= TcConnectionrec::OP_NO_TRIGGERS;
+  }
+
   UintR TitcKeyLen = 0;
   Uint32 keyLenWithLQHReq = 0;
   UintR TreclenAiLqhkey   = 0;
@@ -6654,7 +6672,12 @@ Dblqh::acckeyconf_tupkeyreq(Signal* signal, TcConnectionrec* regTcPtr,
   sig0 = regTcPtr->m_row_id.m_page_no;
   sig1 = regTcPtr->m_row_id.m_page_idx;
   
-  tupKeyReq->primaryReplica = (tcConnectptr.p->seqNoReplica == 0)?true:false;
+  tupKeyReq->triggers =
+    (regTcPtr->m_flags & TcConnectionrec::OP_NO_TRIGGERS) ?
+    TupKeyReq::OP_NO_TRIGGERS :
+    (regTcPtr->seqNoReplica == 0) ?
+    TupKeyReq::OP_PRIMARY_REPLICA : TupKeyReq::OP_BACKUP_REPLICA;
+
   tupKeyReq->coordinatorTC = tcConnectptr.p->tcBlockref;
   tupKeyReq->tcOpIndex = tcConnectptr.p->tcOprec;
   tupKeyReq->savePointId = tcConnectptr.p->savePointId;
@@ -12182,7 +12205,12 @@ Dblqh::next_scanconf_tupkeyreq(Signal* signal,
     const Uint32 transId1 = regTcPtr->transid[0];
     const Uint32 transId2 = regTcPtr->transid[1];
 
-    tupKeyReq->primaryReplica = (seqNoReplica == 0) ? true : false;
+    tupKeyReq->triggers =
+      (regTcPtr->m_flags & TcConnectionrec::OP_NO_TRIGGERS) ?
+      TupKeyReq::OP_NO_TRIGGERS :
+      (seqNoReplica == 0) ?
+      TupKeyReq::OP_PRIMARY_REPLICA : TupKeyReq::OP_BACKUP_REPLICA;
+
     tupKeyReq->coordinatorTC = coordinatorTC;
     tupKeyReq->tcOpIndex = tcOpIndex;
     tupKeyReq->savePointId = savePointId;
@@ -22295,6 +22323,8 @@ bool Dblqh::getFragmentrec(Signal* signal, Uint32 fragId)
       return true;
     }//if
   }//for
+  D("getFragmentrec failed to find fragId: " << fragId <<
+    " in table: " << tabptr.i);
   return false;
 }//Dblqh::getFragmentrec()
 

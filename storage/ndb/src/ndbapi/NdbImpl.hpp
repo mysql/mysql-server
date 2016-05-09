@@ -282,6 +282,7 @@ public:
   static NdbOperation* void2rec_op(void* val);
   static NdbIndexOperation* void2rec_iop(void* val);
   NdbTransaction* lookupTransactionFromOperation(const TcKeyConf* conf);
+  Uint32 select_node(NdbTableImpl *table_impl, const Uint16 *nodes, Uint32 cnt);
 };
 
 #ifdef VM_TRACE

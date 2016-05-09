@@ -1401,6 +1401,26 @@ public:
   const char* debugOutTag(char* buf, int line);
 #endif
 
+  const char* getFragmentCountTypeString(Uint32 fct)
+  {
+    switch (fct)
+    {
+      case NDB_FRAGMENT_COUNT_SPECIFIC:
+        return "NDB_FRAGMENT_COUNT_SPECIFIC";
+      case NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP:
+        return "NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP";
+      case NDB_FRAGMENT_COUNT_ONE_PER_NODE:
+        return "NDB_FRAGMENT_COUNT_ONE_PER_NODE";
+      case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE:
+        return "NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE";
+      case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP:
+        return "NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP";
+      default:
+        ndbrequire(false);
+    }
+    return NULL;
+  }
+
   void ndbinfo_send_row(Signal* signal,
                         const DbinfoScanReq& req,
                         const Ndbinfo::Row& row,

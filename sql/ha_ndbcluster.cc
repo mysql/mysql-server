@@ -88,6 +88,7 @@ static char* opt_ndb_connectstring;
 static uint opt_ndb_nodeid;
 static my_bool opt_ndb_read_backup;
 static ulong opt_ndb_data_node_neighbour;
+static my_bool opt_ndb_fully_replicated;
 
 #define MYSQL_VERSION_NDB_DEFAULT_COLUMN_FORMAT_DYNAMIC 50711
 enum ndb_default_colum_format_enum {
@@ -471,7 +472,9 @@ static void modify_shared_stats(NDB_SHARE *share,
                                 Ndb_local_table_statistics *local_stat);
 
 static int ndb_get_table_statistics(THD *thd, ha_ndbcluster*, bool, Ndb*,
-                                    const NdbRecord *, struct Ndb_statistics *,
+                                    const NdbDictionary::Table*,
+                                    const NdbRecord *,
+                                    struct Ndb_statistics *,
                                     uint part_id= ~(uint)0);
 
 static ulong multi_range_fixed_size(int num_ranges);
@@ -8732,7 +8735,7 @@ ha_ndbcluster::start_transaction(int &error)
 
   const uint opti_node_select= THDVAR(table->in_use, optimized_node_selection);
   m_thd_ndb->connection->set_optimized_node_selection(opti_node_select & 1);
-  if ((trans= m_thd_ndb->ndb->startTransaction()))
+  if ((trans= m_thd_ndb->ndb->startTransaction(m_table)))
   {
     m_thd_ndb->m_transaction_no_hint_count[trans->getConnectedNodeId()]++;
     DBUG_PRINT("info", ("Delayed allocation of TC"));
@@ -9098,6 +9101,7 @@ struct NDB_Modifier ndb_table_modifiers[] =
 {
   { NDB_Modifier::M_BOOL, STRING_WITH_LEN("NOLOGGING"), 0, {0} },
   { NDB_Modifier::M_BOOL, STRING_WITH_LEN("READ_BACKUP"), 0, {0} },
+  { NDB_Modifier::M_BOOL, STRING_WITH_LEN("FULLY_REPLICATED"), 0, {0} },
   { NDB_Modifier::M_STRING, STRING_WITH_LEN("FRAGMENT_COUNT_TYPE"), 0, {0} },
   { NDB_Modifier::M_BOOL, 0, 0, 0, {0} }
 };
@@ -10649,6 +10653,8 @@ int ha_ndbcluster::create(const char *name,
   const NDB_Modifier * mod_nologging = table_modifiers.get("NOLOGGING");
   const NDB_Modifier * mod_frags = table_modifiers.get("FRAGMENT_COUNT_TYPE");
   const NDB_Modifier * mod_read_backup = table_modifiers.get("READ_BACKUP");
+  const NDB_Modifier * mod_fully_replicated =
+    table_modifiers.get("FULLY_REPLICATED");
   NdbDictionary::Object::FragmentCountType fctype =
     NdbDictionary::Object::FragmentCount_OnePerLDMPerNode;
   if (parseFragmentCountType(thd /* for pushing warning */,
@@ -10672,7 +10678,7 @@ int ha_ndbcluster::create(const char *name,
     DBUG_RETURN(HA_WRONG_CREATE_OPTION);
   }
 
-  /* Verify we can support table property if set */
+  /* Verify we can support read backup table property if set */
   if ((mod_read_backup->m_found ||
        opt_ndb_read_backup) &&
       ndbd_support_read_backup(
@@ -10684,6 +10690,21 @@ int ha_ndbcluster::create(const char *name,
     my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
              ndbcluster_hton_name,
              "READ_BACKUP not supported by current data node versions");
+    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
+  }
+
+  /* Verify we can support fully replicated table property if set */
+  if ((mod_fully_replicated->m_found ||
+       opt_ndb_fully_replicated) &&
+      ndbd_support_fully_replicated(
+            ndb->getMinDbNodeVersion()) == 0)
+  {
+    /**
+     * NDB_TABLE=FULLY_REPLICATED not supported by data nodes.
+     */
+    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+             ndbcluster_hton_name,
+             "FULLY_REPLICATED not supported by current data node versions");
     DBUG_RETURN(HA_WRONG_CREATE_OPTION);
   }
 
@@ -10788,16 +10809,102 @@ int ha_ndbcluster::create(const char *name,
                  ("mod_nologging not found, getLogging()=%u",
                   tab.getLogging()));
     }
-    if ((mod_read_backup->m_found &&
-         mod_read_backup->m_val_bool) ||
-        opt_ndb_read_backup)
+    bool use_fully_replicated;
+    bool use_read_backup;
+
+    if (mod_fully_replicated->m_found)
+    {
+      use_fully_replicated = mod_fully_replicated->m_val_bool;
+    }
+    else
+    {
+      use_fully_replicated = opt_ndb_fully_replicated;
+    }
+
+    if (mod_read_backup->m_found)
+    {
+      use_read_backup = mod_read_backup->m_val_bool;
+    }
+    else if (use_fully_replicated)
+    {
+      use_read_backup = true;
+    }
+    else
+    {
+      use_read_backup = opt_ndb_read_backup;
+    }
+
+    if (use_fully_replicated)
+    {
+      /* Fully replicated table */
+      if (mod_read_backup->m_found && !mod_read_backup->m_val_bool)
+      {
+        /**
+         * Cannot mix FULLY_REPLICATED=1 and READ_BACKUP=0 since
+         * FULLY_REPLICATED=1 implies READ_BACKUP=1.
+         */
+        my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+                 ndbcluster_hton_name,
+          "READ_BACKUP=0 cannot be used for fully replicated tables");
+        result = HA_WRONG_CREATE_OPTION;
+        goto abort_return;
+      }
+      tab.setReadBackupFlag(true);
+      tab.setFullyReplicated(true);
+
+      if (fctype !=
+            NdbDictionary::Object::FragmentCount_OnePerNodeGroup &&
+          tab.getFragmentCountType() !=
+            NdbDictionary::Object::FragmentCount_OnePerLDMPerNodeGroup)
+      {
+        if (!mod_frags->m_found)
+        {
+          /**
+           * For Fully replicated tables we use
+           * FragmentCount_OnePerLDMPerNodeGroup as default setting.
+           * This means that we will have one partition in each LDM
+           * and that there is one copy in each data node although
+           * technically each node group will have its own set of
+           * partitions, these partitions are maintained using
+           * the Fully replicated triggers. This means that all writes
+           * always start in the main node group for the table. When
+           * the update has acquired all locks it will use a trigger
+           * mechanism to spread to all other nodes in the cluster.
+           */
+          fctype = NdbDictionary::Object::FragmentCount_OnePerLDMPerNodeGroup;
+        }
+        else
+        {
+          /**
+           * FragmentCountType == FragmentCount_OnePerNode and
+           * FragmentCountType == FragmentCount_OnePerLDMPerNode
+           * isn't allowed to be mixed with FullyReplicated = true
+           * since that would make us store 2 copies of each row
+           * per node and this is quite obviously not desirable.
+           * So we can have at most 1 partition per LDM per node
+           * group. We support 1 partition per node group and one
+           * partition per LDM per node group.
+           */
+          my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+                   ndbcluster_hton_name,
+          "FULLY_REPLICATED=1 doesn't support this FRAGMENT_COUNT_TYPE");
+          result = HA_WRONG_CREATE_OPTION;
+          goto abort_return;
+        }
+      }
+    }
+    else if (use_read_backup)
     {
       if (!mod_frags->m_found && !is_alter)
       {
         /**
-         * We change the default setting on read backup tables for
-         * fragment count type to one per ldm per node group to
-         * avoid using too many fragments on those tables.
+         * Default for tables with no read of backup is one per ldm per
+         * node to ensure that we don't get imbalanced loads on the
+         * different nodes and ldms in the cluster. For tables with
+         * read backup there will be much smaller difference on usage
+         * of the fragments, so here we only have one fragment per node
+         * group and per ldm to avoid splitting the table into too many
+         * parts.
          *
          * We won't do this for ALTER TABLE table algorithm=copy
          * since the end result of an ALTER TABLE should not
@@ -10806,7 +10913,7 @@ int ha_ndbcluster::create(const char *name,
          */
         fctype = NdbDictionary::Object::FragmentCount_OnePerLDMPerNodeGroup;
       }
-      tab.setReadBackupFlag(TRUE);
+      tab.setReadBackupFlag(true);
     }
   }
   else
@@ -10891,24 +10998,8 @@ int ha_ndbcluster::create(const char *name,
   tmp_restore_column_map(form->read_set, old_map);
   if (use_disk)
   {
-    if (mod_nologging->m_found &&
-        mod_nologging->m_val_bool)
-    {
-      /**
-       * Trying to set NLOGGING=1 on a disk table isn't permitted.
-       * Signal error, if table_temporary set or if not table_logging
-       * set then we will silently convert to logged table.
-       */
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_ILLEGAL_HA_CREATE_OPTION,
-                          ER(ER_ILLEGAL_HA_CREATE_OPTION),
-                          ndbcluster_hton_name,
-                          "Not allowed to set NOLOGGING=1 on table"
-                          " with fields using STORAGE DISK");
-      result= HA_ERR_UNSUPPORTED;
-      goto abort_return;
-    }
-    tab.setLogging(TRUE);
+    if (!mod_nologging->m_found)
+      tab.setLogging(TRUE);
     tab.setTemporary(FALSE);
     if (create_info->tablespace)
       tab.setTablespaceName(create_info->tablespace);
@@ -11047,9 +11138,23 @@ int ha_ndbcluster::create(const char *name,
   if (my_errno())
     goto abort;
 
+  if (tab.getFullyReplicated() &&
+      (tab.getFragmentType() != NDBTAB::HashMapPartition ||
+       !tab.getDefaultNoPartitionsFlag()))
+  {
+    /**
+     * Fully replicated are only supported on hash map partitions
+     * with standard fragment count types, no user defined partitioning
+     * fragment count.
+     *
+     * We expect that ndbapi fail on create table with error 797
+     * (Wrong fragment count for fully replicated table)
+     */
+  }
   if (tab.getFragmentType() == NDBTAB::HashMapPartition && 
       tab.getDefaultNoPartitionsFlag() &&
       !mod_frags->m_found && // Let FRAGMENT_COUNT_TYPE override max_rows
+      !tab.getFullyReplicated() && //Ignore max_rows for fully replicated
       (create_info->max_rows != 0 || create_info->min_rows != 0))
   {
     ulonglong rows= create_info->max_rows >= create_info->min_rows ? 
@@ -14490,11 +14595,14 @@ uint ndb_get_commitcount(THD *thd, char *norm_name,
     char tblname[NAME_LEN + 1];
     ha_ndbcluster::set_tabname(norm_name, tblname);
     Ndb_table_guard ndbtab_g(ndb->getDictionary(), tblname);
-    if (ndbtab_g.get_table() == 0
-        || ndb_get_table_statistics(thd, NULL, 
-                                    FALSE, 
-                                    ndb, 
-                                    ndbtab_g.get_table()->getDefaultRecord(),
+    const NdbDictionary::Table* ndbtab = ndbtab_g.get_table();
+    if (ndbtab == NULL
+        || ndb_get_table_statistics(thd,
+                                    NULL,
+                                    FALSE,
+                                    ndb,
+                                    ndbtab,
+                                    ndbtab->getDefaultRecord(),
                                     &stat))
     {
       /* ndb_share reference temporary free */
@@ -15223,8 +15331,13 @@ int ha_ndbcluster::update_stats(THD *thd,
       set_my_errno(HA_ERR_OUT_OF_MEM);
       DBUG_RETURN(HA_ERR_OUT_OF_MEM);
     }
-    if (int err= ndb_get_table_statistics(thd, this, TRUE, ndb,
-                                          m_ndb_record, &stat,
+    if (int err= ndb_get_table_statistics(thd,
+                                          this,
+                                          TRUE,
+                                          ndb,
+                                          m_table,
+                                          m_ndb_record,
+                                          &stat,
                                           part_id))
     {
       DBUG_RETURN(err);
@@ -15303,7 +15416,11 @@ void modify_shared_stats(NDB_SHARE *share,
  */
 static 
 int
-ndb_get_table_statistics(THD *thd, ha_ndbcluster* file, bool report_error, Ndb* ndb,
+ndb_get_table_statistics(THD *thd,
+                         ha_ndbcluster* file,
+                         bool report_error,
+                         Ndb* ndb,
+                         const NdbDictionary::Table* tab,
                          const NdbRecord *record,
                          struct Ndb_statistics * ndbstat,
                          uint part_id)
@@ -15371,7 +15488,11 @@ ndb_get_table_statistics(THD *thd, ha_ndbcluster* file, bool report_error, Ndb* 
     NdbScanOperation*pOp;
     int check;
 
-    if ((pTrans= ndb->startTransaction()) == NULL)
+    /**
+     * TODO WL#9019, pass table to startTransaction to allow fully
+     * replicated table to select data_node_neighbour
+     */
+    if ((pTrans= ndb->startTransaction(tab)) == NULL)
     {
       error= ndb->getNdbError();
       goto retry;
@@ -17151,9 +17272,11 @@ Ndb_util_thread::do_run()
           goto loop_next;
         }
         Ndb_table_guard ndbtab_g(ndb->getDictionary(), share->table_name);
-        if (ndbtab_g.get_table() &&
+        const NdbDictionary::Table* ndbtab = ndbtab_g.get_table();
+        if (ndbtab != NULL &&
             ndb_get_table_statistics(thd, NULL, FALSE, ndb,
-                                     ndbtab_g.get_table()->getDefaultRecord(), 
+                                     ndbtab,
+                                     ndbtab->getDefaultRecord(),
                                      &stat) == 0)
         {
           DBUG_PRINT("info", ("Table: %s, commit_count: %llu,  rows: %llu",
@@ -18053,9 +18176,19 @@ ha_ndbcluster::check_inplace_alter_supported(TABLE *altered_table,
        DBUG_PRINT("info", ("Adding partition (%u)", part_info->num_parts));
        new_tab.setFragmentCount(part_info->num_parts);
        new_tab.setFragmentCountType(NdbDictionary::Object::FragmentCount_Specific);
+       if (new_tab.getFullyReplicated())
+       {
+         DBUG_PRINT("info", ("Add partition isn't supported on fully"
+                             " replicated tables"));
+         DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+       }
      }
      if (comment_changed &&
-         parse_comment_changes(&new_tab, create_info, thd, max_rows_changed))
+         parse_comment_changes(&new_tab,
+                               old_tab,
+                               create_info,
+                               thd,
+                               max_rows_changed))
      {
        DBUG_RETURN(inplace_unsupported(ha_alter_info,
                                        "Unsupported table modifiers"));
@@ -18275,6 +18408,7 @@ ha_ndbcluster::check_if_supported_inplace_alter(TABLE *altered_table,
 
 bool
 ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
+                                     const NdbDictionary::Table *old_tab,
                                      HA_CREATE_INFO *create_info,
                                      THD *thd,
                                      bool & max_rows_changed) const
@@ -18286,6 +18420,9 @@ ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
   const NDB_Modifier* mod_nologging = table_modifiers.get("NOLOGGING");
   const NDB_Modifier* mod_frags = table_modifiers.get("FRAGMENT_COUNT_TYPE");
   const NDB_Modifier* mod_read_backup = table_modifiers.get("READ_BACKUP");
+  const NDB_Modifier* mod_fully_replicated =
+    table_modifiers.get("FULLY_REPLICATED");
+
   NdbDictionary::Object::FragmentCountType fct =
     NdbDictionary::Object::FragmentCount_OnePerLDMPerNode;
   if (parseFragmentCountType(thd /* for pushing warning */,
@@ -18341,8 +18478,43 @@ ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
                "Cannot alter read backup inplace");
       DBUG_RETURN(true);
     }
+    if (old_tab->getFullyReplicated() &&
+        (!mod_read_backup->m_val_bool))
+    {
+      int res = HA_ALTER_INPLACE_NOT_SUPPORTED;
+      set_my_errno(res);
+      my_error(res, MYF(0), 0);
+      return true;
+    }
     new_tab->setReadBackupFlag(mod_read_backup->m_val_bool);
   }
+  if (mod_fully_replicated->m_found)
+  {
+    if (ndbd_support_fully_replicated(
+         get_thd_ndb(thd)->ndb->getMinDbNodeVersion()) == 0)
+    {
+      /**
+       * NDB_TABLE=FULLY_REPLICATED not supported by data nodes.
+       */
+      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+               ndbcluster_hton_name,
+         "FULLY_REPLICATED not supported by current data node versions");
+      return true;
+    }
+    if (!old_tab->getFullyReplicated())
+    {
+      int res = HA_ALTER_INPLACE_NOT_SUPPORTED;
+      set_my_errno(res);
+      my_error(res, MYF(0), 0);
+      return true;
+    }
+  }
+  /**
+   * We will not silently change tables during ALTER TABLE to use read
+   * backup or fully replicated. We will only use this configuration
+   * variable to affect new tables. For ALTER TABLE one has to set these
+   * properties explicitly.
+   */
   if (mod_frags->m_found)
   {
     if (max_rows_changed)
@@ -18354,6 +18526,25 @@ ha_ndbcluster::parse_comment_changes(NdbDictionary::Table *new_tab,
     new_tab->setFragmentCountType(fct);
     DBUG_PRINT("info", ("parse_comment_changes: FragmentCountType: %s",
                         new_tab->getFragmentCountTypeString()));
+  }
+  else
+  {
+    fct = old_tab->getFragmentCountType();
+  }
+  if (old_tab->getFullyReplicated())
+  {
+    if (fct != old_tab->getFragmentCountType())
+    {
+      /**
+       * We cannot change fragment count type inplace for fully
+       * replicated tables.
+       */
+      int res = HA_ALTER_INPLACE_NOT_SUPPORTED;
+      set_my_errno(res);
+      my_error(res, MYF(0), 0);
+      return true; /* Error */
+    }
+    max_rows_changed = false;
   }
   DBUG_RETURN(false);
 }
@@ -18534,12 +18725,14 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
     else if (alter_flags & Alter_inplace_info::ADD_PARTITION)
     {
       partition_info *part_info= altered_table->part_info;
+      DBUG_PRINT("info", ("Adding partition (%u)", part_info->num_parts));
       new_tab->setFragmentCount(part_info->num_parts);
       new_tab->setFragmentCountType(
         NdbDictionary::Object::FragmentCount_Specific);
     }
     else if (comment_changed &&
              parse_comment_changes(new_tab,
+                                   old_tab,
                                    create_info,
                                    thd,
                                    max_rows_changed))
@@ -19333,7 +19526,7 @@ bool ha_ndbcluster::get_num_parts(const char *name, uint *num_parts)
     Ndb_table_guard ndbtab_g(dict= ndb->getDictionary(), m_tabname);
     if (!ndbtab_g.get_table())
       ERR_BREAK(dict->getNdbError(), err);
-    *num_parts= ndbtab_g.get_table()->getFragmentCount();
+    *num_parts= ndbtab_g.get_table()->getRealFragmentCount();
     DBUG_RETURN(FALSE);
   }
 
@@ -19976,6 +20169,17 @@ static MYSQL_SYSVAR_UINT(
   0 /* block */
 );
 
+static MYSQL_SYSVAR_BOOL(
+  fully_replicated,                        /* name */
+  opt_ndb_fully_replicated,                /* var  */
+  PLUGIN_VAR_OPCMDARG,
+  "Create tables that are fully replicated by default. This enables reading"
+  " from any data node when using ReadCommitted. This is great for read"
+  " scalability but hampers write scalability",
+  NULL,                              /* check func. */
+  NULL,                              /* update func. */
+  0                                  /* default */
+);
 
 static MYSQL_SYSVAR_BOOL(
   read_backup,                       /* name */
@@ -20367,8 +20571,6 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(report_thresh_binlog_epoch_slip),
   MYSQL_SYSVAR(eventbuffer_max_alloc),
   MYSQL_SYSVAR(eventbuffer_free_percent),
-  MYSQL_SYSVAR(read_backup),
-  MYSQL_SYSVAR(data_node_neighbour),
   MYSQL_SYSVAR(log_update_as_write),
   MYSQL_SYSVAR(log_updated_only),
   MYSQL_SYSVAR(log_empty_update),
@@ -20401,6 +20603,9 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(deferred_constraints),
   MYSQL_SYSVAR(join_pushdown),
   MYSQL_SYSVAR(log_exclusive_reads),
+  MYSQL_SYSVAR(read_backup),
+  MYSQL_SYSVAR(data_node_neighbour),
+  MYSQL_SYSVAR(fully_replicated),
 #ifndef DBUG_OFF
   MYSQL_SYSVAR(dbg_check_shares),
 #endif

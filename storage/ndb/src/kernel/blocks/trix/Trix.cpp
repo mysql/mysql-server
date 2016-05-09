@@ -1003,6 +1003,8 @@ void Trix::setupSubscription(Signal* signal, SubscriptionRecPtr subRecPtr)
 		     subRecPtr.i, subCreateReq->subscriptionId,
 		     subCreateReq->subscriptionKey));
 
+  D("SUB_CREATE_REQ tableId: " << subRec->sourceTableId);
+
   sendSignal(SUMA_REF, GSN_SUB_CREATE_REQ, 
 	     signal, SubCreateReq::SignalLength, JBB);
 
@@ -1069,7 +1071,7 @@ void Trix::startTableScan(Signal* signal, SubscriptionRecPtr subRecPtr)
   {
     jam();
     subSyncReq->requestInfo |= SubSyncReq::LM_Exclusive;
-    subSyncReq->requestInfo |= SubSyncReq::Reorg;
+    subSyncReq->requestInfo |= SubSyncReq::ReorgDelete;
   }
   else if (subRec->requestType == STAT_CLEAN)
   {
@@ -1097,6 +1099,10 @@ void Trix::startTableScan(Signal* signal, SubscriptionRecPtr subRecPtr)
   DBUG_PRINT("info",("i: %u subscriptionId: %u, subscriptionKey: %u",
 		     subRecPtr.i, subSyncReq->subscriptionId,
 		     subSyncReq->subscriptionKey));
+
+  D("SUB_SYNC_REQ fragId: " << subRec->fragId <<
+    " fragCount: " << subRec->fragCount <<
+    " requestInfo: " << hex << subSyncReq->requestInfo);
 
   sendSignal(SUMA_REF, GSN_SUB_SYNC_REQ,
 	     signal, SubSyncReq::SignalLength, JBB, orderPtr, noOfSections);
@@ -1603,6 +1609,12 @@ Trix::execCOPY_DATA_IMPL_REQ(Signal* signal)
     subRec->noOfKeyColumns = ptr.sz;
   }
 
+  D("COPY_DATA_IMPL_REQ srctableId: " << subRec->sourceTableId <<
+    " targetTableId: " << subRec->targetTableId <<
+    " fragCount: " << subRec->fragCount <<
+    " requestType: " << subRec->requestType <<
+    " flags: " << hex << subRec->m_flags);
+
   releaseSections(handle);
   {
     UtilPrepareReq * utilPrepareReq =
@@ -1625,7 +1637,10 @@ Trix::execCOPY_DATA_IMPL_REQ(Signal* signal)
     {
       w.add(UtilPrepareReq::OperationType, UtilPrepareReq::Delete);
     }
-    w.add(UtilPrepareReq::ScanTakeOverInd, 1);
+    if (!(req->requestInfo & CopyDataReq::NoScanTakeOver))
+    {
+      w.add(UtilPrepareReq::ScanTakeOverInd, 1);
+    }
     w.add(UtilPrepareReq::ReorgInd, 1);
     w.add(UtilPrepareReq::TableId, subRec->targetTableId);
 

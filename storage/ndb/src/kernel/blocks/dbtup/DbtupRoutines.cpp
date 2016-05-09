@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1772,7 +1772,7 @@ int Dbtup::updateAttributes(KeyReqStruct *req_struct,
       if (inBufIndex == 1 + sz && inBufIndex == inBufLen)
       {
         // No table attributes are updated. Optimize op only.
-        regOperPtr->op_struct.bit_field.m_physical_only_op = 1;
+        regOperPtr->op_struct.bit_field.m_triggers = TupKeyReq::OP_NO_TRIGGERS;
       }
     }
     else if (attributeId == AttributeHeader::ROW_AUTHOR)
@@ -2523,7 +2523,7 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   case AttributeHeader::READ_ALL:
     return (int)read_packed(inBuffer, inPos, req_struct, outBuf);
   case AttributeHeader::FRAGMENT:
-    outBuffer[1] = req_struct->fragPtrP->fragmentId;
+    outBuffer[1] = req_struct->fragPtrP->partitionId;
     sz = 1;
     break;
   case AttributeHeader::FRAGMENT_FIXED_MEMORY:
