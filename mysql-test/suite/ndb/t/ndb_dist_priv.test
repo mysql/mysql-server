@@ -211,6 +211,41 @@ SELECT table_name FROM information_schema.tables
                        'procs_priv', 'proxies_priv', 'host')
   ORDER BY table_name;
 
+--echo === test mysql_upgrade of two mysqlds ===
+#
+# Bug #22875519: FAILING UPGRADE OF 2ND MYSQLD FOR 7.5.1 DUE TO 'SYS' SCHEMA
+#
+
+# Supress the warning which occurs on the other mysqld when
+# mysql_upgrade tries to create the performance_schema database
+# although it already exists(since the DROP DATABASE was not allowed
+# due to local tables)
+--disable_query_log
+connection server2;
+call mtr.add_suppression("Can\'t create database \'performance_schema\'; database exists");
+connection server1;
+call mtr.add_suppression("Can\'t create database \'performance_schema\'; database exists");
+--enable_query_log
+
+# Drop 'sys' database in both the mysqlds, so that sys schema gets
+# created when mysql_upgrade is executed.
+
+DROP DATABASE sys;
+
+connection server2;
+DROP DATABASE sys;
+
+let $log_file = $MYSQLTEST_VARDIR/tmp/ndb_dist_priv_upgrade.log;
+
+# Upgrading the first mysqld causes sys schema to be created with the necessary views/tables.
+# Due to schema distribution, an empty sys schema is created in the second mysqld as well.
+--echo mysql_upgrade first mysqld...
+--exec $MYSQL_UPGRADE --skip-verbose --force > $log_file 2>&1
+
+# Upgrading the second mysqld should succeed since sys schema is empty.
+--echo mysql_upgrade second mysqld...
+--exec $MYSQL_UPGRADE --defaults-group-suffix=.2.1 --skip-verbose --force >> $log_file 2>&1
+
 # Restore local privileges
 connection server1;
 call mysql.mysql_cluster_backup_privileges();
