@@ -580,7 +580,7 @@ end_of_blob:
 	buf_page_release_zip(m_bpage);
 	inflateEnd(&m_stream);
 	mem_heap_free(m_heap);
-	UNIV_MEM_ASSERT_RW(m_buf, m_stream.total_out);
+	UNIV_MEM_ASSERT_RW(m_rctx.m_buf, m_stream.total_out);
 	return(err);
 }
 
