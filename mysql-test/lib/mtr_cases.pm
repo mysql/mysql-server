@@ -904,15 +904,6 @@ sub collect_one_test_case {
 
   #-----------------------------------------------------------------------
   # Check for test specific config file
-  #-----------------------------------------------------------------------
-  my $test_cnf_file= "$testdir/$tname.cnf";
-  if ( -f $test_cnf_file) {
-    # Specifies the configuration file to use for this test
-    $tinfo->{'template_path'}= $test_cnf_file;
-  }
-
-  # ----------------------------------------------------------------------
-  # Check for test specific config file
   # ----------------------------------------------------------------------
   my $test_cnf_file= "$testdir/$tname.cnf";
   if ( -f $test_cnf_file ) {
@@ -1117,6 +1108,9 @@ sub collect_one_test_case {
       # Suite has no config, autodetect which one to use
       if ( $tinfo->{rpl_test} ){
 	$config= "suite/rpl/my.cnf";
+      if ( $tinfo->{rpl_gtid_test} ){
+        $config= "suite/rpl_gtid/my.cnf";
+      }
 	if ( $tinfo->{ndb_test} ){
 	  $config= "suite/rpl_ndb/my.cnf";
 	}
@@ -1183,7 +1177,10 @@ my @tags=
  ["include/rpl_ip_mix2.inc", "rpl_test", 1],
  ["include/rpl_ipv6.inc", "rpl_test", 1],
 
- ["include/ndb_master-slave.inc", "ndb_test", 1],
+#  The tests with below .inc file are considered to be rpl_gtid tests.
+ ["include/have_gtid.inc", "rpl_gtid_test", 1],
+
+["include/ndb_master-slave.inc", "ndb_test", 1],
  ["federated.inc", "federated_test", 1],
  ["include/not_embedded.inc", "not_embedded", 1],
  ["include/have_ssl.inc", "need_ssl", 1],
