@@ -26,7 +26,7 @@ CALL mtr.add_suppression(".*master and slave have equal MySQL server UUIDs.*");
 CALL mtr.add_suppression("Master's UUID has changed, although this should not happen unless you have changed it manually");
 CALL mtr.add_suppression("Slave I/O: SET @master_heartbeat_period to master failed with error: Lost connection to MySQL server during query");
 CALL mtr.add_suppression("Notifying master by SET @master_binlog_checksum= @@global.binlog_checksum failed with error");
-CALL mtr.add_suppression("A slave with the same server_uuid as this slave has connected to the master");
+CALL mtr.add_suppression("A slave with the same server_uuid/server_id as this slave has connected to the master");
 
 --let $uuid_file= auto.cnf
 
@@ -293,7 +293,7 @@ eval CHANGE MASTER TO
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
 # Assert only the occurrences after the last CHANGE MASTER
 --let $assert_only_after=CHANGE MASTER .* executed
---let $assert_select= Slave .* Got fatal error .* from master .* slave with the same server_uuid as this slave
+--let $assert_select= Slave .* Got fatal error .* from master .* slave with the same server_uuid/server_id as this slave
 --let $assert_text= Found the expected line in server 2 error log
 --source include/assert_grep.inc
 

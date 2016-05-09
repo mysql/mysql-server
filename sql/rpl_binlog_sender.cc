@@ -252,10 +252,10 @@ void Binlog_sender::run()
     reconnect anymore.
   */
   mysql_mutex_lock(&m_thd->LOCK_thd_data);
-  bool was_killed_by_duplicate_slave_uuid= m_thd->duplicate_slave_uuid;
+  bool was_killed_by_duplicate_slave_id= m_thd->duplicate_slave_id;
   mysql_mutex_unlock(&m_thd->LOCK_thd_data);
-  if (was_killed_by_duplicate_slave_uuid)
-    set_fatal_error("A slave with the same server_uuid as this slave "
+  if (was_killed_by_duplicate_slave_id)
+    set_fatal_error("A slave with the same server_uuid/server_id as this slave "
                     "has connected to the master");
 
   if (file > 0)
