@@ -3136,7 +3136,6 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     col->m_column_no = impl->m_columns.size();
     impl->m_columns.push_back(col);
     it.next();
-    delete col;
   }
 
   impl->computeAggregates();
@@ -3194,7 +3193,6 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   {
     DBUG_ASSERT(impl->m_fragmentCount > 0);
   }
-  delete impl;
   free(tableDesc);
   DBUG_RETURN(0);
 }
