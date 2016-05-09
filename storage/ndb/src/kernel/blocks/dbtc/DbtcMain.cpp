@@ -20181,7 +20181,6 @@ Dbtc::time_track_init_histogram_limits(void)
   for (Uint32 i = 0; i < TIME_TRACK_HISTOGRAM_RANGES; i++)
   {
     c_time_track_histogram_boundary[i] = val;
-    ndbout_c("Histogram boundary index: %u, value: %u", i, val);
     val *= 3;
     val /= 2;
   }
