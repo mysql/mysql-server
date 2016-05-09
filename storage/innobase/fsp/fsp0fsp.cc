@@ -3533,7 +3533,6 @@ fsp_reserve_free_pages(
 {
 	xdes_t*	descr;
 	ulint	n_used;
-	DBUG_ENTER("fsp_reserve_free_pages");
 
 	ut_a(!is_system_tablespace(space->id));
 	ut_a(size < FSP_EXTENT_SIZE);
@@ -3542,12 +3541,11 @@ fsp_reserve_free_pages(
 		space_header, space->id, 0, mtr);
 	n_used = xdes_get_n_used(descr, mtr);
 
-	DBUG_LOG("xdes", xdes_mem_t(descr));
 	ut_a(n_used <= size);
 
-	DBUG_RETURN(size >= n_used + n_pages
-		    || fsp_try_extend_data_file_with_pages(
-		            space, n_used + n_pages - 1, space_header, mtr));
+	return(size >= n_used + n_pages
+	       || fsp_try_extend_data_file_with_pages(
+			space, n_used + n_pages - 1, space_header, mtr));
 }
 
 /** Reserves free pages from a tablespace. All mini-transactions which may

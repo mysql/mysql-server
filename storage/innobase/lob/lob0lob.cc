@@ -1160,12 +1160,15 @@ btr_copy_externally_stored_field_prefix_func(
 	if (page_size.is_compressed()) {
 		ut_a(local_len == BTR_EXTERN_FIELD_REF_SIZE);
 		ReadContext	rctx(page_size, data, local_len,
-					     buf, len);
-		zReader	reader(rctx);
+				     buf, len
+#ifdef UNIV_DEBUG
+				     , is_sdi
+#endif /* UNIV_DEBUG */
+				     );
 		if (!rctx.is_valid_blob()) {
 			return(0);
 		}
-		ut_d(rctx.set_sdi(is_sdi));
+		zReader	reader(rctx);
 		reader.fetch();
 		return(reader.length());
 	}
@@ -1192,7 +1195,11 @@ btr_copy_externally_stored_field_prefix_func(
 
 	ReadContext	rctx(
 		page_size, data, local_len + BTR_EXTERN_FIELD_REF_SIZE,
-		buf + local_len, len);
+		buf + local_len, len
+#ifdef UNIV_DEBUG
+		, false
+#endif /* UNIV_DEBUG */
+		);
 
 	Reader	reader(rctx);
 	ulint fetch_len = reader.fetch();
@@ -1236,14 +1243,17 @@ btr_copy_externally_stored_field_func(
 	buf = (byte*) mem_heap_alloc(heap, local_len + extern_len);
 
 	ReadContext	rctx(page_size, data,
-				     local_len + BTR_EXTERN_FIELD_REF_SIZE,
-				     buf + local_len, extern_len);
+			     local_len + BTR_EXTERN_FIELD_REF_SIZE,
+			     buf + local_len, extern_len
+#ifdef UNIV_DEBUG
+			     , is_sdi
+#endif /* UNIV_DEBUG */
+			     );
 
 	if (page_size.is_compressed()) {
 		ut_ad(local_len == 0);
-		zReader	reader(rctx);
 		ut_a(rctx.is_valid_blob());
-		ut_d(rctx.set_sdi(is_sdi));
+		zReader	reader(rctx);
 		reader.fetch();
 		*len = reader.length();
 		return(buf);
