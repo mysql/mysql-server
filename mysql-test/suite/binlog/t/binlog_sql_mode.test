@@ -57,7 +57,7 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug39526.binlog"))
-is not null;
+is not null AS Loaded;
 let $s_mode_unsigned= `select @a like "%@@session.sql_mode=0%" /* must return 0 */`;
 echo *** String sql_mode=0 is found: $s_mode_unsigned ***;
 
