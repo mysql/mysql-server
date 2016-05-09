@@ -6417,7 +6417,7 @@ static int show_thread_id_count(THD *thd, SHOW_VAR *var, char *buff)
   var->value= buff;
   long *value= reinterpret_cast<long*>(buff);
   *value= static_cast<long>(Global_THD_manager::get_instance()->
-                            get_thread_id());
+                            get_thread_id() - 1);
   return 0;
 }
 
