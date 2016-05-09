@@ -552,7 +552,8 @@ public:
 		:
 		m_block_size(UNIV_SECTOR_SIZE),
 		m_type(READ),
-		m_compression()
+		m_compression(),
+		m_encryption()
 	{
 		/* No op */
 	}
@@ -564,7 +565,8 @@ public:
 		:
 		m_block_size(UNIV_SECTOR_SIZE),
 		m_type(static_cast<uint16_t>(type)),
-		m_compression()
+		m_compression(),
+		m_encryption()
 	{
 		if (is_log()) {
 			disable_compression();
