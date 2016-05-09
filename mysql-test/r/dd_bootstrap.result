@@ -75,14 +75,14 @@ Altered table
 # ------------------------------------------------------------
 # 8.1 Restart the server against existing but empty DDIR - should fail.
 # 8.2 Look for error.
-#     Datadir error found 1 times.
+#     InnoDB file open error found 1 times.
 # 8.3 Delete log file and datadir.
 #
 # 9. Try restart on an empty mysql dir.
 # -------------------------------------
 # 9.1 Restart the server against existing but empty mysql dir - should fail.
 # 9.2 Look for error.
-#     Data Dictionary initialization error found 1 times.
+#     InnoDB file open error found 1 times.
 # 9.3 Delete log file and datadir.
 #
 # Cleanup: Restarting the server against default datadir.
