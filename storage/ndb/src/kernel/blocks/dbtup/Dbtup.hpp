@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,10 +39,12 @@
 #include <DynArr256.hpp>
 #include "../pgman.hpp"
 #include "../tsman.hpp"
+#include <EventLogger.hpp>
 
 #define JAM_FILE_ID 414
 
 
+extern EventLogger* g_eventLogger;
 
 #ifdef VM_TRACE
 inline const char* dbgmask(const Bitmask<MAXNROFATTRIBUTESINWORDS>& bm) {
@@ -679,10 +681,25 @@ struct Fragrecord {
   // Consistency check.
   bool verifyVarSpace() const
   {
-    return (m_varWordsFree < Uint64(1)<<60) && //Underflow.
-      m_varWordsFree * sizeof(Uint32) <=
-      noOfVarPages * File_formats::NDB_PAGE_SIZE;
+    if ((m_varWordsFree < Uint64(1)<<60) && //Underflow.
+        m_varWordsFree * sizeof(Uint32) <=
+        Uint64(noOfVarPages) * File_formats::NDB_PAGE_SIZE)
+    {
+      return true;
+    }
+    else
+    {
+      g_eventLogger->info("TUP : T%uF%u verifyVarSpace fails : "
+                          "m_varWordsFree : %llu "
+                          "noOfVarPages : %u",
+                          fragTableId,
+                          fragmentId,
+                          m_varWordsFree,
+                          noOfVarPages);
+      return false;
+    }
   }
+
 };
 typedef Ptr<Fragrecord> FragrecordPtr;
 
