@@ -122,6 +122,14 @@ Mysqlx.Sql.StmtExecute {
 }
 -->recvuntil Mysqlx.Sql.StmtExecuteOk
 
+## list objects in current database 
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_objects"
+
+  namespace: "xplugin"
+}
+-->recvuntil Mysqlx.Sql.StmtExecuteOk
+
 
 ## Cleanup
 -->sql
