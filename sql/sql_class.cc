@@ -1117,7 +1117,7 @@ THD::THD(bool enable_plugins)
    m_query_rewrite_plugin_da(false),
    m_query_rewrite_plugin_da_ptr(&m_query_rewrite_plugin_da),
    m_stmt_da(&main_da),
-   duplicate_slave_uuid(false),
+   duplicate_slave_id(false),
    is_a_srv_session_thd(false)
 {
   main_lex.reset();
