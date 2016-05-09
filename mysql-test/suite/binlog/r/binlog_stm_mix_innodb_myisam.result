@@ -442,9 +442,8 @@ get_lock("a",10)
 flush logs;
 select
 (@a:=load_file("MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output"))
-is not null;
-(@a:=load_file("MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output"))
-is not null
+is not null AS Loaded;
+Loaded
 1
 select
 @a like "%#%error_code=0%ROLLBACK\n/*!*/;%ROLLBACK /* added by mysqlbinlog */;%" OR
