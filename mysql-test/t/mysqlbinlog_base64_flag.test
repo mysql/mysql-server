@@ -107,9 +107,9 @@ select * from t1;
 
 # Test that BUG#37426 is triggered.
 
-CREATE TABLE char128_utf8 ( 
-    i1 INT NOT NULL, 
-    c CHAR(128) CHARACTER SET utf8 NOT NULL, 
+CREATE TABLE char128_utf8 (
+    i1 INT NOT NULL,
+    c CHAR(128) CHARACTER SET utf8 NOT NULL,
     i2 INT NOT NULL);
 CREATE TABLE char63_utf8 (
       i1 INT NOT NULL,
@@ -157,7 +157,7 @@ call mtr.add_suppression("Slave SQL.*Table definition on master and slave does n
 call mtr.add_suppression("Slave SQL.*Column 1 of table .test.char128_utf8. cannot be converted.* Error_code: 1677");
 
 --echo #
---echo # Bug #54393: crash and/or valgrind errors in 
+--echo # Bug #54393: crash and/or valgrind errors in
 --echo # mysql_client_binlog_statement
 --echo #
 --error ER_SYNTAX_ERROR

@@ -1233,7 +1233,7 @@ sub command_line_setup {
              'valgrind-options=s'       => sub {
 	       my ($opt, $value)= @_;
 	       # Deprecated option unless it's what we know pushbuild uses
-	       if ($value eq "--gen-suppressions=all --show-reachable=yes") {
+	       if (option_equals($value,"--gen-suppressions=all --show-reachable=yes")) {
 		 push(@valgrind_args, $_) for (split(' ', $value));
 		 return;
 	       }
@@ -1488,13 +1488,13 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   foreach my $arg ( @opt_extra_mysqld_opt )
   {
-    if ( $arg =~ /default-storage-engine=(\S+)/ )
+    if ( $arg =~ /default[-_]storage[-_]engine=(\S+)/ )
     {
       # Save this for collect phase
       collect_option('default-storage-engine', $1);
       mtr_report("Using default engine '$1'")
     }
-    if ( $arg =~ /default-tmp-storage-engine=(\S+)/ )
+    if ( $arg =~ /default[-_]tmp-storage[-_]engine=(\S+)/ )
     {
       # Save this for collect phase
       collect_option('default-tmp-storage-engine', $1);
@@ -5773,7 +5773,7 @@ sub mysqld_arguments ($$$) {
   my $mysqld=            shift;
   my $extra_opts=        shift;
 
-  my @defaults = grep(/^--defaults-file=/, @$extra_opts);
+  my @defaults = grep(/^--defaults[-_]file=/, @$extra_opts);
   if (@defaults > 0) {
     mtr_add_arg($args, pop(@defaults))
   }
@@ -5810,9 +5810,6 @@ sub mysqld_arguments ($$$) {
     mtr_add_arg($args, "--log-output=file");
   }
 
-  # Check if "extra_opt" contains skip-log-bin
-  my $skip_binlog= grep(/^(--|--loose-)skip-log-bin/, @$extra_opts);
-
   # Indicate to mysqld it will be debugged in debugger
   if ( $glob_debugger )
   {
@@ -5830,6 +5827,7 @@ sub mysqld_arguments ($$$) {
   my $found_skip_core= 0;
   my $found_no_console= 0;
   my $found_log_error= 0;
+
 
   # On windows, do not add console if log-error found in .cnf file
   open (CONFIG_FILE, " < $path_config_file") or
@@ -5849,6 +5847,7 @@ sub mysqld_arguments ($$$) {
     # Skip --defaults-file option since it's handled above.
     next if $arg =~ /^--defaults-file/;
 
+
     if ($arg =~ /^--log[-_]error/)
     {
       $found_log_error= 1;
@@ -5863,11 +5862,7 @@ sub mysqld_arguments ($$$) {
     {
         $found_no_console= 1;
     }
-    elsif ($skip_binlog and mtr_match_prefix($arg, "--binlog-format"))
-    {
-      ; # Dont add --binlog-format when running without binlog
-    }
-    elsif ($arg eq "--loose-skip-log-bin" and
+    elsif ($arg =~ /--loose[-_]skip[-_]log[-_]bin/ and
            $mysqld->option("log-slave-updates"))
     {
       ; # Dont add --skip-log-bin when mysqld have --log-slave-updates in config

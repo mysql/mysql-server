@@ -72,9 +72,9 @@ a
 1
 1
 3
-CREATE TABLE char128_utf8 ( 
-i1 INT NOT NULL, 
-c CHAR(128) CHARACTER SET utf8 NOT NULL, 
+CREATE TABLE char128_utf8 (
+i1 INT NOT NULL,
+c CHAR(128) CHARACTER SET utf8 NOT NULL,
 i2 INT NOT NULL);
 CREATE TABLE char63_utf8 (
 i1 INT NOT NULL,
@@ -101,7 +101,7 @@ call mtr.add_suppression("Slave SQL.*master suffers from this bug: http:..bugs.m
 call mtr.add_suppression("Slave SQL.*Table definition on master and slave does not match: Column 1 size mismatch.* Error_code: 1535");
 call mtr.add_suppression("Slave SQL.*Column 1 of table .test.char128_utf8. cannot be converted.* Error_code: 1677");
 #
-# Bug #54393: crash and/or valgrind errors in 
+# Bug #54393: crash and/or valgrind errors in
 # mysql_client_binlog_statement
 #
 BINLOG '';
