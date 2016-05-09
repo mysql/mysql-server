@@ -18659,8 +18659,9 @@ int ha_ndbcluster::alter_frm(const char *file,
     if (dict->alterTableGlobal(*old_tab, *new_tab))
     {
       DBUG_PRINT("info", ("Online alter of table %s failed", m_tabname));
-      error= ndb_to_mysql_error(&dict->getNdbError());
-      my_error(error, MYF(0), m_tabname);
+      NdbError ndberr= dict->getNdbError();
+      error= ndb_to_mysql_error(&ndberr);
+      my_error(ER_GET_ERRMSG, MYF(0), error, ndberr.message, "NDBCLUSTER");
     }
     my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
     my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
