@@ -9633,25 +9633,36 @@ bool rpl_master_has_bug(const Relay_log_info *rli, uint bug_id, bool report,
                       " so slave stops; check error log on slave"
                       " for more info", MYF(0), bug_id);
       // a verbose message for the error log
-      rli->report(ERROR_LEVEL, ER_UNKNOWN_ERROR,
-                  "According to the master's version ('%s'),"
-                  " it is probable that master suffers from this bug:"
-                  " http://bugs.mysql.com/bug.php?id=%u"
-                  " and thus replicating the current binary log event"
-                  " may make the slave's data become different from the"
-                  " master's data."
-                  " To take no risk, slave refuses to replicate"
-                  " this event and stops."
-                  " We recommend that all updates be stopped on the"
-                  " master and slave, that the data of both be"
-                  " manually synchronized,"
-                  " that master's binary logs be deleted,"
-                  " that master be upgraded to a version at least"
-                  " equal to '%d.%d.%d'. Then replication can be"
-                  " restarted.",
-                  rli->get_rli_description_event()->server_version,
-                  bug_id,
-                  fixed_in[0], fixed_in[1], fixed_in[2]);
+      enum loglevel report_level= INFORMATION_LEVEL;
+      if (!ignored_error_code(ER_UNKNOWN_ERROR))
+      {
+        report_level= ERROR_LEVEL;
+        current_thd->is_slave_error= 1;
+      }
+      /* In case of ignored errors report warnings only if log_warnings > 1. */
+      else if (log_warnings > 1)
+        report_level= WARNING_LEVEL;
+
+      if (report_level != INFORMATION_LEVEL)
+        rli->report(report_level, ER_UNKNOWN_ERROR,
+                    "According to the master's version ('%s'),"
+                    " it is probable that master suffers from this bug:"
+                    " http://bugs.mysql.com/bug.php?id=%u"
+                    " and thus replicating the current binary log event"
+                    " may make the slave's data become different from the"
+                    " master's data."
+                    " To take no risk, slave refuses to replicate"
+                    " this event and stops."
+                    " We recommend that all updates be stopped on the"
+                    " master and slave, that the data of both be"
+                    " manually synchronized,"
+                    " that master's binary logs be deleted,"
+                    " that master be upgraded to a version at least"
+                    " equal to '%d.%d.%d'. Then replication can be"
+                    " restarted.",
+                    rli->get_rli_description_event()->server_version,
+                    bug_id,
+                    fixed_in[0], fixed_in[1], fixed_in[2]);
       return TRUE;
     }
   }

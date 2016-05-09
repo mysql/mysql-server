@@ -1,0 +1,46 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t (name VARCHAR(25) DEFAULT NULL) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc
+call mtr.add_suppression("Slave SQL.*Error executing row event: .Table .test.t. doesn.t exist., Error_code: 1146");
+call mtr.add_suppression("Slave SQL.*Column 0 of table .test.t. cannot be converted from type.* Error_code: 1677");
+call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
+call mtr.add_suppression("Got error 1 during COMMIT");
+ALTER TABLE t CHANGE name name VARCHAR(255);
+[connection master]
+INSERT INTO t VALUE ('Amy');
+# Sync should be successful. Slave should not stop with an error
+# ER_SLAVE_CONVERSION_FAILED. It should be up and running in spite
+# of errors as we have set slave_skip_error=all.
+include/sync_slave_sql_with_master.inc
+DROP TABLE t;
+[connection master]
+UPDATE t SET name='New';
+# Sync should be successful. Slave should not stop with an error
+# ER_NO_SUCH_TABLE. It should be up and running in spite of errors
+# as we have set slave_skip_error=all.
+include/sync_slave_sql_with_master.inc
+# Enable a debug point to simulate failure during rows event cleanup.
+SET @@GLOBAL.DEBUG= 'd,simulate_rows_event_cleanup_failure';
+[connection master]
+UPDATE t SET name='Old';
+[connection slave]
+# Since this is not an ignored error slave should stop. We only ignore the
+# errors that are generated during the execution of an event. The other errors
+# that are generated during commit/rollback failure, which takes place during cleanup
+# cannot be ignored.
+include/wait_for_slave_sql_error.inc [errno=1180]
+==== Clean up ====
+SET @@GLOBAL.DEBUG= '$debug_saved';
+include/stop_slave_io.inc
+RESET MASTER;
+RESET SLAVE;
+include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE t;
+include/rpl_end.inc
