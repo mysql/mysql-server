@@ -1307,8 +1307,13 @@ ngs::Error_code Admin_command_handler::list_objects(Session &session, Sql_data_c
   Query_string_builder qb;
   qb.put("SELECT table_name, COUNT(table_name) c FROM information_schema.columns WHERE"
     " ((column_name = 'doc' and data_type = 'json') OR"
-    " (column_name = '_id' and generation_expression = 'json_unquote(json_extract(`doc`,''$._id''))')) AND table_schema = ")
-    .quote_string(schema.empty() ? "schema()" : schema);
+    " (column_name = '_id' and generation_expression = 'json_unquote(json_extract(`doc`,''$._id''))')) AND table_schema = ");
+
+  if (schema.empty())
+    qb.put("schema()");
+  else
+    qb.quote_string(schema);
+
   if (!pattern.empty())
     qb.put("AND table_name LIKE ").quote_string(pattern);
   qb.put(" GROUP BY table_name HAVING c = 2;");

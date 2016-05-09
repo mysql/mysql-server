@@ -263,6 +263,70 @@ Mysqlx.Resultset.FetchDone {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
+send Mysqlx.Sql.StmtExecute {
+  stmt: "list_objects"
+  namespace: "xplugin"
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  name: "name"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: ""
+  collation: 0
+  fractional_digits: 0
+  length: 0
+  flags: 0
+}
+
+Mysqlx.Resultset.ColumnMetaData {
+  type: BYTES
+  name: "type"
+  original_name: ""
+  table: ""
+  original_table: ""
+  schema: ""
+  catalog: ""
+  collation: 0
+  fractional_digits: 0
+  length: 0
+  flags: 0
+}
+
+Mysqlx.Resultset.Row {
+  field: "fakecoll\000"
+  field: "VIEW\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "mytable\000"
+  field: "TABLE\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "mytable2\000"
+  field: "TABLE\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "myview\000"
+  field: "VIEW\000"
+}
+
+Mysqlx.Resultset.Row {
+  field: "books\000"
+  field: "COLLECTION\000"
+}
+
+Mysqlx.Resultset.FetchDone {
+}
+
+Mysqlx.Sql.StmtExecuteOk {
+}
+
 RUN drop schema if exists xtest
 
 5 rows affected

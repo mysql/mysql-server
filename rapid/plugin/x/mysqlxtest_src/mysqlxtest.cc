@@ -51,7 +51,8 @@
 #include <algorithm>
 
 const char CMD_ARG_SEPARATOR = '\t';
-const char * const mysqlxtest_version = "1.0";
+const char * const MYSQLXTEST_VERSION = "1.0";
+const unsigned short MYSQLX_PORT = 33060;
 #include <mysql/service_my_snprintf.h>
 #include <mysql.h>
 
@@ -274,7 +275,7 @@ class Connection_manager
 {
 public:
   Connection_manager(const std::string &uri, const mysqlx::Ssl_config &ssl_config_, const std::size_t timeout_, const bool _dont_wait_for_disconnect)
-  : ssl_config(ssl_config_), timeout(timeout_), dont_wait_for_disconnect(_dont_wait_for_disconnect)
+  : port(MYSQLX_PORT), ssl_config(ssl_config_), timeout(timeout_), dont_wait_for_disconnect(_dont_wait_for_disconnect)
   {
     int pwdfound;
     mysqlx::parse_mysql_connstring(uri, proto, user, pass, host, port, sock, db, pwdfound);
@@ -2639,7 +2640,7 @@ public:
 
   void print_version()
   {
-    printf("%s  Ver %s Distrib %s, for %s (%s)\n", my_progname, mysqlxtest_version,
+    printf("%s  Ver %s Distrib %s, for %s (%s)\n", my_progname, MYSQLXTEST_VERSION,
         MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
   }
 
@@ -2658,6 +2659,7 @@ public:
     std::cout << "--close-no-sync       Do not wait for connection to be closed by server(disconnect first)\n";
     std::cout << "--schema=<schema>     Default schema to connect to\n";
     std::cout << "--uri=<uri>           Connection URI\n";
+    std::cout << "                      URI takes precedence before options like: user, host, password, port\n";
     std::cout << "--ssl-key             X509 key in PEM format\n";
     std::cout << "--ssl-ca              CA file in PEM format\n";
     std::cout << "--ssl-ca_path         CA directory\n";
@@ -2824,6 +2826,8 @@ public:
         host = value;
       else if (check_arg_with_value(argv, i, "--user", "-u", value))
         user = value;
+      else if (check_arg_with_value(argv, i, "--uri", NULL, value))
+        uri = value;
       else if (check_arg_with_value(argv, i, "--schema", NULL, value))
         schema = value;
       else if (check_arg_with_value(argv, i, "--port", "-P", value))
@@ -2876,7 +2880,7 @@ public:
     }
 
     if (port == 0)
-      port = 33060;
+      port = MYSQLX_PORT;
     if (host.empty())
       host = "localhost";
 
