@@ -2435,6 +2435,7 @@ int io_thread_init_commands(MYSQL *mysql, Master_info *mi)
 {
   char query[256];
   int ret= 0;
+  DBUG_EXECUTE_IF("fake_5_5_version_slave", return ret;);
 
   sprintf(query, "SET @slave_uuid= '%s'", server_uuid);
   if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query)))
