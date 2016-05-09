@@ -670,6 +670,7 @@ NdbTableImpl::init(){
   m_keyLenInWords= 0;
   m_fragmentCountType = NdbDictionary::Object::FragmentCount_OnePerLDMPerNode;
   m_fragmentCount= 0;
+  m_realFragmentCount = 0;
   m_index= NULL;
   m_indexType= NdbDictionary::Object::TypeUndefined;
   m_noOfKeys= 0;
@@ -691,6 +692,7 @@ NdbTableImpl::init(){
   m_extra_row_gci_bits = 0;
   m_extra_row_author_bits = 0;
   m_read_backup = 0;
+  m_fully_replicated = false;
 
 #ifdef VM_TRACE
   {
@@ -699,6 +701,13 @@ NdbTableImpl::init(){
     if (b)
     {
       m_read_backup = 1;
+    }
+    if (NdbEnv_GetEnv("NDB_FULLY_REPLICATED", buf, sizeof(buf)) != 0)
+    {
+      m_read_backup = 1;
+      m_fully_replicated = 1;
+      m_fragmentCountType =
+        NdbDictionary::Object::FragmentCount_OnePerLDMPerNodeGroup;
     }
   }
 #endif
@@ -930,6 +939,11 @@ NdbTableImpl::equal(const NdbTableImpl& obj) const
     DBUG_RETURN(false);
   }
 
+  if (m_fully_replicated != obj.m_fully_replicated)
+  {
+    DBUG_RETURN(false);
+  }
+
   DBUG_RETURN(true);
 }
 
@@ -1004,6 +1018,7 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_maxLoadFactor = org.m_maxLoadFactor;
   m_keyLenInWords = org.m_keyLenInWords;
   m_fragmentCount = org.m_fragmentCount;
+  m_realFragmentCount = org.m_fragmentCount;
   m_fragmentCountType = org.m_fragmentCountType;
   m_single_user_mode = org.m_single_user_mode;
   m_extra_row_gci_bits = org.m_extra_row_gci_bits;
@@ -1037,6 +1052,7 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_tablespace_version = org.m_tablespace_version;
   m_storageType = org.m_storageType;
   m_read_backup = org.m_read_backup;
+  m_fully_replicated = org.m_fully_replicated;
 
   m_hash_map_id = org.m_hash_map_id;
   m_hash_map_version = org.m_hash_map_version;
@@ -1202,6 +1218,11 @@ NdbTableImpl::setFragmentCount(Uint32 count)
 Uint32 NdbTableImpl::getFragmentCount() const
 {
   return m_fragmentCount;
+}
+
+Uint32 NdbTableImpl::getRealFragmentCount() const
+{
+  return m_realFragmentCount;
 }
 
 int NdbTableImpl::setFrm(const void* data, Uint32 len)
@@ -2837,6 +2858,8 @@ objectTypeMapping[] = {
   { DictTabInfo::Datafile,           NdbDictionary::Object::Datafile },
   { DictTabInfo::Undofile,           NdbDictionary::Object::Undofile },
   { DictTabInfo::ReorgTrigger,       NdbDictionary::Object::ReorgTrigger },
+  { DictTabInfo::FullyReplicatedTrigger,
+    NdbDictionary::Object::FullyReplicatedTrigger },
 
   { DictTabInfo::ForeignKey,         NdbDictionary::Object::ForeignKey },
   { DictTabInfo::FKParentTrigger,    NdbDictionary::Object::FKParentTrigger },
@@ -2994,6 +3017,10 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   impl->m_fragmentCountType =
     (NdbDictionary::Object::FragmentCountType)tableDesc->FragmentCountType;
   impl->m_read_backup = tableDesc->ReadBackupFlag == 0 ? false : true;
+  impl->m_realFragmentCount = tableDesc->RealFragmentCount;
+  impl->m_fully_replicated =
+    tableDesc->FullyReplicatedFlag == 0 ? false : true;
+
 
   DBUG_PRINT("info", ("m_logging: %u, fragmentCountType: %d",
                       impl->m_logging,
@@ -3646,7 +3673,9 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
      sz < old_sz ||
      impl.m_extra_row_gci_bits != old_impl.m_extra_row_gci_bits ||
      impl.m_extra_row_author_bits != old_impl.m_extra_row_author_bits ||
-     impl.m_read_backup != old_impl.m_read_backup)
+     impl.m_read_backup != old_impl.m_read_backup ||
+     impl.m_fully_replicated != old_impl.m_fully_replicated)
+
   {
     DBUG_PRINT("info", ("Old and new table not compatible"));
     goto invalid_alter_table;
@@ -3662,13 +3691,21 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
   if (impl.m_fragmentCountType != old_impl.m_fragmentCountType)
   {
     bool ok;
-    if (old_impl.m_fragmentCountType ==
-          NdbDictionary::Object::FragmentCount_Specific)
+    if (old_impl.m_fully_replicated)
+    {
+      /**
+       * Currently do not support changing fragment count type of
+       * fully replicated tables.
+       */
+      ok = false;
+    }
+    else if (old_impl.m_fragmentCountType ==
+               NdbDictionary::Object::FragmentCount_Specific)
     {
       ok = false;
     }
     else if (impl.m_fragmentCountType ==
-          NdbDictionary::Object::FragmentCount_Specific)
+               NdbDictionary::Object::FragmentCount_Specific)
     {
       ok = true;
     }
@@ -3691,7 +3728,7 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
       }
     }
     else if (old_impl.m_fragmentCountType ==
-               NdbDictionary::Object::FragmentCount_OnePerLDMPerNodeGroup)
+             NdbDictionary::Object::FragmentCount_OnePerLDMPerNodeGroup)
     {
       if (impl.m_fragmentCountType !=
             NdbDictionary::Object::FragmentCount_OnePerNodeGroup &&
@@ -3896,6 +3933,7 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
 
   tmpTab->FragmentCountType = (Uint32)impl.m_fragmentCountType;
   tmpTab->FragmentCount= impl.m_fragmentCount;
+  tmpTab->RealFragmentCount = impl.m_realFragmentCount;
   tmpTab->TableLoggedFlag = impl.m_logging;
   tmpTab->TableTemporaryFlag = impl.m_temporary;
   tmpTab->RowGCIFlag = impl.m_row_gci;
@@ -3916,7 +3954,8 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
   tmpTab->ForceVarPartFlag = impl.m_force_var_part;
   tmpTab->ExtraRowGCIBits = impl.m_extra_row_gci_bits;
   tmpTab->ExtraRowAuthorBits = impl.m_extra_row_author_bits;
-
+  tmpTab->FullyReplicatedFlag = !!impl.m_fully_replicated;
+  tmpTab->ReadBackupFlag = !!impl.m_read_backup;
   tmpTab->FragmentType = getKernelConstant(impl.m_fragmentType,
  					   fragmentTypeMapping,
 					   DictTabInfo::AllNodesSmallTable);
@@ -3925,7 +3964,6 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
   tmpTab->HashMapObjectId = impl.m_hash_map_id;
   tmpTab->HashMapVersion = impl.m_hash_map_version;
   tmpTab->TableStorageType = impl.m_storageType;
-  tmpTab->ReadBackupFlag = impl.m_read_backup ? 1 : 0;
 
   const char *tablespace_name= impl.m_tablespace_name.c_str();
 loop:

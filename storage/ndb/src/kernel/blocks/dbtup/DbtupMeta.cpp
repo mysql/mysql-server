@@ -707,6 +707,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   Uint32 fragId         = req->fragId;
   Uint32 tablespace_id  = req->tablespaceid;
   Uint32 changeMask     = req->changeMask;
+  Uint32 partitionId    = req->partitionId;
 
   Uint64 maxRows =
     (((Uint64)req->maxRowsHigh) << 32) + req->maxRowsLow;
@@ -803,6 +804,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   regFragPtr.p->fragStatus = Fragrecord::FS_ONLINE;
   regFragPtr.p->fragTableId= regTabPtr.i;
   regFragPtr.p->fragmentId= fragId;
+  regFragPtr.p->partitionId= partitionId;
   regFragPtr.p->m_tablespace_id= tablespace_id;
   regFragPtr.p->m_undo_complete= false;
   regFragPtr.p->m_lcp_scan_op = RNIL;

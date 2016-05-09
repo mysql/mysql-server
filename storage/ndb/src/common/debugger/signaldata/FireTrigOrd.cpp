@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003, 2005, 2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,9 +44,10 @@ printFIRE_TRIG_ORD(FILE * output, const Uint32 * theData, Uint32 len,
   fprintf(output, " TriggerId: %d TriggerEvent: %s\n",
 	  sig->getTriggerId(),
 	  trigEvent(sig->getTriggerEvent()));
-  fprintf(output, " UserRef: (%d, %d) User data: %x\n",
+  fprintf(output, " UserRef: (%d, %d, %d) User data: %x\n",
 	  refToNode(sig->getUserRef()),
-	  refToBlock(sig->getUserRef()),
+	  refToInstance(sig->getUserRef()),
+	  refToMain(sig->getUserRef()),
 	  sig->getConnectionPtr());
   fprintf(output, " Signal: PK=%d BEFORE=%d AFTER=%d\n",
 	  sig->getNoOfPrimaryKeyWords(),

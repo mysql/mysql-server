@@ -1,0 +1,289 @@
+CREATE TABLE t1 (
+a int,
+b varchar(255),
+c int,
+primary key(a,b),
+key(b),
+unique (c)) engine=ndb comment='NDB_TABLE=ALLNODES' partition by key(a) ;
+Warnings:
+Warning	1478	NDB_TABLE= : unknown modifier: ALLNODES
+CREATE TABLE t2 (
+a int,
+b varchar(255),
+c int,
+primary key(a,b),
+key(b),
+unique (c)) engine=ndb comment='NDB_TABLE=FULLY_REPLICATED=1' partition by key(a) ;
+-- t1 --
+Version: Any
+Fragment type: HashMapPartition
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 2
+Length of frm data: XXX
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+RealFragmentCount: 8
+FragmentCount: 8
+FragmentCountType: ONE_PER_LDM_PER_NODE
+ExtraRowGciBits: 0
+ExtraRowAuthorBits: 0
+TableStatus: Retrieved
+Table options:
+HashMap: DEFAULT-HASHMAP-3840-8
+-- Attributes --
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Varchar(255;latin1_swedish_ci) PRIMARY KEY AT=SHORT_VAR ST=MEMORY
+c Int NULL AT=FIXED ST=MEMORY DYNAMIC
+-- Indexes -- 
+PRIMARY KEY(a, b) - UniqueHashIndex
+b(b) - OrderedIndex
+c(c) - OrderedIndex
+PRIMARY(a, b) - OrderedIndex
+c$unique(c) - UniqueHashIndex
+
+NDBT_ProgramExit: 0 - OK
+
+insert into t1 values
+(0, "row 0", 0),(1, "row 1", 1),
+(2, "row 2", 2),(3, "row 3", 3),
+(4, "row 4", 4),(5, "row 5", 5),
+(6, "row 6", 6),(7, "row 7", 7),
+(8, "row 8", 8),(9, "row 9", 9);
+select * from t1 order by 1;
+a	b	c
+0	row 0	0
+1	row 1	1
+2	row 2	2
+3	row 3	3
+4	row 4	4
+5	row 5	5
+6	row 6	6
+7	row 7	7
+8	row 8	8
+9	row 9	9
+begin;
+select * from t1 where a = 7;
+a	b	c
+7	row 7	7
+select * from t1 where c = 9;
+a	b	c
+9	row 9	9
+select * from t1 order by 1;
+a	b	c
+0	row 0	0
+1	row 1	1
+2	row 2	2
+3	row 3	3
+4	row 4	4
+5	row 5	5
+6	row 6	6
+7	row 7	7
+8	row 8	8
+9	row 9	9
+select * from t1 where a < 5 order by a;
+a	b	c
+0	row 0	0
+1	row 1	1
+2	row 2	2
+3	row 3	3
+4	row 4	4
+update t1 set b = 'pk update' where a = 3;
+update t1 set c = c + 10;
+update t1 set b = 'uk update' where c = 16;
+delete from t1 where a = 7;
+delete from t1 where c = 17;
+delete from t1 where a < 5;
+select * from t1 order by 1;
+a	b	c
+5	row 5	15
+6	uk update	16
+8	row 8	18
+9	row 9	19
+insert into t1 values (0, "row 0", 0),(1, "row 1", 1);
+select * from t1 order by 1;
+a	b	c
+0	row 0	0
+1	row 1	1
+5	row 5	15
+6	uk update	16
+8	row 8	18
+9	row 9	19
+rollback;
+"Stop node 1"
+begin;
+select * from t1 where a = 7;
+a	b	c
+7	row 7	7
+select * from t1 where c = 9;
+a	b	c
+9	row 9	9
+select * from t1 order by 1;
+a	b	c
+0	row 0	0
+1	row 1	1
+2	row 2	2
+3	row 3	3
+4	row 4	4
+5	row 5	5
+6	row 6	6
+7	row 7	7
+8	row 8	8
+9	row 9	9
+select * from t1 where a < 5 order by a;
+a	b	c
+0	row 0	0
+1	row 1	1
+2	row 2	2
+3	row 3	3
+4	row 4	4
+update t1 set b = 'pk update' where a = 3;
+update t1 set c = c + 10;
+update t1 set b = 'uk update' where c = 16;
+delete from t1 where a = 7;
+delete from t1 where c = 17;
+delete from t1 where a < 5;
+select * from t1 order by 1;
+a	b	c
+5	row 5	15
+6	uk update	16
+8	row 8	18
+9	row 9	19
+insert into t1 values (0, "row 0", 0),(1, "row 1", 1);
+select * from t1 order by 1;
+a	b	c
+0	row 0	0
+1	row 1	1
+5	row 5	15
+6	uk update	16
+8	row 8	18
+9	row 9	19
+rollback;
+"Start node 1"
+begin;
+select * from t1 where a = 7;
+a	b	c
+7	row 7	7
+select * from t1 where c = 9;
+a	b	c
+9	row 9	9
+select * from t1 order by 1;
+a	b	c
+0	row 0	0
+1	row 1	1
+2	row 2	2
+3	row 3	3
+4	row 4	4
+5	row 5	5
+6	row 6	6
+7	row 7	7
+8	row 8	8
+9	row 9	9
+select * from t1 where a < 5 order by a;
+a	b	c
+0	row 0	0
+1	row 1	1
+2	row 2	2
+3	row 3	3
+4	row 4	4
+update t1 set b = 'pk update' where a = 3;
+update t1 set c = c + 10;
+update t1 set b = 'uk update' where c = 16;
+delete from t1 where a = 7;
+delete from t1 where c = 17;
+delete from t1 where a < 5;
+select * from t1 order by 1;
+a	b	c
+5	row 5	15
+6	uk update	16
+8	row 8	18
+9	row 9	19
+insert into t1 values (0, "row 0", 0),(1, "row 1", 1);
+select * from t1 order by 1;
+a	b	c
+0	row 0	0
+1	row 1	1
+5	row 5	15
+6	uk update	16
+8	row 8	18
+9	row 9	19
+rollback;
+drop table t1, t2;
+CREATE TABLE t1 (
+a int,
+b varchar(255),
+c int,
+primary key(a,b),
+key(b),
+unique (c)) engine=ndb comment='NDB_TABLE=ALLNODES' partition by key(a) ;
+Warnings:
+Warning	1478	NDB_TABLE= : unknown modifier: ALLNODES
+CREATE TABLE t2 (
+a int,
+b varchar(255),
+c int,
+primary key(a,b),
+key(b),
+unique (c)) engine=ndb comment='NDB_TABLE=FULLY_REPLICATED=1' partition by key(a) ;
+insert into t1 values
+(0, "row 0", 0),(1, "row 1", 1),
+(2, "row 2", 2),(3, "row 3", 3),
+(4, "row 4", 4),(5, "row 5", 5),
+(6, "row 6", 6),(7, "row 7", 7),
+(8, "row 8", 8),(9, "row 9", 9);
+"Restart cluster"
+"Wait reconnect"
+begin;
+select * from t1 where a = 7;
+a	b	c
+7	row 7	7
+select * from t1 where c = 9;
+a	b	c
+9	row 9	9
+select * from t1 order by 1;
+a	b	c
+0	row 0	0
+1	row 1	1
+2	row 2	2
+3	row 3	3
+4	row 4	4
+5	row 5	5
+6	row 6	6
+7	row 7	7
+8	row 8	8
+9	row 9	9
+select * from t1 where a < 5 order by a;
+a	b	c
+0	row 0	0
+1	row 1	1
+2	row 2	2
+3	row 3	3
+4	row 4	4
+update t1 set b = 'pk update' where a = 3;
+update t1 set c = c + 10;
+update t1 set b = 'uk update' where c = 16;
+delete from t1 where a = 7;
+delete from t1 where c = 17;
+delete from t1 where a < 5;
+select * from t1 order by 1;
+a	b	c
+5	row 5	15
+6	uk update	16
+8	row 8	18
+9	row 9	19
+insert into t1 values (0, "row 0", 0),(1, "row 1", 1);
+select * from t1 order by 1;
+a	b	c
+0	row 0	0
+1	row 1	1
+5	row 5	15
+6	uk update	16
+8	row 8	18
+9	row 9	19
+rollback;
+drop table t1, t2;

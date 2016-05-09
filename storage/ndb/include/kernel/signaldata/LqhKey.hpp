@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 
 class LqhKeyReq {
   /**
-   * Reciver(s)
+   * Receiver(s)
    */
   friend class Dblqh;         // Reciver
 
@@ -184,9 +184,17 @@ private:
   static UintR getDisableFkConstraints(const UintR & requestInfo);
   static void setDisableFkConstraints(UintR & requestInfo, UintR val);
 
+  /**
+   * Trigger flag ensuring that requests based on fully replicated triggers
+   * doesn't trigger a new trigger itself.
+   */
+  static UintR getNoTriggersFlag(const UintR & requestInfo);
+  static void setNoTriggersFlag(UintR & requestInfo, UintR val);
+
   enum RequestInfo {
     RI_KEYLEN_SHIFT      =  0, RI_KEYLEN_MASK      = 1023, /* legacy for short LQHKEYREQ */
     RI_DISABLE_FK        =  0,
+    RI_NO_TRIGGERS       = 1,
     RI_LAST_REPL_SHIFT   = 10, RI_LAST_REPL_MASK   =    3,
     RI_LOCK_TYPE_SHIFT   = 12, RI_LOCK_TYPE_MASK   =    7, /* legacy before ROWID_VERSION */
     RI_GCI_SHIFT         = 12,
@@ -247,6 +255,7 @@ private:
  * P = Do normal protocol even if dirty-read - 1 Bit (25)
  * D = Deferred constraints   - 1  Bit (26)
  * F = Disable FK constraints - 1  Bit (0)
+ * T = no triggers            - 1  Bit (1)
 
  * Short LQHKEYREQ :
  *             1111111111222222222233
@@ -257,7 +266,7 @@ private:
  * Long LQHKEYREQ :
  *             1111111111222222222233
  *   01234567890123456789012345678901
- *   F         llgnqpdisooorrAPDcumxz
+ *   FT        llgnqpdisooorrAPDcumxz
  *
  */
 
@@ -671,6 +680,19 @@ inline
 UintR
 LqhKeyReq::getDisableFkConstraints(const UintR & requestInfo){
   return (requestInfo >> RI_DISABLE_FK) & 1;
+}
+
+inline
+void
+LqhKeyReq::setNoTriggersFlag(UintR & requestInfo, UintR val){
+  ASSERT_BOOL(val, "LqhKeyReq::setQueueOnRedoProblem");
+  requestInfo |= (val << RI_NO_TRIGGERS);
+}
+
+inline
+UintR
+LqhKeyReq::getNoTriggersFlag(const UintR & requestInfo){
+  return (requestInfo >> RI_NO_TRIGGERS) & 1;
 }
 
 inline

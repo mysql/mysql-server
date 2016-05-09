@@ -97,7 +97,8 @@ struct TcSchVerReq
   Uint32 singleUserMode;
   Uint32 userDefinedPartition;
   Uint32 readBackup;
-  STATIC_CONST( SignalLength = 10 );
+  Uint32 fullyReplicated;
+  STATIC_CONST( SignalLength = 11 );
 };
 
 struct TcSchVerConf

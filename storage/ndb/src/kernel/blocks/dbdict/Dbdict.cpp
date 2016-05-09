@@ -788,6 +788,7 @@ void Dbdict::packTableIntoPages(Signal* signal)
   case DictTabInfo::ReorgTrigger:
   case DictTabInfo::FKParentTrigger:
   case DictTabInfo::FKChildTrigger:
+  case DictTabInfo::FullyReplicatedTrigger:
     ndbrequire(false);
   }
 
@@ -848,6 +849,8 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
 	!!(tablePtr.p->m_bits & TableRecord::TR_ForceVarPart));
   w.add(DictTabInfo::ReadBackupFlag,
 	!!(tablePtr.p->m_bits & TableRecord::TR_ReadBackup));
+  w.add(DictTabInfo::FullyReplicatedFlag,
+        !!(tablePtr.p->m_bits & TableRecord::TR_FullyReplicated));
 
   w.add(DictTabInfo::MinLoadFactor, tablePtr.p->minLoadFactor);
   w.add(DictTabInfo::MaxLoadFactor, tablePtr.p->maxLoadFactor);
@@ -867,7 +870,9 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
   w.add(DictTabInfo::TableStorageType, tablePtr.p->storageType);
   w.add(DictTabInfo::ExtraRowGCIBits, tablePtr.p->m_extra_row_gci_bits);
   w.add(DictTabInfo::ExtraRowAuthorBits, tablePtr.p->m_extra_row_author_bits);
-
+  w.add(DictTabInfo::RealFragmentCount, tablePtr.p->realFragmentCount);
+  w.add(DictTabInfo::FullyReplicatedTriggerId,
+        tablePtr.p->fullyReplicatedTriggerId);
 
   if (tablePtr.p->hashMapObjectId != RNIL)
   {
@@ -1111,7 +1116,7 @@ void
 Dbdict::execCREATE_FRAGMENTATION_REQ(Signal* signal)
 {
   CreateFragmentationReq* req = (CreateFragmentationReq*)signal->getDataPtr();
-
+  D("execCREATE_FRAGMENTATION_REQ");
   if (req->primaryTableId == RNIL) {
     jam();
     EXECUTE_DIRECT(DBDIH, GSN_CREATE_FRAGMENTATION_REQ, signal,
@@ -2614,6 +2619,7 @@ void Dbdict::initialiseTableRecord(TableRecordPtr tablePtr, Uint32 tableId)
   tablePtr.p->noOfNullAttr = 0;
   tablePtr.p->fragmentCountType = NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE;
   tablePtr.p->fragmentCount = 0;
+  tablePtr.p->realFragmentCount = 0;
   /*
     tablePtr.p->lh3PageIndexBits = 0;
     tablePtr.p->lh3DistrBits = 0;
@@ -3151,6 +3157,7 @@ void Dbdict::execNDB_STTOR(Signal* signal)
   if (restartType == NodeState::ST_INITIAL_START) {
     jam();
     c_initialStart = true;
+    c_restartRecord.m_complete = true;
   } else if (restartType == NodeState::ST_SYSTEM_RESTART) {
     jam();
     c_systemRestart = true;
@@ -4038,6 +4045,7 @@ Dbdict::enableFK_fromEndTrans(Signal* signal, Uint32 tx_key, Uint32 ret)
 void Dbdict::execDICTSTARTREQ(Signal* signal)
 {
   jamEntry();
+  D("DICTSTARTREQ");
   c_restartRecord.gciToRestart = signal->theData[0];
   c_restartRecord.returnBlockRef = signal->theData[1];
   c_restartRecord.m_senderData = signal->theData[2];
@@ -4822,6 +4830,7 @@ Dbdict::restartNextPass(Signal* signal)
   {
     jam();
 
+    c_restartRecord.m_complete = true;
     ndbrequire(c_restartRecord.m_op_cnt == 0);
 
     /**
@@ -5150,7 +5159,11 @@ Dbdict::restartCreateObj_parse(Signal* signal,
   }
   ndbrequire(!hasError(error));
 
-  restart_nextOp(signal);
+  /* For table objects create triggers for fully replicated, maybe */
+  if ( memcmp(info.m_opType, "CTa", 4) == 0 )
+    createSubOps(signal, op_ptr);
+  else
+    restart_nextOp(signal);
 }
 
 /**
@@ -5694,6 +5707,12 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
         strcpy(buf_ptr, fc_str);
         buf_ptr+= strlen(fc_str);
       }
+      if (c_tableDesc.FullyReplicatedFlag)
+      {
+        const char *fr_str = " FR";
+        strcpy(buf_ptr, fr_str);
+        buf_ptr+= strlen(fr_str);
+      }
       if (c_tableDesc.ReadBackupFlag)
       {
         const char *rb_str = " RB";
@@ -5730,6 +5749,9 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
   tabRequire(!(c_tableDesc.TableTemporaryFlag && c_tableDesc.TableLoggedFlag),
              CreateTableRef::NoLoggingTemporaryTable);
 
+  tabRequire(c_tableDesc.TableLoggedFlag || c_tableDesc.TablespaceId == RNIL,
+             CreateTableRef::NoLoggingDiskTable);
+
   tablePtr.p->noOfAttributes = c_tableDesc.NoOfAttributes;
   tablePtr.p->m_bits |=
     (c_tableDesc.TableLoggedFlag ? TableRecord::TR_Logged : 0);
@@ -5745,6 +5767,8 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
     (c_tableDesc.ForceVarPartFlag ? TableRecord::TR_ForceVarPart : 0);
   tablePtr.p->m_bits |=
     (c_tableDesc.ReadBackupFlag ? TableRecord::TR_ReadBackup : 0);
+  tablePtr.p->m_bits |=
+    (c_tableDesc.FullyReplicatedFlag ? TableRecord::TR_FullyReplicated : 0);
 
   tablePtr.p->minLoadFactor = c_tableDesc.MinLoadFactor;
   tablePtr.p->maxLoadFactor = c_tableDesc.MaxLoadFactor;
@@ -5766,6 +5790,18 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
   tablePtr.p->storageType = c_tableDesc.TableStorageType;
   tablePtr.p->m_extra_row_gci_bits = c_tableDesc.ExtraRowGCIBits;
   tablePtr.p->m_extra_row_author_bits = c_tableDesc.ExtraRowAuthorBits;
+  /**
+   * RealFragmentCount sent from API is ignored. This is only needed to
+   * communicate with API on the number of real fragments for fully
+   * replicated tables. For tables that are not fully replicated it is
+   * simply equal to fragmentCount. For fully replicated tables it is
+   * calculated basically as number of LDMs.
+   */
+  const bool restart = c_startPhase < 7;
+  if (restart)
+  {
+    tablePtr.p->realFragmentCount = c_tableDesc.RealFragmentCount;
+  }
 
   tabRequire(tablePtr.p->noOfAttributes <= MAX_ATTRIBUTES_IN_TABLE,
              CreateTableRef::NoMoreAttributeRecords); // bad error code!
@@ -5937,7 +5973,79 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
   }
   tablePtr.p->buildTriggerId = RNIL;
 
+  if ((tablePtr.p->m_bits & TableRecord::TR_FullyReplicated) != 0)
+  {
+    jam();
+    tablePtr.p->fullyReplicatedTriggerId = c_tableDesc.FullyReplicatedTriggerId;
+  }
+
   handleTabInfo(it, parseP, c_tableDesc);
+
+  if (parseP->errorCode == 0)
+  {
+    if ((tablePtr.p->m_bits & TableRecord::TR_FullyReplicated) != 0)
+    {
+      switch (tablePtr.p->fragmentCountType)
+      {
+        case NDB_FRAGMENT_COUNT_ONE_PER_NODE_GROUP:
+        case NDB_FRAGMENT_COUNT_ONE_PER_LDM_PER_NODE_GROUP:
+        {
+          jam();
+          if (!restart)
+          {
+            tablePtr.p->realFragmentCount =
+              get_default_fragments_fully_replicated(signal,
+                                       tablePtr.p->fragmentCountType);
+          }
+          D("Fully replicated table, realFragmentCount: " <<
+            tablePtr.p->realFragmentCount <<
+            " fragmentCountType = " <<
+            getFragmentCountTypeString(tablePtr.p->fragmentCountType));
+          break;
+        }
+        default:
+        {
+          jam();
+          /**
+           * Cannot create fully replicated tables with other
+           * than 1 partition per node group or one partition per
+           * LDM in each node group.
+           */
+          parseP->errorCode =
+            CreateTableRef::WrongFragmentCountTypeFullyReplicated;
+          parseP->errorLine = __LINE__;
+          D("Creating fully replicated table failed. " <<
+            "Error Code " << parseP->errorCode <<
+            " Line: " << parseP->errorLine <<
+            " realFragmentCount: " <<
+            tablePtr.p->realFragmentCount <<
+            " fragmentCountType = " <<
+            getFragmentCountTypeString(tablePtr.p->fragmentCountType));
+          break;
+        }
+      }
+    }
+    else
+    {
+      jam();
+      /**
+       * Tables with explicit partitioning could still have fragmentCount set
+       * to 0 here. So we will not check for fragmentCount != 0 until after
+       * we've also received the fragmentation parts.
+       *
+       * Explicit partitioning can for the moment not use
+       * ALTER TABLE algorithm=inplace ....
+       * so can check immediately after returning from this function in
+       * alterTable_parse.
+       */
+      tablePtr.p->realFragmentCount = tablePtr.p->fragmentCount;
+    }
+  }
+  D("handleTabInfoInit: tableId = " << tablePtr.i <<
+    "fragmentCount = " << tablePtr.p->fragmentCount <<
+    " realFragmentCount = " << tablePtr.p->realFragmentCount <<
+    " fragmentCountType = " <<
+      getFragmentCountTypeString(tablePtr.p->fragmentCountType));
 
   if(parseP->errorCode != 0)
   {
@@ -6015,7 +6123,7 @@ Dbdict::upgrade_seizeTrigger(TableRecordPtr tabPtr,
 
       obj_ptr.p->m_id = triggerPtr.p->triggerId;
       obj_ptr.p->m_type =TriggerInfo::getTriggerType(triggerPtr.p->triggerInfo);
-      link_object(obj_ptr, triggerPtr);
+      ndbrequire(link_object(obj_ptr, triggerPtr));
       c_obj_name_hash.add(obj_ptr);
       c_obj_id_hash.add(obj_ptr);
     }
@@ -6058,7 +6166,7 @@ Dbdict::upgrade_seizeTrigger(TableRecordPtr tabPtr,
 
       obj_ptr.p->m_id = triggerPtr.p->triggerId;
       obj_ptr.p->m_type =TriggerInfo::getTriggerType(triggerPtr.p->triggerInfo);
-      link_object(obj_ptr, triggerPtr);
+      ndbrequire(link_object(obj_ptr, triggerPtr));
       c_obj_name_hash.add(obj_ptr);
       c_obj_id_hash.add(obj_ptr);
     }
@@ -6425,6 +6533,7 @@ Dbdict::wait_gcp(Signal* signal, SchemaOpPtr op_ptr, Uint32 flags)
 void Dbdict::execWAIT_GCP_CONF(Signal* signal)
 {
   WaitGCPConf* conf = (WaitGCPConf*)signal->getDataPtr();
+  D("execWAIT_GCP_CONF");
   handleDictConf(signal, conf);
 }//execWAIT_GCP_CONF()
 
@@ -6434,6 +6543,7 @@ void Dbdict::execWAIT_GCP_CONF(Signal* signal)
 void Dbdict::execWAIT_GCP_REF(Signal* signal)
 {
   jamEntry();
+  D("execWAIT_GCP_REF");
   WaitGCPRef* ref = (WaitGCPRef*)signal->getDataPtr();
   handleDictRef(signal, ref);
 }//execWAIT_GCP_REF()
@@ -6466,12 +6576,14 @@ bool
 Dbdict::createTable_seize(SchemaOpPtr op_ptr)
 {
   return seizeOpRec<CreateTableRec>(op_ptr);
+  D("createTable_seize");
 }
 
 void
 Dbdict::createTable_release(SchemaOpPtr op_ptr)
 {
   CreateTableRecPtr createTabPtr;
+  D("createTable_release");
   getOpRec(op_ptr, createTabPtr);
   if (createTabPtr.p->m_tabInfoPtrI != RNIL) {
     jam();
@@ -6519,6 +6631,7 @@ Dbdict::execCREATE_TABLE_REQ(Signal* signal)
     CreateTableReq* tmp = (CreateTableReq*)signal->getDataPtr();
     do_swap(tmp->senderRef, tmp->senderData);
   }
+  D("execCREATE_TABLE_REQ");
 
   const CreateTableReq req_copy =
     *(const CreateTableReq*)signal->getDataPtr();
@@ -6572,6 +6685,7 @@ Dbdict::get_fragmentation(Signal* signal, Uint32 tableId)
   req->primaryTableId = tableId;
   req->requestInfo = CreateFragmentationReq::RI_GET_FRAGMENTATION;
   req->fragmentCountType = 0; /* Ignored for get_fragmentation */
+  req->realFragmentCount = 0; /* Ignored for get_fragmentation */
   EXECUTE_DIRECT(DBDICT, GSN_CREATE_FRAGMENTATION_REQ, signal,
                  CreateFragmentationReq::SignalLength);
 
@@ -6645,6 +6759,7 @@ Dbdict::create_fragmentation(Signal* signal,
      */
     tabPtr.p->primaryTableId = RNIL;
   }
+  frag_req->realFragmentCount = tabPtr.p->realFragmentCount;
 
   EXECUTE_DIRECT(DBDICT, GSN_CREATE_FRAGMENTATION_REQ, signal,
                  CreateFragmentationReq::SignalLength);
@@ -6771,6 +6886,20 @@ Dbdict::createTable_parse(Signal* signal, bool master,
 
       // save fragment count
       tabPtr.p->fragmentCount = frag_data[1];
+
+      if ((tabPtr.p->m_bits & TableRecord::TR_FullyReplicated) == 0)
+      {
+        jam();
+        tabPtr.p->realFragmentCount = tabPtr.p->fragmentCount;
+      }
+      /**
+       * At this point it should not be possible for realFragmentCount
+       * to be 0 anymore.
+       */
+      ndbrequire(tabPtr.p->realFragmentCount != 0);
+      D("3: tableId = " << tabPtr.i <<
+        "fragmentCount = " << tabPtr.p->fragmentCount <<
+        " realFragmentCount = " << tabPtr.p->realFragmentCount);
     }
 
     // dump table record back into DictTabInfo
@@ -6844,6 +6973,7 @@ Dbdict::createTable_parse(Signal* signal, bool master,
     }
 
     TableRecordPtr tabPtr = parseRecord.tablePtr;
+    ndbrequire(tabPtr.p->realFragmentCount != 0);
 
     // link operation to object seized in handleTabInfoInit
     {
@@ -6917,8 +7047,138 @@ bool
 Dbdict::createTable_subOps(Signal* signal, SchemaOpPtr op_ptr)
 {
   D("createTable_subOps" << V(op_ptr.i) << *op_ptr.p);
+
+  CreateTableRecPtr createTabPtr;
+  getOpRec(op_ptr, createTabPtr);
+
+  Uint32 tableId = createTabPtr.p->m_request.tableId;
+  TableRecordPtr tabPtr;
+  bool ok = find_object(tabPtr, tableId);
+  ndbrequire(ok);
+
+  if ((tabPtr.p->m_bits & TableRecord::TR_FullyReplicated) != 0)
+  {
+    jam();
+    if (createTabPtr.p->m_fully_replicated_trigger == false)
+    {
+      jam();
+      Callback c = {
+        safe_cast(&Dbdict::createTable_fromCreateTrigger),
+        op_ptr.p->op_key
+      };
+      op_ptr.p->m_callback = c;
+
+      createTabPtr.p->m_fully_replicated_trigger = true;
+      createTable_toCreateTrigger(signal, op_ptr);
+      return true;
+    }
+  }
+
   // wl3600_todo blobs
   return false;
+}
+
+void
+Dbdict::createTable_toCreateTrigger(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("createTable_toCreateTrigger");
+
+  CreateTableRecPtr createTabPtr;
+  getOpRec(op_ptr, createTabPtr);
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  CreateTabReq* impl_req = &createTabPtr.p->m_request;
+
+  Uint32 tableId = createTabPtr.p->m_request.tableId;
+  TableRecordPtr tabPtr;
+  bool ok = find_object(tabPtr, tableId);
+  ndbrequire(ok);
+
+  const TriggerTmpl& triggerTmpl = g_fullyReplicatedTriggerTmp[0];
+
+  CreateTrigReq* req = CAST_PTR(CreateTrigReq, signal->getDataPtrSend());
+  Uint32 requestInfo = 0;
+  if (op_ptr.p->m_restart)
+  {
+    jam();
+    requestInfo |= DictSignal::RF_LOCAL_TRANS;
+  }
+  DictSignal::setRequestType(requestInfo, CreateTrigReq::CreateTriggerOnline);
+
+  req->clientRef = reference();
+  req->clientData = op_ptr.p->op_key;
+  req->transId = trans_ptr.p->m_transId;
+  req->transKey = trans_ptr.p->trans_key;
+  req->requestInfo = requestInfo;
+  req->tableId = impl_req->tableId;
+  req->tableVersion = impl_req->tableVersion;
+  req->indexId = RNIL;
+  req->indexVersion = RNIL;
+  req->triggerNo = 0;
+  Uint32 forceTriggerId = tabPtr.p->fullyReplicatedTriggerId;
+  D(V(getNodeState().startLevel) << V(NodeState::SL_STARTED));
+  if (getNodeState().startLevel == NodeState::SL_STARTED)
+  {
+    ndbrequire(forceTriggerId == RNIL);
+  }
+  req->forceTriggerId = forceTriggerId;
+
+  TriggerInfo::packTriggerInfo(req->triggerInfo, triggerTmpl.triggerInfo);
+
+  req->receiverRef = 0;
+
+  char triggerName[MAX_TAB_NAME_SIZE];
+  sprintf(triggerName, triggerTmpl.nameFormat, impl_req->tableId);
+
+  // name section
+  Uint32 buffer[2 + ((MAX_TAB_NAME_SIZE + 3) >> 2)];    // SP string
+  LinearWriter w(buffer, sizeof(buffer) >> 2);
+  w.reset();
+  w.add(DictTabInfo::TableName, triggerName);
+  LinearSectionPtr lsPtr[3];
+  lsPtr[0].p = buffer;
+  lsPtr[0].sz = w.getWordsUsed();
+
+  AttributeMask mask;
+  mask.clear();
+  lsPtr[1].p = mask.rep.data;
+  lsPtr[1].sz = mask.getSizeInWords();
+
+  sendSignal(reference(), GSN_CREATE_TRIG_REQ, signal,
+             CreateTrigReq::SignalLength, JBB, lsPtr, 2);
+}
+
+void
+Dbdict::createTable_fromCreateTrigger(Signal* signal,
+                                      Uint32 op_key,
+                                      Uint32 ret)
+{
+  jamEntry();
+
+  SchemaOpPtr op_ptr;
+  CreateTableRecPtr createTabPtr;
+
+  findSchemaOp(op_ptr, createTabPtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+
+  if (ret == 0)
+  {
+    const CreateTrigConf* conf =
+      (const CreateTrigConf*)signal->getDataPtr();
+
+    ndbrequire(conf->transId == trans_ptr.p->m_transId);
+
+    createSubOps(signal, op_ptr);
+  }
+  else
+  {
+    jam();
+    const CreateTrigRef* ref =
+      (const CreateTrigRef*)signal->getDataPtr();
+    ErrorInfo error;
+    setError(error, ref);
+    abortSubOps(signal, op_ptr, error);
+  }
 }
 
 void
@@ -6978,7 +7238,28 @@ Dbdict::createTable_prepare(Signal* signal, SchemaOpPtr op_ptr)
   cb.m_callbackData = op_ptr.p->op_key;
   cb.m_callbackFunction = safe_cast(&Dbdict::createTab_writeTableConf);
 
-  if (ZRESTART_NO_WRITE_AFTER_READ && op_ptr.p->m_restart == 1)
+  if (createTabPtr.p->m_modified_by_subOps)
+  {
+    jam();
+    /**
+     * The table object was modified by subop,
+     *   i.e we need to regenerate DICT_TAB_INFO
+     */
+    SimplePropertiesSectionWriter w(* this);
+    packTableIntoPages(w, tabPtr);
+
+    SegmentedSectionPtr ss_ptr;
+    w.getPtr(ss_ptr);
+    bool ok = replaceOpSection(op_ptr, CreateTabReq::DICT_TAB_INFO, ss_ptr);
+    releaseSection(ss_ptr.i);
+
+    if (!ok)
+    {
+      jam();
+      setError(op_ptr, SchemaTransBeginRef::OutOfSchemaTransMemory, __LINE__);
+    }
+  }
+  else if (ZRESTART_NO_WRITE_AFTER_READ && op_ptr.p->m_restart == 1)
   {
     jam();
     /**
@@ -7140,6 +7421,7 @@ Dbdict::execCREATE_TAB_REF(Signal* signal)
 {
   jamEntry();
 
+  D("execCREATE_TAB_REF");
   CreateTabRef * const ref = (CreateTabRef*)signal->getDataPtr();
 
   SchemaOpPtr op_ptr;
@@ -7156,6 +7438,7 @@ Dbdict::execCREATE_TAB_CONF(Signal* signal)
 {
   jamEntry();
 
+  D("execCREATE_TAB_CONF");
   CreateTabConf* conf = (CreateTabConf*)signal->getDataPtr();
 
   SchemaOpPtr op_ptr;
@@ -7270,6 +7553,7 @@ Dbdict::execLQHADDATTCONF(Signal * signal)
   jamEntry();
   LqhAddAttrConf * const conf = (LqhAddAttrConf*)signal->getDataPtr();
 
+  D("execLQHADDATTCONF");
   SchemaOpPtr op_ptr;
   CreateTableRecPtr createTabPtr;
   findSchemaOp(op_ptr, createTabPtr, conf->senderData);
@@ -7334,6 +7618,23 @@ Dbdict::createTab_dih(Signal* signal, SchemaOpPtr op_ptr)
   req->temporaryTable = !!(tabPtr.p->m_bits & TableRecord::TR_Temporary);
   // no transaction for restart tab (should add one)
   req->schemaTransId = !trans_ptr.isNull() ? trans_ptr.p->m_transId : 0;
+
+  if (!tabPtr.p->isOrderedIndex())
+  {
+    jam();
+    req->fullyReplicated =
+      ((tabPtr.p->m_bits & TableRecord::TR_FullyReplicated) != 0);
+    req->realFragmentCount = tabPtr.p->realFragmentCount;
+  }
+  else
+  {
+    jam();
+    TableRecordPtr primTabPtr;
+    ndbrequire(find_object(primTabPtr, tabPtr.p->primaryTableId));
+    req->fullyReplicated =
+      ((primTabPtr.p->m_bits & TableRecord::TR_FullyReplicated) != 0);
+    req->realFragmentCount = primTabPtr.p->realFragmentCount;
+  }
 
   if (tabPtr.p->hashMapObjectId != RNIL)
   {
@@ -7406,6 +7707,7 @@ Dbdict::execADD_FRAGREQ(Signal* signal)
 
   AddFragReq * const req = (AddFragReq*)signal->getDataPtr();
 
+  D("execADD_FRAGREQ");
   Uint32 dihPtr = req->dihPtr;
   Uint32 senderData = req->senderData;
   Uint32 tableId = req->tableId;
@@ -7417,6 +7719,7 @@ Dbdict::execADD_FRAGREQ(Signal* signal)
   Uint32 startGci = req->startGci;
   Uint32 logPart = req->logPartId;
   Uint32 changeMask = req->changeMask;
+  Uint32 partitionId = req->partitionId;
 
   ndbrequire(node == getOwnNodeId());
 
@@ -7502,6 +7805,7 @@ Dbdict::execADD_FRAGREQ(Signal* signal)
     req->tablespace_id = tabPtr.p->m_tablespace_id;
     req->logPartId = logPart;
     req->changeMask = changeMask;
+    req->partitionId = partitionId;
     sendSignal(DBLQH_REF, GSN_LQHFRAGREQ, signal,
 	       LqhFragReq::SignalLength, JBB);
   }
@@ -7513,6 +7817,7 @@ Dbdict::execLQHFRAGCONF(Signal * signal)
   jamEntry();
   LqhFragConf * const conf = (LqhFragConf*)signal->getDataPtr();
 
+  D("execLQHFRAGCONF");
   Uint32 dihPtr;
   Uint32 fragId = conf->fragId;
   Uint32 tableId = conf->tableId;
@@ -7568,6 +7873,7 @@ Dbdict::execLQHFRAGREF(Signal * signal)
   jamEntry();
   LqhFragRef * const ref = (LqhFragRef*)signal->getDataPtr();
 
+  D("execLQHFRAGREF");
   Uint32 dihPtr;
   Uint32 tableId = ref->tableId;
   Uint32 fragId = ref->fragId;
@@ -7686,13 +7992,22 @@ Dbdict::execTAB_COMMITCONF(Signal* signal)
     req->userDefinedPartition = (tabPtr.p->fragmentType == DictTabInfo::UserDefined);
     req->readBackup = (Uint32)!!(tabPtr.p->m_bits & TableRecord::TR_ReadBackup);
 
-    if (DictTabInfo::isOrderedIndex(tabPtr.p->tableType))
+    if (!DictTabInfo::isOrderedIndex(tabPtr.p->tableType))
+    {
+      jam();
+      req->fullyReplicated =
+        (Uint32)((tabPtr.p->m_bits & TableRecord::TR_FullyReplicated) != 0);
+    }
+    else
     {
       jam();
       TableRecordPtr basePtr;
       bool ok = find_object(basePtr, tabPtr.p->primaryTableId);
       ndbrequire(ok);
       req->userDefinedPartition = (basePtr.p->fragmentType == DictTabInfo::UserDefined);
+
+      req->fullyReplicated = (Uint32)
+        ((basePtr.p->m_bits & TableRecord::TR_FullyReplicated) != 0);
     }
 
     sendSignal(DBSPJ_REF, GSN_TC_SCHVERREQ, signal,
@@ -7858,6 +8173,14 @@ Dbdict::execTC_SCHVERCONF(Signal* signal)
       bool ok = find_object(basePtr, tabPtr.p->primaryTableId);
       ndbrequire(ok);
       req->userDefinedPartition = (basePtr.p->fragmentType == DictTabInfo::UserDefined);
+      req->fullyReplicated = (Uint32)
+        ((basePtr.p->m_bits & TableRecord::TR_FullyReplicated) != 0);
+    }
+    else
+    {
+      jam();
+      req->fullyReplicated =
+        (Uint32)((tabPtr.p->m_bits & TableRecord::TR_FullyReplicated) != 0);
     }
 
     sendSignal(DBTC_REF, GSN_TC_SCHVERREQ, signal,
@@ -8073,6 +8396,7 @@ Dbdict::execCREATE_TAB_REQ(Signal* signal)
 void Dbdict::execCREATE_TABLE_CONF(Signal* signal)
 {
   jamEntry();
+  D("execCREATE_TABLE_CONF");
   const CreateTableConf* conf = (const CreateTableConf*)signal->getDataPtr();
   handleDictConf(signal, conf);
 }
@@ -8080,6 +8404,7 @@ void Dbdict::execCREATE_TABLE_CONF(Signal* signal)
 void Dbdict::execCREATE_TABLE_REF(Signal* signal)
 {
   jamEntry();
+  D("execCREATE_TABLE_REF");
   const CreateTableRef* ref = (const CreateTableRef*)signal->getDataPtr();
   handleDictRef(signal, ref);
 }
@@ -8233,6 +8558,7 @@ Dbdict::execDROP_TABLE_REQ(Signal* signal)
     DropTableReq * tmp = (DropTableReq*)signal->getDataPtr();
     do_swap(tmp->senderRef, tmp->senderData);
   }
+  D("execDROP_TABLE_REQ");
 
   const DropTableReq req_copy =
     *(const DropTableReq*)signal->getDataPtr();
@@ -8363,8 +8689,105 @@ bool
 Dbdict::dropTable_subOps(Signal* signal, SchemaOpPtr op_ptr)
 {
   D("dropTable_subOps" << V(op_ptr.i) << *op_ptr.p);
+
+  DropTableRecPtr dropTabPtr;
+  getOpRec(op_ptr, dropTabPtr);
+
+  Uint32 tableId = dropTabPtr.p->m_request.tableId;
+  TableRecordPtr tabPtr;
+  bool ok = find_object(tabPtr, tableId);
+  ndbrequire(ok);
+
+  if (dropTabPtr.p->m_fully_replicated_trigger == false)
+  {
+    jam();
+    dropTabPtr.p->m_fully_replicated_trigger = true;
+    if (((tabPtr.p->m_bits & TableRecord::TR_FullyReplicated) != 0) &&
+         tabPtr.p->fullyReplicatedTriggerId != RNIL)
+    {
+      jam();
+      Callback c = {
+        safe_cast(&Dbdict::dropTable_fromDropTrigger),
+        op_ptr.p->op_key
+      };
+      op_ptr.p->m_callback = c;
+
+      dropTable_toDropTrigger(signal, op_ptr);
+      return true;
+    }
+  }
+
   // wl3600_todo blobs, indexes, events
   return false;
+}
+
+void
+Dbdict::dropTable_toDropTrigger(Signal* signal, SchemaOpPtr op_ptr)
+{
+  D("dropTable_toDropTrigger");
+
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  DropTableRecPtr dropTablePtr;
+  getOpRec(op_ptr, dropTablePtr);
+  const DropTabReq* impl_req = &dropTablePtr.p->m_request;
+
+  TableRecordPtr tablePtr;
+  bool ok = find_object(tablePtr, impl_req->tableId);
+  ndbrequire(ok);
+
+  DropTrigReq* req = (DropTrigReq*)signal->getDataPtrSend();
+
+  Uint32 requestInfo = 0;
+  DictSignal::setRequestType(requestInfo, 0);
+  DictSignal::addRequestFlagsGlobal(requestInfo, op_ptr.p->m_requestInfo);
+
+  req->clientRef = reference();
+  req->clientData = op_ptr.p->op_key;
+  req->transId = trans_ptr.p->m_transId;
+  req->transKey = trans_ptr.p->trans_key;
+  req->requestInfo = requestInfo;
+  req->tableId = impl_req->tableId;
+  req->tableVersion = impl_req->tableVersion;
+  req->indexId = RNIL;
+  req->indexVersion = RNIL;
+  req->triggerNo = 0;
+  req->triggerId = tablePtr.p->fullyReplicatedTriggerId;
+
+  sendSignal(reference(), GSN_DROP_TRIG_REQ, signal,
+             DropTrigReq::SignalLength, JBB);
+}
+
+void
+Dbdict::dropTable_fromDropTrigger(Signal* signal, Uint32 op_key, Uint32 ret)
+{
+  jam();
+
+  SchemaOpPtr op_ptr;
+  DropTableRecPtr dropTablePtr;
+
+  findSchemaOp(op_ptr, dropTablePtr, op_key);
+  ndbrequire(!op_ptr.isNull());
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+
+  D("dropTable_fromDropTrigger" << dec << V(op_key) << V(ret));
+
+  if (ret == 0)
+  {
+    jam();
+    const DropTrigConf* conf =
+      (const DropTrigConf*)signal->getDataPtr();
+
+    ndbrequire(conf->transId == trans_ptr.p->m_transId);
+    createSubOps(signal, op_ptr);
+  }
+  else
+  {
+    const DropTrigRef* ref =
+      (const DropTrigRef*)signal->getDataPtr();
+    ErrorInfo error;
+    setError(error, ref);
+    abortSubOps(signal, op_ptr, error);
+  }
 }
 
 void
@@ -8578,6 +9001,7 @@ void
 Dbdict::execPREP_DROP_TAB_CONF(Signal * signal)
 {
   jamEntry();
+  D("execPREP_DROP_TAB_CONF");
   const PrepDropTabConf* conf = (const PrepDropTabConf*)signal->getDataPtr();
 
   Uint32 nodeId = refToNode(conf->senderRef);
@@ -8591,6 +9015,7 @@ void
 Dbdict::execPREP_DROP_TAB_REF(Signal* signal)
 {
   jamEntry();
+  D("execPREP_DROP_TAB_REF");
   const PrepDropTabRef* ref = (const PrepDropTabRef*)signal->getDataPtr();
 
   Uint32 nodeId = refToNode(ref->senderRef);
@@ -8702,6 +9127,7 @@ void
 Dbdict::execDROP_TAB_CONF(Signal* signal)
 {
   jamEntry();
+  D("execDROP_TAB_CONF");
   const DropTabConf* conf = (const DropTabConf*)signal->getDataPtr();
 
   Uint32 nodeId = refToNode(conf->senderRef);
@@ -8715,6 +9141,7 @@ void
 Dbdict::execDROP_TAB_REF(Signal* signal)
 {
   jamEntry();
+  D("execDROP_TAB_REF");
   const DropTabRef* ref = (const DropTabRef*)signal->getDataPtr();
 
   Uint32 nodeId = refToNode(ref->senderRef);
@@ -8809,6 +9236,7 @@ Dbdict::dropTable_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 void Dbdict::execDROP_TABLE_CONF(Signal* signal)
 {
   jamEntry();
+  D("execDROP_TABLE_CONF");
   const DropTableConf* conf = (const DropTableConf*)signal->getDataPtr();
   handleDictConf(signal, conf);
 }
@@ -8816,6 +9244,7 @@ void Dbdict::execDROP_TABLE_CONF(Signal* signal)
 void Dbdict::execDROP_TABLE_REF(Signal* signal)
 {
   jamEntry();
+  D("execDROP_TABLE_REF");
   const DropTableRef* ref = (const DropTableRef*)signal->getDataPtr();
   handleDictRef(signal, ref);
 }
@@ -8926,6 +9355,7 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
     do_swap(tmp->clientRef, tmp->clientData);
   }
 
+  D("execALTER_TABLE_REQ");
   const AlterTableReq req_copy =
     *(const AlterTableReq*)signal->getDataPtr();
   const AlterTableReq* req = &req_copy;
@@ -9061,6 +9491,7 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
     alterTabPtr.p->m_newTablePtrI = newTablePtr.i;
     alterTabPtr.p->m_newTable_realObjectId = newTablePtr.p->tableId;
     newTablePtr.p->tableId = impl_req->tableId; // set correct table id...(not the temporary)
+    ndbrequire(newTablePtr.p->realFragmentCount != 0);
   }
 
 
@@ -9213,7 +9644,32 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
       list.next(attrPtr);
     }
   }
-
+  if (tablePtr.p->fragmentCountType != newTablePtr.p->fragmentCountType &&
+      ((newTablePtr.p->m_bits & TableRecord::TR_FullyReplicated) != 0))
+  {
+    jam();
+    /**
+     * We don't supporting changing the number of real fragments for fully
+     * replicated tables.
+     *
+     * The issue is that when we created the table we created a number of
+     * "real" fragments, e.g. 0-3, we also created a number of copy
+     * fragments, e.g. 4-7. So when we want to increase the number of
+     * real fragments to e.g. 8 we cannot use fragment id 4-7 for those.
+     * Rather we will have to use 8-11 and 12-15 for new copy fragments.
+     *
+     * This is not a huge issue, but we need to maintain a real fragment
+     * map so that we can find the fragment id given the "real"
+     * fragment id calculated by using the hash value and the hash map.
+     *
+     * This fragment map has to be persistent as well and we have to handle
+     * it properly, so there is some amount of work needed that we push
+     * for some future release to handle. For now it isn't supported to do
+     * this change.
+     */
+    setError(error, AlterTableRef::UnsupportedChange, __LINE__);
+    return;
+  }
   if (AlterTableReq::getAddFragFlag(impl_req->changeMask))
   {
     if (newTablePtr.p->fragmentType != DictTabInfo::HashMapPartition)
@@ -9621,19 +10077,36 @@ Dbdict::alterTable_subOps(Signal* signal, SchemaOpPtr op_ptr)
       return true;
     }
 
-    if (alterTabPtr.p->m_sub_trigger == false)
+    if (alterTabPtr.p->m_sub_reorg_trigger == false)
     {
       jam();
       Callback c = {
         safe_cast(&Dbdict::alterTable_fromCreateTrigger),
         op_ptr.p->op_key
       };
+      TableRecordPtr tabPtr;
+      bool ok = find_object(tabPtr, impl_req->tableId);
+      ndbrequire(ok);
       op_ptr.p->m_callback = c;
+      alterTabPtr.p->m_sub_reorg_trigger = true;
 
-      alterTable_toCreateTrigger(signal, op_ptr);
-
-      alterTabPtr.p->m_sub_trigger = true;
-      return true;
+      if ((tabPtr.p->m_bits & TableRecord::TR_FullyReplicated) == 0)
+      {
+        /**
+         * Normal tables without full replication will install a
+         * reorg trigger. When creating a reorg trigger it is defined
+         * to be dropped as part of the schema transaction.
+         *
+         * Fully replicated tables need no reorg trigger since data is
+         * only replicated to a new set of fragments on new node groups.
+         * In some future version when we support adding new main
+         * fragments to fully replicated we need a reorg trigger again
+         * since this actually performs a reorg of the table.
+         */
+        jam();
+        alterTable_toCreateTrigger(signal, op_ptr);
+        return true;
+      }
     }
 
     if (alterTabPtr.p->m_sub_copy_data == false)
@@ -9677,6 +10150,7 @@ Dbdict::alterTable_toAlterIndex(Signal* signal,
   AlterTableRecPtr alterTabPtr;
   getOpRec(op_ptr, alterTabPtr);
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  D("alterTable_toAlterIndex");
 
   TableRecordPtr indexPtr;
   c_tableRecordPool_.getPtr(indexPtr, alterTabPtr.p->m_sub_add_frag_index_ptr);
@@ -9702,6 +10176,7 @@ Dbdict::alterTable_fromAlterIndex(Signal* signal,
                                   Uint32 ret)
 {
   jamEntry();
+  D("alterTable_fromAlterIndex");
 
   SchemaOpPtr op_ptr;
   AlterTableRecPtr alterTablePtr;
@@ -9750,11 +10225,13 @@ Dbdict::alterTable_toReorgTable(Signal* signal,
   {
     jam();
     AlterTableReq::setReorgCommitFlag(req->changeMask, 1);
+    D("alterTable_toReorgTable(0)");
   }
   else if (step == 1)
   {
     jam();
     AlterTableReq::setReorgCompleteFlag(req->changeMask, 1);
+    D("alterTable_toReorgTable(1)");
   }
   else
   {
@@ -9779,6 +10256,7 @@ Dbdict::alterTable_fromReorgTable(Signal* signal,
   ndbrequire(!op_ptr.isNull());
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
 
+  D("alterTable_fromReorgTable");
   if (ret == 0)
   {
     jam();
@@ -9807,6 +10285,7 @@ Dbdict::alterTable_toCreateTrigger(Signal* signal,
   AlterTableRecPtr alterTablePtr;
   getOpRec(op_ptr, alterTablePtr);
   const AlterTabReq* impl_req = &alterTablePtr.p->m_request;
+  D("alterTable_toCreateTrigger");
 
   const TriggerTmpl& triggerTmpl = g_reorgTriggerTmpl[0];
 
@@ -9853,8 +10332,11 @@ Dbdict::alterTable_toCreateTrigger(Signal* signal,
 }
 
 void
-Dbdict::alterTable_fromCreateTrigger(Signal* signal, Uint32 op_key, Uint32 ret)
+Dbdict::alterTable_fromCreateTrigger(Signal* signal,
+                                     Uint32 op_key,
+                                     Uint32 ret)
 {
+  D("alterTable_fromCreateReorgTrigger");
   alterTable_fromAlterIndex(signal, op_key, ret);
 }
 
@@ -9863,6 +10345,7 @@ Dbdict::alterTable_toCopyData(Signal* signal, SchemaOpPtr op_ptr)
 {
   jam();
 
+  D("alterTable_toCopyData");
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   AlterTableRecPtr alterTablePtr;
   getOpRec(op_ptr, alterTablePtr);
@@ -9881,7 +10364,11 @@ Dbdict::alterTable_toCopyData(Signal* signal, SchemaOpPtr op_ptr)
   req->requestType = 0;
   req->srcTableId = impl_req->tableId;
   req->dstTableId = impl_req->tableId;
-  req->srcFragments = tablePtr.p->fragmentCount;
+  req->srcFragments = tablePtr.p->realFragmentCount;
+
+  D("COPY_DATA_REQ: srcTableId: " << req->srcTableId <<
+    " dstTableId: " << req->dstTableId <<
+    " fragmentCount: " << req->srcFragments);
 
   sendSignal(reference(), GSN_COPY_DATA_REQ, signal,
              CopyDataReq::SignalLength, JBB);
@@ -9890,6 +10377,7 @@ Dbdict::alterTable_toCopyData(Signal* signal, SchemaOpPtr op_ptr)
 void
 Dbdict::alterTable_fromCopyData(Signal* signal, Uint32 op_key, Uint32 ret)
 {
+  D("alterTable_fromCopyData");
   alterTable_fromAlterIndex(signal, op_key, ret);
 }
 
@@ -9957,10 +10445,12 @@ Dbdict::alterTable_toSumaSync(Signal* signal,
   {
     jam();
     AlterTableReq::setReorgSumaEnableFlag(req->changeMask, 1);
+    D("alterTable_toSumaSync(Enable)");
   }
   else if (step == 1)
   {
     AlterTableReq::setReorgSumaFilterFlag(req->changeMask, 1);
+    D("alterTable_toSumaSync(Filter)");
   }
   else
   {
@@ -9984,12 +10474,12 @@ Dbdict::alterTable_prepare(Signal* signal, SchemaOpPtr op_ptr)
   getOpRec(op_ptr, alterTabPtr);
   const AlterTabReq* impl_req = &alterTabPtr.p->m_request;
 
-  D("alterTable_prepare" << *op_ptr.p);
 
   if (AlterTableReq::getReorgSubOp(impl_req->changeMask))
   {
     jam();
 
+    D("alterTable_prepare (reorgSubOp)" << *op_ptr.p);
     /**
      * Get DIH connectPtr for future commit
      */
@@ -10015,6 +10505,7 @@ Dbdict::alterTable_prepare(Signal* signal, SchemaOpPtr op_ptr)
     sendTransConf(signal, op_ptr);
     return;
   }
+  D("alterTable_prepare" << *op_ptr.p);
 
   Mutex mutex(signal, c_mutexMgr, alterTabPtr.p->m_define_backup_mutex);
   Callback c = {
@@ -10081,6 +10572,7 @@ Dbdict::alterTab_writeTableConf(Signal* signal, Uint32 op_key, Uint32 ret)
 {
   jam();
   ndbrequire(ret == 0);
+  D("alterTab_writeTableConf");
 
   SchemaOpPtr op_ptr;
   AlterTableRecPtr alterTabPtr;
@@ -10322,6 +10814,7 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
     {
       jam();
 
+      D("alterTable_commit: getAddAttrFlag set");
       /* Move the column definitions to the real table definitions. */
       LocalAttributeRecord_list
         list(c_attributeRecordPool, tablePtr.p->m_attributes);
@@ -10353,6 +10846,7 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
     if (AlterTableReq::getAddFragFlag(changeMask))
     {
       jam();
+      D("alterTable_commit: getAddFragFlag set");
       Uint32 save = tablePtr.p->fragmentCount;
       tablePtr.p->fragmentCount = newTablePtr.p->fragmentCount;
       newTablePtr.p->fragmentCount = save;
@@ -10360,6 +10854,10 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
       Uint32 save_fctype = tablePtr.p->fragmentCountType;
       tablePtr.p->fragmentCountType = newTablePtr.p->fragmentCountType;
       newTablePtr.p->fragmentCountType = save_fctype;
+
+      Uint32 save_rfc = tablePtr.p->realFragmentCount;
+      tablePtr.p->realFragmentCount = newTablePtr.p->realFragmentCount;
+      newTablePtr.p->realFragmentCount = save_rfc;
     }
   }
 
@@ -10374,6 +10872,7 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
     /**
      * DIH is next op
      */
+    D("alterTable_commit: getReorgFragFlag set");
     TableRecordPtr newTablePtr;
     newTablePtr.i = alterTabPtr.p->m_newTablePtrI;
     c_tableRecordPool_.getPtr(newTablePtr);
@@ -10384,6 +10883,7 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
   else if (AlterTableReq::getReorgCommitFlag(impl_req->changeMask))
   {
     jam();
+    D("alterTable_commit: getReorgCommitFlag set");
     /**
      * Reorg commit, only commit at DIH
      */
@@ -10396,6 +10896,7 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
            AlterTableReq::getReorgSumaFilterFlag(impl_req->changeMask))
   {
     jam();
+    D("alterTable_commit: getReorg....Flag set");
     sendTransConf(signal, op_ptr);
     return;
   }
@@ -10617,6 +11118,7 @@ Dbdict::alterTable_complete(Signal* signal, SchemaOpPtr op_ptr)
   if (AlterTableReq::getReorgCommitFlag(impl_req->changeMask))
   {
     jam();
+    D("alterTable_complete getReorgCommitFlag set");
     alterTabPtr.p->m_blockNo[0] = DBDIH;
     alterTable_toCommitComplete(signal, op_ptr,
                                 AlterTabReq::AlterTableWaitScan);
@@ -10626,6 +11128,7 @@ Dbdict::alterTable_complete(Signal* signal, SchemaOpPtr op_ptr)
   {
     jam();
 
+    D("alterTable_complete getReorgCompleteFlag set");
     /**
      * Reorg complete, LQH/DIH
      */
@@ -10637,6 +11140,7 @@ Dbdict::alterTable_complete(Signal* signal, SchemaOpPtr op_ptr)
   else if (AlterTableReq::getReorgSumaEnableFlag(impl_req->changeMask))
   {
     jam();
+    D("alterTable_complete getReorgSumaEnableFlag set");
     alterTabPtr.p->m_blockNo[0] = DBLQH;
     alterTable_toCommitComplete(signal, op_ptr,
                                 AlterTabReq::AlterTableSumaEnable);
@@ -10645,11 +11149,13 @@ Dbdict::alterTable_complete(Signal* signal, SchemaOpPtr op_ptr)
   else if (AlterTableReq::getReorgSumaFilterFlag(impl_req->changeMask))
   {
     jam();
+    D("alterTable_complete getReorgSumaFilterFlag set");
     alterTabPtr.p->m_blockNo[0] = DBLQH;
     alterTable_toCommitComplete(signal, op_ptr,
                                 AlterTabReq::AlterTableSumaFilter);
     return;
   }
+  D("alterTable_complete no flag set");
   sendTransConf(signal, op_ptr);
 }
 
@@ -10787,6 +11293,7 @@ Dbdict::alterTable_abortFromLocal(Signal*signal, Uint32 op_key, Uint32 ret)
   AlterTableRecPtr alterTabPtr;
   findSchemaOp(op_ptr, alterTabPtr, op_key);
   ndbrequire(!op_ptr.isNull());
+  D("alterTable_abortFromLocal");
 
   const Uint32 blockCount = alterTabPtr.p->m_blockIndex;
   ndbrequire(blockCount != 0 && blockCount <= AlterTableRec::BlockCount);
@@ -10814,6 +11321,7 @@ void
 Dbdict::execALTER_TAB_CONF(Signal* signal)
 {
   jamEntry();
+  D("execALTER_TAB_CONF");
   const AlterTabConf* conf = (const AlterTabConf*)signal->getDataPtr();
   ndbrequire(refToNode(conf->senderRef) == getOwnNodeId());
   handleDictConf(signal, conf);
@@ -10823,6 +11331,7 @@ void
 Dbdict::execALTER_TAB_REF(Signal* signal)
 {
   jamEntry();
+  D("execALTER_TAB_REF");
   const AlterTabRef* ref = (const AlterTabRef*)signal->getDataPtr();
   ndbrequire(refToNode(ref->senderRef) == getOwnNodeId());
   handleDictRef(signal, ref);
@@ -10832,6 +11341,7 @@ void
 Dbdict::execALTER_TABLE_CONF(Signal* signal)
 {
   jamEntry();
+  D("execALTER_TABLE_CONF");
   const AlterTableConf* conf = (const AlterTableConf*)signal->getDataPtr();
   ndbrequire(refToNode(conf->senderRef) == getOwnNodeId());
   handleDictConf(signal, conf);
@@ -10841,6 +11351,7 @@ void
 Dbdict::execALTER_TABLE_REF(Signal* signal)
 {
   jamEntry();
+  D("execALTER_TABLE_REF");
   const AlterTableRef* ref = (const AlterTableRef*)signal->getDataPtr();
   ndbrequire(refToNode(ref->senderRef) == getOwnNodeId());
   handleDictRef(signal, ref);
@@ -12038,6 +12549,7 @@ Dbdict::execCREATE_INDX_REQ(Signal* signal)
     CreateIndxReq * tmp = (CreateIndxReq*)signal->getDataPtr();
     do_swap(tmp->clientRef, tmp->clientData);
   }
+  D("execCREATE_INDX_REQ");
 
   const CreateIndxReq req_copy =
     *(const CreateIndxReq*)signal->getDataPtr();
@@ -12735,6 +13247,7 @@ Dbdict::execCREATE_INDX_IMPL_CONF(Signal* signal)
   jamEntry();
   const CreateIndxImplConf* conf = (const CreateIndxImplConf*)signal->getDataPtr();
   ndbrequire(refToNode(conf->senderRef) == getOwnNodeId());
+  D("execCREATE_INDX_IMPL_CONF");
   handleDictConf(signal, conf);
 }
 
@@ -12744,6 +13257,7 @@ Dbdict::execCREATE_INDX_IMPL_REF(Signal* signal)
   jamEntry();
   const CreateIndxImplRef* ref = (const CreateIndxImplRef*)signal->getDataPtr();
   ndbrequire(refToNode(ref->senderRef) == getOwnNodeId());
+  D("execCREATE_INDX_IMPL_REF");
   handleDictRef(signal, ref);
 }
 
@@ -12813,6 +13327,7 @@ Dbdict::execDROP_INDX_REQ(Signal* signal)
     DropIndxReq * tmp = (DropIndxReq*)signal->getDataPtr();
     do_swap(tmp->clientRef, tmp->clientData);
   }
+  D("execDROP_INDX_REQ");
 
   const DropIndxReq req_copy =
     *(const DropIndxReq*)signal->getDataPtr();
@@ -13197,6 +13712,7 @@ Dbdict::execDROP_INDX_IMPL_CONF(Signal* signal)
   jamEntry();
   const DropIndxImplConf* conf = (const DropIndxImplConf*)signal->getDataPtr();
   ndbrequire(refToNode(conf->senderRef) == getOwnNodeId());
+  D("execDROP_INDX_IMPL_CONF");
   handleDictConf(signal, conf);
 }
 
@@ -13206,6 +13722,7 @@ Dbdict::execDROP_INDX_IMPL_REF(Signal* signal)
   jamEntry();
   const DropIndxImplRef* ref = (const DropIndxImplRef*)signal->getDataPtr();
   ndbrequire(refToNode(ref->senderRef) == getOwnNodeId());
+  D("execDROP_INDX_IMPL_REF");
   handleDictRef(signal, ref);
 }
 
@@ -13256,6 +13773,7 @@ Dbdict::execALTER_INDX_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  D("execALTER_INDX_REQ");
 
   const AlterIndxReq req_copy =
     *(const AlterIndxReq*)signal->getDataPtr();
@@ -13362,6 +13880,18 @@ Dbdict::g_fkTriggerTmpl[2] = {
       TriggerActionTime::TA_AFTER,
       TriggerEvent::TE_CUSTOM,
       false, false, true // monitor replicas, monitor all, report all
+    }
+  }
+};
+
+const Dbdict::TriggerTmpl
+Dbdict::g_fullyReplicatedTriggerTmp[1] = {
+  { "NDB$FULLY_REPLICATED_%u",
+    {
+      TriggerType::FULLY_REPLICATED_TRIGGER,
+      TriggerActionTime::TA_AFTER,
+      TriggerEvent::TE_CUSTOM,
+      false, true, false
     }
   }
 };
@@ -13589,9 +14119,19 @@ Dbdict::set_index_stat_frag(Signal* signal, TableRecordPtr indexPtr)
   // format: R F { fragId node1 .. nodeR } x { F }
   // fragId: 0 1 2 .. (or whatever)
   const Uint16* frag_data = (Uint16*)(signal->theData+25);
-  const Uint32 noOfFragments = frag_data[1];
+  Uint32 noOfFragments = frag_data[1];
   const Uint32 noOfReplicas = frag_data[0];
   ndbrequire(noOfFragments != 0 && noOfReplicas != 0);
+
+  {
+    TableRecordPtr tablePtr;
+    ndbrequire(find_object(tablePtr, indexPtr.p->primaryTableId));
+    if ((tablePtr.p->m_bits & TableRecord::TR_FullyReplicated) != 0)
+    {
+      jam();
+      noOfFragments = tablePtr.p->realFragmentCount;
+    }
+  }
 
   // distribute by table and index id
   const Uint32 value = indexPtr.p->primaryTableId + indexId;
@@ -14471,6 +15011,7 @@ Dbdict::execALTER_INDX_CONF(Signal* signal)
 {
   jamEntry();
   const AlterIndxConf* conf = (const AlterIndxConf*)signal->getDataPtr();
+  D("execALTER_INDX_CONF");
   handleDictConf(signal, conf);
 }
 
@@ -14479,6 +15020,7 @@ Dbdict::execALTER_INDX_REF(Signal* signal)
 {
   jamEntry();
   const AlterIndxRef* ref = (const AlterIndxRef*)signal->getDataPtr();
+  D("execALTER_INDX_REF");
   handleDictRef(signal, ref);
 }
 
@@ -14487,6 +15029,7 @@ Dbdict::execALTER_INDX_IMPL_CONF(Signal* signal)
 {
   jamEntry();
   const AlterIndxImplConf* conf = (const AlterIndxImplConf*)signal->getDataPtr();
+  D("execALTER_INDX_IMPL_CONF");
   handleDictConf(signal, conf);
 }
 
@@ -14495,6 +15038,7 @@ Dbdict::execALTER_INDX_IMPL_REF(Signal* signal)
 {
   jamEntry();
   const AlterIndxImplRef* ref = (const AlterIndxImplRef*)signal->getDataPtr();
+  D("execALTER_INDX_IMPL_REF");
   handleDictRef(signal, ref);
 }
 
@@ -14545,6 +15089,7 @@ Dbdict::execBUILDINDXREQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  D("execBUILDINDXREQ");
 
   const BuildIndxReq req_copy =
     *(const BuildIndxReq*)signal->getDataPtr();
@@ -15169,6 +15714,7 @@ Dbdict::buildIndex_toLocalOnline(Signal* signal, SchemaOpPtr op_ptr)
   req->tableVersion = 0; // not used
   req->indexId = impl_req->indexId;
   req->indexVersion = 0; // not used
+  req->indexType = 0; // not used
 
   Callback c = {
     safe_cast(&Dbdict::buildIndex_fromLocalOnline),
@@ -15258,6 +15804,7 @@ Dbdict::execBUILDINDXCONF(Signal* signal)
 {
   jamEntry();
   const BuildIndxConf* conf = (const BuildIndxConf*)signal->getDataPtr();
+  D("execBUILD_INDX_CONF");
   handleDictConf(signal, conf);
 }
 
@@ -15266,6 +15813,7 @@ Dbdict::execBUILDINDXREF(Signal* signal)
 {
   jamEntry();
   const BuildIndxRef* ref = (const BuildIndxRef*)signal->getDataPtr();
+  D("execBUILD_INDX_REF");
   handleDictRef(signal, ref);
 }
 
@@ -15274,6 +15822,7 @@ Dbdict::execBUILD_INDX_IMPL_CONF(Signal* signal)
 {
   jamEntry();
   const BuildIndxImplConf* conf = (const BuildIndxImplConf*)signal->getDataPtr();
+  D("execBUILD_INDX_IMPL_CONF");
   handleDictConf(signal, conf);
 }
 
@@ -15282,6 +15831,7 @@ Dbdict::execBUILD_INDX_IMPL_REF(Signal* signal)
 {
   jamEntry();
   const BuildIndxImplRef* ref = (const BuildIndxImplRef*)signal->getDataPtr();
+  D("execBUILD_INDX_IMPL_REF");
   handleDictRef(signal, ref);
 }
 
@@ -15340,6 +15890,7 @@ Dbdict::execINDEX_STAT_REQ(Signal* signal)
                        &handle);
     return;
   }
+  D("execINDEX_STAT_REQ");
 
   const IndexStatReq req_copy =
     *(const IndexStatReq*)signal->getDataPtr();
@@ -15429,6 +15980,15 @@ Dbdict::indexStat_parse(Signal* signal, bool master,
     return;
   }
   impl_req->fragCount = indexPtr.p->fragmentCount;
+  {
+    TableRecordPtr tablePtr;
+    ndbrequire(find_object(tablePtr, indexPtr.p->primaryTableId));
+    if ((tablePtr.p->m_bits & TableRecord::TR_FullyReplicated) != 0)
+    {
+      jam();
+      impl_req->fragCount = tablePtr.p->realFragmentCount;
+    }
+  }
 
   switch (impl_req->requestType) {
   case IndexStatReq::RT_UPDATE_STAT:
@@ -15825,6 +16385,7 @@ Dbdict::execINDEX_STAT_CONF(Signal* signal)
 {
   jamEntry();
   const IndexStatConf* conf = (const IndexStatConf*)signal->getDataPtr();
+  D("execINDEX_STAT_CONF");
   handleDictConf(signal, conf);
 }
 
@@ -15833,6 +16394,7 @@ Dbdict::execINDEX_STAT_REF(Signal* signal)
 {
   jamEntry();
   const IndexStatRef* ref = (const IndexStatRef*)signal->getDataPtr();
+  D("execINDEX_STAT_REF");
   handleDictRef(signal, ref);
 }
 
@@ -15841,6 +16403,7 @@ Dbdict::execINDEX_STAT_IMPL_CONF(Signal* signal)
 {
   jamEntry();
   const IndexStatImplConf* conf = (const IndexStatImplConf*)signal->getDataPtr();
+  D("execINDEX_STAT_IMPL_CONF");
   handleDictConf(signal, conf);
 }
 
@@ -15849,6 +16412,7 @@ Dbdict::execINDEX_STAT_IMPL_REF(Signal* signal)
 {
   jamEntry();
   const IndexStatImplRef* ref = (const IndexStatImplRef*)signal->getDataPtr();
+  D("execINDEX_STAT_IMPL_REF");
   handleDictRef(signal, ref);
 }
 
@@ -15864,6 +16428,7 @@ void
 Dbdict::execINDEX_STAT_REP(Signal* signal)
 {
   const IndexStatRep* rep = (const IndexStatRep*)signal->getDataPtr();
+  D("execINDEX_STAT_REP");
 
   // non-master
   if (c_masterNodeId != getOwnNodeId()) {
@@ -16118,6 +16683,7 @@ Dbdict::execCOPY_DATA_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  D("execCOPY_DATA_REQ");
 
   const CopyDataReq req_copy =
     *(const CopyDataReq*)signal->getDataPtr();
@@ -16269,6 +16835,16 @@ Dbdict::copyData_prepare(Signal* signal, SchemaOpPtr op_ptr)
     req->requestInfo |= CopyDataReq::TupOrder;
   }
 
+  /**
+   * Fully replicated uses COPY_DATA to copy data to copy fragment, never
+   * copy to same fragment.
+   */
+  if ((tabPtr.p->m_bits & TableRecord::TR_FullyReplicated) != 0)
+  {
+    jam();
+    req->requestInfo |=CopyDataReq::NoScanTakeOver;
+  }
+
   LinearSectionPtr ls_ptr[3];
   ls_ptr[0].sz = cnt;
   ls_ptr[0].p = tmp;
@@ -16398,6 +16974,7 @@ Dbdict::execCOPY_DATA_CONF(Signal* signal)
 {
   jamEntry();
   const CopyDataConf* conf = (const CopyDataConf*)signal->getDataPtr();
+  D("execCOPY_DATA_CONF");
   handleDictConf(signal, conf);
 }
 
@@ -16406,6 +16983,7 @@ Dbdict::execCOPY_DATA_REF(Signal* signal)
 {
   jamEntry();
   const CopyDataRef* ref = (const CopyDataRef*)signal->getDataPtr();
+  D("execCOPY_DATA_REF");
   handleDictRef(signal, ref);
 }
 
@@ -16414,6 +16992,7 @@ Dbdict::execCOPY_DATA_IMPL_CONF(Signal* signal)
 {
   jamEntry();
   const CopyDataImplConf* conf = (const CopyDataImplConf*)signal->getDataPtr();
+  D("execCOPY_DATA_IMPL_CONF");
   ndbrequire(refToNode(conf->senderRef) == getOwnNodeId());
   handleDictConf(signal, conf);
 }
@@ -16423,6 +17002,7 @@ Dbdict::execCOPY_DATA_IMPL_REF(Signal* signal)
 {
   jamEntry();
   const CopyDataImplRef* ref = (const CopyDataImplRef*)signal->getDataPtr();
+  D("execCOPY_DATA_IMPL_REF");
   ndbrequire(refToNode(ref->senderRef) == getOwnNodeId());
   handleDictRef(signal, ref);
 }
@@ -16723,6 +17303,7 @@ void
 Dbdict::execCREATE_EVNT_REQ(Signal* signal)
 {
   jamEntry();
+  D("execCREATE_EVNT_REQ");
 
   CreateEvntReq *req = (CreateEvntReq*)signal->getDataPtr();
 
@@ -16957,6 +17538,7 @@ sendref:
 void Dbdict::execCREATE_SUBID_REF(Signal* signal)
 {
   jamEntry();
+  D("execCREATE_SUBID_REF");
   DBUG_ENTER("Dbdict::execCREATE_SUBID_REF");
   CreateSubscriptionIdRef * const ref =
     (CreateSubscriptionIdRef *)signal->getDataPtr();
@@ -16984,6 +17566,7 @@ void Dbdict::execCREATE_SUBID_REF(Signal* signal)
 void Dbdict::execCREATE_SUBID_CONF(Signal* signal)
 {
   jamEntry();
+  D("execCREATE_SUBID_CONF");
   DBUG_ENTER("Dbdict::execCREATE_SUBID_CONF");
 
   CreateSubscriptionIdConf const * sumaIdConf =
@@ -17580,6 +18163,7 @@ Dbdict::createEvent_nodeFailCallback(Signal* signal, Uint32 eventRecPtrI,
 void Dbdict::execCREATE_EVNT_REF(Signal* signal)
 {
   jamEntry();
+  D("execCREATE_EVNT_REF");
   EVENT_TRACE;
   CreateEvntRef * const ref = (CreateEvntRef *)signal->getDataPtr();
   OpCreateEventPtr evntRecPtr;
@@ -17638,6 +18222,7 @@ void Dbdict::execCREATE_EVNT_REF(Signal* signal)
 void Dbdict::execCREATE_EVNT_CONF(Signal* signal)
 {
   jamEntry();
+  D("execCREATE_EVNT_CONF");
   EVENT_TRACE;
   CreateEvntConf * const conf = (CreateEvntConf *)signal->getDataPtr();
   OpCreateEventPtr evntRecPtr;
@@ -17720,6 +18305,7 @@ Dbdict::createEvent_RT_DICT_AFTER_GET(Signal* signal, OpCreateEventPtr evntRecPt
 void Dbdict::execSUB_CREATE_REF(Signal* signal)
 {
   jamEntry();
+  D("execSUB_CREATE_REF");
   DBUG_ENTER("Dbdict::execSUB_CREATE_REF");
 
   SubCreateRef * const ref = (SubCreateRef *)signal->getDataPtr();
@@ -17757,6 +18343,7 @@ void Dbdict::execSUB_CREATE_REF(Signal* signal)
 void Dbdict::execSUB_CREATE_CONF(Signal* signal)
 {
   jamEntry();
+  D("execSUB_CREATE_CONF");
   DBUG_ENTER("Dbdict::execSUB_CREATE_CONF");
   EVENT_TRACE;
 
@@ -17881,6 +18468,7 @@ void Dbdict::createEvent_sendReply(Signal* signal,
 void Dbdict::execSUB_START_REQ(Signal* signal)
 {
   jamEntry();
+  D("execSUB_START_REQ");
 
   Uint32 origSenderRef = signal->senderBlockRef();
 
@@ -18039,6 +18627,7 @@ Dbdict::upgrade_suma_NotStarted(Uint32 err, Uint32 ref) const
 void Dbdict::execSUB_START_REF(Signal* signal)
 {
   jamEntry();
+  D("execSUB_START_REF");
 
   const SubStartRef* ref = (SubStartRef*) signal->getDataPtr();
   Uint32 senderRef  = ref->senderRef;
@@ -18105,6 +18694,7 @@ void Dbdict::execSUB_START_REF(Signal* signal)
 void Dbdict::execSUB_START_CONF(Signal* signal)
 {
   jamEntry();
+  D("execSUB_START_CONF");
 
   const SubStartConf* conf = (SubStartConf*) signal->getDataPtr();
   Uint32 senderRef  = conf->senderRef;
@@ -18235,6 +18825,7 @@ void Dbdict::completeSubStartReq(Signal* signal,
 void Dbdict::execSUB_STOP_REQ(Signal* signal)
 {
   jamEntry();
+  D("execSUB_STOP_REQ");
 
   Uint32 origSenderRef = signal->senderBlockRef();
 
@@ -18344,6 +18935,7 @@ busy:
 void Dbdict::execSUB_STOP_REF(Signal* signal)
 {
   jamEntry();
+  D("execSUB_STOP_REF");
   const SubStopRef* ref = (SubStopRef*) signal->getDataPtr();
   Uint32 senderRef  = ref->senderRef;
   Uint32 err = ref->errorCode;
@@ -18397,6 +18989,7 @@ void Dbdict::execSUB_STOP_REF(Signal* signal)
 void Dbdict::execSUB_STOP_CONF(Signal* signal)
 {
   jamEntry();
+  D("execSUB_STOP_CONF");
 
   const SubStopConf* conf = (SubStopConf*) signal->getDataPtr();
   Uint32 senderRef  = conf->senderRef;
@@ -18517,6 +19110,7 @@ void
 Dbdict::execDROP_EVNT_REQ(Signal* signal)
 {
   jamEntry();
+  D("execDROP_EVNT_REQ");
   DBUG_ENTER("Dbdict::execDROP_EVNT_REQ");
 
   DropEvntReq *req = (DropEvntReq*)signal->getDataPtr();
@@ -18683,6 +19277,7 @@ void
 Dbdict::execSUB_REMOVE_REQ(Signal* signal)
 {
   jamEntry();
+  D("execSUB_REMOVE_REQ");
   DBUG_ENTER("Dbdict::execSUB_REMOVE_REQ");
 
   Uint32 origSenderRef = signal->senderBlockRef();
@@ -18729,6 +19324,7 @@ void
 Dbdict::execSUB_REMOVE_REF(Signal* signal)
 {
   jamEntry();
+  D("execSUB_REMOVE_REF");
   DBUG_ENTER("Dbdict::execSUB_REMOVE_REF");
 
   const SubRemoveRef* ref = (SubRemoveRef*) signal->getDataPtr();
@@ -18807,6 +19403,7 @@ Dbdict::execSUB_REMOVE_CONF(Signal* signal)
   jamEntry();
   const SubRemoveConf* conf = (SubRemoveConf*) signal->getDataPtr();
   Uint32 senderRef = conf->senderRef;
+  D("execSUB_REMOVE_CONF");
 
   if (refToBlock(senderRef) == SUMA) {
     /*
@@ -19054,6 +19651,7 @@ Dbdict::execCREATE_TRIG_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  D("execCREATE_TRIG_REQ");
 
   const CreateTrigReq req_copy =
     *(const CreateTrigReq*)signal->getDataPtr();
@@ -19317,7 +19915,7 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
     obj_ptr.p->m_id = impl_req->triggerId; // wl3600_todo id
     obj_ptr.p->m_type =
       TriggerInfo::getTriggerType(triggerPtr.p->triggerInfo);
-    link_object(obj_ptr, triggerPtr);
+    ndbrequire(link_object(obj_ptr, triggerPtr));
     c_obj_id_hash.add(obj_ptr);
   }
 
@@ -19331,6 +19929,7 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
     case TriggerType::SECONDARY_INDEX:
     case TriggerType::FK_PARENT:
     case TriggerType::FK_CHILD:
+    case TriggerType::FULLY_REPLICATED_TRIGGER:
       jam();
       createTriggerPtr.p->m_sub_dst = false;
       createTriggerPtr.p->m_sub_src = false;
@@ -19387,6 +19986,61 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
       }
     }
   }
+
+  if (TriggerInfo::getTriggerType(triggerPtr.p->triggerInfo) ==
+      TriggerType::FULLY_REPLICATED_TRIGGER)
+  {
+    jam();
+    TableRecordPtr tablePtr;
+    bool ok = find_object(tablePtr, impl_req->tableId);
+    ndbrequire(ok);
+
+    /**
+     * during NR it might be that fullyReplicatedTriggerId is already set
+     *   and in that case we don't actually modify the table...
+     */
+    bool modified = tablePtr.p->fullyReplicatedTriggerId != impl_req->triggerId;
+    tablePtr.p->fullyReplicatedTriggerId = impl_req->triggerId;
+
+    if (modified)
+    {
+      jam();
+      /**
+       * Mark table modified by subOp
+       */
+      markTableModifiedBySubOp(op_ptr, impl_req->tableId);
+    }
+  }
+}
+
+void
+Dbdict::markTableModifiedBySubOp(SchemaOpPtr op_ptr, Uint32 tableId)
+{
+  SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
+  LocalSchemaOp_list list(c_schemaOpPool, trans_ptr.p->m_op_list);
+  ndbrequire(list.prev(op_ptr));
+  do
+  {
+    jam();
+    Uint32 sz = sizeof(op_ptr.p->m_oprec_ptr.p->m_opType);
+    const char * opType = op_ptr.p->m_oprec_ptr.p->m_opType;
+    if (memcmp(opType, CreateTableRec::g_opInfo.m_opType, sz) == 0)
+    {
+      CreateTableRecPtr createTabPtr;
+      getOpRec(op_ptr, createTabPtr);
+      if (createTabPtr.p->m_request.tableId == tableId)
+      {
+        jam();
+        createTabPtr.p->m_modified_by_subOps = true;
+        return;
+      }
+    }
+  } while (list.prev(op_ptr));
+
+  /**
+   * Calling this method wo/ having a create table...is an inconsistency
+   */
+  ndbrequire(false);
 }
 
 void
@@ -19429,6 +20083,7 @@ Dbdict::createTrigger_parse_endpoint(Signal* signal,
     jam();
     createTrigger_create_drop_trigger_operation(signal, op_ptr, error);
     return;
+  case TriggerType::FULLY_REPLICATED_TRIGGER:
   default:
     return;
   }
@@ -19970,6 +20625,7 @@ Dbdict::execCREATE_TRIG_CONF(Signal* signal)
 {
   jamEntry();
   const CreateTrigConf* conf = (const CreateTrigConf*)signal->getDataPtr();
+  D("execCREATE_TRIG_CONF");
   handleDictConf(signal, conf);
 }
 
@@ -19978,6 +20634,7 @@ Dbdict::execCREATE_TRIG_REF(Signal* signal)
 {
   jamEntry();
   const CreateTrigRef* ref = (const CreateTrigRef*)signal->getDataPtr();
+  D("execCREATE_TRIG_REF");
   handleDictRef(signal, ref);
 }
 
@@ -19986,6 +20643,7 @@ Dbdict::execCREATE_TRIG_IMPL_CONF(Signal* signal)
 {
   jamEntry();
   const CreateTrigImplConf* conf = (const CreateTrigImplConf*)signal->getDataPtr();
+  D("execCREATE_TRIG_IMPL_CONF");
   ndbrequire(refToNode(conf->senderRef) == getOwnNodeId());
   handleDictConf(signal, conf);
 }
@@ -19995,6 +20653,7 @@ Dbdict::execCREATE_TRIG_IMPL_REF(Signal* signal)
 {
   jamEntry();
   const CreateTrigImplRef* ref = (const CreateTrigImplRef*)signal->getDataPtr();
+  D("execCREATE_TRIG_IMPL_REF");
   ndbrequire(refToNode(ref->senderRef) == getOwnNodeId());
   handleDictRef(signal, ref);
 }
@@ -20046,6 +20705,7 @@ Dbdict::execDROP_TRIG_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  D("execDROP_TRIG_REQ");
 
   const DropTrigReq req_copy =
     *(const DropTrigReq*)signal->getDataPtr();
@@ -20237,6 +20897,7 @@ Dbdict::dropTrigger_parse(Signal* signal, bool master,
     case TriggerType::SECONDARY_INDEX:
     case TriggerType::FK_PARENT:
     case TriggerType::FK_CHILD:
+    case TriggerType::FULLY_REPLICATED_TRIGGER:
       jam();
       dropTriggerPtr.p->m_sub_dst = false;
       dropTriggerPtr.p->m_sub_src = false;
@@ -20598,6 +21259,7 @@ Dbdict::execDROP_TRIG_CONF(Signal* signal)
 {
   jamEntry();
   const DropTrigConf* conf = (const DropTrigConf*)signal->getDataPtr();
+  D("execDROP_TRIG_CONF");
   handleDictConf(signal, conf);
 }
 
@@ -20606,6 +21268,7 @@ Dbdict::execDROP_TRIG_REF(Signal* signal)
 {
   jamEntry();
   const DropTrigRef* ref = (const DropTrigRef*)signal->getDataPtr();
+  D("execDROP_TRIG_REF");
   handleDictRef(signal, ref);
 }
 
@@ -20614,6 +21277,7 @@ Dbdict::execDROP_TRIG_IMPL_CONF(Signal* signal)
 {
   jamEntry();
   const DropTrigImplConf* conf = (const DropTrigImplConf*)signal->getDataPtr();
+  D("execDROP_TRIG_IMPL_CONF");
   ndbrequire(refToNode(conf->senderRef) == getOwnNodeId());
   handleDictConf(signal, conf);
 }
@@ -20623,6 +21287,7 @@ Dbdict::execDROP_TRIG_IMPL_REF(Signal* signal)
 {
   jamEntry();
   const DropTrigImplRef* ref = (const DropTrigImplRef*)signal->getDataPtr();
+  D("execDROP_TRIG_IMPL_REF");
   ndbrequire(refToNode(ref->senderRef) == getOwnNodeId());
   handleDictRef(signal, ref);
 }
@@ -20841,6 +21506,7 @@ Dbdict::execDICT_LOCK_REQ(Signal* signal)
 {
   jamEntry();
   const DictLockReq req = *(DictLockReq*)&signal->theData[0];
+  D("execDICT_LOCK_REQ");
 
   UtilLockReq lockReq;
   lockReq.senderRef = req.userRef;
@@ -20976,6 +21642,7 @@ Dbdict::execDICT_UNLOCK_ORD(Signal* signal)
 {
   jamEntry();
   const DictUnlockOrd* ord = (const DictUnlockOrd*)&signal->theData[0];
+  D("execDICT_UNLOCK_ORD");
 
   DictLockReq req;
   req.userPtr = ord->senderData;
@@ -21047,6 +21714,7 @@ Dbdict::execDICT_TAKEOVER_REQ(Signal* signal)
      jam();
      return;
    }
+   D("execDICT_TAKEOVER_REQ");
 
    DictTakeoverReq* req = (DictTakeoverReq*)signal->getDataPtr();
    Uint32 masterRef = req->senderRef;
@@ -21241,6 +21909,7 @@ Dbdict::execDICT_TAKEOVER_REF(Signal* signal)
   Uint32 nodeId = refToNode(senderRef);
   NodeRecordPtr masterNodePtr;
   jamEntry();
+  D("execDICT_TAKEOVER_REF");
 #ifdef VM_TRACE
   ndbout_c("Dbdict::execDICT_TAKEOVER_REF: error %u, from %u",
            ref->errorCode,
@@ -21283,6 +21952,7 @@ Dbdict::execDICT_TAKEOVER_CONF(Signal* signal)
   //Uint32 rollback_op = conf->rollback_op;
   //Uint32 rollback_op_state = conf->rollback_op_state;
   NodeRecordPtr masterNodePtr;
+  D("execDICT_TAKEOVER_CONF");
 
   /*
     Accumulate all responses
@@ -22066,6 +22736,7 @@ Dbdict::execBACKUP_LOCK_TAB_REQ(Signal* signal)
   Uint32 senderRef = req->m_senderRef;
   Uint32 tableId = req->m_tableId;
   Uint32 lock = req->m_lock_unlock;
+  D("execBACKUP_LOCK_TAB_REQ");
 
   TableRecordPtr tablePtr;
   bool ok = find_object(tablePtr, tableId);
@@ -22280,7 +22951,7 @@ Dbdict::execCREATE_FILE_REQ(Signal* signal)
                        &handle);
     return;
   }
-
+  D("execCREATE_FILE_REQ");
 
   const CreateFileReq req_copy =
     *(const CreateFileReq*)signal->getDataPtr();
@@ -22963,6 +23634,7 @@ Dbdict::execCREATE_FILE_IMPL_REF(Signal* signal)
 {
   jamEntry();
   CreateFileImplRef * ref = (CreateFileImplRef*)signal->getDataPtr();
+  D("execCREATE_FILE_IMPL_REF");
   handleDictRef(signal, ref);
 }
 
@@ -22971,6 +23643,7 @@ Dbdict::execCREATE_FILE_IMPL_CONF(Signal* signal)
 {
   jamEntry();
   CreateFileImplConf * conf = (CreateFileImplConf*)signal->getDataPtr();
+  D("execCREATE_FILE_IMPL_CONF");
   handleDictConf(signal, conf);
 }
 
@@ -23017,6 +23690,7 @@ Dbdict::execCREATE_FILEGROUP_REQ(Signal* signal)
                        &handle);
     return;
   }
+  D("execCREATE_FILEGROUP_REQ");
 
   const CreateFilegroupReq req_copy =
     *(const CreateFilegroupReq*)signal->getDataPtr();
@@ -23570,6 +24244,7 @@ Dbdict::execCREATE_FILEGROUP_IMPL_REF(Signal* signal)
 {
   jamEntry();
   CreateFilegroupImplRef * ref = (CreateFilegroupImplRef*)signal->getDataPtr();
+  D("execCREATE_FILEGROUP_IMPL_REF");
   handleDictRef(signal, ref);
 }
 
@@ -23579,6 +24254,7 @@ Dbdict::execCREATE_FILEGROUP_IMPL_CONF(Signal* signal)
   jamEntry();
   CreateFilegroupImplConf * conf =
     (CreateFilegroupImplConf*)signal->getDataPtr();
+  D("execCREATE_FILEGROUP_IMPL_CONF");
   handleDictConf(signal, conf);
 }
 
@@ -23625,6 +24301,7 @@ Dbdict::execDROP_FILE_REQ(Signal* signal)
                        &handle);
     return;
   }
+  D("execDROP_FILE_REQ");
 
   const DropFileReq req_copy =
     *(const DropFileReq*)signal->getDataPtr();
@@ -23895,6 +24572,7 @@ Dbdict::execDROP_FILE_IMPL_REF(Signal* signal)
 {
   jamEntry();
   DropFileImplRef * ref = (DropFileImplRef*)signal->getDataPtr();
+  D("execDROP_FILE_IMPL_REF");
   handleDictRef(signal, ref);
 }
 
@@ -23903,6 +24581,7 @@ Dbdict::execDROP_FILE_IMPL_CONF(Signal* signal)
 {
   jamEntry();
   DropFileImplConf * conf = (DropFileImplConf*)signal->getDataPtr();
+  D("execDROP_FILE_IMPL_CONF");
   handleDictConf(signal, conf);
 }
 
@@ -23990,6 +24669,7 @@ Dbdict::execDROP_FILEGROUP_REQ(Signal* signal)
                        &handle);
     return;
   }
+  D("execDROP_FILEGROUP_REQ");
 
   const DropFilegroupReq req_copy =
     *(const DropFilegroupReq*)signal->getDataPtr();
@@ -24334,6 +25014,7 @@ Dbdict::execDROP_FILEGROUP_IMPL_REF(Signal* signal)
 {
   jamEntry();
   DropFilegroupImplRef * ref = (DropFilegroupImplRef*)signal->getDataPtr();
+  D("execDROP_FILEGROUP_IMPL_REF");
   handleDictRef(signal, ref);
 }
 
@@ -24342,6 +25023,7 @@ Dbdict::execDROP_FILEGROUP_IMPL_CONF(Signal* signal)
 {
   jamEntry();
   DropFilegroupImplConf * conf = (DropFilegroupImplConf*)signal->getDataPtr();
+  D("execDROP_FILEGROUP_IMPL_CONF");
   handleDictConf(signal, conf);
 }
 
@@ -24413,6 +25095,7 @@ Dbdict::execCREATE_NODEGROUP_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  D("execCREATE_NODEGROUP_REQ");
 
   const CreateNodegroupReq req_copy =
     *(const CreateNodegroupReq*)signal->getDataPtr();
@@ -24947,6 +25630,7 @@ Dbdict::execCREATE_NODEGROUP_IMPL_REF(Signal* signal)
 {
   jamEntry();
   CreateNodegroupImplRef * ref = (CreateNodegroupImplRef*)signal->getDataPtr();
+  D("execCREATE_NODEGROUP_IMPL_REF");
   handleDictRef(signal, ref);
 }
 
@@ -24955,6 +25639,7 @@ Dbdict::execCREATE_NODEGROUP_IMPL_CONF(Signal* signal)
 {
   jamEntry();
   CreateNodegroupImplConf * conf = (CreateNodegroupImplConf*)signal->getDataPtr();
+  D("execCREATE_NODEGROUP_IMPL_CONF");
   handleDictConf(signal, conf);
 }
 
@@ -24963,6 +25648,7 @@ Dbdict::execCREATE_HASH_MAP_REF(Signal* signal)
 {
   jamEntry();
   CreateHashMapRef * ref = (CreateHashMapRef*)signal->getDataPtr();
+  D("execCREATE_HASH_MAP_REF");
   handleDictRef(signal, ref);
 }
 
@@ -24971,6 +25657,7 @@ Dbdict::execCREATE_HASH_MAP_CONF(Signal* signal)
 {
   jamEntry();
   CreateHashMapConf * conf = (CreateHashMapConf*)signal->getDataPtr();
+  D("execCREATE_HASH_MAP_CONF");
   handleDictConf(signal, conf);
 }
 
@@ -25009,6 +25696,7 @@ Dbdict::execDROP_NODEGROUP_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  D("execDROP_NODEGROUP_REQ");
 
   const DropNodegroupReq req_copy =
     *(const DropNodegroupReq*)signal->getDataPtr();
@@ -25446,6 +26134,7 @@ Dbdict::execDROP_NODEGROUP_IMPL_REF(Signal* signal)
 {
   jamEntry();
   DropNodegroupImplRef * ref = (DropNodegroupImplRef*)signal->getDataPtr();
+  D("execDROP_NODEGROUP_IMPL_REF");
   handleDictRef(signal, ref);
 }
 
@@ -25454,6 +26143,7 @@ Dbdict::execDROP_NODEGROUP_IMPL_CONF(Signal* signal)
 {
   jamEntry();
   DropNodegroupImplConf * conf = (DropNodegroupImplConf*)signal->getDataPtr();
+  D("execDROP_NODEGROUP_IMPL_CONF");
   handleDictConf(signal, conf);
 }
 
@@ -25501,7 +26191,7 @@ Dbdict::execCREATE_FK_REQ(Signal* signal)
                        &handle);
     return;
   }
-
+  D("execCREATE_FK_REQ");
 
   const CreateFKReq req_copy =
     *(const CreateFKReq*)signal->getDataPtr();
@@ -26654,6 +27344,7 @@ Dbdict::execCREATE_FK_REF(Signal* signal)
 {
   jamEntry();
   CreateFKRef * ref = (CreateFKRef*)signal->getDataPtr();
+  D("execCREATE_FK_REF");
   handleDictRef(signal, ref);
 }
 
@@ -26662,6 +27353,7 @@ Dbdict::execCREATE_FK_CONF(Signal* signal)
 {
   jamEntry();
   CreateFKConf * conf = (CreateFKConf*)signal->getDataPtr();
+  D("execCREATE_FK_IMPL_CONF");
   handleDictConf(signal, conf);
 }
 
@@ -26670,6 +27362,7 @@ Dbdict::execCREATE_FK_IMPL_REF(Signal* signal)
 {
   jamEntry();
   CreateFKImplRef * ref = (CreateFKImplRef*)signal->getDataPtr();
+  D("execCREATE_FK_IMPL_REF");
   handleDictRef(signal, ref);
 }
 
@@ -26677,6 +27370,7 @@ void
 Dbdict::execCREATE_FK_IMPL_CONF(Signal* signal)
 {
   jamEntry();
+  D("execCREATE_FK_IMPL_CONF");
   CreateFKImplConf * conf = (CreateFKImplConf*)signal->getDataPtr();
   handleDictConf(signal, conf);
 }
@@ -26717,6 +27411,7 @@ Dbdict::execBUILD_FK_REQ(Signal* signal)
     return;
   }
   SectionHandle handle(this, signal);
+  D("execBUILD_FK_REQ");
 
   const BuildFKReq req_copy =
     *(const BuildFKReq*)signal->getDataPtr();
@@ -26982,6 +27677,7 @@ Dbdict::execBUILD_FK_REF(Signal* signal)
 {
   jamEntry();
   const BuildFKRef* ref = (const BuildFKRef*)signal->getDataPtr();
+  D("execBUILD_FK_REF");
   handleDictRef(signal, ref);
 }
 
@@ -26990,6 +27686,7 @@ Dbdict::execBUILD_FK_CONF(Signal* signal)
 {
   jamEntry();
   const BuildFKConf* conf = (const BuildFKConf*)signal->getDataPtr();
+  D("execBUILD_FK_CONF");
   handleDictConf(signal, conf);
 }
 
@@ -26998,6 +27695,7 @@ Dbdict::execBUILD_FK_IMPL_REF(Signal* signal)
 {
   jamEntry();
   BuildFKImplRef * ref = (BuildFKImplRef*)signal->getDataPtr();
+  D("execBUILD_FK_IMPL_REF");
   handleDictRef(signal, ref);
 }
 
@@ -27006,6 +27704,7 @@ Dbdict::execBUILD_FK_IMPL_CONF(Signal* signal)
 {
   jamEntry();
   BuildFKImplConf * conf = (BuildFKImplConf*)signal->getDataPtr();
+  D("execBUILD_FK_IMPL_CONF");
   handleDictConf(signal, conf);
 }
 
@@ -27052,6 +27751,7 @@ Dbdict::execDROP_FK_REQ(Signal* signal)
                        &handle);
     return;
   }
+  D("execDROP_FK_REQ");
 
   const DropFKReq req_copy =
     *(const DropFKReq*)signal->getDataPtr();
@@ -27463,6 +28163,7 @@ Dbdict::execDROP_FK_IMPL_REF(Signal* signal)
 {
   jamEntry();
   DropFKImplRef * ref = (DropFKImplRef*)signal->getDataPtr();
+  D("execDROP_FK_IMPL_REF");
   handleDictRef(signal, ref);
 }
 
@@ -27471,6 +28172,7 @@ Dbdict::execDROP_FK_IMPL_CONF(Signal* signal)
 {
   jamEntry();
   DropFKImplConf * conf = (DropFKImplConf*)signal->getDataPtr();
+  D("execDROP_FK_IMPL_CONF");
   handleDictConf(signal, conf);
 }
 
@@ -27883,7 +28585,7 @@ Dbdict::findSchemaOp(SchemaOpPtr& op_ptr, Uint32 op_key)
     const OpRecPtr& oprec_ptr = op_ptr.p->m_oprec_ptr;
     ndbrequire(!oprec_ptr.isNull());
     ndbrequire(op_ptr.p->m_magic == SchemaOp::DICT_MAGIC);
-    D("findSchemaOp" << V(op_key));
+    //D("findSchemaOp" << V(op_key));
     return true;
   }
   return false;
@@ -27974,6 +28676,29 @@ Dbdict::saveOpSection(SchemaOpPtr op_ptr,
   bool ok =  copyIn(op_sec_pool, op_sec, ss_ptr);
   ndbrequire(ok);
   return true;
+}
+
+bool
+Dbdict::replaceOpSection(SchemaOpPtr op_ptr,
+                         Uint32 ss_no,
+                         SegmentedSectionPtr ss_ptr)
+{
+  ndbrequire(ss_no <= 2);
+  OpSection save = op_ptr.p->m_section[ss_no];
+
+  OpSection& op_sec = op_ptr.p->m_section[ss_no];
+  op_sec.init();
+
+  LocalArenaPoolImpl op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena,
+                                 c_opSectionBufferPool);
+  if (copyIn(op_sec_pool, op_sec, ss_ptr))
+  {
+    jam();
+    release(op_sec_pool, save);
+    return true;
+  }
+  op_sec = save;
+  return false;
 }
 
 void
@@ -28248,7 +28973,7 @@ Dbdict::findSchemaTrans(SchemaTransPtr& trans_ptr, Uint32 trans_key)
   if (c_schemaTransHash.find(trans_ptr, trans_rec)) {
     jam();
     ndbrequire(trans_ptr.p->m_magic == SchemaTrans::DICT_MAGIC);
-    D("findSchemaTrans" << V(trans_key));
+    //D("findSchemaTrans" << V(trans_key));
     return true;
   }
   trans_ptr.setNull();
@@ -28773,6 +29498,7 @@ Dbdict::execSCHEMA_TRANS_IMPL_CONF(Signal* signal)
 {
   jamEntry();
   ndbrequire(signal->getNoOfSections() == 0);
+  D("execSCHEMA_TRANS_IMPL_CONF");
 
   if (c_takeOverInProgress)
   {
@@ -28810,6 +29536,7 @@ Dbdict::execSCHEMA_TRANS_IMPL_REF(Signal* signal)
 {
   jamEntry();
   ndbrequire(signal->getNoOfSections() == 0);
+  D("execSCHEMA_TRANS_IMPL_REF");
 
   if (c_takeOverInProgress)
   {
@@ -29096,11 +29823,18 @@ Dbdict::createSubOps(Signal* signal, SchemaOpPtr op_ptr, bool first)
     return;
   }
 
-  ErrorInfo error;
-  (this->*(info.m_reply))(signal, op_ptr, error);
-
   trans_ptr.p->m_clientState = TransClient::ParseReply;
   trans_ptr.p->m_state = SchemaTrans::TS_STARTED;
+
+  if (c_restartRecord.m_complete == false)
+  {
+    jam();
+    restart_nextOp(signal);
+    return;
+  }
+
+  ErrorInfo error;
+  (this->*(info.m_reply))(signal, op_ptr, error);
 }
 
 // a sub-op create failed, roll back and send REF to client
@@ -29108,6 +29842,7 @@ void
 Dbdict::abortSubOps(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
 {
   D("abortSubOps" << *op_ptr.p << error);
+  ndbrequire(c_restartRecord.m_complete);
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
   setError(trans_ptr, error);
   trans_rollback_sp_start(signal, trans_ptr);
@@ -30737,6 +31472,7 @@ Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
     jam();
     return;
   }
+  D("execSCHEMA_TRANS_IMPL_REQ");
   SchemaTransImplReq reqCopy =
     *(const SchemaTransImplReq*)signal->getDataPtr();
   const SchemaTransImplReq *req = &reqCopy;
@@ -31735,6 +32471,7 @@ Dbdict::execSCHEMA_TRANS_BEGIN_CONF(Signal* signal)
   jamEntry();
   const SchemaTransBeginConf* conf =
     (const SchemaTransBeginConf*)signal->getDataPtr();
+  D("execSCHEMA_TRANS_BEGIN_CONF");
 
   TxHandlePtr tx_ptr;
   findTxHandle(tx_ptr, conf->transId);
@@ -31753,6 +32490,7 @@ Dbdict::execSCHEMA_TRANS_BEGIN_REF(Signal* signal)
   const SchemaTransBeginRef* ref =
     (const SchemaTransBeginRef*)signal->getDataPtr();
 
+  D("execSCHEMA_TRANS_BEGIN_REF");
   TxHandlePtr tx_ptr;
   findTxHandle(tx_ptr, ref->transId);
   ndbrequire(!tx_ptr.isNull());
@@ -31769,6 +32507,7 @@ Dbdict::execSCHEMA_TRANS_END_CONF(Signal* signal)
   const SchemaTransEndConf* conf =
     (const SchemaTransEndConf*)signal->getDataPtr();
 
+  D("execSCHEMA_TRANS_END_CONF");
   TxHandlePtr tx_ptr;
   findTxHandle(tx_ptr, conf->transId);
   ndbrequire(!tx_ptr.isNull());
@@ -31783,6 +32522,7 @@ Dbdict::execSCHEMA_TRANS_END_REF(Signal* signal)
   const SchemaTransEndRef* ref =
     (const SchemaTransEndRef*)signal->getDataPtr();
 
+  D("execSCHEMA_TRANS_END_REF");
   TxHandlePtr tx_ptr;
   findTxHandle(tx_ptr, ref->transId);
   ndbrequire(!tx_ptr.isNull());
@@ -31799,6 +32539,7 @@ Dbdict::execSCHEMA_TRANS_END_REP(Signal* signal)
   const SchemaTransEndRep* rep =
     (const SchemaTransEndRep*)signal->getDataPtr();
 
+  D("execSCHEMA_TRANS_END_REP");
   TxHandlePtr tx_ptr;
   findTxHandle(tx_ptr, rep->transId);
   ndbrequire(!tx_ptr.isNull());
@@ -32134,6 +32875,7 @@ Dbdict::execCREATE_HASH_MAP_REQ(Signal* signal)
                        &handle);
     return;
   }
+  D("execCREATE_HASH_MAP_REQ");
 
 
   const CreateHashMapReq req_copy =
@@ -32186,6 +32928,23 @@ Dbdict::get_default_fragments(Signal* signal,
   CheckNodeGroups * sd = CAST_PTR(CheckNodeGroups, signal->getDataPtrSend());
   sd->extraNodeGroups = extranodegroups;
   sd->requestType = CheckNodeGroups::Direct | CheckNodeGroups::GetDefaultFragments;
+  sd->fragmentCountType = fragmentCountType;
+  EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal,
+		 CheckNodeGroups::SignalLength);
+  jamEntry();
+  return sd->output;
+}
+
+Uint32
+Dbdict::get_default_fragments_fully_replicated(Signal* signal,
+                                               Uint32 fragmentCountType)
+{
+  jam();
+
+  CheckNodeGroups * sd = CAST_PTR(CheckNodeGroups, signal->getDataPtrSend());
+  sd->extraNodeGroups = 0;
+  sd->requestType = CheckNodeGroups::Direct |
+                    CheckNodeGroups::GetDefaultFragmentsFullyReplicated;
   sd->fragmentCountType = fragmentCountType;
   EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal,
 		 CheckNodeGroups::SignalLength);
@@ -32289,8 +33048,9 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
     }
     if (g_trace)
     {
-      g_eventLogger->info("HashMap: fragments: %u, fragmentCountType: %x",
-                          fragments, fragmentCountType);
+      g_eventLogger->info("HashMap: fragments: %u, fragmentCountType: %s",
+                          fragments,
+                          getFragmentCountTypeString(fragmentCountType));
     }
 
     if (fragments > MAX_NDB_PARTITIONS)
@@ -32511,7 +33271,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
   hm_ptr.p->m_object_version = objVersion;
   hm_ptr.p->m_name = name;
   hm_ptr.p->m_map_ptr_i = map_ptr.i;
-  link_object(obj_ptr, hm_ptr);
+  ndbrequire(link_object(obj_ptr, hm_ptr));
 
   /**
    * pack is stupid...and requires bytes!
@@ -33131,7 +33891,8 @@ Dbdict::check_consistency_trigger(TriggerRecordPtr triggerPtr)
   {
     TriggerInfo ti;
     TriggerInfo::unpackTriggerInfo(triggerPtr.p->triggerInfo, ti);
-    ndbrequire(ti.triggerType == TriggerType::REORG_TRIGGER);
+    ndbrequire(ti.triggerType == TriggerType::REORG_TRIGGER ||
+               ti.triggerType == TriggerType::FULLY_REPLICATED_TRIGGER);
   }
 }
 

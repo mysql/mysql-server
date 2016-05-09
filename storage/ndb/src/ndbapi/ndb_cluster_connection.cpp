@@ -1206,8 +1206,7 @@ Ndb_cluster_connection::release_ndb_wait_group(NdbWaitGroup *group)
 
 Uint32
 Ndb_cluster_connection_impl::select_node(const Uint16 * nodes,
-                                         Uint32 cnt,
-                                         Uint32 skip)
+                                         Uint32 cnt)
 {
   NdbNodeBitmask checked;
   const Node *nodes_arr = m_all_nodes.getBase();
@@ -1234,7 +1233,7 @@ Ndb_cluster_connection_impl::select_node(const Uint16 * nodes,
   Uint32 best_node = nodes[0];
   Uint32 best_score = ~Uint32(0);
 
-  for (Uint32 j = 0; j < cnt; j += (1 + skip))
+  for (Uint32 j = 0; j < cnt; j++)
   {
     Uint32 candidate_node = nodes[j];
     if (checked.get(candidate_node))

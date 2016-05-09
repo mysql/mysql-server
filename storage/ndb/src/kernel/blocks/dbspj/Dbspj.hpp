@@ -130,6 +130,7 @@ public:
       TR_DROPPING     = 1 << 1,
       TR_PREPARED     = 1 << 2
       ,TR_READ_BACKUP = (1 << 5)
+      ,TR_FULLY_REPLICATED = (1 << 6)
     };
     Uint8 get_enabled()     const { return (m_flags & TR_ENABLED)      != 0; }
     Uint8 get_dropping()    const { return (m_flags & TR_DROPPING)     != 0; }

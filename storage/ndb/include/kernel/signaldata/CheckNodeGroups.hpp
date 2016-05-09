@@ -61,7 +61,8 @@ public:
     ArbitCheck          = 0x2,
     GetNodeGroup        = 0x4,
     GetNodeGroupMembers = 0x8,
-    GetDefaultFragments = 0x10
+    GetDefaultFragments = 0x10,
+    GetDefaultFragmentsFullyReplicated = 0x20
   };
 
   enum Output {

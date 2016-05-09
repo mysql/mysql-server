@@ -254,6 +254,13 @@ ENGINE = NDB;
 
 DROP TABLE t1;
 
+#Verify that it isn't possible to create no logging table with disk fields
+--error ER_GET_ERRMSG
+CREATE TABLE t1 (a bigint primary key, b bigint storage disk)
+ENGINE ndb
+COMMENT="NDB_TABLE=NOLOGGING=1"
+TABLESPACE ts1 STORAGE DISK;
+
 create tablespace ts2
 add datafile 'datafile2_1.dat'
 use logfile group lg1

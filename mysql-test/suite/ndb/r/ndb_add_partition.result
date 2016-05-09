@@ -49,22 +49,27 @@ unique (c))
 ENGINE = NDB
 partition by key(a) partitions 3;
 Table: test.t1
+RealFragmentCount: 2
 FragmentCount: 2
 b$unique(b) - UniqueHashIndex
 FragmentCount: 2
 Table: test.t2
+RealFragmentCount: 2
 FragmentCount: 2
 b$unique(b) - UniqueHashIndex
 FragmentCount: 2
 Table: test.t3
+RealFragmentCount: 4
 FragmentCount: 4
 b$unique(b) - UniqueHashIndex
 FragmentCount: 4
 Table: test.t4
+RealFragmentCount: 2
 FragmentCount: 2
 b$unique(b) - UniqueHashIndex
 FragmentCount: 2
 Table: test.t5
+RealFragmentCount: 3
 FragmentCount: 3
 b$unique(b) - UniqueHashIndex
 FragmentCount: 3
@@ -527,6 +532,7 @@ select * from t4 where b = 50;
 a	b	c
 50	50	50
 Table: test.t4
+RealFragmentCount: 2
 FragmentCount: 2
 b$unique(b) - UniqueHashIndex
 FragmentCount: 2
@@ -685,18 +691,22 @@ select * from t3 where b = 50;
 a	b	c
 50	50	50
 Table: test.t1
+RealFragmentCount: 5
 FragmentCount: 5
 b$unique(b) - UniqueHashIndex
 FragmentCount: 2
 Table: test.t2
+RealFragmentCount: 7
 FragmentCount: 7
 b$unique(b) - UniqueHashIndex
 FragmentCount: 2
 Table: test.t3
+RealFragmentCount: 8
 FragmentCount: 8
 b$unique(b) - UniqueHashIndex
 FragmentCount: 4
 Table: test.t5
+RealFragmentCount: 3
 FragmentCount: 3
 b$unique(b) - UniqueHashIndex
 FragmentCount: 3
