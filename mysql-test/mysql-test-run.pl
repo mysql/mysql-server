@@ -243,6 +243,7 @@ our $opt_ddd;
 our $opt_client_ddd;
 my $opt_boot_ddd;
 our $opt_manual_gdb;
+our $opt_manual_boot_gdb;
 our $opt_manual_lldb;
 our $opt_manual_dbx;
 our $opt_manual_ddd;
@@ -1142,6 +1143,7 @@ sub command_line_setup {
              'client-gdb'               => \$opt_client_gdb,
              'client-lldb'              => \$opt_client_lldb,
              'manual-gdb'               => \$opt_manual_gdb,
+             'manual-boot-gdb'          => \$opt_manual_boot_gdb,
              'manual-lldb'              => \$opt_manual_lldb,
 	     'boot-gdb'                 => \$opt_boot_gdb,
              'manual-debug'             => \$opt_manual_debug,
@@ -1616,7 +1618,7 @@ sub command_line_setup {
 
     if ( $opt_gdb || $opt_ddd || $opt_manual_gdb || $opt_manual_lldb || 
          $opt_manual_ddd || $opt_manual_debug || $opt_debugger || $opt_dbx || 
-         $opt_lldb || $opt_manual_dbx)
+         $opt_lldb || $opt_manual_dbx || $opt_manual_boot_gdb )
     {
       mtr_error("You need to use the client debug options for the",
 		"embedded server. Ex: --client-gdb");
@@ -1645,7 +1647,7 @@ sub command_line_setup {
   if ( $opt_gdb || $opt_client_gdb || $opt_ddd || $opt_client_ddd || 
        $opt_manual_gdb || $opt_manual_lldb || $opt_manual_ddd || 
        $opt_manual_debug || $opt_dbx || $opt_client_dbx || $opt_manual_dbx || 
-       $opt_debugger || $opt_client_debugger )
+       $opt_debugger || $opt_client_debugger || $opt_manual_boot_gdb )
   {
     # Indicate that we are using debugger
     $glob_debugger= 1;
@@ -3818,7 +3820,7 @@ sub mysql_install_db {
   # ----------------------------------------------------------------------
   my $bootstrap_sql_file= "$opt_vardir/tmp/bootstrap.sql";
 
-  if ($opt_boot_gdb) {
+  if ($opt_boot_gdb || $opt_manual_boot_gdb) {
     gdb_arguments(\$args, \$exe_mysqld_bootstrap, $mysqld->name(),
 		  $bootstrap_sql_file);
   }
@@ -3904,6 +3906,16 @@ sub mysql_install_db {
   # Add procedures for checking server is restored after testcase
   mtr_tofile($bootstrap_sql_file,
              sql_to_bootstrap(mtr_grab_file("include/mtr_check.sql")));
+
+  if ( $opt_manual_boot_gdb )
+  {
+    # The configuration has been set up and user has been prompted for
+    # how to start the servers manually in the requested debugger.
+    # At this time mtr.pl have no knowledge about the server processes
+    # and thus can't wait for them to finish, mtr exits at this point.
+    exit(0);
+  }
+
 
   # Log bootstrap command
   my $path_bootstrap_log= "$opt_vardir/log/bootstrap.log";
@@ -6596,7 +6608,7 @@ sub gdb_arguments {
 	     "break main\n" .
 	     $runline);
 
-  if ( $opt_manual_gdb )
+  if ( $opt_manual_gdb || $opt_manual_boot_gdb )
   {
      print "\nTo start gdb for $type, type in another window:\n";
      print "gdb -cd $glob_mysql_test_dir -x $gdb_init_file $$exe\n";
@@ -7163,6 +7175,8 @@ Options for debugging the product
   boot-dbx              Start bootstrap server in dbx
   boot-ddd              Start bootstrap server in ddd
   boot-gdb              Start bootstrap server in gdb
+  manual-boot-gdb       Let user manually start mysqld in gdb, during
+                        initialize process
   client-dbx            Start mysqltest client in dbx
   client-ddd            Start mysqltest client in ddd
   client-debugger=NAME  Start mysqltest in the selected debugger
