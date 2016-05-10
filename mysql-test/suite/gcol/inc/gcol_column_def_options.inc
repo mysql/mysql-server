@@ -246,15 +246,15 @@ CREATE TABLE t1(a int, b int as (a + 1),
             c varchar(12) as ("aaaabb") stored, d blob as (c));
 INSERT INTO t1(a) VALUES(1),(3);
 SHOW CREATE TABLE t1;
-SELECT * FROM t1;
+SELECT * FROM t1 order by a;
 CREATE TABLE t2 LIKE t1;
 SHOW CREATE TABLE t2;
 CREATE TABLE t3 AS SELECT * FROM t1;
 SHOW CREATE TABLE t3;
-SELECT * FROM t3;
+SELECT * FROM t3 order by a;
 CREATE TABLE t4 AS SELECT b,c,d FROM t1;
 SHOW CREATE TABLE t4;
-SELECT * FROM t4;
+SELECT * FROM t4 order by b;
 DROP TABLE t1,t2,t3,t4;
 
 --echo # Bug#21025003:WL8149:ASSERTION `CTX->NUM_TO_DROP_FK
@@ -378,12 +378,13 @@ CREATE TABLE t1 (c CHAR(10) CHARSET latin1 COLLATE latin1_bin,
                  c_ci CHAR(10) CHARSET latin1 COLLATE latin1_general_ci GENERATED ALWAYS AS (c),
                  c_cs CHAR(10) CHARSET latin1 COLLATE latin1_general_cs GENERATED ALWAYS AS (c));
 
-INSERT INTO t1 (c) VALUES ('a'), ('A');
+INSERT INTO t1 (c) VALUES ('a'), ('A'), ('b');
 
 SELECT * FROM t1 ORDER BY c;
-SELECT * FROM t1 ORDER BY c_ci;
+SELECT * FROM t1 ORDER BY c_ci, c;
 SELECT * FROM t1 ORDER BY c_cs;
 
+--sorted_result
 SELECT c, c_ci REGEXP 'A', c_cs REGEXP 'A' FROM t1;
 
 DROP TABLE t1;
@@ -472,15 +473,15 @@ CREATE TABLE t1(
 INSERT INTO t1(col1, col2, col3) VALUES
  (1, 10, 100), (2, 20, 200);
 
-SELECT * FROM t1;
+SELECT * FROM t1 order by col1;
 
 # Change expression of a virtual generated column
 ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 * col3) VIRTUAL;
-SELECT * FROM t1;
+SELECT * FROM t1 order by col1;
 
 # Change expression of a stored generated column
 ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 / col3) STORED;
-SELECT * FROM t1;
+SELECT * FROM t1 order by col1;
 
 ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 + col3) VIRTUAL;
 ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 - col3) STORED;
@@ -495,13 +496,13 @@ if ($support_virtual_index)
 {
 # Change expression of a virtual generated column, with index
 ALTER TABLE t1 MODIFY COLUMN vgc1 INTEGER AS (col2 * col3) VIRTUAL;
-SELECT * FROM t1;
-SELECT vgc1 FROM t1;
+SELECT * FROM t1 order by col1;
+SELECT vgc1 FROM t1 order by vgc1;
 }
 
 # Change expression of a stored generated column, with index
 ALTER TABLE t1 MODIFY COLUMN sgc1 INTEGER AS (col2 / col3) STORED;
-SELECT * FROM t1;
+SELECT * FROM t1 order by col1;
 SELECT sgc1 FROM t1 order by sgc1;
 
 if ($support_virtual_index)
