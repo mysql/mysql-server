@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1590,7 +1590,13 @@ Ndb::waitCompletedTransactions(int aMilliSecondsToWait,
   theMinNoOfEventsToWakeUp = noOfEventsToWaitFor;
   theImpl->incClientStat(Ndb::WaitExecCompleteCount, 1);
   do {
-    const int maxsleep = waitTime > 10 ? 10 : waitTime;
+    int maxsleep = waitTime;
+#ifndef DBUG_OFF
+    if(DBUG_EVALUATE_IF("early_trans_timeout", true, false))
+    {
+      maxsleep = waitTime > 10 ? 10 : waitTime;
+    }
+#endif
     poll_guard->wait_for_input(maxsleep);
     if (theNoOfCompletedTransactions >= (Uint32)noOfEventsToWaitFor) {
       break;
