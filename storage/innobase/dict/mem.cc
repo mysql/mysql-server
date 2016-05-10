@@ -121,6 +121,10 @@ dict_mem_table_free(
 	}
 #endif /* !UNIV_LIBRARY */
 
+	if (table->s_cols != NULL) {
+		UT_DELETE(table->s_cols);
+	}
+
 	mem_heap_free(table->heap);
 }
 
