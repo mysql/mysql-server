@@ -1040,8 +1040,6 @@ fts_cache_clear(
 {
 	ulint		i;
 
-	rw_lock_x_lock(&cache->init_lock);
-
 	for (i = 0; i < ib_vector_size(cache->indexes); ++i) {
 		ulint			j;
 		fts_index_cache_t*	index_cache;
@@ -1078,8 +1076,6 @@ fts_cache_clear(
 
 		index_cache->doc_stats = NULL;
 	}
-
-	rw_lock_x_unlock(&cache->init_lock);
 
 	mem_heap_free(static_cast<mem_heap_t*>(cache->sync_heap->arg));
 	cache->sync_heap->arg = NULL;
@@ -4570,8 +4566,6 @@ fts_sync_rollback(
 	trx_t*		trx = sync->trx;
 	fts_cache_t*	cache = sync->table->fts->cache;
 
-	rw_lock_x_lock(&cache->init_lock);
-
 	for (ulint i = 0; i < ib_vector_size(cache->indexes); ++i) {
 		ulint			j;
 		fts_index_cache_t*	index_cache;
@@ -4601,7 +4595,6 @@ fts_sync_rollback(
 		}
 	}
 
-	rw_lock_x_unlock(&cache->init_lock);
 	rw_lock_x_unlock(&cache->lock);
 
 	fts_sql_rollback(trx);
