@@ -55,7 +55,7 @@ public:
    * @param key the key where memory from the buffer is going to be placed
    * @return TRUE on success
   */
-  my_bool operator>>(IKey* key);
+  my_bool operator>>(IKey **key);
 protected:
   Buffer buffer;
 private:
