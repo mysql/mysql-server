@@ -72,6 +72,52 @@ drop function keyring_key_length_fetch;
 drop function keyring_key_remove;
 drop function keyring_key_generate;
 INSTALL PLUGIN keyring_udf SONAME 'keyring_udf.so';
+# Check if keys are available after server restart
+create function keyring_key_store returns integer soname 'keyring_udf.so';
+create function keyring_key_generate returns integer soname 'keyring_udf.so';
+select keyring_key_generate('Rob_AES_128','AES',16);
+keyring_key_generate('Rob_AES_128','AES',16)
+1
+select keyring_key_store('Rob_AES_128_store','AES',"0123456789012345");
+keyring_key_store('Rob_AES_128_store','AES',"0123456789012345")
+1
+drop function keyring_key_generate;
+drop function keyring_key_store;
+# Re-starting mysql server with keyring_file plugin.
+create function keyring_key_fetch returns string soname 'keyring_udf.so';
+create function keyring_key_type_fetch returns string soname 'keyring_udf.so';
+create function keyring_key_length_fetch returns integer soname 'keyring_udf.so';
+create function keyring_key_remove returns integer soname 'keyring_udf.so';
+select keyring_key_fetch('Rob_AES_128') into @x;
+select LENGTH(@x);
+LENGTH(@x)
+16
+select keyring_key_length_fetch('Rob_AES_128');
+keyring_key_length_fetch('Rob_AES_128')
+16
+select keyring_key_type_fetch('Rob_AES_128');
+keyring_key_type_fetch('Rob_AES_128')
+AES
+select keyring_key_remove('Rob_AES_128');
+keyring_key_remove('Rob_AES_128')
+1
+select keyring_key_fetch('Rob_AES_128_store') into @x;
+select LENGTH(@x);
+LENGTH(@x)
+16
+select keyring_key_length_fetch('Rob_AES_128_store');
+keyring_key_length_fetch('Rob_AES_128_store')
+16
+select keyring_key_type_fetch('Rob_AES_128_store');
+keyring_key_type_fetch('Rob_AES_128_store')
+AES
+select keyring_key_remove('Rob_AES_128_store');
+keyring_key_remove('Rob_AES_128_store')
+1
+drop function keyring_key_fetch;
+drop function keyring_key_type_fetch;
+drop function keyring_key_length_fetch;
+drop function keyring_key_remove;
 # Test cases for keyring_udf and keyring_file plugins loaded
 create function keyring_key_store returns integer soname 'keyring_udf.so';
 create function keyring_key_fetch returns string soname 'keyring_udf.so';
