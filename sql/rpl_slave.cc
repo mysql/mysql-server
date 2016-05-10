@@ -8632,8 +8632,11 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
   }
 
 #ifdef HAVE_OPENSSL
+  /* By default the channel is not configured to use SSL */
+  enum mysql_ssl_mode ssl_mode= SSL_MODE_DISABLED;
   if (mi->ssl)
   {
+    /* The channel is configured to use SSL */
     mysql_ssl_set(mysql,
                   mi->ssl_key[0]?mi->ssl_key:0,
                   mi->ssl_cert[0]?mi->ssl_cert:0,
@@ -8650,15 +8653,14 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                   mi->tls_version[0] ? mi->tls_version : 0);
     mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH,
                   mi->ssl_crlpath[0] ? mi->ssl_crlpath : 0);
-    enum mysql_ssl_mode ssl_mode;
     if (mi->ssl_verify_server_cert)
       ssl_mode= SSL_MODE_VERIFY_IDENTITY;
     else if (mi->ssl_ca[0] || mi->ssl_capath[0])
       ssl_mode= SSL_MODE_VERIFY_CA;
     else
       ssl_mode= SSL_MODE_REQUIRED;
-    mysql_options(mysql, MYSQL_OPT_SSL_MODE, &ssl_mode);
   }
+  mysql_options(mysql, MYSQL_OPT_SSL_MODE, &ssl_mode);
 #endif
 
   /*
