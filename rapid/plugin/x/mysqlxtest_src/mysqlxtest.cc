@@ -97,7 +97,7 @@ static std::list<Stack_frame> script_stack;
 static std::map<std::string, std::string> variables;
 static std::list<std::string> variables_to_unreplace;
 
-void replace_all(std::string &input, const std::string &to_find, const std::string &change_to)
+static void replace_all(std::string &input, const std::string &to_find, const std::string &change_to)
 {
   size_t position = input.find(to_find);
 
@@ -108,7 +108,7 @@ void replace_all(std::string &input, const std::string &to_find, const std::stri
   }
 }
 
-void replace_variables(std::string &s)
+static void replace_variables(std::string &s)
 {
   for (std::map<std::string, std::string>::const_iterator sub = variables.begin();
       sub != variables.end(); ++sub)
@@ -123,7 +123,7 @@ void replace_variables(std::string &s)
   }
 }
 
-std::string unreplace_variables(const std::string &in, bool clear)
+static std::string unreplace_variables(const std::string &in, bool clear)
 {
   std::string s = in;
   for (std::list<std::string>::const_iterator sub = variables_to_unreplace.begin();
@@ -1765,10 +1765,13 @@ private:
       return Stop_with_failure;
     }
 
-    std::ifstream file(argl[1].c_str());
+    std::string path_to_file = argl[1];
+    replace_variables(path_to_file);
+
+    std::ifstream file(path_to_file.c_str());
     if (!file.is_open())
     {
-      std::cerr << "Coult not open file " << argl[1]<<"\n";
+      std::cerr << "Couldn't not open file " << path_to_file <<"\n";
       return Stop_with_failure;
     }
 
@@ -2914,7 +2917,7 @@ public:
   }
 };
 
-std::vector<Block_processor_ptr> create_macro_block_processors(Connection_manager *cm)
+static std::vector<Block_processor_ptr> create_macro_block_processors(Connection_manager *cm)
 {
   std::vector<Block_processor_ptr> result;
 
@@ -2926,7 +2929,7 @@ std::vector<Block_processor_ptr> create_macro_block_processors(Connection_manage
   return result;
 }
 
-std::vector<Block_processor_ptr> create_block_processors(Connection_manager *cm)
+static std::vector<Block_processor_ptr> create_block_processors(Connection_manager *cm)
 {
   std::vector<Block_processor_ptr> result;
 
@@ -3058,14 +3061,14 @@ static std::istream &get_input(My_command_line_options &opt, std::ifstream &file
 }
 
 
-inline void unable_daemonize()
+static void unable_daemonize()
 {
   std::cerr << "ERROR: Unable to put process in background\n";
   exit(2);
 }
 
 
-void daemonize()
+static void daemonize()
 {
 #ifdef WIN32
   unable_daemonize();

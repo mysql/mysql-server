@@ -1,0 +1,445 @@
+## Inserting values described as a cast expression
+
+## Preamble
+--source ../include/xplugin_preamble.inc
+## Test starts here
+
+--write_file $MYSQL_TMP_DIR/crud_insert_cast.tmp
+## Test data
+-->sql
+DROP SCHEMA IF EXISTS xtest;
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.my_int (value INTEGER);
+-->endsql
+
+Mysqlx.Crud.Insert {
+  collection { name: "my_int" schema: "xtest"}
+  data_model: TABLE
+  projection {name: "value"}
+  row {
+    field {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type : LITERAL
+            literal { type: V_SINT v_signed_int: 11 }
+        }
+        param {
+          type : LITERAL
+            literal { type: V_OCTETS v_octets {value:"UNSIGNED"} }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type : LITERAL
+          literal { type: V_SINT v_signed_int: -11 }
+        }
+        param {
+          type : LITERAL
+            literal { type: V_OCTETS v_octets {value:"SIGNED"} }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type : LITERAL
+          literal { type: V_SINT v_signed_int: 12 }
+        }
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"UNSIGNED INTEGER"} }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type : LITERAL
+          literal { type: V_SINT v_signed_int: -12 }
+        }
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"SIGNED INTEGER"} }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"-123"} }
+        }
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"SIGNED"} }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"123"} }
+        }
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"UNSIGNED"} }
+        }
+      }
+    }
+  }
+}
+
+-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+SELECT * FROM xtest.my_int;
+-->endsql
+
+Mysqlx.Crud.Insert {
+  collection { name: "my_int" schema: "xtest"}
+  data_model: TABLE
+  projection {name: "value"}
+  row {
+    field {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type : LITERAL
+          literal { type: V_SINT v_signed_int: 13 }
+        }
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"undefined"} }
+        }
+      }
+    }
+  }
+}
+
+-->expecterror 5154
+-->recvresult
+
+-->sql
+CREATE TABLE xtest.my_datetime (value DATETIME);
+-->endsql
+
+Mysqlx.Crud.Insert {
+  collection { name: "my_datetime" schema: "xtest"}
+  data_model: TABLE
+  projection {name: "value"}
+  row {
+    field {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"2011.11.11T3:14"} }
+        }
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"DATETIME"} }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"2012.12.12"} }
+        }
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"DATE"} }
+        }
+      }
+    }
+  }
+}
+-->recvresult
+
+-->sql
+SELECT * FROM xtest.my_datetime;
+CREATE TABLE xtest.my_time (value TIME);
+-->endsql
+
+Mysqlx.Crud.Insert {
+  collection { name: "my_time" schema: "xtest"}
+  data_model: TABLE
+  projection {name: "value"}
+  row {
+    field {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"1024"} }
+        }
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"TIME"} }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type : LITERAL
+          literal { type: V_SINT v_signed_int: 314 }
+        }
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"TIME"} }
+        }
+      }
+    }
+  }
+}
+
+-->recvresult
+
+-->sql
+SELECT * FROM xtest.my_time;
+CREATE TABLE xtest.my_json (value JSON);
+-->endsql
+
+Mysqlx.Crud.Insert {
+  collection { name: "my_json" schema: "xtest"}
+  data_model: TABLE
+  projection {name: "value"}
+  row {
+    field {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"{\"pi\": 3.14}"} }
+        }
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"JSON"} }
+        }
+      }
+    }
+  }
+}
+
+-->recvresult
+
+-->sql
+SELECT * FROM xtest.my_json;
+CREATE TABLE xtest.my_float (value FLOAT);
+-->endsql
+
+Mysqlx.Crud.Insert {
+  collection { name: "my_float" schema: "xtest"}
+  data_model: TABLE
+  projection {name: "value"}
+  row {
+    field {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type : LITERAL
+          literal { type: V_FLOAT v_float: 3.141593 }
+        }
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"DECIMAL"} }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type : LITERAL
+          literal { type: V_FLOAT v_float: 3.141593 }
+        }
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"DECIMAL(4)"} }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type : LITERAL
+          literal { type: V_FLOAT v_float: 3.141593 }
+        }
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"DECIMAL(4,2)"} }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"3.141593"} }
+        }
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"DECIMAL(4,2)"} }
+        }
+      }
+    }
+  }
+}
+
+-->recvresult
+
+-->sql
+SELECT * FROM xtest.my_float;
+CREATE TABLE xtest.my_char (value VARCHAR(20));
+-->endsql
+
+Mysqlx.Crud.Insert {
+  collection { name: "my_char" schema: "xtest"}
+  data_model: TABLE
+  projection {name: "value"}
+  row {
+    field {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"one"} }
+        }
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"CHAR"} }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"two"} }
+        }
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"CHAR(4)"} }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"three"} }
+        }
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"BINARY"} }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"four"} }
+        }
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"BINARY(4)"} }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type : LITERAL
+          literal { type: V_SINT v_signed_int: -20 }
+        }
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"CHAR"} }
+        }
+      }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR operator {
+        name: "cast"
+        param {
+          type : LITERAL
+          literal { type: V_SINT v_signed_int: 40 }
+        }
+        param {
+          type : LITERAL
+          literal { type: V_OCTETS v_octets {value:"BINARY"} }
+        }
+      }
+    }
+  }
+}
+
+-->recvresult
+
+-->sql
+SELECT * FROM xtest.my_char;
+-->endsql
+
+
+## Cleanup
+-->sql
+drop schema if exists xtest;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/crud_insert_cast.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/crud_insert_cast.tmp
+
+## Postamble
+uninstall plugin mysqlx;

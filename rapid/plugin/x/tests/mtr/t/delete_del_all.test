@@ -1,0 +1,44 @@
+## generated
+## Test delete everything (should this be allowed?)
+
+--source ../include/xplugin_preamble.inc
+## Test starts here
+--write_file $MYSQL_TMP_DIR/delete_del_all.tmp
+## Test data
+-->sql
+drop schema if exists xtest;
+create schema xtest;
+use xtest;
+create table mycoll (doc JSON, _id VARCHAR(32) NOT NULL PRIMARY KEY);
+insert into mycoll (doc, _id) values ('{"_id": "1", "name": "Joe1"}', json_unquote(json_extract(doc, '$._id')));
+insert into mycoll (doc, _id) values ('{"_id": "2", "name": "Joe2", "last_name": "Smith"}', json_unquote(json_extract(doc, '$._id')));
+insert into mycoll (doc, _id) values ('{"_id": "3", "name": "Joe2", "last_name": "Shmo"}', json_unquote(json_extract(doc, '$._id')));
+create table mytable (id int primary key, name varchar(40), price decimal(5,2), info json);
+insert into mytable values (1, 'banana', 1.20, '{"color": "yellow"}');
+insert into mytable values (2, 'apple', 0.25, '{"color":"red"}');
+insert into mytable values (3, 'tomato', 1.80, '{"color":"red"}');
+insert into mytable values (4, 'mango', 3.14, '{"color":"green"}');
+insert into mytable values (5, 'orange', 0.90, '{"color":"orange"}');
+-->endsql
+Mysqlx.Crud.Delete {
+  collection {
+    name: "mycoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+}
+
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+## Cleanup
+-->sql
+drop schema if exists xtest;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/delete_del_all.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/delete_del_all.tmp
+
+## Postamble
+uninstall plugin mysqlx;

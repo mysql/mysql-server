@@ -164,7 +164,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,gis,rpl,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,xplugin";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,gis,rpl,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -259,6 +259,8 @@ our $experimental_test_cases= [];
 
 my $baseport;
 my $mysqlx_baseport;
+
+my $opt_mysqlx_baseport = $ENV{'MYSQLXPLUGIN_PORT'} || "auto";
 # $opt_build_thread may later be set from $opt_port_base
 my $opt_build_thread= $ENV{'MTR_BUILD_THREAD'} || "auto";
 my $opt_port_base= $ENV{'MTR_PORT_BASE'} || "auto";
@@ -432,8 +434,9 @@ sub main {
   }
   $ENV{MTR_PARALLEL} = $opt_parallel;
 
-  if ($opt_parallel > 1 && ($opt_start_exit || $opt_stress)) {
-    mtr_warning("Parallel cannot be used with --start-and-exit or --stress\n" .
+  my $is_option_mysqlx_port_set= $opt_mysqlx_baseport ne "auto";
+  if ($opt_parallel > 1 && ($opt_start_exit || $opt_stress || $is_option_mysqlx_port_set)) {
+    mtr_warning("Parallel cannot be used neither with --start-and-exit nor --stress nor --mysqlx_port\n" .
                "Setting parallel to 1");
     $opt_parallel= 1;
   }
@@ -465,6 +468,7 @@ sub main {
   # Also read from any plugin local or suite specific plugin.defs
   for (glob "$basedir/plugin/*/tests/mtr/plugin.defs".
             " $basedir/internal/plugin/*/tests/mtr/plugin.defs".
+            " $basedir/rapid/plugin/*/tests/mtr/plugin.defs".
             " suite/*/plugin.defs") {
     read_plugin_defs($_);
   }
@@ -1116,8 +1120,9 @@ sub command_line_setup {
 	     'skip-im'                  => \&ignore_option,
 
              # Specify ports
-	     'build-thread|mtr-build-thread=i' => \$opt_build_thread,
-	     'port-base|mtr-port-base=i'       => \$opt_port_base,
+             'build-thread|mtr-build-thread=i' => \$opt_build_thread,
+             'mysqlx-port=i'                   => \$opt_mysqlx_baseport,
+             'port-base|mtr-port-base=i'       => \$opt_port_base,
 
              # Test case authoring
              'record'                   => \$opt_record,
@@ -1830,7 +1835,6 @@ sub command_line_setup {
   check_debug_support(\%mysqld_variables);
 
   executable_setup();
-
 }
 
 
@@ -1881,8 +1885,12 @@ sub set_build_thread_ports($) {
 
   # Calculate baseport
   $baseport= $build_thread * 10 + 10000;
-  $mysqlx_baseport =  $baseport + 9;
-  if ( $baseport < 5001 or $mysqlx_baseport + 9 >= 32767 )
+
+  my $should_generate_value= $opt_mysqlx_baseport eq "auto";
+
+  $mysqlx_baseport= $should_generate_value ? $baseport + 9 : $opt_mysqlx_baseport;
+  
+  if ( $baseport < 5001 or $baseport + 9 >= 32767)
   {
     mtr_error("MTR_BUILD_THREAD number results in a port",
               "outside 5001 - 32767",

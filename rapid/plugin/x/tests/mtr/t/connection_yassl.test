@@ -1,0 +1,10 @@
+
+--source include/have_ssl.inc
+--source include/have_yassl.inc
+
+## Result files for openssl and yassl are different
+#1) yassl instead TLS1.1 prints TLS1
+#2) yassl SSL context counters (GLOBAL status variables) are always 0
+#3) other cipher list than openssl
+ 
+--source  ../include/connection_ssl.inc
