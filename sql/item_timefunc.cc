@@ -935,9 +935,8 @@ void Item_func_monthname::fix_length_and_dec()
 {
   THD* thd= current_thd;
   CHARSET_INFO *cs= thd->variables.collation_connection;
-  uint32 repertoire= my_charset_repertoire(cs);
   locale= thd->variables.lc_time_names;  
-  collation.set(cs, DERIVATION_COERCIBLE, repertoire);
+  collation.set(cs, DERIVATION_COERCIBLE, locale->repertoire());
   decimals=0;
   max_length= locale->max_month_name_length * collation.collation->mbmaxlen;
   maybe_null=1; 
@@ -1082,9 +1081,8 @@ void Item_func_dayname::fix_length_and_dec()
 {
   THD* thd= current_thd;
   CHARSET_INFO *cs= thd->variables.collation_connection;
-  uint32 repertoire= my_charset_repertoire(cs);
   locale= thd->variables.lc_time_names;  
-  collation.set(cs, DERIVATION_COERCIBLE, repertoire);
+  collation.set(cs, DERIVATION_COERCIBLE, locale->repertoire());
   decimals=0;
   max_length= locale->max_day_name_length * collation.collation->mbmaxlen;
   maybe_null=1; 

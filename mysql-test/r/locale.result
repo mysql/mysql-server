@@ -101,3 +101,31 @@ Februar
 SELECT monthname('2001-03-01');
 monthname('2001-03-01')
 März
+#
+# MDEV-10052 Illegal mix of collations with DAYNAME(date_field)<>varchar_field
+#
+SET NAMES utf8;
+CREATE TABLE t1 (c VARCHAR(8) CHARACTER SET latin1, d DATE);
+INSERT INTO t1 VALUES ('test',now());
+Warnings:
+Note	1265	Data truncated for column 'd' at row 1
+SET lc_time_names=ru_RU;
+SELECT c FROM t1 WHERE DAYNAME(d)<>c;
+ERROR HY000: Illegal mix of collations (utf8_general_ci,COERCIBLE) and (latin1_swedish_ci,IMPLICIT) for operation '<>'
+SELECT c FROM t1 WHERE MONTHNAME(d)<>c;
+ERROR HY000: Illegal mix of collations (utf8_general_ci,COERCIBLE) and (latin1_swedish_ci,IMPLICIT) for operation '<>'
+SET lc_time_names=en_US;
+SELECT c FROM t1 WHERE DAYNAME(d)<>c;
+c
+test
+SELECT c FROM t1 WHERE MONTHNAME(d)<>c;
+c
+test
+SET NAMES latin1;
+SELECT c FROM t1 WHERE DAYNAME(d)<>c;
+c
+test
+SELECT c FROM t1 WHERE MONTHNAME(d)<>c;
+c
+test
+DROP TABLE t1;

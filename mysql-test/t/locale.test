@@ -63,3 +63,22 @@ SET lc_time_names=de_AT;
 SELECT monthname('2001-01-01');
 SELECT monthname('2001-02-01');
 SELECT monthname('2001-03-01');
+
+--echo #
+--echo # MDEV-10052 Illegal mix of collations with DAYNAME(date_field)<>varchar_field
+--echo #
+SET NAMES utf8;
+CREATE TABLE t1 (c VARCHAR(8) CHARACTER SET latin1, d DATE);
+INSERT INTO t1 VALUES ('test',now());
+SET lc_time_names=ru_RU;
+--error ER_CANT_AGGREGATE_2COLLATIONS
+SELECT c FROM t1 WHERE DAYNAME(d)<>c;
+--error ER_CANT_AGGREGATE_2COLLATIONS
+SELECT c FROM t1 WHERE MONTHNAME(d)<>c;
+SET lc_time_names=en_US;
+SELECT c FROM t1 WHERE DAYNAME(d)<>c;
+SELECT c FROM t1 WHERE MONTHNAME(d)<>c;
+SET NAMES latin1;
+SELECT c FROM t1 WHERE DAYNAME(d)<>c;
+SELECT c FROM t1 WHERE MONTHNAME(d)<>c;
+DROP TABLE t1;
