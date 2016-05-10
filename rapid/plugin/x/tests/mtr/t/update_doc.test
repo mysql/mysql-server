@@ -1,0 +1,1412 @@
+## Test resultset types
+
+--source ../include/xplugin_preamble.inc
+
+CREATE DATABASE `ytest`;
+## Test starts here
+--write_file $MYSQL_TMP_DIR/update_doc.tmp
+
+-->sql
+drop schema if exists xtest;
+create schema xtest;
+create table xtest.xcoll_ (doc JSON, _id VARCHAR(32) NOT NULL PRIMARY KEY);
+insert into xtest.xcoll_ (doc, _id) values ('{"_id": "1", "name": "banana", "price": 1.20}',json_unquote(json_extract(doc, '$._id')));
+insert into xtest.xcoll_ (doc, _id) values ('{"_id": "2", "name": "apple", "price": 0.25}',json_unquote(json_extract(doc, '$._id')));
+insert into xtest.xcoll_ (doc, _id) values ('{"_id": "3", "name": "tomato", "price": 1.80}',json_unquote(json_extract(doc, '$._id')));
+insert into xtest.xcoll_ (doc, _id) values ('{"_id": "4", "name": "mango", "price": 3.14}',json_unquote(json_extract(doc, '$._id')));
+insert into xtest.xcoll_ (doc, _id) values ('{"_id": "5", "name": "mango", "price": 0.90, "origin":["mexico","philippines"]}',json_unquote(json_extract(doc, '$._id')));
+
+drop table if exists xtest.xcoll;
+create table xtest.xcoll as select * from xtest.xcoll_;
+-->endsql
+
+-->echo Doc: Update by ARRAY_APPEND
+Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"1"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ARRAY_APPEND
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+-->recvresult
+
+
+-->echo Doc: Update by ARRAY_INSERT
+Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+          literal {
+            type: V_UINT
+            v_unsigned_int: 5
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "origin"
+      }
+      document_path {
+        type: ARRAY_INDEX
+        index: 1
+      }
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+        literal {
+          type: V_STRING
+          v_string {
+            value: "brazil"
+          }
+        }
+    }
+  }
+}
+
+-->recvresult
+
+-->echo Doc: Update by ARRAY_INSERT (invalid path)
+Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+          literal {
+            type: V_UINT
+            v_unsigned_int: 5
+          }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "origin"
+      }
+    }
+    operation: ARRAY_INSERT
+    value {
+      type: LITERAL
+        literal {
+          type: V_STRING
+          v_string {
+            value: "brazil"
+          }
+      }
+    }
+  }
+}
+
+-->expecterror 3165
+-->recvresult
+
+
+
+-->sql
+select * from xtest.xcoll;
+-->endsql
+
+-->echo test item_replace
+-->sql
+drop table if exists xtest.xcoll;
+create table xtest.xcoll as select * from xtest.xcoll_;
+-->endsql
+
+-->echo Doc: Update by ITEM_REPLACE
+Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"1"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_REPLACE
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+-->echo Doc: Update by ITEM_REPLACE non-existing member
+Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"1"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "location"
+      }
+    }
+    operation: ITEM_REPLACE
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "pineapple"
+        }
+      }
+    }
+  }
+}
+
+-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+select * from xtest.xcoll;
+-->endsql
+
+
+-->echo test item set
+-->sql
+drop table if exists xtest.xcoll;
+create table xtest.xcoll as select * from xtest.xcoll_;
+-->endsql
+
+
+-->echo Doc: ITEM_SET to NULL
+Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {value:"1"}
+          }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+        literal {
+          type: V_NULL
+      }
+    }
+  }
+}
+
+-->recvresult
+
+-->sql
+select * from xtest.xcoll where _id = 1;
+-->endsql
+
+
+-->echo Doc: Update by ITEM_SET twice
+Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"1"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "price"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon for free!"
+        }
+      }
+    }
+  }
+}
+
+-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->echo Doc: Update by ITEM_SET non-existing member
+Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"1"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "location"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+
+-->sql
+select * from xtest.xcoll;
+-->endsql
+
+-->echo test doc member set
+-->sql
+drop table if exists xtest.xcoll;
+create table xtest.xcoll as select * from xtest.xcoll_;
+-->endsql
+
+-->echo Doc: Update a valid document by _id (from field)
+Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"1"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+# reset data
+-->sql
+select * from xtest.xcoll;
+drop table if exists xtest.xcoll;
+create table xtest.xcoll as select * from xtest.xcoll_;
+-->endsql
+
+-->echo Doc: Update document with illegal _id change
+Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"1"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "_id"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+-- Mysqlx.Error
+-->recv
+
+# reset data
+-->sql
+select * from xtest.xcoll;
+drop table if exists xtest.xcoll;
+create table xtest.xcoll as select * from xtest.xcoll_;
+-->endsql
+
+-->echo Doc: Update non-existing document
+Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "_id"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"666"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+# reset data
+-->sql
+select * from xtest.xcoll;
+drop table if exists xtest.xcoll;
+create table xtest.xcoll as select * from xtest.xcoll_;
+-->endsql
+
+-->echo Doc: Update multiple documents
+Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "<"
+      param {
+        type: IDENT
+        identifier {
+          document_path {
+            type: MEMBER
+            value: "_id"
+          }
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"5"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+# reset data
+-->sql
+select * from xtest.xcoll;
+drop table if exists xtest.xcoll;
+create table xtest.xcoll as select * from xtest.xcoll_;
+-->endsql
+
+-->echo Doc: Update on an invalid schema (bad)
+Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "ytest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"1"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+-- Mysqlx.Error
+-->recv
+
+# reset data
+-->sql
+select * from xtest.xcoll;
+drop table if exists xtest.xcoll;
+create table xtest.xcoll as select * from xtest.xcoll_;
+-->endsql
+
+-->echo Doc: Update on an invalid collection (bad)
+Mysqlx.Crud.Update {
+  collection {
+    name: "ycoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"1"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+-- Mysqlx.Error
+-->recv
+
+# reset data
+-->sql
+select * from xtest.xcoll;
+drop table if exists xtest.xcoll;
+create table xtest.xcoll as select * from xtest.xcoll_;
+-->endsql
+
+-->echo Update member with column (bad)
+Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"1"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+      name: "xfield"
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+-- Mysqlx.Error
+-->recv
+
+# reset data
+-->sql
+select * from xtest.xcoll;
+drop table if exists xtest.xcoll;
+create table xtest.xcoll as select * from xtest.xcoll_;
+-->endsql
+
+-->echo Update member with table name (bad)
+Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"1"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+      table_name: "xtable"
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+-- Mysqlx.Error
+-->recv
+
+# reset data
+-->sql
+select * from xtest.xcoll;
+drop table if exists xtest.xcoll;
+create table xtest.xcoll as select * from xtest.xcoll_;
+-->endsql
+
+-->echo Update member with schema name (bad)
+Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"1"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+      schema_name: "xschema"
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+-- Mysqlx.Error
+-->recv
+
+
+-->sql
+select * from xtest.xcoll;
+-->endsql
+
+-->echo test doc set
+-->sql
+drop table if exists xtest.xcoll;
+create table xtest.xcoll as select * from xtest.xcoll_;
+-->endsql
+
+-->echo Doc: Update by SET (not allowed)
+Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"1"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+-- Mysqlx.Error
+-->recv
+-->sql
+select * from xtest.xcoll;
+-->endsql
+
+-->echo test doc remove
+
+-->sql
+drop table if exists xtest.xcoll;
+create table xtest.xcoll as select * from xtest.xcoll_;
+-->endsql
+
+-->echo Doc: Update by ITEM_REMOVE
+Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"1"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_REMOVE
+  }
+}
+
+-->echo this one should fail because of bogus param to Remove
+
+-- Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->echo Doc: Multiple chained operations
+Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {value:"5"}
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    operation: ITEM_SET
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+  operation {
+    source {
+      document_path {
+        type: MEMBER
+        value: "price"
+      }
+    }
+    operation: ITEM_REMOVE
+  }
+}
+
+-->recvresult
+
+-->sql
+select * from xtest.xcoll;
+drop table if exists xtest.xcoll;
+create table xtest.xcoll as select * from xtest.xcoll_;
+-->endsql
+
+-->echo Doc: Merge with another document containing _id
+Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {value:"5"}
+        }
+      }
+    }
+  }
+  operation {
+    operation: ITEM_MERGE
+    source {}
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: " {\"one\":1, \"two\":\"foo\", \"_id\":1234}"
+        }
+      }
+    }
+  }
+}
+
+-->recvresult
+
+
+-->echo Doc: Set item and merge with another document
+Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {value:"4"}
+        }
+      }
+    }
+  }
+  operation {
+    operation: ITEM_SET
+    source {
+      document_path {
+        type: MEMBER
+        value: "name"
+      }
+    }
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+  operation {
+    operation: ITEM_MERGE
+    source {}
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: " {\"two\":\"foo\"}"
+        }
+      }
+    }
+  }
+}
+
+-->recvresult
+
+
+-->echo Doc: Merge with another document and set item
+Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {value:"3"}
+        }
+      }
+    }
+  }
+  operation {
+    operation: ITEM_MERGE
+    source {}
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: " {\"one\":1}"
+        }
+      }
+    }
+  }
+  operation {
+    operation: ITEM_SET
+    source {
+      document_path {
+        type: MEMBER
+        value: "one"
+      }
+    }
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "lemon"
+        }
+      }
+    }
+  }
+}
+
+-->recvresult
+
+
+-->echo Doc: merge with NULL
+Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {value:"1"}
+        }
+      }
+    }
+  }
+  operation {
+    operation: ITEM_MERGE
+    source {}
+    value {
+      type: LITERAL
+      literal {
+        type: V_NULL
+      }
+    }
+  }
+}
+-->recverror 5050
+
+-->echo Doc: Merge with non-document
+Mysqlx.Crud.Update {
+  collection {
+    name: "xcoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "=="
+      param {
+        type: IDENT
+        identifier {
+          name: "_id"
+        }
+      }
+      param {
+        type: LITERAL
+          literal {
+            type: V_OCTETS
+            v_octets {value:"2"}
+        }
+      }
+    }
+  }
+  operation {
+    operation: ITEM_MERGE
+    source {}
+    value {
+      type: LITERAL
+      literal {
+        type: V_STRING
+        v_string {
+          value: "  [1,2,3]"
+        }
+      }
+    }
+  }
+}
+-->recverror 5050
+
+-->sql
+select * from xtest.xcoll;
+drop schema xtest;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/update_doc.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/update_doc.tmp
+
+## Postamble
+uninstall plugin mysqlx;
+DROP DATABASE `ytest`;

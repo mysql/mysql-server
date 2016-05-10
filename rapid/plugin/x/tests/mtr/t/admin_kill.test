@@ -1,0 +1,144 @@
+## generated
+## Kill
+
+create user unpriv@localhost;
+set password for unpriv@localhost = password('x');
+
+--source ../include/xplugin_preamble.inc
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/admin_kill.tmp
+## Test data
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+## create and activate new session
+-->newsession aux	root
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+## switch back to default session
+-->setsession
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  namespace: "xplugin"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 2
+    }
+  }
+}
+-->recvresult
+
+-->sql
+select sleep(0.5);
+-->endsql
+
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+
+### Create a separate session with diff account
+-->newsession unpriv	unpriv	x
+
+-->echo Should list unprivs session only
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+-->recvresult
+
+-->echo Try to kill a root session from unpriv
+Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  namespace: "xplugin"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 1
+    }
+  }
+}
+-->recverror 1095
+
+-->setsession
+
+-->sql
+select sleep(0.5);
+-->endsql
+-->echo Should list all sessions
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+-->recvresult
+
+
+-->echo Now kill the unpriv session
+Mysqlx.Sql.StmtExecute {
+  stmt: "kill_client"
+  namespace: "xplugin"
+  args {
+    type: SCALAR
+    scalar {
+      type: V_UINT
+      v_unsigned_int: 3
+    }
+  }
+}
+-->recvresult
+
+-->sql
+select sleep(0.5);
+-->endsql
+-->echo Should list only root session
+Mysqlx.Sql.StmtExecute {
+  stmt: "list_clients"
+  namespace: "xplugin"
+}
+-->recvresult
+
+
+
+## Cleanup
+-->sql
+drop schema if exists xtest;
+drop user unpriv@localhost;
+-->endsql
+EOF
+
+--replace_regex /([a-z]*.+localhost[ 	]+)[0-9]+/\1$SESSION/ /You are not owner of thread [0-9]+/You are not owner of thread/
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/admin_kill.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/admin_kill.tmp
+
+## Postamble
+uninstall plugin mysqlx;
