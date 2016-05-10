@@ -50,8 +50,8 @@ T& Collection<T>::Collection_iterator::operator*()
   DBUG_ASSERT(m_current != m_array->end());
 
   // Need a non-tmp placeholder of correct type since reference is returned.
-  static T m_current_obj;
-  return (m_current_obj= *m_current);
+  m_current_obj= *m_current;
+  return m_current_obj;
 }
 
 
@@ -63,8 +63,8 @@ Collection<T>::Collection_const_iterator::operator*()
   DBUG_ASSERT(m_current != m_array->end());
 
   // Need a non-tmp placeholder of correct type since reference is returned.
-  static const abstract_type *m_current_obj;
-  return (m_current_obj= *m_current);
+  m_current_obj= *m_current;
+  return m_current_obj;
 }
 
 
@@ -229,26 +229,6 @@ bool Collection<T>::drop_items(Open_dictionary_tables_ctx *otx,
   }
 
   DBUG_RETURN(false);
-}
-
-
-template <typename T>
-const typename Collection<T>::abstract_type*& Collection<T>::at(size_t n) const
-{
-  DBUG_ASSERT(n < size());
-  // Need a non-tmp placeholder of correct type since reference is returned.
-  static const abstract_type *m_current_obj;
-  return (m_current_obj= m_items[n]);
-}
-
-
-template <typename T>
-T& Collection<T>::at(size_t n)
-{
-  DBUG_ASSERT(n < size());
-  // Need a non-tmp placeholder of correct type since reference is returned.
-  static T m_current_obj;
-  return (m_current_obj= m_items[n]);
 }
 
 
@@ -449,10 +429,6 @@ template void Collection<Partition_index*>::remove(Partition_index_impl*);
 template void Collection<Partition_value*>::remove(Partition_value_impl*);
 template void Collection<Tablespace_file*>::remove(Tablespace_file_impl*);
 template void Collection<View_table*>::remove(View_table_impl*);
-
-template const Column*& Collection<Column*>::at(size_t) const;
-
-template Column*& Collection<Column*>::at(size_t);
 
 template void Collection<Column*>::
 deep_copy<Abstract_table_impl>(Collection<Column*> const&, Abstract_table_impl*);

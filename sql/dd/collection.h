@@ -90,6 +90,7 @@ private:
   private:
     Array *m_array;
     typename Array::iterator m_current;
+    T m_current_obj;
   };
 
   class Collection_const_iterator :
@@ -131,6 +132,7 @@ private:
   private:
     const Array *m_array;
     typename Array::const_iterator m_current;
+    const abstract_type *m_current_obj;
   };
 
 public:
@@ -186,17 +188,26 @@ public:
   size_t size() const
   { return m_items.size(); }
 
-  const abstract_type*& at(size_t n) const;
-  T& at(size_t n);
+  const abstract_type* at(size_t n) const
+  {
+    DBUG_ASSERT(n < size());
+    return m_items[n];
+  }
 
-  const abstract_type*& front() const { return at(0); }
-  T& front()                          { return at(0); }
+  T at(size_t n)
+  {
+    DBUG_ASSERT(n < size());
+    return m_items[n];
+  }
 
-  const abstract_type*& back() const  { return at(size() - 1); }
-  T& back()                           { return at(size() - 1); }
+  const abstract_type* front() const { return at(0); }
+  T front()                          { return at(0); }
 
-  const abstract_type*& operator[] (size_t n) const { return at(n); }
-  T& operator[] (size_t n)                          { return at(n); }
+  const abstract_type* back() const  { return at(size() - 1); }
+  T back()                           { return at(size() - 1); }
+
+  const abstract_type* operator[] (size_t n) const { return at(n); }
+  T operator[] (size_t n)                          { return at(n); }
 
   /**
     @brief
