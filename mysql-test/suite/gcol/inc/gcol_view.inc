@@ -24,6 +24,7 @@ analyze table t1;
 
 # simple view
 create view v1 (d,e) as select abs(b), abs(c) from t1;
+--sorted_result
 select d,e from v1;
 select is_updatable from information_schema.views where table_name='v1';
 
@@ -65,6 +66,7 @@ create view v1 as select distinct c from t1;
 select * from v1;
 --replace_column 10 X
 explain select * from v1;
+--sorted_result
 select * from t1;
 drop view v1;
 drop table t1;
@@ -139,6 +141,7 @@ create table t2 (a2 int,
 insert into t1 (a1) values (1), (2);
 insert into t2 (a2) values (2), (3);
 create view v1 as select * from t1,t2 union all select * from t1,t2;
+--sorted_result
 select * from v1;
 drop view v1;
 drop table t1, t2;
@@ -175,19 +178,21 @@ create table t1 (a int,
 		 c int generated always as (-a) stored);
 insert into t1 (a) values (1),(1),(2),(2),(3),(3);
 create view v1 as select b from t1;
+--sorted_result
 select distinct b from v1;
-select distinct b from v1 limit 2;
-select distinct b from t1 limit 2;
-prepare stmt1 from "select distinct b from v1 limit 2";
+select distinct b from v1 order by b limit 2;
+select distinct b from t1 order by b limit 2;
+prepare stmt1 from "select distinct b from v1 order by b limit 2";
 execute stmt1;
 execute stmt1;
 deallocate prepare stmt1;
 drop view v1;
 create view v1 as select c from t1;
+--sorted_result
 select distinct c from v1;
-select distinct c from v1 limit 2;
-select distinct c from t1 limit 2;
-prepare stmt1 from "select distinct c from v1 limit 2";
+select distinct c from v1 order by c limit 2;
+select distinct c from t1 order by c limit 2;
+prepare stmt1 from "select distinct c from v1 order by c limit 2";
 execute stmt1;
 execute stmt1;
 deallocate prepare stmt1;
@@ -207,6 +212,7 @@ insert into v1 (a) values (1);
 insert into v1 (a) values (3);
 # simple insert with ignore
 insert ignore into v1 (a) values (2),(3),(0);
+--sorted_result
 select * from t1;
 drop view v1;
 drop table t1;
