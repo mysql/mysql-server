@@ -5571,6 +5571,19 @@ end:
 			trx->error_state = DB_SUCCESS;
 		}
 
+		/* Check whether virtual column or stored column affects
+		the foreign key constraint of the table. */
+		if (dict_foreigns_has_s_base_col(
+				table->foreign_set, table)) {
+			err = DB_NO_FK_ON_S_BASE_COL;
+			ut_a(DB_SUCCESS == dict_table_rename_in_cache(
+				table, old_name, FALSE));
+			trx->error_state = DB_SUCCESS;
+			trx_rollback_to_savepoint(trx, NULL);
+			trx->error_state = DB_SUCCESS;
+			goto funct_exit;
+		}
+
 		while (!fk_tables.empty()) {
 			dict_load_table(fk_tables.front(), true,
 					DICT_ERR_IGNORE_NONE);

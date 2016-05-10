@@ -7660,6 +7660,9 @@ ER_CANT_RESET_MASTER
 ER_GROUP_REPLICATION_MAX_GROUP_SIZE
   eng "The START GROUP_REPLICATION command failed since the group already has 9 members."
 
+ER_CANNOT_ADD_FOREIGN_BASE_COL_STORED
+  eng "Cannot add foreign key on the base column of stored column. "
+
 #
 #  End of 5.7 error messages.
 #

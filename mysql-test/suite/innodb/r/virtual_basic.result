@@ -1232,7 +1232,6 @@ CREATE TABLE `ibstd_16_fk` (
 `d` int(11) DEFAULT NULL,
 `b` varchar(198) DEFAULT NULL,
 `c` char(179) DEFAULT NULL,
-`vadcol` int(11) GENERATED ALWAYS AS (a+length(d)) STORED,
 `vbcol` char(2) GENERATED ALWAYS AS (substr(b,2,2)) VIRTUAL,
 `vbidxcol` char(3) GENERATED ALWAYS AS (substr(b,1,3)) VIRTUAL,
 UNIQUE KEY `b` (`b`(10),`a`,`d`),
@@ -1252,7 +1251,6 @@ CREATE TABLE `ibstd_16_fk` (
 `d` int(11) DEFAULT NULL,
 `b` varchar(198) DEFAULT NULL,
 `c` char(179) DEFAULT NULL,
-`vadcol` int(11) GENERATED ALWAYS AS (a+length(d)) STORED,
 `vbcol` char(2)  GENERATED ALWAYS AS (substr(b,2,2)) VIRTUAL,
 `vbidxcol` char(3) GENERATED ALWAYS AS (substr(b,1,3)) VIRTUAL,
 UNIQUE KEY `b` (`b`(10),`a`,`d`),
@@ -1269,7 +1267,7 @@ ERROR HY000: Cannot add foreign key constraint
 DROP INDEX a_2 ON ibstd_16_fk;
 ALTER TABLE `ibstd_16_fk` ADD CONSTRAINT `fk_16` FOREIGN KEY (`a`) REFERENCES `ibstd_16` (`a`) ON DELETE SET NULL;
 INSERT INTO ibstd_16 VALUES (1, 2, "aaa", "bbb", default, default, default);
-INSERT INTO ibstd_16_fk VALUES(1, 3, "mmm", "SSS", default, default, default);
+INSERT INTO ibstd_16_fk VALUES(1, 3, "mmm", "SSS", default, default);
 DELETE FROM ibstd_16 WHERE a = 1;
 DROP TABLE ibstd_16_fk;
 DROP TABLE ibstd_16;

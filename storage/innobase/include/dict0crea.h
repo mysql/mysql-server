@@ -228,6 +228,19 @@ dict_foreign_has_col_in_v_index(
 	const char*		fk_col_name,
 	const dict_table_t*	table);
 
+/** Check if a foreign constraint is on columns server as base columns
+of any stored column. This is to prevent creating SET NULL or CASCADE
+constraint on such columns
+@param[in]	local_fk_set	set of foreign key objects, to be added to
+the dictionary tables
+@param[in]	table		table to which the foreign key objects in
+local_fk_set belong to
+@return true if yes, otherwise, false */
+bool
+dict_foreigns_has_s_base_col(
+	const dict_foreign_set&	local_fk_set,
+	const dict_table_t*	table);
+
 /** Check if a foreign constraint is on columns served as based columns
 of some virtual column. This is to prevent creating SET NULL or CASCADE
 constrainst on such columns
