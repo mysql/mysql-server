@@ -416,30 +416,31 @@ inline bool unexpected_error_code(int unexpected_error)
 /*
   pretty_print_str()
 */
-
-static char *pretty_print_str(char *packet, const char *str, size_t len)
+static void pretty_print_str(String *packet, const char *str, size_t len)
 {
-  const char *end= str + len;
-  char *pos= packet;
-  *pos++= '\'';
-  while (str < end)
+  packet->append('\'');
+
+  for (size_t i = 0; i < len; i++)
   {
-    char c;
-    switch ((c=*str++)) {
-    case '\n': *pos++= '\\'; *pos++= 'n'; break;
-    case '\r': *pos++= '\\'; *pos++= 'r'; break;
-    case '\\': *pos++= '\\'; *pos++= '\\'; break;
-    case '\b': *pos++= '\\'; *pos++= 'b'; break;
-    case '\t': *pos++= '\\'; *pos++= 't'; break;
-    case '\'': *pos++= '\\'; *pos++= '\''; break;
-    case 0   : *pos++= '\\'; *pos++= '0'; break;
+    switch (str[i]) {
+    case '\n': packet->append("\\n"); break;
+    case '\r': packet->append("\\r"); break;
+    case '\\': packet->append("\\\\"); break;
+    case '\b': packet->append("\\b"); break;
+    case '\t': packet->append("\\t"); break;
+    case '\'': packet->append("\\'"); break;
+    case 0   : packet->append("\\0"); break;
     default:
-      *pos++= c;
+      packet->append(str[i]);
       break;
     }
   }
-  *pos++= '\'';
-  return pos;
+  packet->append('\'');
+}
+
+static inline void pretty_print_str(String *packet, const String *str)
+{
+  pretty_print_str(packet, str->ptr(), str->length());
 }
 #endif /* !MYSQL_CLIENT */
 
@@ -657,12 +658,8 @@ const char* Log_event::get_type_str(Log_event_type type)
   case binary_log::QUERY_EVENT:  return "Query";
   case binary_log::ROTATE_EVENT: return "Rotate";
   case binary_log::INTVAR_EVENT: return "Intvar";
-  case binary_log::LOAD_EVENT:   return "Load";
-  case binary_log::NEW_LOAD_EVENT:   return "New_load";
-  case binary_log::CREATE_FILE_EVENT: return "Create_file";
   case binary_log::APPEND_BLOCK_EVENT: return "Append_block";
   case binary_log::DELETE_FILE_EVENT: return "Delete_file";
-  case binary_log::EXEC_LOAD_EVENT: return "Exec_load";
   case binary_log::RAND_EVENT: return "RAND";
   case binary_log::XID_EVENT: return "Xid";
   case binary_log::USER_VAR_EVENT: return "User var";
@@ -792,20 +789,6 @@ int Log_event::do_update_pos(Relay_log_info *rli)
 {
   int error= 0;
   DBUG_ASSERT(!rli->belongs_to_client());
-  /*
-    rli is null when (as far as I (Guilhem) know) the caller is
-    Load_log_event::do_apply_event *and* that one is called from
-    Execute_load_log_event::do_apply_event.  In this case, we don't
-    do anything here ; Execute_load_log_event::do_apply_event will
-    call Log_event::do_apply_event again later with the proper rli.
-    Strictly speaking, if we were sure that rli is null only in the
-    case discussed above, 'if (rli)' is useless here.  But as we are
-    not 100% sure, keep it for now.
-
-    Matz: I don't think we will need this check with this refactoring.
-  */
-
-  DBUG_ASSERT(!is_mts_worker(rli->info_thd));
 
   if (rli)
     error= rli->stmt_done(common_header->log_pos);
@@ -1578,32 +1561,14 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev  = new Query_log_event(buf, event_len, description_event,
                                 binary_log::QUERY_EVENT);
       break;
-    case binary_log::LOAD_EVENT:
-    case binary_log::NEW_LOAD_EVENT:
-#ifndef DBUG_OFF
-      binary_log_debug::debug_simulate_invalid_address=
-        DBUG_EVALUATE_IF("simulate_invalid_address", true, false);
-#endif
-      ev = new Load_log_event(buf, event_len, description_event);
-      break;
     case binary_log::ROTATE_EVENT:
       ev = new Rotate_log_event(buf, event_len, description_event);
-      break;
-    case binary_log::CREATE_FILE_EVENT:
-#ifndef DBUG_OFF
-      binary_log_debug::debug_simulate_invalid_address=
-        DBUG_EVALUATE_IF("simulate_invalid_address", true, false);
-#endif
-      ev = new Create_file_log_event(buf, event_len, description_event);
       break;
     case binary_log::APPEND_BLOCK_EVENT:
       ev = new Append_block_log_event(buf, event_len, description_event);
       break;
     case binary_log::DELETE_FILE_EVENT:
       ev = new Delete_file_log_event(buf, event_len, description_event);
-      break;
-    case binary_log::EXEC_LOAD_EVENT:
-      ev = new Execute_load_log_event(buf, event_len, description_event);
       break;
     case binary_log::START_EVENT_V3: /* this is sent only by MySQL <=4.x */
       ev = new Start_log_event_v3(buf, event_len, description_event);
@@ -5424,821 +5389,6 @@ Format_description_log_event::do_shall_skip(Relay_log_info *rli)
 
 #endif
 
-
-
-  /**************************************************************************
-        Load_log_event methods
-   General note about Load_log_event: the binlogging of LOAD DATA INFILE is
-   going to be changed in 5.0 (or maybe in 5.1; not decided yet).
-   However, the 5.0 slave could still have to read such events (from a 4.x
-   master), convert them (which just means maybe expand the header, when 5.0
-   servers have a UID in events) (remember that whatever is after the header
-   will be like in 4.x, as this event's format is not modified in 5.0 as we
-   will use new types of events to log the new LOAD DATA INFILE features).
-   To be able to read/convert, we just need to not assume that the common
-   header is of length LOG_EVENT_HEADER_LEN (we must use the description
-   event).
-   Note that I (Guilhem) manually tested replication of a big LOAD DATA INFILE
-   between 3.23 and 5.0, and between 4.0 and 5.0, and it works fine (and the
-   positions displayed in SHOW SLAVE STATUS then are fine too).
-  **************************************************************************/
-
-#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-uint Load_log_event::get_query_buffer_length()
-{
-  return
-    //the DB name may double if we escape the quote character
-    5 + 2*db_len + 3 +
-    18 + fname_len*4 + 2 +                    // "LOAD DATA INFILE 'file''"
-    11 +                                    // "CONCURRENT "
-    7 +					    // LOCAL
-    9 +                                     // " REPLACE or IGNORE "
-    13 + table_name_len*2 +                 // "INTO TABLE `table`"
-    21 + sql_ex.data_info.field_term_len*4 + 2 +
-                                            // " FIELDS TERMINATED BY 'str'"
-    23 + sql_ex.data_info.enclosed_len*4 + 2 +
-                                            // " OPTIONALLY ENCLOSED BY 'str'"
-    12 + sql_ex.data_info.escaped_len*4 + 2 +         // " ESCAPED BY 'str'"
-    21 + sql_ex.data_info.line_term_len*4 + 2 +
-                                            // " LINES TERMINATED BY 'str'"
-    19 + sql_ex.data_info.line_start_len*4 + 2 +
-                                            // " LINES STARTING BY 'str'"
-    15 + 22 +                               // " IGNORE xxx  LINES"
-    3 + (num_fields-1)*2 + field_block_len; // " (field1, field2, ...)"
-}
-
-
-void Load_log_event::print_query(bool need_db, const char *cs, char *buf,
-                                 char **end, char **fn_start, char **fn_end)
-{
-  char quoted_id[1 + NAME_LEN * 2 + 2];//quoted  length
-  size_t  quoted_id_len= 0;
-  char *pos= buf;
-
-  if (need_db && db && db_len)
-  {
-    pos= my_stpcpy(pos, "use ");
-#ifdef MYSQL_SERVER
-    quoted_id_len= my_strmov_quoted_identifier(this->thd, (char *) quoted_id,
-                                               db, 0);
-#else
-    quoted_id_len= my_strmov_quoted_identifier((char *) quoted_id, db);
-#endif
-    quoted_id[quoted_id_len]= '\0';
-    pos= my_stpcpy(pos, quoted_id);
-    pos= my_stpcpy(pos, "; ");
-  }
-
-  pos= my_stpcpy(pos, "LOAD DATA ");
-
-  if (is_concurrent)
-    pos= my_stpcpy(pos, "CONCURRENT ");
-
-  if (fn_start)
-    *fn_start= pos;
-
-  if (check_fname_outside_temp_buf())
-    pos= my_stpcpy(pos, "LOCAL ");
-  pos= my_stpcpy(pos, "INFILE ");
-  pos= pretty_print_str(pos, fname, fname_len);
-  pos= my_stpcpy(pos, " ");
-
-  if (sql_ex.data_info.opt_flags & REPLACE_FLAG)
-    pos= my_stpcpy(pos, "REPLACE ");
-  else if (sql_ex.data_info.opt_flags & IGNORE_FLAG)
-    pos= my_stpcpy(pos, "IGNORE ");
-
-  pos= my_stpcpy(pos ,"INTO");
-
-  if (fn_end)
-    *fn_end= pos;
-
-  pos= my_stpcpy(pos ," TABLE ");
-  memcpy(pos, table_name, table_name_len);
-  pos+= table_name_len;
-
-  if (cs != NULL)
-  {
-    pos= my_stpcpy(pos ," CHARACTER SET ");
-    pos= my_stpcpy(pos ,  cs);
-  }
-
-  /* We have to create all optional fields as the default is not empty */
-  pos= my_stpcpy(pos, " FIELDS TERMINATED BY ");
-  pos= pretty_print_str(pos, sql_ex.data_info.field_term,
-                        sql_ex.data_info.field_term_len);
-  if (sql_ex.data_info.opt_flags & OPT_ENCLOSED_FLAG)
-    pos= my_stpcpy(pos, " OPTIONALLY ");
-  pos= my_stpcpy(pos, " ENCLOSED BY ");
-  pos= pretty_print_str(pos, sql_ex.data_info.enclosed,
-                        sql_ex.data_info.enclosed_len);
-
-  pos= my_stpcpy(pos, " ESCAPED BY ");
-  pos= pretty_print_str(pos, sql_ex.data_info.escaped,
-                        sql_ex.data_info.escaped_len);
-
-  pos= my_stpcpy(pos, " LINES TERMINATED BY ");
-  pos= pretty_print_str(pos, sql_ex.data_info.line_term,
-                        sql_ex.data_info.line_term_len);
-  if (sql_ex.data_info.line_start_len)
-  {
-    pos= my_stpcpy(pos, " STARTING BY ");
-    pos= pretty_print_str(pos, sql_ex.data_info.line_start,
-                          sql_ex.data_info.line_start_len);
-  }
-
-  if ((long) skip_lines > 0)
-  {
-    pos= my_stpcpy(pos, " IGNORE ");
-    pos= longlong10_to_str((longlong) skip_lines, pos, 10);
-    pos= my_stpcpy(pos," LINES ");    
-  }
-
-  if (num_fields)
-  {
-    uint i;
-    const char *field= fields;
-    pos= my_stpcpy(pos, " (");
-    for (i = 0; i < num_fields; i++)
-    {
-      if (i)
-      {
-        *pos++= ' ';
-        *pos++= ',';
-      }
-      quoted_id_len= my_strmov_quoted_identifier(this->thd, quoted_id, field,
-                                                 0);
-      memcpy(pos, quoted_id, quoted_id_len-1);
-    }
-    *pos++= ')';
-  }
-
-  *end= pos;
-}
-
-
-int Load_log_event::pack_info(Protocol *protocol)
-{
-  char *buf, *end;
-
-  if (!(buf= (char*) my_malloc(key_memory_log_event,
-                               get_query_buffer_length(), MYF(MY_WME))))
-    return 1;
-  print_query(TRUE, NULL, buf, &end, 0, 0);
-  protocol->store(buf, end-buf, &my_charset_bin);
-  my_free(buf);
-  return 0;
-}
-#endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
-
-
-#ifndef MYSQL_CLIENT
-
-/*
-  Load_log_event::write_data_header()
-*/
-
-bool Load_log_event::write_data_header(IO_CACHE* file)
-{
-  char buf[Binary_log_event::LOAD_HEADER_LEN];
-  int4store(buf + L_THREAD_ID_OFFSET, slave_proxy_id);
-  int4store(buf + L_EXEC_TIME_OFFSET, exec_time);
-  int4store(buf + L_SKIP_LINES_OFFSET, skip_lines);
-  buf[L_TBL_LEN_OFFSET] = (char)table_name_len;
-  buf[L_DB_LEN_OFFSET] = (char)db_len;
-  int4store(buf + L_NUM_FIELDS_OFFSET, num_fields);
-  return my_b_safe_write(file, (uchar*)buf, Binary_log_event::LOAD_HEADER_LEN) != 0;
-}
-
-
-/*
-  Load_log_event::write_data_body()
-*/
-
-bool Load_log_event::write_data_body(IO_CACHE* file)
-{
-  if (sql_ex.write_data(file))
-    return 1;
-  if (num_fields && fields && field_lens)
-  {
-    if (my_b_safe_write(file, (uchar*)field_lens, num_fields) ||
-	my_b_safe_write(file, (uchar*)fields, field_block_len))
-      return 1;
-  }
-  return (my_b_safe_write(file, (uchar*)table_name, table_name_len + 1) ||
-	  my_b_safe_write(file, (uchar*)db, db_len + 1) ||
-	  my_b_safe_write(file, (uchar*)fname, fname_len));
-}
-
-
-/*
-  Load_log_event::Load_log_event()
-*/
-
-Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
-			       const char *db_arg, const char *table_name_arg,
-			       List<Item> &fields_arg,
-                               bool is_concurrent_arg,
-			       enum enum_duplicates handle_dup,
-			       bool ignore, bool using_trans)
-  : binary_log::Load_event(),
-   Log_event(thd_arg,
-             thd_arg->thread_specific_used ? LOG_EVENT_THREAD_SPECIFIC_F : 0,
-             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
-                           Log_event::EVENT_STMT_CACHE,
-             Log_event::EVENT_NORMAL_LOGGING,
-             header(), footer())
-{
-  thread_id= thd_arg->thread_id();
-  slave_proxy_id= thd_arg->variables.pseudo_thread_id;
-  table_name= table_name_arg ? table_name_arg : "";
-  db= db_arg;
-  fname= ex->file_name;
-  local_fname= FALSE;
-  is_concurrent= is_concurrent_arg;
-
-  /*
-  exec_time calculation has changed to use the same method that is used
-  to fill out "thd_arg->start_time"
-  */
-
-  struct timeval end_time;
-  ulonglong micro_end_time= my_micro_time();
-  my_micro_time_to_timeval(micro_end_time, &end_time);
-
-  exec_time= end_time.tv_sec - thd_arg->query_start_in_secs();
-
-  /* db can never be a zero pointer in 4.0 */
-  db_len = strlen(db);
-  table_name_len =  strlen(table_name);
-  fname_len = (fname) ?  strlen(fname) : 0;
-  sql_ex.data_info.field_term = ex->field.field_term->ptr();
-  sql_ex.data_info.field_term_len = (uint8) ex->field.field_term->length();
-  sql_ex.data_info.enclosed = ex->field.enclosed->ptr();
-  sql_ex.data_info.enclosed_len = (uint8) ex->field.enclosed->length();
-  sql_ex.data_info.line_term = ex->line.line_term->ptr();
-  sql_ex.data_info.line_term_len = (uint8) ex->line.line_term->length();
-  sql_ex.data_info.line_start = ex->line.line_start->ptr();
-  sql_ex.data_info.line_start_len = (uint8) ex->line.line_start->length();
-  sql_ex.data_info.escaped = (char*) ex->field.escaped->ptr();
-  sql_ex.data_info.escaped_len = (uint8) ex->field.escaped->length();
-  sql_ex.data_info.opt_flags = 0;
-  sql_ex.data_info.cached_new_format = -1;
-
-  if (ex->dumpfile)
-    sql_ex.data_info.opt_flags|= DUMPFILE_FLAG;
-  if (ex->field.opt_enclosed)
-    sql_ex.data_info.opt_flags|= OPT_ENCLOSED_FLAG;
-
-  sql_ex.data_info.empty_flags= 0;
-
-  switch (handle_dup) {
-  case DUP_REPLACE:
-    sql_ex.data_info.opt_flags|= REPLACE_FLAG;
-    break;
-  case DUP_UPDATE:				// Impossible here
-  case DUP_ERROR:
-    break;
-  }
-  if (ignore)
-    sql_ex.data_info.opt_flags|= IGNORE_FLAG;
-
-  if (!ex->field.field_term->length())
-    sql_ex.data_info.empty_flags |= FIELD_TERM_EMPTY;
-  if (!ex->field.enclosed->length())
-    sql_ex.data_info.empty_flags |= ENCLOSED_EMPTY;
-  if (!ex->line.line_term->length())
-    sql_ex.data_info.empty_flags |= LINE_TERM_EMPTY;
-  if (!ex->line.line_start->length())
-    sql_ex.data_info.empty_flags |= LINE_START_EMPTY;
-  if (!ex->field.escaped->length())
-    sql_ex.data_info.empty_flags |= ESCAPED_EMPTY;
-
-  skip_lines = ex->skip_lines;
-
-  List_iterator<Item> li(fields_arg);
-  field_lens_buf.length(0);
-  fields_buf.length(0);
-  Item* item;
-  while ((item = li++))
-  {
-    num_fields++;
-    uchar len= (uchar) item->item_name.length();
-    field_block_len += len + 1;
-    fields_buf.append(item->item_name.ptr(), len + 1);
-    field_lens_buf.append((char*)&len, 1);
-  }
-
-  field_lens = (const uchar*)field_lens_buf.ptr();
-  fields = fields_buf.ptr();
-  if (table_name != 0)
-    is_valid_param= true;
-
-  if (sql_ex.data_info.new_format())
-    common_header->type_code= binary_log::NEW_LOAD_EVENT;
-  else
-    common_header->type_code= binary_log::LOAD_EVENT;
-}
-#endif /* !MYSQL_CLIENT */
-
-
-/**
-  @note
-    The caller must do buf[event_len] = 0 before he starts using the
-    constructed event.
-*/
-Load_log_event::Load_log_event(const char *buf, uint event_len,
-                               const Format_description_event *description_event)
-: binary_log::Load_event(buf, event_len, description_event),
-  Log_event(header(), footer())
-{
-  DBUG_ENTER("Load_log_event");
-  if (table_name != 0)
-    is_valid_param= true;
-  thread_id= slave_proxy_id;
-  if (event_len)
-  {
-    /**
-      We need to set exec_time here, which is ued to calcutate seconds behind
-      master on the slave.
-    */
-    exec_time= load_exec_time;
-    /*
-      I (Guilhem) manually tested replication of LOAD DATA INFILE for 3.23->5.0,
-      4.0->5.0 and 5.0->5.0 and it works.
-    */
-    sql_ex.data_info= sql_ex_data;
-  }
-  if (sql_ex.data_info.new_format())
-    common_header->type_code= binary_log::NEW_LOAD_EVENT;
-  else
-    common_header->type_code= binary_log::LOAD_EVENT;
-  DBUG_VOID_RETURN;
-}
-
-
-/*
-  Load_log_event::print()
-*/
-
-#ifdef MYSQL_CLIENT
-void Load_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
-{
-  print(file, print_event_info, 0);
-}
-
-
-void Load_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info,
-			   bool commented)
-{
-  IO_CACHE *const head= &print_event_info->head_cache;
-  size_t id_len= 0;
-  char str_buf[1 + 2*FN_REFLEN + 2];
-
-  DBUG_ENTER("Load_log_event::print");
-  if (!print_event_info->short_form)
-  {
-    print_header(head, print_event_info, FALSE);
-    my_b_printf(head, "\tQuery\tthread_id=%u\texec_time=%ld\n",
-                thread_id, exec_time);
-  }
-
-  bool different_db= 1;
-  if (db)
-  {
-    /*
-      If the database is different from the one of the previous statement, we
-      need to print the "use" command, and we update the last_db.
-      But if commented, the "use" is going to be commented so we should not
-      update the last_db.
-    */
-    if ((different_db= memcmp(print_event_info->db, db, db_len + 1)) &&
-        !commented)
-      memcpy(print_event_info->db, db, db_len + 1);
-  }
-  
-  if (db && db[0] && different_db)
-  {
-#ifdef MYSQL_SERVER
-    id_len= my_strmov_quoted_identifier(this->thd, str_buf, db, 0);
-#else
-    id_len= my_strmov_quoted_identifier(str_buf, db);
-#endif
-    str_buf[id_len]= '\0';
-    my_b_printf(head, "%suse %s%s\n",
-                commented ? "# " : "", str_buf, print_event_info->delimiter);
-  }
-  if (common_header->flags & LOG_EVENT_THREAD_SPECIFIC_F)
-    my_b_printf(head,"%sSET @@session.pseudo_thread_id=%lu%s\n",
-            commented ? "# " : "", (ulong)thread_id,
-            print_event_info->delimiter);
-  my_b_printf(head, "%sLOAD DATA ",
-              commented ? "# " : "");
-  if (check_fname_outside_temp_buf())
-    my_b_printf(head, "LOCAL ");
-  my_b_printf(head, "INFILE '%-*s' ", static_cast<int>(fname_len), fname);
-
-  if (sql_ex.data_info.opt_flags & REPLACE_FLAG)
-    my_b_printf(head,"REPLACE ");
-  else if (sql_ex.data_info.opt_flags & IGNORE_FLAG)
-    my_b_printf(head,"IGNORE ");
-
-#ifdef MYSQL_SERVER
-    id_len= my_strmov_quoted_identifier(this->thd, str_buf, table_name, 0);
-#else
-    id_len= my_strmov_quoted_identifier(str_buf, table_name);
-#endif
-  str_buf[id_len]= '\0';
-  my_b_printf(head, "INTO TABLE %s", str_buf);
-
-  my_b_printf(head, " FIELDS TERMINATED BY ");
-  pretty_print_str(head, sql_ex.data_info.field_term,
-                   sql_ex.data_info.field_term_len);
-
-  if (sql_ex.data_info.opt_flags & OPT_ENCLOSED_FLAG)
-    my_b_printf(head," OPTIONALLY ");
-  my_b_printf(head, " ENCLOSED BY ");
-  pretty_print_str(head, sql_ex.data_info.enclosed,
-                   sql_ex.data_info.enclosed_len);
-
-  my_b_printf(head, " ESCAPED BY ");
-  pretty_print_str(head, sql_ex.data_info.escaped,
-                   sql_ex.data_info.escaped_len);
-
-  my_b_printf(head," LINES TERMINATED BY ");
-  pretty_print_str(head, sql_ex.data_info.line_term,
-                   sql_ex.data_info.line_term_len);
-
-
-  if (sql_ex.data_info.line_start)
-  {
-    my_b_printf(head," STARTING BY ");
-    pretty_print_str(head, sql_ex.data_info.line_start,
-                     sql_ex.data_info.line_start_len);
-  }
-  if ((long) skip_lines > 0)
-    my_b_printf(head, " IGNORE %ld LINES", (long) skip_lines);
-
-  if (num_fields)
-  {
-    uint i;
-    const char* field = fields;
-    my_b_printf(head, " (");
-    for (i = 0; i < num_fields; i++)
-    {
-      if (i)
-        my_b_printf(head, ",");
-      id_len= my_strmov_quoted_identifier((char *) str_buf, field);
-      str_buf[id_len]= '\0';
-      my_b_printf(head, "%s", str_buf);
-
-      field += field_lens[i]  + 1;
-    }
-    my_b_printf(head, ")");
-  }
-
-  my_b_printf(head, "%s\n", print_event_info->delimiter);
-  DBUG_VOID_RETURN;
-}
-#endif /* MYSQL_CLIENT */
-
-#ifndef MYSQL_CLIENT
-
-/**
-  Load_log_event::set_fields()
-
-  @note
-    This function can not use the member variable 
-    for the database, since LOAD DATA INFILE on the slave
-    can be for a different database than the current one.
-    This is the reason for the affected_db argument to this method.
-*/
-
-void Load_log_event::set_fields(const char* affected_db, 
-				List<Item> &field_list,
-                                Name_resolution_context *context)
-{
-  uint i;
-  const char* field = fields;
-  for (i= 0; i < num_fields; i++)
-  {
-    field_list.push_back(new Item_field(context,
-                                        affected_db, table_name, field));
-    field+= field_lens[i]  + 1;
-  }
-}
-#endif /* !MYSQL_CLIENT */
-
-
-#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-/**
-  Does the data loading job when executing a LOAD DATA on the slave.
-
-  @param net
-  @param rli
-  @param use_rli_only_for_errors     If set to 1, rli is provided to
-                                     Load_log_event::exec_event only for this
-                                     function to have rli->get_rpl_log_name and
-                                     rli->last_slave_error, both being used by
-                                     error reports.  If set to 0, rli is provided
-                                     for full use, i.e. for error reports and
-                                     position advancing.
-
-  @todo
-    fix this; this can be done by testing rules in
-    Create_file_log_event::exec_event() and then discarding Append_block and
-    al.
-  @todo
-    this is a bug - this needs to be moved to the I/O thread
-
-  @retval
-    0           Success
-  @retval
-    1           Failure
-*/
-
-int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
-                                   bool use_rli_only_for_errors)
-{
-  DBUG_ASSERT(thd->query().str == NULL);
-  thd->reset_query();                    // Should not be needed
-  set_thd_db(thd, db, db_len);
-  thd->is_slave_error= 0;
-  clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
-
-  /* see Query_log_event::do_apply_event() and BUG#13360 */
-  DBUG_ASSERT(!rli->m_table_map.count());
-  /*
-    Usually lex_start() is called by mysql_parse(), but we need it here
-    as the present method does not call mysql_parse().
-  */
-  lex_start(thd);
-  thd->lex->local_file= local_fname;
-  mysql_reset_thd_for_next_command(thd);
-
-  /*
-    It is possible that the thread does not hold anonymous GTID
-    ownership here, e.g. in case this is the first event of a relay
-    log.
-  */
-  gtid_reacquire_ownership_if_anonymous(thd);
-
-   /*
-    We test replicate_*_db rules. Note that we have already prepared
-    the file to load, even if we are going to ignore and delete it
-    now. So it is possible that we did a lot of disk writes for
-    nothing. In other words, a big LOAD DATA INFILE on the master will
-    still consume a lot of space on the slave (space in the relay log
-    + space of temp files: twice the space of the file to load...)
-    even if it will finally be ignored.  TODO: fix this; this can be
-    done by testing rules in Create_file_log_event::do_apply_event()
-    and then discarding Append_block and al. Another way is do the
-    filtering in the I/O thread (more efficient: no disk writes at
-    all).
-  */
-  if (rpl_filter->db_ok(thd->db().str))
-  {
-    thd->set_time(&(common_header->when));
-    thd->set_query_id(next_query_id());
-    DBUG_ASSERT(!thd->get_stmt_da()->is_set());
-
-    TABLE_LIST tables;
-    char table_buf[NAME_LEN + 1];
-    my_stpcpy(table_buf, table_name);
-    if (lower_case_table_names)
-      my_casedn_str(system_charset_info, table_buf);
-    tables.init_one_table(thd->strmake(thd->db().str, thd->db().length),
-                          thd->db().length,
-                          table_buf, strlen(table_buf),
-                          table_buf, TL_WRITE);
-    tables.updating= 1;
-
-    // the table will be opened in mysql_load    
-    if (rpl_filter->is_on() && !rpl_filter->tables_ok(thd->db().str, &tables))
-    {
-      // TODO: this is a bug - this needs to be moved to the I/O thread
-      if (net)
-        skip_load_data_infile(net);
-    }
-    else
-    {
-      char llbuff[22];
-      char *end;
-      enum enum_duplicates handle_dup;
-      char *load_data_query;
-
-      /*
-        Forge LOAD DATA INFILE query which will be used in SHOW PROCESS LIST
-        and written to slave's binlog if binlogging is on.
-      */
-      if (!(load_data_query= (char *)thd->alloc(get_query_buffer_length() + 1)))
-      {
-        /*
-          This will set thd->fatal_error in case of OOM. So we surely will notice
-          that something is wrong.
-        */
-        goto error;
-      }
-
-      print_query(FALSE, NULL, load_data_query, &end, NULL, NULL);
-      *end= 0;
-      thd->set_query(load_data_query, static_cast<size_t>(end - load_data_query));
-
-      if (sql_ex.data_info.opt_flags & REPLACE_FLAG)
-        handle_dup= DUP_REPLACE;
-      else if (sql_ex.data_info.opt_flags & IGNORE_FLAG)
-      {
-        thd->lex->set_ignore(true);
-        handle_dup= DUP_ERROR;
-      }
-      else
-      {
-        /*
-          When replication is running fine, if it was DUP_ERROR on the
-          master then we could choose IGNORE here, because if DUP_ERROR
-          suceeded on master, and data is identical on the master and slave,
-          then there should be no uniqueness errors on slave, so IGNORE is
-          the same as DUP_ERROR. But in the unlikely case of uniqueness errors
-          (because the data on the master and slave happen to be different
-          (user error or bug), we want LOAD DATA to print an error message on
-          the slave to discover the problem.
-
-          If reading from net (a 3.23 master), mysql_load() will change this
-          to IGNORE.
-        */
-        handle_dup= DUP_ERROR;
-      }
-      /*
-        We need to set thd->lex->sql_command and thd->lex->duplicates
-        since InnoDB tests these variables to decide if this is a LOAD
-        DATA ... REPLACE INTO ... statement even though mysql_parse()
-        is not called.  This is not needed in 5.0 since there the LOAD
-        DATA ... statement is replicated using mysql_parse(), which
-        sets the thd->lex fields correctly.
-      */
-      thd->lex->sql_command= SQLCOM_LOAD;
-      thd->lex->duplicates= handle_dup;
-
-      sql_exchange ex((char*)fname, sql_ex.data_info.opt_flags & DUMPFILE_FLAG);
-      String field_term(sql_ex.data_info.field_term,
-                        sql_ex.data_info.field_term_len,log_cs);
-      String enclosed(sql_ex.data_info.enclosed,
-                      sql_ex.data_info.enclosed_len,log_cs);
-      String line_term(sql_ex.data_info.line_term,
-                       sql_ex.data_info.line_term_len,log_cs);
-      String line_start(sql_ex.data_info.line_start,
-                        sql_ex.data_info.line_start_len,log_cs);
-      String escaped(sql_ex.data_info.escaped,
-                     sql_ex.data_info.escaped_len, log_cs);
-      const String empty_str("", 0, log_cs);
-      ex.field.field_term= &field_term;
-      ex.field.enclosed= &enclosed;
-      ex.line.line_term= &line_term;
-      ex.line.line_start= &line_start;
-      ex.field.escaped= &escaped;
-
-      ex.field.opt_enclosed= (sql_ex.data_info.opt_flags & OPT_ENCLOSED_FLAG);
-      if (sql_ex.data_info.empty_flags & FIELD_TERM_EMPTY)
-        ex.field.field_term= &empty_str;
-
-      ex.skip_lines= skip_lines;
-      List<Item> field_list;
-      thd->lex->select_lex->context.resolve_in_table_list_only(&tables);
-      set_fields(tables.db, field_list, &thd->lex->select_lex->context);
-      thd->variables.pseudo_thread_id= thread_id;
-      if (net)
-      {
-        // mysql_load will use thd->net to read the file
-        thd->get_protocol_classic()->set_vio(net->vio);
-        // Make sure the client does not get confused about the packet sequence
-        thd->get_protocol_classic()->set_pkt_nr(net->pkt_nr);
-      }
-      /*
-        It is safe to use tmp_list twice because we are not going to
-        update it inside mysql_load().
-      */
-      List<Item> tmp_list;
-      /*
-        Prepare column privilege check for LOAD statement.
-        This is necessary because the replication code for LOAD bypasses
-        regular privilege checking, which is done by check_one_table_access()
-        in regular code path.
-        We can assign INSERT privileges to the table since the slave thread
-        operates with all privileges.
-      */
-      tables.set_privileges(INSERT_ACL);
-      tables.set_want_privilege(INSERT_ACL);
-
-      if (open_temporary_tables(thd, &tables) ||
-          mysql_load(thd, &ex, &tables, field_list, tmp_list, tmp_list,
-                     handle_dup, net != 0))
-        thd->is_slave_error= 1;
-      if (thd->cuted_fields)
-      {
-        /* log_pos is the position of the LOAD event in the master log */
-        sql_print_warning("Slave: load data infile on table '%s' at "
-                          "log position %s in log '%s' produced %ld "
-                          "warning(s). Default database: '%s'",
-                          (char*) table_name,
-                          llstr(common_header->log_pos,llbuff),
-                          const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
-                          (ulong) thd->cuted_fields,
-                          print_slave_db_safe(thd->db().str));
-      }
-      if (net)
-      {
-        net->pkt_nr= thd->get_protocol_classic()->get_pkt_nr();
-      }
-    }
-  }
-  else
-  {
-    /*
-      We will just ask the master to send us /dev/null if we do not
-      want to load the data.
-      TODO: this a bug - needs to be done in I/O thread
-    */
-    if (net)
-      skip_load_data_infile(net);
-  }
-
-error:
-  thd->get_protocol_classic()->set_vio(NULL);
-  const char *remember_db= thd->db().str;
-  thd->set_catalog(NULL_CSTR);
-  thd->set_db(NULL_CSTR);                   /* will free the current database */
-  thd->reset_query();
-  thd->get_stmt_da()->set_overwrite_status(true);
-  thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
-  thd->get_stmt_da()->set_overwrite_status(false);
-  close_thread_tables(thd);
-  /*
-    - If transaction rollback was requested due to deadlock
-      perform it and release metadata locks.
-    - If inside a multi-statement transaction,
-    defer the release of metadata locks until the current
-    transaction is either committed or rolled back. This prevents
-    other statements from modifying the table for the entire
-    duration of this transaction.  This provides commit ordering
-    and guarantees serializability across multiple transactions.
-    - If in autocommit mode, or outside a transactional context,
-    automatically release metadata locks of the current statement.
-  */
-  if (thd->transaction_rollback_request)
-  {
-    trans_rollback_implicit(thd);
-    thd->mdl_context.release_transactional_locks();
-  }
-  else if (! thd->in_multi_stmt_transaction_mode())
-    thd->mdl_context.release_transactional_locks();
-  else
-    thd->mdl_context.release_statement_locks();
-
-  DBUG_EXECUTE_IF("LOAD_DATA_INFILE_has_fatal_error",
-                  thd->is_slave_error= 0; thd->is_fatal_error= 1;);
-
-  if (thd->is_slave_error)
-  {
-    /* this err/sql_errno code is copy-paste from net_send_error() */
-    const char *err;
-    int sql_errno;
-    if (thd->is_error())
-    {
-      err= thd->get_stmt_da()->message_text();
-      sql_errno= thd->get_stmt_da()->mysql_errno();
-    }
-    else
-    {
-      sql_errno=ER_UNKNOWN_ERROR;
-      err=ER_THD(thd, sql_errno);
-    }
-    rli->report(ERROR_LEVEL, sql_errno,"\
-Error '%s' running LOAD DATA INFILE on table '%s'. Default database: '%s'",
-                    err, (char*)table_name, print_slave_db_safe(remember_db));
-    free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
-    return 1;
-  }
-  free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
-
-  if (thd->is_fatal_error)
-  {
-    char buf[256];
-    my_snprintf(buf, sizeof(buf),
-                "Running LOAD DATA INFILE on table '%-.64s'."
-                " Default database: '%-.64s'",
-                (char*)table_name,
-                print_slave_db_safe(remember_db));
-
-    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                ER_THD(thd, ER_SLAVE_FATAL_ERROR), buf);
-    return 1;
-  }
-
-  return ( use_rli_only_for_errors ? 0 : Log_event::do_apply_event(rli) ); 
-}
-#endif
-
-
 /**************************************************************************
   Rotate_log_event methods
 **************************************************************************/
@@ -7708,275 +6858,6 @@ int Stop_log_event::do_update_pos(Relay_log_info *rli)
 #endif /* !MYSQL_CLIENT */
 #endif /* HAVE_REPLICATION */
 
-
-/**************************************************************************
-	Create_file_log_event methods
-**************************************************************************/
-
-#ifndef MYSQL_CLIENT
-/*
-  Create_file_log_event::write_data_body()
-*/
-
-bool Create_file_log_event::write_data_body(IO_CACHE* file)
-{
-  bool res;
-  if ((res= Load_log_event::write_data_body(file)) || fake_base)
-    return res;
-  return (my_b_safe_write(file, (uchar*) "", 1) ||
-          my_b_safe_write(file, block, block_len));
-}
-
-
-/*
-  Create_file_log_event::write_data_header()
-*/
-
-bool Create_file_log_event::write_data_header(IO_CACHE* file)
-{
-  bool res;
-  uchar buf[Binary_log_event::CREATE_FILE_HEADER_LEN];
-  if ((res= Load_log_event::write_data_header(file)) || fake_base)
-    return res;
-  int4store(buf + CF_FILE_ID_OFFSET, file_id);
-  return my_b_safe_write(file, buf, Binary_log_event::CREATE_FILE_HEADER_LEN) != 0;
-}
-
-
-/*
-  Create_file_log_event::write_base()
-*/
-
-bool Create_file_log_event::write_base(IO_CACHE* file)
-{
-  bool res;
-  fake_base= 1;                                 // pretend we are Load event
-  common_header->type_code= Load_log_event::get_type_code();
-  DBUG_EXECUTE_IF("simulate_cache_write_failure",
-                  {
-                  res= TRUE;
-                  my_error(ER_UNKNOWN_ERROR, MYF(0));
-                  return res;
-                  });
-  res= write(file);
-  fake_base= 0;
-  common_header->type_code= binary_log::CREATE_FILE_EVENT;
-  return res;
-}
-
-#endif /* !MYSQL_CLIENT */
-
-/*
-  Create_file_log_event ctor
-*/
-
-Create_file_log_event::
-Create_file_log_event(const char* buf, uint len,
-                      const Format_description_event* description_event)
- : binary_log::Load_event(buf, 0, description_event),
-  Load_log_event(buf,0,description_event),
-  binary_log::Create_file_event(buf, len, description_event)
-{
-  DBUG_ENTER("Create_file_log_event::Create_file_log_event(char*,...)");
-  /**
-    We need to set exec_time here, which is ued to calcutate seconds behind
-    master on the slave.
-  */
-  exec_time= load_exec_time;
-  sql_ex.data_info= sql_ex_data;
-  if (inited_from_old || block != 0)
-    is_valid_param= true;
-  if (fake_base)
-    common_header->type_code= Load_log_event::get_type_code();
-  else
-    common_header->type_code= binary_log::CREATE_FILE_EVENT;
-  DBUG_VOID_RETURN;
-}
-
-
-/*
-  Create_file_log_event::print()
-*/
-
-#ifdef MYSQL_CLIENT
-void Create_file_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info,
-				  bool enable_local)
-{
-  if (print_event_info->short_form)
-  {
-    if (enable_local && check_fname_outside_temp_buf())
-      Load_log_event::print(file, print_event_info);
-    return;
-  }
-
-  if (enable_local)
-  {
-    Load_log_event::print(file, print_event_info,
-			  !check_fname_outside_temp_buf());
-    /**
-      reduce the size of io cache so that the write function is called
-      for every call to my_b_printf().
-     */
-    DBUG_EXECUTE_IF ("simulate_create_event_write_error",
-                     {(&print_event_info->head_cache)->write_pos=
-                     (&print_event_info->head_cache)->write_end;
-                     DBUG_SET("+d,simulate_file_write_error");});
-    /* 
-       That one is for "file_id: etc" below: in mysqlbinlog we want the #, in
-       SHOW BINLOG EVENTS we don't.
-    */
-    my_b_printf(&print_event_info->head_cache, "#");
-  }
-
-  my_b_printf(&print_event_info->head_cache,
-              " file_id: %d  block_len: %d\n", file_id, block_len);
-}
-
-
-void Create_file_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
-{
-  print(file, print_event_info, 0);
-}
-#endif /* MYSQL_CLIENT */
-
-
-/*
-  Create_file_log_event::pack_info()
-*/
-
-#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-int Create_file_log_event::pack_info(Protocol *protocol)
-{
-  char buf[NAME_LEN*2 + 30 + 21*2], *pos;
-  pos= my_stpcpy(buf, "db=");
-  memcpy(pos, db, db_len);
-  pos= my_stpcpy(pos + db_len, ";table=");
-  memcpy(pos, table_name, table_name_len);
-  pos= my_stpcpy(pos + table_name_len, ";file_id=");
-  pos= int10_to_str((long) file_id, pos, 10);
-  pos= my_stpcpy(pos, ";block_len=");
-  pos= int10_to_str((long) block_len, pos, 10);
-  protocol->store(buf, (uint) (pos-buf), &my_charset_bin);
-  return 0;
-}
-#endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
-
-
-/**
-  Create_file_log_event::do_apply_event()
-  Constructor for Create_file_log_event to intantiate an event
-  from the relay log on the slave.
-
-  @retval
-    0           Success
-  @retval
-    1           Failure
-*/
-
-#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
-{
-  char fname_buf[FN_REFLEN+TEMP_FILE_MAX_LEN];
-  char *ext;
-  int fd = -1;
-  IO_CACHE file;
-  int error = 1;
-
-  lex_start(thd);
-  mysql_reset_thd_for_next_command(thd);
-  THD_STAGE_INFO(thd, stage_making_temp_file_create_before_load_data);
-  memset(&file, 0, sizeof(file));
-  ext= slave_load_file_stem(fname_buf, file_id, server_id, ".info");
-  /* old copy may exist already */
-  mysql_file_delete(key_file_log_event_info, fname_buf, MYF(0));
-  /**
-    To simulate file creation failure, convert the file name to a
-    directory by appending a "/" to the file name.
-   */
-  DBUG_EXECUTE_IF("simulate_file_create_error_create_log_event",
-                  {
-                  strcat(fname_buf,"/");
-                  });
-  if ((fd= mysql_file_create(key_file_log_event_info,
-                             fname_buf, CREATE_MODE,
-                             O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
-                             MYF(MY_WME))) < 0 ||
-      init_io_cache(&file, fd, IO_SIZE, WRITE_CACHE, (my_off_t)0, 0,
-		    MYF(MY_WME|MY_NABP)))
-  {
-    rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
-                "Error in Create_file event: could not open file '%s', '%s'",
-                fname_buf, thd->get_stmt_da()->message_text());
-    goto err;
-  }
-  
-  // a trick to avoid allocating another buffer
-  fname= fname_buf;
-  fname_len= (uint) (my_stpcpy(ext, ".data") - fname);
-  if (write_base(&file))
-  {
-    my_stpcpy(ext, ".info"); // to have it right in the error message
-    rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
-                "Error in Create_file event: could not write to file '%s', '%s'",
-                fname_buf, thd->get_stmt_da()->message_text());
-    goto err;
-  }
-  end_io_cache(&file);
-  mysql_file_close(fd, MYF(0));
-  
-  // fname_buf now already has .data, not .info, because we did our trick
-  /* old copy may exist already */
-  mysql_file_delete(key_file_log_event_data, fname_buf, MYF(0));
-  DBUG_EXECUTE_IF("simulate_file_create_error_create_log_event_2",
-                  {
-                  strcat(fname_buf, "/");
-                  });
-  if ((fd= mysql_file_create(key_file_log_event_data,
-                             fname_buf, CREATE_MODE,
-                             O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
-                             MYF(MY_WME))) < 0)
-  {
-    rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
-                "Error in Create_file event: could not open file '%s', '%s'",
-                fname_buf, thd->get_stmt_da()->message_text());
-    goto err;
-  }
-  /**
-    To simulate file write failure,close the file before the write operation.
-    Write will fail with an error reporting file is UNOPENED. 
-   */
-  DBUG_EXECUTE_IF("simulate_file_write_error_create_log_event",
-                  {
-                  mysql_file_close(fd, MYF(0));
-                  });
-  if (mysql_file_write(fd, block, block_len, MYF(MY_WME+MY_NABP)))
-  {
-    rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
-                "Error in Create_file event: write to '%s' failed, '%s'",
-                fname_buf, thd->get_stmt_da()->message_text());
-    goto err;
-  }
-  error=0;					// Everything is ok
-
-err:
-  if (error)
-  {
-    end_io_cache(&file);
-    /*
-      Error occured. Delete .info and .data files if they are created.
-    */
-    my_stpcpy(ext,".info");
-    mysql_file_delete(key_file_log_event_info, fname_buf, MYF(0));
-    my_stpcpy(ext,".data");
-    mysql_file_delete(key_file_log_event_data, fname_buf, MYF(0));
-  }
-  if (fd >= 0)
-    mysql_file_close(fd, MYF(0));
-  return error != 0;
-}
-#endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
-
-
 /**************************************************************************
 	Append_block_log_event methods
 **************************************************************************/
@@ -8261,199 +7142,6 @@ int Delete_file_log_event::do_apply_event(Relay_log_info const *rli)
 }
 #endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
 
-
-/**************************************************************************
-	Execute_load_log_event methods
-**************************************************************************/
-
-/*
-  Execute_load_log_event ctor
-*/
-
-#ifndef MYSQL_CLIENT  
-Execute_load_log_event::Execute_load_log_event(THD *thd_arg,
-                                               const char* db_arg,
-					       bool using_trans)
-: binary_log::Execute_load_event(thd_arg->file_id, db_arg),
-  Log_event(thd_arg, 0,
-             using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
-                           Log_event::EVENT_STMT_CACHE,
-             Log_event::EVENT_NORMAL_LOGGING,
-             header(), footer())
-{
-  if (file_id != 0)
-    is_valid_param= true;
-}
-#endif
-  
-
-/*
-  Execute_load_log_event ctor
-*/
-
-Execute_load_log_event::Execute_load_log_event(const char* buf, uint len,
-                                               const Format_description_event*
-                                               description_event)
-: binary_log::Execute_load_event(buf, len, description_event),
-  Log_event(header(), footer())
-{
-  if (file_id != 0)
-    is_valid_param= true;
-}
-
-
-/*
-  Execute_load_log_event::write()
-*/
-
-#ifndef MYSQL_CLIENT
-bool Execute_load_log_event::write(IO_CACHE* file)
-{
-  uchar buf[Binary_log_event::EXEC_LOAD_HEADER_LEN];
-  int4store(buf + EL_FILE_ID_OFFSET, file_id);
-  return (write_header(file, sizeof(buf)) || 
-          wrapper_my_b_safe_write(file, buf, sizeof(buf)) ||
-	  write_footer(file));
-}
-#endif
-
-
-/*
-  Execute_load_log_event::print()
-*/
-
-#ifdef MYSQL_CLIENT  
-void Execute_load_log_event::print(FILE* file,
-				   PRINT_EVENT_INFO* print_event_info)
-{
-  if (print_event_info->short_form)
-    return;
-  print_header(&print_event_info->head_cache, print_event_info, FALSE);
-  my_b_printf(&print_event_info->head_cache, "\n#Exec_load: file_id=%d\n",
-              file_id);
-}
-#endif
-
-/*
-  Execute_load_log_event::pack_info()
-*/
-
-#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-int Execute_load_log_event::pack_info(Protocol *protocol)
-{
-  char buf[64];
-  size_t length;
-  length= my_snprintf(buf, sizeof(buf), ";file_id=%u", (uint) file_id);
-  protocol->store(buf, length, &my_charset_bin);
-  return 0;
-}
-
-
-/*
-  Execute_load_log_event::do_apply_event()
-*/
-
-int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
-{
-  char fname[FN_REFLEN+TEMP_FILE_MAX_LEN];
-  char *ext;
-  int fd;
-  int error= 1;
-  IO_CACHE file;
-  Load_log_event *lev= 0;
-
-  lex_start(thd);
-  mysql_reset_thd_for_next_command(thd);
-  ext= slave_load_file_stem(fname, file_id, server_id, ".info");
-  /**
-    To simulate file open failure, convert the file name to a
-    directory by appending a "/" to the file name. File open
-    will fail with an error reporting it is not a directory.
-   */
-  DBUG_EXECUTE_IF("simulate_file_open_error_exec_event",
-                  {
-                  strcat(fname,"/");
-                  });
-  if ((fd= mysql_file_open(key_file_log_event_info,
-                           fname, O_RDONLY | O_BINARY | O_NOFOLLOW,
-                           MYF(MY_WME))) < 0 ||
-      init_io_cache(&file, fd, IO_SIZE, READ_CACHE, (my_off_t)0, 0,
-		    MYF(MY_WME|MY_NABP)))
-  {
-    rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
-                "Error in Exec_load event: could not open file, '%s'",
-                thd->get_stmt_da()->message_text());
-    goto err;
-  }
-  if (!(lev= (Load_log_event*)
-        Log_event::read_log_event(&file,
-                                  (mysql_mutex_t*) 0,
-                                  rli->get_rli_description_event(),
-                                  opt_slave_sql_verify_checksum)) ||
-      lev->get_type_code() != binary_log::NEW_LOAD_EVENT)
-  {
-    rli->report(ERROR_LEVEL, ER_FILE_CORRUPT, ER_THD(thd, ER_FILE_CORRUPT),
-                fname);
-    goto err;
-  }
-  lev->thd = thd;
-  /*
-    lev->do_apply_event should use rli only for errors.
-    lev->do_apply_event is the place where the table is loaded (it
-    calls mysql_load()).
-  */
-  if (lev->do_apply_event(0,rli,1))
-  {
-    /*
-      We want to indicate the name of the file that could not be loaded
-      (SQL_LOADxxx).
-      But as we are here we are sure the error is in rli->last_slave_error and
-      rli->last_slave_errno (example of error: duplicate entry for key), so we
-      don't want to overwrite it with the filename.
-      What we want instead is add the filename to the current error message.
-    */
-    char *tmp= my_strdup(key_memory_log_event,
-                         rli->last_error().message, MYF(MY_WME));
-    if (tmp)
-    {
-      rli->report(ERROR_LEVEL, rli->last_error().number,
-                  "%s. Failed executing load from '%s'", tmp, fname);
-      my_free(tmp);
-    }
-    goto err;
-  }
-  /*
-    We have an open file descriptor to the .info file; we need to close it
-    or Windows will refuse to delete the file in mysql_file_delete().
-  */
-  if (fd >= 0)
-  {
-    mysql_file_close(fd, MYF(0));
-    end_io_cache(&file);
-    fd= -1;
-  }
-  error = 0;
-
-err:
-  DBUG_EXECUTE_IF("simulate_file_open_error_exec_event",
-                  {
-                     my_stpcpy(ext, ".info");
-                  });
-  mysql_file_delete(key_file_log_event_info, fname, MYF(MY_WME));
-  my_stpcpy(ext, ".data");
-  mysql_file_delete(key_file_log_event_data, fname, MYF(MY_WME));
-  delete lev;
-  if (fd >= 0)
-  {
-    mysql_file_close(fd, MYF(0));
-    end_io_cache(&file);
-  }
-  return error;
-}
-
-#endif /* defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT) */
-
-
 /**************************************************************************
 	Begin_load_query_log_event methods
 **************************************************************************/
@@ -8725,63 +7413,132 @@ Execute_load_query_log_event::do_apply_event(Relay_log_info const *rli)
   return error;
 }
 #endif
+/*****************************************************************************
+   Load_query_generator is used to generate the LOAD DATA statement for binlog
+******************************************************************************/
 
-
-/**************************************************************************
-	sql_ex_info methods
-**************************************************************************/
-
-/*
-  sql_ex_info::write_data()
-*/
-
-bool sql_ex_info::write_data(IO_CACHE* file)
+#if defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
+Load_query_generator::Load_query_generator(THD *thd_arg, const sql_exchange *ex,
+                                           const char *db_arg,
+                                           const char *table_name_arg,
+                                           bool is_concurrent_arg,
+                                           bool replace, bool ignore) :
+  str((char *)buf, BUF_SIZE, &my_charset_bin), thd(thd_arg), sql_ex(ex), db(db_arg),
+  table_name(table_name_arg ? table_name_arg : ""),
+  fname(ex->file_name), is_concurrent(is_concurrent_arg),
+  has_replace(replace), has_ignore(ignore)
 {
-  if (data_info.new_format())
-  {
-    return (write_str_at_most_255_bytes(file, data_info.field_term,
-                                        (uint) data_info.field_term_len) ||
-	    write_str_at_most_255_bytes(file, data_info.enclosed,
-                                        (uint) data_info.enclosed_len) ||
-	    write_str_at_most_255_bytes(file, data_info.line_term,
-                                        (uint) data_info.line_term_len) ||
-	    write_str_at_most_255_bytes(file, data_info.line_start,
-                                        (uint) data_info.line_start_len) ||
-	    write_str_at_most_255_bytes(file, data_info.escaped,
-                                        (uint) data_info.escaped_len) ||
-	    my_b_safe_write(file,(uchar*) &(data_info.opt_flags), 1));
-  }
-  else
-  {
-    /**
-      @todo This is sensitive to field padding. We should write a
-      char[7], not an old_sql_ex. /sven
-    */
-    binary_log::old_sql_ex old_ex;
-    old_ex.field_term= *(data_info.field_term);
-    old_ex.enclosed=   *(data_info.enclosed);
-    old_ex.line_term=  *(data_info.line_term);
-    old_ex.line_start= *(data_info.line_start);
-    old_ex.escaped=    *(data_info.escaped);
-    old_ex.opt_flags=  data_info.opt_flags;
-    old_ex.empty_flags= data_info.empty_flags;
-    return my_b_safe_write(file, (uchar*) &old_ex, sizeof(old_ex)) != 0;
-  }
+  str.length(0);
 }
 
-
-/**
-  sql_ex_info::init()
-  This method initializes the members of strcuture variable sql_ex_info,
-  defined in a Load_log_event. The structure, initializes the sub struct
-  data_info, with the subclause characters in a LOAD_DATA_INFILE query.
-
-*/
-const char *sql_ex_info::init(const char *buf, const char *buf_end,
-                              bool use_new_format)
+const String* Load_query_generator::generate(size_t *fn_start, size_t *fn_end)
 {
-  return data_info.init(buf, buf_end, use_new_format);
+  str.append("LOAD DATA ");
+
+  if (is_concurrent)
+    str.append("CONCURRENT ");
+
+  if (fn_start)
+    *fn_start= str.length()-1;
+
+  if (thd->lex->local_file)
+    str.append("LOCAL ");
+  str.append("INFILE ");
+  pretty_print_str(&str, fname, strlen(fname));
+  str.append(" ");
+
+
+  if (has_replace)
+    str.append("REPLACE ");
+  else if (has_ignore)
+    str.append("IGNORE ");
+
+  str.append("INTO");
+  if (fn_end)
+    *fn_end= str.length();
+
+  str.append(" TABLE ");
+  str.append(table_name);
+
+  if (sql_ex->cs != NULL)
+  {
+    str.append(" CHARACTER SET ");
+    str.append(sql_ex->cs->csname);
+  }
+
+  /* We have to create all optional fields as the default is not empty */
+  str.append(" FIELDS TERMINATED BY ");
+  pretty_print_str(&str, sql_ex->field.field_term);
+
+  if (sql_ex->field.opt_enclosed)
+    str.append(" OPTIONALLY ");
+  str.append(" ENCLOSED BY ");
+  pretty_print_str(&str, sql_ex->field.enclosed);
+
+  str.append(" ESCAPED BY ");
+  pretty_print_str(&str, sql_ex->field.escaped);
+
+  str.append(" LINES TERMINATED BY ");
+  pretty_print_str(&str, sql_ex->line.line_term);
+  if (sql_ex->line.line_start->length() > 0)
+  {
+    str.append(" STARTING BY ");
+    pretty_print_str(&str, sql_ex->line.line_start);
+  }
+
+  if (sql_ex->skip_lines > 0)
+  {
+    str.append(" IGNORE ");
+    str.append_ulonglong(sql_ex->skip_lines);
+    str.append(" LINES ");
+  }
+
+  /* prepare fields-list */
+  if (!thd->lex->load_field_list.is_empty())
+  {
+    List_iterator<Item> li(thd->lex->load_field_list);
+    Item *item;
+    str.append(" (");
+
+    while ((item= li++))
+    {
+      if (item->type() == Item::FIELD_ITEM || item->type() == Item::REF_ITEM)
+        append_identifier(thd, &str, item->item_name.ptr(),
+                          strlen(item->item_name.ptr()));
+      else
+        item->print(&str, QT_ORDINARY);
+      str.append(", ");
+    }
+    // remvoe the last ", "
+    str.length(str.length() - 2);
+    str.append(')');
+  }
+
+  if (!thd->lex->load_update_list.is_empty())
+  {
+    List_iterator<Item> lu(thd->lex->load_update_list);
+    List_iterator<String> ls(thd->lex->load_set_str_list);
+    Item *item;
+
+    str.append(" SET ");
+
+    while ((item= lu++))
+    {
+      String *s= ls++;
+
+      append_identifier(thd, &str, item->item_name.ptr(),
+                        strlen(item->item_name.ptr()));
+      str.append(*s);
+      str.append(", ");
+    }
+    // remvoe the last ", "
+    str.length(str.length() - 2);
+  }
+
+  return &str;
 }
+
+#endif
 #ifndef DBUG_OFF
 #ifndef MYSQL_CLIENT
 static uchar dbug_extra_row_data_val= 0;

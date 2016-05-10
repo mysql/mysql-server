@@ -28,16 +28,6 @@ SELECT COUNT(*) FROM t3;
 COUNT(*)
 17920
 DROP TABLE t1, t2, t3;
-==== Read binlog from version 4.1 ====
-SELECT * FROM t1 ORDER BY a;
-a	b
-0	last_insert_id
-4	four
-190243	random
-SELECT COUNT(*) FROM t3;
-COUNT(*)
-17920
-DROP TABLE t1, t3;
 *** wl#2540 Replication events checksum is not yet defined 
 *** its born-version. One that is temporarily chosen conflicts with 
 *** the version in the following pre-recorded binlogs

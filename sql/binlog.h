@@ -963,7 +963,7 @@ typedef struct st_load_file_info
 {
   THD* thd;
   my_off_t last_pos_in_file;
-  bool wrote_create_file, log_delayed;
+  bool logged_data_file, log_delayed;
 } LOAD_FILE_INFO;
 
 extern MYSQL_PLUGIN_IMPORT MYSQL_BIN_LOG mysql_bin_log;
