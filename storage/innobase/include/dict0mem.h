@@ -345,6 +345,15 @@ dict_mem_table_add_v_col(
 	ulint		len,
 	ulint		pos,
 	ulint		num_base);
+
+/** Adds a stored column definition to a table.
+@param[in]	table		table
+@param[in]	num_base	number of base columns. */
+void
+dict_mem_table_add_s_col(
+	dict_table_t*	table,
+	ulint		num_base);
+
 /**********************************************************************//**
 Renames a column of a table in the data dictionary cache. */
 void
@@ -609,6 +618,21 @@ struct dict_add_v_col_t{
 	/** new col names */
 	const char**		v_col_name;
 };
+
+/** Data structure for a stored column in a table. */
+struct dict_s_col_t {
+	/** Stored column ptr */
+	dict_col_t*	m_col;
+	/** array of base col ptr */
+	dict_col_t**	base_col;
+	/** number of base columns */
+	ulint		num_base;
+	/** column pos in table */
+	ulint		s_pos;
+};
+
+/** list to put stored column for create_table_info_t */
+typedef std::list<dict_s_col_t, ut_allocator<dict_s_col_t> >	dict_s_col_list;
 
 /** @brief DICT_ANTELOPE_MAX_INDEX_COL_LEN is measured in bytes and
 is the maximum indexed column length (or indexed prefix length) in
@@ -1377,6 +1401,13 @@ struct dict_table_t {
 
 	/** Array of virtual column descriptions. */
 	dict_v_col_t*				v_cols;
+
+	/** List of stored column descriptions. It is used only for foreign key
+	check during create table and copy alter operations.
+	During copy alter, s_cols list is filled during create table operation
+	and need to preserve till rename table operation. That is the
+	reason s_cols is a part of dict_table_t */
+	dict_s_col_list*			s_cols;
 
 	/** Column names packed in a character string
 	"name1\0name2\0...nameN\0". Until the string contains n_cols, it will

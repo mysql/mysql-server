@@ -1208,27 +1208,98 @@ next_rec:
 	return(NULL);
 }
 
-/*************************************************************//**
-Create InnoDB foreign key structure from MySQL alter_info
+/** Check whether given column is a base of stored column.
+@param[in]	col_name	column name
+@param[in]	table		table
+@param[in]	s_cols		list of stored columns
+@return true if the given column is a base of stored column,else false. */
+static
+bool
+innobase_col_check_fk(
+	const char*		col_name,
+	const dict_table_t*	table,
+	dict_s_col_list*	s_cols)
+{
+	dict_s_col_list::const_iterator	it;
+
+	for (it = s_cols->begin();
+	     it != s_cols->end(); ++it) {
+		dict_s_col_t	s_col = *it;
+
+		for (ulint j = 0; j < s_col.num_base; j++) {
+			if (strcmp(col_name, dict_table_get_col_name(
+						table,
+						s_col.base_col[j]->ind)) == 0) {
+				return(true);
+			}
+		}
+	}
+
+	return(false);
+}
+
+/** Check whether the foreign key constraint is on base of any stored columns.
+@param[in]	foreign	Foriegn key constraing information
+@param[in]	table	table to which the foreign key objects
+to be added
+@param[in]	s_cols	list of stored column information in the table.
+@return true if yes, otherwise false. */
+static
+bool
+innobase_check_fk_stored(
+	const dict_foreign_t*	foreign,
+	const dict_table_t*	table,
+	dict_s_col_list*	s_cols)
+{
+	ulint	type = foreign->type;
+
+	type &= ~(DICT_FOREIGN_ON_DELETE_NO_ACTION
+		  | DICT_FOREIGN_ON_UPDATE_NO_ACTION);
+
+	if (type == 0 || s_cols == NULL) {
+		return(false);
+	}
+
+	for (ulint i = 0; i < foreign->n_fields; i++) {
+		if (innobase_col_check_fk(
+			foreign->foreign_col_names[i], table, s_cols)) {
+			return(true);
+		}
+	}
+
+	return(false);
+}
+
+/** Create InnoDB foreign key structure from MySQL alter_info
+@param[in]	ha_alter_info	alter table info
+@param[in]	table_share	TABLE_SHARE
+@param[in]	table		table object
+@param[in]	col_names	column names, or NULL to use
+table->col_names
+@param[in]	drop_index	indexes to be dropped
+@param[in]	n_drop_index	size of drop_index
+@param[out]	add_fk		foreign constraint added
+@param[out]	n_add_fk	number of foreign constraints
+added
+@param[in]	trx		user transaction
+@param[in]	s_cols		list of stored column information
 @retval true if successful
 @retval false on error (will call my_error()) */
 static MY_ATTRIBUTE((nonnull(1,2,3,7,8), warn_unused_result))
 bool
 innobase_get_foreign_key_info(
-/*==========================*/
 	Alter_inplace_info*
-			ha_alter_info,	/*!< in: alter table info */
+			ha_alter_info,
 	const TABLE_SHARE*
-			table_share,	/*!< in: the TABLE_SHARE */
-	dict_table_t*	table,		/*!< in: table */
-	const char**	col_names,	/*!< in: column names, or NULL
-					to use table->col_names */
-	dict_index_t**	drop_index,	/*!< in: indexes to be dropped */
-	ulint		n_drop_index,	/*!< in: size of drop_index[] */
-	dict_foreign_t**add_fk,		/*!< out: foreign constraint added */
-	ulint*		n_add_fk,	/*!< out: number of foreign
-					constraints added */
-	const trx_t*	trx)		/*!< in: user transaction */
+			table_share,
+	dict_table_t*	table,
+	const char**	col_names,
+	dict_index_t**	drop_index,
+	ulint		n_drop_index,
+	dict_foreign_t**add_fk,
+	ulint*		n_add_fk,
+	const trx_t*	trx,
+	dict_s_col_list*s_cols)
 {
 	Key*		key;
 	Foreign_key*	fk_key;
@@ -1441,6 +1512,12 @@ innobase_get_foreign_key_info(
 				 MYF(0),
 				 table_share->table_name.str,
 				 add_fk[num_fk]->id);
+			goto err_exit;
+		}
+
+		if (innobase_check_fk_stored(
+			add_fk[num_fk], table, s_cols)) {
+			my_error(ER_CANNOT_ADD_FOREIGN_BASE_COL_STORED, MYF(0));
 			goto err_exit;
 		}
 
@@ -5244,6 +5321,55 @@ rename_indexes_in_cache(
 	DBUG_VOID_RETURN;
 }
 
+/** Fill the stored column information in s_cols list.
+@param[in]	altered_table	mysql table object
+@param[in]	table		innodb table object
+@param[out]	s_cols		list of stored column
+@param[out]	s_heap		heap for storing stored
+column information. */
+static
+void
+alter_fill_stored_column(
+	const TABLE*		altered_table,
+	dict_table_t*		table,
+	dict_s_col_list**	s_cols,
+	mem_heap_t**		s_heap)
+{
+       ulint   n_cols = altered_table->s->fields;
+
+	for (ulint i = 0; i < n_cols; i++) {
+		Field* field = altered_table->field[i];
+		dict_s_col_t	s_col;
+
+		if (!innobase_is_s_fld(field)) {
+			continue;
+		}
+
+		ulint	num_base = field->gcol_info->non_virtual_base_columns();
+		dict_col_t*	col = dict_table_get_nth_col(table, i);
+
+		s_col.m_col = col;
+		s_col.s_pos = i;
+
+		if (*s_cols == NULL) {
+			*s_cols = UT_NEW_NOKEY(dict_s_col_list());
+			*s_heap = mem_heap_create(1000);
+		}
+
+		if (num_base != 0) {
+			s_col.base_col = static_cast<dict_col_t**>(mem_heap_zalloc(
+						*s_heap, num_base * sizeof(dict_col_t*)));
+		} else {
+			s_col.base_col = NULL;
+		}
+
+		s_col.num_base = num_base;
+		innodb_base_col_setup_for_stored(table, field, &s_col);
+		(*s_cols)->push_back(s_col);
+	}
+}
+
+
 /** Allows InnoDB to update internal structures with concurrent
 writes blocked (provided that check_if_supported_inplace_alter()
 did not return HA_ALTER_INPLACE_NO_LOCK).
@@ -5282,6 +5408,8 @@ ha_innobase::prepare_inplace_alter_table(
 	bool		add_fts_doc_id		= false;
 	bool		add_fts_doc_id_idx	= false;
 	bool		add_fts_idx		= false;
+	dict_s_col_list*s_cols			= NULL;
+	mem_heap_t*	s_heap			= NULL;
 
 	DBUG_ENTER("prepare_inplace_alter_table");
 	DBUG_ASSERT(!ha_alter_info->handler_ctx);
@@ -5769,6 +5897,9 @@ check_if_can_drop_indexes:
 	    & Alter_inplace_info::ADD_FOREIGN_KEY) {
 		ut_ad(!m_prebuilt->trx->check_foreigns);
 
+		alter_fill_stored_column(altered_table, m_prebuilt->table,
+					 &s_cols, &s_heap);
+
 		add_fk = static_cast<dict_foreign_t**>(
 			mem_heap_zalloc(
 				heap,
@@ -5779,7 +5910,7 @@ check_if_can_drop_indexes:
 			    ha_alter_info, table_share,
 			    m_prebuilt->table, col_names,
 			    drop_index, n_drop_index,
-			    add_fk, &n_add_fk, m_prebuilt->trx)) {
+			    add_fk, &n_add_fk, m_prebuilt->trx, s_cols)) {
 err_exit:
 			if (n_drop_index) {
 				row_mysql_lock_data_dictionary(m_prebuilt->trx);
@@ -5799,7 +5930,17 @@ err_exit:
 				mem_heap_free(heap);
 			}
 
+			if (s_cols != NULL) {
+				UT_DELETE(s_cols);
+				mem_heap_free(s_heap);
+			}
+
 			goto err_exit_no_heap;
+		}
+
+		if (s_cols != NULL) {
+			UT_DELETE(s_cols);
+			mem_heap_free(s_heap);
 		}
 	}
 

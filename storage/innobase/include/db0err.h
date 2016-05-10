@@ -171,6 +171,9 @@ enum dberr_t {
 	DB_NO_FK_ON_V_BASE_COL,		/*!< Cannot add foreign constrain
 					placed on the base column of
 					indexed virtual column */
+	DB_NO_FK_ON_S_BASE_COL,		/*!< Cannot add foreign constrain
+					placed on the base column of
+					stored column */
 	DB_NO_VIRTUAL_INDEX_ON_FK,	/*!< Cannot create index on virtual
 					column whose base column has foreign
 					constraint */
