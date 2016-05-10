@@ -2278,7 +2278,7 @@ SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT('MULTIPOINT(19 -4,-2 -6,-8 2)'), 1)
 --echo # BUG#20534576 : WL#7929 : ST_BUFFER() : ASSERTION FAILURE IN SPATIAL.H FILE 
 --echo ######################################################################################################
 
---replace_numberic_round 5
+--replace_numberic_round 0
 SELECT ST_ASTEXT(
       ST_BUFFER(
             ST_GEOMFROMTEXT('MULTILINESTRING((15 0,1 -18,-17 -13),(-10 -1,-5 -4,-15 4,1 -9,-5 1))'),
