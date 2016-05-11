@@ -1852,6 +1852,7 @@ SELECT ST_ASTEXT(ST_UNION(
 --echo # BUG#20379857 : ASSERTION `ENTER_COUNT == 0' FAILED
 --echo ######################################################################################################
 
+--replace_numberic_round 5
 SELECT ST_ASTEXT(ST_SYMDIFFERENCE(
     ST_GEOMFROMTEXT('POLYGON((-4 0,7 -8,-5 1,1 9,-9 -7,9 6,-6 -9,-4 0))'),
     ST_GEOMFROMTEXT('GEOMETRYCOLLECTION('
