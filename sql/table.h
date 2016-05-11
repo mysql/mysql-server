@@ -108,11 +108,11 @@ enum enum_table_ref_type
  Enumerate possible status of a identifier name while determining
  its validity
 */
-enum enum_ident_name_check
+enum class Ident_name_check
 {
-  IDENT_NAME_OK,
-  IDENT_NAME_WRONG,
-  IDENT_NAME_TOO_LONG
+  OK,
+  WRONG,
+  TOO_LONG
 };
 
 /*************************************************************************/
@@ -2958,10 +2958,10 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
                           const char *table_name, const char *path);
 void free_table_share(TABLE_SHARE *share);
 void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
-enum_ident_name_check check_and_convert_db_name(LEX_STRING *db,
-                                                bool preserve_lettercase);
+Ident_name_check check_and_convert_db_name(LEX_STRING *db,
+                                           bool preserve_lettercase);
 bool check_column_name(const char *name);
-enum_ident_name_check check_table_name(const char *name, size_t length);
+Ident_name_check check_table_name(const char *name, size_t length);
 int rename_file_ext(const char * from,const char * to,const char * ext);
 char *get_field(MEM_ROOT *mem, Field *field);
 bool get_field(MEM_ROOT *mem, Field *field, class String *res);

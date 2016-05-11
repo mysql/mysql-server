@@ -10945,7 +10945,7 @@ validate_tablespace_name(
 	/* This prefix is reserved by InnoDB for use in internal tablespace names. */
 	const char reserved_space_name_prefix[] = "innodb_";
 
-	if (check_tablespace_name(name) != IDENT_NAME_OK) {
+	if (check_tablespace_name(name) != Ident_name_check::OK) {
 		err = HA_WRONG_CREATE_OPTION;
 	}
 

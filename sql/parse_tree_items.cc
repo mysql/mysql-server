@@ -261,7 +261,7 @@ bool PTI_function_call_generic_2d::itemize(Parse_context *pc, Item **res)
   */
 
   if (!db.str ||
-      (check_and_convert_db_name(&db, FALSE) != IDENT_NAME_OK))
+      (check_and_convert_db_name(&db, false) != Ident_name_check::OK))
     return true;
   if (sp_check_name(&func))
     return true;

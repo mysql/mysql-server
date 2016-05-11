@@ -4348,7 +4348,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   /*
     Setting the character set and collation of the current database thd->db.
    */
-  if (get_default_db_collation(thd, db, &thd->db_charset))
+  if (get_default_db_collation(thd, thd->db().str, &thd->db_charset))
   {
     DBUG_ASSERT(thd->is_error() || thd->killed);
     rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),

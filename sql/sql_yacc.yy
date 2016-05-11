@@ -2624,7 +2624,7 @@ sp_name:
           ident '.' ident
           {
             if (!$1.str ||
-                (check_and_convert_db_name(&$1, FALSE) != IDENT_NAME_OK))
+                (check_and_convert_db_name(&$1, false) != Ident_name_check::OK))
               MYSQL_YYABORT;
             if (sp_check_name(&$3))
             {
@@ -8280,21 +8280,22 @@ alter_list_item:
             {
               MYSQL_YYABORT;
             }
-            enum_ident_name_check ident_check_status=
+            Ident_name_check ident_check_status=
               check_table_name($3->table.str,$3->table.length);
-            if (ident_check_status == IDENT_NAME_WRONG)
+            if (ident_check_status == Ident_name_check::WRONG)
             {
               my_error(ER_WRONG_TABLE_NAME, MYF(0), $3->table.str);
               MYSQL_YYABORT;
             }
-            else if (ident_check_status == IDENT_NAME_TOO_LONG)
+            else if (ident_check_status == Ident_name_check::TOO_LONG)
             {
               my_error(ER_TOO_LONG_IDENT, MYF(0), $3->table.str);
               MYSQL_YYABORT;
             }
             LEX_STRING db_str= to_lex_string($3->db);
             if (db_str.str &&
-                (check_and_convert_db_name(&db_str, FALSE) != IDENT_NAME_OK))
+                (check_and_convert_db_name(&db_str, false) !=
+                 Ident_name_check::OK))
               MYSQL_YYABORT;
             lex->name.str= const_cast<char*>($3->table.str);
             lex->name.length= $3->table.length;
@@ -11338,7 +11339,7 @@ drop:
             LEX *lex= thd->lex;
             sp_name *spname;
             if ($4.str &&
-                (check_and_convert_db_name(&$4, FALSE) != IDENT_NAME_OK))
+                (check_and_convert_db_name(&$4, false) != Ident_name_check::OK))
                MYSQL_YYABORT;
             if (sp_check_name(&$6))
                MYSQL_YYABORT;

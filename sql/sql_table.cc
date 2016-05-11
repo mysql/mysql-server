@@ -9491,7 +9491,7 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   */
   if (create_info->tablespace)
   {
-    if (check_tablespace_name(create_info->tablespace) != IDENT_NAME_OK)
+    if (check_tablespace_name(create_info->tablespace) != Ident_name_check::OK)
       DBUG_RETURN(true);
 
     if (!thd->make_lex_string(&table_list->target_tablespace_name,

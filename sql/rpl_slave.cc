@@ -10898,7 +10898,7 @@ int add_new_channel(Master_info** mi, const char* channel,
   DBUG_ENTER("add_new_channel");
 
   int error= 0;
-  enum_ident_name_check ident_check_status;
+  Ident_name_check ident_check_status;
 
   /*
     Refuse to create a new channel if the repositories does not support this.
@@ -10936,9 +10936,9 @@ int add_new_channel(Master_info** mi, const char* channel,
     ident_check_status= check_table_name(channel, strlen(channel));
   }
   else
-    ident_check_status= IDENT_NAME_WRONG;
+    ident_check_status= Ident_name_check::WRONG;
 
-  if (ident_check_status != IDENT_NAME_OK)
+  if (ident_check_status != Ident_name_check::OK)
   {
     error= ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG;
     my_error(ER_SLAVE_CHANNEL_NAME_INVALID_OR_TOO_LONG, MYF(0));
