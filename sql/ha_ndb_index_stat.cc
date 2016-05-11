@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,8 +43,8 @@ Ndb_index_stat_thread::Ndb_index_stat_thread()
   : Ndb_component("Index Stat"),
     client_waiting(false)
 {
-  pthread_mutex_init(&LOCK, MY_MUTEX_INIT_FAST);
-  pthread_cond_init(&COND, NULL);
+  pthread_mutex_init(&LOCK_client_waiting, MY_MUTEX_INIT_FAST);
+  pthread_cond_init(&COND_client_waiting, NULL);
 
   pthread_mutex_init(&stat_mutex, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&stat_cond, NULL);
@@ -52,8 +52,8 @@ Ndb_index_stat_thread::Ndb_index_stat_thread()
 
 Ndb_index_stat_thread::~Ndb_index_stat_thread()
 {
-  pthread_mutex_destroy(&LOCK);
-  pthread_cond_destroy(&COND);
+  pthread_mutex_destroy(&LOCK_client_waiting);
+  pthread_cond_destroy(&COND_client_waiting);
 
   pthread_mutex_destroy(&stat_mutex);
   pthread_cond_destroy(&stat_cond);
@@ -69,10 +69,10 @@ void Ndb_index_stat_thread::do_wakeup()
 
 void Ndb_index_stat_thread::wakeup()
 {
-  pthread_mutex_lock(&LOCK);
+  pthread_mutex_lock(&LOCK_client_waiting);
   client_waiting= true;
-  pthread_cond_signal(&COND);
-  pthread_mutex_unlock(&LOCK);
+  pthread_cond_signal(&COND_client_waiting);
+  pthread_mutex_unlock(&LOCK_client_waiting);
 }
 
 struct Ndb_index_stat {
@@ -2504,7 +2504,7 @@ Ndb_index_stat_thread::do_run()
     if (is_stop_requested())
     {
       mysql_mutex_unlock(&LOCK_server_started);
-      pthread_mutex_lock(&LOCK);
+      pthread_mutex_lock(&LOCK_client_waiting);
       goto ndb_index_stat_thread_end;
     }
   }
@@ -2514,18 +2514,20 @@ Ndb_index_stat_thread::do_run()
   /*
     Wait for cluster to start
   */
+
   pthread_mutex_lock(&ndb_util_thread.LOCK);
   while (!is_stop_requested() && !g_ndb_status.cluster_node_id &&
          (ndbcluster_hton->slot != ~(uint)0))
   {
     /* ndb not connected yet */
     pthread_cond_wait(&ndb_util_thread.COND, &ndb_util_thread.LOCK);
+
   }
   pthread_mutex_unlock(&ndb_util_thread.LOCK);
 
   if (is_stop_requested())
   {
-    pthread_mutex_lock(&LOCK);
+    pthread_mutex_lock(&LOCK_client_waiting);
     goto ndb_index_stat_thread_end;
   }
 
@@ -2533,7 +2535,7 @@ Ndb_index_stat_thread::do_run()
   if (!(pr.is_util= new NdbIndexStat))
   {
     sql_print_error("Could not allocate NdbIndexStat is_util object");
-    pthread_mutex_lock(&LOCK);
+    pthread_mutex_lock(&LOCK_client_waiting);
     goto ndb_index_stat_thread_end;
   }
 
@@ -2554,19 +2556,23 @@ Ndb_index_stat_thread::do_run()
   set_timespec(abstime, 0);
   for (;;)
   {
-    pthread_mutex_lock(&LOCK);
-    if (!is_stop_requested() && client_waiting == false) {
-      int ret= pthread_cond_timedwait(&COND,
-                                      &LOCK,
+    pthread_mutex_lock(&LOCK_client_waiting);
+    if (client_waiting == false) {
+      int ret= pthread_cond_timedwait(&COND_client_waiting,
+                                      &LOCK_client_waiting,
                                       &abstime);
       const char* reason= ret == ETIMEDOUT ? "timed out" : "wake up";
       (void)reason; // USED
       DBUG_PRINT("index_stat", ("loop: %s", reason));
     }
-    if (is_stop_requested()) /* Shutting down server */
-      goto ndb_index_stat_thread_end;
     client_waiting= false;
-    pthread_mutex_unlock(&LOCK);
+    pthread_mutex_unlock(&LOCK_client_waiting);
+
+    if (is_stop_requested()) /* Shutting down server */
+    {
+      pthread_mutex_lock(&LOCK_client_waiting);
+      goto ndb_index_stat_thread_end;
+    }
 
     /*
      * Next processing slice.  Each time we check that global enable
@@ -2676,7 +2682,7 @@ ndb_index_stat_thread_end:
     pr.is_util= 0;
   }
 
-  pthread_mutex_unlock(&LOCK);
+  pthread_mutex_unlock(&LOCK_client_waiting);
   DBUG_PRINT("exit", ("ndb_index_stat_thread"));
 
   log_info("Stopped");
