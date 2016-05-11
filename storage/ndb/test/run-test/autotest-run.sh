@@ -26,7 +26,7 @@
 ##############
 
 save_args=$*
-VERSION="autotest-run.sh version 1.03"
+VERSION="autotest-run.sh version 1.04"
 
 DATE=`date '+%Y-%m-%d'`
 if [ `uname -s` != "SunOS" ]
