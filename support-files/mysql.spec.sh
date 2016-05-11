@@ -1259,6 +1259,7 @@ echo "====="                                                       >> $STATUS_HI
 %attr(755, root, root) %{_bindir}/mysql_client_test
 %attr(755, root, root) %{_bindir}/mysql_client_test_embedded
 %attr(755, root, root) %{_bindir}/mysqltest_embedded
+%attr(755, root, root) %{_bindir}/mysqlxtest
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_client_test.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql-stress-test.pl.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql-test-run.pl.1*
@@ -1281,6 +1282,9 @@ echo "====="                                                       >> $STATUS_HI
 # merging BK trees)
 ##############################################################################
 %changelog
+* Wed May 11 2016 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
+- Add mysqlxtest to test subpackage
+
 * Mon Oct 06 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
 - Add license info in each subpackage
 
