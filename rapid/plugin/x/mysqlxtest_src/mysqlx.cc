@@ -658,7 +658,12 @@ void Connection::send_bytes(const std::string &data)
 void Connection::send(int mid, const Message &msg)
 {
   boost::system::error_code error;
-  uint8_t buf[5];
+
+  union
+  {
+    uint8_t buf[5];                        // Must be properly aligned
+    longlong dummy;
+  };
   uint32_t *buf_ptr = (uint32_t *)buf;
   *buf_ptr = msg.ByteSize() + 1;
 #ifdef WORDS_BIGENDIAN
@@ -862,7 +867,11 @@ Message *Connection::recv_payload(const int mid, const std::size_t msglen)
 
 Message *Connection::recv_raw(int &mid)
 {
-  char buf[5];
+  union
+  {
+    char buf[5];                                // Must be properly aligned
+    longlong dummy;
+  };
 
   return recv_message_with_header(mid, buf, 0);
 }

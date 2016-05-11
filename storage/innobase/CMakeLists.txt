@@ -165,6 +165,16 @@ SET(INNODB_BOOST_ATOMICS_SOURCES
   handler/ha_innodb.cc
   handler/i_s.cc)
 
+# ut0lock_free_hash.h uses boost::atomics
+# Solaris Studio generates dependencies on
+# boost::atomics::detail::lockpool::scoped_lock::scoped_lock
+IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
+  LIST(APPEND INNOBASE_SOURCES
+    ${BOOST_SOURCES_DIR}/libs/atomic/src/lockpool.cpp)
+  LIST(APPEND INNODB_BOOST_ATOMICS_SOURCES
+    ${BOOST_SOURCES_DIR}/libs/atomic/src/lockpool.cpp)
+ENDIF()
+
 ADD_LIBRARY(innodb_zipdecompress STATIC ${INNOBASE_ZIP_DECOMPRESS_SOURCES})
 SET_TARGET_PROPERTIES(innodb_zipdecompress PROPERTIES
   COMPILE_DEFINITIONS "UNIV_LIBRARY")

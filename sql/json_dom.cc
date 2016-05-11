@@ -1787,8 +1787,10 @@ Json_wrapper_object_iterator::elt() const
 
 
 Json_wrapper::Json_wrapper(Json_dom *dom_value)
-  : m_dom_value(dom_value), m_dom_alias(false), m_is_dom(true)
+  : m_dom_value(dom_value), m_is_dom(true)
 {
+  // Workaround for Solaris Studio, initialize in CTOR body
+  m_dom_alias= false;
   if (!dom_value)
   {
     m_dom_alias= true; //!< no deallocation, make us empty
