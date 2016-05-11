@@ -153,15 +153,17 @@ void Keys_container::free_keys_hash()
 my_bool Keys_container::load_keys_from_keyring_storage(IKeyring_io *keyring_io)
 {
   my_bool was_error= FALSE;
-  Key *key_loaded= new Key();
-  while(*keyring_io >> key_loaded)
+  IKey *key_loaded= NULL;
+  while(*keyring_io >> &key_loaded)
   {
-    if (key_loaded->is_key_valid() == FALSE || store_key_in_hash(key_loaded))
+    if (key_loaded == NULL || key_loaded->is_key_valid() == FALSE ||
+        store_key_in_hash(key_loaded))
     {
       was_error= TRUE;
+      delete key_loaded;
       break;
     }
-    key_loaded= new Key();
+    key_loaded= NULL;
   }
   if(was_error)
   {
@@ -169,7 +171,6 @@ my_bool Keys_container::load_keys_from_keyring_storage(IKeyring_io *keyring_io)
                                 "The keyring might be malformed");
     memory_needed_to_flush_to_disk= 0;
   }
-  delete key_loaded;
   keyring_io->close();
   return was_error;
 }
