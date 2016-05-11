@@ -23,6 +23,7 @@
 #endif
 
 #include <pc.hpp>
+#include "Bitmask.hpp"
 #include <DynArr256.hpp>
 #include <SimulatedBlock.hpp>
 #include <LHLevel.hpp>
@@ -655,7 +656,7 @@ private:
   Uint32 inPageI;
   Uint32 inConptr;
   Uint32 elemScanned;
-  enum { ELEM_SCANNED_BITS = sizeof(elemScanned) * 8 };
+  enum { ELEM_SCANNED_BITS = sizeof(Uint32) * 8 };
 public:
   void initContainer();
   bool isInContainer() const;
@@ -1129,7 +1130,7 @@ inline void Dbacc::Page8::setScanContainer(Uint16 scanbit, Uint32 conptr)
   assert(scanbit != 0);
   assert(scanbit < (1U << MAX_PARALLEL_SCANS_PER_FRAG));
   Uint8* p = reinterpret_cast<Uint8*>(&word32[SCAN_CON_0_3]);
-  int i = ffs(scanbit) - 1;
+  int i = BitmaskImpl::ffs(scanbit);
   assert(p[i] == 0);
   p[i] = getContainerShortIndex(conptr);
 }
@@ -1143,7 +1144,7 @@ inline void Dbacc::Page8::clearScanContainer(Uint16 scanbit, Uint32 conptr)
   assert(scanbit != 0);
   assert(scanbit < (1U << MAX_PARALLEL_SCANS_PER_FRAG));
   Uint8* p = reinterpret_cast<Uint8*>(&word32[SCAN_CON_0_3]);
-  int i = ffs(scanbit) - 1;
+  int i = BitmaskImpl::ffs(scanbit);
   assert(p[i] == getContainerShortIndex(conptr));
   p[i] = 0;
 }
