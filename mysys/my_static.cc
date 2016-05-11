@@ -138,7 +138,8 @@ void (*debug_sync_C_callback_ptr)(const char *, size_t);
 
 #ifdef _WIN32
 /* from my_getsystime.c */
-ulonglong query_performance_frequency, query_performance_offset;
+ulonglong query_performance_frequency, query_performance_offset,
+          query_performance_offset_micros;
 #endif
 
 	/* How to disable options */
