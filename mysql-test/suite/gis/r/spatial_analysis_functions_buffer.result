@@ -757,7 +757,7 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 5,
                                                               'MULTIPOLYGON(((0 0,2 2,4 0,0 0)),((3 3,3 5,5 5,5 3,3 3))))'), 10, ST_BUFFER_STRATEGY('join_miter', 10)));
 ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 5,5 5,5 0,0 0)),'
                                                               'MULTIPOLYGON(((0 0,2 2,4 0,0 0)),((3 3,3 5,5 5,5 3,3 3))))'), 10, ST_BUFFER_STRATEGY('join_miter', 10))
-POLYGON((-10 4.1421,-24.1421 -10,-10 -10,0 -10,4 -10,5 -10,15 -10,28.1421 -10,15 3.1421,15 5,15 15,5 15,3.1421 15,2 16.1421,0.8579 15,0 15,-7 15,-10 15,-10 5,-10 4.1421))
+POLYGON((-10 4.1421,-24.1421 -10,-10 -10,0 -10,4 -10,5 -10,15 -10,28.1421 -10,15 3.1421,15 5,15 15,5 15,3.1421 15,2 16.1421,0.8579 15,-7 15,-10 15,-10 5,-10 4.1421))
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(0 0,5 5,10 10),'
                                                               'POLYGON((0 0,0 5,5 5,5 0,0 0)),'
                                                               'MULTILINESTRING((0 0,5 5,10 10)),'
