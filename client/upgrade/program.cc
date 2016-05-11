@@ -262,6 +262,7 @@ public:
                 }
               }
             }
+            mysql_free_result(result);
           }
         }
 
