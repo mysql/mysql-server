@@ -202,6 +202,13 @@ ELSE()
     MESSAGE(STATUS "Building NDB test programs for improved valgrind coverage")
     SET(WITH_NDB_TEST ON)
   ENDIF()
+  # Turn on NDB tests automatically for "-devbld" debug builds
+  # to increase test coverage
+  IF(PACKAGE_SUFFIX STREQUAL "-devbld" AND
+     CMAKE_BUILD_TYPE MATCHES "Debug")
+    MESSAGE(STATUS "Building NDB test programs for \"-devbld\" debug build")
+    SET(WITH_NDB_TEST ON)
+  ENDIF()
 ENDIF()
 
 OPTION(WITH_NDB_BINLOG
