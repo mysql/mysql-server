@@ -1,0 +1,41 @@
+#
+#BUG#1353750 : REPLICATION FROM MASTER WITH NEW CHECKSUM ALGORITHM  
+#
+# ==== Purpose ====
+# 
+# The test check for the condition when the master uses a checksum algorithm 
+# which is unknown to the slave. In such a case the master will send the 
+# events with the new checksum while the slave treats it as no checksum. 
+# After the fix the slave will stop if it gets a new checksum from the master
+# with the error message.
+#
+# ====Method====
+#
+# For testing out the above mentioned functionality we have injected a fault  
+# in the slave's code and trigger it through debug library.
+# In the case we get the error message we stop the slave with the 
+# error code 1593 and then restart the slave.
+# 
+
+--source include/not_group_replication_plugin.inc
+--source include/have_debug.inc
+--source include/master-slave.inc
+--source include/have_log_bin.inc
+
+connection slave;
+--echo [ON SLAVE]
+call mtr.add_suppression('The slave I/O thread was stopped because a fatal error is encountered');
+--source include/stop_slave.inc
+
+--let $debug_save= `SELECT @@GLOBAL.debug`
+SET GLOBAL debug='+d,undefined_algorithm_on_slave';
+
+START SLAVE;
+--let $slave_io_errno= 1593
+--source include/wait_for_slave_io_error.inc
+
+--source include/stop_slave.inc
+--eval SET GLOBAL debug = '$debug_save'
+--source include/start_slave.inc
+
+--source include/rpl_end.inc

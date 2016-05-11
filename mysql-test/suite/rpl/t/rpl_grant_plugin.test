@@ -1,0 +1,66 @@
+#
+# Only needs to be run once. Make it row format,
+# because row runs are included in all pb2 platforms,
+# whereas statement (for instance) is not.
+#
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+-- source include/have_plugin_auth.inc
+
+--let $offset_of_query_event= 2
+
+#
+# BUG#59708: 'CREATE USER ... IDENTIFIED WITH ..' statement is
+#            binlogged wrongly
+#
+# The test case checks that the statement in the binary log matches
+# the one that was issued. Assertions are added for 'CREATE USER ...'
+# as well for 'GRANT ALL ...'
+#
+--disable_query_log
+--let $binlog_file= query_get_value("SHOW MASTER STATUS", File, 1)
+--let $assert_text= Logged query must match the one issued.
+
+--let $query= CREATE USER 'b59708_user1'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'CN=analyst, OU=division1, O=oracle, C=US' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+--let $binlog_position= query_get_value("SHOW MASTER STATUS", Position, 1)
+--eval $query
+--let $logged_query= query_get_value(SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_position, Info, $offset_of_query_event)
+--let $assert_cond= `SELECT "$logged_query" LIKE "%$query"`
+--source include/assert.inc
+
+--source include/sync_slave_sql_with_master.inc
+-- connection master
+
+--let $query= GRANT ALL PRIVILEGES ON `test`.* TO 'b59708_user2'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'CN=analyst, OU=division1, O=oracle, C=US'
+--let $binlog_position= query_get_value("SHOW MASTER STATUS", Position, 1)
+--eval $query
+--let $logged_query= query_get_value(SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_position, Info, $offset_of_query_event)
+--let $assert_cond= `SELECT "$logged_query" LIKE "%$query"`
+--let $assert_text= Logged query must match the one issued.
+--source include/assert.inc
+
+--source include/sync_slave_sql_with_master.inc
+-- connection master
+
+## testing with escaped characters
+--let $query= CREATE USER 'b59708_user\''@'localhost\'' IDENTIFIED WITH 'test_plugin_server' AS '\'CN=analyst, OU=division1, O=oracle, C=US' PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK
+--let $binlog_position= query_get_value("SHOW MASTER STATUS", Position, 1)
+--eval $query
+--let $logged_query= query_get_value(SHOW BINLOG EVENTS IN "$binlog_file" FROM $binlog_position, Info, $offset_of_query_event)
+--let $assert_cond= `SELECT "$logged_query" LIKE "%$query"`
+--let $assert_text= Logged query must match the one issued but properly escaped.
+--source include/assert.inc
+
+--source include/sync_slave_sql_with_master.inc
+-- connection master
+
+DROP USER b59708_user1;
+DROP USER b59708_user2;
+DROP USER 'b59708_user\''@'localhost\'';
+
+--source include/sync_slave_sql_with_master.inc
+-- connection master
+
+--enable_query_log
+
+-- source include/rpl_end.inc

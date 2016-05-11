@@ -1,0 +1,77 @@
+# ==== Purpose ====
+#
+#  check replication of load data with the server parameters subjected to
+#  read_buffer_size > max_allowed_packet
+#
+# ==== Implementation ====
+#
+# Insert many rows into t1, write t1 to file.
+# Load the file into t2.
+# See that t2 came out as expected on slave.
+#
+# ==== Related Bugs ====
+#
+#  BUG#30435 loading large LOAD DATA INFILE breaks slave with 
+#            read_buffer_size set on master
+#  BUG#33413 show binlog events fails if binlog has event size of close
+#            to max_allowed_packet
+
+--source include/not_group_replication_plugin.inc
+source include/have_binlog_format_statement.inc;
+source include/master-slave.inc;
+
+
+--echo ==== Create a big file ====
+
+# We turn off binlogging to avoid too much noise in the binlog. t1 is
+# just an auxiliary construction anyways, it is not needed on the
+# slave.
+
+--disable_query_log
+SET @@sql_log_bin= 0;
+
+let $rows= 5000;
+create table t1 (id int not null primary key auto_increment);
+
+while($rows)
+{
+  eval insert into t1 values (null);
+  dec $rows;
+}
+eval select * into outfile '$MYSQLTEST_VARDIR/tmp/bug30435_5k.txt' from t1;
+
+DROP TABLE t1;
+SET @@sql_log_bin= 1;
+--enable_query_log
+
+
+--echo ==== Load our big file into a table ====
+create table t2 (id int not null primary key auto_increment);
+
+select @@session.read_buffer_size - @@session.max_allowed_packet > 0 ;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval load data infile '$MYSQLTEST_VARDIR/tmp/bug30435_5k.txt' into table t2;
+select count(*) from t2 /* 5 000 */;
+
+# the binlog will show fragmented Append_block events
+--let $mask_binlog_commit_events= 1
+source include/show_binlog_events.inc;
+--let $mask_binlog_commit_events= 0
+
+
+--echo ==== Verify results on slave ====
+
+--echo [on slave]
+--source include/sync_slave_sql_with_master.inc
+select count(*) from t2 /* 5 000 */;
+
+
+--echo ==== Clean up ====
+
+--echo [on master]
+connection master;
+drop table t2;
+--source include/sync_slave_sql_with_master.inc
+remove_file $MYSQLTEST_VARDIR/tmp/bug30435_5k.txt;
+--source include/rpl_end.inc

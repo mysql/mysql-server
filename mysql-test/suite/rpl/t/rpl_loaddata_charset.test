@@ -1,0 +1,50 @@
+#
+# Check LOAD DATA + character sets + replication
+#
+--source include/not_group_replication_plugin.inc
+source include/master-slave.inc;
+
+#
+# Bug#15126 character_set_database is not replicated
+# (LOAD DATA INFILE need it)
+#
+connection master;
+create table t1 (a varchar(10) character set utf8);
+load data infile '../../std_data/loaddata6.dat' into table t1;
+set @@character_set_database=koi8r;
+load data infile '../../std_data/loaddata6.dat' into table t1;
+set @@character_set_database=DEFAULT;
+load data infile '../../std_data/loaddata6.dat' into table t1;
+load data infile '../../std_data/loaddata6.dat' into table t1;
+load data infile '../../std_data/loaddata6.dat' into table t1;
+set @@character_set_database=koi8r;
+load data infile '../../std_data/loaddata6.dat' into table t1;
+set @@character_set_database=DEFAULT;
+load data infile '../../std_data/loaddata6.dat' into table t1 character set koi8r;
+
+select hex(a) from t1;
+
+--source include/sync_slave_sql_with_master.inc
+
+select hex(a) from t1;
+connection master;
+drop table t1;
+--source include/sync_slave_sql_with_master.inc
+
+#
+# Bug#45516 
+#   When slave SQL thread executing LOAD DATA command, the
+#   thd->variables.collation_database was not set properly to the default
+#   database charset
+#
+
+echo -------------test bug#45516------------------;
+
+# LOAD DATA INFILE
+let $LOAD_LOCAL=1;
+source include/rpl_loaddata_charset.inc;
+
+# LOAD DATA LOCAL INFILE
+let $LOAD_LOCAL=0;
+source include/rpl_loaddata_charset.inc;
+--source include/rpl_end.inc

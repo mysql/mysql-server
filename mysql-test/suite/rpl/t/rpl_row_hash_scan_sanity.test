@@ -1,0 +1,217 @@
+-- source include/not_group_replication_plugin.inc
+-- source include/have_binlog_format_row.inc
+-- source include/have_debug.inc
+-- source include/master-slave.inc
+
+#
+# WL#5597 tests
+#
+# These tests check whether the correct algorithm for searching the
+# rows was chosen, depending on the setting of
+# @@global.slave_rows_search_algorithms and the table definition.
+#
+# We test all combinations, but leave out the offending ones:
+# - @@global.slave_rows_search_algorithms= ''
+# - @@global.slave_rows_search_algorithms= 'INDEX_SCAN'
+#
+# We do not allow setting only INDEX_SCAN or the empty value.
+#
+
+-- connection master
+
+CREATE TABLE t1 (c1 INT);
+CREATE TABLE t2 (c1 INT PRIMARY KEY);
+CREATE TABLE t3 (c1 INT UNIQUE KEY NOT NULL);
+CREATE TABLE t4 (c1 INT KEY);
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+INSERT INTO t3 VALUES (1);
+INSERT INTO t4 VALUES (1);
+
+--source include/sync_slave_sql_with_master.inc
+SET @saved_slave_rows_search_algorithms= @@global.slave_rows_search_algorithms;
+
+###################### TABLE_SCAN assertions
+
+-- connection slave
+SET @@global.slave_rows_search_algorithms= 'TABLE_SCAN';
+-- connection master
+
+UPDATE t1 SET c1= 2;
+-- let $expected_alg= 'TABLE_SCAN'
+-- source include/rpl_hash_scan_assertion.inc
+
+UPDATE t2 SET c1= 2;
+-- let $expected_alg= 'TABLE_SCAN'
+-- source include/rpl_hash_scan_assertion.inc
+
+UPDATE t3 SET c1= 2;
+-- let $expected_alg= 'TABLE_SCAN'
+-- source include/rpl_hash_scan_assertion.inc
+
+UPDATE t4 SET c1= 2;
+-- let $expected_alg= 'TABLE_SCAN'
+-- source include/rpl_hash_scan_assertion.inc
+
+###################### TABLE_SCAN,INDEX_SCAN
+
+-- connection slave
+SET @@global.slave_rows_search_algorithms= 'TABLE_SCAN,INDEX_SCAN';
+-- connection master
+
+UPDATE t1 SET c1= 3;
+-- let $expected_alg= 'TABLE_SCAN'
+-- source include/rpl_hash_scan_assertion.inc
+
+UPDATE t2 SET c1= 3;
+-- let $expected_alg= 'INDEX_SCAN'
+-- source include/rpl_hash_scan_assertion.inc
+
+UPDATE t3 SET c1= 3;
+-- let $expected_alg= 'INDEX_SCAN'
+-- source include/rpl_hash_scan_assertion.inc
+
+UPDATE t4 SET c1= 3;
+-- let $expected_alg= 'INDEX_SCAN'
+-- source include/rpl_hash_scan_assertion.inc
+
+###################### TABLE_SCAN,HASH_SCAN
+
+-- connection slave
+SET @@global.slave_rows_search_algorithms= 'TABLE_SCAN,HASH_SCAN';
+-- connection master
+
+UPDATE t1 SET c1= 4;
+-- let $expected_alg= 'HASH_SCAN'
+-- source include/rpl_hash_scan_assertion.inc
+
+UPDATE t2 SET c1= 4;
+-- let $expected_alg= 'HASH_SCAN'
+-- source include/rpl_hash_scan_assertion.inc
+
+UPDATE t3 SET c1= 4;
+-- let $expected_alg= 'HASH_SCAN'
+-- source include/rpl_hash_scan_assertion.inc
+
+UPDATE t4 SET c1= 4;
+-- let $expected_alg= 'HASH_SCAN'
+-- source include/rpl_hash_scan_assertion.inc
+
+###################### HASH_SCAN
+
+-- connection slave
+SET @@global.slave_rows_search_algorithms= 'HASH_SCAN';
+-- connection master
+
+UPDATE t1 SET c1= 5;
+-- let $expected_alg= 'HASH_SCAN'
+-- source include/rpl_hash_scan_assertion.inc
+
+UPDATE t2 SET c1= 5;
+-- let $expected_alg= 'HASH_SCAN'
+-- source include/rpl_hash_scan_assertion.inc
+
+UPDATE t3 SET c1= 5;
+-- let $expected_alg= 'HASH_SCAN'
+-- source include/rpl_hash_scan_assertion.inc
+
+UPDATE t4 SET c1= 5;
+-- let $expected_alg= 'HASH_SCAN'
+-- source include/rpl_hash_scan_assertion.inc
+
+###################### HASH_SCAN,INDEX_SCAN
+
+-- connection slave
+SET @@global.slave_rows_search_algorithms= 'HASH_SCAN,INDEX_SCAN';
+-- connection master
+
+UPDATE t1 SET c1= 6;
+-- let $expected_alg= 'HASH_SCAN'
+-- source include/rpl_hash_scan_assertion.inc
+
+UPDATE t2 SET c1= 6;
+-- let $expected_alg= 'INDEX_SCAN'
+-- source include/rpl_hash_scan_assertion.inc
+
+UPDATE t3 SET c1= 6;
+-- let $expected_alg= 'INDEX_SCAN'
+-- source include/rpl_hash_scan_assertion.inc
+
+UPDATE t4 SET c1= 6;
+-- let $expected_alg= 'INDEX_SCAN'
+-- source include/rpl_hash_scan_assertion.inc
+
+###################### HASH_SCAN,INDEX_SCAN,TABLE_SCAN
+
+-- connection slave
+SET @@global.slave_rows_search_algorithms= 'HASH_SCAN,INDEX_SCAN,TABLE_SCAN';
+-- connection master
+
+UPDATE t1 SET c1= 7;
+-- let $expected_alg= 'HASH_SCAN'
+-- source include/rpl_hash_scan_assertion.inc
+
+UPDATE t2 SET c1= 7;
+-- let $expected_alg= 'INDEX_SCAN'
+-- source include/rpl_hash_scan_assertion.inc
+
+UPDATE t3 SET c1= 7;
+-- let $expected_alg= 'INDEX_SCAN'
+-- source include/rpl_hash_scan_assertion.inc
+
+UPDATE t4 SET c1= 7;
+-- let $expected_alg= 'INDEX_SCAN'
+-- source include/rpl_hash_scan_assertion.inc
+
+# Begin of Test cases for Bug#18860225
+# HASH_SCAN SEEMS BROKEN: CAN'T FIND RECORD IN 'T1' ERROR_CODE: 1032
+# Test Case 1: Key type is <Int>
+--connection slave
+SET @@global.slave_rows_search_algorithms= 'HASH_SCAN';
+--connection master
+CREATE TABLE t5(c1 INT, c2 INT, KEY(c2));
+INSERT INTO t5 VALUES (1,1),(2,2),(3,1),(4,NULL),(5,2),(6,3);
+DELETE FROM t5 ORDER BY c1;
+DROP TABLE t5;
+--source include/sync_slave_sql_with_master.inc
+
+# Test Case 2: Key type is <BigInt>
+--connection master
+CREATE TABLE t5(c1 BIGINT, c2 BIGINT, KEY(c2));
+INSERT INTO t5 VALUES (1,1),(2,2),(3,1),(4,NULL),(5,2),(6,3);
+DELETE FROM t5 ORDER BY c1;
+DROP TABLE t5;
+--source include/sync_slave_sql_with_master.inc
+
+# Test Case 3: Key type is <Varchar>
+--connection master
+CREATE TABLE t5(c1 INT, c2 VARCHAR(20), KEY(c2));
+INSERT INTO t5 VALUES (1,"value1"),(2,"value2"),(3,"value1"),(4,NULL),(5,"value2"),(6,"value3");
+DELETE FROM t5 ORDER BY c1;
+DROP TABLE t5;
+--source include/sync_slave_sql_with_master.inc
+
+# Test Case 4: Key is composite key and type is <Int,Varchar>
+#  and Varchar key having different length values
+--connection master
+CREATE TABLE t5(c1 INT, c2 INT, c3 VARCHAR(20), KEY(c2,c3));
+INSERT INTO t5 VALUES (1,1,"ab"),(2,2,"cde"),(3,1,"12345"),(4,4,"random"),(5,NULL,NULL),(6,5,NULL),(7,NULL,"lmnopqr");
+DELETE FROM t5 ORDER BY c1;
+DROP TABLE t5;
+--source include/sync_slave_sql_with_master.inc
+# End of Test cases for Bug#18860225
+
+-- connection slave
+
+SET @@global.slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
+
+#clean Up
+--connection master
+DROP TABLE IF EXISTS t1, t2, t3, t4;
+--source include/sync_slave_sql_with_master.inc
+  
+-- source include/rpl_reset.inc
+
+-- source include/rpl_end.inc
+
