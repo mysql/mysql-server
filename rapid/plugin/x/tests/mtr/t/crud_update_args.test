@@ -1,0 +1,170 @@
+## Updating and placeholders  
+
+--source ../include/xplugin_preamble.inc
+
+## Test data
+DROP SCHEMA IF EXISTS xtest;
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.xtable (value FLOAT);
+
+## Test starts here
+--write_file $MYSQL_TMP_DIR/crud_update_args.tmp
+
+-->macro prepare_values
+-->quiet
+-->sql
+TRUNCATE TABLE xtest.xtable;
+INSERT INTO xtest.xtable VALUES (34.2),(23.1),(56.3),(45.4),(67.5);
+-->endsql
+-->noquiet
+-->endmacro
+
+-->macro show_values
+-->quiet
+-->sql
+SELECT * FROM xtest.xtable;
+-->endsql
+-->noquiet
+-->endmacro
+
+
+##-- operation - missing arg
+-->callmacro prepare_values
+-->quiet
+Mysqlx.Crud.Update {
+  collection { name: "xtable" schema: "xtest"}
+  data_model: TABLE
+  operation {
+    source { name: 'value' }
+    operation: SET
+    value: { type: PLACEHOLDER position: 0 }
+  }
+}
+-->noquiet
+-->expecterror 5154
+-->recvresult
+-->callmacro show_values
+
+
+##-- operation - one arg
+-->callmacro prepare_values
+-->quiet
+Mysqlx.Crud.Update {
+  collection { name: "xtable" schema: "xtest"}
+  data_model: TABLE
+  operation {
+    source { name: 'value' }
+    operation: SET
+    value: { type: PLACEHOLDER position: 0 }
+  }
+  args { type: V_FLOAT v_float: 34.2 }
+}
+-->noquiet
+-->recvresult
+-->callmacro show_values
+
+
+##-- criteria - missing arg
+-->callmacro prepare_values
+-->quiet
+Mysqlx.Crud.Update {
+  collection { name: "xtable" schema: "xtest"}
+  data_model: TABLE
+  operation {
+    source { name: 'value' }
+    operation: SET
+    value: { type : LITERAL literal { type: V_FLOAT v_float: 11.1 } }
+  }
+  criteria {
+    type: OPERATOR
+    operator {
+       name: ">"
+       param { type: IDENT identifier { name: "value" } }
+       param { type: PLACEHOLDER position: 0 }
+    }
+  }
+}
+-->noquiet
+-->expecterror 5154
+-->recvresult
+-->callmacro show_values
+
+
+##-- criteria - one arg
+-->callmacro prepare_values
+-->quiet
+Mysqlx.Crud.Update {
+  collection { name: "xtable" schema: "xtest"}
+  data_model: TABLE
+  operation {
+    source { name: 'value' }
+    operation: SET
+    value: { type : LITERAL literal { type: V_FLOAT v_float: 11.2 } }
+  }
+  criteria {
+    type: OPERATOR
+    operator {
+       name: ">"
+       param { type: IDENT identifier { name: "value" } }
+       param { type: PLACEHOLDER position: 0 }
+    }
+  }
+  args { type: V_FLOAT v_float: 51.2 }
+}
+-->noquiet
+-->recvresult
+-->callmacro show_values
+
+
+##-- order - missing arg
+-->callmacro prepare_values
+-->quiet
+Mysqlx.Crud.Update {
+  collection { name: "xtable" schema: "xtest"}
+  data_model: TABLE
+  operation {
+    source { name: 'value' }
+    operation: SET
+    value: { type : LITERAL literal { type: V_FLOAT v_float: 11.1 } }
+  }
+  order { 
+    expr { type: PLACEHOLDER position: 0 } 
+    direction: DESC 
+  }
+}
+-->noquiet
+-->expecterror 5154
+-->recvresult
+-->callmacro show_values
+
+
+##-- order - one arg
+-->callmacro prepare_values
+-->quiet
+Mysqlx.Crud.Update {
+  collection { name: "xtable" schema: "xtest"}
+  data_model: TABLE
+  operation {
+    source { name: 'value' }
+    operation: SET
+    value: { type : LITERAL literal { type: V_FLOAT v_float: 11.2 } }
+  }
+  args { type: V_OCTETS v_octets {value:"none"} }
+  order { 
+    expr { type: PLACEHOLDER position: 0 } 
+    direction: DESC 
+  }
+  limit: {row_count: 2}
+}
+-->noquiet
+-->recvresult
+-->callmacro show_values
+
+EOF
+
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/crud_update_args.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/crud_update_args.tmp
+
+## Postamble
+DROP SCHEMA IF EXISTS xtest;
+UNINSTALL PLUGIN mysqlx;

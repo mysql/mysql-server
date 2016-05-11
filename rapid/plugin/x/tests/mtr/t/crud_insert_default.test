@@ -1,0 +1,117 @@
+## Inserting with default values 
+
+## Preamble
+--source ../include/xplugin_preamble.inc
+## Test starts here
+
+DROP SCHEMA IF EXISTS xtest;
+CREATE SCHEMA xtest;
+CREATE TABLE xtest.table (id INT DEFAULT 0, name VARCHAR(40) DEFAULT 'Bob', value FLOAT DEFAULT 3.14 );
+CREATE TABLE xtest.fault (value INT NOT NULL);
+
+--write_file $MYSQL_TMP_DIR/crud_insert_default.tmp
+## Test data
+Mysqlx.Crud.Insert {
+  collection { name: "table" schema: "xtest"}
+  data_model: TABLE
+  projection {name: "id"}
+  projection {name: "name"}
+  projection {name: "value"}
+  row {
+    field {
+      type: LITERAL literal { type: V_SINT v_signed_int: 1 }
+    }
+    field {
+      type: LITERAL literal { type: V_STRING v_string { value: "Ann" }}
+	  }
+	  field {
+	    type: LITERAL literal { type: V_FLOAT v_float: 10.1 }
+	  }
+  }
+  row {
+    field {
+      type: OPERATOR operator { name: "default" }
+    }
+    field {
+      type: LITERAL literal { type: V_STRING v_string { value: "Cezar" }}
+    }
+    field {
+      type: LITERAL literal { type: V_FLOAT v_float: 10.2 }
+    }
+  }
+  row {
+    field {
+      type: LITERAL literal { type: V_SINT v_signed_int: 2 }
+    }
+    field {
+      type: OPERATOR operator { name: "default" }
+    }
+    field {
+      type: LITERAL literal { type: V_FLOAT v_float: 10.3 }
+    }
+  }
+  row {
+    field {
+      type: LITERAL literal { type: V_SINT v_signed_int: 3 }
+    }
+    field {
+      type: LITERAL literal { type: V_STRING v_string { value: "Don" }}
+    }
+    field {
+      type: OPERATOR operator { name: "default" }
+    }
+  }
+  row {
+    field {
+      type: OPERATOR operator { name: "default" }
+    }
+    field {
+      type: OPERATOR operator { name: "default" }
+    }
+    field {
+      type: OPERATOR operator { name: "default" }
+    }
+  }
+}
+-->recvresult
+
+Mysqlx.Crud.Insert {
+  collection { name: "fault" schema: "xtest"}
+  data_model: TABLE
+  projection {name: "value"}
+  row {
+    field {
+      type: OPERATOR operator { name: "default" }
+    }
+  }
+}
+-->recverror 1364
+
+
+Mysqlx.Crud.Insert {
+  collection { name: "fault" schema: "xtest"}
+  data_model: TABLE
+  projection {name: "value"}
+  row {
+    field {
+      type: OPERATOR operator { 
+        name: "default"
+        param {
+          type: LITERAL literal { type: V_SINT v_signed_int: 3 }
+        } 
+      }
+    }
+  }
+}
+-->recverror 5151
+EOF
+
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/crud_insert_default.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/crud_insert_default.tmp
+
+SELECT * FROM xtest.table;
+SELECT * FROM xtest.fault;
+
+## Postamble
+DROP SCHEMA IF EXISTS xtest;
+UNINSTALL PLUGIN mysqlx;

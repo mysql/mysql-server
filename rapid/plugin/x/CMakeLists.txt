@@ -226,4 +226,19 @@ ELSE()
     ADD_DEFINITIONS(-DMYSQLXTEST_EXPORTS)
   ENDIF()
 
+  IF(INSTALL_MYSQLTESTDIR)
+    INSTALL(
+      FILES tests/mtr/plugin.defs
+      DESTINATION "${INSTALL_MYSQLTESTDIR}/suite/x"
+      COMPONENT Test
+    )
+    INSTALL(
+      DIRECTORY tests/mtr/t tests/mtr/r tests/mtr/include
+      DESTINATION "${INSTALL_MYSQLTESTDIR}/suite/x"
+      USE_SOURCE_PERMISSIONS
+      COMPONENT Test
+      PATTERN "collections" EXCLUDE
+    )
+  ENDIF()
 ENDIF()
+
