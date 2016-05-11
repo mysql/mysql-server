@@ -606,14 +606,16 @@ public:
                                       const char **errmsg);
 
   /**
-    Reads the set of all GTIDs in the binary log, and the set of all
-    lost GTIDs in the binary log, and stores each set in respective
-    argument.
+    Reads the set of all GTIDs in the binary/relay log, and the set
+    of all lost GTIDs in the binary log, and stores each set in
+    respective argument.
 
-    @param gtid_set Will be filled with all GTIDs in this binary log.
+    @param gtid_set Will be filled with all GTIDs in this binary/relay
+    log.
     @param lost_groups Will be filled with all GTIDs in the
     Previous_gtids_log_event of the first binary log that has a
-    Previous_gtids_log_event.
+    Previous_gtids_log_event. This is requested to binary logs but not
+    to relay logs.
     @param verify_checksum If true, checksums will be checked.
     @param need_lock If true, LOCK_log, LOCK_index, and
     global_sid_lock->wrlock are acquired; otherwise they are asserted
