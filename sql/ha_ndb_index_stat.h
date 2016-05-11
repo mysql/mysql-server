@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,8 +33,8 @@ class Ndb_index_stat_thread : public Ndb_component
 {
   // Someone is waiting for stats
   bool client_waiting;
-  pthread_mutex_t LOCK;
-  pthread_cond_t COND;
+  pthread_mutex_t LOCK_client_waiting;
+  pthread_cond_t COND_client_waiting;
 public:
   Ndb_index_stat_thread();
   virtual ~Ndb_index_stat_thread();
