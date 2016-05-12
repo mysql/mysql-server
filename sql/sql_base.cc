@@ -6254,8 +6254,7 @@ end:
   @note
     open_and_lock_tables() is not intended for open-and-locking system tables
     in those cases when execution of statement has started already and other
-    tables have been opened. Use open_nontrans_system_tables_for_read() or
-    open_trans_system_tables_for_read() instead.
+    tables have been opened. Use open_trans_system_tables_for_read() instead.
 
   @retval FALSE  OK.
   @retval TRUE   Error
@@ -9775,92 +9774,6 @@ bool is_equal(const LEX_STRING *a, const LEX_STRING *b)
   return a->length == b->length && !strncmp(a->str, b->str, a->length);
 }
 
-/**
-  Open and lock non-transactional system tables for read.
-
-  @param thd        Thread context.
-  @param table_list List of tables to open.
-  @param backup     Pointer to Open_tables_backup instance where information
-                    about currently open tables will be saved, and from
-                    which will be restored when we will end work with
-                    non-transactional system tables.
-
-  @note THR_LOCK deadlocks are not possible here because of the
-  restrictions we put on opening and locking of system tables for writing.
-  Thus, the system tables can be opened and locked for reading even if some
-  other tables have already been opened and locked.
-
-  @note MDL-deadlocks are possible, but they are properly detected and
-  reported.
-
-  @note This call will eventually be removed as an InnoDB attachable transaction
-  will be used to access all system tables.
-
-  @return Error status.
-*/
-
-bool
-open_nontrans_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
-                                     Open_tables_backup *backup)
-{
-  uint counter;
-  uint flags= MYSQL_OPEN_IGNORE_FLUSH | MYSQL_LOCK_IGNORE_TIMEOUT;
-  Query_tables_list query_tables_list_backup;
-  LEX *lex= thd->lex;
-
-  DBUG_ENTER("open_nontrans_system_tables_for_read");
-
-  /*
-    Besides using new Open_tables_state for opening system tables,
-    we also have to backup and reset/and then restore part of LEX
-    which is accessed by open_tables() in order to determine if
-    prelocking is needed and what tables should be added for it.
-  */
-  lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
-  thd->reset_n_backup_open_tables_state(backup,
-                                        Open_tables_state::SYSTEM_TABLES);
-
-  if (open_tables(thd, &table_list, &counter, flags) ||
-      lock_tables(thd, table_list, counter, flags))
-  {
-    close_thread_tables(thd);
-
-    lex->restore_backup_query_tables_list(&query_tables_list_backup);
-    thd->restore_backup_open_tables_state(backup);
-    DBUG_RETURN(true);
-  }
-
-  for (TABLE_LIST *tables= table_list; tables; tables= tables->next_global)
-  {
-    DBUG_ASSERT(tables->table->s->table_category == TABLE_CATEGORY_SYSTEM);
-
-    /*
-      This function must be used to open non-transactional tables only. That's
-      because on the one hand we don't revert changes to transaction state
-      before closing tables opened by this function, but other hand do release
-      metadata locks on those tables.
-    */
-    if (tables->table->file->has_transactions())
-    {
-      // Crash in the debug build ...
-      DBUG_ASSERT(!"Transactional table");
-
-      // ... or report an error in the release build.
-      my_error(ER_UNKNOWN_ERROR, MYF(0));
-      close_thread_tables(thd);
-      lex->restore_backup_query_tables_list(&query_tables_list_backup);
-      thd->restore_backup_open_tables_state(backup);
-      DBUG_RETURN(true);
-    }
-
-    tables->table->use_all_columns();
-  }
-
-  lex->restore_backup_query_tables_list(&query_tables_list_backup);
-
-  DBUG_RETURN(false);
-}
-
 
 /**
   Open and lock transactional system tables for read.
@@ -9957,33 +9870,6 @@ bool open_trans_system_tables_for_read(THD *thd, TABLE_LIST *table_list)
 
 
 /**
-  Close non-transactional system tables, opened with
-  open_nontrans_system_tables_for_read().
-
-  @param thd        Thread context.
-  @param backup     Pointer to Open_tables_backup instance  which holds
-                    information about tables which were open before we decided
-                    to access non-transactional system tables.
-*/
-
-void
-close_nontrans_system_tables(THD *thd, Open_tables_backup *backup)
-{
-  Query_tables_list query_tables_list_backup;
-
-  /*
-    In order not affect execution of current statement we have to
-    backup/reset/restore Query_tables_list part of LEX, which is
-    accessed and updated in the process of closing tables.
-  */
-  thd->lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
-  close_thread_tables(thd);
-  thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
-  thd->restore_backup_open_tables_state(backup);
-}
-
-
-/**
   Close transactional system tables, opened with
   open_trans_system_tables_for_read().
 
@@ -10028,37 +9914,6 @@ close_mysql_tables(THD *thd)
   thd->mdl_context.release_transactional_locks();
 }
 
-/*
-  Open and lock one system table for update.
-
-  SYNOPSIS
-    open_system_table_for_update()
-      thd        Thread context.
-      one_table  Table to open.
-
-  NOTES
-    Table opened with this call should closed using close_thread_tables().
-
-  RETURN
-    0	Error
-    #	Pointer to TABLE object of system table
-*/
-
-TABLE *
-open_system_table_for_update(THD *thd, TABLE_LIST *one_table)
-{
-  DBUG_ENTER("open_system_table_for_update");
-
-  TABLE *table= open_ltable(thd, one_table, one_table->lock_type,
-                            MYSQL_LOCK_IGNORE_TIMEOUT);
-  if (table)
-  {
-    DBUG_ASSERT(table->s->table_category == TABLE_CATEGORY_SYSTEM);
-    table->use_all_columns();
-  }
-
-  DBUG_RETURN(table);
-}
 
 /**
   Open a log table.
@@ -10110,7 +9965,17 @@ open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup)
 */
 void close_log_table(THD *thd, Open_tables_backup *backup)
 {
-  close_nontrans_system_tables(thd, backup);
+  Query_tables_list query_tables_list_backup;
+
+  /*
+    In order not affect execution of current statement we have to
+    backup/reset/restore Query_tables_list part of LEX, which is
+    accessed and updated in the process of closing tables.
+  */
+  thd->lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
+  close_thread_tables(thd);
+  thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
+  thd->restore_backup_open_tables_state(backup);
 }
 
 /**

@@ -2044,11 +2044,6 @@ Prepared_statement_map::~Prepared_statement_map()
 }
 
 
-void THD::set_status_var_init()
-{
-  memset(&status_var, 0, sizeof(status_var));
-}
-
 void THD::send_kill_message() const
 {
   int err= killed;
@@ -2280,12 +2275,6 @@ void THD::set_sent_row_count(ha_rows count)
 {
   m_sent_row_count= count;
   MYSQL_SET_STATEMENT_ROWS_SENT(m_statement_psi, m_sent_row_count);
-}
-
-void THD::set_examined_row_count(ha_rows count)
-{
-  m_examined_row_count= count;
-  MYSQL_SET_STATEMENT_ROWS_EXAMINED(m_statement_psi, m_examined_row_count);
 }
 
 void THD::inc_sent_row_count(ha_rows count)

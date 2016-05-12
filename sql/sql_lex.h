@@ -1302,15 +1302,6 @@ public:
   */
   void cleanup_all_joins();
 
-  /* 
-   Add a index hint to the tagged list of hints. The type and clause of the
-   hint will be the current ones (set by set_index_hint()) 
-  */
-  bool add_index_hint (THD *thd, char *str, uint length);
-
-  /* make a list to hold index hints */
-  void alloc_index_hints (THD *thd);
-
   /// Return true if this query block is part of a UNION
   bool is_part_of_union() const { return master_unit()->is_union(); }
 

@@ -496,8 +496,7 @@ class Sub_statement_state
 public:
   ulonglong option_bits;
   ulonglong first_successful_insert_id_in_prev_stmt;
-  ulonglong first_successful_insert_id_in_cur_stmt, insert_id_for_cur_row;
-  Discrete_interval auto_inc_interval_for_cur_row;
+  ulonglong first_successful_insert_id_in_cur_stmt;
   Discrete_intervals_list auto_inc_intervals_forced;
   ulonglong current_found_rows;
   ulonglong previous_found_rows;
@@ -505,7 +504,6 @@ public:
   ulong client_capabilities;
   uint in_sub_stmt;
   bool enable_slow_log;
-  bool last_insert_id_used;
   SAVEPOINT *savepoints;
   enum enum_check_fields count_cuted_fields;
 };
@@ -1918,13 +1916,11 @@ public:
   { return m_examined_row_count; }
 
   void set_sent_row_count(ha_rows count);
-  void set_examined_row_count(ha_rows count);
 
   void inc_sent_row_count(ha_rows count);
   void inc_examined_row_count(ha_rows count);
 
   void inc_status_created_tmp_disk_tables();
-  void inc_status_created_tmp_files();
   void inc_status_created_tmp_tables();
   void inc_status_select_full_join();
   void inc_status_select_full_range_join();
@@ -2647,10 +2643,6 @@ public:
   {
     return server_status & SERVER_STATUS_IN_TRANS;
   }
-  inline bool fill_derived_tables()
-  {
-    return !stmt_arena->is_stmt_prepare() && !lex->only_view_structure();
-  }
   inline bool fill_information_schema_tables()
   {
     return !stmt_arena->is_stmt_prepare();
@@ -2666,18 +2658,6 @@ public:
   bool convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
 		      const char *from, size_t from_length,
 		      const CHARSET_INFO *from_cs);
-
-  bool convert_string(LEX_CSTRING *to, const CHARSET_INFO *to_cs,
-		      const char *from, size_t from_length,
-		      const CHARSET_INFO *from_cs)
-  {
-    LEX_STRING tmp;
-    if (convert_string(&tmp, to_cs, from, from_length, from_cs))
-      return true;
-    to->str= tmp.str;
-    to->length= tmp.length;
-    return false;
-  }
 
   bool convert_string(String *s, const CHARSET_INFO *from_cs,
                       const CHARSET_INFO *to_cs);
@@ -2887,7 +2867,6 @@ public:
   void end_statement();
   void send_kill_message() const;
 
-  void set_status_var_init();
   void reset_n_backup_open_tables_state(Open_tables_backup *backup,
                                         uint add_state_flags);
   void restore_backup_open_tables_state(Open_tables_backup *backup);

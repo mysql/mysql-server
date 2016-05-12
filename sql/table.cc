@@ -1720,31 +1720,6 @@ void free_blob_buffers_and_reset(TABLE *table, uint32 size)
 }
 
 
-/*
-  Read string from a file with malloc
-
-  NOTES:
-    We add an \0 at end of the read string to make reading of C strings easier
-*/
-
-int read_string(File file, uchar**to, size_t length)
-{
-  DBUG_ENTER("read_string");
-
-  my_free(*to);
-  if (!(*to= (uchar*) my_malloc(key_memory_frm_string,
-                                length+1,MYF(MY_WME))) ||
-      mysql_file_read(file, *to, length, MYF(MY_NABP)))
-  {
-     my_free(*to);                            /* purecov: inspected */
-    *to= 0;                                   /* purecov: inspected */
-    DBUG_RETURN(1);                           /* purecov: inspected */
-  }
-  *((char*) *to+length)= '\0';
-  DBUG_RETURN (0);
-} /* read_string */
-
-
 	/* error message when opening a table defintion */
 
 static void open_table_error(THD *thd, TABLE_SHARE *share,
@@ -4697,18 +4672,6 @@ bool TABLE::is_field_used_by_generated_columns(uint field_index)
   return false;
 }
 
-
-bool TABLE::has_virtual_gcol() const
-{
-  if (vfield == NULL)
-    return false;
-  for (Field **gc= vfield; *gc; gc++)
-  {
-    if (!(*gc)->stored_in_db)
-      return true;
-  }
-  return false;
-}
 
 /**
   Cleanup this table for re-execution.

@@ -416,7 +416,6 @@ extern PSI_thread_key key_thread_handle_manager;
 extern PSI_thread_key key_thread_one_connection;
 extern PSI_thread_key key_thread_compress_gtid_table;
 extern PSI_thread_key key_thread_parser_service;
-extern PSI_thread_key key_thread_background;
 
 extern PSI_file_key key_file_binlog;
 extern PSI_file_key key_file_binlog_index;

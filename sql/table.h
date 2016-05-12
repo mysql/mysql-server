@@ -696,7 +696,6 @@ struct TABLE_SHARE
   uint column_bitmap_size;
   uint vfields;                         /* Number of generated fields */
   bool system;                          /* Set if system table (one record) */
-  bool crypted;                         /* If .frm file is crypted */
   bool db_low_byte_first;		/* Portable row format */
   bool crashed;
   bool is_view;
@@ -841,12 +840,6 @@ struct TABLE_SHARE
   {
     memcpy(key_buff, key, key_length);
     set_table_cache_key(key_buff, key_length);
-  }
-
-  bool honor_global_locks() const
-  {
-    return ((table_category == TABLE_CATEGORY_USER)
-            || (table_category == TABLE_CATEGORY_SYSTEM));
   }
 
   ulonglong get_table_def_version() const
@@ -1128,7 +1121,6 @@ public:
   ORDER		*group;
   const char	*alias;            	  /* alias or table name */
   uchar		*null_flags;
-  my_bitmap_map	*bitmap_init_value;
   MY_BITMAP     def_read_set, def_write_set, tmp_set; /* containers */
   /*
     Bitmap of fields that one or more query condition refers to. Only
@@ -1263,12 +1255,10 @@ public:
      access.
   */
   my_bool no_keyread;
-  my_bool locked_by_logger;
   /**
     If set, indicate that the table is not replicated by the server.
   */
   my_bool no_replicate;
-  my_bool locked_by_name;
   my_bool fulltext_searched;
   my_bool no_cache;
   /* To signal that the table is associated with a HANDLER statement */
@@ -1279,7 +1269,6 @@ public:
     Used only in the MODE_NO_AUTO_VALUE_ON_ZERO mode.
   */
   my_bool auto_increment_field_not_null;
-  my_bool insert_or_update;             /* Can be used by the handler */
   my_bool alias_name_used;		/* true if table_name is alias */
   my_bool get_fields_in_item_tree;      /* Signal to fix_field */
   /**
@@ -1452,9 +1441,6 @@ public:
 
   /// @return true if table contains one or more generated columns
   bool has_gcol() const { return vfield; }
-
-  /// @return true if table contains one or more virtual generated columns
-  bool has_virtual_gcol() const;
 
   /// Set current row as "null row", for use in null-complemented outer join
   void set_null_row()
@@ -2480,7 +2466,6 @@ public:
   LEX_CSTRING   view_name;              ///< saved view name
   LEX_STRING    timestamp;              ///< GMT time stamp of last operation
   st_lex_user   definer;                ///< definer of view
-  ulonglong     file_version;           ///< version of file's field set
   /**
     @note: This field is currently not reliable when read from dictionary:
     If an underlying view is changed, updatable_view is not changed,
@@ -2982,7 +2967,6 @@ char *get_field(MEM_ROOT *mem, Field *field);
 bool get_field(MEM_ROOT *mem, Field *field, class String *res);
 
 int closefrm(TABLE *table, bool free_share);
-int read_string(File file, uchar* *to, size_t length);
 void free_blobs(TABLE *table);
 void free_blob_buffers_and_reset(TABLE *table, uint32 size);
 int set_zone(int nr,int min_zone,int max_zone);

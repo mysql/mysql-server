@@ -4260,8 +4260,6 @@ protected:
 class DsMrr_impl
 {
 public:
-  typedef void (handler::*range_check_toggle_func_t)(bool on);
-
   DsMrr_impl(handler *owner) : h(owner), table(NULL), h2(NULL) {}
 
   ~DsMrr_impl()
