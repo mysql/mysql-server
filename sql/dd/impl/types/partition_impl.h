@@ -195,6 +195,11 @@ public:
   virtual const Partition_indexes &indexes() const
   { return m_indexes; }
 
+  virtual const Partition *parent() const
+  { return m_parent; }
+  virtual void set_parent(const Partition *parent)
+  { m_parent= parent; }
+
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()
   { return Weak_object_impl::impl(); }
@@ -237,6 +242,8 @@ private:
 
   Table_impl *m_table;
 
+  const Partition *m_parent;
+
   Partition_values m_values;
   Partition_indexes m_indexes;
 
@@ -258,6 +265,17 @@ public:
 };
 
 ///////////////////////////////////////////////////////////////////////////
+
+/** Used to compare two partition elements. */
+struct Partition_order_comparator
+{
+  bool operator() (const dd::Partition* p1, const dd::Partition* p2) const
+  {
+    if (p1->level() == p2->level())
+      return p1->number() < p2->number();
+    return p1->level() < p2->level();
+  }
+};
 
 }
 

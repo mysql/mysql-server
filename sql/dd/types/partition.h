@@ -138,6 +138,13 @@ public:
 
   virtual const Partition_indexes &indexes() const = 0;
 
+  /////////////////////////////////////////////////////////////////////////
+  // Parent partition for subpartitions (NULL otherwise).
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual const Partition *parent() const = 0;
+  virtual void set_parent(const Partition *parent) = 0;
+
   /**
     Converts *this into json.
 

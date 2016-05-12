@@ -209,6 +209,13 @@ public:
                      Raw_table *table,
                      Object_key *key);
 
+
+  template <typename Parent_item, typename Compare>
+  bool restore_items(Parent_item *parent,
+                     Open_dictionary_tables_ctx *otx,
+                     Raw_table *table,
+                     Object_key *key,
+                     Compare comp);
   /**
     @brief
     store items in collection on to DD table.

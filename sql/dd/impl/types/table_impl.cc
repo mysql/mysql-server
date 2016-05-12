@@ -132,7 +132,7 @@ bool Table_impl::restore_children(Open_dictionary_tables_ctx *otx)
   //   - Partitions should be loaded at the end, as it refers to
   //     indexes.
 
-  return
+  bool ret=
     Abstract_table_impl::restore_children(otx)
     ||
     m_indexes.restore_items(
@@ -151,7 +151,14 @@ bool Table_impl::restore_children(Open_dictionary_tables_ctx *otx)
       this,
       otx,
       otx->get_table<Partition>(),
-      Table_partitions::create_key_by_table_id(this->id()));
+      Table_partitions::create_key_by_table_id(this->id()),
+      // Sort partitions first on level and then on number.
+      Partition_order_comparator());
+
+  if (!ret)
+    fix_partitions();
+
+  return ret;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -368,6 +375,7 @@ Table_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
                    val, "foreign_keys");
   deserialize_each(rctx, [this] () { return add_partition(); }, val,
                    "partitions");
+  fix_partitions();
   read(&m_collation_id, val, "collation_id");
   return deserialize_tablespace_ref(rctx, &m_tablespace_id, val, "tablespace_id");
 }
@@ -501,6 +509,47 @@ Partition *Table_impl::get_partition(Object_id partition_id)
   }
 
   return NULL;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+Partition *Table_impl::get_partition(std::string name)
+{
+  for (Partition *i : m_partitions)
+  {
+    if (i->name() == name)
+      return i;
+  }
+
+  return NULL;
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+void Table_impl::fix_partitions()
+{
+  size_t part_num= 0;
+  size_t subpart_num= 0;
+  size_t subpart_processed= 0;
+
+  Partition_collection::iterator part_it= m_partitions.begin();
+  for (Partition *part : m_partitions)
+  {
+    if (part->level() == 0)
+      ++part_num;
+    else
+    {
+      if (!subpart_num)
+      {
+        // First subpartition.
+        subpart_num= (m_partitions.size() - part_num) / part_num;
+      }
+      part->set_parent(*part_it);
+      ++subpart_processed;
+      if (subpart_processed % subpart_num == 0)
+        ++part_it;
+    }
+  }
 }
 
 ///////////////////////////////////////////////////////////////////////////

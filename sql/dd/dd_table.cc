@@ -1161,21 +1161,52 @@ static bool fill_dd_partition_from_create_info(THD *thd,
         }
 
 
-        /* Set up all subpartitions in this partition. */
-        if (part_info->is_sub_partitioned())
+        if (!part_info->is_sub_partitioned())
         {
-          uint sub_part_num= 0;
+          /*
+            If table is not subpartitioned then Partition_index object is
+            required for each partition, index pair.
+            */
+          for (dd::Index *idx : *tab_obj->indexes())
+            part_obj->add_index(idx);
+        }
+
+        part_num++;
+      }
+
+      /*
+        Set up all subpartitions. Partitions collection in dd::Table
+        must contain all objects for partitions first and only then
+        objects for subpartitions.
+      */
+      if (part_info->is_sub_partitioned())
+      {
+        part_it.rewind();
+        uint sub_part_num= 0;
+        dd::Table::Partition_collection::const_iterator dd_part_it=
+          tab_obj->partitions().begin();
+
+        while ((part_elem= part_it++))
+        {
+          if (part_elem->part_state == PART_TO_BE_DROPPED ||
+              part_elem->part_state == PART_REORGED_DROPPED)
+          {
+            /* These should not be included in the new table definition. */
+            continue;
+          }
+
           List_iterator<partition_element> sub_it(part_elem->subpartitions);
           partition_element *sub_elem;
           while ((sub_elem= sub_it++))
           {
             dd::Partition *sub_obj= tab_obj->add_partition();
             sub_obj->set_level(1);
+            sub_obj->set_parent(*dd_part_it);
             sub_obj->set_engine(tab_obj->engine());
             if (sub_elem->part_comment)
               sub_obj->set_comment(sub_elem->part_comment);
             sub_obj->set_name(sub_elem->partition_name);
-            sub_obj->set_number(sub_part_num + part_num * part_info->num_subparts);
+            sub_obj->set_number(sub_part_num);
             dd::Properties *sub_options= &sub_obj->options();
             set_partition_options(sub_elem, sub_options);
 
@@ -1198,17 +1229,7 @@ static bool fill_dd_partition_from_create_info(THD *thd,
             sub_part_num++;
           }
         }
-        else
-        {
-          /*
-            If table is not subpartitioned then Partition_index object is
-            required for each partition, index pair.
-            */
-          for (dd::Index *idx : *tab_obj->indexes())
-            part_obj->add_index(idx);
-        }
-
-        part_num++;
+        ++dd_part_it;
       }
     }
   }
