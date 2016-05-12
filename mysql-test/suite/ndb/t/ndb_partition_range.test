@@ -327,3 +327,6 @@ select * from t1 where a in (0, 2) order by c;
 --source suite/ndb/include/ndb_scan_counts.inc
 
 drop table t1;
+
+#Check if the logfile group is dropped
+--source ndb_logfile_group_exist_chk.inc
