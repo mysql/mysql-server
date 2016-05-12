@@ -56,6 +56,7 @@ create table t1 (a int not null,
                  c int generated always as (-a) stored);
 insert into t1 (a) values (1), (2), (3), (1), (2), (3);
 create view v1 as select distinct b from t1;
+--sorted_result
 select * from v1;
 --replace_column 10 X
 explain select * from v1;
@@ -122,9 +123,11 @@ create table t1 (a int,
                  primary key(a));
 insert into t1 (a) values (1), (2), (3);
 create view v1 (x,y,z) as select a,b,c from t1 where b < -1;
+--sorted_result
 select t1.a, v1.x, v1.y, v1.z from t1 left join v1 on (t1.b= v1.y);
 drop view v1;
 create view v1 (x,y,z) as select a,b,c from t1 where c < -1;
+--sorted_result
 select t1.a, v1.x, v1.y, v1.z from t1 left join v1 on (t1.c= v1.z);
 drop view v1;
 drop table t1;
