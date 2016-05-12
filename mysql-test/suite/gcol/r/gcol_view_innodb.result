@@ -169,16 +169,16 @@ insert into t1 (a) values (1), (2), (3);
 create view v1 (x,y,z) as select a,b,c from t1 where b < -1;
 select t1.a, v1.x, v1.y, v1.z from t1 left join v1 on (t1.b= v1.y);
 a	x	y	z
+1	NULL	NULL	NULL
 2	2	-2	-2
 3	3	-3	-3
-1	NULL	NULL	NULL
 drop view v1;
 create view v1 (x,y,z) as select a,b,c from t1 where c < -1;
 select t1.a, v1.x, v1.y, v1.z from t1 left join v1 on (t1.c= v1.z);
 a	x	y	z
+1	NULL	NULL	NULL
 2	2	-2	-2
 3	3	-3	-3
-1	NULL	NULL	NULL
 drop view v1;
 drop table t1;
 create table t1 (a1 int,
