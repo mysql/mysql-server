@@ -450,3 +450,17 @@ eval ALTER TABLE $source_db.t1 DROP INDEX index2, algorithm=inplace;
 eval DROP TABLE $source_db.t1;
 eval DROP DATABASE $source_db;
 eval DROP DATABASE $dest_db;
+
+--echo #
+--echo # Bug#22005726 ASSERT COL->ORD_PART IN ROW_BUILD_INDEX_ENTRY_LOW AT
+--echo # ROW0ROW.CC:299
+--echo #
+USE test;
+CREATE TABLE t1 (col1 INT, col2 TEXT) ENGINE = InnoDB;
+INSERT INTO t1 (col1, col2) VALUES (2 , 'A');
+ALTER TABLE t1 ADD KEY idx (col2(10));
+INSERT INTO t1 (col1, col2) VALUES (2 , 'A');
+--error ER_DUP_ENTRY
+ALTER TABLE t1 DROP KEY idx, ADD UNIQUE KEY uidx (col1);
+DELETE FROM t1 WHERE col1 = 2;
+DROP TABLE t1;

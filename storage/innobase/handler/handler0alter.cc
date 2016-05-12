@@ -6419,21 +6419,6 @@ innobase_rollback_sec_index(
 	    && !innobase_fulltext_exist(table)) {
 		fts_free(user_table);
 	}
-
-	/* Reset dict_col_t::ord_part for those columns fail to be indexed,
-	we do this by checking every existing column, if any current
-	index would index them */
-	for (ulint i = 0; i < dict_table_get_n_cols(user_table); i++) {
-		if (!check_col_exists_in_indexes(user_table, i, false)) {
-			user_table->cols[i].ord_part = 0;
-		}
-	}
-
-	for (ulint i = 0; i < dict_table_get_n_v_cols(user_table); i++) {
-		if (!check_col_exists_in_indexes(user_table, i, true)) {
-			user_table->v_cols[i].m_col.ord_part = 0;
-		}
-	}
 }
 
 /** Roll back the changes made during prepare_inplace_alter_table()
@@ -6554,6 +6539,21 @@ func_exit:
 			}
 
 			row_mysql_unlock_data_dictionary(prebuilt->trx);
+		}
+	}
+
+	/* Reset dict_col_t::ord_part for those columns fail to be indexed,
+	we do this by checking every existing column, if any current
+	index would index them */
+	for (ulint i = 0; i < dict_table_get_n_cols(prebuilt->table); i++) {
+		if (!check_col_exists_in_indexes(prebuilt->table, i, false)) {
+			prebuilt->table->cols[i].ord_part = 0;
+		}
+	}
+
+	for (ulint i = 0; i < dict_table_get_n_v_cols(prebuilt->table); i++) {
+		if (!check_col_exists_in_indexes(prebuilt->table, i, true)) {
+			prebuilt->table->v_cols[i].m_col.ord_part = 0;
 		}
 	}
 
