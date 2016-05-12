@@ -1,3 +1,2 @@
 # For more details on tags WL6378_* refer sql/dd/mtr_readme.txt
-pr_statement_performance_analyzer @windows : Bug#22102394 2015-11-27 Anitha Test fails frequently on windows
 v_host_summary                             : Bug#21970078 2016-02-16 Erlend Test fails too often
