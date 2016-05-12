@@ -26,5 +26,5 @@ if ($result)
     INITIAL_SIZE, EXTRA
   ORDER BY LOGFILE_GROUP_NAME;
 
-  die Error: Logfile group exists already, please check. Exiting the test.
+  die Error: Logfile group exists already, please check. Exiting the test;
 }
