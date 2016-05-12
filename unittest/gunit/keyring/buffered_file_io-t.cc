@@ -141,7 +141,7 @@ namespace keyring_buffered_file_io_unittest
     Buffered_file_io *buffered_io_2= new Buffered_file_io(logger);
     buffered_io_2->init(&file_name);
 
-    IKey *empty_key_1;
+    IKey *empty_key_1= NULL;
     retVal= *buffered_io_2 >> &empty_key_1;
     EXPECT_EQ(retVal, 1);
     EXPECT_STREQ("Robert_add_key1Roberts_add_key1_type",
@@ -154,7 +154,7 @@ namespace keyring_buffered_file_io_unittest
     retVal= memcmp(empty_key_1_data, sample_key_data1.c_str(), empty_key_1_data_size);
     EXPECT_EQ(retVal, 0);
 
-    IKey *empty_key_2;
+    IKey *empty_key_2= NULL;
     retVal= *buffered_io_2 >> &empty_key_2;
     EXPECT_EQ(retVal, 1);
     EXPECT_STREQ("Robert_add_key2Roberts_add_key2_type",
