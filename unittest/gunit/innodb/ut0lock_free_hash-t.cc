@@ -74,6 +74,10 @@ unittest/gunit/innodb/CMakeLists.txt */
 #include "ut0dbg.h" /* ut_chrono_t */
 #include "ut0lock_free_hash.h"
 #include "ut0mutex.h" /* SysMutex, mutex_enter() */
+#include <my_thread_local.h> /* Needed to access thread local variables */
+
+/* Key for thread local counter variable for random backoff for spinlocks*/
+extern thread_local_key_t ut_rnd_ulint_counter_key;
 
 extern SysMutex	thread_mutex;
 
@@ -515,6 +519,8 @@ run_multi_threaded(
 
 	ut_hash_interface_t*	hash;
 
+	(void)my_create_thread_local_key(&ut_rnd_ulint_counter_key, NULL);
+
 #if defined(TEST_STD_MAP) || defined(TEST_STD_UNORDERED_MAP)
 	hash = new std_hash_t();
 #elif defined(TEST_TBB)
@@ -556,6 +562,8 @@ run_multi_threaded(
 	delete[] params;
 
 	delete hash;
+	my_delete_thread_local_key(ut_rnd_ulint_counter_key);
+
 }
 
 /** Hammer a common hash with inc(), dec() and set(), 100% writes.
