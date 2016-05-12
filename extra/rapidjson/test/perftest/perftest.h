@@ -1,22 +1,16 @@
-// Copyright (C) 2011 Milo Yip
+// Tencent is pleased to support the open source community by making RapidJSON available.
+// 
+// Copyright (C) 2015 THL A29 Limited, a Tencent company, and Milo Yip. All rights reserved.
 //
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
+// Licensed under the MIT License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
 //
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
+// http://opensource.org/licenses/MIT
 //
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-// THE SOFTWARE.
+// Unless required by applicable law or agreed to in writing, software distributed 
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR 
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the 
+// specific language governing permissions and limitations under the License.
 
 #ifndef PERFTEST_H_
 #define PERFTEST_H_
@@ -35,6 +29,8 @@
 #elif defined(__SSE2__)
 #  define RAPIDJSON_SSE2
 #endif
+
+#define RAPIDJSON_HAS_STDSTRING 1
 
 ////////////////////////////////////////////////////////////////////////////////
 // Google Test
@@ -71,33 +67,87 @@ public:
     PerfTest() : filename_(), json_(), length_(), whitespace_(), whitespace_length_() {}
 
     virtual void SetUp() {
-        FILE *fp = fopen(filename_ = "data/sample.json", "rb");
-        if (!fp) 
-            fp = fopen(filename_ = "../../bin/data/sample.json", "rb");
-        ASSERT_TRUE(fp != 0);
+        {
+            const char *paths[] = {
+                "data/sample.json",
+                "bin/data/sample.json",
+                "../bin/data/sample.json",
+                "../../bin/data/sample.json",
+                "../../../bin/data/sample.json"
+            };
 
-        fseek(fp, 0, SEEK_END);
-        length_ = (size_t)ftell(fp);
-        fseek(fp, 0, SEEK_SET);
-        json_ = (char*)malloc(length_ + 1);
-        ASSERT_EQ(length_, fread(json_, 1, length_, fp));
-        json_[length_] = '\0';
-        fclose(fp);
+            FILE *fp = 0;
+            for (size_t i = 0; i < sizeof(paths) / sizeof(paths[0]); i++) {
+                fp = fopen(filename_ = paths[i], "rb");
+                if (fp)
+                    break;
+            }
+            ASSERT_TRUE(fp != 0);
+
+            fseek(fp, 0, SEEK_END);
+            length_ = (size_t)ftell(fp);
+            fseek(fp, 0, SEEK_SET);
+            json_ = (char*)malloc(length_ + 1);
+            ASSERT_EQ(length_, fread(json_, 1, length_, fp));
+            json_[length_] = '\0';
+            fclose(fp);
+        }
 
         // whitespace test
-        whitespace_length_ = 1024 * 1024;
-        whitespace_ = (char *)malloc(whitespace_length_  + 4);
-        char *p = whitespace_;
-        for (size_t i = 0; i < whitespace_length_; i += 4) {
-            *p++ = ' ';
-            *p++ = '\n';
-            *p++ = '\r';
-            *p++ = '\t';
+        {
+            whitespace_length_ = 1024 * 1024;
+            whitespace_ = (char *)malloc(whitespace_length_  + 4);
+            char *p = whitespace_;
+            for (size_t i = 0; i < whitespace_length_; i += 4) {
+                *p++ = ' ';
+                *p++ = '\n';
+                *p++ = '\r';
+                *p++ = '\t';
+            }
+            *p++ = '[';
+            *p++ = '0';
+            *p++ = ']';
+            *p++ = '\0';
         }
-        *p++ = '[';
-        *p++ = '0';
-        *p++ = ']';
-        *p++ = '\0';
+
+        // types test
+        {
+            const char *typespaths[] = {
+                "data/types",
+                "bin/types",
+                "../bin/types",
+                "../../bin/types/",
+                "../../../bin/types"
+            };
+
+            const char* typesfilenames[] = {
+                "booleans.json",
+                "floats.json",
+                "guids.json",
+                "integers.json",
+                "mixed.json",
+                "nulls.json",
+                "paragraphs.json"
+            };
+
+            for (size_t j = 0; j < sizeof(typesfilenames) / sizeof(typesfilenames[0]); j++) {
+                types_[j] = 0;
+                for (size_t i = 0; i < sizeof(typespaths) / sizeof(typespaths[0]); i++) {
+                    char filename[256];
+                    sprintf(filename, "%s/%s", typespaths[i], typesfilenames[j]);
+                    if (FILE* fp = fopen(filename, "rb")) {
+                        fseek(fp, 0, SEEK_END);
+                        typesLength_[j] = (size_t)ftell(fp);
+                        fseek(fp, 0, SEEK_SET);
+                        types_[j] = (char*)malloc(typesLength_[j] + 1);
+                        ASSERT_EQ(typesLength_[j], fread(types_[j], 1, typesLength_[j], fp));
+                        types_[j][typesLength_[j]] = '\0';
+                        fclose(fp);
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     virtual void TearDown() {
@@ -105,6 +155,10 @@ public:
         free(whitespace_);
         json_ = 0;
         whitespace_ = 0;
+        for (size_t i = 0; i < 7; i++) {
+            free(types_[i]);
+            types_[i] = 0;
+        }
     }
 
 private:
@@ -117,6 +171,8 @@ protected:
     size_t length_;
     char *whitespace_;
     size_t whitespace_length_;
+    char *types_[7];
+    size_t typesLength_[7];
 
     static const size_t kTrialCount = 1000;
 };

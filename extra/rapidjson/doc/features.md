@@ -15,7 +15,7 @@
 * High performance
  * Use template and inline functions to reduce function call overheads.
  * Internal optimized Grisu2 and floating point parsing implementations.
- * Optional SSE2/SSE4.1 support.
+ * Optional SSE2/SSE4.2 support.
 
 ## Standard compliance
 
@@ -23,6 +23,8 @@
 * Support Unicode surrogate.
 * Support null character (`"\u0000"`)
  * For example, `["Hello\u0000World"]` can be parsed and handled gracefully. There is API for getting/setting lengths of string.
+* Support optional relaxed syntax.
+ * Single line (`// ...`) and multiple line (`/* ... */`) comments.
 
 ## Unicode
 

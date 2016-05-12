@@ -1059,7 +1059,7 @@ send Mysqlx.Crud.Update {
   }
 }
 
-Got expected error: Invalid JSON text in argument 2 to function json_merge: "Missing a comma or '}' after an object member." at position 19. (code 3141)
+Got expected error: Invalid JSON text in argument 2 to function json_merge: "Missing a comma or '}' after an object member." at position 18. (code 3141)
 ================================================================================
 CLEAN UP
 ================================================================================
