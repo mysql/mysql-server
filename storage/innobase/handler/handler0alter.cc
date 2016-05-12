@@ -7537,8 +7537,8 @@ commit_try_rebuild(
 		/* Normally, n_ref_count must be 1, because purge
 		cannot be executing on this very table as we are
 		holding dict_operation_lock X-latch. */
-
-		error = DB_LOCK_WAIT_TIMEOUT;
+		my_error(ER_TABLE_REFERENCED,MYF(0));
+		DBUG_RETURN(true);
 	}
 
 	switch (error) {
@@ -8580,6 +8580,14 @@ foreign_fail:
 	}
 
 	if (ctx0->num_to_drop_vcol || ctx0->num_to_add_vcol) {
+
+		if (ctx0->old_table->get_ref_count() > 1) {
+
+			row_mysql_unlock_data_dictionary(trx);
+			trx_free_for_mysql(trx);
+			my_error(ER_TABLE_REFERENCED,MYF(0));
+			DBUG_RETURN(true);
+		}
 
 		trx_commit_for_mysql(m_prebuilt->trx);
 

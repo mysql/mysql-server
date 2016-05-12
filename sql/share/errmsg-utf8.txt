@@ -7662,6 +7662,8 @@ ER_GROUP_REPLICATION_MAX_GROUP_SIZE
 ER_CANNOT_ADD_FOREIGN_BASE_COL_STORED
   eng "Cannot add foreign key on the base column of stored column. "
 
+ER_TABLE_REFERENCED
+  eng "Cannot complete the operation becasue table is referenced by another connection. "
 
 #
 #  End of 5.7 error messages.
