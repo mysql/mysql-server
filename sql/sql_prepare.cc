@@ -1205,6 +1205,9 @@ bool Sql_cmd_insert::mysql_test_insert(THD *thd, TABLE_LIST *table_list)
     Note that this is done without locks (should not be needed as we will not
     access any data here)
   */
+  DBUG_EXECUTE_IF("mysql_test_insert__out_of_memory",
+                  DBUG_SET("+d,simulate_out_of_memory"););
+
   if (open_tables_for_query(thd, table_list, MYSQL_OPEN_FORCE_SHARED_MDL))
     goto error;
 

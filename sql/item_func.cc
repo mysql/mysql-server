@@ -7168,7 +7168,7 @@ get_var_with_binlog(THD *thd, enum_sql_command sql_command,
                                                                        new Item_null(),
                                                                        false)));
     /* Create the variable */
-    if (sql_set_variables(thd, &tmp_var_list))
+    if (sql_set_variables(thd, &tmp_var_list, false))
     {
       thd->lex= sav_lex;
       goto err;

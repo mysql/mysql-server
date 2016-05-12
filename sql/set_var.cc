@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "log.h"                 // sql_print_warning
 #include "mysqld.h"              // system_charset_info
 #include "sql_class.h"           // THD
+#include "sql_base.h"            // lock_tables
 #include "sql_parse.h"           // is_supported_parser_charset
 #include "sql_select.h"          // free_underlaid_joins
 #include "sql_show.h"            // append_identifier
@@ -636,6 +637,8 @@ sys_var *intern_find_sys_var(const char *str, size_t length)
 
   @param thd            Thread id
   @param var_list       List of variables to update
+  @param opened         True means tables are open and this function will lock
+                        them.
 
   @retval
     0   ok
@@ -645,23 +648,41 @@ sys_var *intern_find_sys_var(const char *str, size_t length)
     -1  ERROR, message not sent
 */
 
-int sql_set_variables(THD *thd, List<set_var_base> *var_list)
+int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened)
 {
   int error;
   List_iterator_fast<set_var_base> it(*var_list);
   DBUG_ENTER("sql_set_variables");
 
+  LEX *lex= thd->lex;
   set_var_base *var;
+  while ((var= it++))
+  {
+    if ((error= var->resolve(thd)))
+      goto err;
+  }
+  if ((error= thd->is_error()))
+    goto err;
+
+  if (opened && lock_tables(thd, lex->query_tables, lex->table_count, 0))
+  {
+    error= 1;
+    goto err;
+  }
+  it.rewind();
   while ((var=it++))
   {
     if ((error= var->check(thd)))
       goto err;
   }
-  if (!(error= MY_TEST(thd->is_error())))
+  if ((error= thd->is_error()))
+    goto err;
+
+  it.rewind();
+  while ((var= it++))
   {
-    it.rewind();
-    while ((var= it++))
-      error|= var->update(thd);         // Returns 0, -1 or 1
+    if ((error= var->update(thd)))         // Returns 0, -1 or 1
+      goto err;
   }
 
 err:
@@ -704,7 +725,7 @@ set_var::set_var(enum_var_type type_arg, sys_var *var_arg,
 }
 
 /**
-  Verify that the supplied value is correct.
+  Resolve the variable assignment
 
   @param thd Thread handler
 
@@ -713,9 +734,9 @@ set_var::set_var(enum_var_type type_arg, sys_var *var_arg,
    @retval 0 Success
  */
 
-int set_var::check(THD *thd)
+int set_var::resolve(THD *thd)
 {
-  DBUG_ENTER("set_var::check");
+  DBUG_ENTER("set_var::resolve");
   var->do_deprecated_warning(thd);
   if (var->is_readonly())
   {
@@ -737,6 +758,29 @@ int set_var::check(THD *thd)
   if ((!value->fixed &&
        value->fix_fields(thd, &value)) || value->check_cols(1))
     DBUG_RETURN(-1);
+
+  DBUG_RETURN(0);
+}
+
+
+/**
+  Verify that the supplied value is correct.
+
+  @param thd Thread handler
+
+  @return status code
+   @retval -1 Failure
+   @retval 0 Success
+*/
+
+int set_var::check(THD *thd)
+{
+  DBUG_ENTER("set_var::check");
+
+  /* value is a NULL pointer if we are using SET ... = DEFAULT */
+  if (!value)
+    DBUG_RETURN(0);
+
   if (var->check_update_type(value->result_type()))
   {
     my_error(ER_WRONG_TYPE_FOR_VAR, MYF(0), var->name.str);
@@ -831,14 +875,22 @@ void set_var::print(THD *thd, String *str)
   Functions to handle SET @user_variable=const_expr
 *****************************************************************************/
 
+int set_var_user::resolve(THD *thd)
+{
+  /*
+    Item_func_set_user_var can't substitute something else on its place =>
+    0 can be passed as last argument (reference on item)
+  */
+  return user_var_item->fix_fields(thd, NULL) ? -1 : 0;
+}
+
 int set_var_user::check(THD *thd)
 {
   /*
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)
   */
-  return (user_var_item->fix_fields(thd, (Item**) 0) ||
-          user_var_item->check(0)) ? -1 : 0;
+  return user_var_item->check(0) ? -1 : 0;
 }
 
 
