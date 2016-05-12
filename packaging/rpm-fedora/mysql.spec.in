@@ -134,6 +134,7 @@ Obsoletes:      mysql-bench
 Obsoletes:      mariadb-bench
 Obsoletes:      mariadb-server
 Obsoletes:      mariadb-galera-server
+Obsoletes:      mariadb-server-galera
 Obsoletes:      community-mysql-server < %{version}-%{release}
 Obsoletes:      mysql-server < %{version}-%{release}
 Provides:       mysql-server = %{version}-%{release}
