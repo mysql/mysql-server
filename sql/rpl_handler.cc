@@ -371,6 +371,11 @@ Trans_delegate::prepare_table_info(THD* thd,
   {
     Trans_table_info table_info = {0,0,0};
 
+    if (open_tables->no_replicate)
+    {
+      continue;
+    }
+
     table_info.table_name= open_tables->s->table_name.str;
 
     uint primary_keys= 0;
