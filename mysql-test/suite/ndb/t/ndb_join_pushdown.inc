@@ -4383,7 +4383,7 @@ insert into t1 values (4, 4, 'row# 999');
 # range optimizer on 64 bit but not on 32 bit, thus cauing different result.
 # Fix by setting a fairly low value in order to get consistent behaviour
 set @save_range_opt_max = @@session.range_optimizer_max_mem_size;
-set range_optimizer_max_mem_size = 512*1024;
+set range_optimizer_max_mem_size = 512*512;
 
 # Build SPJ query with 2000 IN values
 # This used to result in buffer overflow, but will now
