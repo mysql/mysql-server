@@ -384,3 +384,4 @@ perl;
   print "Occurances : $count_error\n";
   close(FILE);
 EOF
+--remove_file $out_file
