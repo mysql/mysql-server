@@ -395,6 +395,7 @@ mkdir debug
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
+		   -DMYSQL_MAINTAINER_MODE=0 \
            -DTMPDIR=/var/tmp \
            -DWITH_BOOST=.. \
            -DWITH_MECAB=system \
