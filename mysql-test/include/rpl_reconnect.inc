@@ -12,7 +12,6 @@
 # ==== Usage ====
 #
 # --let $rpl_server_number= N
-# [--let $rpl_extra_connections_per_server= 1]
 # [--let $rpl_debug= 1]
 # --source include/rpl_reconnect.inc
 #
@@ -22,7 +21,7 @@
 #     master server, 2 the slave server, 3 the 3rd server, and so on.
 #     Cf. include/rpl_init.inc
 #
-#   $rpl_extra_connections_per_server, $rpl_debug
+#   $rpl_debug
 #     See include/rpl_init.inc
 
 --let $include_filename= rpl_reconnect.inc
@@ -31,11 +30,6 @@
 if (!$rpl_server_number)
 {
   --die ERROR IN TEST: you must set $rpl_server_number before you source rpl_connect.inc
-}
-
-if ($_rpl_extra_connections_per_server == '')
-{
-  --let $_rpl_extra_connections_per_server= 1
 }
 
 
@@ -78,14 +72,10 @@ if (!$_rpl_server_number)
 --source include/rpl_connection.inc
 --enable_reconnect
 
---let $_rpl_connection_number= 1
-while ($_rpl_connection_number <= $_rpl_extra_connections_per_server)
-{
-  --let $rpl_connection_name= server_$rpl_server_number$underscore$_rpl_connection_number
-  --source include/rpl_connection.inc
-  --enable_reconnect
-  --inc $_rpl_connection_number
-}
+--let $_rpl_one= _1
+--let $rpl_connection_name= server_$rpl_server_number$_rpl_one
+--source include/rpl_connection.inc
+--enable_reconnect
 
 if ($rpl_debug)
 {
@@ -132,15 +122,10 @@ if (!$_rpl_server_number)
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
---let $_rpl_connection_number= 1
-while ($_rpl_connection_number <= $_rpl_extra_connections_per_server)
-{
-  --let $rpl_connection_name= server_$rpl_server_number$underscore$_rpl_connection_number
-  --source include/rpl_connection.inc
-  --source include/wait_until_connected_again.inc
-  --disable_reconnect
-  --inc $_rpl_connection_number
-}
+--let $rpl_connection_name= server_$rpl_server_number$_rpl_one
+--source include/rpl_connection.inc
+--source include/wait_until_connected_again.inc
+--disable_reconnect
 
 
 --let $include_filename= rpl_reconnect.inc

@@ -37,7 +37,6 @@
 #include "log_event.h"          // Query_log_event
 #include "rpl_filter.h"
 #include "rpl_rli.h"
-#include "rpl_mi.h"
 #include "sql_audit.h"
 
 #include "sql_show.h"
@@ -4378,22 +4377,13 @@ end:
 }
 
 
-#ifdef HAVE_REPLICATION
-bool MYSQL_BIN_LOG::append(Log_event* ev,  Master_info *mi)
+bool MYSQL_BIN_LOG::append(Log_event* ev)
 {
   bool error = 0;
-  mysql_mutex_assert_owner(&mi->data_lock);
   mysql_mutex_lock(&LOCK_log);
   DBUG_ENTER("MYSQL_BIN_LOG::append");
 
   DBUG_ASSERT(log_file.type == SEQ_READ_APPEND);
-  /*
-    Release data_lock by holding LOCK_log, while writing into the relay log.
-    If slave IO thread waits here for free space, we don't want
-    SHOW SLAVE STATUS to hang on mi->data_lock. Note LOCK_log mutex is
-    sufficient to block SQL thread when IO thread is updating relay log here.
-  */
-  mysql_mutex_unlock(&mi->data_lock);
   /*
     Log_event::write() is smart enough to use my_b_write() or
     my_b_append() depending on the kind of cache we have.
@@ -4408,58 +4398,24 @@ bool MYSQL_BIN_LOG::append(Log_event* ev,  Master_info *mi)
   if (flush_and_sync(0))
     goto err;
   if ((uint) my_b_append_tell(&log_file) > max_size)
-  {
-    /*
-      If rotation is required we must acquire data_lock to protect
-      description_event from clients executing FLUSH LOGS in parallel.
-      In order do that we must release the existing LOCK_log so that we
-      get it once again in proper locking order to avoid dead locks.
-      i.e data_lock , LOCK_log.
-    */
-    mysql_mutex_unlock(&LOCK_log);
-    mysql_mutex_lock(&mi->data_lock);
-    mysql_mutex_lock(&LOCK_log);
     error= new_file_without_locking();
-    /*
-      After rotation release data_lock, we need the LOCK_log till we signal
-      the updation.
-    */
-    mysql_mutex_unlock(&mi->data_lock);
-  }
 err:
-  signal_update();				// Safe as we don't call close
   mysql_mutex_unlock(&LOCK_log);
-  mysql_mutex_lock(&mi->data_lock);
+  signal_update();				// Safe as we don't call close
   DBUG_RETURN(error);
 }
 
 
-bool MYSQL_BIN_LOG::appendv(Master_info* mi, const char* buf, uint len,...)
+bool MYSQL_BIN_LOG::appendv(const char* buf, uint len,...)
 {
   bool error= 0;
   DBUG_ENTER("MYSQL_BIN_LOG::appendv");
   va_list(args);
   va_start(args,len);
 
-  mysql_mutex_assert_owner(&mi->data_lock);
-  mysql_mutex_lock(&LOCK_log);
   DBUG_ASSERT(log_file.type == SEQ_READ_APPEND);
 
-  /*
-    Release data_lock by holding LOCK_log, while writing into the relay log.
-    If slave IO thread waits here for free space, we don't want
-    SHOW SLAVE STATUS to hang on mi->data_lock. Note LOCK_log mutex is
-    sufficient to block SQL thread when IO thread is updating relay log here.
-  */
-  mysql_mutex_unlock(&mi->data_lock);
-  DBUG_EXECUTE_IF("simulate_io_thd_wait_for_disk_space",
-                  {
-                  const char act[]= "disk_full_reached SIGNAL parked";
-                  DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                  DBUG_ASSERT(!debug_sync_set_action(current_thd,
-                                                     STRING_WITH_LEN(act)));
-                  };);
-
+  mysql_mutex_assert_owner(&LOCK_log);
   do
   {
     if (my_b_append(&log_file,(uchar*) buf,len))
@@ -4472,34 +4428,13 @@ bool MYSQL_BIN_LOG::appendv(Master_info* mi, const char* buf, uint len,...)
   DBUG_PRINT("info",("max_size: %lu",max_size));
   if (flush_and_sync(0))
     goto err;
-  if ((uint) my_b_append_tell(&log_file) >
-      DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size))
-  {
-    /*
-      If rotation is required we must acquire data_lock to protect
-      description_event from clients executing FLUSH LOGS in parallel.
-      In order do that we must release the existing LOCK_log so that we
-      get it once again in proper locking order to avoid dead locks.
-      i.e data_lock , LOCK_log.
-    */
-    mysql_mutex_unlock(&LOCK_log);
-    mysql_mutex_lock(&mi->data_lock);
-    mysql_mutex_lock(&LOCK_log);
+  if ((uint) my_b_append_tell(&log_file) > max_size)
     error= new_file_without_locking();
-    /*
-      After rotation release data_lock, we need the LOCK_log till we signal
-      the updation.
-    */
-    mysql_mutex_unlock(&mi->data_lock);
-  }
 err:
   if (!error)
     signal_update();
-  mysql_mutex_unlock(&LOCK_log);
-  mysql_mutex_lock(&mi->data_lock);
   DBUG_RETURN(error);
 }
-#endif
 
 bool MYSQL_BIN_LOG::flush_and_sync(bool *synced)
 {
