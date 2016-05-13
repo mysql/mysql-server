@@ -7249,6 +7249,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
      direct master (an unsupported, useless setup!).
   */
 
+  mysql_mutex_lock(log_lock);
   s_id= uint4korr(buf + SERVER_ID_OFFSET);
 
   /*
@@ -7289,7 +7290,6 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       IGNORE_SERVER_IDS it increments mi->get_master_log_pos()
       as well as rli->group_relay_log_pos.
     */
-    mysql_mutex_lock(log_lock);
     if (!(s_id == ::server_id && !mi->rli->replicate_same_server_id) ||
         (event_type != FORMAT_DESCRIPTION_EVENT &&
          event_type != ROTATE_EVENT &&
@@ -7301,7 +7301,6 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       rli->ign_master_log_pos_end= mi->get_master_log_pos();
     }
     rli->relay_log.signal_update(); // the slave SQL thread needs to re-check
-    mysql_mutex_unlock(log_lock);
     DBUG_PRINT("info", ("master_log_pos: %lu, event originating from %u server, ignored",
                         (ulong) mi->get_master_log_pos(), uint4korr(buf + SERVER_ID_OFFSET)));
   }
@@ -7330,7 +7329,10 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
         rli->set_last_retrieved_gtid(gtid);
       global_sid_lock->unlock();
       if (ret != 0)
+      {
+        mysql_mutex_unlock(log_lock);
         goto err;
+      }
     }
     /* write the event to the relay log */
     if (!DBUG_EVALUATE_IF("simulate_append_buffer_error", 1, 0) &&
@@ -7349,6 +7351,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
         if (retrieved_set->_remove_gtid(gtid) != RETURN_STATUS_OK)
         {
           global_sid_lock->unlock();
+          mysql_mutex_unlock(log_lock);
           goto err;
         }
         if (!old_retrieved_gtid.empty())
@@ -7357,12 +7360,11 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       }
       error= ER_SLAVE_RELAY_LOG_WRITE_FAILURE;
     }
-    mysql_mutex_lock(log_lock);
     rli->ign_master_log_name_end[0]= 0; // last event is not ignored
-    mysql_mutex_unlock(log_lock);
     if (save_buf != NULL)
       buf= save_buf;
   }
+  mysql_mutex_unlock(log_lock);
 
 skip_relay_logging:
   
