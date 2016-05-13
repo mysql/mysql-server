@@ -20,7 +20,6 @@
 #include "handler.h"                            /* my_xid */
 
 class Relay_log_info;
-class Master_info;
 
 class Format_description_log_event;
 
@@ -455,8 +454,8 @@ public:
     v stands for vector
     invoked as appendv(buf1,len1,buf2,len2,...,bufn,lenn,0)
   */
-  bool appendv(Master_info* mi, const char* buf,uint len,...);
-  bool append(Log_event* ev, Master_info* mi);
+  bool appendv(const char* buf,uint len,...);
+  bool append(Log_event* ev);
 
   void make_log_name(char* buf, const char* log_ident);
   bool is_active(const char* log_file_name);
