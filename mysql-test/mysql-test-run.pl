@@ -5234,6 +5234,7 @@ sub start_check_warnings ($$) {
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
   mtr_add_arg($args, "--test-file=%s", "include/check-warnings.test");
+  mtr_add_arg($args, "--logdir=%s/tmp", $opt_vardir);
 
   if ( $opt_embedded_server )
   {
