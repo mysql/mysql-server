@@ -243,7 +243,6 @@ my_bool Buffered_file_io::operator<<(const IKey* key)
 
 my_bool Buffered_file_io::operator>>(IKey **key)
 {
-  DBUG_ASSERT(*key == NULL);
   *key= NULL;
 
   boost::movelib::unique_ptr<Key> key_ptr(new Key());

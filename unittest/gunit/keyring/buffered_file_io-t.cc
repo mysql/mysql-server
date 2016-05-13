@@ -97,7 +97,7 @@ namespace keyring_buffered_file_io_unittest
 
     Buffered_file_io *buffered_io_2= new Buffered_file_io(logger);
     buffered_io_2->init(&file_name);
-    IKey *empty_key;
+    IKey *empty_key= NULL;
     retVal= *buffered_io_2 >> &empty_key;
     EXPECT_EQ(retVal, 1);
     EXPECT_STREQ("Robert_add_keyRoberts_add_key_type",
