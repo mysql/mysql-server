@@ -909,7 +909,6 @@ struct InsertContext : public BtrContext
 {
 	/** Constructor
 	@param[in]	btr_ctx		b-tree context for lob operation.
-	@param[in]	op		the blob operation code
 	@param[in]	big_rec_vec	array of blobs */
 	InsertContext(
 		const BtrContext&	btr_ctx,
@@ -1417,7 +1416,8 @@ struct ReadContext
 					the clustered index record, including
 					the blob reference.
 	@param[out]	buf		the output buffer.
-	@param[in]	len		the output buffer length. */
+	@param[in]	len		the output buffer length.
+	@param[in]	is_sdi		true for SDI Indexes. */
 	ReadContext(
 		const page_size_t&	page_size,
 		const byte*		data,

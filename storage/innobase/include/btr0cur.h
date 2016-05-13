@@ -658,34 +658,6 @@ btr_estimate_number_of_different_key_vals(
 /*======================================*/
 	dict_index_t*	index);	/*!< in: index */
 
-/*******************************************************************//**
-Frees the space in an externally stored field to the file space
-management if the field in data is owned the externally stored field,
-in a rollback we may have the additional condition that the field must
-not be inherited. */
-void
-btr_free_externally_stored_field(
-/*=============================*/
-	dict_index_t*	index,		/*!< in: index of the data, the index
-					tree MUST be X-latched; if the tree
-					height is 1, then also the root page
-					must be X-latched! (this is relevant
-					in the case this function is called
-					from purge where 'data' is located on
-					an undo log page, not an index
-					page) */
-	byte*		field_ref,	/*!< in/out: field reference */
-	const rec_t*	rec,		/*!< in: record containing field_ref, for
-					page_zip_write_blob_ptr(), or NULL */
-	const ulint*	offsets,	/*!< in: rec_get_offsets(rec, index),
-					or NULL */
-	page_zip_des_t*	page_zip,	/*!< in: compressed page corresponding
-					to rec, or NULL if rec == NULL */
-	ulint		i,		/*!< in: field number of field_ref;
-					ignored if rec == NULL */
-	bool		rollback,	/*!< in: performing rollback? */
-	mtr_t*		local_mtr);	/*!< in: mtr containing the latch */
-
 /** Copies an externally stored field of a record to mem heap.
 @param[in]	rec		record in a clustered index; must be
 				protected by a lock or a page latch
