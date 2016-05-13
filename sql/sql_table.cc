@@ -2805,10 +2805,12 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       DBUG_ASSERT(tmp_non_trans_tables.size() == 0);
       gtid_group_single_table_group= true;
     }
-    else if (tmp_trans_tables.size())
+    else if (tmp_trans_tables.size() ||
+             (drop_temporary && !tmp_non_trans_tables.size() &&
+              nonexistent_tables.size()))
     {
       /*
-        Normal case. Some temporary transactional tables (and possibly
+        Normal case. Some temporary transactional tables (and/or possibly
         some non-existent temporary tables) to be logged as one multi-table
         DROP TEMPORARY TABLES statement.
         Other groups are empty.
@@ -11262,27 +11264,6 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
     /* Mark that we have created table in storage engine. */
     no_ha_table= false;
-
-    // Retain stickiness if non-tmp table.
-    if (!table->s->tmp_table)
-    {
-      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-      const dd::Table *src= nullptr;
-      const dd::Table *dst= nullptr;
-      if (thd->dd_client()->acquire(alter_ctx.db, alter_ctx.table_name, &src) ||
-          thd->dd_client()->acquire(alter_ctx.new_db, alter_ctx.tmp_name, &dst))
-      {
-        DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
-        goto err_new_table_cleanup;
-      }
-
-      // Tables must be present in cache.
-      DBUG_ASSERT(src != nullptr && dst != nullptr);
-
-      // Set stickiness as appropriate.
-      if (thd->dd_client()->is_sticky(src))
-        thd->dd_client()->set_sticky(dst, true);
-    }
 
     if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     {
