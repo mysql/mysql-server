@@ -17,7 +17,6 @@
 #include "mysys_err.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
-#include "m_string.h"
 
 const char *globerrs[GLOBERRS]=
 {
@@ -68,7 +67,6 @@ const char *globerrs[GLOBERRS]=
 */
 void wait_for_free_space(const char *filename, int errors)
 {
-  size_t time_to_sleep= MY_WAIT_FOR_USER_TO_FIX_PANIC;
   if (!(errors % MY_WAIT_GIVE_USER_A_MESSAGE))
   {
     char errbuf[MYSYS_STRERROR_SIZE];
@@ -82,15 +80,10 @@ void wait_for_free_space(const char *filename, int errors)
   }
   DBUG_EXECUTE_IF("simulate_no_free_space_error",
                  {
-                   time_to_sleep= 1;
+                   (void) sleep(1);
+                   return;
                  });
-  DBUG_EXECUTE_IF("simulate_io_thd_wait_for_disk_space",
-                 {
-                   time_to_sleep= 1;
-                 });
-
-  (void) sleep(time_to_sleep);
-  DEBUG_SYNC_C("disk_full_reached");
+  (void) sleep(MY_WAIT_FOR_USER_TO_FIX_PANIC);
 }
 
 const char *get_global_errmsg(int nr)
