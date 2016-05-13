@@ -18073,6 +18073,7 @@ int ndbcluster_alter_tablespace(handlerton *hton,
     errmsg= "LOGFILE GROUP";
     if (dict->createLogfileGroup(ndb_lg, &objid))
     {
+      sql_print_error("Create logfile group failed %d\n", (dict->getNdbError()).code);
       goto ndberror;
     }
     table_id = objid.getObjectId();
