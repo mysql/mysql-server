@@ -15,7 +15,7 @@
 
 #include "mysys_priv.h"
 #include "mysys_err.h"
-#include "m_string.h"
+
 #ifndef SHARED_LIBRARY
 
 const char *globerrs[GLOBERRS]=
@@ -109,7 +109,6 @@ void init_glob_errs()
 */
 void wait_for_free_space(const char *filename, int errors)
 {
-  size_t time_to_sleep= MY_WAIT_FOR_USER_TO_FIX_PANIC;
   if (!(errors % MY_WAIT_GIVE_USER_A_MESSAGE))
   {
     my_printf_warning(EE(EE_DISK_FULL),
@@ -120,15 +119,10 @@ void wait_for_free_space(const char *filename, int errors)
   }
   DBUG_EXECUTE_IF("simulate_no_free_space_error",
                  {
-                   time_to_sleep= 1;
+                   (void) sleep(1);
+                   return;
                  });
-  DBUG_EXECUTE_IF("simulate_io_thd_wait_for_disk_space",
-                 {
-                   time_to_sleep= 1;
-                 });
-
-  (void) sleep(time_to_sleep);
-  DEBUG_SYNC_C("disk_full_reached");
+  (void) sleep(MY_WAIT_FOR_USER_TO_FIX_PANIC);
 }
 
 const char **get_global_errmsgs()

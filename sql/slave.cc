@@ -1660,7 +1660,7 @@ Waiting for the slave SQL thread to free enough relay log space");
 #endif
     if (rli->sql_force_rotate_relay)
     {
-      rotate_relay_log(rli->mi, true/*need_data_lock=true*/);
+      rotate_relay_log(rli->mi);
       rli->sql_force_rotate_relay= false;
     }
 
@@ -1705,7 +1705,7 @@ static void write_ignored_events_info_to_relay_log(THD *thd, Master_info *mi)
     if (likely((bool)ev))
     {
       ev->server_id= 0; // don't be ignored by slave SQL thread
-      if (unlikely(rli->relay_log.append(ev, mi)))
+      if (unlikely(rli->relay_log.append(ev)))
         mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
                    ER(ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
                    "failed to write a Rotate event"
@@ -3605,7 +3605,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
           break;
         Execute_load_log_event xev(thd,0,0);
         xev.log_pos = cev->log_pos;
-        if (unlikely(mi->rli.relay_log.append(&xev, mi)))
+        if (unlikely(mi->rli.relay_log.append(&xev)))
         {
           mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
                      ER(ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
@@ -3619,7 +3619,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
       {
         cev->block = net->read_pos;
         cev->block_len = num_bytes;
-        if (unlikely(mi->rli.relay_log.append(cev, mi)))
+        if (unlikely(mi->rli.relay_log.append(cev)))
         {
           mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
                      ER(ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
@@ -3634,7 +3634,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
         aev.block = net->read_pos;
         aev.block_len = num_bytes;
         aev.log_pos = cev->log_pos;
-        if (unlikely(mi->rli.relay_log.append(&aev, mi)))
+        if (unlikely(mi->rli.relay_log.append(&aev)))
         {
           mi->report(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_WRITE_FAILURE,
                      ER(ER_SLAVE_RELAY_LOG_WRITE_FAILURE),
@@ -3713,7 +3713,7 @@ static int process_io_rotate(Master_info *mi, Rotate_log_event *rev)
     Rotate the relay log makes binlog format detection easier (at next slave
     start or mysqlbinlog)
   */
-  DBUG_RETURN(rotate_relay_log(mi, false/*need_data_lock=false*/));
+  DBUG_RETURN(rotate_relay_log(mi) /* will take the right mutexes */);
 }
 
 /*
@@ -3819,7 +3819,7 @@ static int queue_binlog_ver_1_event(Master_info *mi, const char *buf,
       Log_event::Log_event(const char* buf...) in log_event.cc).
       */
       ev->log_pos+= event_len; /* make log_pos be the pos of the end of the event */
-    if (unlikely(rli->relay_log.append(ev, mi)))
+    if (unlikely(rli->relay_log.append(ev)))
     {
       delete ev;
       mysql_mutex_unlock(&mi->data_lock);
@@ -3875,7 +3875,7 @@ static int queue_binlog_ver_3_event(Master_info *mi, const char *buf,
     inc_pos= event_len;
     break;
   }
-  if (unlikely(rli->relay_log.append(ev, mi)))
+  if (unlikely(rli->relay_log.append(ev)))
   {
     delete ev;
     mysql_mutex_unlock(&mi->data_lock);
@@ -4083,6 +4083,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
      direct master (an unsupported, useless setup!).
   */
 
+  mysql_mutex_lock(log_lock);
   s_id= uint4korr(buf + SERVER_ID_OFFSET);
   if ((s_id == ::server_id && !mi->rli.replicate_same_server_id) ||
       /*
@@ -4115,7 +4116,6 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       IGNORE_SERVER_IDS it increments mi->master_log_pos
       as well as rli->group_relay_log_pos.
     */
-    mysql_mutex_lock(log_lock);
     if (!(s_id == ::server_id && !mi->rli.replicate_same_server_id) ||
         (buf[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT &&
          buf[EVENT_TYPE_OFFSET] != ROTATE_EVENT &&
@@ -4127,14 +4127,13 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       rli->ign_master_log_pos_end= mi->master_log_pos;
     }
     rli->relay_log.signal_update(); // the slave SQL thread needs to re-check
-    mysql_mutex_unlock(log_lock);
     DBUG_PRINT("info", ("master_log_pos: %lu, event originating from %u server, ignored",
                         (ulong) mi->master_log_pos, uint4korr(buf + SERVER_ID_OFFSET)));
   }
   else
   {
     /* write the event to the relay log */
-    if (likely(!(rli->relay_log.appendv(mi, buf,event_len,0))))
+    if (likely(!(rli->relay_log.appendv(buf,event_len,0))))
     {
       mi->master_log_pos+= inc_pos;
       DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
@@ -4144,10 +4143,9 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     {
       error= ER_SLAVE_RELAY_LOG_WRITE_FAILURE;
     }
-    mysql_mutex_lock(log_lock);
     rli->ign_master_log_name_end[0]= 0; // last event is not ignored
-    mysql_mutex_unlock(log_lock);
   }
+  mysql_mutex_unlock(log_lock);
 
 skip_relay_logging:
   
@@ -5007,21 +5005,11 @@ err:
   locks; here we don't, so this function is mainly taking locks).
   Returns nothing as we cannot catch any error (MYSQL_BIN_LOG::new_file()
   is void).
-
-  @param mi Master_info for the IO thread.
-  @param need_data_lock If true, mi->data_lock will be acquired otherwise,
-  mi->data_lock must be held by the caller.
 */
 
-int rotate_relay_log(Master_info* mi, bool need_data_lock)
+int rotate_relay_log(Master_info* mi)
 {
   DBUG_ENTER("rotate_relay_log");
-  if (need_data_lock)
-    mysql_mutex_lock(&mi->data_lock);
-  else
-  {
-    mysql_mutex_assert_owner(&mi->data_lock);
-  }
   Relay_log_info* rli= &mi->rli;
   int error= 0;
 
@@ -5056,8 +5044,6 @@ int rotate_relay_log(Master_info* mi, bool need_data_lock)
   */
   rli->relay_log.harvest_bytes_written(&rli->log_space_total);
 end:
-  if (need_data_lock)
-    mysql_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(error);
 }
 
