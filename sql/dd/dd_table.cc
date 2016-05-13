@@ -1183,8 +1183,6 @@ static bool fill_dd_partition_from_create_info(THD *thd,
       {
         part_it.rewind();
         uint sub_part_num= 0;
-        dd::Table::Partition_collection::const_iterator dd_part_it=
-          tab_obj->partitions().begin();
 
         while ((part_elem= part_it++))
         {
@@ -1201,7 +1199,6 @@ static bool fill_dd_partition_from_create_info(THD *thd,
           {
             dd::Partition *sub_obj= tab_obj->add_partition();
             sub_obj->set_level(1);
-            sub_obj->set_parent(*dd_part_it);
             sub_obj->set_engine(tab_obj->engine());
             if (sub_elem->part_comment)
               sub_obj->set_comment(sub_elem->part_comment);
@@ -1229,7 +1226,8 @@ static bool fill_dd_partition_from_create_info(THD *thd,
             sub_part_num++;
           }
         }
-        ++dd_part_it;
+        // Properly set-up links to parent partitions for subpartitions.
+        tab_obj->fix_partitions();
       }
     }
   }

@@ -207,6 +207,8 @@ public:
 
   virtual const Partition_collection &partitions() const = 0;
 
+  virtual void fix_partitions() = 0;
+
   /**
     Allocate a new object graph and invoke the copy contructor for
     each object.

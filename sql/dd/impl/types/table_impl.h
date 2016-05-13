@@ -251,6 +251,10 @@ public:
 
   Partition *get_partition(std::string name);
 
+  /** Find and set parent partitions for subpartitions. */
+  virtual void fix_partitions();
+
+
   // Fix "inherits ... via dominance" warnings
   virtual Weak_object_impl *impl()
   { return Weak_object_impl::impl(); }
@@ -298,10 +302,6 @@ public:
   { return Abstract_table_impl::get_column(name); }
   virtual bool update_aux_key(aux_key_type *key) const
   { return Table::update_aux_key(key); }
-
-private:
-  /** Find and set parent partitions for subpartitions. */
-  void fix_partitions();
 
 private:
   // Fields.
