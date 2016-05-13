@@ -1423,7 +1423,11 @@ struct ReadContext
 		const byte*		data,
 		ulint			prefix_len,
 		byte*			buf,
-		ulint			len)
+		ulint			len
+#ifdef UNIV_DEBUG
+		, bool		is_sdi
+#endif /* UNIV_DEBUG */
+		)
 	:
 	m_page_size(page_size),
 	m_data(data),
@@ -1433,7 +1437,7 @@ struct ReadContext
 	m_buf(buf),
 	m_len(len)
 #ifdef UNIV_DEBUG
-	, m_is_sdi(false)
+	, m_is_sdi(is_sdi)
 #endif /* UNIV_DEBUG */
 	{
 		read_blobref();
@@ -1495,15 +1499,8 @@ struct ReadContext
 		return(m_is_sdi);
 	}
 
-	/** Set whether it is an SDI or not.
-	@param[in]	sdi	 true if SDI, false otherwise. */
-	void set_sdi(bool sdi)
-	{
-		m_is_sdi = sdi;
-	}
-
 	/** Is it a tablespace dictionary index (SDI)? */
-	bool	m_is_sdi;
+	const bool	m_is_sdi;
 #endif /* UNIV_DEBUG */
 };
 

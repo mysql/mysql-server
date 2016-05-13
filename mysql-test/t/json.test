@@ -6356,6 +6356,13 @@ SELECT 1 FROM t WHERE 1 <>
 );
 DROP TABLE t;
 
+--echo #
+--echo # Bug#23209914: ASSERTION FAILED: THIS_TYPE != ENUM_JSON_TYPE::J_ERROR
+--echo #
+CREATE PROCEDURE p(a JSON) SELECT 1 WHERE a = 1;
+CALL p(NULL);
+DROP PROCEDURE p;
+
 
 # Local Variables:
 # mode: sql

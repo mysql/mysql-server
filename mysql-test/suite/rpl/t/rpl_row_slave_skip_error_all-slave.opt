@@ -1,0 +1,1 @@
+--slave-skip-errors=all --log_warnings=2

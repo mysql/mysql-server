@@ -1111,7 +1111,11 @@ public:
   /**
     Create an empty wrapper. Cf #empty().
   */
-  Json_wrapper() : m_dom_value(nullptr), m_dom_alias(true), m_is_dom(true) {}
+  Json_wrapper() : m_dom_value(nullptr), m_is_dom(true)
+  {
+    // Workaround for Solaris Studio, initialize in CTOR body.
+    m_dom_alias= true;
+  }
 
   using Sql_alloc::operator new;
   using Sql_alloc::operator delete;

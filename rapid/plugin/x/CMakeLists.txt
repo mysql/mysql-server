@@ -120,8 +120,19 @@ ELSE()
     ADD_COMPILE_FLAGS(${PROTO_SRCS} ${PROTO_LITE_SRCS} COMPILE_FLAGS "/wd4018")
   ENDIF(MSVC)
 
+  # boost::shared_ptr depends on scoped_lock
+  # Prevent missing symbols scoped_lock() CTOR/DTOR in mysqlx.so
+  #   boost::atomics::detail::lockpool::scoped_lock::~scoped_lock()
+  UNSET(BOOST_LIB_SOURCES)
+  IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
+    SET(BOOST_LIB_SOURCES
+      ${BOOST_SOURCES_DIR}/libs/atomic/src/lockpool.cpp)
+  ENDIF()
+
   # Built *without* -DMYSQL_DYNAMIC_PLUGIN
-  ADD_CONVENIENCE_LIBRARY(xplugin ${xplugin_SRC} ${xplugin_HDRS} ${xplugin_PROTOBUF_SRC})
+  ADD_CONVENIENCE_LIBRARY(xplugin
+    ${xplugin_SRC} ${xplugin_HDRS} ${xplugin_PROTOBUF_SRC} ${BOOST_LIB_SOURCES})
+
   ADD_COMPILE_FLAGS(
     src/xpl_plugin.cc
     src/xpl_performance_schema.cc
@@ -215,4 +226,19 @@ ELSE()
     ADD_DEFINITIONS(-DMYSQLXTEST_EXPORTS)
   ENDIF()
 
+  IF(INSTALL_MYSQLTESTDIR)
+    INSTALL(
+      FILES tests/mtr/plugin.defs
+      DESTINATION "${INSTALL_MYSQLTESTDIR}/suite/x"
+      COMPONENT Test
+    )
+    INSTALL(
+      DIRECTORY tests/mtr/t tests/mtr/r tests/mtr/include
+      DESTINATION "${INSTALL_MYSQLTESTDIR}/suite/x"
+      USE_SOURCE_PERMISSIONS
+      COMPONENT Test
+      PATTERN "collections" EXCLUDE
+    )
+  ENDIF()
 ENDIF()
+

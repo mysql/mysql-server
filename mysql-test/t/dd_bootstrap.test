@@ -302,7 +302,7 @@ EOF
 --mkdir $DDIR
 
 --echo # 8.1 Restart the server against existing but empty DDIR - should fail.
---error 1
+--error 3
 --exec $MYSQLD $extra_args --datadir=$DDIR
 
 --echo # 8.2 Look for error.
@@ -310,8 +310,8 @@ perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
-  my $c_e= grep(/.ERROR. System schema directory/gi,<FILE>);
-  print "#     Datadir error found $c_e times.\n";
+  my $c_e= grep(/\[ERROR\] InnoDB: File .*ibdata1: 'open' returned OS error \d+/gi,<FILE>);
+  print "#     InnoDB file open error found $c_e times.\n";
   close(FILE);
 EOF
 
@@ -331,7 +331,7 @@ EOF
 --mkdir $DDIR/mysql
 
 --echo # 9.1 Restart the server against existing but empty mysql dir - should fail.
---error 1
+--error 3
 --exec $MYSQLD $extra_args --datadir=$DDIR
 
 --echo # 9.2 Look for error.
@@ -339,8 +339,8 @@ perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
-  my $c_e= grep(/.ERROR. Data Dictionary initialization failed./gi,<FILE>);
-  print "#     Data Dictionary initialization error found $c_e times.\n";
+  my $c_e= grep(/\[ERROR\] InnoDB: File .*ibdata1: 'open' returned OS error \d+/gi,<FILE>);
+  print "#     InnoDB file open error found $c_e times.\n";
   close(FILE);
 EOF
 

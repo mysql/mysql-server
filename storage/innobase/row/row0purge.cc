@@ -796,8 +796,6 @@ skip_secondaries:
 			ut_a(dfield_get_len(&ufield->new_val)
 			     >= BTR_EXTERN_FIELD_REF_SIZE);
 
-			const page_size_t	ext_page_size(
-				dict_table_page_size(index->table));
 			byte* field_ref = data_field
 				+ dfield_get_len(&ufield->new_val)
 				- BTR_EXTERN_FIELD_REF_SIZE;

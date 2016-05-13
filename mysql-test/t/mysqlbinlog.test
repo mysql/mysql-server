@@ -359,7 +359,7 @@ FLUSH LOGS;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval SELECT
 (@a:=LOAD_FILE("$binlog_file"))
-IS NOT NULL;
+IS NOT NULL AS Loaded;
 let $s_id_unsigned= `SELECT @a LIKE "%server id $s_id_max%" /* must return 1 */`;
 echo *** Unsigned server_id $s_id_max is found: $s_id_unsigned ***;
 

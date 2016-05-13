@@ -1,0 +1,67 @@
+## generated
+## Doc: Delete multiple documents by id
+
+--source ../include/xplugin_preamble.inc
+## Test starts here
+--write_file $MYSQL_TMP_DIR/delete_del_multi_by_id.tmp
+## Test data
+-->sql
+drop schema if exists xtest;
+create schema xtest;
+use xtest;
+create table mycoll (doc JSON, _id VARCHAR(32) NOT NULL PRIMARY KEY);
+insert into mycoll (doc, _id) values ('{"_id": "1", "name": "Joe1"}', json_unquote(json_extract(doc, '$._id')));
+insert into mycoll (doc, _id) values ('{"_id": "2", "name": "Joe2", "last_name": "Smith"}', json_unquote(json_extract(doc, '$._id')));
+insert into mycoll (doc, _id) values ('{"_id": "3", "name": "Joe2", "last_name": "Shmo"}', json_unquote(json_extract(doc, '$._id')));
+select * from mycoll;
+-->endsql
+Mysqlx.Crud.Delete {
+  collection {
+    name: "mycoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "in"
+      param {
+        type: IDENT identifier { name: "_id" }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"1"}
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_OCTETS
+          v_octets {value:"3"}
+        }
+      }
+    }
+  }
+}
+
+## expect Mysqlx.Sql.StmtExecuteOk
+-->recvresult
+
+-->sql
+select * from xtest.mycoll;
+-->endsql
+
+
+## Cleanup
+-->sql
+drop schema if exists xtest;
+-->endsql
+EOF
+
+--exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/delete_del_multi_by_id.tmp 2>&1
+--remove_file $MYSQL_TMP_DIR/delete_del_multi_by_id.tmp
+
+## Postamble
+uninstall plugin mysqlx;

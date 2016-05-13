@@ -2003,6 +2003,7 @@ convert_error_code_to_mysql(
 		return(HA_ERR_ROW_IS_REFERENCED);
 
 	case DB_NO_FK_ON_V_BASE_COL:
+	case DB_NO_FK_ON_S_BASE_COL:
 	case DB_CANNOT_ADD_CONSTRAINT:
 	case DB_CHILD_NO_INDEX:
 	case DB_PARENT_NO_INDEX:
@@ -4250,7 +4251,6 @@ innobase_init_files(
 	case DICT_INIT_CHECK_FILES:
 		create_new_db = false;
 		break;
-	case DICT_INIT_CREATE_MISSING_FILES:
 	case DICT_INIT_IGNORE_FILES:
 		/* Unused modes. */
 		create_new_db = false;
@@ -10114,6 +10114,48 @@ innodb_base_col_setup(
 	}
 }
 
+/** Set up base columns for stored column
+@param[in]	table	InnoDB table
+@param[in]	field	MySQL field
+@param[in,out] s_col	stored column */
+void
+innodb_base_col_setup_for_stored(
+	const dict_table_t*	table,
+	const Field*		field,
+	dict_s_col_t*		s_col)
+{
+	ulint	n = 0;
+
+	for (uint i= 0; i < field->table->s->fields; ++i) {
+		const Field* base_field = field->table->field[i];
+
+		if (!innobase_is_s_fld(base_field)
+		    && !innobase_is_v_fld(base_field)
+		    && bitmap_is_set(&field->gcol_info->base_columns_map,
+				     i)) {
+			ulint	z;
+			for (z = 0; z < table->n_cols; z++) {
+				const char* name = dict_table_get_col_name(
+							table, z);
+				if (!innobase_strcasecmp(
+					name, base_field->field_name)) {
+					break;
+				}
+			}
+
+			ut_ad(z != table->n_cols);
+
+			s_col->base_col[n] = dict_table_get_nth_col(table, z);
+			n++;
+
+			if (n == s_col->num_base) {
+				break;
+			}
+		}
+	}
+}
+
+
 /** Create a table definition to an InnoDB database.
 @return ER_* level error */
 inline MY_ATTRIBUTE((warn_unused_result))
@@ -10235,6 +10277,7 @@ create_table_info_t::create_table_def()
 
 	for (i = 0; i < n_cols; i++) {
 		ulint	is_virtual;
+		bool	is_stored = false;
 
 		Field*	field = m_form->field[i];
 
@@ -10328,6 +10371,7 @@ create_table_info_t::create_table_def()
 		}
 
 		is_virtual = (innobase_is_v_fld(field)) ? DATA_VIRTUAL : 0;
+		is_stored = innobase_is_s_fld(field);
 
 		/* First check whether the column to be added has a
 		system reserved name. */
@@ -10364,6 +10408,14 @@ err_col:
 				col_len, i,
 				field->gcol_info->non_virtual_base_columns());
 		}
+
+		if (is_stored) {
+			ut_ad(!is_virtual);
+			/* Added stored column in m_s_cols list. */
+			dict_mem_table_add_s_col(
+				table,
+				field->gcol_info->non_virtual_base_columns());
+		}
 	}
 
 	if (num_v) {
@@ -10381,6 +10433,31 @@ err_col:
 			j++;
 
 			innodb_base_col_setup(table, field, v_col);
+		}
+	}
+
+	/** Fill base columns for the stored column present in the list. */
+	if (table->s_cols && table->s_cols->size()) {
+
+		for (i = 0; i < n_cols; i++) {
+			Field*	field = m_form->field[i];
+
+			if (!innobase_is_s_fld(field)) {
+				continue;
+			}
+
+			dict_s_col_list::iterator	it;
+			for (it = table->s_cols->begin();
+			     it != table->s_cols->end(); ++it) {
+				dict_s_col_t	s_col = *it;
+
+				if (s_col.s_pos == i) {
+					innodb_base_col_setup_for_stored(
+						table, field, &s_col);
+					break;
+				}
+			}
+
 		}
 	}
 
@@ -12446,6 +12523,16 @@ create_table_info_t::create_table()
 				" on columns being part of virtual index.\n",
 				m_table_name);
 			break;
+		case DB_NO_FK_ON_S_BASE_COL:
+			push_warning_printf(
+				m_thd, Sql_condition::SL_WARNING,
+				HA_ERR_CANNOT_ADD_FOREIGN,
+				"Create table '%s' with foreign key constraint"
+				" failed. Cannot add foreign key constraint"
+				" placed on the base column of stored"
+				" column.\n",
+				m_table_name);
+			break;
 		default:
 			break;
 		}
@@ -12576,7 +12663,7 @@ ha_innobase::get_se_private_data(
 #ifdef UNIV_DEBUG
 	{
 		/* These tables must not be partitioned. */
-		DBUG_ASSERT(dd_table->partitions().is_empty());
+		DBUG_ASSERT(dd_table->partitions().empty());
 	}
 
 	const innodb_dd_table_t&	data = innodb_dd_table[n_tables];

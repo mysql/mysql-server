@@ -51,7 +51,8 @@
 #include <algorithm>
 
 const char CMD_ARG_SEPARATOR = '\t';
-const char * const mysqlxtest_version = "1.0";
+const char * const MYSQLXTEST_VERSION = "1.0";
+const unsigned short MYSQLX_PORT = 33060;
 #include <mysql/service_my_snprintf.h>
 #include <mysql.h>
 
@@ -96,7 +97,7 @@ static std::list<Stack_frame> script_stack;
 static std::map<std::string, std::string> variables;
 static std::list<std::string> variables_to_unreplace;
 
-void replace_all(std::string &input, const std::string &to_find, const std::string &change_to)
+static void replace_all(std::string &input, const std::string &to_find, const std::string &change_to)
 {
   size_t position = input.find(to_find);
 
@@ -107,7 +108,7 @@ void replace_all(std::string &input, const std::string &to_find, const std::stri
   }
 }
 
-void replace_variables(std::string &s)
+static void replace_variables(std::string &s)
 {
   for (std::map<std::string, std::string>::const_iterator sub = variables.begin();
       sub != variables.end(); ++sub)
@@ -122,7 +123,7 @@ void replace_variables(std::string &s)
   }
 }
 
-std::string unreplace_variables(const std::string &in, bool clear)
+static std::string unreplace_variables(const std::string &in, bool clear)
 {
   std::string s = in;
   for (std::list<std::string>::const_iterator sub = variables_to_unreplace.begin();
@@ -274,7 +275,7 @@ class Connection_manager
 {
 public:
   Connection_manager(const std::string &uri, const mysqlx::Ssl_config &ssl_config_, const std::size_t timeout_, const bool _dont_wait_for_disconnect)
-  : ssl_config(ssl_config_), timeout(timeout_), dont_wait_for_disconnect(_dont_wait_for_disconnect)
+  : port(MYSQLX_PORT), ssl_config(ssl_config_), timeout(timeout_), dont_wait_for_disconnect(_dont_wait_for_disconnect)
   {
     int pwdfound;
     mysqlx::parse_mysql_connstring(uri, proto, user, pass, host, port, sock, db, pwdfound);
@@ -1768,10 +1769,13 @@ private:
       return Stop_with_failure;
     }
 
-    std::ifstream file(argl[1].c_str());
+    std::string path_to_file = argl[1];
+    replace_variables(path_to_file);
+
+    std::ifstream file(path_to_file.c_str());
     if (!file.is_open())
     {
-      std::cerr << "Coult not open file " << argl[1]<<"\n";
+      std::cerr << "Couldn't not open file " << path_to_file <<"\n";
       return Stop_with_failure;
     }
 
@@ -2639,7 +2643,7 @@ public:
 
   void print_version()
   {
-    printf("%s  Ver %s Distrib %s, for %s (%s)\n", my_progname, mysqlxtest_version,
+    printf("%s  Ver %s Distrib %s, for %s (%s)\n", my_progname, MYSQLXTEST_VERSION,
         MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
   }
 
@@ -2658,6 +2662,7 @@ public:
     std::cout << "--close-no-sync       Do not wait for connection to be closed by server(disconnect first)\n";
     std::cout << "--schema=<schema>     Default schema to connect to\n";
     std::cout << "--uri=<uri>           Connection URI\n";
+    std::cout << "                      URI takes precedence before options like: user, host, password, port\n";
     std::cout << "--ssl-key             X509 key in PEM format\n";
     std::cout << "--ssl-ca              CA file in PEM format\n";
     std::cout << "--ssl-ca_path         CA directory\n";
@@ -2824,6 +2829,8 @@ public:
         host = value;
       else if (check_arg_with_value(argv, i, "--user", "-u", value))
         user = value;
+      else if (check_arg_with_value(argv, i, "--uri", NULL, value))
+        uri = value;
       else if (check_arg_with_value(argv, i, "--schema", NULL, value))
         schema = value;
       else if (check_arg_with_value(argv, i, "--port", "-P", value))
@@ -2876,7 +2883,7 @@ public:
     }
 
     if (port == 0)
-      port = 33060;
+      port = MYSQLX_PORT;
     if (host.empty())
       host = "localhost";
 
@@ -2917,7 +2924,7 @@ public:
   }
 };
 
-std::vector<Block_processor_ptr> create_macro_block_processors(Connection_manager *cm)
+static std::vector<Block_processor_ptr> create_macro_block_processors(Connection_manager *cm)
 {
   std::vector<Block_processor_ptr> result;
 
@@ -2929,7 +2936,7 @@ std::vector<Block_processor_ptr> create_macro_block_processors(Connection_manage
   return result;
 }
 
-std::vector<Block_processor_ptr> create_block_processors(Connection_manager *cm)
+static std::vector<Block_processor_ptr> create_block_processors(Connection_manager *cm)
 {
   std::vector<Block_processor_ptr> result;
 
@@ -3061,14 +3068,14 @@ static std::istream &get_input(My_command_line_options &opt, std::ifstream &file
 }
 
 
-inline void unable_daemonize()
+static void unable_daemonize()
 {
   std::cerr << "ERROR: Unable to put process in background\n";
   exit(2);
 }
 
 
-void daemonize()
+static void daemonize()
 {
 #ifdef WIN32
   unable_daemonize();

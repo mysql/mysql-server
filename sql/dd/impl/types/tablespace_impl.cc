@@ -100,7 +100,7 @@ bool Tablespace_impl::set_se_private_data_raw(
 
 bool Tablespace_impl::validate() const
 {
-  if (m_files.is_empty())
+  if (m_files.empty())
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),

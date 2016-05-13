@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -394,6 +394,13 @@ inline int my_decimal2lldiv_t(uint mask, const my_decimal *d, lldiv_t *to)
   return d->check_result(mask, decimal2lldiv_t(d, to));
 }
 
+
+inline int string2decimal(const char *from,
+                          decimal_t *to,
+                          char **end)
+{
+  return internal_str2dec(from, to, end, FALSE);
+}
 
 inline int str2my_decimal(uint mask, const char *str,
                           my_decimal *d, char **end)

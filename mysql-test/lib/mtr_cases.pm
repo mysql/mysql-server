@@ -295,6 +295,8 @@ sub collect_one_suite($)
 			      # Look in plugin specific suite dir
 			      "plugin/$suite/tests",
 			      "internal/plugin/$suite/tests",
+			      "rapid/plugin/$suite/tests",
+			      "rapid/mysql-test/suite",
 			     ],
 			     [$suite, "mtr"], ($suite =~ /^i_/));
       return unless $suitedir;
@@ -621,15 +623,16 @@ sub optimize_cases {
       # Get binlog-format used by this test from master_opt
       my $test_binlog_format;
       foreach my $opt ( @{$tinfo->{master_opt}} ) {
+       (my $dash_opt = $opt) =~ s/_/-/g;
 	$test_binlog_format=
-	  mtr_match_prefix($opt, "--binlog-format=") || $test_binlog_format;
+	  mtr_match_prefix($dash_opt, "--binlog-format=") || $test_binlog_format;
       }
 
       if (defined $test_binlog_format and
 	  defined $tinfo->{binlog_formats} )
       {
 	my $supported=
-	  grep { $_ eq $test_binlog_format } @{$tinfo->{'binlog_formats'}};
+	  grep { My::Options::option_equals($_,$test_binlog_format) } @{$tinfo->{'binlog_formats'}};
 	if ( !$supported )
 	{
 	  $tinfo->{'skip'}= 1;
@@ -647,10 +650,11 @@ sub optimize_cases {
     my %builtin_engines = ('myisam' => 1, 'memory' => 1, 'csv' => 1);
 
     foreach my $opt ( @{$tinfo->{master_opt}} ) {
+     (my $dash_opt = $opt) =~ s/_/-/g;
       my $default_engine=
-	mtr_match_prefix($opt, "--default-storage-engine=");
+	mtr_match_prefix($dash_opt, "--default-storage-engine=");
       my $default_tmp_engine=
-	mtr_match_prefix($opt, "--default-tmp-storage-engine=");
+	mtr_match_prefix($dash_opt, "--default-tmp-storage-engine=");
 
       # Allow use of uppercase, convert to all lower case
       $default_engine =~ tr/A-Z/a-z/;
@@ -902,15 +906,6 @@ sub collect_one_test_case {
 
   #-----------------------------------------------------------------------
   # Check for test specific config file
-  #-----------------------------------------------------------------------
-  my $test_cnf_file= "$testdir/$tname.cnf";
-  if ( -f $test_cnf_file) {
-    # Specifies the configuration file to use for this test
-    $tinfo->{'template_path'}= $test_cnf_file;
-  }
-
-  # ----------------------------------------------------------------------
-  # Check for test specific config file
   # ----------------------------------------------------------------------
   my $test_cnf_file= "$testdir/$tname.cnf";
   if ( -f $test_cnf_file ) {
@@ -1036,7 +1031,7 @@ sub collect_one_test_case {
   }
   if ( $tinfo->{'need_binlog'} )
   {
-    if (grep(/^--skip-log-bin/,  @::opt_extra_mysqld_opt) )
+    if (grep(/^--skip[-_]log[-_]bin/,  @::opt_extra_mysqld_opt) )
     {
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "Test needs binlog";
@@ -1115,6 +1110,9 @@ sub collect_one_test_case {
       # Suite has no config, autodetect which one to use
       if ( $tinfo->{rpl_test} ){
 	$config= "suite/rpl/my.cnf";
+      if ( $tinfo->{rpl_gtid_test} ){
+        $config= "suite/rpl_gtid/my.cnf";
+      }
 	if ( $tinfo->{ndb_test} ){
 	  $config= "suite/rpl_ndb/my.cnf";
 	}
@@ -1181,7 +1179,10 @@ my @tags=
  ["include/rpl_ip_mix2.inc", "rpl_test", 1],
  ["include/rpl_ipv6.inc", "rpl_test", 1],
 
- ["include/ndb_master-slave.inc", "ndb_test", 1],
+#  The tests with below .inc file are considered to be rpl_gtid tests.
+ ["include/have_gtid.inc", "rpl_gtid_test", 1],
+
+["include/ndb_master-slave.inc", "ndb_test", 1],
  ["federated.inc", "federated_test", 1],
  ["include/not_embedded.inc", "not_embedded", 1],
  ["include/have_ssl.inc", "need_ssl", 1],

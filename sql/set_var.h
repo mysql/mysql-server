@@ -233,12 +233,21 @@ class set_var_base :public Sql_alloc
 public:
   set_var_base() {}
   virtual ~set_var_base() {}
-  virtual int check(THD *thd)=0;           /* To check privileges etc. */
-  virtual int update(THD *thd)=0;                  /* To set the value */
-  virtual int light_check(THD *thd) { return check(thd); }   /* for PS */
-  virtual void print(THD *thd, String *str)=0;	/* To self-print */
-  /// @returns whether this variable is @@@@optimizer_trace.
+  virtual int resolve(THD *thd)=0;         ///< Check privileges & fix_fields
+  virtual int check(THD *thd)=0;           ///< Evaluate the expression
+  virtual int update(THD *thd)=0;          ///< Set the value
+  virtual void print(THD *thd, String *str)=0;	///< To self-print
+
+  /**
+    @returns whether this variable is @@@@optimizer_trace.
+  */
   virtual bool is_var_optimizer_trace() const { return false; }
+
+  /**
+    Used only by prepared statements to resolve and check. No locking of tables
+    between the two phases.
+  */
+  virtual int light_check(THD *thd) { return (resolve(thd) || check(thd)); }
 };
 
 
@@ -265,6 +274,7 @@ public:
   set_var(enum_var_type type_arg, sys_var *var_arg,
           const LEX_STRING *base_name_arg, Item *value_arg);
 
+  int resolve(THD *thd);
   int check(THD *thd);
   int update(THD *thd);
   int light_check(THD *thd);
@@ -287,6 +297,7 @@ public:
   set_var_user(Item_func_set_user_var *item)
     :user_var_item(item)
   {}
+  int resolve(THD *thd);
   int check(THD *thd);
   int update(THD *thd);
   int light_check(THD *thd);
@@ -303,6 +314,7 @@ public:
   set_var_password(st_lex_user *user_arg,char *password_arg)
     :user(user_arg), password(password_arg)
   {}
+  int resolve(THD *thd) { return 0; }
   int check(THD *thd);
   int update(THD *thd);
   void print(THD *thd, String *str);	/* To self-print */
@@ -328,6 +340,7 @@ public:
      character_set_results(result_coll_arg),
      collation_connection(connection_coll_arg)
   {}
+  int resolve(THD *thd) { return 0; }
   int check(THD *thd);
   int update(THD *thd);
   void print(THD *thd, String *str);	/* To self-print */
@@ -358,7 +371,7 @@ void unlock_plugin_mutex();
 sys_var *find_sys_var(THD *thd, const char *str, size_t length=0);
 sys_var *find_sys_var_ex(THD *thd, const char *str, size_t length=0,
                          bool throw_error= false, bool locked= false);
-int sql_set_variables(THD *thd, List<set_var_base> *var_list);
+int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened);
 
 bool fix_delay_key_write(sys_var *self, THD *thd, enum_var_type type);
 

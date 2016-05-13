@@ -94,8 +94,8 @@ struct Callback_data
 
   int server_status;
   uint warn_count;
-  ulonglong affected_rows;
-  ulonglong last_insert_id;
+  uint affected_rows;
+  uint last_insert_id;
   std::string message;
 
   int shutdown;

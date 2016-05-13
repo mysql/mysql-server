@@ -1431,7 +1431,10 @@ srv_mon_set_module_control(
 				module */
 				set_current_module = FALSE;
 			} else if (module_id == MONITOR_ALL_COUNTER) {
-				continue;
+				if (!(innodb_counter_info[ix].monitor_type
+				      & MONITOR_GROUP_MODULE)) {
+					continue;
+				}
 			} else {
 				/* Hitting the next module, stop */
 				break;

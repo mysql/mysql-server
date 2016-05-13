@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,6 +35,9 @@
 #define READ_BOOTSTRAP_EOF         1
 #define READ_BOOTSTRAP_ERROR       2
 #define READ_BOOTSTRAP_QUERY_SIZE  3
+
+#define QUERY_SOURCE_FILE     0
+#define QUERY_SOURCE_COMPILED 1
 
 typedef struct st_mysql_file *fgets_input_t;
 typedef char * (*fgets_fn_t)(char *, size_t, fgets_input_t, int *error);

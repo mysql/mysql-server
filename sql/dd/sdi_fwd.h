@@ -58,10 +58,7 @@ class GenericDocument;
 template <typename, typename>
 class GenericStringBuffer;
 
-template <typename, typename, typename, typename>
-class Writer;
-
-template <typename, typename, typename, typename>
+template <typename, typename, typename, typename, unsigned>
 class PrettyWriter;
 }
 /** @} */ // rj_template_fwd
@@ -83,10 +80,8 @@ typedef rapidjson::GenericDocument<RJ_Encoding, RJ_Allocator, rapidjson::CrtAllo
 typedef rapidjson::GenericValue<RJ_Encoding, RJ_Allocator> RJ_Value;
 typedef rapidjson::GenericStringBuffer<RJ_Encoding, rapidjson::CrtAllocator>
 RJ_StringBuffer;
-typedef rapidjson::Writer<RJ_StringBuffer, RJ_Encoding, RJ_Encoding,
-                          RJ_Allocator> RJ_Writer;
 typedef rapidjson::PrettyWriter<RJ_StringBuffer, RJ_Encoding, RJ_Encoding,
-                                RJ_Allocator> RJ_PrettyWriter;
+                                RJ_Allocator, 0> RJ_PrettyWriter;
 
 typedef RJ_PrettyWriter Sdi_writer;
 class Sdi_rcontext;

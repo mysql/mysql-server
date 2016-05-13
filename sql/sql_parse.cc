@@ -3100,7 +3100,7 @@ case SQLCOM_PREPARE:
         goto end_with_restore_list;
       }
 
-      if (!(res= open_tables_for_query(thd, all_tables, 0)))
+      if (!(res= open_tables_for_query(thd, all_tables, false)))
       {
         /* The table already exists */
         if (create_table->table || create_table->is_view())
@@ -3613,10 +3613,11 @@ end_with_restore_list:
   {
     List<set_var_base> *lex_var_list= &lex->var_list;
 
-    if ((check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE)
-         || open_and_lock_tables(thd, all_tables, 0)))
+    if (check_table_access(thd, SELECT_ACL, all_tables, FALSE, UINT_MAX, FALSE))
       goto error;
-    if (!(res= sql_set_variables(thd, lex_var_list)))
+    if (open_tables_for_query(thd, all_tables, false))
+      goto error;
+    if (!(res= sql_set_variables(thd, lex_var_list, true)))
       my_ok(thd);
     else
     {
@@ -3640,7 +3641,7 @@ end_with_restore_list:
     DBUG_ASSERT(lex_var_list->elements == 1);
     DBUG_ASSERT(all_tables == NULL);
 
-    if (!(res= sql_set_variables(thd, lex_var_list)))
+    if (!(res= sql_set_variables(thd, lex_var_list, false)))
     {
       my_ok(thd);
     }
@@ -5058,7 +5059,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
   if (is_timer_applicable_to_statement(thd))
     statement_timer_armed= set_statement_timer(thd);
 
-  if (!(res= open_tables_for_query(thd, all_tables, 0)))
+  if (!(res= open_tables_for_query(thd, all_tables, false)))
   {
     MYSQL_SELECT_START(const_cast<char*>(thd->query().str));
     if (lex->is_explain())

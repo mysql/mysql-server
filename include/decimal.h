@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -102,13 +102,6 @@ int decimal_round(const decimal_t *from, decimal_t *to, int new_scale,
 int decimal_is_zero(const decimal_t *from);
 void max_decimal(int precision, int frac, decimal_t *to);
 int decimal_shift(decimal_t *dec, int shift);
-
-static inline int string2decimal(const char *from,
-                                 decimal_t *to,
-                                 char **end)
-{
-  return internal_str2dec(from, to, end, FALSE);
-}
 
 /* set a decimal_t to zero */
 static inline void decimal_make_zero(decimal_t *dec)

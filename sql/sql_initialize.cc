@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -188,11 +188,13 @@ void Compiled_in_command_iterator::begin(void)
 }
 
 
-int Compiled_in_command_iterator::next(std::string &query, int *read_error)
+int Compiled_in_command_iterator::next(std::string &query, int *read_error,
+                                       int *query_source)
 {
   if (init_file_iter)
-    return init_file_iter->next(query, read_error);
+    return init_file_iter->next(query, read_error, query_source);
 
+  *query_source= QUERY_SOURCE_COMPILED;
   while (cmds[cmds_ofs] != NULL && cmds[cmds_ofs][cmd_ofs] == NULL)
   {
     cmds_ofs++;
@@ -218,7 +220,7 @@ int Compiled_in_command_iterator::next(std::string &query, int *read_error)
         return READ_BOOTSTRAP_ERROR;
       }
       init_file_iter->begin();
-      return init_file_iter->next(query, read_error);
+      return init_file_iter->next(query, read_error, query_source);
     }
 
     return READ_BOOTSTRAP_EOF;

@@ -842,6 +842,7 @@ public:
 };
 
 LogFile log_file;
+LogFile temp_log_file;
 LogFile progress_file;
 
 void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
@@ -7411,6 +7412,7 @@ void init_win_path_patterns()
                           "$MYSQLTEST_VARDIR",
                           "$MASTER_MYSOCK",
                           "$MYSQL_SHAREDIR",
+                          "$MYSQL_CHARSETSDIR",
                           "$MYSQL_LIBDIR",
                           "./test/",
                           ".ibd",
@@ -9197,8 +9199,6 @@ int main(int argc, char **argv)
 
   parse_args(argc, argv);
 
-  log_file.open(opt_logdir, result_file_name, ".log");
-  verbose_msg("Logging to '%s'.", log_file.file_name());
   if (opt_mark_progress)
   {
     progress_file.open(opt_logdir, result_file_name, ".progress");
@@ -9245,6 +9245,22 @@ int main(int argc, char **argv)
                                    "<stdin>", MYF(MY_WME));
     cur_file->lineno= 1;
   }
+
+  log_file.open(opt_logdir, result_file_name, ".log");
+  verbose_msg("Logging to '%s'.", log_file.file_name());
+
+  /*
+    Creating a temporary log file using current file name if
+    result file doesn't exist
+  */
+  if (!result_file_name)
+  {
+    if (strcmp(cur_file->file_name, "<stdin>"))
+      temp_log_file.open(opt_logdir, cur_file->file_name, ".log");
+    else
+      temp_log_file.open(opt_logdir, "stdin", ".log");
+  }
+
   var_set_string("MYSQLTEST_FILE", cur_file->file_name);
   init_re();
 
@@ -9790,10 +9806,19 @@ int main(int argc, char **argv)
     /* Write result from command to log file immediately */
     log_file.write(&ds_res);
     log_file.flush();
+
+    if (!result_file_name)
+    {
+      temp_log_file.flush();
+      temp_log_file.write(&ds_res);
+    }
     dynstr_set(&ds_res, 0);
   }
 
   log_file.close();
+
+  if (!result_file_name)
+    temp_log_file.close();
 
   start_lineno= 0;
   verbose_msg("... Done processing test commands.");

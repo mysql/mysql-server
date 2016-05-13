@@ -50,8 +50,8 @@ T& Collection<T>::Collection_iterator::operator*()
   DBUG_ASSERT(m_current != m_array->end());
 
   // Need a non-tmp placeholder of correct type since reference is returned.
-  static T m_current_obj;
-  return (m_current_obj= *m_current);
+  m_current_obj= *m_current;
+  return m_current_obj;
 }
 
 
@@ -63,8 +63,8 @@ Collection<T>::Collection_const_iterator::operator*()
   DBUG_ASSERT(m_current != m_array->end());
 
   // Need a non-tmp placeholder of correct type since reference is returned.
-  static const abstract_type *m_current_obj;
-  return (m_current_obj= *m_current);
+  m_current_obj= *m_current;
+  return m_current_obj;
 }
 
 
@@ -118,7 +118,7 @@ bool Collection<T>::restore_items(
   // for that transaction. Use Open_dictionary_tables_ctx::register_tables().
   DBUG_ASSERT(table);
 
-  DBUG_ASSERT(is_empty());
+  DBUG_ASSERT(empty());
 
   std::unique_ptr<Object_key> key_holder(key);
 
@@ -176,7 +176,7 @@ bool Collection<T>::store_items(Open_dictionary_tables_ctx *otx)
 {
   DBUG_ENTER("Collection::store_items");
 
-  if (is_empty())
+  if (empty())
     DBUG_RETURN(false);
 
   // Drop items from m_removed_items.
@@ -211,7 +211,7 @@ bool Collection<T>::drop_items(Open_dictionary_tables_ctx *otx,
   // Make sure key gets deleted
   std::unique_ptr<Object_key> key_holder(key);
 
-  if (is_empty())
+  if (empty())
     DBUG_RETURN(false);
 
   // Drop items

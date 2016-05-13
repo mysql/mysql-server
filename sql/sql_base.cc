@@ -6361,9 +6361,6 @@ bool open_tables_for_query(THD *thd, TABLE_LIST *tables, uint flags)
   MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("open_tables_for_query");
 
-  DBUG_EXECUTE_IF("open_tables_for_query__out_of_memory",
-                  DBUG_SET("+d,simulate_out_of_memory"););
-
   DBUG_ASSERT(tables == thd->lex->query_tables);
 
   if (open_tables(thd, &tables, &thd->lex->table_count, flags,

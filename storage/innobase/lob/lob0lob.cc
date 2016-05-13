@@ -580,7 +580,7 @@ end_of_blob:
 	buf_page_release_zip(m_bpage);
 	inflateEnd(&m_stream);
 	mem_heap_free(m_heap);
-	UNIV_MEM_ASSERT_RW(m_buf, m_stream.total_out);
+	UNIV_MEM_ASSERT_RW(m_rctx.m_buf, m_stream.total_out);
 	return(err);
 }
 
@@ -654,7 +654,6 @@ btr_store_big_rec_extern_fields(
 	mtr_t*			btr_mtr,
 	opcode			op)
 {
-	ulint		i;
 	mtr_t		mtr;
 	mtr_t		mtr_bulk;
 	page_zip_des_t*	page_zip;
@@ -690,7 +689,7 @@ btr_store_big_rec_extern_fields(
 	/* All pointers to externally stored columns in the record
 	must either be zero or they must be pointers to inherited
 	columns, owned by this record or an earlier record version. */
-	for (i = 0; i < big_rec_vec->n_fields; i++) {
+	for (uint i = 0; i < big_rec_vec->n_fields; i++) {
 		byte* field_ref = btr_rec_get_field_ref(
 			rec, offsets, big_rec_vec->fields[i].field_no);
 
@@ -1161,12 +1160,15 @@ btr_copy_externally_stored_field_prefix_func(
 	if (page_size.is_compressed()) {
 		ut_a(local_len == BTR_EXTERN_FIELD_REF_SIZE);
 		ReadContext	rctx(page_size, data, local_len,
-					     buf, len);
-		zReader	reader(rctx);
+				     buf, len
+#ifdef UNIV_DEBUG
+				     , is_sdi
+#endif /* UNIV_DEBUG */
+				     );
 		if (!rctx.is_valid_blob()) {
 			return(0);
 		}
-		ut_d(rctx.set_sdi(is_sdi));
+		zReader	reader(rctx);
 		reader.fetch();
 		return(reader.length());
 	}
@@ -1193,7 +1195,11 @@ btr_copy_externally_stored_field_prefix_func(
 
 	ReadContext	rctx(
 		page_size, data, local_len + BTR_EXTERN_FIELD_REF_SIZE,
-		buf + local_len, len);
+		buf + local_len, len
+#ifdef UNIV_DEBUG
+		, false
+#endif /* UNIV_DEBUG */
+		);
 
 	Reader	reader(rctx);
 	ulint fetch_len = reader.fetch();
@@ -1237,14 +1243,17 @@ btr_copy_externally_stored_field_func(
 	buf = (byte*) mem_heap_alloc(heap, local_len + extern_len);
 
 	ReadContext	rctx(page_size, data,
-				     local_len + BTR_EXTERN_FIELD_REF_SIZE,
-				     buf + local_len, extern_len);
+			     local_len + BTR_EXTERN_FIELD_REF_SIZE,
+			     buf + local_len, extern_len
+#ifdef UNIV_DEBUG
+			     , is_sdi
+#endif /* UNIV_DEBUG */
+			     );
 
 	if (page_size.is_compressed()) {
 		ut_ad(local_len == 0);
-		zReader	reader(rctx);
 		ut_a(rctx.is_valid_blob());
-		ut_d(rctx.set_sdi(is_sdi));
+		zReader	reader(rctx);
 		reader.fetch();
 		*len = reader.length();
 		return(buf);
@@ -1285,9 +1294,6 @@ void BtrContext::free_updated_extern_fields(
 			byte*	data = rec_get_nth_field(
 				m_rec, m_offsets, ufield->field_no, &len);
 			ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
-
-			const page_size_t	ext_page_size(
-				dict_table_page_size(m_index->table));
 
 			byte*	field_ref = data + len
 				- BTR_EXTERN_FIELD_REF_SIZE;
@@ -1480,9 +1486,6 @@ void BtrContext::free_externally_stored_fields(bool rollback)
 	ut_ad(dict_table_is_comp(m_index->table)
 	      == !!rec_offs_comp(m_offsets));
 	ulint n_fields = rec_offs_n_fields(m_offsets);
-
-	const page_size_t ext_page_size(
-		dict_table_page_size(m_index->table));
 
 	for (ulint i = 0; i < n_fields; i++) {
 		if (rec_offs_nth_extern(m_offsets, i)) {

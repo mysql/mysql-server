@@ -1197,7 +1197,6 @@ typedef void (*replace_native_transaction_in_thd_t)(THD *thd, void *new_trx_arg,
 enum dict_init_mode_t
 {
   DICT_INIT_CREATE_FILES,         //< Create all required SE files
-  DICT_INIT_CREATE_MISSING_FILES, //< Use files that already exist
   DICT_INIT_CHECK_FILES,          //< Verify existence of expected files
   DICT_INIT_IGNORE_FILES          //< Don't care about files at all
 };

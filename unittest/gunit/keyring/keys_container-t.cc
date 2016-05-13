@@ -653,26 +653,26 @@ namespace keyring__keys_container_unittest
     MOCK_METHOD1(reserve_buffer, void(size_t memory_size));
     MOCK_METHOD0(flush_to_backup, my_bool());
 
-//    virtual my_bool flush_to_keyring(const IKey *key = NULL)= 0;
     MOCK_METHOD2(flush_to_keyring, my_bool(IKey *key, Flush_operation operation));
     MOCK_METHOD1(operator_out, my_bool(const IKey* key));
-    MOCK_METHOD1(operator_in, my_bool(IKey* key));
+    MOCK_METHOD1(operator_in, my_bool(IKey **key));
     MOCK_METHOD0(close, my_bool());
 
 
     virtual my_bool operator<< (const IKey* key) { return operator_out(key); }
-    virtual my_bool operator>> (IKey* key) {
+    virtual my_bool operator>> (IKey **key) {
+      *key= new Key(); //will be deleted by keys_container
       if (load_key_from_buffer_on_call_number >= 0 && load_key_from_buffer_on_call_number == operator_in_call_counter)
       {
         size_t number_of_bytes_read= 0;
-        key->load_from_buffer(buffer, &number_of_bytes_read, buffer_size);
+        (*key)->load_from_buffer(buffer, &number_of_bytes_read, buffer_size);
         assert (number_of_bytes_read == buffer_size); //there was only one key in buffer so the whole key should have been read
       }
       operator_in_call_counter++;
       if (set_invalid_key_in_operator_in)
       {
         std::string invalid_key_type("ZZZ");
-        key->set_key_type(&invalid_key_type);
+        (*key)->set_key_type(&invalid_key_type);
       }
       return operator_in(key);
     }

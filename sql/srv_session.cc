@@ -930,6 +930,7 @@ Srv_session::Srv_session(srv_session_error_cb err_cb, void *err_cb_ctx) :
 */
 bool Srv_session::open()
 {
+  char stack_start;
   DBUG_ENTER("Srv_session::open");
 
   DBUG_PRINT("info",("Session=%p  THD=%p  DA=%p", this, &thd, &da));
@@ -970,6 +971,15 @@ bool Srv_session::open()
 
   thd.set_command(COM_SLEEP);
   thd.init_query_mem_roots();
+
+  /*
+    Set current_thd so that it can be used during authentication,
+    before attach() is called. Note that this kind of breaks the
+    separation between open() and attach() so it is likely that
+    a conceptually better solution is required long-term.
+  */
+  thd_set_thread_stack(&thd, &stack_start);
+  thd.store_globals();
 
   Global_THD_manager::get_instance()->add_thd(&thd);
 
@@ -1012,7 +1022,9 @@ bool Srv_session::attach()
     DBUG_RETURN(false);
   }
 
-  if (&thd == current_thd)
+  // Since we now set current_thd during open(), we need to do complete
+  // attach the first time in any case.
+  if (!first_attach && &thd == current_thd)
     DBUG_RETURN(false);
 
   THD *old_thd= current_thd;

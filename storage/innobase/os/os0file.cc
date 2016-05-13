@@ -52,6 +52,7 @@ Created 10/21/1995 Heikki Tuuri
 #endif /* !UNIV_HOTBACKUP */
 
 #include <vector>
+#include <functional>
 
 #ifdef LINUX_NATIVE_AIO
 #include <libaio.h>
@@ -79,7 +80,8 @@ static const ulint IO_LOG_SEGMENT = 1;
 /** Number of retries for partial I/O's */
 static const ulint NUM_RETRIES_ON_PARTIAL_IO = 10;
 
-/** Blocks for doing IO, used in the transparent compression code. */
+/** Blocks for doing IO, used in the transparent compression
+and encryption code. */
 struct Block {
 	/** Default constructor */
 	Block() : m_ptr(), m_in_use() { }
@@ -98,6 +100,9 @@ static Blocks*	block_cache;
 
 /** Number of blocks to allocate for sync read/writes */
 static const size_t	MAX_BLOCKS = 128;
+
+/** Block buffer size */
+static const size_t	BUFFER_BLOCK_SIZE = UNIV_PAGE_SIZE * 1.3;
 
 /* This specifies the file permissions InnoDB uses when it creates files in
 Unix; the value of os_innodb_umask is initialized in ha_innodb.cc to
@@ -268,11 +273,8 @@ struct Slot {
 	/** Length of the block before it was compressed */
 	uint32			original_len;
 
-	/** Unaligned buffer for compressed pages */
-	byte*			compressed_ptr;
-
-	/** Compressed data page, aligned and derived from compressed_ptr */
-	byte*			compressed_page;
+	/** Buffer block for compressed pages or encrypted pages */
+	Block*			buf_block;
 
 	/** true, if we shouldn't punch a hole after writing the page */
 	bool			skip_punch_hole;
@@ -869,19 +871,45 @@ os_alloc_block()
 	Blocks&		blocks = *block_cache;
 	size_t		i = static_cast<size_t>(my_timer_cycles());
 	const size_t	size = blocks.size();
+	ulint		retry = 0;
+	Block*		block;
+
+	DBUG_EXECUTE_IF("os_block_cache_busy", retry = MAX_BLOCKS * 3;);
 
 	for (;;) {
+
+		/* After go through the block cache for 3 times,
+		allocate a new temporary block. */
+		if (retry == MAX_BLOCKS * 3) {
+			byte*	ptr;
+
+			ptr = static_cast<byte*>(
+				ut_malloc_nokey(sizeof(*block)
+						+ BUFFER_BLOCK_SIZE));
+
+			block = new (ptr) Block();
+			block->m_ptr = static_cast<byte*>(
+				ptr + sizeof(*block));
+			block->m_in_use = 1;
+
+			break;
+		}
 
 		pos = i++ % size;
 
 		if (TAS(&blocks[pos].m_in_use, 1) == 0) {
+			block = &blocks[pos];
 			break;
 		}
+
+		os_thread_yield();
+
+		++retry;
 	}
 
-	ut_a(blocks[pos].m_in_use == 1);
+	ut_a(block->m_in_use != 0);
 
-	return(&blocks[pos]);
+	return(block);
 }
 
 /** Free a page after sync IO
@@ -891,7 +919,15 @@ void
 os_free_block(Block* block)
 {
 	ut_ad(block->m_in_use == 1);
+
 	TAS(&block->m_in_use, 0);
+
+	/* When this block is not in the block cache, and it's
+	a temporary block, we need to free it directly. */
+	if (std::less<Block*>()(block, &block_cache->front())
+	    || std::greater<Block*>()(block, &block_cache->back())) {
+		ut_free(block);
+	}
 }
 
 /** Generic AIO Handler methods. Currently handles IO post processing. */
@@ -910,7 +946,7 @@ public:
 
 		return(os_file_io_complete(
 				slot->type, slot->file, slot->buf,
-				slot->compressed_page, slot->original_len,
+				NULL, slot->original_len,
 				static_cast<ulint>(slot->offset),
 				slot->len));
 	}
@@ -1108,7 +1144,6 @@ AIOHandler::check_read(Slot* slot, ulint n_bytes)
 
 			err = io_complete(slot);
 			ut_a(err == DB_SUCCESS);
-
 		} else {
 			/* Read the next block in */
 			ut_ad(compressed_page_size(slot) >= n_bytes);
@@ -1127,8 +1162,14 @@ AIOHandler::check_read(Slot* slot, ulint n_bytes)
 
 			err = io_complete(slot);
 			ut_a(err == DB_SUCCESS);
+
 	} else {
 		err = DB_FAIL;
+	}
+
+	if (slot->buf_block != NULL) {
+		os_free_block(slot->buf_block);
+		slot->buf_block = NULL;
 	}
 
 	return(err);
@@ -1178,6 +1219,11 @@ AIOHandler::post_io_processing(Slot* slot)
 		} else {
 
 			err = DB_SUCCESS;
+		}
+
+		if (slot->buf_block != NULL) {
+			os_free_block(slot->buf_block);
+			slot->buf_block = NULL;
 		}
 
 	} else if ((ulint) slot->n_bytes == (ulint) slot->len) {
@@ -2061,15 +2107,13 @@ os_file_compress_page(
 @param[out]	buf		buffer to read or write
 @param[in,out]	n		number of bytes to read/write, starting from
 				offset
-@param[out]	err		DB_SUCCESS or error code
 @return pointer to the encrypted page */
 static
 Block*
 os_file_encrypt_page(
 	const IORequest&	type,
 	void*&			buf,
-	ulint*			n,
-	dberr_t*		err)
+	ulint*			n)
 {
 
 	byte*		encrypted_page;
@@ -2097,8 +2141,6 @@ os_file_encrypt_page(
 		buf = buf_ptr;
 		*n = encrypted_len;
 	}
-
-	*err = DB_SUCCESS;
 
 	return(block);
 }
@@ -5050,13 +5092,7 @@ os_file_io(
 		Block*	compressed_block = block;
 		ut_ad(offset > 0);
 
-		block = os_file_encrypt_page(type, buf, &n, err);
-
-		if (*err != DB_SUCCESS) {
-			ut_ad(block == NULL);
-
-			return(-1);
-		}
+		block = os_file_encrypt_page(type, buf, &n);
 
 		if (compressed_block != NULL) {
 			os_free_block(compressed_block);
@@ -5979,18 +6015,6 @@ AIO::init_slots()
 		memset(&slot.control, 0x0, sizeof(slot.control));
 
 #endif /* WIN_ASYNC_IO */
-
-		/* We need 2 max page size for comprssion, and
-		another 2 max page size for encryption. */
-		slot.compressed_ptr = reinterpret_cast<byte*>(
-			ut_zalloc_nokey(UNIV_PAGE_SIZE_MAX * 4));
-
-		if (slot.compressed_ptr == NULL) {
-			return(DB_OUT_OF_MEMORY);
-		}
-
-		slot.compressed_page = static_cast<byte *>(
-			ut_align(slot.compressed_ptr, UNIV_PAGE_SIZE));
 	}
 
 	return(DB_SUCCESS);
@@ -6118,16 +6142,6 @@ AIO::~AIO()
 		ut_free(m_aio_ctx);
 	}
 #endif /* LINUX_NATIVE_AIO */
-
-	for (ulint i = 0; i < m_slots.size(); ++i) {
-		Slot&	slot = m_slots[i];
-
-		if (slot.compressed_ptr != NULL) {
-			ut_free(slot.compressed_ptr);
-			slot.compressed_ptr = NULL;
-			slot.compressed_page = NULL;
-		}
-	}
 
 	m_slots.clear();
 }
@@ -6298,7 +6312,7 @@ os_aio_init(
 
 	ut_a(block_cache == NULL);
 
-	block_cache = new(std::nothrow) Blocks(MAX_BLOCKS);
+	block_cache = UT_NEW_NOKEY(Blocks(MAX_BLOCKS));
 
 	for (Blocks::iterator it = block_cache->begin();
 	     it != block_cache->end();
@@ -6311,7 +6325,7 @@ os_aio_init(
 		compress could generate more bytes than orgininal
 		data. */
 		it->m_ptr = static_cast<byte*>(
-			ut_malloc_nokey(UNIV_PAGE_SIZE_MAX * 2));
+			ut_malloc_nokey(BUFFER_BLOCK_SIZE));
 
 		ut_a(it->m_ptr != NULL);
 	}
@@ -6341,7 +6355,7 @@ os_aio_free()
 		ut_free(it->m_ptr);
 	}
 
-	delete block_cache;
+	UT_DELETE(block_cache);
 
 	block_cache = NULL;
 }
@@ -6542,66 +6556,32 @@ AIO::reserve_slot(
 	slot->err      = DB_SUCCESS;
 	slot->original_len = static_cast<uint32>(len);
 	slot->io_already_done = false;
+	slot->buf_block = NULL;
 
 	if (srv_use_native_aio
 	    && offset > 0
 	    && type.is_write()
 	    && type.is_compressed()) {
+		ulint	compressed_len = len;
 
 		ut_ad(!type.is_log());
 
 		release();
 
-		ulint	compressed_len = len;
-
-		ulint	old_compressed_len;
-
-		old_compressed_len = mach_read_from_2(
-			slot->buf + FIL_PAGE_COMPRESS_SIZE_V1);
-
-		if (old_compressed_len > 0) {
-			old_compressed_len = ut_calc_align(
-				old_compressed_len + FIL_PAGE_DATA,
-				slot->type.block_size());
-		}
-
-		byte*	ptr;
-
-		ptr = os_file_compress_page(
-			slot->type.compression_algorithm(),
-			slot->type.block_size(),
-			slot->buf,
-			slot->len,
-			slot->compressed_page,
+		void* src_buf = slot->buf;
+		slot->buf_block = os_file_compress_page(
+			type,
+			src_buf,
 			&compressed_len);
 
-		if (ptr != buf) {
-			/* Set new compressed size to uncompressed page. */
-			memcpy(slot->buf + FIL_PAGE_COMPRESS_SIZE_V1,
-			       slot->compressed_page
-			       + FIL_PAGE_COMPRESS_SIZE_V1, 2);
+		slot->buf = static_cast<byte*>(src_buf);
+		slot->ptr = slot->buf;
 #ifdef _WIN32
-			slot->len = static_cast<DWORD>(compressed_len);
+		slot->len = static_cast<DWORD>(compressed_len);
 #else
-			slot->len = static_cast<ulint>(compressed_len);
+		slot->len = static_cast<ulint>(compressed_len);
 #endif /* _WIN32 */
-			slot->buf = slot->compressed_page;
-			slot->ptr = slot->buf;
-
-			if (old_compressed_len > 0
-			    && compressed_len >= old_compressed_len) {
-
-				ut_ad(old_compressed_len <= UNIV_PAGE_SIZE);
-
-				slot->skip_punch_hole = true;
-
-			} else {
-				slot->skip_punch_hole = false;
-			}
-
-		} else {
-			slot->skip_punch_hole = false;
-		}
+		slot->skip_punch_hole = type.punch_hole();
 
 		acquire();
 	}
@@ -6614,26 +6594,31 @@ AIO::reserve_slot(
 	    && type.is_write()
 	    && type.is_encrypted()) {
 		ulint		encrypted_len = len;
-		byte*		encrypted_page;
-		Encryption	encryption(type.encryption_algorithm());
+		Block*		encrypted_block;
 
 		ut_ad(!type.is_log());
 
-		/* We use the second 2 max page size memory of comopress
-		buffer for avoiding overwrite the compressed data. */
-		encrypted_page = static_cast<byte *>(
-			ut_align(slot->compressed_ptr + 2 * UNIV_PAGE_SIZE_MAX,
-				 UNIV_PAGE_SIZE));
-
 		release();
 
-		slot->buf = encryption.encrypt(type,
-					       slot->buf,
-					       slot->len,
-					       encrypted_page,
-					       &encrypted_len);
+		void* src_buf = slot->buf;
+		encrypted_block = os_file_encrypt_page(
+			type,
+			src_buf,
+			&encrypted_len);
 
-		slot->ptr = encrypted_page;
+		if (slot->buf_block != NULL) {
+			os_free_block(slot->buf_block);
+		}
+
+		slot->buf_block = encrypted_block;
+		slot->buf = static_cast<byte*>(src_buf);
+		slot->ptr = slot->buf;
+
+#ifdef _WIN32
+		slot->len = static_cast<DWORD>(encrypted_len);
+#else
+		slot->len = static_cast<ulint>(encrypted_len);
+#endif /* _WIN32 */
 
 		acquire();
         }
@@ -8079,8 +8064,9 @@ Encryption::create_master_key(byte** master_key)
 	memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
 
 	/* Generate new master key */
-	sprintf(key_name, "%s-%s-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
-		uuid, master_key_id + 1);
+	ut_snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
+		    "%s-%s-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
+		    uuid, master_key_id + 1);
 
 	/* We call key ring API to generate master key here. */
 	ret = my_key_generate(key_name, "AES",
@@ -8120,14 +8106,16 @@ Encryption::get_master_key(ulint master_key_id,
 	memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
 
 	if (srv_uuid != NULL) {
-		sprintf(key_name, "%s-%s-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
-			srv_uuid, master_key_id);
+		ut_snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
+			    "%s-%s-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
+			    srv_uuid, master_key_id);
 	} else {
 		/* For compitable with 5.7.11, we need to get master key with
 		server id. */
 		memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
-		sprintf(key_name, "%s-%lu-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
-			server_id, master_key_id);
+		ut_snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
+			    "%s-%lu-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
+			    server_id, master_key_id);
 	}
 
 	/* We call key ring API to get master key here. */
@@ -8185,8 +8173,9 @@ Encryption::get_master_key(ulint* master_key_id,
 		memcpy(uuid, server_uuid, ENCRYPTION_SERVER_UUID_LEN);
 
 		/* Prepare the server uuid. */
-		sprintf(key_name, "%s-%s-1", ENCRYPTION_MASTER_KEY_PRIFIX,
-			uuid);
+		ut_snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
+			    "%s-%s-1", ENCRYPTION_MASTER_KEY_PRIFIX,
+			    uuid);
 
 		/* We call key ring API to generate master key here. */
 		ret = my_key_generate(key_name, "AES",
@@ -8211,8 +8200,9 @@ Encryption::get_master_key(ulint* master_key_id,
 	} else {
 		*master_key_id = Encryption::master_key_id;
 
-		sprintf(key_name, "%s-%s-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
-			uuid, *master_key_id);
+		ut_snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
+			    "%s-%s-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
+			    uuid, *master_key_id);
 
 		/* We call key ring API to get master key here. */
 		ret = my_key_fetch(key_name, &key_type, NULL,
@@ -8226,9 +8216,11 @@ Encryption::get_master_key(ulint* master_key_id,
 				my_free(key_type);
 			}
 
-			memset(key_name, 0, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
-			sprintf(key_name, "%s-%lu-" ULINTPF, ENCRYPTION_MASTER_KEY_PRIFIX,
-				server_id, *master_key_id);
+			memset(key_name, 0,
+			       ENCRYPTION_MASTER_KEY_NAME_MAX_LEN);
+			ut_snprintf(key_name, ENCRYPTION_MASTER_KEY_NAME_MAX_LEN,
+				    "%s-%lu-%lu", ENCRYPTION_MASTER_KEY_PRIFIX,
+				    server_id, *master_key_id);
 
 			ret = my_key_fetch(key_name, &key_type, NULL,
 					   reinterpret_cast<void**>(master_key),

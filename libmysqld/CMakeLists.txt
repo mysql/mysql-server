@@ -112,22 +112,6 @@ SET(LIBMYSQLD_BOOST_SOURCES
   ../sql/item_geofunc_relchecks.cc
   ../sql/item_geofunc_relchecks_bgwrap.cc
   ../sql/item_geofunc_setops.cc
-  ../sql/dd/impl/types/abstract_table_impl.cc
-  ../sql/dd/impl/types/entity_object_impl.cc
-  ../sql/dd/impl/types/column_impl.cc
-  ../sql/dd/impl/types/column_type_element_impl.cc
-  ../sql/dd/impl/types/index_impl.cc
-  ../sql/dd/impl/types/index_element_impl.cc
-  ../sql/dd/impl/types/foreign_key_impl.cc
-  ../sql/dd/impl/types/foreign_key_element_impl.cc
-  ../sql/dd/impl/types/partition_impl.cc
-  ../sql/dd/impl/types/partition_index_impl.cc
-  ../sql/dd/impl/types/partition_value_impl.cc
-  ../sql/dd/impl/types/schema_impl.cc
-  ../sql/dd/impl/types/table_impl.cc
-  ../sql/dd/impl/types/tablespace_impl.cc
-  ../sql/dd/impl/types/tablespace_file_impl.cc
-  ../sql/dd/impl/sdi.cc
   ../sql/item_json_func.cc
   ../sql/spatial.cc
 )  

@@ -236,6 +236,32 @@ public:
           return EXIT_UPGRADING_QUERIES_ERROR;
         }
       } else {
+        /* If the database is empty, upgrade */
+        if (!mysql_query(this->m_mysql_connection,
+          "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'sys'"))
+        {
+          MYSQL_RES *result = mysql_store_result(this->m_mysql_connection);
+          if (result)
+          {
+            MYSQL_ROW row;
+            if ((row = mysql_fetch_row(result)))
+            {
+              if (strcmp(row[0], "0") == 0)
+              {
+                // The sys database contained nothing
+                stringstream ss;
+                ss << "Found empty sys database. Installing the sys schema.";
+                this->print_verbose_message(ss.str());
+                if (this->run_sys_schema_upgrade() != 0)
+                {
+                  return EXIT_UPGRADING_QUERIES_ERROR;
+                }
+              }
+            }
+            mysql_free_result(result);
+          }
+        }
+
         /* If the version is smaller, upgrade */
         if (mysql_query(this->m_mysql_connection, "SELECT * FROM sys.version") != 0)
         {
