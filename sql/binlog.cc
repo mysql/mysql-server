@@ -3909,8 +3909,12 @@ read_gtids_and_update_trx_parser_from_relaylog(
 
   @retval GOT_GTIDS The file was successfully read and it contains
   both Gtid_log_events and Previous_gtids_log_events.
+  This is only possible if either all_gtids or first_gtid are not null.
   @retval GOT_PREVIOUS_GTIDS The file was successfully read and it
   contains Previous_gtids_log_events but no Gtid_log_events.
+  For binary logs, if no all_gtids and no first_gtid are specified,
+  this function will be done right after reading the PREVIOUS_GTIDS
+  regardless of the rest of the content of the binary log file.
   @retval NO_GTIDS The file was successfully read and it does not
   contain GTID events.
   @retval ERROR Out of memory, or IO error, or malformed event
@@ -3941,6 +3945,8 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
   File file;
   IO_CACHE log;
 
+#ifndef DBUG_OFF
+  unsigned long event_counter= 0;
   /*
     We assert here that both all_gtids and prev_gtids, if specified,
     uses the same sid_map as the one passed as a parameter. This is just
@@ -3948,7 +3954,6 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
     the caller, the lock applies to all the GTID sets this function is
     dealing with.
   */
-#ifndef DBUG_OFF
   if (all_gtids)
     DBUG_ASSERT(all_gtids->get_sid_map() == sid_map);
   if (prev_gtids)
@@ -3980,6 +3985,9 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
          (ev= Log_event::read_log_event(&log, 0, fd_ev_p, verify_checksum)) !=
          NULL)
   {
+#ifndef DBUG_OFF
+    event_counter++;
+#endif
     DBUG_PRINT("info", ("Read event of type %s", ev->get_type_str()));
     switch (ev->get_type_code())
     {
@@ -4007,14 +4015,27 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
                           filename, prev_buffer));
       my_free(prev_buffer);
 #endif
+      /*
+        If this is not a relay log, the previous_gtids were asked and no
+        all_gtids neither first_gtid were asked, it is fine to consider the
+        job as done.
+      */
+      if (!is_relay_log && prev_gtids != NULL &&
+          all_gtids == NULL && first_gtid == NULL)
+        done= true;
+      DBUG_EXECUTE_IF("inject_fault_bug16502579", {
+                      DBUG_PRINT("debug", ("PREVIOUS_GTIDS_LOG_EVENT found. "
+                                           "Injected ret=NO_GTIDS."));
+                      if (ret == GOT_PREVIOUS_GTIDS)
+                      {
+                        ret=NO_GTIDS;
+                        done= false;
+                      }
+                      });
       break;
     }
     case binary_log::GTID_LOG_EVENT:
     {
-      DBUG_EXECUTE_IF("inject_fault_bug16502579", {
-                      DBUG_PRINT("debug", ("GTID_LOG_EVENT found. Injected ret=NO_GTIDS."));
-                      ret=NO_GTIDS;
-                      });
       if (ret != GOT_GTIDS)
       {
         if (ret != GOT_PREVIOUS_GTIDS)
@@ -4039,17 +4060,15 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
           ret= GOT_GTIDS;
       }
       /*
-        When all_gtids and first_gtid are all NULL, or when this is a relaylog,
-        we just check if the binary/relay log contains at least one
-        Gtid_log_event, so that we can distinguish the return values GOT_GTID
-        and GOT_PREVIOUS_GTIDS. We don't need to read anything else from the
-        binary/relay log.
-        If all_gtids is requested (i.e., NOT NULL), we should
-        continue to read all gtids.
-        If just first_gtid was requested, we will be done after storing this
-        Gtid_log_event info on it.
+        When this is a relaylog, we just check if the relay log contains at
+        least one Gtid_log_event, so that we can distinguish the return values
+        GOT_GTID and GOT_PREVIOUS_GTIDS. We don't need to read anything else
+        from the relay log.
+        When this is a binary log, if all_gtids is requested (i.e., NOT NULL),
+        we should continue to read all gtids. If just first_gtid was requested,
+        we will be done after storing this Gtid_log_event info on it.
       */
-      if (is_relay_log || (all_gtids == NULL && first_gtid == NULL))
+      if (is_relay_log)
       {
         ret= GOT_GTIDS, done= true;
       }
@@ -4098,6 +4117,8 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
         done= true;
         break;
       }
+      DBUG_ASSERT(prev_gtids == NULL ? true : all_gtids != NULL ||
+                                              first_gtid != NULL);
     }
     default:
       // if we found any other event type without finding a
@@ -4156,6 +4177,13 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
     first_gtid->dbug_print(sid_map, "first_gtid");
 
   DBUG_PRINT("info", ("returning %d", ret));
+#ifndef DBUG_OFF
+  if (!is_relay_log && prev_gtids != NULL &&
+      all_gtids == NULL && first_gtid == NULL)
+    sql_print_information("Read %lu events from binary log file '%s' to "
+                          "determine the GTIDs purged from binary logs.",
+                          event_counter, filename);
+#endif
   DBUG_RETURN(ret);
 }
 
@@ -4508,13 +4536,46 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
   }
   if (lost_gtids != NULL && !reached_first_file)
   {
-    DBUG_PRINT("info", ("Iterating forwards through binary logs, looking for the first binary log that contains both a Previous_gtids_log_event and a Gtid_log_event."));
+    /*
+      This branch is only reacheable by a binary log. The relay log
+      don't need to get lost_gtids information.
+
+      A 5.6 server sets GTID_PURGED by rotating the binary log.
+
+      A 5.6 server that had recently enabled GTIDs and set GTID_PURGED
+      would have a sequence of binary logs like:
+
+      master-bin.N  : No PREVIOUS_GTIDS (GTID wasn't enabled)
+      master-bin.N+1: Has an empty PREVIOUS_GTIDS and a ROTATE
+                      (GTID was enabled on startup)
+      master-bin.N+2: Has a PREVIOUS_GTIDS with the content set by a
+                      SET @@GLOBAL.GTID_PURGED + has GTIDs of some
+                      transactions.
+
+      If this 5.6 server be upgraded to 5.7 keeping its binary log files,
+      this routine will have to find the first binary log that contains a
+      PREVIOUS_GTIDS + a GTID event to ensure that the content of the
+      GTID_PURGED will be correctly set (assuming binlog_gtid_simple_recovery
+      is not enabled).
+    */
+    DBUG_PRINT("info", ("Iterating forwards through binary logs, looking for "
+                        "the first binary log that contains both a "
+                        "Previous_gtids_log_event and a Gtid_log_event."));
+    DBUG_ASSERT(!is_relay_log);
     for (it= filename_list.begin(); it != filename_list.end(); it++)
     {
+      /*
+        We should pass a first_gtid to read_gtids_from_binlog when
+        binlog_gtid_simple_recovery is disabled, or else it will return
+        right after reading the PREVIOUS_GTIDS event to avoid stall on
+        reading the whole binary log.
+      */
+      Gtid first_gtid= {0, 0};
       const char *filename= it->c_str();
       DBUG_PRINT("info", ("filename='%s'", filename));
       switch (read_gtids_from_binlog(filename, NULL, lost_gtids,
-                                     NULL/* first_gtid */,
+                                     binlog_gtid_simple_recovery ? NULL :
+                                                                   &first_gtid,
                                      sid_map, verify_checksum, is_relay_log))
       {
         case ERROR:
@@ -4542,7 +4603,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
             initialize GLOBAL.GTID_PURGED from the first binary log, do not
             read any more binary logs.
           */
-          if (binlog_gtid_simple_recovery && !is_relay_log)
+          if (binlog_gtid_simple_recovery)
             goto end;
           /*FALLTHROUGH*/
         }
