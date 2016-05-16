@@ -2551,7 +2551,7 @@ Ndb_index_stat_thread::do_run()
   for (;;)
   {
     native_mutex_lock(&LOCK_client_waiting);
-    if (!is_stop_requested() && client_waiting == false) {
+    if (client_waiting == false) {
       int ret= native_cond_timedwait(&COND_client_waiting,
                                      &LOCK_client_waiting,
                                      &abstime);
@@ -2559,10 +2559,14 @@ Ndb_index_stat_thread::do_run()
       (void)reason; // USED
       DBUG_PRINT("index_stat", ("loop: %s", reason));
     }
-    if (is_stop_requested()) /* Shutting down server */
-      goto ndb_index_stat_thread_end;
     client_waiting= false;
     native_mutex_unlock(&LOCK_client_waiting);
+
+    if (is_stop_requested()) /* Shutting down server */
+    {
+      native_mutex_lock(&LOCK_client_waiting);
+      goto ndb_index_stat_thread_end;
+    }
 
     /*
      * Next processing slice.  Each time we check that global enable
