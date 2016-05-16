@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2000-2007 MySQL AB
-   Use is subject to license terms
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,6 +60,7 @@ namespace yaSSL {
         time_t clicks = time(0);
         char   timeStr[32];
 
+        memset(timeStr, 0, sizeof(timeStr));
         // get rid of newline
         strncpy(timeStr, ctime(&clicks), sizeof(timeStr));
         unsigned int len = strlen(timeStr);
