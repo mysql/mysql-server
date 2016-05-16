@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -228,7 +228,7 @@ static int rebuild_table(string name)
 {
   int rc= 0;
   string query= "ALTER TABLE " + name + " FORCE";
-  if (mysql_real_query(sock, query.c_str(), (uint)query.length()))
+  if (mysql_real_query(sock, query.c_str(), (ulong)query.length()))
   {
     fprintf(stderr, "Failed to %s\n", query.c_str());
     fprintf(stderr, "Error: %s\n", mysql_error(sock));
@@ -315,7 +315,7 @@ static int handle_request_for_tables(string tables)
 
   string query= operation + " TABLE " + tables + " " + options;
 
-  if (mysql_real_query(sock, query.c_str(), query.length()))
+  if (mysql_real_query(sock, query.c_str(), (ulong)query.length()))
   {
     DBError(sock,
       "when executing '" + operation + " TABLE ... " + options + "'");
@@ -394,7 +394,8 @@ static void print_result()
             if (strstr(alter_txt, "PARTITION BY") &&
                 strlen(alter_txt) < MAX_ALTER_STR_SIZE)
             {
-              strcpy(prev_alter, alter_txt);
+              strncpy(prev_alter, alter_txt, MAX_ALTER_STR_SIZE-1);
+              prev_alter[MAX_ALTER_STR_SIZE-1]= 0;
             }
             else
             {
