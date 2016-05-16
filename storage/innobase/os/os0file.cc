@@ -114,7 +114,7 @@ static Blocks*	block_cache;
 static const size_t	MAX_BLOCKS = 128;
 
 /** Block buffer size */
-static const size_t	BUFFER_BLOCK_SIZE = UNIV_PAGE_SIZE * 1.3;
+#define BUFFER_BLOCK_SIZE UNIV_PAGE_SIZE * 1.3
 
 /* This specifies the file permissions InnoDB uses when it creates files in
 Unix; the value of os_innodb_umask is initialized in ha_innodb.cc to
