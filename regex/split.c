@@ -163,6 +163,10 @@ char *argv[];
 		}
 	else if (argc > 3)
 		for (n = atoi(argv[3]); n > 0; n--) {
+                        if(sizeof(buf)-1 < strlen(argv[1]))
+                        {
+                          exit(EXIT_FAILURE);
+                        }
 			(void) strcpy(buf, argv[1]);
 			(void) split(buf, fields, MNF, argv[2]);
 		}
