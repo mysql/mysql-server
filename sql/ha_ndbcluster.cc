@@ -19989,18 +19989,30 @@ static MYSQL_SYSVAR_BOOL(
   0                                  /* default      */
 );
 
+static
+void
+ndb_data_node_neighbour_update_func(MYSQL_THD,
+                                    struct st_mysql_sys_var *var,
+                                    void *var_ptr,
+                                    const void *save)
+{
+  const ulong data_node_neighbour = *static_cast<const ulong*>(save);
+  *static_cast<ulong*>(var_ptr) = data_node_neighbour;
+  ndb_set_data_node_neighbour(data_node_neighbour);
+}
+
 static MYSQL_SYSVAR_ULONG(
-  data_node_neighbour,               /* name */
-  opt_ndb_data_node_neighbour,       /* var  */
+  data_node_neighbour,                 /* name */
+  opt_ndb_data_node_neighbour,         /* var  */
   PLUGIN_VAR_OPCMDARG,
   "My closest data node, if 0 no closest neighbour, used to select"
   " an appropriate data node to contact to run a transaction at.",
-  NULL,                              /* check func.  */
-  NULL,                              /* update func. */
-  0,                                 /* default      */
-  0,                                 /* min          */
-  MAX_NDB_NODES,                     /* max          */
-  0                                  /* block        */
+  NULL,                                /* check func.  */
+  ndb_data_node_neighbour_update_func, /* update func. */
+  0,                                   /* default      */
+  0,                                   /* min          */
+  MAX_NDB_NODES,                       /* max          */
+  0                                    /* block        */
 );
 
 my_bool opt_ndb_log_update_as_write;
