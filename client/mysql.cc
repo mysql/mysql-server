@@ -3344,7 +3344,7 @@ static int mysql_real_query_for_lazy(const char *buf, size_t length)
   for (uint retry=0;; retry++)
   {
     int error;
-    if (!mysql_real_query(&mysql,buf,length))
+    if (!mysql_real_query(&mysql,buf,(ulong)length))
       return 0;
     error= put_error(&mysql);
     if (mysql_errno(&mysql) != CR_SERVER_GONE_ERROR || retry > 1 ||
