@@ -6511,6 +6511,7 @@ sub start_mysqltest ($) {
     $exe=  "strace";
     mtr_add_arg($args, "-o");
     mtr_add_arg($args, "%s/log/mysqltest.strace", $opt_vardir);
+    mtr_add_arg($args, "-f");
     mtr_add_arg($args, "$exe_mysqltest");
   }
 
@@ -6931,6 +6932,7 @@ sub strace_server_arguments {
 
   mtr_add_arg($args, "-o");
   mtr_add_arg($args, "%s/log/%s.strace", $opt_vardir, $type);
+  mtr_add_arg($args, "-f");
   mtr_add_arg($args, $$exe);
   $$exe= "strace";
 }
