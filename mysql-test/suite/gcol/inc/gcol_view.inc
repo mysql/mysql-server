@@ -64,6 +64,7 @@ explain select * from v1;
 select * from t1;
 drop view v1;
 create view v1 as select distinct c from t1;
+--sorted_result
 select * from v1;
 --replace_column 10 X
 explain select * from v1;
