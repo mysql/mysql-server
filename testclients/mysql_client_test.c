@@ -20274,11 +20274,11 @@ static void test_bug20444737()
     DIE("Read error");
   }
 
-  rc= mysql_real_query(mysql, db_query, strlen(db_query));
+  rc= mysql_real_query(mysql, db_query, (ulong)strlen(db_query));
   myquery(rc);
   length= (ulong)strlen(query);
   fprintf(stdout, "Query is %s\n", query);
-  rc= mysql_real_query(mysql, query, length);
+  rc= mysql_real_query(mysql, query, (ulong)length);
   myquery(rc);
 
   free(master_test_filename);
