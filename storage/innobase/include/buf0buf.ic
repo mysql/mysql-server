@@ -1158,10 +1158,12 @@ buf_page_hash_get_locked(
 	if (mode == RW_LOCK_S) {
 		rw_lock_s_lock(hash_lock);
 
+		/* If not own LRU_list_mutex, page_hash can be changed. */
 		hash_lock = hash_lock_s_confirm(
 			hash_lock, buf_pool->page_hash, page_id.fold());
 	} else {
 		rw_lock_x_lock(hash_lock);
+		/* If not own LRU_list_mutex, page_hash can be changed. */
 		hash_lock = hash_lock_x_confirm(
 			hash_lock, buf_pool->page_hash, page_id.fold());
 	}
