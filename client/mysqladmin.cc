@@ -1106,7 +1106,7 @@ retry:
 
           int offset= sprintf(buffer, "ALTER USER USER() IDENTIFIED BY '");
           int length= (int)mysql_real_escape_string(mysql, buffer + offset,
-                                                    typed_password,
+                                                    typed_password, (ulong)
                                                     strlen(typed_password));
           if (length == -1)
           {
