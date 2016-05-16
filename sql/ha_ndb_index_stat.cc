@@ -2555,9 +2555,8 @@ Ndb_index_stat_thread::do_run()
       int ret= native_cond_timedwait(&COND_client_waiting,
                                      &LOCK_client_waiting,
                                      &abstime);
-      const char* reason= ret == ETIMEDOUT ? "timed out" : "wake up";
-      (void)reason; // USED
-      DBUG_PRINT("index_stat", ("loop: %s", reason));
+      DBUG_PRINT("index_stat", ("loop: %s",
+                                ret == ETIMEDOUT ? "timed out" : "wake up"));
     }
     client_waiting= false;
     native_mutex_unlock(&LOCK_client_waiting);
