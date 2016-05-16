@@ -135,7 +135,7 @@ std::string Abstract_mysql_chain_element_extension::quote_name(
   Mysql::Tools::Base::Mysql_query_runner* runner= this->get_runner();
   buff[0]= '`';
   int len= mysql_real_escape_string_quote(runner->get_low_level_connection(),
-              buff+1, name_str, name.size(), '`');
+              buff+1, name_str, (ulong)name.size(), '`');
   buff[len+1]= '`';
   delete runner;
   return std::string(buff);

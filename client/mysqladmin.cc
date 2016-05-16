@@ -1054,7 +1054,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
         /* escape quotes if password has any special characters */
         password_len= strlen(typed_password);
         tmp= (char*) my_malloc(PSI_NOT_INSTRUMENTED, password_len*2+1, MYF(MY_WME));
-        mysql_real_escape_string(mysql, tmp, typed_password, password_len);
+        mysql_real_escape_string(mysql, tmp, typed_password, (ulong)password_len);
         typed_password= tmp;
       }
       else
