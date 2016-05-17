@@ -126,7 +126,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     {C_STRING_WITH_LEN("RECEIVED_TRANSACTION_SET")},
-    {C_STRING_WITH_LEN("text")},
+    {C_STRING_WITH_LEN("longtext")},
     {NULL, 0}
   },
   {

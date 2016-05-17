@@ -1385,7 +1385,7 @@ public:
     separators in the resulting text.
     @return The length.
   */
-  int get_string_length(const String_format *string_format= NULL) const;
+  size_t get_string_length(const String_format *string_format= NULL) const;
   /**
     Formats this Gtid_set as a string and saves in a given buffer.
 
@@ -1399,8 +1399,8 @@ public:
     separators in the resulting text.
     @return Length of the generated string.
   */
-  int to_string(char *buf, bool need_lock= false,
-                const String_format *string_format= NULL) const;
+  size_t to_string(char *buf, bool need_lock= false,
+                   const String_format *string_format= NULL) const;
 
   /**
     Formats a Gtid_set as a string and saves in a newly allocated buffer.
@@ -1413,8 +1413,8 @@ public:
     @param string_format Specifies how to format the string.
     @retval Length of the generated string, or -1 on out of memory.
   */
-  int to_string(char **buf, bool need_lock= false,
-                const String_format *string_format= NULL) const;
+  long to_string(char **buf, bool need_lock= false,
+                 const String_format *string_format= NULL) const;
 #ifndef DBUG_OFF
   /// Debug only: Print this Gtid_set to stdout.
   void print(bool need_lock= false,
@@ -1941,8 +1941,10 @@ private:
   Interval *free_intervals;
   /// Linked list of chunks.
   Interval_chunk *chunks;
+  /// If the string is cached.
+  mutable bool has_cached_string_length;
   /// The string length.
-  mutable int cached_string_length;
+  mutable size_t cached_string_length;
   /// The String_format that was used when cached_string_length was computed.
   mutable const String_format *cached_string_format;
 #ifndef DBUG_OFF
