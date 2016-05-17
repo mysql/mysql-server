@@ -472,6 +472,15 @@ typedef long int		lint;
 typedef ib_uint64_t		ib_id_t;
 #define IB_ID_MAX		IB_UINT64_MAX
 
+/** Page number */
+typedef uint32			page_no_t;
+/** Tablespace identifier */
+typedef uint32			space_id_t;
+
+#define SPACE_ID_PF UINT32PF
+#define PAGE_NO_PF UINT32PF
+#define PAGE_ID_PF "page " SPACE_ID_PF ":" PAGE_NO_PF
+
 /** This 'ibool' type is used within Innobase. Remember that different included
 headers may define 'bool' differently. Do not assume that 'bool' is a ulint! */
 #define ibool			ulint
@@ -650,8 +659,5 @@ static const size_t UNIV_SECTOR_SIZE = 512;
 /* Dimension of spatial object we support so far. It has its root in
 myisam/sp_defs.h. We only support 2 dimension data */
 #define SPDIMS          2
-
-typedef ulint page_no_t;
-typedef ulint space_id_t;
 
 #endif

@@ -83,7 +83,7 @@ doublewrite buffer */
 ibool
 buf_dblwr_page_inside(
 /*==================*/
-	ulint	page_no);	/*!< in: page number */
+	page_no_t	page_no);	/*!< in: page number */
 
 /** Posts a buffer page for writing. If the doublewrite memory buffer
 is full, calls buf_dblwr_flush_buffered_writes and waits for for free
@@ -126,10 +126,10 @@ buf_dblwr_write_single_page(
 struct buf_dblwr_t{
 	ib_mutex_t	mutex;	/*!< mutex protecting the first_free
 				field and write_buf */
-	ulint		block1;	/*!< the page number of the first
+	page_no_t	block1;	/*!< the page number of the first
 				doublewrite block (64 pages) */
-	ulint		block2;	/*!< page number of the second block */
-	ulint		first_free;/*!< first free position in write_buf
+	page_no_t	block2;	/*!< page number of the second block */
+	page_no_t	first_free;/*!< first free position in write_buf
 				measured in units of UNIV_PAGE_SIZE */
 	ulint		b_reserved;/*!< number of slots currently reserved
 				for batch flush. */

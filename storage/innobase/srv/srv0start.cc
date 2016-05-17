@@ -394,7 +394,7 @@ create_log_files(
 	ut_a(log_space != NULL);
 
 	logfile0 = fil_node_create(
-		logfilename, (ulint) srv_log_file_size,
+		logfilename, static_cast<page_no_t>(srv_log_file_size),
 		log_space, false, false);
 	ut_a(logfile0);
 
@@ -403,7 +403,7 @@ create_log_files(
 		sprintf(logfilename + dirnamelen, "ib_logfile%u", i);
 
 		if (!fil_node_create(logfilename,
-				     (ulint) srv_log_file_size,
+				     static_cast<page_no_t>(srv_log_file_size),
 				     log_space, false, false)) {
 
 			ib::error()
@@ -574,7 +574,7 @@ dberr_t
 srv_undo_tablespace_open(
 /*=====================*/
 	const char*	name,		/*!< in: tablespace file name */
-	ulint		space_id)	/*!< in: tablespace id */
+	space_id_t	space_id)	/*!< in: tablespace id */
 {
 	os_file_t	fh;
 	bool		ret;
@@ -644,14 +644,15 @@ srv_undo_tablespace_open(
 		ut_a(fil_validate());
 		ut_a(space);
 
-		os_offset_t	n_pages = size / UNIV_PAGE_SIZE;
+		page_no_t	n_pages = static_cast<page_no_t>(
+			size / UNIV_PAGE_SIZE);
 
 		/* On 32-bit platforms, ulint is 32 bits and os_offset_t
 		is 64 bits. It is OK to cast the n_pages to ulint because
 		the unit has been scaled to pages and page number is always
 		32 bits. */
 		if (fil_node_create(
-			name, (ulint) n_pages, space, false, atomic_write)) {
+			name, n_pages, space, false, atomic_write)) {
 
 			err = DB_SUCCESS;
 		}
@@ -678,10 +679,11 @@ srv_undo_tablespaces_init(
 						discovered and opened */
 {
 	ulint			i;
+	space_id_t		id;
 	dberr_t			err = DB_SUCCESS;
-	ulint			prev_space_id = 0;
+	space_id_t		prev_space_id = 0;
 	ulint			n_undo_tablespaces;
-	ulint			undo_tablespace_ids[TRX_SYS_N_RSEGS + 1];
+	space_id_t		undo_tablespace_ids[TRX_SYS_N_RSEGS + 1];
 
 	*n_opened = 0;
 
@@ -742,7 +744,7 @@ srv_undo_tablespaces_init(
 				char	name[OS_FILE_MAX_PATH];
 
 				snprintf(name, sizeof(name),
-					    "%s%cundo%03" ULINTPFS,
+					    "%s%cundo%03u",
 					    srv_undo_dir, OS_PATH_SEPARATOR,
 					    undo_tablespace_ids[i]);
 
@@ -767,10 +769,10 @@ srv_undo_tablespaces_init(
 		n_undo_tablespaces = n_conf_tablespaces;
 
 		for (i = 1; i <= n_undo_tablespaces; ++i) {
-			undo_tablespace_ids[i - 1] = i;
+			undo_tablespace_ids[i - 1] = static_cast<space_id_t>(i);
 		}
 
-		undo_tablespace_ids[i] = ULINT_UNDEFINED;
+		undo_tablespace_ids[i] = SPACE_UNKNOWN;
 	}
 
 	/* Open all the undo tablespaces that are currently in use. If we
@@ -783,7 +785,7 @@ srv_undo_tablespaces_init(
 
 		snprintf(
 			name, sizeof(name),
-			"%s%cundo%03" ULINTPFS,
+			"%s%cundo%03u",
 			srv_undo_dir, OS_PATH_SEPARATOR,
 			undo_tablespace_ids[i]);
 
@@ -794,7 +796,7 @@ srv_undo_tablespaces_init(
 
 		/* The system space id should not be in this array. */
 		ut_a(undo_tablespace_ids[i] != 0);
-		ut_a(undo_tablespace_ids[i] != ULINT_UNDEFINED);
+		ut_a(undo_tablespace_ids[i] != SPACE_UNKNOWN);
 
 		/* Undo space ids start from 1. */
 
@@ -816,15 +818,15 @@ srv_undo_tablespaces_init(
 	not in use and therefore not required by recovery. We only check
 	that there are no gaps. */
 
-	for (i = prev_space_id + 1; i < TRX_SYS_N_RSEGS; ++i) {
+	for (id = prev_space_id + 1; id < TRX_SYS_N_RSEGS; ++id) {
 		char	name[OS_FILE_MAX_PATH];
 
 		snprintf(
-			name, sizeof(name), "%s%cundo%03" ULINTPFS,
-			srv_undo_dir, OS_PATH_SEPARATOR, i);
+			name, sizeof(name), "%s%cundo%03u",
+			srv_undo_dir, OS_PATH_SEPARATOR, id);
 
 		/* Undo space ids start from 1. */
-		err = srv_undo_tablespace_open(name, i);
+		err = srv_undo_tablespace_open(name, id);
 
 		if (err != DB_SUCCESS) {
 			break;
@@ -868,11 +870,11 @@ srv_undo_tablespaces_init(
 		mtr_t	mtr;
 
 		/* The undo log tablespace */
-		for (i = 1; i <= n_undo_tablespaces; ++i) {
+		for (id = 1; id <= n_undo_tablespaces; ++id) {
 			mtr_start(&mtr);
-			mtr.set_undo_space(i);
+			mtr.set_undo_space(id);
 			fsp_header_init(
-				i, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
+				id, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
 			mtr_commit(&mtr);
 		}
 	}
@@ -911,8 +913,8 @@ srv_undo_tablespaces_init(
 
 				if (space_id == *it) {
 					trx_rseg_header_create(
-						*it, univ_page_size, ULINT_MAX,
-						i, &mtr);
+						*it, univ_page_size,
+						PAGE_NO_MAX, i, &mtr);
 				}
 			}
 
@@ -986,7 +988,7 @@ srv_open_tmp_tablespace(
 	bool		create_new_db,
 	SysTablespace*	tmp_space)
 {
-	ulint	sum_of_new_sizes;
+	page_no_t	sum_of_new_sizes;
 
 	/* Will try to remove if there is existing file left-over by last
 	unclean shutdown */
@@ -996,8 +998,8 @@ srv_open_tmp_tablespace(
 
 	ib::info() << "Creating shared tablespace for temporary tables";
 
-	bool	create_new_temp_space = true;
-	ulint	temp_space_id = ULINT_UNDEFINED;
+	bool		create_new_temp_space = true;
+	space_id_t	temp_space_id = SPACE_UNKNOWN;
 
 	dict_hdr_get_new_id(NULL, NULL, &temp_space_id, NULL, true);
 
@@ -1028,10 +1030,10 @@ srv_open_tmp_tablespace(
 
 	} else {
 
-		mtr_t	mtr;
-		ulint	size = tmp_space->get_sum_of_sizes();
+		mtr_t		mtr;
+		page_no_t	size = tmp_space->get_sum_of_sizes();
 
-		ut_a(temp_space_id != ULINT_UNDEFINED);
+		ut_a(temp_space_id != SPACE_UNKNOWN);
 		ut_a(tmp_space->space_id() == temp_space_id);
 
 		/* Open this shared temp tablespace in the fil_system so that
@@ -1310,12 +1312,11 @@ srv_prepare_to_delete_redo_log_files(
 @param[in]	create_new_db	whether to create a new database
 @return DB_SUCCESS or error code */
 dberr_t
-srv_start(
-	bool	create_new_db)
+srv_start(bool create_new_db)
 {
 	lsn_t		flushed_lsn;
-	ulint		sum_of_data_file_sizes;
-	ulint		tablespace_size_in_header;
+	page_no_t	sum_of_data_file_sizes;
+	page_no_t	tablespace_size_in_header;
 	dberr_t		err;
 	ulint		srv_n_log_files_found = srv_n_log_files;
 	mtr_t		mtr;
@@ -1604,7 +1605,7 @@ srv_start(
 	}
 
 	/* Open or create the data files. */
-	ulint	sum_of_new_sizes;
+	page_no_t	sum_of_new_sizes;
 
 	err = srv_sys_space.open_or_create(
 		false, create_new_db, &sum_of_new_sizes, &flushed_lsn);
@@ -1770,14 +1771,15 @@ srv_start(
 
 		/* srv_log_file_size is measured in pages; if page size is 16KB,
 		then we have a limit of 64TB on 32 bit systems */
-		ut_a(srv_log_file_size <= ULINT_MAX);
+		ut_a(srv_log_file_size <= PAGE_NO_MAX);
 
 		for (unsigned j = 0; j < i; j++) {
 			sprintf(logfilename + dirnamelen, "ib_logfile%u", j);
 
-			if (!fil_node_create(logfilename,
-					     (ulint) srv_log_file_size,
-					     log_space, false, false)) {
+			if (!fil_node_create(
+				logfilename,
+				static_cast<page_no_t>(srv_log_file_size),
+				log_space, false, false)) {
 				return(srv_init_abort(DB_ERROR));
 			}
 		}
@@ -2119,7 +2121,7 @@ files_checked:
 	os_event_set(buf_flush_event);
 
 	sum_of_data_file_sizes = srv_sys_space.get_sum_of_sizes();
-	ut_a(sum_of_new_sizes != ULINT_UNDEFINED);
+	ut_a(sum_of_new_sizes != FIL_NULL);
 
 	tablespace_size_in_header = fsp_header_get_tablespace_size();
 

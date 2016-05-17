@@ -146,10 +146,10 @@ If a page number maps to a nonzero number, the number is a byte offset
 into the index->online_log, indicating that the page is safe to access
 when applying log records starting from that offset. */
 typedef std::map<
-	ulint,
+	page_no_t,
 	row_log_table_blob_t,
-	std::less<ulint>,
-	ut_allocator<std::pair<const ulint, row_log_table_blob_t> > >
+	std::less<page_no_t>,
+	ut_allocator<std::pair<const page_no_t, row_log_table_blob_t> > >
 	page_no_map;
 
 /** @brief Buffer for logging modifications during online index creation
@@ -1369,7 +1369,7 @@ void
 row_log_table_blob_free(
 /*====================*/
 	dict_index_t*	index,	/*!< in/out: clustered index, X-latched */
-	ulint		page_no)/*!< in: starting page number of the BLOB */
+	page_no_t	page_no)/*!< in: starting page number of the BLOB */
 {
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(dict_index_is_online_ddl(index));
@@ -1413,7 +1413,7 @@ void
 row_log_table_blob_alloc(
 /*=====================*/
 	dict_index_t*	index,	/*!< in/out: clustered index, X-latched */
-	ulint		page_no)/*!< in: starting page number of the BLOB */
+	page_no_t	page_no)/*!< in: starting page number of the BLOB */
 {
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(dict_index_is_online_ddl(index));
@@ -1517,7 +1517,7 @@ row_log_table_apply_convert_mrec(
 					mrec, offsets, i, &len);
 				ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
 
-				ulint	page_no = mach_read_from_4(
+				page_no_t page_no = mach_read_from_4(
 					data + len - (BTR_EXTERN_FIELD_REF_SIZE
 						      - lob::BTR_EXTERN_PAGE_NO));
 				page_no_map::const_iterator p = blobs->find(

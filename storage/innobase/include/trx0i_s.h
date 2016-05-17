@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -105,8 +105,8 @@ struct i_s_locks_row_t {
 	/** Information for record locks.  All these are
 	ULINT_UNDEFINED for table locks. */
 	/* @{ */
-	ulint		lock_space;	/*!< tablespace identifier */
-	ulint		lock_page;	/*!< page number within the_space */
+	space_id_t	lock_space;	/*!< tablespace identifier */
+	page_no_t	lock_page;	/*!< page number within the_space */
 	ulint		lock_rec;	/*!< heap number of the record
 					on the page */
 	const char*	lock_data;	/*!< (some) content of the record */

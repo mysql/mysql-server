@@ -2729,7 +2729,7 @@ page_delete_rec(
 		    && mach_read_from_4(page + FIL_PAGE_PREV) == FIL_NULL)
 		|| (page_get_n_recs(page) < 2))) {
 
-		ulint	root_page_no = dict_index_get_page(index);
+		page_no_t	root_page_no = dict_index_get_page(index);
 
 		/* The page fillfactor will drop below a predefined
 		minimum value, OR the level in the B-tree contains just

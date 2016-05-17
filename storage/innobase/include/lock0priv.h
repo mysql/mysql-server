@@ -75,8 +75,8 @@ operator<<(std::ostream& out, const lock_table_t& lock)
 
 /** Record lock for a page */
 struct lock_rec_t {
-	ib_uint32_t	space;		/*!< space id */
-	ib_uint32_t	page_no;	/*!< page number */
+	space_id_t	space;		/*!< space id */
+	page_no_t	page_no;	/*!< page number */
 	ib_uint32_t	n_bits;		/*!< number of bits in the lock
 					bitmap; NOTE: the lock bitmap is
 					placed immediately after the
@@ -556,10 +556,10 @@ enum lock_rec_req_status {
 Record lock ID */
 struct RecID {
 
-	RecID(ulint space_id, ulint page_no, ulint heap_no)
+	RecID(space_id_t space_id, page_no_t page_no, ulint heap_no)
 		:
-		m_space_id(static_cast<uint32_t>(space_id)),
-		m_page_no(static_cast<uint32_t>(page_no)),
+		m_space_id(space_id),
+		m_page_no(page_no),
 		m_heap_no(static_cast<uint32_t>(heap_no)),
 		m_fold(lock_rec_fold(m_space_id, m_page_no))
 	{
@@ -1044,9 +1044,9 @@ file address.
 UNIV_INLINE
 lock_t*
 lock_rec_get_first_on_page_addr(
-	hash_table_t*   lock_hash,
-	ulint           space,
-	ulint           page_no);
+	hash_table_t*	lock_hash,
+	space_id_t	space,
+	page_no_t	page_no);
 
 /** Gets the first record lock on a page, where the page is identified by a
 pointer to it.

@@ -153,10 +153,10 @@ MY_ATTRIBUTE((warn_unused_result))
 bool
 log_group_init(
 /*===========*/
-	ulint	id,			/*!< in: group id */
-	ulint	n_files,		/*!< in: number of log files */
-	lsn_t	file_size,		/*!< in: log file size in bytes */
-	ulint	space_id);		/*!< in: space id of the file space
+	ulint		id,		/*!< in: group id */
+	ulint		n_files,	/*!< in: number of log files */
+	lsn_t		file_size,	/*!< in: log file size in bytes */
+	space_id_t	space_id);	/*!< in: space id of the file space
 					which contains the log files of this
 					group */
 /******************************************************//**
@@ -580,7 +580,7 @@ struct log_group_t{
 	/** individual log file size in bytes, including the header */
 	lsn_t				file_size
 	/** file space which implements the log group */;
-	ulint				space_id;
+	space_id_t			space_id;
 	/** corruption status */
 	log_group_state_t		state;
 	/** lsn used to fix coordinates within the log group */

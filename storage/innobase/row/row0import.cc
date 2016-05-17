@@ -72,9 +72,9 @@ struct row_index_t {
 						in the exporting server */
 	byte*		m_name;			/*!< Index name */
 
-	ulint		m_space;		/*!< Space where it is placed */
+	space_id_t	m_space;		/*!< Space where it is placed */
 
-	ulint		m_page_no;		/*!< Root page number */
+	page_no_t	m_page_no;		/*!< Root page number */
 
 	ulint		m_type;			/*!< Index type */
 
@@ -358,9 +358,9 @@ public:
 	AbstractCallback(trx_t* trx)
 		:
 		m_trx(trx),
-		m_space(ULINT_UNDEFINED),
+		m_space(SPACE_UNKNOWN),
 		m_xdes(),
-		m_xdes_page_no(ULINT_UNDEFINED),
+		m_xdes_page_no(FIL_NULL),
 		m_space_flags(ULINT_UNDEFINED),
 		m_table_flags(ULINT_UNDEFINED) UNIV_NOTHROW { }
 
@@ -433,7 +433,7 @@ protected:
 	@param page page contents
 	@return DB_SUCCESS or error code. */
 	dberr_t	set_current_xdes(
-		ulint		page_no,
+		page_no_t	page_no,
 		const page_t*	page) UNIV_NOTHROW
 	{
 		m_xdes_page_no = page_no;
@@ -481,14 +481,14 @@ protected:
 	/** Check if the page is marked as free in the extent descriptor.
 	@param page_no page number to check in the extent descriptor.
 	@return true if the page is marked as free */
-	bool is_free(ulint page_no) const UNIV_NOTHROW
+	bool is_free(page_no_t page_no) const UNIV_NOTHROW
 	{
 		ut_a(xdes_calc_descriptor_page(get_page_size(), page_no)
 		     == m_xdes_page_no);
 
 		if (m_xdes != 0) {
 			const xdes_t*	xdesc = xdes(page_no, m_xdes);
-			ulint		pos = page_no % FSP_EXTENT_SIZE;
+			page_no_t	pos = page_no % FSP_EXTENT_SIZE;
 
 			return(xdes_get_bit(xdesc, XDES_FREE_BIT, pos));
 		}
@@ -502,7 +502,7 @@ protected:
 	trx_t*			m_trx;
 
 	/** Space id of the file being iterated over. */
-	ulint			m_space;
+	space_id_t		m_space;
 
 	/** Minimum page number for which the free list has not been
 	initialized: the pages >= this limit are, by definition, free;
@@ -510,16 +510,16 @@ protected:
 	this number is 64, i.e., we have initialized the space about
 	the first extent, but have not physically allocted those pages
 	to the file. @see FSP_LIMIT. */
-	ulint			m_free_limit;
+	page_no_t		m_free_limit;
 
 	/** Current size of the space in pages */
-	ulint			m_size;
+	page_no_t		m_size;
 
 	/** Current extent descriptor page */
 	xdes_t*			m_xdes;
 
 	/** Physical page offset in the file of the extent descriptor */
-	ulint			m_xdes_page_no;
+	page_no_t		m_xdes_page_no;
 
 	/** Flags value read from the header page */
 	ulint			m_space_flags;
@@ -566,7 +566,7 @@ AbstractCallback::init(
 		return(DB_CORRUPTION);
 	}
 
-	ut_a(m_space == ULINT_UNDEFINED);
+	ut_a(m_space == SPACE_UNKNOWN);
 
 	m_size  = mach_read_from_4(page + FSP_SIZE);
 	m_free_limit = mach_read_from_4(page + FSP_FREE_LIMIT);
@@ -584,13 +584,13 @@ struct FetchIndexRootPages : public AbstractCallback {
 	/** Index information gathered from the .ibd file. */
 	struct Index {
 
-		Index(space_index_t id, ulint page_no)
+		Index(space_index_t id, page_no_t page_no)
 			:
 			m_id(id),
 			m_page_no(page_no) { }
 
 		space_index_t	m_id;		/*!< Index id */
-		ulint		m_page_no;	/*!< Root page number */
+		page_no_t	m_page_no;	/*!< Root page number */
 	};
 
 	typedef std::vector<Index, ut_allocator<Index> >	Indexes;
@@ -608,7 +608,7 @@ struct FetchIndexRootPages : public AbstractCallback {
 
 	/**
 	@retval the space id of the tablespace being iterated over */
-	virtual ulint get_space_id() const UNIV_NOTHROW
+	virtual space_id_t get_space_id() const UNIV_NOTHROW
 	{
 		return(m_space);
 	}
@@ -846,7 +846,7 @@ public:
 
 	/**
 	@retval the server space id of the tablespace being iterated over */
-	virtual ulint get_space_id() const UNIV_NOTHROW
+	virtual space_id_t get_space_id() const UNIV_NOTHROW
 	{
 		return(m_cfg->m_table->space);
 	}
@@ -1998,7 +1998,7 @@ PageConverter::update_header(
 	switch (fsp_header_get_space_id(get_frame(block))) {
 	case 0:
 		return(DB_CORRUPTION);
-	case ULINT_UNDEFINED:
+	case SPACE_UNKNOWN:
 		ib::warn() << "Space id check in the header failed: ignored";
 	}
 

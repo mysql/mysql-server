@@ -135,7 +135,7 @@ dict_table_t*
 dict_mem_table_create(
 /*==================*/
 	const char*	name,	/*!< in: table name */
-	ulint		space,	/*!< in: space where the clustered index of
+	space_id_t	space,	/*!< in: space where the clustered index of
 				the table is placed */
 	ulint		n_cols,	/*!< in: total number of columns including
 				virtual and non-virtual columns */

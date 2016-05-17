@@ -805,7 +805,7 @@ void
 buf_ptr_get_fsp_addr(
 /*=================*/
 	const void*	ptr,	/*!< in: pointer to a buffer frame */
-	ulint*		space,	/*!< out: space id */
+	space_id_t*	space,	/*!< out: space id */
 	fil_addr_t*	addr)	/*!< out: page offset and byte offset */
 {
 	const page_t*	page = (const page_t*) ut_align_down(ptr,
@@ -1068,14 +1068,14 @@ buf_pool_t*
 buf_pool_get(
 	const page_id_t&	page_id)
 {
-        /* 2log of BUF_READ_AHEAD_AREA (64) */
-        ulint		ignored_page_no = page_id.page_no() >> 6;
+	/* 2log of BUF_READ_AHEAD_AREA (64) */
+	page_no_t	ignored_page_no = page_id.page_no() >> 6;
 
-        page_id_t	id(page_id.space(), ignored_page_no);
+	page_id_t	id(page_id.space(), ignored_page_no);
 
-        ulint		i = id.fold() % srv_buf_pool_instances;
+	ulint		i = id.fold() % srv_buf_pool_instances;
 
-        return(&buf_pool_ptr[i]);
+	return(&buf_pool_ptr[i]);
 }
 
 /******************************************************************//**

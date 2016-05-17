@@ -84,7 +84,7 @@ rtr_index_build_node_ptr(
 	const rtr_mbr_t*	mbr,	/*!< in: mbr of lower page */
 	const rec_t*		rec,	/*!< in: record for which to build node
 					pointer */
-	ulint			page_no,/*!< in: page number to put in node
+	page_no_t		page_no,/*!< in: page number to put in node
 					pointer */
 	mem_heap_t*		heap,	/*!< in: memory heap where pointer
 					created */
@@ -196,7 +196,7 @@ rtr_get_father_node(
 	btr_cur_t*	sea_cur,/*!< in: search cursor */
 	btr_cur_t*	cursor,	/*!< in/out: tree cursor; the cursor page is
 				s- or x-latched */
-	ulint		page_no,/*!< in: current page no */
+	page_no_t	page_no,/*!< in: current page no */
 	mtr_t*		mtr);	/*!< in: mtr */
 
 /** Push a nonleaf index node to the search path
@@ -211,10 +211,10 @@ UNIV_INLINE
 void
 rtr_non_leaf_stack_push(
 	rtr_node_path_t*	path,
-	ulint			pageno,
+	page_no_t		pageno,
 	node_seq_t		seq_no,
 	ulint			level,
-	ulint			child_no,
+	page_no_t		child_no,
 	btr_pcur_t*		cursor,
 	double			mbr_inc);
 

@@ -1334,7 +1334,7 @@ dict_index_get_min_size(
 Gets the space id of the root of the index tree.
 @return space id */
 UNIV_INLINE
-ulint
+space_id_t
 dict_index_get_space(
 /*=================*/
 	const dict_index_t*	index)	/*!< in: index */
@@ -1352,7 +1352,7 @@ void
 dict_index_set_space(
 /*=================*/
 	dict_index_t*	index,	/*!< in/out: index */
-	ulint		space)	/*!< in: space id */
+	space_id_t	space)	/*!< in: space id */
 {
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
@@ -1364,7 +1364,7 @@ dict_index_set_space(
 Gets the page number of the root of the index tree.
 @return page number */
 UNIV_INLINE
-ulint
+page_no_t
 dict_index_get_page(
 /*================*/
 	const dict_index_t*	index)	/*!< in: index */
@@ -2010,7 +2010,7 @@ dict_table_have_virtual_index(
 UNIV_INLINE
 uint64_t
 dict_sdi_get_table_id(
-	ulint		space_id,
+	space_id_t	space_id,
 	uint64_t	copy_num)
 {
 	ut_ad(copy_num < MAX_SDI_COPIES);
@@ -2021,11 +2021,11 @@ dict_sdi_get_table_id(
 @param[in]	table_id	InnoDB table id
 @return space_id */
 UNIV_INLINE
-ulint
+space_id_t
 dict_sdi_get_space_id(
 	table_id_t	table_id)
 {
-	return(static_cast<uint32_t>(table_id));
+	return(static_cast<space_id_t>(table_id));
 }
 
 /** Check if the index is SDI index

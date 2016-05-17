@@ -58,7 +58,7 @@ public:
 		m_size(),
 		m_order(),
 		m_type(SRV_NOT_RAW),
-		m_space_id(ULINT_UNDEFINED),
+		m_space_id(SPACE_UNKNOWN),
 		m_flags(),
 		m_exists(),
 		m_is_valid(),
@@ -73,7 +73,7 @@ public:
 		/* No op */
 	}
 
-	Datafile(const char* name, ulint flags, ulint size, ulint order)
+	Datafile(const char* name, ulint flags, page_no_t size, ulint order)
 		:
 		m_name(mem_strdup(name)),
 		m_filepath(),
@@ -83,7 +83,7 @@ public:
 		m_size(size),
 		m_order(order),
 		m_type(SRV_NOT_RAW),
-		m_space_id(ULINT_UNDEFINED),
+		m_space_id(SPACE_UNKNOWN),
 		m_flags(flags),
 		m_exists(),
 		m_is_valid(),
@@ -244,7 +244,7 @@ public:
 	@retval DB_SUCCESS if tablespace is valid, DB_ERROR if not.
 	m_is_valid is also set true on success, else false. */
 	dberr_t validate_to_dd(
-		ulint		space_id,
+		space_id_t	space_id,
 		ulint		flags,
 		bool		for_import)
 		MY_ATTRIBUTE((warn_unused_result));
@@ -304,7 +304,7 @@ public:
 
 	/** Get Datafile::m_space_id.
 	@return m_space_id */
-	ulint	space_id()	const
+	space_id_t	space_id()	const
 	{
 		return(m_space_id);
 	}
@@ -416,7 +416,7 @@ private:
 	@param[in]	restore_page_no		Page number to restore
 	@return DB_SUCCESS if page was restored, else DB_ERROR */
 	dberr_t restore_from_doublewrite(
-		ulint	restore_page_no);
+		page_no_t	restore_page_no);
 
 	/** Points into m_filepath to the file name with extension */
 	char*			m_filename;
@@ -428,7 +428,7 @@ private:
 	os_file_create_t	m_open_flags;
 
 	/** size in pages */
-	ulint			m_size;
+	page_no_t		m_size;
 
 	/** ordinal position of this datafile in the tablespace */
 	ulint			m_order;
@@ -439,7 +439,7 @@ private:
 	/** Tablespace ID. Contained in the datafile header.
 	If this is a system tablespace, FSP_SPACE_ID is only valid
 	in the first datafile. */
-	ulint			m_space_id;
+	space_id_t		m_space_id;
 
 	/** Tablespace flags. Contained in the datafile header.
 	If this is a system tablespace, FSP_SPACE_FLAGS are only valid

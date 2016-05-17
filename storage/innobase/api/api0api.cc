@@ -3521,8 +3521,7 @@ ib_sdi_delete(
 @retval		MAX_SDI_COPIES	if the SDI is present
 @retval		UINT32_MAX	in case of failure */
 uint32_t
-ib_sdi_get_num_copies(
-	uint32_t	tablespace_id)
+ib_sdi_get_num_copies(space_id_t tablespace_id)
 {
 	fil_space_t*	space = fil_space_acquire(tablespace_id);
 	if (space == NULL) {
@@ -3551,7 +3550,7 @@ two for InnoDB.
 @return DB_SUCCESS if SDI index creation is successful, else error */
 ib_err_t
 ib_sdi_create_copies(
-	uint32_t	tablespace_id,
+	space_id_t	tablespace_id,
 	uint32_t	num_of_copies)
 {
 	if (num_of_copies != MAX_SDI_COPIES) {
@@ -3595,8 +3594,7 @@ is corrupted.
 @param[in]	tablespace_id	InnoDB tablespace id
 @return DB_SUCCESS if dropping of SDI indexes  is successful, else error */
 ib_err_t
-ib_sdi_drop_copies(
-	uint32_t	tablespace_id)
+ib_sdi_drop_copies(space_id_t tablespace_id)
 {
 	uint32_t	num_of_copies = ib_sdi_get_num_copies(tablespace_id);
 	if (num_of_copies == 0) {
@@ -3619,8 +3617,8 @@ ib_sdi_drop_copies(
 		a B-Tree Index page in same mtr will cause latch violation */
 		/* WL#7016 TODO: write DROP_TREE record */
 		mtr.start();
-		ulint	root_page_num = fsp_sdi_get_root_page_num(
-			tablespace_id, copy_num, page_size, &mtr);
+		page_no_t	root_page_num = fsp_sdi_get_root_page_num(
+				tablespace_id, copy_num, page_size, &mtr);
 
 		mtr.commit();
 
@@ -3664,8 +3662,7 @@ transaction will be flushed to disk.
 @param[in]	space_id	tablespace id
 @return DB_SUCCESS always */
 ib_err_t
-ib_sdi_flush(
-	uint32_t	space_id)
+ib_sdi_flush(space_id_t space_id)
 {
 	/* TODO: We should flush only the relevant buffer pool of the
 	modified tablespace. */

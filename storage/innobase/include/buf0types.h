@@ -154,26 +154,24 @@ public:
 	/** Constructor from (space, page_no).
 	@param[in]	space	tablespace id
 	@param[in]	page_no	page number */
-	page_id_t(ulint space, ulint page_no)
+	page_id_t(space_id_t space, page_no_t page_no)
 		:
-		m_space(static_cast<ib_uint32_t>(space)),
-		m_page_no(static_cast<ib_uint32_t>(page_no)),
+		m_space(space),
+		m_page_no(page_no),
 		m_fold(ULINT_UNDEFINED)
 	{
-		ut_ad(space <= 0xFFFFFFFFU);
-		ut_ad(page_no <= 0xFFFFFFFFU);
 	}
 
 	/** Retrieve the tablespace id.
 	@return tablespace id */
-	inline ib_uint32_t space() const
+	inline space_id_t space() const
 	{
 		return(m_space);
 	}
 
 	/** Retrieve the page number.
 	@return page number */
-	inline ib_uint32_t page_no() const
+	inline page_no_t page_no() const
 	{
 		return(m_page_no);
 	}
@@ -203,24 +201,19 @@ public:
 	/** Reset the values from a (space, page_no).
 	@param[in]	space	tablespace id
 	@param[in]	page_no	page number */
-	inline void reset(ulint space, ulint page_no)
+	inline void reset(space_id_t space, page_no_t page_no)
 	{
-		m_space = static_cast<ib_uint32_t>(space);
-		m_page_no = static_cast<ib_uint32_t>(page_no);
+		m_space = space;
+		m_page_no = page_no;
 		m_fold = ULINT_UNDEFINED;
-
-		ut_ad(space <= 0xFFFFFFFFU);
-		ut_ad(page_no <= 0xFFFFFFFFU);
 	}
 
 	/** Reset the page number only.
 	@param[in]	page_no	page number */
-	inline void set_page_no(ulint page_no)
+	inline void set_page_no(page_no_t page_no)
 	{
-		m_page_no = static_cast<ib_uint32_t>(page_no);
+		m_page_no = page_no;
 		m_fold = ULINT_UNDEFINED;
-
-		ut_ad(page_no <= 0xFFFFFFFFU);
 	}
 
 	/** Check if a given page_id_t object is equal to the current one.
@@ -234,10 +227,10 @@ public:
 private:
 
 	/** Tablespace id. */
-	ib_uint32_t	m_space;
+	space_id_t	m_space;
 
 	/** Page number. */
-	ib_uint32_t	m_page_no;
+	page_no_t	m_page_no;
 
 	/** A fold value derived from m_space and m_page_no,
 	used in hashing. */

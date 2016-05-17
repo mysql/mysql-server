@@ -842,8 +842,8 @@ Determines if there are explicit record locks on a page.
 lock_t*
 lock_rec_expl_exist_on_page(
 /*========================*/
-	ulint	space,	/*!< in: space id */
-	ulint	page_no)/*!< in: page number */
+	space_id_t	space,	/*!< in: space id */
+	page_no_t	page_no)/*!< in: page number */
 {
 	lock_t*	lock;
 
@@ -909,8 +909,8 @@ lock_rec_get_prev(
 	ulint		heap_no)/*!< in: heap number of the record */
 {
 	lock_t*		lock;
-	ulint		space;
-	ulint		page_no;
+	space_id_t	space;
+	page_no_t	page_no;
 	lock_t*		found_lock	= NULL;
 	hash_table_t*	hash;
 
@@ -1944,8 +1944,8 @@ lock_rec_has_to_wait_in_queue(
 	const lock_t*	wait_lock)	/*!< in: waiting record lock */
 {
 	const lock_t*	lock;
-	ulint		space;
-	ulint		page_no;
+	space_id_t	space;
+	page_no_t	page_no;
 	ulint		heap_no;
 	ulint		bit_mask;
 	ulint		bit_offset;
@@ -2306,8 +2306,8 @@ lock_rec_dequeue_from_page(
 					get their lock requests granted,
 					if they are now qualified to it */
 {
-	ulint		space;
-	ulint		page_no;
+	space_id_t	space;
+	page_no_t	page_no;
 	lock_t*		lock;
 	trx_lock_t*	trx_lock;
 	hash_table_t*	lock_hash;
@@ -2361,8 +2361,8 @@ lock_rec_discard(
 					record locks which are contained
 					in this lock object are removed */
 {
-	ulint		space;
-	ulint		page_no;
+	space_id_t	space;
+	page_no_t	page_no;
 	trx_lock_t*	trx_lock;
 
 	ut_ad(lock_mutex_own());
@@ -2393,8 +2393,8 @@ static
 void
 lock_rec_free_all_from_discard_page_low(
 /*====================================*/
-	ulint		space,
-	ulint		page_no,
+	space_id_t	space,
+	page_no_t	page_no,
 	hash_table_t*	lock_hash)
 {
 	lock_t*	lock;
@@ -2423,8 +2423,8 @@ lock_rec_free_all_from_discard_page(
 /*================================*/
 	const buf_block_t*	block)	/*!< in: page to be discarded */
 {
-	ulint	space;
-	ulint	page_no;
+	space_id_t	space;
+	page_no_t	page_no;
 
 	ut_ad(lock_mutex_own());
 
@@ -3165,8 +3165,8 @@ lock_update_merge_right(
 #ifdef UNIV_DEBUG
 	/* there should exist no page lock on the left page,
 	otherwise, it will be blocked from merge */
-	ulint	space = left_block->page.id.space();
-	ulint	page_no = left_block->page.id.page_no();
+	space_id_t	space = left_block->page.id.space();
+	page_no_t	page_no = left_block->page.id.page_no();
 	ut_ad(lock_rec_get_first_on_page_addr(
 			lock_sys->prdt_page_hash, space, page_no) == NULL);
 #endif /* UNIV_DEBUG */
@@ -3290,10 +3290,10 @@ lock_update_merge_left(
 #ifdef UNIV_DEBUG
 	/* there should exist no page lock on the right page,
 	otherwise, it will be blocked from merge */
-	ulint	space = right_block->page.id.space();
-	ulint	page_no = right_block->page.id.page_no();
-	lock_t*	lock_test = lock_rec_get_first_on_page_addr(
-		lock_sys->prdt_page_hash, space, page_no);
+	space_id_t	space = right_block->page.id.space();
+	page_no_t	page_no = right_block->page.id.page_no();
+	lock_t*		lock_test = lock_rec_get_first_on_page_addr(
+			lock_sys->prdt_page_hash, space, page_no);
 	ut_ad(!lock_test);
 #endif /* UNIV_DEBUG */
 
@@ -4593,8 +4593,8 @@ lock_rec_print(
 	FILE*		file,	/*!< in: file where to print */
 	const lock_t*	lock)	/*!< in: record type lock */
 {
-	ulint			space;
-	ulint			page_no;
+	space_id_t		space;
+	page_no_t		page_no;
 	mtr_t			mtr;
 	mem_heap_t*		heap		= NULL;
 	ulint			offsets_[REC_OFFS_NORMAL_SIZE];
@@ -4985,12 +4985,12 @@ lock_rec_fetch_page(
 {
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
-	ulint			space_id = lock->un_member.rec_lock.space;
+	space_id_t		space_id = lock->un_member.rec_lock.space;
 	fil_space_t*		space;
 	bool			found;
 	const page_size_t&	page_size = fil_space_get_page_size(space_id,
 								    &found);
-	ulint			page_no = lock->un_member.rec_lock.page_no;
+	page_no_t		page_no = lock->un_member.rec_lock.page_no;
 
 	/* Check if the .ibd file exists. */
 	if (found) {
@@ -5572,8 +5572,8 @@ static
 void
 lock_rec_block_validate(
 /*====================*/
-	ulint		space_id,
-	ulint		page_no)
+	space_id_t	space_id,
+	page_no_t	page_no)
 {
 	/* The lock and the block that it is referring to may be freed at
 	this point. We pass BUF_GET_POSSIBLY_FREED to skip a debug check.
@@ -5612,11 +5612,11 @@ bool
 lock_validate()
 /*===========*/
 {
-	typedef	std::pair<ulint, ulint>		page_addr_t;
+	typedef	std::pair<space_id_t, page_no_t>	page_addr_t;
 	typedef std::set<
 		page_addr_t,
 		std::less<page_addr_t>,
-		ut_allocator<page_addr_t> >	page_addr_set;
+		ut_allocator<page_addr_t> >		page_addr_set;
 
 	page_addr_set	pages;
 
@@ -5635,8 +5635,8 @@ lock_validate()
 
 		while ((lock = lock_rec_validate(i, &limit)) != 0) {
 
-			ulint	space = lock->un_member.rec_lock.space;
-			ulint	page_no = lock->un_member.rec_lock.page_no;
+			space_id_t	space = lock->un_member.rec_lock.space;
+			page_no_t	page_no = lock->un_member.rec_lock.page_no;
 
 			pages.insert(std::make_pair(space, page_no));
 		}
@@ -6485,7 +6485,7 @@ lock_rec_get_index_name(
 /*******************************************************************//**
 For a record lock, gets the tablespace number on which the lock is.
 @return tablespace number */
-ulint
+space_id_t
 lock_rec_get_space_id(
 /*==================*/
 	const lock_t*	lock)	/*!< in: lock */
@@ -6498,7 +6498,7 @@ lock_rec_get_space_id(
 /*******************************************************************//**
 For a record lock, gets the page number on which the lock is.
 @return page number */
-ulint
+page_no_t
 lock_rec_get_page_no(
 /*=================*/
 	const lock_t*	lock)	/*!< in: lock */

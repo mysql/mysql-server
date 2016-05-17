@@ -7226,7 +7226,7 @@ fts_drop_orphaned_tables(void)
 
 			/* We got this list from fil0fil.cc. The tablespace
 			with this name must exist. */
-			ut_a(fts_aux_table->id != ULINT_UNDEFINED);
+			ut_a(fts_aux_table->id != SPACE_UNKNOWN);
 
 			fts_aux_table->name = static_cast<char*>(
 				mem_heap_dup(heap, *it, len + 1));

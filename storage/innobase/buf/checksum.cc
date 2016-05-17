@@ -180,9 +180,9 @@ buf_page_lsn_check(
 
 		if (log_peek_lsn(&current_lsn) && current_lsn < page_lsn) {
 
-			const ulint	space_id = mach_read_from_4(
+			const space_id_t	space_id = mach_read_from_4(
 				read_buf + FIL_PAGE_SPACE_ID);
-			const ulint	page_no = mach_read_from_4(
+			const page_no_t	page_no = mach_read_from_4(
 				read_buf + FIL_PAGE_OFFSET);
 
 			ib::error() << "Page " << page_id_t(space_id, page_no)
@@ -633,9 +633,9 @@ BlockReporter::verify_zip_checksum() const
 		return(true);
 	}
 
-	ulint		page_no = mach_read_from_4(
+	page_no_t	page_no = mach_read_from_4(
 		m_read_buf + FIL_PAGE_OFFSET);
-	ulint		space_id = mach_read_from_4(
+	space_id_t	space_id = mach_read_from_4(
 		m_read_buf + FIL_PAGE_SPACE_ID);
 	const page_id_t	page_id(space_id, page_no);
 

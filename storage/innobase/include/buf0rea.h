@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -117,18 +117,18 @@ a read-ahead function. */
 void
 buf_read_ibuf_merge_pages(
 /*======================*/
-	bool		sync,		/*!< in: true if the caller
-					wants this function to wait
-					for the highest address page
-					to get read in, before this
-					function returns */
-	const ulint*	space_ids,	/*!< in: array of space ids */
-	const ulint*	page_nos,	/*!< in: array of page numbers
-					to read, with the highest page
-					number the last in the
-					array */
-	ulint		n_stored);	/*!< in: number of elements
-					in the arrays */
+	bool		sync,			/*!< in: true if the caller
+						wants this function to wait
+						for the highest address page
+						to get read in, before this
+						function returns */
+	const space_id_t*	space_ids,	/*!< in: array of space ids */
+	const page_no_t*	page_nos,	/*!< in: array of page numbers
+						to read, with the highest page
+						number the last in the
+						array */
+	ulint			n_stored);	/*!< in: number of elements
+						in the arrays */
 
 /** Issues read requests for pages which recovery wants to read in.
 @param[in]	sync		true if the caller wants this function to wait
@@ -140,10 +140,10 @@ highest page number the last in the array
 
 void
 buf_read_recv_pages(
-	bool		sync,
-	ulint		space_id,
-	const ulint*	page_nos,
-	ulint		n_stored);
+	bool			sync,
+	space_id_t		space_id,
+	const page_no_t*	page_nos,
+	ulint			n_stored);
 
 /** The size in pages of the area which the read-ahead algorithms read if
 invoked */

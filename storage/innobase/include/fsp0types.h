@@ -48,11 +48,12 @@ page size | file space extent size
   32 KiB  |  64 pages = 2 MiB
   64 KiB  |  64 pages = 4 MiB
 */
-#define FSP_EXTENT_SIZE         ((UNIV_PAGE_SIZE <= (16384) ?	\
+#define FSP_EXTENT_SIZE static_cast<page_no_t>(			\
+				((UNIV_PAGE_SIZE <= (16384) ?	\
 				(1048576 / UNIV_PAGE_SIZE) :	\
 				((UNIV_PAGE_SIZE <= (32768)) ?	\
 				(2097152 / UNIV_PAGE_SIZE) :	\
-				(4194304 / UNIV_PAGE_SIZE))))
+				(4194304 / UNIV_PAGE_SIZE)))))
 
 /** File space extent size (four megabyte) in pages for MAX page size */
 #define	FSP_EXTENT_SIZE_MAX	(4194304 / UNIV_PAGE_SIZE_MAX)
@@ -197,14 +198,14 @@ fsp_flags_is_valid(
 @return true if tablespace is system temporary. */
 bool
 fsp_is_system_temporary(
-	ulint	space_id);
+	space_id_t	space_id);
 
 /** Check if checksum is disabled for the given space.
 @param[in]	space_id	verify is checksum is enabled for given space.
 @return true if checksum is disabled for given space. */
 bool
 fsp_is_checksum_disabled(
-	ulint	space_id);
+	space_id_t	space_id);
 
 /** Check if tablespace is file-per-table.
 @param[in]	space_id	Tablespace ID
@@ -212,8 +213,8 @@ fsp_is_checksum_disabled(
 @return true if tablespace is file-per-table. */
 bool
 fsp_is_file_per_table(
-	ulint	space_id,
-	ulint	fsp_flags);
+	space_id_t	space_id,
+	ulint		fsp_flags);
 
 #ifdef UNIV_DEBUG
 /** Skip some of the sanity checks that are time consuming even in debug mode
@@ -221,8 +222,7 @@ and can affect frequent verification runs that are done to ensure stability of
 the product.
 @return true if check should be skipped for given space. */
 bool
-fsp_skip_sanity_check(
-	ulint	space_id);
+fsp_skip_sanity_check(space_id_t space_id);
 #endif /* UNIV_DEBUG */
 
 /* @defgroup fsp_flags InnoDB Tablespace Flag Constants @{ */

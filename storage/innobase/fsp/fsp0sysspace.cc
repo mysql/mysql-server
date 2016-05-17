@@ -94,7 +94,7 @@ to a number of megabytes, rounding down to the nearest megabyte.
 Then return the number of pages in the file.
 @param[in,out]	ptr	Pointer to a numeric string
 @return the number of pages in the file. */
-ulint
+page_no_t
 SysTablespace::parse_units(char*& ptr)
 {
 	char*	endp;
@@ -122,7 +122,7 @@ SysTablespace::parse_units(char*& ptr)
 		break;
 	}
 
-	return((megs * 1024 * 1024) / UNIV_PAGE_SIZE);
+	return(static_cast<page_no_t>((megs * 1024 * 1024) / UNIV_PAGE_SIZE));
 }
 
 /** Parse the input params and populate member variables.
@@ -134,9 +134,9 @@ SysTablespace::parse_params(
 	const char*	filepath_spec,
 	bool		supports_raw)
 {
-	char*	filepath;
-	ulint	size;
-	ulint	n_files = 0;
+	char*		filepath;
+	page_no_t	size;
+	ulint		n_files = 0;
 
 	ut_ad(m_last_file_size_max == 0);
 	ut_ad(!m_auto_extend_last_file);
@@ -196,7 +196,7 @@ invalid_size:
 
 				ptr += (sizeof ":max:") - 1;
 
-				ulint max = parse_units(ptr);
+				page_no_t max = parse_units(ptr);
 
 				if (max < size) {
 					goto invalid_size;
@@ -355,7 +355,7 @@ SysTablespace::check_size(
 	also the data file could contain an incomplete extent.
 	So we need to round the size downward to a megabyte. */
 
-	ulint	rounded_size_pages = get_pages_from_size(size);
+	page_no_t	rounded_size_pages = get_pages_from_size(size);
 
 	/* If last file */
 	if (&file == &m_files.back() && m_auto_extend_last_file) {
@@ -912,10 +912,10 @@ SysTablespace::check_file_spec(
 @return DB_SUCCESS or error code */
 dberr_t
 SysTablespace::open_or_create(
-	bool	is_temp,
-	bool	create_new_db,
-	ulint*	sum_new_sizes,
-	lsn_t*	flush_lsn)
+	bool		is_temp,
+	bool		create_new_db,
+	page_no_t*	sum_new_sizes,
+	lsn_t*		flush_lsn)
 {
 	dberr_t		err	= DB_SUCCESS;
 	fil_space_t*	space	= NULL;
@@ -1027,9 +1027,9 @@ SysTablespace::open_or_create(
 
 		ut_a(fil_validate());
 
-		ulint	max_size = (++node_counter == m_files.size()
+		page_no_t	max_size = (++node_counter == m_files.size()
 				    ? (m_last_file_size_max == 0
-				       ? ULINT_MAX
+				       ? PAGE_NO_MAX
 				       : m_last_file_size_max)
 				    : it->m_size);
 
@@ -1049,10 +1049,10 @@ SysTablespace::open_or_create(
 
 /**
 @return next increment size */
-ulint
+page_no_t
 SysTablespace::get_increment() const
 {
-	ulint	increment;
+	page_no_t	increment;
 
 	if (m_last_file_size_max == 0) {
 		increment = get_autoextend_increment();

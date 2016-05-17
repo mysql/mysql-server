@@ -8341,7 +8341,7 @@ int
 i_s_dict_fill_sys_tablespaces(
 /*==========================*/
 	THD*		thd,		/*!< in: thread */
-	ulint		space,		/*!< in: space ID */
+	space_id_t	space,		/*!< in: space ID */
 	const char*	name,		/*!< in: tablespace name */
 	ulint		flags,		/*!< in: tablespace flags */
 	TABLE*		table_to_fill)	/*!< in/out: fill this table */
@@ -8494,7 +8494,7 @@ i_s_sys_tablespaces_fill_table(
 	     rec = dict_getnext_system(&pcur, &mtr)) {
 
 		const char*	err_msg;
-		ulint		space;
+		space_id_t	space;
 		const char*	name;
 		ulint		flags;
 
@@ -8826,8 +8826,8 @@ i_s_files_table_fill(
 		char		file_per_table_name[
 			sizeof("innodb_file_per_table_1234567890")];
 		uintmax_t	avail_space;
-		ulint		extent_pages;
-		ulint		extend_pages;
+		page_no_t	extent_pages;
+		page_no_t	extend_pages;
 
 		space = node->space;
 		fil_type_t	purpose = space()->purpose;
@@ -8871,7 +8871,7 @@ i_s_files_table_fill(
 			snprintf(
 				file_per_table_name,
 				sizeof(file_per_table_name),
-				"innodb_file_per_table_" ULINTPF,
+				"innodb_file_per_table_" SPACE_ID_PF,
 				space()->id);
 			space_name = file_per_table_name;
 		} else {
@@ -8906,7 +8906,7 @@ i_s_files_table_fill(
 		OK(field_store_ulint(fields[IS_FILES_INITIAL_SIZE],
 				     node->init_size * page_size.physical()));
 
-		if (node->max_size >= ULINT_MAX) {
+		if (node->max_size >= PAGE_NO_MAX) {
 			fields[IS_FILES_MAXIMUM_SIZE]->set_null();
 		} else {
 			OK(field_store_ulint(fields[IS_FILES_MAXIMUM_SIZE],

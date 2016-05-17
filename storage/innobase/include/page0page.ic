@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -336,9 +336,9 @@ page_is_root(
 #if FIL_PAGE_NEXT != FIL_PAGE_PREV + 4
 # error FIL_PAGE_NEXT must be adjacent to FIL_PAGE_PREV
 #endif
-#if FIL_NULL != 0xffffffff
-# error FIL_NULL != 0xffffffff
-#endif
+
+	static_assert(FIL_NULL == 0xffffffff, "FIL_NULL != 0xffffffff");
+
 	/* Check that this is an index page and both the PREV and NEXT
 	pointers are FIL_NULL, because the root page does not have any
 	siblings. */
@@ -605,7 +605,7 @@ page_get_middle_rec(
 Gets the page number.
 @return page number */
 UNIV_INLINE
-ulint
+page_no_t
 page_get_page_no(
 /*=============*/
 	const page_t*	page)	/*!< in: page */
@@ -618,7 +618,7 @@ page_get_page_no(
 Gets the tablespace identifier.
 @return space id */
 UNIV_INLINE
-ulint
+space_id_t
 page_get_space_id(
 /*==============*/
 	const page_t*	page)	/*!< in: page */

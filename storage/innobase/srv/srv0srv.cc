@@ -128,7 +128,7 @@ These logs reside in the temp tablespace.*/
 const ulong		srv_tmp_undo_logs = 32;
 
 /** Default undo tablespace size in UNIV_PAGEs count (10MB). */
-const ulint SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
+const page_no_t SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
 	((1024 * 1024) * 10) / UNIV_PAGE_SIZE_DEF;
 
 /** Set if InnoDB must operate in read-only mode. We don't do any

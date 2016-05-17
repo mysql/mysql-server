@@ -38,7 +38,7 @@ flst_add_to_empty(
 	flst_node_t*		node,	/*!< in: node to add */
 	mtr_t*			mtr)	/*!< in: mini-transaction handle */
 {
-	ulint		space;
+	space_id_t	space;
 	fil_addr_t	node_addr;
 	ulint		len;
 
@@ -97,7 +97,7 @@ flst_add_last(
 	flst_node_t*		node,	/*!< in: node to add */
 	mtr_t*			mtr)	/*!< in: mini-transaction handle */
 {
-	ulint		space;
+	space_id_t	space;
 	fil_addr_t	node_addr;
 	ulint		len;
 	fil_addr_t	last_addr;
@@ -148,7 +148,7 @@ flst_add_first(
 	flst_node_t*		node,	/*!< in: node to add */
 	mtr_t*			mtr)	/*!< in: mini-transaction handle */
 {
-	ulint		space;
+	space_id_t	space;
 	fil_addr_t	node_addr;
 	ulint		len;
 	fil_addr_t	first_addr;
@@ -200,7 +200,7 @@ flst_insert_after(
 	flst_node_t*		node2,	/*!< in: node to add */
 	mtr_t*			mtr)	/*!< in: mini-transaction handle */
 {
-	ulint		space;
+	space_id_t	space;
 	fil_addr_t	node1_addr;
 	fil_addr_t	node2_addr;
 	flst_node_t*	node3;
@@ -265,7 +265,7 @@ flst_insert_before(
 	flst_node_t*		node3,	/*!< in: node to insert before */
 	mtr_t*			mtr)	/*!< in: mini-transaction handle */
 {
-	ulint		space;
+	space_id_t	space;
 	flst_node_t*	node1;
 	fil_addr_t	node1_addr;
 	fil_addr_t	node2_addr;
@@ -328,7 +328,7 @@ flst_remove(
 	flst_node_t*		node2,	/*!< in: node to remove */
 	mtr_t*			mtr)	/*!< in: mini-transaction handle */
 {
-	ulint		space;
+	space_id_t	space;
 	flst_node_t*	node1;
 	fil_addr_t	node1_addr;
 	fil_addr_t	node2_addr;
@@ -414,7 +414,7 @@ flst_cut_end(
 					must be >= 1 */
 	mtr_t*			mtr)	/*!< in: mini-transaction handle */
 {
-	ulint		space;
+	space_id_t	space;
 	flst_node_t*	node1;
 	fil_addr_t	node1_addr;
 	fil_addr_t	node2_addr;
@@ -480,7 +480,7 @@ flst_truncate_end(
 {
 	fil_addr_t	node2_addr;
 	ulint		len;
-	ulint		space;
+	space_id_t	space;
 
 	ut_ad(mtr && node2 && base);
 	ut_ad(mtr_memo_contains_page_flagged(mtr, base,
@@ -519,7 +519,7 @@ flst_validate(
 	const flst_base_node_t*	base,	/*!< in: pointer to base node of list */
 	mtr_t*			mtr1)	/*!< in: mtr */
 {
-	ulint			space;
+	space_id_t		space;
 	const flst_node_t*	node;
 	fil_addr_t		node_addr;
 	fil_addr_t		base_addr;

@@ -355,7 +355,7 @@ trx_sysf_create(
 	/* Create the first rollback segment in the SYSTEM tablespace */
 	slot_no = trx_sysf_rseg_find_free(mtr, false, 0);
 	page_no = trx_rseg_header_create(TRX_SYS_SPACE, univ_page_size,
-					 ULINT_MAX, slot_no, mtr);
+					 PAGE_NO_MAX, slot_no, mtr);
 
 	ut_a(slot_no == TRX_SYS_SYSTEM_RSEG_ID);
 	ut_a(page_no == FSP_FIRST_RSEG_PAGE_NO);
@@ -508,7 +508,7 @@ trx_sys_create_noredo_rsegs(
 	Slot-1....Slot-N: reserved for temp-tablespace.
 	Slot-N+1....Slot-127: reserved for system/undo-tablespace. */
 	for (ulint i = 0; i < n_nonredo_rseg; i++) {
-		ulint space = srv_tmp_space.space_id();
+		space_id_t space = srv_tmp_space.space_id();
 		if (trx_rseg_create(space, i) == NULL) {
 			break;
 		}
@@ -571,13 +571,14 @@ trx_sys_create_rsegs(
 		ulint	new_rsegs = n_rsegs - n_used;
 
 		for (i = 0; i < new_rsegs; ++i) {
-			ulint	space;
+			space_id_t	space;
 
 			/* Tablespace 0 is the system tablespace. All UNDO
 			log tablespaces start from 1. */
 
 			if (n_spaces > 0) {
-				space = (i % n_spaces) + 1;
+				space = static_cast<space_id_t>(
+					(i % n_spaces) + 1);
 			} else {
 				space = 0; /* System tablespace */
 			}

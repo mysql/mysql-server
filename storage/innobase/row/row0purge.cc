@@ -738,7 +738,7 @@ skip_secondaries:
 			dict_index_t*	index;
 			ibool		is_insert;
 			ulint		rseg_id;
-			ulint		page_no;
+			page_no_t	page_no;
 			ulint		offset;
 			mtr_t		mtr;
 

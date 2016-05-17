@@ -190,7 +190,7 @@ void
 row_log_table_blob_free(
 /*====================*/
 	dict_index_t*	index,	/*!< in/out: clustered index, X-latched */
-	ulint		page_no)/*!< in: starting page number of the BLOB */
+	page_no_t	page_no)/*!< in: starting page number of the BLOB */
 	UNIV_COLD;
 /******************************************************//**
 Notes that a BLOB is being allocated during online ALTER TABLE. */
@@ -198,7 +198,7 @@ void
 row_log_table_blob_alloc(
 /*=====================*/
 	dict_index_t*	index,	/*!< in/out: clustered index, X-latched */
-	ulint		page_no)/*!< in: starting page number of the BLOB */
+	page_no_t	page_no)/*!< in: starting page number of the BLOB */
 	UNIV_COLD;
 
 /** Apply the row_log_table log to a table upon completing rebuild.

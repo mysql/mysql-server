@@ -67,8 +67,8 @@ typedef ib_uint64_t	buf_dump_t;
 
 /* Aux macros to create buf_dump_t and to extract space and page from it */
 #define BUF_DUMP_CREATE(space, page)	ut_ull_create(space, page)
-#define BUF_DUMP_SPACE(a)		((ulint) ((a) >> 32))
-#define BUF_DUMP_PAGE(a)		((ulint) ((a) & 0xFFFFFFFFUL))
+#define BUF_DUMP_SPACE(a)	static_cast<space_id_t>((a) >> 32)
+#define BUF_DUMP_PAGE(a)	static_cast<page_no_t>((a) & 0xFFFFFFFFUL)
 
 /*****************************************************************//**
 Wakes up the buffer pool dump/load thread and instructs it to start
@@ -348,7 +348,7 @@ buf_dump(
 		mutex_exit(&buf_pool->LRU_list_mutex);
 
 		for (j = 0; j < n_pages && !SHOULD_QUIT(); j++) {
-			ret = fprintf(f, ULINTPF "," ULINTPF "\n",
+			ret = fprintf(f, SPACE_ID_PF "," PAGE_NO_PF "\n",
 				      BUF_DUMP_SPACE(dump[j]),
 				      BUF_DUMP_PAGE(dump[j]));
 			if (ret < 0) {
@@ -637,7 +637,7 @@ buf_load()
 	/* Avoid calling the expensive fil_space_acquire_silent() for each
 	page within the same tablespace. dump[] is sorted by (space, page),
 	so all pages from a given tablespace are consecutive. */
-	ulint		cur_space_id = BUF_DUMP_SPACE(dump[0]);
+	space_id_t	cur_space_id = BUF_DUMP_SPACE(dump[0]);
 	fil_space_t*	space = fil_space_acquire_silent(cur_space_id);
 	page_size_t	page_size(space ? space->flags : 0);
 
@@ -652,7 +652,7 @@ buf_load()
 	for (i = 0; i < dump_n && !SHUTTING_DOWN(); i++) {
 
 		/* space_id for this iteration of the loop */
-		const ulint	this_space_id = BUF_DUMP_SPACE(dump[i]);
+		const space_id_t this_space_id = BUF_DUMP_SPACE(dump[i]);
 
 		if (this_space_id != cur_space_id) {
 			if (space != NULL) {

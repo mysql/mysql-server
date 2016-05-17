@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -61,16 +61,8 @@ public:
 	/** Constructor.
 	@param[in]	space_id	Tablespace identifier
 	@param[in]	index_id	Index identifier */
-	index_id_t(uint32_t space_id, space_index_t index_id) :
+	index_id_t(space_id_t space_id, space_index_t index_id) :
 		m_space_id(space_id),
-		m_index_id(index_id)
-	{}
-
-	/** Alternate Constructor.
-	@param[in]	space_id	Tablespace identifier
-	@param[in]	index_id	Index identifier */
-	index_id_t(ulint space_id, space_index_t index_id) :
-		m_space_id(static_cast<uint32_t>(space_id)),
 		m_index_id(index_id)
 	{}
 
@@ -112,7 +104,7 @@ public:
 	}
 
 	/** Tablespace identifier */
-	uint32_t	m_space_id;
+	space_id_t	m_space_id;
 	/** Index identifier within the tablespace */
 	space_index_t	m_index_id;
 };

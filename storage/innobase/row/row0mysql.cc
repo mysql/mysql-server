@@ -4161,7 +4161,7 @@ This deletes the fil_space_t if found and the file on disk.
 UNIV_INLINE
 dberr_t
 row_drop_single_table_tablespace(
-	ulint	space_id,
+	space_id_t	space_id,
 	const char*	tablename,
 	const char*	filepath)
 {
@@ -4635,7 +4635,7 @@ row_drop_table_for_mysql(
 	}
 
 	switch (err) {
-		ulint		space_id;
+		space_id_t	space_id;
 		bool		is_temp;
 		bool		ibd_file_missing;
 		bool		is_discarded;

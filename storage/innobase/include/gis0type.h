@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2015, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2016, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -51,10 +51,10 @@ typedef ib_uint32_t     node_seq_t;
 
 /* RTree internal non-leaf Nodes to be searched, from root to leaf */
 typedef	struct node_visit {
-	ulint		page_no;	/*!< the page number */
+	page_no_t	page_no;	/*!< the page number */
 	node_seq_t	seq_no;		/*!< the SSN (split sequence number */
 	ulint		level;		/*!< the page's index level */
-	ulint		child_no;	/*!< child page num if for parent
+	page_no_t	child_no;	/*!< child page num if for parent
 					recording */
 	btr_pcur_t*	cursor;		/*!< cursor structure if we positioned
 					FIXME: there is no need to use whole

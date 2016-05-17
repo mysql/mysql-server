@@ -663,7 +663,7 @@ UNIV_INLINE
 void
 buf_ptr_get_fsp_addr(
 	const void*	ptr,
-	ulint*		space,
+	space_id_t*	space,
 	fil_addr_t*	addr);
 
 /**********************************************************************//**
@@ -1904,7 +1904,7 @@ struct buf_pool_t{
 					after resizing buffer pool */
 	ulint		curr_size;	/*!< current pool size in pages */
 	ulint		old_size;	/*!< previous pool size in pages */
-	ulint		read_ahead_area;/*!< size in pages of the area which
+	page_no_t	read_ahead_area;/*!< size in pages of the area which
 					the read-ahead algorithms read if
 					invoked */
 	hash_table_t*	page_hash;	/*!< hash table of buf_page_t or

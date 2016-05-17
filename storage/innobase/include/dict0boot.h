@@ -53,7 +53,7 @@ dict_hdr_get_new_id(
 						(not assigned if NULL) */
 	space_index_t*		index_id,	/*!< out: index id
 						(not assigned if NULL) */
-	ulint*			space_id,	/*!< out: space id
+	space_id_t*		space_id,	/*!< out: space id
 						(not assigned if NULL) */
 	const dict_table_t*	table,		/*!< in: table */
 	bool			disable_redo);	/*!< in: if true and table

@@ -402,7 +402,7 @@ btr_pcur_move_to_next_page(
 				last record of the current page */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	ulint		next_page_no;
+	page_no_t	next_page_no;
 	page_t*		page;
 	buf_block_t*	next_block;
 	page_t*		next_page;
@@ -473,7 +473,7 @@ btr_pcur_move_backward_from_page(
 				record of the current page */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	ulint		prev_page_no;
+	page_no_t	prev_page_no;
 	page_t*		page;
 	buf_block_t*	prev_block;
 	ulint		latch_mode;

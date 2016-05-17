@@ -308,7 +308,7 @@ dict_process_sys_tablespaces(
 /*=========================*/
 	mem_heap_t*	heap,		/*!< in/out: heap memory */
 	const rec_t*	rec,		/*!< in: current SYS_TABLESPACES rec */
-	ulint*		space,		/*!< out: pace id */
+	space_id_t*	space,		/*!< out: space id */
 	const char**	name,		/*!< out: tablespace name */
 	ulint*		flags);		/*!< out: tablespace flags */
 /********************************************************************//**
@@ -332,7 +332,7 @@ the given space_id using an independent transaction.
 @return DB_SUCCESS if OK, dberr_t if the insert failed */
 dberr_t
 dict_replace_tablespace_and_filepath(
-	ulint		space_id,
+	space_id_t	space_id,
 	const char*	name,
 	const char*	filepath,
 	ulint		fsp_flags);

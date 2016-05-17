@@ -351,7 +351,7 @@ become CORRUPT when you call this function! */
 void
 ibuf_delete_for_discarded_space(
 /*============================*/
-	ulint	space);	/*!< in: space id */
+	space_id_t	space);	/*!< in: space id */
 /** Contract the change buffer by reading pages to the buffer pool.
 @param[in]	full		If true, do a full contraction based
 on PCT_IO(100). If false, the size of contract batch is determined
@@ -369,7 +369,7 @@ to the buffer pool.
 ulint
 ibuf_merge_space(
 /*=============*/
-	ulint	space);	/*!< in: space id */
+	space_id_t	space);	/*!< in: space id */
 
 #endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
@@ -427,7 +427,7 @@ dberr_t
 ibuf_check_bitmap_on_import(
 /*========================*/
 	const trx_t*	trx,		/*!< in: transaction */
-	ulint		space_id)	/*!< in: tablespace identifier */
+	space_id_t	space_id)	/*!< in: tablespace identifier */
 	MY_ATTRIBUTE((warn_unused_result));
 
 /** Updates free bits and buffered bits for bulk loaded page.

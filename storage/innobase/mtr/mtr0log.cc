@@ -125,8 +125,8 @@ mlog_parse_initial_log_record(
 	const byte*	ptr,	/*!< in: buffer */
 	const byte*	end_ptr,/*!< in: buffer end */
 	mlog_id_t*	type,	/*!< out: log record type: MLOG_1BYTE, ... */
-	ulint*		space,	/*!< out: space id */
-	ulint*		page_no)/*!< out: page number */
+	space_id_t*	space,	/*!< out: space id */
+	page_no_t*	page_no)/*!< out: page number */
 {
 	if (end_ptr < ptr + 1) {
 

@@ -41,8 +41,8 @@ Created 3/26/1996 Heikki Tuuri
 UNIV_INLINE
 trx_rsegf_t*
 trx_rsegf_get(
-	ulint			space,
-	ulint			page_no,
+	space_id_t		space,
+	page_no_t		page_no,
 	const page_size_t&	page_size,
 	mtr_t*			mtr);
 
@@ -55,8 +55,8 @@ trx_rsegf_get(
 UNIV_INLINE
 trx_rsegf_t*
 trx_rsegf_get_new(
-	ulint			space,
-	ulint			page_no,
+	space_id_t		space,
+	page_no_t		page_no,
 	const page_size_t&	page_size,
 	mtr_t*			mtr);
 
@@ -66,7 +66,7 @@ trx_rsegf_get_new(
 @param[in]	mtr	mtr
 @return page number of the undo log segment */
 UNIV_INLINE
-ulint
+page_no_t
 trx_rsegf_get_nth_undo(
 	trx_rsegf_t*	rsegf,
 	ulint		n,
@@ -82,7 +82,7 @@ void
 trx_rsegf_set_nth_undo(
 	trx_rsegf_t*	rsegf,
 	ulint		n,
-	ulint		page_no,
+	page_no_t	page_no,
 	mtr_t*		mtr);
 
 /** Looks for a free slot for an undo log segment.
@@ -114,11 +114,11 @@ the database.
 @param[in]	rseg_slot_no	rseg id == slot number in trx sys
 @param[in,out]	mtr		mini-transaction
 @return page number of the created segment, FIL_NULL if fail */
-ulint
+page_no_t
 trx_rseg_header_create(
-	ulint			space,
+	space_id_t		space,
 	const page_size_t&	page_size,
-	ulint			max_size,
+	page_no_t		max_size,
 	ulint			rseg_slot_no,
 	mtr_t*			mtr);
 
@@ -143,20 +143,20 @@ Creates a rollback segment. */
 trx_rseg_t*
 trx_rseg_create(
 /*============*/
-	ulint	space_id,	/*!< in: id of UNDO tablespace */
+	space_id_t	space_id,	/*!< in: id of UNDO tablespace */
 	ulint   nth_free_slot);	/*!< in: allocate nth free slot.
 				0 means next free slots. */
 
 /********************************************************************
 Get the number of unique rollback tablespaces in use except space id 0.
-The last space id will be the sentinel value ULINT_UNDEFINED. The array
+The last space id will be the sentinel value SPACE_UNKNOWN. The array
 will be sorted on space id. Note: space_ids should have have space for
 TRX_SYS_N_RSEGS + 1 elements.
 @return number of unique rollback tablespaces in use. */
 ulint
 trx_rseg_get_n_undo_tablespaces(
 /*============================*/
-	ulint*		space_ids);	/*!< out: array of space ids of
+	space_id_t*	space_ids);	/*!< out: array of space ids of
 					UNDO tablespaces */
 /* Number of undo log slots in a rollback segment file copy */
 #define TRX_RSEG_N_SLOTS	(UNIV_PAGE_SIZE / 16)
@@ -176,10 +176,10 @@ struct trx_rseg_t {
 	RsegMutex			mutex;
 
 	/** space where the rollback segment header is placed */
-	ulint				space;
+	space_id_t			space;
 
 	/** page number of the rollback segment header */
-	ulint				page_no;
+	page_no_t			page_no;
 
 	/** page size of the relevant tablespace */
 	page_size_t			page_size;
@@ -210,7 +210,7 @@ struct trx_rseg_t {
 
 	/** Page number of the last not yet purged log header in the history
 	list; FIL_NULL if all list purged */
-	ulint				last_page_no;
+	page_no_t			last_page_no;
 
 	/** Byte offset of the last not yet purged log header */
 	ulint				last_offset;

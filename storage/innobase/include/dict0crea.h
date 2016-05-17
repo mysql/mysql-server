@@ -140,7 +140,7 @@ dict_create_index_tree_in_mem(
 void
 dict_drop_temporary_table_index(
 	const dict_index_t*	index,
-	ulint			root_page_no);
+	page_no_t		root_page_no);
 
 /****************************************************************//**
 Creates the foreign key constraints system tables inside InnoDB
@@ -222,7 +222,7 @@ replacing what was there previously.
 @return error code or DB_SUCCESS */
 dberr_t
 dict_replace_tablespace_in_dictionary(
-	ulint		space_id,
+	space_id_t	space_id,
 	const char*	name,
 	ulint		flags,
 	const char*	path,
@@ -236,7 +236,7 @@ with a particular tablespace ID.
 @return DB_SUCCESS if OK, dberr_t if the operation failed */
 dberr_t
 dict_delete_tablespace_and_datafiles(
-	ulint		space,
+	space_id_t	space,
 	trx_t*		trx);
 
 /********************************************************************//**
@@ -284,7 +284,7 @@ struct tab_node_t{
 @return in-memory index structure for tablespace dictionary or NULL */
 dict_index_t*
 dict_sdi_create_idx_in_mem(
-	ulint		space,
+	space_id_t	space,
 	uint32_t	copy_num,
 	bool		space_discarded,
 	ulint		in_flags);

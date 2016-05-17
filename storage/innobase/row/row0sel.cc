@@ -1105,7 +1105,7 @@ re_scan:
 			}
 			mutex_exit(&match->rtr_match_mutex);
 
-			ulint		page_no = page_get_page_no(
+			page_no_t	page_no = page_get_page_no(
 						btr_pcur_get_page(pcur));
 			page_id_t	page_id(dict_index_get_space(index),
 						page_no);
@@ -3346,7 +3346,7 @@ row_sel_get_clust_rec_for_mysql(
                                 goto func_exit;
 			}
 
-			ulint		page_no = page_get_page_no(
+			page_no_t	page_no = page_get_page_no(
 						btr_pcur_get_page(
 							prebuilt->pcur));
 

@@ -60,8 +60,8 @@ Acquire a "Page" lock on a block
 dberr_t
 lock_place_prdt_page_lock(
 /*======================*/
-	ulint		space,	/*!< in: space for the page to lock */
-	ulint		pageno,	/*!< in: page number */
+	space_id_t	space,	/*!< in: space for the page to lock */
+	page_no_t	pageno,	/*!< in: page number */
 	dict_index_t*	index,	/*!< in: secondary index */
 	que_thr_t*	thr);	/*!< in: query thread */
 
@@ -110,8 +110,8 @@ lock_prdt_update_split(
 	buf_block_t*	new_block,	/*!< in/out: the new half page */
 	lock_prdt_t*	prdt,		/*!< in: MBR on the old page */
 	lock_prdt_t*	new_prdt,	/*!< in: MBR on the new page */
-	ulint		space,		/*!< in: space id */
-	ulint		page_no);	/*!< in: page number */
+	space_id_t	space,		/*!< in: space id */
+	page_no_t	page_no);	/*!< in: page number */
 
 /**************************************************************//**
 Ajust locks from an ancester page of Rtree on the appropriate level . */
@@ -123,8 +123,8 @@ lock_prdt_update_parent(
 	lock_prdt_t*	left_prdt,	/*!< in: MBR on the old page */
 	lock_prdt_t*	right_prdt,	/*!< in: MBR on the new page */
 	lock_prdt_t*	parent_prdt,	/*!< in: original parent MBR */
-	ulint		space,		/*!< in: space id */
-	ulint		page_no);	/*!< in: page number */
+	space_id_t	space,		/*!< in: space id */
+	page_no_t	page_no);	/*!< in: page number */
 
 /*********************************************************************//**
 Checks if locks of other transactions prevent an immediate insert of
@@ -200,9 +200,9 @@ lock_prdt_rec_move(
 @return true if there is none */
 bool
 lock_test_prdt_page_lock(
-	const trx_t*    trx,
-	ulint           space,
-	ulint           page_no);
+	const trx_t*	trx,
+	space_id_t	space,
+	page_no_t	page_no);
 
 /** Removes predicate lock objects set on an index page which is discarded.
 @param[in]	block		page to be discarded
