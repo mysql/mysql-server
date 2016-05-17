@@ -22,11 +22,12 @@ perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collectio
 perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl_crash_safe_master --vardir=var-rpl_crash_safe_master --suite=rpl,rpl_gtid,rpl_nogtid --mysqld=--master-info-repository=TABLE --skip-test-list=collections/disabled-daily.list
 
 # Additional modes for rpl. Multi-Threaded Slave
-perl mysql-test-run.pl --timer  --force --parallel=auto --comment=rpl_MTS_db_part --vardir=var-mts-rpl_db --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=database --suite=rpl,rpl_gtid,rpl_nogtid
-perl mysql-test-run.pl --timer  --force --parallel=auto --comment=rpl_MTS_LC --vardir=var-mts-rpl_LC --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=logical_clock --suite=rpl,rpl_gtid,rpl_nogtid
+# Removed rpl_gtid suite from MTS runs until Bug#23296672 is fixed.
+perl mysql-test-run.pl --timer  --force --parallel=auto --comment=rpl_MTS_db_part --vardir=var-mts-rpl_db --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=database --suite=rpl,rpl_nogtid
+perl mysql-test-run.pl --timer  --force --parallel=auto --comment=rpl_MTS_LC --vardir=var-mts-rpl_LC --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=logical_clock --suite=rpl,rpl_nogtid
 
 # Additional GTID coverage (rpl suite with gtid_mode=ON)
-perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl_gtid --vardir=var-rpl_gtid --suite=rpl --mysqld=--enforce-gtid-consistency --mysqld=--log-slave-updates --mysqld=--gtid-mode=on --skip-test-list=collections/disabled-gtid-on.list
+perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl_with_gtid --vardir=var-rpl_gtid --suite=rpl --mysqld=--enforce-gtid-consistency --mysqld=--log-slave-updates --mysqld=--gtid-mode=on --skip-test-list=collections/disabled-gtid-on.list
 
 
 # Additional GTID coverage (binlog suite with gtid_mode=ON)
