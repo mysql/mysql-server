@@ -19531,6 +19531,7 @@ static void bug22559575_base(unsigned long type)
   check_execute(stmt, rc);
   DIE_UNLESS(data == 1);
 
+  mysql_free_result(prepare_meta);
   rc= mysql_stmt_close(stmt);
   check_execute(stmt, rc);
 }
