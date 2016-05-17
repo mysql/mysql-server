@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -272,31 +272,6 @@ ELSEIF(MUTEXTYPE MATCHES "futex" AND DEFINED HAVE_IB_LINUX_FUTEX)
   ADD_DEFINITIONS(-DMUTEX_FUTEX)
 ELSE()
    ADD_DEFINITIONS(-DMUTEX_SYS)
-ENDIF()
-
-CHECK_INCLUDE_FILES(numa.h HAVE_NUMA_H)
-CHECK_INCLUDE_FILES(numaif.h HAVE_NUMAIF_H)
-
-OPTION(WITH_NUMA "Explicitly set NUMA memory allocation policy" ON)
-IF(WITH_NUMA AND HAVE_NUMA_H AND HAVE_NUMAIF_H)
-    SET(SAVE_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
-    SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} numa)
-    CHECK_C_SOURCE_COMPILES(
-    "
-    #include <numa.h>
-    #include <numaif.h>
-    int main()
-    {
-       struct bitmask *all_nodes= numa_all_nodes_ptr;
-       set_mempolicy(MPOL_DEFAULT, 0, 0);
-       return all_nodes != NULL;
-    }"
-    HAVE_LIBNUMA)
-    SET(CMAKE_REQUIRED_LIBRARIES ${SAVE_CMAKE_REQUIRED_LIBRARIES})
-ENDIF()
-
-IF(HAVE_LIBNUMA)
-    LINK_LIBRARIES(numa)
 ENDIF()
 
 # Include directories under innobase
