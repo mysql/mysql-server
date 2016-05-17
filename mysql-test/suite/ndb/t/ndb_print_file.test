@@ -2,8 +2,6 @@
 
 #BUG17069285
 
---source ndb_logfile_group_exist_chk.inc
-
 CREATE LOGFILE GROUP lg_1
 ADD UNDOFILE 'undo_1.log'
 ENGINE NDBCLUSTER;
