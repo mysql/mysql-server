@@ -3569,7 +3569,7 @@ static int init_server_auto_options()
   /* load_defaults require argv[0] is not null */
   char **argv= &name;
   int argc= 1;
-  if (!check_file_permissions(fname))
+  if (!check_file_permissions(fname, false))
   {
     /*
       Found a world writable file hence removing it as it is dangerous to write
