@@ -36,7 +36,7 @@
 #include <ndbapi/ndb_cluster_connection.hpp>
 #include "mysqld_thd_manager.h"  // Global_THD_manager
 
-#include <my_thread.h>
+#include <mysql/psi/mysql_thread.h>
 
 extern my_bool opt_ndb_log_orig;
 extern my_bool opt_ndb_log_bin;
@@ -98,16 +98,16 @@ enum Ndb_binlog_index_cols
 class Mutex_guard
 {
 public:
-  Mutex_guard(native_mutex_t &mutex) : m_mutex(mutex)
+  Mutex_guard(mysql_mutex_t &mutex) : m_mutex(mutex)
   {
-    native_mutex_lock(&m_mutex);
+    mysql_mutex_lock(&m_mutex);
   }
   ~Mutex_guard()
   {
-    native_mutex_unlock(&m_mutex);
+    mysql_mutex_unlock(&m_mutex);
   }
 private:
-  native_mutex_t &m_mutex;
+  mysql_mutex_t &m_mutex;
 };
 
 
@@ -155,7 +155,7 @@ extern THD * injector_thd; // Declared in ha_ndbcluster.cc
   to enable ndb injector thread receiving events.
 
   Must therefore always be used with a surrounding
-  native_mutex_lock(&injector_mutex), when doing create/dropEventOperation
+  mysql_mutex_lock(&injector_mutex), when doing create/dropEventOperation
 */
 static Ndb *injector_ndb= NULL;
 static Ndb *schema_ndb= NULL;
@@ -166,8 +166,8 @@ static int ndbcluster_binlog_inited= 0;
   Mutex and condition used for interacting between client sql thread
   and injector thread
 */
-static native_mutex_t injector_mutex;
-static native_cond_t  injector_cond;
+static mysql_mutex_t injector_mutex;
+static mysql_cond_t  injector_cond;
 
 /* NDB Injector thread (used for binlog creation) */
 static ulonglong ndb_latest_applied_binlog_epoch= 0;
@@ -176,7 +176,7 @@ static ulonglong ndb_latest_received_binlog_epoch= 0;
 
 NDB_SHARE *ndb_apply_status_share= 0;
 NDB_SHARE *ndb_schema_share= 0;
-static native_mutex_t ndb_schema_share_mutex;
+static mysql_mutex_t ndb_schema_share_mutex;
 
 extern my_bool opt_log_slave_updates;
 static my_bool g_ndb_log_slave_updates;
@@ -552,7 +552,7 @@ static void ndbcluster_binlog_wait(THD *thd)
      */
     int count = 30;
 
-    native_mutex_lock(&injector_mutex);
+    mysql_mutex_lock(&injector_mutex);
     while (!thd->killed && count && ndb_binlog_running &&
            (ndb_latest_handled_binlog_epoch == 0 ||
             ndb_latest_handled_binlog_epoch < session_last_committed_epoch))
@@ -560,9 +560,9 @@ static void ndbcluster_binlog_wait(THD *thd)
       count--;
       struct timespec abstime;
       set_timespec(&abstime, 1);
-      native_cond_timedwait(&injector_cond, &injector_mutex, &abstime);
+      mysql_cond_timedwait(&injector_cond, &injector_mutex, &abstime);
     }
-    native_mutex_unlock(&injector_mutex);
+    mysql_mutex_unlock(&injector_mutex);
 
     if (count == 0)
     {
@@ -867,9 +867,9 @@ int ndbcluster_binlog_end(THD *thd)
     ndb_binlog_thread.stop();
     ndb_binlog_thread.deinit();
 
-    native_mutex_destroy(&injector_mutex);
-    native_cond_destroy(&injector_cond);
-    native_mutex_destroy(&ndb_schema_share_mutex);
+    mysql_mutex_destroy(&injector_mutex);
+    mysql_cond_destroy(&injector_cond);
+    mysql_mutex_destroy(&ndb_schema_share_mutex);
   }
 
   DBUG_RETURN(0);
@@ -1053,7 +1053,7 @@ ndb_schema_table__create(THD *thd)
 
 
 extern int ndb_setup_complete;
-extern native_cond_t COND_ndb_setup_complete;
+extern mysql_cond_t COND_ndb_setup_complete;
 
 /*
    ndb_notify_tables_writable
@@ -1063,10 +1063,10 @@ extern native_cond_t COND_ndb_setup_complete;
 */ 
 static void ndb_notify_tables_writable()
 {
-  native_mutex_lock(&ndbcluster_mutex);
+  mysql_mutex_lock(&ndbcluster_mutex);
   ndb_setup_complete= 1;
-  native_cond_broadcast(&COND_ndb_setup_complete);
-  native_mutex_unlock(&ndbcluster_mutex);
+  mysql_cond_broadcast(&COND_ndb_setup_complete);
+  mysql_mutex_unlock(&ndbcluster_mutex);
 }
 
 
@@ -1556,7 +1556,7 @@ setup(void)
 
     /* Signal injector thread that all is setup */
     ndb_binlog_tables_inited= TRUE;
-    native_cond_signal(&injector_cond);
+    mysql_cond_signal(&injector_cond);
 
     DBUG_ASSERT(ndb_schema_dist_is_ready());
     return true;     // Setup completed -> OK
@@ -1617,12 +1617,12 @@ static void ndb_report_waiting(const char *key,
 {
   ulonglong ndb_latest_epoch= 0;
   const char *proc_info= "<no info>";
-  native_mutex_lock(&injector_mutex);
+  mysql_mutex_lock(&injector_mutex);
   if (injector_ndb)
     ndb_latest_epoch= injector_ndb->getLatestGCI();
   if (injector_thd)
     proc_info= injector_thd->proc_info;
-  native_mutex_unlock(&injector_mutex);
+  mysql_mutex_unlock(&injector_mutex);
   if (map == 0)
   {
     sql_print_information("NDB %s:"
@@ -1833,14 +1833,14 @@ int ndbcluster_log_schema_op(THD *thd,
   Uint64 epoch= 0;
   {
     /* begin protect ndb_schema_share */
-    native_mutex_lock(&ndb_schema_share_mutex);
+    mysql_mutex_lock(&ndb_schema_share_mutex);
     if (ndb_schema_share == 0)
     {
-      native_mutex_unlock(&ndb_schema_share_mutex);
+      mysql_mutex_unlock(&ndb_schema_share_mutex);
       ndb_free_schema_object(&ndb_schema_object);
       DBUG_RETURN(0);
     }
-    native_mutex_unlock(&ndb_schema_share_mutex);
+    mysql_mutex_unlock(&ndb_schema_share_mutex);
   }
 
   Ndb *ndb= thd_ndb->ndb;
@@ -2046,7 +2046,7 @@ end:
   if (ndb_error == 0 && !bitmap_is_clear_all(&ndb_schema_object->slock_bitmap))
   {
     int max_timeout= DEFAULT_SYNC_TIMEOUT;
-    native_mutex_lock(&ndb_schema_object->mutex);
+    mysql_mutex_lock(&ndb_schema_object->mutex);
     while (true)
     {
       struct timespec abstime;
@@ -2056,21 +2056,21 @@ end:
       // Condition for completion is that 'slock_bitmap' is cleared,
       // which is signaled by ::handle_clear_slock() on
       // 'ndb_schema_object->cond'
-      const int ret= native_cond_timedwait(&ndb_schema_object->cond,
-                                            &ndb_schema_object->mutex,
-                                            &abstime);
+      const int ret= mysql_cond_timedwait(&ndb_schema_object->cond,
+                                          &ndb_schema_object->mutex,
+                                          &abstime);
 
       if (thd->killed)
         break;
 
       /* begin protect ndb_schema_share */
-      native_mutex_lock(&ndb_schema_share_mutex);
+      mysql_mutex_lock(&ndb_schema_share_mutex);
       if (ndb_schema_share == 0)
       {
-        native_mutex_unlock(&ndb_schema_share_mutex);
+        mysql_mutex_unlock(&ndb_schema_share_mutex);
         break;
       }
-      native_mutex_unlock(&ndb_schema_share_mutex);
+      mysql_mutex_unlock(&ndb_schema_share_mutex);
       /* end protect ndb_schema_share */
 
       if (bitmap_is_clear_all(&ndb_schema_object->slock_bitmap))
@@ -2092,7 +2092,7 @@ end:
                              &ndb_schema_object->slock_bitmap);
       }
     }
-    native_mutex_unlock(&ndb_schema_object->mutex);
+    mysql_mutex_unlock(&ndb_schema_object->mutex);
   }
   else if (ndb_error)
   {
@@ -2179,20 +2179,20 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
       ndbtab_g.invalidate();
   }
 
-  native_mutex_lock(&share->mutex);
+  mysql_mutex_lock(&share->mutex);
   DBUG_ASSERT(share->state == NSS_DROPPED || 
               share->op == pOp || share->new_op == pOp);
   share->new_op= NULL;
   share->op= NULL;
-  native_mutex_unlock(&share->mutex);
+  mysql_mutex_unlock(&share->mutex);
 
   /* Signal ha_ndbcluster::delete/rename_table that drop is done */
   DBUG_PRINT("info", ("signal that drop is done"));
-  (void) native_cond_signal(&injector_cond);
+  (void) mysql_cond_signal(&injector_cond);
 
   ndb_tdc_close_cached_table(thd, dbname, tabname);
 
-  native_mutex_lock(&ndbcluster_mutex);
+  mysql_mutex_lock(&ndbcluster_mutex);
   const bool is_remote_change= !ndb_has_node_id(pOp->getReqNodeId());
   if (is_remote_change && share->state != NSS_DROPPED)
   {
@@ -2206,15 +2206,15 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
   DBUG_PRINT("NDB_SHARE", ("%s binlog free  use_count: %u",
                            share->key_string(), share->use_count));
   free_share(&share, TRUE);
-  native_mutex_unlock(&ndbcluster_mutex);
+  mysql_mutex_unlock(&ndbcluster_mutex);
 
   // Remove pointer to event_data from the EventOperation
   pOp->setCustomData(NULL);
 
   DBUG_PRINT("info", ("Dropping event operation: %p", pOp));
-  native_mutex_lock(&injector_mutex);
+  mysql_mutex_lock(&injector_mutex);
   is_ndb->dropEventOperation(pOp);
-  native_mutex_unlock(&injector_mutex);
+  mysql_mutex_unlock(&injector_mutex);
 
   // Finally delete the event_data and thus it's mem_root, shadow_table etc.
   DBUG_PRINT("info", ("Deleting event_data"));
@@ -2836,17 +2836,17 @@ class Ndb_schema_event_handler {
     assert(event_data->ndb_value[0]);
     assert(event_data->ndb_value[1]);
 
-    native_mutex_lock(&ndb_schema_share_mutex);
+    mysql_mutex_lock(&ndb_schema_share_mutex);
     if (share != ndb_schema_share)
     {
       // Received event from s_ndb not pointing at the ndb_schema_share
-      native_mutex_unlock(&ndb_schema_share_mutex);
+      mysql_mutex_unlock(&ndb_schema_share_mutex);
       assert(false);
       return false;
     }
     assert(!strncmp(share->db, STRING_WITH_LEN(NDB_REP_DB)));
     assert(!strncmp(share->table_name, STRING_WITH_LEN(NDB_SCHEMA_TABLE)));
-    native_mutex_unlock(&ndb_schema_share_mutex);
+    mysql_mutex_unlock(&ndb_schema_share_mutex);
     return true;
   }
 
@@ -3054,7 +3054,7 @@ class Ndb_schema_event_handler {
       DBUG_VOID_RETURN;
     }
 
-    native_mutex_lock(&ndb_schema_object->mutex);
+    mysql_mutex_lock(&ndb_schema_object->mutex);
     DBUG_DUMP("ndb_schema_object->slock_bitmap.bitmap",
               (uchar*)ndb_schema_object->slock_bitmap.bitmap,
               no_bytes_in_map(&ndb_schema_object->slock_bitmap));
@@ -3092,8 +3092,8 @@ class Ndb_schema_event_handler {
               no_bytes_in_map(&ndb_schema_object->slock_bitmap));
 
     /* Wake up the waiter */
-    native_mutex_unlock(&ndb_schema_object->mutex);
-    native_cond_signal(&ndb_schema_object->cond);
+    mysql_mutex_unlock(&ndb_schema_object->mutex);
+    mysql_cond_signal(&ndb_schema_object->cond);
 
     ndb_free_schema_object(&ndb_schema_object);
     DBUG_VOID_RETURN;
@@ -3132,7 +3132,7 @@ class Ndb_schema_event_handler {
     NDB_SHARE *share= get_share(schema);  // 3) Temporary pin 'share'
     if (share)
     {
-      native_mutex_lock(&share->mutex);
+      mysql_mutex_lock(&share->mutex);
       if (share->op)
       {
         Ndb_event_data *event_data=
@@ -3148,9 +3148,9 @@ class Ndb_schema_event_handler {
         free_share(&share);   // Free binlog ref, 2)
         DBUG_ASSERT(share);   // Still ref'ed by 1) & 3)
       }
-      native_mutex_unlock(&share->mutex);
+      mysql_mutex_unlock(&share->mutex);
 
-      native_mutex_lock(&ndbcluster_mutex);
+      mysql_mutex_lock(&ndbcluster_mutex);
       ndbcluster_mark_share_dropped(&share); // Unref. from dictionary, 1)
       DBUG_ASSERT(share);                    // Still ref'ed by temp, 3)
       free_share(&share,TRUE);               // Free temporary ref, 3)
@@ -3159,7 +3159,7 @@ class Ndb_schema_event_handler {
        * If there are more (trailing) references, the share will remain as an
        * instance in the dropped_tables-hash until remaining references are dropped.
        */
-      native_mutex_unlock(&ndbcluster_mutex);
+      mysql_mutex_unlock(&ndbcluster_mutex);
     } // if (share)
 
     if (is_local_table(schema->db, schema->name) &&
@@ -3212,14 +3212,14 @@ class Ndb_schema_event_handler {
       if (opt_ndb_extra_logging > 9)
         sql_print_information("NDB Binlog: handling online alter/rename");
 
-      native_mutex_lock(&share->mutex);
+      mysql_mutex_lock(&share->mutex);
       ndb_binlog_close_shadow_table(share);
 
       if (ndb_binlog_open_shadow_table(m_thd, share))
       {
         sql_print_error("NDB Binlog: Failed to re-open shadow table %s.%s",
                         schema->db, schema->name);
-        native_mutex_unlock(&share->mutex);
+        mysql_mutex_unlock(&share->mutex);
       }
       else
       {
@@ -3249,13 +3249,13 @@ class Ndb_schema_event_handler {
           share->new_op= share->op;
         }
         share->op= tmp_op;
-        native_mutex_unlock(&share->mutex);
+        mysql_mutex_unlock(&share->mutex);
 
         if (opt_ndb_extra_logging > 9)
           sql_print_information("NDB Binlog: handling online "
                                 "alter/rename done");
       }
-      native_mutex_lock(&share->mutex);
+      mysql_mutex_lock(&share->mutex);
       if (share->op && share->new_op)
       {
         Ndb_event_data *event_data=
@@ -3272,7 +3272,7 @@ class Ndb_schema_event_handler {
         free_share(&share);
         DBUG_ASSERT(share);   // Should still be ref'ed
       }
-      native_mutex_unlock(&share->mutex);
+      mysql_mutex_unlock(&share->mutex);
 
       free_share(&share);     // temporary ref.
     }
@@ -3320,11 +3320,11 @@ class Ndb_schema_event_handler {
     }
     if (share)
     {
-      native_mutex_lock(&ndbcluster_mutex);
+      mysql_mutex_lock(&ndbcluster_mutex);
       ndbcluster_mark_share_dropped(&share); // server ref.
       DBUG_ASSERT(share);                    // Should still be ref'ed
       free_share(&share, TRUE);              // temporary ref.
-      native_mutex_unlock(&ndbcluster_mutex);
+      mysql_mutex_unlock(&ndbcluster_mutex);
     }
 
     ndbapi_invalidate_table(schema->db, schema->name);
@@ -3878,17 +3878,17 @@ public:
        * Once restarted, a new schema_ndb is recreated and ndb_binlog_setup()
        * is allowed to do its tasks.
        */
-      native_mutex_lock(&injector_mutex);
+      mysql_mutex_lock(&injector_mutex);
       schema_ndb= NULL;
-      native_mutex_unlock(&injector_mutex);
+      mysql_mutex_unlock(&injector_mutex);
 
       /* release the ndb_schema_share */
-      native_mutex_lock(&ndb_schema_share_mutex);
+      mysql_mutex_lock(&ndb_schema_share_mutex);
       free_share(&ndb_schema_share);
       ndb_schema_share= NULL;
       ndb_binlog_tables_inited= FALSE;
       ndb_binlog_is_ready= FALSE;
-      native_mutex_unlock(&ndb_schema_share_mutex);
+      mysql_mutex_unlock(&ndb_schema_share_mutex);
 
       ndb_tdc_close_cached_tables();
 
@@ -3903,7 +3903,7 @@ public:
     {
       /* Remove all subscribers for node */
       m_schema_dist_data.report_data_node_failure(pOp->getNdbdNodeId());
-      (void) native_cond_signal(&injector_cond);
+      (void) mysql_cond_signal(&injector_cond);
       break;
     }
 
@@ -3911,7 +3911,7 @@ public:
     {
       /* Add node as subscriber */
       m_schema_dist_data.report_subscribe(pOp->getNdbdNodeId(), pOp->getReqNodeId());
-      (void) native_cond_signal(&injector_cond);
+      (void) mysql_cond_signal(&injector_cond);
       break;
     }
 
@@ -3919,7 +3919,7 @@ public:
     {
       /* Remove node as subscriber */
       m_schema_dist_data.report_unsubscribe(pOp->getNdbdNodeId(), pOp->getReqNodeId());
-      (void) native_cond_signal(&injector_cond);
+      (void) mysql_cond_signal(&injector_cond);
       break;
     }
 
@@ -4366,9 +4366,10 @@ int ndbcluster_binlog_start()
 
   ndb_binlog_thread.init();
 
-  native_mutex_init(&injector_mutex, MY_MUTEX_INIT_FAST);
-  native_cond_init(&injector_cond);
-  native_mutex_init(&ndb_schema_share_mutex, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(PSI_INSTRUMENT_ME, &injector_mutex, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(PSI_INSTRUMENT_ME, &injector_cond);
+  mysql_mutex_init(PSI_INSTRUMENT_ME, &ndb_schema_share_mutex,
+                   MY_MUTEX_INIT_FAST);
 
   // The binlog thread globals has been initied and should be freed
   ndbcluster_binlog_inited= 1;
@@ -5290,7 +5291,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     ndb_apply_status_share= get_share(share);
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra  use_count: %u",
                              share->key_string(), share->use_count));
-    (void) native_cond_signal(&injector_cond);
+    (void) mysql_cond_signal(&injector_cond);
     DBUG_ASSERT(get_thd_ndb(thd)->check_option(Thd_ndb::ALLOW_BINLOG_SETUP));
   }
   else if (do_ndb_schema_share)
@@ -5299,7 +5300,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     ndb_schema_share= get_share(share);
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra  use_count: %u",
                              share->key_string(), share->use_count));
-    (void) native_cond_signal(&injector_cond);
+    (void) mysql_cond_signal(&injector_cond);
     DBUG_ASSERT(get_thd_ndb(thd)->check_option(Thd_ndb::ALLOW_BINLOG_SETUP));
   }
 
@@ -5401,7 +5402,7 @@ ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
   const char *save_proc_info= thd->proc_info;
   thd->proc_info= "Syncing ndb table schema operation and binlog";
 
-  native_mutex_lock(&share->mutex);
+  mysql_mutex_lock(&share->mutex);
   int max_timeout= DEFAULT_SYNC_TIMEOUT;
   while (share->op)
   {
@@ -5411,13 +5412,13 @@ ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
     // Unlock the share and wait for injector to signal that
     // something has happened. (NOTE! convoluted in order to
     // only use injector_cond with injector_mutex)
-    native_mutex_unlock(&share->mutex);
-    native_mutex_lock(&injector_mutex);
-    const int ret= native_cond_timedwait(&injector_cond,
-                                         &injector_mutex,
-                                         &abstime);
-    native_mutex_unlock(&injector_mutex);
-    native_mutex_lock(&share->mutex);
+    mysql_mutex_unlock(&share->mutex);
+    mysql_mutex_lock(&injector_mutex);
+    const int ret= mysql_cond_timedwait(&injector_cond,
+                                        &injector_mutex,
+                                        &abstime);
+    mysql_mutex_unlock(&injector_mutex);
+    mysql_mutex_lock(&share->mutex);
 
     if (thd->killed ||
         share->op == 0)
@@ -5437,7 +5438,7 @@ ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
                            type_str, share->key_string(), 0);
     }
   }
-  native_mutex_unlock(&share->mutex);
+  mysql_mutex_unlock(&share->mutex);
 
   thd->proc_info= save_proc_info;
 
@@ -6195,10 +6196,10 @@ remove_event_operations(Ndb* ndb)
     share->event_data= event_data; // Give back event_data ownership
     op->setCustomData(NULL);
 
-    native_mutex_lock(&share->mutex);
+    mysql_mutex_lock(&share->mutex);
     share->op= 0;
     share->new_op= 0;
-    native_mutex_unlock(&share->mutex);
+    mysql_mutex_unlock(&share->mutex);
 
     DBUG_PRINT("NDB_SHARE", ("%s binlog free  use_count: %u",
                              share->key_string(), share->use_count));
@@ -6214,7 +6215,7 @@ static void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb)
   DBUG_ENTER("remove_all_event_operations");
 
   /* protect ndb_schema_share */
-  native_mutex_lock(&ndb_schema_share_mutex);
+  mysql_mutex_lock(&ndb_schema_share_mutex);
   if (ndb_schema_share)
   {
     /* ndb_share reference binlog extra free */
@@ -6227,7 +6228,7 @@ static void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb)
     free_share(&ndb_schema_share);
     ndb_schema_share= NULL;
   }
-  native_mutex_unlock(&ndb_schema_share_mutex);
+  mysql_mutex_unlock(&ndb_schema_share_mutex);
   /* end protect ndb_schema_share */
 
   /**
@@ -6252,7 +6253,7 @@ static void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb)
 
   if (opt_ndb_extra_logging > 15)
   {
-    native_mutex_lock(&ndbcluster_mutex);
+    mysql_mutex_lock(&ndbcluster_mutex);
     if (ndbcluster_open_tables.records)
     {
       sql_print_information("remove_all_event_operations: Remaining open tables: ");
@@ -6265,7 +6266,7 @@ static void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb)
                               share->use_count);
       }
     }
-    native_mutex_unlock(&ndbcluster_mutex);
+    mysql_mutex_unlock(&ndbcluster_mutex);
   }
   DBUG_VOID_RETURN;
 }
@@ -6477,7 +6478,7 @@ Ndb_binlog_thread::do_run()
 
   DBUG_ENTER("ndb_binlog_thread");
 
-  native_mutex_lock(&injector_mutex);
+  mysql_mutex_lock(&injector_mutex);
 
   log_info("Starting...");
 
@@ -6493,8 +6494,8 @@ Ndb_binlog_thread::do_run()
   if (thd->store_globals())
   {
     delete thd;
-    native_mutex_unlock(&injector_mutex);
-    native_cond_signal(&injector_cond);
+    mysql_mutex_unlock(&injector_mutex);
+    mysql_cond_signal(&injector_cond);
     DBUG_VOID_RETURN;
   }
 
@@ -6533,8 +6534,8 @@ restart_cluster_failure:
   if (!(thd_ndb= Thd_ndb::seize(thd)))
   {
     log_error("Creating Thd_ndb object failed");
-    native_mutex_unlock(&injector_mutex);
-    native_cond_signal(&injector_cond);
+    mysql_mutex_unlock(&injector_mutex);
+    mysql_cond_signal(&injector_cond);
     goto err;
   }
 
@@ -6543,8 +6544,8 @@ restart_cluster_failure:
       s_ndb->init())
   {
     log_error("Creating schema Ndb object failed");
-    native_mutex_unlock(&injector_mutex);
-    native_cond_signal(&injector_cond);
+    mysql_mutex_unlock(&injector_mutex);
+    mysql_cond_signal(&injector_cond);
     goto err;
   }
   log_info("Created schema Ndb object, reference: 0x%x, name: '%s'",
@@ -6556,8 +6557,8 @@ restart_cluster_failure:
       i_ndb->init())
   {
     log_error("Creating injector Ndb object failed");
-    native_mutex_unlock(&injector_mutex);
-    native_cond_signal(&injector_cond);
+    mysql_mutex_unlock(&injector_mutex);
+    mysql_cond_signal(&injector_cond);
     goto err;
   }
   log_info("Created injector Ndb object, reference: 0x%x, name: '%s'",
@@ -6567,8 +6568,8 @@ restart_cluster_failure:
   if (i_ndb->set_eventbuffer_free_percent(opt_ndb_eventbuffer_free_percent))
   {
     log_error("Setting ventbuffer free percent failed");
-    native_mutex_unlock(&injector_mutex);
-    native_cond_signal(&injector_cond);
+    mysql_mutex_unlock(&injector_mutex);
+    mysql_cond_signal(&injector_cond);
     goto err;
   }
 
@@ -6592,8 +6593,8 @@ restart_cluster_failure:
   log_verbose(1, "Setup completed");
 
   /* Thread start up completed  */
-  native_mutex_unlock(&injector_mutex);
-  native_cond_signal(&injector_cond);
+  mysql_mutex_unlock(&injector_mutex);
+  mysql_cond_signal(&injector_cond);
 
   log_verbose(1, "Wait for server start completed");
   /*
@@ -6663,7 +6664,7 @@ restart_cluster_failure:
     log_verbose(1, "Wait for cluster to start");
     thd->proc_info= "Waiting for ndbcluster to start";
 
-    native_mutex_lock(&injector_mutex);
+    mysql_mutex_lock(&injector_mutex);
     while (!ndb_binlog_tables_inited)
     {
       if (!thd_ndb->valid_ndb())
@@ -6681,10 +6682,10 @@ restart_cluster_failure:
       /* ndb not connected yet */
       struct timespec abstime;
       set_timespec(&abstime, 1);
-      native_cond_timedwait(&injector_cond, &injector_mutex, &abstime);
+      mysql_cond_timedwait(&injector_cond, &injector_mutex, &abstime);
       if (is_stop_requested())
       {
-        native_mutex_unlock(&injector_mutex);
+        mysql_mutex_unlock(&injector_mutex);
         goto err;
       }
       if (thd->killed == THD::KILL_CONNECTION)
@@ -6697,13 +6698,13 @@ restart_cluster_failure:
         */
         sql_print_information("NDB Binlog: Server shutdown detected while "
                               "waiting for ndbcluster to start...");
-        native_mutex_unlock(&injector_mutex);
+        mysql_mutex_unlock(&injector_mutex);
         goto err;
       }
     } //while (!ndb_binlog_tables_inited)
     DBUG_ASSERT(ndb_schema_dist_is_ready());
     DBUG_ASSERT(!ndb_binlog_running || ndb_apply_status_share);
-    native_mutex_unlock(&injector_mutex);
+    mysql_mutex_unlock(&injector_mutex);
 
     DBUG_ASSERT(ndbcluster_hton->slot != ~(uint)0);
     thd_set_thd_ndb(thd, thd_ndb);
@@ -6735,9 +6736,9 @@ restart_cluster_failure:
         goto err;
 
       my_thread_yield();
-      native_mutex_lock(&injector_mutex);
+      mysql_mutex_lock(&injector_mutex);
       schema_res= s_ndb->pollEvents(100, &schema_gci);
-      native_mutex_unlock(&injector_mutex);
+      mysql_mutex_unlock(&injector_mutex);
     } while (schema_gci == 0 || ndb_latest_received_binlog_epoch == schema_gci);
 
     if (ndb_binlog_running)
@@ -6749,9 +6750,9 @@ restart_cluster_failure:
           goto err;
 
         my_thread_yield();
-        native_mutex_lock(&injector_mutex);
+        mysql_mutex_lock(&injector_mutex);
         res= i_ndb->pollEvents(10, &gci);
-        native_mutex_unlock(&injector_mutex);
+        mysql_mutex_unlock(&injector_mutex);
       }
       if (gci > schema_gci)
       {
@@ -6876,12 +6877,12 @@ restart_cluster_failure:
       // Capture any dynamic changes to max_alloc
       i_ndb->set_eventbuf_max_alloc(opt_ndb_eventbuffer_max_alloc);
 
-      native_mutex_lock(&injector_mutex);
+      mysql_mutex_lock(&injector_mutex);
       Uint64 latest_epoch= 0;
       const int poll_wait= (ndb_binlog_running) ? tot_poll_wait : 0;
       const int res= i_ndb->pollEvents(poll_wait, &latest_epoch);
       (void)res; // Unused except DBUG_PRINT
-      native_mutex_unlock(&injector_mutex);
+      mysql_mutex_unlock(&injector_mutex);
       i_pOp = i_ndb->nextEvent();
       if (ndb_binlog_running)
       {
@@ -6911,9 +6912,9 @@ restart_cluster_failure:
       });
   
       Uint64 schema_epoch= 0;
-      native_mutex_lock(&injector_mutex);
+      mysql_mutex_lock(&injector_mutex);
       int schema_res= s_ndb->pollEvents(tot_poll_wait, &schema_epoch);
-      native_mutex_unlock(&injector_mutex);
+      mysql_mutex_unlock(&injector_mutex);
       s_pOp = s_ndb->nextEvent();
 
       /*
@@ -6932,9 +6933,9 @@ restart_cluster_failure:
         thd->proc_info= buf;
 
         my_thread_yield();
-        native_mutex_lock(&injector_mutex);
+        mysql_mutex_lock(&injector_mutex);
         schema_res= s_ndb->pollEvents(10, &schema_epoch);
-        native_mutex_unlock(&injector_mutex);
+        mysql_mutex_unlock(&injector_mutex);
         s_pOp = s_ndb->nextEvent();
       }
     }
@@ -7415,12 +7416,12 @@ restart_cluster_failure:
     thd->proc_info= "Restarting";
   }
   if (!have_injector_mutex_lock)
-    native_mutex_lock(&injector_mutex);
+    mysql_mutex_lock(&injector_mutex);
   /* don't mess with the injector_ndb anymore from other threads */
   injector_thd= NULL;
   injector_ndb= NULL;
   schema_ndb= NULL;
-  native_mutex_unlock(&injector_mutex);
+  mysql_mutex_unlock(&injector_mutex);
   thd->reset_db(NULL_CSTR); // as not to try to free memory
 
   /*
@@ -7452,7 +7453,7 @@ restart_cluster_failure:
     if (opt_ndb_extra_logging > 9)
       sql_print_information("NDB Binlog: Release extra share references");
 
-    native_mutex_lock(&ndbcluster_mutex);
+    mysql_mutex_lock(&ndbcluster_mutex);
     while (ndbcluster_open_tables.records)
     {
       NDB_SHARE * share = (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables,0);
@@ -7464,7 +7465,7 @@ restart_cluster_failure:
       DBUG_ASSERT(share->state != NSS_DROPPED);
       ndbcluster_mark_share_dropped(&share);
     }
-    native_mutex_unlock(&ndbcluster_mutex);
+    mysql_mutex_unlock(&ndbcluster_mutex);
   }
   log_info("Stopping...");
 
@@ -7472,7 +7473,7 @@ restart_cluster_failure:
   if (opt_ndb_extra_logging > 15)
   {
     sql_print_information("NDB Binlog: remaining open tables: ");
-    native_mutex_lock(&ndbcluster_mutex);
+    mysql_mutex_lock(&ndbcluster_mutex);
     for (uint i= 0; i < ndbcluster_open_tables.records; i++)
     {
       NDB_SHARE* share = (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables,i);
@@ -7482,14 +7483,14 @@ restart_cluster_failure:
                             (uint)share->state,
                             share->use_count);
     }
-    native_mutex_unlock(&ndbcluster_mutex);
+    mysql_mutex_unlock(&ndbcluster_mutex);
   }
 
   schema_dist_data.release();
 
   if (binlog_thread_state == BCCC_restart)
   {
-    native_mutex_lock(&injector_mutex);
+    mysql_mutex_lock(&injector_mutex);
     goto restart_cluster_failure;
   }
 
@@ -7500,7 +7501,7 @@ restart_cluster_failure:
   delete thd;
 
   ndb_binlog_running= FALSE;
-  (void) native_cond_signal(&injector_cond);
+  (void) mysql_cond_signal(&injector_cond);
 
   log_info("Stopped");
 
@@ -7528,11 +7529,11 @@ ndbcluster_show_status_binlog(char *buf, size_t buf_size)
 {
   DBUG_ENTER("ndbcluster_show_status_binlog");
   
-  native_mutex_lock(&injector_mutex);
+  mysql_mutex_lock(&injector_mutex);
   if (injector_ndb)
   {
     const ulonglong latest_epoch= injector_ndb->getLatestGCI();
-    native_mutex_unlock(&injector_mutex);
+    mysql_mutex_unlock(&injector_mutex);
 
     // Get highest trans gci seen by the cluster connections
     const ulonglong latest_trans_epoch = ndb_get_latest_trans_gci();
@@ -7552,6 +7553,6 @@ ndbcluster_show_status_binlog(char *buf, size_t buf_size)
       DBUG_RETURN(buf_len);
   }
   else
-    native_mutex_unlock(&injector_mutex);
+    mysql_mutex_unlock(&injector_mutex);
   DBUG_RETURN(0);
 }

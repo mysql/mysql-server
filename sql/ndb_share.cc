@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ void
 NDB_SHARE::destroy(NDB_SHARE* share)
 {
   thr_lock_delete(&share->lock);
-  native_mutex_destroy(&share->mutex);
+  mysql_mutex_destroy(&share->mutex);
 
   // ndb_index_stat_free() should have cleaned up:
   assert(share->index_stat_list == NULL);

@@ -21,6 +21,8 @@
 #include "ha_ndbcluster_connection.h"
 #include <kernel/ndb_limits.h>
 
+#include <mysql/psi/mysql_thread.h>
+
 #include <util/Vector.hpp>
 #include <util/BaseString.hpp>
 
@@ -29,7 +31,7 @@ Ndb_cluster_connection* g_ndb_cluster_connection= NULL;
 static Ndb_cluster_connection **g_pool= NULL;
 static uint g_pool_alloc= 0;
 static uint g_pool_pos= 0;
-static native_mutex_t g_pool_mutex;
+static mysql_mutex_t g_pool_mutex;
 
 
 /**
@@ -239,8 +241,9 @@ ndbcluster_connect(int (*connect_callback)(void),
       my_malloc(PSI_INSTRUMENT_ME,
                 g_pool_alloc * sizeof(Ndb_cluster_connection*),
                 MYF(MY_WME | MY_ZEROFILL));
-    native_mutex_init(&g_pool_mutex,
-                       MY_MUTEX_INIT_FAST);
+    mysql_mutex_init(PSI_INSTRUMENT_ME,
+                     &g_pool_mutex,
+                     MY_MUTEX_INIT_FAST);
     g_pool[0]= g_ndb_cluster_connection;
     for (uint i= 1; i < g_pool_alloc; i++)
     {
@@ -374,7 +377,7 @@ void ndbcluster_disconnect(void)
           delete g_pool[i];
       }
       my_free(g_pool);
-      native_mutex_destroy(&g_pool_mutex);
+      mysql_mutex_destroy(&g_pool_mutex);
       g_pool= 0;
     }
     g_pool_alloc= 0;
@@ -388,12 +391,12 @@ void ndbcluster_disconnect(void)
 
 Ndb_cluster_connection *ndb_get_cluster_connection()
 {
-  native_mutex_lock(&g_pool_mutex);
+  mysql_mutex_lock(&g_pool_mutex);
   Ndb_cluster_connection *connection= g_pool[g_pool_pos];
   g_pool_pos++;
   if (g_pool_pos == g_pool_alloc)
     g_pool_pos= 0;
-  native_mutex_unlock(&g_pool_mutex);
+  mysql_mutex_unlock(&g_pool_mutex);
   return connection;
 }
 
