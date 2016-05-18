@@ -583,6 +583,7 @@ static PSI_thread_info	all_innodb_threads[] = {
 	PSI_KEY(io_log_thread),
 	PSI_KEY(io_read_thread),
 	PSI_KEY(io_write_thread),
+	PSI_KEY(buf_resize_thread),
 	PSI_KEY(page_cleaner_thread),
 	PSI_KEY(recv_writer_thread),
 	PSI_KEY(srv_error_monitor_thread),
@@ -591,7 +592,7 @@ static PSI_thread_info	all_innodb_threads[] = {
 	PSI_KEY(srv_monitor_thread),
 	PSI_KEY(srv_purge_thread),
 	PSI_KEY(srv_worker_thread),
-	PSI_KEY(trx_rollback_clean_thread),
+	PSI_KEY(trx_recovery_rollback_thread)
 };
 # endif /* UNIV_PFS_THREAD */
 

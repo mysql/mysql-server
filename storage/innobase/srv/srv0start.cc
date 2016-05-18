@@ -72,6 +72,7 @@ Created 2/16/1996 Heikki Tuuri
 #include "srv0start.h"
 #include "srv0srv.h"
 #include "fsp0sysspace.h"
+#include "os0thread-create.h"
 #ifndef UNIV_HOTBACKUP
 # include "trx0rseg.h"
 # include "os0proc.h"
@@ -165,11 +166,6 @@ enum srv_shutdown_t	srv_shutdown_state = SRV_SHUTDOWN_NONE;
 /** Files comprising the system tablespace */
 static os_file_t	files[1000];
 
-/** io_handler_thread parameters for thread identification */
-static ulint		n[SRV_MAX_N_IO_THREADS + 6];
-/** io_handler_thread identifiers, 32 is the maximum number of purge threads  */
-static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 6 + 32];
-
 /** Name of srv_monitor_file */
 static char*	srv_monitor_file_name;
 #endif /* !UNIV_HOTBACKUP */
@@ -189,11 +185,17 @@ mysql_pfs_key_t	io_ibuf_thread_key;
 mysql_pfs_key_t	io_log_thread_key;
 mysql_pfs_key_t	io_read_thread_key;
 mysql_pfs_key_t	io_write_thread_key;
+mysql_pfs_key_t	fts_optimize_thread_key;
+mysql_pfs_key_t	fts_parallel_merge_thread_key;
+mysql_pfs_key_t	fts_parallel_tokenization_thread_key;
+mysql_pfs_key_t	buf_resize_thread_key;
 mysql_pfs_key_t	srv_error_monitor_thread_key;
 mysql_pfs_key_t	srv_lock_timeout_thread_key;
 mysql_pfs_key_t	srv_master_thread_key;
 mysql_pfs_key_t	srv_monitor_thread_key;
-mysql_pfs_key_t	trx_rollback_clean_thread_key;
+mysql_pfs_key_t	trx_recovery_rollback_thread_key;
+mysql_pfs_key_t	buf_flush_page_cleaner_worker_key;
+mysql_pfs_key_t	buf_flush_page_cleaner_coordinator_key;
 #endif /* UNIV_PFS_THREAD */
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
@@ -264,70 +266,21 @@ srv_file_check_mode(
 }
 
 #ifndef UNIV_HOTBACKUP
-/********************************************************************//**
-I/o-handler thread function.
-@return OS_THREAD_DUMMY_RETURN */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(io_handler_thread)(
-/*==============================*/
-	void*	arg)	/*!< in: pointer to the number of the segment in
-			the aio array */
+/** I/o-handler thread function.
+@param[in]      segment         The AIO segment the thread will work on */
+void
+io_handler_thread(ulint segment)
 {
-	ulint	segment;
-
-	my_thread_init();
-
-	segment = *((ulint*) arg);
-
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	ib::info() << "Io handler thread " << segment << " starts, id "
 		<< os_thread_pf(os_thread_get_curr_id());
-#endif
-
-#ifdef UNIV_PFS_THREAD
-	/* For read only mode, we don't need ibuf and log I/O thread.
-	Please see innobase_start_or_create_for_mysql() */
-	ulint   start = (srv_read_only_mode) ? 0 : 2;
-
-	if (segment < start) {
-		if (segment == 0) {
-			pfs_register_thread(io_ibuf_thread_key);
-		} else {
-			ut_ad(segment == 1);
-			pfs_register_thread(io_log_thread_key);
-		}
-	} else if (segment >= start
-		   && segment < (start + srv_n_read_io_threads)) {
-			pfs_register_thread(io_read_thread_key);
-
-	} else if (segment >= (start + srv_n_read_io_threads)
-		   && segment < (start + srv_n_read_io_threads
-				 + srv_n_write_io_threads)) {
-		pfs_register_thread(io_write_thread_key);
-
-	} else {
-		pfs_register_thread(io_handler_thread_key);
-	}
-#endif /* UNIV_PFS_THREAD */
+#endif /* UNIV_DEBUG_THREAD_CREATION */
 
 	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS
 	       || buf_page_cleaner_is_active
 	       || !os_aio_all_slots_free()) {
 		fil_aio_wait(segment);
 	}
-
-	my_thread_end();
-
-	/* We count the number of threads in os_thread_exit(). A created
-	thread should always use that to exit and not use return() to exit.
-	The thread actually never comes here because it is exited in an
-	os_event_wait(). */
-
-        my_thread_end();
-	os_thread_exit();
-
-	OS_THREAD_DUMMY_RETURN;
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -408,7 +361,7 @@ create_log_files(
 		DeleteFile((LPCTSTR) logfilename);
 #else
 		unlink(logfilename);
-#endif
+#endif /* _WIN32 */
 		/* Crashing after deleting the first
 		file should be recoverable. The buffer
 		pool was clean, and we can simply create
@@ -1213,7 +1166,7 @@ srv_shutdown_all_bg_threads()
 		logs_empty_and_mark_files_at_shutdown() and should have
 		already quit or is quitting right now. */
 
-		bool	active = os_thread_active();
+		bool	active = os_thread_any_active();
 
 		os_thread_sleep(100000);
 
@@ -1607,23 +1560,60 @@ srv_start(
 
 	/* Create i/o-handler threads: */
 
+#ifdef UNIV_PFS_THREAD
+        /* For read only mode, we don't need ibuf and log I/O thread.
+        Please see innobase_start_or_create_for_mysql() */
+        ulint   	start = (srv_read_only_mode) ? 0 : 2;
+#endif /* UNIV_PFS_THREAD */
+
 	for (ulint t = 0; t < srv_n_file_io_threads; ++t) {
 
-		n[t] = t;
+#ifdef UNIV_PFS_THREAD
+		if (t < start) {
+			if (t == 0) {
+		                CREATE_THREAD(
+                                        io_handler_thread,
+                                        io_ibuf_thread_key, t);
+			} else {
+				ut_ad(t == 1);
+		                CREATE_THREAD(
+                                        io_handler_thread,
+                                        io_log_thread_key, t);
+			}
+		} else if (t >= start && t < (start + srv_n_read_io_threads)) {
 
-		os_thread_create(io_handler_thread, n + t, thread_ids + t);
+		        CREATE_THREAD(
+                                io_handler_thread,
+                                io_read_thread_key, t);
+
+		} else if (t >= (start + srv_n_read_io_threads)
+			   && t < (start + srv_n_read_io_threads
+				   + srv_n_write_io_threads)) {
+
+		        CREATE_THREAD(
+                                io_handler_thread,
+                                io_write_thread_key, t);
+		} else {
+		        CREATE_THREAD(
+                                io_handler_thread,
+                                io_handler_thread_key, t);
+		}
+#endif /* UNIV_PFS_THREAD */
 	}
 
 	/* Even in read-only mode there could be flush job generated by
 	intrinsic table operations. */
 	buf_flush_page_cleaner_init();
 
-	os_thread_create(buf_flush_page_cleaner_coordinator,
-			 NULL, NULL);
+	CREATE_THREAD0(
+		buf_flush_page_cleaner_coordinator,
+		buf_flush_page_cleaner_coordinator_key);
 
-	for (i = 1; i < srv_n_page_cleaners; ++i) {
-		os_thread_create(buf_flush_page_cleaner_worker,
-				 NULL, NULL);
+	for (size_t i = 1; i < srv_n_page_cleaners; ++i) {
+
+		CREATE_THREAD0(
+			buf_flush_page_cleaner_worker,
+			buf_flush_page_cleaner_worker_key);
 	}
 
 	/* Make sure page cleaner is active. */
@@ -2098,19 +2088,19 @@ files_checked:
 
 		/* Create the thread which watches the timeouts
 		for lock waits */
-		os_thread_create(
+		CREATE_THREAD0(
 			lock_wait_timeout_thread,
-			NULL, thread_ids + 2 + SRV_MAX_N_IO_THREADS);
+			srv_lock_timeout_thread_key);
 
 		/* Create the thread which warns of long semaphore waits */
-		os_thread_create(
+		CREATE_THREAD0(
 			srv_error_monitor_thread,
-			NULL, thread_ids + 3 + SRV_MAX_N_IO_THREADS);
+			srv_error_monitor_thread_key);
 
 		/* Create the thread which prints InnoDB monitor info */
-		os_thread_create(
+		CREATE_THREAD0(
 			srv_monitor_thread,
-			NULL, thread_ids + 4 + SRV_MAX_N_IO_THREADS);
+			srv_monitor_thread_key);
 
 		srv_start_state_set(SRV_START_STATE_MONITOR);
 	}
@@ -2304,8 +2294,7 @@ srv_dict_recover_on_restart()
 void
 srv_start_threads()
 {
-	/* Create the buffer pool resize thread */
-	os_thread_create(buf_resize_thread, NULL, NULL);
+	CREATE_THREAD0(buf_resize_thread, buf_resize_thread_key);
 
 	if (srv_read_only_mode) {
 		purge_sys->state = PURGE_STATE_DISABLED;
@@ -2317,32 +2306,31 @@ srv_start_threads()
 		/* Rollback all recovered transactions that are
 		not in committed nor in XA PREPARE state. */
 		trx_rollback_or_clean_is_active = true;
-		os_thread_create(trx_rollback_or_clean_all_recovered,
-				 0, 0);
+
+		CREATE_THREAD0(
+			trx_recovery_rollback_thread,
+			trx_recovery_rollback_thread_key);
 	}
 
 	/* Create the master thread which does purge and other utility
 	operations */
 
-	os_thread_create(srv_master_thread,
-			 NULL, thread_ids + (1 + SRV_MAX_N_IO_THREADS));
+	CREATE_THREAD0(srv_master_thread, srv_master_thread_key);
 
 	srv_start_state_set(SRV_START_STATE_MASTER);
 
 	if (srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
 
-		os_thread_create(
+		CREATE_THREAD0(
 			srv_purge_coordinator_thread,
-			NULL, thread_ids + 5 + SRV_MAX_N_IO_THREADS);
-
-		ut_a(UT_ARR_SIZE(thread_ids)
-		     > 5 + srv_n_purge_threads + SRV_MAX_N_IO_THREADS);
+			srv_purge_thread_key);
 
 		/* We've already created the purge coordinator thread above. */
 		for (ulong i = 1; i < srv_n_purge_threads; ++i) {
-			os_thread_create(
-				srv_worker_thread, NULL,
-				thread_ids + 5 + i + SRV_MAX_N_IO_THREADS);
+
+			CREATE_THREAD0(
+				srv_worker_thread,
+				srv_worker_thread_key);
 		}
 
 		srv_start_wait_for_purge_to_start();
@@ -2362,10 +2350,10 @@ srv_start_threads()
 	}
 
 	/* Create the buffer pool dump/load thread */
-	os_thread_create(buf_dump_thread, NULL, NULL);
+	CREATE_THREAD0(buf_dump_thread, buf_dump_thread_key);
 
 	/* Create the dict stats gathering thread */
-	os_thread_create(dict_stats_thread, NULL, NULL);
+	CREATE_THREAD0(dict_stats_thread, dict_stats_thread_key);
 
 	/* Create the thread that will optimize the FTS sub-system. */
 	fts_optimize_init();
@@ -2566,7 +2554,7 @@ srv_shutdown()
 	buf_pool_free(srv_buf_pool_instances);
 
 	/* 6. Free the thread management resoruces. */
-	os_thread_free();
+	os_thread_close();
 
 	/* 7. Free the synchronisation infrastructure. */
 	sync_check_close();

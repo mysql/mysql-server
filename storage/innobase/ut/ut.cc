@@ -121,7 +121,7 @@ ut_print_timestamp(
 {
 	ulint thread_id = 0;
 
-	thread_id = os_thread_pf(os_thread_get_curr_id());
+	thread_id = static_cast<size_t>(os_thread_get_curr_id());
 
 #ifdef _WIN32
 	SYSTEMTIME cal_tm;

@@ -37,6 +37,7 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 #include "srv0start.h"
 #include "ut0list.h"
 #include "zlib.h"
+#include "os0thread-create.h"
 
 /** The FTS optimize thread's work queue. */
 static ib_wqueue_t* fts_optimize_wq;
@@ -2979,14 +2980,10 @@ fts_optimize_sync_table(
 	rw_lock_s_unlock(dict_operation_lock);
 }
 
-/**********************************************************************//**
-Optimize all FTS tables.
-@return Dummy return */
+/** Optimize all FTS tables. */
 static
-os_thread_ret_t
-fts_optimize_thread(
-/*================*/
-	void*		arg)			/*!< in: work queue*/
+void
+fts_optimize_thread(ib_wqueue_t* wq)
 {
 	mem_heap_t*	heap;
 	ib_vector_t*	tables;
@@ -2995,10 +2992,8 @@ fts_optimize_thread(
 	ibool		done = FALSE;
 	ulint		n_tables = 0;
 	ulint		n_optimize = 0;
-	ib_wqueue_t*	wq = (ib_wqueue_t*) arg;
 
 	ut_ad(!srv_read_only_mode);
-	my_thread_init();
 
 	heap = mem_heap_create(sizeof(dict_table_t*) * 64);
 	heap_alloc = ib_heap_allocator_create(heap);
@@ -3139,13 +3134,6 @@ fts_optimize_thread(
 	ib::info() << "FTS optimize thread exiting.";
 
 	os_event_set(fts_opt_shutdown_event);
-	my_thread_end();
-
-	/* We count the number of threads in os_thread_exit(). A created
-	thread should always use that to exit and not use return() to exit. */
-	os_thread_exit();
-
-	OS_THREAD_DUMMY_RETURN;
 }
 
 /**********************************************************************//**
@@ -3164,7 +3152,10 @@ fts_optimize_init(void)
 	ut_a(fts_optimize_wq != NULL);
 	last_check_sync_time = ut_time();
 
-	os_thread_create(fts_optimize_thread, fts_optimize_wq, NULL);
+	CREATE_THREAD(
+		fts_optimize_thread,
+		fts_optimize_thread_key,
+		fts_optimize_wq);
 }
 
 /** Shutdown fts optimize thread. */

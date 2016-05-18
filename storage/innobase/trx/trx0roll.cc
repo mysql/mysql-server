@@ -42,6 +42,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0trx.h"
 #include "trx0undo.h"
 #include "usr0sess.h"
+#include "os0thread-create.h"
 
 /** This many pages must be undone before a truncate is tried within
 rollback */
@@ -834,37 +835,19 @@ trx_rollback_or_clean_recovered(
 	}
 }
 
-/*******************************************************************//**
-Rollback or clean up any incomplete transactions which were
+/** Rollback or clean up any incomplete transactions which were
 encountered in crash recovery.  If the transaction already was
 committed, then we clean up a possible insert undo log. If the
 transaction was not yet committed, then we roll it back.
-Note: this is done in a background thread.
-@return a dummy parameter */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(trx_rollback_or_clean_all_recovered)(
-/*================================================*/
-	void*	arg MY_ATTRIBUTE((unused)))
-			/*!< in: a dummy parameter required by
-			os_thread_create */
+Note: this is done in a background thread. */
+void
+trx_recovery_rollback_thread()
 {
 	ut_ad(!srv_read_only_mode);
-
-#ifdef UNIV_PFS_THREAD
-	pfs_register_thread(trx_rollback_clean_thread_key);
-#endif /* UNIV_PFS_THREAD */
 
 	trx_rollback_or_clean_recovered(TRUE);
 
 	trx_rollback_or_clean_is_active = false;
-
-	/* We count the number of threads in os_thread_exit(). A created
-	thread should always use that to exit and not use return() to exit. */
-
-	os_thread_exit();
-
-	OS_THREAD_DUMMY_RETURN;
 }
 
 /***********************************************************************//**

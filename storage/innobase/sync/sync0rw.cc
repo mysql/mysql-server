@@ -1231,7 +1231,7 @@ rw_lock_debug_print(
 	ulint	rwt = info->lock_type;
 
 	fprintf(f, "Locked: thread %lu file %s line %lu  ",
-		static_cast<ulong>(os_thread_pf(info->thread_id)),
+		static_cast<ulong>(static_cast<size_t>(info->thread_id)),
 		sync_basename(info->file_name),
 		static_cast<ulong>(info->line));
 
@@ -1300,7 +1300,7 @@ rw_lock_t::to_string() const
 	std::ostringstream	msg;
 
 	msg << "RW-LATCH: "
-	    << "thread id " << os_thread_pf(os_thread_get_curr_id())
+	    << "thread id " << static_cast<size_t>(os_thread_get_curr_id())
 	    << " addr: " << this
 	    << " Locked from: " << locked_from().c_str();
 

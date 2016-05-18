@@ -38,10 +38,6 @@ The database server main program
 Created 10/8/1995 Heikki Tuuri
 *******************************************************/
 
-#include "my_global.h"
-#include "my_thread.h"
-
-#include "mysql/psi/mysql_stage.h"
 #include "sql_thd_internal_api.h"
 
 #include "ha_prototypes.h"
@@ -70,10 +66,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "usr0sess.h"
 #include "ut0crc32.h"
 #include "ut0mem.h"
-#include "mysqld_thd_manager.h"   // Global_THD_manager
-
-#include "sql_class.h"            // THD
-#include "mysqld.h"
+#include "os0thread-create.h"
 
 /* The following is the maximum allowed duration of a lock wait. */
 ulint	srv_fatal_semaphore_wait_threshold = 600;
@@ -1058,7 +1051,7 @@ srv_general_init(void)
 	sync_check_init();
 	/* Reset the system variables in the recovery module. */
 	recv_sys_var_init();
-	os_thread_init();
+	os_thread_open();
 	trx_pool_init();
 	que_init();
 	row_mysql_init();
@@ -1492,16 +1485,9 @@ srv_export_innodb_status(void)
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
 
-/*********************************************************************//**
-A thread which prints the info output by various InnoDB monitors.
-@return a dummy parameter */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(srv_monitor_thread)(
-/*===============================*/
-	void*	arg MY_ATTRIBUTE((unused)))
-			/*!< in: a dummy parameter required by
-			os_thread_create */
+/** A thread which prints the info output by various InnoDB monitors. */
+void
+srv_monitor_thread()
 {
 	int64_t		sig_count;
 	double		time_elapsed;
@@ -1512,17 +1498,8 @@ DECLARE_THREAD(srv_monitor_thread)(
 
 	ut_ad(!srv_read_only_mode);
 
-#ifdef UNIV_DEBUG_THREAD_CREATION
-	ib::info() << "Lock timeout thread starts, id "
-		<< os_thread_pf(os_thread_get_curr_id());
-#endif /* UNIV_DEBUG_THREAD_CREATION */
-
-#ifdef UNIV_PFS_THREAD
-	pfs_register_thread(srv_monitor_thread_key);
-#endif /* UNIV_PFS_THREAD */
 	srv_monitor_active = TRUE;
 
-	UT_NOT_USED(arg);
 	srv_last_monitor_time = last_monitor_time = ut_time();
 	mutex_skipped = 0;
 	last_srv_print_monitor = srv_print_innodb_monitor;
@@ -1596,26 +1573,12 @@ loop:
 
 exit_func:
 	srv_monitor_active = FALSE;
-
-	/* We count the number of threads in os_thread_exit(). A created
-	thread should always use that to exit and not use return() to exit. */
-
-	os_thread_exit();
-
-	OS_THREAD_DUMMY_RETURN;
 }
 
-/*********************************************************************//**
-A thread which prints warnings about semaphore waits which have lasted
-too long. These can be used to track bugs which cause hangs.
-@return a dummy parameter */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(srv_error_monitor_thread)(
-/*=====================================*/
-	void*	arg MY_ATTRIBUTE((unused)))
-			/*!< in: a dummy parameter required by
-			os_thread_create */
+/*** A thread which prints warnings about semaphore waits which have lasted
+too long. These can be used to track bugs which cause hangs. */
+void
+srv_error_monitor_thread()
 {
 	/* number of successive fatal timeouts observed */
 	ulint		fatal_cnt	= 0;
@@ -1635,12 +1598,9 @@ DECLARE_THREAD(srv_error_monitor_thread)(
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	ib::info() << "Error monitor thread starts, id "
-		<< os_thread_pf(os_thread_get_curr_id());
+		<< static_cast<size_t>(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
-#ifdef UNIV_PFS_THREAD
-	pfs_register_thread(srv_error_monitor_thread_key);
-#endif /* UNIV_PFS_THREAD */
 	srv_error_monitor_active = TRUE;
 
 loop:
@@ -1706,13 +1666,6 @@ loop:
 	}
 
 	srv_error_monitor_active = FALSE;
-
-	/* We count the number of threads in os_thread_exit(). A created
-	thread should always use that to exit and not use return() to exit. */
-
-	os_thread_exit();
-
-	OS_THREAD_DUMMY_RETURN;
 }
 
 /******************************************************************//**
@@ -2271,18 +2224,10 @@ srv_master_sleep(void)
 	srv_main_thread_op_info = "";
 }
 
-/*********************************************************************//**
-The master thread controlling the server.
-@return a dummy parameter */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(srv_master_thread)(
-/*==============================*/
-	void*	arg MY_ATTRIBUTE((unused)))
-			/*!< in: a dummy parameter required by
-			os_thread_create */
+/** The master thread controlling the server. */
+void
+srv_master_thread()
 {
-	my_thread_init();
 	DBUG_ENTER("srv_master_thread");
 
 	srv_slot_t*	slot;
@@ -2293,15 +2238,11 @@ DECLARE_THREAD(srv_master_thread)(
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	ib::info() << "Master thread starts, id "
-		<< os_thread_pf(os_thread_get_curr_id());
+		<< static_cast<size_t>(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
-#ifdef UNIV_PFS_THREAD
-	pfs_register_thread(srv_master_thread_key);
-#endif /* UNIV_PFS_THREAD */
-
 	srv_main_thread_process_no = os_proc_get_number();
-	srv_main_thread_id = os_thread_pf(os_thread_get_curr_id());
+	srv_main_thread_id = static_cast<size_t>(os_thread_get_curr_id());
 
 	slot = srv_reserve_slot(SRV_MASTER);
 	ut_a(slot == srv_sys->sys_threads);
@@ -2349,10 +2290,6 @@ suspend_thread:
 	if (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
 		goto loop;
 	}
-
-	my_thread_end();
-	os_thread_exit();
-	DBUG_RETURN(0);
 }
 
 /**
@@ -2418,26 +2355,20 @@ srv_task_execute(void)
 	return(thr != NULL);
 }
 
-/*********************************************************************//**
-Worker thread that reads tasks from the work queue and executes them.
-@return a dummy parameter */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(srv_worker_thread)(
-/*==============================*/
-	void*	arg MY_ATTRIBUTE((unused)))	/*!< in: a dummy parameter
-						required by os_thread_create */
+/** Worker thread that reads tasks from the work queue and executes them. */
+void
+srv_worker_thread()
 {
 	srv_slot_t*	slot;
 
 	ut_ad(!srv_read_only_mode);
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
-	my_thread_init();
-	THD *thd = create_thd(false, true, true, srv_worker_thread_key);
+
+	THD*	thd = create_thd(false, true, true, srv_worker_thread_key);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	ib::info() << "Worker thread starting, id "
-		<< os_thread_pf(os_thread_get_curr_id());
+		<< static_cast<size_t>(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
 	slot = srv_reserve_slot(SRV_WORKER);
@@ -2483,16 +2414,10 @@ DECLARE_THREAD(srv_worker_thread)(
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	ib::info() << "Purge worker thread exiting, id "
-		<< os_thread_pf(os_thread_get_curr_id());
+		<< static_cast<size_t>(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
 	destroy_thd(thd);
-        my_thread_end();
-	/* We count the number of threads in os_thread_exit(). A created
-	thread should always use that to exit and not use return() to exit. */
-	os_thread_exit();
-
-	OS_THREAD_DUMMY_RETURN;	/* Not reached, avoid compiler warning */
 }
 
 /*********************************************************************//**
@@ -2685,20 +2610,14 @@ srv_purge_coordinator_suspend(
 	srv_sys_mutex_exit();
 }
 
-/*********************************************************************//**
-Purge coordinator thread that schedules the purge tasks.
-@return a dummy parameter */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(srv_purge_coordinator_thread)(
-/*=========================================*/
-	void*	arg MY_ATTRIBUTE((unused)))	/*!< in: a dummy parameter
-						required by os_thread_create */
+/** Purge coordinator thread that schedules the purge tasks. */
+void
+srv_purge_coordinator_thread()
 {
-	my_thread_init();
-	THD *thd = create_thd(false, true, true, srv_purge_thread_key);
 	srv_slot_t*	slot;
-	ulint           n_total_purged = ULINT_UNDEFINED;
+
+	THD*	thd = create_thd(false, true, true, srv_purge_thread_key);
+	ulint	n_total_purged = ULINT_UNDEFINED;
 
 	ut_ad(!srv_read_only_mode);
 	ut_a(srv_n_purge_threads >= 1);
@@ -2714,7 +2633,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	ib::info() << "Purge coordinator thread created, id "
-		<< os_thread_pf(os_thread_get_curr_id());
+		<< static_cast<size_t>(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
 	slot = srv_reserve_slot(SRV_PURGE);
@@ -2798,7 +2717,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	ib::info() << "Purge coordinator exiting, id "
-		<< os_thread_pf(os_thread_get_curr_id());
+		<< static_cast<size_t>(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
 	/* Ensure that all the worker threads quit. */
@@ -2808,11 +2727,6 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 
 	destroy_thd(thd);
 	my_thread_end();
-	/* We count the number of threads in os_thread_exit(). A created
-	thread should always use that to exit and not use return() to exit. */
-	os_thread_exit();
-
-	OS_THREAD_DUMMY_RETURN;	/* Not reached, avoid compiler warning */
 }
 
 /**********************************************************************//**

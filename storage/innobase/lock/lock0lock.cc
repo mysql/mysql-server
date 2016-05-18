@@ -425,7 +425,8 @@ lock_sys_create(
 {
 	ulint	lock_sys_sz;
 
-	lock_sys_sz = sizeof(*lock_sys) + OS_THREAD_MAX_N * sizeof(srv_slot_t);
+	lock_sys_sz = sizeof(*lock_sys)
+                    + srv_max_n_threads * sizeof(srv_slot_t);
 
 	lock_sys = static_cast<lock_sys_t*>(ut_zalloc_nokey(lock_sys_sz));
 
@@ -541,7 +542,7 @@ lock_sys_close(void)
 
 	srv_slot_t*	slot = lock_sys->waiting_threads;
 
-	for (ulint i = 0; i < OS_THREAD_MAX_N; i++, ++slot) {
+	for (ulint i = 0; i < srv_max_n_threads; i++, ++slot) {
 		if (slot->event != NULL) {
 			os_event_destroy(slot->event);
 		}

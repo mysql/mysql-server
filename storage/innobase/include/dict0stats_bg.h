@@ -127,17 +127,11 @@ dict_stats_disabled_debug_update(
 	const void*			save);
 #endif /* UNIV_DEBUG */
 
-/*****************************************************************//**
-This is the thread for background stats gathering. It pops tables, from
+/** This is the thread for background stats gathering. It pops tables, from
 the auto recalc list and proceeds them, eventually recalculating their
-statistics.
-@return this function does not return, it calls os_thread_exit() */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(dict_stats_thread)(
-/*==============================*/
-	void*	arg);	/*!< in: a dummy parameter
-			required by os_thread_create */
+statistics. */
+void
+dict_stats_thread();
 
 /** Shutdown the dict stats thread. */
 void

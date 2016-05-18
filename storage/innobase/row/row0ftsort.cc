@@ -35,6 +35,7 @@ Created 10/13/2010 Jimmy Yang
 #include "btr0bulk.h"
 #include "fts0plugin.h"
 #include "lob0lob.h"
+#include "os0thread-create.h"
 
 /** Read the next record to buffer N.
 @param N index into array of merge info structure */
@@ -43,7 +44,7 @@ Created 10/13/2010 Jimmy Yang
 		b[N] = row_merge_read_rec(				\
 			block[N], buf[N], b[N], index,			\
 			fd[N], &foffs[N], &mrec[N], offsets[N]);	\
-		if (UNIV_UNLIKELY(!b[N])) {				\
+		if (!b[N]) {				\
 			if (mrec[N]) {					\
 				goto exit;				\
 			}						\
@@ -718,17 +719,12 @@ row_merge_fts_get_next_doc_item(
 	mutex_exit(&psort_info->mutex);
 }
 
-/*********************************************************************//**
-Function performs parallel tokenization of the incoming doc strings.
-It also performs the initial in memory sort of the parsed records.
-@return OS_THREAD_DUMMY_RETURN */
+/** Function performs parallel tokenization of the incoming doc strings.
+It also performs the initial in memory sort of the parsed records. */
 static
-os_thread_ret_t
-fts_parallel_tokenization(
-/*======================*/
-	void*		arg)	/*!< in: psort_info for the thread */
+void
+fts_parallel_tokenization_thread(fts_psort_t* psort_info)
 {
-	fts_psort_t*		psort_info = (fts_psort_t*) arg;
 	ulint			i;
 	fts_doc_item_t*		doc_item = NULL;
 	row_merge_buf_t**	buf;
@@ -1024,45 +1020,43 @@ func_exit:
 	psort_info->child_status = FTS_CHILD_COMPLETE;
 	os_event_set(psort_info->psort_common->sort_event);
 	psort_info->child_status = FTS_CHILD_EXITING;
-
-	os_thread_exit();
-
-	OS_THREAD_DUMMY_RETURN;
 }
 
-/*********************************************************************//**
-Start the parallel tokenization and parallel merge sort */
+/** Start the parallel tokenization and parallel merge sort
+@param[in,out]	psort_info		Parallel sort structure */
 void
-row_fts_start_psort(
-/*================*/
-	fts_psort_t*	psort_info)	/*!< parallel sort structure */
+row_fts_start_psort(fts_psort_t* psort_info)
 {
-	ulint		i = 0;
-	os_thread_id_t	thd_id;
+	for (ulint i = 0; i < fts_sort_pll_degree; i++) {
 
-	for (i = 0; i < fts_sort_pll_degree; i++) {
 		psort_info[i].psort_id = i;
-		os_thread_create(fts_parallel_tokenization,
-				 (void*) &psort_info[i],
-				 &thd_id);
+
+		/* Capture all automatic variables by value [=]. */
+		std::packaged_task<void()> task([=]()
+		{
+#ifdef UNIV_PFS_THREAD
+			Runnable	runnable{
+				fts_parallel_tokenization_thread_key};
+#else
+			Runnable	runnable{};
+#endif /* UNIV_PFS_THREAD */
+			runnable.run(
+				fts_parallel_tokenization_thread,
+				&psort_info[i]);
+		});
+
+		std::thread	t(std::move(task));
+		t.detach();
 	}
 }
 
-/*********************************************************************//**
-Function performs the merge and insertion of the sorted records.
-@return OS_THREAD_DUMMY_RETURN */
+/** Function performs the merge and insertion of the sorted records.
+@param[in]	psort_info		parallel merge info */
 static
-os_thread_ret_t
-fts_parallel_merge(
-/*===============*/
-	void*		arg)		/*!< in: parallel merge info */
+void
+fts_parallel_merge_thread(fts_psort_t* psort_info)
 {
-	fts_psort_t*	psort_info = (fts_psort_t*) arg;
-	ulint		id;
-
-	ut_ad(psort_info);
-
-	id = psort_info->psort_id;
+	ulint	id = psort_info->psort_id;
 
 	row_fts_merge_insert(psort_info->psort_common->dup->index,
 			     psort_info->psort_common->new_table,
@@ -1071,30 +1065,23 @@ fts_parallel_merge(
 	psort_info->child_status = FTS_CHILD_COMPLETE;
 	os_event_set(psort_info->psort_common->merge_event);
 	psort_info->child_status = FTS_CHILD_EXITING;
-
-	os_thread_exit();
-
-	OS_THREAD_DUMMY_RETURN;
 }
 
-/*********************************************************************//**
-Kick off the parallel merge and insert thread */
+/** Kick off the parallel merge and insert thread
+@param[in,out]	merge_info	parallel sort info */
 void
-row_fts_start_parallel_merge(
-/*=========================*/
-	fts_psort_t*	merge_info)	/*!< in: parallel sort info */
+row_fts_start_parallel_merge(fts_psort_t* merge_info)
 {
-	int		i = 0;
-	os_thread_id_t	thd_id;
-
 	/* Kick off merge/insert threads */
-	for (i = 0; i <  FTS_NUM_AUX_INDEX; i++) {
+	for (int i = 0; i <  FTS_NUM_AUX_INDEX; ++i) {
+
 		merge_info[i].psort_id = i;
 		merge_info[i].child_status = 0;
 
-		os_thread_create(fts_parallel_merge,
-				 (void*) &merge_info[i],
-				 &thd_id);
+                CREATE_THREAD(
+                        fts_parallel_merge_thread,
+                        fts_parallel_merge_thread_key,
+                        &merge_info[i]);
 	}
 }
 

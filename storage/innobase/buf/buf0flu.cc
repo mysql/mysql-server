@@ -46,6 +46,7 @@ Created 11/11/1995 Heikki Tuuri
 #include "srv0mon.h"
 #include "fsp0sysspace.h"
 #include "ut0stage.h"
+#include "os0thread-create.h"
 
 #ifdef UNIV_LINUX
 /* include defs for CPU time priority settings */
@@ -3109,32 +3110,19 @@ buf_flush_page_cleaner_disabled_debug_update(
 }
 #endif /* UNIV_DEBUG */
 
-/******************************************************************//**
-page_cleaner thread tasked with flushing dirty pages from the buffer
-pools. As of now we'll have only one coordinator.
-@return a dummy parameter */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
-/*===============================================*/
-	void*	arg MY_ATTRIBUTE((unused)))
-			/*!< in: a dummy parameter required by
-			os_thread_create */
+/** page_cleaner thread tasked with flushing dirty pages from the buffer
+pools. As of now we'll have only one coordinator. */
+void
+buf_flush_page_cleaner_coordinator()
 {
 	ulint	next_loop_time = ut_time_ms() + 1000;
 	ulint	n_flushed = 0;
 	ulint	last_activity = srv_get_activity_count();
 	ulint	last_pages = 0;
 
-	my_thread_init();
-
-#ifdef UNIV_PFS_THREAD
-	pfs_register_thread(page_cleaner_thread_key);
-#endif /* UNIV_PFS_THREAD */
-
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	ib::info() << "page_cleaner thread running, id "
-		<< os_thread_pf(os_thread_get_curr_id());
+		<< static_cast<size_t>(os_thread_get_curr_id());
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
 #ifdef UNIV_LINUX
@@ -3478,29 +3466,12 @@ thread_exit:
 	buf_flush_page_cleaner_close();
 
 	buf_page_cleaner_is_active = false;
-
-	my_thread_end();
-
-	/* We count the number of threads in os_thread_exit(). A created
-	thread should always use that to exit and not use return() to exit. */
-	os_thread_exit();
-
-	OS_THREAD_DUMMY_RETURN;
 }
 
-/******************************************************************//**
-Worker thread of page_cleaner.
-@return a dummy parameter */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(buf_flush_page_cleaner_worker)(
-/*==========================================*/
-	void*	arg MY_ATTRIBUTE((unused)))
-			/*!< in: a dummy parameter required by
-			os_thread_create */
+/** Worker thread of page_cleaner. */
+void
+buf_flush_page_cleaner_worker()
 {
-	my_thread_init();
-
 	mutex_enter(&page_cleaner->mutex);
 	page_cleaner->n_workers++;
 	mutex_exit(&page_cleaner->mutex);
@@ -3531,12 +3502,6 @@ DECLARE_THREAD(buf_flush_page_cleaner_worker)(
 	mutex_enter(&page_cleaner->mutex);
 	page_cleaner->n_workers--;
 	mutex_exit(&page_cleaner->mutex);
-
-	my_thread_end();
-
-	os_thread_exit();
-
-	OS_THREAD_DUMMY_RETURN;
 }
 
 /*******************************************************************//**

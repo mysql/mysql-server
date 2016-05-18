@@ -228,32 +228,22 @@ buf_flush_page_cleaner_disabled_debug_update(
 	const void*			save);
 #endif /* UNIV_DEBUG */
 
-/******************************************************************//**
-page_cleaner thread tasked with flushing dirty pages from the buffer
-pools. As of now we'll have only one coordinator of this thread.
-@return a dummy parameter */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
-/*===============================================*/
-	void*	arg);		/*!< in: a dummy parameter required by
-				os_thread_create */
-/******************************************************************//**
-Worker thread of page_cleaner.
-@return a dummy parameter */
-extern "C"
-os_thread_ret_t
-DECLARE_THREAD(buf_flush_page_cleaner_worker)(
-/*==========================================*/
-	void*	arg);		/*!< in: a dummy parameter required by
-				os_thread_create */
+/** page_cleaner thread tasked with flushing dirty pages from the buffer
+pools. As of now we'll have only one coordinator of this thread. */
+void
+buf_flush_page_cleaner_coordinator();
+
+/** Worker thread of page_cleaner. */
+void
+buf_flush_page_cleaner_worker();
+
 /** Initialize page_cleaner. */
 void
-buf_flush_page_cleaner_init(void);
+buf_flush_page_cleaner_init();
 
 /** Wait for any possible LRU flushes that are in progress to end. */
 void
-buf_flush_wait_LRU_batch_end(void);
+buf_flush_wait_LRU_batch_end();
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /******************************************************************//**

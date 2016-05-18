@@ -42,7 +42,7 @@ ut_dbg_assertion_failed(
 			innobase_basename(file), line,
 			expr != nullptr ? ":" : "",
 			expr != nullptr ? expr : "",
-			os_thread_pf(os_thread_get_curr_id()));
+			static_cast<size_t>(os_thread_get_curr_id()));
 
 	fputs("InnoDB: We intentionally generate a memory trap.\n"
 	      "InnoDB: Submit a detailed bug report"
