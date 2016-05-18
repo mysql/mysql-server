@@ -1,4 +1,4 @@
--- Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -832,6 +832,8 @@ ALTER TABLE ndb_binlog_index
   ADD COLUMN next_position BIGINT UNSIGNED NOT NULL;
 ALTER TABLE ndb_binlog_index
   ADD COLUMN next_file VARCHAR(255) NOT NULL;
+ALTER TABLE ndb_binlog_index
+  ENGINE=InnoDB;
 
 --
 -- Check for non-empty host table and issue a warning
