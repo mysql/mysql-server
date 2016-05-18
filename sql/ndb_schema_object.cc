@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,11 +16,10 @@
 */
 
 #include "ndb_schema_object.h"
-
 #include "hash.h"
 
 
-extern native_mutex_t ndbcluster_mutex;
+extern mysql_mutex_t ndbcluster_mutex;
 
 
 static uchar *
@@ -59,7 +58,7 @@ NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
   DBUG_ENTER("ndb_get_schema_object");
   DBUG_PRINT("enter", ("key: '%s'", key));
 
-  native_mutex_lock(&ndbcluster_mutex);
+  mysql_mutex_lock(&ndbcluster_mutex);
   while (!(ndb_schema_object=
            (NDB_SCHEMA_OBJECT*) my_hash_search(&ndb_schema_objects.m_hash,
                                                (const uchar*) key,
@@ -86,8 +85,9 @@ NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
       my_free(ndb_schema_object);
       break;
     }
-    native_mutex_init(&ndb_schema_object->mutex, MY_MUTEX_INIT_FAST);
-    native_cond_init(&ndb_schema_object->cond);
+    mysql_mutex_init(PSI_INSTRUMENT_ME, &ndb_schema_object->mutex,
+                     MY_MUTEX_INIT_FAST);
+    mysql_cond_init(PSI_INSTRUMENT_ME, &ndb_schema_object->cond);
     bitmap_init(&ndb_schema_object->slock_bitmap, ndb_schema_object->slock,
                 sizeof(ndb_schema_object->slock)*8, FALSE);
     // Expect answer from all other nodes by default(those
@@ -101,7 +101,7 @@ NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
     ndb_schema_object->use_count++;
     DBUG_PRINT("info", ("use_count: %d", ndb_schema_object->use_count));
   }
-  native_mutex_unlock(&ndbcluster_mutex);
+  mysql_mutex_unlock(&ndbcluster_mutex);
   DBUG_RETURN(ndb_schema_object);
 }
 
@@ -112,13 +112,13 @@ ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object)
   DBUG_ENTER("ndb_free_schema_object");
   DBUG_PRINT("enter", ("key: '%s'", (*ndb_schema_object)->key));
 
-  native_mutex_lock(&ndbcluster_mutex);
+  mysql_mutex_lock(&ndbcluster_mutex);
   if (!--(*ndb_schema_object)->use_count)
   {
     DBUG_PRINT("info", ("use_count: %d", (*ndb_schema_object)->use_count));
     my_hash_delete(&ndb_schema_objects.m_hash, (uchar*) *ndb_schema_object);
-    native_cond_destroy(&(*ndb_schema_object)->cond);
-    native_mutex_destroy(&(*ndb_schema_object)->mutex);
+    mysql_cond_destroy(&(*ndb_schema_object)->cond);
+    mysql_mutex_destroy(&(*ndb_schema_object)->mutex);
     my_free(*ndb_schema_object);
     *ndb_schema_object= 0;
   }
@@ -126,30 +126,30 @@ ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object)
   {
     DBUG_PRINT("info", ("use_count: %d", (*ndb_schema_object)->use_count));
   }
-  native_mutex_unlock(&ndbcluster_mutex);
+  mysql_mutex_unlock(&ndbcluster_mutex);
   DBUG_VOID_RETURN;
 }
 
 //static
 void NDB_SCHEMA_OBJECT::check_waiters(const MY_BITMAP &new_participants)
 {
-  native_mutex_lock(&ndbcluster_mutex);
+  mysql_mutex_lock(&ndbcluster_mutex);
   for (ulong i = 0; i < ndb_schema_objects.m_hash.records; i++)
   {
     NDB_SCHEMA_OBJECT *schema_object =
         (NDB_SCHEMA_OBJECT*)my_hash_element(&ndb_schema_objects.m_hash, i);
     schema_object->check_waiter(new_participants);
   }
-  native_mutex_unlock(&ndbcluster_mutex);
+  mysql_mutex_unlock(&ndbcluster_mutex);
 }
 
 void
 NDB_SCHEMA_OBJECT::check_waiter(const MY_BITMAP &new_participants)
 {
-  native_mutex_lock(&mutex);
+  mysql_mutex_lock(&mutex);
   bitmap_intersect(&slock_bitmap, &new_participants);
-  native_mutex_unlock(&mutex);
+  mysql_mutex_unlock(&mutex);
 
   // Wakeup waiting Client
-  native_cond_signal(&cond);
+  mysql_cond_signal(&cond);
 }

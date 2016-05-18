@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include <my_alloc.h>        // MEM_ROOT
 #include <thr_lock.h>        // THR_LOCK
 #include <my_bitmap.h>       // MY_BITMAP
+#include <mysql/psi/mysql_thread.h>
 
 #include <ndbapi/Ndb.hpp>    // Ndb::TupleIdRange
 
@@ -61,7 +62,7 @@ struct Ndb_statistics {
 struct NDB_SHARE {
   NDB_SHARE_STATE state;
   THR_LOCK lock;
-  native_mutex_t mutex;
+  mysql_mutex_t mutex;
   struct NDB_SHARE_KEY* key;
   uint use_count;
   uint commit_count_lock;
@@ -114,9 +115,9 @@ NDB_SHARE_STATE
 get_ndb_share_state(NDB_SHARE *share)
 {
   NDB_SHARE_STATE state;
-  native_mutex_lock(&share->mutex);
+  mysql_mutex_lock(&share->mutex);
   state= share->state;
-  native_mutex_unlock(&share->mutex);
+  mysql_mutex_unlock(&share->mutex);
   return state;
 }
 
@@ -125,9 +126,9 @@ inline
 void
 set_ndb_share_state(NDB_SHARE *share, NDB_SHARE_STATE state)
 {
-  native_mutex_lock(&share->mutex);
+  mysql_mutex_lock(&share->mutex);
   share->state= state;
-  native_mutex_unlock(&share->mutex);
+  mysql_mutex_unlock(&share->mutex);
 }
 
 

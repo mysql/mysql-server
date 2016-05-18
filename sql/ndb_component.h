@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,8 +19,7 @@
 #define NDB_COMPONENT_H
 
 #include <my_global.h>
-#include <thr_cond.h>
-#include <thr_mutex.h>
+#include <mysql/psi/mysql_thread.h>
 
 extern "C" void * Ndb_component_run_C(void *);
 
@@ -99,8 +98,8 @@ private:
 
   ThreadState m_thread_state;
   my_thread_handle m_thread;
-  native_mutex_t m_start_stop_mutex;
-  native_cond_t m_start_stop_cond;
+  mysql_mutex_t m_start_stop_mutex;
+  mysql_cond_t m_start_stop_cond;
 
   const char* m_name;
 

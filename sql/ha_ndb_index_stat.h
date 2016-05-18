@@ -19,13 +19,14 @@
 #define HA_NDB_INDEX_STAT_H
 
 #include "ndb_component.h"
+#include <mysql/psi/mysql_thread.h>
 
 class Ndb_index_stat_thread : public Ndb_component
 {
   // Someone is waiting for stats
   bool client_waiting;
-  native_mutex_t LOCK_client_waiting;
-  native_cond_t COND_client_waiting;
+  mysql_mutex_t LOCK_client_waiting;
+  mysql_cond_t COND_client_waiting;
 public:
   Ndb_index_stat_thread();
   virtual ~Ndb_index_stat_thread();
@@ -34,8 +35,8 @@ public:
     protect stats entry lists where needed
     protect and signal changes in stats entries
   */
-  native_mutex_t stat_mutex;
-  native_cond_t stat_cond;
+  mysql_mutex_t stat_mutex;
+  mysql_cond_t stat_cond;
 
   // Wake thread up to fetch stats or do other stuff
   void wakeup();
@@ -43,9 +44,9 @@ public:
   /* are we setup */
   bool is_setup_complete();
 private:
-  virtual int do_init() { return 0;}
+  virtual int do_init();
   virtual void do_run();
-  virtual int do_deinit() { return 0;}
+  virtual int do_deinit();
   // Wakeup for stop
   virtual void do_wakeup();
 
