@@ -131,6 +131,7 @@ mysql/help_relation
 mysql/help_topic
 mysql/innodb_index_stats
 mysql/innodb_table_stats
+mysql/ndb_binlog_index
 mysql/plugin
 mysql/server_cost
 mysql/servers
@@ -339,6 +340,7 @@ mysql/help_relation
 mysql/help_topic
 mysql/innodb_index_stats
 mysql/innodb_table_stats
+mysql/ndb_binlog_index
 mysql/plugin
 mysql/server_cost
 mysql/servers
@@ -381,6 +383,7 @@ mysql/help_relation
 mysql/help_topic
 mysql/innodb_index_stats
 mysql/innodb_table_stats
+mysql/ndb_binlog_index
 mysql/plugin
 mysql/server_cost
 mysql/servers
@@ -434,6 +437,7 @@ mysql/help_relation
 mysql/help_topic
 mysql/innodb_index_stats
 mysql/innodb_table_stats
+mysql/ndb_binlog_index
 mysql/plugin
 mysql/server_cost
 mysql/servers
@@ -487,6 +491,7 @@ mysql/help_relation
 mysql/help_topic
 mysql/innodb_index_stats
 mysql/innodb_table_stats
+mysql/ndb_binlog_index
 mysql/plugin
 mysql/server_cost
 mysql/servers
