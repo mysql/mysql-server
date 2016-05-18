@@ -13885,8 +13885,15 @@ static
 int ndbcluster_init(void* p)
 {
   DBUG_ENTER("ndbcluster_init");
-
   DBUG_ASSERT(!ndbcluster_inited);
+
+  if (unlikely(opt_initialize))
+  {
+    /* Don't schema-distribute 'mysqld --initialize' of data dictionary */
+    sql_print_information("NDB: '--initialize' -> ndbcluster plugin disabled");
+    DBUG_ASSERT(!ha_storage_engine_is_enabled(static_cast<handlerton*>(p)));
+    DBUG_RETURN(0); // Return before init will disable ndbcluster-SE.
+  }
 
 #ifdef HAVE_NDB_BINLOG
   /* Check const alignment */
