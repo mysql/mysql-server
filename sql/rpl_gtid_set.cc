@@ -920,8 +920,9 @@ size_t Gtid_set::to_string(char *buf, bool need_lock,
   memcpy(s, sf->end, sf->end_length);
   s += sf->end_length;
   *s= '\0';
-  DBUG_PRINT("info", ("ret='%s' strlen(s)=%zu s-buf=%lu get_string_length=%lu", buf,
-             strlen(buf), (ulong) (s - buf), get_string_length(sf)));
+  DBUG_PRINT("info", ("ret='%s' strlen(s)=%zu s-buf=%lu get_string_length=%llu", buf,
+             strlen(buf), (ulong) (s - buf),
+             static_cast<unsigned long long>(get_string_length(sf))));
   DBUG_ASSERT((ulong) (s - buf) == get_string_length(sf));
   if (sid_lock != NULL && need_lock)
     sid_lock->unlock();
