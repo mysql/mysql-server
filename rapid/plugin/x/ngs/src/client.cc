@@ -401,7 +401,11 @@ void Client::shutdown_connection()
 
 Request_unique_ptr Client::read_one_message(Error_code &ret_error)
 {
-  char buffer[5];
+  union
+  {
+    char buffer[5];                             // Must be properly aligned
+    longlong dummy;
+  };
   uint32_t msg_size;
 
   // read the frame

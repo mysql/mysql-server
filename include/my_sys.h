@@ -218,7 +218,7 @@ extern void (*fatal_error_handler_hook)(uint my_err, const char *str,
 extern void (*local_message_hook)(enum loglevel ll,
                                   const char *format, va_list args);
 extern uint my_file_limit;
-extern ulong my_thread_stack_size;
+extern MYSQL_PLUGIN_IMPORT ulong my_thread_stack_size;
 
 /*
   Hooks for reporting execution stage information. The server implementation
