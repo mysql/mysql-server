@@ -3435,7 +3435,7 @@ int ha_federated::execute_simple_query(const char *query, int len)
 {
   DBUG_ENTER("ha_federated::execute_simple_query");
 
-  if (mysql_real_query(mysql, query, len))
+  if (mysql_real_query(mysql, query, (ulong)len))
   {
     DBUG_RETURN(stash_remote_error());
   }

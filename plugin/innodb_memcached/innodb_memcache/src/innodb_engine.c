@@ -2240,6 +2240,9 @@ search_done:
 						&col_value->value_int,
 						col_value->value_len,
 						col_value->is_unsigned);
+
+                                        assert(int_len <= conn_data->mul_col_buf_len);
+
 					memcpy(c_value, int_buf, int_len);
 					c_value += int_len;
 				} else {

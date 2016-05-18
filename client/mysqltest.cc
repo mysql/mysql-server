@@ -9199,12 +9199,6 @@ int main(int argc, char **argv)
 
   parse_args(argc, argv);
 
-  if (opt_mark_progress)
-  {
-    progress_file.open(opt_logdir, result_file_name, ".progress");
-    verbose_msg("Tracing progress in '%s'.", progress_file.file_name());
-  }
-
   /* Init connections, allocate 1 extra as buffer + 1 for default */
   connections= (struct st_connection*)
     my_malloc(PSI_NOT_INSTRUMENTED,
@@ -9259,6 +9253,20 @@ int main(int argc, char **argv)
       temp_log_file.open(opt_logdir, cur_file->file_name, ".log");
     else
       temp_log_file.open(opt_logdir, "stdin", ".log");
+  }
+
+  if (opt_mark_progress)
+  {
+    if (result_file_name)
+      progress_file.open(opt_logdir, result_file_name, ".progress");
+    else
+    {
+      if(strcmp(cur_file->file_name, "<stdin>"))
+        progress_file.open(opt_logdir, cur_file->file_name, ".progress");
+      else
+        progress_file.open(opt_logdir, "stdin", ".progress");
+    }
+    verbose_msg("Tracing progress in '%s'.", progress_file.file_name());
   }
 
   var_set_string("MYSQLTEST_FILE", cur_file->file_name);

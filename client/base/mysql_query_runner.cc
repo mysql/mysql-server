@@ -303,7 +303,7 @@ void Mysql_query_runner::append_escape_string(
 
   int length = mysql_real_escape_string_quote(
     m_connection, &((*destination_string)[0]) + start_lenght, original,
-    original_length, '"');
+    (ulong)original_length, '"');
   destination_string->resize(start_lenght + length);
 }
 

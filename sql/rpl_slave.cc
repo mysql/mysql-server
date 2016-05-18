@@ -8427,6 +8427,9 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
      direct master (an unsupported, useless setup!).
   */
 
+  mysql_mutex_lock(log_lock);
+  DBUG_ASSERT(lock_count == 1);
+  lock_count= 2;
 
   s_id= uint4korr(buf + SERVER_ID_OFFSET);
 
@@ -8468,7 +8471,6 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
       IGNORE_SERVER_IDS it increments mi->get_master_log_pos()
       as well as rli->group_relay_log_pos.
     */
-    mysql_mutex_lock(log_lock);
     if (!(s_id == ::server_id && !mi->rli->replicate_same_server_id) ||
         (event_type != binary_log::FORMAT_DESCRIPTION_EVENT &&
          event_type != binary_log::ROTATE_EVENT &&
@@ -8480,7 +8482,6 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
       rli->ign_master_log_pos_end= mi->get_master_log_pos();
     }
     rli->relay_log.signal_update(); // the slave SQL thread needs to re-check
-    mysql_mutex_unlock(log_lock);
     DBUG_PRINT("info", ("master_log_pos: %lu, event originating from %u server, ignored",
                         (ulong) mi->get_master_log_pos(), uint4korr(buf + SERVER_ID_OFFSET)));
   }
@@ -8526,9 +8527,7 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
     }
     else
       is_error= true;
-    mysql_mutex_lock(log_lock);
     rli->ign_master_log_name_end[0]= 0; // last event is not ignored
-    mysql_mutex_unlock(log_lock);
     if (save_buf != NULL)
       buf= save_buf;
     if (is_error)
@@ -8547,6 +8546,8 @@ err:
 end:
   if (lock_count >= 1)
     mysql_mutex_unlock(&mi->data_lock);
+  if (lock_count >= 2)
+    mysql_mutex_unlock(log_lock);
   DBUG_PRINT("info", ("error: %d", error));
   DBUG_RETURN(error);
 }

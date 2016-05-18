@@ -3910,7 +3910,10 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     // Execute
 
     if (open_cursor)
+    {
+      lex->safe_to_cache_query= 0;
       error= mysql_open_cursor(thd, &result, &cursor);
+    }
     else
     {
       /*

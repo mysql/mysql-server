@@ -4620,10 +4620,6 @@ fsp_check_tablespace_size(ulint space_id)
 
         ulint	n_used = xdes_get_n_used(descr, &mtr);
         ulint	size = mach_read_from_4(space_header + FSP_SIZE);
-
-        xdes_mem_t      descr_mem(descr);
-
-        ib::info() << descr_mem;
         ut_a(n_used <= size);
 
 	mtr_commit(&mtr);

@@ -37,7 +37,7 @@ Darmstadt
 connection con1;
 SLEEP(10)
 0
-ERROR HY000: Cannot complete the operation becasue table is referenced by another connection. 
+ERROR HY000: Cannot complete the operation because table is referenced by another connection.
 connection default;
 disconnect con1;
 drop procedure alter_column;

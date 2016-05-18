@@ -65,7 +65,7 @@ Created 11/5/1995 Heikki Tuuri
 #include <map>
 #include <sstream>
 
-#if defined(HAVE_LIBNUMA) && defined(WITH_NUMA)
+#ifdef HAVE_LIBNUMA
 #include <numa.h>
 #include <numaif.h>
 
@@ -106,7 +106,7 @@ struct set_numa_interleave_t
 #define NUMA_MEMPOLICY_INTERLEAVE_IN_SCOPE set_numa_interleave_t scoped_numa
 #else
 #define NUMA_MEMPOLICY_INTERLEAVE_IN_SCOPE
-#endif /* HAVE_LIBNUMA && WITH_NUMA */
+#endif /* HAVE_LIBNUMA */
 
 /*
 		IMPLEMENTATION OF THE BUFFER POOL
@@ -861,7 +861,7 @@ buf_chunk_init(
 		return(NULL);
 	}
 
-#if defined(HAVE_LIBNUMA) && defined(WITH_NUMA)
+#ifdef HAVE_LIBNUMA
 	if (srv_numa_interleave) {
 		int	st = mbind(chunk->mem, chunk->mem_size(),
 				   MPOL_INTERLEAVE,
@@ -874,7 +874,7 @@ buf_chunk_init(
 				" (error: " << strerror(errno) << ").";
 		}
 	}
-#endif /* HAVE_LIBNUMA && WITH_NUMA */
+#endif /* HAVE_LIBNUMA */
 
 	/* Allocate the block descriptors from
 	the start of the memory block. */
@@ -2693,7 +2693,11 @@ page_found:
 	/* To obey latching order first release the hash_lock. */
 	rw_lock_x_unlock(*hash_lock);
 
+	mutex_enter(&buf_pool->LRU_list_mutex);
 	hash_lock_x_all(buf_pool->page_hash);
+
+	/* If not own LRU_list_mutex, page_hash can be changed. */
+	*hash_lock = buf_page_hash_lock_get(buf_pool, page_id);
 
 	/* We have to recheck that the page
 	was not loaded or a watch set by some other
@@ -2701,10 +2705,9 @@ page_found:
 	time window between when we release the
 	hash_lock to lock all the hash_locks. */
 
-	*hash_lock = buf_page_hash_lock_get(buf_pool, page_id);
-
 	bpage = buf_page_hash_get_low(buf_pool, page_id);
 	if (bpage) {
+		mutex_exit(&buf_pool->LRU_list_mutex);
 		hash_unlock_x_all_but(buf_pool->page_hash, *hash_lock);
 		goto page_found;
 	}
@@ -2734,6 +2737,8 @@ page_found:
 			ut_d(bpage->in_page_hash = TRUE);
 			HASH_INSERT(buf_page_t, hash, buf_pool->page_hash,
 				    page_id.fold(), bpage);
+
+			mutex_exit(&buf_pool->LRU_list_mutex);
 
 			/* Once the sentinel is in the page_hash we can
 			safely release all locks except just the
@@ -3423,7 +3428,7 @@ loop:
 
 	rw_lock_s_lock(hash_lock);
 
-	/* page_hash can be changed. */
+	/* If not own LRU_list_mutex, page_hash can be changed. */
 	hash_lock = buf_page_hash_lock_s_confirm(hash_lock, buf_pool, page_id);
 
 	if (block != NULL) {
@@ -3460,7 +3465,8 @@ loop:
 
 			rw_lock_x_lock(hash_lock);
 
-			/* page_hash can be changed. */
+			/* If not own LRU_list_mutex,
+			page_hash can be changed. */
 			hash_lock = buf_page_hash_lock_x_confirm(
 				hash_lock, buf_pool, page_id);
 
@@ -3646,6 +3652,7 @@ got_block:
 
 		mutex_enter(&buf_pool->LRU_list_mutex);
 
+		/* If not own LRU_list_mutex, page_hash can be changed. */
 		hash_lock = buf_page_hash_lock_get(buf_pool, page_id);
 
 		rw_lock_x_lock(hash_lock);
@@ -3807,15 +3814,13 @@ got_block:
 
 		if (buf_LRU_free_page(&fix_block->page, true)) {
 
-			if (mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
-				/* Hold LRU list mutex, see comment
-				in buf_pool_watch_set(). */
-				mutex_enter(&buf_pool->LRU_list_mutex);
-			}
-
-			/* page_hash can be changed. */
+			/* If not own LRU_list_mutex,
+			page_hash can be changed. */
 			hash_lock = buf_page_hash_lock_get(buf_pool, page_id);
 			rw_lock_x_lock(hash_lock);
+
+			/* If not own LRU_list_mutex,
+			page_hash can be changed. */
 			hash_lock = buf_page_hash_lock_x_confirm(
 				hash_lock, buf_pool, page_id);
 
@@ -3825,7 +3830,6 @@ got_block:
 				buffer pool in the first place. */
 				block = (buf_block_t*) buf_pool_watch_set(
 					page_id, &hash_lock);
-				mutex_exit(&buf_pool->LRU_list_mutex);
 			} else {
 				block = (buf_block_t*) buf_page_hash_get_low(
 					buf_pool, page_id);
