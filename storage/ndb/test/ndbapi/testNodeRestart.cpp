@@ -7654,6 +7654,11 @@ int runArbitrationWithApiNodeFailure(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
 
+  /**
+   * Clear error insert in next master.
+   */
+  restarter.insertErrorInNode(nextMaster, 0);
+
   return NDBT_OK;
 }
 
