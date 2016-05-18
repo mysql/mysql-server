@@ -1,10 +1,10 @@
 -- source include/have_ndb.inc
 #
 # Create a normal table with primary key
-# use varchar PK for consistent hashing
+# use char PK for consistent hashing
 #
 CREATE TABLE t1 (
-  a varchar(10) NOT NULL primary key,
+  a char(10) NOT NULL primary key,
   b int not null,
   unique (a,b),
   key(b, a)
@@ -70,7 +70,7 @@ alter table t1 algorithm=copy;
 #
 --error 1478
 CREATE TABLE t2 (
-  a varchar(10) NOT NULL primary key,
+  a char(10) NOT NULL primary key,
   b int not null,
   unique (a,b),
   key(b, a)
@@ -79,7 +79,7 @@ CREATE TABLE t2 (
 set session new = 1;
 --error 1296
 create table t2 (
-  a varchar(10) NOT NULL,
+  a char(10) NOT NULL,
   b int not null primary key,
   unique (a,b),
   key(b, a)
