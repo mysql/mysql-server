@@ -1,5 +1,5 @@
 CREATE TABLE t1 (
-a varchar(10) NOT NULL primary key,
+a char(10) NOT NULL primary key,
 b int not null,
 unique (a,b),
 key(b, a)
@@ -81,7 +81,7 @@ TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
 HashMap: DEFAULT-HASHMAP-3840-16
 -- Attributes --
-a Varchar(10;latin1_swedish_ci) PRIMARY KEY DISTRIBUTION KEY AT=SHORT_VAR ST=MEMORY
+a Char(10;latin1_swedish_ci) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Int NOT NULL AT=FIXED ST=MEMORY DYNAMIC
 c Int NULL AT=FIXED ST=MEMORY DYNAMIC
 -- Indexes -- 
@@ -117,7 +117,7 @@ TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
 HashMap: DEFAULT-HASHMAP-3840-16
 -- Attributes --
-a Varchar(10;latin1_swedish_ci) PRIMARY KEY DISTRIBUTION KEY AT=SHORT_VAR ST=MEMORY
+a Char(10;latin1_swedish_ci) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Int NOT NULL AT=FIXED ST=MEMORY DYNAMIC
 c Int NULL AT=FIXED ST=MEMORY DYNAMIC
 -- Indexes -- 
@@ -130,7 +130,7 @@ PRIMARY(a) - OrderedIndex
 NDBT_ProgramExit: 0 - OK
 
 CREATE TABLE t2 (
-a varchar(10) NOT NULL primary key,
+a char(10) NOT NULL primary key,
 b int not null,
 unique (a,b),
 key(b, a)
@@ -138,7 +138,7 @@ key(b, a)
 ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'READ_BACKUP=0 cannot be used for fully replicated tables'
 set session new = 1;
 create table t2 (
-a varchar(10) NOT NULL,
+a char(10) NOT NULL,
 b int not null primary key,
 unique (a,b),
 key(b, a)

@@ -2,7 +2,7 @@
 -- source include/not_embedded.inc
 
 CREATE TABLE t1 (
-  a varchar(10) NOT NULL primary key,
+  a char(10) NOT NULL primary key,
   b int
 ) comment='NDB_TABLE=FULLY_REPLICATED=1' ENGINE=ndbcluster;
 

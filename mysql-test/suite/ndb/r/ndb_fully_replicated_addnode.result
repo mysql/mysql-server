@@ -1,5 +1,5 @@
 CREATE TABLE t1 (
-a varchar(10) NOT NULL primary key,
+a char(10) NOT NULL primary key,
 b int
 ) comment='NDB_TABLE=FULLY_REPLICATED=1' ENGINE=ndbcluster;
 insert into t1 values
@@ -117,7 +117,7 @@ TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
 HashMap: DEFAULT-HASHMAP-3840-4
 -- Attributes --
-a Varchar(10;latin1_swedish_ci) PRIMARY KEY DISTRIBUTION KEY AT=SHORT_VAR ST=MEMORY
+a Char(10;latin1_swedish_ci) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Int NULL AT=FIXED ST=MEMORY DYNAMIC
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
@@ -324,7 +324,7 @@ TableStatus: Retrieved
 Table options: readbackup, fullyreplicated
 HashMap: DEFAULT-HASHMAP-3840-8
 -- Attributes --
-a Varchar(10;latin1_swedish_ci) PRIMARY KEY DISTRIBUTION KEY AT=SHORT_VAR ST=MEMORY
+a Char(10;latin1_swedish_ci) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Int NULL AT=FIXED ST=MEMORY DYNAMIC
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
