@@ -785,28 +785,3 @@ CHECK_TYPE_SIZE("socklen_t" SIZEOF_SOCKLEN_T)
 IF(SIZEOF_SOCKLEN_T)
   SET(HAVE_SOCKLEN_T 1)
 ENDIF()
-
-IF(WITH_NUMA)
-  SET(NUMA_HEADERS "numa.h;numaif.h")
-  CHECK_INCLUDE_FILES ("${NUMA_HEADERS}" HAVE_NUMA_HEADERS)
-  IF(HAVE_NUMA_HEADERS)
-    SET(SAVE_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
-    SET(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} numa)
-    CHECK_C_SOURCE_COMPILES(
-    "
-    #include <numa.h>
-    #include <numaif.h>
-    int main()
-    {
-       struct bitmask *all_nodes= numa_all_nodes_ptr;
-       set_mempolicy(MPOL_DEFAULT, 0, 0);
-       return all_nodes != NULL;
-    }"
-    HAVE_LIBNUMA)
-    SET(CMAKE_REQUIRED_LIBRARIES ${SAVE_CMAKE_REQUIRED_LIBRARIES})
-  ELSE()
-    MESSAGE(FATAL_ERROR "Unable to find NUMA header files ${NUMA_HEADERS}.")
-  ENDIF()
-ELSE()
-   SET(HAVE_LIBNUMA 0)
-ENDIF()
