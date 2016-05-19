@@ -664,6 +664,12 @@ void Connection::send(int mid, const Message &msg)
     uint8_t buf[5];                        // Must be properly aligned
     longlong dummy;
   };
+  /*
+    Use dummy, otherwise g++ 4.4 reports: unused variable 'dummy'
+    MY_ATTRIBUTE((unused)) did not work, so we must use it.
+  */
+  dummy= 0;
+
   uint32_t *buf_ptr = (uint32_t *)buf;
   *buf_ptr = msg.ByteSize() + 1;
 #ifdef WORDS_BIGENDIAN
@@ -872,6 +878,12 @@ Message *Connection::recv_raw(int &mid)
     char buf[5];                                // Must be properly aligned
     longlong dummy;
   };
+
+  /*
+    Use dummy, otherwise g++ 4.4 reports: unused variable 'dummy'
+    MY_ATTRIBUTE((unused)) did not work, so we must use it.
+  */
+  dummy= 0;
 
   return recv_message_with_header(mid, buf, 0);
 }
