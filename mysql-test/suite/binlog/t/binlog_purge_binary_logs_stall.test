@@ -11,6 +11,7 @@
 #
 
 # This test case is binary log format agnostic
+--source include/have_debug.inc
 --source include/have_binlog_format_row.inc
 
 # Create a new binary log file
