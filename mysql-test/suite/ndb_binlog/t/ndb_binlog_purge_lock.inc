@@ -34,7 +34,7 @@ insert into test.t1 select NULL, a from test.t1;
 insert into test.t1 select NULL, a from test.t1;
 insert into test.t1 select NULL, a from test.t1;
 
-sleep 20;
+--source include/wait_for_ndb_committed_to_binlog.inc
 
 --echo Have at least 100 epoch rows
 select count(*)/100 > 0 from mysql.ndb_binlog_index where File='./mysqld-bin.000001';
