@@ -1262,6 +1262,7 @@ static int event_class_dispatch(THD *thd, mysql_event_class_t event_class,
   else
   {
     plugin_ref *plugins, *plugins_last;
+    THD *stack_overflow_thd= current_thd;
 
     /*
       Does not allow infinite recursive calls that crash the server.
@@ -1269,8 +1270,12 @@ static int event_class_dispatch(THD *thd, mysql_event_class_t event_class,
       is receiving error event (MYSQL_AUDIT_GENERAL_ERROR). This condition
       breaks the recursion, when the stack size gets close to its minimal
       value.
+      The stack to be guarded should be the one of the currently running
+      thread.
+      If there's THD then a current_thd should be present too.
     */
-    if (check_stack_overrun(thd, STACK_MIN_SIZE * 5,
+    DBUG_ASSERT(stack_overflow_thd != NULL);
+    if (check_stack_overrun(stack_overflow_thd, STACK_MIN_SIZE * 5,
                             reinterpret_cast<uchar *>(&event_generic)))
     {
       return 0;
