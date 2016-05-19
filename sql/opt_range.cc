@@ -3370,6 +3370,16 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
 {
   partition_info *part_info = table->part_info;
   DBUG_ENTER("prune_partitions");
+
+  /*
+    If the prepare stage already have completed pruning successfully,
+    it is no use of running prune_partitions() again on the same condition.
+    Since it will not be able to prune anything more than the previous call
+    from the prepare step.
+  */
+  if (part_info && part_info->is_pruning_completed)
+    DBUG_RETURN(false);
+
   table->all_partitions_pruned_away= false;
 
   if (!part_info)
@@ -3393,15 +3403,6 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
     table->all_partitions_pruned_away= true;
     DBUG_RETURN(false);
   }
-
-  /*
-    If the prepare stage already have completed pruning successfully,
-    it is no use of running prune_partitions() again on the same condition.
-    Since it will not be able to prune anything more than the previous call
-    from the prepare step.
-  */
-  if (part_info->is_pruning_completed)
-    DBUG_RETURN(false);
 
   PART_PRUNE_PARAM prune_param;
   MEM_ROOT alloc;
