@@ -25,8 +25,6 @@
 #include "dd/impl/types/weak_object_impl.h" // Weak_object_impl
 #include "dd/object_id.h"                   // Object_id typedef
 
-#define RAPIDJSON_NO_SIZETYPEDEFINE
-namespace rapidjson { typedef ::std::size_t SizeType; }
 #include <rapidjson/document.h>     // rapidjson::GenericValue
 #include <rapidjson/prettywriter.h> // rapidjson::PrettyWriter
 
