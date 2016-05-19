@@ -408,6 +408,12 @@ Request_unique_ptr Client::read_one_message(Error_code &ret_error)
   };
   uint32_t msg_size;
 
+  /*
+    Use dummy, otherwise g++ 4.4 reports: unused variable 'dummy'
+    MY_ATTRIBUTE((unused)) did not work, so we must use it.
+  */
+  dummy= 0;
+
   // read the frame
   ssize_t nread = m_connection->read(buffer, 5);
   if (nread == 0) // EOF
