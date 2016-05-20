@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -294,7 +294,9 @@ ndb_serialize_cond(const Item *item, void *arg)
                 type != MYSQL_TYPE_TINY_BLOB &&
                 type != MYSQL_TYPE_MEDIUM_BLOB &&
                 type != MYSQL_TYPE_LONG_BLOB &&
-                type != MYSQL_TYPE_BLOB)
+                type != MYSQL_TYPE_BLOB &&
+                type != MYSQL_TYPE_JSON &&
+                type != MYSQL_TYPE_GEOMETRY)
             {
               const NDBCOL *col= tab->getColumn(field->field_name);
               DBUG_ASSERT(col);
