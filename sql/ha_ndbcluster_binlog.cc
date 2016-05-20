@@ -7550,11 +7550,3 @@ ndbcluster_show_status_binlog(char *buf, size_t buf_size)
     native_mutex_unlock(&injector_mutex);
   DBUG_RETURN(0);
 }
-
-
-#ifdef NDB_WITHOUT_SERVER_ID_BITS
-
-/* No --server-id-bits=<bits> -> implement constant opt_server_id_mask */
-ulong opt_server_id_mask = ~0;
-
-#endif
