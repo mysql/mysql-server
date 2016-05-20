@@ -373,7 +373,7 @@ void ndbcluster_disconnect(void)
         if (g_pool[i])
           delete g_pool[i];
       }
-      my_free((uchar*) g_pool, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(g_pool);
       native_mutex_destroy(&g_pool_mutex);
       g_pool= 0;
     }
