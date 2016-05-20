@@ -13782,7 +13782,6 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
 
   native_mutex_unlock(&ndbcluster_mutex);
 
-#ifndef NDB_WITHOUT_DIST_PRIV
   do
   {
     /**
@@ -13810,7 +13809,6 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
       delete thd;
     }
   } while (0);
-#endif
 
   DBUG_RETURN((ndb_setup_complete == 1)? 0 : 1);
 }
