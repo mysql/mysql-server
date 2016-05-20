@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,6 +68,7 @@ typedef struct Trans_table_info {
 typedef struct Trans_context_info {
   bool  binlog_enabled;
   ulong gtid_mode;               //enum values in enum_gtid_mode
+  bool log_slave_updates;
   ulong binlog_checksum_options; //enum values in enum enum_binlog_checksum_alg
   ulong binlog_format;           //enum values in enum enum_binlog_format
   // enum values in enum_transaction_write_set_hashing_algorithm
@@ -136,7 +137,7 @@ typedef struct Trans_param {
 /**
    Transaction observer parameter initialization.
 */
-#define TRANS_PARAM_ZERO { 0, 0, 0, 0, 0, 0, {0, 0, 0}, 0, 0, 0, 0, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0} }
+#define TRANS_PARAM_ZERO { 0, 0, 0, 0, 0, 0, {0, 0, 0}, 0, 0, 0, 0, 0, {0, 0, 0, 0, 0, 0, 0, 0, 0, 0} }
 
 /**
    Observes and extends transaction execution
