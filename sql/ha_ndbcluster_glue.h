@@ -44,14 +44,6 @@
 #include "sql_show.h"       // init_fill_schema_files_row,
                             // schema_table_store_record
 
-
-#if MYSQL_VERSION_ID >= 50501
-
-/* No mysql_rm_table_part2 anymore in 5.5.8 */
-#define NDB_NO_MYSQL_RM_TABLE_PART2
-
-#endif
-
 static inline
 uint32 thd_unmasked_server_id(const THD* thd)
 {
