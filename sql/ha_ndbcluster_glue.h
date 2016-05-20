@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,13 +46,6 @@
 
 
 #if MYSQL_VERSION_ID >= 50501
-
-/* my_free has lost last argument */
-static inline
-void my_free(void* ptr, myf MyFlags)
-{
-  my_free(ptr);
-}
 
 /* thd has no version field anymore */
 #define NDB_THD_HAS_NO_VERSION

@@ -1699,7 +1699,7 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
   /* Re-allocate bigger blob buffer for this row if necessary. */
   if (ha->m_blobs_row_total_size > ha->m_blobs_buffer_size)
   {
-    my_free(ha->m_blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(ha->m_blobs_buffer);
     DBUG_PRINT("info", ("allocate blobs buffer size %u",
                         (uint32)(ha->m_blobs_row_total_size)));
     /* Windows compiler complains about my_malloc on non-size_t
@@ -1994,7 +1994,7 @@ void ha_ndbcluster::release_blobs_buffer()
   if (m_blobs_buffer_size > 0)
   {
     DBUG_PRINT("info", ("Deleting blobs buffer, size %llu", m_blobs_buffer_size));
-    my_free(m_blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(m_blobs_buffer);
     m_blobs_buffer= 0;
     m_blobs_row_total_size= 0;
     m_blobs_buffer_size= 0;
@@ -2155,8 +2155,8 @@ int ha_ndbcluster::get_metadata(THD *thd, const char *path)
   if (readfrm(path, &data, &length) ||
       packfrm(data, length, &pack_data, &pack_length))
   {
-    my_free(data, MYF(MY_ALLOW_ZERO_PTR));
-    my_free(pack_data, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(data);
+    my_free(pack_data);
     DBUG_RETURN(1);
   }
 
@@ -2176,8 +2176,8 @@ int ha_ndbcluster::get_metadata(THD *thd, const char *path)
     DBUG_DUMP("frm", (uchar*) tab->getFrmData(), tab->getFrmLength());
     error= HA_ERR_TABLE_DEF_CHANGED;
   }
-  my_free((char*)data, MYF(0));
-  my_free((char*)pack_data, MYF(0));
+  my_free(data);
+  my_free(pack_data);
 
   /* Now check that any Ndb native defaults are aligned 
      with MySQLD defaults
@@ -2276,7 +2276,7 @@ static int fix_unique_index_attr_order(NDB_INDEX_DATA &data,
   unsigned sz= index->getNoOfIndexColumns();
 
   if (data.unique_index_attrid_map)
-    my_free((char*)data.unique_index_attrid_map, MYF(0));
+    my_free(data.unique_index_attrid_map);
   data.unique_index_attrid_map= (uchar*)my_malloc(PSI_INSTRUMENT_ME, sz,MYF(MY_WME));
   if (data.unique_index_attrid_map == 0)
   {
@@ -2353,7 +2353,7 @@ static void ndb_clear_index(NDBDICT *dict, NDB_INDEX_DATA &data)
 {
   if (data.unique_index_attrid_map)
   {
-    my_free((char*)data.unique_index_attrid_map, MYF(0));
+    my_free(data.unique_index_attrid_map);
   }
   if (data.ndb_unique_record_key)
     dict->releaseRecord(data.ndb_unique_record_key);
@@ -10930,7 +10930,7 @@ int ha_ndbcluster::create(const char *name,
   }
   if (packfrm(data, length, &pack_data, &pack_length))
   {
-    my_free((char*)data, MYF(0));
+    my_free(data);
     result= 2;
     goto abort_return;
   }
@@ -10938,8 +10938,8 @@ int ha_ndbcluster::create(const char *name,
              ("setFrm data: 0x%lx  len: %lu", (long) pack_data,
               (ulong) pack_length));
   tab.setFrm(pack_data, Uint32(pack_length));      
-  my_free((char*)data, MYF(0));
-  my_free((char*)pack_data, MYF(0));
+  my_free(data);
+  my_free(pack_data);
   
   /*
     Handle table row type
@@ -12994,7 +12994,7 @@ void ha_ndbcluster::local_close(THD *thd, bool release_metadata_flag)
          inx_bitmap++)
       if ((*inx_bitmap)->bitmap != m_pk_bitmap_buf)
         bitmap_free(*inx_bitmap);
-    my_free((char*)m_key_fields, MYF(0));
+    my_free(m_key_fields);
     m_key_fields= NULL;
   }
   if (m_share)
@@ -13168,7 +13168,7 @@ int ndbcluster_discover(handlerton *hton, THD* thd, const char *db,
 
   DBUG_RETURN(0);
 err:
-  my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(data);
   if (share)
   {
     /* ndb_share reference temporary free */
@@ -17653,7 +17653,7 @@ create_table_set_range_data(const partition_info *part_info,
           (range_val != LLONG_MAX))
       {
         my_error(ER_LIMITED_PART_RANGE, MYF(0), "NDB");
-        my_free((char*)range_data, MYF(0));
+        my_free(range_data);
         DBUG_RETURN(1);
       }
       range_val= INT_MAX32;
@@ -17661,7 +17661,7 @@ create_table_set_range_data(const partition_info *part_info,
     range_data[i]= (int32)range_val;
   }
   ndbtab.setRangeListData(range_data, num_parts);
-  my_free((char*)range_data, MYF(0));
+  my_free(range_data);
   DBUG_RETURN(0);
 }
 
@@ -17690,14 +17690,14 @@ create_table_set_list_data(const partition_info *part_info,
     if (list_val < INT_MIN32 || list_val > INT_MAX32)
     {
       my_error(ER_LIMITED_PART_RANGE, MYF(0), "NDB");
-      my_free((char*)list_data, MYF(0));
+      my_free(list_data);
       DBUG_RETURN(1);
     }
     list_data[2*i]= (int32)list_val;
     list_data[2*i+1]= list_entry->partition_id;
   }
   ndbtab.setRangeListData(list_data, 2*num_list_values);
-  my_free((char*)list_data, MYF(0));
+  my_free(list_data);
   DBUG_RETURN(0);
 }
 
@@ -18837,8 +18837,8 @@ int ha_ndbcluster::alter_frm(const char *file,
   {
     char errbuf[MYSYS_STRERROR_SIZE];
     DBUG_PRINT("info", ("Missing frm for %s", m_tabname));
-    my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
-    my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(data);
+    my_free(pack_data);
     error= 1;
     my_error(ER_FILE_NOT_FOUND, MYF(0), file,
              my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
@@ -18863,8 +18863,8 @@ int ha_ndbcluster::alter_frm(const char *file,
       error= ndb_to_mysql_error(&ndberr);
       my_error(ER_GET_ERRMSG, MYF(0), error, ndberr.message, "NDBCLUSTER");
     }
-    my_free((char*)data, MYF(MY_ALLOW_ZERO_PTR));
-    my_free((char*)pack_data, MYF(MY_ALLOW_ZERO_PTR));
+    my_free(data);
+    my_free(pack_data);
   }
 
   /* ndb_share reference schema(?) free */

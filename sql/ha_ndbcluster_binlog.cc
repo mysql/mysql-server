@@ -1425,8 +1425,8 @@ int find_all_files(THD *thd, Ndb* ndb)
           free_share(&share);  // temporary ref.
         }
       }
-      my_free((char*) data, MYF(MY_ALLOW_ZERO_PTR));
-      my_free((char*) pack_data, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(data);
+      my_free(pack_data);
 
       if (discover)
       {
@@ -2443,7 +2443,7 @@ class Ndb_schema_event_handler {
                                      ptrdiff);
         if (ret != 0)
         {
-          my_free(blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
+          my_free(blobs_buffer);
           DBUG_PRINT("info", ("blob read error"));
           DBUG_ASSERT(FALSE);
         }
@@ -2494,7 +2494,7 @@ class Ndb_schema_event_handler {
       field++;
       type= (Uint32)((Field_long *)*field)->val_int();
       /* free blobs buffer */
-      my_free(blobs_buffer, MYF(MY_ALLOW_ZERO_PTR));
+      my_free(blobs_buffer);
       dbug_tmp_restore_column_map(table->read_set, old_map);
     }
 
@@ -6161,8 +6161,8 @@ handle_data_event(THD* thd, Ndb *ndb, NdbEventOperation *pOp,
 
   if (share->flags & NSF_BLOB_FLAG)
   {
-    my_free(blobs_buffer[0], MYF(MY_ALLOW_ZERO_PTR));
-    my_free(blobs_buffer[1], MYF(MY_ALLOW_ZERO_PTR));
+    my_free(blobs_buffer[0]);
+    my_free(blobs_buffer[1]);
   }
 
   if (!own_buffer)
