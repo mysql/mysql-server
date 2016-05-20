@@ -6652,10 +6652,11 @@ runGetNdbIndexOperationTransactions(NDBT_Context* ctx, NDBT_Step* step)
       perform a transaction
       Expected Errors : 284 - Table not defined in transaction coordinator (or)
                         241 - Invalid schema object version (or)
-                        283 - Table is being dropped
+                   283/1226 - Table is being dropped
     */
     int result = runTransactionUsingNdbIndexOperation(pNdb, pIndexes, tab);
-    if(result != NDBT_OK && result != 241 && result != 284 && result != 283)
+    if(result != NDBT_OK && result != 241 && result != 284 &&
+       result != 283 && result != 1226)
     {
       /* Transaction failed with an unexpected error */
       ndberr << "Transaction failed with an unexpected error : " << result << endl;
