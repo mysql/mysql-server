@@ -13747,7 +13747,6 @@ Ndb_index_stat_thread ndb_index_stat_thread;
 
 extern THD * ndb_create_thd(char * stackptr);
 
-#ifndef NDB_NO_WAIT_SETUP
 static int ndb_wait_setup_func_impl(ulong max_wait)
 {
   DBUG_ENTER("ndb_wait_setup_func_impl");
@@ -13817,7 +13816,6 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
 }
 
 int(*ndb_wait_setup_func)(ulong) = 0;
-#endif
 
 static int
 ndbcluster_make_pushed_join(handlerton *, THD*, const AQP::Join_plan*);
@@ -14007,9 +14005,7 @@ int ndbcluster_init(void* p)
     ndbcluster_init_abort("Failed to start NDB Index Stat");
   }
 
-#ifndef NDB_NO_WAIT_SETUP
   ndb_wait_setup_func= ndb_wait_setup_func_impl;
-#endif
 
   memset(&g_slave_api_client_stats, 0, sizeof(g_slave_api_client_stats));
 
