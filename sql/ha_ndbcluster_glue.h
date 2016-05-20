@@ -94,49 +94,4 @@ Diagnostics_area* thd_stmt_da(THD* thd)
 #endif
 }
 
-#if MYSQL_VERSION_ID < 50500
-
-/*
-  MySQL Server has got its own mutex type in 5.5, add backwards
-  compatibility support allowing to write code in 7.0 that works
-  in future MySQL Server
-*/
-
-typedef pthread_mutex_t mysql_mutex_t;
-
-static inline
-int mysql_mutex_lock(mysql_mutex_t* mutex)
-{
-  return pthread_mutex_lock(mutex);
-}
-
-static inline
-int mysql_mutex_unlock(mysql_mutex_t* mutex)
-{
-  return pthread_mutex_unlock(mutex);
-}
-
-static inline
-void mysql_mutex_assert_owner(mysql_mutex_t* mutex)
-{
-  return safe_mutex_assert_owner(mutex);
-}
-
-typedef pthread_cond_t mysql_cond_t;
-
-static inline
-int mysql_cond_wait(mysql_cond_t* cond, mysql_mutex_t* mutex)
-{
-  return pthread_cond_wait(cond, mutex);
-}
-
-static inline
-int mysql_cond_timedwait(mysql_cond_t* cond, mysql_mutex_t* mutex,
-                         struct timespec* abstime)
-{
-  return pthread_cond_timedwait(cond, mutex, abstime);
-}
-
-#endif
-
 #endif
